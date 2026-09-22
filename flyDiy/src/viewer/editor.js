@@ -2072,11 +2072,14 @@ function editorInit(api) {
     if (!window.CLOUDS_UI) return;
     window.CLOUDS_UI.mount(body, railRows(), dayCtx());
   }
-  // the day panel, then a head for the shed's own light rows openFly borrows under it
+  // the day panel, the WEATHER under it (CLIMATE K2: the same panel the flight
+  // rail mounts - one panel, two rails), then a head for the shed's own light
+  // rows openFly borrows under it
   function buildDay(body) {
     if (!window.DAY_UI) return;
     const H = railRows();
     window.DAY_UI.mount(body, H, dayCtx());
+    if (window.WEATHER_UI) window.WEATHER_UI.mount(body, H, dayCtx());
     H.row(body, 'in the shed').classList.add('fsec');
   }
   function buildControls(body) {

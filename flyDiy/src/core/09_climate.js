@@ -277,16 +277,34 @@ var CLIMATE = (function () {
     }
     // setWind(spec | null) -> { base, spd } (the world's sea law reads it); the spec's declared or
     // legacy form, resolved once
+    // THE FRONT'S HAND ON THE WIND (K2). The day owns the timeline (07_day.js
+    // storm: an intensity, a veer, a wind and gust factor, all pure in the
+    // clock); the climate asks it for the numbers and re-resolves the column.
+    // `stormOf()` is read at every resolve AND whenever the day's front has
+    // moved — the viewer's tick calls `refresh()` for that — so the wind veers
+    // and rises through a passage without anything else being touched.
+    function stormOf() { const st = env.day && env.day.storm; return st && st.I > 0 ? st : null; }
+    let spec0 = null;                                   // the DECLARED spec, before the front's hand
     function setWind(spec) {
+      spec0 = spec || null;
       if (!spec) { windSpec = null; rich = null; mode = 'zero'; stats.mode = mode; version++; return { base: [0, 0, 0], spd: 0 }; }
       let base;
       if (spec.base) base = spec.base;
       else if (spec.mps != null || spec.kts != null)
         base = bearingToBase(spec.mps != null ? +spec.mps : +spec.kts * KT, spec.dirDeg, geo ? geo.convergenceDeg : 0);
       else base = [0, 0, 0];
-      windSpec = { base, gust: spec.gust || 0, refH: spec.refH || 0,
+      // the front: the wind rises, veers, and gusts harder through the passage
+      const st = stormOf();
+      let gust = spec.gust || 0;
+      if (st) {
+        const ph = st.veer * D2R, c = Math.cos(ph), sn = Math.sin(ph);
+        const bx = base[0] * c - base[2] * sn, bz = base[2] * c + base[0] * sn;
+        base = [bx * st.windK, base[1] * st.windK, bz * st.windK];
+        gust = Math.min(1.5, gust * st.gustK + 0.25 * (st.gustK - 1));
+      }
+      windSpec = { base, gust, refH: spec.refH || 0,
                    alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA };
-      const isRich = (spec.terrain > 0) || (spec.breeze > 0) || (spec.thermals > 0) || spec.aloftK != null || spec.veerDeg != null;
+      const isRich = (spec.terrain > 0) || (spec.breeze > 0) || (spec.thermals > 0) || spec.aloftK != null || spec.veerDeg != null || !!st;
       rich = isRich ? { terrain: +spec.terrain || 0, breeze: +spec.breeze || 0, thermals: +spec.thermals || 0,
                         aloftK: spec.aloftK != null ? +spec.aloftK : 1, veerDeg: spec.veerDeg != null ? +spec.veerDeg : 0,
                         gradH: spec.gradH != null ? +spec.gradH : GRAD_H } : null;
@@ -456,8 +474,63 @@ var CLIMATE = (function () {
       const b = windSpec ? windSpec.base : W0;
       return { spd: Math.hypot(b[0], b[2]), dir: Math.atan2(b[2], b[0]), base: b };
     }
+    // ---- THE COLUMN (K2) -----------------------------------------------------
+    // One air, asked for twice: the DENSITY comes from the world's own atmos
+    // (which is makeAtmos over the day's effective temperature, pressure and
+    // column shape, rebuilt lazily on the day's airKey), and the WATER from
+    // atmosWater over it. Both are cached on the pair of keys that can move
+    // them, so `profile(h)` is a few multiplies in the steady state and the
+    // panel can read it every frame.
+    let wKey = null, water = null, wAtm = null;
+    function waterNow() {
+      const atm = env.atmos ? env.atmos() : null;
+      const dew = env.day ? env.day.dewC : null;
+      const k = (env.day ? env.day.airKey : '-') + '|' + (dew == null ? '-' : Math.round(dew * 100));
+      if (k !== wKey || wAtm !== atm) { wKey = k; wAtm = atm; water = atm ? atmosWater(atm, dew) : null; }
+      return water;
+    }
+    // profile(h) -> { T, p, rho, sigma, rh, Td, lcl } at an altitude MSL
+    function profile(h) {
+      const atm = env.atmos ? env.atmos() : null, w = waterNow();
+      if (!atm) return null;
+      return { T: atm.T(h) - 273.15, p: atm.p(h), rho: atm.rho(h), sigma: atm.sigma(h),
+               rh: w ? w.rh(h) : null, Td: w ? w.Td(h) : null, lcl: w ? w.lcl : null,
+               mixH: atm.mixH, densityAlt: atm.densityAlt(h) };
+    }
+    // THE THERMAL'S CEILING (K2, used by K3): the lower of the day's lid and
+    // its condensation level. A capped day tops the columns at the lid and
+    // makes no cloud; an uncapped one tops them at the base and marks every
+    // one with a cumulus. Either way it is ONE number, derived, never declared.
+    function mixTop() {
+      const atm = env.atmos ? env.atmos() : null, w = waterNow();
+      const lid = atm && atm.mixH != null ? atm.mixH : null;
+      const lcl = w ? w.lcl : null;
+      if (lid == null && lcl == null) return 1200;                  // a fair-weather default, named
+      if (lid == null) return lcl;
+      if (lcl == null) return lid;
+      return Math.min(lid, lcl);
+    }
+    // haze(): what the mist reads (K4 wires it). Koschmieder's law turns a
+    // visibility into an extinction: beta = 3.912 / V. The day's own
+    // visibilityKm carries the turbidity and the humidity; a front thickens it.
+    function haze() {
+      const day = env.day;
+      if (!day) return null;
+      const st = stormOf();
+      let visKm = day.visibilityKm;
+      if (st) visKm *= 1 - 0.55 * st.I;                             // a front's murk, declared
+      const w = waterNow();
+      return { visibilityKm: visKm, rho0: 3.912 / Math.max(0.05, visKm * 1000),
+               top: 60, H: 18, rhSfc: w ? w.rh(0) : null, lcl: w ? w.lcl : null };
+    }
+    // refresh(): the viewer's tick calls this when the DAY's clock has moved,
+    // so a front's veer and rise reach the wind. Pure: re-resolving the
+    // declared spec against the day as it now is. A day with no front and no
+    // swing re-resolves to exactly the same numbers.
+    function refresh() { if (spec0) setWind(spec0); }
     return {
       setWind, wind, sample, reliefAt, ensureRelief, surfaceWind,
+      profile, mixTop, haze, refresh, get water() { return waterNow(); },
       get mode() { return mode; }, get spec() { return windSpec; }, get rich() { return rich; },
       get relief() { return relief; }, get version() { return version; }, stats,
     };

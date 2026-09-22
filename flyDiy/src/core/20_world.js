@@ -690,6 +690,7 @@ function makeWorld(seed, opts) {
   const day = DAY.makeDay((opts && opts.day) || null, GEO);
   const climate = CLIMATE.make({
     terrainH, surface, SURFACE, bounds: BOUNDS, day, geo: GEO, seed: SEED,
+    atmos: () => airNow(),                    // the column, live (K2)
     typeAt: ISL && ISL.ttype ? (x, z) => { const k = ISL.cellAt(x, z); return k < 0 ? -1 : ISL.ttype[k]; } : null,
     coastAt: ISL ? ISL.coastAt : null,
   });
@@ -724,10 +725,37 @@ function makeWorld(seed, opts) {
   // clock advances through day.advance(), which only the viewer calls.
   let weather = null;
   let atmos = ATMOS_ISA;
+  // THE AIR IS REBUILT LAZILY ON THE DAY'S OWN KEY (CLIMATE K2). It used to be
+  // rebuilt when `set` reported an air field had moved, which is still true and
+  // still enough for a declared change — but the clock can now MAKE weather
+  // (the diurnal swing, a front's temperature and pressure), and `advance()`
+  // deliberately never bumps the version. So the getter compares the day's
+  // `airKey` — one number over everything makeAtmos reads — and rebuilds only
+  // when it has moved. A day with neither a swing nor a front has a constant
+  // key, so `atmos` stays the SAME OBJECT and GATE DAY's identity check holds.
+  let atmosKey = null;
+  function airNow() {
+    const k = day.hasAir ? day.airKey : null;
+    if (k !== atmosKey) { atmosKey = k; atmos = k == null ? ATMOS_ISA : makeAtmos(day.air()); }
+    return atmos;
+  }
   function setDay(spec) {
-    const airChanged = day.set(spec);
-    if (airChanged) atmos = day.hasAir ? makeAtmos(day.air()) : ATMOS_ISA;
+    day.set(spec);
+    airNow();
     if (spec && 'wind' in spec) setWind(spec.wind || null);
+    else climate.refresh();                   // a front or a swing moved: re-resolve the column (K2)
+  }
+  // dayTick(dt): the VIEWER's clock step - the day advances and the wind
+  // follows the front through it. The solver never calls this (a gate's day is
+  // frozen and its air is constant), which is the two-clocks rule (09_climate).
+  function dayTick(dt) {
+    if (!(dt > 0)) return;
+    const st0 = day.storm ? day.storm.I : 0, sw = day.diurnalC > 0;
+    day.advance(dt);
+    const st1 = day.storm ? day.storm.I : 0;
+    if (st0 !== st1 || (sw && day.storm)) climate.refresh();
+    else if (st1 > 0) climate.refresh();
+    airNow();
   }
   // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
   // absent fields are CLEARED (the standard day, the zero wind), so the
@@ -783,11 +811,11 @@ function makeWorld(seed, opts) {
     // reach records and bake stats here without walking every tile.
     hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
     // ---- the day (G72): the air is a getter so it is read LIVE ----
-    get atmos() { return atmos; },
+    get atmos() { return airNow(); },
     get weather() { return weather; },
     setWeather,
     // ---- THE DAY (SKY S1): the whole day, read live; the sun in its sky ----
-    day, setDay, geo: GEO,
+    day, setDay, dayTick, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
     // ---- v0 shim: same live objects, byte-identical values ----

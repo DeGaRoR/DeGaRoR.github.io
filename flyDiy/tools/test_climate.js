@@ -7,8 +7,14 @@
 //   4. the relief raster: exact heights, bounded slopes, the coast's sign, the heat class, the build cost
 //   7. the linearised sampler agrees with the full field and earns its keep
 //  14. the sources: no Date / THREE / DOM in 09_climate.js; the manifests carry it; the world has no wind of its own
-// (5-6 ridge/crest, 8-9 thermals/breeze, 10 the profile, 11 the storm, 12 the sea, 13 the cloud link,
-//  15 the two clocks: added by their sessions — futureDesigns/CLIMATE-2026-09-22.md)
+//   5-6. the ridge lifts and the lee sinks; the crest speeds the wind up and the valley shelters it
+//  10. the column: the layered day (continuous, hydrostatic), and a condensation level DERIVED here
+//      that reproduces the day's own 125 m rule; humidity never moves the density
+//  11. the front on the clock: it rises, veers, drops the temperature and the pressure, closes the
+//      sky, and leaves behind the day it found - smoothly
+//  15. the two clocks: the sim's moves the gusts, the day's moves the front, and neither moves the other
+// (8-9 thermals/breeze, 12 the sea, 13 the cloud link: added by their sessions —
+//  futureDesigns/CLIMATE-2026-09-22.md)
 //
 //   src/core/09_climate.js, 20_world.js  ->  tools/flight_core.js  ->  here
 // Run: node tools/test_climate.js   (contract: one final `GATE CLIMATE: ...`)
@@ -273,6 +279,136 @@ console.log('7. the linearised sampler');
   W.setWind(null);
 }
 
+// ---- 10. the column: the layered day and the water in it -------------------------------
+console.log('10. the column');
+{
+  const { makeAtmos, atmosWater, ATMOS_ISA, ATM } = require('./flight_core.js');
+  // the ISA path is untouched: byte for byte, whatever else the file grew
+  const I = makeAtmos({});
+  yes(I.p(1000) === ATMOS_ISA.p(1000) && I.T(5000) === ATMOS_ISA.T(5000) && I.sigma(0) === 1,
+      'a cfg naming no shape runs the G72 closed form: sigma(0) is exactly 1 and the tables are the same numbers');
+  yes(I.layered === false && I.mixH === null, 'and says so: layered false');
+  // the hot-and-high day GATE HOTHIGH flies, still the closed form and still its own numbers
+  const H = makeAtmos({ oatC: 35, qnhPa: 100800 });
+  yes(H.layered === false && H.sigma(0) < 1 && Math.abs(H.densityAlt(420) - 1133) < 2,
+      `the hot-and-high day is unlayered and reads DA ${H.densityAlt(420).toFixed(0)} m at the 420 m bench`);
+  // the layered day: continuous, hydrostatic, and exact at sea level
+  const A = makeAtmos({ oatC: 22, qnhPa: 101000, lapse: 'mixed', mixH: 1400, inversion: { dT: 2.5, thick: 150 } });
+  yes(A.layered && A.mixH === 1400, 'a mixed day is layered');
+  yes(Math.abs(A.T(0) - (22 + 273.15)) < 1e-9 && A.p(0) === 101000, 'it starts at the declared temperature and QNH');
+  let worstT = 0, worstP = 0;
+  for (const h of [1400, 1550]) {                                     // the layer edges
+    const dT = Math.abs(A.T(h + 1e-6) - A.T(h - 1e-6)), dP = Math.abs(A.p(h + 1e-6) - A.p(h - 1e-6)) / A.p(h);
+    worstT = Math.max(worstT, dT); worstP = Math.max(worstP, dP);
+  }
+  yes(worstT < 1e-5 && worstP < 1e-9, `T and p are continuous across every layer edge (${worstT.toExponential(1)} K, ${worstP.toExponential(1)} rel)`);
+  // hydrostatic: dp/dh = -rho g, inside every layer
+  let worstH = 0;
+  for (const h of [100, 700, 1300, 1450, 1500, 1700, 3000, 8000]) {
+    const d = 0.5, num = (A.p(h + d) - A.p(h - d)) / (2 * d), want = -A.rho(h) * ATM.G0;
+    worstH = Math.max(worstH, Math.abs((num - want) / want));
+  }
+  yes(worstH < 1e-6, `and hydrostatic to ${worstH.toExponential(1)} relative inside every layer`);
+  // the mixed layer IS the dry adiabatic, and the lid really is a lid
+  const lapse = (a, b) => (A.T(a) - A.T(b)) / (b - a);
+  yes(Math.abs(lapse(0, 1000) - ATM.LD) < 1e-9, `the mixed layer lapses at the dry adiabatic (${(lapse(0, 1000) * 1000).toFixed(2)} K/km)`);
+  yes(A.T(1550) > A.T(1400), `the inversion is an inversion: ${(A.T(1400) - 273.15).toFixed(2)} C at 1400 m, ${(A.T(1550) - 273.15).toFixed(2)} at 1550`);
+  yes(Math.abs(lapse(2000, 5000) - ATM.L) < 1e-9, 'and the free atmosphere above it is the standard lapse again');
+  // THE WATER: under a mixed layer the profile's own LCL reproduces the day's 125 m rule EXACTLY
+  let worstL = 0;
+  for (const [T0, Td0] of [[22, 8], [30, 12], [15, 10], [35, 5], [8, 2]]) {
+    const M = makeAtmos({ oatC: T0, lapse: 'mixed', mixH: 5000 }), w = atmosWater(M, Td0);
+    worstL = Math.max(worstL, Math.abs(w.lcl - 125 * (T0 - Td0)));
+  }
+  yes(worstL < 1e-6, `the derived condensation level IS the day's 125 m per degree rule under a mixed layer (worst ${worstL.toExponential(1)} m over five pairs)`);
+  const W2 = atmosWater(A, 8);
+  yes(Math.abs(W2.rh(W2.lcl) - 1) < 1e-9 && W2.rh(0) < 0.6, `rh reaches exactly 1 at the base (${W2.lcl.toFixed(0)} m) and is ${(W2.rh(0) * 100).toFixed(0)} % at the surface`);
+  yes(W2.rh(W2.lcl + 600) < 0.55 && W2.Td(W2.lcl + 200) === A.T(W2.lcl + 200) - 273.15,
+      'above it the air is saturated through the deck and dries out over 500 m');
+  const dry = atmosWater(makeAtmos({ oatC: 30, lapse: 'mixed', mixH: 900, inversion: { dT: 4, thick: 200 } }), -5);
+  yes(dry.lcl == null || dry.lcl > 3000, `a capped dry day has no base a thermal can reach (${dry.lcl == null ? 'none' : dry.lcl.toFixed(0) + ' m'})`);
+  yes(atmosWater(A, null).lcl === null && atmosWater(A, null).rh(0) === null, 'and with no dew point declared there is no water at all');
+  // the world's column, and the thermals' ceiling
+  const W3 = makeWorld();
+  W3.setDay({ oatC: 22, dewC: 8, lapse: 'mixed', mixH: 1600 });
+  const pr = W3.climate.profile(500);
+  yes(pr && Math.abs(pr.T - (22 - 9.8 * 0.5)) < 0.02 && pr.rho > 1.1 && pr.rh > 0.4,
+      `world.climate.profile(500) reads T ${pr.T.toFixed(1)} C, rho ${pr.rho.toFixed(3)}, rh ${(pr.rh * 100).toFixed(0)} %`);
+  yes(Math.abs(W3.climate.mixTop() - 1600) < 1e-6, `the thermals' ceiling is the LOWER of the lid and the base (${W3.climate.mixTop().toFixed(0)} m: the lid, under a ${pr.lcl.toFixed(0)} m base)`);
+  W3.setDay({ mixH: 2500 });
+  yes(Math.abs(W3.climate.mixTop() - W3.climate.profile(0).lcl) < 1e-6, 'and the base when the lid is above it');
+  // HUMIDITY DOES NOT MOVE THE AIR (the dry-air cut, and GATE DAY's invariant)
+  const before = W3.atmos;
+  W3.setDay({ dewC: 2 });
+  yes(W3.atmos === before, 'moving the humidity leaves world.atmos the SAME OBJECT');
+  yes(Math.abs(W3.climate.profile(0).Td - 2) < 1e-9, 'while the water follows it live');
+}
+
+// ---- 11. the front on the clock ----------------------------------------------------------
+console.log('11. the front');
+{
+  const W4 = makeWorld();
+  const AT = 18 * 3600 + 3600;
+  W4.setDay({ date: '2026-06-21', utc: 18 * 3600, oatC: 20, qnhPa: 101300, dewC: 10,
+              wind: { kts: 10, dirDeg: 270, refH: 10 }, storm: { at: AT, intensity: 1 } });
+  const read = t => {
+    W4.setDay({ utc: 18 * 3600 + t });
+    const w = W4.wind(0, 100, 0, 0);
+    return { I: W4.day.storm.I, phase: W4.day.storm.phase, spd: Math.hypot(w[0], w[2]),
+             dir: Math.atan2(w[2], w[0]) * 180 / Math.PI, oat: W4.day.oatC, qnh: W4.day.qnhEff,
+             cover: W4.day.cloudCoverEff, type: W4.day.cloudTypeEff, vis: W4.climate.haze().visibilityKm };
+  };
+  const calm = read(-7200), pre = read(1800), pass = read(3900), post = read(9000), gone = read(20000);
+  yes(calm.I === 0 && calm.phase === 'none', 'before it, nothing: I 0');
+  yes(pre.I > 0.5 && pre.spd > calm.spd * 1.4, `the wind rises ahead of it (${calm.spd.toFixed(1)} -> ${pre.spd.toFixed(1)} m/s at I ${pre.I.toFixed(2)})`);
+  yes(pass.I === 1 && Math.abs(pass.dir - calm.dir) > 10, `it veers through the passage (${calm.dir.toFixed(0)} -> ${pass.dir.toFixed(0)} deg)`);
+  yes(pass.oat < calm.oat - 3 && pass.qnh < calm.qnh - 500, `the temperature drops ${(calm.oat - pass.oat).toFixed(1)} C and the pressure ${((calm.qnh - pass.qnh) / 100).toFixed(1)} hPa`);
+  yes(pass.cover > 0.9 && pass.type === 'cb' && pass.vis < calm.vis * 0.6, `the sky closes to ${pass.cover.toFixed(2)} ${pass.type} and the visibility falls ${calm.vis.toFixed(0)} -> ${pass.vis.toFixed(0)} km`);
+  yes(post.I < 1 && post.I > 0 && gone.I === 0 && Math.abs(gone.spd - calm.spd) < 1e-9 && gone.type === 'cu',
+      'and it clears: the day it leaves behind is the day it found');
+  // no jumps: the field is smooth in the clock
+  let worst = 0, prev = null;
+  for (let t = -3600; t <= 22000; t += 60) { const r = read(t); if (prev) worst = Math.max(worst, Math.abs(r.spd - prev)); prev = r.spd; }
+  yes(worst < 3, `and it arrives smoothly: never more than ${worst.toFixed(2)} m/s of change in a minute of the clock`);
+  // the SWING, which is the day's own and not a front's
+  const W5 = makeWorld();
+  W5.setDay({ date: '2026-06-21', oatC: 15, diurnalC: 12, dewC: 5 });
+  const at = h => { W5.setDay({ localHours: h }); return W5.day.oatC; };
+  const dawn = at(5), noon = at(15), night = at(2);
+  yes(noon > dawn + 6 && night < dawn + 3, `the diurnal swing: ${dawn.toFixed(1)} C at 05:00, ${noon.toFixed(1)} at 15:00, ${night.toFixed(1)} at 02:00`);
+  W5.setDay({ diurnalC: 0 });
+  yes(Math.abs(W5.day.oatC - 15) < 1e-9, 'and diurnalC 0 - the default - is exactly the declared temperature');
+}
+
+// ---- 15. the two clocks -------------------------------------------------------------------
+console.log('15. the two clocks');
+{
+  const W6 = makeWorld();
+  W6.setDay({ date: '2026-06-21', utc: 18 * 3600, rate: 0, oatC: 18, dewC: 6,
+              wind: { kts: 14, dirDeg: 200, refH: 10, gust: 0.4 },
+              storm: { at: 18 * 3600 + 1800, intensity: 1 } });
+  // the SIM clock moves: the gusts move, the front does not
+  const a0 = W6.wind(10, 100, 20, 0).slice(), a1 = W6.wind(10, 100, 20, 7).slice();
+  const I0 = W6.day.storm.I;
+  yes(Math.hypot(a0[0] - a1[0], a0[1] - a1[1], a0[2] - a1[2]) > 0.05, 'the sim clock moves the gusts');
+  yes(W6.day.storm.I === I0 && W6.day.utc === 18 * 3600, 'and moves neither the front nor the day (rate 0, and the solver never advances it)');
+  // the DAY clock moves only when the viewer ticks it, and then the front follows
+  W6.setDay({ rate: 1 });
+  W6.dayTick(600);
+  yes(W6.day.utc === 18 * 3600 + 600 && W6.day.storm.I > I0, `world.dayTick(600) walks the day and the front with it (I ${I0.toFixed(2)} -> ${W6.day.storm.I.toFixed(2)})`);
+  const b0 = Math.hypot(...W6.wind(0, 100, 0, 0));
+  W6.dayTick(900);
+  yes(Math.hypot(...W6.wind(0, 100, 0, 0)) > b0, 'and the wind it has made is the wind the solver reads');
+  // determinism: the same clock, the same field, whatever route was taken to it
+  const W7 = makeWorld();
+  W7.setDay({ date: '2026-06-21', utc: 18 * 3600 + 1500, rate: 1, oatC: 18, dewC: 6,
+              wind: { kts: 14, dirDeg: 200, refH: 10, gust: 0.4 },
+              storm: { at: 18 * 3600 + 1800, intensity: 1 } });
+  const p6 = W6.wind(33, 210, -77, 12.5), p7 = W7.wind(33, 210, -77, 12.5);
+  yes(Object.is(p6[0], p7[0]) && Object.is(p6[1], p7[1]) && Object.is(p6[2], p7[2]),
+      'a day ticked to an instant and a day set to it are the same air, bit for bit');
+}
+
 // ---- 14. the sources -------------------------------------------------------------------
 console.log('14. the sources');
 {
@@ -284,6 +420,36 @@ console.log('14. the sources');
   const world = core('20_world.js');
   yes(!/function wind\(/.test(world) && /CLIMATE\.make\(/.test(world), '20_world.js has no wind() of its own: the climate makes it');
   yes(/const GC = \[/.test(cl) && /function windLegacy\(/.test(cl) && /WV\[1\] \+= gk \* 0\.18 \* ay \* s/.test(cl), 'the G72 field lives in 09_climate.js verbatim');
+  // K2: the water is its own function, so humidity can never rebuild the air
+  const at = core('05_atmos.js');
+  // makeAtmos's own body - from its head to the comment block that opens the water's - must not
+  // mention the humidity at all: that is what keeps a dew point from rebuilding the density
+  const mkBody = at.slice(at.indexOf('function makeAtmos'), at.indexOf('// ---- THE WATER IN THE COLUMN'));
+  yes(/function atmosWater\(/.test(at) && !/dewC|\brh\b/.test(mkBody),
+      'the water is atmosWater(), outside makeAtmos: humidity cannot rebuild the density');
+  const dayS = core('07_day.js');
+  yes(/AIR_KEYS = \['oatC', 'dISA', 'qnhPa', 'lapse', 'mixH', 'inversion'\]/.test(dayS), "and the day's AIR_KEYS carry the column's shape but not the humidity");
+  yes(!/new Date\(|Date\.now\(|THREE\.|window\.|document\./.test(dayS), '07_day.js still has no Date, no THREE, no DOM');
+  // K2: the viewer's wiring
+  const vw = f => fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');
+  const app = vw('app.js');
+  yes(!/windBase/.test(app), 'app.js has no windBase: every reader is on the climate now');
+  yes(/selCond.\)\.onchange/.test(app) && /WEATHER_UI[\s\S]{0,200}PRESETS\.find/.test(app),
+      'the #selCond handler is still the one keeper, and what it applies is a WEATHER panel preset');
+  yes(/flWeatherLive/.test(app) && /flyOpen === 'weather'/.test(app), "and the panel's live rows tick on its own flyout");
+  yes(/'weather_ui\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'build.js MANIFEST carries weather_ui.js');
+  const wu = vw('weather_ui.js');
+  // every write is a day write: no setWeather CALL anywhere in the panel's code
+  // (the header comment names it as the thing this replaced, which is not a call)
+  yes(/CK\.set\(/.test(wu) && !/\.setWeather\(/.test(wu), 'the panel writes through the day, never through setWeather');
+  const dc = vw('day_clock.js');
+  yes(/weatherFromUrl/.test(dc) && /wind=/.test(dc) && /storm=/.test(dc), 'day_clock.js parses ?wind= and ?storm=');
+  yes(/sp\.wind \|\| null/.test(dc), 'and saves the weather with the day');
+  yes(/world\.dayTick/.test(dc), "and its tick is the world's, so a front reaches the wind");
+  const ed = vw('editor.js');
+  yes(/WEATHER_UI\.mount/.test(ed), 'the shed mounts the same panel (one panel, two rails)');
+  const dp = vw('dev_panel.js');
+  yes(/fold\(root, 'climate'/.test(dp), 'and the F8 panel has a climate fold');
 }
 
 // ---- verdict -------------------------------------------------------------------------------

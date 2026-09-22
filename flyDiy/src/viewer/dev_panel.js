@@ -361,6 +361,55 @@
       rows.push(R); live.push(R);
       K.appendChild(n);
     }
+    // ---- THE CLIMATE (K2, 2026-09-22): the wind field and the column ----------------
+    // The player's dials are the WEATHER panel's (weather_ui.js, both rails); these
+    // are the developer's: the same day fields, plus what the climate makes of them.
+    {
+      const wx = () => (W.WORLD && W.WORLD.world ? W.WORLD.world : null);
+      const cl = () => { const w = wx(); return w && w.climate ? w.climate : null; };
+      const wd = () => { const d = dy(); return (d && d.wind) || {}; };
+      const setW = patch => { if (!ck()) return; const w = Object.assign({ refH: 10 }, wd(), patch);
+        ck().set({ wind: w.kts > 0 ? w : null }); };
+      const C = fold(root, 'climate', true);
+      C.appendChild(slider('wind', 0, 45, 1, () => (wd().kts || 0), v => setW({ kts: v }), v => v.toFixed(0) + ' kt'));
+      C.appendChild(slider('from', 0, 355, 5, () => (wd().dirDeg || 0), v => setW({ dirDeg: v }), v => v.toFixed(0) + '°'));
+      C.appendChild(slider('gust', 0, 1, 0.05, () => (wd().gust || 0), v => setW({ gust: v }), v => '±' + (v * 100).toFixed(0) + '%'));
+      C.appendChild(slider('terrain', 0, 1, 0.1, () => (wd().terrain || 0), v => setW({ terrain: v })));
+      C.appendChild(slider('thermals', 0, 1, 0.1, () => (wd().thermals || 0), v => setW({ thermals: v })));
+      C.appendChild(slider('aloft x', 1, 1.8, 0.05, () => (wd().aloftK != null ? wd().aloftK : 1), v => setW({ aloftK: v })));
+      C.appendChild(slider('veer', 0, 40, 5, () => (wd().veerDeg || 0), v => setW({ veerDeg: v }), v => v.toFixed(0) + '°'));
+      C.appendChild(slider('dew point', -30, 30, 1, () => (dy() && dy().dewC != null ? dy().dewC : NaN), v => { if (ck()) ck().set({ dewC: v }); }, v => v.toFixed(0) + '°C'));
+      C.appendChild(slider('swing', 0, 18, 1, () => (dy() ? dy().diurnalC : NaN), v => { if (ck()) ck().set({ diurnalC: v || null }); }, v => (v ? '±' + (v / 2).toFixed(1) + '°C' : 'off')));
+      C.appendChild(select('column', [['isa', 'standard 6.5'], ['mixed', 'mixed layer']],
+        () => (dy() && dy().spec().lapse === 'mixed' ? 'mixed' : 'isa'),
+        v => { if (ck()) ck().set(v === 'mixed' ? { lapse: 'mixed' } : { lapse: null, mixH: null, inversion: null }); }));
+      C.appendChild(slider('mixed to', 300, 3500, 100, () => { const d = dy(); return d ? (d.spec().mixH != null ? d.spec().mixH : 1200) : NaN; },
+        v => { if (ck()) ck().set({ lapse: 'mixed', mixH: v }); }, v => v.toFixed(0) + ' m'));
+      C.appendChild(slider('the lid', 0, 8, 0.5, () => { const d = dy(); const iv = d && d.spec().inversion; return iv ? (iv.dT || 0) : 0; },
+        v => { if (ck()) ck().set({ lapse: 'mixed', inversion: v > 0 ? { dT: v, thick: 200 } : null }); }, v => (v ? '+' + v.toFixed(1) + '°C' : 'none')));
+      C.appendChild(select('front', [['0', 'none'], ['3600', 'in 1 h'], ['10800', 'in 3 h'], ['60', 'now']],
+        () => { const d = dy(); if (!d || !d.stormSpec) return '0';
+          const dt = d.stormSpec.at - d.utc;
+          return dt > 7200 ? '10800' : dt > 900 ? '3600' : '60'; },
+        v => { const d = dy(); if (ck()) ck().set({ storm: +v ? { at: d.utc + +v, intensity: 1 } : null }); }));
+      { const n = note('');
+        const R = { el: n, refresh: () => {
+          const c = cl(), d = dy();
+          if (!c || !d) { n.textContent = 'no climate'; return; }
+          const pr = c.profile ? c.profile(0) : null, hz = c.haze ? c.haze() : null, st = d.storm;
+          const sw = c.surfaceWind(), S = c.stats || {};
+          n.textContent = `${sw.spd.toFixed(1)} m/s at ${(sw.dir * 180 / Math.PI).toFixed(0)}° · ${c.mode}`
+            + (pr ? ` · ${pr.T.toFixed(1)}°C rh ${(pr.rh == null ? NaN : pr.rh * 100).toFixed(0)}%` : '')
+            + ` · thermals to ${c.mixTop ? c.mixTop().toFixed(0) : '?'} m`
+            + (pr && pr.lcl != null ? ` (base ${pr.lcl.toFixed(0)})` : ' (no base)')
+            + (hz ? ` · vis ${hz.visibilityKm.toFixed(0)} km` : '')
+            + (st ? ` · front ${st.phase} I ${st.I.toFixed(2)}` : '')
+            + ` · raster ${c.relief ? c.relief.nx + '²  ' + S.rasterMs.toFixed(0) + ' ms' : 'not built'}`
+            + ` · ${S.full || 0} full / ${S.linear || 0} linear`;
+        } };
+        rows.push(R); live.push(R); C.appendChild(n);
+      }
+    }
     // ---- THE ATMOSPHERE (SKY S3): the day's air as the sky sees it -------------------
     const A = fold(root, 'atmosphere', true);
     A.appendChild(slider('turbidity', 1.5, 10, 0.1, () => (dy() ? dy().turbidity : NaN), v => { if (ck()) ck().set({ turbidity: v }); }, v => v.toFixed(1) + (v < 3 ? ' clear' : v < 6 ? ' hazy' : ' thick')));

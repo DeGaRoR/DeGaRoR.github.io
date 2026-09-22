@@ -6884,22 +6884,28 @@
   // the windsock's wind, 10 m up, and the air at circuit height is faster
   // (20_world.js). Without it a wind is a uniform column, which is what the
   // fleet's gate battery is still calibrated in.
-  const W10 = (base, gust) => ({ base, gust, refH: 10 });
-  const CONDITIONS = {
-    calm:  { wind: null },
-    light: { wind: W10([-1.7, 0, 1.9], 0) },
-    mod:   { wind: W10([-2.6, 0, 3.0], 0.5) },
-    fresh: { wind: W10([-3.9, 0, 4.6], 0.9) },
-    // SKY chantier: a day has WATER too - the dewpoint sets the cloud base (125 m a degree of spread) and the haze
-    hot:   { oatC: 35, qnhPa: 100800, dewC: 12, wind: W10([-2.2, 0, 2.6], 0.7) },
-    cold:  { oatC: 0,  qnhPa: 103000, dewC: -3, wind: null },
-  };
-  let windBase = null;
+  // CLIMATE K2 (2026-09-22): the presets are WEATHER_UI's and they are DAY
+  // specs, so a preset now names a wind DIRECTION, the column's shape and a
+  // front as readily as a temperature - and the whole of it round-trips
+  // through day.spec(), the pref and the URL. This handler stays the ONE place
+  // a preset is applied (the panel presses the select); `world.setDay` hands
+  // the wind to the climate, which resolves it.
   $('selCond').onchange = e => {
-    const c = CONDITIONS[e.target.value] || null;
-    world.setWeather(c);
-    windBase = c && c.wind ? c.wind.base : null;
-    if (WF && WF.setWindVis) WF.setWindVis(windBase);
+    const P = window.WEATHER_UI;
+    if (!P) return;
+    const p = P.PRESETS.find(x => x.k === e.target.value);
+    if (!p) return;
+    if (typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.set) DAY_CLOCK.set(P.dayOf(p, world.day));
+    else world.setDay(P.dayOf(p, world.day));
+    if (WF && WF.setWindVis) WF.setWindVis(windNow());
+  };
+  // the wind the renderer aims its socks and ripples at: the climate's own 10 m
+  // wind, which is the declared base with the front's hand already on it
+  const windNow = () => {
+    const c = world.climate;
+    if (!c || !c.surfaceWind) return null;
+    const sw = c.surfaceWind();
+    return sw.spd > 0.02 ? sw.base : null;
   };
   $('bPause').onclick = e => {
     running = !running;
@@ -6985,6 +6991,7 @@
     // the air's own numbers, in the flyout that is about the air (G72's OAT
     // and density altitude, which were two of the twelve cells)
     if (flyOpen === 'air') flAirLive(o);
+    if (flyOpen === 'weather') flWeatherLive();       // CLIMATE K2: the front walks the clock, these walk with it
     if (flyOpen === 'ground') flGroundLive(o);
     // G441 (A4): the frame rate, on the GRAPHICS flyout while it is open (the user:
     // "we need a framerate indicator, optional") - a half-second window of frames
@@ -7197,15 +7204,16 @@
     };
     chip(6 * mk, 114 * mk);
     g.font = `600 ${Math.round(17 * mk)}px "IBM Plex Mono", monospace`;
-    if (windBase) {
+    const wMap = windNow();                                // the climate's 10 m wind (CLIMATE K2)
+    if (wMap) {
       g.save(); g.translate(24 * mk, 23 * mk);
-      g.rotate(Math.atan2(windBase[2], windBase[0]) + rot); g.scale(mk, mk);
+      g.rotate(Math.atan2(wMap[2], wMap[0]) + rot); g.scale(mk, mk);
       g.strokeStyle = '#ffb257'; g.lineWidth = 2.6; g.lineCap = 'round';
       g.beginPath(); g.moveTo(-8, 0); g.lineTo(7, 0); g.stroke();
       g.beginPath(); g.moveTo(2.5, -4.2); g.lineTo(8, 0); g.lineTo(2.5, 4.2); g.stroke();
       g.restore();
       g.fillStyle = '#fbf4ea';
-      g.fillText(Math.hypot(windBase[0], windBase[2]).toFixed(1) + ' m/s', 42 * mk, 29 * mk);
+      g.fillText(Math.hypot(wMap[0], wMap[2]).toFixed(1) + ' m/s', 42 * mk, 29 * mk);
     } else {
       g.strokeStyle = 'rgba(251,244,234,.5)'; g.lineWidth = 2 * mk;
       g.beginPath(); g.arc(24 * mk, 23 * mk, 4 * mk, 0, 6.283); g.stroke();
@@ -7337,6 +7345,11 @@
       icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z' },
     { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look',
       icon: 'M5.4 13.6h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z' },
+    // CLIMATE K2: THE WEATHER - the wind and its direction, the air, the shape
+    // of the column, a front on the clock (weather_ui.js, on both rails). A
+    // windsock glyph: a mast and a cone streaming off it.
+    { k: 'weather', label: 'weather', title: 'The wind, the air, the front',
+      icon: 'M4 3v12|M4 5.2h9l-1.6 2.2 1.6 2.2H4' },
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
     // G387: WORLD - the premises editor (PREMISES-EDITOR-2026-09-13.md), the bench's own module
@@ -7751,6 +7764,13 @@
       b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
       body.appendChild(b);
       if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }
+    },
+    // CLIMATE K2: THE WEATHER - weather_ui.js in this rail's own rows and pills
+    weather(body) {
+      if (!window.WEATHER_UI) { flNote(body, 'This build has no weather panel.'); return; }
+      const H = { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField, live: flLive };
+      window.WEATHER_UI.mount(body, H, { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,
+                                         refresh: flRefreshDay, open: flyOpenSet });
     },
     // 2026-09-20: THE CLOUDS - clouds_ui.js in this rail's own rows and pills
     night(body) {
@@ -8217,16 +8237,26 @@
     const c = TF && TF.cover && TF.cover(), st = c && c.stat();
     $('flGndRing').textContent = st ? (st.instances ? (st.instances / 1000).toFixed(0) + ' k tufts in ' + st.live + ' cells' : (agl > 150 ? 'above the ring (150 m)' : 'none here')) : 'no cover ring';
   }
+  // THE AIR, LIVE (CLIMATE K2): off the CLIMATE and the DAY, not off a preset's
+  // table - the wind here is the one the solver is flying in, with the front's
+  // hand already on it, and the gust is the day's declared one.
+  // THE WEATHER PANEL'S LIVE LINES (CLIMATE K2): its own rows on its own
+  // flyout, so they tick whether or not the air flyout is the open one - a
+  // front walking the clock at 60x shows in them without a click.
+  function flWeatherLive() {
+    if (!window.WEATHER_UI || !world || !world.day || !$('wxWind')) return;
+    const L = window.WEATHER_UI.lines(world.day);
+    for (const k of Object.keys(L)) { const el = $(k); if (el) el.textContent = L[k]; }
+  }
   function flAirLive(o) {
     const w = $('flAirWind');
     if (!w) return;
-    const s = flS('Cond'), C = (typeof CONDITIONS === 'object' &&
-      CONDITIONS[s.value]) || null;
-    const g = C && C.wind ? (C.wind.gust || 0) : 0;
+    const wb = windNow(), dw = (world && world.day && world.day.wind) || null;
+    const g = dw ? (dw.gust || 0) : 0;
     $('flAirOat').textContent = ((o && o.oatC != null) ? o.oatC : 15).toFixed(0) + ' °C';
     $('flAirDalt').textContent = ((o && o.densityAlt) || 0).toFixed(0) + ' m';
-    w.textContent = windBase
-      ? Math.hypot(windBase[0], windBase[2]).toFixed(1) + ' m/s at 10 m'
+    w.textContent = wb
+      ? Math.hypot(wb[0], wb[2]).toFixed(1) + ' m/s at 10 m'
       : 'calm';
     $('flAirGust').textContent = g ? '±' + (g * 100).toFixed(0) + ' %' : 'none';
     const t = $('flAirTime');

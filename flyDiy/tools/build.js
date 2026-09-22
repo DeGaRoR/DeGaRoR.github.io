@@ -327,7 +327,7 @@ const MANIFEST = {
     // storage.js first (LOADING S4): the media cache's worker registers at load and
     // the version line reads FLYDIY_BUILD; nothing else depends on it
     scripts: ['storage.js', 'assets.js', 'aa_resolve.js',
-              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js',
+              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js', 'site_tex.js', 'site_ground.js',
