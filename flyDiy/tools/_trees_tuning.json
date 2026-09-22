@@ -1,5 +1,5 @@
 {
- "note": "flyDiy tree bench \u2014 per-SPECIES tuning (W0a per file; 2026-09-15 a species names its file, subjects, snags, kind) + the mixes. Save as flyDiy/tools/_trees_tuning.json.",
+ "note": "flyDiy tree bench — per-SPECIES tuning (W0a per file; 2026-09-15 a species names its file, subjects, snags, kind) + the mixes. Save as flyDiy/tools/_trees_tuning.json.",
  "generated": "2026-09-20T20:17:19.981Z",
  "reference": "ash",
  "master": {
@@ -412,7 +412,8 @@
     "coverNear": 50,
     "rocks": 8,
     "ttype": 6,
-    "coverSpread": 0.08
+    "coverSpread": 0.08,
+    "rockMap": 1
    }
   },
   "shore": {
@@ -752,7 +753,8 @@
     "coverNear": 50,
     "rocks": 150,
     "ttype": 11,
-    "coverSpread": 0.08
+    "coverSpread": 0.08,
+    "rockMap": 1
    }
   }
  },

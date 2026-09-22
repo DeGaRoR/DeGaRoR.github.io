@@ -203,6 +203,14 @@
         Sm.appendChild(slider('puddle scale', 0.5, 8, 0.5, kn('pudSlope'), ss('pudSlope'), v => 'x' + v));
         Sm.appendChild(slider('lake edge', 0.2, 8, 0.2, kn('lakeEdge'), ss('lakeEdge'), v => v + ' m'));
         Sm.appendChild(slider('beach angle', -180, 180, 5, kn('beachRot'), ss('beachRot'), v => v + '\u00b0'));
+        // THE ROCK MAP (2026-09-22): the rocks' far tier - their top view projected on the ground where the meshes have faded
+        const RM = world().ground.rockMap && world().ground.rockMap();
+        if (RM) { const Sr = fold(Sf, 'rocks at distance (the rock map)', false, true);
+          Sr.appendChild(select('rock map', [['1', 'on'], ['0', 'off (the meshes alone)']], () => String(RM.get().on ? 1 : 0), v => RM.set({ on: !!+v })));
+          Sr.appendChild(slider('half width', 300, 2000, 50, () => RM.get().half, v => { RM.set({ half: v }); RM.replan(); }, v => v + ' m'));
+          Sr.appendChild(slider('re-centre at', 100, 900, 25, () => RM.get().recentre, v => RM.set({ recentre: v }), v => v + ' m'));
+          Sr.appendChild(button('replan', () => RM.replan()));
+          Sr.appendChild(note('the cover ring plants the rocks within 220 m and thins them by its fade law; the same rocks are drawn top-down into a map over this half width (1 m a texel) and the ground reads it where the meshes have gone - one sampler, ?rockmap=0 for the A/B')); }
         Sf.appendChild(button('reset to the recipe', () => SP.reset()));
         Sf.appendChild(button('export (console)', () => { const j = SP.export(); console.log('SPLAT RECIPE ' + j); try { navigator.clipboard && navigator.clipboard.writeText(j); } catch (e) {} }));
         Sf.appendChild(note('remembered in this browser; `export` prints the table to the console (and the clipboard) - paste it into 28b_ground_fields.js RECIPE to make it the default'));

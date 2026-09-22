@@ -55287,3 +55287,43 @@ with no CODES row (10 'built' - the village) falls back to the IMAGERY's colour 
 Measured on Jolene's village plot: 63 k lawn tufts beside 148 k of the biome's in the ring, the
 plots' grass short against the muskeg's. GATE PAVEMENT green (the contract's rule 6).
 OWED to the roads session: the village's biome grass outside the lots is still the muskeg's height.
+
+## G493 — THE ROCK MAP: THE ROCKS' OWN IMAGE ON THE GROUND AT DISTANCE (2026-09-22, the user: "that looks real good close up, I'm not so sure from far away. Maybe we should have impostor for all rocks, or have them simply impact the texture by projecting their own image on it?")
+
+The second of the user's two ideas, because it is the one that scales: an impostor per rock is tens of
+thousands of quads across a visible coast, and the map is ONE sampler at any distance.
+
+- THE ROCKS PLANT ON THEIR OWN STREAM (cover_ring.js placeRocks): the rock species drew from the cell's
+  shared RNG, so a far-tier planter could not reproduce a cell's rocks without planting its grass too.
+  They now draw from rng(cellSeed ^ hash(species)) - one placement, two readers (the near cell's
+  instances and the map's sprites), agreeing by construction. `rockPlan(cx, cz)` is the second reader:
+  the same subGrid, the same placeRocks, records instead of meshes; null unless the cell's mix carries
+  `rockMap` (the shingle and scree mixes do). The near rocks' positions changed once, by the reseed.
+- src/viewer/rock_map.js: every rock subject rendered ONCE from above into a 256 px slot of a 2048
+  atlas (an orthographic camera over its own footprint, the plain albedo, the row's `cut` honoured -
+  the sand skirt is the ground's job), then one instanced quad per rock over a 2048 px map covering
+  2 km round the eye (1 m a texel), drawn top-down with alpha, the cobbles' tint as instanceColor.
+  Re-centred when the eye has moved 350 m; cells planned nearest-first on a 3 ms budget; the map
+  re-rendered when a frame has nothing left to plan. `?rockmap=0` and F8 > splat > rocks at distance.
+- THE READ (the island ground hook, after the splat): `t = mix(t, rk.rgb, rk.a * (1 - meshK) * edge)`
+  where meshK is the COVER RING'S OWN fade law (trees.js FADE_VS: near, reach, taper, the eye's height)
+  evaluated at the fragment's distance - the meshes thin and the map fills in by the same curve, so
+  there is no line where one becomes the other; `edge` fades the map's rim. The map is albedo: the
+  ground lights it as its own (and the splat's normals stay the ground's - a rock's relief at 300 m is
+  a pixel).
+- A BAKE BEFORE ITS MAPS IS BLACK, again (G437's trap): the first atlas baked while the scans' textures
+  were still decoding and the shore wore black blobs - the sprites wait until every rock subject's map
+  has an image. bench/rockmap/far_4.png is the black version, far2_4.png the same eye after.
+- SAMPLERS (tools/sampler_census.js on Jolene): near ring 12 -> 13, fine tiles 13, outer ring 14 -> 15,
+  the premises patch 15 (it does NOT read the map: its Lambert twin takes the hook's `rock = false`
+  side, or it would ask 16 and link at the edge). THE HOOK IS NOW islandGroundHookFor(side, rock).
+- COST: none measurable - 25.5 / 25.5 / 25.4 / 25.7 ms median over 120 frames, the map off / on / off /
+  on with planning stopped, one boot at 60 m over the spits (an earlier 41 vs 32 was the settle, not
+  the map: interleave the samples). 2 601 rocks in the map, 19 sprites, the plan 1 ms a frame.
+- SEEN: bench/rockmap/far2_4.png (320 m and 700 m, the map on and off - the shore keeps its rocks),
+  mid_3.png (50 m: both, the map alone, the meshes alone - the crossfade).
+- OWED: the map has no shadow of its own (the rocks' shade is the ground's) and no normal - a slope
+  facing the sun at 400 m is as flat as the splat; a `rockMap` flag on the forest mixes would give the
+  conifer's boulders the same far tier (not tried: the trees cover them); the cliffs (code 12) want
+  their own scans first.
+- GATES: BUILD / BIOME / TREES / WORLD / WORLDRENDER / UISMOKE / MEDIA / SPLAT / GFX / PREMISES green.

@@ -8344,7 +8344,8 @@
      "coverNear": 50,
      "rocks": 8,
      "ttype": 6,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "rockMap": 1
     }
    },
    "shore": {
@@ -8684,7 +8685,8 @@
      "coverNear": 50,
      "rocks": 150,
      "ttype": 11,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "rockMap": 1
     }
    }
   },

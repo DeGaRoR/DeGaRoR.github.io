@@ -218,6 +218,73 @@ var COVER_RING = (() => {
       return { N, mix, code, ok, col, kill, boost, kind, lawnH, lawnD, at, bmax, lawn };
     }
 
+    // ---- THE ROCKS OF ONE CELL (2026-09-22, the rock map) --------------------------------
+    // The rock species plant on a stream of their OWN (the cell's seed xor the species' hash), so
+    // the far tier's map (rock_map.js) can reproduce a cell's rocks without planting its grass:
+    // one placement, two readers - the near cell's instances and the map's sprites agree by
+    // construction. emit(p, x, y, z, s, yaw, col, tx, tz) per rock; returns the count.
+    const coastAt = world.island && world.island.coastAt ? world.island.coastAt : null;
+    function placeRocks(c, row, F, G, centreMix, cx, cz, C, emit) {
+      const place = c.place || {};
+      const P = protosOf(c); if (!P.length) return 0;
+      const per = (F.rocks || 0) / 1000 * S.rocks * (row.proportion === undefined ? 1 : row.proportion);
+      if (per <= 0) return 0;
+      const x0 = cx * C, z0 = cz * C, sSeed = hashStr(c.name);
+      const Rq = rng((((hsh(cx, cz) * 4294967295) >>> 0) ^ sSeed) >>> 0);
+      const blotch = F.blotch || 0, blotchM = F.blotchM || 18;
+      const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
+      const vary = place.vary === undefined ? 0.05 : place.vary;
+      const n = Math.round(per * C * C); let made = 0;
+      for (let i = 0; i < n; i++) {
+        const x = x0 + Rq() * C, z = z0 + Rq() * C, r1 = Rq(), r2 = Rq(), r3 = Rq();
+        // the bench's GF.blotch: keeps 1 - blotch .. 1 by area; a rock takes it only when its row says `cluster`
+        // (THE ROCKY SHORE: a foreshore's rocks lie in beds along the tide line, not evenly)
+        if (blotch && row.cluster && r1 > blotchAt(x, z, sSeed)) continue;
+        // THE SHORE: a rock row's `shore` culls by the distance inland (the island's coast field, positive inland):
+        // 1 keeps the water's edge and none past 15 m, 0 keeps all
+        if (row.shore > 0 && coastAt) { const sd = coastAt(x, z); if (sd < -2 || Rq() > 1 - row.shore * smooth(2, 15, sd)) continue; }
+        const gk = G.at(x, z);
+        if (!G.ok[gk] || G.mix[gk] !== centreMix) continue;
+        const p = draw(P, r2);
+        const y = world.terrainH(x, z);
+        const s = (row.size !== undefined ? row.size : (place.size || 1)) * Math.exp((Rq() * 2 - 1) * (place.sizeVar === undefined ? 0.35 : place.sizeVar));
+        const yaw = r3 * Math.PI * 2;
+        // a rock's row may say how deep it sits (`bury`, a fraction of its height; the shore's lie deeper)
+        const yy = y - p.h0 * s * (row.bury !== undefined ? row.bury : (place.bury === undefined ? 0.45 : place.bury));
+        let col = null;
+        if (row.tint > 0) {
+          // the rock takes the ground's colour at its foot, by `tint` (0 = the pack's pale grey as it is, 1 = the
+          // tufts' rule): the free_rock pack is one pale texture and read as gravel thrown on the dark foreshore -
+          // the ground's CHROMA (its colour at full brightness), not its value: a straight multiply by a dark
+          // foreshore left the pack's own blue-grey showing through as lavender
+          const g = [G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], gm = Math.max(g[0], g[1], g[2], 1e-3);
+          const j = (1 + (Rq() * 2 - 1) * vary) * (1 - 0.35 * row.tint);   // and a third darker at full tint (the pack is pale)
+          col = [(1 + (g[0] / gm - 1) * row.tint) * j, (1 + (g[1] / gm - 1) * row.tint) * j, (1 + (g[2] / gm - 1) * row.tint) * j];
+        }
+        // `tilt`: the rock leans to the ground's slope over its OWN footprint (a 10 m strip read at +-1.5 m stood on
+        // the wrong plane and showed its skirt as a plate), scaled by the row's tilt (1 = the ground's own)
+        let tx = 0, tz = 0;
+        if (row.tilt > 0) { const rr = Math.max(1.5, 0.45 * p.r0 * s); tx = (world.terrainH(x + rr, z) - world.terrainH(x - rr, z)) / (2 * rr) * row.tilt; tz = (world.terrainH(x, z + rr) - world.terrainH(x, z - rr)) / (2 * rr) * row.tilt; }
+        emit(p, x, yy, z, s, yaw, col, tx, tz); made++;
+      }
+      return made;
+    }
+    // THE ROCK MAP'S READ (rock_map.js): a cell's rocks as records, if its mix asks for a far tier
+    // (`rockMap` on the mix's forest row), else null. The same subGrid, the same placeRocks.
+    function rockPlan(cx, cz) {
+      const C = S.cell, x0 = cx * C, z0 = cz * C;
+      const cd = ctx.codeAt ? ctx.codeAt(x0 + C / 2, z0 + C / 2, hsh(Math.round((x0 + C / 2) * 3.7), Math.round((z0 + C / 2) * 5.3))) : -1;
+      const centreMix = cd < 0 ? null : BIO.mixAt(cd);
+      if (!centreMix) return null;
+      const M = BIO.mixOf(centreMix), F = (M && M.forest) || {};
+      if (!F.rockMap) return null;
+      const G = subGrid(x0, z0, C);
+      const out = [];
+      for (const c of speciesOf()) { if (c.kind !== 'rock') continue; const row = M.species && M.species[c.name]; if (!row) continue;
+        placeRocks(c, row, F, G, centreMix, cx, cz, C, (p, x, y, z, s, yaw, col) => out.push({ p, x, z, s, yaw, col })); }
+      return out;
+    }
+
     // ---- one cell -------------------------------------------------------------------
     function buildCell(cx, cz) {
       const t0 = performance.now();
@@ -239,9 +306,6 @@ var COVER_RING = (() => {
       const items = new Map();   // proto -> { pos: [], col: [] | null }
       // the instance record: x y z s yaw tx tz - tx/tz the ground's slope under a rock that `tilt`s to it (0 0 = upright)
       const push = (p, x, y, z, s, yaw, col, tx, tz) => { let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw, tx || 0, tz || 0); if (col) it.col.push(col[0], col[1], col[2]); };
-      // THE SHORE (2026-09-22, the coast rock scans): a rock row's `shore` culls its rocks by the distance inland
-      // (the island's coast field, positive inland): 1 keeps the water's edge and none past 15 m, 0 keeps all
-      const coastAt = world.island && world.island.coastAt ? world.island.coastAt : null;
       // THE LAWN (a plot's, kind 1): the dry tuft short and dense - the height from the plot's rule (0.10-0.15 m),
       // LAWN_D tufts a m2 x the rule's density factor - on the lawn nodes alone, the biome's rows skip them
       if (G.lawn > 0) {
@@ -268,9 +332,13 @@ var COVER_RING = (() => {
         const P = protosOf(c); if (!P.length) continue;
         const sSeed = hashStr(c.name);
         const isRock = c.kind === 'rock', isShrub = c.kind === 'shrub';
+        if (isRock) {   // the rocks: their own stream, shared with the rock map (placeRocks above)
+          const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, push);
+          if (made) { STAT.by[c.name] = (STAT.by[c.name] || 0) + made; cell.by[c.name] = (cell.by[c.name] || 0) + made; }
+          continue;
+        }
         let per = 0;   // per m2
-        if (isRock) per = (F.rocks || 0) / 1000 * S.rocks * (row.proportion === undefined ? 1 : row.proportion);
-        else if (isShrub) { const tot = Object.keys(M.species).filter(k => { const cc = pack.collections.find(q => q.name === k); return cc && cc.kind === 'shrub'; }).reduce((a, k) => a + (M.species[k].proportion === undefined ? 1 : M.species[k].proportion), 0) || 1;
+        if (isShrub) { const tot = Object.keys(M.species).filter(k => { const cc = pack.collections.find(q => q.name === k); return cc && cc.kind === 'shrub'; }).reduce((a, k) => a + (M.species[k].proportion === undefined ? 1 : M.species[k].proportion), 0) || 1;
           per = (F.under || 0) / 1000 * S.shrubs * (row.proportion === undefined ? 1 : row.proportion) / tot; }
         else per = (row.density !== undefined ? row.density : (place.density || 0)) * S.density;   // the bench: a cover's density is its own, no proportion
         if (per <= 0) continue;
@@ -284,10 +352,7 @@ var COVER_RING = (() => {
         for (let i = 0; i < n; i++) {
           const x = x0 + R() * C, z = z0 + R() * C, r1 = R(), r2 = R(), r3 = R();
           if (patch && vnoise(x, z, patch * 2, sSeed % 1000) < 1 - bedFrac) continue;
-          // the bench's GF.blotch: keeps 1 - blotch .. 1 by area; rocks skip it unless their row says `cluster`
-          // (THE ROCKY SHORE, 2026-09-22: a foreshore's rocks lie in beds along the tide line, not evenly)
-          if (blotch && (!isRock || row.cluster) && r1 > blotchAt(x, z, sSeed)) continue;
-          if (isRock && row.shore > 0 && coastAt) { const sd = coastAt(x, z); if (sd < -2 || R() > 1 - row.shore * smooth(2, 15, sd)) continue; }
+          if (blotch && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
           const gk = G.at(x, z);
           if (!G.ok[gk] || G.mix[gk] !== centreMix) continue;
           // the cover's query: nothing on a pavement (kill), more on a border (boost), a plot's lawn or
@@ -297,29 +362,14 @@ var COVER_RING = (() => {
           const p = draw(P, r2);
           const y = world.terrainH(x, z);
           let s = 1, yaw = r3 * Math.PI * 2, col = null;
-          if (isRock) { s = (row.size !== undefined ? row.size : (place.size || 1)) * Math.exp((R() * 2 - 1) * (place.sizeVar === undefined ? 0.35 : place.sizeVar)); }
-          else if (isShrub && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0) s = (place.hMin + R() * (place.hMax - place.hMin)) / p.h0;
+          if (isShrub && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0) s = (place.hMin + R() * (place.hMax - place.hMin)) / p.h0;
           else s = (place.size || 1) * Math.exp((R() * 2 - 1) * spread);   // the species' size ALWAYS (the reed model is 288 units tall at size 0.012 - unscaled it was a 130 m screen-filling card, 450 ms a frame)
-          // a rock's row may say how deep it sits (`bury`, a fraction of its height; the shore's lie deeper)
-          const yy = isRock ? y - p.h0 * s * (row.bury !== undefined ? row.bury : (place.bury === undefined ? 0.45 : place.bury)) : y - (place.sink || 0);
-          if (isRock && row.tint > 0) {
-            // the rock takes the ground's colour at its foot, by `tint` (0 = the pack's pale grey as it is, 1 = the
-            // tufts' rule): the free_rock pack is one pale texture and read as gravel thrown on the dark foreshore
-            // the ground's CHROMA (its colour at full brightness), not its value: a straight multiply by a dark
-            // foreshore left the pack's own blue-grey showing through as lavender - the hue must be the ground's
-            const g = [G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], gm = Math.max(g[0], g[1], g[2], 1e-3);
-            const j = (1 + (R() * 2 - 1) * vary) * (1 - 0.35 * row.tint);   // and a third darker at full tint (the pack is pale)
-            col = [(1 + (g[0] / gm - 1) * row.tint) * j, (1 + (g[1] / gm - 1) * row.tint) * j, (1 + (g[2] / gm - 1) * row.tint) * j];
-          } else if (!noTint && !isRock && !isShrub) {
+          const yy = y - (place.sink || 0);
+          if (!noTint && !isShrub) {
             col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
             if (vary) { const j = 1 + (R() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
-          } else if (noTint && !isRock && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j]; }
-          // `tilt`: the rock leans to the ground's slope (a slab lies ON the foreshore, not level in it) - the slope
-          // from terrainH at +-1.5 m, scaled by the row's tilt (1 = the ground's own)
-          let tx = 0, tz = 0;
-          // (over the rock's own footprint: a 10 m strip read at +-1.5 m stood on the wrong plane and showed its skirt as a plate)
-          if (isRock && row.tilt > 0) { const rr = Math.max(1.5, 0.45 * p.r0 * s); tx = (world.terrainH(x + rr, z) - world.terrainH(x - rr, z)) / (2 * rr) * row.tilt; tz = (world.terrainH(x, z + rr) - world.terrainH(x, z - rr)) / (2 * rr) * row.tilt; }
-          push(p, x, yy, z, s, yaw, col, tx, tz); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
+          } else if (noTint && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j]; }
+          push(p, x, yy, z, s, yaw, col, 0, 0); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
         }
       }
       // the meshes: one InstancedMesh per prototype part
@@ -371,7 +421,7 @@ var COVER_RING = (() => {
       if (!S.on || !pack || !BIO) { if (root.visible) root.visible = false; return; }
       const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
       const agl = Math.max(0, camera.position.y - gy); STAT.agl = agl;
-      const aglK = 1 - smooth(S.aglFull, S.aglOff, agl);
+      const aglK = 1 - smooth(S.aglFull, S.aglOff, agl); STAT.aglK = aglK;   // (the rock map reads the fade's height term)
       LEAF.fade(S.near, S.reach, S.taper, aglK);
       root.visible = aglK > 0.001;
       if (aglK <= 0.001) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); queue.length = 0; STAT.live = 0; return; }
@@ -398,6 +448,8 @@ var COVER_RING = (() => {
       set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks }; Object.assign(S, o || {});
         if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks) api.replant(); return api.get(); },
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); },
+      rockPlan,                                                           // the rock map's read (above)
+      rockProtos: () => speciesOf().filter(c => c.kind === 'rock').map(c => ({ c, P: protosOf(c) })),   // the sprites' subjects
       stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
       dispose: () => { api.replant(); scene.remove(root); },
     };

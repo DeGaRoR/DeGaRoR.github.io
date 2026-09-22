@@ -21,6 +21,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
+  let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
   let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
@@ -1055,8 +1056,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const GROUND_MODES = ['stack', 'tint', 'radar', 'canopy', 'class', 'ndvi', 'coast', 'height', 'snow', 'terrain type', 'lakes'];
     // the class smoothing (the bench's, G405): blur in metres over the weight fields, a smooth wobble of the sample point
     Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
-    const gU = {};
-    let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookFine = null, SPL = null;
+    const gU = {}; groundU = gU;
+    let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookFine = null, SPL = null;
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
       // THE LAYERS PACKED (G424): the six single-channel fields ride two RGBA textures - A = (ori, canopy,
@@ -1090,6 +1091,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const t = new THREE.DataTexture(w2, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; })() },
         uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
         uFine: { value: new THREE.Vector4(0, 0, 0, 120) },   // the fine disc (TERRAIN FOLLOW-UP 2): centre, radius (0 = off), the geomorph band
+        // THE ROCK MAP (rock_map.js): the rocks' top view over 2 km round the eye, read where the cover ring's meshes have faded
+        uRockMap: { value: (() => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; })() },
+        uRockRect: { value: new THREE.Vector4(0, 0, 1, 0) }, uRockFade: { value: new THREE.Vector4(50, 220, 0.5, 1) },
       });
       GROUND.on = true;
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
@@ -1103,7 +1107,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // radius, a fine tile (+1) discards outside it and GEOMORPHS its rim to the ring's own surface
       // (aCoarse / aCoarseN: the ring's triangles sampled exactly, so the two coincide at the edge),
       // the twin and the outer ring (0) do neither. uFine = (cx, cz, R, band); R 0 = the disc is off.
-      const islandGroundHookFor = side => sh => {
+      const islandGroundHookFor = (side, rock) => sh => {
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
         sh.vertexShader = sh.vertexShader
@@ -1113,6 +1117,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz;');
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
+            (rock ? 'uniform sampler2D uRockMap; uniform vec4 uRockRect, uRockFade;\n' : '') +
             'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\n' +
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
             // the packed fields: A = (ori, canopy, coast, lake), B = (ndvi, terrain type); the type at its texel's CENTRE (a nearest read off a linear texture)
@@ -1199,6 +1204,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // THE SPLAT over the stack (the stack is the macro it fades to at distance); the
             // rocky shore band below yields to it (the splat's own shingle / sand / cliff)
             (SPL ? SPL.glslMap : '') +
+            // THE ROCK MAP (rock_map.js): the rocks' own image where the cover ring's meshes have thinned - the
+            // ring's fade law (trees.js FADE_VS) at this fragment's distance says how many meshes stand here, the
+            // map fills the rest; a soft edge at the map's rim; albedo, lit below like the ground's own
+            (rock ? '  if (uRockRect.w > 0.5) { vec2 ru = vec2((vWPi.x - uRockRect.x) / uRockRect.z, 1.0 - (vWPi.z - uRockRect.y) / uRockRect.z);\n' +
+                    '    if (ru.x > 0.0 && ru.x < 1.0 && ru.y > 0.0 && ru.y < 1.0) { vec4 rk = texture2D(uRockMap, ru);\n' +
+                    '      float rd = distance(vWPi.xz, cameraPosition.xz); float ft = clamp((rd - uRockFade.x) / max(1.0, uRockFade.y - uRockFade.x), 0.0, 1.0);\n' +
+                    '      float meshK = pow(1.0 - ft, 1.0 + 2.0 * uRockFade.z) * uRockFade.w;\n' +
+                    '      float redge = 1.0 - smoothstep(0.8, 1.0, max(abs(ru.x - 0.5), abs(ru.y - 0.5)) * 2.0);\n' +
+                    '      t = mix(t, rk.rgb, rk.a * (1.0 - meshK) * redge); } }\n' : '') +
             '  float sd = (gA.b * 255.0 - 128.0) * 4.0;\n' +
             // (G413: the paint is the BED under the surface, inside the line only - a deep rim
             // outside the surface's edge was the "deep blue vs pale blue battle")
@@ -1260,13 +1274,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           SC.lights_physical_pars_fragment.replace('reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation;',
                                                    'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'));
       };
-      islandGroundHook = islandGroundHookFor(-1);      // the near ring
-      islandGroundHook0 = islandGroundHookFor(0);      // the twin (the premises patch), the outer ring
-      islandGroundHookFine = islandGroundHookFor(1);   // the fine tiles
+      islandGroundHook = islandGroundHookFor(-1, true);        // the near ring (the rock map: 13 units)
+      islandGroundHook0 = islandGroundHookFor(0, false);       // the twin (the premises patch: 15, no room)
+      islandGroundHookOuter = islandGroundHookFor(0, true);    // the outer ring (15)
+      islandGroundHookFine = islandGroundHookFor(1, true);     // the fine tiles
     }
     groundApi = {
       splat: () => (SPL ? SPL.api : null),
       fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
+      rockMap: () => (rockMap ? rockMap.api : null),
       on: () => GROUND.on,
       get: () => Object.assign({}, GROUND),
       modes: () => GROUND_MODES.slice(),
@@ -1589,7 +1605,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // quadrant (frustum-culled as sixteen), wearing the ground material;
       // under the inner ring's rim the leaves dip 1.5 m so the two never fight.
       const oMat = worldLambert({ map: outerTex });
-      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook0(sh); }) : canopyHook;
+      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;
       if (islandGroundHook) oMat.customProgramCacheKey = () => 'island-outer';
       outerMatShared = oMat;
       const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch;
@@ -1629,7 +1645,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       console.log('island far terrain: ' + groups.size + ' meshes, ' + (farTris / 1e6).toFixed(1) + ' M tris');
     } else { // outer ring: four coarse strips sharing one full-domain texture
       const oMat = worldLambert({ map: outerTex });
-      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook0(sh); }) : canopyHook;   // the far tier lives mostly out here
+      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;   // the far tier lives mostly out here
       if (islandGroundHook) oMat.customProgramCacheKey = () => 'island-outer';
       outerMatShared = oMat;
       const strip = (x0, z0, x1, z1, sx, sz) => {
@@ -3646,6 +3662,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
                                                     ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled });
+          // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
+          if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
         }).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
@@ -4573,6 +4591,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     lodUpdate(cg);
     if (coverRing) coverRing.update();
     if (standCards) standCards.update(cg);
+    if (rockMap) rockMap.update();   // the rocks' far tier follows the eye (rock_map.js)
     const gy = world.terrainH(cg[0], cg[2]);
     const agl = Math.max(0, cg[1] - gy);
     const reach = Math.min(agl / Math.max(SUN.y, SUN_MIN_Y), 520);
