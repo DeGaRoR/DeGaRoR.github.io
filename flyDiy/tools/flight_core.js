@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 721df2213db1c545
+// body-sha256: a05e04d1b439c8e9
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -5433,14 +5433,23 @@ function planForest(zone, ctx) {
 // the registry already has). 'none' paints the markings on the bare composed ground - a surface or
 // material polygon under it is what shows; a set names a PBR set of the site's or the lot's (read by the
 // renderer at call time). Each look proposes a class; the record's surface may still say otherwise.
+// THE PAVEMENT (contract v1.16, 2026-09-22): a look is a pavement CLASS (src/viewer/pavement.js's
+// six: concrete / asphalt / gravel / dirt / sand / grass) + a recipe PRESET; `set` is what the old
+// renderer tiled and stays for a page without the pavement module. `none` stands no pavement: the
+// marks alone on the ground under. A ROAD's look derives from its class when null (ROAD_LOOK).
 const RUNWAY_LOOKS = {
-  grass:    { name: 'grass strip',    surface: SURFACE.GRASS,  set: null },
-  none:     { name: 'markings only',  surface: null,           set: null },
-  asphalt:  { name: 'asphalt',        surface: SURFACE.PAVED,  set: 'asphalt' },
-  concrete: { name: 'concrete',       surface: SURFACE.PAVED,  set: 'brushed' },
-  worn:     { name: 'old concrete',   surface: SURFACE.PAVED,  set: 'cracked' },
-  gravel:   { name: 'gravel',         surface: SURFACE.GRAVEL, set: 'pebble' },
+  grass:    { name: 'grass strip',    surface: SURFACE.GRASS,  set: null,      cls: 'grass',    preset: null },
+  none:     { name: 'markings only',  surface: null,           set: null,      cls: null,       preset: null },
+  asphalt:  { name: 'asphalt',        surface: SURFACE.PAVED,  set: 'asphalt', cls: 'asphalt',  preset: null },
+  concrete: { name: 'concrete',       surface: SURFACE.PAVED,  set: 'brushed', cls: 'concrete', preset: 'fresh' },
+  worn:     { name: 'old concrete',   surface: SURFACE.PAVED,  set: 'cracked', cls: 'concrete', preset: 'worn' },
+  gravel:   { name: 'gravel',         surface: SURFACE.GRAVEL, set: 'pebble',  cls: 'gravel',   preset: null },
+  dirt:     { name: 'dirt',           surface: SURFACE.GRAVEL, set: 'dirt',    cls: 'dirt',     preset: null },   // no DIRT in the SURFACE enum: gravel's friction
+  sand:     { name: 'sand',           surface: SURFACE.SAND,   set: 'dry',     cls: 'sand',     preset: null },
 };
+const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'grass' };
+// a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
+function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
 // THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
 // the air is calm - a strip with a ridge at one end lands from the other and departs toward it; null
 // leaves the pilot its choice (the runway direction nearest its inbound track)
@@ -5456,7 +5465,7 @@ const RUNWAY_LOOKS = {
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -5574,6 +5583,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null, slope: 0, disp: [0, 0], papi: [false, false], circuit: r.circuit || null };
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
+           band: r.band === undefined ? null : r.band, pav: r.pav || null,   // the pavement's (v1.16): the renderer resolves them with the premises' recipe
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
@@ -5773,7 +5783,8 @@ function compose(rec0, world, opts) {
   const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2);
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
-  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false }));
+  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
+    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }));   // the pavement's (v1.16)
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
@@ -5846,7 +5857,11 @@ function compose(rec0, world, opts) {
   const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map((s, i) => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface, z: +s.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // THE MATERIALS (v8, contract v1.9): a PBR set projected on the ground inside a polygon, its contour
   // fading over `fade` metres (half in, half out) into what lies under it, composited in priority order
-  const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
+  // THE PAVED POLYGONS (v1.16): a material polygon with a `look` (a pavement class) instead of a set is an
+  // apron, a turnaround, a pad - the pavement module draws it, the map never sees it
+  const pavePolys = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.look && RUNWAY_LOOKS[m.look] && RUNWAY_LOOKS[m.look].cls)
+    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0 }));
+  const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set && !m.look).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
   const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
   const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), what: s.what || ['trees'] }));
@@ -5883,7 +5898,7 @@ function compose(rec0, world, opts) {
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),
     // the composed ground in the PREMISES frame
     localH: (lx, lz) => { const w = F.toWorld(lx, lz); return O.terrainAt(w[0], w[1]); },
-    materials: mats,
+    materials: mats, pavePolys, pavement: rec.pavement || null,
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -6057,7 +6072,11 @@ function issues(rec0) {
     if (!polySimple(e.poly)) out.push(k + ' ' + e.id + ': the polygon crosses itself');
     if (k === 'terrain' && !(+e.falloff > 0)) out.push('terrain ' + e.id + ': falloff must be positive');
     if (k === 'zones' && ZONE_KINDS.indexOf(e.kind) < 0) out.push('zone ' + e.id + ': unknown kind ' + e.kind);
-    if (k === 'material' && !e.set) out.push('material ' + e.id + ': no set');
+    if (k === 'material' && !e.set && !e.look) out.push('material ' + e.id + ': no set and no look');
+    if (k === 'material' && e.look && !(RUNWAY_LOOKS[e.look] && RUNWAY_LOOKS[e.look].cls)) out.push('material ' + e.id + ': unknown look ' + e.look);
+    if ((k === 'roads' || k === 'runways' || k === 'material') && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(k.replace(/s$/, '') + ' ' + e.id + ': band must be 0 or more');
+    if ((k === 'roads' || k === 'runways' || k === 'material') && e.pav && typeof e.pav !== 'object') out.push(k.replace(/s$/, '') + ' ' + e.id + ': pav is an object of knobs');
+    if (k === 'roads' && e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push('road ' + e.id + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   for (const r of rec.layers.runways) {
@@ -6292,7 +6311,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
