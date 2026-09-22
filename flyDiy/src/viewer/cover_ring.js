@@ -65,7 +65,7 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 1, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400 };
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
@@ -104,7 +104,7 @@ var COVER_RING = (() => {
       let t = flowerTex.get(url);
       if (!t) { t = new THREE.TextureLoader().load(url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; flowerTex.set(url, t); }
       const m = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
-      return LEAF.fadeHook(m);
+      LEAF.fadeHook(m); return LEAF.upHook ? LEAF.upHook(m) : m;
     };
     function protosOf(c) {
       let P = protos.get(c.name);
@@ -125,6 +125,7 @@ var COVER_RING = (() => {
               mat = new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 }); LEAF.fadeHook(mat);
             } else {
               LEAF.fadeHook(mat);
+              if (c.kind === 'cover' && LEAF.upHook) LEAF.upHook(mat);   // the tuft shades as the ground (trees.js UP_VS)
               if (c.kind === 'cover' && mat.userData.uFlat) { mat.userData.uFlat.value = place.contrast === undefined ? 1 : place.contrast; measureMean(mat);
                 if (mat.map && !(mat.map.image && mat.map.image.width)) { const t0 = mat.map; const poll = () => { if (t0.image && t0.image.width) measureMean(mat); else setTimeout(poll, 500); }; setTimeout(poll, 500); } }
             }
@@ -161,7 +162,7 @@ var COVER_RING = (() => {
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + i * SG, z = z0 + j * SG, k = j * N + i, r = hsh(Math.round(x * 3.7), Math.round(z * 5.3));
         const cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
-        code[k] = cd; mix[k] = cd < 0 ? null : BIO.mixAt(cd); ok[k] = ctx.okAt(x, z) ? 1 : 0;
+        code[k] = cd; mix[k] = cd < 0 ? null : BIO.mixAt(cd); ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
         const c = cd >= 0 ? colAt(x, z, cd) : null;
         if (c) { col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2]; } else { col[k * 3] = 0.3; col[k * 3 + 1] = 0.3; col[k * 3 + 2] = 0.15; }
       }

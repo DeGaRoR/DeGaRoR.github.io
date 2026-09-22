@@ -56,7 +56,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     stand(edge, 0xfff1cc); stand(thr, 0x37ff6a);
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
-  let coverRing = null;               // G454.13 the cover ring (set in the tree block once the payload is in)
+  let coverRing = null, fillPoolAt = null;   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
@@ -3257,6 +3257,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
           if (!forestHere(x, z) && !(BIO && openHere(x, z))) continue;  // the forest's rule (the bake's too), or the biome's open ground
+          if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
           // above `full`, a ramp between - and rides with the record to size it.
@@ -3448,10 +3449,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // eye, once the payload is in (its materials are the trees' loader's)
       if (ISLC && BIO && typeof COVER_RING !== 'undefined' && !/[?&]cover=0/.test(location.search))   // ?cover=0: the ring off (an A/B, and the rigs' control)
         treeSettle().then(() => {
+          // THE POOLS ARE THE SHADER'S (2026-09-22, the user: "are we sure vegetation does not render on top of
+          // water bodies?"): a puddle is a colour the ground shader paints from GF.poolAt on codes 3 and 7 - no water
+          // height, so the lakes' test never saw one. The same function, in JS, with the splat's live knobs.
+          const poolAt = (x, z) => {
+            const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null; if (!GF || !GF.poolAt) return 0;
+            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's
+            if (!(K.pudCover > 0)) return 0;
+            return GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
+          };
           const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt });
+            GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt, poolAt });
+          fillPoolAt = poolAt;
         }).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,

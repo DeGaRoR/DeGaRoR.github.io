@@ -296,16 +296,31 @@
     'float _fk = pow(1.0 - _ft, 1.0 + 2.0 * uFadeTaper) * uFadeAgl;',
     'if (aRand > _fk) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);',
   ].join('\n');
+  // THE GRASS SHADES AS THE GROUND (2026-09-22, the user: "its shading looks real harsh"): a tuft is
+  // two or three crossed cards, and lit by their own normals half of every tuft faces away from
+  // the sun - a field of light and dark halves, the harshness. The fix every grass renderer uses:
+  // the card's shading normal is UP (the ground's), so a tuft takes the ground's light, and only
+  // its texture and its tint vary. userData.uUp = 1 on a cover material (the ring sets it).
+  const UP_VS = 'if (uUp > 0.5) { objectNormal = vec3(0.0, 1.0, 0.0); }';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
-    sh.vertexShader = 'attribute float aRand;\nuniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl;\n' +
-      sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS);
+    sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
+    sh.vertexShader = 'attribute float aRand;\nuniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;\n' +
+      sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
+                     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
   };
+  // upHook(mat): the cover's material shades as the ground (see UP_VS); the uniform is the material's own
+  function upHook(mat) {
+    mat.userData.uUp = { value: 1 };
+    const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); sh.uniforms.uUp = mat.userData.uUp; };
+    mat.customProgramCacheKey = () => 'fade-up' + (mat.userData.uLeaf ? '-leaf' : '');   // a hooked leaf program and a plain one are not the same program
+    return mat;
+  }
   // fadeHook(mat): a material of the ring's - a hooked leaf material takes it at its own
   // compile (userData.fade), any other gets a hook of its own here
   function fadeHook(mat) {
     mat.userData.fade = true;
-    mat.customProgramCacheKey = () => 'fade';
+    mat.customProgramCacheKey = () => 'fade' + (mat.userData.uLeaf ? '-leaf' : '');
     if (!mat.userData.uLeaf) { const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); fadeInject(sh); }; }
     return mat;
   }
@@ -389,7 +404,7 @@
     terms: LEAF_TERMS,
     tintGlsl: TINT_GLSL,
     // the ring's fade (G454.13): the hook and the four dials, shared by every faded material
-    fadeHook: fadeHook,
+    fadeHook: fadeHook, upHook: upHook,
     // what the loader holds (bytes): the decoded rungs and the coverage mip chains
     memory: () => { let geo = 0, mip = 0, n = 0; for (const b of BUILT.values()) for (const q of b.parts) { n++; for (const k in q.geo.attributes) geo += q.geo.attributes[k].array.byteLength; if (q.geo.index) geo += q.geo.index.array.byteLength; }
       for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },

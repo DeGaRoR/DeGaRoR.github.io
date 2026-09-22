@@ -54834,3 +54834,23 @@ scrub: small conifers, snags, reed beds, the pools - the street-view look). The 
   sunk a few centimetres under the terrain and DRAPED to it (the vertices offset to terrainH at
   placement), clustered along the tide line, the far tier an impostor. Not started.
 - GATES: BIOME / TREES / WORLD / UISMOKE / SPLAT / MEDIA green.
+
+## G484 — THE GRASS DENSER, SHADED AS THE GROUND, OUT OF THE PUDDLES (2026-09-22, the user: "the grass is really
+## too sparse, and I maintain its shading looks real harsh ... are we sure vegetation does not render on top of
+## water bodies?")
+
+DENSITY: the cover ring's density 1 -> 2 (F8 > biomes > the cover ring > density; the mix rows are
+the bench's, the ring doubles them). At 38 m over the scrub: 464 k instances in 213 cells, 448 k dry
+tufts (was 258 k); a cell build peaked at 28.8 ms - the ring is near its budget, the card at ~6.4 GB
+for the page. THE SHADING: a tuft is two or three crossed cards and, lit by their own normals, half of
+every tuft faced away from the sun - a field of light and dark halves. trees.js UP_VS: a cover
+material (userData.uUp, LEAF.upHook) shades with the ground's normal (up), so a tuft takes the
+ground's light and only its texture and tint vary - the fix every grass renderer uses; the flower
+cards the same. Program cache keys now say leaf/plain ('fade-leaf', 'fade-up-leaf'): a hooked leaf
+program and a plain Standard's are not one program. THE PUDDLES: they are a colour the ground shader
+paints (GF.poolAt on codes 3 and 7) - no water height, so the lakes' test never saw one; the same
+function in JS (poolAt, with the splat's live knobs through groundApi.splat()) marks the ring's
+lattice and the fill's walk: no tuft, no tree in a pool > 0.5. What the bench had and the ring has:
+the tuft's colour is the ground's at its foot (lift 0.29), vary 0.03, contrast 0.35 - the calm field's
+numbers, verified in the payload. TRAP: SPL is the terrain block's const - the tree block reads the
+splat through groundApi.splat(). screenshots/map/musk10b.
