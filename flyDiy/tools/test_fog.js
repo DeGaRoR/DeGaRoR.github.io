@@ -24,6 +24,16 @@ const fs = require('fs');
 const path = require('path');
 let bad = 0, n = 0;
 const yes = (c, m) => { n++; if (c) console.log('  ok   ' + m); else { bad++; console.log('  FAIL ' + m); } };
+// A NEGATIVE ASSERTION ON A LOST ANCHOR PASSES FOREVER, and that is how a gate stops guarding
+// without anyone noticing (the climate chantier found a live one in GATE CLIMATE within an hour of
+// G506.1, where `!/objectNormal/.test('')` would have held G484 unguarded indefinitely). So an
+// anchored slice goes through here: if either end is gone the gate FAILS BY NAME instead of
+// quietly asserting nothing about an empty string.
+function between(src, a, b, what) {
+  const i = src.indexOf(a), j = src.indexOf(b, i + 1);
+  if (i < 0 || j < 0) { n++; bad++; console.log('  FAIL ' + what + ' lost an anchor (' + (i < 0 ? a : b) + ') - it is reading NOTHING, so it is asserting nothing'); return null; }
+  return src.slice(i, j);
+}
 
 const root = path.join(__dirname, '..');
 const atmo = fs.readFileSync(path.join(root, 'src/viewer/atmo.js'), 'utf8');
@@ -86,7 +96,8 @@ console.log('GATE FOG');
   yes(/get applied\(\)/.test(rw), 'the state is readable (WF.vis.applied) so another pass can assert it');
   yes(/thresh/.test(rw) && /ATMO\.seeT\(/.test(rw), 'the per-mesh test asks ATMO, not an authored number');
   yes(/bb\.max\.y/.test(rw), 'the test aims at the highest GROUND a mesh holds, never at its bounding sphere (which is a point in the sky)');
-  yes(!/day\.visibilityKm/.test(rw.slice(rw.indexOf('const VIS'), rw.indexOf('const _vc'))), 'the contract never reads the authored visibility');
+  { const body = between(rw, 'const VIS = {', 'const _vc = new THREE.Vector3', "the contract's own body");
+    if (body) yes(!/day\.visibilityKm/.test(body), 'the contract never reads the authored visibility'); }
 }
 
 // ---- 4. the row ------------------------------------------------------------------------------

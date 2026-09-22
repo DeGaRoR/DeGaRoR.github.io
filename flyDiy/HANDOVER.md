@@ -56873,3 +56873,36 @@ prefix. A negative control has to actually remove the thing.
 
 CLIMATE green on master. Gate only: tools/test_climate.js is in no manifest, so nothing is built
 from this and no `(built)` commit is owed.
+
+## G506.2 - A NEGATIVE ASSERTION ON A LOST ANCHOR PASSES FOREVER (2026-09-22)
+
+The climate chantier found a live instance of G506.1's class in GATE CLIMATE within the hour, and
+its shape is nastier than the brace: `!/objectNormal/.test(slice(indexOf('const SWAY_GLSL'), ...))`
+where the anchor had been renamed by G508. `indexOf` returns -1, `slice(-1, j)` is `''`, and
+`!/x/.test('')` is TRUE - so that check, which guards G484 (a cover tuft shading with the ground's
+normal, a bug already paid for once), **would have passed forever while reading nothing**. It
+surfaced only because a POSITIVE sibling on the same line failed loudly and dragged the gate red.
+
+GATE FOG had exactly one of these, written the same day:
+
+```js
+yes(!/day\.visibilityKm/.test(rw.slice(rw.indexOf('const VIS'), rw.indexOf('const _vc'))), ...)
+```
+
+Rename either anchor and the contract's "never reads the authored visibility" check asserts
+nothing, silently, which is the one rule F1 exists to hold. It now goes through `between(src, a, b,
+what)`: a lost anchor is a NAMED FAILURE - *"the contract's own body lost an anchor (const VIS = {)
+- it is reading NOTHING, so it is asserting nothing"*.
+
+PROVED WITH A CONTROL, and the control's own trap is worth carrying: the climate session's first
+attempt renamed `const swayVS` to `const swayVS_RENAMED` and the gate still passed, which reads
+like "the hardening does not work" - but `indexOf` matches a PREFIX, so the anchor was never lost
+and the control tested nothing. **Remove the thing rather than extend it.** Here: `const VIS = {`
+-> `const CONTRACT_STATE = {` fails by name, and restoring it passes. A pleasingly exact echo of
+the bug being tested for.
+
+Two independent instances in one day (G506.1 the brace, G504.12 the renamed anchor) is the
+evidence: **a source-scanning gate anchors on FORMATTING and on NAMES, so a semantically perfect
+edit elsewhere can switch it off.** The mitigations are cheap - prefer positive assertions where a
+choice exists, route every anchored slice through a helper that fails when an anchor goes, and
+write the negative control by deletion.
