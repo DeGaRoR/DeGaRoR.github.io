@@ -34,7 +34,7 @@ var WEATHER_UI = (function () {
     { k: 'calm', label: 'calm', title: 'Still air, a standard day',
       day: { wind: null, oatC: null, qnhPa: null, dewC: null, diurnalC: null, lapse: null, mixH: null, inversion: null, storm: null } },
     { k: 'breeze', label: 'light breeze', title: 'A steady 8 kt off the sea, the air standard',
-      day: { wind: { kts: 8, dirDeg: 250, gust: 0.15, refH: 10 }, oatC: null, qnhPa: null, dewC: null,
+      day: { wind: { kts: 8, dirDeg: 250, gust: 0.15, refH: 10, breeze: 1 }, oatC: null, qnhPa: null, dewC: null,
              diurnalC: null, lapse: null, mixH: null, inversion: null, storm: null } },
     { k: 'ridge', label: 'ridge day', title: 'A 20 kt wind on the hills — the lift is on the windward faces, the lee is rough',
       day: { wind: { kts: 20, dirDeg: 270, gust: 0.3, refH: 10, terrain: 1, aloftK: 1.25, veerDeg: 15 },
@@ -68,7 +68,8 @@ var WEATHER_UI = (function () {
       const d = p.day, pw = d.wind || null;
       if (!!w !== !!pw) continue;
       if (w && !(near(w.kts, pw.kts, 0.6) && near(w.dirDeg, pw.dirDeg, 3) && near(w.gust, pw.gust, 0.03)
-                && near(w.terrain, pw.terrain, 0.05) && near(w.thermals, pw.thermals, 0.05))) continue;
+                && near(w.terrain, pw.terrain, 0.05) && near(w.thermals, pw.thermals, 0.05)
+                && near(w.breeze, pw.breeze, 0.05))) continue;
       if (!near(day.oatC, d.oatC == null ? day.oatC : d.oatC, 0.6)) continue;
       if ((d.storm != null || d.stormIn != null) !== !!day.stormSpec) continue;
       return p.k;
@@ -125,9 +126,16 @@ var WEATHER_UI = (function () {
       v => (v > 0 ? '±' + (v * 100).toFixed(0) + ' %' : 'steady'));
     H.range(host, 'the hills', 0, 1, 0.1, () => (wind().terrain != null ? wind().terrain : 0),
       v => setWind({ terrain: v }), v => (v > 0 ? (v * 100).toFixed(0) + ' %' : 'flat'));
+    H.range(host, 'thermals', 0, 1, 0.1, () => (wind().thermals != null ? wind().thermals : 0),
+      v => setWind({ thermals: v }), v => (v > 0 ? (v * 100).toFixed(0) + ' %' : 'none'));
+    H.range(host, 'the sea breeze', 0, 1, 0.1, () => (wind().breeze != null ? wind().breeze : 0),
+      v => setWind({ breeze: v }), v => (v > 0 ? (v * 100).toFixed(0) + ' %' : 'none'));
     H.note(host, 'The wind is reported at 10 m, as an anemometer reports it, and the column shears above it. ' +
                  'THE HILLS turn it into a real wind over ground: the air follows the slope, so a windward face ' +
-                 'lifts and a lee sinks and is rough — that is the ridge lift a glider works.');
+                 'lifts and a lee sinks and is rough — that is the ridge lift a glider works. THERMALS put ' +
+                 'columns of rising air over the ground that heats (never over water), drifting with the wind and ' +
+                 'topped by the cloud base — the lift a glider circles in. THE SEA BREEZE is the coast’s own ' +
+                 'wind: it blows onshore through the afternoon, dies under cloud, and reverses overnight.');
 
     // ---- the air --------------------------------------------------------------
     head('the air');

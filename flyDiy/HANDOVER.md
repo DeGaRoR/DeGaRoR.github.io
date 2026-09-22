@@ -56906,3 +56906,30 @@ evidence: **a source-scanning gate anchors on FORMATTING and on NAMES, so a sema
 edit elsewhere can switch it off.** The mitigations are cheap - prefer positive assertions where a
 choice exists, route every anchored slice through a helper that fails when an anchor goes, and
 write the negative control by deletion.
+
+## G504.13 — implemented and unreachable: the thermals and the sea breeze had no control (2026-09-23)
+
+The user asked whether the UI covered the whole of this chantier. It did not, and the audit is worth
+recording because the gap was invisible from the inside: the WEATHER panel has eleven controls, both
+rails mount it, every preset works — and the two terms this chantier exists for were missing from it.
+**`thermals`** had a slider only in the F8 DEVELOPER fold, so a player could reach the lift a glider
+circles in by picking one preset and no other way. **`breeze`** had no control ANYWHERE — not the
+panel, not F8, not `?wind=`, not any preset — while being implemented, measured and gated (section 9:
+2.68 m/s onshore at 15:00, reversing seaward overnight, killed by cloud). Worse, a preset LABELLED
+"light breeze" set a light WIND and no breeze at all, so the one place a player would look for it
+actively said it was there.
+
+Both are rows in "the wind" now, beside `the hills`, with the note saying what each does in the
+language the panel uses. The `light breeze` preset carries `breeze: 1`, and `presetOf` compares
+`breeze` so its pill lights.
+
+AND THE CLASS IS GATED, not just the instance: GATE CLIMATE 14 now walks
+`['terrain', 'thermals', 'breeze', 'gust']` and fails if the panel cannot set one. A declared term
+with no control is implemented and unreachable; if a rich term gains a spec key it gains a row in the
+same commit. Proved with a negative control — removing the breeze row turns it red.
+
+STILL NOT ON A RAIL, and named rather than quietly left: `seaTau` (how fast the sea builds — default 0
+is the old instant rebuild), `inversion.thick` (the lid's dT has a row, its thickness does not), and
+`aloftK`/`veerDeg` (presets and F8 only). The first is a real omission for a floatplane player; the
+last two are expert knobs and arguably belong in F8. K5's wind view is still owed and would be the
+natural home for seeing what any of these do.

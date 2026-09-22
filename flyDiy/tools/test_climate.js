@@ -708,6 +708,16 @@ console.log('14. the sources');
   // every write is a day write: no setWeather CALL anywhere in the panel's code
   // (the header comment names it as the thing this replaced, which is not a call)
   yes(/CK\.set\(/.test(wu) && !/\.setWeather\(/.test(wu), 'the panel writes through the day, never through setWeather');
+  // EVERY DECLARED TERM NEEDS A CONTROL ON THE RAIL, or it is implemented and unreachable.
+  // The user asked whether the UI covered the whole of this chantier and it did not:
+  // `thermals` had a slider only in the F8 DEVELOPER fold, and `breeze` had none anywhere
+  // at all - measured, gated (section 9 above) and dead to a player, with a preset
+  // LABELLED "light breeze" that set no breeze. These are the physics the chantier exists
+  // for; if a rich term gains a spec key it gains a row here in the same commit.
+  for (const k of ['terrain', 'thermals', 'breeze', 'gust']) {
+    yes(wu.indexOf('setWind({ ' + k + ':') >= 0,
+        'the WEATHER panel can set ' + k + ' - a declared term with no control is unreachable');
+  }
   const dc = vw('day_clock.js');
   yes(/weatherFromUrl/.test(dc) && /wind=/.test(dc) && /storm=/.test(dc), 'day_clock.js parses ?wind= and ?storm=');
   yes(/sp\.wind \|\| null/.test(dc), 'and saves the weather with the day');
