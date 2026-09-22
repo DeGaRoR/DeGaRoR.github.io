@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 98f0b6e831f5e3cd
+// body-sha256: d750b8505fa25205
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -690,6 +690,7 @@ const ATM = {
   G0: 9.80665,       // m/s2 standard gravity
   GAMMA: 1.4,
   HTROP: 11000,      // m   tropopause
+  LD: 0.0098,        // K/m DRY ADIABATIC - what the thermals stir the mixed layer to (K2)
 };
 // g0/(L R) = 5.25588. The density exponent is one less, and it is the one the
 // density-altitude inverse needs, so both are named rather than re-typed.
@@ -706,10 +707,56 @@ function makeAtmos(cfg) {
   const psl = c.qnhPa != null ? c.qnhPa : ATM.P0;
   const Tt = Tsl - ATM.L * ATM.HTROP;                       // tropopause temp
   const pt = psl * Math.pow(Tt / Tsl, ATM.EXP_P);           // and pressure
-  const T = h => (h <= ATM.HTROP ? Tsl - ATM.L * h : Tt);
-  const p = h => (h <= ATM.HTROP
+  // ---- THE LAYERED DAY (CLIMATE K2, 2026-09-22) -----------------------------
+  // A real convective day is NOT one lapse rate. The sun drives a MIXED LAYER
+  // that the thermals stir to the dry adiabatic 9.8 K/km, capped by an
+  // INVERSION (the lid a glider tops out under), and the free atmosphere above
+  // it returns to the standard 6.5. This branch builds that as a layer list and
+  // integrates each layer EXACTLY - p = p_b (T/T_b)^(g0/(L R)) where the layer
+  // lapses, p_b exp(-g0 dh/(R T_b)) where it does not - so the profile is
+  // continuous in T and in p by construction, and hydrostatic to machine
+  // precision inside every layer.
+  //
+  // BRANCH-FIRST, and that is the whole safety argument: a cfg naming NONE of
+  // lapse / mixH / inversion runs the four closed-form lines below exactly as
+  // they were written at G72. ATMOS_ISA is built through that path and so is
+  // every gate's air, and none of them can move.
+  //
+  // WHAT IS CHOSEN AND WHAT IS COMPUTED is unchanged: the day's two numbers
+  // (the sea-level temperature and the QNH) are still the only things chosen;
+  // mixH and the inversion are two more DECLARED facts about the same day,
+  // never a third way to set the density.
+  const layered = c.lapse === 'mixed' || c.mixH != null || c.inversion != null;
+  let T, p;
+  if (layered) {
+    const mixH = Math.max(50, c.mixH != null ? +c.mixH : 1200);
+    const inv = c.inversion || null;
+    const invT = inv && inv.thick > 0 ? +inv.thick : 0;
+    const invD = inv && inv.dT != null ? +inv.dT : 0;   // K gained across the lid (positive = a real inversion)
+    const LAY = [];
+    const push = (h0, T0, p0, L) => LAY.push({ h0, T0, p0, L });
+    const pAt = (ly, h) => (ly.L !== 0
+      ? ly.p0 * Math.pow((ly.T0 - ly.L * (h - ly.h0)) / ly.T0, ATM.G0 / (ly.L * ATM.R))
+      : ly.p0 * Math.exp(-ATM.G0 * (h - ly.h0) / (ATM.R * ly.T0)));
+    push(0, Tsl, psl, ATM.LD);                          // the mixed layer, stirred to the dry adiabatic
+    let hb = mixH, Tb = Tsl - ATM.LD * mixH, pb = pAt(LAY[0], mixH);
+    if (invT > 0) {
+      push(hb, Tb, pb, -invD / invT);                   // the lid: T RISES, so the lapse is negative
+      hb += invT; Tb += invD; pb = pAt(LAY[1], hb);
+    }
+    push(hb, Tb, pb, ATM.L);                            // the free atmosphere, the standard lapse
+    const top = LAY[LAY.length - 1];
+    const hTrop = Math.max(hb + 1, ATM.HTROP);
+    push(hTrop, top.T0 - top.L * (hTrop - top.h0), pAt(top, hTrop), 0);   // isothermal above the tropopause
+    const layAt = h => { let i = 0; while (i + 1 < LAY.length && h >= LAY[i + 1].h0) i++; return LAY[i]; };
+    T = h => { const ly = layAt(h); return ly.T0 - ly.L * (h - ly.h0); };
+    p = h => pAt(layAt(h), h);
+  } else {
+  T = h => (h <= ATM.HTROP ? Tsl - ATM.L * h : Tt);
+  p = h => (h <= ATM.HTROP
     ? psl * Math.pow((Tsl - ATM.L * h) / Tsl, ATM.EXP_P)
     : pt * Math.exp(-ATM.G0 * (h - ATM.HTROP) / (ATM.R * Tt)));
+  }
   // DENSITY AS A RATIO TO THE DATUM, not as p/(R T) — and the reason is the
   // whole invariant this file exists to protect. p0/(R T0) is 1.2250003, not
   // 1.225: ISA's sea-level density is a ROUNDED number, so computing it from
@@ -729,12 +776,71 @@ function makeAtmos(cfg) {
   // Pressure altitude: what the altimeter reads with 1013 set.
   const pressureAlt = h => (ATM.T0 / ATM.L) * (1 - Math.pow(p(h) / ATM.P0, 1 / ATM.EXP_P));
   return { dISA, Tsl, psl, T, p, rho, sigma, a, densityAlt, pressureAlt,
-           oatC: Tsl - 273.15 };
+           oatC: Tsl - 273.15,
+           // K2: the shape of the column (null when the day never named one)
+           layered, mixH: layered ? Math.max(50, c.mixH != null ? +c.mixH : 1200) : null };
 }
 
 // The standard day. Used wherever there is no world to ask — genShakedown builds
 // its sim with world = null, and a wind-tunnel probe must never be in weather.
 const ATMOS_ISA = makeAtmos({});
+
+// ---- THE WATER IN THE COLUMN (CLIMATE K2) -----------------------------------
+// atmosWater(atm, dewC, opts) -> { Td(h), rh(h), lcl } over an ALREADY BUILT
+// atmosphere. It is a separate function, and deliberately: humidity does not
+// change the density (dry air is a declared cut of this file, worth under 1 %
+// at 30 C), so it must not be able to rebuild the air. GATE DAY holds exactly
+// that invariant — moving the humidity leaves `world.atmos` the SAME OBJECT,
+// one temperature model and never two — and this shape keeps it true while
+// still letting the water be live.
+//
+// THE DEW POINT falls with height, but far more slowly than the temperature: a
+// well-mixed parcel keeps its water and its dew point drops about 1.8 K/km. So
+// the two converge, and where they MEET the air is saturated — that height is
+// the lifting condensation level, and it is the cloud base.
+//
+// THE LCL IS DERIVED HERE, NOT DECLARED. The day publishes a base by the
+// pilot's rule of 125 m per degree of spread (07_day.js), and under a MIXED
+// layer this reproduces it exactly rather than agreeing by accident: the
+// temperature falls 9.8 K/km, the dew point 1.8, the spread closes at 8 K/km —
+// one degree per 125 m. Where the column is not mixed the two differ, and the
+// difference is real: a 6.5 K/km free atmosphere closes the spread at 4.7 K/km
+// (213 m a degree), and an inversion widens it again, so a lid PUSHES THE
+// CROSSING UP (the 22/8 day whose mixed base is 1750 m reads 2735 under a
+// 2.5 K lid at 1400). That is the ambient column's own saturation height and
+// NOT a promise of cloud: whether a thermal can reach it is the lid's business,
+// and the thermal model tops its columns at the lower of the two. Null means
+// the spread never closes below 6 km at all.
+function atmosWater(atm, dewC, opts) {
+  const o = opts || {};
+  if (dewC == null) return { Td: () => null, rh: () => null, lcl: null, dewC: null };
+  const LD_TD = o.dewLapse != null ? +o.dewLapse : 0.0018;    // K/m, the dew point's own
+  const rhAloft = o.rhAloft != null ? +o.rhAloft : 0.5;
+  const MA = 17.625, MB = 243.04;                             // Magnus, as 07_day.js uses it
+  const rhOf = (tC, tdC) => Math.min(1, Math.max(0.01,
+    Math.exp(MA * tdC / (MB + tdC) - MA * tC / (MB + tC))));
+  const TdDry = h => dewC - LD_TD * h;
+  const spread = h => (atm.T(h) - 273.15) - TdDry(h);
+  const lcl = (() => {
+    if (spread(0) <= 0) return 0;                             // saturated at the surface: fog
+    let a = 0;
+    for (let h = 50; h <= 6000; h += 50) {
+      if (spread(h) <= 0) {
+        let lo = a, hi = h;
+        for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (spread(m) <= 0) hi = m; else lo = m; }
+        return (lo + hi) / 2;
+      }
+      a = h;
+    }
+    return null;
+  })();
+  const Td = h => (lcl == null || h <= lcl ? TdDry(h) : atm.T(h) - 273.15);
+  const rh = h => {
+    if (lcl == null || h <= lcl) return rhOf(atm.T(h) - 273.15, TdDry(h));
+    return 1 + (rhAloft - 1) * Math.min(1, (h - lcl) / 500);  // out of the cloud over 500 m
+  };
+  return { Td, rh, lcl, dewC };
+}
 
 // ---- what the powerplant does about it -------------------------------------
 // A NATURALLY ASPIRATED PISTON breathes the air, so its shaft power falls with
@@ -1002,7 +1108,10 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 //            minute a second); it ADVANCES only when the viewer ticks it —
 //            the solver never does (the gate battery is deterministic)
 //   WHERE    the world's geo: lat, lon (east +), tz, grid convergence
-//   AIR      oatC | dISA, qnhPa — THE SAME FIELDS makeAtmos reads
+//   AIR      oatC | dISA, qnhPa — THE SAME FIELDS makeAtmos reads, plus (K2)
+//            the SHAPE of the column: lapse ('isa' | 'mixed'), mixH, inversion
+//   WEATHER  wind (the climate's spec), storm (a front on the clock),
+//            diurnalC (the day's own temperature swing) — CLIMATE K2
 //   WATER    dewC or rh          -> the dewpoint, the cloud base, the haze
 //   AEROSOL  turbidity, ozone, groundAlbedo -> what the atmosphere looks like
 //   CLOUD    cover, type          (a data slot: the cloud chantier draws them)
@@ -1021,13 +1130,31 @@ var DAY = (function () {
   const DEFAULT = Object.freeze({
     date: '2026-06-21', utc: 18 * 3600, rate: 1,
     rh: 0.5, turbidity: 2.5, ozone: 300, groundAlbedo: 0.15,
-    cloudCover: 0.2, cloudType: 'cu',
+    // THE SKY'S SEED IS THE DAY'S (CLIMATE K3): the renderer draws the weather
+    // map from it and the climate reads the SAME map to know where the cumulus
+    // are - a thermal sits under a cloud because they are one field, not two.
+    cloudCover: 0.2, cloudType: 'cu', cloudSeed: 1,
   });
   // the geo a world declares; this default is Jolene's origin (28_island.js)
   // with NO convergence — the analytic world's own -z is true north
   const GEO_DEFAULT = Object.freeze({ lat: 55.04327, lon: -131.57222, convergenceDeg: 0,
                                       tz: { std: -9, dst: 'us', name: 'AKST', dstName: 'AKDT' } });
-  const AIR_KEYS = ['oatC', 'dISA', 'qnhPa'];
+  // THE AIR IS WHAT makeAtmos READS, and since K2 that includes the column's
+  // SHAPE: a mixed layer under a lid is as much a fact about the day's air as
+  // its temperature. Listed here so that `air()` carries them and the world
+  // rebuilds `atmos` when — and only when — one of them moves.
+  // NOT the humidity: it does not change the density (a declared cut of
+  // 05_atmos), and GATE DAY holds that moving it leaves `world.atmos` the SAME
+  // object. The water rides beside the column, through atmosWater.
+  const AIR_KEYS = ['oatC', 'dISA', 'qnhPa', 'lapse', 'mixH', 'inversion'];
+  // A FRONT ON THE CLOCK (K2). Declared: `storm: { at, pre, dur, post, windK,
+  // gustK, veerDeg, dTemp, dQnh, cover, type }` — `at` the UT second the front
+  // passes, `pre`/`dur`/`post` its approach, passage and clearance in seconds.
+  // The intensity I(utc) rises smoothly over `pre`, holds through `dur`, falls
+  // over `post`; everything else is I times a declared amount, so a storm with
+  // no fields moves nothing and `storm: null` is exactly today's day.
+  const STORM_D = Object.freeze({ pre: 5400, dur: 2700, post: 7200, windK: 2.2, gustK: 2.5,
+                                  veerDeg: 55, dTemp: -6, dQnh: -900, cover: 0.95, type: 'cb' });
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const pad2 = n => String(n).padStart(2, '0');
 
@@ -1071,16 +1198,82 @@ var DAY = (function () {
       d.moonEl = mo.el; d.moonAz = mo.az; d.moonPhase = mo.phase; d.moonWaxing = mo.waxing;
       d.moon = SOLAR.toFrame(mo.el, mo.az, conv);
       d.moonUp = mo.el >= 0;
+      // THE GROUND RUNS BEHIND THE SUN (CLIMATE K3). What drives the thermals is
+      // not the sun's elevation now but the heat the ground has taken in, which
+      // peaks about two hours later. One more call on the same pure almanac -
+      // no state, no integration, and a gate's frozen day freezes this with it.
+      d.sunElLag = SOLAR.sun({ jdn, utc: utc - 7200, lat: geo.lat, lon: geo.lon }).el;
       if (!sunCache || sunCache.jdn !== jdn) {          // the day's events, once per civil day
         const ev = SOLAR.events(o);
         sunCache = { jdn, noonUtc: ev.noon, sunriseUtc: ev.rise, sunsetUtc: ev.set, polar: ev.rise == null ? (ev.up ? 'day' : 'night') : null };
       }
       d.noonUtc = sunCache.noonUtc; d.sunriseUtc = sunCache.sunriseUtc; d.sunsetUtc = sunCache.sunsetUtc; d.polar = sunCache.polar;
+      // ---- THE FRONT (K2): where the day is in it, and what that does -------
+      // Pure in `utc`: a gate that never advances the clock sees a frozen
+      // front, and the viewer's clock walks it. The phase is named as well as
+      // the number so a panel can say "the front arrives" without arithmetic.
+      const st = s.storm || null;
+      if (st && st.at != null) {
+        const pre = st.pre != null ? +st.pre : STORM_D.pre;
+        const dur = st.dur != null ? +st.dur : STORM_D.dur;
+        const post = st.post != null ? +st.post : STORM_D.post;
+        const at = +st.at, t = utc;
+        const I0 = st.intensity != null ? clamp(+st.intensity, 0, 1) : 1;
+        const smf = x => { const q = clamp(x, 0, 1); return q * q * (3 - 2 * q); };
+        let I = 0, phase = 'none';
+        if (t < at - pre) { I = 0; phase = 'none'; }
+        else if (t < at) { I = smf((t - (at - pre)) / pre); phase = 'pre'; }
+        else if (t < at + dur) { I = 1; phase = 'passage'; }
+        else if (t < at + dur + post) { I = 1 - smf((t - (at + dur)) / post); phase = 'post'; }
+        d.storm = { I: I * I0, phase, at, pre, dur, post,
+                    windK: 1 + (( st.windK != null ? +st.windK : STORM_D.windK) - 1) * I * I0,
+                    gustK: 1 + (( st.gustK != null ? +st.gustK : STORM_D.gustK) - 1) * I * I0,
+                    // the wind VEERS through the passage, not through the approach
+                    veer: (st.veerDeg != null ? +st.veerDeg : STORM_D.veerDeg) * I0
+                          * smf((t - (at - pre * 0.25)) / (dur + pre * 0.25)),
+                    dTemp: (st.dTemp != null ? +st.dTemp : STORM_D.dTemp) * I0 * (t > at ? 1 : 0) * I,
+                    dQnh: (st.dQnh != null ? +st.dQnh : STORM_D.dQnh) * I0 * I,
+                    cover: st.cover != null ? +st.cover : STORM_D.cover,
+                    type: st.type || STORM_D.type,
+                    inS: at - t };
+      } else d.storm = null;
       // the air and the water
-      const T = s.oatC != null ? s.oatC : 15 + (s.dISA || 0);
+      // THE DIURNAL SWING (K2): `diurnalC` is the day's peak-to-peak range, and
+      // the declared oatC is its MEAN, so diurnalC 0 - the default - leaves
+      // every existing day exactly where it was. The curve is a cosine peaking
+      // three hours after solar noon (the lag of the ground's own heat); a
+      // named cut, the real curve is asymmetric with a sharp post-dawn rise.
+      let T = s.oatC != null ? s.oatC : 15 + (s.dISA || 0);
+      const swing = s.diurnalC != null ? +s.diurnalC : 0;
+      if (swing > 0) {
+        const peak = (d.noonUtc != null ? d.noonUtc : 43200) + 3 * 3600;
+        T += 0.5 * swing * Math.cos(2 * Math.PI * (utc - peak) / 86400);
+      }
+      if (d.storm) T += d.storm.dTemp;
+      d.oatEff = T;
+      d.qnhEff = (s.qnhPa != null ? s.qnhPa : 101325) + (d.storm ? d.storm.dQnh : 0);
       const Td = s.dewC != null ? s.dewC : dewFromRh(T, s.rh != null ? s.rh : DEFAULT.rh);
       d.oatC = T; d.dewC = Td; d.rh = s.dewC != null ? rhFromDew(T, Td) : (s.rh != null ? s.rh : DEFAULT.rh);
-      d.cloudBase = clamp(125 * (T - Td), 0, 6000);
+      // THE BASE MOVES ONLY WHEN THE DAY MOVES IT, and then it is QUANTISED to
+      // 20 m: the cloud renderer keys its weather-map fit on the deck's base
+      // (clouds.js layKey) and re-fits over a dozen frames whenever it changes,
+      // so a base creeping by centimetres with the diurnal swing would re-fit
+      // the sky every frame. A still day is bit-identical to before.
+      const baseRaw = clamp(125 * (T - Td), 0, 6000);
+      d.cloudBase = (swing > 0 || d.storm) ? Math.round(baseRaw / 20) * 20 : baseRaw;
+      // what the sky is doing, the front included (the renderer reads these)
+      d.cloudCoverEff = d.storm && d.storm.I > 0
+        ? Math.max(day.cloudCover, day.cloudCover + (d.storm.cover - day.cloudCover) * d.storm.I)
+        : day.cloudCover;
+      d.cloudTypeEff = d.storm && d.storm.I > 0.5 ? d.storm.type : day.cloudType;
+      // THE AIR KEY: one number that changes when — and only when — something
+      // makeAtmos reads has moved. The world rebuilds `atmos` on it, lazily, so
+      // a clock tick through a swing or a front makes new air without a
+      // version bump (GATE DAY: a VISUAL change leaves atmos the SAME object).
+      d.airKey = Math.round(T * 1000) + ':' + Math.round(d.qnhEff * 10) + ':' + (s.lapse || 'isa')
+               + ':' + (s.mixH != null ? Math.round(s.mixH) : '-')
+               + ':' + (s.inversion ? Math.round((s.inversion.dT || 0) * 100) + '/' + Math.round(s.inversion.thick || 0) : '-');
+      // NOT the humidity (see AIR_KEYS)
       // an AUTHORED visibility: clear alpine air 60 km, a hazy T10 day 4 km, saturated air a sixth of that
       const tb = s.turbidity != null ? s.turbidity : DEFAULT.turbidity;
       d.visibilityKm = 375 / (tb * tb) * (1 - 0.85 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2));
@@ -1132,12 +1325,28 @@ var DAY = (function () {
       s.date = dateOf(jdn); s.utc = utc;
       recompute();
     }
-    const air = () => { const a = {}; for (const k of AIR_KEYS) if (s[k] != null) a[k] = s[k]; return a; };
+    // air(): what makeAtmos reads — the EFFECTIVE temperature and pressure (the
+    // swing and the front are already in them), the column's shape, and the
+    // water it needs for the dew point and the condensation level.
+    const air = () => {
+      const a = {};
+      for (const k of AIR_KEYS) if (s[k] != null) a[k] = s[k];
+      if (s.oatC != null || s.diurnalC > 0 || d.storm) a.oatC = d.oatEff;
+      if (s.qnhPa != null || d.storm) a.qnhPa = d.qnhEff;
+      if (a.oatC != null) delete a.dISA;              // one temperature, not two
+      return a;
+    };
 
     const day = {
       set, advance,
       spec: () => { const o = {}; for (const k of Object.keys(s).sort()) o[k] = s[k]; return JSON.parse(JSON.stringify(o)); },
-      air, get hasAir() { return AIR_KEYS.some(k => s[k] != null); },
+      air, get hasAir() { return AIR_KEYS.some(k => s[k] != null) || s.diurnalC > 0 || !!s.storm; },
+      // K2: the declared weather, for the panel and the URL
+      get wind() { return s.wind || null; },
+      get stormSpec() { return s.storm || null; },
+      get diurnalC() { return s.diurnalC != null ? +s.diurnalC : 0; },
+      // K4: how long the sea takes to answer the wind (0 = at once, as it always was)
+      get seaTau() { return s.seaTau != null ? Math.max(0, +s.seaTau) : 0; },
       get version() { return version; },
       get geo() { return geo; },
       get date() { return s.date; }, get utc() { return utc; }, get jdn() { return jdn; },
@@ -1148,6 +1357,7 @@ var DAY = (function () {
       get groundAlbedo() { return s.groundAlbedo != null ? s.groundAlbedo : DEFAULT.groundAlbedo; },
       get cloudCover() { return s.cloudCover != null ? s.cloudCover : DEFAULT.cloudCover; },
       get cloudType() { return s.cloudType || DEFAULT.cloudType; },
+      get cloudSeed() { return s.cloudSeed != null ? (s.cloudSeed | 0) : DEFAULT.cloudSeed; },
       // THE UPPER DECKS (A6, 2026-09-20): [{ cover, type, base? }] above the low layer - at most two, sanitised
       // (a cover clamped, a base a number or absent); cloudLayers puts the low layer first, the field
       // (08_cloud_field.js layers()) stacks them without overlap
@@ -1178,6 +1388,8 @@ var DAY = (function () {
                      'moon', 'moonEl', 'moonAz', 'moonPhase', 'moonWaxing', 'moonUp',
                      'noonUtc', 'sunriseUtc', 'sunsetUtc', 'polar',
                      'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm',
+                     'storm', 'qnhEff', 'airKey', 'cloudCoverEff', 'cloudTypeEff',   // K2
+                     'sunElLag',                                                       // K3
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
       Object.defineProperty(day, k, { get: () => d[k], enumerable: true });
     }
@@ -1362,6 +1574,816 @@ var CLOUD_FIELD = (function () {
   return API;
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = CLOUD_FIELD;
+// ============================================================
+// THE CLIMATE (K0, 2026-09-22 — futureDesigns/CLIMATE-2026-09-22.md).
+// One vector field w(x, y, z, t) every consumer derives from: the solver's
+// strips, the pilot's runway choice, the sea's spectrum, the clouds' drift,
+// the windsocks, the smoke, the debug streamlines. Pure: no THREE, no DOM,
+// no Date — node-runnable, deterministic, and the gate battery stands on it.
+//
+// FOUR RULES, WRITTEN ONCE:
+//   1. TWO CLOCKS. Fast state (the gusts, a thermal's age, the sea's phase)
+//      runs on the SIM clock `t` the solver passes; slow state (a front, the
+//      diurnal swing, the thermal potential, the clouds' drift) on the DAY
+//      clock `day.utc`, which only the viewer advances — a gate holds it.
+//      Never the wall clock.
+//   2. `wind()` IS THE SOLVER'S; EVERYONE ELSE `sample()`s. wind() keeps a
+//      linearisation cache keyed on `t` (a reference point and its Jacobian,
+//      so twenty strips cost one evaluation); a foreign caller at the
+//      solver's `t` would re-centre it under the aeroplane's feet.
+//   3. BIT-IDENTITY BY CONSTRUCTION. The wind field the fleet was calibrated
+//      in (20_world.js G72: base x power-law shear + four gust sines) moved
+//      here VERBATIM as windLegacy, and is the whole field whenever the spec
+//      names no RICH term. No calibrated gate names one.
+//   4. THE DAY DECLARES, THE CLIMATE DERIVES. A consumer that wants a number
+//      (the 10 m wind, the visibility, a deck's drift) asks here, never
+//      recomputes it.
+//
+// THE SPEC (a DAY key, `wind`; setDay forwards it, day.spec() round-trips it):
+//   legacy   { base:[wx,wy,wz], gust, refH, alpha }        — G72's shape, exact
+//   declared { kts | mps, dirDeg (FROM, true north; the grid's convergence
+//              applied as sunAzGrid does), gust, refH:10, alpha,
+//              aloftK, veerDeg, gradH,                      — the column above the surface layer
+//              terrain, breeze, thermals: 0..1 }             — the rich terms (K1, K3)
+// rich = any of terrain / breeze / thermals > 0, or aloftK / veerDeg named.
+// Not rich -> windLegacy. No spec -> the shared exact zero W0 (the fast path
+// every calm gate depends on: GATE WORLD checks the two calls return the SAME
+// array).
+//
+// THE RELIEF RASTER (lazy, built on the first rich spec, never for a legacy
+// one): 200 m cells over the world's bounds, twelve Float32 channels per
+// cell — the height, two smoothed bands (1.2 km and 300 m), their gradients,
+// a prominence (ridge exposure, -1..1), the signed coast distance and its
+// unit gradient (inland +), and a ground heating class (0..1). The terrain
+// terms read it bilinearly; nothing in the hot path calls terrainH twice.
+// ============================================================
+var CLIMATE = (function () {
+  'use strict';
+  // ---- the legacy field's tables, verbatim from 20_world.js (G72) ---------
+  const GC = [ // [freq rad/s, kx, kz, phase, axis weight x,y,z]
+    [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
+    [1.37, 0.004, 0.013, 2.9, 0.55, 0.6, 1.0],
+    [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
+    [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
+  ];
+  const WIND_TOP_H = 300;              // m agl: above this the profile has run out
+  const WIND_ALPHA = 0.14;             // open grassland, the default surface here
+  // ---- the rich column's defaults ----------------------------------------
+  const GRAD_H = 1500;                 // m agl where the gradient wind is reached
+  // THE RELIEF BANDS' DECAY HEIGHTS. Linear theory: a ground wave of wavelength lambda perturbs the
+  // flow as exp(-2 pi z / lambda), and a band smoothed over a scale L carries wavelengths of ~4 L and
+  // up, so it decays over ~L/1.6 (an isolated hill of half-width L: Jackson & Hunt's outer region).
+  // The coarse band (a 1.2 km blur) over 800 m, the fine (300 m) over 200 m, the local (a 120 m
+  // baseline) over 80 m - close to a steep face the lift is the wind times the slope, and it is gone
+  // a few hundred metres up, which is what a ridge pilot knows.
+  const D_COARSE = 800, D_FINE = 200, D_LOCAL = 80;
+  const GD = 60;                       // m: the local slope's half-step (terrainH at +-GD, a 120 m baseline)
+  // ---- the convection (K3) --------------------------------------------------
+  const S0 = 1361, TAU_ATM = 0.75, CP = 1005;   // W/m2 the solar constant, a clear sky's transmission, J/(kg K)
+  const TH_LIFE = 1200;                // s: a thermal's life (Allen 2006), on the DAY clock
+  const TH_SPACE = 1.5;                // the spacing, in units of the mixed layer's depth (Lenschow)
+  const TH_JIT = 0.35;                 // how far off its cell a thermal may sit (in cells)
+  const TH_R2K = 0.102;                // the core's radius as a fraction of z_i (Allen)
+  // THE CORE'S PEAK, against Lenschow's AREA MEAN. w_bar = w* (z/zi)^(1/3)(1 - 1.1 z/zi) is the mean
+  // over the updraft area and comes to 0.36 w* at mid-layer - which is NOT what a glider feels in a
+  // core. Deardorff's scaling puts the rms vertical velocity near 0.6 w* and individual cores at
+  // 1.5-2 w*, so the peak is the mean times this: 1.5 w* at mid-layer. Declared, and the one number
+  // that sets how good a day feels.
+  const TH_CORE = 4.2;
+  // ---- the breeze (K3) ------------------------------------------------------
+  const SB_V = 4;                      // m/s: a sea breeze at the coast, at full drive
+  const SB_H = 700;                    // m: how deep it runs
+  const SB_IN = 20000, SB_OUT = 8000;  // m: how far it reaches inland, and out to sea
+  const SLOPE_CAP = 0.7;               // a band's slope is capped here: no cliff makes more than 0.7 U
+  const LIN_R2 = 40 * 40;              // m^2: a call within this of the reference rides its Jacobian
+  const LIN_H = 10;                    // m: the forward-difference step
+  const LIN_GROUND_H = 60;             // m agl: under it the ground is read exactly per call, above it linearised
+  const KT = 0.514444;                 // m/s per knot
+  const D2R = Math.PI / 180;
+  // the relief raster
+  const CELL = 200;
+  const CH = Object.freeze({ h: 0, hc: 1, hf: 2, gxc: 3, gzc: 4, gxf: 5, gzf: 6, prom: 7, coast: 8, cgx: 9, cgz: 10, heat: 11 });
+  const NCH = 12;
+  const COAST_MAX = 30000;
+  // the ground heating class by surface (a Bowen-ratio ordering: wet and green low, bare and dry high;
+  // declared, not derived) and, when the island names a terrain type, by type
+  const HEAT_BY_TYPE = [0, 0.05, 0.3, 0.15, 0.5, 0.55, 0.6, 0.3, 0.25, 0.05, 0.5, 0.45, 0.6, 0.25, 0.3];   // ttype 0..14
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+
+  // bearingToBase(spd, dirDeg, convDeg) -> [wx, 0, wz]: a wind FROM a true bearing, in the frame
+  // x east, z south (north = -z). From north it blows toward +z; from west toward +x.
+  function bearingToBase(spd, dirDeg, convDeg) {
+    const th = ((dirDeg || 0) - (convDeg || 0)) * D2R;
+    return [0 - Math.sin(th) * spd, 0, Math.cos(th) * spd];   // 0 - x: never a -0
+  }
+  // FNV-1a over a Float32Array's bits (the gate's raster fingerprint)
+  function fnv(arr) {
+    const u = new Uint32Array(arr.buffer, arr.byteOffset, arr.length);
+    let h = 0x811c9dc5;
+    for (let i = 0; i < u.length; i++) { h ^= u[i] & 0xff; h = Math.imul(h, 16777619); h ^= (u[i] >>> 8) & 0xff; h = Math.imul(h, 16777619); h ^= (u[i] >>> 16) & 0xff; h = Math.imul(h, 16777619); h ^= u[i] >>> 24; h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  // ---- the raster ----------------------------------------------------------
+  // three-pass box blur of radius r in place, separable (variance r(r+1) cells^2 per axis: r 6 is a
+  // 6.5-cell Gaussian, r 1 a 1.4-cell one); edges clamp
+  function blur3(src, nx, nz, r) {
+    const a = Float32Array.from(src), b = new Float32Array(nx * nz);
+    const w = 2 * r + 1;
+    for (let pass = 0; pass < 3; pass++) {
+      for (let j = 0; j < nz; j++) {                       // along x
+        let s = 0;
+        for (let i = -r; i <= r; i++) s += a[j * nx + clamp(i, 0, nx - 1)];
+        for (let i = 0; i < nx; i++) {
+          b[j * nx + i] = s / w;
+          s += a[j * nx + clamp(i + r + 1, 0, nx - 1)] - a[j * nx + clamp(i - r, 0, nx - 1)];
+        }
+      }
+      for (let i = 0; i < nx; i++) {                       // along z
+        let s = 0;
+        for (let j = -r; j <= r; j++) s += b[clamp(j, 0, nz - 1) * nx + i];
+        for (let j = 0; j < nz; j++) {
+          a[j * nx + i] = s / w;
+          s += b[clamp(j + r + 1, 0, nz - 1) * nx + i] - b[clamp(j - r, 0, nz - 1) * nx + i];
+        }
+      }
+    }
+    return a;
+  }
+  // 3-4 chamfer distance (cells x 3) from the marked cells, as 21_world_hydro does it
+  function chamfer(mark, nx, nz) {
+    const d = new Float32Array(nx * nz).fill(1e9);
+    for (let k = 0; k < nx * nz; k++) if (mark[k]) d[k] = 0;
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i; let v = d[k];
+      if (i > 0 && d[k - 1] + 3 < v) v = d[k - 1] + 3;
+      if (j > 0) {
+        if (d[k - nx] + 3 < v) v = d[k - nx] + 3;
+        if (i > 0 && d[k - nx - 1] + 4 < v) v = d[k - nx - 1] + 4;
+        if (i + 1 < nx && d[k - nx + 1] + 4 < v) v = d[k - nx + 1] + 4;
+      }
+      d[k] = v;
+    }
+    for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) {
+      const k = j * nx + i; let v = d[k];
+      if (i + 1 < nx && d[k + 1] + 3 < v) v = d[k + 1] + 3;
+      if (j + 1 < nz) {
+        if (d[k + nx] + 3 < v) v = d[k + nx] + 3;
+        if (i + 1 < nx && d[k + nx + 1] + 4 < v) v = d[k + nx + 1] + 4;
+        if (i > 0 && d[k + nx - 1] + 4 < v) v = d[k + nx - 1] + 4;
+      }
+      d[k] = v;
+    }
+    return d;
+  }
+  function buildRelief(env) {
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    const b = env.bounds, terrainH = env.terrainH, surface = env.surface, S = env.SURFACE || {};
+    const nx = Math.ceil((b.x1 - b.x0) / CELL) + 1, nz = Math.ceil((b.z1 - b.z0) / CELL) + 1, N = nx * nz;
+    const h = new Float32Array(N), sea = new Uint8Array(N), land = new Uint8Array(N), heat = new Float32Array(N);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i, x = b.x0 + (i + 0.5) * CELL, z = b.z0 + (j + 0.5) * CELL;
+      const hh = terrainH(x, z);
+      h[k] = hh;
+      const sf = surface ? surface(x, z) : -1;
+      // THE SEA is level 0 and classed water — the same rule waterH stands on (a lake sits above 0 and
+      // is not a sea: no lake breeze)
+      const isSea = hh <= 0.05 && sf === S.WATER;
+      sea[k] = isSea ? 1 : 0; land[k] = isSea ? 0 : 1;
+      let ht = sf === S.WATER ? 0 : sf === S.FOREST_FLOOR ? 0.25 : sf === S.GRASS ? 0.35 : (sf === S.GRAVEL || sf === S.SAND) ? 0.5
+             : (sf === S.PAVED || sf === S.SCREE) ? 0.55 : sf === S.ROCK ? 0.6 : 0.35;
+      if (env.typeAt) { const tt = env.typeAt(x, z); if (tt >= 0 && tt < HEAT_BY_TYPE.length) ht = HEAT_BY_TYPE[tt]; }
+      heat[k] = ht;
+    }
+    const hc = blur3(h, nx, nz, 6);                        // the coarse band, ~1.2 km
+    const hs = blur3(h, nx, nz, 1);                        // the ~300 m smoothing
+    const hf = new Float32Array(N); for (let k = 0; k < N; k++) hf[k] = hs[k] - hc[k];   // the fine band, the residual
+    const hf2 = new Float32Array(N); for (let k = 0; k < N; k++) hf2[k] = hf[k] * hf[k];
+    const rms = blur3(hf2, nx, nz, 5);                      // the fine band's rms over ~2 km
+    const dSea = chamfer(sea, nx, nz), dLand = chamfer(land, nx, nz);
+    const data = new Float32Array(N * NCH);
+    const at = (arr, i, j) => arr[clamp(j, 0, nz - 1) * nx + clamp(i, 0, nx - 1)];
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i, o = k * NCH;
+      data[o + CH.h] = h[k]; data[o + CH.hc] = hc[k]; data[o + CH.hf] = hf[k];
+      data[o + CH.gxc] = (at(hc, i + 1, j) - at(hc, i - 1, j)) / (2 * CELL);
+      data[o + CH.gzc] = (at(hc, i, j + 1) - at(hc, i, j - 1)) / (2 * CELL);
+      data[o + CH.gxf] = (at(hf, i + 1, j) - at(hf, i - 1, j)) / (2 * CELL);
+      data[o + CH.gzf] = (at(hf, i, j + 1) - at(hf, i, j - 1)) / (2 * CELL);
+      data[o + CH.prom] = clamp(hf[k] / (Math.sqrt(Math.max(0, rms[k])) + 5), -1, 1);
+      // signed coast distance: + inland (to the nearest sea cell), - at sea (to the nearest land cell)
+      const dc = sea[k] ? -dLand[k] : dSea[k];
+      data[o + CH.coast] = clamp(dc * CELL / 3, -COAST_MAX, COAST_MAX);
+      data[o + CH.heat] = heat[k];
+    }
+    const coastAt = (i, j) => data[(clamp(j, 0, nz - 1) * nx + clamp(i, 0, nx - 1)) * NCH + CH.coast];
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {   // the coast gradient, unit, inland
+      const k = j * nx + i, o = k * NCH;
+      const gx = coastAt(i + 1, j) - coastAt(i - 1, j);
+      const gz = coastAt(i, j + 1) - coastAt(i, j - 1);
+      const m = Math.hypot(gx, gz);
+      data[o + CH.cgx] = m > 1e-6 ? gx / m : 0; data[o + CH.cgz] = m > 1e-6 ? gz / m : 0;
+    }
+    const t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    return { nx, nz, cell: CELL, x0: b.x0, z0: b.z0, data, CH, NCH, ms: t1 - t0, get hash() { return fnv(data); } };
+  }
+
+  // ---- the climate -----------------------------------------------------------
+  // make(env) — env: { terrainH, surface, SURFACE, bounds, day, geo, typeAt?, coastAt?, seed }
+  function make(env) {
+    const terrainH = env.terrainH;
+    const geo = env.geo || (env.day && env.day.geo) || null;
+    // ---- the legacy field, verbatim (20_world.js G72) ----------------------
+    // setWind({ base:[wx,wy,wz], gust:g }) — gusts are sums of incommensurate
+    // sines with spatial phase (advecting waves), amplitude g horizontal and
+    // 0.6*g vertical. Deterministic by construction: gates can rely on it.
+    // Default null: wind() returns the shared zero vector (fast path).
+    //
+    // THE SURFACE LAYER (G72). `y` has been an argument of wind() since the
+    // field was written and had never been read. It is read now: the ground
+    // drags on the air, so the wind near it is slower than the wind above it,
+    // and an aeroplane on final is in measurably different air from the one
+    // at circuit height.
+    //
+    // WHERE THE REPORTED WIND IS. A wind speed is meaningless without a height,
+    // and the height every anemometer, every windsock and every METAR means is
+    // 10 m. So `refH` says which height `base` was measured at, and the profile
+    // is the engineering power law u/uref = (z/zref)^alpha — the same one every
+    // wind-resource and building-code calculation uses, with alpha set by how
+    // rough the ground is (0.10 open water, 0.14 open grass, 0.20 scrub and
+    // trees). It is a fit, not a derivation, and it is a good one to about 200 m.
+    //
+    // A SPEC WITH NO refH IS A UNIFORM COLUMN, which is exactly the pre-G72 model
+    // and is what the fleet's whole wind calibration was measured in. That is a
+    // deliberate, declared boundary rather than a compatibility fudge: "no
+    // reference height" honestly means "we are not claiming to know where this
+    // wind was measured", and the only answer that does not invent information is
+    // to blow it everywhere equally. The XCTY gates anchored to that column; the
+    // CONDITIONS presets and GATE HOTHIGH declare a refH and fly the profile.
+    let windSpec = null;
+    const W0 = [0, 0, 0], WV = [0, 0, 0];
+    function shearK(x, y, z, refH, alpha) {
+      const agl = y - terrainH(x, z);
+      // a power law has no zero: floor the height rather than pretend it does.
+      const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
+      return Math.pow(h / refH, alpha);
+    }
+    function windLegacy(x, y, z, t) {
+      if (!windSpec) return W0;
+      const b = windSpec.base, g = windSpec.gust || 0;
+      const k = windSpec.refH ? shearK(x, y, z, windSpec.refH, windSpec.alpha) : 1;
+      WV[0] = b[0] * k; WV[1] = b[1] * k; WV[2] = b[2] * k;
+      // the gusts ride the local wind, so they die out in the surface layer and
+      // grow in the shear instead of being the same everywhere from grass to
+      // circuit height
+      const gk = g * k;
+      if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
+        const s = Math.sin(om * t + kx * x + kz * z + ph);
+        WV[0] += gk * 0.30 * ax * s;
+        WV[1] += gk * 0.18 * ay * s;
+        WV[2] += gk * 0.30 * az * s;
+      }
+      return WV;
+    }
+    // the gust sines alone, at amplitude ga (the rich path's exact-per-call term)
+    function addGust(x, y, z, t, ga, out) {
+      if (!(ga > 0)) return;
+      for (const [om, kx, kz, ph, ax, ay, az] of GC) {
+        const s = Math.sin(om * t + kx * x + kz * z + ph);
+        out[0] += ga * 0.30 * ax * s;
+        out[1] += ga * 0.18 * ay * s;
+        out[2] += ga * 0.30 * az * s;
+      }
+    }
+
+    // ---- the resolved spec -------------------------------------------------
+    let rich = null;                 // { terrain, breeze, thermals, aloftK, veerDeg, gradH } when a rich term is on
+    let mode = 'zero';
+    let relief = null;
+    let version = 0;
+    const stats = { mode, full: 0, linear: 0, recentres: 0, rasterMs: 0, tickMs: 0 };
+    function ensureRelief() {
+      if (!relief) { relief = buildRelief(env); stats.rasterMs = relief.ms; version++; }
+      return relief;
+    }
+    // setWind(spec | null) -> { base, spd } (the world's sea law reads it); the spec's declared or
+    // legacy form, resolved once
+    // THE FRONT'S HAND ON THE WIND (K2). The day owns the timeline (07_day.js
+    // storm: an intensity, a veer, a wind and gust factor, all pure in the
+    // clock); the climate asks it for the numbers and re-resolves the column.
+    // `stormOf()` is read at every resolve AND whenever the day's front has
+    // moved — the viewer's tick calls `refresh()` for that — so the wind veers
+    // and rises through a passage without anything else being touched.
+    function stormOf() { const st = env.day && env.day.storm; return st && st.I > 0 ? st : null; }
+    let spec0 = null;                                   // the DECLARED spec, before the front's hand
+    function setWind(spec) {
+      spec0 = spec || null;
+      if (!spec) { windSpec = null; rich = null; mode = 'zero'; stats.mode = mode; version++; return { base: [0, 0, 0], spd: 0 }; }
+      let base;
+      if (spec.base) base = spec.base;
+      else if (spec.mps != null || spec.kts != null)
+        base = bearingToBase(spec.mps != null ? +spec.mps : +spec.kts * KT, spec.dirDeg, geo ? geo.convergenceDeg : 0);
+      else base = [0, 0, 0];
+      // the front: the wind rises, veers, and gusts harder through the passage
+      const st = stormOf();
+      let gust = spec.gust || 0;
+      if (st) {
+        const ph = st.veer * D2R, c = Math.cos(ph), sn = Math.sin(ph);
+        const bx = base[0] * c - base[2] * sn, bz = base[2] * c + base[0] * sn;
+        base = [bx * st.windK, base[1] * st.windK, bz * st.windK];
+        gust = Math.min(1.5, gust * st.gustK + 0.25 * (st.gustK - 1));
+      }
+      windSpec = { base, gust, refH: spec.refH || 0,
+                   alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA };
+      const isRich = (spec.terrain > 0) || (spec.breeze > 0) || (spec.thermals > 0) || spec.aloftK != null || spec.veerDeg != null || !!st;
+      rich = isRich ? { terrain: +spec.terrain || 0, breeze: +spec.breeze || 0, thermals: +spec.thermals || 0,
+                        aloftK: spec.aloftK != null ? +spec.aloftK : 1, veerDeg: spec.veerDeg != null ? +spec.veerDeg : 0,
+                        gradH: spec.gradH != null ? +spec.gradH : GRAD_H } : null;
+      mode = isRich ? 'rich' : 'legacy'; stats.mode = mode;
+      if (isRich && (rich.terrain > 0 || rich.breeze > 0 || rich.thermals > 0)) ensureRelief();
+      C.t = NaN;                                            // the cache is the old field's
+      version++;
+      return { base, spd: Math.hypot(base[0], base[2]) };
+    }
+
+    // ---- the rich field ----------------------------------------------------
+    // THE FIELD IS TWO KINDS OF TERM. The SURFACE LAYER k(agl) — the legacy power law — is steep
+    // curvature within metres of the ground, so it is never linearised: every call evaluates it
+    // exactly (one pow) from an AGL the GROUND's own linearisation gives. Everything else has a scale
+    // of 300 m or more and rides the Jacobian. So smooth() writes SEVEN channels at unit shear:
+    //   col[3]  the synoptic column WITHOUT k (base, then the speed and the veer toward the gradient
+    //           wind above the surface layer — Ekman: the surface wind is backed 15-30 deg and is
+    //           0.6-0.75 of the gradient wind over land; aloftK 1.3 and veerDeg 20 are those, declared)
+    //   rest[3] the terms that do not shear with the ground (K1 the terrain-following flow, K3 the
+    //           breeze and the thermals; 0 in K0)
+    //   TI      the turbulence intensity the gusts ride (K1 the lee rotor; 1 in K0)
+    // and the wind at a point is  k * col + rest,  the gust amplitude  gust * k * TI.
+    const shearOf = (agl, refH, alpha) => refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / refH, alpha) : 1;
+    const RL = new Float32Array(NCH);
+    // gl = [gx, gz]: the LOCAL slope at the point (terrainH central differences at +-GD), the third band
+    function smooth(x, y, z, t, agl, gl, out) {
+      const b = windSpec.base;
+      let ux = b[0], uy = b[1], uz = b[2];
+      if (rich.aloftK !== 1 || rich.veerDeg !== 0) {
+        const s = smoothstep(WIND_TOP_H, rich.gradH, agl);
+        if (s > 0) {
+          const m = 1 + (rich.aloftK - 1) * s, ph = rich.veerDeg * s * D2R, c = Math.cos(ph), sn = Math.sin(ph);
+          const vx = ux * c - uz * sn, vz = uz * c + ux * sn;   // a veer: clockwise seen from above
+          ux = vx * m; uz = vz * m;
+        }
+      }
+      let ti = 1;
+      if (rich.terrain > 0) {
+        // THE TERRAIN (K1). Linear hill theory, neutral, irrotational: over a relief band of horizontal
+        // scale L the flow's perturbation decays as exp(-z/L). Two bands from the raster - the coarse
+        // (~1.2 km) and the fine (~300 m) - each with its own decay. At the ground the vertical part IS
+        // the kinematic condition, w = U . grad h (the air follows the slope): the windward face lifts,
+        // the lee sinks, with no sign to choose. The slopes are capped at 0.7 so an un-smoothed cliff
+        // cannot make more than 0.7 U. These channels are scaled by the surface layer's k in combine():
+        // the deflection at a height is driven by the wind at that height.
+        const R = reliefAt(x, z, RL), T = rich.terrain;
+        let gxc = R[CH.gxc], gzc = R[CH.gzc], gxf = R[CH.gxf], gzf = R[CH.gzf];
+        const mc = Math.hypot(gxc, gzc); if (mc > SLOPE_CAP) { gxc *= SLOPE_CAP / mc; gzc *= SLOPE_CAP / mc; }
+        const mf = Math.hypot(gxf, gzf); if (mf > SLOPE_CAP) { gxf *= SLOPE_CAP / mf; gzf *= SLOPE_CAP / mf; }
+        const a0 = Math.max(0, agl), ec = Math.exp(-a0 / D_COARSE), ef = Math.exp(-a0 / D_FINE);
+        // THE LOCAL BAND: a 200 m raster smoothed over 300 m cuts a steep face's slope to a third (the
+        // analytic world's 35 deg faces read 0.25), and a ridge pilot flies within a wingspan or two of
+        // the slope, where the air follows the REAL ground. So the third band is the true slope at the
+        // point (+-60 m) less what the raster already carries, decaying over 80 m - close to a steep
+        // face the lift is the wind times the slope, as it is. Across the solver's footprint the slope
+        // is the reference's (a 140 m ground wave moves it 0.1 over 12 m; one slope per aeroplane).
+        let glx = gl[0] - gxc - gxf, glz = gl[1] - gzc - gzf;
+        const ml = Math.hypot(glx, glz); if (ml > SLOPE_CAP) { glx *= SLOPE_CAP / ml; glz *= SLOPE_CAP / ml; }
+        const el = Math.exp(-a0 / D_LOCAL);
+        const wy = T * ((ux * gxc + uz * gzc) * ec + (ux * gxf + uz * gzf) * ef + (ux * glx + uz * glz) * el);
+        // THE CREST SPEED-UP AND THE VALLEY'S SHELTER (Jackson & Hunt 1975: the fractional speed-up at a
+        // 3-D hill's crest is ~1.6 h/L, capped at 0.8 here) on the fine band's height, signed by the
+        // prominence (a crest +1, a valley floor -1, the shelter at 0.4 of the speed-up), decaying over
+        // the same L; horizontal only, floored at half the wind
+        const S = Math.min(0.8, 1.6 * Math.abs(R[CH.hf]) / 300), p = R[CH.prom];
+        const m = Math.max(0.5, 1 + T * (p > 0 ? S * p : 0.4 * S * p) * ef);
+        // THE LEE ROTOR: under a lee slope of 9 deg and more of the SMOOTHED relief (the downslope
+        // steepness in the wind, the two bands together; a 300 m smoothing halves a real slope, so 0.15
+        // here is a 17 deg hillside) the flow separates - linear theory has nothing to say, so this is a
+        // declared amplitude: the gusts' intensity up to x4 at 22 deg, decaying over twice L. combine()
+        // reads it.
+        const U = Math.hypot(ux, uz);
+        const lee = U > 0.1 ? Math.max(0, -((ux * (gxc + gxf) + uz * (gzc + gzf)) / U)) : 0;
+        ti += 3 * T * smoothstep(0.15, 0.4, lee) * Math.exp(-a0 / (2 * D_FINE));
+        ux *= m; uz *= m; uy += wy;
+      }
+      // the terms that do NOT shear with the ground: they are their own flows
+      let rx = 0, ry = 0, rz = 0;
+      if (rich.breeze > 0) {
+        const C = convNow();
+        breezeAt(x, z, agl, C, BR);
+        rx += rich.breeze * BR[0]; ry += rich.breeze * BR[1]; rz += rich.breeze * BR[2];
+      }
+      if (rich.thermals > 0) {
+        const C = convNow();
+        if (C) {
+          const utc = env.day ? env.day.utc : 0;
+          ry += rich.thermals * thermalAt(x, z, agl, C, utc);
+          // THE CONVECTION ROUGHENS THE AIR IT WORKS IN. A mixed layer is
+          // turbulent everywhere, not only in the cores, so the gusts ride
+          // harder inside it - and only inside it: above the lid the air is
+          // smooth, and under the ground there is no air (that clause is not
+          // pedantry, it was putting gusts below the terrain).
+          if (agl > 0 && agl < C.zi) ti += 0.5 * rich.thermals;
+        }
+      }
+      out[0] = ux; out[1] = uy; out[2] = uz;
+      out[3] = rx; out[4] = ry; out[5] = rz;
+      out[6] = ti;
+    }
+    // combine(S, agl, x, y, z, t, out): the wind from seven channels and the ground. The gusts ride
+    // gust x TI, and a rotor gusts on its own (0.5 of the base per unit of TI above 1: a full rotor is
+    // +-0.45 of the wind, the violence a lee is known for) so a calm
+    // declared day is still rough in a lee.
+    function combine(S, agl, x, y, z, t, out) {
+      const k = shearOf(agl, windSpec.refH, windSpec.alpha);
+      out[0] = k * S[0] + S[3]; out[1] = k * S[1] + S[4]; out[2] = k * S[2] + S[5];
+      addGust(x, y, z, t, k * ((windSpec.gust || 0) * S[6] + 0.5 * (S[6] - 1)), out);
+      return out;
+    }
+    // ---- THE CONVECTION (K3) -------------------------------------------------
+    // WHAT DRIVES IT. The ground takes the sun's heat and gives it back to the
+    // air as thermals. The sensible heat flux is what is left of the beam after
+    // the albedo and the cloud, and it runs BEHIND the sun (the day's sunElLag):
+    //
+    //   H  = heat x (1 - albedo) x S0 x tau x max(0, sin El_lag) x (1 - 0.7 cover)
+    //   w* = ( g/T x H/(rho cp) x z_i )^(1/3)                        (Deardorff)
+    //
+    // `heat` is the ground's own share, off the relief raster (water 0, forest
+    // 0.25, rock 0.6 - a Bowen-ratio ordering), so a thermal stands over a
+    // gravel bar and not over a lake. z_i is mixTop(): the LOWER of the day's
+    // lid and its condensation level, which is why a capped day tops its
+    // thermals early and an uncapped one puts a cumulus on each of them. A fair
+    // afternoon gives 200-250 W/m2 and w* around 2 m/s, which is a good day.
+    const mapCache = {};
+    let conv = null, convKey = null;
+    function convNow() {
+      const day = env.day;
+      if (!day || !windSpec) return null;
+      const zi = mixTop();
+      const cover = day.cloudCoverEff != null ? day.cloudCoverEff : day.cloudCover;
+      const sinEl = Math.sin(Math.max(0, day.sunElLag != null ? day.sunElLag : day.sunEl) * D2R);
+      const b = windSpec.base;
+      const k = Math.round(zi) + ':' + Math.round(cover * 1000) + ':' + Math.round(sinEl * 1e4)
+              + ':' + day.cloudSeed + ':' + (day.cloudTypeEff || day.cloudType)
+              + ':' + Math.round((day.oatC || 15) * 10) + ':' + Math.round(b[0] * 100) + ',' + Math.round(b[2] * 100);
+      if (k === convKey) return conv;
+      convKey = k;
+      if (!(sinEl > 0) || !(zi > 0)) { conv = null; return null; }   // night: no convection at all
+      const alb = day.groundAlbedo != null ? day.groundAlbedo : 0.15;
+      const T = (day.oatC != null ? day.oatC : 15) + 273.15;
+      const atm = env.atmos ? env.atmos() : null;
+      const rho = atm ? atm.rho(0) : 1.225;
+      const beam = S0 * TAU_ATM * sinEl * (1 - alb) * (1 - 0.7 * clamp(cover, 0, 1));
+      const wstarOf = heat => {
+        const H = Math.max(0, heat) * beam;
+        return H > 0 ? Math.cbrt((9.80665 / T) * (H / (rho * CP)) * zi) : 0;
+      };
+      // THE LATTICE DRIFTS AT ONE WIND, not at the wind where it is sampled: a
+      // frame whose speed varied with the sample point would not be a frame.
+      // That one wind is the boundary layer's mean - the declared base lifted
+      // to half the layer's depth by the same power law the column shears on.
+      const kBL = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, 0.5 * zi)) / windSpec.refH, windSpec.alpha) : 1;
+      conv = { zi, cover, sinEl, T, rho, beam, wstarOf,
+               spacing: Math.max(400, TH_SPACE * zi),
+               ux: b[0] * kBL, uz: b[2] * kBL, bx: b[0], bz: b[2],
+               wRef: Math.max(0.5, wstarOf(0.35)),                   // for the tilt's lag, one number per day
+               map: CLOUD_FIELD.weatherMap({ seed: day.cloudSeed, cover,
+                                             type: day.cloudTypeEff || day.cloudType, cache: mapCache }) };
+      return conv;
+    }
+    // THE LATTICE. A square lattice of spacing 1.5 z_i (Lenschow's thermal
+    // spacing) in a frame advected by that one wind, so every thermal drifts
+    // downwind with no per-thermal state to keep - and a gate whose day is
+    // frozen has a frozen field. A cell's hash decides whether a thermal stands
+    // there at all, with what strength and how far off centre; the probability
+    // leans on the weather map's coverage, so the thermals cluster where the
+    // cumulus are (they are one field: the clouds ARE the tops). The age runs on
+    // the DAY clock with a smooth envelope - born, working, dying over twenty
+    // minutes - which is the two-clocks rule again.
+    function thash(i, j, n) {
+      let h = (i * 374761393 + j * 668265263 + n * 1013904223 + (env.seed | 0) * 2654435761) | 0;
+      h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+      return (h >>> 0) / 4294967296;
+    }
+    const smf01 = t => { const q = clamp(t, 0, 1); return q * q * (3 - 2 * q); };
+    const TH_TMP = { x: 0, z: 0, k: 0, ok: false };
+    const RL2 = new Float32Array(NCH), RL3 = new Float32Array(NCH);
+    function thermalCell(i, j, C, utc, dx0, dz0, out) {
+      const sp = C.spacing;
+      const ph = thash(i, j, 7);
+      const n = Math.floor(utc / TH_LIFE + ph);
+      // WHERE IT STANDS, FIRST. The jitter comes before the tests, not after:
+      // a cell is 1.5 z_i across and a thermal may sit a third of that off
+      // centre, so asking 'is there cloud here' at the lattice point instead of
+      // at the column's own place blurs the answer over most of a cloud
+      // (measured: the clustering fell from nearly two-to-one to 1.4).
+      const x0 = i * sp + dx0 + (thash(i, j, n * 31 + 2) - 0.5) * 2 * TH_JIT * sp;
+      const z0 = j * sp + dz0 + (thash(i, j, n * 31 + 3) - 0.5) * 2 * TH_JIT * sp;
+      // UNDER THE CLOUD. The map's coverage carries a soft edge, so most of a
+      // covered texel reads well under 1; a linear ramp on it barely clusters
+      // anything. What matters is whether there IS cloud overhead, so the odds
+      // step over the edge instead of leaning on its depth.
+      const cov = C.map ? CLOUD_FIELD.sample(C.map, x0, z0)[0] : 0;
+      if (thash(i, j, n * 31 + 1) > 0.22 + 0.68 * smf01(cov / 0.25)) { out.ok = false; return out; }
+      // AND ON GROUND THAT HEATS: no column stands over water. The raster is
+      // bilinear, so a point just off a beach still carries some of the land's
+      // heat; under this floor there is no thermal at all, not a weak one.
+      if (reliefAt(x0, z0, RL3)[CH.heat] < 0.06) { out.ok = false; return out; }
+      const a = (utc / TH_LIFE + ph) - n;                            // 0..1 through its life
+      const e = smf01(a / 0.2) * (1 - smf01((a - 0.7) / 0.3));
+      if (e <= 0.001) { out.ok = false; return out; }
+      out.x = x0; out.z = z0;
+      out.k = (0.6 + 0.8 * thash(i, j, n * 31 + 4)) * e;
+      out.ok = true;
+      return out;
+    }
+    // THE COLUMN'S SHAPE (Lenschow 1980 / Allen 2006): a mean updraft over the
+    // layer's depth, a core of radius r2, and a SINK ANNULUS out to 2 r2 that
+    // carries down exactly the air the core lifts - mass balanced by
+    // construction (the core integrates to pi w r2^2 / 2 and the annulus to
+    // 2 pi r2^2 w_ann, so w_ann = w/4). Above z_i there is nothing: a glider
+    // does not climb into the cloud here, and that is a declared cut.
+    function thermalAt(x, z, agl, C, utc) {
+      const zi = C.zi;
+      if (agl <= 0 || agl >= zi) return 0;
+      const zr = agl / zi;
+      const wbar = Math.pow(zr, 1 / 3) * (1 - 1.1 * zr);
+      if (wbar <= 0) return 0;
+      const r2 = Math.max(20, TH_R2K * Math.pow(zr, 1 / 3) * (1 - 0.25 * zr) * zi);
+      const sp = C.spacing;
+      const dx0 = C.ux * utc, dz0 = C.uz * utc;                      // the lattice, carried downwind
+      // THE TILT IS THE SHEAR'S, NOT THE WIND'S. The column rides in the moving
+      // air, so the wind itself carries the whole thing (that is the lattice's
+      // drift above) and cannot lean it. What leans it is the DIFFERENCE between
+      // the wind at this height and the mean the column travels at: a parcel
+      // took agl/w* seconds to get here and spent them in air moving (U(z)-U_bl)
+      // relative to the column. Using the whole wind instead put a 2 km lean on
+      // a 900 m column - measured, and wrong by the width of the lattice.
+      const kz = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / windSpec.refH, windSpec.alpha) : 1;
+      const shx = C.bx * kz - C.ux, shz = C.bz * kz - C.uz;
+      const lag = Math.min(900, agl / C.wRef);
+      const tx = x - shx * lag, tz = z - shz * lag;
+      const i0 = Math.floor((tx - dx0) / sp), j0 = Math.floor((tz - dz0) / sp);
+      let w = 0;
+      for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) {
+        const c = thermalCell(i0 + di, j0 + dj, C, utc, dx0, dz0, TH_TMP);
+        if (!c.ok) continue;
+        const ddx = tx - c.x, ddz = tz - c.z, r = Math.hypot(ddx, ddz);
+        if (r > 2 * r2) continue;
+        const wstar = C.wstarOf(reliefAt(c.x, c.z, RL2)[CH.heat]);
+        if (!(wstar > 0)) continue;
+        const wpk = TH_CORE * wbar * wstar * c.k;                    // the core's peak (see TH_CORE)
+        w += r <= r2 ? wpk * (1 - (r / r2) * (r / r2))
+                     : -(wpk / 4) * (1 - Math.pow((r - 1.5 * r2) / (0.5 * r2), 2));
+      }
+      return w;
+    }
+    // THE SEA BREEZE (K3). The land heats, the air over it rises, and the sea's
+    // cooler air runs in underneath: a flow along the coast's own gradient (the
+    // raster's `cgx, cgz`, which points inland), driven by the same lagged sun,
+    // killed by cloud, about 700 m deep, reaching ~20 km inland and ~8 km out.
+    // At night it reverses, weakly, as the land gives its heat back.
+    //
+    // The VERTICAL part is continuity and nothing else: the horizontal flow dies
+    // out inland, so what it carries has to go up. With A(d) = V exp(-|d|/D),
+    //   div V_h = (1 - z/H) dA/dd = -(1 - z/H) A sgn(d) / D
+    //   w(z)    = -int_0^z div  =  (A/D) sgn(d) z (1 - z/2H)
+    // NAMED CUT, and it matters: that lift is BROAD - 0.05-0.1 m/s spread over
+    // twenty kilometres, which is what a front's convergence comes to when it is
+    // smeared over its whole envelope. The real sea-breeze front is a line, 1-2
+    // m/s over a kilometre, and a glider works the line. That sharpening (where
+    // the breeze meets the opposing gradient wind) is owed, not modelled here.
+    // The breeze's WIND is honest and is the big effect: a coast that swings
+    // onshore through the afternoon.
+    function breezeAt(x, z, agl, C, out) {
+      const R = reliefAt(x, z, RL2), d = R[CH.coast];
+      const drive = C ? C.sinEl * (1 - 0.8 * clamp(C.cover, 0, 1)) : -0.25;
+      const D = d >= 0 ? SB_IN : SB_OUT;
+      const A = SB_V * drive * Math.exp(-Math.abs(d) / D);
+      const zc = Math.min(agl, SB_H);
+      const envZ = Math.max(0, 1 - agl / SB_H);
+      out[0] = A * envZ * R[CH.cgx];
+      out[2] = A * envZ * R[CH.cgz];
+      out[1] = (A / D) * (d >= 0 ? 1 : -1) * zc * (1 - zc / (2 * SB_H));
+      return out;
+    }
+    const BR = [0, 0, 0];
+    // ---- the linearised sampler (rule 2) -----------------------------------
+    // The reference: the ground and its gradient (three terrainH calls), the seven channels and their
+    // Jacobian (four smooth() calls). A call within LIN_R of it at the same instant costs a pow and
+    // 21 multiply-adds; a far call at the same instant is a full sample and leaves the reference alone.
+    const NCHN = 7;
+    const C = { t: NaN, x: 0, y: 0, z: 0, g0: 0, gx: 0, gz: 0, w0: new Float64Array(NCHN), J: new Float64Array(NCHN * 3) };
+    const T1 = new Float64Array(NCHN), T2 = new Float64Array(NCHN), GL = [0, 0], GL2 = [0, 0];
+    // the ground's plane at a point: central differences at +-GD (four terrainH calls), the same slope
+    // the local band reads
+    function groundAt(x, z, gl) {
+      gl[0] = (terrainH(x + GD, z) - terrainH(x - GD, z)) / (2 * GD);
+      gl[1] = (terrainH(x, z + GD) - terrainH(x, z - GD)) / (2 * GD);
+    }
+    function recentre(x, y, z, t) {
+      const w0 = C.w0, J = C.J;
+      const g0 = terrainH(x, z);
+      groundAt(x, z, GL);
+      C.g0 = g0; C.gx = GL[0]; C.gz = GL[1];
+      smooth(x, y, z, t, y - g0, GL, w0);
+      smooth(x + LIN_H, y, z, t, y - g0 - GL[0] * LIN_H, GL, T1);  for (let c = 0; c < NCHN; c++) J[c * 3] = (T1[c] - w0[c]) / LIN_H;
+      smooth(x, y + LIN_H, z, t, y + LIN_H - g0, GL, T1);          for (let c = 0; c < NCHN; c++) J[c * 3 + 1] = (T1[c] - w0[c]) / LIN_H;
+      smooth(x, y, z + LIN_H, t, y - g0 - GL[1] * LIN_H, GL, T1);  for (let c = 0; c < NCHN; c++) J[c * 3 + 2] = (T1[c] - w0[c]) / LIN_H;
+      C.t = t; C.x = x; C.y = y; C.z = z;
+      stats.full += 4; stats.recentres++;
+    }
+    function wind(x, y, z, t) {
+      if (mode === 'zero') return W0;
+      if (mode === 'legacy') return windLegacy(x, y, z, t);
+      if (t !== C.t) {
+        recentre(x, y, z, t);
+        return combine(C.w0, y - C.g0, x, y, z, t, WV);
+      }
+      const dx = x - C.x, dy = y - C.y, dz = z - C.z;
+      if (dx * dx + dy * dy + dz * dz > LIN_R2) {           // a far call at the same instant: full, no re-centre
+        const agl = y - terrainH(x, z);
+        groundAt(x, z, GL2);
+        smooth(x, y, z, t, agl, GL2, T2); stats.full++;
+        return combine(T2, agl, x, y, z, t, WV);
+      }
+      const w0 = C.w0, J = C.J;
+      for (let c = 0; c < NCHN; c++) T2[c] = w0[c] + J[c * 3] * dx + J[c * 3 + 1] * dy + J[c * 3 + 2] * dz;
+      stats.linear++;
+      // THE GROUND IS EXACT IN THE SURFACE LAYER: under LIN_GROUND_H of it the power law's curvature
+      // and the ground's own (a 65 m octave on the analytic world) make a linearised AGL worth up to
+      // a metre — the take-off roll and the final are flown on the true ground, as the legacy field
+      // was (one memoised terrainH per call, what every refH preset costs today); above it the
+      // ground's plane is within a percent of the wind and costs nothing
+      const agl = (C.y - C.g0) < LIN_GROUND_H ? y - terrainH(x, z) : y - (C.g0 + C.gx * dx + C.gz * dz);
+      return combine(T2, agl, x, y, z, t, WV);
+    }
+    // sample(x, y, z, t, out): the full field into `out` (allocated when absent), never the cache
+    function sample(x, y, z, t, out) {
+      out = out || [0, 0, 0];
+      if (mode === 'zero') { out[0] = out[1] = out[2] = 0; return out; }
+      if (mode === 'legacy') { const w = windLegacy(x, y, z, t); out[0] = w[0]; out[1] = w[1]; out[2] = w[2]; return out; }
+      const agl = y - terrainH(x, z);
+      groundAt(x, z, GL2);
+      smooth(x, y, z, t, agl, GL2, T2); stats.full++;
+      return combine(T2, agl, x, y, z, t, out);
+    }
+    // reliefAt(x, z, out): the raster's channels at a point, bilinear, clamped at the edge
+    const RA = new Float32Array(NCH);
+    function reliefAt(x, z, out) {
+      const R = ensureRelief(), o = out || RA;
+      let u = (x - R.x0) / R.cell - 0.5, v = (z - R.z0) / R.cell - 0.5;
+      u = clamp(u, 0, R.nx - 1.001); v = clamp(v, 0, R.nz - 1.001);
+      const i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
+      const k00 = (j * R.nx + i) * NCH, k10 = k00 + NCH, k01 = k00 + R.nx * NCH, k11 = k01 + NCH, d = R.data;
+      for (let c = 0; c < NCH; c++) {
+        const a = d[k00 + c] + (d[k10 + c] - d[k00 + c]) * fu, b = d[k01 + c] + (d[k11 + c] - d[k01 + c]) * fu;
+        o[c] = a + (b - a) * fv;
+      }
+      return o;
+    }
+    // surfaceWind(): the 10 m wind the sea and the socks read — the declared base for now (K4 smooths it)
+    function surfaceWind() {
+      const b = windSpec ? windSpec.base : W0;
+      return { spd: Math.hypot(b[0], b[2]), dir: Math.atan2(b[2], b[0]), base: b };
+    }
+    // ---- THE COLUMN (K2) -----------------------------------------------------
+    // One air, asked for twice: the DENSITY comes from the world's own atmos
+    // (which is makeAtmos over the day's effective temperature, pressure and
+    // column shape, rebuilt lazily on the day's airKey), and the WATER from
+    // atmosWater over it. Both are cached on the pair of keys that can move
+    // them, so `profile(h)` is a few multiplies in the steady state and the
+    // panel can read it every frame.
+    let wKey = null, water = null, wAtm = null;
+    function waterNow() {
+      const atm = env.atmos ? env.atmos() : null;
+      const dew = env.day ? env.day.dewC : null;
+      const k = (env.day ? env.day.airKey : '-') + '|' + (dew == null ? '-' : Math.round(dew * 100));
+      if (k !== wKey || wAtm !== atm) { wKey = k; wAtm = atm; water = atm ? atmosWater(atm, dew) : null; }
+      return water;
+    }
+    // profile(h, x, z) -> { T, p, rho, sigma, rh, Td, lcl } at an altitude MSL.
+    //
+    // THE SPATIAL ARGUMENTS ARE ACCEPTED AND IGNORED, deliberately and by
+    // agreement (the fog study's §5b). The column is HORIZONTALLY UNIFORM today
+    // - a declared boundary, not an oversight: this is the vertical law, and a
+    // 2-D mist field (where a layer's top sits over valley floors and water,
+    // where the patches are) composes with it rather than competing. But its
+    // consumers are spatial FROM THEIR FIRST LINE - a bake that walks xz to
+    // build a mistTop(x, z) - so the signature is taken now, while it costs a
+    // comment, rather than later, when it would touch every call site and the
+    // bake path with it. When the column stops being uniform, these start being
+    // read and nothing else moves.
+    function profile(h, x, z) {
+      const atm = env.atmos ? env.atmos() : null, w = waterNow();
+      if (!atm) return null;
+      return { T: atm.T(h) - 273.15, p: atm.p(h), rho: atm.rho(h), sigma: atm.sigma(h),
+               rh: w ? w.rh(h) : null, Td: w ? w.Td(h) : null, lcl: w ? w.lcl : null,
+               mixH: atm.mixH, densityAlt: atm.densityAlt(h) };
+    }
+    // THE THERMAL'S CEILING (K2, used by K3): the lower of the day's lid and
+    // its condensation level. A capped day tops the columns at the lid and
+    // makes no cloud; an uncapped one tops them at the base and marks every
+    // one with a cumulus. Either way it is ONE number, derived, never declared.
+    function mixTop() {
+      const atm = env.atmos ? env.atmos() : null, w = waterNow();
+      const lid = atm && atm.mixH != null ? atm.mixH : null;
+      const lcl = w ? w.lcl : null;
+      if (lid == null && lcl == null) return 1200;                  // a fair-weather default, named
+      if (lid == null) return lcl;
+      if (lcl == null) return lid;
+      return Math.min(lid, lcl);
+    }
+    // haze(): THE INGREDIENTS OF A MIST, not a distance. Koschmieder's law turns
+    // a visibility into an extinction, beta = 3.912 / V; the day's own
+    // visibilityKm carries the turbidity and the humidity, and a front thickens
+    // it. What is published is (rho0, top, H) - the layer itself - and the
+    // consumer integrates along ITS OWN ray.
+    //
+    // TWO WARNINGS FOR WHOEVER CONSUMES THIS, both measured by the fog study
+    // (futureDesigns/FOG-MIST-2026-09-21.md) rather than argued:
+    //
+    // 1. A VISIBILITY IS NOT A RADIUS. The mist is a layer with a lid at `top`,
+    //    so how far an eye can see depends on where the eye is and where it is
+    //    looking: from 200 m over Jolene the distant GROUND dies at about 4 km
+    //    (that ray looks down through the layer) while the RIDGES stand at 5-9
+    //    km (their ray never enters it). A far plane or a ring radius sized off
+    //    a single surface number escapes by luck at rh 0.85 and shears the
+    //    mountains off at rh 0.90. Integrate the ray; that is what these three
+    //    numbers are for.
+    // 2. THIS NUMBER MOVES DURING A FLIGHT NOW. It used to be a constant per
+    //    day; a front takes it 60 -> 26 km over a couple of hours and the
+    //    diurnal humidity walks it as well. Any consumer that sizes a STREAMED
+    //    thing from it (the forest ring, a far cascade) needs two-radii
+    //    hysteresis and a rate limit, or it re-imports the chunk-crossing pop.
+    function haze() {
+      const day = env.day;
+      if (!day) return null;
+      const st = stormOf();
+      let visKm = day.visibilityKm;
+      if (st) visKm *= 1 - 0.55 * st.I;                             // a front's murk, declared
+      const w = waterNow();
+      return { visibilityKm: visKm, rho0: 3.912 / Math.max(0.05, visKm * 1000),
+               top: 60, H: 18, rhSfc: w ? w.rh(0) : null, lcl: w ? w.lcl : null };
+    }
+    // thermals(): every live column within `r` of a point, as records - what the
+    // debug view draws, what a gate flies to, and what a panel counts. Pure in
+    // the day's clock, like the field it reads.
+    function thermals(x, z, r) {
+      const C = convNow();
+      if (!C || !rich || !(rich.thermals > 0)) return [];
+      const utc = env.day ? env.day.utc : 0;
+      const sp = C.spacing, dx0 = C.ux * utc, dz0 = C.uz * utc;
+      r = r || 6000;
+      const i0 = Math.floor((x - r - dx0) / sp), i1 = Math.floor((x + r - dx0) / sp);
+      const j0 = Math.floor((z - r - dz0) / sp), j1 = Math.floor((z + r - dz0) / sp);
+      const out = [];
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const c = thermalCell(i, j, C, utc, dx0, dz0, { x: 0, z: 0, k: 0, ok: false });
+        if (!c.ok) continue;
+        if (Math.hypot(c.x - x, c.z - z) > r) continue;
+        const heat = reliefAt(c.x, c.z, RL2)[CH.heat];
+        const wstar = C.wstarOf(heat);
+        if (!(wstar > 0)) continue;
+        const g = terrainH(c.x, c.z);
+        // the peak at mid-layer, which is the number a pilot would quote, and the
+        // axis THERE - the column leans with the shear, so where you circle is not
+        // over where it was born (`x0, z0` is the source on the ground)
+        const zr = 0.5, wbar = Math.pow(zr, 1 / 3) * (1 - 1.1 * zr);
+        const mid = 0.5 * C.zi;
+        const kz = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, mid)) / windSpec.refH, windSpec.alpha) : 1;
+        const lag = Math.min(900, mid / C.wRef);
+        out.push({ i, j, x: c.x + (C.bx * kz - C.ux) * lag, z: c.z + (C.bz * kz - C.uz) * lag,
+                   x0: c.x, z0: c.z, ground: g, zi: C.zi, top: g + C.zi, mid: g + mid, k: c.k, wstar,
+                   wpk: TH_CORE * wbar * wstar * c.k,
+                   r2: Math.max(20, TH_R2K * Math.pow(zr, 1 / 3) * (1 - 0.25 * zr) * C.zi) });
+      }
+      out.sort((a, b) => (b.wpk - a.wpk) || (a.x - b.x) || (a.z - b.z));
+      return out;
+    }
+    // refresh(): the viewer's tick calls this when the DAY's clock has moved,
+    // so a front's veer and rise reach the wind. Pure: re-resolving the
+    // declared spec against the day as it now is. A day with no front and no
+    // swing re-resolves to exactly the same numbers.
+    function refresh() { if (spec0) setWind(spec0); }
+    return {
+      setWind, wind, sample, reliefAt, ensureRelief, surfaceWind,
+      profile, mixTop, haze, refresh, thermals, get water() { return waterNow(); },
+      get conv() { return convNow(); },
+      get mode() { return mode; }, get spec() { return windSpec; }, get rich() { return rich; },
+      get relief() { return relief; }, get version() { return version; }, stats,
+    };
+  }
+  return { make, bearingToBase, buildRelief, fnv, CH, NCH, CELL, GC, WIND_TOP_H, WIND_ALPHA, GRAD_H, KT };
+})();
+if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = CLIMATE;
 // ===========================================================================
 // TERRAIN CODEC — the asset format (futureDesigns/WORLD-V2.md §9).
 // ===========================================================================
@@ -2231,6 +3253,60 @@ function makeWorld(seed, opts) {
       const k = 2 * Math.PI / l;
       SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph, felt: N === 2 || l >= SEA_FELT * L });   // the old pair is felt whole
     }
+    // ---- WHAT THE DRAW ACTUALLY WAS (CLIMATE K4) --------------------------
+    // Every row above is A, L and dir times something the seed drew: the
+    // amplitude is a coefficient times A, the wavelength a RATIO times L, the
+    // direction an offset from dir. Recording those three lets the sea be
+    // re-applied at a new (A, L, dir) without redrawing - which is what lets it
+    // follow a wind that moves instead of jumping every time one does.
+    //
+    // THE FELT FLAG IS THE RATIO'S, never an absolute wavelength, and that is
+    // load-bearing: waterH sums the felt band ALONE, so a train crossing the
+    // threshold mid-front would STEP the surface a float is riding. Decided
+    // once here, invariant under any later L. (The longest wind-sea component
+    // sits at ratio 0.671..0.757 against SEA_FELT 0.75 - right on the line.)
+    DRAW.n = N; DRAW.rows.length = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const [a, l, d] = rows[i];
+      DRAW.rows.push({ ca: A > 0 ? a / A : 0, ratio: l / L, dth: d - dir, felt: SEA.W[i].felt });
+    }
+  }
+  // the draw, kept so the sea can be re-applied without being redrawn
+  const DRAW = { n: 0, rows: [] };
+  // seaApply(A, L, dir, t0): the same draw at a new state. The temporal phase is
+  // held at t0 - phi' = phi + (om' - om) t0 - so the surface is CONTINUOUS IN
+  // TIME everywhere: at t0 every train reads exactly what it read a moment ago.
+  // It cannot also be continuous in SPACE, because k and the directions have
+  // moved; the far field slides at D x d(k.d)/dt along the ridge normal, which
+  // is ~0.17 rad/s at the near patch's edge and ~0.9 at a kilometre for a front
+  // relaxed over five minutes. The water's own LOD eats it: since G460.7 a
+  // wind-sea train fades out of the slope between 12 and 3 px of its own
+  // wavelength (the swell 6 to 2), so by a kilometre those ridges are drawn as
+  // roughness, and roughness has no phase to slide. If it ever shows at the
+  // hull, the remedy is an anchored phase - add (k' - k)(d . x_cg) - which makes
+  // it continuous AT THE AEROPLANE and pushes the slide outward.
+  function seaApply(A, L, dir, t0, ax, az) {
+    if (!DRAW.rows.length || !(A > 0) || !(L > 0)) { seaFrom(A, L, dir, DRAW.n || undefined); return; }
+    SEA.A = A; SEA.L = L; SEA.dir = dir;
+    ax = ax || 0; az = az || 0;
+    for (let i = 0; i < DRAW.rows.length; i++) {
+      const r = DRAW.rows[i], w = SEA.W[i];
+      const l = r.ratio * L, d = dir + r.dth, k = 2 * Math.PI / l, om = Math.sqrt(9.81 * k);
+      const dx = Math.cos(d), dz = Math.sin(d);
+      // THE PHASE IS ANCHORED AT THE AEROPLANE, not at the world's origin.
+      // Holding only the TIME term leaves the SPACE term free, and the space
+      // term is k times a distance: at four kilometres out, a wavelength moving
+      // by a percent turns the phase through several radians IN ONE TICK - a
+      // bigger step than the jump this was meant to remove (measured: 0.69 m
+      // against 0.28). Anchoring both terms at (ax, az) makes the surface
+      // continuous WHERE THE AEROPLANE IS - which is the only place a float can
+      // feel it - and pushes the slide outward, where the water's own LOD has
+      // already turned those ridges into roughness.
+      w.ph += (om - w.om) * (t0 || 0) + (w.k * (w.dx * ax + w.dz * az) - k * (dx * ax + dz * az));
+      w.A = r.ca * A; w.k = k; w.om = om;
+      w.dx = dx; w.dz = dz;
+      w.felt = r.felt;                                  // decided at the draw, never re-decided
+    }
   }
   function setSea(spec) {
     if (!spec) { seaFrom(0, 0, 0); return; }
@@ -2299,74 +3375,31 @@ function makeWorld(seed, opts) {
     return rec;
   }
 
-  // ---- wind field: steady vector + deterministic Dryden-ish gusts ----
-  // setWind({ base:[wx,wy,wz], gust:g }) — gusts are sums of incommensurate
-  // sines with spatial phase (advecting waves), amplitude g horizontal and
-  // 0.6*g vertical. Deterministic by construction: gates can rely on it.
-  // Default null: wind() returns the shared zero vector (fast path).
-  let windSpec = null;
-  const W0 = [0, 0, 0], WV = [0, 0, 0];
-  const GC = [ // [freq rad/s, kx, kz, phase, axis weight x,y,z]
-    [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
-    [1.37, 0.004, 0.013, 2.9, 0.55, 0.6, 1.0],
-    [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
-    [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
-  ];
-  // ---- THE SURFACE LAYER (G72) -------------------------------------------
-  // `y` has been an argument of wind() since the field was written and has
-  // never been read. It is read now: the ground drags on the air, so the wind
-  // near it is slower than the wind above it, and an aeroplane on final is in
-  // measurably different air from the one at circuit height.
-  //
-  // WHERE THE REPORTED WIND IS. A wind speed is meaningless without a height,
-  // and the height every anemometer, every windsock and every METAR means is
-  // 10 m. So `refH` says which height `base` was measured at, and the profile
-  // is the engineering power law u/uref = (z/zref)^alpha — the same one every
-  // wind-resource and building-code calculation uses, with alpha set by how
-  // rough the ground is (0.10 open water, 0.14 open grass, 0.20 scrub and
-  // trees). It is a fit, not a derivation, and it is a good one to about 200 m.
-  //
-  // A SPEC WITH NO refH IS A UNIFORM COLUMN, which is exactly the pre-G72 model
-  // and is what the fleet's whole wind calibration was measured in. That is a
-  // deliberate, declared boundary rather than a compatibility fudge: "no
-  // reference height" honestly means "we are not claiming to know where this
-  // wind was measured", and the only answer that does not invent information is
-  // to blow it everywhere equally. GATE WIND and the XCTY gates anchor to that
-  // column; the CONDITIONS presets and GATE HOTHIGH declare a refH and fly the
-  // profile. Re-anchoring the fleet battery onto sheared wind is named work,
-  // not a side effect of this one.
-  const WIND_TOP_H = 300;              // m agl: above this the profile has run out
-  const WIND_ALPHA = 0.14;             // open grassland, the default surface here
-  function shearK(x, y, z, refH, alpha) {
-    const agl = y - terrainH(x, z);
-    // a power law has no zero: floor the height rather than pretend it does.
-    const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
-    return Math.pow(h / refH, alpha);
-  }
-  function wind(x, y, z, t) {
-    if (!windSpec) return W0;
-    const b = windSpec.base, g = windSpec.gust || 0;
-    const k = windSpec.refH ? shearK(x, y, z, windSpec.refH, windSpec.alpha) : 1;
-    WV[0] = b[0] * k; WV[1] = b[1] * k; WV[2] = b[2] * k;
-    // the gusts ride the local wind, so they die out in the surface layer and
-    // grow in the shear instead of being the same everywhere from grass to
-    // circuit height
-    const gk = g * k;
-    if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
-      const s = Math.sin(om * t + kx * x + kz * z + ph);
-      WV[0] += gk * 0.30 * ax * s;
-      WV[1] += gk * 0.18 * ay * s;
-      WV[2] += gk * 0.30 * az * s;
-    }
-    return WV;
-  }
+  // ---- THE WIND: the climate's (09_climate.js, K0 2026-09-22) -------------
+  // The field the fleet was calibrated in (G72: base x power-law shear + the
+  // four gust sines, the exact zero W0 when nothing is set) moved there
+  // VERBATIM and is the whole field whenever the spec names no rich term; the
+  // terrain-following flow, the breeze, the thermals and the winds aloft are
+  // its rich terms. The day is made first: the climate's slow terms read it.
+  const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  const climate = CLIMATE.make({
+    terrainH, surface, SURFACE, bounds: BOUNDS, day, geo: GEO, seed: SEED,
+    atmos: () => airNow(),                    // the column, live (K2)
+    typeAt: ISL && ISL.ttype ? (x, z) => { const k = ISL.cellAt(x, z); return k < 0 ? -1 : ISL.ttype[k]; } : null,
+    coastAt: ISL ? ISL.coastAt : null,
+  });
+  const wind = climate.wind;
   function setWind(spec) {
-    windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0,
-                        refH: spec.refH || 0,
-                        alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA } : null;
+    const r = climate.setWind(spec);
     // ...and the sea follows the wind (H4, G393)
-    const b = windSpec ? windSpec.base : [0, 0, 0];
+    const b = r.base;
     const Wv = Math.hypot(b[0], b[2]);
+    seaTarget.A = Wv > 0.5 ? 0.018 * Wv : 0; seaTarget.L = 3 + 1.4 * Wv; seaTarget.dir = Math.atan2(b[2], b[0]);
+    // A SEA TAKES TIME (CLIMATE K4). With `seaTau` declared on the day the state
+    // is relaxed toward this target by the world's own tick instead of being
+    // rebuilt on the spot; at the default 0 it is rebuilt on the spot, which is
+    // exactly the line below and exactly what every gate has measured.
+    if (day.seaTau > 0 && SEA.A > 0) return;
     // THE WIND -> SEA LAW (G460.6): 0.018 m of amplitude per m/s, calibrated to the SMB fetch-limited
     // sea of a 10 km sound (H_s 0.26 m at 5 m/s, 0.5 at 10; A_equiv = H_s / 2.8) - G393's 0.04 was a
     // guess that put a 0.57 m significant sea under a 5 m/s breeze, and with a real spectrum (groups
@@ -2374,6 +3407,46 @@ function makeWorld(seed, opts) {
     seaFrom(Wv > 0.5 ? 0.018 * Wv : 0, 3 + 1.4 * Wv, Math.atan2(b[2], b[0]));
   }
 
+  const seaTarget = { A: 0, L: 10, dir: 0 };
+  // seaRelax(dtDay, simT): the sea walks toward the wind's target on the DAY's
+  // clock - the sea state is WEATHER, and weather is the slow clock's (the wave
+  // PHASE is the sim's, which is why t0 here is the sim time). A sea builds over
+  // tens of minutes and lies down more slowly still, so growth runs at tau and
+  // decay at 1.5 tau.
+  // HOW FAST A SEA MAY BUILD, and what it costs. A wave field whose wavelength
+  // is changing cannot be continuous everywhere at once - only at the anchor -
+  // so the residual motion near the craft is set by how fast L moves. MEASURED
+  // (a 5 -> 16 m/s step, the worst second within 150 m of the anchor):
+  //     tau  120 s   built in 15 min of day time   0.22 m/s   a visible wobble
+  //     tau  300 s   38 min                        0.10 m/s
+  //     tau  900 s   an hour+                      0.035 m/s  a smooth build
+  //     tau 1800 s                                 0.018 m/s
+  // So 900 is the honest default for a day that wants one: a sea that takes the
+  // better part of an hour to get up, which is what a sea does.
+  // The residual scales with the DAY's rate, as it must: at 60x the weather is
+  // moving sixty times faster, so the sea builds sixty times faster and the
+  // surface near the craft moves with it (0.30 m a frame at 600x against
+  // 0.035 at 1x). Sub-stepping the relaxation was tried and bought nothing
+  // measurable - the total change over a frame is the total change - so it is
+  // not here.
+  function seaRelax(dtDay, simT, ax, az) {
+    const tau = day.seaTau;
+    if (!(tau > 0) || !(dtDay > 0)) return false;
+    const gk = 1 - Math.exp(-dtDay / tau), dk = 1 - Math.exp(-dtDay / (1.5 * tau));
+    const k = seaTarget.A >= SEA.A ? gk : dk;
+    const A0 = SEA.A, L0 = SEA.L, d0 = SEA.dir;
+    let dd = seaTarget.dir - SEA.dir;                   // the shortest way round
+    while (dd > Math.PI) dd -= 2 * Math.PI;
+    while (dd < -Math.PI) dd += 2 * Math.PI;
+    const A = SEA.A + (seaTarget.A - SEA.A) * k;
+    const L = SEA.L + (seaTarget.L - SEA.L) * k;
+    const dir = SEA.dir + dd * k;
+    if (Math.abs(A - A0) < 1e-6 && Math.abs(L - L0) < 1e-5 && Math.abs(dir - d0) < 1e-6) return false;
+    if (!(A > 0)) { SEA.A = A; SEA.L = L; SEA.dir = dir; return true; }
+    if (!DRAW.rows.length || A0 <= 0) seaFrom(A, L, dir);   // the first sea of a calm day is a fresh draw
+    else seaApply(A, L, dir, simT || 0, ax, az);
+    return true;
+  }
   // ---- the day: ONE weather state, air and wind together (G72) ------------
   // setWeather({ oatC, qnhPa, wind: { base, gust } }) — everything a day is.
   // They are one object rather than two setters because a hot gusty afternoon
@@ -2392,11 +3465,40 @@ function makeWorld(seed, opts) {
   // clock advances through day.advance(), which only the viewer calls.
   let weather = null;
   let atmos = ATMOS_ISA;
-  const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  // THE AIR IS REBUILT LAZILY ON THE DAY'S OWN KEY (CLIMATE K2). It used to be
+  // rebuilt when `set` reported an air field had moved, which is still true and
+  // still enough for a declared change — but the clock can now MAKE weather
+  // (the diurnal swing, a front's temperature and pressure), and `advance()`
+  // deliberately never bumps the version. So the getter compares the day's
+  // `airKey` — one number over everything makeAtmos reads — and rebuilds only
+  // when it has moved. A day with neither a swing nor a front has a constant
+  // key, so `atmos` stays the SAME OBJECT and GATE DAY's identity check holds.
+  let atmosKey = null;
+  function airNow() {
+    const k = day.hasAir ? day.airKey : null;
+    if (k !== atmosKey) { atmosKey = k; atmos = k == null ? ATMOS_ISA : makeAtmos(day.air()); }
+    return atmos;
+  }
   function setDay(spec) {
-    const airChanged = day.set(spec);
-    if (airChanged) atmos = day.hasAir ? makeAtmos(day.air()) : ATMOS_ISA;
+    day.set(spec);
+    airNow();
     if (spec && 'wind' in spec) setWind(spec.wind || null);
+    else climate.refresh();                   // a front or a swing moved: re-resolve the column (K2)
+  }
+  // dayTick(dt): the VIEWER's clock step - the day advances and the wind
+  // follows the front through it. The solver never calls this (a gate's day is
+  // frozen and its air is constant), which is the two-clocks rule (09_climate).
+  function dayTick(dt, simT, ax, az) {
+    if (!(dt > 0)) return;
+    const st0 = day.storm ? day.storm.I : 0, sw = day.diurnalC > 0;
+    const u0 = day.utc;
+    day.advance(dt);
+    const st1 = day.storm ? day.storm.I : 0;
+    if (st0 !== st1 || (sw && day.storm)) climate.refresh();
+    else if (st1 > 0) climate.refresh();
+    airNow();
+    // the sea walks after the wind, on the same clock the wind moved on
+    seaRelax(Math.abs(day.utc - u0), simT, ax, az);
   }
   // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
   // absent fields are CLEARED (the standard day, the zero wind), so the
@@ -2452,15 +3554,20 @@ function makeWorld(seed, opts) {
     // reach records and bake stats here without walking every tile.
     hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
     // ---- the day (G72): the air is a getter so it is read LIVE ----
-    get atmos() { return atmos; },
+    get atmos() { return airNow(); },
     get weather() { return weather; },
     setWeather,
     // ---- THE DAY (SKY S1): the whole day, read live; the sun in its sky ----
-    day, setDay, geo: GEO,
+    day, setDay, dayTick, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
+    // K4: the state the sea is walking toward, and the walk itself (the viewer
+    // pushes world.sea at the shader when `seaChanged` says the trains moved)
+    get seaTarget() { return seaTarget; }, seaRelax,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
+    // ---- THE CLIMATE (K0): the field's keeper — sample(), the relief raster, the stats
+    climate,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
     // (terrainH and the surface read PM at call time; the trees were placed once, at the make)
     premises: { get overlay() { return PM; }, get rec() { return PMrec; }, set: setPremises, base: baseWorld },
@@ -13010,6 +14117,11 @@ function makePilot(sim, def, world, opts) {
     box: { on: false, lat: null, vert: null, thr: null, sel: {}, resume: null },
     nav: null,
     budget: 600, style: ST.name, legs: null, legI: 0, path: null, pathI: 0, plan: null,
+    // THE SHEET, PUBLISHED (CLIMATE K3). The header has said since P0.4 that it
+    // is "published as ap.sheet for the panel and the planner to come" and it
+    // never was - the panel came (the netto variometer reads its polar), so it
+    // is published now, lazily, through the same memo the pilot uses.
+    get sheet() { return sheetOf(); },
   };
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
@@ -15200,6 +16312,8 @@ function makePilot(sim, def, world, opts) {
 //   sinkMin   0.877 x Vbg / LDbest (m/s) — the minimum sink at idle, derived
 //             from the measured glide (3^(3/4)/2 on a parabolic polar)
 //   sinkBg    Vbg / LDbest — the sink at best glide
+//   sinkAt(V) the whole polar through those two points (CLIMATE K3), so a
+//             variometer can say what the AIR is doing: netto = vs + sinkAt(V)
 //   gammaClimb, LDbest — measured
 // THE RUNS: TORun (measured, the sheet's), LDGrun (derived: the stop from
 // 1.15 Vs0 at the grass datum's braking, the accelerate-stop's own law).
@@ -15262,6 +16376,34 @@ function machineSheet(def, opts) {
     src,
     shakedown: !!sh,
   };
+  // ---- THE POLAR, AS A CURVE (CLIMATE K3) -----------------------------------
+  // The sheet knows two points of the glide polar - minimum sink at Vms and the
+  // sink at best glide at Vbg - and a variometer needs the whole curve: to say
+  // what the AIR is doing it must subtract what the AEROPLANE would be doing at
+  // the speed it is flying.
+  //
+  //   sink(V) = a V^3 + b / V
+  //
+  // is the parabolic-polar sink rate (induced drag goes as 1/V, profile as V^3
+  // in the sink), and two measured points fix a and b exactly. It is the same
+  // curve Vms = 0.76 Vbg and sinkMin = 0.877 sinkBg were derived from, so this
+  // adds no new assumption - it just stops throwing the curve away.
+  //
+  // NETTO, which is what a soaring pilot reads: vs + sink(V). The glider's own
+  // sink is added back, so still air reads zero and what is left is the air.
+  S.sinkAt = (() => {
+    if (!(Vbg > 0) || !(S.sinkBg > 0) || !(S.Vms > 0) || !(S.sinkMin > 0)) return null;
+    // solve [Vbg^3, 1/Vbg; Vms^3, 1/Vms] [a; b] = [sinkBg; sinkMin]
+    const A1 = Vbg * Vbg * Vbg, B1 = 1 / Vbg, A2 = S.Vms * S.Vms * S.Vms, B2 = 1 / S.Vms;
+    const det = A1 * B2 - A2 * B1;
+    if (!(Math.abs(det) > 1e-12)) return null;
+    const a = (S.sinkBg * B2 - S.sinkMin * B1) / det;
+    const b = (A1 * S.sinkMin - A2 * S.sinkBg) / det;
+    return V => {
+      const v = Math.max(0.5 * S.Vms, Math.min(3 * Vbg, V || Vbg));   // the curve is only good where it was fitted
+      return Math.max(0, a * v * v * v + b / v);
+    };
+  })();
   // the same numbers, rounded, for a plaque or a status line
   S.show = () => {
     const o = {};
@@ -28994,4 +30136,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
