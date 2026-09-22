@@ -38396,7 +38396,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='3e96b010c557';window.FLYDIY_BUILD='c41bed41cde5'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='3e96b010c557';window.FLYDIY_BUILD='c0b933b15d48'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -107699,22 +107699,42 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   const U_WIND = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0, 0, 0, 0) : { x: 0, y: 0, z: 0, w: 0 } };
   // a leaf leans with its height above the trunk's base and flutters on its own
   // phase; `hi` is that height, `ph` the per-instance offset
-  const SWAY_GLSL = [
-    'float swayAmp = uWind.w * (0.012 * max(0.0, transformed.y));',
-    'float swayF = 0.6 + 0.4 * sin(uWind.z + swayPh);',
-    'transformed.xz += uWind.xy * swayAmp * swayF;',
+  // BOTH HOOKS RUN ON ONE MATERIAL (2026-09-23, the water session: "uniform vec4 uWind is declared twice
+  // ... CommonBark does not compile"): a leaf material that also carries userData.fade goes through
+  // hookLeaf AND fadeInject, and each prepended its own `uniform vec4 uWind;` and spliced its own sway
+  // block - two declarations of the uniform and of swayPh/swayAmp/swayF in one scope, so every trunk on
+  // such a material failed to compile and drew nothing (and vanished from the water's mirror with it).
+  // The sway is ONE injection now, BRACED so its locals cannot collide with whatever splices after it,
+  // and every prologue line is added only if it is not already there. `ph` is the caller's phase: the
+  // leaf's instance id, the ring's aRand.
+  const SWAY_MARK = '// tree sway';
+  const swayVS = ph => [
+    SWAY_MARK,
+    '{',
+    '  float swayPh = ' + ph + ';',
+    '  float swayAmp = uWind.w * (0.012 * max(0.0, transformed.y));',
+    '  float swayF = 0.6 + 0.4 * sin(uWind.z + swayPh);',
+    '  transformed.xz += uWind.xy * swayAmp * swayF;',
+    '}',
   ].join('\n');
+  // a prologue line prepended once, and the sway spliced once, whichever hook gets there first
+  const declOnce = (src, line) => src.indexOf(line) >= 0 ? src : line + '\n' + src;
+  const swayOnce = (src, ph) => src.indexOf(SWAY_MARK) >= 0 ? src
+    : src.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + swayVS(ph));
   const UP_VS = 'if (uUp > 0.5) { objectNormal = vec3(0.0, 1.0, 0.0); }';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
-    sh.vertexShader = 'attribute float aRand;\nuniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;\nuniform vec4 uWind;\n' +
-      sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
-                     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS)
-                     // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase
-                     // `aRand` already carries, and its NORMAL is not touched (see UP_VS)
-                     .replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat swayPh = aRand * 6.2831;\n' + SWAY_GLSL);
+    let vs = sh.vertexShader
+      .replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
+    // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already
+    // carries, and its NORMAL is not touched (see UP_VS)
+    vs = swayOnce(vs, 'aRand * 6.2831');
+    vs = declOnce(vs, 'uniform vec4 uWind;');
+    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;');
+    sh.vertexShader = declOnce(vs, 'attribute float aRand;');
   };
   // upHook(mat): the cover's material shades as the ground (see UP_VS); the uniform is the material's own
   function upHook(mat) {
@@ -107777,9 +107797,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
       sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP;
       sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.uniforms.uWind = U_WIND;
-      sh.vertexShader = 'attribute float aoV;\nvarying float vAoV;\nuniform vec4 uWind;\n' +
-        sh.vertexShader.replace('#include <begin_vertex>',
-          '#include <begin_vertex>\nvAoV = aoV;\nfloat swayPh = float(gl_InstanceID) * 1.7;\n' + SWAY_GLSL);
+      { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
+        vs = swayOnce(vs, 'float(gl_InstanceID) * 1.7');   // a leaf flutters on its own instance id
+        vs = declOnce(vs, 'uniform vec4 uWind;');
+        vs = declOnce(vs, 'varying float vAoV;');
+        sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
       if (mat.userData.fade) fadeInject(sh);
       // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
       // PCFSoft (the aeroplane's, kept) costs ~16 taps a fragment, and a
