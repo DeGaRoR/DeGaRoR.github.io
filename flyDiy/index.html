@@ -38352,7 +38352,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='75a898aa80ec';window.FLYDIY_BUILD='e32edcfceae8'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='75a898aa80ec';window.FLYDIY_BUILD='133b5355d10a'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -100272,27 +100272,25 @@ var ATMO = (function () {
     varying vec3 vAtmoV;
     ` + AP_SAMPLE_GLSL + MIST_GLSL + `
     vec4 atmoAP() { return apSample(normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV) * 0.001); }`;
+  // TWO GATES, NOT ONE (F3). The aerial perspective is the SKY's and wants a world to be under;
+  // the mist is a MEDIUM and wants only a density - so a ROOM is a medium with no sky, and the
+  // shed can have an honest haze instead of three's smoothstep to near-black. Splicing them apart
+  // is what retires the last legacy fog in the tree.
   const AP_APPLY = `
     #ifdef USE_FOG
     if (uAtmoAP.z > 0.5) {
       vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
-      gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     }
+    gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     #endif
   `;
-  // the legacy fog (display space) stays for a scene that wants it (the shed): the flag decides
-  const AP_FOG_FRAG = `
-    #ifdef USE_FOG
-    if (uAtmoAP.z < 0.5) {
-      #ifdef FOG_EXP2
-      float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
-      #else
-      float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
-      #endif
-      gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
-    }
-    #endif
-  `;
+  // THE LEGACY FOG IS GONE (F3). `Fog(0x1a1712, 40, 120)` in the shed was its last user: a
+  // smoothstep to near-black in DISPLAY space, which made the same aeroplane read darker on the
+  // shed floor than on the apron for no physical reason (POST-FX SS3, the one-light-contract).
+  // The room is a medium now - a density between the floor and the roof, through mistApply, in
+  // linear radiance like everything else - so `fog_fragment` is emptied rather than replaced and
+  // there is ONE path through the fog chunks instead of two.
+  const AP_FOG_FRAG = '';
   const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
   const mistScalars = new Float32Array(28);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
@@ -100307,6 +100305,10 @@ var ATMO = (function () {
     // `steps` is the march (0/1 = the closed form). `top` becomes the height ABOVE the local
     // floor once relief is on, which is what it always meant on flat ground.
     relief: 0, patch: 0, steps: 6, bankM: 900, driftK: 1, blH: 200,
+    // F3: a ROOM - a slab between floor and roof with its own light, set by whoever owns the room
+    // (the shed). While it is set the day's ground mist is off and the slab's colour is the room's,
+    // because there is no sky in here to take a colour from.
+    room: null,
     field: null };                                              // { tex, x0, z0, inv, yHi, ms } from bakeField()
   let installed = false;
   function install() {
@@ -100727,6 +100729,18 @@ ${MIST_GLSL}
       }
       mistScalars[24] = MIST._dx || 0; mistScalars[25] = MIST._dz || 0;
       mistScalars[26] = 1 / Math.max(50, MIST.bankM); mistScalars[27] = MIST.patch;
+      // F3 - A ROOM overrides the lot: no ground mist (there is no ground), the slab is the room's
+      // own air between floor and roof, and the colour is the room's light rather than a sky's.
+      if (MIST.room) {
+        const R = MIST.room;
+        mistScalars[0] = 0;                                   // the day's ground mist stops at the door
+        mistScalars[3] = 1;                                   // the medium is on even where the sky is not
+        mistScalars[4] = S * R.col[0]; mistScalars[5] = S * R.col[1]; mistScalars[6] = S * R.col[2];
+        mistScalars[7] = 0;                                   // no forward peak: there is no sun in here
+        mistScalars[12] = R.rho; mistScalars[13] = R.base; mistScalars[14] = R.top;
+        mistScalars[19] = 0;                                  // and no march: a room is one slab
+      }
+
     }
     return true;
   }
@@ -123137,7 +123151,17 @@ if (typeof hangarFit === 'function' && PROPS_OK) {
 // behind — which is what happens the first time they are tracked separately.
 const ROOT = new THREE.Group();
 const BG = new THREE.Color(0x14120f);
-const FOG = new THREE.Fog(0x1a1712, 40, 120);
+// THE ROOM'S AIR (FOG-MIST F3). This was `Fog(0x1a1712, 40, 120)` - three's own smoothstep to
+// near-black, in DISPLAY space, after the tone map. It was the last legacy fog in the tree and it
+// made the same aeroplane read darker on this floor than on the apron for no physical reason
+// (POST-FX SS3, the one-light-contract). The scene still needs a fog OBJECT because that is what
+// defines USE_FOG and so brings the splice in at all - but it is a SENTINEL now, like the world's,
+// and the actual haze is a medium: a density between the floor and the roof, in the lamps' own
+// colour, integrated in linear radiance by the same `mistApply` the weather uses outdoors.
+const FOG = new THREE.Fog(0x1a1712, 1e9, 2e9);
+// rho 0.0035/m: at the far wall (~35 m) that is 12 % of the light lost, which is a big shed with
+// dust in the air rather than a room full of smoke. base/top are the floor and the roof.
+const ROOM_AIR = { rho: 0.0035, base: -1, top: 11, col: [0.055, 0.050, 0.043] };
 ROOT.add(G);
 
 // THE ROOM HAS TWO LIGHTS AND AN ENVIRONMENT (G62.5, user: "why don't we
@@ -124127,7 +124151,7 @@ setMood(0);
 texBudget();          // print the fragment-sampler count, once, per G66
 
 return {
-  group: ROOT, background: BG, fog: FOG,
+  group: ROOT, background: BG, fog: FOG, roomAir: ROOM_AIR,
   library: [{ key: 'baked', name: '(part’s own)' }].concat(
     Object.keys(LIB).map(k => ({ key: k, name: LIB[k].name || k }))),
   parts: Object.keys(PARTS).map(k => ({ key: k, name: PARTS[k].name })),
@@ -137460,7 +137484,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           kits: shed.kits, shell: shed.shell });
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
-      hangarScene.fog = hangar.fog;
+      hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
+      // F3: the shed's air is a MEDIUM, set while we are in the room and cleared on the way out,
+      // so the day's ground mist never follows anyone indoors and the world never inherits a room.
+      if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = hangar.roomAir || null;
       // The room lights itself: a cube camera on the floor sees the glazing,
       // the roof lights and the open door, and a PMREM of that is what every
       // glossy thing in here reflects. It is the difference between "lit" and
@@ -142856,6 +142883,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
+    if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
     setExp(WORLD_EXPOSURE);
@@ -145803,7 +145831,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
     }
     if (inGarage) {
-      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4: the shed keeps its own dark-wall fog; the world's aerial perspective is off in its frames
+      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4/F3: no sky in the shed, so no aerial perspective - but the MIST still runs, as the room's own air
       // ONE SKY (S5): the day on the shed every frame; the room's probe re-shot when the sun has moved 1.5 deg
       if (hangar && hangar.applyDay && world.day) {
         const r = hangar.applyDay(world.day, renderer);
