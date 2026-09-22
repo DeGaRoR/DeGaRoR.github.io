@@ -1,5 +1,5 @@
 {
- "note": "flyDiy tree bench — per-SPECIES tuning (W0a per file; 2026-09-15 a species names its file, subjects, snags, kind) + the mixes. Save as flyDiy/tools/_trees_tuning.json.",
+ "note": "flyDiy tree bench \u2014 per-SPECIES tuning (W0a per file; 2026-09-15 a species names its file, subjects, snags, kind) + the mixes. Save as flyDiy/tools/_trees_tuning.json.",
  "generated": "2026-09-20T20:17:19.981Z",
  "reference": "ash",
  "master": {
@@ -207,8 +207,27 @@
      "patch": 7
     },
     "rocks": {
-     "proportion": 1,
-     "size": 40
+     "proportion": 0.3,
+     "size": 8,
+     "tint": 0.7
+    },
+    "sand_rocks_small_01": {
+     "proportion": 0.3,
+     "size": 0.35,
+     "bury": 0.3,
+     "tint": 0.6
+    },
+    "coast_rocks_05": {
+     "proportion": 0.2,
+     "size": 0.4,
+     "bury": 0.3,
+     "tint": 0.6
+    },
+    "coast_land_rocks_03": {
+     "proportion": 0.2,
+     "size": 0.2,
+     "bury": 0.35,
+     "tint": 0.6
     }
    },
    "forest": {
@@ -225,10 +244,12 @@
     "blotch": 0.6,
     "blotchM": 18,
     "coverNear": 50,
-    "rocks": 0.4,
+    "rocks": 6,
     "ttype": 7,
     "coverSpread": 0.08,
-    "canopyFloor": 3.5
+    "canopyFloor": 3.5,
+    "clump": 0.55,
+    "clumpM": 28
    }
   },
   "grassland": {
@@ -268,8 +289,15 @@
      "patch": 9
     },
     "rocks": {
-     "proportion": 1,
-     "size": 46
+     "proportion": 0.5,
+     "size": 12,
+     "tint": 0.7
+    },
+    "sand_rocks_small_01": {
+     "proportion": 0.5,
+     "size": 0.4,
+     "bury": 0.3,
+     "tint": 0.6
     }
    },
    "forest": {
@@ -459,7 +487,8 @@
     },
     "rocks": {
      "proportion": 1,
-     "size": 10
+     "size": 9,
+     "tint": 0.7
     }
    },
    "forest": {
@@ -526,8 +555,21 @@
      "patch": 5
     },
     "rocks": {
-     "proportion": 1,
-     "size": 18
+     "proportion": 0.4,
+     "size": 9,
+     "tint": 0.6
+    },
+    "coast_land_rocks_02": {
+     "proportion": 0.3,
+     "size": 0.3,
+     "bury": 0.4,
+     "tint": 0.5
+    },
+    "coast_rocks_03": {
+     "proportion": 0.3,
+     "size": 0.18,
+     "bury": 0.45,
+     "tint": 0.5
     }
    },
    "forest": {
@@ -543,7 +585,7 @@
     "blotch": 0.6,
     "blotchM": 18,
     "coverNear": 50,
-    "rocks": 20,
+    "rocks": 12,
     "ttype": 12,
     "coverSpread": 0.08
    }
@@ -592,8 +634,27 @@
      "patch": 5
     },
     "rocks": {
-     "proportion": 1,
-     "size": 10
+     "proportion": 0.3,
+     "size": 8,
+     "tint": 0.7
+    },
+    "sand_rocks_small_01": {
+     "proportion": 0.3,
+     "size": 0.35,
+     "bury": 0.3,
+     "tint": 0.6
+    },
+    "coast_rocks_05": {
+     "proportion": 0.2,
+     "size": 0.4,
+     "bury": 0.3,
+     "tint": 0.6
+    },
+    "coast_land_rocks_03": {
+     "proportion": 0.2,
+     "size": 0.2,
+     "bury": 0.35,
+     "tint": 0.6
     }
    },
    "forest": {
@@ -613,7 +674,9 @@
     "rocks": 4,
     "ttype": 14,
     "coverSpread": 0.08,
-    "canopyFloor": 4.5
+    "canopyFloor": 4.5,
+    "clump": 0.35,
+    "clumpM": 35
    }
   },
   "shingle": {

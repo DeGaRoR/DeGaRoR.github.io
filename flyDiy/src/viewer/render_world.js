@@ -3284,7 +3284,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               // THE MIX'S OWN FLOOR (2026-09-22, the user's reference picture of the airport: the whole muskeg is
               // dense small conifers the canopy map does not see - it reads 0.1-0.2 m there, under the ramp's 0.5):
               // a mix may say how tall its ground is at least (forest.canopyFloor, m) - the ramp and the size read it
-              if (mixHere) { const MF = BIO.mixOf(mixHere).forest; if (MF && MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; } }
+              if (mixHere) { const MF = BIO.mixOf(mixHere).forest; if (MF && MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
+                // THE CLUMPS (2026-09-22, the user's aerial of the muskeg: "dense packs of trees on sort of little
+                // islands"): a mix may say forest.clump (the share of its ground left bare, 0..1) and clumpM (the
+                // island's size, m) - a value noise at that cell keeps the top 1 - clump of the ground and the
+                // trees stand at the grid's density inside it, nothing outside
+                if (MF && MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) continue; }
               if (kind <= 0.0) continue; }
             // a floored mix is at its count: the map's ramp and vigour said "nothing here" and the mix overrules them
             let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);

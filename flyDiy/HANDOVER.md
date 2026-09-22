@@ -55029,3 +55029,33 @@ the rocks (a plain Standard on the pack's map), the water's bed paint.
   would halve it; the mirror ignores the water's own displacement (the capture is a plane at the level - a
   hull in a trough reflects a little high); soft-particle depth for the sprites; the muskeg BOULDERS of the
   user's reference (the biome track: the muskeg mix has no rock props).
+
+## G487 — THE MINERAL SETS KEEP THEIR HUE; THE MUSKEG IN CLUMPS WITH ROCKS; THE SCREENSHOT PASS (2026-09-22, the
+## user with two more references: "you have coloured the rocks a little too much ... dense packs of trees on
+## sort of little islands ... a lot of rocks in there")
+
+THE ROCKS: normGains gave every set the imagery's colour, and the imagery's rock cells are forested
+rock (green) and its scree a bright grey - rockyA came out 0.53/0.72/1.73 (blue), rocksA/B and cliff
+at the 0.15 floor. A MINERAL set (rocks*, rocky*, cliff, pebble, beach, coast*, dirt, snowAir) takes
+ONE luminance gain now, floored at 0.5 (the muskeg reference shows pale tan boulders); the
+vegetation sets keep the per-channel gain. THE CLUMPS: forest.clump (the share of the ground left
+bare) + clumpM (the island's size, m): a value noise at that cell keeps the top 1 - clump of the
+mix's ground and the trees stand at the grid's density inside it, nothing outside - muskeg 0.55 /
+28 m, conifer_scrub 0.35 / 35 m. The muskeg's rocks 0.4 -> 6 per 1000 m2 at size 22 (the
+reference). NOTE the grid is still the ceiling inside a clump (normal 156 /ha, dense 244); the
+mean over the muskeg is (1 - clump) x that. THE PASS: screenshots/pass/ - muskeg_close (10 m),
+muskeg, forest, forest_old, cliff, heath, scrub_dense, sand, shingle at 35 m AGL, one spot per
+code picked offline (the most same-code neighbours within 6 km of the field; scratch spots.js).
+THE BOULDERS (the user: "our current boulders feel a little too river stone ... photoscanned rocks for
+coasts"): the river-stone pack's row size was 22 on the muskeg = 3-4 m boulders (the models are 0.14-
+0.19 m raw); 8 now = 1-2 m, and the terrain session's six smugglers_cove scans (G486, real metres,
+size 1 = the scan) stand beside it: sand_rocks_small_01 at 0.35, coast_rocks_05 at 0.4,
+coast_land_rocks_03 at 0.2 on the muskeg and the dense scrub; coast_land_rocks_02 / coast_rocks_03
+small on the steep slopes; every rock row takes the ground's colour by the ring's `tint` (G477.1's
+row key) - the pack is pale and the vegetation's master light never reached it. The rock share of a
+mix is per row (the ring multiplies each row's proportion by forest.rocks): the four rows sum to 1.
+JUDGED ON THE SHEET (screenshots/pass/_sheet.png): the young forest dense and dark like the runway-
+side stands of the reference; the muskeg in clumps with the pools; the heath a bare moor; the
+steep slopes had house-sized boulders (sizes halved); forest_old's spot (1900,-4700 at 373 m)
+read as a grassy slope with small trees - to look at (the old-growth mix at altitude, or the
+chunk's base quarter); the sand spot fell in the sea (the chase eye), no beach picture yet.

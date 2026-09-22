@@ -331,7 +331,17 @@ const SPLAT_GROUND = (() => {
           for (let ch = 0; ch < 3; ch++) N[ch] += w * tg[ch] / Math.max(mean[k][ch], 1e-4);
           den[k] = (den[k] || 0) + w; });
       }
-      for (const k in num) out[k] = num[k].map(v => Math.min(2.5, Math.max(0.15, v / den[k])));
+      // A MINERAL SET KEEPS ITS HUE (the user, 2026-09-22: "you have coloured the rocks a little too much"):
+      // the imagery's rock cells are forested rock (green) and its scree a bright grey - a per-channel
+      // gain turned the boulders green-blue. Rock, cliff, shingle, sand, dirt take ONE luminance gain,
+      // floored at 0.5 (the muskeg reference shows its boulders pale tan, not dark); the vegetation
+      // sets take the imagery's colour.
+      const MINERAL = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble|beach|coast[A-Za-z]*|dirt|snowAir)$/;
+      for (const k in num) {
+        const g = num[k].map(v => v / den[k]);
+        if (MINERAL.test(k)) { const L = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; const l = Math.min(2.5, Math.max(0.5, L)); out[k] = [l, l, l]; }
+        else out[k] = g.map(v => Math.min(2.5, Math.max(0.15, v)));
+      }
     } catch (e) {}
     return out;
   }
