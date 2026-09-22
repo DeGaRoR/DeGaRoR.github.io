@@ -54,6 +54,15 @@ var CLIMATE = (function () {
   const WIND_ALPHA = 0.14;             // open grassland, the default surface here
   // ---- the rich column's defaults ----------------------------------------
   const GRAD_H = 1500;                 // m agl where the gradient wind is reached
+  // THE RELIEF BANDS' DECAY HEIGHTS. Linear theory: a ground wave of wavelength lambda perturbs the
+  // flow as exp(-2 pi z / lambda), and a band smoothed over a scale L carries wavelengths of ~4 L and
+  // up, so it decays over ~L/1.6 (an isolated hill of half-width L: Jackson & Hunt's outer region).
+  // The coarse band (a 1.2 km blur) over 800 m, the fine (300 m) over 200 m, the local (a 120 m
+  // baseline) over 80 m - close to a steep face the lift is the wind times the slope, and it is gone
+  // a few hundred metres up, which is what a ridge pilot knows.
+  const D_COARSE = 800, D_FINE = 200, D_LOCAL = 80;
+  const GD = 60;                       // m: the local slope's half-step (terrainH at +-GD, a 120 m baseline)
+  const SLOPE_CAP = 0.7;               // a band's slope is capped here: no cliff makes more than 0.7 U
   const LIN_R2 = 40 * 40;              // m^2: a call within this of the reference rides its Jacobian
   const LIN_H = 10;                    // m: the forward-difference step
   const LIN_GROUND_H = 60;             // m agl: under it the ground is read exactly per call, above it linearised
@@ -301,7 +310,9 @@ var CLIMATE = (function () {
     //   TI      the turbulence intensity the gusts ride (K1 the lee rotor; 1 in K0)
     // and the wind at a point is  k * col + rest,  the gust amplitude  gust * k * TI.
     const shearOf = (agl, refH, alpha) => refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / refH, alpha) : 1;
-    function smooth(x, y, z, t, agl, out) {
+    const RL = new Float32Array(NCH);
+    // gl = [gx, gz]: the LOCAL slope at the point (terrainH central differences at +-GD), the third band
+    function smooth(x, y, z, t, agl, gl, out) {
       const b = windSpec.base;
       let ux = b[0], uy = b[1], uz = b[2];
       if (rich.aloftK !== 1 || rich.veerDeg !== 0) {
@@ -312,15 +323,58 @@ var CLIMATE = (function () {
           ux = vx * m; uz = vz * m;
         }
       }
+      let ti = 1;
+      if (rich.terrain > 0) {
+        // THE TERRAIN (K1). Linear hill theory, neutral, irrotational: over a relief band of horizontal
+        // scale L the flow's perturbation decays as exp(-z/L). Two bands from the raster - the coarse
+        // (~1.2 km) and the fine (~300 m) - each with its own decay. At the ground the vertical part IS
+        // the kinematic condition, w = U . grad h (the air follows the slope): the windward face lifts,
+        // the lee sinks, with no sign to choose. The slopes are capped at 0.7 so an un-smoothed cliff
+        // cannot make more than 0.7 U. These channels are scaled by the surface layer's k in combine():
+        // the deflection at a height is driven by the wind at that height.
+        const R = reliefAt(x, z, RL), T = rich.terrain;
+        let gxc = R[CH.gxc], gzc = R[CH.gzc], gxf = R[CH.gxf], gzf = R[CH.gzf];
+        const mc = Math.hypot(gxc, gzc); if (mc > SLOPE_CAP) { gxc *= SLOPE_CAP / mc; gzc *= SLOPE_CAP / mc; }
+        const mf = Math.hypot(gxf, gzf); if (mf > SLOPE_CAP) { gxf *= SLOPE_CAP / mf; gzf *= SLOPE_CAP / mf; }
+        const a0 = Math.max(0, agl), ec = Math.exp(-a0 / D_COARSE), ef = Math.exp(-a0 / D_FINE);
+        // THE LOCAL BAND: a 200 m raster smoothed over 300 m cuts a steep face's slope to a third (the
+        // analytic world's 35 deg faces read 0.25), and a ridge pilot flies within a wingspan or two of
+        // the slope, where the air follows the REAL ground. So the third band is the true slope at the
+        // point (+-60 m) less what the raster already carries, decaying over 80 m - close to a steep
+        // face the lift is the wind times the slope, as it is. Across the solver's footprint the slope
+        // is the reference's (a 140 m ground wave moves it 0.1 over 12 m; one slope per aeroplane).
+        let glx = gl[0] - gxc - gxf, glz = gl[1] - gzc - gzf;
+        const ml = Math.hypot(glx, glz); if (ml > SLOPE_CAP) { glx *= SLOPE_CAP / ml; glz *= SLOPE_CAP / ml; }
+        const el = Math.exp(-a0 / D_LOCAL);
+        const wy = T * ((ux * gxc + uz * gzc) * ec + (ux * gxf + uz * gzf) * ef + (ux * glx + uz * glz) * el);
+        // THE CREST SPEED-UP AND THE VALLEY'S SHELTER (Jackson & Hunt 1975: the fractional speed-up at a
+        // 3-D hill's crest is ~1.6 h/L, capped at 0.8 here) on the fine band's height, signed by the
+        // prominence (a crest +1, a valley floor -1, the shelter at 0.4 of the speed-up), decaying over
+        // the same L; horizontal only, floored at half the wind
+        const S = Math.min(0.8, 1.6 * Math.abs(R[CH.hf]) / 300), p = R[CH.prom];
+        const m = Math.max(0.5, 1 + T * (p > 0 ? S * p : 0.4 * S * p) * ef);
+        // THE LEE ROTOR: under a lee slope of 9 deg and more of the SMOOTHED relief (the downslope
+        // steepness in the wind, the two bands together; a 300 m smoothing halves a real slope, so 0.15
+        // here is a 17 deg hillside) the flow separates - linear theory has nothing to say, so this is a
+        // declared amplitude: the gusts' intensity up to x4 at 22 deg, decaying over twice L. combine()
+        // reads it.
+        const U = Math.hypot(ux, uz);
+        const lee = U > 0.1 ? Math.max(0, -((ux * (gxc + gxf) + uz * (gzc + gzf)) / U)) : 0;
+        ti += 3 * T * smoothstep(0.15, 0.4, lee) * Math.exp(-a0 / (2 * D_FINE));
+        ux *= m; uz *= m; uy += wy;
+      }
       out[0] = ux; out[1] = uy; out[2] = uz;
       out[3] = 0; out[4] = 0; out[5] = 0;
-      out[6] = 1;
+      out[6] = ti;
     }
-    // combine(S, agl, x, y, z, t, out): the wind from seven channels and the ground
+    // combine(S, agl, x, y, z, t, out): the wind from seven channels and the ground. The gusts ride
+    // gust x TI, and a rotor gusts on its own (0.5 of the base per unit of TI above 1: a full rotor is
+    // +-0.45 of the wind, the violence a lee is known for) so a calm
+    // declared day is still rough in a lee.
     function combine(S, agl, x, y, z, t, out) {
       const k = shearOf(agl, windSpec.refH, windSpec.alpha);
       out[0] = k * S[0] + S[3]; out[1] = k * S[1] + S[4]; out[2] = k * S[2] + S[5];
-      addGust(x, y, z, t, (windSpec.gust || 0) * k * S[6], out);
+      addGust(x, y, z, t, k * ((windSpec.gust || 0) * S[6] + 0.5 * (S[6] - 1)), out);
       return out;
     }
     // ---- the linearised sampler (rule 2) -----------------------------------
@@ -329,15 +383,22 @@ var CLIMATE = (function () {
     // 21 multiply-adds; a far call at the same instant is a full sample and leaves the reference alone.
     const NCHN = 7;
     const C = { t: NaN, x: 0, y: 0, z: 0, g0: 0, gx: 0, gz: 0, w0: new Float64Array(NCHN), J: new Float64Array(NCHN * 3) };
-    const T1 = new Float64Array(NCHN), T2 = new Float64Array(NCHN);
+    const T1 = new Float64Array(NCHN), T2 = new Float64Array(NCHN), GL = [0, 0], GL2 = [0, 0];
+    // the ground's plane at a point: central differences at +-GD (four terrainH calls), the same slope
+    // the local band reads
+    function groundAt(x, z, gl) {
+      gl[0] = (terrainH(x + GD, z) - terrainH(x - GD, z)) / (2 * GD);
+      gl[1] = (terrainH(x, z + GD) - terrainH(x, z - GD)) / (2 * GD);
+    }
     function recentre(x, y, z, t) {
       const w0 = C.w0, J = C.J;
-      const g0 = terrainH(x, z), gxp = terrainH(x + LIN_H, z), gzp = terrainH(x, z + LIN_H);
-      C.g0 = g0; C.gx = (gxp - g0) / LIN_H; C.gz = (gzp - g0) / LIN_H;
-      smooth(x, y, z, t, y - g0, w0);
-      smooth(x + LIN_H, y, z, t, y - gxp, T1);         for (let c = 0; c < NCHN; c++) J[c * 3] = (T1[c] - w0[c]) / LIN_H;
-      smooth(x, y + LIN_H, z, t, y + LIN_H - g0, T1);  for (let c = 0; c < NCHN; c++) J[c * 3 + 1] = (T1[c] - w0[c]) / LIN_H;
-      smooth(x, y, z + LIN_H, t, y - gzp, T1);         for (let c = 0; c < NCHN; c++) J[c * 3 + 2] = (T1[c] - w0[c]) / LIN_H;
+      const g0 = terrainH(x, z);
+      groundAt(x, z, GL);
+      C.g0 = g0; C.gx = GL[0]; C.gz = GL[1];
+      smooth(x, y, z, t, y - g0, GL, w0);
+      smooth(x + LIN_H, y, z, t, y - g0 - GL[0] * LIN_H, GL, T1);  for (let c = 0; c < NCHN; c++) J[c * 3] = (T1[c] - w0[c]) / LIN_H;
+      smooth(x, y + LIN_H, z, t, y + LIN_H - g0, GL, T1);          for (let c = 0; c < NCHN; c++) J[c * 3 + 1] = (T1[c] - w0[c]) / LIN_H;
+      smooth(x, y, z + LIN_H, t, y - g0 - GL[1] * LIN_H, GL, T1);  for (let c = 0; c < NCHN; c++) J[c * 3 + 2] = (T1[c] - w0[c]) / LIN_H;
       C.t = t; C.x = x; C.y = y; C.z = z;
       stats.full += 4; stats.recentres++;
     }
@@ -351,7 +412,8 @@ var CLIMATE = (function () {
       const dx = x - C.x, dy = y - C.y, dz = z - C.z;
       if (dx * dx + dy * dy + dz * dz > LIN_R2) {           // a far call at the same instant: full, no re-centre
         const agl = y - terrainH(x, z);
-        smooth(x, y, z, t, agl, T2); stats.full++;
+        groundAt(x, z, GL2);
+        smooth(x, y, z, t, agl, GL2, T2); stats.full++;
         return combine(T2, agl, x, y, z, t, WV);
       }
       const w0 = C.w0, J = C.J;
@@ -371,7 +433,8 @@ var CLIMATE = (function () {
       if (mode === 'zero') { out[0] = out[1] = out[2] = 0; return out; }
       if (mode === 'legacy') { const w = windLegacy(x, y, z, t); out[0] = w[0]; out[1] = w[1]; out[2] = w[2]; return out; }
       const agl = y - terrainH(x, z);
-      smooth(x, y, z, t, agl, T2); stats.full++;
+      groundAt(x, z, GL2);
+      smooth(x, y, z, t, agl, GL2, T2); stats.full++;
       return combine(T2, agl, x, y, z, t, out);
     }
     // reliefAt(x, z, out): the raster's channels at a point, bilinear, clamped at the edge

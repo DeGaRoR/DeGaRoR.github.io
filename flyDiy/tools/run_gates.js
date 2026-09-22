@@ -374,6 +374,10 @@ const GATES = [
   // vs-piston split the `aspiration` field buys, and a full circuit in that
   // air. Full tier: it flies (the garage build, since the fleet retired).
   { id: 'HOTHIGH', file: 'test_hothigh.js', tier: 'full', wall: 300 },
+  // SOARING (CLIMATE K1, 2026-09-22): the motorglider engine-off in the climate's air - the flown sink
+  // against the sheet's polar, and a ridge beat that GAINS height where the same beat without the
+  // terrain term is on the ground inside the run
+  { id: 'SOAR', file: 'test_soar.js', tier: 'full', wall: 240 },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.
