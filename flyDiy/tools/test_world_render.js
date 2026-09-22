@@ -263,6 +263,16 @@ try {
 }
 // stream a few chunks in, as flying over the world would
 for (let i = 0; i < 60; i++) WF.worldUpdate([0, 120, 0]);
+// THE API ANSWERS (G460.11.5): every function the frame loop calls on WF is CALLED here - a name that lives in a
+// build block and is read from the returned object throws once a frame and kills the rest of the loop (waterDrawY
+// read WSH: the world rendered without its ground for two landings before a console caught it)
+{ let called = 0, threw = null;
+  for (const [name, args] of [['waterDrawY', [0, 0]], ['waterDrawY', [1e6, 1e6]]]) {
+    if (typeof WF[name] !== 'function') continue;
+    try { WF[name].apply(WF, args); called++; } catch (e) { threw = name + ': ' + e.message; }
+  }
+  chk(called > 0 && !threw, 'the world API threw when called - ' + (threw || 'waterDrawY missing'));
+}
 
 // ---- assertions -----------------------------------------------------------
 // only the chunked tree field: render_world marks those geometries, so an

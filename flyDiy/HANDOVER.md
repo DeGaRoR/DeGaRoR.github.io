@@ -55520,3 +55520,17 @@ Both remarks were one fault and one honest-instrument gap, found by MEASURING th
 - PROOF: q4/diff13.png (before: the difference saturated over the whole lake), q5/diff13.png (after: a flat
   1 %), q5/lakeA.png and q5/lakeB.png (the trees' reflections as long as the trees), q3/screen12.png (the
   capture itself, 1:1). GATE WATER holds the clock and the cadence.
+
+## G460.11.5 — waterDrawY THREW EVERY FRAME (2026-09-22, found by a console read and reported in parallel by
+## the TERRAIN session)
+
+- G460.11.4's `waterDrawY` read `WSH` - a `const` declared inside the sea-building BLOCK (render_world.js
+  :1748) - from the function scope of buildWorldScene, where it does not exist. The call threw a
+  ReferenceError once a frame from app.js's loop and KILLED THE REST OF THE FRAME: the world rendered
+  without its ground (trees hovering over a flat void, r1/r2 - which is also why two rounds of seam shots
+  showed a broken picture). The drawn sea level is captured into `seaPlaneY` where the far plane is placed
+  and read from there.
+- GATE WORLDRENDER CALLS THE API NOW: every function the frame loop calls on WF is called by the gate
+  (waterDrawY at the origin and far outside), so a name that lives in a build block and is read from the
+  returned object fails the gate instead of the frame. Proven by reintroducing the bug: 'the world API threw
+  when called - waterDrawY: WSH is not defined', GATE WORLDRENDER FAIL; restored, PASS.

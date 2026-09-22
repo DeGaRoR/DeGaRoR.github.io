@@ -59,6 +59,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
   const lakeQuads = [];   // the drawn lake surfaces (box + y): waterDrawY reads them
+  let seaPlaneY = 0;      // the drawn sea plane's y (0 with the water shader, -0.4 without it)
   let coverRing = null, fillPoolAt = null, standCards = null;   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -1761,7 +1762,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const WSZ = world.island ? 400000 : SIZE;
     const farGeo = new THREE.PlaneGeometry(WSZ, WSZ); farGeo.rotateX(-Math.PI / 2);
     const water = new THREE.Mesh(wtag(farGeo, 0, false), waterMat);
-    water.position.set((BX0 + BX1) / 2, WSH ? 0.0 : -0.4, (BZ0 + BZ1) / 2);
+    seaPlaneY = WSH ? 0.0 : -0.4;   // the DRAWN sea level, for waterDrawY (WSH is this block's own: reading it from the API below threw every frame, G460.11.5)
+    water.position.set((BX0 + BX1) / 2, seaPlaneY, (BZ0 + BZ1) / 2);
     water.renderOrder = -10;   // the first transparent drawn, whatever its bounding sphere says from far offshore
     if (WSH) WSH.watch(water, renderer);   // the perf rig's GPU timer round its draw
     scene.add(water);
@@ -4902,7 +4904,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   function waterDrawY(x, z) {
     for (let i = 0; i < lakeQuads.length; i++) { const q = lakeQuads[i]; if (x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1) return q.y; }
     const h = world.waterH ? world.waterH(x, z) : NaN;
-    if (Number.isFinite(h) && Math.abs(h) < 3) return WSH ? 0 : -0.4;   // the sea's plane
+    if (Number.isFinite(h) && Math.abs(h) < 3) return seaPlaneY;   // the sea's plane
     return null;
   }
   return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
