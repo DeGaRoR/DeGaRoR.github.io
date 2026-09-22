@@ -348,7 +348,8 @@ const WATER = (() => {
         else if (uWDbg == 6) gl_FragColor = vec4(vec3(diffuseColor.a), 1.0);
         else if (uWDbg == 7) gl_FragColor = vec4(float(wB == 0), float(wB == 1), float(wB >= 2), 1.0);
         else if (uWDbg == 8) gl_FragColor = vec4(vec3(wGerstnerH(vWP.x, vWP.z) * 0.5 + 0.5), 1.0);
-        else if (uWDbg == 9) { vec2 q = (vWP.xz - uWInterBox.xy) * uWInterBox.z; gl_FragColor = vec4(q, wIn.z, 1.0); }`);
+        else if (uWDbg == 9) { vec2 q = (vWP.xz - uWInterBox.xy) * uWInterBox.z; gl_FragColor = vec4(q, wIn.z, 1.0); }
+        else if (uWDbg == 10) gl_FragColor = vec4(0.5 + 3.0 * wIn.x, 0.5 + 3.0 * wIn.y, wIn.z, 1.0);   // the field's slope (G460.10: the wake's V read straight off the sheet)`);
   }
 
   // ---- THE PRESETS: one row per body ------------------------------------------------------------
@@ -485,27 +486,49 @@ const WATER = (() => {
   }
 
 
-  // ---- THE INTERACTION FIELD (H7, G460.8): the wakes, the ripples, the splashes ------------------
-  // A world-locked heightfield of FIELD_N^2 texels over FIELD_M metres following the aeroplane (0.5 m
-  // a texel), stepped every frame by the wave equation with damping - h' = (2h - h_prev) d + (c dt/dx)^2
-  // lap(h) - an absorbing rim over its last 12 texels (a box edge would ring), STAMPS folded into the
-  // step (up to FIELD_MAXS a frame: a gaussian depression under a wet hull, a ring for a splash, foam
-  // along a planing chine), and a DERIVE pass that writes the slot's texture (RG the slope over [-2, 2],
-  // B the foam - a channel of its own in the state, decaying with an e-fold of 2 s). The box moves with the CG snapped to
-  // whole texels; the step reads the previous state through the move's offset, so the water stands
-  // still in the world while the box slides over it. The physics does not feel the field (a ripple is
-  // not a wave the floats ride); the shader adds its slope to the normal and its foam to the mask
-  // through the slot G460 opened (setInteraction), and the near patch is NOT displaced by it.
-  // The wave speed c is ~1.6 m/s (a 1.6 m ripple's phase speed): a hull faster than c leaves a V whose
-  // half-angle is asin(c / V) - narrower than Kelvin's 19.5 deg at speed (a non-dispersive sheet), the
-  // foam trail along the track carries the wake's read from altitude. Cost: two 256^2 passes, ~0.1 ms.
-  const FIELD_N = 256, FIELD_M = 128, FIELD_MAXS = 16;
-  const F = { on: false, c: 1.6, damp: 0.996, foamDecay: 0.992, rim: 12, ox: 0, oz: 0, ready: false, stamps: [], t: 0,
-    rt: [null, null], out: null, ping: 0, scene: null, cam: null, quad: null, stepMat: null, deriveMat: null, ready2: false };
+  // ---- THE INTERACTION FIELD (H7, G460.8; dispersive + two levels G460.10): the wakes, the ripples, the splashes
+  // A world-locked heightfield over FIELD_M = 192 m following the aeroplane (aft of the CG under way: a
+  // quarter of the box ahead, three quarters of trail), in TWO LEVELS over the same box - a fine sheet of
+  // 384^2 (0.5 m a texel: a splash's rings, the chines' short waves) and a coarse one of 96^2 (2 m: the
+  // wake's long transverse and diverging waves) - stepped every frame by a DISPERSIVE deep-water step
+  // (the user: "the wake of highest quality"): h_tt = -g sqrt(-lap) h, iWave's form (Tessendorf 2004),
+  // the vertical derivative as a 13 x 13 convolution. Every wavelength travels at its own speed
+  // (omega^2 = g k), so a moving press leaves KELVIN'S V of 19.47 deg with its transverse waves (2 pi
+  // V^2 / g: 23 m at 6 m/s) and a ring spreads into a train; a single-speed sheet (the first cut, c =
+  // 1.6 m/s) left a stripe of half-angle asin(c / V). THE KERNEL is not iWave's Bessel integral (its
+  // truncation to 13 texels leaked a DC term that the usual zero-sum fix turned into a NEGATIVE response
+  // at the short waves - exponential growth of the checkerboard): it is designed in the spectrum -
+  // R(k) = k exp(-(k / 1.6)^2) inverse-transformed on a 96^2 lattice, Hann-windowed to the support,
+  // its DC leak subtracted as a wide gaussian (not a delta), scaled so the response IS |k| at k = 0.5 a
+  // texel; the response is then ~|k| over lambda 6..16 texels, half of it at 31, never negative, and
+  // a little viscosity (nu lap h) holds the Nyquist modes. A finite kernel can never give |k| to waves
+  // much longer than its support (a zero-sum kernel is a Laplacian there) - which is why there are two
+  // levels: each takes the band its texel puts inside the kernel's window (3-8 m, 11-32 m), the coarse
+  // one stamped with a broader, shallower press (the hull's whole displacement, not its chine).
+  // An absorbing rim over the last 4 % of the box (an edge would ring), STAMPS folded into the step (up
+  // to FIELD_MAXS a frame: a gaussian press toward a hull's draft, a ring for a splash, foam along a
+  // chine), and a DERIVE pass that sums both levels' slopes into the slot's texture (RG the slope over
+  // [-2, 2], B the foam - the fine level's own channel, decaying with a 2 s e-fold). The box moves
+  // snapped to the fine texel and each step reads its previous state through the move's offset, so the
+  // water stands still in the world while the box slides. The physics does not feel the field (a ripple
+  // is not a wave the floats ride); the shader adds its slope to the normal and its foam to the mask
+  // through the slot G460 opened (setInteraction); the near patch is NOT displaced by it. Cost: the fine
+  // step's 169 taps over 384^2 (~25 M) + the coarse (1.5 M) + the derive, ~0.4 ms; the fine level's
+  // highest mode has omega dt = 0.07 at 60 Hz (dt clamped at 1/30).
+  const FIELD_M = 192, FIELD_MAXS = 16, KERN_P = 6;
+  const LEVELS = [{ N: 384 }, { N: 96 }];
+  const FIELD_N = LEVELS[0].N;
+  // (the damping is PER SECOND - tau, foamTau - not per frame: a per-frame constant killed every wave in half a
+  // second on the bench's unlimited 970 fps and let them live three times longer under the rig's 20)
+  const F = { on: false, g: 9.81, tau: 8, foamTau: 2, rim: 0.04, nu: 0.04, aft: 0.25, ox: 0, oz: 0, ax: 0, az: 0, ready: false, stamps: [], t: 0,
+    L: [], out: null, scene: null, cam: null, quad: null, stepMat: null, deriveMat: null, ready2: false, kern: null, gain: 1,
+    coarse: { pressR: 3.5, pressA: 1.2, ringR: 2.5, ringA: 0.4 } };   // the coarse press: the hull's whole displacement (r x 3.5 = the float's length, deeper than the chine's)
   const FIELD_VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
   const FIELD_STEP = `precision highp float; varying vec2 vUv;
     uniform sampler2D uPrev; uniform vec2 uShift;     // the box's move since the last step, in uv (the previous state read shifted)
-    uniform vec4 uK;                                   // x: (c dt / dx)^2, y: damp, z: foam decay, w: the rim (uv)
+    uniform vec4 uK;                                   // x: g dt^2 / dx x the kernel's gain, y: damp, z: foam decay, w: the rim (uv)
+    uniform float uKern[${(KERN_P + 1) * (KERN_P + 1)}];   // the vertical-derivative kernel's 7 x 7 quadrant (radial: |i| * 7 + |j|)
+    uniform float uNu;                                 // the viscosity on the Laplacian (the Nyquist modes' brake)
     uniform vec4 uStampA[${FIELD_MAXS}];               // x, z (uv), r (uv), amp (m)
     uniform vec4 uStampB[${FIELD_MAXS}];               // x: kind (0 press, 1 ring, 2 foam), y: foam, z: 0, w: 0
     uniform int uNStamp;
@@ -514,8 +537,15 @@ const WATER = (() => {
     void main() {
       vec4 c = prev(vUv);
       float h = c.r, hp = c.g, foam = c.b;
-      float lap = prev(vUv + vec2(uTexel, 0.0)).r + prev(vUv - vec2(uTexel, 0.0)).r + prev(vUv + vec2(0.0, uTexel)).r + prev(vUv - vec2(0.0, uTexel)).r - 4.0 * h;
-      float hn = (2.0 * h - hp) * uK.y + uK.x * lap;
+      // the vertical derivative sqrt(-lap) h: the 13 x 13 convolution (a plane wave e^(ikx) comes back as |k| h)
+      float vd = 0.0, lap = -4.0 * h;
+      for (int i = -${KERN_P}; i <= ${KERN_P}; i++) for (int j = -${KERN_P}; j <= ${KERN_P}; j++) {
+        int ai = i < 0 ? -i : i, aj = j < 0 ? -j : j;
+        float hh = prev(vUv + vec2(float(i), float(j)) * uTexel).r;
+        vd += uKern[ai * ${KERN_P + 1} + aj] * hh;
+        if (ai + aj == 1) lap += hh;
+      }
+      float hn = (2.0 * h - hp) * uK.y - uK.x * vd + uNu * lap;
       // the absorbing rim: the amplitude eased to nothing over the last uK.w of uv on every side
       float e = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
       float rim = smoothstep(0.0, uK.w, e);
@@ -533,32 +563,62 @@ const WATER = (() => {
       }
       // a stamp DISPLACES the surface - the new height AND the previous move together (no velocity in the
       // stamp itself), and the displacement radiates from there; a stamp on the height alone read as a
-      // velocity of the whole displacement a frame, and the crater deepened instead of spreading
+      // velocity to the leapfrog and the crater deepened instead of rebounding
       gl_FragColor = vec4(hn + ds, h + ds, clamp(fn, 0.0, 1.0), 1.0);
     }`;
   const FIELD_DERIVE = `precision highp float; varying vec2 vUv;
-    uniform sampler2D uState; uniform float uTexel; uniform float uDx;   // the texel in uv, in metres
+    uniform sampler2D uState; uniform float uTexel; uniform float uDx;      // the fine level: its texel in uv, in metres
+    uniform sampler2D uState1; uniform float uTexel1; uniform float uDx1;   // the coarse level
     void main() {
       float hx = texture2D(uState, vUv + vec2(uTexel, 0.0)).r - texture2D(uState, vUv - vec2(uTexel, 0.0)).r;
       float hz = texture2D(uState, vUv + vec2(0.0, uTexel)).r - texture2D(uState, vUv - vec2(0.0, uTexel)).r;
-      vec2 sl = vec2(hx, hz) / (2.0 * uDx);                    // the slope, m/m
+      float hx1 = texture2D(uState1, vUv + vec2(uTexel1, 0.0)).r - texture2D(uState1, vUv - vec2(uTexel1, 0.0)).r;
+      float hz1 = texture2D(uState1, vUv + vec2(0.0, uTexel1)).r - texture2D(uState1, vUv - vec2(0.0, uTexel1)).r;
+      vec2 sl = vec2(hx, hz) / (2.0 * uDx) + vec2(hx1, hz1) / (2.0 * uDx1);   // the slope, m/m, both levels
       float foam = texture2D(uState, vUv).b;
       gl_FragColor = vec4(clamp(sl / 4.0 + 0.5, 0.0, 1.0), foam, 1.0);   // the slot's encode: (rg 2 - 1) 2
     }`;
+  // fieldKernel(P): the vertical-derivative kernel designed in the spectrum (see the head note): R(k) =
+  // k exp(-(k / kc)^2) inverse-transformed on a 96^2 lattice, Hann-windowed to radius P + 1, its DC
+  // leak subtracted as a gaussian of 2.5 texels, then scaled (fieldKernelGain) so that a plane wave of
+  // k = 0.5 rad per texel comes back as 0.5 x itself; returned as the (P + 1)^2 quadrant (radial)
+  function fieldKernel(P, kc, sw) {
+    kc = kc || 1.6; sw = sw || 2.5;
+    const NG = 96, Q = P + 1, K = new Float32Array(Q * Q);
+    for (let i = 0; i <= P; i++) for (let j = 0; j <= P; j++) {
+      let v = 0;
+      for (let m = -NG / 2; m < NG / 2; m++) for (let n = -NG / 2; n < NG / 2; n++) {
+        const kx = 2 * Math.PI * m / NG, ky = 2 * Math.PI * n / NG, k = Math.hypot(kx, ky);
+        v += k * Math.exp(-(k / kc) * (k / kc)) * Math.cos(kx * i + ky * j);
+      }
+      const r = Math.hypot(i, j), w = r <= P + 1 ? 0.5 * (1 + Math.cos(Math.PI * r / (P + 1))) : 0;
+      K[i * Q + j] = v / (NG * NG) * w;
+    }
+    const sum = kernelSum(K, P);
+    let gs = 0; for (let i = -P; i <= P; i++) for (let j = -P; j <= P; j++) gs += Math.exp(-(i * i + j * j) / (2 * sw * sw));
+    for (let i = 0; i <= P; i++) for (let j = 0; j <= P; j++) K[i * Q + j] -= sum * Math.exp(-(i * i + j * j) / (2 * sw * sw)) / gs;
+    return K;
+  }
+  function kernelSum(K, P) { let s = 0; for (let i = -P; i <= P; i++) for (let j = -P; j <= P; j++) s += K[Math.abs(i) * (P + 1) + Math.abs(j)]; return s; }
+  // the kernel's response to a plane wave cos(k x) (k in rad per texel) - the dispersion the sheet actually has
+  function kernelResponse(K, P, k) { let r = 0; for (let i = -P; i <= P; i++) for (let j = -P; j <= P; j++) r += K[Math.abs(i) * (P + 1) + Math.abs(j)] * Math.cos(k * i); return r; }
+  function fieldKernelGain(K, P) { return 0.5 / kernelResponse(K, P, 0.5); }
   function fieldInit(THREE, renderer) {
     if (F.ready2) return true;
     if (!THREE.WebGLRenderTarget || !THREE.ShaderMaterial || !renderer) return false;
-    const mk = (type) => { const rt = new THREE.WebGLRenderTarget(FIELD_N, FIELD_N, { type, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
+    const mk = (N, type) => { const rt = new THREE.WebGLRenderTarget(N, N, { type, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
       rt.texture.wrapS = rt.texture.wrapT = THREE.ClampToEdgeWrapping; return rt; };
-    F.rt = [mk(THREE.HalfFloatType), mk(THREE.HalfFloatType)]; F.out = mk(THREE.HalfFloatType);   // (half float: an 8-bit slope over [-2, 2] made a centimetre ripple one LSB)
+    F.L = LEVELS.map(l => ({ N: l.N, dx: FIELD_M / l.N, rt: [mk(l.N, THREE.HalfFloatType), mk(l.N, THREE.HalfFloatType)], ping: 0 }));
+    F.out = mk(FIELD_N, THREE.UnsignedByteType);
     F.scene = new THREE.Scene(); F.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     F.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); F.quad.frustumCulled = false; F.scene.add(F.quad);
+    F.kern = fieldKernel(KERN_P); F.gain = fieldKernelGain(F.kern, KERN_P);
     const v4 = () => new THREE.Vector4();
     F.stepMat = new THREE.ShaderMaterial({ vertexShader: FIELD_VERT, fragmentShader: FIELD_STEP, depthTest: false, depthWrite: false,
-      uniforms: { uPrev: { value: null }, uShift: { value: new THREE.Vector2() }, uK: { value: v4() },
+      uniforms: { uPrev: { value: null }, uShift: { value: new THREE.Vector2() }, uK: { value: v4() }, uKern: { value: F.kern }, uNu: { value: F.nu },
         uStampA: { value: Array.from({ length: FIELD_MAXS }, v4) }, uStampB: { value: Array.from({ length: FIELD_MAXS }, v4) }, uNStamp: { value: 0 }, uTexel: { value: 1 / FIELD_N } } });
     F.deriveMat = new THREE.ShaderMaterial({ vertexShader: FIELD_VERT, fragmentShader: FIELD_DERIVE, depthTest: false, depthWrite: false,
-      uniforms: { uState: { value: null }, uTexel: { value: 1 / FIELD_N }, uDx: { value: FIELD_M / FIELD_N } } });
+      uniforms: { uState: { value: null }, uTexel: { value: 1 / F.L[0].N }, uDx: { value: F.L[0].dx }, uState1: { value: null }, uTexel1: { value: 1 / F.L[1].N }, uDx1: { value: F.L[1].dx } } });
     F.ready2 = true;
     return true;
   }
@@ -569,11 +629,16 @@ const WATER = (() => {
     F.stamps.push({ x, z, r, amp: amp || 0, foam: foam || 0, kind: kind === 'ring' ? 1 : kind === 'foam' ? 2 : 0 });
     return true;
   }
-  // fieldStep(THREE, renderer, cx, cz, dt): the box to the CG (snapped), the previous state read through the
-  // move, the stamps folded in, the slot's texture derived; called once a frame by app.js before the render
-  function fieldStep(THREE, renderer, cx, cz, dt) {
+  // fieldStep(THREE, renderer, cx, cz, dt, vx, vz): the box to the CG (aft of it under way, snapped to the
+  // fine texel), each level's previous state read through the move, the stamps folded in (the coarse level's
+  // press broader and shallower), the slot's texture derived; called once a frame by app.js before the render
+  function fieldStep(THREE, renderer, cx, cz, dt, vx, vz) {
     if (!F.on || !fieldInit(THREE, renderer)) { F.stamps.length = 0; return; }
-    const dx = FIELD_M / FIELD_N;
+    const dx = F.L[0].dx;
+    const sp = Math.hypot(vx || 0, vz || 0);
+    if (sp > 0.5) { const k = Math.min(1, dt * 0.5); F.ax += (vx / sp - F.ax) * k; F.az += (vz / sp - F.az) * k; }
+    const aft = F.aft * FIELD_M * Math.min(1, sp / 4);
+    cx -= F.ax * aft; cz -= F.az * aft;
     const nx = Math.round((cx - FIELD_M / 2) / dx) * dx, nz = Math.round((cz - FIELD_M / 2) / dx) * dx;
     const shift = F.ready ? [(nx - F.ox) / FIELD_M, (nz - F.oz) / FIELD_M] : [0, 0];
     // the caller's target and clear state, read BEFORE the first-use clears (read after them, the first step
@@ -583,41 +648,51 @@ const WATER = (() => {
       F.ready = true; F.ox = nx; F.oz = nz;
       const cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
       renderer.setClearColor(0x000000, 0);
-      renderer.setRenderTarget(F.rt[0]); renderer.clear(true, false, false); renderer.setRenderTarget(F.rt[1]); renderer.clear(true, false, false);
+      for (const L of F.L) { renderer.setRenderTarget(L.rt[0]); renderer.clear(true, false, false); renderer.setRenderTarget(L.rt[1]); renderer.clear(true, false, false); }
       renderer.setClearColor(cc, ca);
     }
     F.ox = nx; F.oz = nz;
-    const src = F.rt[F.ping], dst = F.rt[1 - F.ping];
     const U = F.stepMat.uniforms;
-    U.uPrev.value = src.texture; U.uShift.value.set(shift[0], shift[1]);
-    const cfl = Math.min(0.45, F.c * Math.max(dt, 1e-3) / dx);
-    U.uK.value.set(cfl * cfl, F.damp, F.foamDecay, F.rim / FIELD_N);
+    // the vertical derivative's gain g dt^2 / dx x the kernel's; dt clamped at 1/30 (a long frame would over-step the kernel's highest mode)
+    const dtc = Math.min(1 / 30, Math.max(dt, 1e-3));
     const n = Math.min(FIELD_MAXS, F.stamps.length);
-    for (let i = 0; i < n; i++) { const st = F.stamps[i];
-      U.uStampA.value[i].set((st.x - nx) / FIELD_M, (st.z - nz) / FIELD_M, Math.max(st.r, dx) / FIELD_M, st.amp);
-      U.uStampB.value[i].set(st.kind, st.foam, 0, 0); }
-    U.uNStamp.value = n; F.stamps.length = 0;
     renderer.autoClear = false;
-    F.quad.material = F.stepMat; renderer.setRenderTarget(dst); renderer.render(F.scene, F.cam);
-    F.deriveMat.uniforms.uState.value = dst.texture;
+    for (let li = 0; li < F.L.length; li++) {
+      const L = F.L[li], src = L.rt[L.ping], dst = L.rt[1 - L.ping], C = F.coarse;
+      U.uPrev.value = src.texture; U.uShift.value.set(shift[0], shift[1]); U.uTexel.value = 1 / L.N;
+      U.uK.value.set(F.g * dtc * dtc / L.dx * F.gain, Math.exp(-dtc / F.tau), Math.exp(-dtc / F.foamTau), F.rim);
+      let m = 0;
+      for (let i = 0; i < n; i++) { const st = F.stamps[i];
+        if (li === 1 && st.kind === 2) continue;   // foam is the fine level's
+        const rS = li === 1 ? (st.kind === 1 ? C.ringR : C.pressR) : 1, aS = li === 1 ? (st.kind === 1 ? C.ringA : C.pressA) : 1;
+        U.uStampA.value[m].set((st.x - nx) / FIELD_M, (st.z - nz) / FIELD_M, Math.max(st.r * rS, L.dx) / FIELD_M, st.amp * aS);
+        U.uStampB.value[m].set(st.kind, st.foam, 0, 0); m++; }
+      U.uNStamp.value = m;
+      F.quad.material = F.stepMat; renderer.setRenderTarget(dst); renderer.render(F.scene, F.cam);
+      L.ping = 1 - L.ping;
+    }
+    F.stamps.length = 0;
+    const D = F.deriveMat.uniforms;
+    D.uState.value = F.L[0].rt[F.L[0].ping].texture; D.uState1.value = F.L[1].rt[F.L[1].ping].texture;
     F.quad.material = F.deriveMat; renderer.setRenderTarget(F.out); renderer.render(F.scene, F.cam);
     renderer.setRenderTarget(prevT); renderer.autoClear = ac;
-    F.ping = 1 - F.ping; F.t += dt;
+    F.t += dt;
     setInteraction(F.out.texture, nx, nz, FIELD_M);
   }
   function fieldOn(on) { F.on = !!on; if (!F.on) { F.ready = false; setInteraction(null); } }
-  // fieldProbe(renderer): the state read back (a float buffer): max |h|, the h at the centre, the foam's mean
-  function fieldProbe(renderer, THREE) {
+  // fieldProbe(renderer, THREE, level): the state read back (a float buffer): max |h|, the centre row, the foam's mean
+  function fieldProbe(renderer, THREE, level) {
     if (!F.ready2 || !renderer.readRenderTargetPixels) return null;
+    const L = F.L[level || 0], N = L.N;
     // (a half-float target reads back as Uint16 halves - three refuses a Float32Array for it)
-    const rt = F.rt[F.ping]; const raw = new Uint16Array(FIELD_N * FIELD_N * 4);
-    try { renderer.readRenderTargetPixels(rt, 0, 0, FIELD_N, FIELD_N, raw); } catch (e) { return { err: String(e) }; }
+    const rt = L.rt[L.ping]; const raw = new Uint16Array(N * N * 4);
+    try { renderer.readRenderTargetPixels(rt, 0, 0, N, N, raw); } catch (e) { return { err: String(e) }; }
     const h2f = h => { const sgn = (h >> 15) ? -1 : 1, ex = (h >> 10) & 31, m = h & 1023; if (ex === 0) return sgn * m * Math.pow(2, -24); if (ex === 31) return m ? NaN : sgn * Infinity; return sgn * (1 + m / 1024) * Math.pow(2, ex - 15); };
     const buf = new Float32Array(raw.length); for (let i = 0; i < raw.length; i++) buf[i] = h2f(raw[i]);
-    let mx = 0, fm = 0, n = 0; const rows = [];
-    for (let i = 0; i < FIELD_N * FIELD_N; i++) { const h = Math.abs(buf[i * 4]); if (h > mx) mx = h; fm += buf[i * 4 + 2]; n++; }
-    const c = FIELD_N >> 1; for (let i = 0; i < FIELD_N; i += 8) rows.push(+buf[(c * FIELD_N + i) * 4].toFixed(4));
-    return { maxH: mx, foamMean: fm / n, row: rows, box: [F.ox, F.oz, FIELD_M] };
+    let mx = 0, fm = 0, n = 0, nan = 0; const rows = [];
+    for (let i = 0; i < N * N; i++) { const h = Math.abs(buf[i * 4]); if (h !== h) nan++; else if (h > mx) mx = h; fm += buf[i * 4 + 2]; n++; }
+    const c = N >> 1, step = Math.max(1, N >> 5); for (let i = 0; i < N; i += step) rows.push(+buf[(c * N + i) * 4].toFixed(4));
+    return { maxH: mx, nan, foamMean: fm / n, row: rows, box: [F.ox, F.oz, FIELD_M], N, dx: L.dx };
   }
 
   // ---- THE GPU TIMER: the water's own draws, summed a frame (EXT_disjoint_timer_query_webgl2) ----
@@ -798,7 +873,7 @@ const WATER = (() => {
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
-    stamp, fieldStep, fieldOn, fieldProbe, field: F, FIELD_N, FIELD_M,
+    stamp, fieldStep, fieldOn, fieldProbe, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;
   return API;

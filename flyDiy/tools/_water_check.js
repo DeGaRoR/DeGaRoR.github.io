@@ -164,13 +164,25 @@ console.log('\n4. THE TILE');
 console.log('\n5. THE FIELD');
 {
   const w = src('src/viewer/water.js'), app = src('src/viewer/app.js');
-  verdict(typeof W.stamp === 'function' && typeof W.fieldStep === 'function' && typeof W.fieldOn === 'function' && W.field && W.FIELD_N === 256 && W.FIELD_M === 128, `the field's API (stamp / fieldStep / fieldOn), ${W.FIELD_N}^2 texels over ${W.FIELD_M} m`);
-  const dx = W.FIELD_M / W.FIELD_N, cfl = W.field.c / 60 / dx;
-  verdict(cfl < 0.5 && /Math\.min\(0\.45, F\.c \* Math\.max\(dt, 1e-3\) \/ dx\)/.test(w), `the step is stable: c dt/dx = ${f(cfl, 3)} at 60 Hz (< 0.5), clamped at 0.45 for a long frame`);
-  verdict(W.field.damp > 0.98 && W.field.damp < 1 && W.field.foamDecay > 0.9 && W.field.foamDecay < 1, `damping per frame ${W.field.damp} (a ripple's e-fold ${f(-1 / Math.log(W.field.damp) / 60, 1)} s), foam ${W.field.foamDecay}`);
+  verdict(typeof W.stamp === 'function' && typeof W.fieldStep === 'function' && typeof W.fieldOn === 'function' && W.field && W.FIELD_N === 384 && W.FIELD_M === 192, `the field's API (stamp / fieldStep / fieldOn), ${W.FIELD_N}^2 texels over ${W.FIELD_M} m`);
+  // THE DISPERSIVE STEP (G460.10): the kernel's response to a plane wave is |k| in its band, never negative
+  // (a negative response is an exponentially growing mode), sums to zero (no DC restoring force), and the
+  // fine level's highest mode is far from the leapfrog's limit
+  { const P = W.KERN_P, K = W.fieldKernel(P), gain = W.fieldKernelGain(K, P);
+    let mn = 1e9, mx = 0; for (let k = 0.05; k <= 3.15; k += 0.05) { const r = W.kernelResponse(K, P, k) * gain; mn = Math.min(mn, r); mx = Math.max(mx, r); }
+    let mnD = 1e9; for (let k = 0.1; k <= 3.15; k += 0.1) { let r = 0; for (let i = -P; i <= P; i++) for (let j = -P; j <= P; j++) r += K[Math.abs(i) * (P + 1) + Math.abs(j)] * Math.cos(k * (i + j) / Math.SQRT2); mnD = Math.min(mnD, r * gain); }
+    verdict(mn >= 0 && mnD >= 0, `the kernel's response is never negative (min ${f(mn, 4)} on the axis, ${f(mnD, 4)} on the diagonal)`);
+    verdict(Math.abs(W.kernelSum(K, P)) < 1e-6, `the kernel sums to zero (${W.kernelSum(K, P).toExponential(1)})`);
+    const r02 = W.kernelResponse(K, P, 0.2) * gain / 0.2, r05 = W.kernelResponse(K, P, 0.5) * gain / 0.5, r10 = W.kernelResponse(K, P, 1.0) * gain / 1.0;
+    verdict(Math.abs(r05 - 1) < 1e-6 && r10 > 0.85 && r10 < 1.2 && r02 > 0.4, `the response is |k| over the band: ${f(r02, 2)} |k| at lambda 31 texels, ${f(r05, 2)} at 12.6, ${f(r10, 2)} at 6.3`);
+    const dx0 = W.FIELD_M / W.FIELD_LEVELS[0].N, wdt = Math.sqrt(9.81 / dx0 * mx) / 30;
+    verdict(wdt < 0.5, `the fine level's highest mode: omega dt = ${f(wdt, 3)} at the 1/30 s clamp (< 0.5)`);
+    verdict(W.FIELD_LEVELS.length === 2 && W.FIELD_LEVELS[1].N * 4 === W.FIELD_LEVELS[0].N && W.field.nu > 0, `two levels over ${W.FIELD_M} m (${W.FIELD_LEVELS.map(l => l.N).join(' / ')}: ${f(dx0, 2)} / ${f(W.FIELD_M / W.FIELD_LEVELS[1].N, 1)} m texels), viscosity ${W.field.nu}`);
+    verdict(/vec2 sl = vec2\(hx, hz\) \/ \(2\.0 \* uDx\) \+ vec2\(hx1, hz1\) \/ \(2\.0 \* uDx1\);/.test(w), "the derive pass sums both levels' slopes"); }
+  verdict(W.field.tau > 2 && W.field.tau < 30 && W.field.foamTau > 0.5 && W.field.foamTau < 10 && /Math\.exp\(-dtc \/ F\.tau\), Math\.exp\(-dtc \/ F\.foamTau\)/.test(w), `damping per SECOND: a wave's e-fold ${W.field.tau} s, the foam's ${W.field.foamTau} s (never per frame)`);
   // a stamp must displace h AND h_prev (a change of h alone is read by the leapfrog as a velocity: the crater deepens)
   verdict(/gl_FragColor = vec4\(hn \+ ds, h \+ ds, clamp\(fn, 0\.0, 1\.0\), 1\.0\);/.test(w), 'a stamp displaces h and h_prev together (never a velocity)');
-  verdict(/float rim = smoothstep\(0\.0, uK\.w, e\);/.test(w) && W.field.rim >= 8, `the absorbing rim (${W.field.rim} texels)`);
+  verdict(/float rim = smoothstep\(0\.0, uK\.w, e\);/.test(w) && W.field.rim >= 0.02, `the absorbing rim (${W.field.rim} of the box)`);
   verdict(/gl_FragColor = vec4\(clamp\(sl \/ 4\.0 \+ 0\.5, 0\.0, 1\.0\), foam, 1\.0\);/.test(w) && /\(t\.rg \* 2\.0 - 1\.0\) \* 2\.0/.test(W.GLSL.frag), 'the derive pass writes the slot\'s encode (slope over [-2, 2]) and the shader decodes the same');
   verdict(/renderer\.setClearColor\(0x000000, 0\)/.test(w), 'the state is cleared to 0 on first use (not the scene\'s sky colour)');
   // the caller's render target is read BEFORE the first-use clears and restored after the passes (read after
@@ -181,7 +193,7 @@ console.log('\n5. THE FIELD');
   // the emitters in app.js: the press under a wet hull, the ring on touchdown, the foam on the chine; the ribbons retired
   verdict(/WT\.stamp\([^\n]*'press'\)/.test(app) && /WT\.stamp\([^\n]*'ring'\)/.test(app) && /WT\.stamp\([^\n]*'foam'\)/.test(app), 'app.js stamps press / ring / foam from the hydro\'s own numbers');
   verdict(/const ribbons = \[\];/.test(app) && !/rb\.trail\.push/.test(app), 'the wake ribbons are retired (the field carries the wake)');
-  verdict(/WATER\.fieldStep\(THREE, renderer, cgF\[0\], cgF\[2\]/.test(app) && /WATER\.fieldOn\(want\)/.test(app), 'app.js steps the field at the CG every frame while a floatplane is over water');
+  verdict(/WATER\.fieldStep\(THREE, renderer, cgF\[0\], cgF\[2\], running \? 1 \/ 60 : 0, cv\[0\], cv\[2\]\)/.test(app) && /WATER\.fieldOn\(want\)/.test(app), 'app.js steps the field at the CG (with its velocity) every frame while a floatplane is over water');
   verdict(/WATER\.fieldStep && !inGarage && \(sim\.hydro \|\| WATER\.field\.force\)/.test(app), 'without hydro the field runs only when the dev panel forces it');
 }
 
@@ -200,6 +212,13 @@ console.log('\n6. THE SPRAY');
   verdict(/SPRAY\.make\(THREE, NP\)/.test(app) && /sprayEmit\(D, 1,/.test(app) && /sprayEmit\(D, 0,/.test(app) && /S\.light\(/.test(app), 'app.js draws the spray through spray.js (both kinds emitted, lit each frame)');
   verdict(/'water\.js', 'spray\.js'/.test(b), 'build.js lists spray.js beside water.js');
   verdict(/F\.sta\[0\]\.K/.test(app) && /'press'\); \}/.test(app), 'the bow wave: a press ahead of the stem while under way');
+  // THE CHINE SHEETS (G460.10): a parametric surface per chine off the spray-root stations, the droplets off its edge
+  verdict(typeof SP.makeSheets === 'function' && /#include <logdepthbuf_vertex>/.test(SP.GLSL.sheetVert) && /#include <logdepthbuf_fragment>/.test(SP.GLSL.sheetFrag) && /#include <tonemapping_fragment>/.test(SP.GLSL.sheetFrag), 'spray.js makes the chine sheets (log-depth + tone-mapping chunks)');
+  verdict(/SPRAY\.makeSheets\(THREE, nF \* 2, 8, 6\)/.test(app) && /F\._chineSta/.test(app) && /SH\.set\(si, roots, \[ox, 0, oz\], \[0, 1, 0\], uo, uu, strength\)/.test(app) && /D\.sheets\.commit\(waterFx\.t\)/.test(app), 'app.js builds two sheets per float off the wet chine stations and commits them each frame');
+  verdict(/uu - 9\.81 \* t \+ 0\.3 \* Math\.random\(\)/.test(app), "the droplets peel off the sheet's far edge with its velocity");
+  // THE FLOAT TRUSS REACHES THE GAME (G460.10, the user: "the cessna does not draw its float support structure")
+  const join = src('tools/_cage_join.js');
+  verdict(/pt\.kind === 'floatStrut';\s*\/\/ G460\.10/.test(join), "the join lists floatStrut among the truss kinds (its members exported for app.js's two-end follow)");
 }
 
 console.log('\nGATE WATER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));

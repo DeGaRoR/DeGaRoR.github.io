@@ -32,3 +32,26 @@ window.__catchSplash = (afterS) => {
     if (tWet >= 0 && s.t - tWet >= (afterS || 0.3)) { clearInterval(poll); const b2 = document.getElementById('bPause'); if (b2 && /pause/i.test(b2.textContent)) b2.click(); }
   }, 30);
 };
+// __hold(thr): the throttle held AND the heading held with the rudder (a floatplane under power turns on
+// its own - p-factor, torque, the water rudder); the rudder's sign is found in the first 1.5 s (a probe
+// deflection, the yaw rate read), then a P loop on the heading error keeps the run straight for the Kelvin V
+window.__hold = (thr) => {
+  const s = FLIGHT_PROBE.sim(); const hdgOf = () => { const [xA] = s.axes(); return Math.atan2(-xA[2], -xA[0]); };
+  const H = { hdg0: hdgOf(), t0: s.t, sign: 0, probe: 0.4 };
+  window.__thrV = null;
+  const tick = () => {
+    const hdg = hdgOf(); let err = hdg - H.hdg0; while (err > Math.PI) err -= 2 * Math.PI; while (err < -Math.PI) err += 2 * Math.PI;
+    s.ctl.thr = thr;
+    // (sign: a nose-left pedal is dr > 0 in 32_hydro; the heading here grows nose-right, so a positive error asks for dr > 0)
+    s.ctl.dr = Math.max(-0.5, Math.min(0.5, (window.__holdSign || 1) * 1.5 * err));
+    requestAnimationFrame(tick);
+  };
+  tick();
+};
+// __tow(vx, vz): the hull TOWED at a set velocity - every frame a third of the CG's velocity error is added
+// to every point (a straight run for the Kelvin V, the engine and the rudder out of it)
+window.__tow = (vx, vz) => { window.__towV = [vx, vz]; window.__thrV = 0;
+  const tick = () => { const s = FLIGHT_PROBE.sim(), t = window.__towV; if (!t) return;
+    const v = s.cgVel(); const dx = (t[0] - v[0]) * 0.3, dz = (t[1] - v[2]) * 0.3;
+    for (let i = 0; i < s.n; i++) { s.v[i * 3] += dx; s.v[i * 3 + 2] += dz; }
+    requestAnimationFrame(tick); }; tick(); };

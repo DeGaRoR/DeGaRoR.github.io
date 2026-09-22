@@ -117,6 +117,8 @@ const lake = new THREE.Mesh(WATER.tag(THREE, lakeGeo, 1, false), mat); lake.posi
 
 // ---- the eye: an orbit round a point, three presets ---------------------------------------------
 const EYE = { tx: 60, ty: 0, tz: 20, yaw: -0.9, pitch: -0.12, dist: 14 };
+// THE LIVE FIELD's state (declared before the panel that reads it - a const after it was a TDZ error that killed the page)
+const FIELD = { on: false, t: 0, run: 0, probeAt: 0, report: () => {}, spd: 6, runS: 14 };   // the hull's run: spd m/s for runS s (G460.10: 6 m/s puts the Kelvin transverse wave, 23 m, inside the coarse level's band)
 const eyeSet = (tx, ty, tz, yaw, pitch, dist) => Object.assign(EYE, { tx, ty, tz, yaw, pitch, dist });
 function placeCamera() {
   const cp = Math.cos(EYE.pitch), x = EYE.tx + EYE.dist * cp * Math.sin(EYE.yaw), z = EYE.tz + EYE.dist * cp * Math.cos(EYE.yaw), y = Math.max(0.6, EYE.ty - EYE.dist * Math.sin(EYE.pitch));
@@ -207,11 +209,10 @@ function parity() {
 // THE LIVE FIELD (H7): stepped here as app.js steps it in the game (centre = the eye's target); a splash
 // is a ring stamp, a hull's run a press moving at 8 m/s for 6 s (the wake's V behind it), the probe reads
 // the state back a second after the splash (max |h|, the centre row) as the gate's numbers
-const FIELD = { on: false, t: 0, run: 0, probeAt: 0, report: () => {} };
 function fieldTick(dt) {
   if (!FIELD.on) return; FIELD.t += dt;
-  if (FIELD.run > 0) { const s = FIELD.t - FIELD.run; if (s < 6) WATER.stamp(EYE.tx - 24 + 8 * s, EYE.tz + 6, 0.8, -0.15, 0.4, 'press'); else FIELD.run = 0; }
-  WATER.fieldStep(THREE, renderer, EYE.tx, EYE.tz, dt);
+  if (FIELD.run > 0) { const s = FIELD.t - FIELD.run; if (s < FIELD.runS) { const x = EYE.tx - 60 + FIELD.spd * s; WATER.stamp(x, EYE.tz + 6, 0.8, -0.15, 0.4, 'press'); WATER.stamp(x + 2.2, EYE.tz + 6, 0.6, 0.08, 0, 'press'); } else FIELD.run = 0; }   // the keel's press + the bow's crest ahead of it, as app.js stamps them
+  WATER.fieldStep(THREE, renderer, EYE.tx, EYE.tz, dt, 0, 0);
   if (FIELD.probeAt && FIELD.t >= FIELD.probeAt) { FIELD.probeAt = 0; const p = WATER.fieldProbe(renderer, THREE); if (p) FIELD.report(`1 s after the splash: max |h| ${(p.maxH * 100).toFixed(1)} cm, foam mean ${p.foamMean.toFixed(4)}, the centre row ${p.row.slice(12, 20).map(v => (v * 100).toFixed(1)).join(' ')} cm`); }
 }
 WATER.set({ timer: true });

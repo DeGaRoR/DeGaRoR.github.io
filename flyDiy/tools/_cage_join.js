@@ -2443,7 +2443,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // unrebased, like a leg's — the pivot only has to exist)
       const TRUSS = pt.kind === 'liftstrut' || pt.kind === 'cabane' ||
                     pt.kind === 'interplane' || pt.kind === 'wire' ||
-                    pt.kind === 'boom' || pt.kind === 'fin' || pt.kind === 'stab';   // G267.2
+                    pt.kind === 'boom' || pt.kind === 'fin' || pt.kind === 'stab' ||   // G267.2
+                    pt.kind === 'floatStrut';   // G460.10: the float truss (H2 G389 put it on the G179.2 contract
+                                                // but never in this list - its members were dropped at the export
+                                                // and app.js's floatStrut branch, which needs them, never ran:
+                                                // the floats flew with no struts, the user: "the cessna does not
+                                                // draw its float support structure")
       if (TRUSS && pt.membersC && pt.membersC.length && !pt.axleC)
         pt.axleC = pt.membersC[0].tip;
       const pv = pt.pivotM ? pt.pivotM

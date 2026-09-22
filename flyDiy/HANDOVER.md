@@ -54854,3 +54854,64 @@ lattice and the fill's walk: no tuft, no tree in a pool > 0.5. What the bench ha
 the tuft's colour is the ground's at its foot (lift 0.29), vary 0.03, contrast 0.35 - the calm field's
 numbers, verified in the payload. TRAP: SPL is the terrain block's const - the tree block reads the
 splat through groundApi.splat(). screenshots/map/musk10b.
+## G460.10 — THE KELVIN WAKE (A DISPERSIVE, TWO-LEVEL FIELD), THE CHINE SHEETS, THE FLOAT TRUSS DRAWN
+## (2026-09-22, the user: "land v1, then do the chine sheets and the Kelvin wake. Also notice that the
+## cessna does not draw its float support structure")
+
+- THE FIELD IS DISPERSIVE (water.js): the single-speed wave equation (G460.8, c 1.6 m/s: a V of asin(c/V) -
+  a stripe at speed) is replaced by iWave's deep-water form h_tt = -g sqrt(-lap) h, the vertical derivative
+  as a 13 x 13 convolution: every wavelength travels at its own speed (omega^2 = g k), so a moving press
+  leaves Kelvin's V and its transverse waves (2 pi V^2 / g: 23 m at 6 m/s) and a splash's ring spreads into
+  a train. THE KERNEL is designed in the spectrum, not Bessel-integrated: iWave's truncated kernel leaked a
+  DC term, and the usual zero-sum fix (the sum off the centre) made the response NEGATIVE beyond k 1.5 a
+  texel - an exponentially growing checkerboard. What holds: R(k) = k exp(-(k/1.6)^2) inverse-transformed
+  on a 96^2 lattice, Hann-windowed to radius 7, its DC leak subtracted as a 2.5-texel gaussian (a delta at
+  the centre is a flat offset at every k), scaled so the response IS |k| at k 0.5 a texel; the response is
+  ~|k| over lambda 6-16 texels, half at 31, never negative (min 0.0066 axis / 0.026 diagonal), plus a
+  viscosity nu lap h (0.04) on the Nyquist modes. A FINITE KERNEL CANNOT GIVE |k| TO WAVES MUCH LONGER
+  THAN ITS SUPPORT (a zero-sum kernel is a Laplacian there - the long waves crawl), so the field is TWO
+  LEVELS over the same 192 m box: a fine 384^2 (0.5 m texels: the splash rings, the chines' short waves,
+  the foam) and a coarse 96^2 (2 m: the wake's transverse and diverging waves, 11-32 m), the coarse one
+  stamped with a broader, deeper press (r x 3.5 - the float's length - and 1.2 x the depth: the hull's whole
+  displacement, not its chine); the derive pass sums both levels' slopes. The box sits AFT of the CG under
+  way (a quarter ahead, three quarters of trail: the velocity is passed to fieldStep). THE DAMPING IS PER
+  SECOND (tau 8 s, foam 2 s, exp(-dt/tau)) - the per-frame constant killed every wave in half a second on
+  the bench's unlimited 970 fps and let them live three times longer under the rig's 20. GATE WATER 5:
+  the response never negative, the kernel's sum zero, |k| over the band, omega dt 0.148 at the 1/30 s
+  clamp, two levels, the derive sums both, the damping per second. Cost: 25 M taps a frame (the fine step)
+  + 1.5 M, water draws 0.38-0.42 ms on the bench at 1600 x 900.
+- THE CHINE SHEETS (spray.js makeSheets + app.js): a planing float throws its spray as two thin SHEETS off
+  the chines, not a cloud. Per side, the wet chine-side bottom panels under dynamic pressure name the
+  SPRAY-ROOT stations (the chine vertices their panels touch, F.sta[i].Cm / Cp, mapped once per hull);
+  the sheet is a parametric surface - u along the wet chine (8 roots resampled fore to aft), v the time of
+  flight (6 rows): p = root + out (uo t) + up (uu t - g t^2 / 2), uo 0.45 V, uu 0.22 V capped at 2.6, T = 2
+  uu / g - built on the CPU every frame (4 sheets x 48 vertices) into one BufferGeometry, its material of
+  the sprites' family: streaks along the flow torn by three octaves of noise, thinning toward the edge and
+  feathered at the root's ends, lit as white water, alpha-blended, log-depth. THE DROPLETS PEEL OFF THE
+  SHEET'S FAR EDGE with its velocity (out at uo, falling at -uu), the rate with the pressure; the puffs
+  stay outboard under it; the foam is stamped along the root. A dry float hides its sheets.
+- THE FLOAT TRUSS REACHES THE GAME (tools/_cage_join.js): H2 (G389) exported edFloatStruts as a
+  'floatStrut' part "on the G179.2 two-end contract" but never added it to the join's TRUSS kind list, so
+  out2.members was never written for it; app.js's floatStrut branch needs pt.members and never ran, and
+  the part was neither rigged nor added - the floats flew with no struts, wires or spreader bars (the
+  user: "the cessna does not draw its float support structure"). 'floatStrut' is in the list; the model's
+  strutRigs carry the three float-truss meshes (struts, wires, hardware: 14 members, tips on the float
+  nodes, pins on the fuselage fittings). GATE WATER 6 holds it.
+- THE BENCH (tools/_water.html): the FIELD state was a `const` declared AFTER the panel that read it - a TDZ
+  error that killed the whole page since G460.8 (nobody had opened the bench since); declared beside EYE
+  now. The hull's run is 6 m/s for 14 s with the bow's crest ahead of the keel's press. A debug view 10:
+  the field's slope (the wake read straight off the sheet).
+- THE RIG: __hold(thr) (a rudder P loop on the heading) and __tow(vx, vz) were both tried for a straight
+  run and both CAPSIZED the C172 (k5-k8: a 0.5 rudder at 6 m/s spins the hull and rolls it over; a tow at
+  the CG pitch-poles it) - the floats' yaw/roll coupling at speed is a physics item for the floats track,
+  not this chantier's; the proof runs are throttle-only (the hull curves gently under p-factor).
+- PROOF: screenshots/water-g440/kb/ (the bench: ring1/2/5 the splash's dispersive train, run8 / run_end_*
+  the 6 m/s press run, run_end_top_slope the field's slope view - the transverse train), k2/aft3.png (the
+  dispersive wake behind the turning hull from 40 m: the arcs of diverging waves + the foam trail),
+  k9/ (the 80 % run from rest: s2/s3 the float truss drawn + the chine sheets from 5 m, s6 the dispersive
+  wake's arcs from 40 m, top). The runs THROWN forward at the teleport (k5-k9's first cut, 5-7 m/s with the
+  hull unsettled) pitch-poled the C172 - start from rest.
+- OWED: a straight-run proof of the V once the floats' yaw is tamed; the Kelvin transverse at planing
+  speed (64 m at 10 m/s) is beyond the coarse level's band - a third level (8 m texels) if the planing
+  wake is ever the subject; the sheet's edge as a curl (a second row of sheets peeling); soft-particle
+  depth for the sprites.

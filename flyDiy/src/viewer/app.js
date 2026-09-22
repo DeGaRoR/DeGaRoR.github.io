@@ -3725,7 +3725,8 @@
   const SPRAY_N = 600, WAKE_N = 48;
   let waterFx = null;
   function buildWaterFx() {
-    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); } waterFx = null; }
+    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); }
+      if (waterFx.drops.sheets) { craft.remove(waterFx.drops.sheets.mesh); waterFx.drops.sheets.dispose(); } waterFx = null; }
     const HY = sim && sim.hydro;
     if (!HY) return;
     const nF = HY.floats.length;
@@ -3741,8 +3742,11 @@
       pts2.frustumCulled = false; pts2.renderOrder = 4;
     }
     craft.add(pts2);
+    // THE CHINE SHEETS (G460.10): two per float, the spray-root line along the wet chine flaring out and aft
+    let sheets = null;
+    if (spray && SPRAY.makeSheets) { sheets = SPRAY.makeSheets(THREE, nF * 2, 8, 6); craft.add(sheets.mesh); }
     const drops = { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), age: new Float32Array(NP).fill(9), life: new Float32Array(NP).fill(1),
-      size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray };
+      size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray, sheets };
     // H7 (G460.8): the wake RIBBONS retired - the water's interaction field (water.js) carries the wake
     // as foam and ripples in the surface itself; the ribbon's list stays empty so its readers hold
     const ribbons = [];
@@ -3764,7 +3768,7 @@
     for (let k = 0; k < HY.floats.length; k++) {
       const fx = HY.floats[k], F = fx.F, out = fx.out;
       const WT = window.WATER && WATER.field && WATER.field.on ? WATER : null;
-      if (!fx.wet) { waterFx.wasWet[k] = false; continue; }
+      if (!fx.wet) { waterFx.wasWet[k] = false; if (D.sheets) { D.sheets.hide(k * 2); D.sheets.hide(k * 2 + 1); } continue; }
       // the hull's own velocity at the step keel, for the spray's throw
       const eK = out.W[F.edge.K];
       const vK = fx.ctx.velAt(eK, [0, 0, 0]);
@@ -3804,29 +3808,46 @@
         }
         waterFx.wasWet[k] = true;
       }
-      // SPRAY from the wet chine-side bottom panels under dynamic pressure
-      if (V > 2.5) {
-        for (let i = 0; i < F.panels.length; i++) {
+      // THE CHINE SHEETS (G460.10): per side, the wet chine-side bottom panels under dynamic pressure name the
+      // SPRAY-ROOT stations (the chine vertices their panels touch); the sheet leaves the root line tangentially
+      // - out at 0.45 V, up at 0.22 V (capped) - and falls back a few metres aft; the droplets peel off its far
+      // edge with the sheet's velocity, the puffs stay under it, the foam is stamped along the root
+      const SH = D.sheets;
+      if (!F._chineSta) { F._chineSta = new Map(); F.sta.forEach((st, i) => { F._chineSta.set(st.Cm, [i, -1]); F._chineSta.set(st.Cp, [i, 1]); }); }
+      for (const side of [-1, 1]) {
+        const si = k * 2 + (side < 0 ? 0 : 1);
+        const stas = new Map(); let ox = 0, oz = 0, pdSum = 0, nP = 0;
+        if (V > 2.5) for (let i = 0; i < F.panels.length; i++) {
           const pn = F.panels[i], o = out.per[i];
-          if (!o.wet || (pn.kind !== 'bottomF' && pn.kind !== 'bottomA')) continue;
+          if (!o.wet || pn.side !== side || (pn.kind !== 'bottomF' && pn.kind !== 'bottomA')) continue;
           const pd = Math.hypot(o.Fp[0] + o.Fm[0], o.Fp[1] + o.Fm[1], o.Fp[2] + o.Fm[2]) / Math.max(1e-6, o.A);
           if (pd < 800) continue;
-          // outward: the panel's world normal's horizontal part (a deadrise
-          // bottom faces down and out; the heading is whatever it is)
-          const hn = Math.hypot(o.n[0], o.n[2]) || 1, ox = o.n[0] / hn, oz = o.n[2] / hn;
-          const rate = Math.min(6, pd / 2500) * dt * 60;
+          for (const vi of pn.v) { const cs = F._chineSta.get(vi); if (cs && cs[1] === side) stas.set(cs[0], Math.max(stas.get(cs[0]) || 0, pd)); }
+          const hn = Math.hypot(o.n[0], o.n[2]) || 1; ox += o.n[0] / hn; oz += o.n[2] / hn; pdSum += pd; nP++;
           if (WT && Math.random() < 0.5) WT.stamp(o.c[0], o.c[2], 0.5, 0, Math.min(1, pd / 4000), 'foam');   // (3) the chine's white water in the sheet
-          let n = Math.floor(rate); if (Math.random() < rate - n) n++;
-          for (let j = 0; j < n; j++) {
-            // the chine's fan is a low sheet flaring OUT and aft (G460.9: a first cut threw it up and buried the hull)
-            const up = 0.5 + 0.9 * Math.random(), outw = (0.8 + 1.2 * Math.random()) * Math.min(1, V / 12);
-            sprayEmit(D, 0, o.c[0] + (Math.random() - 0.5) * 0.15, Math.max(fx.h, o.c[1]) + 0.02, o.c[2] + (Math.random() - 0.5) * 0.15,
-              vK[0] * 0.35 + ox * outw * 3.2 + (Math.random() - 0.5) * 0.6, up * Math.min(1.0, V / 10), vK[2] * 0.35 + oz * outw * 3.2 + (Math.random() - 0.5) * 0.6);
-          }
-          // the fan's mist: a puff for every ~12 droplets, outboard of the chine, left behind by the hull
-          if (n > 0 && Math.random() < n / 12) sprayEmit(D, 1, o.c[0] + ox * 0.9, Math.max(fx.h, o.c[1]) + 0.1, o.c[2] + oz * 0.9,
-            vK[0] * 0.1 + ox * 1.6 * Math.min(1, V / 12), 0.25 + 0.4 * Math.random(), vK[2] * 0.1 + oz * 1.6 * Math.min(1, V / 12));
         }
+        if (!nP || stas.size < 2) { if (SH) SH.hide(si); continue; }
+        const on = Math.hypot(ox, oz) || 1; ox /= on; oz /= on;
+        const pdM = pdSum / nP, strength = Math.min(1, pdM / 5000);
+        const order = [...stas.keys()].sort((a, b) => a - b);
+        const pts = order.map(i => out.W[side < 0 ? F.sta[i].Cm : F.sta[i].Cp]);
+        // NU roots resampled along the wet chine (fore to aft), lifted to the water level where the chine runs under it
+        const NU = SH ? SH.NU : 8, roots = [];
+        for (let u = 0; u < NU; u++) { const f = u / (NU - 1) * (pts.length - 1), i0 = Math.floor(f), i1 = Math.min(pts.length - 1, i0 + 1), t = f - i0;
+          const a = pts[i0], b = pts[i1]; roots.push([a[0] + (b[0] - a[0]) * t, Math.max(fx.h, a[1] + (b[1] - a[1]) * t) + 0.02, a[2] + (b[2] - a[2]) * t]); }
+        const uo = 0.45 * V, uu = Math.min(2.6, 0.22 * V);
+        if (SH) SH.set(si, roots, [ox, 0, oz], [0, 1, 0], uo, uu, strength);
+        // the droplets off the sheet's far edge (t = T: out at uo, falling at -uu), the rate with the pressure
+        const T = 2 * uu / 9.81, rate = Math.min(8, pdM / 2000) * dt * 60;
+        let n = Math.floor(rate); if (Math.random() < rate - n) n++;
+        for (let j = 0; j < n; j++) {
+          const r = roots[Math.floor(Math.random() * NU)], t = T * (0.6 + 0.4 * Math.random());
+          sprayEmit(D, 0, r[0] + ox * uo * t, r[1] + uu * t - 4.905 * t * t, r[2] + oz * uo * t,
+            ox * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6, uu - 9.81 * t + 0.3 * Math.random(), oz * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6);
+        }
+        // the sheet's mist: a puff for every ~12 droplets, outboard of the root, left behind by the hull
+        if (n > 0 && Math.random() < n / 12) { const r = roots[Math.floor(Math.random() * NU)];
+          sprayEmit(D, 1, r[0] + ox * 0.9, r[1] + 0.1, r[2] + oz * 0.9, vK[0] * 0.1 + ox * 1.6 * Math.min(1, V / 12), 0.25 + 0.4 * Math.random(), vK[2] * 0.1 + oz * 1.6 * Math.min(1, V / 12)); }
       }
     }
     // integrate the particles: a droplet is ballistic with a little air drag and dies where it meets the water
@@ -3847,8 +3868,10 @@
     }
     if (S) {
       S.commit();
+      if (D.sheets) D.sheets.commit(waterFx.t);
       // lit by the world's own sun and sky, in the eye's frame
-      if (WF && WF.sun && WF.hemi) { const sd = WF.SUN_SKY || WF.sun.position; S.light([sd.x, sd.y, sd.z], sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity), skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity), camera); }
+      if (WF && WF.sun && WF.hemi) { const sd = WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
+        S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); if (D.sheets) D.sheets.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
     } else waterFx.pts.geometry.attributes.position.needsUpdate = true;
   }
   const sunIrr = new THREE.Color(), skyIrr = new THREE.Color();
@@ -9130,7 +9153,7 @@
       const cgF = sim.cgPos(), wl = world.waterH ? world.waterH(cgF[0], cgF[2]) : -Infinity;
       const want = Number.isFinite(wl) && cgF[1] - wl < 60;
       if (want !== WATER.field.on) WATER.fieldOn(want);
-      if (want) WATER.fieldStep(THREE, renderer, cgF[0], cgF[2], running ? 1 / 60 : 0);
+      if (want) { const cv = sim.cgVel ? sim.cgVel() : [0, 0, 0]; WATER.fieldStep(THREE, renderer, cgF[0], cgF[2], running ? 1 / 60 : 0, cv[0], cv[2]); }   // (the velocity: the box slides aft of the CG under way)
     }
     if (++frame % 6 === 0) {
       hud();
