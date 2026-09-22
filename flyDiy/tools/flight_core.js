@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a05e04d1b439c8e9
+// body-sha256: b2d018b0afd3c1d8
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1948,6 +1948,42 @@ function makeWorld(seed, opts) {
   // composer read -Infinity over the whole coast, a harbour zone's water level came from a pond up the
   // hill and the harbour never sowed a plot)
   const baseWorld = { id: ISL ? 'ISLAND-' + ISL.id : 'W-24km', terrainH: baseH, waterH: ISL ? ((x, z) => waterAt(baseH(x, z), x, z)) : ((x, z) => HYD.water(x, z)) };
+  // coverAt (v1.17): the analytic roads by roadNear's distance (the road's own index), the analytic
+  // strips by their box; the premises' answer wins where it has one
+  const COV_FADE = 6, COV_BAND = 1.2;
+  function coverAt(x, z) {
+    if (PM && PM.coverAt) { const c = PM.coverAt(x, z); if (c) return c; }
+    let kill = 0, boost = 0, cls = null;
+    // the strips: a box test per aerodrome (fourteen at most; the bbox reject first)
+    for (const a of aerodromes) {
+      if (a.premises || a.kind === 'meadow' || a.kind === 'water') continue;
+      const dx = x - a.x, dz = z - a.z; if (Math.abs(dx) + Math.abs(dz) > a.len / 2 + a.wid / 2 + 40) continue;
+      const c = Math.cos(a.hdg), s = Math.sin(a.hdg), u = dx * c + dz * s, v = -dx * s + dz * c;
+      const du = Math.abs(u) - a.len / 2, dv = Math.abs(v) - a.wid / 2;
+      const out = Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0);
+      const aCls = a.surface === SURFACE.PAVED ? 'asphalt' : a.surface === SURFACE.GRAVEL ? 'gravel' : 'grass';
+      const band = aCls === 'asphalt' ? 1.5 : aCls === 'gravel' ? 2.5 : 1.5;
+      if (out > band + COV_FADE + 6) continue;
+      let k = out <= band ? 1 : Math.max(0, 1 - (out - band) / COV_FADE);
+      if (aCls === 'grass') k *= 0.6;                       // a grass strip is the world's grass, mown: thinned, not bare
+      const bump = out <= band ? 0 : Math.sin(Math.PI * Math.min(1, (out - band) / (COV_FADE + 6))) * 0.7;
+      if (k > kill) kill = k; boost = Math.max(boost, bump); if (!cls || out <= 0) cls = aCls;
+    }
+    // the roads: the settlement bake's nearest road and its class - a 'road' is 5 m of gravel, a
+    // 'track' 3 m of the world's grass with wheel ruts (the pavement's grass class draws only the
+    // wear), so a track THINS the cover (0.6) rather than killing it
+    if (SET.roadNearCls) {
+      const q = SET.roadNearCls(x, z), track = q.cls === 'track', halfW = track ? 1.5 : 2.5, out = q.d - halfW;
+      if (out <= COV_BAND + COV_FADE + 6) {
+        let k = out <= COV_BAND ? 1 : Math.max(0, 1 - (out - COV_BAND) / COV_FADE);
+        if (track) k *= 0.6;
+        const bump = out <= COV_BAND ? 0 : Math.sin(Math.PI * Math.min(1, (out - COV_BAND) / (COV_FADE + 6))) * 0.7;
+        if (k > kill) kill = k; boost = Math.max(boost, bump); if (out <= 0) cls = track ? 'grass' : 'gravel';
+      }
+    }
+    if (!kill && !boost) return null;
+    return { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null };
+  }
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
@@ -2426,6 +2462,12 @@ function makeWorld(seed, opts) {
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
     // (terrainH and the surface read PM at call time; the trees were placed once, at the make)
     premises: { get overlay() { return PM; }, get rec() { return PMrec; }, set: setPremises, base: baseWorld },
+    // THE COVER'S QUERY (contract v1.17, 2026-09-22): what the cover ring may plant at a world point -
+    // null (the biome's own) or { kill, boost, kind, cls, grass }: the premises' answer where it has
+    // one (its strips, roads, aprons, plots - 27_premises.js coverAt), else the analytic world's
+    // own roads (a 'road' 5 m of gravel, a 'track' 3 m of worn grass, band 1.2) and its strips (by
+    // their surface class). The viewer adds `col`, the drawn ground's colour (render_world.js).
+    coverAt,
   };
 }
 // ============================================================
@@ -3185,7 +3227,7 @@ function bakeSettlements(D) {
     if (r.cls === 'bridge') continue;
     for (let i = 0; i + 1 < r.pts.length; i++) {
       const s = { ax: r.pts[i][0], az: r.pts[i][1], bx: r.pts[i + 1][0], bz: r.pts[i + 1][1],
-                  tA: r.tgt[i], tB: r.tgt[i + 1] };
+                  tA: r.tgt[i], tB: r.tgt[i + 1], cls: r.cls };   // cls: what the nearest road is (coverAt, v1.17)
       const qx0 = Math.floor((Math.min(s.ax, s.bx) - RINF) / QC), qx1 = Math.floor((Math.max(s.ax, s.bx) + RINF) / QC);
       const qz0 = Math.floor((Math.min(s.az, s.bz) - RINF) / QC), qz1 = Math.floor((Math.max(s.az, s.bz) + RINF) / QC);
       for (let qx = qx0; qx <= qx1; qx++) for (let qz = qz0; qz <= qz1; qz++) {
@@ -3196,9 +3238,9 @@ function bakeSettlements(D) {
       }
     }
   }
-  let _d = Infinity, _t = 0;
+  let _d = Infinity, _t = 0, _cls = null;
   function roadScan(x, z) {
-    _d = Infinity; _t = 0;
+    _d = Infinity; _t = 0; _cls = null;
     const arr = qmap.get(qKey(Math.floor(x / QC), Math.floor(z / QC)));
     if (!arr) return;
     for (let i = 0; i < arr.length; i++) {
@@ -3209,10 +3251,12 @@ function bakeSettlements(D) {
       let t = (wx * vx + wz * vz) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
       const ex = wx - t * vx, ez = wz - t * vz;
       const dist = Math.sqrt(ex * ex + ez * ez);
-      if (dist < _d) { _d = dist; _t = s.tA + (s.tB - s.tA) * t; }
+      if (dist < _d) { _d = dist; _t = s.tA + (s.tB - s.tA) * t; _cls = s.cls; }
     }
   }
   function roadNear(x, z) { roadScan(x, z); return _d; }
+  // the nearest road's distance AND class ('road' | 'track'), for coverAt (v1.17): one scan
+  function roadNearCls(x, z) { roadScan(x, z); return { d: _d, cls: _cls }; }
   function roadDelta(x, z, h) {
     roadScan(x, z);
     if (_d >= RINF) return h;
@@ -3270,7 +3314,7 @@ function bakeSettlements(D) {
   const inCore = (x, z) => settlements.some(s => Math.hypot(x - s.x, z - s.z) < s.r * 0.75);
 
   return {
-    settlements, roads, buildings, roadNear, roadDelta, inCore,
+    settlements, roads, buildings, roadNear, roadNearCls, roadDelta, inCore,
     stats: { bakeMs: Date.now() - t0, junctions: junctions.length },
   };
 }
@@ -5448,6 +5492,23 @@ const RUNWAY_LOOKS = {
   sand:     { name: 'sand',           surface: SURFACE.SAND,   set: 'dry',     cls: 'sand',     preset: null },
 };
 const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'grass' };
+// THE BAND a pavement class draws beside itself when the entry says nothing (metres; a road's is
+// capped at 1.2) - the same numbers as src/viewer/pavement.js's CLASS_DEF.band, which GATE PAVEMENT
+// holds equal: the core needs them for coverAt (v1.17) without reaching the viewer
+const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, grass: 1.5 };
+const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
+function paveBand(entry, cls, isRoad) {
+  const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
+  return Math.max(0, b);
+}
+// THE GRASS OF A ZONE (contract v1.17, the user: "land plots should override the default biome
+// settings, and come with their own grass definition ... small and dense"): what the cover ring
+// plants INSIDE a plot of this kind - a lawn (short, dense), the meadow (the biome's own), or none
+// (a works' yard, a harbour's gravel). `h` is the tuft's height in metres, `density` a factor on
+// the lawn row's own; a zone's `rules.grass` overrides its kind's
+const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commercial: { kind: 'lawn', h: 0.15, density: 0.8 }, park: { kind: 'lawn', h: 0.1, density: 1.2 },
+  industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
+function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
 // THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
@@ -5899,6 +5960,20 @@ function compose(rec0, world, opts) {
     // the composed ground in the PREMISES frame
     localH: (lx, lz) => { const w = F.toWorld(lx, lz); return O.terrainAt(w[0], w[1]); },
     materials: mats, pavePolys, pavement: rec.pavement || null,
+    // THE COVER'S QUERY (contract v1.17): what the cover ring may plant at a WORLD point -
+    //   null                      the premises has nothing to say here (the biome's own)
+    //   { kill, boost, kind, cls, look, grass }
+    //     kill  0..1  1 on a pavement (a strip's box, a road's width, a paved polygon) and across its
+    //                 drawn band, falling to 0 over the fade past the band (a few stragglers there)
+    //     boost 0..1  the borders: a bump in the fade past a band and a soft road's edge, where the
+    //                 user wants the grass ENCOURAGED
+    //     kind  'lawn' inside a plot whose zone says so, 'none' (a works' yard), 'meadow' (the
+    //                 biome's) or null when no plot claims the point
+    //     cls   the pavement class drawn nearest (for the tuft's colour, which the viewer adds)
+    //     grass the zone's grass rule when kind is a plot's (h, density)
+    // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
+    // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
+    coverAt: (x, z) => coverAt(x, z),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -5923,6 +5998,61 @@ function compose(rec0, world, opts) {
     inExtent(x, z) { const L = F.toLocal(x, z); return inBB(ext, L[0], L[1]); },
     records: { plots: [], trees: [], items: [], links: [], issues: [], excludes: excl.map(e => e.poly) },
   };
+  // ---- coverAt's index (v1.17): every pavement's reach and every plot, in 64 m cells ------------
+  const CIDX = SpatialIndex(64);
+  const covItems = [];
+  const addCov = (bbox, it) => { covItems.push(it); CIDX.add(bbox, it); };
+  for (const r of runways) {
+    if (runwayIsWater(r)) continue;
+    const L = RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass, cls = L.cls || 'grass', band = paveBand(r, cls, false), reach = band + PAVE_FADE + 6;
+    const E = runwayEnds(r);
+    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt' });
+  }
+  for (const rd of roadObjs) {
+    if (rd.runway || rd.ribbon === false) continue;
+    const L = RUNWAY_LOOKS[rd.look] || RUNWAY_LOOKS.gravel, cls = L.cls || 'gravel', band = paveBand(rd, cls, true), reach = rd.w / 2 + band + PAVE_FADE + 6;
+    const bb = polyBBox(rd.pts);
+    addCov({ x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, { kind: 'road', cls, band, halfW: rd.w / 2, road: rd, soft: cls !== 'concrete' && cls !== 'asphalt' });
+  }
+  for (const pp of pavePolys) {
+    const cls = RUNWAY_LOOKS[pp.look].cls, band = paveBand(pp, cls, true), reach = band + PAVE_FADE + 6;
+    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', cls, band, poly: pp.poly, soft: false });
+  }
+  const zoneOf = id => rec.layers.zones.find(z => z.id === id) || null;
+  // the strip's dEdge (its box's SDF: + inside), the road's (w/2 - the distance), the polygon's
+  const dEdgeOf = (it, lx, lz) => {
+    if (it.kind === 'strip') { const dx = lx - it.e0[0], dz = lz - it.e0[1]; const u = dx * it.d[0] + dz * it.d[1], v = -dx * it.d[1] + dz * it.d[0];
+      const du = Math.max(-u, u - it.len), dv = Math.abs(v) - it.halfW; return -(Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0)); }
+    if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
+    return -sdPoly(it.poly, lx, lz);
+  };
+  function coverAt(x, z) {
+    const L = F.toLocal(x, z), lx = L[0], lz = L[1];
+    const cell = CIDX.query(lx, lz);
+    let kill = 0, boost = 0, cls = null, best = -Infinity;
+    if (cell) for (const it of cell) {
+      const d = dEdgeOf(it, lx, lz);              // + inside the pavement, - outside
+      const out = -d;
+      if (out > it.band + PAVE_FADE + 6) continue;
+      // the pavement and its band: nothing; the fade: 1 -> 0 over PAVE_FADE; the border bump past the band
+      let k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
+      if (it.cls === 'grass') k *= 0.6;              // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare
+      const bump = out <= it.band ? 0 : (out < it.band + PAVE_FADE + 6 ? Math.sin(Math.PI * Math.min(1, (out - it.band) / (PAVE_FADE + 6))) : 0);
+      // a soft road's own edge is where the grass creeps in: the bump reaches into its last metre
+      const soft = it.soft && d > 0 && d < 1 ? 0.5 * (1 - d) : 0;
+      if (k > kill) { kill = k; }
+      boost = Math.max(boost, bump * 0.7, soft);
+      if (d > best) { best = d; cls = it.cls; }
+    }
+    let kind = null, grass = null;
+    // the plots: a point inside one takes its zone's grass rule
+    for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }
+    // a plot's lawn is mown to the road's band: no fade thins it, only the pavement and the band kill
+    if (kind === 'lawn' && kill < 1) kill = 0;
+    if (!kill && !boost && !kind) return null;
+    return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+  }
+
   // PLACEMENT (stage 5): the zones sown in array order — a later zone's plots
   // reject against the earlier ones; forest zones plant after every plot is known
   if (!o.noPlace) {
@@ -6072,6 +6202,7 @@ function issues(rec0) {
     if (!polySimple(e.poly)) out.push(k + ' ' + e.id + ': the polygon crosses itself');
     if (k === 'terrain' && !(+e.falloff > 0)) out.push('terrain ' + e.id + ': falloff must be positive');
     if (k === 'zones' && ZONE_KINDS.indexOf(e.kind) < 0) out.push('zone ' + e.id + ': unknown kind ' + e.kind);
+    if (k === 'zones' && e.rules && e.rules.grass && ['lawn', 'meadow', 'none'].indexOf(e.rules.grass.kind) < 0) out.push('zone ' + e.id + ': grass kind is lawn, meadow or none');
     if (k === 'material' && !e.set && !e.look) out.push('material ' + e.id + ': no set and no look');
     if (k === 'material' && e.look && !(RUNWAY_LOOKS[e.look] && RUNWAY_LOOKS[e.look].cls)) out.push('material ' + e.id + ': unknown look ' + e.look);
     if ((k === 'roads' || k === 'runways' || k === 'material') && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(k.replace(/s$/, '') + ' ' + e.id + ': band must be 0 or more');
@@ -6311,7 +6442,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
