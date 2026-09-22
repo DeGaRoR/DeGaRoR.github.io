@@ -102,6 +102,30 @@ for (const r of rows) {
   check(String(a.forward) === String(r.forward), '1 ' + r.key + ': `forward` is not the table\'s', a.forward + ' vs ' + r.forward);
 }
 
+// ...and the PROVENANCE IS A LINK, not a promise of one. These are CC-BY
+// assets: a credit line with no url, or a SOURCES row whose url is a note
+// ("listing url owed"), ships something nobody can trace back to its author.
+// This table carried exactly one such note from the import until the user
+// gave the gull's listing at G498.1; this rule is why the next one cannot
+// pass quietly. (The regex is tested against the real file, not believed.)
+// THE LICENCE LINK DOES NOT COUNT. Every credit ends in creativecommons.org,
+// so "does the credit contain a url" passes on a credit with no LISTING - the
+// first cut of this rule did exactly that and its negative test went green.
+// What is asserted is a url that is not the licence's.
+const HTTP = /https?:\/\/[^\s)'"]+/g;
+const listing = t => (String(t || '').match(HTTP) || []).filter(u => !/creativecommons\.org/.test(u));
+for (const r of rows) {
+  const a = REG.animals[r.key];
+  if (a) check(listing(a.credit).length > 0, '1 ' + r.key + ': the shipped credit line links the licence but not the LISTING', String(a.credit).slice(0, 70));
+}
+const HTTP1 = /https?:\/\/[^\s)'"]+/;
+const SRCBLK = /^SOURCES = \[([\s\S]*?)^\]/m.exec(py);
+if (check(!!SRCBLK, '1 the table has no SOURCES block')) {
+  const urls = [...SRCBLK[1].matchAll(/key='(\w+)'[\s\S]*?url='([^']*)'/g)];
+  check(urls.length === rows.length, '1 SOURCES must carry one row per animal', urls.length + ' vs ' + rows.length);
+  for (const [, k, u] of urls) check(HTTP1.test(u), '1 ' + k + ': the SOURCES url is a note, not a url', u);
+}
+
 // ---- 2: every skin decodes, and measures its declared length ---------------
 const bytes = rel => fs.readFileSync(path.join(ROOT, rel));
 const DEC = {}, CLIPS = {};

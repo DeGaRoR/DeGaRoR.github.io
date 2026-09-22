@@ -176,8 +176,9 @@ ANIMALS = [
     # at 200 m is the whole of what a bird is.
     dict(key='bird', label='Gull', kind='air',
          glb='assets/animals/bird.glb', src='bird.glb',
-         credit='"Bird" by Blender Artist (Sketchfab), licensed under Creative Commons '
-                'Attribution 4.0 (http://creativecommons.org/licenses/by/4.0/)',
+         credit='"Bird" by Blender Artist (https://sketchfab.com/3d-models/bird-e93a906eb38343c4a14458a637136329), '
+                'licensed under Creative Commons Attribution 4.0 '
+                '(http://creativecommons.org/licenses/by/4.0/)',
          length=1.10, axis='x', forward=[0, -1], spread=0.09, rootJoint=None, skin=0, meshes=[9, 10],
          lodPose=None, tex=512,
          air=dict(speed=11.0, flapHz=1.0, glide=0.35),
@@ -208,10 +209,12 @@ SOURCES = [
          url='https://skfb.ly/67RFV', licence='CC-BY 4.0'),
     dict(key='orca', title='Killer Whale', author='Trouvaille',
          url='https://skfb.ly/6SI7C', licence='CC-BY 4.0'),
-    # the listing's short url is the one thing still owed on this row (the page
-    # was read off the author's own download dialog: title, author, licence)
+    # the listing url, given by the user 2026-09-22 - the one thing this table
+    # carried as owed since the import (title, author and licence had been read
+    # off the model's own Sketchfab download dialog). It is the long form, not
+    # a skfb.ly short link, and it is what the user gave.
     dict(key='bird', title='Bird', author='Blender Artist',
-         url='sketchfab.com (listing url owed)', licence='CC-BY 4.0'),
+         url='https://sketchfab.com/3d-models/bird-e93a906eb38343c4a14458a637136329', licence='CC-BY 4.0'),
 ]
 
 # nothing was discarded from this batch — every delivered file is in the table

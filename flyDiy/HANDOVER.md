@@ -55859,7 +55859,13 @@ Six rigged animals — **bear, elk, doe, orca, blue whale, gull** — imported, 
 made to behave. Design: `futureDesigns/ANIMALS-2026-09-22.md`; procedure:
 `docs/ANIMAL-IMPORT-PROC.md`; credits: CREDITS.md — bear/elk/doe by **WildMesh 3D**, blue whale by
 **Bohdan Lvov**, orca by **Trouvaille**, the gull ("Bird") by **Blender Artist**, all CC-BY 4.0
-via Sketchfab; the gull's listing SHORT URL is the one thing still owed. GATE **ANIMALS** (core tier).
+via Sketchfab. The gull's listing url was the one thing this arc carried as owed and the user gave it
+2026-09-22 (https://sketchfab.com/3d-models/bird-e93a906eb38343c4a14458a637136329): it is in the table,
+in the re-baked manifest and in CREDITS.md, and nothing of this arc is owed now. GATE **ANIMALS** rule 1
+grew the rule that would have made that note loud: every shipped credit must link the LISTING and every
+SOURCES url must be a url - and the LICENCE LINK DOES NOT COUNT, because every credit ends in
+creativecommons.org and the first cut of the rule passed vacuously on a credit with no listing at all.
+GATE **ANIMALS** (core tier).
 
 TWO RULINGS TAKEN AT THE START, before any code. (1) Provenance: WildMesh 3D (bear, elk, doe),
 Bohdan Lvov (blue whale), Trouvaille (orca), all CC-BY 4.0 — the user's own lines, carried

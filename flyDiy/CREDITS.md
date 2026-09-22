@@ -744,18 +744,15 @@ these are shown:
   (https://skfb.ly/pFGDA) - 7 886 triangles, 38 joints, 53 delivered clips
 - `doe` — **"Realistic Animated Doe 3D Model"** by WildMesh 3D
   (https://skfb.ly/pKFFs) - 5 216 triangles, 38 joints, 55 delivered clips
-- `bird` — **"Bird"** by Blender Artist (Sketchfab; 810 triangles, 435
-  vertices as the listing states - five gulls in one file, of which ONE is
-  baked) - 162 triangles a bird, 10 joints, one 0.67 s flap
+- `bird` — **"Bird"** by Blender Artist
+  (https://sketchfab.com/3d-models/bird-e93a906eb38343c4a14458a637136329)
+  - 810 triangles, 435 vertices as the listing states: five gulls in one
+  file, of which ONE is baked - 162 triangles a bird, 10 joints, one
+  0.67 s flap
 - `whale` — **"Blue Whale - Textured"** by Bohdan Lvov
   (https://skfb.ly/67RFV) - 2 424 triangles, 24 joints, one swim loop
 - `orca` — **"Killer Whale"** by Trouvaille
   (https://skfb.ly/6SI7C) - 3 072 triangles, 12 joints, one swim loop
-
-**STILL OWED, one small thing**: the `bird` listing's own URL. Its title,
-author and licence were read off the model's own Sketchfab download dialog
-(2026-09-22) and are in the payload; only the short link is missing, and
-`tools/animals_table.py`'s `SOURCES` row says so rather than inventing one.
 
 Modifications made, as CC-BY asks to be indicated: a uniform scale per animal
 (each export arrives in its own unit; the baker measures the rest mesh and
