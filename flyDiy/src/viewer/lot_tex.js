@@ -89,6 +89,12 @@ const LOT_GROUND = (() => {
     uPeb: { value: LOT ? lotTex(THREE, onLoad, 'pebble', 'diff', true) : null },
     uTiles: { value: new THREE.Vector4(LOT ? LOT.lush.tile : 2.4, LOT ? LOT.dry.tile : 2.2, LOT ? LOT.dirt.tile : 1.8, LOT ? LOT.pebble.tile : 1.6) },
     uGrassTile: { value: LOT ? LOT.grass.tile : 2.4 },
+    // THE LAWN'S GRADE (2026-09-22, the user: "don't you find the grass of the patches a tad too
+    // green?"): the two grass sets are a temperate nursery green - beside the muskeg, the dry grass
+    // and the beige street of an Alaskan village they read as astroturf. (saturation, value, warmth):
+    // the saturation pulled toward the luma, the value down a touch, a little warmth back in so the
+    // lawn keeps its life. LOT_GROUND.grade(s, v, w) moves it live (the A/B is one step).
+    uLawn: { value: new THREE.Vector3(0.70, 0.93, 0.5) },
   };
   m.onBeforeCompile = sh => {
     for (const k in U) sh.uniforms[k] = U[k];
@@ -99,7 +105,7 @@ const LOT_GROUND = (() => {
         '#include <begin_vertex>\n  vSplat = aSplat; vTone = aTone; vAlpha = aAlpha; vLotP = transformed;')
       .replace('#include <uv_vertex>', '#include <uv_vertex>\n  vMapUv = position.xz / ' + (LOT ? LOT.grass.tile : 2.4).toFixed(3) + ';');
     sh.fragmentShader = 'varying vec4 vSplat;\nvarying vec2 vTone;\nvarying float vAlpha;\nvarying vec3 vLotP;\n' +
-      'uniform sampler2D uLush, uDry, uDirt, uPeb;\nuniform sampler2D uLushN, uDryN, uDirtN, uPebN;\nuniform vec4 uTiles;\n' +
+      'uniform sampler2D uLush, uDry, uDirt, uPeb;\nuniform sampler2D uLushN, uDryN, uDirtN, uPebN;\nuniform vec4 uTiles;\nuniform vec3 uLawn;\n' +
       'float lwGm, lwDry, lwPeb, lwDirt;\n' +
       'float lHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
       'float lNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n' +
@@ -124,6 +130,12 @@ const LOT_GROUND = (() => {
         '    col *= mix(vec3(1.06, 0.98, 0.86), vec3(0.88, 1.0, 0.92), t1) * (0.82 + 0.36 * t2);\n' +
         // dense grass by the fence is also a shade darker and greener
         '    col *= mix(vec3(1.0), vec3(0.86, 0.94, 0.84), vTone.y);\n' +
+        // THE LAWN'S GRADE: the grass only (the dry, the pebbles and the dirt are mixed in below)
+        '    {\n' +
+        '      float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));\n' +
+        '      vec3 warm = mix(vec3(1.0), vec3(1.05, 0.995, 0.90), uLawn.z);\n' +
+        '      col = mix(vec3(lum), col, uLawn.x) * uLawn.y * warm;\n' +
+        '    }\n' +
         // dry under the buildings, pebbles at the seafront, dirt on the paths -
         // each edge broken by the finer noise
         '    float wd = smoothstep(0.25, 0.75, vSplat.y + (n2 - 0.5) * 0.35);\n' +
@@ -155,6 +167,7 @@ const LOT_GROUND = (() => {
         '    normal = normalize(tbn * mapN);\n' +
         '  }');
   };
+  m.userData.uLawn = U.uLawn;
   LOT_MAT = m;
   return m;
   }
@@ -175,6 +188,15 @@ const LOT_GROUND = (() => {
   return L;
   }
 
-  return { material, mesh };
+  // the lawn's grade, live: LOT_GROUND.grade(saturation, value, warmth) - the A/B in one step
+  function grade(sat, val, warm) {
+    if (!LOT_MAT || !LOT_MAT.userData.uLawn) return null;
+    const v = LOT_MAT.userData.uLawn.value;
+    if (sat !== undefined && sat !== null) v.x = +sat;
+    if (val !== undefined && val !== null) v.y = +val;
+    if (warm !== undefined && warm !== null) v.z = +warm;
+    return [v.x, v.y, v.z];
+  }
+  return { material, mesh, grade };
 })();
 if (typeof window !== 'undefined') window.LOT_GROUND = LOT_GROUND;

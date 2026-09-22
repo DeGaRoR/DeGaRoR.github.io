@@ -55623,3 +55623,52 @@ TRIED, MEASURED, OFF BY DEFAULT (`?cliffs=1`), and the reason is the ground, not
   editor's cut faces), a per-site decision rather than a scatter.
 - The module, its knobs and the six scans stay in the tree: the next session starts from a working
   placer and a measured verdict, not from a download.
+
+## G497 — THE GUARDRAIL, AND THE LAWN'S GRADE (2026-09-22, the user: "could add metal guardrails on
+## the large road sections with nothing but forest, in the bends. Or where you see fit? ... Procedural
+## of course, maybe with an option to turn them on and off. Also, don't you find the grass of the
+## patches a tad too green?")
+
+THE W-BEAM (src/viewer/guardrail.js, new). WHERE IT GOES IS A RULE, measured every 2 m a side, not a
+decoration: the DROP (the ground at the post line against the ground 3 / 7 / 14 m further out, and
+against the WATER where that is higher - the reference photo's sea cliff) against a WARRANT TABLE -
+1.0 m at 3 m, 2.2 m at 7 m, 4.0 m at 14 m, a 1:3 batter; a BEND rails its OUTSIDE (the tangent's turn
+over +-8 m; its sign names the side) past 0.011 /m (r ~ 90 m) with half the warrant; and the caller's
+`keep` forbids - the premises: over a plot or within
+8 m of one, within a road's width of another road (a junction), on a strip; the analytic world: inside
+a settlement's core (roadNet.inCore) or 20 m of one of its buildings ("nothing but forest"). Then
+HYSTERESIS, because a six-metre rail in the middle of nowhere is what reads as procedural: gaps under
+10 m closed, runs under 18 m dropped, 5 m added each end and those ends ramped into the ground and
+flared out (a buried terminal). Past a 5.5 m fall the run gets the picture's SECOND beam. Under 3.2 m
+of road, none. THE TABLE IS THE RULE: the first cut asked 1.6 m of fall anywhere within 14 m - a 12 % hillside - and
+two thirds of the analytic world's roads wore a rail (10.8 km); with the batter table the same world
+rails 4.1 km, all of it the ONE road cut into the mountain (37 % of its length).
+DRAWN: one merged non-indexed geometry A RUN (a single mesh a road would have an island-wide bounding
+sphere and be drawn from everywhere; a run is a hundred metres and the frustum culls it), ONE MeshStandardMaterial for every rail
+in the world (0xb6babd, metal 0.58, rough 0.48), the panel tone / the grime up from the post feet /
+the one-in-seven rust in VERTEX COLOUR - no texture, no hook, one draw call, shadow both ways, the
+atmosphere through three's prototype hook. The section is the AASHTO W-beam's (312 x 83 mm, the belly
+bolted at mid-height, the top 760 mm over the road), 13 points, the crests slightly convex, NORMALS
+PER FACET (an averaged normal rounds a stamped beam into a pipe). The beam does not drape: it follows
+its own GRADE (the ground averaged over +-6 m) and the posts make up the difference. 27 triangles a
+metre for one beam, 54 for two, at most 4 km a build (the steepest runs first).
+THE SWITCH: GRAPHICS > guardrails, on in every preset - every mesh registered with the module, the
+switch flips `visible`, nothing rebuilt. THE EDITOR: a road's `guardrail` row (where the ground says /
+the whole road / none) = `rail` on the entry, contract v1.18. Jolene: 4 rails, 218 m - the rule is
+conservative on a flat village and finds the shore road's bends.
+THE LAWN'S GRADE (lot_tex.js): the lot ground's two grass sets are a temperate nursery green and read
+as astroturf beside the muskeg and the beige street. uLawn = (saturation 0.70, value 0.93, warmth 0.5)
+on the GRASS only (the dry, the pebbles and the dirt are mixed in after), live through
+LOT_GROUND.grade(s, v, w) - the A/B is one step in one boot.
+- ALSO: 20_world.js publishes roadNet.inCore / .settlements (the keep asks "is this a village?" - the
+  first cut called a function the world does not publish and the whole analytic road block threw).
+- FILES: src/viewer/guardrail.js (new, in the MANIFEST after pavement.js), lot_tex.js, 20_world.js, render_premises.js
+  (railKeep + buildRail), render_world.js (the analytic roads), gfx_settings.js, premises_ui.js,
+  tools/_pavement.html + _pavement_check.js (GATE PAVEMENT §7), futureDesigns/PAVEMENT-2026-09-21.md §6-7,
+  PREMISES-CONTRACT v1.18.
+- PROOF: screenshots/pavement/rail_on.png, rail_macro.png (the bench), rail_jolene*.png (in game),
+  lawn_after.png vs lawn_after_s0.png (the grade A/B from one eye). GATE PAVEMENT / PREMISES /
+  WORLDRENDER / GFX / MEDIA green.
+- OWED: the splice bolts and the lapped panel ends (the tone step is all we draw); a timber-post
+  variant for a village lane; nothing reads a rail as a collision surface - an aeroplane taxis through
+  it; the analytic island's own roads shot (Jolene is the default map, so the pictures are hers).

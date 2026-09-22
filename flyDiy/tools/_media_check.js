@@ -113,7 +113,12 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //   8.3 -> 8.4 (G491, coverAt, 2026-09-22): the cover's query is code - the index and the laws in
 //              27_premises.js, the analytic roads' class in 23_world_settle.js, the zone's grass
 //              rows in premises_ui.js: 12 KB, on a master already at 8.294 after G490's far forest.
-const BUDGET_MIB = 8.4;
+//   8.4 -> 8.5 (G497, the guardrail, 2026-09-22): src/viewer/guardrail.js is code - the rule
+//              (the warrant table, the bend's outside, the hysteresis), the W-beam's geometry and
+//              the one steel material, 19 KB, on a master already at 8.391 after G490's far forest,
+//              G493's rock map and G496's deadwood. It carries no texture at all (vertex colour),
+//              so nothing of it is media.
+const BUDGET_MIB = 8.5;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

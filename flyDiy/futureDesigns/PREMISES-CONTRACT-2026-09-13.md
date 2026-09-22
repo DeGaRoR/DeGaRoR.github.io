@@ -685,3 +685,12 @@ after the freeze, against this document.
   (1 - kill) x (1 + boost), a lawn species row for `kind: 'lawn'`, the tint from `col`. The
   editor's zone inspector: `plot grass` pills, the lawn's height and density. The band table the
   core carries (PAVE_BAND) is the viewer's CLASS_DEF.band; GATE PAVEMENT holds them equal.
+- **v1.18 (2026-09-22, the user: "could add metal guardrails on the large road sections with
+  nothing but forest, in the bends").** A road entry may carry `rail`: `'on'` (the whole road,
+  both sides), `'off'` (none), absent or `'auto'` (the rule decides). The rule is
+  `src/viewer/guardrail.js`'s and reads the ground, not the record: the fall past the shoulder
+  (3 / 7 / 14 m out, and to the water where that is higher), the bend's outside, and a `keep`
+  the renderer supplies - no rail over a plot or within 8 m of one, in a junction, or on a strip.
+  Nothing is stored about where the rails actually stand: they are rebuilt with the road. The
+  player's GRAPHICS > guardrails switch hides them whatever a road says.
+

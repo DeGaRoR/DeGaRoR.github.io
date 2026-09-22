@@ -52,6 +52,7 @@
     <option value="0">off</option><option value="1">normal</option><option value="2">rough</option><option value="3">wet/puddle</option><option value="4">marks</option>
     <option value="5">pav/band/grass</option><option value="6">dEdge/alpha</option><option value="7">lane/joint/spall</option><option value="8">crack/dmg/patch</option><option value="9">rut/stripe/moss</option><option value="10">rubber/paint/damp</option><option value="11">wheel/tread/coarse</option><option value="12">albedo (unlit)</option>
   </select></label>
+  <label>rail <select id="rail"><option value="off">off</option><option value="auto" selected>auto</option><option value="on">always</option><option value="on2">always x2</option></select></label>
   <button id="marks" class="on">marks</button>
   <button id="scatter" class="on">tufts+stones</button>
   <button id="wire">wire</button>
@@ -70,6 +71,7 @@
 <script src="../src/viewer/pavement_tex.js"></script>
 <script src="../src/viewer/site_ground.js"></script>
 <script src="../src/viewer/pavement.js"></script>
+<script src="../src/viewer/guardrail.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -192,7 +194,7 @@ function buildGround() {
 }
 
 // ---- the pavements ----------------------------------------------------------
-let lib = null, strip = null, road = null, stripMat = null, roadMat = null, marksOn = true;
+let lib = null, strip = null, road = null, stripMat = null, roadMat = null, marksOn = true, rail = null, railMode = 'auto';
 function buildPavements() {
   for (const m of [strip, road]) if (m) { scene.remove(m); m.geometry.dispose(); }
   if (stripMat) PAVEMENT.dispose(stripMat); if (roadMat) PAVEMENT.dispose(roadMat);
@@ -207,7 +209,17 @@ function buildPavements() {
   // the road's shoulder is not drawn over the strip's pavement (a crossing is concrete meeting asphalt)
   road = new THREE.Mesh(PAVEMENT.roadGeometry(THREE, Object.assign({}, roadDef, { heightAt, step: 2, resV: 1, lift: 0.1, shoulderK: (x, z) => Math.min(1, Math.max(0, (-stripField.at(x, z).dEdge - 1) / 4)) })), roadMat);
   road.renderOrder = 3; road.receiveShadow = true; road.frustumCulled = false; scene.add(road);
+  buildRail();
   setDbg();
+}
+// ---- the guardrail: the W-beam where the rule says (2026-09-22) ---------------
+function buildRail() {
+  if (rail) { scene.remove(rail); GUARDRAIL.dispose(rail); rail = null; }
+  const g = S.geo;
+  rail = GUARDRAIL.build(THREE, { path: roadPoly, w: g.roadW, mode: railMode === 'on2' ? 'on' : railMode, rails: railMode === 'on2' ? 2 : 1, hAt: heightAt, heightAt, seed: g.seed,
+    // the bench's road crosses the strip: no rail over the pavement
+    keep: (x, z) => stripField.at(x, z).dEdge < -6 });
+  if (rail) scene.add(rail);
 }
 // ---- the scatter: tufts in the grass band, stones in the gravel band ----------
 let scat = [], scatterOn = true;
@@ -315,6 +327,7 @@ for (const [id, list, key] of [['cls', PAVEMENT.CLASSES, 'cls'], ['rcls', PAVEME
   sel.onchange = () => { S[key] = sel.value; save(); rebuild(); };
 }
 $("viewSel").onchange = () => setView($("viewSel").value);
+$('rail').onchange = () => { railMode = $('rail').value; buildRail(); };
 $('marks').onclick = () => { marksOn = !marksOn; $('marks').classList.toggle('on', marksOn); buildPavements(); };
 $('scatter').onclick = () => { scatterOn = !scatterOn; $('scatter').classList.toggle('on', scatterOn); buildScatter(); };
 $('wire').onclick = () => { const on = $('wire').classList.toggle('on'); for (const m of PAVEMENT.mats) m.wireframe = on; groundMat.wireframe = on; };
@@ -344,6 +357,7 @@ window.BENCH = {
   set: (k, v) => { setKnob(k, v, true); const i = $('k_' + k); if (i) { i.value = v; $('v_' + k).textContent = v; } },
   cls: (c, r) => { if (c) { S.cls = c; $('cls').value = c; } if (r) { S.rcls = r; $('rcls').value = r; } save(); rebuild(); },
   view: k => { $("viewSel").value = k; setView(k); }, look: (x, y, z, yw, pt, d) => { camTarget.set(x, y, z); yaw = yw; pitch = pt; dist = d; place(); relight(); },
+  rail: m => { railMode = m; $('rail').value = m; buildRail(); return rail ? rail.userData.guardrail : null; },
   marks: on => { marksOn = !!on; $('marks').classList.toggle('on', marksOn); buildPavements(); }, scatter: on => { scatterOn = !!on; $('scatter').classList.toggle('on', scatterOn); buildScatter(); },
   dbg: v => { $('dbg').value = v; setDbg(); },
   recipe: () => ({ geo: S.geo, cls: S.cls, rcls: S.rcls, recipe: PAVEMENT.exportRecipe() }), ready: () => lib.ready, err: () => shaderErr,

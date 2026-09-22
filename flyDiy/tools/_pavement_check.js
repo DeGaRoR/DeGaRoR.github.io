@@ -229,5 +229,56 @@ console.log('6. COVERAT - what the cover ring may plant');
   verdict(ms < 2000, `100 000 coverAt calls in ${ms} ms`);
 }
 
+// ---- 7. THE GUARDRAIL (2026-09-22) --------------------------------------------------
+console.log('7. THE GUARDRAIL - the rule, the runs, the beam');
+{
+  const GR = require('../src/viewer/guardrail.js');
+  const road = (n, f) => { const pts = []; for (let i = 0; i <= n; i++) pts.push(f(i / n)); return PG.polyRoad(pts, 6); };
+  // a) flat and straight: nothing
+  const flat = road(20, u => [u * 400, 0]);
+  verdict(GR.plan({ path: flat, w: 6, hAt: () => 10 }).length === 0, 'a flat straight road rails nothing');
+  // b) a shelf on a bend: the OUTSIDE only, and the beam stands outside the pavement
+  const bend = road(40, u => { const a = u * Math.PI * 0.9; return [120 * Math.cos(a), 120 * Math.sin(a)]; });
+  const shelf = (x, z) => 40 - Math.max(0, Math.hypot(x, z) - 126) * 0.55;
+  const runs = GR.plan({ path: bend, w: 6, hAt: shelf });
+  verdict(runs.length === 1 && runs[0].side === 1, `the shelf bend: ${runs.length} run, side ${runs[0] && runs[0].side} (the outside)`);
+  verdict(runs[0] && runs[0].drop > 5 && runs[0].rails === 1, `a ${f(runs[0] && runs[0].drop, 1)} m fall takes one beam (the second wants ${GR.DEF.twoAt} m)`);
+  { const cliff = (x, z) => 40 - Math.max(0, Math.hypot(x, z) - 126) * 1.6;
+    const r2 = GR.plan({ path: bend, w: 6, hAt: cliff });
+    verdict(r2.length === 1 && r2[0].rails === 2, `a ${f(r2[0] && r2[0].drop, 1)} m cliff gets the picture's second beam`); }
+  const G = GR.geometry(THREE, { path: bend, w: 6, runs, heightAt: shelf, seed: 3 });
+  const pos = G.geo.attributes.position;
+  let nan = 0, rMin = Infinity, rMax = 0, yMin = Infinity, yMax = -Infinity;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    if (![x, y, z].every(Number.isFinite)) nan++;
+    const r = Math.hypot(x, z); rMin = Math.min(rMin, r); rMax = Math.max(rMax, r);
+    const g = shelf(x, z); yMin = Math.min(yMin, y - g); yMax = Math.max(yMax, y - g);
+  }
+  verdict(nan === 0, 'no NaN in the beam');
+  verdict(rMin > 123 && rMax < 125, `every vertex outside the pavement (r ${f(rMin, 2)}..${f(rMax, 2)}; the road's edge is 123.0, the post line 123.55)`);
+  verdict(yMin > -GR.DEF.postBury - 0.7 && yMax < GR.DEF.railTop + GR.DEF.rail2 + 0.45, `the beam between ${f(yMin, 2)} and ${f(yMax, 2)} m over the ground`);
+  verdict(G.tris / G.metres < 60, `${f(G.tris / G.metres, 1)} triangles a metre (the beam and a post every 4 m)`);
+  // c) the hysteresis: a 10 m hit is dropped, and `keep` forbids
+  const spot = road(60, u => [u * 600, 0]);
+  const dip = (x, z) => 10 - (x > 300 && x < 308 ? 4 : 0);
+  verdict(GR.plan({ path: spot, w: 6, hAt: dip }).length === 0, `an ${GR.DEF.minRun} m rule drops a single 8 m dip`);
+  verdict(GR.plan({ path: bend, w: 6, hAt: shelf, keep: () => false }).length === 0, 'keep() false forbids every run (a plot, a junction)');
+  verdict(GR.plan({ path: bend, w: 2.5, hAt: shelf }).length === 0, `a road under ${GR.DEF.minW} m wide carries no rail (a track)`);
+  // d) the switch
+  const m = GR.build(THREE, { path: bend, w: 6, runs, heightAt: shelf });
+  GR.setOn(false); const off = !m.visible;
+  const m2 = GR.build(THREE, { path: bend, w: 6, runs, heightAt: shelf });
+  verdict(off && !m2.visible, 'GRAPHICS > guardrails off hides every rail, and one built while off');
+  GR.setOn(true);
+  verdict(m.visible && m2.visible, 'and on shows them again');
+  GR.forget(m); GR.forget(m2);
+  // e) the premises: a road may say
+  verdict(GR.build(THREE, { path: bend, w: 6, mode: 'off', heightAt: shelf, hAt: shelf }) === null, "a road's `rail: 'off'` builds nothing");
+  const all = GR.build(THREE, { path: bend, w: 6, mode: 'on', heightAt: shelf, hAt: shelf });
+  verdict(all && all.userData.guardrail.runs === 2, "`rail: 'on'` rails both sides whole");
+  GR.forget(all);
+}
+
 console.log('GATE PAVEMENT: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

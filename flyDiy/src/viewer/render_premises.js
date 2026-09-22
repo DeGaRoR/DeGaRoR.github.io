@@ -377,8 +377,29 @@ function make(THREE, scene, world, rec0, opts) {
   // a road crossing a strip's box draws no band over the concrete (the bench's rule)
   const stripKeep = (x, z) => { const L = O.frame.toLocal(x, z); let k = 1; for (const r of O.runways) { if (PG.runwayIsWater(r)) continue; const box = PG.runwayBox(r, 0); if (PG.inPoly(box, L[0], L[1])) return 0; const d = -PG.sdPoly(box, L[0], L[1]); k = Math.min(k, Math.max(0, Math.min(1, (-d - 1) / 4))); } return k; };
   const disposePav = m => { if (m.material && m.material.userData && m.material.userData.pav && PAV) PAV.dispose(m.material); };
+  // THE GUARDRAIL (2026-09-22): the W-beam module decides WHERE from the ground itself (the drop past
+  // the shoulder, the bend's outside); this says where one may not stand - the user's "the large road
+  // sections with nothing but forest": not over a plot or within 8 m of one (a frontage, a drive), not
+  // in a junction (within a road's own width of another road's centreline), not on a strip's pavement.
+  const RAIL = (typeof GUARDRAIL !== 'undefined') ? GUARDRAIL : null;
+  function railKeep(rd) {
+    return (lx, lz) => {
+      for (const p of O.records.plots) if (p.poly && PG.sdPoly(p.poly, lx, lz) < 8) return false;      // a plot and its frontage
+      for (const o2 of O.roads) if (o2 !== rd && o2.pts && o2.pts.length > 1 && PG.roadDist(o2, lx, lz) < o2.w / 2 + 6) return false;   // a junction
+      for (const r of O.runways) if (!PG.runwayIsWater(r) && PG.sdPoly(PG.runwayBox(r, 0), lx, lz) < 8) return false;                   // a strip
+      return true;
+    };
+  }
+  function buildRail(rd, pr) {
+    if (!RAIL || rd.rail === 'off') return;
+    const F = O.frame, hL = (lx, lz) => { const W = F.toWorld(lx, lz); return heightAt(W[0], W[1]); };
+    const m = RAIL.build(THREE, { path: pr, w: rd.w, mode: rd.rail || 'auto', name: 'rail:' + rd.id,
+      hAt: hL, heightAt, toWorld: (x, z) => F.toWorld(x, z), seed: PG.fnv(String(rd.id)) % 997,
+      waterY: world.waterH ? world.waterH(0, 0) : null, keep: railKeep(rd) });
+    if (m) { m.userData.premId = rd.id; G.roads.add(m); }
+  }
   function buildRoads() {
-    for (const c of G.roads.children.slice()) { G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c); }
+    for (const c of G.roads.children.slice()) { if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; } G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c); }
     if (PAV) {
       const lib = pavLib();
       for (const rd of O.roads) {
@@ -392,6 +413,7 @@ function make(THREE, scene, world, rec0, opts) {
         const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band });
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.frustumCulled = false; m.name = 'road:' + rd.id; m.userData.premId = rd.id;
         G.roads.add(m);
+        buildRail(rd, pr);
       }
       buildPolys();
       return;
@@ -410,6 +432,7 @@ function make(THREE, scene, world, rec0, opts) {
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
       const m = new THREE.Mesh(g, roadMat); m.renderOrder = 2; m.receiveShadow = true; m.name = 'road:' + rd.id;
       G.roads.add(m);
+      buildRail(rd, pr);
     }
   }
   // THE PAVED POLYGONS (v1.16): an apron, a turnaround, a pad - a material polygon with a look; drawn under

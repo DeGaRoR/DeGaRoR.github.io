@@ -4367,6 +4367,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const geo = PAV.roadGeometry(THREE, { road: pr, w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed('R' + i), heightAt: world.terrainH, lift: 0.07, step: 4, resV: 1 });
         const m = new THREE.Mesh(geo, PAV.make(THREE, { lib, cls: RS.cls, marks: PAV.roadMarks(pr.length, w, RS.cls), road: true, recipe: RS.recipe, band: RS.band }));
         m.renderOrder = 3; m.receiveShadow = true; m.name = 'pavement:road' + i; scene.add(m);
+        // THE GUARDRAIL (2026-09-22): the W-beam where the ground falls away past the shoulder and on
+        // the outside of a tight bend - and never inside a settlement's core (the user: "the large road
+        // sections with nothing but forest") nor within 20 m of one of its buildings
+        if (typeof GUARDRAIL !== 'undefined') {
+          const rail = GUARDRAIL.build(THREE, { path: pr, w, mode: 'auto', name: 'guardrail:road' + i,
+            hAt: world.terrainH, heightAt: world.terrainH, seed: i * 17 + 3,
+            waterY: world.waterH ? world.waterH(0, 0) : null,
+            keep: (x, z) => !(world.roadNet.inCore && world.roadNet.inCore(x, z)) && !world.roadNet.buildings.some(b => Math.abs(b.x - x) < 20 && Math.abs(b.z - z) < 20) });
+          if (rail) scene.add(rail);
+        }
       });
     }
     const deckMat = worldLambert({ color: C(0x8a6a4a) });

@@ -688,6 +688,10 @@ function mount(host, ctx) {
       // material polygon (no ribbon) - a track follows the ground and wears its ribbon
       rows.slider(insp, 'steepest (%)', 0, 12, 0.5, () => (e.grade || 0) * 100, v => ed(x => { x.grade = v ? v / 100 : undefined; }, 'grade of ' + id, 'grade'), v => v ? v.toFixed(1) + ' %' : 'follows the ground');
       rows.check(insp, 'drawn (the pavement)', () => e.ribbon !== false, v => ed(x => { x.ribbon = v ? undefined : false; }, 'ribbon of ' + id));
+      // THE GUARDRAIL (2026-09-22): 'auto' lets the module decide from the ground (the drop past the
+      // shoulder, the bend's outside, clear of the plots and the junctions); 'always' rails the whole
+      // road both sides, 'never' none of it. GRAPHICS > guardrails hides them all whatever this says.
+      rows.select(insp, 'guardrail', [['auto', 'where the ground says'], ['on', 'the whole road'], ['off', 'none']], () => e.rail || 'auto', v => ed(x => { x.rail = v === 'auto' ? undefined : v; }, 'guardrail of ' + id));
       // PROTO TRAFFIC (G432): vehicles per km running up and down this road
       rows.slider(insp, 'traffic (per km)', 0, 20, 1, () => e.traffic || 0, v => ed(x => { x.traffic = v || undefined; }, 'traffic of ' + id, 'traffic'), v => v ? v.toFixed(0) + ' / km' : 'none');
       const np = (R.plots ? R.plots() : []).filter(p => p.road === id).length;
