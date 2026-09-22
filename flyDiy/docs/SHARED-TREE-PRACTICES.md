@@ -145,3 +145,44 @@ for "the single wheel") is a bug waiting for a row; key on identity.
   aeroplane in the hangar was squared overnight; G362 put it back.
 - A gate tuned on a particular geometry says so in its fixture (an explicit
   row value), never by leaning on a default that someone will move.
+
+## 8. A ref-move landing leaves the shared checkout behind (2026-09-22)
+
+Four sessions hit this in one afternoon (G495, G496, G497, and a landing
+blocked for an hour between them), so it belongs here.
+
+- WHY WE LAND BY REF MOVE. `git merge --ff-only` in the shared checkout
+  refuses while ANY path the merge touches is dirty there — and with six
+  sessions one always is. So a landing is built in a worktree and
+  `git update-ref refs/heads/master NEW OLD` moves the branch (§2's recipe,
+  with the expected-old and an ancestry check after).
+- WHAT IT LEAVES BEHIND. A ref move updates neither the shared INDEX nor its
+  working copies. The moment master moves under that checkout:
+  - every file your landing ADDED reads there as `D` (deleted). **Nobody
+    deleted it** — the index simply has no entry for a path that did not
+    exist when it was last read. G496 left 88 media files in that state.
+  - every file your landing CHANGED reads as modified, holding the blob from
+    before your landing (or from several landings before: G497 found
+    `tools/build.js` matching neither master nor the previous tip, because
+    the copy there was G493's).
+  Consequences: the next session cannot fast-forward either, and a
+  `git commit -a` in that checkout would quietly revert your landing.
+- THE STEP THAT CLOSES IT — refresh the shared checkout FOR YOUR OWN PATHS,
+  immediately after the ref move:
+  1. list the paths your landing touched (`git show --name-only` over your
+     commits) and intersect with what is dirty there;
+  2. classify each one: ABSENT from the tree but present in master (your new
+     file), or byte-identical to a blob THAT PATH has held in history — not
+     only at the tip. Anything else is unexplained: stop and ask, it may be
+     someone's live work;
+  3. verify again IN THE SAME PROCESS AS THE WRITE, and refuse on any
+     surprise. This is not ceremony: a peer landed between the check and the
+     write once, and the guard caught it;
+  4. `git reset -q -- <paths>` clears the index column without touching a
+     file; `git restore --staged --worktree --pathspec-from-file=` brings the
+     stale copies to master.
+  Touch only paths your own landing owns. Leave untracked files alone — the
+  user's screenshots and scratch directories live there.
+- THE RULE IN §1 STANDS: never `git checkout` the shared tree blind. What
+  makes the step above legitimate is the proof that every byte you overwrite
+  is already in the object DB, carried out in the same breath as the write.
