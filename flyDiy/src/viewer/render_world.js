@@ -57,7 +57,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     stand(edge, 0xfff1cc); stand(thr, 0x37ff6a);
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
-  let coverRing = null, fillPoolAt = null;   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
+  let coverRing = null, fillPoolAt = null, standCards = null;   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
@@ -2396,7 +2396,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const u = src && src.userData;
       return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight } : null;
     };
-    function impostorMat(atlas, far, si, tintU, gain, thinU) {
+    function impostorMat(atlas, far, si, tintU, gain, thinU, nearU) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
       // substitution buys the whole rig - sun, hemisphere, environment, and the
@@ -2415,7 +2415,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       m.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam;
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
-        sh.uniforms.uNearB = uNear;
+        sh.uniforms.uNearB = nearU || uNear;
         sh.uniforms.uFarB = { value: far };
         sh.uniforms.uFadeB = { value: FAR_FADE };
         sh.uniforms.uFadeW = uFadeW;
@@ -3637,6 +3637,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
             GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt, poolAt });
           fillPoolAt = poolAt;
+          // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
+          if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
+            standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
+                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled });
         }).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
@@ -3646,6 +3650,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // THE BIOMES' HANDLE (G454.12): the code -> mix map, the mixes, the export F8 offers
           biomes: () => BIO,
           cover: () => coverRing,
+          stands: () => standCards,   // the far forest's handle: get/set/stat/root
           // L6 (the GROUND strip on the flight rail): what is under a point - the terrain-type
           // code and its name, the derived code (cliff / old forest / dense scrub by slope and
           // canopy, at the split's midpoint here - no draw), the mix it names, the canopy, the
@@ -4562,6 +4567,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     fillUpdate(cg);
     lodUpdate(cg);
     if (coverRing) coverRing.update();
+    if (standCards) standCards.update(cg);
     const gy = world.terrainH(cg[0], cg[2]);
     const agl = Math.max(0, cg[1] - gy);
     const reach = Math.min(agl / Math.max(SUN.y, SUN_MIN_Y), 520);

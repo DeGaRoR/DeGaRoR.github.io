@@ -55180,3 +55180,27 @@ code, not by a click); the tufts on the game's bands (the bench has them); rock 
 class; the apron's puddles at Jolene read faint (wet 0.3 over the concrete's own darkening);
 a `pavement: full | plain` GFX row; sampler_census on the Jolene page; premises_perf before/after;
 Skarvik's lot patches still draw their own pebble over the street's band where a plot fronts it.
+
+## G490 — THE FAR FOREST AS STAND CARDS (2026-09-22, the user: "the mountains are covered with a thick fur of
+## trees. Can't we have that? ... Should we have even lower res impostors for far away?")
+
+src/viewer/stand_cards.js: ONE subject - a 4 x 4 block of the young conifer mix at the fill's spacing
+(8 m: a 32 m stand of 16 trees, the L1 rungs merged per material into two or three geometries,
+chunkBounds for the bake's sphere) baked by the impostor baker like a tree (atlas 'stand:conifer_young',
+cy 6.9, diam 47 m, drawn 14.7 %) - and one octahedral card per 32 m cell of treed ground, on a 32 m
+grid in 2 km chunks from 4 km (the ring's edge; the card's nearU cutoff) to 18 km, keyed to the biome
+like the fill (the code's mix, its density x the block's spacing^2 x biomeGain, the canopy floor, the
+clumps, forestHere / openHere), sized by the canopy like a tree (FILL.island's gain and clamps over
+the block's 12 m). One InstancedMesh a chunk, matrices + a white colour, no shadow, no near rung;
+the far cutoff shrinks the card over FAR_FADE. impostorMat takes a nearU (the tree's uNear else).
+Chunks: the wanted set recomputed every 20 frames, one built per frame (4 ms, 27 peak), the far
+dropped. ?stands=0 off; TREE_FILL.stands() get/set/stat/root.
+MEASURED (the card shared by other rigs at 4.6 GB - a ceiling): over the field at 200 m, 281 chunks
+/ 171 k cards for the whole 18 km disc, the frame 69.1 ms with the cards against 74.1 without -
+within the noise: a few hundred thousand cards of a few pixels cost nothing the frame can see.
+The picture (screenshots/stands/field200): the ranges furred to the ridges, the skyline ragged.
+NOT the per-tree tier: nothing below 4 km changes; the base quarter of the ring (4.5-9 km) still
+stands under the cards (cheap to drop later). Owed: the mix per card is one (the young conifer) -
+a muskeg card (small trees, the clumps) and an old-forest card would be two more bakes on the same
+path; the far canopy TEXTURE keyed to every treed code (the fur between the cards, the half-day
+step of the plan) is not done.
