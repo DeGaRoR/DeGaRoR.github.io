@@ -144,6 +144,9 @@ console.log('\n3. THE LAWS');
     // THE CADENCE (G460.11.4): the clock is real seconds (a call-counted clock ran at a fifth of the wall clock under
     // the rig: a stale capture from 1500 m away, the reflection stretched), the eye's motion re-captures, a jump at once
     verdict(/MIR\.t = \(typeof performance !== 'undefined' \? performance\.now\(\) : Date\.now\(\)\) \/ 1000;/.test(mp), "the mirror's clock is real seconds (never a count of calls)");
+    // the capture is projected from the STILL surface: through the displaced (faceted) position it creases along
+    // every facet edge of the near patch's 3.75 m grid (G460.11.6)
+    verdict(/vec4 mp = uWMirrorVP \* vec4\(vWP0, 1\.0\);/.test(w), 'the mirror is projected from the undisplaced position (never the faceted one)');
     verdict(W.mirror.moveM <= 4 && W.mirror.turnDeg <= 4 && W.mirror.jumpM > 0 && /due = jump \|\|/.test(mp), `the eye re-captures at ${W.mirror.moveM} m / ${W.mirror.turnDeg} deg, a jump (${W.mirror.jumpM} m / ${W.mirror.jumpDeg} deg) at once`);
     const gfx = src('src/viewer/gfx_settings.js'); verdict(/k: 'mirror'/.test(gfx) && /W\.WATER\.set\(\{ mirror: S\.mirror \}\)/.test(gfx), 'GRAPHICS has the reflections row and hands it to the water'); }
   let mono = true, bounded = true, prev = -1;

@@ -337,7 +337,12 @@ const WATER = (() => {
           // this point projects in that capture, the lookup pushed by the wave slope, blurred by the roughness (the
           // capture's mips), and only where the capture has something (its alpha) - the probe's sky elsewhere
           if (uWMirror4.x > 0.5) {
-            vec4 mp = uWMirrorVP * vec4(vWP, 1.0);
+            // THE PROJECTION IS FROM THE STILL SURFACE (G460.11.6, the user: "now for the seams"): the near patch is
+            // a 3.75 m grid LIFTED by the swell, so vWP is faceted - and a capture projected through a faceted
+            // position creases along every facet edge (straight world-axis lines across the near water, measured at
+            // constant world x). The mirror's plane IS the still surface: the lookup comes from vWP0 (undisplaced)
+            // and the wave's effect on the reflection is the slope's perturbation below, which is continuous
+            vec4 mp = uWMirrorVP * vec4(vWP0, 1.0);
             if (mp.w > 0.0) {
               vec2 muv = mp.xy / mp.w * 0.5 + 0.5 + wNw.xz * uWMirror4.y;
               if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {

@@ -55534,3 +55534,26 @@ Both remarks were one fault and one honest-instrument gap, found by MEASURING th
   (waterDrawY at the origin and far outside), so a name that lives in a build block and is read from the
   returned object fails the gate instead of the frame. Proven by reintroducing the bug: 'the world API threw
   when called - waterDrawY: WSH is not defined', GATE WORLDRENDER FAIL; restored, PASS.
+
+## G460.11.6 — THE SEAMS ACROSS THE NEAR WATER: THE MIRROR PROJECTED FROM A FACETED SURFACE (2026-09-22,
+## the user, on p2/sea12b: "now for the seams ... can you see the seams I'm talking about? Where are they
+## coming from?")
+
+- WHAT THEY ARE, measured off the user's own screenshot: straight lines across the near water where the
+  ripple pattern's brightness steps. Converting the strongest line's pixels to world coordinates through the
+  shot's camera (eye 2640, 12, 0, yaw 90, pitch -20) puts every sample of it at CONSTANT WORLD x = 2653.0 ..
+  2654.3 while z runs -8.4 .. +4.7 - a world-axis line 13 .. 20 m in front of the eye, not a distance ring
+  and not a tile lattice.
+- WHERE THEY COME FROM, by elimination (r7, one A/B each): displacement off -> gone; mirror off -> gone;
+  displacement on + mirror off -> gone; both on -> there. THE NEAR PATCH IS A 3.75 m GRID (SEAW 360 / SEAN
+  96) LIFTED BY THE SWELL, so its surface is faceted - and the mirror projected the capture through vWP, the
+  DISPLACED position: each facet shifts the lookup by its own height, so the reflected image is piecewise
+  stretched and creases along every facet edge, which are exactly the world-axis lines measured.
+- THE FIX: the mirror's plane IS the still surface, so the lookup is projected from vWP0 (the undisplaced
+  world position, already carried for the footprint) and the wave's effect on the reflection stays what it
+  always was - the slope's perturbation, which is continuous. One line; GATE WATER holds it.
+- MEASURED: the row-gradient profile over the near water (peak / median), which a crease spikes and glitter
+  does not: the seam view 1.54, the mirror off (the clean reference) 1.35, after the fix 1.40. r8/fixed2.png.
+- The same faceting is still in the VIEW vector (vViewPosition is the displaced position - a real geometric
+  effect, and the shading over it is smooth because the normal is analytic); only the reflection's lookup
+  was sensitive to it.
