@@ -55758,3 +55758,62 @@ LOT_GROUND.grade(s, v, w) - the A/B is one step in one boot.
   the bounce no longer moves with that dial, so it is a clean A/B for the user's eye; and whether
   GROUND_ALBEDO's GRASS should be re-based onto the imagery's scale, which would move every belly
   judged since G495 and is the same kind of call.
+
+## G500 - THE FOG & MIST STUDY: the fog we have costs nothing we can measure, and the
+## distance it licenses us to stop drawing is worth -45 % of the frame (2026-09-22, the user:
+## "flydiy fog and mist. Do a study on that. Do we have any? ... performance optimization and
+## good lookingness ... hope the feature can save us on performance rather than costing us")
+
+A STUDY. Nothing in src/ was touched: `futureDesigns/FOG-MIST-2026-09-21.md` (six sections),
+the rigs under `tools/perf/run_fog_*.js` + `fog_diff.js`, the rows in
+`tools/perf/frame_perf_fog{,_aba,_aba2}.json`, 41 frames in `bench/fog/` (gitignored).
+
+- WHAT WE HAVE, and it is one place: the aerial-perspective atlas, the mist (an exponential
+  height layer, closed form) and the in-cloud slab all ride the ONE splice at the head of
+  `tonemapping_fragment` (atmo.js:480-487). `day.visibilityKm` was computed and read by NOTHING.
+- WHAT IT COSTS: below the rig's noise floor. `mistOff` measured -4 %, +14 % and +33 % in three
+  runs; `apOff` moved the scene pass UP at the stand and forest and DOWN at sea. An UPPER BOUND
+  (~8 ms at a 60 ms stand), not a measurement - stated as such. The atmosphere's own tables
+  (sky-view + AP atlas, rebuilt every frame) are 0.05 ms; the resolve 0.12; the far shadow
+  cascade 0.00 at 0.3 calls a frame. The scene pass is ~97 % of the frame in all three places.
+- WHAT IT CAN SAVE (A/B/A, the stand, baselines 59.5-63.5 ms): the far plane at 1.5 km -25 %,
+  the 12 big terrain meshes hidden by distance -9 %, BOTH TOGETHER -45 % - SUPER-ADDITIVE
+  (-15.2 and -4.2 apart, -27.7 together). A quadrant's bounding sphere reaches into the near
+  field so the far plane cannot drop it; only the far plane drops the ~1150 small distant
+  objects. They ship as ONE item or the win is a third of itself. Biggest over water
+  (6255 -> 2295 calls). The cloud march (0.67 ms whole) and the far cascade are NOT consumers.
+- WHERE A CUT CAN BE SEEN AT ALL: on flat ground, nowhere - from above the mist's lid distant
+  GROUND is seen by looking DOWN through the layer and dies at ~4 km whatever the eye's height.
+  Only terrain RISING THROUGH the lid betrays a cut. Jolene's ridges from the field stand at
+  ~5-9 km: 9600 m clears them, 6000 m takes the far ones, 2500 m is a clean wall with the cloud
+  deck shorn off along a razor edge. So a height-blind visM escapes by LUCK at rh 0.85 and fails
+  at rh 0.90 - visM must be height-aware, and any cut must be judged on high ground.
+- FOUR RIG DEFECTS, all cost a run, all recorded in the study's SS1a: `frame_perf.js --quiet`
+  treats a FAILED nvidia-smi read (-1) as idle; a cross-probe delta minutes apart is NOT a number
+  (the card settles off boost - the same workload read 33.5 and 42.9 ms - so every figure above is
+  an A/B/A); **the rig CANNOT time the cloud march** (clouds.js:555 opens its own TIME_ELAPSED
+  query, GL queries cannot nest, the tag is silently ABSENT and reads like a pass that never ran -
+  use `CLOUDS.stats.gpuMs`); `island_shot.js` does not wait for the roll-out screen the way
+  frame_perf does, and `FLIGHT_PROBE.camSet` takes RADIANS.
+- GATE FOG MUST NOT DIFF PICTURES: the world animates (water, propeller, foliage, cloud noise),
+  so two IDENTICAL frozen frames differ in 49 % of pixels and tile means do not separate them
+  either. The gate asserts the invariant headless instead: for every mesh the contract hides,
+  T(mist + AP) at its nearest point < 1 %.
+- THE LOOKS, ranked: the terrain term (`mistTop(x,z)` from the hydrology - 206 lakes, 170 rivers),
+  PATCHES (a drifting 2-D density field + a per-location thickness) and the 4-8 sample march that
+  makes a bank's near face honest, all riding the AP atlas's FREE rows (tile rows 34-545, columns
+  512-2047: no new sampler, the island ground programs stand at 15/16). Today the layer is
+  horizontally infinite and uniform, so there is no edge to fly INTO - the user's "can we cut
+  through it". The white-out on entering a bank is already built (C4's `uMist[3]` slab); what is
+  missing is the field that says where the banks are. NOT on the table: the aeroplane carving the
+  mist (an advected density, an order of magnitude dearer).
+- THE SESSIONS: F1 the visibility contract (+ GATE FOG), F2 the mist on the land (the patches),
+  F3 burn-off + the shed's room haze + underwater.
+- COORDINATED with the climate chantier (claude/flydiy-climate-system-baa60c, K0-K3 landed):
+  agreed (a) - climate PUBLISHES `world.climate.haze()` (visibilityKm with a front's murk,
+  Koschmieder rho0, top, H, LCL), atmo.js's MIST line is NOT touched by K4, F1 wires the read.
+  Handed them three findings: take the ingredients not a distance (visM is height-aware),
+  visibility is now LIVE so the ring needs the two-radii hysteresis or the streamer thrashes, and
+  `dayApply` returns early under `rigCur.manual` so a climate-driven mist freezes on an F8 sun row.
+- GATES: none run - no src/ changed, no gate covers a document. The rigs are measurement tools,
+  not gates (they need a GPU and a browser, which the battery does not assume).
