@@ -664,7 +664,12 @@ function mount(host, ctx) {
       rows.slider(insp, 'priority', -5, 5, 1, () => e.z || 0, v => ed(x => { x.z = v; }, 'priority of ' + id, 'z'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
     } else if (layer === 'material') {
       const sets = materialSets();
-      if (sets.length) rows.select(insp, 'set', sets, () => e.set || '', v => ed(x => { x.set = v; }, 'set of ' + id)); else rows.note(insp, 'no texture sets on this page');
+      // A PAVED POLYGON (v1.16): a look instead of a set - an apron, a turnaround, a pad drawn by the pavement
+      rows.select(insp, 'paved as', [['', 'a texture (the set below)']].concat(Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls).map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => e.look || '', v => ed(x => { x.look = v || undefined; if (v) x.set = x.set || 'cracked'; }, 'look of ' + id));
+      if (e.look && PG.RUNWAY_LOOKS[e.look] && PG.RUNWAY_LOOKS[e.look].cls) {
+        rows.slider(insp, 'lanes turned (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'yaw of ' + id, 'yaw'), v => v.toFixed(0) + '°');
+        pavRows(e, id, 'material', ed, PG.RUNWAY_LOOKS[e.look]);
+      } else if (sets.length) rows.select(insp, 'set', sets, () => e.set || '', v => ed(x => { x.set = v; }, 'set of ' + id)); else rows.note(insp, 'no texture sets on this page');
       rows.slider(insp, 'tile (m, 0 = the set\'s own)', 0, 16, 0.5, () => e.tile || 0, v => ed(x => { x.tile = v > 0 ? v : null; }, 'tile of ' + id, 'tile'), v => (v > 0 ? v.toFixed(1) + ' m' : 'the set\'s'));
       rows.slider(insp, 'fade (m)', 0, 40, 0.5, () => e.fade || 0, v => ed(x => { x.fade = v; }, 'fade of ' + id, 'fade'), v => v.toFixed(1) + ' m');
       rows.slider(insp, 'priority', -5, 5, 1, () => e.z || 0, v => ed(x => { x.z = v; }, 'priority of ' + id, 'z'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
@@ -674,12 +679,15 @@ function mount(host, ctx) {
     else if (layer === 'roads') {
       rows.slider(insp, 'width (m)', 2, 30, 0.2, () => e.w, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1) + ' m');   // (G434: to 30 - a taxiway is a road)
       rows.select(insp, 'class', [['gravel', 'gravel'], ['paved', 'paved'], ['track', 'track (grass)']], () => e.cls || 'gravel', v => ed(x => { x.cls = v; }, 'class of ' + id));
+      // THE LOOK (v1.16): the pavement drawn - derived from the class when not said
+      rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls).map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => e.look || '', v => ed(x => { x.look = v || null; }, 'look of ' + id));
+      pavRows(e, id, 'roads', ed, PG.roadLook(e).row);
       rows.check(insp, 'graded (flat across)', () => e.graded !== false, v => ed(x => { x.graded = v; }, 'grading of ' + id));
-      rows.slider(insp, 'shoulder (m)', 1, 30, 1, () => e.falloff || 6, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      rows.slider(insp, 'terraformed to (m)', 1, 30, 1, () => e.falloff || 6, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
       // THE GRADE LIMIT and THE RIBBON (G434): a taxiway is cut and filled to a gradient, and drawn by its own
       // material polygon (no ribbon) - a track follows the ground and wears its ribbon
       rows.slider(insp, 'steepest (%)', 0, 12, 0.5, () => (e.grade || 0) * 100, v => ed(x => { x.grade = v ? v / 100 : undefined; }, 'grade of ' + id, 'grade'), v => v ? v.toFixed(1) + ' %' : 'follows the ground');
-      rows.check(insp, 'drawn as a ribbon', () => e.ribbon !== false, v => ed(x => { x.ribbon = v ? undefined : false; }, 'ribbon of ' + id));
+      rows.check(insp, 'drawn (the pavement)', () => e.ribbon !== false, v => ed(x => { x.ribbon = v ? undefined : false; }, 'ribbon of ' + id));
       // PROTO TRAFFIC (G432): vehicles per km running up and down this road
       rows.slider(insp, 'traffic (per km)', 0, 20, 1, () => e.traffic || 0, v => ed(x => { x.traffic = v || undefined; }, 'traffic of ' + id, 'traffic'), v => v ? v.toFixed(0) + ' / km' : 'none');
       const np = (R.plots ? R.plots() : []).filter(p => p.road === id).length;
@@ -722,6 +730,7 @@ function mount(host, ctx) {
       rows.pills(insp, 'look', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => e.look || 'grass',
         v => ed(x => { x.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; }, 'look of ' + id));
       rows.select(insp, 'wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand']], () => String(e.surface === undefined ? 0 : e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      if (PG.RUNWAY_LOOKS[e.look || 'grass'] && PG.RUNWAY_LOOKS[e.look || 'grass'].cls) pavRows(e, id, 'runways', ed, PG.RUNWAY_LOOKS[e.look || 'grass']);
       // THE ONE-WAY STRIP (v9): which end the landing comes over in calm air; a ridge at one end wants the other
       rows.pills(insp, 'approach', [['', 'either end', 'the pilot picks the runway direction nearest its inbound track'], ['0', 'over end 0', 'land toward end 1, depart the other way'], ['1', 'over end 1', 'land toward end 0']], () => (e.approach === 0 || e.approach === 1) ? String(e.approach) : '',
         v => ed(x => { x.approach = v === '' ? null : +v; }, 'approach of ' + id));
@@ -730,8 +739,8 @@ function mount(host, ctx) {
       profileGraph(insp, e, ed);
       // THE SHOULDER (v9): the strip's radius of terraforming - the grade's falloff either side of the
       // box, the band the composed ground takes to come back to the terrain; outlined when selected
-      rows.slider(insp, 'shoulder (m)', 10, 200, 5, () => PG.runwayShoulder(e), v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
-      rows.note(insp, 'the shoulder is how far the ground is terraformed either side of the strip and past its ends: the box is graded to the profile, the shoulder is the bank back to the terrain (a 3:1 bank at the steepest). Aprons and flats beside it are flatten polygons of their own.');
+      rows.slider(insp, 'terraformed to (m)', 10, 200, 5, () => PG.runwayShoulder(e), v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      rows.note(insp, 'how far the ground is terraformed either side of the strip and past its ends: the box is graded to the profile, then the bank back to the terrain (a 3:1 bank at the steepest). The drawn band above is a different thing. Aprons and flats beside it are flatten polygons of their own.');
       // THE GLIDESLOPE LIGHTS (G434): a PAPI (four units), a two-bar VASI or none at each end; both are set
       // to the approach's own slope (the lights show the glideslope the pilot flies)
       for (const k of [0, 1]) rows.pills(insp, 'lights at end ' + k, [['papi', 'PAPI', 'four units abeam the aim, two white two red on the slope'], ['vasi', 'VASI', 'two bars 210 m apart: red over white on the slope'], ['none', 'none', 'no lights at this end']],
@@ -880,7 +889,47 @@ function mount(host, ctx) {
     // THE THEME (v9): one word on the record; the themes are the composer's table
     rows.pills(insp, 'theme', Object.keys(PG.THEMES).map(k => [k, PG.THEMES[k].name, PG.THEMES[k].blurb || '']), () => rec.theme || PG.THEME_DEF, v => { rec.theme = v; dirty('zones'); });
     rows.note(insp, PG.themeOf(rec).blurb || '');
+    // THE PAVEMENT (v1.16): the premises' recipe - every knob of the bench's table, over the module's
+    // defaults, under each strip's or road's own; a bench export pasted fills it whole
+    if (PAVM) {
+      const d = $('details'); d.appendChild($('summary', { text: 'pavement' + (rec.pavement && Object.keys(rec.pavement).length ? ' (' + Object.keys(rec.pavement).length + ' set)' : '') })); insp.appendChild(d);
+      const P = rec.pavement || {};
+      let sec = null;
+      for (const row of PAVM.KNOBS) {
+        if (row.length === 1) { sec = $('details'); sec.appendChild($('summary', { text: row[0].replace(/—/g, '').trim() })); d.appendChild(sec); continue; }
+        const [k, lab, mn, mx, st] = row, own = P[k] !== undefined && P[k] !== null;
+        rows.slider(sec || d, lab + (own ? '' : ' (default)'), mn, mx, st, () => own ? P[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); dirty('roads'); }, v => (+v).toFixed(2));
+      }
+      const ta2 = $('textarea', { placeholder: 'paste the pavement bench\'s export here', rows: '3' }); ta2.className = 'pr-paste'; d.appendChild(ta2);
+      rows.button(d, 'take the bench\'s recipe', () => { try { const o = JSON.parse(ta2.value); const r = o.recipe || o; const out = {}; for (const k in r) if (k in PAVM.RECIPE && k !== 'grade') out[k] = r[k]; rec.pavement = out; ta2.value = ''; dirty('roads'); inspector.refresh(); } catch (err) { strip.status('not a recipe: ' + err.message); } });
+      rows.button(d, "back to the module's defaults", () => { rec.pavement = null; dirty('roads'); inspector.refresh(); });
+    }
     rows.note(insp, 'autosaved to ' + LS_WIP + ' a second after every edit; a load replaces');
+  }
+  // THE PAVEMENT ROWS (contract v1.16, 2026-09-22): a look (the pavement class + preset), a BAND (the
+  // drawn band beside the pavement - never the terraforming, which is "terraformed to" below) and a
+  // collapsed WEAR section: the entry's own knobs among PAVEMENT.ENTRY_KNOBS, each the premises'
+  // until touched (the zones' `rules` idiom), a button back
+  const PAVM = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
+  function pavRows(e, id, layer, ed, lookRow) {
+    if (!PAVM) return;
+    const L = lookRow || null;
+    rows.slider(insp, 'band (m)', 0, 60, 0.5, () => (e.band === null || e.band === undefined) ? -0.5 : e.band, v => ed(x => { x.band = v < 0 ? null : v; }, 'band of ' + id, 'band'),
+      v => v < 0 ? "the look's" : v.toFixed(1) + ' m');
+    rows.note(insp, 'the band is the ground drawn beside the pavement - the cleared earth beside a strip, the gravel beside a road - fading into the terrain past it');
+    const RS = PAVM.resolve(e, rec, L);
+    const label = { paintAge: 'paint age', crackK: 'cracks', rubberK: 'rubber (touchdown)', laneW: 'lane width (m)', wet: 'wet', mossK: 'moss', patchK: 'patches' };
+    const K = {}; for (const row of PAVM.KNOBS) if (row.length > 1) K[row[0]] = row;
+    const d = $('details'); const sm = $('summary', { text: 'wear' + (e.pav && Object.keys(e.pav).some(k => PAVM.ENTRY_KNOBS.indexOf(k) >= 0) ? ' (its own)' : '') }); d.appendChild(sm); insp.appendChild(d);
+    for (const k of PAVM.ENTRY_KNOBS) {
+      if (k === 'rubberK' && layer !== 'runways') continue;
+      if (k === 'laneW' && RS.cls !== 'concrete') continue;
+      const row = K[k]; if (!row) continue;
+      const own = e.pav && e.pav[k] !== undefined && e.pav[k] !== null;
+      rows.slider(d, (label[k] || k) + (own ? '' : ' (the premises\')'), row[2], row[3], row[4], () => RS.recipe[k], v => ed(x => { x.pav = Object.assign({}, x.pav, { [k]: v }); }, k + ' of ' + id, 'pav:' + k), v => (+v).toFixed(2));
+    }
+    if (layer === 'roads') rows.pills(d, 'marks', [['auto', 'by class'], ['none', 'none'], ['edges', 'edge lines'], ['centre', 'centre line']], () => (e.pav && e.pav.marks) || 'auto', v => ed(x => { x.pav = Object.assign({}, x.pav, { marks: v === 'auto' ? undefined : v }); }, 'marks of ' + id));
+    if (e.pav) rows.button(d, "back to the premises' wear", () => ed(x => { x.pav = null; }, 'wear of ' + id));
   }
   function viewRows() {
     rows.section(insp, 'VIEW');

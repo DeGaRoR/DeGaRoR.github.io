@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<!--
+  PAVEMENT BENCH (roads & runways, 2026-09-21) — src/viewer/pavement.js judged
+  on its own. Serve from the repo root (launch: flydiy-pavement, which falls
+  back to the main checkout for the gitignored 1k archives) and open
+  /flyDiy/tools/_pavement.html.
+
+  One strip with its shoulders and one road crossing it, on a noise terrain
+  the two GRADE with the core's feather (the falloff sliders = the
+  terraforming distance), lit by a sun, a hemisphere and a procedural sky
+  baked into an environment map (the wet lanes need something to reflect).
+  Every layer of the material is a knob in the aside; the recipe persists in
+  localStorage and exports as the JSON PAVEMENT.RECIPE will carry. The views
+  are the reference photographs' (cockpit / threshold / aerial / topdown /
+  road). tools/pavement_shot.js drives this page headless through
+  window.BENCH; #msg is what it polls.
+-->
+<meta charset="utf-8">
+<title>flyDiy — pavement bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:6px 12px;border-bottom:1px solid var(--grid);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);padding:3px 8px;border-radius:4px;font:inherit}
+  button.on{border-color:var(--acc);color:var(--acc)}
+  main{display:flex;height:calc(100vh - 38px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;overflow-x:hidden;padding:8px 10px;width:340px;flex:none}
+  .r{display:flex;gap:6px;align-items:center;margin:3px 0;min-width:0}
+  .r span.k{color:var(--dim);width:128px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:46px;flex:none;text-align:right;color:var(--acc)}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2;pointer-events:none;white-space:pre}
+  #msg{color:var(--dim)}
+  details{margin:6px 0;border:1px solid var(--grid);border-radius:5px;padding:2px 8px}
+  summary{cursor:pointer;color:var(--dim);font-size:11px;text-transform:uppercase;padding:4px 0}
+  textarea{width:100%;height:120px;background:#0d1014;color:var(--fg);border:1px solid var(--grid);font:inherit;font-size:10px}
+</style>
+
+<header>
+  <h1>pavement bench</h1>
+  <label>strip <select id="cls"></select></label>
+  <label>road <select id="rcls"></select></label>
+  <label>view <select id="viewSel">
+    <option value="cockpit">cockpit</option><option value="threshold">threshold</option><option value="aerial" selected>aerial</option>
+    <option value="topdown">topdown</option><option value="road">road</option><option value="junction">junction</option><option value="shoulder">shoulder</option>
+  </select></label>
+  <label>debug <select id="dbg">
+    <option value="0">off</option><option value="1">normal</option><option value="2">rough</option><option value="3">wet/puddle</option><option value="4">marks</option>
+    <option value="5">pav/band/grass</option><option value="6">dEdge/alpha</option><option value="7">lane/joint/spall</option><option value="8">crack/dmg/patch</option><option value="9">rut/stripe/moss</option><option value="10">rubber/paint/damp</option><option value="11">wheel/tread/coarse</option><option value="12">albedo (unlit)</option>
+  </select></label>
+  <button id="marks" class="on">marks</button>
+  <button id="scatter" class="on">tufts+stones</button>
+  <button id="wire">wire</button>
+  <button id="def">default</button>
+  <button id="exp">export</button>
+  <span id="msg">loading…</span>
+</header>
+<main>
+  <div id="view"><div id="stat"></div></div>
+  <aside id="knobs"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="flight_core.js"></script>
+<script src="../src/viewer/pavement_tex.js"></script>
+<script src="../src/viewer/site_ground.js"></script>
+<script src="../src/viewer/pavement.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const msg = t => { $('msg').textContent = t; };
+const PG = window.PREMISES_GEN;
+
+// ---- the knobs: one table, the aside generated from it ---------------------
+// [key, label, min, max, step]; the geometry rows rebuild the meshes, the rest reach PAVEMENT.set
+const GEO = { len: 1400, wid: 45, shoulderW: 24, falloff: 60, roadW: 6, roadShoulder: 3, roadFalloff: 10, roadSmooth: 60, seed: 3, slope: 0.4, terrainAmp: 6, sunAz: 305, sunEl: 28, exposure: 1.0, envK: 1.0 };
+const K = [
+  ['— geometry —'],
+  ['len', 'strip length (m)', 60, 2400, 10, 'geo'], ['wid', 'strip width (m)', 4, 60, 0.5, 'geo'], ['shoulderW', 'strip shoulder (m)', 1, 60, 0.5, 'geo'],
+  ['falloff', 'strip falloff = terraforming (m)', 5, 200, 5, 'geo'], ['slope', 'strip slope (%)', -2, 2, 0.1, 'geo'],
+  ['roadW', 'road width (m)', 1.5, 12, 0.25, 'geo'], ['roadShoulder', 'road shoulder (m)', 0.5, 12, 0.25, 'geo'], ['roadFalloff', 'road falloff (m)', 2, 60, 1, 'geo'], ['roadSmooth', 'road profile smoothing (m)', 10, 200, 5, 'geo'],
+  ['terrainAmp', 'terrain relief (m)', 0, 20, 1, 'geo'], ['seed', 'seed', 0, 30, 1, 'geo'],
+  ['— light —'],
+  ['sunAz', 'sun azimuth (deg)', 0, 360, 5, 'light'], ['sunEl', 'sun elevation (deg)', 3, 80, 1, 'light'], ['exposure', 'exposure', 0.3, 2.5, 0.05, 'light'], ['envK', 'sky reflection (x)', 0, 2, 0.05, 'light'],
+  ...PAVEMENT.KNOBS,
+];
+const SAVE = 'flydiy.pavement.v1';
+let S = { geo: Object.assign({}, GEO), rec: {}, cls: 'concrete', rcls: 'asphalt' };
+try { const sv = JSON.parse(localStorage.getItem(SAVE) || 'null'); if (sv) { Object.assign(S.geo, sv.geo || {}); S.rec = sv.rec || {}; S.cls = sv.cls || S.cls; S.rcls = sv.rcls || S.rcls; } } catch (e) {}
+const P = new URLSearchParams(location.search);
+if (P.get('cls')) S.cls = P.get('cls'); if (P.get('rcls')) S.rcls = P.get('rcls');
+const save = () => { try { localStorage.setItem(SAVE, JSON.stringify({ geo: S.geo, rec: PAVEMENT.exportRecipe(), cls: S.cls, rcls: S.rcls })); } catch (e) {} };
+
+// ---- the scene ----------------------------------------------------------------
+const view = $('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, logarithmicDepthBuffer: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1;
+view.appendChild(renderer.domElement);
+let shaderErr = null;
+renderer.debug.onShaderError = (gl, prog, vs, fs) => { const log = gl.getProgramInfoLog(prog) + ' | ' + gl.getShaderInfoLog(fs) + ' | ' + gl.getShaderInfoLog(vs); shaderErr = log; console.error('SHADER ERROR', log); msg('failed: shader ' + log.slice(0, 200)); };
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 30000);
+const sun = new THREE.DirectionalLight(0xffffff, 3.0); sun.castShadow = true; scene.add(sun); scene.add(sun.target);
+sun.shadow.mapSize.set(4096, 4096); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
+const hemi = new THREE.HemisphereLight(0xbcd3ff, 0x4a4630, 0.9); scene.add(hemi);
+// THE SKY: a gradient with a sun, drawn as the background and baked into the environment (PMREM)
+const skyMat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, uniforms: { uSun: { value: new THREE.Vector3(0, 1, 0) }, uK: { value: 1 } },
+  vertexShader: 'varying vec3 vD; void main(){ vD = normalize((modelMatrix * vec4(position,1.0)).xyz - cameraPosition); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }',
+  fragmentShader: `varying vec3 vD; uniform vec3 uSun; uniform float uK;
+    void main(){ vec3 d = normalize(vD); float h = d.y; vec3 zen = vec3(0.10, 0.22, 0.55), hor = vec3(0.62, 0.72, 0.85), gnd = vec3(0.16, 0.14, 0.11);
+      vec3 c = h > 0.0 ? mix(hor, zen, pow(h, 0.55)) : mix(hor, gnd, min(1.0, -h * 4.0));
+      float s = max(dot(d, uSun), 0.0); c += vec3(1.0, 0.92, 0.75) * (pow(s, 900.0) * 40.0 + pow(s, 8.0) * 0.18 + pow(s, 2.0) * 0.06);
+      c *= uK; gl_FragColor = vec4(c, 1.0); }` });
+const sky = new THREE.Mesh(new THREE.SphereGeometry(20000, 32, 16), skyMat); scene.add(sky);
+const pmrem = new THREE.PMREMGenerator(renderer);
+let envTex = null;
+function relight() {
+  const az = S.geo.sunAz * Math.PI / 180, el = S.geo.sunEl * Math.PI / 180;
+  const d = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+  sun.position.copy(d).multiplyScalar(800).add(camTarget); sun.target.position.copy(camTarget);
+  sun.intensity = 3.2 * Math.pow(Math.max(0.05, Math.sin(el)), 0.35);
+  sun.color.setRGB(1, 0.85 + 0.15 * Math.min(1, el / 0.6), 0.65 + 0.35 * Math.min(1, el / 0.6));
+  skyMat.uniforms.uSun.value.copy(d);
+  renderer.toneMappingExposure = S.geo.exposure;
+  if (envTex) envTex.dispose();
+  const sc = new THREE.Scene(); sc.add(new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), skyMat));
+  envTex = pmrem.fromScene(sc, 0.04).texture; scene.environment = envTex; scene.environmentIntensity = S.geo.envK;
+}
+// the shadow's frustum follows the target: 260 m about the eye's interest
+function reshadow() { const c = sun.shadow.camera; c.left = c.bottom = -260; c.right = c.top = 260; c.near = 10; c.far = 2500; c.updateProjectionMatrix(); }
+reshadow();
+
+// ---- the terrain, graded by the strip and the road -------------------------
+const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
+const vnoise = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  return (hash(ix, iy) * (1 - sx) + hash(ix + 1, iy) * sx) * (1 - sy) + (hash(ix, iy + 1) * (1 - sx) + hash(ix + 1, iy + 1) * sx) * sy; };
+const baseH = (x, z) => { const s = S.geo.seed * 13.7; return S.geo.terrainAmp * ((vnoise(x / 220 + s, z / 220) - 0.5) * 2 + (vnoise(x / 60 + s, z / 60 + 7) - 0.5) * 0.5 + (vnoise(x / 14 + s, z / 14 + 3) - 0.5) * 0.12) + 20; };
+const smf01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+let stripDef, roadDef, stripField, roadField, roadPoly;
+function defs() {
+  const g = S.geo;
+  stripDef = { len: g.len, wid: g.wid, hdg: 0, cx: 0, cz: 0, shoulderW: g.shoulderW, cls: S.cls, seed: g.seed };
+  stripField = PAVEMENT.field(stripDef);
+  // the road: an S-curve crossing the strip a third of the way along, 35 deg off square
+  const x0 = -g.len / 2 + g.len * 0.36;
+  const pts = [[x0 - 420, -520], [x0 - 260, -300], [x0 - 60, -120], [x0 + 40, 60], [x0 + 120, 240], [x0 + 300, 430], [x0 + 520, 560]];
+  roadPoly = PG.polyRoad(pts, g.roadW);
+  roadDef = { road: roadPoly, w: g.roadW, shoulderW: g.roadShoulder, cls: S.rcls, seed: g.seed + 1 };
+  roadField = PAVEMENT.field(roadDef);
+}
+const stripLevel = u => 20 + (u - S.geo.len / 2) * S.geo.slope / 100;   // the strip's own centreline height
+function roadLevel(u) { // the terrain smoothed along the road: a triangular window of roadSmooth metres either side
+  const W = S.geo.roadSmooth || 60, n = 7; let h = 0, wsum = 0;
+  for (let i = -n; i <= n; i++) { const d = W * i / n, w = 1 - Math.abs(i) / (n + 1); const p = roadPoly.at(Math.max(0, Math.min(roadPoly.length, u + d))).p; h += terrainStrip(p[0], p[1]) * w; wsum += w; }
+  return h / wsum;
+}
+function terrainStrip(x, z) {
+  const f = stripField.at(x, z), h = baseH(x, z);
+  const w = f.dEdge >= 0 ? 1 : 1 - smf01(-f.dEdge / S.geo.falloff);
+  return h + (stripLevel(f.u) - h) * w;
+}
+function heightAt(x, z) {
+  const h = terrainStrip(x, z), f = roadField.at(x, z);
+  if (f.dEdge < -S.geo.roadFalloff) return h;
+  const w = f.dEdge >= 0 ? 1 : 1 - smf01(-f.dEdge / S.geo.roadFalloff);
+  return h + (roadLevel(f.u) - h) * w;
+}
+// the ground: 4 m cells over 3.2 x 1.6 km, the grass set with a macro tint by vertex colour
+const groundMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, vertexColors: true, envMapIntensity: 0.4 });
+function groundTex(img, srgb, tile) { const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.repeat.set(1 / tile, 1 / tile);
+  const ok = () => { t.needsUpdate = true; }; if (img.complete && img.naturalWidth) ok(); else img.addEventListener('load', ok, { once: true }); return t; }
+{ const gs = PAVEMENT_TEX_SETS.grass; groundMat.map = groundTex(gs.diff, true, gs.metres); groundMat.normalMap = groundTex(gs.nor, false, gs.metres); }
+// the r186 rule (the near ring's fix): a Standard at roughness ~1 over a dark ground hazes white at a grazing eye - both lobes faded
+groundMat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n  { float gS = smoothstep(0.9, 0.6, roughnessFactor); reflectedLight.directSpecular *= gS; reflectedLight.indirectSpecular *= gS; }'); };
+groundMat.customProgramCacheKey = () => 'bench-ground-fade';
+let ground = null;
+function buildGround() {
+  if (ground) { scene.remove(ground); ground.geometry.dispose(); }
+  const W = 3200, H = 1600, cell = 4, nx = W / cell, nz = H / cell;
+  const g = new THREE.PlaneGeometry(W, H, nx, nz); g.rotateX(-Math.PI / 2);
+  const p = g.attributes.position, col = new Float32Array(p.count * 3), uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i); p.setY(i, heightAt(x, z)); uv.setXY(i, x, z);
+    const t = 0.75 + 0.5 * vnoise(x / 90 + 5, z / 90), t2 = 0.85 + 0.3 * vnoise(x / 17, z / 17 + 9); col[i * 3] = t * t2 * 0.95; col[i * 3 + 1] = t * t2; col[i * 3 + 2] = t * t2 * 0.8; }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
+  ground = new THREE.Mesh(g, groundMat); ground.receiveShadow = true; scene.add(ground);
+}
+
+// ---- the pavements ----------------------------------------------------------
+let lib = null, strip = null, road = null, stripMat = null, roadMat = null, marksOn = true;
+function buildPavements() {
+  for (const m of [strip, road]) if (m) { scene.remove(m); m.geometry.dispose(); }
+  if (stripMat) PAVEMENT.dispose(stripMat); if (roadMat) PAVEMENT.dispose(roadMat);
+  const g = S.geo;
+  const R = siteRunway({ x: 0, z: 0, hdg: 0, len: g.len, wid: g.wid });
+  const marks = marksOn ? PAVEMENT.marksOf(R, sitePaintStrip) : { rects: [], segs: [] };
+  stripMat = PAVEMENT.make(THREE, { lib, cls: S.cls, marks });
+  strip = new THREE.Mesh(PAVEMENT.stripGeometry(THREE, Object.assign({}, stripDef, { heightAt, resU: 4, resV: 2 })), stripMat);
+  strip.renderOrder = 2; strip.receiveShadow = true; strip.frustumCulled = false; scene.add(strip);
+  const rm = marksOn ? PAVEMENT.roadMarks(roadPoly.length, g.roadW, S.rcls) : { rects: [], segs: [] };
+  roadMat = PAVEMENT.make(THREE, { lib, cls: S.rcls, marks: rm, road: true });
+  // the road's shoulder is not drawn over the strip's pavement (a crossing is concrete meeting asphalt)
+  road = new THREE.Mesh(PAVEMENT.roadGeometry(THREE, Object.assign({}, roadDef, { heightAt, step: 2, resV: 1, lift: 0.1, shoulderK: (x, z) => Math.min(1, Math.max(0, (-stripField.at(x, z).dEdge - 1) / 4)) })), roadMat);
+  road.renderOrder = 3; road.receiveShadow = true; road.frustumCulled = false; scene.add(road);
+  setDbg();
+}
+// ---- the scatter: tufts in the grass band, stones in the gravel band ----------
+let scat = [], scatterOn = true;
+function buildScatter() {
+  for (const m of scat) { scene.remove(m); m.geometry.dispose(); } scat = [];
+  if (!scatterOn) return;
+  const g = S.geo; let seed = g.seed * 7919 + 1; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const rr = (a, b) => a + (b - a) * rnd();
+  const band = PAVEMENT.recipe.band >= 0 ? PAVEMENT.recipe.band : PAVEMENT.CLASS_DEF[S.cls].band;
+  const tufts = [], stones = [];
+  const both = [{ f: stripField, sh: g.shoulderW, band, x0: -g.len / 2 - g.shoulderW, x1: g.len / 2 + g.shoulderW, z0: -g.wid / 2 - g.shoulderW, z1: g.wid / 2 + g.shoulderW, n: 9000, ns: 2500 },
+                { f: roadField, sh: g.roadShoulder, band: PAVEMENT.CLASS_DEF[S.rcls].band, x0: -800, x1: 800, z0: -600, z1: 600, n: 6000, ns: 1500 }];
+  // a soft road's grass stripe: tufts down the middle, between the ruts
+  if (PAVEMENT.CLASS_DEF[S.rcls].rut && PAVEMENT.recipe.rutGrass > 0.05) for (let i = 0; i < 2500; i++) {
+    const u = rr(0, roadPoly.length), A = roadPoly.at(u), v = rr(-0.45, 0.45) * PAVEMENT.recipe.rutTrack * 0.9;
+    if (rnd() > PAVEMENT.recipe.rutGrass) continue;
+    const x = A.p[0] + A.n[0] * v, z = A.p[1] + A.n[1] * v;
+    tufts.push([x, z, rr(0, 6.3), rr(0.15, 0.32), rr(0.9, 1.3), heightAt(x, z)]);
+  }
+  for (const B of both) {
+    for (let i = 0; i < B.n * 4 && tufts.length < 20000; i++) {
+      const x = rr(B.x0, B.x1), z = rr(B.z0, B.z1), f = B.f.at(x, z); const d = -f.dEdge;
+      if (d < B.band + 0.3 || d > B.sh + 4) continue;
+      if (rnd() > Math.min(1, (d - B.band) / 5)) continue;                         // creeping in
+      if (stripField.at(x, z).dEdge > -0.5 && B.f !== stripField) continue;         // not on the strip
+      if (roadField.at(x, z).dEdge > -0.3 && B.f !== roadField) continue;
+      tufts.push([x, z, rr(0, 6.3), rr(0.22, 0.5), rr(0.85, 1.2), heightAt(x, z)]);
+      if (tufts.length >= B.n + (B === both[1] ? both[0].n : 0)) break;
+    }
+    for (let i = 0; i < B.ns * 4 && stones.length < 8000; i++) {
+      const x = rr(B.x0, B.x1), z = rr(B.z0, B.z1), f = B.f.at(x, z); const d = -f.dEdge;
+      if (d < 0.2 || d > B.sh) continue;
+      const k = Math.exp(-Math.pow((d - Math.max(B.band, 0.6)) / Math.max(B.band * 1.5, 3), 2)) * 0.7 + 0.3;
+      if (rnd() > k) continue;
+      stones.push([x, z, rr(0, 6.3), rr(0.03, 0.16) * (rnd() < 0.06 ? 2.5 : 1), heightAt(x, z), rr(0.16, 0.42)]);
+      if (stones.length >= B.ns + (B === both[1] ? both[0].ns : 0)) break;
+    }
+  }
+  // the tufts: site_ground.js's blades and crossed quads, per-instance height
+  const tuftMat = new THREE.MeshStandardMaterial({ map: siteBladeTexture(THREE, rnd, 8), alphaTest: 0.5, roughness: 0.9, metalness: 0, side: THREE.FrontSide });
+  const tm = new THREE.InstancedMesh(siteTuftGeometry(THREE), tuftMat, tufts.length);
+  const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sv = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  tufts.forEach((r, i) => { q.setFromAxisAngle(up, r[2]); p.set(r[0], r[5], r[1]); sv.set(r[3] * r[4], r[3], r[3]); tm.setMatrixAt(i, mtx.compose(p, q, sv)); });
+  tm.instanceMatrix.needsUpdate = true; tm.receiveShadow = true; tm.frustumCulled = false; tm.renderOrder = 5; scene.add(tm); scat.push(tm);
+  // the stones: one squashed dodecahedron, per-instance colour
+  const sg = new THREE.DodecahedronGeometry(1, 0); sg.scale(1, 0.55, 0.8);
+  const smat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, color: 0xffffff });
+  const sm = new THREE.InstancedMesh(sg, smat, stones.length); const c = new THREE.Color();
+  stones.forEach((r, i) => { q.setFromAxisAngle(up, r[2]); p.set(r[0], r[4] + r[3] * 0.25, r[1]); sv.set(r[3] * (0.8 + 0.5 * rnd()), r[3], r[3] * (0.8 + 0.5 * rnd())); sm.setMatrixAt(i, mtx.compose(p, q, sv));
+    const t = r[5]; c.setRGB(t * 1.04, t * 0.98, t * 0.9); sm.setColorAt(i, c); });
+  sm.instanceMatrix.needsUpdate = true; if (sm.instanceColor) sm.instanceColor.needsUpdate = true; sm.castShadow = true; sm.receiveShadow = true; sm.frustumCulled = false; sm.renderOrder = 5; scene.add(sm); scat.push(sm);
+}
+
+// ---- the camera: presets + an orbit -------------------------------------------
+const camTarget = new THREE.Vector3(0, 20, 0); let yaw = 0.7, pitch = 0.55, dist = 300;
+function place() { camera.position.set(camTarget.x + Math.sin(yaw) * Math.cos(pitch) * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(yaw) * Math.cos(pitch) * dist); camera.lookAt(camTarget); }
+const VIEWS = {
+  cockpit:   () => { camTarget.set(-S.geo.len / 2 + 600, heightAt(-S.geo.len / 2 + 600, 0) + 1.2, 0); yaw = -Math.PI / 2; pitch = 0.004; dist = 40; },
+  threshold: () => { camTarget.set(-S.geo.len / 2 + 60, heightAt(-S.geo.len / 2 + 60, 0) + 1, 4); yaw = -Math.PI / 2 - 0.25; pitch = 0.2; dist = 26; },
+  aerial:    () => { camTarget.set(-S.geo.len / 2 + 500, 20, 0); yaw = -1.9; pitch = 0.45; dist = 520; },
+  topdown:   () => { camTarget.set(-S.geo.len / 2 + 450, 20, 0); yaw = 0; pitch = 1.52; dist = 260; },
+  road:      () => { const p = roadPoly.at(roadPoly.length * 0.22).p; camTarget.set(p[0], heightAt(p[0], p[1]) + 1.4, p[1]); yaw = 0.9; pitch = 0.08; dist = 14; },
+  junction:  () => { const p = roadPoly.at(roadPoly.length * 0.42).p; camTarget.set(p[0], heightAt(p[0], p[1]) + 1, p[1]); yaw = 2.4; pitch = 0.5; dist = 60; },
+  shoulder:  () => { camTarget.set(-S.geo.len / 2 + 300, 20, S.geo.wid / 2 + 2); yaw = 0.6; pitch = 0.35; dist = 30; },
+};
+function setView(k) { (VIEWS[k] || VIEWS.aerial)(); place(); relight(); }
+let drag = null;
+view.addEventListener('mousedown', e => { drag = [e.clientX, e.clientY]; });
+window.addEventListener('mouseup', () => { drag = null; });
+window.addEventListener('mousemove', e => { if (!drag) return; yaw -= (e.clientX - drag[0]) * 0.005; pitch = Math.max(-0.2, Math.min(1.55, pitch + (e.clientY - drag[1]) * 0.005)); drag = [e.clientX, e.clientY]; place(); });
+view.addEventListener('wheel', e => { dist *= Math.exp(e.deltaY * 0.001); dist = Math.max(2, Math.min(4000, dist)); place(); e.preventDefault(); }, { passive: false });
+window.addEventListener('keydown', e => { const f = new THREE.Vector3().subVectors(camTarget, camera.position); f.y = 0; f.normalize(); const r = new THREE.Vector3(-f.z, 0, f.x); const s = dist * 0.05;
+  if (e.key === 'w') camTarget.addScaledVector(f, s); if (e.key === 's') camTarget.addScaledVector(f, -s); if (e.key === 'a') camTarget.addScaledVector(r, s); if (e.key === 'd') camTarget.addScaledVector(r, -s);
+  if (e.key === 'q') camTarget.y += s * 0.3; if (e.key === 'e') camTarget.y -= s * 0.3; if ('wasdqe'.includes(e.key)) { place(); relight(); } });
+
+// ---- the aside --------------------------------------------------------------
+function setDbg() { PAVEMENT.debug(+$('dbg').value); }
+$('dbg').onchange = setDbg;
+function buildAside() {
+  const A = $('knobs'); A.innerHTML = '';
+  let det = null;
+  for (const row of K) {
+    if (row.length === 1) { det = document.createElement('details'); det.open = true; const s = document.createElement('summary'); s.textContent = row[0]; det.appendChild(s); A.appendChild(det); continue; }
+    const [k, label, min, max, step, kind] = row;
+    const d = document.createElement('div'); d.className = 'r';
+    const v0 = kind ? S.geo[k] : PAVEMENT.recipe[k];
+    d.innerHTML = `<span class="k" title="${k}">${label}</span><input type="range" id="k_${k}" min="${min}" max="${max}" step="${step}" value="${v0}"><span class="v" id="v_${k}">${v0}</span>`;
+    det.appendChild(d);
+    const inp = d.querySelector('input');
+    inp.oninput = () => { const v = +inp.value; $('v_' + k).textContent = v; setKnob(k, v, false); };
+    inp.onchange = () => { setKnob(k, +inp.value, true); };
+  }
+}
+let rebuildT = null;
+function setKnob(k, v, commit) {
+  const row = K.find(r => r[0] === k), kind = row && row[5];
+  if (kind === 'geo') { S.geo[k] = v; if (commit) rebuild(); else { clearTimeout(rebuildT); rebuildT = setTimeout(rebuild, 250); } }
+  else if (kind === 'light') { S.geo[k] = v; relight(); }
+  else { PAVEMENT.set(THREE, { [k]: v }); if (k === 'band' && commit) buildScatter(); }
+  save();
+}
+function rebuild() { defs(); buildGround(); buildPavements(); buildScatter(); relight(); }
+for (const [id, list, key] of [['cls', PAVEMENT.CLASSES, 'cls'], ['rcls', PAVEMENT.CLASSES, 'rcls']]) {
+  const sel = $(id); for (const c of list) { const o = document.createElement('option'); o.value = o.textContent = c; sel.appendChild(o); } sel.value = S[key];
+  sel.onchange = () => { S[key] = sel.value; save(); rebuild(); };
+}
+$("viewSel").onchange = () => setView($("viewSel").value);
+$('marks').onclick = () => { marksOn = !marksOn; $('marks').classList.toggle('on', marksOn); buildPavements(); };
+$('scatter').onclick = () => { scatterOn = !scatterOn; $('scatter').classList.toggle('on', scatterOn); buildScatter(); };
+$('wire').onclick = () => { const on = $('wire').classList.toggle('on'); for (const m of PAVEMENT.mats) m.wireframe = on; groundMat.wireframe = on; };
+$('def').onclick = () => { PAVEMENT.reset(THREE); S.geo = Object.assign({}, GEO); save(); buildAside(); rebuild(); };
+$('exp').onclick = () => { const j = JSON.stringify({ geo: S.geo, cls: S.cls, rcls: S.rcls, recipe: PAVEMENT.exportRecipe() }, null, 1); console.log(j);
+  const ta = document.createElement('textarea'); ta.value = j; $('knobs').prepend(ta); ta.select(); };
+
+// ---- boot ---------------------------------------------------------------------
+function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+window.addEventListener('resize', resize);
+PAVEMENT.set(THREE, S.rec);
+buildAside();
+const keys = PAVEMENT.keysFor(PAVEMENT.CLASSES);
+lib = PAVEMENT.library(THREE, keys, L => { msg('library: ' + L.keys.length + ' sets'); });
+defs(); buildGround(); buildPavements(); buildScatter(); resize();
+setView(P.get("view") || $("viewSel").value);
+let frames = 0, tAcc = 0, tLast = performance.now();
+function loop() {
+  requestAnimationFrame(loop);
+  const t0 = performance.now(); renderer.render(scene, camera); const t1 = performance.now();
+  tAcc += t1 - t0; frames++;
+  if (t1 - tLast > 1000) { $('stat').textContent = `${(tAcc / frames).toFixed(2)} ms/frame · ${renderer.info.render.triangles} tris · ${renderer.info.render.calls} calls · lib ${lib.ready ? 'up' : 'loading'}` + (shaderErr ? ' · SHADER ERROR' : ''); frames = 0; tAcc = 0; tLast = t1; }
+}
+loop();
+// the rig's handle
+window.BENCH = {
+  set: (k, v) => { setKnob(k, v, true); const i = $('k_' + k); if (i) { i.value = v; $('v_' + k).textContent = v; } },
+  cls: (c, r) => { if (c) { S.cls = c; $('cls').value = c; } if (r) { S.rcls = r; $('rcls').value = r; } save(); rebuild(); },
+  view: k => { $("viewSel").value = k; setView(k); }, look: (x, y, z, yw, pt, d) => { camTarget.set(x, y, z); yaw = yw; pitch = pt; dist = d; place(); relight(); },
+  marks: on => { marksOn = !!on; $('marks').classList.toggle('on', marksOn); buildPavements(); }, scatter: on => { scatterOn = !!on; $('scatter').classList.toggle('on', scatterOn); buildScatter(); },
+  dbg: v => { $('dbg').value = v; setDbg(); },
+  recipe: () => ({ geo: S.geo, cls: S.cls, rcls: S.rcls, recipe: PAVEMENT.exportRecipe() }), ready: () => lib.ready, err: () => shaderErr,
+  heightAt, stripField: () => stripField, roadField: () => roadField, renderer, scene, camera, PAVEMENT,
+  // the rig prints this after every shot: where the eye is, what a mid-frame pixel reads, the sizes
+  probe: () => { const g = renderer.getContext(), px = new Uint8Array(4); g.readPixels(Math.floor(g.drawingBufferWidth / 2), Math.floor(g.drawingBufferHeight / 2), 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
+    return `cam ${camera.position.toArray().map(v => v.toFixed(1)).join(',')} tgt ${camTarget.toArray().map(v => v.toFixed(1)).join(',')} px ${Array.from(px).join(',')} buf ${g.drawingBufferWidth}x${g.drawingBufferHeight} h0 ${heightAt(0, 0).toFixed(2)} exp ${renderer.toneMappingExposure} env ${!!scene.environment} sun ${sun.intensity.toFixed(2)} lib ${lib.ready}`; },
+};
+</script>

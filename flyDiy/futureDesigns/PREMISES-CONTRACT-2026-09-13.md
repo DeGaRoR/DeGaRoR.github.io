@@ -643,3 +643,26 @@ after the freeze, against this document.
   AFTER the ground's own stack (the island's albedo hook had overwritten every material at
   map_fragment: no polygon had ever shown on Jolene). GATE WORLD composes the island's fixture when
   the island's files are on the machine.
+- **v1.16 (2026-09-22, the PAVEMENT chantier, the user: "full PBR ... roads and runways ... integrate
+  these new settings in the world editor ... all runways and all roads").** A LOOK is now a pavement
+  CLASS (`src/viewer/pavement.js`: concrete / asphalt / gravel / dirt / sand / grass) plus a recipe
+  PRESET: `RUNWAY_LOOKS[k] = { name, surface, set, cls, preset }`, two new looks `dirt` and `sand`
+  (both propose GRAVEL's friction: there is no DIRT in the SURFACE enum). A RUNWAY gains `band`
+  (metres of drawn band beside the strip - the cleared ground, the gravel shoulder; null = the
+  class's own) and `pav` (its own knobs among `PAVEMENT.ENTRY_KNOBS`: paintAge, crackK, rubberK,
+  laneW, wet, mossK, patchK, + `marks`). A ROAD gains `look` (null = derived from `cls` by
+  `ROAD_LOOK`: gravel -> gravel, paved -> asphalt, track / path -> grass, which draws worn wheel
+  tracks in the world's own grass and nothing else), `band` and `pav`. A MATERIAL polygon may carry a
+  `look` INSTEAD of a `set` (+ `band`, `pav`, `yaw`: the lanes' direction): it is a PAVED POLYGON - an
+  apron, a turnaround, a pad - drawn by the pavement module as `O.pavePolys[]`, never by the map. The
+  record gains `pavement` (a partial `PAVEMENT.RECIPE`, the premises' character). THE RESOLUTION is
+  ONE function, `PAVEMENT.resolve(entry, rec, look)`: the module's defaults, the look's preset, the
+  premises' `pavement`, the entry's `pav`, in that order. THE MESH is the pavement + its band + a
+  fade (`PAVEMENT.shoulderFor`), never the terraforming `falloff` - which the editor now calls
+  "terraformed to" so the two shoulders never share a word. The renderers (render_premises.js
+  buildRoads / buildPolys, render_world.js standStrip) stand PAVEMENT meshes; `mkLook` and the
+  tone ribbons retire; the analytic world's `roadNet` roads and stage-4 strips take the same
+  meshes (road -> gravel, track -> grass, a strip by its surface). Jolene: the `m_sh13 / m_sh02 /
+  m_taxi_* / m_turn_* / m_pad` material polygons become paved polygons or bands; the `y_*`
+  surface polygons stay (the wheels' class is not the pavement's business). GATE PREMISES: a look
+  names a class, a band is >= 0, a `pav` is an object.

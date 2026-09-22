@@ -187,6 +187,38 @@ Modifications made:
 - **Geometry discarded.** Every Poly Haven set is delivered as a glTF preview
   sphere. Only the maps are imported; the sphere is not.
 
+## The pavement library (`assets/pavement/`, baked and served from media/)
+
+The sets the pavement material (`src/viewer/pavement.js`, 2026-09-21) draws
+roads and runways with: concrete, asphalt, gravel, dirt, sand, the shoulders'
+tracks and the moss. Fourteen fetched STRAIGHT OFF Poly Haven by
+`tools/pavement_tex_import.py --fetch` (the API names each map's 1k jpg and the
+texture's real size in millimetres, which is what the shader tiles it by), plus
+four of the airfield's and the lot's five baked again under this baker's own
+directory (`media/tex/pavement/`).
+
+**Poly Haven, CC0** (https://polyhaven.com) — `damaged_concrete_floor`,
+`damaged_concrete_floor_02`, `concrete_moss`, `dirty_concrete`, `worn_asphalt`,
+`road_damaged`, `gravel_road`, `rocky_gravel`, `sandy_gravel_02`, `park_dirt`,
+`muddy_tracks`, `aerial_mud_1`, `dirt_aerial_02`, `coast_sand_04`; and again
+`cracked_concrete_02`, `brushed_concrete_04`, `asphalt_02`, `aerial_asphalt_01`.
+
+**ambientCG, CC0** (https://ambientcg.com) — again `Grass001`, `Grass004`,
+`Gravel022`, `Ground081`, `Ground110` (the lot's five).
+
+Modifications made:
+
+- **Normalised, not retouched** — the site library's contract (`diff` /
+  `nor_gl` / `rough`) plus a `height` (Poly Haven's own displacement map for
+  every fetched set; integrated from the normal map for the four airfield sets,
+  which were imported without one). Roughness read from `Rough` where the pack
+  has it, `arm`'s green otherwise.
+- **Resampled, and reversibly** — 1k archive, 512 served (~8 MB for 23 sets).
+- **Graded in the shader, not in the files** — the shipped maps are the
+  delivered pixels; a per-set gain/saturation lives in the material's recipe
+  (the South African gravels are desaturated there, the dark concrete lifted).
+- **Geometry discarded** — the preview spheres are not fetched at all.
+
 ## Wood detail sheets (`assets/wood/`, baked and served from media/)
 
 Four CC0 PBR wood sets for the AEROSKIN material library (G125) — the scanned

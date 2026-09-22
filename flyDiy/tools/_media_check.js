@@ -106,7 +106,11 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              sync in _cage_ui.js, the bays' seating) on top of a peer's H7 water
 //              field (G460.8): measured 8.096 -> 8.1005 MiB on the LF build, 0.5 KB
 //              over the line. No data inlined.
-const BUDGET_MIB = 8.2;
+//   8.2 -> 8.3 (G489, the PAVEMENT chantier, 2026-09-22): THE PAVEMENT is code - src/viewer/pavement.js
+//              (the one material: the builders, the recorder, the GLSL, 77 KB) and the library's
+//              manifest pavement_tex.js (35 sets x 4 maps of media/ paths, 20 KB): 97 KB. The maps
+//              themselves are media/tex/pavement/ (13.7 MB, never inlined).
+const BUDGET_MIB = 8.3;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;
@@ -119,6 +123,7 @@ function manifestFiles() {
   const v = ['hangar_walls.js', 'hangar_floor.js', 'site_tex.js',
              'wood_tex.js', 'skin_tex.js', 'vessel_tex.js', 'hangar_sky.js',
              'house_tex.js', 'panel_tex.js', 'lot_tex.js', 'splat_tex.js', 'sign_tex.js',
+             'pavement_tex.js',   // the pavement library (G489)
              'cabin_livery.js']   // the tram cabin's liveries (G343)
     .map(f => path.join(ROOT, 'src', 'viewer', f));
   const packs = JSON.parse(fs.readFileSync(

@@ -43,9 +43,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json')
 
 # ---- the DEM, for the levels -------------------------------------------------
-J = json.load(open(os.path.join(ROOT, 'bench', 'jolene', 'dem.json')))
+BENCH = os.path.join(ROOT, 'bench', 'jolene')
+if not os.path.exists(os.path.join(BENCH, 'dem.json')): BENCH = 'D:/Dev/DeGaRoR.github.io/flyDiy/bench/jolene'   # a worktree: the main checkout's bake
+J = json.load(open(os.path.join(BENCH, 'dem.json')))
 W, H, X0, Z0, CELL = J['w'], J['h'], J['x0'], J['z0'], J['cell']
-DEM = np.fromfile(os.path.join(ROOT, 'bench', 'jolene', 'dem.f32'), np.float32).reshape(H, W)
+DEM = np.fromfile(os.path.join(BENCH, 'dem.f32'), np.float32).reshape(H, W)
 def dem(x, z):
     c = (x - X0) / CELL; r = (z - Z0) / CELL; i = int(c); j = int(r); u = c - i; v = r - j
     return float(DEM[j, i] * (1 - u) * (1 - v) + DEM[j, i + 1] * u * (1 - v) + DEM[j + 1, i] * (1 - u) * v + DEM[j + 1, i + 1] * u * v)
@@ -166,8 +168,10 @@ strip_pad_level = R(dem(*W3_C) + W3_PROFILE[2][1] + (W3_PROFILE[3][1] - W3_PROFI
 # ---- THE ROADS (traced off the satellite views and the albedo) ---------------------------------------
 ROADS = [
     # the taxiway V: paved, wide, no ribbon (the cracked-concrete polygon is the surface), a gentle bank
-    {'id': 'r_taxi_ne', 'pts': [pt(*p) for p in TAXI_NE], 'w': TAXI_W, 'cls': 'paved', 'graded': True, 'falloff': 14, 'ribbon': False, 'grade': 0.025},
-    {'id': 'r_taxi_e', 'pts': [pt(*p) for p in TAXI_E], 'w': TAXI_W, 'cls': 'paved', 'graded': True, 'falloff': 14, 'ribbon': False, 'grade': 0.025},
+    # THE PAVEMENT (contract v1.16): the taxiway V is worn concrete drawn by the pavement module (a ribbon again;
+    # the material polygons that stood in for it are gone), a 3 m band of the cleared ground beside it
+    {'id': 'r_taxi_ne', 'pts': [pt(*p) for p in TAXI_NE], 'w': TAXI_W, 'cls': 'paved', 'look': 'worn', 'band': 3, 'graded': True, 'falloff': 14, 'grade': 0.025},
+    {'id': 'r_taxi_e', 'pts': [pt(*p) for p in TAXI_E], 'w': TAXI_W, 'cls': 'paved', 'look': 'worn', 'band': 3, 'graded': True, 'falloff': 14, 'grade': 0.025},
     # Airport Rd: along the SW side of 13/31, 150 m off it, from the north down to the club's gate
     {'id': 'r_airport', 'pts': [pt(-1330, -1300), pt(-1300, -820), pt(-1283, -767), pt(-980, -440), pt(-620, -40), pt(-380, 220), pt(-215, 470), pt(-250, 600), pt(-262, 690)], 'w': 6, 'cls': 'gravel', 'graded': True, 'falloff': 8, 'traffic': 1},
     # the road from 02/20's NE end north to the village (the straight line on the albedo)
@@ -188,6 +192,7 @@ ROADS = [
 def main():
     rec = {
         'v': 1, 'id': 'jolene-field', 'name': 'Jolene AFB', 'seed': 7, 'theme': 'alaska',
+        'pavement': {'wet': 0.45, 'puddleCover': 0.35, 'mossK': 0.6},   # the pavement's character here (contract v1.16): a damp coast - the user: "everything seems always sort of wet over there" - the concrete mossed
         'frame': {'kind': 'free', 'extent': {'x0': -1700, 'z0': -4300, 'x1': 2600, 'z1': 1400}, 'anchors': {'*': {'x': 0, 'z': 0, 'yaw': 0}}},
         'layers': {
             'terrain': [
@@ -206,14 +211,13 @@ def main():
             ] + [{'id': 'y_sh13_' + str(k), 'poly': p, 'surface': 6} for k, p in enumerate(side_strips(HOME_C, HOME_HDG, HOME_LEN, 24, 70, 40))]
               + [{'id': 'y_sh02_' + str(k), 'poly': p, 'surface': 6} for k, p in enumerate(side_strips(W2_C, W2_HDG, W2_LEN, 24, 70, 40))],
             'material': [
-                {'id': 'm_sh13', 'poly': box(HOME_C, HOME_HDG, HOME_LEN, 70, 40), 'set': 'dry', 'tile': None, 'fade': 30, 'z': 0},
-                {'id': 'm_sh02', 'poly': box(W2_C, W2_HDG, W2_LEN, 70, 40), 'set': 'dry', 'tile': None, 'fade': 30, 'z': 0},
-                {'id': 'm_pad', 'poly': pad_poly, 'set': 'cracked', 'tile': None, 'fade': 4, 'z': 1},
-                {'id': 'm_taxi_ne', 'poly': road_poly(TAXI_NE, TAXI_W), 'set': 'cracked', 'tile': None, 'fade': 3, 'z': 1},
-                {'id': 'm_taxi_e', 'poly': road_poly(TAXI_E, TAXI_W), 'set': 'cracked', 'tile': None, 'fade': 3, 'z': 1},
-                {'id': 'm_turn_nw', 'poly': octagon(past_end(HOME_C, HOME_HDG, HOME_LEN, 0, 45), 55), 'set': 'cracked', 'tile': None, 'fade': 4, 'z': 1},
-                {'id': 'm_turn_se', 'poly': octagon(past_end(HOME_C, HOME_HDG, HOME_LEN, 1, 45), 55), 'set': 'cracked', 'tile': None, 'fade': 4, 'z': 1},
-                {'id': 'm_turn_ne', 'poly': octagon(past_end(W2_C, W2_HDG, W2_LEN, 0, 45), 55), 'set': 'cracked', 'tile': None, 'fade': 4, 'z': 1},
+                # THE PAVED POLYGONS (contract v1.16): the club's apron and the three turnarounds are worn concrete drawn by
+                # the pavement module, their lanes turned with the strip; the cleared bands beside the strips are the
+                # strips' own `band` now, the taxiway V its roads' - those five material polygons are gone
+                {'id': 'm_pad', 'poly': pad_poly, 'look': 'worn', 'band': 3, 'yaw': R(CLUB_YAW, 4), 'z': 1},
+                {'id': 'm_turn_nw', 'poly': octagon(past_end(HOME_C, HOME_HDG, HOME_LEN, 0, 45), 55), 'look': 'worn', 'band': 6, 'yaw': HOME_HDG, 'z': 1},
+                {'id': 'm_turn_se', 'poly': octagon(past_end(HOME_C, HOME_HDG, HOME_LEN, 1, 45), 55), 'look': 'worn', 'band': 6, 'yaw': HOME_HDG, 'z': 1},
+                {'id': 'm_turn_ne', 'poly': octagon(past_end(W2_C, W2_HDG, W2_LEN, 0, 45), 55), 'look': 'worn', 'band': 6, 'yaw': W2_HDG, 'z': 1},
                 {'id': 'm_strip_yard', 'poly': strip_yard_poly, 'set': 'pebble', 'tile': None, 'fade': 4, 'z': 1},
             ],
             'exclude': [
@@ -232,13 +236,13 @@ def main():
             'runways': [
                 # 02/20 FIRST: two strips cross at the junction and the later grade wins there - 13/31, the one
                 # flown, keeps its own profile through the crossing
-                {'id': 'w2', 'name': 'Jolene AFB 02/20', 'c': pt(*W2_C), 'hdg': W2_HDG, 'len': W2_LEN, 'wid': HOME_WID, 'surface': 5, 'look': 'worn', 'crossfall': 0,
+                {'id': 'w2', 'name': 'Jolene AFB 02/20', 'c': pt(*W2_C), 'hdg': W2_HDG, 'len': W2_LEN, 'wid': HOME_WID, 'surface': 5, 'look': 'worn', 'band': 40, 'pav': {'rubberK': 0, 'laneW': 6.1}, 'crossfall': 0,
                  'disp': [0, 0], 'papi': [False, False], 'falloff': 60, 'site': None, 'pattern': None, 'profile': W2_PROFILE, 'approach': None},
-                {'id': 'HOME', 'name': 'Jolene AFB 13/31', 'c': pt(*HOME_C), 'hdg': HOME_HDG, 'len': HOME_LEN, 'wid': HOME_WID, 'surface': 5, 'look': 'worn', 'crossfall': 0,
+                {'id': 'HOME', 'name': 'Jolene AFB 13/31', 'c': pt(*HOME_C), 'hdg': HOME_HDG, 'len': HOME_LEN, 'wid': HOME_WID, 'surface': 5, 'look': 'worn', 'band': 40, 'pav': {'rubberK': 0, 'laneW': 6.1}, 'crossfall': 0,
                  'disp': [0, 0], 'papi': ['vasi', 'vasi'], 'falloff': 60, 'site': None, 'pattern': None, 'profile': [[0, 5.2], [0.5, 0.0], [1, -5.1]], 'approach': None,
                  'stand': {'x': R(STAND[0]), 'z': R(STAND[1]), 'hdg': None}, 'taxiOut': [pt(*p) for p in TAXI_NE],
                  'hangar': {'x': R(HANGAR_W[0]), 'z': R(HANGAR_W[1]), 'hdg': 0.0}},
-                {'id': 'w3', 'name': 'Tamgas Hill Strip', 'c': pt(*W3_C), 'hdg': R(W3_HDG, 4), 'len': W3_LEN, 'wid': W3_WID, 'surface': 6, 'look': 'gravel', 'crossfall': 0,
+                {'id': 'w3', 'name': 'Tamgas Hill Strip', 'c': pt(*W3_C), 'hdg': R(W3_HDG, 4), 'len': W3_LEN, 'wid': W3_WID, 'surface': 6, 'look': 'gravel', 'band': 4, 'crossfall': 0,
                  'disp': [0, 0], 'papi': [True, False], 'falloff': None, 'site': None, 'pattern': None, 'profile': W3_PROFILE, 'approach': 0,
                  'stand': {'x': R(STRIP_STAND[0]), 'z': R(STRIP_STAND[1]), 'hdg': None}, 'taxiOut': [pt(*p) for p in STRIP_TAXI]},
                 {'id': 'SEA', 'name': 'Annette Dock', 'c': pt(*SEA_C), 'hdg': R(SEA_HDG, 4), 'len': SEA_LEN, 'wid': SEA_WID, 'surface': 4, 'look': 'none', 'crossfall': 0,

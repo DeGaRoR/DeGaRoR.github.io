@@ -4,6 +4,11 @@
  "name": "Jolene AFB",
  "seed": 7,
  "theme": "alaska",
+ "pavement": {
+  "wet": 0.45,
+  "puddleCover": 0.35,
+  "mossK": 0.6
+ },
  "frame": {
   "kind": "free",
   "extent": {
@@ -402,56 +407,6 @@
   ],
   "material": [
    {
-    "id": "m_sh13",
-    "poly": [
-     [
-      -1254.45,
-      -515.1
-     ],
-     [
-      560.6,
-      1062.75
-     ],
-     [
-      652.45,
-      957.1
-     ],
-     [
-      -1162.6,
-      -620.75
-     ]
-    ],
-    "set": "dry",
-    "tile": null,
-    "fade": 30,
-    "z": 0
-   },
-   {
-    "id": "m_sh02",
-    "poly": [
-     [
-      909.52,
-      -997.18
-     ],
-     [
-      130.58,
-      752.24
-     ],
-     [
-      258.48,
-      809.18
-     ],
-     [
-      1037.42,
-      -940.24
-     ]
-    ],
-    "set": "dry",
-    "tile": null,
-    "fade": 30,
-    "z": 0
-   },
-   {
     "id": "m_pad",
     "poly": [
      [
@@ -471,91 +426,9 @@
       770.0
      ]
     ],
-    "set": "cracked",
-    "tile": null,
-    "fade": 4,
-    "z": 1
-   },
-   {
-    "id": "m_taxi_ne",
-    "poly": [
-     [
-      -123.01,
-      655.37
-     ],
-     [
-      -121.06,
-      591.16
-     ],
-     [
-      -108.44,
-      503.2
-     ],
-     [
-      -81.19,
-      447.22
-     ],
-     [
-      -102.81,
-      436.78
-     ],
-     [
-      -131.56,
-      496.8
-     ],
-     [
-      -144.94,
-      588.84
-     ],
-     [
-      -146.99,
-      654.63
-     ]
-    ],
-    "set": "cracked",
-    "tile": null,
-    "fade": 3,
-    "z": 1
-   },
-   {
-    "id": "m_taxi_e",
-    "poly": [
-     [
-      -115.0,
-      667.0
-     ],
-     [
-      -0.83,
-      666.97
-     ],
-     [
-      127.98,
-      683.83
-     ],
-     [
-      202.2,
-      701.67
-     ],
-     [
-      207.8,
-      678.33
-     ],
-     [
-      132.02,
-      660.17
-     ],
-     [
-      0.83,
-      643.03
-     ],
-     [
-      -115.0,
-      643.0
-     ]
-    ],
-    "set": "cracked",
-    "tile": null,
-    "fade": 3,
+    "look": "worn",
+    "band": 3,
+    "yaw": 1.5708,
     "z": 1
    },
    {
@@ -594,9 +467,9 @@
       -610.1
      ]
     ],
-    "set": "cracked",
-    "tile": null,
-    "fade": 4,
+    "look": "worn",
+    "band": 6,
+    "yaw": 0.7156,
     "z": 1
    },
    {
@@ -635,9 +508,9 @@
       974.31
      ]
     ],
-    "set": "cracked",
-    "tile": null,
-    "fade": 4,
+    "look": "worn",
+    "band": 6,
+    "yaw": 0.7156,
     "z": 1
    },
    {
@@ -676,9 +549,9 @@
       -1012.17
      ]
     ],
-    "set": "cracked",
-    "tile": null,
-    "fade": 4,
+    "look": "worn",
+    "band": 6,
+    "yaw": 1.9897,
     "z": 1
    },
    {
@@ -928,9 +801,10 @@
     ],
     "w": 24.0,
     "cls": "paved",
+    "look": "worn",
+    "band": 3,
     "graded": true,
     "falloff": 14,
-    "ribbon": false,
     "grade": 0.025
    },
    {
@@ -955,9 +829,10 @@
     ],
     "w": 24.0,
     "cls": "paved",
+    "look": "worn",
+    "band": 3,
     "graded": true,
     "falloff": 14,
-    "ribbon": false,
     "grade": 0.025
    },
    {
@@ -1220,6 +1095,11 @@
     "wid": 45.0,
     "surface": 5,
     "look": "worn",
+    "band": 40,
+    "pav": {
+     "rubberK": 0,
+     "laneW": 6.1
+    },
     "crossfall": 0,
     "disp": [
      0,
@@ -1260,6 +1140,11 @@
     "wid": 45.0,
     "surface": 5,
     "look": "worn",
+    "band": 40,
+    "pav": {
+     "rubberK": 0,
+     "laneW": 6.1
+    },
     "crossfall": 0,
     "disp": [
      0,
@@ -1328,6 +1213,7 @@
     "wid": 18.0,
     "surface": 6,
     "look": "gravel",
+    "band": 4,
     "crossfall": 0,
     "disp": [
      0,

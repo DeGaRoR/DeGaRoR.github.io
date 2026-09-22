@@ -305,6 +305,8 @@ const MANIFEST = {
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js', 'site_tex.js', 'site_ground.js',
               'splat_tex.js', 'splat_ground.js',   // the island's ground library (17 sets, lazily-made Images) + the splat: the arrays, the GLSL, F8's handle
+              // THE PAVEMENT (v1.16, 2026-09-22): the library manifest + the one material every strip, road and apron wears
+              'pavement_tex.js', 'pavement.js',
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it
               'trees_pack.js', 'trees.js', 'cover_ring.js', 'render_world.js',

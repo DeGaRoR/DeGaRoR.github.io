@@ -171,6 +171,61 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const LAMBERT_NO_ENV = new THREE.Texture();
   LAMBERT_NO_ENV.mapping = THREE.EquirectangularReflectionMapping;
   const worldLambert = o => new THREE.MeshLambertMaterial(Object.assign({ envMap: LAMBERT_NO_ENV }, o));
+  // THE PAVEMENT (contract v1.16, 2026-09-22): every strip and every road is a PAVEMENT mesh when the
+  // module is on the page - src/viewer/pavement.js's one material, the class from the look, the
+  // recipe resolved with the premises' (PAVEMENT.resolve). The analytic world's strips take a look by
+  // their surface (PAVED -> asphalt, GRAVEL -> gravel, else grass), its roadNet roads gravel ('road')
+  // or worn grass tracks ('track'). THE STONES along the bands are the tree pack's rocks (kind 'rock',
+  // the user: "use our existing stone pack"), stood once the pack has settled.
+  const PAV = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
+  const PGm = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
+  const pavSeed = id => { let h = 2166136261; for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h % 1000) / 37; };
+  const pavLookOf = a => { if (!PGm) return null; if (a.premises && a.look) return PGm.RUNWAY_LOOKS[a.look] || null; const k = a.surface === world.SURFACE.PAVED ? 'asphalt' : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass'; return PGm.RUNWAY_LOOKS[k]; };
+  const pavRec = () => (world.premises && world.premises.rec) || null;
+  let pavLibShared = null;
+  const pavLib = keys => (pavLibShared = PAV.sharedLib(THREE, keys));
+  // THE STONES: the rock pack's subjects, their coarsest rung, one InstancedMesh a part; the scatter
+  // reads the strip's field (the band's outer half is where the roller pushed them)
+  const ROCK_JOBS = [];
+  let rockParts = null;
+  const rockPartsOf = () => {
+    if (rockParts) return rockParts;
+    if (typeof treeList !== 'function' || typeof treeBuild !== 'function') return (rockParts = []);
+    const out = [];
+    for (const e of treeList('rock')) {
+      let b = null; try { const ladder = e.sub.rungs || []; b = treeBuild(THREE, e.key, Math.max(0, ladder.length - 1), 'rungs'); } catch (err) { continue; }
+      if (!b || !b.parts.length) continue;
+      const bb = e.sub.bb || [-0.5, 0, -0.5, 0.5, 1, 0.5];
+      out.push({ key: e.key, bb, parts: b.parts.map(q => ({ geo: q.geo, mat: new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 }) })) });
+    }
+    return (rockParts = out);
+  };
+  const standRocks = (field, o, keep) => {
+    const parts = rockPartsOf(); if (!parts.length) return;
+    let seed = (o.seed * 7919 + 17) >>> 0; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const rr = (a, b) => a + (b - a) * rnd();
+    const band = Math.max(o.band, 0.6), N = Math.min(3000, Math.round(o.len * 1.4));
+    const rows = [];
+    for (let i = 0; i < N * 3 && rows.length < N; i++) {
+      const u = rr(-2, o.len + 2), v = (rnd() < 0.5 ? -1 : 1) * rr(o.wid / 2 + 0.2, o.wid / 2 + band + 1.5);
+      const w = o.toWorld(u, v), f = field.at(w[0], w[1]); const d = -f.dEdge;
+      if (d < 0.2 || d > band + 1.5) continue;
+      if (rnd() > 0.35 + 0.65 * Math.min(1, d / band)) continue;
+      rows.push([w[0], w[1], rr(0, 6.3), rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1), Math.floor(rnd() * parts.length)]);
+    }
+    const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sv = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    parts.forEach((P, pi) => {
+      const mine = rows.filter(r => r[4] === pi); if (!mine.length) return;
+      const h0 = Math.max(0.05, P.bb[4] - P.bb[1]);
+      for (const part of P.parts) {
+        const im = new THREE.InstancedMesh(part.geo, part.mat, mine.length);
+        mine.forEach((r, i) => { const sc = r[3] / h0; q.setFromAxisAngle(up, r[2]); p.set(r[0], world.terrainH(r[0], r[1]) - P.bb[1] * sc - r[3] * 0.15, r[1]); sv.set(sc, sc, sc); im.setMatrixAt(i, mtx.compose(p, q, sv)); });
+        im.instanceMatrix.needsUpdate = true; im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false; im.name = 'rocks:' + o.id;
+        scene.add(keep(im));
+      }
+    });
+  };
+  const rocksWhenReady = job => { ROCK_JOBS.push(job); if (treeSettleOf) treeSettleOf().then(() => { const i = ROCK_JOBS.indexOf(job); if (i >= 0) { ROCK_JOBS.splice(i, 1); job(); } }).catch(() => {}); };
   // THE RENDERER FLAG (W0.5b): the module picks a variant per material on it
   const TSL_ON = !!(renderer && renderer.isWebGPURenderer);
   // THE ATMOSPHERE (SKY S3): Hillaire's model in atmo.js draws the sky and
@@ -3814,12 +3869,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       scene.add(base);
       // LIT, not Basic (A6, 2026-09-20): an unlit paint is a day-bright paint at night - at the night's
       // exposure (x43 000) the threshold bars and the edge lines were white slabs on a moonlit field
-      const strip = new THREE.Mesh(mkGeo(false),
-        worldLambert({ map: rtex, transparent: true, depthWrite: false }));
-      strip.position.set(R.cx, 0.025, R.cz);
-      strip.renderOrder = 3;
-      strip.receiveShadow = true;
-      scene.add(strip);
+      if (PAV && PGm) {
+        // THE PAVEMENT (v1.16): the analytic HOME is a grass strip - the module draws its worn wheel
+        // tracks and the paint over the scanned base above (the field's ground over the sea plane at 0)
+        const LKh = PGm.RUNWAY_LOOKS.grass, RS = PAV.resolve(null, null, LKh);
+        const sd = { len: HOME.len, wid: HOME.wid, hdg: HOME.hdg, cx: HOME.x, cz: HOME.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed('HOME'), heightAt: world.terrainH, lift: 0.05, resU: 6, resV: 3 };
+        const pm = new THREE.Mesh(PAV.stripGeometry(THREE, sd), PAV.make(THREE, { lib: pavLib(PAV.keysFor([RS.cls])), cls: RS.cls, marks: PAV.marksOf(R, sitePaintStrip), recipe: RS.recipe, band: RS.band }));
+        pm.renderOrder = 3; pm.receiveShadow = true; pm.frustumCulled = false; pm.name = 'pavement:HOME'; scene.add(pm);
+      } else {
+        const strip = new THREE.Mesh(mkGeo(false),
+          worldLambert({ map: rtex, transparent: true, depthWrite: false }));
+        strip.position.set(R.cx, 0.025, R.cz);
+        strip.renderOrder = 3;
+        strip.receiveShadow = true;
+        scene.add(strip);
+      }
     }
 
     const markGeo = new THREE.BoxGeometry(0.5, 0.7, 1.6);
@@ -4186,6 +4250,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         scene.add(m);
       }
     }
+    // THE ROADS (v1.16): the analytic network's roads as PAVEMENT ribbons - 'road' a 5 m gravel road,
+    // 'track' a 3 m worn track in the world's grass; the bridges keep their decks below
+    if (PAV && PGm && world.roadNet && world.roadNet.roads) {
+      const keys = PAV.keysFor(['gravel', 'grass']), lib = pavLib(keys);
+      world.roadNet.roads.forEach((r, i) => {
+        if (r.cls === 'bridge' || !r.pts || r.pts.length < 2) return;
+        const look = r.cls === 'track' ? 'grass' : 'gravel', w = r.cls === 'track' ? 3 : 5;
+        const RS = PAV.resolve(null, null, PGm.RUNWAY_LOOKS[look]);
+        const pr = PGm.polyRoad(r.pts, w);
+        const geo = PAV.roadGeometry(THREE, { road: pr, w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed('R' + i), heightAt: world.terrainH, lift: 0.07, step: 4, resV: 1 });
+        const m = new THREE.Mesh(geo, PAV.make(THREE, { lib, cls: RS.cls, marks: PAV.roadMarks(pr.length, w, RS.cls), road: true, recipe: RS.recipe, band: RS.band }));
+        m.renderOrder = 3; m.receiveShadow = true; m.name = 'pavement:road' + i; scene.add(m);
+      });
+    }
     const deckMat = worldLambert({ color: C(0x8a6a4a) });
     for (const r of world.roadNet.roads) {
       if (r.cls !== 'bridge') continue;
@@ -4339,7 +4417,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // stands the set's sheet under the same markings; 'grass' (and every strip without a look) the
       // painted strip of old
       const LK = (typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.RUNWAY_LOOKS && a.look) ? PREMISES_GEN.RUNWAY_LOOKS[a.look] : null;
-      if (LK && (a.look === 'none' || LK.set)) {
+      const LKp = PAV ? pavLookOf(a) : null;
+      if (PAV && LKp && LKp.cls) {
+        // THE PAVEMENT STRIP (v1.16): the class from the look, the recipe resolved with the premises',
+        // the band beside it, the markings recorded off sitePaintStrip, the rocks along the band
+        const RS = PAV.resolve(a.premises ? a : null, a.premises ? pavRec() : null, LKp);
+        const shW = PAV.shoulderFor(RS.band, RS.recipe);
+        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3 };
+        const pgeo = PAV.stripGeometry(THREE, sd);
+        const lib = pavLib(PAV.keysFor([RS.cls]));
+        const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
+        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band });
+        const pm = new THREE.Mesh(pgeo, pmat); pm.renderOrder = 2; pm.receiveShadow = true; pm.frustumCulled = false; pm.name = 'pavement:' + a.id; pm.userData.pavMat = true;
+        scene.add(keep(pm));
+        geo.dispose();
+        const F = PAV.field(sd);
+        rocksWhenReady(() => standRocks(F, { id: a.id, seed: pavSeed(a.id) * 37, len: a.len, wid: a.wid, band: RS.band, toWorld: F.frame.toWorld }, keep));
+      } else if (LK && (a.look === 'none' || LK.set)) {
         const lookTex = LK.set ? mkLook(LK.set, a.len, a.wid) : null;
         if (lookTex) {
           const gm = new THREE.Mesh(geo, worldLambert({ map: lookTex, depthWrite: false }));
@@ -4380,7 +4474,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
         if (a0 && !a0.premises) continue;
-        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.geometry) o.geometry.dispose(); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); } }
+        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); } }
         stripStood.delete(id);
       }
       for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);

@@ -716,6 +716,18 @@
         "D:/Dev/DeGaRoR.github.io"
       ],
       "port": 8474
+    },
+    {
+      "name": "flydiy-pavement",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8484",
+        ".",
+        "--fallback",
+        "D:/Dev/DeGaRoR.github.io"
+      ],
+      "port": 8484
     }
   ]
 }

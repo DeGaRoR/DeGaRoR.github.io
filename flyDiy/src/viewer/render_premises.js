@@ -366,8 +366,36 @@ function make(THREE, scene, world, rec0, opts) {
   // ground canvas; the game's terrain has no such canvas) - 3 m along, the width plus a soft verge
   const ROAD_TONE = { 6: 0x8f8574, 5: 0x63636a, 7: 0xb8a57e, 0: 0x6e6a4a, 3: 0x5d5844 };
   let roadMat = null;
+  // THE PAVEMENT (contract v1.16, 2026-09-22): when src/viewer/pavement.js is on the page every road, every
+  // paved polygon and (in the bench) every strip is a PAVEMENT mesh - the one material, the class from the
+  // look, the recipe resolved through PAVEMENT.resolve (the module's, the look's preset, the premises',
+  // the entry's); the tone ribbon below is the page-without-the-module fallback
+  const PAV = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
+  const pavKeys = () => { const cls = new Set(); for (const rd of O.roads) { const L = PG.RUNWAY_LOOKS[rd.look]; if (L && L.cls) cls.add(L.cls); } for (const p of O.pavePolys || []) cls.add(PG.RUNWAY_LOOKS[p.look].cls); for (const r of O.runways) { const L = PG.RUNWAY_LOOKS[r.look]; if (L && L.cls) cls.add(L.cls); } return PAV.keysFor(Array.from(cls)); };
+  const pavLib = () => PAV.sharedLib(THREE, pavKeys(), () => { if (o.onBuilt) o.onBuilt(0, 0); });
+  const pavSeed = id => { let h = 2166136261; for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h % 1000) / 37; };
+  // a road crossing a strip's box draws no band over the concrete (the bench's rule)
+  const stripKeep = (x, z) => { const L = O.frame.toLocal(x, z); let k = 1; for (const r of O.runways) { if (PG.runwayIsWater(r)) continue; const box = PG.runwayBox(r, 0); if (PG.inPoly(box, L[0], L[1])) return 0; const d = -PG.sdPoly(box, L[0], L[1]); k = Math.min(k, Math.max(0, Math.min(1, (-d - 1) / 4))); } return k; };
+  const disposePav = m => { if (m.material && m.material.userData && m.material.userData.pav && PAV) PAV.dispose(m.material); };
   function buildRoads() {
-    for (const c of G.roads.children.slice()) { G.roads.remove(c); if (c.geometry) c.geometry.dispose(); }
+    for (const c of G.roads.children.slice()) { G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c); }
+    if (PAV) {
+      const lib = pavLib();
+      for (const rd of O.roads) {
+        if (rd.ribbon === false) continue;   // a taxiway under its own material polygon (G434) - or a paved polygon now
+        const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
+        const RS = PAV.resolve(rd, O.rec, L);
+        const pr = PG.polyRoad(rd.pts, rd.w);
+        const geo = PAV.roadGeometry(THREE, { road: pr, w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), toWorld: (x, z) => O.frame.toWorld(x, z), heightAt, lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6), shoulderK: stripKeep });
+        const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.roadMarks(pr.length, rd.w, RS.cls);
+        if (RS.marks === 'edges') marks.rects = marks.rects.filter(r => !(r[5] > 0)); else if (RS.marks === 'centre') marks.rects = marks.rects.filter(r => r[5] > 0);
+        const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band });
+        const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.frustumCulled = false; m.name = 'road:' + rd.id; m.userData.premId = rd.id;
+        G.roads.add(m);
+      }
+      buildPolys();
+      return;
+    }
     if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     for (const rd of O.roads) {
       if (rd.ribbon === false) continue;   // a taxiway under its own material polygon (G434)
@@ -381,6 +409,21 @@ function make(THREE, scene, world, rec0, opts) {
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
       const m = new THREE.Mesh(g, roadMat); m.renderOrder = 2; m.receiveShadow = true; m.name = 'road:' + rd.id;
+      G.roads.add(m);
+    }
+  }
+  // THE PAVED POLYGONS (v1.16): an apron, a turnaround, a pad - a material polygon with a look; drawn under
+  // the roads group (renderOrder 2: a road crossing an apron draws over it), the lanes turned by its yaw
+  function buildPolys() {
+    if (!PAV) return;
+    const lib = pavLib();
+    for (const pp of O.pavePolys || []) {
+      const L = PG.RUNWAY_LOOKS[pp.look]; if (!L || !L.cls) continue;
+      const RS = PAV.resolve(pp, O.rec, L);
+      const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
+      const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw });
+      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks: { rects: [], segs: [] }, poly: true, recipe: RS.recipe, band: RS.band });
+      const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.frustumCulled = false; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
       G.roads.add(m);
     }
   }
@@ -519,7 +562,7 @@ function make(THREE, scene, world, rec0, opts) {
   // (flight_core.js in the page); with none the strip is a bare quad
   const SITE = o.site || {};
   function buildRunways() {
-    for (const c of G.runways.children.slice()) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); if (m.material && m.material.map && m.userData.ownMap) m.material.map.dispose(); }); }
+    for (const c of G.runways.children.slice()) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); if (m.material && m.material.map && m.userData.ownMap) m.material.map.dispose(); if (m.userData.pavMat) disposePav(m); }); }
     O.runways.forEach((r, i) => {
       const A = O.aerodromes[i];
       // the game paints every registry strip itself (render_world's decals); here only the pattern, while editing
@@ -534,6 +577,19 @@ function make(THREE, scene, world, rec0, opts) {
         return;
       }
       const R = SITE.siteRunway ? SITE.siteRunway(A) : null;
+      const LKp = PG.RUNWAY_LOOKS[r.look];
+      if (PAV && R && SITE.sitePaintStrip && LKp && LKp.cls && !PG.runwayIsWater(r)) {
+        // THE PAVEMENT STRIP (v1.16): what the game will stand - the same builder, the same recipe
+        const RS = PAV.resolve(r, O.rec, LKp);
+        const geo = PAV.stripGeometry(THREE, { len: A.len, wid: A.wid, hdg: A.hdg, cx: A.x, cz: A.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(r.id), heightAt, lift: 0.07, resU: 6, resV: 3 });
+        const mat = PAV.make(THREE, { lib: pavLib(), cls: RS.cls, marks: RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(R, SITE.sitePaintStrip), recipe: RS.recipe, band: RS.band });
+        const pm = new THREE.Mesh(geo, mat); pm.renderOrder = 2; pm.receiveShadow = true; pm.frustumCulled = false; pm.name = 'runway:' + r.id; pm.userData.premId = r.id; pm.userData.pavMat = true;
+        G.runways.add(pm);
+        if (SITE.sitePattern && window.PATTERN_VIS) {
+          try { const pat = SITE.sitePattern(A, r.site || null); const pv = window.PATTERN_VIS.buildPatternVis(THREE, pat, (x, z) => heightAt(x, z), { patternPath: SITE.patternPath, siteRunway: SITE.siteRunway }); const grp = pv.group || pv; if (pv.setLayers) pv.setLayers({ graph: true, slope: true, targets: true }); grp.name = 'pattern:' + r.id; G.runways.add(grp); } catch (e) { console.warn('premises pattern', r.id, e && e.message); }
+        }
+        return;
+      }
       // the strip as a ribbon following the composed ground, 4 m along, 3 across
       const dx = Math.cos(A.hdg), dz = Math.sin(A.hdg), nx = -dz, nz = dx, hl = A.len / 2, hw = A.wid / 2;
       const na = Math.max(2, Math.ceil(A.len / 4)), nc = 2;
@@ -1273,6 +1329,7 @@ function make(THREE, scene, world, rec0, opts) {
       }
     }
     for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) return { id: r.id, layer: 'runways', entry: PG.findById(rec, r.id).entry };
+    for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) return { id: p.id, layer: 'material', entry: PG.findById(rec, p.id).entry };
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
     let tree = null, td = 2.5;

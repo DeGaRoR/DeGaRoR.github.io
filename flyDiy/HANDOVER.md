@@ -157,6 +157,19 @@ before every battery so stale hand-edits get overwritten, loudly.
 - `tools/make_perf.js` — RETIRED with the fleet (G184). The garage build's
   performance sheet is `genShakedown` (the plaque) and `gen_ap_probe.js` is the
   garage's autopilot instrument.
+- `src/viewer/pavement.js` — THE PAVEMENT (G489): the one material every strip, road and
+  apron wears - concrete / asphalt / gravel / dirt / sand / grass, with its band beside it. A
+  draped RIBBON whose vertices carry (u along, v across, dEdge, shoulder); everything the
+  surface wears is a function of those per pixel (lanes/joints, cracks, patches, moss,
+  the markings as SDF rects RECORDED off sitePaintStrip, rubber, ruts + a tyre-lug imprint,
+  the torn soft edge, the alpha fade past the band, water puddles); the sets hex-tiled
+  (Mikkelsen) from two DataArrayTextures (2 samplers). `resolve(entry, rec, look)` is the one
+  recipe resolution (module <- look preset <- premises `pavement` <- entry `pav`);
+  `KNOBS` the one table the bench and the editor share. Bench `tools/_pavement.html`, rig
+  `tools/pavement_shot.js` (--gate: tiling score, near/far albedo), GATE PAVEMENT
+  `tools/_pavement_check.js`. `pavement_tex.js` (GENERATED, 35 sets: `pavement_tex_import.py
+  --fetch` off the Poly Haven API, `pavement_tex_prep.js`). Doc futureDesigns/PAVEMENT-2026-09-21.md
+  + PAVEMENT-EDITOR-2026-09-22.md.
 - `src/viewer/water.js` — THE WATER (H6, G460): the one material every water
   takes (the sea, the near patch, the island's lakes, the analytic world's
   rivers and cells, the premises sheet) — MeshPhysicalMaterial ior 1.333 +
@@ -55097,3 +55110,73 @@ chunk's base quarter); the sand spot fell in the sea (the chase eye), no beach p
   extent and the skirt cut, a slab reads as an outcrop and the drape is not what is missing; the far
   tier of the rocks (below).
 - GATES: BUILD / TREES / BIOME / WORLD / WORLDRENDER / UISMOKE / MEDIA / SPLAT / PREMISES / LIGHT green.
+
+## G489 — THE PAVEMENT CHANTIER: roads & runways, full PBR (2026-09-21/22, the user: "I'd like these to be
+## beautiful. Full PBR, non repetitive, proper detailed zones on the side, proper terraforming with
+## configurable distance, great textures avoiding noticeable tiling, crack and decals, convincing PBR
+## weathered markings ... dirt, grass, sand, asphalt and concrete. Tyre marks, traces in the soft ground,
+## natural markers like stones ... the old WWII airport at Jolene island. The runway is huge")
+
+THE MATERIAL (src/viewer/pavement.js): ONE MeshStandardMaterial hook (water.js's idiom, ATMO first,
+the hook's source the program key). A strip, a road or a paved polygon is a draped RIBBON whose
+vertices carry (u, v, dEdge, shoulderW) + (class, seed, halfW, halfL) + the tangent with the shoulder
+keep; per pixel, in order: the hex-tiled base (Mikkelsen 2022, the splat's sTile, a contrast ramp for
+every set), macro variation (8/40/200 m), the concrete's paving lanes and joints (per-lane and per-
+slab tone, a groove with a normal, chipped, spalled; a concrete ROAD gets one subtle centre joint), a
+warped, gated Voronoi crack network with the damage set where the field admits it, hashed patches
+with a rim, moss/lichen from the edges and joints, damp stains, the SOFT construction (a second
+ground and coarse stony patches elongated along the traffic, the compacted wheel band, a road's rut
+pair with its own width/depth/ragged edge per rut, a ridge beside it, a TYRE-LUG IMPRINT with its
+own relief, the grass stripe between; a strip's aircraft wheel pairs and touchdown streaks), the
+MARKINGS as AA'd SDF rectangles RECORDED off sitePaintStrip through a metric recording context (73
+fills -> 13 rects/rules + 4 chevrons, crisp at 2 m and 2 km; the paint fills the grain, ages first
+where the slab breaks, chalks, its edge tilts the normal), rubber in the TDZ, the shoulder's
+meandering vehicle paths, the edge zone (a chipped paved edge / a three-octave torn soft edge, the
+gravel band, the grass creeping in, the ALPHA FADE past the band - the ground under it is the world's,
+never a grass of the mesh's own; a grass road is opaque only where the wheels wore it), puddles as
+water (rough 0.02, the normal up, the bed dark), the distance fades, the r186 haze rule (both lobes x
+smoothstep(0.85, 0.45, rough)). The LOD rule: a thin feature's coverage shrinks by width/footprint
+(PV_THIN) or a 6 cm joint paints a fat band down the far runway. Ten debug views.
+THE LIBRARY: 35 sets (24 fetched off the Poly Haven API by tools/pavement_tex_import.py --fetch, the
+real size in mm from /info, the displacement as height; the airfield's and the lot's re-baked)
+as two DataArrayTextures per page (colour+height sRGB-typed - the GPU filters in linear light -
+normal+rough), grown when a class is asked for (PAVEMENT.sharedLib). IMPORT RULES learned the hard
+way: (1) gravel_ground_01's normal map LEANS 30 deg as a whole (mean xy 0.44) - hex cells then lit
+from different sides = a lighting mosaic; the importer re-centres every normal map; (2) a scan's
+tone drifts across the tile - hex cells then show as seams; the importer flattens the colour's low
+frequencies (a periodic quarter-tile blur, harder for loose ground); (3) a far tier that swaps to
+a DIFFERENT set is a 3x luminance jump from the air; the far tier is the same set, mip-averaged,
+only the relief flattened - the rig's --gate measures the same 240 m of runway from 200 m and
+3000 m per class (all within 3 %). The bench needs the log depth buffer like the game (a 7 cm
+decal is under 24-bit precision at 3 km).
+THE PORT (contract v1.16): RUNWAY_LOOKS = class + preset (+ dirt, sand); a runway and a road gain
+`band` (the drawn band; the terraforming stays `falloff`, relabelled "terraformed to" - the two
+shoulders never share a word) and `pav` (the entry's knobs among ENTRY_KNOBS); a road a `look`
+(derived from cls: paved -> asphalt, track -> grass); a material polygon with a `look` instead of a
+set is a PAVED POLYGON (an apron, a turnaround; `yaw` turns the lanes) = O.pavePolys; the record
+a `pavement` recipe. render_premises buildRoads / buildPolys / the bench's strips and
+render_world standStrip stand PAVEMENT meshes (mkLook, the tone ribbons, the paint canvases
+retired); the analytic world's roadNet roads (road -> 5 m gravel, track -> 3 m worn grass) and its
+HOME (a grass strip) too. THE STONES along a strip's band are the tree pack's rocks (kind 'rock',
+their coarsest rung, one InstancedMesh a part, stood when the pack settles). The editor: `look`
+select on roads, `band (m)`, a collapsed WEAR section per entry ("the premises'" until touched),
+`paved as` on a material polygon, a PAVEMENT section on the premises panel generated from
+PAVEMENT.KNOBS (paste a bench export). Jolene (jolene_author.py): 13/31 and 02/20 `worn`, band
+40, rubber 0, lanes 6.1 m; the taxiway V worn concrete ribbons (band 3); the pad and the three
+turnarounds paved polygons; the m_sh13/m_sh02/m_taxi_* material polygons GONE (the y_* surface
+polygons stay - the wheels' class); Airport Rd and the village streets gravel; r_strip a track;
+the premises' pavement { wet 0.45, puddleCover 0.35, mossK 0.6 } (the user: "everything seems always sort of wet over there"). Pictures: screenshots/pavement/jolene_apron.png
+(the club's apron), jolene_junction.png (the taxiway V into 13/31), jolene_skarvik*.png (the
+village's gravel street).
+GATES: PAVEMENT (core; the builders incl. the polygon's winding - a ray hits it - the recorder, the
+hook rules, the recipe); MEDIA 8.2 -> 8.3 (97 KB of code); PREMISES/SITE/WORLDRENDER/GFX green.
+TRAPS: `patch` is a GLSL reserved word; a backtick in a GLSL comment closes the template; two
+elements with id="view" gave a 96x22 canvas; the polygon grid wound x-then-z is left-handed (faces
+down: invisible, no raycast hit - the gate holds it now); the pane's GPU was dead all session -
+every judgement was the headless rig's; the game's world compile is ~4 s for the pavement program
+(std 0.3 s) - the island shot wants --boot 120000.
+OWED: the WEAR rows write `pav`, the game rebuilds the strip through repaintStrips (verified by
+code, not by a click); the tufts on the game's bands (the bench has them); rock density/size by
+class; the apron's puddles at Jolene read faint (wet 0.3 over the concrete's own darkening);
+a `pavement: full | plain` GFX row; sampler_census on the Jolene page; premises_perf before/after;
+Skarvik's lot patches still draw their own pebble over the street's band where a plot fronts it.

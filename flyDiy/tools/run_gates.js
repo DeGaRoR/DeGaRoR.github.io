@@ -302,6 +302,9 @@ const GATES = [
   // touchdown's drag climbing over frames (~30 s)
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
   { id: 'WATER', file: '_water_check.js', tier: 'core' },   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
+  // THE PAVEMENT (roads & runways, 2026-09-21): the one material every strip and road wears - the
+  // builders' attributes, the markings recorded off sitePaintStrip, the hook rules, the recipe (~5 s)
+  { id: 'PAVEMENT', file: '_pavement_check.js', tier: 'core' },
   // THE FLOAT IN THE SOLVER (H1, G382): the ultralight on floats settled,
   // taken off and landed on the sea, headless (~95 s)
   { id: 'FLOATS', file: '_floats_check.js', tier: 'core', wall: 140 },
