@@ -58075,3 +58075,68 @@ GATE SPLAT 1c grows the stronger half of the rule: every ROCK set's gain must be
 mineral sets neutral, and the vegetation sets must still carry a per-channel gain, so none of this can be
 "fixed" later by turning the normalisation off. vegLush is live in F8 (WORLD.ground.splat().set({vegLush})),
 0 for none of it.
+
+## G538 - THE CARDS WERE WASHED OUT AND THE FIRST EXPLANATION WAS WRONG: the impostor canopy measured on its own pixels, one dial kept, one deleted (2026-09-23)
+
+THE COMPLAINT, over a world-editor shot of Jolene AFB: "the impostors look washed out on the lit
+side, especially when contrasted to the terrain below them ... anything we can do to have them more
+in-line with the world, and more 'bitty' in terms of colours and shadows? ... washed out trees over
+saturated terrain". It is a number, and this is it. With the sim frozen and a mask built by hiding
+the impostor meshes for one frame - so the stats are the CARD'S pixels and not the 60 % of the frame
+that is ground - the canopy drew at luma 0.1317 with a coefficient of variation of 0.223, over
+ground that drew DARKER at 0.1212 and with cv 0.766. Brighter than the land it stands on, with three
+and a half times less variation in it. That is the whole complaint in two rows.
+
+THE FIRST EXPLANATION WAS WRONG, AND THE MEASUREMENT IS WHAT SAID SO. The impostor took the
+geometry's leaf terms by reference - wrap 0.80 and SSS 1.12, both ADDITIVE - and the theory was that
+a card, whose baked normal varies slowly across a whole crown, has the entire crown lifted by them at
+once where real foliage scatters them over thousands of differently-angled needles. It reads well and
+it is false: switching the entire block off (uLeaf 0) moved the canopy from 0.1317 to 0.1279, three
+per cent, against a control of 0.006, and uWrap at 0 and at 6 are both indistinguishable from doing
+nothing at all. A dial for wrapK/sssK had already been written, defaulted and gated; it is deleted
+rather than landed, because a dial whose extremes are the control is furniture.
+
+WHAT MOVES IT is uFlat, the tint's contrast term `mix(vec3(uFlatMean), texel, uFlat)`, which this
+material pinned at 1 - the texel exactly as baked. Above 1 it EXTRAPOLATES away from the sheet's own
+mean, and it is the only lever in the draw that reaches the card's texels rather than the light
+falling on them. At 1.35 the canopy goes to luma 0.1025 (-22 %, now UNDER the ground instead of over
+it) and cv to 0.291 (+30 %); p10 0.1028 -> 0.077 and p90 0.1574 -> 0.129, so it is a darkening with a
+spread gain rather than a clip. It SATURATES: 3.0 and 1.35 are the same frame to four decimals, which
+is why 1.35 is the top of the useful range and not a number to push further.
+
+AND ONE TREE IS NOT ITS NEIGHBOUR. A baked tree wore `c3.setRGB(1, 1, 1)`, so a whole stand carried
+one colour and read as one flat mass from the air. Its instance colour is now a lightness off its own
+position, +-10 % (TREE_LOD.imp({ vary })), on BOTH tiers - the near geometry and the far card share
+the rule, so a crown that is dark up close is dark as a card too - and the stand cards take the same
+hash off the card's own position. Measured in the scene: 215367 instance colours on 120 meshes, mean
+1.0002, sd 0.0577, min 0.90, max 1.10.
+
+THREE INSTRUMENT FAULTS, each of which cost a run, each worth more than the fix.
+- A FRAME MEAN TAKEN WHILE THE AEROPLANE FLIES IS NOT A MEASUREMENT. The first A/B had both extremes
+  come back BRIGHTER than the base (87.59 base, 91.39 with the terms off, 93.13 with them at x4):
+  chunks stream and the view moves between 20-frame samples, and the drift was larger than the
+  effect. Freeze the sim (TEST_FLIGHT.rate(0)), take ONE reference frame, and diff every state
+  against it - and print the control (change nothing) and the restore. Both read 0.003 to 0.006 here.
+  Without a control that reads zero, a null result is indistinguishable from a broken rig.
+- A UNIFORM READ BACK FROM THREE'S OWN BLOCK PROVES NOTHING ABOUT THE DRAW. uWrap read back as 0.304
+  on the drawn material while contributing nothing, because a declared-but-unused uniform is stripped
+  by the GLSL compiler and keeps its JS-side value regardless. Ask the LINKED PROGRAM for the
+  location (`renderer.properties.get(mat).currentProgram.getUniforms().seq`), and always run a
+  POSITIVE CONTROL with a uniform known to be read: uILit at 0.45 moved 40 % of the frame's pixels,
+  which is what made the wrap/SSS nulls trustworthy.
+- `texture.needsUpdate = true` ON A RENDER TARGET'S TEXTURE DESTROYS THE BAKED CONTENT. The
+  experiment that was to test the mip chain toggled minFilter that way, and every reading after its
+  first toggle came back identical to four decimals - the atlas had been re-initialised from an empty
+  image. The run invalidated itself; only its first line is usable. A sheet that lives in a render
+  target is not re-uploaded, it is re-created.
+
+OWED, to whoever next opens the bake: the atlas is a 1024x1024x74 array with `mipmaps: 0` and
+`generateMipmaps: false`, while its minFilter is LinearMipmapLinearFilter and anisotropy is 1 - a
+minification filter asking for a chain that does not exist. Whether that costs anything is untested
+(the experiment above wrecked itself before it could say), but a card's bittiness lives in its
+texels, and cv 0.291 against the ground's 0.766 says most of it is still missing. This is flagged,
+not touched.
+
+- FILES: src/viewer/render_world.js (uIFlat + IMPK, impostorMat's own uFlat, treeVary on both plant
+  sites, TREE_LOD.imp({ flat, vary }) and TREE_LOD.impVary), src/viewer/stand_cards.js (the card's
+  own lightness).

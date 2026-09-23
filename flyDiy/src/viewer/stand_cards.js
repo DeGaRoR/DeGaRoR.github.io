@@ -133,7 +133,12 @@ const STAND_CARDS = (() => {
       if (!N) { STAT.lastMs = performance.now() - t0; return null; }
       const m = new THREE.InstancedMesh(quad, mat, N); m.renderOrder = -1;   // an occluder before the ground (render_world.js ORDER_NOTE)
       const ox = x0 + C / 2, oz = z0 + C / 2; m.position.set(ox, 0, oz);
-      m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3).fill(1), 3);
+      // one card is not its neighbour (2026-09-23): a lightness off the card's own position, the near
+      // tier's rule (render_world treeVary), so a stand of cards is not one flat colour from the air
+      const col = new Float32Array(N * 3); const vary = (typeof TREE_LOD !== 'undefined' && TREE_LOD.impVary) ? TREE_LOD.impVary() : 0.1;
+      for (let i = 0; i < N; i++) { const h = Math.sin(xs[i * 4] * 12.9898 + xs[i * 4 + 2] * 78.233) * 43758.5453;
+        const k = 1 + (2 * (h - Math.floor(h)) - 1) * vary; col[i * 3] = k; col[i * 3 + 1] = k; col[i * 3 + 2] = k; }
+      m.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
       for (let i = 0; i < N; i++) { V.set(xs[i * 4] - ox, xs[i * 4 + 1], xs[i * 4 + 2] - oz); SC.setScalar(xs[i * 4 + 3]); T.compose(V, Q, SC); m.setMatrixAt(i, T); }
       m.instanceMatrix.needsUpdate = true; m.frustumCulled = true; m.castShadow = false; m.receiveShadow = false;
       STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);

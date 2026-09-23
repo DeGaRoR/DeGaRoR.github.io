@@ -318,6 +318,8 @@
     Tl.appendChild(slider('imp lit', 0, 3, 0.05, () => world().treeLod.lit.value, v => { world().treeLod.lit.value = v; }));
     Tl.appendChild(slider('imp gain', 1, 12, 0.25, () => lod().imp().gain, v => lod().imp({ gain: v })));
     Tl.appendChild(slider('imp solid', 0, 1, 0.05, () => lod().imp().solid, v => lod().imp({ solid: v })));
+    Tl.appendChild(slider('imp contrast', 0.6, 1.6, 0.05, () => lod().imp().flat, v => lod().imp({ flat: v })));
+    Tl.appendChild(note('imp contrast pulls the sheet texels away from their own mean - the only dial here that reaches the card colours rather than the light on them (G538: 1.35 = canopy -22 % luma, +30 % cv, and it saturates above about 1.2). The per-tree lightness beside it is plant-time, not a live dial.'));
     const Tf = fold(T, 'leaf', false, true);
     Tf.appendChild(slider('wrap', 0, 1, 0.02, () => leaf().get().wrap, v => leaf().set({ wrap: v })));
     Tf.appendChild(slider('sss', 0, 2, 0.02, () => leaf().get().sss, v => leaf().set({ sss: v })));

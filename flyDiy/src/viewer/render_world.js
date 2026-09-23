@@ -160,6 +160,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // row, mean luminance over the forest half of the frame 81.9 against 85.8
   // at 0.9 / 92.1 at 1.0 / 79.0 at 0.8 (scratch steps_ilit.js, W0c.18)
   const uILit = { value: 0.9 };
+  // the impostor's own contrast term (see impostorMat), and the per-tree lightness the bake threw away.
+  const uIFlat = { value: 1.35 };
+  const IMPK = { flat: 1.35, vary: 0.10 };
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
@@ -3136,7 +3139,27 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uLeaf = { value: 1 };
-        sh.uniforms.uFlat = { value: 1 }; sh.uniforms.uFlatMean = { value: 0.4 };   // the tint's contrast term: a cover's, never an impostor's
+        // WASHED OUT ON THE LIT SIDE (2026-09-23, the user, over a Jolene shot: "washed out trees over
+        // saturated terrain ... more bitty in terms of colours and shadows"). Measured on the card's OWN
+        // pixels - a mask built by hiding the impostor meshes for one frame, the sim frozen so the frame is
+        // a control (scratch mask.js) - the complaint is a number: the canopy drew at luma 0.1317 with a
+        // coefficient of variation of 0.223 over ground that drew DARKER, 0.1212, at cv 0.766. Brighter than
+        // the land it stands on and with three and a half times less variation in it.
+        //
+        // The first suspect was wrong and the measurement said so. The impostor took the GEOMETRY's leaf
+        // terms by reference - wrap 0.80, SSS 1.12, both additive - and the theory was that a card, whose
+        // baked normal varies slowly, has the whole crown lifted by them at once. It does not: switching the
+        // entire block off (uLeaf 0) moved the canopy 0.1317 -> 0.1279, three per cent, against a control of
+        // 0.006. wrap x0 and wrap x6 are both indistinguishable from doing nothing. So the terms stay shared
+        // with the geometry, where they belong, and the dial that was going to hold them is gone.
+        //
+        // What does move it is uFlat, the tint's contrast term `mix(vec3(uFlatMean), texel, uFlat)`, which
+        // was pinned at 1 here - the texel exactly as baked. Above 1 it extrapolates away from the sheet's
+        // mean, which is the only lever that reaches the card's own texels rather than the light on them:
+        // 1.35 takes the canopy to luma 0.1025 (-22 %, now under the ground instead of over it) and cv to
+        // 0.291 (+30 %). It saturates above about 1.2 - 3.0 and 1.35 are the same frame to four decimals -
+        // so 1.35 is the top of the useful range and not a number to push. TREE_LOD.imp({ flat, vary }).
+        sh.uniforms.uFlat = uIFlat; sh.uniforms.uFlatMean = { value: 0.4 };
         sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
@@ -3294,8 +3317,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         return treeLod.get();
       },
     };
-    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid; }
-      return { gain: uIGainK.value, solid: uISolid.value }; };
+    // ONE TREE IS NOT ITS NEIGHBOUR (2026-09-23, the user: "more bitty in terms of colours"): a baked tree
+    // wore pure white, so a whole stand carried one colour and read flat. Its instance colour is a
+    // lightness off its own position now - +-IMPK.vary, stable per tree, on BOTH tiers (the near geometry
+    // and the card share the instance colour), so a crown that is dark up close is dark as a card too.
+    const treeVary = (x, z) => { const v = IMPK.vary; if (!(v > 0)) return 1;
+      const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return 1 + (2 * (h - Math.floor(h)) - 1) * v; };
+    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid;
+        for (const k of ['flat', 'vary']) if (o[k] !== undefined) IMPK[k] = +o[k];
+        uIFlat.value = IMPK.flat; }
+      return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, vary: IMPK.vary }; };
+    treeLod.impVary = () => IMPK.vary;
     if (typeof window !== 'undefined') window.TREE_LOD = treeLod;
     // ================= W0c.5: THE MIX ======================================
     // Which SERIES a tree is drawn as. The bench's rule, ported: a fraction is
@@ -3918,7 +3950,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (trunks) trunks.setMatrixAt(i, m4);
           // a baked tree wears its own colour; tinting it again would paint one
           // green over the whole stand
-          if (PROTO) c3.setRGB(1, 1, 1);
+          if (PROTO) { const k = treeVary(T.x, T.z); c3.setRGB(k, k, k); }
           else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
           if (H.rec) {
             // the partition record, indexed as the SERIES sees it
@@ -4297,7 +4329,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             pv.set(r[o] - ox, r[o + 1] - 0.05 - (SH.sink || 0) * sv.y, r[o + 2] - oz);
             m4.compose(pv, q, sv);
             // a baked tree wears its own colour (see the woodland layer)
-            if (SH.white) c3.setRGB(1, 1, 1);
+            if (SH.white) { const k = treeVary(r[o], r[o + 2]); c3.setRGB(k, k, k); }
             else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w * 0.85);
             const j = P.at++;
             m4.toArray(rec.mats, i * 16);
