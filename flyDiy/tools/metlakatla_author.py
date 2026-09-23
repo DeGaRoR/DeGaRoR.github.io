@@ -455,6 +455,51 @@ def simple_ring(g):
     return ring if len(ring) >= 4 and first_crossing(ring) < 0 else None
 
 
+MK_WOOD_ZONES = ('mk_z_res_n', 'mk_z_res_e', 'mk_z_res_c', 'mk_z_res_w', 'mk_z_res_s',
+                 'mk_z_res_sub', 'mk_z_core', 'mk_z_town')
+
+
+def wood_zones():
+    """FULL CONIFERS, PLACED (the user: "just take the full conifers, NOT the crown
+    only ones, and place them. Just use the normal forest biome if you can't").
+
+    The painted route is built and correct and cannot deliver here: the island's fill
+    had 13 465 trees built and 55 576 chunks STILL QUEUED after 61 s of settling, so
+    the town's own chunks never come up and the gaps stay bare however the biome is
+    tuned. Placing them puts the trees in the record, where `planForest` steps round
+    every plot, road, site and exclude by construction - which is exactly the ground
+    the user keeps pointing at - and where they are drawn through treeBuild's three
+    rungs with G511.1's 900 m cull.
+
+    NO `rules.size`: these are the pack's conifers at their own scale, which is what
+    "the full conifers, not the crown only ones" asks for.
+    """
+    out = []
+    for i, g0 in enumerate(MK_WOOD):          # the three loops the user drew
+        g = simple_ring(g0)
+        if g is None or len(g) < 4:
+            DROPPED.append(('mk_z_wood%d' % i, 'the traced loop will not come simple'))
+            continue
+        out.append({'id': 'mk_z_wood%d' % i, 'kind': 'forest', 'poly': [pt(*q) for q in g],
+                    'density': 0.4, 'palette': list(MK_WOOD_TREES),
+                    'rules': {'clearings': False}})
+    return out
+
+
+def wood_zones_quarters(zs):
+    """...and the same wood through every residential quarter's gaps, because the
+    user's loops were examples and not the whole instruction: "this should not be
+    limited to what I highlighted, you should understand the spirit"."""
+    out = []
+    for z in zs:
+        if z['id'] not in MK_WOOD_ZONES:
+            continue
+        out.append({'id': 'mk_z_wq_' + z['id'][5:], 'kind': 'forest', 'poly': z['poly'],
+                    'density': 0.11, 'palette': list(MK_WOOD_TREES),
+                    'rules': {'clearings': False}})
+    return out
+
+
 def wood_stamps_drawn():
     """The three loops the user drew, as PAINT rather than as placed trees.
 
@@ -1511,6 +1556,9 @@ def zones():
     env = hull([(a, b) for a, b, c, d, f in STREETS] + [(c, d) for a, b, c, d, f in STREETS], 44)
     if env and PLOT_K >= 1:
         out.append({'id': 'mk_z_town', 'kind': 'residential', 'poly': env, 'density': 0.62})
+    # the wood goes LAST: planForest reads the plots the sowers have already cut
+    out += wood_zones()
+    out += wood_zones_quarters(out)
     return out
 
 
