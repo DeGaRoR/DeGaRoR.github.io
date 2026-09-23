@@ -11487,7 +11487,7 @@
      "debris": 6
     }
    },
-   "residential": {
+   "city_trees": {
     "species": {
      "spruce_tree.glb": {
       "proportion": 2.6,
@@ -11559,22 +11559,22 @@
     },
     "forest": {
      "ground": "plane",
-     "count": 5200,
+     "count": 6500,
      "radius": 220,
-     "under": 4,
+     "under": 7,
      "cover": 1,
      "reach": 220,
      "wet": 0,
      "taper": 0.5,
-     "holes": 0.35,
+     "holes": 0.1,
      "blotch": 0.6,
      "blotchM": 14,
      "coverNear": 50,
      "rocks": 3,
      "ttype": 16,
      "coverSpread": 0.08,
-     "canopyFloor": 6.5,
-     "clump": 0.25,
+     "canopyFloor": 7.5,
+     "clump": 0,
      "clumpM": 22,
      "debris": 20
     }
@@ -11594,7 +11594,7 @@
    "10": "village",
    "3": "muskeg",
    "15": "borders",
-   "16": "residential"
+   "16": "city_trees"
   }
  }
 }

@@ -31,7 +31,7 @@ const BIOMES = (() => {
   // 15 LUSH is AUTHORED, not classified: a premises `cover` polygon stamps it into the island's ttype grid
   // (the route BIOMES-IN-GAME-2026-09-20 L5 proposed), and it carries the `borders` mix - the deciduous
   // shrubs, holly, raspberry and the odd birch that had been left orphaned when 7 and 14 were re-pointed.
-  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'residential' };
+  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees' };
   const smooth = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / Math.max(1e-6, hi - lo))); return t * t * (3 - 2 * t); };
   function make(pack, opts) {
     const src = (pack && pack.biomes) || {};

@@ -455,19 +455,26 @@ def simple_ring(g):
     return ring if len(ring) >= 4 and first_crossing(ring) < 0 else None
 
 
-def wood_zones():
+def wood_stamps_drawn():
+    """The three loops the user drew, as PAINT rather than as placed trees.
+
+    They were `forest` zones at first, which put 2310 individual trees in the record -
+    one THREE.LOD each, no impostor, no instancing. The user's ruling: "I don't want
+    them to be fixed trees, I want to use the normal tree system, and just paint those
+    zones ... maybe alter the terrain type, let the game do the work." So the same
+    polygons stamp terrain type 16 `residential` - medium conifers, high density - and
+    the COVER class with it, which is the piece that was missing (v1.23): the island's
+    fill is gated on `world.surface`, and over a town the cover raster says BUILT,
+    which is PAVED, which the fill refuses.
+    """
     out = []
     for i, g0 in enumerate(MK_WOOD):
         g = simple_ring(g0)
         if g is None or len(g) < 4:
-            DROPPED.append(('mk_z_wood%d' % i, 'the traced loop will not come simple'))
+            DROPPED.append(('mk_tt_wood_drawn%d' % i, 'the traced loop will not come simple'))
             continue
-        out.append({'id': 'mk_z_wood%d' % i, 'kind': 'forest', 'poly': [pt(*q) for q in g],
-                    'density': 0.7, 'palette': list(MK_WOOD_TREES),
-                    # `size` 0.62 is the medium canopy asked for: the same species grown
-                    # less, not a different species. `clearings: False` because these are
-                    # small patches and a clearing law would empty one of them entirely.
-                    'rules': {'size': 0.62, 'clearings': False, 'trees': True}})
+        out.append({'id': 'mk_tt_drawn%d' % i, 'poly': [pt(*q) for q in g], 'code': 16,
+                    'from': RESVEG_FROM, 'clear': True, 'cover': WC_GRASS})
     return out
 
 
@@ -1481,7 +1488,6 @@ def zones():
     env = hull([(a, b) for a, b, c, d, f in STREETS] + [(c, d) for a, b, c, d, f in STREETS], 44)
     if env:
         out.append({'id': 'mk_z_town', 'kind': 'residential', 'poly': env, 'density': 0.62})
-    out += wood_zones()
     return out
 
 
@@ -1726,7 +1732,20 @@ def ttype_stamps():
     for bid, pts, half, h in BREAKWATERS:
         out.append({'id': bid.replace('mk_bw', 'mk_tt_bw'), 'poly': breakwater_poly(pts, half + 2), 'code': 6})
     out += wood_stamps()
-    out += resveg_stamps()
+    # THE `city trees` PAINT IS OFF (2026-09-23, the user: "Here we have long trees on
+    # stick that look like nothing and cost a lot. Let's change that and get rid of
+    # them"). THE PACK HAS NO SMALL CONIFER: every conifer in it is a full-size model
+    # (cedar, fir, larch, spruce, two pines, the fir pack), and `canopyFloor` makes a
+    # short tree by SCALING a twenty-metre one - so a 7.5 m city tree is a long thin
+    # trunk with a small crown, which is the stick. And it is not cheap: painting 49 ha
+    # of the town at this density left the island's fill with 71 771 chunks queued
+    # after 92 seconds, still climbing.
+    # The PLUMBING stays - terrain type 16, the `city_trees` mix, and contract v1.23's
+    # cover stamp, which is the piece that lets a painted biome plant over a town at
+    # all. What it needs is an ASSET: a genuinely small conifer, or a scale law that
+    # keeps a crown's proportions. That is the vegetation/perf sessions' ground.
+    #   out += resveg_stamps()
+    #   out += wood_stamps_drawn()
     return out
 
 
@@ -1756,6 +1775,10 @@ RESVEG_ZONES = ('mk_z_core', 'mk_z_res_n', 'mk_z_res_e', 'mk_z_res_c', 'mk_z_res
 # `built` classification over the whole town, and the lush verge. Never the bog,
 # the heath, the rock, the beach or the water.
 RESVEG_FROM = [7, 8, 10, 15]
+# ESA WorldCover's GRASSLAND. `world.surface` maps BUILT and CROP to PAVED and the
+# island's tree fill refuses PAVED, so every painted biome over a town needs this or
+# it plants nothing whatever the terrain type says (contract v1.23).
+WC_GRASS = 30
 
 
 def resveg_stamps():
@@ -1764,7 +1787,7 @@ def resveg_stamps():
         if z['id'] not in RESVEG_ZONES:
             continue
         out.append({'id': 'mk_tt_rv_' + z['id'][5:], 'poly': z['poly'], 'code': 16,
-                    'from': RESVEG_FROM, 'clear': True})
+                    'from': RESVEG_FROM, 'clear': True, 'cover': WC_GRASS})
     return out
 
 

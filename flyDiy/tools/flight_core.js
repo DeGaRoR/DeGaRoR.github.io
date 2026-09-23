@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c9da35ab754d5cbc
+// body-sha256: 9469693f4d8b3e1a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6043,7 +6043,18 @@ function compose(rec0, world, opts) {
                  // lets a terrain type mean "the ground between the buildings": a residential
                  // wood may fill a town's gaps without standing a conifer on a roof, because
                  // the island's own tree fill knows nothing at all about a premises.
-                 clear: c.clear === true }));
+                 clear: c.clear === true,
+                 // `cover` (contract v1.23): the WORLD-COVER class to write beside the
+                 // terrain type. THIS IS THE PIECE THAT MADE A PAINTED BIOME PLANT
+                 // NOTHING. The island's tree fill is gated on `world.surface`, which
+                 // comes from the COVER raster and not from ttype at all - and over a
+                 // town that raster says BUILT, which maps to PAVED, which both
+                 // forestHere and openHere refuse. So a ttype stamp over a town could
+                 // move the ground's texture and could not put one tree on it. Writing
+                 // the cover as well (GRASS, WC 30) lets the fill see open ground and
+                 // the BIOME decide what stands there, which is the whole point of
+                 // painting a terrain type instead of placing trees.
+                 cover: isFinite(+c.cover) ? Math.round(+c.cover) : null }));
   let ext = rec.frame.extent;
   if (!ext) {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -6069,6 +6080,9 @@ function compose(rec0, world, opts) {
     stampTtype(isl) {
       if (!isl || !isl.ttype || !isl.grid || !ttypes.length) return null;
       const g = isl.grid, T = isl.ttype, saved = [];
+      // the WORLD's island handle renames it (`cover`, not `coverU8`) - read both, or
+      // the write lands on undefined and the surface never moves, which is silent
+      const CV = isl.cover || isl.coverU8 || null, savedC = [];
       for (const c of ttypes) {
         const w = [F.toWorld(c.bbox.x0, c.bbox.z0), F.toWorld(c.bbox.x1, c.bbox.z0),
                    F.toWorld(c.bbox.x1, c.bbox.z1), F.toWorld(c.bbox.x0, c.bbox.z1)];
@@ -6085,7 +6099,10 @@ function compose(rec0, world, opts) {
           if (c.clear) {
             const cx = g.x0 + (i + 0.5) * g.cell, cz = g.z0 + (j + 0.5) * g.cell;
             const lc = F.toLocal(cx, cz);
-            if (O.records.plots.some(q => sdPoly(q.poly, lc[0], lc[1]) < 3)) continue;
+            // AN EMPTY LOT IS GROUND (the user: "the empty lots and the zones between
+            // houses without roads should have forest biome"). Only a plot that
+            // actually carries a building keeps the paint off it.
+            if (O.records.plots.some(q => q.pick && sdPoly(q.poly, lc[0], lc[1]) < 3)) continue;
             if (roadObjs.some(rd => roadDist(rd, lc[0], lc[1]) < (rd.w || 3.6) / 2 + 4)) continue;
             if (O.records.items.some(it => it.foot && sdPoly(it.foot, lc[0], lc[1]) < 4)) continue;   // a foot is in the PREMISES frame, like the roads and the plots
             if (pavePolys.some(pp => inPoly(pp.poly, lc[0], lc[1]))) continue;
@@ -6103,13 +6120,21 @@ function compose(rec0, world, opts) {
           }
           saved.push(k, T[k]);
           T[k] = c.code;
+          // ...but only over the classes the fill REFUSES. Writing it everywhere turned
+          // 391 cells of real forest floor inside the town's envelope into grassland,
+          // which loses the wood the island already had there. BUILT and CROP are the
+          // two that map to PAVED; everything else the fill can already plant on.
+          if (c.cover !== null && CV && (CV[k] === 50 || CV[k] === 40)) { savedC.push(k, CV[k]); CV[k] = c.cover; }
         }
       }
       // BACKWARD, and it matters: two stamps may cover the same cell (a lush verge
       // crossing another's), and the second one saved what the FIRST had written.
       // Unwound forward, the cell ends up holding the first stamp's code instead of
       // the island's own byte - an undo that quietly does not undo.
-      return () => { for (let n = saved.length - 2; n >= 0; n -= 2) T[saved[n]] = saved[n + 1]; };
+      return () => {
+        for (let n = saved.length - 2; n >= 0; n -= 2) T[saved[n]] = saved[n + 1];
+        if (CV) for (let n = savedC.length - 2; n >= 0; n -= 2) CV[savedC[n]] = savedC[n + 1];
+      };
     },
     terrainH(x, z, h) {
       if (!mods.length) return h;
@@ -6358,55 +6383,16 @@ function compose(rec0, world, opts) {
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes, plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
       for (const t of planForest(z, Object.assign({}, tctx, { waterY: zoneWaterY(z) }))) O.records.trees.push(t);
-    // THE GARDEN TREES (stage 5e, contract v1.22). The village has planted them since G313/G323 and
-    // the premises never did: planForest steps AROUND every plot, so a sown quarter came out as bare
-    // roofs on bare ground with the wood stopping at the back fence. Two rules, both the village's:
-    //   - a plot with NO pick is an empty lot, and the wood comes down through it (G313, the user:
-    //     "The empty lots should be full of trees like the forest") - the wood's own grid, no clearing;
-    //   - a plot that IS built keeps its garden: nought to three of the SMALL species in the back band,
-    //     clear of the house's envelope, which is the front of the plot (the house is placed there by
-    //     VILLAGE_GEN.placeHouse at build time and its footprint is not known here - so the band is the
-    //     back 30 % of the depth, which is a yard in any town ever drawn).
-    // A zone switches them off with `rules.trees: false`; `rules.gardens` overrides the count.
-    {
-      const small = pool.filter(t => (t.h || 12) < 12), any = pool.length ? pool : [{ key: 'stub|tree', size: 1, sink: 0, proportion: 1, h: 12 }];
-      const GARDENS = { residential: 4, commercial: 2, harbour: 2, industrial: 0, park: 0 };
-      const drawFrom = (list, rnd) => { const L = list.length ? list : any; const tot = L.reduce((a, t) => a + (t.proportion || 1), 0); let r = rnd() * tot; for (const t of L) { r -= (t.proportion || 1); if (r <= 0) return t; } return L[L.length - 1]; };
-      const roadNear = (x, z) => { let d = 1e9; for (const r of roadObjs) d = Math.min(d, roadDist(r, x, z) - (r.w || 3.6) / 2); return d; };
-      const free = (x, z, m) => O.records.trees.every(t => Math.hypot(t.x - x, t.z - z) >= m);
-      const ok = (x, z, m) => O.localH(x, z) >= waterY + 0.6 && roadNear(x, z) >= 4 && !ctx.excludes.some(q => inPoly(q, x, z)) && free(x, z, m);
-      const put = (x, z, t, rnd, k) => { const size = (t.size || 1) * k; O.records.trees.push({ x, z, key: t.key, size, yaw: rnd() * Math.PI * 2, sink: t.sink || 0, h: (t.h || 12) * size / (t.size || 1), garden: true }); };
-      for (const p of O.records.plots) {
-        const z0 = rec.layers.zones.find(q => q.id === p.zone) || {};
-        const R = z0.rules || {};
-        if (R.trees === false) continue;
-        const rnd = mulberry32(hash32(p.seed >>> 0, 0x6a09e667));
-        if (!p.pick) {
-          // the empty lot is forest: the wood's grid, a stride inside the plot line
-          const bb = polyBBox(p.poly);
-          for (let zz = bb.z0; zz <= bb.z1; zz += 4.5) for (let xx = bb.x0; xx <= bb.x1; xx += 4.5) {
-            const px = xx + (rnd() - 0.5) * 3.2, pz = zz + (rnd() - 0.5) * 3.2;
-            if (sdPoly(p.poly, px, pz) > -1.2) continue;
-            if (!ok(px, pz, 2.8)) continue;
-            put(px, pz, drawFrom(small, rnd), rnd, 0.82 + rnd() * 0.4);
-          }
-          continue;
-        }
-        const want = R.gardens === undefined ? GARDENS[p.kind] : +R.gardens;
-        if (!(want > 0) || !p.front || !p.n || !p.tg) continue;
-        const n = Math.floor(rnd() * (want + 0.2));
-        const dep = p.depth || 24, wid = p.w || 20;
-        for (let i = 0, got = 0; i < 60 && got < n; i++) {
-          const u = (rnd() - 0.5) * Math.max(2, wid - 5);                 // along the frontage
-          const v = dep * (0.70 + rnd() * 0.26);                          // the back band, inside the line
-          const px = p.front[0] + p.tg[0] * u + p.n[0] * v, pz = p.front[1] + p.tg[1] * u + p.n[1] * v;
-          if (sdPoly(p.poly, px, pz) > -1.8) continue;
-          if (!ok(px, pz, 3.2)) continue;
-          put(px, pz, drawFrom(small, rnd), rnd, 0.7 + rnd() * 0.4);
-          got++;
-        }
-      }
-    }
+    // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
+    // trees, I want to use the normal tree system, and just paint those zones ... never
+    // any tree as fixture without its lod system, we take the normal ones, maybe alter
+    // the terrain type, let the game do the work"). They were right and the reasoning is
+    // worth keeping: a record tree is ONE THREE.LOD with three hand-built rungs and no
+    // impostor, no instancing, no chunking and no stand card - a poor cousin of the
+    // island's own fill, which has all of it. Painting the terrain type (and, since
+    // v1.23, the cover class with it) puts the same job in the system that was built
+    // for it. `planForest` and the `forest` zone kind remain for a place that genuinely
+    // wants hand-placed trees; nothing on Jolene does.
     // the hand-placed trees (objects of kind 'tree'), in the premises frame, TREE_PLACE's record
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') O.records.trees.push({ x: ob.x, z: ob.z, key: ob.key, size: ob.size || 1, yaw: ob.yaw || 0, sink: 0, h: 12, id: ob.id, placed: true });
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
@@ -6913,7 +6899,7 @@ const GROUND_FIELDS = (() => {
       16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [81, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
     },
     // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
-    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'residential' },
+    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees' },
     knobs: {
       cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,
@@ -7118,7 +7104,7 @@ const BIOMES = (() => {
   // 15 LUSH is AUTHORED, not classified: a premises `cover` polygon stamps it into the island's ttype grid
   // (the route BIOMES-IN-GAME-2026-09-20 L5 proposed), and it carries the `borders` mix - the deciduous
   // shrubs, holly, raspberry and the odd birch that had been left orphaned when 7 and 14 were re-pointed.
-  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'residential' };
+  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees' };
   const smooth = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / Math.max(1e-6, hi - lo))); return t * t * (3 - 2 * t); };
   function make(pack, opts) {
     const src = (pack && pack.biomes) || {};

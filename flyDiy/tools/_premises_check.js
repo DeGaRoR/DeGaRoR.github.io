@@ -928,37 +928,41 @@ if (SELFTEST) {
       check(kept, "14o `from` replaces only the codes it names");
       if (u3) u3();
     }
-    // 14p THE GARDEN TREES (contract v1.22): a town of sown plots is not a town of
-    // bare roofs on bare ground. Every plot with a pick may have them; a plot with
-    // none is an empty lot and the wood comes down through it; a zone switches them
-    // off with `rules.trees: false`.
-    const gard = O.records.trees.filter(t => t.garden);
-    check(gard.length > 200, '14p the plots have their gardens', gard.length + ' garden trees on ' + O.records.plots.length + ' plots');
-    const onPlot = gard.filter(t => O.records.plots.some(q => PG.inPoly(q.poly, t.x, t.z)));
-    check(onPlot.length === gard.length, '14p every garden tree stands on its plot', (gard.length - onPlot.length) + ' loose');
-    const offRoad = gard.every(t => !O.roads.some(r => PG.roadDist(r, t.x, t.z) < r.w / 2 + 1));
-    check(offRoad, '14p and none of them in the carriageway');
-    // 14q THE GROUND UNDER A DISTANT PLACE. The inner ring is a fixed 9 km square
-    // about the ORIGIN, and it is the only tier that has ever heard of a premises:
-    // `world.terrainH` for its vertices, `groundSink` to drop it under the patch.
-    // Everything past 4.5 km is the baked quadtree at its raw DEM height, and
-    // Metlakatla is 9.4 km out - so the town's road cuts were drawn into ground
-    // nothing rendered, and the un-cut mesh stood through every ribbon and every
-    // lot patch. The far tier must sink too.
-    const RW = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_world.js'), 'utf8');
-    check(/function sinkFar\s*\(/.test(RW) && /farGeos\.push\(/.test(RW),
-          '14q the island far mesh is kept and sinks under the premises patch');
-    check(/sinkFar\(pb\)/.test(RW) && /refreshGround\(pb\); sinkFar\(pb\)/.test(RW),
-          '14q ...and the sink runs where the rings are re-sampled, after the patch stands');
-    check(/const d = groundSink\(x, z\);/.test(RW), "14q the far sink uses the RING's own rule, not a second one");
-    // a place FAR from the origin is exactly the case the ring cannot serve
-    const far = O.extent && Math.max(Math.abs(O.extent.z0), Math.abs(O.extent.z1)) > 4500;
-    check(far, '14q island_jolene reaches past the inner ring (the case 14q exists for)',
-          O.extent ? 'z ' + O.extent.z0.toFixed(0) + '..' + O.extent.z1.toFixed(0) : '');
-    const noTrees = PG.normalise(JSON.parse(JSON.stringify(rec)));
-    for (const z of noTrees.layers.zones) z.rules = Object.assign({}, z.rules, { trees: false });
-    check(PG.compose(noTrees, IW, { catalogue: CAT, globals: GENS }).records.trees.filter(t => t.garden).length === 0,
-          "14p rules.trees: false plants none");
+    // 14p NO TREE IS A FIXTURE (2026-09-23, the user: "never any tree as fixture
+    // without its lod system, we take the normal ones, maybe alter the terrain type,
+    // let the game do the work"). A record tree is one THREE.LOD with three hand-built
+    // rungs, no impostor, no instancing and no stand card; the island's own fill has
+    // all of it. So the town paints a terrain type and plants nothing itself.
+    check(O.records.trees.length === 0, '14p the town plants no tree of its own',
+          O.records.trees.length + ' record trees');
+    // ...and the paint must LIFT THE COVER, which is the piece that made a painted
+    // biome plant nothing: the fill is gated on `world.surface`, and over a town the
+    // cover raster says BUILT, which maps to PAVED, which forestHere and openHere both
+    // refuse. A ttype stamp with `cover` rewrites the class - but only over BUILT and
+    // CROP, or it would turn the island's own forest floor into grassland.
+    // ...ASSERTED ONLY WHEN THE RECORD ACTUALLY PAINTS ONE. Jolene's town carries no
+    // `cover` stamp today - the `city trees` paint was taken off because the pack has
+    // no small conifer and a scaled-down twenty-metre one is a stick - so the live
+    // pair below would assert a change nothing asked for. The MECHANISM is held by a
+    // source check either way, so it cannot rot while it is unused.
+    check(/CV\[k\] = c\.cover/.test(fs.readFileSync(path.join(TOOLS, '..', 'src', 'core', '27_premises.js'), 'utf8')),
+          '14p the cover stamp exists (the piece that lets a painted biome plant over a town)');
+    const paints = rec.layers.ttype.some(c => isFinite(+c.cover));
+    if (paints && IW.island && IW.island.cover) {
+      const surf = () => { const c = {}; for (let z = -9100; z < -8200; z += 15) for (let x = -4200; x < -2900; x += 15) { const s2 = IW.surface(x, z); c[s2] = (c[s2] || 0) + 1; } return c; };
+      const b4 = surf();
+      const un2 = O.stampTtype(IW.island);
+      const af = surf();
+      check((af[PG.SURFACE.PAVED] || 0) < (b4[PG.SURFACE.PAVED] || 0),
+            '14p the paint lifts the cover the fill refuses',
+            (b4[PG.SURFACE.PAVED] || 0) + ' -> ' + (af[PG.SURFACE.PAVED] || 0) + ' paved samples');
+      check((af[PG.SURFACE.FOREST_FLOOR] || 0) === (b4[PG.SURFACE.FOREST_FLOOR] || 0),
+            "14p ...and does not take the island's own forest floor with it",
+            (b4[PG.SURFACE.FOREST_FLOOR] || 0) + ' -> ' + (af[PG.SURFACE.FOREST_FLOOR] || 0));
+      if (un2) un2();
+      const bk = surf();
+      check(Object.keys(b4).every(k => b4[k] === bk[k]), '14p the cover stamp is exactly undone');
+    }
   }
 }
 
