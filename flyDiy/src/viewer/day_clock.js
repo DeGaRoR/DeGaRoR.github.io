@@ -17,7 +17,16 @@
 // ============================================================
 var DAY_CLOCK = (function () {
   'use strict';
-  const PREF = 'flydiy.day';
+  // v2 (2026-09-23): the game's own day below - a new key, so every player starts once on it
+  const PREF = 'flydiy.day.v2';
+  // THE GAME'S DAY (2026-09-23, the user: "small, elegant summer clouds, well split, a great sky for flying ... at day
+  // with good visibility, but still maximizing the shadows and atmospheric effects ... performance optimized"):
+  // chosen on screenshots at 30-450 m, from two sides of the sun (futureDesigns/PERF-2026-09-23.md, the default look).
+  // Midsummer, 16:00 local (the sun ~46 deg in the WSW: the ground side-lit, the clouds' shadows on it), the new
+  // fair-weather cumulus (08_cloud_field 'cuh': many small cells, a shallow column) at a quarter cover on seed 1,
+  // turbidity 2.8 (~48 km: the hills keep their aerial depth). The physics' own default (07_day DAY.DEFAULT, the gates'
+  // baseline) is untouched: this is the GAME's first day, when no link and no saved day say otherwise.
+  const GAME_DAY = { date: '2026-06-21', localHours: 16, rate: 1, cloudType: 'cuh', cloudCover: 0.25, cloudSeed: 1, turbidity: 2.8 };
   const RATES = [0, 1, 10, 60, 600];
   const PRESETS = ['dawn', 'morning', 'noon', 'afternoon', 'golden', 'sunset', 'dusk', 'night'];
   let world = null, day = null, sinceSave = 0;
@@ -90,6 +99,8 @@ var DAY_CLOCK = (function () {
       world = w; day = w && w.day;
       if (!day) return;
       const url = fromUrl(), pref = read();
+      if (!url && !(pref && pref.date)) w.setDay(GAME_DAY);   // a new player (or a new key): the game's day
+      else w.setDay({ cloudSeed: GAME_DAY.cloudSeed, turbidity: GAME_DAY.turbidity });   // not player-saved: the game's air and sky seed always
       if (url) { if (url.preset) api.preset(url.preset); else w.setDay(url); }
       else if (pref && pref.date) w.setDay({ date: pref.date, utc: pref.utc, rate: pref.rate != null ? pref.rate : 1 });
       // the saved weather comes back with the day (a ?cloud= on the URL, below, wins over it)

@@ -199,13 +199,16 @@
   // (~450-1 500 draws), the power poles (~260-400), then the render scale and the MSAA for the older GPU.
   // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13); every post pass OFF everywhere
   const POST_OFF = { bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear' };
+  // the soft bloom from 'current' up (2026-09-23: measured 0.25 ms on 5120 x 1440 - the sun and the highlights glow a little;
+  // the other five post rows stay off, the user's G448 ruling that the game runs whole without them)
+  const POST_BLOOM = Object.assign({}, POST_OFF, { bloom: 'soft' });
   const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
     potato:  Object.assign({ ground: 'lean', scale: 0.67, drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     retro:   Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    current: Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_OFF),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_OFF),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_OFF),
+    current: Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
   };
   const DEFAULT = 'gamer';
   const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };

@@ -57020,3 +57020,10 @@ world are proxies drawn through one InstancedMesh per level per part - the LOD's
 picture (217 px of 1.77 M), 380 props in 9 draws; 1080p stand 25.4 -> 22.7 ms, 5120 x 1440 stand -1 ms (5 470 -> 4 362
 main draws). ?propinst=0 = the LODs. futureDesigns/PERF-2026-09-23.md (G515).
 
+## G516 - THE DEFAULT LOOK: fair-weather cumulus, 16:00, soft bloom; the sky's seed is the day's (2026-09-23)
+
+The game's first day (DAY_CLOCK GAME_DAY; the pref key is flydiy.day.v2): midsummer 16:00 local, the new cloud type
+`cuh` (fair-weather cumulus: 16 cells a tile, 800 m column) at 0.25 on seed 1, turbidity 2.8; the soft bloom from
+'current' up. Same cost as the old sky. The renderer now draws the day's cloud seed (it drew its own 7 while the
+climate's thermals followed the day's 1). DAY.DEFAULT (the gates' baseline) untouched. futureDesigns/PERF-2026-09-23.md (G516).
+

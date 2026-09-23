@@ -594,12 +594,16 @@ var CLOUDS = (function () {
   const N_MAP = 256;
   const inflate = [1, 1, 1];               // per deck: the map's cover over the day's (the cover fit below raises it when the noise carves too much)
   const mapCache = [{}, {}, {}];           // per deck: the weather noise (08_cloud_field caches per seed / type; a re-threshold is a millisecond)
+  // THE SKY'S SEED IS THE DAY'S (CLIMATE K3, made true 2026-09-23): the climate draws the thermals from the weather map of
+  // day.cloudSeed, and the renderer drew its own from S.seed (7) - the lift sat under clouds of another sky. The renderer
+  // reads the day's seed now (S.seed only where a host has no day)
+  const seedOf = () => (dayRef && dayRef.cloudSeed != null ? dayRef.cloudSeed : S.seed);
   function mapsFor(L) {
-    const key = L.map(l => S.seed + l.index * 1000 + '|' + l.cover.toFixed(3) + '|' + l.type).join(';');
+    const key = L.map(l => seedOf() + l.index * 1000 + '|' + l.cover.toFixed(3) + '|' + l.type).join(';');
     if (key === mapKey && maps.length === L.length) return maps;
     if (typeof CLOUD_FIELD === 'undefined') return null;
     for (let i = 0; i < MAXL; i++) inflate[i] = 1;
-    maps = L.map(l => CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: l.cover, type: l.type, N: N_MAP, cache: mapCache[l.index] }));
+    maps = L.map(l => CLOUD_FIELD.weatherMap({ seed: seedOf() + l.index * 1000, cover: l.cover, type: l.type, N: N_MAP, cache: mapCache[l.index] }));
     map = maps[0]; mapKey = key;
     uploadMaps();
     shadowDirty = true; needCal = true; needColumnCal = true; calDueAt = now() + 300; fit = null;   // the fit waits for a slider to settle
@@ -628,7 +632,7 @@ var CLOUDS = (function () {
   // one deck's map regenerated at an inflated cover (the cover fit)
   function remapDeck(i) {
     const l = lays[i]; if (!l) return;
-    maps[i] = CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: Math.min(1, l.cover * inflate[i]), type: l.type, N: N_MAP, cache: mapCache[l.index] });
+    maps[i] = CLOUD_FIELD.weatherMap({ seed: seedOf() + l.index * 1000, cover: Math.min(1, l.cover * inflate[i]), type: l.type, N: N_MAP, cache: mapCache[l.index] });
     if (i === 0) map = maps[0];
     uploadMaps();
   }

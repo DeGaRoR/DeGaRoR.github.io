@@ -61,14 +61,15 @@ const KEYS = ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'];
 const PRESETS = (() => { const w = { localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, requestAnimationFrame: () => 1 }; w.window = w;
   require('vm').runInNewContext(gfx, Object.assign({ window: w, setInterval: () => 0, clearInterval() {} }, w)); return w.GFX ? w.GFX.PRESETS : {}; })();
 const presetRows = Object.keys(PRESETS);
-const everyPresetOff = presetRows.length === 5 && presetRows.every(p => KEYS.every(k => PRESETS[p][k] === 'off'));
+// every post row OFF in every preset but the soft bloom, allowed from 'current' up (the default look, 2026-09-23: 0.25 ms)
+const everyPresetOff = presetRows.length === 5 && presetRows.every(p => KEYS.every(k => PRESETS[p][k] === 'off' || (k === 'bloom' && PRESETS[p][k] === 'soft' && p !== 'potato' && p !== 'retro')));
 const optionRows = KEYS.every(k => new RegExp("\\{ k: '" + k + "', label: '[^']+', steps: \\[\\s*\\{ v: 'off'").test(gfx));
 
 const checks = {
   // --- the state ------------------------------------------------------------
   'post_fx.js loads on a bare window without throwing': !threw && !!API,
   'the module starts with every effect off': !!API && API.KEYS.every(k => API.S[k] === 'off') && !API.active(),
-  'every preset (potato, retro, current, gamer, ultra) says off for all six rows': everyPresetOff,
+  'every preset says off for all six rows (the soft bloom allowed from current up)': everyPresetOff,
   "every post row's first step is 'off'": optionRows,
   'the menu hands each row to the module (GFX.apply -> POST_FX.set)': /W\.POST_FX\.set\(k, S\[k\]\)/.test(gfx),
 
