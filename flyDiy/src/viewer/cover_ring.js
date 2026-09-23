@@ -505,6 +505,7 @@ var COVER_RING = (() => {
         // geometry's at every instance otherwise
         g2.boundingSphere = sph; m.geometry = g2; m.boundingSphere = sph;
         m.frustumCulled = true; m.matrixAutoUpdate = false;   // at the origin, for ever
+        m.renderOrder = -1;   // occluders before the ground (render_world.js ORDER_NOTE)
         m.castShadow = list[0].cast; m.receiveShadow = true;
         m.instanceMatrix.needsUpdate = true;
         b.group.add(m); b.meshes.push(m);

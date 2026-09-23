@@ -335,7 +335,7 @@ function make(THREE, scene, world, rec0, opts) {
         patchMatOwn.customProgramCacheKey = () => 'premises-patch-materials';
       }
       patch = new THREE.Mesh(g, patchMatOwn);
-      patch.receiveShadow = true; patch.name = 'premises:patch';
+      patch.receiveShadow = true; patch.name = 'premises:patch'; patch.renderOrder = -0.3;   // the ground, after the occluders (render_world.js ORDER_NOTE)
       G.ground.add(patch); patchKey = key;
     }
     const pa = patch.geometry.attributes.position, uv = patch.geometry.attributes.uv;
