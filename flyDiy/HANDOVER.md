@@ -58630,3 +58630,55 @@ placed from registered views to about +-10 m. And `city trees` (terrain type 16,
 stamp of v1.30) is built, gated and switched OFF: it needs a small conifer asset, and turning it back
 on is one uncommented line in `metlakatla_author.py`.
 =======
+
+## G544 - THE PUDDLES ARE GONE FROM THE PAVEMENT: a draped mesh has no low spot, so a puddle on it
+## is a shape painted on a slope (2026-09-23, the user: "just fully remove the puddles on the
+## runways and the roads, they just look bad ... let's just remove them overall")
+
+TWO PASSES FIXED THEM AND NEITHER SAVED THEM, both today. The first found the cover knob applied
+twice, so `pudK` never got past 0.41 and the bed blended in at two fifths - a gloss decal on dry
+concrete. The second found that with a dark bed they still read BRIGHTER than the concrete, because
+at roughness 0.02 a puddle returns the whole sky and a mirror of a bright sky beats dark wet
+concrete; half the sky came back instead. Both were real, both measured, and the look did not
+arrive.
+
+THE REASON IS STRUCTURAL, WHICH IS WHY NO SETTING REACHED IT. The pavement is a DRAPED mesh: it
+follows the composed ground, and a runway laid over terrain has a crown, a crossfall and a grade.
+Water lies in a LOW SPOT and the mesh has none, so a puddle drawn on it is a shape painted on a
+slope - and the eye reads the shape before it reads the shine. A flat mirror normal on a surface
+that is not flat is the tell. That is a modelling problem, not a shading one: to draw standing water
+honestly the profile would have to carry real depressions and the puddle would have to fill them,
+which is the phase-2 item the design doc has always listed as "low spots off the drape".
+
+REMOVED: the `pud` field, `pudK`, the dark bed, the flat mirror normal, the roughness-to-0.02 mix,
+and the `gPudK` term in the specular hook (the shader global is gone with it). `puddleCover`,
+`puddleScale` and `puddleEdge` are retired from the recipe and from the editor's PAVEMENT knob
+table; `uWet` is `uWet.x` now, its other three components explicitly zeroed rather than left as
+stale meaning. `rec.pavement.puddleCover` has left Jolene's record - a retired knob left in a record
+is read by nothing and reported by nothing, which is the exact silence G508.1 existed to end.
+
+`wet` STAYS, and is the point of the distinction. A damp coast is a FILM: it follows the surface it
+wets, needs no low spot and makes no shape. Jolene keeps `wet: 0.45`, so 13/31 still reads damp -
+darker, glossier, the lane tones showing through - with nothing lying on it.
+
+- PROOF: screenshots/pavement/af_dry_s0.png (13/31 at 18 m: dry concrete, its joints, cracks, lane
+  tones, centreline and moss, no water anywhere) and af_dry_s1.png (the 13/31 designation plate: the
+  pale sheets that covered the band beside it are gone). Compare af_soft_s3.png and af_final_s0.png,
+  the two earlier passes. GATE PAVEMENT green; the record validates with 0 issues at rev 20.
+- LEFT ALONE ON THE USER'S RULING: the ground shader's bog pools on the muskeg (GF.poolAt on ttype
+  codes 3 and 7, the terrain session's). They are painted COLOUR, not a mirror, they sit in real
+  muskeg rather than on a graded surface, and they are what makes the bog read as bog from the air.
+  Different system, different verdict.
+- FOUND WHILE LANDING, AND NOT MINE TO FIX: the island fixture NO LONGER REGENERATES
+  DETERMINISTICALLY. Three consecutive `python tools/jolene_author.py` runs with no edits give three
+  different md5s. `tools/metlakatla_author.py:1206` seeds an RNG with the builtin `hash()` of a
+  tuple containing a string, which Python randomises per process, so the walked yard rings move
+  every run. That breaks "regenerate, never hand-merge" - the property the five-session parts scheme
+  rests on - and makes `--absorb` report phantom edits for `metlakatla.py`. Reported to that session
+  with the one-line fix (a stable digest: crc32 / md5, anything but `hash()`). Until it lands, a
+  fixture diff between two sessions cannot be trusted to mean anything.
+- FILES: src/viewer/pavement.js (the recipe, the KNOBS row, the wet block, the globals, the debug
+  view, the specular hook, the uniform), tools/jolene_author.py (the record's `pavement`, rev 20),
+  tools/fixtures/island_jolene.json, futureDesigns/PAVEMENT-2026-09-21.md section 13 - rewritten as
+  the retirement, keeping both passes' reasoning, because the reasoning is why the feature could not
+  be saved.

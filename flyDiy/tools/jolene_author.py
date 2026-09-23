@@ -607,7 +607,7 @@ ROADS = [
 def main():
     rec = {
         'v': 1, 'id': 'jolene-field', 'name': 'Jolene AFB', 'seed': 7, 'theme': 'alaska',
-        'pavement': {'wet': 0.45, 'puddleCover': 0.35, 'mossK': 0.6},   # the pavement's character here (contract v1.16): a damp coast - the user: "everything seems always sort of wet over there" - the concrete mossed
+        'pavement': {'wet': 0.45, 'mossK': 0.6},   # the pavement's character here (contract v1.16): a damp coast - the user: "everything seems always sort of wet over there" - the concrete mossed
         'frame': {'kind': 'free', 'extent': {'x0': -1700, 'z0': -4300, 'x1': 2600, 'z1': 1400}, 'anchors': {'*': {'x': 0, 'z': 0, 'yaw': 0}}},
         'layers': {
             'terrain': [
@@ -683,7 +683,7 @@ def main():
             ] + ANIMALS,
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 19,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json); 12 Jumbo Mine moved to the wooded knoll; 13 the mine's school, clinic and chapel on posts; 14 East Point quiet (no mast, cars, rubbish); 15 the tramway's top on the plateau + its square; 16 East Point's trees cut back to the user's lines; 17 East Point's footpaths lie on the ground; 18 the altiport's head one platform, the tram's terminal on it; 19 METLAKATLA, the island's one real town (jolene_parts/metlakatla.py) (2026-09-23)
+        'rev': 20,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json); 12 Jumbo Mine moved to the wooded knoll; 13 the mine's school, clinic and chapel on posts; 14 East Point quiet (no mast, cars, rubbish); 15 the tramway's top on the plateau + its square; 16 East Point's trees cut back to the user's lines; 17 East Point's footpaths lie on the ground; 18 the altiport's head one platform, the tram's terminal on it; 19 METLAKATLA, the island's one real town (jolene_parts/metlakatla.py) (2026-09-23); 20 the puddles retired from the pavement, so `puddleCover` leaves the record (2026-09-23)
     }
     if '--absorb' in sys.argv:
         k = sys.argv.index('--absorb')
