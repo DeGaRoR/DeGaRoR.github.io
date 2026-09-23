@@ -57780,3 +57780,11 @@ lower one thinned (a hash of the spot). The inspector's `life here` row on those
 people only / none. Masts now draw one stream per field and per settlement and keep 700 m from a mast of their own
 kind (300 m across), so switching one field's mast off moves no other (measured live on Jolene: the club's gone,
 the strip's and the village's unmoved). GATE LIFE holds the five cases. futureDesigns/SCENERY-LIFE-2026-09-23.md.
+
+## G530 - Jumbo Mine: the school, the clinic and the chapel on posts (2026-09-23)
+
+Judged in the game on G527's viewer (the far sink and the per-chunk patch material landed there: the street,
+the cuts and the patch finally read right 15 km out - no smudge left). Three buildings below the street are
+HOUSE_GEN presets with stance 0 (a SLAB), and a slab on the 22 deg flank stood them on a 5 m brick wall; their
+P now carries stance 2 (posts), like the rest of the row. Data only (mn_mine.json), fixture rev 13. GATE
+PREMISES, WORLD green.

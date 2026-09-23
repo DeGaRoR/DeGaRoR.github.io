@@ -3752,7 +3752,8 @@
       "P": {
        "backDoor": 0,
        "backPorch": 0,
-       "lot": false
+       "lot": false,
+       "stance": 2
       }
      },
      {
@@ -3836,7 +3837,8 @@
       "P": {
        "backDoor": 0,
        "backPorch": 0,
-       "lot": false
+       "lot": false,
+       "stance": 2
       }
      },
      {
@@ -3850,7 +3852,8 @@
       "P": {
        "backDoor": 0,
        "backPorch": 0,
-       "lot": false
+       "lot": false,
+       "stance": 2
       }
      },
      {
@@ -5032,5 +5035,5 @@
   "smoke": 6,
   "people": 40
  },
- "rev": 12
+ "rev": 13
 }

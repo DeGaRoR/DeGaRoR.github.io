@@ -1027,7 +1027,8 @@
       "P": {
        "backDoor": 0,
        "backPorch": 0,
-       "lot": false
+       "lot": false,
+       "stance": 2
       }
      },
      {
@@ -1111,7 +1112,8 @@
       "P": {
        "backDoor": 0,
        "backPorch": 0,
-       "lot": false
+       "lot": false,
+       "stance": 2
       }
      },
      {
@@ -1125,7 +1127,8 @@
       "P": {
        "backDoor": 0,
        "backPorch": 0,
-       "lot": false
+       "lot": false,
+       "stance": 2
       }
      },
      {
