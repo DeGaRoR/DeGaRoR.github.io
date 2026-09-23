@@ -416,6 +416,7 @@ const SPLAT_GROUND = (() => {
     // ?splat=0: the ground without the splat's code at all (a clean A/B, and the compile-time control)
     try { if (/[?&]splat=0/.test(location.search)) return null; } catch (e) {}
     const R = load();
+    const BLEND = { from: 0, to: 0 };   // the GRAPHICS row's detail fade (0 = the recipe's), kept over a knob re-apply
     if (R.knobs.albedoNorm === undefined) R.knobs.albedoNorm = RECIPE.knobs.albedoNorm === undefined ? 1 : RECIPE.knobs.albedoNorm;
     R.norm = isla ? normGains(isla, R) : {};
     if (!R.macroExpSaved && isla) { const auto = autoExposure(isla, R); R.knobs.macroExp = +(auto + (1 - auto) * R.knobs.albedoNorm).toFixed(2); }
@@ -464,7 +465,7 @@ const SPLAT_GROUND = (() => {
         U.uSLum.value[i] = Math.max(1e-3, 0.2126 * mn[0] * c.r + 0.7152 * mn[1] * c.g + 0.0722 * mn[2] * c.b); });
       U.uSSplit.value.set(K.cliffLo, K.cliffHi, K.oldLo, K.oldHi);
       U.uSSplit2.value.set(K.denseLo, K.denseHi, K.splatWobble, K.splatBlend);
-      U.uSDist.value.set(K.detailFrom, K.detailTo, K.macroFrom, K.macroTo);
+      U.uSDist.value.set(BLEND.from || K.detailFrom, BLEND.to || K.detailTo, K.macroFrom, K.macroTo);   // the blend row may pull the detail fade in (blend below)
       U.uSDist2.value.set(K.macroMix, K.macroNear, K.triK, K.macroLum === undefined ? 0 : K.macroLum);
       U.uSHex.value.set(K.hDepth, K.hexOn, K.hexN, K.hexRot * Math.PI / 180);
       U.uSSeam.value.set(K.seamDepth, K.macroExp);
@@ -485,7 +486,11 @@ const SPLAT_GROUND = (() => {
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
-      blend: (near, far) => { U.uSNearN.value = near; U.uSFarN.value = far; return [near, far]; },   // the sets a type blends (GRAPHICS 'ground blend', PERF 2026-09-23)
+      // the sets a type blends and where its near sets give way to the far one (GRAPHICS 'ground blend', PERF 2026-09-23):
+      // from / to 0 = the recipe's detailFrom / detailTo. 'lean far' pulls the fade in to 100-400 m: with one far set,
+      // the screenshots at 30 / 100 / 300 m showed no difference from the recipe's 150-900 m, and 1-2 ms more came back
+      blend: (near, far, from, to) => { U.uSNearN.value = near; U.uSFarN.value = far; BLEND.from = from || 0; BLEND.to = to || 0;
+        const K = R.knobs; U.uSDist.value.x = BLEND.from || K.detailFrom; U.uSDist.value.y = BLEND.to || K.detailTo; return [near, far, U.uSDist.value.x, U.uSDist.value.y]; },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },

@@ -57006,3 +57006,10 @@ type past the detail fade - 8 ms of 44 at 300 m on 5120 x 1440, ~1 % of pixels. 
 twigs / pebbles under 0.35 m cast no shadow: 607 -> 161 draws in a forest view (forest 40 -> 31 ms on the wide
 screen). futureDesigns/PERF-2026-09-23.md (G513 section).
 
+## G514 - PERF: 'lean far' draws one ground set past 400 m; post FX measured free, AO found broken (2026-09-23)
+
+The ground's blend screenshotted at 30 / 100 / 300 m (5120 x 1440): one texture set per terrain type past 400 m (the
+detail fade pulled in to 100-400 m) shows no difference from the full blend and costs 21.0 / 26.8 / 34.8 ms against
+26.6 / 34.2 / 45.3. Post FX: every pass under 0.3 ms - free to reintroduce on taste; ambient occlusion blackens the
+frame (not the depth change) - owed. futureDesigns/PERF-2026-09-23.md (G514 section).
+

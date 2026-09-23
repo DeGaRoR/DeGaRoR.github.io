@@ -86,7 +86,7 @@
     // (~900 m) a blotch is a few pixels: 'lean far' draws one set there (8 ms of 44 at 300 m on the wide screen)
     { k: 'ground', label: 'ground blend', steps: [
         { v: 'full', label: 'full', why: 'every terrain type blends its 2-3 texture sets at every distance' },
-        { v: 'far1', label: 'lean far', why: 'one set per terrain type past ~900 m, where a blotch is a few pixels; all of them near (~8 ms on a 5120 x 1440 screen at 300 m)' },
+        { v: 'far1', label: 'lean far', why: 'one set per terrain type past ~400 m, where a blotch is a few pixels; all of them near (~10 ms on a 5120 x 1440 screen at 300 m, 5 ms at 30 m)' },
         { v: 'lean', label: 'lean', why: 'one set per terrain type everywhere - the material patchwork near the ground is gone, its colour stays' } ] },
     { k: 'terrain', label: 'terrain detail', steps: [
         { v: 1, label: 'exact', why: 'every ridge and bank to a pixel (the whole ring, the far terrain at 1 px)' },
@@ -268,7 +268,7 @@
     if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
     if (W.WORLD && W.WORLD.vis && applied.drawDist !== S.drawDist) { W.WORLD.vis.on = S.drawDist !== 'full'; applied.drawDist = S.drawDist; }
     { const sp = W.WORLD && W.WORLD.ground && W.WORLD.ground.splat && W.WORLD.ground.splat();
-      if (sp && sp.blend && applied.ground !== S.ground) { sp.blend(S.ground === 'lean' ? 1 : 3, S.ground === 'full' ? 3 : 1); applied.ground = S.ground; } }
+      if (sp && sp.blend && applied.ground !== S.ground) { sp.blend(S.ground === 'lean' ? 1 : 3, S.ground === 'full' ? 3 : 1, S.ground === 'full' ? 0 : 100, S.ground === 'full' ? 0 : 400); applied.ground = S.ground; } }
     if (W.WORLD && W.WORLD.ground && applied.terrain !== S.terrain) {
       const g = W.WORLD.ground, far = g.farLod && g.farLod(), ring = g.ringLod && g.ringLod();
       if (far || ring) { if (far) { far.tolPx = S.terrain; far.update(true); } if (ring) { ring.tolPx = S.terrain; ring.update(); } applied.terrain = S.terrain; }
