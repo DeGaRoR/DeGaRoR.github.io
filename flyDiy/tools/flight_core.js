@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 50ebb398fc2105b4
+// body-sha256: 960d8c6a4967f6bb
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -5316,18 +5316,25 @@ function sitePattern(aero, site) {
   }
   const lane = Math.min(GP_LANE, R.half - 2.5);
   const ends = [R.end0, R.end1];
+  // A SHORT STRIP'S NODES (G527): the hold 110 m in and the U-turn 27-90 m in are a long runway's - on a
+  // 150 m bush strip hold0 stood 35 m PAST the middle, 40 m of run ahead, and the pilot replanned the
+  // departure three times and gave up on the ground. Under 300 m they close in on the threshold (the hold a
+  // quarter in) so 75 % of the strip is ahead - the pilot asks 70 % of a short field (43_pilot: need);
+  // every strip of 300 m and more keeps its numbers to the bit
+  const lenR = Math.hypot(R.end1.x - R.end0.x, R.end1.z - R.end0.z);
+  const kIn = lenR < 300 ? Math.max(0.3, 0.25 * lenR / GP_HOLD_IN) : 1;
   const holds = [];
   for (const T of [0, 1]) {
     const dir = T === 0 ? d : [-d[0], -d[1]];
     const E = [ends[T].x, ends[T].z];
     const hdg = Math.atan2(dir[1], dir[0]);
-    const hold = add('hold' + T, at(E[0], E[1], dir, GP_HOLD_IN), 'hold', { hdg });
+    const hold = add('hold' + T, at(E[0], E[1], dir, GP_HOLD_IN * kIn), 'hold', { hdg });
     holds.push(hold);
     // the lane-and-U-turn back to this hold from anywhere on the strip
-    const la = add('l' + T + 'a', at(...at(E[0], E[1], dir, 27), n, laneSg * lane), 'taxi', { r: GP_UTURN_R });
-    const lb = add('l' + T + 'b', at(...at(E[0], E[1], dir, 27), n, -laneSg * lane), 'taxi', { r: GP_UTURN_R });
-    const lc = add('l' + T + 'c', at(...at(E[0], E[1], dir, 51), n, -laneSg * lane), 'taxi', { r: GP_FILLET });
-    const dg = add('d' + T, at(E[0], E[1], dir, 90), 'taxi', { r: GP_FILLET });
+    const la = add('l' + T + 'a', at(...at(E[0], E[1], dir, 27 * kIn), n, laneSg * lane), 'taxi', { r: GP_UTURN_R });
+    const lb = add('l' + T + 'b', at(...at(E[0], E[1], dir, 27 * kIn), n, -laneSg * lane), 'taxi', { r: GP_UTURN_R });
+    const lc = add('l' + T + 'c', at(...at(E[0], E[1], dir, 51 * kIn), n, -laneSg * lane), 'taxi', { r: GP_FILLET });
+    const dg = add('d' + T, at(E[0], E[1], dir, 90 * kIn), 'taxi', { r: GP_FILLET });
     link(la, lb); link(lb, lc); link(lc, dg); link(dg, hold);
     routes.back[T] = [la, lb, lc, dg, hold];
   }
