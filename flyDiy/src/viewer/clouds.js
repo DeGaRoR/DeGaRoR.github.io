@@ -62,7 +62,7 @@ var CLOUDS = (function () {
   const U = {
     uNoise: { value: null }, uDetail: { value: null }, uWeather: { value: null }, uDepth: { value: null },
     uInvProj: { value: null }, uCamMat: { value: null }, uCamPos: { value: null }, uRes: { value: null },
-    uLogFar: { value: 1 }, uGlob: { value: null }, uLayerA: { value: new Float32Array(12) }, uProfA: { value: new Float32Array(12) }, uDriftA: { value: new Float32Array(12) },
+    uLogFar: { value: 1 }, uDZ: { value: null }, uGlob: { value: null }, uLayerA: { value: new Float32Array(12) }, uProfA: { value: new Float32Array(12) }, uDriftA: { value: new Float32Array(12) },
     uSun: { value: null }, uSunCol: { value: null }, uMoon: { value: null }, uMoonCol: { value: null },
     uAmbTop: { value: null }, uAmbBot: { value: null }, uScale: { value: 1 }, uSteps: { value: null }, uFrame: { value: 0 },
     uDials: { value: null }, uCloudTex: { value: null }, uKeyTex: { value: null }, uTexel: { value: null }, uUp: { value: 1 },
@@ -277,12 +277,21 @@ var CLOUDS = (function () {
       return vec4(c * uScale, alpha);
     }`;
   // the fullscreen march: the ray from the inverse projection, the scene's depth from the resolve target
+  // THE SCENE'S DEPTH, EITHER CONVENTION (PERF 2026-09-23, app.js): the renderer's buffer is REVERSED
+  // float (1 at the near plane, 0 at the far; w = n f / (d (f - n) + n)) where EXT_clip_control is,
+  // else logarithmic (w = (far + 1)^d - 1). uDZ = (1 when reversed, near, far); the three reads below
+  // are the only places the clouds touch the convention.
+  const DZ_GLSL = `uniform vec3 uDZ;
+    float dzW1(float dz) { return uDZ.x > 0.5 ? uDZ.y * uDZ.z / (dz * (uDZ.z - uDZ.y) + uDZ.y) + 1.0 : exp2(dz * uLogFar); }   // 1 + the view-axis distance
+    bool dzSky(float dz) { return uDZ.x > 0.5 ? dz <= 0.0 : dz >= 0.99999; }
+    float wDz(float w) { return uDZ.x > 0.5 ? uDZ.y * (uDZ.z - w) / (max(w, uDZ.y) * (uDZ.z - uDZ.y)) : log2(1.0 + w) / uLogFar; }`;
   const marchFrag = () => `precision highp float; precision highp sampler3D; precision highp sampler2DArray;
     ${GLSL3_OUT}
     layout(location = 1) out highp vec4 outK;
     varying vec2 vUv;
     uniform sampler2D uDepth;
     uniform mat4 uInvProj, uCamMat; uniform vec3 uCamPos; uniform vec2 uRes; uniform float uLogFar;
+    ${DZ_GLSL}
     ${MARCH_GLSL()}
     void main() {
       vec2 ndc = vUv * 2.0 - 1.0;
@@ -290,8 +299,8 @@ var CLOUDS = (function () {
       vec3 d = normalize(mat3(uCamMat) * dv), o = uCamPos;
       // the scene's depth (logarithmic: w = (far + 1)^depth - 1, the clip w = the view depth)
       float dz = texture(uDepth, vUv).r;
-      outK = vec4(exp2(dz * uLogFar) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
-      float tScene = dz >= 0.99999 ? 1e9 : (exp2(dz * uLogFar) - 1.0) / max(1e-4, -dv.z);
+      outK = vec4(dzW1(dz) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
+      float tScene = dzSky(dz) ? 1e9 : (dzW1(dz) - 1.0) / max(1e-4, -dv.z);
       gl_FragColor = march(o, d, tScene, uDials2.x);
     }`;
   // THE DOME MARCH (C3): the same layer on a sphere round the eye - for the reflection probe (the
@@ -387,14 +396,15 @@ var CLOUDS = (function () {
   // (gl_FragDepth from the march's key, in the renderer's logarithmic convention): the skin's samples
   // reject it, the sky's take it, the resolve blends - the edge is anti-aliased like any other. One draw
   // in the pass, no second resolve (the 7 ms of G425 was a draw into the target AFTER its resolve).
-  const COMP_FRAG = `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK; uniform mat4 uInvProj;
-    float dist(float dz) { return exp2(dz * uLogFar); }
+  const COMP_FRAG = () => `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK; uniform mat4 uInvProj;
+    ${DZ_GLSL}
+    float dist(float dz) { return dzW1(dz); }
     void main() {
       // the cloud's depth: the key (the transmittance-weighted mean distance along this pixel's ray) as the
       // renderer's log depth - log2(1 + w) / log2(far + 1), w the view-axis distance
       { vec2 ndc = vUv * 2.0 - 1.0; vec4 v = uInvProj * vec4(ndc, 1.0, 1.0); vec3 dv = normalize(v.xyz / v.w);
         float w = max(0.0, texture2D(uKeyTex, vUv).r * 1000.0 * (-dv.z));
-        gl_FragDepth = log2(1.0 + w) / uLogFar; }
+        gl_FragDepth = wDz(w); }
       vec4 c;
       if (uUp < 0.5) c = texture2D(uCloudTex, vUv);
       else {
@@ -536,12 +546,12 @@ var CLOUDS = (function () {
     U.uSunCol.value = new THREE.Vector3(1, 1, 1); U.uMoonCol.value = new THREE.Vector3(); U.uAmbTop.value = new THREE.Vector3(); U.uAmbBot.value = new THREE.Vector3();
     U.uSteps.value = new THREE.Vector2(S.steps, S.lightSteps); U.uDials.value = new THREE.Vector4(S.powder, S.g, S.ms, S.maxKm); U.uTexel.value = new THREE.Vector2();
     U.uShadowK.value = new THREE.Vector2(S.shadowSteps, 1); U.uDials2.value = new THREE.Vector4(S.jitter, 0, 0, 0); U.uEye.value = new THREE.Vector3();
-    U.uShape.value = new THREE.Vector4(S.detail, S.curl, 0, 0);
+    U.uShape.value = new THREE.Vector4(S.detail, S.curl, 0, 0); U.uDZ.value = new THREE.Vector3(0, 0.5, 1e5);
     const uni = Object.assign({}, U);
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
     else uni.uAtmoAP = { value: new Float32Array(4) };
     marchMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: marchFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
-    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDepthK: U.uDepthK, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG, depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
+    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDZ: U.uDZ, uDepthK: U.uDepthK, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG(), depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
     compMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat); compMesh.frustumCulled = false; compMesh.renderOrder = 1e6; compMesh.visible = false; compMesh.name = 'cloudComposite';
     shadowMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U), vertexShader: QUAD_VERT, fragmentShader: shadowFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
     shadowRT = (typeof ATMO !== 'undefined' && ATMO.G && ATMO.G.rtAP) ? ATMO.G.rtAP : null;   // the tile lives in the atlas (the flag stays off without it)
@@ -861,6 +871,7 @@ var CLOUDS = (function () {
     U.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
     U.uRes.value.set(w, h); U.uFrame.value = S.shimmer ? (frame % 64) : 0;
     U.uLogFar.value = Math.log2(camera.far + 1);
+    U.uDZ.value.set(r.capabilities && r.capabilities.reversedDepthBuffer ? 1 : 0, camera.near, camera.far);
     U.uUp.value = (S.upsample && k < 1) ? 1 : 0; U.uDepthK.value = S.depthK;
     r.getClearColor(_cc); const prevCA = r.getClearAlpha();
     let q = tBegin('bind'); r.setRenderTarget(rt); r.setClearColor(0x000000, 0); r.clear(true, false, false); tEnd(q);

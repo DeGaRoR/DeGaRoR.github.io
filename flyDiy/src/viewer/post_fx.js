@@ -90,10 +90,12 @@ const POST_FX = (() => {
     #endif
     }`;
   const LUMA = `float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }`;
-  // the log depth, back to a view-axis distance (clouds.js's convention)
+  // the scene's depth, back to a view-axis distance (clouds.js's convention): uDZ = (1 when the
+  // renderer's buffer is REVERSED float - app.js, PERF 2026-09-23 - near, far), else logarithmic
   const DEPTH = `
-    uniform sampler2D tDepth; uniform float uLogFar;
-    float viewW(vec2 uv) { float d = texture2D(tDepth, uv).r; return exp2(d * uLogFar) - 1.0; }`;
+    uniform sampler2D tDepth; uniform float uLogFar; uniform vec3 uDZ;
+    float viewW(vec2 uv) { float d = texture2D(tDepth, uv).r; return uDZ.x > 0.5 ? uDZ.y * uDZ.z / (d * (uDZ.z - uDZ.y) + uDZ.y) : exp2(d * uLogFar) - 1.0; }
+    float skyK(float d) { return uDZ.x > 0.5 ? 1.0 - step(1e-30, d) : step(0.9995, d); }   // 1 where the depth is the far plane's`;
 
   // BLOOM: threshold (soft knee) at half resolution, a 13-tap downsample chain, a 9-tap tent
   // upsample chain, additive onto the canvas (the CoD:AW pyramid, Jimenez 2014)
@@ -147,7 +149,7 @@ const POST_FX = (() => {
   const RAYS_MASK = `${LUMA} ${DEPTH} ${CURVE} uniform sampler2D tSrc; uniform vec2 uSun; uniform float uRadius; varying vec2 vUv;
     void main() {
       float d = texture2D(tDepth, vUv).r;
-      float sky = step(0.9995, d);
+      float sky = skyK(d);
       vec3 c = pfxCurve(texture2D(tSrc, vUv).rgb);
       float near = 1.0 - smoothstep(0.0, uRadius, distance(vUv, uSun));
       float l = max(luma(c) - 0.55, 0.0) * 2.2;
@@ -284,10 +286,10 @@ const POST_FX = (() => {
     M.upOut = mat(BLOOM_UP, { tSrc: { value: null }, uTexel: { value: V2() }, uGain: { value: 1 }, uFinal: { value: 1 } }, { blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcColorFactor, transparent: true });
     M.add = mat(ADD, { tSrc: { value: null }, uGain: { value: 1 }, uTint: { value: new THREE.Color(1, 1, 1) } }, { blending: THREE.AdditiveBlending, transparent: true });
     M.look = mat(LOOK, { tSrc: { value: null }, uTexel: { value: V2() }, uLift: { value: new THREE.Vector3() }, uGain: { value: new THREE.Vector3(1, 1, 1) }, uContrast: { value: 1 }, uSat: { value: 1 }, uVig: { value: 0 }, uCA: { value: 0 } });
-    M.raysMask = mat(RAYS_MASK, { tSrc: { value: null }, tDepth: { value: null }, uLogFar: { value: 1 }, uSun: { value: V2() }, uRadius: { value: 0.55 } });
+    M.raysMask = mat(RAYS_MASK, { tSrc: { value: null }, tDepth: { value: null }, uLogFar: { value: 1 }, uDZ: { value: new THREE.Vector3() }, uSun: { value: V2() }, uRadius: { value: 0.55 } });
     M.raysBlur = mat(RAYS_BLUR, { tSrc: { value: null }, uSun: { value: V2() }, uDecay: { value: 0.93 }, uLen: { value: 0.9 } });
-    M.ao = mat(AO, { tDepth: { value: null }, uLogFar: { value: 1 }, uTexel: { value: V2() }, uProj: { value: V2() }, uRadius: { value: 1.2 }, uFrame: { value: 0 } });
-    M.aoBlur = mat(AO_BLUR, { tSrc: { value: null }, tDepth: { value: null }, uLogFar: { value: 1 }, uTexel: { value: V2() }, uDir: { value: V2() } });
+    M.ao = mat(AO, { tDepth: { value: null }, uLogFar: { value: 1 }, uDZ: { value: new THREE.Vector3() }, uTexel: { value: V2() }, uProj: { value: V2() }, uRadius: { value: 1.2 }, uFrame: { value: 0 } });
+    M.aoBlur = mat(AO_BLUR, { tSrc: { value: null }, tDepth: { value: null }, uLogFar: { value: 1 }, uDZ: { value: new THREE.Vector3() }, uTexel: { value: V2() }, uDir: { value: V2() } });
     M.aoApply = mat(AO_APPLY, { tSrc: { value: null }, uPow: { value: 1.0 } }, { blending: THREE.CustomBlending, blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendEquation: THREE.AddEquation, transparent: true });
     M.eye = mat(EYE, { tSrc: { value: null }, uTexel: { value: V2() } });
     T.eye = target(16, 16, false, true);
@@ -349,7 +351,7 @@ const POST_FX = (() => {
     if (vis < 0.02) return;
     const h = tBegin('rays');
     const sx = G.ndc.x * 0.5 + 0.5, sy = G.ndc.y * 0.5 + 0.5;
-    M.raysMask.uniforms.tSrc.value = rt.texture; M.raysMask.uniforms.tDepth.value = rt.depthTexture; M.raysMask.uniforms.uLogFar.value = Math.log2(camera.far + 1);
+    M.raysMask.uniforms.tSrc.value = rt.texture; M.raysMask.uniforms.tDepth.value = rt.depthTexture; M.raysMask.uniforms.uLogFar.value = Math.log2(camera.far + 1); dzOf(M.raysMask.uniforms.uDZ.value, camera);
     M.raysMask.uniforms.uSun.value.set(sx, sy);
     draw(M.raysMask, T.rays0);
     M.raysBlur.uniforms.tSrc.value = T.rays0.texture; M.raysBlur.uniforms.uSun.value.set(sx, sy);
@@ -362,17 +364,18 @@ const POST_FX = (() => {
     tEnd(h);
   }
   let aoFrame = 0;
+  function dzOf(v, camera) { return v.set(renderer && renderer.capabilities && renderer.capabilities.reversedDepthBuffer ? 1 : 0, camera.near, camera.far); }
   function ao(rt, camera) {
     if (!rt.depthTexture) return;
     const h = tBegin('ao');
     const logFar = Math.log2(camera.far + 1);
     const tanH = Math.tan(camera.fov * Math.PI / 360);
     const u = M.ao.uniforms;
-    u.tDepth.value = rt.depthTexture; u.uLogFar.value = logFar; u.uTexel.value.set(1 / T.ao0.width, 1 / T.ao0.height);
+    u.tDepth.value = rt.depthTexture; u.uLogFar.value = logFar; dzOf(u.uDZ.value, camera); u.uTexel.value.set(1 / T.ao0.width, 1 / T.ao0.height);
     u.uProj.value.set(tanH * camera.aspect, tanH); u.uFrame.value = (aoFrame++ % 16);
     draw(M.ao, T.ao0);
     const b = M.aoBlur.uniforms;
-    b.tDepth.value = rt.depthTexture; b.uLogFar.value = logFar; b.uTexel.value.set(1 / T.ao0.width, 1 / T.ao0.height);
+    b.tDepth.value = rt.depthTexture; b.uLogFar.value = logFar; dzOf(b.uDZ.value, camera); b.uTexel.value.set(1 / T.ao0.width, 1 / T.ao0.height);
     b.tSrc.value = T.ao0.texture; b.uDir.value.set(1, 0); draw(M.aoBlur, T.ao1);
     b.tSrc.value = T.ao1.texture; b.uDir.value.set(0, 1); draw(M.aoBlur, T.ao0);
     renderer.autoClear = false;

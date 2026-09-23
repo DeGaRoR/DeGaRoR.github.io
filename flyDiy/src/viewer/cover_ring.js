@@ -79,7 +79,7 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
@@ -349,10 +349,10 @@ var COVER_RING = (() => {
       // the mix at the cell's centre says which species to plant; each point checks its own
       const G = subGrid(x0, z0, C);
       const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
-      const group = new THREE.Group(); group.position.set(0, 0, 0);
-      const cell = { group, n: 0, meshes: [], by: {} };   // by: this cell's tally per species (STAT.by is the live sum)
-      cells.set(cx + ',' + cz, cell);
-      if (!centreMix && !G.lawn) { root.add(group); STAT.lastMs = performance.now() - t0; return cell; }
+      // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
+      const cell = { n: 0, parts: new Map(), by: {}, cx, cz };   // by: this cell's tally per species (STAT.by is the live sum)
+      cells.set(cx + ',' + cz, cell); markBlock(cx, cz);
+      if (!centreMix && !G.lawn) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
       const blotch = F.blotch || 0, blotchM = F.blotchM || 18, spread = F.coverSpread === undefined ? 0.08 : F.coverSpread;
       if (GF && GF.C && GF.C.blotch) { GF.C.blotch.amount = blotch; GF.C.blotch.cellM = blotchM; }
@@ -434,41 +434,81 @@ var COVER_RING = (() => {
       const NRM = new THREE.Vector3(), QT = new THREE.Quaternion();
       if (!isFinite(yLo)) { yLo = yHi = world.terrainH(x0 + C / 2, z0 + C / 2); }
       const yMid = (yLo + yHi) / 2, ySpan = (yHi - yLo) / 2;
+      cell.box = [x0, yLo - 1, z0, x0 + C, yHi + 6, z0 + C];   // the instances' feet +- a bush's height: the reach test below
       for (const it of items.values()) {
         const n = it.xs.length / 7; if (!n) continue;
         const rand = new Float32Array(n); for (let i = 0; i < n; i++) rand[i] = R();
-        for (const part of it.p.parts) {
-          const m = new THREE.InstancedMesh(part.geo, part.mat, n);
-          for (let i = 0; i < n; i++) {
-            const o = i * 7; Q.setFromAxisAngle(UP, it.xs[o + 4]); V.set(it.xs[o], it.xs[o + 1], it.xs[o + 2]); SC.setScalar(it.xs[o + 3]);
-            if (it.xs[o + 5] || it.xs[o + 6]) { NRM.set(-it.xs[o + 5], 1, -it.xs[o + 6]).normalize(); QT.setFromUnitVectors(UP, NRM); Q.premultiply(QT); }   // the lean: up -> the ground's normal, after the yaw
-            T.compose(V, Q, SC); m.setMatrixAt(i, T);
-          }
-          if (it.col) { m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(it.col), 3); }
-          // the prototype's buffers shared, the instanced aRand per mesh: a thin geometry wrapper
-          const geo = part.geo, g2 = new THREE.BufferGeometry(); g2.index = geo.index; for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]);
-          g2.setAttribute('aRand', new THREE.InstancedBufferAttribute(rand, 1));
-          // the cell's own sphere (the instances hold world positions, the mesh stands at the
-          // origin): three culls the cell as one - half the ring is behind the eye
-          g2.boundingSphere = new THREE.Sphere(new THREE.Vector3(x0 + C / 2, yMid, z0 + C / 2), C * 0.71 + ySpan + 3);
-          m.geometry = g2;
-          m.frustumCulled = true;
-          m.castShadow = it.p.kind !== 'cover'; m.receiveShadow = true;
-          m.instanceMatrix.needsUpdate = true;
-          group.add(m); cell.meshes.push(m);
+        const mats = new Float32Array(n * 16);
+        for (let i = 0; i < n; i++) {
+          const o = i * 7; Q.setFromAxisAngle(UP, it.xs[o + 4]); V.set(it.xs[o], it.xs[o + 1], it.xs[o + 2]); SC.setScalar(it.xs[o + 3]);
+          if (it.xs[o + 5] || it.xs[o + 6]) { NRM.set(-it.xs[o + 5], 1, -it.xs[o + 6]).normalize(); QT.setFromUnitVectors(UP, NRM); Q.premultiply(QT); }   // the lean: up -> the ground's normal, after the yaw
+          T.compose(V, Q, SC); T.toArray(mats, i * 16);
         }
+        const col = it.col ? new Float32Array(it.col) : null;
+        // every part of the prototype draws the same instances (a bark part and a leaf part)
+        for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast: it.p.kind !== 'cover' });
         cell.n += n;
       }
-      root.add(group);
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
       return cell;
     }
     function dropCell(key) {
       const cell = cells.get(key); if (!cell) return;
-      root.remove(cell.group);
-      for (const m of cell.meshes) { m.geometry.dispose(); }   // the wrapper only: buffers are the prototype's
+      markBlock(cell.cx, cell.cz);
       for (const k in cell.by) { STAT.by[k] -= cell.by[k]; if (STAT.by[k] <= 0) delete STAT.by[k]; }   // the tally is LIVE (it ran up for the page's life before L4)
       cells.delete(key);
+    }
+
+    // ---- THE BLOCKS (PERF 2026-09-23) -----------------------------------------------
+    // A cell is 32 m because that is the planting's grain; it was also the DRAW's - one InstancedMesh
+    // per prototype part per cell, ~10 a cell, 1 000 draws and 1 100 shadow draws at 120 m AGL over
+    // a forest (the frame study's census), each of them a round of GL state through the command
+    // buffer. The draw's grain is now a BLOCK of B x B cells: one InstancedMesh per part per block,
+    // the cells' instance arrays copied in, rebuilt when a cell of it comes or goes (nearest first,
+    // `blockBudget` a frame; until then the block draws what it held). Culling is the block's own
+    // sphere (the frustum) and the fade's reach (below); the instances and the shader are the
+    // cells' own, so the picture is the same.
+    const B = 4, blocks = new Map();
+    const blockOf = (cx, cz) => Math.floor(cx / B) + ',' + Math.floor(cz / B);
+    function markBlock(cx, cz) {
+      const k = blockOf(cx, cz); let b = blocks.get(k);
+      if (!b) { b = { key: k, bx: Math.floor(cx / B), bz: Math.floor(cz / B), group: new THREE.Group(), meshes: [], box: null, dirty: true }; root.add(b.group); blocks.set(k, b); }
+      b.dirty = true;
+    }
+    function buildBlock(b) {
+      for (const m of b.meshes) { b.group.remove(m); m.geometry.dispose(); if (m.dispose) m.dispose(); }   // the wrapper and the instance buffers; the prototype's own are shared
+      b.meshes = []; b.dirty = false;
+      const parts = new Map(); let box = null, live = 0;
+      for (let dz = 0; dz < B; dz++) for (let dx = 0; dx < B; dx++) {
+        const cell = cells.get((b.bx * B + dx) + ',' + (b.bz * B + dz)); if (!cell) continue;
+        live++;
+        if (cell.box) { const c = cell.box; box = box ? [Math.min(box[0], c[0]), Math.min(box[1], c[1]), Math.min(box[2], c[2]), Math.max(box[3], c[3]), Math.max(box[4], c[4]), Math.max(box[5], c[5])] : c.slice(); }
+        for (const [part, d] of cell.parts) { let a = parts.get(part); if (!a) parts.set(part, a = []); a.push(d); }
+      }
+      b.box = box;
+      if (!live) { root.remove(b.group); blocks.delete(b.key); return; }
+      if (!box) return;
+      const sph = new THREE.Sphere(new THREE.Vector3((box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2),
+                                   Math.hypot(box[3] - box[0], box[4] - box[1], box[5] - box[2]) / 2 + 8);
+      for (const [part, list] of parts) {
+        let n = 0; for (const d of list) n += d.n; if (!n) continue;
+        const m = new THREE.InstancedMesh(part.geo, part.mat, n);
+        const hasCol = list.some(d => d.col), col = hasCol ? new Float32Array(n * 3).fill(1) : null, rand = new Float32Array(n);
+        let o = 0;
+        for (const d of list) { m.instanceMatrix.array.set(d.mats, o * 16); if (d.col) col.set(d.col, o * 3); rand.set(d.rand, o); o += d.n; }
+        if (col) m.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
+        // the prototype's buffers shared, the instanced aRand per mesh: a thin geometry wrapper
+        const geo = part.geo, g2 = new THREE.BufferGeometry(); g2.index = geo.index; for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]);
+        g2.setAttribute('aRand', new THREE.InstancedBufferAttribute(rand, 1));
+        // the block's own sphere (the instances hold world positions, the mesh stands at the origin),
+        // on the geometry AND the object: r186 culls an InstancedMesh on its own, and would union the
+        // geometry's at every instance otherwise
+        g2.boundingSphere = sph; m.geometry = g2; m.boundingSphere = sph;
+        m.frustumCulled = true; m.matrixAutoUpdate = false;   // at the origin, for ever
+        m.castShadow = list[0].cast; m.receiveShadow = true;
+        m.instanceMatrix.needsUpdate = true;
+        b.group.add(m); b.meshes.push(m);
+      }
     }
 
     // ---- per frame ------------------------------------------------------------------
@@ -480,7 +520,7 @@ var COVER_RING = (() => {
       const aglK = 1 - smooth(S.aglFull, S.aglOff, agl); STAT.aglK = aglK;   // (the rock map reads the fade's height term)
       LEAF.fade(S.near, S.reach, S.taper, aglK);
       root.visible = aglK > 0.001;
-      if (aglK <= 0.001) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); queue.length = 0; STAT.live = 0; return; }
+      if (aglK <= 0.001) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); queue.length = 0; STAT.live = 0; return; }
       const C = S.cell, R2 = (S.reach + C) * (S.reach + C), Rdrop = (S.reach + 2 * C) * (S.reach + 2 * C);
       const cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C), nr = Math.ceil((S.reach + C) / C);
       queue.length = 0;
@@ -494,6 +534,18 @@ var COVER_RING = (() => {
       const t0 = performance.now();
       while (queue.length && performance.now() - t0 < S.budgetMs && cells.size < S.maxCells) { const [, cx, cz] = queue.shift(); buildCell(cx, cz); }
       for (const [k, cell] of cells) { const [cx, cz] = k.split(',').map(Number); const mx = (cx + 0.5) * C - ex, mz = (cz + 0.5) * C - ez; if (mx * mx + mz * mz > Rdrop) dropCell(k); }
+      // A CELL PAST THE REACH DRAWS NOTHING (PERF 2026-09-23): the fade collapses every instance whose
+      // 3D distance to the eye is past `reach` (trees.js FADE_VS), so a cell whose NEAREST point is past
+      // it is only vertex work, a draw and a shadow draw - in flight most of the ring (at 120 m AGL the
+      // whole outer band). Hidden, the picture is the same to the pixel; what goes with it is the shadow
+      // those collapsed instances still cast (three's depth material has no fade), which was a phantom.
+      { const ey = camera.position.y, R2r = S.reach * S.reach, dist2 = b => { const x = b.box; if (!x) return 0;
+          const dx = Math.max(x[0] - ex, 0, ex - x[3]), dy = Math.max(x[1] - ey, 0, ey - x[4]), dz = Math.max(x[2] - ez, 0, ez - x[5]); return dx * dx + dy * dy + dz * dz; };
+        const dirty = []; for (const b of blocks.values()) if (b.dirty) dirty.push(b);
+        if (dirty.length) { dirty.sort((a, b) => dist2(a) - dist2(b)); for (const b of dirty.slice(0, S.blockBudget)) buildBlock(b); }
+        let shown = 0, draws = 0;
+        for (const b of blocks.values()) { const v = !!b.box && dist2(b) < R2r; if (b.group.visible !== v) b.group.visible = v; if (v) { shown++; draws += b.meshes.length; } }
+        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws; }
       STAT.live = cells.size; STAT.queued = queue.length;
       let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
       STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
@@ -503,7 +555,7 @@ var COVER_RING = (() => {
       get: () => Object.assign({}, S),
       set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks }; Object.assign(S, o || {});
         if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks) api.replant(); return api.get(); },
-      replant: () => { for (const k of [...cells.keys()]) dropCell(k); },
+      replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); },
       rockPlan,                                                           // the rock map's read (above)
       // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
       // the mix, the pavement's kill and class, the land test - so a "why is there a log on the runway"

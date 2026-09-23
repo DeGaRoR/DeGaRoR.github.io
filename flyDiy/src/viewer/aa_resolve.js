@@ -285,6 +285,10 @@
                   THREE.ShaderMaterial && THREE.WebGLRenderTarget &&
                   renderer.setRenderTarget && gl && caps && caps.isWebGL2);
       if (S.able) S.maxSamples = gl.getParameter(gl.MAX_SAMPLES) || 4;
+      // THE REVERSED DEPTH BUFFER (PERF 2026-09-23, app.js): its precision is a FLOAT depth's, and the
+      // canvas's is 24-bit fixed - so under it every tier draws into this target, `off` included (at
+      // the canvas's own four samples), and the target's depth is 32-bit float
+      S.rz = !!(caps && caps.reversedDepthBuffer);
     } catch (e) { S.able = false; }
 
     function disposeRT() {
@@ -293,7 +297,7 @@
 
     function buildRT() {
       disposeRT();
-      if (!S.able || (S.tier === 'off' && !S.needRT)) return;
+      if (!S.able || (S.tier === 'off' && !S.needRT && !S.rz)) return;
       const SW = Math.max(1, Math.round(S.w * S.ss));
       const SH = Math.max(1, Math.round(S.h * S.ss));
       S.rt = new THREE.WebGLRenderTarget(SW, SH, {
@@ -310,10 +314,13 @@
         stencilBuffer: true,
         // THE SCENE'S DEPTH, READABLE (CLOUDS C1): r186 resolves the multisampled depth into this
         // texture when the target is left (resolveDepthBuffer), 24-bit depth + the 8-bit stencil
-        depthTexture: S.needRT && THREE.DepthTexture ? new THREE.DepthTexture(SW, SH, THREE.UnsignedInt248Type) : null,   // null, not undefined: r186's setter reads it
+        // UNDER THE REVERSED BUFFER it is FLOAT depth + the stencil (DEPTH32F_STENCIL8, the multisampled
+        // renderbuffer's format follows the texture's type), and resolved only when a pass reads it
+        depthTexture: (S.needRT || S.rz) && THREE.DepthTexture ? new THREE.DepthTexture(SW, SH, S.rz ? THREE.FloatType : THREE.UnsignedInt248Type) : null,   // null, not undefined: r186's setter reads it
       });
       if (S.rt.depthTexture) { S.rt.depthTexture.format = THREE.DepthStencilFormat; S.rt.depthTexture.minFilter = S.rt.depthTexture.magFilter = THREE.NearestFilter; }
-      S.rt.samples = Math.min(S.samples, S.maxSamples);
+      S.rt.resolveDepthBuffer = !!S.needRT;
+      S.rt.samples = Math.min(S.tier === 'off' && !S.needRT && S.rz ? 4 : S.samples, S.maxSamples);
       // THE TWO LINES THAT KEEP THE GAME LOOKING LIKE THE GAME (see THE TARGET
       // IS DISPLAY-SPACE in the header): the XR-target rule makes r186 treat
       // this target like the canvas — materials tone-map and encode on the
@@ -440,7 +447,7 @@
       able: () => S.able,
       report: () => ({
         tier: S.tier, able: S.able, ss: S.ss, dither: S.dither,
-        samples: S.rt ? S.rt.samples : 0, maxSamples: S.maxSamples,
+        samples: S.rt ? S.rt.samples : 0, maxSamples: S.maxSamples, depth: S.rz ? 'reversed float' : 'log 24',
         buf: S.rt ? (S.rt.width + 'x' + S.rt.height) : (S.w + 'x' + S.h),
       }),
     };

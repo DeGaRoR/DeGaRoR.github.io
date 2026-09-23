@@ -139,8 +139,23 @@
   // otherwise this is the WebGLRenderer it has always been. TSL_ON is what
   // every material module asks to pick its variant (RENDERER-DECISION §4h).
   BOOT.phase('renderer', 'the renderer');
+  // THE DEPTH BUFFER IS REVERSED, NOT LOGARITHMIC (PERF 2026-09-23). A 0.5 m near plane and a
+  // 100 km far plane need more than a 24-bit hyperbolic buffer; the logarithmic buffer had them,
+  // by writing gl_FragDepth in EVERY fragment shader - which turns early-Z off for the whole
+  // scene, so every hidden fragment was shaded in full (the splat ground under the forest, the
+  // cards behind cards, eight samples of each): the frame study measured the same frame 6-9 ms
+  // cheaper at 1080p with the depth left to the rasteriser. A REVERSED float depth buffer (1 at
+  // the near plane, 0 at the far; EXT_clip_control's [0,1] clip range; a 32-bit float target -
+  // aa_resolve.js) holds the same precision from 0.5 m to 100 km and keeps early-Z. Where the
+  // extension is missing, and on ?depth=log (the A/B), the logarithmic buffer stands as it was.
+  // Everything that reads or writes depth by hand asks FLYDIY_DEPTH: the clouds' march and
+  // composite, the post passes, the far cascade and the canopy cover.
+  const RZ = (typeof window !== 'undefined' && typeof document !== 'undefined' && !window.FLYDIY_RENDERER && !(typeof location !== 'undefined' && /[?&]depth=log/.test(location.search))) && (() => {
+    try { const c = document.createElement('canvas'), g = c.getContext('webgl2'); const ok = !!(g && g.getExtension('EXT_clip_control'));
+      const lose = g && g.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext(); return ok; } catch (e) { return false; } })();
+  if (typeof window !== 'undefined') window.FLYDIY_DEPTH = window.FLYDIY_RENDERER ? 'node' : RZ ? 'reversed' : 'log';
   const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
-    new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));

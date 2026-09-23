@@ -27,6 +27,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
+  let farLod = null;                  // PERF 2026-09-23: the island's far terrain, cut to the eye (its update, its dials, its stats)
   let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
   let cliffs = null;                  // the photoscanned cliff faces (cliffs.js)
   let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
@@ -664,6 +665,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     get applied() { return !!this.live; },     // read-only, for GATE WATER: the capture runs with the cull ON
   };
   const _vc = new THREE.Vector3();
+  // THE RENDERER'S DEPTH CONVENTION (PERF 2026-09-23, app.js): reversed float where the card has
+  // EXT_clip_control, logarithmic otherwise - the far cascade's hand-packed compare follows it
+  const DEPTH_RZ = !!(renderer && renderer.capabilities && renderer.capabilities.reversedDepthBuffer);
 
   const FAR = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
     enabled: !(renderer && renderer.isWebGPURenderer),   // W0.5b: the far cascade + canopy map are packed-depth passes; off under the flag until ported
@@ -797,7 +801,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const pCol = new THREE.Color(), pA = renderer.getClearAlpha();
     { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
     renderer.setRenderTarget(FAR.rt);
-    renderer.setClearColor(0xffffff, 1);
+    renderer.setClearColor(DEPTH_RZ ? 0x000000 : 0xffffff, DEPTH_RZ ? 0 : 1);   // "nothing casts": the far plane, 1 or (reversed) 0
     renderer.autoClear = true;
     renderer.render(FAR.scene, FAR.cam);
     renderer.setRenderTarget(pRT);
@@ -1487,6 +1491,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     groundApi = {
       splat: () => (SPL ? SPL.api : null),
       fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
+      farLod: () => farLod,   // the far terrain's cut: tolPx / budget dials, stats (nodes, tris, rebuilds)
       rockMap: () => (rockMap ? rockMap.api : null),
       cliffs: () => (cliffs ? cliffs.api : null),
       on: () => GROUND.on,
@@ -1591,17 +1596,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           'uniform float uFarOn;\nuniform sampler2D uFarMap;\nuniform mat4 uFarVP;\n' +
           'uniform float uCovOn;\nuniform sampler2D uCovMap;\nuniform mat4 uCovVP;')
         // the far cascade, on the direct term only: four taps of packed depth
+        // (UNDER THE REVERSED BUFFER - app.js, PERF 2026-09-23 - the far camera's depth is z/w with
+        // 1 at its near plane and 0 at its far: the map clears to 0, a receiver is lit when it is
+        // NOT below the stored caster, and the bias moves it toward the light the other way)
         .replace('#include <lights_fragment_end>',
           '#include <lights_fragment_end>\n' +
           'if (uFarOn > 0.5) {\n' +
           '  vec4 fc = uFarVP * vec4(vWP, 1.0);\n' +
-          '  vec3 fp = fc.xyz / fc.w * 0.5 + 0.5;\n' +
-          '  if (fp.x > 0.0 && fp.x < 1.0 && fp.y > 0.0 && fp.y < 1.0 && fp.z < 1.0) {\n' +
-          '    float tx = 1.0 / 2048.0, zb = fp.z - 0.0004, lit = 0.0;\n' +
-          '    lit += step(zb, unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2(-0.5, -0.5) * tx)));\n' +
-          '    lit += step(zb, unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2( 0.5, -0.5) * tx)));\n' +
-          '    lit += step(zb, unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2(-0.5,  0.5) * tx)));\n' +
-          '    lit += step(zb, unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2( 0.5,  0.5) * tx)));\n' +
+          (DEPTH_RZ ? '  vec3 fp = vec3(fc.xy / fc.w * 0.5 + 0.5, fc.z / fc.w);\n' : '  vec3 fp = fc.xyz / fc.w * 0.5 + 0.5;\n') +
+          '  if (fp.x > 0.0 && fp.x < 1.0 && fp.y > 0.0 && fp.y < 1.0 && ' + (DEPTH_RZ ? 'fp.z > 0.0' : 'fp.z < 1.0') + ') {\n' +
+          '    float tx = 1.0 / 2048.0, zb = fp.z ' + (DEPTH_RZ ? '+' : '-') + ' 0.0004, lit = 0.0;\n' +
+          [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].map(([a, b]) => { const t = 'unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2(' + a.toFixed(1) + ', ' + b.toFixed(1) + ') * tx))';
+            return '    lit += ' + (DEPTH_RZ ? 'step(' + t + ', zb)' : 'step(zb, ' + t + ')') + ';\n'; }).join('') +
           '    reflectedLight.directDiffuse *= 0.25 * lit;\n' +
           '  }\n' +
           '}')
@@ -1814,42 +1820,162 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;
       if (islandGroundHook) oMat.customProgramCacheKey = () => 'island-outer';
       outerMatShared = oMat;
-      const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch;
-      const groups = new Map();
-      const leafIdx = []; for (let j = 0; j < Pn; j++) for (let i = 0; i < Pn; i++) { const a = j * N + i; leafIdx.push(a, a + N, a + 1, a + 1, a + N, a + N + 1); }
-      (function walkQ(n) {
-        if (n.kids) { n.kids.forEach(walkQ); return; }
-        const s = FH.side / (1 << n.d), step = s / Pn;
-        const ox = FH.bounds.x0 + n.ix * s, oz = FH.bounds.z0 + n.iz * s;
-        if (ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250) return;   // fully under the inner ring
-        const qs = FH.side / 4, key = Math.floor((ox + s / 2 - FH.bounds.x0) / qs) + ',' + Math.floor((oz + s / 2 - FH.bounds.z0) / qs);
-        let g = groups.get(key); if (!g) groups.set(key, g = { pos: [], uv: [], idx: [], base: 0 });
-        const seaFloor = world.island.seaFloor;
-        for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-          const x = ox + i * step, z = oz + j * step; let y = n.h[j * N + i];
+      // THE CUT FOLLOWS THE EYE (PERF 2026-09-23, the frame study: every leaf drawn at every
+      // distance was 8.5 M triangles, most of them under a pixel - ~7 ms of the GPU at the stand
+      // in 2x2 shading quads they barely touch, each shaded again by 8x MSAA - and ~9 s of boot).
+      // The asset carries a 33x33 patch at EVERY node, not only at its leaves; each node's
+      // geometric error against its own descendants is measured once here, and the drawn cut is
+      // the coarsest set of nodes whose error projects under FARLOD.tolPx pixels from the eye -
+      // the leaves' picture to a pixel, by construction. Where a node touches the inner ring's
+      // box the leaves are drawn exactly as before (the rim's 1.5 m dip is theirs). The meshes
+      // are the same quadrant objects (the F1 contract holds them); a quadrant's geometry is
+      // swapped when its cut changes, `budget` a frame. Skirts under every patch's edge close
+      // the cracks between two levels (and the T-junctions the leaves always had).
+      const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch, NN = N * N, NV = NN + 4 * N;
+      const seaFloor = world.island.seaFloor, qs = FH.side / 4;
+      const FARLOD = { tolPx: 1, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
+                       stats: { nodes: 0, tris: 0, quads: 0, rebuilds: 0, cached: 0, ms: 0 } };
+      const boxOf = n => { const s = FH.side / (1 << n.d); return [FH.bounds.x0 + n.ix * s, FH.bounds.z0 + n.iz * s, s]; };
+      const underRing = (ox, oz, s) => ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250;   // fully under the inner ring
+      const nearRing = (ox, oz, s) => ox < INNER + 250 && ox + s > -INNER - 250 && oz < INNER + 250 && oz + s > -INNER - 250;
+      // the error and the height range, bottom-up: a node's patch read bilinearly at each child's
+      // samples, plus that child's own error (conservative: the worst it can be off the leaves)
+      let farIds = 0;
+      (function measure(n) {
+        n.fid = farIds++;
+        let lo = Infinity, hi = -Infinity; for (let k = 0; k < NN; k++) { const y = n.h[k]; if (y < lo) lo = y; if (y > hi) hi = y; }
+        n.lo = lo; n.hi = hi; n.e = 0;
+        if (!n.kids) return;
+        let e = 0;
+        for (const c of n.kids) {
+          measure(c);
+          const qx = c.ix - n.ix * 2, qz = c.iz - n.iz * 2;
+          let ec = 0;
+          for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+            const u = (qx * Pn + i) / 2, v = (qz * Pn + j) / 2, i0 = Math.min(Pn - 1, u | 0), j0 = Math.min(Pn - 1, v | 0), fu = u - i0, fv = v - j0, b = j0 * N + i0;
+            const p = (n.h[b] * (1 - fu) + n.h[b + 1] * fu) * (1 - fv) + (n.h[b + N] * (1 - fu) + n.h[b + N + 1] * fu) * fv;
+            const d = Math.abs(p - c.h[j * N + i]); if (d > ec) ec = d;
+          }
+          if (ec + c.e > e) e = ec + c.e;
+        }
+        n.e = e;
+      })(world.island.farRoot);
+      // one index template for every patch: the grid (the leaves' winding, face up) and four skirts,
+      // each skirt quad wound to face out of the patch (checked on a flat patch, not reasoned)
+      const TPL = (() => {
+        const t = [];
+        for (let j = 0; j < Pn; j++) for (let i = 0; i < Pn; i++) { const a = j * N + i; t.push(a, a + N, a + 1, a + 1, a + N, a + N + 1); }
+        const edges = [[k => k, [0, -1]], [k => Pn * N + k, [0, 1]], [k => k * N, [-1, 0]], [k => k * N + Pn, [1, 0]]];   // z0, z1, x0, x1
+        const P = (idx, e) => idx < NN ? [idx % N, 0, (idx / N) | 0] : (() => { const r = idx - NN, ee = (r / N) | 0, k = r % N; const top = edges[ee][0](k); return [top % N, -1, (top / N) | 0]; })();
+        edges.forEach(([top, out], ee) => {
+          for (let k = 0; k < Pn; k++) {
+            const a = top(k), b = top(k + 1), sa = NN + ee * N + k, sb = sa + 1;
+            const A = P(a), B = P(b), S = P(sa, ee);
+            const nx = (S[1] - A[1]) * (B[2] - A[2]) - (S[2] - A[2]) * (B[1] - A[1]), nz = (S[0] - A[0]) * (B[1] - A[1]) - (S[1] - A[1]) * (B[0] - A[0]);
+            if (nx * out[0] + nz * out[1] > 0) t.push(a, sa, b, b, sa, sb); else t.push(a, b, sa, b, sb, sa);
+          }
+        });
+        return t;
+      })();
+      const patchOf = n => {
+        let P = FARLOD.cache.get(n.fid); if (P) { P.used = FARLOD.stamp; return P; }
+        const [ox, oz, s] = boxOf(n), step = s / Pn;
+        const pos = new Float32Array(NV * 3), uv = new Float32Array(NV * 2), nor = new Float32Array(NV * 3);
+        for (let j = 0, k = 0; j < N; j++) for (let i = 0; i < N; i++, k++) {
+          const x = ox + i * step, z = oz + j * step; let y = n.h[k];
           // the asset's sea is the DEM's 0, ABOVE the water plane: the far
           // mesh takes the island's shelf like the sampler does (G402 - the
           // painted floor had shown over the plane as "a different tile")
           if (seaFloor) { const sd = world.island.coastAt(x, z); if (sd < 0) y = Math.min(y, seaFloor(sd)); }
           const din = Math.max(Math.abs(x), Math.abs(z));
           if (din < INNER) y -= 1.5 * Math.min(1, (INNER - din) / 200);
-          g.pos.push(x, y, z);
-          const t = islandUV ? islandUV(x, z) : [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]; g.uv.push(t[0], t[1]);
+          pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
+          const t = islandUV ? islandUV(x, z) : [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]; uv[k * 2] = t[0]; uv[k * 2 + 1] = t[1];
         }
-        for (const k of leafIdx) g.idx.push(g.base + k);
-        g.base += N * N;
-      })(world.island.farRoot);
-      let farTris = 0;
-      for (const g of groups.values()) {
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(g.pos, 3));
-        geo.setAttribute('uv', new THREE.Float32BufferAttribute(g.uv, 2));
-        geo.setIndex(g.idx); geo.computeVertexNormals();
-        const m = new THREE.Mesh(geo, oMat); m.receiveShadow = true; scene.add(m);
+        // the normals as computeVertexNormals makes them on this patch (area-weighted faces)
+        for (let q = 0; q < Pn * Pn * 6; q += 3) {
+          const a = TPL[q] * 3, b = TPL[q + 1] * 3, c = TPL[q + 2] * 3;
+          const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2], vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
+          const fx = uy * vz - uz * vy, fy = uz * vx - ux * vz, fz = ux * vy - uy * vx;
+          for (const w of [a, b, c]) { nor[w] += fx; nor[w + 1] += fy; nor[w + 2] += fz; }
+        }
+        for (let k = 0; k < NN; k++) { const l = Math.hypot(nor[k * 3], nor[k * 3 + 1], nor[k * 3 + 2]) || 1; nor[k * 3] /= l; nor[k * 3 + 1] /= l; nor[k * 3 + 2] /= l; }
+        // the skirts: each edge vertex again, dropped by the node's error (+ a margin), same uv and normal
+        const drop = 3 + 2 * n.e;
+        const tops = [k => k, k => Pn * N + k, k => k * N, k => k * N + Pn];
+        tops.forEach((top, ee) => { for (let k = 0; k < N; k++) { const a = top(k), w = NN + ee * N + k;
+          pos[w * 3] = pos[a * 3]; pos[w * 3 + 1] = pos[a * 3 + 1] - drop; pos[w * 3 + 2] = pos[a * 3 + 2];
+          uv[w * 2] = uv[a * 2]; uv[w * 2 + 1] = uv[a * 2 + 1]; nor[w * 3] = nor[a * 3]; nor[w * 3 + 1] = nor[a * 3 + 1]; nor[w * 3 + 2] = nor[a * 3 + 2]; } });
+        P = { pos, uv, nor, used: FARLOD.stamp };
+        FARLOD.cache.set(n.fid, P); return P;
+      };
+      // the cut: descend while the node's error would show at its nearest point
+      const cutFor = (ex, ey, ez, K) => {
+        const out = new Map();
+        (function walk(n) {
+          const [ox, oz, s] = boxOf(n);
+          if (underRing(ox, oz, s)) return;
+          if (n.kids) {
+            if (n.d < 2 || nearRing(ox, oz, s)) { n.kids.forEach(walk); return; }
+            const dx = Math.max(ox - ex, 0, ex - ox - s), dz = Math.max(oz - ez, 0, ez - oz - s), dy = Math.max(n.lo - ey, 0, ey - n.hi);
+            if (n.e * K > FARLOD.tolPx * Math.max(1, Math.hypot(dx, dy, dz))) { n.kids.forEach(walk); return; }
+          }
+          const key = Math.floor((ox + s / 2 - FH.bounds.x0) / qs) + ',' + Math.floor((oz + s / 2 - FH.bounds.z0) / qs);
+          let a = out.get(key); if (!a) out.set(key, a = []); a.push(n);
+        })(world.island.farRoot);
+        return out;
+      };
+      const quadMesh = key => {
+        let Q = FARLOD.quads.get(key); if (Q) return Q;
+        const m = new THREE.Mesh(new THREE.BufferGeometry(), oMat); m.receiveShadow = true; m.matrixAutoUpdate = false; scene.add(m);
         m.userData.farTerrain = true; VIS.meshes.push(m);   // F1: the contract hides these by distance
-        farTris += g.idx.length / 3;
-      }
-      console.log('island far terrain: ' + groups.size + ' meshes, ' + (farTris / 1e6).toFixed(1) + ' M tris');
+        FARLOD.quads.set(key, Q = { m, sig: '', want: null, wantSig: '', tris: 0 });
+        return Q;
+      };
+      const buildQuad = Q => {
+        const nodes = Q.want || [];
+        const pos = new Float32Array(nodes.length * NV * 3), uv = new Float32Array(nodes.length * NV * 2), nor = new Float32Array(nodes.length * NV * 3);
+        const idx = new Uint32Array(nodes.length * TPL.length);
+        nodes.forEach((n, i) => { const P = patchOf(n); pos.set(P.pos, i * NV * 3); uv.set(P.uv, i * NV * 2); nor.set(P.nor, i * NV * 3);
+          const o = i * TPL.length, b = i * NV; for (let k = 0; k < TPL.length; k++) idx[o + k] = TPL[k] + b; });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        geo.setIndex(new THREE.BufferAttribute(idx, 1));
+        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); }
+        else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
+        const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
+        Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
+      };
+      FARLOD.update = force => {
+        const t0 = performance.now(), e = camera.position;
+        const H = (renderer && renderer.domElement && renderer.domElement.height) || 1080;
+        const K = H / (2 * Math.tan((camera.fov || 46) * Math.PI / 360));
+        // a new cut when the eye has moved (or the screen changed), every few frames at most
+        const moved = !FARLOD.eye || Math.hypot(e.x - FARLOD.eye[0], e.y - FARLOD.eye[1], e.z - FARLOD.eye[2]) > 20 || Math.abs(K - FARLOD.K) > 1;
+        if (force || (moved && ++FARLOD.tick >= FARLOD.every)) {
+          FARLOD.tick = 0; FARLOD.eye = [e.x, e.y, e.z]; FARLOD.K = K;
+          const cut = cutFor(e.x, e.y, e.z, K);
+          for (const key of cut.keys()) quadMesh(key);
+          for (const [key, Q] of FARLOD.quads) { const want = cut.get(key) || []; Q.want = want; Q.wantSig = want.map(n => n.fid).join(','); }
+        }
+        // the stale quadrants, nearest first, `budget` a frame (all of them when forced)
+        const stale = [...FARLOD.quads.values()].filter(Q => Q.want && Q.sig !== Q.wantSig);
+        if (stale.length) {
+          FARLOD.stamp++;
+          stale.sort((a, b) => (a.m.geometry.boundingSphere ? a.m.geometry.boundingSphere.center.distanceTo(e) : 0) - (b.m.geometry.boundingSphere ? b.m.geometry.boundingSphere.center.distanceTo(e) : 0));
+          for (const Q of stale.slice(0, force ? stale.length : FARLOD.budget)) buildQuad(Q);
+          // the patches no quadrant draws any more leave the cache
+          const live = new Set(); for (const Q of FARLOD.quads.values()) for (const f of Q.sig.split(',')) if (f) live.add(+f);
+          for (const f of [...FARLOD.cache.keys()]) if (!live.has(f)) FARLOD.cache.delete(f);
+        }
+        let nodes = 0, tris = 0; for (const Q of FARLOD.quads.values()) { tris += Q.tris; nodes += Q.sig ? Q.sig.split(',').length : 0; }
+        Object.assign(FARLOD.stats, { nodes, tris, quads: FARLOD.quads.size, cached: FARLOD.cache.size, ms: performance.now() - t0 });
+      };
+      FARLOD.update(true);
+      farLod = FARLOD;
+      console.log('island far terrain: ' + FARLOD.quads.size + ' meshes, ' + FARLOD.stats.nodes + ' patches, ' + (FARLOD.stats.tris / 1e6).toFixed(2) + ' M tris at the first cut (the eye at ' + camera.position.toArray().map(v => v | 0).join(',') + ')');
     } else { // outer ring: four coarse strips sharing one full-domain texture
       const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;   // the far tier lives mostly out here
@@ -2088,6 +2214,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             .replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\ndiffuseColor.a *= lakeA;');
         };
         let n = 0, seaSkipped = 0;
+        const lakeGeos = [];   // PERF 2026-09-23: every lake's quad, in world space, merged into ONE mesh below
         // A "LAKE" THAT IS THE SEA (G434.1, the user: "the water still shows the light blue polygons
         // atop the deeper blue"): the lake field is the cover's water class plus NDWI, and along the
         // coast it takes the tidal flats and the sea's own cells as lakes at the DEM's 1 m - their
@@ -2116,13 +2243,33 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             .map(q => (world.waterH ? world.waterH(q[0], q[1]) : NaN))
             .filter(h => Number.isFinite(h) && Math.abs(h - L.level) < 3).sort((p1, p2) => p1 - p2);
           const lakeY = hs.length ? hs[hs.length >> 1] : L.level + 0.02;
-          const m = new THREE.Mesh(wtag(g, 1, false), lakeMat); m.position.set(cx, lakeY, cz);
-          m.receiveShadow = true; scene.add(m); n++;
+          g.translate(cx, lakeY, cz); lakeGeos.push(wtag(g, 1, false)); n++;
           // the DRAWN level, for anything that needs the plane the eye sees rather than the physics' (the water's
           // planar mirror: it reflects about a plane, and 0.6 m of error there stretches the reflection, G460.11.4)
           lakeQuads.push({ x0: L.x0 - 4, x1: L.x1 + 4, z0: L.z0 - 4, z1: L.z1 + 4, y: lakeY });
         }
-        console.log('island lakes: ' + n + ' surfaces, one quad each, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea');
+        // ONE MESH FOR EVERY LAKE (PERF 2026-09-23): 230 quads in one material were 230 transparent
+        // objects, each drawn twice (a DoubleSide transparent material draws its back and its front) -
+        // 460 draws at 300 m over the field. The quads are world-space in one geometry now: the shader
+        // reads the world position (the lake field, the shore's fade), never the mesh's own origin, and
+        // the mirror reads lakeQuads, not these meshes; two draws.
+        if (lakeGeos.length) {
+          const tot = lakeGeos.reduce((a, g) => a + g.attributes.position.count, 0), idxN = lakeGeos.reduce((a, g) => a + g.index.count, 0);
+          const names = Object.keys(lakeGeos[0].attributes), out = {};
+          for (const k of names) out[k] = new Float32Array(tot * lakeGeos[0].attributes[k].itemSize);
+          const idx = new Uint32Array(idxN);
+          let vo = 0, io = 0;
+          for (const g of lakeGeos) {
+            for (const k of names) out[k].set(g.attributes[k].array, vo * g.attributes[k].itemSize);
+            const gi = g.index.array; for (let i = 0; i < gi.length; i++) idx[io + i] = gi[i] + vo;
+            vo += g.attributes.position.count; io += gi.length; g.dispose();
+          }
+          const mg = new THREE.BufferGeometry();
+          for (const k of names) mg.setAttribute(k, new THREE.BufferAttribute(out[k], lakeGeos[0].attributes[k].itemSize));
+          mg.setIndex(new THREE.BufferAttribute(idx, 1)); mg.computeBoundingSphere();
+          const m = new THREE.Mesh(mg, lakeMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.name = 'lakes'; scene.add(m);
+        }
+        console.log('island lakes: ' + n + ' surfaces, one quad each in one mesh, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea');
       }
       const riverVerts = pos.length / 3;   // G460: the ribbons before this count are rivers (body 2), the cells after are lakes (body 1)
       const hc = world.hydro.cellW / 2, skirt = world.hydro.cellW * 0.6;
@@ -2870,6 +3017,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // shared band table it was dealt to the empty lists of the bands its
     // rung did not own.
     const spanFor = n => n <= 1 ? [uNear.value] : LOD_U.slice(0, n - 1).map(u => u.value).concat([uNear.value]);
+    // THE PARKED RUNGS LEAVE THE GRAPH (PERF 2026-09-23). Every chunk carries a mesh per rung per
+    // part per series, and all but the handful round the eye are parked (count 0): on the island
+    // some 20 000 invisible objects stood in the scene, and the frame walked them all - the matrix
+    // pass, the main pass, each shadow pass. A rung with instances hangs under RUNGS, a parked one
+    // under nothing; `visible` still says which (the probes read it).
+    const RUNGS = new THREE.Group(); RUNGS.name = 'treeRungs'; scene.add(RUNGS);
+    const showRung = (m, on) => { if (on) { if (m.parent !== RUNGS) RUNGS.add(m); } else if (m.parent) m.parent.remove(m); m.visible = on; };
     function partitionChunk(rec, cg) {
       const n = rec.n, pos = rec.pos, mats = rec.mats, ser = rec.ser;
       const k = rec.rungs.map(L => L.map(() => 0));
@@ -2892,7 +3046,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         for (let b = 0; b < rec.rungs[si].length; b++) for (const m of rec.rungs[si][b]) {
           const c = k[si][b];
           if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
-          m.count = c; m.visible = c > 0;
+          m.count = c; showRung(m, c > 0);
           // only the instances written go up (addUpdateRange, r159+: the list
           // is consumed by the upload and cleared after it) - a rung's buffer
           // is sized for the whole series, and a band holds a fraction of it
@@ -2900,7 +3054,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
     }
     const parkChunk = rec => {
-      for (const S of rec.rungs) for (const b of S) for (const m of b) { m.count = 0; m.visible = false; }
+      for (const S of rec.rungs) for (const b of S) for (const m of b) { m.count = 0; showRung(m, false); }
     };
     // A TREE IS BANDED WHOLE, BY ITS INSTANCE ORIGIN. The first cut measured
     // every VERTEX's own distance, so a tree straddling a band edge had the
@@ -3252,7 +3406,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // OURS and go; the geometry and materials of a real tree are NOT — they
       // belong to trees.js's build cache and are shared with anything else that
       // asks for that subject.
-      for (const m of planted) { scene.remove(m); if (m.dispose) m.dispose(); }
+      for (const m of planted) { if (m.parent) m.parent.remove(m); if (m.dispose) m.dispose(); }
       for (const k of plantedKit) if (k && k.dispose) k.dispose();
       planted = []; plantedKit = [];
       // and the registers, OURS only - the streamer's entries stay
@@ -3360,7 +3514,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const mk = (geo, mat, n, shadow) => {
         if (!n) return null;
         const m = new THREE.InstancedMesh(geo, mat, n);
-        m.position.set(ox, 0, oz);
+        m.position.set(ox, 0, oz); if (m.updateMatrix) { m.matrixAutoUpdate = false; m.updateMatrix(); }   // static (PERF 2026-09-23, as the fill's)
         if (shadow) { m.castShadow = true; m.receiveShadow = true; }
         return m;
       };
@@ -3463,11 +3617,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
 
       const all = [trunks];
       for (const H of HS) if (H) all.push(...H.meshes, ...H.imps);
+      // THE CHUNK'S OWN SPHERE (PERF 2026-09-23 - the fill's note): the trees' local box plus the
+      // largest tree's reach, on every mesh of the chunk, so r186 never unions the inflated ball
+      { let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity, tr = 0;
+        for (const L of lists) for (const T of L) { const x = T.x - ox, z = T.z - oz; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; if (T.h < y0) y0 = T.h; if (T.h > y1) y1 = T.h; }
+        for (const m of all) { const sh = m && m.geometry && m.geometry.userData && m.geometry.userData.shape; if (sh) tr = Math.max(tr, Math.abs(sh.cy) + sh.r); }
+        if (isFinite(x0) && THREE.Sphere) { const sph = new THREE.Sphere(new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2 + Math.max(tr, 40) * 2.5);
+          for (const m of all) if (m) m.boundingSphere = sph; } }
+      const rungSet = PROTO ? new Set([].concat(...HS.map(H => (H && H.rec) ? H.meshes : []))) : null;   // the partition's: parked, out of the graph
       for (const m of all) {
         if (!m) continue;
         m.instanceMatrix.needsUpdate = true;
         if (m.instanceColor) m.instanceColor.needsUpdate = true;
-        scene.add(m);
+        if (!(rungSet && rungSet.has(m))) scene.add(m);
         planted.push(m);
       }
       // the partitioned meshes are managed by the partition alone (visibility
@@ -3786,7 +3948,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                         buf: SH.series.map((S, si) => Array.from({ length: nrOf(S) }, () => new Float32Array(cnt[si] * 16))),
                         rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : Array.from({ length: nrOf(S) }, () => [])), x: ox, z: oz };
           perSer.forEach((P, si) => { if (P) for (const mm of P.ms.concat([P.mi])) {
-            mm.position.set(ox, 0, oz); mm.userData.ser = si; mm.userData.fill = true; } });
+            // STATIC (PERF 2026-09-23): the chunk's meshes never move - their matrix is composed once, not
+            // every frame (~32 000 of them on the island: the bulk of updateMatrixWorld's 5 ms)
+            mm.position.set(ox, 0, oz); if (mm.updateMatrix) { mm.matrixAutoUpdate = false; mm.updateMatrix(); } mm.userData.ser = si; mm.userData.fill = true; } });
+          const BB = SH.series.map(() => [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity, 0]);   // per series: the instances' local box + the largest scale
           for (let i = 0; i < n; i++) {
             const o = i * 6, sp = r[o + 3], w = r[o + 4], can = r[o + 5];
             const si = ser[i], P = perSer[si], S = SH.series[si];
@@ -3813,13 +3978,28 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // what GATE WORLDRENDER's cull-sphere check reads
             for (const mm of P.ms) { mm.setMatrixAt(j, m4); mm.setColorAt(j, c3); }
             P.mi.setMatrixAt(j, m4); P.mi.setColorAt(j, c3);
+            const bb = BB[si]; if (pv.x < bb[0]) bb[0] = pv.x; if (pv.y < bb[1]) bb[1] = pv.y; if (pv.z < bb[2]) bb[2] = pv.z;
+            if (pv.x > bb[3]) bb[3] = pv.x; if (pv.y > bb[4]) bb[4] = pv.y; if (pv.z > bb[5]) bb[5] = pv.z; bb[6] = Math.max(bb[6], sv.x, sv.y);
           }
+          // THE CHUNK'S OWN SPHERE (PERF 2026-09-23). r186 culls an InstancedMesh on ITS boundingSphere,
+          // computed once as the union of the geometry's sphere at every instance - and the geometry's
+          // sphere is the r128-era chunk ball (chunkBounds, ~0.5-0.8 km), so every chunk's union came out
+          // kilometres wide and no tree chunk was ever culled: behind the eye, outside the shadow
+          // cameras, all of them submitted (1 200 impostor draws in the main pass, 750 in the two shadow
+          // passes, at the Jolene stand). Set here from the instances themselves (their local box, and the
+          // tree's own radius at its largest scale), so three never computes the union.
+          if (THREE.Sphere) perSer.forEach((P, si) => { if (!P) return; const bb = BB[si]; if (!isFinite(bb[0])) return;
+            let tr = 0; for (const mm of P.ms) { const sh = mm.geometry.userData && mm.geometry.userData.shape; if (sh) tr = Math.max(tr, Math.abs(sh.cy) + sh.r); }
+            if (!tr) tr = 40;
+            const sph = new THREE.Sphere(new THREE.Vector3((bb[0] + bb[3]) / 2, (bb[1] + bb[4]) / 2, (bb[2] + bb[5]) / 2),
+              Math.hypot(bb[3] - bb[0], bb[4] - bb[1], bb[5] - bb[2]) / 2 + tr * Math.max(1, bb[6]));
+            for (const mm of P.ms.concat([P.mi])) mm.boundingSphere = sph; });
           recsOut.push(rec);
           for (const P of perSer) if (P) {
             for (const mm of P.ms.concat([P.mi])) {
               mm.instanceMatrix.needsUpdate = true;
               if (mm.instanceColor) mm.instanceColor.needsUpdate = true;
-              scene.add(mm); meshes.push(mm);
+              if (mm === P.mi) scene.add(mm); meshes.push(mm);   // the rungs join the graph when the partition gives them trees
             }
             for (const mm of P.ms) near.push(mm);
             imp.push(P.mi);
@@ -3847,7 +4027,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // registrations out of the passes and the partition
       const dropPart = built => {
         if (!built) return;
-        for (const m of built.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
+        for (const m of built.meshes) { if (m.parent) m.parent.remove(m); if (m.dispose) m.dispose(); }
         for (const r2 of built.reg) {
           let i = nearChunks.indexOf(r2); if (i >= 0) nearChunks.splice(i, 1);
           i = impChunks.indexOf(r2); if (i >= 0) impChunks.splice(i, 1);
@@ -4870,6 +5050,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // shifts nothing at 450 m.
     uCam.value.copy(camera.position);
     if (fineRing && fineRing.on) fineRing.update();   // the fine disc follows the eye (TERRAIN FOLLOW-UP 2)
+    if (farLod) farLod.update();     // the far terrain's cut follows the eye (a quadrant or two a frame when it changes)
     uCG.value.set(cg[0], cg[1], cg[2]);
     groundUnderUpdate(cg);           // the probe's cap follows the ground the craft is over (before the day's pass re-bakes it)
     // THE CLIMATE, ONCE A FRAME (K4). Before dayApply, because the clouds read

@@ -286,21 +286,34 @@ function propLodForce() {
 // Place one: x/z on the floor plan, y from the prop's own `place` rule, ry in
 // radians. Every prop was baked with its origin where it meets the world, so a
 // placement site never needs to know how its author exported it.
+// THE LAST LEVEL ENDS WHERE THE PROP IS UNDER A PIXEL AND A HALF (PERF 2026-09-23). A THREE.LOD's
+// last level draws to infinity: the frame study found the premises' people drawn 5 km away (0.4 px
+// tall), and the props with no cut at all - a 5 200-triangle propane bottle - drawn whole from
+// every distance: 3 350 visible premises meshes, 9 ms of the frame at 300 m over the field. Every
+// placed prop now ends in an EMPTY level at the distance where its diagonal subtends 1.5 px at
+// 1080p (46 deg: 1 094 px a radian - 730 x the diagonal, 60 m at least); a prop with no cuts is a
+// two-level LOD, itself then nothing. Nothing that covers a pixel is dropped.
+const PROP_CULL_K = 730;
+function propCullDist(key) {
+  const P = PROP_REG.props[key], d = P && P.dim;
+  return (d && d.length === 3) ? Math.max(60, PROP_CULL_K * Math.hypot(d[0], d[1], d[2])) : 0;
+}
 function propPlace(THREE, key, x, z, ry, y) {
   const lv = propLevels(key);
+  const force = propLodForce(), cull = force >= 0 ? 0 : propCullDist(key);
   let g;
-  if (lv.length && THREE.LOD) {
+  if ((lv.length || cull) && THREE.LOD) {
     g = new THREE.LOD();
     g.name = 'prop:' + key;
     g.userData.prop = PROP_REG.props[key];
-    const force = propLodForce();
     if (force >= 0) {
       // pinned: one level, at distance 0, whatever the camera does
-      const pick = force === 0 ? key : (lv[Math.min(force, lv.length) - 1].key);
+      const pick = force === 0 || !lv.length ? key : (lv[Math.min(force, lv.length) - 1].key);
       g.addLevel(propMesh(THREE, pick), 0);
     } else {
       g.addLevel(propMesh(THREE, key), 0);
       for (const l of lv) g.addLevel(propMesh(THREE, l.key), l.dist);
+      if (cull > (lv.length ? lv[lv.length - 1].dist : 0)) g.addLevel(new THREE.Group(), cull);
     }
   } else g = propMesh(THREE, key);
   g.position.set(x, y || 0, z);
