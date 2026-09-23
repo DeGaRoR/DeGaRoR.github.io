@@ -57356,3 +57356,48 @@ to the rest of the island (the summit is ringed by 400 m of fall); it is a fly-i
 GATE PREMISES, PARKED, ANIMALS green in the worktree; GATE WORLD's island block run by hand against the main
 checkout's bench/ (it skips without one) - green, plus mn_strip's own pattern and stand. No full battery (the
 user runs it once for all sessions). Data only: no src/ change, no build.
+## G524 - THE MIRROR'S CEILING IS A FADE, NOT A CLIFF: a lake from the air stops being a black polygon
+## (2026-09-23, the user: "do your planar mirror fix", after the Metlakatla session reported Skaters Lake
+## "uniformly near-black, no sky in it, no gradient, a hard edge against the bank")
+
+- WHAT WAS WRONG, and it was my own reasoning at G460.11: the mirror switched OFF above 60 m over the
+  water, because "from the air a water reflects the sky, and the probe carries the sky". That is true of
+  the water DIRECTLY BELOW and false of everything else. At an eye height h a point at ground distance d
+  is seen at atan(d/h) from the vertical, so the far half of any water in frame is GRAZING, and what a
+  grazing ray reflects is the far bank - terrain, which the probe does not have (its ground is a flat
+  cap). Over a near-black muskeg lake, whose own colour is 0.1 % upwelling by construction, the probe's
+  sky at a steep angle is ~2 % of the sky and the body is the rest: a flat black polygon. And 60 m was a
+  CLIFF - fly up through it and the reflection vanished between two frames.
+- THE FIX, three lines and a uniform's meaning. `uWMirror4.x` was a boolean the shader TESTED; it is the
+  mirror's WEIGHT now and the shader MIXES by it, so the hand-over to the probe is a dissolve. The weight
+  is 1 up to `fadeFrom` (500 m) and eases to 0 at `maxAgl` (900 m). Above that the reflection really is
+  the sky and the probe is right.
+- AND THE CADENCE HAD TO LEARN ITS ALTITUDE, or raising the ceiling would have cost a capture almost every
+  frame at cruise: a capture is stale when the eye has moved enough to change the PARALLAX of what it
+  reflects, and the nearest thing a mirrored eye at height h can reflect is about h away. So the re-capture
+  distance is `max(moveM, agl * moveAgl)` - 3 m at the dock, 25 m at 500 m. The turn threshold does not
+  scale: turning re-frames everything at any height.
+- MEASURED: a capture at 300 m over the lake costs 11.4 ms, no worse than the 13-22 ms at the dock (the
+  scene's far is already capped at MIR.far 4000, so altitude does not add draws). PROOF
+  (screenshots/water-g440/N2/, the Jolene lake at 1226,-17526, level 115.91): a300_old.png is the
+  reported defect exactly - a uniform black polygon with a hard bank and no gradient; a300_new.png has
+  the clouds in it and a gradient across the body; a600_new.png (weight 0.75) still carries them, fading
+  rather than popping; a150_old/a150_new for the near case.
+- A SECOND CAUSE, MEASURED BY THE TERRAIN SESSION AND LEFT OWED ON PURPOSE: `wDepth` for band 1 is
+  `clamp(f.y * 1.2, 0, 8)`, so every point more than 6.7 m inside ANY lake is painted at the 8 m cap -
+  a 310 m lake is at maximum depth over all but a 7 m rim. That is a real flaw and it is the "no
+  gradient" half of the report. It is NOT the "black" half, and the distinction is worth writing down:
+  the lake preset's opacity is 1.6, so the column is opaque within about a metre and its colour has
+  already reached its asymptote long before the cap bites. Fixing the depth law would change the first
+  metre or two at the bank and nothing else. Worth doing (the honest form is a bowl - `cap * (1 -
+  exp(-f.y * k / cap))`, whose initial slope is k and which never saturates, and whose implicit
+  size-awareness comes free because distance-from-bank IS a proxy for a lake's size), but it would not
+  have answered the user's complaint and it is not what landed here.
+- ALSO (tools/cloud_shot.js): THE SKIP IS THE LAST RESORT, NOT THE FIRST MOVE. CONTINUE ANYWAY is
+  boot.js's `fail('skipped by the user')` - it ABORTS the roll-out's remaining steps, and those steps
+  BUILD AND COMPILE THE WORLD. Clicked too early it leaves a scene with no terrain and every shot comes
+  out flat sky, silently. G509's flight-rail test fires earlier than the old phase words did, which put
+  the skip inside the build. The rig waits for `BOOT.state === 'gone'` first now and skips only if the
+  roll-out is still running after that.
+- GATE WATER 3 grows two rules (the fade's shape and that the weight rides uWMirror4.x; the re-capture
+  distance scaling with the eye's height). WATER, WORLDRENDER, MEDIA, GFX, CLOUD, UISMOKE green.

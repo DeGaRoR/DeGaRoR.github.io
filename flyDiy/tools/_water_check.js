@@ -150,7 +150,7 @@ console.log('\n3. THE LAWS');
     verdict(W.WATER_TYPES && ['sea', 'lake', 'river', 'premises'].every(k => W.WATER_TYPES[k] && ['cdom', 'chl', 'sed'].every(q => Number.isFinite(W.WATER_TYPES[k][q]))), 'every body is three constituents (cdom, chl, sed)'); }
   // THE MIRROR (G460.11): the shader reads the capture where the point projects, keeps the probe's sky where the
   // capture is empty; the pass hides the water's own material, reuses the shadow maps, restores the target
-  { verdict(/uniform sampler2D uWMirror; uniform mat4 uWMirrorVP;/.test(W.GLSL.frag) && /vec3 mcol = mr\.rgb \/ max\(mr\.a, 0\.02\);/.test(src('src/viewer/water.js')) && /iblRadiance = mix\(iblRadiance, mcol, mmask \* edge\);/.test(src('src/viewer/water.js')), 'the mirror replaces the IBL only where the capture has something, its colour un-premultiplied (alphaToCoverage resolves to a partial alpha)');
+  { verdict(/uniform sampler2D uWMirror; uniform mat4 uWMirrorVP;/.test(W.GLSL.frag) && /vec3 mcol = mr\.rgb \/ max\(mr\.a, 0\.02\);/.test(src('src/viewer/water.js')) && /iblRadiance = mix\(iblRadiance, mcol, mmask \* edge \* uWMirror4\.x\);/.test(src('src/viewer/water.js')), 'the mirror replaces the IBL only where the capture has something, its colour un-premultiplied (alphaToCoverage resolves to a partial alpha)');
   verdict(/samples: 2,/.test(src('src/viewer/water.js')) && /depthTexture: THREE\.DepthTexture \? new THREE\.DepthTexture\(w, h, [^)]*THREE\.UnsignedInt248Type\)/.test(src('src/viewer/water.js')), "the capture is multisampled (its depth texture a resolve: the clouds' composite samples it while drawing into it)");
     const w = src('src/viewer/water.js'), mp = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function mirrorOff('));
     verdict(/mat\.visible = false/.test(mp) && /renderer\.shadowMap\.autoUpdate = false/.test(mp) && /renderer\.setRenderTarget\(prevT\)/.test(mp) && /scene\.background = null/.test(mp), 'the capture hides the water, reuses the shadow maps, restores the target and the background');
@@ -168,7 +168,7 @@ console.log('\n3. THE LAWS');
         'the sky pass makes the dome VISIBLE for its own draw (opts.hide had already silenced it) and puts it back'); }
     // the mean Fresnel rides the MIRROR too: with the sky in the capture the mirror supplies the whole
     // reflection, and a dim that rode only the probe would leave the grazing sea a hard mirror again
-    verdict(/float wMeanF = mix\(1\.0, clamp\(wFm \/ max\(wF5, 1\.0e-4\), 0\.0, 1\.0\), smoothstep\(0\.55, 0\.15, wC\)\);/.test(w) && w.indexOf('float wMeanF =') < w.indexOf('iblRadiance = mix(iblRadiance, mcol, mmask * edge);') && /iblRadiance \*= wMeanF; \}`\)/.test(w),
+    verdict(/float wMeanF = mix\(1\.0, clamp\(wFm \/ max\(wF5, 1\.0e-4\), 0\.0, 1\.0\), smoothstep\(0\.55, 0\.15, wC\)\);/.test(w) && w.indexOf('float wMeanF =') < w.indexOf('iblRadiance = mix(iblRadiance, mcol, mmask * edge * uWMirror4.x);') && /iblRadiance \*= wMeanF; \}`\)/.test(w),
       "Bruneton's mean Fresnel is applied AFTER the mirror's mix (the probe and the capture dim alike)");
     verdict(typeof W.mirrorRender === 'function' && W.mirror && W.mirror.mode === 'periodic' && W.mirror.maxAgl > 10, `the mirror API, '${W.mirror.mode}' by default, under ${W.mirror.maxAgl} m over the water`);
     // THE CADENCE (G460.11.4): the clock is real seconds (a call-counted clock ran at a fifth of the wall clock under
@@ -190,8 +190,17 @@ console.log('\n3. THE LAWS');
             /mD \*= min\(1\.0, mLim \/ max\(length\(mD\), 1\.0e-4\)\);/.test(w) &&
             !/muv = mp\.xy \/ mp\.w \* 0\.5 \+ 0\.5 \+ /.test(w),
       "the slope walks the POINT on the water (the mirrored eye's reflected ray back to the plane), never the capture's uv");
-    verdict(/U\.uWMirror4\.value\.set\(1, MIR\.perturb, MIR\.lod, waterY\);/.test(w) && W.mirror.perturb > 0 && W.mirror.perturb <= 0.25,
+    verdict(/U\.uWMirror4\.value\.set\(mirW, MIR\.perturb, MIR\.lod, waterY\);/.test(w) && W.mirror.perturb > 0 && W.mirror.perturb <= 0.25,
       `the mirror's plane rides uWMirror4.w (the walk needs it) and the walk is capped at ${(W.mirror.perturb * 100).toFixed(0)} % of the view distance`);
+    // THE CEILING IS A FADE, NOT A CLIFF (G522): the weight rides uWMirror4.x and the shader MIXES by it, so
+    // the hand-over to the probe dissolves; and the move threshold scales with the eye's height, or raising
+    // the ceiling would fire a capture almost every frame at cruise (the nearest thing a mirrored eye at
+    // height h reflects is about h away, so 3 m at the dock and 3 m at 500 m are not the same error).
+    verdict(/const mirW = MIR\.mode === 'off'/.test(mp) && /MIR\.fadeFrom/.test(mp) && /MIR\.maxAgl - MIR\.fadeFrom/.test(mp) &&
+            W.mirror.fadeFrom > 60 && W.mirror.maxAgl > W.mirror.fadeFrom,
+      `the mirror fades out with altitude (full to ${W.mirror.fadeFrom} m, gone by ${W.mirror.maxAgl} m) - never a cliff`);
+    verdict(/const moveLim = Math\.max\(MIR\.moveM, eyeAgl \* MIR\.moveAgl\);/.test(mp) && /moved > moveLim/.test(mp) && W.mirror.moveAgl > 0,
+      `the re-capture distance scales with the eye's height (${W.mirror.moveM} m at the dock, ${(W.mirror.moveAgl * 100).toFixed(0)} % of the altitude above it)`);
     { // the shader's arithmetic, scalar-wise (the lines above are asserted verbatim, so the two cannot drift
       // silently): flat water must give back the point, the walk must stay on the plane, the cap must hold
       const K = W.mirror.perturb;
