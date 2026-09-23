@@ -202,3 +202,15 @@ blocked for an hour between them), so it belongs here.
 - THE RULE IN §1 STANDS: never `git checkout` the shared tree blind. What
   makes the step above legitimate is the proof that every byte you overwrite
   is already in the object DB, carried out in the same breath as the write.
+- AND WHEN AN AUDIT FLAGS A NON-FAST-FORWARD in the reflog, one command says
+  whether anything was actually lost:
+
+        git diff --stat <dropped-sha> <the-sha-that-replaced-it>
+
+  An empty diff means the two commits carry the SAME TREE and nothing went
+  anywhere. Ancestry alone cannot tell you that - it only says the sha is no
+  longer reachable, which is true of every superseded build. Nor can the
+  subject line: master@{8} dropped a commit reading `G504.11 (built)` whose
+  PARENT was G504.13's source, so it was a G504.13 build wearing a stale
+  subject, replaced by the byte-identical and correctly labelled one. Read
+  the parent and diff the trees; a subject line is a claim, not evidence.
