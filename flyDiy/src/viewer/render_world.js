@@ -4497,6 +4497,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
       if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) { refreshGround(pb); sinkFar(pb); } }
     } catch (e) { console.warn('premises: the record did not render', e); }
+  } else if (world.premises && world.premises.rec) {
+    // A SILENT SKIP IS WHAT COST AN AFTERNOON (2026-09-23). render_premises prints
+    // NOTHING on success - every console call in it is a warn on a failure path - so
+    // the absence of a premises line means nothing at all, and a session hunting a
+    // blank frame over Metlakatla read that absence as a signal. Worse, the guard
+    // above can be false with a perfectly good record: if the world pack did not
+    // carry render_premises.js, `window.RENDER_PREMISES` is undefined and the whole
+    // place is skipped without a word - invisible everywhere except where a premises
+    // actually is. It says so now.
+    console.warn('premises: the record is here and RENDER_PREMISES is not loaded - nothing of the place will draw');
   }
   { // stage-4 aerodromes: strip decals + windsocks at every field/strip
     const mkTex = kind => {
