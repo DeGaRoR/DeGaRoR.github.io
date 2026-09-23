@@ -73,6 +73,7 @@ const SPLAT_GROUND = (() => {
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
   uniform float uSHexPx;   // PERF 2026-09-23: the hex tiling only where a set's tile spans more than this many pixels (0 = everywhere)
   float gSPixM = 1.0;      // the fragment's footprint on the ground, metres a pixel (sSplat, in uniform flow)
+  float gSSlope = 0.0;     // the ground's slope in degrees at this fragment (sSplat, before the candidates): a puddle needs a level place
   uniform vec2 uSSeam, uSNrm, uSLakeE;
   uniform float uSBeachRot;
   uniform int uSNCode, uSNCand;
@@ -243,6 +244,12 @@ const SPLAT_GROUND = (() => {
       float far = clamp(pd / 500.0, 0.0, 1.0);
       float e = uSPud.z * (1.0 + uSPud2.x * far);
       float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, e);
+      // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23, the user: "real puddles would be distributed along
+      // terrain depressions ... here you splatter them everywhere"). Measured on Jolene before this:
+      // 42 % of the pools stood on ground steeper than 10 degrees, because the field never asked the
+      // terrain anything. Full water under half of uSPud2.w degrees, none above it - and the same ramp
+      // runs on the CPU in render_world's poolAt, so the tufts and the debris agree with what is drawn.
+      if (uSPud2.w > 0.01) m *= clamp((uSPud2.w - gSSlope) / (uSPud2.w * 0.5), 0.0, 1.0);
       float rim = uSPud2.y * far;
       float deep = rim > 0.001 ? smoothstep(rim, 1.0, m) : 1.0;
       o.c.rgb = mix(o.c.rgb, mix(o.c.rgb * uSPud2.z, vec3(0.022, 0.030, 0.034), deep), m);   // still water, linear
@@ -262,6 +269,7 @@ const SPLAT_GROUND = (() => {
     gSPixM = max(length(fwidth(vWPi.xz)), 1e-4);   // here, before any branch: the derivative is the whole quad's
     vec2 xz = vWPi.xz, p = xz;
     float slope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
+    gSSlope = slope;   // the pools read it in sMat (2026-09-23)
     if (uSSplit2.z > 0.0) { vec2 q = xz / 23.0; p += (vec2(gVnoise(q), gVnoise(q + 77.0)) - 0.5) * 2.0 * uSSplit2.z; }
     float w[${NCODE}]; for (int i = 0; i < uSNCode; i++) w[i] = 0.0;
     vec2 g = (p - uGGrid.xy) / uGCell - 0.5;
@@ -459,11 +467,23 @@ const SPLAT_GROUND = (() => {
       // sets take no gain: 1/1/1, the texture as it shipped. The rest of the mineral list (sand,
       // shingle, dirt, peat, snow) keeps the single luminance gain - those surfaces do vary with
       // the place, and the imagery is a fair judge of how light they are.
-      const ROCK = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble)$/;
+      // AND THE FOREST FLOOR IS NOT THE CANOPY (2026-09-23, the user, circling the ground under and
+      // between the trees round the Jumbo Mine: "that's the rock texture, but used for the forest
+      // ground. And this one has become terribly green. That is the one I want restored to original
+      // tones ... that's the same terrain going on under the trees"). The set is `forestAir`, and it
+      // was the clearest case of all: it SHIPS BROWN - 0.126/0.083/0.026, red highest, blue almost
+      // nothing - and the gain 0.15/0.36/0.35 turned it into 0.019/0.030/0.009, GREEN highest and six
+      // times darker. THE REASON IS A CONFUSION THE WHOLE NORMALISATION MAKES HERE: the imagery's
+      // colour for a forest cell is the CANOPY seen from orbit, and `forestAir` is the GROUND UNDER
+      // that canopy - which this game then covers with its own drawn trees. Painting the floor with
+      // the canopy's colour and standing the trees on top counts the canopy twice, and what is left
+      // showing between the trunks is a green that belongs to the leaves. So the forest floor takes
+      // no gain either: it is the photograph's own brown, and the trees over it are the green.
+      const ROCK = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble|forestAir)$/;
       const MINERAL = /^(beach|coast[A-Za-z]*|dirt|mud|snowAir)$/;
       for (const k in num) {
         const g = num[k].map(v => v / den[k]);
-        if (ROCK.test(k)) { out[k] = [1, 1, 1]; }
+        if (ROCK.test(k)) { out[k] = [1, 1, 1]; }   // rock, and the forest floor: the photograph's own tone
         else if (MINERAL.test(k)) { const L = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; const l = Math.min(2.5, Math.max(0.5, L)); out[k] = [l, l, l]; }
         else out[k] = g.map(v => Math.min(2.5, Math.max(0.15, v)));
       }
@@ -531,7 +551,7 @@ const SPLAT_GROUND = (() => {
       U.uSNrm.value.set(K.nrmK, K.sheen === undefined ? 1 : K.sheen);   // (.y was the bench's specK, unused in the game; the game's lever is `sheen`)
       U.uSPud.value.set(K.pudCell, K.pudCover, K.pudEdge, K.pudSlope);
       // the pond's shore at altitude and where its open water starts (2026-09-23)
-      U.uSPud2.value.set(K.pudFar === undefined ? 0 : K.pudFar, K.pudRim === undefined ? 0 : K.pudRim, K.pudWet === undefined ? 0.5 : K.pudWet, 0);
+      U.uSPud2.value.set(K.pudFar === undefined ? 0 : K.pudFar, K.pudRim === undefined ? 0 : K.pudRim, K.pudWet === undefined ? 0.5 : K.pudWet, K.pudFlat === undefined ? 0 : K.pudFlat);
       U.uSVeg.value.set(K.vegLush === undefined ? 0 : K.vegLush, 0, 0, 0);   // the green INSIDE a texture, per texel (2026-09-23)
       U.uSLakeE.value.set(K.lakeEdge, 1);
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;

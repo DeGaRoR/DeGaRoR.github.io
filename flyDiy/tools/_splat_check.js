@@ -268,11 +268,29 @@ function checkShader(G, splice, quiet) {
     }
     say(n > 50 && same / n < 0.02, nm + ': ' + (100 * same / Math.max(n, 1)).toFixed(1) + ' % of ' + n + ' sampled points repeat ' + d + ' m away');
   }
-  // THE POND CENSUS: what the eye is actually given, over 2 km on a 2 m lattice
+  // THE POND CENSUS: what the eye is actually given. On a box that has the island
+  // it walks REAL muskeg with the SLOPE GATE the game applies (2026-09-23, the user:
+  // "real puddles would be distributed along terrain depressions ... let's get rid of
+  // 90% of them" - 42 % of them stood on ground over 10 degrees before that gate);
+  // without the island it walks the bare field, which is the same law minus the terrain.
   {
-    const S = 2000, ST = 2, NN = S / ST, km2 = (S / 1000) * (S / 1000), g = new Uint8Array(NN * NN);
-    let wetN = 0;
-    for (let j = 0; j < NN; j++) for (let i = 0; i < NN; i++) if (poolG(-S / 2 + i * ST, -S / 2 + j * ST) > 0.5) { g[j * NN + i] = 1; wetN++; }
+    let WI = null; try { WI = require('./island_node.js').islandWorld('jolene'); } catch (e) { WI = null; }
+    const onIsland = !!(WI && WI.island && WI.island.cellAt && WI.island.ttype);
+    const typeAt = onIsland ? ((x, z) => { const k = WI.island.cellAt(x, z); return k < 0 ? -1 : WI.island.ttype[k]; }) : null;
+    const slopeAt = onIsland ? ((x, z) => { const d = 5, gx = (WI.terrainH(x + d, z) - WI.terrainH(x - d, z)) / (2 * d), gz = (WI.terrainH(x, z + d) - WI.terrainH(x, z - d)) / (2 * d);
+      return Math.atan(Math.hypot(gx, gz)) * 180 / Math.PI; }) : null;
+    const X0 = onIsland ? -1200 : -1000, Z0 = onIsland ? -1200 : -1000;
+    const S = 2000, ST = onIsland ? 4 : 2, NN = S / ST, g = new Uint8Array(NN * NN);
+    let wetN = 0, landN = 0;
+    for (let j = 0; j < NN; j++) for (let i = 0; i < NN; i++) {
+      const x = X0 + i * ST, z = Z0 + j * ST;
+      if (onIsland) { const t = typeAt(x, z); if (t !== 3 && t !== 7) continue; }
+      landN++;
+      let m = poolG(x, z);
+      if (onIsland && KN.pudFlat > 0.01) m *= Math.max(0, Math.min(1, (KN.pudFlat - slopeAt(x, z)) / (KN.pudFlat * 0.5)));
+      if (m > 0.5) { g[j * NN + i] = 1; wetN++; }
+    }
+    const km2 = landN * ST * ST / 1e6;
     const lab = new Int32Array(NN * NN).fill(-1), sizes = [], st = [];
     let ponds = 0;
     for (let q0 = 0; q0 < NN * NN; q0++) {
@@ -292,18 +310,27 @@ function checkShader(G, splice, quiet) {
       sizes.push(cnt * ST * ST); ponds++;
     }
     sizes.sort((a, b) => a - b);
-    const cov = 100 * wetN / (NN * NN), per = ponds / km2, med = sizes[ponds >> 1] || 0;
-    const B = 100, nb = NN / B, blocks = [];
-    for (let bj = 0; bj < nb; bj++) for (let bi = 0; bi < nb; bi++) {
-      let c = 0;
-      for (let j = 0; j < B; j++) for (let i = 0; i < B; i++) c += g[(bj * B + j) * NN + bi * B + i];
-      blocks.push(c / (B * B));
+    const cov = 100 * wetN / Math.max(landN, 1), per = ponds / Math.max(km2, 1e-6), med = sizes[ponds >> 1] || 0;
+    const small = sizes.filter(v => v < 200).length / Math.max(km2, 1e-6);
+    console.log('   ' + (onIsland ? 'real muskeg on Jolene with the slope gate' : 'the bare field (no island on this box)') +
+      ': ' + km2.toFixed(2) + ' km2, ' + cov.toFixed(2) + ' % water, ' + per.toFixed(0) + ' ponds/km2, median ' + med + ' m2, largest ' + (sizes[ponds - 1] || 0) + ' m2');
+    // THE BOUNDS ARE THE USER'S RULING (2026-09-23): 105 ponds a km2 on this same
+    // ground read as noise, and 90 % of them had to go. Under 4 a km2 the muskeg has
+    // no water at all, which is not Alaska either; over 20 the speckle is coming back.
+    if (onIsland) {
+      say(per >= 4 && per <= 20, per.toFixed(0) + ' ponds per km2 of muskeg (4-20: it was 105 when the user called it noise)');
+      say(small <= 10, small.toFixed(0) + ' of them per km2 are under 200 m2 (bound 10: it was 67 - those are what read as speckles)');
+      say(med >= 200, 'the median pond is ' + med + ' m2 = ' + (2 * Math.sqrt(med / Math.PI)).toFixed(0) + ' m across (>= 200 m2: it was 112)');
+      say(cov >= 0.4 && cov <= 3, cov.toFixed(2) + ' % of the muskeg is water (0.4-3 %: it was 4.85)');
+    } else {
+      say(per >= 1 && per <= 10, per.toFixed(0) + ' ponds per km2 of the bare field (1-10; the terrain gate takes it further)');
+      say(med >= 500, 'the median basin is ' + med + ' m2 (>= 500: the field is one basin plus a whisker now)');
     }
-    const dry = 100 * blocks.filter(b => b < 0.005).length / blocks.length;
-    say(cov > 2 && cov < 9, 'the muskeg is ' + cov.toFixed(1) + ' % open water (2-9 %: it was 13.3 when the user called it too many)');
-    say(per > 30 && per < 200, per.toFixed(0) + ' ponds per km2 (30-200: it was 738, which reads as a dotted texture)');
-    say(med >= 80, 'the median pond is ' + med + ' m2 = ' + (2 * Math.sqrt(med / Math.PI)).toFixed(1) + ' m across (>= 80 m2: it was 36, a speck)');
-    say(dry > 15, dry.toFixed(0) + ' % of 200 m blocks hold no water at all (> 15 %: the packs - it was 0, an even sprinkle)');
+    // and the gate the game applies must exist in BOTH twins, or the ring plants
+    // tufts in water the shader does not draw (and refuses them where it does)
+    { const rw = fs.readFileSync(path.join(ROOT, 'src/viewer/render_world.js'), 'utf8');
+      say(/uSPud2\.w > 0\.01\) m \*= clamp\(\(uSPud2\.w - gSSlope\)/.test(G.glsl + splice.glslCommon), 'the shader gates the pools by the ground slope (gSSlope)');
+      say(/K\.pudFlat > 0\.01[\s\S]{0,400}?Math\.atan\(Math\.hypot\(gx, gz\)\)/.test(rw), 'render_world runs the SAME ramp on the CPU, so the tufts and the debris agree'); }
   }
   say(splice.uniforms.uSNCode.value > 14 && splice.uniforms.uSNCand.value >= 1 && splice.uniforms.uSNCand.value <= 8, `uSNCode ${splice.uniforms.uSNCode.value}, uSNCand ${splice.uniforms.uSNCand.value} (C[8])`);
   if (!quiet) for (const [ok, line] of out) verdict(ok, line);
@@ -353,14 +380,18 @@ function checkMineral(quiet) {
   // enough: "restore only the rock texture to its original tone"). The photograph of a rock IS
   // its tone; the imagery cannot judge it, because at 10 m a pixel its rock cells are rock with
   // trees on them. The rest of the mineral list does vary with the place and keeps ONE gain.
-  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble'];
+  // forestAir joined them (2026-09-23): it is the GROUND UNDER the canopy, and the imagery's
+  // forest colour is the canopy itself - normalising the floor to it paints the leaves on the
+  // ground and then stands the drawn trees on top, counting the canopy twice. It ships brown
+  // (0.126/0.083/0.026) and the gain made it green (0.019/0.030/0.009) and six times darker.
+  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble', 'forestAir'];
   const MUST_KEEP_HUE = ['beach', 'coastA', 'coastSand', 'dirt', 'mud', 'snowAir'];
   const moved = [];
   for (const k of ROCK_AS_SHIPPED) {
     const g = norm[k]; if (!g) continue;
     if (Math.abs(g[0] - 1) > 1e-6 || Math.abs(g[1] - 1) > 1e-6 || Math.abs(g[2] - 1) > 1e-6) moved.push(`${k} ${g.map(v => v.toFixed(2)).join('/')}`);
   }
-  say(!moved.length, `every ROCK set is its shipped tone, gain 1/1/1: ${moved.length ? moved.join(', ') : ROCK_AS_SHIPPED.filter(k => norm[k]).length + ' checked'}`);
+  say(!moved.length, `every rock set AND the forest floor are their shipped tone, gain 1/1/1: ${moved.length ? moved.join(', ') : ROCK_AS_SHIPPED.filter(k => norm[k]).length + ' checked'}`);
   const bad = [];
   for (const k of MUST_KEEP_HUE) {
     const g = norm[k]; if (!g) continue;
@@ -370,7 +401,7 @@ function checkMineral(quiet) {
   say(!bad.length, `the other mineral sets take ONE luminance gain, not a colour: ${bad.length ? bad.join(', ') : MUST_KEEP_HUE.filter(k => norm[k]).length + ' checked, all neutral'}`);
   // and the vegetation sets still DO take the imagery's colour - the rule is a
   // carve-out, not a retreat from the normalisation the user asked for
-  const veg = ['forestAir', 'grass', 'grassRock', 'dry', 'lush', 'leaves'].filter(k => norm[k]);
+  const veg = ['grass', 'grassRock', 'dry', 'lush', 'leaves'].filter(k => norm[k]);
   const coloured = veg.filter(k => { const g = norm[k]; return Math.abs(g[0] - g[1]) > 1e-6 || Math.abs(g[1] - g[2]) > 1e-6; });
   say(coloured.length >= 2, `the vegetation sets still take the imagery's colour (${coloured.length} of ${veg.length} have a per-channel gain)`);
   if (!quiet) for (const [ok, line] of out) verdict(ok, line);

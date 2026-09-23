@@ -75,10 +75,18 @@ const GROUND_FIELDS = (() => {
     //          in packs with dry muskeg between them instead of an even sprinkle (the user's "less of them")
     //          - 35 % of 200 m blocks now hold no water at all, against 0 % before
     //   thr0   0.92 of a field of mean 0.50, sd 0.144: only the tall humps become water. MEASURED on the
-    pool:   { period: 400, oct: [[3.2, 0.68, 0.0, 0.0, 0.0], [7.5, 0.22, 0.9273, 0.37, 0.11], [17, 0.10, 2.1588, 0.71, 0.53]],   // [cells, weight, rot, du, dw]
+    // AND THEY ARE NOT SPLATTERED (2026-09-23, the user on a shot from 400 m: "there are too many small
+    // ones, that just read like noise ... real puddles would be distributed along terrain depressions ...
+    // let's get rid of 90% of them, and keep some only where it really makes sense"). MEASURED on Jolene
+    // before the change: 42 % of the pools sat on ground STEEPER THAN 10 DEGREES and 72 % steeper than 3 -
+    // the field never asked the terrain anything. Water stands where the ground is level, so the pool mask
+    // is now gated by the slope (knobs.pudFlat, in both twins), and the octaves are one basin plus a
+    // whisker: 0.94 at 133 m, then 0.04 and 0.02 only to rough the outline. With the threshold at 1.06
+    // that is 9 ponds a km2 against 105, a 91 % cut, and the median pond is 336 m2 instead of 112.
+    pool:   { period: 400, oct: [[1.0, 0.94, 0.0, 0.0, 0.0], [3, 0.04, 0.9273, 0.37, 0.11], [9, 0.02, 2.1588, 0.71, 0.53]],   // [cells, weight, rot, du, dw]
               warp:  { cells: 2.3, amp: 0.22, off: [3.11, 7.53, 9.27, 1.87] },
               basin: { cells: 0.22, rot: 1.4234, off: [5.41, 2.19], k: 0.45 },
-              thr0: 0.92, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
+              thr0: 1.06, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
     mix:    { period: 160, oct: [[6, 0.5, 0.0, 0.0], [12, 0.25, 0.3, 0.7], [24, 0.125, 0.6, 0.2], [48, 0.0625, 0.1, 0.9]], norm: 0.9375,
               rot: [0.62, -0.78, 0.78, 0.62], scale2: 0.41, off2: [0.37, 0.71], w1: 0.65, w2: 0.35, bias: 0.52, biasMuskeg: 0.60, sharp: 4 },
     blotch: { cellM: 18, cells: 64, amount: 0.6 },
@@ -131,6 +139,7 @@ const GROUND_FIELDS = (() => {
       // 1.33 m of shore becomes 9.3 m and survives a pixel), pudRim is where the OPEN water starts in the mask
       // (under it the ground goes dark and wet but keeps its roughness - only the middle of a pond is a mirror)
       pudFar: 12, pudRim: 0.65, pudWet: 0.62,
+      pudFlat: 4,   // degrees: full water under half of it, none above it - a puddle is a level place (2026-09-23)
       // vegLush (2026-09-23, the user: "very slightly tune the grass part of the texture to get more lush
       // green, without modifying the rock color. Ever so subtle"): a PER-TEXEL lift on the green that
       // stands over the other two channels, so moss and leaf in a rock photograph warm up and the boulders

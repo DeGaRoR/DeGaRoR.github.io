@@ -91,8 +91,7 @@
     "w": 2.2,
     "cls": "track",
     "look": "dirt",
-    "graded": true,
-    "falloff": 3,
+    "graded": false,
     "poles": "off",
     "rail": "off",
     "pav": {
@@ -126,14 +125,12 @@
     "w": 2.2,
     "cls": "track",
     "look": "dirt",
-    "graded": true,
-    "falloff": 3,
+    "graded": false,
     "poles": "off",
     "rail": "off",
     "pav": {
      "marks": "none"
-    },
-    "grade": 0.14
+    }
    }
   ],
   "zones": [

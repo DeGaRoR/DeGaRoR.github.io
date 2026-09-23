@@ -16483,10 +16483,18 @@ const GROUND_FIELDS = (() => {
     //          in packs with dry muskeg between them instead of an even sprinkle (the user's "less of them")
     //          - 35 % of 200 m blocks now hold no water at all, against 0 % before
     //   thr0   0.92 of a field of mean 0.50, sd 0.144: only the tall humps become water. MEASURED on the
-    pool:   { period: 400, oct: [[3.2, 0.68, 0.0, 0.0, 0.0], [7.5, 0.22, 0.9273, 0.37, 0.11], [17, 0.10, 2.1588, 0.71, 0.53]],   // [cells, weight, rot, du, dw]
+    // AND THEY ARE NOT SPLATTERED (2026-09-23, the user on a shot from 400 m: "there are too many small
+    // ones, that just read like noise ... real puddles would be distributed along terrain depressions ...
+    // let's get rid of 90% of them, and keep some only where it really makes sense"). MEASURED on Jolene
+    // before the change: 42 % of the pools sat on ground STEEPER THAN 10 DEGREES and 72 % steeper than 3 -
+    // the field never asked the terrain anything. Water stands where the ground is level, so the pool mask
+    // is now gated by the slope (knobs.pudFlat, in both twins), and the octaves are one basin plus a
+    // whisker: 0.94 at 133 m, then 0.04 and 0.02 only to rough the outline. With the threshold at 1.06
+    // that is 9 ponds a km2 against 105, a 91 % cut, and the median pond is 336 m2 instead of 112.
+    pool:   { period: 400, oct: [[1.0, 0.94, 0.0, 0.0, 0.0], [3, 0.04, 0.9273, 0.37, 0.11], [9, 0.02, 2.1588, 0.71, 0.53]],   // [cells, weight, rot, du, dw]
               warp:  { cells: 2.3, amp: 0.22, off: [3.11, 7.53, 9.27, 1.87] },
               basin: { cells: 0.22, rot: 1.4234, off: [5.41, 2.19], k: 0.45 },
-              thr0: 0.92, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
+              thr0: 1.06, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
     mix:    { period: 160, oct: [[6, 0.5, 0.0, 0.0], [12, 0.25, 0.3, 0.7], [24, 0.125, 0.6, 0.2], [48, 0.0625, 0.1, 0.9]], norm: 0.9375,
               rot: [0.62, -0.78, 0.78, 0.62], scale2: 0.41, off2: [0.37, 0.71], w1: 0.65, w2: 0.35, bias: 0.52, biasMuskeg: 0.60, sharp: 4 },
     blotch: { cellM: 18, cells: 64, amount: 0.6 },
@@ -16539,6 +16547,7 @@ const GROUND_FIELDS = (() => {
       // 1.33 m of shore becomes 9.3 m and survives a pixel), pudRim is where the OPEN water starts in the mask
       // (under it the ground goes dark and wet but keeps its roughness - only the middle of a pond is a mirror)
       pudFar: 12, pudRim: 0.65, pudWet: 0.62,
+      pudFlat: 4,   // degrees: full water under half of it, none above it - a puddle is a level place (2026-09-23)
       // vegLush (2026-09-23, the user: "very slightly tune the grass part of the texture to get more lush
       // green, without modifying the rock color. Ever so subtle"): a PER-TEXEL lift on the green that
       // stands over the other two channels, so moss and leaf in a rock photograph warm up and the boulders
@@ -38963,7 +38972,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='bd4cc8aa4cfd';window.FLYDIY_BUILD='be6131e8e84d'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='026239c68338';window.FLYDIY_BUILD='60311127bdc2'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -104626,6 +104635,7 @@ const SPLAT_GROUND = (() => {
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
   uniform float uSHexPx;   // PERF 2026-09-23: the hex tiling only where a set's tile spans more than this many pixels (0 = everywhere)
   float gSPixM = 1.0;      // the fragment's footprint on the ground, metres a pixel (sSplat, in uniform flow)
+  float gSSlope = 0.0;     // the ground's slope in degrees at this fragment (sSplat, before the candidates): a puddle needs a level place
   uniform vec2 uSSeam, uSNrm, uSLakeE;
   uniform float uSBeachRot;
   uniform int uSNCode, uSNCand;
@@ -104796,6 +104806,12 @@ const SPLAT_GROUND = (() => {
       float far = clamp(pd / 500.0, 0.0, 1.0);
       float e = uSPud.z * (1.0 + uSPud2.x * far);
       float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, e);
+      // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23, the user: "real puddles would be distributed along
+      // terrain depressions ... here you splatter them everywhere"). Measured on Jolene before this:
+      // 42 % of the pools stood on ground steeper than 10 degrees, because the field never asked the
+      // terrain anything. Full water under half of uSPud2.w degrees, none above it - and the same ramp
+      // runs on the CPU in render_world's poolAt, so the tufts and the debris agree with what is drawn.
+      if (uSPud2.w > 0.01) m *= clamp((uSPud2.w - gSSlope) / (uSPud2.w * 0.5), 0.0, 1.0);
       float rim = uSPud2.y * far;
       float deep = rim > 0.001 ? smoothstep(rim, 1.0, m) : 1.0;
       o.c.rgb = mix(o.c.rgb, mix(o.c.rgb * uSPud2.z, vec3(0.022, 0.030, 0.034), deep), m);   // still water, linear
@@ -104815,6 +104831,7 @@ const SPLAT_GROUND = (() => {
     gSPixM = max(length(fwidth(vWPi.xz)), 1e-4);   // here, before any branch: the derivative is the whole quad's
     vec2 xz = vWPi.xz, p = xz;
     float slope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
+    gSSlope = slope;   // the pools read it in sMat (2026-09-23)
     if (uSSplit2.z > 0.0) { vec2 q = xz / 23.0; p += (vec2(gVnoise(q), gVnoise(q + 77.0)) - 0.5) * 2.0 * uSSplit2.z; }
     float w[${NCODE}]; for (int i = 0; i < uSNCode; i++) w[i] = 0.0;
     vec2 g = (p - uGGrid.xy) / uGCell - 0.5;
@@ -105012,11 +105029,23 @@ const SPLAT_GROUND = (() => {
       // sets take no gain: 1/1/1, the texture as it shipped. The rest of the mineral list (sand,
       // shingle, dirt, peat, snow) keeps the single luminance gain - those surfaces do vary with
       // the place, and the imagery is a fair judge of how light they are.
-      const ROCK = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble)$/;
+      // AND THE FOREST FLOOR IS NOT THE CANOPY (2026-09-23, the user, circling the ground under and
+      // between the trees round the Jumbo Mine: "that's the rock texture, but used for the forest
+      // ground. And this one has become terribly green. That is the one I want restored to original
+      // tones ... that's the same terrain going on under the trees"). The set is `forestAir`, and it
+      // was the clearest case of all: it SHIPS BROWN - 0.126/0.083/0.026, red highest, blue almost
+      // nothing - and the gain 0.15/0.36/0.35 turned it into 0.019/0.030/0.009, GREEN highest and six
+      // times darker. THE REASON IS A CONFUSION THE WHOLE NORMALISATION MAKES HERE: the imagery's
+      // colour for a forest cell is the CANOPY seen from orbit, and `forestAir` is the GROUND UNDER
+      // that canopy - which this game then covers with its own drawn trees. Painting the floor with
+      // the canopy's colour and standing the trees on top counts the canopy twice, and what is left
+      // showing between the trunks is a green that belongs to the leaves. So the forest floor takes
+      // no gain either: it is the photograph's own brown, and the trees over it are the green.
+      const ROCK = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble|forestAir)$/;
       const MINERAL = /^(beach|coast[A-Za-z]*|dirt|mud|snowAir)$/;
       for (const k in num) {
         const g = num[k].map(v => v / den[k]);
-        if (ROCK.test(k)) { out[k] = [1, 1, 1]; }
+        if (ROCK.test(k)) { out[k] = [1, 1, 1]; }   // rock, and the forest floor: the photograph's own tone
         else if (MINERAL.test(k)) { const L = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; const l = Math.min(2.5, Math.max(0.5, L)); out[k] = [l, l, l]; }
         else out[k] = g.map(v => Math.min(2.5, Math.max(0.15, v)));
       }
@@ -105084,7 +105113,7 @@ const SPLAT_GROUND = (() => {
       U.uSNrm.value.set(K.nrmK, K.sheen === undefined ? 1 : K.sheen);   // (.y was the bench's specK, unused in the game; the game's lever is `sheen`)
       U.uSPud.value.set(K.pudCell, K.pudCover, K.pudEdge, K.pudSlope);
       // the pond's shore at altitude and where its open water starts (2026-09-23)
-      U.uSPud2.value.set(K.pudFar === undefined ? 0 : K.pudFar, K.pudRim === undefined ? 0 : K.pudRim, K.pudWet === undefined ? 0.5 : K.pudWet, 0);
+      U.uSPud2.value.set(K.pudFar === undefined ? 0 : K.pudFar, K.pudRim === undefined ? 0 : K.pudRim, K.pudWet === undefined ? 0.5 : K.pudWet, K.pudFlat === undefined ? 0 : K.pudFlat);
       U.uSVeg.value.set(K.vegLush === undefined ? 0 : K.vegLush, 0, 0, 0);   // the green INSIDE a texture, per texel (2026-09-23)
       U.uSLakeE.value.set(K.lakeEdge, 1);
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
@@ -114404,7 +114433,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null; if (!GF || !GF.poolAt) return 0;
             const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's
             if (!(K.pudCover > 0)) return 0;
-            return GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
+            let m = GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
+            // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23): the same ramp the shader runs (splat_ground sMat,
+            // uSPud2.w), so a tuft is refused and a log floats exactly where water is DRAWN - 42 % of the
+            // pools stood on ground over 10 degrees before this gate, and the ring believed every one.
+            if (m > 0 && K.pudFlat > 0.01) {
+              const d = 5, gx = (world.terrainH(x + d, z) - world.terrainH(x - d, z)) / (2 * d), gz = (world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+              const sl = Math.atan(Math.hypot(gx, gz)) * 180 / Math.PI;
+              m *= Math.max(0, Math.min(1, (K.pudFlat - sl) / (K.pudFlat * 0.5)));
+            }
+            return m;
           };
           const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
