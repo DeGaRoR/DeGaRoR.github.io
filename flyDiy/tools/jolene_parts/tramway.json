@@ -29,53 +29,39 @@
     "order": 0
    },
    {
-    "id": "tw_t_summit_apron",
+    "id": "tw_t_platform",
     "kind": "flatten",
     "poly": [
      [
-      289.9,
-      -7836.2
+      280,
+      -7807.3
      ],
      [
-      313.9,
-      -7877.8
+      273,
+      -7825.2
      ],
      [
-      336.4,
-      -7864.8
+      284.2,
+      -7854.6
      ],
      [
-      312.4,
-      -7823.2
+      309.4,
+      -7886.2
+     ],
+     [
+      327,
+      -7888.7
+     ],
+     [
+      345.2,
+      -7878.2
+     ],
+     [
+      298.2,
+      -7796.8
      ]
     ],
-    "level": 709.8,
-    "falloff": 10,
-    "abs": true,
-    "order": 0
-   },
-   {
-    "id": "tw_t_square",
-    "kind": "flatten",
-    "poly": [
-     [
-      312,
-      -7881
-     ],
-     [
-      340,
-      -7881
-     ],
-     [
-      340,
-      -7860
-     ],
-     [
-      312,
-      -7860
-     ]
-    ],
-    "level": 709,
+    "level": 708.7,
     "falloff": 8,
     "abs": true,
     "order": 0
@@ -108,29 +94,41 @@
     "yaw": 0
    },
    {
-    "id": "tw_m_square",
+    "id": "tw_m_platform",
     "poly": [
      [
-      312,
-      -7881
+      280,
+      -7807.3
      ],
      [
-      340,
-      -7881
+      273,
+      -7825.2
      ],
      [
-      340,
-      -7860
+      284.2,
+      -7854.6
      ],
      [
-      312,
-      -7860
+      309.4,
+      -7886.2
+     ],
+     [
+      327,
+      -7888.7
+     ],
+     [
+      345.2,
+      -7878.2
+     ],
+     [
+      298.2,
+      -7796.8
      ]
     ],
     "z": 1,
     "look": "concrete",
     "band": 1,
-    "yaw": 0
+    "yaw": -1.0472
    }
   ],
   "roads": [
@@ -165,38 +163,6 @@
     "name": "Skyline Tramway road",
     "grade": null,
     "traffic": 1
-   },
-   {
-    "id": "tw_r_summit_path",
-    "pts": [
-     [
-      304,
-      -7880
-     ],
-     [
-      295,
-      -7861
-     ],
-     [
-      289,
-      -7845
-     ],
-     [
-      300,
-      -7839
-     ],
-     [
-      311,
-      -7846
-     ]
-    ],
-    "w": 2,
-    "cls": "path",
-    "graded": true,
-    "falloff": 4,
-    "name": "summit footpath",
-    "poles": "off",
-    "rail": "off"
    }
   ],
   "runways": [
@@ -221,14 +187,14 @@
     "site": null,
     "pattern": null,
     "stand": {
-     "x": 313,
-     "z": -7848,
+     "x": 310.4,
+     "z": -7844,
      "hdg": null
     },
     "taxiOut": [
      [
-      331.86,
-      -7837.11
+      329.47,
+      -7832.99
      ]
     ],
     "profile": [
@@ -253,7 +219,9 @@
     "hangar": null,
     "circuit": null,
     "band": 6,
-    "pav": null,
+    "pav": {
+     "marks": "none"
+    },
     "altiport": true,
     "c": [
      257,
@@ -311,8 +279,8 @@
     "id": "tw_s_summit",
     "name": "Skyline summit - tram station and ski lodge",
     "at": {
-     "x": 293,
-     "z": -7890,
+     "x": 277,
+     "z": -7868,
      "yaw": 0
     },
     "yard": null,
@@ -322,14 +290,14 @@
       "key": "house/tram top station",
       "x": 0,
       "z": 0,
-      "yaw": 1.5707963267948966,
+      "yaw": 1.5396,
       "P": {}
      },
      {
       "id": "lodge",
       "key": "house/cafe",
-      "x": -8,
-      "z": 54,
+      "x": 8,
+      "z": 34,
       "yaw": 0,
       "P": {
        "lot": false,
@@ -339,8 +307,8 @@
      {
       "id": "patrol",
       "key": "house/log cabin",
-      "x": -11,
-      "z": 28,
+      "x": -3,
+      "z": 42,
       "yaw": 0,
       "P": {
        "lot": false
@@ -349,8 +317,8 @@
      {
       "id": "pilothut",
       "key": "house/pilot hut",
-      "x": 7,
-      "z": 30,
+      "x": 20,
+      "z": 39,
       "yaw": 0,
       "P": {
        "lot": false
@@ -359,8 +327,8 @@
      {
       "id": "groomer",
       "key": "house/garage",
-      "x": -25,
-      "z": 42,
+      "x": -15,
+      "z": 25,
       "yaw": 0,
       "P": {
        "lot": false
@@ -369,8 +337,8 @@
      {
       "id": "shed",
       "key": "house/storage shed",
-      "x": -31,
-      "z": 50,
+      "x": -22,
+      "z": 32,
       "yaw": 0,
       "P": {
        "lot": false
@@ -379,8 +347,8 @@
      {
       "id": "wc",
       "key": "house/outhouse",
-      "x": -1,
-      "z": 66,
+      "x": 14,
+      "z": 46,
       "yaw": 0,
       "P": {
        "lot": false
@@ -403,7 +371,7 @@
       "key": "house/tram base station",
       "x": 0,
       "z": 0,
-      "yaw": -1.5707963267948966,
+      "yaw": -1.602,
       "P": {}
      },
      {
@@ -585,7 +553,7 @@
     "dy": 0,
     "on": "ground",
     "key": "person_luke",
-    "x": 291,
+    "x": 288,
     "z": -7846,
     "yaw": 0.3
    },
@@ -595,8 +563,8 @@
     "dy": 0,
     "on": "ground",
     "key": "person_koky",
-    "x": 294,
-    "z": -7849,
+    "x": 291,
+    "z": -7848,
     "yaw": 2.9
    },
    {
@@ -605,8 +573,8 @@
     "dy": 0,
     "on": "ground",
     "key": "person_charles",
-    "x": 306,
-    "z": -7840,
+    "x": 300,
+    "z": -7820,
     "yaw": -1.2
    },
    {
@@ -615,8 +583,8 @@
     "dy": 0,
     "on": "ground",
     "key": "picnic_table",
-    "x": 296,
-    "z": -7856,
+    "x": 295,
+    "z": -7816,
     "yaw": 0.2
    },
    {
@@ -625,8 +593,8 @@
     "dy": 0,
     "on": "ground",
     "key": "picnic_table",
-    "x": 302,
-    "z": -7852,
+    "x": 303,
+    "z": -7814,
     "yaw": 0.9
    },
    {
@@ -635,8 +603,8 @@
     "dy": 0,
     "on": "ground",
     "key": "bin_metal",
-    "x": 289,
-    "z": -7855,
+    "x": 286,
+    "z": -7820,
     "yaw": 0
    }
   ]

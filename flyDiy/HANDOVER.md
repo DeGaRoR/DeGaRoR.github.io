@@ -58198,3 +58198,26 @@ is what it looked like before.
 STILL OPEN, and NOT this landing: the user's photographs are of PAVEMENT - sheet water on an apron, which is a
 roughness variation rather than a dark hole, and that belongs to the pavement material (the roads session), not
 to the muskeg. Nothing here touches a paved surface.
+
+## G540 — THE ALTIPORT'S HEAD IS ONE PLATFORM: the tram's terminal house on it, the strip unmarked and flush with it (2026-09-23, the user: "move the whole top station so the back building lands in the flat zone you've just made. Remove all markings of the runway, and do an elegant joint with the new platform you've made")
+
+ONE PLATFORM INSTEAD OF TWO FLATS. G535's parking apron (709.8) and square (709.0) overlapped at
+different levels - `issues()` refuses it ("two flattens at different levels overlap"), which nothing on
+master asserted over the shipped record until the Metlakatla session's GATE PREMISES section 14 (they
+found it and left the fix to its author). Both are gone, with the summit footpath. `tw_t_platform` +
+`tw_m_platform` (concrete `look`, turned with the strip): the strip's head WIDENED to the west - a
+chamfered polygon in the strip's own frame (t 288..382 along, 9..50 m west of the centreline), its east
+side ON the strip's west edge and its level the head's own (708.7 m, the profile's flat top reads
+708.6-708.8 over its last 50 m), so the grass runs onto the concrete with no step and no bank between.
+
+THE WHOLE TOP STATION MOVED: site at (277, -7868) so the TERMINAL HOUSE (14 x 9.5 m, 38 m behind the
+rope end) stands on the platform - all four corners inside it at 708.70 - and BOTH stations turned
+1.8 deg (yaw pi/2 - 0.0312 and -pi/2 - 0.0312) so each faces the other exactly (the two track hooks'
+line square to the rope at both ends: 0.0 deg; it was 1.8). The cable solves at 20.6 deg, the rope
+14.2 m over the ground at its worst. The lodge, the patrol cabin, the pilot hut, the groomer's garage,
+the shed and the outhouse re-laid round the platform's west side clear of the station, the stand on
+the platform (310.4, -7844), the summit's people and tables clear of both.
+
+THE STRIP UNMARKED: `pav: { marks: 'none' }` on tw_ski - a summer ski slope, grass with the wheels'
+track and nothing painted. All of it in the world editor, extracted into tools/jolene_parts/tramway.json;
+`issues()` over the whole regenerated record: none. Flown both ways again (below); GATE PREMISES, WORLD.
