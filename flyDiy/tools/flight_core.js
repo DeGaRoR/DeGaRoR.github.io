@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 055a009eb110da91
+// body-sha256: aaabf2dea8310687
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7811,11 +7811,21 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 // 3.00 wraps mod 2^32; JS uses |0 and Math.imul for the same bits).
 //
 //   hash2(ix, iz)                   0..1, the integer hash (the vegetation's)
-//   vnoiseT(u, w, N)                tileable value noise, u,w in [0,1) over
-//                                   ONE period, N cells, smoothstep bilinear
-//   poolAt(x, z, wet, edge)         0 = peat, 1 = open water; the puddles.
-//                                   period POOL.period (400 m), three octaves,
-//                                   threshold 0.66 - 0.30*wet (muskeg wet 0.45);
+//   vnoise(px, pz)                  value noise on an UNBOUNDED lattice, cell 1,
+//                                   smoothstep bilinear. NOTHING HERE TILES any
+//                                   more (2026-09-23): the old vnoiseT wrapped
+//                                   its indices mod N and every field built on it
+//                                   repeated - the puddles every 133 m of ground,
+//                                   the set mask every 150 m, the blotch every
+//                                   1152 m (the shade escaped: its two octaves
+//                                   have coprime periods). A field's SCALE is
+//                                   its cell size; it needs no period at all.
+//   poolAt(x, z, wet, edge)         0 = peat, 1 = open water; the puddles. A warp,
+//                                   three octaves each on its own turned lattice,
+//                                   and a 600 m BASIN field that decides where the
+//                                   ground holds water at all - so they come in
+//                                   packs. 5.4 % of the muskeg, 82 ponds/km2 (was
+//                                   13 % and 725, stamped on a 133 m grid);
 //                                   `edge` half-width in noise units - the
 //                                   vegetation's 0.035 is a 15 m fade, the
 //                                   ground's default is 0.01 (water is a line)
@@ -7852,8 +7862,21 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 const GROUND_FIELDS = (() => {
   // ---- THE TABLE (the vegetation's numbers) ------------------------------
   const C = {
-    pool:   { period: 400, oct: [[5, 0.55, 0.0, 0.0], [11, 0.30, 0.37, 0.11], [23, 0.15, 0.71, 0.53]],   // [cells, weight, du, dw]
-              thr0: 0.66, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
+    // THE PUDDLES, rebuilt 2026-09-23 (the user, on four aerial shots of the muskeg: "your algorithm for
+    // generating puddles ... produces results which you can clearly see the repetition ... there should be
+    // less of them, and you should really do something so no grid pattern shows"). Four parts:
+    //   oct    [cells per period, weight, ROTATION rad, du, dw] - each octave on its OWN turned lattice, so
+    //          no two share an axis and the sum has no grid to show; the low one carries the pond (period /
+    //          3.2 = 125 noise units = 42 m of ground), the others only rough up its outline
+    //   warp   a slow drift of the domain before the octaves are read: the outline stops being a blob
+    //   basin  WHERE THE GROUND HOLDS WATER AT ALL - a 600 m field that moves the threshold, so ponds come
+    //          in packs with dry muskeg between them instead of an even sprinkle (the user's "less of them")
+    //          - 35 % of 200 m blocks now hold no water at all, against 0 % before
+    //   thr0   0.92 of a field of mean 0.50, sd 0.144: only the tall humps become water. MEASURED on the
+    pool:   { period: 400, oct: [[3.2, 0.68, 0.0, 0.0, 0.0], [7.5, 0.22, 0.9273, 0.37, 0.11], [17, 0.10, 2.1588, 0.71, 0.53]],   // [cells, weight, rot, du, dw]
+              warp:  { cells: 2.3, amp: 0.22, off: [3.11, 7.53, 9.27, 1.87] },
+              basin: { cells: 0.22, rot: 1.4234, off: [5.41, 2.19], k: 0.45 },
+              thr0: 0.92, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
     mix:    { period: 160, oct: [[6, 0.5, 0.0, 0.0], [12, 0.25, 0.3, 0.7], [24, 0.125, 0.6, 0.2], [48, 0.0625, 0.1, 0.9]], norm: 0.9375,
               rot: [0.62, -0.78, 0.78, 0.62], scale2: 0.41, off2: [0.37, 0.71], w1: 0.65, w2: 0.35, bias: 0.52, biasMuskeg: 0.60, sharp: 4 },
     blotch: { cellM: 18, cells: 64, amount: 0.6 },
@@ -7927,44 +7950,64 @@ const GROUND_FIELDS = (() => {
     n = Math.imul(n ^ (n >>> 13), 1274126177);
     return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
   }
-  // tileable value noise over one period: u, w in [0, 1), N cells
-  function vnoiseT(u, w, N) {
-    u = u - Math.floor(u); w = w - Math.floor(w);
-    const fu = u * N, fw = w * N;
-    const iu = Math.floor(fu), iw = Math.floor(fw);
-    let tu = fu - iu, tw = fw - iw;
+  // VALUE NOISE ON AN UNBOUNDED LATTICE - cell = 1 in its own coordinates.
+  // (2026-09-23) It replaces vnoiseT, which wrapped its lattice indices mod N
+  // and so REPEATED: the puddles every 133 m of ground, the set mask every 150 m,
+  // the blotch every 1152 m, the shade every 512-1600 m. Measured before the
+  // change: 100 % of points bit-identical one 133 m tile away, in x AND in z -
+  // the stamped grid the user saw from the air. Nothing here needs a period; the
+  // wrap was only ever how the primitive was written. OFS keeps every index
+  // positive (|index| < 16384 cells) so no int->uint conversion is ever asked to
+  // carry a negative - the JS and the GLSL must give the same bits.
+  const OFS = 16384;
+  function vnoise(px, pz) {
+    const iu = Math.floor(px), iw = Math.floor(pz);
+    let tu = px - iu, tw = pz - iw;
     tu = tu * tu * (3 - 2 * tu); tw = tw * tw * (3 - 2 * tw);
-    const i0 = iu % N, i1 = (iu + 1) % N, j0 = iw % N, j1 = (iw + 1) % N;
-    const a = hash2(i0, j0), b = hash2(i1, j0), c = hash2(i0, j1), d = hash2(i1, j1);
+    const i0 = iu + OFS, j0 = iw + OFS;
+    const a = hash2(i0, j0), b = hash2(i0 + 1, j0), c = hash2(i0, j0 + 1), d = hash2(i0 + 1, j0 + 1);
     return (a + (b - a) * tu) + ((c + (d - c) * tu) - (a + (b - a) * tu)) * tw;
   }
-  const fbmT = (u, w, oct) => { let n = 0; for (const [N, k, du, dw] of oct) n += k * vnoiseT(u + du, w + dw, N); return n; };
+  // an fbm whose octave table is [cells per period, weight, du, dw]: the cells
+  // are what set the feature size, exactly as they did when the period existed
+  const fbm = (u, w, oct) => { let n = 0; for (const [N, k, du, dw] of oct) n += k * vnoise(u * N + du, w * N + dw); return n; };
   const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
   const smooth = t => t * t * (3 - 2 * t);
 
   // ---- the fields --------------------------------------------------------
   function poolAt(x, z, wet, edge) {
-    const P = C.pool, e = edge === undefined ? P.edgeGround : edge;
-    const n = fbmT(x / P.period, z / P.period, P.oct);
-    const thr = P.thr0 - P.thrWet * wet;
+    const P = C.pool, W = P.warp, B = P.basin, e = edge === undefined ? P.edgeGround : edge;
+    const u0 = x / P.period, w0 = z / P.period;
+    // the warp first, from the UNWARPED point on both axes (or the two axes
+    // would not be the same field read twice, and the JS/GLSL pair must match)
+    const u = u0 + W.amp * (vnoise(u0 * W.cells + W.off[0], w0 * W.cells + W.off[1]) - 0.5);
+    const w = w0 + W.amp * (vnoise(u0 * W.cells + W.off[2], w0 * W.cells + W.off[3]) - 0.5);
+    let n = 0;
+    for (const [N, k, rot, du, dw] of P.oct) {
+      const c = Math.cos(rot), sn = Math.sin(rot);
+      n += k * vnoise((c * u - sn * w) * N + du, (sn * u + c * w) * N + dw);
+    }
+    const bc = Math.cos(B.rot), bs = Math.sin(B.rot);
+    const d = vnoise((bc * u - bs * w) * B.cells + B.off[0], (bs * u + bc * w) * B.cells + B.off[1]);
+    const thr = P.thr0 - P.thrWet * wet + B.k * (0.5 - d);   // dry ground asks a taller hump
     return smooth(clamp01((n - (thr - e)) / (2 * e)));
   }
   function mixK(x, z, period, bias, sharp) {
     const M = C.mix;
     const u = x / period, w = z / period;
     const u2 = (M.rot[0] * u + M.rot[1] * w) * M.scale2 + M.off2[0], w2 = (M.rot[2] * u + M.rot[3] * w) * M.scale2 + M.off2[1];
-    const n = (M.w1 * fbmT(u, w, M.oct) + M.w2 * fbmT(u2, w2, M.oct)) / M.norm;
+    const n = (M.w1 * fbm(u, w, M.oct) + M.w2 * fbm(u2, w2, M.oct)) / M.norm;
     return clamp01((n - bias) * sharp + 0.5);
   }
   function blotch(x, z, seed) {
-    const B = C.blotch, L = B.cellM * B.cells;
-    return 1 - B.amount * (0.5 + 0.5 * vnoiseT(x / L + (seed % 13) / 13, z / L + (seed % 7) / 7, B.cells));
+    const B = C.blotch;   // the cell is the cell now - B.cells was the wrap, and the wrap is gone
+    return 1 - B.amount * (0.5 + 0.5 * vnoise(x / B.cellM + (seed % 13) * 5, z / B.cellM + (seed % 7) * 7));
   }
   // the colour swing: two octaves of the same noise, decorrelated, -1..1 each
   function shade(x, z, cell) {
-    const S = C.shade, c = Math.max(cell, 1), L = c * 64, L2 = c * S.scaleB * 64;
-    const h = (S.octA * vnoiseT(x / L + S.offH[0], z / L + S.offH[0] * 0.5, 64) + S.octB * vnoiseT(x / L2 + S.offH[1], z / L2, 64)) * 2 - 1;
-    const v = (S.octA * vnoiseT(x / L + S.offV[0], z / L + S.offV[0] * 0.5, 64) + S.octB * vnoiseT(x / L2 + S.offV[1], z / L2, 64)) * 2 - 1;
+    const S = C.shade, c = Math.max(cell, 1), L2 = c * S.scaleB;
+    const h = (S.octA * vnoise(x / c + S.offH[0] * 64, z / c + S.offH[0] * 32) + S.octB * vnoise(x / L2 + S.offH[1] * 64, z / L2)) * 2 - 1;
+    const v = (S.octA * vnoise(x / c + S.offV[0] * 64, z / c + S.offV[0] * 32) + S.octB * vnoise(x / L2 + S.offV[1] * 64, z / L2)) * 2 - 1;
     return { hue: h, value: v };
   }
   // a turn of a colour about the grey axis (Rodrigues on (1,1,1)/sqrt3) - the
@@ -8001,26 +8044,25 @@ const GROUND_FIELDS = (() => {
     n = (n ^ (n >> 13u)) * 1274126177u;
     return float(n ^ (n >> 16u)) / 4294967296.0;
   }
-  float gfVnoiseT(float u, float w, int N){
-    u = u - floor(u); w = w - floor(w);
-    float fu = u * float(N), fw = w * float(N);
-    int iu = int(floor(fu)), iw = int(floor(fw));
-    float tu = fu - float(iu), tw = fw - float(iw);
+  float gfVnoise(float px, float pz){
+    int iu = int(floor(px)), iw = int(floor(pz));
+    float tu = px - float(iu), tw = pz - float(iw);
     tu = tu * tu * (3.0 - 2.0 * tu); tw = tw * tw * (3.0 - 2.0 * tw);
-    int i0 = iu % N, i1 = (iu + 1) % N, j0 = iw % N, j1 = (iw + 1) % N;
-    float a = gfHash2(i0, j0), b = gfHash2(i1, j0), c = gfHash2(i0, j1), d = gfHash2(i1, j1);
+    int i0 = iu + ${OFS}, j0 = iw + ${OFS};
+    float a = gfHash2(i0, j0), b = gfHash2(i0 + 1, j0), c = gfHash2(i0, j0 + 1), d = gfHash2(i0 + 1, j0 + 1);
     return (a + (b - a) * tu) + ((c + (d - c) * tu) - (a + (b - a) * tu)) * tw;
   }
-  float gfPoolNoise(float u, float w){
-    return ${C.pool.oct.map(([N, k, du, dw]) => `${k.toFixed(4)} * gfVnoiseT(u + ${du.toFixed(4)}, w + ${dw.toFixed(4)}, ${N})`).join(' + ')};
-  }
   float gfPoolAt(vec2 xz, float wet, float edge){
-    float n = gfPoolNoise(xz.x / ${C.pool.period.toFixed(1)}, xz.y / ${C.pool.period.toFixed(1)});
-    float thr = ${C.pool.thr0.toFixed(4)} - ${C.pool.thrWet.toFixed(4)} * wet;
+    float u0 = xz.x / ${C.pool.period.toFixed(1)}, w0 = xz.y / ${C.pool.period.toFixed(1)};
+    float u = u0 + ${C.pool.warp.amp.toFixed(4)} * (gfVnoise(u0 * ${C.pool.warp.cells.toFixed(4)} + ${C.pool.warp.off[0].toFixed(4)}, w0 * ${C.pool.warp.cells.toFixed(4)} + ${C.pool.warp.off[1].toFixed(4)}) - 0.5);
+    float w = w0 + ${C.pool.warp.amp.toFixed(4)} * (gfVnoise(u0 * ${C.pool.warp.cells.toFixed(4)} + ${C.pool.warp.off[2].toFixed(4)}, w0 * ${C.pool.warp.cells.toFixed(4)} + ${C.pool.warp.off[3].toFixed(4)}) - 0.5);
+    float n = ${C.pool.oct.map(([N, k, rot, du, dw]) => `${k.toFixed(4)} * gfVnoise((${Math.cos(rot).toFixed(6)} * u - ${Math.sin(rot).toFixed(6)} * w) * ${N.toFixed(4)} + ${du.toFixed(4)}, (${Math.sin(rot).toFixed(6)} * u + ${Math.cos(rot).toFixed(6)} * w) * ${N.toFixed(4)} + ${dw.toFixed(4)})`).join('\n      + ')};
+    float d = gfVnoise((${Math.cos(C.pool.basin.rot).toFixed(6)} * u - ${Math.sin(C.pool.basin.rot).toFixed(6)} * w) * ${C.pool.basin.cells.toFixed(4)} + ${C.pool.basin.off[0].toFixed(4)}, (${Math.sin(C.pool.basin.rot).toFixed(6)} * u + ${Math.cos(C.pool.basin.rot).toFixed(6)} * w) * ${C.pool.basin.cells.toFixed(4)} + ${C.pool.basin.off[1].toFixed(4)});
+    float thr = ${C.pool.thr0.toFixed(4)} - ${C.pool.thrWet.toFixed(4)} * wet + ${C.pool.basin.k.toFixed(4)} * (0.5 - d);
     return smoothstep(0.0, 1.0, clamp((n - (thr - edge)) / (2.0 * edge), 0.0, 1.0));
   }
   float gfMixNoise(float u, float w){
-    return (${C.mix.oct.map(([N, k, du, dw]) => `${k.toFixed(4)} * gfVnoiseT(u + ${du.toFixed(4)}, w + ${dw.toFixed(4)}, ${N})`).join(' + ')}) / ${C.mix.norm.toFixed(4)};
+    return (${C.mix.oct.map(([N, k, du, dw]) => `${k.toFixed(4)} * gfVnoise(u * ${N.toFixed(1)} + ${du.toFixed(4)}, w * ${N.toFixed(1)} + ${dw.toFixed(4)})`).join(' + ')}) / ${C.mix.norm.toFixed(4)};
   }
   float gfMixK(vec2 xz, float period, float bias, float sharp){
     float u = xz.x / period, w = xz.y / period;
@@ -8030,13 +8072,13 @@ const GROUND_FIELDS = (() => {
     return clamp((n - bias) * sharp + 0.5, 0.0, 1.0);
   }
   float gfBlotch(vec2 xz, int seed){
-    float L = ${(C.blotch.cellM * C.blotch.cells).toFixed(1)};
-    return 1.0 - ${C.blotch.amount.toFixed(4)} * (0.5 + 0.5 * gfVnoiseT(xz.x / L + float(seed % 13) / 13.0, xz.y / L + float(seed % 7) / 7.0, ${C.blotch.cells}));
+    float L = ${C.blotch.cellM.toFixed(1)};
+    return 1.0 - ${C.blotch.amount.toFixed(4)} * (0.5 + 0.5 * gfVnoise(xz.x / L + float(seed % 13) * 5.0, xz.y / L + float(seed % 7) * 7.0));
   }
   vec2 gfShade(vec2 xz, float cell){
-    float c = max(cell, 1.0), L = c * 64.0, L2 = c * ${C.shade.scaleB.toFixed(4)} * 64.0;
-    float h = (${C.shade.octA.toFixed(4)} * gfVnoiseT(xz.x / L + ${C.shade.offH[0].toFixed(4)}, xz.y / L + ${(C.shade.offH[0] * 0.5).toFixed(4)}, 64) + ${C.shade.octB.toFixed(4)} * gfVnoiseT(xz.x / L2 + ${C.shade.offH[1].toFixed(4)}, xz.y / L2, 64)) * 2.0 - 1.0;
-    float v = (${C.shade.octA.toFixed(4)} * gfVnoiseT(xz.x / L + ${C.shade.offV[0].toFixed(4)}, xz.y / L + ${(C.shade.offV[0] * 0.5).toFixed(4)}, 64) + ${C.shade.octB.toFixed(4)} * gfVnoiseT(xz.x / L2 + ${C.shade.offV[1].toFixed(4)}, xz.y / L2, 64)) * 2.0 - 1.0;
+    float c = max(cell, 1.0), L2 = c * ${C.shade.scaleB.toFixed(4)};
+    float h = (${C.shade.octA.toFixed(4)} * gfVnoise(xz.x / c + ${(C.shade.offH[0] * 64).toFixed(4)}, xz.y / c + ${(C.shade.offH[0] * 32).toFixed(4)}) + ${C.shade.octB.toFixed(4)} * gfVnoise(xz.x / L2 + ${(C.shade.offH[1] * 64).toFixed(4)}, xz.y / L2)) * 2.0 - 1.0;
+    float v = (${C.shade.octA.toFixed(4)} * gfVnoise(xz.x / c + ${(C.shade.offV[0] * 64).toFixed(4)}, xz.y / c + ${(C.shade.offV[0] * 32).toFixed(4)}) + ${C.shade.octB.toFixed(4)} * gfVnoise(xz.x / L2 + ${(C.shade.offV[1] * 64).toFixed(4)}, xz.y / L2)) * 2.0 - 1.0;
     return vec2(h, v);
   }
   vec3 gfHueTurn(vec3 c, float a){
@@ -8052,7 +8094,7 @@ const GROUND_FIELDS = (() => {
     return isFinite(a + b + c + d.hue + d.value) && a >= 0 && a <= 1 && b >= 0 && b <= 1 && c >= 0 && c <= 1;
   }
 
-  return { C, RECIPE, CODES, hash2, vnoiseT, poolAt, mixK, blotch, shade, hueTurn, deriveCode, groundColor, glsl, selfCheck };
+  return { C, RECIPE, CODES, hash2, vnoise, poolAt, mixK, blotch, shade, hueTurn, deriveCode, groundColor, glsl, selfCheck };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = GROUND_FIELDS;
 // ===========================================================================
