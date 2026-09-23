@@ -274,6 +274,65 @@ async function farRungs() {
   const sc = PK.dupe(sm, block);
   check(sc.uniforms.uDecN === block.uDecN && sc.uniforms.uOwn !== sm.uniforms.uOwn && sc.uniforms.uOwn.value === 2, '6 a shader material takes the block into its own uniforms');
 }
+// 6b THE HOOK THROUGH ATMO'S ACCESSOR. In the game atmo.js makes Material.prototype.onBeforeCompile
+// an accessor (G432.2): a material's own hook lives on `_atmoHook` and is not an own property, and
+// until 2026-09-23 every copy went out hookless - no decals, no weathering, the glass without its
+// shader. Headless there is no atmo, so the accessor is installed here in atmo's own shape and the
+// prototype put back after.
+{
+  const proto = THREE.Material.prototype;
+  const d0 = Object.getOwnPropertyDescriptor(proto, 'onBeforeCompile');
+  const WRAP = new WeakMap(), injectOnly = function () {};
+  injectOnly.toString = () => 'atmo.inject';
+  Object.defineProperty(proto, 'onBeforeCompile', { configurable: true,
+    get() { const f = this._atmoHook; if (!f) return injectOnly; let w = WRAP.get(f);
+            if (!w) { w = function (sh, r) { return f.call(this, sh, r); }; w.toString = () => 'atmo.inject+' + f.toString(); WRAP.set(f, w); } return w; },
+    set(f) { this._atmoHook = f || null; } });
+  try {
+    const m = new THREE.MeshStandardMaterial({ color: 0x224466 });
+    const hook = function (shader) { return 'the aeroskin hook'; };
+    m.onBeforeCompile = hook;
+    m.userData = { aeroFinish: 'alclad' };
+    check(!Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') && m._atmoHook === hook, '6b the accessor holds the hook off the instance (the trap\'s precondition)');
+    const c = PK.dupe(m, { uDecN: { value: 0 } });
+    check(c._atmoHook === hook, '6b the copy keeps the hook through the accessor');
+    check(String(c.onBeforeCompile) === String(m.onBeforeCompile), '6b ...so it keys the same program as the original', String(c.onBeforeCompile).slice(0, 40));
+  } finally {
+    if (d0) Object.defineProperty(proto, 'onBeforeCompile', d0); else delete proto.onBeforeCompile;
+  }
+}
+
+// ---- 6c the panes' multiply pass per level ----------------------------------------------------
+// With a stub AEROSKIN (the factories' shape, not their shaders): every pane carries its multiply
+// companion at every level that draws the real glass - L0, L1 and the merged L2 - and past L0,
+// where no cabin stands behind the pane, that companion stops most of what is behind it.
+async function paneLevels() {
+  const mk = (cls, fin, o) => { const m = new cls(o || {}); m.userData.aeroFinish = fin; return m; };
+  W.AEROSKIN = {
+    aeroGlass: (T, o) => mk(THREE.MeshPhysicalMaterial, 'glass', { color: o.tintLin, transparent: true, opacity: o.opacity }),
+    aeroGlassTint: (T, o) => { const m = new THREE.ShaderMaterial({ uniforms: { uA: { value: o.opacity }, uTint: { value: new THREE.Color(o.tintLin) } } }); m.userData.aeroFinish = 'glassTint'; return m; },
+    aeroMaterial: (T, o) => mk(THREE.MeshStandardMaterial, o.finish, { color: o.tintLin }),
+    aeroGlassCompanion: (T, host, mats, tintOf) => { const c = new THREE.Mesh(host.geometry, tintOf(mats)); c.userData.aeroCompanion = 1; host.add(c); return c; },
+  };
+  try {
+    const vis = synthVis('tail');
+    const rec = record('pane', vis);
+    const lod = PK.build(THREE, rec, new THREE.Group());
+    const t0 = Date.now();
+    while (!rec.far && Date.now() - t0 < 30000) await new Promise(r => setTimeout(r, 50));
+    await new Promise(r => setTimeout(r, 20));
+    const panes = L => { const out = []; lod.levels[L].object.traverse(o => { if (o.isMesh && o.material.userData.aeroFinish === 'glass') out.push(o); }); return out; };
+    const uA = p => { const c = p.children.find(q => q.userData.aeroCompanion); return c ? c.material.uniforms.uA.value : null; };
+    for (const L of [0, 1, 2]) {
+      const ps = panes(L);
+      check(ps.length > 0 && ps.every(p => uA(p) != null), '6c L' + L + ': every pane carries its multiply pass', ps.length + ' panes, slabs ' + ps.map(uA).join(','));
+    }
+    check(panes(0).every(p => near(uA(p), 0.3, 1e-9)), '6c L0: the pane\'s own slab (the cabin is behind it)', panes(0).map(uA).join(','));
+    check(panes(1).concat(panes(2)).every(p => uA(p) >= 0.8), '6c L1/L2: a dark slab where no cabin stands behind the pane', panes(1).concat(panes(2)).map(uA).join(','));
+    const t1 = panes(1).map(p => p.children[0].material);
+    check(t1.length && t1.every(m => m === t1[0]) && t1[0] !== panes(0)[0].children[0].material, '6c one companion material per pane and level kind, not one per mesh');
+  } finally { delete W.AEROSKIN; }
+}
 
 // ---- 7 the fixture ------------------------------------------------------------------------------
 {
@@ -295,7 +354,8 @@ async function farRungs() {
   }
 }
 
-farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || String(e))).then(() => {
+farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || String(e)))
+  .then(() => paneLevels().catch(e => check(false, '6c the pane levels threw', e && e.stack || String(e)))).then(() => {
   if (fail.length) {
     for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
     if (fail.length > 30) console.log('  ... ' + (fail.length - 30) + ' more');

@@ -57856,3 +57856,36 @@ into ~40 m.
 - FLOWN (pilot_trace cub --world jolene --from nv_strip --stand --to HOME, on G531): take-off run 104 m,
   ~26 m to spare, committed at 11.5 m/s with 84 m left, completed at HOME, no go-around.
 - GATES (targeted): SITE, WORLD, PREMISES green. FILES: src/core/25_airfield.js.
+
+## G532 - THE PARKED AEROPLANES GET THEIR SHADER BACK: the livery, the wear and the glass (2026-09-23)
+
+- The user, on the Jolene apron: "the glazing material is absolutely horrendous, and should be similar to
+  the one used on the actual planes, and the cessna did not make it with its livery ... maybe we could have
+  LODs to have something more detailed when closeby?"
+- CAUSE: atmo.js (G432.2) made `Material.prototype.onBeforeCompile` an ACCESSOR - a material's own hook is
+  held on `_atmoHook` and served back wrapped, so it is no longer an OWN property. parked.js's `dupe()` (G411)
+  copied the hook only `if hasOwnProperty(m, 'onBeforeCompile')`, found nothing, and every parked copy went
+  out HOOKLESS: a plain Standard / Physical material with the finish's scalars. No decals (the C172's whole
+  livery is a marking-kit decal over bare alclad: it stood grey without F-GCES), no weathering, no surface
+  grammar (the "simplified" look up close), and the glass without AEROGLASS_HOOK - a flat ONE,ONE add of its
+  pale body colour, the milky blue pane. Measured on the live page: the copies' customProgramCacheKey read
+  `atmo.inject` (the empty wrapper) where the flown aeroplane's reads `atmo.inject+function (shader)...`.
+- FIX: `hookOf(m)` reads the own property or `_atmoHook`, and the copy takes it through the setter (the same
+  program as the flown aeroplane's). `Material.clone()` drops it too: the lamp-lens copies take it the same way.
+- THE PANE WITH NO CABIN BEHIND IT: past L0 (30 m) the ladder drops the interior, and through the pane the eye
+  saw the sky through the far flank - a 70 % pane over daylight is a milky sheet. The multiply companion is
+  one material per pane and level kind now (was one per mesh); at L1 and L2 its slab is GLASS_FAR_A 0.8 (what
+  is behind keeps ~10-15 % through the tint) - a dim cabin, the reflection (the add pass, unchanged) carrying
+  the pane. L2's merged panes had drawn the add pass ALONE; they get the companion too. L3 is unchanged.
+- THE LADDER was already what was asked (L0 < 30 m everything; L1 to 120 m the whole exterior - only the
+  interior buckets, gauges, cockpit controls, links and wires go; L2 decimated; L3; gone at 2.5 km). The
+  detail was there and unshaded.
+- PROOF (headless Chrome, dev.html?world=jolene): the C172 at 10 m bare grey before; after, F-GCES with the
+  green/orange cheat line, rivets, the dark cabin through clear glass at 7 m; the Cub F-BCUB; at 40 m the
+  windows dark with the sky's reflection instead of pale.
+- GATE PARKED grows 6b (atmo's accessor installed headless: the copy keeps `_atmoHook` and keys the same
+  program) and 6c (a stub AEROSKIN: every pane carries its companion at L0/L1/L2, L0 the pane's own slab,
+  L1/L2 >= 0.8, one companion material per pane and level kind); both fail on G411's parked.js. 73 checks.
+- ANY CODE THAT COPIES A MATERIAL IN THE GAME must carry `_atmoHook` - `copy()` and `clone()` do not.
+- GATES: PARKED, PREMISES, UISMOKE, MEDIA, WORLDRENDER, SKIN, GFX green. FILES: src/viewer/parked.js,
+  tools/_parked_check.js.

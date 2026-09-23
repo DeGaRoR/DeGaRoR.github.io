@@ -81,6 +81,7 @@
   const CUT = { L2: [0.12, 6000], L3: [0.025, 1500] };   // [share of the exterior, floor]
   const ATLAS_PX = 2048;                    // the per-craft atlas copy (the shared one is 4096)
   const WEAR = { age: 0.45, flight: 0.5, bush: 0.25, rain: 0.2 };   // a parked aeroplane has flown
+  const GLASS_FAR_A = 0.8;                  // the multiply pass's slab where no cabin stands behind the pane (L1+)
   const W = (typeof window !== 'undefined') ? window : globalThis;
   const REC = {};                           // key -> the captured record
   const PENDING = [];                       // groups placed before their capture
@@ -307,6 +308,21 @@
   // for the copy and re-attached shallow, the per-finish uniforms shared by
   // reference as the pool shares them) — and the copy takes the block. A
   // ShaderMaterial (the glass tint) takes it into its own uniforms instead.
+  // THE HOOK AS THE MATERIAL WAS GIVEN IT. Since G432.2 atmo.js makes
+  // Material.prototype.onBeforeCompile an ACCESSOR: a material's own hook is
+  // kept on `_atmoHook` and served back wrapped in the aerial perspective's
+  // inject, so it is no longer an OWN property of anything. G411's
+  // hasOwnProperty test then found nothing and every copy went out HOOKLESS -
+  // a plain Standard / Physical material wearing the finish's scalars: no
+  // decals (the C172's whole livery is a marking-kit decal over bare alclad),
+  // no weathering, no surface grammar, and the glass without its shader - a
+  // flat additive film of its body colour, the milky blue pane. Read the raw
+  // hook from either place and hand it to the copy through the same door
+  // (the setter), so the copy compiles the flown aeroplane's program.
+  function hookOf(m) {
+    if (Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile')) return m.onBeforeCompile;
+    return m._atmoHook || null;
+  }
   function dupe(m, block) {
     if (!m) return m;
     const ud = m.userData; m.userData = {};
@@ -316,7 +332,8 @@
     if (m.defines) c.defines = Object.assign({}, m.defines);
     for (const k of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity'])
       if (m[k] !== undefined && c[k] !== undefined) c[k] = m[k];
-    if (Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile')) c.onBeforeCompile = m.onBeforeCompile;
+    const hook = hookOf(m);
+    if (hook) c.onBeforeCompile = hook;
     if (block && c.isShaderMaterial && c.uniforms) for (const k in block) if (c.uniforms[k]) c.uniforms[k] = block[k];
     c.needsUpdate = true;
     return c;
@@ -358,7 +375,9 @@
       if ((m.lamp || m.lampCup) && W.CAGE_LIGHT) {
         const src = m.lamp && W.CAGE_LIGHT.lensMat ? W.CAGE_LIGHT.lensMat(m.lamp, 1.0, m.lampCol)
                   : m.lampCup && W.CAGE_LIGHT.cupMat ? W.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK) : null;
-        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return cache[mn] = lm; }
+        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0;
+                   const hook = hookOf(src); if (hook) lm.onBeforeCompile = hook;   // clone() drops it too
+                   return cache[mn] = lm; }
       }
       if (m.ves && W.CAGE_ENERGY && W.CAGE_ENERGY.material)
         return cache[mn] = W.CAGE_ENERGY.material({ set: m.ves, tint: m.color, hueRad: m.vesHue || 0, hueOn: !!m.vesHueOn });
@@ -373,6 +392,25 @@
       return cache[mn] = std;
     };
     matFor.block = block;
+    // THE PANE'S MULTIPLY PASS (aeroskin.js's glass family: a pane is a
+    // multiply companion under the add pass), one per pane material and
+    // level kind rather than one per mesh. `dark` is for the levels with NO
+    // CABIN behind the glass (L1 and past): there the eye looks through both
+    // flanks at the sky, and a pane that transmits 70 % reads as a milky
+    // sheet of it - the parked Cub at 40 m. A real cabin seen from outside
+    // is a dim room lit through its own windows, so past L0 the slab stops
+    // most of what is behind it (GLASS_FAR_A) and the add pass - the
+    // reflection, unchanged - carries the pane, as it does on the flown
+    // aeroplane over its dark interior.
+    const tints = new Map();
+    matFor.tint = (m0, dark) => {
+      const k = m0.uuid + (dark ? '|dark' : '');
+      if (tints.has(k)) return tints.get(k);
+      const t = dupe(A.aeroGlassTint(THREE, { tintLin: m0.color.getHex(), opacity: m0.opacity }), block);
+      if (dark && t.uniforms && t.uniforms.uA) t.uniforms.uA = { value: Math.max(+t.uniforms.uA.value || 0, GLASS_FAR_A) };
+      tints.set(k, t);
+      return t;
+    };
     return matFor;
   }
   function geoOf(THREE, g) {
@@ -399,8 +437,7 @@
       mesh.castShadow = !clear; mesh.receiveShadow = true;
       if (at) mesh.position.set(at[0], at[1], at[2]);
       if (A && A.aeroGlassCompanion && m && m.fin === 'glass')
-        A.aeroGlassCompanion(THREE, mesh, mesh.material,
-          m0 => dupe(A.aeroGlassTint(THREE, { tintLin: m0.color.getHex(), opacity: m0.opacity }), matFor.block));
+        A.aeroGlassCompanion(THREE, mesh, mesh.material, m0 => matFor.tint(m0, !full));
       root.add(mesh);
     };
     for (const k in vis.groups) add(k, vis.groups[k], null);
@@ -548,6 +585,11 @@ self.onmessage = function (e) {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.renderOrder = g.clear ? 10 : 0;
       mesh.castShadow = !g.clear; mesh.receiveShadow = true;
+      // L2's panes are the real glass too: the add pass alone (all this level
+      // drew until now) is a film of the pane's body colour over the sky
+      const AS = W.AEROSKIN;
+      if (matFor && matFor.tint && AS && AS.aeroGlassCompanion && mat.userData && mat.userData.aeroFinish === 'glass')
+        AS.aeroGlassCompanion(THREE, mesh, mat, m0 => matFor.tint(m0, true));
       root.add(mesh);
     }
     return root;
