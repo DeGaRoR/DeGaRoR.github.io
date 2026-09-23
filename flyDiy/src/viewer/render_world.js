@@ -5072,6 +5072,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // The world composed the record at its make (20_world.js); the strips it registered are
   // painted with every other below. The build queue drains here at the boot, whole (36 houses,
   // 3 s on an RTX 3080 - a worker or a ladder is owed); after a live edit worldUpdate drains it.
+  // the props that come by the hundred (poles, fence stretches) drawn instanced from here on (props.js G515)
+  if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
   if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
     try {
@@ -5369,7 +5371,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // shifts nothing at 450 m.
     uCam.value.copy(camera.position);
     if (fineRing && fineRing.on) fineRing.update();   // the fine disc follows the eye (TERRAIN FOLLOW-UP 2)
-    if (ringLod) ringLod.update();   // the ring's chunks, their level from the eye (PERF 2026-09-23)
+    if (ringLod) ringLod.update();
+    if (typeof propInstUpdate === 'function') propInstUpdate(camera);   // the instanced props: their levels from the eye (props.js G515)   // the ring's chunks, their level from the eye (PERF 2026-09-23)
     if (farLod) farLod.update();     // the far terrain's cut follows the eye (a quadrant or two a frame when it changes)
     uCG.value.set(cg[0], cg[1], cg[2]);
     groundUnderUpdate(cg);           // the probe's cap follows the ground the craft is over (before the day's pass re-bakes it)

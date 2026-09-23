@@ -57013,3 +57013,10 @@ detail fade pulled in to 100-400 m) shows no difference from the full blend and 
 26.6 / 34.2 / 45.3. Post FX: every pass under 0.3 ms - free to reintroduce on taste; ambient occlusion blackens the
 frame (not the depth change) - owed. futureDesigns/PERF-2026-09-23.md (G514 section).
 
+## G515 - PERF: poles and fence stretches instanced (2026-09-23)
+
+props.js instancer (propInstAttach / propInstProxy / propInstUpdate): pole_a/b/c and fence_old placed in the game
+world are proxies drawn through one InstancedMesh per level per part - the LOD's own levels and cull, the same
+picture (217 px of 1.77 M), 380 props in 9 draws; 1080p stand 25.4 -> 22.7 ms, 5120 x 1440 stand -1 ms (5 470 -> 4 362
+main draws). ?propinst=0 = the LODs. futureDesigns/PERF-2026-09-23.md (G515).
+
