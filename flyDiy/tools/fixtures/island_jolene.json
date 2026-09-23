@@ -6,7 +6,6 @@
  "theme": "alaska",
  "pavement": {
   "wet": 0.45,
-  "puddleCover": 0.35,
   "mossK": 0.6
  },
  "frame": {
@@ -13086,5 +13085,5 @@
   "smoke": 6,
   "people": 40
  },
- "rev": 19
+ "rev": 20
 }

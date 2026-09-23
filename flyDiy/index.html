@@ -38976,7 +38976,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='643bf7b9371f';window.FLYDIY_BUILD='624d53c4ff6a'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='643bf7b9371f';window.FLYDIY_BUILD='5b3efd7f0975'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -105461,7 +105461,14 @@ const PAVEMENT = (() => {
     patchK: 0.06, patchTone: 0.45, patchRough: 0.85, patchLen: 14,
     mossK: 0.55, mossEdge: 7.0, mossJoint: 0.5, mossScale: 4.0,
     stainK: 0.45, stainScale: 14, stainRough: 0.25,
-    wet: 0.35, puddleCover: 0.25, puddleScale: 4.0, puddleEdge: 0.05,
+    // THE PUDDLES ARE GONE (2026-09-23, the user: "just fully remove the puddles on the runways and
+    // the roads, they just look bad ... let's just remove them overall"). Two passes tried to make
+    // standing water read on pavement - a darker bed, then half the sky off its mirror - and neither
+    // earned its place. The reason is structural, not a setting: the pavement is a DRAPED mesh with
+    // no low spot for water to lie in, so a puddle is a shape painted on a slope, and the eye reads
+    // the shape before it reads the shine. `wet` stays - a damp coast is a film, and a film follows
+    // the surface it wets. puddleCover / puddleScale / puddleEdge are retired with their uniform.
+    wet: 0.35,
     // paintAge/chalk are the MIDDLE of the road now (2026-09-23): 0.85 was the WWII runway's, and with
     // it a road's lines were gone before they were drawn. The extremes live in PRESETS - `fresh` 0.3,
     // `worn` 0.9 - which is where Jolene's strips take theirs.
@@ -105499,7 +105506,7 @@ const PAVEMENT = (() => {
     ['mossK', 'moss amount', 0, 1, 0.02], ['mossEdge', 'moss reach from edge (m)', 0, 20, 0.5], ['mossJoint', 'moss in joints', 0, 1, 0.02], ['mossScale', 'moss scale (m)', 1, 20, 0.5],
     ['stainK', 'damp stains', 0, 1, 0.02], ['stainScale', 'stain scale (m)', 3, 60, 1], ['stainRough', 'stain roughness drop', 0, 0.6, 0.02],
     ['— wet —'],
-    ['wet', 'wet film', 0, 1, 0.02], ['puddleCover', 'puddle cover', 0, 0.8, 0.01], ['puddleScale', 'puddle scale (m)', 1, 20, 0.5], ['puddleEdge', 'puddle edge', 0.005, 0.2, 0.005],
+    ['wet', 'wet film', 0, 1, 0.02],
     ['— markings —'],
     ['paintAge', 'paint age', 0, 1.2, 0.02], ['paintRough', 'paint roughness', 0.2, 1, 0.02], ['chalk', 'chalking', 0, 1, 0.02], ['paintOnGrass', 'mown line on grass', 0, 1, 0.02], ['paintRelief', 'paint edge relief', 0, 3, 0.1],
     ['— rubber (touchdown) —'],
@@ -105925,7 +105932,7 @@ uniform vec4 uMean;
 uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
-float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft; float gPudK;
+float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
 struct Smp { vec4 c; vec4 n; };
 float pvHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 vec2 pvHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
@@ -106370,35 +106377,13 @@ float pvTread(float u, float x, float w, float seed) {
     }
     // the shoulder's paths press the ground: the tracks set, a shade darker, the trough's slope
     if (dE < -0.5 && rut > 0.004) { Smp t = pvSet(4, uvS); float rw = rut * 0.4; col = mix(col, t.c.rgb, rw); rough = mix(rough, t.n.a - 0.1, rw); nT = mix(nT, t.n.xyz, rw * 0.5); col *= 1.0 - rut * 0.14; nT.y += -rr.y * uRut.y * 0.9 * nrmK; }
-    // ---- 11 the wet: the film and the puddles. Grass does not shine; loose ground shines little
+    // ---- 11 the wet: a FILM, and nothing else. Grass does not shine; loose ground shines little
     float wetC = paved ? 1.0 : (grassy ? 0.12 : 0.25);
     float wet = uWet.x * mix(0.3, 1.0, wPav) * wetC;
     if (uLane.x > 0.5 && concrete && !road && wPav > 0.5) { float lvv2 = v + halfW + uLane.y * 0.5; float ln2 = floor(lvv2 / max(uLane.y, 0.5)); wet *= 0.55 + 0.9 * pvHash(vec2(ln2 * 2.0, seed + 11.0)) * smoothstep(0.3, 0.7, pvNoise(vec2(u / 60.0, ln2 + seed))); }
-    float pud = 0.0;
-    if (uWet.y > 0.001) {
-      float pn = pvFbm(uvS / uWet.z + 61.0) + (paved ? 0.06 * abs(v) / max(halfW, 1.0) : 0.0) + rut * 0.14 + joint * 0.05 - (grassy ? 0.08 : 0.0);
-      float t = 1.0 - uWet.y * 0.9;
-      // THE COVER IS AN AREA, NOT A DEPTH (2026-09-23, the user: "the puddles should influence the
-      // colour too. Darker under the puddles, that's why they look odd"). pud was multiplied by
-      // uWet.y a second time, so at the shipped cover of 0.25-0.35 it peaked at 0.35 and pudK, a
-      // smoothstep over [0.15, 0.6], never got past 0.41: the bed was blended in at two fifths, the
-      // mirror at two fifths, and a puddle read as a faint gloss decal on dry concrete. The
-      // THRESHOLD is where the cover belongs - it already sets how much of the ground is under
-      // water - and inside that water the puddle is a whole puddle.
-      pud = smoothstep(t, t + uWet.w, pn);
-    }
-    float wetK = clamp(wet + pud * 0.6, 0.0, 1.0);
+    float wetK = wet;
     col *= 1.0 - 0.38 * wetK; rough = mix(rough, 0.12, wet);
-    // A PUDDLE IS WATER (the user, 2026-09-22: "give them a good water reflective material"): a flat
-    // mirror (roughness 0.02, the normal straight up) over the wet bed - the bed dark and, on soft
-    // ground, a shade of its own mud - so what the eye sees in it is the sky the environment gives
-    float pudK = smoothstep(0.15, 0.6, pud);
-    gPudK = pudK;
-    vec3 bed = col * (paved ? 0.60 : 0.50) * (paved ? vec3(1.0) : vec3(1.0, 0.94, 0.86));
-    col = mix(col, bed, pudK);
-    rough = mix(rough, 0.02, pudK);
-    nT = mix(nT, vec3(0.0, 0.0, 1.0), pudK);
-    if (!paved) rough = max(rough, mix(uSoft2.w, 0.02, pudK));         // loose ground does not shine; a puddle does
+    if (!paved) rough = max(rough, uSoft2.w);                          // loose ground does not shine
     // ---- the normal into the world, the roughness, the alpha
     vec3 T = normalize(vPavT), Ng = normalize(vPavNg), Bv = normalize(cross(Ng, T));
     vec3 nTn = normalize(vec3(nT.xy * nrmK, max(nT.z, 0.2)));
@@ -106415,7 +106400,7 @@ float pvTread(float u, float x, float w, float seed) {
     // is mown, and that reads) - the rest is the ground under it
     if (grassy) { float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0); gPavA *= clamp((road ? 0.0 : 0.45) + worn, 0.0, 1.0); }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
-    gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, pud, 0.0) : uPavDbg < 4.5 ? mk
+    gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
       : uPavDbg < 5.5 ? vec3(wp, wb, wg) : uPavDbg < 6.5 ? vec3(clamp(dE / 10.0, 0.0, 1.0), clamp(-dE / shW, 0.0, 1.0), gPavA) : uPavDbg < 7.5 ? vec3(fract(laneTone * 4.0), joint, spall)
       : uPavDbg < 8.5 ? vec3(crack, dmg, pch) : uPavDbg < 9.5 ? vec3(rut, grassStripe, moss) : uPavDbg < 10.5 ? vec3(rubber, paint, damp) : uPavDbg < 11.5 ? vec3(wheel, tread, coarse + mixW * 0.5) : col;
   }`;
@@ -106423,7 +106408,7 @@ float pvTread(float u, float x, float w, float seed) {
   GLSL.normal = `
   normal = normalize((viewMatrix * vec4(gPavN, 0.0)).xyz);`;
   GLSL.lights = `
-  { float pvS = uSpec.x * smoothstep(0.85, 0.45, roughnessFactor) * mix(1.0, 0.5, gPudK); reflectedLight.directSpecular *= pvS; reflectedLight.indirectSpecular *= pvS; }`;
+  { float pvS = uSpec.x * smoothstep(0.85, 0.45, roughnessFactor); reflectedLight.directSpecular *= pvS; reflectedLight.indirectSpecular *= pvS; }`;
   GLSL.debug = `
   if (uPavDbg > 0.5) gl_FragColor = vec4(gPavDbg, 1.0);`;
 
@@ -106470,7 +106455,7 @@ float pvTread(float u, float x, float w, float seed) {
     U.uPatch.value.set(r.patchK, r.patchTone, r.patchRough, r.patchLen);
     U.uMoss.value.set(r.mossK, r.mossEdge, r.mossJoint, r.mossScale);
     U.uStain.value.set(r.stainK, r.stainScale, r.stainRough, 0);
-    U.uWet.value.set(r.wet, r.puddleCover, r.puddleScale, r.puddleEdge);
+    U.uWet.value.set(r.wet, 0, 0, 0);          // .yzw were the puddles, retired 2026-09-23
     U.uMark.value.set(r.paintAge, r.paintRough, r.chalk, r.paintOnGrass);
     U.uRubber.value.set(r.rubberStart, r.rubberPeak, r.rubberEnd, r.rubberSpread);
     U.uRubber2.value.set(cls.rubber && !d.road ? r.rubberK : 0, r.rubberTrack, r.rubberStreak, 0);   // the rubber is a paved runway's (the touchdown zones); a soft strip's tyres MARK the same band
