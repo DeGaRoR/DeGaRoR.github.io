@@ -29,6 +29,12 @@
   const W = (typeof window !== 'undefined') ? window : null;
   if (!W) return;
   const KEY = 'flydiy.gfx';
+  // THE RIGS (G528): a headless or driven browser - the gates, frame_perf, the scratch rigs - measures a FIXED frame; the
+  // auto scale and the first launch's tier probe stand down there unless the URL asks (?autoscale=1, ?autotier=1)
+  const RIG = !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
+  const FORCE = k => !!(W.location && new RegExp('[?&]' + k + '=1').test(W.location.search || ''));
+  const REFUSE = k => !!(W.location && new RegExp('[?&]' + k + '=0').test(W.location.search || ''));
+  let firstLaunch = false, AUTO_TIER = null;
 
   // ---- the options: named steps over the handles ---------------------------
   const OPTIONS = [
@@ -40,6 +46,7 @@
     // (aa_resolve.js, bicubic). The frame is fill-bound: on the 3080 the default preset is 16-23 ms at 1080p
     // and 38-50 ms at 5120x1440 - the pixels, not the content, decide the frame rate on a big screen.
     { k: 'scale', label: 'render scale', steps: [
+        { v: 'auto', label: 'auto', why: 'held at 60 fps: 100 % down to 50 % as the frame needs, and only where the pixels are the cost (a step that does not pay is taken back) - aa_resolve.js AUTO' },
         { v: 1,    label: '100 %', why: 'every pixel of the screen drawn' },
         { v: 0.85, label: '85 %', why: 'the scene at 85 % of the screen and enlarged - 72 % of the pixels' },
         { v: 0.75, label: '75 %', why: '56 % of the pixels: a big screen at a playable rate' },
@@ -204,10 +211,10 @@
   const POST_BLOOM = Object.assign({}, POST_OFF, { bloom: 'soft' });
   const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
-    potato:  Object.assign({ ground: 'lean', scale: 0.67, drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    retro:   Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    current: Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
+    potato:  Object.assign({ ground: 'lean', scale: 'auto', drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    retro:   Object.assign({ ground: 'lean', scale: 'auto',    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    current: Object.assign({ ground: 'far1', scale: 'auto',    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 'auto',    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
     ultra:   Object.assign({ ground: 'full', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
   };
   const DEFAULT = 'gamer';
@@ -220,8 +227,38 @@
     ultra:   'the dearest picture: supersampled, the densest forest, 4096 shadows, live reflections - for screenshots and the cards above a 3080',
   };
 
+  // THE FIRST LAUNCH PICKS ITS TIER (PERF 2026-09-23, G528, the user: "keep the new player out of harm's way"). With no saved
+  // choice the game boots on gamer; once the roll-out is gone and 4 s have settled, 6 s of frames are read (the auto
+  // scale acting - it is what gamer is) and, if the frame still misses 60 fps by a margin, the UNTOUCHED default steps
+  // down: current up to 30 ms, 5 years ago up to 45, potato beyond. The reading and the pick are kept (flydiy.gfx.auto)
+  // and the menu says so; the choice is saved, so it runs once. A player's own pick is never overridden.
+  function tierProbe() {
+    if (!W.document || typeof setTimeout !== 'function' || typeof W.requestAnimationFrame !== 'function') return;
+    if ((RIG && !FORCE('autotier')) || REFUSE('autotier')) return;
+    const B = W.BOOT, t0 = Date.now();
+    const wait = () => { if (B && B.state !== 'gone' && Date.now() - t0 < 180000) { setTimeout(wait, 500); return; } setTimeout(measure, 4000); };
+    const measure = () => {
+      const fr = []; let last = 0; const start = performance.now();
+      // every frame counts (a slow machine's 300 ms frames are the reading), only a stall over 2 s (a tab away) does not
+      const f = () => { const t = performance.now(); if (last && t - last < 2000) fr.push(t - last); last = t; if (t - start < 6000) W.requestAnimationFrame(f); else decide(fr); };
+      W.requestAnimationFrame(f);
+    };
+    const decide = fr => {
+      if (fr.length < 10) return;
+      fr.sort((a, b) => a - b);
+      const ms = fr[fr.length >> 1];
+      const pick = ms <= 21 ? null : ms <= 30 ? 'current' : ms <= 45 ? 'retro' : 'potato';
+      const untouched = S.preset === DEFAULT;
+      AUTO_TIER = { ms: +ms.toFixed(1), from: S.preset, picked: pick && untouched ? pick : S.preset, at: new Date().toISOString().slice(0, 10) };
+      try { W.localStorage.setItem(KEY + '.auto', JSON.stringify(AUTO_TIER)); } catch (e) {}
+      if (pick && untouched) set('preset', pick); else save();
+      if (typeof console !== 'undefined') console.log('GFX: first launch measured ' + AUTO_TIER.ms + ' ms a frame on ' + AUTO_TIER.from + ' -> ' + AUTO_TIER.picked);
+    };
+    wait();
+  }
+
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: DEFAULT }, PRESETS[DEFAULT]);
+  const S = Object.assign({ preset: DEFAULT, pv: 2 }, PRESETS[DEFAULT]);   // pv: the pref's version (2: G528's auto render scale)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -232,6 +269,18 @@
   const load = () => {
     try {
       const v = JSON.parse(W.localStorage.getItem(KEY) || 'null');
+      if (!v) firstLaunch = true;   // no saved choice: the first launch probes this machine (tierProbe, after the roll-out)
+      // A CHOICE SAVED BEFORE THE TIERS' LAST CHANGES (pv < 2: G516's soft bloom, G528's auto scale) - once: a player who
+      // was ON a preset gets that preset as it is now (the old names mapped), or every returning player would read
+      // 'custom' and never get the protection; a player's own custom mix keeps its options (its 100 % was the default)
+      if (v && !v.pv) {
+        const MAP = { low: 'retro', medium: 'gamer', high: 'gamer', ultra: 'ultra', potato: 'potato', retro: 'retro', current: 'current', gamer: 'gamer' };
+        const np = MAP[v.preset];
+        if (np && PRESETS[np]) { for (const o of OPTIONS) delete v[o.k]; Object.assign(v, PRESETS[np]); v.preset = np; }
+        else if (v.scale === 1) v.scale = 'auto';
+        v.pv = 2;
+      }
+      try { AUTO_TIER = JSON.parse(W.localStorage.getItem(KEY + '.auto') || 'null'); } catch (e) {}
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
     for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = PRESETS[DEFAULT][o.k];
@@ -249,7 +298,14 @@
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
     if (AA && AA.setTier && applied.aa !== S.aa) { AA.setTier(S.aa); applied.aa = S.aa; }
-    if (AA && AA.setScale && applied.scale !== S.scale) { AA.setScale(S.scale); applied.scale = S.scale; }
+    if (AA && AA.setScale && applied.scale !== S.scale) {
+      // 'auto' (G528): the controller starts from 100 %; a rig (a headless or driven browser) keeps 100 % unless ?autoscale=1
+      const auto = S.scale === 'auto' && (!RIG || FORCE('autoscale'));
+      if (AA.autoScale) AA.autoScale(false);
+      AA.setScale(S.scale === 'auto' ? 1 : S.scale);
+      if (auto && AA.autoScale) AA.autoScale(true);
+      applied.scale = S.scale;
+    }
     if (W.TREE_FILL && applied.density !== S.density) {
       // re-grid only when the number really changes: a re-grid re-streams
       // every chunk around the aircraft
@@ -375,6 +431,7 @@
         label: PRESET_LABEL[p] || p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
         why: p === 'custom' && S.preset !== 'custom' ? 'change any option below' : undefined })),
       o => o.value === S.preset, o => pick('preset', o.value));
+    if (AUTO_TIER) H.note(body, 'First launch: ' + AUTO_TIER.ms + ' ms a frame on ' + AUTO_TIER.from + ' - ' + (AUTO_TIER.picked === AUTO_TIER.from ? 'kept.' : AUTO_TIER.picked + ' picked for this machine (any preset below overrides it).'));
     for (const o of OPTIONS) {
       H.row(body, o.label);
       H.pills(body, o.steps.map(s => ({ label: s.label, value: s.v, title: s.why })),
@@ -417,10 +474,11 @@
     set, apply, mount, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
     // the world calls this once it exists (render_world.js, end of build)
-    onWorld: () => { applied = {}; apply(); },
+    onWorld: () => { applied = {}; apply(); if (firstLaunch) { firstLaunch = false; tierProbe(); } },
+    autoTier: () => AUTO_TIER,
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
-                      bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame)',
+                      bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame; auto re-sizes it at most every 2 s)',
                       glare: 'live', mist: 'live', drawDist: 'live', terrain: 'live (the far quadrants re-cut at once: a hitch)', ground: 'live', clouds: 'live',
                       bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
                       compositing: 'live (reallocates the frame)', water: 'live', anything: 'no restart' }),

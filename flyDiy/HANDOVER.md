@@ -57889,3 +57889,14 @@ into ~40 m.
 - ANY CODE THAT COPIES A MATERIAL IN THE GAME must carry `_atmoHook` - `copy()` and `clone()` do not.
 - GATES: PARKED, PREMISES, UISMOKE, MEDIA, WORLDRENDER, SKIN, GFX green. FILES: src/viewer/parked.js,
   tools/_parked_check.js.
+
+## G533 - THE NEW PLAYER KEPT OUT OF HARM'S WAY: the auto render scale and the first launch's tier (2026-09-23)
+
+The render scale's new first step, 'auto' (every tier but ultra): held at 60 fps from 100 % down to 50 %, one menu step at
+most every 2 s, and a step that does not PAY is taken back (a CPU-bound frame is not faster with fewer pixels - the
+hold doubles on each repeat): never blurred for nothing. The first launch (no saved choice) reads 6 s of frames after
+the roll-out and steps the untouched gamer default down if it still misses (current / 5 years ago / potato); kept in
+flydiy.gfx.auto and said in the menu. Rigs (HeadlessChrome / webdriver) stand down unless ?autoscale=1 / ?autotier=1.
+Old prefs migrate once (pv 2). GATE AA drives the pure decision with simulated frames; GATE GFX the migration.
+futureDesigns/PERF-2026-09-23.md (G533).
+

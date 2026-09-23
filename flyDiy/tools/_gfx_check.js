@@ -66,10 +66,19 @@ console.log('GATE GFX');
      'five tiers, potato .. ultra, gamer the default (' + Object.keys(G.PRESETS).join(',') + ')');
   const OLD_MEDIUM = { ground: 'far1', terrain: 1, scale: 1, drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' };
   OLD_MEDIUM.bloom = 'soft';   // the default look (2026-09-23): the soft bloom from 'current' up
+  OLD_MEDIUM.scale = 'auto';   // the auto render scale (G528) from potato to gamer
   ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513)');
   const w2 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({ preset: 'medium' }, OLD_MEDIUM)) });
   ok(w2.GFX.get().preset === 'gamer', 'a choice saved as medium reads as gamer');
   ok(Object.keys(G.PRESETS).every(p => G.PRESET_LABEL[p]), 'every tier has its label');
+  // the pv migration (G528): an old pref ON a preset is that preset as it is now; an old custom mix keeps its options
+  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'medium', scale: 1, bloom: 'off', aa: 'msaa', density: 128 }) });
+  ok(w3.GFX.get().preset === 'gamer' && w3.GFX.get().scale === 'auto' && w3.GFX.get().bloom === 'soft', 'an old pref saved on medium reads as today\'s gamer (auto scale, soft bloom)');
+  const w4 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'custom', scale: 1, lighting: 'alps', density: 200 }) });
+  ok(w4.GFX.get().scale === 'auto' && w4.GFX.get().lighting === 'alps' && w4.GFX.get().density === 200, 'an old custom mix keeps its options; its 100 % (the old default) becomes auto');
+  const w5 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'custom', pv: 2, scale: 1 }) });
+  ok(w5.GFX.get().scale === 1, 'a current pref\'s 100 % is the player\'s choice and stays');
+  ok(w.GFX.PRESETS.ultra.scale === 1 && ['potato', 'retro', 'current', 'gamer'].every(p => w.GFX.PRESETS[p].scale === 'auto'), 'auto render scale on every tier but ultra');
 }
 // 5. no pref, corrupt pref
 {
@@ -77,7 +86,7 @@ console.log('GATE GFX');
   ok(w.GFX.get().preset === 'gamer', 'no pref boots on gamer (the default tier)');
   const w2 = boot({ 'flydiy.gfx': '{not json' });
   ok(w2.GFX.get().preset === 'gamer', 'a corrupt pref boots on gamer');
-  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'retro', aa: 'nope', density: 5 }) });
+  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 2, aa: 'nope', density: 5 }) });   // a current pref (pv 2) with values no step has
   ok(w3.GFX.get().aa === 'msaa' && w3.GFX.get().density === 128, 'unknown steps in the pref fall back to gamer’s');
 }
 // 3 + 4. applying, and custom
