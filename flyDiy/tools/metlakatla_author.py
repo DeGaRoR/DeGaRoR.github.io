@@ -27,7 +27,7 @@ THE STREET GRID is two families: the numbered avenues on grid bearing 43 deg
 Skaters Lake Road, the graveyard road, the subdivision loops - is a traced
 polyline.
 """
-import json, math, os, sys
+import json, math, os, random, sys
 
 import numpy as np
 
@@ -41,6 +41,17 @@ _J = json.load(open(os.path.join(BENCH, 'dem.json')))
 _W, _H, _X0, _Z0, _CELL = _J['w'], _J['h'], _J['x0'], _J['z0'], _J['cell']
 _DEM = np.fromfile(os.path.join(BENCH, 'dem.f32'), np.float32).reshape(_H, _W)
 _COAST = np.fromfile(os.path.join(BENCH, 'dem.coast.u8'), np.uint8).reshape(_H, _W)
+# THE LAKES, from the prep's own table. `dem.lake.u8` IS a proper signed distance
+# field - (u8 - 128) * 4 metres, positive INSIDE a lake, and the water session
+# histogrammed all 12.1 M cells to prove it: smooth and monotone either side of 128,
+# 1.47 % inside, 84 % at the -508 m clamp. My first cut read it with `v > 0`, and the
+# sign lives in the 128, so every cell on the island tested as lake and all sixty-one
+# roads were dropped. THE FIELD WAS NOT WRONG; THE TEST WAS. The box table is kept
+# anyway because it is the conservative side to be coarse on and it needs no raster -
+# but if this ever wants to follow a crooked shoreline exactly, the field is there and
+# it is honest.
+_LAKES = [q for q in json.load(open(os.path.join(BENCH, 'dem.lakes.json')))
+          if q.get('cells', 0) >= 20]
 
 
 def dem(x, z):
@@ -67,6 +78,78 @@ def coast_m(x, z):
     q = (float(_COAST[j, i]) * (1 - u) * (1 - v) + float(_COAST[j, i + 1]) * u * (1 - v)
          + float(_COAST[j + 1, i]) * (1 - u) * v + float(_COAST[j + 1, i + 1]) * u * v)
     return (q - 128.0) * 4.0
+
+
+def lake_m(x, z):
+    """Metres outside the nearest lake's water; negative over a lake.
+
+    A lake is its BOX and its LEVEL: a point inside the box whose ground is at or
+    under the level is water, and the distance is measured to the box otherwise. It
+    is coarse at a crooked shoreline and that is the right side to be coarse on -
+    keeping a road ten metres further from a bank costs nothing.
+    """
+    best = 1e9
+    for q in _LAKES:
+        dx = max(q['x0'] - x, x - q['x1'], 0.0)
+        dz = max(q['z0'] - z, z - q['z1'], 0.0)
+        d = math.hypot(dx, dz)
+        if d == 0.0 and dem(x, z) <= q['level'] + 2.0:
+            return -1.0
+        best = min(best, d if d > 0 else (dem(x, z) - q['level']) * 4.0)
+    return best
+
+
+def trim_lakes(rs, margin=10.0):
+    """A premises MUST NOT GRADE WITHIN A LAKE'S FIELD (the water session, 2026-09-23).
+
+    A lake's surface is a fixed level because its level is set by its OUTLET - the
+    spill height - and nothing a road does to the bank can move it. So the ground
+    meets the water and the water never follows the ground. Grading DOWN near a bank
+    is the worse direction, not the safer one: the water quad is cut by the DEM's own
+    lake mask, so ground lowered below the level is below the water and still not
+    covered by it - it pokes out past the water's edge, which is most of the hard
+    black rim we were looking at. Measured before this: the town's road grades cut
+    3.3 m inside Skaters Lake's box.
+
+    The margin is the road's own falloff plus the water's 2 m shore fade.
+    """
+    del LAKED[:]
+    for r in list(rs):
+        if not r.get('graded'):
+            continue
+        m = margin + (r.get('falloff') or 6)
+        pts = r['pts']
+        S = []
+        for i in range(1, len(pts)):
+            a, b = pts[i - 1], pts[i]
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            n = max(1, int(L / 10))
+            for k in range(n):
+                f = k / float(n)
+                S.append((a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f))
+        S.append(tuple(pts[-1]))
+        free = [lake_m(q[0], q[1]) > m for q in S]
+        if all(free):
+            continue
+        best = run = None
+        for k, f in enumerate(free):
+            if not f:
+                run = None
+                continue
+            run = (k, k) if run is None else (run[0], k)
+            if best is None or run[1] - run[0] > best[1] - best[0]:
+                best = run
+        share = 1.0 - sum(free) / float(len(free))
+        if best is None or (best[1] - best[0]) * 10 < 45:
+            rs.remove(r)
+            DROPPED.append((r['id'], 'it runs inside a lake field end to end'))
+            LAKED.append((r['id'], 'dropped'))
+            continue
+        r['pts'] = [pt(*S[best[0]]), pt(*S[best[1]])] if len(pts) == 2 else [pt(*q) for q in S[best[0]:best[1] + 1]]
+        LAKED.append((r['id'], 'trimmed %d %%' % round(share * 100)))
+
+
+LAKED = []
 
 
 def pull_inland(x, z, margin=30.0, step=14.0, tries=24):
@@ -666,10 +749,22 @@ def roads():
     snap_ends(out)
     drop_doubles(out)
     snap_ends(out)
+    # ...and only now the stubs and the slivers: an end that the snap joined is not a
+    # free end, and a street the double pass removed is not a sliver.
+    trim_lakes(out)
+    trim_slivers(out)
+    snap_ends(out)          # a trimmed end is a new near miss; the trims get their own snap
+    thin_stubs(out)
     return out
 
 
 DOUBLED = []
+
+
+def rank(rid):
+    """Who wins when two roads lie on each other: the drawn axis, then the traced
+    road, then the voted street."""
+    return 2 if rid.startswith('mk_ax') else (1 if rid.startswith('mk_r_') else 0)
 
 
 def drop_doubles(rs, share=0.45):
@@ -718,6 +813,157 @@ def drop_doubles(rs, share=0.45):
         if rs[i]['id'] in kill:
             DROPPED.append((rs[i]['id'], 'runs alongside another road'))
             del rs[i]
+    # A TRACED ROAD IS TRIMMED, NOT DROPPED. Wolf Street was traced lying on Raven
+    # Street for 104 m and then leaving it - dropping it loses a real road, keeping
+    # it draws two carriageways twenty metres apart. So the SHORTER of a doubled
+    # pair keeps only its longest run clear of the longer one, whatever layer it
+    # came from, and says how much it lost.
+    for r in list(rs):
+        # the DRAWN AXES are a designed network and meet each other on purpose; and a
+        # couple of samples near a junction are not a double. Only a traced road, and
+        # only when a QUARTER of it lies on a longer one.
+        if len(r['pts']) < 3 or r['id'].startswith('mk_ax'):
+            continue
+        for o in rs:
+            # PRECEDENCE: a drawn axis beats a traced road beats a voted street, and
+            # among equals the longer line wins. Without it the hand-drawn seafront
+            # road lost 38 % of itself to a voted street lying on it, which is the
+            # rule running backwards - the whole point of the axes is that the drawn
+            # line is the true one.
+            if o is r or rank(o['id']) < rank(r['id']):
+                continue
+            if rank(o['id']) == rank(r['id']) and length(o) <= length(r):
+                continue
+            reach = (r['w'] + o['w']) / 2.0 + 9.0
+            keep, cut = trim_to_axes(r['pts'], half=reach, LINES=[o['pts']])
+            if cut <= 0.25:
+                continue
+            if keep is None or len(keep) < 2:
+                rs.remove(r)
+                DROPPED.append((r['id'], 'it lies on ' + o['id'] + ' end to end'))
+            else:
+                r['pts'] = [pt(*q) for q in keep]
+                DOUBLED.append((r['id'], o['id'], round(cut * 100)))
+                DROPPED.append((r['id'], 'TRIMMED: %d %% of it lay on %s' % (round(cut * 100), o['id'])))
+            break
+
+
+THINNED = []
+
+
+def thin_stubs(rs, reach=12.0):
+    """A street that goes nowhere is not a street of the same width.
+
+    The user: "the stub roads should be a lot less wide. Maybe even dirt roads
+    sometimes." tools/met_cross.js counts 67 ends in the open - a street that meets
+    the network at one end and stops in the muskeg at the other. In a real town
+    those are the last block's access: a single track, gravel, and past the last
+    house a dirt one. So a street with a free END loses a metre of width, and one
+    free at BOTH ends - which meets nothing at all - drops to dirt and 3.2 m.
+    """
+    del THINNED[:]
+    def foot(q, pl):
+        best = 1e9
+        for i in range(1, len(pl)):
+            a, b = pl[i - 1], pl[i]
+            dx, dz = b[0] - a[0], b[1] - a[1]
+            t = max(0.0, min(1.0, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dz) / max(1e-9, dx * dx + dz * dz)))
+            best = min(best, math.hypot(q[0] - (a[0] + dx * t), q[1] - (a[1] + dz * t)))
+        return best
+    for r in rs:
+        if not r['id'].startswith('mk_s'):        # the arterials and the traced roads keep their width
+            continue
+        free = 0
+        for k in (0, -1):
+            q = r['pts'][k]
+            d = min([foot(q, o['pts']) - o['w'] / 2.0 for o in rs if o is not r] or [1e9])
+            if d > reach:
+                free += 1
+        if not free:
+            continue
+        if free == 2:
+            r['w'] = 3.2
+            r['cls'] = 'dirt'
+            r['look'] = 'dirt'
+            r['band'] = None
+            r['pav'] = None
+            r['traffic'] = 0
+        else:
+            r['w'] = max(3.6, r['w'] - 1.0)
+            if r['cls'] == 'gravel':
+                r['w'] = 3.6
+        THINNED.append((r['id'], free, r['w'], r['cls']))
+
+
+def tangent_gap(tg, o, q):
+    """The angle in degrees between `tg` and road `o`'s direction nearest `q`."""
+    best, bd = 0.0, 1e9
+    for i in range(1, len(o['pts'])):
+        a, b = o['pts'][i - 1], o['pts'][i]
+        dx, dz = b[0] - a[0], b[1] - a[1]
+        L = math.hypot(dx, dz) or 1.0
+        t = max(0.0, min(1.0, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dz) / (L * L)))
+        d = math.hypot(q[0] - (a[0] + dx * t), q[1] - (a[1] + dz * t))
+        if d < bd:
+            bd = d
+            c = abs(tg[0] * dx / L + tg[1] * dz / L)
+            best = math.degrees(math.acos(max(-1.0, min(1.0, c))))
+    return best
+
+
+SLIVERED = []
+
+
+def trim_slivers(rs, deg=28.0, half=22.0):
+    """A street that runs ALONG another for tens of metres at a shallow angle.
+
+    Two ribbons in one lens: the paint, the band, the wear and the guardrails all
+    fight inside it, and from the air it reads as one road that forked for no reason.
+    A voted street is trimmed back to where it leaves the lens; the road it was
+    lying on keeps its line.
+    """
+    del SLIVERED[:]
+    def near(q, o):
+        best = 1e9
+        for i in range(1, len(o['pts'])):
+            a, b = o['pts'][i - 1], o['pts'][i]
+            dx, dz = b[0] - a[0], b[1] - a[1]
+            t = max(0.0, min(1.0, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dz) / max(1e-9, dx * dx + dz * dz)))
+            best = min(best, math.hypot(q[0] - (a[0] + dx * t), q[1] - (a[1] + dz * t)))
+        return best
+    for r in list(rs):
+        if not r['id'].startswith('mk_s') or len(r['pts']) != 2:
+            continue
+        others = [o for o in rs if o is not r and len(o['pts']) >= 2]
+        a, b = r['pts'][0], r['pts'][1]
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        n = max(4, int(L / 10))
+        S = [(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n) for k in range(n + 1)]
+        # THE ANGLE IS THE WHOLE TEST. Without it every street in a 46 m grid reads as
+        # lying inside another's lens near its junctions - the first cut trimmed 44
+        # roads and dropped 12, which is the tool saying the rule was wrong, not the
+        # town. A sample is in a lens only where the road it is near runs nearly
+        # PARALLEL to it there.
+        tg = ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+        lens = [any(near(q, o) < half and tangent_gap(tg, o, q) < deg for o in others) for q in S]
+        if sum(lens) * 10 < 25 or all(lens):
+            continue
+        # the longest run OUTSIDE the lens
+        best = run = None
+        for k, inside in enumerate(lens):
+            if inside:
+                run = None
+                continue
+            run = (k, k) if run is None else (run[0], k)
+            if best is None or run[1] - run[0] > best[1] - best[0]:
+                best = run
+        if best is None or (best[1] - best[0]) * 10 < 45:
+            rs.remove(r)
+            DROPPED.append((r['id'], 'it runs alongside another road for its whole length'))
+            SLIVERED.append((r['id'], 'dropped'))
+            continue
+        r['pts'] = [pt(*S[best[0]]), pt(*S[best[1]])]
+        SLIVERED.append((r['id'], 'trimmed %d %%' % round(100 * sum(lens) / float(len(lens)))))
 
 
 SNAPPED = []
@@ -777,6 +1023,83 @@ def grect(cx, cz, a, b):
     for su, sv in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
         out.append(pt(cx + su * a * UAX[0] + sv * b * VAX[0], cz + su * a * UAX[1] + sv * b * VAX[1]))
     return out
+
+
+def gyard(yid, cx, cz, a, b, seed=0, coast=True, bite=0.30, n=3):
+    """A YARD, which is level but is not a perfect rectangle.
+
+    The user, over the town from the air: "You have also large fully square patches,
+    and I wish they would be less square. An industrial terrain is indeed level, but
+    not always full square, especially next to natural features like coast or hills."
+    That is exactly right and the rectangles were pure laziness: a yard is level
+    because it was BULLDOZED level, and what it was bulldozed out of decides its
+    outline - the sea takes the seaward corner, a bank takes the uphill one, and a
+    working yard grows a bay where it needed one.
+
+    So the rectangle is walked at `n` points a side, each pushed in or out by a value
+    noise of the seed (the same bay on every re-run), and then, where `coast` is on,
+    any vertex that is not far enough inland WALKS ashore up the coast field's own
+    gradient - which is what bends a waterfront yard along its own beach instead of
+    cutting a square hole in it.
+    """
+    rnd = random.Random(hash((yid, seed)) & 0xffffffff)
+    # the rectangle's outline, walked
+    ring = []
+    C = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+    for k in range(4):
+        su, sv = C[k]
+        tu, tv = C[(k + 1) % 4]
+        for i in range(n):
+            f = i / float(n)
+            u = (su + (tu - su) * f)
+            v = (sv + (tv - sv) * f)
+            # push the edge in or out; a CORNER moves less than the middle of a side
+            edge = 1.0 - abs(2.0 * f - 1.0)
+            k2 = 1.0 - bite * edge * rnd.random()
+            x = cx + u * a * k2 * UAX[0] + v * b * k2 * VAX[0]
+            z = cz + u * a * k2 * UAX[1] + v * b * k2 * VAX[1]
+            ring.append((x, z))
+    if coast:
+        ring = [pull_inland(x, z, 6.0) for x, z in ring]
+    # the walk can fold a vertex past its neighbours; the hull of the walked ring is
+    # not what we want (it would square it up again), so only near-duplicates go
+    out = [ring[0]]
+    for q in ring[1:]:
+        if math.hypot(q[0] - out[-1][0], q[1] - out[-1][1]) > 3.0:
+            out.append(q)
+    # ...AND THE RESULT MUST BE SIMPLE. The walk ashore can carry a vertex past its
+    # neighbours, and `compose` refuses a self-crossing polygon outright - the ferry
+    # yard's did, and the gate caught it. Drop the offending vertex and try again;
+    # a shape that will not come right falls back to the rectangle it started as,
+    # which is honest and is what was there before.
+    for _ in range(len(out)):
+        k = first_crossing(out)
+        if k < 0:
+            break
+        del out[k]
+        if len(out) < 4:
+            break
+    if len(out) < 4 or first_crossing(out) >= 0:
+        return grect(cx, cz, a, b)
+    return [pt(*q) for q in out]
+
+
+def first_crossing(poly):
+    """The index of a vertex whose edge crosses a non-neighbouring one, or -1."""
+    n = len(poly)
+    def side(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+    def hit(a, b, c, d):
+        return (side(a, b, c) > 0) != (side(a, b, d) > 0) and (side(c, d, a) > 0) != (side(c, d, b) > 0)
+    for i in range(n):
+        a, b = poly[i], poly[(i + 1) % n]
+        for j in range(i + 1, n):
+            if j == i or (j + 1) % n == i or j == (i + 1) % n:
+                continue
+            c, d = poly[j], poly[(j + 1) % n]
+            if hit(a, b, c, d):
+                return (i + 1) % n
+    return -1
 
 
 def face(dx, dz):
@@ -1007,7 +1330,12 @@ ZONE_PTS = [
     ('mk_z_ind', 'industrial',
      [(-3245, -9075), (-3090, -9080), (-3060, -8955), (-3210, -8945)], 25),
     ('mk_z_park_hayward', 'park', [(-3470, -9095), (-3400, -9105), (-3385, -9040), (-3455, -9030)], 18),
-    ('mk_z_park_gardens', 'park', [(-2860, -8390), (-2780, -8380), (-2770, -8310), (-2850, -8320)], 22),
+    # THE COMMUNITY GARDENS, moved 60 m east off Skaters Lake's bank. A `park` plot
+    # cuts a DERIVED flatten for its lawn, and at the traced position that flatten
+    # bit 3.5 m out of the bank of a lake whose surface the island holds at a fixed
+    # level - so the water stood proud of ground the town had lowered under it.
+    # A premises may not cut a lake's bank; there is no flatten that can win that.
+    ('mk_z_park_gardens', 'park', [(-2800, -8380), (-2720, -8370), (-2710, -8300), (-2790, -8310)], 18),
     ('mk_z_bayside', 'industrial',
      [(-1660, -8470), (-1500, -8420), (-1400, -8330), (-1560, -8380)], 40),
 ]
@@ -1110,10 +1438,42 @@ def wood_stamps():
     return out
 
 
+# THE YARDS, cut once and shared. A yard is three entries - the SURFACE (what the
+# physics stands on), the MATERIAL (what the pavement draws) and the FLATTEN (the
+# level it was bulldozed to) - and all three must be the same polygon or the paving
+# runs off its own level ground. Computed here, read by all three.
+_Y = {}
+
+
+def yards():
+    if not _Y:
+        _Y['harbour'] = gyard('harbour', -3840, -8680, 80, 40, 1)
+        _Y['cannery'] = gyard('cannery', -3168, -9002, 58, 38, 2)
+        _Y['ferry'] = gyard('ferry', -3520, -9060, 60, 35, 3)
+        _Y['gas'] = gyard('gas', -2379, -8513, 55, 40, 4, coast=False, bite=0.22)
+        _Y['bayside'] = gyard('bayside', *pull_inland(-1520, -8398, 45.0), 52, 34, seed=5)
+    return _Y
+
+
+class _YardMap(object):
+    def __getitem__(self, k):
+        return yards()[k]
+
+
+YARD = _YardMap()
+
+
 # ---- the ground the town needs cut --------------------------------------------
 # Every flatten is absolute, its level read off the DEM under its own middle.
 def flat(fid, cx, cz, a, b, falloff=16, drop=0.0):
     return {'id': fid, 'kind': 'flatten', 'poly': grect(cx, cz, a, b),
+            'level': R(dem(cx, cz) + drop, 2), 'falloff': falloff, 'abs': True, 'order': 0}
+
+
+def flat_at(fid, poly, cx, cz, falloff=16, drop=0.0):
+    """A flatten on a GIVEN polygon (a yard's own outline), its level read off the
+    DEM under the point it was centred on."""
+    return {'id': fid, 'kind': 'flatten', 'poly': [pt(*q) for q in poly],
             'level': R(dem(cx, cz) + drop, 2), 'falloff': falloff, 'abs': True, 'order': 0}
 
 
@@ -1156,14 +1516,17 @@ def terrain():
         # ground.need 'flatten' cuts its OWN (SPORT_GEN and HOUSE_GEN both do), and
         # an authored one beside it is a second flatten at a different level over
         # the same ground - which the validator refuses (27_premises.js ~:1343).
-        flat('mk_f_harbour_apron', -3840, -8680, 80, 40, 14),
+        # THE FLATTEN TAKES THE YARD'S OWN OUTLINE, not a rectangle over it: the
+        # surface, the pavement and the level are one shape or the paving runs off
+        # its own ground at the corners the yard lost to the sea.
+        flat_at('mk_f_harbour_apron', YARD['harbour'], -3840, -8680, 14),
         # the cannery's yard on the point - kept OFF the water, because a flatten
         # that reached out there raised the ground under its own wharf
-        flat('mk_f_cannery', -3168, -9002, 58, 38, 16),
-        flat('mk_f_gas', -2379, -8513, 55, 40, 14),
+        flat_at('mk_f_cannery', YARD['cannery'], -3168, -9002, 16),
+        flat_at('mk_f_gas', YARD['gas'], -2379, -8513, 14),
         # ON LAND: at its first position the level came off a cell the DEM clamps to 0
         # over the sea, and the flatten laid a sand-coloured table on the water
-        flat('mk_f_bayside', *(lambda c: (c[0], c[1]))(pull_inland(-1520, -8398, 45.0)), 52, 34, 16),
+        flat_at('mk_f_bayside', YARD['bayside'], *pull_inland(-1520, -8398, 45.0), falloff=16),
         flat('mk_f_ferry_apron', -3520, -9060, 60, 35, 14),
     ]
     return out
@@ -1172,11 +1535,11 @@ def terrain():
 def surface():
     S_PAVED, S_GRAVEL = 5, 6
     out = [
-        {'id': 'mk_y_harbour', 'poly': grect(-3840, -8680, 80, 40), 'surface': S_PAVED, 'z': 0},
-        {'id': 'mk_y_cannery', 'poly': grect(-3168, -9002, 58, 38), 'surface': S_PAVED, 'z': 0},
-        {'id': 'mk_y_ferry', 'poly': grect(-3520, -9060, 60, 35), 'surface': S_GRAVEL, 'z': 0},
-        {'id': 'mk_y_gas', 'poly': grect(-2379, -8513, 55, 40), 'surface': S_GRAVEL, 'z': 0},
-        {'id': 'mk_y_bayside', 'poly': grect(*pull_inland(-1520, -8398, 45.0), 52, 34), 'surface': S_GRAVEL, 'z': 0},
+        {'id': 'mk_y_harbour', 'poly': YARD['harbour'], 'surface': S_PAVED, 'z': 0},
+        {'id': 'mk_y_cannery', 'poly': YARD['cannery'], 'surface': S_PAVED, 'z': 0},
+        {'id': 'mk_y_ferry', 'poly': YARD['ferry'], 'surface': S_GRAVEL, 'z': 0},
+        {'id': 'mk_y_gas', 'poly': YARD['gas'], 'surface': S_GRAVEL, 'z': 0},
+        {'id': 'mk_y_bayside', 'poly': YARD['bayside'], 'surface': S_GRAVEL, 'z': 0},
     ]
     for bid, pts, half, h in BREAKWATERS:
         out.append({'id': bid.replace('mk_bw', 'mk_y_bw'), 'poly': breakwater_poly(pts, half),
@@ -1190,15 +1553,15 @@ def material():
     field - one map over both would give every yard three texels
     (render_premises.js ~:124). pavement.js draws a `look` polygon as geometry."""
     return [
-        {'id': 'mk_m_harbour', 'poly': grect(-3840, -8680, 80, 40), 'look': 'worn', 'band': 4,
+        {'id': 'mk_m_harbour', 'poly': YARD['harbour'], 'look': 'worn', 'band': 4,
          'yaw': R(math.atan2(UAX[1], UAX[0]), 4), 'z': 1},
-        {'id': 'mk_m_cannery', 'poly': grect(-3168, -9002, 58, 38), 'look': 'worn', 'band': 4,
+        {'id': 'mk_m_cannery', 'poly': YARD['cannery'], 'look': 'worn', 'band': 4,
          'yaw': R(math.atan2(UAX[1], UAX[0]), 4), 'z': 1},
-        {'id': 'mk_m_ferry', 'poly': grect(-3520, -9060, 60, 35), 'look': 'gravel', 'band': 4,
+        {'id': 'mk_m_ferry', 'poly': YARD['ferry'], 'look': 'gravel', 'band': 4,
          'yaw': R(math.atan2(UAX[1], UAX[0]), 4), 'z': 1},
-        {'id': 'mk_m_gas', 'poly': grect(-2379, -8513, 55, 40), 'look': 'gravel', 'band': 4,
+        {'id': 'mk_m_gas', 'poly': YARD['gas'], 'look': 'gravel', 'band': 4,
          'yaw': R(math.atan2(UAX[1], UAX[0]), 4), 'z': 1},
-        {'id': 'mk_m_bayside', 'poly': grect(*pull_inland(-1520, -8398, 45.0), 52, 34), 'look': 'gravel', 'band': 4,
+        {'id': 'mk_m_bayside', 'poly': YARD['bayside'], 'look': 'gravel', 'band': 4,
          'yaw': R(math.atan2(UAX[1], UAX[0]), 4), 'z': 1},
     ]
 

@@ -4486,7 +4486,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const corners = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)];
       const inner = innerPatchShared && corners.every(q => Math.abs(q[0]) < innerPatchShared.half - 60 && Math.abs(q[1]) < innerPatchShared.half - 60);
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
-        game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
+        game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)
         patchMat: inner ? innerPatchShared.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)),
         patchUV: inner ? innerPatchShared.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
@@ -4728,6 +4728,33 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // above the true ground wherever it is concave, no longer cut through the roads, the lots, the
   // house pads and the graded shoulders laid on the composed height. At the patch's border the
   // patch tucks 2.2 m under the ring as before: the seam is the ring's, by design.
+  // THE PREMISES' TREE POOL (2026-09-23). Every caller passed `pool: () => []`, so a
+  // record tree came out keyed `stub|tree` and built as a placeholder cone - which is
+  // what a BENCH wants and not what a town does. The premises wants
+  // `{ key, size, sink, proportion, h }`; the pack's collection carries `place.size`,
+  // `place.sink` and `place.proportion`, and a HEIGHT only for the shrubs (`hMin`/
+  // `hMax`), so a tree takes 12 m x its size and a shrub the middle of its own range.
+  // `h` is a SELECTOR, not a drawn dimension: the garden pass plants the small half of
+  // the pool and the renderer scales by `size`.
+  function premisesTreePool() {
+    if (typeof treeList !== 'function') return [];
+    try {
+      const out = [];
+      for (const e of treeList()) {
+        const c = e.col, P = (c && c.place) || {};
+        if (!c || (c.kind !== 'tree' && c.kind !== 'shrub')) continue;
+        const n = (c.subjects && c.subjects.length) || 1;
+        const w = (P.proportion === undefined ? 1 : P.proportion) / n;
+        if (!(w > 0)) continue;
+        const size = P.size || 1;
+        const h = c.kind === 'shrub'
+          ? ((P.hMin || 0.5) + (P.hMax || 3)) / 2
+          : 12 * size;
+        out.push({ key: e.key, size, sink: P.sink || 0, proportion: w, h });
+      }
+      return out;
+    } catch (e) { return []; }
+  }
   function groundSink(x, z) { return (premisesR && premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0; }   // hoisted: the boot calls refreshGround before this line
   // the far mesh under the premises' patch: the ring's 4 m sink, on the tier that
   // actually draws a place more than 4.5 km from the origin
@@ -5050,7 +5077,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;
-      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
+      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         patchMat: inner ? inner.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)), patchUV: inner ? inner.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath } });
       return premisesR; },

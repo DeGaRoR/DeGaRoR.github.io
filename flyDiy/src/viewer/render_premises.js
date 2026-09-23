@@ -1251,6 +1251,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   // ---- the trees: the payload's rungs in a THREE.LOD, a cone until it lands -----------------
   const TREE_DEPTH = new Map();
+  const TREE_GONE = 900;          // a record tree's cull distance (m)
   const stubGeo = new THREE.ConeGeometry(2.2, 9, 7); stubGeo.translate(0, 6.5, 0);
   const stubTrunk = new THREE.CylinderGeometry(0.25, 0.35, 2.4, 6); stubTrunk.translate(0, 1.2, 0);
   const stubMat = new THREE.MeshStandardMaterial({ color: 0x2f6b3a, roughness: 0.95 }), trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3524, roughness: 0.95 });
@@ -1278,10 +1279,18 @@ function make(THREE, scene, world, rec0, opts) {
           obj.addLevel(g, TREE_BANDS[r]);
           if (r === 0) tris += B.tris;
         }
+        // ...AND A CULL LEVEL. The ladder was 0 / 60 / 132 m with no end, so the
+        // 132 m rung drew at ANY distance: at Metlakatla's 744 trees that is
+        // thousands of draws for things a few pixels across, and the perf session
+        // names record trees as the premises' biggest unhandled item. A garden tree
+        // past TREE_GONE is not what you are looking at, and the island's own fill
+        // and stand cards carry the wood's impression out there.
+        obj.addLevel(new THREE.Group(), TREE_GONE);
         obj.scale.setScalar(t.size);
         obj.position.set(w[0], t.y - 0.05 - (t.sink || 0) * t.size, w[1]);
       } else {
         obj = new THREE.Group(); obj.name = 'tree:stub';
+        obj.visible = !o.game;      // a stub cone is a BENCH placeholder; the game waits for the pack
         const c = new THREE.Mesh(stubGeo, stubMat), k = new THREE.Mesh(stubTrunk, trunkMat);
         c.castShadow = k.castShadow = true; c.userData.sharedGeo = k.userData.sharedGeo = true;
         obj.add(c, k);
@@ -1314,6 +1323,13 @@ function make(THREE, scene, world, rec0, opts) {
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
+      // THE GAME HAD NEVER DRAWN A RECORD TREE (2026-09-23, the user: "I can see no
+      // trees in no garden nor empty lots"). This early return is the game's whole
+      // rebuild, and `buildTrees()` sat below it in the BENCH path only - so
+      // `planForest` and the garden pass both composed their trees into the record,
+      // the gate counted them, the panel reported them, and the renderer walked past
+      // the list. Nobody had noticed because until this week no record carried one.
+      buildTrees();
       stats.tris = patch ? patch.geometry.index.count / 3 : 0; stats.chunks = patch ? patch.geometry.userData.chunks.length : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
       return stats;
     }

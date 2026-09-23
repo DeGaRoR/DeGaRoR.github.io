@@ -1247,7 +1247,13 @@ function planPoles(T, V, road, rnd, spread, plots) {
 // with a finer noise at every edge and a slow colour tint over the grass. The
 // game hands the same function its own height sampler.
 function lotGround(vil, plot, house, built, occ) {
-  const T = vil.T, cell = 0.45, M = 1.8;
+  // THE PATCH'S EDGE WAS A RAZOR (2026-09-23, the user over Metlakatla: "You have
+  // also large fully square patches, and I wish they would be less square"). The
+  // fade was 1.8 m on a 25 x 30 m plot, which at any distance is no fade at all -
+  // every garden read as a bright rectangle stamped on the ground. 5 m of margin,
+  // and the ramp is BROKEN by the same fbm the splat uses, so the line where a lawn
+  // becomes the island wanders a metre or two instead of running dead straight.
+  const T = vil.T, cell = 0.45, M = 5.0;
   const poly = plot.poly;
   let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
   for (const p of poly) { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0]); z1 = Math.max(z1, p[1]); }
@@ -1354,7 +1360,12 @@ function lotGround(vil, plot, house, built, occ) {
     const dry = plot.lot && plot.lot.kind === 'concrete' ? Math.max(dryAt(x, z), inLot(x, z)) : dryAt(x, z);   // dead ground under a slab
     splat.push(fbm(x * 0.09 + 11.3, z * 0.09 + 4.1, vil.V.seed + 21, 3), dry, dirtAt(x, z), peb);
     tone.push(darkAt(x, z), lushAt(x, z));
-    alpha.push(inside ? 1 : 1 - d / M);
+    {
+      // the wander: the noise moves the edge, not the alpha, so the fade stays smooth
+      const w = (fbm(x * 0.22 + 5.7, z * 0.22 + 2.9, vil.V.seed + 37, 2) - 0.5) * 2.2;
+      const t = clamp((d + w) / M, 0, 1);
+      alpha.push(inside ? 1 : 1 - t * t * (3 - 2 * t));
+    }
   }
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
     const a = id[j * (nx + 1) + i], b = id[j * (nx + 1) + i + 1], c = id[(j + 1) * (nx + 1) + i + 1], d = id[(j + 1) * (nx + 1) + i];
