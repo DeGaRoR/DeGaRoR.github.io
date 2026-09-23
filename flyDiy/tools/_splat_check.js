@@ -33,7 +33,7 @@
 //      POND CENSUS over 2 km: coverage, ponds per km2, the median pond, and
 //      that a fifth of the ground is still dry - the packs the user asked for
 //      ("there should be less of them ... probably in packs").
-//   1c. A MINERAL SET KEEPS ITS HUE (2026-09-23, the user on a shot of the
+//   1c. A ROCK SET IS ITS SHIPPED TONE, A MINERAL SET KEEPS ITS HUE (the user on a shot of the
 //      Jumbo Mine: "the rock assets have been fully colored green and they
 //      look real bad ... revert at least for this texture"). normGains pulls
 //      each set's mean onto the imagery's PER CHANNEL, which is right for a
@@ -44,6 +44,13 @@
 //      REAL gains (the real manifest, the real island) and refuses any mineral
 //      set whose gain is not one number, while requiring the vegetation sets to
 //      still take the imagery's colour - a carve-out, not a retreat.
+//      THEN THE ROCK SETS LEFT THE NORMALISATION ALTOGETHER (2026-09-23, the
+//      user: "fix for the rock color not working at all ... restore only the rock
+//      texture to its original tone"): one luminance gain still moved them - rocksA,
+//      rocksB and cliff halved, rockyB at the 2.50 clamp - and the photograph of a
+//      rock IS its tone. rocks*/rocky*/cliff/pebble take 1/1/1 and this rule holds
+//      that exactly; sand, shingle, dirt, peat and snow do vary with the place and
+//      keep their single gain.
 //   2. THE MANIFEST vs THE STORE (src/viewer/splat_tex.js, media/tex/splat/):
 //      the manifest's order IS RECIPE.library (a set's index is its layer in
 //      the arrays), its metres the library's, four files per set on disk at
@@ -342,14 +349,25 @@ function checkMineral(quiet) {
   say(Object.keys(norm).length > 8, `${Object.keys(norm).length} sets carry a gain from the imagery`);
   // THE LIST IS THE RULE: every surface here is rock, dirt, sand or snow and may
   // only be brightened or darkened, never recoloured. A new mineral set joins it.
-  const MUST_KEEP_HUE = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble', 'beach', 'coastA', 'coastSand', 'dirt', 'mud', 'snowAir'];
+  // A ROCK SET TAKES NO GAIN AT ALL (2026-09-23, the user, after one luminance gain was not
+  // enough: "restore only the rock texture to its original tone"). The photograph of a rock IS
+  // its tone; the imagery cannot judge it, because at 10 m a pixel its rock cells are rock with
+  // trees on them. The rest of the mineral list does vary with the place and keeps ONE gain.
+  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble'];
+  const MUST_KEEP_HUE = ['beach', 'coastA', 'coastSand', 'dirt', 'mud', 'snowAir'];
+  const moved = [];
+  for (const k of ROCK_AS_SHIPPED) {
+    const g = norm[k]; if (!g) continue;
+    if (Math.abs(g[0] - 1) > 1e-6 || Math.abs(g[1] - 1) > 1e-6 || Math.abs(g[2] - 1) > 1e-6) moved.push(`${k} ${g.map(v => v.toFixed(2)).join('/')}`);
+  }
+  say(!moved.length, `every ROCK set is its shipped tone, gain 1/1/1: ${moved.length ? moved.join(', ') : ROCK_AS_SHIPPED.filter(k => norm[k]).length + ' checked'}`);
   const bad = [];
   for (const k of MUST_KEEP_HUE) {
     const g = norm[k]; if (!g) continue;
     const pull = g[1] / Math.max((g[0] + g[2]) / 2, 1e-6);
     if (Math.abs(g[0] - g[1]) > 1e-6 || Math.abs(g[1] - g[2]) > 1e-6) bad.push(`${k} ${g.map(v => v.toFixed(2)).join('/')} (green pull ${pull.toFixed(2)})`);
   }
-  say(!bad.length, `every mineral set takes ONE luminance gain, not a colour: ${bad.length ? bad.join(', ') : MUST_KEEP_HUE.filter(k => norm[k]).length + ' checked, all neutral'}`);
+  say(!bad.length, `the other mineral sets take ONE luminance gain, not a colour: ${bad.length ? bad.join(', ') : MUST_KEEP_HUE.filter(k => norm[k]).length + ' checked, all neutral'}`);
   // and the vegetation sets still DO take the imagery's colour - the rule is a
   // carve-out, not a retreat from the normalisation the user asked for
   const veg = ['forestAir', 'grass', 'grassRock', 'dry', 'lush', 'leaves'].filter(k => norm[k]);

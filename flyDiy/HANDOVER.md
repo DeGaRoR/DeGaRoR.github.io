@@ -58032,6 +58032,114 @@ pudFar 0 restores the old rim exactly, pudWet 1 leaves the margin dry, pudRim 0 
 - FILES: src/core/27_premises.js, src/core/43_pilot.js, src/viewer/render_world.js,
   tools/jolene_parts/native.json, tools/jolene_author.py, tools/fixtures/island_jolene.json,
   futureDesigns/PREMISES-CONTRACT-2026-09-13.md (v1.25).
+
+## G537 — THE ROCK IS THE PHOTOGRAPH'S OWN TONE, AND ONLY THE GREEN TEXELS ARE TUNED (2026-09-23)
+
+THE USER, after G534: "fix for the rock color not working at all. Try that; restore only the rock texture to its
+original tone, then very slightly tune the grass part of the texture to get more lush green, without modifying
+the rock color. Ever so subtle."
+
+WHY G534 WAS NOT ENOUGH, in one line of the table it printed: the mineral rule keeps a set's HUE but still
+moves its TONE, and for the rock sets the tone was moved a long way - rocksA, rocksB and cliff all halved
+(gain 0.50) and rockyB pushed to the 2.50 clamp. A grey gain is still the island's mean vegetation telling a
+boulder how dark to be. And it cannot be otherwise: at 10 m a pixel the imagery's own rock cells are ROCK WITH
+TREES ON THEM, so the number it offers a rock set is not about rock at all.
+
+SO A ROCK SET NOW TAKES NO GAIN: rocks[A-Z], rocky[A-Z], cliff and pebble are 1/1/1, the texture exactly as it
+shipped (rocksA 0.215/0.190/0.107, cliff 0.314/0.173/0.110, rockyA 0.081/0.077/0.012 - a warm tan, a red-brown
+and an olive, which is what those photographs are). The rest of the mineral list - beach, coastA, coastSand,
+dirt, mud, snowAir - keeps the single luminance gain from G534: sand, shingle, peat and snow really do vary in
+brightness with the place, and the imagery is a fair judge of that. The vegetation sets keep the per-channel
+colour normalisation the user asked for in the first place.
+
+AND THE GRASS IS TUNED PER TEXEL, NOT PER SET, which is the whole trick and the reason the earlier attempts
+kept failing: a set is ONE PHOTOGRAPH OF GROUND. rocksA is boulders with vegetation between them; grassRock is
+the pair in a single image. Any per-set gain moves the boulders with the moss, so "greener grass, same rock"
+is impossible at that level. In sFetch, after a texel is graded, `veg` measures how far the GREEN channel
+stands over the other two, normalised by the brightest channel and scaled by 3: it is 0 on anything grey or
+brown (rock, sand, peat, dead grass) and rises on leaf and moss. The texel is then lifted by
+vec3(0.96, 1.08, 0.92) weighted by veg x vegLush. At the shipped vegLush 0.4 the greenest texel in a texture
+moves about 3 % - the "ever so subtle" the user asked for, and a boulder in the same image does not move at
+all because its veg is zero.
+
+MEASURED (the vm harness of GATE SPLAT, the real manifest and the real island): the six rock sets 1/1/1; beach
+0.50, dirt 0.85, mud 0.50, coastA 1.13, coastSand 1.17, snowAir 2.50, all neutral; forestAir 0.15/0.36/0.35,
+dry 0.19/0.26/0.23, grass and grassRock per channel - the vegetation still takes the imagery's colour.
+
+PICTURES (bench/rock/): e_rockrestored.png is the Jumbo Mine from the air - the strip and the bare ground read
+tan and grey again, the grass reads green, and the hillside is no longer a rock painted the colour of a leaf;
+e_rockrestored_s0.png is the same frame with vegLush 0, which is how subtle the lift is. Beside them,
+c_now.png is where this started.
+
+GATE SPLAT 1c grows the stronger half of the rule: every ROCK set's gain must be exactly 1/1/1, the other
+mineral sets neutral, and the vegetation sets must still carry a per-channel gain, so none of this can be
+"fixed" later by turning the normalisation off. vegLush is live in F8 (WORLD.ground.splat().set({vegLush})),
+0 for none of it.
+
+## G538 - THE CARDS WERE WASHED OUT AND THE FIRST EXPLANATION WAS WRONG: the impostor canopy measured on its own pixels, one dial kept, one deleted (2026-09-23)
+
+THE COMPLAINT, over a world-editor shot of Jolene AFB: "the impostors look washed out on the lit
+side, especially when contrasted to the terrain below them ... anything we can do to have them more
+in-line with the world, and more 'bitty' in terms of colours and shadows? ... washed out trees over
+saturated terrain". It is a number, and this is it. With the sim frozen and a mask built by hiding
+the impostor meshes for one frame - so the stats are the CARD'S pixels and not the 60 % of the frame
+that is ground - the canopy drew at luma 0.1317 with a coefficient of variation of 0.223, over
+ground that drew DARKER at 0.1212 and with cv 0.766. Brighter than the land it stands on, with three
+and a half times less variation in it. That is the whole complaint in two rows.
+
+THE FIRST EXPLANATION WAS WRONG, AND THE MEASUREMENT IS WHAT SAID SO. The impostor took the
+geometry's leaf terms by reference - wrap 0.80 and SSS 1.12, both ADDITIVE - and the theory was that
+a card, whose baked normal varies slowly across a whole crown, has the entire crown lifted by them at
+once where real foliage scatters them over thousands of differently-angled needles. It reads well and
+it is false: switching the entire block off (uLeaf 0) moved the canopy from 0.1317 to 0.1279, three
+per cent, against a control of 0.006, and uWrap at 0 and at 6 are both indistinguishable from doing
+nothing at all. A dial for wrapK/sssK had already been written, defaulted and gated; it is deleted
+rather than landed, because a dial whose extremes are the control is furniture.
+
+WHAT MOVES IT is uFlat, the tint's contrast term `mix(vec3(uFlatMean), texel, uFlat)`, which this
+material pinned at 1 - the texel exactly as baked. Above 1 it EXTRAPOLATES away from the sheet's own
+mean, and it is the only lever in the draw that reaches the card's texels rather than the light
+falling on them. At 1.35 the canopy goes to luma 0.1025 (-22 %, now UNDER the ground instead of over
+it) and cv to 0.291 (+30 %); p10 0.1028 -> 0.077 and p90 0.1574 -> 0.129, so it is a darkening with a
+spread gain rather than a clip. It SATURATES: 3.0 and 1.35 are the same frame to four decimals, which
+is why 1.35 is the top of the useful range and not a number to push further.
+
+AND ONE TREE IS NOT ITS NEIGHBOUR. A baked tree wore `c3.setRGB(1, 1, 1)`, so a whole stand carried
+one colour and read as one flat mass from the air. Its instance colour is now a lightness off its own
+position, +-10 % (TREE_LOD.imp({ vary })), on BOTH tiers - the near geometry and the far card share
+the rule, so a crown that is dark up close is dark as a card too - and the stand cards take the same
+hash off the card's own position. Measured in the scene: 215367 instance colours on 120 meshes, mean
+1.0002, sd 0.0577, min 0.90, max 1.10.
+
+THREE INSTRUMENT FAULTS, each of which cost a run, each worth more than the fix.
+- A FRAME MEAN TAKEN WHILE THE AEROPLANE FLIES IS NOT A MEASUREMENT. The first A/B had both extremes
+  come back BRIGHTER than the base (87.59 base, 91.39 with the terms off, 93.13 with them at x4):
+  chunks stream and the view moves between 20-frame samples, and the drift was larger than the
+  effect. Freeze the sim (TEST_FLIGHT.rate(0)), take ONE reference frame, and diff every state
+  against it - and print the control (change nothing) and the restore. Both read 0.003 to 0.006 here.
+  Without a control that reads zero, a null result is indistinguishable from a broken rig.
+- A UNIFORM READ BACK FROM THREE'S OWN BLOCK PROVES NOTHING ABOUT THE DRAW. uWrap read back as 0.304
+  on the drawn material while contributing nothing, because a declared-but-unused uniform is stripped
+  by the GLSL compiler and keeps its JS-side value regardless. Ask the LINKED PROGRAM for the
+  location (`renderer.properties.get(mat).currentProgram.getUniforms().seq`), and always run a
+  POSITIVE CONTROL with a uniform known to be read: uILit at 0.45 moved 40 % of the frame's pixels,
+  which is what made the wrap/SSS nulls trustworthy.
+- `texture.needsUpdate = true` ON A RENDER TARGET'S TEXTURE DESTROYS THE BAKED CONTENT. The
+  experiment that was to test the mip chain toggled minFilter that way, and every reading after its
+  first toggle came back identical to four decimals - the atlas had been re-initialised from an empty
+  image. The run invalidated itself; only its first line is usable. A sheet that lives in a render
+  target is not re-uploaded, it is re-created.
+
+OWED, to whoever next opens the bake: the atlas is a 1024x1024x74 array with `mipmaps: 0` and
+`generateMipmaps: false`, while its minFilter is LinearMipmapLinearFilter and anisotropy is 1 - a
+minification filter asking for a chain that does not exist. Whether that costs anything is untested
+(the experiment above wrecked itself before it could say), but a card's bittiness lives in its
+texels, and cv 0.291 against the ground's 0.766 says most of it is still missing. This is flagged,
+not touched.
+
+- FILES: src/viewer/render_world.js (uIFlat + IMPK, impostorMat's own uFlat, treeVary on both plant
+  sites, TREE_LOD.imp({ flat, vary }) and TREE_LOD.impVary), src/viewer/stand_cards.js (the card's
+  own lightness).
 ## G506 — METLAKATLA: THE ISLAND'S ONE REAL TOWN, AND THE HARBOUR KIT IT NEEDED (2026-09-22, the user:
 ## "YOU know that there is a single town on Anette island, and it's metlakata ... we should have traces
 ## of it in our own map ... It is essential you try and understand well the city structure")
@@ -58282,3 +58390,89 @@ said the clipping is gone. The residential vegetation has been **probed, not jud
 answers `residential` over the gaps, on FOREST_FLOOR and GRASS ground, but the fill still had 1164
 chunks queued when the last shot was taken). **Perf is still owed** and is a bigger question than it
 was. `futureDesigns/METLAKATLA-2026-09-22.md` §16 lists what I would do, in order.
+
+## G539 — METLAKATLA LANDS: the town merged onto master, as a jolene_parts part
+
+The chantier's own account is `futureDesigns/METLAKATLA-2026-09-22.md` (§1-17) and the contract
+amendments are v1.26-v1.30. This entry is the LANDING: what had to change to bring 112 commits of
+master and one town together, and what another session should not undo.
+
+### What the town is
+
+455 sown plots, 61 roads, 63 sites carrying 72 items, 3 699 placed conifers, 24 ttype polygons, the
+`mk_sea` seaplane base. Traced from the island's own IFSAR radar (which is already in the game frame,
+so no lat/lon is needed), then corrected five times from the user's own drawings — `tools/met_axes.py`
+reads an annotation back off a picture, whether it is a `met_trace` render with a coordinate grid or a
+raw GAME SCREENSHOT, which the game unprojects by restoring the shot's camera and marching a ray
+against the terrain.
+
+### The landing itself
+
+- **The town is now `tools/jolene_parts/metlakatla.py`**, the fifth part beside the airfield, the mine,
+  the native grounds and the tramway. Twenty lines: the 1 500-line author stays in `tools/`, and the
+  part is only the protocol's handle on it. `PREFIX = 'mk_'`, `PART = MK.layers()`, `EXTENT` as the
+  loader's `[x0, z0, x1, z1]`.
+- **`MKSEA` is `mk_sea`.** The loader refuses an id without its part's prefix, which is right, and
+  `mn_strip` / `nv_strip` / `tw_ski` already followed it. GATE PREMISES 14l moved with it.
+- **The base record declares `ttype`** (contract v1.27). It is the one layer a part may carry that
+  master's own record had never needed.
+- **`tw_t_square` and `tw_m_square` are deleted from `tramway.json`**, at that session's own request
+  and in their words: their summit becomes one platform at the strip head's level in their next
+  landing, and the two entries overlapped `tw_t_summit_apron` by 24 x 18 m at 0.8 m of level. That is
+  a defect the new GATE PREMISES section 14 found the moment the shipped record was first asserted
+  whole — it was there before this chantier and nothing on master had ever looked.
+
+### What master took from this branch, and what this branch gave up
+
+TAKEN FROM MASTER, and my versions deleted:
+- **`sinkFar` is theirs (G527).** Mine walked the far mesh's vertices once at boot; master's far
+  terrain is a view-dependent LOD that re-cuts as the eye moves, so a one-off walk is undone at the
+  next cut. Theirs lives in `patchOf` + `FARLOD.resink(bb)`, is called from `refreshGround`, sinks to
+  `min(raw, composed) - 4` so a cut deeper than 4 m cannot poke through, and re-sinks after a live
+  edit. The idea was this branch's and the implementation is better than it was.
+- **`island_node.js`'s bench fallback is gone** for G521/G523's explicit `FLYDIY_BENCH`. Mine existed
+  only because the island's grids were gitignored; they ship now.
+- **The patch materials, the per-chunk pick, `freezeStatic`, the LIFE block** — all master's.
+
+KEPT FROM THIS BRANCH, and both of these are load-bearing:
+- **`buildTrees()` in `rebuild()`'s GAME branch.** It sat below the early return in the bench path
+  only, so no premises record tree had EVER been drawn in the game. Invisible in a diff and invisible
+  in a screenshot until a record carried one. **GATE PREMISES 14p now asserts the call and the cull
+  level by source**, so a rebase cannot quietly read that hunk as a choice.
+- **The tree pool.** Every caller passed `pool: () => []`, so a record tree came out keyed
+  `stub|tree` and built as a placeholder cone. `premisesTreePool()` derives
+  `{key, size, sink, proportion, h}` from the pack's own collections.
+
+MERGED, not chosen:
+- **The lot refusal is now three tests.** `entry.lot === false` (v1.29, the harbour kit), `P.lot ===
+  false` (v1.24, the native session's clan house) and `isFinite(P.floorOverWater)` (anything on a
+  deck, whose lot would be laid on the seabed). They compose and all three are needed.
+
+### The measurements this chantier leaves behind
+
+- **The boot is linear in plots: 4.4 ms each.** Five cold boots at 92 / 138 / 264 / 318 / 455 plots,
+  all completing; 455 plots adds 1.6 s to a 14.6 s boot. The cost lands BEFORE the first named boot
+  step (+1385 ms at `treeBins`, the world's make where the record is composed); the span from the
+  first step to the first frame is flat (+235 ms across a five-fold range) and the `compile` step is
+  **7-9 ms at every size**. `render_world.js`'s "36 houses, 3 s — a worker or a ladder is owed" is not
+  the bottleneck any more, and a stall at a premises is not plot count. `tools/met_boot_curve.js` with
+  `MK_PLOTS` as the dial; it cuts ZONES and not only density, because the sower's gap chance caps at
+  0.95 and the catch-all refills whatever the quarters drop.
+- **Do not read a per-unit cost against a large fixed cost.** The ms/plot column FALLS from 159 to 36
+  as the town grows, purely because ~13 s of the boot is premises-independent. The slope is the fact;
+  the ratio is an artefact that says the town gets cheaper the bigger it is.
+- **The island's tree fill cannot deliver a painted biome at a settlement**, measured twice: 13 465
+  trees built with 55 576 chunks still queued after 61 s, and 29 531 with 71 771 after 92 s. Neither
+  converged. So the town PLACES its conifers.
+- **The pack has no small conifer.** Every conifer in it is a full-size model and the only species
+  with an `hMin`/`hMax` under 4 m are four deciduous shrubs. The canopy number scales a tree
+  UNIFORMLY (`s = can * gain / SH.h`, `sv.set(s, s*…, s)`) — it does not stretch a trunk, which I
+  asserted twice before reading the line that does it.
+
+### Owed
+
+A GPU frame time at the town. Walden Point Road past Bayside to the ferry. A Tsimshian longhouse
+(`totem/park`'s clan house stands in). The `ttype` layer has no editor tool. The civic buildings are
+placed from registered views to about +-10 m. And `city trees` (terrain type 16, its mix, the cover
+stamp of v1.30) is built, gated and switched OFF: it needs a small conifer asset, and turning it back
+on is one uncommented line in `metlakatla_author.py`.
