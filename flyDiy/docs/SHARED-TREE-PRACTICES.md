@@ -123,6 +123,18 @@ for "the single wheel") is a bug waiting for a row; key on identity.
   1a9a391 reading its sources as LF). Normalise `\r\n` before scanning, or
   match `\r?\n`; when a worktree gate is red, check line endings before
   hunting for a lost hunk.
+- A SOURCE THAT CHANGES WITH THE CHECKOUT IS AN INSTRUMENT THAT LIES, and a
+  FALLBACK is how it gets that way. `island_node.js` read the island from
+  `bench/` "whenever it exists": in the checkout that baked it a gate measured
+  the bench's bytes, in a worktree it measured nothing and the caller fell back
+  to the analytic world, and the page fetched something else again. Nobody
+  chose any of that; the `||` did. The rule that came out of G523: a tool reads
+  ONE source by default - the shipped one, what players get - and any other
+  source is an EXPLICIT opt-in (there, the env var `FLYDIY_BENCH`, kept from
+  G521 and promoted from fallback to opt-in). Then the divergence is a decision
+  somebody typed, not an accident of which directory the command ran in. Same
+  class of fault as the gate that ran on the wrong artifact, above; the tell is
+  a default that reaches for a second location when the first is missing.
 
 ## 6. Documents and memory
 
