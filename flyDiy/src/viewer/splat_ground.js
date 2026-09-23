@@ -68,6 +68,8 @@ const SPLAT_GROUND = (() => {
   uniform vec4 uSGrade[${NLIB}];
   uniform float uSGloss[${NLIB}];
   uniform float uSLum[${NLIB}];   // each set's mean luminance after its grade (linear): the detail's texel over it is pure TEXTURE
+  uniform float uSGrass[${NLIB}];   // per set: how far its DARK texels are pulled to the open ground's grass (the forest floor's, 2026-09-23)
+  uniform vec4 uSGrassC;            // that grass, MEASURED - the mean of the open-ground sets after their own normalisation
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2, uSVeg;
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
@@ -101,6 +103,25 @@ const SPLAT_GROUND = (() => {
     o.n = vec4(t, nr.z * 2.0 - 1.0, 1.0 - (1.0 - nr.a) * uSGloss[int(layer + 0.5)]);   // the rough map through the set's gloss grade (1 = the map's, 0 = matte)
     vec4 g = uSGrade[int(layer + 0.5)];
     o.c.rgb *= g.rgb; float l = gLuma(o.c.rgb); o.c.rgb = mix(vec3(l), o.c.rgb, g.a);
+    // THE GRASS UNDER THE TREES IS THE SAME GRASS (the user, 2026-09-23, circling the forest
+    // floor beside an open slope: "move the forest texture to match better the surrounding grass.
+    // Not perfectly, but better. So we can believe that the grass in between the rocks is the same
+    // as the grass on flat planes. On the forest floor texture, the brightest areas are rock, the
+    // darkest are grass. If you can selectively edit only the grass, that would be ace").
+    // THE MASK IS LUMINANCE, NOT HUE - that is the user's own observation about THIS photograph, and
+    // it is why the green-dominance mask below cannot do this job: the floor's grass is a dark
+    // brown-green and its rock is the bright part, so hue tells them apart badly and value perfectly.
+    // The pivot is the set's OWN mean luminance (uSLum), so the split follows the photograph rather
+    // than a number someone typed. The pull is a RECOLOUR AT CONSTANT VALUE: the texel keeps its own
+    // light and dark - the texture's whole structure - and only its colour walks toward uSGrassC,
+    // which is MEASURED from the open-ground sets the user is comparing it against.
+    { float gr = uSGrass[int(layer + 0.5)];
+      if (gr > 0.001) {
+        float l = gLuma(o.c.rgb), lm = max(uSLum[int(layer + 0.5)], 1e-4);
+        float dark = 1.0 - smoothstep(lm * 0.55, lm * 1.25, l);   // 1 on the darkest texels (the grass), 0 on the brightest (the rock)
+        vec3 hue = uSGrassC.rgb / max(gLuma(uSGrassC.rgb), 1e-4);
+        o.c.rgb = mix(o.c.rgb, hue * l, dark * gr);
+      } }
     // THE GRASS INSIDE A TEXTURE, AND ONLY IT (the user, 2026-09-23: "restore only the rock
     // texture to its original tone, then very slightly tune the grass part of the texture to
     // get more lush green, without modifying the rock color. Ever so subtle"). A set is one
@@ -514,6 +535,7 @@ const SPLAT_GROUND = (() => {
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
       uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
+      uSGrass: { value: new Float32Array(NLIB).fill(0) }, uSGrassC: { value: V4() },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() }, uSVeg: { value: V4() },
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
       uSHexPx: { value: 0 },   // the hex cut's dial: 0 = hex everywhere (see sSet)
@@ -539,9 +561,23 @@ const SPLAT_GROUND = (() => {
         c.r *= 1 + (nm[0] - 1) * kA; c.g *= 1 + (nm[1] - 1) * kA; c.b *= 1 + (nm[2] - 1) * kA;   // the normalisation rides on the hand grade
         U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat);
         U.uSGloss.value[i] = g.gloss === undefined ? 1 : +g.gloss;
+        U.uSGrass.value[i] = g.grass === undefined ? 0 : +g.grass;   // the forest floor's dark texels toward the open grass
         // the set's mean luminance after its grade (the import's linear mean x the gain; the saturation leaves luma alone)
         const mn = (SPLAT_TEX_SETS.find(x => x.key === k) || {}).mean || [0.2, 0.2, 0.2];
         U.uSLum.value[i] = Math.max(1e-3, 0.2126 * mn[0] * c.r + 0.7152 * mn[1] * c.g + 0.0722 * mn[2] * c.b); });
+      // THE OPEN GROUND'S GRASS, MEASURED (2026-09-23): the mean of the sets the eye compares the forest
+      // floor against - the heath's `grass` and `dry` and the scrub's `grassRock` - each after its own
+      // normalisation, so the target moves with the island rather than being a colour someone picked.
+      { const kA2 = K.albedoNorm === undefined ? 1 : K.albedoNorm; let gc = [0, 0, 0], gn = 0;
+        for (const gk of ['grass', 'grassRock', 'dry']) {
+          const mn2 = (SPLAT_TEX_SETS.find(x => x.key === gk) || {}).mean; if (!mn2) continue;
+          const g2 = R.grade[gk] || {}, cc = new THREE.Color(g2.gain || '#ffffff');
+          const nm2 = (R.norm && R.norm[gk]) || [1, 1, 1], gg = [cc.r, cc.g, cc.b];
+          for (let ch = 0; ch < 3; ch++) gc[ch] += mn2[ch] * gg[ch] * (1 + (nm2[ch] - 1) * kA2);
+          gn++;
+        }
+        if (gn) U.uSGrassC.value.set(gc[0] / gn, gc[1] / gn, gc[2] / gn, 1);
+      }
       U.uSSplit.value.set(K.cliffLo, K.cliffHi, K.oldLo, K.oldHi);
       U.uSSplit2.value.set(K.denseLo, K.denseHi, K.splatWobble, K.splatBlend);
       U.uSDist.value.set(BLEND.from || K.detailFrom, BLEND.to || K.detailTo, K.macroFrom, K.macroTo);   // the blend row may pull the detail fade in (blend below)

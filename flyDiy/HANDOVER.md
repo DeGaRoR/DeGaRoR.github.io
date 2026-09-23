@@ -58255,6 +58255,7 @@ PICTURE: bench/rock/f_forestfloor.png, the mine from the air - the floor between
 brown and the canopy is what is green. e_rockrestored.png beside it is the same eye one landing earlier, with
 the floor still on the imagery's colour.
 
+<<<<<<< HEAD
 ## G506 — METLAKATLA: THE ISLAND'S ONE REAL TOWN, AND THE HARBOUR KIT IT NEEDED (2026-09-22, the user:
 ## "YOU know that there is a single town on Anette island, and it's metlakata ... we should have traces
 ## of it in our own map ... It is essential you try and understand well the city structure")
@@ -58506,7 +58507,44 @@ answers `residential` over the gaps, on FOREST_FLOOR and GRASS ground, but the f
 chunks queued when the last shot was taken). **Perf is still owed** and is a bigger question than it
 was. `futureDesigns/METLAKATLA-2026-09-22.md` §16 lists what I would do, in order.
 
-## G542 — METLAKATLA LANDS: the town merged onto master, as a jolene_parts part
+## G542 — THE GRASS UNDER THE TREES IS THE SAME GRASS: the forest floor's dark texels, and only those, walk to the open ground's colour (2026-09-23)
+
+THE USER, circling two patches where the forest floor meets an open slope: "move the forest texture to match
+better the surrounding grass. Not perfectly, but better. So we can believe that the grass in between the rocks
+is the same as the grass on flat planes. On the forest floor texture, the brightest areas are rock, the darkest
+are grass. If you can selectively edit only the grass, that would be ace."
+
+THE SENTENCE THAT MADE IT POSSIBLE is the third one, and it is an observation about THIS photograph that no
+general rule would have found: in `forestAir` the BRIGHT texels are rock and the DARK ones are grass. G537's
+per-texel lift keys on green-dominance, which is right for a leaf on a boulder and useless here - the floor's
+grass is a dark brown-green and its rock is the bright part, so hue separates them badly and VALUE separates
+them perfectly.
+
+SO THE MASK IS LUMINANCE, against the set's OWN mean (uSLum, which the shader already carries for the macro
+tint): dark = 1 - smoothstep(0.55 x mean, 1.25 x mean, texel). The split therefore follows the photograph, not
+a number someone typed, and it will follow it again if the set is ever re-baked.
+
+AND THE PULL IS A RECOLOUR AT CONSTANT VALUE: the texel keeps its own light and dark - all of the texture's
+structure, every pebble and shadow - and only its COLOUR walks toward the target, by `hue * l` where `hue` is
+the target at unit luminance. Nothing is brightened or flattened.
+
+THE TARGET IS MEASURED, NOT PICKED: it is the mean of the open-ground sets the user is comparing the floor
+against - the heath's `grass` and `dry` and the scrub's `grassRock` - each after its own normalisation, so if
+the island's grass moves the forest floor follows it. `grade.forestAir.grass` is how far the pull goes: 0 is
+the photograph alone, 1 is the open grass on every dark texel, and 0.6 is the user's "not perfectly, but
+better". It is live in F8 (WORLD.ground.splat().setGrade('forestAir', { grass: 0.4 })).
+
+GATE SPLAT holds the three things that make it that rule rather than a tint: the mask is the texel's value
+against the set's own mean, the pull is at constant value (`hue * l`), and the target is built from the
+open-ground sets rather than a constant in the shader. `grade.<set>.grass` joins the validated grade fields
+(0..1).
+
+PICTURES (bench/rock/): g_grassmatch.png is the mine with the pull at 0.6 - the slope's grass and the floor
+between the trunks now read as one grass, while the floor's bright rock keeps the tan it got back in G541;
+g_grassmatch_s0.png is the same frame with the pull at 0, which is G541 exactly.
+>>>>>>> 9d993ce3
+
+## G543 — METLAKATLA LANDS: the town merged onto master, as a jolene_parts part
 
 The chantier's own account is `futureDesigns/METLAKATLA-2026-09-22.md` (§1-17) and the contract
 amendments are v1.26-v1.30. This entry is the LANDING: what had to change to bring 112 commits of
@@ -58591,3 +58629,4 @@ A GPU frame time at the town. Walden Point Road past Bayside to the ferry. A Tsi
 placed from registered views to about +-10 m. And `city trees` (terrain type 16, its mix, the cover
 stamp of v1.30) is built, gated and switched OFF: it needs a small conifer asset, and turning it back
 on is one uncommented line in `metlakatla_author.py`.
+=======
