@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 6bc056ce9b7e813b
+// body-sha256: 50ebb398fc2105b4
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6800,7 +6800,7 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -6831,19 +6831,35 @@ function runwayProfile(r) {
     const t = (sx - x[i]) / h[i], t2 = t * t, t3 = t2 * t;
     return (2 * t3 - 3 * t2 + 1) * y[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * y[i + 1] + (t3 - t2) * h[i] * m[i + 1];
   };
-  const slopeAt = sAlong => (at(Math.min(r.len, sAlong + 0.5)) - at(Math.max(0, sAlong - 0.5))) / Math.min(1, r.len);
+  // the grade over a metre centred on sAlong; at an end the metre slides inside (GTRAM: a clamped half-metre read an
+  // altiport's 10 % threshold as 5 %, and the crest test then saw a 5 % change of slope that is not in the ground)
+  const slopeAt = sAlong => { const w = Math.min(1, r.len), a = Math.max(0, Math.min(r.len - w, sAlong - w / 2)); return (at(a + w) - at(a)) / w; };
   return { points: P, at, slopeAt, n };
 }
 // THE PILOT'S LIMITS on a profile (what the MSFS editor never asks): the slope anywhere under 5 %, the
 // touchdown zone (a fifth of the run from each threshold) under 2.5 %, and no crest sharper than a 1.5 %
 // change of slope over 30 m - a flare must not meet a hump it cannot see over
+// THE ALTIPORT (GTRAM, the tramway's summit strip): `altiport: true` is a mountain strip the Alpine way -
+// one way, landed UPHILL and left downhill whatever the wind (Courchevel 537 m at 18.5 %, Meribel 406 m
+// with an 11 % middle, La Salette 180 m at 20 %), so the limits are the altiport's: the slope anywhere
+// under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
+// over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
+// higher than the threshold it lands over
+const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
 function profileIssues(r) {
-  const out = [], pr = runwayProfile(r), L = r.len;
+  const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
   for (let a = 0; a <= L; a += 3) {
     const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
     if (a < L / 5 || a > L - L / 5) tdz = Math.max(tdz, sl);
     if (a + 30 <= L) crest = Math.max(crest, Math.abs(pr.slopeAt(a + 30) - pr.slopeAt(a)));
+  }
+  if (alti) {
+    if (worst > ALTIPORT.slopeMax) out.push('runway ' + r.id + ': the altiport is ' + (worst * 100).toFixed(1) + ' % somewhere, over ' + ALTIPORT.slopeMax * 100 + ' %');
+    if (crest > ALTIPORT.crestMax) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over ' + ALTIPORT.crestMax * 100 + ' on an altiport');
+    if (r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
+    else if (!((r.approach === 0 ? pr.at(L) - pr.at(0) : pr.at(0) - pr.at(L)) > 0)) out.push('runway ' + r.id + ': an altiport is landed uphill - the far end must be higher than end ' + r.approach);
+    return out;
   }
   if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
   if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
@@ -6921,6 +6937,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            band: r.band === undefined ? null : r.band, pav: r.pav || null,   // the pavement's (v1.16): the renderer resolves them with the premises' recipe
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null,
+           altiport: !!r.altiport,   // GTRAM: landed uphill and left downhill whatever the wind (43_pilot reads it)
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
 }
 
@@ -7093,7 +7110,13 @@ function solveLinks(rec, items, phase, ctx) {
     if (S.needs !== phase) continue;
     const A = byId[(L.from.site || '') + '/' + L.from.item] || items.find(i => i.item === L.from.item);
     const B = byId[(L.to.site || '') + '/' + L.to.item] || items.find(i => i.item === L.to.item);
-    if (!A || !B) { out.push({ link: L, ok: false, issues: ['link ' + L.id + ': an end is missing'] }); continue; }
+    if (!A || !B) {
+      // GTRAM: an end DECLARED on its site but not built is the catalogue's absence (a headless world with no
+      // generators), said as such - the same words the site's own issue uses; an end the record lacks is missing
+      const declared = e => { const st = (rec.layers.sites || []).find(q => q.id === e.site); return !!(st && (st.items || []).some(q => q.id === e.item)); };
+      const why = (!A && declared(L.from)) || (!B && declared(L.to)) ? 'an end is not built (no catalogue entry for its station)' : 'an end is missing';
+      out.push({ link: L, ok: false, issues: ['link ' + L.id + ': ' + why] }); continue;
+    }
     const sol = S.solve(L, A, B, ctx || {});
     for (const id in sol.patch || {}) { const it = items.find(i => i.id === id); if (it) Object.assign(it.P, sol.patch[id]); }
     out.push(Object.assign({ link: L, A, B }, sol));
@@ -7765,7 +7788,7 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
@@ -14456,7 +14479,7 @@ function makePilot(sim, def, world, opts) {
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
-  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false;
+  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0;
   let gearH = null, onGT = 0;             // P0.8: the CG's rest height above the terrain; the contact's duration
@@ -14585,12 +14608,15 @@ function makePilot(sim, def, world, opts) {
       let pref = [px, pz];
       // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction
       if (typeof a.landHdg === 'number') pref = [Math.cos(a.landHdg), Math.sin(a.landHdg)];
+      // GTRAM: an ALTIPORT is landed uphill and LEFT DOWNHILL - its one way reverses for the take-off
+      if (typeof a.landHdg === 'number' && a.altiport && mode === 'takeoff') pref = [-pref[0], -pref[1]];
       const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number');
       ap.dirWhy = sc.why[sc.k];
       return M.dir[sc.k].u.slice();
     }
     let dx = px, dz = pz;
-    if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    if (a.altiport && typeof a.landHdg === 'number') { const k = mode === 'takeoff' ? -1 : 1; dx = k * Math.cos(a.landHdg); dz = k * Math.sin(a.landHdg); }   // GTRAM: whatever the wind
+    else if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
     else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
@@ -14625,6 +14651,15 @@ function makePilot(sim, def, world, opts) {
     const t = world.terrainH(x, z);
     const w = (typeof world.waterH === 'function') ? world.waterH(x, z) : -Infinity;
     return w > t ? w : t;
+  };
+  // GTRAM: THE ALTIPORT'S SLOPE - the grade the aeroplane lands ONTO (uphill along the landing frame,
+  // read off the ground 20 m either side of the aim) and the height above that slope's line; 0 and
+  // aglG on every other strip, so nothing else flies differently
+  const altiGrade = () => {
+    const to = ap.route && ap.route.to;
+    if (!to || !to.altiport || !world || typeof world.terrainH !== 'function' || !ap.frame) return 0;
+    const P1 = wp(ap.frame, ap.xAim + 20, 0), P0 = wp(ap.frame, ap.xAim - 20, 0);
+    return Math.max(0, (groundH(P1[0], P1[1]) - groundH(P0[0], P0[1])) / 40);
   };
   const aimAlt = () => {
     if (!world || typeof world.terrainH !== 'function' || !ap.frame) return ap.refAlt;
@@ -14858,7 +14893,8 @@ function makePilot(sim, def, world, opts) {
     const sgN = (nose[0] * d0[0] + nose[1] * d0[1]) >= 0 ? 1 : -1;
     const ahead = from.len / 2 - sgN * along;
     const enough = !onStrip || ahead >= need;                     // the run ahead of the nose suffices
-    if (siteModelOf(from)) t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff');
+    if (from.altiport && typeof from.landHdg === 'number') t = [-snap(Math.cos(from.landHdg)), -snap(Math.sin(from.landHdg))];   // GTRAM: an altiport is left downhill, whatever the wind
+    else if (siteModelOf(from)) t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff');
     else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1]);
     else if (enough) t = [d0[0] * sgN, d0[1] * sgN];
     else t = [-d0[0] * sgN, -d0[1] * sgN];
@@ -15703,7 +15739,7 @@ function makePilot(sim, def, world, opts) {
           cond('height', Math.round(aglG), 0, aglG > 0, 'm'),
           cond('airspeed', V, vbg, Math.abs(V - vbg) < 2, 'm/s')]);
         if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
-          go('FLARE'); thFlare0 = th; SEL.deadThr = false;
+          go('FLARE'); thFlare0 = th; SEL.deadThr = false; altG = 0;
           flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5);
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
@@ -15895,12 +15931,23 @@ function makePilot(sim, def, world, opts) {
           // build read a third of its true acceleration and was condemned —
           // the Tiger Moth-alike on a hot day, 0.10 m/s^2 against 0.3 real
           if (V < vr && phaseT > 7 && accF > 0.02 && !atHump) {
-            const dVr = (vr * vr - V * V) / (2 * accF);
+            // GTRAM: LEFT DOWNHILL, THE SLOPE STILL TO COME PULLS TOO - off an altiport's flat top the measured
+            // acceleration is the top's; the grade of the run that is left (less the grade already under the
+            // wheels, which accF has) adds g x grade (the C172 was condemned at 12 m/s on the flat with the 10 %
+            // ahead of it). Every other strip: 0
+            let accX = 0;
+            if (ap.route.from.altiport && ap.takeoffDir && world && typeof world.terrainH === 'function') {
+              const T = ap.takeoffDir, ex = cg[0] + T[0] * left, ez = cg[2] + T[1] * left;
+              const gAhead = (groundH(cg[0], cg[2]) - groundH(ex, ez)) / Math.max(20, left);
+              accX = 9.81 * Math.max(0, gAhead + gGrade);
+            }
+            const dVr = (vr * vr - V * V) / (2 * (accF + accX));
             // P1.C short: the take-off must FIT, the stop is not asked (the
             // accelerate-stop is the long strip's luxury; on 340 m of gravel
             // the cub rejected at 7 s a run the sheet says it makes)
             const shortT = ap.dep && ap.dep.technique === 'short';
-            if (dVr > left - (shortT ? 0 : stopDist(vr)) - ST.reserve)
+            // GTRAM: an altiport's low end is the mountain falling away, not a fence - the run may use it all
+            if (dVr > left - (shortT ? 0 : stopDist(vr)) - (ap.route.from.altiport ? 0 : ST.reserve))
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +
                        Math.round(dVr) + ' m more, ' + Math.round(left) + ' m left';
           }
@@ -15934,14 +15981,14 @@ function makePilot(sim, def, world, opts) {
           // 17.3 of 18.7 m/s with 217 m left, the C172 at 19.3 of 20.4 with
           // 249 m — both a second from flying
           const dVr = accF > 0.02 ? (vr * vr - V * V) / (2 * accF) : Infinity;
-          if (dVr > left - ST.reserve)
+          if (dVr > left - (ap.route.from.altiport ? 0 : ST.reserve))   // GTRAM: an altiport's low end falls away (the rule above)
             reject = 'out of runway: ' + Math.round(left) + ' m left, Vr in ' + (isFinite(dVr) ? Math.round(dVr) + ' m' : 'no distance (not accelerating)') +
                      ', V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
           else if (!committedTO) {
             committedTO = true;
             say('committed-takeoff', 'past the point of stopping at V=' + V.toFixed(1) + ' with ' + Math.round(left) + ' m left — Vr in ' + Math.round(dVr) + ' m, continuing');
           }
-        } else if (left < 0) {
+        } else if (left < 0 && !(ap.route.from.altiport && V >= vr)) {   // GTRAM: past an altiport's end at Vr the ground falls away under a flying aeroplane
           reject = 'ran off the end at V=' + V.toFixed(1) + ' still on the wheels — will not unstick';
         } else if (!committedTO) {
           committedTO = true;
@@ -16331,7 +16378,11 @@ function makePilot(sim, def, world, opts) {
         if (ap.t - finalT0 > 240 && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G381: the hold-off begins 1.3x higher than the ramp did — it has a
         // sink to arrest AND a speed to bleed, and the pull takes a second to bite
-        if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
+        // GTRAM: onto an altiport's slope the height is over the SLOPE'S LINE through the aim, and the
+        // round-out begins a second of the rising ground earlier - the path turns from down to up
+        altG = altiGrade();
+        const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
+        if (hFl < (A.flareK ?? 1.3) * A.flareAgl + altG * V) {
           go('FLARE'); thFlare0 = th;
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
@@ -16340,6 +16391,7 @@ function makePilot(sim, def, world, opts) {
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
           flCap = Math.max(flCap, thFlare0 + 0.03);
+          if (altG > 0) flCap += Math.atan(altG);   // GTRAM: the attitude on the slope is the slope's more
           flI = 0; flVsF = vcg[1];
         }
         break;
@@ -16392,7 +16444,10 @@ function makePilot(sim, def, world, opts) {
           // beats a stall from a metre
           const vr = A.VRot || 18;
           const sinkF = (A.flareSink ?? 0.35) + 0.35 * clamp((1.15 * vr - V) / (0.10 * vr), 0, 1);
-          const vsC = -Math.max(sinkF, Math.max(0, aglG) / flTau);
+          // GTRAM: onto an altiport the sink is asked RELATIVE TO THE SLOPE - the ground rises at grade x
+          // the ground speed under the aeroplane, so the path must climb that much, and on power (below)
+          const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
+          const vsC = -Math.max(sinkF, Math.max(0, hFl) / flTau) + altG * Math.hypot(vcg[0], vcg[2]);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
           const deSat = aDe > 0.30;
@@ -16401,7 +16456,8 @@ function makePilot(sim, def, world, opts) {
           // the pull: a firmer inner loop and the rotation's integrator authority
           pitchK = A.flarePK ?? 2.0; pitchDK = A.flareDK ?? 1.0;
           IthMaxT = A.rotateIMax ?? 0.30; IthGain = A.flareIth ?? 0.4;
-          engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
+          if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
+          else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
         if (onG > 0) {
           go('ROLLOUT');
