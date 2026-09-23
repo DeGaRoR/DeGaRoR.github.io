@@ -53,6 +53,32 @@
     "falloff": 10,
     "abs": true,
     "order": 0
+   },
+   {
+    "id": "tw_t_square",
+    "kind": "flatten",
+    "poly": [
+     [
+      312,
+      -7881
+     ],
+     [
+      340,
+      -7881
+     ],
+     [
+      340,
+      -7860
+     ],
+     [
+      312,
+      -7860
+     ]
+    ],
+    "level": 709,
+    "falloff": 8,
+    "abs": true,
+    "order": 0
    }
   ],
   "material": [
@@ -78,6 +104,31 @@
     ],
     "z": 1,
     "look": "asphalt",
+    "band": 1,
+    "yaw": 0
+   },
+   {
+    "id": "tw_m_square",
+    "poly": [
+     [
+      312,
+      -7881
+     ],
+     [
+      340,
+      -7881
+     ],
+     [
+      340,
+      -7860
+     ],
+     [
+      312,
+      -7860
+     ]
+    ],
+    "z": 1,
+    "look": "concrete",
     "band": 1,
     "yaw": 0
    }
@@ -110,9 +161,9 @@
     "w": 5,
     "cls": "gravel",
     "graded": true,
-    "falloff": 8,
+    "falloff": 6,
     "name": "Skyline Tramway road",
-    "grade": 0.08,
+    "grade": null,
     "traffic": 1
    },
    {
@@ -186,28 +237,12 @@
       -15.96
      ],
      [
-      0.2,
-      -8.36
-     ],
-     [
-      0.4,
-      -0.76
-     ],
-     [
       0.55,
       4.94
      ],
      [
-      0.65,
-      8.68
-     ],
-     [
-      0.75,
-      11.47
-     ],
-     [
-      0.85,
-      12.99
+      0.82,
+      12.6
      ],
      [
       1,
@@ -276,7 +311,7 @@
     "id": "tw_s_summit",
     "name": "Skyline summit - tram station and ski lodge",
     "at": {
-     "x": 258,
+     "x": 293,
      "z": -7890,
      "yaw": 0
     },
@@ -293,7 +328,7 @@
      {
       "id": "lodge",
       "key": "house/cafe",
-      "x": 27,
+      "x": -8,
       "z": 54,
       "yaw": 0,
       "P": {
@@ -304,7 +339,7 @@
      {
       "id": "patrol",
       "key": "house/log cabin",
-      "x": 24,
+      "x": -11,
       "z": 28,
       "yaw": 0,
       "P": {
@@ -314,7 +349,7 @@
      {
       "id": "pilothut",
       "key": "house/pilot hut",
-      "x": 42,
+      "x": 7,
       "z": 30,
       "yaw": 0,
       "P": {
@@ -324,7 +359,7 @@
      {
       "id": "groomer",
       "key": "house/garage",
-      "x": 10,
+      "x": -25,
       "z": 42,
       "yaw": 0,
       "P": {
@@ -334,7 +369,7 @@
      {
       "id": "shed",
       "key": "house/storage shed",
-      "x": 4,
+      "x": -31,
       "z": 50,
       "yaw": 0,
       "P": {
@@ -344,7 +379,7 @@
      {
       "id": "wc",
       "key": "house/outhouse",
-      "x": 34,
+      "x": -1,
       "z": 66,
       "yaw": 0,
       "P": {

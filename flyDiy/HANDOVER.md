@@ -57950,3 +57950,27 @@ are left alone. If the ground is still too green for them, the knob is albedoNor
 macro > "albedo to imagery"): 1 is the imagery's level, 0 is the sets as shipped, and c_now_s0.png shows 0.
 
 GATE SPLAT (with the selftest), GFX and MEDIA green.
+
+## G535 — THE TRAMWAY'S TOP REACHES THE TOP: the summit station pulled up its line onto the plateau with a square beside its back building, the road on the ground, a simpler profile, an altiport departure committed at brake release (2026-09-23, the user on G525's scene: "many issues, but the main one by far is full clipping of the terrain through your runway, your parking. The base station not excluding trees, having no road leading to it. On top, there's really no need for drawing plots below the structures, and you should ensure that the tramway base arrives on some flat terrain ... so the building at the back is on top, at the flat place, perfect place to do a little square. Then you should just do simpler with your runway, and it should not clip, and be practicable"; and with a drawing: "just pull the top base towards the top")
+
+WHAT WAS NOT THIS SCENE'S: the clipping, the trees and the plots were the far tier (everything past the
+inner ring's 4.5 km drawn at the raw DEM, so every cut out there stood under the un-cut mesh), the tree
+fill that ignored clear zones, and the residential lot dressing under every item - all three fixed by
+the native-area session's G527, which landed after G525. Judged in the game on G528: no terrain through
+the strip or the car park, the valley complex clear of trees, no lawn plates under the summit.
+
+WHAT WAS: (1) THE ROAD'S TRENCH. `tw_r_access` climbs 26 m in its first 150 m off the Walden Point stub
+and carried `grade: 0.08` - the composer cut a 16 m trench to honour it. It follows the ground now
+(grade null). It still starts at Metlakatla's stub, which is on that session's branch: until it lands
+the road meets nothing. (2) THE TOP STATION, pulled 35 m up its own line (the site's `at` moved, the
+other items held in place in the world): its back building stands at the summit plateau's edge and
+the cable still solves (20.4 deg, the rope 14 m over the ground at its worst). (3) THE SQUARE, beside
+the back building on the 709 m plateau: `tw_t_square` (a flatten at the median, 707.5-709.7 under it)
+and `tw_m_square` (a concrete `look` polygon - PBR `set` polygons do not draw past the ring). A first
+cut straddled the plateau's north edge (688-709 m under it) and was undone. (4) THE PROFILE, four
+control points instead of eight, the same ramp easing to the flat top (within 0.4 m of the old
+curve): simpler to take in hand in the graph. (5) AN ALTIPORT DEPARTURE IS COMMITTED AT BRAKE RELEASE
+(43_pilot, `altiport`-gated like the rest): the normal technique also asked the stop after Vr to fit,
+and on 10 % of downhill grass that stop is longer than the strip - the cub was condemned needing 33 m
+of the 227 left. Flown: cub and C172 depart from the summit stand (lift-off 82 m and 279 m) and land
+uphill; the stock cub circuit bit-identical to master's core. GATE PREMISES and WORLD green.

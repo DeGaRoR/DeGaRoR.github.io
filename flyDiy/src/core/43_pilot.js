@@ -1837,7 +1837,9 @@ function makePilot(sim, def, world, opts) {
             // P1.C short: the take-off must FIT, the stop is not asked (the
             // accelerate-stop is the long strip's luxury; on 340 m of gravel
             // the cub rejected at 7 s a run the sheet says it makes)
-            const shortT = ap.dep && ap.dep.technique === 'short';
+            // GTRAM: an ALTIPORT's departure is committed at brake release (the stop after Vr is asked on no slope:
+            // on 10 % of downhill grass it is longer than the strip, and the cub was condemned needing 33 m of 227)
+            const shortT = (ap.dep && ap.dep.technique === 'short') || !!ap.route.from.altiport;
             // GTRAM: an altiport's low end is the mountain falling away, not a fence - the run may use it all
             if (dVr > left - (shortT ? 0 : stopDist(vr)) - (ap.route.from.altiport ? 0 : resv))
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +

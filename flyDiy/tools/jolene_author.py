@@ -680,7 +680,7 @@ def main():
             ] + ANIMALS,
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 14,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json); 12 Jumbo Mine moved to the wooded knoll; 13 the mine's school, clinic and chapel on posts; 14 East Point quiet (no mast, cars, rubbish) (2026-09-23)
+        'rev': 15,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json); 12 Jumbo Mine moved to the wooded knoll; 13 the mine's school, clinic and chapel on posts; 14 East Point quiet (no mast, cars, rubbish); 15 the tramway's top on the plateau + its square (2026-09-23)
     }
     if '--absorb' in sys.argv:
         k = sys.argv.index('--absorb')
