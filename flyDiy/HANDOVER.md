@@ -58727,3 +58727,113 @@ clean worktree (told them) - so only tw_r_access changed in island_jolene.json, 
   every `tools/jolene_parts/*.py` refusing a builtin `hash(`. Reintroducing one makes the gate FAIL on that
   line. 338 checks. It guards all five parts, not only this one.
 - FILES: tools/metlakatla_author.py, tools/_premises_check.js, tools/fixtures/island_jolene.json.
+
+## G547 — THE USER'S OWN TONE ON THE FOREST FLOOR, in the photograph where it belongs (2026-09-23)
+
+THE USER tuned the forest ground in GIMP and sent the dialog: Hue-Saturation, Master, HUE +13.2, LIGHTNESS
+-60.4, SATURATION +0.6, Overlap 0, Replace, 100 %. "Simply apply that transformation to the forest ground, and
+screenshot, nothing else." The first attempt came back far too dark - "we didn't have the same methods" - so the
+transform was split at the place where the two tools disagree:
+  - THE HUE AND THE SATURATION ARE BAKED INTO THE MAP, in GIMP's own HSL over the sRGB values, which is
+    unambiguous and is what the user actually saw;
+  - THE LIGHTNESS IS THE SHADER'S GRADE, because a slider called "lightness" is not the same operation in two
+    programs and guessing which one it is was the whole error. A ladder of greys was shot from ONE boot with
+    the live grade (bench/rock/i_l100*.png: the hue alone, then #bfbfbf, #8c8c8c, #666666) and the user chose
+    #bfbfbf.
+The forest floor therefore ships as: forestAir's colour map hue-rotated +13.2 and saturated +0.6, under a grade
+gain of #bfbfbf. G542's grass pull is OFF for this set (grass: 0) - the tone is in the photograph now, and the
+two together would have been the correction applied twice. The mechanism and its gate rules stay.
+
+THE STORE IS CONTENT-ADDRESSED, and this is the part a future reader must not trip over: a file under
+media/tex/splat is NAMED BY THE SHA256 OF ITS OWN BYTES, so a hand-edited map under the old name is a lie the
+whole chain believes. The toned map is written as its own hash (forestAir_diff_512.98ef9d66.jpg), the untoned
+one is pruned, and splat_tex.js carries both the new path AND THE RE-MEASURED MEAN (0.132/0.1172/0.0305 against
+0.1259/0.083/0.026) - that mean is not decoration: the macro tint's `rel`, the uSLum pivot G542's grass mask
+uses, and the colour a grass tuft takes at its foot all read it.
+
+AND THE TONE IS REPRODUCIBLE, because tools/splat_tex_prep.js rebuilds every file in that store from
+assets/splat/ and would silently drop this one: tools/splat_tex_tone.py (new) holds the numbers, applies them,
+renames by hash, patches the manifest and re-measures the mean. It is SAFE TO RE-RUN - the table carries the
+prep's own untoned hash (c019a81f) and the tool refuses to act unless the manifest still names it, so toning
+twice, which would rotate the hue twice and leave nothing to see it, cannot happen.
+
+PICTURE: bench/rock/j_landed.png - the mine with what is now on master.
+
+## G548 - THE PIVOT WAS THE GRASS CARD'S: G538's contrast dial was an albedo kill switch, and the user's eye caught it a day later (2026-09-23)
+
+G538 landed uFlat 1.35 on the impostor and justified it with real numbers - canopy luma 0.1317 ->
+0.1025 and cv 0.223 -> 0.291, darker and bittier, exactly what had been asked for. Both numbers were
+true and the reading of them was wrong. The user, a day on: "the trees are now a little too dark.
+Yet they were too bright before. Can you bring them back about 2/3 of the way towards the tree color
+of now?" Measuring the way back is what found the fault.
+
+THE TERM IS `mix(vec3(uFlatMean), texel, uFlat)` AND IT EXPANDS CONTRAST AROUND uFlatMean. That pivot
+is meant to be the map's own mean lightness - cover_ring.js computes it per material, (mx + mn) / 2.
+The impostor material inherited the literal 0.4, the grass card's number, while the sheet's own mean
+albedo MEASURES 0.0154 (read back off the drawn layer through textureLod, scratch sheet.js). Every
+texel darker than the pivot is driven down, so the whole canopy clamps to zero at flat ~ 1.04. The
+swept curve says it plainly: 0.1344 at flat 1.0, 0.1165 at 1.025, 0.1068 at 1.05, and then PINNED at
+0.1053 for 1.15, 1.6, 2.6 and everything above. G538's 1.35 is not "more contrast", it is the albedo
+switched OFF and the card left wearing ambient and fog alone. It read better only because it was
+darker than the bright ground, and its cv rose because what remained was lighting structure rather
+than tree.
+
+THE TELL WAS IN G538'S OWN DATA. That entry records "3.0 and 1.35 are the same frame to four
+decimals" and calls it saturation, without asking why a contrast term would ever saturate. A dial
+that stops responding is not a dial that has reached its limit, it is a dial whose output has been
+clamped, and the difference is the whole diagnosis. Written down because the measurement was right
+and the inference was not - the instrument rules from G538 do not protect against that.
+
+THE FIX is to put the pivot where the sheet actually lives. At uFlatMean 0.05 flat is a dial again
+and the whole curve is usable: 1.15 -> 0.1240, 1.3 -> 0.1145, 1.6 -> 0.1068, 2.0 -> 0.1054. The
+default is 0.05 / 1.30, which is the user's own two-thirds: their target computed from the ends
+measured in the same run was luma 0.1150 and the shipped pair reads 0.1145. It also lands the tier on
+its reference - the SAME trees drawn as real geometry in the same frame measure luma 0.1140 and cv
+0.223, against the card's 0.1145 and 0.252 - so the cards now match the trees they stand in for by
+expanding contrast rather than by deleting albedo.
+
+AND THE CARDS WERE NEVER THE PROBLEM. Before the pivot was found, this session spent four runs
+hunting the "missing bittiness" against the GROUND's cv of 0.766 - which was never a comparable
+number, because the ground's mask carries roads, shadows and terrain features while the card's
+carries crowns. Drawn as geometry at the same eye the same trees read cv 0.254 against the cards'
+0.229: the impostor tier is faithful, and the atlas baker needs nothing. Two further claims from that
+hunt are RETRACTED here: the atlas is NOT missing its mip chain (initTexture allocates every level
+and gl.generateMipmap runs once a batch - the empty `mipmaps` array and generateMipmaps false are
+what that design looks like from the JS side), and the sheet is NOT flat (cv 0.633 at mip 0, the
+chain costing about a quarter of it). What does compress the canopy is an additive, texel-independent
+term worth roughly two thirds of what reaches the eye - and it compresses GEOMETRY identically, so it
+is a world-lighting question and not an impostor one. Never measured to a single term; the run that
+would have named it (fog / hemisphere / environment) produced nothing in ten minutes with the GPU at
+9.5 of 10 GB under peers.
+
+- REVERT, with no code change: TREE_LOD.imp({ mean: 0.4, flat: 1.35 }) is G538 exactly, and
+  TREE_LOD.imp({ mean: 0.4, flat: 1.0 }) is the draw as it was before either.
+- OWED: the pivot should be the SHEET'S OWN mean, computed at bake time per layer. 0.05 is one
+  measured conifer's; a birch or deciduous sheet will not share it, and until then those sheets are
+  tuned by a number that is not theirs.
+- FILES: src/viewer/render_world.js (uIFlatMean, IMPK.mean, TREE_LOD.imp({ flat, mean, vary })),
+  src/viewer/dev_panel.js (`imp pivot` slider, contrast range to 2.6).
+
+## G549 — A DRAWN AXIS THAT CAME BACK THROUGH ITS OWN JUNCTION IS TWO ROADS (2026-09-23, reported by the pavement session)
+
+- `mk_ax00` held the point (-4151.1, -8316.3) TWICE, at index 0 and again at index 6: the polyline walked
+  90 m out from it, teleported back to it and set off down the main axis. On the ground that is a 6.5 m
+  paved ribbon drawn twice over the same 90 m (z-fighting with itself) and a 179 deg spike at the seam -
+  the sharpest corner on the island by a wide margin, against a next-worst of 48 deg.
+- WHERE IT CAME FROM: `met_axes.py` walks the thinned drawing as a graph, and where the user's strokes meet
+  at a junction two branches share that vertex; `join()` concatenated them into one polyline. The extracted
+  MK_AX table has carried it since G511, and its own comment ("1157 m, 62 points") measured the length
+  THROUGH the teleport.
+- THE FIX IS A SPLIT, NOT A MOVE: `split_revisits()` in `axis_polys()` cuts a polyline wherever it returns
+  within a metre of a point it has already visited, and each piece runs the existing 60 m length filter. The
+  two pieces share a start point, which is what a T junction is and what the user drew. No authored
+  coordinate changes; the axes go from 10 to 11 and the ids shift, which nothing references by name.
+- MEASURED: the revisit is gone, no `mk_` road revisits any point, and the sharpest turn on any road of the
+  town falls from 179 deg to 40.6 deg (mk_r_skaters at index 1). met_cross stays clean - doubles 0, slivers
+  0, near misses 0 - so the 90 m spur reads as a junction and not as a double.
+- WHY IT HAD TO BE FIXED IN THE DATA: the pavement session's new `polyRoad` fillet rounds every real corner
+  to under 8 deg, but a REVERSAL cannot be filleted inside the road's own width - the bound that keeps the
+  smoothed line on the pavement is exactly what stops an arc helping. NOT YET VERIFIED against their GATE
+  PAVEMENT section 11: that check is not on master at the time of this landing, so the numbers above are
+  from this session's own measurement, not from their gate.
+- FILES: tools/metlakatla_author.py, tools/fixtures/island_jolene.json.
