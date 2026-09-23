@@ -16325,7 +16325,11 @@ const GROUND_FIELDS = (() => {
     // lot's lawn grasses ship a roughness of 0.26 (ambientCG's number for a blade, not a lawn from 60 m: the whole
     // heath took the sky), the dry and the dirt 0.55; the beach (0.61) and the pebbles (0.46) keep theirs - wet sand
     // and shingle catching the sun is what the user asked the roughness for
-    grade: { dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
+    // forestAir's `grass` (2026-09-23, the user: "move the forest texture to match better the surrounding
+    // grass ... on the forest floor texture, the brightest areas are rock, the darkest are grass"): how far the
+    // set's DARK texels are recoloured - at constant value - toward the open ground's measured grass. 0 = the
+    // photograph alone, 1 = the open grass's colour on every dark texel. 0.6 is "not perfectly, but better".
+    grade: { forestAir: { gain: '#ffffff', sat: 1, grass: 0.6 }, dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
              // THE LAWN GRASSES TURNED YELLOW (the user, 2026-09-21: "golf grass ... should be more yellow, like all the other textures"): grass's mean sat at hue 72,
              // lush's at 88 (blue-green) against the moor's 40-48; the gain pulls the green channel down - grass to hue ~45 at value 0.39, lush to ~50 at 0.29
              grass: { gain: '#ffc8a0', sat: 0.75, gloss: 0.3 }, lush: { gain: '#ffb890', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 } },
@@ -38734,7 +38738,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='3c1de99afba5';window.FLYDIY_BUILD='4a88939a2c0e'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='17c6d992f63d';window.FLYDIY_BUILD='d2ee0d9101df'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -104390,6 +104394,8 @@ const SPLAT_GROUND = (() => {
   uniform vec4 uSGrade[${NLIB}];
   uniform float uSGloss[${NLIB}];
   uniform float uSLum[${NLIB}];   // each set's mean luminance after its grade (linear): the detail's texel over it is pure TEXTURE
+  uniform float uSGrass[${NLIB}];   // per set: how far its DARK texels are pulled to the open ground's grass (the forest floor's, 2026-09-23)
+  uniform vec4 uSGrassC;            // that grass, MEASURED - the mean of the open-ground sets after their own normalisation
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2, uSVeg;
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
@@ -104423,6 +104429,25 @@ const SPLAT_GROUND = (() => {
     o.n = vec4(t, nr.z * 2.0 - 1.0, 1.0 - (1.0 - nr.a) * uSGloss[int(layer + 0.5)]);   // the rough map through the set's gloss grade (1 = the map's, 0 = matte)
     vec4 g = uSGrade[int(layer + 0.5)];
     o.c.rgb *= g.rgb; float l = gLuma(o.c.rgb); o.c.rgb = mix(vec3(l), o.c.rgb, g.a);
+    // THE GRASS UNDER THE TREES IS THE SAME GRASS (the user, 2026-09-23, circling the forest
+    // floor beside an open slope: "move the forest texture to match better the surrounding grass.
+    // Not perfectly, but better. So we can believe that the grass in between the rocks is the same
+    // as the grass on flat planes. On the forest floor texture, the brightest areas are rock, the
+    // darkest are grass. If you can selectively edit only the grass, that would be ace").
+    // THE MASK IS LUMINANCE, NOT HUE - that is the user's own observation about THIS photograph, and
+    // it is why the green-dominance mask below cannot do this job: the floor's grass is a dark
+    // brown-green and its rock is the bright part, so hue tells them apart badly and value perfectly.
+    // The pivot is the set's OWN mean luminance (uSLum), so the split follows the photograph rather
+    // than a number someone typed. The pull is a RECOLOUR AT CONSTANT VALUE: the texel keeps its own
+    // light and dark - the texture's whole structure - and only its colour walks toward uSGrassC,
+    // which is MEASURED from the open-ground sets the user is comparing it against.
+    { float gr = uSGrass[int(layer + 0.5)];
+      if (gr > 0.001) {
+        float l = gLuma(o.c.rgb), lm = max(uSLum[int(layer + 0.5)], 1e-4);
+        float dark = 1.0 - smoothstep(lm * 0.55, lm * 1.25, l);   // 1 on the darkest texels (the grass), 0 on the brightest (the rock)
+        vec3 hue = uSGrassC.rgb / max(gLuma(uSGrassC.rgb), 1e-4);
+        o.c.rgb = mix(o.c.rgb, hue * l, dark * gr);
+      } }
     // THE GRASS INSIDE A TEXTURE, AND ONLY IT (the user, 2026-09-23: "restore only the rock
     // texture to its original tone, then very slightly tune the grass part of the texture to
     // get more lush green, without modifying the rock color. Ever so subtle"). A set is one
@@ -104834,6 +104859,7 @@ const SPLAT_GROUND = (() => {
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
       uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
+      uSGrass: { value: new Float32Array(NLIB).fill(0) }, uSGrassC: { value: V4() },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() }, uSVeg: { value: V4() },
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
       uSHexPx: { value: 0 },   // the hex cut's dial: 0 = hex everywhere (see sSet)
@@ -104859,9 +104885,23 @@ const SPLAT_GROUND = (() => {
         c.r *= 1 + (nm[0] - 1) * kA; c.g *= 1 + (nm[1] - 1) * kA; c.b *= 1 + (nm[2] - 1) * kA;   // the normalisation rides on the hand grade
         U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat);
         U.uSGloss.value[i] = g.gloss === undefined ? 1 : +g.gloss;
+        U.uSGrass.value[i] = g.grass === undefined ? 0 : +g.grass;   // the forest floor's dark texels toward the open grass
         // the set's mean luminance after its grade (the import's linear mean x the gain; the saturation leaves luma alone)
         const mn = (SPLAT_TEX_SETS.find(x => x.key === k) || {}).mean || [0.2, 0.2, 0.2];
         U.uSLum.value[i] = Math.max(1e-3, 0.2126 * mn[0] * c.r + 0.7152 * mn[1] * c.g + 0.0722 * mn[2] * c.b); });
+      // THE OPEN GROUND'S GRASS, MEASURED (2026-09-23): the mean of the sets the eye compares the forest
+      // floor against - the heath's `grass` and `dry` and the scrub's `grassRock` - each after its own
+      // normalisation, so the target moves with the island rather than being a colour someone picked.
+      { const kA2 = K.albedoNorm === undefined ? 1 : K.albedoNorm; let gc = [0, 0, 0], gn = 0;
+        for (const gk of ['grass', 'grassRock', 'dry']) {
+          const mn2 = (SPLAT_TEX_SETS.find(x => x.key === gk) || {}).mean; if (!mn2) continue;
+          const g2 = R.grade[gk] || {}, cc = new THREE.Color(g2.gain || '#ffffff');
+          const nm2 = (R.norm && R.norm[gk]) || [1, 1, 1], gg = [cc.r, cc.g, cc.b];
+          for (let ch = 0; ch < 3; ch++) gc[ch] += mn2[ch] * gg[ch] * (1 + (nm2[ch] - 1) * kA2);
+          gn++;
+        }
+        if (gn) U.uSGrassC.value.set(gc[0] / gn, gc[1] / gn, gc[2] / gn, 1);
+      }
       U.uSSplit.value.set(K.cliffLo, K.cliffHi, K.oldLo, K.oldHi);
       U.uSSplit2.value.set(K.denseLo, K.denseHi, K.splatWobble, K.splatBlend);
       U.uSDist.value.set(BLEND.from || K.detailFrom, BLEND.to || K.detailTo, K.macroFrom, K.macroTo);   // the blend row may pull the detail fade in (blend below)
