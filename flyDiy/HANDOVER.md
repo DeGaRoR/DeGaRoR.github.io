@@ -59041,3 +59041,27 @@ is for judging and the strip measurements are for deciding; do not quote one as 
 - REVERT: TREE_LEAF.tint({ light: 0.6 }) live, or the constant in trees.js. G548's impostor dials are
   untouched and still revert independently - TREE_LOD.imp({ mean: 0.4, flat: 1.35 }) is G538.
 - FILES: src/viewer/trees.js (MASTER.light).
+
+## G553 - GO C: the master tint to 0.42, the darkest of the three panels (2026-09-24)
+
+G552 shipped 0.5 out of the three settings rendered in one boot; shown the picture the user went
+straight to the darkest - "go C and land, don't run gates". MASTER.light 0.42, about 10 % off where
+G548 left the forest (measured over the forest strip: 0.60 -> luma 0.0767 cv 0.425, 0.50 -> 0.0722
+cv 0.450, 0.42 -> 0.0687 cv 0.480).
+
+Worth recording WHY 0.42 was the one held back and is now the one chosen. It lands on G538's
+brightness, which the user had called a little too dark - but G538 got there by clamping the albedo
+to zero, so the trees were silhouettes at that luma. At the same luma with the albedo intact, and
+with the extra detail the user noticed after G548, it is the look that was wanted from the start.
+A brightness number means nothing without saying what is producing it: the same luma read as "too
+dark" one day and as the target the next, and only the mechanism underneath had changed.
+
+GATES WERE NOT RUN, at the user's explicit instruction ("don't run gates"), to spend the box's time
+on the look rather than on a battery. `node tools/build.js` only. The change is one constant in one
+file with no structural reach, and the identical constant at 0.5 went through the full battery green
+one commit earlier (G552: TREE, TREES, MEDIA, WORLDRENDER, UISMOKE, WORLD, GFX). Anyone landing on
+top of this should treat the battery as owed rather than passed.
+
+- REVERT: TREE_LEAF.tint({ light: 0.5 }) is G552, 0.6 is G548, and TREE_LOD.imp({ mean: 0.4,
+  flat: 1.35 }) is still G538's impostor look, independently.
+- FILES: src/viewer/trees.js (MASTER.light).
