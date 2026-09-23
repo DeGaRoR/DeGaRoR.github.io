@@ -81,6 +81,13 @@
     // height error stays under this many pixels. At 8x MSAA the sub-pixel chords of rough ground cost by their COUNT,
     // not their pixels (each one that lands on a sample shades the ground's whole splat in a 2x2 quad): 2 px is
     // ~2-3 ms of the frame at 300 m on Jolene, 3 px ~4 ms; 'exact' is the picture as it was
+    // THE GROUND'S BLEND (PERF 2026-09-23): a terrain type mixes 2-3 texture sets in blotches (grass giving way to
+    // rock, mud to moss), each hex-tiled, colour + normal - the dearest pixels of the frame. Past the detail fade
+    // (~900 m) a blotch is a few pixels: 'lean far' draws one set there (8 ms of 44 at 300 m on the wide screen)
+    { k: 'ground', label: 'ground blend', steps: [
+        { v: 'full', label: 'full', why: 'every terrain type blends its 2-3 texture sets at every distance' },
+        { v: 'far1', label: 'lean far', why: 'one set per terrain type past ~900 m, where a blotch is a few pixels; all of them near (~8 ms on a 5120 x 1440 screen at 300 m)' },
+        { v: 'lean', label: 'lean', why: 'one set per terrain type everywhere - the material patchwork near the ground is gone, its colour stays' } ] },
     { k: 'terrain', label: 'terrain detail', steps: [
         { v: 1, label: 'exact', why: 'every ridge and bank to a pixel (the whole ring, the far terrain at 1 px)' },
         { v: 2, label: 'fine', why: 'the terrain within 2 px of its true shape - a far ridge may shift by a pixel as you fly' },
@@ -194,11 +201,11 @@
   const POST_OFF = { bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear' };
   const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
-    potato:  Object.assign({ scale: 0.67, drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    retro:   Object.assign({ scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    current: Object.assign({ scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_OFF),
-    gamer:   Object.assign({ scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_OFF),
-    ultra:   Object.assign({ scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_OFF),
+    potato:  Object.assign({ ground: 'lean', scale: 0.67, drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    retro:   Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    current: Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_OFF),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_OFF),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_OFF),
   };
   const DEFAULT = 'gamer';
   const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
@@ -206,7 +213,7 @@
     potato:  'an integrated or very old GPU: the scene at 67 % of the screen, no shadows, no clouds, sparse forest',
     retro:   'a card that was good five years ago (GTX 1060 class): the near shadow, no clouds, sparse forest',
     current: 'a current mid-range card (RTX 3060 class): gamer without the 8x MSAA, the mirror and the mist march',
-    gamer:   'the reference: RTX 3080 class - 53-60 fps at 1080p on Jolene (the frame is the CPU draw count there); the default',
+    gamer:   'the reference: RTX 3080 class - 53-60 fps at 1080p on Jolene (the frame is the CPU draw count there); the default (the medium of before, with the far ground lean)',
     ultra:   'the dearest picture: supersampled, the densest forest, 4096 shadows, live reflections - for screenshots and the cards above a 3080',
   };
 
@@ -260,6 +267,8 @@
     // the sky's own switches (S7): the glare's two halves and the mist
     if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
     if (W.WORLD && W.WORLD.vis && applied.drawDist !== S.drawDist) { W.WORLD.vis.on = S.drawDist !== 'full'; applied.drawDist = S.drawDist; }
+    { const sp = W.WORLD && W.WORLD.ground && W.WORLD.ground.splat && W.WORLD.ground.splat();
+      if (sp && sp.blend && applied.ground !== S.ground) { sp.blend(S.ground === 'lean' ? 1 : 3, S.ground === 'full' ? 3 : 1); applied.ground = S.ground; } }
     if (W.WORLD && W.WORLD.ground && applied.terrain !== S.terrain) {
       const g = W.WORLD.ground, far = g.farLod && g.farLod(), ring = g.ringLod && g.ringLod();
       if (far || ring) { if (far) { far.tolPx = S.terrain; far.update(true); } if (ring) { ring.tolPx = S.terrain; ring.update(); } applied.terrain = S.terrain; }
@@ -409,7 +418,7 @@
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame)',
-                      glare: 'live', mist: 'live', drawDist: 'live', terrain: 'live (the far quadrants re-cut at once: a hitch)', clouds: 'live',
+                      glare: 'live', mist: 'live', drawDist: 'live', terrain: 'live (the far quadrants re-cut at once: a hitch)', ground: 'live', clouds: 'live',
                       bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
                       compositing: 'live (reallocates the frame)', water: 'live', anything: 'no restart' }),
   };

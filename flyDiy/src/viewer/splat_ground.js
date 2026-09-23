@@ -68,6 +68,7 @@ const SPLAT_GROUND = (() => {
   uniform float uSLum[${NLIB}];   // each set's mean luminance after its grade (linear): the detail's texel over it is pure TEXTURE
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud;
+  uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
   uniform float uSHexPx;   // PERF 2026-09-23: the hex tiling only where a set's tile spans more than this many pixels (0 = everywhere)
   float gSPixM = 1.0;      // the fragment's footprint on the ground, metres a pixel (sSplat, in uniform flow)
   uniform vec2 uSSeam, uSNrm, uSLakeE;
@@ -187,6 +188,10 @@ const SPLAT_GROUND = (() => {
   }
   Smp sMat(int i, vec3 P, vec3 tw, float seaAng, float fw, float slope){
     vec4 A = uSMatA[i]; vec4 S = uSMatS[i]; vec4 M = uSMatM[i];
+    // THE BLEND'S DEPTH, A DIAL (PERF 2026-09-23): a type's 2nd and 3rd sets are its dearest pixels (each set hex-tiled,
+    // colour + normal, triplanar on a slope: one set per type measured 8-10 ms cheaper at 5120 x 1440). uSNearN 1 =
+    // one set everywhere (the lower tiers), uSFarN 1 = one set past the detail fade, where a blotch is a few pixels
+    if (uSNearN < 1.5) { A.y = -1.0; A.z = -1.0; }
     Smp o; o.c = vec4(0.5, 0.5, 0.5, 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
     if (A.x < 0.0) return o;
     float ang = A.w > 0.5 ? seaAng : 0.0;
@@ -195,6 +200,7 @@ const SPLAT_GROUND = (() => {
     float m2 = A.z >= 0.0 ? gfMixK(P.xz + vec2(101.0, -77.0), period * 1.61, 0.52 - M.w, sharp) : 0.0;
     vec4 F = uSMatF[i], FS = uSMatFS[i];
     if (F.x < 0.0) { F.x = A.x; FS.x = S.x; } if (F.y < 0.0) { F.y = A.y; FS.y = S.y; } if (F.z < 0.0) { F.z = A.z; FS.z = S.z; }
+    if (uSFarN < 1.5) { F.y = -1.0; F.z = -1.0; }
     if (fw <= 0.001) o = sTriplet(A, S, P, tw, ang, m1, m2);
     else if (fw >= 0.999) o = sTriplet(F, FS, P, tw, ang, m1, m2);
     else o = sBand(A, S, F, FS, P, tw, ang, m1, m2, fw);
@@ -429,6 +435,7 @@ const SPLAT_GROUND = (() => {
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
       uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() },
+      uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
       uSHexPx: { value: 0 },   // the hex cut's dial: 0 = hex everywhere (see sSet)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
@@ -478,6 +485,7 @@ const SPLAT_GROUND = (() => {
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
+      blend: (near, far) => { U.uSNearN.value = near; U.uSFarN.value = far; return [near, far]; },   // the sets a type blends (GRAPHICS 'ground blend', PERF 2026-09-23)
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },

@@ -79,7 +79,7 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
@@ -131,7 +131,16 @@ var COVER_RING = (() => {
         c.maps.forEach((url, v) => P.push({ key: c.name + '|' + v, w: 1 / c.maps.length, kind: 'cover', h: place.size || 1, noTint: true,
                                             parts: [{ geo: flowerCards(place.size || 1, place.aspect || 1, hashStr(c.name) + v * 977), mat: flowerMat(url) }] }));
       } else {
-        const subs = treeList('all').filter(e => e.col === c);
+        let subs = treeList('all').filter(e => e.col === c);
+        // THE DEBRIS'S VARIETY IS ITS DRAW COUNT (PERF 2026-09-23): every model is a draw in every block and a shadow
+        // draw - the two stick packs alone were 32 models, ~600 draws in a forest view. A debris pack keeps
+        // S.debrisKinds of its models, evenly across its size range; the planting is the same (the pack's density,
+        // spread over fewer shapes)
+        if (c.kind === 'debris' && S.debrisKinds > 0 && subs.length > S.debrisKinds) {
+          const hOf = e => (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1));
+          const sorted = subs.slice().sort((a, b) => hOf(a) - hOf(b)), n = S.debrisKinds;
+          subs = Array.from({ length: n }, (_, k) => sorted[Math.round(k * (sorted.length - 1) / Math.max(1, n - 1))]);
+        }
         for (const e of subs) {
           let b = null; try { b = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
           if (!b || !b.parts.length) continue;
@@ -446,7 +455,9 @@ var COVER_RING = (() => {
         }
         const col = it.col ? new Float32Array(it.col) : null;
         // every part of the prototype draws the same instances (a bark part and a leaf part)
-        for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast: it.p.kind !== 'cover', kind: it.p.kind });
+        // (a twig or a pebble under S.castMinH casts no shadow: a texel of the map at most, and a shadow draw per model per block)
+        const cast = it.p.kind !== 'cover' && !((it.p.kind === 'debris' || it.p.kind === 'rock') && it.p.h < S.castMinH);
+        for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
         cell.n += n;
       }
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;

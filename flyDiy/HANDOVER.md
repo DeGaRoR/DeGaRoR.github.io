@@ -56999,3 +56999,10 @@ ultra), render scale, terrain detail. At 1080p the frame is CPU-bound on three's
 is 36-41 ms. Canonical: futureDesigns/PERF-2026-09-23.md (numbers, the feature cost table, the next chantiers:
 houses HLOD, prop instancing, craft merge, cover-ring blocks, debris models).
 
+## G513 - PERF quick wins: the far ground blends one set, the debris keeps four shapes (2026-09-23)
+
+GRAPHICS 'ground blend' row (full / lean far / lean; the default gamer is 'lean far'): one texture set per terrain
+type past the detail fade - 8 ms of 44 at 300 m on 5120 x 1440, ~1 % of pixels. Debris packs keep 4 models each and
+twigs / pebbles under 0.35 m cast no shadow: 607 -> 161 draws in a forest view (forest 40 -> 31 ms on the wide
+screen). futureDesigns/PERF-2026-09-23.md (G513 section).
+
