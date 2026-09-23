@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: aaabf2dea8310687
+// body-sha256: 59ac60259960d7da
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6680,6 +6680,12 @@ const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, 
 // which GATE PAVEMENT holds equal): the record is validated against these so a misspelt key is an
 // ISSUE and not a silent no-op - `pav: { mark: 'none' }` used to be read, ignored and never reported
 const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK', 'marks'];
+// THE PARKING STANDS (v1.21, 2026-09-23, the user: "you may also further design a parking area for
+// planes, with clear ground markings"): a material polygon may carry `stands` - a row of aircraft
+// stands painted on it, each a lead-in line with a nose-stop bar across its end, drawn in the
+// polygon's own frame (PAVEMENT.standMarks). Validated like `pav`, and for the same reason: a
+// misspelt key here would be read, ignored and never reported.
+const STAND_KEYS = ['n', 'pitch', 'lead', 'bar', 'u0', 'vOff'];
 const PAV_MARKS = ['auto', 'none', 'edges', 'centre'];
 const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
 function paveBand(entry, cls, isRoad) {
@@ -7106,7 +7112,7 @@ function compose(rec0, world, opts) {
   // THE PAVED POLYGONS (v1.16): a material polygon with a `look` (a pavement class) instead of a set is an
   // apron, a turnaround, a pad - the pavement module draws it, the map never sees it
   const pavePolys = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.look && RUNWAY_LOOKS[m.look] && RUNWAY_LOOKS[m.look].cls)
-    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0 }));
+    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null }));
   const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set && !m.look).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
   const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
@@ -7405,6 +7411,15 @@ function pavIssues(what, pav) {
   if (pav.marks !== undefined && PAV_MARKS.indexOf(pav.marks) < 0) out.push(what + ': pav.marks is ' + PAV_MARKS.join(' | '));
   return out;
 }
+function standIssues(what, st) {
+  const out = [];
+  if (typeof st !== 'object' || Array.isArray(st)) { out.push(what + ': stands is an object of numbers'); return out; }
+  for (const key in st) if (STAND_KEYS.indexOf(key) < 0) out.push(what + ': stands has no knob `' + key + '` (' + STAND_KEYS.join(', ') + ')');
+  if (!(+st.n >= 1 && +st.n <= 24)) out.push(what + ': stands.n is 1 to 24');
+  if (st.pitch !== undefined && !(+st.pitch > 0)) out.push(what + ': stands.pitch must be positive');
+  for (const key of ['lead', 'bar']) if (st[key] !== undefined && !(+st[key] > 0)) out.push(what + ': stands.' + key + ' must be positive');
+  return out;
+}
 function issues(rec0) {
   const rec = normalise(rec0);
   const out = [];
@@ -7419,6 +7434,7 @@ function issues(rec0) {
     if (k === 'material' && e.look && !(RUNWAY_LOOKS[e.look] && RUNWAY_LOOKS[e.look].cls)) out.push('material ' + e.id + ': unknown look ' + e.look);
     if (k === 'material' && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push('material ' + e.id + ': band must be 0 or more');
     if (k === 'material' && e.pav) out.push.apply(out, pavIssues('material ' + e.id, e.pav));
+    if (k === 'material' && e.stands) out.push.apply(out, standIssues('material ' + e.id, e.stands));
   }
   // ROADS AND RUNWAYS ARE VALIDATED HERE (2026-09-23): the polygon loop above carried three checks
   // written `k === 'roads' || k === 'runways'` and never ran over either layer, so a road's band, its
@@ -7663,7 +7679,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

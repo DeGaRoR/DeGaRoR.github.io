@@ -14885,6 +14885,12 @@ const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, 
 // which GATE PAVEMENT holds equal): the record is validated against these so a misspelt key is an
 // ISSUE and not a silent no-op - `pav: { mark: 'none' }` used to be read, ignored and never reported
 const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK', 'marks'];
+// THE PARKING STANDS (v1.21, 2026-09-23, the user: "you may also further design a parking area for
+// planes, with clear ground markings"): a material polygon may carry `stands` - a row of aircraft
+// stands painted on it, each a lead-in line with a nose-stop bar across its end, drawn in the
+// polygon's own frame (PAVEMENT.standMarks). Validated like `pav`, and for the same reason: a
+// misspelt key here would be read, ignored and never reported.
+const STAND_KEYS = ['n', 'pitch', 'lead', 'bar', 'u0', 'vOff'];
 const PAV_MARKS = ['auto', 'none', 'edges', 'centre'];
 const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
 function paveBand(entry, cls, isRoad) {
@@ -15311,7 +15317,7 @@ function compose(rec0, world, opts) {
   // THE PAVED POLYGONS (v1.16): a material polygon with a `look` (a pavement class) instead of a set is an
   // apron, a turnaround, a pad - the pavement module draws it, the map never sees it
   const pavePolys = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.look && RUNWAY_LOOKS[m.look] && RUNWAY_LOOKS[m.look].cls)
-    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0 }));
+    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null }));
   const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set && !m.look).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
   const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
@@ -15610,6 +15616,15 @@ function pavIssues(what, pav) {
   if (pav.marks !== undefined && PAV_MARKS.indexOf(pav.marks) < 0) out.push(what + ': pav.marks is ' + PAV_MARKS.join(' | '));
   return out;
 }
+function standIssues(what, st) {
+  const out = [];
+  if (typeof st !== 'object' || Array.isArray(st)) { out.push(what + ': stands is an object of numbers'); return out; }
+  for (const key in st) if (STAND_KEYS.indexOf(key) < 0) out.push(what + ': stands has no knob `' + key + '` (' + STAND_KEYS.join(', ') + ')');
+  if (!(+st.n >= 1 && +st.n <= 24)) out.push(what + ': stands.n is 1 to 24');
+  if (st.pitch !== undefined && !(+st.pitch > 0)) out.push(what + ': stands.pitch must be positive');
+  for (const key of ['lead', 'bar']) if (st[key] !== undefined && !(+st[key] > 0)) out.push(what + ': stands.' + key + ' must be positive');
+  return out;
+}
 function issues(rec0) {
   const rec = normalise(rec0);
   const out = [];
@@ -15624,6 +15639,7 @@ function issues(rec0) {
     if (k === 'material' && e.look && !(RUNWAY_LOOKS[e.look] && RUNWAY_LOOKS[e.look].cls)) out.push('material ' + e.id + ': unknown look ' + e.look);
     if (k === 'material' && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push('material ' + e.id + ': band must be 0 or more');
     if (k === 'material' && e.pav) out.push.apply(out, pavIssues('material ' + e.id, e.pav));
+    if (k === 'material' && e.stands) out.push.apply(out, standIssues('material ' + e.id, e.stands));
   }
   // ROADS AND RUNWAYS ARE VALIDATED HERE (2026-09-23): the polygon loop above carried three checks
   // written `k === 'roads' || k === 'runways'` and never ran over either layer, so a road's band, its
@@ -15868,7 +15884,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
@@ -38484,7 +38500,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='aaabf2dea831';window.FLYDIY_BUILD='801211e7f6b7'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='59ac60259960';window.FLYDIY_BUILD='8ab0b419abb4'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -104791,11 +104807,18 @@ const PAVEMENT = (() => {
     rubberK: 0.7, rubberStart: 120, rubberPeak: 420, rubberEnd: 900, rubberTrack: 2.4, rubberSpread: 1.4, rubberStreak: 0.6,
     rutTrack: 0.85, rutW: 0.3, rutDepth: 0.7, rutAmp: 1.0, rutLambda: 80, rutGrass: 0.6, shoulderPaths: 2,
     roadLane: 3.5, wheelPolish: 0.5,
-    edgeChip: 0.6, band: -1, grassReach: 6, fadeW: 6, bandNoise: 0.5,
+    // THE BAND MEETS THE ISLAND (2026-09-23, the user on an aerial of Jolene: "there is a huge
+    // difference in light and color between the runway sides and the surrounding terrain ... the
+    // colours should blend better with their environment ... the current settings are too harsh").
+    // Measured at 620 m over 13/31: the band read luma 136 against 84-96 for the graded grass beside
+    // it and 41-59 for the muskeg beyond - 2.3x to 3.3x, and neutral grey against a green island.
+    // Two levers, both here: the grass reaches FURTHER in over the band and its edge is raggeder
+    // (below), and the `dry` set's own grade is pulled down and turned toward the ground (in `grade`).
+    edgeChip: 0.6, band: -1, grassReach: 13, fadeW: 6, bandNoise: 0.85,
     detailFrom: 250, detailTo: 900, normalFrom: 120, normalTo: 500,
     specK: 1.0, nrmK: 1.0,
     softMix: 0.8, coarseK: 0.7, wheelBand: 0.85, treadK: 0.8, paintRelief: 1.0, mow: 0.6, edgeSoft: 2.6, grassRough: 0.82,
-    grade: { gravelR: [1.0, 0.55], gravelK: [0.95, 0.55], gravelS: [1.0, 0.5], dry: [0.62, 0.75], concreteA: [1.7, 0.45, 0.94, 0.98, 1.06], concreteB: [1.25, 0.6, 0.95, 0.98, 1.05], concreteD: [1.1, 0.7], mudAir: [1.1, 0.6], dirtP: [1.0, 0.7], grass: [0.9, 1.0], gravelG: [0.85, 0.7, 1.06, 1.0, 0.9], gravelF: [0.6, 0.6, 1.12, 1.0, 0.84], gravelB: [1.6, 0.6, 1.04, 1.0, 0.94], rockG: [0.75, 0.7, 1.02, 1.0, 0.94], dirtS: [2.9, 0.7], trailR: [0.55, 0.7], dirtG: [1.0, 0.8], tracksM: [2.6, 0.35], grassG: [0.9, 1.0, 0.9, 1.0, 0.8], grassP: [0.55, 0.9, 0.95, 1.0, 0.9], grassS: [1.6, 0.9], leafygrass: [0.8, 0.9, 0.85, 1.0, 0.75], fieldgrass: [0.85, 0.85], lush: [0.85, 1.0], sandC: [1.3, 0.8], gravelS: [0.6, 0.5] },
+    grade: { gravelR: [1.0, 0.55], gravelK: [0.95, 0.55], gravelS: [1.0, 0.5], dry: [0.40, 0.58, 0.96, 1.0, 0.91], concreteA: [1.7, 0.45, 0.94, 0.98, 1.06], concreteB: [1.25, 0.6, 0.95, 0.98, 1.05], concreteD: [1.1, 0.7], mudAir: [1.1, 0.6], dirtP: [1.0, 0.7], grass: [0.9, 1.0], gravelG: [0.85, 0.7, 1.06, 1.0, 0.9], gravelF: [0.6, 0.6, 1.12, 1.0, 0.84], gravelB: [1.25, 0.55, 1.0, 1.0, 0.92], rockG: [0.75, 0.7, 1.02, 1.0, 0.94], dirtS: [2.9, 0.7], trailR: [0.55, 0.7], dirtG: [1.0, 0.8], tracksM: [2.6, 0.35], grassG: [0.9, 1.0, 0.9, 1.0, 0.8], grassP: [0.55, 0.9, 0.95, 1.0, 0.9], grassS: [1.6, 0.9], leafygrass: [0.8, 0.9, 0.85, 1.0, 0.75], fieldgrass: [0.85, 0.85], lush: [0.85, 1.0], sandC: [1.3, 0.8], gravelS: [0.6, 0.5] },
   };
   let R = JSON.parse(JSON.stringify(RECIPE));
   // THE KNOBS (the port, 2026-09-22): one table for the bench's aside and the editor's PAVEMENT
@@ -105015,7 +105038,7 @@ const PAVEMENT = (() => {
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
     g.computeVertexNormals();
-    g.userData.pav = { kind: 'poly', shoulderW: shW, cls: CLASSES[cls], seed, rows: nz + 1, cols: nx + 1 };
+    g.userData.pav = { kind: 'poly', shoulderW: shW, cls: CLASSES[cls], seed, rows: nz + 1, cols: nx + 1, halfW, cx, cz };
     return g;
   }
 
@@ -105123,6 +105146,29 @@ const PAVEMENT = (() => {
     return { rects, segs: [], raw: rects.length, len, wid: w, lanes: n };
   }
 
+  // THE STANDS (2026-09-23, the user: "you may also further design a parking area for planes, with
+  // clear ground markings"): a light-aircraft stand is a LEAD-IN LINE with a nose-stop bar across it -
+  // the pilot tracks the line and stops with the nose wheel on the bar - painted yellow, `n` of them
+  // `pitch` metres apart. Drawn in a paved POLYGON's own frame, whose u/v are centred on the polygon
+  // and turned by its yaw, so the row runs along the apron's own axis.
+  // `uMid` is the polygon's own centre in ITS u: polyGeometry writes aPav.x = u + halfW, so a mark
+  // written about the middle of an apron must carry that offset or it lands off the mesh entirely
+  // (the first six stands did, 2026-09-23). The strip's u starts at 0, so uMid is 0 there.
+  function standMarks(o, uMid) {
+    o = o || {};
+    const n = Math.max(1, Math.min(24, (o.n | 0) || 6)), pitch = +o.pitch > 0 ? +o.pitch : 11;
+    const lead = +o.lead > 0 ? +o.lead : 9, bar = +o.bar > 0 ? +o.bar : 2.6, w = 0.075;
+    const mid = +uMid || 0;
+    const v0 = -(n - 1) * pitch / 2 + (+o.vOff || 0), u0 = mid + (o.u0 === undefined ? -lead / 2 : +o.u0);
+    const rects = [];
+    for (let i = 0; i < n; i++) {
+      const v = v0 + i * pitch;
+      rects.push([u0, u0 + lead, v - w, v + w, 1, 0, 0, 0]);                                        // the lead-in line
+      rects.push([u0 + lead - w * 2, u0 + lead + w * 2, v - bar / 2, v + bar / 2, 1, 0, 0, 0]);      // the nose stop
+    }
+    return { rects, segs: [], raw: rects.length, len: lead, wid: n * pitch, lanes: 0, stands: n };
+  }
+
   // ---- the library: the sets a recipe names -> two arrays ---------------------
   // library(THREE, keys, done) builds uPavA (colour rgb + height a) and uPavN (normal xyz + rough a)
   // from PAVEMENT_TEX_SETS for exactly `keys`, in that order; returns { layerOf, metres, mean, ready }.
@@ -105217,7 +105263,7 @@ uniform vec4 uMean;
 uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
-float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
+float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft; float gPudK;
 struct Smp { vec4 c; vec4 n; };
 float pvHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 vec2 pvHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
@@ -105670,15 +105716,23 @@ float pvTread(float u, float x, float w, float seed) {
     if (uWet.y > 0.001) {
       float pn = pvFbm(uvS / uWet.z + 61.0) + (paved ? 0.06 * abs(v) / max(halfW, 1.0) : 0.0) + rut * 0.14 + joint * 0.05 - (grassy ? 0.08 : 0.0);
       float t = 1.0 - uWet.y * 0.9;
-      pud = smoothstep(t, t + uWet.w, pn) * uWet.y;
+      // THE COVER IS AN AREA, NOT A DEPTH (2026-09-23, the user: "the puddles should influence the
+      // colour too. Darker under the puddles, that's why they look odd"). pud was multiplied by
+      // uWet.y a second time, so at the shipped cover of 0.25-0.35 it peaked at 0.35 and pudK, a
+      // smoothstep over [0.15, 0.6], never got past 0.41: the bed was blended in at two fifths, the
+      // mirror at two fifths, and a puddle read as a faint gloss decal on dry concrete. The
+      // THRESHOLD is where the cover belongs - it already sets how much of the ground is under
+      // water - and inside that water the puddle is a whole puddle.
+      pud = smoothstep(t, t + uWet.w, pn);
     }
-    float wetK = clamp(wet + pud * 1.5, 0.0, 1.0);
+    float wetK = clamp(wet + pud * 0.6, 0.0, 1.0);
     col *= 1.0 - 0.38 * wetK; rough = mix(rough, 0.12, wet);
     // A PUDDLE IS WATER (the user, 2026-09-22: "give them a good water reflective material"): a flat
     // mirror (roughness 0.02, the normal straight up) over the wet bed - the bed dark and, on soft
     // ground, a shade of its own mud - so what the eye sees in it is the sky the environment gives
     float pudK = smoothstep(0.15, 0.6, pud);
-    vec3 bed = col * (paved ? 0.42 : 0.36) * (paved ? vec3(1.0) : vec3(1.0, 0.94, 0.86));
+    gPudK = pudK;
+    vec3 bed = col * (paved ? 0.60 : 0.50) * (paved ? vec3(1.0) : vec3(1.0, 0.94, 0.86));
     col = mix(col, bed, pudK);
     rough = mix(rough, 0.02, pudK);
     nT = mix(nT, vec3(0.0, 0.0, 1.0), pudK);
@@ -105707,7 +105761,7 @@ float pvTread(float u, float x, float w, float seed) {
   GLSL.normal = `
   normal = normalize((viewMatrix * vec4(gPavN, 0.0)).xyz);`;
   GLSL.lights = `
-  { float pvS = uSpec.x * smoothstep(0.85, 0.45, roughnessFactor); reflectedLight.directSpecular *= pvS; reflectedLight.indirectSpecular *= pvS; }`;
+  { float pvS = uSpec.x * smoothstep(0.85, 0.45, roughnessFactor) * mix(1.0, 0.5, gPudK); reflectedLight.directSpecular *= pvS; reflectedLight.indirectSpecular *= pvS; }`;
   GLSL.debug = `
   if (uPavDbg > 0.5) gl_FragColor = vec4(gPavDbg, 1.0);`;
 
@@ -105818,7 +105872,7 @@ float pvTread(float u, float x, float w, float seed) {
   function exportRecipe() { return JSON.parse(JSON.stringify(R)); }
   function dispose(m) { const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose(); }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
+    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;
@@ -137859,7 +137913,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
 <script type="text/x-flydiy" src="tools/_house_kit.js?v=d635a246"></script>
 <script type="text/x-flydiy" src="tools/_house_gen.js?v=ec32f923"></script>
-<script type="text/x-flydiy" src="tools/_big_gen.js?v=aa1ee37b"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=8670619d"></script>
 <script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
 <script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
 <script type="text/x-flydiy" src="tools/_hangar_gen.js?v=a711b43f"></script>
@@ -137873,9 +137927,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/viewer/powerline.js?v=5f386c32"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=f5bc6864"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=c7fc96f9"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=6fa8d508"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=4f7618c3"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=21c3ed9b"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
