@@ -58858,3 +58858,70 @@ would have named it (fog / hemisphere / environment) produced nothing in ten min
 - STILL OWED: verification against their GATE PAVEMENT section 11. It is not on master at the time of this
   landing either; they are landing it on top of G549 and will re-run it over the island.
 - FILES: tools/metlakatla_author.py.
+
+## G550 - A ROAD DOES NOT TURN ON A POINT: every corner in the game is an arc now (2026-09-23, the
+## user, on the totem grounds' 2.2 m track: "can you ensure that all path have no sharp angles like
+## the ones in the image attached? They should be rounded at least a little, or smoothed overall")
+
+AN AUTHORED CENTRELINE IS A HANDFUL OF POINTS AND EVERY ONE OF THEM WAS A CORNER. The drawn ribbon,
+its band, its ruts, its markings, its guardrail and its power line all kinked at the same vertex,
+because nothing between the author's clicks and the mesh ever asked what radius a vehicle turns at.
+`PG.polyRoad` is the ONE function every road in the game goes through - the premises' roads and the
+analytic world's, their geometry, their surface tests, `roadDist`, the traffic, GUARDRAIL, POWERLINE
+- so the rule belongs there and nowhere else. It fillets now.
+
+FILLETED, NOT RESAMPLED, and that is the whole design. A spline through the authored points would
+move the STRAIGHTS: a road traced along a shore would drift off it, and a point dragged in the
+editor would stop meaning what it says. So the straights are kept exactly and only the corner is
+replaced, by the arc tangent to both legs. That is what a road is.
+
+THE RADIUS is the road's own, `w * 2.5` (a 2.2 m track rounds at 5.5 m, an 18 m street at 45),
+clamped to 4..60 m, then bounded twice so it can never misbehave:
+- BY THE LEGS: the tangent takes at most 45 % of either adjacent segment, so two corners close
+  together cannot eat each other and a short leg is not swallowed;
+- BY THE WIDTH: the arc's sagitta stays under 0.35 * w. THIS IS THE LOAD-BEARING BOUND. It is what
+  keeps everything that still reads the AUTHORED points - the pilot's taxi route, a premises surface
+  polygon, the editor's own drag handles - safely on the pavement, and it is why a narrow road
+  rounds less than a wide one. Past 0.5 the authored centreline would start leaving its own road.
+A turn under 3 degrees is left alone (it reads straight and an arc there is noise). The arc is
+walked every ~8 degrees, so `at()` traces a curve rather than a cut corner. The ends never move.
+
+MEASURED over the shipped island: the sharpest authored vertex is 48.5 degrees and every road comes
+out under 8. Nineteen of the 76 had a corner over 12 degrees - the airport road, the village
+streets, both totem paths, Metlakatla's shore and Skaters roads, the taxiway V.
+
+AND A TURN OVER 150 DEGREES IS LEFT EXACTLY AS AUTHORED, because it is not a corner: it is a road
+DOUBLING BACK on itself. Filleting one produces a 15 cm u-turn of twenty points - geometrically
+smooth, visually the same spike, and a ribbon folded on itself. A defect wearing a smooth face.
+
+- THE GATE, AND THE INSTRUMENT I HAD TO FIX FIRST (GATE PAVEMENT section 11). Its first version
+  measured the worst turn AFTER filleting, and that is the wrong instrument: a fillet spreads a 177
+  degree reversal over twenty 8 degree steps, so the road still doubles back and the number reads
+  7.7. Proved by planting a reversal in an 18 m road - the check said PASS. It had caught the one
+  real defect on the island only BY ACCIDENT, because at 6.5 m wide that corner's radius fell under
+  the fillet's own floor and was skipped rather than smoothed. It measures the AUTHORED line now:
+  a turn over 150 degrees at a single vertex, which is an invariant that holds for every road
+  whatever it was traced from.
+  I also WROTE AND THEN REMOVED a revisit test (a line returning within a metre of somewhere it has
+  been). It flags a RING ROAD, which is legitimate - a 12-point circular street failed it. The
+  Metlakatla session's author is right to act on a revisit because it knows the line came from a
+  traced drawing where branches meet at a vertex; a gate over every road on the island knows no such
+  thing and may only assert what holds for all of them. Their phrasing is the better one: the
+  revisit is the trigger, the reversal is the test.
+  NEGATIVE-TESTED THREE WAYS: a planted 177 degree reversal FAILS, a ring road closing exactly on
+  its own start PASSES, the island PASSES.
+- FOUND BY IT, AND FIXED BY ITS OWNER: `mk_ax00` repeated its start point at index 6 - the line
+  walked 90 m away and teleported back, drawing a 6.5 m paved ribbon twice over the same ground with
+  a 179 degree spike at the seam. Two roads concatenated at a junction by met_axes' graph walk,
+  carried since G511 and unnoticed because its own comment measured the length THROUGH the teleport.
+  Reported rather than patched (their geometry, their call); split by them as G549/G549.1. Verified
+  from the outside here on master's own record: 76 roads, no vertex over 150 degrees, 11 axes,
+  mk_ax00 6 points and mk_ax01 56, both starting at the junction.
+- AND MEASURED, because the bound is the whole safety argument: how far the DRAWN centreline moves
+  from the points the author placed, over all 76 roads. Worst on the island is r_airport at 1.48 m
+  on a 6 m road = 0.49 of its half-width; then v_west 0.45, v_north 0.43, r_village 0.42, the totem
+  track 0.35. Metlakatla's worst is mk_r_skaters at 0.99 m = 0.33. EVERY AUTHORED POINT IS STILL ON
+  ITS OWN ROAD, everywhere, with the nearest case at half the half-width.
+- FILES: src/core/27_premises.js (roadFillet, and polyRoad calls it), tools/_pavement_check.js
+  (GATE PAVEMENT section 11). No record moved: the fillet is runtime, every authored point is
+  untouched, and the fixture is byte-identical.

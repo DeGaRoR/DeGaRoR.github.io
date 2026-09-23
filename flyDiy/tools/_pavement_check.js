@@ -29,6 +29,9 @@ const path = require('path');
 const VERB = process.argv.includes('--verbose');
 let fails = 0;
 const verdict = (ok, line) => { if (!ok) fails++; console.log((ok ? 'PASS ' : 'FAIL ') + line); };
+// a NOTE is a true finding in data this gate does not own - named on every run, loudly, but it does
+// not hold the tree red for a fault another part must fix (GATE PREMISES 5b's idiom)
+const note = line => console.log('  ! ' + line);
 const f = (v, n = 3) => (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(n) : String(v);
 
 const THREE = require('../vendor/three.min.js');
@@ -412,6 +415,57 @@ console.log('9. THE LANES - how many by width, and what is painted between them'
   const src = fs.readFileSync(path.join(__dirname, '..', 'src/viewer/pavement.js'), 'utf8');
   verdict((src.match(/lanesOf\(/g) || []).length >= 3, 'lanesOf is the one lane rule (roadMarks and the uniform both call it)');
   verdict(/polish \* 0\.8/.test(src) && /uRoad\.z/.test(src), "the paint wears where the traffic runs (the marks' keep takes the polish)");
+}
+
+// ---- 11 A ROAD DOES NOT TURN ON A POINT (2026-09-23, the user on the totem grounds' 2.2 m track:
+// "can you ensure that all path have no sharp angles ... They should be rounded at least a little")
+// polyRoad fillets every corner it is handed. What is asserted here is the CONTRACT, not the look:
+// the straights and the ends are untouched, the corner is rounded, and the smoothed line never
+// leaves the authored corner by more than a third of the road's width - the bound that keeps
+// everything still reading the AUTHORED points (the pilot's taxi route, a premises surface polygon,
+// the editor's own drag handles) safely on the pavement.
+{
+  const turns = pts => { const o = []; for (let i = 1; i < pts.length - 1; i++) {
+    const A = pts[i - 1], B = pts[i], C = pts[i + 1];
+    const a = [A[0] - B[0], A[1] - B[1]], c = [C[0] - B[0], C[1] - B[1]];
+    const la = Math.hypot(a[0], a[1]), lc = Math.hypot(c[0], c[1]);
+    if (la < 1e-9 || lc < 1e-9) continue;
+    o.push(180 - Math.acos(Math.max(-1, Math.min(1, (a[0] * c[0] + a[1] * c[1]) / (la * lc)))) * 180 / Math.PI);
+  } return o; };
+  const worst = pts => { const t = turns(pts); return t.length ? Math.max.apply(null, t) : 0; };
+  for (const [w, nm] of [[2.2, 'a 2.2 m track'], [6, 'a 6 m road'], [24, 'a 24 m taxiway']]) {
+    const r = PG.polyRoad([[0, 0], [120, 0], [120, 120]], w);
+    verdict(worst(r.pts) < 12, nm + "'s right-angle corner is rounded: 90 deg -> " + f(worst(r.pts), 1) + ' deg over ' + r.pts.length + ' points');
+    let near = Infinity; for (const q of r.pts) near = Math.min(near, Math.hypot(q[0] - 120, q[1]));
+    verdict(near <= 0.35 * w + 1e-6, '  and it stays within a third of the width of the authored corner: ' + f(near, 2) + ' m <= ' + f(0.35 * w, 2));
+  }
+  const st = PG.polyRoad([[0, 0], [50, 0], [100, 0]], 6);
+  verdict(st.pts.length === 3 && Math.abs(st.length - 100) < 1e-6, 'a straight road is left alone: ' + st.pts.length + ' points, ' + f(st.length, 1) + ' m');
+  const e = PG.polyRoad([[3, 7], [40, 7], [40, 60]], 6), last = e.pts[e.pts.length - 1];
+  verdict(e.pts[0][0] === 3 && e.pts[0][1] === 7 && last[0] === 40 && last[1] === 60, 'the two ends are never moved');
+  const sh = PG.polyRoad([[0, 0], [8, 0], [8, 8]], 6);
+  verdict(worst(sh.pts) < 20 && sh.pts.every(q => q[0] >= -1e-6 && q[0] <= 8 + 1e-6), 'a corner between SHORT legs is still rounded and stays between them: ' + f(worst(sh.pts), 1) + ' deg');
+  const dup = PG.polyRoad([[0, 0], [0, 0], [30, 0], [30, 30], [30, 30]], 6);
+  verdict(dup.length > 0 && isFinite(dup.length) && dup.pts.every(q => isFinite(q[0]) && isFinite(q[1])), 'a repeated point does not produce NaN');
+  // AND OVER THE SHIPPED ISLAND, MEASURED ON THE AUTHORED LINE, NOT THE FILLETED ONE. The first
+  // version of this check looked at the worst turn AFTER filleting and it was the wrong instrument:
+  // a fillet spreads a 177 degree reversal over twenty 8 degree steps, so the road still doubles
+  // back and the number says 7.7. It caught mk_ax00 only by accident - that one fell under the
+  // fillet's own radius floor and was skipped. What is actually wrong is a property of the points
+  // the author wrote: a turn no vehicle makes, or a line that returns to somewhere it has been.
+  const J = PG.unwrap(require('./fixtures/island_jolene.json')).rec, bad = [];
+  for (const rd of J.layers.roads) {
+    const raw = rd.pts.map(q => (q.x !== undefined ? [q.x, q.z] : [q[0], q[1]]));
+    const t = turns(raw), rev = t.length ? Math.max.apply(null, t) : 0;
+    // the test is the TURN AT A VERTEX, not a revisit: a road may legitimately return to where it
+    // started (a ring street), and it may legitimately switch back on a mountain - but a real
+    // hairpin is authored as several points round the bend, so no single vertex of one turns
+    // anything like 150 degrees. A vertex that does is always two roads joined by mistake.
+    if (rev > 150) bad.push(rd.id + ' turns ' + f(rev, 0) + ' deg at one point');
+  }
+  verdict(bad.length === 0, 'no road on the island doubles back on itself' + (bad.length
+    ? ' — EXCEPT ' + bad.join(', ') + '. No fillet can round that away inside the width of the road itself: split it into two roads.'
+    : ' (' + J.layers.roads.length + ' roads, and every corner of them rounded)'));
 }
 
 console.log('GATE PAVEMENT: ' + (fails ? 'FAIL' : 'PASS'));

@@ -201,7 +201,74 @@ const polysOverlap = (a, b) => a.some(p => inPoly(b, p[0], p[1])) || b.some(p =>
 // ---------------------------------------------------------------------------
 // the roads — the village's polyRoad: arclength, tangent, and a normal
 // ---------------------------------------------------------------------------
-function polyRoad(pts, w) {
+// A ROAD DOES NOT TURN ON A POINT (2026-09-23, the user, on the totem grounds' 2.2 m track: "can you
+// ensure that all path have no sharp angles ... They should be rounded at least a little, or smoothed
+// overall"). An authored centreline is a handful of points and every one of them was a CORNER: the
+// drawn ribbon, its band, its ruts and its markings all kinked, because nothing between the author's
+// clicks and the mesh ever asked what radius a vehicle turns at.
+//
+// FILLETED, not resampled. A spline through the points would move the STRAIGHTS - a road would drift
+// off the shore it was traced along - so the straights are kept exactly and only the corner is
+// replaced, by the arc tangent to both legs. That is what a road actually is, and it is what an
+// author expects when they drag a point: the line goes where they put it.
+//
+// THE RADIUS is the road's own: `w * 2.5` (a 2.2 m track rounds at 5.5 m, an 18 m street at 45),
+// clamped to 4..60 m, and then bounded twice so it can never misbehave -
+//   by the LEGS: the tangent length takes at most 45 % of either adjacent segment, so two corners
+//     close together cannot eat each other and a short leg is not swallowed;
+//   by the WIDTH: the arc's sagitta stays under 0.35 * w, so the smoothed centreline never leaves
+//     the authored corner by more than a third of the road's width. That bound is what keeps every
+//     consumer still reading the AUTHORED points - the pilot's taxi route, a premises surface
+//     polygon, the editor's own drag handles - safely on the pavement.
+// A turn under 3 degrees is left alone (it reads straight and an arc there is noise); the ends are
+// never touched. The arc is walked every ~8 degrees, at least two segments, so `at()` traces a curve
+// rather than a cut corner.
+function roadFillet(pts, w) {
+  const P = [];
+  for (const q of pts) { const l = P[P.length - 1]; if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 1e-6) P.push([q[0], q[1]]); }
+  if (P.length < 3) return P;
+  const want = clamp((+w || 4) * 2.5, 4, 60);
+  const out = [P[0]];
+  for (let i = 1; i < P.length - 1; i++) {
+    const A = P[i - 1], B = P[i], C = P[i + 1];
+    const a = [A[0] - B[0], A[1] - B[1]], c = [C[0] - B[0], C[1] - B[1]];
+    const la = Math.hypot(a[0], a[1]), lc = Math.hypot(c[0], c[1]);
+    if (la < 1e-6 || lc < 1e-6) { out.push(B); continue; }
+    const ua = [a[0] / la, a[1] / la], uc = [c[0] / lc, c[1] / lc];
+    const cosA = clamp(ua[0] * uc[0] + ua[1] * uc[1], -1, 1);
+    const inner = Math.acos(cosA);                       // the angle of the corner itself, A-B-C
+    const turn = Math.PI - inner;                        // how far the road turns through it
+    // under 3 degrees reads straight and an arc there is noise; over 150 is not a corner at all but
+    // a road DOUBLING BACK on itself, and filleting one produces a 15 cm u-turn of twenty points -
+    // geometrically smooth, visually the same spike, and a ribbon that folds on itself. Leave it
+    // exactly as authored so it stays visible, and let GATE PAVEMENT section 11 name it.
+    if (turn < 3 * Math.PI / 180 || turn > 150 * Math.PI / 180 || inner < 1e-3) { out.push(B); continue; }
+    const half = inner / 2, tanHalf = Math.tan(half);
+    let R = want;
+    R = Math.min(R, 0.45 * Math.min(la, lc) * tanHalf);  // the legs: tangent = R / tan(inner/2)
+    const sag = 1 - Math.sin(half);                      // sagitta = R * (1/sin(half) - 1) * sin(half)
+    if (sag > 1e-6) R = Math.min(R, 0.35 * (+w || 4) * Math.sin(half) / sag);
+    const tl = R / tanHalf;                              // how far back along each leg the arc starts
+    if (!(R > 0.05) || !(tl > 0.05)) { out.push(B); continue; }
+    const T0 = [B[0] + ua[0] * tl, B[1] + ua[1] * tl], T1 = [B[0] + uc[0] * tl, B[1] + uc[1] * tl];
+    const bis = [ua[0] + uc[0], ua[1] + uc[1]];
+    const lb = Math.hypot(bis[0], bis[1]);
+    if (lb < 1e-6) { out.push(B); continue; }            // a straight-back hairpin: no centre to find
+    const d = R / Math.sin(half);                        // B to the arc's centre, along the bisector
+    const O = [B[0] + bis[0] / lb * d, B[1] + bis[1] / lb * d];
+    let a0 = Math.atan2(T0[1] - O[1], T0[0] - O[0]);
+    const a1 = Math.atan2(T1[1] - O[1], T1[0] - O[0]);
+    let sweep = a1 - a0;
+    while (sweep > Math.PI) sweep -= 2 * Math.PI;
+    while (sweep < -Math.PI) sweep += 2 * Math.PI;
+    const n = Math.max(2, Math.ceil(Math.abs(sweep) / (8 * Math.PI / 180)));
+    for (let k = 0; k <= n; k++) { const ang = a0 + sweep * k / n; out.push([O[0] + Math.cos(ang) * R, O[1] + Math.sin(ang) * R]); }
+  }
+  out.push(P[P.length - 1]);
+  return out;
+}
+function polyRoad(pts0, w) {
+  const pts = roadFillet(pts0, w);
   const s = [0];
   for (let i = 1; i < pts.length; i++) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
   const at = t => {
