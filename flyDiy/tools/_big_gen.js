@@ -176,8 +176,76 @@ function signTexture(text, w, h) {
 // the board: the width is the dial, the height follows. The png keeps its
 // alpha, so a shaped board (the arched store sign) is cut by alphaTest and
 // the backing shows through its corners.
+// THE AIRFIELD'S BALISAGE (2026-09-23, the user: "very simple 'balisage' of the
+// airport, I attach a picture with signs for the 2 runways of Jolene"): a
+// runway's DESIGNATION PLATE - the weathered enamel board of that photograph,
+// the numerals stencilled heavy and chipped, black for one runway and red for
+// the other. It is an ordinary BILLBOARD with a generated key, `rwy:13/31` or
+// `rwy:13/31:r` for the red plate, so the editor stands it, turns it, sizes it
+// and deletes it like any other sign and nothing new enters the contract.
+const RWY_KEY = /^rwy:([0-9A-Za-z/ .\-]{1,9})(:r)?$/;
+function rwySign(key) {
+  const m = RWY_KEY.exec(String(key || ''));
+  return m ? { text: m[1], red: !!m[2] } : null;
+}
+// the plate, drawn: enamel ground, a dark keyline, the numerals in the paint's
+// colour, then the years - rust creeping in from the bolts, the paint chipped
+// off the strokes, a wash down the face. Cached per (text, colour).
+const RWYC = new Map();
+function designatorTexture(text, red) {
+  const ck = text + '|' + (red ? 'r' : 'k');
+  if (RWYC.has(ck)) return RWYC.get(ck);
+  if (typeof document === 'undefined') return null;
+  const W = 768, H = Math.round(W / Math.max(1.4, 0.45 * text.length));
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  let n = 1234 + text.length * 977 + (red ? 61 : 0);
+  const rnd = () => { n = (n * 1664525 + 1013904223) >>> 0; return n / 4294967296; };
+  g.fillStyle = '#cdc8ba'; g.fillRect(0, 0, W, H);            // the enamel, gone grey
+  for (let i = 0; i < 260; i++) {                              // its mottle
+    const r = 6 + rnd() * 26;
+    g.globalAlpha = 0.05 + rnd() * 0.07;
+    g.fillStyle = rnd() < 0.5 ? '#ffffff' : '#9a9384';
+    g.beginPath(); g.arc(rnd() * W, rnd() * H, r, 0, 6.2832); g.fill();
+  }
+  g.globalAlpha = 1;
+  const ink = red ? '#9c2018' : '#24231f';
+  g.strokeStyle = ink; g.lineWidth = Math.max(3, H * 0.035);   // the keyline
+  g.strokeRect(H * 0.09, H * 0.09, W - H * 0.18, H - H * 0.18);
+  g.fillStyle = ink;                                           // the numerals
+  let size = Math.floor(H * 0.58);
+  const font = s => 'bold ' + s + 'px "Arial Narrow", "Haettenschweiler", Impact, sans-serif';
+  g.font = font(size);
+  while (g.measureText(text).width > W * 0.74 && size > 12) { size -= 3; g.font = font(size); }
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, W / 2, H / 2 + size * 0.04);
+  for (let i = 0; i < 420; i++) {                              // the paint chipped off
+    g.globalAlpha = 0.5 + rnd() * 0.5;
+    g.fillStyle = rnd() < 0.7 ? '#cdc8ba' : '#b7b1a2';
+    const w = 2 + rnd() * 7;
+    g.fillRect(rnd() * W, H * 0.2 + rnd() * H * 0.6, w, w * (0.5 + rnd()));
+  }
+  for (let i = 0; i < 40; i++) {                               // rust, and a wash down the face
+    g.globalAlpha = 0.05 + rnd() * 0.12;
+    g.fillStyle = rnd() < 0.5 ? '#7a5433' : '#8d8577';
+    g.fillRect(rnd() * W, rnd() * H * 0.5, 2 + rnd() * 5, H * (0.2 + rnd() * 0.6));
+  }
+  g.globalAlpha = 1;
+  for (const [bx, by] of [[H * 0.22, H * 0.2], [W - H * 0.22, H * 0.2], [H * 0.22, H * 0.8], [W - H * 0.22, H * 0.8]]) {
+    g.fillStyle = '#6e675c'; g.beginPath(); g.arc(bx, by, H * 0.045, 0, 6.2832); g.fill();
+    g.fillStyle = '#8b8477'; g.beginPath(); g.arc(bx - H * 0.012, by - H * 0.012, H * 0.026, 0, 6.2832); g.fill();
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  RWYC.set(ck, t);
+  return t;
+}
 const SIGNT = new Map();
 function signMeta(key) {
+  const R = rwySign(key);
+  if (R) return { name: R.text, kind: 'airfield', aspect: Math.max(1.4, 0.45 * R.text.length), plate: true, red: R.red };
   const M = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META) || null;
   return (M && key && M[key]) || null;
 }
@@ -1054,7 +1122,7 @@ function build(P0, lod, F) {
 // the middle of the posts, facing +z.
 function billboard(o) {
   const key = o.key, meta = signMeta(key) || { aspect: 3 };
-  const w = o.w || 3.6, h = w / meta.aspect, top = o.top || 3.4;
+  const w = o.w || 3.6, h = w / meta.aspect, top = o.top || (meta.plate ? Math.max(1.4, h + 1.0) : 3.4);
   const bags = { sign: Bag('sign'), door: Bag('door'), metal: Bag('metal'), aoskirt: Bag('aoskirt') };
   const g = o.ground || ((x, z) => 0);
   const px = w / 2 - 0.35;
@@ -1078,8 +1146,10 @@ function billboardFinish(key) {
   for (const k of ['door', 'metal']) HG.shadeHouse(M[k], F.SHADE_U);
   dress(M.door, 'door', SET_IDX('door', 'rustysheet'));
   dress(M.metal, 'metal', SET_IDX('metal', 'rust'));
-  const bb = billboardTexture(key) || signTexture((signMeta(key) || { name: key }).name || key, 3.6, 1.2);
-  M.sign.map = bb; M.sign.alphaTest = billboardTexture(key) ? 0.5 : 0; M.sign.needsUpdate = true;
+  const R = rwySign(key);
+  const bb = R ? designatorTexture(R.text, R.red)
+               : (billboardTexture(key) || signTexture((signMeta(key) || { name: key }).name || key, 3.6, 1.2));
+  M.sign.map = bb; M.sign.alphaTest = (!R && billboardTexture(key)) ? 0.5 : 0; M.sign.needsUpdate = true;
   F.SHADE_U.uDirtTop.value = 0.5; F.SHADE_U.uSag.value = 0;
   return F;
 }
@@ -1105,7 +1175,7 @@ function randomBig(seed) {
 window.BIG_GEN = {
   DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, ROLE_SETS, SET_IDX, setNames,
   build, randomBig, applyFinish, makeFinish, finishReport, signTexture, CATS, catOf,
-  billboard, billboardFinish, signMeta, signKeys, billboardTexture,
+  billboard, billboardFinish, signMeta, signKeys, billboardTexture, rwySign, designatorTexture,
   libSets: HG.libSets, isBig: true,
 };
 })();

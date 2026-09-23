@@ -213,6 +213,16 @@ console.log('6. COVERAT - what the cover ring may plant');
   { const want = P.ENTRY_KNOBS.concat(['marks']).sort(), got = PG.PAV_KEYS.slice().sort();
     verdict(want.join() === got.join(), `PAV_KEYS (the core's validator) = ENTRY_KNOBS + marks (the viewer's): ${got.join(' ')}`);
     verdict(PG.PAV_MARKS.join() === 'auto,none,edges,centre', `pav.marks may say ${PG.PAV_MARKS.join(' | ')}`); }
+  // ---- 10 THE PARKING STANDS (v1.21): the apron's painted stands, and the same rule for their keys
+  { const S = P.standMarks({ n: 4, pitch: 10, lead: 8, bar: 3 }, 50);
+    verdict(S.rects.length === 8, `four stands paint eight rects (a lead-in line and a nose stop each): ${S.rects.length}`);
+    const us = S.rects.map(r => Math.min(r[0], r[1]));
+    verdict(Math.min.apply(null, us) >= 0, `every mark sits at a POSITIVE u about the polygon's centre (min ${f(Math.min.apply(null, us))}) - polyGeometry writes aPav.x = u + halfW, so a mark written about zero lands off the mesh`);
+    const vs = S.rects.filter((r, i) => i % 2 === 0).map(r => (r[2] + r[3]) / 2);
+    verdict(Math.abs(vs[1] - vs[0] - 10) < 1e-6 && Math.abs(vs[0] + vs[3]) < 1e-6, `the row is pitched 10 m and centred on the polygon: v ${vs.map(f).join(' ')}`);
+    verdict(S.rects.every(r => r[4] === 1), 'a stand is painted YELLOW (kind 1)');
+    const want = ['n', 'pitch', 'lead', 'bar', 'u0', 'vOff'].sort(), got = PG.STAND_KEYS.slice().sort();
+    verdict(want.join() === got.join(), `STAND_KEYS (the core's validator) = the knobs standMarks reads (the viewer's): ${got.join(' ')}`); }
   const j = require('./fixtures/island_jolene.json'), w0 = CORE.makeWorld(0), rec = PG.unwrap(j).rec, O = PG.compose(rec, w0, {});
   const F = O.frame, at = (lx, lz) => { const p = F.toWorld(lx, lz); return O.coverAt(p[0], p[1]); };
   const H = rec.layers.runways.find(r => r.id === 'HOME'), c = H.c, d = [Math.cos(H.hdg), Math.sin(H.hdg)], n = [-d[1], d[0]];

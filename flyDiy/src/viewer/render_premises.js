@@ -548,6 +548,26 @@ function make(THREE, scene, world, rec0, opts) {
   const pavLib = () => PAV.sharedLib(THREE, pavKeys(), () => { if (o.onBuilt) o.onBuilt(0, 0); });
   const pavSeed = id => { let h = 2166136261; for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h % 1000) / 37; };
   // a road crossing a strip's box draws no band over the concrete (the bench's rule)
+  // A STRIP'S BAND DOES NOT LIE OVER ANOTHER PAVEMENT (2026-09-23, the user: "where the 2 runways
+  // cross, the sides of the runway on top render on top of the runway at the bottom ... it does not
+  // make sense to have dirt or sand over a runway, even if they cross"). The band and the pavement
+  // are ONE mesh, so no draw order can separate them - the band is faded out where it crosses another
+  // strip's pavement or an apron, which is the rule a road's band already keeps (stripKeep below).
+  const pavedKeep = self => (x, z) => {
+    const L = O.frame.toLocal(x, z); let k = 1;
+    for (const r of O.runways) {
+      if (r === self || PG.runwayIsWater(r)) continue;
+      const box = PG.runwayBox(r, 0), d = PG.sdPoly(box, L[0], L[1]);      // + outside the pavement
+      if (d <= 0) return 0;
+      k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4)));              // and a 4 m fade off its edge
+    }
+    for (const pp of O.pavePolys || []) {
+      const d = PG.sdPoly(pp.poly, L[0], L[1]);
+      if (d <= 0) return 0;
+      k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4)));
+    }
+    return k;
+  };
   const stripKeep = (x, z) => { const L = O.frame.toLocal(x, z); let k = 1; for (const r of O.runways) { if (PG.runwayIsWater(r)) continue; const box = PG.runwayBox(r, 0); if (PG.inPoly(box, L[0], L[1])) return 0; const d = -PG.sdPoly(box, L[0], L[1]); k = Math.min(k, Math.max(0, Math.min(1, (-d - 1) / 4))); } return k; };
   const disposePav = m => { if (m.material && m.material.userData && m.material.userData.pav && PAV) PAV.dispose(m.material); };
   // THE GUARDRAIL (2026-09-22): the W-beam module decides WHERE from the ground itself (the drop past
@@ -678,7 +698,9 @@ function make(THREE, scene, world, rec0, opts) {
       const RS = PAV.resolve(pp, O.rec, L);
       const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
       const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw });
-      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks: { rects: [], segs: [] }, poly: true, recipe: RS.recipe, band: RS.band });
+      // an apron may be a PARKING AREA: its stands' lead-in lines and nose stops, in its own frame
+      const marks = pp.stands ? PAV.standMarks(pp.stands, (geo.userData.pav || {}).halfW || 0) : { rects: [], segs: [] };
+      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band });
       const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.frustumCulled = false; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
       G.roads.add(m);
     }
@@ -837,7 +859,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (PAV && R && SITE.sitePaintStrip && LKp && LKp.cls && !PG.runwayIsWater(r)) {
         // THE PAVEMENT STRIP (v1.16): what the game will stand - the same builder, the same recipe
         const RS = PAV.resolve(r, O.rec, LKp);
-        const geo = PAV.stripGeometry(THREE, { len: A.len, wid: A.wid, hdg: A.hdg, cx: A.x, cz: A.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(r.id), heightAt, lift: 0.07, resU: 6, resV: 3 });
+        const geo = PAV.stripGeometry(THREE, { len: A.len, wid: A.wid, hdg: A.hdg, cx: A.x, cz: A.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(r.id), heightAt, lift: 0.07, resU: 6, resV: 3, shoulderK: pavedKeep(r) });
         const mat = PAV.make(THREE, { lib: pavLib(), cls: RS.cls, marks: RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(R, SITE.sitePaintStrip), recipe: RS.recipe, band: RS.band });
         const pm = new THREE.Mesh(geo, mat); pm.renderOrder = 2; pm.receiveShadow = true; pm.frustumCulled = false; pm.name = 'runway:' + r.id; pm.userData.premId = r.id; pm.userData.pavMat = true;
         G.runways.add(pm);
@@ -1440,9 +1462,14 @@ function make(THREE, scene, world, rec0, opts) {
   function buildObject(ob) {
     const PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
     const w = O.frame.toWorld(ob.x, ob.z), yaw = ob.yaw + O.frame.yaw;
+    // THE GROUND IS THE DEFAULT HEIGHT (2026-09-23): the editor writes a prop as { x, z, yaw, dy,
+    // on: 'ground' } and no `y` at all, so an authored or hand-placed object stood at y = 0 - the sea.
+    // A number in `y` still wins (a thing on a roof, a raft); otherwise it is the composed ground plus
+    // the entry's own `dy`.
+    const obY = (typeof ob.y === 'number') ? ob.y : (O.terrainAt(w[0], w[1]) + (+ob.dy || 0));
     if (ob.kind === 'prop') {
       if (!pp || !PR || !PR.props[ob.key]) return null;
-      const g = pp(THREE, ob.key, w[0], w[1], yaw, ob.y);
+      const g = pp(THREE, ob.key, w[0], w[1], yaw, obY);
       if (ob.on === 'ground') tiltToGround(g, (x, z) => O.terrainAt(x, z), w[0], w[1], yaw);
       G.houses.add(g);
       hitAdd(g, 'prop', 0.5);
@@ -1455,7 +1482,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (ob.kind === 'aircraft') {
       const PK = window.PARKED;
       if (!PK || !PK.place) return null;
-      const g = PK.place(THREE, ob.key, w[0], ob.y, w[1], yaw);
+      const g = PK.place(THREE, ob.key, w[0], obY, w[1], yaw);
       G.houses.add(g);
       // the holder fills when the capture lands: registered then (step() looks for it)
       hitAdd(g, 'aircraft', 0.5);
@@ -1465,9 +1492,9 @@ function make(THREE, scene, world, rec0, opts) {
       const BG = window.BIG_GEN;
       if (!BG || !BG.billboard) return null;
       const c = Math.cos(yaw), sn = Math.sin(yaw);
-      const bb = BG.billboard({ key: ob.key, w: ob.w, ground: (x, z) => O.terrainAt(w[0] + x * c + z * sn, w[1] - x * sn + z * c) - ob.y });
+      const bb = BG.billboard({ key: ob.key, w: ob.w, ground: (x, z) => O.terrainAt(w[0] + x * c + z * sn, w[1] - x * sn + z * c) - obY });
       const F = BG.billboardFinish(ob.key);
-      const grp = new THREE.Group(); grp.position.set(w[0], ob.y, w[1]); grp.rotation.y = yaw;
+      const grp = new THREE.Group(); grp.position.set(w[0], obY, w[1]); grp.rotation.y = yaw;
       for (const k of bb.BAGS) bb.bags[k].mesh(grp, F.MAT[k]);
       if (bb.bags.aoskirt && window.HOUSE_GEN && window.HOUSE_GEN.MAT && window.HOUSE_GEN.MAT.aoskirt) { const sk = bb.bags.aoskirt.mesh(grp, window.HOUSE_GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
       G.houses.add(grp);

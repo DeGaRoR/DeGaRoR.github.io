@@ -403,6 +403,29 @@
      ]
     ],
     "surface": 6
+   },
+   {
+    "id": "af_y_park",
+    "poly": [
+     [
+      -218.0,
+      692.0
+     ],
+     [
+      -196.0,
+      692.0
+     ],
+     [
+      -196.0,
+      758.0
+     ],
+     [
+      -218.0,
+      758.0
+     ]
+    ],
+    "surface": 5,
+    "apron": true
    }
   ],
   "material": [
@@ -578,6 +601,41 @@
     "tile": null,
     "fade": 4,
     "z": 1
+   },
+   {
+    "id": "af_m_park",
+    "poly": [
+     [
+      -218.0,
+      692.0
+     ],
+     [
+      -196.0,
+      692.0
+     ],
+     [
+      -196.0,
+      758.0
+     ],
+     [
+      -218.0,
+      758.0
+     ]
+    ],
+    "look": "worn",
+    "band": 3,
+    "yaw": 0.0,
+    "z": 2,
+    "pav": {
+     "paintAge": 0.45
+    },
+    "stands": {
+     "n": 6,
+     "pitch": 11.0,
+     "lead": 10.0,
+     "bar": 2.8,
+     "u0": -7.0
+    }
    }
   ],
   "exclude": [
@@ -1464,7 +1522,7 @@
        618.0
       ],
       "b": [
-       -128.0,
+       -150.0,
        618.0
       ],
       "gap": null,
@@ -1473,7 +1531,7 @@
      {
       "a": [
        -128.0,
-       618.0
+       670.0
       ],
       "b": [
        -128.0,
@@ -1537,6 +1595,70 @@
       "x": -28,
       "z": -6,
       "yaw": -0.3,
+      "P": {},
+      "onRoad": false,
+      "bottomOnRoad": false
+     }
+    ]
+   },
+   {
+    "id": "af_s_pump",
+    "name": "Jolene AFB pump house",
+    "at": {
+     "x": -96.0,
+     "z": 742.0,
+     "yaw": -1.5708
+    },
+    "yard": {
+     "x0": -9,
+     "x1": 9,
+     "z0": -7,
+     "z1": 9
+    },
+    "items": [
+     {
+      "id": "pump",
+      "key": "shed/tool shed",
+      "x": 0,
+      "z": 0,
+      "yaw": 0.0,
+      "P": {},
+      "onRoad": false,
+      "bottomOnRoad": false
+     },
+     {
+      "id": "wood",
+      "key": "shed/wood shed",
+      "x": 12,
+      "z": -2,
+      "yaw": 1.5708,
+      "P": {},
+      "onRoad": false,
+      "bottomOnRoad": false
+     }
+    ]
+   },
+   {
+    "id": "af_s_fire",
+    "name": "Jolene AFB fire point",
+    "at": {
+     "x": -176.0,
+     "z": 622.0,
+     "yaw": -1.5708
+    },
+    "yard": {
+     "x0": -11,
+     "x1": 11,
+     "z0": -8,
+     "z1": 10
+    },
+    "items": [
+     {
+      "id": "bay",
+      "key": "hangar/field shed, small",
+      "x": 0,
+      "z": 0,
+      "yaw": 0.0,
       "P": {},
       "onRoad": false,
       "bottomOnRoad": false
@@ -1657,6 +1779,355 @@
     "n": 7,
     "r": 130,
     "dy": 0
+   },
+   {
+    "id": "af_park1",
+    "kind": "aircraft",
+    "key": "arch:cub",
+    "x": -208.5,
+    "z": 708.5,
+    "yaw": -1.591
+   },
+   {
+    "id": "af_park2",
+    "kind": "aircraft",
+    "key": "arch:c172",
+    "x": -208.5,
+    "z": 730.5,
+    "yaw": -1.541
+   },
+   {
+    "id": "af_fuel_truck",
+    "kind": "prop",
+    "key": "auto_flatbed_unimog",
+    "x": -186.0,
+    "z": 737.0,
+    "yaw": -1.491,
+    "on": "ground"
+   },
+   {
+    "id": "af_fuel_can1",
+    "kind": "prop",
+    "key": "jerrycan_green",
+    "x": -184.2,
+    "z": 733.4,
+    "yaw": 0.7,
+    "on": "ground"
+   },
+   {
+    "id": "af_fuel_can2",
+    "kind": "prop",
+    "key": "jerrycan_green",
+    "x": -183.6,
+    "z": 732.8,
+    "yaw": 2.2,
+    "on": "ground"
+   },
+   {
+    "id": "af_fuel_tin",
+    "kind": "prop",
+    "key": "oil_tin",
+    "x": -185.4,
+    "z": 734.6,
+    "yaw": 1.1,
+    "on": "ground"
+   },
+   {
+    "id": "af_fuel_man",
+    "kind": "prop",
+    "key": "person_john",
+    "x": -184.6,
+    "z": 735.6,
+    "yaw": 1.171,
+    "on": "ground"
+   },
+   {
+    "id": "af_fuel_pallet",
+    "kind": "prop",
+    "key": "pallet_one",
+    "x": -188.6,
+    "z": 740.2,
+    "yaw": 0.3,
+    "on": "ground"
+   },
+   {
+    "id": "af_frt_truck",
+    "kind": "prop",
+    "key": "auto_boxtruck_white",
+    "x": -186.5,
+    "z": 668.0,
+    "yaw": -1.631,
+    "on": "ground"
+   },
+   {
+    "id": "af_frt_pallets",
+    "kind": "prop",
+    "key": "pallets_stack",
+    "x": -190.0,
+    "z": 664.6,
+    "yaw": 0.25,
+    "on": "ground"
+   },
+   {
+    "id": "af_frt_pallets2",
+    "kind": "prop",
+    "key": "pallets_three",
+    "x": -192.2,
+    "z": 663.8,
+    "yaw": 1.9,
+    "on": "ground"
+   },
+   {
+    "id": "af_frt_cement",
+    "kind": "prop",
+    "key": "cement_bags",
+    "x": -194.4,
+    "z": 664.4,
+    "yaw": 0.6,
+    "on": "ground"
+   },
+   {
+    "id": "af_frt_man1",
+    "kind": "prop",
+    "key": "person_charles",
+    "x": -189.0,
+    "z": 666.6,
+    "yaw": 1.871,
+    "on": "ground"
+   },
+   {
+    "id": "af_frt_man2",
+    "kind": "prop",
+    "key": "person_luke",
+    "x": -191.6,
+    "z": 666.0,
+    "yaw": -0.6,
+    "on": "ground"
+   },
+   {
+    "id": "af_fire_truck",
+    "kind": "prop",
+    "key": "truck_fire_small",
+    "x": -170.0,
+    "z": 626.0,
+    "yaw": -1.521,
+    "on": "ground"
+   },
+   {
+    "id": "af_fire_cans",
+    "kind": "prop",
+    "key": "bags_stack",
+    "x": -176.6,
+    "z": 623.4,
+    "yaw": 0.9,
+    "on": "ground"
+   },
+   {
+    "id": "af_club_table",
+    "kind": "prop",
+    "key": "picnic_table",
+    "x": -180.4,
+    "z": 646.6,
+    "yaw": 0.35,
+    "on": "ground"
+   },
+   {
+    "id": "af_club_chair1",
+    "kind": "prop",
+    "key": "chair_wood",
+    "x": -178.6,
+    "z": 645.2,
+    "yaw": 2.1,
+    "on": "ground"
+   },
+   {
+    "id": "af_club_chair2",
+    "kind": "prop",
+    "key": "chair_plastic",
+    "x": -178.8,
+    "z": 648.2,
+    "yaw": -1.2,
+    "on": "ground"
+   },
+   {
+    "id": "af_club_man1",
+    "kind": "prop",
+    "key": "person_andrew",
+    "x": -179.6,
+    "z": 644.4,
+    "yaw": 2.371,
+    "on": "ground"
+   },
+   {
+    "id": "af_club_man2",
+    "kind": "prop",
+    "key": "person_koky",
+    "x": -181.2,
+    "z": 648.8,
+    "yaw": -2.4,
+    "on": "ground"
+   },
+   {
+    "id": "af_club_planter",
+    "kind": "prop",
+    "key": "planter",
+    "x": -183.2,
+    "z": 644.0,
+    "yaw": 0.0,
+    "on": "ground"
+   },
+   {
+    "id": "af_club_stool",
+    "kind": "prop",
+    "key": "stool_wood2",
+    "x": -180.0,
+    "z": 649.6,
+    "yaw": 0.5,
+    "on": "ground"
+   },
+   {
+    "id": "af_car1",
+    "kind": "prop",
+    "key": "auto_pickup_white",
+    "x": -226.0,
+    "z": 700.0,
+    "yaw": 3.142,
+    "on": "ground"
+   },
+   {
+    "id": "af_car2",
+    "kind": "prop",
+    "key": "auto_suv_blue",
+    "x": -226.0,
+    "z": 706.0,
+    "yaw": 3.102,
+    "on": "ground"
+   },
+   {
+    "id": "af_car3",
+    "kind": "prop",
+    "key": "auto_hatch_red",
+    "x": -226.0,
+    "z": 712.0,
+    "yaw": 3.172,
+    "on": "ground"
+   },
+   {
+    "id": "af_car4",
+    "kind": "prop",
+    "key": "auto_estate_white",
+    "x": -226.0,
+    "z": 718.0,
+    "yaw": 3.122,
+    "on": "ground"
+   },
+   {
+    "id": "af_wk_pallets",
+    "kind": "prop",
+    "key": "pallets_three",
+    "x": -214.0,
+    "z": 662.0,
+    "yaw": 1.2,
+    "on": "ground"
+   },
+   {
+    "id": "af_wk_cinder",
+    "kind": "prop",
+    "key": "cinder_pallet",
+    "x": -216.6,
+    "z": 658.6,
+    "yaw": 0.4,
+    "on": "ground"
+   },
+   {
+    "id": "af_wk_tin1",
+    "kind": "prop",
+    "key": "oil_tin",
+    "x": -212.4,
+    "z": 659.2,
+    "yaw": 2.6,
+    "on": "ground"
+   },
+   {
+    "id": "af_wk_tin2",
+    "kind": "prop",
+    "key": "oil_tin",
+    "x": -211.8,
+    "z": 658.4,
+    "yaw": 0.9,
+    "on": "ground"
+   },
+   {
+    "id": "af_wk_bags",
+    "kind": "prop",
+    "key": "bags_lean",
+    "x": -217.4,
+    "z": 663.6,
+    "yaw": 1.7,
+    "on": "ground"
+   },
+   {
+    "id": "af_wk_junk",
+    "kind": "prop",
+    "key": "car_junk",
+    "x": -220.0,
+    "z": 651.0,
+    "yaw": 3.642,
+    "on": "ground"
+   },
+   {
+    "id": "af_wk_fence",
+    "kind": "prop",
+    "key": "fence_old",
+    "x": -210.0,
+    "z": 655.0,
+    "yaw": 0.0,
+    "on": "ground"
+   },
+   {
+    "id": "af_tx_van",
+    "kind": "prop",
+    "key": "auto_van_connect",
+    "x": -104.0,
+    "z": 700.0,
+    "yaw": -1.371,
+    "on": "ground"
+   },
+   {
+    "id": "af_tx_pallet",
+    "kind": "prop",
+    "key": "pallet_one",
+    "x": -100.0,
+    "z": 703.0,
+    "yaw": 0.8,
+    "on": "ground"
+   },
+   {
+    "id": "af_tx_man",
+    "kind": "prop",
+    "key": "person_john",
+    "x": -97.0,
+    "z": 700.6,
+    "yaw": 1.571,
+    "on": "ground"
+   },
+   {
+    "id": "af_sign_13",
+    "kind": "billboard",
+    "key": "rwy:13/31:r",
+    "x": -88.9,
+    "z": 472.4,
+    "yaw": -0.45,
+    "w": 2.0
+   },
+   {
+    "id": "af_sign_02",
+    "kind": "billboard",
+    "key": "rwy:02/20",
+    "x": 176.0,
+    "z": 699.5,
+    "yaw": -1.806,
+    "w": 2.0
    }
   ]
  },
@@ -1666,5 +2137,5 @@
   "smoke": 6,
   "people": 40
  },
- "rev": 7
+ "rev": 8
 }

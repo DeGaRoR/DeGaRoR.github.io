@@ -714,4 +714,13 @@ after the freeze, against this document.
   nothing and said nothing. While fixing it: the loop that carried the `band`, `pav` and `look`
   checks for roads and runways **only ever ran over the polygon layers**, so none of those three has
   been checked on a road or a runway since v1.16. They are checked now, in their own loop.
+- **v1.21 (2026-09-23).** A material polygon may carry **`stands`** — the aircraft parking stands
+  painted on it. `{ n, pitch, lead, bar, u0, vOff }`: `n` stands (1–24) `pitch` metres apart, each a
+  `lead` metre lead-in line with a `bar` metre nose-stop across its far end, painted yellow in the
+  POLYGON'S OWN frame (centred on it, turned by its `yaw`), drawn by `PAVEMENT.standMarks`. The row
+  is validated exactly as `pav` is — `STAND_KEYS` in the core, held equal to the knobs
+  `standMarks` reads by GATE PAVEMENT §10 — so a misspelt key names itself instead of being
+  silently ignored. Jolene AFB's `af_m_park` is the first: six stands on 22 x 66 m of worn concrete
+  north of the hangars, with `pav: { paintAge: 0.45 }` so the lines stay legible under the `worn`
+  look (which fades paint to 0.9, the WWII runway's wear).
 

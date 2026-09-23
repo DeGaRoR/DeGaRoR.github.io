@@ -168,12 +168,165 @@ HANGAR_LOCAL = (-22.0, 0.0)
 HANGAR_W = club_world(*HANGAR_LOCAL)
 CLUB_YARD = {'x0': -60, 'x1': 40, 'z0': 14, 'z1': 54}                       # the apron, in the site's frame
 CLUB_FENCES = [{'a': [-72, -32], 'b': [72, -32], 'gap': [60, 84]}, {'a': [72, -32], 'b': [72, 62]}, {'a': [72, 62], 'b': [-72, 62]}, {'a': [-72, 62], 'b': [-72, -32]}]
+# ---------------------------------------------------------------------------
+# THE PARTS (2026-09-23): FIVE sessions author this one record at once - the
+# airfield, Metlakatla, and the three landmark scenes - so each writes its OWN
+# file under tools/jolene_parts/ and this merges them in. A part is either
+#
+#   <name>.py     a MODULE, executed here, free to compute (read the island's
+#                 rasters, walk streets ashore, print what it dropped and why),
+#                 leaving  PREFIX = 'xx_'  and  PART = {'objects': [...], ...}
+#   <name>.json   { "prefix": "xx_", "layers": { "objects": [...], ... } }
+#                 - which is what the WORLD EDITOR exports, so a scene authored
+#                 in the editor round-trips without a human in the middle
+#
+# THE RULES, agreed between the five sessions:
+#   * every entry's id carries its part's PREFIX (af_ airfield, mk_ Metlakatla,
+#     nv_ native area, mn_ mining, tw_ tramway). An id that does not, or one
+#     another part already used, fails LOUDLY here: the record is generated, so
+#     a silent drop is a village that vanishes and a gate that calls the result
+#     clean, because the gate checks the record it is given.
+#   * py parts first, then json, each alphabetical; and a part's OWN ORDER
+#     inside a layer is preserved - zones are sown in array order and a
+#     catch-all zone placed last is load-bearing for the town.
+#   * THE FIXTURE IS OUTPUT, NEVER SOURCE. On a merge conflict in
+#     island_jolene.json, take either side and RE-RUN this script.
+#   * BUMP `rev` WHEN YOU LAND. app.js shadows the fixture with the player's
+#     saved WIP unless rev goes up, so a rebaser who forgets it tests against a
+#     stale record in their own browser and sees none of their work.
+# ---------------------------------------------------------------------------
+PART_DIR = os.path.join(ROOT, 'tools', 'jolene_parts')
+
+def merge_parts(rec):
+    if not os.path.isdir(PART_DIR): return
+    import runpy
+    tools_dir = os.path.join(ROOT, 'tools')
+    if tools_dir not in sys.path: sys.path.insert(0, tools_dir)
+    ids = {}
+    for k, rows in rec['layers'].items():
+        for e in rows:
+            if isinstance(e, dict) and e.get('id'): ids[e['id']] = 'the field'
+    names = sorted(f for f in os.listdir(PART_DIR) if f.endswith('.py') and not f.startswith('_'))
+    names += sorted(f for f in os.listdir(PART_DIR) if f.endswith('.json'))
+    for f in names:
+        path = os.path.join(PART_DIR, f)
+        if f.endswith('.py'):
+            ns = runpy.run_path(path, run_name='jolene_part')
+            prefix, layers = ns.get('PREFIX'), ns.get('PART') or {}
+        else:
+            with open(path, encoding='utf8') as fh: o = json.load(fh)
+            prefix, layers = o.get('prefix'), o.get('layers') or {}
+        if not prefix: raise SystemExit('part %s: no PREFIX / "prefix"' % f)
+        n = 0
+        for k, rows in layers.items():
+            if k not in rec['layers']: raise SystemExit('part %s: no layer %r (%s)' % (f, k, ', '.join(sorted(rec['layers']))))
+            for e in rows:
+                i = e.get('id')
+                if not i or not str(i).startswith(prefix): raise SystemExit('part %s: id %r does not carry its prefix %r' % (f, i, prefix))
+                if i in ids: raise SystemExit('part %s: id %r is already %s' % (f, i, ids[i]))
+                ids[i] = f
+                rec['layers'][k].append(e); n += 1          # the part's own order, preserved
+        grow_extent(rec, layers, o.get('extent') if not f.endswith('.py') else ns.get('EXTENT'))
+        print('  part %-26s %-4s %4d entries' % (f, prefix, n))
+
+
+PART_MARGIN = 250.0          # a runway's shoulder, a flatten's falloff, a road's band
+
+
+def part_points(o, key=None, out=None):
+    """every world coordinate a part entry carries. Geometry lives in `poly`, `pts`, `c`, `a`, `b`
+    and in any dict with an x and a z (an object, a site's `at`, a site item); everything else is
+    walked through. A stray pair from somewhere harmless only ever pulls the extent toward the
+    island, which already covers it - the failure this guards is the opposite one."""
+    if out is None: out = []
+    if isinstance(o, dict):
+        x, z = o.get('x'), o.get('z')
+        if isinstance(x, (int, float)) and isinstance(z, (int, float)): out.append((float(x), float(z)))
+        for k, v in o.items(): part_points(v, k, out)
+    elif isinstance(o, (list, tuple)):
+        if len(o) == 2 and all(isinstance(v, (int, float)) for v in o) and key in ('c', 'a', 'b', 'end0', 'end1'):
+            out.append((float(o[0]), float(o[1])))
+        elif key in ('poly', 'pts'):
+            for e in o:
+                if isinstance(e, (list, tuple)) and len(e) >= 2 and all(isinstance(v, (int, float)) for v in e[:2]): out.append((float(e[0]), float(e[1])))
+                else: part_points(e, key, out)
+        else:
+            for e in o: part_points(e, key, out)
+    return out
+
+
+def grow_extent(rec, layers, explicit=None):
+    """THE EXTENT FOLLOWS THE PARTS (2026-09-23, the mining village session, who are putting a mine
+    6 km out: "render_premises builds the game's patch chunks and paints the material map only
+    inside extentWorld() - a part 6-12 km out gets its road cuts/flattens composed in physics but NO
+    ground drawn over them"). They were right: the extent is authored here and a part that lands
+    outside it is invisible. Every coordinate a part carries grows it, plus a margin for the
+    shoulders and falloffs the coordinates do not state; a JSON part may also name its own
+    `extent` (a .py part an `EXTENT`) as [x0, z0, x1, z1] and that is unioned as given."""
+    E = rec['frame']['extent']
+    if explicit and len(explicit) == 4:
+        E['x0'] = min(E['x0'], explicit[0]); E['z0'] = min(E['z0'], explicit[1])
+        E['x1'] = max(E['x1'], explicit[2]); E['z1'] = max(E['z1'], explicit[3])
+    for k, rows in layers.items():
+        for e in rows:
+            reach = PART_MARGIN
+            if k == 'runways': reach += float(e.get('len', 0)) / 2 + float(e.get('wid', 0))
+            elif k == 'sites': reach += 160.0                       # a yard and its items, in the site's own frame
+            for (x, z) in part_points(e):
+                E['x0'] = min(E['x0'], x - reach); E['z0'] = min(E['z0'], z - reach)
+                E['x1'] = max(E['x1'], x + reach); E['z1'] = max(E['z1'], z + reach)
+    for k in ('x0', 'z0', 'x1', 'z1'): E[k] = round(E[k], 1)
+
+def seg_dist(p, pts):
+    """distance from p to a polyline"""
+    best = 1e18
+    for i in range(1, len(pts)):
+        a, b = pts[i - 1], pts[i]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        l2 = dx * dx + dy * dy
+        t = 0.0 if l2 < 1e-12 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2))
+        best = min(best, math.hypot(p[0] - (a[0] + dx * t), p[1] - (a[1] + dy * t)))
+    return best
+
+def clip_fences(fences, avoid, least=4.0):
+    """THE FENCE STOPS AT THE MOVEMENT AREA (2026-09-23, the user: "there's a fence going through the
+    taxiways. There should be no fence whatsoever there, remove it"). A club's fence surrounds its
+    yard; where it meets a taxiway it ends, because an aeroplane goes through there. Clipped by RULE
+    rather than by moving coordinates, so it stays right if a taxiway ever moves: each segment is
+    walked at a metre and the runs that lie outside every movement area survive. A run under `least`
+    metres is not a fence, it is a post."""
+    out = []
+    for f in fences:
+        a, b = f['a'], f['b']
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        if L < 1e-6: continue
+        n = max(2, int(L))
+        hit = []
+        for i in range(n + 1):
+            t = i / n
+            q = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+            hit.append(any(seg_dist(q, pts) < hw for pts, hw in avoid))
+        i = 0
+        while i <= n:
+            if hit[i]: i += 1; continue
+            j = i
+            while j <= n and not hit[j]: j += 1
+            t0, t1 = i / n, (j - 1) / n
+            if (t1 - t0) * L >= least:
+                whole = t0 < 1e-9 and t1 > 1 - 1e-9
+                out.append({'a': pt(a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0),
+                            'b': pt(a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1),
+                            'gap': f.get('gap') if whole else None, 'style': f.get('style', 'rail')})
+            i = j
+    return out
+
 def club_fences():
     out = []
     for f in CLUB_FENCES:
         a = club_world(*f['a']); b = club_world(*f['b'])
         out.append({'a': pt(*a), 'b': pt(*b), 'gap': f.get('gap'), 'style': 'rail'})
-    return out
+    # ...and never across the taxiways: their own width and four metres of margin
+    return clip_fences(out, [(TAXI_NE, TAXI_W / 2 + 4), (TAXI_E, TAXI_W / 2 + 4)])
 yard_poly = [pt(*club_world(CLUB_YARD['x0'], CLUB_YARD['z0'])), pt(*club_world(CLUB_YARD['x1'], CLUB_YARD['z0'])), pt(*club_world(CLUB_YARD['x1'], CLUB_YARD['z1'])), pt(*club_world(CLUB_YARD['x0'], CLUB_YARD['z1']))]
 pad_poly = [pt(*club_world(-80, -40)), pt(*club_world(80, -40)), pt(*club_world(80, 70)), pt(*club_world(-80, 70))]
 # THE STAND on the apron in front of the shell's door (the door faces +z of the site = east), nose toward the
@@ -307,8 +460,9 @@ def main():
             ] + ANIMALS,
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 7,
+        'rev': 8,          # the airfield's life, the parking apron, the fence off the taxiways (2026-09-23)
     }
+    merge_parts(rec)
     txt = json.dumps(rec, indent=1)
     if '--print' in sys.argv: print(txt); return
     with open(OUT, 'w', newline='\n') as f: f.write(txt + '\n')

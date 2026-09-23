@@ -78,11 +78,18 @@ const PAVEMENT = (() => {
     rubberK: 0.7, rubberStart: 120, rubberPeak: 420, rubberEnd: 900, rubberTrack: 2.4, rubberSpread: 1.4, rubberStreak: 0.6,
     rutTrack: 0.85, rutW: 0.3, rutDepth: 0.7, rutAmp: 1.0, rutLambda: 80, rutGrass: 0.6, shoulderPaths: 2,
     roadLane: 3.5, wheelPolish: 0.5,
-    edgeChip: 0.6, band: -1, grassReach: 6, fadeW: 6, bandNoise: 0.5,
+    // THE BAND MEETS THE ISLAND (2026-09-23, the user on an aerial of Jolene: "there is a huge
+    // difference in light and color between the runway sides and the surrounding terrain ... the
+    // colours should blend better with their environment ... the current settings are too harsh").
+    // Measured at 620 m over 13/31: the band read luma 136 against 84-96 for the graded grass beside
+    // it and 41-59 for the muskeg beyond - 2.3x to 3.3x, and neutral grey against a green island.
+    // Two levers, both here: the grass reaches FURTHER in over the band and its edge is raggeder
+    // (below), and the `dry` set's own grade is pulled down and turned toward the ground (in `grade`).
+    edgeChip: 0.6, band: -1, grassReach: 13, fadeW: 6, bandNoise: 0.85,
     detailFrom: 250, detailTo: 900, normalFrom: 120, normalTo: 500,
     specK: 1.0, nrmK: 1.0,
     softMix: 0.8, coarseK: 0.7, wheelBand: 0.85, treadK: 0.8, paintRelief: 1.0, mow: 0.6, edgeSoft: 2.6, grassRough: 0.82,
-    grade: { gravelR: [1.0, 0.55], gravelK: [0.95, 0.55], gravelS: [1.0, 0.5], dry: [0.62, 0.75], concreteA: [1.7, 0.45, 0.94, 0.98, 1.06], concreteB: [1.25, 0.6, 0.95, 0.98, 1.05], concreteD: [1.1, 0.7], mudAir: [1.1, 0.6], dirtP: [1.0, 0.7], grass: [0.9, 1.0], gravelG: [0.85, 0.7, 1.06, 1.0, 0.9], gravelF: [0.6, 0.6, 1.12, 1.0, 0.84], gravelB: [1.6, 0.6, 1.04, 1.0, 0.94], rockG: [0.75, 0.7, 1.02, 1.0, 0.94], dirtS: [2.9, 0.7], trailR: [0.55, 0.7], dirtG: [1.0, 0.8], tracksM: [2.6, 0.35], grassG: [0.9, 1.0, 0.9, 1.0, 0.8], grassP: [0.55, 0.9, 0.95, 1.0, 0.9], grassS: [1.6, 0.9], leafygrass: [0.8, 0.9, 0.85, 1.0, 0.75], fieldgrass: [0.85, 0.85], lush: [0.85, 1.0], sandC: [1.3, 0.8], gravelS: [0.6, 0.5] },
+    grade: { gravelR: [1.0, 0.55], gravelK: [0.95, 0.55], gravelS: [1.0, 0.5], dry: [0.40, 0.58, 0.96, 1.0, 0.91], concreteA: [1.7, 0.45, 0.94, 0.98, 1.06], concreteB: [1.25, 0.6, 0.95, 0.98, 1.05], concreteD: [1.1, 0.7], mudAir: [1.1, 0.6], dirtP: [1.0, 0.7], grass: [0.9, 1.0], gravelG: [0.85, 0.7, 1.06, 1.0, 0.9], gravelF: [0.6, 0.6, 1.12, 1.0, 0.84], gravelB: [1.25, 0.55, 1.0, 1.0, 0.92], rockG: [0.75, 0.7, 1.02, 1.0, 0.94], dirtS: [2.9, 0.7], trailR: [0.55, 0.7], dirtG: [1.0, 0.8], tracksM: [2.6, 0.35], grassG: [0.9, 1.0, 0.9, 1.0, 0.8], grassP: [0.55, 0.9, 0.95, 1.0, 0.9], grassS: [1.6, 0.9], leafygrass: [0.8, 0.9, 0.85, 1.0, 0.75], fieldgrass: [0.85, 0.85], lush: [0.85, 1.0], sandC: [1.3, 0.8], gravelS: [0.6, 0.5] },
   };
   let R = JSON.parse(JSON.stringify(RECIPE));
   // THE KNOBS (the port, 2026-09-22): one table for the bench's aside and the editor's PAVEMENT
@@ -302,7 +309,7 @@ const PAVEMENT = (() => {
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
     g.computeVertexNormals();
-    g.userData.pav = { kind: 'poly', shoulderW: shW, cls: CLASSES[cls], seed, rows: nz + 1, cols: nx + 1 };
+    g.userData.pav = { kind: 'poly', shoulderW: shW, cls: CLASSES[cls], seed, rows: nz + 1, cols: nx + 1, halfW, cx, cz };
     return g;
   }
 
@@ -410,6 +417,29 @@ const PAVEMENT = (() => {
     return { rects, segs: [], raw: rects.length, len, wid: w, lanes: n };
   }
 
+  // THE STANDS (2026-09-23, the user: "you may also further design a parking area for planes, with
+  // clear ground markings"): a light-aircraft stand is a LEAD-IN LINE with a nose-stop bar across it -
+  // the pilot tracks the line and stops with the nose wheel on the bar - painted yellow, `n` of them
+  // `pitch` metres apart. Drawn in a paved POLYGON's own frame, whose u/v are centred on the polygon
+  // and turned by its yaw, so the row runs along the apron's own axis.
+  // `uMid` is the polygon's own centre in ITS u: polyGeometry writes aPav.x = u + halfW, so a mark
+  // written about the middle of an apron must carry that offset or it lands off the mesh entirely
+  // (the first six stands did, 2026-09-23). The strip's u starts at 0, so uMid is 0 there.
+  function standMarks(o, uMid) {
+    o = o || {};
+    const n = Math.max(1, Math.min(24, (o.n | 0) || 6)), pitch = +o.pitch > 0 ? +o.pitch : 11;
+    const lead = +o.lead > 0 ? +o.lead : 9, bar = +o.bar > 0 ? +o.bar : 2.6, w = 0.075;
+    const mid = +uMid || 0;
+    const v0 = -(n - 1) * pitch / 2 + (+o.vOff || 0), u0 = mid + (o.u0 === undefined ? -lead / 2 : +o.u0);
+    const rects = [];
+    for (let i = 0; i < n; i++) {
+      const v = v0 + i * pitch;
+      rects.push([u0, u0 + lead, v - w, v + w, 1, 0, 0, 0]);                                        // the lead-in line
+      rects.push([u0 + lead - w * 2, u0 + lead + w * 2, v - bar / 2, v + bar / 2, 1, 0, 0, 0]);      // the nose stop
+    }
+    return { rects, segs: [], raw: rects.length, len: lead, wid: n * pitch, lanes: 0, stands: n };
+  }
+
   // ---- the library: the sets a recipe names -> two arrays ---------------------
   // library(THREE, keys, done) builds uPavA (colour rgb + height a) and uPavN (normal xyz + rough a)
   // from PAVEMENT_TEX_SETS for exactly `keys`, in that order; returns { layerOf, metres, mean, ready }.
@@ -504,7 +534,7 @@ uniform vec4 uMean;
 uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
-float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
+float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft; float gPudK;
 struct Smp { vec4 c; vec4 n; };
 float pvHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 vec2 pvHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
@@ -957,15 +987,23 @@ float pvTread(float u, float x, float w, float seed) {
     if (uWet.y > 0.001) {
       float pn = pvFbm(uvS / uWet.z + 61.0) + (paved ? 0.06 * abs(v) / max(halfW, 1.0) : 0.0) + rut * 0.14 + joint * 0.05 - (grassy ? 0.08 : 0.0);
       float t = 1.0 - uWet.y * 0.9;
-      pud = smoothstep(t, t + uWet.w, pn) * uWet.y;
+      // THE COVER IS AN AREA, NOT A DEPTH (2026-09-23, the user: "the puddles should influence the
+      // colour too. Darker under the puddles, that's why they look odd"). pud was multiplied by
+      // uWet.y a second time, so at the shipped cover of 0.25-0.35 it peaked at 0.35 and pudK, a
+      // smoothstep over [0.15, 0.6], never got past 0.41: the bed was blended in at two fifths, the
+      // mirror at two fifths, and a puddle read as a faint gloss decal on dry concrete. The
+      // THRESHOLD is where the cover belongs - it already sets how much of the ground is under
+      // water - and inside that water the puddle is a whole puddle.
+      pud = smoothstep(t, t + uWet.w, pn);
     }
-    float wetK = clamp(wet + pud * 1.5, 0.0, 1.0);
+    float wetK = clamp(wet + pud * 0.6, 0.0, 1.0);
     col *= 1.0 - 0.38 * wetK; rough = mix(rough, 0.12, wet);
     // A PUDDLE IS WATER (the user, 2026-09-22: "give them a good water reflective material"): a flat
     // mirror (roughness 0.02, the normal straight up) over the wet bed - the bed dark and, on soft
     // ground, a shade of its own mud - so what the eye sees in it is the sky the environment gives
     float pudK = smoothstep(0.15, 0.6, pud);
-    vec3 bed = col * (paved ? 0.42 : 0.36) * (paved ? vec3(1.0) : vec3(1.0, 0.94, 0.86));
+    gPudK = pudK;
+    vec3 bed = col * (paved ? 0.60 : 0.50) * (paved ? vec3(1.0) : vec3(1.0, 0.94, 0.86));
     col = mix(col, bed, pudK);
     rough = mix(rough, 0.02, pudK);
     nT = mix(nT, vec3(0.0, 0.0, 1.0), pudK);
@@ -994,7 +1032,7 @@ float pvTread(float u, float x, float w, float seed) {
   GLSL.normal = `
   normal = normalize((viewMatrix * vec4(gPavN, 0.0)).xyz);`;
   GLSL.lights = `
-  { float pvS = uSpec.x * smoothstep(0.85, 0.45, roughnessFactor); reflectedLight.directSpecular *= pvS; reflectedLight.indirectSpecular *= pvS; }`;
+  { float pvS = uSpec.x * smoothstep(0.85, 0.45, roughnessFactor) * mix(1.0, 0.5, gPudK); reflectedLight.directSpecular *= pvS; reflectedLight.indirectSpecular *= pvS; }`;
   GLSL.debug = `
   if (uPavDbg > 0.5) gl_FragColor = vec4(gPavDbg, 1.0);`;
 
@@ -1105,7 +1143,7 @@ float pvTread(float u, float x, float w, float seed) {
   function exportRecipe() { return JSON.parse(JSON.stringify(R)); }
   function dispose(m) { const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose(); }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
+    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;

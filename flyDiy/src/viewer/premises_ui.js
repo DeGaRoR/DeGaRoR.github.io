@@ -95,7 +95,7 @@ const LS_WIP_DEFAULT = 'flydiy.premises.wip';
 
 // the keys a prop or billboard tool may stand: the prop registry's floor-standing props by group,
 // the sign painter's roadside keys - read at call time, so a pack loaded later is offered
-function objectKeys(kind) {
+function objectKeys(kind, rec) {
   // G411: the parked aeroplanes - the archetypes, the stock designs, your own saved builds
   if (kind === 'aircraft') { const PK = (typeof window !== 'undefined' && window.PARKED) || null; return PK && PK.keys ? PK.keys() : []; }
   // THE ANIMALS (2026-09-22): the baked table's own order (the registry IS the
@@ -114,7 +114,17 @@ function objectKeys(kind) {
   }
   const BG = (typeof window !== 'undefined' && window.BIG_GEN) || null;
   if (!BG || !BG.signKeys) return [];
-  return BG.signKeys().filter(k => (BG.signMeta(k) || {}).kind === 'roadside').map(k => [k, k]);
+  const out = BG.signKeys().filter(k => (BG.signMeta(k) || {}).kind === 'roadside').map(k => [k, k]);
+  // THE BALISAGE (2026-09-23): this record's own runways offer their designation
+  // plates - black and red - so a field signs itself and nothing is enumerated
+  // that the field does not have.
+  if (rec && rec.layers && rec.layers.runways) for (const r of rec.layers.runways) {
+    const m = /([0-9]{2}\/[0-9]{2})\s*$/.exec(String(r.name || ''));
+    if (!m) continue;
+    out.push(['rwy:' + m[1], 'runway plate · ' + m[1] + ' (black)']);
+    out.push(['rwy:' + m[1] + ':r', 'runway plate · ' + m[1] + ' (red)']);
+  }
+  return out;
 }
 function mount(host, ctx) {
   const { THREE, world, R, rows, els } = ctx;
@@ -564,7 +574,7 @@ function mount(host, ctx) {
       return;
     }
     if (tool === 'prop' || tool === 'billboard' || tool === 'aircraft' || tool === 'animal') {
-      const key = OBJ_PICK[tool] || (objectKeys(tool)[0] || [null])[0];
+      const key = OBJ_PICK[tool] || (objectKeys(tool, rec)[0] || [null])[0];
       if (!key) { strip.status('no ' + tool + ' to place here'); return; }
       const AN0 = (typeof window !== 'undefined' && window.ANIMALS) || null;
       const kind0 = (AN0 && AN0.reg(key)) ? AN0.reg(key).kind : 'land';
@@ -646,7 +656,7 @@ function mount(host, ctx) {
       }
       if (section === 'objects') {
         for (const kind of ['prop', 'billboard', 'aircraft', 'animal']) {
-          const keys = objectKeys(kind);
+          const keys = objectKeys(kind, rec);
           if (!keys.length) { rows.note(insp, 'no ' + kind + 's registered here'); continue; }
           if (!OBJ_PICK[kind]) OBJ_PICK[kind] = keys[0][0];
           rows.select(insp, kind, keys, () => OBJ_PICK[kind] || '', v => { OBJ_PICK[kind] = v; });
@@ -855,7 +865,7 @@ function mount(host, ctx) {
         a.clips.length + ' clip' + (a.clips.length === 1 ? '' : 's') + ' (' + [...new Set(a.clips.map(c => c.role))].join(', ') + ')');
       else rows.note(insp, 'the species "' + e.key + '" is not in the animal table of this build');
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft')) {
-      const keys = objectKeys(e.kind);
+      const keys = objectKeys(e.kind, rec);
       if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       if (e.kind === 'prop') {

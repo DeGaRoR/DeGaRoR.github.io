@@ -57098,3 +57098,91 @@ the wetter field, so reeds will read on dry peat until someone re-judges those r
 of the old tiled primitive for its preview bakes, and their ruling is to LEAVE IT - a bench preview that no
 longer wraps is cosmetic and visibly wrong, which beats a bench that quietly disagrees with the world. THE
 RULE THEY STATED: the bench follows the world, never the reverse.
+
+## G518 — JOLENE AFB IS A PLACE SOMEBODY WORKS: the field's life, a marked parking apron, the fence
+## off the taxiways, no dirt over a crossing runway, the band that stopped shouting, a darker puddle
+## and the runways' balisage (2026-09-23, the user, one message: "there's a fence going through the
+## taxiways ... add some life into the WWII airport ... where the 2 runways cross, the sides of the
+## runway on top render on top of the runway at the bottom ... I would like all of this to be built
+## with the world editor ... there is a huge difference in light and color between the runway sides
+## and the surrounding terrain ... very simple 'balisage' of the airport"; and mid-session: "the
+## puddles should influence the color too. Darker under the puddles")
+
+EVERYTHING HERE IS EDITOR DATA. Not one object is hard-coded in a renderer: the record carries it
+all, the user opens WORLD on the flight rail and drags any of it. That was the constraint and it
+shaped the rest.
+
+THE PARTS LOADER, because five sessions are authoring one generated record. `tools/fixtures/
+island_jolene.json` is written by `jolene_author.py`, so two sessions editing the island means
+hand-merging 27 kB of generated JSON, and whoever lands second loses. `merge_parts(rec)` now reads
+`tools/jolene_parts/*.py` and `*.json` immediately before the record is serialised: a part declares
+a `PREFIX` and a `PART` dict of layer -> entries, every id must carry the prefix, a duplicate id, a
+missing prefix or an unknown layer is a hard error, and each part keeps its own order inside a
+layer. Drop a file in, regenerate, never merge. (Offered to the Metlakatla, native-area, tramway and
+scenery-detail sessions; the scenery session is taking contract v1.22 so this one takes v1.21.)
+
+1. THE FENCE THROUGH THE TAXIWAYS. It crossed `r_taxi_ne` at (-133.9, 618) — the club's west run,
+   authored as a rectangle round the yard before the taxiway V existed. Fixed BY RULE, not by moving
+   a coordinate: `clip_fences(fences, avoid)` walks each run against each taxiway's centreline and
+   opens a gap over its width plus 4 m, so it stays right if a taxiway ever moves. Measured after:
+   the closest STANDING fence post to a taxiway edge is 4.1 m, over all four runs.
+2. THE FIELD'S LIFE — `tools/jolene_parts/airfield.py`, 43 entries, prefix `af_`. Seven scenes, each
+   one a story and none of them in the way: the fuel point (a flatbed backed up to the fuel shed,
+   cans out, a man signing for it), the freight run (a box truck nose-out at the long hangar's door,
+   the week's pallets and cement off the back, two men on it), the fire cover (the field's one
+   tender nose-out of its shed toward the taxiway), the club corner (a table in the lee of the
+   clubhouse, two people watching the circuit, somebody's wife's planter), the car park (four cars
+   nose-in to the trees outside the fence), the works corner (pallets, blocks, drums and the car that
+   came apart in 1994 — slight, not squalid, per "realistic, but not very dirty"), and the taxiway's
+   furniture. Two lone sheds in the woods off the taxiway as their own sites: a pump house and a
+   store. PROVED, not eyeballed: all 39 ground objects checked against every runway box and both
+   taxiway footprints — zero obstructions. "Nothing that prevents the plane from rolling off."
+3. THE PARKING APRON — contract v1.21. 22 x 66 m of worn concrete north of the hangars with SIX
+   MARKED STANDS: a material polygon may now carry `stands { n, pitch, lead, bar, u0, vOff }`, a
+   yellow lead-in line and nose-stop bar each, painted by `PAVEMENT.standMarks` in the polygon's own
+   frame. Validated like `pav` (`STAND_KEYS`), held equal to the viewer's knobs by GATE PAVEMENT §10.
+   `pav: { paintAge: 0.45 }` on it, because the `worn` look fades paint to 0.9 — the WWII runway's
+   wear, not an apron's. `z: 2` because `m_pad` already covers that ground at `z: 1`.
+   THE TRAP: `polyGeometry` writes `aPav.x = u + halfW`, so a polygon's u runs 0..2*halfW. A row of
+   marks written about ZERO — the natural way to centre a row on an apron — lands off the mesh and
+   paints nothing, silently. The first shot showed a blank apron. `standMarks` takes the offset.
+4. NO DIRT OVER A RUNWAY. Not a draw-order bug: a strip's pavement and its band are ONE mesh, so no
+   ordering of meshes can put 13/31's concrete between 02/20's concrete and 02/20's gravel. It is a
+   KEEP, and the mechanism existed — `shoulderK`. `pavedKeep(self)` returns 0 inside any other
+   runway's box or any paved polygon with a 4 m fade; each band now stops at the other's pavement
+   from both sides while the pavements still overlap, which is what a crossing looks like.
+5. THE BAND STOPPED SHOUTING. Measured from the aerial first (620 m, same frame before and after):
+   the band read luma 136 against 96 for the graded grass beside it and 56 for the muskeg — 2.3x to
+   3.3x, and neutral grey on a green island. `grade.dry` [0.62, 0.75] -> [0.40, 0.58, 0.96, 1.0,
+   0.91] (the shoulder of the concrete AND dirt classes, so strips, taxiways and dirt verges move
+   together), `grade.gravelB` 1.6 -> 1.25 for a road's own verge, `grassReach` 6 -> 13 m and
+   `bandNoise` 0.5 -> 0.85 so the two grounds interleave instead of meeting at a line.
+6. A PUDDLE IS DARKER UNDER IT. `pud` was `smoothstep(...) * uWet.y` — the cover knob applied twice,
+   once in the threshold where it belongs and again as a multiplier — so at the shipped cover it
+   peaked at 0.35 and `pudK` never got past 0.41: the bed blended at two fifths, the mirror at two
+   fifths, a gloss decal on dry concrete. The cover sets the AREA; inside it a puddle is a whole
+   puddle. THEN THE PICTURE SAID IT AGAIN: with a dark bed the puddles were STILL brighter than the
+   concrete round them - at roughness 0.02 the whole sky comes back off one, and a mirror of a bright
+   sky beats dark wet concrete every time. That was the "odd". The specular hook at
+   `lights_fragment_end` now carries a puddle term, `mix(1.0, 0.5, gPudK)`: the puddle keeps the
+   mirror the user asked for at G460.11 but returns half the sky, so what the eye reads is the dark
+   bed with a sheen over it. Bed 0.60 paved / 0.50 soft. Measured on 13/31 at 18 m, the pale blue
+   patches go to dark wet grey; the band beyond them goes with the change in 5.
+7. THE BALISAGE. A runway's designation plate — the user's photograph — as an ordinary BILLBOARD
+   with a generated key, `rwy:13/31:r` (red) and `rwy:02/20` (black): `BIG_GEN.rwySign` reads the
+   key, `designatorTexture` draws the weathered enamel, the stencilled numerals, the chipped paint,
+   the rust and the four bolts, and `billboard()` gives a plate low posts instead of a hoarding's.
+   Nothing entered the contract — the editor stands, turns, widens and deletes it like any sign — and
+   the billboard picker now offers THIS RECORD'S OWN runways' plates, so a field signs itself.
+   Both sit ~50 m off their centreline at their hold, clear of the graded band, facing the pilot.
+
+- FILES: tools/jolene_author.py (merge_parts + clip_fences, rev 8), tools/jolene_parts/airfield.py
+  (NEW), src/viewer/pavement.js (standMarks, the band grade and grassReach/bandNoise, the puddle's
+  depth and its half-sky specular), src/core/27_premises.js
+  (STAND_KEYS + standIssues, pavePolys carries stands), src/viewer/render_premises.js (pavedKeep,
+  the stands in buildPolys, an object's height from the ground when it has no `y`),
+  src/viewer/premises_ui.js (objectKeys takes the record, the runway plates in the picker),
+  tools/_big_gen.js (the designation plate), tools/_pavement_check.js (GATE PAVEMENT §10),
+  futureDesigns/PAVEMENT-2026-09-21.md §12-15, PREMISES-CONTRACT-2026-09-13.md v1.21.
+- PROOF: screenshots/pavement/af_*.png. GATE PAVEMENT / PREMISES green; the full battery is still
+  owed and is the user's to run for all the scenery sessions at once.
