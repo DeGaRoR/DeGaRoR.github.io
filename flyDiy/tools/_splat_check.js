@@ -215,6 +215,15 @@ function checkShader(G, splice, quiet) {
   say(rw.includes(".replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '/*"), "the hook cuts the IBL irradiance (the hemisphere stays the world's one ambient)");
   say(rw.includes("'vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness )' + GLOSS + ';'") && rw.includes("'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'") && /const SC = THREE\.ShaderChunk, GLOSS = ' \* smoothstep\( 0\.9, 0\.6, material\.roughness \)';/.test(rw), "the hook fades both specular lobes (the probe's and the sun's) out by roughness 0.9: dry ground is the Lambert it was");
   say(rw.includes("'#include <roughnessmap_fragment>' + SPL.glslRough"), "the sets' roughness spliced after roughnessmap_fragment");
+  // THE POND'S SOFTENING IS A DISTANCE TERM AND DIES AT THE EYE (2026-09-23, the user
+  // at 400 m: "they look like speckles on a surface, not like puddles"). The shore is
+  // widened and the wet margin opened with distance; both must be scaled by `far`, or
+  // the fix for altitude quietly softens the pond you are taxiing past.
+  { const pool = (glsl.match(/the pools: muskeg AND scrub[\s\S]{0,2400}/) || [''])[0];
+    say(/float far = clamp\(pd \/ 500\.0, 0\.0, 1\.0\);/.test(pool), 'the pond block measures its own distance (far, 0 at the eye and 1 by 500 m)');
+    say(/uSPud\.z \* \(1\.0 \+ uSPud2\.x \* far\)/.test(pool), "the shore's width rides it (pudFar)");
+    say(/float rim = uSPud2\.y \* far;/.test(pool), 'the wet margin rides it too (pudRim) - nothing softens up close'); }
+
   // the fields: the GLSL string carries GROUND_FIELDS.C's numbers (the JS is the reference)
   const C = G.C, want = [C.pool.period.toFixed(1), C.pool.thr0.toFixed(4), C.pool.thrWet.toFixed(4), C.mix.norm.toFixed(4), C.mix.scale2.toFixed(4), C.mix.w1.toFixed(4), C.mix.w2.toFixed(4), C.shade.scaleB.toFixed(4), String(C.blotch.cells)];
   const lost = want.filter(v => !G.glsl.includes(v));

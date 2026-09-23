@@ -57974,3 +57974,37 @@ curve): simpler to take in hand in the graph. (5) AN ALTIPORT DEPARTURE IS COMMI
 and on 10 % of downhill grass that stop is longer than the strip - the cub was condemned needing 33 m
 of the 227 left. Flown: cub and C172 depart from the summit stand (lift-off 82 m and 279 m) and land
 uphill; the stock cub circuit bit-identical to master's core. GATE PREMISES and WORLD green.
+
+## G536 — A POND IS A SHORE AND A MARGIN, NOT A SPOT (2026-09-23)
+
+THE USER, on a near-vertical shot from about 400 m over a bush strip: "Puddles just look too harsh seen from
+there. They look like speckles on a surface, not like puddles." G517 had already made them eight times fewer
+and four times bigger; this is about how the remaining ones are DRAWN.
+
+TWO REASONS A POND READ AS A SPECKLE, both measurable from the numbers already in the recipe:
+  - THE SHORE WAS UNDER A PIXEL. `pudEdge` is 0.01 noise units, and the pool field is sampled at pudSlope 3
+    over a 400-unit period, so that is 1.33 m of ground: right from the bank, invisible from altitude. The
+    mask's whole 0..1 ramp fell inside one pixel, so every pond had a hard, aliasing rim - the definition of a
+    speckle.
+  - AND IT HAD NO MARGIN. Real muskeg water sits in a wet hollow: peat-stained shallows over the bed, then
+    open water. The shader painted one still-water colour from the first fragment inside the mask, so a pond
+    was a flat dark disc with nothing around it.
+
+THE FIX IS TWO TERMS THAT BOTH RIDE THE DISTANCE AND ARE ZERO AT THE EYE:
+  - `pudFar` (12) widens the shore with distance - pudEdge x 13 by 500 m, so 1.33 m of shore becomes 17 m and
+    survives a pixel. The 0.5 contour of the mask is fixed (the ramp is centred on the threshold), so the pond
+    neither grows nor shrinks as it softens.
+  - `pudRim` (0.65) opens a wet margin, again scaled by distance: under it the ground's own colour goes dark
+    and wet (`pudWet` 0.62) AND KEEPS ITS ROUGHNESS, so only the middle of a pond is a mirror. A small pond
+    seen from height never reaches the open-water band at all and reads as a wet patch, which is what it is.
+BOTH ARE ZERO AT THE EYE BY CONSTRUCTION. The close view was not broken and must not be traded away to fix the
+far one: a pond you taxi past keeps the hard shoreline and the open water it has today. GATE SPLAT §3 holds
+that - it walks the pond block in the spliced GLSL and requires both terms to be multiplied by `far`.
+
+THE PICTURES, one boot, one eye, the knobs stepped (bench/pools/): f_a_s0 and f_a_s1 are the middle and strong
+settings against `e_soft_s0`, which is the old hard rim (pudFar 0, pudRim 0) - the speckles the user saw. The
+shipped values are the middle; the strong one washed the ponds out. g_final_air_s0 is the result from an
+oblique eye: soft wet hollows with graded shores, the lakes still mirrors.
+
+THE KNOBS ARE LIVE (F8 > ground, or `WORLD.ground.splat().set({...})`), so the next judgement needs no build:
+pudFar 0 restores the old rim exactly, pudWet 1 leaves the margin dry, pudRim 0 removes the margin.

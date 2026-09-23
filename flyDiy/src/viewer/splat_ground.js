@@ -67,7 +67,7 @@ const SPLAT_GROUND = (() => {
   uniform float uSGloss[${NLIB}];
   uniform float uSLum[${NLIB}];   // each set's mean luminance after its grade (linear): the detail's texel over it is pure TEXTURE
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
-  uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud;
+  uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2;
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
   uniform float uSHexPx;   // PERF 2026-09-23: the hex tiling only where a set's tile spans more than this many pixels (0 = everywhere)
   float gSPixM = 1.0;      // the fragment's footprint on the ground, metres a pixel (sSplat, in uniform flow)
@@ -208,9 +208,31 @@ const SPLAT_GROUND = (() => {
     if (V.y > 0.0 || V.x > 0.0) { vec2 gf = gfShade(P.xz, V.z); o.c.rgb = gfHueTurn(o.c.rgb, gf.x * V.x) * (1.0 + gf.y * V.y); }
     gSRel = gLuma(o.c.rgb) / max(uSLum[int(A.x + 0.5)], 1e-3);   // the texel over its set's mean: the texture alone, no set colour
     if ((i == 3 || i == 7) && uSPud.y > 0.0) {   // the pools: muskeg AND scrub (the user, 2026-09-21: the scrub is the muskeg)
-      float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, uSPud.z);
-      o.c.rgb = mix(o.c.rgb, vec3(0.022, 0.030, 0.034), m);   // still water, linear
-      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m);
+      // A POND IS A SHORE AND A MARGIN, NOT A SPOT (the user, 2026-09-23, from 400 m
+      // over the strip: "puddles just look too harsh seen from there. They look like
+      // speckles on a surface, not like puddles"). Two reasons it read as a speckle:
+      //   THE SHORE WAS UNDER A PIXEL. pudEdge is 0.01 noise units = 1.33 m of ground,
+      //   which is right at walking distance and invisible at altitude, so the mask's
+      //   0..1 ramp fell inside one pixel and every pond had a hard, aliasing rim.
+      //   uSPud2.x widens it with distance (the 0.5 contour is fixed - the ramp is
+      //   centred on the threshold - so the pond neither grows nor shrinks).
+      //   AND IT HAD NO MARGIN. Real muskeg water sits in a wet hollow: peat-stained
+      //   shallows over the bed, then open water. uSPud2.y is where the open water
+      //   starts in the mask; under it the ground's own colour goes dark and wet and
+      //   KEEPS ITS ROUGHNESS, so only the middle of a pond is a mirror.
+      // BOTH RIDE THE SAME DISTANCE TERM, and both are ZERO at the eye: a pond you
+      // taxi past keeps the hard shoreline and the open water it has today (which is
+      // what it looks like from the bank), and only the pond a kilometre off becomes
+      // a soft wet hollow. The complaint was about altitude; the close view was not
+      // broken and must not be traded away to fix it.
+      float pd = distance(P.xz, cameraPosition.xz);
+      float far = clamp(pd / 500.0, 0.0, 1.0);
+      float e = uSPud.z * (1.0 + uSPud2.x * far);
+      float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, e);
+      float rim = uSPud2.y * far;
+      float deep = rim > 0.001 ? smoothstep(rim, 1.0, m) : 1.0;
+      o.c.rgb = mix(o.c.rgb, mix(o.c.rgb * uSPud2.z, vec3(0.022, 0.030, 0.034), deep), m);   // still water, linear
+      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m * deep);
     }
     return o;
   }
@@ -444,7 +466,7 @@ const SPLAT_GROUND = (() => {
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
       uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
-      uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() },
+      uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() },
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
       uSHexPx: { value: 0 },   // the hex cut's dial: 0 = hex everywhere (see sSet)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
@@ -480,6 +502,8 @@ const SPLAT_GROUND = (() => {
       U.uSSeam.value.set(K.seamDepth, K.macroExp);
       U.uSNrm.value.set(K.nrmK, K.sheen === undefined ? 1 : K.sheen);   // (.y was the bench's specK, unused in the game; the game's lever is `sheen`)
       U.uSPud.value.set(K.pudCell, K.pudCover, K.pudEdge, K.pudSlope);
+      // the pond's shore at altitude and where its open water starts (2026-09-23)
+      U.uSPud2.value.set(K.pudFar === undefined ? 0 : K.pudFar, K.pudRim === undefined ? 0 : K.pudRim, K.pudWet === undefined ? 0.5 : K.pudWet, 0);
       U.uSLakeE.value.set(K.lakeEdge, 1);
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
