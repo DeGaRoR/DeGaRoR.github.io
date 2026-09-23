@@ -57443,6 +57443,17 @@ ifsar_canopy) that nothing at runtime reads.
   Jolene in the GRAPHICS menu, which is the switch that would have broken.
   THE BUDGET ITSELF NEEDS A RULING, and it is not this chantier's to make: 1113 bytes is one small feature from red
   for whoever lands next, and the fix is a decision about what leaves index.html, not another shuffle.
+- THE FIDELITY IS MEASURED, NOT ASSUMED, and not by me. The TERRAIN session ran GATE HYDRODYN's rule 6 (G521, which
+  surveys every lake on Jolene) in a worktree with NO FLYDIY_BENCH, off media/world/jolene alone: 239 lakes answer
+  their own level, 0 do not, 46 ponds have no basin left in the quadtree; of 73203 water points 71861 stand at their
+  level (98.17 %), 1235 are the sea at a lagoon, 105 a neighbouring record, 2 above. THE SAME NUMBERS TO THE LAST
+  DIGIT as the raw-bench run G521 landed with. So the shipped grids and the bench are the same bytes through the
+  WHOLE chain - quadtree, cover, lake records - which is a stronger claim than "the bake copies them" and than
+  anything this chantier could establish about itself. It is also the first time GATE HYDRODYN's island half has
+  been green in a worktree with no special environment.
+  WATCH ON THE NEXT RE-PREP: those 46 basin-less ponds are not a defect of the shipping - they are records whose bed
+  in the 5-level quadtree stands above their own declared level, small lakes the terrain decimation smoothed away,
+  and they behaved identically off bench/. If a re-prep changes the quadtree's depth, 46 is the number that moves.
 - PROVEN IN A WORKTREE THAT HAS NO bench/ AT ALL: `node tools/island_node.js jolene` composes (w2, HOME, w3, SEA);
   GATE WORLD 36 checks 0 failed with the eight island checks RUNNING; GATE MEDIA PASS (media/world/jolene 16 files,
   46.49 MB; index.html 8.69 MiB of 8.7); the page on `_serve.js` with NO --fallback boots `?world=jolene` with no
