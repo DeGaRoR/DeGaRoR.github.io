@@ -27,7 +27,7 @@ THE STREET GRID is two families: the numbered avenues on grid bearing 43 deg
 Skaters Lake Road, the graveyard road, the subdivision loops - is a traced
 polyline.
 """
-import json, math, os, random, sys
+import json, math, os, random, sys, zlib
 
 import numpy as np
 
@@ -1203,46 +1203,93 @@ def gyard(yid, cx, cz, a, b, seed=0, coast=True, bite=0.30, n=3):
     gradient - which is what bends a waterfront yard along its own beach instead of
     cutting a square hole in it.
     """
-    rnd = random.Random(hash((yid, seed)) & 0xffffffff)
-    # the rectangle's outline, walked
-    ring = []
-    C = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
-    for k in range(4):
-        su, sv = C[k]
-        tu, tv = C[(k + 1) % 4]
-        for i in range(n):
-            f = i / float(n)
-            u = (su + (tu - su) * f)
-            v = (sv + (tv - sv) * f)
-            # push the edge in or out; a CORNER moves less than the middle of a side
-            edge = 1.0 - abs(2.0 * f - 1.0)
-            k2 = 1.0 - bite * edge * rnd.random()
-            x = cx + u * a * k2 * UAX[0] + v * b * k2 * VAX[0]
-            z = cz + u * a * k2 * UAX[1] + v * b * k2 * VAX[1]
-            ring.append((x, z))
-    if coast:
-        ring = [pull_inland(x, z, 6.0) for x, z in ring]
-    # the walk can fold a vertex past its neighbours; the hull of the walked ring is
-    # not what we want (it would square it up again), so only near-duplicates go
-    out = [ring[0]]
-    for q in ring[1:]:
-        if math.hypot(q[0] - out[-1][0], q[1] - out[-1][1]) > 3.0:
-            out.append(q)
-    # ...AND THE RESULT MUST BE SIMPLE. The walk ashore can carry a vertex past its
-    # neighbours, and `compose` refuses a self-crossing polygon outright - the ferry
-    # yard's did, and the gate caught it. Drop the offending vertex and try again;
-    # a shape that will not come right falls back to the rectangle it started as,
-    # which is honest and is what was there before.
-    for _ in range(len(out)):
-        k = first_crossing(out)
-        if k < 0:
-            break
-        del out[k]
-        if len(out) < 4:
-            break
-    if len(out) < 4 or first_crossing(out) >= 0:
-        return grect(cx, cz, a, b)
-    return [pt(*q) for q in out]
+    # A STABLE DIGEST, NEVER THE BUILTIN `hash`. Python randomises hash() of a str
+    # per process (PYTHONHASHSEED is random by default since 3.3), so this line used
+    # to seed a different RNG on every run: three consecutive regenerations of the
+    # island gave three different md5s, the walked yard rings moved, and the wood
+    # belt dropped a different wedge each time - while the docstring above claimed
+    # "the same bay on every re-run". That breaks the property the whole jolene_parts
+    # scheme rests on: five sessions author ONE generated fixture, and the rule that
+    # makes that safe is that anyone may regenerate it and get the same bytes.
+    rnd = random.Random(zlib.crc32(('%s|%s' % (yid, seed)).encode()) & 0xffffffff)
+    def walk(bite_k, salt):
+        """one attempt at the walked ring, at this bite and salt; None if it will not come right"""
+        rn = random.Random(zlib.crc32(('%s|%s|%s' % (yid, seed, salt)).encode()) & 0xffffffff)
+        ring = []
+        C = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+        for k in range(4):
+            su, sv = C[k]
+            tu, tv = C[(k + 1) % 4]
+            for i in range(n):
+                f = i / float(n)
+                u = (su + (tu - su) * f)
+                v = (sv + (tv - sv) * f)
+                # push the edge in or out; a CORNER moves less than the middle of a side
+                edge = 1.0 - abs(2.0 * f - 1.0)
+                k2 = 1.0 - bite_k * edge * rn.random()
+                x = cx + u * a * k2 * UAX[0] + v * b * k2 * VAX[0]
+                z = cz + u * a * k2 * UAX[1] + v * b * k2 * VAX[1]
+                ring.append((x, z))
+        if coast:
+            ring = [pull_inland(x, z, 6.0) for x, z in ring]
+        # the walk can fold a vertex past its neighbours; the hull of the walked ring is
+        # not what we want (it would square it up again), so only near-duplicates go
+        out = [ring[0]]
+        for q in ring[1:]:
+            if math.hypot(q[0] - out[-1][0], q[1] - out[-1][1]) > 3.0:
+                out.append(q)
+        # ...AND THE RESULT MUST BE SIMPLE. The walk ashore can carry a vertex past its
+        # neighbours, and `compose` refuses a self-crossing polygon outright - the ferry
+        # yard's did, and the gate caught it. Drop the offending vertex and try again.
+        for _ in range(len(out)):
+            k = first_crossing(out)
+            if k < 0:
+                break
+            del out[k]
+            if len(out) < 4:
+                break
+        if len(out) < 4 or first_crossing(out) >= 0:
+            return None
+        # ...AND IT MUST STILL BE A YARD. Deleting crossing vertices one at a time can
+        # eat a folded ring down to a SLIVER that is perfectly simple and perfectly
+        # useless: the ferry yard came out at 134 m2 of its 8400, four vertices, and
+        # passed every test above it because nothing asked how big it was. The four
+        # sound yards keep 0.63 to 0.95 of their rectangle, so 0.40 is well clear of
+        # both. Without this the sliver ships and the ferry has no apron at all.
+        if poly_area(out) < 0.40 * 4.0 * a * b:
+            return None
+        return [pt(*q) for q in out]
+
+    # A SEARCH, NOT ONE THROW - AND STILL FULLY DETERMINISTIC. A yard that folds is
+    # usually one whose walk ashore fought the coast: the ferry's rectangle lies half
+    # in the water, every vertex on that side is dragged back onto its neighbours and
+    # the ring eats itself. One throw of the dice is then a coin toss over whether the
+    # yard is irregular or a bare rectangle - which is how the stable seed LOOKED like
+    # a regression: the old random seed happened to throw a good ferry yard on the run
+    # that got committed, and a bad one on the next.
+    #
+    # So the candidates are enumerated in a fixed order - four salts at each of three
+    # bites - and the FIRST that comes right is taken. The salt is part of the digest,
+    # so the search is a pure function of (yid, seed) and re-runs identically; nothing
+    # here reads a clock, a PYTHONHASHSEED or a set's iteration order. Only when all
+    # twelve fold does it fall back to the rectangle it started as, which is honest and
+    # is what was there before the walk existed.
+    for bite_k in (bite, bite * 0.66, bite * 0.4):
+        for salt in range(4):
+            got = walk(bite_k, salt)
+            if got is not None:
+                return got
+    return grect(cx, cz, a, b)
+
+
+def poly_area(poly):
+    """the polygon's area, unsigned"""
+    s = 0.0
+    for i in range(len(poly)):
+        x1, z1 = poly[i]
+        x2, z2 = poly[(i + 1) % len(poly)]
+        s += x1 * z2 - x2 * z1
+    return abs(s) / 2.0
 
 
 def first_crossing(poly):

@@ -967,6 +967,28 @@ if (SELFTEST) {
       const bk = surf();
       check(Object.keys(b4).every(k => b4[k] === bk[k]), '14p the cover stamp is exactly undone');
     }
+
+    // 14r THE AUTHORS ARE DETERMINISTIC, held by a source scan rather than by
+    // regenerating (which costs seconds and needs the DEM). Python randomises
+    // hash() of a str PER PROCESS, so `random.Random(hash((name, seed)))` seeds a
+    // different generator on every run: the island fixture came out with a
+    // different md5 three times running, the walked yard rings moved, and
+    // jolene_author --absorb reported phantom edits for a part nobody had touched.
+    // Five sessions now author ONE generated 176 kB record and the rule that makes
+    // that safe is that anyone may regenerate it and get the same bytes, so a
+    // builtin hash() anywhere in an author is a defect by construction. Use a
+    // stable digest - zlib.crc32, an FNV, hashlib - and never hash().
+    const authors = [path.join(TOOLS, 'metlakatla_author.py'), path.join(TOOLS, 'jolene_author.py')]
+      .concat(fs.readdirSync(path.join(TOOLS, 'jolene_parts')).filter(f => f.endsWith('.py'))
+                .map(f => path.join(TOOLS, 'jolene_parts', f)))
+      .filter(f => fs.existsSync(f));
+    for (const f of authors) {
+      const src = fs.readFileSync(f, 'utf8');
+      const bad = src.split(new RegExp('\\r?\\n')).map((L, i) => [i + 1, L])
+        .filter(([, L]) => /(?:^|[^.\w])hash\s*\(/.test(L) && !/^\s*#/.test(L) && !/hashlib/.test(L));
+      check(bad.length === 0, '14r ' + path.basename(f) + ": no builtin hash() - it is randomised per process",
+            bad.length ? 'line ' + bad[0][0] + ': ' + bad[0][1].trim() : 'none');
+    }
   }
 }
 
