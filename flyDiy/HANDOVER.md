@@ -58682,3 +58682,15 @@ darker, glossier, the lane tones showing through - with nothing lying on it.
   tools/fixtures/island_jolene.json, futureDesigns/PAVEMENT-2026-09-21.md section 13 - rewritten as
   the retirement, keeping both passes' reasoning, because the reasoning is why the feature could not
   be saved.
+
+## G545 — THE TRAMWAY ROAD IS A SMOOTH T OFF WALDEN POINT ROAD (2026-09-23, the user: "do the road to metlakatla yourself" ... "make it smooth, no hard corners")
+
+With Metlakatla on master (G543) the valley station's road met mk_r_walden - at its very END, leaving it
+backwards: Walden arrives heading ENE and tw_r_access left NNW, a ~120 deg hairpin, and it then climbed
+the coastal bank where it is steepest (x -1500: 23 %). Redrawn in the world editor as a T square to
+Walden's straight run between (-1570,-8312) and (-1437,-8296), at x -1550 where the bank is gentle
+(8-10 %), sweeping east up to the car park and ending inside it, `smooth: 40` (the circular fillet of
+contract v1.19) so every bend is an arc; it follows the ground (grade null). met_cross: no double, no
+sliver, no near miss on it. THE FIXTURE WAS SPLICED, NOT REGENERATED: on master, jolene_author.py does not
+reproduce the committed record - 14 of Metlakatla's DEM-walked shapes come out with other vertices in a
+clean worktree (told them) - so only tw_r_access changed in island_jolene.json, rev 21.
