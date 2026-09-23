@@ -4,6 +4,8 @@ THE ROADS, written as the world editor's record (tools/fixtures/island_jolene.js
 
     py -3.11 tools/jolene_author.py            # writes the fixture
     py -3.11 tools/jolene_author.py --print    # prints it
+    py -3.11 tools/jolene_author.py --absorb <exported.json> [--dry-run]
+                                               # the editor's export back INTO tools/jolene_parts/
 
 HONEST ABOUT THE METHOD (G404's own line): the record is written here, in the
 editor's file format, off the satellite views the user handed over and the
@@ -197,25 +199,40 @@ CLUB_FENCES = [{'a': [-72, -32], 'b': [72, -32], 'gap': [60, 84]}, {'a': [72, -3
 # ---------------------------------------------------------------------------
 PART_DIR = os.path.join(ROOT, 'tools', 'jolene_parts')
 
+def part_files():
+    """every part, in the order merge_parts applies them: the .py parts first (they may compute
+    what a .json part can only state), then the .json parts, alphabetical within each kind."""
+    if not os.path.isdir(PART_DIR): return []
+    names = sorted(f for f in os.listdir(PART_DIR) if f.endswith('.py') and not f.startswith('_'))
+    names += sorted(f for f in os.listdir(PART_DIR) if f.endswith('.json'))
+    return [os.path.join(PART_DIR, f) for f in names]
+
+
+def load_part(path):
+    """one reader for both kinds, so merge_parts and --absorb can never disagree about what a part
+    says. A .py part is RUN (its `PREFIX`, `PART`, optional `EXTENT`); a .json part is read, and its
+    whole object is kept as `raw` so --absorb can write it back with its other keys untouched."""
+    f = os.path.basename(path)
+    if f.endswith('.py'):
+        import runpy
+        tools_dir = os.path.join(ROOT, 'tools')
+        if tools_dir not in sys.path: sys.path.insert(0, tools_dir)
+        ns = runpy.run_path(path, run_name='jolene_part')
+        return {'file': f, 'path': path, 'kind': 'py', 'prefix': ns.get('PREFIX'),
+                'layers': ns.get('PART') or {}, 'extent': ns.get('EXTENT'), 'raw': None}
+    with open(path, encoding='utf8') as fh: o = json.load(fh)
+    return {'file': f, 'path': path, 'kind': 'json', 'prefix': o.get('prefix'),
+            'layers': o.get('layers') or {}, 'extent': o.get('extent'), 'raw': o}
+
+
 def merge_parts(rec):
-    if not os.path.isdir(PART_DIR): return
-    import runpy
-    tools_dir = os.path.join(ROOT, 'tools')
-    if tools_dir not in sys.path: sys.path.insert(0, tools_dir)
     ids = {}
     for k, rows in rec['layers'].items():
         for e in rows:
             if isinstance(e, dict) and e.get('id'): ids[e['id']] = 'the field'
-    names = sorted(f for f in os.listdir(PART_DIR) if f.endswith('.py') and not f.startswith('_'))
-    names += sorted(f for f in os.listdir(PART_DIR) if f.endswith('.json'))
-    for f in names:
-        path = os.path.join(PART_DIR, f)
-        if f.endswith('.py'):
-            ns = runpy.run_path(path, run_name='jolene_part')
-            prefix, layers = ns.get('PREFIX'), ns.get('PART') or {}
-        else:
-            with open(path, encoding='utf8') as fh: o = json.load(fh)
-            prefix, layers = o.get('prefix'), o.get('layers') or {}
+    for path in part_files():
+        P = load_part(path)
+        f, prefix, layers = P['file'], P['prefix'], P['layers']
         if not prefix: raise SystemExit('part %s: no PREFIX / "prefix"' % f)
         n = 0
         for k, rows in layers.items():
@@ -226,7 +243,7 @@ def merge_parts(rec):
                 if i in ids: raise SystemExit('part %s: id %r is already %s' % (f, i, ids[i]))
                 ids[i] = f
                 rec['layers'][k].append(e); n += 1          # the part's own order, preserved
-        grow_extent(rec, layers, o.get('extent') if not f.endswith('.py') else ns.get('EXTENT'))
+        grow_extent(rec, layers, P['extent'])
         print('  part %-26s %-4s %4d entries' % (f, prefix, n))
 
 
@@ -276,6 +293,182 @@ def grow_extent(rec, layers, explicit=None):
                 E['x0'] = min(E['x0'], x - reach); E['z0'] = min(E['z0'], z - reach)
                 E['x1'] = max(E['x1'], x + reach); E['z1'] = max(E['z1'], z + reach)
     for k in ('x0', 'z0', 'x1', 'z1'): E[k] = round(E[k], 1)
+
+# ---------------------------------------------------------------------------
+# --absorb: THE WAY BACK (2026-09-23, asked for by three sessions and by the
+# user's own line, "I would like all of this to be built with the world editor,
+# so I can edit it further myself later on").
+#
+# merge_parts carries a part INTO the record. This carries the record back OUT
+# into the parts, so an afternoon of dragging things about in the game's WORLD
+# editor survives the next regeneration instead of being overwritten by it.
+#
+#     py -3.11 tools/jolene_author.py --absorb <exported.json> [--dry-run]
+#
+# The export is whatever the editor saves - {what:'flydiy-premises',premises}
+# or a bare record. Every entry is bucketed by the LONGEST matching prefix (so
+# mn_ and a later mn_x_ cannot fight over an id), and then:
+#
+#   a .json part   is rewritten in place - its `layers` replaced, its own other
+#                  keys (part, prefix, note, extent) untouched;
+#   a .py part     is NOT written. It is a PROGRAM: jolene_parts/airfield.py
+#                  computes its positions from the club's quarter-turned frame
+#                  and names its scenes, and absorbing flat coordinates over
+#                  that would throw away every reason the numbers are what they
+#                  are. The diff is printed instead, for a human to apply;
+#   the author's   own entries are diffed and REPORTED, never dropped - they
+#                  live in this file's literals and only a human can move them;
+#   an entry that  matches no prefix is a NEW thing drawn in the editor. It is
+#                  reported with the prefixes it could join. Nothing is dropped
+#                  silently, ever: that is the whole contract of this command.
+#
+# Afterwards the record is rebuilt from the parts on disk and checked entry by
+# entry against the export. That check is the proof the absorb was lossless,
+# and it is why this is safe to run on work you cannot reproduce.
+# ---------------------------------------------------------------------------
+def _canon(o):
+    return json.dumps(o, indent=1, ensure_ascii=False)
+
+
+def _restore(before):
+    """put every part back to the bytes it had. --absorb writes first and proves afterwards, because
+    the proof is a real rebuild through merge_parts; if that rebuild refuses the result, the run must
+    leave the working tree exactly as it found it - a half-absorbed part is worse than none."""
+    for path, blob in before.items():
+        with open(path, 'wb') as fh: fh.write(blob)
+
+
+def absorb(own, path, write=True):
+    import difflib
+    try:
+        with open(path, encoding='utf8') as fh: o = json.load(fh)
+    except Exception as e:
+        raise SystemExit('--absorb %s: %s' % (path, e))
+    rec = o.get('premises') if isinstance(o, dict) and o.get('what') == 'flydiy-premises' else o
+    if not isinstance(rec, dict) or not isinstance(rec.get('layers'), dict):
+        raise SystemExit('--absorb %s: not a flyDiy premises export (no `layers`)' % path)
+
+    parts = [load_part(q) for q in part_files()]
+    for P in parts:
+        if not P['prefix']: raise SystemExit('part %s: no PREFIX / "prefix"' % P['file'])
+    longest = sorted(parts, key=lambda P: -len(P['prefix']))          # the longest prefix wins
+    own_by_id = {}
+    for k, rows in own['layers'].items():
+        for e in rows:
+            if isinstance(e, dict) and e.get('id'): own_by_id[e['id']] = (k, e)
+
+    before = {}                      # a json part's bytes before this run, so a failed check leaves nothing behind
+    bucket = dict((P['file'], {}) for P in parts)
+    mine, orphan, unknown_layer = [], [], set()
+    for k, rows in rec['layers'].items():
+        if k not in own['layers']: unknown_layer.add(k); continue
+        for e in rows:
+            if not isinstance(e, dict): continue
+            i = str(e.get('id') or '')
+            hit = next((P for P in longest if i and i.startswith(P['prefix'])), None)
+            if hit: bucket[hit['file']].setdefault(k, []).append(e)
+            elif i in own_by_id: mine.append((k, i, e))
+            else: orphan.append((k, i or '(no id)'))
+
+    print('--absorb %s' % path)
+    if unknown_layer:
+        print('  ! the export carries layers this author does not know: %s' % ', '.join(sorted(unknown_layer)))
+    wrote, refused, unchanged = [], [], []
+    for P in parts:
+        got = bucket[P['file']]
+        keys = list(P['layers'].keys()) + [k for k in got if k not in P['layers']]
+        new = dict((k, got.get(k, [])) for k in keys)
+        n = sum(len(v) for v in new.values())
+        if _canon(new) == _canon(P['layers']):
+            unchanged.append((P, n)); continue
+        if P['kind'] == 'py':
+            refused.append(P)
+            was = sum(len(v) for v in P['layers'].values())
+            print('  REFUSED %-26s %-4s %d -> %d entries: a .py part is a PROGRAM, not data.' % (P['file'], P['prefix'], was, n))
+            print('          Its numbers are computed and its scenes are named; writing flat coordinates')
+            print('          over it would throw the reasons away. The diff, for a human to apply:')
+            d = difflib.unified_diff(_canon(P['layers']).splitlines(), _canon(new).splitlines(),
+                                     fromfile=P['file'] + ' (now)', tofile=P['file'] + ' (the editor)', lineterm='', n=2)
+            for j, line in enumerate(d):
+                if j > 400:
+                    print('          ... (truncated; redirect the output for the whole diff)'); break
+                print('          ' + line)
+            continue
+        raw = dict(P['raw']); raw['layers'] = new
+        if write:
+            with open(P['path'], 'rb') as fh: before[P['path']] = fh.read()
+            with open(P['path'], 'w', encoding='utf8', newline='\n') as fh: fh.write(_canon(raw) + '\n')
+        wrote.append((P, n))
+        print('  %s %-26s %-4s %4d entries' % ('wrote ' if write else 'WOULD ', P['file'], P['prefix'], n))
+    for P, n in unchanged:
+        print('  same   %-26s %-4s %4d entries' % (P['file'], P['prefix'], n))
+
+    if mine:
+        changed = set(i for (k, i, e) in mine if _canon(e) != _canon(own_by_id[i][1]))
+        if not changed:
+            print('  %d entries belong to THIS FILE rather than to a part, all unchanged' % len(mine))
+        else:
+            print('  %d entr%s in the export belong to THIS FILE, not to a part:' % (len(mine), 'y' if len(mine) == 1 else 'ies'))
+            for k, i, e in mine:
+                if i in changed: print('    EDITED %-10s %s' % (k, i))
+        if changed:
+            print('  %d of them were EDITED and CANNOT be absorbed - they live in this file\'s own' % len(changed))
+            print('  literals. Move them here by hand, or give them a part. The diffs:')
+            shown = 0
+            for k, i, e in mine:
+                if i not in changed: continue
+                shown += 1
+                if shown > 10: print('    ... and %d more' % (len(changed) - 10)); break
+                for line in difflib.unified_diff(_canon(own_by_id[i][1]).splitlines(), _canon(e).splitlines(),
+                                                 fromfile=i + ' (this file)', tofile=i + ' (the editor)', lineterm='', n=1):
+                    print('    ' + line)
+    if orphan:
+        pref = ', '.join(sorted(P['prefix'] for P in parts)) or '(no parts)'
+        print('  %d entr%s no part prefix - NEW work drawn in the editor, kept nowhere by this run:'
+              % (len(orphan), 'y carries' if len(orphan) == 1 else 'ies carry'))
+        for k, i in orphan[:40]: print('    %-10s %s' % (k, i))
+        if len(orphan) > 40: print('    ... and %d more' % (len(orphan) - 40))
+        print('  Give each an id starting with one of: %s - then run --absorb again.' % pref)
+
+    # THE PROOF: rebuild from the parts on disk and check every absorbed entry against the export
+    if refused:
+        print('  no lossless check: a .py part was refused, so the parts on disk cannot reproduce this')
+        print('  export until its diff is applied by hand. What WAS written above is still written.')
+    if write and not refused and wrote:
+        import copy
+        check = copy.deepcopy(own)
+        keep, sys.stdout = sys.stdout, open(os.devnull, 'w')
+        try:
+            merge_parts(check)
+        except SystemExit as e:
+            sys.stdout.close(); sys.stdout = keep
+            _restore(before)
+            raise SystemExit('  %s\n  THE PARTS WERE PUT BACK - nothing on disk changed. The export itself is at fault.' % e)
+        finally:
+            if sys.stdout is not keep: sys.stdout.close(); sys.stdout = keep
+        after = {}
+        for k, rows in check['layers'].items():
+            for e in rows:
+                if isinstance(e, dict) and e.get('id'): after[e['id']] = (k, e)
+        bad = []
+        for P in parts:
+            for k, rows in bucket[P['file']].items():
+                for e in rows:
+                    i = e.get('id')
+                    if i not in after: bad.append('%s: lost' % i)
+                    elif after[i][0] != k: bad.append('%s: landed in %s, not %s' % (i, after[i][0], k))
+                    elif _canon(after[i][1]) != _canon(e): bad.append('%s: differs' % i)
+        if bad:
+            _restore(before)
+            raise SystemExit('  ABSORB IS NOT LOSSLESS - %d entr%s did not come back: %s\n  THE PARTS WERE PUT BACK - nothing on disk changed.'
+                             % (len(bad), 'y' if len(bad) == 1 else 'ies', ', '.join(bad[:8])))
+        print('  checked: every absorbed entry rebuilds identically from the parts on disk')
+    if wrote and write:
+        print('  now re-run this author to write the fixture, and BUMP `rev` if anything moved -')
+        print('  a player\'s browser keeps its own WIP under flydiy.premises.game.jolene and shadows')
+        print('  the shipped record until the rev says otherwise.')
+    return 0
+
 
 def seg_dist(p, pts):
     """distance from p to a polyline"""
@@ -462,6 +655,10 @@ def main():
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
         'rev': 10,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json) (2026-09-23)
     }
+    if '--absorb' in sys.argv:
+        k = sys.argv.index('--absorb')
+        if k + 1 >= len(sys.argv): raise SystemExit("--absorb needs the editor's exported json")
+        return absorb(rec, sys.argv[k + 1], write='--dry-run' not in sys.argv)
     merge_parts(rec)
     txt = json.dumps(rec, indent=1)
     if '--print' in sys.argv: print(txt); return

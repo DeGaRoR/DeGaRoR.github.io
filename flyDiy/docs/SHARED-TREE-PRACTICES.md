@@ -156,6 +156,27 @@ blocked for an hour between them), so it belongs here.
   sessions one always is. So a landing is built in a worktree and
   `git update-ref refs/heads/master NEW OLD` moves the branch (§2's recipe,
   with the expected-old and an ancestry check after).
+- AND THE EXPECTED-OLD IS NOT ENOUGH (2026-09-23, the third time this week a
+  "guarded" ref move displaced a peer). The three ways it has failed: an EMPTY
+  expected-old (a `;` in the landing one-liner); an expected-old read BEFORE a
+  25-second build and passed after it; and — the one that looks correct —
+  a perfectly fresh expected-old over a STALE BASE. A peer landed in the
+  seconds before the landing command started, so `CUR=$(git rev-parse master)`
+  read THEIR tip, the guard matched, and update-ref did exactly as told: moved
+  master to a commit whose parent was the OLDER tip. The peer's landing became
+  unreachable and their work vanished from the tip. An expected-old guards
+  against a RACE; it cannot see a stale base. Assert the fast-forward too,
+  in the same breath as the move:
+
+        CUR=$(git rev-parse master)
+        git merge-base --is-ancestor "$CUR" "$NEW" || { echo "NOT a fast-forward: rebase onto $CUR"; exit 1; }
+        git update-ref refs/heads/master "$NEW" "$CUR"
+
+  Both lines, never one: the assertion catches the stale base, the expected-old
+  catches the peer who lands between the assertion and the move. When a repair
+  must legitimately replace a commit, do not drop the assertion — assert
+  instead that every commit in `git log HEAD..master` is one of YOUR OWN, and
+  then move the ref.
 - WHAT IT LEAVES BEHIND. A ref move updates neither the shared INDEX nor its
   working copies. The moment master moves under that checkout:
   - every file your landing ADDED reads there as `D` (deleted). **Nobody

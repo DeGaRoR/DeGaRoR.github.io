@@ -57471,3 +57471,70 @@ this source; GATE WORLD first caught the cable's end 'missing' in node (no gener
 built) - a link now says 'an end is not built (no catalogue entry for its station)' when the end is
 declared on its site, which the gate's existing catalogue rule forgives, and 'missing' only when the
 record lacks it. MEDIA on the built pages.
+## G526 - THE WAY BACK: `jolene_author.py --absorb` carries the editor's record into the parts
+## (2026-09-23, the user: "write it", after three sessions asked and after their own line at G518,
+## "I would like all of this to be built with the world editor, so I can edit it further myself
+## later on")
+
+G518 gave the island a PARTS LOADER: `merge_parts` carries `tools/jolene_parts/*.py|json` INTO the
+generated record, so five sessions can author one island without hand-merging 45 kB of generated
+JSON. That was half a round trip. An afternoon of dragging things about in the game's WORLD editor
+still died at the next `python tools/jolene_author.py`, which is the moment "edit it further
+yourself later on" stopped being true.
+
+    py -3.11 tools/jolene_author.py --absorb <exported.json> [--dry-run]
+
+The export is whatever the editor saves - `{what:'flydiy-premises', premises}` or a bare record.
+Every entry is bucketed by the LONGEST matching part prefix (so `mn_` and a later `mn_x_` cannot
+fight over an id), and then four things happen, each of which is the whole point:
+
+1. A `.json` PART IS REWRITTEN IN PLACE - its `layers` replaced, its own other keys (`part`,
+   `prefix`, `note`, `extent`) untouched, its empty layers kept, written with the same
+   `json.dumps(indent=1)` the fixture uses so an unchanged absorb is a byte-identical no-op.
+   Deletions come free: the part's layers are rebuilt from the export, so an entry the user deleted
+   in the editor is simply not there any more.
+2. A `.py` PART IS REFUSED, and its diff printed for a human. This is not timidity: a `.py` part is
+   a PROGRAM. `jolene_parts/airfield.py` computes every position from the club's quarter-turned
+   frame (`W(lx, lz)`), names its seven scenes and states why each prop is where it is. Absorbing
+   flat coordinates over that would leave the same picture and throw away every reason for it -
+   exactly the failure "Build, don't reconstruct" names.
+3. THE AUTHOR'S OWN ENTRIES ARE REPORTED, NEVER DROPPED. `m_pad`, `HOME`, the taxiway V and the
+   other 54 live in this file's literals. If one was edited in the editor, the absorb says which and
+   prints the diff; if none was, it says so in one line and stays quiet.
+4. AN ENTRY MATCHING NO PREFIX is new work drawn in the editor. It is listed with the prefixes it
+   could join. Nothing is ever dropped silently - that is the command's whole contract.
+
+THEN IT PROVES ITSELF. After writing, the record is rebuilt from the parts ON DISK through the real
+`merge_parts` and every absorbed entry is compared with the export, layer and bytes. If the rebuild
+refuses the result - a duplicate id from a confused export, say - or if any entry fails to come
+back, EVERY PART IS RESTORED TO THE BYTES IT HAD and the run aborts saying so. A half-absorbed part
+is worse than none, and this is meant to be safe to run on an afternoon you cannot reproduce.
+
+- MEASURED, four ways: (a) absorbing the fixture the author has just written reports `same` for both
+  parts and writes nothing; (b) a realistic edited export - a site dragged 12 m, an entry deleted, a
+  `.py` part's prop moved, one of the author's own entries changed, one new prop with no prefix -
+  produces exactly those four verdicts and rewrites only the `.json` part (16 -> 15 entries, `note`
+  and `prefix` intact); (c) the good path prints `checked: every absorbed entry rebuilds identically
+  from the parts on disk`; (d) an export carrying the same id in two layers is refused BY THE REAL
+  `merge_parts` during that rebuild and leaves `git status` clean.
+- NOT GATED, deliberately. No gate in this tree runs python (`_prop_check.js` and friends read python
+  SOURCE as text), and making one depend on a python install to test a python tool would buy less
+  than it costs. The command carries its own rebuild proof and runs it on every use, which is a
+  stronger guarantee than an assertion in a battery that runs once a day.
+- Refactor under it: `part_files()` and `load_part()` are now the ONE reader both `merge_parts` and
+  `--absorb` use, so the two can never disagree about what a part says. Output-neutral: the fixture
+  regenerates byte-for-byte across the change.
+- FILES: tools/jolene_author.py (part_files + load_part + absorb + _restore + the `--absorb` hook in
+  main, before the parts are merged so the author's own entries are known).
+- OWED: the absorb does not bump `rev`. It says so at the end - a player's browser keeps its WIP
+  under `flydiy.premises.game.jolene` and shadows the shipped record until the rev moves.
+- WHY THE NUMBERS SKIP G523: two sessions landed a G522 within seconds of each other and the second
+  ref move displaced the first (the mine vanished from master's tip - found here while taking the
+  number, repaired by the water session, who rebased their pair onto the mining village's commit so
+  that one kept its identity and its number). G523 was consumed by that repair. The numbers run in
+  LANDING order, so this is G526 and G523 stays a gap rather than being back-filled out of sequence.
+- AND THE LESSON IS IN docs/SHARED-TREE-PRACTICES.md section 8 now: an expected-old on
+  `git update-ref` guards against a RACE and cannot see a STALE BASE. The displacing landing read
+  master correctly - it had just been read a second too late to notice its own parent was no longer
+  the tip. `git merge-base --is-ancestor "$CUR" "$NEW"` in the same breath as the move is the line
+  that catches it, and it belongs BESIDE the expected-old, not instead of it.
