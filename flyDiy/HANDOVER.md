@@ -58221,3 +58221,36 @@ the platform (310.4, -7844), the summit's people and tables clear of both.
 THE STRIP UNMARKED: `pav: { marks: 'none' }` on tw_ski - a summer ski slope, grass with the wheels'
 track and nothing painted. All of it in the world editor, extracted into tools/jolene_parts/tramway.json;
 `issues()` over the whole regenerated record: none. Flown both ways again (below); GATE PREMISES, WORLD.
+
+## G541 — THE FOREST FLOOR IS NOT THE CANOPY: the ground under the trees gets its brown back (2026-09-23)
+
+THE USER, circling the ground under and between the trees round the Jumbo Mine: "we misunderstand each other
+since the beginning on the rock color. That's the rock texture, but used for the forest ground. And this one has
+become terribly green. That is the one I want restored to original tones ... that's the same terrain going on
+under the trees."
+
+THE SET IS `forestAir`, the near AND far set of codes 8 (forest) and 13 (old forest) - the ground the eye sees
+between the trunks everywhere the island is wooded, which is most of it. Three landings went past it because
+the word was "rock" and this set is not in the rock family; the measurement was in the table the whole time:
+
+    forestAir   ships  0.126 / 0.083 / 0.026     RED highest, blue almost nothing - a forest-floor BROWN
+                gain   0.15  / 0.36  / 0.35
+                after  0.019 / 0.030 / 0.009     GREEN highest, and six times darker
+
+So the floor was turned from brown to green and then dimmed to a sixth. "Terribly green" is exactly right.
+
+THE REASON IS A CONFUSION THE NORMALISATION MAKES ONLY HERE, and it is worth stating because it will come up
+again for any set that lives under a canopy: the imagery's colour for a forest cell IS THE CANOPY, seen from
+orbit. `forestAir` is the GROUND UNDER that canopy - and this game draws its own trees on top of it. Painting
+the floor with the canopy's colour and then standing the trees over it counts the canopy twice, and what shows
+between the trunks is a green that belongs to the leaves. The imagery has nothing to say about a forest floor,
+because it has never seen one.
+
+SO forestAir JOINS THE SETS THAT TAKE NO GAIN (G537's rock list): 1/1/1, the photograph's own tone. The trees
+are the green; the ground under them is brown. GATE SPLAT 1c holds it with the rest - seven sets now, each
+exactly 1/1/1 - and still requires the vegetation sets (grass, grassRock, dry) to carry a per-channel gain, so
+the normalisation the user asked for on OPEN ground is untouched.
+
+PICTURE: bench/rock/f_forestfloor.png, the mine from the air - the floor between the trunks is forest-floor
+brown and the canopy is what is green. e_rockrestored.png beside it is the same eye one landing earlier, with
+the floor still on the imagery's colour.

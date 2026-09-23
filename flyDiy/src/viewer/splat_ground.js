@@ -463,11 +463,23 @@ const SPLAT_GROUND = (() => {
       // sets take no gain: 1/1/1, the texture as it shipped. The rest of the mineral list (sand,
       // shingle, dirt, peat, snow) keeps the single luminance gain - those surfaces do vary with
       // the place, and the imagery is a fair judge of how light they are.
-      const ROCK = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble)$/;
+      // AND THE FOREST FLOOR IS NOT THE CANOPY (2026-09-23, the user, circling the ground under and
+      // between the trees round the Jumbo Mine: "that's the rock texture, but used for the forest
+      // ground. And this one has become terribly green. That is the one I want restored to original
+      // tones ... that's the same terrain going on under the trees"). The set is `forestAir`, and it
+      // was the clearest case of all: it SHIPS BROWN - 0.126/0.083/0.026, red highest, blue almost
+      // nothing - and the gain 0.15/0.36/0.35 turned it into 0.019/0.030/0.009, GREEN highest and six
+      // times darker. THE REASON IS A CONFUSION THE WHOLE NORMALISATION MAKES HERE: the imagery's
+      // colour for a forest cell is the CANOPY seen from orbit, and `forestAir` is the GROUND UNDER
+      // that canopy - which this game then covers with its own drawn trees. Painting the floor with
+      // the canopy's colour and standing the trees on top counts the canopy twice, and what is left
+      // showing between the trunks is a green that belongs to the leaves. So the forest floor takes
+      // no gain either: it is the photograph's own brown, and the trees over it are the green.
+      const ROCK = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble|forestAir)$/;
       const MINERAL = /^(beach|coast[A-Za-z]*|dirt|mud|snowAir)$/;
       for (const k in num) {
         const g = num[k].map(v => v / den[k]);
-        if (ROCK.test(k)) { out[k] = [1, 1, 1]; }
+        if (ROCK.test(k)) { out[k] = [1, 1, 1]; }   // rock, and the forest floor: the photograph's own tone
         else if (MINERAL.test(k)) { const L = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; const l = Math.min(2.5, Math.max(0.5, L)); out[k] = [l, l, l]; }
         else out[k] = g.map(v => Math.min(2.5, Math.max(0.15, v)));
       }

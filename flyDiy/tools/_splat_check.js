@@ -374,14 +374,18 @@ function checkMineral(quiet) {
   // enough: "restore only the rock texture to its original tone"). The photograph of a rock IS
   // its tone; the imagery cannot judge it, because at 10 m a pixel its rock cells are rock with
   // trees on them. The rest of the mineral list does vary with the place and keeps ONE gain.
-  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble'];
+  // forestAir joined them (2026-09-23): it is the GROUND UNDER the canopy, and the imagery's
+  // forest colour is the canopy itself - normalising the floor to it paints the leaves on the
+  // ground and then stands the drawn trees on top, counting the canopy twice. It ships brown
+  // (0.126/0.083/0.026) and the gain made it green (0.019/0.030/0.009) and six times darker.
+  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble', 'forestAir'];
   const MUST_KEEP_HUE = ['beach', 'coastA', 'coastSand', 'dirt', 'mud', 'snowAir'];
   const moved = [];
   for (const k of ROCK_AS_SHIPPED) {
     const g = norm[k]; if (!g) continue;
     if (Math.abs(g[0] - 1) > 1e-6 || Math.abs(g[1] - 1) > 1e-6 || Math.abs(g[2] - 1) > 1e-6) moved.push(`${k} ${g.map(v => v.toFixed(2)).join('/')}`);
   }
-  say(!moved.length, `every ROCK set is its shipped tone, gain 1/1/1: ${moved.length ? moved.join(', ') : ROCK_AS_SHIPPED.filter(k => norm[k]).length + ' checked'}`);
+  say(!moved.length, `every rock set AND the forest floor are their shipped tone, gain 1/1/1: ${moved.length ? moved.join(', ') : ROCK_AS_SHIPPED.filter(k => norm[k]).length + ' checked'}`);
   const bad = [];
   for (const k of MUST_KEEP_HUE) {
     const g = norm[k]; if (!g) continue;
@@ -391,7 +395,7 @@ function checkMineral(quiet) {
   say(!bad.length, `the other mineral sets take ONE luminance gain, not a colour: ${bad.length ? bad.join(', ') : MUST_KEEP_HUE.filter(k => norm[k]).length + ' checked, all neutral'}`);
   // and the vegetation sets still DO take the imagery's colour - the rule is a
   // carve-out, not a retreat from the normalisation the user asked for
-  const veg = ['forestAir', 'grass', 'grassRock', 'dry', 'lush', 'leaves'].filter(k => norm[k]);
+  const veg = ['grass', 'grassRock', 'dry', 'lush', 'leaves'].filter(k => norm[k]);
   const coloured = veg.filter(k => { const g = norm[k]; return Math.abs(g[0] - g[1]) > 1e-6 || Math.abs(g[1] - g[2]) > 1e-6; });
   say(coloured.length >= 2, `the vegetation sets still take the imagery's colour (${coloured.length} of ${veg.length} have a per-channel gain)`);
   if (!quiet) for (const [ok, line] of out) verdict(ok, line);
