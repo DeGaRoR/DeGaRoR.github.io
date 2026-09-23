@@ -50,13 +50,125 @@ function make(THREE, scene, world, rec0, opts) {
                                                      : PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
   let O = composeNow();
   const root = new THREE.Group(); root.name = 'premises';
-  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'traffic', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'traffic', 'animals', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  // THE STATIC SUBTREES LEAVE THE MATRIX WALK (PERF 2026-09-23). The frame is CPU-bound on Jolene (three's render()
+  // was 22 ms of the 24 at 300 m over the field), and 12 % of it was updateMatrixWorld: 20 500 objects composed
+  // and multiplied every frame, 17 400 of them the premises' - houses (8 000), lots, roads, the ground - none of
+  // which ever moves once built (an edit REBUILDS them). A built child of these groups is posed once and then
+  // skips both (matrixAutoUpdate composes, matrixWorldAutoUpdate multiplies); three still visits it. What moves
+  // stays out: the trams, the traffic, the animals, the handles and the ghost.
+  const FROZEN_GROUPS = ['ground', 'water', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads'];
+  // (a prop's rungs arrive AFTER its placeholder was frozen - the asset loads - so a frozen child is walked again
+  // for anything that came in since: re-posed whole, frozen again; the tick runs it every 60 frames)
+  let freezeTick = 0;
+  function freezeStatic() {
+    let n = 0, lots = false;
+    for (const k of FROZEN_GROUPS) for (const c of G[k].children) {
+      if (!c.updateMatrixWorld) continue;
+      let fresh = !c.userData.frozen;
+      if (!fresh) c.traverse(o => { if (o.matrixAutoUpdate) fresh = true; });
+      if (!fresh) continue;
+      c.traverse(o => { o.matrixWorldAutoUpdate = true; });
+      c.updateMatrixWorld(true);
+      c.traverse(o => { o.matrixAutoUpdate = false; o.matrixWorldAutoUpdate = false; });
+      c.userData.frozen = true; n++;
+      if (k === 'lots' && !c.userData.batch) lots = true;
+    }
+    if (lots) batchLots();
+    return n;
+  }
+  // THE LOTS BATCHED (PERF 2026-09-23). The fences share ONE finish (fenceFinish: every post bag and every deck
+  // bag of the premises is the same two materials) and the yards' ground patches one material - 261 meshes, 261
+  // draws, on a frame CPU-bound on its draw count. Meshes of G.lots that share a material are merged per 256 m
+  // cell (world-space positions, normals through the normal matrix, every other attribute as is - the AO, the lit,
+  // the window and the splat channels ride along), the sources hidden (they stay for picking and for the next
+  // merge). A prop (its LOD, its shared geometry) is never merged. Re-merged whenever the set of sources changes.
+  const BATCH = { cell: 256, group: null, sig: '' };
+  function mergeInto(list) {
+    const g0 = list[0].geometry, names = Object.keys(g0.attributes);
+    let nV = 0, nI = 0;
+    for (const m of list) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
+    const out = new THREE.BufferGeometry(), arrays = {};
+    for (const k of names) { const a = g0.attributes[k]; arrays[k] = new a.array.constructor(nV * a.itemSize); }
+    const idx = new Uint32Array(nI), v = new THREE.Vector3(), nm = new THREE.Matrix3();
+    let vo = 0, io = 0;
+    for (const m of list) {
+      const g = m.geometry, n = g.attributes.position.count;
+      nm.getNormalMatrix(m.matrixWorld);
+      for (const k of names) {
+        const a = g.attributes[k], dst = arrays[k], s = a.itemSize;
+        if (k === 'position') for (let i = 0; i < n; i++) { v.fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
+        else if (k === 'normal') for (let i = 0; i < n; i++) { v.fromBufferAttribute(a, i).applyMatrix3(nm).normalize(); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
+        else dst.set(a.array.subarray(0, n * s), vo * s);
+      }
+      const ix = g.index.array;
+      for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
+      vo += n; io += g.index.count;
+    }
+    for (const k of names) { const a = g0.attributes[k]; out.setAttribute(k, new THREE.BufferAttribute(arrays[k], a.itemSize, a.normalized)); }
+    out.setIndex(new THREE.BufferAttribute(idx, 1));
+    out.computeBoundingSphere();
+    return out;
+  }
+  function batchLots() {
+    if (!THREE.Matrix3 || !THREE.BufferAttribute) return 0;
+    const src = [];
+    G.lots.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.userData.sharedGeo || o.userData.batch || !o.geometry || !o.geometry.index || Array.isArray(o.material)) return;
+      if (Object.values(o.geometry.attributes).some(a => a.isInterleavedBufferAttribute)) return;
+      for (let p = o.parent; p && p !== G.lots; p = p.parent) if (p.isLOD || p.userData.batch) return;
+      src.push(o);
+    });
+    const cnt = new Map(); for (const m of src) cnt.set(m.material, (cnt.get(m.material) || 0) + 1);
+    const use = src.filter(m => cnt.get(m.material) > 1);
+    const sig = use.map(m => m.id).join(',');
+    if (sig === BATCH.sig) return 0;
+    BATCH.sig = sig;
+    if (BATCH.group) { G.lots.remove(BATCH.group); BATCH.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); BATCH.group = null; }
+    const buckets = new Map(), c = new THREE.Vector3();
+    for (const m of use) {
+      m.updateWorldMatrix(true, false);
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      c.copy(m.geometry.boundingSphere.center).applyMatrix4(m.matrixWorld);
+      const key = m.material.uuid + '|' + Math.floor(c.x / BATCH.cell) + ',' + Math.floor(c.z / BATCH.cell) + '|' + m.castShadow + ',' + m.receiveShadow + ',' + m.renderOrder +
+        '|' + Object.keys(m.geometry.attributes).sort().map(k => k + ':' + m.geometry.attributes[k].itemSize + ':' + m.geometry.attributes[k].array.constructor.name).join(',');
+      let b = buckets.get(key); if (!b) buckets.set(key, b = []); b.push(m);
+    }
+    const grp = new THREE.Group(); grp.name = 'lots:batches'; grp.userData.batch = true;
+    let n = 0;
+    for (const list of buckets.values()) {
+      if (list.length < 2) { list[0].visible = true; continue; }
+      const mesh = new THREE.Mesh(mergeInto(list), list[0].material);
+      mesh.castShadow = list[0].castShadow; mesh.receiveShadow = list[0].receiveShadow; mesh.renderOrder = list[0].renderOrder;
+      mesh.userData.batch = true; mesh.name = 'lots:batch';
+      grp.add(mesh); n++;
+      for (const m of list) m.visible = false;
+    }
+    G.lots.add(grp); BATCH.group = grp;
+    stats.lotBatches = n; stats.lotBatched = use.length;
+    return n;
+  }
+
   // THE LOTS group stands at the premises frame: what the village's plan functions draw in the
   // premises frame (fences, lot patches, cars, boats) goes in here untransformed
   const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; };
   placeLots();
   scene.add(root);
-  const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0, litNow: 0 };
+  const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0, litNow: 0, animals: 0, animalsShown: 0 };
+  // THE LIFE (SCENERY LIFE, 2026-09-23): src/viewer/scenery_life.js stands people, wall clutter, rubbish, parked cars, small
+  // structures and antennas round what is BUILT here, by laws from the record's seed (rec.life, contract v1.22); drawn in a
+  // handful of instanced draws, every kind cut by distance. It reads the built houses' own reports (HOUSES[].built)
+  const LIFE = (typeof window !== 'undefined' && window.SCENERY_LIFE) ? window.SCENERY_LIFE.make(THREE, {
+    root, game: !!o.game, record: () => rec, frame: () => O.frame, heightAt: (x, z) => heightAt(x, z), waterY: () => (world.waterH ? world.waterH(0, 0) : -1e9), waterAt: (x, z) => (world.waterH ? world.waterH(x, z) : -1e9),
+    houses: () => HOUSES, plots: () => O.records.plots, roads: () => O.roads, runways: () => O.runways, zones: () => rec.layers.zones,
+    aprons: () => (rec.layers.surface || []).filter(e => e.apron && e.poly && e.poly.length > 2).map(e => e.poly),
+    objects: () => (rec.layers.objects || []).filter(e => e.kind !== 'aircraft' && isFinite(e.x)).map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], r: e.kind === 'billboard' ? (+e.w || 3) / 2 + 0.6 : e.kind === 'tree' ? 1.5 : 1.3 }; }),
+    aircraft: () => (rec.layers.objects || []).filter(e => e.kind === 'aircraft').map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], yaw: (e.yaw || 0) + O.frame.yaw }; }),
+    sites: () => (rec.layers.sites || []).filter(st => st.at && O.runways.some(r => r.c && Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) < (r.len || 1000) / 2 + 900)).map(st => { let rw = null, rd = Infinity; for (const r of O.runways) if (r.c) { const d = Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) - (r.len || 1000) / 2; if (d < rd) { rd = d; rw = r.id; } } return { x: st.at.x, z: st.at.z, id: st.id, runway: rw }; }),
+    items: () => O.records.items,   // the site items' feet (a site's own life covers them, v1.22.1)
+    cover: (x, z) => (world.coverAt ? world.coverAt(x, z, 1) : null),   // the pavement law (v1.17.1): nothing stands on a road
+    eye: () => (o.eye ? o.eye() : null), lampsOn: () => LAMPS.on, queued: () => queue.length, obstacles: () => OBS(), onTraffic: () => { syncTraffic(); },
+  }) : null;
   // THE LAMP POOL (G449 - G417's account, whose code never reached the tree: the commit carried the
   // HANDOVER, the doc and the F8 dial only). Every built thing publishes its lights (HOUSE_GEN
   // stats.lit.lights: the bulb's place in the house frame, colour, level k, reach; the fixtures
@@ -87,11 +199,12 @@ function make(THREE, scene, world, rec0, opts) {
     if (typeof propSetGlowOf === 'function') { const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9); for (const key of LAMPS.glowKeys) propSetGlowOf(key, kFix); }
     const kSmoke = Math.pow(0.92 / Math.max(0.92, ex), 1.35);   // 1.35: at the night's 6444 the haze sits at ~5 % of its day grey - the moonlit ground's own level (1.1 left a 40 % column over every chimney)
     for (const u of LAMPS.smoke) u.value = kSmoke;
+    LAMPS.smokeK = kSmoke;                                   // the animals' plume takes the same hand (animal_run.js)
     if (on <= 0 || LAMPS.muted) { for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } LAMPS.litNow = stats.litNow = 0; return; }
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
       const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent);
-      for (const e of pub) if (!e.wp) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }
+      for (const e of pub) if (!e.wp || e.move) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }
       const r2 = LAMPS.reach * LAMPS.reach;
       LAMPS.near = pub.map(e => { const dx = e.wp[0] - eye.x, dy = e.wp[1] - eye.y, dz = e.wp[2] - eye.z; return [dx * dx + dy * dy + dz * dz, e]; })
         .filter(q => q[0] < r2).sort((a, b) => a[0] - b[0]).slice(0, LAMPS.N).map(q => q[1]);
@@ -100,6 +213,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (let i = 0; i < LAMPS.pool.length; i++) {
       const l = LAMPS.pool[i], e = near[i];
       if (!e) { l.intensity = 0; l.visible = false; continue; }
+      if (e.move) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }   // GTRAM: a cabin's lamp rides with it
       l.position.set(e.wp[0], e.wp[1], e.wp[2]);
       l.color.setRGB(e.col[0], e.col[1], e.col[2]);
       l.distance = e.range; l.intensity = e.k * kLamp * on; l.visible = true;
@@ -141,21 +255,27 @@ function make(THREE, scene, world, rec0, opts) {
     SET_TEX[key] = t; return t;
   }
   // the injection: after the map, the slots' sets mixed in by their weights (both the bench ground and the game patch)
+  // THE SLOTS A PROGRAM DECLARES ARE THE SLOTS IN USE (G527.1): the map + four sets were five texture units
+  // on every ground that took the injection, and the inner ring's patch twin is eleven - sixteen, the
+  // limit, nothing to spare: one sampler more on a graphics tier and the link failed and no premises
+  // ground drew at all (the perf session, 2026-09-23). A record paints with one or two sets (Jolene: one);
+  // the program declares the map and those alone, keyed by the count, recompiled when an edit changes it
+  let NSLOT = 0;
+  const CH4 = ['r', 'g', 'b', 'a'], TL4 = ['x', 'y', 'z', 'w'];
   function injectMaterials(sh) {
+    const n = NSLOT; if (!n) return;   // no set painted: no unit spent
     sh.uniforms.uMat = uMat; sh.uniforms.uMatOn = uMatOn; sh.uniforms.uTile = uTile; sh.uniforms.uMB = uMB;
-    for (let i = 0; i < 4; i++) sh.uniforms['uSet' + i] = uSet[i];
+    for (let i = 0; i < n; i++) sh.uniforms['uSet' + i] = uSet[i];
     if (sh.vertexShader.indexOf('varying vec3 vPW;') < 0) sh.vertexShader = 'varying vec3 vPW;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPW = transformed;');
-    sh.fragmentShader = (sh.fragmentShader.indexOf('varying vec3 vPW;') < 0 ? 'varying vec3 vPW;\n' : '') + 'uniform sampler2D uMat, uSet0, uSet1, uSet2, uSet3;\nuniform vec4 uMB, uTile;\nuniform float uMatOn;\n' +
+    sh.fragmentShader = (sh.fragmentShader.indexOf('varying vec3 vPW;') < 0 ? 'varying vec3 vPW;\n' : '') + 'uniform sampler2D uMat, ' + [0, 1, 2, 3].slice(0, n).map(i => 'uSet' + i).join(', ') + ';\nuniform vec4 uMB, uTile;\nuniform float uMatOn;\n' +
       // AFTER THE GROUND'S OWN STACK (G434): the island's ground hook appends its albedo (class, tint,
       // radar, shade, snow) right after map_fragment and that overwrote every material painted there -
       // on Jolene no material polygon had ever shown. The mix goes in ahead of color_fragment now, the
       // last stop before the lighting, whatever a ground hook did to the map's colour before it.
       sh.fragmentShader.replace('#include <color_fragment>', '\n' +
         '  if (uMatOn > 0.5) { vec4 mw = texture2D(uMat, (vPW.xz - uMB.xy) / uMB.zw);\n' +
-        '    if (mw.r > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet0, vPW.xz / uTile.x).rgb, mw.r);\n' +
-        '    if (mw.g > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet1, vPW.xz / uTile.y).rgb, mw.g);\n' +
-        '    if (mw.b > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet2, vPW.xz / uTile.z).rgb, mw.b);\n' +
-        '    if (mw.a > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet3, vPW.xz / uTile.w).rgb, mw.a); }\n#include <color_fragment>');
+        [0, 1, 2, 3].slice(0, n).map(i => '    if (mw.' + CH4[i] + ' > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet' + i + ', vPW.xz / uTile.' + TL4[i] + ').rgb, mw.' + CH4[i] + ');\n').join('') +
+        '  }\n#include <color_fragment>');
   }
   // the map painted: every material polygon in priority order, "over" per pixel with its fade weight
   function paintMaterials() {
@@ -194,6 +314,9 @@ function make(THREE, scene, world, rec0, opts) {
     }
     for (let i = 0; i < 4; i++) uSet[i].value = SLOTS[i] ? setTex(SLOTS[i]) : null;
     uMatOn.value = any ? 1 : 0;
+    // the slot count the programs declare (G527.1): a change recompiles every ground that takes the injection
+    const used = SLOTS.filter(Boolean).length;
+    if (used !== NSLOT) { NSLOT = used; groundMat.needsUpdate = true; for (const M of patchMatOwn) if (M) M.needsUpdate = true; }
     matTex.needsUpdate = true;
     stats.materials = mats.length;
   }
@@ -229,6 +352,7 @@ function make(THREE, scene, world, rec0, opts) {
         '    diffuseColor.rgb = mix(diffuseColor.rgb, ov.rgb, ov.a * uOvOn); }');
     injectMaterials(sh);
   };
+  groundMat.customProgramCacheKey = () => 'premises-ground-s' + NSLOT;   // the slot count is in the source (G527.1)
   const chunks = new Map();
   const ci0 = Math.floor(bounds.x0 / CHUNK), ci1 = Math.ceil(bounds.x1 / CHUNK) - 1, cj0 = Math.floor(bounds.z0 / CHUNK), cj1 = Math.ceil(bounds.z1 / CHUNK) - 1;
   function heightAt(x, z) { return o.game ? world.terrainH(x, z) : O.terrainH(x, z, world.terrainH(x, z)); }
@@ -274,7 +398,8 @@ function make(THREE, scene, world, rec0, opts) {
   // in between where nothing was composed; the chunks the record touches are a tenth of that. The
   // border of the built region tucks 2.2 m under the ring as the whole patch did: a vertex reads its
   // distance to the nearest UNBUILT neighbour chunk (the 40 m fade fits inside one chunk).
-  let patch = null, patchKey = '', patchMatOwn = null, patchAct = null;
+  let patch = null, patchKey = '', patchAct = null;
+  const patchMatOwn = [null, null];   // G527: [the patchMat's clone, the patchMat2's] - see patchKind
   const PCH = 64;
   function activeChunks(b) {
     const F = O.frame, rec = O.rec, L = rec.layers, act = new Set(), key = (i, j) => i + ',' + j;
@@ -306,61 +431,148 @@ function make(THREE, scene, world, rec0, opts) {
     for (const sh of O.shelves || []) if (sh.poly) markPoly(sh.poly, (+sh.falloff || 6) + 4); else if (sh.rect && sh.c) markBox({ x0: sh.c[0] - 60, z0: sh.c[1] - 60, x1: sh.c[0] + 60, z1: sh.c[1] + 60 }, 0);
     return { act, i0, i1, j0, j1, key };
   }
+  // THE PATCH IN BLOCKS, BY DISTANCE (PERF 2026-09-23). One mesh over every active chunk was 1.5 M triangles on
+  // Jolene - drawn whole every frame (one bounding sphere round three square kilometres is always in view) and at
+  // 2 m however far: a 2 m quad a kilometre out is a pixel, and a pixel-sized triangle shades the ground's whole
+  // splat in a 2x2 quad for one covered sample. Now the active chunks are gathered in blocks of 8x8 (512 m; 4x4 was 87 draws at 300 m on a CPU-bound frame), each
+  // a THREE.LOD of four meshes - 2, 4, 8 and 16 m - every one a subsample of the ONE 2 m sampling (the same
+  // heights, the same normals, the same uvs: a coarse vertex is a fine vertex). A level is used from the distance
+  // where its worst height error over the block (measured against the 2 m grid) is under a pixel on a 1440-line
+  // screen, and never nearer than 25 of its quads; a chunk's four edges hang a skirt (its own heights 0.5-3 m down,
+  // its surface's normals) so two neighbours at different levels never open a crack onto the sunk ring below.
+  const PL = { res: [2, 4, 8, 16], block: 8, focal: 1160, tolPx: 1, minQuads: 25, skirt: [0.5, 1, 2, 3] };
   function buildPatch() {
     const b = extentWorld();
     const A = activeChunks(b), list = [...A.act].sort();
     const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
-    const RES = 2;
-    if (!patch || patchKey !== key) {
-      if (patch) { G.ground.remove(patch); patch.geometry.dispose(); }
-      // one geometry: every active chunk a (PCH/RES + 1)^2 grid, its own vertices (the seams sample the same ground)
-      const n = PCH / RES, per = (n + 1) * (n + 1), pos = new Float32Array(list.length * per * 3), uvs = new Float32Array(list.length * per * 2), idx = [];
-      let v = 0;
-      for (const k of list) {
-        const [ci, cj] = k.split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH, base = v;
-        for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) { pos[v * 3] = cx0 + i * RES; pos[v * 3 + 1] = 0; pos[v * 3 + 2] = cz0 + j * RES; v++; }
-        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const a = base + j * (n + 1) + i, b2 = a + 1, c = a + n + 1, d = c + 1; idx.push(a, c, b2, b2, c, d); }
+    const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
+    if (patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
+    patchAct = A;   // the world's rings read it (patchCovers): the ring sinks under the patch (G434.1)
+    // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
+    // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
+    const matOwn = k => {
+      if (patchMatOwn[k]) return patchMatOwn[k];
+      const base = (k ? o.patchMat2 : o.patchMat) || o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
+      const M = base.clone(), inner = base.onBeforeCompile;
+      // the material polygons ride in on top - unless the host says this ground has no units left for them
+      // (patchInject2 false: the far terrain's material is 12 samplers and the polygons' map + four sets are
+      // five more - 17 > MAX_TEXTURE_IMAGE_UNITS 16 fails the link and the chunks draw BLACK; G424's census)
+      const inj = !(k && o.patchInject2 === false);
+      M.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); if (inj) injectMaterials(sh); };   // S4
+      M.customProgramCacheKey = () => 'premises-patch-materials' + (k ? '-2' : '') + (inj ? '-s' + NSLOT : '');
+      return (patchMatOwn[k] = M);
+    };
+    // TWO GROUNDS UNDER ONE PATCH (G527): a chunk wears the ground it lies on - the host's patchPick says
+    // which (the game: the inner ring's material and uv law inside the ring, the far terrain's past it). It
+    // was ONE material for the whole record, chosen by its extent: the day a place was put 4.5 km out,
+    // the airfield's patch changed material with it, and the far chunks sampled the island's maps through
+    // the analytic world's uv law - the deep sea bed, unpainted: black
+    const kindOf = (x0, z0) => (o.patchPick && o.patchPick(x0, z0, x0 + PCH, z0 + PCH)) ? 1 : 0;
+    // ---- the ONE sampling: every active chunk a (n + 1)^2 grid at 2 m, its own vertices (the seams sample the same ground)
+    const act = A.act, ck = A.key;
+    const Y = new Float32Array(list.length * per), UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
+    for (let c = 0; c < list.length; c++) {
+      const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
+      const kc = KIND[c] = kindOf(cx0, cz0), uvOf = (kc && o.patchUV2) || o.patchUV;
+      for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+        const v = c * per + j * (n + 1) + i, x = cx0 + i * RES, z = cz0 + j * RES;
+        // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge
+        let edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z);
+        const ei = Math.floor((x - 0.01) / PCH), ej = Math.floor((z - 0.01) / PCH);
+        for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+          if (!di && !dj) continue;
+          if (act.has(ck(ei + di, ej + dj))) continue;
+          const nx0 = (ei + di) * PCH, nz0 = (ej + dj) * PCH;
+          const dx = Math.max(nx0 - x, x - nx0 - PCH, 0), dz = Math.max(nz0 - z, z - nz0 - PCH, 0);
+          edge = Math.min(edge, Math.hypot(dx, dz));
+        }
+        const r = Math.min(1, Math.max(0, edge) / 40);
+        // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the
+        // ring sinks 4 m under the patch now, so no fight there (G434: the border tucks 2.2 m under the ring)
+        Y[v] = world.terrainH(x, z) - 0.02 * r - 2.2 * (1 - r) * (1 - r);
+        if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); g.setIndex(idx);
-      g.userData.chunks = list; g.userData.neighbours = A;
-      patchAct = A;   // the world's rings read it (patchCovers): the ring sinks under the patch (G434.1)
-      // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
-      // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
-      if (!patchMatOwn) {
-        const base = o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
-        patchMatOwn = base.clone(); const inner = base.onBeforeCompile;
-        patchMatOwn.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); injectMaterials(sh); };   // S4
-        patchMatOwn.customProgramCacheKey = () => 'premises-patch-materials';
-      }
-      patch = new THREE.Mesh(g, patchMatOwn);
-      patch.receiveShadow = true; patch.name = 'premises:patch';
-      G.ground.add(patch); patchKey = key;
     }
-    const pa = patch.geometry.attributes.position, uv = patch.geometry.attributes.uv;
-    const act = patch.geometry.userData.neighbours.act, ck = patch.geometry.userData.neighbours.key;
-    for (let i = 0; i < pa.count; i++) {
-      const x = pa.getX(i), z = pa.getZ(i);
-      // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge
-      let edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z);
-      const ci = Math.floor((x - 0.01) / PCH), cj = Math.floor((z - 0.01) / PCH);
-      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
-        if (!di && !dj) continue;
-        if (act.has(ck(ci + di, cj + dj))) continue;
-        const nx0 = (ci + di) * PCH, nz0 = (cj + dj) * PCH;
-        const dx = Math.max(nx0 - x, x - nx0 - PCH, 0), dz = Math.max(nz0 - z, z - nz0 - PCH, 0);
-        edge = Math.min(edge, Math.hypot(dx, dz));
-      }
-      const r = Math.min(1, Math.max(0, edge) / 40);
-      // 4 cm over the ground (G434): the ring's own mesh sits at the same height where the ground is
-      // flat and the two fought (the ring's pale PAVED bake speckled the pad's concrete); the strips'
-      // decals ride 7 cm up on the same law
-      pa.setY(i, world.terrainH(x, z) - 0.02 * r - 2.2 * (1 - r) * (1 - r));   // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the ring sinks 4 m under the patch now, so no fight there
-      if (o.patchUV) { const q = o.patchUV(x, z); uv.setXY(i, q[0], q[1]); }
+    // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
+    const NRM = new Float32Array(list.length * per * 3);
+    for (let c = 0; c < list.length; c++) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+      const at = (ii, jj) => Y[c * per + Math.max(0, Math.min(n, jj)) * (n + 1) + Math.max(0, Math.min(n, ii))];
+      const i0 = Math.max(0, i - 1), i1 = Math.min(n, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(n, j + 1);
+      const gx = (at(i1, j) - at(i0, j)) / ((i1 - i0) * RES), gz = (at(i, j1) - at(i, j0)) / ((j1 - j0) * RES);
+      const l = Math.hypot(gx, 1, gz), v = (c * per + j * (n + 1) + i) * 3;
+      NRM[v] = -gx / l; NRM[v + 1] = 1 / l; NRM[v + 2] = -gz / l;
     }
-    pa.needsUpdate = true; uv.needsUpdate = true;
-    patch.geometry.computeVertexNormals();
-    patch.geometry.computeBoundingSphere();
+    // ---- the blocks
+    const blocks = new Map();
+    for (let c = 0; c < list.length; c++) {
+      const [ci, cj] = list[c].split(',').map(Number), bk = KIND[c] + '|' + Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block);   // a block is one material (G527)
+      let B = blocks.get(bk); if (!B) blocks.set(bk, B = { cs: [], k: KIND[c], x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity });
+      B.cs.push(c); B.x0 = Math.min(B.x0, ci * PCH); B.z0 = Math.min(B.z0, cj * PCH); B.x1 = Math.max(B.x1, (ci + 1) * PCH); B.z1 = Math.max(B.z1, (cj + 1) * PCH);
+    }
+    const group = new THREE.Group(); group.name = 'premises:patch';
+    let tris0 = 0, trisAll = 0;
+    for (const B of blocks.values()) {
+      const cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2, half = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2;
+      const lod = new THREE.LOD(); lod.position.set(cx, 0, cz); lod.name = 'premises:patch';
+      let yLo = Infinity, yHi = -Infinity;
+      for (const c of B.cs) for (let v = c * per; v < (c + 1) * per; v++) { yLo = Math.min(yLo, Y[v]); yHi = Math.max(yHi, Y[v]); }
+      lod.position.y = (yLo + yHi) / 2;
+      let dPrev = 0;
+      for (let L = 0; L < PL.res.length; L++) {
+        const s = PL.res[L] / RES, m = n / s;   // index stride into the fine grid, quads a side
+        // the level's worst error over the block: every fine vertex against the coarse grid's bilinear surface
+        let err = 0;
+        if (s > 1) for (const c of B.cs) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+          const I = Math.min(Math.floor(i / s), m - 1), J = Math.min(Math.floor(j / s), m - 1), fu = i / s - I, fv = j / s - J;
+          const g = (ii, jj) => Y[c * per + jj * s * (n + 1) + ii * s];
+          const h = (g(I, J) * (1 - fu) + g(I + 1, J) * fu) * (1 - fv) + (g(I, J + 1) * (1 - fu) + g(I + 1, J + 1) * fu) * fv;
+          err = Math.max(err, Math.abs(h - Y[c * per + j * (n + 1) + i]));
+        }
+        const d = L === 0 ? 0 : Math.max(dPrev, half + Math.max(err * PL.focal / PL.tolPx, PL.res[L] * PL.minQuads));
+        dPrev = d;
+        // the geometry: the chunk grids at stride s, plus a skirt round each chunk
+        const drop = PL.skirt[L], vPer = (m + 1) * (m + 1) + 4 * (m + 1);
+        const nV = B.cs.length * vPer, pos = new Float32Array(nV * 3), nrm = new Float32Array(nV * 3), uv = new Float32Array(nV * 2), idx = [];
+        let v = 0;
+        const put = (c, i, j, dy) => {   // a fine-grid vertex (i, j in fine units) of chunk c, dy down
+          const [ci, cj] = list[c].split(',').map(Number), f = c * per + j * (n + 1) + i;
+          pos[v * 3] = ci * PCH + i * RES - cx; pos[v * 3 + 1] = Y[f] - dy - lod.position.y; pos[v * 3 + 2] = cj * PCH + j * RES - cz;
+          nrm[v * 3] = NRM[f * 3]; nrm[v * 3 + 1] = NRM[f * 3 + 1]; nrm[v * 3 + 2] = NRM[f * 3 + 2];
+          uv[v * 2] = UV[f * 2]; uv[v * 2 + 1] = UV[f * 2 + 1];
+          return v++;
+        };
+        for (const c of B.cs) {
+          const base = v;
+          for (let j = 0; j <= m; j++) for (let i = 0; i <= m; i++) put(c, i * s, j * s, 0);
+          for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) { const a = base + j * (m + 1) + i, b2 = a + 1, cc = a + m + 1, dd = cc + 1; idx.push(a, cc, b2, b2, cc, dd); }
+          if (drop > 0) {
+            // the four edges, each walked so its skirt faces outward (the material is front-sided)
+            const E = [[k => [k, 0], false], [k => [m, k], false], [k => [m - k, m], false], [k => [0, m - k], false]];
+            for (const [at] of E) {
+              const top = [], bot = [];
+              for (let k = 0; k <= m; k++) { const [i, j] = at(k); top.push(base + j * (m + 1) + i); bot.push(put(c, i * s, j * s, drop)); }
+              for (let k = 0; k < m; k++) idx.push(top[k], top[k + 1], bot[k], top[k + 1], bot[k + 1], bot[k]);
+            }
+          }
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, v * 3), 3));
+        g.setAttribute('normal', new THREE.BufferAttribute(nrm.subarray(0, v * 3), 3));
+        g.setAttribute('uv', new THREE.BufferAttribute(uv.subarray(0, v * 2), 2));
+        g.setIndex(idx); g.computeBoundingSphere();
+        const mesh = new THREE.Mesh(g, matOwn(B.k));
+        mesh.receiveShadow = true; mesh.name = 'premises:patch'; mesh.renderOrder = -0.3;   // the ground, after the occluders (render_world.js ORDER_NOTE)
+        mesh.matrixAutoUpdate = false;
+        lod.addLevel(mesh, d);
+        if (L === 0) tris0 += idx.length / 3;
+        trisAll += idx.length / 3;
+      }
+      lod.updateMatrix(); lod.matrixAutoUpdate = false;
+      group.add(lod);
+    }
+    group.userData.chunks = list; group.userData.neighbours = A; group.userData.tris = tris0; group.userData.trisAll = trisAll; group.userData.blocks = blocks.size;
+    patch = group; patchKey = key;
+    G.ground.add(patch);
   }
   // THE ROADS (game): a draped ribbon per road in its class's tone (the bench wears them into its own
   // ground canvas; the game's terrain has no such canvas) - 3 m along, the width plus a soft verge
@@ -375,6 +587,26 @@ function make(THREE, scene, world, rec0, opts) {
   const pavLib = () => PAV.sharedLib(THREE, pavKeys(), () => { if (o.onBuilt) o.onBuilt(0, 0); });
   const pavSeed = id => { let h = 2166136261; for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h % 1000) / 37; };
   // a road crossing a strip's box draws no band over the concrete (the bench's rule)
+  // A STRIP'S BAND DOES NOT LIE OVER ANOTHER PAVEMENT (2026-09-23, the user: "where the 2 runways
+  // cross, the sides of the runway on top render on top of the runway at the bottom ... it does not
+  // make sense to have dirt or sand over a runway, even if they cross"). The band and the pavement
+  // are ONE mesh, so no draw order can separate them - the band is faded out where it crosses another
+  // strip's pavement or an apron, which is the rule a road's band already keeps (stripKeep below).
+  const pavedKeep = self => (x, z) => {
+    const L = O.frame.toLocal(x, z); let k = 1;
+    for (const r of O.runways) {
+      if (r === self || PG.runwayIsWater(r)) continue;
+      const box = PG.runwayBox(r, 0), d = PG.sdPoly(box, L[0], L[1]);      // + outside the pavement
+      if (d <= 0) return 0;
+      k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4)));              // and a 4 m fade off its edge
+    }
+    for (const pp of O.pavePolys || []) {
+      const d = PG.sdPoly(pp.poly, L[0], L[1]);
+      if (d <= 0) return 0;
+      k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4)));
+    }
+    return k;
+  };
   const stripKeep = (x, z) => { const L = O.frame.toLocal(x, z); let k = 1; for (const r of O.runways) { if (PG.runwayIsWater(r)) continue; const box = PG.runwayBox(r, 0); if (PG.inPoly(box, L[0], L[1])) return 0; const d = -PG.sdPoly(box, L[0], L[1]); k = Math.min(k, Math.max(0, Math.min(1, (-d - 1) / 4))); } return k; };
   const disposePav = m => { if (m.material && m.material.userData && m.material.userData.pav && PAV) PAV.dispose(m.material); };
   // THE GUARDRAIL (2026-09-22): the W-beam module decides WHERE from the ground itself (the drop past
@@ -384,22 +616,82 @@ function make(THREE, scene, world, rec0, opts) {
   const RAIL = (typeof GUARDRAIL !== 'undefined') ? GUARDRAIL : null;
   function railKeep(rd) {
     return (lx, lz) => {
-      for (const p of O.records.plots) if (p.poly && PG.sdPoly(p.poly, lx, lz) < 8) return false;      // a plot and its frontage
+      // INSIDE a plot only (2026-09-22): "8 m clear of one" read well in the abstract and left the
+      // island with thirty metres of rail - the banks that warrant one on Jolene are the shore road's,
+      // which has frontages along it. A rail on the verge in front of a house is what the coast looks like.
+      for (const p of O.records.plots) if (p.poly && PG.sdPoly(p.poly, lx, lz) < 1.5) return false;
       for (const o2 of O.roads) if (o2 !== rd && o2.pts && o2.pts.length > 1 && PG.roadDist(o2, lx, lz) < o2.w / 2 + 6) return false;   // a junction
       for (const r of O.runways) if (!PG.runwayIsWater(r) && PG.sdPoly(PG.runwayBox(r, 0), lx, lz) < 8) return false;                   // a strip
       return true;
     };
   }
   function buildRail(rd, pr) {
-    if (!RAIL || rd.rail === 'off') return;
+    if (!RAIL || rd.rail === 'off') return null;
     const F = O.frame, hL = (lx, lz) => { const W = F.toWorld(lx, lz); return heightAt(W[0], W[1]); };
     const m = RAIL.build(THREE, { path: pr, w: rd.w, mode: rd.rail || 'auto', name: 'rail:' + rd.id,
       hAt: hL, heightAt, toWorld: (x, z) => F.toWorld(x, z), seed: PG.fnv(String(rd.id)) % 997,
-      waterY: world.waterH ? world.waterH(0, 0) : null, keep: railKeep(rd) });
+      waterY: world.waterH ? ((lx, lz) => { const W2 = F.toWorld(lx, lz); return world.waterH(W2[0], W2[1]); }) : null,
+      keep: railKeep(rd) });
     if (m) { m.userData.premId = rd.id; G.roads.add(m); }
+    return m;
+  }
+  // THE POWER LINE (2026-09-22, the user with a photograph of a Revillagigedo road: "do we have the
+  // electric poles?"): the yard kit's poles every ~34 m along one verge with the cable strung between
+  // them, and the street lamp that already existed on every second one. A pole may not stand INSIDE a
+  // plot (it belongs on the verge in front of a frontage, which is the village's own rule - unlike the
+  // guardrail, which keeps 8 m clear of one), nor in a junction, nor on a strip.
+  const PWR = (typeof POWERLINE !== 'undefined') ? POWERLINE : null;
+  function poleKeep(rd) {
+    return (lx, lz) => {
+      for (const p of O.records.plots) if (p.poly && PG.inPoly(p.poly, lx, lz)) return false;                                    // a garden
+      for (const o2 of O.roads) if (o2 !== rd && o2.pts && o2.pts.length > 1 && PG.roadDist(o2, lx, lz) < o2.w / 2 + 4) return false;   // a junction
+      for (const r of O.runways) if (!PG.runwayIsWater(r) && PG.sdPoly(PG.runwayBox(r, 0), lx, lz) < 4) return false;            // a strip
+      for (const pp2 of O.pavePolys || []) if (PG.sdPoly(pp2.poly, lx, lz) < 3) return false;                                    // an apron, a pad, a turnaround
+      return true;
+    };
+  }
+  let LAMP_F = null;
+  function lampFinish() {
+    if (LAMP_F) return LAMP_F;
+    const HG = window.HOUSE_GEN;
+    const F = HG.makeFinish();
+    HG.applyFinish(Object.assign({}, HG.DEF, { metalSet: HG.SET_IDX('metal', 'galv') }), F);   // the bench's galvanised (G370)
+    LAMP_F = F;
+    return F;
+  }
+  function buildLine(rd, pr, railG) {
+    if (!PWR || rd.poles === 'off') return null;
+    const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, HK = window.HOUSE_KIT, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
+    if (!VG || !HG || !HK || !pp || !PR) return null;
+    const F = O.frame, LF = lampFinish();
+    const bags = { metal: HK.Bag('metal'), glass: HK.Bag('glass') };
+    const lit = [];
+    // the verge the guardrail did NOT take, when it took exactly one (the photograph's arrangement)
+    const rs = railG && railG.userData.guardrail ? railG.userData.guardrail.sides : null;
+    const side = (rd.polesSide ? +rd.polesSide : 0) || (rs && rs.length === 1 ? -rs[0] : 0);
+    const g = PWR.build(THREE, { path: pr, w: rd.w, mode: rd.poles || 'auto', name: 'poles:' + rd.id,
+      side, seed: PG.fnv(String(rd.id)) % 997, toWorld: (x, z) => F.toWorld(x, z), heightAt,
+      keep: poleKeep(rd),
+      place: q => { if (!PR.props[q.key]) return null; const o = pp(THREE, q.key, q.x, q.z, q.ry, q.y); if (q.scale) o.scale.setScalar(q.scale); tiltToGround(o, (x, z) => O.terrainAt(x, z), q.x, q.z, q.ry); return o; },
+      lamp: q => { const L = VG.streetLamp(bags, q); if (L) lit.push(L); } });
+    if (!g) return null;
+    PWR.own(bags.metal.mesh(g, LF.MAT.metal));                                  // the lamps' geometry is the line's to free
+    const gm = PWR.own(bags.glass.mesh(g, HG.MAT.glass)); if (gm) gm.castShadow = false;
+    // the lens follows the night like every other glass (the finish's uLitK), and each head joins the
+    // lamp pool - the nearest eight of the world's lamps get one of the eight point lights
+    if (LF.GLASS_U && LF.GLASS_U.uLitK && !LAMPS.glass.has(LF.GLASS_U.uLitK)) { LAMPS.glass.set(LF.GLASS_U.uLitK, LF.GLASS_U.uLitK.value); LF.GLASS_U.uLitK.value = LF.GLASS_U.uLitK.value * LAMPS.on; }
+    for (const L of lit) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp: g, p: [L.x, L.y, L.z], col: L.col || [1, 0.92, 0.74], k: L.k == null ? 1 : L.k, range: L.range || 30, kind: L.kind });
+    g.userData.premId = rd.id;
+    g.userData.lamps = lit.length;
+    G.roads.add(g);
+    return g;
   }
   function buildRoads() {
-    for (const c of G.roads.children.slice()) { if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; } G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c); }
+    for (const c of G.roads.children.slice()) {
+      if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; }
+      if (PWR && c.userData.powerline) { PWR.dispose(c); continue; }      // the cable's own geometry; the poles are shared prop meshes
+      G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c);
+    }
     if (PAV) {
       const lib = pavLib();
       for (const rd of O.roads) {
@@ -408,12 +700,12 @@ function make(THREE, scene, world, rec0, opts) {
         const RS = PAV.resolve(rd, O.rec, L);
         const pr = PG.polyRoad(rd.pts, rd.w);
         const geo = PAV.roadGeometry(THREE, { road: pr, w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), toWorld: (x, z) => O.frame.toWorld(x, z), heightAt, lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6), shoulderK: stripKeep });
-        const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.roadMarks(pr.length, rd.w, RS.cls);
+        const marks = RS.marks === 'none' ? { rects: [], segs: [], wid: rd.w } : PAV.roadMarks(pr.length, rd.w, RS.cls, RS.recipe);
         if (RS.marks === 'edges') marks.rects = marks.rects.filter(r => !(r[5] > 0)); else if (RS.marks === 'centre') marks.rects = marks.rects.filter(r => r[5] > 0);
         const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band });
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.frustumCulled = false; m.name = 'road:' + rd.id; m.userData.premId = rd.id;
         G.roads.add(m);
-        buildRail(rd, pr);
+        buildLine(rd, pr, buildRail(rd, pr));
       }
       buildPolys();
       return;
@@ -432,7 +724,7 @@ function make(THREE, scene, world, rec0, opts) {
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
       const m = new THREE.Mesh(g, roadMat); m.renderOrder = 2; m.receiveShadow = true; m.name = 'road:' + rd.id;
       G.roads.add(m);
-      buildRail(rd, pr);
+      buildLine(rd, pr, buildRail(rd, pr));
     }
   }
   // THE PAVED POLYGONS (v1.16): an apron, a turnaround, a pad - a material polygon with a look; drawn under
@@ -445,7 +737,9 @@ function make(THREE, scene, world, rec0, opts) {
       const RS = PAV.resolve(pp, O.rec, L);
       const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
       const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw });
-      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks: { rects: [], segs: [] }, poly: true, recipe: RS.recipe, band: RS.band });
+      // an apron may be a PARKING AREA: its stands' lead-in lines and nose stops, in its own frame
+      const marks = pp.stands ? PAV.standMarks(pp.stands, (geo.userData.pav || {}).halfW || 0) : { rects: [], segs: [] };
+      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band });
       const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.frustumCulled = false; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
       G.roads.add(m);
     }
@@ -517,7 +811,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function worldPts(entry) {
     const F = O.frame;
-    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
+    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' || entry.kind === 'animal' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
     return src.map(p => F.toWorld(p[0], p[1]));
   }
   function lineFor(layer, entry, colour, sel) {
@@ -604,7 +898,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (PAV && R && SITE.sitePaintStrip && LKp && LKp.cls && !PG.runwayIsWater(r)) {
         // THE PAVEMENT STRIP (v1.16): what the game will stand - the same builder, the same recipe
         const RS = PAV.resolve(r, O.rec, LKp);
-        const geo = PAV.stripGeometry(THREE, { len: A.len, wid: A.wid, hdg: A.hdg, cx: A.x, cz: A.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(r.id), heightAt, lift: 0.07, resU: 6, resV: 3 });
+        const geo = PAV.stripGeometry(THREE, { len: A.len, wid: A.wid, hdg: A.hdg, cx: A.x, cz: A.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(r.id), heightAt, lift: 0.07, resU: 6, resV: 3, shoulderK: pavedKeep(r) });
         const mat = PAV.make(THREE, { lib: pavLib(), cls: RS.cls, marks: RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(R, SITE.sitePaintStrip), recipe: RS.recipe, band: RS.band });
         const pm = new THREE.Mesh(geo, mat); pm.renderOrder = 2; pm.receiveShadow = true; pm.frustumCulled = false; pm.name = 'runway:' + r.id; pm.userData.premId = r.id; pm.userData.pavMat = true;
         G.runways.add(pm);
@@ -669,6 +963,54 @@ function make(THREE, scene, world, rec0, opts) {
     stats.runways = O.runways.length;
   }
 
+  // ---- THE ANIMALS (2026-09-22) -------------------------------------------------------------
+  // Every `animal` object of the record is a HOTSPOT: n of a species within r metres. The herd,
+  // the pod or the flock is animal_run.js's; this owns only the hand-off - the hotspots in WORLD
+  // coordinates (the premises frame applied) and the host contract that module asks for: the
+  // composed ground (never the world's raw terrain - an elk stands on the flattened meadow), the
+  // world's water, the eye for the cull, and the aeroplane's own water effects where they exist.
+  let ANIM = null;
+  function animalCtx() {
+    return {
+      scene: G.animals, ground: (x, z) => O.terrainAt(x, z),
+      waterH: (x, z) => (world.waterH ? world.waterH(x, z) : -Infinity),
+      eye: o.eye || null,
+      // THE WATER IS THE AEROPLANE'S OWN (the user: "the whales should trigger the water surface
+      // effects, just like the planes, wake and splashes, they're there and available"): the H7
+      // interaction field, which is only ON while the aircraft is itself near water - which is
+      // exactly the close range the ask names.
+      stamp: (x, z, r, amp, foam, kind) => (window.WATER && WATER.field && WATER.field.on
+        ? WATER.stamp(x, z, r, amp, foam, kind) : false),
+      spray: (kind, x, y, z, vx, vy, vz) => { if (typeof window.FLYDIY_SPRAY === 'function') window.FLYDIY_SPRAY(kind, x, y, z, vx, vy, vz); },
+      // ...and the animals may ASK for the field, so a landplane low over a pod gets the wake too
+      // (app.js's syncWaterFx block reads WATER.field.ask; the ask expires in half a second)
+      wantWater: () => { if (window.WATER && WATER.field) WATER.field.ask = performance.now(); },
+      lit: () => (LAMPS.smokeK === undefined ? 1 : LAMPS.smokeK),     // the day's haze factor, the chimneys' own
+      // world.wind(x, y, z, t) is the world's own sampler (clouds.js reads it the same way)
+      wind: () => { if (typeof world.wind !== 'function') return [0, 0]; const w = world.wind(0, 20, 0, 0); return w ? [w[0], w[2]] : [0, 0]; },
+    };
+  }
+  // THE AMBIENT FLOCKS (the user: "flocks of birds ... should probably just go across the map"):
+  // not a record's - the world's. They are born outside 1.2 km of the eye, cross and die at 1.6,
+  // and they belong here only because the premises runner is the one clock the world already
+  // turns. In the EDITOR they are off: a flock crossing the plan view is noise.
+  // window.FLYDIY_FLOCKS sets how many (0 turns them off entirely).
+  const AMBIENT = () => (typeof window !== 'undefined' && window.FLYDIY_FLOCKS !== undefined
+    ? (window.FLYDIY_FLOCKS | 0) : 2);
+  function syncAnimals() {
+    const spots = (O.records && O.records.animals) || [];
+    const air = window.ANIMALS && window.ANIMALS.list ? (window.ANIMALS.list('air')[0] || null) : null;
+    const nAmb = (o.game && air) ? AMBIENT() : 0;
+    if (!ANIM && (!(spots.length || nAmb) || !window.ANIMAL_RUN || !window.ANIMALS)) { stats.animals = 0; return; }
+    if (!ANIM) { try { ANIM = window.ANIMAL_RUN.make(THREE, animalCtx()); } catch (e) { console.warn('premises animals', e && e.message); return; } }
+    const F = O.frame;
+    ANIM.sync(spots.map(sp => { const w = F.toWorld(sp.x, sp.z);
+      return { id: sp.id, key: sp.key, x: w[0], z: w[1], n: sp.n, r: sp.r, yaw: (sp.yaw || 0) + (F.yaw || 0), dy: sp.dy }; }));
+    if (air) ANIM.ambient(nAmb, air.key);
+    // the tick's own gate reads this (render_world): a world with only ambient flocks still runs
+    stats.animals = ANIM.stats.animals + nAmb;
+  }
+
   // ---- THE TRAM RUNS (G398.3): a cable link's stations tied by their ropes as tubes and two cabins in a
   // jig-back - the village's tram_run on the solved line (its geom is vil.tram's shape: docks, ropes,
   // slots, in the premises frame with absolute heights) - ticked by the host's clock (R.tick). Rebuilt
@@ -686,7 +1028,7 @@ function make(THREE, scene, world, rec0, opts) {
       const grp = new THREE.Group(); grp.name = 'tram:' + id; grp.position.set(F.anchor.x, 0, F.anchor.z); grp.rotation.y = F.yaw || 0;
       const cabs = [0, 1].map(() => (CB ? { pivot: CB.PIVOT, ropeUp: CB.ROPE_UP } : null));
       let run = null;
-      try { run = TR.make(L.geom, cabs, { sag: 0.012 }); } catch (e) { console.warn('premises tram', id, e && e.message); continue; }
+      try { run = TR.make(L.geom, cabs, { sag: 0.012, v: +L.link.speed > 0 ? +L.link.speed : 6.0 }); } catch (e) { console.warn('premises tram', id, e && e.message); continue; }   // GTRAM: the link's `speed`, the village's 6 m/s without one
       const ropeMat = new THREE.MeshStandardMaterial({ color: 0x2a2c2e, roughness: 0.6, metalness: 0.7 });
       L.geom.ropes.forEach((rp, k) => {
         const Ln = run.lines[rp.line === undefined ? (k >> 1) : rp.line];
@@ -695,7 +1037,11 @@ function make(THREE, scene, world, rec0, opts) {
         const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, rp.kind === 'track' ? 0.055 : 0.035, 6, false);
         const m = new THREE.Mesh(geo, ropeMat); m.castShadow = true; grp.add(m);
       });
-      if (CB) { try { const objs = [0, 1].map(i => { const c = CB.build(THREE, { livery: i ? 'admiralty' : 'chatham', lit: 0 }); grp.add(c); return c; }); run.attach(objs); } catch (e) { console.warn('premises tram cabins', id, e && e.message); } }
+      // GTRAM: THE CABINS AT NIGHT - built lit (the panes glow on the finish's night uniform, the lamps' glass too) but without their
+      // own PointLights (a count that changes recompiles every lit material); their ceiling lights and markers join the lamp pool
+      // as MOVING lamps, re-read off the cabin every frame while they are among the nearest
+      const onLights = (lights, c) => { for (const Lc of lights || []) LAMPS.pub.push({ grp: c, p: [Lc.x, Lc.y, Lc.z], col: Lc.col || [1, 0.92, 0.74], k: Lc.k == null ? 1 : Lc.k, range: Lc.range || 8, kind: 'cabin', move: true }); LAMPS.near = null; };
+      if (CB) { try { const objs = [0, 1].map(i => { const c = CB.build(THREE, { livery: i ? 'admiralty' : 'chatham', lit: 1, points: false, onLights }); grp.add(c); return c; }); run.attach(objs); } catch (e) { console.warn('premises tram cabins', id, e && e.message); } }
       G.tram.add(grp); TRAMS.set(id, { key: tramKey(L), grp, run });
     }
     stats.trams = TRAMS.size;
@@ -708,7 +1054,8 @@ function make(THREE, scene, world, rec0, opts) {
   // car follows a graded road's own profile. Deterministic from the road's id: the same cars, the same
   // way round, at every boot. Rebuilt when the road's line, width or count changes.
   const TRAFFIC = new Map();       // road id -> { key, cars: [{ grp, key, s, dir, v, v0, K }], pr, w, L }
-  const trafficKey = rd => JSON.stringify([rd.pts, rd.w, rd.traffic]);
+  const trafficOf = rd => (rd.traffic > 0 ? rd.traffic : (LIFE ? LIFE.trafficOf(rd) : 0));   // the record's, else the life's (SCENERY LIFE)
+  const trafficKey = rd => JSON.stringify([rd.pts, rd.w, trafficOf(rd)]);
   const trafficMenu = () => {
     const HG = window.HOUSE_GEN, VG = window.VILLAGE_GEN, PR = propReg();
     const m = VG && VG.autoMenu ? VG.autoMenu('carpark').concat(HG && HG.AUTO_KEYS ? HG.AUTO_KEYS(['truck', 'bus']) : []) : [];
@@ -717,13 +1064,13 @@ function make(THREE, scene, world, rec0, opts) {
   function syncTraffic() {
     const pp = typeof propPlace === 'function' ? propPlace : null, HG = window.HOUSE_GEN;
     const want = new Map();
-    if (pp) for (const rd of O.roads) if (rd.traffic > 0 && rd.pts.length >= 2) want.set(rd.id, rd);
+    if (pp) for (const rd of O.roads) if (trafficOf(rd) > 0 && rd.pts.length >= 2) want.set(rd.id, rd);
     for (const [id, t] of TRAFFIC) { const rd = want.get(id); if (!rd || trafficKey(rd) !== t.key) { for (const c of t.cars) { hitDrop(c.grp); G.traffic.remove(c.grp); } TRAFFIC.delete(id); } }
     const menu = trafficMenu();
     for (const [id, rd] of want) {
       if (TRAFFIC.has(id) || !menu.length) continue;
       const pr = PG.polyRoad(rd.pts, rd.w), L = pr.length;
-      const n = Math.max(1, Math.round(rd.traffic * L / 1000));
+      const n = Math.max(1, Math.round(trafficOf(rd) * L / 1000));
       const rnd = PG.mulberry32(PG.fnv(String(id)) ^ 0x7a4f);
       const cars = [];
       for (let i = 0; i < n; i++) {
@@ -762,7 +1109,54 @@ function make(THREE, scene, world, rec0, opts) {
     }
   }
   // the clock: the host's dt in seconds; the cabins and the traffic move
-  function tick(dt) { hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); return TRAMS.size + TRAFFIC.size; }
+  // A DISTANT HOUSE DRAWS ITS WALLS AND ROOF (PERF 2026-09-23). A house is ~11 bag meshes, each its own finish
+  // (no two houses share a material, so nothing batches), and the frame is CPU-bound on the draw count: at 300 m
+  // over the field the village's houses were 1 023 draws of the 2 470, every one of them 4-15 px tall. Under
+  // DETAIL.px of projected diameter a house hides its SMALLEST opaque bags - smallest by SURFACE AREA, as many as
+  // together make DETAIL.area of the house's (a bag gathers one finish from all over the house, so its sphere is
+  // the house's: area is the size of what it draws). That is trim, frames, steps, rails, the chimney - ~4 of 11
+  // draws, all sub-pixel there; the walls and the roof stay, and so does all that LIGHTS the village or moves in
+  // it: glass, the lit panes, emissive, transparent (the smoke), the props.
+  const DETAIL = { px: 16, area: 0.08, hyst: 0.1 };
+  const areaOf = g => {
+    const p = g.attributes.position, ix = g.index, n = ix ? ix.count : p.count;
+    let a = 0;
+    for (let i = 0; i < n; i += 3) {
+      const i0 = ix ? ix.getX(i) : i, i1 = ix ? ix.getX(i + 1) : i + 1, i2 = ix ? ix.getX(i + 2) : i + 2;
+      const ax = p.getX(i0), ay = p.getY(i0), az = p.getZ(i0);
+      const ux = p.getX(i1) - ax, uy = p.getY(i1) - ay, uz = p.getZ(i1) - az, vx = p.getX(i2) - ax, vy = p.getY(i2) - ay, vz = p.getZ(i2) - az;
+      a += Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) / 2;
+    }
+    return a;
+  };
+  function detailOf(grp) {
+    let D = grp.userData.detail;
+    if (D) return D;
+    const bags = grp.children.filter(c => c.isMesh && !c.userData.sharedGeo && c.geometry);
+    let R = 0;
+    for (const m of bags) { if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); R = Math.max(R, m.geometry.boundingSphere.radius); }
+    const plain = m => { const mt = m.material;
+      return !Array.isArray(mt) && mt.type === 'MeshStandardMaterial' && !mt.transparent && (!mt.emissive || mt.emissive.getHex() === 0) && !mt.emissiveMap; };
+    const cand = bags.filter(plain).map(m => [m, areaOf(m.geometry)]).sort((a, b) => a[1] - b[1]);
+    const total = cand.reduce((t, x) => t + x[1], 0), list = [];
+    let acc = 0;
+    for (const [m, a] of cand) { if (acc + a > DETAIL.area * total) break; acc += a; list.push(m); }
+    const big = bags.find(m => m.geometry.boundingSphere.radius === R);
+    const c = new THREE.Vector3(); if (big) c.copy(big.geometry.boundingSphere.center).applyMatrix4(big.matrixWorld); else grp.getWorldPosition(c);
+    D = grp.userData.detail = { list, c, R, on: true };
+    return D;
+  }
+  function detailTick() {
+    const e = o.eye && o.eye(); if (!e || !o.focalPx) return;
+    const K = o.focalPx();
+    for (const g of G.houses.children) {
+      if (!g.userData.frozen) continue;   // posed (its matrixWorld is final) before its centre is read
+      const D = detailOf(g); if (!D.list.length) continue;
+      const px = 2 * D.R * K / Math.max(1, e.distanceTo(D.c)), on = px >= DETAIL.px * (D.on ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
+      if (on !== D.on) { D.on = on; for (const m of D.list) m.visible = on; }
+    }
+  }
+  function tick(dt) { if (++freezeTick % 60 === 0) freezeStatic(); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -1112,9 +1506,14 @@ function make(THREE, scene, world, rec0, opts) {
   function buildObject(ob) {
     const PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
     const w = O.frame.toWorld(ob.x, ob.z), yaw = ob.yaw + O.frame.yaw;
+    // THE GROUND IS THE DEFAULT HEIGHT (2026-09-23): the editor writes a prop as { x, z, yaw, dy,
+    // on: 'ground' } and no `y` at all, so an authored or hand-placed object stood at y = 0 - the sea.
+    // A number in `y` still wins (a thing on a roof, a raft); otherwise it is the composed ground plus
+    // the entry's own `dy`.
+    const obY = (typeof ob.y === 'number') ? ob.y : (O.terrainAt(w[0], w[1]) + (+ob.dy || 0));
     if (ob.kind === 'prop') {
       if (!pp || !PR || !PR.props[ob.key]) return null;
-      const g = pp(THREE, ob.key, w[0], w[1], yaw, ob.y);
+      const g = pp(THREE, ob.key, w[0], w[1], yaw, obY);
       if (ob.on === 'ground') tiltToGround(g, (x, z) => O.terrainAt(x, z), w[0], w[1], yaw);
       G.houses.add(g);
       hitAdd(g, 'prop', 0.5);
@@ -1127,7 +1526,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (ob.kind === 'aircraft') {
       const PK = window.PARKED;
       if (!PK || !PK.place) return null;
-      const g = PK.place(THREE, ob.key, w[0], ob.y, w[1], yaw);
+      const g = PK.place(THREE, ob.key, w[0], obY, w[1], yaw);
       G.houses.add(g);
       // the holder fills when the capture lands: registered then (step() looks for it)
       hitAdd(g, 'aircraft', 0.5);
@@ -1137,9 +1536,9 @@ function make(THREE, scene, world, rec0, opts) {
       const BG = window.BIG_GEN;
       if (!BG || !BG.billboard) return null;
       const c = Math.cos(yaw), sn = Math.sin(yaw);
-      const bb = BG.billboard({ key: ob.key, w: ob.w, ground: (x, z) => O.terrainAt(w[0] + x * c + z * sn, w[1] - x * sn + z * c) - ob.y });
+      const bb = BG.billboard({ key: ob.key, w: ob.w, ground: (x, z) => O.terrainAt(w[0] + x * c + z * sn, w[1] - x * sn + z * c) - obY });
       const F = BG.billboardFinish(ob.key);
-      const grp = new THREE.Group(); grp.position.set(w[0], ob.y, w[1]); grp.rotation.y = yaw;
+      const grp = new THREE.Group(); grp.position.set(w[0], obY, w[1]); grp.rotation.y = yaw;
       for (const k of bb.BAGS) bb.bags[k].mesh(grp, F.MAT[k]);
       if (bb.bags.aoskirt && window.HOUSE_GEN && window.HOUSE_GEN.MAT && window.HOUSE_GEN.MAT.aoskirt) { const sk = bb.bags.aoskirt.mesh(grp, window.HOUSE_GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
       G.houses.add(grp);
@@ -1167,11 +1566,13 @@ function make(THREE, scene, world, rec0, opts) {
     const extra = [];
     try {
       const cat = (it.entry && it.entry.cat) || (window.VILLAGE_GEN && window.VILLAGE_GEN.lotCat ? window.VILLAGE_GEN.lotCat({}, { P: it.P, gen: it.gen, preset: it.P.preset }) : null);
-      // ...unless the entry refuses one (contract v1.22 `lot: false`): a pier, a float, a
-      // breakwater or a wharf stands in the water, and a lot round it would fence the sea
+      // ...unless the entry refuses one (contract v1.29 `lot: false`): a pier, a float, a
+      // breakwater or a wharf stands in the water, and a lot round it would fence the sea.
+      // ...unless the ITEM says no (G527, contract v1.24 `P.lot: false`): a clan house on a
+      // ceremonial ground stands on the ground it is given, not on a lawn with a drive and a car.
       // ...and nothing that stands on a DECK gets one either: its lot would be laid on the
-      // composed ground, which under a wharf is the seabed (the packing plant's four sheds)
-      const wantsLot = !(it.entry && it.entry.lot === false) && !isFinite(it.P.floorOverWater);
+      // composed ground, which under a wharf is the seabed (the packing plant's four sheds).
+      const wantsLot = !(it.entry && it.entry.lot === false) && it.P.lot !== false && !isFinite(it.P.floorOverWater);
       if (wantsLot && cat && cat !== 'sports' && cat !== 'landmark' && !it.P.mill && !it.P.station && window.VILLAGE_GEN && window.VILLAGE_GEN.finishPlot) {
         const P = it.P, L = P.L || 10, w = P.w || 8, porch = P.porch ? (P.porchD || 2.4) : (P.dock ? (P.dockD || 2.4) + 2 : 0);
         // the lot's margins: room for a drive beside a house, for a wing, for a works' yard
@@ -1236,7 +1637,7 @@ function make(THREE, scene, world, rec0, opts) {
     let built = 0;
     while (queue.length && built < (n || 2)) {
       const p = queue.shift();
-      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
       catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
       built++;
     }
@@ -1246,6 +1647,8 @@ function make(THREE, scene, world, rec0, opts) {
     stats.obstacles = OBST_IDS.size;
     if (built) paintWear();   // the garden paths are the built houses' (planPath reads the door)
     if (built && o.onBuilt) o.onBuilt(built, queue.length);
+    if (built && LIFE) LIFE.dirty();
+    if (built) freezeStatic();
     return built;
   }
 
@@ -1320,17 +1723,20 @@ function make(THREE, scene, world, rec0, opts) {
       buildRunways();
       syncTrams();   // the trams run in the game whether or not the editor is open (G398.3)
       syncTraffic();
+      syncAnimals();
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
       // THE GAME HAD NEVER DRAWN A RECORD TREE (2026-09-23, the user: "I can see no
       // trees in no garden nor empty lots"). This early return is the game's whole
       // rebuild, and `buildTrees()` sat below it in the BENCH path only - so
-      // `planForest` and the garden pass both composed their trees into the record,
-      // the gate counted them, the panel reported them, and the renderer walked past
-      // the list. Nobody had noticed because until this week no record carried one.
+      // `planForest` composed its trees into the record, the gate counted them, the
+      // panel reported them, and the renderer walked past the list. Nobody had noticed
+      // because until this week no record carried one.
       buildTrees();
-      stats.tris = patch ? patch.geometry.index.count / 3 : 0; stats.chunks = patch ? patch.geometry.userData.chunks.length : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
+      if (LIFE) { LIFE.set(rec.life); LIFE.dirty(); stats.life = 1; }
+      freezeStatic();
+      stats.tris = patch ? patch.userData.tris : 0; stats.chunks = patch ? patch.userData.chunks.length : 0; stats.patchBlocks = patch ? patch.userData.blocks : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
       return stats;
     }
     if (!dirty || !dirty.bbox) {
@@ -1349,9 +1755,11 @@ function make(THREE, scene, world, rec0, opts) {
     buildOutlines();
     syncTrams();
     syncTraffic();
+    syncAnimals();
     buildRunways();
     buildHandles();
     syncHouses();
+    if (LIFE) { LIFE.set(rec.life); LIFE.dirty(); stats.life = 1; }
     buildTrees();
     stats.tris = 0; for (const [, m] of chunks) stats.tris += m.geometry.index.count / 3;
     stats.chunks = chunks.size; stats.ms = performance.now() - t0; stats.rebuilt = n;
@@ -1377,7 +1785,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
     let tree = null, td = 2.5;
-    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;
@@ -1393,9 +1801,11 @@ function make(THREE, scene, world, rec0, opts) {
     return best;
   }
   function dispose() {
+    if (LIFE) LIFE.dispose();
+    if (ANIM) { ANIM.dispose(); ANIM = null; }
     { const R = OBS(); if (R) for (const id of OBST_IDS) R.remove(id); OBST_IDS.clear(); }
     for (const [, m] of chunks) m.geometry.dispose();
-    if (patch) { patch.geometry.dispose(); patch = null; }
+    if (patch) { patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
     chunks.clear();
     for (const [, L] of LINES) { L.line.geometry.dispose(); L.line.material.dispose(); }
     LINES.clear();
@@ -1405,6 +1815,8 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    animals: () => (ANIM ? ANIM.list() : []),
+    animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
     obstacles: () => { const R = OBS(); return R ? R.list().filter(r => OBST_IDS.has(r.id)).map(r => ({ id: r.id, tag: r.tag, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, top: r.shape.top, cells: r.shape.cells, cell: r.shape.cell })) : []; },
     setRecord: r => { rec = PG.normalise(r); },
@@ -1417,6 +1829,8 @@ function make(THREE, scene, world, rec0, opts) {
     // house patches"); `world` here so the rings can ask
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
     patchBounds: () => (patch ? extentWorld() : null),
+    life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
+    detail: DETAIL,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },

@@ -361,6 +361,55 @@
       rows.push(R); live.push(R);
       K.appendChild(n);
     }
+    // ---- THE CLIMATE (K2, 2026-09-22): the wind field and the column ----------------
+    // The player's dials are the WEATHER panel's (weather_ui.js, both rails); these
+    // are the developer's: the same day fields, plus what the climate makes of them.
+    {
+      const wx = () => (W.WORLD && W.WORLD.world ? W.WORLD.world : null);
+      const cl = () => { const w = wx(); return w && w.climate ? w.climate : null; };
+      const wd = () => { const d = dy(); return (d && d.wind) || {}; };
+      const setW = patch => { if (!ck()) return; const w = Object.assign({ refH: 10 }, wd(), patch);
+        ck().set({ wind: w.kts > 0 ? w : null }); };
+      const C = fold(root, 'climate', true);
+      C.appendChild(slider('wind', 0, 45, 1, () => (wd().kts || 0), v => setW({ kts: v }), v => v.toFixed(0) + ' kt'));
+      C.appendChild(slider('from', 0, 355, 5, () => (wd().dirDeg || 0), v => setW({ dirDeg: v }), v => v.toFixed(0) + '°'));
+      C.appendChild(slider('gust', 0, 1, 0.05, () => (wd().gust || 0), v => setW({ gust: v }), v => '±' + (v * 100).toFixed(0) + '%'));
+      C.appendChild(slider('terrain', 0, 1, 0.1, () => (wd().terrain || 0), v => setW({ terrain: v })));
+      C.appendChild(slider('thermals', 0, 1, 0.1, () => (wd().thermals || 0), v => setW({ thermals: v })));
+      C.appendChild(slider('aloft x', 1, 1.8, 0.05, () => (wd().aloftK != null ? wd().aloftK : 1), v => setW({ aloftK: v })));
+      C.appendChild(slider('veer', 0, 40, 5, () => (wd().veerDeg || 0), v => setW({ veerDeg: v }), v => v.toFixed(0) + '°'));
+      C.appendChild(slider('dew point', -30, 30, 1, () => (dy() && dy().dewC != null ? dy().dewC : NaN), v => { if (ck()) ck().set({ dewC: v }); }, v => v.toFixed(0) + '°C'));
+      C.appendChild(slider('swing', 0, 18, 1, () => (dy() ? dy().diurnalC : NaN), v => { if (ck()) ck().set({ diurnalC: v || null }); }, v => (v ? '±' + (v / 2).toFixed(1) + '°C' : 'off')));
+      C.appendChild(select('column', [['isa', 'standard 6.5'], ['mixed', 'mixed layer']],
+        () => (dy() && dy().spec().lapse === 'mixed' ? 'mixed' : 'isa'),
+        v => { if (ck()) ck().set(v === 'mixed' ? { lapse: 'mixed' } : { lapse: null, mixH: null, inversion: null }); }));
+      C.appendChild(slider('mixed to', 300, 3500, 100, () => { const d = dy(); return d ? (d.spec().mixH != null ? d.spec().mixH : 1200) : NaN; },
+        v => { if (ck()) ck().set({ lapse: 'mixed', mixH: v }); }, v => v.toFixed(0) + ' m'));
+      C.appendChild(slider('the lid', 0, 8, 0.5, () => { const d = dy(); const iv = d && d.spec().inversion; return iv ? (iv.dT || 0) : 0; },
+        v => { if (ck()) ck().set({ lapse: 'mixed', inversion: v > 0 ? { dT: v, thick: 200 } : null }); }, v => (v ? '+' + v.toFixed(1) + '°C' : 'none')));
+      C.appendChild(select('front', [['0', 'none'], ['3600', 'in 1 h'], ['10800', 'in 3 h'], ['60', 'now']],
+        () => { const d = dy(); if (!d || !d.stormSpec) return '0';
+          const dt = d.stormSpec.at - d.utc;
+          return dt > 7200 ? '10800' : dt > 900 ? '3600' : '60'; },
+        v => { const d = dy(); if (ck()) ck().set({ storm: +v ? { at: d.utc + +v, intensity: 1 } : null }); }));
+      { const n = note('');
+        const R = { el: n, refresh: () => {
+          const c = cl(), d = dy();
+          if (!c || !d) { n.textContent = 'no climate'; return; }
+          const pr = c.profile ? c.profile(0) : null, hz = c.haze ? c.haze() : null, st = d.storm;
+          const sw = c.surfaceWind(), S = c.stats || {};
+          n.textContent = `${sw.spd.toFixed(1)} m/s at ${(sw.dir * 180 / Math.PI).toFixed(0)}° · ${c.mode}`
+            + (pr ? ` · ${pr.T.toFixed(1)}°C rh ${(pr.rh == null ? NaN : pr.rh * 100).toFixed(0)}%` : '')
+            + ` · thermals to ${c.mixTop ? c.mixTop().toFixed(0) : '?'} m`
+            + (pr && pr.lcl != null ? ` (base ${pr.lcl.toFixed(0)})` : ' (no base)')
+            + (hz ? ` · vis ${hz.column.visibilityKm.toFixed(0)} km` + (hz.surfaceVisM < hz.column.visibilityKm * 900 ? ` (${(hz.surfaceVisM / 1000).toFixed(1)} on the deck)` : '') : '')
+            + (st ? ` · front ${st.phase} I ${st.I.toFixed(2)}` : '')
+            + ` · raster ${c.relief ? c.relief.nx + '²  ' + S.rasterMs.toFixed(0) + ' ms' : 'not built'}`
+            + ` · ${S.full || 0} full / ${S.linear || 0} linear`;
+        } };
+        rows.push(R); live.push(R); C.appendChild(n);
+      }
+    }
     // ---- THE ATMOSPHERE (SKY S3): the day's air as the sky sees it -------------------
     const A = fold(root, 'atmosphere', true);
     A.appendChild(slider('turbidity', 1.5, 10, 0.1, () => (dy() ? dy().turbidity : NaN), v => { if (ck()) ck().set({ turbidity: v }); }, v => v.toFixed(1) + (v < 3 ? ' clear' : v < 6 ? ' hazy' : ' thick')));
@@ -375,10 +424,32 @@
     A.appendChild(slider('flare ghosts', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.ghosts : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.ghosts = v; }));
     A.appendChild(slider('flare streak', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.streak : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.streak = v; }));
     const mist = () => (W.ATMO ? W.ATMO.MIST : null);
+    const mistScalarsN = () => { const u = W.ATMO && W.ATMO.apUniforms && W.ATMO.apUniforms.uMist; return u && u.value ? (u.value[19] | 0) : 0; };
     A.appendChild(slider('mist density', 0, 6, 0.1, () => (mist() ? mist().k : NaN), v => { if (mist()) mist().k = v; }, v => v.toFixed(1) + 'x' + (mist() && mist().rho0 > 0 ? ' · vis ' + (3 / mist().rho0 / 1000).toFixed(1) + ' km' : ' · none (dry air)')));
     A.appendChild(slider('mist top', -20, 600, 5, () => (mist() ? mist().top : NaN), v => { if (mist()) mist().top = v; }, v => v + ' m ASL'));
     A.appendChild(slider('mist thickness', 5, 300, 5, () => (mist() ? mist().H : NaN), v => { if (mist()) mist().H = v; }, v => v + ' m'));
     A.appendChild(slider('mist forward', 0, 3, 0.1, () => (mist() ? mist().fwd : NaN), v => { if (mist()) mist().fwd = v; }));
+    // F2: the mist ON THE LAND - the field's dials. `relief` 0 is the flat slab, bit-identical.
+    A.appendChild(slider('mist relief', 0, 1, 1, () => (mist() ? mist().relief : NaN), v => { if (mist()) mist().relief = v; }, v => (v ? 'on the land' : 'one flat slab')));
+    A.appendChild(slider('mist patches', 0, 1, 0.05, () => (mist() ? mist().patch : NaN), v => { if (mist()) mist().patch = v; }, v => v ? v.toFixed(2) + ' banks' : 'even'));
+    A.appendChild(slider('mist bank size', 200, 4000, 100, () => (mist() ? mist().bankM : NaN), v => { if (mist()) mist().bankM = v; }, v => v + ' m'));
+    A.appendChild(slider('mist drift', 0, 4, 0.1, () => (mist() ? mist().driftK : NaN), v => { if (mist()) mist().driftK = v; }, v => v.toFixed(1) + 'x the wind'));
+    A.appendChild(slider('mist march', 2, 16, 1, () => (mist() ? mist().steps : NaN), v => { if (mist()) mist().steps = v; }, v => v + ' samples'));
+    { const n = note(''); const R = { el: n, refresh: () => { const f = mist() && mist().field;
+        n.textContent = f ? ('the field: ' + f.N + '² baked in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'
+                             + (mist().relief ? ' · ' + (mistScalarsN() || '?') + ' samples a ray' : ' · not in use (relief off)'))
+                          : 'no field baked — the flat slab is all there is'; } };
+      rows.push(R); live.push(R); A.appendChild(n); }
+    // F1: what the contract is doing, in the units it decides in
+    { const vis = () => (W.WORLD && W.WORLD.vis) ? W.WORLD.vis : null;
+      A.appendChild(slider('draw distance', 0, 1, 1, () => (vis() ? (vis().on ? 1 : 0) : NaN), v => { const V = vis(); if (V) { V.on = !!v; if (!v) V.release(); } }, v => (v ? 'by visibility' : 'always full')));
+      A.appendChild(slider('cut margin', 1, 3, 0.05, () => (vis() ? vis().k : NaN), v => { if (vis()) vis().k = v; }, v => v.toFixed(2) + 'x'));
+      const n = note(''); const R = { el: n, refresh: () => { const V = vis();
+        n.textContent = V ? ('sees ' + (V.visM === Infinity ? 'to the air’s own limit' : (V.visM / 1000).toFixed(1) + ' km level')
+                             + ' · far plane ' + (V.far / 1000).toFixed(1) + ' km'
+                             + ' · ' + V.nHidden + ' of ' + V.meshes.length + ' far meshes hidden'
+                             + ' · ' + V.ms.toFixed(2) + ' ms') : 'no world'; } };
+      rows.push(R); live.push(R); A.appendChild(n); }
     A.appendChild(note('the mist’s density is the day’s humidity (dry below 70 %); the GRAPHICS menu switches glare and mist off'));
     const lamps = () => (W.WORLD && W.WORLD.premises && W.WORLD.premises.lamps) ? W.WORLD.premises.lamps : null;
     A.appendChild(slider('village lamps', 0, 6, 0.1, () => (lamps() ? lamps().gain : NaN), v => { if (lamps()) lamps().gain = v; }, v => v.toFixed(1) + 'x' + (lamps() ? ' · ' + (W.WORLD.premises.stats.litNow || 0) + ' lit' : '')));

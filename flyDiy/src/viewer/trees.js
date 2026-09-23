@@ -306,13 +306,73 @@
   // the sun - a field of light and dark halves, the harshness. The fix every grass renderer uses:
   // the card's shading normal is UP (the ground's), so a tuft takes the ground's light, and only
   // its texture and its tint vary. userData.uUp = 1 on a cover material (the ring sets it).
+  // ---- THE WIND IN THE TREES (CLIMATE K4, 2026-09-22) -----------------------
+  // ONE uniform, shared by every leaf, tuft and card: (wx, wz, phase, gain).
+  // The climate's link fills it once a frame from the wind AT THE CAMERA, and
+  // `phase` is INTEGRATED there (|w| x dt x k) rather than computed as t x rate,
+  // because the rate itself changes with the wind and a product would jog the
+  // whole forest the moment it did.
+  //
+  // FOUR RULES, the vegetation session's, and each one is a thing that breaks:
+  //   1. UNIFORM ONLY, so the program cache key (G484's 'fade' / 'fade-leaf' /
+  //      'fade-up' / 'fade-up-leaf') needs nothing: gain 0 is a zero bend in the
+  //      same program, never a second variant of it.
+  //   2. THE COVER SHADES WITH THE GROUND'S NORMAL (G484's uUp). Bend the
+  //      POSITION only - touch objectNormal on those and the harsh light/dark
+  //      tuft halves come back - and scale by HEIGHT, so a 0.12 m lawn tuft
+  //      moves by nothing and a 2 m fern moves.
+  //   3. THE IMPOSTOR IS SHEARED, NEVER ROTATED (the baked view direction has to
+  //      stay valid), the shear goes in BEFORE the fade's shrink, and the
+  //      collapse test stays last - a sheared card could otherwise un-collapse
+  //      at the near edge. It is scaled by uDiam because stand cards share this
+  //      material: a 47 m card for a 32 m stand would otherwise wave like wheat.
+  //   4. Nothing here calls replant(): the fill and the ring keep their own
+  //      schedules.
+  //
+  // TWO LIMITATIONS, named rather than hidden: three's depth material does not
+  // run a Standard material's onBeforeCompile, so the SHADOWS do not sway (at
+  // these amplitudes, invisible); and an impostor's baked normal is fixed, so a
+  // sheared card's shading does not follow its lean (acceptable at the 30 m+
+  // where impostors start).
+  const U_WIND = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0, 0, 0, 0) : { x: 0, y: 0, z: 0, w: 0 } };
+  // a leaf leans with its height above the trunk's base and flutters on its own
+  // phase; `hi` is that height, `ph` the per-instance offset
+  // BOTH HOOKS RUN ON ONE MATERIAL (2026-09-23, the water session: "uniform vec4 uWind is declared twice
+  // ... CommonBark does not compile"): a leaf material that also carries userData.fade goes through
+  // hookLeaf AND fadeInject, and each prepended its own `uniform vec4 uWind;` and spliced its own sway
+  // block - two declarations of the uniform and of swayPh/swayAmp/swayF in one scope, so every trunk on
+  // such a material failed to compile and drew nothing (and vanished from the water's mirror with it).
+  // The sway is ONE injection now, BRACED so its locals cannot collide with whatever splices after it,
+  // and every prologue line is added only if it is not already there. `ph` is the caller's phase: the
+  // leaf's instance id, the ring's aRand.
+  const SWAY_MARK = '// tree sway';
+  const swayVS = ph => [
+    SWAY_MARK,
+    '{',
+    '  float swayPh = ' + ph + ';',
+    '  float swayAmp = uWind.w * (0.012 * max(0.0, transformed.y));',
+    '  float swayF = 0.6 + 0.4 * sin(uWind.z + swayPh);',
+    '  transformed.xz += uWind.xy * swayAmp * swayF;',
+    '}',
+  ].join('\n');
+  // a prologue line prepended once, and the sway spliced once, whichever hook gets there first
+  const declOnce = (src, line) => src.indexOf(line) >= 0 ? src : line + '\n' + src;
+  const swayOnce = (src, ph) => src.indexOf(SWAY_MARK) >= 0 ? src
+    : src.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + swayVS(ph));
   const UP_VS = 'if (uUp > 0.5) { objectNormal = vec3(0.0, 1.0, 0.0); }';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
-    sh.vertexShader = 'attribute float aRand;\nuniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;\n' +
-      sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
-                     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
+    sh.uniforms.uWind = U_WIND;
+    let vs = sh.vertexShader
+      .replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
+    // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already
+    // carries, and its NORMAL is not touched (see UP_VS)
+    vs = swayOnce(vs, 'aRand * 6.2831');
+    vs = declOnce(vs, 'uniform vec4 uWind;');
+    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;');
+    sh.vertexShader = declOnce(vs, 'attribute float aRand;');
   };
   // upHook(mat): the cover's material shades as the ground (see UP_VS); the uniform is the material's own
   function upHook(mat) {
@@ -374,9 +434,12 @@
       sh.uniforms.uLight = mat.userData.uLight;
       sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP;
       sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
-      sh.vertexShader = 'attribute float aoV;\nvarying float vAoV;\n' +
-        sh.vertexShader.replace('#include <begin_vertex>',
-          '#include <begin_vertex>\nvAoV = aoV;');
+      sh.uniforms.uWind = U_WIND;
+      { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
+        vs = swayOnce(vs, 'float(gl_InstanceID) * 1.7');   // a leaf flutters on its own instance id
+        vs = declOnce(vs, 'uniform vec4 uWind;');
+        vs = declOnce(vs, 'varying float vAoV;');
+        sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
       if (mat.userData.fade) fadeInject(sh);
       // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
       // PCFSoft (the aeroplane's, kept) costs ~16 taps a fragment, and a
@@ -403,6 +466,8 @@
     mat.userData.uLight.value = (leaf ? (t.light === undefined ? 1 : t.light)
                                       : (t.bark === undefined ? 1 : t.bark)) * MASTER.light;
   }
+  // the sway's uniform, for the climate's link to fill (K4)
+  if (typeof window !== 'undefined') window.TREE_WIND = U_WIND;
   const treeLeaf = {
     // the impostor material lights its sheet with the same terms and dials
     uniforms: { uWrap: U_WRAP, uSSS: U_SSS, uSSSP: U_SSSP, uAoBake: U_AO },

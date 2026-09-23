@@ -29,6 +29,12 @@
   const W = (typeof window !== 'undefined') ? window : null;
   if (!W) return;
   const KEY = 'flydiy.gfx';
+  // THE RIGS (G528): a headless or driven browser - the gates, frame_perf, the scratch rigs - measures a FIXED frame; the
+  // auto scale and the first launch's tier probe stand down there unless the URL asks (?autoscale=1, ?autotier=1)
+  const RIG = !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
+  const FORCE = k => !!(W.location && new RegExp('[?&]' + k + '=1').test(W.location.search || ''));
+  const REFUSE = k => !!(W.location && new RegExp('[?&]' + k + '=0').test(W.location.search || ''));
+  let firstLaunch = false, AUTO_TIER = null;
 
   // ---- the options: named steps over the handles ---------------------------
   const OPTIONS = [
@@ -36,6 +42,16 @@
         { v: 'off',  label: 'off', why: '4x MSAA - the cheapest frame' },
         { v: 'msaa', label: 'smooth', why: '8x MSAA' },
         { v: 'full', label: 'smoothest', why: '8x MSAA and a 1.25x supersample - the dearest frame' } ] },
+    // THE RENDER SCALE (PERF 2026-09-23): the scene drawn at a fraction of the screen's pixels and enlarged
+    // (aa_resolve.js, bicubic). The frame is fill-bound: on the 3080 the default preset is 16-23 ms at 1080p
+    // and 38-50 ms at 5120x1440 - the pixels, not the content, decide the frame rate on a big screen.
+    { k: 'scale', label: 'render scale', steps: [
+        { v: 'auto', label: 'auto', why: 'held at 60 fps: 100 % down to 50 % as the frame needs, and only where the pixels are the cost (a step that does not pay is taken back) - aa_resolve.js AUTO' },
+        { v: 1,    label: '100 %', why: 'every pixel of the screen drawn' },
+        { v: 0.85, label: '85 %', why: 'the scene at 85 % of the screen and enlarged - 72 % of the pixels' },
+        { v: 0.75, label: '75 %', why: '56 % of the pixels: a big screen at a playable rate' },
+        { v: 0.67, label: '67 %', why: '45 % of the pixels' },
+        { v: 0.5,  label: '50 %', why: 'a quarter of the pixels - an old or integrated card on a big screen' } ] },
     { k: 'density', label: 'forest density', steps: [
         { v: 100, label: 'sparse', why: 'a tree every 10.2 m at most - 95 a hectare' },
         { v: 128, label: 'normal', why: 'a tree every 8 m at most - 156 a hectare' },
@@ -57,9 +73,36 @@
     { k: 'glare', label: 'sun glare', steps: [
         { v: 'off', label: 'off', why: 'no corona, no flare' },
         { v: 'on',  label: 'on', why: 'the corona round the sun and a flare over the frame, hidden behind the wing and the hills' } ] },
-    { k: 'mist', label: 'mist', steps: [
-        { v: 'off', label: 'off', why: 'no ground mist whatever the day' },
-        { v: 'on',  label: 'on', why: 'the day’s humidity as a layer over the low ground and the water' } ] },
+    // THE WIND IN THE TREES (CLIMATE K4): a uniform-only bend on the leaves, the
+    // cover's tufts and the impostor cards - no second program, no attribute, no
+    // sampler; `off` is a zero gain in the same shader.
+    { k: 'sway', label: 'wind sway', steps: [
+        { v: 'off', label: 'off', why: 'the vegetation stands still whatever the wind' },
+        { v: 'on',  label: 'on', why: 'leaves, tufts and far cards lean and flutter with the wind' } ] },
+    // F1: the renderer stops drawing what the weather has already swallowed. `full` is the old
+    // behaviour for anyone who would rather pay than ever risk a cut.
+    { k: 'drawDist', label: 'draw distance', steps: [
+        { v: 'vis',  label: 'by visibility', why: 'the far plane and the far terrain follow what the mist and the air actually let through (a foggy day is the CHEAP day: -45 % at the stand)' },
+        { v: 'full', label: 'always full', why: 'draw to 100 km whatever the weather' } ] },
+    // THE TERRAIN'S GEOMETRIC ERROR (PERF 2026-09-23): the ring and the far terrain drawn at the coarsest mesh whose
+    // height error stays under this many pixels. At 8x MSAA the sub-pixel chords of rough ground cost by their COUNT,
+    // not their pixels (each one that lands on a sample shades the ground's whole splat in a 2x2 quad): 2 px is
+    // ~2-3 ms of the frame at 300 m on Jolene, 3 px ~4 ms; 'exact' is the picture as it was
+    // THE GROUND'S BLEND (PERF 2026-09-23): a terrain type mixes 2-3 texture sets in blotches (grass giving way to
+    // rock, mud to moss), each hex-tiled, colour + normal - the dearest pixels of the frame. Past the detail fade
+    // (~900 m) a blotch is a few pixels: 'lean far' draws one set there (8 ms of 44 at 300 m on the wide screen)
+    { k: 'ground', label: 'ground blend', steps: [
+        { v: 'full', label: 'full', why: 'every terrain type blends its 2-3 texture sets at every distance' },
+        { v: 'far1', label: 'lean far', why: 'one set per terrain type past ~400 m, where a blotch is a few pixels; all of them near (~10 ms on a 5120 x 1440 screen at 300 m, 5 ms at 30 m)' },
+        { v: 'lean', label: 'lean', why: 'one set per terrain type everywhere - the material patchwork near the ground is gone, its colour stays' } ] },
+    { k: 'terrain', label: 'terrain detail', steps: [
+        { v: 1, label: 'exact', why: 'every ridge and bank to a pixel (the whole ring, the far terrain at 1 px)' },
+        { v: 2, label: 'fine', why: 'the terrain within 2 px of its true shape - a far ridge may shift by a pixel as you fly' },
+        { v: 3, label: 'coarse', why: 'within 3 px - the far ground visibly re-cuts as you fly; for cards that need the time' } ] },    { k: 'mist', label: 'mist', steps: [
+        { v: 'off',   label: 'off', why: 'no ground mist whatever the day' },
+        { v: 'on',    label: 'flat', why: 'the day’s humidity as one level layer over the world (the closed form: no cost)' },
+        { v: 'land',  label: 'on the land', why: 'the layer lies in the valleys and on the water instead of at one altitude (F2: a short march, a few tenths of a ms)' },
+        { v: 'banks', label: 'patchy', why: 'and it thins and thickens in banks that drift downwind - a face you fly into' } ] },
     // THE CLOUDS (C1): the volumetric layer, marched at half or full resolution
     { k: 'clouds', label: 'clouds', steps: [
         { v: 'off',  label: 'off', why: 'a clear sky whatever the day' },
@@ -97,6 +140,12 @@
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
+    // THE POWER LINE (2026-09-22): the poles along a road and the cable between them
+    // (src/viewer/powerline.js). The poles are props with their own LOD ladder; the cable is a few
+    // hundred metres of merged tube a mesh.
+    { k: 'poles', label: 'power lines', steps: [
+        { v: 'on',  label: 'on', why: 'utility poles every ~34 m along one verge, the cable strung between them, a street lamp on every second one' },
+        { v: 'off', label: 'off', why: 'no poles and no cable' } ] },
     // THE WATER (H6, G460): the one material's two tiers
     { k: 'water', label: 'water', steps: [
         { v: 'simple', label: 'simple', why: 'the swell’s shading and the sun’s glitter; no ripple tile, no lifted surface, no foam' },
@@ -146,21 +195,70 @@
   const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 1024, far: false },
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 
-  // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
+  // ---- the presets: FIVE TIERS (PERF 2026-09-23, the user: "5 levels in the end: potato computer, was good
+  // 5 years ago, current, gamer and ultra. This computer is considered gamer, and it should hit consistently
+  // the 60 fps with the visual settings more or less as they are now"). GAMER is the default and is the
+  // medium of before, option for option (a saved choice that was 'medium' reads as 'gamer'); the reference
+  // machine is the gamer box (RTX 3080, i7-13700KF). Each tier's cost is measured in tools/frame_perf.js on
+  // Jolene (stand / forest / 300 m over the field) - futureDesigns/PERF-2026-09-23.md has the table.
+  // What each tier gives up is ordered by what it buys per what it shows. At 1080p the frame is CPU-bound on the
+  // DRAW COUNT (three's JavaScript per draw), so a lower tier sheds draws as well as pixels: the shadow pass
+  // (~450-1 500 draws), the power poles (~260-400), then the render scale and the MSAA for the older GPU.
+  // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13); every post pass OFF everywhere
+  const POST_OFF = { bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear' };
+  // the soft bloom from 'current' up (2026-09-23: measured 0.25 ms on 5120 x 1440 - the sun and the highlights glow a little;
+  // the other five post rows stay off, the user's G448 ruling that the game runs whole without them)
+  const POST_BLOOM = Object.assign({}, POST_OFF, { bloom: 'soft' });
+  const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
-    // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', rails: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
-    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
+    potato:  Object.assign({ ground: 'lean', scale: 'auto', drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    retro:   Object.assign({ ground: 'lean', scale: 'auto',    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    current: Object.assign({ ground: 'far1', scale: 'auto',    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 'auto',    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
   };
+  const DEFAULT = 'gamer';
+  const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const PRESET_WHY = {
-    low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
-    high: 'this machine at ~30 fps in the worst stand', ultra: 'when the card allows',
+    potato:  'an integrated or very old GPU: the scene at 67 % of the screen, no shadows, no clouds, sparse forest',
+    retro:   'a card that was good five years ago (GTX 1060 class): the near shadow, no clouds, sparse forest',
+    current: 'a current mid-range card (RTX 3060 class): gamer without the 8x MSAA, the mirror and the mist march',
+    gamer:   'the reference: RTX 3080 class - 53-60 fps at 1080p on Jolene (the frame is the CPU draw count there); the default (the medium of before, with the far ground lean)',
+    ultra:   'the dearest picture: supersampled, the densest forest, 4096 shadows, live reflections - for screenshots and the cards above a 3080',
   };
 
+  // THE FIRST LAUNCH PICKS ITS TIER (PERF 2026-09-23, G528, the user: "keep the new player out of harm's way"). With no saved
+  // choice the game boots on gamer; once the roll-out is gone and 4 s have settled, 6 s of frames are read (the auto
+  // scale acting - it is what gamer is) and, if the frame still misses 60 fps by a margin, the UNTOUCHED default steps
+  // down: current up to 30 ms, 5 years ago up to 45, potato beyond. The reading and the pick are kept (flydiy.gfx.auto)
+  // and the menu says so; the choice is saved, so it runs once. A player's own pick is never overridden.
+  function tierProbe() {
+    if (!W.document || typeof setTimeout !== 'function' || typeof W.requestAnimationFrame !== 'function') return;
+    if ((RIG && !FORCE('autotier')) || REFUSE('autotier')) return;
+    const B = W.BOOT, t0 = Date.now();
+    const wait = () => { if (B && B.state !== 'gone' && Date.now() - t0 < 180000) { setTimeout(wait, 500); return; } setTimeout(measure, 4000); };
+    const measure = () => {
+      const fr = []; let last = 0; const start = performance.now();
+      // every frame counts (a slow machine's 300 ms frames are the reading), only a stall over 2 s (a tab away) does not
+      const f = () => { const t = performance.now(); if (last && t - last < 2000) fr.push(t - last); last = t; if (t - start < 6000) W.requestAnimationFrame(f); else decide(fr); };
+      W.requestAnimationFrame(f);
+    };
+    const decide = fr => {
+      if (fr.length < 10) return;
+      fr.sort((a, b) => a - b);
+      const ms = fr[fr.length >> 1];
+      const pick = ms <= 21 ? null : ms <= 30 ? 'current' : ms <= 45 ? 'retro' : 'potato';
+      const untouched = S.preset === DEFAULT;
+      AUTO_TIER = { ms: +ms.toFixed(1), from: S.preset, picked: pick && untouched ? pick : S.preset, at: new Date().toISOString().slice(0, 10) };
+      try { W.localStorage.setItem(KEY + '.auto', JSON.stringify(AUTO_TIER)); } catch (e) {}
+      if (pick && untouched) set('preset', pick); else save();
+      if (typeof console !== 'undefined') console.log('GFX: first launch measured ' + AUTO_TIER.ms + ' ms a frame on ' + AUTO_TIER.from + ' -> ' + AUTO_TIER.picked);
+    };
+    wait();
+  }
+
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: 'medium' }, PRESETS.medium);
+  const S = Object.assign({ preset: DEFAULT, pv: 2 }, PRESETS[DEFAULT]);   // pv: the pref's version (2: G528's auto render scale)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -171,9 +269,21 @@
   const load = () => {
     try {
       const v = JSON.parse(W.localStorage.getItem(KEY) || 'null');
+      if (!v) firstLaunch = true;   // no saved choice: the first launch probes this machine (tierProbe, after the roll-out)
+      // A CHOICE SAVED BEFORE THE TIERS' LAST CHANGES (pv < 2: G516's soft bloom, G528's auto scale) - once: a player who
+      // was ON a preset gets that preset as it is now (the old names mapped), or every returning player would read
+      // 'custom' and never get the protection; a player's own custom mix keeps its options (its 100 % was the default)
+      if (v && !v.pv) {
+        const MAP = { low: 'retro', medium: 'gamer', high: 'gamer', ultra: 'ultra', potato: 'potato', retro: 'retro', current: 'current', gamer: 'gamer' };
+        const np = MAP[v.preset];
+        if (np && PRESETS[np]) { for (const o of OPTIONS) delete v[o.k]; Object.assign(v, PRESETS[np]); v.preset = np; }
+        else if (v.scale === 1) v.scale = 'auto';
+        v.pv = 2;
+      }
+      try { AUTO_TIER = JSON.parse(W.localStorage.getItem(KEY + '.auto') || 'null'); } catch (e) {}
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
-    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = PRESETS.medium[o.k];
+    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = PRESETS[DEFAULT][o.k];
     S.preset = presetOf();
   };
   const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
@@ -188,6 +298,14 @@
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
     if (AA && AA.setTier && applied.aa !== S.aa) { AA.setTier(S.aa); applied.aa = S.aa; }
+    if (AA && AA.setScale && applied.scale !== S.scale) {
+      // 'auto' (G528): the controller starts from 100 %; a rig (a headless or driven browser) keeps 100 % unless ?autoscale=1
+      const auto = S.scale === 'auto' && (!RIG || FORCE('autoscale'));
+      if (AA.autoScale) AA.autoScale(false);
+      AA.setScale(S.scale === 'auto' ? 1 : S.scale);
+      if (auto && AA.autoScale) AA.autoScale(true);
+      applied.scale = S.scale;
+    }
     if (W.TREE_FILL && applied.density !== S.density) {
       // re-grid only when the number really changes: a re-grid re-streams
       // every chunk around the aircraft
@@ -207,9 +325,26 @@
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }
     // the sky's own switches (S7): the glare's two halves and the mist
     if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
-    if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) { W.ATMO.MIST.on = S.mist !== 'off'; applied.mist = S.mist; }
+    if (W.WORLD && W.WORLD.vis && applied.drawDist !== S.drawDist) { W.WORLD.vis.on = S.drawDist !== 'full'; applied.drawDist = S.drawDist; }
+    { const sp = W.WORLD && W.WORLD.ground && W.WORLD.ground.splat && W.WORLD.ground.splat();
+      if (sp && sp.blend && applied.ground !== S.ground) { sp.blend(S.ground === 'lean' ? 1 : 3, S.ground === 'full' ? 3 : 1, S.ground === 'full' ? 0 : 100, S.ground === 'full' ? 0 : 400); applied.ground = S.ground; } }
+    if (W.WORLD && W.WORLD.ground && applied.terrain !== S.terrain) {
+      const g = W.WORLD.ground, far = g.farLod && g.farLod(), ring = g.ringLod && g.ringLod();
+      if (far || ring) { if (far) { far.tolPx = S.terrain; far.update(true); } if (ring) { ring.tolPx = S.terrain; ring.update(); } applied.terrain = S.terrain; }
+    }
+    if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) {
+      const M = W.ATMO.MIST;
+      M.on = S.mist !== 'off';
+      M.relief = (S.mist === 'land' || S.mist === 'banks') ? 1 : 0;    // 0 keeps the closed form, bit-identical
+      M.patch = S.mist === 'banks' ? 0.85 : 0;
+      applied.mist = S.mist;
+    }
+    // the sway's gain: 0 is a zero bend in the SAME program, so switching it
+    // never recompiles and never makes a second variant of a cached key
+    if (W.CLIMATE_LINK) W.CLIMATE_LINK.S.swayGain = S.sway === 'off' ? 0 : 1;
     if (W.WATER && applied.water !== S.water) { W.WATER.set({ tier: S.water }); applied.water = S.water; }
     if (W.GUARDRAIL && applied.rails !== S.rails) { W.GUARDRAIL.setOn(S.rails !== 'off'); applied.rails = S.rails; }
+    if (W.POWERLINE && applied.poles !== S.poles) { W.POWERLINE.setOn(S.poles !== 'off'); applied.poles = S.poles; }
     if (W.WATER && applied.mirror !== S.mirror) { W.WATER.set({ mirror: S.mirror }); applied.mirror = S.mirror; }
     if (W.CLOUDS && applied.clouds !== S.clouds) { W.CLOUDS.S.mode = S.clouds; if (AA && AA.needRT) AA.needRT(S.clouds !== 'off'); applied.clouds = S.clouds; }
     // the compositing (G448.3): the resolve target's space, the panes' blend, the post passes' input
@@ -293,9 +428,10 @@
     }
     H.row(body, 'preset');
     H.pills(body, Object.keys(PRESETS).concat(['custom']).map(p => ({
-        label: p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
+        label: PRESET_LABEL[p] || p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
         why: p === 'custom' && S.preset !== 'custom' ? 'change any option below' : undefined })),
       o => o.value === S.preset, o => pick('preset', o.value));
+    if (AUTO_TIER) H.note(body, 'First launch: ' + AUTO_TIER.ms + ' ms a frame on ' + AUTO_TIER.from + ' - ' + (AUTO_TIER.picked === AUTO_TIER.from ? 'kept.' : AUTO_TIER.picked + ' picked for this machine (any preset below overrides it).'));
     for (const o of OPTIONS) {
       H.row(body, o.label);
       H.pills(body, o.steps.map(s => ({ label: s.label, value: s.v, title: s.why })),
@@ -333,16 +469,17 @@
   // this script, from the same stored key, so read the truth back
   if (W.THREE && W.THREE.ColorManagement) S.colour = W.THREE.ColorManagement.enabled ? 'managed' : 'linear';
   W.GFX = {
-    OPTIONS, PRESETS, BANDS, SHADOWS,
+    OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS,
     get: () => Object.assign({}, S),
     set, apply, mount, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
     // the world calls this once it exists (render_world.js, end of build)
-    onWorld: () => { applied = {}; apply(); },
+    onWorld: () => { applied = {}; apply(); if (firstLaunch) { firstLaunch = false; tierProbe(); } },
+    autoTier: () => AUTO_TIER,
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
-                      bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live',
-                      glare: 'live', mist: 'live', clouds: 'live',
+                      bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame; auto re-sizes it at most every 2 s)',
+                      glare: 'live', mist: 'live', drawDist: 'live', terrain: 'live (the far quadrants re-cut at once: a hitch)', ground: 'live', clouds: 'live',
                       bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
                       compositing: 'live (reallocates the frame)', water: 'live', anything: 'no restart' }),
   };

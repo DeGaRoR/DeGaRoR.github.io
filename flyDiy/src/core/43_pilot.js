@@ -220,11 +220,23 @@ function makePilot(sim, def, world, opts) {
     return A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * gGrade;
   };
   const stopDist = v => v * v / (2 * Math.max(0.5, aStopOf())) + v * 1.0;
+  // THE RESERVE IS THE FIELD'S (G531): the style's 120/80/50 m past the Vr
+  // point is a long runway's margin, and no strip under ~230 m could pass it
+  // - on East Point's 150 m of gravel the cub was condemned at 6 m/s by a
+  // run it makes (lift-off 104 m into 112 m ahead, measured with every rule
+  // off). Under 300 m it falls with the square of the length: half the
+  // strip, a quarter of the margin (150 m: 30 / 20 / 12.5 m, so the cautious
+  // pilot still refuses a field at the aeroplane's limit). Every strip of
+  // 300 m and more keeps the style's number to the bit.
+  const reserveOf = () => {
+    const L = ap.route.from.len || 1100;
+    return L >= 300 ? ST.reserve : ST.reserve * (L / 300) * (L / 300);
+  };
   // the run a take-off needs from a standstill: most of the sheet's roll
   // (Vr is reached before the sheet's lift-off point), the stop from Vr, the
   // reserve — the SAME arithmetic the roll rejects with, so the planner and
   // the judge never disagree
-  const runNeeded = () => ST.needK * (0.85 * (A.TORun ?? 500) + stopDist(A.VRot || 18) + ST.reserve);
+  const runNeeded = () => ST.needK * (0.85 * (A.TORun ?? 500) + stopDist(A.VRot || 18) + reserveOf());
 
   // ---- frames -------------------------------------------------------------
   // The landing/departure frame is the test pilot's: origin td + 450 u so the
@@ -259,6 +271,11 @@ function makePilot(sim, def, world, opts) {
     box: { on: false, lat: null, vert: null, thr: null, sel: {}, resume: null },
     nav: null,
     budget: 600, style: ST.name, legs: null, legI: 0, path: null, pathI: 0, plan: null,
+    // THE SHEET, PUBLISHED (CLIMATE K3). The header has said since P0.4 that it
+    // is "published as ap.sheet for the panel and the planner to come" and it
+    // never was - the panel came (the netto variometer reads its polar), so it
+    // is published now, lazily, through the same memo the pilot uses.
+    get sheet() { return sheetOf(); },
   };
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
@@ -354,7 +371,7 @@ function makePilot(sim, def, world, opts) {
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
-  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false;
+  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0;
   let gearH = null, onGT = 0;             // P0.8: the CG's rest height above the terrain; the contact's duration
@@ -483,12 +500,19 @@ function makePilot(sim, def, world, opts) {
       let pref = [px, pz];
       // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction
       if (typeof a.landHdg === 'number') pref = [Math.cos(a.landHdg), Math.sin(a.landHdg)];
-      const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number');
+      // GTRAM: an ALTIPORT is landed uphill and LEFT DOWNHILL - its one way reverses for the take-off
+      if (typeof a.landHdg === 'number' && a.altiport && mode === 'takeoff') pref = [-pref[0], -pref[1]];
+      // G527.3: a strip that names its way out (runway `departure`) is left that way in calm air
+      const tko = mode === 'takeoff' && typeof a.takeoffHdg === 'number';
+      if (tko) pref = [Math.cos(a.takeoffHdg), Math.sin(a.takeoffHdg)];
+      const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number' || tko);
       ap.dirWhy = sc.why[sc.k];
       return M.dir[sc.k].u.slice();
     }
     let dx = px, dz = pz;
-    if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    if (a.altiport && typeof a.landHdg === 'number') { const k = mode === 'takeoff' ? -1 : 1; dx = k * Math.cos(a.landHdg); dz = k * Math.sin(a.landHdg); }   // GTRAM: whatever the wind
+    else if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    else if (mode === 'takeoff' && typeof a.takeoffHdg === 'number') { dx = Math.cos(a.takeoffHdg); dz = Math.sin(a.takeoffHdg); }   // G527.3: the named way out, in calm air
     else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
@@ -523,6 +547,15 @@ function makePilot(sim, def, world, opts) {
     const t = world.terrainH(x, z);
     const w = (typeof world.waterH === 'function') ? world.waterH(x, z) : -Infinity;
     return w > t ? w : t;
+  };
+  // GTRAM: THE ALTIPORT'S SLOPE - the grade the aeroplane lands ONTO (uphill along the landing frame,
+  // read off the ground 20 m either side of the aim) and the height above that slope's line; 0 and
+  // aglG on every other strip, so nothing else flies differently
+  const altiGrade = () => {
+    const to = ap.route && ap.route.to;
+    if (!to || !to.altiport || !world || typeof world.terrainH !== 'function' || !ap.frame) return 0;
+    const P1 = wp(ap.frame, ap.xAim + 20, 0), P0 = wp(ap.frame, ap.xAim - 20, 0);
+    return Math.max(0, (groundH(P1[0], P1[1]) - groundH(P0[0], P0[1])) / 40);
   };
   const aimAlt = () => {
     if (!world || typeof world.terrainH !== 'function' || !ap.frame) return ap.refAlt;
@@ -756,7 +789,8 @@ function makePilot(sim, def, world, opts) {
     const sgN = (nose[0] * d0[0] + nose[1] * d0[1]) >= 0 ? 1 : -1;
     const ahead = from.len / 2 - sgN * along;
     const enough = !onStrip || ahead >= need;                     // the run ahead of the nose suffices
-    if (siteModelOf(from)) t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff');
+    if (from.altiport && typeof from.landHdg === 'number') t = [-snap(Math.cos(from.landHdg)), -snap(Math.sin(from.landHdg))];   // GTRAM: an altiport is left downhill, whatever the wind
+    else if (siteModelOf(from)) t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff');
     else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1]);
     else if (enough) t = [d0[0] * sgN, d0[1] * sgN];
     else t = [-d0[0] * sgN, -d0[1] * sgN];
@@ -1601,7 +1635,7 @@ function makePilot(sim, def, world, opts) {
           cond('height', Math.round(aglG), 0, aglG > 0, 'm'),
           cond('airspeed', V, vbg, Math.abs(V - vbg) < 2, 'm/s')]);
         if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
-          go('FLARE'); thFlare0 = th; SEL.deadThr = false;
+          go('FLARE'); thFlare0 = th; SEL.deadThr = false; altG = 0;
           flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5);
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
@@ -1767,7 +1801,7 @@ function makePilot(sim, def, world, opts) {
         const left = runwayLeft();
         const vr = A.VRot || 18;
         const avail = ap.route.from.len || 1100;
-        const sd = stopDist(V);
+        const sd = stopDist(V), resv = reserveOf();   // G531: the field's reserve
         // THE ACCELERATE-STOP CALL, and V1. While a stop on the strip is still
         // possible (left − sd ≥ reserve) any of five rules rejects, each said
         // with its numbers: the measured acceleration cannot reach Vr in what
@@ -1780,7 +1814,7 @@ function makePilot(sim, def, world, opts) {
         // ends under an aeroplane still rolling is a rejection with the fence
         // in it, said as such.
         let reject = null;
-        const canStopHere = left - sd >= ST.reserve;
+        const canStopHere = left - sd >= resv;
         // G396.4: THE HUMP IS NOT A FAILED RUN. A seaplane at the hump reads
         // 0.1 m/s^2 for twenty seconds and then planes (the single 582:
         // 8.5 m/s from t 10 to 22, on the step at 24, unstuck at 35); the
@@ -1793,12 +1827,25 @@ function makePilot(sim, def, world, opts) {
           // build read a third of its true acceleration and was condemned —
           // the Tiger Moth-alike on a hot day, 0.10 m/s^2 against 0.3 real
           if (V < vr && phaseT > 7 && accF > 0.02 && !atHump) {
-            const dVr = (vr * vr - V * V) / (2 * accF);
+            // GTRAM: LEFT DOWNHILL, THE SLOPE STILL TO COME PULLS TOO - off an altiport's flat top the measured
+            // acceleration is the top's; the grade of the run that is left (less the grade already under the
+            // wheels, which accF has) adds g x grade (the C172 was condemned at 12 m/s on the flat with the 10 %
+            // ahead of it). Every other strip: 0
+            let accX = 0;
+            if (ap.route.from.altiport && ap.takeoffDir && world && typeof world.terrainH === 'function') {
+              const T = ap.takeoffDir, ex = cg[0] + T[0] * left, ez = cg[2] + T[1] * left;
+              const gAhead = (groundH(cg[0], cg[2]) - groundH(ex, ez)) / Math.max(20, left);
+              accX = 9.81 * Math.max(0, gAhead + gGrade);
+            }
+            const dVr = (vr * vr - V * V) / (2 * (accF + accX));
             // P1.C short: the take-off must FIT, the stop is not asked (the
             // accelerate-stop is the long strip's luxury; on 340 m of gravel
             // the cub rejected at 7 s a run the sheet says it makes)
-            const shortT = ap.dep && ap.dep.technique === 'short';
-            if (dVr > left - (shortT ? 0 : stopDist(vr)) - ST.reserve)
+            // GTRAM: an ALTIPORT's departure is committed at brake release (the stop after Vr is asked on no slope:
+            // on 10 % of downhill grass it is longer than the strip, and the cub was condemned needing 33 m of 227)
+            const shortT = (ap.dep && ap.dep.technique === 'short') || !!ap.route.from.altiport;
+            // GTRAM: an altiport's low end is the mountain falling away, not a fence - the run may use it all
+            if (dVr > left - (shortT ? 0 : stopDist(vr)) - (ap.route.from.altiport ? 0 : resv))
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +
                        Math.round(dVr) + ' m more, ' + Math.round(left) + ' m left';
           }
@@ -1832,14 +1879,14 @@ function makePilot(sim, def, world, opts) {
           // 17.3 of 18.7 m/s with 217 m left, the C172 at 19.3 of 20.4 with
           // 249 m — both a second from flying
           const dVr = accF > 0.02 ? (vr * vr - V * V) / (2 * accF) : Infinity;
-          if (dVr > left - ST.reserve)
+          if (dVr > left - (ap.route.from.altiport ? 0 : resv))   // GTRAM: an altiport's low end falls away (the rule above)
             reject = 'out of runway: ' + Math.round(left) + ' m left, Vr in ' + (isFinite(dVr) ? Math.round(dVr) + ' m' : 'no distance (not accelerating)') +
                      ', V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
           else if (!committedTO) {
             committedTO = true;
             say('committed-takeoff', 'past the point of stopping at V=' + V.toFixed(1) + ' with ' + Math.round(left) + ' m left — Vr in ' + Math.round(dVr) + ' m, continuing');
           }
-        } else if (left < 0) {
+        } else if (left < 0 && !(ap.route.from.altiport && V >= vr)) {   // GTRAM: past an altiport's end at Vr the ground falls away under a flying aeroplane
           reject = 'ran off the end at V=' + V.toFixed(1) + ' still on the wheels — will not unstick';
         } else if (!committedTO) {
           committedTO = true;
@@ -1847,7 +1894,7 @@ function makePilot(sim, def, world, opts) {
         }
         setStatus('accelerating to rotation speed', [
           cond('airspeed', V, vr, V >= vr, 'm/s'),
-          cond('runway left', Math.round(left), Math.round(sd + ST.reserve), left - sd >= ST.reserve, 'm'),
+          cond('runway left', Math.round(left), Math.round(sd + resv), left - sd >= resv, 'm'),
           cond('accel', accF, 0.08, accF >= 0.08, 'm/s²')]);
         if (reject) {
           say('rejected-takeoff', reject);
@@ -2229,7 +2276,11 @@ function makePilot(sim, def, world, opts) {
         if (ap.t - finalT0 > 240 && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G381: the hold-off begins 1.3x higher than the ramp did — it has a
         // sink to arrest AND a speed to bleed, and the pull takes a second to bite
-        if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
+        // GTRAM: onto an altiport's slope the height is over the SLOPE'S LINE through the aim, and the
+        // round-out begins a second of the rising ground earlier - the path turns from down to up
+        altG = altiGrade();
+        const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
+        if (hFl < (A.flareK ?? 1.3) * A.flareAgl + altG * V) {
           go('FLARE'); thFlare0 = th;
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
@@ -2238,6 +2289,7 @@ function makePilot(sim, def, world, opts) {
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
           flCap = Math.max(flCap, thFlare0 + 0.03);
+          if (altG > 0) flCap += Math.atan(altG);   // GTRAM: the attitude on the slope is the slope's more
           flI = 0; flVsF = vcg[1];
         }
         break;
@@ -2290,7 +2342,10 @@ function makePilot(sim, def, world, opts) {
           // beats a stall from a metre
           const vr = A.VRot || 18;
           const sinkF = (A.flareSink ?? 0.35) + 0.35 * clamp((1.15 * vr - V) / (0.10 * vr), 0, 1);
-          const vsC = -Math.max(sinkF, Math.max(0, aglG) / flTau);
+          // GTRAM: onto an altiport the sink is asked RELATIVE TO THE SLOPE - the ground rises at grade x
+          // the ground speed under the aeroplane, so the path must climb that much, and on power (below)
+          const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
+          const vsC = -Math.max(sinkF, Math.max(0, hFl) / flTau) + altG * Math.hypot(vcg[0], vcg[2]);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
           const deSat = aDe > 0.30;
@@ -2299,7 +2354,8 @@ function makePilot(sim, def, world, opts) {
           // the pull: a firmer inner loop and the rotation's integrator authority
           pitchK = A.flarePK ?? 2.0; pitchDK = A.flareDK ?? 1.0;
           IthMaxT = A.rotateIMax ?? 0.30; IthGain = A.flareIth ?? 0.4;
-          engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
+          if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
+          else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
         if (onG > 0) {
           go('ROLLOUT');

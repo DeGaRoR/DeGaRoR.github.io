@@ -35,9 +35,10 @@ const SECTIONS = [
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'clear', 'tree', 'probe'] },
   { k: 'sites',      label: 'SITES',      icon: '⌂',  tools: ['select', 'building', 'theme', 'cable', 'probe'] },
-  { k: 'objects',    label: 'OBJECTS',    icon: '⚑',  tools: ['select', 'prop', 'billboard', 'aircraft', 'probe'] },
+  { k: 'objects',    label: 'OBJECTS',    icon: '⚑',  tools: ['select', 'prop', 'billboard', 'aircraft', 'animal', 'probe'] },
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
+  { k: 'life',       label: 'LIFE',       icon: '☺',  tools: [] },   // SCENERY LIFE: the record's life block (last: the 1-9 keys keep their sections)
 ];
 // the sections' icons in the flight ribbon's own grammar (18 x 18, stroked paths, '|' between them)
 const ICONS = {
@@ -50,9 +51,10 @@ const ICONS = {
   objects: 'M5 16V2|M5 3h9l-2 3 2 3H5',
   file: 'M5 2h6l3 3v11H5Z|M11 2v3h3|M7 9h4|M7 12h4',
   view: 'M2 9s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5Z|M9 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
+  life: 'M7 5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z|M4.5 16l1.3-6.2L7 7.2l1.4 2.4L9.5 16|M4 10.5l3-3.3 3 3.3|M13 16V9.5|M11.5 9.5h3l.4-2.5h-3.8Z',
 };
 const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Ctrl+click adds a corner after the last, Ctrl+click a disc removes it; Del deletes',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
@@ -75,6 +77,7 @@ const TOOL_HELP = {
   prop: 'pick a prop in the inspector, click the ground to stand it there (on the ground, tilted to it); drag its disc to move it',
   billboard: 'pick a painted sign in the inspector, click the verge to stand it on its posts; turn it in the inspector',
   aircraft: 'pick a build in the inspector (an archetype, a stock design, one of yours), click the apron to park it there, nose along its turn; captured through the workshop, so a moment to stand',
+  animal: 'pick a species in the inspector and click the ground (or the water, for a whale): ONE record is a HOTSPOT - how many live there and over what radius. The land animals wander between idle bouts, a pod swims a circuit and dives, a flock circles. Drag the disc to move the lot.',
 };
 const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', apron: 'surface', material: 'material', zone: 'zones', forest: 'zones', clear: 'zones' };
 // the PBR sets the page has (the lot's and the site's texture sets), read at call time - a name each
@@ -84,8 +87,8 @@ function materialSets() {
 }
 const TWO_POINT_TOOLS = { runway: 'runways' };
 const LINE_TOOLS = { road: 'roads' };
-const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites', prop: 'objects', billboard: 'objects', aircraft: 'objects' };
-const OBJ_PICK = { prop: null, billboard: null, aircraft: null };   // what the prop, billboard and aircraft tools stand
+const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites', prop: 'objects', billboard: 'objects', aircraft: 'objects', animal: 'objects' };
+const OBJ_PICK = { prop: null, billboard: null, aircraft: null, animal: null };   // what the prop, billboard, aircraft and animal tools stand
 let PALETTE_KEY = null;   // the building the 'building' tool stands
 let SITE_THEME = null;    // the site theme the 'theme' tool stands (VILLAGE_GEN.THEMES; G393.3)
 let PALETTE_CAT = null;   // the category the palette shows (v9)
@@ -94,9 +97,17 @@ const LS_WIP_DEFAULT = 'flydiy.premises.wip';
 
 // the keys a prop or billboard tool may stand: the prop registry's floor-standing props by group,
 // the sign painter's roadside keys - read at call time, so a pack loaded later is offered
-function objectKeys(kind) {
+function objectKeys(kind, rec) {
   // G411: the parked aeroplanes - the archetypes, the stock designs, your own saved builds
   if (kind === 'aircraft') { const PK = (typeof window !== 'undefined' && window.PARKED) || null; return PK && PK.keys ? PK.keys() : []; }
+  // THE ANIMALS (2026-09-22): the baked table's own order (the registry IS the
+  // list - nothing here scans a directory), each row saying where it lives
+  if (kind === 'animal') {
+    const AN = (typeof window !== 'undefined' && window.ANIMALS) || null;
+    if (!AN || !AN.list) return [];
+    const K = { land: 'on the ground', sea: 'in the water', air: 'in the air' };
+    return AN.list().map(a => [a.key, (K[a.kind] || a.kind) + ' \u00b7 ' + (a.label || a.key) + ' (' + a.length.toFixed(1) + ' m)']);
+  }
   if (kind === 'prop') {
     const PR = typeof PROP_REG !== 'undefined' ? PROP_REG : ((typeof window !== 'undefined' && window.PROP_REG) || null);   // a script-scope const of flight_core.js
     if (!PR || !PR.props) return [];
@@ -105,7 +116,17 @@ function objectKeys(kind) {
   }
   const BG = (typeof window !== 'undefined' && window.BIG_GEN) || null;
   if (!BG || !BG.signKeys) return [];
-  return BG.signKeys().filter(k => (BG.signMeta(k) || {}).kind === 'roadside').map(k => [k, k]);
+  const out = BG.signKeys().filter(k => (BG.signMeta(k) || {}).kind === 'roadside').map(k => [k, k]);
+  // THE BALISAGE (2026-09-23): this record's own runways offer their designation
+  // plates - black and red - so a field signs itself and nothing is enumerated
+  // that the field does not have.
+  if (rec && rec.layers && rec.layers.runways) for (const r of rec.layers.runways) {
+    const m = /([0-9]{2}\/[0-9]{2})\s*$/.exec(String(r.name || ''));
+    if (!m) continue;
+    out.push(['rwy:' + m[1], 'runway plate · ' + m[1] + ' (black)']);
+    out.push(['rwy:' + m[1] + ':r', 'runway plate · ' + m[1] + ' (red)']);
+  }
+  return out;
 }
 function mount(host, ctx) {
   const { THREE, world, R, rows, els } = ctx;
@@ -554,11 +575,19 @@ function mount(host, ctx) {
       setTool('select'); select(best.r.id);
       return;
     }
-    if (tool === 'prop' || tool === 'billboard' || tool === 'aircraft') {
-      const key = OBJ_PICK[tool] || (objectKeys(tool)[0] || [null])[0];
+    if (tool === 'prop' || tool === 'billboard' || tool === 'aircraft' || tool === 'animal') {
+      const key = OBJ_PICK[tool] || (objectKeys(tool, rec)[0] || [null])[0];
       if (!key) { strip.status('no ' + tool + ' to place here'); return; }
+      const AN0 = (typeof window !== 'undefined' && window.ANIMALS) || null;
+      const kind0 = (AN0 && AN0.reg(key)) ? AN0.reg(key).kind : 'land';
       const e = tool === 'prop' ? { id: PG.newId(rec, 'objects'), kind: 'prop', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, dy: 0, on: 'ground' }
               : tool === 'aircraft' ? { id: PG.newId(rec, 'objects'), kind: 'aircraft', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }
+              // the defaults are the species' own: a bear alone on 60 m, a herd
+              // of four on 120, a POD OF FIVE on 300 (orca travel in pods of
+              // four or five, and one whale is one whale), a flock of six on 220
+              : tool === 'animal' ? { id: PG.newId(rec, 'objects'), kind: 'animal', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0,
+                                      n: kind0 === 'sea' ? (key === 'whale' ? 1 : 5) : kind0 === 'air' ? 6 : (key === 'bear' ? 1 : 4),
+                                      r: kind0 === 'sea' ? 300 : kind0 === 'air' ? 220 : (key === 'bear' ? 60 : 120), dy: 0 }
                                 : { id: PG.newId(rec, 'objects'), kind: 'billboard', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, w: 3.6 };
       run({ layer: 'objects', id: e.id, before: null, after: e, label: tool + ' ' + e.id });
       select(e.id);
@@ -600,6 +629,7 @@ function mount(host, ctx) {
     insp.innerHTML = '';
     if (section === 'file') return fileRows();
     if (section === 'view') return viewRows();
+    if (section === 'life') return lifeRows();
     const f = selected && PG.findById(rec, selected);
     if (!f) {
       rows.section(insp, 'THE PREMISES');
@@ -628,13 +658,14 @@ function mount(host, ctx) {
         if (THS) { const tk = Object.keys(THS); if (!SITE_THEME || tk.indexOf(SITE_THEME) < 0) SITE_THEME = tk[0]; rows.select(insp, 'site theme', tk.map(k => [k, THS[k].name]), () => SITE_THEME, v => { SITE_THEME = v; }); }
       }
       if (section === 'objects') {
-        for (const kind of ['prop', 'billboard', 'aircraft']) {
-          const keys = objectKeys(kind);
+        for (const kind of ['prop', 'billboard', 'aircraft', 'animal']) {
+          const keys = objectKeys(kind, rec);
           if (!keys.length) { rows.note(insp, 'no ' + kind + 's registered here'); continue; }
           if (!OBJ_PICK[kind]) OBJ_PICK[kind] = keys[0][0];
           rows.select(insp, kind, keys, () => OBJ_PICK[kind] || '', v => { OBJ_PICK[kind] = v; });
         }
         rows.note(insp, 'a prop stands on the composed ground where you click, tilted to it; a billboard is a painted sign on its posts; an aeroplane is a build parked on its wheels, nose along its turn. Each is ONE record: drag its disc to move it.');
+        rows.note(insp, 'an ANIMAL record is a HOTSPOT, not one animal: how many of the species live there and over what radius. They sow themselves inside it, seeded per individual, so changing the count never moves the ones already standing.');
       }
       if (section === 'airfield') rows.note(insp, 'a runway is a PROFILE: two clicks place it, the inspector sets its length, width, heading, surface and slope; the ground is graded to it, its class reaches the wheels, the pilot\'s pattern and the PAPI are derived. ?world=A stands it on the flight world.');
       if (section === 'vegetation') rows.note(insp, 'a forest polygon plants the wood (its density and species in the inspector); a no-trees polygon keeps it out; a tree by hand is one record.');
@@ -643,6 +674,15 @@ function mount(host, ctx) {
     const e = f.entry, id = e.id, layer = f.layer;
     const ed = (mut, label, key) => edit(id, layer, mut, label, key);
     rows.section(insp, (e.kind || layer.replace(/s$/, '')).toUpperCase() + ' ' + id);
+    // THE LIFE HERE (SCENERY LIFE, contract v1.22.1): the premises' own, people only (a ceremony ground: no mast, no
+    // cars, no clutter), or none; a block written by hand (any other keys) shows as its own and is kept
+    if (/^(zones|sites|runways|roads)$/.test(layer) && window.SCENERY_LIFE) {
+      const Q = window.SCENERY_LIFE.QUIET, quiet = l => l && typeof l === 'object' && Object.keys(Q).every(k => l[k] === Q[k]) && Object.keys(l).length === Object.keys(Q).length;
+      const now = () => (e.life === false ? 'off' : e.life === undefined || e.life === null ? '' : quiet(e.life) ? 'quiet' : 'custom');
+      const opts = [['', 'as the premises', 'the LIFE section\'s settings'], ['quiet', 'people only', 'no mast, parked cars, traffic, clutter, rubbish or small structures here'], ['off', 'none', 'nothing of the life here']];
+      if (now() === 'custom') opts.push(['custom', 'its own', JSON.stringify(e.life)]);
+      rows.pills(insp, 'life here', opts, now, v => { if (v === 'custom') return; ed(x => { if (v === '') delete x.life; else x.life = v === 'off' ? false : Object.assign({}, Q); }, 'life of ' + id); });
+    }
     if (layer === 'terrain') {
       if (e.kind === 'flatten') {
         rows.slider(insp, 'level (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
@@ -692,6 +732,10 @@ function mount(host, ctx) {
       // shoulder, the bend's outside, clear of the plots and the junctions); 'always' rails the whole
       // road both sides, 'never' none of it. GRAPHICS > guardrails hides them all whatever this says.
       rows.select(insp, 'guardrail', [['auto', 'where the ground says'], ['on', 'the whole road'], ['off', 'none']], () => e.rail || 'auto', v => ed(x => { x.rail = v === 'auto' ? undefined : v; }, 'guardrail of ' + id));
+      // THE POWER LINE (2026-09-22): poles every ~34 m along one verge with the cable between them and
+      // a street lamp on every second one - on unless this says otherwise; the side is the module's
+      // (whichever takes more poles, and never the verge a guardrail already has)
+      rows.select(insp, 'power line', [['auto', 'poles and cable'], ['off', 'none']], () => e.poles || 'auto', v => ed(x => { x.poles = v === 'auto' ? undefined : v; }, 'power line of ' + id));
       // PROTO TRAFFIC (G432): vehicles per km running up and down this road
       rows.slider(insp, 'traffic (per km)', 0, 20, 1, () => e.traffic || 0, v => ed(x => { x.traffic = v || undefined; }, 'traffic of ' + id, 'traffic'), v => v ? v.toFixed(0) + ' / km' : 'none');
       const np = (R.plots ? R.plots() : []).filter(p => p.road === id).length;
@@ -748,6 +792,12 @@ function mount(host, ctx) {
       // THE ONE-WAY STRIP (v9): which end the landing comes over in calm air; a ridge at one end wants the other
       rows.pills(insp, 'approach', [['', 'either end', 'the pilot picks the runway direction nearest its inbound track'], ['0', 'over end 0', 'land toward end 1, depart the other way'], ['1', 'over end 1', 'land toward end 0']], () => (e.approach === 0 || e.approach === 1) ? String(e.approach) : '',
         v => ed(x => { x.approach = v === '' ? null : +v; }, 'approach of ' + id));
+      // THE ALTIPORT (GTRAM): a mountain strip landed uphill and left downhill, the slope up to 20 %; switched on
+      // with no approach named, it names the LOWER end (the profile's) - the one an altiport is landed over
+      rows.check(insp, 'altiport: land uphill (up to 20 %)', () => !!e.altiport, v => ed(x => {
+        x.altiport = v;
+        if (v && x.approach !== 0 && x.approach !== 1) { const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, x)); x.approach = pr.at(0) <= pr.at(x.len) ? 0 : 1; }
+      }, 'altiport of ' + id));
       // THE PROFILE (v8): the centreline's height along the length, as control points on a graph - drag a
       // point, double-click the curve to add one, the ✕ removes the selected one; the ends stay at 0 and 1
       profileGraph(insp, e, ed);
@@ -799,7 +849,9 @@ function mount(host, ctx) {
       rows.note(insp, items.length + ' item' + (items.length === 1 ? '' : 's') + ' - the faint discs move each in the site\'s frame; the bright one moves the site whole');
       const links = rec.layers.links.filter(L => (L.from.site === id) || (L.to.site === id));
       const solved = (R.links ? R.links() : []);
-      for (const L of links) { const sol = solved.find(q => q.link.id === L.id); const d = $('div', { class: 'note ' + (sol && sol.ok ? 'ok' : 'bad') }); d.textContent = L.kind + ' ' + L.from.item + ' → ' + L.to.item + ': ' + (sol ? (sol.ok ? 'solved' : (sol.issues || ['?'])[0]) : 'not solved'); insp.appendChild(d); }
+      for (const L of links) { const sol = solved.find(q => q.link.id === L.id); const d = $('div', { class: 'note ' + (sol && sol.ok ? 'ok' : 'bad') }); d.textContent = L.kind + ' ' + L.from.item + ' → ' + L.to.item + ': ' + (sol ? (sol.ok ? 'solved' : (sol.issues || ['?'])[0]) : 'not solved'); insp.appendChild(d);
+        // GTRAM: THE CABINS' SPEED on the line (tram_run's cruise; an aerial tramway runs 8-12 m/s, the village's 6)
+        if (L.kind === 'cable') rows.slider(insp, 'cabin speed (m/s)', 2, 12, 0.5, () => +L.speed || 6, v => edit(L.id, 'links', x => { x.speed = v; }, 'speed of ' + L.id, 'speed'), v => v.toFixed(1) + ' m/s'); }
       const iss = (R.overlay.records.issues || []).filter(t => t.indexOf(id) >= 0);
       if (iss.length) rows.note(insp, '⚠ ' + iss[0]);
       // THE ITEMS AS A LIST (G398.1): one row per item - what stands there and its turn - and the
@@ -820,8 +872,20 @@ function mount(host, ctx) {
         rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
         rows.button(insp, 'remove ' + labelOf(it.key).split(' · ')[0], () => { ITEM_FOCUS = null; ed(x => { x.items = x.items.filter(q => q.id !== it.id); }, 'remove ' + it.id); });
       }
+    } else if (layer === 'objects' && e.kind === 'animal') {
+      const AN = (typeof window !== 'undefined' && window.ANIMALS) || null;
+      const a = AN && AN.reg ? AN.reg(e.key) : null;
+      const keys = objectKeys('animal');
+      if (keys.length) rows.select(insp, 'species', keys, () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));
+      rows.slider(insp, 'how many', 1, 24, 1, () => e.n || 1, v => ed(x => { x.n = Math.round(v); }, 'how many of ' + id, 'n'), v => v.toFixed(0));
+      rows.slider(insp, 'over (m)', 0, 800, 5, () => e.r || 0, v => ed(x => { x.r = v; }, 'range of ' + id, 'r'), v => v.toFixed(0));
+      rows.slider(insp, 'turn (\u00b0)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '\u00b0');
+      if (a && a.kind === 'air') rows.slider(insp, 'height (m)', 0, 400, 5, () => e.dy || 0, v => ed(x => { x.dy = v; }, 'height of ' + id, 'dy'), v => v.toFixed(0));
+      if (a) rows.note(insp, a.label + ': ' + a.length.toFixed(1) + ' m, ' + a.nt.toLocaleString() + ' triangles, ' +
+        a.clips.length + ' clip' + (a.clips.length === 1 ? '' : 's') + ' (' + [...new Set(a.clips.map(c => c.role))].join(', ') + ')');
+      else rows.note(insp, 'the species "' + e.key + '" is not in the animal table of this build');
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft')) {
-      const keys = objectKeys(e.kind);
+      const keys = objectKeys(e.kind, rec);
       if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       if (e.kind === 'prop') {
@@ -979,6 +1043,36 @@ function mount(host, ctx) {
       if (ctx.rig.get().manual !== undefined) rows.check(insp, 'the sun by hand', () => !!ctx.rig.get().manual, v => ctx.rig.set({ manual: !!v }));
     }
     rows.note(insp, 'Tab toggles the camera; Esc cancels; Del deletes; Ctrl+Z / Ctrl+Y undo and redo; 1-6 pick a section');
+  }
+
+  // THE LIFE (SCENERY LIFE, contract v1.22): the record's `life` block - the people, the wall clutter, the rubbish,
+  // the parked cars, the small structures and the antennas the renderer stands round what is built, by laws
+  // (src/viewer/scenery_life.js); a row writes the block and the life re-stands at once (no recompose); a key
+  // left at its default is not written
+  let lifeT = 0;
+  function lifeRows() {
+    const SL = window.SCENERY_LIFE, L = R.life;
+    rows.section(insp, 'LIFE');
+    if (!SL || !L) { rows.note(insp, 'this page has no scenery life (scenery_life.js did not load)'); return; }
+    const cur = () => Object.assign({}, SL.DEF, rec.life || {});
+    const note = rows.note(insp, '');
+    const show = () => { const S = L.stats, c = S.byCat || {};
+      note.textContent = !cur().on ? 'off: the premises as built' : (S.items || 0).toLocaleString() + ' placed (' + SL.CATS.filter(q => c[q[0]]).map(q => c[q[0]] + ' ' + q[1]).join(', ') + ') in ' + (S.placeMs || 0).toFixed(0) +
+        ' ms · ' + (S.visible || 0).toLocaleString() + ' drawn now in ' + (S.draws || 0) + ' draws · lists ' + (S.updMs || 0).toFixed(1) + ' ms'; };
+    const setK = (k, v) => {
+      const c = Object.assign({}, rec.life || {});
+      if (v === SL.DEF[k]) delete c[k]; else c[k] = v;
+      rec.life = Object.keys(c).length ? c : undefined;
+      L.set(rec.life); autosave(); ctx.redraw && ctx.redraw();
+      clearTimeout(lifeT); lifeT = setTimeout(show, 1200);
+    };
+    rows.pills(insp, 'life', [['on', 'on', 'the life stands round what is built'], ['off', 'off', 'none of it: the premises as built']], () => (cur().on ? 'on' : 'off'), v => { setK('on', v === 'on'); show(); });
+    rows.slider(insp, 'draw distance', 0.25, 2, 0.05, () => cur().dist, v => setK('dist', +v), v => 'x' + (+v).toFixed(2));
+    for (const [k, lab, mx, why] of SL.CATS) { const r = rows.slider(insp, lab, 0, mx, 0.05, () => cur()[k], v => setK(k, +v), v => (+v === 0 ? 'none' : 'x' + (+v).toFixed(2))); r.title = why; }
+    rows.slider(insp, 'life seed', 1, 99, 1, () => cur().seed, v => setK('seed', +v), v => String(v));
+    rows.button(insp, 'back to the defaults', () => { rec.life = undefined; L.set(null); autosave(); inspector.refresh(); });
+    rows.note(insp, 'every kind is drawn instanced and cut by distance (rubbish 45 m, clutter 110, people 220, cars 450, a mast 6 km) x the draw distance x the GRAPHICS tier');
+    show();
   }
 
   // ---- save / load -----------------------------------------------------------------

@@ -742,14 +742,45 @@
       "port": 8487
     },
     {
+      "name": "flydiy-animals",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8490",
+        ".",
+        "--fallback",
+        "D:/Dev/DeGaRoR.github.io"
+      ],
+      "port": 8490
+    },
+    {
+      "name": "flydiy-climate",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8492",
+        ".",
+        "--fallback",
+        "D:/Dev/DeGaRoR.github.io"
+      ],
+      "port": 8492
+    },
+    {
+      "name": "flydiy-worldship",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8495",
+        "."
+      ],
+      "port": 8495
+    },
+    {
       "name": "flydiy-metlakatla",
       "runtimeExecutable": "node",
       "runtimeArgs": [
         "flyDiy/tools/_serve.js",
-        "8497",
-        ".",
-        "--fallback",
-        "D:/Dev/DeGaRoR.github.io"
+        "8497"
       ],
       "port": 8497
     }

@@ -62,7 +62,7 @@ var CLOUDS = (function () {
   const U = {
     uNoise: { value: null }, uDetail: { value: null }, uWeather: { value: null }, uDepth: { value: null },
     uInvProj: { value: null }, uCamMat: { value: null }, uCamPos: { value: null }, uRes: { value: null },
-    uLogFar: { value: 1 }, uGlob: { value: null }, uLayerA: { value: new Float32Array(12) }, uProfA: { value: new Float32Array(12) }, uDriftA: { value: new Float32Array(12) },
+    uLogFar: { value: 1 }, uDZ: { value: null }, uGlob: { value: null }, uLayerA: { value: new Float32Array(12) }, uProfA: { value: new Float32Array(12) }, uDriftA: { value: new Float32Array(12) },
     uSun: { value: null }, uSunCol: { value: null }, uMoon: { value: null }, uMoonCol: { value: null },
     uAmbTop: { value: null }, uAmbBot: { value: null }, uScale: { value: 1 }, uSteps: { value: null }, uFrame: { value: 0 },
     uDials: { value: null }, uCloudTex: { value: null }, uKeyTex: { value: null }, uTexel: { value: null }, uUp: { value: 1 },
@@ -277,12 +277,21 @@ var CLOUDS = (function () {
       return vec4(c * uScale, alpha);
     }`;
   // the fullscreen march: the ray from the inverse projection, the scene's depth from the resolve target
+  // THE SCENE'S DEPTH, EITHER CONVENTION (PERF 2026-09-23, app.js): the renderer's buffer is REVERSED
+  // float (1 at the near plane, 0 at the far; w = n f / (d (f - n) + n)) where EXT_clip_control is,
+  // else logarithmic (w = (far + 1)^d - 1). uDZ = (1 when reversed, near, far); the three reads below
+  // are the only places the clouds touch the convention.
+  const DZ_GLSL = `uniform vec3 uDZ;
+    float dzW1(float dz) { return uDZ.x > 0.5 ? uDZ.y * uDZ.z / (dz * (uDZ.z - uDZ.y) + uDZ.y) + 1.0 : exp2(dz * uLogFar); }   // 1 + the view-axis distance
+    bool dzSky(float dz) { return uDZ.x > 0.5 ? dz <= 0.0 : dz >= 0.99999; }
+    float wDz(float w) { return uDZ.x > 0.5 ? uDZ.y * (uDZ.z - w) / (max(w, uDZ.y) * (uDZ.z - uDZ.y)) : log2(1.0 + w) / uLogFar; }`;
   const marchFrag = () => `precision highp float; precision highp sampler3D; precision highp sampler2DArray;
     ${GLSL3_OUT}
     layout(location = 1) out highp vec4 outK;
     varying vec2 vUv;
     uniform sampler2D uDepth;
     uniform mat4 uInvProj, uCamMat; uniform vec3 uCamPos; uniform vec2 uRes; uniform float uLogFar;
+    ${DZ_GLSL}
     ${MARCH_GLSL()}
     void main() {
       vec2 ndc = vUv * 2.0 - 1.0;
@@ -290,8 +299,8 @@ var CLOUDS = (function () {
       vec3 d = normalize(mat3(uCamMat) * dv), o = uCamPos;
       // the scene's depth (logarithmic: w = (far + 1)^depth - 1, the clip w = the view depth)
       float dz = texture(uDepth, vUv).r;
-      outK = vec4(exp2(dz * uLogFar) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
-      float tScene = dz >= 0.99999 ? 1e9 : (exp2(dz * uLogFar) - 1.0) / max(1e-4, -dv.z);
+      outK = vec4(dzW1(dz) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
+      float tScene = dzSky(dz) ? 1e9 : (dzW1(dz) - 1.0) / max(1e-4, -dv.z);
       gl_FragColor = march(o, d, tScene, uDials2.x);
     }`;
   // THE DOME MARCH (C3): the same layer on a sphere round the eye - for the reflection probe (the
@@ -387,14 +396,15 @@ var CLOUDS = (function () {
   // (gl_FragDepth from the march's key, in the renderer's logarithmic convention): the skin's samples
   // reject it, the sky's take it, the resolve blends - the edge is anti-aliased like any other. One draw
   // in the pass, no second resolve (the 7 ms of G425 was a draw into the target AFTER its resolve).
-  const COMP_FRAG = `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK; uniform mat4 uInvProj;
-    float dist(float dz) { return exp2(dz * uLogFar); }
+  const COMP_FRAG = () => `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK; uniform mat4 uInvProj;
+    ${DZ_GLSL}
+    float dist(float dz) { return dzW1(dz); }
     void main() {
       // the cloud's depth: the key (the transmittance-weighted mean distance along this pixel's ray) as the
       // renderer's log depth - log2(1 + w) / log2(far + 1), w the view-axis distance
       { vec2 ndc = vUv * 2.0 - 1.0; vec4 v = uInvProj * vec4(ndc, 1.0, 1.0); vec3 dv = normalize(v.xyz / v.w);
         float w = max(0.0, texture2D(uKeyTex, vUv).r * 1000.0 * (-dv.z));
-        gl_FragDepth = log2(1.0 + w) / uLogFar; }
+        gl_FragDepth = wDz(w); }
       vec4 c;
       if (uUp < 0.5) c = texture2D(uCloudTex, vUv);
       else {
@@ -536,12 +546,12 @@ var CLOUDS = (function () {
     U.uSunCol.value = new THREE.Vector3(1, 1, 1); U.uMoonCol.value = new THREE.Vector3(); U.uAmbTop.value = new THREE.Vector3(); U.uAmbBot.value = new THREE.Vector3();
     U.uSteps.value = new THREE.Vector2(S.steps, S.lightSteps); U.uDials.value = new THREE.Vector4(S.powder, S.g, S.ms, S.maxKm); U.uTexel.value = new THREE.Vector2();
     U.uShadowK.value = new THREE.Vector2(S.shadowSteps, 1); U.uDials2.value = new THREE.Vector4(S.jitter, 0, 0, 0); U.uEye.value = new THREE.Vector3();
-    U.uShape.value = new THREE.Vector4(S.detail, S.curl, 0, 0);
+    U.uShape.value = new THREE.Vector4(S.detail, S.curl, 0, 0); U.uDZ.value = new THREE.Vector3(0, 0.5, 1e5);
     const uni = Object.assign({}, U);
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
     else uni.uAtmoAP = { value: new Float32Array(4) };
     marchMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: marchFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
-    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDepthK: U.uDepthK, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG, depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
+    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDZ: U.uDZ, uDepthK: U.uDepthK, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG(), depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
     compMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat); compMesh.frustumCulled = false; compMesh.renderOrder = 1e6; compMesh.visible = false; compMesh.name = 'cloudComposite';
     shadowMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U), vertexShader: QUAD_VERT, fragmentShader: shadowFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
     shadowRT = (typeof ATMO !== 'undefined' && ATMO.G && ATMO.G.rtAP) ? ATMO.G.rtAP : null;   // the tile lives in the atlas (the flag stays off without it)
@@ -584,12 +594,16 @@ var CLOUDS = (function () {
   const N_MAP = 256;
   const inflate = [1, 1, 1];               // per deck: the map's cover over the day's (the cover fit below raises it when the noise carves too much)
   const mapCache = [{}, {}, {}];           // per deck: the weather noise (08_cloud_field caches per seed / type; a re-threshold is a millisecond)
+  // THE SKY'S SEED IS THE DAY'S (CLIMATE K3, made true 2026-09-23): the climate draws the thermals from the weather map of
+  // day.cloudSeed, and the renderer drew its own from S.seed (7) - the lift sat under clouds of another sky. The renderer
+  // reads the day's seed now (S.seed only where a host has no day)
+  const seedOf = () => (dayRef && dayRef.cloudSeed != null ? dayRef.cloudSeed : S.seed);
   function mapsFor(L) {
-    const key = L.map(l => S.seed + l.index * 1000 + '|' + l.cover.toFixed(3) + '|' + l.type).join(';');
+    const key = L.map(l => seedOf() + l.index * 1000 + '|' + l.cover.toFixed(3) + '|' + l.type).join(';');
     if (key === mapKey && maps.length === L.length) return maps;
     if (typeof CLOUD_FIELD === 'undefined') return null;
     for (let i = 0; i < MAXL; i++) inflate[i] = 1;
-    maps = L.map(l => CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: l.cover, type: l.type, N: N_MAP, cache: mapCache[l.index] }));
+    maps = L.map(l => CLOUD_FIELD.weatherMap({ seed: seedOf() + l.index * 1000, cover: l.cover, type: l.type, N: N_MAP, cache: mapCache[l.index] }));
     map = maps[0]; mapKey = key;
     uploadMaps();
     shadowDirty = true; needCal = true; needColumnCal = true; calDueAt = now() + 300; fit = null;   // the fit waits for a slider to settle
@@ -618,7 +632,7 @@ var CLOUDS = (function () {
   // one deck's map regenerated at an inflated cover (the cover fit)
   function remapDeck(i) {
     const l = lays[i]; if (!l) return;
-    maps[i] = CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: Math.min(1, l.cover * inflate[i]), type: l.type, N: N_MAP, cache: mapCache[l.index] });
+    maps[i] = CLOUD_FIELD.weatherMap({ seed: seedOf() + l.index * 1000, cover: Math.min(1, l.cover * inflate[i]), type: l.type, N: N_MAP, cache: mapCache[l.index] });
     if (i === 0) map = maps[0];
     uploadMaps();
   }
@@ -650,7 +664,18 @@ var CLOUDS = (function () {
       let wx = 3, wz = 1;
       if (world && typeof world.wind === 'function') { const w = world.wind(0, l.base, 0, 0); if (w) { wx = w[0] * 1.5; wz = w[2] * 1.5; } }
       winds[i][0] = wx; winds[i][1] = wz;
-      drifts[i][0] = wx * secs * S.driftK; drifts[i][1] = wz * secs * S.driftK;
+      // THE DRIFT IS AN INTEGRAL, not a product (CLIMATE K4). `wind x secs` is a
+      // POSITION computed from the wind NOW, so the instant the wind changes the
+      // whole deck jumps by (dw) x secs - and secs is sixty thousand by the
+      // afternoon, which is hundreds of kilometres for a metre per second. With
+      // a wind that moves on its own (a front veers 55 deg over two hours) that
+      // is no longer tolerable. The link accumulates it over the day's clock
+      // instead; for a CONSTANT wind it returns exactly this product, which is
+      // how a boot still draws the sky it always drew.
+      const LK = (typeof window !== 'undefined') ? window.CLIMATE_LINK : null;
+      const dr = (LK && LK.pub.on) ? LK.cloudDrift(i, l.base, S.driftK, secs) : null;
+      if (dr) { drifts[i][0] = dr.x; drifts[i][1] = dr.z; }
+      else { drifts[i][0] = wx * secs * S.driftK; drifts[i][1] = wz * secs * S.driftK; }
       // THE NOISE PERIOD DIVIDES THE SPAN (G460.4, the user: "a clear seam" - a straight line across the sea
       // from 1000 m): the weather map tiles over the span, but the deck's noise did not, so the shadow tile's
       // two edges disagreed and its wrap line (it drifts with the clouds - it crosses anywhere) was a step in
@@ -850,6 +875,7 @@ var CLOUDS = (function () {
     U.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
     U.uRes.value.set(w, h); U.uFrame.value = S.shimmer ? (frame % 64) : 0;
     U.uLogFar.value = Math.log2(camera.far + 1);
+    U.uDZ.value.set(r.capabilities && r.capabilities.reversedDepthBuffer ? 1 : 0, camera.near, camera.far);
     U.uUp.value = (S.upsample && k < 1) ? 1 : 0; U.uDepthK.value = S.depthK;
     r.getClearColor(_cc); const prevCA = r.getClearAlpha();
     let q = tBegin('bind'); r.setRenderTarget(rt); r.setClearColor(0x000000, 0); r.clear(true, false, false); tEnd(q);

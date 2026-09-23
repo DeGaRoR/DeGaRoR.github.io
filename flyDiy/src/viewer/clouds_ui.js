@@ -97,7 +97,8 @@ var CLOUDS_UI = (function () {
       // ---- the motion ---------------------------------------------------------------------
       head('motion');
       H.range(host, 'drift × wind', 0, 4, 0.1, () => s.driftK, v => { s.driftK = v; save(); }, v => v > 0 ? v.toFixed(1) + '×' : 'still');
-      H.pills(host, [{ label: 'another sky (seed ' + s.seed + ')', value: 'seed' }], () => false, () => { s.seed = 1 + Math.floor(Math.random() * 98); save(); });
+      // another sky: the DAY's seed (the renderer and the climate read one field, clouds.js seedOf)
+      H.pills(host, [{ label: 'another sky (seed ' + day().cloudSeed + ')', value: 'seed' }], () => false, () => { const n = 1 + Math.floor(Math.random() * 98); if (CK && CK.set) CK.set({ cloudSeed: n }); else { s.seed = n; save(); } refresh(); });
       // ---- the cost -----------------------------------------------------------------------
       head('render');
       const G = W.GFX;

@@ -123,6 +123,18 @@ for "the single wheel") is a bug waiting for a row; key on identity.
   1a9a391 reading its sources as LF). Normalise `\r\n` before scanning, or
   match `\r?\n`; when a worktree gate is red, check line endings before
   hunting for a lost hunk.
+- A SOURCE THAT CHANGES WITH THE CHECKOUT IS AN INSTRUMENT THAT LIES, and a
+  FALLBACK is how it gets that way. `island_node.js` read the island from
+  `bench/` "whenever it exists": in the checkout that baked it a gate measured
+  the bench's bytes, in a worktree it measured nothing and the caller fell back
+  to the analytic world, and the page fetched something else again. Nobody
+  chose any of that; the `||` did. The rule that came out of G523: a tool reads
+  ONE source by default - the shipped one, what players get - and any other
+  source is an EXPLICIT opt-in (there, the env var `FLYDIY_BENCH`, kept from
+  G521 and promoted from fallback to opt-in). Then the divergence is a decision
+  somebody typed, not an accident of which directory the command ran in. Same
+  class of fault as the gate that ran on the wrong artifact, above; the tell is
+  a default that reaches for a second location when the first is missing.
 
 ## 6. Documents and memory
 
@@ -156,6 +168,27 @@ blocked for an hour between them), so it belongs here.
   sessions one always is. So a landing is built in a worktree and
   `git update-ref refs/heads/master NEW OLD` moves the branch (§2's recipe,
   with the expected-old and an ancestry check after).
+- AND THE EXPECTED-OLD IS NOT ENOUGH (2026-09-23, the third time this week a
+  "guarded" ref move displaced a peer). The three ways it has failed: an EMPTY
+  expected-old (a `;` in the landing one-liner); an expected-old read BEFORE a
+  25-second build and passed after it; and — the one that looks correct —
+  a perfectly fresh expected-old over a STALE BASE. A peer landed in the
+  seconds before the landing command started, so `CUR=$(git rev-parse master)`
+  read THEIR tip, the guard matched, and update-ref did exactly as told: moved
+  master to a commit whose parent was the OLDER tip. The peer's landing became
+  unreachable and their work vanished from the tip. An expected-old guards
+  against a RACE; it cannot see a stale base. Assert the fast-forward too,
+  in the same breath as the move:
+
+        CUR=$(git rev-parse master)
+        git merge-base --is-ancestor "$CUR" "$NEW" || { echo "NOT a fast-forward: rebase onto $CUR"; exit 1; }
+        git update-ref refs/heads/master "$NEW" "$CUR"
+
+  Both lines, never one: the assertion catches the stale base, the expected-old
+  catches the peer who lands between the assertion and the move. When a repair
+  must legitimately replace a commit, do not drop the assertion — assert
+  instead that every commit in `git log HEAD..master` is one of YOUR OWN, and
+  then move the ref.
 - WHAT IT LEAVES BEHIND. A ref move updates neither the shared INDEX nor its
   working copies. The moment master moves under that checkout:
   - every file your landing ADDED reads there as `D` (deleted). **Nobody
@@ -173,8 +206,18 @@ blocked for an hour between them), so it belongs here.
      commits) and intersect with what is dirty there;
   2. classify each one: ABSENT from the tree but present in master (your new
      file), or byte-identical to a blob THAT PATH has held in history — not
-     only at the tip. Anything else is unexplained: stop and ask, it may be
-     someone's live work;
+     only at the tip. COMPARE IT WITH THE LINE ENDINGS NORMALISED, CRLF
+     folded to LF on both sides before the bytes are weighed: the shared
+     checkout writes CRLF, so a file it holds stale differs from every blob
+     in its own history by bytes alone and reads as unexplained while
+     nothing whatever is at risk. G505 refused itself that way on
+     `src/viewer/tram_run.js` — 139 CRLF lines, identical modulo EOL to the
+     commit before it. Anything still unexplained after that fold: stop and
+     ask, it may be someone's live work.
+     AND A GENERATED STAMP IS NOT EVIDENCE: `version.json` is rewritten by
+     every local build, so its working copy is routinely in no commit at all
+     and can never be classified. Name the generated paths up front and let
+     master's copy win, rather than letting one stop the chain;
   3. verify again IN THE SAME PROCESS AS THE WRITE, and refuse on any
      surprise. This is not ceremony: a peer landed between the check and the
      write once, and the guard caught it;
@@ -183,6 +226,24 @@ blocked for an hour between them), so it belongs here.
      stale copies to master.
   Touch only paths your own landing owns. Leave untracked files alone — the
   user's screenshots and scratch directories live there.
+- AND THE DIRTY SET IS NOT ALL RESIDUE. This section assumes the dirty paths
+  are landings that did not close themselves, which is the common case — but
+  a session may be editing the shared checkout LIVE (G505 found 47 dirty, 20
+  its own, 27 another session's work in progress). That is why step 2
+  classifies every path and step 3 refuses on a surprise, instead of taking
+  the intersection on trust.
 - THE RULE IN §1 STANDS: never `git checkout` the shared tree blind. What
   makes the step above legitimate is the proof that every byte you overwrite
   is already in the object DB, carried out in the same breath as the write.
+- AND WHEN AN AUDIT FLAGS A NON-FAST-FORWARD in the reflog, one command says
+  whether anything was actually lost:
+
+        git diff --stat <dropped-sha> <the-sha-that-replaced-it>
+
+  An empty diff means the two commits carry the SAME TREE and nothing went
+  anywhere. Ancestry alone cannot tell you that - it only says the sha is no
+  longer reachable, which is true of every superseded build. Nor can the
+  subject line: master@{8} dropped a commit reading `G504.11 (built)` whose
+  PARENT was G504.13's source, so it was a G504.13 build wearing a stale
+  subject, replaced by the byte-identical and correctly labelled one. Read
+  the parent and diff the trees; a subject line is a claim, not evidence.

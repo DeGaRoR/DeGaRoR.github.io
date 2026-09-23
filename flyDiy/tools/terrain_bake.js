@@ -82,8 +82,9 @@ function writeGuard(out) {
       `  so it would ship to players as an orphan and go red on the next gate\n` +
       `  run. Write it to bench/ instead:\n\n` +
       `      --out bench/terrain/${path.basename(out)}\n\n` +
-      `  When the terrain asset really does ship, the thing writing it into\n` +
-      `  media/ will be the manifest bake, not this bench tool.\n`);
+      `  The thing that writes a world into media/ IS tools/world_prep.js (the\n` +
+      `  manifest bake, 2026-09-23), not this bench tool. Bake here, then:\n\n` +
+      `      node tools/world_prep.js --island <id>\n`);
     process.exit(2);
   }
 }

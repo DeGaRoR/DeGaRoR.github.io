@@ -139,8 +139,23 @@
   // otherwise this is the WebGLRenderer it has always been. TSL_ON is what
   // every material module asks to pick its variant (RENDERER-DECISION §4h).
   BOOT.phase('renderer', 'the renderer');
+  // THE DEPTH BUFFER IS REVERSED, NOT LOGARITHMIC (PERF 2026-09-23). A 0.5 m near plane and a
+  // 100 km far plane need more than a 24-bit hyperbolic buffer; the logarithmic buffer had them,
+  // by writing gl_FragDepth in EVERY fragment shader - which turns early-Z off for the whole
+  // scene, so every hidden fragment was shaded in full (the splat ground under the forest, the
+  // cards behind cards, eight samples of each): the frame study measured the same frame 6-9 ms
+  // cheaper at 1080p with the depth left to the rasteriser. A REVERSED float depth buffer (1 at
+  // the near plane, 0 at the far; EXT_clip_control's [0,1] clip range; a 32-bit float target -
+  // aa_resolve.js) holds the same precision from 0.5 m to 100 km and keeps early-Z. Where the
+  // extension is missing, and on ?depth=log (the A/B), the logarithmic buffer stands as it was.
+  // Everything that reads or writes depth by hand asks FLYDIY_DEPTH: the clouds' march and
+  // composite, the post passes, the far cascade and the canopy cover.
+  const RZ = (typeof window !== 'undefined' && typeof document !== 'undefined' && !window.FLYDIY_RENDERER && !(typeof location !== 'undefined' && /[?&]depth=log/.test(location.search))) && (() => {
+    try { const c = document.createElement('canvas'), g = c.getContext('webgl2'); const ok = !!(g && g.getExtension('EXT_clip_control'));
+      const lose = g && g.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext(); return ok; } catch (e) { return false; } })();
+  if (typeof window !== 'undefined') window.FLYDIY_DEPTH = window.FLYDIY_RENDERER ? 'node' : RZ ? 'reversed' : 'log';
   const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
-    new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
@@ -812,7 +827,10 @@
           kits: shed.kits, shell: shed.shell });
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
-      hangarScene.fog = hangar.fog;
+      hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
+      // F3: the shed's air is a MEDIUM, set while we are in the room and cleared on the way out,
+      // so the day's ground mist never follows anyone indoors and the world never inherits a room.
+      if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = hangar.roomAir || null;
       // The room lights itself: a cube camera on the floor sees the glazing,
       // the roof lights and the open door, and a PMREM of that is what every
       // glossy thing in here reflects. It is the difference between "lit" and
@@ -3116,6 +3134,17 @@
       // applied in the view structure". It was applied. See GATE FLEX.
       const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       genNodeBody(sim, model.nodeBody, model.oNode);
+      // THE SKIN IS POSED WHEN IT HAS MOVED (PERF 2026-09-23). Everything below is in the BODY frame -
+      // the nodes against their rest, the control deflections, the gain - and it was redone, and every
+      // skin buffer re-uploaded (54 of them, 2.8 MB a frame on the Cub-alike), on every frame: paused, at
+      // the stand, in the garage. It runs now when a node has moved more than 0.3 mm or a control more
+      // than 1e-4 since the pose last APPLIED (not since the last frame, so a slow drift still lands).
+      { const nb = model.nodeBody, P = model._pose;
+        let same = !!P && P.gain === gain && P.nb.length === nb.length && P.rigs === model.rigs && P.nr === model.rigs.length && P.moving === model.moving;
+        if (same) for (let i = 0; i < nb.length; i++) if (Math.abs(nb[i] - P.nb[i]) > 3e-4) { same = false; break; }
+        if (same) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { same = false; break; }
+        if (same) return;
+        model._pose = { gain, nb: Float32Array.from(nb), link: Object.assign({}, link), rigs: model.rigs, nr: model.rigs.length, moving: model.moving }; }
       // CONTROL SURFACES: one quaternion each. They also ride the deflection of
       // the spar they hang on, so a bending wing does not leave its aileron
       // behind — a rigid transform driven by node motion, not a vertex deform.
@@ -3761,6 +3790,13 @@
     D.age[q] = 0; D.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
     D.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); D.seed[q] = Math.random(); D.kind[q] = kind;
   }
+  // THE ONE EMITTER ANYTHING ELSE MAY USE (2026-09-22): the whales' splash and
+  // blow come through here, so there is one spray batch and one budget in the
+  // scene and animal_run.js knows nothing about waterFx. Null-safe: a page
+  // with no water layer simply has no spray.
+  window.FLYDIY_SPRAY = (kind, x, y, z, vx, vy, vz) => {
+    if (waterFx && waterFx.drops) sprayEmit(waterFx.drops, kind, x, y, z, vx, vy, vz);
+  };
   function syncWaterFx(dt) {
     if (!waterFx || !sim || !sim.hydro) return;
     const HY = sim.hydro, D = waterFx.drops, G = 9.81;
@@ -3859,8 +3895,16 @@
       if (D.age[q] >= D.life[q]) { if (S) S.hide(q); else { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; } continue; }
       const K = D.kind[q] ? KP : KD;
       D.age[q] += dt;
-      const dr = Math.max(0, 1 - K.drag * dt);
-      D.v[q * 3] *= dr; D.v[q * 3 + 2] *= dr; D.v[q * 3 + 1] = D.v[q * 3 + 1] * dr - G * K.gravity * dt;
+      // THE DRAG RELAXES TOWARD THE AIR, not toward nothing (CLIMATE K4). A
+      // droplet or a puff slows down relative to the AIR it is in, and the air
+      // is moving: with a wind, spray blows downwind and a plume leans, which is
+      // the whole visible signature of a windy day on the water. Zero wind is
+      // the old line exactly (relaxing toward 0 is relaxing toward the air).
+      const dr = Math.max(0, 1 - K.drag * dt), wv = LKW();
+      const ax = wv ? wv[0] : 0, az = wv ? wv[1] : 0;
+      D.v[q * 3] = ax + (D.v[q * 3] - ax) * dr;
+      D.v[q * 3 + 2] = az + (D.v[q * 3 + 2] - az) * dr;
+      D.v[q * 3 + 1] = D.v[q * 3 + 1] * dr - G * K.gravity * dt;
       D.p[q * 3] += D.v[q * 3] * dt; D.p[q * 3 + 1] += D.v[q * 3 + 1] * dt; D.p[q * 3 + 2] += D.v[q * 3 + 2] * dt;
       if (!D.kind[q] && D.age[q] > 0.1 && D.p[q * 3 + 1] < wH(D.p[q * 3], D.p[q * 3 + 2]) - 0.02) { D.age[q] = D.life[q]; if (S) S.hide(q); continue; }
       if (S) { const a01 = D.age[q] / D.life[q]; S.set(q, [D.p[q * 3], D.p[q * 3 + 1], D.p[q * 3 + 2]], [D.v[q * 3], D.v[q * 3 + 1], D.v[q * 3 + 2]], a01, D.size[q] * (1 + (K.grow - 1) * a01), D.seed[q], D.kind[q]); }
@@ -6193,6 +6237,7 @@
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
+    if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
     setExp(WORLD_EXPOSURE);
@@ -6877,22 +6922,28 @@
   // the windsock's wind, 10 m up, and the air at circuit height is faster
   // (20_world.js). Without it a wind is a uniform column, which is what the
   // fleet's gate battery is still calibrated in.
-  const W10 = (base, gust) => ({ base, gust, refH: 10 });
-  const CONDITIONS = {
-    calm:  { wind: null },
-    light: { wind: W10([-1.7, 0, 1.9], 0) },
-    mod:   { wind: W10([-2.6, 0, 3.0], 0.5) },
-    fresh: { wind: W10([-3.9, 0, 4.6], 0.9) },
-    // SKY chantier: a day has WATER too - the dewpoint sets the cloud base (125 m a degree of spread) and the haze
-    hot:   { oatC: 35, qnhPa: 100800, dewC: 12, wind: W10([-2.2, 0, 2.6], 0.7) },
-    cold:  { oatC: 0,  qnhPa: 103000, dewC: -3, wind: null },
-  };
-  let windBase = null;
+  // CLIMATE K2 (2026-09-22): the presets are WEATHER_UI's and they are DAY
+  // specs, so a preset now names a wind DIRECTION, the column's shape and a
+  // front as readily as a temperature - and the whole of it round-trips
+  // through day.spec(), the pref and the URL. This handler stays the ONE place
+  // a preset is applied (the panel presses the select); `world.setDay` hands
+  // the wind to the climate, which resolves it.
   $('selCond').onchange = e => {
-    const c = CONDITIONS[e.target.value] || null;
-    world.setWeather(c);
-    windBase = c && c.wind ? c.wind.base : null;
-    if (WF && WF.setWindVis) WF.setWindVis(windBase);
+    const P = window.WEATHER_UI;
+    if (!P) return;
+    const p = P.PRESETS.find(x => x.k === e.target.value);
+    if (!p) return;
+    if (typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.set) DAY_CLOCK.set(P.dayOf(p, world.day));
+    else world.setDay(P.dayOf(p, world.day));
+    if (WF && WF.setWindVis) WF.setWindVis(windNow());
+  };
+  // the wind the renderer aims its socks and ripples at: the climate's own 10 m
+  // wind, which is the declared base with the front's hand already on it
+  const windNow = () => {
+    const c = world.climate;
+    if (!c || !c.surfaceWind) return null;
+    const sw = c.surfaceWind();
+    return sw.spd > 0.02 ? sw.base : null;
   };
   $('bPause').onclick = e => {
     running = !running;
@@ -6939,6 +6990,13 @@
     if (lab !== nrgLabel) { nrgLabel = lab; if (R.nrgU) R.nrgU.textContent = lab; }
     if (RD.nrg) RD.nrg.classList.toggle('warn', dead || frac < 0.1);
   }
+  // the netto's state: a 3 s needle and a 20 s ring, as a vario has
+  let nettoF = 0, nettoI = 0;
+  const nettoRing = new Float64Array(20 * 60);
+  const apSheet = () => { try { return ap && ap.sheet ? ap.sheet : null; } catch (e) { return null; } };
+  // THE WIND THE PARTICLES RIDE (CLIMATE K4): the link's 10 m wind, or nothing
+  const LKW = () => { const L = window.CLIMATE_LINK; return (L && L.pub.on) ? L.pub.surf : null; };
+  if (window.CLIMATE_LINK) window.CLIMATE_LINK.bind(world);        // K4: the one place the picture asks the climate
   const RD = {};
   for (const d0 of document.querySelectorAll ? document.querySelectorAll('#pfdRow .rd') : [])
     RD[d0.dataset.i] = d0;
@@ -6951,6 +7009,27 @@
     R.ias.textContent = ias.toFixed(0);
     R.alt.textContent = cg[1].toFixed(0);
     R.vs.textContent = (o.vs >= 0 ? '+' : '') + o.vs.toFixed(1);
+    // THE NETTO VARIOMETER (CLIMATE K3). `vs` is what the AEROPLANE is doing;
+    // netto is what the AIR is doing, which is the number a soaring pilot flies
+    // by: add back the sink the machine would have at this speed in still air
+    // (the sheet's own polar, 44_machine_sheet sinkAt) and what is left is the
+    // thermal. A variometer is an average - the instantaneous reading carries
+    // every gust and the turn's load factor - so this is a 3-second one, and
+    // the label carries a 20-second mean beside it, as a real vario's does.
+    if (instOn && instOn.netto) {
+      const sk = apSheet();
+      if (sk && sk.sinkAt) {
+        const raw = o.vs + sk.sinkAt(o.V || 0);
+        nettoF += (raw - nettoF) * Math.min(1, (1 / 60) / 3 * 3);
+        nettoRing[nettoI = (nettoI + 1) % nettoRing.length] = raw;
+        let m = 0; for (const q of nettoRing) m += q;
+        m /= nettoRing.length;
+        if (R.netto) R.netto.textContent = (nettoF >= 0 ? '+' : '') + nettoF.toFixed(1);
+        if (RD.netto) { RD.netto.classList.toggle('on', nettoF > 0.3); RD.netto.classList.toggle('warn', nettoF < -1.5); }
+        const u = RD.netto && RD.netto.querySelector('i');
+        if (u) u.textContent = 'm/s air · ' + (m >= 0 ? '+' : '') + m.toFixed(1) + ' avg';
+      }
+    }
     hudEnergy();
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
     // number the PLAQUE actually declares. The stall is one — genShakedown
@@ -6978,6 +7057,7 @@
     // the air's own numbers, in the flyout that is about the air (G72's OAT
     // and density altitude, which were two of the twelve cells)
     if (flyOpen === 'air') flAirLive(o);
+    if (flyOpen === 'weather') flWeatherLive();       // CLIMATE K2: the front walks the clock, these walk with it
     if (flyOpen === 'ground') flGroundLive(o);
     // G441 (A4): the frame rate, on the GRAPHICS flyout while it is open (the user:
     // "we need a framerate indicator, optional") - a half-second window of frames
@@ -7012,8 +7092,13 @@
     const hdg = Math.atan2(-xA[2], -xA[0]);
     // shared frame: screen = T(W2/2) . R(rot) . S(k) . T(-c) applied to world xz
     const rot = mapNoseUp ? -Math.PI / 2 - hdg : 0;
-    const k = mapNoseUp ? W2 / NOSE_RANGE : W2 / 24000;
-    const cx = mapNoseUp ? cg2[0] : 0, cz = mapNoseUp ? cg2[2] : 0;
+    // THE UNDERLAY'S OWN BOX (G498.2): the bake covers world.bounds, which for an island is its
+    // own square - Jolene's is neither centred on the origin nor 24 km wide. North-up frames THE
+    // BOX, not a fixed 24 km around the origin, so the picture and every marker on it share one
+    // frame. The analytic world's bounds ARE +-12000, so nothing there moves by a pixel.
+    const MB = (WF && WF.minimapBox) || { x0: -12000, z0: -12000, size: 24000 };
+    const k = mapNoseUp ? W2 / NOSE_RANGE : W2 / MB.size;
+    const cx = mapNoseUp ? cg2[0] : MB.x0 + MB.size / 2, cz = mapNoseUp ? cg2[2] : MB.z0 + MB.size / 2;
     const co = Math.cos(rot), si = Math.sin(rot);
     const PX = (x, z) => W2 / 2 + k * ((x - cx) * co - (z - cz) * si);
     const PY = (x, z) => W2 / 2 + k * ((x - cx) * si + (z - cz) * co);
@@ -7032,8 +7117,8 @@
           const bg = oc.getContext('2d');
           bg.fillStyle = '#48899e';                    // beyond-domain reads as sea
           bg.fillRect(0, 0, W2, W2);
-          bg.translate(W2 / 2, W2 / 2); bg.scale(k, k);
-          bg.drawImage(base, -12000, -12000, 24000, 24000);
+          bg.translate(W2 / 2, W2 / 2); bg.scale(k, k); bg.translate(-cx, -cz);
+          bg.drawImage(base, MB.x0, MB.z0, MB.size, MB.size);
           mapBaseCv = oc; mapBaseFor = base;
         }
         g.drawImage(mapBaseCv, 0, 0);
@@ -7045,7 +7130,7 @@
       g.fillRect(0, 0, W2, W2);
       g.save();
       g.translate(W2 / 2, W2 / 2); g.rotate(rot); g.scale(k, k); g.translate(-cx, -cz);
-      g.drawImage(base, -12000, -12000, 24000, 24000);
+      g.drawImage(base, MB.x0, MB.z0, MB.size, MB.size);
       g.restore();
     }
     const from = aeroById(fromId), to = destId === 'CIRCUIT' ? from : aeroById(destId);
@@ -7098,6 +7183,24 @@
       }
     }
     g.font = `500 ${Math.round(11 * mk)}px "IBM Plex Sans", sans-serif`;
+    // ONE LABEL LEDGER for the whole map (G498). Jolene puts four aerodromes and eight animal
+    // hotspots inside a few hundred pixels at 24 km, and the first cut wrote "3 Killer whale"
+    // straight across "Annette Dock". A label is drawn where it FITS - to the right of its mark,
+    // else under it, else not at all: a name half over another name is worse than no name.
+    const LAB = [];
+    const labFits = (x, y, w, h) => !LAB.some(b => x < b.x + b.w && x + w > b.x && y < b.y + b.h && y + h > b.y);
+    const labPut = (sx, sy, txt, back, fore) => {
+      const w = g.measureText(txt).width, h = 12 * mk;
+      const spots = [[sx + 8 * mk, sy + 4 * mk], [sx - w - 8 * mk, sy + 4 * mk], [sx - w / 2, sy + 15 * mk], [sx - w / 2, sy - 8 * mk]];
+      for (const [x, y] of spots) {
+        if (!labFits(x, y - h + 3 * mk, w, h)) continue;
+        LAB.push({ x, y: y - h + 3 * mk, w, h });
+        g.fillStyle = back; g.fillText(txt, x + 1, y + 1);
+        g.fillStyle = fore; g.fillText(txt, x, y);
+        return true;
+      }
+      return false;
+    };
     for (const a of world.aerodromes) {
       const mead = a.kind === 'meadow';
       const active = a.id === from.id || a.id === to.id;
@@ -7110,11 +7213,45 @@
         g.strokeStyle = 'rgba(255,178,87,.5)'; g.lineWidth = 1.5 * mk;
         g.beginPath(); g.arc(sx, sy, 7 * mk, 0, 6.283); g.stroke();
       }
-      if (mapBig && !mead) {                           // labels once there's room
-        g.fillStyle = 'rgba(20,14,8,.75)';
-        g.fillText(a.name, sx + 8 * mk + 1, sy + 4 * mk + 1);
-        g.fillStyle = active ? '#ffd9a3' : 'rgba(251,244,234,.9)';
-        g.fillText(a.name, sx + 8 * mk, sy + 4 * mk);
+      if (mapBig && !mead)                             // labels once there's room, and where they fit
+        labPut(sx, sy, a.name, 'rgba(20,14,8,.75)', active ? '#ffd9a3' : 'rgba(251,244,234,.9)');
+    }
+    // THE ANIMAL HOTSPOTS (G498): where the wildlife lives is a thing a pilot plans a flight
+    // around - the sanctuary you land at, the pod you fly over - so the map says so. ONE mark a
+    // HOTSPOT, never one an animal: the record is the hotspot, and its individuals wander inside
+    // it. Green, because every other thing on this map is already spoken for (amber the route,
+    // cream the fields, blue the approaches, teal you); the shape says where it lives - a filled
+    // dot on the ground, a ring in the water (a pod roams a wide circuit), a chevron in the air.
+    // The RADIUS is drawn once it is worth pixels, and the species once the map is big.
+    const PRm = WF && WF.premises, OVm = PRm && PRm.overlay;
+    const HOT = (OVm && OVm.records && OVm.records.animals) || null;
+    if (HOT && HOT.length) {
+      const Fm = OVm.frame, AN = (typeof ANIMALS !== 'undefined' && ANIMALS.reg) ? ANIMALS : null;
+      const GREEN = '#86c97f';
+      for (const h of HOT) {
+        const w = Fm.toWorld(h.x, h.z);
+        const sx = PX(w[0], w[1]), sy = PY(w[0], w[1]);
+        if (sx < -40 || sx > W2 + 40 || sy < -40 || sy > W2 + 40) continue;
+        const a = AN ? AN.reg(h.key) : null, kind = a ? a.kind : 'land';
+        const rr = k * (+h.r || 0);
+        if (rr > 5 * mk) {
+          g.strokeStyle = 'rgba(134,201,127,.34)'; g.lineWidth = 1 * mk;
+          g.beginPath(); g.arc(sx, sy, rr, 0, 6.283); g.stroke();
+        }
+        g.beginPath();
+        if (kind === 'sea') {
+          g.strokeStyle = GREEN; g.lineWidth = 1.8 * mk;
+          g.arc(sx, sy, 3.6 * mk, 0, 6.283); g.stroke();
+        } else {
+          g.fillStyle = GREEN; g.strokeStyle = 'rgba(20,14,8,.8)'; g.lineWidth = 1 * mk;
+          if (kind === 'air') {
+            g.moveTo(sx, sy - 3.4 * mk); g.lineTo(sx + 3.2 * mk, sy + 2.6 * mk);
+            g.lineTo(sx, sy + 1.2 * mk); g.lineTo(sx - 3.2 * mk, sy + 2.6 * mk); g.closePath();
+          } else g.arc(sx, sy, 2.9 * mk, 0, 6.283);
+          g.fill(); g.stroke();
+        }
+        if (mapBig) labPut(sx, sy, (h.n || 1) + ' ' + (a ? a.label : h.key),
+                           'rgba(20,14,8,.75)', 'rgba(190,232,182,.95)');
       }
     }
     g.save();
@@ -7133,15 +7270,16 @@
     };
     chip(6 * mk, 114 * mk);
     g.font = `600 ${Math.round(17 * mk)}px "IBM Plex Mono", monospace`;
-    if (windBase) {
+    const wMap = windNow();                                // the climate's 10 m wind (CLIMATE K2)
+    if (wMap) {
       g.save(); g.translate(24 * mk, 23 * mk);
-      g.rotate(Math.atan2(windBase[2], windBase[0]) + rot); g.scale(mk, mk);
+      g.rotate(Math.atan2(wMap[2], wMap[0]) + rot); g.scale(mk, mk);
       g.strokeStyle = '#ffb257'; g.lineWidth = 2.6; g.lineCap = 'round';
       g.beginPath(); g.moveTo(-8, 0); g.lineTo(7, 0); g.stroke();
       g.beginPath(); g.moveTo(2.5, -4.2); g.lineTo(8, 0); g.lineTo(2.5, 4.2); g.stroke();
       g.restore();
       g.fillStyle = '#fbf4ea';
-      g.fillText(Math.hypot(windBase[0], windBase[2]).toFixed(1) + ' m/s', 42 * mk, 29 * mk);
+      g.fillText(Math.hypot(wMap[0], wMap[2]).toFixed(1) + ' m/s', 42 * mk, 29 * mk);
     } else {
       g.strokeStyle = 'rgba(251,244,234,.5)'; g.lineWidth = 2 * mk;
       g.beginPath(); g.arc(24 * mk, 23 * mk, 4 * mk, 0, 6.283); g.stroke();
@@ -7273,6 +7411,11 @@
       icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z' },
     { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look',
       icon: 'M5.4 13.6h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z' },
+    // CLIMATE K2: THE WEATHER - the wind and its direction, the air, the shape
+    // of the column, a front on the clock (weather_ui.js, on both rails). A
+    // windsock glyph: a mast and a cone streaming off it.
+    { k: 'weather', label: 'weather', title: 'The wind, the air, the front',
+      icon: 'M4 3v12|M4 5.2h9l-1.6 2.2 1.6 2.2H4' },
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
     // G387: WORLD - the premises editor (PREMISES-EDITOR-2026-09-13.md), the bench's own module
@@ -7688,6 +7831,13 @@
       body.appendChild(b);
       if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }
     },
+    // CLIMATE K2: THE WEATHER - weather_ui.js in this rail's own rows and pills
+    weather(body) {
+      if (!window.WEATHER_UI) { flNote(body, 'This build has no weather panel.'); return; }
+      const H = { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField, live: flLive };
+      window.WEATHER_UI.mount(body, H, { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,
+                                         refresh: flRefreshDay, open: flyOpenSet });
+    },
     // 2026-09-20: THE CLOUDS - clouds_ui.js in this rail's own rows and pills
     night(body) {
       const H = { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField };
@@ -7830,7 +7980,8 @@
     },
   };
 
-  const FL_INST = [['aoa', 'angle of attack'], ['bank', 'bank'],
+  const FL_INST = [['netto', 'netto vario (what the AIR is doing)'],
+    ['aoa', 'angle of attack'], ['bank', 'bank'],
     ['agl', 'height above ground'], ['thr', 'throttle'],
     ['tas', 'true airspeed'], ['pwr', 'power'],
     ['de', 'elevator'], ['da', 'aileron'], ['dr', 'rudder']];
@@ -8153,16 +8304,26 @@
     const c = TF && TF.cover && TF.cover(), st = c && c.stat();
     $('flGndRing').textContent = st ? (st.instances ? (st.instances / 1000).toFixed(0) + ' k tufts in ' + st.live + ' cells' : (agl > 150 ? 'above the ring (150 m)' : 'none here')) : 'no cover ring';
   }
+  // THE AIR, LIVE (CLIMATE K2): off the CLIMATE and the DAY, not off a preset's
+  // table - the wind here is the one the solver is flying in, with the front's
+  // hand already on it, and the gust is the day's declared one.
+  // THE WEATHER PANEL'S LIVE LINES (CLIMATE K2): its own rows on its own
+  // flyout, so they tick whether or not the air flyout is the open one - a
+  // front walking the clock at 60x shows in them without a click.
+  function flWeatherLive() {
+    if (!window.WEATHER_UI || !world || !world.day || !$('wxWind')) return;
+    const L = window.WEATHER_UI.lines(world.day);
+    for (const k of Object.keys(L)) { const el = $(k); if (el) el.textContent = L[k]; }
+  }
   function flAirLive(o) {
     const w = $('flAirWind');
     if (!w) return;
-    const s = flS('Cond'), C = (typeof CONDITIONS === 'object' &&
-      CONDITIONS[s.value]) || null;
-    const g = C && C.wind ? (C.wind.gust || 0) : 0;
+    const wb = windNow(), dw = (world && world.day && world.day.wind) || null;
+    const g = dw ? (dw.gust || 0) : 0;
     $('flAirOat').textContent = ((o && o.oatC != null) ? o.oatC : 15).toFixed(0) + ' °C';
     $('flAirDalt').textContent = ((o && o.densityAlt) || 0).toFixed(0) + ' m';
-    w.textContent = windBase
-      ? Math.hypot(windBase[0], windBase[2]).toFixed(1) + ' m/s at 10 m'
+    w.textContent = wb
+      ? Math.hypot(wb[0], wb[2]).toFixed(1) + ' m/s at 10 m'
       : 'calm';
     $('flAirGust').textContent = g ? '±' + (g * 100).toFixed(0) + ' %' : 'none';
     const t = $('flAirTime');
@@ -9024,7 +9185,7 @@
       if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
     }
     if (inGarage) {
-      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4: the shed keeps its own dark-wall fog; the world's aerial perspective is off in its frames
+      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4/F3: no sky in the shed, so no aerial perspective - but the MIST still runs, as the room's own air
       // ONE SKY (S5): the day on the shed every frame; the room's probe re-shot when the sun has moved 1.5 deg
       if (hangar && hangar.applyDay && world.day) {
         const r = hangar.applyDay(world.day, renderer);
@@ -9149,7 +9310,12 @@
     if (waterFx && !inGarage) syncWaterFx(running ? 1 / 60 : 0);
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
-    if (window.WATER && WATER.fieldStep && !inGarage && (sim.hydro || WATER.field.force)) {   // (no floats: the field runs only when the dev panel forces it)
+    // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets
+    // WATER.field.ask, so a LANDPLANE low over a pod gets the wake and the splash too - the user:
+    // "at close range, the whales should trigger the water surface effects, just like the planes".
+    // The ask expires in half a second: nothing keeps the field alive by forgetting to clear a flag.
+    const wAsk = window.WATER && WATER.field && WATER.field.ask && performance.now() - WATER.field.ask < 500;   // window.WATER, ASKED: a bare WATER throws where the layer is absent (the headless smoke gate)
+    if (window.WATER && WATER.fieldStep && !inGarage && (sim.hydro || WATER.field.force || wAsk)) {   // (no floats and nobody asking: the field runs only when the dev panel forces it)
       const cgF = sim.cgPos(), wl = world.waterH ? world.waterH(cgF[0], cgF[2]) : -Infinity;
       const want = Number.isFinite(wl) && cgF[1] - wl < 60;
       if (want !== WATER.field.on) WATER.fieldOn(want);
@@ -9174,6 +9340,15 @@
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
     // dome and the spray stay out of the capture (the probe's sky and clouds are the reflection's sky)
+    // F1 - THE VISIBILITY CONTRACT goes on HERE, before the mirror capture and the main render,
+    // and comes off after both (the water session's ruling, 2026-09-22): `mirrorRender` only runs
+    // under 60 m AGL and the mirrored eye is the main eye moved VERTICALLY, so against a quadrant
+    // kilometres out both eyes get the same answer to well under a per cent - releasing it for
+    // that pass would cost the saving and buy nothing. It must NOT be toggled between the
+    // mirror's own hide and restore, which is why it brackets that whole block from outside.
+    // Everything earlier in the frame - the probes, the far shadow cascade, the parked captures
+    // in worldUpdate - renders from other eyes entirely and sees the world whole.
+    if (!inGarage && WF && WF.vis) WF.vis.apply(camera);
     if (window.WATER && WATER.mirrorRender && !inGarage && WF) {
       // THE MIRROR'S PLANE IS THE DRAWN SURFACE (G460.11.4), not the physics' waterH: a procedural lake can sit
       // 0.6 m over the DEM lake the renderer draws, and a plane mirror 0.6 m off stretches the reflection (the
@@ -9187,6 +9362,8 @@
     }
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
+    // F1: the contract comes OFF here, after the main render and the mirror capture it covers
+    if (!inGarage && WF && WF.vis) WF.vis.release();
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
     if (typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {
       const L = SKY_LIGHT.last;

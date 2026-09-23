@@ -639,6 +639,17 @@ const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'g
 // capped at 1.2) - the same numbers as src/viewer/pavement.js's CLASS_DEF.band, which GATE PAVEMENT
 // holds equal: the core needs them for coverAt (v1.17) without reaching the viewer
 const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, grass: 1.5 };
+// WHAT A `pav` MAY SAY (v1.16's per-entry knobs, mirrored from src/viewer/pavement.js's ENTRY_KNOBS,
+// which GATE PAVEMENT holds equal): the record is validated against these so a misspelt key is an
+// ISSUE and not a silent no-op - `pav: { mark: 'none' }` used to be read, ignored and never reported
+const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK', 'marks'];
+// THE PARKING STANDS (v1.21, 2026-09-23, the user: "you may also further design a parking area for
+// planes, with clear ground markings"): a material polygon may carry `stands` - a row of aircraft
+// stands painted on it, each a lead-in line with a nose-stop bar across its end, drawn in the
+// polygon's own frame (PAVEMENT.standMarks). Validated like `pav`, and for the same reason: a
+// misspelt key here would be read, ignored and never reported.
+const STAND_KEYS = ['n', 'pitch', 'lead', 'bar', 'u0', 'vOff'];
+const PAV_MARKS = ['auto', 'none', 'edges', 'centre'];
 const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
 function paveBand(entry, cls, isRoad) {
   const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
@@ -669,7 +680,7 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -700,19 +711,35 @@ function runwayProfile(r) {
     const t = (sx - x[i]) / h[i], t2 = t * t, t3 = t2 * t;
     return (2 * t3 - 3 * t2 + 1) * y[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * y[i + 1] + (t3 - t2) * h[i] * m[i + 1];
   };
-  const slopeAt = sAlong => (at(Math.min(r.len, sAlong + 0.5)) - at(Math.max(0, sAlong - 0.5))) / Math.min(1, r.len);
+  // the grade over a metre centred on sAlong; at an end the metre slides inside (GTRAM: a clamped half-metre read an
+  // altiport's 10 % threshold as 5 %, and the crest test then saw a 5 % change of slope that is not in the ground)
+  const slopeAt = sAlong => { const w = Math.min(1, r.len), a = Math.max(0, Math.min(r.len - w, sAlong - w / 2)); return (at(a + w) - at(a)) / w; };
   return { points: P, at, slopeAt, n };
 }
 // THE PILOT'S LIMITS on a profile (what the MSFS editor never asks): the slope anywhere under 5 %, the
 // touchdown zone (a fifth of the run from each threshold) under 2.5 %, and no crest sharper than a 1.5 %
 // change of slope over 30 m - a flare must not meet a hump it cannot see over
+// THE ALTIPORT (GTRAM, the tramway's summit strip): `altiport: true` is a mountain strip the Alpine way -
+// one way, landed UPHILL and left downhill whatever the wind (Courchevel 537 m at 18.5 %, Meribel 406 m
+// with an 11 % middle, La Salette 180 m at 20 %), so the limits are the altiport's: the slope anywhere
+// under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
+// over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
+// higher than the threshold it lands over
+const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
 function profileIssues(r) {
-  const out = [], pr = runwayProfile(r), L = r.len;
+  const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
   for (let a = 0; a <= L; a += 3) {
     const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
     if (a < L / 5 || a > L - L / 5) tdz = Math.max(tdz, sl);
     if (a + 30 <= L) crest = Math.max(crest, Math.abs(pr.slopeAt(a + 30) - pr.slopeAt(a)));
+  }
+  if (alti) {
+    if (worst > ALTIPORT.slopeMax) out.push('runway ' + r.id + ': the altiport is ' + (worst * 100).toFixed(1) + ' % somewhere, over ' + ALTIPORT.slopeMax * 100 + ' %');
+    if (crest > ALTIPORT.crestMax) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over ' + ALTIPORT.crestMax * 100 + ' on an altiport');
+    if (r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
+    else if (!((r.approach === 0 ? pr.at(L) - pr.at(0) : pr.at(0) - pr.at(L)) > 0)) out.push('runway ' + r.id + ': an altiport is landed uphill - the far end must be higher than end ' + r.approach);
+    return out;
   }
   if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
   if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
@@ -790,6 +817,14 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            band: r.band === undefined ? null : r.band, pav: r.pav || null,   // the pavement's (v1.16): the renderer resolves them with the premises' recipe
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null,
+           altiport: !!r.altiport,   // GTRAM: landed uphill and left downhill whatever the wind (43_pilot reads it)
+           // THE TREES ROUND THE STRIP ARE THE RECORD'S (G527.3, contract v1.25): treeBox false - the renderer's generic box
+           // (len/2 + 150 along, wid/2 + 60 across) is not cut; the strip's own box + 30 m and the authored excludes are
+           treeBox: r.treeBox !== false,
+           // THE WAY OUT OF A ONE-WAY STRIP (G527.3, contract v1.25): `departure` names the end the take-off leaves OVER
+           // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
+           // back out over it - the trees close in at the other end
+           takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
 }
 
@@ -975,7 +1010,13 @@ function solveLinks(rec, items, phase, ctx) {
     if (S.needs !== phase) continue;
     const A = byId[(L.from.site || '') + '/' + L.from.item] || items.find(i => i.item === L.from.item);
     const B = byId[(L.to.site || '') + '/' + L.to.item] || items.find(i => i.item === L.to.item);
-    if (!A || !B) { out.push({ link: L, ok: false, issues: ['link ' + L.id + ': an end is missing'] }); continue; }
+    if (!A || !B) {
+      // GTRAM: an end DECLARED on its site but not built is the catalogue's absence (a headless world with no
+      // generators), said as such - the same words the site's own issue uses; an end the record lacks is missing
+      const declared = e => { const st = (rec.layers.sites || []).find(q => q.id === e.site); return !!(st && (st.items || []).some(q => q.id === e.item)); };
+      const why = (!A && declared(L.from)) || (!B && declared(L.to)) ? 'an end is not built (no catalogue entry for its station)' : 'an end is missing';
+      out.push({ link: L, ok: false, issues: ['link ' + L.id + ': ' + why] }); continue;
+    }
     const sol = S.solve(L, A, B, ctx || {});
     for (const id in sol.patch || {}) { const it = items.find(i => i.id === id); if (it) Object.assign(it.P, sol.patch[id]); }
     out.push(Object.assign({ link: L, A, B }, sol));
@@ -1120,7 +1161,7 @@ function compose(rec0, world, opts) {
   // THE PAVED POLYGONS (v1.16): a material polygon with a `look` (a pavement class) instead of a set is an
   // apron, a turnaround, a pad - the pavement module draws it, the map never sees it
   const pavePolys = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.look && RUNWAY_LOOKS[m.look] && RUNWAY_LOOKS[m.look].cls)
-    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0 }));
+    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null }));
   const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set && !m.look).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
   const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
@@ -1264,7 +1305,7 @@ function compose(rec0, world, opts) {
     //     grass the zone's grass rule when kind is a plot's (h, density)
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
-    coverAt: (x, z) => coverAt(x, z),
+    coverAt: (x, z, pave) => coverAt(x, z, pave),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -1317,7 +1358,10 @@ function compose(rec0, world, opts) {
     if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
     return -sdPoly(it.poly, lx, lz);
   };
-  function coverAt(x, z) {
+  // `pave` (2026-09-22): the PAVEMENT half only - the caller wants to know whether it may stand
+  // something here, not which plot's lawn it is. It skips the plot walk, which is the query's cost
+  // (36 polygons in a village), and the tree fill calls this on every lattice point of every chunk.
+  function coverAt(x, z, pave) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
@@ -1335,6 +1379,7 @@ function compose(rec0, world, opts) {
       boost = Math.max(boost, bump * 0.7, soft);
       if (d > best) { best = d; cls = it.cls; }
     }
+    if (pave) return (kill || boost) ? { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null } : null;
     let kind = null, grass = null;
     // the plots: a point inside one takes its zone's grass rule
     for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }
@@ -1509,6 +1554,19 @@ function compose(rec0, world, opts) {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
       O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
     }
+    // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
+    // `n` animals of the species `key` living within `r` metres of (x, z). One
+    // record makes a herd, a pod or a flock, and `n: 1, r: 0` is one animal
+    // placed by hand. They carry no mesh here: src/viewer/animal_run.js sows
+    // them on the composed ground (and the composed WATER, for a pod), seeded
+    // per individual so adding one never moves the others (rule 5).
+    O.records.animals = [];
+    for (const ob of rec.layers.objects) if (ob.kind === 'animal') {
+      if (!ob.key) { O.records.issues.push('animal ' + ob.id + ': no species'); continue; }
+      O.records.animals.push({ id: ob.id, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0,
+                               y: O.localH(ob.x, ob.z) + (+ob.dy || 0), dy: +ob.dy || 0,
+                               n: Math.max(1, Math.min(24, (+ob.n) | 0 || 1)), r: Math.max(0, +ob.r || 0) });
+    }
     for (const t of O.records.trees) t.y = O.localH(t.x, t.z);
   }
   return O;
@@ -1517,6 +1575,25 @@ function compose(rec0, world, opts) {
 // ---------------------------------------------------------------------------
 // issues — what refuses a commit; checks — what the panel shows and the gate holds
 // ---------------------------------------------------------------------------
+// what a `pav` may carry, checked once for every layer that takes one. A MISSPELT KEY WAS SILENT:
+// resolve() reads the seven knobs it knows and ignores the rest, so `pav: { mark: 'none' }` did
+// nothing and said nothing (the Metlakatla session asked, 2026-09-23)
+function pavIssues(what, pav) {
+  const out = [];
+  if (typeof pav !== 'object') { out.push(what + ': pav is an object of knobs'); return out; }
+  for (const key in pav) if (PAV_KEYS.indexOf(key) < 0) out.push(what + ': pav has no knob `' + key + '` (' + PAV_KEYS.join(', ') + ')');
+  if (pav.marks !== undefined && PAV_MARKS.indexOf(pav.marks) < 0) out.push(what + ': pav.marks is ' + PAV_MARKS.join(' | '));
+  return out;
+}
+function standIssues(what, st) {
+  const out = [];
+  if (typeof st !== 'object' || Array.isArray(st)) { out.push(what + ': stands is an object of numbers'); return out; }
+  for (const key in st) if (STAND_KEYS.indexOf(key) < 0) out.push(what + ': stands has no knob `' + key + '` (' + STAND_KEYS.join(', ') + ')');
+  if (!(+st.n >= 1 && +st.n <= 24)) out.push(what + ': stands.n is 1 to 24');
+  if (st.pitch !== undefined && !(+st.pitch > 0)) out.push(what + ': stands.pitch must be positive');
+  for (const key of ['lead', 'bar']) if (st[key] !== undefined && !(+st[key] > 0)) out.push(what + ': stands.' + key + ' must be positive');
+  return out;
+}
 function issues(rec0) {
   const rec = normalise(rec0);
   const out = [];
@@ -1529,9 +1606,18 @@ function issues(rec0) {
     if (k === 'zones' && e.rules && e.rules.grass && ['lawn', 'meadow', 'none'].indexOf(e.rules.grass.kind) < 0) out.push('zone ' + e.id + ': grass kind is lawn, meadow or none');
     if (k === 'material' && !e.set && !e.look) out.push('material ' + e.id + ': no set and no look');
     if (k === 'material' && e.look && !(RUNWAY_LOOKS[e.look] && RUNWAY_LOOKS[e.look].cls)) out.push('material ' + e.id + ': unknown look ' + e.look);
-    if ((k === 'roads' || k === 'runways' || k === 'material') && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(k.replace(/s$/, '') + ' ' + e.id + ': band must be 0 or more');
-    if ((k === 'roads' || k === 'runways' || k === 'material') && e.pav && typeof e.pav !== 'object') out.push(k.replace(/s$/, '') + ' ' + e.id + ': pav is an object of knobs');
-    if (k === 'roads' && e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push('road ' + e.id + ': unknown look ' + e.look);
+    if (k === 'material' && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push('material ' + e.id + ': band must be 0 or more');
+    if (k === 'material' && e.pav) out.push.apply(out, pavIssues('material ' + e.id, e.pav));
+    if (k === 'material' && e.stands) out.push.apply(out, standIssues('material ' + e.id, e.stands));
+  }
+  // ROADS AND RUNWAYS ARE VALIDATED HERE (2026-09-23): the polygon loop above carried three checks
+  // written `k === 'roads' || k === 'runways'` and never ran over either layer, so a road's band, its
+  // `pav` and its look have gone unchecked since v1.16. They are checked now.
+  for (const k of ['roads', 'runways']) for (const e of rec.layers[k]) {
+    const what = k.replace(/s$/, '') + ' ' + e.id;
+    if (e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(what + ': band must be 0 or more');
+    if (e.pav) out.push.apply(out, pavIssues(what, e.pav));
+    if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   for (const r of rec.layers.runways) {
@@ -1562,7 +1648,8 @@ function issues(rec0) {
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
-  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key'); }
+  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key');
+    if (ob.kind === 'animal') { if (!ob.key) out.push('animal ' + ob.id + ': no species'); if (ob.n !== undefined && (!(+ob.n >= 1) || +ob.n > 24)) out.push('animal ' + ob.id + ': ' + ob.n + ' of them (1 to 24)'); } }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
   for (const L of rec.layers.links) { if (!LINK_SOLVERS[L.kind]) out.push('link ' + L.id + ': unknown kind ' + L.kind); if (!L.from || !L.to || !L.from.item || !L.to.item) out.push('link ' + L.id + ': needs two ends'); }
   const ids = new Set();
@@ -1772,10 +1859,10 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

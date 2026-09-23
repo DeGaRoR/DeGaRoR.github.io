@@ -1,0 +1,246 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>flyDiy — the animals bench</title>
+<!--
+  THE ANIMAL BENCH (2026-09-22). Four views:
+    SHELF   every animal in a row, to scale, with a metre grid under them
+    ONE     one animal alone: every clip it has on a menu, played at rate,
+            the plaque listing what the manifest says about it
+    LADDER  one animal four times at one distance: the SKINNED mesh and each
+            cut level side by side - the "similar volume and colour" check,
+            by eye, beside the numbers GATE ANIMALS asserts
+    RUN     the BEHAVIOURS on a synthetic island: a herd on rolling ground, a
+            pod on water (the dive, the loom, the blow), a flock overhead
+  Launch: flydiy-animals (port 8490), open /flyDiy/tools/_animals.html.
+  The lighting is deliberately plain - a sun and a sky term, no probe: this
+  bench is about shape and clip, and the game's own light rig is elsewhere.
+-->
+<style>
+  :root{--bg:#0f1115;--ink:#dfe3ea;--dim:#8a93a3;--line:#262b35}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:12px/1.4 system-ui,sans-serif;overflow:hidden}
+  #bar{position:fixed;left:0;top:0;right:0;height:36px;display:flex;gap:10px;align-items:center;padding:0 10px;background:#161a21;border-bottom:1px solid var(--line);z-index:2;flex-wrap:wrap}
+  #bar label{color:var(--dim)} #bar select,#bar input,#bar button{background:#0f1115;color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:2px 4px;font:inherit}
+  #c{position:fixed;left:0;top:36px;width:100vw;height:calc(100vh - 36px);display:block}
+  #plaque{position:fixed;right:10px;top:46px;max-width:420px;background:rgba(16,18,24,.82);border:1px solid var(--line);border-radius:4px;padding:8px 10px;white-space:pre;font:11px/1.35 ui-monospace,Consolas,monospace;z-index:2}
+  #plaque b{color:#f0c674}
+</style>
+<div id="bar">
+  <label>view</label><select id="mode"><option value="shelf">shelf</option><option value="one">one</option><option value="ladder">ladder</option><option value="run">run</option></select>
+  <label>animal</label><select id="who"></select>
+  <label>clip</label><select id="clip"></select>
+  <label>rate</label><input id="rate" type="range" min="0" max="2" step="0.05" value="1" style="width:90px">
+  <label>cam</label><input id="dist" type="range" min="2" max="120" step="1" value="12" style="width:110px">
+  <button id="pause">pause</button>
+  <span id="msg" style="color:var(--dim)"></span>
+</div>
+<canvas id="c"></canvas>
+<div id="plaque"></div>
+
+<script src="../vendor/three.min.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/core/51_prop_codec.js"></script>
+<script src="../src/core/55_animal_codec.js"></script>
+<script src="../src/viewer/assets.js"></script>
+<script src="../src/viewer/props.js"></script>
+<script src="../src/viewer/plume.js"></script>
+<script src="../src/viewer/animals.js"></script>
+<script src="../src/viewer/animal_run.js"></script>
+<script src="../src/animals/bear_animal.js"></script>
+<script src="../src/animals/elk_animal.js"></script>
+<script src="../src/animals/doe_animal.js"></script>
+<script src="../src/animals/orca_animal.js"></script>
+<script src="../src/animals/whale_animal.js"></script>
+<script src="../src/animals/bird_animal.js"></script>
+<script src="../src/animals/animals_lods.js"></script>
+<script>
+'use strict';
+const cv = document.getElementById('c');
+// preserveDrawingBuffer: every bench page in this repo carries it - a capture
+// script reads the canvas after any frame (the headless shot rigs)
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fb4d8);
+scene.fog = new THREE.Fog(0x8fb4d8, 120, 900);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 4000);
+const sun = new THREE.DirectionalLight(0xfff3e0, 2.6);
+sun.position.set(60, 90, 40); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
+sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
+sun.shadow.camera.far = 400; sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+scene.add(new THREE.HemisphereLight(0xbdd7f2, 0x4a4436, 1.1));
+
+// ---- the ground: a grid on the shelf views, a rolling island on RUN -------
+const GROUND = (x, z) => Math.max(0.4, 6 + 3 * Math.sin(x / 34) + 2.2 * Math.cos(z / 41) - Math.hypot(x, z) / 26);
+const WATERY = () => 0;
+const flat = new THREE.Mesh(new THREE.PlaneGeometry(400, 400, 1, 1),
+  new THREE.MeshStandardMaterial({ color: 0x6a7355, roughness: 1 }));
+flat.rotation.x = -Math.PI / 2; flat.receiveShadow = true;
+const grid = new THREE.GridHelper(400, 400, 0x33445a, 0x223044);
+grid.position.y = 0.01;
+const shelfG = new THREE.Group(); shelfG.add(flat, grid); scene.add(shelfG);
+
+const islandG = new THREE.Group(); scene.add(islandG); islandG.visible = false;
+{ // the RUN view's ground: the same function animal_run is handed
+  const N = 120, S = 900;
+  const g = new THREE.PlaneGeometry(S, S, N, N);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) p.setZ(i, GROUND(p.getX(i), -p.getY(i)));
+  g.rotateX(-Math.PI / 2); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x5f6b4a, roughness: 1 }));
+  m.receiveShadow = true; islandG.add(m);
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400),
+    new THREE.MeshStandardMaterial({ color: 0x14384a, roughness: 0.12, metalness: 0.0, transparent: true, opacity: 0.86 }));
+  sea.rotation.x = -Math.PI / 2; sea.position.y = 0; sea.renderOrder = 4;
+  islandG.add(sea);
+}
+
+const els = { mode: mode, who: who, clip: clip, rate: rate, dist: dist, pause: pause, msg: msg, plaque: plaque };
+const LIST = ANIMALS.list();
+for (const a of LIST) els.who.add(new Option(a.label + '  (' + a.kind + ')', a.key));
+els.who.value = LIST[0].key;
+
+let held = [], runner = null, paused = false;
+function clear() {
+  for (const h of held) h.dispose();
+  held = [];
+  if (runner) { runner.dispose(); runner = null; }
+}
+function put(key, x, y, z, onReady) {
+  const H = ANIMALS.place(THREE, key, { onReady });
+  H.obj.position.set(x, y, z);
+  scene.add(H.obj);
+  held.push(H);
+  return H;
+}
+function fillClips() {
+  const a = ANIMALS.reg(els.who.value);
+  els.clip.innerHTML = '';
+  if (!a) return;
+  for (const c of a.clips) els.clip.add(new Option(c.role + ' · ' + c.name + '  (' + c.dur.toFixed(1) + ' s)', c.key));
+}
+function build() {
+  clear();
+  const mode = els.mode.value, key = els.who.value, a = ANIMALS.reg(key);
+  shelfG.visible = mode !== 'run';
+  islandG.visible = mode === 'run';
+  scene.fog.near = mode === 'run' ? 200 : 120;
+  if (mode === 'shelf') {
+    let x = 0;
+    for (const q of LIST) {
+      const H = put(q.key, x, q.kind === 'land' ? 0 : q.dim[1] / 2, 0,
+        h => h.play(q.kind === 'sea' ? 'swim' : q.kind === 'air' ? 'flap' : 'idle', { loop: true }));
+      H.obj.rotation.y = -Math.PI / 2;
+      x += q.dim[2] * 0.7 + 3;
+    }
+  } else if (mode === 'one') {
+    put(key, 0, a.kind === 'land' ? 0 : a.dim[1] / 2, 0, h => h.play(els.clip.value || 'idle', { loop: true }));
+  } else if (mode === 'ladder') {
+    // level 0 (skinned) and every cut level, side by side, all pinned
+    const lv = ANIMALS.levels(key);
+    const gap = a.dim[0] + a.length * 0.35 + 1.5;
+    const mk = (i, obj) => { obj.position.set((i - (lv.length) / 2) * gap, a.kind === 'land' ? 0 : a.dim[1] / 2, 0); obj.rotation.y = -Math.PI / 2; scene.add(obj); };
+    const H = ANIMALS.place(THREE, key, { onReady: h => h.play(a.clips[0].role, { loop: true }) });
+    mk(0, H.obj); held.push(H);
+    lv.forEach((l, i) => {
+      const g = new THREE.Group();
+      const inner = new THREE.Group();
+      inner.position.set(-a.pivot[0], -a.pivot[1], -a.pivot[2]);
+      inner.add(propMesh(THREE, l.key));
+      g.add(inner);
+      mk(i + 1, g);
+      held.push({ obj: g, dispose: () => scene.remove(g), step: () => {}, loomSet: () => {} });
+    });
+  } else {
+    runner = ANIMAL_RUN.make(THREE, {
+      scene, ground: GROUND, waterH: WATERY, eye: () => camera.position,
+      stamp: () => false,
+      spray: () => {},
+      lit: () => 1, wind: () => [4, 1],
+    });
+    const spots = [];
+    LIST.filter(q => q.kind === 'land').forEach((q, i) => spots.push({ id: 'h' + i, key: q.key, x: -60 + i * 60, z: 40, n: 3, r: 40 }));
+    LIST.filter(q => q.kind === 'sea').forEach((q, i) => spots.push({ id: 's' + i, key: q.key, x: -120 - i * 160, z: -240, n: 2, r: 120 }));
+    LIST.filter(q => q.kind === 'air').forEach((q, i) => spots.push({ id: 'f' + i, key: q.key, x: 0, z: -60, n: 6, r: 90, dy: 50 }));
+    runner.sync(spots);
+  }
+  plaqueOf();
+}
+function plaqueOf() {
+  const a = ANIMALS.reg(els.who.value);
+  if (!a) { els.plaque.textContent = ''; return; }
+  const lv = ANIMALS.levels(a.key);
+  const L = [];
+  L.push('<b>' + a.label + '</b>  ' + a.key + '  (' + a.kind + ')');
+  L.push(a.length.toFixed(2) + ' m declared · ' + a.dim.map(v => v.toFixed(2)).join(' x ') + ' m at rest · x' + a.scale.toFixed(4));
+  L.push(a.nt.toLocaleString() + ' triangles, ' + a.joints.length + ' joints, ' + a.meshes.length + ' meshes, ' + a.mats.length + ' materials');
+  L.push('pivot ' + a.pivot.map(v => v.toFixed(2)).join(', ') + '  forward [' + a.forward.join(', ') + ']');
+  L.push('levels: ' + (lv.length ? lv.map(l => PROP_REG.props[l.key].nt + ' past ' + l.dist + ' m').join(', ') : 'none (it is small enough)'));
+  L.push('');
+  for (const c of a.clips)
+    L.push('  ' + c.role.padEnd(8) + c.name.padEnd(26) + c.dur.toFixed(2) + ' s  ' + String(c.frames).padStart(4) + ' f @' + String(c.fps).padStart(2) +
+      (c.travel > 0.01 ? '  ' + c.speed.toFixed(2) + ' m/s' : ''));
+  L.push('');
+  L.push(a.credit.replace(/(.{60,72}) /g, '$1\n'));
+  els.plaque.innerHTML = L.join('\n');
+}
+
+// ---- the camera: a slow orbit, the distance on the slider ----------------
+let ang = 0.6;
+const _c = new THREE.Vector3();
+function place() {
+  const d = +els.dist.value, mode = els.mode.value;
+  const h = mode === 'run' ? d * 0.35 + 3 : d * 0.45 + 1.2;
+  // in RUN the eye follows the FIRST individual of whatever species the menu
+  // names, which is the only way to look at a behaviour rather than at a map
+  let c = new THREE.Vector3(mode === 'shelf' ? 8 : 0, 1.2, 0);
+  if (mode === 'run' && runner) {
+    const L = runner.list().filter(o => o.key === els.who.value);
+    const o = L[0];
+    if (o) c = _c.set(o.x, o.y, o.z);
+  }
+  camera.position.set(c.x + Math.cos(ang) * d, c.y + h, c.z + Math.sin(ang) * d);
+  // the eye never goes under the water or into the hill: a submerged animal is
+  // looked at THROUGH the surface, which is the whole point of the loom
+  if (mode === 'run') camera.position.y = Math.max(camera.position.y, GROUND(camera.position.x, camera.position.z) + 3, 3);
+  camera.lookAt(c);
+  sun.target.position.copy(c);
+}
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = e.clientX; });
+addEventListener('pointerup', () => { drag = null; });
+addEventListener('pointermove', e => { if (drag !== null) { ang += (e.clientX - drag) * 0.006; drag = e.clientX; } });
+
+let last = performance.now();
+function frame(t) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (t - last) / 1000); last = t;
+  const r = cv.getBoundingClientRect();
+  if (cv.width !== r.width * devicePixelRatio || cv.height !== r.height * devicePixelRatio) {
+    renderer.setSize(r.width, r.height, false);
+    camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+  }
+  const step = paused ? 0 : dt * (+els.rate.value);
+  if (runner) runner.tick(step);
+  else for (const h of held) if (h.step) h.step(step);
+  place();
+  renderer.render(scene, camera);
+  els.msg.textContent = (runner ? runner.stats.shown + ' animals stepped · ' : held.length + ' placed · ') +
+    renderer.info.render.triangles.toLocaleString() + ' tris, ' + renderer.info.render.calls + ' calls';
+}
+els.mode.onchange = build;
+els.who.onchange = () => { fillClips(); build(); };
+els.clip.onchange = () => { if (els.mode.value === 'one') build(); };
+els.pause.onclick = () => { paused = !paused; els.pause.textContent = paused ? 'play' : 'pause'; };
+fillClips();
+build();
+requestAnimationFrame(frame);
+window.__BENCH = { scene, camera, held: () => held, runner: () => runner, build };
+</script>

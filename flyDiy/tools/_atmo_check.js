@@ -132,7 +132,16 @@ console.log('5. the sources');
   yes(chunkWrites.length === 5 && ['SC.fog_pars_vertex', 'SC.fog_vertex', 'SC.fog_pars_fragment', 'SC.fog_fragment', 'SC.tonemapping_fragment'].every(k => chunkWrites.includes(k)),
       'the atmosphere overrides exactly the five fog/tonemapping chunks, in install(): ' + chunkWrites.join(' '));
   yes(/SC\.tonemapping_fragment = AP_APPLY \+/.test(code), 'the aerial perspective is spliced at the HEAD of tonemapping_fragment (before the tone map, in linear radiance)');
-  yes(/if \(uAtmoAP\.z > 0\.5\)/.test(src) && /if \(uAtmoAP\.z < 0\.5\)/.test(src), 'the splice and the legacy fog are gated on the one shared flag');
+  // F3: ONE PATH. The aerial perspective is still gated on the flag (it needs a sky), but the mist
+  // is a MEDIUM and runs wherever there is a fog object - which is what lets the shed have an
+  // honest room haze and what retired three's own smoothstep, the last legacy fog in the tree.
+  yes(/if \(uAtmoAP\.z > 0\.5\) \{[\s\S]{0,240}?atmoAP\(\)/.test(src), 'the aerial perspective is gated on the flag (it needs a sky to be under)');
+  yes(!/if \(uAtmoAP\.z < 0\.5\)/.test(src), 'the legacy display-space fog is GONE - no second path through the fog chunks');
+  yes(/const AP_FOG_FRAG = '';/.test(src), 'fog_fragment is emptied rather than replaced');
+  { const ap = /const AP_APPLY = `([\s\S]*?)`;/.exec(src);
+    const body = ap ? ap[1] : '';
+    const gate = body.indexOf('uAtmoAP.z > 0.5'), close = body.indexOf('}', body.indexOf('atmoAP()')), mist = body.indexOf('mistApply(');
+    yes(gate >= 0 && close > gate && mist > close, 'mistApply runs OUTSIDE the flag (a room is a medium with no sky): the AP block closes before it'); }
   yes(/Object\.defineProperty\(proto, 'onBeforeCompile'/.test(src) && /inject\(sh\); return f\.call\(this, sh, r\);/.test(src), 'the prototype hook is an accessor: every material\'s own hook comes back wrapped in inject (G432.2)');
   // ...and it WORKS, on a stand-in THREE: a material with a hook of its own gets the atlas sampler and a
   // cache key that still tells its hooks apart; a hook copied from one material to another stays one hook
@@ -156,6 +165,37 @@ console.log('5. the sources');
     if (had) g.THREE = old; else delete g.THREE;
     yes(okI, 'install() took the stand-in THREE'); }
   yes(!/\.onBeforeCompile\s*=\s*sh\s*=>/.test(src), 'the atmosphere\'s own programs are standalone (no hook of their own)');
+
+  // ---- F2: THE MIST ON THE LAND --------------------------------------------------------------
+  // The layer's top and density come from a 2-D field baked once per world into the SAME atlas the
+  // aerial perspective already binds. Three things must hold or the feature is a regression: the
+  // field must not overlap the clouds' tile, the march must live inside MIST_GLSL (no sixth chunk),
+  // and relief OFF must be the closed form it always was.
+  {
+    const flat = src.replace(/\s+/g, ' ');
+    const nMist = (src.match(/THE MIST \(SKY S7\): an exponential height layer/g) || []).length;
+    yes(nMist === 1, "the mist GLSL exists ONCE (the dome interpolates it, it does not carry a copy): " + nMist);
+    yes(src.indexOf('${MIST_GLSL}') > 0, "the dome shader interpolates MIST_GLSL");
+    const mMap = /MIST_MAP = (\d+)/.exec(src), mX = /MIST_X = ([A-Z_]+)/.exec(src), mY = /MIST_Y = ([A-Z_]+)/.exec(src);
+    yes(!!mMap && +mMap[1] > 0, "the field has a declared side: " + (mMap ? mMap[1] : '?'));
+    yes(!!mX && mX[1] === 'AP_TILE', "the field starts at x = AP_TILE: the columns BESIDE the clouds' tile, never over it");
+    yes(!!mY && mY[1] === 'AP_TILE_Y', "the field sits in the tile's rows (y = AP_TILE_Y)");
+    yes(!!mMap && 512 + (+mMap[1]) <= 2048, "the field fits the atlas's width");
+    yes(!!mMap && (+mMap[1]) <= 512, "the field fits the atlas's height");
+    yes(/float mistODField\(vec3 o, vec3 d, float D\)/.test(src), "the march is a function, not a sixth chunk");
+    yes(/const MIST_GLSL = `[\s\S]*?float mistODField/.test(src), "mistODField lives INSIDE MIST_GLSL, so the dome and the cloud march inherit it");
+    yes(/uMist\[4\]\.w > 1\.5 \? mistODField\(.*?\) : mistOD\(y0, d\.y, D\)/.test(flat),
+        "mistApply takes the CLOSED FORM unless the march is asked for");
+    yes(/relief = \(F && MIST\.relief > 0\) \? 1 : 0/.test(src) && /mistScalars\[19\] = relief \?/.test(src),
+        "the step count is ZERO unless a field is baked AND relief is on - a missing field never takes the march");
+    yes(/uniform vec4 uMist\[7\];/.test(src), "uMist carries F2's three extra lanes");
+    const nS = (src.match(/uniform sampler2D uApAtlas;/g) || []).length, nG = (src.match(/#ifndef ATMO_AP_SAMPLER/g) || []).length;
+    yes(nS === 2 && nG === 2, "every uApAtlas declaration is guarded, so a shader carrying both blocks declares it once (" + nS + " declarations, " + nG + " guards)");
+    yes(/uApAtlas: apUniforms\.uApAtlas/.test(src), "the dome binds the atlas it now samples");
+    yes(/Math\.exp\(-Math\.max\(0, base\) \/ BL_H\)/.test(src),
+        "the field dies with height (the boundary layer): the mist POOLS instead of draping over every shoulder");
+  }
+
   const hooked = { 'render_world.js': 8, 'render_premises.js': 2, 'props.js': 1, 'lot_tex.js': 1, 'site_ground.js': 1, 'trees.js': 1, 'cabin.js': 1, 'aeroskin.js': 2 };
   for (const f in hooked) {
     const t = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');

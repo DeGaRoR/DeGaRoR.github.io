@@ -126,7 +126,7 @@ console.log('6. the splice rules');
   yes(/_C \*= cloudShadow\(\);/.test(src('viewer/trees.js')), 'the trees\' own leaf terms take the cloud shadow');
   yes(/setPre: f => \{ S\.pre = f \|\| null; \}/.test(aa) && /if \(S\.pre\) S\.pre\(renderer, camera, S\.rt\);/.test(aa), 'the resolve pass has the PRE hook (G436.7): the march runs before the scene, off the previous frame\'s depth');
   yes(/aa\.setPre\(\(r, cam, rt\) => \{ if \(!inGarage\) CLOUDS\.draw\(r, cam, rt\); \}\)/.test(src('viewer/app.js')) && /CLOUDS\.sunT\(camera\.position\.x/.test(src('viewer/app.js')), 'app.js marches before the scene and dims the flare by the column');
-  yes(/gl_FragDepth = log2\(1\.0 \+ w\) \/ uLogFar;/.test(cj) && /depthTest: true, depthWrite: false, transparent: true, toneMapped: true/.test(cj) && /compMesh\.renderOrder = 1e6/.test(cj) && /scene\.add\(CLOUDS\.compositeMesh\(\)\)/.test(rw), 'the composite is a quad IN the world scene at the cloud\'s log depth, last, tested per MSAA sample (the 1-px line round the aeroplane)');
+  yes(/gl_FragDepth = wDz\(w\);/.test(cj) && /log2\(1\.0 \+ w\) \/ uLogFar/.test(cj) && /uDZ\.y \* \(uDZ\.z - w\)/.test(cj) && /depthTest: true, depthWrite: false, transparent: true, toneMapped: true/.test(cj) && /compMesh\.renderOrder = 1e6/.test(cj) && /scene\.add\(CLOUDS\.compositeMesh\(\)\)/.test(rw), 'the composite is a quad IN the world scene at the cloud\'s depth (reversed float or log, as the renderer runs - PERF 2026-09-23), last, tested per MSAA sample (the 1-px line round the aeroplane)');
   yes(/s\.rgb \*= s\.a;/.test(cj) && /c\.rgb \/= max\(c\.a, 1e-4\);/.test(cj), 'the composite filters premultiplied (an empty texel must not darken its neighbour)');
   yes(/EXT_disjoint_timer_query_webgl2/.test(cj), 'the pass carries its own GPU timer');
   // C3: the probe and the shed see the layer (the dome march), the hemisphere rises under a cloud, the shed's key takes the column
@@ -141,7 +141,10 @@ console.log('6. the splice rules');
   yes(idx > 0 && gate > 0 && idx < gate, 'the clouds update every frame, before the sun-move gate (the drift, the eye, the shadow\'s scalars)');
   // C4: the veil, the in-cloud slab, the weather on the rails
   yes(/uniform vec4 uVeil; uniform vec3 uVeilSun, uVeilSky;/.test(at) && /L \+= veil\(d, uSun\);/.test(at), 'the dome carries the cirrus veil');
-  yes((at.match(/uniform vec4 uMist\[4\];/g) || []).length === 2 && /slabLen\(y0, d\.y, D, uMist\[3\]\.y, uMist\[3\]\.z\)/.test(at), 'the mist takes the in-cloud slab (both copies of the mist GLSL)');
+  // ONE copy since F2 (the dome interpolates MIST_GLSL instead of carrying a duplicate, so the
+  // march and the in-cloud slab cannot disagree between the ground and the horizon). The lane
+  // count grew to 7 with F2's field; what this gate cares about is that the slab is still applied.
+  yes((at.match(/uniform vec4 uMist\[7\];/g) || []).length === 1 && /slabLen\(y0, d\.y, D, uMist\[3\]\.y, uMist\[3\]\.z\)/.test(at), 'the mist takes the in-cloud slab (the ONE copy of the mist GLSL)');
   yes(/c\.rho = rho; c\.base = inL\.base; c\.top = inL\.top;/.test(cj) && /A\.U\.veil\.value/.test(cj), 'clouds.js writes the veil and the slab from the day (the slab: the deck the eye is in)');
   yes(/\[\?&\]cloud=\(\[0-9\.\]\+\)\(\?:,\(\[a-z\]\{2\}\)\)\?/.test(src('viewer/day_clock.js')) && /o\.cloudUpper = c\[3\]/.test(src('viewer/day_clock.js')), '?cloud=<cover>[,<type>][;<cover>,<type>[,<base>]]* on the URL');
   // 2026-09-20: the low deck's cover and type moved from the brief's day slot to the clouds panel (one keeper); the day panel keeps a door to it
@@ -159,8 +162,10 @@ console.log('6. the splice rules');
   yes(/CLOUD_FIELD\.weatherMap\(/.test(cj) && /CLOUD_FIELD\.layers\(/.test(cj), 'the pass samples the core\'s maps and layers (one field)');
   yes(/smoothstep\(0\.0, uProfA\[li\]\.x, h\) \* \(1\.0 - smoothstep\(uProfA\[li\]\.y \* hs, hs, h\)\)/.test(cj), 'the GLSL profile is the core\'s profile, verbatim (per deck)');
   yes(!/PointsMaterial\(\{ map: tex, size: 340/.test(rw) && /CLOUDS\.update\(day, camera, world\)/.test(rw), 'render_world retired the billboard puffs and hands the day to the clouds');
-  yes(/k: 'clouds'/.test(gfx) && ['low', 'medium', 'high', 'ultra'].every(p => new RegExp(p + ':\\s*\\{[^}]*clouds: \'(off|half|full)\'').test(gfx)), 'the GRAPHICS menu has the clouds row in every preset');
-  yes(/depthTexture: S\.needRT/.test(aa) && /S\.overlay\(renderer, camera, S\.rt\)/.test(aa) && /needRT, setOverlay/.test(aa), 'the resolve pass carries the depth texture and the overlay hook');
+  { const PRESETS = (() => { const w = { localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, requestAnimationFrame: () => 1 }; w.window = w;
+  require('vm').runInNewContext(gfx, Object.assign({ window: w, setInterval: () => 0, clearInterval() {} }, w)); return w.GFX ? w.GFX.PRESETS : {}; })();   // the evaluated presets (the five tiers, PERF 2026-09-23)
+    yes(/k: 'clouds'/.test(gfx) && Object.keys(PRESETS).length === 5 && Object.values(PRESETS).every(p => ['off', 'half', 'full'].includes(p.clouds)), 'the GRAPHICS menu has the clouds row in every preset'); }
+  yes(/depthTexture: \(S\.needRT \|\| S\.rz\)/.test(aa) && /S\.overlay\(renderer, camera, S\.rt\)/.test(aa) && /needRT, setOverlay/.test(aa), 'the resolve pass carries the depth texture and the overlay hook');
   const build = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
   yes(/'08_cloud_field\.js'/.test(build) && /'clouds\.js'/.test(build), 'both files are in the build');
 }

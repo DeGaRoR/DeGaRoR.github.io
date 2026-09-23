@@ -126,7 +126,7 @@ const WATER = (() => {
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes;   // the planar mirror (G460.11): its capture's view-projection; x: on, y: the slope's perturbation, z: the lod per roughness, w: 0
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
     uniform vec4 uWFoam;       // x: the fold's RMS Q sqrt(sum (A k)^2 / 2), y: the whitecap cover (Monahan, of the wind), z: the swell's A (m), w: 0
     uniform int uWDbg;
@@ -330,21 +330,44 @@ const WATER = (() => {
           // the ratio, s = sqrt(sigma^2) of the sub-pixel band, applied to the sky's reflection (the sun's GGX has Smith)
           float wSg = sqrt(max(wSig, 0.0)), wC = clamp(dot(geometryViewDir, wUpV * faceDirection), 0.02, 1.0);
           float wF5 = pow(1.0 - wC, 5.0), wFm = pow(1.0 - wC, 5.0 * exp(-2.69 * wSg)) / (1.0 + 22.7 * pow(wSg, 1.5));
-          iblRadiance *= mix(1.0, clamp(wFm / max(wF5, 1.0e-4), 0.0, 1.0), smoothstep(0.55, 0.15, wC));
+          // (G460.11.8: the factor is taken here and applied AFTER the mirror's mix below - with the sky
+          // drawn into the capture the mirror supplies the WHOLE reflection, and a dim that rode only the
+          // probe would have left the grazing sea a hard mirror again)
+          float wMeanF = mix(1.0, clamp(wFm / max(wF5, 1.0e-4), 0.0, 1.0), smoothstep(0.55, 0.15, wC));
           // THE PLANAR MIRROR (G460.11, the user: "we can see tree reflections everywhere, while ours does not mirror
           // anything at all"): the decor - terrain, trees, the craft - captured from the eye mirrored about the water
           // plane (the sky left out: the probe carries the sky and its clouds, at the probe's own cadence), read where
           // this point projects in that capture, the lookup pushed by the wave slope, blurred by the roughness (the
           // capture's mips), and only where the capture has something (its alpha) - the probe's sky elsewhere
-          if (uWMirror4.x > 0.5) {
+          if (uWMirror4.x > 0.001) {
             // THE PROJECTION IS FROM THE STILL SURFACE (G460.11.6, the user: "now for the seams"): the near patch is
             // a 3.75 m grid LIFTED by the swell, so vWP is faceted - and a capture projected through a faceted
             // position creases along every facet edge (straight world-axis lines across the near water, measured at
             // constant world x). The mirror's plane IS the still surface: the lookup comes from vWP0 (undisplaced)
             // and the wave's effect on the reflection is the slope's perturbation below, which is continuous
-            vec4 mp = uWMirrorVP * vec4(vWP0, 1.0);
+            // AND THE WAVE'S SLOPE MOVES THE POINT, NOT THE UV (G460.11.9, the user: "fix the perturbation
+            // frame too"). The old push was muv += wNw.xz * k: a WORLD vector added to a CAPTURE uv whose x
+            // axis is the NEGATIVE of the world's (lookAt with the reflected up re-orthonormalises to a
+            // right-handed basis - measured, debug view 13), so a slope moved the reflection the wrong way
+            // horizontally, by an amount that ignored the perspective, and in a frame nobody could name.
+            // The honest form needs no frame at all. What the capture holds at the projection of a point Q on
+            // the plane is the radiance arriving along the FLAT reflection of the eye-ray through Q - so to
+            // read the radiance the TILTED facet sends to the eye, take its reflected ray R = reflect(V, n)
+            // and follow it from the MIRRORED EYE back to the plane: Q = E' + R (h / R.y), h the eye's height
+            // over the water. Q is vWP0 exactly when the surface is flat (proved in GATE WATER), the walk is
+            // in metres on the water and so carries the perspective for free, and its direction is the
+            // reflection's own. It is CAPPED at uWMirror4.y of the view distance: a facet at grazing has
+            // R.y near zero and h / R.y near infinity, and an uncapped walk sends the lookup past the horizon
+            vec3 mEye = cameraPosition;
+            vec3 mR = reflect(normalize(vWP0 - mEye), wNw);
+            float mH = mEye.y - uWMirror4.w, mL = max(distance(vWP0, mEye), 1.0e-3);
+            float mT = mH / max(mR.y, min(mH / mL, 0.02));   // the floor never bites the FLAT ray (whose R.y is mH / mL): flat water must give back the point, at any grazing
+            float mLim = uWMirror4.y * mL;
+            vec3 mD = vec3(mEye.x + mR.x * mT, vWP0.y, mEye.z + mR.z * mT) - vWP0;
+            mD *= min(1.0, mLim / max(length(mD), 1.0e-4));
+            vec4 mp = uWMirrorVP * vec4(vWP0 + mD, 1.0);
             if (mp.w > 0.0) {
-              vec2 muv = mp.xy / mp.w * 0.5 + 0.5 + wNw.xz * uWMirror4.y;
+              vec2 muv = mp.xy / mp.w * 0.5 + 0.5;
               if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {
                 vec4 mr = textureLod(uWMirror, muv, material.roughness * uWMirror4.z);
                 float edge = smoothstep(0.0, 0.06, muv.x) * smoothstep(1.0, 0.94, muv.x) * smoothstep(0.0, 0.06, muv.y) * smoothstep(1.0, 0.94, muv.y);
@@ -357,10 +380,11 @@ const WATER = (() => {
                 // shows the sky, a thin twig no longer paints the sky over the wood
                 vec3 mcol = mr.rgb / max(mr.a, 0.02);
                 float mmask = smoothstep(0.06, 0.35, mr.a);
-                iblRadiance = mix(iblRadiance, mcol, mmask * edge);
+                iblRadiance = mix(iblRadiance, mcol, mmask * edge * uWMirror4.x);   // (G522: x is the altitude fade's weight, so the hand-over to the probe is a dissolve and not a pop)
               }
             }
-          } }`)
+          }
+          iblRadiance *= wMeanF; }`)
       .replace('#include <normal_fragment_maps>', '')
       // THE BODY COLOUR IS NOT A LAMBERT SURFACE (G460.5, the user: "it looks very matte blue"): three lights
       // material.diffuseColor by dot(N, L) on the WAVE normal, so every ridge was a painted stripe and the
@@ -800,19 +824,39 @@ const WATER = (() => {
   // captures at once whatever the gap. THE CLOCK IS REAL SECONDS: a fake 1/60-a-call clock ran at a fifth of the
   // wall clock under the rig, so a '3 s' refresh was 20 s and the water drew a capture taken 1500 m away - the
   // reflection stretched and smeared (the user: "reflections seem stretched, everything is twice as long")
-  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, maxAgl: 60, res: 0.5, perturb: 0.06, lod: 5.0, far: 4000, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
+  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, res: 0.5, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
   const mirrorTmp = {};
   function mirrorRender(THREE, renderer, scene, camera, waterY, opts) {
     opts = opts || {};
     const eyeAgl = camera.position.y - waterY;
-    if (!U || MIR.mode === 'off' || !(eyeAgl > 0.1) || eyeAgl > MIR.maxAgl) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
+    // THE CEILING IS A FADE, NOT A CLIFF (G522, the user: "do your planar mirror fix"). The mirror used to
+    // switch OFF above 60 m over the water, on the reasoning that from the air a water reflects the sky and
+    // the probe carries the sky. That is true of the water DIRECTLY BELOW and false of everything else: at
+    // an eye height h a point at ground distance d is seen at atan(d/h) from the vertical, so the far half
+    // of any water in frame is grazing, and what a grazing ray reflects is the FAR BANK - terrain, which the
+    // probe does not have (its ground is a flat cap). A near-black muskeg lake from 250 m therefore went to
+    // a flat black polygon with nothing in it, which is what the Metlakatla session reported of Skaters
+    // Lake. And 60 m was a CLIFF: fly up through it and the reflection vanished between two frames.
+    // So: full weight to `fadeFrom`, easing to nothing at `maxAgl`, and the weight rides uWMirror4.x - the
+    // shader mixes by it rather than testing it, so the hand-over to the probe is a dissolve.
+    const mirW = MIR.mode === 'off' || !(eyeAgl > 0.1) ? 0
+      : eyeAgl <= MIR.fadeFrom ? 1
+      : Math.max(0, 1 - (eyeAgl - MIR.fadeFrom) / Math.max(1, MIR.maxAgl - MIR.fadeFrom));
+    MIR.w = mirW;
+    if (!U || mirW <= 0.001) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
     MIR.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
     const pos = camera.position, q = camera.quaternion;
     let due = MIR.mode === 'live' || !MIR.last;
     if (!due && MIR.last) {
       const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
       const jump = moved > MIR.jumpM || turned > MIR.jumpDeg * Math.PI / 180 || Math.abs(waterY - L.wy) > 0.5;
-      due = jump || ((MIR.t - MIR.lastT > MIR.minGap) && (moved > MIR.moveM || turned > MIR.turnDeg * Math.PI / 180 || MIR.t - MIR.lastT > MIR.every || Math.abs(waterY - L.wy) > 0.05));
+      // THE MOVE THRESHOLD KNOWS ITS ALTITUDE (G522): a capture is stale when the eye has moved far enough
+      // to change the parallax of what it reflects, and the nearest thing a mirrored eye at height h can
+      // reflect is about h away - so 3 m at the dock and 3 m at 500 m are not the same error. Without this,
+      // raising the ceiling would fire a capture almost every frame at cruise; with it, 500 m over the water
+      // re-captures every 25 m. The TURN threshold does not scale: turning re-frames everything at any height.
+      const moveLim = Math.max(MIR.moveM, eyeAgl * MIR.moveAgl);
+      due = jump || ((MIR.t - MIR.lastT > MIR.minGap) && (moved > moveLim || turned > MIR.turnDeg * Math.PI / 180 || MIR.t - MIR.lastT > MIR.every || Math.abs(waterY - L.wy) > 0.05));
     }
     if (!due) return false;
     const size = renderer.getDrawingBufferSize ? renderer.getDrawingBufferSize(mirrorTmp.v2 || (mirrorTmp.v2 = new THREE.Vector2())) : { x: 1920, y: 1080 };
@@ -824,8 +868,9 @@ const WATER = (() => {
       // samples it while drawing into the capture, and on a single-sampled target that is a feedback loop WebGL
       // drops the draw of - no cloud in any mirror, G460.11.1)
       MIR.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: true, samples: 2,
-        depthTexture: THREE.DepthTexture ? new THREE.DepthTexture(w, h, THREE.UnsignedInt248Type) : null });
+        depthTexture: THREE.DepthTexture ? new THREE.DepthTexture(w, h, renderer.capabilities && renderer.capabilities.reversedDepthBuffer ? THREE.FloatType : THREE.UnsignedInt248Type) : null });   // float under the reversed buffer (app.js, PERF 2026-09-23)
       if (MIR.rt.depthTexture) { MIR.rt.depthTexture.format = THREE.DepthStencilFormat; MIR.rt.depthTexture.minFilter = MIR.rt.depthTexture.magFilter = THREE.NearestFilter; }
+      MIR.rt.resolveStencilBuffer = false;   // the capture's depth is read, its stencil never (aa_resolve.js: PERF 2026-09-23)
       MIR.rt.texture.wrapS = MIR.rt.texture.wrapT = THREE.ClampToEdgeWrapping;
     }
     if (!MIR.cam) MIR.cam = new THREE.PerspectiveCamera();
@@ -853,6 +898,12 @@ const WATER = (() => {
     // during the capture and the oblique clip would kill it anyway (the mirrored eye is under the water plane).
     // It is drawn here in a scratch scene, placed at the mirrored eye, under the normal projection - the capture's
     // background, opaque, with the clouds composited over it
+    // (G460.11.8: THE DOME IS IN opts.hide - it must be hidden from the SCENE draw, where it rides the
+    // main camera - and the hide loop above had already set visible = false, so this pass drew NOTHING
+    // and G460.11.3's fix never took effect: the capture's clear sky stayed alpha 0 and the water read
+    // the PROBE there, a second sky pasted over the first at every cloud's edge. The dome is made visible
+    // for its own draw and hidden again before the scene's. The user: "the cloud reflections look really
+    // strange ... my brain does not reconcile it as being the mirrored sky")
     let skyPar = null;
     if (opts.sky) {
       const sky = opts.sky;
@@ -860,8 +911,11 @@ const WATER = (() => {
       skyPar = sky.parent;
       MIR.skyScene.add(sky);
       sky.position.copy(mc.position);
+      const skyVis = sky.visible;
+      sky.visible = true;
       renderer.autoClear = false;
       renderer.render(MIR.skyScene, mc);
+      sky.visible = skyVis;
     }
     // THE CLOUDS ARE IN THE MIRROR (the user: "the lake needs to reflect an accurate sky"): the clouds' own march run
     // for the mirrored eye into this capture (opts.clouds = CLOUDS.draw), composited by the scene's cloud quad -
@@ -891,7 +945,7 @@ const WATER = (() => {
     MIR.last = { x: pos.x, y: pos.y, z: pos.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w, wy: waterY }; MIR.lastT = MIR.t; MIR.on = true;
     U.uWMirror.value = MIR.rt.texture;
     U.uWMirrorVP.value.multiplyMatrices(mc.projectionMatrix, mc.matrixWorldInverse);
-    U.uWMirror4.value.set(1, MIR.perturb, MIR.lod, 0);
+    U.uWMirror4.value.set(mirW, MIR.perturb, MIR.lod, waterY);   // x: the mirror's WEIGHT (G522, the altitude fade); w: the mirror's plane, which the slope's walk needs (G460.11.9)
     U.uWRes.value.set(size.x, size.y);
     return true;
   }

@@ -75,10 +75,18 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     return;
   }
   let flying = false;
-  for (let a = 0; a < 14 && !flying; a++) {
+  // --rolltries: the roll-out's patience in 5 s rounds (14 = 70 s, the default). A loaded box - several
+  // headless runs at once, the parked captures taking 8 s apiece - walks past 70 s and the run dies with
+  // "the roll-out never happened" although nothing is wrong with the page (2026-09-23, twice in a row).
+  const ROLL = Math.max(1, +opt('rolltries', 14));
+  for (let a = 0; a < ROLL && !flying; a++) {
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
     await sleep(5000);
-    flying = await ev("/TAXI|DOWNWIND|FINAL|TAKEOFF|CLIMB/.test(document.body.innerText)");   // (a floatplane rolls out afloat, its first phase TAKEOFF)
+    // THE TEST IS THE SCREEN, NOT THE PHASE (2026-09-23): a phase word is whatever the pilot happens to be
+    // doing, and a roll-out that starts in one this list forgot reads as "never happened" - four dead runs
+    // in a row today, with a real shader error hiding underneath them. The FLIGHT RAIL exists only on the
+    // flight screen, so its presence IS the roll-out; the phase words stay as the fast path.
+    flying = await ev("/TAXI|DOWNWIND|FINAL|TAKEOFF|CLIMB/.test(document.body.innerText) || !!(document.querySelector('#flRail [data-f=camera]') && document.querySelector('#flRail [data-f=camera]').offsetParent)");
   }
   if (!flying) throw new Error('the roll-out never happened');
   // the fresh profile's chooser (NEW AEROPLANE / keep the current build) can appear after the roll-out: poll it away
@@ -99,9 +107,18 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   await ev("(()=>{const r=document.querySelector('#flRail [data-f=camera]');if(r)r.click();return 1;})()");
   if (UI) await ev(`(()=>{const s=document.querySelector('#flSlots .flSlot[data-s="${UI}"]')||document.querySelector('#flRail [data-f="${UI}"]');if(s)s.click();return 1;})()`);   // a brief slot or a rail item
   else await ev("(()=>{if(window.SHOT_MODE)SHOT_MODE.enter();return 1;})()");
-  // the roll-out overlay's "compiling the world" step never completes under this rig (a floatplane's
-  // roll-out showed it over every shot, h7o): CONTINUE ANYWAY, as water_shot.js does
-  await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/continue anyway/i.test(b.textContent)).forEach(b=>b.click());return 1;})()");
+  // THE SKIP IS THE LAST RESORT, NOT THE FIRST MOVE (2026-09-23, and this cost a whole afternoon of blank
+  // frames). CONTINUE ANYWAY is `boot.js` fail('skipped by the user'): it ABORTS the roll-out's remaining
+  // steps, and those steps are what BUILD AND COMPILE THE WORLD. Clicked too early it leaves a scene with
+  // no terrain in it and every shot comes out flat sky - silently, with no exception and no warning beyond
+  // one console line. The old phase-word test hid this by being slow: the words appear after the flight
+  // starts, by which time the roll-out had finished on its own and the button was gone. The flight rail
+  // appears EARLIER, so the skip started landing mid-build. So: wait for the boot to settle on its own
+  // first (BOOT.state 'gone' - the roll-out's `done` is what lifts holdRender), and only skip if it is
+  // still running after that. The known "compiling the world" stall is still escaped, one round later.
+  for (let i = 0; i < 40; i++) { if (await ev("!!(window.BOOT && BOOT.state === 'gone')")) break; await sleep(1000); }
+  const skipped = await ev("(()=>{if(window.BOOT&&BOOT.state==='gone')return 0;const l=[...document.querySelectorAll('button')].filter(b=>/continue anyway/i.test(b.textContent));l.forEach(b=>b.click());return l.length;})()");
+  if (skipped) console.log('cloud_shot: the roll-out stalled - CONTINUE ANYWAY clicked (the world may be short of a step)');
   await sleep(500);
   fs.mkdirSync(OUT, { recursive: true });
   for (let i = 0; i < 60 && !(await ev("!!(window.CLOUDS && CLOUDS.baked)")); i++) await sleep(250);   // the noise bakes a few slices a frame

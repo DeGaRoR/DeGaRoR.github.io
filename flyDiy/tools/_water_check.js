@@ -7,7 +7,10 @@
 //      Gerstner GLSL in a scalar subset and TRANSPILES that exact string to
 //      the JS the buoys and the bench read (gerstnerFromGLSL); this gate holds
 //      that JS against waterH at 3000 random (x, z, t) to 1e-9, at t up to
-//      1e5 s (the reduced phases), on the analytic world's own trains.
+//      1e5 s (the reduced phases), on the analytic world's own trains. And one
+//      GOLDEN: the FNV of what setWind([3, 0, 4]) draws, the climate session's
+//      recipe verbatim, so the two gates pin one number (see the rule for the
+//      edge it has - re-pin it in the same commit as any change to seaFrom).
 //   2. THE RULES — one hook in water.js, ATMO.inject its first line, nothing
 //      per body interpolated into the GLSL (the cache key is the hook's
 //      source); the uniform arrays hold 8 trains and seaFrom never makes more;
@@ -80,6 +83,21 @@ console.log('1. PARITY - the shipped GLSL against world.waterH');
     const t = 3.3, x = sea[0] + 7, z = sea[1] - 4; let all = 0; for (const w of S.W) all += w.A * Math.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
     verdict(Math.abs(all - world.waterH(x, z, t)) > 1e-4, 'waterH is the felt band, not the sum of all 32 (the two differ)');
     world.setSea({ A: 0.4, L: 12, dir: 0.7, n: 2 }); verdict(world.sea.W.every(w => w.felt), 'the two-train sea is felt whole'); world.setSea({ A: 0.4, L: 12, dir: 0.7 }); }
+  // THE GOLDEN (G460.11.10, placed at the climate session's request after their K0 - G504 - moved the wind
+  // field under seaFrom without touching a line of its arithmetic): one hash of what a named wind DRAWS, so
+  // that a future session cannot quietly re-decide the sea the floats are pushed by. GATE CLIMATE 12 holds
+  // the band's SHAPE (8 felt of 32 at every wind from 2 to 25 m/s); this holds its NUMBERS, and the two are
+  // complementary. The recipe is theirs verbatim so the two gates quote one value: FNV-1a 32-bit over
+  // JSON.stringify of the RAW train array - full double precision, every key in its own insertion order,
+  // `felt` as a real boolean. THE SHARP EDGE, and it is why this comment is long: hashing the stringified
+  // OBJECTS makes the golden sensitive to ADDING A KEY to a train, not only to changing a number. Give a
+  // train a new field and this goes red although the water is identical. That is a useful tripwire and a
+  // confusing one at two in the morning - so, as on their side: pinned from the unchanged seaFrom, and
+  // RE-PINNED IN THE SAME COMMIT as any intentional change to it, never in a commit of its own.
+  { const gw = CORE.makeWorld(0); gw.setWind({ base: [3, 0, 4] });
+    const fnvStr = str => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16).padStart(8, '0'); };
+    const got = fnvStr(JSON.stringify(gw.sea.W));
+    verdict(got === '63eccad3', `the golden: setWind([3,0,4]) draws ${gw.sea.W.length} trains, A ${f(gw.sea.A, 4)} L ${f(gw.sea.L, 3)}, FNV ${got} (pinned 63eccad3)`); }
 }
 
 // ---- 2. THE RULES -----------------------------------------------------------
@@ -132,21 +150,85 @@ console.log('\n3. THE LAWS');
     verdict(W.WATER_TYPES && ['sea', 'lake', 'river', 'premises'].every(k => W.WATER_TYPES[k] && ['cdom', 'chl', 'sed'].every(q => Number.isFinite(W.WATER_TYPES[k][q]))), 'every body is three constituents (cdom, chl, sed)'); }
   // THE MIRROR (G460.11): the shader reads the capture where the point projects, keeps the probe's sky where the
   // capture is empty; the pass hides the water's own material, reuses the shadow maps, restores the target
-  { verdict(/uniform sampler2D uWMirror; uniform mat4 uWMirrorVP;/.test(W.GLSL.frag) && /vec3 mcol = mr\.rgb \/ max\(mr\.a, 0\.02\);/.test(src('src/viewer/water.js')) && /iblRadiance = mix\(iblRadiance, mcol, mmask \* edge\);/.test(src('src/viewer/water.js')), 'the mirror replaces the IBL only where the capture has something, its colour un-premultiplied (alphaToCoverage resolves to a partial alpha)');
-  verdict(/samples: 2,/.test(src('src/viewer/water.js')) && /depthTexture: THREE\.DepthTexture \? new THREE\.DepthTexture\(w, h, THREE\.UnsignedInt248Type\)/.test(src('src/viewer/water.js')), "the capture is multisampled (its depth texture a resolve: the clouds' composite samples it while drawing into it)");
+  { verdict(/uniform sampler2D uWMirror; uniform mat4 uWMirrorVP;/.test(W.GLSL.frag) && /vec3 mcol = mr\.rgb \/ max\(mr\.a, 0\.02\);/.test(src('src/viewer/water.js')) && /iblRadiance = mix\(iblRadiance, mcol, mmask \* edge \* uWMirror4\.x\);/.test(src('src/viewer/water.js')), 'the mirror replaces the IBL only where the capture has something, its colour un-premultiplied (alphaToCoverage resolves to a partial alpha)');
+  verdict(/samples: 2,/.test(src('src/viewer/water.js')) && /depthTexture: THREE\.DepthTexture \? new THREE\.DepthTexture\(w, h, [^)]*THREE\.UnsignedInt248Type\)/.test(src('src/viewer/water.js')), "the capture is multisampled (its depth texture a resolve: the clouds' composite samples it while drawing into it)");
     const w = src('src/viewer/water.js'), mp = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function mirrorOff('));
     verdict(/mat\.visible = false/.test(mp) && /renderer\.shadowMap\.autoUpdate = false/.test(mp) && /renderer\.setRenderTarget\(prevT\)/.test(mp) && /scene\.background = null/.test(mp), 'the capture hides the water, reuses the shadow maps, restores the target and the background');
     // THE SKY IS IN THE CAPTURE (G460.11.3): without it the clear sky was alpha 0 and the water took the PROBE's sky
     // there - the reflection changed source at every cloud's edge, a hard line across the water
     verdict(/if \(opts\.sky\) \{/.test(mp) && /MIR\.skyScene\.add\(sky\);/.test(mp) && /sky\.position\.copy\(mc\.position\);/.test(mp) && /skyPar\.add\(sky\);/.test(mp), 'the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)');
     verdict(/sky: WF\.skyDome/.test(src('src/viewer/app.js')), "app.js hands the world's sky dome to the capture");
+    // AND IT IS VISIBLE WHILE IT IS DRAWN (G460.11.8): the dome is in opts.hide (it must be out of the SCENE
+    // draw, where it rides the main camera) and the hide loop runs FIRST - so for six landings the sky pass
+    // rendered an invisible dome, the capture's clear sky stayed alpha 0 and the water read the probe there:
+    // one sky in the cloudy parts of the reflection and another in the clear ones, which is what the user saw
+    // ("the cloud reflections look really strange ... my brain does not reconcile it as being the mirrored sky")
+    { const sk = mp.slice(mp.indexOf('if (opts.sky) {'), mp.indexOf('if (opts.clouds)'));
+      verdict(/const skyVis = sky\.visible;\s*\n\s*sky\.visible = true;/.test(sk) && sk.indexOf('sky.visible = true;') < sk.indexOf('renderer.render(MIR.skyScene, mc);') && /sky\.visible = skyVis;/.test(sk),
+        'the sky pass makes the dome VISIBLE for its own draw (opts.hide had already silenced it) and puts it back'); }
+    // the mean Fresnel rides the MIRROR too: with the sky in the capture the mirror supplies the whole
+    // reflection, and a dim that rode only the probe would leave the grazing sea a hard mirror again
+    verdict(/float wMeanF = mix\(1\.0, clamp\(wFm \/ max\(wF5, 1\.0e-4\), 0\.0, 1\.0\), smoothstep\(0\.55, 0\.15, wC\)\);/.test(w) && w.indexOf('float wMeanF =') < w.indexOf('iblRadiance = mix(iblRadiance, mcol, mmask * edge * uWMirror4.x);') && /iblRadiance \*= wMeanF; \}`\)/.test(w),
+      "Bruneton's mean Fresnel is applied AFTER the mirror's mix (the probe and the capture dim alike)");
     verdict(typeof W.mirrorRender === 'function' && W.mirror && W.mirror.mode === 'periodic' && W.mirror.maxAgl > 10, `the mirror API, '${W.mirror.mode}' by default, under ${W.mirror.maxAgl} m over the water`);
     // THE CADENCE (G460.11.4): the clock is real seconds (a call-counted clock ran at a fifth of the wall clock under
     // the rig: a stale capture from 1500 m away, the reflection stretched), the eye's motion re-captures, a jump at once
     verdict(/MIR\.t = \(typeof performance !== 'undefined' \? performance\.now\(\) : Date\.now\(\)\) \/ 1000;/.test(mp), "the mirror's clock is real seconds (never a count of calls)");
     // the capture is projected from the STILL surface: through the displaced (faceted) position it creases along
     // every facet edge of the near patch's 3.75 m grid (G460.11.6)
-    verdict(/vec4 mp = uWMirrorVP \* vec4\(vWP0, 1\.0\);/.test(w), 'the mirror is projected from the undisplaced position (never the faceted one)');
+    verdict(/vec4 mp = uWMirrorVP \* vec4\(vWP0 \+ mD, 1\.0\);/.test(w), 'the mirror is projected from the undisplaced position (never the faceted one)');
+    // THE SLOPE MOVES THE POINT, NOT THE UV (G460.11.9): the walk is R = reflect(V, n) followed from the
+    // MIRRORED EYE back to the water plane, Q = E' + R (h / R.y) - metres on the water, in the reflection's
+    // own direction, so no frame is assumed (the old uv push added a WORLD vector to a CAPTURE uv whose x
+    // axis is the negative of the world's). The four lines are asserted here and their arithmetic is proved
+    // below, scalar-wise: Q IS the point itself when the surface is flat, the walk stays on the plane, and
+    // the cap holds (a facet at grazing has R.y near zero and h / R.y near infinity).
+    verdict(/vec3 mR = reflect\(normalize\(vWP0 - mEye\), wNw\);/.test(w) &&
+            /float mH = mEye\.y - uWMirror4\.w, mL = max\(distance\(vWP0, mEye\), 1\.0e-3\);/.test(w) &&
+            /float mT = mH \/ max\(mR\.y, min\(mH \/ mL, 0\.02\)\);/.test(w) &&
+            /vec3 mD = vec3\(mEye\.x \+ mR\.x \* mT, vWP0\.y, mEye\.z \+ mR\.z \* mT\) - vWP0;/.test(w) &&
+            /mD \*= min\(1\.0, mLim \/ max\(length\(mD\), 1\.0e-4\)\);/.test(w) &&
+            !/muv = mp\.xy \/ mp\.w \* 0\.5 \+ 0\.5 \+ /.test(w),
+      "the slope walks the POINT on the water (the mirrored eye's reflected ray back to the plane), never the capture's uv");
+    verdict(/U\.uWMirror4\.value\.set\(mirW, MIR\.perturb, MIR\.lod, waterY\);/.test(w) && W.mirror.perturb > 0 && W.mirror.perturb <= 0.25,
+      `the mirror's plane rides uWMirror4.w (the walk needs it) and the walk is capped at ${(W.mirror.perturb * 100).toFixed(0)} % of the view distance`);
+    // THE CEILING IS A FADE, NOT A CLIFF (G522): the weight rides uWMirror4.x and the shader MIXES by it, so
+    // the hand-over to the probe dissolves; and the move threshold scales with the eye's height, or raising
+    // the ceiling would fire a capture almost every frame at cruise (the nearest thing a mirrored eye at
+    // height h reflects is about h away, so 3 m at the dock and 3 m at 500 m are not the same error).
+    verdict(/const mirW = MIR\.mode === 'off'/.test(mp) && /MIR\.fadeFrom/.test(mp) && /MIR\.maxAgl - MIR\.fadeFrom/.test(mp) &&
+            W.mirror.fadeFrom > 60 && W.mirror.maxAgl > W.mirror.fadeFrom,
+      `the mirror fades out with altitude (full to ${W.mirror.fadeFrom} m, gone by ${W.mirror.maxAgl} m) - never a cliff`);
+    verdict(/const moveLim = Math\.max\(MIR\.moveM, eyeAgl \* MIR\.moveAgl\);/.test(mp) && /moved > moveLim/.test(mp) && W.mirror.moveAgl > 0,
+      `the re-capture distance scales with the eye's height (${W.mirror.moveM} m at the dock, ${(W.mirror.moveAgl * 100).toFixed(0)} % of the altitude above it)`);
+    { // the shader's arithmetic, scalar-wise (the lines above are asserted verbatim, so the two cannot drift
+      // silently): flat water must give back the point, the walk must stay on the plane, the cap must hold
+      const K = W.mirror.perturb;
+      const walk = (ex, ey, ez, px, pz, py, nx, ny, nz) => {
+        const vx = px - ex, vy = py - ey, vz = pz - ez, vl = Math.hypot(vx, vy, vz);
+        const ux = vx / vl, uy = vy / vl, uz = vz / vl;
+        const nl = Math.hypot(nx, ny, nz), mx = nx / nl, my = ny / nl, mz = nz / nl;
+        const d = ux * mx + uy * my + uz * mz;
+        const rx = ux - 2 * d * mx, ry = uy - 2 * d * my, rz = uz - 2 * d * mz;
+        const t = (ey - py) / Math.max(ry, Math.min((ey - py) / Math.max(vl, 1e-3), 0.02));
+        let dx = ex + rx * t - px, dy = 0, dz = ez + rz * t - pz;
+        const k = Math.min(1, K * vl / Math.max(Math.hypot(dx, dy, dz), 1e-4));
+        return [dx * k, dy * k, dz * k, vl];
+      };
+      let flat = 0, cap = 0, plane = 0;
+      let r = 12345; const rnd = () => (r = (r * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+      for (let i = 0; i < 2000; i++) {
+        const py = (rnd() - 0.5) * 80;                                  // the water's level, anywhere
+        const ex = (rnd() - 0.5) * 2000, ez = (rnd() - 0.5) * 2000, ey = py + 0.2 + rnd() * 400;
+        const px = ex + (rnd() - 0.5) * 4000, pz = ez + (rnd() - 0.5) * 4000;
+        const f = walk(ex, ey, ez, px, pz, py, 0, 1, 0);
+        if (Math.hypot(f[0], f[1], f[2]) > 1e-9) flat++;
+        const n = walk(ex, ey, ez, px, pz, py, (rnd() - 0.5) * 1.2, 1, (rnd() - 0.5) * 1.2);
+        if (Math.abs(n[1]) > 1e-12) plane++;
+        if (Math.hypot(n[0], n[1], n[2]) > K * n[3] + 1e-6) cap++;
+      }
+      verdict(flat === 0 && plane === 0 && cap === 0,
+        `the walk over 2000 eyes: flat water gives back the point (${flat} misses), it stays on the plane (${plane}), it never exceeds the cap (${cap})`); }
     verdict(W.mirror.moveM <= 4 && W.mirror.turnDeg <= 4 && W.mirror.jumpM > 0 && /due = jump \|\|/.test(mp), `the eye re-captures at ${W.mirror.moveM} m / ${W.mirror.turnDeg} deg, a jump (${W.mirror.jumpM} m / ${W.mirror.jumpDeg} deg) at once`);
     const gfx = src('src/viewer/gfx_settings.js'); verdict(/k: 'mirror'/.test(gfx) && /W\.WATER\.set\(\{ mirror: S\.mirror \}\)/.test(gfx), 'GRAPHICS has the reflections row and hands it to the water'); }
   let mono = true, bounded = true, prev = -1;
@@ -225,7 +307,17 @@ console.log('\n5. THE FIELD');
   verdict(/WT\.stamp\([^\n]*'press'\)/.test(app) && /WT\.stamp\([^\n]*'ring'\)/.test(app) && /WT\.stamp\([^\n]*'foam'\)/.test(app), 'app.js stamps press / ring / foam from the hydro\'s own numbers');
   verdict(/const ribbons = \[\];/.test(app) && !/rb\.trail\.push/.test(app), 'the wake ribbons are retired (the field carries the wake)');
   verdict(/WATER\.fieldStep\(THREE, renderer, cgF\[0\], cgF\[2\], running \? 1 \/ 60 : 0, cv\[0\], cv\[2\]\)/.test(app) && /WATER\.fieldOn\(want\)/.test(app), 'app.js steps the field at the CG (with its velocity) every frame while a floatplane is over water');
-  verdict(/WATER\.fieldStep && !inGarage && \(sim\.hydro \|\| WATER\.field\.force\)/.test(app), 'without hydro the field runs only when the dev panel forces it');
+  // THE THIRD WAY IN (2026-09-22, G498): a surfaced whale within 150 m of the eye sets
+  // WATER.field.ask, so a LANDPLANE low over a pod gets the wake and the splash too (the user:
+  // "at close range, the whales should trigger the water surface effects, just like the planes").
+  // The rule this line has always held is UNCHANGED in substance - the field does not run for
+  // nothing - so the ask is checked to EXPIRE: a flag nobody clears would be a field that never
+  // stops. GATE ANIMALS rule 9 holds the other end (who sets it, and that the premises host is
+  // the only thing that does).
+  verdict(/WATER\.fieldStep && !inGarage && \(sim\.hydro \|\| WATER\.field\.force \|\| wAsk\)/.test(app),
+    'without hydro the field runs only when the dev panel forces it, or something ASKS for it');
+  verdict(/const wAsk = window\.WATER && WATER\.field && WATER\.field\.ask && performance\.now\(\) - WATER\.field\.ask < 500/.test(app),
+    'the ask EXPIRES (half a second) and is read off window.WATER (a bare WATER throws where the layer is absent - GATE UISMOKE caught exactly that)');
 }
 
 // ---- 6. THE SPRAY (H7.1, G460.9) ---------------------------------------------

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 9469693f4d8b3e1a
+// body-sha256: 0f469e3b448b5824
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -690,6 +690,7 @@ const ATM = {
   G0: 9.80665,       // m/s2 standard gravity
   GAMMA: 1.4,
   HTROP: 11000,      // m   tropopause
+  LD: 0.0098,        // K/m DRY ADIABATIC - what the thermals stir the mixed layer to (K2)
 };
 // g0/(L R) = 5.25588. The density exponent is one less, and it is the one the
 // density-altitude inverse needs, so both are named rather than re-typed.
@@ -706,10 +707,56 @@ function makeAtmos(cfg) {
   const psl = c.qnhPa != null ? c.qnhPa : ATM.P0;
   const Tt = Tsl - ATM.L * ATM.HTROP;                       // tropopause temp
   const pt = psl * Math.pow(Tt / Tsl, ATM.EXP_P);           // and pressure
-  const T = h => (h <= ATM.HTROP ? Tsl - ATM.L * h : Tt);
-  const p = h => (h <= ATM.HTROP
+  // ---- THE LAYERED DAY (CLIMATE K2, 2026-09-22) -----------------------------
+  // A real convective day is NOT one lapse rate. The sun drives a MIXED LAYER
+  // that the thermals stir to the dry adiabatic 9.8 K/km, capped by an
+  // INVERSION (the lid a glider tops out under), and the free atmosphere above
+  // it returns to the standard 6.5. This branch builds that as a layer list and
+  // integrates each layer EXACTLY - p = p_b (T/T_b)^(g0/(L R)) where the layer
+  // lapses, p_b exp(-g0 dh/(R T_b)) where it does not - so the profile is
+  // continuous in T and in p by construction, and hydrostatic to machine
+  // precision inside every layer.
+  //
+  // BRANCH-FIRST, and that is the whole safety argument: a cfg naming NONE of
+  // lapse / mixH / inversion runs the four closed-form lines below exactly as
+  // they were written at G72. ATMOS_ISA is built through that path and so is
+  // every gate's air, and none of them can move.
+  //
+  // WHAT IS CHOSEN AND WHAT IS COMPUTED is unchanged: the day's two numbers
+  // (the sea-level temperature and the QNH) are still the only things chosen;
+  // mixH and the inversion are two more DECLARED facts about the same day,
+  // never a third way to set the density.
+  const layered = c.lapse === 'mixed' || c.mixH != null || c.inversion != null;
+  let T, p;
+  if (layered) {
+    const mixH = Math.max(50, c.mixH != null ? +c.mixH : 1200);
+    const inv = c.inversion || null;
+    const invT = inv && inv.thick > 0 ? +inv.thick : 0;
+    const invD = inv && inv.dT != null ? +inv.dT : 0;   // K gained across the lid (positive = a real inversion)
+    const LAY = [];
+    const push = (h0, T0, p0, L) => LAY.push({ h0, T0, p0, L });
+    const pAt = (ly, h) => (ly.L !== 0
+      ? ly.p0 * Math.pow((ly.T0 - ly.L * (h - ly.h0)) / ly.T0, ATM.G0 / (ly.L * ATM.R))
+      : ly.p0 * Math.exp(-ATM.G0 * (h - ly.h0) / (ATM.R * ly.T0)));
+    push(0, Tsl, psl, ATM.LD);                          // the mixed layer, stirred to the dry adiabatic
+    let hb = mixH, Tb = Tsl - ATM.LD * mixH, pb = pAt(LAY[0], mixH);
+    if (invT > 0) {
+      push(hb, Tb, pb, -invD / invT);                   // the lid: T RISES, so the lapse is negative
+      hb += invT; Tb += invD; pb = pAt(LAY[1], hb);
+    }
+    push(hb, Tb, pb, ATM.L);                            // the free atmosphere, the standard lapse
+    const top = LAY[LAY.length - 1];
+    const hTrop = Math.max(hb + 1, ATM.HTROP);
+    push(hTrop, top.T0 - top.L * (hTrop - top.h0), pAt(top, hTrop), 0);   // isothermal above the tropopause
+    const layAt = h => { let i = 0; while (i + 1 < LAY.length && h >= LAY[i + 1].h0) i++; return LAY[i]; };
+    T = h => { const ly = layAt(h); return ly.T0 - ly.L * (h - ly.h0); };
+    p = h => pAt(layAt(h), h);
+  } else {
+  T = h => (h <= ATM.HTROP ? Tsl - ATM.L * h : Tt);
+  p = h => (h <= ATM.HTROP
     ? psl * Math.pow((Tsl - ATM.L * h) / Tsl, ATM.EXP_P)
     : pt * Math.exp(-ATM.G0 * (h - ATM.HTROP) / (ATM.R * Tt)));
+  }
   // DENSITY AS A RATIO TO THE DATUM, not as p/(R T) — and the reason is the
   // whole invariant this file exists to protect. p0/(R T0) is 1.2250003, not
   // 1.225: ISA's sea-level density is a ROUNDED number, so computing it from
@@ -729,12 +776,71 @@ function makeAtmos(cfg) {
   // Pressure altitude: what the altimeter reads with 1013 set.
   const pressureAlt = h => (ATM.T0 / ATM.L) * (1 - Math.pow(p(h) / ATM.P0, 1 / ATM.EXP_P));
   return { dISA, Tsl, psl, T, p, rho, sigma, a, densityAlt, pressureAlt,
-           oatC: Tsl - 273.15 };
+           oatC: Tsl - 273.15,
+           // K2: the shape of the column (null when the day never named one)
+           layered, mixH: layered ? Math.max(50, c.mixH != null ? +c.mixH : 1200) : null };
 }
 
 // The standard day. Used wherever there is no world to ask — genShakedown builds
 // its sim with world = null, and a wind-tunnel probe must never be in weather.
 const ATMOS_ISA = makeAtmos({});
+
+// ---- THE WATER IN THE COLUMN (CLIMATE K2) -----------------------------------
+// atmosWater(atm, dewC, opts) -> { Td(h), rh(h), lcl } over an ALREADY BUILT
+// atmosphere. It is a separate function, and deliberately: humidity does not
+// change the density (dry air is a declared cut of this file, worth under 1 %
+// at 30 C), so it must not be able to rebuild the air. GATE DAY holds exactly
+// that invariant — moving the humidity leaves `world.atmos` the SAME OBJECT,
+// one temperature model and never two — and this shape keeps it true while
+// still letting the water be live.
+//
+// THE DEW POINT falls with height, but far more slowly than the temperature: a
+// well-mixed parcel keeps its water and its dew point drops about 1.8 K/km. So
+// the two converge, and where they MEET the air is saturated — that height is
+// the lifting condensation level, and it is the cloud base.
+//
+// THE LCL IS DERIVED HERE, NOT DECLARED. The day publishes a base by the
+// pilot's rule of 125 m per degree of spread (07_day.js), and under a MIXED
+// layer this reproduces it exactly rather than agreeing by accident: the
+// temperature falls 9.8 K/km, the dew point 1.8, the spread closes at 8 K/km —
+// one degree per 125 m. Where the column is not mixed the two differ, and the
+// difference is real: a 6.5 K/km free atmosphere closes the spread at 4.7 K/km
+// (213 m a degree), and an inversion widens it again, so a lid PUSHES THE
+// CROSSING UP (the 22/8 day whose mixed base is 1750 m reads 2735 under a
+// 2.5 K lid at 1400). That is the ambient column's own saturation height and
+// NOT a promise of cloud: whether a thermal can reach it is the lid's business,
+// and the thermal model tops its columns at the lower of the two. Null means
+// the spread never closes below 6 km at all.
+function atmosWater(atm, dewC, opts) {
+  const o = opts || {};
+  if (dewC == null) return { Td: () => null, rh: () => null, lcl: null, dewC: null };
+  const LD_TD = o.dewLapse != null ? +o.dewLapse : 0.0018;    // K/m, the dew point's own
+  const rhAloft = o.rhAloft != null ? +o.rhAloft : 0.5;
+  const MA = 17.625, MB = 243.04;                             // Magnus, as 07_day.js uses it
+  const rhOf = (tC, tdC) => Math.min(1, Math.max(0.01,
+    Math.exp(MA * tdC / (MB + tdC) - MA * tC / (MB + tC))));
+  const TdDry = h => dewC - LD_TD * h;
+  const spread = h => (atm.T(h) - 273.15) - TdDry(h);
+  const lcl = (() => {
+    if (spread(0) <= 0) return 0;                             // saturated at the surface: fog
+    let a = 0;
+    for (let h = 50; h <= 6000; h += 50) {
+      if (spread(h) <= 0) {
+        let lo = a, hi = h;
+        for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (spread(m) <= 0) hi = m; else lo = m; }
+        return (lo + hi) / 2;
+      }
+      a = h;
+    }
+    return null;
+  })();
+  const Td = h => (lcl == null || h <= lcl ? TdDry(h) : atm.T(h) - 273.15);
+  const rh = h => {
+    if (lcl == null || h <= lcl) return rhOf(atm.T(h) - 273.15, TdDry(h));
+    return 1 + (rhAloft - 1) * Math.min(1, (h - lcl) / 500);  // out of the cloud over 500 m
+  };
+  return { Td, rh, lcl, dewC };
+}
 
 // ---- what the powerplant does about it -------------------------------------
 // A NATURALLY ASPIRATED PISTON breathes the air, so its shaft power falls with
@@ -1002,7 +1108,10 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 //            minute a second); it ADVANCES only when the viewer ticks it —
 //            the solver never does (the gate battery is deterministic)
 //   WHERE    the world's geo: lat, lon (east +), tz, grid convergence
-//   AIR      oatC | dISA, qnhPa — THE SAME FIELDS makeAtmos reads
+//   AIR      oatC | dISA, qnhPa — THE SAME FIELDS makeAtmos reads, plus (K2)
+//            the SHAPE of the column: lapse ('isa' | 'mixed'), mixH, inversion
+//   WEATHER  wind (the climate's spec), storm (a front on the clock),
+//            diurnalC (the day's own temperature swing) — CLIMATE K2
 //   WATER    dewC or rh          -> the dewpoint, the cloud base, the haze
 //   AEROSOL  turbidity, ozone, groundAlbedo -> what the atmosphere looks like
 //   CLOUD    cover, type          (a data slot: the cloud chantier draws them)
@@ -1021,13 +1130,31 @@ var DAY = (function () {
   const DEFAULT = Object.freeze({
     date: '2026-06-21', utc: 18 * 3600, rate: 1,
     rh: 0.5, turbidity: 2.5, ozone: 300, groundAlbedo: 0.15,
-    cloudCover: 0.2, cloudType: 'cu',
+    // THE SKY'S SEED IS THE DAY'S (CLIMATE K3): the renderer draws the weather
+    // map from it and the climate reads the SAME map to know where the cumulus
+    // are - a thermal sits under a cloud because they are one field, not two.
+    cloudCover: 0.2, cloudType: 'cu', cloudSeed: 1,
   });
   // the geo a world declares; this default is Jolene's origin (28_island.js)
   // with NO convergence — the analytic world's own -z is true north
   const GEO_DEFAULT = Object.freeze({ lat: 55.04327, lon: -131.57222, convergenceDeg: 0,
                                       tz: { std: -9, dst: 'us', name: 'AKST', dstName: 'AKDT' } });
-  const AIR_KEYS = ['oatC', 'dISA', 'qnhPa'];
+  // THE AIR IS WHAT makeAtmos READS, and since K2 that includes the column's
+  // SHAPE: a mixed layer under a lid is as much a fact about the day's air as
+  // its temperature. Listed here so that `air()` carries them and the world
+  // rebuilds `atmos` when — and only when — one of them moves.
+  // NOT the humidity: it does not change the density (a declared cut of
+  // 05_atmos), and GATE DAY holds that moving it leaves `world.atmos` the SAME
+  // object. The water rides beside the column, through atmosWater.
+  const AIR_KEYS = ['oatC', 'dISA', 'qnhPa', 'lapse', 'mixH', 'inversion'];
+  // A FRONT ON THE CLOCK (K2). Declared: `storm: { at, pre, dur, post, windK,
+  // gustK, veerDeg, dTemp, dQnh, cover, type }` — `at` the UT second the front
+  // passes, `pre`/`dur`/`post` its approach, passage and clearance in seconds.
+  // The intensity I(utc) rises smoothly over `pre`, holds through `dur`, falls
+  // over `post`; everything else is I times a declared amount, so a storm with
+  // no fields moves nothing and `storm: null` is exactly today's day.
+  const STORM_D = Object.freeze({ pre: 5400, dur: 2700, post: 7200, windK: 2.2, gustK: 2.5,
+                                  veerDeg: 55, dTemp: -6, dQnh: -900, cover: 0.95, type: 'cb' });
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const pad2 = n => String(n).padStart(2, '0');
 
@@ -1071,19 +1198,118 @@ var DAY = (function () {
       d.moonEl = mo.el; d.moonAz = mo.az; d.moonPhase = mo.phase; d.moonWaxing = mo.waxing;
       d.moon = SOLAR.toFrame(mo.el, mo.az, conv);
       d.moonUp = mo.el >= 0;
+      // THE GROUND RUNS BEHIND THE SUN (CLIMATE K3). What drives the thermals is
+      // not the sun's elevation now but the heat the ground has taken in, which
+      // peaks about two hours later. One more call on the same pure almanac -
+      // no state, no integration, and a gate's frozen day freezes this with it.
+      d.sunElLag = SOLAR.sun({ jdn, utc: utc - 7200, lat: geo.lat, lon: geo.lon }).el;
       if (!sunCache || sunCache.jdn !== jdn) {          // the day's events, once per civil day
         const ev = SOLAR.events(o);
         sunCache = { jdn, noonUtc: ev.noon, sunriseUtc: ev.rise, sunsetUtc: ev.set, polar: ev.rise == null ? (ev.up ? 'day' : 'night') : null };
       }
       d.noonUtc = sunCache.noonUtc; d.sunriseUtc = sunCache.sunriseUtc; d.sunsetUtc = sunCache.sunsetUtc; d.polar = sunCache.polar;
+      // ---- THE FRONT (K2): where the day is in it, and what that does -------
+      // Pure in `utc`: a gate that never advances the clock sees a frozen
+      // front, and the viewer's clock walks it. The phase is named as well as
+      // the number so a panel can say "the front arrives" without arithmetic.
+      const st = s.storm || null;
+      if (st && st.at != null) {
+        const pre = st.pre != null ? +st.pre : STORM_D.pre;
+        const dur = st.dur != null ? +st.dur : STORM_D.dur;
+        const post = st.post != null ? +st.post : STORM_D.post;
+        const at = +st.at, t = utc;
+        const I0 = st.intensity != null ? clamp(+st.intensity, 0, 1) : 1;
+        const smf = x => { const q = clamp(x, 0, 1); return q * q * (3 - 2 * q); };
+        let I = 0, phase = 'none';
+        if (t < at - pre) { I = 0; phase = 'none'; }
+        else if (t < at) { I = smf((t - (at - pre)) / pre); phase = 'pre'; }
+        else if (t < at + dur) { I = 1; phase = 'passage'; }
+        else if (t < at + dur + post) { I = 1 - smf((t - (at + dur)) / post); phase = 'post'; }
+        d.storm = { I: I * I0, phase, at, pre, dur, post,
+                    windK: 1 + (( st.windK != null ? +st.windK : STORM_D.windK) - 1) * I * I0,
+                    gustK: 1 + (( st.gustK != null ? +st.gustK : STORM_D.gustK) - 1) * I * I0,
+                    // the wind VEERS through the passage, not through the approach
+                    veer: (st.veerDeg != null ? +st.veerDeg : STORM_D.veerDeg) * I0
+                          * smf((t - (at - pre * 0.25)) / (dur + pre * 0.25)),
+                    dTemp: (st.dTemp != null ? +st.dTemp : STORM_D.dTemp) * I0 * (t > at ? 1 : 0) * I,
+                    dQnh: (st.dQnh != null ? +st.dQnh : STORM_D.dQnh) * I0 * I,
+                    cover: st.cover != null ? +st.cover : STORM_D.cover,
+                    type: st.type || STORM_D.type,
+                    inS: at - t };
+      } else d.storm = null;
       // the air and the water
-      const T = s.oatC != null ? s.oatC : 15 + (s.dISA || 0);
+      // THE DIURNAL SWING (K2): `diurnalC` is the day's peak-to-peak range, and
+      // the declared oatC is its MEAN, so diurnalC 0 - the default - leaves
+      // every existing day exactly where it was. The curve is a cosine peaking
+      // three hours after solar noon (the lag of the ground's own heat); a
+      // named cut, the real curve is asymmetric with a sharp post-dawn rise.
+      let T = s.oatC != null ? s.oatC : 15 + (s.dISA || 0);
+      const swing = s.diurnalC != null ? +s.diurnalC : 0;
+      if (swing > 0) {
+        const peak = (d.noonUtc != null ? d.noonUtc : 43200) + 3 * 3600;
+        T += 0.5 * swing * Math.cos(2 * Math.PI * (utc - peak) / 86400);
+      }
+      if (d.storm) T += d.storm.dTemp;
+      d.oatEff = T;
+      d.qnhEff = (s.qnhPa != null ? s.qnhPa : 101325) + (d.storm ? d.storm.dQnh : 0);
       const Td = s.dewC != null ? s.dewC : dewFromRh(T, s.rh != null ? s.rh : DEFAULT.rh);
       d.oatC = T; d.dewC = Td; d.rh = s.dewC != null ? rhFromDew(T, Td) : (s.rh != null ? s.rh : DEFAULT.rh);
-      d.cloudBase = clamp(125 * (T - Td), 0, 6000);
+      // THE BASE MOVES ONLY WHEN THE DAY MOVES IT, and then it is QUANTISED to
+      // 20 m: the cloud renderer keys its weather-map fit on the deck's base
+      // (clouds.js layKey) and re-fits over a dozen frames whenever it changes,
+      // so a base creeping by centimetres with the diurnal swing would re-fit
+      // the sky every frame. A still day is bit-identical to before.
+      const baseRaw = clamp(125 * (T - Td), 0, 6000);
+      d.cloudBase = (swing > 0 || d.storm) ? Math.round(baseRaw / 20) * 20 : baseRaw;
+      // what the sky is doing, the front included (the renderer reads these)
+      d.cloudCoverEff = d.storm && d.storm.I > 0
+        ? Math.max(day.cloudCover, day.cloudCover + (d.storm.cover - day.cloudCover) * d.storm.I)
+        : day.cloudCover;
+      d.cloudTypeEff = d.storm && d.storm.I > 0.5 ? d.storm.type : day.cloudType;
+      // THE AIR KEY: one number that changes when — and only when — something
+      // makeAtmos reads has moved. The world rebuilds `atmos` on it, lazily, so
+      // a clock tick through a swing or a front makes new air without a
+      // version bump (GATE DAY: a VISUAL change leaves atmos the SAME object).
+      d.airKey = Math.round(T * 1000) + ':' + Math.round(d.qnhEff * 10) + ':' + (s.lapse || 'isa')
+               + ':' + (s.mixH != null ? Math.round(s.mixH) : '-')
+               + ':' + (s.inversion ? Math.round((s.inversion.dT || 0) * 100) + '/' + Math.round(s.inversion.thick || 0) : '-');
+      // NOT the humidity (see AIR_KEYS)
       // an AUTHORED visibility: clear alpine air 60 km, a hazy T10 day 4 km, saturated air a sixth of that
       const tb = s.turbidity != null ? s.turbidity : DEFAULT.turbidity;
       d.visibilityKm = 375 / (tb * tb) * (1 - 0.85 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2));
+      // TWO NUMBERS OUT OF ONE HUMIDITY, AND THEY ARE NOT THE SAME MEDIUM. They sit
+      // together deliberately, because keeping them apart is what went wrong before:
+      // `visibilityKm` above is the COLUMN - the whole air, aerosol spread through the
+      // boundary layer and above it, roughly uniform over kilometres, and the number a
+      // Koschmieder extinction is calibrated from. `mistRho0` is the IN-LAYER density of
+      // a shallow ground fog: droplets, tens of metres deep, absent above its lid. At
+      // rh 0.90 the column gives 1.05e-4 /m and the layer 1.11e-3 - ten times denser -
+      // and that is not a disagreement to reconcile, it is two media. A ray's
+      // transmittance is the product of both, so an eye at the surface sees the SUM of
+      // the extinctions (climate.haze().surfaceVisM), while an eye above the lid looking
+      // at a ridge sees only the column. The renderer owns where the layer LIES (its top
+      // follows the valley floors, it has banks); the day owns only how dense the air
+      // makes it. One law, one place - atmo.js reads this and no longer carries a copy.
+      // ...and THE MORNING TAKES IT AWAY (FOG-MIST F3c). Radiation fog forms under a clear
+      // night and thins as the ground gives back the heat it has been taking - so the term
+      // is the LAGGED sun, `sunElLag` (the elevation two hours ago, K3), not the sun now:
+      // the fog does not thin because the sun is up, it thins because the GROUND has been
+      // warming for a while. Using the lag rather than an hours-since-sunrise count is what
+      // makes the poles fall out of the arithmetic instead of needing branches - polar night
+      // keeps the lagged sun under 5 deg all day so `burn` is 0, polar day keeps it above so
+      // burn proceeds on elevation alone, and there is no `sunriseUtc` to be null. An
+      // overcast holds the fog in: no sun on the ground, nothing given back.
+      // It multiplies the LAYER only. The column must not take it or the morning is counted
+      // twice - `visibilityKm` is a function of `rh`, and `rh` already falls as diurnalC warms
+      // the day against a fixed dew point, which is the same sunrise clearing the same haze.
+      // `cloudCoverEff`, not `cloudCover`: the latter is not on the derived day at all (it is the
+      // spec's), so it would have read undefined and the overcast term would have been silently
+      // dead - the third time today that shape has come up. The effective one is the right input
+      // anyway: a storm's overcast holds the fog in exactly as a fair-weather deck does.
+      const cov = clamp(d.cloudCoverEff != null ? d.cloudCoverEff : 0, 0, 1);
+      const burn = clamp((d.sunElLag - 5) / 20, 0, 1) * (1 - cov);
+      d.mistBurn = burn;
+      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2) * Math.max(0, 1 - burn);
       // local time
       const std = geo.tz ? geo.tz.std : 0;
       const dst = geo.tz && geo.tz.dst === 'us' ? usDst(jdn, utc, std) : false;
@@ -1132,12 +1358,28 @@ var DAY = (function () {
       s.date = dateOf(jdn); s.utc = utc;
       recompute();
     }
-    const air = () => { const a = {}; for (const k of AIR_KEYS) if (s[k] != null) a[k] = s[k]; return a; };
+    // air(): what makeAtmos reads — the EFFECTIVE temperature and pressure (the
+    // swing and the front are already in them), the column's shape, and the
+    // water it needs for the dew point and the condensation level.
+    const air = () => {
+      const a = {};
+      for (const k of AIR_KEYS) if (s[k] != null) a[k] = s[k];
+      if (s.oatC != null || s.diurnalC > 0 || d.storm) a.oatC = d.oatEff;
+      if (s.qnhPa != null || d.storm) a.qnhPa = d.qnhEff;
+      if (a.oatC != null) delete a.dISA;              // one temperature, not two
+      return a;
+    };
 
     const day = {
       set, advance,
       spec: () => { const o = {}; for (const k of Object.keys(s).sort()) o[k] = s[k]; return JSON.parse(JSON.stringify(o)); },
-      air, get hasAir() { return AIR_KEYS.some(k => s[k] != null); },
+      air, get hasAir() { return AIR_KEYS.some(k => s[k] != null) || s.diurnalC > 0 || !!s.storm; },
+      // K2: the declared weather, for the panel and the URL
+      get wind() { return s.wind || null; },
+      get stormSpec() { return s.storm || null; },
+      get diurnalC() { return s.diurnalC != null ? +s.diurnalC : 0; },
+      // K4: how long the sea takes to answer the wind (0 = at once, as it always was)
+      get seaTau() { return s.seaTau != null ? Math.max(0, +s.seaTau) : 0; },
       get version() { return version; },
       get geo() { return geo; },
       get date() { return s.date; }, get utc() { return utc; }, get jdn() { return jdn; },
@@ -1148,6 +1390,7 @@ var DAY = (function () {
       get groundAlbedo() { return s.groundAlbedo != null ? s.groundAlbedo : DEFAULT.groundAlbedo; },
       get cloudCover() { return s.cloudCover != null ? s.cloudCover : DEFAULT.cloudCover; },
       get cloudType() { return s.cloudType || DEFAULT.cloudType; },
+      get cloudSeed() { return s.cloudSeed != null ? (s.cloudSeed | 0) : DEFAULT.cloudSeed; },
       // THE UPPER DECKS (A6, 2026-09-20): [{ cover, type, base? }] above the low layer - at most two, sanitised
       // (a cover clamped, a base a number or absent); cloudLayers puts the low layer first, the field
       // (08_cloud_field.js layers()) stacks them without overlap
@@ -1177,7 +1420,10 @@ var DAY = (function () {
     for (const k of ['sun', 'sunEl', 'sunAz', 'sunAzGrid', 'rigAzim', 'sunUp', 'illumClass', 'isNight',
                      'moon', 'moonEl', 'moonAz', 'moonPhase', 'moonWaxing', 'moonUp',
                      'noonUtc', 'sunriseUtc', 'sunsetUtc', 'polar',
-                     'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm',
+                     'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm', 'mistRho0',
+                     'storm', 'qnhEff', 'airKey', 'cloudCoverEff', 'cloudTypeEff',   // K2
+                     'sunElLag',                                                       // K3
+                     'mistBurn',                                                       // F3c: how much of the layer the morning has taken
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
       Object.defineProperty(day, k, { get: () => d[k], enumerable: true });
     }
@@ -1230,11 +1476,14 @@ var CLOUD_FIELD = (function () {
     st: Object.freeze({ label: 'stratus',       thick: 300,  bot: 0.05, top: 0.50, freq: 2,  width: 0.45, hsMin: 0.7, erode: 0.12, period: 9000,  alt: 400 }),
     sc: Object.freeze({ label: 'stratocumulus', thick: 700,  bot: 0.06, top: 0.70, freq: 4,  width: 0.35, hsMin: 0.6, erode: 0.30, period: 4000,  alt: 1500 }),
     cu: Object.freeze({ label: 'cumulus',       thick: 1500, bot: 0.08, top: 0.82, freq: 6,  width: 0.30, hsMin: 0.5, erode: 0.50, period: 6000,  alt: 1200 }),
+    // FAIR-WEATHER CUMULUS (cumulus humilis, 2026-09-23, the user: "small, elegant summer clouds, well split, a great sky
+    // for flying"): the cumulus' profile, but many small cells (16 a tile: ~2.5 km apart) and a shallow column
+    cuh: Object.freeze({ label: 'fair-weather cumulus', thick: 800, bot: 0.10, top: 0.80, freq: 16, width: 0.30, hsMin: 0.55, erode: 0.45, period: 2500, alt: 1200 }),
     cb: Object.freeze({ label: 'cumulonimbus',  thick: 4000, bot: 0.06, top: 0.88, freq: 3,  width: 0.30, hsMin: 0.6, erode: 0.50, period: 8000,  alt: 1000 }),
     ac: Object.freeze({ label: 'altocumulus',   thick: 500,  bot: 0.10, top: 0.65, freq: 10, width: 0.40, hsMin: 0.7, erode: 0.35, period: 2500,  alt: 3500 }),
     as: Object.freeze({ label: 'altostratus',   thick: 1200, bot: 0.05, top: 0.55, freq: 2,  width: 0.50, hsMin: 0.7, erode: 0.10, period: 12000, alt: 4000 }),
   });
-  const TYPE_ORDER = ['st', 'sc', 'cu', 'cb', 'ac', 'as'];
+  const TYPE_ORDER = ['st', 'sc', 'cuh', 'cu', 'cb', 'ac', 'as'];
   const MAX_LAYERS = 3;                   // the low deck + two upper decks (the cirrus veil is the dome's, not a layer)
   const LAYER_GAP = 150;                  // m of clear air between one deck's top and the next one's base
   const typeOf = t => TYPES[t] ? t : 'cu';
@@ -1362,6 +1611,846 @@ var CLOUD_FIELD = (function () {
   return API;
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = CLOUD_FIELD;
+// ============================================================
+// THE CLIMATE (K0, 2026-09-22 — futureDesigns/CLIMATE-2026-09-22.md).
+// One vector field w(x, y, z, t) every consumer derives from: the solver's
+// strips, the pilot's runway choice, the sea's spectrum, the clouds' drift,
+// the windsocks, the smoke, the debug streamlines. Pure: no THREE, no DOM,
+// no Date — node-runnable, deterministic, and the gate battery stands on it.
+//
+// FOUR RULES, WRITTEN ONCE:
+//   1. TWO CLOCKS. Fast state (the gusts, a thermal's age, the sea's phase)
+//      runs on the SIM clock `t` the solver passes; slow state (a front, the
+//      diurnal swing, the thermal potential, the clouds' drift) on the DAY
+//      clock `day.utc`, which only the viewer advances — a gate holds it.
+//      Never the wall clock.
+//   2. `wind()` IS THE SOLVER'S; EVERYONE ELSE `sample()`s. wind() keeps a
+//      linearisation cache keyed on `t` (a reference point and its Jacobian,
+//      so twenty strips cost one evaluation); a foreign caller at the
+//      solver's `t` would re-centre it under the aeroplane's feet.
+//   3. BIT-IDENTITY BY CONSTRUCTION. The wind field the fleet was calibrated
+//      in (20_world.js G72: base x power-law shear + four gust sines) moved
+//      here VERBATIM as windLegacy, and is the whole field whenever the spec
+//      names no RICH term. No calibrated gate names one.
+//   4. THE DAY DECLARES, THE CLIMATE DERIVES. A consumer that wants a number
+//      (the 10 m wind, the visibility, a deck's drift) asks here, never
+//      recomputes it.
+//
+// THE SPEC (a DAY key, `wind`; setDay forwards it, day.spec() round-trips it):
+//   legacy   { base:[wx,wy,wz], gust, refH, alpha }        — G72's shape, exact
+//   declared { kts | mps, dirDeg (FROM, true north; the grid's convergence
+//              applied as sunAzGrid does), gust, refH:10, alpha,
+//              aloftK, veerDeg, gradH,                      — the column above the surface layer
+//              terrain, breeze, thermals: 0..1 }             — the rich terms (K1, K3)
+// rich = any of terrain / breeze / thermals > 0, or aloftK / veerDeg named.
+// Not rich -> windLegacy. No spec -> the shared exact zero W0 (the fast path
+// every calm gate depends on: GATE WORLD checks the two calls return the SAME
+// array).
+//
+// THE RELIEF RASTER (lazy, built on the first rich spec, never for a legacy
+// one): 200 m cells over the world's bounds, twelve Float32 channels per
+// cell — the height, two smoothed bands (1.2 km and 300 m), their gradients,
+// a prominence (ridge exposure, -1..1), the signed coast distance and its
+// unit gradient (inland +), and a ground heating class (0..1). The terrain
+// terms read it bilinearly; nothing in the hot path calls terrainH twice.
+// ============================================================
+var CLIMATE = (function () {
+  'use strict';
+  // ---- the legacy field's tables, verbatim from 20_world.js (G72) ---------
+  const GC = [ // [freq rad/s, kx, kz, phase, axis weight x,y,z]
+    [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
+    [1.37, 0.004, 0.013, 2.9, 0.55, 0.6, 1.0],
+    [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
+    [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
+  ];
+  const WIND_TOP_H = 300;              // m agl: above this the profile has run out
+  const WIND_ALPHA = 0.14;             // open grassland, the default surface here
+  // ---- the rich column's defaults ----------------------------------------
+  const GRAD_H = 1500;                 // m agl where the gradient wind is reached
+  // THE RELIEF BANDS' DECAY HEIGHTS. Linear theory: a ground wave of wavelength lambda perturbs the
+  // flow as exp(-2 pi z / lambda), and a band smoothed over a scale L carries wavelengths of ~4 L and
+  // up, so it decays over ~L/1.6 (an isolated hill of half-width L: Jackson & Hunt's outer region).
+  // The coarse band (a 1.2 km blur) over 800 m, the fine (300 m) over 200 m, the local (a 120 m
+  // baseline) over 80 m - close to a steep face the lift is the wind times the slope, and it is gone
+  // a few hundred metres up, which is what a ridge pilot knows.
+  const D_COARSE = 800, D_FINE = 200, D_LOCAL = 80;
+  const GD = 60;                       // m: the local slope's half-step (terrainH at +-GD, a 120 m baseline)
+  // ---- the convection (K3) --------------------------------------------------
+  const S0 = 1361, TAU_ATM = 0.75, CP = 1005;   // W/m2 the solar constant, a clear sky's transmission, J/(kg K)
+  const TH_LIFE = 1200;                // s: a thermal's life (Allen 2006), on the DAY clock
+  const TH_SPACE = 1.5;                // the spacing, in units of the mixed layer's depth (Lenschow)
+  const TH_JIT = 0.35;                 // how far off its cell a thermal may sit (in cells)
+  const TH_R2K = 0.102;                // the core's radius as a fraction of z_i (Allen)
+  // THE CORE'S PEAK, against Lenschow's AREA MEAN. w_bar = w* (z/zi)^(1/3)(1 - 1.1 z/zi) is the mean
+  // over the updraft area and comes to 0.36 w* at mid-layer - which is NOT what a glider feels in a
+  // core. Deardorff's scaling puts the rms vertical velocity near 0.6 w* and individual cores at
+  // 1.5-2 w*, so the peak is the mean times this: 1.5 w* at mid-layer. Declared, and the one number
+  // that sets how good a day feels.
+  const TH_CORE = 4.2;
+  // ---- the breeze (K3) ------------------------------------------------------
+  const SB_V = 4;                      // m/s: a sea breeze at the coast, at full drive
+  const SB_H = 700;                    // m: how deep it runs
+  const SB_IN = 20000, SB_OUT = 8000;  // m: how far it reaches inland, and out to sea
+  const SLOPE_CAP = 0.7;               // a band's slope is capped here: no cliff makes more than 0.7 U
+  const LIN_R2 = 40 * 40;              // m^2: a call within this of the reference rides its Jacobian
+  const LIN_H = 10;                    // m: the forward-difference step
+  const LIN_GROUND_H = 60;             // m agl: under it the ground is read exactly per call, above it linearised
+  const KT = 0.514444;                 // m/s per knot
+  const D2R = Math.PI / 180;
+  // the relief raster
+  const CELL = 200;
+  const CH = Object.freeze({ h: 0, hc: 1, hf: 2, gxc: 3, gzc: 4, gxf: 5, gzf: 6, prom: 7, coast: 8, cgx: 9, cgz: 10, heat: 11 });
+  const NCH = 12;
+  const COAST_MAX = 30000;
+  // the ground heating class by surface (a Bowen-ratio ordering: wet and green low, bare and dry high;
+  // declared, not derived) and, when the island names a terrain type, by type
+  const HEAT_BY_TYPE = [0, 0.05, 0.3, 0.15, 0.5, 0.55, 0.6, 0.3, 0.25, 0.05, 0.5, 0.45, 0.6, 0.25, 0.3];   // ttype 0..14
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+
+  // bearingToBase(spd, dirDeg, convDeg) -> [wx, 0, wz]: a wind FROM a true bearing, in the frame
+  // x east, z south (north = -z). From north it blows toward +z; from west toward +x.
+  function bearingToBase(spd, dirDeg, convDeg) {
+    const th = ((dirDeg || 0) - (convDeg || 0)) * D2R;
+    return [0 - Math.sin(th) * spd, 0, Math.cos(th) * spd];   // 0 - x: never a -0
+  }
+  // FNV-1a over a Float32Array's bits (the gate's raster fingerprint)
+  function fnv(arr) {
+    const u = new Uint32Array(arr.buffer, arr.byteOffset, arr.length);
+    let h = 0x811c9dc5;
+    for (let i = 0; i < u.length; i++) { h ^= u[i] & 0xff; h = Math.imul(h, 16777619); h ^= (u[i] >>> 8) & 0xff; h = Math.imul(h, 16777619); h ^= (u[i] >>> 16) & 0xff; h = Math.imul(h, 16777619); h ^= u[i] >>> 24; h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  // ---- the raster ----------------------------------------------------------
+  // three-pass box blur of radius r in place, separable (variance r(r+1) cells^2 per axis: r 6 is a
+  // 6.5-cell Gaussian, r 1 a 1.4-cell one); edges clamp
+  function blur3(src, nx, nz, r) {
+    const a = Float32Array.from(src), b = new Float32Array(nx * nz);
+    const w = 2 * r + 1;
+    for (let pass = 0; pass < 3; pass++) {
+      for (let j = 0; j < nz; j++) {                       // along x
+        let s = 0;
+        for (let i = -r; i <= r; i++) s += a[j * nx + clamp(i, 0, nx - 1)];
+        for (let i = 0; i < nx; i++) {
+          b[j * nx + i] = s / w;
+          s += a[j * nx + clamp(i + r + 1, 0, nx - 1)] - a[j * nx + clamp(i - r, 0, nx - 1)];
+        }
+      }
+      for (let i = 0; i < nx; i++) {                       // along z
+        let s = 0;
+        for (let j = -r; j <= r; j++) s += b[clamp(j, 0, nz - 1) * nx + i];
+        for (let j = 0; j < nz; j++) {
+          a[j * nx + i] = s / w;
+          s += b[clamp(j + r + 1, 0, nz - 1) * nx + i] - b[clamp(j - r, 0, nz - 1) * nx + i];
+        }
+      }
+    }
+    return a;
+  }
+  // 3-4 chamfer distance (cells x 3) from the marked cells, as 21_world_hydro does it
+  function chamfer(mark, nx, nz) {
+    const d = new Float32Array(nx * nz).fill(1e9);
+    for (let k = 0; k < nx * nz; k++) if (mark[k]) d[k] = 0;
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i; let v = d[k];
+      if (i > 0 && d[k - 1] + 3 < v) v = d[k - 1] + 3;
+      if (j > 0) {
+        if (d[k - nx] + 3 < v) v = d[k - nx] + 3;
+        if (i > 0 && d[k - nx - 1] + 4 < v) v = d[k - nx - 1] + 4;
+        if (i + 1 < nx && d[k - nx + 1] + 4 < v) v = d[k - nx + 1] + 4;
+      }
+      d[k] = v;
+    }
+    for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) {
+      const k = j * nx + i; let v = d[k];
+      if (i + 1 < nx && d[k + 1] + 3 < v) v = d[k + 1] + 3;
+      if (j + 1 < nz) {
+        if (d[k + nx] + 3 < v) v = d[k + nx] + 3;
+        if (i + 1 < nx && d[k + nx + 1] + 4 < v) v = d[k + nx + 1] + 4;
+        if (i > 0 && d[k + nx - 1] + 4 < v) v = d[k + nx - 1] + 4;
+      }
+      d[k] = v;
+    }
+    return d;
+  }
+  function buildRelief(env) {
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    const b = env.bounds, terrainH = env.terrainH, surface = env.surface, S = env.SURFACE || {};
+    const nx = Math.ceil((b.x1 - b.x0) / CELL) + 1, nz = Math.ceil((b.z1 - b.z0) / CELL) + 1, N = nx * nz;
+    const h = new Float32Array(N), sea = new Uint8Array(N), land = new Uint8Array(N), heat = new Float32Array(N);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i, x = b.x0 + (i + 0.5) * CELL, z = b.z0 + (j + 0.5) * CELL;
+      const hh = terrainH(x, z);
+      h[k] = hh;
+      const sf = surface ? surface(x, z) : -1;
+      // THE SEA is level 0 and classed water — the same rule waterH stands on (a lake sits above 0 and
+      // is not a sea: no lake breeze)
+      const isSea = hh <= 0.05 && sf === S.WATER;
+      sea[k] = isSea ? 1 : 0; land[k] = isSea ? 0 : 1;
+      let ht = sf === S.WATER ? 0 : sf === S.FOREST_FLOOR ? 0.25 : sf === S.GRASS ? 0.35 : (sf === S.GRAVEL || sf === S.SAND) ? 0.5
+             : (sf === S.PAVED || sf === S.SCREE) ? 0.55 : sf === S.ROCK ? 0.6 : 0.35;
+      if (env.typeAt) { const tt = env.typeAt(x, z); if (tt >= 0 && tt < HEAT_BY_TYPE.length) ht = HEAT_BY_TYPE[tt]; }
+      heat[k] = ht;
+    }
+    const hc = blur3(h, nx, nz, 6);                        // the coarse band, ~1.2 km
+    const hs = blur3(h, nx, nz, 1);                        // the ~300 m smoothing
+    const hf = new Float32Array(N); for (let k = 0; k < N; k++) hf[k] = hs[k] - hc[k];   // the fine band, the residual
+    const hf2 = new Float32Array(N); for (let k = 0; k < N; k++) hf2[k] = hf[k] * hf[k];
+    const rms = blur3(hf2, nx, nz, 5);                      // the fine band's rms over ~2 km
+    const dSea = chamfer(sea, nx, nz), dLand = chamfer(land, nx, nz);
+    const data = new Float32Array(N * NCH);
+    const at = (arr, i, j) => arr[clamp(j, 0, nz - 1) * nx + clamp(i, 0, nx - 1)];
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i, o = k * NCH;
+      data[o + CH.h] = h[k]; data[o + CH.hc] = hc[k]; data[o + CH.hf] = hf[k];
+      data[o + CH.gxc] = (at(hc, i + 1, j) - at(hc, i - 1, j)) / (2 * CELL);
+      data[o + CH.gzc] = (at(hc, i, j + 1) - at(hc, i, j - 1)) / (2 * CELL);
+      data[o + CH.gxf] = (at(hf, i + 1, j) - at(hf, i - 1, j)) / (2 * CELL);
+      data[o + CH.gzf] = (at(hf, i, j + 1) - at(hf, i, j - 1)) / (2 * CELL);
+      data[o + CH.prom] = clamp(hf[k] / (Math.sqrt(Math.max(0, rms[k])) + 5), -1, 1);
+      // signed coast distance: + inland (to the nearest sea cell), - at sea (to the nearest land cell)
+      const dc = sea[k] ? -dLand[k] : dSea[k];
+      data[o + CH.coast] = clamp(dc * CELL / 3, -COAST_MAX, COAST_MAX);
+      data[o + CH.heat] = heat[k];
+    }
+    const coastAt = (i, j) => data[(clamp(j, 0, nz - 1) * nx + clamp(i, 0, nx - 1)) * NCH + CH.coast];
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {   // the coast gradient, unit, inland
+      const k = j * nx + i, o = k * NCH;
+      const gx = coastAt(i + 1, j) - coastAt(i - 1, j);
+      const gz = coastAt(i, j + 1) - coastAt(i, j - 1);
+      const m = Math.hypot(gx, gz);
+      data[o + CH.cgx] = m > 1e-6 ? gx / m : 0; data[o + CH.cgz] = m > 1e-6 ? gz / m : 0;
+    }
+    const t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    return { nx, nz, cell: CELL, x0: b.x0, z0: b.z0, data, CH, NCH, ms: t1 - t0, get hash() { return fnv(data); } };
+  }
+
+  // ---- the climate -----------------------------------------------------------
+  // make(env) — env: { terrainH, surface, SURFACE, bounds, day, geo, typeAt?, coastAt?, seed }
+  function make(env) {
+    const terrainH = env.terrainH;
+    const geo = env.geo || (env.day && env.day.geo) || null;
+    // ---- the legacy field, verbatim (20_world.js G72) ----------------------
+    // setWind({ base:[wx,wy,wz], gust:g }) — gusts are sums of incommensurate
+    // sines with spatial phase (advecting waves), amplitude g horizontal and
+    // 0.6*g vertical. Deterministic by construction: gates can rely on it.
+    // Default null: wind() returns the shared zero vector (fast path).
+    //
+    // THE SURFACE LAYER (G72). `y` has been an argument of wind() since the
+    // field was written and had never been read. It is read now: the ground
+    // drags on the air, so the wind near it is slower than the wind above it,
+    // and an aeroplane on final is in measurably different air from the one
+    // at circuit height.
+    //
+    // WHERE THE REPORTED WIND IS. A wind speed is meaningless without a height,
+    // and the height every anemometer, every windsock and every METAR means is
+    // 10 m. So `refH` says which height `base` was measured at, and the profile
+    // is the engineering power law u/uref = (z/zref)^alpha — the same one every
+    // wind-resource and building-code calculation uses, with alpha set by how
+    // rough the ground is (0.10 open water, 0.14 open grass, 0.20 scrub and
+    // trees). It is a fit, not a derivation, and it is a good one to about 200 m.
+    //
+    // A SPEC WITH NO refH IS A UNIFORM COLUMN, which is exactly the pre-G72 model
+    // and is what the fleet's whole wind calibration was measured in. That is a
+    // deliberate, declared boundary rather than a compatibility fudge: "no
+    // reference height" honestly means "we are not claiming to know where this
+    // wind was measured", and the only answer that does not invent information is
+    // to blow it everywhere equally. The XCTY gates anchored to that column; the
+    // CONDITIONS presets and GATE HOTHIGH declare a refH and fly the profile.
+    let windSpec = null;
+    const W0 = [0, 0, 0], WV = [0, 0, 0];
+    function shearK(x, y, z, refH, alpha) {
+      const agl = y - terrainH(x, z);
+      // a power law has no zero: floor the height rather than pretend it does.
+      const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
+      return Math.pow(h / refH, alpha);
+    }
+    function windLegacy(x, y, z, t) {
+      if (!windSpec) return W0;
+      const b = windSpec.base, g = windSpec.gust || 0;
+      const k = windSpec.refH ? shearK(x, y, z, windSpec.refH, windSpec.alpha) : 1;
+      WV[0] = b[0] * k; WV[1] = b[1] * k; WV[2] = b[2] * k;
+      // the gusts ride the local wind, so they die out in the surface layer and
+      // grow in the shear instead of being the same everywhere from grass to
+      // circuit height
+      const gk = g * k;
+      if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
+        const s = Math.sin(om * t + kx * x + kz * z + ph);
+        WV[0] += gk * 0.30 * ax * s;
+        WV[1] += gk * 0.18 * ay * s;
+        WV[2] += gk * 0.30 * az * s;
+      }
+      return WV;
+    }
+    // the gust sines alone, at amplitude ga (the rich path's exact-per-call term)
+    function addGust(x, y, z, t, ga, out) {
+      if (!(ga > 0)) return;
+      for (const [om, kx, kz, ph, ax, ay, az] of GC) {
+        const s = Math.sin(om * t + kx * x + kz * z + ph);
+        out[0] += ga * 0.30 * ax * s;
+        out[1] += ga * 0.18 * ay * s;
+        out[2] += ga * 0.30 * az * s;
+      }
+    }
+
+    // ---- the resolved spec -------------------------------------------------
+    let rich = null;                 // { terrain, breeze, thermals, aloftK, veerDeg, gradH } when a rich term is on
+    let mode = 'zero';
+    let relief = null;
+    let version = 0;
+    const stats = { mode, full: 0, linear: 0, recentres: 0, rasterMs: 0, tickMs: 0 };
+    function ensureRelief() {
+      if (!relief) { relief = buildRelief(env); stats.rasterMs = relief.ms; version++; }
+      return relief;
+    }
+    // setWind(spec | null) -> { base, spd } (the world's sea law reads it); the spec's declared or
+    // legacy form, resolved once
+    // THE FRONT'S HAND ON THE WIND (K2). The day owns the timeline (07_day.js
+    // storm: an intensity, a veer, a wind and gust factor, all pure in the
+    // clock); the climate asks it for the numbers and re-resolves the column.
+    // `stormOf()` is read at every resolve AND whenever the day's front has
+    // moved — the viewer's tick calls `refresh()` for that — so the wind veers
+    // and rises through a passage without anything else being touched.
+    function stormOf() { const st = env.day && env.day.storm; return st && st.I > 0 ? st : null; }
+    let spec0 = null;                                   // the DECLARED spec, before the front's hand
+    function setWind(spec) {
+      spec0 = spec || null;
+      if (!spec) { windSpec = null; rich = null; mode = 'zero'; stats.mode = mode; version++; return { base: [0, 0, 0], spd: 0 }; }
+      let base;
+      if (spec.base) base = spec.base;
+      else if (spec.mps != null || spec.kts != null)
+        base = bearingToBase(spec.mps != null ? +spec.mps : +spec.kts * KT, spec.dirDeg, geo ? geo.convergenceDeg : 0);
+      else base = [0, 0, 0];
+      // the front: the wind rises, veers, and gusts harder through the passage
+      const st = stormOf();
+      let gust = spec.gust || 0;
+      if (st) {
+        const ph = st.veer * D2R, c = Math.cos(ph), sn = Math.sin(ph);
+        const bx = base[0] * c - base[2] * sn, bz = base[2] * c + base[0] * sn;
+        base = [bx * st.windK, base[1] * st.windK, bz * st.windK];
+        gust = Math.min(1.5, gust * st.gustK + 0.25 * (st.gustK - 1));
+      }
+      windSpec = { base, gust, refH: spec.refH || 0,
+                   alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA };
+      const isRich = (spec.terrain > 0) || (spec.breeze > 0) || (spec.thermals > 0) || spec.aloftK != null || spec.veerDeg != null || !!st;
+      rich = isRich ? { terrain: +spec.terrain || 0, breeze: +spec.breeze || 0, thermals: +spec.thermals || 0,
+                        aloftK: spec.aloftK != null ? +spec.aloftK : 1, veerDeg: spec.veerDeg != null ? +spec.veerDeg : 0,
+                        gradH: spec.gradH != null ? +spec.gradH : GRAD_H } : null;
+      mode = isRich ? 'rich' : 'legacy'; stats.mode = mode;
+      if (isRich && (rich.terrain > 0 || rich.breeze > 0 || rich.thermals > 0)) ensureRelief();
+      C.t = NaN;                                            // the cache is the old field's
+      version++;
+      return { base, spd: Math.hypot(base[0], base[2]) };
+    }
+
+    // ---- the rich field ----------------------------------------------------
+    // THE FIELD IS TWO KINDS OF TERM. The SURFACE LAYER k(agl) — the legacy power law — is steep
+    // curvature within metres of the ground, so it is never linearised: every call evaluates it
+    // exactly (one pow) from an AGL the GROUND's own linearisation gives. Everything else has a scale
+    // of 300 m or more and rides the Jacobian. So smooth() writes SEVEN channels at unit shear:
+    //   col[3]  the synoptic column WITHOUT k (base, then the speed and the veer toward the gradient
+    //           wind above the surface layer — Ekman: the surface wind is backed 15-30 deg and is
+    //           0.6-0.75 of the gradient wind over land; aloftK 1.3 and veerDeg 20 are those, declared)
+    //   rest[3] the terms that do not shear with the ground (K1 the terrain-following flow, K3 the
+    //           breeze and the thermals; 0 in K0)
+    //   TI      the turbulence intensity the gusts ride (K1 the lee rotor; 1 in K0)
+    // and the wind at a point is  k * col + rest,  the gust amplitude  gust * k * TI.
+    const shearOf = (agl, refH, alpha) => refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / refH, alpha) : 1;
+    const RL = new Float32Array(NCH);
+    // gl = [gx, gz]: the LOCAL slope at the point (terrainH central differences at +-GD), the third band
+    function smooth(x, y, z, t, agl, gl, out) {
+      const b = windSpec.base;
+      let ux = b[0], uy = b[1], uz = b[2];
+      if (rich.aloftK !== 1 || rich.veerDeg !== 0) {
+        const s = smoothstep(WIND_TOP_H, rich.gradH, agl);
+        if (s > 0) {
+          const m = 1 + (rich.aloftK - 1) * s, ph = rich.veerDeg * s * D2R, c = Math.cos(ph), sn = Math.sin(ph);
+          const vx = ux * c - uz * sn, vz = uz * c + ux * sn;   // a veer: clockwise seen from above
+          ux = vx * m; uz = vz * m;
+        }
+      }
+      let ti = 1;
+      if (rich.terrain > 0) {
+        // THE TERRAIN (K1). Linear hill theory, neutral, irrotational: over a relief band of horizontal
+        // scale L the flow's perturbation decays as exp(-z/L). Two bands from the raster - the coarse
+        // (~1.2 km) and the fine (~300 m) - each with its own decay. At the ground the vertical part IS
+        // the kinematic condition, w = U . grad h (the air follows the slope): the windward face lifts,
+        // the lee sinks, with no sign to choose. The slopes are capped at 0.7 so an un-smoothed cliff
+        // cannot make more than 0.7 U. These channels are scaled by the surface layer's k in combine():
+        // the deflection at a height is driven by the wind at that height.
+        const R = reliefAt(x, z, RL), T = rich.terrain;
+        let gxc = R[CH.gxc], gzc = R[CH.gzc], gxf = R[CH.gxf], gzf = R[CH.gzf];
+        const mc = Math.hypot(gxc, gzc); if (mc > SLOPE_CAP) { gxc *= SLOPE_CAP / mc; gzc *= SLOPE_CAP / mc; }
+        const mf = Math.hypot(gxf, gzf); if (mf > SLOPE_CAP) { gxf *= SLOPE_CAP / mf; gzf *= SLOPE_CAP / mf; }
+        const a0 = Math.max(0, agl), ec = Math.exp(-a0 / D_COARSE), ef = Math.exp(-a0 / D_FINE);
+        // THE LOCAL BAND: a 200 m raster smoothed over 300 m cuts a steep face's slope to a third (the
+        // analytic world's 35 deg faces read 0.25), and a ridge pilot flies within a wingspan or two of
+        // the slope, where the air follows the REAL ground. So the third band is the true slope at the
+        // point (+-60 m) less what the raster already carries, decaying over 80 m - close to a steep
+        // face the lift is the wind times the slope, as it is. Across the solver's footprint the slope
+        // is the reference's (a 140 m ground wave moves it 0.1 over 12 m; one slope per aeroplane).
+        let glx = gl[0] - gxc - gxf, glz = gl[1] - gzc - gzf;
+        const ml = Math.hypot(glx, glz); if (ml > SLOPE_CAP) { glx *= SLOPE_CAP / ml; glz *= SLOPE_CAP / ml; }
+        const el = Math.exp(-a0 / D_LOCAL);
+        const wy = T * ((ux * gxc + uz * gzc) * ec + (ux * gxf + uz * gzf) * ef + (ux * glx + uz * glz) * el);
+        // THE CREST SPEED-UP AND THE VALLEY'S SHELTER (Jackson & Hunt 1975: the fractional speed-up at a
+        // 3-D hill's crest is ~1.6 h/L, capped at 0.8 here) on the fine band's height, signed by the
+        // prominence (a crest +1, a valley floor -1, the shelter at 0.4 of the speed-up), decaying over
+        // the same L; horizontal only, floored at half the wind
+        const S = Math.min(0.8, 1.6 * Math.abs(R[CH.hf]) / 300), p = R[CH.prom];
+        const m = Math.max(0.5, 1 + T * (p > 0 ? S * p : 0.4 * S * p) * ef);
+        // THE LEE ROTOR: under a lee slope of 9 deg and more of the SMOOTHED relief (the downslope
+        // steepness in the wind, the two bands together; a 300 m smoothing halves a real slope, so 0.15
+        // here is a 17 deg hillside) the flow separates - linear theory has nothing to say, so this is a
+        // declared amplitude: the gusts' intensity up to x4 at 22 deg, decaying over twice L. combine()
+        // reads it.
+        const U = Math.hypot(ux, uz);
+        const lee = U > 0.1 ? Math.max(0, -((ux * (gxc + gxf) + uz * (gzc + gzf)) / U)) : 0;
+        ti += 3 * T * smoothstep(0.15, 0.4, lee) * Math.exp(-a0 / (2 * D_FINE));
+        ux *= m; uz *= m; uy += wy;
+      }
+      // the terms that do NOT shear with the ground: they are their own flows
+      let rx = 0, ry = 0, rz = 0;
+      if (rich.breeze > 0) {
+        const C = convNow();
+        breezeAt(x, z, agl, C, BR);
+        rx += rich.breeze * BR[0]; ry += rich.breeze * BR[1]; rz += rich.breeze * BR[2];
+      }
+      if (rich.thermals > 0) {
+        const C = convNow();
+        if (C) {
+          const utc = env.day ? env.day.utc : 0;
+          ry += rich.thermals * thermalAt(x, z, agl, C, utc);
+          // THE CONVECTION ROUGHENS THE AIR IT WORKS IN. A mixed layer is
+          // turbulent everywhere, not only in the cores, so the gusts ride
+          // harder inside it - and only inside it: above the lid the air is
+          // smooth, and under the ground there is no air (that clause is not
+          // pedantry, it was putting gusts below the terrain).
+          if (agl > 0 && agl < C.zi) ti += 0.5 * rich.thermals;
+        }
+      }
+      out[0] = ux; out[1] = uy; out[2] = uz;
+      out[3] = rx; out[4] = ry; out[5] = rz;
+      out[6] = ti;
+    }
+    // combine(S, agl, x, y, z, t, out): the wind from seven channels and the ground. The gusts ride
+    // gust x TI, and a rotor gusts on its own (0.5 of the base per unit of TI above 1: a full rotor is
+    // +-0.45 of the wind, the violence a lee is known for) so a calm
+    // declared day is still rough in a lee.
+    function combine(S, agl, x, y, z, t, out) {
+      const k = shearOf(agl, windSpec.refH, windSpec.alpha);
+      out[0] = k * S[0] + S[3]; out[1] = k * S[1] + S[4]; out[2] = k * S[2] + S[5];
+      addGust(x, y, z, t, k * ((windSpec.gust || 0) * S[6] + 0.5 * (S[6] - 1)), out);
+      return out;
+    }
+    // ---- THE CONVECTION (K3) -------------------------------------------------
+    // WHAT DRIVES IT. The ground takes the sun's heat and gives it back to the
+    // air as thermals. The sensible heat flux is what is left of the beam after
+    // the albedo and the cloud, and it runs BEHIND the sun (the day's sunElLag):
+    //
+    //   H  = heat x (1 - albedo) x S0 x tau x max(0, sin El_lag) x (1 - 0.7 cover)
+    //   w* = ( g/T x H/(rho cp) x z_i )^(1/3)                        (Deardorff)
+    //
+    // `heat` is the ground's own share, off the relief raster (water 0, forest
+    // 0.25, rock 0.6 - a Bowen-ratio ordering), so a thermal stands over a
+    // gravel bar and not over a lake. z_i is mixTop(): the LOWER of the day's
+    // lid and its condensation level, which is why a capped day tops its
+    // thermals early and an uncapped one puts a cumulus on each of them. A fair
+    // afternoon gives 200-250 W/m2 and w* around 2 m/s, which is a good day.
+    const mapCache = {};
+    let conv = null, convKey = null;
+    function convNow() {
+      const day = env.day;
+      if (!day || !windSpec) return null;
+      const zi = mixTop();
+      const cover = day.cloudCoverEff != null ? day.cloudCoverEff : day.cloudCover;
+      const sinEl = Math.sin(Math.max(0, day.sunElLag != null ? day.sunElLag : day.sunEl) * D2R);
+      const b = windSpec.base;
+      const k = Math.round(zi) + ':' + Math.round(cover * 1000) + ':' + Math.round(sinEl * 1e4)
+              + ':' + day.cloudSeed + ':' + (day.cloudTypeEff || day.cloudType)
+              + ':' + Math.round((day.oatC || 15) * 10) + ':' + Math.round(b[0] * 100) + ',' + Math.round(b[2] * 100);
+      if (k === convKey) return conv;
+      convKey = k;
+      if (!(sinEl > 0) || !(zi > 0)) { conv = null; return null; }   // night: no convection at all
+      const alb = day.groundAlbedo != null ? day.groundAlbedo : 0.15;
+      const T = (day.oatC != null ? day.oatC : 15) + 273.15;
+      const atm = env.atmos ? env.atmos() : null;
+      const rho = atm ? atm.rho(0) : 1.225;
+      const beam = S0 * TAU_ATM * sinEl * (1 - alb) * (1 - 0.7 * clamp(cover, 0, 1));
+      const wstarOf = heat => {
+        const H = Math.max(0, heat) * beam;
+        return H > 0 ? Math.cbrt((9.80665 / T) * (H / (rho * CP)) * zi) : 0;
+      };
+      // THE LATTICE DRIFTS AT ONE WIND, not at the wind where it is sampled: a
+      // frame whose speed varied with the sample point would not be a frame.
+      // That one wind is the boundary layer's mean - the declared base lifted
+      // to half the layer's depth by the same power law the column shears on.
+      const kBL = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, 0.5 * zi)) / windSpec.refH, windSpec.alpha) : 1;
+      conv = { zi, cover, sinEl, T, rho, beam, wstarOf,
+               spacing: Math.max(400, TH_SPACE * zi),
+               ux: b[0] * kBL, uz: b[2] * kBL, bx: b[0], bz: b[2],
+               wRef: Math.max(0.5, wstarOf(0.35)),                   // for the tilt's lag, one number per day
+               map: CLOUD_FIELD.weatherMap({ seed: day.cloudSeed, cover,
+                                             type: day.cloudTypeEff || day.cloudType, cache: mapCache }) };
+      return conv;
+    }
+    // THE LATTICE. A square lattice of spacing 1.5 z_i (Lenschow's thermal
+    // spacing) in a frame advected by that one wind, so every thermal drifts
+    // downwind with no per-thermal state to keep - and a gate whose day is
+    // frozen has a frozen field. A cell's hash decides whether a thermal stands
+    // there at all, with what strength and how far off centre; the probability
+    // leans on the weather map's coverage, so the thermals cluster where the
+    // cumulus are (they are one field: the clouds ARE the tops). The age runs on
+    // the DAY clock with a smooth envelope - born, working, dying over twenty
+    // minutes - which is the two-clocks rule again.
+    function thash(i, j, n) {
+      let h = (i * 374761393 + j * 668265263 + n * 1013904223 + (env.seed | 0) * 2654435761) | 0;
+      h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+      return (h >>> 0) / 4294967296;
+    }
+    const smf01 = t => { const q = clamp(t, 0, 1); return q * q * (3 - 2 * q); };
+    const TH_TMP = { x: 0, z: 0, k: 0, ok: false };
+    const RL2 = new Float32Array(NCH), RL3 = new Float32Array(NCH);
+    function thermalCell(i, j, C, utc, dx0, dz0, out) {
+      const sp = C.spacing;
+      const ph = thash(i, j, 7);
+      const n = Math.floor(utc / TH_LIFE + ph);
+      // WHERE IT STANDS, FIRST. The jitter comes before the tests, not after:
+      // a cell is 1.5 z_i across and a thermal may sit a third of that off
+      // centre, so asking 'is there cloud here' at the lattice point instead of
+      // at the column's own place blurs the answer over most of a cloud
+      // (measured: the clustering fell from nearly two-to-one to 1.4).
+      const x0 = i * sp + dx0 + (thash(i, j, n * 31 + 2) - 0.5) * 2 * TH_JIT * sp;
+      const z0 = j * sp + dz0 + (thash(i, j, n * 31 + 3) - 0.5) * 2 * TH_JIT * sp;
+      // UNDER THE CLOUD. The map's coverage carries a soft edge, so most of a
+      // covered texel reads well under 1; a linear ramp on it barely clusters
+      // anything. What matters is whether there IS cloud overhead, so the odds
+      // step over the edge instead of leaning on its depth.
+      const cov = C.map ? CLOUD_FIELD.sample(C.map, x0, z0)[0] : 0;
+      if (thash(i, j, n * 31 + 1) > 0.22 + 0.68 * smf01(cov / 0.25)) { out.ok = false; return out; }
+      // AND ON GROUND THAT HEATS: no column stands over water. The raster is
+      // bilinear, so a point just off a beach still carries some of the land's
+      // heat; under this floor there is no thermal at all, not a weak one.
+      if (reliefAt(x0, z0, RL3)[CH.heat] < 0.06) { out.ok = false; return out; }
+      const a = (utc / TH_LIFE + ph) - n;                            // 0..1 through its life
+      const e = smf01(a / 0.2) * (1 - smf01((a - 0.7) / 0.3));
+      if (e <= 0.001) { out.ok = false; return out; }
+      out.x = x0; out.z = z0;
+      out.k = (0.6 + 0.8 * thash(i, j, n * 31 + 4)) * e;
+      out.ok = true;
+      return out;
+    }
+    // THE COLUMN'S SHAPE (Lenschow 1980 / Allen 2006): a mean updraft over the
+    // layer's depth, a core of radius r2, and a SINK ANNULUS out to 2 r2 that
+    // carries down exactly the air the core lifts - mass balanced by
+    // construction (the core integrates to pi w r2^2 / 2 and the annulus to
+    // 2 pi r2^2 w_ann, so w_ann = w/4). Above z_i there is nothing: a glider
+    // does not climb into the cloud here, and that is a declared cut.
+    function thermalAt(x, z, agl, C, utc) {
+      const zi = C.zi;
+      if (agl <= 0 || agl >= zi) return 0;
+      const zr = agl / zi;
+      const wbar = Math.pow(zr, 1 / 3) * (1 - 1.1 * zr);
+      if (wbar <= 0) return 0;
+      const r2 = Math.max(20, TH_R2K * Math.pow(zr, 1 / 3) * (1 - 0.25 * zr) * zi);
+      const sp = C.spacing;
+      const dx0 = C.ux * utc, dz0 = C.uz * utc;                      // the lattice, carried downwind
+      // THE TILT IS THE SHEAR'S, NOT THE WIND'S. The column rides in the moving
+      // air, so the wind itself carries the whole thing (that is the lattice's
+      // drift above) and cannot lean it. What leans it is the DIFFERENCE between
+      // the wind at this height and the mean the column travels at: a parcel
+      // took agl/w* seconds to get here and spent them in air moving (U(z)-U_bl)
+      // relative to the column. Using the whole wind instead put a 2 km lean on
+      // a 900 m column - measured, and wrong by the width of the lattice.
+      const kz = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / windSpec.refH, windSpec.alpha) : 1;
+      const shx = C.bx * kz - C.ux, shz = C.bz * kz - C.uz;
+      const lag = Math.min(900, agl / C.wRef);
+      const tx = x - shx * lag, tz = z - shz * lag;
+      const i0 = Math.floor((tx - dx0) / sp), j0 = Math.floor((tz - dz0) / sp);
+      let w = 0;
+      for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) {
+        const c = thermalCell(i0 + di, j0 + dj, C, utc, dx0, dz0, TH_TMP);
+        if (!c.ok) continue;
+        const ddx = tx - c.x, ddz = tz - c.z, r = Math.hypot(ddx, ddz);
+        if (r > 2 * r2) continue;
+        const wstar = C.wstarOf(reliefAt(c.x, c.z, RL2)[CH.heat]);
+        if (!(wstar > 0)) continue;
+        const wpk = TH_CORE * wbar * wstar * c.k;                    // the core's peak (see TH_CORE)
+        w += r <= r2 ? wpk * (1 - (r / r2) * (r / r2))
+                     : -(wpk / 4) * (1 - Math.pow((r - 1.5 * r2) / (0.5 * r2), 2));
+      }
+      return w;
+    }
+    // THE SEA BREEZE (K3). The land heats, the air over it rises, and the sea's
+    // cooler air runs in underneath: a flow along the coast's own gradient (the
+    // raster's `cgx, cgz`, which points inland), driven by the same lagged sun,
+    // killed by cloud, about 700 m deep, reaching ~20 km inland and ~8 km out.
+    // At night it reverses, weakly, as the land gives its heat back.
+    //
+    // The VERTICAL part is continuity and nothing else: the horizontal flow dies
+    // out inland, so what it carries has to go up. With A(d) = V exp(-|d|/D),
+    //   div V_h = (1 - z/H) dA/dd = -(1 - z/H) A sgn(d) / D
+    //   w(z)    = -int_0^z div  =  (A/D) sgn(d) z (1 - z/2H)
+    // NAMED CUT, and it matters: that lift is BROAD - 0.05-0.1 m/s spread over
+    // twenty kilometres, which is what a front's convergence comes to when it is
+    // smeared over its whole envelope. The real sea-breeze front is a line, 1-2
+    // m/s over a kilometre, and a glider works the line. That sharpening (where
+    // the breeze meets the opposing gradient wind) is owed, not modelled here.
+    // The breeze's WIND is honest and is the big effect: a coast that swings
+    // onshore through the afternoon.
+    function breezeAt(x, z, agl, C, out) {
+      const R = reliefAt(x, z, RL2), d = R[CH.coast];
+      const drive = C ? C.sinEl * (1 - 0.8 * clamp(C.cover, 0, 1)) : -0.25;
+      const D = d >= 0 ? SB_IN : SB_OUT;
+      const A = SB_V * drive * Math.exp(-Math.abs(d) / D);
+      const zc = Math.min(agl, SB_H);
+      const envZ = Math.max(0, 1 - agl / SB_H);
+      out[0] = A * envZ * R[CH.cgx];
+      out[2] = A * envZ * R[CH.cgz];
+      out[1] = (A / D) * (d >= 0 ? 1 : -1) * zc * (1 - zc / (2 * SB_H));
+      return out;
+    }
+    const BR = [0, 0, 0];
+    // ---- the linearised sampler (rule 2) -----------------------------------
+    // The reference: the ground and its gradient (three terrainH calls), the seven channels and their
+    // Jacobian (four smooth() calls). A call within LIN_R of it at the same instant costs a pow and
+    // 21 multiply-adds; a far call at the same instant is a full sample and leaves the reference alone.
+    const NCHN = 7;
+    const C = { t: NaN, x: 0, y: 0, z: 0, g0: 0, gx: 0, gz: 0, w0: new Float64Array(NCHN), J: new Float64Array(NCHN * 3) };
+    const T1 = new Float64Array(NCHN), T2 = new Float64Array(NCHN), GL = [0, 0], GL2 = [0, 0];
+    // the ground's plane at a point: central differences at +-GD (four terrainH calls), the same slope
+    // the local band reads
+    function groundAt(x, z, gl) {
+      gl[0] = (terrainH(x + GD, z) - terrainH(x - GD, z)) / (2 * GD);
+      gl[1] = (terrainH(x, z + GD) - terrainH(x, z - GD)) / (2 * GD);
+    }
+    function recentre(x, y, z, t) {
+      const w0 = C.w0, J = C.J;
+      const g0 = terrainH(x, z);
+      groundAt(x, z, GL);
+      C.g0 = g0; C.gx = GL[0]; C.gz = GL[1];
+      smooth(x, y, z, t, y - g0, GL, w0);
+      smooth(x + LIN_H, y, z, t, y - g0 - GL[0] * LIN_H, GL, T1);  for (let c = 0; c < NCHN; c++) J[c * 3] = (T1[c] - w0[c]) / LIN_H;
+      smooth(x, y + LIN_H, z, t, y + LIN_H - g0, GL, T1);          for (let c = 0; c < NCHN; c++) J[c * 3 + 1] = (T1[c] - w0[c]) / LIN_H;
+      smooth(x, y, z + LIN_H, t, y - g0 - GL[1] * LIN_H, GL, T1);  for (let c = 0; c < NCHN; c++) J[c * 3 + 2] = (T1[c] - w0[c]) / LIN_H;
+      C.t = t; C.x = x; C.y = y; C.z = z;
+      stats.full += 4; stats.recentres++;
+    }
+    function wind(x, y, z, t) {
+      if (mode === 'zero') return W0;
+      if (mode === 'legacy') return windLegacy(x, y, z, t);
+      if (t !== C.t) {
+        recentre(x, y, z, t);
+        return combine(C.w0, y - C.g0, x, y, z, t, WV);
+      }
+      const dx = x - C.x, dy = y - C.y, dz = z - C.z;
+      if (dx * dx + dy * dy + dz * dz > LIN_R2) {           // a far call at the same instant: full, no re-centre
+        const agl = y - terrainH(x, z);
+        groundAt(x, z, GL2);
+        smooth(x, y, z, t, agl, GL2, T2); stats.full++;
+        return combine(T2, agl, x, y, z, t, WV);
+      }
+      const w0 = C.w0, J = C.J;
+      for (let c = 0; c < NCHN; c++) T2[c] = w0[c] + J[c * 3] * dx + J[c * 3 + 1] * dy + J[c * 3 + 2] * dz;
+      stats.linear++;
+      // THE GROUND IS EXACT IN THE SURFACE LAYER: under LIN_GROUND_H of it the power law's curvature
+      // and the ground's own (a 65 m octave on the analytic world) make a linearised AGL worth up to
+      // a metre — the take-off roll and the final are flown on the true ground, as the legacy field
+      // was (one memoised terrainH per call, what every refH preset costs today); above it the
+      // ground's plane is within a percent of the wind and costs nothing
+      const agl = (C.y - C.g0) < LIN_GROUND_H ? y - terrainH(x, z) : y - (C.g0 + C.gx * dx + C.gz * dz);
+      return combine(T2, agl, x, y, z, t, WV);
+    }
+    // sample(x, y, z, t, out): the full field into `out` (allocated when absent), never the cache
+    function sample(x, y, z, t, out) {
+      out = out || [0, 0, 0];
+      if (mode === 'zero') { out[0] = out[1] = out[2] = 0; return out; }
+      if (mode === 'legacy') { const w = windLegacy(x, y, z, t); out[0] = w[0]; out[1] = w[1]; out[2] = w[2]; return out; }
+      const agl = y - terrainH(x, z);
+      groundAt(x, z, GL2);
+      smooth(x, y, z, t, agl, GL2, T2); stats.full++;
+      return combine(T2, agl, x, y, z, t, out);
+    }
+    // reliefAt(x, z, out): the raster's channels at a point, bilinear, clamped at the edge
+    const RA = new Float32Array(NCH);
+    function reliefAt(x, z, out) {
+      const R = ensureRelief(), o = out || RA;
+      let u = (x - R.x0) / R.cell - 0.5, v = (z - R.z0) / R.cell - 0.5;
+      u = clamp(u, 0, R.nx - 1.001); v = clamp(v, 0, R.nz - 1.001);
+      const i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
+      const k00 = (j * R.nx + i) * NCH, k10 = k00 + NCH, k01 = k00 + R.nx * NCH, k11 = k01 + NCH, d = R.data;
+      for (let c = 0; c < NCH; c++) {
+        const a = d[k00 + c] + (d[k10 + c] - d[k00 + c]) * fu, b = d[k01 + c] + (d[k11 + c] - d[k01 + c]) * fu;
+        o[c] = a + (b - a) * fv;
+      }
+      return o;
+    }
+    // surfaceWind(): the 10 m wind the sea and the socks read — the declared base for now (K4 smooths it)
+    function surfaceWind() {
+      const b = windSpec ? windSpec.base : W0;
+      return { spd: Math.hypot(b[0], b[2]), dir: Math.atan2(b[2], b[0]), base: b };
+    }
+    // ---- THE COLUMN (K2) -----------------------------------------------------
+    // One air, asked for twice: the DENSITY comes from the world's own atmos
+    // (which is makeAtmos over the day's effective temperature, pressure and
+    // column shape, rebuilt lazily on the day's airKey), and the WATER from
+    // atmosWater over it. Both are cached on the pair of keys that can move
+    // them, so `profile(h)` is a few multiplies in the steady state and the
+    // panel can read it every frame.
+    let wKey = null, water = null, wAtm = null;
+    function waterNow() {
+      const atm = env.atmos ? env.atmos() : null;
+      const dew = env.day ? env.day.dewC : null;
+      const k = (env.day ? env.day.airKey : '-') + '|' + (dew == null ? '-' : Math.round(dew * 100));
+      if (k !== wKey || wAtm !== atm) { wKey = k; wAtm = atm; water = atm ? atmosWater(atm, dew) : null; }
+      return water;
+    }
+    // profile(h, x, z) -> { T, p, rho, sigma, rh, Td, lcl } at an altitude MSL.
+    //
+    // THE SPATIAL ARGUMENTS ARE ACCEPTED AND IGNORED, deliberately and by
+    // agreement (the fog study's §5b). The column is HORIZONTALLY UNIFORM today
+    // - a declared boundary, not an oversight: this is the vertical law, and a
+    // 2-D mist field (where a layer's top sits over valley floors and water,
+    // where the patches are) composes with it rather than competing. But its
+    // consumers are spatial FROM THEIR FIRST LINE - a bake that walks xz to
+    // build a mistTop(x, z) - so the signature is taken now, while it costs a
+    // comment, rather than later, when it would touch every call site and the
+    // bake path with it. When the column stops being uniform, these start being
+    // read and nothing else moves.
+    function profile(h, x, z) {
+      const atm = env.atmos ? env.atmos() : null, w = waterNow();
+      if (!atm) return null;
+      return { T: atm.T(h) - 273.15, p: atm.p(h), rho: atm.rho(h), sigma: atm.sigma(h),
+               rh: w ? w.rh(h) : null, Td: w ? w.Td(h) : null, lcl: w ? w.lcl : null,
+               mixH: atm.mixH, densityAlt: atm.densityAlt(h) };
+    }
+    // THE THERMAL'S CEILING (K2, used by K3): the lower of the day's lid and
+    // its condensation level. A capped day tops the columns at the lid and
+    // makes no cloud; an uncapped one tops them at the base and marks every
+    // one with a cumulus. Either way it is ONE number, derived, never declared.
+    function mixTop() {
+      const atm = env.atmos ? env.atmos() : null, w = waterNow();
+      const lid = atm && atm.mixH != null ? atm.mixH : null;
+      const lcl = w ? w.lcl : null;
+      if (lid == null && lcl == null) return 1200;                  // a fair-weather default, named
+      if (lid == null) return lcl;
+      if (lcl == null) return lid;
+      return Math.min(lid, lcl);
+    }
+    // haze(): THE INGREDIENTS OF A MIST, not a distance - and TWO MEDIA, never one.
+    //
+    // This function used to hand over a flat { rho0, top, H }: a COLUMN density paired
+    // with a LAYER geometry, as though they belonged together. They do not, and the fog
+    // study found it by trying to use them: adopting `rho0` as the mist's density made
+    // the mist ten times too thin and all but erased it. The shape below makes that
+    // mistake impossible to make by accident.
+    //
+    //   column : the whole air - aerosol through the boundary layer and above it,
+    //            roughly uniform over kilometres. `rho0` is Koschmieder's extinction
+    //            from the day's own visibility, 3.912 / V, and a front thickens it.
+    //            This is the AERIAL PERSPECTIVE's number.
+    //   layer  : the shallow ground fog - droplets, tens of metres deep, absent above
+    //            its lid, roughly ten times denser than the column at the same humidity.
+    //            `rho0` is the day's (07_day.js derives it beside visibilityKm - ONE law,
+    //            one place; atmo.js reads the day and carries no copy). `top` and `H` are
+    //            its nominal shape; the RENDERER owns where it actually lies, because F2
+    //            lays the layer on the valley floors and gives it banks, at which point
+    //            `top` is a height above the LOCAL FLOOR rather than above the sea.
+    //
+    // TWO WARNINGS FOR WHOEVER CONSUMES THIS, both measured by the fog study
+    // (futureDesigns/FOG-MIST-2026-09-21.md) rather than argued:
+    //
+    // 1. A VISIBILITY IS NOT A RADIUS. The mist is a layer with a lid, so how far an eye
+    //    can see depends on where the eye is and where it is LOOKING: from 200 m over
+    //    Jolene the distant GROUND dies at about 4 km (that ray looks down through the
+    //    layer) while the RIDGES stand at 5-9 km (their ray never enters it). With F2's
+    //    banks it is direction-dependent in a second way - a ray into a bank and one down
+    //    a clear lane differ from the same eye. A far plane or a ring radius sized off any
+    //    single scalar escapes by luck at rh 0.85 and shears the mountains off at rh 0.90.
+    //    Integrate the ray; these numbers are the ingredients for doing so.
+    // 2. THESE NUMBERS MOVE DURING A FLIGHT NOW. They used to be constants per day; a
+    //    front takes the visibility 60 -> 26 km over a couple of hours and the diurnal
+    //    humidity walks both. Any consumer that sizes a STREAMED thing from them (the
+    //    forest ring, a far cascade) needs two-radii hysteresis and a rate limit, or it
+    //    re-imports the chunk-crossing pop.
+    //
+    // `surfaceVisM` is the one honest scalar here, and only at the surface: an eye on the
+    // ground looking horizontally is inside BOTH media, so the extinctions add and
+    // Koschmieder inverts the sum. That is what a pilot is told, and it is why the panel
+    // must not quote `column.visibilityKm` on a fog morning - the column says 37 km while
+    // the strip's far end has vanished. It is the WEATHER's number, blind to the graphics
+    // dials, and to where the eye happens to be. Where the renderer can integrate the
+    // eye's OWN ray through the layer it really drew (the fog study's ATMO.seeRange),
+    // that wins and climate_link.js prefers it - asked at Koschmieder's 2 % contrast,
+    // the same constant inverted here, so the two definitions cannot drift apart.
+    function haze() {
+      const day = env.day;
+      if (!day) return null;
+      const st = stormOf();
+      let visKm = day.visibilityKm;
+      if (st) visKm *= 1 - 0.55 * st.I;                             // a front's murk, declared
+      const w = waterNow();
+      const colRho = 3.912 / Math.max(0.05, visKm * 1000);
+      // the day's own law (07_day.js). The fallback is for a bare day-shaped object, not
+      // a second copy of the law: a DAY always derives it.
+      const layRho = day.mistRho0 != null ? day.mistRho0 : 0;
+      return { column: { rho0: colRho, visibilityKm: visKm },
+               layer: { rho0: layRho, top: 60, H: 18 },
+               surfaceVisM: 3.912 / Math.max(1e-9, colRho + layRho),
+               rhSfc: w ? w.rh(0) : null, lcl: w ? w.lcl : null };
+    }
+    // thermals(): every live column within `r` of a point, as records - what the
+    // debug view draws, what a gate flies to, and what a panel counts. Pure in
+    // the day's clock, like the field it reads.
+    function thermals(x, z, r) {
+      const C = convNow();
+      if (!C || !rich || !(rich.thermals > 0)) return [];
+      const utc = env.day ? env.day.utc : 0;
+      const sp = C.spacing, dx0 = C.ux * utc, dz0 = C.uz * utc;
+      r = r || 6000;
+      const i0 = Math.floor((x - r - dx0) / sp), i1 = Math.floor((x + r - dx0) / sp);
+      const j0 = Math.floor((z - r - dz0) / sp), j1 = Math.floor((z + r - dz0) / sp);
+      const out = [];
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const c = thermalCell(i, j, C, utc, dx0, dz0, { x: 0, z: 0, k: 0, ok: false });
+        if (!c.ok) continue;
+        if (Math.hypot(c.x - x, c.z - z) > r) continue;
+        const heat = reliefAt(c.x, c.z, RL2)[CH.heat];
+        const wstar = C.wstarOf(heat);
+        if (!(wstar > 0)) continue;
+        const g = terrainH(c.x, c.z);
+        // the peak at mid-layer, which is the number a pilot would quote, and the
+        // axis THERE - the column leans with the shear, so where you circle is not
+        // over where it was born (`x0, z0` is the source on the ground)
+        const zr = 0.5, wbar = Math.pow(zr, 1 / 3) * (1 - 1.1 * zr);
+        const mid = 0.5 * C.zi;
+        const kz = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, mid)) / windSpec.refH, windSpec.alpha) : 1;
+        const lag = Math.min(900, mid / C.wRef);
+        out.push({ i, j, x: c.x + (C.bx * kz - C.ux) * lag, z: c.z + (C.bz * kz - C.uz) * lag,
+                   x0: c.x, z0: c.z, ground: g, zi: C.zi, top: g + C.zi, mid: g + mid, k: c.k, wstar,
+                   wpk: TH_CORE * wbar * wstar * c.k,
+                   r2: Math.max(20, TH_R2K * Math.pow(zr, 1 / 3) * (1 - 0.25 * zr) * C.zi) });
+      }
+      out.sort((a, b) => (b.wpk - a.wpk) || (a.x - b.x) || (a.z - b.z));
+      return out;
+    }
+    // refresh(): the viewer's tick calls this when the DAY's clock has moved,
+    // so a front's veer and rise reach the wind. Pure: re-resolving the
+    // declared spec against the day as it now is. A day with no front and no
+    // swing re-resolves to exactly the same numbers.
+    function refresh() { if (spec0) setWind(spec0); }
+    return {
+      setWind, wind, sample, reliefAt, ensureRelief, surfaceWind,
+      profile, mixTop, haze, refresh, thermals, get water() { return waterNow(); },
+      get conv() { return convNow(); },
+      get mode() { return mode; }, get spec() { return windSpec; }, get rich() { return rich; },
+      get relief() { return relief; }, get version() { return version; }, stats,
+    };
+  }
+  return { make, bearingToBase, buildRelief, fnv, CH, NCH, CELL, GC, WIND_TOP_H, WIND_ALPHA, GRAD_H, KT };
+})();
+if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = CLIMATE;
 // ===========================================================================
 // TERRAIN CODEC — the asset format (futureDesigns/WORLD-V2.md §9).
 // ===========================================================================
@@ -1640,6 +2729,68 @@ function makeWorld(seed, opts) {
   // the origin's lat/lon, the grid's convergence, the time zone); the analytic
   // world stands at Jolene's latitude with its -z as TRUE north (convergence 0).
   const GEO = (ISL && ISL.geo) || DAY.GEO_DEFAULT;
+
+  // (IT IS BUILT HERE, not beside waterAt: the world calls its own waterH while
+  // it is still being made - the premises stage does, in the game - and a `const`
+  // declared further down is in its temporal dead zone at that moment. The game
+  // threw "Cannot access 'lakeLevelAt' before initialization" and never rolled out;
+  // every node gate had passed, because a gate calls waterH after makeWorld returns.)
+  // A DATA LAKE'S SURFACE IS THE DATA'S (2026-09-23, reported by the Metlakatla
+  // session on Jolene's Skaters Lake: "waterH returns 16.19 while terrainH
+  // returns 10.09 and the lake declares level 10.1"). The island's lakes come
+  // from the DEM with a level each; the hydrology is HANDED them (cfg.lakeOf)
+  // so its reaches end at them, but its water surface for those cells stayed
+  // the priority flood's `filled` - the RIM of the basin where the outlet is
+  // narrower than a bake cell. Over 317 lakes that was a median of 1.10 m of
+  // error and 96 OF THEM (30 %) more than 3 m, up to 23.15 m. The renderer had
+  // already grown a guard against it (G460.11.7 discards a waterH sample more
+  // than 3 m off the declared level), so the lake was DRAWN right and the
+  // PHYSICS rode the rim: a floatplane on Skaters Lake floated 6.09 m over the
+  // water it was drawn on, and 23 m over the worst. The guard treated the
+  // symptom; this is the cause. Ruling ap stands - ONE surface, and it is the
+  // record's `level`.
+  //   THE WATERLINE IS WHERE THE BED CROSSES THE LEVEL, not where a rectangle
+  // ends: a record is a bounding box, so a point inside one is water only if
+  // the ground there is under the level. That also settles what a premises
+  // grade does near a bank - dig below the level and the cut is under water,
+  // honestly, because the lake does not follow the spade.
+  const lakeLevelAt = (() => {
+    const recs = (ISL && ISL.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
+    if (!recs.length) return null;
+    const CELL = 256, grid = new Map();
+    for (const L of recs)
+      for (let ix = Math.floor(L.x0 / CELL); ix <= Math.floor(L.x1 / CELL); ix++)
+        for (let iz = Math.floor(L.z0 / CELL); iz <= Math.floor(L.z1 / CELL); iz++) {
+          const k = ix + ',' + iz; let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(L);
+        }
+    // WHICH lake: the SMALLEST box that covers this point and whose level
+    // still stands over the ground here. A record is a bounding box, so a big
+    // low lake's box reaches across ponds on the hillside above it; the
+    // smallest box is the water you are actually standing in, and the bed test
+    // throws out the ones whose surface would be underground. (Measured on
+    // Jolene: taking the lowest level instead put 78 of 285 lakes on a
+    // neighbour's surface - a pond at 5.51 answered 2.67, the big lake below.)
+    // Returns the level, or -Infinity for dry ground; `covered` says whether a
+    // record reached this point at all, which is what tells a lake's BANK from
+    // ordinary land (see waterAt: on a bank the cover grid's WATER class must
+    // not be believed).
+    const out = { level: -Infinity, covered: false };
+    return (x, z, t) => {
+      out.level = -Infinity; out.covered = false;
+      const a = grid.get(Math.floor(x / CELL) + ',' + Math.floor(z / CELL));
+      if (!a) return out;
+      let bestA = Infinity;
+      for (let i = 0; i < a.length; i++) {
+        const L = a[i];
+        if (x < L.x0 || x > L.x1 || z < L.z0 || z > L.z1) continue;
+        out.covered = true;
+        if (L.level < t) continue;
+        const area = (L.x1 - L.x0) * (L.z1 - L.z0);
+        if (area < bestA) { bestA = area; out.level = L.level; }
+      }
+      return out;
+    };
+  })();
   const SALT = Math.imul(SEED, 0x9E3779B9);  // 0 for seed 0 — exact identity in hash2/LCG below
   const smf = t => t * t * (3 - 2 * t);
   const sstep = (a, b, t) => smf(Math.min(1, Math.max(0, (t - a) / (b - a))));
@@ -1951,8 +3102,8 @@ function makeWorld(seed, opts) {
   // coverAt (v1.17): the analytic roads by roadNear's distance (the road's own index), the analytic
   // strips by their box; the premises' answer wins where it has one
   const COV_FADE = 6, COV_BAND = 1.2;
-  function coverAt(x, z) {
-    if (PM && PM.coverAt) { const c = PM.coverAt(x, z); if (c) return c; }
+  function coverAt(x, z, pave) {
+    if (PM && PM.coverAt) { const c = PM.coverAt(x, z, pave); if (c) return c; }
     let kill = 0, boost = 0, cls = null;
     // the strips: a box test per aerodrome (fourteen at most; the bbox reject first)
     for (const a of aerodromes) {
@@ -1984,7 +3135,6 @@ function makeWorld(seed, opts) {
     if (!kill && !boost) return null;
     return { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null };
   }
-  let ttypeUndo = null;
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
@@ -1995,12 +3145,6 @@ function makeWorld(seed, opts) {
     const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
     PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals }, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
     PMrec = rec;
-    // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
-    // code into the island's own ttype grid, which the ground's packed texture, the
-    // tree walk and the cover ring all read - one array, one writer. The previous
-    // stamp is undone first so a live edit in the world editor never compounds.
-    if (ttypeUndo) { ttypeUndo(); ttypeUndo = null; }
-    if (ISL && PM.stampTtype) ttypeUndo = PM.stampTtype(ISL);
     // the strips join the registry as the generator's do; a strip's site (its stand, its way out,
     // an authored pattern) is what siteOf answers the pilot with
     // a premises runway named HOME REPLACES the world's own (an island's field is its premises')
@@ -2101,10 +3245,14 @@ function makeWorld(seed, opts) {
         if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
       if (nearMeadow) continue;
       if (HYD.water(x, z) > h) continue;
-      if (SET.roadNear(x, z) < 12) continue;   // clear of roads
+      if (SET.roadNear(x, z) < 12) continue;   // clear of roads (the ANALYTIC world's; SET is a stub on an island)
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
       if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
+      // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
+      // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
+      // collidable tree off a village street - the same law the grass obeys (contract v1.17)
+      if (PM && PM.coverAt) { const cv = PM.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > (ISL ? 0.85 : tp.p)) continue;
       const idx = trees.length;
@@ -2141,15 +3289,27 @@ function makeWorld(seed, opts) {
   // is a dry trench, not sea. surface is still the pre-biome minimum
   // (stages 2/5 refine ROCK/SCREE/etc.).
   function waterAt(t, x, z) {
-    const ws = HYD.water(x, z);
-    if (ws > t) return ws;
     if (ISL) {
-      // the island: the sea is the DEM at 0 (sea level does the edges), a
-      // lake is the cover's water class over land (the DEM holds it flat)
+      // the island: the sea is the DEM at 0 (sea level does the edges), a lake
+      // is its own record, a river is the hydrology's reach - and the fill's
+      // lake level is not asked for at all (21_world_hydro riverWater)
       if (t <= 0.05) return 0;
-      if (ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
+      let onBank = false;
+      if (lakeLevelAt) { const L = lakeLevelAt(x, z, t); if (L.level > -Infinity) return L.level; onBank = L.covered; }
+      const ws = ISL.hydro === 'proc' ? HYD.water(x, z) : HYD.riverWater(x, z);
+      if (ws > t) return ws;
+      // the cover's water class with no record behind it (a tidal flat, a pond
+      // the lake pass dropped): the DEM holds it flat, as it always did. NOT on
+      // a lake's bank, though - the cover grid is 10 m and the DEM is finer, so
+      // it calls a strip of bank WATER round most lakes, and believing it there
+      // floated 30 cm of water over ground the record itself says is dry land.
+      // Measured on Jolene: 78 of 285 lakes had every one of the renderer's five
+      // sample points on such a cell (2026-09-23).
+      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
       return -Infinity;
     }
+    const ws = HYD.water(x, z);
+    if (ws > t) return ws;
     if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
     return -Infinity;
   }
@@ -2238,6 +3398,60 @@ function makeWorld(seed, opts) {
       const k = 2 * Math.PI / l;
       SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph, felt: N === 2 || l >= SEA_FELT * L });   // the old pair is felt whole
     }
+    // ---- WHAT THE DRAW ACTUALLY WAS (CLIMATE K4) --------------------------
+    // Every row above is A, L and dir times something the seed drew: the
+    // amplitude is a coefficient times A, the wavelength a RATIO times L, the
+    // direction an offset from dir. Recording those three lets the sea be
+    // re-applied at a new (A, L, dir) without redrawing - which is what lets it
+    // follow a wind that moves instead of jumping every time one does.
+    //
+    // THE FELT FLAG IS THE RATIO'S, never an absolute wavelength, and that is
+    // load-bearing: waterH sums the felt band ALONE, so a train crossing the
+    // threshold mid-front would STEP the surface a float is riding. Decided
+    // once here, invariant under any later L. (The longest wind-sea component
+    // sits at ratio 0.671..0.757 against SEA_FELT 0.75 - right on the line.)
+    DRAW.n = N; DRAW.rows.length = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const [a, l, d] = rows[i];
+      DRAW.rows.push({ ca: A > 0 ? a / A : 0, ratio: l / L, dth: d - dir, felt: SEA.W[i].felt });
+    }
+  }
+  // the draw, kept so the sea can be re-applied without being redrawn
+  const DRAW = { n: 0, rows: [] };
+  // seaApply(A, L, dir, t0): the same draw at a new state. The temporal phase is
+  // held at t0 - phi' = phi + (om' - om) t0 - so the surface is CONTINUOUS IN
+  // TIME everywhere: at t0 every train reads exactly what it read a moment ago.
+  // It cannot also be continuous in SPACE, because k and the directions have
+  // moved; the far field slides at D x d(k.d)/dt along the ridge normal, which
+  // is ~0.17 rad/s at the near patch's edge and ~0.9 at a kilometre for a front
+  // relaxed over five minutes. The water's own LOD eats it: since G460.7 a
+  // wind-sea train fades out of the slope between 12 and 3 px of its own
+  // wavelength (the swell 6 to 2), so by a kilometre those ridges are drawn as
+  // roughness, and roughness has no phase to slide. If it ever shows at the
+  // hull, the remedy is an anchored phase - add (k' - k)(d . x_cg) - which makes
+  // it continuous AT THE AEROPLANE and pushes the slide outward.
+  function seaApply(A, L, dir, t0, ax, az) {
+    if (!DRAW.rows.length || !(A > 0) || !(L > 0)) { seaFrom(A, L, dir, DRAW.n || undefined); return; }
+    SEA.A = A; SEA.L = L; SEA.dir = dir;
+    ax = ax || 0; az = az || 0;
+    for (let i = 0; i < DRAW.rows.length; i++) {
+      const r = DRAW.rows[i], w = SEA.W[i];
+      const l = r.ratio * L, d = dir + r.dth, k = 2 * Math.PI / l, om = Math.sqrt(9.81 * k);
+      const dx = Math.cos(d), dz = Math.sin(d);
+      // THE PHASE IS ANCHORED AT THE AEROPLANE, not at the world's origin.
+      // Holding only the TIME term leaves the SPACE term free, and the space
+      // term is k times a distance: at four kilometres out, a wavelength moving
+      // by a percent turns the phase through several radians IN ONE TICK - a
+      // bigger step than the jump this was meant to remove (measured: 0.69 m
+      // against 0.28). Anchoring both terms at (ax, az) makes the surface
+      // continuous WHERE THE AEROPLANE IS - which is the only place a float can
+      // feel it - and pushes the slide outward, where the water's own LOD has
+      // already turned those ridges into roughness.
+      w.ph += (om - w.om) * (t0 || 0) + (w.k * (w.dx * ax + w.dz * az) - k * (dx * ax + dz * az));
+      w.A = r.ca * A; w.k = k; w.om = om;
+      w.dx = dx; w.dz = dz;
+      w.felt = r.felt;                                  // decided at the draw, never re-decided
+    }
   }
   function setSea(spec) {
     if (!spec) { seaFrom(0, 0, 0); return; }
@@ -2306,74 +3520,31 @@ function makeWorld(seed, opts) {
     return rec;
   }
 
-  // ---- wind field: steady vector + deterministic Dryden-ish gusts ----
-  // setWind({ base:[wx,wy,wz], gust:g }) — gusts are sums of incommensurate
-  // sines with spatial phase (advecting waves), amplitude g horizontal and
-  // 0.6*g vertical. Deterministic by construction: gates can rely on it.
-  // Default null: wind() returns the shared zero vector (fast path).
-  let windSpec = null;
-  const W0 = [0, 0, 0], WV = [0, 0, 0];
-  const GC = [ // [freq rad/s, kx, kz, phase, axis weight x,y,z]
-    [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
-    [1.37, 0.004, 0.013, 2.9, 0.55, 0.6, 1.0],
-    [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
-    [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
-  ];
-  // ---- THE SURFACE LAYER (G72) -------------------------------------------
-  // `y` has been an argument of wind() since the field was written and has
-  // never been read. It is read now: the ground drags on the air, so the wind
-  // near it is slower than the wind above it, and an aeroplane on final is in
-  // measurably different air from the one at circuit height.
-  //
-  // WHERE THE REPORTED WIND IS. A wind speed is meaningless without a height,
-  // and the height every anemometer, every windsock and every METAR means is
-  // 10 m. So `refH` says which height `base` was measured at, and the profile
-  // is the engineering power law u/uref = (z/zref)^alpha — the same one every
-  // wind-resource and building-code calculation uses, with alpha set by how
-  // rough the ground is (0.10 open water, 0.14 open grass, 0.20 scrub and
-  // trees). It is a fit, not a derivation, and it is a good one to about 200 m.
-  //
-  // A SPEC WITH NO refH IS A UNIFORM COLUMN, which is exactly the pre-G72 model
-  // and is what the fleet's whole wind calibration was measured in. That is a
-  // deliberate, declared boundary rather than a compatibility fudge: "no
-  // reference height" honestly means "we are not claiming to know where this
-  // wind was measured", and the only answer that does not invent information is
-  // to blow it everywhere equally. GATE WIND and the XCTY gates anchor to that
-  // column; the CONDITIONS presets and GATE HOTHIGH declare a refH and fly the
-  // profile. Re-anchoring the fleet battery onto sheared wind is named work,
-  // not a side effect of this one.
-  const WIND_TOP_H = 300;              // m agl: above this the profile has run out
-  const WIND_ALPHA = 0.14;             // open grassland, the default surface here
-  function shearK(x, y, z, refH, alpha) {
-    const agl = y - terrainH(x, z);
-    // a power law has no zero: floor the height rather than pretend it does.
-    const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
-    return Math.pow(h / refH, alpha);
-  }
-  function wind(x, y, z, t) {
-    if (!windSpec) return W0;
-    const b = windSpec.base, g = windSpec.gust || 0;
-    const k = windSpec.refH ? shearK(x, y, z, windSpec.refH, windSpec.alpha) : 1;
-    WV[0] = b[0] * k; WV[1] = b[1] * k; WV[2] = b[2] * k;
-    // the gusts ride the local wind, so they die out in the surface layer and
-    // grow in the shear instead of being the same everywhere from grass to
-    // circuit height
-    const gk = g * k;
-    if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
-      const s = Math.sin(om * t + kx * x + kz * z + ph);
-      WV[0] += gk * 0.30 * ax * s;
-      WV[1] += gk * 0.18 * ay * s;
-      WV[2] += gk * 0.30 * az * s;
-    }
-    return WV;
-  }
+  // ---- THE WIND: the climate's (09_climate.js, K0 2026-09-22) -------------
+  // The field the fleet was calibrated in (G72: base x power-law shear + the
+  // four gust sines, the exact zero W0 when nothing is set) moved there
+  // VERBATIM and is the whole field whenever the spec names no rich term; the
+  // terrain-following flow, the breeze, the thermals and the winds aloft are
+  // its rich terms. The day is made first: the climate's slow terms read it.
+  const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  const climate = CLIMATE.make({
+    terrainH, surface, SURFACE, bounds: BOUNDS, day, geo: GEO, seed: SEED,
+    atmos: () => airNow(),                    // the column, live (K2)
+    typeAt: ISL && ISL.ttype ? (x, z) => { const k = ISL.cellAt(x, z); return k < 0 ? -1 : ISL.ttype[k]; } : null,
+    coastAt: ISL ? ISL.coastAt : null,
+  });
+  const wind = climate.wind;
   function setWind(spec) {
-    windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0,
-                        refH: spec.refH || 0,
-                        alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA } : null;
+    const r = climate.setWind(spec);
     // ...and the sea follows the wind (H4, G393)
-    const b = windSpec ? windSpec.base : [0, 0, 0];
+    const b = r.base;
     const Wv = Math.hypot(b[0], b[2]);
+    seaTarget.A = Wv > 0.5 ? 0.018 * Wv : 0; seaTarget.L = 3 + 1.4 * Wv; seaTarget.dir = Math.atan2(b[2], b[0]);
+    // A SEA TAKES TIME (CLIMATE K4). With `seaTau` declared on the day the state
+    // is relaxed toward this target by the world's own tick instead of being
+    // rebuilt on the spot; at the default 0 it is rebuilt on the spot, which is
+    // exactly the line below and exactly what every gate has measured.
+    if (day.seaTau > 0 && SEA.A > 0) return;
     // THE WIND -> SEA LAW (G460.6): 0.018 m of amplitude per m/s, calibrated to the SMB fetch-limited
     // sea of a 10 km sound (H_s 0.26 m at 5 m/s, 0.5 at 10; A_equiv = H_s / 2.8) - G393's 0.04 was a
     // guess that put a 0.57 m significant sea under a 5 m/s breeze, and with a real spectrum (groups
@@ -2381,6 +3552,46 @@ function makeWorld(seed, opts) {
     seaFrom(Wv > 0.5 ? 0.018 * Wv : 0, 3 + 1.4 * Wv, Math.atan2(b[2], b[0]));
   }
 
+  const seaTarget = { A: 0, L: 10, dir: 0 };
+  // seaRelax(dtDay, simT): the sea walks toward the wind's target on the DAY's
+  // clock - the sea state is WEATHER, and weather is the slow clock's (the wave
+  // PHASE is the sim's, which is why t0 here is the sim time). A sea builds over
+  // tens of minutes and lies down more slowly still, so growth runs at tau and
+  // decay at 1.5 tau.
+  // HOW FAST A SEA MAY BUILD, and what it costs. A wave field whose wavelength
+  // is changing cannot be continuous everywhere at once - only at the anchor -
+  // so the residual motion near the craft is set by how fast L moves. MEASURED
+  // (a 5 -> 16 m/s step, the worst second within 150 m of the anchor):
+  //     tau  120 s   built in 15 min of day time   0.22 m/s   a visible wobble
+  //     tau  300 s   38 min                        0.10 m/s
+  //     tau  900 s   an hour+                      0.035 m/s  a smooth build
+  //     tau 1800 s                                 0.018 m/s
+  // So 900 is the honest default for a day that wants one: a sea that takes the
+  // better part of an hour to get up, which is what a sea does.
+  // The residual scales with the DAY's rate, as it must: at 60x the weather is
+  // moving sixty times faster, so the sea builds sixty times faster and the
+  // surface near the craft moves with it (0.30 m a frame at 600x against
+  // 0.035 at 1x). Sub-stepping the relaxation was tried and bought nothing
+  // measurable - the total change over a frame is the total change - so it is
+  // not here.
+  function seaRelax(dtDay, simT, ax, az) {
+    const tau = day.seaTau;
+    if (!(tau > 0) || !(dtDay > 0)) return false;
+    const gk = 1 - Math.exp(-dtDay / tau), dk = 1 - Math.exp(-dtDay / (1.5 * tau));
+    const k = seaTarget.A >= SEA.A ? gk : dk;
+    const A0 = SEA.A, L0 = SEA.L, d0 = SEA.dir;
+    let dd = seaTarget.dir - SEA.dir;                   // the shortest way round
+    while (dd > Math.PI) dd -= 2 * Math.PI;
+    while (dd < -Math.PI) dd += 2 * Math.PI;
+    const A = SEA.A + (seaTarget.A - SEA.A) * k;
+    const L = SEA.L + (seaTarget.L - SEA.L) * k;
+    const dir = SEA.dir + dd * k;
+    if (Math.abs(A - A0) < 1e-6 && Math.abs(L - L0) < 1e-5 && Math.abs(dir - d0) < 1e-6) return false;
+    if (!(A > 0)) { SEA.A = A; SEA.L = L; SEA.dir = dir; return true; }
+    if (!DRAW.rows.length || A0 <= 0) seaFrom(A, L, dir);   // the first sea of a calm day is a fresh draw
+    else seaApply(A, L, dir, simT || 0, ax, az);
+    return true;
+  }
   // ---- the day: ONE weather state, air and wind together (G72) ------------
   // setWeather({ oatC, qnhPa, wind: { base, gust } }) — everything a day is.
   // They are one object rather than two setters because a hot gusty afternoon
@@ -2399,11 +3610,40 @@ function makeWorld(seed, opts) {
   // clock advances through day.advance(), which only the viewer calls.
   let weather = null;
   let atmos = ATMOS_ISA;
-  const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  // THE AIR IS REBUILT LAZILY ON THE DAY'S OWN KEY (CLIMATE K2). It used to be
+  // rebuilt when `set` reported an air field had moved, which is still true and
+  // still enough for a declared change — but the clock can now MAKE weather
+  // (the diurnal swing, a front's temperature and pressure), and `advance()`
+  // deliberately never bumps the version. So the getter compares the day's
+  // `airKey` — one number over everything makeAtmos reads — and rebuilds only
+  // when it has moved. A day with neither a swing nor a front has a constant
+  // key, so `atmos` stays the SAME OBJECT and GATE DAY's identity check holds.
+  let atmosKey = null;
+  function airNow() {
+    const k = day.hasAir ? day.airKey : null;
+    if (k !== atmosKey) { atmosKey = k; atmos = k == null ? ATMOS_ISA : makeAtmos(day.air()); }
+    return atmos;
+  }
   function setDay(spec) {
-    const airChanged = day.set(spec);
-    if (airChanged) atmos = day.hasAir ? makeAtmos(day.air()) : ATMOS_ISA;
+    day.set(spec);
+    airNow();
     if (spec && 'wind' in spec) setWind(spec.wind || null);
+    else climate.refresh();                   // a front or a swing moved: re-resolve the column (K2)
+  }
+  // dayTick(dt): the VIEWER's clock step - the day advances and the wind
+  // follows the front through it. The solver never calls this (a gate's day is
+  // frozen and its air is constant), which is the two-clocks rule (09_climate).
+  function dayTick(dt, simT, ax, az) {
+    if (!(dt > 0)) return;
+    const st0 = day.storm ? day.storm.I : 0, sw = day.diurnalC > 0;
+    const u0 = day.utc;
+    day.advance(dt);
+    const st1 = day.storm ? day.storm.I : 0;
+    if (st0 !== st1 || (sw && day.storm)) climate.refresh();
+    else if (st1 > 0) climate.refresh();
+    airNow();
+    // the sea walks after the wind, on the same clock the wind moved on
+    seaRelax(Math.abs(day.utc - u0), simT, ax, az);
   }
   // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
   // absent fields are CLEARED (the standard day, the zero wind), so the
@@ -2459,15 +3699,20 @@ function makeWorld(seed, opts) {
     // reach records and bake stats here without walking every tile.
     hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
     // ---- the day (G72): the air is a getter so it is read LIVE ----
-    get atmos() { return atmos; },
+    get atmos() { return airNow(); },
     get weather() { return weather; },
     setWeather,
     // ---- THE DAY (SKY S1): the whole day, read live; the sun in its sky ----
-    day, setDay, geo: GEO,
+    day, setDay, dayTick, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
+    // K4: the state the sea is walking toward, and the walk itself (the viewer
+    // pushes world.sea at the shader when `seaChanged` says the trains moved)
+    get seaTarget() { return seaTarget; }, seaRelax,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
+    // ---- THE CLIMATE (K0): the field's keeper — sample(), the relief raster, the stats
+    climate,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
     // (terrainH and the surface read PM at call time; the trees were placed once, at the make)
     premises: { get overlay() { return PM; }, get rec() { return PMrec; }, set: setPremises, base: baseWorld },
@@ -2846,10 +4091,19 @@ function bakeHydrology(sample, cfg) {
     if (_lw > 0.5 && _lws > ws) ws = _lws;
     return ws;
   }
+  // THE REACHES ALONE, without the depression fill's lake level (2026-09-23).
+  // `filled` is the priority flood's surface: for a basin whose outlet is
+  // narrower than a cell it is the RIM, not the water - on Jolene that put
+  // Skaters Lake's surface 6.09 m over its own bank and the island's biggest
+  // lake 10.14 m over its. That number is right for a lake this module FOUND
+  // (it filled it, it knows where it spills) and wrong for one HANDED IN by
+  // cfg.lakeOf, whose level is data. The island asks for this one instead and
+  // answers its own lakes from its records (20_world.js waterAt).
+  function riverWater(x, z) { scan(x, z); return _ws; }
 
   return {
     rivers, lakeCount, lakeCells, riverCells, segCount, lakeSurf,
-    carve, water, distW,
+    carve, water, riverWater, distW,
     // stage-1 grids for downstream stages (settlement scoring, roads):
     // row-major N×N over [x0,x1]×[z0,z1], cell centres at (i+0.5)·dx
     grids: { N, x0, z0, dx, dz, H, filled, sea, wet, lake, acc, claimed },
@@ -4062,18 +5316,25 @@ function sitePattern(aero, site) {
   }
   const lane = Math.min(GP_LANE, R.half - 2.5);
   const ends = [R.end0, R.end1];
+  // A SHORT STRIP'S NODES (G527): the hold 110 m in and the U-turn 27-90 m in are a long runway's - on a
+  // 150 m bush strip hold0 stood 35 m PAST the middle, 40 m of run ahead, and the pilot replanned the
+  // departure three times and gave up on the ground. Under 300 m they close in on the threshold (the hold a
+  // quarter in) so 75 % of the strip is ahead - the pilot asks 70 % of a short field (43_pilot: need);
+  // every strip of 300 m and more keeps its numbers to the bit
+  const lenR = Math.hypot(R.end1.x - R.end0.x, R.end1.z - R.end0.z);
+  const kIn = lenR < 300 ? Math.max(0.3, 0.25 * lenR / GP_HOLD_IN) : 1;
   const holds = [];
   for (const T of [0, 1]) {
     const dir = T === 0 ? d : [-d[0], -d[1]];
     const E = [ends[T].x, ends[T].z];
     const hdg = Math.atan2(dir[1], dir[0]);
-    const hold = add('hold' + T, at(E[0], E[1], dir, GP_HOLD_IN), 'hold', { hdg });
+    const hold = add('hold' + T, at(E[0], E[1], dir, GP_HOLD_IN * kIn), 'hold', { hdg });
     holds.push(hold);
     // the lane-and-U-turn back to this hold from anywhere on the strip
-    const la = add('l' + T + 'a', at(...at(E[0], E[1], dir, 27), n, laneSg * lane), 'taxi', { r: GP_UTURN_R });
-    const lb = add('l' + T + 'b', at(...at(E[0], E[1], dir, 27), n, -laneSg * lane), 'taxi', { r: GP_UTURN_R });
-    const lc = add('l' + T + 'c', at(...at(E[0], E[1], dir, 51), n, -laneSg * lane), 'taxi', { r: GP_FILLET });
-    const dg = add('d' + T, at(E[0], E[1], dir, 90), 'taxi', { r: GP_FILLET });
+    const la = add('l' + T + 'a', at(...at(E[0], E[1], dir, 27 * kIn), n, laneSg * lane), 'taxi', { r: GP_UTURN_R });
+    const lb = add('l' + T + 'b', at(...at(E[0], E[1], dir, 27 * kIn), n, -laneSg * lane), 'taxi', { r: GP_UTURN_R });
+    const lc = add('l' + T + 'c', at(...at(E[0], E[1], dir, 51 * kIn), n, -laneSg * lane), 'taxi', { r: GP_FILLET });
+    const dg = add('d' + T, at(E[0], E[1], dir, 90 * kIn), 'taxi', { r: GP_FILLET });
     link(la, lb); link(lb, lc); link(lc, dg); link(dg, hold);
     routes.back[T] = [la, lb, lc, dg, hold];
   }
@@ -4108,7 +5369,19 @@ function sitePattern(aero, site) {
     const ex = R.cx + d[0] * along, ez = R.cz + d[1] * along;
     const c0 = add('c0', [ex, ez], 'taxi', { r: GP_FILLET });
     link(prev, c0); link(c0, holds[0]);
-    routes.out[0] = [st].concat(ids, [c0, holds[0]]);
+    // A SHORT STRIP'S WAY OUT HOLDS WHERE IT JOINS (G527.2, the pilot session's G531 measure: the cub off
+    // East Point lifted at 104 m of the 112 ahead - the declared way out met the centreline 8 m from the
+    // threshold and the route then rolled FORWARD 29 m to the generic hold a quarter in). Under 300 m, an
+    // entry nearer the threshold than that hold holds one fillet past the entry instead (the turn onto the
+    // centreline needs its radius of straight); longer strips and later entries keep hold0 to the bit
+    const inEntry = along + lenR / 2, inHold = GP_HOLD_IN * kIn;
+    if (lenR < 300 && inEntry + GP_FILLET < inHold) {
+      const hs = add('hold0s', at(ex, ez, d, GP_FILLET), 'hold', { hdg: Math.atan2(d[1], d[0]) });
+      link(c0, hs);
+      routes.out[0] = [st].concat(ids, [c0, hs]);
+    } else {
+      routes.out[0] = [st].concat(ids, [c0, holds[0]]);
+    }
     const c1 = add('c1', at(ex, ez, n, laneSg * lane), 'taxi', { r: GP_FILLET });
     link(prev, c1); link(c1, 'l1a');
     routes.out[1] = [st].concat(ids, [c1]).concat(routes.back[1]);
@@ -4951,14 +6224,7 @@ const PREMISES_GEN = (function () {
 'use strict';
 
 const PREMISES_V = 1;
-// `ttype` (v1.20, 2026-09-22): polygons that STAMP a terrain-type code into the
-// island's own ttype grid at composition. It is the one layer that writes into the
-// world's data rather than over it, and it is how a place gets a terrain type the
-// island's classifier never made - Metlakatla's alder corridor, code 15 `lush`.
-// NOT `cover`: `coverAt` on the overlay already means what the COVER RING may plant
-// at a point (the pavement's kill and boost, the plot's grass rule), and two unrelated
-// things sharing that word in one file is how a reader is misled.
-const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype'];
+const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects'];
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
@@ -5287,7 +6553,7 @@ function SpatialIndex(cell) {
 function DEF() {
   return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
-           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [] },
+           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
 }
 const PREMISES_MIGRATORS = {};
@@ -5322,7 +6588,7 @@ function unwrap(txt) {
   if (o && o.layers) return { rec: normalise(migrate(o)), name: null, plaque: null, log: null };
   throw new Error('not a flyDiy premises');
 }
-const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k' };
+const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o' };
 function newId(rec, layer) {
   const used = new Set((rec.layers[layer] || []).map(e => e.id));
   for (let i = 1; ; i++) { const id = (ID_PREFIX[layer] || layer[0]) + i; if (!used.has(id)) return id; }
@@ -5359,22 +6625,6 @@ function sowPlots(zone, roads, ctx) {
   const plots = [];
   const all = () => ctx.plots.concat(plots);
   const rejectAt = (x, z) => !inPoly(zone.poly, x, z) || ctx.excludes.some(p => inPoly(p, x, z)) || (ctx.keepOut || []).some(p => inPoly(p, x, z));
-  // A PLOT MAY NOT LIE ON A ROAD THAT IS NOT ITS OWN (2026-09-23, the user, of three
-  // houses in the carriageway: "Some houses are drawn over the roads. Not what we
-  // want..."). The sower cut a plot against the road it FRONTS and against nothing
-  // else, so a plot at a junction ran its side or its back into the crossing street:
-  // at Metlakatla 166 of 510 plots overlapped another road, up to 3.1 m inside the
-  // carriageway, and a house stands where its plot is. The margin is half a metre
-  // over the kerb - a garden may touch the road it fronts and may not touch another.
-  const onOtherRoad = (q, own) => {
-    for (const rd of roads) {
-      if (rd.id === own) continue;
-      const half = (rd.w || 3.6) / 2 + 0.5;
-      if (q.some(c => roadDist(rd, c[0], c[1]) < half)) return true;
-      if (roadInPoly(polyRoad(rd.pts, rd.w || 3.6), q).length) return true;   // it runs THROUGH the plot
-    }
-    return false;
-  };
   for (const road of roads) {
     const rd = polyRoad(road.pts, road.w || 3.6);
     if (rd.length < 40) continue;
@@ -5425,7 +6675,7 @@ function sowPlots(zone, roads, ctx) {
           for (let cut = 0; depth - cut >= dMin && !ok; cut += 2) {
             back(cut);
             const q = [f0, f1, b1, b0];
-            ok = !all().some(p => polysOverlap(p.poly, q)) && !q.some(c => rejectAt(c[0], c[1])) && !onOtherRoad(q, road.id);
+            ok = !all().some(p => polysOverlap(p.poly, q)) && !q.some(c => rejectAt(c[0], c[1]));
           }
           if (!ok) continue;
           be = [b1[0] - b0[0], b1[1] - b0[1]];
@@ -5474,12 +6724,7 @@ function planForest(zone, ctx) {
   // ctx = { T, waterY, seed, excludes, plots, roads: [{pts, w}], pool: [{key, size, sink, proportion, h}], trees: [existing] }
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0.05, 3);
   const step = 6 / Math.sqrt(density);
-  // A PALETTE ENTRY MAY NAME A COLLECTION, not only a subject. A tree's key is
-  // `<collection>|<subject>` and an author has no way to know the subject names, so
-  // 'spruce_tree.glb' selects every spruce in the pack. An exact key still matches.
-  const pool = (zone.palette && zone.palette.length
-    ? ctx.pool.filter(p => zone.palette.some(k => p.key === k || String(p.key).indexOf(k + '|') === 0))
-    : ctx.pool);
+  const pool = (zone.palette && zone.palette.length ? ctx.pool.filter(p => zone.palette.indexOf(p.key) >= 0) : ctx.pool);
   const list = pool.length ? pool : [{ key: 'stub|tree', size: 1, sink: 0, proportion: 1, h: 12 }];
   const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
   const rnd = mulberry32(zoneSeed);
@@ -5499,10 +6744,7 @@ function planForest(zone, ctx) {
     if (ctx.excludes.some(p => inPoly(p, px, pz))) continue;
     if (!clearOf(px, pz, Math.min(3.2, step * 0.55))) continue;
     const p = draw();
-    // `rules.size` scales the stand (2026-09-23, the user: "normal conifers from the
-    // forest, just not too tall"): a MEDIUM canopy is the same species grown less.
-    const sizeK = zone.rules && zone.rules.size !== undefined ? +zone.rules.size : 1;
-    const size = (p.size || 1) * (0.82 + rnd() * 0.4) * sizeK;
+    const size = (p.size || 1) * (0.82 + rnd() * 0.4);
     trees.push({ x: px, z: pz, key: p.key, size, yaw: rnd() * Math.PI * 2, sink: p.sink || 0, h: (p.h || 12) * size / (p.size || 1), zone: zone.id });
   }
   return trees;
@@ -5536,6 +6778,17 @@ const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'g
 // capped at 1.2) - the same numbers as src/viewer/pavement.js's CLASS_DEF.band, which GATE PAVEMENT
 // holds equal: the core needs them for coverAt (v1.17) without reaching the viewer
 const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, grass: 1.5 };
+// WHAT A `pav` MAY SAY (v1.16's per-entry knobs, mirrored from src/viewer/pavement.js's ENTRY_KNOBS,
+// which GATE PAVEMENT holds equal): the record is validated against these so a misspelt key is an
+// ISSUE and not a silent no-op - `pav: { mark: 'none' }` used to be read, ignored and never reported
+const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK', 'marks'];
+// THE PARKING STANDS (v1.21, 2026-09-23, the user: "you may also further design a parking area for
+// planes, with clear ground markings"): a material polygon may carry `stands` - a row of aircraft
+// stands painted on it, each a lead-in line with a nose-stop bar across its end, drawn in the
+// polygon's own frame (PAVEMENT.standMarks). Validated like `pav`, and for the same reason: a
+// misspelt key here would be read, ignored and never reported.
+const STAND_KEYS = ['n', 'pitch', 'lead', 'bar', 'u0', 'vOff'];
+const PAV_MARKS = ['auto', 'none', 'edges', 'centre'];
 const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
 function paveBand(entry, cls, isRoad) {
   const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
@@ -5566,7 +6819,7 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -5597,19 +6850,35 @@ function runwayProfile(r) {
     const t = (sx - x[i]) / h[i], t2 = t * t, t3 = t2 * t;
     return (2 * t3 - 3 * t2 + 1) * y[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * y[i + 1] + (t3 - t2) * h[i] * m[i + 1];
   };
-  const slopeAt = sAlong => (at(Math.min(r.len, sAlong + 0.5)) - at(Math.max(0, sAlong - 0.5))) / Math.min(1, r.len);
+  // the grade over a metre centred on sAlong; at an end the metre slides inside (GTRAM: a clamped half-metre read an
+  // altiport's 10 % threshold as 5 %, and the crest test then saw a 5 % change of slope that is not in the ground)
+  const slopeAt = sAlong => { const w = Math.min(1, r.len), a = Math.max(0, Math.min(r.len - w, sAlong - w / 2)); return (at(a + w) - at(a)) / w; };
   return { points: P, at, slopeAt, n };
 }
 // THE PILOT'S LIMITS on a profile (what the MSFS editor never asks): the slope anywhere under 5 %, the
 // touchdown zone (a fifth of the run from each threshold) under 2.5 %, and no crest sharper than a 1.5 %
 // change of slope over 30 m - a flare must not meet a hump it cannot see over
+// THE ALTIPORT (GTRAM, the tramway's summit strip): `altiport: true` is a mountain strip the Alpine way -
+// one way, landed UPHILL and left downhill whatever the wind (Courchevel 537 m at 18.5 %, Meribel 406 m
+// with an 11 % middle, La Salette 180 m at 20 %), so the limits are the altiport's: the slope anywhere
+// under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
+// over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
+// higher than the threshold it lands over
+const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
 function profileIssues(r) {
-  const out = [], pr = runwayProfile(r), L = r.len;
+  const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
   for (let a = 0; a <= L; a += 3) {
     const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
     if (a < L / 5 || a > L - L / 5) tdz = Math.max(tdz, sl);
     if (a + 30 <= L) crest = Math.max(crest, Math.abs(pr.slopeAt(a + 30) - pr.slopeAt(a)));
+  }
+  if (alti) {
+    if (worst > ALTIPORT.slopeMax) out.push('runway ' + r.id + ': the altiport is ' + (worst * 100).toFixed(1) + ' % somewhere, over ' + ALTIPORT.slopeMax * 100 + ' %');
+    if (crest > ALTIPORT.crestMax) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over ' + ALTIPORT.crestMax * 100 + ' on an altiport');
+    if (r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
+    else if (!((r.approach === 0 ? pr.at(L) - pr.at(0) : pr.at(0) - pr.at(L)) > 0)) out.push('runway ' + r.id + ': an altiport is landed uphill - the far end must be higher than end ' + r.approach);
+    return out;
   }
   if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
   if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
@@ -5687,6 +6956,14 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            band: r.band === undefined ? null : r.band, pav: r.pav || null,   // the pavement's (v1.16): the renderer resolves them with the premises' recipe
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null,
+           altiport: !!r.altiport,   // GTRAM: landed uphill and left downhill whatever the wind (43_pilot reads it)
+           // THE TREES ROUND THE STRIP ARE THE RECORD'S (G527.3, contract v1.25): treeBox false - the renderer's generic box
+           // (len/2 + 150 along, wid/2 + 60 across) is not cut; the strip's own box + 30 m and the authored excludes are
+           treeBox: r.treeBox !== false,
+           // THE WAY OUT OF A ONE-WAY STRIP (G527.3, contract v1.25): `departure` names the end the take-off leaves OVER
+           // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
+           // back out over it - the trees close in at the other end
+           takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
 }
 
@@ -5723,14 +7000,7 @@ function placeSite(site, cat, ctx) {
     const oy = ctx.T(c[0], c[1]);
     const ground = (lx, lz) => { const w = toWorld(lx, lz); return ctx.T(w[0], w[1]) - oy; };
     const P = entry.params ? entry.params(it.P || {}) : Object.assign({}, entry.P || {}, it.P || {});
-    P.preset = entry.preset; P.slopeX = 0; P.slopeZ = 0; P.ground = ground;
-    // THE WATER IS WHERE THE ITEM IS, not where the anchor is. `ctx.waterY` is one
-    // number read at the premises' anchor, and on an island that anchor is inland,
-    // so it reads -Infinity (the same trap that stopped a harbour zone sowing,
-    // G434): every pier, float and wharf was then built at -Infinity. A marine
-    // entry lives ON the water and has to be told which water.
-    const wHere = ctx.waterAt ? ctx.waterAt(c[0], c[1]) : ctx.waterY;
-    P.waterY = (isFinite(wHere) ? wHere : ctx.waterY) - oy;
+    P.preset = entry.preset; P.slopeX = 0; P.slopeZ = 0; P.ground = ground; P.waterY = ctx.waterY - oy;
     if (entry.gen === 'BIG_GEN') P.big = 1;
     if (entry.gen === 'HOUSE_GEN') { P.water = 0; P.pier = 0; }
     const size = entry.size ? entry.size(P) : { L: P.L || 8, w: P.w || 6 };
@@ -5751,12 +7021,6 @@ function placeSite(site, cat, ctx) {
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * size.L / 2, sz * size.w / 2));
       if (entry.gen === 'BIG_GEN') { P.floorY = hiC + (it.onRoad ? 0.06 : Math.max(0.3, P.floorY || 0)); if (it.onRoad) P.plinth = 0; }
       else P.floorY = hiC + (P.stance === 0 ? 0.3 : 0.55);
-      // ON A DECK, NOT ON THE GROUND (2026-09-22). A warehouse that stands on a
-      // wharf has no ground under it - the seabed is five metres down - so its
-      // floor is given over the WATER instead, and the composer turns that into
-      // the item's own frame. Metlakatla's packing plant is four sheds on a pile
-      // deck, and without this they all stood on the bottom of the sea.
-      if (isFinite(P.floorOverWater) && isFinite(P.waterY)) P.floorY = P.waterY + P.floorOverWater;
     }
     P.site = site.name || site.id;
     const rec = { id: site.id + '/' + (it.id || ('i' + k)), item: it.id || ('i' + k), site: site.id, key, entry, gen: entry.gen, P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground,
@@ -5872,52 +7136,17 @@ function solveLinks(rec, items, phase, ctx) {
     if (S.needs !== phase) continue;
     const A = byId[(L.from.site || '') + '/' + L.from.item] || items.find(i => i.item === L.from.item);
     const B = byId[(L.to.site || '') + '/' + L.to.item] || items.find(i => i.item === L.to.item);
-    if (!A || !B) { out.push({ link: L, ok: false, issues: ['link ' + L.id + ': an end is missing'] }); continue; }
+    if (!A || !B) {
+      // GTRAM: an end DECLARED on its site but not built is the catalogue's absence (a headless world with no
+      // generators), said as such - the same words the site's own issue uses; an end the record lacks is missing
+      const declared = e => { const st = (rec.layers.sites || []).find(q => q.id === e.site); return !!(st && (st.items || []).some(q => q.id === e.item)); };
+      const why = (!A && declared(L.from)) || (!B && declared(L.to)) ? 'an end is not built (no catalogue entry for its station)' : 'an end is missing';
+      out.push({ link: L, ok: false, issues: ['link ' + L.id + ': ' + why] }); continue;
+    }
     const sol = S.solve(L, A, B, ctx || {});
     for (const id in sol.patch || {}) { const it = items.find(i => i.id === id); if (it) Object.assign(it.P, sol.patch[id]); }
     out.push(Object.assign({ link: L, A, B }, sol));
   }
-  return out;
-}
-
-// ---------------------------------------------------------------------------
-// SMOOTH ROADS (contract v1.19, 2026-09-22)
-// ---------------------------------------------------------------------------
-// A road has always been VERTICALLY smooth - its grade is re-densified every 6 m
-// and run through four 3-tap passes - and horizontally POLYGONAL: polyRoad's
-// tangent is per segment and jumps at every vertex, so pavement.js lays its cross
-// rows on a normal that jumps with it and the ribbon pinches inside a bend and
-// gapes outside. `smooth` rounds the corner instead: a circular fillet of that
-// radius at each interior vertex, cut back when the neighbouring segments are too
-// short to carry it. It is applied ONCE, in compose, before anything reads `pts` -
-// so the ribbon, the grade, the surface strip, the cover query and the traffic all
-// see the same line, and the record keeps the polyline the editor drew.
-function smoothPath(pts, radius) {
-  const R0 = radius === true ? 25 : +radius;
-  if (!(R0 > 0) || !pts || pts.length < 3) return pts;
-  const out = [[pts[0][0], pts[0][1]]];
-  for (let i = 1; i < pts.length - 1; i++) {
-    const p = pts[i], a = pts[i - 1], b = pts[i + 1];
-    const l0 = Math.hypot(a[0] - p[0], a[1] - p[1]), l1 = Math.hypot(b[0] - p[0], b[1] - p[1]);
-    if (l0 < 1e-6 || l1 < 1e-6) continue;
-    const v0 = [(a[0] - p[0]) / l0, (a[1] - p[1]) / l0], v1 = [(b[0] - p[0]) / l1, (b[1] - p[1]) / l1];
-    const ang = Math.acos(Math.max(-1, Math.min(1, v0[0] * v1[0] + v0[1] * v1[1])));
-    if (!(ang > 0.02) || ang > Math.PI - 0.02) { out.push([p[0], p[1]]); continue; }
-    let R = R0, t = R / Math.tan(ang / 2);
-    const tmax = Math.min(l0, l1) * 0.45;
-    if (t > tmax) { t = tmax; R = t * Math.tan(ang / 2); }
-    const P0 = [p[0] + v0[0] * t, p[1] + v0[1] * t], P1 = [p[0] + v1[0] * t, p[1] + v1[1] * t];
-    const bl = Math.hypot(v0[0] + v1[0], v0[1] + v1[1]) || 1;
-    const bis = [(v0[0] + v1[0]) / bl, (v0[1] + v1[1]) / bl];
-    const C = [p[0] + bis[0] * R / Math.sin(ang / 2), p[1] + bis[1] * R / Math.sin(ang / 2)];
-    const a0 = Math.atan2(P0[1] - C[1], P0[0] - C[0]);
-    let da = Math.atan2(P1[1] - C[1], P1[0] - C[0]) - a0;
-    while (da > Math.PI) da -= Math.PI * 2;
-    while (da < -Math.PI) da += Math.PI * 2;
-    const n = Math.max(2, Math.ceil(Math.abs(da) / 0.3));
-    for (let k = 0; k <= n; k++) { const th = a0 + da * k / n; out.push([C[0] + Math.cos(th) * R, C[1] + Math.sin(th) * R]); }
-  }
-  out.push([pts[pts.length - 1][0], pts[pts.length - 1][1]]);
   return out;
 }
 
@@ -5935,9 +7164,7 @@ function compose(rec0, world, opts) {
   // THE ROADS (stage 2): a graded road is a DERIVED grade whose nodes sit on
   // T1, 3-tap smoothed along the profile (WORLD-GEN-PROC stage 3's roadbed
   // rule: flat across, the profile smoothed along); a surface strip of its class
-  // `smooth` (v1.19) is applied HERE, once, so every reader sees the same line
-  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2)
-    .map(r => (r.smooth ? Object.assign({}, r, { pts: smoothPath(r.pts, r.smooth) }) : r));
+  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2);
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
@@ -6017,7 +7244,7 @@ function compose(rec0, world, opts) {
   // THE PAVED POLYGONS (v1.16): a material polygon with a `look` (a pavement class) instead of a set is an
   // apron, a turnaround, a pad - the pavement module draws it, the map never sees it
   const pavePolys = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.look && RUNWAY_LOOKS[m.look] && RUNWAY_LOOKS[m.look].cls)
-    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0 }));
+    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null }));
   const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set && !m.look).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
   const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
@@ -6027,34 +7254,6 @@ function compose(rec0, world, opts) {
   for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) excl.push({ poly: sp.poly, bbox: polyBBox(sp.poly), what: ['trees', 'plots'], derived: true, surface: sp.id });
   // a clear zone is a derived exclude of trees
   for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) excl.push({ poly: z.poly, bbox: polyBBox(z.poly), what: ['trees'], derived: true });
-  // THE TTYPE STAMPS (v1.20): each polygon with the code it stamps. 0 sea and 1 lake are
-  // never overwritten - the water is not a place's to re-classify - and the codes
-  // the ISLAND itself derives (12 cliff, 13 forest old, 14 scrub dense) are not
-  // stamped either: they are a slope and a canopy, not a polygon.
-  const ttypes = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && isFinite(+c.code))
-    .map(c => ({ id: c.id, poly: c.poly, bbox: polyBBox(c.poly), code: Math.round(+c.code),
-                 // `from` (contract v1.22): the codes this stamp is allowed to REPLACE. Without it a
-                 // stamp is flat and paints the bog, the rock and the beach the same as the wood;
-                 // with it, a belt of `forest old` thickens the scrub and the young wood and leaves
-                 // the muskeg a muskeg, which is the difference between a terrain type and a blanket.
-                 from: Array.isArray(c.from) && c.from.length ? c.from.map(v => Math.round(+v)) : null,
-                 // `clear` (contract v1.22): stamp only the cells this premises leaves OPEN -
-                 // no plot, no road ribbon, no site footprint, no paved surface. It is what
-                 // lets a terrain type mean "the ground between the buildings": a residential
-                 // wood may fill a town's gaps without standing a conifer on a roof, because
-                 // the island's own tree fill knows nothing at all about a premises.
-                 clear: c.clear === true,
-                 // `cover` (contract v1.23): the WORLD-COVER class to write beside the
-                 // terrain type. THIS IS THE PIECE THAT MADE A PAINTED BIOME PLANT
-                 // NOTHING. The island's tree fill is gated on `world.surface`, which
-                 // comes from the COVER raster and not from ttype at all - and over a
-                 // town that raster says BUILT, which maps to PAVED, which both
-                 // forestHere and openHere refuse. So a ttype stamp over a town could
-                 // move the ground's texture and could not put one tree on it. Writing
-                 // the cover as well (GRASS, WC 30) lets the fill see open ground and
-                 // the BIOME decide what stands there, which is the whole point of
-                 // painting a terrain type instead of placing trees.
-                 cover: isFinite(+c.cover) ? Math.round(+c.cover) : null }));
   let ext = rec.frame.extent;
   if (!ext) {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -6071,71 +7270,7 @@ function compose(rec0, world, opts) {
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
-    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
-    // THE STAMP: the island's ttype grid is ONE array, read by the tree
-    // walk (render_world's ttypeAt), by the cover ring and by the ground's packed
-    // texture. Writing the code into it once, here, is why one polygon moves the
-    // ground and the vegetation together with no second path. The returned function
-    // puts the old bytes back, so a live edit re-stamps cleanly.
-    stampTtype(isl) {
-      if (!isl || !isl.ttype || !isl.grid || !ttypes.length) return null;
-      const g = isl.grid, T = isl.ttype, saved = [];
-      // the WORLD's island handle renames it (`cover`, not `coverU8`) - read both, or
-      // the write lands on undefined and the surface never moves, which is silent
-      const CV = isl.cover || isl.coverU8 || null, savedC = [];
-      for (const c of ttypes) {
-        const w = [F.toWorld(c.bbox.x0, c.bbox.z0), F.toWorld(c.bbox.x1, c.bbox.z0),
-                   F.toWorld(c.bbox.x1, c.bbox.z1), F.toWorld(c.bbox.x0, c.bbox.z1)];
-        const wx0 = Math.min(w[0][0], w[1][0], w[2][0], w[3][0]), wx1 = Math.max(w[0][0], w[1][0], w[2][0], w[3][0]);
-        const wz0 = Math.min(w[0][1], w[1][1], w[2][1], w[3][1]), wz1 = Math.max(w[0][1], w[1][1], w[2][1], w[3][1]);
-        const i0 = Math.max(0, Math.floor((wx0 - g.x0) / g.cell)), i1 = Math.min(g.w - 1, Math.ceil((wx1 - g.x0) / g.cell));
-        const j0 = Math.max(0, Math.floor((wz0 - g.z0) / g.cell)), j1 = Math.min(g.h - 1, Math.ceil((wz1 - g.z0) / g.cell));
-        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-          const L = F.toLocal(g.x0 + (i + 0.5) * g.cell, g.z0 + (j + 0.5) * g.cell);
-          if (!inPoly(c.poly, L[0], L[1])) continue;
-          const k = j * g.w + i;
-          // `from` (contract v1.22): this stamp may replace only the codes it names
-          if (c.from && c.from.indexOf(T[k]) < 0) continue;
-          if (c.clear) {
-            const cx = g.x0 + (i + 0.5) * g.cell, cz = g.z0 + (j + 0.5) * g.cell;
-            const lc = F.toLocal(cx, cz);
-            // AN EMPTY LOT IS GROUND (the user: "the empty lots and the zones between
-            // houses without roads should have forest biome"). Only a plot that
-            // actually carries a building keeps the paint off it.
-            if (O.records.plots.some(q => q.pick && sdPoly(q.poly, lc[0], lc[1]) < 3)) continue;
-            if (roadObjs.some(rd => roadDist(rd, lc[0], lc[1]) < (rd.w || 3.6) / 2 + 4)) continue;
-            if (O.records.items.some(it => it.foot && sdPoly(it.foot, lc[0], lc[1]) < 4)) continue;   // a foot is in the PREMISES frame, like the roads and the plots
-            if (pavePolys.some(pp => inPoly(pp.poly, lc[0], lc[1]))) continue;
-          }
-          // OPEN WATER IS NOT A PLACE'S TO PAINT - but a MOLE is. A cell the
-          // island calls sea or lake is skipped unless this premises has raised
-          // it clear of the water, which is exactly the breakwater case: the
-          // terrain layer lifts the rubble out of the sea and the cover layer
-          // then has to say `rock`, or the ground is drawn as water four metres
-          // up in the air.
-          if (T[k] < 2) {
-            const wx = g.x0 + (i + 0.5) * g.cell, wz = g.z0 + (j + 0.5) * g.cell;
-            const wl = world.waterH ? world.waterH(wx, wz) : 0;
-            if (!(O.terrainAt(wx, wz) > wl + 0.3)) continue;
-          }
-          saved.push(k, T[k]);
-          T[k] = c.code;
-          // ...but only over the classes the fill REFUSES. Writing it everywhere turned
-          // 391 cells of real forest floor inside the town's envelope into grassland,
-          // which loses the wood the island already had there. BUILT and CROP are the
-          // two that map to PAVED; everything else the fill can already plant on.
-          if (c.cover !== null && CV && (CV[k] === 50 || CV[k] === 40)) { savedC.push(k, CV[k]); CV[k] = c.cover; }
-        }
-      }
-      // BACKWARD, and it matters: two stamps may cover the same cell (a lush verge
-      // crossing another's), and the second one saved what the FIRST had written.
-      // Unwound forward, the cell ends up holding the first stamp's code instead of
-      // the island's own byte - an undo that quietly does not undo.
-      return () => {
-        for (let n = saved.length - 2; n >= 0; n -= 2) T[saved[n]] = saved[n + 1];
-        if (CV) for (let n = savedC.length - 2; n >= 0; n -= 2) CV[savedC[n]] = savedC[n + 1];
-      };
-    },
+    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves,
     terrainH(x, z, h) {
       if (!mods.length) return h;
       const L = F.toLocal(x, z);
@@ -6161,7 +7296,7 @@ function compose(rec0, world, opts) {
     //     grass the zone's grass rule when kind is a plot's (h, density)
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
-    coverAt: (x, z) => coverAt(x, z),
+    coverAt: (x, z, pave) => coverAt(x, z, pave),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -6214,7 +7349,10 @@ function compose(rec0, world, opts) {
     if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
     return -sdPoly(it.poly, lx, lz);
   };
-  function coverAt(x, z) {
+  // `pave` (2026-09-22): the PAVEMENT half only - the caller wants to know whether it may stand
+  // something here, not which plot's lawn it is. It skips the plot walk, which is the query's cost
+  // (36 polygons in a village), and the tree fill calls this on every lattice point of every chunk.
+  function coverAt(x, z, pave) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
@@ -6232,6 +7370,7 @@ function compose(rec0, world, opts) {
       boost = Math.max(boost, bump * 0.7, soft);
       if (d > best) { best = d; cls = it.cls; }
     }
+    if (pave) return (kill || boost) ? { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null } : null;
     let kind = null, grass = null;
     // the plots: a point inside one takes its zone's grass rule
     for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }
@@ -6257,27 +7396,7 @@ function compose(rec0, world, opts) {
       for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12); const v = world.waterH(w[0], w[1]); if (isFinite(v) && v < best) best = v; }
       return isFinite(best) ? best : waterY;
     };
-    // THE WATER THAT REACHES AN ITEM. world.waterH answers with the body that
-    // TOUCHES a point and -Infinity where none does, so a mole whose middle has
-    // been raised out of the sea, or a wharf standing on its own piles, reads no
-    // water at all under itself. Ring-sample outward until some is found: the
-    // nearest water IS the water that thing floats in.
-    const waterAt = (lx, lz) => {
-      if (!world.waterH) return -Infinity;
-      for (const r of [0, 18, 40, 90, 160]) {
-        const n = r ? 8 : 1;
-        let best = -Infinity;
-        for (let k = 0; k < n; k++) {
-          const a = Math.PI * 2 * k / n;
-          const w = F.toWorld(lx + Math.cos(a) * r, lz + Math.sin(a) * r);
-          const v = world.waterH(w[0], w[1]);
-          if (isFinite(v) && v > best) best = v;
-        }
-        if (isFinite(best)) return best;
-      }
-      return -Infinity;
-    };
-    const ctx = { T: O.localH, waterY, waterAt, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
+    const ctx = { T: O.localH, waterY, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
     const cat = catS;
     for (const st of rec.layers.sites) {
@@ -6376,23 +7495,10 @@ function compose(rec0, world, opts) {
       }
       O.n = mods.length;
     }
-    // the tree pool, from a caller that hands the list or the function that makes it
-    // (the renderer passes `o.pool()`, some callers pass `pool: () => []`); planForest
-    // only ever indexed it and never noticed, the garden pass filters it and did
-    const pool = (typeof o.pool === 'function' ? o.pool() : o.pool) || [];
+    const pool = o.pool || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes, plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
       for (const t of planForest(z, Object.assign({}, tctx, { waterY: zoneWaterY(z) }))) O.records.trees.push(t);
-    // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
-    // trees, I want to use the normal tree system, and just paint those zones ... never
-    // any tree as fixture without its lod system, we take the normal ones, maybe alter
-    // the terrain type, let the game do the work"). They were right and the reasoning is
-    // worth keeping: a record tree is ONE THREE.LOD with three hand-built rungs and no
-    // impostor, no instancing, no chunking and no stand card - a poor cousin of the
-    // island's own fill, which has all of it. Painting the terrain type (and, since
-    // v1.23, the cover class with it) puts the same job in the system that was built
-    // for it. `planForest` and the `forest` zone kind remain for a place that genuinely
-    // wants hand-placed trees; nothing on Jolene does.
     // the hand-placed trees (objects of kind 'tree'), in the premises frame, TREE_PLACE's record
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') O.records.trees.push({ x: ob.x, z: ob.z, key: ob.key, size: ob.size || 1, yaw: ob.yaw || 0, sink: 0, h: 12, id: ob.id, placed: true });
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
@@ -6406,6 +7512,19 @@ function compose(rec0, world, opts) {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
       O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
     }
+    // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
+    // `n` animals of the species `key` living within `r` metres of (x, z). One
+    // record makes a herd, a pod or a flock, and `n: 1, r: 0` is one animal
+    // placed by hand. They carry no mesh here: src/viewer/animal_run.js sows
+    // them on the composed ground (and the composed WATER, for a pod), seeded
+    // per individual so adding one never moves the others (rule 5).
+    O.records.animals = [];
+    for (const ob of rec.layers.objects) if (ob.kind === 'animal') {
+      if (!ob.key) { O.records.issues.push('animal ' + ob.id + ': no species'); continue; }
+      O.records.animals.push({ id: ob.id, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0,
+                               y: O.localH(ob.x, ob.z) + (+ob.dy || 0), dy: +ob.dy || 0,
+                               n: Math.max(1, Math.min(24, (+ob.n) | 0 || 1)), r: Math.max(0, +ob.r || 0) });
+    }
     for (const t of O.records.trees) t.y = O.localH(t.x, t.z);
   }
   return O;
@@ -6414,6 +7533,25 @@ function compose(rec0, world, opts) {
 // ---------------------------------------------------------------------------
 // issues — what refuses a commit; checks — what the panel shows and the gate holds
 // ---------------------------------------------------------------------------
+// what a `pav` may carry, checked once for every layer that takes one. A MISSPELT KEY WAS SILENT:
+// resolve() reads the seven knobs it knows and ignores the rest, so `pav: { mark: 'none' }` did
+// nothing and said nothing (the Metlakatla session asked, 2026-09-23)
+function pavIssues(what, pav) {
+  const out = [];
+  if (typeof pav !== 'object') { out.push(what + ': pav is an object of knobs'); return out; }
+  for (const key in pav) if (PAV_KEYS.indexOf(key) < 0) out.push(what + ': pav has no knob `' + key + '` (' + PAV_KEYS.join(', ') + ')');
+  if (pav.marks !== undefined && PAV_MARKS.indexOf(pav.marks) < 0) out.push(what + ': pav.marks is ' + PAV_MARKS.join(' | '));
+  return out;
+}
+function standIssues(what, st) {
+  const out = [];
+  if (typeof st !== 'object' || Array.isArray(st)) { out.push(what + ': stands is an object of numbers'); return out; }
+  for (const key in st) if (STAND_KEYS.indexOf(key) < 0) out.push(what + ': stands has no knob `' + key + '` (' + STAND_KEYS.join(', ') + ')');
+  if (!(+st.n >= 1 && +st.n <= 24)) out.push(what + ': stands.n is 1 to 24');
+  if (st.pitch !== undefined && !(+st.pitch > 0)) out.push(what + ': stands.pitch must be positive');
+  for (const key of ['lead', 'bar']) if (st[key] !== undefined && !(+st[key] > 0)) out.push(what + ': stands.' + key + ' must be positive');
+  return out;
+}
 function issues(rec0) {
   const rec = normalise(rec0);
   const out = [];
@@ -6426,9 +7564,18 @@ function issues(rec0) {
     if (k === 'zones' && e.rules && e.rules.grass && ['lawn', 'meadow', 'none'].indexOf(e.rules.grass.kind) < 0) out.push('zone ' + e.id + ': grass kind is lawn, meadow or none');
     if (k === 'material' && !e.set && !e.look) out.push('material ' + e.id + ': no set and no look');
     if (k === 'material' && e.look && !(RUNWAY_LOOKS[e.look] && RUNWAY_LOOKS[e.look].cls)) out.push('material ' + e.id + ': unknown look ' + e.look);
-    if ((k === 'roads' || k === 'runways' || k === 'material') && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(k.replace(/s$/, '') + ' ' + e.id + ': band must be 0 or more');
-    if ((k === 'roads' || k === 'runways' || k === 'material') && e.pav && typeof e.pav !== 'object') out.push(k.replace(/s$/, '') + ' ' + e.id + ': pav is an object of knobs');
-    if (k === 'roads' && e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push('road ' + e.id + ': unknown look ' + e.look);
+    if (k === 'material' && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push('material ' + e.id + ': band must be 0 or more');
+    if (k === 'material' && e.pav) out.push.apply(out, pavIssues('material ' + e.id, e.pav));
+    if (k === 'material' && e.stands) out.push.apply(out, standIssues('material ' + e.id, e.stands));
+  }
+  // ROADS AND RUNWAYS ARE VALIDATED HERE (2026-09-23): the polygon loop above carried three checks
+  // written `k === 'roads' || k === 'runways'` and never ran over either layer, so a road's band, its
+  // `pav` and its look have gone unchecked since v1.16. They are checked now.
+  for (const k of ['roads', 'runways']) for (const e of rec.layers[k]) {
+    const what = k.replace(/s$/, '') + ' ' + e.id;
+    if (e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(what + ': band must be 0 or more');
+    if (e.pav) out.push.apply(out, pavIssues(what, e.pav));
+    if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   for (const r of rec.layers.runways) {
@@ -6459,16 +7606,11 @@ function issues(rec0) {
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
-  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key'); }
+  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key');
+    if (ob.kind === 'animal') { if (!ob.key) out.push('animal ' + ob.id + ': no species'); if (ob.n !== undefined && (!(+ob.n >= 1) || +ob.n > 24)) out.push('animal ' + ob.id + ': ' + ob.n + ' of them (1 to 24)'); } }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
   for (const L of rec.layers.links) { if (!LINK_SOLVERS[L.kind]) out.push('link ' + L.id + ': unknown kind ' + L.kind); if (!L.from || !L.to || !L.from.item || !L.to.item) out.push('link ' + L.id + ': needs two ends'); }
   const ids = new Set();
-  for (const c of rec.layers.ttype) {
-    if (!c.poly || c.poly.length < 3) out.push('ttype ' + c.id + ': needs a polygon');
-    const code = Math.round(+c.code);
-    if (!isFinite(code) || code < 2 || code > 16) out.push('ttype ' + c.id + ': code ' + c.code + ' is not a terrain type a place may stamp (2..16)');
-    else if (code === 12 || code === 13 || code === 14) out.push('ttype ' + c.id + ': ' + code + ' is DERIVED from slope and canopy, not stamped');
-  }
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
   return out;
 }
@@ -6602,7 +7744,7 @@ function checks(rec0, world, opts) {
     put(ok, ok ? P.length + ' plots sown: none overlap, all in their zone' : why);
   }
   const Tn = O.records.trees;
-  if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || (!t.garden && P.some(p => inPoly(p.poly, t.x, t.z))))), Tn.length + ' trees: none in an exclude, none but a GARDEN tree on a plot');
+  if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || P.some(p => inPoly(p.poly, t.x, t.z)))), Tn.length + ' trees: none in an exclude or a plot');
   // the sites (rules 3 and 9): every item resolved, every link solved
   if (O.records.items.some(i => !i.park) || rec.layers.sites.length) {
     const want = rec.layers.sites.reduce((a, st) => a + (st.items || []).length, 0);
@@ -6635,8 +7777,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', MARINE_GEN: 'marine' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -6669,10 +7811,10 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
@@ -6817,11 +7959,21 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 // 3.00 wraps mod 2^32; JS uses |0 and Math.imul for the same bits).
 //
 //   hash2(ix, iz)                   0..1, the integer hash (the vegetation's)
-//   vnoiseT(u, w, N)                tileable value noise, u,w in [0,1) over
-//                                   ONE period, N cells, smoothstep bilinear
-//   poolAt(x, z, wet, edge)         0 = peat, 1 = open water; the puddles.
-//                                   period POOL.period (400 m), three octaves,
-//                                   threshold 0.66 - 0.30*wet (muskeg wet 0.45);
+//   vnoise(px, pz)                  value noise on an UNBOUNDED lattice, cell 1,
+//                                   smoothstep bilinear. NOTHING HERE TILES any
+//                                   more (2026-09-23): the old vnoiseT wrapped
+//                                   its indices mod N and every field built on it
+//                                   repeated - the puddles every 133 m of ground,
+//                                   the set mask every 150 m, the blotch every
+//                                   1152 m (the shade escaped: its two octaves
+//                                   have coprime periods). A field's SCALE is
+//                                   its cell size; it needs no period at all.
+//   poolAt(x, z, wet, edge)         0 = peat, 1 = open water; the puddles. A warp,
+//                                   three octaves each on its own turned lattice,
+//                                   and a 600 m BASIN field that decides where the
+//                                   ground holds water at all - so they come in
+//                                   packs. 5.4 % of the muskeg, 82 ponds/km2 (was
+//                                   13 % and 725, stamped on a 133 m grid);
 //                                   `edge` half-width in noise units - the
 //                                   vegetation's 0.035 is a 15 m fade, the
 //                                   ground's default is 0.01 (water is a line)
@@ -6858,8 +8010,21 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 const GROUND_FIELDS = (() => {
   // ---- THE TABLE (the vegetation's numbers) ------------------------------
   const C = {
-    pool:   { period: 400, oct: [[5, 0.55, 0.0, 0.0], [11, 0.30, 0.37, 0.11], [23, 0.15, 0.71, 0.53]],   // [cells, weight, du, dw]
-              thr0: 0.66, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
+    // THE PUDDLES, rebuilt 2026-09-23 (the user, on four aerial shots of the muskeg: "your algorithm for
+    // generating puddles ... produces results which you can clearly see the repetition ... there should be
+    // less of them, and you should really do something so no grid pattern shows"). Four parts:
+    //   oct    [cells per period, weight, ROTATION rad, du, dw] - each octave on its OWN turned lattice, so
+    //          no two share an axis and the sum has no grid to show; the low one carries the pond (period /
+    //          3.2 = 125 noise units = 42 m of ground), the others only rough up its outline
+    //   warp   a slow drift of the domain before the octaves are read: the outline stops being a blob
+    //   basin  WHERE THE GROUND HOLDS WATER AT ALL - a 600 m field that moves the threshold, so ponds come
+    //          in packs with dry muskeg between them instead of an even sprinkle (the user's "less of them")
+    //          - 35 % of 200 m blocks now hold no water at all, against 0 % before
+    //   thr0   0.92 of a field of mean 0.50, sd 0.144: only the tall humps become water. MEASURED on the
+    pool:   { period: 400, oct: [[3.2, 0.68, 0.0, 0.0, 0.0], [7.5, 0.22, 0.9273, 0.37, 0.11], [17, 0.10, 2.1588, 0.71, 0.53]],   // [cells, weight, rot, du, dw]
+              warp:  { cells: 2.3, amp: 0.22, off: [3.11, 7.53, 9.27, 1.87] },
+              basin: { cells: 0.22, rot: 1.4234, off: [5.41, 2.19], k: 0.45 },
+              thr0: 0.92, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
     mix:    { period: 160, oct: [[6, 0.5, 0.0, 0.0], [12, 0.25, 0.3, 0.7], [24, 0.125, 0.6, 0.2], [48, 0.0625, 0.1, 0.9]], norm: 0.9375,
               rot: [0.62, -0.78, 0.78, 0.62], scale2: 0.41, off2: [0.37, 0.71], w1: 0.65, w2: 0.35, bias: 0.52, biasMuskeg: 0.60, sharp: 4 },
     blotch: { cellM: 18, cells: 64, amount: 0.6 },
@@ -6887,19 +8052,9 @@ const GROUND_FIELDS = (() => {
       12: { tex: ['cliff', 'rocksA', null],    scale: [7, 79, 0],   far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [40, 3, 0, 0],       vary: [2, 0.08, 40], para: 1 },
       13: { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.3, 0],    vary: [5, 0.12, 30], para: 0.3 },
       14: { tex: ['grassRock', 'grass', 'rockyA'], scale: [15, 4, 90], far: ['grassRock', null, 'rockyA'],     farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25], para: 0.2 },   // 2026-09-21: the lush lawn out here too
-      // 15 LUSH (METLAKATLA, 2026-09-22): the bright green that borders a road cut and fills an old clearing -
-      // alder and salmonberry on drained ground, not the moor. It is the ONE terrain type the island's raster
-      // does not carry: a premises `cover` polygon stamps it in (27_premises.js), which is why the `lush` set
-      // (library index 12) was sitting unused since it left codes 3/7/14 on 2026-09-21. Its biome is `borders`.
-      15: { tex: ['lush', 'grass', 'grassRock'], scale: [2.4, 2.4, 15], far: ['grassRock', null, 'grassRock'], farScale: [15, 0, 15], mix: [22, 3, 0.05, -0.15], vary: [10, 0.18, 22], para: 0.2 },
-      // 16 RESIDENTIAL (the user, 2026-09-23): the ground between a town's plots - the
-      // forest floor's own aerial, worn thinner where feet and wheels cross it, with the
-      // dirt of a yard showing through. It is NOT `built`: built is a yard, this is the
-      // wood that never left, and its trees are the `residential` mix.
-      16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [81, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
     },
     // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
-    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees' },
+    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense' },
     knobs: {
       cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,
@@ -6907,6 +8062,11 @@ const GROUND_FIELDS = (() => {
       hDepth: 0.2, seamDepth: 0.45, hexOn: 1, hexN: 2, hexRot: 180, nrmK: 1, specK: 0.6,
       sheen: 1,   // the GAME's lever on the sets' roughness (the near ring is a Standard material, 2026-09-21): 1 = the sets' own, 0 = matte (specK is the bench's Blinn strength)
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
+      // THE POND FROM THE AIR (2026-09-23, the user at 400 m: "they look like speckles on a surface, not like
+      // puddles"): pudFar widens the shore with distance (0 = the old hard rim; 6 = pudEdge x 7 by 500 m, so
+      // 1.33 m of shore becomes 9.3 m and survives a pixel), pudRim is where the OPEN water starts in the mask
+      // (under it the ground goes dark and wet but keeps its roughness - only the middle of a pond is a mirror)
+      pudFar: 12, pudRim: 0.65, pudWet: 0.62,   // pudWet: how dark the margin's wet ground goes (1 = dry, 0 = black); both pudRim and pudFar scale with distance and are 0 at the eye
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
@@ -6943,44 +8103,64 @@ const GROUND_FIELDS = (() => {
     n = Math.imul(n ^ (n >>> 13), 1274126177);
     return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
   }
-  // tileable value noise over one period: u, w in [0, 1), N cells
-  function vnoiseT(u, w, N) {
-    u = u - Math.floor(u); w = w - Math.floor(w);
-    const fu = u * N, fw = w * N;
-    const iu = Math.floor(fu), iw = Math.floor(fw);
-    let tu = fu - iu, tw = fw - iw;
+  // VALUE NOISE ON AN UNBOUNDED LATTICE - cell = 1 in its own coordinates.
+  // (2026-09-23) It replaces vnoiseT, which wrapped its lattice indices mod N
+  // and so REPEATED: the puddles every 133 m of ground, the set mask every 150 m,
+  // the blotch every 1152 m, the shade every 512-1600 m. Measured before the
+  // change: 100 % of points bit-identical one 133 m tile away, in x AND in z -
+  // the stamped grid the user saw from the air. Nothing here needs a period; the
+  // wrap was only ever how the primitive was written. OFS keeps every index
+  // positive (|index| < 16384 cells) so no int->uint conversion is ever asked to
+  // carry a negative - the JS and the GLSL must give the same bits.
+  const OFS = 16384;
+  function vnoise(px, pz) {
+    const iu = Math.floor(px), iw = Math.floor(pz);
+    let tu = px - iu, tw = pz - iw;
     tu = tu * tu * (3 - 2 * tu); tw = tw * tw * (3 - 2 * tw);
-    const i0 = iu % N, i1 = (iu + 1) % N, j0 = iw % N, j1 = (iw + 1) % N;
-    const a = hash2(i0, j0), b = hash2(i1, j0), c = hash2(i0, j1), d = hash2(i1, j1);
+    const i0 = iu + OFS, j0 = iw + OFS;
+    const a = hash2(i0, j0), b = hash2(i0 + 1, j0), c = hash2(i0, j0 + 1), d = hash2(i0 + 1, j0 + 1);
     return (a + (b - a) * tu) + ((c + (d - c) * tu) - (a + (b - a) * tu)) * tw;
   }
-  const fbmT = (u, w, oct) => { let n = 0; for (const [N, k, du, dw] of oct) n += k * vnoiseT(u + du, w + dw, N); return n; };
+  // an fbm whose octave table is [cells per period, weight, du, dw]: the cells
+  // are what set the feature size, exactly as they did when the period existed
+  const fbm = (u, w, oct) => { let n = 0; for (const [N, k, du, dw] of oct) n += k * vnoise(u * N + du, w * N + dw); return n; };
   const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
   const smooth = t => t * t * (3 - 2 * t);
 
   // ---- the fields --------------------------------------------------------
   function poolAt(x, z, wet, edge) {
-    const P = C.pool, e = edge === undefined ? P.edgeGround : edge;
-    const n = fbmT(x / P.period, z / P.period, P.oct);
-    const thr = P.thr0 - P.thrWet * wet;
+    const P = C.pool, W = P.warp, B = P.basin, e = edge === undefined ? P.edgeGround : edge;
+    const u0 = x / P.period, w0 = z / P.period;
+    // the warp first, from the UNWARPED point on both axes (or the two axes
+    // would not be the same field read twice, and the JS/GLSL pair must match)
+    const u = u0 + W.amp * (vnoise(u0 * W.cells + W.off[0], w0 * W.cells + W.off[1]) - 0.5);
+    const w = w0 + W.amp * (vnoise(u0 * W.cells + W.off[2], w0 * W.cells + W.off[3]) - 0.5);
+    let n = 0;
+    for (const [N, k, rot, du, dw] of P.oct) {
+      const c = Math.cos(rot), sn = Math.sin(rot);
+      n += k * vnoise((c * u - sn * w) * N + du, (sn * u + c * w) * N + dw);
+    }
+    const bc = Math.cos(B.rot), bs = Math.sin(B.rot);
+    const d = vnoise((bc * u - bs * w) * B.cells + B.off[0], (bs * u + bc * w) * B.cells + B.off[1]);
+    const thr = P.thr0 - P.thrWet * wet + B.k * (0.5 - d);   // dry ground asks a taller hump
     return smooth(clamp01((n - (thr - e)) / (2 * e)));
   }
   function mixK(x, z, period, bias, sharp) {
     const M = C.mix;
     const u = x / period, w = z / period;
     const u2 = (M.rot[0] * u + M.rot[1] * w) * M.scale2 + M.off2[0], w2 = (M.rot[2] * u + M.rot[3] * w) * M.scale2 + M.off2[1];
-    const n = (M.w1 * fbmT(u, w, M.oct) + M.w2 * fbmT(u2, w2, M.oct)) / M.norm;
+    const n = (M.w1 * fbm(u, w, M.oct) + M.w2 * fbm(u2, w2, M.oct)) / M.norm;
     return clamp01((n - bias) * sharp + 0.5);
   }
   function blotch(x, z, seed) {
-    const B = C.blotch, L = B.cellM * B.cells;
-    return 1 - B.amount * (0.5 + 0.5 * vnoiseT(x / L + (seed % 13) / 13, z / L + (seed % 7) / 7, B.cells));
+    const B = C.blotch;   // the cell is the cell now - B.cells was the wrap, and the wrap is gone
+    return 1 - B.amount * (0.5 + 0.5 * vnoise(x / B.cellM + (seed % 13) * 5, z / B.cellM + (seed % 7) * 7));
   }
   // the colour swing: two octaves of the same noise, decorrelated, -1..1 each
   function shade(x, z, cell) {
-    const S = C.shade, c = Math.max(cell, 1), L = c * 64, L2 = c * S.scaleB * 64;
-    const h = (S.octA * vnoiseT(x / L + S.offH[0], z / L + S.offH[0] * 0.5, 64) + S.octB * vnoiseT(x / L2 + S.offH[1], z / L2, 64)) * 2 - 1;
-    const v = (S.octA * vnoiseT(x / L + S.offV[0], z / L + S.offV[0] * 0.5, 64) + S.octB * vnoiseT(x / L2 + S.offV[1], z / L2, 64)) * 2 - 1;
+    const S = C.shade, c = Math.max(cell, 1), L2 = c * S.scaleB;
+    const h = (S.octA * vnoise(x / c + S.offH[0] * 64, z / c + S.offH[0] * 32) + S.octB * vnoise(x / L2 + S.offH[1] * 64, z / L2)) * 2 - 1;
+    const v = (S.octA * vnoise(x / c + S.offV[0] * 64, z / c + S.offV[0] * 32) + S.octB * vnoise(x / L2 + S.offV[1] * 64, z / L2)) * 2 - 1;
     return { hue: h, value: v };
   }
   // a turn of a colour about the grey axis (Rodrigues on (1,1,1)/sqrt3) - the
@@ -7017,26 +8197,25 @@ const GROUND_FIELDS = (() => {
     n = (n ^ (n >> 13u)) * 1274126177u;
     return float(n ^ (n >> 16u)) / 4294967296.0;
   }
-  float gfVnoiseT(float u, float w, int N){
-    u = u - floor(u); w = w - floor(w);
-    float fu = u * float(N), fw = w * float(N);
-    int iu = int(floor(fu)), iw = int(floor(fw));
-    float tu = fu - float(iu), tw = fw - float(iw);
+  float gfVnoise(float px, float pz){
+    int iu = int(floor(px)), iw = int(floor(pz));
+    float tu = px - float(iu), tw = pz - float(iw);
     tu = tu * tu * (3.0 - 2.0 * tu); tw = tw * tw * (3.0 - 2.0 * tw);
-    int i0 = iu % N, i1 = (iu + 1) % N, j0 = iw % N, j1 = (iw + 1) % N;
-    float a = gfHash2(i0, j0), b = gfHash2(i1, j0), c = gfHash2(i0, j1), d = gfHash2(i1, j1);
+    int i0 = iu + ${OFS}, j0 = iw + ${OFS};
+    float a = gfHash2(i0, j0), b = gfHash2(i0 + 1, j0), c = gfHash2(i0, j0 + 1), d = gfHash2(i0 + 1, j0 + 1);
     return (a + (b - a) * tu) + ((c + (d - c) * tu) - (a + (b - a) * tu)) * tw;
   }
-  float gfPoolNoise(float u, float w){
-    return ${C.pool.oct.map(([N, k, du, dw]) => `${k.toFixed(4)} * gfVnoiseT(u + ${du.toFixed(4)}, w + ${dw.toFixed(4)}, ${N})`).join(' + ')};
-  }
   float gfPoolAt(vec2 xz, float wet, float edge){
-    float n = gfPoolNoise(xz.x / ${C.pool.period.toFixed(1)}, xz.y / ${C.pool.period.toFixed(1)});
-    float thr = ${C.pool.thr0.toFixed(4)} - ${C.pool.thrWet.toFixed(4)} * wet;
+    float u0 = xz.x / ${C.pool.period.toFixed(1)}, w0 = xz.y / ${C.pool.period.toFixed(1)};
+    float u = u0 + ${C.pool.warp.amp.toFixed(4)} * (gfVnoise(u0 * ${C.pool.warp.cells.toFixed(4)} + ${C.pool.warp.off[0].toFixed(4)}, w0 * ${C.pool.warp.cells.toFixed(4)} + ${C.pool.warp.off[1].toFixed(4)}) - 0.5);
+    float w = w0 + ${C.pool.warp.amp.toFixed(4)} * (gfVnoise(u0 * ${C.pool.warp.cells.toFixed(4)} + ${C.pool.warp.off[2].toFixed(4)}, w0 * ${C.pool.warp.cells.toFixed(4)} + ${C.pool.warp.off[3].toFixed(4)}) - 0.5);
+    float n = ${C.pool.oct.map(([N, k, rot, du, dw]) => `${k.toFixed(4)} * gfVnoise((${Math.cos(rot).toFixed(6)} * u - ${Math.sin(rot).toFixed(6)} * w) * ${N.toFixed(4)} + ${du.toFixed(4)}, (${Math.sin(rot).toFixed(6)} * u + ${Math.cos(rot).toFixed(6)} * w) * ${N.toFixed(4)} + ${dw.toFixed(4)})`).join('\n      + ')};
+    float d = gfVnoise((${Math.cos(C.pool.basin.rot).toFixed(6)} * u - ${Math.sin(C.pool.basin.rot).toFixed(6)} * w) * ${C.pool.basin.cells.toFixed(4)} + ${C.pool.basin.off[0].toFixed(4)}, (${Math.sin(C.pool.basin.rot).toFixed(6)} * u + ${Math.cos(C.pool.basin.rot).toFixed(6)} * w) * ${C.pool.basin.cells.toFixed(4)} + ${C.pool.basin.off[1].toFixed(4)});
+    float thr = ${C.pool.thr0.toFixed(4)} - ${C.pool.thrWet.toFixed(4)} * wet + ${C.pool.basin.k.toFixed(4)} * (0.5 - d);
     return smoothstep(0.0, 1.0, clamp((n - (thr - edge)) / (2.0 * edge), 0.0, 1.0));
   }
   float gfMixNoise(float u, float w){
-    return (${C.mix.oct.map(([N, k, du, dw]) => `${k.toFixed(4)} * gfVnoiseT(u + ${du.toFixed(4)}, w + ${dw.toFixed(4)}, ${N})`).join(' + ')}) / ${C.mix.norm.toFixed(4)};
+    return (${C.mix.oct.map(([N, k, du, dw]) => `${k.toFixed(4)} * gfVnoise(u * ${N.toFixed(1)} + ${du.toFixed(4)}, w * ${N.toFixed(1)} + ${dw.toFixed(4)})`).join(' + ')}) / ${C.mix.norm.toFixed(4)};
   }
   float gfMixK(vec2 xz, float period, float bias, float sharp){
     float u = xz.x / period, w = xz.y / period;
@@ -7046,13 +8225,13 @@ const GROUND_FIELDS = (() => {
     return clamp((n - bias) * sharp + 0.5, 0.0, 1.0);
   }
   float gfBlotch(vec2 xz, int seed){
-    float L = ${(C.blotch.cellM * C.blotch.cells).toFixed(1)};
-    return 1.0 - ${C.blotch.amount.toFixed(4)} * (0.5 + 0.5 * gfVnoiseT(xz.x / L + float(seed % 13) / 13.0, xz.y / L + float(seed % 7) / 7.0, ${C.blotch.cells}));
+    float L = ${C.blotch.cellM.toFixed(1)};
+    return 1.0 - ${C.blotch.amount.toFixed(4)} * (0.5 + 0.5 * gfVnoise(xz.x / L + float(seed % 13) * 5.0, xz.y / L + float(seed % 7) * 7.0));
   }
   vec2 gfShade(vec2 xz, float cell){
-    float c = max(cell, 1.0), L = c * 64.0, L2 = c * ${C.shade.scaleB.toFixed(4)} * 64.0;
-    float h = (${C.shade.octA.toFixed(4)} * gfVnoiseT(xz.x / L + ${C.shade.offH[0].toFixed(4)}, xz.y / L + ${(C.shade.offH[0] * 0.5).toFixed(4)}, 64) + ${C.shade.octB.toFixed(4)} * gfVnoiseT(xz.x / L2 + ${C.shade.offH[1].toFixed(4)}, xz.y / L2, 64)) * 2.0 - 1.0;
-    float v = (${C.shade.octA.toFixed(4)} * gfVnoiseT(xz.x / L + ${C.shade.offV[0].toFixed(4)}, xz.y / L + ${(C.shade.offV[0] * 0.5).toFixed(4)}, 64) + ${C.shade.octB.toFixed(4)} * gfVnoiseT(xz.x / L2 + ${C.shade.offV[1].toFixed(4)}, xz.y / L2, 64)) * 2.0 - 1.0;
+    float c = max(cell, 1.0), L2 = c * ${C.shade.scaleB.toFixed(4)};
+    float h = (${C.shade.octA.toFixed(4)} * gfVnoise(xz.x / c + ${(C.shade.offH[0] * 64).toFixed(4)}, xz.y / c + ${(C.shade.offH[0] * 32).toFixed(4)}) + ${C.shade.octB.toFixed(4)} * gfVnoise(xz.x / L2 + ${(C.shade.offH[1] * 64).toFixed(4)}, xz.y / L2)) * 2.0 - 1.0;
+    float v = (${C.shade.octA.toFixed(4)} * gfVnoise(xz.x / c + ${(C.shade.offV[0] * 64).toFixed(4)}, xz.y / c + ${(C.shade.offV[0] * 32).toFixed(4)}) + ${C.shade.octB.toFixed(4)} * gfVnoise(xz.x / L2 + ${(C.shade.offV[1] * 64).toFixed(4)}, xz.y / L2)) * 2.0 - 1.0;
     return vec2(h, v);
   }
   vec3 gfHueTurn(vec3 c, float a){
@@ -7068,7 +8247,7 @@ const GROUND_FIELDS = (() => {
     return isFinite(a + b + c + d.hue + d.value) && a >= 0 && a <= 1 && b >= 0 && b <= 1 && c >= 0 && c <= 1;
   }
 
-  return { C, RECIPE, CODES, hash2, vnoiseT, poolAt, mixK, blotch, shade, hueTurn, deriveCode, groundColor, glsl, selfCheck };
+  return { C, RECIPE, CODES, hash2, vnoise, poolAt, mixK, blotch, shade, hueTurn, deriveCode, groundColor, glsl, selfCheck };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = GROUND_FIELDS;
 // ===========================================================================
@@ -7101,10 +8280,7 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 'use strict';
 const BIOMES = (() => {
   const KNOBS = { cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5 };
-  // 15 LUSH is AUTHORED, not classified: a premises `cover` polygon stamps it into the island's ttype grid
-  // (the route BIOMES-IN-GAME-2026-09-20 L5 proposed), and it carries the `borders` mix - the deciduous
-  // shrubs, holly, raspberry and the odd birch that had been left orphaned when 7 and 14 were re-pointed.
-  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees' };
+  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense' };
   const smooth = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / Math.max(1e-6, hi - lo))); return t * t * (3 - 2 * t); };
   function make(pack, opts) {
     const src = (pack && pack.biomes) || {};
@@ -13195,11 +14371,23 @@ function makePilot(sim, def, world, opts) {
     return A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * gGrade;
   };
   const stopDist = v => v * v / (2 * Math.max(0.5, aStopOf())) + v * 1.0;
+  // THE RESERVE IS THE FIELD'S (G531): the style's 120/80/50 m past the Vr
+  // point is a long runway's margin, and no strip under ~230 m could pass it
+  // - on East Point's 150 m of gravel the cub was condemned at 6 m/s by a
+  // run it makes (lift-off 104 m into 112 m ahead, measured with every rule
+  // off). Under 300 m it falls with the square of the length: half the
+  // strip, a quarter of the margin (150 m: 30 / 20 / 12.5 m, so the cautious
+  // pilot still refuses a field at the aeroplane's limit). Every strip of
+  // 300 m and more keeps the style's number to the bit.
+  const reserveOf = () => {
+    const L = ap.route.from.len || 1100;
+    return L >= 300 ? ST.reserve : ST.reserve * (L / 300) * (L / 300);
+  };
   // the run a take-off needs from a standstill: most of the sheet's roll
   // (Vr is reached before the sheet's lift-off point), the stop from Vr, the
   // reserve — the SAME arithmetic the roll rejects with, so the planner and
   // the judge never disagree
-  const runNeeded = () => ST.needK * (0.85 * (A.TORun ?? 500) + stopDist(A.VRot || 18) + ST.reserve);
+  const runNeeded = () => ST.needK * (0.85 * (A.TORun ?? 500) + stopDist(A.VRot || 18) + reserveOf());
 
   // ---- frames -------------------------------------------------------------
   // The landing/departure frame is the test pilot's: origin td + 450 u so the
@@ -13234,6 +14422,11 @@ function makePilot(sim, def, world, opts) {
     box: { on: false, lat: null, vert: null, thr: null, sel: {}, resume: null },
     nav: null,
     budget: 600, style: ST.name, legs: null, legI: 0, path: null, pathI: 0, plan: null,
+    // THE SHEET, PUBLISHED (CLIMATE K3). The header has said since P0.4 that it
+    // is "published as ap.sheet for the panel and the planner to come" and it
+    // never was - the panel came (the netto variometer reads its polar), so it
+    // is published now, lazily, through the same memo the pilot uses.
+    get sheet() { return sheetOf(); },
   };
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
@@ -13329,7 +14522,7 @@ function makePilot(sim, def, world, opts) {
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
-  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false;
+  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0;
   let gearH = null, onGT = 0;             // P0.8: the CG's rest height above the terrain; the contact's duration
@@ -13458,12 +14651,19 @@ function makePilot(sim, def, world, opts) {
       let pref = [px, pz];
       // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction
       if (typeof a.landHdg === 'number') pref = [Math.cos(a.landHdg), Math.sin(a.landHdg)];
-      const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number');
+      // GTRAM: an ALTIPORT is landed uphill and LEFT DOWNHILL - its one way reverses for the take-off
+      if (typeof a.landHdg === 'number' && a.altiport && mode === 'takeoff') pref = [-pref[0], -pref[1]];
+      // G527.3: a strip that names its way out (runway `departure`) is left that way in calm air
+      const tko = mode === 'takeoff' && typeof a.takeoffHdg === 'number';
+      if (tko) pref = [Math.cos(a.takeoffHdg), Math.sin(a.takeoffHdg)];
+      const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number' || tko);
       ap.dirWhy = sc.why[sc.k];
       return M.dir[sc.k].u.slice();
     }
     let dx = px, dz = pz;
-    if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    if (a.altiport && typeof a.landHdg === 'number') { const k = mode === 'takeoff' ? -1 : 1; dx = k * Math.cos(a.landHdg); dz = k * Math.sin(a.landHdg); }   // GTRAM: whatever the wind
+    else if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    else if (mode === 'takeoff' && typeof a.takeoffHdg === 'number') { dx = Math.cos(a.takeoffHdg); dz = Math.sin(a.takeoffHdg); }   // G527.3: the named way out, in calm air
     else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
@@ -13498,6 +14698,15 @@ function makePilot(sim, def, world, opts) {
     const t = world.terrainH(x, z);
     const w = (typeof world.waterH === 'function') ? world.waterH(x, z) : -Infinity;
     return w > t ? w : t;
+  };
+  // GTRAM: THE ALTIPORT'S SLOPE - the grade the aeroplane lands ONTO (uphill along the landing frame,
+  // read off the ground 20 m either side of the aim) and the height above that slope's line; 0 and
+  // aglG on every other strip, so nothing else flies differently
+  const altiGrade = () => {
+    const to = ap.route && ap.route.to;
+    if (!to || !to.altiport || !world || typeof world.terrainH !== 'function' || !ap.frame) return 0;
+    const P1 = wp(ap.frame, ap.xAim + 20, 0), P0 = wp(ap.frame, ap.xAim - 20, 0);
+    return Math.max(0, (groundH(P1[0], P1[1]) - groundH(P0[0], P0[1])) / 40);
   };
   const aimAlt = () => {
     if (!world || typeof world.terrainH !== 'function' || !ap.frame) return ap.refAlt;
@@ -13731,7 +14940,8 @@ function makePilot(sim, def, world, opts) {
     const sgN = (nose[0] * d0[0] + nose[1] * d0[1]) >= 0 ? 1 : -1;
     const ahead = from.len / 2 - sgN * along;
     const enough = !onStrip || ahead >= need;                     // the run ahead of the nose suffices
-    if (siteModelOf(from)) t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff');
+    if (from.altiport && typeof from.landHdg === 'number') t = [-snap(Math.cos(from.landHdg)), -snap(Math.sin(from.landHdg))];   // GTRAM: an altiport is left downhill, whatever the wind
+    else if (siteModelOf(from)) t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff');
     else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1]);
     else if (enough) t = [d0[0] * sgN, d0[1] * sgN];
     else t = [-d0[0] * sgN, -d0[1] * sgN];
@@ -14576,7 +15786,7 @@ function makePilot(sim, def, world, opts) {
           cond('height', Math.round(aglG), 0, aglG > 0, 'm'),
           cond('airspeed', V, vbg, Math.abs(V - vbg) < 2, 'm/s')]);
         if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
-          go('FLARE'); thFlare0 = th; SEL.deadThr = false;
+          go('FLARE'); thFlare0 = th; SEL.deadThr = false; altG = 0;
           flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5);
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
@@ -14742,7 +15952,7 @@ function makePilot(sim, def, world, opts) {
         const left = runwayLeft();
         const vr = A.VRot || 18;
         const avail = ap.route.from.len || 1100;
-        const sd = stopDist(V);
+        const sd = stopDist(V), resv = reserveOf();   // G531: the field's reserve
         // THE ACCELERATE-STOP CALL, and V1. While a stop on the strip is still
         // possible (left − sd ≥ reserve) any of five rules rejects, each said
         // with its numbers: the measured acceleration cannot reach Vr in what
@@ -14755,7 +15965,7 @@ function makePilot(sim, def, world, opts) {
         // ends under an aeroplane still rolling is a rejection with the fence
         // in it, said as such.
         let reject = null;
-        const canStopHere = left - sd >= ST.reserve;
+        const canStopHere = left - sd >= resv;
         // G396.4: THE HUMP IS NOT A FAILED RUN. A seaplane at the hump reads
         // 0.1 m/s^2 for twenty seconds and then planes (the single 582:
         // 8.5 m/s from t 10 to 22, on the step at 24, unstuck at 35); the
@@ -14768,12 +15978,25 @@ function makePilot(sim, def, world, opts) {
           // build read a third of its true acceleration and was condemned —
           // the Tiger Moth-alike on a hot day, 0.10 m/s^2 against 0.3 real
           if (V < vr && phaseT > 7 && accF > 0.02 && !atHump) {
-            const dVr = (vr * vr - V * V) / (2 * accF);
+            // GTRAM: LEFT DOWNHILL, THE SLOPE STILL TO COME PULLS TOO - off an altiport's flat top the measured
+            // acceleration is the top's; the grade of the run that is left (less the grade already under the
+            // wheels, which accF has) adds g x grade (the C172 was condemned at 12 m/s on the flat with the 10 %
+            // ahead of it). Every other strip: 0
+            let accX = 0;
+            if (ap.route.from.altiport && ap.takeoffDir && world && typeof world.terrainH === 'function') {
+              const T = ap.takeoffDir, ex = cg[0] + T[0] * left, ez = cg[2] + T[1] * left;
+              const gAhead = (groundH(cg[0], cg[2]) - groundH(ex, ez)) / Math.max(20, left);
+              accX = 9.81 * Math.max(0, gAhead + gGrade);
+            }
+            const dVr = (vr * vr - V * V) / (2 * (accF + accX));
             // P1.C short: the take-off must FIT, the stop is not asked (the
             // accelerate-stop is the long strip's luxury; on 340 m of gravel
             // the cub rejected at 7 s a run the sheet says it makes)
-            const shortT = ap.dep && ap.dep.technique === 'short';
-            if (dVr > left - (shortT ? 0 : stopDist(vr)) - ST.reserve)
+            // GTRAM: an ALTIPORT's departure is committed at brake release (the stop after Vr is asked on no slope:
+            // on 10 % of downhill grass it is longer than the strip, and the cub was condemned needing 33 m of 227)
+            const shortT = (ap.dep && ap.dep.technique === 'short') || !!ap.route.from.altiport;
+            // GTRAM: an altiport's low end is the mountain falling away, not a fence - the run may use it all
+            if (dVr > left - (shortT ? 0 : stopDist(vr)) - (ap.route.from.altiport ? 0 : resv))
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +
                        Math.round(dVr) + ' m more, ' + Math.round(left) + ' m left';
           }
@@ -14807,14 +16030,14 @@ function makePilot(sim, def, world, opts) {
           // 17.3 of 18.7 m/s with 217 m left, the C172 at 19.3 of 20.4 with
           // 249 m — both a second from flying
           const dVr = accF > 0.02 ? (vr * vr - V * V) / (2 * accF) : Infinity;
-          if (dVr > left - ST.reserve)
+          if (dVr > left - (ap.route.from.altiport ? 0 : resv))   // GTRAM: an altiport's low end falls away (the rule above)
             reject = 'out of runway: ' + Math.round(left) + ' m left, Vr in ' + (isFinite(dVr) ? Math.round(dVr) + ' m' : 'no distance (not accelerating)') +
                      ', V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
           else if (!committedTO) {
             committedTO = true;
             say('committed-takeoff', 'past the point of stopping at V=' + V.toFixed(1) + ' with ' + Math.round(left) + ' m left — Vr in ' + Math.round(dVr) + ' m, continuing');
           }
-        } else if (left < 0) {
+        } else if (left < 0 && !(ap.route.from.altiport && V >= vr)) {   // GTRAM: past an altiport's end at Vr the ground falls away under a flying aeroplane
           reject = 'ran off the end at V=' + V.toFixed(1) + ' still on the wheels — will not unstick';
         } else if (!committedTO) {
           committedTO = true;
@@ -14822,7 +16045,7 @@ function makePilot(sim, def, world, opts) {
         }
         setStatus('accelerating to rotation speed', [
           cond('airspeed', V, vr, V >= vr, 'm/s'),
-          cond('runway left', Math.round(left), Math.round(sd + ST.reserve), left - sd >= ST.reserve, 'm'),
+          cond('runway left', Math.round(left), Math.round(sd + resv), left - sd >= resv, 'm'),
           cond('accel', accF, 0.08, accF >= 0.08, 'm/s²')]);
         if (reject) {
           say('rejected-takeoff', reject);
@@ -15204,7 +16427,11 @@ function makePilot(sim, def, world, opts) {
         if (ap.t - finalT0 > 240 && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G381: the hold-off begins 1.3x higher than the ramp did — it has a
         // sink to arrest AND a speed to bleed, and the pull takes a second to bite
-        if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
+        // GTRAM: onto an altiport's slope the height is over the SLOPE'S LINE through the aim, and the
+        // round-out begins a second of the rising ground earlier - the path turns from down to up
+        altG = altiGrade();
+        const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
+        if (hFl < (A.flareK ?? 1.3) * A.flareAgl + altG * V) {
           go('FLARE'); thFlare0 = th;
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
@@ -15213,6 +16440,7 @@ function makePilot(sim, def, world, opts) {
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
           flCap = Math.max(flCap, thFlare0 + 0.03);
+          if (altG > 0) flCap += Math.atan(altG);   // GTRAM: the attitude on the slope is the slope's more
           flI = 0; flVsF = vcg[1];
         }
         break;
@@ -15265,7 +16493,10 @@ function makePilot(sim, def, world, opts) {
           // beats a stall from a metre
           const vr = A.VRot || 18;
           const sinkF = (A.flareSink ?? 0.35) + 0.35 * clamp((1.15 * vr - V) / (0.10 * vr), 0, 1);
-          const vsC = -Math.max(sinkF, Math.max(0, aglG) / flTau);
+          // GTRAM: onto an altiport the sink is asked RELATIVE TO THE SLOPE - the ground rises at grade x
+          // the ground speed under the aeroplane, so the path must climb that much, and on power (below)
+          const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
+          const vsC = -Math.max(sinkF, Math.max(0, hFl) / flTau) + altG * Math.hypot(vcg[0], vcg[2]);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
           const deSat = aDe > 0.30;
@@ -15274,7 +16505,8 @@ function makePilot(sim, def, world, opts) {
           // the pull: a firmer inner loop and the rotation's integrator authority
           pitchK = A.flarePK ?? 2.0; pitchDK = A.flareDK ?? 1.0;
           IthMaxT = A.rotateIMax ?? 0.30; IthGain = A.flareIth ?? 0.4;
-          engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
+          if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
+          else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
         if (onG > 0) {
           go('ROLLOUT');
@@ -15424,6 +16656,8 @@ function makePilot(sim, def, world, opts) {
 //   sinkMin   0.877 x Vbg / LDbest (m/s) — the minimum sink at idle, derived
 //             from the measured glide (3^(3/4)/2 on a parabolic polar)
 //   sinkBg    Vbg / LDbest — the sink at best glide
+//   sinkAt(V) the whole polar through those two points (CLIMATE K3), so a
+//             variometer can say what the AIR is doing: netto = vs + sinkAt(V)
 //   gammaClimb, LDbest — measured
 // THE RUNS: TORun (measured, the sheet's), LDGrun (derived: the stop from
 // 1.15 Vs0 at the grass datum's braking, the accelerate-stop's own law).
@@ -15486,6 +16720,34 @@ function machineSheet(def, opts) {
     src,
     shakedown: !!sh,
   };
+  // ---- THE POLAR, AS A CURVE (CLIMATE K3) -----------------------------------
+  // The sheet knows two points of the glide polar - minimum sink at Vms and the
+  // sink at best glide at Vbg - and a variometer needs the whole curve: to say
+  // what the AIR is doing it must subtract what the AEROPLANE would be doing at
+  // the speed it is flying.
+  //
+  //   sink(V) = a V^3 + b / V
+  //
+  // is the parabolic-polar sink rate (induced drag goes as 1/V, profile as V^3
+  // in the sink), and two measured points fix a and b exactly. It is the same
+  // curve Vms = 0.76 Vbg and sinkMin = 0.877 sinkBg were derived from, so this
+  // adds no new assumption - it just stops throwing the curve away.
+  //
+  // NETTO, which is what a soaring pilot reads: vs + sink(V). The glider's own
+  // sink is added back, so still air reads zero and what is left is the air.
+  S.sinkAt = (() => {
+    if (!(Vbg > 0) || !(S.sinkBg > 0) || !(S.Vms > 0) || !(S.sinkMin > 0)) return null;
+    // solve [Vbg^3, 1/Vbg; Vms^3, 1/Vms] [a; b] = [sinkBg; sinkMin]
+    const A1 = Vbg * Vbg * Vbg, B1 = 1 / Vbg, A2 = S.Vms * S.Vms * S.Vms, B2 = 1 / S.Vms;
+    const det = A1 * B2 - A2 * B1;
+    if (!(Math.abs(det) > 1e-12)) return null;
+    const a = (S.sinkBg * B2 - S.sinkMin * B1) / det;
+    const b = (A1 * S.sinkMin - A2 * S.sinkBg) / det;
+    return V => {
+      const v = Math.max(0.5 * S.Vms, Math.min(3 * Vbg, V || Vbg));   // the curve is only good where it was fitted
+      return Math.max(0, a * v * v * v + b / v);
+    };
+  })();
   // the same numbers, rounded, for a plaque or a status line
   S.show = () => {
     const o = {};
@@ -15976,6 +17238,130 @@ function decodeCharAnim(a, bin) {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { decodeChar, registerChar, charList, CHAR_REG,
                      decodeCharAnim, registerCharAnim, CHAR_ANIMS };
+// animal_codec.js — decode baked ANIMAL payloads (see tools/animal_prep.py).
+// Pure JS, no three.js: the same code runs in the page and in the node gates.
+//
+// WHY A FOURTH CODEC. 50_model_codec.js bakes an aeroplane, 51_prop_codec.js a
+// rigid prop, 52_char_codec.js a rigged CHARACTER — and that last one is
+// nearly this, which is why it was read line by line before this was written.
+// Three things it cannot carry, each of them load-bearing here:
+//
+//   A CLIP WITH TRANSLATIONS. char_prep keeps rotation channels only, on
+//   purpose: the ATD owns a seated pilot's root and a translation would fight
+//   the seat. An animal's clip IS the whole animal — 34 of a bear's 76
+//   channels are translations, and its root walks the rig forward.
+//   A CLIP LIBRARY. A character wears one of two clips. A bear ships 81 and
+//   chains them; the manifest carries every clip the table asked for, by ROLE.
+//   A RIGID CHILD. The elk's antlers are a plain mesh under a bone — no joint
+//   indices, no weights. `mesh.skin === 0` says so and the factory parents it.
+//
+// Layout (little-endian, sections 4-byte aligned; the manifest carries every
+// offset and count, nothing is discovered by reading ahead):
+//   ibm      f32[16 * nJoints]   inverse bind matrices, column-major (glTF)
+//   per mesh at manifest.meshes[i].off:
+//     f32 pos[3n] f32 nrm[3n] f32 uv[2n] [u8 jt[4n] f32 wt[4n]] u16 idx[3t]
+//
+// The clips ride in a SECOND file (manifest.clipBin), per clip at clip.off:
+//   f32 travel[3 * frames]                  the root's displacement, METRES,
+//                                           in the model frame, y up
+//   per frame: f32 t[3] per node of clip.nt
+//              f32 r[4] per node of clip.nr
+//              f32 s[3] per node of clip.ns
+// A node not in a list keeps its rest TRS, which is why a clip that animates
+// a third of the tree costs a third of the bytes.
+//
+// NOTHING IS SCALED IN THE PAYLOAD. `manifest.scale` is the factor from the
+// delivered units to the declared real length, and the SCENE applies it (one
+// Object3D scale at the root). `dim`, `bb` and every clip's `travel`/`speed`
+// are already in METRES — they are measurements, not geometry.
+
+const ANIMAL_REG = { animals: {}, order: [] };
+
+// A manifest registers itself at load (src/animals/<key>_animal.js); table
+// order is load order is animals_index.json order. The ONE list the editor's
+// palette, the behaviours and GATE MEDIA read.
+function registerAnimal(a) {
+  if (!ANIMAL_REG.animals[a.key]) ANIMAL_REG.order.push(a.key);
+  ANIMAL_REG.animals[a.key] = a;
+  return ANIMAL_REG;
+}
+function animalList(kind) {
+  return ANIMAL_REG.order.map(k => ANIMAL_REG.animals[k]).filter(a => !kind || a.kind === kind);
+}
+// every clip of a role, in manifest order; [] when the row never filled it
+function animalClips(a, role) {
+  return (a && a.clips ? a.clips : []).filter(c => c.role === role);
+}
+// the one clip a role resolves to, falling back down a chain of roles — the
+// ONE place "what does this animal do when it has no `lie`" is answered
+const ROLE_FALLBACK = { browse: 'idle', trot: 'walk', rear: 'idle', lie: 'idle',
+                        toWalk: null, toLie: null, fromLie: null, turnL: null, turnR: null,
+                        walk: 'idle', swim: 'idle', flap: 'idle' };
+function animalClip(a, role, pick) {
+  let r = role, seen = 0;
+  while (r && seen++ < 6) {
+    const got = animalClips(a, r);
+    if (got.length) return got[Math.min(got.length - 1, Math.floor((pick || 0) * got.length))];
+    r = ROLE_FALLBACK[r];
+  }
+  return null;
+}
+
+// bin -> { ibm: Float32Array(16*nJ), meshes: [{pos,nrm,uv,jt,wt,idx,mat,name,node,skin}] }
+// Typed arrays are views over a 4-aligned copy when the incoming buffer is not
+// aligned (fetch gives a fresh ArrayBuffer at 0, fs may not).
+function decodeAnimal(a, bin) {
+  if (!bin) throw new Error('decodeAnimal: "' + a.key + '" needs its bin bytes');
+  let u8 = bin;
+  if (u8.byteOffset % 4) u8 = new Uint8Array(u8);
+  const B = u8.buffer, o0 = u8.byteOffset;
+  const nJ = a.joints.length;
+  const ibm = new Float32Array(B, o0, 16 * nJ);
+  const meshes = a.meshes.map(m => {
+    let o = o0 + m.off;
+    const n = m.nv, t = m.nt;
+    const pos = new Float32Array(B, o, 3 * n); o += 12 * n;
+    const nrm = new Float32Array(B, o, 3 * n); o += 12 * n;
+    const uv = new Float32Array(B, o, 2 * n); o += 8 * n;
+    let jt = null, wt = null;
+    if (m.skin) {
+      jt = new Uint8Array(B, o, 4 * n); o += 4 * n;
+      wt = new Float32Array(B, o, 4 * n); o += 16 * n;
+    }
+    const idx = new Uint16Array(B, o, 3 * t); o += 6 * t;
+    if (o - (o0 + m.off) > m.len)
+      throw new Error('decodeAnimal: mesh "' + m.name + '" overruns its slice');
+    return { name: m.name, node: m.node, mat: m.mat, skin: !!m.skin, nv: n, nt: t,
+             pos, nrm, uv, jt, wt, idx };
+  });
+  return { ibm, meshes };
+}
+
+// the clip file -> one view per clip: { travel, frames, stride, data } where
+// `data` is the frames slab and `stride` the floats a frame. The SAMPLER lives
+// with THREE in src/viewer/animals.js; this hands back the numbers.
+function decodeAnimalClips(a, bin) {
+  if (!bin) throw new Error('decodeAnimalClips: "' + a.key + '" needs its clip bytes');
+  let u8 = bin;
+  if (u8.byteOffset % 4) u8 = new Uint8Array(u8);
+  const B = u8.buffer, o0 = u8.byteOffset;
+  const out = {};
+  for (const c of a.clips) {
+    const stride = 3 * c.nt.length + 4 * c.nr.length + 3 * c.ns.length;
+    const travel = new Float32Array(B, o0 + c.off, 3 * c.frames);
+    const data = new Float32Array(B, o0 + c.off + 12 * c.frames, stride * c.frames);
+    if (12 * c.frames + 4 * stride * c.frames > c.len)
+      throw new Error('decodeAnimalClips: clip "' + c.key + '" overruns its slice');
+    out[c.key] = { key: c.key, role: c.role, name: c.name, fps: c.fps, frames: c.frames,
+                   dur: c.dur, speed: c.speed, travelLen: c.travel, dir: c.dir,
+                   nt: c.nt, nr: c.nr, ns: c.ns, stride, travel, data };
+  }
+  return out;
+}
+
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { decodeAnimal, decodeAnimalClips, registerAnimal, animalList,
+                     animalClips, animalClip, ROLE_FALLBACK, ANIMAL_REG };
 // tree_codec.js — decode baked TREE payloads (see tools/tree_prep.py).
 // Pure JS, no three.js: the same code runs in the viewer and in the node gate.
 //
@@ -29094,4 +30480,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };

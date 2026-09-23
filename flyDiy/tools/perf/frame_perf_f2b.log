@@ -1,0 +1,16 @@
+  roll-out screen: gone after 146 s (a step timed out)
+frame_perf  ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)  [f2b]
+  installed · gpu timer true · gfx {"preset":"medium","aa":"msaa","density":128,"bands":"near","shadows":"full","canopy":"on","rails":"on","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","glare":"on","mist":"land","clouds":"half","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear","water":"full","mirror":"periodic"}
+  stand   flat0      full  frame   98.4 ms (p90 109.4; 97.6 under the timer) · gpu passes 95.12 ms · cpu world 4.64 ms · 12778 calls · 44.6 Mtris · GPU WAS 83 % BUSY BEFORE
+      scene 94.08 · shadow:maps 8.53×5.4 · clouds:march* 0.87 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.2
+  stand   banks      full  frame   96.8 ms (p90 106.1; 97.5 under the timer) · gpu passes 95.22 ms · cpu world 4.18 ms · 12778 calls · 44.6 Mtris · GPU WAS 85 % BUSY BEFORE
+      scene 94.17 · shadow:maps 8.02×5.4 · clouds:march* 0.88 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.2
+  stand   flat1      full  frame   96.5 ms (p90 107.8; 95.9 under the timer) · gpu passes 92.66 ms · cpu world 4.29 ms · 12786 calls · 44.6 Mtris · GPU WAS 78 % BUSY BEFORE
+      scene 91.62 · shadow:maps 8.36×5.4 · clouds:march* 0.87 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   land       full  frame   92.7 ms (p90 102; 94.1 under the timer) · gpu passes 92.12 ms · cpu world 4.04 ms · 12786 calls · 44.6 Mtris · GPU WAS 88 % BUSY BEFORE
+      scene 91.07 · shadow:maps 8.65×5.4 · clouds:march* 0.88 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   flat2      full  frame   92.8 ms (p90 100.4; 93.8 under the timer) · gpu passes 90.99 ms · cpu world 4.32 ms · 12788 calls · 44.6 Mtris · GPU WAS 76 % BUSY BEFORE
+      scene 89.95 · shadow:maps 8.4×5.4 · clouds:march* 0.87 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  -> tools/perf/frame_perf_f2b.json
+
+exit 0

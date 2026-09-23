@@ -1,0 +1,1283 @@
+{
+ "part": "mining village",
+ "prefix": "mn_",
+ "note": "JUMBO MINE - the mining village on a wooded knoll (381 m) in the forest band of the NE mountains (x 7100..7450, z -15600..-14900): the Kennecott mill climbs the knoll from the main street; the main street (18 m) is the wild strip mn_strip for its straight 250 m (one way: land southbound over the north end), then winds south along the ridge flank. Every building is a site item with no lot; plain world-editor entries (ids mn_*), edit them in the game (WORLD) and write them back with jolene_author.py --absorb.",
+ "layers": {
+  "terrain": [
+   {
+    "id": "mn_t_works",
+    "kind": "flatten",
+    "poly": [
+     [
+      7266.85,
+      -15353.58
+     ],
+     [
+      7258.74,
+      -15446.22
+     ],
+     [
+      7277.67,
+      -15447.88
+     ],
+     [
+      7285.77,
+      -15355.23
+     ]
+    ],
+    "level": 347.8,
+    "falloff": 10.8,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_upper_n",
+    "kind": "flatten",
+    "poly": [
+     [
+      7258.22,
+      -15452.2
+     ],
+     [
+      7252.47,
+      -15517.95
+     ],
+     [
+      7269.4,
+      -15519.43
+     ],
+     [
+      7275.15,
+      -15453.68
+     ]
+    ],
+    "level": 347.8,
+    "falloff": 15.1,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_stand",
+    "kind": "flatten",
+    "poly": [
+     [
+      7270.77,
+      -15308.75
+     ],
+     [
+      7267.37,
+      -15347.6
+     ],
+     [
+      7300.24,
+      -15350.48
+     ],
+     [
+      7303.64,
+      -15311.62
+     ]
+    ],
+    "level": 346.8,
+    "falloff": 13.5,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_turn_s",
+    "kind": "flatten",
+    "poly": [
+     [
+      7244.16,
+      -15297.38
+     ],
+     [
+      7241.11,
+      -15332.25
+     ],
+     [
+      7274.98,
+      -15335.21
+     ],
+     [
+      7278.03,
+      -15300.35
+     ]
+    ],
+    "level": 346.8,
+    "falloff": 10.2,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_turn_n",
+    "kind": "flatten",
+    "poly": [
+     [
+      7224.37,
+      -15523.52
+     ],
+     [
+      7221.32,
+      -15558.39
+     ],
+     [
+      7255.19,
+      -15561.35
+     ],
+     [
+      7258.24,
+      -15526.48
+     ]
+    ],
+    "level": 346.8,
+    "falloff": 10,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h1",
+    "kind": "flatten",
+    "poly": [
+     [
+      7275.73,
+      -15274.77
+     ],
+     [
+      7279.18,
+      -15261.2
+     ],
+     [
+      7290.81,
+      -15264.16
+     ],
+     [
+      7287.36,
+      -15277.73
+     ]
+    ],
+    "level": 345.13,
+    "falloff": 9.6,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h2",
+    "kind": "flatten",
+    "poly": [
+     [
+      7282.99,
+      -15239.58
+     ],
+     [
+      7283.6,
+      -15225.6
+     ],
+     [
+      7295.59,
+      -15226.12
+     ],
+     [
+      7294.98,
+      -15240.11
+     ]
+    ],
+    "level": 343.31,
+    "falloff": 12.3,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h3",
+    "kind": "flatten",
+    "poly": [
+     [
+      7283.54,
+      -15200.88
+     ],
+     [
+      7283.12,
+      -15186.88
+     ],
+     [
+      7295.12,
+      -15186.52
+     ],
+     [
+      7295.54,
+      -15200.52
+     ]
+    ],
+    "level": 344.99,
+    "falloff": 9.5,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h4",
+    "kind": "flatten",
+    "poly": [
+     [
+      7284.37,
+      -15172.11
+     ],
+     [
+      7285.58,
+      -15158.16
+     ],
+     [
+      7297.54,
+      -15159.2
+     ],
+     [
+      7296.33,
+      -15173.15
+     ]
+    ],
+    "level": 344.73,
+    "falloff": 8.1,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h5",
+    "kind": "flatten",
+    "poly": [
+     [
+      7266.54,
+      -15136.88
+     ],
+     [
+      7267.15,
+      -15122.89
+     ],
+     [
+      7255.16,
+      -15122.37
+     ],
+     [
+      7254.55,
+      -15136.36
+     ]
+    ],
+    "level": 342.33,
+    "falloff": 9.9,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h6",
+    "kind": "flatten",
+    "poly": [
+     [
+      7284.72,
+      -15097.83
+     ],
+     [
+      7282.52,
+      -15084
+     ],
+     [
+      7294.37,
+      -15082.11
+     ],
+     [
+      7296.57,
+      -15095.94
+     ]
+    ],
+    "level": 343.73,
+    "falloff": 11.1,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h7",
+    "kind": "flatten",
+    "poly": [
+     [
+      7279.97,
+      -15065.77
+     ],
+     [
+      7274.61,
+      -15052.84
+     ],
+     [
+      7285.69,
+      -15048.24
+     ],
+     [
+      7291.06,
+      -15061.17
+     ]
+    ],
+    "level": 343.67,
+    "falloff": 11.7,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h8",
+    "kind": "flatten",
+    "poly": [
+     [
+      7267.35,
+      -15035.16
+     ],
+     [
+      7263.15,
+      -15021.81
+     ],
+     [
+      7274.59,
+      -15018.2
+     ],
+     [
+      7278.8,
+      -15031.56
+     ]
+    ],
+    "level": 344.72,
+    "falloff": 11.5,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h9",
+    "kind": "flatten",
+    "poly": [
+     [
+      7236.61,
+      -15005.48
+     ],
+     [
+      7231.81,
+      -14992.33
+     ],
+     [
+      7220.54,
+      -14996.45
+     ],
+     [
+      7225.34,
+      -15009.6
+     ]
+    ],
+    "level": 342.4,
+    "falloff": 9,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h10",
+    "kind": "flatten",
+    "poly": [
+     [
+      7226.03,
+      -14978.04
+     ],
+     [
+      7220.47,
+      -14965.19
+     ],
+     [
+      7209.46,
+      -14969.96
+     ],
+     [
+      7215.02,
+      -14982.81
+     ]
+    ],
+    "level": 341.8,
+    "falloff": 9.4,
+    "abs": true,
+    "order": 0
+   }
+  ],
+  "surface": [
+   {
+    "id": "mn_y_works",
+    "poly": [
+     [
+      7266.85,
+      -15353.58
+     ],
+     [
+      7258.74,
+      -15446.22
+     ],
+     [
+      7277.67,
+      -15447.88
+     ],
+     [
+      7285.77,
+      -15355.23
+     ]
+    ],
+    "surface": 6
+   },
+   {
+    "id": "mn_y_stand",
+    "poly": [
+     [
+      7270.77,
+      -15308.75
+     ],
+     [
+      7267.37,
+      -15347.6
+     ],
+     [
+      7300.24,
+      -15350.48
+     ],
+     [
+      7303.64,
+      -15311.62
+     ]
+    ],
+    "surface": 6
+   },
+   {
+    "id": "mn_y_turn_s",
+    "poly": [
+     [
+      7244.16,
+      -15297.38
+     ],
+     [
+      7241.11,
+      -15332.25
+     ],
+     [
+      7274.98,
+      -15335.21
+     ],
+     [
+      7278.03,
+      -15300.35
+     ]
+    ],
+    "surface": 6
+   },
+   {
+    "id": "mn_y_turn_n",
+    "poly": [
+     [
+      7224.37,
+      -15523.52
+     ],
+     [
+      7221.32,
+      -15558.39
+     ],
+     [
+      7255.19,
+      -15561.35
+     ],
+     [
+      7258.24,
+      -15526.48
+     ]
+    ],
+    "surface": 6
+   }
+  ],
+  "material": [],
+  "exclude": [
+   {
+    "id": "mn_x_fan_n",
+    "poly": [
+     [
+      7208.37,
+      -15557.25
+     ],
+     [
+      7142.38,
+      -15852.63
+     ],
+     [
+      7281.84,
+      -15864.83
+     ],
+     [
+      7268.14,
+      -15562.48
+     ]
+    ],
+    "what": [
+     "trees"
+    ]
+   }
+  ],
+  "roads": [
+   {
+    "id": "mn_main",
+    "name": "Main Street (the winding end)",
+    "pts": [
+     [
+      7260.57,
+      -15304.84
+     ],
+     [
+      7265.3,
+      -15275.2
+     ],
+     [
+      7272.7,
+      -15246.1
+     ],
+     [
+      7274,
+      -15216.3
+     ],
+     [
+      7273.1,
+      -15186.3
+     ],
+     [
+      7275.7,
+      -15156.4
+     ],
+     [
+      7277,
+      -15126.5
+     ],
+     [
+      7274.4,
+      -15096.6
+     ],
+     [
+      7269.7,
+      -15067.1
+     ],
+     [
+      7258.2,
+      -15039.4
+     ],
+     [
+      7249.2,
+      -15010.8
+     ],
+     [
+      7238.9,
+      -14982.6
+     ],
+     [
+      7227,
+      -14955.1
+     ]
+    ],
+    "w": 18,
+    "cls": "gravel",
+    "graded": true,
+    "falloff": 8,
+    "grade": 0.08,
+    "poles": "auto",
+    "rail": "auto"
+   },
+   {
+    "id": "mn_stand_lane",
+    "pts": [
+     [
+      7281.85,
+      -15319.76
+     ],
+     [
+      7272.84,
+      -15331.01
+     ],
+     [
+      7264.17,
+      -15338.28
+     ]
+    ],
+    "w": 8,
+    "cls": "gravel",
+    "graded": true,
+    "falloff": 6,
+    "poles": "off",
+    "rail": "off"
+   }
+  ],
+  "runways": [
+   {
+    "id": "mn_strip",
+    "name": "Jumbo Mine Street",
+    "c": [
+     7249.68,
+     -15429.37
+    ],
+    "hdg": -1.6581,
+    "len": 250,
+    "wid": 18,
+    "surface": 6,
+    "look": "gravel",
+    "band": 2,
+    "pav": {
+     "marks": "none"
+    },
+    "crossfall": 0,
+    "disp": [
+     0,
+     0
+    ],
+    "papi": [
+     false,
+     false
+    ],
+    "falloff": 30,
+    "site": {
+     "pattern": {
+      "id": "mn_strip",
+      "elev": 346.7980078261866,
+      "fillet": 12,
+      "nodes": [
+       {
+        "id": "hold0",
+        "x": 7255.784,
+        "z": -15359.637,
+        "kind": "hold",
+        "hdg": -1.6581
+       },
+       {
+        "id": "l0a",
+        "x": 7270.84,
+        "z": -15313.775,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "l0b",
+        "x": 7248.923,
+        "z": -15311.856,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "l0c",
+        "x": 7247.005,
+        "z": -15333.773,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "d0",
+        "x": 7257.092,
+        "z": -15344.694,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "hold1",
+        "x": 7243.576,
+        "z": -15499.103,
+        "kind": "hold",
+        "hdg": 1.4834926535897934
+       },
+       {
+        "id": "l1a",
+        "x": 7250.437,
+        "z": -15546.884,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "l1b",
+        "x": 7228.52,
+        "z": -15544.965,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "l1c",
+        "x": 7230.439,
+        "z": -15523.049,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "d1",
+        "x": 7242.268,
+        "z": -15514.046,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "stand",
+        "x": 7281.85,
+        "z": -15319.76,
+        "kind": "stand",
+        "hdg": -2.2461
+       },
+       {
+        "id": "tx0",
+        "x": 7272.84,
+        "z": -15331.01,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "c0",
+        "x": 7257.353,
+        "z": -15341.701,
+        "kind": "taxi",
+        "r": 12
+       },
+       {
+        "id": "c1",
+        "x": 7263.829,
+        "z": -15342.268,
+        "kind": "taxi",
+        "r": 12
+       }
+      ],
+      "arcs": [
+       [
+        "l0a",
+        "l0b"
+       ],
+       [
+        "l0b",
+        "l0c"
+       ],
+       [
+        "l0c",
+        "d0"
+       ],
+       [
+        "d0",
+        "hold0"
+       ],
+       [
+        "l1a",
+        "l1b"
+       ],
+       [
+        "l1b",
+        "l1c"
+       ],
+       [
+        "l1c",
+        "d1"
+       ],
+       [
+        "d1",
+        "hold1"
+       ],
+       [
+        "stand",
+        "tx0"
+       ],
+       [
+        "tx0",
+        "c0"
+       ],
+       [
+        "c0",
+        "hold0"
+       ],
+       [
+        "tx0",
+        "c1"
+       ],
+       [
+        "c1",
+        "l1a"
+       ]
+      ],
+      "routes": {
+       "out": [
+        [
+         "stand",
+         "tx0",
+         "c0",
+         "hold0"
+        ],
+        [
+         "stand",
+         "tx0",
+         "c1",
+         "l1a",
+         "l1b",
+         "l1c",
+         "d1",
+         "hold1"
+        ]
+       ],
+       "back": [
+        [
+         "l0a",
+         "l0b",
+         "l0c",
+         "d0",
+         "hold0"
+        ],
+        [
+         "l1a",
+         "l1b",
+         "l1c",
+         "d1",
+         "hold1"
+        ]
+       ]
+      },
+      "stops": [
+       "hold0",
+       "hold1"
+      ],
+      "runway": {
+       "c0": {
+        "x": 7260.579101461889,
+        "z": -15304.846068214487
+       },
+       "c1": {
+        "x": 7238.780898538112,
+        "z": -15553.893931785515
+       },
+       "hdg": -1.6581,
+       "wid": 18,
+       "len": 250
+      },
+      "approaches": [
+       {
+        "k": 0,
+        "u": [
+         0.08719281169510955,
+         0.9961914542841156
+        ],
+        "thr": [
+         7239.216862596587,
+         -15548.912974514094
+        ],
+        "td": [
+         7244.448431298294,
+         -15489.141487257048
+        ],
+        "aimAP": [
+         7242.705,
+         -15509.065
+        ],
+        "gs": null,
+        "ga": {
+         "hdg": 1.4834926535897934
+        }
+       },
+       {
+        "k": 1,
+        "u": [
+         -0.08719281169510955,
+         -0.9961914542841156
+        ],
+        "thr": [
+         7260.143137403414,
+         -15309.827025485907
+        ],
+        "td": [
+         7254.911568701707,
+         -15369.598512742954
+        ],
+        "aimAP": [
+         7256.655,
+         -15349.675
+        ],
+        "gs": null,
+        "ga": {
+         "hdg": -1.6581
+        }
+       }
+      ]
+     }
+    },
+    "pattern": null,
+    "profile": null,
+    "approach": 1,
+    "stand": {
+     "x": 7281.85,
+     "z": -15319.76,
+     "hdg": null
+    },
+    "taxiOut": [
+     [
+      7272.84,
+      -15331.01
+     ],
+     [
+      7257.34,
+      -15341.7
+     ]
+    ]
+   }
+  ],
+  "zones": [],
+  "sites": [
+   {
+    "id": "mn_s_mine",
+    "name": "Jumbo Mine",
+    "at": {
+     "x": 7265.12,
+     "z": -15430.72,
+     "yaw": 1.6581
+    },
+    "items": [
+     {
+      "onRoad": false,
+      "bottomOnRoad": true,
+      "id": "mill",
+      "key": "house/kennecott mill",
+      "x": -36.35,
+      "z": 24,
+      "yaw": 0,
+      "P": {
+       "topDist": 63.5
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "shop",
+      "key": "big/mine shop",
+      "x": -68,
+      "z": 8,
+      "yaw": 0,
+      "P": {}
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "cottage1",
+      "key": "house/mine cottage",
+      "x": -53,
+      "z": 3,
+      "yaw": 0.2,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "shed",
+      "key": "house/storage shed",
+      "x": -20,
+      "z": 6,
+      "yaw": 0.4,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "office",
+      "key": "house/mine office",
+      "x": -6,
+      "z": 5,
+      "yaw": -0.08,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "bunk2",
+      "key": "house/bunkhouse",
+      "x": 34,
+      "z": 4,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "cottage4",
+      "key": "house/mine cottage",
+      "x": 56,
+      "z": 3,
+      "yaw": 0.05,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "cottage5",
+      "key": "house/log cabin",
+      "x": 76,
+      "z": 3,
+      "yaw": -0.06,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "clinic",
+      "key": "house/clinic",
+      "x": -90,
+      "z": -33,
+      "yaw": 3.092,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false,
+       "stance": 2
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "bunk",
+      "key": "house/mine bunkhouse",
+      "x": -66,
+      "z": -33,
+      "yaw": 3.202,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "hall",
+      "key": "house/mine dormer hall",
+      "x": -36,
+      "z": -34,
+      "yaw": 3.142,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "mess",
+      "key": "house/mine mess hall",
+      "x": -8,
+      "z": -33,
+      "yaw": 3.062,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "cottage2",
+      "key": "house/mine cottage",
+      "x": 12,
+      "z": -32,
+      "yaw": 3.242,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "store",
+      "key": "house/general store",
+      "x": 31,
+      "z": -33,
+      "yaw": 3.142,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "school",
+      "key": "house/school",
+      "x": 53,
+      "z": -35,
+      "yaw": 3.182,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false,
+       "stance": 2
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "chapel",
+      "key": "house/chapel",
+      "x": 77,
+      "z": -33,
+      "yaw": 3.142,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false,
+       "stance": 2
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "airtaxi",
+      "key": "house/air taxi office",
+      "x": -104,
+      "z": 20,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "fuel",
+      "key": "big/fuel shed",
+      "x": -90,
+      "z": 17,
+      "yaw": 0,
+      "P": {}
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house1",
+      "key": "house/mine cottage",
+      "x": -162.22,
+      "z": 4.03,
+      "yaw": -6.121,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house2",
+      "key": "house/log cabin",
+      "x": -199.22,
+      "z": 6.84,
+      "yaw": -6.327,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house3",
+      "key": "house/mine cottage",
+      "x": -238.23,
+      "z": 3.46,
+      "yaw": -6.4,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house4",
+      "key": "house/saltbox cottage",
+      "x": -266.31,
+      "z": 2.64,
+      "yaw": -6.284,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house5",
+      "key": "house/mine cottage",
+      "x": -299.58,
+      "z": -30.49,
+      "yaw": -3.185,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house6",
+      "key": "house/hip cottage",
+      "x": -341.58,
+      "z": -5.36,
+      "yaw": -6.528,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house7",
+      "key": "house/log cabin",
+      "x": -373.84,
+      "z": -14.92,
+      "yaw": -6.764,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house8",
+      "key": "house/bunkhouse",
+      "x": -403.01,
+      "z": -29.38,
+      "yaw": -6.675,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house9",
+      "key": "house/mine cottage",
+      "x": -424.94,
+      "z": -73.86,
+      "yaw": -3.579,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house10",
+      "key": "house/log cabin",
+      "x": -450.85,
+      "z": -87,
+      "yaw": -3.637,
+      "P": {
+       "lot": false
+      }
+     }
+    ],
+    "yard": null
+   }
+  ],
+  "links": [],
+  "objects": []
+ }
+}

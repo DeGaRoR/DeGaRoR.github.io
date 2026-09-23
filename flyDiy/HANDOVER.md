@@ -55759,6 +55759,2279 @@ LOT_GROUND.grade(s, v, w) - the A/B is one step in one boot.
   GROUND_ALBEDO's GRASS should be re-based onto the imagery's scale, which would move every belly
   judged since G495 and is the same kind of call.
 
+## G500 - THE FOG & MIST STUDY: the fog we have costs nothing we can measure, and the
+## distance it licenses us to stop drawing is worth -45 % of the frame (2026-09-22, the user:
+## "flydiy fog and mist. Do a study on that. Do we have any? ... performance optimization and
+## good lookingness ... hope the feature can save us on performance rather than costing us")
+
+A STUDY. Nothing in src/ was touched: `futureDesigns/FOG-MIST-2026-09-21.md` (six sections),
+the rigs under `tools/perf/run_fog_*.js` + `fog_diff.js`, the rows in
+`tools/perf/frame_perf_fog{,_aba,_aba2}.json`, 41 frames in `bench/fog/` (gitignored).
+
+- WHAT WE HAVE, and it is one place: the aerial-perspective atlas, the mist (an exponential
+  height layer, closed form) and the in-cloud slab all ride the ONE splice at the head of
+  `tonemapping_fragment` (atmo.js:480-487). `day.visibilityKm` was computed and read by NOTHING.
+- WHAT IT COSTS: below the rig's noise floor. `mistOff` measured -4 %, +14 % and +33 % in three
+  runs; `apOff` moved the scene pass UP at the stand and forest and DOWN at sea. An UPPER BOUND
+  (~8 ms at a 60 ms stand), not a measurement - stated as such. The atmosphere's own tables
+  (sky-view + AP atlas, rebuilt every frame) are 0.05 ms; the resolve 0.12; the far shadow
+  cascade 0.00 at 0.3 calls a frame. The scene pass is ~97 % of the frame in all three places.
+- WHAT IT CAN SAVE (A/B/A, the stand, baselines 59.5-63.5 ms): the far plane at 1.5 km -25 %,
+  the 12 big terrain meshes hidden by distance -9 %, BOTH TOGETHER -45 % - SUPER-ADDITIVE
+  (-15.2 and -4.2 apart, -27.7 together). A quadrant's bounding sphere reaches into the near
+  field so the far plane cannot drop it; only the far plane drops the ~1150 small distant
+  objects. They ship as ONE item or the win is a third of itself. Biggest over water
+  (6255 -> 2295 calls). The cloud march (0.67 ms whole) and the far cascade are NOT consumers.
+- WHERE A CUT CAN BE SEEN AT ALL: on flat ground, nowhere - from above the mist's lid distant
+  GROUND is seen by looking DOWN through the layer and dies at ~4 km whatever the eye's height.
+  Only terrain RISING THROUGH the lid betrays a cut. Jolene's ridges from the field stand at
+  ~5-9 km: 9600 m clears them, 6000 m takes the far ones, 2500 m is a clean wall with the cloud
+  deck shorn off along a razor edge. So a height-blind visM escapes by LUCK at rh 0.85 and fails
+  at rh 0.90 - visM must be height-aware, and any cut must be judged on high ground.
+- FOUR RIG DEFECTS, all cost a run, all recorded in the study's SS1a: `frame_perf.js --quiet`
+  treats a FAILED nvidia-smi read (-1) as idle; a cross-probe delta minutes apart is NOT a number
+  (the card settles off boost - the same workload read 33.5 and 42.9 ms - so every figure above is
+  an A/B/A); **the rig CANNOT time the cloud march** (clouds.js:555 opens its own TIME_ELAPSED
+  query, GL queries cannot nest, the tag is silently ABSENT and reads like a pass that never ran -
+  use `CLOUDS.stats.gpuMs`); `island_shot.js` does not wait for the roll-out screen the way
+  frame_perf does, and `FLIGHT_PROBE.camSet` takes RADIANS.
+- GATE FOG MUST NOT DIFF PICTURES: the world animates (water, propeller, foliage, cloud noise),
+  so two IDENTICAL frozen frames differ in 49 % of pixels and tile means do not separate them
+  either. The gate asserts the invariant headless instead: for every mesh the contract hides,
+  T(mist + AP) at its nearest point < 1 %.
+- THE LOOKS, ranked: the terrain term (`mistTop(x,z)` from the hydrology - 206 lakes, 170 rivers),
+  PATCHES (a drifting 2-D density field + a per-location thickness) and the 4-8 sample march that
+  makes a bank's near face honest, all riding the AP atlas's FREE rows (tile rows 34-545, columns
+  512-2047: no new sampler, the island ground programs stand at 15/16). Today the layer is
+  horizontally infinite and uniform, so there is no edge to fly INTO - the user's "can we cut
+  through it". The white-out on entering a bank is already built (C4's `uMist[3]` slab); what is
+  missing is the field that says where the banks are. NOT on the table: the aeroplane carving the
+  mist (an advected density, an order of magnitude dearer).
+- THE SESSIONS: F1 the visibility contract (+ GATE FOG), F2 the mist on the land (the patches),
+  F3 burn-off + the shed's room haze + underwater.
+- COORDINATED with the climate chantier (claude/flydiy-climate-system-baa60c, K0-K3 landed):
+  agreed (a) - climate PUBLISHES `world.climate.haze()` (visibilityKm with a front's murk,
+  Koschmieder rho0, top, H, LCL), atmo.js's MIST line is NOT touched by K4, F1 wires the read.
+  Handed them three findings: take the ingredients not a distance (visM is height-aware),
+  visibility is now LIVE so the ring needs the two-radii hysteresis or the streamer thrashes, and
+  `dayApply` returns early under `rigCur.manual` so a climate-driven mist freezes on an F8 sun row.
+- GATES: none run - no src/ changed, no gate covers a document. The rigs are measurement tools,
+  not gates (they need a GPU and a browser, which the battery does not assume).
+
+## G501 - THE TWO RIG DEFECTS THE FOG STUDY FOUND, FIXED (2026-09-22, the user: "fix the two
+## rig defects")
+
+Both are instruments lying quietly rather than loudly, which is the kind that costs a day.
+
+- **`frame_perf.js` COULD NOT TIME THE CLOUD MARCH, AND SAID NOTHING.** `clouds.js:555` opens its
+  OWN `TIME_ELAPSED_EXT` query round the march; the rig opens one round every `renderer.render`.
+  GL queries cannot nest, so the rig's query is invalid, its result never lands, and the
+  `clouds:march` tag was simply ABSENT from all 27 rows of the fog study - which reads exactly
+  like a pass that never ran. A whole probe series (`CLOUDS.S.maxKm` at three places) was scored
+  against a pass the instrument could not see, and read as "no saving" when the truth was "no
+  measurement". THE FIX: the rig READS the module's own timer for such a pass instead of wrapping
+  it (`CLOUDS.stats.gpuLast` / `shadowLast`, sampled per frame, recorded only when the value
+  changes so a stale reading is not counted twice) and MARKS it - a tag ending in `*` was measured
+  by the pass itself, not by this rig. Still a GPU millisecond; simply not ours. The header
+  carries the rule for the next pass that decides to time itself.
+- **`island_shot.js` DID NOT WAIT FOR THE ROLL-OUT SCREEN.** `frame_perf.js` waits for
+  `BOOT.state === 'gone'`; this rig went straight from the roll-out click to the shot, so under a
+  slow compile every frame came out DIMMED through the boot overlay with a CONTINUE ANYWAY button
+  in the corner - the fog study's first A/B sheet, eighteen frames, was thrown away for it. THE
+  FIX: the same bounded wait (100 s), printed like frame_perf's; `--no-boot-wait` restores the old
+  behaviour. Also `--clean` (OFF by default, so no existing caller's pictures move): dismiss the
+  overlay if it is still up and hide `#ui` / `#devPanel`, which every picture-of-the-world caller
+  was otherwise doing by hand in its own `--step`.
+
+Verified, not asserted: a short run (`tools/perf/frame_perf_rigfix.json`, stand, tier full, cloud
+cover 0.6) now carries a `clouds:march*` row where before there was no march tag at all.
+FOG-MIST-2026-09-21.md §1a updated - the defect it documents is now the fix it documents.
+`FLIGHT_PROBE.camSet` taking RADIANS is left alone: that is an API, not a defect, and the study
+records it.
+
+## G498 — THE ANIMALS: THE FOURTH ASSET PIPELINE, THE CLIP MACHINE, THE POD AND THE FLOCKS
+## (2026-09-22, the user: "animals on Jolene island ... Can you do the full pipeline of import,
+## including LODs generation through decimation ... placeable using the world editor, and you'll
+## also do a couple of hotspots on Jolene ... The sea animals should loom ... the whales should
+## trigger the water surface effects, just like the planes ... generalize the smoke emission")
+
+Six rigged animals — **bear, elk, doe, orca, blue whale, gull** — imported, cut, placed and
+made to behave. Design: `futureDesigns/ANIMALS-2026-09-22.md`; procedure:
+`docs/ANIMAL-IMPORT-PROC.md`; credits: CREDITS.md — bear/elk/doe by **WildMesh 3D**, blue whale by
+**Bohdan Lvov**, orca by **Trouvaille**, the gull ("Bird") by **Blender Artist**, all CC-BY 4.0
+via Sketchfab. The gull's listing url was the one thing this arc carried as owed and the user gave it
+2026-09-22 (https://sketchfab.com/3d-models/bird-e93a906eb38343c4a14458a637136329): it is in the table,
+in the re-baked manifest and in CREDITS.md, and nothing of this arc is owed now. GATE **ANIMALS** rule 1
+grew the rule that would have made that note loud: every shipped credit must link the LISTING and every
+SOURCES url must be a url - and the LICENCE LINK DOES NOT COUNT, because every credit ends in
+creativecommons.org and the first cut of the rule passed vacuously on a credit with no listing at all.
+GATE **ANIMALS** (core tier).
+
+TWO RULINGS TAKEN AT THE START, before any code. (1) Provenance: WildMesh 3D (bear, elk, doe),
+Bohdan Lvov (blue whale), Trouvaille (orca), all CC-BY 4.0 — the user's own lines, carried
+verbatim into every manifest. (2) **"don't author anything for the 2 first ones, they're great
+and complete, just do animations chaining clips. Do what's necessary only for the whales and
+birds, take no risk."** So NO joint curve is written by hand anywhere in this arc: the land
+animals run a state machine over their OWN libraries (the bear ships 81 clips, the elk 53, the
+doe 55), and the whales and the gull keep their single delivered loop with everything else —
+the dive, the surfacing, the circuit, the crossing — as ROOT motion.
+
+THE PIPELINE (the fourth table: props, chars, totems, animals):
+`tools/animals_table.py` (the authority) → `tools/animal_prep.py` (skins, clip libraries and
+maps → `media/geo/animals` + `media/tex/animals` + `src/animals/<key>_animal.js`) →
+`tools/animal_lod.js` (poses each skin at the row's `lodPose` and cuts 2 levels with
+prop_lod.js's own quadric decimator → `src/animals/animals_lods.js`, a PROP pack) →
+`src/core/55_animal_codec.js` → `src/viewer/animals.js` → `src/viewer/animal_run.js`.
+Cost as built: 26 268 base triangles, 10 levels (10 497 triangles in all), 34 clips, geometry
+2.6 MB, maps 1.9 MB, 47 KB of code — in the WORLD pack, not inlined (index.html 8.34 of its
+8.4 MiB budget).
+
+WHY A FOURTH CODEC, and it is not a preference: `52_char_codec.js` keeps ROTATION channels only
+(a seated pilot's root belongs to the ATD), carries ONE clip, and has no place for a rigid child.
+An animal's clip is the whole animal (34 of a bear's 76 channels are translations, and its root
+walks the rig forward), it needs a LIBRARY, and the elk's antlers are an unskinned mesh under a
+bone. The LEVELS are prop-format on purpose: a level is a rigid mesh wearing exactly the animal's
+maps, which IS the prop payload's shape — so props.js's one material factory, its texture cache,
+its THREE.LOD placement and propWarm's fetch all apply with no new code, and "a similar volume
+and colour" is true by construction rather than by care.
+
+FIVE THINGS THAT ARE MEASURED RATHER THAN BELIEVED, each of which would otherwise be a bug:
+- **the scale**: a row declares a real `length` (a bear at 2.20 m), the baker measures the rest
+  mesh — run through linear blend skinning, because a skinned mesh's NODE transform is ignored by
+  glTF and these exports set it to 0.01, so `glb_inspect` reports a bear 2 cm tall;
+- **the facing**: `forward` is checked against the walk clip's own direction of travel and a row
+  that disagrees is REFUSED (the whales' and the gull's, which have no gait, were read off an
+  orthographic render of the rest mesh with the small parts coloured — the eyes at +z, the beak at −z);
+- **the gait's speed**: the root's travel is extracted into the clip's `travel` and zeroed in the
+  frames, so the WORLD moves the animal at the clip's own 0.42 m/s and the feet do not skate.
+  That the bear's WalkSlow came out at 0.42 m/s is what proved the unit was right;
+- **the level's volume**: the gate asserts each level's box within 4 % of the animal's along its
+  length axis;
+- **the hotspots' sites**: all six searched on Jolene's own DEM (the flattest 120 m with no water
+  in it for the elk; the widest circle of open water — 550 m in the channel, 3.9 km in Dixon
+  Entrance — for the pod and the whale).
+
+THE BEHAVIOURS. A HOTSPOT is ONE `objects` record (contract **v1.17**, `kind: 'animal'`:
+`key, x, z, n, r, yaw, dy`) — `n` animals within `r` metres, each seeded from `(id, index)` so
+changing the count never moves the ones already standing. LAND: idle / browse / walk / lie, the
+asset's own `Trans_*` played through where the pair exists and a 0.25 s cross-fade where it does
+not; the walk follows the terrain and its normal, and a step into water, up a slope over 28° or
+out of the radius is refused and the animal turns instead. SEA: a slow circuit, and one dive
+cycle whose DERIVATIVE is the pitch (the arch is the motion, not a keyframe); at the surface it
+makes the aeroplane's own water — a `press` stamp of its beam, `foam` along its back, a `ring`
+and a burst of SPRAY when it breaks out (at most 4 of the field's 16 stamps a frame), and it
+BLOWS. THE FIELD IS ASKED FOR: it only ran when the aeroplane itself was on floats, so a surfaced
+animal within 150 m of the eye now sets `WATER.field.ask` and app.js honours it for half a second
+— a LANDPLANE low over a pod gets the wake and the splash too, which is what "just like the
+planes" has to mean. The ask EXPIRES; nothing keeps the field alive by forgetting a flag. AIR: the delivered file is already five gulls in a V, so the V is what the flock is; a
+placed flock circles, the ambient ones are born outside 1.2 km of the eye and cross.
+
+THE LOOM (the user: "ideally we should somehow see through the water a bit"). The water is drawn
+transparent but its opacity is the COLUMN's — deep water is opaque and a submerged whale simply
+is not there. So a submerged sea animal draws a SECOND, unlit copy of itself, skinned off the same
+skeleton, AFTER the water with the depth test off, at 0.62·exp(−depth/fade). It is the only thing
+in this layer that draws over the scene, and that fade is what bounds it: past a few body depths
+there is nothing to draw over.
+
+THE PLUME (`src/viewer/plume.js`). The village chimney's own recipe — the crossed quads, the two
+octaves of value noise scrolling upward, the `uSmokeLit` the day's exposure drives (G449) — made
+portable, with the puffs carrying a DELAY instead of a height so one clock drives a whole
+EVENT (the blow: 7.5 m in a second, gone in four). `tools/_house_gen.js`'s own copy is NOT moved:
+GATE CLOUD asserts the smoke's shader against that file's source, and lifting the body out of it
+would move the village's smoke to fix a whale. Instead the RECIPE is shared as numbers
+(`PLUME.RECIPE`) and GATE ANIMALS rule 8 asserts the two agree, to the digit.
+
+ON JOLENE (`tools/jolene_author.py`, rev 6): EIGHT hotspots, 34 animals, every site searched on
+the island's own DEM rather than picked off a map.
+  THE TAMGAS SANCTUARY (a2/a7/a8) — the answer to "a place on the island for an animal sanctuary
+  thing". The hill strip IS the way in: land uphill at Tamgas and inside a kilometre there is a
+  bear 100 m off the strip, an elk herd of six on the flat bench 250 m past its west end (mean
+  slope 4.1 %, ground 31 m, no water in the patch) and seven does on the bench below (5.4 %,
+  26 m). Nothing else on the island is reachable and stocked like that, which is what makes it a
+  place rather than three records.
+  THE WHALE WATCHING (a4/a5) — a pod of three orca ON the sea lane off Annette Dock, so a
+  floatplane meets them on every approach (550 m of open water, the widest inside the premises),
+  and ONE blue whale 8.7 km SW in Dixon Entrance (3.9 km of open water, the widest in the whole
+  raster): the expedition, the one you go and look for.
+  ...and the field's own: four elk NE of 02/20's north end, five does on the headland above the
+  village, seven gulls over the dock at 45 m, plus the ambient flocks, which belong to no record.
+A hotspot is placed in WORLD coordinates and is NOT bounded by the premises' extent — the whale
+lives 8 km outside it, and the gate holds that.
+
+- THE TRAP THIS ARC PAID FOR, and it is the layer rule restated: `const wAsk = WATER && ...` in
+  app.js threw `ReferenceError: WATER is not defined` under GATE UISMOKE, whose harness never loads
+  water.js. A BARE global throws where the layer is absent; `window.WATER` is merely undefined. The
+  line the ask sits in front of had it right all along (`window.WATER && WATER.fieldStep`), and the
+  new line jumped the guard. Both GATE WATER and GATE ANIMALS now assert `window.WATER` by name.
+- ON THE MAP (the user: "can you mark the hotspots on the mini map"): drawMap marks every
+  hotspot of the COMPOSED record - one mark a HOTSPOT, never one an animal, because the record is
+  the hotspot and its individuals wander inside it. Green, because everything else on that map is
+  spoken for (amber the route, cream the fields, blue the approaches, teal you); the SHAPE says
+  where it lives - a filled dot on the ground, a ring in the water (a pod roams a wide circuit), a
+  chevron in the air; the RADIUS is drawn once it is worth pixels, and the species and the count
+  are labelled once the map is large. GATE ANIMALS rule 10.
+- G498.2, TWO CORRECTIONS the user called (2026-09-22):
+  THE ORCA WAS A FEMALE'S LENGTH. The payload always measured what it declared (dim 4.01 x 3.62 x
+  7.50) - the DECLARED length was wrong for the animal, and it was applied to every orca in the
+  pod. 8.5 m now (a mature bull; males run 8-9.8 m, females 5.5-6.6), and a pod is FIVE. With it a
+  fifth declared field, `spread`: how much the individuals of one hotspot differ, as a fraction
+  either side of the declared length - one scale on each individual at runtime, the payload
+  untouched. A pod is not meant to be uniform (a bull, a matriarch, calves: measured in the game
+  at 8.1 / 8.3 / 8.7 / 9.1 / 9.4 m) and a herd of identical elk is a tell. GATE ANIMALS asserts
+  the spread reaches the manifest AND that no two individuals come out the same size.
+  THE MINIMAP WAS IN THE WRONG FRAME. The underlay is baked over world.bounds, and an ISLAND's
+  bounds are its own square - Jolene's is 39 195 m and starts at (-13824, -29591), NOT centred on
+  the origin. drawMap painted it at a hard-coded +-12000 while drawing every marker in true world
+  coordinates, so the field and the village landed on the wrong island. The rig publishes
+  `minimapBox` (set beside miniCanvas, from bakeGround's own x0/z0/EXT) and north-up frames THAT
+  box. The analytic world's bounds ARE +-12000, so nothing there moves by a pixel - GATE
+  WORLDRENDER prints the two side by side.
+  THE TRAP IT COST: the first cut read BX0/SIZE at the rig's `return`, where they are out of
+  scope. The scene is already in the graph by then, so the ReferenceError left a world that DREW
+  PERFECTLY and a WF of undefined - no map, no premises tick, no animal moving, and nothing in
+  the console. It was caught by reading the map canvas back (all four corners 0,0,0) rather than
+  by looking at it. GATE WORLDRENDER now names the handles the page cannot work without
+  (worldUpdate, minimap, minimapBox, scene, camera, ground, probe), so a quiet loss is loud.
+- BENCH: `tools/_animals.html` (shelf / one / ladder / run), launch `flydiy-animals` port 8490.
+- VERIFIED IN THE GAME, with pictures (tools/island_shot.js teleports the aeroplane to a spot and
+  shoots; `--step` runs JS in the flying page, so one boot visits several): the BEAR walking the
+  meadow by the Tamgas strip and CHANGING POSE between two shots 6.5 s apart (the clip machine
+  runs in the game); an ORCA surfaced in the channel WITH ITS WAKE behind it under a LANDPLANE at
+  26 m — `WATER.field.ask` read back `{on: true, ask: true, sinceAsk: 47 ms}`, so the ask is what
+  turned the field on; the BLUE WHALE looming pale through the water at 28 m down; the elk herd on
+  the sanctuary bench. The census from inside the sanctuary: bear 1, elk 6, doe 7, orca 3 (1.9 km
+  off), bird 16, plume 1 — a whale was blowing at that moment.
+- GATES: ANIMALS / MEDIA / PREMISES / PROPS / TOTEM / CLOUD / BUILD green. GATE MEDIA learned the
+  animals' manifests (one line in `manifestFiles`), or every map it wrote was an orphan.
+
+## G502 — NOTHING LIES ON A PAVEMENT: THE DEBRIS READS coverAt (2026-09-22, the roads session's v1.17 query, the user: "the coverAt gating for debris")
+
+- cover_ring.js placeRocks: a rock or a piece of deadwood is refused where the pavement has a CLASS and a
+  grip on the ground (`kill >= 1`, or a class with `kill >= 0.5`), and thinned by what is left of the
+  fade beyond it (`1 - kill`). The ring already sampled `world.coverAt` per lattice node for the tufts
+  (G492); the sub-grid now keeps its `cls` as well as its `kill`, so the query costs nothing new.
+- WHY THE CLASS AND NOT THE KILL ALONE (the roads session's warning, worth the line): a GRASS strip is
+  the world's grass mown, so its kill never passes 0.6 - a log would have lain across a grass runway
+  with a kill test alone. And the class vocabulary is the premises' own (grass, asphalt, concrete, worn,
+  gravel, dirt, sand) plus the analytic world's, so the test is "a class at all", not a list to keep in
+  step: concrete was the first thing the probe met and was not in my first draft's map.
+- THE INSTRUMENT, because two measurements lied before the code was believed: `TREE_FILL.cover().nodeAt(x, z)`
+  returns the RING'S OWN view of a point (mix, code, ok, kill, cls, kind, boost) - it is what proved the
+  gate sees kill 1 / a class over the strip - and tools/_debris_probe.js buckets every planted piece by
+  what coverAt says under it. THE TRAP IT CAUGHT: the aerodrome's SHOULDER SCATTER (render_world
+  standRocks: 7-30 cm pebbles in a band 0.2-2 m off the strip edge, where the drawn band legitimately
+  reads kill 1) draws the SAME coast-scan geometry as the ring's rocks, and a triangle-count filter puts
+  1 328 of them in the debris column - "the gate is broken" for an hour. They are named `rocks:<id>`;
+  the probe counts them apart. A debris subject also becomes SEVERAL instanced meshes (one per material
+  part), so its meshes' triangle counts are not the pack's subject counts either.
+- SEEN: bench/debris/gate_2.png - HOME's strip from above at the planted density and at six times it:
+  the pavement and its band clear, the grass beside it littered.
+- GATES: BUILD / TREES / BIOME / WORLD / WORLDRENDER / UISMOKE / MEDIA / SPLAT / GFX / PREMISES / SITE green.
+## G503 - F2: THE MIST ON THE LAND - it lies in the valleys, it has banks with faces, and you can
+## fly into one (2026-09-22, the user: "can we have patches of mist? Like that mist that seems
+## like it drops in valleys and mountains, stays floating like hung on the trees?" and "what
+## about the cut through?")
+
+FOG-MIST-2026-09-21.md SS3b, built. The mist was a horizontally infinite uniform slab: one `yTop`
+for the whole world, so it could only ever be a horizontal sheet with a razor-straight lid, there
+was no valley for it to pool in and no edge to fly INTO.
+
+- **THE FIELD.** `ATMO.bakeField(renderer, world)` - CPU, once per world, 256^2, ~50 ms under the
+  roll-out screen. The terrain opened by a 400 m MINIMUM filter (the height a hollow shares, not
+  the ridge beside it), blurred 200 m, with the water's own surface where water stands. A texel is
+  (top, density x, thickness H) in world metres. It rides the SAME atlas the aerial perspective
+  already binds, in the columns the clouds' tile leaves free (x >= AP_TILE) - **no new sampler**,
+  because the island's ground programs stand at 15 of 16 and one more texture does not link (G424).
+- **THE BOUNDARY LAYER, and the first picture is why it exists.** A top that merely follows the
+  land puts mist at 400 m on every shoulder, and the first F2 frame washed out the whole middle
+  distance. The density now dies as `exp(-floor / 200 m)`: a sea-level basin fills, a 300 m valley
+  floor keeps a fifth, a 600 m shoulder gets nothing. Without it "on the land" is "haze over
+  everything", which is worse than the slab it replaces.
+- **THE PATCHES** are analytic (two octaves of value noise, drifted downwind on `day.jd` so they
+  stop when the clock is paused), not a texture: the atlas does not wrap and there is no unit to
+  spare. Their gain is 2.0 because smoothstep's mean over the noise is 0.5 - **the field's
+  multipliers must AVERAGE ONE**, or relief and patches change how much fog the day has instead of
+  where it lies, and the day's rho0 is the calibrated quantity. Two calibration errors were caught
+  this way (a wet bonus of 1.35 lifting the whole muskeg, a patch gain of 1.7 quietly thinning it).
+- **THE MARCH.** 6 samples along the slice of the ray that is actually inside the layer's band
+  (clipped to the field's own ceiling - the highest top whose density survives, 669 m on Jolene).
+  The patch noise runs only where `dens > 1e-6`, since on a long ray most samples sit above the
+  layer. With the step count at 0 or 1 the CLOSED FORM runs exactly as it always has.
+- **THE DOME'S DUPLICATE, RETIRED FIRST.** atmo.js carried the whole mist block TWICE - the splice's
+  copy and a verbatim one in the dome. With two copies the march would have gone into one of them
+  and the horizon would have disagreed with the ground. `${MIST_GLSL}` is interpolated now, and the
+  atlas sampler is declared under an `#ifndef ATMO_AP_SAMPLER` guard so a shader carrying both
+  blocks still declares it once.
+- **MEASURED** (A/B/A at the stand, tier full, rh 0.90, `tools/perf/frame_perf_f2.log` - the run
+  was stopped when a second rig started on the same card, so its rows are in the log and it wrote
+  no JSON; baselines steady at 72.5 / 72.3 ms):
+  the closed form 72.4, ON THE LAND (6 samples) 73.2 = **+0.8 ms**, PATCHY 75.7 = **+3.3 ms**,
+  patchy at 12 samples 81.3. The cost is the PATCHES, not the field's tap. So the ladder:
+  **Low flat, Medium on the land, High and Ultra patchy** - GRAPHICS `mist: off / flat / on the
+  land / patchy`, all four live, no restart. F8 gains relief, patches, bank size, drift, march
+  samples and a field readout. The `dens > 1e-6` early-out went in AFTER those numbers and its size
+  could not be resolved (the re-measurement's own baselines drifted 6 ms); it is recorded as
+  unmeasured rather than claimed.
+- **GATE ATMO** grows 15 checks (80 total): the block exists ONCE, the field's region is beside the
+  clouds' tile and inside the atlas, the march is a function in MIST_GLSL and not a sixth chunk,
+  every `uApAtlas` declaration is guarded, the boundary layer is present, and **the step count is
+  ZERO unless a field is baked AND relief is on** - the bit-identical guarantee as an assertion,
+  because a picture cannot prove it (two identical frames differ in 49 % of pixels, FOG-MIST SS1f).
+  GATE CLOUD's "both copies of the mist GLSL" assertion becomes "the ONE copy" - it had encoded the
+  duplication as a requirement.
+- GATES: ATMO, CLOUD, GFX, DAY, WORLDRENDER, LIGHT, ATMOS, SPLAT, WATER, MEDIA, VIEW, UISMOKE green.
+- OWED: the march's samples are uniform along the clipped segment, so a bank thinner than the
+  spacing can still be missed at long range; the early-out's size on a quiet box; and F3 (burn-off,
+  the shed's room haze, underwater) is untouched.
+
+## G460.11.8 - THE SKY WAS HIDDEN BEFORE IT WAS DRAWN: the mirror's capture had HOLES, and the water
+## read a second sky through them (2026-09-22, the user, on c4/gust3_horizon.png: "the cloud reflections
+## look really strange. Can't really put my finger on it. Looks like inverted colors? ... looks sometimes
+## more like a shading mistake. My brain does not reconcile it as being the mirrored sky")
+
+- THE PICTURE FIRST, because the bug was invisible in the frame and obvious in the capture. Debug view 11
+  (the capture where it lands, alpha 0 painted blue) over the Jolene coast: a mirrored world - mirrored
+  treeline, mirrored clouds - with a HUGE irregular ALPHA-0 REGION through it, its boundary running along
+  cloud silhouettes (screenshots/water-g440/c5/c_proj.png; view 12, the capture as a picture, shows the
+  same region black). So the capture carried the clouds but not the clear sky between them, and the shader
+  falls back to the PROBE where the capture has nothing: ONE reflection built from TWO skies, swapping
+  source at every cloud's edge. That is what the eye refuses - not a colour, a seam in the light.
+- THE CAUSE: the dome is handed to the capture (`sky: WF.skyDome`) AND listed in `hide` - it must be out
+  of the SCENE draw, where it is parented to the MAIN camera and would ride the wrong eye. The hide loop
+  runs first and sets `visible = false`; the sky pass then rendered an INVISIBLE dome. G460.11.3's fix
+  ("one dome draw makes the capture opaque and the reflection one source") has therefore never once run
+  since it landed - the hard edge the user reported then was answered by a pass that drew nothing, and
+  the only reason the water looked better afterwards is that the OTHER half of that landing (the cloud
+  march into the capture) did work. Four landings sat on top of a no-op. THE FIX is three lines: the
+  dome is made visible for its own draw and put back before the scene's (`const skyVis = sky.visible;
+  sky.visible = true; ... sky.visible = skyVis;`).
+- AND THE MEAN FRESNEL NOW RIDES THE MIRROR: Bruneton's mean-Fresnel dim (a rough sea at grazing reflects
+  a third of a mirror's sky - its facets shadow each other) multiplied only the PROBE's radiance, because
+  when it was written the mirror was a patch over part of the sky. With the dome in the capture the mirror
+  supplies the WHOLE reflection, so the factor is taken into `wMeanF` before the mirror's mix and applied
+  after it: the probe and the capture dim alike, and the grazing sea does not turn into a hard mirror.
+- MEASURED / SEEN (screenshots/water-g440/): c5/ the capture BEFORE (c_proj.png the alpha-0 region,
+  b_cap.png the same as black, d_uvdiff.png); c6/c_proj.png the capture AFTER - one sky, no holes -
+  and c6/a_base.png the frame; c7/horizon.png (a low eye on the coast: the treeline and the clouds
+  mirrored, the reflection fading toward the eye) and c7/sea.png (the mountain and the cloud deck
+  mirrored on open water) - the "mountain-and-tree-reflection-pool" shot the user asked for at G460.11.
+- A NOTE FOR WHOEVER READS DEBUG VIEW 12 NEXT: the capture is HORIZONTALLY MIRRORED against the frame
+  (measured, view 13: muv.x - suv.x is +1 at the left edge, 0 at the centre, -1 at the right). That is
+  correct and is three's Reflector's own behaviour - `lookAt` with the reflected up re-orthonormalises to
+  a RIGHT-handed basis, which is the true (left-handed) reflection with its right vector negated - and it
+  cancels because the lookup is projected through THAT camera's matrix. View 12's premise (the projected
+  uv equals the pixel's own) holds only for the y axis; use view 11 to judge the capture's content.
+- GATE WATER 3 gains two rules: the sky pass makes the dome visible for its own draw and puts it back
+  (with the order asserted: the toggle before the render), and the mean Fresnel is applied AFTER the
+  mirror's mix. WATER, WORLDRENDER, HYDRODYN, FLOATS, GFX, CLOUD, UISMOKE green.
+- OWED, unchanged and noted again here: the slope's perturbation is a screen-space uv push in the
+  CAPTURE's frame, whose x axis is the negative of the world's - a wave slope moves the reflection the
+  wrong way horizontally (small at the scale it is used, 0.06 uv); the honest form is a world-space
+  offset of the projected point, which also gets the perspective right.
+
+## G504 — THE CLIMATE: one wind field, and a sailplane that can use it (2026-09-22, the user:
+"wind, gust, storm, temperature management, accurate wind profile on the mountains and coasts,
+proper atmosphere gradient of pressure and temperature, possibly humidity. Link all that to future
+haze, and to ripples and waves in the newly constructed water system. Also link that to the cloud
+system to drive the movement of clouds. Let's try and have an holistic climate manager. And would
+we be able to fly sailplanes with these new settings? Could we do ridge riding for example? ... it
+is very clear that the game becomes heavy both on CPU and GPU, so we need versatile, elegant and
+lightweight methods. We will probably need some sort of debugging visualization with current lines
+and intensity. Can we also have hot air lifting things up, or is this too much of a leap? We need
+to link all systems first.")
+
+THE PLAN: `futureDesigns/CLIMATE-2026-09-22.md` (K0-K6). K0-K4 landed here as G504-G504.9 (the G number is taken at LANDING and this chantier paid for it
+THREE TIMES: G501 went to the fog study while it was rebasing, G502 to the pavement session while
+its proof battery was running, and G503 to the fog study again during the second battery. The
+lesson is not to number earlier - it is that a twenty-minute proof is a twenty-minute window, so
+the rebase is scripted and the landing follows the battery by seconds, with the expected-old on
+update-ref catching what still slips through - the
+collision SHARED-TREE-PRACTICES 3 warns about, met in the wild); K5 (the
+debug view) and K6 (the storm's playtest) are owed. The user's decisions, asked and answered:
+soaring first; the thermals lift the aeroplane and bend the smoke and aim the socks; a WEATHER
+panel on both rails.
+
+THE PLUG WAS ALREADY THERE. `world.wind(x,y,z,t)` (G72) was a uniform base x a power-law shear plus
+four gust sines, and the solver samples it ONCE at the mean wing and then PER WING STRIP, per tail
+strip, per fuselage blob (30_solver aeroPass). So an updraft raises a strip's alpha and a spanwise
+gradient produces roll FOR FREE: thermals and ridge lift needed no solver change at all, only a
+better field. That is why this chantier is a new core file and almost nothing else.
+
+**G504 (K0) — THE ONE FIELD.** `src/core/09_climate.js`, pure, node-runnable, in the manifest after
+08_cloud_field. The G72 field moved in VERBATIM as `windLegacy` and is the whole field whenever the
+spec names no rich term - bit-identity BY CONSTRUCTION rather than by care, proved against a
+verbatim copy embedded in the gate over 8 000 points x four forms. Modes zero | legacy | rich.
+THE SAMPLER: `wind()` is the solver's and keeps a linearisation cache keyed on `t` (a reference
+point, the ground's plane, and a Jacobian over seven channels at unit shear); everyone else
+`sample()`s. The SURFACE LAYER is never linearised (one pow per call) and the GROUND is read
+exactly under 60 m agl - the analytic world's 65 m octave made a linearised AGL worth a metre on
+final. Measured: 0.06 m/s over the solver's footprint above 20 m, a full sample 2.3 us quiet.
+THE RELIEF RASTER: 200 m cells over the world's bounds, twelve Float32 channels (two smoothed
+bands, their gradients, a prominence, a signed coast distance and its unit gradient, a heating
+class), built LAZILY on the first rich spec - 52 ms on the analytic world, and a legacy day pays
+nothing.
+
+**G504.1 (K1) — RIDGE LIFT.** Terrain-following flow in THREE bands, each decaying over L/1.6 as
+linear theory says (800 / 200 / 80 m): the raster's coarse and fine, plus a LOCAL band that is the
+true slope at the point (terrainH at +-60 m) less what the raster already carries - a 200 m raster
+smoothed over 300 m cuts a real 35 deg face to 0.25, and a ridge pilot flies within a wingspan of
+the slope. Jackson-Hunt crest speed-up and the valley's shelter on the prominence. The lee rotor's
+turbulence GUSTS ON ITS OWN (0.5 of the base per unit of TI above 1), so a lee is rough on a day
+whose declared gust is zero. MEASURED: 5.96 m/s of lift at 50 m on the steepest windward face in a
+12 m/s wind, -3.61 in the lee, 0.52 at 400 m, never more than the wind times the slope; the crest
+x1.17, the valley floor x0.93; the lee spreads 0.60 m/s where the windward face is exactly steady.
+
+**G504.2 (K2) — THE COLUMN, THE DAY'S WEATHER, AND A PANEL.** 05_atmos grows a LAYERED day (a mixed
+layer stirred to the dry adiabatic, a lid, the free atmosphere, the stratosphere; each layer
+integrated exactly) and BRANCHES FIRST, so a cfg naming no shape runs the G72 closed form and
+ATMOS_ISA is identical to the bit. Continuity 1e-8 K across every layer edge, hydrostatic to 2.6e-7.
+THE WATER IS ITS OWN FUNCTION, `atmosWater(atm, dewC)`, deliberately outside makeAtmos: humidity
+does not change the density (the dry-air cut) and GATE DAY holds that moving it leaves `world.atmos`
+the SAME OBJECT. The condensation level is DERIVED where the dew point (1.8 K/km) meets the
+temperature - which under a mixed layer reproduces the day's own 125 m-per-degree rule to 2.3e-11 m,
+the same arithmetic twice rather than two models. `climate.mixTop()` = min(lid, LCL): a capped day
+tops its thermals early and makes no cumulus, an uncapped one marks every one with a cloud.
+THE DAY CARRIES THE WEATHER: a diurnal swing (default 0 = no change) and a FRONT on the clock (an
+intensity that rises, holds and clears; the wind up and veered, the temperature and the pressure
+down, the sky to cb, the visibility thickened). One `airKey` the world's atmos getter rebuilds
+LAZILY on - which is what lets the CLOCK make weather, since `advance()` never bumps the version.
+`world.dayTick(dt, simT, ax, az)` is the viewer's step; the solver never calls it (the two-clocks
+rule). MEASURED over one passage: 7.1 -> 19 m/s, veer 55 deg, -6 C, -9 hPa, cover -> 0.95 cb,
+visibility 60 -> 26 km, and it clears back to exactly the day it found, never moving more than
+0.14 m/s in a minute of the clock.
+THE WEATHER PANEL (`src/viewer/weather_ui.js`) on BOTH rails: seven presets as whole days, the wind
+with a direction and `the hills`, the air, the column, the front, four LIVE rows. `#selCond` stays
+THE KEEPER - its options became the presets, its handler is still the one place a preset is applied,
+and the panel presses it. `windBase` is DELETED (the map chip and the air flyout read the climate's
+own 10 m wind). `?wind=` / `?storm=`, the weather in the pref, an F8 `climate` fold.
+
+**G504.3 (K3) — HOT AIR THAT LIFTS THINGS.** Thermals on Lenschow/Allen/Deardorff:
+H = heat(1-alb) S0 tau max(0, sin El_lag)(1 - 0.7 cover), w* = (g/T H/(rho cp) z_i)^(1/3), with
+`heat` off the raster (no column over water) and `El_lag` the sun TWO HOURS AGO because the ground
+runs behind it. A square lattice at 1.5 z_i in a frame advected by ONE wind (the boundary layer's) -
+every column drifts with no per-thermal state, and a frozen day is a frozen field. The core peaks at
+4.2x Lenschow's AREA MEAN (his 0.36 w* is an area mean; a core is 1.5 w*), with a sink annulus to
+2 r2 at -w_pk/4 that balances it exactly (analytically +-pi w_pk r2^2/2; measured 0.66 % net of
+gross). THE TILT IS THE SHEAR'S, NOT THE WIND'S - the column rides in the moving air, so only
+U(z)-U_bl can lean it; the whole wind put a 2 km lean on a 900 m column. THE JITTER DECIDES FIRST:
+asking "is there cloud here" at the lattice point instead of at the column's own place blurred the
+clustering from 2.0x to 1.4x. The DAY owns `cloudSeed`, so the climate reads the SAME weather map
+the sky is drawn from and the columns cluster under the cumulus - twice over against cloud on ground
+that could hold one.
+THE SEA BREEZE along the coast's own gradient, same lagged sun, killed by cloud, 700 m deep,
+reversing overnight (2.7 m/s onshore at 15:00, seaward at 02:00). Its vertical part is continuity
+alone and is NAMED as broad - 0.04 m/s, which is a front's convergence smeared over twenty
+kilometres; the sharp line a glider works is owed.
+THE VARIOMETER: `44_machine_sheet.sinkAt(V)` fits the parabolic polar through the two points the
+sheet already had (exact at both, no new assumption); `ap.sheet` is PUBLISHED at last (43_pilot's
+header had claimed it since P0.4 and never did); the HUD reads netto = vs + sinkAt(V) on a 3 s
+needle with a 20 s mean, off until the instruments row asks.
+
+**G504.4 (K4) — THE PICTURE ANSWERS THE WIND.** `src/viewer/climate_link.js` is the ONE place the
+renderer asks the climate, once a frame inside worldUpdate. Everything that showed the wind used to
+keep its own copy - `windBase`, a CONDITIONS row, a hard-coded `3, 1` in clouds.js - and they
+disagreed the moment anything moved.
+THE SEA (agreed with the water session, four conditions): `seaFrom` now RECORDS what it drew (each
+train's amplitude coefficient, wavelength RATIO, direction offset) without touching a line of its
+arithmetic, so the legacy draw is identical to the bit (golden 63eccad3); `seaApply` re-applies it
+at a new state; `seaTau` on the day (default 0 = the immediate rebuild) relaxes it in the WORLD's
+own tick, so the solver's waterH and the shader's uniforms are never two seas. THE FELT FLAG IS THE
+DRAW'S, decided once from the ratio - waterH sums the felt band alone, so a train crossing the
+threshold mid-front would STEP the surface a float is riding, and the longest wind-sea component
+sits at ratio 0.671-0.757 against SEA_FELT 0.75, right on the line. THE PHASE IS ANCHORED AT THE
+AEROPLANE: holding only the time term leaves the space term free, and k times four kilometres turns
+several radians in one tick - a BIGGER step (0.69 m) than the jump this was removing (0.28). Anchored
+at the craft, a 5 -> 16 m/s front steps the surface 0 m and never moves more than 1.5 cm a second
+within 120 m of the hull (0.53 m at 4-8 km, the named slide, where the water's LOD has already
+turned those ridges into roughness). tau 900 is the honest default: tau 120 wobbles 0.22 m/s.
+THE CLOUDS' DRIFT IS AN INTEGRAL, not `wind x secs` - a position computed from the wind NOW, which
+jumped the whole sky by dw x 60 000 s whenever the wind changed; seeded from the old closed form so
+a fresh boot draws the sky it always drew.
+EVERY SOCK IN ITS OWN WIND (a ridge strip and a sheltered valley genuinely differ, and a sock is the
+one instrument in the world meant to say so); the ripples, whitecaps and glitter told on change
+(they used to move ONLY when somebody picked a preset); the spray and the smoke relax toward THE AIR
+rather than toward nothing.
+THE TREES LEAN (agreed with the vegetation session, four conditions) on one shared `uWind`: a leaf by
+its height and gl_InstanceID; a cover tuft by height on the `aRand` it already carries, POSITION
+ONLY (its normal is the ground's - G484, or the harsh light/dark halves come back); an impostor card
+SHEARED not rotated, before the fade's shrink, collapse test last, scaled by uDiam because the stand
+cards share the material. A `sway` gfx row whose gain 0 is a zero bend in the SAME program, so it
+never forks G484's cache key.
+THE MIST IS NOT TOUCHED: `climate.haze()` publishes the INGREDIENTS (Koschmieder rho0, top, H,
+visibilityKm) and the fog study's F1 wires the consumer - agreed by message, and G500 records it.
+
+**G504.5 (K4.1) — THE WEATHER IS NOT THE SUN.** `dayApply()` returned from its WHOLE body on
+`rigCur.manual` (the F8 hand-placed sun), which also froze ATMO.update and the clouds' drift.
+Invisible while the mist was a constant per day; a bug the moment a front moves the visibility and
+the sky drifts on its own clock. The weather now runs first and the manual gate sits where it always
+meant to be - on the LIGHT (the probes already carried their own guards, and the comment two lines
+down already said the clouds were "not gated on the sun's move"). Caught by the FOG session in
+review, not by a gate.
+
+**G504.6 (K4.2) — THE SPATIAL SIGNATURE AND A LOW DECK SAID OUT LOUD.** `profile(h, x, z)` takes the
+spatial arguments and IGNORES them, documented as such and agreed with the fog study (its 5b): the
+column is horizontally uniform by declared boundary, but its consumers are spatial from their first
+line, so the signature costs a comment now and every call site plus a bake path later. AND: because
+the LCL reproduces the 125 m rule exactly, a nearly saturated day puts the base at 38 m and every
+eye above the valley floor is inside cloud - exact, and load-bearing for mixTop(), so NOT to be bent
+for a visual. The panel says so where the player decides instead: "the deck is on the deck - the
+cloud base is at N m, below circuit height".
+
+GATES: **GATE CLIMATE** (core, `tools/test_climate.js`) - the zero path's shared exact vector; the
+legacy field bit-identical against a verbatim G72 copy; determinism across two worlds; the raster;
+the ridge and the crest; the thermals (the beam, w* by ground, the column up and across, the mass
+balance, a night that is an exact zero, the lattice walking downwind); the breeze; the column and
+the water; the front; the sea; the cloud link; the two clocks; and the sources, including the
+viewer's wiring. **GATE SOAR** (full, `tools/test_soar.js`) - the motorglider engine-off on the
+pilot's own GLIDE combination: S1 the flown sink 1.37 against the sheet's 1.36; S2 a ridge beat at
+minimum-sink speed 120 m over the face that GAINS energy height (233 -> 243 m over 230 s) where the
+same beat with `terrain: 0` is on the ground inside the run; S3 a thermal circled at 41 deg that
+CLIMBS 0.58 m/s in air averaging 2.76 and gains 59 m in 200 s where the same circle without the
+columns loses 430, the netto vario reading the air to 0.29 m/s.
+
+THE HARNESS LESSONS, all measured and all in the gate's own comments: the pilot's `HDG` mode holds
+the GROUND TRACK, not the heading (a gate's own crab on top of it walks the aeroplane upwind at
+3.4 m/s); its lateral law NULLS the track error, so a commanded circle needs a point that keeps
+moving AHEAD of it (a rotating tangent gave 8 deg of bank and a 181 m radius where 41 deg and 29 m
+were asked); every beat reversal costs ~300 m of downwind drift, so a ridge beat turns INTO the
+wind, away from the hill; and a *day* spec is not a *wind* spec (the first S3 run had no thermals at
+all and both cases matched exactly). Also: the Browser pane has no live requestAnimationFrame - a
+hidden pane suspends it, so worldUpdate never runs and every link value reads zero; prove render
+wiring headlessly and use the headless-Chrome rigs for pictures.
+
+OWED: K5 the debug visualisation the user asked for (streamlines, an intensity carpet, thermal
+columns) and K6 the storm's playtest; lee/mountain waves (`waves` is parsed and ignored); rotor
+dynamics; katabatic slope winds; the sea-breeze front's sharp line; moist density; precipitation; an
+audio vario; diegetic thermal markers (birds, dust devils); the shed's windsock and sky under a
+storm; shadow-map sway; a ridge tint on the ground (the sampler budget forbids it); an island-world
+SOAR case (bench/ is absent in worktrees, so the ridge case flies the analytic world); the Munk
+moment's `world.wind(ax, ay, 0, simT)` z=0 (fixing it is not bit-identical under refH); and the
+15 m motorglider's "wont-climb" debt, untouched. A RULING IS OPEN for the user: whether a saturated
+day wants a coverage floor, patchiness, or nothing at all.
+
+VERIFIED BY THE SESSIONS THAT OWN THE FILES, which is why the peer messages are worth the time:
+- THE WATER SESSION ran GATE WATER, HYDRODYN, FLOATS and WIPLINE on this branch (all PASS) and
+  proved SEAPLANE's three failures identical TO THE DECIMAL on master and here, i.e. pre-existing.
+  It also re-measured the front with a better instrument than mine - the felt band evaluated at the
+  same instant under the current rows and under a snapshot of the previous ones, differenced - and
+  got 0.115 m/s worst within 120 m of the hull at day rate 60 (about 2 mm/s at rate 1), 1.2-4.6 m/s
+  out at 500 m to 8 km. Its verdict on the slide: invisible, because by 1-2 km those trains have
+  faded out of the slope and only their variance survives, which has no phase to slide. Shot at
+  300 m and at the horizon through the step: no banding, no pop.
+- THE VEGETATION SESSION read the splices and measured the sway over Jolene's densest stand:
+  105.6 ms with gain 1 against 101.5 with gain 0, on a card shared by three other rigs - inside the
+  noise. It also found that the rig's own scene is CALM, so nothing sways in it: hence
+  CLIMATE_LINK.setWind(), so a probe can make weather.
+- THE FOG STUDY caught G504.5 in review (the frozen weather under a hand-placed sun) and set the
+  shape of haze(): the ingredients, never a distance.
+- GATE SKINMAT is red on master already (taperPanel, drawnPane, reveal, shoulder, doorPanel),
+  measured on a clean master worktree; it is not this chantier's.
+
+THE LANDING'S OWN DEFECT, recorded because the next reader will meet it in two HANDOVERs at once:
+G504-G504.9 landed SOURCE ONLY. There is no `(built)` commit, so master's index.html, dev.html and
+flight_core.js carried none of this chantier until the water session's G460.11.9 (built) at 0cb1dffa
+rebuilt them for a twenty-line change of its own and said so. The convention is a source commit AND a
+built commit from a clean LF worktree; the rebase script carried ten source commits and nobody noticed
+there was no eleventh, through three renumbers. WHAT WAS STALE WAS THE COMMITTED PAGE, NOT THE
+MEASUREMENTS: every number quoted above came off a freshly built proof worktree (`node tools/build.js`
+then `run_gates.js --no-build`), which is why GATE MEDIA could measure 8.55 MiB of a page master did
+not yet have. Verified after the fact rather than assumed - a clean rebuild of master's own source
+reproduces the committed flight_core.js, index.html and dev.html BYTE FOR BYTE (identical blob hashes;
+only version.json's timestamp moves, its build hash 91f7b6bdfdae unchanged). Nothing is owed. The
+lesson for the next long chantier: the built commit is part of the landing, not a follow-up, and a
+proof battery that never commits its build will let you forget it.
+## G460.11.9 - THE WAVE'S SLOPE MOVES THE POINT, NOT THE UV: the mirror's perturbation had no frame
+## (2026-09-22, the user: "fix the perturbation frame too" - the debt G460.11.8 wrote down an hour before)
+
+- WHAT IT WAS: `muv += wNw.xz * 0.06` - the water's WORLD normal added to the CAPTURE's uv. Three things
+  wrong in one line. (a) THE FRAME: the capture's x axis is the NEGATIVE of the world's (measured, debug
+  view 13: muv.x - suv.x is +1 at the left edge, 0 at the centre, -1 at the right; it is lookAt with the
+  reflected up re-orthonormalising to a right-handed basis, three's Reflector's own behaviour and harmless
+  because the projection carries the same flip - but a hand-written uv offset does NOT). So a slope moved
+  the reflection the wrong way horizontally. (b) THE PERSPECTIVE: a constant uv push is a constant ANGLE,
+  so a wave 5 m away and a wave 500 m away displaced the reflection by the same number of pixels. (c) THE
+  MAGNITUDE was a dial with no unit behind it.
+- WHAT IT IS: the honest form needs no frame at all, because the capture already answers the question.
+  What it holds at the projection of a point Q on the water plane is the radiance arriving at the eye
+  along the FLAT reflection of the eye-ray through Q. So to read what a TILTED facet at P sends to the
+  eye, take that facet's reflected ray R = reflect(V, n) and follow it from the MIRRORED EYE back down to
+  the plane: Q = E' + R (h / R.y), h the eye's height over the water. Q is P exactly when the water is
+  flat - GATE WATER proves it over 2000 random eyes, levels and grazings, 0 misses. The walk is METRES ON
+  THE WATER, so it carries the perspective for free and points where the reflection actually goes.
+- TWO GUARDS, both needed and both measured: the floor on R.y is min(h/L, 0.02) and never the flat ray's
+  own value - a bare max(R.y, 0.02) breaks the identity at grazing (162 of 2000 eyes failed it, found by
+  the gate, not by eye) - and the walk is CAPPED at `MIR.perturb` (0.05) of the view distance, because a
+  facet whose R.y goes to zero sends h/R.y to infinity and the lookup past the horizon.
+- WHAT IT BUYS, seen: screenshots/water-g440/c8/ at 9 m over a 12 m/s sea (A 0.6, L 14). chop_off.png -
+  the walk at zero - has the reflected clouds glued flat on the water as soft blobs that ignore the swell
+  entirely: paint. chop_on.png (0.05) breaks them along the wave faces into the chopped-mirror texture
+  that reads as water at a glance. chop_big.png (0.15) scatters them so finely the cloud loses its
+  identity - the dial's useful range is about 0.03 to 0.08. On calm water (h_on.png, the coast from 18 m)
+  the walk is near zero and the treeline still mirrors crisply, which is the identity above, drawn.
+- GATE WATER 3: the four lines asserted verbatim, plus the arithmetic proved scalar-wise (flat gives back
+  the point, the walk stays on the plane, the cap holds), plus `uWMirror4.w` carrying the mirror's plane
+  (the walk needs it; it was the spare slot). The old uv-push spelling is forbidden by name.
+- A TRAP FOR THE NEXT EDITOR OF THE HOOK: a BACKTICK in a comment inside the GLSL closes the template
+  literal and the file stops parsing with a message that points at a line forty above. Do not quote code
+  with backticks in there.
+- WATER, WORLDRENDER, HYDRODYN, FLOATS, GFX, CLOUD, UISMOKE, MEDIA green.
+
+## G460.11.10 - THE GOLDEN: one hash of what a named wind DRAWS, in GATE WATER beside the climate's
+## (2026-09-22, placed at the climate session's request after their K0 moved the wind field under seaFrom)
+
+- WHY IT IS HERE: G504 moved the whole wind field into src/core/09_climate.js without touching a line of
+  seaFrom's arithmetic - which is exactly the change that a hash catches if the claim is ever false. GATE
+  CLIMATE 12 already holds the band's SHAPE (8 felt of 32 at every wind from 2 to 25 m/s); this holds its
+  NUMBERS, so a future session cannot quietly re-decide the sea the floats are pushed by.
+- THE RECIPE IS THEIRS VERBATIM so the two gates quote ONE value and cannot split: FNV-1a 32-bit over
+  JSON.stringify of the RAW `world.sea.W` array - full double precision, every key in its own insertion
+  order, `felt` a real boolean. `makeWorld(0)` + `setWind({base:[3,0,4]})` -> 32 trains, A 0.0900,
+  L 10.000, dir 0.92730, FNV 63eccad3 (reproduced here on the landed tree, first train byte for byte
+  against theirs). My own first reading - a field list at six decimals - gave 3a8350ef, which is the whole
+  reason I asked for the recipe instead of guessing: two goldens for one fact is worse than none.
+- THE SHARP EDGE, written beside the value because it is the kind of red that wastes a night: hashing the
+  stringified OBJECTS makes the golden sensitive to ADDING A KEY to a train, not only to changing a
+  number. Give a train a new field and it goes red although the water is identical. Pinned from the
+  unchanged seaFrom, and RE-PINNED IN THE SAME COMMIT as any intentional change to it, never alone.
+- ALSO SETTLED WITH THE TWO PEERS THIS SESSION, for the record: (a) the fog session's F1 visibility cull
+  stays APPLIED across the mirror's capture - the mirrored eye shares the main eye's x and z and the pass
+  only runs under 60 m of water, so a cull sized for the main eye is already right for mine to well under
+  a per-cent, and they bracket my block from outside and expose `WF.vis.applied` for a rule; the mirror
+  keeps INHERITING `camera.far` (fog-shortened is correct for it) under its own min(., MIR.far) cap, and
+  `ATMO.setEyeY` now exists if the dome's mist ever reads wrong from below the surface. (b) G504-G504.9
+  landed SOURCE ONLY - no built commit - so master's page carried none of the climate until G460.11.9's
+  build; verified by them as a byte-for-byte rebuild of master's own source.
+- OWED: a GATE WATER rule asserting `WF.vis.applied === true` inside the capture, once F1 lands.
+
+
+## G505 — THE POWER LINE: THE POLES AND THE CABLE (2026-09-22, the user with a photograph of a
+## road on Revillagigedo: "do we have the electric poles?" ... "yes, do the line, and allow roads to
+## have it optionally, on by default")
+
+WE HAD THE POLES AND NEVER STOOD ONE. Three Poly Haven presets (pole_a with a transformer, pole_b
+plain, pole_c) were baked into the yard pack at G285 with two LOD rungs, and _village_gen.js's
+planPoles (G285/G370) placed them every 32-40 m with a street lamp on every second one - and the
+ONLY consumer of `vil.poles` in the repo was tools/_village.html. Nothing in src/viewer ever read
+it, so Skarvik's "poles" in the screenshots were dead tree trunks. And there had never been a
+CABLE, which is the part that reads: the theme doc has carried it as owed since 2026-09-14.
+NEW src/viewer/powerline.js - the rule and the wire, and nothing else: it knows no props, no house
+kit, no lamp; the renderer hands it `place(q)` and `lamp(q)`. THE SIDE: one verge the whole way,
+whichever takes more poles once the caller's `keep` has spoken, and never the verge a guardrail
+took (the rail publishes its `sides` now); a tie goes inland, the village's convention. THE KEEP
+(the premises'): not INSIDE a plot - a pole stands on the verge in front of a frontage, unlike the
+guardrail which keeps 8 m clear - not in a junction, not on a strip, and not on a PAVED POLYGON
+(the first cut stood one on Jolene's apron). THE CABLE: three conductors on the crossarm (which
+runs across the road, so they spread along the road's normal) and a service cable 1.6 m lower,
+each span a parabola through TRAM_RUN.ropeCurve - the codebase's one sag, the tram's haul rope,
+which now exports for node too. A gap over 110 m breaks the line rather than striding it. Merged
+per 10 spans (~350 m): one mesh a road would be drawn from everywhere, one a span is a draw call
+every 34 m. A four-sided 35 mm tube, ~90 triangles a wire a span. THE POLE IS STOOD AT 1.35x: the
+kit's 6.13 m is a small rural pole and a distribution pole is 9-11 m; the lamp's arm rides up with
+it (the bench measured it off the kit's own top). THE LAMPS are VILLAGE_GEN.streetLamp verbatim,
+drawn into the road's bags with the galvanised finish, the lens in LAMPS.glass (it follows the
+night like every pane) and each head in LAMPS.pub - the renderer's nearest-eight point-light pool,
+so no new light budget. Jolene: 8 lines, 221 poles, 212 spans, 80 k triangles of cable.
+THE SWITCHES: GRAPHICS > power lines, and a road's `poles` row in the editor (contract v1.19),
+on unless it says otherwise. The analytic world's roads take the same line (no lamps: the pool is
+the premises renderer's).
+THE BUG IT FOUND, WHICH G497 HAD SHIPPED: `world.waterH(x, z)` is a FIELD - the surface at that
+point, -Infinity where there is none, a lake's 137 m where there is one. The guardrail was handing
+its rule ONE NUMBER sampled at the world's origin, so a lake under the origin clamped every probe
+on the island above its own bank and EVERY GUARDRAIL ON JOLENE DISAPPEARED. `waterY` takes a
+function now and is evaluated at the probe point; GATE PAVEMENT §7 holds it with a lake over a
+bed (the bare bed falls 40 m and takes two beams; filled, the same bank falls 6 m to the water and
+takes one).
+AND THE WARRANT RECALIBRATED, on the real island this time: G497's 1:3 table was set against the
+analytic world alone. Measured IN THE GAME on Jolene's own DEM her roads fall 0.4 / 1.6 / 2.5 m at
+3 / 7 / 14 m (the airport road), 0.7 / 1.6 / 2.9 (the shore), and only v_north has a bank at
+1.2 / 3.3 / 6.1 - so the 1:3 table rails SIXTY METRES of the whole island, nothing the eye ever
+meets. The 1:4 table (0.8 / 1.7 / 3.0) rails 221 m of Jolene - where it stood when the user judged
+the pictures - and 6.2 km of the analytic world's mountain roads. That is the shipped table.
+AND THE TREES NOW OBEY THE PAVEMENT (the user, on the first pictures: "feels to me like we have a
+lot of trees on the roads"). They were right and it was this chantier's own asymmetry: the tufts
+have obeyed coverAt since v1.17, the trees never did. The streamed fill's forestHere/openHere knew
+nothing about a road - their only road awareness was world.surface INSIDE the carriageway (a
+clearance of ZERO from the edge), and ROAD_CLS maps track/path to SURFACE.GRASS, which openHere
+accepts, so trees planted ON a track; the collidable woodland's `SET.roadNear < 12` is dead code on
+an island (SET is a stub); its clump neighbours are thrown 4-18 m with no test at all. Now
+forestHere/openHere - the ONE pair the fill, the stand cards, the colour bake and the canopy mask
+share - reject where world.coverAt(x, z).kill > 0 (the pavement, its band, the 6 m fade: 6.5-7.2 m
+past a road's edge, 9-10 m from a village street's centre, measured), and so do the woodland bake
+and the clump neighbours. coverAt gained `pave`: the pavement half without the plot walk, 0.19 us
+against 1.34, the same kill to the bit - the fill calls it on every lattice point of every chunk
+(25 600 a chunk, 5 ms). Contract v1.17.1; GATE PAVEMENT §6 holds the equality, the cost and the
+clearance.
+THE ROCKS AND THE DEBRIS take the same law, but they are NOT mine: the terrain session landed it as
+G502 (cover_ring.js placeRocks, which the far rock map shares) in the same hour their user asked for
+it - `G.kill[gk] >= 1 || (G.cls[gk] && G.kill[gk] >= 0.5)` then a taper at `1 - kill`, read off the
+ring's own 4 m node rather than queried per piece. I had written the same test per piece; theirs is
+cheaper and catches the case mine dropped (a GRASS pavement only thins to 0.6, so a log survived on
+a grass strip at 40 %), so mine was dropped. GATE PAVEMENT §6 now walks all THREE planters' bodies
+and fails if one stops reading the cover - which is exactly how the trees came to stand on the roads.
+- FILES: src/viewer/powerline.js (new, in the MANIFEST's world list after tram_run.js), tram_run.js
+  (module.exports), guardrail.js (waterY as a field, `sides` published), render_premises.js
+  (poleKeep, lampFinish, buildLine), render_world.js (the analytic roads), gfx_settings.js,
+  premises_ui.js, 27_premises.js + 20_world.js (coverAt's `pave`, the woodland's test),
+  tools/_pavement_check.js (GATE PAVEMENT §6 and §8), futureDesigns/PAVEMENT-2026-09-21.md §8-9,
+  PREMISES-CONTRACT v1.19 + v1.17.1.
+- PROOF: screenshots/pavement/poles_skarvik*.png (in game, the line along the airport road and over
+  the apron's edge), the gate's §8.
+- OWED: a service drop from the line into each frontage (the photograph's lower cable runs into the
+  shed); guy wires at an angle pole; the PLANT tool and a `line` feature kind, which is what would
+  let a hand draw a spur the roads do not follow.
+## G460.11.11 - THE WALK IS 0.15, BY THE USER'S EYE (2026-09-22): "the third screenshot looks best"
+
+- THE RULING. G460.11.9 shipped the slope's walk at 0.05 of the view distance and wrote in this file that
+  "the dial's useful range is about 0.03 to 0.08" and that 0.15 "scatters them so finely the cloud loses
+  its identity". Shown the three (screenshots/water-g440/c8/chop_off, chop_on 0.05, chop_big 0.15), the
+  user picked 0.15. MIR.perturb is 0.15 and the range claim above is withdrawn - it was my eye, not a
+  measurement, and the judgement was never mine to keep. What the user is choosing is a sea whose
+  reflection is BROKEN, not carried: a 12 m/s sea does not hold a cloud's shape, and the version that
+  still reads the cloud is the version that still reads as paint.
+- IT COSTS NOTHING ELSEWHERE, which is the whole point of the G460.11.9 form: the walk is a fraction of
+  the view distance applied to the FACET'S OWN reflected ray, so on flat water it is zero by construction
+  (Q = P, 2000 eyes in GATE WATER) whatever the dial says. Re-shot at 0.15 to be sure rather than to
+  argue: c9/coast.png (18 m over the coast, near-calm) still mirrors the treeline crisply and the clouds
+  read whole; c9/high.png (55 m over the 12 m/s sea) is the wave-textured sheen a low aeroplane sees;
+  c9/mid.png, c9/calm_low.png. Nothing needed a second dial.
+- GATE WATER's bound on the dial is 0.25, so the rule prints the number and holds the cap either way.
+- A RIG NOTE: cloud_shot threw "the roll-out never happened" once at --wait 6000 on a cold server and ran
+  clean at 12000. If a shot set dies at the roll-out, raise the wait before suspecting the page.
+## G505 - F1: THE VISIBILITY CONTRACT - the renderer stops drawing what the weather has already
+## swallowed, and it saves less than the study promised because the study was cutting too deep
+## (2026-09-22, the user: "do F1, ensure you coordinate")
+
+FOG-MIST-2026-09-21.md SS2 and SS5a, built. `day.visibilityKm` had been computed since G410 and
+read by nothing; the far plane was 100 km and the far terrain was never distance-culled, on a
+2 km-visibility morning as on a clear afternoon.
+
+- **THE RULE IS THE SHADER'S OWN.** `ATMO.seeT(eyeY, targetY, D)` and `ATMO.seeRange(...)` are the
+  CPU mirror of `MIST_GLSL`'s closed form (in-cloud slab included) times `medium()`'s own
+  extinction - the renderer asks what the SHADER will draw, never what the day was authored with.
+  A thing is hidden when the transmittance to the highest GROUND it holds is under 1 %.
+- **WHAT IT DOES NOT DO, and this is the finding.** SS1d measured -45 % by hiding far terrain at
+  `1.3 x visM`, and SS1f then showed in pictures that such a cut SHEARS THE SKYLINE: the mist takes
+  the distant ground at ~2 km while the ridges standing out of it are visible for 25. Both are
+  true, so the honest contract cannot take that saving. From 200 m it correctly hides NOTHING.
+- **MEASURED** (eye 25 m, Jolene): rh 0.90 -> visM 4052 m, 5 of 16 far meshes hidden; rh 0.98 ->
+  2090 m, 8 of 16; the mist x4 -> 527 m, 10 of 16, far plane 31.6 km. 0.1 ms of CPU. The live
+  numbers agree with the CPU mirror to three figures because they are the same arithmetic. The
+  saving in geometry at the stand under thick fog: **41.9 -> 39.1 Mtris, -6.7 %**. The frame-time
+  delta is OWED on a quiet box - every row of the A/B/A was taken at 96-98 % GPU with a peer's rig
+  on the card, and the OFF baselines read 87.7 / 133.0 / 95.3 ms.
+- **COORDINATED BEFORE A LINE WAS WRITTEN, with both sessions whose work it touches.** The WATER
+  session ruled (c): its mirror capture runs WITH the cull applied, because `mirrorRender` only
+  runs under 60 m AGL and the mirrored eye is the main eye moved VERTICALLY, so against a quadrant
+  kilometres out both eyes get the same answer - `apply` brackets the capture from OUTSIDE (never
+  between its own hide and restore), `WF.vis.applied` is exposed for GATE WATER, and
+  `ATMO.setEyeY/getEyeY` are there for a capture that wants the dome's mist exact from below. The
+  CLIMATE session ruled that `haze().rho0` is the COLUMN's aerosol extinction while the mist's is a
+  shallow layer's - two media, not two estimates of one (~10x apart) - so nothing here reads
+  `haze()` yet and F1 follows whichever way that settles; the mist's banks now drift on
+  `climate.sample()` as an INTEGRAL rather than `wind x seconds` (a position computed from the wind
+  NOW is not a position), and `WF.visM()` is published for their panel.
+- **GATE FOG** (`tools/test_fog.js`, core, 22 checks): the CPU mirror against the GLSL branch for
+  branch, transmittance monotone in distance and in density, the wall finding AS ARITHMETIC (at
+  rh 0.98 the ground is gone by 2.11 km while a summit stands to 26.9), the cull applied and
+  released around ONE render and bracketing the mirror from outside, the test aiming at a mesh's
+  highest ground rather than its bounding sphere, and every preset naming the row. **Headless, no
+  GPU, because a picture cannot prove this** - two identical frozen frames differ in 49 % of pixels
+  (SS1f), so a screenshot diff would be a gate that passes whatever happens.
+- GRAPHICS `draw distance`: `by visibility` / `always full`, live, on every preset. F8 gains the
+  switch, the margin, and a readout of what it is seeing and hiding.
+- GATES: FOG, ATMO, CLOUD, GFX, DAY, WORLDRENDER green.
+- **THE BUILD IS PART OF THE LANDING.** G503 (F2) changed four files under src/ and landed with no
+  `(built)` commit - master's page carried none of it until the water session's own build swept it
+  in by accident (the climate chantier did the same within the hour and wrote it up in G504.10).
+  This landing carries its build, and it regularises F2's at the same time.
+- OWED: the frame-time delta on a quiet box; whether the density law moves to the climate's
+  `haze().layer` (their chantier, the user's ruling); F3 untouched.
+## G505.1 - `visM` IS NOT A VISIBILITY, and saying so in the file (2026-09-22)
+
+A comment and a doc line, no behaviour. The climate chantier's WEATHER panel and F1's contract
+quoted the same air and disagreed by a fifth - 4052 m against 3220 - and the cause was neither
+session being wrong: **F1's threshold is 1 % TRANSMITTANCE (ln 100 = 4.605 optical depths) because
+its consumer is the far plane and its question is "may I stop drawing this?", while a VISIBILITY -
+the METAR number, what a pilot is briefed with - is Koschmieder's 2 % CONTRAST, 3.912.** The same
+air is 1.177x shorter measured the second way. At rh 0.90 the mist alone gives 4149 m at 1 %
+against 3524 m at 2 %, and F1's measured 4052 is the first of those once `medium()`'s clear air
+has taken its 97 m - the integral working correctly, not a discrepancy.
+
+So `VIS.thresh` now says which quantity it is and points anything wanting the met number at
+`ATMO.seeRange(eyeY, eyeY, 0.02)` - the same integral through the same mist with the other
+constant. The climate session changed their link to ask for exactly that rather than reading
+`WF.visM()`, so the two can no longer drift depending on which one a reader happens to quote.
+FOG-MIST SS5a records it beside the measurements.
+
+Found because F1's landing prompted them to check their panel would pick up `WF.visM()` - and that
+check also turned up a silent failure of their own (`WF` is a LOCAL in app.js, published as
+`window.WORLD`, so their reach would have read null forever and looked exactly like "F1 has not
+landed yet"). Worth the entry for that alone: two numbers that agree are not evidence of anything
+until someone asks what each one MEANS.
+
+## G506 - F3d: THE SHED'S AIR IS A MEDIUM, AND THE LAST LEGACY FOG IS GONE (2026-09-22)
+
+FOG-MIST SS3d, and POST-FX SS3's own recommendation. The shed ran `Fog(0x1a1712, 40, 120)` -
+three's smoothstep to near-black, applied in DISPLAY space after the tone map - which is why the
+same aeroplane read darker on the shed floor than on the apron for no physical reason.
+
+- **THE TWO GATES CAME APART, and that is the whole enabling change.** `AP_APPLY` ran the aerial
+  perspective AND `mistApply` under one flag, so a room - no sky, flag clear - could have no mist
+  and had to keep three's fog. They say different things: the aerial perspective is the SKY's and
+  wants a world to be under; the mist is a MEDIUM and wants only a density. **A room is a medium
+  with no sky.** The AP stays gated; `mistApply` now runs wherever there is a fog object.
+- **THE SHED IS A SLAB**: `ATMO.MIST.room = { rho: 0.0035, base: -1, top: 11, col }` - 12 % of the
+  light lost at the far wall, a big shed with dust in the air. `scene.fog` stays a SENTINEL (it is
+  what defines USE_FOG). The room overrides the day's ground mist (the weather stops at the door),
+  takes the lamps' colour rather than a sky's, has no forward peak and no march. `app.js` sets it
+  on entry and CLEARS IT on the way out, so the world never inherits a room.
+- **`AP_FOG_FRAG` DELETED.** `fog_fragment` is emptied rather than replaced: one path through the
+  fog chunks instead of two, and the last legacy fog in the tree is gone. GATE ATMO's "both paths
+  gated on one flag" becomes three checks - the AP still gated, the legacy path absent,
+  `mistApply` proven to sit OUTSIDE the flag's block (83 checks, was 80).
+- SEEN: the shed at the default view, the aeroplane lit, the far wall and the open door visible,
+  air in the room rather than a black box at 120 m (`bench/fog/room_q.png`, `room_s.png`).
+- GATES: ATMO, FOG, CLOUD, GFX, DAY, WORLDRENDER, LIGHT, HANGAR, VIEW green.
+- F3's other two: **burn-off is QUEUED** behind the climate chantier's G504.11, which moves the
+  density law into `07_day.js` - burn-off multiplies that line, so it belongs there and not here,
+  and it will use their `sunElLag` (the sun's elevation two hours ago: the ground runs behind the
+  sun, which is WHY fog burns off, and it removes the polar cases by arithmetic rather than by a
+  branch). **Underwater is DEFERRED** at the water session's ruling - the surface from below (total
+  internal reflection, the Snell window) does not exist yet and a slab under it would read as a
+  tinted pane; their API contract is recorded in the study so nothing is rediscovered.
+
+## G507 — THE DEBRIS DIMMED TO THE DEAD TRUNKS, MEASURED (2026-09-23, the user: "the debris are still much too
+## bright, get the brightest one down almost 50 %. Look at the dead trunks. Debris should be barely brighter")
+
+MEASURED rather than guessed, the maps' mean linear luma over their opaque texels (the same method as
+G485's ground): log.glb 0.2490 - THREE TIMES the dead trunks' bark at 0.0807 - then the two stick
+packs 0.1145 and 0.1043 (single maps up at 0.216), dead_tree_trunk_02 0.0997, tree_stump_01 0.0878,
+dry_branches_medium_01 0.0704. A rock/debris row takes `dim` now (a straight factor on the instance
+colour, after the `tint` which turns hue and not level; cover_ring.js), and the rows carry the
+factors that land every species in the dead trunks' family: log 0.50 -> 0.125 (the user's "almost
+50 %", and the only one left barely brighter), sticks 0.72 -> 0.082, sticks_free 0.75 -> 0.078,
+trunk_02 0.90 -> 0.090, stump_01 0.95 -> 0.083, dry_branches 1.0 (already darker than the trunks).
+56 rows across the twelve mixes, baked with `tree_prep.py --biomes`.
+
+
+## G508 — THE RUTS ARE A VEHICLE'S TRACK; THE LANES ARE THE ROAD'S WIDTH; THE PAINT WEARS WHERE
+## THE WHEELS RUN (2026-09-23, the user: "an
+## important check on your tyre marks. Do they represent a real interaxle distance? They seem big?
+## ... you can do 2 of them in every direction, maybe only past a certain width for the roads")
+
+THEY DID NOT AND THEY WERE. `rutTrack` is the HALF-track in metres (a pair sits at its centre +-
+that) and it shipped at 1.55, clamped to halfW * 0.5: a 6 m road wore its ruts 3.0 m apart, anything
+wider 3.1. A car's track is 1.5 m, a pickup's 1.7, a light truck's 1.8-2.0, a heavy truck's 2.1 (the
+legal vehicle maximum is 2.55 overall) - three metres is a vehicle nobody builds.
+NOW: rutTrack 0.85 (a 1.7 m pickup), and the WIDTH decides the count. Over ~5.3 m a road carries ONE
+TRACK PER DIRECTION on its lane centres (+-halfW/2), each wandering on its own noise, both equally
+worn; under it, the single shared track everyone drives with the fainter second pass where the
+traffic went round. The threshold is derived, not chosen: 2*ht + 2*rw + 0.35 is the width at which
+two tracks and their ruts fit side by side - the width at which two vehicles can pass. A 6 m road
+puts four ruts at +-0.65 and +-2.35 m; a 3 m track puts two at +-0.75 (the halfW clamp still holds,
+so a narrow track is a narrow vehicle's). The grass stripe follows: between the WHEELS on a single
+track, between the two TRACKS on a road that has one each way, which is where it grows - nobody
+drives the crown. The knob's label says what it is now ('half-track (m: 0.85 = a 1.7 m pickup)',
+0.35-1.6) because 'wheel track half' read as 'half the road'.
+Untouched: the strips, whose pairs are the aeroplane's gear track (rubberTrack). Fixed for free: the
+shoulder's vehicle paths, which read the same half-track.
+THEN THE SAME FOR THE ROAD ITSELF (the user: "let's do the same for the roads; have a dynamic number
+of lanes function of road width please, and proper road marking, including its wear"). lanesOf(w, cls,
+laneW) is the ONE lane rule and both the paint and the wear call it: a lane is `roadLane` 3.5 m (3.0 a
+town street, 3.7 an interstate), capped at six; under 5.2 m a road is ONE lane whatever the class.
+THE PAINT, the American convention which is Alaska's: white solid EDGE lines 35 cm in; between the
+DIRECTIONS a dashed yellow (3 m on, 9 m off) up to three lanes and a DOUBLE SOLID yellow at four or
+more; white dashed dividers between lanes going the same way; a single-lane road carries its edges and
+nothing else; a soft road carries nothing at all. 6 m -> 2 lanes, 11 -> 3, 14 -> 4, 30 -> 6.
+THE WEAR IS THE TRAFFIC'S: a paved road is polished in the WHEEL PATHS - two to a lane at the
+vehicle's own half-track from the lane centre, the aggregate smoother and a shade darker - and the
+paint that crosses a wheel path is SCRUBBED (keep *= 1 - polish * 0.8). No special case is needed for
+the centre line: it lies between the wheels of both directions, which is why it outlives the edge
+line, and why the edge line - 30 cm outside the outer wheel - goes first.
+ONE DEFAULT MOVED: paintAge 0.85 -> 0.5 and chalk 0.8 -> 0.55. 0.85 is the WWII runway's wear and with
+it a road's lines were gone before they were drawn; the extremes stay in PRESETS.fresh (0.3) and
+PRESETS.worn (0.9), which is where Jolene's strips take theirs.
+- FILES: src/viewer/pavement.js (the rut block, lanesOf + roadMarks, the uRoad uniform and the polish,
+  the knobs roadLane / wheelPolish), render_premises.js + render_world.js (roadMarks takes the recipe),
+  tools/_pavement_check.js (GATE PAVEMENT §9), futureDesigns/PAVEMENT-2026-09-21.md §10-11.
+- PROOF: screenshots/pavement/ruts_6m.png + ruts_3m.png (the bench: four ruts on 6 m, one track on 3),
+  jolene_ruts_s0.png + s1.png (IN GAME: the village road and the airport road, both 6 m, four ruts under
+  the new pole line), lanes_7m.png (two lanes, a dashed yellow centre, the polished wheel paths) and
+  lanes_12m.png (three lanes). GATE PAVEMENT green; the battery still owed from G505.
+
+
+## G508 — THE RUTS ARE A VEHICLE'S TRACK; THE LANES ARE THE ROAD'S WIDTH; THE PAINT WEARS WHERE
+## THE WHEELS RUN (2026-09-23, the user: "an
+## important check on your tyre marks. Do they represent a real interaxle distance? They seem big?
+## ... you can do 2 of them in every direction, maybe only past a certain width for the roads")
+
+THEY DID NOT AND THEY WERE. `rutTrack` is the HALF-track in metres (a pair sits at its centre +-
+that) and it shipped at 1.55, clamped to halfW * 0.5: a 6 m road wore its ruts 3.0 m apart, anything
+wider 3.1. A car's track is 1.5 m, a pickup's 1.7, a light truck's 1.8-2.0, a heavy truck's 2.1 (the
+legal vehicle maximum is 2.55 overall) - three metres is a vehicle nobody builds.
+NOW: rutTrack 0.85 (a 1.7 m pickup), and the WIDTH decides the count. Over ~5.3 m a road carries ONE
+TRACK PER DIRECTION on its lane centres (+-halfW/2), each wandering on its own noise, both equally
+worn; under it, the single shared track everyone drives with the fainter second pass where the
+traffic went round. The threshold is derived, not chosen: 2*ht + 2*rw + 0.35 is the width at which
+two tracks and their ruts fit side by side - the width at which two vehicles can pass. A 6 m road
+puts four ruts at +-0.65 and +-2.35 m; a 3 m track puts two at +-0.75 (the halfW clamp still holds,
+so a narrow track is a narrow vehicle's). The grass stripe follows: between the WHEELS on a single
+track, between the two TRACKS on a road that has one each way, which is where it grows - nobody
+drives the crown. The knob's label says what it is now ('half-track (m: 0.85 = a 1.7 m pickup)',
+0.35-1.6) because 'wheel track half' read as 'half the road'.
+Untouched: the strips, whose pairs are the aeroplane's gear track (rubberTrack). Fixed for free: the
+shoulder's vehicle paths, which read the same half-track.
+THEN THE SAME FOR THE ROAD ITSELF (the user: "let's do the same for the roads; have a dynamic number
+of lanes function of road width please, and proper road marking, including its wear"). lanesOf(w, cls,
+laneW) is the ONE lane rule and both the paint and the wear call it: a lane is `roadLane` 3.5 m (3.0 a
+town street, 3.7 an interstate), capped at six; under 5.2 m a road is ONE lane whatever the class.
+THE PAINT, the American convention which is Alaska's: white solid EDGE lines 35 cm in; between the
+DIRECTIONS a dashed yellow (3 m on, 9 m off) up to three lanes and a DOUBLE SOLID yellow at four or
+more; white dashed dividers between lanes going the same way; a single-lane road carries its edges and
+nothing else; a soft road carries nothing at all. 6 m -> 2 lanes, 11 -> 3, 14 -> 4, 30 -> 6.
+THE WEAR IS THE TRAFFIC'S: a paved road is polished in the WHEEL PATHS - two to a lane at the
+vehicle's own half-track from the lane centre, the aggregate smoother and a shade darker - and the
+paint that crosses a wheel path is SCRUBBED (keep *= 1 - polish * 0.8). No special case is needed for
+the centre line: it lies between the wheels of both directions, which is why it outlives the edge
+line, and why the edge line - 30 cm outside the outer wheel - goes first.
+ONE DEFAULT MOVED: paintAge 0.85 -> 0.5 and chalk 0.8 -> 0.55. 0.85 is the WWII runway's wear and with
+it a road's lines were gone before they were drawn; the extremes stay in PRESETS.fresh (0.3) and
+PRESETS.worn (0.9), which is where Jolene's strips take theirs.
+- FILES: src/viewer/pavement.js (the rut block, lanesOf + roadMarks, the uRoad uniform and the polish,
+  the knobs roadLane / wheelPolish), render_premises.js + render_world.js (roadMarks takes the recipe),
+  tools/_pavement_check.js (GATE PAVEMENT §9), futureDesigns/PAVEMENT-2026-09-21.md §10-11.
+- PROOF: screenshots/pavement/ruts_6m.png + ruts_3m.png (the bench: four ruts on 6 m, one track on 3),
+  jolene_ruts_s0.png + s1.png (IN GAME: the village road and the airport road, both 6 m, four ruts under
+  the new pole line), lanes_7m.png (two lanes, a dashed yellow centre, the polished wheel paths) and
+  lanes_12m.png (three lanes). GATE PAVEMENT green; the battery still owed from G505.
+
+## G504.11 — TWO MEDIA, NOT ONE: the mist's density leaves the renderer, and the panel stops
+lying about a fog morning (2026-09-23, the fog study's finding, the user's go-ahead)
+
+`climate.haze()` used to return a flat `{ rho0, top, H, visibilityKm }`: a COLUMN density paired
+with a LAYER geometry, as though they were one medium. They are not, and the fog study found it the
+only way such a thing is ever found - by trying to use it. Adopting `rho0` as the mist's density made
+the mist about ten times too thin and all but erased the layer that had just been approved on a
+screen. Measured at rh 0.90 / turbidity 2.5: the column is 1.05e-4 /m (Koschmieder on a 37 km
+visibility), the ground layer 1.11e-3 - and at rh 0.98, 2.5e-4 against 2.2e-3. That is not a
+calibration to split the difference on. A hazy column is aerosol spread through the boundary layer
+and above it; a ground fog is droplets in the first tens of metres. A ray's transmittance is the
+PRODUCT of the two, so the extinctions add where both are present and neither number is wrong.
+
+THE SHAPE NOW MAKES THE MISTAKE IMPOSSIBLE: `haze()` returns `{ column: {rho0, visibilityKm},
+layer: {rho0, top, H}, surfaceVisM }`. Nothing can be handed one meaning it took for the other,
+which a `mistRho0` bolted beside `rho0` would not have prevented.
+
+ONE LAW, ONE PLACE. The density was derived in `atmo.js` - inside the renderer, where the climate
+could not see it - which is exactly how the two came to disagree. It is a WEATHER fact (a function
+of the humidity and nothing else), so it is derived in `07_day.js` now, beside `visibilityKm`, with
+the difference between them written down at the point where the confusion was born. `atmo.js` reads
+`day.mistRho0` and carries no copy; GATE CLIMATE 14 scans for the law and fails if a second one
+appears. THE SEAM: weather owns the DENSITY, the renderer owns the SHAPE - where the layer lies (F2
+lays it on the valley floors), its banks, its F8 multiplier. All four `ATMO.update` callers pass a
+real DAY (checked: render_world x3, hangar.applyDay), which is what let the fallback go entirely
+rather than becoming a second copy under another name.
+
+THE PANEL TOLD PILOTS 37 KM ON A FOG MORNING. `visibilityKm` is DECLARED - what the day was authored
+with and what a front moves - so it was not redefined under its authors; `surfaceVisM` is DERIVED
+beside it, the two extinctions added at the ground and Koschmieder inverted. The WEATHER row now
+reads "37 km · 3.2 km on the deck" and says nothing extra on a clear day, where the two are one
+number twice. Under a kilometre it is said in metres to the nearest hundred, as a METAR does.
+WHOSE NUMBER WINS: `CLIMATE_LINK.pub.visM` - what the renderer actually DREW along the eye's own ray,
+including the dials and the relief - when the fog study's F1 publishes it; `surfaceVisM` is the
+fallback and is marked with a `*` in the row so the two are never silently confused either.
+
+GATE CLIMATE 16 (nine checks: the shape, Koschmieder on the column, the layer read and not
+recomputed, the 10.9x ratio measured, the extinctions adding, the deck never rosier than the column,
+a dry day with no layer at all and the deck then equal to the column to the metre, a front still
+thickening the column) and four more source scans in 14. CLIMATE, DAY, ATMO, ATMOS, CLOUD, WORLD,
+UISMOKE, WORLDRENDER, GFX, MEDIA green.
+
+AND THIS ONE SHIPPED ITS BUILD: a source commit and a `(built)` commit from a clean LF worktree,
+which G504-G504.9 did not do (G504.10 records that).
+
+## G508 — THE BARK DID NOT COMPILE: TWO HOOKS, TWO SWAY BLOCKS (2026-09-23, the water session, on master:
+## "uniform vec4 uWind is declared twice in trees.js ... CommonBark: Vertex shader is not compiled")
+
+A leaf material that ALSO carries userData.fade (the cover ring's) runs both hooks - hookLeaf splices
+its own prologue and sway, then calls fadeInject, which splices another - so `uniform vec4 uWind` and
+swayPh / swayAmp / swayF were each declared twice in one scope and the program failed to compile:
+every trunk on such a material (CommonBark and its neighbours) drew NOTHING, and with it vanished
+from the water session's planar mirror, which nearly had a lake judged against a forest with holes.
+Either hook alone compiled, which is why only the trunks showed it. THE FIX, in trees.js: the sway is
+ONE injection through swayOnce(vs, phaseExpr) - marked '// tree sway' and BRACED, so its locals are
+scoped and a second splice is refused - and every prologue line goes through declOnce(vs, line), so
+whichever hook arrives first declares it and the other does not. The phase is still the caller's (the
+leaf's instance id, the ring's aRand). Proved off-line by running both hooks over a stub shader:
+one uWind, one sway block, one swayPh, braces balanced (scratch idem.js).
+Landed within the hour of the report; the reporter's own files were never touched.
+
+## G506.1 - THE BRACE THAT TURNED A GATE OFF (2026-09-22)
+
+GATE POSTFX went red at G505 and stayed red through G506. Mine, and the cause is worth the entry
+because the defect was INVISIBLE to everything except the gate that caught it.
+
+Resolving a rebase conflict in `gfx_settings.js` (the climate's `sway` row and F1's `drawDist` row
+landed in the same place), I repaired the PRESETS object's closing brace and it ended up on the
+SAME LINE as the last preset: `... mirror: 'live' },  };`. That is perfectly good JavaScript. The
+file parsed, every runtime gate passed, the presets all held the right values, and GATE GFX -
+which reads the parsed object - was green. But GATE POSTFX reads the SOURCE, and its anchor is
+`/const PRESETS = \{[\s\S]*?
+  \};/`: with no `
+  };` to stop at, the match ran on to the
+NEXT one, which is `PRESET_WHY`'s, so the block it examined contained six `low:`/`high:` lines
+instead of four and `presetRows.length === 4` failed. The gate was right and the message was
+honest; it simply describes the symptom ("every preset says off for all six rows") and not the
+cause, because it cannot know it was reading the wrong object.
+
+THE LESSON, and it is not "be careful with braces": a source-scanning gate anchors on FORMATTING,
+so a hand-merge that is semantically perfect can still turn one off. When a gate that reads source
+goes red after a conflict resolution, suspect the shape of the file before the value of the data -
+and print what the gate SEES rather than what the file says, which is what found this in a minute
+after an hour of looking at the right values in the wrong place.
+
+Found by the user; independently bisected by the climate session to exactly G505 (22/22 at
+e48a675b, 21/22 from 5eb1cd94 on), which is the commit the brace came in with. GATE SKINMAT's five
+role rows are red too, all day, on master and independently of this.
+## G509 - THE LAKE PASS: a fetch-limited surface built, measured, SHOWN AND REFUSED; the rig's roll-out
+## made honest (2026-09-23, the user: "now do the lake, same treatment" then, on the A/B, "off looks
+## better on lakes")
+
+- WHAT THE LAKE ALREADY DID RIGHT, looked at first (screenshots/water-g440/L1, L3): the mirror works on a
+  lake exactly as on the sea - the mountain, the treeline and the clouds mirrored, the water near-black
+  (the muskeg constituents of G460.11), which is the user's own reference photo. Jolene has 317 lake
+  surfaces; the eye for a lake shot must be FOUND, not guessed, because a lake object carries only the
+  BOUNDING BOX of its cell group and on Jolene those boxes span ridges (L1/A_low.png is an eye inside a
+  hill). The scan that finds open water: walk the box on a 25 m grid, keep the points world.waterH calls
+  water, take the one with the longest clear reach along +-x and +-z. The six biggest, with their level
+  and the reach through the point: (1226, -17526) 115.91 m, 1675 x 1875; (4991, -8121) 103.88, 1575 x
+  1300; (4481, -3976) 31.93; (6241, -6631) 64.94; (-2644, -19711) 68.78; (981, -12846) 24.63.
+- WHAT WAS BUILT AND IS NOT HERE. A lake has NO SWELL: every wave on it was raised by the wind blowing
+  over THIS water, over only as much water as the bank allows - so the wave is the FETCH's. SMB (the
+  Shore Protection Manual's form), with X = g F / U^2: H_s = U^2/g x 0.283 tanh(0.0125 X^0.42), T_p =
+  U/g x 7.54 tanh(0.077 X^0.25), L_p = g T_p^2 / 2 pi. 6 m/s over 500 m makes 10 cm and 2.2 m; over 20 m,
+  3 cm and 45 cm. The fetch came PER PIXEL from the lake's own signed field marched UPWIND on a log ladder
+  (5 taps, x3 a rung, 15 m to 1215 m, textureLod so the march carries no derivatives), and it drove two
+  things: the detail tile's LENGTHS (L_p and the pair's own ratio under it, instead of the sea's 3.2 /
+  0.75 m) and the lower limit of the sub-pixel band. That second one is worth keeping in mind even
+  without the rest: wSigma2's law IS Phillips' equilibrium tail, mss = B ln(k_hi / k_lo) with B set so a
+  fully developed sea reproduces Cox-Munk - written that way, the lower limit can be the BODY's own peak
+  rather than the sea's, and today every lake takes the open ocean's slope variance.
+- IT WORKED, AND THE USER SAID NO. The windward bank went to GLASS (L3/lk_up.png: a still dark mirror of
+  the hill, the reference photo again) and the ripple grew downwind, which is the one thing that reads as
+  a lake rather than as a mirror laid on the ground. But the first cut gated the sea's tiles OFF by fetch
+  instead of MOVING them, so it also took the near water's fine ripple away, and on that A/B (L4/off.png
+  against L4/on.png, one boot, one eye, WATER.set({fetch:...})) the user's verdict was "off looks better
+  on lakes". REVERTED WHOLE - not landed behind a flag, not left as dead code in a hot path. A second
+  variant (the tiles MOVED to L_p rather than gated off, which keeps a ripple and only shortens it) was
+  written and never got a picture in front of the user, because the rig ate the afternoon. If the lake is
+  reopened, that is the version to shoot first, and everything above is enough to rebuild it in an hour.
+- THE RIG, made honest, which is what actually lands here (tools/cloud_shot.js): (a) `--rolltries N` -
+  the roll-out's patience in 5 s rounds, 14 (70 s) by default. On a loaded box - several headless runs at
+  once, the parked captures at 8 s apiece - the boot walks past 70 s and the run dies with "the roll-out
+  never happened" although the page is perfectly well. (b) THE TEST IS THE SCREEN, NOT THE PHASE: the old
+  check was a list of phase words in the body text, and a roll-out starting in one the list forgot reads
+  as "never happened"; the FLIGHT RAIL exists only on the flight screen, so its presence IS the roll-out,
+  with the phase words kept as the fast path. Four dead runs today, and a real shader error hiding under
+  them the whole time - which is the cost of an instrument that lies about why it stopped.
+- A BUG FOUND UNDER THOSE RUNS AND REPORTED, NOT MINE (the vegetation session has it): the bark material's
+  VERTEX SHADER DOES NOT COMPILE on master - `uniform vec4 uWind` is declared twice, and SWAY_GLSL's
+  locals (swayPh / swayAmp / swayF) with it, because trees.js:350 and trees.js:418 each prepend their own
+  prologue and splice the same sway block, and CommonBark goes through both. Either hook alone compiles,
+  so only the trunks are missing. It reaches the WATER too: the mirror captures the scene from the
+  mirrored eye, so a material that will not compile is absent from every reflection, and a lake's
+  reflection was nearly judged against a forest with holes in it.
+- WATER, WORLDRENDER, MEDIA, GFX, CLOUD, UISMOKE green (water.js is untouched at G460.11.11).
+
+## G504.12 — the anchors that stopped asserting (2026-09-23)
+
+GATE CLIMATE went red on master: `the leaves and the cover lean on one shared uniform`. Not a
+regression — G508 (`acd78b8e`) refactored the tree sway for a real bug the water session found (a
+leaf material carrying `userData.fade` goes through hookLeaf AND fadeInject, each prepending its own
+`uniform vec4 uWind`, so two declarations in one scope stopped the bark compiling and it drew
+nothing, vanishing from the water's mirror with it). The refactor is right and preserves every
+invariant; it renamed `SWAY_GLSL` to `SWAY_MARK` + `swayVS`, and this gate was anchored on the old
+name. Fixed here, and the idempotence G508 introduced is now asserted too, so the double-splice
+cannot come back quietly.
+
+THE LESSON IS THE SECOND ONE OF THESE IN A DAY and it is worth more than the fix. A source-scanning
+gate anchors on FORMATTING and NAMES, and its failure is asymmetric: a lost END anchor makes the
+slice run on and the assertion fails loudly, but a lost START anchor makes indexOf return -1,
+slice(-1, j) return the empty string, and every NEGATIVE assertion about that slice pass forever
+while checking nothing. The fog study paid an hour for the same class the same day (G506.1: a
+hand-merge put the PRESETS closing brace on the previous line, so GATE POSTFX's newline-brace anchor
+ran on into the next object and it reported six presets and a symptom instead of a cause). Both
+changes were semantically perfect JavaScript. Both switched a gate off.
+
+So tools/test_climate.js grows `between(src, a, b, what)`: every anchored slice goes through it, and
+a lost anchor is a named FAILURE ("the tree sway scan lost an anchor (const swayVS) - it is reading
+nothing, so it is asserting nothing") rather than a silent pass. Both of this gate's anchored slices
+use it. PROVED with a negative control rather than asserted: renaming `const swayVS` turns two
+checks red with that message, and restoring it turns them green. The first control was itself wrong
+and is worth recording - renaming to `swayVS_RENAMED` still PASSED, because indexOf matched it as a
+prefix. A negative control has to actually remove the thing.
+
+CLIMATE green on master. Gate only: tools/test_climate.js is in no manifest, so nothing is built
+from this and no `(built)` commit is owed.
+
+## G506.2 - A NEGATIVE ASSERTION ON A LOST ANCHOR PASSES FOREVER (2026-09-22)
+
+The climate chantier found a live instance of G506.1's class in GATE CLIMATE within the hour, and
+its shape is nastier than the brace: `!/objectNormal/.test(slice(indexOf('const SWAY_GLSL'), ...))`
+where the anchor had been renamed by G508. `indexOf` returns -1, `slice(-1, j)` is `''`, and
+`!/x/.test('')` is TRUE - so that check, which guards G484 (a cover tuft shading with the ground's
+normal, a bug already paid for once), **would have passed forever while reading nothing**. It
+surfaced only because a POSITIVE sibling on the same line failed loudly and dragged the gate red.
+
+GATE FOG had exactly one of these, written the same day:
+
+```js
+yes(!/day\.visibilityKm/.test(rw.slice(rw.indexOf('const VIS'), rw.indexOf('const _vc'))), ...)
+```
+
+Rename either anchor and the contract's "never reads the authored visibility" check asserts
+nothing, silently, which is the one rule F1 exists to hold. It now goes through `between(src, a, b,
+what)`: a lost anchor is a NAMED FAILURE - *"the contract's own body lost an anchor (const VIS = {)
+- it is reading NOTHING, so it is asserting nothing"*.
+
+PROVED WITH A CONTROL, and the control's own trap is worth carrying: the climate session's first
+attempt renamed `const swayVS` to `const swayVS_RENAMED` and the gate still passed, which reads
+like "the hardening does not work" - but `indexOf` matches a PREFIX, so the anchor was never lost
+and the control tested nothing. **Remove the thing rather than extend it.** Here: `const VIS = {`
+-> `const CONTRACT_STATE = {` fails by name, and restoring it passes. A pleasingly exact echo of
+the bug being tested for.
+
+Two independent instances in one day (G506.1 the brace, G504.12 the renamed anchor) is the
+evidence: **a source-scanning gate anchors on FORMATTING and on NAMES, so a semantically perfect
+edit elsewhere can switch it off.** The mitigations are cheap - prefer positive assertions where a
+choice exists, route every anchored slice through a helper that fails when an anchor goes, and
+write the negative control by deletion.
+
+## G504.13 — implemented and unreachable: the thermals and the sea breeze had no control (2026-09-23)
+
+The user asked whether the UI covered the whole of this chantier. It did not, and the audit is worth
+recording because the gap was invisible from the inside: the WEATHER panel has eleven controls, both
+rails mount it, every preset works — and the two terms this chantier exists for were missing from it.
+**`thermals`** had a slider only in the F8 DEVELOPER fold, so a player could reach the lift a glider
+circles in by picking one preset and no other way. **`breeze`** had no control ANYWHERE — not the
+panel, not F8, not `?wind=`, not any preset — while being implemented, measured and gated (section 9:
+2.68 m/s onshore at 15:00, reversing seaward overnight, killed by cloud). Worse, a preset LABELLED
+"light breeze" set a light WIND and no breeze at all, so the one place a player would look for it
+actively said it was there.
+
+Both are rows in "the wind" now, beside `the hills`, with the note saying what each does in the
+language the panel uses. The `light breeze` preset carries `breeze: 1`, and `presetOf` compares
+`breeze` so its pill lights.
+
+AND THE CLASS IS GATED, not just the instance: GATE CLIMATE 14 now walks
+`['terrain', 'thermals', 'breeze', 'gust']` and fails if the panel cannot set one. A declared term
+with no control is implemented and unreachable; if a rich term gains a spec key it gains a row in the
+same commit. Proved with a negative control — removing the breeze row turns it red.
+
+STILL NOT ON A RAIL, and named rather than quietly left: `seaTau` (how fast the sea builds — default 0
+is the old instant rebuild), `inversion.thick` (the lid's dT has a row, its thickness does not), and
+`aloftK`/`veerDeg` (presets and F8 only). The first is a real omission for a floatplane player; the
+last two are expert knobs and arguably belong in F8. K5's wind view is still owed and would be the
+natural home for seeing what any of these do.
+
+## G508.1 — A `pav` IS VALIDATED, AND THE ROADS WERE NEVER VALIDATED AT ALL (2026-09-23, the
+## Metlakatla session: "`issues()` already asserts `pav` is an object, so a typo in the key would
+## not be caught")
+
+They were right and it was worse than they thought. `resolve()` reads the seven knobs it knows and
+ignores the rest, so `pav: { mark: 'none' }` on forty roads would have been read, ignored and never
+reported. `issues()` now runs `pavIssues` over every layer that takes a `pav`: an unknown key names
+itself and the seven it could have been, and `marks` must say auto | none | edges | centre.
+AND THE FINDING UNDER IT: the loop carrying the `band`, `pav` and `look` checks for roads and runways
+iterated `['terrain', 'surface', 'material', 'exclude', 'zones']` - the POLYGON layers - so all three
+checks, written at the v1.16 port, have never run on a road or a runway. Only 'material' ever reached
+them. They run now in their own loop over roads and runways, and the dead conditions in the polygon
+loop are gone. A road with an unknown `look` says so at last.
+The core's PAV_KEYS mirrors the viewer's ENTRY_KNOBS + `marks`; GATE PAVEMENT §6 holds them equal, as
+it already does for PAVE_BAND / CLASS_DEF.band. Contract v1.20.
+- FILES: src/core/27_premises.js (PAV_KEYS, PAV_MARKS, pavIssues, the roads/runways loop),
+  tools/_pavement_check.js, futureDesigns/PREMISES-CONTRACT-2026-09-13.md.
+- PROOF: a record with `pav: {mark}`, `pav: {marks: 'non'}` and an unknown look reports three issues
+  and a good one reports none; GATE PAVEMENT / PREMISES / SITE / WORLDRENDER green.
+## G510 - F3c: THE MORNING TAKES THE FOG AWAY (2026-09-22)
+
+FOG-MIST SS3c, the last buildable item of F3. The mist's density was humidity alone, so a 98 %
+morning was still a 98 % morning at noon unless someone moved a slider.
+
+- **IN `07_day.js`, BESIDE `mistRho0`**, not in atmo.js: the climate chantier had just moved the
+  density law there (G504.11) and burn-off is one multiplication on it. One law, one place.
+- **THE TERM IS THE LAGGED SUN** (`d.sunElLag`, the elevation two hours ago - K3's, built for the
+  thermals), and that was the climate session's correction to the study's design. Fog does not
+  thin because the sun is up; it thins because the GROUND has been warming and is giving the heat
+  back. The lag IS the accumulation, so the hours-since-sunrise term disappears - **and with it
+  both polar cases**: polar night keeps the lagged sun under 5 deg so the burn is 0 by arithmetic,
+  polar day keeps it above so burn proceeds on elevation alone, and there is no `sunriseUtc` to be
+  null. GATE DAY measures it at lat +-89 on a solstice: 0.96 burned at the pole in daylight, 0 at
+  the pole in darkness, both finite, no branch.
+- `burn = clamp((sunElLag - 5) / 20, 0, 1) * (1 - cloudCoverEff)`, **on the layer only**. Not the
+  column: `visibilityKm` is a function of `rh` and `rh` already falls as `diurnalC` warms the day
+  against a fixed dew point, so a burn on both would count one sunrise twice.
+- **A silent term, caught before it shipped**: the first draft read `d.cloudCover`, which is not on
+  the derived day at all (it is the spec's) - so the overcast half of the burn would have been
+  dead and an overcast morning would have burned off like a clear one. `d.cloudCoverEff` is both
+  correct and better: a storm's overcast holds the fog in as a fair-weather deck does.
+- **GATE DAY** grows five checks beside its monotone-visibility one: the burn is exactly zero
+  until the lagged sun clears 5 deg; a midsummer day both holds the fog before dawn and takes all
+  of it by afternoon; through the morning the layer only ever thins; an overcast holds it in
+  (2.18e-3 against 0 in the clear at the same hour); and both poles give a finite density.
+- **GATE CLIMATE 16's ratio check went red and it was mine**: it pins the layer at 5-20x the
+  column, and burn-off had taken four fifths of the layer by the hour it measured, giving 2.2x.
+  The ratio is between the two LAWS, not between two hours, so it now divides `day.mistBurn` back
+  out first. Fixed in their file with the reason written in, and told them.
+- A TESTING TRAP WORTH THE LINE: `run_gates --no-build` tests the COMMITTED build, so a change to
+  `src/core` reads as "the code did not run" - `mistBurn` came back undefined and `mistRho0`
+  unburned for twenty minutes of looking at correct source. Build before gating anything in core.
+- GATES: CLIMATE, DAY, FOG, ATMO, POSTFX, GFX, CLOUD, WORLDRENDER, ATMOS, WATER, MEDIA, LIGHT green.
+
+## G512 - PERF: the island at 3.5x, five tiers, the frame is the draw count (2026-09-23)
+
+The performance chantier (branch claude/performance-profiling-optimization-1095f7, wip 1-4): Jolene at 1080p
+55 / 56 / 67.6 ms -> 17.1 / 16.7 / 18.8 ms (stand / forest / 300 m, frame time), the generated map 11 ms (Wednesday
+13-17). Reversed float depth, honest instance bounds, occluders first, stencil never resolved, the splat's mip-0
+bug (ANGLE Lod0), far terrain / premises patch LOD, static premises out of the matrix walk, distant houses' detail,
+lots batched; the GRAPHICS menu's five tiers (potato / 5 years ago / current / gamer = the old medium, default /
+ultra), render scale, terrain detail. At 1080p the frame is CPU-bound on three's per-draw JS; at 5120 x 1440 gamer
+is 36-41 ms. Canonical: futureDesigns/PERF-2026-09-23.md (numbers, the feature cost table, the next chantiers:
+houses HLOD, prop instancing, craft merge, cover-ring blocks, debris models).
+
+## G513 - PERF quick wins: the far ground blends one set, the debris keeps four shapes (2026-09-23)
+
+GRAPHICS 'ground blend' row (full / lean far / lean; the default gamer is 'lean far'): one texture set per terrain
+type past the detail fade - 8 ms of 44 at 300 m on 5120 x 1440, ~1 % of pixels. Debris packs keep 4 models each and
+twigs / pebbles under 0.35 m cast no shadow: 607 -> 161 draws in a forest view (forest 40 -> 31 ms on the wide
+screen). futureDesigns/PERF-2026-09-23.md (G513 section).
+
+## G514 - PERF: 'lean far' draws one ground set past 400 m; post FX measured free, AO found broken (2026-09-23)
+
+The ground's blend screenshotted at 30 / 100 / 300 m (5120 x 1440): one texture set per terrain type past 400 m (the
+detail fade pulled in to 100-400 m) shows no difference from the full blend and costs 21.0 / 26.8 / 34.8 ms against
+26.6 / 34.2 / 45.3. Post FX: every pass under 0.3 ms - free to reintroduce on taste; ambient occlusion blackens the
+frame (not the depth change) - owed. futureDesigns/PERF-2026-09-23.md (G514 section).
+
+## G515 - PERF: poles and fence stretches instanced (2026-09-23)
+
+props.js instancer (propInstAttach / propInstProxy / propInstUpdate): pole_a/b/c and fence_old placed in the game
+world are proxies drawn through one InstancedMesh per level per part - the LOD's own levels and cull, the same
+picture (217 px of 1.77 M), 380 props in 9 draws; 1080p stand 25.4 -> 22.7 ms, 5120 x 1440 stand -1 ms (5 470 -> 4 362
+main draws). ?propinst=0 = the LODs. futureDesigns/PERF-2026-09-23.md (G515).
+
+## G516 - THE DEFAULT LOOK: fair-weather cumulus, 16:00, soft bloom; the sky's seed is the day's (2026-09-23)
+
+The game's first day (DAY_CLOCK GAME_DAY; the pref key is flydiy.day.v2): midsummer 16:00 local, the new cloud type
+`cuh` (fair-weather cumulus: 16 cells a tile, 800 m column) at 0.25 on seed 1, turbidity 2.8; the soft bloom from
+'current' up. Same cost as the old sky. The renderer now draws the day's cloud seed (it drew its own 7 while the
+climate's thermals followed the day's 1). DAY.DEFAULT (the gates' baseline) untouched. futureDesigns/PERF-2026-09-23.md (G516).
+
+
+## G517 — THE PUDDLES WERE WALLPAPER: the ground's noise had a period, and the period was the grid (2026-09-23)
+
+THE USER, with four shots of the muskeg from the air: "I think your algorithm for generating puddles in the
+muskeg produces results which you can clearly see the repetition, in the attached screenshots. I think there
+should be less of them, and you should really do something so no grid pattern shows".
+
+THEY WERE NOT LOOKING AT A PATTERN THAT RESEMBLED A GRID - THEY WERE LOOKING AT ONE TILE, PRINTED 225 TIMES.
+Measured on master before a line was changed: the pool field repeats EXACTLY every 133.33 m of ground, in x
+AND in z, and 100 % of sampled points are bit-identical one tile away (worst difference 1e-12). The picture
+that settles it is bench/pools/field_2km.png - 2 km of muskeg drawn straight from the field, old on the left:
+the same cluster of ponds, stamped 15 x 15 times, like a roll of wallpaper. The user's eye found from 200 m
+what no gate looked for.
+
+THE CAUSE IS THE PRIMITIVE, NOT THE PUDDLES. `vnoiseT(u, w, N)` - the value noise every ground field is built
+on - wrapped its lattice indices `mod N`, which is exactly a period: the field cannot help repeating every N
+cells. It was written tileable because tileable is how one writes a noise for a TEXTURE, and nothing here is a
+texture; the ground is sampled at a point in the world. So every field on it had a pitch:
+  - the puddles     400 noise units / pudSlope 3 = 133.3 m   (the one the user saw)
+  - the set mask    the code's mask cell x 6 = 150 m for muskeg - WHICH of a code's two texture sets is used
+  - the blotch      cellM x cells = 1152 m - which cover species thins out where
+  - the shade       escaped by luck: its two octaves have coprime periods, so the sum repeats only at the LCM
+Two grids at 133 m and 150 m, beating against each other under the same eye. That is what "can't really put my
+finger on it" looks like when it is measured.
+
+THE FIX IS ONE FUNCTION. `vnoise(px, pz)` is the same value noise with the wrap taken out - cell 1 in its own
+coordinates, hashed on the lattice index directly (plus OFS 16384 so no index is ever negative and the JS and
+the GLSL agree bit for bit). A field's SCALE is its cell size; it never needed a period. All four fields moved
+onto it with their feature sizes unchanged, and the tiled primitive is GONE, not left standing beside the new
+one. IT IS ALSO CHEAPER: mixK 0.418 -> 0.263 us a call (-37 %), because four integer modulos per read went
+away; poolAt 0.214 -> 0.249 us (+16 %) for twice the reads.
+
+AND THE PUDDLES ARE REBUILT, because "less of them" is a separate ask from "no grid":
+  - THE OCTAVES each sit on their OWN ROTATED LATTICE (0, 0.93, 2.16 rad), so no two share an axis and the sum
+    has no square structure to show; the low octave (42 m cells) carries the pond, the other two only rough up
+    its outline (weights 0.68 / 0.22 / 0.10, against 0.55 / 0.30 / 0.15 - the old mix let the FINE octave make
+    ponds of its own, which is why the median pond was 36 m2, a speck, and there were 738 of them per km2).
+  - A DOMAIN WARP before the octaves are read (58 m cells, amplitude 29 m): the outlines stop being blobs.
+  - A BASIN FIELD decides where the ground holds water AT ALL - one slow read (600 m cells) that moves the
+    threshold + 0.45 (0.5 - d). This is the "packs" the user asked for: 29 % of 200 m blocks now hold no water
+    at all, against 0 % before, and the block-to-block spread went from 1.3 points to 9.2.
+  - THE THRESHOLD 0.66 -> 0.92 of a field of mean 0.50, sd 0.144: only the tall humps become water.
+MEASURED, over 2 km on a 2 m lattice: 13.3 % open water -> 5.6 %; 738 ponds/km2 -> 91; median pond 36 m2
+(3.4 m across) -> 136 m2 (13.2 m); the biggest 1 056 m2 -> 2.4 ha. Eight times fewer ponds, each one worth
+drawing, in packs with dry muskeg between them.
+
+GATE SPLAT GROWS §1b, and it is negative-verified the honest way: the selftest hands the gate THE FIELD AS IT
+WAS ON MASTER - the wrapped primitive and its 13 % coverage, written out verbatim - and the gate must refuse
+it. The rules: no `%` in either twin of the primitive; the tiled one gone (a comment may still name it); each
+field sampled one OLD pitch away and refused if it answers the same number (the pool read with a fat edge,
+because at the ground's own 0.01 the field is 0 or 1 almost everywhere and a sample carries no information);
+and a POND CENSUS - coverage 2-9 %, 30-200 ponds/km2, the median pond >= 80 m2, more than 15 % of 200 m blocks
+dry. A number that drifts out of those bands is a look the user has already ruled on.
+
+PICTURES: bench/pools/field_2km.png (the field itself, 1 m a pixel, old beside new - the wallpaper and what
+replaced it); bench/pools/before_b_mid.png / after_b_mid.png from 180 m over the strip, and before_a_high.png /
+after_a_high.png from 600 m, all four in the game on this machine's GPU (which is also the ANGLE/D3D compile
+proof for the new GLSL).
+
+OWED, AND RULED BY THE SESSION THAT OWNS IT. The constants in 28b_ground_fields.js are the VEGETATION
+session's table (the planter and the ground must read the same field), so this was put to them with the
+measurements before it landed, and they said GO. Their three notes, kept here because the next reader needs
+them: (1) nothing in src/ calls the primitive by name outside 28b - cover_ring and stand_cards read poolAt /
+blotch / shade / mixK / groundColor, and those signatures are unchanged; (2) THE DRIER MUSKEG IS A VEGETATION
+DEBT, not a bug in this landing - at 5.6 % water instead of 13.3 % the tufts and the debris simply plant where
+water used to refuse them, and the muskeg mix's reed beds (grass_reed 0.24/m2 in 7 m beds) were tuned against
+the wetter field, so reeds will read on dry peat until someone re-judges those rows against the pond packs
+(reeds belong at a pond's edge, which the packs actually give them); (3) tools/_trees.html keeps its own copy
+of the old tiled primitive for its preview bakes, and their ruling is to LEAVE IT - a bench preview that no
+longer wraps is cosmetic and visibly wrong, which beats a bench that quietly disagrees with the world. THE
+RULE THEY STATED: the bench follows the world, never the reverse.
+
+## G518 — JOLENE AFB IS A PLACE SOMEBODY WORKS: the field's life, a marked parking apron, the fence
+## off the taxiways, no dirt over a crossing runway, the band that stopped shouting, a darker puddle
+## and the runways' balisage (2026-09-23, the user, one message: "there's a fence going through the
+## taxiways ... add some life into the WWII airport ... where the 2 runways cross, the sides of the
+## runway on top render on top of the runway at the bottom ... I would like all of this to be built
+## with the world editor ... there is a huge difference in light and color between the runway sides
+## and the surrounding terrain ... very simple 'balisage' of the airport"; and mid-session: "the
+## puddles should influence the color too. Darker under the puddles")
+
+EVERYTHING HERE IS EDITOR DATA. Not one object is hard-coded in a renderer: the record carries it
+all, the user opens WORLD on the flight rail and drags any of it. That was the constraint and it
+shaped the rest.
+
+THE PARTS LOADER, because five sessions are authoring one generated record. `tools/fixtures/
+island_jolene.json` is written by `jolene_author.py`, so two sessions editing the island means
+hand-merging 27 kB of generated JSON, and whoever lands second loses. `merge_parts(rec)` now reads
+`tools/jolene_parts/*.py` and `*.json` immediately before the record is serialised: a part declares
+a `PREFIX` and a `PART` dict of layer -> entries, every id must carry the prefix, a duplicate id, a
+missing prefix or an unknown layer is a hard error, and each part keeps its own order inside a
+layer. Drop a file in, regenerate, never merge. (Offered to the Metlakatla, native-area, tramway and
+scenery-detail sessions; the scenery session is taking contract v1.22 so this one takes v1.21.)
+
+1. THE FENCE THROUGH THE TAXIWAYS. It crossed `r_taxi_ne` at (-133.9, 618) — the club's west run,
+   authored as a rectangle round the yard before the taxiway V existed. Fixed BY RULE, not by moving
+   a coordinate: `clip_fences(fences, avoid)` walks each run against each taxiway's centreline and
+   opens a gap over its width plus 4 m, so it stays right if a taxiway ever moves. Measured after:
+   the closest STANDING fence post to a taxiway edge is 4.1 m, over all four runs.
+2. THE FIELD'S LIFE — `tools/jolene_parts/airfield.py`, 43 entries, prefix `af_`. Seven scenes, each
+   one a story and none of them in the way: the fuel point (a flatbed backed up to the fuel shed,
+   cans out, a man signing for it), the freight run (a box truck nose-out at the long hangar's door,
+   the week's pallets and cement off the back, two men on it), the fire cover (the field's one
+   tender nose-out of its shed toward the taxiway), the club corner (a table in the lee of the
+   clubhouse, two people watching the circuit, somebody's wife's planter), the car park (four cars
+   nose-in to the trees outside the fence), the works corner (pallets, blocks, drums and the car that
+   came apart in 1994 — slight, not squalid, per "realistic, but not very dirty"), and the taxiway's
+   furniture. Two lone sheds in the woods off the taxiway as their own sites: a pump house and a
+   store. PROVED, not eyeballed: all 39 ground objects checked against every runway box and both
+   taxiway footprints — zero obstructions. "Nothing that prevents the plane from rolling off."
+3. THE PARKING APRON — contract v1.21. 22 x 66 m of worn concrete north of the hangars with SIX
+   MARKED STANDS: a material polygon may now carry `stands { n, pitch, lead, bar, u0, vOff }`, a
+   yellow lead-in line and nose-stop bar each, painted by `PAVEMENT.standMarks` in the polygon's own
+   frame. Validated like `pav` (`STAND_KEYS`), held equal to the viewer's knobs by GATE PAVEMENT §10.
+   `pav: { paintAge: 0.45 }` on it, because the `worn` look fades paint to 0.9 — the WWII runway's
+   wear, not an apron's. `z: 2` because `m_pad` already covers that ground at `z: 1`.
+   THE TRAP: `polyGeometry` writes `aPav.x = u + halfW`, so a polygon's u runs 0..2*halfW. A row of
+   marks written about ZERO — the natural way to centre a row on an apron — lands off the mesh and
+   paints nothing, silently. The first shot showed a blank apron. `standMarks` takes the offset.
+4. NO DIRT OVER A RUNWAY. Not a draw-order bug: a strip's pavement and its band are ONE mesh, so no
+   ordering of meshes can put 13/31's concrete between 02/20's concrete and 02/20's gravel. It is a
+   KEEP, and the mechanism existed — `shoulderK`. `pavedKeep(self)` returns 0 inside any other
+   runway's box or any paved polygon with a 4 m fade; each band now stops at the other's pavement
+   from both sides while the pavements still overlap, which is what a crossing looks like.
+5. THE BAND STOPPED SHOUTING. Measured from the aerial first (620 m, same frame before and after):
+   the band read luma 136 against 96 for the graded grass beside it and 56 for the muskeg — 2.3x to
+   3.3x, and neutral grey on a green island. `grade.dry` [0.62, 0.75] -> [0.40, 0.58, 0.96, 1.0,
+   0.91] (the shoulder of the concrete AND dirt classes, so strips, taxiways and dirt verges move
+   together), `grade.gravelB` 1.6 -> 1.25 for a road's own verge, `grassReach` 6 -> 13 m and
+   `bandNoise` 0.5 -> 0.85 so the two grounds interleave instead of meeting at a line.
+6. A PUDDLE IS DARKER UNDER IT. `pud` was `smoothstep(...) * uWet.y` — the cover knob applied twice,
+   once in the threshold where it belongs and again as a multiplier — so at the shipped cover it
+   peaked at 0.35 and `pudK` never got past 0.41: the bed blended at two fifths, the mirror at two
+   fifths, a gloss decal on dry concrete. The cover sets the AREA; inside it a puddle is a whole
+   puddle. THEN THE PICTURE SAID IT AGAIN: with a dark bed the puddles were STILL brighter than the
+   concrete round them - at roughness 0.02 the whole sky comes back off one, and a mirror of a bright
+   sky beats dark wet concrete every time. That was the "odd". The specular hook at
+   `lights_fragment_end` now carries a puddle term, `mix(1.0, 0.5, gPudK)`: the puddle keeps the
+   mirror the user asked for at G460.11 but returns half the sky, so what the eye reads is the dark
+   bed with a sheen over it. Bed 0.60 paved / 0.50 soft. Measured on 13/31 at 18 m, the pale blue
+   patches go to dark wet grey; the band beyond them goes with the change in 5.
+7. THE BALISAGE. A runway's designation plate — the user's photograph — as an ordinary BILLBOARD
+   with a generated key, `rwy:13/31:r` (red) and `rwy:02/20` (black): `BIG_GEN.rwySign` reads the
+   key, `designatorTexture` draws the weathered enamel, the stencilled numerals, the chipped paint,
+   the rust and the four bolts, and `billboard()` gives a plate low posts instead of a hoarding's.
+   Nothing entered the contract — the editor stands, turns, widens and deletes it like any sign — and
+   the billboard picker now offers THIS RECORD'S OWN runways' plates, so a field signs itself.
+   Both sit ~50 m off their centreline at their hold, clear of the graded band, facing the pilot.
+
+- FILES: tools/jolene_author.py (merge_parts + clip_fences, rev 8), tools/jolene_parts/airfield.py
+  (NEW), src/viewer/pavement.js (standMarks, the band grade and grassReach/bandNoise, the puddle's
+  depth and its half-sky specular), src/core/27_premises.js
+  (STAND_KEYS + standIssues, pavePolys carries stands), src/viewer/render_premises.js (pavedKeep,
+  the stands in buildPolys, an object's height from the ground when it has no `y`),
+  src/viewer/premises_ui.js (objectKeys takes the record, the runway plates in the picker),
+  tools/_big_gen.js (the designation plate), tools/_pavement_check.js (GATE PAVEMENT §10),
+  futureDesigns/PAVEMENT-2026-09-21.md §12-15, PREMISES-CONTRACT-2026-09-13.md v1.21.
+- PROOF: screenshots/pavement/af_*.png. GATE PAVEMENT / PREMISES green; the full battery is still
+  owed and is the user's to run for all the scenery sessions at once.
+
+## G519 - SCENERY LIFE: people, wall clutter, rubbish, parked cars, small structures and antennas round what is built (2026-09-23)
+
+The user: "People in the streets, driving cars, props and rubbish disposed next to walls and corners, random rubbish,
+small structures, communication antennas ... proper LODS, and just be discarded at high distances ... roads, aprons,
+maybe lots ... controls in the world editor ... including turning off, and you will assess the performance impact at
+every step." `src/viewer/scenery_life.js` (SCENERY_LIFE, world pack, before render_premises.js): nothing authored -
+the premises renderer hands over what it BUILT and the life is stood round it by laws from the record's seed, one
+random stream per law per thing (a slider moves its own kind only). The houses' own generator report is the map:
+render_premises keeps `HOUSES[].built` and the life reads `stats.groundAO` (walls = the largest rectangle, every
+blocker), `doors`, `openings` (walls[i] = side [0, 2, 1, 3][i]), `eaveY`, `ridgeY` - clutter on the back and side walls
+and in corners, never before a door or over an opening; a dish on the wall facing the southern sky under the eaves;
+a TV aerial on the ridge; the house's fuel (a 500-gallon pig or a 275-gallon oil tank) on a gable; a mailbox at the
+frontage; people at doors, talking at frontages, on zone shoulders, round the parked aeroplanes; cars parked on
+zone shoulders; litter on shoulders, round piles and dumpsters; signs; cones and drums on the apron edges; a
+lattice mast + shelter per aerodrome and per settlement (dry level ground, out of the funnel, off the apron, 700 m
+apart, a world obstacle like the parked cars); traffic (G432's) on every road the record left without, never a
+taxiway. The pavement law is coverAt's `kill > 0.97` (the carriageway + band; kill is the trees' fade, 0.5 four
+metres out); the water is waterH AT the point (the first mast stood in a muskeg pond). Drawn with no Object3D per
+item: the 27 procedural pieces in ONE BatchedMesh per shadow class, each scanned level one InstancedMesh per part;
+levels and a last distance for everything (a person from its 24 k cut, a procedural figure past 90 m, a two-box car
+past 120 m, a scan with no cuts a box in its own mean colour past 20-40 m; rubbish 45 m .. a mast 6 km) x the record's
+`dist` x the GRAPHICS tier. Record: `rec.life` (contract v1.22); editor: the LIFE section (last on the rail).
+Measured off/on/off/on in one run (tools/frame_perf.js, new `at:x:z:agl` places): +18 draws at the club stand, +22 in
+a village street at 25 m (the first cut was +62), ~0 from 250 m; frame difference inside the noise. GATE LIFE
+(tools/_life_check.js, core, ~1 s). Owed: walking people need a rigged walk clip (the five scans stand still).
+futureDesigns/SCENERY-LIFE-2026-09-23.md.
+
+## G520 - SCENERY LIFE follow-up: the plot's category routes the laws (2026-09-23)
+
+Asked by the Metlakatla session (510 plots: a cannery, a yard, a town hall, residential quarters): the life's
+recipes come from `plot.cat` (VILLAGE_GEN.finishPlot's lotCat) - confirmed, and two gaps closed: a works' yard
+(industrial, or a harbour plot that is not a home) now gets pallets, cinder blocks, cement bags and cones besides
+its drums and crates; a `landmark` or a `sports` plot is dressed as an institution (no house fuel tank, no mailbox)
+instead of falling back to a home's laws, and so is a site item whose catalogue word is not one of the seven categories (the club's "airport s"). GATE LIFE holds both (an industrial and a landmark house on the synthetic
+premises). futureDesigns/SCENERY-LIFE-2026-09-23.md.
+
+## G521 — A DATA LAKE'S SURFACE IS THE DATA'S: the hydrology's rim was the physics' water (2026-09-23)
+
+REPORTED BY THE METLAKATLA SESSION, who measured three numbers at one point on Jolene's Skaters Lake before
+handing it over: `world.waterH(-3000, -8265)` = 16.19, `world.terrainH` = 10.09, and the lake's own record says
+`level: 10.1`. Their question was whose half it was. It is the terrain track's: 20_world.js and 21_world_hydro.js.
+
+THE CAUSE. The island's lakes are DATA - 317 records off the DEM, a level each. The hydrology is HANDED them
+(`cfg.lakeOf`, G413's blend) so its reaches end where a lake begins, and that much worked; but for those cells
+its own water surface stayed `filled[k]`, the priority flood's height. For a basin whose outlet is narrower
+than a bake cell (1024 over the island) the flood has nowhere to spill, so `filled` is THE RIM OF THE BOWL, not
+the water. On Skaters Lake the rim is 16.19 m and the lake is 10.1: the physics' surface stood 6.09 m over its
+own bank, across 91 % of the lake's cells.
+
+IT WAS NOT ONE LAKE. Over all 317 records the error was a median of 1.10 m, and 96 OF THEM - 30 % - were more
+than 3 m out, the worst by 23.15 m (a 1 654-cell lake at 6671,-15516) and the island's biggest lake (34 756
+cells) by 10.14 m.
+
+WHY NOBODY SAW IT FROM THE AIR. The renderer had already grown a guard against the number: G460.11.7 samples
+waterH at a lake's centre and four quarter points and keeps only those within 3 m of the declared level, else
+it falls back to `level + 0.02`. So every one of those 96 lakes was DRAWN right and only the PHYSICS rode the
+rim - a floatplane put down on Skaters Lake would have floated 6 m over the water it was drawn on, and 23 m
+over the worst. The guard treated the symptom; this is the cause, and the guard can now keep every sample it
+takes (the gate asserts exactly that).
+
+THE FIX, in two lines of rule:
+  - `HYD.riverWater(x, z)` (new): the reaches' own surfaces, WITHOUT the fill's lake level. The fill's number is
+    right for a lake the module FOUND - it filled it, it knows where it spills - and wrong for one handed in.
+  - `waterAt` on the island now asks, in order: the sea (the DEM at or under 0.05), THE LAKE'S OWN RECORD, the
+    hydrology's reaches, and last the cover's water class. The fill is not asked at all.
+THE WATERLINE IS WHERE THE BED CROSSES THE LEVEL, not where a rectangle ends: a record is a bounding box, so a
+point inside one is water only if the ground there is under the level. Where two boxes overlap, the SMALLEST
+box wins (a big low lake's box reaches across ponds on the hillside above it; taking the lowest level instead
+put 78 of 285 lakes on a neighbour's surface, measured).
+AND A LAKE'S BANK IS NOT WATER BECAUSE THE COVER SAYS SO. The cover grid is 10 m and the DEM is finer, so a
+strip of bank round most lakes is classed WATER; the old fallback floated 30 cm over it. Inside a record's box
+the record decides, and above its level the ground is dry: that alone fixed 78 lakes whose five sample points
+were all on such a strip.
+
+MEASURED AFTER (GATE HYDRODYN prints all of it): Skaters Lake answers 10.10 everywhere. Of 317 records, 239
+answer their own level exactly and 0 do not; 46 are ponds the 5-level quadtree smoothed away, whose bed now
+stands over their own level (honest: there is no basin left to hold them, and the renderer's fallback still
+draws them). Over 73 203 points that the cover calls water with the bed under the level, 98.17 % are exactly
+their record's level, 1 235 are the sea answering at a coastal lagoon, 105 take a neighbouring record where two
+boxes overlap, and TWO stand above their own record, by 0.42 m. Nothing hovers.
+
+GATE HYDRODYN GROWS RULE 6, and it runs on any box: the fixture is a STUB ISLAND - a 300 m bowl with a flat
+floor, a rim 30 m above it and no outlet, which is the exact shape that makes the fill disagree. It asserts the
+fill STILL answers the rim (so the fixture cannot go vacuous), that waterH answers the record, that the
+waterline follows the bed, and that the renderer's five samples all survive its own 3 m guard. Where Jolene's
+files are present it adds the whole-island survey above, with a bound on the hover. `tools/island_node.js`
+takes FLYDIY_BENCH so a gate in a worktree can read the checkout that baked the island - never a junction
+(a worktree removal follows one and empties the target).
+
+THE TRAP THAT COST A BOOT: the lake index was a `const` declared beside `waterAt`, and the world calls its own
+`waterH` WHILE IT IS STILL BEING MADE (the premises stage does, in the game). Every node gate passed - a gate
+calls waterH after makeWorld returns - and the game threw "Cannot access 'lakeLevelAt' before initialization"
+and never rolled out. It is built at the top of makeWorld now, with that written beside it. Same family as
+G496's dead zone; the browser is the only instrument that catches it.
+
+TWO THINGS THAT ARE NOT MINE, with the measurements, so nobody has to re-measure them:
+  - THE BLACK POLYGON the Metlakatla session reported is NOT this bug and did not change with it. A lake's
+    water column is `clamp(field * lakeK, 0, lakeCap)` = clamp(d_metres * 1.2, 0, 8) in water.js, and the field
+    is signed METRES from the bank: every point more than 6.7 m inside ANY lake is painted as 8 m of water. A
+    310 x 300 m lake is therefore at the cap over all but a 7 m rim - uniform, near-black, with a hard edge
+    exactly where the fade ends, which is what they described. That is the water session's knob, not the
+    terrain's; a depth that grew with the lake's size rather than saturating at 6.7 m from shore is what would
+    give it a gradient.
+  - THE PREMISES QUESTION they asked - should a premises refuse to grade within N m of a lake, or should the
+    lake follow? THE LAKE DOES NOT FOLLOW. Its level is data; a grade that digs below it is under water, and
+    now the field says so honestly (the waterline is the bed crossing the level). So the rule for the premises
+    author is a FREEBOARD, not an exclusion zone: a graded road may not lower the ground below a lake's level
+    within the lake's box plus the grade's falloff. Anything else floods the road, and the flooding is correct.
+
+GATE HYDRODYN, WATER, SPLAT, PREMISES, PAVEMENT, ANIMALS, FLOATS, WIPLINE green. GATE SEAPLANE is RED and was
+red before this - the same three lines with the same numbers (69.8 m off the lane, 180 deg of heading swing) on
+master's own core, checked by running the gate against it; it is the seaplane track's, not this landing's.
+
+## G522 - JUMBO MINE: the mining village on the 724 m summit, its main street the wild strip mn_strip (2026-09-23)
+
+The user: "landmarks placed on the island, and their strips ... the north east ... built with the world editor,
+so I can edit it further myself ... The mine ... its topmost part should sit on a hill top, relatively flat, then
+have the ladder of buildings on a slope, then have the mining village at the bottom ... a main street of 15-20 m
+straight and unobstructed, that will be used as a wild airstrip ... a straight 250 m section, then wind after
+that ... in the mountain, relatively high, find the best spot."
+
+THE PLACE (searched, not guessed - scratchpad scans over the 10 m DEM): every 250 m line in the NE scored for
+its grade, residual and crossfall, a mill-shaped hill beside it (a 25-35 deg face rising to a flat top ~100 m
+back) and the climb-out past both ends. The winner is the summit at (6156, -10857), 724 m, east of the big lake:
+a flat dome (2 660 m2 within 4 m of the top), a 28 deg west face, and a shelf at 676 m along its foot where a
+250 m straight lies level (slope 0.1 %, residual 4 m) and the ground FALLS past both ends. The 676 m contour
+rings the whole summit ~120 m out, which is where the street winds. Everything lower in the NE (200-250 m
+valleys) had the slope and not the height; everything higher (the 575-620 m ridges) had the height and no
+slope. Clear of the other landmark sessions' boxes (native area x 9700..10400, tramway x -500..3000).
+
+THE RECORD: tools/jolene_parts/mn_mine.json (the G518 parts loader; prefix mn_, 16 entries), plain editor
+data, rev 9. Site frame yaw 60 deg: +x along the street (NNE), +z up to the summit.
+  - mn_strip  "Jumbo Mine Street" 250 x 18 m gravel, marks none, no PAPI, falloff 30, graded flat at 675.8 m;
+              the straight of the main street IS the runway (a road over a runway would draw two pavements)
+  - mn_main   the main street's winding end: 18 m gravel from the strip's south end round the summit's south
+              and east flanks on the 676 m contour (walked on the DEM), 560 m, grade <= 8 %
+  - mn_s_mine the Kennecott theme tool's site, re-laid for a street that is a runway: the mill (bottomOnRoad:
+              its receiving house BESIDE the street, 2 m off its edge, never astride it) with its pad cut ON the
+              summit (floor 724.6 m); the office/shop/cottages/shed on a works bench above the street; the row
+              (bunkhouse, dormer hall, mess hall, cottage) below it on posts with no back stoops (the stairs
+              chased the slope 10 m down); along the rest of the straight a store, a school, a bunkhouse,
+              cottages, the chapel, the clinic, the air taxi office and a fuel shed by the stand
+  - mn_z_ring residential, the UPHILL side of the winding street only (sides 'right': the outer side stood
+              houses on 10 m stilts), seed 15 (15 plots; the default seed sowed 8)
+  - terrain   works / upper benches, the stand's pad, and TURNING BAYS 35 x 34 m at both ends of the strip
+  - the stand at the south end (way out onto the centreline 37 m in), approach 0 (land NNE over the south
+              end: the model wants 1.3 % that way and 21.7 % the other, the summit being beside the north half)
+
+THE PILOT AND A SHORT STRIP - worth knowing for every strip under ~370 m: the DERIVED pattern holds 110 m in
+from each end (25_airfield GP_HOLD_IN) and the departure wants min(runNeeded, 0.7 len) ahead, so on 250 m the
+hold leaves 141 m and the pilot replans forever ("not lined up with a run ahead (141 m)"). Not changed in the
+core (other strips ride on it); mn_strip carries an AUTHORED pattern in runway.site.pattern - the editor's own
+slot, what its hold drag writes - with the holds 55 m in and the U-turn 8 m from each end opened to +-11 m on
+the turning bays (the 18 m street is narrower than the Cub's 24 m U-turn: it fell off the north end's bank on
+the first try). sitePatternIssues empty at the aeroplane's 6 m. Moving or turning the strip in the editor drops
+the authored pattern (the editor's rule) and the derived one comes back - the AI pilot then cannot depart.
+
+FLOWN headless (pilot_trace's recipe, the island composed with this fixture): the Cub from the stand - take-off
+run 127 m, circuit, landing 93 m, 0 m off; HOME -> mn_strip cross-country - landing 1.7 m/s, 92 m, 0 m off.
+
+OWED / KNOWN: the mine is 12 km from the origin, so until the far-terrain sink lands (the native-area session's
+render_world.js port of Metlakatla's sinkFar) the raw far tier draws over the street and the benches and the
+buildings above the street look half buried - physics, the pilot and the editor are right already. Every
+runway draws edge lenses (render_world standRunwayLights) - a street with runway lights. No road links the mine
+to the rest of the island (the summit is ringed by 400 m of fall); it is a fly-in mine.
+
+GATE PREMISES, PARKED, ANIMALS green in the worktree; GATE WORLD's island block run by hand against the main
+checkout's bench/ (it skips without one) - green, plus mn_strip's own pattern and stand. No full battery (the
+user runs it once for all sessions). Data only: no src/ change, no build.
+## G523 - THE WORLD SHIPS: Jolene leaves the gitignored bench/ and lands in media/, 168 MB -> 35 MB (2026-09-23)
+
+THE DEFECT, and it was never a ruling: `flyDiy/.gitignore:9` ignores `bench/`. That rule was written on 2026-09-04
+(f0be1ea4) for "terrain bench scratch bakes ... reproducible in seconds" - TEN DAYS BEFORE THE ISLAND EXISTED (the
+island arc starts 2026-09-14, G391+). Jolene's bake was then written into `bench/jolene` and `bench/terrain` and
+silently inherited it. So the DEFAULT MAP (G434) was in no clone, no worktree and no cloud session; the workarounds
+piled up (`_serve.js --fallback` on eight launch entries, `_splat_check.js`'s `const MAIN = 'D:/Dev/...'`, an absolute
+`D:/Dev/.../bench/jolene` in `jolene_author.py`), two junction attempts EMPTIED bench/ outright (G434.1), and
+GATE WORLD printed "the island checks are skipped" and passed GREEN with eight checks dead. Every written intention
+was the opposite: ISLAND-PREPACK §5b ("one baked asset ~40 MB, committed once per world rebuild"), CREDITS.md ("the
+shipped asset will live in media/"), build.js ("from media/ when the world ships") and terrain_bake.js's own
+writeGuard ("the thing writing it into media/ will be the manifest bake, not this bench tool"). That bake is written
+now. THE SIZE OBJECTION DID NOT SURVIVE MEASUREMENT: the seventeen layers the game reads are 168 MB raw and 35 MB
+gzipped - the 1.4 GB in bench/jolene is 97 % prep intermediate (dem5.* 1.1 GB, dem.ori{,2,3,4}, ndwi, lakemask,
+ifsar_canopy) that nothing at runtime reads.
+
+- `tools/world_prep.js` (new) - THE MANIFEST BAKE. `--island <id> [--bench <dir>] [--report] [--level 9]`. Reads the
+  bench bake, gzips, writes `media/world/<id>/<stem>.<h8>.bin` through `_media_lib.writeMedia`, prunes the owned
+  subdirectory, emits `src/core/world_packs.json`. THREE RULES: (1) ONE GZIP STREAM per file, always, with the `.bin`
+  extension - `.bin` because GATE MEDIA's reference regex already matches it, so a world ships without widening the
+  store's grammar, and one stream because the consumer then has ONE decode path. The two terrain payloads arrive
+  already gzipped from terrain_bake.js and are copied byte-exact; the test is the 1f 8b magic, never a flag.
+  (2) ONE NAME LIST: the `SET` table in that file is the only place these seventeen filenames exist. (3) CONTENT
+  HASHED, which is not cosmetic - see the sw.js note below.
+- THE MANIFEST KEY IS THE DOTTED PATH into the boot object 28_island.js reads (`header`/`topo`/`payload`, `grid.*`,
+  `far.*`). Both consumers assemble with the same one-line `set()`, so neither the page loader nor island_node.js
+  spells a filename, and A SECOND ISLAND IS A BAKE, NOT A CODE EDIT (`WORLDS` for the GRAPHICS menu is derived from
+  the pack). Two record forms only: `{json}` (inlined, decoded) or `{src, kind, raw}`.
+- `raw` MEANS BYTES AFTER THE GUNZIP, for every record. Taking it to be the file's size on disk was this landing's
+  own bug, and GATE WORLD's new size check caught the two already-gzipped terrain payloads on its first run.
+- INLINE_MAX is 1 KB, so only the two quadtree headers (299 + 297 B) are carried IN the manifest, decoded; every other
+  layer is a payload. It was 8 KB first, which pulled dem.json in too.
+- `tools/build.js` - the ISLAND_LOADER's three `bench/` prefixes are GONE, the whole runtime coupling with them. The
+  manifest is FETCHED (`src/core/world_packs.json`) - see the budget note below; it was inlined at build time first. `opt()` is deleted - presence in `files` is the contract now that GATE MEDIA holds
+  referenced == present. A `BOOT.phase('world', ...)` was added because ~35 MB now rides in front of the first paint
+  and without it the loading screen sits frozen on the step before.
+- `tools/island_node.js` - reads the same manifest, gunzips with zlib. Two failure modes ON PURPOSE: an island the
+  manifest does not name returns null (a typo'd --world says so); one it DOES name whose payload is absent THROWS,
+  because that is a broken checkout and must not read as an absent island. New `islandAuthoring(id, key)`.
+- G521's `FLYDIY_BENCH` IS KEPT, and promoted from a fallback to an EXPLICIT opt-in. It was added so a gate in a
+  worktree could read the main checkout's bench with the worktree's code; that need is gone for the shipped island,
+  but an author iterating a re-prep has bytes that are not baked yet and still wants it. What it must never be again
+  is automatic: reading bench/ "whenever it exists" silently divided what a gate measured from what the page fetched,
+  depending on which checkout it ran in. Set the variable and you get the raw bench; otherwise the manifest, which is
+  what players get. Both routes composed the IDENTICAL world at the rebase (same four aerodromes plus G522's
+  mn_strip), which is the cross-check that the shipped bytes are the bench's bytes.
+- GATE WORLD's island checks are MANDATORY. The silent skip is exactly how a missing default map went nine days
+  without a red. Plus three new checks GATE MEDIA cannot see: every payload gunzips to its declared size; sw.js's
+  WORLD_KEEP was built against THIS manifest (baked the world, forgot to rebuild - manifest and media agree
+  perfectly in that state, so the media gate is green while the worker holds the PREVIOUS bake's hashes and evicts
+  each new payload moments after the page fetches it); and every data source still has its line in CREDITS.md. That
+  middle check was written against index.html and MOVED when the manifest stopped being inlined - the page reads the
+  manifest at runtime now and cannot go stale, the worker still can. Proved with a negative control: corrupt one
+  hash in sw.js and GATE WORLD goes red.
+- `authoring`, a sibling of `files` that the loader does not iterate: `dem.f32` (48.5 -> 11.4 MB), shipped so the
+  premises can be re-authored anywhere. `jolene_author.py` reads it (bench/ first when present) and its hard-coded
+  D: path is gone; the bytes are the same, so `tools/fixtures/island_jolene.json` re-emits IDENTICAL.
+- `.gitattributes` (new, the repo had none): `flyDiy/media/** -text`, `*.bin binary`. autocrlf is per-clone, and a
+  gzip stream with rewritten 0x0a bytes fails as an opaque DecompressionStream error at boot, far from the cause.
+- bench/ STAYS gitignored - it is the bake's input, and the .gitignore comment now says so loudly. The ~7 GB raw
+  USGS/ESA set stays local. The bench tools (_island.html, island_bench_shot.js, splat_sheet.py, island_prep.py)
+  reach bench/ through their own CLI defaults and are untouched. THE LOOP: island_prep.py -> terrain_bake.js -> the
+  bench tools iterate -> world_prep.js -> build.js -> the gates.
+- CREDITS.md's Jolene section is now the shipped asset's attribution in the present tense, discharging the two CC-BY
+  4.0 obligations (ESA WorldCover, Meta/WRI) that were owed but dormant while nothing shipped.
+- THE CACHE SWEEPS ITSELF, in the same landing: sw.js had no eviction at all, which was tolerable while the biggest
+  re-bakeable payload was a few MB of texture and is not at ~35 MB a world - a player who had seen two bakes would
+  carry both for ever. The generated worker now carries `WORLD_KEEP` (this build's world paths, straight off the
+  manifest) and its `activate` deletes every /media/world/ entry outside that set. SCOPED TO THE WORLD ON PURPOSE: a
+  texture is a few hundred KB and a page still open in another tab may want it, whereas a superseded world is tens of
+  megabytes that nothing will ask for again (world_prep's prune takes the old names off the server in the same bake,
+  so a stale tab 404s to the analytic world either way). PROVEN against the real Cache API, not by reading it: seed a
+  cache with a kept path, a previous bake's albedo and a wood texture, run the generated activate body verbatim - the
+  kept path survives, the stale bake is evicted, the texture is untouched.
+- OWED: sourcing jolene_author.py's levels from the shipped quadtree instead of dem.f32, which would retire the
+  11 MB - but it moves heights by up to the baker's 2 m eps and therefore moves the fixture and GATE WORLD's
+  assertions, so it needs its own reviewable diff.
+- THE ARTIFACT BUDGET IS SPENT, AND SAYING SO IS PART OF THIS ENTRY. GATE MEDIA holds index.html to 8.7 MiB. When
+  this work started there were ~17 KB free; by the time it had been rebased three times (G517-G519, then G520-G522)
+  master itself was down to 589 BYTES, and the 2.3 KB inlined manifest turned the gate RED. Inlining it had been the
+  right call on its own terms - no round trip before the payloads - but 2.3 KB was not this asset's to spend against
+  589, so the loader FETCHES the manifest now: one ~700 B request in front of a 35 MB download, which is nothing, and
+  the world costs the page 524 bytes LESS than the loader it replaced (headroom 589 -> 1113). FLYDIY_WORLDS therefore
+  arrives async; both readers build a menu on demand and already guard on it. VERIFIED that `?world=none` still lists
+  Jolene in the GRAPHICS menu, which is the switch that would have broken.
+  THE BUDGET ITSELF NEEDS A RULING, and it is not this chantier's to make: 1113 bytes is one small feature from red
+  for whoever lands next, and the fix is a decision about what leaves index.html, not another shuffle.
+- THE FIDELITY IS MEASURED, NOT ASSUMED, and not by me. The TERRAIN session ran GATE HYDRODYN's rule 6 (G521, which
+  surveys every lake on Jolene) in a worktree with NO FLYDIY_BENCH, off media/world/jolene alone: 239 lakes answer
+  their own level, 0 do not, 46 ponds have no basin left in the quadtree; of 73203 water points 71861 stand at their
+  level (98.17 %), 1235 are the sea at a lagoon, 105 a neighbouring record, 2 above. THE SAME NUMBERS TO THE LAST
+  DIGIT as the raw-bench run G521 landed with. So the shipped grids and the bench are the same bytes through the
+  WHOLE chain - quadtree, cover, lake records - which is a stronger claim than "the bake copies them" and than
+  anything this chantier could establish about itself. It is also the first time GATE HYDRODYN's island half has
+  been green in a worktree with no special environment.
+  WATCH ON THE NEXT RE-PREP: those 46 basin-less ponds are not a defect of the shipping - they are records whose bed
+  in the 5-level quadtree stands above their own declared level, small lakes the terrain decimation smoothed away,
+  and they behaved identically off bench/. If a re-prep changes the quadtree's depth, 46 is the number that moves.
+- PROVEN IN A WORKTREE THAT HAS NO bench/ AT ALL: `node tools/island_node.js jolene` composes (w2, HOME, w3, SEA);
+  GATE WORLD 36 checks 0 failed with the eight island checks RUNNING; GATE MEDIA PASS (media/world/jolene 16 files,
+  46.49 MB; index.html 8.69 MiB of 8.7); the page on `_serve.js` with NO --fallback boots `?world=jolene` with no
+  fallback warning, 15 requests and 37.3 MB on the wire (was 168 MB), ISLAND_BOOT carrying albedo 36397200, grid
+  3095x3920, 317 lakes, and no request for the authoring DEM.
+
+
+## G524 - THE MIRROR'S CEILING IS A FADE, NOT A CLIFF: a lake from the air stops being a black polygon
+## (2026-09-23, the user: "do your planar mirror fix", after the Metlakatla session reported Skaters Lake
+## "uniformly near-black, no sky in it, no gradient, a hard edge against the bank")
+
+- WHAT WAS WRONG, and it was my own reasoning at G460.11: the mirror switched OFF above 60 m over the
+  water, because "from the air a water reflects the sky, and the probe carries the sky". That is true of
+  the water DIRECTLY BELOW and false of everything else. At an eye height h a point at ground distance d
+  is seen at atan(d/h) from the vertical, so the far half of any water in frame is GRAZING, and what a
+  grazing ray reflects is the far bank - terrain, which the probe does not have (its ground is a flat
+  cap). Over a near-black muskeg lake, whose own colour is 0.1 % upwelling by construction, the probe's
+  sky at a steep angle is ~2 % of the sky and the body is the rest: a flat black polygon. And 60 m was a
+  CLIFF - fly up through it and the reflection vanished between two frames.
+- THE FIX, three lines and a uniform's meaning. `uWMirror4.x` was a boolean the shader TESTED; it is the
+  mirror's WEIGHT now and the shader MIXES by it, so the hand-over to the probe is a dissolve. The weight
+  is 1 up to `fadeFrom` (500 m) and eases to 0 at `maxAgl` (900 m). Above that the reflection really is
+  the sky and the probe is right.
+- AND THE CADENCE HAD TO LEARN ITS ALTITUDE, or raising the ceiling would have cost a capture almost every
+  frame at cruise: a capture is stale when the eye has moved enough to change the PARALLAX of what it
+  reflects, and the nearest thing a mirrored eye at height h can reflect is about h away. So the re-capture
+  distance is `max(moveM, agl * moveAgl)` - 3 m at the dock, 25 m at 500 m. The turn threshold does not
+  scale: turning re-frames everything at any height.
+- MEASURED: a capture at 300 m over the lake costs 11.4 ms, no worse than the 13-22 ms at the dock (the
+  scene's far is already capped at MIR.far 4000, so altitude does not add draws). PROOF
+  (screenshots/water-g440/N2/, the Jolene lake at 1226,-17526, level 115.91): a300_old.png is the
+  reported defect exactly - a uniform black polygon with a hard bank and no gradient; a300_new.png has
+  the clouds in it and a gradient across the body; a600_new.png (weight 0.75) still carries them, fading
+  rather than popping; a150_old/a150_new for the near case.
+- A SECOND CAUSE, MEASURED BY THE TERRAIN SESSION AND LEFT OWED ON PURPOSE: `wDepth` for band 1 is
+  `clamp(f.y * 1.2, 0, 8)`, so every point more than 6.7 m inside ANY lake is painted at the 8 m cap -
+  a 310 m lake is at maximum depth over all but a 7 m rim. That is a real flaw and it is the "no
+  gradient" half of the report. It is NOT the "black" half, and the distinction is worth writing down:
+  the lake preset's opacity is 1.6, so the column is opaque within about a metre and its colour has
+  already reached its asymptote long before the cap bites. Fixing the depth law would change the first
+  metre or two at the bank and nothing else. Worth doing (the honest form is a bowl - `cap * (1 -
+  exp(-f.y * k / cap))`, whose initial slope is k and which never saturates, and whose implicit
+  size-awareness comes free because distance-from-bank IS a proxy for a lake's size), but it would not
+  have answered the user's complaint and it is not what landed here.
+- ALSO (tools/cloud_shot.js): THE SKIP IS THE LAST RESORT, NOT THE FIRST MOVE. CONTINUE ANYWAY is
+  boot.js's `fail('skipped by the user')` - it ABORTS the roll-out's remaining steps, and those steps
+  BUILD AND COMPILE THE WORLD. Clicked too early it leaves a scene with no terrain and every shot comes
+  out flat sky, silently. G509's flight-rail test fires earlier than the old phase words did, which put
+  the skip inside the build. The rig waits for `BOOT.state === 'gone'` first now and skips only if the
+  roll-out is still running after that.
+- GATE WATER 3 grows two rules (the fade's shape and that the weight rides uWMirror4.x; the re-capture
+  distance scaling with the eye's height). WATER, WORLDRENDER, MEDIA, GFX, CLOUD, UISMOKE green.
+
+## G525 — THE SKYLINE TRAMWAY AND ITS ALTIPORT: an aerial tramway from a shopping stop by Metlakatla to the summit east of town, a ski lodge on top, and the ski slope that is a runway landed uphill (2026-09-23, the user: "the air tramway, with its moving cabins, night lights, top and bottom stations. The bottom station should probably be not that far from metlakatla, and feature a little commercial complex at the bottom. At the top ... a ski station and a little ski slope, and that very ski slope (with no snow as we are in the summer) will be used as an inclined landing strip ... It will prove the inclined runways too. The ideal mountain runway is one that starts inclined and finishes flat, possibly atop a little hill ... la salette")
+
+ALL OF IT IS EDITOR DATA, AUTHORED IN THE EDITOR. `tools/jolene_parts/tramway.json` (prefix `tw_`, 27
+entries) was drawn in the game's own world editor, driven headless through `PREMISES_EDITOR.ed.cmd`
+(the runway tool's two clicks, the stand tool, the flatten/material/no-trees/road tools, sites and a
+cable link added through the editor's `add`/`set`), exported whole and cut back to the part by the new
+`tools/jolene_part_extract.py <export.json> --prefix tw_ --out tools/jolene_parts/tramway.json
+[--rename w1=tw_ski,...]`: the part's own entries (its prefix, or an id the fixture does not have),
+renamed with their references (a link's sites, a surface's yard), another part's entries reported and
+left alone, a dropped one said. That is the round trip for the user too: edit in WORLD, FILE > export
+json, run the extractor, `py -3.11 tools/jolene_author.py`.
+
+THE SITE, searched on the DEM (not guessed): the summit crest 1.6 km east of Metlakatla's lowland
+(711 m). A vectorised search of every centre / heading / length / slope family for "a ramp that eases
+into a flat top", scored on the cut and fill across the full width and the shoulders, came back to the
+spur that climbs SSE->NNW onto the summit knob: 380 x 18 m, a 10 % ramp over 62 % of the length easing
+to a flat top, 29 m of rise, cut/fill within ~6 m at the shoulders. References: Meribel (406 m, 11 %
+middle), Courchevel (537 m, 18.5 %), La Salette (180 m, 20 %, on a hilltop with the ground falling
+away both sides - which is exactly this spur).
+
+1. THE ALTIPORT - contract v1.23, `tw_ski` "Skyline Altiport". A runway may be `altiport: true`:
+   landed UPHILL over the end `approach` names, left downhill whatever the wind. Its profile is judged
+   by the altiport's limits (slope under 20 %, no touchdown-zone rule, crest under 5 % per 30 m,
+   approach named, far end higher) - `ALTIPORT` in 27_premises.js; an editor switch beside the approach
+   pills (it names the lower end when none is set). `runwayProfile().slopeAt` now reads a metre INSIDE
+   the strip at an end: the clamped half metre read a 10 % threshold as 5 % and the crest test then
+   reported a 5 % change of slope that is not in the ground. A top APRON (`tw_t_summit_apron`, a
+   flatten level with the flat top) carries the stand: on the crest's tilt the Cub was placed half
+   below the ground and flipped on its back before the pilot woke (a real stand needs flat ground).
+2. THE PILOT FLIES IT (43_pilot.js, every branch gated by the aerodrome's `altiport`): the round-out
+   is asked over the slope's LINE through the aim, a second of the rising ground early, the sink
+   RELATIVE to the ground (grade x ground speed added), on power, the attitude cap raised by the
+   slope; the take-off direction is the landing's reversed; the reject rules count the slope still
+   ahead and let the run use the low end (it is the mountain falling away, not a fence), and past the
+   end at Vr the aeroplane flies. MEASURED, `pilot_trace --world jolene`: Cub HOME->tw_ski touches at
+   0.92 Vs climbing 0.45 m/s relative, three-point, 48 m roll, no bounce (the pilot before this flew
+   into the slope at 1.6 m/s and bounced); C172 0.95 Vs, 163 m. Cub tw_ski->HOME from the stand: taxi,
+   80 m downhill roll, lift-off, flown home and landed. C172 from the stand: 279 m, lift-off 26.9 m/s
+   at the low end, Courchevel's way. IDENTITY: the stock Cub circuit is bit-identical between
+   master's core and this one (`pilot_trace cub --quiet`, the JSON equal but the wall clock).
+3. THE TRAMWAY - `tw_l_tram`, a cable link between `tw_s_valley` (the base station, x -1520 z -7924,
+   48 m) and `tw_s_summit` (the top station on the summit's north shoulder, hooks at x 248 z -7890):
+   one span of 1.74 km at 20.4 deg, rope placed by a clearance search over the DEM and the canopy
+   (18 m over the trees at the worst point with the sag). A link's `speed` (m/s, contract v1.23; 6
+   without one) - the tram runs at 10, an editor row under the station's link note. THE CABINS AT
+   NIGHT: built lit (their panes and lamp glass on the finish's night uniform), without their own
+   PointLights (a changing light count recompiles every lit material); their lamps join the premises'
+   night pool as MOVING lamps (cabin.js `points: false` + `onLights`, render_premises LAMPS `move`).
+4. THE VALLEY COMPLEX: the base station, a ticket and tours office, a café, a ski & trail shop and a
+   small motel, a paved parking lot (a `look` polygon) with seven cars, people, a flatten under it all,
+   a no-trees zone round it and down the first 150 m of the line; `tw_r_access`, 5 m gravel with its
+   pole line, from Walden Point Road's east end (Metlakatla's `mk_r_walden` stub, met EXACTLY at
+   -1356.64, -8277.07 as that session asked - their road is on their branch, the junction waits for
+   it).
+5. THE SUMMIT: the top station, the Summit Lodge (a café), a ski-patrol cabin, a pilot hut, the
+   groomer's garage, a shed, an outhouse, picnic tables and people, a footpath from the station to the
+   lodge and the stand. Every item `lot: false` (the native-area session's switch: no residential
+   lawn/fence dressing round a mountain building).
+
+NOT MINE, AND THEY MATTER HERE: the whole scene is 7.9 km from the origin, past the inner ring - the
+native-area session's far-terrain sink and its tree-fill honouring of no-trees polygons are what make
+the cuts and the clearing show. OWED: a surface lift up the piste (no generator has one; a pole line
+along a service track was tried and refused - the strip's keep takes the poles, rightly); the night
+picture judged in flight (the editor's view is too dark to judge); an editor tool for a cable's
+speed on the link itself rather than under its station. Gates run (the user's rule: specific ones only, no battery): CABIN, PREMISES, LIFE, WORLD green on
+this source; GATE WORLD first caught the cable's end 'missing' in node (no generators, so no station
+built) - a link now says 'an end is not built (no catalogue entry for its station)' when the end is
+declared on its site, which the gate's existing catalogue rule forgives, and 'missing' only when the
+record lacks it. MEDIA on the built pages.
+## G526 - THE WAY BACK: `jolene_author.py --absorb` carries the editor's record into the parts
+## (2026-09-23, the user: "write it", after three sessions asked and after their own line at G518,
+## "I would like all of this to be built with the world editor, so I can edit it further myself
+## later on")
+
+G518 gave the island a PARTS LOADER: `merge_parts` carries `tools/jolene_parts/*.py|json` INTO the
+generated record, so five sessions can author one island without hand-merging 45 kB of generated
+JSON. That was half a round trip. An afternoon of dragging things about in the game's WORLD editor
+still died at the next `python tools/jolene_author.py`, which is the moment "edit it further
+yourself later on" stopped being true.
+
+    py -3.11 tools/jolene_author.py --absorb <exported.json> [--dry-run]
+
+The export is whatever the editor saves - `{what:'flydiy-premises', premises}` or a bare record.
+Every entry is bucketed by the LONGEST matching part prefix (so `mn_` and a later `mn_x_` cannot
+fight over an id), and then four things happen, each of which is the whole point:
+
+1. A `.json` PART IS REWRITTEN IN PLACE - its `layers` replaced, its own other keys (`part`,
+   `prefix`, `note`, `extent`) untouched, its empty layers kept, written with the same
+   `json.dumps(indent=1)` the fixture uses so an unchanged absorb is a byte-identical no-op.
+   Deletions come free: the part's layers are rebuilt from the export, so an entry the user deleted
+   in the editor is simply not there any more.
+2. A `.py` PART IS REFUSED, and its diff printed for a human. This is not timidity: a `.py` part is
+   a PROGRAM. `jolene_parts/airfield.py` computes every position from the club's quarter-turned
+   frame (`W(lx, lz)`), names its seven scenes and states why each prop is where it is. Absorbing
+   flat coordinates over that would leave the same picture and throw away every reason for it -
+   exactly the failure "Build, don't reconstruct" names.
+3. THE AUTHOR'S OWN ENTRIES ARE REPORTED, NEVER DROPPED. `m_pad`, `HOME`, the taxiway V and the
+   other 54 live in this file's literals. If one was edited in the editor, the absorb says which and
+   prints the diff; if none was, it says so in one line and stays quiet.
+4. AN ENTRY MATCHING NO PREFIX is new work drawn in the editor. It is listed with the prefixes it
+   could join. Nothing is ever dropped silently - that is the command's whole contract.
+
+THEN IT PROVES ITSELF. After writing, the record is rebuilt from the parts ON DISK through the real
+`merge_parts` and every absorbed entry is compared with the export, layer and bytes. If the rebuild
+refuses the result - a duplicate id from a confused export, say - or if any entry fails to come
+back, EVERY PART IS RESTORED TO THE BYTES IT HAD and the run aborts saying so. A half-absorbed part
+is worse than none, and this is meant to be safe to run on an afternoon you cannot reproduce.
+
+- MEASURED, four ways: (a) absorbing the fixture the author has just written reports `same` for both
+  parts and writes nothing; (b) a realistic edited export - a site dragged 12 m, an entry deleted, a
+  `.py` part's prop moved, one of the author's own entries changed, one new prop with no prefix -
+  produces exactly those four verdicts and rewrites only the `.json` part (16 -> 15 entries, `note`
+  and `prefix` intact); (c) the good path prints `checked: every absorbed entry rebuilds identically
+  from the parts on disk`; (d) an export carrying the same id in two layers is refused BY THE REAL
+  `merge_parts` during that rebuild and leaves `git status` clean.
+- NOT GATED, deliberately. No gate in this tree runs python (`_prop_check.js` and friends read python
+  SOURCE as text), and making one depend on a python install to test a python tool would buy less
+  than it costs. The command carries its own rebuild proof and runs it on every use, which is a
+  stronger guarantee than an assertion in a battery that runs once a day.
+- Refactor under it: `part_files()` and `load_part()` are now the ONE reader both `merge_parts` and
+  `--absorb` use, so the two can never disagree about what a part says. Output-neutral: the fixture
+  regenerates byte-for-byte across the change.
+- FILES: tools/jolene_author.py (part_files + load_part + absorb + _restore + the `--absorb` hook in
+  main, before the parts are merged so the author's own entries are known).
+- OWED: the absorb does not bump `rev`. It says so at the end - a player's browser keeps its WIP
+  under `flydiy.premises.game.jolene` and shadows the shipped record until the rev moves.
+- WHY THE NUMBERS SKIP G523: two sessions landed a G522 within seconds of each other and the second
+  ref move displaced the first (the mine vanished from master's tip - found here while taking the
+  number, repaired by the water session, who rebased their pair onto the mining village's commit so
+  that one kept its identity and its number). G523 was consumed by that repair. The numbers run in
+  LANDING order, so this is G526 and G523 stays a gap rather than being back-filled out of sequence.
+- AND THE LESSON IS IN docs/SHARED-TREE-PRACTICES.md section 8 now: an expected-old on
+  `git update-ref` guards against a RACE and cannot see a STALE BASE. The displacing landing read
+  master correctly - it had just been read a second too late to notice its own parent was no longer
+  the tip. `git merge-base --is-ancestor "$CUR" "$NEW"` in the same breath as the move is the line
+  that catches it, and it belongs BESIDE the expected-old, not instead of it.
+
+## G527 - EAST POINT: the native ceremonial grounds and their bush strip on the east-coast headland, and the four things that made any place past 4.5 km render wrong (2026-09-23)
+
+The user: "landmarks ... and their strips, at places not yet well covered like the north east ... built
+with the world editor, so I can edit it further myself ... a native area with celebratory grounds, in a
+remote part of the island ... a rough gravel strip of 150 m and 12 m wide unobstructed, more like a small
+clearing with a path in the middle ... ensure vegetation does not prevent approach."
+
+THE PLACE. `tools/jolene_parts/native.json` (prefix `nv_`, 31 plain editor entries; jolene_author rev 11).
+The site was SEARCHED, not picked: every 150 m line on the east/NE coast scored on grade, residual,
+cross-slope and a 1:15 obstacle plane over terrain + canopy, then refined on the one headland at
+x 9700..10400, z -12100..-11350 (15 km from the origin, 10 km E / 11.7 km N of the field). The strip
+`nv_strip` "East Point Clearing" runs N-S along the headland's spine at 21 m (grade 0.1 %, no
+profile needed), gravel, no markings, `approach: 0` (landed from the north over the forest, rolling
+toward the point and the sea). Beside it on the east terrace: `nv_clearing` - an irregular lens
+(`clear` zone) swelling round the grounds, a `grass` look over it; `nv_ground_pad` flattens a round
+dance ground (dirt look, a gravel hearth) and the clan house's pad; `nv_grounds` stands the CLAN HOUSE
+(the log cabin preset opened out to 16 x 12 m, 18 deg pitch, no windows, one centred door, a smoke-hole
+chimney, `lot: false`) with its front to the ground and the sea, and a smokehouse; the six scanned
+totems are placed as props with meaning - the tallest before the house door looking out, three in a
+crescent on the seaward rim looking back at the house, two WELCOME poles at the top of the landing
+beach looking at the water; people round the ring, stools, two boats drawn up on the south-tip beach,
+gulls; two dirt footpaths (strip -> ground, ground -> beach, poles/rails/paint off). Approach fans
+`nv_fan_n` (to 760 m) and `nv_fan_s` exclude trees.
+EDIT IT: open WORLD in the game and move anything; export the record from FILE, then
+`py -3.11 tools/jolene_author.py --absorb <export.json>` writes the nv_ entries back into native.json
+(G526), and bump `rev`.
+
+MEASURED. Approach clearance (terrain + the canopy the fill still plants): north clear at 1:20 to
+1.5 km, south clear at 1:15 (at 1:20 the far shore 1.1 km out stands 11 m into the plane). FLOWN
+HEADLESS (pilot_trace, cub): HOME -> nv_strip completed, no go-around, touchdown 5 m short of the aim,
+stopped in 74 m of 150. The DEPARTURE does not complete - see OWED.
+
+FIXED ON THE WAY (each hit every place past the inner ring - the mine at 12 km and the tramway at
+7.8 km waited on them):
+- THE FAR TIER UNDER A PREMISES. Past +-4.5 km the only ground drawn is the far quadtree at the RAW
+  DEM, so a graded strip or a flattened pad there was hidden under it (the Metlakatla branch's G511
+  `sinkFar` found this; its static vertex walk no longer fits master's view-dependent FARLOD, whose
+  patches are rebuilt as the eye moves). The sink now lives in patchOf: where the premises patch
+  covers, the tier drops to min(raw, composed) - 4 m; `FARLOD.resink(bb)` drops the cached patches
+  under a box and re-cuts, called from refreshGround - so a live editor edit re-sinks too.
+- THE PATCH WENT BLACK. render_world chose ONE material for the whole record by its extent: the day
+  a part reached past the ring, the whole patch (the airfield's too) wore the far material under the
+  analytic uv law, and that material (12 samplers) + the material map (5) is 17 >
+  MAX_TEXTURE_IMAGE_UNITS: the link failed, every chunk drew black. Now `patchGrounds()` hands
+  render_premises two grounds and a per-64 m-chunk pick (inner material + uv inside the ring, the far
+  material + islandUV past it, blocks keyed by kind); past the ring the material polygons' PBR SETS are
+  not injected (`patchInject2: false`) - a `look` polygon is the pavement's own mesh and still draws.
+- THE BLACK BLOBS. A W13.2 analytic-world "ground patch" stood under every strip past 3.9 km in the
+  analytic outer texture at the SAME composed height as the premises patch; on the island it drew black
+  and z-fought through in blob shapes. Found by raycasting the blob pixels (the plain-green patch swap
+  kept them - they were on top). Skipped wherever the premises patch covers the strip.
+- THE TREES NEVER READ THE EDITOR'S "NO TREES". The island fill cleared only each aerodrome's box and
+  the pavements; exclude polygons, `clear` zones, strip boxes + 30 m and hard surfaces were obeyed by the
+  collidable woodland only. The fill walk now tests `world.premises.overlay.excludeAt(x, z, 'trees')`.
+- A SHORT STRIP COULD NOT BE DEPARTED. sitePattern put the hold 110 m in: on 150 m, 35 m PAST the
+  middle, 40 m ahead - three replans and "taxi-lost". Under 300 m the hold/U-turn offsets close in (the
+  hold a quarter in); 300 m and more are byte-identical (no strip under 300 m existed).
+- `P.lot: false` per site item (contract v1.24): a house was dressed as a residential lot (lawn, drive,
+  car, fence) wherever it stood.
+
+GATES (targeted, per the user's standing instruction - no full battery): SITE, PREMISES, WORLDRENDER,
+WORLD (with the island's checks live since G523), MEDIA (8.71 of 8.8 MiB) green on the landing base.
+
+NOT VERIFIED / OWED:
+- THE AI DEPARTURE. The Cub lines up at the north end with 145 m ahead and ABORTS 3.5 s into the roll:
+  43_pilot's rejected-take-off keeps `reserve` (80 m, style normal) past Vr whatever the strip, so no
+  strip under ~230 m passes it ("Vr in 80 m, 102 left"). A pilot-track ruling (scale the reserve by the
+  run), not changed here. A player flies out of it by hand.
+- SCENERY LIFE (G519) stands a 30 m lattice mast by every aerodrome, this one included, and would
+  dress the clan house with cars and rubbish; rec.life is island-wide. Asked the scenery-detail session
+  for a per-entry `life` override; set it on nv_strip / nv_grounds / nv_clearing when it lands.
+- The clan house is the log cabin opened out - a real plank house (gable front, painted facade, a
+  house post) is a generator's job; Metlakatla owes a Tsimshian longhouse too.
+- Names are neutral English on purpose (East Point): no real indigenous place name was borrowed for an
+  invented place.
+- FILES: src/viewer/render_world.js, src/viewer/render_premises.js, src/core/25_airfield.js,
+  tools/jolene_parts/native.json, tools/jolene_author.py (rev 11), tools/fixtures/island_jolene.json,
+  futureDesigns/PREMISES-CONTRACT-2026-09-13.md (v1.24).
+
+## G528 - JUMBO MINE MOVED: a wooded knoll in the forest band, buildings only (2026-09-23)
+
+The user, on G522's summit site: "it's really bad. First of all, the real scene has trees around, and this
+changes the mood. Second, no need to generate these ugly green patches for the mining village, only buildings.
+Third, your road and your buildings are fully inside the terrain ... Do we succeed terraforming under the
+roads? ... it would be much better lower down, on a small hill but not a summit, in the band where there are
+trees ... your location is bad."
+
+WHY THE SUMMIT WAS WRONG: Jolene's canopy by height over the NE (dem.canopy.u8, cells with trees over 5 m):
+38-50 % below 250 m, 60-64 % at 250-350 m, 56 % at 350-400, falling to 6 % at 600-650 and NONE at 650-700 m -
+G522's street stood at 676 m on bare heath. THE NEW PLACE: the knoll at (7348, -15398), 381 m, on the east
+shoulder of a wooded ridge (77 % tree cover round it); the street at its west foot, 346.8 m, N-S (hdg -1.6581,
+the site frame's +x north, +z east up the knoll), level (residual 2.3 m), on a 22 deg sidehill (the runway grades
+it: ~3.5 m cut and fill across). The search scored every 250 m line in the band for forest, a knoll 25-55 m high
+with a flat top that does NOT keep climbing (not a summit), and a clear end.
+
+WHAT CHANGED IN THE PART (tools/jolene_parts/mn_mine.json, same prefix, same runway id):
+  - NO ZONE: a zone's plots are always dressed with a lot (lawn, fence, drive) - every building is now a SITE
+    ITEM with P.lot false (G527's opt-out in render_premises) - buildings only, each
+    selectable and movable in WORLD
+  - the mill's pad on the knoll (topDist 63.5), its receiving house beside the street; the works, the row below
+    the street on posts (no back stoop), store, school, clinic, chapel, bunkhouses, cottages, the air taxi office
+    and the fuel shed on the stand's pad
+  - the winding street: the street's own level walked south along the ridge's flank (~400 m), ten houses on it,
+    each on the side nearer the street's level on its OWN 14 x 12 m pad (a terrace along the whole bank needed a
+    46 m bank; the bare flank put a house 6-12 m over the street or 10-14 m under it on stilts)
+  - tree clearings kept tight: the strip's own 30 m, the buildings' feet, an approach fan over the north end
+    (300 m, 60 -> 140 m wide); no broad gravel yard over the hill
+  - ONE WAY (approach 1: land southbound over the open north end; the ridge rises past the south end)
+
+THE PILOT'S RUNWAY MODEL on a sidehill strip: siteRunwayModel reads the highest ground across a corridor
++-(wid/2 + 25) m and the core's trees within 20 m of it, so a strip cut along a 22 deg flank reports 27 % from
+the open end (the uphill edge of the corridor 25 m past the threshold is 6.8 m over the street). The pilot flies
+it regardless: FLOWN headless, the Cub from the stand (circuit, 87 m roll, 0 m off) and HOME -> mn_strip (86 m,
+0 m off). The authored pattern (holds 55 m in, U-turns on the turning bays) is kept.
+
+THE TERRAFORMING QUESTION: yes in physics and for the pilot (every cut composes into terrainH); NO in the
+picture past 4.5 km from the origin until the far-terrain sink lands (the native-area session's render_world
+port, landed as G527) - G522's screenshot showed the raw far tier over the street. Judged with G527's viewer.
+OWED: the premises ground PATCH past the inner ring draws as flat dark-green smudges over every reshaped chunk
+(G527's per-chunk far material; reported to the native-area session with pictures).
+
+GATE PREMISES, PARKED, ANIMALS; GATE WORLD's island block by hand against the main checkout's bench (+
+mn_strip's pattern and stand). Data only: no src/ change, no build.
+
+## G529 - SCENERY LIFE: the life HERE - a zone, a site, a runway or a road with a life of its own (2026-09-23)
+
+Asked by the native-area session: the life stood a 30 m aviation-orange mast by the East Point strip, at the native
+ceremonial grounds, and would stand cars, dumpsters and propane round the clan house; `rec.life` is island-wide.
+Contract v1.22.1: a zone, a site, a runway or a road may carry `life` - `false`, or a block merged over `rec.life`
+(`SCENERY_LIFE.QUIET` = people only). It is the LAW for the entry's own things (a zone's houses, a site's items, the
+aerodrome mast of a site and of its runway, a road's parked cars and traffic) and a PLACE for the rest: inside a
+zone, a site's footprint + 40 m, a runway's box + 120 m, a road's band + 12 m, a category at 0 is refused and a
+lower one thinned (a hash of the spot). The inspector's `life here` row on those four layers: as the premises /
+people only / none. Masts now draw one stream per field and per settlement and keep 700 m from a mast of their own
+kind (300 m across), so switching one field's mast off moves no other (measured live on Jolene: the club's gone,
+the strip's and the village's unmoved). GATE LIFE holds the five cases. futureDesigns/SCENERY-LIFE-2026-09-23.md.
+
+## G530 - Jumbo Mine: the school, the clinic and the chapel on posts (2026-09-23)
+
+Judged in the game on G527's viewer (the far sink and the per-chunk patch material landed there: the street,
+the cuts and the patch finally read right 15 km out - no smudge left). Three buildings below the street are
+HOUSE_GEN presets with stance 0 (a SLAB), and a slab on the 22 deg flank stood them on a 5 m brick wall; their
+P now carries stance 2 (posts), like the rest of the row. Data only (mn_mine.json), fixture rev 13. GATE
+PREMISES, WORLD green.
+
+## G527.1 - THE PATCH HAD NO UNIT TO SPARE: the material polygons declare only the sets in use; East Point goes quiet (2026-09-23)
+
+- REPORTED by the perf session on master 1e74ca1b: "FRAGMENT shader texture image units count exceeds
+  MAX_TEXTURE_IMAGE_UNITS(16)" on the premises patch - no premises ground drew. Measured here (the
+  program's active samplers): the inner patch = the ring's twin (11) + the material map and FOUR set
+  slots (5) = exactly 16, linking on this box's default tier and failing wherever one more sampler is on.
+  G527 did not add a unit to it (the same pair was used before whenever the record fitted the ring),
+  but it left none to spare. NOW: `injectMaterials` declares the map and only the slots the record
+  paints (NSLOT, the program keys `-s<n>`, recompiled when an edit changes the count; none painted =
+  no unit at all). Jolene paints one set (the hill strip's yard): the inner patch is 13 units, runnable.
+  The far patch (`-2`, no injection) and the far terrain are 16 - the far material's own budget.
+- THE MINE'S "GREEN SMUDGES" (the mining session, on a pre-G527 WIP): the W13.2 strip ground patch that
+  G527 already skips under a premises patch - it draws the analytic outer texture, black at East Point,
+  green at the mine.
+- East Point QUIET: `life: SCENERY_LIFE.QUIET` (G529's per-entry law) on nv_strip, nv_grounds and
+  nv_clearing - no aerodrome mast, no cars, rubbish or clutter on the ceremonial ground; the people stay.
+  jolene_author rev 14.
+- The short-strip pattern (G527) re-checked with sitePatternIssues on nv_strip (150 x 12) and a derived
+  pattern on mn_strip (250 x 18): no issues. The U-turn's width is the lane law's (half - 2.5 m, radius
+  12), unchanged by G527 - an 18 m strip's U-turn reaching its edge is that law's, as on any strip.
+- GATES (targeted): PREMISES, WORLD, WORLDRENDER, SITE, MEDIA, LIFE green. FILES:
+  src/viewer/render_premises.js, tools/jolene_parts/native.json, tools/jolene_author.py,
+  tools/fixtures/island_jolene.json.
+
+## G531 - THE RESERVE IS THE FIELD'S: the pilot departs a short strip (2026-09-23)
+
+G527's owed item. `pilot_trace cub --world jolene --from nv_strip --stand --to HOME` rolled 3.5 s and
+rejected: "out of runway: 102 m left, Vr in 80 m, V=6.3 of 16.2 needed". The accelerate-stop judge in
+43_pilot asks `dVr <= left - reserve` with the style's reserve (cautious/normal/brisk 120/80/50 m) whatever
+the strip, so nothing under ~230 m could pass; worse, 80 m made the point of no stopping come at 3 s, when
+the 2 s acceleration filter still read 80 % of the true acceleration.
+
+Measured before choosing a number (every reject off, a throwaway core): the cub holds 37 m inside the north
+end (G527 put the hold a quarter in), so it has 112 m ahead, not 145; it reaches Vr (16.2) at 90 m and
+unsticks at 104 m, 8 m before the end. The sheet agrees it is at the limit (TORun 156 m on gravel). No
+reserve that is a plain fraction of the strip can be both <= ~20 m at 150 m and 80 m at 300 m, so:
+
+- `reserveOf()`: the style's reserve on every strip of 300 m and more (to the bit), and under 300 m
+  `ST.reserve * (len/300)^2` - half the strip, a quarter of the margin. 150 m: 30 / 20 / 12.5 m;
+  250 m: 83 / 56 / 35 m. The planner (`runNeeded`), the no-stop point (`canStopHere`), both Vr predictions
+  and the rail's 'runway left' row all read it - the planner and the judge still share one arithmetic.
+- No separate later judgement point: with the field's reserve the point of no stopping moves to ~6 s
+  (three filter time constants) by itself, and the prediction there is right (accF 1.45 vs 1.42 measured).
+
+Flown (cub unless said): nv_strip normal commits at 10.8 m/s with 77 m left (Vr in 50 m), lift-off 104 m,
+completed at HOME; brisk departs; cautious rejects at 10.2 m/s (margin 29 < 30 m) and stops on the strip -
+the style refusing a field at the aeroplane's limit; c172 rejects on nv_strip (needs 313 m) and on
+mn_strip; cub mn_strip departs (127 m roll). HOME -> nv_strip lands, the same numbers as before (run 74 m,
+sink 1.28). PILOTMATRIX quick and GATE PILOT: output byte-identical to 1e74ca1b's core (every strip there is
+340 m or more).
+
+Left for the strip's owner: the hold a quarter in costs the cub 37 m of its 150; a short-field departure
+would backtrack to the threshold (25_airfield sitePattern kIn), which would turn an 8 m lift-off margin
+into ~40 m.
+
+## G527.2 - A SHORT STRIP'S WAY OUT HOLDS WHERE IT JOINS (2026-09-23)
+
+- After G531 (the reserve scaled to the field) the cub departed East Point with 8 m to spare: lift-off at
+  104 m of the 112 ahead. The strip's declared way out meets the centreline 8 m from the threshold, and the
+  route then rolled FORWARD 29 m to G527's generic hold a quarter in (the pilot session's measure).
+- sitePattern, the taxiOut branch: under 300 m, an entry nearer the threshold than hold0 gets its own hold
+  `hold0s` one fillet (12 m) past the entry, and out[0] ends there; the c0 -> hold0 arc is kept, back[]
+  routes are unchanged. East Point holds 20 m in (was 37.5). HOME, w3 and mn_strip keep hold0 (checked:
+  out[0] unchanged, sitePatternIssues [] on all four).
+- FLOWN (pilot_trace cub --world jolene --from nv_strip --stand --to HOME, on G531): take-off run 104 m,
+  ~26 m to spare, committed at 11.5 m/s with 84 m left, completed at HOME, no go-around.
+- GATES (targeted): SITE, WORLD, PREMISES green. FILES: src/core/25_airfield.js.
+
+## G532 - THE PARKED AEROPLANES GET THEIR SHADER BACK: the livery, the wear and the glass (2026-09-23)
+
+- The user, on the Jolene apron: "the glazing material is absolutely horrendous, and should be similar to
+  the one used on the actual planes, and the cessna did not make it with its livery ... maybe we could have
+  LODs to have something more detailed when closeby?"
+- CAUSE: atmo.js (G432.2) made `Material.prototype.onBeforeCompile` an ACCESSOR - a material's own hook is
+  held on `_atmoHook` and served back wrapped, so it is no longer an OWN property. parked.js's `dupe()` (G411)
+  copied the hook only `if hasOwnProperty(m, 'onBeforeCompile')`, found nothing, and every parked copy went
+  out HOOKLESS: a plain Standard / Physical material with the finish's scalars. No decals (the C172's whole
+  livery is a marking-kit decal over bare alclad: it stood grey without F-GCES), no weathering, no surface
+  grammar (the "simplified" look up close), and the glass without AEROGLASS_HOOK - a flat ONE,ONE add of its
+  pale body colour, the milky blue pane. Measured on the live page: the copies' customProgramCacheKey read
+  `atmo.inject` (the empty wrapper) where the flown aeroplane's reads `atmo.inject+function (shader)...`.
+- FIX: `hookOf(m)` reads the own property or `_atmoHook`, and the copy takes it through the setter (the same
+  program as the flown aeroplane's). `Material.clone()` drops it too: the lamp-lens copies take it the same way.
+- THE PANE WITH NO CABIN BEHIND IT: past L0 (30 m) the ladder drops the interior, and through the pane the eye
+  saw the sky through the far flank - a 70 % pane over daylight is a milky sheet. The multiply companion is
+  one material per pane and level kind now (was one per mesh); at L1 and L2 its slab is GLASS_FAR_A 0.8 (what
+  is behind keeps ~10-15 % through the tint) - a dim cabin, the reflection (the add pass, unchanged) carrying
+  the pane. L2's merged panes had drawn the add pass ALONE; they get the companion too. L3 is unchanged.
+- THE LADDER was already what was asked (L0 < 30 m everything; L1 to 120 m the whole exterior - only the
+  interior buckets, gauges, cockpit controls, links and wires go; L2 decimated; L3; gone at 2.5 km). The
+  detail was there and unshaded.
+- PROOF (headless Chrome, dev.html?world=jolene): the C172 at 10 m bare grey before; after, F-GCES with the
+  green/orange cheat line, rivets, the dark cabin through clear glass at 7 m; the Cub F-BCUB; at 40 m the
+  windows dark with the sky's reflection instead of pale.
+- GATE PARKED grows 6b (atmo's accessor installed headless: the copy keeps `_atmoHook` and keys the same
+  program) and 6c (a stub AEROSKIN: every pane carries its companion at L0/L1/L2, L0 the pane's own slab,
+  L1/L2 >= 0.8, one companion material per pane and level kind); both fail on G411's parked.js. 73 checks.
+- ANY CODE THAT COPIES A MATERIAL IN THE GAME must carry `_atmoHook` - `copy()` and `clone()` do not.
+- GATES: PARKED, PREMISES, UISMOKE, MEDIA, WORLDRENDER, SKIN, GFX green. FILES: src/viewer/parked.js,
+  tools/_parked_check.js.
+
+## G533 - THE NEW PLAYER KEPT OUT OF HARM'S WAY: the auto render scale and the first launch's tier (2026-09-23)
+
+The render scale's new first step, 'auto' (every tier but ultra): held at 60 fps from 100 % down to 50 %, one menu step at
+most every 2 s, and a step that does not PAY is taken back (a CPU-bound frame is not faster with fewer pixels - the
+hold doubles on each repeat): never blurred for nothing. The first launch (no saved choice) reads 6 s of frames after
+the roll-out and steps the untouched gamer default down if it still misses (current / 5 years ago / potato); kept in
+flydiy.gfx.auto and said in the menu. Rigs (HeadlessChrome / webdriver) stand down unless ?autoscale=1 / ?autotier=1.
+Old prefs migrate once (pv 2). GATE AA drives the pure decision with simulated frames; GATE GFX the migration.
+futureDesigns/PERF-2026-09-23.md (G533).
+
+
+## G534 — MUD IS A MINERAL SURFACE: the ground between the trees was painted algae (2026-09-23)
+
+THE USER, on a shot of the Jumbo Mine from the air: "we have screwed up on the coloration of some assets. In
+particular the rock assets have been fully colored green and they look real bad ... Can you revert at least for
+this texture."
+
+THE FIRST GUESS WAS WRONG, AND THE PICTURE SAID SO. The obvious suspect was the macro tint (macroNear 0.45 -
+how much of the detail's colour gives way to the imagery's under the near ground), so the rig took the same eye
+twice from one boot with it at 0.45 and at 0: bench/rock/b_now.png and b_now_s0.png are nearly the same frame.
+The green did not come from there. The second A/B found it: albedoNorm 0 (the sets as shipped, c_now_s0.png)
+turns the whole hillside back to tan rock and pale slabs, so the colour is coming from THE PER-SET
+NORMALISATION TO THE IMAGERY (splat_ground normGains, 2026-09-22).
+
+THE MEASUREMENT, over the real island with the real manifest (the vm harness GATE SPLAT already had):
+
+  set        mineral   shipped mean rgb     gain r/g/b        green pull
+  mud           -      0.090/0.070/0.046    0.29/0.55/0.29       1.92   <-- algae
+  forestAir     -      0.126/0.083/0.026    0.15/0.36/0.35       1.44
+  dry           -      0.300/0.249/0.124    0.19/0.26/0.23       1.23
+  rockyA     MINERAL   0.081/0.077/0.012    0.75/0.75/0.75       1.00
+  cliff      MINERAL   0.314/0.173/0.110    0.50/0.50/0.50       1.00
+  ...every other rock, sand and snow set 1.00
+
+So the rock sets were NOT being recoloured - G-2026-09-22's mineral rule ("a mineral set keeps its hue", from
+the user's earlier "you have coloured the rocks a little too much") already had them on a single luminance
+gain. `mud` WAS LEFT OUT OF THAT LIST, and mud is the worst case in the table by a distance: a green channel
+nearly twice the other two, on a texture whose whole job is bare peat and dirt. It is also the set that covers
+the most ground the eye ever sees - the FIRST (0.6 weight) set of BOTH muskeg and scrub and the second of
+forest. Rock seen through and beside that is what reads as "the rock assets have been fully colored green".
+
+THE FIX IS ONE WORD: `mud` joins the MINERAL list, so it takes one luminance gain (0.50/0.50/0.50, the rule's
+floor) instead of 0.29/0.55/0.29. Nothing else changed - the vegetation sets still take the imagery's colour,
+which is the normalisation the user asked for in the first place. bench/rock/d_mudfixed.png is the same eye
+after: the slabs are tan and brown again, the grass is green where grass is.
+
+GATE SPLAT GROWS 1c, and it is the check that would have caught this the day the list was written: it builds
+the REAL gains (the real manifest, the real island, the module's own normGains through the vm harness) and
+refuses any set in the mineral list - rocksA/B/G, rockyA/B, cliff, pebble, beach, coastA, coastSand, dirt, mud,
+snowAir - whose gain is not ONE NUMBER. It also requires the vegetation sets to still carry a per-channel gain,
+so the rule can never be "fixed" by turning the normalisation off. Where the island is not on the box it says
+so and passes (GATE SPLAT is not an island gate).
+
+WHAT IS STILL OWED AND IS THE USER'S CALL, not a defect: `dry` (heath's own set) takes 0.19/0.26/0.23 - the
+imagery is 4x darker than the texture ships, so the heath is darkened as well as pulled green, and `forestAir`
+takes 0.15/0.36/0.35. Both are vegetation, where the imagery is the authority by the user's own ruling, so they
+are left alone. If the ground is still too green for them, the knob is albedoNorm (F8 > ground > distance
+macro > "albedo to imagery"): 1 is the imagery's level, 0 is the sets as shipped, and c_now_s0.png shows 0.
+
+GATE SPLAT (with the selftest), GFX and MEDIA green.
+
+## G535 — THE TRAMWAY'S TOP REACHES THE TOP: the summit station pulled up its line onto the plateau with a square beside its back building, the road on the ground, a simpler profile, an altiport departure committed at brake release (2026-09-23, the user on G525's scene: "many issues, but the main one by far is full clipping of the terrain through your runway, your parking. The base station not excluding trees, having no road leading to it. On top, there's really no need for drawing plots below the structures, and you should ensure that the tramway base arrives on some flat terrain ... so the building at the back is on top, at the flat place, perfect place to do a little square. Then you should just do simpler with your runway, and it should not clip, and be practicable"; and with a drawing: "just pull the top base towards the top")
+
+WHAT WAS NOT THIS SCENE'S: the clipping, the trees and the plots were the far tier (everything past the
+inner ring's 4.5 km drawn at the raw DEM, so every cut out there stood under the un-cut mesh), the tree
+fill that ignored clear zones, and the residential lot dressing under every item - all three fixed by
+the native-area session's G527, which landed after G525. Judged in the game on G528: no terrain through
+the strip or the car park, the valley complex clear of trees, no lawn plates under the summit.
+
+WHAT WAS: (1) THE ROAD'S TRENCH. `tw_r_access` climbs 26 m in its first 150 m off the Walden Point stub
+and carried `grade: 0.08` - the composer cut a 16 m trench to honour it. It follows the ground now
+(grade null). It still starts at Metlakatla's stub, which is on that session's branch: until it lands
+the road meets nothing. (2) THE TOP STATION, pulled 35 m up its own line (the site's `at` moved, the
+other items held in place in the world): its back building stands at the summit plateau's edge and
+the cable still solves (20.4 deg, the rope 14 m over the ground at its worst). (3) THE SQUARE, beside
+the back building on the 709 m plateau: `tw_t_square` (a flatten at the median, 707.5-709.7 under it)
+and `tw_m_square` (a concrete `look` polygon - PBR `set` polygons do not draw past the ring). A first
+cut straddled the plateau's north edge (688-709 m under it) and was undone. (4) THE PROFILE, four
+control points instead of eight, the same ramp easing to the flat top (within 0.4 m of the old
+curve): simpler to take in hand in the graph. (5) AN ALTIPORT DEPARTURE IS COMMITTED AT BRAKE RELEASE
+(43_pilot, `altiport`-gated like the rest): the normal technique also asked the stop after Vr to fit,
+and on 10 % of downhill grass that stop is longer than the strip - the cub was condemned needing 33 m
+of the 227 left. Flown: cub and C172 depart from the summit stand (lift-off 82 m and 279 m) and land
+uphill; the stock cub circuit bit-identical to master's core. GATE PREMISES and WORLD green.
+
+## G536 — A POND IS A SHORE AND A MARGIN, NOT A SPOT (2026-09-23)
+
+THE USER, on a near-vertical shot from about 400 m over a bush strip: "Puddles just look too harsh seen from
+there. They look like speckles on a surface, not like puddles." G517 had already made them eight times fewer
+and four times bigger; this is about how the remaining ones are DRAWN.
+
+TWO REASONS A POND READ AS A SPECKLE, both measurable from the numbers already in the recipe:
+  - THE SHORE WAS UNDER A PIXEL. `pudEdge` is 0.01 noise units, and the pool field is sampled at pudSlope 3
+    over a 400-unit period, so that is 1.33 m of ground: right from the bank, invisible from altitude. The
+    mask's whole 0..1 ramp fell inside one pixel, so every pond had a hard, aliasing rim - the definition of a
+    speckle.
+  - AND IT HAD NO MARGIN. Real muskeg water sits in a wet hollow: peat-stained shallows over the bed, then
+    open water. The shader painted one still-water colour from the first fragment inside the mask, so a pond
+    was a flat dark disc with nothing around it.
+
+THE FIX IS TWO TERMS THAT BOTH RIDE THE DISTANCE AND ARE ZERO AT THE EYE:
+  - `pudFar` (12) widens the shore with distance - pudEdge x 13 by 500 m, so 1.33 m of shore becomes 17 m and
+    survives a pixel. The 0.5 contour of the mask is fixed (the ramp is centred on the threshold), so the pond
+    neither grows nor shrinks as it softens.
+  - `pudRim` (0.65) opens a wet margin, again scaled by distance: under it the ground's own colour goes dark
+    and wet (`pudWet` 0.62) AND KEEPS ITS ROUGHNESS, so only the middle of a pond is a mirror. A small pond
+    seen from height never reaches the open-water band at all and reads as a wet patch, which is what it is.
+BOTH ARE ZERO AT THE EYE BY CONSTRUCTION. The close view was not broken and must not be traded away to fix the
+far one: a pond you taxi past keeps the hard shoreline and the open water it has today. GATE SPLAT §3 holds
+that - it walks the pond block in the spliced GLSL and requires both terms to be multiplied by `far`.
+
+THE PICTURES, one boot, one eye, the knobs stepped (bench/pools/): f_a_s0 and f_a_s1 are the middle and strong
+settings against `e_soft_s0`, which is the old hard rim (pudFar 0, pudRim 0) - the speckles the user saw. The
+shipped values are the middle; the strong one washed the ponds out. g_final_air_s0 is the result from an
+oblique eye: soft wet hollows with graded shores, the lakes still mirrors.
+
+THE KNOBS ARE LIVE (F8 > ground, or `WORLD.ground.splat().set({...})`), so the next judgement needs no build:
+pudFar 0 restores the old rim exactly, pudWet 1 leaves the margin dry, pudRim 0 removes the margin.
+
+## G527.3 - EAST POINT'S TREES CUT BACK TO THE USER'S LINES; a strip that names its way out (2026-09-23)
+
+- The user, on a picture of the site with red over what was cut and green over what to cut: "You've cut
+  too much in the trees ... feel free to cut trees where you place assets." Most of the red was not the
+  record's: render_world's generic tree box clears len/2 + 150 m along and wid/2 + 60 m across EVERY
+  aerodrome (450 x 132 m here), whatever the editor says. Contract v1.25 `treeBox: false` on a runway
+  leaves the strip's trees to the record (its box + 30 m, the authored excludes).
+- The record redrawn to the green: `nv_clearing` (and its meadow) is the strip's corridor and the grounds
+  only, nothing past the ends; `nv_fan_n` a slim wedge 100 m off the north end tapering to a point;
+  `nv_fan_s` a funnel from the south end to the shore (half-width 14 -> 55 m over 230 m).
+- With the north end in the trees the strip is landed FROM THE SOUTH over the cove (`approach: 1`) and must
+  be left back to the south: v1.25 `departure: 1` (the end the take-off leaves over) -> aerodrome
+  `takeoffHdg`, honoured by 43_pilot dirAt in calm air (the site-model branch and, per the pilot session,
+  the fallback branch). Gated on the field: only nv_strip carries it.
+- MEASURED: the south approach clears at 1:15 to 1.5 km and 1:20 to 600 m (unchanged); the north is
+  wooded 50 m past the end (7 m into a 1:15 plane) - no longer an approach. FLOWN (cub): HOME -> nv_strip
+  lands from the south, 74 m roll; nv_strip -> HOME departs from the north hold rolling south, lift-off at
+  104 m, committed with 84 m left. Without `departure` the cub tried to leave north and gave up on the
+  ground (taxi-lost) - that is why the field exists.
+- GATES (targeted): PILOT, SITE, WORLD, PREMISES, WORLDRENDER, LIFE green. jolene_author rev 16.
+- FILES: src/core/27_premises.js, src/core/43_pilot.js, src/viewer/render_world.js,
+  tools/jolene_parts/native.json, tools/jolene_author.py, tools/fixtures/island_jolene.json,
+  futureDesigns/PREMISES-CONTRACT-2026-09-13.md (v1.25).
 ## G506 — METLAKATLA: THE ISLAND'S ONE REAL TOWN, AND THE HARBOUR KIT IT NEEDED (2026-09-22, the user:
 ## "YOU know that there is a single town on Anette island, and it's metlakata ... we should have traces
 ## of it in our own map ... It is essential you try and understand well the city structure")

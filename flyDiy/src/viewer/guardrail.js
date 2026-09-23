@@ -53,7 +53,12 @@ const GUARDRAIL = (() => {
     // rail is earned - a 1:3 batter (the slope a car rolls rather than rides down) and never under a
     // metre. A flat table (the first cut's "1.6 m within 14 m") rails every road cut into a 12 %
     // hillside, which is most of an island: two thirds of the analytic world's roads wore one.
-    dropAt: [[3, 1.0], [7, 2.2], [14, 4.0]],
+    // Recalibrated 2026-09-22 on the REAL Jolene (the island's own DEM, measured in the game, not a
+    // fixture over the analytic terrain): her roads fall 0.4 / 1.6 / 2.5 m at the airport, 0.7 / 1.6 /
+    // 2.9 on the shore, 1.2 / 3.3 / 6.1 on the one road with a bank. A 1:3 table (1.0 / 2.2 / 4.0)
+    // rails 60 m of the whole island - nothing the eye ever meets; a 1:4 one rails 221 m, which is
+    // where it stood when the user judged it, and 6.2 km of the analytic world's mountain roads.
+    dropAt: [[3, 0.8], [7, 1.7], [14, 3.0]],
     kDrop: 1,          // x the table: under 1 rails more
     kCurve: 0.011,     // 1/m: the curvature a bend must reach to rail its outside (r ~ 90 m)
     twoAt: 8,          // a fall over this gets the picture's SECOND beam (a cliff, a bridge - not every bank)
@@ -92,7 +97,12 @@ const GUARDRAIL = (() => {
     const P = o.path, L = P.length, d = Object.assign({}, D, o.D || {});
     const w = o.w || 5;
     if (!P || L < d.minRun || w < d.minW) return [];
-    const hAt = o.hAt, keep = o.keep || null, waterY = (o.waterY === undefined || o.waterY === null) ? -1e9 : o.waterY;
+    const hAt = o.hAt, keep = o.keep || null;
+    // THE WATER IS A FIELD, NOT A LEVEL (2026-09-22): world.waterH(x, z) is the surface AT THAT
+    // POINT and -Infinity where there is none, so a lake's 137 m and the sea's 0 are both in it.
+    // Handing this a single number sampled at the world's origin is how the first cut lost every
+    // rail on Jolene: one lake under the origin clamped every probe on the island above its bank.
+    const wRaw = o.waterY, wAt = typeof wRaw === 'function' ? wRaw : () => ((wRaw === undefined || wRaw === null) ? -Infinity : wRaw);
     const n = Math.max(2, Math.ceil(L / d.step)), off = w / 2 + d.offset;
     const hit = [[], []], dropAt = [[], []];
     for (let i = 0; i <= n; i++) {
@@ -111,7 +121,8 @@ const GUARDRAIL = (() => {
         for (const q of d.dropAt) {
           const r = q[0], need = q[1] * d.kDrop;
           const px = A.p[0] + A.n[0] * (off + r) * s, pz = A.p[1] + A.n[1] * (off + r) * s;
-          const h = Math.max(hAt(px, pz), waterY);        // over water the fall is to the water
+          const wy = wAt(px, pz);                          // over water the fall is to the water
+          const h = Math.max(hAt(px, pz), Number.isFinite(wy) ? wy : -Infinity);
           const fall = h0 - h;
           drop = Math.max(drop, fall); warrant = Math.max(warrant, fall / need);
         }
@@ -291,7 +302,8 @@ const GUARDRAIL = (() => {
       if (G.metres > longest) { longest = G.metres; const c = G.geo.boundingSphere.center; at = [Math.round(c.x), Math.round(c.y), Math.round(c.z)]; }
     }
     if (!grp.children.length) return null;
-    grp.userData.guardrail = { metres, tris, runs: grp.children.length, at };
+    // `sides` so what stands beside the same road next (the pole line) can take the other verge
+    grp.userData.guardrail = { metres, tris, runs: grp.children.length, at, sides: Array.from(new Set(runs.map(r => r.side))) };
     attach(grp);
     return grp;
   }

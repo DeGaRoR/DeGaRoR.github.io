@@ -65,14 +65,19 @@
     <select id="selFrom" aria-label="Departure"></select>
     <select id="selDest" aria-label="Destination"></select>
     <!-- CONDITIONS, not wind (G72): a day is air AND wind, and the air half
-         is what decides whether a build gets out of a mountain strip. -->
+         is what decides whether a build gets out of a mountain strip.
+         CLIMATE K2 (2026-09-22): the options are the WEATHER panel's presets
+         and the handler writes them to the DAY, so the wind has a direction,
+         the column has a shape and the day can carry a front. This select
+         stays THE KEEPER - the panel presses it, never replaces it. -->
     <select id="selCond" aria-label="Conditions">
       <option value="calm">Standard day &middot; calm</option>
-      <option value="light">Standard &middot; breeze 2.5 m/s</option>
-      <option value="mod">Standard &middot; wind 4 + gusts</option>
-      <option value="fresh">Standard &middot; fresh 6 + gusts</option>
-      <option value="hot">Hot afternoon &middot; 35&deg;C, 1008</option>
-      <option value="cold">Winter morning &middot; 0&deg;C, 1030</option>
+      <option value="breeze">Standard &middot; light breeze 8 kt</option>
+      <option value="ridge">Ridge day &middot; 20 kt on the hills</option>
+      <option value="thermal">Thermal day &middot; cumulus, a lid at 1900</option>
+      <option value="hot">Hot and high &middot; 35&deg;C, 1008</option>
+      <option value="front">A front &middot; one hour out</option>
+      <option value="gale">Gale &middot; 35 kt</option>
     </select>
     <!-- THE TIME OF DAY (SKY chantier, 2026-09-15) was a select here; since 2026-09-20 the
          clock's presets are the day panel's pills (day_ui.js, on both rails) and DAY_CLOCK is
@@ -154,6 +159,11 @@
         <div class="rd" data-i="ias"><b id="r-ias">0</b><i>km/h ias</i></div>
         <div class="rd" data-i="alt"><b id="r-alt">0</b><i>m alt</i></div>
         <div class="rd" data-i="vs"><b id="r-vs">0.0</b><i>m/s vs</i></div>
+        <!-- THE NETTO VARIOMETER (CLIMATE K3): what the AIR is doing, which is
+             vs with the aeroplane's own sink at this speed added back (the
+             machine sheet's polar). Off by default; the instruments row turns
+             it on, and a soaring pilot turns it on first. -->
+        <div class="rd" data-i="netto"><b id="r-netto">0.0</b><i>m/s air</i></div>
         <!-- A3 (the 2026-09-20 playtest): WHAT IS LEFT TO FLY ON, always -
              litres of a tank or kWh of a pack, by the build's energy kind;
              the label carries the endurance at the current draw once the

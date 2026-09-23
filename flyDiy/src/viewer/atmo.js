@@ -370,6 +370,11 @@ var ATMO = (function () {
   // aerial-perspective slices of this ONE texture every fogged material already binds - a 512^2
   // tile at row AP_TILE_Y, two rows of gap; apSample() reads the bottom AP_H rows only
   const AP_TILE = 512, AP_TILE_Y = AP_H + 2, AP_ATLAS_H = AP_TILE_Y + AP_TILE;
+  // THE MIST'S FIELD (FOG-MIST F2) rides the SAME atlas, in the columns the clouds' tile leaves
+  // free: the tile is x [0, 512) of the rows above AP_TILE_Y, so x [512, 512 + MIST_MAP) is ours
+  // and no new sampler is needed (the island's ground programs stand at 15 of 16 units - one more
+  // texture does not link, measured G424). A texel is (top, density x, H, -) in WORLD METRES.
+  const MIST_MAP = 256, MIST_X = AP_TILE, MIST_Y = AP_TILE_Y;
   const AP_FRAG = GLSL_LIB + `
     uniform float uR, uEMoon, uDmax;
     uniform vec3 uSun, uMoon;
@@ -426,7 +431,18 @@ var ATMO = (function () {
     // uMist[1] = (colour rgb, forward strength), uMist[2] = (sun dir xyz, 0). World metres.
     // uMist[3] = (rhoC, base, top, 0): IN CLOUD (CLOUDS C4) - the layer the eye is in, as a uniform slab
     // between two heights (its density the field's at the eye); the white-out is the mist's own machinery
-    uniform vec4 uMist[4];
+    //
+    // F2 - THE MIST ON THE LAND. uMist[4] = (eye xyz, march steps N - 0 means the closed form),
+    // uMist[5] = (field origin x, z, 1/field size, the band's CEILING in metres: the highest top
+    // plus a few scale heights, above which the layer contributes nothing and the march is skipped),
+    // uMist[6] = (drift x, z, 1/bank size, patchiness). With N <= 1 the
+    // closed form below runs EXACTLY as it always has (a flat, world-wide slab, bit-identical);
+    // with N > 1 the ray is MARCHED through a layer whose top and thickness come from a 2-D field
+    // (the valley floors and the water, baked once per world) and whose density is modulated by a
+    // drifting noise - so it pools in the hollows, the ridges stand out of it, and a bank has a
+    // near face you fly into. The march is bounded to the slice of the ray that is actually inside
+    // the layer's band, which is what keeps it affordable at 10 km.
+    uniform vec4 uMist[7];
     float slabLen(float y0, float dy, float D, float yb, float yt) {   // the length of [0, D] along the ray inside the slab
       if (abs(dy) < 1e-5) return (y0 >= yb && y0 <= yt) ? D : 0.0;
       float ta = (yb - y0) / dy, tb = (yt - y0) / dy;
@@ -446,10 +462,72 @@ var ATMO = (function () {
       if (ya <= 0.0) return rho0 * (ts + mistAbove(ya, dy, ts, D, H));
       return rho0 * (mistAbove(ya, dy, 0.0, ts, H) + (D - ts));
     }
+    // THE FIELD: (top, density x, H, -) at a world xz, from the atlas's own columns. Clamped half a
+    // texel inside its region so the bilinear tap never bleeds into the clouds' tile beside it.
+    // The sampler is declared by AP_SAMPLE_GLSL wherever the two travel together (the splice, the
+    // cloud march); the dome carries this block ALONE, so it declares it there - #ifndef keeps the
+    // one declaration rule in both cases.
+    #ifndef ATMO_AP_SAMPLER
+    #define ATMO_AP_SAMPLER
+    uniform sampler2D uApAtlas;
+    #endif
+    vec4 mistField(vec2 xz) {
+      vec2 uv = clamp((xz - uMist[5].xy) * uMist[5].z, 0.0, 1.0);
+      vec2 t = vec2((${MIST_X}.0 + 0.5 + uv.x * ${MIST_MAP - 1}.0) / ${AP_N * AP_W}.0,
+                    (${MIST_Y}.0 + 0.5 + uv.y * ${MIST_MAP - 1}.0) / ${AP_ATLAS_H}.0);
+      return texture2D(uApAtlas, t);
+    }
+    // THE PATCHES: analytic, not a texture - a tap costs a unit we do not have and the atlas does
+    // not wrap, while two octaves of value noise cost ALU we measured to be free (FOG-MIST SS1c).
+    float mistH21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+    float mistVN(vec2 p) {
+      vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(mistH21(i), mistH21(i + vec2(1.0, 0.0)), f.x),
+                 mix(mistH21(i + vec2(0.0, 1.0)), mistH21(i + vec2(1.0, 1.0)), f.x), f.y);
+    }
+    float mistPatch(vec2 xz) {
+      if (uMist[6].w <= 0.0) return 1.0;
+      vec2 p = (xz - uMist[6].xy) * uMist[6].z;                  // drifted downwind, scaled to the bank size
+      float n = 0.62 * mistVN(p) + 0.38 * mistVN(p * 2.7 + 11.3);
+      // x2, not x1.7: smoothstep's mean over the noise is ~0.5, so this AVERAGES ONE and the
+      // patches redistribute the day's fog instead of quietly thinning it. Patchiness must not
+      // change how much mist the day has - that number is the day's own (Koschmieder, SS2a).
+      return mix(1.0, smoothstep(0.15, 0.85, n) * 2.0, uMist[6].w);
+    }
+    // THE MARCH: the optical depth with a top and a density that vary over the ground. Only the
+    // slice of the ray inside [ground, the field's highest top + 5H] is walked; outside it the
+    // layer contributes nothing and a sample there is a sample wasted.
+    float mistODField(vec3 o, vec3 d, float D) {
+      float N = uMist[4].w;
+      float yHi = uMist[5].w;                                    // the band's ceiling, baked with the field
+      float t0 = 0.0, t1 = D;
+      if (abs(d.y) > 1e-5) {                                     // clip the ray to y <= yHi (below it the ground stops us)
+        float tc = (yHi - o.y) / d.y;
+        if (d.y > 0.0) t1 = min(t1, max(0.0, tc)); else t0 = max(t0, max(0.0, tc));
+      } else if (o.y > yHi) return 0.0;
+      if (t1 <= t0) return 0.0;
+      float od = 0.0, dt = (t1 - t0) / N;
+      for (int i = 0; i < 16; i++) {
+        if (float(i) >= N) break;
+        vec3 p = o + d * (t0 + (float(i) + 0.5) * dt);
+        vec4 f = mistField(p.xz);
+        float H = max(1.0, f.z), h = p.y - f.x;
+        float dens = uMist[0].x * f.y * (h <= 0.0 ? 1.0 : exp(-h / H));
+        // the patches cost ~3x the field's tap (measured: 6 samples = +0.8 ms without them,
+        // +3.3 ms with), and on a long ray MOST samples sit above the layer where the density is
+        // already nothing. Buying the noise only where it can be seen is the whole optimisation.
+        if (dens > 1e-6) od += dens * mistPatch(p.xz) * dt;
+      }
+      return od;
+    }
     // col -> col through the mist along world dir d for D metres from the eye at y0
     vec3 mistApply(vec3 col, vec3 d, float D, float y0) {
       if (uMist[0].w < 0.5 || (uMist[0].x <= 0.0 && uMist[3].x <= 0.0)) return col;
-      float od = uMist[0].x > 0.0 ? mistOD(y0, d.y, D) : 0.0;
+      float od = uMist[0].x <= 0.0 ? 0.0
+               // the eye's XZ is a uniform (the signature carries only y0, and every caller - the
+               // splice, the dome, the cloud march - passes the same eye's height in it)
+               : (uMist[4].w > 1.5 ? mistODField(vec3(uMist[4].x, y0, uMist[4].z), d, D)
+                                   : mistOD(y0, d.y, D));
       if (uMist[3].x > 0.0) od += uMist[3].x * slabLen(y0, d.y, D, uMist[3].y, uMist[3].z);
       float T = exp(-od);
       float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
@@ -457,7 +535,10 @@ var ATMO = (function () {
     }`;
   // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')
   const AP_SAMPLE_GLSL = `
+    #ifndef ATMO_AP_SAMPLER
+    #define ATMO_AP_SAMPLER
     uniform sampler2D uApAtlas;
+    #endif
     uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: the tables' gain (A6: the night's stops)
     vec4 apSample(vec3 d, float dist) {
       float el = asin(clamp(d.y, -1.0, 1.0)), az = atan(d.x, -d.z);
@@ -477,35 +558,45 @@ var ATMO = (function () {
     varying vec3 vAtmoV;
     ` + AP_SAMPLE_GLSL + MIST_GLSL + `
     vec4 atmoAP() { return apSample(normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV) * 0.001); }`;
+  // TWO GATES, NOT ONE (F3). The aerial perspective is the SKY's and wants a world to be under;
+  // the mist is a MEDIUM and wants only a density - so a ROOM is a medium with no sky, and the
+  // shed can have an honest haze instead of three's smoothstep to near-black. Splicing them apart
+  // is what retires the last legacy fog in the tree.
   const AP_APPLY = `
     #ifdef USE_FOG
     if (uAtmoAP.z > 0.5) {
       vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
-      gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     }
+    gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     #endif
   `;
-  // the legacy fog (display space) stays for a scene that wants it (the shed): the flag decides
-  const AP_FOG_FRAG = `
-    #ifdef USE_FOG
-    if (uAtmoAP.z < 0.5) {
-      #ifdef FOG_EXP2
-      float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
-      #else
-      float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
-      #endif
-      gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
-    }
-    #endif
-  `;
+  // THE LEGACY FOG IS GONE (F3). `Fog(0x1a1712, 40, 120)` in the shed was its last user: a
+  // smoothstep to near-black in DISPLAY space, which made the same aeroplane read darker on the
+  // shed floor than on the apron for no physical reason (POST-FX SS3, the one-light-contract).
+  // The room is a medium now - a density between the floor and the roof, through mistApply, in
+  // linear radiance like everything else - so `fog_fragment` is emptied rather than replaced and
+  // there is ONE path through the fog chunks instead of two.
+  const AP_FOG_FRAG = '';
   const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
-  const mistScalars = new Float32Array(16);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)]
+  const mistScalars = new Float32Array(28);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)
+                                                              //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
   const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars } };
   // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
-  // (humidity: rho0 = 0.0025/m x ((rh - 0.7) / 0.3)^2 - saturated air sees 1.2 km), its top (m ASL)
+  // (`day.mistRho0`, derived in 07_day.js - saturated air sees 1.2 km), its top (m ASL)
   // and thickness (m), the forward peak. F8's atmosphere fold writes these.
+  let mistWarned = false;                                    // the density's one-shot complaint (below)
   const MIST = { on: true, k: 1, top: 60, H: 18, fwd: 0.8, rhoDay: 0, get rho0() { return this.rhoDay * this.k; },
-    cloud: { rho: 0, base: 0, top: 0 } };                       // the slab the eye is in (clouds.js writes it)
+    cloud: { rho: 0, base: 0, top: 0 },                         // the slab the eye is in (clouds.js writes it)
+    // F2: `relief` lifts the layer off one world altitude and onto the land (0 = the flat slab,
+    // bit-identical to every picture taken before it); `patch` gives it banks with faces;
+    // `steps` is the march (0/1 = the closed form). `top` becomes the height ABOVE the local
+    // floor once relief is on, which is what it always meant on flat ground.
+    relief: 0, patch: 0, steps: 6, bankM: 900, driftK: 1, blH: 200,
+    // F3: a ROOM - a slab between floor and roof with its own light, set by whoever owns the room
+    // (the shed). While it is set the day's ground mist is off and the slab's colour is the room's,
+    // because there is no sky in here to take a colour from.
+    room: null,
+    field: null };                                              // { tex, x0, z0, inv, yHi, ms } from bakeField()
   let installed = false;
   function install() {
     if (installed || typeof THREE === 'undefined' || !THREE.ShaderChunk || !THREE.ShaderLib) return false;
@@ -586,42 +677,7 @@ var ATMO = (function () {
       return (uVeilSun * ph + uVeilSky) * (1.0 - exp(-tau));
     }
 
-    // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
-    // below its top yTop, decaying over H above it - integrated in closed form along the ray
-    // (piecewise at the top plane), lit by the day (uMist[1].rgb: sun x T + sky at the mist, on
-    // the dome's scale) with a forward peak toward the sun. uMist[0] = (rho0, yTop, H, on),
-    // uMist[1] = (colour rgb, forward strength), uMist[2] = (sun dir xyz, 0). World metres.
-    // uMist[3] = (rhoC, base, top, 0): IN CLOUD (CLOUDS C4) - the layer the eye is in, as a uniform slab
-    // between two heights (its density the field's at the eye); the white-out is the mist's own machinery
-    uniform vec4 uMist[4];
-    float slabLen(float y0, float dy, float D, float yb, float yt) {   // the length of [0, D] along the ray inside the slab
-      if (abs(dy) < 1e-5) return (y0 >= yb && y0 <= yt) ? D : 0.0;
-      float ta = (yb - y0) / dy, tb = (yt - y0) / dy;
-      float t0 = max(0.0, min(ta, tb)), t1 = min(D, max(ta, tb));
-      return max(0.0, t1 - t0);
-    }
-    float mistAbove(float ya, float dy, float ta, float tb, float H) {   // optical depth over [ta, tb] above the top, density exp(-(y - yTop)/H)
-      if (abs(dy) < 1e-4) return (tb - ta) * exp(-ya / H);
-      return (H / dy) * (exp(-(ya + dy * ta) / H) - exp(-(ya + dy * tb) / H));
-    }
-    float mistOD(float y0, float dy, float D) {
-      float rho0 = uMist[0].x, yTop = uMist[0].y, H = max(1.0, uMist[0].z);
-      float ya = y0 - yTop, y1 = ya + dy * D;
-      if (ya <= 0.0 && y1 <= 0.0) return rho0 * D;
-      if (ya > 0.0 && y1 > 0.0) return rho0 * mistAbove(ya, dy, 0.0, D, H);
-      float ts = -ya / dy;                                    // the crossing of the top plane
-      if (ya <= 0.0) return rho0 * (ts + mistAbove(ya, dy, ts, D, H));
-      return rho0 * (mistAbove(ya, dy, 0.0, ts, H) + (D - ts));
-    }
-    // col -> col through the mist along world dir d for D metres from the eye at y0
-    vec3 mistApply(vec3 col, vec3 d, float D, float y0) {
-      if (uMist[0].w < 0.5 || (uMist[0].x <= 0.0 && uMist[3].x <= 0.0)) return col;
-      float od = uMist[0].x > 0.0 ? mistOD(y0, d.y, D) : 0.0;
-      if (uMist[3].x > 0.0) od += uMist[3].x * slabLen(y0, d.y, D, uMist[3].y, uMist[3].z);
-      float T = exp(-od);
-      float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
-      return col * T + uMist[1].rgb * fwd * (1.0 - T);
-    }
+${MIST_GLSL}
     uniform vec3 uSun, uMoon;
     varying vec3 vD;
     float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
@@ -753,7 +809,144 @@ var ATMO = (function () {
   // update(renderer, day, camAltM): the day-only tables on a change, the sky-view every call
   let lastVer = -1;
   const _vp = (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4() : null, _sc = _vp ? new THREE.Vector4() : null;
-  function update(renderer, day, camAltM) {
+  // ---- F1: WHAT THE SHADER WILL DRAW, ON THE CPU --------------------------
+  // The renderer may only stop drawing where the player cannot see, and "cannot see" must be the
+  // SHADER's opinion or the cut shows as a wall the moment the two disagree (FOG-MIST §2a). So
+  // these are the closed form's own arithmetic, in JS: `mistODcpu` mirrors MIST_GLSL's `mistOD`
+  // line for line, and `seeT` is the transmittance along a straight segment - the mist times the
+  // clear air's own extinction (Rayleigh + Mie + ozone, the same `medium()` the tables are built
+  // from). If one of them is ever edited without the other, GATE FOG says so.
+  //
+  // THE FIELD IS NOT SAMPLED HERE, on purpose. With F2 the layer's top and density vary over the
+  // ground, so a ray into a bank and a ray down a clear lane differ - but the multipliers average
+  // ONE by construction and a path of kilometres crosses several banks, so the day's own rho0 is
+  // the honest mean and the contract's margin (1.3x) covers the variance. A single bank cannot
+  // make a whole path clear; that is the assumption, and it is written down so it can be argued.
+  function mistODcpu(y0, dy, D) {
+    const rho0 = MIST.on ? MIST.rho0 : 0;
+    // THE SLAB THE EYE IS IN (CLOUDS C4) counts too, and it is the case where this matters most:
+    // inside a deck the world is white and the renderer is drawing an island nobody can see.
+    let od = 0;
+    if (MIST.on && MIST.cloud.rho > 0) {
+      const yb = MIST.cloud.base, yt = MIST.cloud.top;
+      if (Math.abs(dy) < 1e-5) od += (y0 >= yb && y0 <= yt) ? MIST.cloud.rho * D : 0;
+      else { const ta = (yb - y0) / dy, tb = (yt - y0) / dy;
+             od += MIST.cloud.rho * Math.max(0, Math.min(D, Math.max(ta, tb)) - Math.max(0, Math.min(ta, tb))); }
+    }
+    if (rho0 <= 0) return od;
+    const yTop = MIST.top, H = Math.max(1, MIST.H);
+    const above = (ya, t0, t1) => (Math.abs(dy) < 1e-4)
+      ? (t1 - t0) * Math.exp(-ya / H)
+      : (H / dy) * (Math.exp(-(ya + dy * t0) / H) - Math.exp(-(ya + dy * t1) / H));
+    const ya = y0 - yTop, y1 = ya + dy * D;
+    if (ya <= 0 && y1 <= 0) return od + rho0 * D;
+    if (ya > 0 && y1 > 0) return od + rho0 * above(ya, 0, D);
+    const ts = -ya / dy;
+    return od + (ya <= 0 ? rho0 * (ts + above(ya, ts, D)) : rho0 * (above(ya, 0, ts) + (D - ts)));
+  }
+  const _med = newMed();
+  // the transmittance from an eye at y0 to a point D metres away that stands at yT
+  function seeT(y0, yT, D) {
+    if (!(D > 0)) return 1;
+    const dy = (yT - y0) / D;
+    let od = mistODcpu(y0, dy, D);
+    // the clear air, four samples along the segment (its extinction varies only with height)
+    let e = 0;
+    for (let i = 0; i < 4; i++) { medium(Math.max(0, (y0 + (yT - y0) * (i + 0.5) / 4) / 1000), _med); e += (_med.e[0] + _med.e[1] + _med.e[2]) / 3; }
+    od += (e / 4) * (D / 1000);          // medium() is per km
+    return Math.exp(-od);
+  }
+  // the distance at which a thing standing at yT stops being visible from an eye at y0
+  function seeRange(y0, yT, thresh) {
+    const th = thresh || 0.01;
+    if (seeT(y0, yT, 200000) > th) return Infinity;      // clear air all the way: nothing to cut
+    let lo = 0, hi = 200000;
+    for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (seeT(y0, yT, m) > th) lo = m; else hi = m; }
+    return hi;
+  }
+
+  // eye / world are F2's: the march needs the eye's XZ (the GLSL signature carries only its height)
+  // and the patches drift on the surface wind. Both optional - a caller that has neither (the boot,
+  // the shed) gets the flat closed form, which is what it had before.
+  // ---- F2: THE FIELD, BAKED ONCE PER WORLD ---------------------------------
+  // Where the mist LIES. `yTop` was one world altitude, so the layer could only ever be a
+  // horizontal sheet: full over the sea, absent in a valley whose floor stands above it, and with
+  // a razor-straight lid across every frame (the pictures in FOG-MIST SS1f). Here the top follows
+  // the land: the water's surface where there is water, and the VALLEY FLOOR elsewhere - the
+  // terrain opened by a minimum filter, which is the height a hollow shares rather than the height
+  // of the ridge beside it - then blurred, because mist has no edges the land does not give it.
+  //
+  // CPU, once, under the roll-out screen; the result is one 256^2 RGBA texture drawn into the
+  // atlas's free columns. R = the top (m), G = a density multiplier (wetter ground holds more),
+  // B = the thickness H (m; a hollow holds a deeper layer than a slope), A = 1.
+  function bakeField(renderer, world, opt) {
+    if (!renderer || !world || !G.rtAP) return null;
+    const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+    const b = world.bounds, size = Math.max(b.x1 - b.x0, b.z1 - b.z0), N = MIST_MAP;
+    const step = size / N, rel = (opt && opt.top != null) ? opt.top : MIST.top, H0 = (opt && opt.H != null) ? opt.H : MIST.H;
+    const BL_H = (opt && opt.blH != null) ? opt.blH : MIST.blH;   // the depth over which the pooling dies with height
+    const ter = new Float32Array(N * N), wat = new Float32Array(N * N);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = b.x0 + (i + 0.5) * step, z = b.z0 + (j + 0.5) * step, k = j * N + i;
+      ter[k] = world.terrainH(x, z);
+      wat[k] = world.waterH ? world.waterH(x, z) : -1e9;
+    }
+    // the valley floor: a minimum over ~400 m (separable, two passes), then a ~200 m blur
+    const R = Math.max(1, Math.round(400 / step)), B = Math.max(1, Math.round(200 / step));
+    const mn = new Float32Array(N * N), tmp = new Float32Array(N * N);
+    const at = (a, i, j) => a[Math.min(N - 1, Math.max(0, j)) * N + Math.min(N - 1, Math.max(0, i))];
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let m = 1e9; for (let o = -R; o <= R; o++) m = Math.min(m, at(ter, i + o, j)); tmp[j * N + i] = m; }
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let m = 1e9; for (let o = -R; o <= R; o++) m = Math.min(m, at(tmp, i, j + o)); mn[j * N + i] = m; }
+    const blur = a => { const o1 = new Float32Array(N * N), o2 = new Float32Array(N * N);
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let sm = 0, n = 0; for (let o = -B; o <= B; o++) { sm += at(a, i + o, j); n++; } o1[j * N + i] = sm / n; }
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let sm = 0, n = 0; for (let o = -B; o <= B; o++) { sm += at(o1, i, j + o); n++; } o2[j * N + i] = sm / n; }
+      return o2; };
+    const floor = blur(mn);
+    const px = new Float32Array(N * N * 4);
+    let yHi = -1e9;
+    for (let k = 0; k < N * N; k++) {
+      const wet = wat[k] > ter[k] - 0.25;                      // standing water (the sea, a lake, a river's reach)
+      const base = wet ? Math.max(wat[k], floor[k]) : floor[k];
+      const above = Math.max(0, ter[k] - floor[k]);            // how far THIS cell stands over its own valley floor
+      const top = base + rel;
+      // THE BOUNDARY LAYER, and the first picture said this was missing. A top that simply follows
+      // the land puts mist at 400 m on every shoulder, because the shoulder's own floor is up
+      // there - and the first F2 frame duly washed out the whole middle distance. The moisture and
+      // the cold that make this layer sit at the BOTTOM of the air: a basin at sea level fills, a
+      // valley floor at 300 m gets a fifth of it, a 600 m shoulder gets nothing. One exponential,
+      // and it is what makes the difference between mist in the valleys and haze over everything.
+      const bl = Math.exp(-Math.max(0, base) / BL_H);
+      px[k * 4] = top;
+      // the wet bonus is SMALL on purpose: Jolene's muskeg is wet nearly everywhere, so a big one
+      // lifts the whole plain and reads as "relief means more fog" rather than "fog lies lower"
+      // (measured: 1.35 made B visibly thicker than the flat A at the same rh).
+      px[k * 4 + 1] = bl * (wet ? 1.15 : (above < 12 ? 1.0 : Math.max(0.25, 1.0 - above / 260)));   // a slope holds less than a hollow
+      px[k * 4 + 2] = H0 * (wet ? 1.25 : 1.0);
+      px[k * 4 + 3] = 1;
+      if (px[k * 4 + 1] > 0.02 && top > yHi) yHi = top;   // a top whose density has died is not a ceiling
+    }
+    const tex = new THREE.DataTexture(px, N, N, THREE.RGBAFormat, THREE.FloatType);
+    tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
+    // into the atlas's own columns, the way the clouds' tile goes in: a scissored quad, no clear
+    const mat = new THREE.ShaderMaterial({ uniforms: { uSrc: { value: tex } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
+      depthTest: false, depthWrite: false });
+    const prevRT = renderer.getRenderTarget(), ac = renderer.autoClear;
+    const vp = new THREE.Vector4(), sc = new THREE.Vector4(); renderer.getViewport(vp); renderer.getScissor(sc);
+    const st = renderer.getScissorTest();
+    G.quad.material = mat; renderer.setRenderTarget(G.rtAP); renderer.autoClear = false;
+    renderer.setViewport(MIST_X, MIST_Y, N, N); renderer.setScissor(MIST_X, MIST_Y, N, N); renderer.setScissorTest(true);
+    renderer.render(G.scene, G.cam);
+    renderer.setScissorTest(st); renderer.setViewport(vp); renderer.setScissor(sc);
+    renderer.setRenderTarget(prevRT); renderer.autoClear = ac;
+    mat.dispose(); tex.dispose();
+    MIST.field = { x0: b.x0, z0: b.z0, inv: 1 / size, yHi: yHi + 5 * H0 * 1.25, N,
+                   ms: ((typeof performance !== 'undefined') ? performance.now() : 0) - t0 };
+    return MIST.field;
+  }
+
+  function update(renderer, day, camAltM, eye, world) {
     if (!G.enabled) return false;
     if (setDay(day) || lastVer < 0) { bakeT(); bakeMS(); uploadTex(G.texT, lutT, TW, TH); uploadTex(G.texMS, lutMS, MW, MH); refreshAtmUniforms(G.atmU); lastVer = day ? day.version : 0; }
     const s = day ? day.sun : [0, 1, 0], m = day ? day.moon : [0, -1, 0];
@@ -783,8 +976,19 @@ var ATMO = (function () {
     U.eyeY.value = camAltM || 0;
     // the mist's day: its density from the humidity, its colour from the sun and the sky at its top
     if (day) {
-      const rh = day.rh != null ? day.rh : 0.5;
-      MIST.rhoDay = 0.0025 * Math.pow(Math.max(0, Math.min(1, (rh - 0.7) / 0.3)), 2);
+      // THE DENSITY IS THE DAY'S, and this file no longer carries a copy of the law.
+      // It is a weather fact (a function of the humidity) and it was derived here and
+      // nowhere else, which is how the climate came to publish a COLUMN density that
+      // looked like it meant the same thing and was ten times thinner. 07_day.js now
+      // derives it beside visibilityKm, where the difference between the two is
+      // written down. What stays here is what this file actually owns: MIST.k (the F8
+      // multiplier), the layer's SHAPE, its relief, its banks and its colour.
+      // The zero is not a default: it means whoever called this handed a day that is not
+      // a 07_day DAY, and a mist that quietly disappears is the failure this chantier has
+      // twice paid to learn about (the fog session asked for it to be loud, and was right).
+      if (day.mistRho0 == null && !mistWarned) { mistWarned = true;
+        console.warn('ATMO: day.mistRho0 is undefined - this is not a 07_day day, so the mist is off. That is a bug, not a setting.'); }
+      MIST.rhoDay = day.mistRho0 != null ? day.mistRho0 : 0;
       const km = MIST.top / 1000, T = [0, 0, 0], E = [0, 0, 0], Em = [0, 0, 0];
       sunTransmittance(km, day.sun[1], T); skyIrradiance(km, day.sun, E);
       const sy = Math.max(0, day.sun[1]);
@@ -794,6 +998,47 @@ var ATMO = (function () {
       mistScalars[4] = S * (0.5 * T[0] * sy + E[0]); mistScalars[5] = S * (0.5 * T[1] * sy + E[1]); mistScalars[6] = S * (0.5 * T[2] * sy + E[2]); mistScalars[7] = MIST.fwd;
       mistScalars[8] = day.sun[0]; mistScalars[9] = day.sun[1]; mistScalars[10] = day.sun[2]; mistScalars[11] = 0;
       mistScalars[12] = MIST.on ? MIST.cloud.rho : 0; mistScalars[13] = MIST.cloud.base; mistScalars[14] = MIST.cloud.top; mistScalars[15] = 0;
+      // F2's lanes: the eye, the field's rect, and the patches' drift. The march is OFF unless a
+      // field is baked AND relief is asked for - a missing field must never take the march path.
+      const F = MIST.field, relief = (F && MIST.relief > 0) ? 1 : 0;
+      mistScalars[16] = eye ? eye.x : 0; mistScalars[17] = camAltM; mistScalars[18] = eye ? eye.z : 0;
+      mistScalars[19] = relief ? Math.max(2, Math.min(16, MIST.steps | 0)) : 0;
+      mistScalars[20] = F ? F.x0 : 0; mistScalars[21] = F ? F.z0 : 0; mistScalars[22] = F ? F.inv : 0;
+      mistScalars[23] = F ? F.yHi : 0;
+      // THE BANKS DRIFT ON THE CLIMATE'S OWN FIELD, and as an INTEGRAL (the climate session's
+      // ruling, 2026-09-22): a position computed as `wind now x seconds elapsed` jumps the whole
+      // layer whenever the wind changes, because that is not a position. It accumulates instead,
+      // and it reads `climate.sample()` - the field everyone but the solver reads - so the mist,
+      // the sky and the windsocks cannot disagree about which way the weather is going.
+      const tNow = (day.jd != null ? day.jd * 86400 : (day.utc || 0));
+      const dt = (MIST._t == null) ? 0 : Math.max(0, Math.min(600, tNow - MIST._t));
+      MIST._t = tNow;
+      if (dt > 0 && world) {
+        let wx = 0, wz = 0;
+        if (world.climate && typeof world.climate.sample === 'function') {
+          const f = world.climate.sample(eye ? eye.x : 0, Math.max(10, MIST.top), eye ? eye.z : 0, tNow, MIST._w || (MIST._w = {}));
+          const v = (f && (f.wind || f.v || f)) || null;
+          if (v && v.length >= 3) { wx = v[0]; wz = v[2]; }
+        } else if (typeof world.wind === 'function') {
+          const v = world.wind(0, Math.max(10, MIST.top), 0, 0); if (v) { wx = v[0]; wz = v[2]; }
+        }
+        MIST._dx = (MIST._dx || 0) - wx * dt * MIST.driftK;
+        MIST._dz = (MIST._dz || 0) - wz * dt * MIST.driftK;
+      }
+      mistScalars[24] = MIST._dx || 0; mistScalars[25] = MIST._dz || 0;
+      mistScalars[26] = 1 / Math.max(50, MIST.bankM); mistScalars[27] = MIST.patch;
+      // F3 - A ROOM overrides the lot: no ground mist (there is no ground), the slab is the room's
+      // own air between floor and roof, and the colour is the room's light rather than a sky's.
+      if (MIST.room) {
+        const R = MIST.room;
+        mistScalars[0] = 0;                                   // the day's ground mist stops at the door
+        mistScalars[3] = 1;                                   // the medium is on even where the sky is not
+        mistScalars[4] = S * R.col[0]; mistScalars[5] = S * R.col[1]; mistScalars[6] = S * R.col[2];
+        mistScalars[7] = 0;                                   // no forward peak: there is no sun in here
+        mistScalars[12] = R.rho; mistScalars[13] = R.base; mistScalars[14] = R.top;
+        mistScalars[19] = 0;                                  // and no march: a room is one slab
+      }
+
     }
     return true;
   }
@@ -803,7 +1048,10 @@ var ATMO = (function () {
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
                   uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
-                  uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain },
+                  uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
+                  // F2: MIST_GLSL samples the mist's field from the atlas, so the dome - which carries
+                  // that block verbatim - needs the sampler too (it is the same texture it helps fill)
+                  uApAtlas: apUniforms.uApAtlas },
       vertexShader: DOME_VERT,
       fragmentShader: `float raySphere2(float r, float mu, float R) { float b = r * mu, c = r * r - R * R, disc = b * b - c; if (disc < 0.0) return -1.0; float s = sqrt(disc), t0 = -b - s, t1 = -b + s; if (t1 < 0.0) return -1.0; return t0 >= 0.0 ? t0 : t1; }\n` + DOME_FRAG,
       side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false }, extra || {}));
@@ -884,7 +1132,12 @@ var ATMO = (function () {
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
+    install, inject, setAP, bakeField, mistODcpu, seeT, seeRange,
+    // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
+    // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
+    // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
+    setEyeY(y) { U.eyeY.value = y; }, getEyeY() { return U.eyeY.value; },
+    get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
     MIST, apUniforms, GLSL: { MIST: MIST_GLSL, AP: AP_SAMPLE_GLSL },   // the clouds' pass shares the splice's samplers and functions
   };
 })();

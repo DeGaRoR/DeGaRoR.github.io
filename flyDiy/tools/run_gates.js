@@ -60,7 +60,11 @@ const GATES = [
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
+  // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
+  // verbatim copy, the shared zero, the relief raster, the linearised sampler; pure, seconds
+  { id: 'CLIMATE', file: 'test_climate.js', tier: 'core' },
   // SKY S3: the atmosphere's model against its numpy mirror, the calibration, the schedule
+  { id: 'FOG', file: 'test_fog.js', tier: 'core' },
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
@@ -116,6 +120,10 @@ const GATES = [
   // cut of a staged photoscan, base + three levels) = the park generator's
   // mirror, and the park plan is a park over twenty seeds. ~1 s.
   { id: 'TOTEM', file: '_totem_check.js', tier: 'core' },
+  // THE ANIMALS (2026-09-22): the declared table = the shipped skins, their
+  // clip libraries and the cut levels; and the behaviours run headless
+  // against the real vendor three (a herd, a pod and a flock, 900 steps).
+  { id: 'ANIMALS', file: '_animal_check.js', tier: 'core' },
   // THE TRAM CABIN (G343): the user's cable car baked as a prop and dressed
   // from the house library - roles, metric uvs, the gasket round every
   // window, the livery on both flanks, the liveries published
@@ -305,6 +313,9 @@ const GATES = [
   // THE PAVEMENT (roads & runways, 2026-09-21): the one material every strip and road wears - the
   // builders' attributes, the markings recorded off sitePaintStrip, the hook rules, the recipe (~5 s)
   { id: 'PAVEMENT', file: '_pavement_check.js', tier: 'core' },
+  // THE SCENERY'S LIFE (2026-09-23): the procedural kit, the placement laws on a synthetic premises, the draw's
+  // distances, the hooks (~1 s)
+  { id: 'LIFE', file: '_life_check.js', tier: 'core' },
   // THE FLOAT IN THE SOLVER (H1, G382): the ultralight on floats settled,
   // taken off and landed on the sea, headless (~95 s)
   { id: 'FLOATS', file: '_floats_check.js', tier: 'core', wall: 140 },
@@ -367,6 +378,10 @@ const GATES = [
   // vs-piston split the `aspiration` field buys, and a full circuit in that
   // air. Full tier: it flies (the garage build, since the fleet retired).
   { id: 'HOTHIGH', file: 'test_hothigh.js', tier: 'full', wall: 300 },
+  // SOARING (CLIMATE K1, 2026-09-22): the motorglider engine-off in the climate's air - the flown sink
+  // against the sheet's polar, and a ridge beat that GAINS height where the same beat without the
+  // terrain term is on the ground inside the run
+  { id: 'SOAR', file: 'test_soar.js', tier: 'full', wall: 240 },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.

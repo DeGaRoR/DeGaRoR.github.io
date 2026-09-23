@@ -4,6 +4,8 @@ THE ROADS, written as the world editor's record (tools/fixtures/island_jolene.js
 
     py -3.11 tools/jolene_author.py            # writes the fixture
     py -3.11 tools/jolene_author.py --print    # prints it
+    py -3.11 tools/jolene_author.py --absorb <exported.json> [--dry-run]
+                                               # the editor's export back INTO tools/jolene_parts/
 
 HONEST ABOUT THE METHOD (G404's own line): the record is written here, in the
 editor's file format, off the satellite views the user handed over and the
@@ -35,25 +37,52 @@ WHAT IS WRITTEN (contract v1.14, G434):
             hangar, which is the garage's shell), the hill strip's field shed
   zones     the village: a harbour zone at the dock, a residential zone on the
             headland
+  animals   eight HOTSPOTS (2026-09-22, contract v1.17): elk NE of 02/20, does
+            on the headland, gulls over the dock; THE TAMGAS SANCTUARY (a bear,
+            an elk herd and a deer herd either side of the hill strip, which is
+            how you get to them); and the whale watching - a pod of five orca ON the
+            sea lane and a blue whale 8.7 km out in Dixon Entrance. Every site
+            searched on the DEM, see ANIMALS below
 """
 import json, math, os, sys
 import numpy as np
-
-# METLAKATLA (the island's real town) is authored in its own module and spliced in
-# here: one record per island is all the runtime composes (src/viewer/app.js ~:34,
-# src/core/20_world.js setPremises), so the town and the field share this file.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import metlakatla_author as MK
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json')
 
 # ---- the DEM, for the levels -------------------------------------------------
+# THE SHIPPED SOURCE (2026-09-23): the 10 m grid header and the 5 m float DEM
+# come out of media/world/jolene, named by src/core/world_packs.json - so the
+# premises can be re-authored in a worktree, a fresh clone or a cloud session.
+# This used to read bench/jolene (gitignored) and fall back to a hard-coded
+# 'D:/Dev/DeGaRoR.github.io/flyDiy/bench/jolene', which is to say: on one
+# machine, or not at all. bench/ is still read FIRST when it is there, so the
+# island's author can iterate a re-prep without baking the shipped asset.
+# The bytes are the same either way, so the fixture does not move.
+import gzip
+def _pack_src(key, section='files'):
+    p = os.path.join(ROOT, 'src', 'core', 'world_packs.json')
+    if not os.path.exists(p): return None
+    for w in json.load(open(p)).get('islands', []):
+        if w['id'] == 'jolene':
+            r = w.get(section, {}).get(key)
+            if r and r.get('src'): return os.path.join(ROOT, *r['src'].split('/'))
+            if r and 'json' in r: return r['json']
+    return None
+
 BENCH = os.path.join(ROOT, 'bench', 'jolene')
-if not os.path.exists(os.path.join(BENCH, 'dem.json')): BENCH = 'D:/Dev/DeGaRoR.github.io/flyDiy/bench/jolene'   # a worktree: the main checkout's bake
-J = json.load(open(os.path.join(BENCH, 'dem.json')))
+if os.path.exists(os.path.join(BENCH, 'dem.json')):
+    J = json.load(open(os.path.join(BENCH, 'dem.json')))
+    DEM_BYTES = open(os.path.join(BENCH, 'dem.f32'), 'rb').read()
+else:
+    meta, f32 = _pack_src('grid.meta'), _pack_src('f32', 'authoring')
+    if meta is None or f32 is None:
+        sys.exit('jolene_author: no DEM - neither bench/jolene nor the shipped media/world/jolene '
+                 '(run tools/world_prep.js, or point at a bench with the island baked)')
+    J = meta if isinstance(meta, dict) else json.loads(gzip.decompress(open(meta, 'rb').read()))
+    DEM_BYTES = gzip.decompress(open(f32, 'rb').read())
 W, H, X0, Z0, CELL = J['w'], J['h'], J['x0'], J['z0'], J['cell']
-DEM = np.fromfile(os.path.join(BENCH, 'dem.f32'), np.float32).reshape(H, W)
+DEM = np.frombuffer(DEM_BYTES, np.float32).reshape(H, W)
 def dem(x, z):
     c = (x - X0) / CELL; r = (z - Z0) / CELL; i = int(c); j = int(r); u = c - i; v = r - j
     return float(DEM[j, i] * (1 - u) * (1 - v) + DEM[j, i + 1] * u * (1 - v) + DEM[j + 1, i] * (1 - u) * v + DEM[j + 1, i + 1] * u * v)
@@ -112,6 +141,42 @@ W3_PROFILE = [[0, -5.5], [0.1, -4.45], [0.2, -3.4], [0.3, -2.01], [0.4, -0.14], 
 SEA_E0, SEA_HDG, SEA_LEN, SEA_WID = (900.0, -3140.0), math.radians(224.0), 1500.0, 200.0
 SEA_C = (SEA_E0[0] + math.cos(SEA_HDG) * SEA_LEN / 2, SEA_E0[1] + math.sin(SEA_HDG) * SEA_LEN / 2)
 
+# ---- THE ANIMALS (2026-09-22) -------------------------------------------------------------------
+# Six HOTSPOTS, each ONE `animal` record (contract v1.17): the species, how many, and the radius
+# they live over. Every site was SEARCHED on the island's own DEM rather than picked off a map -
+# the land ones for a patch with no water in it and the gentlest slope over the herd's own radius,
+# the sea ones for the widest circle of open water. What each search returned is in the comment.
+#   a1  four elk on the flattest 120 m of the bench NE of 02/20's north end (max slope 9.6 % over
+#       the patch, ground at 26 m) - seen on the base leg for 02, and a real reason to look
+#   a2  ONE bear (they are solitary) on the flat below the Tamgas hill strip, 100 m from the strip's
+#       own downhill end (max slope 7.3 %, ground at 22 m)
+#   a3  five does on the headland above the village (max slope 13.6 %, which a deer does not notice)
+#   a4  a pod of FIVE orca in the channel off Annette Dock, on the sea lane itself: the widest open
+#       water within the premises (550 m clear at (0, -3750)), so you meet them on the approach
+#   a5  ONE blue whale in Dixon Entrance, 8.7 km SW - the widest open water in the whole raster
+#       (3.9 km clear). Deliberately far: it is the one you go and look for. A hotspot is placed in
+#       WORLD coordinates and is not bounded by the premises' extent (GATE ANIMALS holds that).
+#   a6  a flock of gulls over the dock, at 45 m
+#   a7/a8  THE TAMGAS SANCTUARY (2026-09-22, the user: "a place on the island for an animal
+#       sanctuary thing"). a2's bear was already 100 m off the hill strip; these two put an elk
+#       herd and a deer herd on the benches either side of it, so the strip IS the way in: land
+#       uphill at Tamgas, walk west, and there are bear, elk and deer inside a kilometre. Both
+#       sites searched the same way - the flattest dry 110 m patch within 700 m of the strip and
+#       no nearer than 90 m to it (a7 mean slope 4.1 %, ground 31 m; a8 5.4 %, ground 26 m).
+#       THE WHALE WATCHING is a4 and a5: the pod is ON the sea lane, so a floatplane meets it on
+#       every approach to Annette Dock, and the blue whale is the expedition out in Dixon Entrance.
+ANIMALS = [
+    {'id': 'a1', 'kind': 'animal', 'key': 'elk',   'x': 1180.0, 'z': -1080.0, 'yaw': 0, 'n': 4, 'r': 120, 'dy': 0},
+    {'id': 'a2', 'kind': 'animal', 'key': 'bear',  'x': -800.0, 'z': -2300.0, 'yaw': 0, 'n': 1, 'r': 70, 'dy': 0},
+    {'id': 'a3', 'kind': 'animal', 'key': 'doe',   'x': 740.0, 'z': -2500.0, 'yaw': 0, 'n': 5, 'r': 110, 'dy': 0},
+    {'id': 'a4', 'kind': 'animal', 'key': 'orca',  'x': 0.0, 'z': -3750.0, 'yaw': 0, 'n': 5, 'r': 300, 'dy': 0},
+    {'id': 'a5', 'kind': 'animal', 'key': 'whale', 'x': -8600.0, 'z': 2400.0, 'yaw': 0, 'n': 1, 'r': 450, 'dy': 0},
+    {'id': 'a6', 'kind': 'animal', 'key': 'bird',  'x': 900.0, 'z': -2980.0, 'yaw': 0, 'n': 7, 'r': 200, 'dy': 45},
+    # THE TAMGAS SANCTUARY - the two herds either side of the hill strip (with a2's bear)
+    {'id': 'a7', 'kind': 'animal', 'key': 'elk',   'x': -1300.0, 'z': -2350.0, 'yaw': 0, 'n': 6, 'r': 150, 'dy': 0},
+    {'id': 'a8', 'kind': 'animal', 'key': 'doe',   'x': -1420.0, 'z': -2520.0, 'yaw': 0, 'n': 7, 'r': 130, 'dy': 0},
+]
+
 # ---- THE CLUB: the pad west of the junction (the satellite's circled building) ------------------
 # the site's frame: +z the strip side = EAST (the apron and the taxiway V lie east of the row),
 # so yaw = pi/2 (local x runs north); VILLAGE_GEN 'airport s' places the row at local x -52..48
@@ -132,12 +197,356 @@ HANGAR_LOCAL = (-22.0, 0.0)
 HANGAR_W = club_world(*HANGAR_LOCAL)
 CLUB_YARD = {'x0': -60, 'x1': 40, 'z0': 14, 'z1': 54}                       # the apron, in the site's frame
 CLUB_FENCES = [{'a': [-72, -32], 'b': [72, -32], 'gap': [60, 84]}, {'a': [72, -32], 'b': [72, 62]}, {'a': [72, 62], 'b': [-72, 62]}, {'a': [-72, 62], 'b': [-72, -32]}]
+# ---------------------------------------------------------------------------
+# THE PARTS (2026-09-23): FIVE sessions author this one record at once - the
+# airfield, Metlakatla, and the three landmark scenes - so each writes its OWN
+# file under tools/jolene_parts/ and this merges them in. A part is either
+#
+#   <name>.py     a MODULE, executed here, free to compute (read the island's
+#                 rasters, walk streets ashore, print what it dropped and why),
+#                 leaving  PREFIX = 'xx_'  and  PART = {'objects': [...], ...}
+#   <name>.json   { "prefix": "xx_", "layers": { "objects": [...], ... } }
+#                 - which is what the WORLD EDITOR exports, so a scene authored
+#                 in the editor round-trips without a human in the middle
+#
+# THE RULES, agreed between the five sessions:
+#   * every entry's id carries its part's PREFIX (af_ airfield, mk_ Metlakatla,
+#     nv_ native area, mn_ mining, tw_ tramway). An id that does not, or one
+#     another part already used, fails LOUDLY here: the record is generated, so
+#     a silent drop is a village that vanishes and a gate that calls the result
+#     clean, because the gate checks the record it is given.
+#   * py parts first, then json, each alphabetical; and a part's OWN ORDER
+#     inside a layer is preserved - zones are sown in array order and a
+#     catch-all zone placed last is load-bearing for the town.
+#   * THE FIXTURE IS OUTPUT, NEVER SOURCE. On a merge conflict in
+#     island_jolene.json, take either side and RE-RUN this script.
+#   * BUMP `rev` WHEN YOU LAND. app.js shadows the fixture with the player's
+#     saved WIP unless rev goes up, so a rebaser who forgets it tests against a
+#     stale record in their own browser and sees none of their work.
+# ---------------------------------------------------------------------------
+PART_DIR = os.path.join(ROOT, 'tools', 'jolene_parts')
+
+def part_files():
+    """every part, in the order merge_parts applies them: the .py parts first (they may compute
+    what a .json part can only state), then the .json parts, alphabetical within each kind."""
+    if not os.path.isdir(PART_DIR): return []
+    names = sorted(f for f in os.listdir(PART_DIR) if f.endswith('.py') and not f.startswith('_'))
+    names += sorted(f for f in os.listdir(PART_DIR) if f.endswith('.json'))
+    return [os.path.join(PART_DIR, f) for f in names]
+
+
+def load_part(path):
+    """one reader for both kinds, so merge_parts and --absorb can never disagree about what a part
+    says. A .py part is RUN (its `PREFIX`, `PART`, optional `EXTENT`); a .json part is read, and its
+    whole object is kept as `raw` so --absorb can write it back with its other keys untouched."""
+    f = os.path.basename(path)
+    if f.endswith('.py'):
+        import runpy
+        tools_dir = os.path.join(ROOT, 'tools')
+        if tools_dir not in sys.path: sys.path.insert(0, tools_dir)
+        ns = runpy.run_path(path, run_name='jolene_part')
+        return {'file': f, 'path': path, 'kind': 'py', 'prefix': ns.get('PREFIX'),
+                'layers': ns.get('PART') or {}, 'extent': ns.get('EXTENT'), 'raw': None}
+    with open(path, encoding='utf8') as fh: o = json.load(fh)
+    return {'file': f, 'path': path, 'kind': 'json', 'prefix': o.get('prefix'),
+            'layers': o.get('layers') or {}, 'extent': o.get('extent'), 'raw': o}
+
+
+def merge_parts(rec):
+    ids = {}
+    for k, rows in rec['layers'].items():
+        for e in rows:
+            if isinstance(e, dict) and e.get('id'): ids[e['id']] = 'the field'
+    for path in part_files():
+        P = load_part(path)
+        f, prefix, layers = P['file'], P['prefix'], P['layers']
+        if not prefix: raise SystemExit('part %s: no PREFIX / "prefix"' % f)
+        n = 0
+        for k, rows in layers.items():
+            if k not in rec['layers']: raise SystemExit('part %s: no layer %r (%s)' % (f, k, ', '.join(sorted(rec['layers']))))
+            for e in rows:
+                i = e.get('id')
+                if not i or not str(i).startswith(prefix): raise SystemExit('part %s: id %r does not carry its prefix %r' % (f, i, prefix))
+                if i in ids: raise SystemExit('part %s: id %r is already %s' % (f, i, ids[i]))
+                ids[i] = f
+                rec['layers'][k].append(e); n += 1          # the part's own order, preserved
+        grow_extent(rec, layers, P['extent'])
+        print('  part %-26s %-4s %4d entries' % (f, prefix, n))
+
+
+PART_MARGIN = 250.0          # a runway's shoulder, a flatten's falloff, a road's band
+
+
+def part_points(o, key=None, out=None):
+    """every world coordinate a part entry carries. Geometry lives in `poly`, `pts`, `c`, `a`, `b`
+    and in any dict with an x and a z (an object, a site's `at`, a site item); everything else is
+    walked through. A stray pair from somewhere harmless only ever pulls the extent toward the
+    island, which already covers it - the failure this guards is the opposite one."""
+    if out is None: out = []
+    if isinstance(o, dict):
+        x, z = o.get('x'), o.get('z')
+        if isinstance(x, (int, float)) and isinstance(z, (int, float)): out.append((float(x), float(z)))
+        for k, v in o.items(): part_points(v, k, out)
+    elif isinstance(o, (list, tuple)):
+        if len(o) == 2 and all(isinstance(v, (int, float)) for v in o) and key in ('c', 'a', 'b', 'end0', 'end1'):
+            out.append((float(o[0]), float(o[1])))
+        elif key in ('poly', 'pts'):
+            for e in o:
+                if isinstance(e, (list, tuple)) and len(e) >= 2 and all(isinstance(v, (int, float)) for v in e[:2]): out.append((float(e[0]), float(e[1])))
+                else: part_points(e, key, out)
+        else:
+            for e in o: part_points(e, key, out)
+    return out
+
+
+def grow_extent(rec, layers, explicit=None):
+    """THE EXTENT FOLLOWS THE PARTS (2026-09-23, the mining village session, who are putting a mine
+    6 km out: "render_premises builds the game's patch chunks and paints the material map only
+    inside extentWorld() - a part 6-12 km out gets its road cuts/flattens composed in physics but NO
+    ground drawn over them"). They were right: the extent is authored here and a part that lands
+    outside it is invisible. Every coordinate a part carries grows it, plus a margin for the
+    shoulders and falloffs the coordinates do not state; a JSON part may also name its own
+    `extent` (a .py part an `EXTENT`) as [x0, z0, x1, z1] and that is unioned as given."""
+    E = rec['frame']['extent']
+    if explicit and len(explicit) == 4:
+        E['x0'] = min(E['x0'], explicit[0]); E['z0'] = min(E['z0'], explicit[1])
+        E['x1'] = max(E['x1'], explicit[2]); E['z1'] = max(E['z1'], explicit[3])
+    for k, rows in layers.items():
+        for e in rows:
+            reach = PART_MARGIN
+            if k == 'runways': reach += float(e.get('len', 0)) / 2 + float(e.get('wid', 0))
+            elif k == 'sites': reach += 160.0                       # a yard and its items, in the site's own frame
+            for (x, z) in part_points(e):
+                E['x0'] = min(E['x0'], x - reach); E['z0'] = min(E['z0'], z - reach)
+                E['x1'] = max(E['x1'], x + reach); E['z1'] = max(E['z1'], z + reach)
+    for k in ('x0', 'z0', 'x1', 'z1'): E[k] = round(E[k], 1)
+
+# ---------------------------------------------------------------------------
+# --absorb: THE WAY BACK (2026-09-23, asked for by three sessions and by the
+# user's own line, "I would like all of this to be built with the world editor,
+# so I can edit it further myself later on").
+#
+# merge_parts carries a part INTO the record. This carries the record back OUT
+# into the parts, so an afternoon of dragging things about in the game's WORLD
+# editor survives the next regeneration instead of being overwritten by it.
+#
+#     py -3.11 tools/jolene_author.py --absorb <exported.json> [--dry-run]
+#
+# The export is whatever the editor saves - {what:'flydiy-premises',premises}
+# or a bare record. Every entry is bucketed by the LONGEST matching prefix (so
+# mn_ and a later mn_x_ cannot fight over an id), and then:
+#
+#   a .json part   is rewritten in place - its `layers` replaced, its own other
+#                  keys (part, prefix, note, extent) untouched;
+#   a .py part     is NOT written. It is a PROGRAM: jolene_parts/airfield.py
+#                  computes its positions from the club's quarter-turned frame
+#                  and names its scenes, and absorbing flat coordinates over
+#                  that would throw away every reason the numbers are what they
+#                  are. The diff is printed instead, for a human to apply;
+#   the author's   own entries are diffed and REPORTED, never dropped - they
+#                  live in this file's literals and only a human can move them;
+#   an entry that  matches no prefix is a NEW thing drawn in the editor. It is
+#                  reported with the prefixes it could join. Nothing is dropped
+#                  silently, ever: that is the whole contract of this command.
+#
+# Afterwards the record is rebuilt from the parts on disk and checked entry by
+# entry against the export. That check is the proof the absorb was lossless,
+# and it is why this is safe to run on work you cannot reproduce.
+# ---------------------------------------------------------------------------
+def _canon(o):
+    return json.dumps(o, indent=1, ensure_ascii=False)
+
+
+def _restore(before):
+    """put every part back to the bytes it had. --absorb writes first and proves afterwards, because
+    the proof is a real rebuild through merge_parts; if that rebuild refuses the result, the run must
+    leave the working tree exactly as it found it - a half-absorbed part is worse than none."""
+    for path, blob in before.items():
+        with open(path, 'wb') as fh: fh.write(blob)
+
+
+def absorb(own, path, write=True):
+    import difflib
+    try:
+        with open(path, encoding='utf8') as fh: o = json.load(fh)
+    except Exception as e:
+        raise SystemExit('--absorb %s: %s' % (path, e))
+    rec = o.get('premises') if isinstance(o, dict) and o.get('what') == 'flydiy-premises' else o
+    if not isinstance(rec, dict) or not isinstance(rec.get('layers'), dict):
+        raise SystemExit('--absorb %s: not a flyDiy premises export (no `layers`)' % path)
+
+    parts = [load_part(q) for q in part_files()]
+    for P in parts:
+        if not P['prefix']: raise SystemExit('part %s: no PREFIX / "prefix"' % P['file'])
+    longest = sorted(parts, key=lambda P: -len(P['prefix']))          # the longest prefix wins
+    own_by_id = {}
+    for k, rows in own['layers'].items():
+        for e in rows:
+            if isinstance(e, dict) and e.get('id'): own_by_id[e['id']] = (k, e)
+
+    before = {}                      # a json part's bytes before this run, so a failed check leaves nothing behind
+    bucket = dict((P['file'], {}) for P in parts)
+    mine, orphan, unknown_layer = [], [], set()
+    for k, rows in rec['layers'].items():
+        if k not in own['layers']: unknown_layer.add(k); continue
+        for e in rows:
+            if not isinstance(e, dict): continue
+            i = str(e.get('id') or '')
+            hit = next((P for P in longest if i and i.startswith(P['prefix'])), None)
+            if hit: bucket[hit['file']].setdefault(k, []).append(e)
+            elif i in own_by_id: mine.append((k, i, e))
+            else: orphan.append((k, i or '(no id)'))
+
+    print('--absorb %s' % path)
+    if unknown_layer:
+        print('  ! the export carries layers this author does not know: %s' % ', '.join(sorted(unknown_layer)))
+    wrote, refused, unchanged = [], [], []
+    for P in parts:
+        got = bucket[P['file']]
+        keys = list(P['layers'].keys()) + [k for k in got if k not in P['layers']]
+        new = dict((k, got.get(k, [])) for k in keys)
+        n = sum(len(v) for v in new.values())
+        if _canon(new) == _canon(P['layers']):
+            unchanged.append((P, n)); continue
+        if P['kind'] == 'py':
+            refused.append(P)
+            was = sum(len(v) for v in P['layers'].values())
+            print('  REFUSED %-26s %-4s %d -> %d entries: a .py part is a PROGRAM, not data.' % (P['file'], P['prefix'], was, n))
+            print('          Its numbers are computed and its scenes are named; writing flat coordinates')
+            print('          over it would throw the reasons away. The diff, for a human to apply:')
+            d = difflib.unified_diff(_canon(P['layers']).splitlines(), _canon(new).splitlines(),
+                                     fromfile=P['file'] + ' (now)', tofile=P['file'] + ' (the editor)', lineterm='', n=2)
+            for j, line in enumerate(d):
+                if j > 400:
+                    print('          ... (truncated; redirect the output for the whole diff)'); break
+                print('          ' + line)
+            continue
+        raw = dict(P['raw']); raw['layers'] = new
+        if write:
+            with open(P['path'], 'rb') as fh: before[P['path']] = fh.read()
+            with open(P['path'], 'w', encoding='utf8', newline='\n') as fh: fh.write(_canon(raw) + '\n')
+        wrote.append((P, n))
+        print('  %s %-26s %-4s %4d entries' % ('wrote ' if write else 'WOULD ', P['file'], P['prefix'], n))
+    for P, n in unchanged:
+        print('  same   %-26s %-4s %4d entries' % (P['file'], P['prefix'], n))
+
+    if mine:
+        changed = set(i for (k, i, e) in mine if _canon(e) != _canon(own_by_id[i][1]))
+        if not changed:
+            print('  %d entries belong to THIS FILE rather than to a part, all unchanged' % len(mine))
+        else:
+            print('  %d entr%s in the export belong to THIS FILE, not to a part:' % (len(mine), 'y' if len(mine) == 1 else 'ies'))
+            for k, i, e in mine:
+                if i in changed: print('    EDITED %-10s %s' % (k, i))
+        if changed:
+            print('  %d of them were EDITED and CANNOT be absorbed - they live in this file\'s own' % len(changed))
+            print('  literals. Move them here by hand, or give them a part. The diffs:')
+            shown = 0
+            for k, i, e in mine:
+                if i not in changed: continue
+                shown += 1
+                if shown > 10: print('    ... and %d more' % (len(changed) - 10)); break
+                for line in difflib.unified_diff(_canon(own_by_id[i][1]).splitlines(), _canon(e).splitlines(),
+                                                 fromfile=i + ' (this file)', tofile=i + ' (the editor)', lineterm='', n=1):
+                    print('    ' + line)
+    if orphan:
+        pref = ', '.join(sorted(P['prefix'] for P in parts)) or '(no parts)'
+        print('  %d entr%s no part prefix - NEW work drawn in the editor, kept nowhere by this run:'
+              % (len(orphan), 'y carries' if len(orphan) == 1 else 'ies carry'))
+        for k, i in orphan[:40]: print('    %-10s %s' % (k, i))
+        if len(orphan) > 40: print('    ... and %d more' % (len(orphan) - 40))
+        print('  Give each an id starting with one of: %s - then run --absorb again.' % pref)
+
+    # THE PROOF: rebuild from the parts on disk and check every absorbed entry against the export
+    if refused:
+        print('  no lossless check: a .py part was refused, so the parts on disk cannot reproduce this')
+        print('  export until its diff is applied by hand. What WAS written above is still written.')
+    if write and not refused and wrote:
+        import copy
+        check = copy.deepcopy(own)
+        keep, sys.stdout = sys.stdout, open(os.devnull, 'w')
+        try:
+            merge_parts(check)
+        except SystemExit as e:
+            sys.stdout.close(); sys.stdout = keep
+            _restore(before)
+            raise SystemExit('  %s\n  THE PARTS WERE PUT BACK - nothing on disk changed. The export itself is at fault.' % e)
+        finally:
+            if sys.stdout is not keep: sys.stdout.close(); sys.stdout = keep
+        after = {}
+        for k, rows in check['layers'].items():
+            for e in rows:
+                if isinstance(e, dict) and e.get('id'): after[e['id']] = (k, e)
+        bad = []
+        for P in parts:
+            for k, rows in bucket[P['file']].items():
+                for e in rows:
+                    i = e.get('id')
+                    if i not in after: bad.append('%s: lost' % i)
+                    elif after[i][0] != k: bad.append('%s: landed in %s, not %s' % (i, after[i][0], k))
+                    elif _canon(after[i][1]) != _canon(e): bad.append('%s: differs' % i)
+        if bad:
+            _restore(before)
+            raise SystemExit('  ABSORB IS NOT LOSSLESS - %d entr%s did not come back: %s\n  THE PARTS WERE PUT BACK - nothing on disk changed.'
+                             % (len(bad), 'y' if len(bad) == 1 else 'ies', ', '.join(bad[:8])))
+        print('  checked: every absorbed entry rebuilds identically from the parts on disk')
+    if wrote and write:
+        print('  now re-run this author to write the fixture, and BUMP `rev` if anything moved -')
+        print('  a player\'s browser keeps its own WIP under flydiy.premises.game.jolene and shadows')
+        print('  the shipped record until the rev says otherwise.')
+    return 0
+
+
+def seg_dist(p, pts):
+    """distance from p to a polyline"""
+    best = 1e18
+    for i in range(1, len(pts)):
+        a, b = pts[i - 1], pts[i]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        l2 = dx * dx + dy * dy
+        t = 0.0 if l2 < 1e-12 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2))
+        best = min(best, math.hypot(p[0] - (a[0] + dx * t), p[1] - (a[1] + dy * t)))
+    return best
+
+def clip_fences(fences, avoid, least=4.0):
+    """THE FENCE STOPS AT THE MOVEMENT AREA (2026-09-23, the user: "there's a fence going through the
+    taxiways. There should be no fence whatsoever there, remove it"). A club's fence surrounds its
+    yard; where it meets a taxiway it ends, because an aeroplane goes through there. Clipped by RULE
+    rather than by moving coordinates, so it stays right if a taxiway ever moves: each segment is
+    walked at a metre and the runs that lie outside every movement area survive. A run under `least`
+    metres is not a fence, it is a post."""
+    out = []
+    for f in fences:
+        a, b = f['a'], f['b']
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        if L < 1e-6: continue
+        n = max(2, int(L))
+        hit = []
+        for i in range(n + 1):
+            t = i / n
+            q = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+            hit.append(any(seg_dist(q, pts) < hw for pts, hw in avoid))
+        i = 0
+        while i <= n:
+            if hit[i]: i += 1; continue
+            j = i
+            while j <= n and not hit[j]: j += 1
+            t0, t1 = i / n, (j - 1) / n
+            if (t1 - t0) * L >= least:
+                whole = t0 < 1e-9 and t1 > 1 - 1e-9
+                out.append({'a': pt(a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0),
+                            'b': pt(a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1),
+                            'gap': f.get('gap') if whole else None, 'style': f.get('style', 'rail')})
+            i = j
+    return out
+
 def club_fences():
     out = []
     for f in CLUB_FENCES:
         a = club_world(*f['a']); b = club_world(*f['b'])
         out.append({'a': pt(*a), 'b': pt(*b), 'gap': f.get('gap'), 'style': 'rail'})
-    return out
+    # ...and never across the taxiways: their own width and four metres of margin
+    return clip_fences(out, [(TAXI_NE, TAXI_W / 2 + 4), (TAXI_E, TAXI_W / 2 + 4)])
 yard_poly = [pt(*club_world(CLUB_YARD['x0'], CLUB_YARD['z0'])), pt(*club_world(CLUB_YARD['x1'], CLUB_YARD['z0'])), pt(*club_world(CLUB_YARD['x1'], CLUB_YARD['z1'])), pt(*club_world(CLUB_YARD['x0'], CLUB_YARD['z1']))]
 pad_poly = [pt(*club_world(-80, -40)), pt(*club_world(80, -40)), pt(*club_world(80, 70)), pt(*club_world(-80, 70))]
 # THE STAND on the apron in front of the shell's door (the door faces +z of the site = east), nose toward the
@@ -268,25 +677,16 @@ def main():
                 {'id': 'o1', 'kind': 'aircraft', 'key': 'arch:cub', 'x': R(club_world(20, 40)[0]), 'z': R(club_world(20, 40)[1]), 'yaw': R(-math.pi / 2, 4)},
                 {'id': 'o2', 'kind': 'aircraft', 'key': 'arch:c172', 'x': R(club_world(36, 42)[0]), 'z': R(club_world(36, 42)[1]), 'yaw': R(-math.pi / 2 + 0.2, 4)},
                 {'id': 'o3', 'kind': 'aircraft', 'key': 'arch:jodel', 'x': R(club_world(-48, 44)[0]), 'z': R(club_world(-48, 44)[1]), 'yaw': R(math.pi / 2 - 0.3, 4)},
-            ],
+            ] + ANIMALS,
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 5,
+        'rev': 16,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json); 12 Jumbo Mine moved to the wooded knoll; 13 the mine's school, clinic and chapel on posts; 14 East Point quiet (no mast, cars, rubbish); 15 the tramway's top on the plateau + its square; 16 East Point's trees cut back to the user's lines (2026-09-23)
     }
-    # ---- THE TOWN ------------------------------------------------------------
-    # Metlakatla's layers append to the field's; the extent becomes the union of
-    # the two. That is safe for the ground: render_premises.js marks its 64 m
-    # chunks by DISTANCE to each feature (G434), precisely so that a field, a town
-    # 9 km away and the road between do not build five million vertices over the
-    # muskeg in between.
-    town = MK.layers()
-    for k, v in town.items():
-        rec['layers'].setdefault(k, [])
-        rec['layers'][k] += v
-    e, t = rec['frame']['extent'], MK.extent()
-    rec['frame']['extent'] = {'x0': min(e['x0'], t['x0']), 'z0': min(e['z0'], t['z0']),
-                              'x1': max(e['x1'], t['x1']), 'z1': max(e['z1'], t['z1'])}
-    rec['budget'] = {'tris': 1400000, 'lights': 90, 'smoke': 14, 'people': 90}
+    if '--absorb' in sys.argv:
+        k = sys.argv.index('--absorb')
+        if k + 1 >= len(sys.argv): raise SystemExit("--absorb needs the editor's exported json")
+        return absorb(rec, sys.argv[k + 1], write='--dry-run' not in sys.argv)
+    merge_parts(rec)
     txt = json.dumps(rec, indent=1)
     if '--print' in sys.argv: print(txt); return
     with open(OUT, 'w', newline='\n') as f: f.write(txt + '\n')

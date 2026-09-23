@@ -13,10 +13,19 @@
 // INSIDE render()) is timed in a second sub-run that wraps
 // renderer.shadowMap.render alone.
 //
+// A PASS THAT TIMES ITSELF IS INVISIBLE TO US, AND THAT USED TO BE SILENT (FOG-MIST, 2026-09-22).
+// clouds.js opens its OWN TIME_ELAPSED query round the march (clouds.js:555). Queries cannot nest,
+// so ours over the same draw is invalid, the result never lands, and the `clouds:march` tag was
+// simply ABSENT from every row - which reads exactly like a pass that never ran. A whole probe
+// series (`CLOUDS.S.maxKm`) was scored against a pass this rig could not see. So the numbers for
+// such a pass are now taken from the module's own timer and MARKED: a tag ending in `*` was
+// measured by the pass itself (CLOUDS.stats.gpuLast / shadowLast), not by this rig's query. Still
+// a GPU millisecond; simply not ours. If another pass ever times itself, add it here.
+//
 // Usage:  node tools/frame_perf.js [--url http://localhost:8477/flyDiy/dev.html?world=jolene]
 //              [--tiers full,msaa,off] [--places stand,forest,sea] [--frames 120]
 //              [--probes "base=1;;bloom=GFX.set('bloom','soft')"]   (named configurations, each measured at each place)
-//              [--garage] [--pre "<js>"] [--out tools/perf/frame_perf.json] [--compare <json>] [--label <name>] [--headed] [--quiet [--quiet-max 20]] [--eval "<js>"]
+//              [--size 2560x1440] [--garage] [--pre "<js>"] [--out tools/perf/frame_perf.json] [--compare <json>] [--label <name>] [--headed] [--quiet [--quiet-max 20]] [--eval "<js>"]
 // Needs the dev server up (tools/_serve.js) and Chrome. Prints a table per
 // place x tier x probe; writes the JSON. This is a MEASUREMENT, not a gate:
 // it needs a GPU and a browser, which the gate battery does not assume.
@@ -38,6 +47,8 @@ const OUT = opt('out', path.join(__dirname, 'perf', GARAGE ? 'frame_perf_garage.
 const COMPARE = opt('compare', null);
 const LABEL = opt('label', '');
 const PRE = opt('pre', null);
+// --size WxH: the page's viewport (default 1920x1080); the frame is GPU-bound, so its size is the first variable (PERF 2026-09-23)
+const SIZE = (opt('size', '1920x1080').split('x').map(Number));
 
 const PORT = 9400 + (process.pid % 500);
 const CHROME = [
@@ -62,7 +73,7 @@ if (QUIET) {
   console.log('frame_perf: GPU ' + u + ' % after ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s of waiting' + (u >= 15 ? ' - NOT QUIET, measuring anyway' : ''));
 }
 const ch = spawn(CHROME, (HEADED ? [] : ['--headless=new']).concat(['--remote-debugging-port=' + PORT,
-  '--window-size=1920,1080', '--hide-scrollbars', '--no-first-run',
+  '--window-size=' + SIZE[0] + ',' + SIZE[1], '--hide-scrollbars', '--no-first-run',
   '--user-data-dir=' + udd,
   '--disable-gpu-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync', 'about:blank']), { stdio: 'ignore' });
 const killChrome = () => { try { if (process.platform === 'win32') require('child_process').execSync('taskkill /PID ' + ch.pid + ' /T /F', { stdio: 'ignore' }); else ch.kill(); } catch (e) {} };
@@ -136,8 +147,19 @@ const INSTRUMENT = `(() => {
       R.info.autoReset = false; R.info.reset();
       const wu = window.WORLD && WORLD.worldUpdate;
       if (wu) WORLD.worldUpdate = cg => { const t0 = performance.now(); wu(cg); cpu += performance.now() - t0; };
+      let seenMarch = -1, seenCShadow = -1;
+      const selfTimed = () => {            // the passes that hold their own query: READ them, never wrap them (header)
+        const C = window.CLOUDS;
+        if (!C || !C.stats || !C.active) return;
+        const a = S.acc[S.frame] || (S.acc[S.frame] = {});
+        // the count is how often a NEW result landed, not how often the pass drew - a self-timed
+        // pass's query lands a frame or two late, so this is < 1 per frame and is not a draw count
+        if (C.stats.gpuLast && C.stats.gpuLast !== seenMarch) { a['clouds:march*'] = C.stats.gpuLast; seenMarch = C.stats.gpuLast; S.calls['clouds:march*'] = (S.calls['clouds:march*'] || 0) + 1; }
+        if (C.stats.shadowLast && C.stats.shadowLast !== seenCShadow) { a['clouds:shadow*'] = C.stats.shadowLast; seenCShadow = C.stats.shadowLast; S.calls['clouds:shadow*'] = (S.calls['clouds:shadow*'] || 0) + 1; }
+      };
       const tick = () => {
         poll();
+        if (S.mode === 'passes') selfTimed();
         const now = performance.now(); frames.push(now - last); last = now;
         calls += R.info.render.calls; tris += R.info.render.triangles; R.info.reset();
         S.frame++;
@@ -201,6 +223,15 @@ const PLACE_JS = {
   return JSON.stringify({ at: [best[0] | 0, 300, best[1] | 0] }); })()`,
   garage: `'garage'`,
 };
+// A PLACE BY NUMBERS (SCENERY LIFE, 2026-09-23): `at:<x>:<z>:<agl>` holds the aeroplane there, <agl> m over the
+// ground, on the heading the roll-out gave it (a village street, an apron: the chase eye behind it)
+const PLACE_AT = s => { const [x, z, agl] = s.split(':').slice(1).map(Number); return `(() => {
+  const w = FLIGHT_PROBE.world(), X = ${x || 0}, Z = ${z || 0}, gy = w.terrainH(X, Z) + ${isFinite(agl) ? agl : 60};
+  const s = FLIGHT_PROBE.sim(); const cg = s.cgPos();
+  const dx = X - cg[0], dy = gy - cg[1], dz = Z - cg[2];
+  for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; }
+  const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();
+  return JSON.stringify({ at: [X, gy | 0, Z] }); })()`; };
 
 const med = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[f.length >> 1]; };
 const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[Math.floor(f.length * 0.9)]; };
@@ -226,7 +257,7 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
   };
   await cmd('Page.enable'); await cmd('Runtime.enable');
   if (PRE) await cmd('Page.addScriptToEvaluateOnNewDocument', { source: PRE });
-  await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
   await sleep(1500);
   // bounded (120 s): under a saturated GPU the boot can stall past its own watchdogs
@@ -262,7 +293,7 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
     console.error('  [' + name + '] ' + await ev("document.body.innerText.replace(/\s+/g,' ').slice(0,160)")); };
   const rows = [];
   for (const place of PLACES) {
-    const where = await ev(PLACE_JS[place] || PLACE_JS.stand);
+    const where = await ev(PLACE_JS[place] || (/^at:/.test(place) ? PLACE_AT(place) : PLACE_JS.stand));
     await sleep(1500);
     let settled = false;
     for (let i = 0; i < 60 && !settled; i++) settled = await ev(SETTLED);
@@ -271,7 +302,8 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
     for (const probe of PROBES) {
       if (probe.js && probe.js !== '1') { await ev('(()=>{' + probe.js + ';return 1;})()'); await sleep(1500); await ev(SETTLED); }
       for (const tier of TIERS) {
-        await ev("FLYDIY_AA.setTier('" + tier + "')"); await sleep(1200);
+        // --tiers gfx: the AA the graphics menu set (a preset probe's own), not a forced tier (PERF 2026-09-23)
+        if (tier !== 'gfx') { await ev("FLYDIY_AA.setTier('" + tier + "')"); await sleep(1200); }
         await ev(SETTLED);
         const util = gpuUtil();   // includes this rig's own Chrome: a reading of the box, not of the pass
         // the first run at a configuration pays its allocations and lazy programs; only the second is recorded
@@ -295,7 +327,7 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
         console.log('      ' + order.map(k => `${k} ${tags[k].median}` + (tags[k].calls !== 1 ? `×${tags[k].calls}` : '')).join(' · '));
       }
     }
-    await ev("FLYDIY_AA.setTier('full')");
+    if (!TIERS.includes('gfx')) await ev("FLYDIY_AA.setTier('full')");
   }
   ws.close(); killChrome();
   try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}

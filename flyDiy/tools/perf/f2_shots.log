@@ -1,0 +1,26 @@
+page log: hangar sheets: 20 baked, 0 from the memo | texture units: 6 shadow + 4 maps (MeshStandardMaterial) + 1 env = 11 of 16
+page log: tail gap (drawn stab - frame stab, rest body frame): -3 / -37 / -0 mm (x aft / y up / z left), 37 mm
+page log: tail gap (drawn stab - frame stab, rest body frame): -3 / -37 / -0 mm (x aft / y up / z left), 37 mm
+page warning: THREE.WebGLProgram: Program Info Log: (210,81-129): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision
+(209,37-61): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision
+(210,82-106): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision
+(209,37-61): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision
+(210,82-106): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision
+page log: tail gap (drawn stab - frame stab, rest body frame): -3 / -37 / -0 mm (x aft / y up / z left), 37 mm
+page log: mist field: 256^2 in 47 ms, band ceiling 669 m
+page log: splat: the sets normalised to the imagery (gain r/g/b): dry 0.19/0.26/0.23, grass 0.37/0.37/0.72, rockyA 0.75/0.75/0.75, mud 0.29/0.55/0.29, grassRock 0.25/0.45/0.84, beach 0.50/0.50/0.50, rocksG 0.56/0.56/0.56, rockyB 2.50/2.50/2.50, rocksB 0.50/0.50/0.50, rocksA 0.50/0.50/0.50, forestAir 0.15/0.36/0.35, snowAir 2.50/2.50/2.50, dirt 0.85/0.85/0.85, coastA 1.13/1.13/1.13, coastSand 1.17/1.17/1.17, cliff 0.50/0.50/0.50
+page log: island far terrain: 16 meshes, 12.1 M tris
+page log: island lakes: 288 surfaces, one quad each, the field cuts the edge; 29 on the coast left to the sea
+page log: hangar exterior: 220 meshes, 2,440 tris | sheets 0 baked, 16 from the memo
+page log: hangar exterior: 238 meshes, 2,516 tris | sheets 0 baked, 16 from the memo
+page log: hangar exterior: 60 meshes, 696 tris | sheets 3 baked, 16 from the memo
+page log: parked: arch:cub captured: 266600 tris, 109 buckets, in 2833 ms
+page log: parked: arch:c172 captured: 325464 tris, 114 buckets, in 4364 ms
+page log: parked: arch:jodel captured: 245560 tris, 107 buckets, in 2150 ms
+page log: parked: arch:jodel far levels: 19205 / 4001 tris of 160046 in 6386 ms
+page log: parked: arch:cub far levels: 21063 / 4387 tris of 175536 in 9792 ms
+page log: parked: arch:c172 far levels: 23829 / 4963 tris of 198574 in 7274 ms
+page warning: boot: nothing landed for 20 s
+page warning: THREE.WebGLProgram: Program Info Log: (1248,1): warning X4000: use of potentially uninitialized variable (f_sTileLod0)
+
+done

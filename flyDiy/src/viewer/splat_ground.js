@@ -69,7 +69,10 @@ const SPLAT_GROUND = (() => {
   uniform float uSGloss[${NLIB}];
   uniform float uSLum[${NLIB}];   // each set's mean luminance after its grade (linear): the detail's texel over it is pure TEXTURE
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
-  uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud;
+  uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2;
+  uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
+  uniform float uSHexPx;   // PERF 2026-09-23: the hex tiling only where a set's tile spans more than this many pixels (0 = everywhere)
+  float gSPixM = 1.0;      // the fragment's footprint on the ground, metres a pixel (sSplat, in uniform flow)
   uniform vec2 uSSeam, uSNrm, uSLakeE;
   uniform float uSBeachRot;
   uniform int uSNCode, uSNCand;
@@ -120,6 +123,11 @@ const SPLAT_GROUND = (() => {
     scale = max(scale, 0.01);
     vec2 p = P.xz; float ca = 1.0, sa = 0.0;
     gSHexRot = ang != 0.0 ? -1.0 : uSHex.w;
+    // THE HEX CUT, A DIAL LEFT AT 0 (PERF 2026-09-23): the hex tiling dropped where a set's tile spans under
+    // uSHexPx pixels. At 4 it showed the tiles repeating as a checker over the far field (a tile of 4-16 px
+    // still has its low frequencies, and they repeat), and its 'saving' was the mip-0 bug below (NO CONTINUE):
+    // with the mips honoured the far samples are cheap and the hex costs nothing measurable. 0 = everywhere.
+    if (uSHexPx > 0.0 && scale < uSHexPx * gSPixM) gSHexRot = -1.0;
     if (ang != 0.0) { ca = cos(ang); sa = sin(ang); mat2 R = mat2(ca, sa, -sa, ca); p = R * p; }
     Smp t = sTile(layer, p / scale);
     vec2 tt = vec2(ca * t.n.x + sa * t.n.y, -sa * t.n.x + ca * t.n.y);
@@ -128,19 +136,64 @@ const SPLAT_GROUND = (() => {
     if (tw.z > 0.01) { Smp u = sTile(layer, P.xy / scale); o.c += u.c * tw.z; o.n += vec4(u.n.x, u.n.y, 0.0, u.n.a) * tw.z; }
     return o;
   }
-  Smp sTriplet(vec4 A, vec4 S, vec3 P, vec3 tw, float ang, float m1, float m2){
-    Smp a = sSet(A.x, S.x, P, tw, ang);
+  // the triplet's height blend of its (up to) three sampled sets; A says which exist
+  Smp sBlend(vec4 A, Smp a, Smp b, Smp c, float m1, float m2){
     if (A.y < 0.0) return a;
-    Smp b = sSet(A.y, S.y, P, tw, ang);
     Smp o;
     if (A.z < 0.0) { vec2 w = sHweights2(a.c.a, 1.0 - m1, b.c.a, m1, uSHex.x); o.c = a.c * w.x + b.c * w.y; o.n = a.n * w.x + b.n * w.y; return o; }
-    Smp c = sSet(A.z, S.z, P, tw, ang);
     vec3 w = sHweights3(a.c.a, (1.0 - m1) * (1.0 - m2), b.c.a, m1 * (1.0 - m2), c.c.a, m2, uSHex.x);
     o.c = a.c * w.x + b.c * w.y + c.c * w.z; o.n = a.n * w.x + b.n * w.y + c.n * w.z;
     return o;
   }
+  Smp sTriplet(vec4 A, vec4 S, vec3 P, vec3 tw, float ang, float m1, float m2){
+    Smp a = sSet(A.x, S.x, P, tw, ang);
+    if (A.y < 0.0) return a;
+    Smp b = sSet(A.y, S.y, P, tw, ang);
+    Smp c = b;
+    if (A.z >= 0.0) c = sSet(A.z, S.z, P, tw, ang);
+    return sBlend(A, a, b, c, m1, m2);
+  }
+  bool sSame(float l1, float s1, float l2, float s2){ return l1 == l2 && abs(s1 - s2) < 1e-4; }
+  // THE DETAIL BAND, SHARED (PERF 2026-09-23): between detailFrom and detailTo (150-900 m) a pixel blends the
+  // near triplet and the far one, and was sampling both whole - six sets, each hex-tiled (3 fetches) in both
+  // arrays and triplanar on a slope. But a far set is very often a near one (a null far set falls back to the
+  // near set, and the recipe reuses its sets: forest, old forest, sand, snow, shingle and dense scrub have a far
+  // triplet IDENTICAL to the near, heath and scrub share two of three). A set sampled at the same layer and scale
+  // at the same point is the same sample: take it once. The same pixels, bit for bit up to the sum's order.
+  Smp sBand(vec4 A, vec4 S, vec4 F, vec4 FS, vec3 P, vec3 tw, float ang, float m1, float m2, float fw){
+    Smp a0 = sSet(A.x, S.x, P, tw, ang), a1 = a0, a2 = a0;
+    if (A.y >= 0.0) { if (sSame(A.y, S.y, A.x, S.x)) a1 = a0; else a1 = sSet(A.y, S.y, P, tw, ang); }
+    if (A.y >= 0.0 && A.z >= 0.0) { if (sSame(A.z, S.z, A.x, S.x)) a2 = a0; else if (A.y >= 0.0 && sSame(A.z, S.z, A.y, S.y)) a2 = a1; else a2 = sSet(A.z, S.z, P, tw, ang); }
+    Smp f0, f1 = a0, f2 = a0;
+    if (sSame(F.x, FS.x, A.x, S.x)) f0 = a0;
+    else if (A.y >= 0.0 && sSame(F.x, FS.x, A.y, S.y)) f0 = a1;
+    else if (A.y >= 0.0 && A.z >= 0.0 && sSame(F.x, FS.x, A.z, S.z)) f0 = a2;
+    else f0 = sSet(F.x, FS.x, P, tw, ang);
+    if (F.y >= 0.0) {
+      if (sSame(F.y, FS.y, F.x, FS.x)) f1 = f0;
+      else if (sSame(F.y, FS.y, A.x, S.x)) f1 = a0;
+      else if (A.y >= 0.0 && sSame(F.y, FS.y, A.y, S.y)) f1 = a1;
+      else if (A.y >= 0.0 && A.z >= 0.0 && sSame(F.y, FS.y, A.z, S.z)) f1 = a2;
+      else f1 = sSet(F.y, FS.y, P, tw, ang);
+    }
+    if (F.y >= 0.0 && F.z >= 0.0) {
+      if (sSame(F.z, FS.z, F.x, FS.x)) f2 = f0;
+      else if (sSame(F.z, FS.z, F.y, FS.y)) f2 = f1;
+      else if (sSame(F.z, FS.z, A.x, S.x)) f2 = a0;
+      else if (A.y >= 0.0 && sSame(F.z, FS.z, A.y, S.y)) f2 = a1;
+      else if (A.y >= 0.0 && A.z >= 0.0 && sSame(F.z, FS.z, A.z, S.z)) f2 = a2;
+      else f2 = sSet(F.z, FS.z, P, tw, ang);
+    }
+    Smp n = sBlend(A, a0, a1, a2, m1, m2), f = sBlend(F, f0, f1, f2, m1, m2), o;
+    o.c = (1.0 - fw) * n.c + fw * f.c; o.n = (1.0 - fw) * n.n + fw * f.n;
+    return o;
+  }
   Smp sMat(int i, vec3 P, vec3 tw, float seaAng, float fw, float slope){
     vec4 A = uSMatA[i]; vec4 S = uSMatS[i]; vec4 M = uSMatM[i];
+    // THE BLEND'S DEPTH, A DIAL (PERF 2026-09-23): a type's 2nd and 3rd sets are its dearest pixels (each set hex-tiled,
+    // colour + normal, triplanar on a slope: one set per type measured 8-10 ms cheaper at 5120 x 1440). uSNearN 1 =
+    // one set everywhere (the lower tiers), uSFarN 1 = one set past the detail fade, where a blotch is a few pixels
+    if (uSNearN < 1.5) { A.y = -1.0; A.z = -1.0; }
     Smp o; o.c = vec4(0.5, 0.5, 0.5, 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
     if (A.x < 0.0) return o;
     float ang = A.w > 0.5 ? seaAng : 0.0;
@@ -149,16 +202,39 @@ const SPLAT_GROUND = (() => {
     float m2 = A.z >= 0.0 ? gfMixK(P.xz + vec2(101.0, -77.0), period * 1.61, 0.52 - M.w, sharp) : 0.0;
     vec4 F = uSMatF[i], FS = uSMatFS[i];
     if (F.x < 0.0) { F.x = A.x; FS.x = S.x; } if (F.y < 0.0) { F.y = A.y; FS.y = S.y; } if (F.z < 0.0) { F.z = A.z; FS.z = S.z; }
-    o.c = vec4(0.0); o.n = vec4(0.0);
-    if (fw < 0.999) { Smp t = sTriplet(A, S, P, tw, ang, m1, m2); o.c += (1.0 - fw) * t.c; o.n += (1.0 - fw) * t.n; }
-    if (fw > 0.001) { Smp t = sTriplet(F, FS, P, tw, ang, m1, m2); o.c += fw * t.c; o.n += fw * t.n; }
+    if (uSFarN < 1.5) { F.y = -1.0; F.z = -1.0; }
+    if (fw <= 0.001) o = sTriplet(A, S, P, tw, ang, m1, m2);
+    else if (fw >= 0.999) o = sTriplet(F, FS, P, tw, ang, m1, m2);
+    else o = sBand(A, S, F, FS, P, tw, ang, m1, m2, fw);
     vec4 V = uSVary[i];
     if (V.y > 0.0 || V.x > 0.0) { vec2 gf = gfShade(P.xz, V.z); o.c.rgb = gfHueTurn(o.c.rgb, gf.x * V.x) * (1.0 + gf.y * V.y); }
     gSRel = gLuma(o.c.rgb) / max(uSLum[int(A.x + 0.5)], 1e-3);   // the texel over its set's mean: the texture alone, no set colour
     if ((i == 3 || i == 7) && uSPud.y > 0.0) {   // the pools: muskeg AND scrub (the user, 2026-09-21: the scrub is the muskeg)
-      float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, uSPud.z);
-      o.c.rgb = mix(o.c.rgb, vec3(0.022, 0.030, 0.034), m);   // still water, linear
-      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m);
+      // A POND IS A SHORE AND A MARGIN, NOT A SPOT (the user, 2026-09-23, from 400 m
+      // over the strip: "puddles just look too harsh seen from there. They look like
+      // speckles on a surface, not like puddles"). Two reasons it read as a speckle:
+      //   THE SHORE WAS UNDER A PIXEL. pudEdge is 0.01 noise units = 1.33 m of ground,
+      //   which is right at walking distance and invisible at altitude, so the mask's
+      //   0..1 ramp fell inside one pixel and every pond had a hard, aliasing rim.
+      //   uSPud2.x widens it with distance (the 0.5 contour is fixed - the ramp is
+      //   centred on the threshold - so the pond neither grows nor shrinks).
+      //   AND IT HAD NO MARGIN. Real muskeg water sits in a wet hollow: peat-stained
+      //   shallows over the bed, then open water. uSPud2.y is where the open water
+      //   starts in the mask; under it the ground's own colour goes dark and wet and
+      //   KEEPS ITS ROUGHNESS, so only the middle of a pond is a mirror.
+      // BOTH RIDE THE SAME DISTANCE TERM, and both are ZERO at the eye: a pond you
+      // taxi past keeps the hard shoreline and the open water it has today (which is
+      // what it looks like from the bank), and only the pond a kilometre off becomes
+      // a soft wet hollow. The complaint was about altitude; the close view was not
+      // broken and must not be traded away to fix it.
+      float pd = distance(P.xz, cameraPosition.xz);
+      float far = clamp(pd / 500.0, 0.0, 1.0);
+      float e = uSPud.z * (1.0 + uSPud2.x * far);
+      float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, e);
+      float rim = uSPud2.y * far;
+      float deep = rim > 0.001 ? smoothstep(rim, 1.0, m) : 1.0;
+      o.c.rgb = mix(o.c.rgb, mix(o.c.rgb * uSPud2.z, vec3(0.022, 0.030, 0.034), deep), m);   // still water, linear
+      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m * deep);
     }
     return o;
   }
@@ -171,6 +247,7 @@ const SPLAT_GROUND = (() => {
   // THE SPLAT: macro = the stack's colour (lit by the game's sun after)
   vec3 sSplat(vec3 macro, vec3 nGeo, float canopy, vec2 uv, float sd, float lsd){
     gSN = vec3(0.0); gSRough = 0.9;
+    gSPixM = max(length(fwidth(vWPi.xz)), 1e-4);   // here, before any branch: the derivative is the whole quad's
     vec2 xz = vWPi.xz, p = xz;
     float slope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
     if (uSSplit2.z > 0.0) { vec2 q = xz / 23.0; p += (vec2(gVnoise(q), gVnoise(q + 77.0)) - 0.5) * 2.0 * uSSplit2.z; }
@@ -209,10 +286,15 @@ const SPLAT_GROUND = (() => {
     vec3 tw = vec3(0.0, 1.0, 0.0);
     if (uSDist2.z > 0.5) { vec3 a = pow(abs(nGeo), vec3(uSDist2.z)); tw = a / (a.x + a.y + a.z); }
     vec4 C[8]; vec4 NN[8]; float Wt[8]; float Rl[8]; int n = 0; float ma = -10.0;
+    // NO CONTINUE IN THIS LOOP (PERF 2026-09-23): ANGLE's D3D back end makes a gradient-free copy ('Lod0',
+    // SampleLevel 0) of every function that samples a texture when it is called inside a loop holding a break or
+    // a continue - the splat's every set was read at MIP 0 at every distance: shimmer, and a texture cache blown
+    // on every ground pixel past a few hundred metres. The same test as an if-block keeps the derivatives.
     for (int i = 0; i < uSNCode; i++) {
-      if (w[i] < 0.004 || n >= uSNCand) continue;
-      Smp m = sMat(i, vWPi, tw, seaAng, fw, slope);
-      C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; Rl[n] = gSRel; ma = max(ma, m.c.a + w[i]); n++;
+      if (w[i] >= 0.004 && n < uSNCand) {
+        Smp m = sMat(i, vWPi, tw, seaAng, fw, slope);
+        C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; Rl[n] = gSRel; ma = max(ma, m.c.a + w[i]); n++;
+      }
     }
     ma -= uSSeam.x;
     vec3 col = vec3(0.0); vec4 nrm = vec4(0.0); float tot = 0.0, rel = 0.0;
@@ -346,7 +428,16 @@ const SPLAT_GROUND = (() => {
       // gain turned the boulders green-blue. Rock, cliff, shingle, sand, dirt take ONE luminance gain,
       // floored at 0.5 (the muskeg reference shows its boulders pale tan, not dark); the vegetation
       // sets take the imagery's colour.
-      const MINERAL = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble|beach|coast[A-Za-z]*|dirt|snowAir)$/;
+      // AND `mud` IS A MINERAL SURFACE (2026-09-23, the user on the Jumbo Mine shot: "the rock assets
+      // have been fully colored green and they look real bad ... revert at least for this texture").
+      // It was left out of the list above and it is the worst offender of all: measured on Jolene its
+      // gain is 0.29/0.55/0.29 - the green channel nearly twice the other two, a GREEN PULL OF 1.92,
+      // which turns bare peat and dirt the colour of algae. It matters more than any other set because
+      // it is the FIRST (0.6 weight) set of muskeg AND scrub and the second of forest, so it is most of
+      // the ground the eye sees between the trees. With it on the luminance path the rock-and-dirt
+      // surfaces all keep their hue and only the vegetation sets take the imagery's colour, which is
+      // what the rule was for.
+      const MINERAL = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble|beach|coast[A-Za-z]*|dirt|mud|snowAir)$/;
       for (const k in num) {
         const g = num[k].map(v => v / den[k]);
         if (MINERAL.test(k)) { const L = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; const l = Math.min(2.5, Math.max(0.5, L)); out[k] = [l, l, l]; }
@@ -360,6 +451,7 @@ const SPLAT_GROUND = (() => {
     // ?splat=0: the ground without the splat's code at all (a clean A/B, and the compile-time control)
     try { if (/[?&]splat=0/.test(location.search)) return null; } catch (e) {}
     const R = load();
+    const BLEND = { from: 0, to: 0 };   // the GRAPHICS row's detail fade (0 = the recipe's), kept over a knob re-apply
     if (R.knobs.albedoNorm === undefined) R.knobs.albedoNorm = RECIPE.knobs.albedoNorm === undefined ? 1 : RECIPE.knobs.albedoNorm;
     R.norm = isla ? normGains(isla, R) : {};
     if (!R.macroExpSaved && isla) { const auto = autoExposure(isla, R); R.knobs.macroExp = +(auto + (1 - auto) * R.knobs.albedoNorm).toFixed(2); }
@@ -378,7 +470,9 @@ const SPLAT_GROUND = (() => {
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
       uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
-      uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() },
+      uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() },
+      uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
+      uSHexPx: { value: 0 },   // the hex cut's dial: 0 = hex everywhere (see sSet)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
     };
@@ -406,12 +500,14 @@ const SPLAT_GROUND = (() => {
         U.uSLum.value[i] = Math.max(1e-3, 0.2126 * mn[0] * c.r + 0.7152 * mn[1] * c.g + 0.0722 * mn[2] * c.b); });
       U.uSSplit.value.set(K.cliffLo, K.cliffHi, K.oldLo, K.oldHi);
       U.uSSplit2.value.set(K.denseLo, K.denseHi, K.splatWobble, K.splatBlend);
-      U.uSDist.value.set(K.detailFrom, K.detailTo, K.macroFrom, K.macroTo);
+      U.uSDist.value.set(BLEND.from || K.detailFrom, BLEND.to || K.detailTo, K.macroFrom, K.macroTo);   // the blend row may pull the detail fade in (blend below)
       U.uSDist2.value.set(K.macroMix, K.macroNear, K.triK, K.macroLum === undefined ? 0 : K.macroLum);
       U.uSHex.value.set(K.hDepth, K.hexOn, K.hexN, K.hexRot * Math.PI / 180);
       U.uSSeam.value.set(K.seamDepth, K.macroExp);
       U.uSNrm.value.set(K.nrmK, K.sheen === undefined ? 1 : K.sheen);   // (.y was the bench's specK, unused in the game; the game's lever is `sheen`)
       U.uSPud.value.set(K.pudCell, K.pudCover, K.pudEdge, K.pudSlope);
+      // the pond's shore at altitude and where its open water starts (2026-09-23)
+      U.uSPud2.value.set(K.pudFar === undefined ? 0 : K.pudFar, K.pudRim === undefined ? 0 : K.pudRim, K.pudWet === undefined ? 0.5 : K.pudWet, 0);
       U.uSLakeE.value.set(K.lakeEdge, 1);
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
@@ -427,6 +523,11 @@ const SPLAT_GROUND = (() => {
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
+      // the sets a type blends and where its near sets give way to the far one (GRAPHICS 'ground blend', PERF 2026-09-23):
+      // from / to 0 = the recipe's detailFrom / detailTo. 'lean far' pulls the fade in to 100-400 m: with one far set,
+      // the screenshots at 30 / 100 / 300 m showed no difference from the recipe's 150-900 m, and 1-2 ms more came back
+      blend: (near, far, from, to) => { U.uSNearN.value = near; U.uSFarN.value = far; BLEND.from = from || 0; BLEND.to = to || 0;
+        const K = R.knobs; U.uSDist.value.x = BLEND.from || K.detailFrom; U.uSDist.value.y = BLEND.to || K.detailTo; return [near, far, U.uSDist.value.x, U.uSDist.value.y]; },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },

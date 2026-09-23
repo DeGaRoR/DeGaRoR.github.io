@@ -724,6 +724,46 @@ re-origin to the footprint's centre on the ground, mesh decimation to the
 budgets above (quadric edge collapse; no vertex moved to a new position), and
 the base-colour maps re-encoded at 1024 px JPEG.
 
+## The animals (`assets/animals/`, baked and served from media/)
+
+Six rigged, animated animals for Jolene (2026-09-22): three land animals with
+their own clip libraries, two whales and a gull. Declared in
+`tools/animals_table.py`, baked by `tools/animal_prep.py` into
+`src/animals/<key>_animal.js` + `media/geo/animals/` + `media/tex/animals/`,
+and their static LEVELS cut by `tools/animal_lod.js` into
+`src/animals/animals_lods.js` + `media/geo/animal_lod/`. GATE ANIMALS
+(`tools/_animal_check.js`) holds the table against the payload.
+
+**Sketchfab, CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/) —
+attribution is a condition of the licence and must stay visible wherever
+these are shown:
+
+- `bear` — **"Realistic Animated Bear 3D Model"** by WildMesh 3D
+  (https://skfb.ly/pwvXN) - 7 508 triangles, 37 joints, 81 delivered clips
+- `elk` — **"Realistic Animated Elk 3D Model"** by WildMesh 3D
+  (https://skfb.ly/pFGDA) - 7 886 triangles, 38 joints, 53 delivered clips
+- `doe` — **"Realistic Animated Doe 3D Model"** by WildMesh 3D
+  (https://skfb.ly/pKFFs) - 5 216 triangles, 38 joints, 55 delivered clips
+- `bird` — **"Bird"** by Blender Artist
+  (https://sketchfab.com/3d-models/bird-e93a906eb38343c4a14458a637136329)
+  - 810 triangles, 435 vertices as the listing states: five gulls in one
+  file, of which ONE is baked - 162 triangles a bird, 10 joints, one
+  0.67 s flap
+- `whale` — **"Blue Whale - Textured"** by Bohdan Lvov
+  (https://skfb.ly/67RFV) - 2 424 triangles, 24 joints, one swim loop
+- `orca` — **"Killer Whale"** by Trouvaille
+  (https://skfb.ly/6SI7C) - 3 072 triangles, 12 joints, one swim loop
+
+Modifications made, as CC-BY asks to be indicated: a uniform scale per animal
+(each export arrives in its own unit; the baker measures the rest mesh and
+scales it to a declared real length - a bear at 2.20 m, a blue whale at 25 m),
+the delivered clips resampled onto a uniform grid at 10-24 fps with the root's
+travel extracted so the game drives the world position, mesh decimation for
+the levels only (quadric edge collapse on a posed copy; no vertex moved to a
+new position, the base mesh untouched), the base-colour and normal maps
+re-encoded at 1024 px, and for the gull the selection of ONE of the five birds
+the file holds. No geometry of any delivered mesh was edited.
+
 ## Design-tile silhouettes (the birth flow)
 
 - **What**: the inline SVG silhouettes and glyphs on the macro-row tiles
@@ -1009,12 +1049,19 @@ signs on a clear ground (`assets/billboards/signs_sheet_1.png`), cut by
 General Store, Tidal Cup Cafe, Bear Coast Tours, Sitka Spruce Lumber, North
 Channel Motel, Tongass Marine Supply. No third-party licence applies.
 
-## The world's data — Jolene Island (`assets/island/raw/jolene/`, baked to `bench/jolene/` today; the shipped asset will live in media/)
+## The world's data — Jolene Island (raw in `assets/island/raw/jolene/` (local, gitignored); SHIPPED as `media/world/jolene/`)
 
 Jolene Island is Annette Island, Southeast Alaska, taken whole from public
-data and renamed (`futureDesigns/ISLAND-ANNETTE.md`). Nothing from this list
-ships yet (2026-09-14: the bench only); when the baked world asset lands in
-`media/`, this section is its attribution.
+data and renamed (`futureDesigns/ISLAND-ANNETTE.md`). **This section is that
+asset's attribution.** The world ships since 2026-09-23: `tools/world_prep.js`
+takes the seventeen layers the game reads out of the local bench bake, gzips
+them under content-hashed names into `media/world/jolene/` (~35 MB), and names
+every one in `src/core/world_packs.json`. The ~7 GB of raw USGS and ESA
+downloads underneath remain local and gitignored — a build input, never
+published; `tools/island_fetch.js` re-fetches them, listing by listing.
+
+GATE WORLD checks that each source named below still has its line here, so a
+layer cannot lose its credit quietly.
 
 - **Elevation** — USGS 3DEP Alaska IFSAR 5 m DTM (GeoSAR, Fugro EarthData
   for USGS, 2012). **US federal public domain**; USGS asks for citation as a

@@ -118,7 +118,25 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              the one steel material, 19 KB, on a master already at 8.391 after G490's far forest,
 //              G493's rock map and G496's deadwood. It carries no texture at all (vertex colour),
 //              so nothing of it is media.
-const BUDGET_MIB = 8.5;
+//   8.5 -> 8.7 (G503, the climate, 2026-09-22): the wind field and its picture are code -
+//              src/core/09_climate.js is the field itself (49 KB: the legacy column carried in
+//              verbatim, the linearised sampler, the relief raster, the terrain terms, the
+//              thermals and the breeze), src/viewer/weather_ui.js the panel both rails mount
+//              (17 KB) and src/viewer/climate_link.js the one per-frame ask (8 KB), plus the
+//              layered atmosphere and the day's front. Measured 8.44 -> 8.55 MiB on the LF
+//              build against a master that already carried G498's animals, and the same
+//              +0.11 against the 8.42 master this was first measured on - the growth is the
+//              code, not the base it lands on. The headroom is the usual worktree CRLF
+//              margin. It carries NO asset:
+//              the data: payload is unmoved at 118 KB of the 400 it is allowed, which is the
+//              tripwire this budget exists for.
+//   8.7 -> 8.8 (G525, the tramway, 2026-09-23): master had grown to 8.699 MiB since (G504-G524:
+//              the scenery life, the lakes, the mirror) and sat 589 bytes under the line, so the
+//              next session's code was always going to cross it; G525 adds 5.7 KB of CODE (the
+//              altiport's rules in 27_premises.js, its landing and departure in 43_pilot.js, the
+//              lit cabins and the link's speed row) - 8.699 -> 8.705. It carries NO asset: the
+//              data: payload is unmoved at 118 KB of its 400.
+const BUDGET_MIB = 8.8;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;
@@ -183,6 +201,15 @@ function manifestFiles() {
       .filter(f => /_(?:char|anim)\.js$/.test(f))
       .map(f => path.join(ROOT, 'src', 'chars', f))
     : [];
+  // the animals (2026-09-22): the baked skins and their clip libraries, plus
+  // the levels pack tools/animal_lod.js cuts - every manifest on disk, the
+  // same catalogue-not-publish-list reasoning as the models above
+  // (media/geo/animals, media/geo/animal_lod, media/tex/animals/<key>)
+  const animals = fs.existsSync(path.join(ROOT, 'src', 'animals'))
+    ? fs.readdirSync(path.join(ROOT, 'src', 'animals'))
+      .filter(f => f.endsWith('.js'))
+      .map(f => path.join(ROOT, 'src', 'animals', f))
+    : [];
   // the baked trees (W0b): one manifest, listing one bin per collection
   const trees = fs.existsSync(path.join(ROOT, 'src', 'core', 'trees_pack.json'))
     ? [path.join(ROOT, 'src', 'core', 'trees_pack.json')] : [];
@@ -190,7 +217,13 @@ function manifestFiles() {
   // user's captures into media/tex/shots and names them in this manifest
   const shots = fs.existsSync(path.join(ROOT, 'src', 'viewer', 'shots_pack.json'))
     ? [path.join(ROOT, 'src', 'viewer', 'shots_pack.json')] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, trees, shots);
+  // the shipped worlds: one manifest per repository, naming every gzipped
+  // payload of every island under media/world/<id> - baked by
+  // tools/world_prep.js out of the gitignored bench/. Jolene is the default
+  // map and until this landed none of its data was in git at all.
+  const worlds = fs.existsSync(path.join(ROOT, 'src', 'core', 'world_packs.json'))
+    ? [path.join(ROOT, 'src', 'core', 'world_packs.json')] : [];
+  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin)/g;   // webp: LOADING S4's texture prep

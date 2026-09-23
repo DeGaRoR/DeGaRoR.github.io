@@ -208,6 +208,21 @@ console.log('6. COVERAT - what the cover ring may plant');
   const bad = P.CLASSES.filter(c => PG.PAVE_BAND[c] !== P.CLASS_DEF[c].band);
   verdict(bad.length === 0, 'PAVE_BAND (the core) equals CLASS_DEF.band (the viewer) for every class' + (bad.length ? ': ' + bad.join(', ') : ''));
   verdict(Math.abs(PG.PAVE_FADE - P.RECIPE.fadeW) < 1e-9, `PAVE_FADE ${PG.PAVE_FADE} = the recipe's fadeW ${P.RECIPE.fadeW}`);
+  // the record's validator must know exactly the knobs a `pav` may carry, or a misspelt key is read,
+  // ignored and never reported (the Metlakatla session, 2026-09-23: "a typo in the key would not be caught")
+  { const want = P.ENTRY_KNOBS.concat(['marks']).sort(), got = PG.PAV_KEYS.slice().sort();
+    verdict(want.join() === got.join(), `PAV_KEYS (the core's validator) = ENTRY_KNOBS + marks (the viewer's): ${got.join(' ')}`);
+    verdict(PG.PAV_MARKS.join() === 'auto,none,edges,centre', `pav.marks may say ${PG.PAV_MARKS.join(' | ')}`); }
+  // ---- 10 THE PARKING STANDS (v1.21): the apron's painted stands, and the same rule for their keys
+  { const S = P.standMarks({ n: 4, pitch: 10, lead: 8, bar: 3 }, 50);
+    verdict(S.rects.length === 8, `four stands paint eight rects (a lead-in line and a nose stop each): ${S.rects.length}`);
+    const us = S.rects.map(r => Math.min(r[0], r[1]));
+    verdict(Math.min.apply(null, us) >= 0, `every mark sits at a POSITIVE u about the polygon's centre (min ${f(Math.min.apply(null, us))}) - polyGeometry writes aPav.x = u + halfW, so a mark written about zero lands off the mesh`);
+    const vs = S.rects.filter((r, i) => i % 2 === 0).map(r => (r[2] + r[3]) / 2);
+    verdict(Math.abs(vs[1] - vs[0] - 10) < 1e-6 && Math.abs(vs[0] + vs[3]) < 1e-6, `the row is pitched 10 m and centred on the polygon: v ${vs.map(f).join(' ')}`);
+    verdict(S.rects.every(r => r[4] === 1), 'a stand is painted YELLOW (kind 1)');
+    const want = ['n', 'pitch', 'lead', 'bar', 'u0', 'vOff'].sort(), got = PG.STAND_KEYS.slice().sort();
+    verdict(want.join() === got.join(), `STAND_KEYS (the core's validator) = the knobs standMarks reads (the viewer's): ${got.join(' ')}`); }
   const j = require('./fixtures/island_jolene.json'), w0 = CORE.makeWorld(0), rec = PG.unwrap(j).rec, O = PG.compose(rec, w0, {});
   const F = O.frame, at = (lx, lz) => { const p = F.toWorld(lx, lz); return O.coverAt(p[0], p[1]); };
   const H = rec.layers.runways.find(r => r.id === 'HOME'), c = H.c, d = [Math.cos(H.hdg), Math.sin(H.hdg)], n = [-d[1], d[0]];
@@ -227,6 +242,34 @@ console.log('6. COVERAT - what the cover ring may plant');
   verdict(h0 && Math.abs(h0.kill - 0.6) < 1e-9 && h0.cls === 'grass', `the analytic HOME (a grass strip thins, never bare): ${JSON.stringify(h0)}`);
   let t0 = Date.now(); for (let i = 0; i < 100000; i++) O.coverAt(-300 + i % 400, 200 + (i * 7) % 400); const ms = Date.now() - t0;
   verdict(ms < 2000, `100 000 coverAt calls in ${ms} ms`);
+  // THE PAVE-ONLY PATH (2026-09-22): what the TREES ask - the pavement half, without the plot walk
+  { let dif = 0; for (let i = 0; i < 5000; i++) { const p = F.toWorld(-600 + (i % 300) * 4, 200 + ((i * 7) % 300) * 4);
+      const a2 = O.coverAt(p[0], p[1]), b2 = O.coverAt(p[0], p[1], 1);
+      if ((a2 ? a2.kill : 0) !== (b2 ? b2.kill : 0) || (b2 && b2.kind !== null)) dif++; }
+    verdict(dif === 0, 'coverAt(x, z, `pave`) gives the same kill and never a plot');
+    let t1 = Date.now(); for (let i = 0; i < 100000; i++) O.coverAt(-300 + i % 400, 200 + (i * 7) % 400, 1); const ms1 = Date.now() - t1;
+    verdict(ms1 < ms, `and is the cheaper call (${ms1} ms against ${ms}) - the tree fill runs it on every lattice point`); }
+  // THE TREES' CLEARANCE: a road refuses a tree well past its own edge (render_world's forestHere /
+  // openHere reject where kill > 0; before 2026-09-22 nothing in the tree fill asked about a road)
+  // EVERY PLANTER READS THE QUERY (2026-09-22). The law is one line in each; the failure it guards
+  // against is a planter being rewritten and quietly dropping it, which is exactly how the trees came
+  // to stand on the roads - the tufts obeyed coverAt from the day it landed and nothing else did.
+  { const slice = (file, from, to) => { const t = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+      const i = t.indexOf(from); if (i < 0) return null; const j = t.indexOf(to, i); return j < 0 ? null : t.slice(i, j); };
+    const planters = [
+      ['the forest fill / stand cards / colour bake', 'src/viewer/render_world.js', 'const forestHere = (x, z, sc) => {', '\n  };', /paved\s*\(/],
+      ['the open-ground fill', 'src/viewer/render_world.js', 'const openHere = (x, z) => {', '\n  };', /paved\s*\(/],
+      ['`paved` itself', 'src/viewer/render_world.js', 'const paved = (x, z) =>', '\n  const openHere', /coverAt\s*\(/],
+      ['the rocks and the debris (and the far rock map through it)', 'src/viewer/cover_ring.js', 'function placeRocks(', '\n      return made;', /coverAt\s*\(|\bkill\b/],
+    ];
+    for (const [what, file, from, to, re] of planters) {
+      const body = slice(file, from, to);
+      verdict(!!body && re.test(body), `${what} keeps the pavement law (${file})`);
+    } }
+  { const rd = O.roads.find(r => r.id === 'v_shore_e') || O.roads[0], pr = PG.polyRoad(rd.pts, rd.w);
+    const A = pr.at(pr.length / 2); let clear = 0;
+    for (let v = 0; v <= 20; v += 0.25) { const p = F.toWorld(A.p[0] + A.n[0] * v, A.p[1] + A.n[1] * v); const c = O.coverAt(p[0], p[1], 1); if (c && c.kill > 0) clear = v; }
+    verdict(clear > rd.w / 2 + 5, `${rd.id} refuses a tree out to ${f(clear, 1)} m from its centreline (its edge is at ${f(rd.w / 2, 1)})`); }
 }
 
 // ---- 7. THE GUARDRAIL (2026-09-22) --------------------------------------------------
@@ -265,6 +308,16 @@ console.log('7. THE GUARDRAIL - the rule, the runs, the beam');
   verdict(GR.plan({ path: spot, w: 6, hAt: dip }).length === 0, `an ${GR.DEF.minRun} m rule drops a single 8 m dip`);
   verdict(GR.plan({ path: bend, w: 6, hAt: shelf, keep: () => false }).length === 0, 'keep() false forbids every run (a plot, a junction)');
   verdict(GR.plan({ path: bend, w: 2.5, hAt: shelf }).length === 0, `a road under ${GR.DEF.minW} m wide carries no rail (a track)`);
+  // THE WATER IS A FIELD: waterH(x, z) is the surface at that point and -Infinity where there is
+  // none. A flat road with a lake 12 m off its edge rails; the same road over dry ground does not.
+  { const shore = road(30, u => [u * 600, 0]);
+    const bed = (x, z) => (z > 8 ? -30 : 10);                       // the road on a bank, the lake bed 40 m down
+    const lake = (x, z) => (z > 8 && z < 400) ? 4 : -Infinity;      // filled to 4 m: the fall is 6 m, not 40
+    const dry = GR.plan({ path: shore, w: 6, hAt: bed });
+    const wet = GR.plan({ path: shore, w: 6, hAt: bed, waterY: lake });
+    verdict(dry.length === 1 && dry[0].drop > 35 && dry[0].rails === 2, `the bare bed reads a ${f(dry[0] && dry[0].drop, 0)} m fall and takes two beams`);
+    verdict(wet.length === 1 && Math.abs(wet[0].drop - 6) < 0.01 && wet[0].rails === 1, `filled, the same bank falls ${f(wet[0] && wet[0].drop, 2)} m to the WATER and takes one`);
+    verdict(dry[0].side === wet[0].side, 'and on the same side either way'); }
   // d) the switch
   const m = GR.build(THREE, { path: bend, w: 6, runs, heightAt: shelf });
   GR.setOn(false); const off = !m.visible;
@@ -278,6 +331,87 @@ console.log('7. THE GUARDRAIL - the rule, the runs, the beam');
   const all = GR.build(THREE, { path: bend, w: 6, mode: 'on', heightAt: shelf, hAt: shelf });
   verdict(all && all.userData.guardrail.runs === 2, "`rail: 'on'` rails both sides whole");
   GR.forget(all);
+}
+
+// ---- 8. THE POWER LINE (2026-09-22) -------------------------------------------------
+console.log('8. THE POWER LINE - the poles, the side, the cable');
+{
+  const PW = require('../src/viewer/powerline.js');
+  const straight = (n, len) => { const pts = []; for (let i = 0; i <= n; i++) pts.push([len * i / n, 0]); return PG.polyRoad(pts, 5); };
+  const road = straight(10, 600);
+  // a) the rule
+  verdict(PW.plan({ path: straight(4, 40), w: 5 }).poles.length === 0, `a road under ${PW.DEF.minLen} m carries no line`);
+  verdict(PW.plan({ path: road, w: 2.5 }).poles.length === 0, `nor one under ${PW.DEF.minW} m wide (a track)`);
+  const pl = PW.plan({ path: road, w: 5, seed: 4 });
+  const gaps = pl.poles.slice(1).map((q, i) => q.t - pl.poles[i].t);
+  const gMin = Math.min(...gaps), gMax = Math.max(...gaps);
+  verdict(pl.poles.length > 12 && gMin > PW.DEF.pitch - PW.DEF.jitter && gMax < PW.DEF.pitch + PW.DEF.jitter,
+    `${pl.poles.length} poles, every ${f(gMin, 1)}-${f(gMax, 1)} m (${PW.DEF.pitch} +- ${PW.DEF.jitter / 2})`);
+  const off = pl.poles.map(q => q.z);
+  verdict(off.every(v => Math.abs(v - off[0]) < 1e-6) && Math.abs(Math.abs(off[0]) - (2.5 + PW.DEF.offset)) < 1e-6,
+    `all on ONE side, ${f(Math.abs(off[0]), 2)} m off the centreline (the edge plus ${PW.DEF.offset})`);
+  const lamps = pl.poles.filter(q => q.lamp).length;
+  verdict(Math.abs(lamps - pl.poles.length / PW.DEF.lampEvery) <= 1, `a street lamp on every ${PW.DEF.lampEvery} (${lamps} of ${pl.poles.length})`);
+  // b) the side: a keep that refuses one verge pushes the line to the other
+  // the tie goes to -1 (the inland side), so a keep that refuses THAT verge must move the line to +1
+  const moved = PW.plan({ path: road, w: 5, seed: 4, keep: (x, z) => z < 0 });
+  verdict(pl.side === -1 && moved.side === 1 && moved.poles.length > 12 && moved.poles.every(q => q.z < 0),
+    `a keep that refuses the inland verge moves the line to the other (side ${pl.side} -> ${moved.side}, ${moved.poles.length} poles)`);
+  verdict(PW.plan({ path: road, w: 5, keep: () => false }).poles.length === 0, 'keep() false leaves the road bare');
+  // c) the hooks: three conductors across the crossarm and the service cable, all under the pole's top
+  const hk = PW.hooks({ x: 0, y: 10, z: 0, n: [0, 1], H: PW.DEF.H * PW.DEF.poleScale }, PW.D);
+  verdict(hk.length === PW.DEF.cond + PW.DEF.service, `${hk.length} wires a pole (${PW.DEF.cond} conductors and the service cable)`);
+  verdict(hk.every(h => h.p[1] < 10 + PW.DEF.H * PW.DEF.poleScale && h.p[1] > 10 + 6), `every hook over 6 m and under the pole's top (${f(PW.DEF.H * PW.DEF.poleScale, 2)} m)`);
+  verdict(Math.abs(hk[0].p[2] - hk[2].p[2]) > 0.5, `the conductors spread ${f(Math.abs(hk[0].p[2] - hk[2].p[2]), 2)} m across the crossarm`);
+  // d) the cable: it hangs, and it hangs BELOW the chord by about k x span
+  const g = PW.build(THREE, { path: road, w: 5, seed: 4, heightAt: () => 10,
+    place: q => { const o = new THREE.Object3D(); o.position.set(q.x, q.y, q.z); return o; } });
+  const U = g.userData.powerline;
+  verdict(U.poles > 12 && U.spans === U.poles - 1, `${U.poles} poles, ${U.spans} spans`);
+  const cables = g.children.filter(c => c.isMesh);
+  verdict(cables.length > 1 && cables.length < U.spans, `the cable in ${cables.length} meshes (a chunk every ${PW.DEF.chunk} spans, so the frustum can drop one)`);
+  let nan = 0, yLo = Infinity, yHi = -Infinity, r = 0;
+  for (const m of cables) { const q = m.geometry.attributes.position;
+    for (let i = 0; i < q.count; i++) { const y = q.getY(i); if (!Number.isFinite(y)) nan++; yLo = Math.min(yLo, y); yHi = Math.max(yHi, y); }
+    r = Math.max(r, m.geometry.boundingSphere.radius); }
+  verdict(nan === 0, 'no NaN in the cable');
+  const top = 10 + PW.DEF.H * PW.DEF.poleScale;      // the kit's pole stood at its real height
+  verdict(yHi < top && yLo > top - PW.DEF.servDrop - 1.5, `the cable between ${f(yLo, 2)} and ${f(yHi, 2)} m (the pole's top is ${f(top, 2)})`);
+  verdict(r < 400, `a chunk's bounding sphere is ${f(r, 0)} m (the road is 600)`);
+  // the sag, measured on the geometry: the lowest wire point of a span against its two hooks
+  { const A = PW.hooks(Object.assign({}, pl.poles[0], { x: 0, y: 10, z: 0 }), PW.D)[0];
+    const span = pl.poles[1].t - pl.poles[0].t, want = PW.DEF.sag * span;
+    const sagSeen = A.p[1] - yLo + 0; // the deepest point of the deepest (service) wire
+    verdict(want > 0.3 && want < 1.5, `a ${f(span, 0)} m span is drawn to hang ${f(want, 2)} m`); }
+  // e) the switches
+  verdict(PW.build(THREE, { path: road, w: 5, mode: 'off', heightAt: () => 10, place: () => null }) === null, "a road's `poles: 'off'` builds nothing");
+  PW.setOn(false); const off2 = !g.visible; PW.setOn(true);
+  verdict(off2 && g.visible, 'GRAPHICS > power lines hides every line, and shows them again');
+  PW.dispose(g);
+}
+
+// ---- 9. THE LANES AND THEIR PAINT (2026-09-23) -------------------------------------
+console.log('9. THE LANES - how many by width, and what is painted between them');
+{
+  const L = (w, cls) => P.lanesOf(w, cls);
+  verdict(L(3, 'asphalt') === 1 && L(4.5, 'asphalt') === 1, 'under 5.2 m a road is ONE lane (a single shared track)');
+  verdict(L(6, 'asphalt') === 2 && L(7.5, 'asphalt') === 2, 'a 6-7.5 m road is two lanes');
+  verdict(L(11, 'asphalt') === 3 && L(14, 'asphalt') === 4 && L(30, 'asphalt') === 6, `11 m -> 3, 14 m -> 4, 30 m -> ${L(30, 'asphalt')} (the cap)`);
+  verdict(L(6, 'gravel') === 2 && P.roadMarks(400, 6, 'gravel').rects.length === 0, 'a soft road has lanes but no paint');
+  const mid = P.roadMarks(400, 7, 'asphalt'), wide = P.roadMarks(400, 14, 'asphalt'), one = P.roadMarks(400, 4, 'asphalt');
+  const edges = m => m.rects.filter(r => r[4] === 0 && r[5] === 0), yellow = m => m.rects.filter(r => r[4] === 1), dash = m => m.rects.filter(r => r[5] > 0);
+  verdict(edges(mid).length === 2 && Math.abs(Math.abs((edges(mid)[0][2] + edges(mid)[0][3]) / 2) - (7 / 2 - 0.35)) < 1e-9,
+    'two solid white edge lines, 35 cm in from the pavement edge');
+  verdict(one.rects.length === 2 && yellow(one).length === 0, 'a single-lane road carries its edges and no centre line');
+  verdict(yellow(mid).length === 1 && yellow(mid)[0][5] === 12 && yellow(mid)[0][7] === 3 && Math.abs((yellow(mid)[0][2] + yellow(mid)[0][3]) / 2) < 1e-9,
+    'two lanes: one DASHED YELLOW down the middle, 3 m on and 9 m off');
+  verdict(yellow(wide).length === 2 && yellow(wide).every(r => r[5] === 0) && Math.abs(yellow(wide)[0][2] - yellow(wide)[1][2]) > 0.15,
+    'four lanes: a DOUBLE SOLID yellow between the directions');
+  verdict(dash(wide).filter(r => r[4] === 0).length === 2, 'and a white dashed divider between the lanes going the same way');
+  // the paint and the wear must agree about where a lane is: both call lanesOf
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src/viewer/pavement.js'), 'utf8');
+  verdict((src.match(/lanesOf\(/g) || []).length >= 3, 'lanesOf is the one lane rule (roadMarks and the uniform both call it)');
+  verdict(/polish \* 0\.8/.test(src) && /uRoad\.z/.test(src), "the paint wears where the traffic runs (the marks' keep takes the polish)");
 }
 
 console.log('GATE PAVEMENT: ' + (fails ? 'FAIL' : 'PASS'));

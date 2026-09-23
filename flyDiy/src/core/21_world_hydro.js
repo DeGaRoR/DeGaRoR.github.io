@@ -365,10 +365,19 @@ function bakeHydrology(sample, cfg) {
     if (_lw > 0.5 && _lws > ws) ws = _lws;
     return ws;
   }
+  // THE REACHES ALONE, without the depression fill's lake level (2026-09-23).
+  // `filled` is the priority flood's surface: for a basin whose outlet is
+  // narrower than a cell it is the RIM, not the water - on Jolene that put
+  // Skaters Lake's surface 6.09 m over its own bank and the island's biggest
+  // lake 10.14 m over its. That number is right for a lake this module FOUND
+  // (it filled it, it knows where it spills) and wrong for one HANDED IN by
+  // cfg.lakeOf, whose level is data. The island asks for this one instead and
+  // answers its own lakes from its records (20_world.js waterAt).
+  function riverWater(x, z) { scan(x, z); return _ws; }
 
   return {
     rivers, lakeCount, lakeCells, riverCells, segCount, lakeSurf,
-    carve, water, distW,
+    carve, water, riverWater, distW,
     // stage-1 grids for downstream stages (settlement scoring, roads):
     // row-major N×N over [x0,x1]×[z0,z1], cell centres at (i+0.5)·dx
     grids: { N, x0, z0, dx, dz, H, filled, sea, wet, lake, acc, claimed },

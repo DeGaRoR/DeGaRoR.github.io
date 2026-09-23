@@ -131,7 +131,7 @@ const STAND_CARDS = (() => {
       }
       const N = xs.length / 4;
       if (!N) { STAT.lastMs = performance.now() - t0; return null; }
-      const m = new THREE.InstancedMesh(quad, mat, N);
+      const m = new THREE.InstancedMesh(quad, mat, N); m.renderOrder = -1;   // an occluder before the ground (render_world.js ORDER_NOTE)
       const ox = x0 + C / 2, oz = z0 + C / 2; m.position.set(ox, 0, oz);
       m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3).fill(1), 3);
       for (let i = 0; i < N; i++) { V.set(xs[i * 4] - ox, xs[i * 4 + 1], xs[i * 4 + 2] - oz); SC.setScalar(xs[i * 4 + 3]); T.compose(V, Q, SC); m.setMatrixAt(i, T); }

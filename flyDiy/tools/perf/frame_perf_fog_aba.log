@@ -1,0 +1,24 @@
+  roll-out screen: gone after 37 s (a step timed out)
+frame_perf  ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)  [fog-aba]
+  installed · gpu timer true · gfx {"preset":"medium","aa":"msaa","density":100,"bands":"near","shadows":"full","canopy":"on","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","glare":"on","mist":"on","clouds":"half","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear","water":"full"}
+  stand   base0      full  frame   60.5 ms (p90 62.2; 60.7 under the timer) · gpu passes 59.12 ms · cpu world 2.22 ms · 5723 calls · 17.3 Mtris · GPU WAS 81 % BUSY BEFORE
+      scene 58.95 · shadow:maps 3.55×5.3 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   far1k5     full  frame   46.4 ms (p90 90.9; 42.2 under the timer) · gpu passes 39.8 ms · cpu world 2.57 ms · 4574 calls · 11.1 Mtris · GPU WAS 75 % BUSY BEFORE
+      scene 39.63 · shadow:maps 5.86×5.3 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   base1      full  frame   63.3 ms (p90 68.1; 65.5 under the timer) · gpu passes 64.41 ms · cpu world 2.89 ms · 5724 calls · 17.3 Mtris · GPU WAS 91 % BUSY BEFORE
+      scene 64.24 · shadow:maps 4.36×5.3 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   quads1k5   full  frame   57.4 ms (p90 66.5; 55.5 under the timer) · gpu passes 52.54 ms · cpu world 2.82 ms · 5720 calls · 11.3 Mtris · GPU WAS 70 % BUSY BEFORE
+      scene 52.37 · shadow:maps 4.38×5.3 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   base2      full  frame   63.5 ms (p90 65.4; 61.4 under the timer) · gpu passes 59.67 ms · cpu world 2.28 ms · 5723 calls · 17.3 Mtris · GPU WAS 95 % BUSY BEFORE
+      scene 59.5 · shadow:maps 2.98×5.3 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   combo1k5   full  frame   43.3 ms (p90 67.8; 54.6 under the timer) · gpu passes 49.08 ms · cpu world 3.01 ms · 4693 calls · 11.1 Mtris · GPU WAS 86 % BUSY BEFORE
+      scene 48.91 · shadow:maps 4.61×5.3 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   base3      full  frame   95.8 ms (p90 100; 95.9 under the timer) · gpu passes 94.74 ms · cpu world 2.3 ms · 5723 calls · 17.3 Mtris · GPU WAS 86 % BUSY BEFORE
+      scene 94.57 · shadow:maps 5.83×5.3 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   mistOff    full  frame  103.1 ms (p90 104.5; 103.1 under the timer) · gpu passes 101.1 ms · cpu world 2.09 ms · 5725 calls · 17.3 Mtris · GPU WAS 92 % BUSY BEFORE
+      scene 100.93 · shadow:maps 2.81×5.3 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   base4      full  frame   59.3 ms (p90 60.2; 59.1 under the timer) · gpu passes 57.64 ms · cpu world 1.93 ms · 5725 calls · 17.3 Mtris · GPU WAS 85 % BUSY BEFORE
+      scene 57.47 · shadow:maps 2.72×5.3 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  -> tools/perf/frame_perf_fog_aba.json
+
+exit 0

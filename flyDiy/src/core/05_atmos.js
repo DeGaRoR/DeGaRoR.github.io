@@ -50,6 +50,7 @@ const ATM = {
   G0: 9.80665,       // m/s2 standard gravity
   GAMMA: 1.4,
   HTROP: 11000,      // m   tropopause
+  LD: 0.0098,        // K/m DRY ADIABATIC - what the thermals stir the mixed layer to (K2)
 };
 // g0/(L R) = 5.25588. The density exponent is one less, and it is the one the
 // density-altitude inverse needs, so both are named rather than re-typed.
@@ -66,10 +67,56 @@ function makeAtmos(cfg) {
   const psl = c.qnhPa != null ? c.qnhPa : ATM.P0;
   const Tt = Tsl - ATM.L * ATM.HTROP;                       // tropopause temp
   const pt = psl * Math.pow(Tt / Tsl, ATM.EXP_P);           // and pressure
-  const T = h => (h <= ATM.HTROP ? Tsl - ATM.L * h : Tt);
-  const p = h => (h <= ATM.HTROP
+  // ---- THE LAYERED DAY (CLIMATE K2, 2026-09-22) -----------------------------
+  // A real convective day is NOT one lapse rate. The sun drives a MIXED LAYER
+  // that the thermals stir to the dry adiabatic 9.8 K/km, capped by an
+  // INVERSION (the lid a glider tops out under), and the free atmosphere above
+  // it returns to the standard 6.5. This branch builds that as a layer list and
+  // integrates each layer EXACTLY - p = p_b (T/T_b)^(g0/(L R)) where the layer
+  // lapses, p_b exp(-g0 dh/(R T_b)) where it does not - so the profile is
+  // continuous in T and in p by construction, and hydrostatic to machine
+  // precision inside every layer.
+  //
+  // BRANCH-FIRST, and that is the whole safety argument: a cfg naming NONE of
+  // lapse / mixH / inversion runs the four closed-form lines below exactly as
+  // they were written at G72. ATMOS_ISA is built through that path and so is
+  // every gate's air, and none of them can move.
+  //
+  // WHAT IS CHOSEN AND WHAT IS COMPUTED is unchanged: the day's two numbers
+  // (the sea-level temperature and the QNH) are still the only things chosen;
+  // mixH and the inversion are two more DECLARED facts about the same day,
+  // never a third way to set the density.
+  const layered = c.lapse === 'mixed' || c.mixH != null || c.inversion != null;
+  let T, p;
+  if (layered) {
+    const mixH = Math.max(50, c.mixH != null ? +c.mixH : 1200);
+    const inv = c.inversion || null;
+    const invT = inv && inv.thick > 0 ? +inv.thick : 0;
+    const invD = inv && inv.dT != null ? +inv.dT : 0;   // K gained across the lid (positive = a real inversion)
+    const LAY = [];
+    const push = (h0, T0, p0, L) => LAY.push({ h0, T0, p0, L });
+    const pAt = (ly, h) => (ly.L !== 0
+      ? ly.p0 * Math.pow((ly.T0 - ly.L * (h - ly.h0)) / ly.T0, ATM.G0 / (ly.L * ATM.R))
+      : ly.p0 * Math.exp(-ATM.G0 * (h - ly.h0) / (ATM.R * ly.T0)));
+    push(0, Tsl, psl, ATM.LD);                          // the mixed layer, stirred to the dry adiabatic
+    let hb = mixH, Tb = Tsl - ATM.LD * mixH, pb = pAt(LAY[0], mixH);
+    if (invT > 0) {
+      push(hb, Tb, pb, -invD / invT);                   // the lid: T RISES, so the lapse is negative
+      hb += invT; Tb += invD; pb = pAt(LAY[1], hb);
+    }
+    push(hb, Tb, pb, ATM.L);                            // the free atmosphere, the standard lapse
+    const top = LAY[LAY.length - 1];
+    const hTrop = Math.max(hb + 1, ATM.HTROP);
+    push(hTrop, top.T0 - top.L * (hTrop - top.h0), pAt(top, hTrop), 0);   // isothermal above the tropopause
+    const layAt = h => { let i = 0; while (i + 1 < LAY.length && h >= LAY[i + 1].h0) i++; return LAY[i]; };
+    T = h => { const ly = layAt(h); return ly.T0 - ly.L * (h - ly.h0); };
+    p = h => pAt(layAt(h), h);
+  } else {
+  T = h => (h <= ATM.HTROP ? Tsl - ATM.L * h : Tt);
+  p = h => (h <= ATM.HTROP
     ? psl * Math.pow((Tsl - ATM.L * h) / Tsl, ATM.EXP_P)
     : pt * Math.exp(-ATM.G0 * (h - ATM.HTROP) / (ATM.R * Tt)));
+  }
   // DENSITY AS A RATIO TO THE DATUM, not as p/(R T) — and the reason is the
   // whole invariant this file exists to protect. p0/(R T0) is 1.2250003, not
   // 1.225: ISA's sea-level density is a ROUNDED number, so computing it from
@@ -89,12 +136,71 @@ function makeAtmos(cfg) {
   // Pressure altitude: what the altimeter reads with 1013 set.
   const pressureAlt = h => (ATM.T0 / ATM.L) * (1 - Math.pow(p(h) / ATM.P0, 1 / ATM.EXP_P));
   return { dISA, Tsl, psl, T, p, rho, sigma, a, densityAlt, pressureAlt,
-           oatC: Tsl - 273.15 };
+           oatC: Tsl - 273.15,
+           // K2: the shape of the column (null when the day never named one)
+           layered, mixH: layered ? Math.max(50, c.mixH != null ? +c.mixH : 1200) : null };
 }
 
 // The standard day. Used wherever there is no world to ask — genShakedown builds
 // its sim with world = null, and a wind-tunnel probe must never be in weather.
 const ATMOS_ISA = makeAtmos({});
+
+// ---- THE WATER IN THE COLUMN (CLIMATE K2) -----------------------------------
+// atmosWater(atm, dewC, opts) -> { Td(h), rh(h), lcl } over an ALREADY BUILT
+// atmosphere. It is a separate function, and deliberately: humidity does not
+// change the density (dry air is a declared cut of this file, worth under 1 %
+// at 30 C), so it must not be able to rebuild the air. GATE DAY holds exactly
+// that invariant — moving the humidity leaves `world.atmos` the SAME OBJECT,
+// one temperature model and never two — and this shape keeps it true while
+// still letting the water be live.
+//
+// THE DEW POINT falls with height, but far more slowly than the temperature: a
+// well-mixed parcel keeps its water and its dew point drops about 1.8 K/km. So
+// the two converge, and where they MEET the air is saturated — that height is
+// the lifting condensation level, and it is the cloud base.
+//
+// THE LCL IS DERIVED HERE, NOT DECLARED. The day publishes a base by the
+// pilot's rule of 125 m per degree of spread (07_day.js), and under a MIXED
+// layer this reproduces it exactly rather than agreeing by accident: the
+// temperature falls 9.8 K/km, the dew point 1.8, the spread closes at 8 K/km —
+// one degree per 125 m. Where the column is not mixed the two differ, and the
+// difference is real: a 6.5 K/km free atmosphere closes the spread at 4.7 K/km
+// (213 m a degree), and an inversion widens it again, so a lid PUSHES THE
+// CROSSING UP (the 22/8 day whose mixed base is 1750 m reads 2735 under a
+// 2.5 K lid at 1400). That is the ambient column's own saturation height and
+// NOT a promise of cloud: whether a thermal can reach it is the lid's business,
+// and the thermal model tops its columns at the lower of the two. Null means
+// the spread never closes below 6 km at all.
+function atmosWater(atm, dewC, opts) {
+  const o = opts || {};
+  if (dewC == null) return { Td: () => null, rh: () => null, lcl: null, dewC: null };
+  const LD_TD = o.dewLapse != null ? +o.dewLapse : 0.0018;    // K/m, the dew point's own
+  const rhAloft = o.rhAloft != null ? +o.rhAloft : 0.5;
+  const MA = 17.625, MB = 243.04;                             // Magnus, as 07_day.js uses it
+  const rhOf = (tC, tdC) => Math.min(1, Math.max(0.01,
+    Math.exp(MA * tdC / (MB + tdC) - MA * tC / (MB + tC))));
+  const TdDry = h => dewC - LD_TD * h;
+  const spread = h => (atm.T(h) - 273.15) - TdDry(h);
+  const lcl = (() => {
+    if (spread(0) <= 0) return 0;                             // saturated at the surface: fog
+    let a = 0;
+    for (let h = 50; h <= 6000; h += 50) {
+      if (spread(h) <= 0) {
+        let lo = a, hi = h;
+        for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (spread(m) <= 0) hi = m; else lo = m; }
+        return (lo + hi) / 2;
+      }
+      a = h;
+    }
+    return null;
+  })();
+  const Td = h => (lcl == null || h <= lcl ? TdDry(h) : atm.T(h) - 273.15);
+  const rh = h => {
+    if (lcl == null || h <= lcl) return rhOf(atm.T(h) - 273.15, TdDry(h));
+    return 1 + (rhAloft - 1) * Math.min(1, (h - lcl) / 500);  // out of the cloud over 500 m
+  };
+  return { Td, rh, lcl, dewC };
+}
 
 // ---- what the powerplant does about it -------------------------------------
 // A NATURALLY ASPIRATED PISTON breathes the air, so its shaft power falls with

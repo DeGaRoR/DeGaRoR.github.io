@@ -136,4 +136,6 @@ function make(tram, cabs, opts) {
 
 const API = { ropeCurve, pose, dockT, make, upNormal, CAB_DEF };
 if (typeof window !== 'undefined') window.TRAM_RUN = API;
+// the node gate (and POWERLINE's cable, which takes its sag from here) reads it as a module too
+if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

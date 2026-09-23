@@ -636,6 +636,9 @@ def main():
     print(f"  wrote {out}.{{f32,{'u8,' if covers else ''}{''.join(l['file'][1:]+',' for l in layers.values())}json}}")
     print(f"\n  next:  node tools/terrain_bake.js --source grid "
           f"--grid {os.path.relpath(out, root)} --eps 4 --out bench/terrain/{args.island}")
+    # bench/ is the scratch; the world only SHIPS through the manifest bake
+    print(f"  then:  node tools/world_prep.js --island {args.island}"
+          f"      # bench/ -> media/world/{args.island}, then node tools/build.js")
 
 
 if __name__ == "__main__":

@@ -22,6 +22,68 @@ function makeWorld(seed, opts) {
   // the origin's lat/lon, the grid's convergence, the time zone); the analytic
   // world stands at Jolene's latitude with its -z as TRUE north (convergence 0).
   const GEO = (ISL && ISL.geo) || DAY.GEO_DEFAULT;
+
+  // (IT IS BUILT HERE, not beside waterAt: the world calls its own waterH while
+  // it is still being made - the premises stage does, in the game - and a `const`
+  // declared further down is in its temporal dead zone at that moment. The game
+  // threw "Cannot access 'lakeLevelAt' before initialization" and never rolled out;
+  // every node gate had passed, because a gate calls waterH after makeWorld returns.)
+  // A DATA LAKE'S SURFACE IS THE DATA'S (2026-09-23, reported by the Metlakatla
+  // session on Jolene's Skaters Lake: "waterH returns 16.19 while terrainH
+  // returns 10.09 and the lake declares level 10.1"). The island's lakes come
+  // from the DEM with a level each; the hydrology is HANDED them (cfg.lakeOf)
+  // so its reaches end at them, but its water surface for those cells stayed
+  // the priority flood's `filled` - the RIM of the basin where the outlet is
+  // narrower than a bake cell. Over 317 lakes that was a median of 1.10 m of
+  // error and 96 OF THEM (30 %) more than 3 m, up to 23.15 m. The renderer had
+  // already grown a guard against it (G460.11.7 discards a waterH sample more
+  // than 3 m off the declared level), so the lake was DRAWN right and the
+  // PHYSICS rode the rim: a floatplane on Skaters Lake floated 6.09 m over the
+  // water it was drawn on, and 23 m over the worst. The guard treated the
+  // symptom; this is the cause. Ruling ap stands - ONE surface, and it is the
+  // record's `level`.
+  //   THE WATERLINE IS WHERE THE BED CROSSES THE LEVEL, not where a rectangle
+  // ends: a record is a bounding box, so a point inside one is water only if
+  // the ground there is under the level. That also settles what a premises
+  // grade does near a bank - dig below the level and the cut is under water,
+  // honestly, because the lake does not follow the spade.
+  const lakeLevelAt = (() => {
+    const recs = (ISL && ISL.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
+    if (!recs.length) return null;
+    const CELL = 256, grid = new Map();
+    for (const L of recs)
+      for (let ix = Math.floor(L.x0 / CELL); ix <= Math.floor(L.x1 / CELL); ix++)
+        for (let iz = Math.floor(L.z0 / CELL); iz <= Math.floor(L.z1 / CELL); iz++) {
+          const k = ix + ',' + iz; let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(L);
+        }
+    // WHICH lake: the SMALLEST box that covers this point and whose level
+    // still stands over the ground here. A record is a bounding box, so a big
+    // low lake's box reaches across ponds on the hillside above it; the
+    // smallest box is the water you are actually standing in, and the bed test
+    // throws out the ones whose surface would be underground. (Measured on
+    // Jolene: taking the lowest level instead put 78 of 285 lakes on a
+    // neighbour's surface - a pond at 5.51 answered 2.67, the big lake below.)
+    // Returns the level, or -Infinity for dry ground; `covered` says whether a
+    // record reached this point at all, which is what tells a lake's BANK from
+    // ordinary land (see waterAt: on a bank the cover grid's WATER class must
+    // not be believed).
+    const out = { level: -Infinity, covered: false };
+    return (x, z, t) => {
+      out.level = -Infinity; out.covered = false;
+      const a = grid.get(Math.floor(x / CELL) + ',' + Math.floor(z / CELL));
+      if (!a) return out;
+      let bestA = Infinity;
+      for (let i = 0; i < a.length; i++) {
+        const L = a[i];
+        if (x < L.x0 || x > L.x1 || z < L.z0 || z > L.z1) continue;
+        out.covered = true;
+        if (L.level < t) continue;
+        const area = (L.x1 - L.x0) * (L.z1 - L.z0);
+        if (area < bestA) { bestA = area; out.level = L.level; }
+      }
+      return out;
+    };
+  })();
   const SALT = Math.imul(SEED, 0x9E3779B9);  // 0 for seed 0 — exact identity in hash2/LCG below
   const smf = t => t * t * (3 - 2 * t);
   const sstep = (a, b, t) => smf(Math.min(1, Math.max(0, (t - a) / (b - a))));
@@ -333,8 +395,8 @@ function makeWorld(seed, opts) {
   // coverAt (v1.17): the analytic roads by roadNear's distance (the road's own index), the analytic
   // strips by their box; the premises' answer wins where it has one
   const COV_FADE = 6, COV_BAND = 1.2;
-  function coverAt(x, z) {
-    if (PM && PM.coverAt) { const c = PM.coverAt(x, z); if (c) return c; }
+  function coverAt(x, z, pave) {
+    if (PM && PM.coverAt) { const c = PM.coverAt(x, z, pave); if (c) return c; }
     let kill = 0, boost = 0, cls = null;
     // the strips: a box test per aerodrome (fourteen at most; the bbox reject first)
     for (const a of aerodromes) {
@@ -483,10 +545,14 @@ function makeWorld(seed, opts) {
         if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
       if (nearMeadow) continue;
       if (HYD.water(x, z) > h) continue;
-      if (SET.roadNear(x, z) < 12) continue;   // clear of roads
+      if (SET.roadNear(x, z) < 12) continue;   // clear of roads (the ANALYTIC world's; SET is a stub on an island)
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
       if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
+      // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
+      // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
+      // collidable tree off a village street - the same law the grass obeys (contract v1.17)
+      if (PM && PM.coverAt) { const cv = PM.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > (ISL ? 0.85 : tp.p)) continue;
       const idx = trees.length;
@@ -523,15 +589,27 @@ function makeWorld(seed, opts) {
   // is a dry trench, not sea. surface is still the pre-biome minimum
   // (stages 2/5 refine ROCK/SCREE/etc.).
   function waterAt(t, x, z) {
-    const ws = HYD.water(x, z);
-    if (ws > t) return ws;
     if (ISL) {
-      // the island: the sea is the DEM at 0 (sea level does the edges), a
-      // lake is the cover's water class over land (the DEM holds it flat)
+      // the island: the sea is the DEM at 0 (sea level does the edges), a lake
+      // is its own record, a river is the hydrology's reach - and the fill's
+      // lake level is not asked for at all (21_world_hydro riverWater)
       if (t <= 0.05) return 0;
-      if (ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
+      let onBank = false;
+      if (lakeLevelAt) { const L = lakeLevelAt(x, z, t); if (L.level > -Infinity) return L.level; onBank = L.covered; }
+      const ws = ISL.hydro === 'proc' ? HYD.water(x, z) : HYD.riverWater(x, z);
+      if (ws > t) return ws;
+      // the cover's water class with no record behind it (a tidal flat, a pond
+      // the lake pass dropped): the DEM holds it flat, as it always did. NOT on
+      // a lake's bank, though - the cover grid is 10 m and the DEM is finer, so
+      // it calls a strip of bank WATER round most lakes, and believing it there
+      // floated 30 cm of water over ground the record itself says is dry land.
+      // Measured on Jolene: 78 of 285 lakes had every one of the renderer's five
+      // sample points on such a cell (2026-09-23).
+      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
       return -Infinity;
     }
+    const ws = HYD.water(x, z);
+    if (ws > t) return ws;
     if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
     return -Infinity;
   }
@@ -620,6 +698,60 @@ function makeWorld(seed, opts) {
       const k = 2 * Math.PI / l;
       SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph, felt: N === 2 || l >= SEA_FELT * L });   // the old pair is felt whole
     }
+    // ---- WHAT THE DRAW ACTUALLY WAS (CLIMATE K4) --------------------------
+    // Every row above is A, L and dir times something the seed drew: the
+    // amplitude is a coefficient times A, the wavelength a RATIO times L, the
+    // direction an offset from dir. Recording those three lets the sea be
+    // re-applied at a new (A, L, dir) without redrawing - which is what lets it
+    // follow a wind that moves instead of jumping every time one does.
+    //
+    // THE FELT FLAG IS THE RATIO'S, never an absolute wavelength, and that is
+    // load-bearing: waterH sums the felt band ALONE, so a train crossing the
+    // threshold mid-front would STEP the surface a float is riding. Decided
+    // once here, invariant under any later L. (The longest wind-sea component
+    // sits at ratio 0.671..0.757 against SEA_FELT 0.75 - right on the line.)
+    DRAW.n = N; DRAW.rows.length = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const [a, l, d] = rows[i];
+      DRAW.rows.push({ ca: A > 0 ? a / A : 0, ratio: l / L, dth: d - dir, felt: SEA.W[i].felt });
+    }
+  }
+  // the draw, kept so the sea can be re-applied without being redrawn
+  const DRAW = { n: 0, rows: [] };
+  // seaApply(A, L, dir, t0): the same draw at a new state. The temporal phase is
+  // held at t0 - phi' = phi + (om' - om) t0 - so the surface is CONTINUOUS IN
+  // TIME everywhere: at t0 every train reads exactly what it read a moment ago.
+  // It cannot also be continuous in SPACE, because k and the directions have
+  // moved; the far field slides at D x d(k.d)/dt along the ridge normal, which
+  // is ~0.17 rad/s at the near patch's edge and ~0.9 at a kilometre for a front
+  // relaxed over five minutes. The water's own LOD eats it: since G460.7 a
+  // wind-sea train fades out of the slope between 12 and 3 px of its own
+  // wavelength (the swell 6 to 2), so by a kilometre those ridges are drawn as
+  // roughness, and roughness has no phase to slide. If it ever shows at the
+  // hull, the remedy is an anchored phase - add (k' - k)(d . x_cg) - which makes
+  // it continuous AT THE AEROPLANE and pushes the slide outward.
+  function seaApply(A, L, dir, t0, ax, az) {
+    if (!DRAW.rows.length || !(A > 0) || !(L > 0)) { seaFrom(A, L, dir, DRAW.n || undefined); return; }
+    SEA.A = A; SEA.L = L; SEA.dir = dir;
+    ax = ax || 0; az = az || 0;
+    for (let i = 0; i < DRAW.rows.length; i++) {
+      const r = DRAW.rows[i], w = SEA.W[i];
+      const l = r.ratio * L, d = dir + r.dth, k = 2 * Math.PI / l, om = Math.sqrt(9.81 * k);
+      const dx = Math.cos(d), dz = Math.sin(d);
+      // THE PHASE IS ANCHORED AT THE AEROPLANE, not at the world's origin.
+      // Holding only the TIME term leaves the SPACE term free, and the space
+      // term is k times a distance: at four kilometres out, a wavelength moving
+      // by a percent turns the phase through several radians IN ONE TICK - a
+      // bigger step than the jump this was meant to remove (measured: 0.69 m
+      // against 0.28). Anchoring both terms at (ax, az) makes the surface
+      // continuous WHERE THE AEROPLANE IS - which is the only place a float can
+      // feel it - and pushes the slide outward, where the water's own LOD has
+      // already turned those ridges into roughness.
+      w.ph += (om - w.om) * (t0 || 0) + (w.k * (w.dx * ax + w.dz * az) - k * (dx * ax + dz * az));
+      w.A = r.ca * A; w.k = k; w.om = om;
+      w.dx = dx; w.dz = dz;
+      w.felt = r.felt;                                  // decided at the draw, never re-decided
+    }
   }
   function setSea(spec) {
     if (!spec) { seaFrom(0, 0, 0); return; }
@@ -688,74 +820,31 @@ function makeWorld(seed, opts) {
     return rec;
   }
 
-  // ---- wind field: steady vector + deterministic Dryden-ish gusts ----
-  // setWind({ base:[wx,wy,wz], gust:g }) — gusts are sums of incommensurate
-  // sines with spatial phase (advecting waves), amplitude g horizontal and
-  // 0.6*g vertical. Deterministic by construction: gates can rely on it.
-  // Default null: wind() returns the shared zero vector (fast path).
-  let windSpec = null;
-  const W0 = [0, 0, 0], WV = [0, 0, 0];
-  const GC = [ // [freq rad/s, kx, kz, phase, axis weight x,y,z]
-    [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
-    [1.37, 0.004, 0.013, 2.9, 0.55, 0.6, 1.0],
-    [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
-    [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
-  ];
-  // ---- THE SURFACE LAYER (G72) -------------------------------------------
-  // `y` has been an argument of wind() since the field was written and has
-  // never been read. It is read now: the ground drags on the air, so the wind
-  // near it is slower than the wind above it, and an aeroplane on final is in
-  // measurably different air from the one at circuit height.
-  //
-  // WHERE THE REPORTED WIND IS. A wind speed is meaningless without a height,
-  // and the height every anemometer, every windsock and every METAR means is
-  // 10 m. So `refH` says which height `base` was measured at, and the profile
-  // is the engineering power law u/uref = (z/zref)^alpha — the same one every
-  // wind-resource and building-code calculation uses, with alpha set by how
-  // rough the ground is (0.10 open water, 0.14 open grass, 0.20 scrub and
-  // trees). It is a fit, not a derivation, and it is a good one to about 200 m.
-  //
-  // A SPEC WITH NO refH IS A UNIFORM COLUMN, which is exactly the pre-G72 model
-  // and is what the fleet's whole wind calibration was measured in. That is a
-  // deliberate, declared boundary rather than a compatibility fudge: "no
-  // reference height" honestly means "we are not claiming to know where this
-  // wind was measured", and the only answer that does not invent information is
-  // to blow it everywhere equally. GATE WIND and the XCTY gates anchor to that
-  // column; the CONDITIONS presets and GATE HOTHIGH declare a refH and fly the
-  // profile. Re-anchoring the fleet battery onto sheared wind is named work,
-  // not a side effect of this one.
-  const WIND_TOP_H = 300;              // m agl: above this the profile has run out
-  const WIND_ALPHA = 0.14;             // open grassland, the default surface here
-  function shearK(x, y, z, refH, alpha) {
-    const agl = y - terrainH(x, z);
-    // a power law has no zero: floor the height rather than pretend it does.
-    const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
-    return Math.pow(h / refH, alpha);
-  }
-  function wind(x, y, z, t) {
-    if (!windSpec) return W0;
-    const b = windSpec.base, g = windSpec.gust || 0;
-    const k = windSpec.refH ? shearK(x, y, z, windSpec.refH, windSpec.alpha) : 1;
-    WV[0] = b[0] * k; WV[1] = b[1] * k; WV[2] = b[2] * k;
-    // the gusts ride the local wind, so they die out in the surface layer and
-    // grow in the shear instead of being the same everywhere from grass to
-    // circuit height
-    const gk = g * k;
-    if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
-      const s = Math.sin(om * t + kx * x + kz * z + ph);
-      WV[0] += gk * 0.30 * ax * s;
-      WV[1] += gk * 0.18 * ay * s;
-      WV[2] += gk * 0.30 * az * s;
-    }
-    return WV;
-  }
+  // ---- THE WIND: the climate's (09_climate.js, K0 2026-09-22) -------------
+  // The field the fleet was calibrated in (G72: base x power-law shear + the
+  // four gust sines, the exact zero W0 when nothing is set) moved there
+  // VERBATIM and is the whole field whenever the spec names no rich term; the
+  // terrain-following flow, the breeze, the thermals and the winds aloft are
+  // its rich terms. The day is made first: the climate's slow terms read it.
+  const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  const climate = CLIMATE.make({
+    terrainH, surface, SURFACE, bounds: BOUNDS, day, geo: GEO, seed: SEED,
+    atmos: () => airNow(),                    // the column, live (K2)
+    typeAt: ISL && ISL.ttype ? (x, z) => { const k = ISL.cellAt(x, z); return k < 0 ? -1 : ISL.ttype[k]; } : null,
+    coastAt: ISL ? ISL.coastAt : null,
+  });
+  const wind = climate.wind;
   function setWind(spec) {
-    windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0,
-                        refH: spec.refH || 0,
-                        alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA } : null;
+    const r = climate.setWind(spec);
     // ...and the sea follows the wind (H4, G393)
-    const b = windSpec ? windSpec.base : [0, 0, 0];
+    const b = r.base;
     const Wv = Math.hypot(b[0], b[2]);
+    seaTarget.A = Wv > 0.5 ? 0.018 * Wv : 0; seaTarget.L = 3 + 1.4 * Wv; seaTarget.dir = Math.atan2(b[2], b[0]);
+    // A SEA TAKES TIME (CLIMATE K4). With `seaTau` declared on the day the state
+    // is relaxed toward this target by the world's own tick instead of being
+    // rebuilt on the spot; at the default 0 it is rebuilt on the spot, which is
+    // exactly the line below and exactly what every gate has measured.
+    if (day.seaTau > 0 && SEA.A > 0) return;
     // THE WIND -> SEA LAW (G460.6): 0.018 m of amplitude per m/s, calibrated to the SMB fetch-limited
     // sea of a 10 km sound (H_s 0.26 m at 5 m/s, 0.5 at 10; A_equiv = H_s / 2.8) - G393's 0.04 was a
     // guess that put a 0.57 m significant sea under a 5 m/s breeze, and with a real spectrum (groups
@@ -763,6 +852,46 @@ function makeWorld(seed, opts) {
     seaFrom(Wv > 0.5 ? 0.018 * Wv : 0, 3 + 1.4 * Wv, Math.atan2(b[2], b[0]));
   }
 
+  const seaTarget = { A: 0, L: 10, dir: 0 };
+  // seaRelax(dtDay, simT): the sea walks toward the wind's target on the DAY's
+  // clock - the sea state is WEATHER, and weather is the slow clock's (the wave
+  // PHASE is the sim's, which is why t0 here is the sim time). A sea builds over
+  // tens of minutes and lies down more slowly still, so growth runs at tau and
+  // decay at 1.5 tau.
+  // HOW FAST A SEA MAY BUILD, and what it costs. A wave field whose wavelength
+  // is changing cannot be continuous everywhere at once - only at the anchor -
+  // so the residual motion near the craft is set by how fast L moves. MEASURED
+  // (a 5 -> 16 m/s step, the worst second within 150 m of the anchor):
+  //     tau  120 s   built in 15 min of day time   0.22 m/s   a visible wobble
+  //     tau  300 s   38 min                        0.10 m/s
+  //     tau  900 s   an hour+                      0.035 m/s  a smooth build
+  //     tau 1800 s                                 0.018 m/s
+  // So 900 is the honest default for a day that wants one: a sea that takes the
+  // better part of an hour to get up, which is what a sea does.
+  // The residual scales with the DAY's rate, as it must: at 60x the weather is
+  // moving sixty times faster, so the sea builds sixty times faster and the
+  // surface near the craft moves with it (0.30 m a frame at 600x against
+  // 0.035 at 1x). Sub-stepping the relaxation was tried and bought nothing
+  // measurable - the total change over a frame is the total change - so it is
+  // not here.
+  function seaRelax(dtDay, simT, ax, az) {
+    const tau = day.seaTau;
+    if (!(tau > 0) || !(dtDay > 0)) return false;
+    const gk = 1 - Math.exp(-dtDay / tau), dk = 1 - Math.exp(-dtDay / (1.5 * tau));
+    const k = seaTarget.A >= SEA.A ? gk : dk;
+    const A0 = SEA.A, L0 = SEA.L, d0 = SEA.dir;
+    let dd = seaTarget.dir - SEA.dir;                   // the shortest way round
+    while (dd > Math.PI) dd -= 2 * Math.PI;
+    while (dd < -Math.PI) dd += 2 * Math.PI;
+    const A = SEA.A + (seaTarget.A - SEA.A) * k;
+    const L = SEA.L + (seaTarget.L - SEA.L) * k;
+    const dir = SEA.dir + dd * k;
+    if (Math.abs(A - A0) < 1e-6 && Math.abs(L - L0) < 1e-5 && Math.abs(dir - d0) < 1e-6) return false;
+    if (!(A > 0)) { SEA.A = A; SEA.L = L; SEA.dir = dir; return true; }
+    if (!DRAW.rows.length || A0 <= 0) seaFrom(A, L, dir);   // the first sea of a calm day is a fresh draw
+    else seaApply(A, L, dir, simT || 0, ax, az);
+    return true;
+  }
   // ---- the day: ONE weather state, air and wind together (G72) ------------
   // setWeather({ oatC, qnhPa, wind: { base, gust } }) — everything a day is.
   // They are one object rather than two setters because a hot gusty afternoon
@@ -781,11 +910,40 @@ function makeWorld(seed, opts) {
   // clock advances through day.advance(), which only the viewer calls.
   let weather = null;
   let atmos = ATMOS_ISA;
-  const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  // THE AIR IS REBUILT LAZILY ON THE DAY'S OWN KEY (CLIMATE K2). It used to be
+  // rebuilt when `set` reported an air field had moved, which is still true and
+  // still enough for a declared change — but the clock can now MAKE weather
+  // (the diurnal swing, a front's temperature and pressure), and `advance()`
+  // deliberately never bumps the version. So the getter compares the day's
+  // `airKey` — one number over everything makeAtmos reads — and rebuilds only
+  // when it has moved. A day with neither a swing nor a front has a constant
+  // key, so `atmos` stays the SAME OBJECT and GATE DAY's identity check holds.
+  let atmosKey = null;
+  function airNow() {
+    const k = day.hasAir ? day.airKey : null;
+    if (k !== atmosKey) { atmosKey = k; atmos = k == null ? ATMOS_ISA : makeAtmos(day.air()); }
+    return atmos;
+  }
   function setDay(spec) {
-    const airChanged = day.set(spec);
-    if (airChanged) atmos = day.hasAir ? makeAtmos(day.air()) : ATMOS_ISA;
+    day.set(spec);
+    airNow();
     if (spec && 'wind' in spec) setWind(spec.wind || null);
+    else climate.refresh();                   // a front or a swing moved: re-resolve the column (K2)
+  }
+  // dayTick(dt): the VIEWER's clock step - the day advances and the wind
+  // follows the front through it. The solver never calls this (a gate's day is
+  // frozen and its air is constant), which is the two-clocks rule (09_climate).
+  function dayTick(dt, simT, ax, az) {
+    if (!(dt > 0)) return;
+    const st0 = day.storm ? day.storm.I : 0, sw = day.diurnalC > 0;
+    const u0 = day.utc;
+    day.advance(dt);
+    const st1 = day.storm ? day.storm.I : 0;
+    if (st0 !== st1 || (sw && day.storm)) climate.refresh();
+    else if (st1 > 0) climate.refresh();
+    airNow();
+    // the sea walks after the wind, on the same clock the wind moved on
+    seaRelax(Math.abs(day.utc - u0), simT, ax, az);
   }
   // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
   // absent fields are CLEARED (the standard day, the zero wind), so the
@@ -841,15 +999,20 @@ function makeWorld(seed, opts) {
     // reach records and bake stats here without walking every tile.
     hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
     // ---- the day (G72): the air is a getter so it is read LIVE ----
-    get atmos() { return atmos; },
+    get atmos() { return airNow(); },
     get weather() { return weather; },
     setWeather,
     // ---- THE DAY (SKY S1): the whole day, read live; the sun in its sky ----
-    day, setDay, geo: GEO,
+    day, setDay, dayTick, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
+    // K4: the state the sea is walking toward, and the walk itself (the viewer
+    // pushes world.sea at the shader when `seaChanged` says the trains moved)
+    get seaTarget() { return seaTarget; }, seaRelax,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
+    // ---- THE CLIMATE (K0): the field's keeper — sample(), the relief raster, the stats
+    climate,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
     // (terrainH and the surface read PM at call time; the trees were placed once, at the make)
     premises: { get overlay() { return PM; }, get rec() { return PMrec; }, set: setPremises, base: baseWorld },

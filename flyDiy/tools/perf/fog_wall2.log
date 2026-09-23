@@ -1,0 +1,14 @@
+eval: {"rh":0.5,"base":1292,"vis":60,"rho0":0}
+island_shot: wrote D:\Dev\DeGaRoR.github.io\.claude\worktrees\fog-mist-study-149bab\flyDiy\bench\fog\wall2.png  {"aero":["w2","HOME","w3","SEA"],"lakes":206,"rivers":170,"bakeMs":422,"hydro":"blend"}
+step 0: R full distance - the ridges stand out of the mist
+island_shot: wrote D:\Dev\DeGaRoR.github.io\.claude\worktrees\fog-mist-study-149bab\flyDiy\bench\fog\wall2_s0.png
+step 1: W6 cut at 6000 m
+island_shot: wrote D:\Dev\DeGaRoR.github.io\.claude\worktrees\fog-mist-study-149bab\flyDiy\bench\fog\wall2_s1.png
+step 2: W4 cut at 4000 m
+island_shot: wrote D:\Dev\DeGaRoR.github.io\.claude\worktrees\fog-mist-study-149bab\flyDiy\bench\fog\wall2_s2.png
+step 3: W2 cut at 2500 m - well inside the ridges
+island_shot: wrote D:\Dev\DeGaRoR.github.io\.claude\worktrees\fog-mist-study-149bab\flyDiy\bench\fog\wall2_s3.png
+step 4: R2 full again
+island_shot: wrote D:\Dev\DeGaRoR.github.io\.claude\worktrees\fog-mist-study-149bab\flyDiy\bench\fog\wall2_s4.png
+
+done

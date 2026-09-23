@@ -693,8 +693,96 @@ after the freeze, against this document.
   the renderer supplies - no rail over a plot or within 8 m of one, in a junction, or on a strip.
   Nothing is stored about where the rails actually stand: they are rebuilt with the road. The
   player's GRAPHICS > guardrails switch hides them whatever a road says.
+- **v1.19 (2026-09-22, the user: "do we have the electric poles? ... allow roads to have it
+  optionally, on by default").** A road entry may carry `poles`: `'off'` (none), absent or
+  `'auto'` (the rule decides, which is ON). The rule is `src/viewer/powerline.js`'s: the poles
+  stand every ~34 m along ONE verge — whichever takes more of them once the renderer's `keep` has
+  refused the plots' interiors, the junctions and the strips, and never the verge a guardrail took
+  — with three conductors and a service cable strung between consecutive poles, and the village's
+  street lamp on every second one. `polesSide` (-1 | 1) forces the verge. Nothing is stored about
+  where a pole actually stands: they are rebuilt with the road. The player's GRAPHICS > power
+  lines switch hides them whatever a road says.
+- **v1.17.1 (2026-09-22).** `coverAt(x, z, pave)`: a truthy third argument answers the PAVEMENT half
+  only — `kill`, `boost`, `cls` — and skips the plot walk, so `kind`/`grass` come back null. It is
+  0.19 µs against the full query's 1.34, and it is what the TREE fill asks on every lattice point
+  (`render_world.js` forestHere/openHere reject where `kill > 0`: the pavement, its band and the 6 m
+  fade, about 7 m of clearance from a road's edge). The full query is still the cover ring's.
+- **v1.20 (2026-09-23).** A `pav` is VALIDATED now. `issues()` reports a key that is not one of the
+  seven knobs plus `marks` (`PAV_KEYS`, the core's mirror of `pavement.js`'s `ENTRY_KNOBS`, which
+  GATE PAVEMENT holds equal), and a `marks` that is not `auto | none | edges | centre`. A misspelt
+  key used to be read by `resolve()`, ignored, and never reported — `pav: { mark: 'none' }` did
+  nothing and said nothing. While fixing it: the loop that carried the `band`, `pav` and `look`
+  checks for roads and runways **only ever ran over the polygon layers**, so none of those three has
+  been checked on a road or a runway since v1.16. They are checked now, in their own loop.
+- **v1.21 (2026-09-23).** A material polygon may carry **`stands`** — the aircraft parking stands
+  painted on it. `{ n, pitch, lead, bar, u0, vOff }`: `n` stands (1–24) `pitch` metres apart, each a
+  `lead` metre lead-in line with a `bar` metre nose-stop across its far end, painted yellow in the
+  POLYGON'S OWN frame (centred on it, turned by its `yaw`), drawn by `PAVEMENT.standMarks`. The row
+  is validated exactly as `pav` is — `STAND_KEYS` in the core, held equal to the knobs
+  `standMarks` reads by GATE PAVEMENT §10 — so a misspelt key names itself instead of being
+  silently ignored. Jolene AFB's `af_m_park` is the first: six stands on 22 x 66 m of worn concrete
+  north of the hangars, with `pav: { paintAge: 0.45 }` so the lines stay legible under the `worn`
+  look (which fades paint to 0.9, the WWII runway's wear).
 
-- **v1.19 (2026-09-22, METLAKATLA, the user: "maybe we need smooth roads too").** A road entry may
+- **v1.22 (2026-09-23, SCENERY LIFE, the user: "people in the streets, driving cars, props and rubbish
+  disposed next to walls and corners ... controls in the world editor ... including turning off").** The
+  record may carry ONE block `life`: `{ on, dist, seed, people, clutter, rubbish, cars, traffic, small,
+  antennas }`, every key optional (absent = `SCENERY_LIFE.DEF`: on, the multipliers 1, seed 1; the editor
+  writes only the keys moved off their default, and deletes the block at "back to the defaults"). The
+  composer never reads it: nothing it stands is a feature, a height, an exclude or a surface - the life is
+  DERIVED by the renderer (`src/viewer/scenery_life.js`) from what the premises BUILT (the houses' own
+  generator reports, the plots, the roads, the aprons, the zones, the parked aeroplanes), deterministic in
+  `hash(rec.seed, life.seed)` and one stream per law per thing. `traffic` is the vehicles a km on a road
+  that carries no `traffic` of its own (never a taxiway, a track or a stub under 150 m); a road's own
+  `traffic` (v1.13) always wins. The masts and the parked cars it stands are world obstacles.
+  futureDesigns/SCENERY-LIFE-2026-09-23.md.
+- **v1.23 (2026-09-23, GTRAM - the tramway session).** A runway may be an **`altiport`** (boolean,
+  default false): a mountain strip the Alpine way - landed UPHILL over the end `approach` names and
+  left downhill, whatever the wind (Courchevel 537 m at 18.5 %, Meribel 406 m with an 11 % middle,
+  La Salette 180 m at 20 %). Its profile is judged by the altiport's limits instead of the pilot's
+  (`ALTIPORT` in the core): the slope anywhere under 20 %, no touchdown-zone rule (the touchdown IS on
+  the slope), a crest under 5 % change of slope over 30 m, `approach` required, and the far end higher
+  than the threshold. The aerodrome record carries `altiport` and 43_pilot flies it: the round-out is
+  asked over the slope's LINE through the aim, one second of the rising ground early, the sink
+  relative to that ground (grade x ground speed added) and on power; the take-off direction is the
+  landing's reversed. Every other strip flies exactly as before (the branch is `altiport`-gated).
+  `runwayProfile().slopeAt` reads a metre INSIDE the strip at its ends (a clamped half metre read a
+  10 % threshold as 5 % and the crest test saw a change of slope that is not in the ground).
+  A **cable link** may carry **`speed`** (m/s, the cabins' cruise; 6 without one, the village's) -
+  an aerial tramway runs 8-12. The cabins are built lit and their lamps join the premises' night
+  pool as moving lamps. Editor rows: `altiport` on the runway, the cabin speed under a station's link.
+- **v1.24 (2026-09-23, the native-area session).** A site ITEM may refuse its lot: **`P.lot: false`**
+  stands the building on the ground it is given, without the synthetic plot a hand-placed item was
+  dressed with since G401 (a lawn, a drive, a car, a fence, by its category). A clan house on a
+  ceremonial ground, a station on a summit. It rides in the item's own `P` (the editor's parameter
+  table), so it is per placement, not per catalogue entry - the Metlakatla branch's entry-level
+  `lot: false` (a pier, a float) is the other half and the two compose. Rendering rules that are not
+  record changes, stated here because an author meets them: past the inner ring (+-4440 m) a
+  material polygon's PBR `set` is NOT drawn (the far ground's material has no texture units left for
+  the material map); use a `look` (a paved polygon: grass / dirt / gravel / sand / asphalt / concrete),
+  which is the pavement's own mesh. A strip under 300 m gets its derived pattern's hold and U-turn
+  closed in on the threshold (25_airfield sitePattern, the hold a quarter in); 300 m and more keep
+  110 m. The island's tree fill now obeys every tree exclude (authored, `clear` zones, strip boxes,
+  hard surfaces) - it never had.
+- **v1.22.1 (2026-09-23, asked by the native-area session: "a 30 m lattice mast ... right at the native ceremonial
+  grounds ... the people are welcome, the mast and the cars are not").** A **zone**, a **site**, a **runway** or a
+  **road** may carry its own `life`: `false` (none of the life there) or a partial block merged over `rec.life`
+  (`SCENERY_LIFE.QUIET` = `{ clutter: 0, rubbish: 0, cars: 0, traffic: 0, small: 0, antennas: 0 }`, people only).
+  It is the LAW for that entry's own things (a zone's houses, a site's items, the aerodrome mast of a site and of
+  its runway, a road's parked cars and traffic) and a PLACE for everything else: inside a zone's polygon, a site's
+  footprint (its items' feet and its anchor, 40 m round), a runway's box (120 m round) or a road's band (12 m past
+  its edge) a category set to 0 is refused and one set lower is thinned. The editor's inspector offers it as `life
+  here`: as the premises / people only / none (a hand-written block shows as its own and is kept).
+
+- **v1.25 (2026-09-23, the native-area session).** A runway may carry **`treeBox: false`**: the renderer's
+  generic tree box round every aerodrome (len/2 + 150 m along, wid/2 + 60 m across) is not cut, and the
+  strip's trees are the record's alone - its own box + 30 m (the derived exclude) and whatever `exclude`
+  polygons and `clear` zones the author draws (the approach wedges). And **`departure`** (0 | 1): the end
+  a one-way strip's take-off leaves OVER, so a strip landed over one end may be left back out over the same
+  end (East Point: landed from the sea, left to the sea, the trees close in at the other end); without it
+  a one-way strip is left the way it is landed (the altiport reverses on its own). The aerodrome record
+  carries `treeBox` and `takeoffHdg`; 43_pilot's dirAt honours `takeoffHdg` in calm air.
+- **v1.26 (2026-09-22, METLAKATLA, the user: "maybe we need smooth roads too").** A road entry may
   carry `smooth`: a fillet RADIUS in metres (`true` means 25). A road has always been VERTICALLY
   smooth — its grade is re-densified every 6 m and run through four 3-tap passes — and horizontally
   POLYGONAL: `polyRoad`'s tangent is per segment and jumps at every vertex, so `PAVEMENT.roadGeometry`
@@ -706,7 +794,7 @@ after the freeze, against this document.
   the same line — and the RECORD keeps the polyline the editor drew, which is what the editor edits.
   Absent, the polyline is passed through unchanged and nothing that exists moves.
 
-- **v1.20 (2026-09-22, METLAKATLA, the user: "you will notice some more lush vegetation. We should
+- **v1.27 (2026-09-22, METLAKATLA, the user: "you will notice some more lush vegetation. We should
   identify this as new terrain type and give them the border biome for now").** A new LAYER, `ttype`:
   `{ id, poly, code }`, the eleventh, and the only one that writes into the world's own data rather
   than over it. At composition the overlay publishes `stampTtype(island)`, which writes `code` into
@@ -724,7 +812,7 @@ after the freeze, against this document.
   (28b_ground_fields RECIPE.codes[15], 28c_biomes NAMES, the `borders` mix in `_trees_tuning.json`);
   it needed the shader's raster clamp lifted from 11 to 15 and `NCODE` widened to 16.
 
-- **v1.21 (2026-09-22, METLAKATLA).** Two fixes the harbour kit forced, both in `placeItem`:
+- **v1.28 (2026-09-22, METLAKATLA).** Two fixes the harbour kit forced, both in `placeItem`:
   - `P.waterY` is the water AT THE ITEM. It was one number read at the premises' ANCHOR, and on an
     island that anchor is inland, so it read `-Infinity` — the same trap that had stopped a harbour
     zone sowing (G434) — and every pier, float and wharf was built at minus infinity. `ctx.waterAt`
@@ -740,7 +828,7 @@ after the freeze, against this document.
   `ground.need` is `'none'`: it stands in the water on its own piles or floats on it, and cutting a
   shelf under a pier would flatten the seabed into a table.
 
-- **v1.22 (2026-09-23, METLAKATLA, the second and third passes).** Four amendments, each of them a
+- **v1.29 (2026-09-23, METLAKATLA, the second and third passes).** Four amendments, each of them a
   defect the user found from the air before any gate saw it.
 
   - **`ttype` entries take `from` and `clear`.** A stamp was flat: it painted the bog, the rock and
@@ -759,13 +847,12 @@ after the freeze, against this document.
     `sports` and `landmark`. The user found a fence round a pier. Every `MARINE_GEN` entry now
     refuses one, and so does anything standing on a deck (`P.floorOverWater`), whose lot would
     otherwise be laid on the seabed five metres below it.
-  - **Garden trees (`compose` stage 5e).** `planForest` steps around every plot, so a sown quarter
-    came out as bare roofs on bare ground with the wood stopping at the back fence. Two rules, both
-    the village's own since G313/G323: a plot with NO pick is an empty lot and the wood comes down
-    through it; a plot that IS built keeps nought to three of the SMALL species in its back band,
-    clear of the house's envelope. A zone switches them off with `rules.trees: false` and sets the
-    count with `rules.gardens`. The trees carry `garden: true` — the one thing in the record that is
-    allowed to stand on a plot, and both the gate and the panel check say so explicitly.
+  - **Garden trees (`compose` stage 5e) — ADDED AND THEN REMOVED, 2026-09-23.** Plots were given their
+    own trees so a sown quarter was not bare roofs on bare ground. The user's ruling retired them:
+    "never any tree as fixture without its lod system, we take the normal ones, maybe alter the terrain
+    type, let the game do the work." The stage is gone; a town's trees come from `planForest` (which
+    steps round every plot, road, site and exclude by construction) or, where the island's fill can
+    deliver it, from a painted terrain type. `rules.trees` and `rules.gardens` are retired with it.
 
   **And one thing that is not the contract's but belongs beside it.** The inner ring is a fixed 9 km
   square about the ORIGIN, and it is the only ground tier that has ever heard of a premises: its
@@ -775,3 +862,21 @@ after the freeze, against this document.
   nothing drew, and the un-cut mesh stood through every ribbon and every lot patch. `sinkFar` now
   applies the ring's own rule to the far tier after the patch stands (30 369 vertices at Metlakatla).
   **Any premises more than 4.5 km from the origin depended on this and nobody had put one there.**
+
+- **v1.30 (2026-09-23, METLAKATLA).** A `ttype` entry may carry **`cover`**: the WORLD-COVER class to
+  write beside the terrain type. **This is the piece without which a painted biome plants nothing over
+  a town, and it fails silently.** The island's tree fill is gated on `world.surface`, which comes from
+  the COVER raster and not from `ttype` at all — and over a settlement that raster says `BUILT`, which
+  maps to `PAVED`, which both `forestHere` and `openHere` refuse. So a `ttype` stamp over a town could
+  move the ground's texture and could not put one tree on it. The stamp writes the cover class as well,
+  with the same exact undo, and **only over `BUILT` and `CROP`** — writing it everywhere turned 391
+  cells of the island's own forest floor inside Metlakatla's envelope into grassland. Two traps: the
+  WORLD's island handle renames the array (`cover`, not `coverU8`), so a write to the wrong name lands
+  on `undefined` and nothing moves; and `clear` must skip only a PICKED plot, because an empty lot is
+  ground and is exactly what a town wants planted.
+
+  **Metlakatla uses none of this today.** The paint is correct and cannot be delivered at a settlement:
+  the island's fill had 13 465 trees built with 55 576 chunks still queued after 61 s, so the town's own
+  chunks never come up. The town places its conifers through `planForest` instead. The mechanism stays
+  because it is right and the next tree pack makes it live — and GATE PREMISES 14p holds it by source
+  check while no record paints one, so it cannot rot while it is unused.

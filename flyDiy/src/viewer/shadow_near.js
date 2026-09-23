@@ -122,6 +122,7 @@ var SHADOW_NEAR = (function () {
       // the craft RECEIVES its own shadow now (a wing on the fuselage, a strut on the wing): it never did - three's
       // default is off and the far map's half-metre texels would have been acne; the opaque casters only
       if (m.isMesh && m.castShadow && mats.length && !mats.some(x => x.transparent || x.opacity < 1)) m.receiveShadow = true;
+      if (m.isMesh && mats.length && !mats.some(x => x.transparent || x.opacity < 1)) m.renderOrder = -1;   // an occluder before the ground (render_world.js ORDER_NOTE)
       for (const mat of mats) { if (!mat.defines) mat.defines = {}; if (!mat.defines.CRAFT_NEAR_ONLY) { mat.defines.CRAFT_NEAR_ONLY = 1; mat.needsUpdate = true; } }
     });
   }

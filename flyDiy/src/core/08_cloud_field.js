@@ -39,11 +39,14 @@ var CLOUD_FIELD = (function () {
     st: Object.freeze({ label: 'stratus',       thick: 300,  bot: 0.05, top: 0.50, freq: 2,  width: 0.45, hsMin: 0.7, erode: 0.12, period: 9000,  alt: 400 }),
     sc: Object.freeze({ label: 'stratocumulus', thick: 700,  bot: 0.06, top: 0.70, freq: 4,  width: 0.35, hsMin: 0.6, erode: 0.30, period: 4000,  alt: 1500 }),
     cu: Object.freeze({ label: 'cumulus',       thick: 1500, bot: 0.08, top: 0.82, freq: 6,  width: 0.30, hsMin: 0.5, erode: 0.50, period: 6000,  alt: 1200 }),
+    // FAIR-WEATHER CUMULUS (cumulus humilis, 2026-09-23, the user: "small, elegant summer clouds, well split, a great sky
+    // for flying"): the cumulus' profile, but many small cells (16 a tile: ~2.5 km apart) and a shallow column
+    cuh: Object.freeze({ label: 'fair-weather cumulus', thick: 800, bot: 0.10, top: 0.80, freq: 16, width: 0.30, hsMin: 0.55, erode: 0.45, period: 2500, alt: 1200 }),
     cb: Object.freeze({ label: 'cumulonimbus',  thick: 4000, bot: 0.06, top: 0.88, freq: 3,  width: 0.30, hsMin: 0.6, erode: 0.50, period: 8000,  alt: 1000 }),
     ac: Object.freeze({ label: 'altocumulus',   thick: 500,  bot: 0.10, top: 0.65, freq: 10, width: 0.40, hsMin: 0.7, erode: 0.35, period: 2500,  alt: 3500 }),
     as: Object.freeze({ label: 'altostratus',   thick: 1200, bot: 0.05, top: 0.55, freq: 2,  width: 0.50, hsMin: 0.7, erode: 0.10, period: 12000, alt: 4000 }),
   });
-  const TYPE_ORDER = ['st', 'sc', 'cu', 'cb', 'ac', 'as'];
+  const TYPE_ORDER = ['st', 'sc', 'cuh', 'cu', 'cb', 'ac', 'as'];
   const MAX_LAYERS = 3;                   // the low deck + two upper decks (the cirrus veil is the dome's, not a layer)
   const LAYER_GAP = 150;                  // m of clear air between one deck's top and the next one's base
   const typeOf = t => TYPES[t] ? t : 'cu';

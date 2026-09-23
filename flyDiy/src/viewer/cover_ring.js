@@ -79,7 +79,7 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
@@ -131,7 +131,16 @@ var COVER_RING = (() => {
         c.maps.forEach((url, v) => P.push({ key: c.name + '|' + v, w: 1 / c.maps.length, kind: 'cover', h: place.size || 1, noTint: true,
                                             parts: [{ geo: flowerCards(place.size || 1, place.aspect || 1, hashStr(c.name) + v * 977), mat: flowerMat(url) }] }));
       } else {
-        const subs = treeList('all').filter(e => e.col === c);
+        let subs = treeList('all').filter(e => e.col === c);
+        // THE DEBRIS'S VARIETY IS ITS DRAW COUNT (PERF 2026-09-23): every model is a draw in every block and a shadow
+        // draw - the two stick packs alone were 32 models, ~600 draws in a forest view. A debris pack keeps
+        // S.debrisKinds of its models, evenly across its size range; the planting is the same (the pack's density,
+        // spread over fewer shapes)
+        if (c.kind === 'debris' && S.debrisKinds > 0 && subs.length > S.debrisKinds) {
+          const hOf = e => (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1));
+          const sorted = subs.slice().sort((a, b) => hOf(a) - hOf(b)), n = S.debrisKinds;
+          subs = Array.from({ length: n }, (_, k) => sorted[Math.round(k * (sorted.length - 1) / Math.max(1, n - 1))]);
+        }
         for (const e of subs) {
           let b = null; try { b = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
           if (!b || !b.parts.length) continue;
@@ -200,15 +209,20 @@ var COVER_RING = (() => {
     // (0 the biome's, 1 a plot's LAWN, 2 a plot's meadow, 3 none), the lawn's height and density factor,
     // and `col` (the linear colour the DRAWN ground has beside a pavement) taken as the tuft's ground
     const KIND = { lawn: 1, meadow: 2, none: 3 };
+    // IS THERE A PAVEMENT AT THIS NODE? (v1.17 coverAt's `cls`). The vocabulary is the premises' own -
+    // grass, asphalt, concrete, worn, gravel, dirt, sand - plus the analytic world's asphalt / gravel / grass,
+    // so the test is "a class at all", not a list to keep in step. The debris reads it because a GRASS strip's
+    // `kill` never passes 0.6 (it is the world's grass, mown), and kill alone would leave a log lying across a
+    // grass runway (the roads session, 2026-09-22).
     function subGrid(x0, z0, C) {
       const N = Math.round(C / SG) + 1, mix = new Array(N * N), code = new Int16Array(N * N), ok = new Uint8Array(N * N), col = new Float32Array(N * N * 3);
-      const kill = new Float32Array(N * N), boost = new Float32Array(N * N), kind = new Uint8Array(N * N), lawnH = new Float32Array(N * N), lawnD = new Float32Array(N * N);
+      const kill = new Float32Array(N * N), boost = new Float32Array(N * N), kind = new Uint8Array(N * N), lawnH = new Float32Array(N * N), lawnD = new Float32Array(N * N), cls = new Uint8Array(N * N);
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + i * SG, z = z0 + j * SG, k = j * N + i, r = hsh(Math.round(x * 3.7), Math.round(z * 5.3));
         const cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
         code[k] = cd; mix[k] = cd < 0 ? null : BIO.mixAt(cd); ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
         let cv = null; try { cv = ctx.coverAt ? ctx.coverAt(x, z) : null; } catch (e) { cv = null; }
-        if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0;
+        if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0; cls[k] = cv.cls ? 1 : 0;
           if (cv.grass) { lawnH[k] = cv.grass.h || 0.12; lawnD[k] = cv.grass.density === undefined ? 1 : cv.grass.density; }
           // a plot is the biome's ground with a lawn on it: the tuft stands, the mix does not
           if (kind[k] && !mix[k]) mix[k] = 'lawn'; if (kind[k] && !ok[k] && ctx.okAt(x, z)) ok[k] = 1; }
@@ -217,7 +231,7 @@ var COVER_RING = (() => {
       }
       const at = (x, z) => Math.round((z - z0) / SG) * N + Math.round((x - x0) / SG);
       let bmax = 0, lawn = 0; for (let k = 0; k < N * N; k++) { if (boost[k] > bmax) bmax = boost[k]; if (kind[k] === 1) lawn++; }
-      return { N, mix, code, ok, col, kill, boost, kind, lawnH, lawnD, at, bmax, lawn };
+      return { N, mix, code, ok, col, kill, boost, kind, cls, lawnH, lawnD, at, bmax, lawn };
     }
 
     // ---- THE ROCKS OF ONE CELL (2026-09-22, the rock map) --------------------------------
@@ -269,6 +283,21 @@ var COVER_RING = (() => {
         }
         const gk = G.at(x, z);
         if (G.mix[gk] !== centreMix) continue;
+        // NOTHING LIES ON A PAVEMENT (2026-09-22; G502's rule, kept whole, asked PER PIECE). A log has no
+        // business on a runway, an apron, a road or a track. `kill` is 1 over a hard surface AND its drawn
+        // band, falling to 0 over the 6 m fade past it - but a GRASS strip only ever thins the cover to 0.6,
+        // so kill alone would leave a log across a grass runway at 40 %: the piece is refused wherever the
+        // pavement has a CLASS and a grip on the ground (kill 0.5), and thinned by what is left of the fade
+        // beyond it, which is what a graded gravel verge looks like.
+        // The QUERY, not the node: the ring's lattice is 4 m, so a node's answer can be 2.8 m from the piece
+        // it is deciding - and the whole of this law happens within 7 m of an edge. `pave` is the cheap half
+        // of the query (0.19 us against 1.34: no plot walk, no drawn colour), which is what makes a call per
+        // piece affordable here, and the far rock map shares this function.
+        { const cv = ctx.coverAt ? ctx.coverAt(x, z, 1) : null;
+          if (cv && cv.kill > 0) {
+            if (cv.kill >= 1 || (cv.cls && cv.kill >= 0.5)) continue;
+            if (Rq() > 1 - cv.kill) continue;
+          } }
         if (floats) { if (!(ctx.poolAt && ctx.poolAt(x, z) > 0.6)) continue; }
         else if (!G.ok[gk]) continue;
         const p = draw(P, r2);
@@ -279,6 +308,12 @@ var COVER_RING = (() => {
         const yy = y - p.h0 * s * (floats ? (row.poolBury === undefined ? 0.06 : row.poolBury)
                                           : (row.bury !== undefined ? row.bury : (place.bury === undefined ? 0.45 : place.bury)));
         let col = null;
+        // `dim` (2026-09-23, the user: "the debris are still much too bright ... look at the dead trunks,
+        // debris should be barely brighter"): a straight factor on the instance colour, measured rather than
+        // guessed - the log's map is 0.249 linear luma against the dead trunks' bark at 0.081, three times
+        // brighter; the two stick packs 0.10-0.11 with single maps at 0.216. The row's factor lands each
+        // species in the dead trunks' family. It multiplies AFTER the tint (which turns hue, not level).
+        const dim = row.dim === undefined ? 1 : row.dim;
         if (row.tint > 0) {
           // the rock takes the ground's colour at its foot, by `tint` (0 = the pack's pale grey as it is, 1 = the
           // tufts' rule): the free_rock pack is one pale texture and read as gravel thrown on the dark foreshore -
@@ -288,6 +323,7 @@ var COVER_RING = (() => {
           const j = (1 + (Rq() * 2 - 1) * vary) * (1 - 0.35 * row.tint);   // and a third darker at full tint (the pack is pale)
           col = [(1 + (g[0] / gm - 1) * row.tint) * j, (1 + (g[1] / gm - 1) * row.tint) * j, (1 + (g[2] / gm - 1) * row.tint) * j];
         }
+        if (dim !== 1) { if (!col) col = [1, 1, 1]; col = [col[0] * dim, col[1] * dim, col[2] * dim]; }
         // `tilt`: the rock leans to the ground's slope over its OWN footprint (a 10 m strip read at +-1.5 m stood on
         // the wrong plane and showed its skirt as a plate), scaled by the row's tilt (1 = the ground's own)
         let tx = 0, tz = 0;
@@ -322,10 +358,10 @@ var COVER_RING = (() => {
       // the mix at the cell's centre says which species to plant; each point checks its own
       const G = subGrid(x0, z0, C);
       const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
-      const group = new THREE.Group(); group.position.set(0, 0, 0);
-      const cell = { group, n: 0, meshes: [], by: {} };   // by: this cell's tally per species (STAT.by is the live sum)
-      cells.set(cx + ',' + cz, cell);
-      if (!centreMix && !G.lawn) { root.add(group); STAT.lastMs = performance.now() - t0; return cell; }
+      // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
+      const cell = { n: 0, parts: new Map(), by: {}, cx, cz };   // by: this cell's tally per species (STAT.by is the live sum)
+      cells.set(cx + ',' + cz, cell); markBlock(cx, cz);
+      if (!centreMix && !G.lawn) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
       const blotch = F.blotch || 0, blotchM = F.blotchM || 18, spread = F.coverSpread === undefined ? 0.08 : F.coverSpread;
       if (GF && GF.C && GF.C.blotch) { GF.C.blotch.amount = blotch; GF.C.blotch.cellM = blotchM; }
@@ -407,41 +443,85 @@ var COVER_RING = (() => {
       const NRM = new THREE.Vector3(), QT = new THREE.Quaternion();
       if (!isFinite(yLo)) { yLo = yHi = world.terrainH(x0 + C / 2, z0 + C / 2); }
       const yMid = (yLo + yHi) / 2, ySpan = (yHi - yLo) / 2;
+      cell.box = [x0, yLo - 1, z0, x0 + C, yHi + 6, z0 + C];   // the instances' feet +- a bush's height: the reach test below
       for (const it of items.values()) {
         const n = it.xs.length / 7; if (!n) continue;
         const rand = new Float32Array(n); for (let i = 0; i < n; i++) rand[i] = R();
-        for (const part of it.p.parts) {
-          const m = new THREE.InstancedMesh(part.geo, part.mat, n);
-          for (let i = 0; i < n; i++) {
-            const o = i * 7; Q.setFromAxisAngle(UP, it.xs[o + 4]); V.set(it.xs[o], it.xs[o + 1], it.xs[o + 2]); SC.setScalar(it.xs[o + 3]);
-            if (it.xs[o + 5] || it.xs[o + 6]) { NRM.set(-it.xs[o + 5], 1, -it.xs[o + 6]).normalize(); QT.setFromUnitVectors(UP, NRM); Q.premultiply(QT); }   // the lean: up -> the ground's normal, after the yaw
-            T.compose(V, Q, SC); m.setMatrixAt(i, T);
-          }
-          if (it.col) { m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(it.col), 3); }
-          // the prototype's buffers shared, the instanced aRand per mesh: a thin geometry wrapper
-          const geo = part.geo, g2 = new THREE.BufferGeometry(); g2.index = geo.index; for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]);
-          g2.setAttribute('aRand', new THREE.InstancedBufferAttribute(rand, 1));
-          // the cell's own sphere (the instances hold world positions, the mesh stands at the
-          // origin): three culls the cell as one - half the ring is behind the eye
-          g2.boundingSphere = new THREE.Sphere(new THREE.Vector3(x0 + C / 2, yMid, z0 + C / 2), C * 0.71 + ySpan + 3);
-          m.geometry = g2;
-          m.frustumCulled = true;
-          m.castShadow = it.p.kind !== 'cover'; m.receiveShadow = true;
-          m.instanceMatrix.needsUpdate = true;
-          group.add(m); cell.meshes.push(m);
+        const mats = new Float32Array(n * 16);
+        for (let i = 0; i < n; i++) {
+          const o = i * 7; Q.setFromAxisAngle(UP, it.xs[o + 4]); V.set(it.xs[o], it.xs[o + 1], it.xs[o + 2]); SC.setScalar(it.xs[o + 3]);
+          if (it.xs[o + 5] || it.xs[o + 6]) { NRM.set(-it.xs[o + 5], 1, -it.xs[o + 6]).normalize(); QT.setFromUnitVectors(UP, NRM); Q.premultiply(QT); }   // the lean: up -> the ground's normal, after the yaw
+          T.compose(V, Q, SC); T.toArray(mats, i * 16);
         }
+        const col = it.col ? new Float32Array(it.col) : null;
+        // every part of the prototype draws the same instances (a bark part and a leaf part)
+        // (a twig or a pebble under S.castMinH casts no shadow: a texel of the map at most, and a shadow draw per model per block)
+        const cast = it.p.kind !== 'cover' && !((it.p.kind === 'debris' || it.p.kind === 'rock') && it.p.h < S.castMinH);
+        for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
         cell.n += n;
       }
-      root.add(group);
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
       return cell;
     }
     function dropCell(key) {
       const cell = cells.get(key); if (!cell) return;
-      root.remove(cell.group);
-      for (const m of cell.meshes) { m.geometry.dispose(); }   // the wrapper only: buffers are the prototype's
+      markBlock(cell.cx, cell.cz);
       for (const k in cell.by) { STAT.by[k] -= cell.by[k]; if (STAT.by[k] <= 0) delete STAT.by[k]; }   // the tally is LIVE (it ran up for the page's life before L4)
       cells.delete(key);
+    }
+
+    // ---- THE BLOCKS (PERF 2026-09-23) -----------------------------------------------
+    // A cell is 32 m because that is the planting's grain; it was also the DRAW's - one InstancedMesh
+    // per prototype part per cell, ~10 a cell, 1 000 draws and 1 100 shadow draws at 120 m AGL over
+    // a forest (the frame study's census), each of them a round of GL state through the command
+    // buffer. The draw's grain is now a BLOCK of B x B cells: one InstancedMesh per part per block,
+    // the cells' instance arrays copied in, rebuilt when a cell of it comes or goes (nearest first,
+    // `blockBudget` a frame; until then the block draws what it held). Culling is the block's own
+    // sphere (the frustum) and the fade's reach (below); the instances and the shader are the
+    // cells' own, so the picture is the same.
+    const B = 4, blocks = new Map();
+    const blockOf = (cx, cz) => Math.floor(cx / B) + ',' + Math.floor(cz / B);
+    function markBlock(cx, cz) {
+      const k = blockOf(cx, cz); let b = blocks.get(k);
+      if (!b) { b = { key: k, bx: Math.floor(cx / B), bz: Math.floor(cz / B), group: new THREE.Group(), meshes: [], box: null, dirty: true }; root.add(b.group); blocks.set(k, b); }
+      b.dirty = true;
+    }
+    function buildBlock(b) {
+      for (const m of b.meshes) { b.group.remove(m); m.geometry.dispose(); if (m.dispose) m.dispose(); }   // the wrapper and the instance buffers; the prototype's own are shared
+      b.meshes = []; b.dirty = false;
+      const parts = new Map(); let box = null, live = 0;
+      for (let dz = 0; dz < B; dz++) for (let dx = 0; dx < B; dx++) {
+        const cell = cells.get((b.bx * B + dx) + ',' + (b.bz * B + dz)); if (!cell) continue;
+        live++;
+        if (cell.box) { const c = cell.box; box = box ? [Math.min(box[0], c[0]), Math.min(box[1], c[1]), Math.min(box[2], c[2]), Math.max(box[3], c[3]), Math.max(box[4], c[4]), Math.max(box[5], c[5])] : c.slice(); }
+        for (const [part, d] of cell.parts) { let a = parts.get(part); if (!a) parts.set(part, a = []); a.push(d); }
+      }
+      b.box = box;
+      if (!live) { root.remove(b.group); blocks.delete(b.key); return; }
+      if (!box) return;
+      const sph = new THREE.Sphere(new THREE.Vector3((box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2),
+                                   Math.hypot(box[3] - box[0], box[4] - box[1], box[5] - box[2]) / 2 + 8);
+      for (const [part, list] of parts) {
+        let n = 0; for (const d of list) n += d.n; if (!n) continue;
+        const m = new THREE.InstancedMesh(part.geo, part.mat, n);
+        const hasCol = list.some(d => d.col), col = hasCol ? new Float32Array(n * 3).fill(1) : null, rand = new Float32Array(n);
+        let o = 0;
+        for (const d of list) { m.instanceMatrix.array.set(d.mats, o * 16); if (d.col) col.set(d.col, o * 3); rand.set(d.rand, o); o += d.n; }
+        if (col) m.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
+        // the prototype's buffers shared, the instanced aRand per mesh: a thin geometry wrapper
+        const geo = part.geo, g2 = new THREE.BufferGeometry(); g2.index = geo.index; for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]);
+        g2.setAttribute('aRand', new THREE.InstancedBufferAttribute(rand, 1));
+        // the block's own sphere (the instances hold world positions, the mesh stands at the origin),
+        // on the geometry AND the object: r186 culls an InstancedMesh on its own, and would union the
+        // geometry's at every instance otherwise
+        g2.boundingSphere = sph; m.geometry = g2; m.boundingSphere = sph;
+        m.frustumCulled = true; m.matrixAutoUpdate = false;   // at the origin, for ever
+        m.renderOrder = -1;   // occluders before the ground (render_world.js ORDER_NOTE)
+        m.castShadow = list[0].cast; m.receiveShadow = true;
+        m.userData.coverKind = list[0].kind;   // cover / shrub / rock / debris: the instruments' read (PERF 2026-09-23)
+        m.instanceMatrix.needsUpdate = true;
+        b.group.add(m); b.meshes.push(m);
+      }
     }
 
     // ---- per frame ------------------------------------------------------------------
@@ -453,7 +533,7 @@ var COVER_RING = (() => {
       const aglK = 1 - smooth(S.aglFull, S.aglOff, agl); STAT.aglK = aglK;   // (the rock map reads the fade's height term)
       LEAF.fade(S.near, S.reach, S.taper, aglK);
       root.visible = aglK > 0.001;
-      if (aglK <= 0.001) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); queue.length = 0; STAT.live = 0; return; }
+      if (aglK <= 0.001) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); queue.length = 0; STAT.live = 0; return; }
       const C = S.cell, R2 = (S.reach + C) * (S.reach + C), Rdrop = (S.reach + 2 * C) * (S.reach + 2 * C);
       const cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C), nr = Math.ceil((S.reach + C) / C);
       queue.length = 0;
@@ -467,6 +547,18 @@ var COVER_RING = (() => {
       const t0 = performance.now();
       while (queue.length && performance.now() - t0 < S.budgetMs && cells.size < S.maxCells) { const [, cx, cz] = queue.shift(); buildCell(cx, cz); }
       for (const [k, cell] of cells) { const [cx, cz] = k.split(',').map(Number); const mx = (cx + 0.5) * C - ex, mz = (cz + 0.5) * C - ez; if (mx * mx + mz * mz > Rdrop) dropCell(k); }
+      // A CELL PAST THE REACH DRAWS NOTHING (PERF 2026-09-23): the fade collapses every instance whose
+      // 3D distance to the eye is past `reach` (trees.js FADE_VS), so a cell whose NEAREST point is past
+      // it is only vertex work, a draw and a shadow draw - in flight most of the ring (at 120 m AGL the
+      // whole outer band). Hidden, the picture is the same to the pixel; what goes with it is the shadow
+      // those collapsed instances still cast (three's depth material has no fade), which was a phantom.
+      { const ey = camera.position.y, R2r = S.reach * S.reach, dist2 = b => { const x = b.box; if (!x) return 0;
+          const dx = Math.max(x[0] - ex, 0, ex - x[3]), dy = Math.max(x[1] - ey, 0, ey - x[4]), dz = Math.max(x[2] - ez, 0, ez - x[5]); return dx * dx + dy * dy + dz * dz; };
+        const dirty = []; for (const b of blocks.values()) if (b.dirty) dirty.push(b);
+        if (dirty.length) { dirty.sort((a, b) => dist2(a) - dist2(b)); for (const b of dirty.slice(0, S.blockBudget)) buildBlock(b); }
+        let shown = 0, draws = 0;
+        for (const b of blocks.values()) { const v = !!b.box && dist2(b) < R2r; if (b.group.visible !== v) b.group.visible = v; if (v) { shown++; draws += b.meshes.length; } }
+        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws; }
       STAT.live = cells.size; STAT.queued = queue.length;
       let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
       STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
@@ -476,8 +568,13 @@ var COVER_RING = (() => {
       get: () => Object.assign({}, S),
       set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks }; Object.assign(S, o || {});
         if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks) api.replant(); return api.get(); },
-      replant: () => { for (const k of [...cells.keys()]) dropCell(k); },
+      replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); },
       rockPlan,                                                           // the rock map's read (above)
+      // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
+      // the mix, the pavement's kill and class, the land test - so a "why is there a log on the runway"
+      // is one call instead of a guess
+      nodeAt: (x, z) => { const C = S.cell, cx = Math.floor(x / C), cz = Math.floor(z / C), G = subGrid(cx * C, cz * C, C), k = G.at(x, z);
+        return { cell: [cx, cz], mix: G.mix[k], code: G.code[k], ok: !!G.ok[k], kill: +G.kill[k].toFixed(3), cls: G.cls[k], kind: G.kind[k], boost: +G.boost[k].toFixed(3) }; },
       rockProtos: () => speciesOf().filter(rockish).map(c => ({ c, P: protosOf(c) })),   // the sprites' subjects (rocks and debris)
       stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
       dispose: () => { api.replant(); scene.remove(root); },
