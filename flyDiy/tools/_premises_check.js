@@ -992,6 +992,19 @@ if (SELFTEST) {
   }
 }
 
+// 15 THE BOOT'S SQUARE (G554, 2026-09-24): the boot drains the build queue four at a time and every step froze - re-walking
+// every frozen child and RE-MERGING every lot of the premises: 28 s of a 106 s roll-out at Metlakatla's 450 plots.
+// Held by a source scan (the anchors checked, so a moved function turns this red instead of quiet).
+{
+  const RP3 = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+  const i0 = RP3.indexOf('function freezeStatic('), i1 = RP3.indexOf('function mergeInto('), i2 = RP3.indexOf('function batchLots(');
+  check(i0 > 0 && i1 > i0 && i2 > i1, "15 freezeStatic / mergeInto / batchLots found in render_premises.js, in that order");
+  const fz = RP3.slice(i0, i1), mi = RP3.slice(i1, i2);
+  check(/if \(!fresh && walk\)/.test(fz), '15 a build step freezes only what is new (the frozen children are re-walked by the tick and the rebuild)');
+  check(/BATCH\.pending = queue\.length > 0; if \(!BATCH\.pending\) batchLots\(\)/.test(fz), '15 the lots are merged once the queue is empty, not at every step');
+  check(mi.length > 300 && !/fromBufferAttribute|applyMatrix4/.test(mi), "15 the merge reads the arrays, not three's per-vertex accessors");
+}
+
 // ---------------------------------------------------------------------------
 if (fail.length) {
   for (const f of fail.slice(0, 30)) console.log('  ! ' + f);

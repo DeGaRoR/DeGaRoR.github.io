@@ -59065,3 +59065,17 @@ top of this should treat the battery as owed rather than passed.
 - REVERT: TREE_LEAF.tint({ light: 0.5 }) is G552, 0.6 is G548, and TREE_LOD.imp({ mean: 0.4,
   flat: 1.35 }) is still G538's impostor look, independently.
 - FILES: src/viewer/trees.js (MASTER.light).
+
+
+## G554 - NO WAIT, NO GUESS, AND THE LOADING TIME THAT WAS OURS (2026-09-24)
+
+The user: "not happy with the 6 seconds wait for profiling. Just start in standard. And have it as an option to have the
+adaptative quality on ... let's not do anything giving us a longer loading time". G533's first-launch tier probe is
+removed (gamer starts, nothing waits); the auto render scale stays in the menu as the render scale row's last step and
+no tier turns it on (pv 3 migration). LOADING, MEASURED: the Jolene roll-out's world step went 22.2 s (G533) -> 106.3 s
+(today's master, Metlakatla in); 28 s of it was OUR lots batcher (render_premises.js freezeStatic -> batchLots, G515)
+re-merging every lot at every build step of the boot - a square. Now a step freezes only what is new and the lots merge
+once when the queue is empty, the merge on plain arrays: 106 -> 73 s. The ring's LOD chunks (0.5 s a build, twice at
+boot) are built only when a tier cuts the ring. GATE PREMISES 15 (red on the old code), GATE GFX. The remaining 73 s is
+the town's house build (bakeAO 27.7 s, fences + lot grounds sampling the ground ~37 s) - handed on.
+futureDesigns/PERF-2026-09-23.md (G554).

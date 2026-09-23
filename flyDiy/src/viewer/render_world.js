@@ -1843,9 +1843,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           RINGLOD.chunks.push(ch);
         }
         RINGLOD.whole = undefined;   // the next update decides which draws: the whole ring or its chunks
+        RINGLOD.built = true;
       };
-      build();
-      RINGLOD.rebuild = build;
+      // LAZY (G551, the user: "let's not do anything giving us a longer loading time"): the 1024 chunk geometries cost
+      // ~0.5 s a build and the boot built them twice (here and after the premises' sink) for gamer and ultra, which draw
+      // the ring whole - the chunks are built the first frame a tier cuts the ring, and rebuilt only once they exist
+      RINGLOD.built = false;
+      RINGLOD.rebuild = () => { if (RINGLOD.built) build(); };
       // per frame: each chunk's level from the eye (before the frame renders; the fine disc's reach from FINE's dials)
       RINGLOD.update = () => {
         const e = camera.position, H = (renderer && renderer.domElement && renderer.domElement.height) || 1080;
@@ -1857,6 +1861,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // grid and the chunking bought nothing (134 draws against 1, within the noise) - the chunks are for the
         // coarser tolerances of the lower tiers (gfx_settings 'terrain')
         const whole = RINGLOD.tolPx <= 1;
+        if (!whole && !RINGLOD.built) build();
         if (whole !== RINGLOD.whole) { RINGLOD.whole = whole; ground.visible = whole; RG.visible = !whole; }
         if (whole) { st.draws = 1; st.tris = 512 * 512 * 2; return; }
         for (const ch of RINGLOD.chunks) {

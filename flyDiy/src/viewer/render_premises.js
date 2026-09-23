@@ -60,13 +60,18 @@ function make(THREE, scene, world, rec0, opts) {
   const FROZEN_GROUPS = ['ground', 'water', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads'];
   // (a prop's rungs arrive AFTER its placeholder was frozen - the asset loads - so a frozen child is walked again
   // for anything that came in since: re-posed whole, frozen again; the tick runs it every 60 frames)
+  // THE BOOT'S SQUARE (G554, 2026-09-24, the user: "loading times are exploding"): the boot drains the build queue
+  // four at a time and every step froze - so every step RE-WALKED every frozen child and RE-MERGED every lot of the
+  // premises. Harmless at Jolene's 60 plots; at Metlakatla's 450 it was 28 s of a 106 s roll-out. Now a step
+  // freezes only what is new (`walk` - the frozen children re-walked for a late rung - is the tick's and the
+  // rebuild's), and the lots are merged ONCE, when the queue is empty.
   let freezeTick = 0;
-  function freezeStatic() {
-    let n = 0, lots = false;
+  function freezeStatic(walk) {
+    let n = 0, lots = BATCH.pending;
     for (const k of FROZEN_GROUPS) for (const c of G[k].children) {
       if (!c.updateMatrixWorld) continue;
       let fresh = !c.userData.frozen;
-      if (!fresh) c.traverse(o => { if (o.matrixAutoUpdate) fresh = true; });
+      if (!fresh && walk) c.traverse(o => { if (o.matrixAutoUpdate) fresh = true; });
       if (!fresh) continue;
       c.traverse(o => { o.matrixWorldAutoUpdate = true; });
       c.updateMatrixWorld(true);
@@ -74,7 +79,7 @@ function make(THREE, scene, world, rec0, opts) {
       c.userData.frozen = true; n++;
       if (k === 'lots' && !c.userData.batch) lots = true;
     }
-    if (lots) batchLots();
+    if (lots) { BATCH.pending = queue.length > 0; if (!BATCH.pending) batchLots(); }
     return n;
   }
   // THE LOTS BATCHED (PERF 2026-09-23). The fences share ONE finish (fenceFinish: every post bag and every deck
@@ -83,23 +88,30 @@ function make(THREE, scene, world, rec0, opts) {
   // cell (world-space positions, normals through the normal matrix, every other attribute as is - the AO, the lit,
   // the window and the splat channels ride along), the sources hidden (they stay for picking and for the next
   // merge). A prop (its LOD, its shared geometry) is never merged. Re-merged whenever the set of sources changes.
-  const BATCH = { cell: 256, group: null, sig: '' };
+  const BATCH = { cell: 256, group: null, sig: '', pending: false };
   function mergeInto(list) {
     const g0 = list[0].geometry, names = Object.keys(g0.attributes);
     let nV = 0, nI = 0;
     for (const m of list) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
     const out = new THREE.BufferGeometry(), arrays = {};
     for (const k of names) { const a = g0.attributes[k]; arrays[k] = new a.array.constructor(nV * a.itemSize); }
-    const idx = new Uint32Array(nI), v = new THREE.Vector3(), nm = new THREE.Matrix3();
+    const idx = new Uint32Array(nI), nm = new THREE.Matrix3();
     let vo = 0, io = 0;
     for (const m of list) {
       const g = m.geometry, n = g.attributes.position.count;
       nm.getNormalMatrix(m.matrixWorld);
+      const e = m.matrixWorld.elements, q = nm.elements;   // column-major, as three keeps them
       for (const k of names) {
-        const a = g.attributes[k], dst = arrays[k], s = a.itemSize;
-        if (k === 'position') for (let i = 0; i < n; i++) { v.fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
-        else if (k === 'normal') for (let i = 0; i < n; i++) { v.fromBufferAttribute(a, i).applyMatrix3(nm).normalize(); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
-        else dst.set(a.array.subarray(0, n * s), vo * s);
+        const a = g.attributes[k], dst = arrays[k], s = a.itemSize, A = a.array;
+        if (k === 'position') for (let i = 0, o = vo * 3; i < n * 3; i += 3, o += 3) {
+          const x = A[i], y = A[i + 1], z = A[i + 2], w = 1 / (e[3] * x + e[7] * y + e[11] * z + e[15]);
+          dst[o] = (e[0] * x + e[4] * y + e[8] * z + e[12]) * w; dst[o + 1] = (e[1] * x + e[5] * y + e[9] * z + e[13]) * w; dst[o + 2] = (e[2] * x + e[6] * y + e[10] * z + e[14]) * w;
+        } else if (k === 'normal') for (let i = 0, o = vo * 3; i < n * 3; i += 3, o += 3) {
+          const x = A[i], y = A[i + 1], z = A[i + 2];
+          const X = q[0] * x + q[3] * y + q[6] * z, Y = q[1] * x + q[4] * y + q[7] * z, Z = q[2] * x + q[5] * y + q[8] * z, l = Math.hypot(X, Y, Z) || 1;
+          dst[o] = X / l; dst[o + 1] = Y / l; dst[o + 2] = Z / l;
+        }
+        else dst.set(A.subarray(0, n * s), vo * s);
       }
       const ix = g.index.array;
       for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
@@ -1156,7 +1168,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (on !== D.on) { D.on = on; for (const m of D.list) m.visible = on; }
     }
   }
-  function tick(dt) { if (++freezeTick % 60 === 0) freezeStatic(); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  function tick(dt) { if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -1735,7 +1747,7 @@ function make(THREE, scene, world, rec0, opts) {
       // because until this week no record carried one.
       buildTrees();
       if (LIFE) { LIFE.set(rec.life); LIFE.dirty(); stats.life = 1; }
-      freezeStatic();
+      freezeStatic(true);
       stats.tris = patch ? patch.userData.tris : 0; stats.chunks = patch ? patch.userData.chunks.length : 0; stats.patchBlocks = patch ? patch.userData.blocks : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
       return stats;
     }
