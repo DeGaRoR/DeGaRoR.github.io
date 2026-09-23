@@ -38439,7 +38439,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='9578e21719e5';window.FLYDIY_BUILD='52fa2a773a72'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='9578e21719e5';window.FLYDIY_BUILD='1a5d4ef497b8'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -114303,6 +114303,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // The world composed the record at its make (20_world.js); the strips it registered are
   // painted with every other below. The build queue drains here at the boot, whole (36 houses,
   // 3 s on an RTX 3080 - a worker or a ladder is owed); after a live edit worldUpdate drains it.
+  // the props that come by the hundred (poles, fence stretches) drawn instanced from here on (props.js G515)
+  if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
   if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
     try {
@@ -114600,7 +114602,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // shifts nothing at 450 m.
     uCam.value.copy(camera.position);
     if (fineRing && fineRing.on) fineRing.update();   // the fine disc follows the eye (TERRAIN FOLLOW-UP 2)
-    if (ringLod) ringLod.update();   // the ring's chunks, their level from the eye (PERF 2026-09-23)
+    if (ringLod) ringLod.update();
+    if (typeof propInstUpdate === 'function') propInstUpdate(camera);   // the instanced props: their levels from the eye (props.js G515)   // the ring's chunks, their level from the eye (PERF 2026-09-23)
     if (farLod) farLod.update();     // the far terrain's cut follows the eye (a quadrant or two a frame when it changes)
     uCG.value.set(cg[0], cg[1], cg[2]);
     groundUnderUpdate(cg);           // the probe's cap follows the ground the craft is over (before the day's pass re-bakes it)
@@ -115386,6 +115389,7 @@ function propCullDist(key) {
   return (d && d.length === 3) ? Math.max(60, PROP_CULL_K * Math.hypot(d[0], d[1], d[2])) : 0;
 }
 function propPlace(THREE, key, x, z, ry, y) {
+  if (propInstWants(key)) { const p = propInstProxy(THREE, key); p.position.set(x, y || 0, z); p.rotation.y = ry || 0; return p; }   // G515 (below)
   const lv = propLevels(key);
   const force = propLodForce(), cull = force >= 0 ? 0 : propCullDist(key);
   let g;
@@ -115406,6 +115410,122 @@ function propPlace(THREE, key, x, z, ry, y) {
   g.position.set(x, y || 0, z);
   g.rotation.y = ry || 0;
   return g;
+}
+
+// THE INSTANCED PROPS (PERF 2026-09-23, G515). The frame is CPU-bound on its draw count, and the props
+// that come by the hundred - the power poles along every road, the scanned fence stretches round every
+// plot - were a THREE.LOD each: one draw per pole per material, ~260-400 poles and ~170 fence stretches
+// in a view. Once the world attaches the instancer (propInstAttach: the game world only - the garage,
+// the benches and the headless rigs place as they always did), propPlace hands such a key a PROXY: an
+// empty object with the prop's name, placed and parented exactly as the LOD was - every placement site
+// keeps setting its scale, its tilt, its parent. The instancer reads each proxy's final world matrix
+// and draws every proxy of a key at its level (the LOD's own levels and distances, the same empty last
+// level past a pixel and a half) through ONE InstancedMesh per level per material part. A proxy that is
+// hidden (an ancestor's visible, the GRAPHICS power-line switch) or taken out of the scene (an edit's
+// rebuild) is not drawn. The picture is the LODs'; the draws are a handful.
+const PROP_INST_KEYS = /^(pole_a|pole_b|pole_c|fence_old)$/;
+const PROP_INST = { THREE: null, scene: null, root: null, on: true, proxies: [], pending: [], batches: new Map(),
+                    eye: null, tick: 0, dirty: true, stats: { proxies: 0, drawn: 0, draws: 0 } };
+function propInstAttach(THREE, scene) {
+  if (!THREE || !THREE.InstancedMesh || !THREE.Matrix4 || !THREE.Vector3 || !scene) return false;
+  if (typeof location !== 'undefined' && /[?&]propinst=0/.test(location.search)) return false;   // ?propinst=0: every prop a LOD (the A/B)
+  PROP_INST.THREE = THREE; PROP_INST.scene = scene;
+  PROP_INST.root = new THREE.Group(); PROP_INST.root.name = 'propInstances';
+  scene.add(PROP_INST.root);
+  PROP_INST.eye = new THREE.Vector3(1e9, 0, 0);
+  return true;
+}
+function propInstWants(key) { return !!PROP_INST.scene && PROP_INST.on && PROP_INST_KEYS.test(key) && propLodForce() < 0; }
+function propInstProxy(THREE, key) {
+  const g = THREE.Object3D ? new THREE.Object3D() : new THREE.Group();
+  g.name = 'prop:' + key;
+  g.userData.prop = PROP_REG.props[key];
+  g.userData.propInst = key;
+  PROP_INST.pending.push(g);
+  PROP_INST.dirty = true;
+  // the bytes of every level on their way now (a LOD would have fetched them at its placement)
+  const B = (typeof window !== 'undefined' && window.BOOT) || null;   // the loading screen waits for the bytes, as for a LOD's
+  for (const k of [key].concat(propLevels(key).map(l => l.key))) if (!propReady(k) && !PROP_WARMS.has(k)) {
+    if (B) B.expect('props');
+    propWarm(k).then(() => { PROP_INST.dirty = true; propSetEnv(PROP_ENV); if (B) B.landed('props'); }).catch(e => { if (B) B.landed('props', false, k); });
+  }
+  return g;
+}
+// is the proxy in the scene, and shown? (every ancestor visible, up to the scene)
+function propInstLive(o) {
+  let shown = true;
+  for (let p = o; p; p = p.parent) { if (p === PROP_INST.scene) return shown ? 1 : 0; if (!p.visible) shown = false; }
+  return -1;   // not (or no longer) in the scene
+}
+function propInstBatch(levelKey, part) {
+  const id = levelKey + '#' + part;
+  let b = PROP_INST.batches.get(id);
+  if (b) return b;
+  if (!propReady(levelKey)) return null;
+  const built = propBuild(PROP_INST.THREE, levelKey);
+  if (part >= built.geos.length) return null;
+  b = { id, geo: built.geos[part], mat: built.mats[part], mesh: null, cap: 0, list: [] };
+  PROP_INST.batches.set(id, b);
+  return b;
+}
+function propInstUpdate(camera) {
+  const P = PROP_INST, T = P.THREE;
+  if (!P.scene || !camera) return;
+  // the proxies placed since: in once they stand in the scene (a site adds its group after placing into it)
+  if (P.pending.length) {
+    const keep = [];
+    for (const g of P.pending) {
+      if (propInstLive(g) < 0) { if (!g.userData.instAge) g.userData.instAge = 0; if (++g.userData.instAge < 600) keep.push(g); continue; }
+      P.proxies.push(g); P.dirty = true;
+    }
+    P.pending = keep;
+  }
+  const e = camera.position;
+  P.tick++;
+  const moved = Math.abs(e.x - P.eye.x) + Math.abs(e.y - P.eye.y) + Math.abs(e.z - P.eye.z) > 1.5;
+  if (!P.dirty && !moved && P.tick % 30 !== 0) return;
+  P.eye.copy(e); P.dirty = false;
+  for (const b of P.batches.values()) b.list.length = 0;
+  const zoom = camera.zoom || 1, keep = [];
+  let drawn = 0;
+  const w = new T.Vector3();
+  for (const g of P.proxies) {
+    const live = propInstLive(g);
+    if (live < 0) continue;             // gone from the scene: dropped
+    keep.push(g);
+    if (!live) continue;                // hidden
+    // the world matrix, as the LOD's would be (the sites set scale and tilt after the placement; a frozen
+    // premises group has posed it already, a fresh one is posed here)
+    if (g.matrixWorldAutoUpdate !== false) g.updateWorldMatrix(true, false);
+    w.setFromMatrixPosition(g.matrixWorld);
+    const key = g.userData.propInst, lv = propLevels(key), d = w.distanceTo(e) / zoom;
+    let lk = key;
+    for (const l of lv) if (d >= l.dist) lk = l.key;
+    const cull = propCullDist(key);
+    if (cull && d >= cull) continue;    // the empty last level: under a pixel and a half
+    for (let part = 0; ; part++) { const b = propInstBatch(lk, part); if (!b) break; b.list.push(g.matrixWorld); }
+    drawn++;
+  }
+  P.proxies = keep;
+  let draws = 0;
+  for (const b of P.batches.values()) {
+    const n = b.list.length;
+    if (n > b.cap) {
+      if (b.mesh) { P.root.remove(b.mesh); b.mesh.dispose(); }
+      b.cap = Math.max(16, n * 2);
+      b.mesh = new T.InstancedMesh(b.geo, b.mat, b.cap);
+      b.mesh.name = 'propInst:' + b.id; b.mesh.castShadow = true; b.mesh.receiveShadow = true;
+      b.mesh.frustumCulled = false;     // the instances span kilometres; their levels already cut them by distance
+      b.mesh.userData.sharedGeo = true; b.mesh.matrixAutoUpdate = false;
+      P.root.add(b.mesh);
+    }
+    if (!b.mesh) continue;
+    const a = b.mesh.instanceMatrix.array;
+    for (let i = 0; i < n; i++) a.set(b.list[i].elements, i * 16);
+    b.mesh.count = n; b.mesh.visible = n > 0; b.mesh.instanceMatrix.needsUpdate = true;
+    if (n) draws++;
+  }
+  P.stats.proxies = P.proxies.length; P.stats.drawn = drawn; P.stats.draws = draws; P.stats.pending = P.pending.length;
 }
 
 // The moods scale every material's own envMapIntensity (r128 has no
