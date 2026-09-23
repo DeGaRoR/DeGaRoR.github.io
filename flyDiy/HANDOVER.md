@@ -57356,6 +57356,100 @@ to the rest of the island (the summit is ringed by 400 m of fall); it is a fly-i
 GATE PREMISES, PARKED, ANIMALS green in the worktree; GATE WORLD's island block run by hand against the main
 checkout's bench/ (it skips without one) - green, plus mn_strip's own pattern and stand. No full battery (the
 user runs it once for all sessions). Data only: no src/ change, no build.
+## G523 - THE WORLD SHIPS: Jolene leaves the gitignored bench/ and lands in media/, 168 MB -> 35 MB (2026-09-23)
+
+THE DEFECT, and it was never a ruling: `flyDiy/.gitignore:9` ignores `bench/`. That rule was written on 2026-09-04
+(f0be1ea4) for "terrain bench scratch bakes ... reproducible in seconds" - TEN DAYS BEFORE THE ISLAND EXISTED (the
+island arc starts 2026-09-14, G391+). Jolene's bake was then written into `bench/jolene` and `bench/terrain` and
+silently inherited it. So the DEFAULT MAP (G434) was in no clone, no worktree and no cloud session; the workarounds
+piled up (`_serve.js --fallback` on eight launch entries, `_splat_check.js`'s `const MAIN = 'D:/Dev/...'`, an absolute
+`D:/Dev/.../bench/jolene` in `jolene_author.py`), two junction attempts EMPTIED bench/ outright (G434.1), and
+GATE WORLD printed "the island checks are skipped" and passed GREEN with eight checks dead. Every written intention
+was the opposite: ISLAND-PREPACK §5b ("one baked asset ~40 MB, committed once per world rebuild"), CREDITS.md ("the
+shipped asset will live in media/"), build.js ("from media/ when the world ships") and terrain_bake.js's own
+writeGuard ("the thing writing it into media/ will be the manifest bake, not this bench tool"). That bake is written
+now. THE SIZE OBJECTION DID NOT SURVIVE MEASUREMENT: the seventeen layers the game reads are 168 MB raw and 35 MB
+gzipped - the 1.4 GB in bench/jolene is 97 % prep intermediate (dem5.* 1.1 GB, dem.ori{,2,3,4}, ndwi, lakemask,
+ifsar_canopy) that nothing at runtime reads.
+
+- `tools/world_prep.js` (new) - THE MANIFEST BAKE. `--island <id> [--bench <dir>] [--report] [--level 9]`. Reads the
+  bench bake, gzips, writes `media/world/<id>/<stem>.<h8>.bin` through `_media_lib.writeMedia`, prunes the owned
+  subdirectory, emits `src/core/world_packs.json`. THREE RULES: (1) ONE GZIP STREAM per file, always, with the `.bin`
+  extension - `.bin` because GATE MEDIA's reference regex already matches it, so a world ships without widening the
+  store's grammar, and one stream because the consumer then has ONE decode path. The two terrain payloads arrive
+  already gzipped from terrain_bake.js and are copied byte-exact; the test is the 1f 8b magic, never a flag.
+  (2) ONE NAME LIST: the `SET` table in that file is the only place these seventeen filenames exist. (3) CONTENT
+  HASHED, which is not cosmetic - see the sw.js note below.
+- THE MANIFEST KEY IS THE DOTTED PATH into the boot object 28_island.js reads (`header`/`topo`/`payload`, `grid.*`,
+  `far.*`). Both consumers assemble with the same one-line `set()`, so neither the page loader nor island_node.js
+  spells a filename, and A SECOND ISLAND IS A BAKE, NOT A CODE EDIT (`WORLDS` for the GRAPHICS menu is derived from
+  the pack). Two record forms only: `{json}` (inlined, decoded) or `{src, kind, raw}`.
+- `raw` MEANS BYTES AFTER THE GUNZIP, for every record. Taking it to be the file's size on disk was this landing's
+  own bug, and GATE WORLD's new size check caught the two already-gzipped terrain payloads on its first run.
+- INLINE_MAX is 1 KB, so only the two quadtree headers (299 + 297 B) are carried IN the manifest, decoded; every other
+  layer is a payload. It was 8 KB first, which pulled dem.json in too.
+- `tools/build.js` - the ISLAND_LOADER's three `bench/` prefixes are GONE, the whole runtime coupling with them. The
+  manifest is FETCHED (`src/core/world_packs.json`) - see the budget note below; it was inlined at build time first. `opt()` is deleted - presence in `files` is the contract now that GATE MEDIA holds
+  referenced == present. A `BOOT.phase('world', ...)` was added because ~35 MB now rides in front of the first paint
+  and without it the loading screen sits frozen on the step before.
+- `tools/island_node.js` - reads the same manifest, gunzips with zlib. Two failure modes ON PURPOSE: an island the
+  manifest does not name returns null (a typo'd --world says so); one it DOES name whose payload is absent THROWS,
+  because that is a broken checkout and must not read as an absent island. New `islandAuthoring(id, key)`.
+- G521's `FLYDIY_BENCH` IS KEPT, and promoted from a fallback to an EXPLICIT opt-in. It was added so a gate in a
+  worktree could read the main checkout's bench with the worktree's code; that need is gone for the shipped island,
+  but an author iterating a re-prep has bytes that are not baked yet and still wants it. What it must never be again
+  is automatic: reading bench/ "whenever it exists" silently divided what a gate measured from what the page fetched,
+  depending on which checkout it ran in. Set the variable and you get the raw bench; otherwise the manifest, which is
+  what players get. Both routes composed the IDENTICAL world at the rebase (same four aerodromes plus G522's
+  mn_strip), which is the cross-check that the shipped bytes are the bench's bytes.
+- GATE WORLD's island checks are MANDATORY. The silent skip is exactly how a missing default map went nine days
+  without a red. Plus three new checks GATE MEDIA cannot see: every payload gunzips to its declared size; sw.js's
+  WORLD_KEEP was built against THIS manifest (baked the world, forgot to rebuild - manifest and media agree
+  perfectly in that state, so the media gate is green while the worker holds the PREVIOUS bake's hashes and evicts
+  each new payload moments after the page fetches it); and every data source still has its line in CREDITS.md. That
+  middle check was written against index.html and MOVED when the manifest stopped being inlined - the page reads the
+  manifest at runtime now and cannot go stale, the worker still can. Proved with a negative control: corrupt one
+  hash in sw.js and GATE WORLD goes red.
+- `authoring`, a sibling of `files` that the loader does not iterate: `dem.f32` (48.5 -> 11.4 MB), shipped so the
+  premises can be re-authored anywhere. `jolene_author.py` reads it (bench/ first when present) and its hard-coded
+  D: path is gone; the bytes are the same, so `tools/fixtures/island_jolene.json` re-emits IDENTICAL.
+- `.gitattributes` (new, the repo had none): `flyDiy/media/** -text`, `*.bin binary`. autocrlf is per-clone, and a
+  gzip stream with rewritten 0x0a bytes fails as an opaque DecompressionStream error at boot, far from the cause.
+- bench/ STAYS gitignored - it is the bake's input, and the .gitignore comment now says so loudly. The ~7 GB raw
+  USGS/ESA set stays local. The bench tools (_island.html, island_bench_shot.js, splat_sheet.py, island_prep.py)
+  reach bench/ through their own CLI defaults and are untouched. THE LOOP: island_prep.py -> terrain_bake.js -> the
+  bench tools iterate -> world_prep.js -> build.js -> the gates.
+- CREDITS.md's Jolene section is now the shipped asset's attribution in the present tense, discharging the two CC-BY
+  4.0 obligations (ESA WorldCover, Meta/WRI) that were owed but dormant while nothing shipped.
+- THE CACHE SWEEPS ITSELF, in the same landing: sw.js had no eviction at all, which was tolerable while the biggest
+  re-bakeable payload was a few MB of texture and is not at ~35 MB a world - a player who had seen two bakes would
+  carry both for ever. The generated worker now carries `WORLD_KEEP` (this build's world paths, straight off the
+  manifest) and its `activate` deletes every /media/world/ entry outside that set. SCOPED TO THE WORLD ON PURPOSE: a
+  texture is a few hundred KB and a page still open in another tab may want it, whereas a superseded world is tens of
+  megabytes that nothing will ask for again (world_prep's prune takes the old names off the server in the same bake,
+  so a stale tab 404s to the analytic world either way). PROVEN against the real Cache API, not by reading it: seed a
+  cache with a kept path, a previous bake's albedo and a wood texture, run the generated activate body verbatim - the
+  kept path survives, the stale bake is evicted, the texture is untouched.
+- OWED: sourcing jolene_author.py's levels from the shipped quadtree instead of dem.f32, which would retire the
+  11 MB - but it moves heights by up to the baker's 2 m eps and therefore moves the fixture and GATE WORLD's
+  assertions, so it needs its own reviewable diff.
+- THE ARTIFACT BUDGET IS SPENT, AND SAYING SO IS PART OF THIS ENTRY. GATE MEDIA holds index.html to 8.7 MiB. When
+  this work started there were ~17 KB free; by the time it had been rebased three times (G517-G519, then G520-G522)
+  master itself was down to 589 BYTES, and the 2.3 KB inlined manifest turned the gate RED. Inlining it had been the
+  right call on its own terms - no round trip before the payloads - but 2.3 KB was not this asset's to spend against
+  589, so the loader FETCHES the manifest now: one ~700 B request in front of a 35 MB download, which is nothing, and
+  the world costs the page 524 bytes LESS than the loader it replaced (headroom 589 -> 1113). FLYDIY_WORLDS therefore
+  arrives async; both readers build a menu on demand and already guard on it. VERIFIED that `?world=none` still lists
+  Jolene in the GRAPHICS menu, which is the switch that would have broken.
+  THE BUDGET ITSELF NEEDS A RULING, and it is not this chantier's to make: 1113 bytes is one small feature from red
+  for whoever lands next, and the fix is a decision about what leaves index.html, not another shuffle.
+- PROVEN IN A WORKTREE THAT HAS NO bench/ AT ALL: `node tools/island_node.js jolene` composes (w2, HOME, w3, SEA);
+  GATE WORLD 36 checks 0 failed with the eight island checks RUNNING; GATE MEDIA PASS (media/world/jolene 16 files,
+  46.49 MB; index.html 8.69 MiB of 8.7); the page on `_serve.js` with NO --fallback boots `?world=jolene` with no
+  fallback warning, 15 requests and 37.3 MB on the wire (was 168 MB), ISLAND_BOOT carrying albedo 36397200, grid
+  3095x3920, 317 lakes, and no request for the authoring DEM.
+
+
 ## G524 - THE MIRROR'S CEILING IS A FADE, NOT A CLIFF: a lake from the air stops being a black polygon
 ## (2026-09-23, the user: "do your planar mirror fix", after the Metlakatla session reported Skaters Lake
 ## "uniformly near-black, no sky in it, no gradient, a hard edge against the bank")

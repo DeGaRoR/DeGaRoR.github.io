@@ -51,11 +51,38 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json')
 
 # ---- the DEM, for the levels -------------------------------------------------
+# THE SHIPPED SOURCE (2026-09-23): the 10 m grid header and the 5 m float DEM
+# come out of media/world/jolene, named by src/core/world_packs.json - so the
+# premises can be re-authored in a worktree, a fresh clone or a cloud session.
+# This used to read bench/jolene (gitignored) and fall back to a hard-coded
+# 'D:/Dev/DeGaRoR.github.io/flyDiy/bench/jolene', which is to say: on one
+# machine, or not at all. bench/ is still read FIRST when it is there, so the
+# island's author can iterate a re-prep without baking the shipped asset.
+# The bytes are the same either way, so the fixture does not move.
+import gzip
+def _pack_src(key, section='files'):
+    p = os.path.join(ROOT, 'src', 'core', 'world_packs.json')
+    if not os.path.exists(p): return None
+    for w in json.load(open(p)).get('islands', []):
+        if w['id'] == 'jolene':
+            r = w.get(section, {}).get(key)
+            if r and r.get('src'): return os.path.join(ROOT, *r['src'].split('/'))
+            if r and 'json' in r: return r['json']
+    return None
+
 BENCH = os.path.join(ROOT, 'bench', 'jolene')
-if not os.path.exists(os.path.join(BENCH, 'dem.json')): BENCH = 'D:/Dev/DeGaRoR.github.io/flyDiy/bench/jolene'   # a worktree: the main checkout's bake
-J = json.load(open(os.path.join(BENCH, 'dem.json')))
+if os.path.exists(os.path.join(BENCH, 'dem.json')):
+    J = json.load(open(os.path.join(BENCH, 'dem.json')))
+    DEM_BYTES = open(os.path.join(BENCH, 'dem.f32'), 'rb').read()
+else:
+    meta, f32 = _pack_src('grid.meta'), _pack_src('f32', 'authoring')
+    if meta is None or f32 is None:
+        sys.exit('jolene_author: no DEM - neither bench/jolene nor the shipped media/world/jolene '
+                 '(run tools/world_prep.js, or point at a bench with the island baked)')
+    J = meta if isinstance(meta, dict) else json.loads(gzip.decompress(open(meta, 'rb').read()))
+    DEM_BYTES = gzip.decompress(open(f32, 'rb').read())
 W, H, X0, Z0, CELL = J['w'], J['h'], J['x0'], J['z0'], J['cell']
-DEM = np.fromfile(os.path.join(BENCH, 'dem.f32'), np.float32).reshape(H, W)
+DEM = np.frombuffer(DEM_BYTES, np.float32).reshape(H, W)
 def dem(x, z):
     c = (x - X0) / CELL; r = (z - Z0) / CELL; i = int(c); j = int(r); u = c - i; v = r - j
     return float(DEM[j, i] * (1 - u) * (1 - v) + DEM[j, i + 1] * u * (1 - v) + DEM[j + 1, i] * (1 - u) * v + DEM[j + 1, i + 1] * u * v)

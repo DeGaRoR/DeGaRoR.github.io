@@ -97,7 +97,7 @@ function runTrace(o) {
   // THE ISLAND (G434): --world jolene flies the data world with its own premises (tools/island_node.js
   // reads what the page's loader fetches; absent files throw - the caller asked for an island)
   const world0 = o.world ? (() => { const IN = require(path.join(T, 'island_node.js')); const fx = path.join(T, 'fixtures', 'island_' + o.world + '.json');
-    const W = IN.islandWorld(o.world, { premises: fs.existsSync(fx) ? fs.readFileSync(fx, 'utf8') : null }); if (!W) throw new Error('no island files for ' + o.world + ' under bench/'); return W; })() : C.makeWorld();
+    const W = IN.islandWorld(o.world, { premises: fs.existsSync(fx) ? fs.readFileSync(fx, 'utf8') : null }); if (!W) throw new Error('src/core/world_packs.json names no island "' + o.world + '"'); return W; })() : C.makeWorld();
   const weather = {};
   if (o.wind || o.gust) weather.wind = { base: [o.wind ? o.wind[0] : 0, 0, o.wind ? o.wind[1] : 0], gust: o.gust || 0, refH: 10 };
   if (o.oat != null) weather.oatC = o.oat;

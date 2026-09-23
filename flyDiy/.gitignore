@@ -2,10 +2,22 @@
 # URSOY raw source data (~10 GB, fetched by tools/island_fetch.js)
 assets/island/raw/
 
-# Terrain bench scratch bakes (tools/terrain_bake.js --out).
-# NOT media/: that directory is the SHIPPED store and GATE MEDIA requires
-# every file in it to be named by a baked manifest. A bench bake is a
-# developer artefact and is reproducible in seconds — see tools/_terrain.html.
+# Terrain bench scratch bakes (tools/terrain_bake.js --out) and the island
+# preps (tools/island_prep.py): a developer artefact, reproducible from the raw
+# set — see tools/_terrain.html, tools/_island.html.
+#
+# READ THIS BEFORE PUTTING ANYTHING THE GAME LOADS HERE (2026-09-23). This rule
+# was written on 2026-09-04 for scratch, ten days before the island existed.
+# Jolene's bake was then written into bench/jolene and bench/terrain and
+# inherited it — so the DEFAULT MAP was in no clone, no worktree and no cloud
+# session for nine days, GATE WORLD skipped its eight island checks in silence,
+# and two junction workarounds emptied bench/ outright. The world ships now, as
+# it was always meant to (ISLAND-PREPACK §5b): tools/world_prep.js gzips the
+# seventeen layers the game reads into media/world/<id> under content-hashed
+# names and lists them in src/core/world_packs.json.
+#
+# So: bench/ is the BAKE'S INPUT and nothing else. If the game fetches it, it
+# belongs in media/ through a manifest bake, not here.
 bench/
 
 # Screenshots (2026-09-14, user ruling): bench and game captures are

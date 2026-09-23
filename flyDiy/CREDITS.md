@@ -1049,12 +1049,19 @@ signs on a clear ground (`assets/billboards/signs_sheet_1.png`), cut by
 General Store, Tidal Cup Cafe, Bear Coast Tours, Sitka Spruce Lumber, North
 Channel Motel, Tongass Marine Supply. No third-party licence applies.
 
-## The world's data — Jolene Island (`assets/island/raw/jolene/`, baked to `bench/jolene/` today; the shipped asset will live in media/)
+## The world's data — Jolene Island (raw in `assets/island/raw/jolene/` (local, gitignored); SHIPPED as `media/world/jolene/`)
 
 Jolene Island is Annette Island, Southeast Alaska, taken whole from public
-data and renamed (`futureDesigns/ISLAND-ANNETTE.md`). Nothing from this list
-ships yet (2026-09-14: the bench only); when the baked world asset lands in
-`media/`, this section is its attribution.
+data and renamed (`futureDesigns/ISLAND-ANNETTE.md`). **This section is that
+asset's attribution.** The world ships since 2026-09-23: `tools/world_prep.js`
+takes the seventeen layers the game reads out of the local bench bake, gzips
+them under content-hashed names into `media/world/jolene/` (~35 MB), and names
+every one in `src/core/world_packs.json`. The ~7 GB of raw USGS and ESA
+downloads underneath remain local and gitignored — a build input, never
+published; `tools/island_fetch.js` re-fetches them, listing by listing.
+
+GATE WORLD checks that each source named below still has its line here, so a
+layer cannot lose its credit quietly.
 
 - **Elevation** — USGS 3DEP Alaska IFSAR 5 m DTM (GeoSAR, Fugro EarthData
   for USGS, 2012). **US federal public domain**; USGS asks for citation as a

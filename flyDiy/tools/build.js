@@ -476,6 +476,24 @@ const MANIFEST = {
 const read = f => fs.readFileSync(f, 'utf8');
 const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
 
+// THE SHIPPED WORLDS (2026-09-23): src/core/world_packs.json, baked by
+// tools/world_prep.js, names every gzipped payload under media/world/<id>.
+// It is INLINED into the island loader rather than fetched: the loader runs
+// before any script and must not spend a round trip learning what to fetch,
+// and inlining puts the three tiny headers (~3.7 KB) on the page for free.
+// Parse-then-stringify minifies AND fails the build loudly on a bad manifest.
+const WORLD_PACK = (() => {
+  const p = path.join(CORE_DIR, 'world_packs.json');
+  if (!fs.existsSync(p)) return '{"islands":[]}';   // no world baked on this machine yet
+  const pack = JSON.parse(read(p));                 // throws loudly on a bad manifest
+  // only what the LOADER reads rides in the page: the id and name for the
+  // GRAPHICS menu, the files it fetches, and the credit (CC-BY asks that the
+  // notice travel with the asset; trees_pack.js sets the same precedent).
+  // `authoring` is deliberately left out - it is jolene_author.py's 11 MB DEM
+  // and naming it here would advertise a path the page must never fetch.
+  return JSON.stringify({ islands: (pack.islands || []).map(w => ({ id: w.id, name: w.name, credit: w.credit, files: w.files })) });
+})();
+
 // IN-PROCESS (2026-09-14, the gate rationalization): this used to write each
 // part to a temp file and spawn `node --check` on it - 151 spawns at ~350 ms
 // each, 45-50 s of every battery before the first gate ran. vm.Script runs the
@@ -591,36 +609,68 @@ function buildViewer(coreBody) {
 (function () {
   // THE ISLAND (W2, 2026-09-14): ?world=jolene boots the data world. The asset
   // (the quadtree) and the grids are fetched BEFORE any script runs, because
-  // makeWorld is called during app.js's own evaluation. From bench/ today
-  // (gitignored, the developer's machine); from media/ when the world ships.
+  // makeWorld is called during app.js's own evaluation.
+  // THE WORLD SHIPS (2026-09-23): out of media/world/<id>, named by the
+  // manifest src/core/world_packs.json which tools/world_prep.js bakes and
+  // build.js inlines below. It read bench/ until this landing - gitignored,
+  // so Jolene, the DEFAULT map, was in no clone, no worktree and no cloud
+  // session. Every payload is ONE gzip stream under a content-hashed .bin,
+  // so there is one decode path and sw.js's permanent /media/ cache is safe.
+  // The manifest KEY is the path into the boot object, so nothing here spells
+  // a filename and a second island is a bake, not an edit.
   // JOLENE IS THE DEFAULT (G434, the user: "make Jolene the new starting
   // terrain ... the old map stays"): the map is ?world= when given, else the
   // GRAPHICS menu's choice (localStorage flydiy.world), else jolene; 'none' is
   // the analytic world. The list is published for the menu. An island whose
-  // files are not there (a page served without bench/) falls back to the
-  // analytic world with a line in the console - never a page that hangs.
-  var WORLDS = [{ id: 'jolene', name: 'Jolene Island' }, { id: 'none', name: 'Home Strip (the analytic world)' }];
-  window.FLYDIY_WORLDS = WORLDS;
+  // files are not there falls back to the analytic world with a line in the
+  // console - never a page that hangs.
   var name = new URLSearchParams(location.search).get('world');
   if (name === null) { try { name = localStorage.getItem('flydiy.world'); } catch (e) {} }
   if (!name) name = 'jolene';
   window.FLYDIY_WORLD = name;
-  if (name === 'none' || name === 'analytic' || !/^[a-z0-9_]+$/.test(name)) { window.FLYDIY_WORLD = 'none'; return; }
-  var T = 'bench/terrain/' + name + '5_e2', G = 'bench/' + name + '/dem', F = 'bench/terrain/' + name + '5_e4';   // F: the far terrain's coarser tree
-  var get = function (u, kind) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + ' ' + r.status); return kind === 'json' ? r.json() : r.arrayBuffer(); }); };
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
-  var opt = function (u) { return get(u).then(u8, function () { return null; }); };
+  // the manifest key is a dotted path; this is the only assembly either
+  // consumer needs (island_node.js carries the same line)
+  var set = function (o, k, v) { var p = k.split('.'); for (var j = 0; j < p.length - 1; j++) o = (o[p[j]] = o[p[j]] || {}); o[p[p.length - 1]] = v; };
+  var boot = { id: name, grid: {}, far: {}, hydro: new URLSearchParams(location.search).get('hydro') || 'blend' };
+  // THE MANIFEST IS FETCHED, NOT INLINED. It was inlined at build time at first,
+  // to spend no round trip before the payloads - but index.html is held to
+  // 8.7 MiB by GATE MEDIA and had 589 bytes of headroom the day this landed, so
+  // 2.3 KB of manifest was not this asset's to spend. One ~700-byte request in
+  // front of a 35 MB download is nothing, and the world now costs the page
+  // LESS than the loader it replaced. FLYDIY_WORLDS therefore arrives async;
+  // both readers (app.js, gfx_settings.js) build a menu on demand long after
+  // boot and already guard on it being a non-empty array.
   window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
-    return Promise.all([get(T + '.json', 'json'), get(T + '.topo').then(u8), get(T + '.bin').then(gz),
-                        get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8'),
-                        opt(G + '.coast.u8'), opt(G + '.albedo.rgb'), opt(G + '.tint.rgb'), opt(G + '.ori1.u8'), opt(G + '.ndvi.u8'),
-                        opt(G + '.lake.u8'), opt(G + '.ttype.u8'), get(G + '.lakes.json', 'json').then(null, function () { return null; }),
-                        get(F + '.json', 'json').then(null, function () { return null; }), opt(F + '.topo'), opt(F + '.bin').then(function (b) { return b ? gz(b.buffer) : null; })])
-      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2],
-        grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10], lake: r[11], ttype: r[12], lakes: r[13] },
-        far: (r[14] && r[15] && r[16]) ? { header: r[14], topo: r[15], payload: r[16] } : null,
-        hydro: new URLSearchParams(location.search).get('hydro') || 'blend' }; })
+    return fetch('src/core/world_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }, function () { return { islands: [] }; }).then(function (PACK) {
+    var all = PACK.islands || [];
+    window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }]);
+    var isl = null;
+    for (var i = 0; i < all.length; i++) if (all[i].id === name) isl = all[i];
+    if (!isl) { window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; return; }
+    var keys = Object.keys(isl.files), done = 0, fetched = 0;
+    for (var k2 = 0; k2 < keys.length; k2++) if (!('json' in isl.files[keys[k2]])) fetched++;
+    return Promise.all(keys.map(function (k) {
+      var r = isl.files[k];
+      // PRESENCE IS THE CONTRACT: a key that is named must arrive. The old
+      // loader's opt() let a grid 404 quietly; GATE MEDIA now holds
+      // referenced == present, so a miss here is a broken checkout and the
+      // catch below says so rather than drawing an island with a hole in it.
+      if ('json' in r) { set(boot, k, r.json); return null; }
+      return fetch(r.src).then(function (res) { if (!res.ok) throw new Error(r.src + ' ' + res.status); return res.arrayBuffer(); })
+        .then(gz).then(function (u) {
+          set(boot, k, r.kind === 'json' ? JSON.parse(new TextDecoder().decode(u)) : u);
+          done++;
+          // ~35 MB now rides in front of the first paint - without a phase the
+          // loading screen would sit frozen on the step before it
+          try { if (window.BOOT && BOOT.phase) BOOT.phase('world', 'reading the island', done / fetched); } catch (e) {}
+        });
+    })).then(function () {
+      if (!(boot.far && boot.far.header && boot.far.topo && boot.far.payload)) boot.far = null;
+      window.ISLAND_BOOT = boot;
+    });
+    })
       .catch(function (e) { console.warn('flyDiy: the island "' + name + '" did not load (' + (e && e.message) + '); the analytic world boots instead'); window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; });
   });
 })();
@@ -704,14 +754,37 @@ window.FLYDIY_BOOT.then(function () {
   fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: new Date().toISOString() }) + '\n');
   // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
   // there is named by its content hash, so a hit can never be stale; scripts,
-  // pages, bench/ and everything else are never touched. One cache for every
+  // pages and everything else are never touched. One cache for every
   // build (the names change when the bytes do); the REFRESH CACHES button in
   // the GRAPHICS menu drops it. Registered by index.html alone (storage.js).
+  // OWED, since the world started shipping (2026-09-23): this cache has NO
+  // eviction, and a world is ~35 MB a bake - which was tolerable when the
+  // biggest re-bakeable payload was a few MB of texture and is not now. So the
+  // WORLD, and only the world, is swept on activate: every /media/world/ entry
+  // outside THIS build's path set goes. Scoped there on purpose - a texture is
+  // a few hundred KB and an older page still open in another tab may want it,
+  // whereas a superseded world is tens of megabytes that nothing will ask for
+  // again (world_prep prunes the old names off the server in the same bake, so
+  // a stale tab would 404 and fall back to the analytic world either way).
+  const WORLD_KEEP = JSON.stringify([].concat(...JSON.parse(WORLD_PACK).islands
+    .map(w => Object.values(w.files || {}).filter(r => r.src).map(r => r.src))));
   fs.writeFileSync(path.join(ROOT, 'sw.js'), `// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build ${BUILD_ID}.
 // The media cache: cache-first for media/ (content-hashed, immutable), nothing else.
+// The world payloads this build asks for; anything else under media/world/ is
+// swept on activate (a superseded world is ~35 MB and nothing will ask for it).
+const WORLD_KEEP = ${WORLD_KEEP};
 const CACHE = 'flydiy-media-v1';
 self.addEventListener('install', e => { self.skipWaiting(); });
-self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
+self.addEventListener('activate', e => { e.waitUntil((async () => {
+  await self.clients.claim();
+  try {
+    const c = await caches.open(CACHE), keep = new Set(WORLD_KEEP);
+    for (const req of await c.keys()) {
+      const p = new URL(req.url).pathname, i = p.indexOf('/media/world/');
+      if (i >= 0 && !keep.has(p.slice(i + 1))) await c.delete(req);
+    }
+  } catch (err) {}   // a cache that will not open is not worth failing activate over
+})()); });
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;

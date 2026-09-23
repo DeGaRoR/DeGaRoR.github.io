@@ -764,6 +764,16 @@
         "D:/Dev/DeGaRoR.github.io"
       ],
       "port": 8492
+    },
+    {
+      "name": "flydiy-worldship",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8495",
+        "."
+      ],
+      "port": 8495
     }
   ]
 }

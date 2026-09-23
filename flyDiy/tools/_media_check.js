@@ -217,7 +217,13 @@ function manifestFiles() {
   // user's captures into media/tex/shots and names them in this manifest
   const shots = fs.existsSync(path.join(ROOT, 'src', 'viewer', 'shots_pack.json'))
     ? [path.join(ROOT, 'src', 'viewer', 'shots_pack.json')] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots);
+  // the shipped worlds: one manifest per repository, naming every gzipped
+  // payload of every island under media/world/<id> - baked by
+  // tools/world_prep.js out of the gitignored bench/. Jolene is the default
+  // map and until this landed none of its data was in git at all.
+  const worlds = fs.existsSync(path.join(ROOT, 'src', 'core', 'world_packs.json'))
+    ? [path.join(ROOT, 'src', 'core', 'world_packs.json')] : [];
+  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin)/g;   // webp: LOADING S4's texture prep

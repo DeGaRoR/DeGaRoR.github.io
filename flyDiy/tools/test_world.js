@@ -173,17 +173,24 @@ checks['waterH sea/land'] = W.waterH(0, 4000) === 0 && W.terrainH(0, 4000) < 0 &
   checks['perf terrainH<2.5us'] = ms < 2500;
 }
 
-// --- THE ISLAND'S OWN PREMISES (G434): when the island's files are on this machine (bench/, gitignored),
-// Jolene's record composes on the data world and its field holds - HOME with its club hangar and its
-// stand, the sea lane, the hill strip; every stand's pattern sound; no record issue. Absent files: said,
-// never red (the gate cannot fetch an island).
+// --- THE ISLAND'S OWN PREMISES (G434): Jolene's record composes on the data world and its field holds -
+// HOME with its club hangar and its stand, the sea lane, the hill strip; every stand's pattern sound; no
+// record issue.
+// MANDATORY SINCE 2026-09-23. These checks used to be skipped with a line when the files were absent,
+// because the island lived under the gitignored bench/ and only the machine that baked it had them - so
+// in every worktree, every clone and every cloud session this gate printed "skipped" and passed GREEN
+// with eight checks dead. That silence is how the default map came to be missing from git for nine days
+// without a single red. The world ships now (media/world/<id>, src/core/world_packs.json), every checkout
+// has it, and its absence is a defect like any other.
 {
   let IN = null; try { IN = require('./island_node.js'); } catch (e) {}
-  const fs = require('fs'), path = require('path');
+  const fs = require('fs'), path = require('path'), zlib = require('zlib');
   const fx = path.join(__dirname, 'fixtures', 'island_jolene.json');
-  const boot = IN && IN.islandBoot('jolene');
-  if (!boot || !fs.existsSync(fx)) console.log('island: no jolene files under bench/ - the island checks are skipped');
-  else {
+  let boot = null, bootErr = '';
+  try { boot = IN && IN.islandBoot('jolene'); } catch (e) { bootErr = ' (' + e.message + ')'; }
+  checks['island: the shipped world loads' + bootErr] = !!boot;
+  checks['island: the premises fixture is on disk'] = fs.existsSync(fx);
+  if (boot && fs.existsSync(fx)) {
     const C = require('./flight_core.js');
     const WI = IN.islandWorld('jolene', { premises: fs.readFileSync(fx, 'utf8') });
     const O = WI.premises.overlay, ids = WI.aerodromes.map(a => a.id);
@@ -201,6 +208,38 @@ checks['waterH sea/land'] = W.waterH(0, 4000) === 0 && W.terrainH(0, 4000) < 0 &
     checks['island: the village sowed its plots (harbour and residential)'] = O.records.plots.some(p => p.zone === 'z_harbour') && O.records.plots.filter(p => p.zone === 'z_village').length >= 10;
     const M = C.siteRunwayModel(WI.aerodromes.find(q => q.id === 'HOME'), WI);
     checks['island: 13/31 approaches under 4 % both ways (the fans clear)'] = M.dir.every(d => d.reqGs < 0.04);
+  }
+
+  // --- THE SHIPPED ASSET ITSELF (2026-09-23). GATE MEDIA already holds
+  // manifest == media in both directions; these are the three things it cannot
+  // see, because to it a stale page and a fresh one look the same.
+  const pack = IN ? IN.worldPack() : { islands: [] };
+  const isl = (pack.islands || []).find(w => w.id === 'jolene');
+  checks['island: the manifest names jolene'] = !!isl;
+  if (isl) {
+    const srcs = Object.values(isl.files).filter(r => r.src);
+    // every payload is one gzip stream and decompresses to the length the bake
+    // recorded - a truncated or text-mangled binary is caught here, not as an
+    // opaque DecompressionStream failure at boot
+    checks['island: every payload gunzips to its declared size'] = srcs.every(r => {
+      try { return zlib.gunzipSync(fs.readFileSync(path.join(__dirname, '..', ...r.src.split('/')))).length === r.raw; } catch (e) { return false; }
+    });
+    // THE ONE THAT EARNS ITS KEEP: baked the world, forgot to rebuild. The
+    // manifest and media/ agree perfectly in that state, so GATE MEDIA is
+    // green - but sw.js's WORLD_KEEP is baked into the build, and a stale one
+    // lists the PREVIOUS bake's hashes, so the worker would evict each new
+    // payload from the cache moments after the page fetched it. (The page
+    // itself reads the manifest at runtime and so cannot go stale this way;
+    // this check followed the staleness when the manifest stopped being
+    // inlined, rather than being dropped with its old premise.)
+    const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+    const keep = JSON.parse((sw.match(/const WORLD_KEEP = (\[[^\n]*\]);/) || [0, '[]'])[1]);
+    checks['island: sw.js WORLD_KEEP was built against this manifest'] =
+      srcs.length > 0 && srcs.every(r => keep.includes(r.src)) && keep.every(s => typeof s === 'string');
+    // the CC-BY holders travel with the asset: a source that loses its line in
+    // CREDITS.md goes red rather than quietly shipping unattributed
+    const cred = fs.readFileSync(path.join(__dirname, '..', 'CREDITS.md'), 'utf8');
+    checks['island: every data source is credited in CREDITS.md'] = (isl.sources || []).length > 0 && (isl.sources || []).every(s => cred.indexOf(s) >= 0);
   }
 }
 
