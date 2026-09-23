@@ -58008,3 +58008,27 @@ oblique eye: soft wet hollows with graded shores, the lakes still mirrors.
 
 THE KNOBS ARE LIVE (F8 > ground, or `WORLD.ground.splat().set({...})`), so the next judgement needs no build:
 pudFar 0 restores the old rim exactly, pudWet 1 leaves the margin dry, pudRim 0 removes the margin.
+
+## G527.3 - EAST POINT'S TREES CUT BACK TO THE USER'S LINES; a strip that names its way out (2026-09-23)
+
+- The user, on a picture of the site with red over what was cut and green over what to cut: "You've cut
+  too much in the trees ... feel free to cut trees where you place assets." Most of the red was not the
+  record's: render_world's generic tree box clears len/2 + 150 m along and wid/2 + 60 m across EVERY
+  aerodrome (450 x 132 m here), whatever the editor says. Contract v1.25 `treeBox: false` on a runway
+  leaves the strip's trees to the record (its box + 30 m, the authored excludes).
+- The record redrawn to the green: `nv_clearing` (and its meadow) is the strip's corridor and the grounds
+  only, nothing past the ends; `nv_fan_n` a slim wedge 100 m off the north end tapering to a point;
+  `nv_fan_s` a funnel from the south end to the shore (half-width 14 -> 55 m over 230 m).
+- With the north end in the trees the strip is landed FROM THE SOUTH over the cove (`approach: 1`) and must
+  be left back to the south: v1.25 `departure: 1` (the end the take-off leaves over) -> aerodrome
+  `takeoffHdg`, honoured by 43_pilot dirAt in calm air (the site-model branch and, per the pilot session,
+  the fallback branch). Gated on the field: only nv_strip carries it.
+- MEASURED: the south approach clears at 1:15 to 1.5 km and 1:20 to 600 m (unchanged); the north is
+  wooded 50 m past the end (7 m into a 1:15 plane) - no longer an approach. FLOWN (cub): HOME -> nv_strip
+  lands from the south, 74 m roll; nv_strip -> HOME departs from the north hold rolling south, lift-off at
+  104 m, committed with 84 m left. Without `departure` the cub tried to leave north and gave up on the
+  ground (taxi-lost) - that is why the field exists.
+- GATES (targeted): PILOT, SITE, WORLD, PREMISES, WORLDRENDER, LIFE green. jolene_author rev 16.
+- FILES: src/core/27_premises.js, src/core/43_pilot.js, src/viewer/render_world.js,
+  tools/jolene_parts/native.json, tools/jolene_author.py, tools/fixtures/island_jolene.json,
+  futureDesigns/PREMISES-CONTRACT-2026-09-13.md (v1.25).

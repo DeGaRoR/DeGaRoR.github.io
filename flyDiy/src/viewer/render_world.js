@@ -997,7 +997,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // end for the approach, the width + 60 m each side - where it was a CIRCLE of len/2 + 70
   // (a kilometre round a 2 km runway, the whole airport bare). A record without a heading keeps
   // the circle.
-  const treeEx = world.aerodromes.map(a => (typeof a.hdg === 'number' && a.wid)
+  // ...unless the strip says its trees are the record's (G527.3, the user at East Point: "you've cut too much in the
+  // trees"): treeBox false leaves the clearing to the premises' own excludes (the strip's box + 30 m, the fans)
+  const treeEx = world.aerodromes.filter(a => a.treeBox !== false).map(a => (typeof a.hdg === 'number' && a.wid)
     ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), hl: a.len / 2 + 150, hw: a.wid / 2 + 60, strip: true }
     : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 });
   const inEx = (e, x, z) => {

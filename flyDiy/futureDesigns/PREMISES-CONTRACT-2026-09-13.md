@@ -774,3 +774,11 @@ after the freeze, against this document.
   its edge) a category set to 0 is refused and one set lower is thinned. The editor's inspector offers it as `life
   here`: as the premises / people only / none (a hand-written block shows as its own and is kept).
 
+- **v1.25 (2026-09-23, the native-area session).** A runway may carry **`treeBox: false`**: the renderer's
+  generic tree box round every aerodrome (len/2 + 150 m along, wid/2 + 60 m across) is not cut, and the
+  strip's trees are the record's alone - its own box + 30 m (the derived exclude) and whatever `exclude`
+  polygons and `clear` zones the author draws (the approach wedges). And **`departure`** (0 | 1): the end
+  a one-way strip's take-off leaves OVER, so a strip landed over one end may be left back out over the same
+  end (East Point: landed from the sea, left to the sea, the trees close in at the other end); without it
+  a one-way strip is left the way it is landed (the altiport reverses on its own). The aerodrome record
+  carries `treeBox` and `takeoffHdg`; 43_pilot's dirAt honours `takeoffHdg` in calm air.
