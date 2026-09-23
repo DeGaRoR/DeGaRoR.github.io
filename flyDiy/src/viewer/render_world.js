@@ -161,8 +161,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // at 0.9 / 92.1 at 1.0 / 79.0 at 0.8 (scratch steps_ilit.js, W0c.18)
   const uILit = { value: 0.9 };
   // the impostor's own contrast term (see impostorMat), and the per-tree lightness the bake threw away.
-  const uIFlat = { value: 1.35 };
-  const IMPK = { flat: 1.35, vary: 0.10 };
+  const uIFlat = { value: 1.30 }, uIFlatMean = { value: 0.05 };
+  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10 };
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
@@ -3153,13 +3153,29 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // 0.006. wrap x0 and wrap x6 are both indistinguishable from doing nothing. So the terms stay shared
         // with the geometry, where they belong, and the dial that was going to hold them is gone.
         //
-        // What does move it is uFlat, the tint's contrast term `mix(vec3(uFlatMean), texel, uFlat)`, which
-        // was pinned at 1 here - the texel exactly as baked. Above 1 it extrapolates away from the sheet's
-        // mean, which is the only lever that reaches the card's own texels rather than the light on them:
-        // 1.35 takes the canopy to luma 0.1025 (-22 %, now under the ground instead of over it) and cv to
-        // 0.291 (+30 %). It saturates above about 1.2 - 3.0 and 1.35 are the same frame to four decimals -
-        // so 1.35 is the top of the useful range and not a number to push. TREE_LOD.imp({ flat, vary }).
-        sh.uniforms.uFlat = uIFlat; sh.uniforms.uFlatMean = { value: 0.4 };
+        // What moves it is uFlat, the tint's contrast term `mix(vec3(uFlatMean), texel, uFlat)`, which was
+        // pinned at 1 here - the texel exactly as baked. Above 1 it expands contrast AWAY FROM uFlatMean,
+        // and that pivot is the whole story.
+        //
+        // THE PIVOT WAS THE GRASS CARD'S, NOT THE SHEET'S, AND IT MADE THE DIAL A CLIFF (G539). uFlatMean
+        // is meant to be the map's own mean lightness - cover_ring computes it per material, (mx + mn) / 2.
+        // The impostor inherited the literal 0.4 while its sheet's mean albedo MEASURES 0.0154 (read back
+        // off the drawn layer, scratch sheet.js). Everything darker than the pivot is driven DOWN, so at
+        // flat ~ 1.04 the entire canopy clamps to zero: the swept curve is 0.1344 at flat 1.0, 0.1165 at
+        // 1.025, 0.1068 at 1.05, and then pinned at 0.1053 for every value above - 1.15, 1.6, 2.6 are the
+        // same frame. G538 shipped 1.35, which is not "more contrast" at all: it is the albedo switched
+        // OFF, the card left wearing ambient and fog alone. It read better only because it was darker than
+        // the ground, and the user called it a day later - "the trees are now a little too dark".
+        //
+        // So the pivot goes where the sheet actually lives. At 0.05, flat is a dial again and the whole
+        // curve is usable: 1.15 -> 0.1240, 1.3 -> 0.1145, 1.6 -> 0.1068, 2.0 -> 0.1054. The default 1.30
+        // is the user's own call, two thirds of G538's darkening and one third of the old brightness
+        // (0.1145 against a target of 0.1150), and it lands the card's cv at 0.257 - the SAME trees drawn
+        // as real geometry measure 0.254, so the tier now matches its reference by expanding contrast
+        // rather than by deleting albedo. TREE_LOD.imp({ flat, mean, vary }); mean 0.4 restores G538.
+        // OWED: the pivot should be the SHEET'S OWN mean, computed at bake time per layer - 0.05 is one
+        // measured conifer's, and a birch or a deciduous sheet will not share it.
+        sh.uniforms.uFlat = uIFlat; sh.uniforms.uFlatMean = uIFlatMean;
         sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
@@ -3324,9 +3340,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const treeVary = (x, z) => { const v = IMPK.vary; if (!(v > 0)) return 1;
       const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return 1 + (2 * (h - Math.floor(h)) - 1) * v; };
     treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid;
-        for (const k of ['flat', 'vary']) if (o[k] !== undefined) IMPK[k] = +o[k];
-        uIFlat.value = IMPK.flat; }
-      return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, vary: IMPK.vary }; };
+        for (const k of ['flat', 'mean', 'vary']) if (o[k] !== undefined) IMPK[k] = +o[k];
+        uIFlat.value = IMPK.flat; uIFlatMean.value = IMPK.mean; }
+      return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, mean: IMPK.mean, vary: IMPK.vary }; };
     treeLod.impVary = () => IMPK.vary;
     if (typeof window !== 'undefined') window.TREE_LOD = treeLod;
     // ================= W0c.5: THE MIX ======================================

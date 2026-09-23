@@ -58758,3 +58758,58 @@ prep's own untoned hash (c019a81f) and the tool refuses to act unless the manife
 twice, which would rotate the hue twice and leave nothing to see it, cannot happen.
 
 PICTURE: bench/rock/j_landed.png - the mine with what is now on master.
+
+## G548 - THE PIVOT WAS THE GRASS CARD'S: G538's contrast dial was an albedo kill switch, and the user's eye caught it a day later (2026-09-23)
+
+G538 landed uFlat 1.35 on the impostor and justified it with real numbers - canopy luma 0.1317 ->
+0.1025 and cv 0.223 -> 0.291, darker and bittier, exactly what had been asked for. Both numbers were
+true and the reading of them was wrong. The user, a day on: "the trees are now a little too dark.
+Yet they were too bright before. Can you bring them back about 2/3 of the way towards the tree color
+of now?" Measuring the way back is what found the fault.
+
+THE TERM IS `mix(vec3(uFlatMean), texel, uFlat)` AND IT EXPANDS CONTRAST AROUND uFlatMean. That pivot
+is meant to be the map's own mean lightness - cover_ring.js computes it per material, (mx + mn) / 2.
+The impostor material inherited the literal 0.4, the grass card's number, while the sheet's own mean
+albedo MEASURES 0.0154 (read back off the drawn layer through textureLod, scratch sheet.js). Every
+texel darker than the pivot is driven down, so the whole canopy clamps to zero at flat ~ 1.04. The
+swept curve says it plainly: 0.1344 at flat 1.0, 0.1165 at 1.025, 0.1068 at 1.05, and then PINNED at
+0.1053 for 1.15, 1.6, 2.6 and everything above. G538's 1.35 is not "more contrast", it is the albedo
+switched OFF and the card left wearing ambient and fog alone. It read better only because it was
+darker than the bright ground, and its cv rose because what remained was lighting structure rather
+than tree.
+
+THE TELL WAS IN G538'S OWN DATA. That entry records "3.0 and 1.35 are the same frame to four
+decimals" and calls it saturation, without asking why a contrast term would ever saturate. A dial
+that stops responding is not a dial that has reached its limit, it is a dial whose output has been
+clamped, and the difference is the whole diagnosis. Written down because the measurement was right
+and the inference was not - the instrument rules from G538 do not protect against that.
+
+THE FIX is to put the pivot where the sheet actually lives. At uFlatMean 0.05 flat is a dial again
+and the whole curve is usable: 1.15 -> 0.1240, 1.3 -> 0.1145, 1.6 -> 0.1068, 2.0 -> 0.1054. The
+default is 0.05 / 1.30, which is the user's own two-thirds: their target computed from the ends
+measured in the same run was luma 0.1150 and the shipped pair reads 0.1145. It also lands the tier on
+its reference - the SAME trees drawn as real geometry in the same frame measure luma 0.1140 and cv
+0.223, against the card's 0.1145 and 0.252 - so the cards now match the trees they stand in for by
+expanding contrast rather than by deleting albedo.
+
+AND THE CARDS WERE NEVER THE PROBLEM. Before the pivot was found, this session spent four runs
+hunting the "missing bittiness" against the GROUND's cv of 0.766 - which was never a comparable
+number, because the ground's mask carries roads, shadows and terrain features while the card's
+carries crowns. Drawn as geometry at the same eye the same trees read cv 0.254 against the cards'
+0.229: the impostor tier is faithful, and the atlas baker needs nothing. Two further claims from that
+hunt are RETRACTED here: the atlas is NOT missing its mip chain (initTexture allocates every level
+and gl.generateMipmap runs once a batch - the empty `mipmaps` array and generateMipmaps false are
+what that design looks like from the JS side), and the sheet is NOT flat (cv 0.633 at mip 0, the
+chain costing about a quarter of it). What does compress the canopy is an additive, texel-independent
+term worth roughly two thirds of what reaches the eye - and it compresses GEOMETRY identically, so it
+is a world-lighting question and not an impostor one. Never measured to a single term; the run that
+would have named it (fog / hemisphere / environment) produced nothing in ten minutes with the GPU at
+9.5 of 10 GB under peers.
+
+- REVERT, with no code change: TREE_LOD.imp({ mean: 0.4, flat: 1.35 }) is G538 exactly, and
+  TREE_LOD.imp({ mean: 0.4, flat: 1.0 }) is the draw as it was before either.
+- OWED: the pivot should be the SHEET'S OWN mean, computed at bake time per layer. 0.05 is one
+  measured conifer's; a birch or deciduous sheet will not share it, and until then those sheets are
+  tuned by a number that is not theirs.
+- FILES: src/viewer/render_world.js (uIFlatMean, IMPK.mean, TREE_LOD.imp({ flat, mean, vary })),
+  src/viewer/dev_panel.js (`imp pivot` slider, contrast range to 2.6).
