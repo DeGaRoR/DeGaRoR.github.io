@@ -690,21 +690,42 @@ def clip_ballfield(x0, z0, x1, z1):
             x0 + (x1 - x0) * b / n, z0 + (z1 - z0) * b / n)
 
 
-def split_revisits(pl, tol=1.0):
-    """Split a polyline wherever it RETURNS TO A POINT IT HAS ALREADY VISITED.
+def turn_at(a, b, c):
+    """degrees the line turns at b, going a -> b -> c"""
+    ux, uz = b[0] - a[0], b[1] - a[1]
+    vx, vz = c[0] - b[0], c[1] - b[1]
+    lu = math.hypot(ux, uz) or 1.0
+    lv = math.hypot(vx, vz) or 1.0
+    return math.degrees(math.acos(max(-1.0, min(1.0, (ux * vx + uz * vz) / (lu * lv)))))
+
+
+def split_revisits(pl, tol=1.0, seam=120.0):
+    """Split a polyline where it returns to a point it has already visited AND
+    SETS OFF BACKWARDS - which is two roads concatenated, not one road.
 
     met_axes.py walks the thinned drawing as a graph, and where the user's strokes
     meet at a junction two branches share that vertex. `join()` concatenated them
     into one polyline, so mk_ax00 ran 90 m out from the junction, TELEPORTED back to
     it and set off again down the main axis - a 90 m segment retraced by a second
     carriageway on the same ground (z-fighting with itself) and a 179 deg spike at
-    the seam, the sharpest corner on the island by a wide margin against a next-worst
-    of 48 deg. Found by the pavement session's GATE PAVEMENT section 11, which their
-    new polyRoad fillet cannot round away: a REVERSAL cannot be filleted inside the
-    road's own width, and the bound that keeps the smoothed line on the pavement is
-    exactly what stops an arc helping here.
+    the seam, the sharpest corner on the island against a next-worst of 48 deg.
+    Reported by the pavement session; a REVERSAL cannot be filleted away inside the
+    road's own width, so it had to be fixed in the data.
 
-    So it is split, not moved: two roads sharing a start point, which is what a T
+    A REVISIT ALONE IS NOT THE TEST, and this is their correction, taken: a RING
+    ROAD returns to its own start legitimately, and a bare revisit rule splits it.
+    Their §11 dropped the revisit test for exactly that reason, having built a
+    12-point circular street that it failed. Here the drawing's context justifies
+    splitting at a junction, but not at a loop, so two guards stand:
+
+      - the polyline's own CLOSURE is left alone. A last point back at the first is
+        a ring, and a ring is one road.
+      - the seam must TURN BACK: over `seam` degrees between the segment arriving at
+        the revisited point and the one leaving it. A loop rejoins itself going
+        forwards (a small turn); a concatenation of two branches leaves along a
+        different arm entirely.
+
+    It is a split, not a move: two roads sharing a start point, which is what a T
     junction is and what the user drew. No authored coordinate changes.
     """
     out, cur = [], [pl[0]]
@@ -712,7 +733,10 @@ def split_revisits(pl, tol=1.0):
         q = pl[j]
         back = next((i for i in range(len(cur) - 1)
                      if math.hypot(q[0] - cur[i][0], q[1] - cur[i][1]) <= tol), None)
-        if back is not None:
+        # a closing point is the ring's own join, not a seam between two roads
+        closes = back == 0 and j == len(pl) - 1
+        turns = len(cur) >= 2 and j + 1 < len(pl) and turn_at(cur[-1], q, pl[j + 1]) >= seam
+        if back is not None and not closes and turns:
             out.append(cur)
             cur = [q]
         else:

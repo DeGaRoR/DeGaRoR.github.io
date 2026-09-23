@@ -58837,3 +58837,24 @@ would have named it (fog / hemisphere / environment) produced nothing in ten min
   PAVEMENT section 11: that check is not on master at the time of this landing, so the numbers above are
   from this session's own measurement, not from their gate.
 - FILES: tools/metlakatla_author.py, tools/fixtures/island_jolene.json.
+
+## G549.1 — A REVISIT IS NOT A DEFECT; A REVISIT THAT TURNS BACK IS (2026-09-23)
+
+- G549's `split_revisits()` split a drawn axis wherever it returned within a metre of a point it had already
+  visited. The pavement session, testing their own section 11, found the counterexample and it applies here
+  too: **a RING ROAD returns to its own start legitimately**, and a bare revisit rule cuts it in two. They
+  built a 12-point circular street and their revisit test failed it, so they dropped the test; the same
+  counterexample would have hit this author the first time the user drew a loop.
+- TWO GUARDS NOW, and the reason each is needed: the polyline's own CLOSURE is left alone (a last point back
+  at the first is a ring, and a ring is one road); and the seam must TURN BACK, over 120 deg between the
+  segment arriving at the revisited point and the one leaving it. A loop rejoins itself going FORWARDS - a
+  small turn - while two branches concatenated at a junction leave along a different arm entirely. The
+  revisit is the trigger; the reversal is the test.
+- NEGATIVE-TESTED four ways, their method: a 12-point ring closing exactly on its own start survives whole;
+  mk_ax00's real seam still splits 6 + 4; a plain straight road is untouched; and a proper multi-point
+  hairpin - several points round the bend, no single vertex turning much - survives whole.
+- THE RECORD DOES NOT MOVE: three regenerations to md5 80510e64, byte-identical to G549's. The guards change
+  no shipped geometry, they stop a defect that is not in the drawing yet.
+- STILL OWED: verification against their GATE PAVEMENT section 11. It is not on master at the time of this
+  landing either; they are landing it on top of G549 and will re-run it over the island.
+- FILES: tools/metlakatla_author.py.
