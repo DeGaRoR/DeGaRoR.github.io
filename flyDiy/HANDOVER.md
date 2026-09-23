@@ -58727,3 +58727,34 @@ clean worktree (told them) - so only tw_r_access changed in island_jolene.json, 
   every `tools/jolene_parts/*.py` refusing a builtin `hash(`. Reintroducing one makes the gate FAIL on that
   line. 338 checks. It guards all five parts, not only this one.
 - FILES: tools/metlakatla_author.py, tools/_premises_check.js, tools/fixtures/island_jolene.json.
+
+## G547 — THE USER'S OWN TONE ON THE FOREST FLOOR, in the photograph where it belongs (2026-09-23)
+
+THE USER tuned the forest ground in GIMP and sent the dialog: Hue-Saturation, Master, HUE +13.2, LIGHTNESS
+-60.4, SATURATION +0.6, Overlap 0, Replace, 100 %. "Simply apply that transformation to the forest ground, and
+screenshot, nothing else." The first attempt came back far too dark - "we didn't have the same methods" - so the
+transform was split at the place where the two tools disagree:
+  - THE HUE AND THE SATURATION ARE BAKED INTO THE MAP, in GIMP's own HSL over the sRGB values, which is
+    unambiguous and is what the user actually saw;
+  - THE LIGHTNESS IS THE SHADER'S GRADE, because a slider called "lightness" is not the same operation in two
+    programs and guessing which one it is was the whole error. A ladder of greys was shot from ONE boot with
+    the live grade (bench/rock/i_l100*.png: the hue alone, then #bfbfbf, #8c8c8c, #666666) and the user chose
+    #bfbfbf.
+The forest floor therefore ships as: forestAir's colour map hue-rotated +13.2 and saturated +0.6, under a grade
+gain of #bfbfbf. G542's grass pull is OFF for this set (grass: 0) - the tone is in the photograph now, and the
+two together would have been the correction applied twice. The mechanism and its gate rules stay.
+
+THE STORE IS CONTENT-ADDRESSED, and this is the part a future reader must not trip over: a file under
+media/tex/splat is NAMED BY THE SHA256 OF ITS OWN BYTES, so a hand-edited map under the old name is a lie the
+whole chain believes. The toned map is written as its own hash (forestAir_diff_512.98ef9d66.jpg), the untoned
+one is pruned, and splat_tex.js carries both the new path AND THE RE-MEASURED MEAN (0.132/0.1172/0.0305 against
+0.1259/0.083/0.026) - that mean is not decoration: the macro tint's `rel`, the uSLum pivot G542's grass mask
+uses, and the colour a grass tuft takes at its foot all read it.
+
+AND THE TONE IS REPRODUCIBLE, because tools/splat_tex_prep.js rebuilds every file in that store from
+assets/splat/ and would silently drop this one: tools/splat_tex_tone.py (new) holds the numbers, applies them,
+renames by hash, patches the manifest and re-measures the mean. It is SAFE TO RE-RUN - the table carries the
+prep's own untoned hash (c019a81f) and the tool refuses to act unless the manifest still names it, so toning
+twice, which would rotate the hue twice and leave nothing to see it, cannot happen.
+
+PICTURE: bench/rock/j_landed.png - the mine with what is now on master.
