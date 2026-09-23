@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 59ac60259960d7da
+// body-sha256: 6bc056ce9b7e813b
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2729,6 +2729,68 @@ function makeWorld(seed, opts) {
   // the origin's lat/lon, the grid's convergence, the time zone); the analytic
   // world stands at Jolene's latitude with its -z as TRUE north (convergence 0).
   const GEO = (ISL && ISL.geo) || DAY.GEO_DEFAULT;
+
+  // (IT IS BUILT HERE, not beside waterAt: the world calls its own waterH while
+  // it is still being made - the premises stage does, in the game - and a `const`
+  // declared further down is in its temporal dead zone at that moment. The game
+  // threw "Cannot access 'lakeLevelAt' before initialization" and never rolled out;
+  // every node gate had passed, because a gate calls waterH after makeWorld returns.)
+  // A DATA LAKE'S SURFACE IS THE DATA'S (2026-09-23, reported by the Metlakatla
+  // session on Jolene's Skaters Lake: "waterH returns 16.19 while terrainH
+  // returns 10.09 and the lake declares level 10.1"). The island's lakes come
+  // from the DEM with a level each; the hydrology is HANDED them (cfg.lakeOf)
+  // so its reaches end at them, but its water surface for those cells stayed
+  // the priority flood's `filled` - the RIM of the basin where the outlet is
+  // narrower than a bake cell. Over 317 lakes that was a median of 1.10 m of
+  // error and 96 OF THEM (30 %) more than 3 m, up to 23.15 m. The renderer had
+  // already grown a guard against it (G460.11.7 discards a waterH sample more
+  // than 3 m off the declared level), so the lake was DRAWN right and the
+  // PHYSICS rode the rim: a floatplane on Skaters Lake floated 6.09 m over the
+  // water it was drawn on, and 23 m over the worst. The guard treated the
+  // symptom; this is the cause. Ruling ap stands - ONE surface, and it is the
+  // record's `level`.
+  //   THE WATERLINE IS WHERE THE BED CROSSES THE LEVEL, not where a rectangle
+  // ends: a record is a bounding box, so a point inside one is water only if
+  // the ground there is under the level. That also settles what a premises
+  // grade does near a bank - dig below the level and the cut is under water,
+  // honestly, because the lake does not follow the spade.
+  const lakeLevelAt = (() => {
+    const recs = (ISL && ISL.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
+    if (!recs.length) return null;
+    const CELL = 256, grid = new Map();
+    for (const L of recs)
+      for (let ix = Math.floor(L.x0 / CELL); ix <= Math.floor(L.x1 / CELL); ix++)
+        for (let iz = Math.floor(L.z0 / CELL); iz <= Math.floor(L.z1 / CELL); iz++) {
+          const k = ix + ',' + iz; let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(L);
+        }
+    // WHICH lake: the SMALLEST box that covers this point and whose level
+    // still stands over the ground here. A record is a bounding box, so a big
+    // low lake's box reaches across ponds on the hillside above it; the
+    // smallest box is the water you are actually standing in, and the bed test
+    // throws out the ones whose surface would be underground. (Measured on
+    // Jolene: taking the lowest level instead put 78 of 285 lakes on a
+    // neighbour's surface - a pond at 5.51 answered 2.67, the big lake below.)
+    // Returns the level, or -Infinity for dry ground; `covered` says whether a
+    // record reached this point at all, which is what tells a lake's BANK from
+    // ordinary land (see waterAt: on a bank the cover grid's WATER class must
+    // not be believed).
+    const out = { level: -Infinity, covered: false };
+    return (x, z, t) => {
+      out.level = -Infinity; out.covered = false;
+      const a = grid.get(Math.floor(x / CELL) + ',' + Math.floor(z / CELL));
+      if (!a) return out;
+      let bestA = Infinity;
+      for (let i = 0; i < a.length; i++) {
+        const L = a[i];
+        if (x < L.x0 || x > L.x1 || z < L.z0 || z > L.z1) continue;
+        out.covered = true;
+        if (L.level < t) continue;
+        const area = (L.x1 - L.x0) * (L.z1 - L.z0);
+        if (area < bestA) { bestA = area; out.level = L.level; }
+      }
+      return out;
+    };
+  })();
   const SALT = Math.imul(SEED, 0x9E3779B9);  // 0 for seed 0 — exact identity in hash2/LCG below
   const smf = t => t * t * (3 - 2 * t);
   const sstep = (a, b, t) => smf(Math.min(1, Math.max(0, (t - a) / (b - a))));
@@ -3227,15 +3289,27 @@ function makeWorld(seed, opts) {
   // is a dry trench, not sea. surface is still the pre-biome minimum
   // (stages 2/5 refine ROCK/SCREE/etc.).
   function waterAt(t, x, z) {
-    const ws = HYD.water(x, z);
-    if (ws > t) return ws;
     if (ISL) {
-      // the island: the sea is the DEM at 0 (sea level does the edges), a
-      // lake is the cover's water class over land (the DEM holds it flat)
+      // the island: the sea is the DEM at 0 (sea level does the edges), a lake
+      // is its own record, a river is the hydrology's reach - and the fill's
+      // lake level is not asked for at all (21_world_hydro riverWater)
       if (t <= 0.05) return 0;
-      if (ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
+      let onBank = false;
+      if (lakeLevelAt) { const L = lakeLevelAt(x, z, t); if (L.level > -Infinity) return L.level; onBank = L.covered; }
+      const ws = ISL.hydro === 'proc' ? HYD.water(x, z) : HYD.riverWater(x, z);
+      if (ws > t) return ws;
+      // the cover's water class with no record behind it (a tidal flat, a pond
+      // the lake pass dropped): the DEM holds it flat, as it always did. NOT on
+      // a lake's bank, though - the cover grid is 10 m and the DEM is finer, so
+      // it calls a strip of bank WATER round most lakes, and believing it there
+      // floated 30 cm of water over ground the record itself says is dry land.
+      // Measured on Jolene: 78 of 285 lakes had every one of the renderer's five
+      // sample points on such a cell (2026-09-23).
+      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
       return -Infinity;
     }
+    const ws = HYD.water(x, z);
+    if (ws > t) return ws;
     if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
     return -Infinity;
   }
@@ -4017,10 +4091,19 @@ function bakeHydrology(sample, cfg) {
     if (_lw > 0.5 && _lws > ws) ws = _lws;
     return ws;
   }
+  // THE REACHES ALONE, without the depression fill's lake level (2026-09-23).
+  // `filled` is the priority flood's surface: for a basin whose outlet is
+  // narrower than a cell it is the RIM, not the water - on Jolene that put
+  // Skaters Lake's surface 6.09 m over its own bank and the island's biggest
+  // lake 10.14 m over its. That number is right for a lake this module FOUND
+  // (it filled it, it knows where it spills) and wrong for one HANDED IN by
+  // cfg.lakeOf, whose level is data. The island asks for this one instead and
+  // answers its own lakes from its records (20_world.js waterAt).
+  function riverWater(x, z) { scan(x, z); return _ws; }
 
   return {
     rivers, lakeCount, lakeCells, riverCells, segCount, lakeSurf,
-    carve, water, distW,
+    carve, water, riverWater, distW,
     // stage-1 grids for downstream stages (settlement scoring, roads):
     // row-major N×N over [x0,x1]×[z0,z1], cell centres at (i+0.5)·dx
     grids: { N, x0, z0, dx, dz, H, filled, sea, wet, lake, acc, claimed },
