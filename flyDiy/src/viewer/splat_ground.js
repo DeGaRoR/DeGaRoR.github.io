@@ -67,7 +67,7 @@ const SPLAT_GROUND = (() => {
   uniform float uSGloss[${NLIB}];
   uniform float uSLum[${NLIB}];   // each set's mean luminance after its grade (linear): the detail's texel over it is pure TEXTURE
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
-  uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2;
+  uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2, uSVeg;
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
   uniform float uSHexPx;   // PERF 2026-09-23: the hex tiling only where a set's tile spans more than this many pixels (0 = everywhere)
   float gSPixM = 1.0;      // the fragment's footprint on the ground, metres a pixel (sSplat, in uniform flow)
@@ -98,6 +98,18 @@ const SPLAT_GROUND = (() => {
     o.n = vec4(t, nr.z * 2.0 - 1.0, 1.0 - (1.0 - nr.a) * uSGloss[int(layer + 0.5)]);   // the rough map through the set's gloss grade (1 = the map's, 0 = matte)
     vec4 g = uSGrade[int(layer + 0.5)];
     o.c.rgb *= g.rgb; float l = gLuma(o.c.rgb); o.c.rgb = mix(vec3(l), o.c.rgb, g.a);
+    // THE GRASS INSIDE A TEXTURE, AND ONLY IT (the user, 2026-09-23: "restore only the rock
+    // texture to its original tone, then very slightly tune the grass part of the texture to
+    // get more lush green, without modifying the rock color. Ever so subtle"). A set is one
+    // photograph of ground: rocksA is boulders WITH vegetation between them, grassRock is the
+    // pair in one image. A per-SET gain cannot tell them apart - it moves the boulders with the
+    // moss. This is per TEXEL: how far the green channel stands over the other two, which is 0
+    // on anything grey or brown (rock, sand, peat) and rises on leaf and moss. uSVeg.x is the
+    // whole strength, and at its shipped value the greenest texel moves about 3 %.
+    if (uSVeg.x > 0.001) {
+      float veg = clamp((o.c.g - max(o.c.r, o.c.b)) / max(max(o.c.r, max(o.c.g, o.c.b)), 1e-4) * 3.0, 0.0, 1.0);
+      o.c.rgb = mix(o.c.rgb, o.c.rgb * vec3(0.96, 1.08, 0.92), veg * uSVeg.x);
+    }
     return o;
   }
   Smp sTile(float layer, vec2 st){
@@ -433,10 +445,22 @@ const SPLAT_GROUND = (() => {
       // the ground the eye sees between the trees. With it on the luminance path the rock-and-dirt
       // surfaces all keep their hue and only the vegetation sets take the imagery's colour, which is
       // what the rule was for.
-      const MINERAL = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble|beach|coast[A-Za-z]*|dirt|mud|snowAir)$/;
+      // AND A ROCK SET IS NOT NORMALISED AT ALL (2026-09-23, the user, after the luminance gain
+      // was not enough: "fix for the rock color not working at all ... restore only the rock
+      // texture to its original tone"). One gain kept the hue and still moved the tone - rocksA
+      // and rocksB and cliff were all halved (0.50) and rockyB pushed to the clamp (2.50), so the
+      // boulders were as dark, or as bright, as the island's mean vegetation asked them to be.
+      // The photograph of a rock IS its tone; there is nothing in the imagery that knows better,
+      // because at 10 m a pixel the imagery's rock cells are rock WITH TREES ON THEM. So the rock
+      // sets take no gain: 1/1/1, the texture as it shipped. The rest of the mineral list (sand,
+      // shingle, dirt, peat, snow) keeps the single luminance gain - those surfaces do vary with
+      // the place, and the imagery is a fair judge of how light they are.
+      const ROCK = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble)$/;
+      const MINERAL = /^(beach|coast[A-Za-z]*|dirt|mud|snowAir)$/;
       for (const k in num) {
         const g = num[k].map(v => v / den[k]);
-        if (MINERAL.test(k)) { const L = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; const l = Math.min(2.5, Math.max(0.5, L)); out[k] = [l, l, l]; }
+        if (ROCK.test(k)) { out[k] = [1, 1, 1]; }
+        else if (MINERAL.test(k)) { const L = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; const l = Math.min(2.5, Math.max(0.5, L)); out[k] = [l, l, l]; }
         else out[k] = g.map(v => Math.min(2.5, Math.max(0.15, v)));
       }
     } catch (e) {}
@@ -466,7 +490,7 @@ const SPLAT_GROUND = (() => {
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
       uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
-      uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() },
+      uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() }, uSVeg: { value: V4() },
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
       uSHexPx: { value: 0 },   // the hex cut's dial: 0 = hex everywhere (see sSet)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
@@ -504,6 +528,7 @@ const SPLAT_GROUND = (() => {
       U.uSPud.value.set(K.pudCell, K.pudCover, K.pudEdge, K.pudSlope);
       // the pond's shore at altitude and where its open water starts (2026-09-23)
       U.uSPud2.value.set(K.pudFar === undefined ? 0 : K.pudFar, K.pudRim === undefined ? 0 : K.pudRim, K.pudWet === undefined ? 0.5 : K.pudWet, 0);
+      U.uSVeg.value.set(K.vegLush === undefined ? 0 : K.vegLush, 0, 0, 0);   // the green INSIDE a texture, per texel (2026-09-23)
       U.uSLakeE.value.set(K.lakeEdge, 1);
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;

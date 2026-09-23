@@ -58032,3 +58032,46 @@ pudFar 0 restores the old rim exactly, pudWet 1 leaves the margin dry, pudRim 0 
 - FILES: src/core/27_premises.js, src/core/43_pilot.js, src/viewer/render_world.js,
   tools/jolene_parts/native.json, tools/jolene_author.py, tools/fixtures/island_jolene.json,
   futureDesigns/PREMISES-CONTRACT-2026-09-13.md (v1.25).
+
+## G537 — THE ROCK IS THE PHOTOGRAPH'S OWN TONE, AND ONLY THE GREEN TEXELS ARE TUNED (2026-09-23)
+
+THE USER, after G534: "fix for the rock color not working at all. Try that; restore only the rock texture to its
+original tone, then very slightly tune the grass part of the texture to get more lush green, without modifying
+the rock color. Ever so subtle."
+
+WHY G534 WAS NOT ENOUGH, in one line of the table it printed: the mineral rule keeps a set's HUE but still
+moves its TONE, and for the rock sets the tone was moved a long way - rocksA, rocksB and cliff all halved
+(gain 0.50) and rockyB pushed to the 2.50 clamp. A grey gain is still the island's mean vegetation telling a
+boulder how dark to be. And it cannot be otherwise: at 10 m a pixel the imagery's own rock cells are ROCK WITH
+TREES ON THEM, so the number it offers a rock set is not about rock at all.
+
+SO A ROCK SET NOW TAKES NO GAIN: rocks[A-Z], rocky[A-Z], cliff and pebble are 1/1/1, the texture exactly as it
+shipped (rocksA 0.215/0.190/0.107, cliff 0.314/0.173/0.110, rockyA 0.081/0.077/0.012 - a warm tan, a red-brown
+and an olive, which is what those photographs are). The rest of the mineral list - beach, coastA, coastSand,
+dirt, mud, snowAir - keeps the single luminance gain from G534: sand, shingle, peat and snow really do vary in
+brightness with the place, and the imagery is a fair judge of that. The vegetation sets keep the per-channel
+colour normalisation the user asked for in the first place.
+
+AND THE GRASS IS TUNED PER TEXEL, NOT PER SET, which is the whole trick and the reason the earlier attempts
+kept failing: a set is ONE PHOTOGRAPH OF GROUND. rocksA is boulders with vegetation between them; grassRock is
+the pair in a single image. Any per-set gain moves the boulders with the moss, so "greener grass, same rock"
+is impossible at that level. In sFetch, after a texel is graded, `veg` measures how far the GREEN channel
+stands over the other two, normalised by the brightest channel and scaled by 3: it is 0 on anything grey or
+brown (rock, sand, peat, dead grass) and rises on leaf and moss. The texel is then lifted by
+vec3(0.96, 1.08, 0.92) weighted by veg x vegLush. At the shipped vegLush 0.4 the greenest texel in a texture
+moves about 3 % - the "ever so subtle" the user asked for, and a boulder in the same image does not move at
+all because its veg is zero.
+
+MEASURED (the vm harness of GATE SPLAT, the real manifest and the real island): the six rock sets 1/1/1; beach
+0.50, dirt 0.85, mud 0.50, coastA 1.13, coastSand 1.17, snowAir 2.50, all neutral; forestAir 0.15/0.36/0.35,
+dry 0.19/0.26/0.23, grass and grassRock per channel - the vegetation still takes the imagery's colour.
+
+PICTURES (bench/rock/): e_rockrestored.png is the Jumbo Mine from the air - the strip and the bare ground read
+tan and grey again, the grass reads green, and the hillside is no longer a rock painted the colour of a leaf;
+e_rockrestored_s0.png is the same frame with vegLush 0, which is how subtle the lift is. Beside them,
+c_now.png is where this started.
+
+GATE SPLAT 1c grows the stronger half of the rule: every ROCK set's gain must be exactly 1/1/1, the other
+mineral sets neutral, and the vegetation sets must still carry a per-channel gain, so none of this can be
+"fixed" later by turning the normalisation off. vegLush is live in F8 (WORLD.ground.splat().set({vegLush})),
+0 for none of it.
