@@ -162,7 +162,8 @@ function checkRecipe(G, splatSrc, quiet) {
     if (!LIB.has(k)) gb.push(`grade '${k}' names no library set`);
     if (!(typeof g.gain === 'string' && /^#[0-9a-fA-F]{6}$/.test(g.gain))) gb.push(`grade ${k}: gain '${g.gain}' is not #rrggbb`);
     if (!(num(g.sat) && g.sat >= 0 && g.sat <= 2)) gb.push(`grade ${k}: sat ${g.sat} outside 0..2`);
-    if (g.gloss !== undefined && !(num(g.gloss) && g.gloss >= 0 && g.gloss <= 1)) gb.push(`grade ${k}: gloss ${g.gloss} outside 0..1`); }
+    if (g.gloss !== undefined && !(num(g.gloss) && g.gloss >= 0 && g.gloss <= 1)) gb.push(`grade ${k}: gloss ${g.gloss} outside 0..1`);
+    if (g.grass !== undefined && !(num(g.grass) && g.grass >= 0 && g.grass <= 1)) gb.push(`grade ${k}: grass ${g.grass} outside 0..1`); }
   say(!gb.length, `grades: ${Object.keys(R.grade).length} sets, a hex gain and a saturation each, a gloss in 0..1 where given${gb.length ? ' - ' + gb.join('; ') : ''}`);
   const cb = [];
   for (const c of codes) { const d = G.CODES[c], r = R.codes[c];
@@ -222,6 +223,18 @@ function checkShader(G, splice, quiet) {
   say(rw.includes(".replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '/*"), "the hook cuts the IBL irradiance (the hemisphere stays the world's one ambient)");
   say(rw.includes("'vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness )' + GLOSS + ';'") && rw.includes("'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'") && /const SC = THREE\.ShaderChunk, GLOSS = ' \* smoothstep\( 0\.9, 0\.6, material\.roughness \)';/.test(rw), "the hook fades both specular lobes (the probe's and the sun's) out by roughness 0.9: dry ground is the Lambert it was");
   say(rw.includes("'#include <roughnessmap_fragment>' + SPL.glslRough"), "the sets' roughness spliced after roughnessmap_fragment");
+  // THE FOREST FLOOR'S GRASS IS PULLED BY VALUE, TOWARD A MEASURED TARGET (2026-09-23, the user:
+  // "the brightest areas are rock, the darkest are grass ... if you can selectively edit only the
+  // grass"). Two things must stay true or it stops being that: the mask is the texel's LUMINANCE
+  // against the set's own mean (not hue - the floor's grass is a dark brown-green), and the target
+  // is the open-ground sets' own colour rather than a constant typed into the shader.
+  { const grassBlk = (glsl.match(/float gr = uSGrass\[[\s\S]{0,420}/) || [''])[0];
+    say(/uSLum\[int\(layer \+ 0\.5\)\]/.test(grassBlk) && /1\.0 - smoothstep\(lm \* 0\.55, lm \* 1\.25, l\)/.test(grassBlk),
+      "the forest floor's grass mask is the texel's value against the set's own mean");
+    say(/hue \* l/.test(grassBlk), 'it recolours at CONSTANT VALUE - the photograph keeps its light and dark');
+    const src2 = fs.readFileSync(path.join(ROOT, 'src/viewer/splat_ground.js'), 'utf8');
+    say(/for \(const gk of \['grass', 'grassRock', 'dry'\]\)/.test(src2), 'and the target is MEASURED from the open-ground sets, not a constant'); }
+
   // THE POND'S SOFTENING IS A DISTANCE TERM AND DIES AT THE EYE (2026-09-23, the user
   // at 400 m: "they look like speckles on a surface, not like puddles"). The shore is
   // widened and the wet margin opened with distance; both must be scaled by `far`, or

@@ -142,7 +142,11 @@ const GROUND_FIELDS = (() => {
     // lot's lawn grasses ship a roughness of 0.26 (ambientCG's number for a blade, not a lawn from 60 m: the whole
     // heath took the sky), the dry and the dirt 0.55; the beach (0.61) and the pebbles (0.46) keep theirs - wet sand
     // and shingle catching the sun is what the user asked the roughness for
-    grade: { dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
+    // forestAir's `grass` (2026-09-23, the user: "move the forest texture to match better the surrounding
+    // grass ... on the forest floor texture, the brightest areas are rock, the darkest are grass"): how far the
+    // set's DARK texels are recoloured - at constant value - toward the open ground's measured grass. 0 = the
+    // photograph alone, 1 = the open grass's colour on every dark texel. 0.6 is "not perfectly, but better".
+    grade: { forestAir: { gain: '#ffffff', sat: 1, grass: 0.6 }, dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
              // THE LAWN GRASSES TURNED YELLOW (the user, 2026-09-21: "golf grass ... should be more yellow, like all the other textures"): grass's mean sat at hue 72,
              // lush's at 88 (blue-green) against the moor's 40-48; the gain pulls the green channel down - grass to hue ~45 at value 0.39, lush to ~50 at 0.29
              grass: { gain: '#ffc8a0', sat: 0.75, gloss: 0.3 }, lush: { gain: '#ffb890', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 } },
