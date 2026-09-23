@@ -58140,3 +58140,13 @@ not touched.
 - FILES: src/viewer/render_world.js (uIFlat + IMPK, impostorMat's own uFlat, treeVary on both plant
   sites, TREE_LOD.imp({ flat, vary }) and TREE_LOD.impVary), src/viewer/stand_cards.js (the card's
   own lightness).
+
+## G527.4 - EAST POINT'S FOOTPATHS LIE ON THE GROUND (2026-09-23)
+
+- The user, circling the path from the dance ground down to the beach: "you seem to have done a little
+  waterway or something? ... without water, it does not look like much". It was the footpath: authored as
+  a GRADED track with a 14 % grade limit down a 20 m bank, so the grade cut a trench into the slope to hold
+  it - a dry channel between saw-toothed banks. Both nv_ footpaths are `graded: false` now (no cut, no
+  fill: the dirt ribbon is draped on the ground as it lies). jolene_author rev 17. Shot: the path runs from
+  the totems into the trees as a path.
+- FILES: tools/jolene_parts/native.json, tools/jolene_author.py, tools/fixtures/island_jolene.json.
