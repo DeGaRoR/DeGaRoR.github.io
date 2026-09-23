@@ -58925,3 +58925,78 @@ smooth, visually the same spike, and a ribbon folded on itself. A defect wearing
 - FILES: src/core/27_premises.js (roadFillet, and polyRoad calls it), tools/_pavement_check.js
   (GATE PAVEMENT section 11). No record moved: the fillet is runtime, every authored point is
   untouched, and the fixture is byte-identical.
+
+## G551 - THE BENCH'S REED, IN THE GAME: the grass was a black mask because the game multiplied it by a number ten times too small (2026-09-24)
+
+THE USER, on the taxi shot at Jolene AFB: "That grass is ugly. I thought we obtained better results in
+the bench ... The shading is terrible." Three sessions had tuned shading dials against it. The ruling
+that ended that: "We will consider the mission over ONLY when we will have the same species, the same
+geometry, the same density and the same shading in game ... using the same methods exactly as the
+bench. We have it right just here, it's only about faithful port." Then one species: the bench with
+ONLY grass_reed, on its exact panel.
+
+THE BENCH AND THE GAME ARE TWO IMPLEMENTATIONS. tools/_trees.html does not load trees.js or
+cover_ring.js. Every cover dial was fitted on the bench and shipped to the game, and nothing checked
+that the two agreed on what the dials multiply. They did not, in four places, and none is a dial:
+
+- THE GROUND MEAN, 9-10x. The bench's GROUND_MEANS are the canvas BYTES' mean fed to
+  `new THREE.Color(r/255..)` - the sRGB mean used as linear - and that is what every `lift` was fitted
+  against. The game took means.json's TRUE linear mean and put the splat grade and G485's imagery
+  normalisation on top: dry 0.057 against the bench's 0.581, grass 0.044 against 0.378. A tuft's
+  instanceColor, dumped live, was (0.005, 0.008, 0.003). The texel was multiplied into nothing and the
+  screen showed sky ambient on a silhouette - "no shading, no texture beyond a mask" - and every A/B
+  of contrast or sat did nothing because both sit upstream of that multiply. meanOf is now
+  srgbEncode(linear mean), no grade: it reproduces GROUND_MEANS within 1 % (dry .584 vs .581, grass
+  .380 vs .378), so no second table ships.
+- THE MASTER, 1.87x. trees.js MASTER (sat 1.2, light 0.6) is, by its own comment, the CONIFER canopy
+  fitted to the imagery; the cover inherited it. Cover now takes the bench's committed master
+  (COVER_MASTER sat 1.58, light 1.12); the trees keep theirs.
+- THE NORMAL. G484's upHook forced the OBJECT normal up on a DoubleSide card; three flips it to
+  (0,-1,0) on every back face, so half the tufts went dark by where the camera stood. The bench has no
+  override. Removed from cover AND flowers.
+- THE AO. The bench forces a cover's aoV to 1; tree_prep never learnt it and grass_reed ships
+  0.565..1, i.e. 0.10 of the ambient at uAoBake 4. Filled with 1 on every cover geometry.
+And the count now takes the mix's forest.cover as the bench does (1 on every shipped mix; nothing
+moves). The ring's global density 2 stays - the user's density ruling was made with it in place.
+
+THE USER'S RULINGS, on the pictures:
+- "replace the grass within the biomes. They can all feature reed grass, but no other grass" / "keep
+  the pines, the debris and the bushes". Every mix that had grass now has one row,
+  grass_reed { proportion 0.4, density 0.48, patch 0, size 0.75 } - "twice the count in game today,
+  and 75 % size". Includes city_trees (Metlakatla), which landed after this chantier forked.
+  grass_plates, grass_dry, grass_scan stay in the pack, planted nowhere ("we may reintroduce plates").
+- "Leave the rig, accept the difference": the bench is ACES with no fill and a warmer, lower sun;
+  the game is Cineon with a 2.16 hemisphere. The albedo path agrees now; the paler read that is left
+  is the rig's, by the user's choice.
+- FIREWEED BACK in grassland, "a little taller than the other weeds", not ground-tinted, beds "a
+  little less regular than the ones of the bench, who really did super circular spots".
+  { proportion 1, density 0.12, patch 9, size 0.85 }.
+
+THE BEDS WERE NEVER PLANTED, which is why fireweed was never seen. The ring kept a flower where one
+octave of value noise exceeded 1 - bedFrac; bilinear value noise has thin tails, so measured over
+200 000 points the beds realised 7 % of fireweed's intended area and 14 % of foam's and bunchberry's.
+A thresholded field cannot hold the beds' SIZE and SPACING at once (a fine one shreds into slivers,
+a coarse one makes a few huge blobs - both tried), and the bench's own method can. So bedKeep keeps
+its structure - one bed per square of side patch x sqrt(pi/share), centre jittered, radius patch x
+its own 0.7-1.3 - and changes only the outline: an oval of its own axis and stretch (1-1.6), weak
+2/3/5 harmonics, a rim wobbled by a small noise and a soft ramp the tufts thin across. It realises
+the intended share within a few %. Its draw uses its own hash, so no other species' positions in the
+cell move. AND `size` WAS APPLIED TWICE: flowerCards was built at size and instanced at size, so
+fireweed stood 2.75 m and bunchberry 0.19 m (the bench: 0.43). Built at unit height now.
+Side effect, intended: foam and bunchberry under the forests get their full bed area and bench
+height - they were at a seventh of it.
+
+OPEN: fireweed from above. Beside a bed it fills ~4 % of the frame, from 30 m ~0.03 % - a vertical
+card is edge-on to a high eye. A top-facing card in the flower, or a ground tint under the beds; not
+decided.
+
+THE CONTRACT: futureDesigns/GRASS-PORT-CONTRACT-2026-09-23.md, the bench-vs-game table, and the
+standing rule it leaves - a cover dial fitted on the bench may not ship to the game until the two
+agree on the quantities the dial multiplies.
+
+- FILES: src/viewer/cover_ring.js (meanOf, COVER_MASTER, no upHook on cover/flowers, cover aoV 1,
+  forest.cover in the count, bedKeep, flowers at unit height), tools/_trees_tuning.json (the mixes),
+  src/core/trees_pack.json + src/viewer/trees_pack.js (tree_prep.py --biomes).
+- PICTURES (local, in the grass worktree's screenshots/grass/): BIOMES_LOW.png, BIOMES_30M.png,
+  FIREWEED.png, BEDS_MAP.png, RIG_VS_BENCH.png, REFERENCE_vs_GAME.png.
+- GATES: TREE, TREES, SPLAT, MEDIA, BIOME, WORLDRENDER green in the landing worktree.

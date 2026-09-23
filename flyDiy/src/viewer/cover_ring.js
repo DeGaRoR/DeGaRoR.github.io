@@ -52,20 +52,33 @@ var COVER_RING = (() => {
     if (typeof SPLAT_TEX_SETS !== 'undefined' && SPLAT_TEX_SETS) { const s = SPLAT_TEX_SETS.find(x => x.key === key); if (s && s.mean) return s.mean; }
     return MEANS[key] || [0.15, 0.15, 0.08];
   };
-  // THE MEAN AS DRAWN (2026-09-22, the roads session and the user: "the tufts do not take the ground colour at
-  // all ... pale beige over green ground"): the tuft took the set's SHIPPED mean while the ground under it wears
-  // the hand grade and, since G485, the normalisation to the imagery (dry x 0.19) - a tuft three times brighter
-  // than its ground. The splat's own gain, the shader's formula: hand.gain x (1 + (norm - 1) x albedoNorm).
-  const meanOf = key => {
-    const m = meanRaw(key);
-    const SP = (typeof WORLD !== 'undefined' && WORLD && WORLD.ground && WORLD.ground.splat) ? WORLD.ground.splat() : null;
-    if (!SP || !SP.grade) return m;
-    let g = [1, 1, 1];
-    try { const h = SP.grade(key); if (h && h.gain) { const c = new THREE.Color(h.gain); g = [c.r, c.g, c.b]; }
-      const nm = SP.norm ? SP.norm()[key] : null, K = SP.knobs ? SP.knobs() : {}, kA = K.albedoNorm === undefined ? 1 : K.albedoNorm;
-      if (nm) g = g.map((v, i) => v * (1 + (nm[i] - 1) * kA)); } catch (e) {}
-    return [m[0] * g[0], m[1] * g[1], m[2] * g[2]];
-  };
+  // THE SET'S MEAN IN THE BENCH'S UNITS - which is the whole of why the game's grass was a
+  // black mask while the bench's, on the SAME dials, is a meadow.
+  //
+  // The bench (tools/_trees.html, GROUND_MEANS) measures a ground set by drawing it to a
+  // canvas and averaging the BYTES, then stores that through `new THREE.Color(r/255, ...)`,
+  // which reads its arguments in the WORKING (linear) space. So the number the tuft is
+  // multiplied by is the texture's sRGB mean USED AS IF IT WERE LINEAR. That is not
+  // colour-managed, and it is also the number every cover dial in the payload was fitted
+  // against - `lift`, `contrast`, `light`, all of them.
+  // This file instead took means.json, which holds the TRUE LINEAR means, and then applied
+  // the splat's hand grade and G485's normalisation to the imagery on top. Measured on the
+  // two sets the grassland mix uses:
+  //     dry    bench 0.581,0.533,0.383   here 0.3005 x 0.19 = 0.057   -> 10.2x darker
+  //     grass  bench 0.378,0.426,0.190   here 0.1190 x 0.37 = 0.044   ->  8.6x darker
+  // With the same `lift` that lands a tuft's instanceColor at ~0.006 - an albedo where grass
+  // is 0.10-0.20 - so the texel was multiplied into nothing and what reached the screen was
+  // sky ambient on a silhouette. It is also why setting `contrast` and `sat` changed nothing
+  // in an A/B: they are upstream of a multiply by zero.
+  //
+  // So the mean is handed over the bench's way: the set's mean sRGB-ENCODED, and no grade and
+  // no normalisation, because the bench has neither. srgbEncode(linear mean) reproduces the
+  // bench's measured GROUND_MEANS to within 1 % on both sets (dry 0.584 vs 0.581 measured,
+  // grass 0.380 vs 0.378), so no second table has to ship.
+  // If the drawn ground then reads dark under the tufts, it is the GROUND that moves: the
+  // bench's other rule is that the ground wears the grass's colour, not the reverse.
+  const srgbEnc = v => (v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055);
+  const meanOf = key => meanRaw(key).map(srgbEnc);
   const hsh = (ix, iz) => { let h = (ix * 374761393 + iz * 668265263 + 1013904223) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
   const rng = seed => { let s = seed >>> 0 || 1; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; };
   const hashStr = str => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -76,6 +89,48 @@ var COVER_RING = (() => {
     return (n(ix, iz) * (1 - sx) + n(ix + 1, iz) * sx) * (1 - sz) + (n(ix, iz + 1) * (1 - sx) + n(ix + 1, iz + 1) * sx) * sz;
   };
   const smooth = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / Math.max(1e-6, hi - lo))); return t * t * (3 - 2 * t); };
+  // ---- THE BEDS: where a cover row with a `patch` grows (fireweed, foam, bunchberry) ----------
+  // The bench plants a bed as a DISC of radius `patch` round a random centre, beds covering
+  // 0.25 x patchShare of the ground - the user: "super circular spots". This file thresholded
+  // one octave of value noise at 1 - bedFrac instead, and that never delivered the area: a
+  // bilinear value noise has thin tails, so measured on the game's own noise the beds covered
+  // 0.87 % where foam and bunchberry intend 6.25 % (14 % of it) and 0.21 % where fireweed
+  // intends 3 % (7 %) - a handful of specks at the noise's peaks, which is why fireweed was
+  // never seen. The count was scaled up for an area that never materialised.
+  // THE BENCH'S SHAPE, LESS ROUND. A thresholded noise field cannot hold a bed's SIZE and the
+  // beds' SPACING at once (tried: a fine field shreds into slivers, a coarse one makes a few huge
+  // blobs), and the bench's own method can: centres, and a radius of `patch`. So its structure
+  // is kept and only the outline changes -
+  //   - one bed per square of side patch x sqrt(pi / share), its centre jittered inside it: the
+  //     beds cover the intended share by construction, as the bench's centres do
+  //   - its radius `patch` x a scale of its own (0.7 - 1.3: the bench gives every bed its own
+  //     density; here its own size), turned by three low harmonics of the angle, so a bed is
+  //     lobed rather than a disc
+  //   - a rim that wobbles with a small noise, and a soft ramp across it, so the tufts thin out
+  //     raggedly into the grass instead of stopping on an outline
+  // Deterministic and world-anchored: a bed is where it is whatever the eye does.
+  const BED_NORM = 1.0;    // measured: with this the three flowers realise their intended share to within a few %
+  const bedKeep = (x, z, patch, seed, frac) => {
+    const sp = patch * Math.sqrt(Math.PI / frac), cx0 = Math.floor(x / sp), cz0 = Math.floor(z / sp);
+    let best = 0;
+    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+      const ci = cx0 + i, cj = cz0 + j;
+      const bx = (ci + 0.15 + 0.7 * hsh(ci * 3 + seed, cj * 5 - seed)) * sp;
+      const bz = (cj + 0.15 + 0.7 * hsh(ci * 7 - seed, cj * 11 + seed)) * sp;
+      const sc = 0.7 + 0.6 * hsh(ci * 13 + seed * 3, cj * 17 + 1);
+      const dx = x - bx, dz = z - bz;
+      if (dx * dx + dz * dz > (patch * sc * 2.4) * (patch * sc * 2.4)) continue;
+      // its own oval: stretched 1 - 1.6x along an axis of its own, then its outline turned by
+      // weak low harmonics - irregular, and never one repeated motif
+      const psi = hsh(ci * 29 + 3, cj * 31 - seed) * 3.1416, el = 1 + 0.6 * hsh(ci * 37 - 5, cj * 41 + seed);
+      const cs = Math.cos(psi), sn = Math.sin(psi), u = (dx * cs + dz * sn) / Math.sqrt(el), v = (dz * cs - dx * sn) * Math.sqrt(el);
+      const d = Math.hypot(u, v), th = Math.atan2(v, u), ph = hsh(ci * 19 + 7, cj * 23 + seed * 5) * 6.2832;
+      const r = patch * sc * BED_NORM * (1 + 0.20 * Math.sin(2 * th + ph) + 0.12 * Math.sin(3 * th + ph * 1.7) + 0.07 * Math.sin(5 * th + ph * 2.3));
+      const rim = r * (1 + 0.5 * (vnoise(x, z, patch * 0.55, seed + 91) - 0.5));
+      const k = 1 - smooth(rim * 0.8, rim * 1.12, d);
+      if (k > best) best = k;
+    }
+    return best; };
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
@@ -120,7 +175,9 @@ var COVER_RING = (() => {
       let t = flowerTex.get(url);
       if (!t) { t = new THREE.TextureLoader().load(url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; flowerTex.set(url, t); }
       const m = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
-      LEAF.fadeHook(m); return LEAF.upHook ? LEAF.upHook(m) : m;
+      // no normal override (the bench has none): upHook forced the object normal up on this
+      // DoubleSide card, which three flips to (0,-1,0) on the back face - half of every flower dark
+      LEAF.fadeHook(m); return m;
     };
     function protosOf(c) {
       let P = protos.get(c.name);
@@ -129,7 +186,10 @@ var COVER_RING = (() => {
       const place = c.place || {};
       if (c.maps && c.maps.length) {                         // a flower: its pictures on cards
         c.maps.forEach((url, v) => P.push({ key: c.name + '|' + v, w: 1 / c.maps.length, kind: 'cover', h: place.size || 1, noTint: true,
-                                            parts: [{ geo: flowerCards(place.size || 1, place.aspect || 1, hashStr(c.name) + v * 977), mat: flowerMat(url) }] }));
+                                            // built at UNIT height: the instance scale carries `size`, in metres, once -
+                                            // as the bench (flowerCards(t.size) and a jitter). Built at size AND scaled by
+                                            // it, fireweed stood 1.7 x 1.7 = 2.75 m, bunchberry 0.19 m against 0.43.
+                                            parts: [{ geo: flowerCards(1, place.aspect || 1, hashStr(c.name) + v * 977), mat: flowerMat(url) }] }));
       } else {
         let subs = treeList('all').filter(e => e.col === c);
         // THE DEBRIS'S VARIETY IS ITS DRAW COUNT (PERF 2026-09-23): every model is a draw in every block and a shadow
@@ -163,10 +223,36 @@ var COVER_RING = (() => {
               LEAF.fadeHook(mat); if (place.cut > 0) mat.customProgramCacheKey = () => 'fade-rockcut';
             } else {
               LEAF.fadeHook(mat);
-              if (c.kind === 'cover' && LEAF.upHook) LEAF.upHook(mat);   // the tuft shades as the ground (trees.js UP_VS)
+              // NO NORMAL OVERRIDE ON A COVER - the bench has none (tools/_trees.html builds a
+              // cover's material from the pack's own and never touches its normal), and the
+              // game's `upHook` (G484's UP_VS) was worse than a divergence: it forces the OBJECT
+              // normal up on a DoubleSide material, and three's normal_fragment_begin then flips
+              // it to (0,-1,0) on every back face - half the tufts black, by where the camera
+              // stood. The mesh's own normals, as the bench draws them (and the flowers too, in
+              // flowerMat above).
+              // THE COVER KEEPS THE BENCH'S MASTER, because the game's was retuned for the
+              // CONIFER CANOPY and the grass was collateral. trees.js says so itself: "the
+              // conifer sheets' mean albedo as baked is 0.043 linear; the imagery's forest
+              // cells read 0.026 ... light 1.12 -> 0.6 puts the rendered canopy on the
+              // imagery's level; sat 1.58 -> 1.2". That measurement is about spruce, and it
+              // takes the cover down with it - uLight 3 x 0.6 = 1.8 where the bench, on the
+              // same payload dial, renders 3 x 1.12 = 3.36. A further 1.87x on top of the
+              // tint's ~9x (see meanOf above). The bench's committed master is the one every
+              // cover dial was fitted under, so cover is given it back; the trees keep theirs.
+              if (c.kind === 'cover' && mat.userData.uLight) {
+                const t = mat.userData.tint || {};
+                mat.userData.uSat.value = (t.sat === undefined ? 1 : t.sat) * COVER_MASTER.sat;
+                mat.userData.uLight.value = (t.light === undefined ? 1 : t.light) * COVER_MASTER.light; }
               if (c.kind === 'cover' && mat.userData.uFlat) { mat.userData.uFlat.value = place.contrast === undefined ? 1 : place.contrast; measureMean(mat);
                 if (mat.map && !(mat.map.image && mat.map.image.width)) { const t0 = mat.map; const poll = () => { if (t0.image && t0.image.width) measureMean(mat); else setTimeout(poll, 500); }; setTimeout(poll, 500); } }
             }
+            // A COVER CARRIES NO BAKED OCCLUSION - the bench forces it to 1 at load
+            // (tools/_trees.html, `ensureAoAttr(o.geometry, 1)` over every cover group: "a grass
+            // clump is eight triangles at ground level and the bake under aoBake 4 blackened its
+            // base"). tree_prep never learnt that, so grass_reed ships 0.565..1.0 in its bin,
+            // which at uAoBake 4 is pow(0.565, 4) = 0.10 of the ambient at its darkest vertices.
+            // The bench's rule, applied here to the only geometry that is cover.
+            if (c.kind === 'cover') { const A = q.geo.getAttribute('aoV'); if (A) { A.array.fill(1); A.needsUpdate = true; } }
             return { geo: q.geo, mat };
           });
           const h = (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)) * (place.size || 1);
@@ -195,6 +281,9 @@ var COVER_RING = (() => {
     // are smooth over metres (the fields' cells are 15-40 m, the map's 10 m), so a cell samples
     // them on a 4 m lattice once and every tuft reads the nearest node - a point-by-point
     // biomeAt (four terrainH, a canopy, two noises) at 2 500 tufts a cell was 50 ms a cell
+    // tools/_trees_tuning.json `master` - the dials every cover row in the payload was
+    // fitted under. The game's own MASTER (sat 1.2, light 0.6) is the conifer normalisation.
+    const COVER_MASTER = { sat: 1.58, light: 1.12 };
     const SG = 4;
     // THE IMAGERY AT A POINT (linear rgb): the tuft's colour where no CODES row stands (code 10 'built' -
     // the pale-beige tufts on the village's ground) and where the mix has no ground of its own
@@ -403,7 +492,10 @@ var COVER_RING = (() => {
         let per = 0;   // per m2
         if (isShrub) { const tot = Object.keys(M.species).filter(k => { const cc = pack.collections.find(q => q.name === k); return cc && cc.kind === 'shrub'; }).reduce((a, k) => a + (M.species[k].proportion === undefined ? 1 : M.species[k].proportion), 0) || 1;
           per = (F.under || 0) / 1000 * S.shrubs * (row.proportion === undefined ? 1 : row.proportion) / tot; }
-        else per = (row.density !== undefined ? row.density : (place.density || 0)) * S.density;   // the bench: a cover's density is its own, no proportion
+        // THE BENCH'S COUNT: a cover's density times the MIX's own `forest.cover` (1 for every
+        // shipped mix), then the ring's global `density` dial on top. The game used to skip the
+        // mix's multiplier and lean on S.density alone.
+        else per = (row.density !== undefined ? row.density : (place.density || 0)) * (F.cover === undefined ? 1 : F.cover) * S.density;   // no proportion, as the bench
         if (per <= 0) continue;
         const patch = row.patch !== undefined ? row.patch : (place.patch || 0), share = place.patchShare || row.patchShare || 0.35;
         // the bench's beds: centres for 0.25 x patchShare of the area, each of radius `patch`,
@@ -414,7 +506,10 @@ var COVER_RING = (() => {
         const vary = place.vary === undefined ? 0.05 : place.vary;
         for (let i = 0; i < n; i++) {
           const x = x0 + R() * C, z = z0 + R() * C, r1 = R(), r2 = R(), r3 = R();
-          if (patch && vnoise(x, z, patch * 2, sSeed % 1000) < 1 - bedFrac) continue;
+          // the bed (see bedKeep): its own hash for the draw, so the cell's stream R() - and every
+          // other species' positions in the cell - are not disturbed by a flower's beds
+          if (patch) { const kp = bedKeep(x, z, patch, sSeed % 1000, bedFrac);
+            if (kp <= 0 || hsh(Math.round(x * 13.7) + 5, Math.round(z * 11.3) - 3) > kp) continue; }
           if (blotch && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
           const gk = G.at(x, z);
           if (!G.ok[gk] || G.mix[gk] !== centreMix) continue;

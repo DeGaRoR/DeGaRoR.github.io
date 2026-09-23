@@ -69,10 +69,6 @@
     "holly": {
      "proportion": 0.2
     },
-    "grass_dry": {
-     "proportion": 1,
-     "density": 0.25
-    },
     "flower_foam": {
      "proportion": 1,
      "density": 0.5,
@@ -138,6 +134,12 @@
      "hollow": 0.5,
      "tint": 0.3,
      "dim": 0.5
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.48,
+     "patch": 0,
+     "size": 0.75
     }
    },
    "forest": {
@@ -177,15 +179,6 @@
     },
     "sapling_deciduous": {
      "proportion": 0.5
-    },
-    "grass_dry": {
-     "proportion": 1,
-     "density": 2.4
-    },
-    "grass_reed": {
-     "proportion": 0.4,
-     "density": 0.24,
-     "patch": 0
     },
     "flower_foam": {
      "proportion": 1,
@@ -252,6 +245,12 @@
      "hollow": 0.5,
      "tint": 0.3,
      "dim": 0.5
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.48,
+     "patch": 0,
+     "size": 0.75
     }
    },
    "forest": {
@@ -302,16 +301,6 @@
     },
     "sapling_deciduous": {
      "proportion": 0.3
-    },
-    "grass_dry": {
-     "proportion": 1,
-     "density": 4,
-     "size": 0.85
-    },
-    "grass_reed": {
-     "proportion": 0.5,
-     "density": 0.24,
-     "patch": 7
     },
     "rocks": {
      "proportion": 0.3,
@@ -395,6 +384,12 @@
      "bury": 0.2,
      "tint": 0.3,
      "dim": 0.95
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.48,
+     "patch": 0,
+     "size": 0.75
     }
    },
    "forest": {
@@ -438,24 +433,11 @@
     "dead_deciduous": {
      "proportion": 0.08
     },
-    "grass_dry": {
-     "proportion": 1,
-     "density": 4,
-     "size": 0.7
-    },
-    "grass_reed": {
-     "proportion": 0.4,
-     "density": 0.24,
-     "patch": 0
-    },
-    "grass_plates": {
-     "proportion": 0.3,
-     "density": 2.5
-    },
     "flower_fireweed": {
      "proportion": 1,
      "density": 0.12,
-     "patch": 9
+     "patch": 9,
+     "size": 0.85
     },
     "rocks": {
      "proportion": 0.5,
@@ -519,6 +501,12 @@
      "hollow": 0.5,
      "tint": 0.3,
      "dim": 0.5
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.48,
+     "patch": 0,
+     "size": 0.75
     }
    },
    "forest": {
@@ -569,14 +557,6 @@
     },
     "dead_deciduous": {
      "proportion": 0.1
-    },
-    "grass_plates": {
-     "proportion": 1,
-     "density": 5
-    },
-    "grass_dry": {
-     "proportion": 0.3,
-     "density": 4
     },
     "flower_foam": {
      "proportion": 1,
@@ -643,6 +623,12 @@
      "hollow": 0.5,
      "tint": 0.3,
      "dim": 0.5
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.48,
+     "patch": 0,
+     "size": 0.75
     }
    },
    "forest": {
@@ -850,10 +836,6 @@
     "holly": {
      "proportion": 0.2
     },
-    "grass_dry": {
-     "proportion": 1,
-     "density": 0.25
-    },
     "flower_foam": {
      "proportion": 1,
      "density": 0.5,
@@ -920,6 +902,12 @@
      "hollow": 0.5,
      "tint": 0.3,
      "dim": 0.5
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.48,
+     "patch": 0,
+     "size": 0.75
     }
    },
    "forest": {
@@ -971,10 +959,6 @@
     },
     "holly": {
      "proportion": 0.2
-    },
-    "grass_dry": {
-     "proportion": 1,
-     "density": 0.25
     },
     "flower_foam": {
      "proportion": 1,
@@ -1054,6 +1038,12 @@
      "hollow": 0.5,
      "tint": 0.3,
      "dim": 0.5
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.48,
+     "patch": 0,
+     "size": 0.75
     }
    },
    "forest": {
@@ -1104,14 +1094,6 @@
     },
     "holly": {
      "proportion": 0.3
-    },
-    "grass_dry": {
-     "proportion": 1,
-     "density": 1.5
-    },
-    "grass_plates": {
-     "proportion": 0.5,
-     "density": 1.5
     },
     "flower_bunchberry": {
      "proportion": 1,
@@ -1192,6 +1174,12 @@
      "hollow": 0.5,
      "tint": 0.3,
      "dim": 0.5
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.48,
+     "patch": 0,
+     "size": 0.75
     }
    },
    "forest": {
@@ -1345,16 +1333,6 @@
   },
   "village": {
    "species": {
-    "grass_dry": {
-     "proportion": 1,
-     "density": 6,
-     "size": 0.45
-    },
-    "grass_plates": {
-     "proportion": 1,
-     "density": 3,
-     "size": 0.6
-    },
     "flower_foam": {
      "proportion": 1,
      "density": 0.35,
@@ -1426,6 +1404,12 @@
      "hollow": 0.5,
      "tint": 0.3,
      "dim": 0.5
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.48,
+     "patch": 0,
+     "size": 0.75
     }
    },
    "forest": {
@@ -1463,8 +1447,7 @@
     "shrub_deciduous": { "proportion": 1.2 },
     "holly": { "proportion": 0.5 },
     "raspberry": { "proportion": 0.4 },
-    "grass_plates": { "proportion": 1, "density": 4 },
-    "grass_dry": { "proportion": 0.4, "density": 3 },
+    "grass_reed": { "proportion": 0.4, "density": 0.48, "patch": 0, "size": 0.75 },
     "flower_foam": { "proportion": 1, "density": 0.4, "patch": 5 },
     "flower_bunchberry": { "proportion": 1, "density": 0.4, "patch": 5 },
     "rocks": { "proportion": 0.4, "size": 20, "tint": 0.7 },
