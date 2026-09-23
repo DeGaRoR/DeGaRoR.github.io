@@ -56987,3 +56987,15 @@ morning was still a 98 % morning at noon unless someone moved a slider.
   `src/core` reads as "the code did not run" - `mistBurn` came back undefined and `mistRho0`
   unburned for twenty minutes of looking at correct source. Build before gating anything in core.
 - GATES: CLIMATE, DAY, FOG, ATMO, POSTFX, GFX, CLOUD, WORLDRENDER, ATMOS, WATER, MEDIA, LIGHT green.
+
+## G512 - PERF: the island at 3.5x, five tiers, the frame is the draw count (2026-09-23)
+
+The performance chantier (branch claude/performance-profiling-optimization-1095f7, wip 1-4): Jolene at 1080p
+55 / 56 / 67.6 ms -> 17.1 / 16.7 / 18.8 ms (stand / forest / 300 m, frame time), the generated map 11 ms (Wednesday
+13-17). Reversed float depth, honest instance bounds, occluders first, stencil never resolved, the splat's mip-0
+bug (ANGLE Lod0), far terrain / premises patch LOD, static premises out of the matrix walk, distant houses' detail,
+lots batched; the GRAPHICS menu's five tiers (potato / 5 years ago / current / gamer = the old medium, default /
+ultra), render scale, terrain detail. At 1080p the frame is CPU-bound on three's per-draw JS; at 5120 x 1440 gamer
+is 36-41 ms. Canonical: futureDesigns/PERF-2026-09-23.md (numbers, the feature cost table, the next chantiers:
+houses HLOD, prop instancing, craft merge, cover-ring blocks, debris models).
+

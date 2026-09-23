@@ -446,7 +446,7 @@ var COVER_RING = (() => {
         }
         const col = it.col ? new Float32Array(it.col) : null;
         // every part of the prototype draws the same instances (a bark part and a leaf part)
-        for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast: it.p.kind !== 'cover' });
+        for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast: it.p.kind !== 'cover', kind: it.p.kind });
         cell.n += n;
       }
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
@@ -507,6 +507,7 @@ var COVER_RING = (() => {
         m.frustumCulled = true; m.matrixAutoUpdate = false;   // at the origin, for ever
         m.renderOrder = -1;   // occluders before the ground (render_world.js ORDER_NOTE)
         m.castShadow = list[0].cast; m.receiveShadow = true;
+        m.userData.coverKind = list[0].kind;   // cover / shrub / rock / debris: the instruments' read (PERF 2026-09-23)
         m.instanceMatrix.needsUpdate = true;
         b.group.add(m); b.meshes.push(m);
       }
