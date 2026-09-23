@@ -57767,3 +57767,16 @@ OWED: the premises ground PATCH past the inner ring draws as flat dark-green smu
 
 GATE PREMISES, PARKED, ANIMALS; GATE WORLD's island block by hand against the main checkout's bench (+
 mn_strip's pattern and stand). Data only: no src/ change, no build.
+
+## G529 - SCENERY LIFE: the life HERE - a zone, a site, a runway or a road with a life of its own (2026-09-23)
+
+Asked by the native-area session: the life stood a 30 m aviation-orange mast by the East Point strip, at the native
+ceremonial grounds, and would stand cars, dumpsters and propane round the clan house; `rec.life` is island-wide.
+Contract v1.22.1: a zone, a site, a runway or a road may carry `life` - `false`, or a block merged over `rec.life`
+(`SCENERY_LIFE.QUIET` = people only). It is the LAW for the entry's own things (a zone's houses, a site's items, the
+aerodrome mast of a site and of its runway, a road's parked cars and traffic) and a PLACE for the rest: inside a
+zone, a site's footprint + 40 m, a runway's box + 120 m, a road's band + 12 m, a category at 0 is refused and a
+lower one thinned (a hash of the spot). The inspector's `life here` row on those four layers: as the premises /
+people only / none. Masts now draw one stream per field and per settlement and keep 700 m from a mast of their own
+kind (300 m across), so switching one field's mast off moves no other (measured live on Jolene: the club's gone,
+the strip's and the village's unmoved). GATE LIFE holds the five cases. futureDesigns/SCENERY-LIFE-2026-09-23.md.

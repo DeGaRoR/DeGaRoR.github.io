@@ -164,7 +164,8 @@ function make(THREE, scene, world, rec0, opts) {
     aprons: () => (rec.layers.surface || []).filter(e => e.apron && e.poly && e.poly.length > 2).map(e => e.poly),
     objects: () => (rec.layers.objects || []).filter(e => e.kind !== 'aircraft' && isFinite(e.x)).map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], r: e.kind === 'billboard' ? (+e.w || 3) / 2 + 0.6 : e.kind === 'tree' ? 1.5 : 1.3 }; }),
     aircraft: () => (rec.layers.objects || []).filter(e => e.kind === 'aircraft').map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], yaw: (e.yaw || 0) + O.frame.yaw }; }),
-    sites: () => (rec.layers.sites || []).filter(st => st.at && O.runways.some(r => r.c && Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) < (r.len || 1000) / 2 + 900)).map(st => ({ x: st.at.x, z: st.at.z })),
+    sites: () => (rec.layers.sites || []).filter(st => st.at && O.runways.some(r => r.c && Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) < (r.len || 1000) / 2 + 900)).map(st => { let rw = null, rd = Infinity; for (const r of O.runways) if (r.c) { const d = Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) - (r.len || 1000) / 2; if (d < rd) { rd = d; rw = r.id; } } return { x: st.at.x, z: st.at.z, id: st.id, runway: rw }; }),
+    items: () => O.records.items,   // the site items' feet (a site's own life covers them, v1.22.1)
     cover: (x, z) => (world.coverAt ? world.coverAt(x, z, 1) : null),   // the pavement law (v1.17.1): nothing stands on a road
     eye: () => (o.eye ? o.eye() : null), lampsOn: () => LAMPS.on, queued: () => queue.length, obstacles: () => OBS(), onTraffic: () => { syncTraffic(); },
   }) : null;

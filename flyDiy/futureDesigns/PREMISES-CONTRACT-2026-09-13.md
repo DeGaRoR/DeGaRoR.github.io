@@ -764,3 +764,13 @@ after the freeze, against this document.
   closed in on the threshold (25_airfield sitePattern, the hold a quarter in); 300 m and more keep
   110 m. The island's tree fill now obeys every tree exclude (authored, `clear` zones, strip boxes,
   hard surfaces) - it never had.
+- **v1.22.1 (2026-09-23, asked by the native-area session: "a 30 m lattice mast ... right at the native ceremonial
+  grounds ... the people are welcome, the mast and the cars are not").** A **zone**, a **site**, a **runway** or a
+  **road** may carry its own `life`: `false` (none of the life there) or a partial block merged over `rec.life`
+  (`SCENERY_LIFE.QUIET` = `{ clutter: 0, rubbish: 0, cars: 0, traffic: 0, small: 0, antennas: 0 }`, people only).
+  It is the LAW for that entry's own things (a zone's houses, a site's items, the aerodrome mast of a site and of
+  its runway, a road's parked cars and traffic) and a PLACE for everything else: inside a zone's polygon, a site's
+  footprint (its items' feet and its anchor, 40 m round), a runway's box (120 m round) or a road's band (12 m past
+  its edge) a category set to 0 is refused and one set lower is thinned. The editor's inspector offers it as `life
+  here`: as the premises / people only / none (a hand-written block shows as its own and is kept).
+

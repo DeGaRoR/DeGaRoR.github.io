@@ -89,11 +89,12 @@ const house = (id, x, z, yaw, cat) => {
 const HOUSES = new Map([house('h1', -40, -10, 0), house('h2', 60, -8, 0.3), house('h3', 140, -10, 0, 'industrial'), house('h4', -130, -10, 0, 'landmark')]);
 const onRoad = (x, z) => [road].some(r => PG.roadDist(r, x, z) < r.w / 2 + 1);
 let eye = new THREE.Vector3(0, 12, 0);
-const rec = { seed: 3, layers: { zones: [zone] }, life: undefined };
+const site = { id: 's1', at: { x: 330, z: -230 } };
+const rec = { seed: 3, layers: { zones: [zone], sites: [site], runways: [runway], roads: [road, taxi] }, life: undefined };
 const host = {
   root: new THREE.Group(), game: true, record: () => rec, frame: () => ({ toWorld: (x, z) => [x, z], toLocal: (x, z) => [x, z], yaw: 0 }), heightAt, waterY: () => -10,
   houses: () => HOUSES, plots: () => [...HOUSES.values()].map(h => h.plot), roads: () => [road, taxi], runways: () => [runway], zones: () => [zone],
-  aprons: () => [apron], aircraft: () => craft, sites: () => [{ x: 330, z: -230 }],
+  aprons: () => [apron], aircraft: () => craft, sites: () => [{ x: 330, z: -230, id: 's1', runway: 'w1' }], items: () => [],
   cover: (x, z) => (onRoad(x, z) || PG.inPoly(apron, x, z) ? { kill: 1, cls: 'gravel' } : null),
   eye: () => eye, lampsOn: () => 0, queued: () => 0, obstacles: () => null, onTraffic: () => {},
 };
@@ -148,7 +149,7 @@ const stand = cfg => { L.set(cfg || null); L.standNow(); return L.items(); };
   verdict(masts.length >= 1, masts.length + ' masts stood (a settlement and a field)');
   verdict(masts.every(m => !PG.inPoly(apron, m.x, m.z) && PG.sdPoly(apron, m.x, m.z) >= 25), 'every mast 25 m off the apron');
   verdict(masts.every(m => !PG.inPoly(box, m.x, m.z)), 'every mast out of the runway\'s funnel (150 m either side, 150 m past the ends)');
-  verdict(masts.every((m, i) => masts.every((n, j) => i === j || Math.hypot(m.x - n.x, m.z - n.z) >= 700)), 'the masts 700 m apart');
+  verdict(masts.every((m, i) => masts.every((n, j) => i === j || Math.hypot(m.x - n.x, m.z - n.z) >= (m.kind === n.kind ? 700 : 300))), 'the masts 700 m apart (300 m between a field mast and a settlement mast)');
   // the switches
   verdict(stand({ on: false }).length === 0, 'life off: nothing stands');
   for (const q of ['people', 'clutter', 'rubbish', 'antennas', 'small']) verdict(!stand({ [q]: 0 }).some(x => x.cat === q), q + ' at 0: none of it');
@@ -161,6 +162,32 @@ const stand = cfg => { L.set(cfg || null); L.standNow(); return L.items(); };
   verdict(L.trafficOf(road) > 0 && L.trafficOf(taxi) === 0 && L.trafficOf(Object.assign({}, road, { traffic: 2 })) === 0,
     'traffic on a road left without (' + L.trafficOf(road).toFixed(2) + '/km), none on a taxiway, the record\'s own where it gave one');
   L.set({ on: false }); verdict(L.trafficOf(road) === 0, 'life off: no traffic of its own');
+}
+
+// ---- 2b. THE LIFE HERE (v1.22.1): a zone, a site, a runway, a road with a life of its own ---------------------
+{
+  const inZone = q => PG.inPoly(zone.poly, q.x, q.z);
+  zone.life = false;
+  let a = stand(null);
+  verdict(!a.some(inZone), 'a zone with `life: false`: nothing stands in it (' + a.filter(inZone).length + ')');
+  zone.life = Object.assign({}, SL.QUIET);
+  a = stand(null);
+  const zc = [...new Set(a.filter(inZone).map(q => q.cat))];
+  verdict(a.some(inZone) && zc.every(c => c === 'people'), 'a quiet zone (people only): only people in it (' + zc.join(' ') + ')');
+  delete zone.life;
+  const nearSite = () => L.masts().filter(m => Math.hypot(m.x - 330, m.z + 230) < 250).length;
+  const others = () => JSON.stringify(L.masts().filter(m => Math.hypot(m.x - 330, m.z + 230) >= 250).map(m => [m.x, m.z]));
+  stand(null); const m0 = nearSite(), o0 = others();
+  site.life = { antennas: 0 }; stand(null); const m1 = nearSite(), o1 = others(); delete site.life;
+  verdict(o0 === o1 && o0 !== "[]", "switching the field's mast off moves no other mast");
+  runway.life = false; a = stand(null); const m2 = nearSite(); const box = PG.runwayBox(runway, 120);
+  const inBox = a.filter(q => PG.inPoly(box, q.x, q.z)).length; delete runway.life;
+  verdict(m0 === 1 && m1 === 0 && m2 === 0 && inBox === 0, 'the field\'s mast: stood by default (' + m0 + '), none with the site\'s `antennas: 0` (' + m1 + ') or the runway\'s `life: false` (' + m2 + ', ' + inBox + ' in its box)');
+  road.life = { cars: 0, traffic: 0 };
+  a = stand(null);
+  verdict(!a.some(q => q.cat === 'cars') && L.trafficOf(road) === 0, 'a road with `cars: 0, traffic: 0`: no car parked on it, no traffic');
+  delete road.life; stand(null);
+  verdict(L.trafficOf(road) > 0 && a.length > 0, 'the overrides gone, the life is back');
 }
 
 // ---- 3. THE DRAW ---------------------------------------------------------------------------------------------

@@ -46,6 +46,10 @@
 if (typeof window === 'undefined') return;
 
 const DEF = { on: true, dist: 1, seed: 1, people: 1, clutter: 1, rubbish: 1, cars: 1, traffic: 1, small: 1, antennas: 1 };
+// THE LIFE HERE (contract v1.22.1): a zone, a site, a runway or a road may carry its own `life` - `false` (none of it
+// there) or a partial block merged over the record's (`QUIET`: people and nothing else - a totem ground, a ceremony)
+const QUIET = { clutter: 0, rubbish: 0, cars: 0, traffic: 0, small: 0, antennas: 0 };
+const mergeLife = (base, over) => (over === false ? Object.assign({}, base, { on: false }) : (over && typeof over === 'object') ? Object.assign({}, base, over) : base);
 // the editor's rows: key, label, max, what it stands
 const CATS = [
   ['people', 'people', 3, 'standing about: at a door, two at a frontage, on the shoulder, round a parked aeroplane'],
@@ -255,6 +259,7 @@ function make(THREE, host) {
   // one item, WORLD position; `tilt` true = stood on the ground's slope; `y` absolute (a wall mount) or null = the ground
   function put(kind, x, z, ry, o) {
     if (!kind) return false;
+    if (!hereAllows(kind.cat, x, z)) return false;
     const q = o || {};
     const gy = q.y !== undefined ? q.y : host.heightAt(x, z) + (q.lift || 0);
     if (!isFinite(gy)) return false;
@@ -269,6 +274,50 @@ function make(THREE, host) {
     return true;
   }
 
+  // THE REGIONS with a life of their own (rebuilt at every stand): a zone's polygon, a site's footprint (its items' feet
+  // and its anchor, 40 m round), a runway's box (120 m round), a road's band (12 m past its edge); `life` merged over
+  // the record's. put() refuses a category the place sets to 0 and thins one it sets lower (a hash of the spot, so the
+  // thinning is as deterministic as the stand); the entry's own buildings and its mast take the merge as their laws
+  let REGIONS = [], CFG0 = cfg;
+  function regionsOf(rec) {
+    const out = [], L = rec.layers || {};
+    for (const zn of L.zones || []) if (zn.life !== undefined && zn.poly && zn.poly.length > 2) out.push({ id: zn.id, life: zn.life, bb: PG.polyBBox(zn.poly), m: 0, test: (lx, lz) => PG.inPoly(zn.poly, lx, lz) });
+    for (const r of L.runways || []) if (r.life !== undefined && r.c) { const box = PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF || {}, r), 120); out.push({ id: r.id, life: r.life, bb: PG.polyBBox(box), m: 0, test: (lx, lz) => PG.inPoly(box, lx, lz) }); }
+    const items = (host.items && host.items()) || [];
+    for (const st of L.sites || []) if (st.life !== undefined) {
+      const feet = items.filter(it => it.site === st.id && it.foot && it.foot.length).map(it => it.foot);
+      const pts = [].concat(...feet).concat(st.at ? [[st.at.x, st.at.z]] : []); if (!pts.length) continue;
+      const bb = PG.polyBBox(pts);
+      out.push({ id: st.id, life: st.life, bb, m: 40, test: (lx, lz) => lx > bb.x0 - 40 && lx < bb.x1 + 40 && lz > bb.z0 - 40 && lz < bb.z1 + 40 });
+    }
+    for (const rd of L.roads || []) if (rd.life !== undefined && rd.pts && rd.pts.length > 1) { const m = (+rd.w || 4) / 2 + 12; out.push({ id: rd.id, life: rd.life, bb: PG.polyBBox(rd.pts), m, test: (lx, lz) => PG.roadDist(rd, lx, lz) < m }); }
+    return out;
+  }
+  // the merged life at a point (the record's, then every region that holds the point)
+  function lifeAt(x, z) {
+    if (!REGIONS.length) return CFG0;
+    const l = host.frame().toLocal(x, z);
+    let c = CFG0;
+    for (const R of REGIONS) if (l[0] > R.bb.x0 - R.m && l[0] < R.bb.x1 + R.m && l[1] > R.bb.z0 - R.m && l[1] < R.bb.z1 + R.m && R.test(l[0], l[1])) c = mergeLife(c, R.life);
+    return c;
+  }
+  function hereAllows(cat, x, z) {
+    if (!REGIONS.length) return true;
+    const c = lifeAt(x, z);
+    if (!c.on) return false;
+    const v = +c[cat], ref = +cfg[cat];
+    if (!(v > 0)) return false;
+    if (ref > 0 && v < ref) { const h = PG.hash32(Math.round(x * 10) | 0, Math.round(z * 10) | 0) / 4294967296; return h < v / ref; }   // thinned where the place asks for less
+    return true;
+  }
+  // an entry's own laws: the record's life merged with the entries' (the zone of a plot, the site of an item, the road)
+  function withLife(overs, fn) {
+    let c = CFG0; for (const o of overs) if (o !== undefined && o !== null) c = mergeLife(c, o);
+    if (!c.on) return;
+    const save = cfg; cfg = c;
+    try { fn(); } finally { cfg = save; }
+  }
+  const entryOf = (layer, id) => { const L = ((host.record() || {}).layers || {})[layer] || []; return id == null ? null : L.find(e => e.id === id) || null; };
   // the free-ground test: not in water, not steep, not on a pavement (the world's coverAt, v1.17.1 - the law the trees
   // and the rocks keep; an apron's edge asks with `paved` true), not on another item
   function clear(x, z, r, paved) {
@@ -656,46 +705,55 @@ function make(THREE, host) {
   // aerodrome, 60-140 m from its site, clear of the runway's funnel (150 m either side of the centreline, 600 m
   // past the ends)
   const MASTS = [];
-  function mastAt(rnd, x, z, h) {
+  function mastAt(rnd, x, z, h, kind) {
     const k = procKind('mast', 'antennas', 6000, { shadowTo: 400 }), sh = procKind('shelter', 'antennas', 900, { shadowTo: 150 });
     const s = h / 30;
     put(k, x, z, rnd() * 6.283, { sy: s, s: 1 });
     const a = rnd() * 6.283; put(sh, x + Math.cos(a) * 4.2, z + Math.sin(a) * 4.2, a + Math.PI / 2, { tilt: false });
-    occupy(x, z, 3); MASTS.push({ x, z, h, y: host.heightAt(x, z) });
+    occupy(x, z, 3); MASTS.push({ x, z, h, y: host.heightAt(x, z), kind });
   }
   let APRONS = [], BUILT = [];
   function clearAround(x, z, R) { if (!clear(x, z, 3)) return false; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; if (!clear(x + Math.cos(a) * R, z + Math.sin(a) * R, 1.6)) return false; } return true; }
-  function freeForMast(lx, lz, runways) {
+  // 700 m from a mast of the same kind (a field's, a settlement's), 300 m from the other: a field's mast switched
+  // off (a site's own life) does not move the village's
+  function freeForMast(lx, lz, runways, kind) {
     if (!offRoad(lx, lz, 25)) return false;
     for (const p of APRONS) if (PG.inPoly(p, lx, lz) || PG.sdPoly(p, lx, lz) < 25) return false;
     const w = host.frame().toWorld(lx, lz);
     for (const b of BUILT) if (Math.hypot(b[0] - w[0], b[1] - w[1]) < 40) return false;
-    for (const m of MASTS) if (Math.hypot(m.x - w[0], m.z - w[1]) < 700) return false;
+    for (const m of MASTS) if (Math.hypot(m.x - w[0], m.z - w[1]) < (m.kind === kind ? 700 : 300)) return false;
     for (const r of runways) if (PG.inPoly(PG.runwayBox(r, 150), lx, lz)) return false;
     return true;
   }
-  function mastLife(rnd, zones, runways, plots, sites) {
+  function mastLife(seedM, zones, runways, plots, sites) {
+    const S = streams(seedM);   // one stream a field and a settlement: switching one off moves no other mast
+    let rnd;
     if (cfg.antennas <= 0) return;
     const F = host.frame();
     const nearPlot = (x, z) => plots.some(p => p.front && Math.hypot(p.front[0] - x, p.front[1] - z) < 45);
-    for (const st of sites) {
-      if (rnd() > Math.min(1, 0.9 * cfg.antennas)) continue;
+    for (const [si, st] of sites.entries()) {
+      rnd = S('site:' + (st.id != null ? st.id : si));
+      const se = entryOf('sites', st.id), rw = st.runway != null ? entryOf('runways', st.runway) : null, here = mergeLife(mergeLife(cfg, rw ? rw.life : undefined), se ? se.life : undefined);
+      if (!here.on || !(here.antennas > 0)) { rnd(); continue; }
+      if (rnd() > Math.min(1, 0.9 * here.antennas)) continue;
       for (let i = 0; i < 60; i++) {
         const a = rnd() * 6.283, r = 70 + rnd() * 90, lx = st.x + Math.cos(a) * r, lz = st.z + Math.sin(a) * r, wp = F.toWorld(lx, lz);
-        if (!freeForMast(lx, lz, runways) || !clearAround(wp[0], wp[1], 7) || host.heightAt(wp[0], wp[1]) < wet(wp[0], wp[1]) + 2) continue;
-        mastAt(rnd, wp[0], wp[1], 18 + rnd() * 8); break;
+        if (!freeForMast(lx, lz, runways, 'field') || !clearAround(wp[0], wp[1], 7) || host.heightAt(wp[0], wp[1]) < wet(wp[0], wp[1]) + 2) continue;
+        mastAt(rnd, wp[0], wp[1], 18 + rnd() * 8, 'field'); break;
       }
     }
     for (const zn of zones) {
-      if (!/residential|commercial|harbour|industrial/.test(zn.kind) || rnd() > Math.min(1, 0.9 * cfg.antennas)) continue;
+      rnd = S('zone:' + zn.id);
+      const zl = mergeLife(cfg, zn.life);
+      if (!/residential|commercial|harbour|industrial/.test(zn.kind) || !zl.on || rnd() > Math.min(1, 0.9 * zl.antennas)) continue;
       const c = PG.polyCentroid(zn.poly);
       let best = null, bh = -Infinity;
       for (let i = 0; i < 40; i++) {
         const a = rnd() * 6.283, r = 150 + rnd() * 350, lx = c[0] + Math.cos(a) * r, lz = c[1] + Math.sin(a) * r, wp = F.toWorld(lx, lz), gy = host.heightAt(wp[0], wp[1]);
-        if (!isFinite(gy) || gy < wet(wp[0], wp[1]) + 3 || !freeForMast(lx, lz, runways) || nearPlot(lx, lz) || !clearAround(wp[0], wp[1], 7)) continue;
+        if (!isFinite(gy) || gy < wet(wp[0], wp[1]) + 3 || !freeForMast(lx, lz, runways, 'settlement') || nearPlot(lx, lz) || !clearAround(wp[0], wp[1], 7)) continue;
         if (gy > bh) { bh = gy; best = wp; }
       }
-      if (best) mastAt(rnd, best[0], best[1], 26 + rnd() * 14);
+      if (best) mastAt(rnd, best[0], best[1], 26 + rnd() * 14, 'settlement');
     }
   }
 
@@ -707,6 +765,7 @@ function make(THREE, host) {
     if (!cfg.on) { pack(); stats.placeMs = performance.now() - t0; return; }
     if (!KIT) KIT = buildKit(T);
     const rec = host.record() || {}, seed = PG.hash32((rec.seed | 0) + 1, (cfg.seed | 0) * 7919 + 17);
+    CFG0 = cfg; REGIONS = regionsOf(rec);
     const zones = (host.zones() || []).filter(z => z.poly && z.poly.length > 2);
     const plots = host.plots() || [];
     const runways = host.runways() || [];
@@ -722,16 +781,18 @@ function make(THREE, host) {
     const sites = [];
     if (houses) for (const [id, h] of houses) {
       if (!h || h.failed || !h.grp || !h.built) continue;
-      try { houseLife(h, PG.hash32(seed, PG.fnv(String(id)))); } catch (e) { console.warn('life: house', id, e && e.message); }
+      // the house's own laws: its zone's life (a sown plot), its site's (an item)
+      const zn = h.plot && h.plot.zone != null ? entryOf('zones', h.plot.zone) : null, si = h.plot && h.plot.rec && h.plot.rec.site != null ? entryOf('sites', h.plot.rec.site) : null;
+      try { withLife([zn && zn.life, si && si.life], () => houseLife(h, PG.hash32(seed, PG.fnv(String(id))))); } catch (e) { console.warn('life: house', id, e && e.message); }
       const ob = h.plot && h.plot.out;   // the outbuilding: placed as placeBuilt places it (the frame's yaw on the house's)
       if (ob && ob.built && isFinite(ob.x)) { const F = host.frame(), w = F.toWorld(ob.x, ob.z);
-        try { houseLife({ built: ob.built, grp: { position: { x: w[0], y: ob.y || 0, z: w[1] }, rotation: { y: (ob.yaw || 0) + F.yaw } }, plot: h.plot, cat: 'shed' }, PG.hash32(seed, PG.fnv('out:' + id))); } catch (e) { console.warn('life: outbuilding', id, e && e.message); } }
+        try { withLife([zn && zn.life], () => houseLife({ built: ob.built, grp: { position: { x: w[0], y: ob.y || 0, z: w[1] }, rotation: { y: (ob.yaw || 0) + F.yaw } }, plot: h.plot, cat: 'shed' }, PG.hash32(seed, PG.fnv('out:' + id)))); } catch (e) { console.warn('life: outbuilding', id, e && e.message); } }
     }
-    for (const rd of ROADS) { try { roadLife(rd, PG.hash32(seed, PG.fnv('r:' + rd.id)), zones, plots); } catch (e) { console.warn('life: road', rd.id, e && e.message); } }
+    for (const rd of ROADS) { const re = entryOf('roads', rd.id); try { withLife([re && re.life], () => roadLife(rd, PG.hash32(seed, PG.fnv('r:' + rd.id)), zones, plots)); } catch (e) { console.warn('life: road', rd.id, e && e.message); } }
     for (const [i, ap] of (host.aprons() || []).entries()) { try { apronLife(ap, PG.mulberry32(PG.hash32(seed, PG.fnv('a:' + i))), craft); } catch (e) { console.warn('life: apron', e && e.message); } }
     for (const [i, c] of craft.entries()) craftLife(c, PG.mulberry32(PG.hash32(seed, PG.fnv('c:' + i))));
     for (const s of (host.sites() || [])) sites.push(s);
-    try { mastLife(PG.mulberry32(PG.hash32(seed, 0x6d617374)), zones, runways, plots, sites); } catch (e) { console.warn('life: masts', e && e.message); }
+    try { mastLife(PG.hash32(seed, 0x6d617374), zones, runways, plots, sites); } catch (e) { console.warn('life: masts', e && e.message); }
     pack();
     addObstacles();
     stats.placeMs = performance.now() - t0;
@@ -921,9 +982,10 @@ function make(THREE, host) {
   // TRAFFIC on a road the record left without: vehicles a km (taxiways, tracks and the short stubs excluded)
   function trafficOf(rd) {
     if (!cfg.on || !(cfg.traffic > 0) || !rd || rd.traffic > 0) return 0;
+    const re = entryOf('roads', rd.id), rl = re ? mergeLife(cfg, re.life) : cfg; if (!rl.on || !(rl.traffic > 0)) return 0;
     if ((rd.w || 4) >= 13 || rd.cls === 'track' || /taxi/i.test(String(rd.id))) return 0;
     const pr = PG.polyRoad(rd.pts, rd.w); if (pr.length < 150) return 0;
-    return 0.8 * cfg.traffic;
+    return 0.8 * rl.traffic;
   }
   function dispose() {
     dropObstacles();
@@ -947,5 +1009,5 @@ function make(THREE, host) {
   return { root, stats, set, dirty, tick, standNow, draw: e => draw(e), trafficOf, dispose, items, get cfg() { return Object.assign({}, cfg); }, masts: () => MASTS.slice(), kinds: () => KINDS.map(k => ({ id: k.id, cat: k.cat, levels: k.levels.map(l => (l.prop || l.proc) + '<' + l.to) })), redraw: () => { dirtyDraw = true; } };
 }
 
-window.SCENERY_LIFE = { make, DEF, CATS, CUT, TIER_DIST, buildKit };
+window.SCENERY_LIFE = { make, DEF, CATS, CUT, TIER_DIST, buildKit, QUIET, mergeLife };
 })();

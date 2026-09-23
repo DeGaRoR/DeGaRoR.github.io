@@ -23,7 +23,7 @@ Nothing is authored. The renderer hands over what it has BUILT and the life is s
 | **parked cars** | a zone road's shoulder, every 25-60 m on a 45 % chance, parked the way its side's traffic runs, never within 6 m of a frontage (a drive) | the everyday `auto_*` cars, pickups, SUVs, vans |
 | **traffic** | every road the record left without `traffic` (0.8 vehicles a km at 1), never a taxiway (w ≥ 13 or `taxi` in its id), a track, or a stub under 150 m | G432's proto traffic, unchanged |
 | **small structures** | a mailbox at a residential frontage (70 %); the house's fuel on a gable (55 %: a 500-gallon propane "pig" or a 275-gallon oil tank); a dumpster behind a shop or a works (60 %); road signs at each road end and every ~600 m; cones on the apron | procedural (the kit) |
-| **antennas** | a satellite dish on the wall that faces the southern sky (+z), under the eaves and never over an opening (55 % of houses); a TV aerial on the ridge (22 %); a lattice mast with its equipment shelter by each aerodrome (70-160 m from its site) and each settlement (the highest free ground 150-500 m out), 700 m apart, out of the runway's funnel, 25 m off an apron, 40 m from a building; its red light lit at dusk | procedural |
+| **antennas** | a satellite dish on the wall that faces the southern sky (+z), under the eaves and never over an opening (55 % of houses); a TV aerial on the ridge (22 %); a lattice mast with its equipment shelter by each aerodrome (70-160 m from its site) and each settlement (the highest free ground 150-500 m out), 700 m from a mast of the same kind (300 m across), out of the runway's funnel, 25 m off an apron, 40 m from a building; its red light lit at dusk | procedural |
 
 **The building's own report is the map.** `HOUSE_GEN` publishes, per build, `stats.groundAO` (every rectangle and disc
 it shaded the ground against: the walls, the deck, every stair flight and landing, the stoops, the woodpile, its
@@ -46,6 +46,12 @@ with `paved` and keep off the carriageway by their offset.
 (`on: true`, the multipliers 1, `seed` 1). The editor writes only the keys moved off their default ("back to the
 defaults" deletes the block). The composer ignores it; the renderer hands it to the life at every rebuild and the
 editor straight to `R.life.set()` - a slider re-stands the life (~40 ms on Jolene) without recomposing the premises.
+
+**The life here (v1.22.1).** A zone, a site, a runway or a road may carry its own `life` (`false`, or a partial block
+merged over the record's; `QUIET` = people only). It is the law for the entry's own things (a zone's houses, a site's
+items, the aerodrome mast of a site or its runway, a road's cars and traffic) and a place for the rest (inside a zone,
+a site's footprint + 40 m, a runway's box + 120 m, a road's band + 12 m: a category at 0 refused, a lower one thinned).
+The inspector's `life here` row: as the premises / people only / none. Asked for a totem ground (no mast, no cars).
 
 ## 3. The cost — how it is drawn
 

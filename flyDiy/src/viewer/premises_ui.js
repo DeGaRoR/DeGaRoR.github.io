@@ -674,6 +674,15 @@ function mount(host, ctx) {
     const e = f.entry, id = e.id, layer = f.layer;
     const ed = (mut, label, key) => edit(id, layer, mut, label, key);
     rows.section(insp, (e.kind || layer.replace(/s$/, '')).toUpperCase() + ' ' + id);
+    // THE LIFE HERE (SCENERY LIFE, contract v1.22.1): the premises' own, people only (a ceremony ground: no mast, no
+    // cars, no clutter), or none; a block written by hand (any other keys) shows as its own and is kept
+    if (/^(zones|sites|runways|roads)$/.test(layer) && window.SCENERY_LIFE) {
+      const Q = window.SCENERY_LIFE.QUIET, quiet = l => l && typeof l === 'object' && Object.keys(Q).every(k => l[k] === Q[k]) && Object.keys(l).length === Object.keys(Q).length;
+      const now = () => (e.life === false ? 'off' : e.life === undefined || e.life === null ? '' : quiet(e.life) ? 'quiet' : 'custom');
+      const opts = [['', 'as the premises', 'the LIFE section\'s settings'], ['quiet', 'people only', 'no mast, parked cars, traffic, clutter, rubbish or small structures here'], ['off', 'none', 'nothing of the life here']];
+      if (now() === 'custom') opts.push(['custom', 'its own', JSON.stringify(e.life)]);
+      rows.pills(insp, 'life here', opts, now, v => { if (v === 'custom') return; ed(x => { if (v === '') delete x.life; else x.life = v === 'off' ? false : Object.assign({}, Q); }, 'life of ' + id); });
+    }
     if (layer === 'terrain') {
       if (e.kind === 'flatten') {
         rows.slider(insp, 'level (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
