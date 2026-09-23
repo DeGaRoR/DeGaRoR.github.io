@@ -1872,7 +1872,7 @@ SEA_LEN, SEA_WID = 1500.0, 200.0
 
 
 def runways():
-    return [{'id': 'MKSEA', 'name': 'Metlakatla Seaplane Base', 'c': pt(*SEA_C), 'hdg': R(SEA_HDG, 4),
+    return [{'id': 'mk_sea', 'name': 'Metlakatla Seaplane Base', 'c': pt(*SEA_C), 'hdg': R(SEA_HDG, 4),
              'len': SEA_LEN, 'wid': SEA_WID, 'surface': 4, 'look': 'none', 'crossfall': 0,
              'disp': [0, 0], 'papi': [False, False], 'falloff': None, 'site': None,
              'pattern': None, 'profile': None, 'approach': None}]

@@ -862,7 +862,7 @@ if (SELFTEST) {
     check(sm.length > straight.length && Math.abs(sm[0][0]) < 1e-9 && Math.abs(sm[sm.length - 1][1] - 100) < 1e-9,
           '14k smooth: the corner rounds and the ends hold');
     // the seaplane base is an aerodrome of the world
-    check(O.aerodromes.some(a => a.id === 'MKSEA' && a.kind === 'water'), '14l Metlakatla has its own sea lane');
+    check(O.aerodromes.some(a => a.id === 'mk_sea' && a.kind === 'water'), '14l Metlakatla has its own sea lane');
     // 14m EVERY PLACED ITEM ACTUALLY BUILDS, and publishes what the renderer reads.
     // render_premises.js placeBuilt iterates `stats.lit.lights`; MARINE_GEN handed
     // it a NUMBER, the loop threw inside the renderer's own try, and all 26 harbour
@@ -928,23 +928,27 @@ if (SELFTEST) {
       check(kept, "14o `from` replaces only the codes it names");
       if (u3) u3();
     }
-    // 14p NO TREE IS A FIXTURE (2026-09-23, the user: "never any tree as fixture
-    // without its lod system, we take the normal ones, maybe alter the terrain type,
-    // let the game do the work"). A record tree is one THREE.LOD with three hand-built
-    // rungs, no impostor, no instancing and no stand card; the island's own fill has
-    // all of it. So the town paints a terrain type and plants nothing itself.
-    check(O.records.trees.length === 0, '14p the town plants no tree of its own',
-          O.records.trees.length + ' record trees');
-    // ...and the paint must LIFT THE COVER, which is the piece that made a painted
-    // biome plant nothing: the fill is gated on `world.surface`, and over a town the
-    // cover raster says BUILT, which maps to PAVED, which forestHere and openHere both
-    // refuse. A ttype stamp with `cover` rewrites the class - but only over BUILT and
-    // CROP, or it would turn the island's own forest floor into grassland.
-    // ...ASSERTED ONLY WHEN THE RECORD ACTUALLY PAINTS ONE. Jolene's town carries no
-    // `cover` stamp today - the `city trees` paint was taken off because the pack has
-    // no small conifer and a scaled-down twenty-metre one is a stick - so the live
-    // pair below would assert a change nothing asked for. The MECHANISM is held by a
-    // source check either way, so it cannot rot while it is unused.
+    // 14p THE TOWN'S TREES, and the two things that must hold about them.
+    // The user's rule is "never any tree as fixture without its lod system, we take
+    // the normal ones, maybe alter the terrain type, let the game do the work". The
+    // PAINTED route is built (14p below) and cannot be delivered at a settlement -
+    // the island's fill had 13 465 trees built with 55 576 chunks still queued after
+    // 61 s, so the town's own chunks never come up - so Metlakatla PLACES its
+    // conifers through planForest, which steps round every plot, road, site and
+    // exclude by construction. What must hold is that they are drawn at all, and
+    // that they are not drawn for ever.
+    const mkTrees = O.records.trees.filter(t => /^mk_/.test(String(t.zone || '')));
+    check(mkTrees.length > 500, '14p the town has its wood', mkTrees.length + ' trees in mk_ zones');
+    const RP2 = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+    // THE REGRESSION THIS EXISTS FOR: rebuild()'s GAME branch takes an early return,
+    // and buildTrees() sat below it in the bench path only - so no premises record
+    // tree had EVER been drawn in the game, silently, because until now no record
+    // carried one. Both the call and the cull must survive a rebase.
+    const gameBranch = RP2.slice(RP2.indexOf('if (o.game) {'), RP2.indexOf('if (!dirty || !dirty.bbox) {'));
+    check(gameBranch.length > 200 && /buildTrees\(\);/.test(gameBranch),
+          "14p buildTrees() is called in rebuild()'s GAME branch, not only the bench's");
+    check(/addLevel\(new THREE\.Group\(\), TREE_GONE\)/.test(RP2) && /const TREE_GONE = \d+/.test(RP2),
+          '14p a record tree has a cull level (the ladder ended at 132 m and drew at any distance)');
     check(/CV\[k\] = c\.cover/.test(fs.readFileSync(path.join(TOOLS, '..', 'src', 'core', '27_premises.js'), 'utf8')),
           '14p the cover stamp exists (the piece that lets a painted biome plant over a town)');
     const paints = rec.layers.ttype.some(c => isFinite(+c.cover));

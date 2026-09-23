@@ -53,32 +53,6 @@
     "falloff": 10,
     "abs": true,
     "order": 0
-   },
-   {
-    "id": "tw_t_square",
-    "kind": "flatten",
-    "poly": [
-     [
-      312,
-      -7881
-     ],
-     [
-      340,
-      -7881
-     ],
-     [
-      340,
-      -7860
-     ],
-     [
-      312,
-      -7860
-     ]
-    ],
-    "level": 709,
-    "falloff": 8,
-    "abs": true,
-    "order": 0
    }
   ],
   "material": [
@@ -104,31 +78,6 @@
     ],
     "z": 1,
     "look": "asphalt",
-    "band": 1,
-    "yaw": 0
-   },
-   {
-    "id": "tw_m_square",
-    "poly": [
-     [
-      312,
-      -7881
-     ],
-     [
-      340,
-      -7881
-     ],
-     [
-      340,
-      -7860
-     ],
-     [
-      312,
-      -7860
-     ]
-    ],
-    "z": 1,
-    "look": "concrete",
     "band": 1,
     "yaw": 0
    }

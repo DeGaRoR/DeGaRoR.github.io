@@ -672,6 +672,9 @@ def main():
                 {'id': 's_strip', 'name': 'Tamgas Hill', 'at': {'x': R(STRIP_AT[0]), 'z': R(STRIP_AT[1]), 'yaw': R(STRIP_YAW, 4)}, 'yard': STRIP_YARD, 'items': STRIP_ITEMS},
             ],
             'links': [],
+            # the ttype layer (contract v1.27): polygons that stamp a terrain-type code
+            # into the island's own grid - the town's lush verges and its wood belt
+            'ttype': [],
             'objects': [
                 # the parked aeroplanes on the club's apron (GATE PARKED rule 7 reads them)
                 {'id': 'o1', 'kind': 'aircraft', 'key': 'arch:cub', 'x': R(club_world(20, 40)[0]), 'z': R(club_world(20, 40)[1]), 'yaw': R(-math.pi / 2, 4)},
