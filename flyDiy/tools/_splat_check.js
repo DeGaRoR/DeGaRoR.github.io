@@ -33,6 +33,17 @@
 //      POND CENSUS over 2 km: coverage, ponds per km2, the median pond, and
 //      that a fifth of the ground is still dry - the packs the user asked for
 //      ("there should be less of them ... probably in packs").
+//   1c. A MINERAL SET KEEPS ITS HUE (2026-09-23, the user on a shot of the
+//      Jumbo Mine: "the rock assets have been fully colored green and they
+//      look real bad ... revert at least for this texture"). normGains pulls
+//      each set's mean onto the imagery's PER CHANNEL, which is right for a
+//      vegetation set and a hue shift for rock, dirt, sand or snow - the
+//      imagery's rock cells are forested rock. The carve-out existed and `mud`
+//      was not in its list: gain 0.29/0.55/0.29 on Jolene, a green pull of
+//      1.92, on the first (0.6) set of both muskeg and scrub. This measures the
+//      REAL gains (the real manifest, the real island) and refuses any mineral
+//      set whose gain is not one number, while requiring the vegetation sets to
+//      still take the imagery's colour - a carve-out, not a retreat.
 //   2. THE MANIFEST vs THE STORE (src/viewer/splat_tex.js, media/tex/splat/):
 //      the manifest's order IS RECIPE.library (a set's index is its layer in
 //      the arrays), its metres the library's, four files per set on disk at
@@ -277,6 +288,62 @@ function checkShader(G, splice, quiet) {
   return out.every(x => x[0]);
 }
 
+// ---- 1c. A MINERAL SET KEEPS ITS HUE ----------------------------------------
+// (2026-09-23, the user on a shot of the Jumbo Mine: "the rock assets have been
+// fully colored green and they look real bad ... revert at least for this
+// texture".) normGains (splat_ground.js) pulls each set's mean onto the
+// imagery's, per channel, so that the island's colour is the authority. For a
+// VEGETATION set that is the point; for rock, dirt, sand or snow it is a hue
+// shift, and the imagery's rock cells are forested rock. The rule existed and
+// `mud` was left out of its list - measured on Jolene its gain was
+// 0.29/0.55/0.29, a GREEN PULL OF 1.92, and mud is the first (0.6) set of both
+// muskeg and scrub, so most of the ground between the trees was algae. This
+// walks the REAL gains, with the real manifest and the real island, and refuses
+// any mineral set whose gain is not neutral.
+function checkMineral(quiet) {
+  const out = [], say = (ok, line) => { out.push([ok, line]); return ok; };
+  let W = null;
+  try { W = require('./island_node.js').islandWorld('jolene'); } catch (e) { W = null; }
+  if (!W) { say(true, 'the island is not on this box - the gains cannot be measured here (FLYDIY_BENCH=<path>, or media/world)');
+    if (!quiet) for (const [ok, line] of out) verdict(ok, line); return true; }
+  const V4c = class { constructor(x = 0, y = 0, z = 0, w = 0) { Object.assign(this, { x, y, z, w }); } set(x, y, z, w) { Object.assign(this, { x, y, z, w }); return this; } };
+  const ctx = { GROUND_FIELDS: loadRecipe(), console: { log() {} }, Promise, Uint8Array, Float32Array, Math, JSON, Object, Array, Number, String, isFinite, parseFloat,
+    THREE: { Vector4: V4c, Vector2: class { constructor(x = 0, y = 0) { this.x = x; this.y = y; } set(x, y) { this.x = x; this.y = y; return this; } },
+      Color: class { constructor() { this.r = this.g = this.b = 1; } }, DataArrayTexture: class { constructor() {} },
+      RGBAFormat: 1, UnsignedByteType: 2, RepeatWrapping: 3, LinearMipmapLinearFilter: 4, LinearFilter: 5 },
+    document: { createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: new Uint8Array(4) }) }) }) },
+    localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, location: { search: '' } };
+  ctx.Image = class { constructor() { this.complete = true; this.naturalWidth = 0; } set src(v) {} get src() { return ''; } addEventListener() {} };
+  ctx.window = ctx;
+  const EOL = String.fromCharCode(10);
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/splat_tex.js'), 'utf8') + EOL + 'this.SPLAT_TEX_SETS = SPLAT_TEX_SETS;', ctx, { filename: 'splat_tex.js' });
+  if (!ctx.SPLAT_TEX_SETS) { say(false, 'the manifest did not build in the harness'); if (!quiet) for (const [ok, l] of out) verdict(ok, l); return false; }
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/splat_ground.js'), 'utf8'), ctx, { filename: 'splat_ground.js' });
+  const gU = {};
+  for (const k of ['uSMatA', 'uSMatS', 'uSMatM', 'uSMatF', 'uSMatFS', 'uSVary', 'uSLum', 'uSplat', 'uSplatN', 'uSDist', 'uSDist2',
+                   'uSSeam', 'uSHex', 'uSPud', 'uSSplit', 'uSSplit2', 'uSNrm', 'uSNCode', 'uSNCand', 'uSNearN', 'uSFarN', 'uSplatOn', 'uSGrade', 'uSLib']) gU[k] = { value: new V4c() };
+  const SP = ctx.SPLAT_GROUND.make(gU, W.island);
+  const norm = (SP && SP.api) ? SP.api.norm() : {};
+  say(Object.keys(norm).length > 8, `${Object.keys(norm).length} sets carry a gain from the imagery`);
+  // THE LIST IS THE RULE: every surface here is rock, dirt, sand or snow and may
+  // only be brightened or darkened, never recoloured. A new mineral set joins it.
+  const MUST_KEEP_HUE = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble', 'beach', 'coastA', 'coastSand', 'dirt', 'mud', 'snowAir'];
+  const bad = [];
+  for (const k of MUST_KEEP_HUE) {
+    const g = norm[k]; if (!g) continue;
+    const pull = g[1] / Math.max((g[0] + g[2]) / 2, 1e-6);
+    if (Math.abs(g[0] - g[1]) > 1e-6 || Math.abs(g[1] - g[2]) > 1e-6) bad.push(`${k} ${g.map(v => v.toFixed(2)).join('/')} (green pull ${pull.toFixed(2)})`);
+  }
+  say(!bad.length, `every mineral set takes ONE luminance gain, not a colour: ${bad.length ? bad.join(', ') : MUST_KEEP_HUE.filter(k => norm[k]).length + ' checked, all neutral'}`);
+  // and the vegetation sets still DO take the imagery's colour - the rule is a
+  // carve-out, not a retreat from the normalisation the user asked for
+  const veg = ['forestAir', 'grass', 'grassRock', 'dry', 'lush', 'leaves'].filter(k => norm[k]);
+  const coloured = veg.filter(k => { const g = norm[k]; return Math.abs(g[0] - g[1]) > 1e-6 || Math.abs(g[1] - g[2]) > 1e-6; });
+  say(coloured.length >= 2, `the vegetation sets still take the imagery's colour (${coloured.length} of ${veg.length} have a per-channel gain)`);
+  if (!quiet) for (const [ok, line] of out) verdict(ok, line);
+  return out.every(x => x[0]);
+}
+
 // ---- 4. --gpu: the census and the fxc probe on this machine's Chrome ----------
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function run(cmd, args, opts) {
@@ -396,6 +463,8 @@ async function checkGPU() {
   }
   console.log('1. THE RECIPE\'S SHAPE (28b_ground_fields.js RECIPE)');
   checkRecipe(G, splatSrc, false);
+  console.log('1c. A MINERAL SET KEEPS ITS HUE (the gains normGains computes on the island)');
+  checkMineral(false);
   console.log('2. THE MANIFEST vs THE STORE (splat_tex.js, media/tex/splat/)');
   checkManifest(G, manifest, ROOT, false);
   console.log('3. THE SHADER\'S RULES (the GLSL splat_ground.js splices)');

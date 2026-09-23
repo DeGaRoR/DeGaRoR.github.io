@@ -402,7 +402,16 @@ const SPLAT_GROUND = (() => {
       // gain turned the boulders green-blue. Rock, cliff, shingle, sand, dirt take ONE luminance gain,
       // floored at 0.5 (the muskeg reference shows its boulders pale tan, not dark); the vegetation
       // sets take the imagery's colour.
-      const MINERAL = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble|beach|coast[A-Za-z]*|dirt|snowAir)$/;
+      // AND `mud` IS A MINERAL SURFACE (2026-09-23, the user on the Jumbo Mine shot: "the rock assets
+      // have been fully colored green and they look real bad ... revert at least for this texture").
+      // It was left out of the list above and it is the worst offender of all: measured on Jolene its
+      // gain is 0.29/0.55/0.29 - the green channel nearly twice the other two, a GREEN PULL OF 1.92,
+      // which turns bare peat and dirt the colour of algae. It matters more than any other set because
+      // it is the FIRST (0.6 weight) set of muskeg AND scrub and the second of forest, so it is most of
+      // the ground the eye sees between the trees. With it on the luminance path the rock-and-dirt
+      // surfaces all keep their hue and only the vegetation sets take the imagery's colour, which is
+      // what the rule was for.
+      const MINERAL = /^(rocks[A-Z]|rocky[A-Z]|cliff|pebble|beach|coast[A-Za-z]*|dirt|mud|snowAir)$/;
       for (const k in num) {
         const g = num[k].map(v => v / den[k]);
         if (MINERAL.test(k)) { const L = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; const l = Math.min(2.5, Math.max(0.5, L)); out[k] = [l, l, l]; }

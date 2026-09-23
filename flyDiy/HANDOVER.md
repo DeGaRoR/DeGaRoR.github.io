@@ -57900,3 +57900,53 @@ flydiy.gfx.auto and said in the menu. Rigs (HeadlessChrome / webdriver) stand do
 Old prefs migrate once (pv 2). GATE AA drives the pure decision with simulated frames; GATE GFX the migration.
 futureDesigns/PERF-2026-09-23.md (G533).
 
+
+## G534 — MUD IS A MINERAL SURFACE: the ground between the trees was painted algae (2026-09-23)
+
+THE USER, on a shot of the Jumbo Mine from the air: "we have screwed up on the coloration of some assets. In
+particular the rock assets have been fully colored green and they look real bad ... Can you revert at least for
+this texture."
+
+THE FIRST GUESS WAS WRONG, AND THE PICTURE SAID SO. The obvious suspect was the macro tint (macroNear 0.45 -
+how much of the detail's colour gives way to the imagery's under the near ground), so the rig took the same eye
+twice from one boot with it at 0.45 and at 0: bench/rock/b_now.png and b_now_s0.png are nearly the same frame.
+The green did not come from there. The second A/B found it: albedoNorm 0 (the sets as shipped, c_now_s0.png)
+turns the whole hillside back to tan rock and pale slabs, so the colour is coming from THE PER-SET
+NORMALISATION TO THE IMAGERY (splat_ground normGains, 2026-09-22).
+
+THE MEASUREMENT, over the real island with the real manifest (the vm harness GATE SPLAT already had):
+
+  set        mineral   shipped mean rgb     gain r/g/b        green pull
+  mud           -      0.090/0.070/0.046    0.29/0.55/0.29       1.92   <-- algae
+  forestAir     -      0.126/0.083/0.026    0.15/0.36/0.35       1.44
+  dry           -      0.300/0.249/0.124    0.19/0.26/0.23       1.23
+  rockyA     MINERAL   0.081/0.077/0.012    0.75/0.75/0.75       1.00
+  cliff      MINERAL   0.314/0.173/0.110    0.50/0.50/0.50       1.00
+  ...every other rock, sand and snow set 1.00
+
+So the rock sets were NOT being recoloured - G-2026-09-22's mineral rule ("a mineral set keeps its hue", from
+the user's earlier "you have coloured the rocks a little too much") already had them on a single luminance
+gain. `mud` WAS LEFT OUT OF THAT LIST, and mud is the worst case in the table by a distance: a green channel
+nearly twice the other two, on a texture whose whole job is bare peat and dirt. It is also the set that covers
+the most ground the eye ever sees - the FIRST (0.6 weight) set of BOTH muskeg and scrub and the second of
+forest. Rock seen through and beside that is what reads as "the rock assets have been fully colored green".
+
+THE FIX IS ONE WORD: `mud` joins the MINERAL list, so it takes one luminance gain (0.50/0.50/0.50, the rule's
+floor) instead of 0.29/0.55/0.29. Nothing else changed - the vegetation sets still take the imagery's colour,
+which is the normalisation the user asked for in the first place. bench/rock/d_mudfixed.png is the same eye
+after: the slabs are tan and brown again, the grass is green where grass is.
+
+GATE SPLAT GROWS 1c, and it is the check that would have caught this the day the list was written: it builds
+the REAL gains (the real manifest, the real island, the module's own normGains through the vm harness) and
+refuses any set in the mineral list - rocksA/B/G, rockyA/B, cliff, pebble, beach, coastA, coastSand, dirt, mud,
+snowAir - whose gain is not ONE NUMBER. It also requires the vegetation sets to still carry a per-channel gain,
+so the rule can never be "fixed" by turning the normalisation off. Where the island is not on the box it says
+so and passes (GATE SPLAT is not an island gate).
+
+WHAT IS STILL OWED AND IS THE USER'S CALL, not a defect: `dry` (heath's own set) takes 0.19/0.26/0.23 - the
+imagery is 4x darker than the texture ships, so the heath is darkened as well as pulled green, and `forestAir`
+takes 0.15/0.36/0.35. Both are vegetation, where the imagery is the authority by the user's own ruling, so they
+are left alone. If the ground is still too green for them, the knob is albedoNorm (F8 > ground > distance
+macro > "albedo to imagery"): 1 is the imagery's level, 0 is the sets as shipped, and c_now_s0.png shows 0.
+
+GATE SPLAT (with the selftest), GFX and MEDIA green.
