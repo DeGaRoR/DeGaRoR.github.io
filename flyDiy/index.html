@@ -38725,7 +38725,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='9e81b5fb90ad';window.FLYDIY_BUILD='75bab3b7812f'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='9e81b5fb90ad';window.FLYDIY_BUILD='9447b97e04fc'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -109318,7 +109318,12 @@ const STAND_CARDS = (() => {
       if (!N) { STAT.lastMs = performance.now() - t0; return null; }
       const m = new THREE.InstancedMesh(quad, mat, N); m.renderOrder = -1;   // an occluder before the ground (render_world.js ORDER_NOTE)
       const ox = x0 + C / 2, oz = z0 + C / 2; m.position.set(ox, 0, oz);
-      m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3).fill(1), 3);
+      // one card is not its neighbour (2026-09-23): a lightness off the card's own position, the near
+      // tier's rule (render_world treeVary), so a stand of cards is not one flat colour from the air
+      const col = new Float32Array(N * 3); const vary = (typeof TREE_LOD !== 'undefined' && TREE_LOD.impVary) ? TREE_LOD.impVary() : 0.1;
+      for (let i = 0; i < N; i++) { const h = Math.sin(xs[i * 4] * 12.9898 + xs[i * 4 + 2] * 78.233) * 43758.5453;
+        const k = 1 + (2 * (h - Math.floor(h)) - 1) * vary; col[i * 3] = k; col[i * 3 + 1] = k; col[i * 3 + 2] = k; }
+      m.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
       for (let i = 0; i < N; i++) { V.set(xs[i * 4] - ox, xs[i * 4 + 1], xs[i * 4 + 2] - oz); SC.setScalar(xs[i * 4 + 3]); T.compose(V, Q, SC); m.setMatrixAt(i, T); }
       m.instanceMatrix.needsUpdate = true; m.frustumCulled = true; m.castShadow = false; m.receiveShadow = false;
       STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);
@@ -109877,6 +109882,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // row, mean luminance over the forest half of the frame 81.9 against 85.8
   // at 0.9 / 92.1 at 1.0 / 79.0 at 0.8 (scratch steps_ilit.js, W0c.18)
   const uILit = { value: 0.9 };
+  // the impostor's own contrast term (see impostorMat), and the per-tree lightness the bake threw away.
+  const uIFlat = { value: 1.35 };
+  const IMPK = { flat: 1.35, vary: 0.10 };
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
@@ -112853,7 +112861,27 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uLeaf = { value: 1 };
-        sh.uniforms.uFlat = { value: 1 }; sh.uniforms.uFlatMean = { value: 0.4 };   // the tint's contrast term: a cover's, never an impostor's
+        // WASHED OUT ON THE LIT SIDE (2026-09-23, the user, over a Jolene shot: "washed out trees over
+        // saturated terrain ... more bitty in terms of colours and shadows"). Measured on the card's OWN
+        // pixels - a mask built by hiding the impostor meshes for one frame, the sim frozen so the frame is
+        // a control (scratch mask.js) - the complaint is a number: the canopy drew at luma 0.1317 with a
+        // coefficient of variation of 0.223 over ground that drew DARKER, 0.1212, at cv 0.766. Brighter than
+        // the land it stands on and with three and a half times less variation in it.
+        //
+        // The first suspect was wrong and the measurement said so. The impostor took the GEOMETRY's leaf
+        // terms by reference - wrap 0.80, SSS 1.12, both additive - and the theory was that a card, whose
+        // baked normal varies slowly, has the whole crown lifted by them at once. It does not: switching the
+        // entire block off (uLeaf 0) moved the canopy 0.1317 -> 0.1279, three per cent, against a control of
+        // 0.006. wrap x0 and wrap x6 are both indistinguishable from doing nothing. So the terms stay shared
+        // with the geometry, where they belong, and the dial that was going to hold them is gone.
+        //
+        // What does move it is uFlat, the tint's contrast term `mix(vec3(uFlatMean), texel, uFlat)`, which
+        // was pinned at 1 here - the texel exactly as baked. Above 1 it extrapolates away from the sheet's
+        // mean, which is the only lever that reaches the card's own texels rather than the light on them:
+        // 1.35 takes the canopy to luma 0.1025 (-22 %, now under the ground instead of over it) and cv to
+        // 0.291 (+30 %). It saturates above about 1.2 - 3.0 and 1.35 are the same frame to four decimals -
+        // so 1.35 is the top of the useful range and not a number to push. TREE_LOD.imp({ flat, vary }).
+        sh.uniforms.uFlat = uIFlat; sh.uniforms.uFlatMean = { value: 0.4 };
         sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
@@ -113011,8 +113039,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         return treeLod.get();
       },
     };
-    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid; }
-      return { gain: uIGainK.value, solid: uISolid.value }; };
+    // ONE TREE IS NOT ITS NEIGHBOUR (2026-09-23, the user: "more bitty in terms of colours"): a baked tree
+    // wore pure white, so a whole stand carried one colour and read flat. Its instance colour is a
+    // lightness off its own position now - +-IMPK.vary, stable per tree, on BOTH tiers (the near geometry
+    // and the card share the instance colour), so a crown that is dark up close is dark as a card too.
+    const treeVary = (x, z) => { const v = IMPK.vary; if (!(v > 0)) return 1;
+      const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return 1 + (2 * (h - Math.floor(h)) - 1) * v; };
+    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid;
+        for (const k of ['flat', 'vary']) if (o[k] !== undefined) IMPK[k] = +o[k];
+        uIFlat.value = IMPK.flat; }
+      return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, vary: IMPK.vary }; };
+    treeLod.impVary = () => IMPK.vary;
     if (typeof window !== 'undefined') window.TREE_LOD = treeLod;
     // ================= W0c.5: THE MIX ======================================
     // Which SERIES a tree is drawn as. The bench's rule, ported: a fraction is
@@ -113635,7 +113672,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (trunks) trunks.setMatrixAt(i, m4);
           // a baked tree wears its own colour; tinting it again would paint one
           // green over the whole stand
-          if (PROTO) c3.setRGB(1, 1, 1);
+          if (PROTO) { const k = treeVary(T.x, T.z); c3.setRGB(k, k, k); }
           else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
           if (H.rec) {
             // the partition record, indexed as the SERIES sees it
@@ -114014,7 +114051,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             pv.set(r[o] - ox, r[o + 1] - 0.05 - (SH.sink || 0) * sv.y, r[o + 2] - oz);
             m4.compose(pv, q, sv);
             // a baked tree wears its own colour (see the woodland layer)
-            if (SH.white) c3.setRGB(1, 1, 1);
+            if (SH.white) { const k = treeVary(r[o], r[o + 2]); c3.setRGB(k, k, k); }
             else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w * 0.85);
             const j = P.at++;
             m4.toArray(rec.mats, i * 16);
@@ -148376,6 +148413,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     Tl.appendChild(slider('imp lit', 0, 3, 0.05, () => world().treeLod.lit.value, v => { world().treeLod.lit.value = v; }));
     Tl.appendChild(slider('imp gain', 1, 12, 0.25, () => lod().imp().gain, v => lod().imp({ gain: v })));
     Tl.appendChild(slider('imp solid', 0, 1, 0.05, () => lod().imp().solid, v => lod().imp({ solid: v })));
+    Tl.appendChild(slider('imp contrast', 0.6, 1.6, 0.05, () => lod().imp().flat, v => lod().imp({ flat: v })));
+    Tl.appendChild(note('imp contrast pulls the sheet texels away from their own mean - the only dial here that reaches the card colours rather than the light on them (G538: 1.35 = canopy -22 % luma, +30 % cv, and it saturates above about 1.2). The per-tree lightness beside it is plant-time, not a live dial.'));
     const Tf = fold(T, 'leaf', false, true);
     Tf.appendChild(slider('wrap', 0, 1, 0.02, () => leaf().get().wrap, v => leaf().set({ wrap: v })));
     Tf.appendChild(slider('sss', 0, 2, 0.02, () => leaf().get().sss, v => leaf().set({ sss: v })));
