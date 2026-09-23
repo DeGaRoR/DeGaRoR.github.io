@@ -58682,3 +58682,48 @@ darker, glossier, the lane tones showing through - with nothing lying on it.
   tools/fixtures/island_jolene.json, futureDesigns/PAVEMENT-2026-09-21.md section 13 - rewritten as
   the retirement, keeping both passes' reasoning, because the reasoning is why the feature could not
   be saved.
+
+## G545 — THE TRAMWAY ROAD IS A SMOOTH T OFF WALDEN POINT ROAD (2026-09-23, the user: "do the road to metlakatla yourself" ... "make it smooth, no hard corners")
+
+With Metlakatla on master (G543) the valley station's road met mk_r_walden - at its very END, leaving it
+backwards: Walden arrives heading ENE and tw_r_access left NNW, a ~120 deg hairpin, and it then climbed
+the coastal bank where it is steepest (x -1500: 23 %). Redrawn in the world editor as a T square to
+Walden's straight run between (-1570,-8312) and (-1437,-8296), at x -1550 where the bank is gentle
+(8-10 %), sweeping east up to the car park and ending inside it, `smooth: 40` (the circular fillet of
+contract v1.19) so every bend is an arc; it follows the ground (grade null). met_cross: no double, no
+sliver, no near miss on it. THE FIXTURE WAS SPLICED, NOT REGENERATED: on master, jolene_author.py does not
+reproduce the committed record - 14 of Metlakatla's DEM-walked shapes come out with other vertices in a
+clean worktree (told them) - so only tw_r_access changed in island_jolene.json, rev 21.
+
+## G546 — THE ISLAND FIXTURE WAS NON-DETERMINISTIC, AND IT WAS ONE LINE OF MINE (2026-09-23, reported by the pavement session)
+
+- THE SYMPTOM: three consecutive `py -3.11 tools/jolene_author.py` with no edits between them gave three
+  different md5s of `tools/fixtures/island_jolene.json`. THE LINE, in `metlakatla_author.py`'s `gyard()`:
+  `random.Random(hash((yid, seed)) & 0xffffffff)`. Python randomises `hash()` of a str PER PROCESS
+  (PYTHONHASHSEED is random by default since 3.3), so it seeded a different generator every run - while the
+  docstring three lines above promised "the same bay on every re-run". It is `zlib.crc32` of a formatted
+  string now. Proved with eight consecutive regenerations to one md5, three of them under an explicitly
+  randomised PYTHONHASHSEED.
+- WHY IT IS NOT A COSMETIC DIFF: five sessions author ONE generated 176 kB record through `jolene_parts`,
+  and the property that makes that safe is REGENERATE, NEVER HAND-MERGE - anyone may regenerate and get the
+  same bytes. Every session that ran the author got a spurious fixture diff, `--absorb` (G526) reported
+  phantom edits for parts nobody had touched, and the tramway session SPLICED its G545 road into the
+  committed fixture rather than regenerating, because regenerating moved 14 of Metlakatla's shapes.
+- AND THE RANDOMNESS WAS HIDING A SECOND DEFECT. With the seed stable the FERRY yard came out at 134 m2 of
+  its 8400 - four vertices, a sliver. `gyard`'s repair loop deletes self-crossing vertices one at a time and
+  nothing asked how big what was left still was, so a folded ring was eaten down to something perfectly
+  simple and perfectly useless and every test above it passed. The old random seed had simply thrown a good
+  ferry yard on the run that happened to get committed. Now an AREA GUARD (under 0.40 of the rectangle is
+  destroyed, not repaired - the four sound yards keep 0.59 to 0.92) and a DETERMINISTIC SEARCH in place of
+  one throw: four salts at each of three bites, fixed order, first that comes right wins. The ferry's
+  rectangle lies half in the water so its walk ashore drags every seaward vertex onto its neighbours; with
+  the search it is 11 vertices at 0.58 of its rectangle instead of falling back to a bare rectangle.
+- A DIAGNOSIS WORTH KEEPING, because it looked like something else: the tramway session reasonably read the
+  14 moving entries as a bench-vs-shipped DEM mismatch. It was not. `mk_f_gas` is built `coast=False` and
+  its outline reads NO DEM at all, so it cannot move for a DEM reason; and a reseed moves a non-corner yard
+  vertex by up to 5.8 m while the four CORNERS never move at all (`edge` is 0 there, so `k2` is 1 whatever
+  the draw), which is why a 6 cm delta on one vertex looks far too small to be a reseed and is exactly that.
+- GATE PREMISES 14r, negative-tested: a source scan over `metlakatla_author.py`, `jolene_author.py` and
+  every `tools/jolene_parts/*.py` refusing a builtin `hash(`. Reintroducing one makes the gate FAIL on that
+  line. 338 checks. It guards all five parts, not only this one.
+- FILES: tools/metlakatla_author.py, tools/_premises_check.js, tools/fixtures/island_jolene.json.
