@@ -59000,3 +59000,44 @@ agree on the quantities the dial multiplies.
 - PICTURES (local, in the grass worktree's screenshots/grass/): BIOMES_LOW.png, BIOMES_30M.png,
   FIREWEED.png, BEDS_MAP.png, RIG_VS_BENCH.png, REFERENCE_vs_GAME.png.
 - GATES: TREE, TREES, SPLAT, MEDIA, BIOME, WORLDRENDER green in the landing worktree.
+
+## G552 - ONE CONTROL, BOTH TIERS: the master tint down to 0.5, and why three attempts at "darker" took a day (2026-09-24)
+
+The user, after G548: "we're almost back to original look. I think it needs to be a little darker
+still. Don't try and be too clever here. Didn't we have a control to get both the mesh and the
+impostor darker at once? ... we're not converging here, and that's tiring." They were right on every
+count, including the last one.
+
+THE CONTROL THEY REMEMBERED IS `TREE_LEAF.tint({ light })`, the master tint over every collection.
+The near geometry's material reads those three numbers straight; IMPA.tbl carries the same three per
+layer for the impostor, synced live in IMPA.frame(). So it moves BOTH tiers by the same amount, and
+because it scales the tree's own colour it darkens without the clamping that made G538 a silhouette.
+MASTER.light 0.6 -> 0.5 here. Measured off one frozen boot over the forest strip alone: 0.60 ->
+luma 0.0767 cv 0.425, 0.50 -> 0.0722 cv 0.450, 0.42 -> 0.0687 cv 0.480 - smooth, monotonic, and the
+cv RISES as it darkens, which is the signature of scaling colour rather than crushing it. 0.42 is on
+the shelf: it lands on G538's brightness, which the user had already called a little too dark.
+
+WHY THIS TOOK THREE LANDINGS. Worth writing down, because the code was never the slow part.
+- G538 darkened by CLAMPING the albedo to zero (the pivot fault, see G548). It measured as darker
+  and bittier, both true, both for the wrong reason.
+- G548 fixed the pivot correctly and therefore handed the brightness BACK, because the albedo
+  returned. To the user that looked like a round trip: two landings to arrive where they started.
+  It was not - the colour and the detail are now real - but "you got them back to really bright" is
+  a fair description of what the screen showed, and the right answer was always the master tint,
+  which neither landing had touched.
+- Then two runs were burned on MY errors, not on the problem: `TREE_LEAF.master()` is a GETTER and
+  was called with an argument, so a six-row sweep returned the baseline six times and looked like
+  "the control does nothing"; and a `grep` on the rig's output swallowed the next run's result whole.
+  Each of those costs a full headless boot - roll-out, teleport, settle - about ten minutes on a GPU
+  shared with four other sessions.
+
+THE RULE OUT OF IT: when the user names a control, READ ITS SIGNATURE before sweeping it, and when a
+sweep returns the same number for every input, suspect the call before the renderer. And the cheap
+trick that ended it - three settings rendered in ONE boot into a 3-up overlay, then measured off the
+PNG afterwards with PIL. No second boot, and the user picks from a picture instead of from a number.
+The overlay's panels drifted slightly (the aeroplane moves between grabs even frozen), so the image
+is for judging and the strip measurements are for deciding; do not quote one as the other.
+
+- REVERT: TREE_LEAF.tint({ light: 0.6 }) live, or the constant in trees.js. G548's impostor dials are
+  untouched and still revert independently - TREE_LOD.imp({ mean: 0.4, flat: 1.35 }) is G538.
+- FILES: src/viewer/trees.js (MASTER.light).
