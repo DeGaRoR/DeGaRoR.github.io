@@ -4440,7 +4440,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null; if (!GF || !GF.poolAt) return 0;
             const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's
             if (!(K.pudCover > 0)) return 0;
-            return GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
+            let m = GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
+            // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23): the same ramp the shader runs (splat_ground sMat,
+            // uSPud2.w), so a tuft is refused and a log floats exactly where water is DRAWN - 42 % of the
+            // pools stood on ground over 10 degrees before this gate, and the ring believed every one.
+            if (m > 0 && K.pudFlat > 0.01) {
+              const d = 5, gx = (world.terrainH(x + d, z) - world.terrainH(x - d, z)) / (2 * d), gz = (world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+              const sl = Math.atan(Math.hypot(gx, gz)) * 180 / Math.PI;
+              m *= Math.max(0, Math.min(1, (K.pudFlat - sl) / (K.pudFlat * 0.5)));
+            }
+            return m;
           };
           const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };

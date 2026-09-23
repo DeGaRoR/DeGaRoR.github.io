@@ -58150,3 +58150,51 @@ not touched.
   fill: the dirt ribbon is draped on the ground as it lies). jolene_author rev 17. Shot: the path runs from
   the totems into the trees as a path.
 - FILES: tools/jolene_parts/native.json, tools/jolene_author.py, tools/fixtures/island_jolene.json.
+
+## G539 — WATER STANDS WHERE THE GROUND IS LEVEL: 91 % of the puddles removed, and the rest put where they belong (2026-09-23)
+
+THE USER, with a photograph of a wet apron and an X-Plane frame beside our own: "still very chippy ... there are
+too many small ones, that just read like noise. Also real puddles would be distributed along terrain depressions
+and ridges. Here you splatter them everywhere and it looks bad. Take a back step. Think of how puddles form and
+where ... let's get rid of 90% of them, and keep some only where it really makes sense."
+
+THE MEASUREMENT THAT SETTLED IT, taken on Jolene before anything was changed - the slope of the ground UNDER
+each pool the game was drawing:
+
+    < 1 deg  7 %     1-2  11 %     2-3  9 %     3-5  14 %     5-10  16 %     > 10 deg  42 %
+
+FORTY-TWO PER CENT OF THE PUDDLES WERE ON GROUND STEEPER THAN TEN DEGREES, and 72 % steeper than three. Water
+does not stand on a hillside. The field had never asked the terrain anything at all: it was a noise mask over
+the muskeg and scrub codes, and that - not the count, not the edge - is why it read as splatter.
+
+THE LAW NOW HAS TWO PARTS, and both twins run them:
+  - A PUDDLE NEEDS A LEVEL PLACE. The mask is multiplied by a ramp on the ground's own slope (knobs.pudFlat 4
+    degrees: full water under two, none above four). In the shader that is gSSlope, which sSplat already
+    computes for the splat; on the CPU it is the same ramp in render_world's poolAt from world.terrainH, so a
+    tuft is refused and a log floats exactly where water is DRAWN. Before this the ring believed every pool the
+    shader painted on a hillside.
+  - A PUDDLE IS A BASIN, NOT A WIGGLE. The octaves were three comparable voices (0.68 / 0.22 / 0.10), so the
+    fine ones made ponds of their own - the specks. They are one basin plus a whisker now (0.94 at a 133 m
+    cell, then 0.04 and 0.02 only to rough the outline), and the threshold went 0.92 -> 1.06.
+
+MEASURED OVER 2.71 km2 OF REAL MUSKEG ON JOLENE, with the gate the game applies:
+                      before        after
+    ponds per km2      105            9        (91 % gone - the user's number, arrived at from the terrain)
+    of them < 200 m2    67            4        (the speckles)
+    median pond        112 m2       336 m2     (12 m across -> 21 m)
+    water              4.85 %       1.46 %
+The survivors are the large shallow basins on the flats, which is where muskeg water actually is.
+
+GATE SPLAT'S POND CENSUS NOW WALKS THE REAL ISLAND when the box has it (the world ships since G523), applying
+the same slope ramp, and holds the user's ruling as bounds: 4-20 ponds per km2, at most 10 of them under
+200 m2, the median at least 200 m2, water 0.4-3 %. Without the island it walks the bare field with wider
+bounds and says which it did. Two source rules hold the twins together: the shader must gate by gSSlope and
+render_world must run the same ramp - if either is dropped the ring and the picture disagree again.
+
+PICTURES (bench/pools/): h_fewer.png is the vertical view that drew the complaint - the speckle field is gone;
+i_low.png is an oblique eye over the same flats, where the survivors read as ponds in a wet plain. f_a_s0.png
+is what it looked like before.
+
+STILL OPEN, and NOT this landing: the user's photographs are of PAVEMENT - sheet water on an apron, which is a
+roughness variation rather than a dark hole, and that belongs to the pavement material (the roads session), not
+to the muskeg. Nothing here touches a paved surface.
