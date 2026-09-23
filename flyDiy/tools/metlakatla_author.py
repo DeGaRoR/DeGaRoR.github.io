@@ -623,9 +623,9 @@ TRACED = [
     ('mk_r_walden', 'Walden Point Road', WALDEN_PNT_RD, 6.5, 'paved', 'worn', 0.09, 2),
     ('mk_r_airport', 'Airport Road', AIRPORT_RD, 6.0, 'paved', 'worn', 0.10, 1),
     ('mk_r_skaters', 'Skaters Lake Road', SKATERS_LAKE_RD, 6.0, 'paved', 'worn', 0.10, 1),
-    ('mk_r_graveyard', 'Oceanview Graveyard Road', GRAVEYARD_RD, 5.0, 'gravel', None, 0.11, 0),
+    ('mk_r_graveyard', 'Oceanview Graveyard Road', GRAVEYARD_RD, 5.0, 'paved', 'worn', 0.11, 0),
     ('mk_r_raven', 'Raven Street', RAVEN_ST, 5.5, 'paved', 'worn', 0.10, 0),
-    ('mk_r_wolf', 'Wolf Street', WOLF_ST, 5.0, 'gravel', None, 0.10, 0),
+    ('mk_r_wolf', 'Wolf Street', WOLF_ST, 5.0, 'paved', 'worn', 0.10, 0),
     ('mk_r_breakwater', 'Breakwater Road', BREAKWATER_RD, 6.0, 'paved', 'worn', 0.10, 1),
 ]
 
@@ -797,9 +797,13 @@ def trim_to_axes(pts, half=20.0, step=15.0, LINES=None):
 
 def roads():
     del DROPPED[:]
-    """Every street. The grid is `paved`/`worn` where the avenues carry the town
-    (the first four and the cross streets that reach the water) and `gravel`
-    behind; `smooth` rounds the corners of the traced lines (contract v1.19)."""
+    """Every street. THE WHOLE TOWN IS ONE SURFACE: `paved`/`worn`, which is old
+    concrete (RUNWAY_LOOKS.worn -> cls 'concrete', set 'cracked'). The user:
+    "change all city roads back to concrete (or whatever you have in majority),
+    get rid of the dirt ones, they don't belong here" - and the majority was
+    exactly this, 33 of 61. There is no gravel and no dirt in Metlakatla now; the
+    back lanes are told apart by WIDTH and by having no traffic, not by surface.
+    `smooth` rounds the corners of the traced lines (contract v1.19)."""
     out = []
     for i, (x0, z0, x1, z1, fam) in enumerate(STREETS):
         # A STREET DETECTOR FINDS FLOATS. The marina's finger floats and the
@@ -809,8 +813,10 @@ def roads():
         if coast_m((x0 + x1) / 2, (z0 + z1) / 2) < 0:
             DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'its middle is at sea'))
             continue
-        # a street that reaches the shore is one the town keeps paved
-        paved = min(dem(x0, z0), dem(x1, z1)) < 14.0
+        # a street that reaches the shore is one the town CARRIES: it keeps the
+        # extra half-metre of width and the traffic. It is not a surface test any
+        # more - every street in Metlakatla is old concrete (see `roads`).
+        carries = min(dem(x0, z0), dem(x1, z1)) < 14.0
         (x0, z0), (x1, z1) = pull_inland(x0, z0, 22.0), pull_inland(x1, z1, 22.0)
         if min(coast_m(x0, z0), coast_m(x1, z1)) < 4.0:
             DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'an end will not come ashore'))
@@ -864,11 +870,11 @@ def roads():
         # polish and draws no paint. The ARTERIALS are left to the default - a centre
         # line is what tells you which roads carry the town.
         out.append({'id': 'mk_s%s%02d' % (fam.lower(), i), 'pts': [pt(x0, z0), pt(x1, z1)],
-                    'w': 5.0 if paved else 4.5, 'cls': 'paved' if paved else 'gravel',
-                    'pav': {'marks': 'none'} if paved else None,
-                    'look': 'worn' if paved else None, 'band': 2 if paved else None,
+                    'w': 5.0 if carries else 4.5, 'cls': 'paved',
+                    'pav': {'marks': 'none'},
+                    'look': 'worn', 'band': 2,
                     'graded': True, 'falloff': 6, 'grade': 0.12, 'smooth': 0,
-                    'traffic': 1 if paved else 0})
+                    'traffic': 1 if carries else 0})
     # the seafront road the user drew in green: the waterfront's own line
     sh = [pull_inland(x, z, 14.0) for x, z in MK_SHORE[0]]
     out.append({'id': 'mk_r_shore', 'pts': [pt(*q) for q in sh], 'w': 6.5, 'cls': 'paved',
@@ -1011,12 +1017,16 @@ THINNED = []
 def thin_stubs(rs, reach=12.0):
     """A street that goes nowhere is not a street of the same width.
 
-    The user: "the stub roads should be a lot less wide. Maybe even dirt roads
-    sometimes." tools/met_cross.js counts 67 ends in the open - a street that meets
-    the network at one end and stops in the muskeg at the other. In a real town
-    those are the last block's access: a single track, gravel, and past the last
-    house a dirt one. So a street with a free END loses a metre of width, and one
-    free at BOTH ends - which meets nothing at all - drops to dirt and 3.2 m.
+    The user: "the stub roads should be a lot less wide." tools/met_cross.js counts
+    67 ends in the open - a street that meets the network at one end and stops in
+    the muskeg at the other. In a real town those are the last block's access: a
+    single track. So a street with a free END loses a metre of width, and one free
+    at BOTH ends - which meets nothing at all - narrows to 3.2 m.
+
+    WIDTH ONLY. The first cut of this pass also dropped the both-ends-free streets
+    to `dirt`, which the user struck out: "get rid of the dirt ones, they don't
+    belong here". They keep the town's one surface and are told apart by their
+    section, which is what a 3.2 m carriageway already says on its own.
     """
     del THINNED[:]
     def foot(q, pl):
@@ -1040,15 +1050,9 @@ def thin_stubs(rs, reach=12.0):
             continue
         if free == 2:
             r['w'] = 3.2
-            r['cls'] = 'dirt'
-            r['look'] = 'dirt'
-            r['band'] = None
-            r['pav'] = None
             r['traffic'] = 0
         else:
             r['w'] = max(3.6, r['w'] - 1.0)
-            if r['cls'] == 'gravel':
-                r['w'] = 3.6
         THINNED.append((r['id'], free, r['w'], r['cls']))
 
 
