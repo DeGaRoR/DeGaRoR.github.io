@@ -203,7 +203,7 @@ function make(THREE, scene, world, rec0, opts) {
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
       const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent);
-      for (const e of pub) if (!e.wp) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }
+      for (const e of pub) if (!e.wp || e.move) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }
       const r2 = LAMPS.reach * LAMPS.reach;
       LAMPS.near = pub.map(e => { const dx = e.wp[0] - eye.x, dy = e.wp[1] - eye.y, dz = e.wp[2] - eye.z; return [dx * dx + dy * dy + dz * dz, e]; })
         .filter(q => q[0] < r2).sort((a, b) => a[0] - b[0]).slice(0, LAMPS.N).map(q => q[1]);
@@ -212,6 +212,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (let i = 0; i < LAMPS.pool.length; i++) {
       const l = LAMPS.pool[i], e = near[i];
       if (!e) { l.intensity = 0; l.visible = false; continue; }
+      if (e.move) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }   // GTRAM: a cabin's lamp rides with it
       l.position.set(e.wp[0], e.wp[1], e.wp[2]);
       l.color.setRGB(e.col[0], e.col[1], e.col[2]);
       l.distance = e.range; l.intensity = e.k * kLamp * on; l.visible = true;
@@ -1002,7 +1003,7 @@ function make(THREE, scene, world, rec0, opts) {
       const grp = new THREE.Group(); grp.name = 'tram:' + id; grp.position.set(F.anchor.x, 0, F.anchor.z); grp.rotation.y = F.yaw || 0;
       const cabs = [0, 1].map(() => (CB ? { pivot: CB.PIVOT, ropeUp: CB.ROPE_UP } : null));
       let run = null;
-      try { run = TR.make(L.geom, cabs, { sag: 0.012 }); } catch (e) { console.warn('premises tram', id, e && e.message); continue; }
+      try { run = TR.make(L.geom, cabs, { sag: 0.012, v: +L.link.speed > 0 ? +L.link.speed : 6.0 }); } catch (e) { console.warn('premises tram', id, e && e.message); continue; }   // GTRAM: the link's `speed`, the village's 6 m/s without one
       const ropeMat = new THREE.MeshStandardMaterial({ color: 0x2a2c2e, roughness: 0.6, metalness: 0.7 });
       L.geom.ropes.forEach((rp, k) => {
         const Ln = run.lines[rp.line === undefined ? (k >> 1) : rp.line];
@@ -1011,7 +1012,11 @@ function make(THREE, scene, world, rec0, opts) {
         const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, rp.kind === 'track' ? 0.055 : 0.035, 6, false);
         const m = new THREE.Mesh(geo, ropeMat); m.castShadow = true; grp.add(m);
       });
-      if (CB) { try { const objs = [0, 1].map(i => { const c = CB.build(THREE, { livery: i ? 'admiralty' : 'chatham', lit: 0 }); grp.add(c); return c; }); run.attach(objs); } catch (e) { console.warn('premises tram cabins', id, e && e.message); } }
+      // GTRAM: THE CABINS AT NIGHT - built lit (the panes glow on the finish's night uniform, the lamps' glass too) but without their
+      // own PointLights (a count that changes recompiles every lit material); their ceiling lights and markers join the lamp pool
+      // as MOVING lamps, re-read off the cabin every frame while they are among the nearest
+      const onLights = (lights, c) => { for (const Lc of lights || []) LAMPS.pub.push({ grp: c, p: [Lc.x, Lc.y, Lc.z], col: Lc.col || [1, 0.92, 0.74], k: Lc.k == null ? 1 : Lc.k, range: Lc.range || 8, kind: 'cabin', move: true }); LAMPS.near = null; };
+      if (CB) { try { const objs = [0, 1].map(i => { const c = CB.build(THREE, { livery: i ? 'admiralty' : 'chatham', lit: 1, points: false, onLights }); grp.add(c); return c; }); run.attach(objs); } catch (e) { console.warn('premises tram cabins', id, e && e.message); } }
       G.tram.add(grp); TRAMS.set(id, { key: tramKey(L), grp, run });
     }
     stats.trams = TRAMS.size;

@@ -57401,3 +57401,73 @@ user runs it once for all sessions). Data only: no src/ change, no build.
   roll-out is still running after that.
 - GATE WATER 3 grows two rules (the fade's shape and that the weight rides uWMirror4.x; the re-capture
   distance scaling with the eye's height). WATER, WORLDRENDER, MEDIA, GFX, CLOUD, UISMOKE green.
+
+## G525 — THE SKYLINE TRAMWAY AND ITS ALTIPORT: an aerial tramway from a shopping stop by Metlakatla to the summit east of town, a ski lodge on top, and the ski slope that is a runway landed uphill (2026-09-23, the user: "the air tramway, with its moving cabins, night lights, top and bottom stations. The bottom station should probably be not that far from metlakatla, and feature a little commercial complex at the bottom. At the top ... a ski station and a little ski slope, and that very ski slope (with no snow as we are in the summer) will be used as an inclined landing strip ... It will prove the inclined runways too. The ideal mountain runway is one that starts inclined and finishes flat, possibly atop a little hill ... la salette")
+
+ALL OF IT IS EDITOR DATA, AUTHORED IN THE EDITOR. `tools/jolene_parts/tramway.json` (prefix `tw_`, 27
+entries) was drawn in the game's own world editor, driven headless through `PREMISES_EDITOR.ed.cmd`
+(the runway tool's two clicks, the stand tool, the flatten/material/no-trees/road tools, sites and a
+cable link added through the editor's `add`/`set`), exported whole and cut back to the part by the new
+`tools/jolene_part_extract.py <export.json> --prefix tw_ --out tools/jolene_parts/tramway.json
+[--rename w1=tw_ski,...]`: the part's own entries (its prefix, or an id the fixture does not have),
+renamed with their references (a link's sites, a surface's yard), another part's entries reported and
+left alone, a dropped one said. That is the round trip for the user too: edit in WORLD, FILE > export
+json, run the extractor, `py -3.11 tools/jolene_author.py`.
+
+THE SITE, searched on the DEM (not guessed): the summit crest 1.6 km east of Metlakatla's lowland
+(711 m). A vectorised search of every centre / heading / length / slope family for "a ramp that eases
+into a flat top", scored on the cut and fill across the full width and the shoulders, came back to the
+spur that climbs SSE->NNW onto the summit knob: 380 x 18 m, a 10 % ramp over 62 % of the length easing
+to a flat top, 29 m of rise, cut/fill within ~6 m at the shoulders. References: Meribel (406 m, 11 %
+middle), Courchevel (537 m, 18.5 %), La Salette (180 m, 20 %, on a hilltop with the ground falling
+away both sides - which is exactly this spur).
+
+1. THE ALTIPORT - contract v1.23, `tw_ski` "Skyline Altiport". A runway may be `altiport: true`:
+   landed UPHILL over the end `approach` names, left downhill whatever the wind. Its profile is judged
+   by the altiport's limits (slope under 20 %, no touchdown-zone rule, crest under 5 % per 30 m,
+   approach named, far end higher) - `ALTIPORT` in 27_premises.js; an editor switch beside the approach
+   pills (it names the lower end when none is set). `runwayProfile().slopeAt` now reads a metre INSIDE
+   the strip at an end: the clamped half metre read a 10 % threshold as 5 % and the crest test then
+   reported a 5 % change of slope that is not in the ground. A top APRON (`tw_t_summit_apron`, a
+   flatten level with the flat top) carries the stand: on the crest's tilt the Cub was placed half
+   below the ground and flipped on its back before the pilot woke (a real stand needs flat ground).
+2. THE PILOT FLIES IT (43_pilot.js, every branch gated by the aerodrome's `altiport`): the round-out
+   is asked over the slope's LINE through the aim, a second of the rising ground early, the sink
+   RELATIVE to the ground (grade x ground speed added), on power, the attitude cap raised by the
+   slope; the take-off direction is the landing's reversed; the reject rules count the slope still
+   ahead and let the run use the low end (it is the mountain falling away, not a fence), and past the
+   end at Vr the aeroplane flies. MEASURED, `pilot_trace --world jolene`: Cub HOME->tw_ski touches at
+   0.92 Vs climbing 0.45 m/s relative, three-point, 48 m roll, no bounce (the pilot before this flew
+   into the slope at 1.6 m/s and bounced); C172 0.95 Vs, 163 m. Cub tw_ski->HOME from the stand: taxi,
+   80 m downhill roll, lift-off, flown home and landed. C172 from the stand: 279 m, lift-off 26.9 m/s
+   at the low end, Courchevel's way. IDENTITY: the stock Cub circuit is bit-identical between
+   master's core and this one (`pilot_trace cub --quiet`, the JSON equal but the wall clock).
+3. THE TRAMWAY - `tw_l_tram`, a cable link between `tw_s_valley` (the base station, x -1520 z -7924,
+   48 m) and `tw_s_summit` (the top station on the summit's north shoulder, hooks at x 248 z -7890):
+   one span of 1.74 km at 20.4 deg, rope placed by a clearance search over the DEM and the canopy
+   (18 m over the trees at the worst point with the sag). A link's `speed` (m/s, contract v1.23; 6
+   without one) - the tram runs at 10, an editor row under the station's link note. THE CABINS AT
+   NIGHT: built lit (their panes and lamp glass on the finish's night uniform), without their own
+   PointLights (a changing light count recompiles every lit material); their lamps join the premises'
+   night pool as MOVING lamps (cabin.js `points: false` + `onLights`, render_premises LAMPS `move`).
+4. THE VALLEY COMPLEX: the base station, a ticket and tours office, a café, a ski & trail shop and a
+   small motel, a paved parking lot (a `look` polygon) with seven cars, people, a flatten under it all,
+   a no-trees zone round it and down the first 150 m of the line; `tw_r_access`, 5 m gravel with its
+   pole line, from Walden Point Road's east end (Metlakatla's `mk_r_walden` stub, met EXACTLY at
+   -1356.64, -8277.07 as that session asked - their road is on their branch, the junction waits for
+   it).
+5. THE SUMMIT: the top station, the Summit Lodge (a café), a ski-patrol cabin, a pilot hut, the
+   groomer's garage, a shed, an outhouse, picnic tables and people, a footpath from the station to the
+   lodge and the stand. Every item `lot: false` (the native-area session's switch: no residential
+   lawn/fence dressing round a mountain building).
+
+NOT MINE, AND THEY MATTER HERE: the whole scene is 7.9 km from the origin, past the inner ring - the
+native-area session's far-terrain sink and its tree-fill honouring of no-trees polygons are what make
+the cuts and the clearing show. OWED: a surface lift up the piste (no generator has one; a pole line
+along a service track was tried and refused - the strip's keep takes the poles, rightly); the night
+picture judged in flight (the editor's view is too dark to judge); an editor tool for a cable's
+speed on the link itself rather than under its station. Gates run (the user's rule: specific ones only, no battery): CABIN, PREMISES, LIFE, WORLD green on
+this source; GATE WORLD first caught the cable's end 'missing' in node (no generators, so no station
+built) - a link now says 'an end is not built (no catalogue entry for its station)' when the end is
+declared on its site, which the gate's existing catalogue rule forgives, and 'missing' only when the
+record lacks it. MEDIA on the built pages.

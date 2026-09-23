@@ -736,4 +736,18 @@ after the freeze, against this document.
   that carries no `traffic` of its own (never a taxiway, a track or a stub under 150 m); a road's own
   `traffic` (v1.13) always wins. The masts and the parked cars it stands are world obstacles.
   futureDesigns/SCENERY-LIFE-2026-09-23.md.
-
+- **v1.23 (2026-09-23, GTRAM - the tramway session).** A runway may be an **`altiport`** (boolean,
+  default false): a mountain strip the Alpine way - landed UPHILL over the end `approach` names and
+  left downhill, whatever the wind (Courchevel 537 m at 18.5 %, Meribel 406 m with an 11 % middle,
+  La Salette 180 m at 20 %). Its profile is judged by the altiport's limits instead of the pilot's
+  (`ALTIPORT` in the core): the slope anywhere under 20 %, no touchdown-zone rule (the touchdown IS on
+  the slope), a crest under 5 % change of slope over 30 m, `approach` required, and the far end higher
+  than the threshold. The aerodrome record carries `altiport` and 43_pilot flies it: the round-out is
+  asked over the slope's LINE through the aim, one second of the rising ground early, the sink
+  relative to that ground (grade x ground speed added) and on power; the take-off direction is the
+  landing's reversed. Every other strip flies exactly as before (the branch is `altiport`-gated).
+  `runwayProfile().slopeAt` reads a metre INSIDE the strip at its ends (a clamped half metre read a
+  10 % threshold as 5 % and the crest test saw a change of slope that is not in the ground).
+  A **cable link** may carry **`speed`** (m/s, the cabins' cruise; 6 without one, the village's) -
+  an aerial tramway runs 8-12. The cabins are built lit and their lamps join the premises' night
+  pool as moving lamps. Editor rows: `altiport` on the runway, the cabin speed under a station's link.

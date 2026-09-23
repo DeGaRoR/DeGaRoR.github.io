@@ -460,7 +460,7 @@ def main():
             ] + ANIMALS,
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 9,          # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json) (2026-09-23)
+        'rev': 10,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json) (2026-09-23)
     }
     merge_parts(rec)
     txt = json.dumps(rec, indent=1)

@@ -649,7 +649,7 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -680,19 +680,35 @@ function runwayProfile(r) {
     const t = (sx - x[i]) / h[i], t2 = t * t, t3 = t2 * t;
     return (2 * t3 - 3 * t2 + 1) * y[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * y[i + 1] + (t3 - t2) * h[i] * m[i + 1];
   };
-  const slopeAt = sAlong => (at(Math.min(r.len, sAlong + 0.5)) - at(Math.max(0, sAlong - 0.5))) / Math.min(1, r.len);
+  // the grade over a metre centred on sAlong; at an end the metre slides inside (GTRAM: a clamped half-metre read an
+  // altiport's 10 % threshold as 5 %, and the crest test then saw a 5 % change of slope that is not in the ground)
+  const slopeAt = sAlong => { const w = Math.min(1, r.len), a = Math.max(0, Math.min(r.len - w, sAlong - w / 2)); return (at(a + w) - at(a)) / w; };
   return { points: P, at, slopeAt, n };
 }
 // THE PILOT'S LIMITS on a profile (what the MSFS editor never asks): the slope anywhere under 5 %, the
 // touchdown zone (a fifth of the run from each threshold) under 2.5 %, and no crest sharper than a 1.5 %
 // change of slope over 30 m - a flare must not meet a hump it cannot see over
+// THE ALTIPORT (GTRAM, the tramway's summit strip): `altiport: true` is a mountain strip the Alpine way -
+// one way, landed UPHILL and left downhill whatever the wind (Courchevel 537 m at 18.5 %, Meribel 406 m
+// with an 11 % middle, La Salette 180 m at 20 %), so the limits are the altiport's: the slope anywhere
+// under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
+// over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
+// higher than the threshold it lands over
+const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
 function profileIssues(r) {
-  const out = [], pr = runwayProfile(r), L = r.len;
+  const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
   for (let a = 0; a <= L; a += 3) {
     const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
     if (a < L / 5 || a > L - L / 5) tdz = Math.max(tdz, sl);
     if (a + 30 <= L) crest = Math.max(crest, Math.abs(pr.slopeAt(a + 30) - pr.slopeAt(a)));
+  }
+  if (alti) {
+    if (worst > ALTIPORT.slopeMax) out.push('runway ' + r.id + ': the altiport is ' + (worst * 100).toFixed(1) + ' % somewhere, over ' + ALTIPORT.slopeMax * 100 + ' %');
+    if (crest > ALTIPORT.crestMax) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over ' + ALTIPORT.crestMax * 100 + ' on an altiport');
+    if (r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
+    else if (!((r.approach === 0 ? pr.at(L) - pr.at(0) : pr.at(0) - pr.at(L)) > 0)) out.push('runway ' + r.id + ': an altiport is landed uphill - the far end must be higher than end ' + r.approach);
+    return out;
   }
   if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
   if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
@@ -770,6 +786,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            band: r.band === undefined ? null : r.band, pav: r.pav || null,   // the pavement's (v1.16): the renderer resolves them with the premises' recipe
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null,
+           altiport: !!r.altiport,   // GTRAM: landed uphill and left downhill whatever the wind (43_pilot reads it)
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
 }
 
@@ -942,7 +959,13 @@ function solveLinks(rec, items, phase, ctx) {
     if (S.needs !== phase) continue;
     const A = byId[(L.from.site || '') + '/' + L.from.item] || items.find(i => i.item === L.from.item);
     const B = byId[(L.to.site || '') + '/' + L.to.item] || items.find(i => i.item === L.to.item);
-    if (!A || !B) { out.push({ link: L, ok: false, issues: ['link ' + L.id + ': an end is missing'] }); continue; }
+    if (!A || !B) {
+      // GTRAM: an end DECLARED on its site but not built is the catalogue's absence (a headless world with no
+      // generators), said as such - the same words the site's own issue uses; an end the record lacks is missing
+      const declared = e => { const st = (rec.layers.sites || []).find(q => q.id === e.site); return !!(st && (st.items || []).some(q => q.id === e.item)); };
+      const why = (!A && declared(L.from)) || (!B && declared(L.to)) ? 'an end is not built (no catalogue entry for its station)' : 'an end is missing';
+      out.push({ link: L, ok: false, issues: ['link ' + L.id + ': ' + why] }); continue;
+    }
     const sol = S.solve(L, A, B, ctx || {});
     for (const id in sol.patch || {}) { const it = items.find(i => i.id === id); if (it) Object.assign(it.P, sol.patch[id]); }
     out.push(Object.assign({ link: L, A, B }, sol));
@@ -1614,7 +1637,7 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

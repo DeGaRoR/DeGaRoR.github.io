@@ -130,7 +130,13 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              margin. It carries NO asset:
 //              the data: payload is unmoved at 118 KB of the 400 it is allowed, which is the
 //              tripwire this budget exists for.
-const BUDGET_MIB = 8.7;
+//   8.7 -> 8.8 (G525, the tramway, 2026-09-23): master had grown to 8.699 MiB since (G504-G524:
+//              the scenery life, the lakes, the mirror) and sat 589 bytes under the line, so the
+//              next session's code was always going to cross it; G525 adds 5.7 KB of CODE (the
+//              altiport's rules in 27_premises.js, its landing and departure in 43_pilot.js, the
+//              lit cabins and the link's speed row) - 8.699 -> 8.705. It carries NO asset: the
+//              data: payload is unmoved at 118 KB of its 400.
+const BUDGET_MIB = 8.8;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

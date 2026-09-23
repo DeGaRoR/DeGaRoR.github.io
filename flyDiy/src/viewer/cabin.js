@@ -615,7 +615,8 @@ function build(THREE, opts) {
     }
     grp.userData.plan = { gasketLoops: P.gaskets.loops, decalTris: P.decals.idx.length / 3 };
     grp.userData.lights = P.lights;
-    if (o.lit) for (const L of P.lights) {   // the point lights ride with the cabin (G370)
+    if (o.onLights) o.onLights(P.lights, grp);   // GTRAM: the host hears where the lamps are once the bake has landed
+    if (o.lit && o.points !== false) for (const L of P.lights) {   // the point lights ride with the cabin (G370); points: false = the host lights them (GTRAM: the premises' lamp pool)
       const pl = new THREE.PointLight(new THREE.Color(L.col[0], L.col[1], L.col[2]), L.k * (o.lightK || 2.4), L.range, 2);
       pl.position.set(L.x, L.y, L.z);
       grp.add(pl);

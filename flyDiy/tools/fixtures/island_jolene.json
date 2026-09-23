@@ -12,7 +12,7 @@
  "frame": {
   "kind": "free",
   "extent": {
-   "x0": -1700,
+   "x0": -1930.0,
    "z0": -11418.5,
    "x1": 6571.6,
    "z1": 1400
@@ -232,6 +232,58 @@
     ],
     "level": 675.75,
     "falloff": 9.8,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "tw_t_valley",
+    "kind": "flatten",
+    "poly": [
+     [
+      -1600,
+      -8012
+     ],
+     [
+      -1462,
+      -8012
+     ],
+     [
+      -1462,
+      -7898
+     ],
+     [
+      -1600,
+      -7898
+     ]
+    ],
+    "level": 11.91,
+    "falloff": 12,
+    "abs": false,
+    "order": 0
+   },
+   {
+    "id": "tw_t_summit_apron",
+    "kind": "flatten",
+    "poly": [
+     [
+      289.9,
+      -7836.2
+     ],
+     [
+      313.9,
+      -7877.8
+     ],
+     [
+      336.4,
+      -7864.8
+     ],
+     [
+      312.4,
+      -7823.2
+     ]
+    ],
+    "level": 709.8,
+    "falloff": 10,
     "abs": true,
     "order": 0
    }
@@ -880,6 +932,31 @@
      "bar": 2.8,
      "u0": -7.0
     }
+   },
+   {
+    "id": "tw_m_parking",
+    "poly": [
+     [
+      -1532,
+      -7996
+     ],
+     [
+      -1478,
+      -7996
+     ],
+     [
+      -1478,
+      -7954
+     ],
+     [
+      -1532,
+      -7954
+     ]
+    ],
+    "z": 1,
+    "look": "asphalt",
+    "band": 1,
+    "yaw": 0
    }
   ],
   "exclude": [
@@ -1560,6 +1637,70 @@
     "falloff": 6,
     "poles": "off",
     "rail": "off"
+   },
+   {
+    "id": "tw_r_access",
+    "pts": [
+     [
+      -1356.64,
+      -8277.07
+     ],
+     [
+      -1392,
+      -8212
+     ],
+     [
+      -1440,
+      -8125
+     ],
+     [
+      -1466,
+      -8040
+     ],
+     [
+      -1478,
+      -7992
+     ]
+    ],
+    "w": 5,
+    "cls": "gravel",
+    "graded": true,
+    "falloff": 8,
+    "name": "Skyline Tramway road",
+    "grade": 0.08,
+    "traffic": 1
+   },
+   {
+    "id": "tw_r_summit_path",
+    "pts": [
+     [
+      304,
+      -7880
+     ],
+     [
+      295,
+      -7861
+     ],
+     [
+      289,
+      -7845
+     ],
+     [
+      300,
+      -7839
+     ],
+     [
+      311,
+      -7846
+     ]
+    ],
+    "w": 2,
+    "cls": "path",
+    "graded": true,
+    "falloff": 4,
+    "name": "summit footpath",
+    "poles": "off",
+    "rail": "off"
    }
   ],
   "runways": [
@@ -2102,6 +2243,83 @@
       -10841.06
      ]
     ]
+   },
+   {
+    "id": "tw_ski",
+    "name": "Skyline Altiport",
+    "len": 380,
+    "wid": 18,
+    "surface": 0,
+    "look": "grass",
+    "slope": 0,
+    "crossfall": 0,
+    "disp": [
+     0,
+     0
+    ],
+    "papi": [
+     false,
+     false
+    ],
+    "falloff": 30,
+    "site": null,
+    "pattern": null,
+    "stand": {
+     "x": 313,
+     "z": -7848,
+     "hdg": null
+    },
+    "taxiOut": [
+     [
+      331.86,
+      -7837.11
+     ]
+    ],
+    "profile": [
+     [
+      0,
+      -15.96
+     ],
+     [
+      0.2,
+      -8.36
+     ],
+     [
+      0.4,
+      -0.76
+     ],
+     [
+      0.55,
+      4.94
+     ],
+     [
+      0.65,
+      8.68
+     ],
+     [
+      0.75,
+      11.47
+     ],
+     [
+      0.85,
+      12.99
+     ],
+     [
+      1,
+      13.3
+     ]
+    ],
+    "approach": 0,
+    "hangar": null,
+    "circuit": null,
+    "band": 6,
+    "pav": null,
+    "altiport": true,
+    "c": [
+     257,
+     -7707.46
+    ],
+    "hdg": -1.0472
    }
   ],
   "zones": [
@@ -2406,6 +2624,48 @@
      ],
      "sides": "right"
     }
+   },
+   {
+    "id": "tw_z_clear",
+    "kind": "clear",
+    "poly": [
+     [
+      -1625,
+      -8030
+     ],
+     [
+      -1450,
+      -8030
+     ],
+     [
+      -1450,
+      -7940
+     ],
+     [
+      -1330,
+      -7940
+     ],
+     [
+      -1330,
+      -7900
+     ],
+     [
+      -1450,
+      -7900
+     ],
+     [
+      -1450,
+      -7880
+     ],
+     [
+      -1625,
+      -7880
+     ]
+    ],
+    "density": 1,
+    "seed": null,
+    "palette": null,
+    "rules": {}
    }
   ],
   "sites": [
@@ -2860,9 +3120,168 @@
      "z0": -5,
      "z1": 150
     }
+   },
+   {
+    "id": "tw_s_summit",
+    "name": "Skyline summit - tram station and ski lodge",
+    "at": {
+     "x": 258,
+     "z": -7890,
+     "yaw": 0
+    },
+    "yard": null,
+    "items": [
+     {
+      "id": "station",
+      "key": "house/tram top station",
+      "x": 0,
+      "z": 0,
+      "yaw": 1.5707963267948966,
+      "P": {}
+     },
+     {
+      "id": "lodge",
+      "key": "house/cafe",
+      "x": 27,
+      "z": 54,
+      "yaw": 0,
+      "P": {
+       "lot": false,
+       "name": "Summit Lodge"
+      }
+     },
+     {
+      "id": "patrol",
+      "key": "house/log cabin",
+      "x": 24,
+      "z": 28,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "pilothut",
+      "key": "house/pilot hut",
+      "x": 42,
+      "z": 30,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "groomer",
+      "key": "house/garage",
+      "x": 10,
+      "z": 42,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "shed",
+      "key": "house/storage shed",
+      "x": 4,
+      "z": 50,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "wc",
+      "key": "house/outhouse",
+      "x": 34,
+      "z": 66,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     }
+    ]
+   },
+   {
+    "id": "tw_s_valley",
+    "name": "Skyline Tramway - valley station and shops",
+    "at": {
+     "x": -1520,
+     "z": -7924,
+     "yaw": 0
+    },
+    "yard": null,
+    "items": [
+     {
+      "id": "station",
+      "key": "house/tram base station",
+      "x": 0,
+      "z": 0,
+      "yaw": -1.5707963267948966,
+      "P": {}
+     },
+     {
+      "id": "tickets",
+      "key": "house/bear tours",
+      "x": -28,
+      "z": -26,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "cafe",
+      "key": "house/cafe",
+      "x": -52,
+      "z": -14,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "shop",
+      "key": "house/general store",
+      "x": -56,
+      "z": -42,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "motel",
+      "key": "house/motel",
+      "x": -46,
+      "z": -74,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     }
+    ]
    }
   ],
-  "links": [],
+  "links": [
+   {
+    "id": "tw_l_tram",
+    "kind": "cable",
+    "from": {
+     "site": "tw_s_valley",
+     "item": "station",
+     "hook": "track0"
+    },
+    "to": {
+     "site": "tw_s_summit",
+     "item": "station",
+     "hook": "track0"
+    },
+    "P": {},
+    "dynamic": true,
+    "speed": 10
+   }
+  ],
   "objects": [
    {
     "id": "o1",
@@ -3324,6 +3743,176 @@
     "z": 699.5,
     "yaw": -1.806,
     "w": 2.0
+   },
+   {
+    "id": "tw_o4",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "auto_minibus_yellow",
+    "x": -1524,
+    "z": -7988,
+    "yaw": 0
+   },
+   {
+    "id": "tw_o5",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "auto_suv_black_box",
+    "x": -1516,
+    "z": -7988,
+    "yaw": 0
+   },
+   {
+    "id": "tw_o6",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "auto_sedan_silver",
+    "x": -1500,
+    "z": -7988,
+    "yaw": 0.05
+   },
+   {
+    "id": "tw_o7",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "auto_hatch_lime",
+    "x": -1486,
+    "z": -7988,
+    "yaw": 0
+   },
+   {
+    "id": "tw_o8",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "auto_hatch_silver_kia",
+    "x": -1520,
+    "z": -7962,
+    "yaw": 3.141592653589793
+   },
+   {
+    "id": "tw_o9",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "auto_pickup_white",
+    "x": -1496,
+    "z": -7962,
+    "yaw": 3.141592653589793
+   },
+   {
+    "id": "tw_o10",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "auto_sedan_red",
+    "x": -1488,
+    "z": -7962,
+    "yaw": 3.201592653589793
+   },
+   {
+    "id": "tw_o11",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "person_andrew",
+    "x": -1541,
+    "z": -7940,
+    "yaw": 1.2
+   },
+   {
+    "id": "tw_o12",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "person_john",
+    "x": -1545,
+    "z": -7943,
+    "yaw": -2
+   },
+   {
+    "id": "tw_o13",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "person_charles",
+    "x": -1566,
+    "z": -7948,
+    "yaw": 0.4
+   },
+   {
+    "id": "tw_o14",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "person_luke",
+    "x": -1511,
+    "z": -7950,
+    "yaw": 2.8
+   },
+   {
+    "id": "tw_o15",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "person_luke",
+    "x": 291,
+    "z": -7846,
+    "yaw": 0.3
+   },
+   {
+    "id": "tw_o16",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "person_koky",
+    "x": 294,
+    "z": -7849,
+    "yaw": 2.9
+   },
+   {
+    "id": "tw_o17",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "person_charles",
+    "x": 306,
+    "z": -7840,
+    "yaw": -1.2
+   },
+   {
+    "id": "tw_o18",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "picnic_table",
+    "x": 296,
+    "z": -7856,
+    "yaw": 0.2
+   },
+   {
+    "id": "tw_o19",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "picnic_table",
+    "x": 302,
+    "z": -7852,
+    "yaw": 0.9
+   },
+   {
+    "id": "tw_o20",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "bin_metal",
+    "x": 289,
+    "z": -7855,
+    "yaw": 0
    }
   ]
  },
@@ -3333,5 +3922,5 @@
   "smoke": 6,
   "people": 40
  },
- "rev": 9
+ "rev": 10
 }

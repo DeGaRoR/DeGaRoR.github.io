@@ -783,6 +783,12 @@ function mount(host, ctx) {
       // THE ONE-WAY STRIP (v9): which end the landing comes over in calm air; a ridge at one end wants the other
       rows.pills(insp, 'approach', [['', 'either end', 'the pilot picks the runway direction nearest its inbound track'], ['0', 'over end 0', 'land toward end 1, depart the other way'], ['1', 'over end 1', 'land toward end 0']], () => (e.approach === 0 || e.approach === 1) ? String(e.approach) : '',
         v => ed(x => { x.approach = v === '' ? null : +v; }, 'approach of ' + id));
+      // THE ALTIPORT (GTRAM): a mountain strip landed uphill and left downhill, the slope up to 20 %; switched on
+      // with no approach named, it names the LOWER end (the profile's) - the one an altiport is landed over
+      rows.check(insp, 'altiport: land uphill (up to 20 %)', () => !!e.altiport, v => ed(x => {
+        x.altiport = v;
+        if (v && x.approach !== 0 && x.approach !== 1) { const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, x)); x.approach = pr.at(0) <= pr.at(x.len) ? 0 : 1; }
+      }, 'altiport of ' + id));
       // THE PROFILE (v8): the centreline's height along the length, as control points on a graph - drag a
       // point, double-click the curve to add one, the ✕ removes the selected one; the ends stay at 0 and 1
       profileGraph(insp, e, ed);
@@ -834,7 +840,9 @@ function mount(host, ctx) {
       rows.note(insp, items.length + ' item' + (items.length === 1 ? '' : 's') + ' - the faint discs move each in the site\'s frame; the bright one moves the site whole');
       const links = rec.layers.links.filter(L => (L.from.site === id) || (L.to.site === id));
       const solved = (R.links ? R.links() : []);
-      for (const L of links) { const sol = solved.find(q => q.link.id === L.id); const d = $('div', { class: 'note ' + (sol && sol.ok ? 'ok' : 'bad') }); d.textContent = L.kind + ' ' + L.from.item + ' → ' + L.to.item + ': ' + (sol ? (sol.ok ? 'solved' : (sol.issues || ['?'])[0]) : 'not solved'); insp.appendChild(d); }
+      for (const L of links) { const sol = solved.find(q => q.link.id === L.id); const d = $('div', { class: 'note ' + (sol && sol.ok ? 'ok' : 'bad') }); d.textContent = L.kind + ' ' + L.from.item + ' → ' + L.to.item + ': ' + (sol ? (sol.ok ? 'solved' : (sol.issues || ['?'])[0]) : 'not solved'); insp.appendChild(d);
+        // GTRAM: THE CABINS' SPEED on the line (tram_run's cruise; an aerial tramway runs 8-12 m/s, the village's 6)
+        if (L.kind === 'cable') rows.slider(insp, 'cabin speed (m/s)', 2, 12, 0.5, () => +L.speed || 6, v => edit(L.id, 'links', x => { x.speed = v; }, 'speed of ' + L.id, 'speed'), v => v.toFixed(1) + ' m/s'); }
       const iss = (R.overlay.records.issues || []).filter(t => t.indexOf(id) >= 0);
       if (iss.length) rows.note(insp, '⚠ ' + iss[0]);
       // THE ITEMS AS A LIST (G398.1): one row per item - what stands there and its turn - and the
