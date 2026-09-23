@@ -57213,3 +57213,12 @@ Measured off/on/off/on in one run (tools/frame_perf.js, new `at:x:z:agl` places)
 a village street at 25 m (the first cut was +62), ~0 from 250 m; frame difference inside the noise. GATE LIFE
 (tools/_life_check.js, core, ~1 s). Owed: walking people need a rigged walk clip (the five scans stand still).
 futureDesigns/SCENERY-LIFE-2026-09-23.md.
+
+## G520 - SCENERY LIFE follow-up: the plot's category routes the laws (2026-09-23)
+
+Asked by the Metlakatla session (510 plots: a cannery, a yard, a town hall, residential quarters): the life's
+recipes come from `plot.cat` (VILLAGE_GEN.finishPlot's lotCat) - confirmed, and two gaps closed: a works' yard
+(industrial, or a harbour plot that is not a home) now gets pallets, cinder blocks, cement bags and cones besides
+its drums and crates; a `landmark` or a `sports` plot is dressed as an institution (no house fuel tank, no mailbox)
+instead of falling back to a home's laws, and so is a site item whose catalogue word is not one of the seven categories (the club's "airport s"). GATE LIFE holds both (an industrial and a landmark house on the synthetic
+premises). futureDesigns/SCENERY-LIFE-2026-09-23.md.

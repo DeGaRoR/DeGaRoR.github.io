@@ -329,10 +329,11 @@ function make(THREE, host) {
   // THE LAWS -------------------------------------------------------------------------------------------------------
   const RECIPES = {
     residential: [['bins', 3], ['propane2', 2], ['tyres', 2], ['crates', 1.5], ['jerry', 1], ['barrel', 1.5], ['cartons', 1], ['tyreUp', 1]],
-    shed: [['tyres', 2], ['drum', 2], ['crates', 2], ['jerry', 1.5], ['tyreUp', 1.5]],
-    commercial: [['bins', 2], ['cartons', 3], ['crates', 2], ['barrel', 1], ['dumpsterSide', 1.5]],
-    industrial: [['drums', 3], ['tyres', 2], ['crates', 2], ['barrel', 1.5], ['cartons', 1], ['drum', 2]],
-    hangar: [['drums', 3], ['jerry', 2], ['tyres', 2], ['drum', 2], ['crates', 1]],
+    shed: [['tyres', 2], ['drum', 2], ['crates', 2], ['jerry', 1.5], ['tyreUp', 1.5], ['blocks', 0.8]],
+    commercial: [['bins', 2], ['cartons', 3], ['crates', 2], ['barrel', 1], ['dumpsterSide', 1.5], ['pallets', 1.5]],
+    // a works, a cannery, a packing plant: pallets and blocks, drums, crates, cones (the yard, not the street)
+    industrial: [['drums', 3], ['pallets', 3], ['tyres', 2], ['crates', 2], ['blocks', 1.5], ['barrel', 1.5], ['cartons', 1], ['drum', 2], ['cones', 0.8]],
+    hangar: [['drums', 3], ['jerry', 2], ['tyres', 2], ['drum', 2], ['crates', 1], ['pallets', 1]],
     official: [['bins', 2], ['cartons', 1], ['crates', 1]],
   };
   const pickW = (rnd, L) => { let t = 0; for (const x of L) t += x[1]; let u = rnd() * t; for (const x of L) { u -= x[1]; if (u <= 0) return x[0]; } return L[0][0]; };
@@ -351,6 +352,9 @@ function make(THREE, host) {
       case 'drums': return [[S('drum_steel'), 0.7, 0.7], [S('drum_steel'), 0.7, 0.7], [S(rnd() < 0.5 ? 'drum_steel' : 'barrel_plastic'), 0.7, 0.7]];
       case 'cartons': return [[procKind(rnd() < 0.5 ? 'cartons' : 'carton', 'clutter', CUT.clutter), 1.1, 0.5]];
       case 'dumpsterSide': return [[procKind('dumpster', 'small', CUT.small + 30), 1.95, 1.2]];
+      case 'pallets': { const k = ['pallets_three', 'pallets_stack', 'pallet_one'][Math.floor(rnd() * 3)], D = { pallets_three: [1.8, 1.35], pallets_stack: [2.2, 1.6], pallet_one: [1.75, 1.2] }[k]; return [[S(k), D[0], D[1]]]; }
+      case 'blocks': return rnd() < 0.5 ? [[S('cinder_pallet'), 1.05, 1.85]] : [[S('cement_bags'), 2.0, 1.9]];
+      case 'cones': return [[procKind('cone', 'small', CUT.small - 80), 0.45, 0.4], [procKind('cone', 'small', CUT.small - 80), 0.45, 0.4], [procKind('cone', 'small', CUT.small - 80), 0.45, 0.4]];
     }
     return [];
   }
@@ -407,7 +411,7 @@ function make(THREE, host) {
     const it = plot.rec || null;
     const cat = h.cat || plot.cat || (it && it.entry && it.entry.cat) || (st.role ? 'commercial' : 'residential');
     const hangar = (it && it.gen === 'HANGAR_GEN') || /hangar/.test(String((it && it.key) || ''));
-    const theme = hangar ? 'hangar' : (plot.kind === 'harbour' && cat !== 'residential' ? 'industrial' : (RECIPES[cat] ? cat : 'residential'));
+    const theme = hangar ? 'hangar' : (plot.kind === 'harbour' && cat !== 'residential' ? 'industrial' : (RECIPES[cat] ? cat : (cat === 'landmark' || cat === 'sports' || it ? 'official' : 'residential')));   // a site item with a word of its own ('airport s') is an institution
     // what stands already (house frame): the rectangles and discs, the doors (2.4 m kept clear before each)
     const blocks = [];
     for (const o of occ) if (o !== main) blocks.push(o);

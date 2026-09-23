@@ -32,7 +32,7 @@ const scan = (key, group, dim) => ({ key, group, nt: 2000, dim, mats: {}, parts:
 global.PROP_REG = { order: [], props: {} };
 for (const [k, g, d] of [['person_andrew', 'people', [0.6, 1.8, 0.5]], ['person_john', 'people', [0.6, 1.8, 0.7]], ['person_luke', 'people', [0.6, 1.6, 0.6]],
   ['auto_sedan_red', 'auto', [1.7, 1.3, 4.0]], ['auto_pickup_white', 'auto', [2.1, 1.6, 5.1]], ['bin_metal', 'vessel', [0.78, 0.91, 0.56]], ['drum_steel', 'vessel', [0.63, 0.93, 0.64]],
-  ['barrel_plastic', 'vessel', [0.49, 0.88, 0.48]], ['jerrycan', 'vessel', [0.27, 0.32, 0.34]], ['crate_wood_a', 'storage', [0.41, 0.41, 0.42]], ['crate_wood_b', 'storage', [0.41, 0.82, 0.42]], ['crate_wood_c', 'storage', [1.01, 0.41, 0.42]]]) {
+  ['barrel_plastic', 'vessel', [0.49, 0.88, 0.48]], ['jerrycan', 'vessel', [0.27, 0.32, 0.34]], ['crate_wood_a', 'storage', [0.41, 0.41, 0.42]], ['crate_wood_b', 'storage', [0.41, 0.82, 0.42]], ['crate_wood_c', 'storage', [1.01, 0.41, 0.42]], ['pallets_three', 'yard', [1.77, 0.77, 1.30]], ['pallets_stack', 'yard', [2.13, 1.11, 1.56]], ['pallet_one', 'yard', [1.72, 0.2, 1.17]], ['cinder_pallet', 'yard', [1.0, 1.06, 1.8]], ['cement_bags', 'yard', [1.97, 0.99, 1.85]]]) {
   PROP_REG.props[k] = scan(k, g, d); PROP_REG.order.push(k);
 }
 global.propLevels = () => [];
@@ -78,15 +78,15 @@ const zone = { id: 'z1', kind: 'residential', poly: [[-200, -60], [200, -60], [2
 const apron = [[280, -300], [400, -300], [400, -220], [280, -220]];
 const runway = Object.assign({}, PG.RUNWAY_DEF || {}, { id: 'w1', c: [700, -260], hdg: 0, len: 900, wid: 30 });
 const craft = [{ x: 330, z: -260, yaw: 0 }];
-const house = (id, x, z, yaw) => {
-  const plot = { id, kind: 'residential', cat: 'residential', poly: [[x - 12, z - 18], [x + 12, z - 18], [x + 12, z + 12], [x - 12, z + 12]], front: [x, z + 12], tg: [1, 0], n: [0, -1] };
+const house = (id, x, z, yaw, cat) => {
+  const plot = { id, kind: 'residential', cat: cat || 'residential', poly: [[x - 12, z - 18], [x + 12, z - 18], [x + 12, z + 12], [x - 12, z + 12]], front: [x, z + 12], tg: [1, 0], n: [0, -1] };
   const stats = { groundAO: [{ x: 0, z: 0, hx: 5, hz: 3.5 }, { x: 0, z: 4.6, hx: 1.2, hz: 1.1 }], doors: [{ x: 0, z: 4.0 }],
     openings: [{ side: 0, s0: 2, s1: 3, y0: 1.2, y1: 2.4, kind: 'window' }, { side: 0, s0: 4.5, s1: 5.5, y0: 0.1, y1: 2.2, kind: 'door' }, { side: 2, s0: 1, s1: 9, y0: 1.0, y1: 3.4, kind: 'window' },
       { side: 1, s0: 0.5, s1: 6.5, y0: 0.8, y1: 3.2, kind: 'window' }, { side: 3, s0: 0.5, s1: 6.5, y0: 0.8, y1: 3.2, kind: 'window' }],
     eaveY: 3.9, ridgeY: 6.2, pitch: 30, bbox: { x0: -5, x1: 5, y0: 0, y1: 6.2, z0: -3.5, z1: 5.7 } };
   return [id, { grp: { position: { x, y: H0, z }, rotation: { y: yaw } }, built: { stats }, plot }];
 };
-const HOUSES = new Map([house('h1', -40, -10, 0), house('h2', 60, -8, 0.3)]);
+const HOUSES = new Map([house('h1', -40, -10, 0), house('h2', 60, -8, 0.3), house('h3', 140, -10, 0, 'industrial'), house('h4', -130, -10, 0, 'landmark')]);
 const onRoad = (x, z) => [road].some(r => PG.roadDist(r, x, z) < r.w / 2 + 1);
 let eye = new THREE.Vector3(0, 12, 0);
 const rec = { seed: 3, layers: { zones: [zone] }, life: undefined };
@@ -129,6 +129,14 @@ const stand = cfg => { L.set(cfg || null); L.standNow(); return L.items(); };
   verdict(inside === 0, 'nothing stands inside a house\'s walls (' + inside + ')');
   verdict(door === 0, 'no clutter within 2.4 m of a door (' + door + ')');
   verdict(overOpen === 0, dishes + ' dishes, none over a window or a door (' + overOpen + ')');
+  // the plot's category routes the laws (VILLAGE_GEN.finishPlot writes plot.cat): a works and a landmark get no
+  // mailbox and no house fuel tank; a works gets its yard's clutter
+  const near = (id, r) => { const P = HOUSES.get(id).grp.position; return a.filter(q => Math.hypot(q.x - P.x, q.z - P.z) < r); };
+  const homely = q => /p:(mailbox|pig|oiltank)$/.test(q.kind);
+  verdict(!near('h3', 16).some(homely) && !near('h4', 16).some(homely), 'an industrial plot and a landmark: no mailbox, no house fuel tank');
+  const works = stand({ clutter: 3 }).filter(q => q.cat === 'clutter' && Math.hypot(q.x - 140, q.z + 10) < 16).map(q => q.kind);
+  verdict(works.some(k => /drum|pallet|cinder|cement|cone|crate|barrel/.test(k)) && !works.some(k => /propane2/.test(k)), 'an industrial yard gets its works clutter (' + [...new Set(works)].join(' ') + ')');
+  stand(null);
   // the carriageway: nothing but the traffic on it; a parked car beside it
   const onCarriage = a.filter(q => q.cat !== 'cars' && PG.roadDist(road, q.x, q.z) < road.w / 2 - 0.05 && Math.abs(q.x) < 255);
   verdict(!onCarriage.length, 'nothing stands on the carriageway (' + onCarriage.length + (onCarriage.length ? ': ' + onCarriage.slice(0, 3).map(q => q.kind).join(' ') : '') + ')');
