@@ -57299,3 +57299,60 @@ TWO THINGS THAT ARE NOT MINE, with the measurements, so nobody has to re-measure
 GATE HYDRODYN, WATER, SPLAT, PREMISES, PAVEMENT, ANIMALS, FLOATS, WIPLINE green. GATE SEAPLANE is RED and was
 red before this - the same three lines with the same numbers (69.8 m off the lane, 180 deg of heading swing) on
 master's own core, checked by running the gate against it; it is the seaplane track's, not this landing's.
+
+## G522 - JUMBO MINE: the mining village on the 724 m summit, its main street the wild strip mn_strip (2026-09-23)
+
+The user: "landmarks placed on the island, and their strips ... the north east ... built with the world editor,
+so I can edit it further myself ... The mine ... its topmost part should sit on a hill top, relatively flat, then
+have the ladder of buildings on a slope, then have the mining village at the bottom ... a main street of 15-20 m
+straight and unobstructed, that will be used as a wild airstrip ... a straight 250 m section, then wind after
+that ... in the mountain, relatively high, find the best spot."
+
+THE PLACE (searched, not guessed - scratchpad scans over the 10 m DEM): every 250 m line in the NE scored for
+its grade, residual and crossfall, a mill-shaped hill beside it (a 25-35 deg face rising to a flat top ~100 m
+back) and the climb-out past both ends. The winner is the summit at (6156, -10857), 724 m, east of the big lake:
+a flat dome (2 660 m2 within 4 m of the top), a 28 deg west face, and a shelf at 676 m along its foot where a
+250 m straight lies level (slope 0.1 %, residual 4 m) and the ground FALLS past both ends. The 676 m contour
+rings the whole summit ~120 m out, which is where the street winds. Everything lower in the NE (200-250 m
+valleys) had the slope and not the height; everything higher (the 575-620 m ridges) had the height and no
+slope. Clear of the other landmark sessions' boxes (native area x 9700..10400, tramway x -500..3000).
+
+THE RECORD: tools/jolene_parts/mn_mine.json (the G518 parts loader; prefix mn_, 16 entries), plain editor
+data, rev 9. Site frame yaw 60 deg: +x along the street (NNE), +z up to the summit.
+  - mn_strip  "Jumbo Mine Street" 250 x 18 m gravel, marks none, no PAPI, falloff 30, graded flat at 675.8 m;
+              the straight of the main street IS the runway (a road over a runway would draw two pavements)
+  - mn_main   the main street's winding end: 18 m gravel from the strip's south end round the summit's south
+              and east flanks on the 676 m contour (walked on the DEM), 560 m, grade <= 8 %
+  - mn_s_mine the Kennecott theme tool's site, re-laid for a street that is a runway: the mill (bottomOnRoad:
+              its receiving house BESIDE the street, 2 m off its edge, never astride it) with its pad cut ON the
+              summit (floor 724.6 m); the office/shop/cottages/shed on a works bench above the street; the row
+              (bunkhouse, dormer hall, mess hall, cottage) below it on posts with no back stoops (the stairs
+              chased the slope 10 m down); along the rest of the straight a store, a school, a bunkhouse,
+              cottages, the chapel, the clinic, the air taxi office and a fuel shed by the stand
+  - mn_z_ring residential, the UPHILL side of the winding street only (sides 'right': the outer side stood
+              houses on 10 m stilts), seed 15 (15 plots; the default seed sowed 8)
+  - terrain   works / upper benches, the stand's pad, and TURNING BAYS 35 x 34 m at both ends of the strip
+  - the stand at the south end (way out onto the centreline 37 m in), approach 0 (land NNE over the south
+              end: the model wants 1.3 % that way and 21.7 % the other, the summit being beside the north half)
+
+THE PILOT AND A SHORT STRIP - worth knowing for every strip under ~370 m: the DERIVED pattern holds 110 m in
+from each end (25_airfield GP_HOLD_IN) and the departure wants min(runNeeded, 0.7 len) ahead, so on 250 m the
+hold leaves 141 m and the pilot replans forever ("not lined up with a run ahead (141 m)"). Not changed in the
+core (other strips ride on it); mn_strip carries an AUTHORED pattern in runway.site.pattern - the editor's own
+slot, what its hold drag writes - with the holds 55 m in and the U-turn 8 m from each end opened to +-11 m on
+the turning bays (the 18 m street is narrower than the Cub's 24 m U-turn: it fell off the north end's bank on
+the first try). sitePatternIssues empty at the aeroplane's 6 m. Moving or turning the strip in the editor drops
+the authored pattern (the editor's rule) and the derived one comes back - the AI pilot then cannot depart.
+
+FLOWN headless (pilot_trace's recipe, the island composed with this fixture): the Cub from the stand - take-off
+run 127 m, circuit, landing 93 m, 0 m off; HOME -> mn_strip cross-country - landing 1.7 m/s, 92 m, 0 m off.
+
+OWED / KNOWN: the mine is 12 km from the origin, so until the far-terrain sink lands (the native-area session's
+render_world.js port of Metlakatla's sinkFar) the raw far tier draws over the street and the benches and the
+buildings above the street look half buried - physics, the pilot and the editor are right already. Every
+runway draws edge lenses (render_world standRunwayLights) - a street with runway lights. No road links the mine
+to the rest of the island (the summit is ringed by 400 m of fall); it is a fly-in mine.
+
+GATE PREMISES, PARKED, ANIMALS green in the worktree; GATE WORLD's island block run by hand against the main
+checkout's bench/ (it skips without one) - green, plus mn_strip's own pattern and stand. No full battery (the
+user runs it once for all sessions). Data only: no src/ change, no build.
