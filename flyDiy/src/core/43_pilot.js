@@ -220,11 +220,23 @@ function makePilot(sim, def, world, opts) {
     return A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * gGrade;
   };
   const stopDist = v => v * v / (2 * Math.max(0.5, aStopOf())) + v * 1.0;
+  // THE RESERVE IS THE FIELD'S (G531): the style's 120/80/50 m past the Vr
+  // point is a long runway's margin, and no strip under ~230 m could pass it
+  // - on East Point's 150 m of gravel the cub was condemned at 6 m/s by a
+  // run it makes (lift-off 104 m into 112 m ahead, measured with every rule
+  // off). Under 300 m it falls with the square of the length: half the
+  // strip, a quarter of the margin (150 m: 30 / 20 / 12.5 m, so the cautious
+  // pilot still refuses a field at the aeroplane's limit). Every strip of
+  // 300 m and more keeps the style's number to the bit.
+  const reserveOf = () => {
+    const L = ap.route.from.len || 1100;
+    return L >= 300 ? ST.reserve : ST.reserve * (L / 300) * (L / 300);
+  };
   // the run a take-off needs from a standstill: most of the sheet's roll
   // (Vr is reached before the sheet's lift-off point), the stop from Vr, the
   // reserve — the SAME arithmetic the roll rejects with, so the planner and
   // the judge never disagree
-  const runNeeded = () => ST.needK * (0.85 * (A.TORun ?? 500) + stopDist(A.VRot || 18) + ST.reserve);
+  const runNeeded = () => ST.needK * (0.85 * (A.TORun ?? 500) + stopDist(A.VRot || 18) + reserveOf());
 
   // ---- frames -------------------------------------------------------------
   // The landing/departure frame is the test pilot's: origin td + 450 u so the
@@ -1785,7 +1797,7 @@ function makePilot(sim, def, world, opts) {
         const left = runwayLeft();
         const vr = A.VRot || 18;
         const avail = ap.route.from.len || 1100;
-        const sd = stopDist(V);
+        const sd = stopDist(V), resv = reserveOf();   // G531: the field's reserve
         // THE ACCELERATE-STOP CALL, and V1. While a stop on the strip is still
         // possible (left − sd ≥ reserve) any of five rules rejects, each said
         // with its numbers: the measured acceleration cannot reach Vr in what
@@ -1798,7 +1810,7 @@ function makePilot(sim, def, world, opts) {
         // ends under an aeroplane still rolling is a rejection with the fence
         // in it, said as such.
         let reject = null;
-        const canStopHere = left - sd >= ST.reserve;
+        const canStopHere = left - sd >= resv;
         // G396.4: THE HUMP IS NOT A FAILED RUN. A seaplane at the hump reads
         // 0.1 m/s^2 for twenty seconds and then planes (the single 582:
         // 8.5 m/s from t 10 to 22, on the step at 24, unstuck at 35); the
@@ -1827,7 +1839,7 @@ function makePilot(sim, def, world, opts) {
             // the cub rejected at 7 s a run the sheet says it makes)
             const shortT = ap.dep && ap.dep.technique === 'short';
             // GTRAM: an altiport's low end is the mountain falling away, not a fence - the run may use it all
-            if (dVr > left - (shortT ? 0 : stopDist(vr)) - (ap.route.from.altiport ? 0 : ST.reserve))
+            if (dVr > left - (shortT ? 0 : stopDist(vr)) - (ap.route.from.altiport ? 0 : resv))
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +
                        Math.round(dVr) + ' m more, ' + Math.round(left) + ' m left';
           }
@@ -1861,7 +1873,7 @@ function makePilot(sim, def, world, opts) {
           // 17.3 of 18.7 m/s with 217 m left, the C172 at 19.3 of 20.4 with
           // 249 m — both a second from flying
           const dVr = accF > 0.02 ? (vr * vr - V * V) / (2 * accF) : Infinity;
-          if (dVr > left - (ap.route.from.altiport ? 0 : ST.reserve))   // GTRAM: an altiport's low end falls away (the rule above)
+          if (dVr > left - (ap.route.from.altiport ? 0 : resv))   // GTRAM: an altiport's low end falls away (the rule above)
             reject = 'out of runway: ' + Math.round(left) + ' m left, Vr in ' + (isFinite(dVr) ? Math.round(dVr) + ' m' : 'no distance (not accelerating)') +
                      ', V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
           else if (!committedTO) {
@@ -1876,7 +1888,7 @@ function makePilot(sim, def, world, opts) {
         }
         setStatus('accelerating to rotation speed', [
           cond('airspeed', V, vr, V >= vr, 'm/s'),
-          cond('runway left', Math.round(left), Math.round(sd + ST.reserve), left - sd >= ST.reserve, 'm'),
+          cond('runway left', Math.round(left), Math.round(sd + resv), left - sd >= resv, 'm'),
           cond('accel', accF, 0.08, accF >= 0.08, 'm/s²')]);
         if (reject) {
           say('rejected-takeoff', reject);

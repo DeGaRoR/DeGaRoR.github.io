@@ -57812,3 +57812,34 @@ PREMISES, WORLD green.
 - GATES (targeted): PREMISES, WORLD, WORLDRENDER, SITE, MEDIA, LIFE green. FILES:
   src/viewer/render_premises.js, tools/jolene_parts/native.json, tools/jolene_author.py,
   tools/fixtures/island_jolene.json.
+
+## G531 - THE RESERVE IS THE FIELD'S: the pilot departs a short strip (2026-09-23)
+
+G527's owed item. `pilot_trace cub --world jolene --from nv_strip --stand --to HOME` rolled 3.5 s and
+rejected: "out of runway: 102 m left, Vr in 80 m, V=6.3 of 16.2 needed". The accelerate-stop judge in
+43_pilot asks `dVr <= left - reserve` with the style's reserve (cautious/normal/brisk 120/80/50 m) whatever
+the strip, so nothing under ~230 m could pass; worse, 80 m made the point of no stopping come at 3 s, when
+the 2 s acceleration filter still read 80 % of the true acceleration.
+
+Measured before choosing a number (every reject off, a throwaway core): the cub holds 37 m inside the north
+end (G527 put the hold a quarter in), so it has 112 m ahead, not 145; it reaches Vr (16.2) at 90 m and
+unsticks at 104 m, 8 m before the end. The sheet agrees it is at the limit (TORun 156 m on gravel). No
+reserve that is a plain fraction of the strip can be both <= ~20 m at 150 m and 80 m at 300 m, so:
+
+- `reserveOf()`: the style's reserve on every strip of 300 m and more (to the bit), and under 300 m
+  `ST.reserve * (len/300)^2` - half the strip, a quarter of the margin. 150 m: 30 / 20 / 12.5 m;
+  250 m: 83 / 56 / 35 m. The planner (`runNeeded`), the no-stop point (`canStopHere`), both Vr predictions
+  and the rail's 'runway left' row all read it - the planner and the judge still share one arithmetic.
+- No separate later judgement point: with the field's reserve the point of no stopping moves to ~6 s
+  (three filter time constants) by itself, and the prediction there is right (accF 1.45 vs 1.42 measured).
+
+Flown (cub unless said): nv_strip normal commits at 10.8 m/s with 77 m left (Vr in 50 m), lift-off 104 m,
+completed at HOME; brisk departs; cautious rejects at 10.2 m/s (margin 29 < 30 m) and stops on the strip -
+the style refusing a field at the aeroplane's limit; c172 rejects on nv_strip (needs 313 m) and on
+mn_strip; cub mn_strip departs (127 m roll). HOME -> nv_strip lands, the same numbers as before (run 74 m,
+sink 1.28). PILOTMATRIX quick and GATE PILOT: output byte-identical to 1e74ca1b's core (every strip there is
+340 m or more).
+
+Left for the strip's owner: the hold a quarter in costs the cub 37 m of its 150; a short-field departure
+would backtrack to the threshold (25_airfield sitePattern kIn), which would turn an 8 m lift-off margin
+into ~40 m.
