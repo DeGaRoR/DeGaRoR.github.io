@@ -16,8 +16,15 @@ const path = require('path');
 const zlib = require('zlib');
 const ROOT = path.join(__dirname, '..');
 
+// THE STORE: this checkout's bench/, or FLYDIY_BENCH. A worktree has no bench/
+// of its own (it is gitignored, so it lives in the checkout that baked it) and
+// linking one in is forbidden - `git worktree remove` follows the junction and
+// empties the target, twice now. The env var lets a gate in a worktree read the
+// main checkout's data with the worktree's CODE, which is the honest pairing:
+//   FLYDIY_BENCH=D:/Dev/DeGaRoR.github.io/flyDiy/bench node tools/_hydro_check.js
 function islandBoot(name) {
-  const T = path.join(ROOT, 'bench', 'terrain', name + '5_e2'), G = path.join(ROOT, 'bench', name, 'dem'), F = path.join(ROOT, 'bench', 'terrain', name + '5_e4');
+  const BENCH = process.env.FLYDIY_BENCH || path.join(ROOT, 'bench');
+  const T = path.join(BENCH, 'terrain', name + '5_e2'), G = path.join(BENCH, name, 'dem'), F = path.join(BENCH, 'terrain', name + '5_e4');
   if (!fs.existsSync(T + '.json') || !fs.existsSync(G + '.json')) return null;
   const u8 = p => fs.existsSync(p) ? new Uint8Array(fs.readFileSync(p)) : null;
   const js = p => fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;

@@ -230,6 +230,100 @@ for (const [tau, lam, Cv] of [[4, 2, 2], [4, 2, 3], [4, 3, 3], [6, 2, 3], [4, 2,
   verdict(Math.abs(lwA - lwB) < 0.005 && Math.abs(lwA - 1) < 0.02, `the sub-rated pass carries the weight as the full-rate one does (L/W ${f(lwA, 4)} vs ${f(lwB, 4)})`);
 }
 
+// ---- 6. THE LAKE A FLOATPLANE LANDS ON IS THE ONE IT IS DRAWN ON ------------
+// (2026-09-23; the Metlakatla session on Jolene's Skaters Lake: "waterH returns
+// 16.19 while terrainH returns 10.09 and the lake declares level 10.1".) The
+// island's lakes are DATA with a level each; the hydrology is handed them so
+// its reaches end there, but its own surface for those cells is the priority
+// flood's `filled` - the RIM of the basin when the outlet is narrower than a
+// bake cell. The renderer had grown a guard against the number (G460.11.7
+// discards a waterH sample more than 3 m off the declared level), so the lake
+// was drawn right while the physics rode the rim: 6.09 m of hover on Skaters
+// Lake, 23.15 m on the worst of the 96 lakes (of 317) that were over 3 m out.
+// THE FIXTURE IS A STUB ISLAND, so this runs on any box, island files or not:
+// a 300 m bowl with a flat floor, a rim 30 m above it and NO OUTLET, which is
+// exactly the shape that makes the fill disagree. The gate is not vacuous by
+// construction - it asserts the fill STILL answers the rim, so a waterAt that
+// went back to asking it goes red here.
+console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with no outlet)');
+{
+  const CORE = require('./flight_core.js');
+  const WC = { TREE: 10, SHRUB: 20, GRASS: 30, CROP: 40, BUILT: 50, BARE: 60, SNOW: 70, WATER: 80, WETLAND: 90, MOSS: 100 };
+  const CX = 3000, CZ = 3000;            // away from HOME's pad, which grades the origin flat
+  const FLOOR = 10, LEVEL = 10.5, RIM = 40;
+  const LK = { x0: CX - 150, x1: CX + 150, z0: CZ - 150, z1: CZ + 150, level: LEVEL, cells: 900 };
+  const inLake = (x, z) => x > LK.x0 && x < LK.x1 && z > LK.z0 && z < LK.z1;
+  const terrainH = (x, z) => { const r = Math.max(Math.abs(x - CX), Math.abs(z - CZ));
+    return inLake(x, z) ? FLOOR : Math.min(RIM, FLOOR + (r - 150) * 0.2); };
+  const island = {
+    id: 'stub', bounds: { x0: -6000, z0: -6000, x1: 6000, z1: 6000 }, hydro: 'blend', terrainH, hMax: RIM,
+    WC, classAt: (x, z) => inLake(x, z) ? WC.WATER : WC.TREE, effClass: (x, z) => inLake(x, z) ? WC.WATER : WC.TREE,
+    lakes: [LK], lakeAt: (x, z) => inLake(x, z) ? 1 : -1,
+    canopyAt: () => 0, coastAt: () => 500, cellAt: () => 0, ttype: null, seaFloor: () => -10,
+    albedo: null, tint: null, ori1: null, coverU8: null, canopyU8: null, coastU8: null, ndvi: null, lake: null, canopyP90: 0,
+    farHeader: null, farRoot: null, grid: { w: 12, h: 12, cell: 1000, x0: -6000, z0: -6000 },
+    geo: { lat: 55, lon: -131, convergenceDeg: 0, tz: { std: -9, dst: 'us', name: 'AKST', dstName: 'AKDT' } },
+  };
+  const W6 = CORE.makeWorld(0, { island });
+  const bed = W6.terrainH(CX, CZ), wh = W6.waterH(CX, CZ), fill = W6.hydro.water(CX, CZ);
+  console.log(`   the bowl: floor ${f(bed, 2)} m, the record says ${f(LEVEL, 2)} m, the depression fill says ${f(fill, 2)} m (the rim)`);
+  verdict(Math.abs(fill - RIM) < 0.5, `the fill still answers the rim (${f(fill, 2)} m) - the fixture reproduces the defect it guards`);
+  verdict(Math.abs(wh - LEVEL) < 1e-6, `waterH is the RECORD'S level (${f(wh, 3)} m), not the fill's (${f(fill, 2)} m)`);
+  verdict(Math.abs(wh - bed) < 3, `the surface stands on its own bed (${f(wh - bed, 2)} m of water, not ${f(fill - bed, 1)})`);
+  // the waterline is where the bed crosses the level, not where the record's box ends
+  const bankIn = W6.waterH(CX + 140, CZ), bankOut = W6.waterH(CX + 260, CZ);
+  verdict(Math.abs(bankIn - LEVEL) < 1e-6 && !(bankOut > -1e30),
+    `the waterline is where the bed crosses the level: water at 140 m from the centre (${f(bankIn, 2)}), dry at 260 m (ground ${f(W6.terrainH(CX + 260, CZ), 1)} m)`);
+  // and the renderer's own guard would now KEEP these samples (G460.11.7 takes the
+  // median of the finite ones within 3 m of the level; all five are the level)
+  const q = [[CX, CZ], [CX - 75, CZ], [CX + 75, CZ], [CX, CZ - 75], [CX, CZ + 75]].map(p => W6.waterH(p[0], p[1]));
+  verdict(q.every(h => Number.isFinite(h) && Math.abs(h - LEVEL) < 3),
+    `the renderer's five samples all survive its 3 m guard (${q.map(h => f(h, 2)).join(' ')}) - the drawn quad IS the physics' surface`);
+}
+// ON THIS BOX ONLY: the real island, if its files are here. bench/ is gitignored
+// per machine, and a worktree has none of its own - absent, this says so and is
+// not a red; FLYDIY_BENCH points it at the checkout that baked them.
+{
+  let W7 = null;
+  try { W7 = require('./island_node.js').islandWorld('jolene'); } catch (e) { W7 = null; }
+  if (!W7) console.log('   (Jolene\'s files are not on this box - the stub above is the whole of rule 6 here; FLYDIY_BENCH=<path> to add them)');
+  else {
+    const lakes = (W7.island.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
+    // (a) every lake whose own box gives a finite surface answers ITS OWN level
+    let n = 0, bad = [], gone = 0;
+    for (const L of lakes) {
+      const cx = (L.x0 + L.x1) / 2, cz = (L.z0 + L.z1) / 2, qx = (L.x1 - L.x0) / 4, qz = (L.z1 - L.z0) / 4;
+      const hs = [[cx, cz], [cx - qx, cz], [cx + qx, cz], [cx, cz - qz], [cx, cz + qz]]
+        .map(p => W7.waterH(p[0], p[1])).filter(Number.isFinite).sort((a, b) => a - b);
+      if (!hs.length) { gone++; continue; }   // a pond the 5-level quadtree smoothed away: its bed is over its own level
+      const med = hs[hs.length >> 1];
+      if (med === 0) continue;                // a coastal pool: the SEA answers, and the renderer skips it too
+      n++; if (Math.abs(med - L.level) > 0.05) bad.push([L, med]);
+    }
+    // (b) THE HOVER, directly: over every point the cover calls water and whose
+    // bed is under its lake's level, waterH may never stand ABOVE that level -
+    // which is the defect, in the one sentence a floatplane cares about.
+    let tot = 0, ok = 0, sea = 0, other = 0, over = 0, worst = 0;
+    for (const L of lakes) for (let x = L.x0 + 5; x <= L.x1 - 5; x += 10) for (let z = L.z0 + 5; z <= L.z1 - 5; z += 10) {
+      const t = W7.terrainH(x, z);
+      if (t > L.level || W7.island.classAt(x, z) !== W7.island.WC.WATER) continue;
+      tot++; const w = W7.waterH(x, z), d = w - L.level;
+      if (Math.abs(d) <= 0.05) { ok++; continue; }
+      if (d > 0.05) { over++; if (d > worst) worst = d; } else if (w === 0) sea++; else other++;
+    }
+    console.log(`   Jolene: ${n} lakes answer their own level, ${bad.length} do not; ${gone} ponds have no basin left in the quadtree (their bed is over their own level)`);
+    console.log(`   ${tot} water points: ${ok} at their level (${f(100 * ok / Math.max(tot, 1), 2)} %), ${sea} answered the sea (a lagoon at the coast), ${other} a neighbouring record, ${over} ABOVE their level`);
+    verdict(!bad.length, `every lake on Jolene answers its own declared level${bad.length ? ' - ' + bad.length + ' do not, worst ' + f(bad[0][1], 2) + ' vs ' + f(bad[0][0].level, 2) : ''}`);
+    // NOTHING HOVERS. Two points of 73 203 do stand a little over their record:
+    // where two boxes overlap and the smaller one is a pond above the lake, the
+    // pond's level wins and the lake is 0.42 m under it. That is a bounding box
+    // being a rectangle, not the rim coming back - the rim was 6 to 23 m and
+    // thousands of points, which this bound catches on sight.
+    verdict(over <= 10 && worst <= 0.5, `${over} of ${tot} water points stand above their own record, by at most ${f(worst, 2)} m (bound: 10 points and 0.5 m - overlapping boxes; the fill's rim was 6.09 m at Skaters Lake and 23.15 m at worst)`);
+    verdict(ok / Math.max(tot, 1) > 0.97, `${f(100 * ok / Math.max(tot, 1), 2)} % of the island's lake water is exactly its record's level (bound 97 %; the rest is the coast, where the sea answers)`);
+  }
+}
+
 // the runner reads the WHOLE verdict line (GATE <ID>: PASS), not the exit code
 console.log(fails ? `\nGATE HYDRODYN: FAIL (${fails})` : '\nGATE HYDRODYN: PASS');
 process.exit(fails ? 1 : 0);

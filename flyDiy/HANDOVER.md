@@ -57222,3 +57222,80 @@ recipes come from `plot.cat` (VILLAGE_GEN.finishPlot's lotCat) - confirmed, and 
 its drums and crates; a `landmark` or a `sports` plot is dressed as an institution (no house fuel tank, no mailbox)
 instead of falling back to a home's laws, and so is a site item whose catalogue word is not one of the seven categories (the club's "airport s"). GATE LIFE holds both (an industrial and a landmark house on the synthetic
 premises). futureDesigns/SCENERY-LIFE-2026-09-23.md.
+
+## G521 — A DATA LAKE'S SURFACE IS THE DATA'S: the hydrology's rim was the physics' water (2026-09-23)
+
+REPORTED BY THE METLAKATLA SESSION, who measured three numbers at one point on Jolene's Skaters Lake before
+handing it over: `world.waterH(-3000, -8265)` = 16.19, `world.terrainH` = 10.09, and the lake's own record says
+`level: 10.1`. Their question was whose half it was. It is the terrain track's: 20_world.js and 21_world_hydro.js.
+
+THE CAUSE. The island's lakes are DATA - 317 records off the DEM, a level each. The hydrology is HANDED them
+(`cfg.lakeOf`, G413's blend) so its reaches end where a lake begins, and that much worked; but for those cells
+its own water surface stayed `filled[k]`, the priority flood's height. For a basin whose outlet is narrower
+than a bake cell (1024 over the island) the flood has nowhere to spill, so `filled` is THE RIM OF THE BOWL, not
+the water. On Skaters Lake the rim is 16.19 m and the lake is 10.1: the physics' surface stood 6.09 m over its
+own bank, across 91 % of the lake's cells.
+
+IT WAS NOT ONE LAKE. Over all 317 records the error was a median of 1.10 m, and 96 OF THEM - 30 % - were more
+than 3 m out, the worst by 23.15 m (a 1 654-cell lake at 6671,-15516) and the island's biggest lake (34 756
+cells) by 10.14 m.
+
+WHY NOBODY SAW IT FROM THE AIR. The renderer had already grown a guard against the number: G460.11.7 samples
+waterH at a lake's centre and four quarter points and keeps only those within 3 m of the declared level, else
+it falls back to `level + 0.02`. So every one of those 96 lakes was DRAWN right and only the PHYSICS rode the
+rim - a floatplane put down on Skaters Lake would have floated 6 m over the water it was drawn on, and 23 m
+over the worst. The guard treated the symptom; this is the cause, and the guard can now keep every sample it
+takes (the gate asserts exactly that).
+
+THE FIX, in two lines of rule:
+  - `HYD.riverWater(x, z)` (new): the reaches' own surfaces, WITHOUT the fill's lake level. The fill's number is
+    right for a lake the module FOUND - it filled it, it knows where it spills - and wrong for one handed in.
+  - `waterAt` on the island now asks, in order: the sea (the DEM at or under 0.05), THE LAKE'S OWN RECORD, the
+    hydrology's reaches, and last the cover's water class. The fill is not asked at all.
+THE WATERLINE IS WHERE THE BED CROSSES THE LEVEL, not where a rectangle ends: a record is a bounding box, so a
+point inside one is water only if the ground there is under the level. Where two boxes overlap, the SMALLEST
+box wins (a big low lake's box reaches across ponds on the hillside above it; taking the lowest level instead
+put 78 of 285 lakes on a neighbour's surface, measured).
+AND A LAKE'S BANK IS NOT WATER BECAUSE THE COVER SAYS SO. The cover grid is 10 m and the DEM is finer, so a
+strip of bank round most lakes is classed WATER; the old fallback floated 30 cm over it. Inside a record's box
+the record decides, and above its level the ground is dry: that alone fixed 78 lakes whose five sample points
+were all on such a strip.
+
+MEASURED AFTER (GATE HYDRODYN prints all of it): Skaters Lake answers 10.10 everywhere. Of 317 records, 239
+answer their own level exactly and 0 do not; 46 are ponds the 5-level quadtree smoothed away, whose bed now
+stands over their own level (honest: there is no basin left to hold them, and the renderer's fallback still
+draws them). Over 73 203 points that the cover calls water with the bed under the level, 98.17 % are exactly
+their record's level, 1 235 are the sea answering at a coastal lagoon, 105 take a neighbouring record where two
+boxes overlap, and TWO stand above their own record, by 0.42 m. Nothing hovers.
+
+GATE HYDRODYN GROWS RULE 6, and it runs on any box: the fixture is a STUB ISLAND - a 300 m bowl with a flat
+floor, a rim 30 m above it and no outlet, which is the exact shape that makes the fill disagree. It asserts the
+fill STILL answers the rim (so the fixture cannot go vacuous), that waterH answers the record, that the
+waterline follows the bed, and that the renderer's five samples all survive its own 3 m guard. Where Jolene's
+files are present it adds the whole-island survey above, with a bound on the hover. `tools/island_node.js`
+takes FLYDIY_BENCH so a gate in a worktree can read the checkout that baked the island - never a junction
+(a worktree removal follows one and empties the target).
+
+THE TRAP THAT COST A BOOT: the lake index was a `const` declared beside `waterAt`, and the world calls its own
+`waterH` WHILE IT IS STILL BEING MADE (the premises stage does, in the game). Every node gate passed - a gate
+calls waterH after makeWorld returns - and the game threw "Cannot access 'lakeLevelAt' before initialization"
+and never rolled out. It is built at the top of makeWorld now, with that written beside it. Same family as
+G496's dead zone; the browser is the only instrument that catches it.
+
+TWO THINGS THAT ARE NOT MINE, with the measurements, so nobody has to re-measure them:
+  - THE BLACK POLYGON the Metlakatla session reported is NOT this bug and did not change with it. A lake's
+    water column is `clamp(field * lakeK, 0, lakeCap)` = clamp(d_metres * 1.2, 0, 8) in water.js, and the field
+    is signed METRES from the bank: every point more than 6.7 m inside ANY lake is painted as 8 m of water. A
+    310 x 300 m lake is therefore at the cap over all but a 7 m rim - uniform, near-black, with a hard edge
+    exactly where the fade ends, which is what they described. That is the water session's knob, not the
+    terrain's; a depth that grew with the lake's size rather than saturating at 6.7 m from shore is what would
+    give it a gradient.
+  - THE PREMISES QUESTION they asked - should a premises refuse to grade within N m of a lake, or should the
+    lake follow? THE LAKE DOES NOT FOLLOW. Its level is data; a grade that digs below it is under water, and
+    now the field says so honestly (the waterline is the bed crossing the level). So the rule for the premises
+    author is a FREEBOARD, not an exclusion zone: a graded road may not lower the ground below a lake's level
+    within the lake's box plus the grade's falloff. Anything else floods the road, and the flooding is correct.
+
+GATE HYDRODYN, WATER, SPLAT, PREMISES, PAVEMENT, ANIMALS, FLOATS, WIPLINE green. GATE SEAPLANE is RED and was
+red before this - the same three lines with the same numbers (69.8 m off the lane, 180 deg of heading swing) on
+master's own core, checked by running the gate against it; it is the seaplane track's, not this landing's.
