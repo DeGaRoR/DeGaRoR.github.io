@@ -367,6 +367,111 @@ def cleared_share(x0, z0, x1, z1):
 
 
 
+# ---- the wood the user drew, in the town's own gaps ---------------------------
+# The user, over two game screenshots with three closed red loops on them: "Just
+# spawn some medium canopy forest in the zones highlighted in red in my screenshots,
+# that's all. Normal conifers from the forest, just not too tall."
+#
+# READ OFF A GAME SCREENSHOT, which has no coordinate grid: `met_axes.py --pixels
+# --shape region` traces each loop in the picture's own 0..1 coordinates, and the
+# game then UNPROJECTS them - the shot's camera restored exactly (the same teleport
+# and the same camSet), a ray cast through each point, marched against world.terrainH
+# at 2 m and bisected. That is the instrument for any future "this bit here" drawn on
+# a screenshot rather than on a trace.
+#
+# A `forest` ZONE, not a ttype stamp. The island's own fill is driven by the terrain
+# type AND gated on world.surface being FOREST_FLOOR or GRASS - and inside a town the
+# cover map says BUILT over about a third of the ground, which is exactly where these
+# three patches are. So the stamp could not reach them. planForest plants into the
+# record instead: it steps round every plot, every road and every exclude by
+# construction, which is what these gaps are between.
+MK_WOOD = [
+    # 10.67 ha
+    [(-4012.9, -8014), (-3921.9, -8019.2), (-3833, -8017.3), (-3743.1, -8000.3), (-3645.7, -7970.9), (-3634.6, -8255), (-3581.2, -8260.8), (-3518.8, -8249.8), (-3583.6, -8358.8), (-3625.8, -8360.8), (-3664.6, -8355), (-3688.5, -8243), (-3746, -8237.8), (-3803.3, -8243.6), (-3860.3, -8243.7), (-3925, -8225.9), (-3990.6, -8215.3), (-4055.1, -8210.2), (-3990.6, -8215.3), (-4121.4, -7981), (-4012.9, -8014)],
+    # 0.38 ha
+    [(-3889.9, -8444.8), (-3860.6, -8446.7), (-3884.2, -8404.6), (-3849.9, -8405.7), (-3832.1, -8448.1), (-3804, -8449.2), (-3775.8, -8452.8), (-3748.7, -8454.6), (-3772.2, -8480.5), (-3749.1, -8484.6), (-3722.5, -8458.9), (-3696.2, -8459.3), (-3704.3, -8486.1), (-3709.3, -8503.3), (-3690.2, -8505.2), (-3682.5, -8487.6), (-3662.1, -8490.4), (-3646.8, -8464.4), (-3670.6, -8460.9), (-3696.2, -8459.3), (-3722.5, -8458.9), (-3748.7, -8454.6), (-3748.2, -8415.1)],
+    # 1.46 ha
+    [(-3731.8, -8673.6), (-3724.7, -8607.7), (-3759.5, -8534.5), (-3799.8, -8519.4), (-3786, -8484), (-3821.4, -8470.5), (-3807.7, -8445.7), (-3825.6, -8414.2), (-3796.3, -8425), (-3767.2, -8435.6), (-3775.6, -8457.1), (-3743.6, -8467.5), (-3715.4, -8510.8), (-3680.7, -8521.7), (-3679.6, -8563.6), (-3640.5, -8576.6)],
+]
+
+
+# Normal conifers, and the palette names COLLECTIONS rather than subjects (a tree's
+# key is `<collection>|<subject>` and no author can know the subject names).
+MK_WOOD_TREES = ['spruce_tree.glb', 'realistic_fir_trees_pack_lods_gameready.glb',
+                 'fir_tree_georgeous.glb', 'pine_georgeous.glb', 'larch_tree.glb']
+
+
+def simple_ring(g):
+    """A traced loop, made SIMPLE, or the whole thing is dropped in silence.
+
+    The unprojection marches a ray against the terrain, and where a ray grazes a roof
+    or a bank two consecutive points land out of order - so two of the three loops
+    the user drew crossed themselves, and `compose` refuses a self-crossing polygon
+    without a word (`polySimple`). Crossing vertices are shaved first; if that will
+    not settle it, the ring is re-ordered by ANGLE about its own centroid, which is
+    right for a blob somebody drew round a patch of ground and wrong for nothing they
+    are likely to draw.
+    """
+    seen, g2 = set(), []
+    for q in g:
+        k = (round(q[0], 1), round(q[1], 1))
+        if k in seen:
+            continue
+        seen.add(k)
+        g2.append([q[0], q[1]])
+    g = g2
+    for _ in range(len(g)):
+        k = first_crossing(g)
+        if k < 0:
+            return g
+        del g[k]
+        if len(g) < 5:
+            break
+    cx = sum(q[0] for q in g) / len(g)
+    cz = sum(q[1] for q in g) / len(g)
+    ang = sorted(g, key=lambda q: math.atan2(q[1] - cz, q[0] - cx))
+    if first_crossing(ang) < 0:
+        return ang
+    # AN ANGULAR SORT NEEDS A STAR SHAPE and the biggest loop is a long band across
+    # the back of the town - 600 m by 390 - which is not one. So: find the band's own
+    # long axis, walk the points along it, and build the ring as the upper edge out
+    # and the lower edge back. That is simple by construction for anything longer
+    # than it is wide, which is what a band drawn behind a row of houses is.
+    # A RAY THAT MISSES LEAVES A HOLE. The march returns nothing where a ray grazes a
+    # roof or leaves the terrain, and those points are dropped - so the biggest loop
+    # came back as two long chains 280 m apart with the joins between them missing,
+    # which no re-ordering of a broken cycle can mend. It IS a band, though: fit its
+    # MIDLINE, put every point above the line on one side and below it on the other,
+    # walk each side along the band, and the ring closes by construction.
+    n = float(len(g))
+    sxx = sum((q[0] - cx) ** 2 for q in g) or 1.0
+    sxz = sum((q[0] - cx) * (q[1] - cz) for q in g)
+    a = sxz / sxx                               # z = cz + a (x - cx)
+    lo = sorted((q for q in g if q[1] - (cz + a * (q[0] - cx)) < 0), key=lambda q: q[0])
+    up = sorted((q for q in g if q[1] - (cz + a * (q[0] - cx)) >= 0), key=lambda q: q[0])
+    if len(lo) < 2 or len(up) < 2:
+        return None
+    ring = lo + up[::-1]
+    return ring if len(ring) >= 4 and first_crossing(ring) < 0 else None
+
+
+def wood_zones():
+    out = []
+    for i, g0 in enumerate(MK_WOOD):
+        g = simple_ring(g0)
+        if g is None or len(g) < 4:
+            DROPPED.append(('mk_z_wood%d' % i, 'the traced loop will not come simple'))
+            continue
+        out.append({'id': 'mk_z_wood%d' % i, 'kind': 'forest', 'poly': [pt(*q) for q in g],
+                    'density': 0.7, 'palette': list(MK_WOOD_TREES),
+                    # `size` 0.62 is the medium canopy asked for: the same species grown
+                    # less, not a different species. `clearings: False` because these are
+                    # small patches and a clearing law would empty one of them entirely.
+                    'rules': {'size': 0.62, 'clearings': False, 'trees': True}})
+    return out
+
+
+
 # ---- the street grid, pulled off the registered views (met_streets.py) -------
 # (x0, z0, x1, z1, family): A = the named cross streets, C = the numbered avenues
 STREETS = [
@@ -1376,6 +1481,7 @@ def zones():
     env = hull([(a, b) for a, b, c, d, f in STREETS] + [(c, d) for a, b, c, d, f in STREETS], 44)
     if env:
         out.append({'id': 'mk_z_town', 'kind': 'residential', 'poly': env, 'density': 0.62})
+    out += wood_zones()
     return out
 
 

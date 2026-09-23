@@ -462,6 +462,22 @@ function sowPlots(zone, roads, ctx) {
   const plots = [];
   const all = () => ctx.plots.concat(plots);
   const rejectAt = (x, z) => !inPoly(zone.poly, x, z) || ctx.excludes.some(p => inPoly(p, x, z)) || (ctx.keepOut || []).some(p => inPoly(p, x, z));
+  // A PLOT MAY NOT LIE ON A ROAD THAT IS NOT ITS OWN (2026-09-23, the user, of three
+  // houses in the carriageway: "Some houses are drawn over the roads. Not what we
+  // want..."). The sower cut a plot against the road it FRONTS and against nothing
+  // else, so a plot at a junction ran its side or its back into the crossing street:
+  // at Metlakatla 166 of 510 plots overlapped another road, up to 3.1 m inside the
+  // carriageway, and a house stands where its plot is. The margin is half a metre
+  // over the kerb - a garden may touch the road it fronts and may not touch another.
+  const onOtherRoad = (q, own) => {
+    for (const rd of roads) {
+      if (rd.id === own) continue;
+      const half = (rd.w || 3.6) / 2 + 0.5;
+      if (q.some(c => roadDist(rd, c[0], c[1]) < half)) return true;
+      if (roadInPoly(polyRoad(rd.pts, rd.w || 3.6), q).length) return true;   // it runs THROUGH the plot
+    }
+    return false;
+  };
   for (const road of roads) {
     const rd = polyRoad(road.pts, road.w || 3.6);
     if (rd.length < 40) continue;
@@ -512,7 +528,7 @@ function sowPlots(zone, roads, ctx) {
           for (let cut = 0; depth - cut >= dMin && !ok; cut += 2) {
             back(cut);
             const q = [f0, f1, b1, b0];
-            ok = !all().some(p => polysOverlap(p.poly, q)) && !q.some(c => rejectAt(c[0], c[1]));
+            ok = !all().some(p => polysOverlap(p.poly, q)) && !q.some(c => rejectAt(c[0], c[1])) && !onOtherRoad(q, road.id);
           }
           if (!ok) continue;
           be = [b1[0] - b0[0], b1[1] - b0[1]];
@@ -561,7 +577,12 @@ function planForest(zone, ctx) {
   // ctx = { T, waterY, seed, excludes, plots, roads: [{pts, w}], pool: [{key, size, sink, proportion, h}], trees: [existing] }
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0.05, 3);
   const step = 6 / Math.sqrt(density);
-  const pool = (zone.palette && zone.palette.length ? ctx.pool.filter(p => zone.palette.indexOf(p.key) >= 0) : ctx.pool);
+  // A PALETTE ENTRY MAY NAME A COLLECTION, not only a subject. A tree's key is
+  // `<collection>|<subject>` and an author has no way to know the subject names, so
+  // 'spruce_tree.glb' selects every spruce in the pack. An exact key still matches.
+  const pool = (zone.palette && zone.palette.length
+    ? ctx.pool.filter(p => zone.palette.some(k => p.key === k || String(p.key).indexOf(k + '|') === 0))
+    : ctx.pool);
   const list = pool.length ? pool : [{ key: 'stub|tree', size: 1, sink: 0, proportion: 1, h: 12 }];
   const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
   const rnd = mulberry32(zoneSeed);
@@ -581,7 +602,10 @@ function planForest(zone, ctx) {
     if (ctx.excludes.some(p => inPoly(p, px, pz))) continue;
     if (!clearOf(px, pz, Math.min(3.2, step * 0.55))) continue;
     const p = draw();
-    const size = (p.size || 1) * (0.82 + rnd() * 0.4);
+    // `rules.size` scales the stand (2026-09-23, the user: "normal conifers from the
+    // forest, just not too tall"): a MEDIUM canopy is the same species grown less.
+    const sizeK = zone.rules && zone.rules.size !== undefined ? +zone.rules.size : 1;
+    const size = (p.size || 1) * (0.82 + rnd() * 0.4) * sizeK;
     trees.push({ x: px, z: pz, key: p.key, size, yaw: rnd() * Math.PI * 2, sink: p.sink || 0, h: (p.h || 12) * size / (p.size || 1), zone: zone.id });
   }
   return trees;
