@@ -57843,3 +57843,16 @@ sink 1.28). PILOTMATRIX quick and GATE PILOT: output byte-identical to 1e74ca1b'
 Left for the strip's owner: the hold a quarter in costs the cub 37 m of its 150; a short-field departure
 would backtrack to the threshold (25_airfield sitePattern kIn), which would turn an 8 m lift-off margin
 into ~40 m.
+
+## G527.2 - A SHORT STRIP'S WAY OUT HOLDS WHERE IT JOINS (2026-09-23)
+
+- After G531 (the reserve scaled to the field) the cub departed East Point with 8 m to spare: lift-off at
+  104 m of the 112 ahead. The strip's declared way out meets the centreline 8 m from the threshold, and the
+  route then rolled FORWARD 29 m to G527's generic hold a quarter in (the pilot session's measure).
+- sitePattern, the taxiOut branch: under 300 m, an entry nearer the threshold than hold0 gets its own hold
+  `hold0s` one fillet (12 m) past the entry, and out[0] ends there; the c0 -> hold0 arc is kept, back[]
+  routes are unchanged. East Point holds 20 m in (was 37.5). HOME, w3 and mn_strip keep hold0 (checked:
+  out[0] unchanged, sitePatternIssues [] on all four).
+- FLOWN (pilot_trace cub --world jolene --from nv_strip --stand --to HOME, on G531): take-off run 104 m,
+  ~26 m to spare, committed at 11.5 m/s with 84 m left, completed at HOME, no go-around.
+- GATES (targeted): SITE, WORLD, PREMISES green. FILES: src/core/25_airfield.js.

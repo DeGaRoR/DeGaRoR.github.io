@@ -599,7 +599,19 @@ function sitePattern(aero, site) {
     const ex = R.cx + d[0] * along, ez = R.cz + d[1] * along;
     const c0 = add('c0', [ex, ez], 'taxi', { r: GP_FILLET });
     link(prev, c0); link(c0, holds[0]);
-    routes.out[0] = [st].concat(ids, [c0, holds[0]]);
+    // A SHORT STRIP'S WAY OUT HOLDS WHERE IT JOINS (G527.2, the pilot session's G531 measure: the cub off
+    // East Point lifted at 104 m of the 112 ahead - the declared way out met the centreline 8 m from the
+    // threshold and the route then rolled FORWARD 29 m to the generic hold a quarter in). Under 300 m, an
+    // entry nearer the threshold than that hold holds one fillet past the entry instead (the turn onto the
+    // centreline needs its radius of straight); longer strips and later entries keep hold0 to the bit
+    const inEntry = along + lenR / 2, inHold = GP_HOLD_IN * kIn;
+    if (lenR < 300 && inEntry + GP_FILLET < inHold) {
+      const hs = add('hold0s', at(ex, ez, d, GP_FILLET), 'hold', { hdg: Math.atan2(d[1], d[0]) });
+      link(c0, hs);
+      routes.out[0] = [st].concat(ids, [c0, hs]);
+    } else {
+      routes.out[0] = [st].concat(ids, [c0, holds[0]]);
+    }
     const c1 = add('c1', at(ex, ez, n, laneSg * lane), 'taxi', { r: GP_FILLET });
     link(prev, c1); link(c1, 'l1a');
     routes.out[1] = [st].concat(ids, [c1]).concat(routes.back[1]);
