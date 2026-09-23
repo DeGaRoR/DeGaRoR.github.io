@@ -94,7 +94,22 @@ const LOT_GROUND = (() => {
     // and the beige street of an Alaskan village they read as astroturf. (saturation, value, warmth):
     // the saturation pulled toward the luma, the value down a touch, a little warmth back in so the
     // lawn keeps its life. LOT_GROUND.grade(s, v, w) moves it live (the A/B is one step).
-    uLawn: { value: new THREE.Vector3(0.70, 0.93, 0.5) },
+    // THE LAWN'S GRADE (2026-09-23, the user over Metlakatla from the air: "we have to
+    // change the plot grass luminosity/tint to match better the tone of the island ...
+    // It's pale bright green against dark intense green around. There should be a
+    // difference, but not that big"). MEASURED with LOT_GROUND.grade() as a four-step
+    // ladder from one boot, the lawn's own pixels found as the ones the grade moves and
+    // the island's wood as the green it cannot, both in linear light:
+    //     0.70 / 0.93 / 0.50   lawn luma 0.199  sat 0.34   2.08x the wood   (was)
+    //     0.80 / 0.80 / 0.35   lawn luma 0.172  sat 0.38   1.79x
+    //     0.88 / 0.72 / 0.25   lawn luma 0.159  sat 0.41   1.66x
+    //     0.95 / 0.64 / 0.15   lawn luma 0.146  sat 0.44   1.52x            (now)
+    // The wood sits at luma 0.096, sat 0.37. At the old grade a lawn was twice the
+    // wood's brightness and two thirds its saturation - bright and washed out, which is
+    // exactly "pale bright green". At the new one it is half again as bright and a
+    // shade MORE saturated, which is what mown grass is beside a conifer stand: still
+    // plainly a garden from the air, no longer a light box cut into the island.
+    uLawn: { value: new THREE.Vector3(0.95, 0.64, 0.15) },
   };
   m.onBeforeCompile = sh => {
     for (const k in U) sh.uniforms[k] = U[k];

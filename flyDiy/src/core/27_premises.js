@@ -1111,7 +1111,18 @@ function compose(rec0, world, opts) {
   // the ISLAND itself derives (12 cliff, 13 forest old, 14 scrub dense) are not
   // stamped either: they are a slope and a canopy, not a polygon.
   const ttypes = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && isFinite(+c.code))
-    .map(c => ({ id: c.id, poly: c.poly, bbox: polyBBox(c.poly), code: Math.round(+c.code) }));
+    .map(c => ({ id: c.id, poly: c.poly, bbox: polyBBox(c.poly), code: Math.round(+c.code),
+                 // `from` (contract v1.22): the codes this stamp is allowed to REPLACE. Without it a
+                 // stamp is flat and paints the bog, the rock and the beach the same as the wood;
+                 // with it, a belt of `forest old` thickens the scrub and the young wood and leaves
+                 // the muskeg a muskeg, which is the difference between a terrain type and a blanket.
+                 from: Array.isArray(c.from) && c.from.length ? c.from.map(v => Math.round(+v)) : null,
+                 // `clear` (contract v1.22): stamp only the cells this premises leaves OPEN -
+                 // no plot, no road ribbon, no site footprint, no paved surface. It is what
+                 // lets a terrain type mean "the ground between the buildings": a residential
+                 // wood may fill a town's gaps without standing a conifer on a roof, because
+                 // the island's own tree fill knows nothing at all about a premises.
+                 clear: c.clear === true }));
   let ext = rec.frame.extent;
   if (!ext) {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -1148,6 +1159,16 @@ function compose(rec0, world, opts) {
           const L = F.toLocal(g.x0 + (i + 0.5) * g.cell, g.z0 + (j + 0.5) * g.cell);
           if (!inPoly(c.poly, L[0], L[1])) continue;
           const k = j * g.w + i;
+          // `from` (contract v1.22): this stamp may replace only the codes it names
+          if (c.from && c.from.indexOf(T[k]) < 0) continue;
+          if (c.clear) {
+            const cx = g.x0 + (i + 0.5) * g.cell, cz = g.z0 + (j + 0.5) * g.cell;
+            const lc = F.toLocal(cx, cz);
+            if (O.records.plots.some(q => sdPoly(q.poly, lc[0], lc[1]) < 3)) continue;
+            if (roadObjs.some(rd => roadDist(rd, lc[0], lc[1]) < (rd.w || 3.6) / 2 + 4)) continue;
+            if (O.records.items.some(it => it.foot && sdPoly(it.foot, lc[0], lc[1]) < 4)) continue;   // a foot is in the PREMISES frame, like the roads and the plots
+            if (pavePolys.some(pp => inPoly(pp.poly, lc[0], lc[1]))) continue;
+          }
           // OPEN WATER IS NOT A PLACE'S TO PAINT - but a MOLE is. A cell the
           // island calls sea or lake is skipped unless this premises has raised
           // it clear of the water, which is exactly the breakwater case: the
@@ -1163,7 +1184,11 @@ function compose(rec0, world, opts) {
           T[k] = c.code;
         }
       }
-      return () => { for (let n = 0; n < saved.length; n += 2) T[saved[n]] = saved[n + 1]; };
+      // BACKWARD, and it matters: two stamps may cover the same cell (a lush verge
+      // crossing another's), and the second one saved what the FIRST had written.
+      // Unwound forward, the cell ends up holding the first stamp's code instead of
+      // the island's own byte - an undo that quietly does not undo.
+      return () => { for (let n = saved.length - 2; n >= 0; n -= 2) T[saved[n]] = saved[n + 1]; };
     },
     terrainH(x, z, h) {
       if (!mods.length) return h;
@@ -1405,10 +1430,62 @@ function compose(rec0, world, opts) {
       }
       O.n = mods.length;
     }
-    const pool = o.pool || [];
+    // the tree pool, from a caller that hands the list or the function that makes it
+    // (the renderer passes `o.pool()`, some callers pass `pool: () => []`); planForest
+    // only ever indexed it and never noticed, the garden pass filters it and did
+    const pool = (typeof o.pool === 'function' ? o.pool() : o.pool) || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes, plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
       for (const t of planForest(z, Object.assign({}, tctx, { waterY: zoneWaterY(z) }))) O.records.trees.push(t);
+    // THE GARDEN TREES (stage 5e, contract v1.22). The village has planted them since G313/G323 and
+    // the premises never did: planForest steps AROUND every plot, so a sown quarter came out as bare
+    // roofs on bare ground with the wood stopping at the back fence. Two rules, both the village's:
+    //   - a plot with NO pick is an empty lot, and the wood comes down through it (G313, the user:
+    //     "The empty lots should be full of trees like the forest") - the wood's own grid, no clearing;
+    //   - a plot that IS built keeps its garden: nought to three of the SMALL species in the back band,
+    //     clear of the house's envelope, which is the front of the plot (the house is placed there by
+    //     VILLAGE_GEN.placeHouse at build time and its footprint is not known here - so the band is the
+    //     back 30 % of the depth, which is a yard in any town ever drawn).
+    // A zone switches them off with `rules.trees: false`; `rules.gardens` overrides the count.
+    {
+      const small = pool.filter(t => (t.h || 12) < 12), any = pool.length ? pool : [{ key: 'stub|tree', size: 1, sink: 0, proportion: 1, h: 12 }];
+      const GARDENS = { residential: 4, commercial: 2, harbour: 2, industrial: 0, park: 0 };
+      const drawFrom = (list, rnd) => { const L = list.length ? list : any; const tot = L.reduce((a, t) => a + (t.proportion || 1), 0); let r = rnd() * tot; for (const t of L) { r -= (t.proportion || 1); if (r <= 0) return t; } return L[L.length - 1]; };
+      const roadNear = (x, z) => { let d = 1e9; for (const r of roadObjs) d = Math.min(d, roadDist(r, x, z) - (r.w || 3.6) / 2); return d; };
+      const free = (x, z, m) => O.records.trees.every(t => Math.hypot(t.x - x, t.z - z) >= m);
+      const ok = (x, z, m) => O.localH(x, z) >= waterY + 0.6 && roadNear(x, z) >= 4 && !ctx.excludes.some(q => inPoly(q, x, z)) && free(x, z, m);
+      const put = (x, z, t, rnd, k) => { const size = (t.size || 1) * k; O.records.trees.push({ x, z, key: t.key, size, yaw: rnd() * Math.PI * 2, sink: t.sink || 0, h: (t.h || 12) * size / (t.size || 1), garden: true }); };
+      for (const p of O.records.plots) {
+        const z0 = rec.layers.zones.find(q => q.id === p.zone) || {};
+        const R = z0.rules || {};
+        if (R.trees === false) continue;
+        const rnd = mulberry32(hash32(p.seed >>> 0, 0x6a09e667));
+        if (!p.pick) {
+          // the empty lot is forest: the wood's grid, a stride inside the plot line
+          const bb = polyBBox(p.poly);
+          for (let zz = bb.z0; zz <= bb.z1; zz += 4.5) for (let xx = bb.x0; xx <= bb.x1; xx += 4.5) {
+            const px = xx + (rnd() - 0.5) * 3.2, pz = zz + (rnd() - 0.5) * 3.2;
+            if (sdPoly(p.poly, px, pz) > -1.2) continue;
+            if (!ok(px, pz, 2.8)) continue;
+            put(px, pz, drawFrom(small, rnd), rnd, 0.82 + rnd() * 0.4);
+          }
+          continue;
+        }
+        const want = R.gardens === undefined ? GARDENS[p.kind] : +R.gardens;
+        if (!(want > 0) || !p.front || !p.n || !p.tg) continue;
+        const n = Math.floor(rnd() * (want + 0.2));
+        const dep = p.depth || 24, wid = p.w || 20;
+        for (let i = 0, got = 0; i < 60 && got < n; i++) {
+          const u = (rnd() - 0.5) * Math.max(2, wid - 5);                 // along the frontage
+          const v = dep * (0.70 + rnd() * 0.26);                          // the back band, inside the line
+          const px = p.front[0] + p.tg[0] * u + p.n[0] * v, pz = p.front[1] + p.tg[1] * u + p.n[1] * v;
+          if (sdPoly(p.poly, px, pz) > -1.8) continue;
+          if (!ok(px, pz, 3.2)) continue;
+          put(px, pz, drawFrom(small, rnd), rnd, 0.7 + rnd() * 0.4);
+          got++;
+        }
+      }
+    }
     // the hand-placed trees (objects of kind 'tree'), in the premises frame, TREE_PLACE's record
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') O.records.trees.push({ x: ob.x, z: ob.z, key: ob.key, size: ob.size || 1, yaw: ob.yaw || 0, sink: 0, h: 12, id: ob.id, placed: true });
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
@@ -1482,7 +1559,7 @@ function issues(rec0) {
   for (const c of rec.layers.ttype) {
     if (!c.poly || c.poly.length < 3) out.push('ttype ' + c.id + ': needs a polygon');
     const code = Math.round(+c.code);
-    if (!isFinite(code) || code < 2 || code > 15) out.push('ttype ' + c.id + ': code ' + c.code + ' is not a terrain type a place may stamp (2..15)');
+    if (!isFinite(code) || code < 2 || code > 16) out.push('ttype ' + c.id + ': code ' + c.code + ' is not a terrain type a place may stamp (2..16)');
     else if (code === 12 || code === 13 || code === 14) out.push('ttype ' + c.id + ': ' + code + ' is DERIVED from slope and canopy, not stamped');
   }
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
@@ -1618,7 +1695,7 @@ function checks(rec0, world, opts) {
     put(ok, ok ? P.length + ' plots sown: none overlap, all in their zone' : why);
   }
   const Tn = O.records.trees;
-  if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || P.some(p => inPoly(p.poly, t.x, t.z)))), Tn.length + ' trees: none in an exclude or a plot');
+  if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || (!t.garden && P.some(p => inPoly(p.poly, t.x, t.z))))), Tn.length + ' trees: none in an exclude, none but a GARDEN tree on a plot');
   // the sites (rules 3 and 9): every item resolved, every link solved
   if (O.records.items.some(i => !i.park) || rec.layers.sites.length) {
     const want = rec.layers.sites.reduce((a, st) => a + (st.items || []).length, 0);

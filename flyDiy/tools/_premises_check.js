@@ -325,7 +325,9 @@ for (const fx of fixtures) {
     const Tn = O1.records.trees;
     if (rec.layers.zones.some(z => z.kind === 'forest')) {
       check(Tn.some(t => !t.placed), '11 ' + fx + ' the forest plants trees');
-      const bad = Tn.find(t => !t.placed && (ex.some(e => PG.inPoly(e, t.x, t.z)) || P.some(q => PG.inPoly(q.poly, t.x, t.z)) || O1.roads.some(r => PG.roadDist(r, t.x, t.z) < r.w / 2 + 2.9)));
+      // a GARDEN tree (contract v1.22) is ON a plot on purpose - that is the whole of
+      // it; everything else the rule says still holds for it
+      const bad = Tn.find(t => !t.placed && (ex.some(e => PG.inPoly(e, t.x, t.z)) || (!t.garden && P.some(q => PG.inPoly(q.poly, t.x, t.z))) || O1.roads.some(r => PG.roadDist(r, t.x, t.z) < r.w / 2 + 2.9)));
       check(!bad, '11 no forest tree in an exclude, a clear zone, a plot or a road', bad ? bad.x.toFixed(1) + ',' + bad.z.toFixed(1) : '');
     }
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') check(Tn.some(t => t.placed && t.id === ob.id && t.x === ob.x), '11 tree ' + ob.id + ' is planted where it was put');
@@ -877,6 +879,86 @@ if (SELFTEST) {
       else if (st.nan) broke.push(r.key + ': ' + st.nan + ' NaN vertices');
     }
     check(broke.length === 0, '14m every placed item builds and publishes a lamp LIST', [...new Set(broke)].slice(0, 5).join(' / '));
+    // 14n NOTHING THAT STANDS IN THE WATER TAKES LOT DRESSING. render_premises
+    // dresses a hand-placed item like a plot - lot ground, a drive, a car and a
+    // FENCE - for every category but sports and landmark, and the user found a
+    // fence round a pier. An entry refuses with `lot: false`; the renderer must
+    // honour it, and must also refuse one to anything standing on a DECK, whose
+    // lot would be laid on the seabed under it.
+    const noLot = (GENS.MARINE_GEN && GENS.MARINE_GEN.CATALOGUE || []).filter(e => e.lot !== false);
+    check(noLot.length === 0, '14n every marine entry refuses a lot', noLot.map(e => e.key).join(', '));
+    const RP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+    check(/entry\.lot === false/.test(RP) && /isFinite\(it\.P\.floorOverWater\)/.test(RP),
+          '14n the renderer honours lot:false and refuses a lot over water');
+    // 14o THE ttype STAMP'S `from` FILTER, and the undo under OVERLAP. Two stamps
+    // may cover one cell, and the second one saved what the FIRST had written:
+    // unwound forwards the cell keeps the first stamp's code for ever.
+    if (IW.island && IW.island.ttype) {
+      const g = IW.island.grid, T = IW.island.ttype;
+      const at = (x, z) => T[Math.round((z - g.z0) / g.cell - 0.5) * g.w + Math.round((x - g.x0) / g.cell - 0.5)];
+      const box = (cx, cz, r) => [[cx - r, cz - r], [cx + r, cz - r], [cx + r, cz + r], [cx - r, cz + r]];
+      const two = PG.normalise(JSON.parse(JSON.stringify(rec)));
+      const C = [-3500, -8450];
+      two.layers.ttype = [{ id: 'kA', poly: box(C[0], C[1], 120), code: 8, from: [7] },
+                          { id: 'kB', poly: box(C[0], C[1], 120), code: 15 }];
+      const was = [];
+      for (let z = C[1] - 110; z < C[1] + 110; z += 10) for (let x = C[0] - 110; x < C[0] + 110; x += 10) was.push(at(x, z));
+      const O2 = PG.compose(two, IW, { catalogue: CAT, globals: GENS });
+      const un = O2.stampTtype(IW.island);
+      let only7 = true, all15 = true, i = 0;
+      for (let z = C[1] - 110; z < C[1] + 110; z += 10) for (let x = C[0] - 110; x < C[0] + 110; x += 10) {
+        const now = at(x, z), old = was[i++];
+        if (old >= 2 && now !== 15) all15 = false;                       // the unfiltered stamp takes every land cell
+        if (old < 2 && now !== old) only7 = false;                       // and neither stamp touches the water
+      }
+      check(all15 && only7, '14o a ttype stamp takes the land it covers and leaves the water');
+      if (un) un();
+      let back = true; i = 0;
+      for (let z = C[1] - 110; z < C[1] + 110; z += 10) for (let x = C[0] - 110; x < C[0] + 110; x += 10) if (at(x, z) !== was[i++]) back = false;
+      check(back, '14o two OVERLAPPING stamps undo exactly (the unwind runs backwards)');
+      const one = PG.normalise(JSON.parse(JSON.stringify(rec)));
+      one.layers.ttype = [{ id: 'kA', poly: box(C[0], C[1], 120), code: 8, from: [7] }];
+      const O3 = PG.compose(one, IW, { catalogue: CAT, globals: GENS });
+      const u3 = O3.stampTtype(IW.island);
+      let kept = true; i = 0;
+      for (let z = C[1] - 110; z < C[1] + 110; z += 10) for (let x = C[0] - 110; x < C[0] + 110; x += 10) {
+        const old = was[i++], now = at(x, z);
+        if (old === 7 ? now !== 8 : now !== old) kept = false;
+      }
+      check(kept, "14o `from` replaces only the codes it names");
+      if (u3) u3();
+    }
+    // 14p THE GARDEN TREES (contract v1.22): a town of sown plots is not a town of
+    // bare roofs on bare ground. Every plot with a pick may have them; a plot with
+    // none is an empty lot and the wood comes down through it; a zone switches them
+    // off with `rules.trees: false`.
+    const gard = O.records.trees.filter(t => t.garden);
+    check(gard.length > 200, '14p the plots have their gardens', gard.length + ' garden trees on ' + O.records.plots.length + ' plots');
+    const onPlot = gard.filter(t => O.records.plots.some(q => PG.inPoly(q.poly, t.x, t.z)));
+    check(onPlot.length === gard.length, '14p every garden tree stands on its plot', (gard.length - onPlot.length) + ' loose');
+    const offRoad = gard.every(t => !O.roads.some(r => PG.roadDist(r, t.x, t.z) < r.w / 2 + 1));
+    check(offRoad, '14p and none of them in the carriageway');
+    // 14q THE GROUND UNDER A DISTANT PLACE. The inner ring is a fixed 9 km square
+    // about the ORIGIN, and it is the only tier that has ever heard of a premises:
+    // `world.terrainH` for its vertices, `groundSink` to drop it under the patch.
+    // Everything past 4.5 km is the baked quadtree at its raw DEM height, and
+    // Metlakatla is 9.4 km out - so the town's road cuts were drawn into ground
+    // nothing rendered, and the un-cut mesh stood through every ribbon and every
+    // lot patch. The far tier must sink too.
+    const RW = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_world.js'), 'utf8');
+    check(/function sinkFar\s*\(/.test(RW) && /farGeos\.push\(/.test(RW),
+          '14q the island far mesh is kept and sinks under the premises patch');
+    check(/sinkFar\(pb\)/.test(RW) && /refreshGround\(pb\); sinkFar\(pb\)/.test(RW),
+          '14q ...and the sink runs where the rings are re-sampled, after the patch stands');
+    check(/const d = groundSink\(x, z\);/.test(RW), "14q the far sink uses the RING's own rule, not a second one");
+    // a place FAR from the origin is exactly the case the ring cannot serve
+    const far = O.extent && Math.max(Math.abs(O.extent.z0), Math.abs(O.extent.z1)) > 4500;
+    check(far, '14q island_jolene reaches past the inner ring (the case 14q exists for)',
+          O.extent ? 'z ' + O.extent.z0.toFixed(0) + '..' + O.extent.z1.toFixed(0) : '');
+    const noTrees = PG.normalise(JSON.parse(JSON.stringify(rec)));
+    for (const z of noTrees.layers.zones) z.rules = Object.assign({}, z.rules, { trees: false });
+    check(PG.compose(noTrees, IW, { catalogue: CAT, globals: GENS }).records.trees.filter(t => t.garden).length === 0,
+          "14p rules.trees: false plants none");
   }
 }
 

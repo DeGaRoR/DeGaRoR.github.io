@@ -55874,3 +55874,138 @@ LOT_GROUND.grade(s, v, w) - the A/B is one step in one boot.
   equivalent - `totem/park`'s clan house stands in); the fuel tanks, the ferry linkspan and the quarry
   (deferred by the user); and the civic buildings by the user's eye - they are placed from the
   registered close views to about +-10 m, and the residential fabric is sown, not placed.
+
+## G511 — METLAKATLA, THE SECOND DAY: THE TOWN BY THE USER'S OWN HAND, AND THE CLIPPING THAT WAS NEVER THE ROAD'S
+
+Everything here came from the user looking at the town from the air and **drawing on the picture**.
+The reusable half of it is `tools/met_axes.py`, which reads an annotation back into game coordinates,
+so a correction arrives as a measurement rather than as a description of one.
+Full account: `futureDesigns/METLAKATLA-2026-09-22.md` §8-16. Contract: v1.22.
+
+### The clipping, and why it was everywhere (the priority, and it was not the road's)
+
+The user: *"terrain clips through roads all the time, and that's unacceptable"*, then *"but also plot
+textures clipping"*. **One bug.** The INNER RING is a fixed 9 km square about the ORIGIN (`INNER
+4500`) and it is the only ground tier that has ever heard of a premises: its vertices are
+`world.terrainH` — composed, so a road's cut is in them — and `groundSink` drops it 4 m wherever the
+premises' own 2 m patch covers. Everything past 4.5 km is the baked quadtree at its **raw DEM
+height**: `y = n.h[...]`, no modifier, no sink. Metlakatla is **9.4 km** out. So the town's road cuts
+were carved into a ground nothing drew, and the un-cut mesh stood through every ribbon and every lot
+patch alike. `sinkFar` now applies the ring's own rule to the far tier after the patch stands —
+**30 369 vertices at Metlakatla**, and the page says so in the console. The roads session was right
+that it was the bake and not `pavement.js`; it was not the bake's *heights*, it was that nobody had
+ever put a premises more than 4.5 km from the origin. GATE PREMISES 14q.
+
+### Reading a drawing — `tools/met_axes.py`
+
+`--colour red|green|blue --shape lines|region|marks|hulls [--pixels]`. The picture's own orange grid
+(drawn by `met_trace.py`) gives the calibration as a fitted **lattice**: half the grid is buried under
+roofs and labels, one threshold found four of eight columns, and the mean gap between *those* came out
+at exactly half the real scale — a calibration wrong by a factor of two that looks entirely
+reasonable. The strokes are masked, closed, blob-filtered, thinned (Zhang-Suen) and read as a graph.
+**Three traps worth the ink**: `np.roll(a, -dy, 0)` is the neighbour at `+dy` and with the sign the
+other way the thinning does nothing at all (8989 pixels came back as 8989); a one-pixel 8-connected
+DIAGONAL has three neighbours at every step, so a plain degree test called 1108 staircase pixels
+junctions and returned 2470 two-pixel "branches" for nine drawn lines (a diagonal edge whose ends
+share a 4-neighbour is redundant and is dropped); and a hand-drawn stroke grows a spur at every bump
+on its edge. A stroke is carried THROUGH a junction it merely crosses, by tangent. Measured: **8989
+red pixels -> 11 branches -> 10 axes over 4089 m**, the two picture axes agreeing on the scale to
+0.24 %.
+
+### The three passes
+
+1. **The axes.** *"you have been too approximative in your grid ... I have traced in red some axis ...
+   that would break your absolute grid pattern."* The grid came from a vote, and a vote over a rotated
+   regular grid answers with a rotated regular grid: 73 straight segments on two bearings, every one
+   defensible and the whole visibly wrong. The ten drawn axes are arterials (paved, 6.5 m,
+   `smooth: 26`); a voted street lying on one for over 55 % of its length is dropped.
+2. **Three pens on one picture.** GREEN the seafront road (`mk_r_shore`, 329 m); BLUE seven ticks,
+   each within 4.6 m of `mk_sa27` and nothing else — a tick is a PLACE, so the rule is a place rule,
+   not an id, which survives a re-trace; RED a closed loop, 17.5 ha of the south-western quarter where
+   the drawn axes ARE the street plan, and 17 voted streets dropped inside it.
+3. **Four blue strokes**, each matching one road at 100 % of the STROKE's own points. **The test runs
+   the other way round from the axes' one and getting that back to front cost an hour**: a stroke is
+   drawn over PART of a street — it says *this one*, not *all of this*. Tested the wrong way the three
+   marked roads scored 0.31-0.54 and none was dropped. A traced road is TRIMMED rather than dropped.
+
+### What the roads do to each other — `tools/met_cross.js` (new)
+
+A record's roads are authored one at a time and nothing had ever looked at what they do to EACH
+OTHER. Doubles (the same street traced twice), sliver crossings (under 28 deg, where the ribbons
+overlap for tens of metres and the paint, the band and the guardrails fight inside the lens), near
+misses (an end 1-12 m short of another road — a junction the network does not have: the traffic will
+not turn there, the pole line stops, the sower reads two unconnected frontages) and stubs.
+**Doubles 3 -> 1, near misses 26 -> 0**, by a **snap -> drop -> snap** pass in the author: two streets
+10 m apart score as a 19 % double and survive, and snapping their ends onto each other makes the same
+pair a 52 % one, which is the honest reading — they were always the same street.
+
+### The fabric
+
+**528 plots** (was 344): 31 of 73 streets had their middle outside every zone and 21 cut no plot at
+all. A CATCH-ALL zone sown LAST fixes it, because `sowPlots` rejects a plot overlapping one already
+sown and the zones are walked in ARRAY ORDER — the named quarters claim their own, the envelope fills
+the rest. **It silently sowed nothing at first**: `pull_inland` broke the hull's winding, three
+corners came back two metres apart and out of order, and `compose` drops a self-crossing zone where it
+stands without a word. **744 garden trees** (was 0). **Seventeen civic buildings stood in the
+carriageway** and now none does (`tools/met_nudge.js`, using the composer's own test on the COMPOSED
+roads — my own corner test missed the half of it where a road runs THROUGH a foot without either
+corner being near its centreline). **The ball field takes its block**: streets are 46 m apart and the
+smallest honest park is 91 x 76 m even with the outfield cut from 80 to 56, so no position within
+120 m clears the grid — any street entering its box is cut at the fence.
+
+### Terrain type 16 `residential`
+
+*"fill the empty patches and in-between land with a new biome, small and medium conifers from the
+forest pack, high density, occasional bushes."* NOT a premises `forest` zone, and the reason is a
+number: at that density the gaps are ~39 ha, which `planForest` would put twenty thousand INDIVIDUAL
+trees into the record — and `render_premises` builds one `THREE.LOD` per record tree. The island's own
+fill draws that density instanced for nothing and is driven by the TERRAIN TYPE. So the new thing is a
+**biome** and the premises' job is only to say WHERE: the town's own zone polygons with the new
+`clear: true`, which stamps only the cells with no plot, no road, no site foot and no paving.
+**38.75 ha.** The scribble is the confirmation, not the definition — what the green marks point at is
+a rule that holds everywhere in the town, which no traced polygon could follow round 350 plots.
+
+### The lawn's grade, measured not guessed
+
+A four-step ladder from one boot (`LOT_GROUND.grade()`), the lawn's own pixels found as the ones the
+grade moves and the island's wood as the green it cannot, both in linear light: **0.70/0.93/0.50 ->
+luma 0.199, sat 0.34, 2.08x the wood**; **0.95/0.64/0.15 -> luma 0.146, sat 0.44, 1.52x**. The wood is
+luma 0.096, sat 0.37. At the old grade a lawn was twice the wood's brightness and two thirds its
+saturation, which is exactly "pale bright green"; at the new one it is half again as bright and a
+shade MORE saturated, which is what mown grass is beside a conifer stand. The new value is the
+default for every premises, not just this one.
+
+### Contract v1.22
+
+`ttype` takes **`from`** (the codes a stamp may replace — a flat stamp painted the bog, the rock and
+the beach the same as the wood) and **`clear`** (only the cells the premises leaves open). The
+stamp's undo **unwinds BACKWARD**: two stamps may cover one cell and the second saved what the FIRST
+wrote, so forwards the cell keeps the first stamp's code for ever — invisible until two `ttype`
+polygons first overlapped. A catalogue entry may refuse a lot with **`lot: false`** (the user found a
+fence round a pier: `buildItem` dresses every hand-placed item like a plot for every category but
+`sports` and `landmark`), and so does anything on a deck, whose lot would be laid on the seabed.
+**Garden trees**, compose stage 5e.
+
+### Widths, and the roads session
+
+Metlakatla's grid is 5.0 m paved / 4.5 gravel and the arterials 6.5 m, chosen against G508's
+`lanesOf` so the back streets come up one-lane and only the arterials take a centre line; every paved
+grid street carries `pav: { marks: 'none' }`, because a rural Alaskan town's avenues are bare chip
+seal to the shoulder. Asking whether a `pav` typo would be caught produced **G508.1** on master: it
+would not have been, and the band/pav/look checks had never run on a road or a runway at all.
+
+### MEASURED
+
+Record composes in 1.3 s with **zero issues**. 62 town roads, 528 plots, 744 garden trees, 63 sites,
+24 ttype polygons. GATE PREMISES **PASS at 338 checks** (14n/14o/14p/14q new, each with a negative
+test — 14o was proved by deleting the `from` filter and watching it go red). GATE SPLAT and GATE TREES
+green with `NCODE` 17.
+
+### NOT VERIFIED — the user asked for the box back
+
+The **full gate battery has not been run** since these changes. The clipping fix has **not been looked
+at in a picture** from low over a graded road: the vertex count says the ground moved, the eye has not
+said the clipping is gone. The residential vegetation has been **probed, not judged** (`TREE_FILL.at`
+answers `residential` over the gaps, on FOREST_FLOOR and GRASS ground, but the fill still had 1164
+chunks queued when the last shot was taken). **Perf is still owed** and is a bigger question than it
+was. `futureDesigns/METLAKATLA-2026-09-22.md` §16 lists what I would do, in order.

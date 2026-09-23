@@ -1394,6 +1394,47 @@
     "clump": 0,
     "debris": 6
    }
+  },
+  "residential": {
+   "species": {
+    "spruce_tree.glb": { "proportion": 2.6, "dead": 0.03 },
+    "realistic_fir_trees_pack_lods_gameready.glb": { "proportion": 3, "dead": 0.03 },
+    "fir_tree_georgeous.glb": { "proportion": 1.2, "dead": 0.03 },
+    "pine_georgeous.glb": { "proportion": 1, "dead": 0.03 },
+    "larch_tree.glb": { "proportion": 0.5, "dead": 0.04 },
+    "cedar_tree.glb": { "proportion": 0.4, "dead": 0.04 },
+    "sapling_deciduous": { "proportion": 0.9 },
+    "shrub_deciduous": { "proportion": 1.2 },
+    "holly": { "proportion": 0.5 },
+    "raspberry": { "proportion": 0.4 },
+    "grass_plates": { "proportion": 1, "density": 4 },
+    "grass_dry": { "proportion": 0.4, "density": 3 },
+    "flower_foam": { "proportion": 1, "density": 0.4, "patch": 5 },
+    "flower_bunchberry": { "proportion": 1, "density": 0.4, "patch": 5 },
+    "rocks": { "proportion": 0.4, "size": 20, "tint": 0.7 },
+    "lowpoly_sticks.glb": { "proportion": 0.2, "tilt": 1, "bury": 0.2, "cluster": 1, "hollow": 0.55, "tint": 0.3 }
+   },
+   "forest": {
+    "ground": "plane",
+    "count": 5200,
+    "radius": 220,
+    "under": 4,
+    "cover": 1,
+    "reach": 220,
+    "wet": 0,
+    "taper": 0.5,
+    "holes": 0.35,
+    "blotch": 0.6,
+    "blotchM": 14,
+    "coverNear": 50,
+    "rocks": 3,
+    "ttype": 16,
+    "coverSpread": 0.08,
+    "canopyFloor": 6.5,
+    "clump": 0.25,
+    "clumpM": 22,
+    "debris": 20
+   }
   }
  },
  "measured": {
@@ -2344,6 +2385,7 @@
   "14": "conifer_scrub",
   "10": "village",
   "3": "muskeg",
-  "15": "borders"
+  "15": "borders",
+  "16": "residential"
  }
 }

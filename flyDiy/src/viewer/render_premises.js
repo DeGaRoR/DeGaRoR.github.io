@@ -1167,7 +1167,12 @@ function make(THREE, scene, world, rec0, opts) {
     const extra = [];
     try {
       const cat = (it.entry && it.entry.cat) || (window.VILLAGE_GEN && window.VILLAGE_GEN.lotCat ? window.VILLAGE_GEN.lotCat({}, { P: it.P, gen: it.gen, preset: it.P.preset }) : null);
-      if (cat && cat !== 'sports' && cat !== 'landmark' && !it.P.mill && !it.P.station && window.VILLAGE_GEN && window.VILLAGE_GEN.finishPlot) {
+      // ...unless the entry refuses one (contract v1.22 `lot: false`): a pier, a float, a
+      // breakwater or a wharf stands in the water, and a lot round it would fence the sea
+      // ...and nothing that stands on a DECK gets one either: its lot would be laid on the
+      // composed ground, which under a wharf is the seabed (the packing plant's four sheds)
+      const wantsLot = !(it.entry && it.entry.lot === false) && !isFinite(it.P.floorOverWater);
+      if (wantsLot && cat && cat !== 'sports' && cat !== 'landmark' && !it.P.mill && !it.P.station && window.VILLAGE_GEN && window.VILLAGE_GEN.finishPlot) {
         const P = it.P, L = P.L || 10, w = P.w || 8, porch = P.porch ? (P.porchD || 2.4) : (P.dock ? (P.dockD || 2.4) + 2 : 0);
         // the lot's margins: room for a drive beside a house, for a wing, for a works' yard
         const mx = (cat === 'industrial' ? 6 : (cat === 'residential' ? 7 : 5)) + (P.wing ? 7 : 0), front = cat === 'commercial' ? 14 : (cat === 'industrial' ? 16 : 10), back = cat === 'residential' ? 8 : 4;

@@ -96,6 +96,194 @@ def pull_inland(x, z, margin=30.0, step=14.0, tries=24):
 R = lambda v, n=2: round(float(v), n)
 def pt(x, z): return [R(x), R(z)]
 
+# ---- the axes the user drew ---------------------------------------------------
+# The user, over a met_trace picture of the town with the record on it: "I also
+# think you have been too approximative in your grid, and you miss a lot of the
+# natural feeling. I have traced in red some axis that I would like to see
+# reproduced, that would break your absolute grid pattern."
+#
+# THE GRID CAME FROM A VOTE, and a vote over a rotated regular grid answers with a
+# rotated regular grid: 73 straight segments on two bearings, every one of them
+# geometrically defensible and the whole visibly wrong, because Metlakatla's
+# arterials curve round the hill, follow the shore and cut the blocks at their own
+# angles. No detector was going to find that; a person drawing over the trace was.
+# `tools/met_axes.py` reads the drawing back - the picture's own orange grid gives
+# the calibration, the red strokes are thinned to centrelines, the network is cut
+# at its junctions, and a stroke is carried through a junction it merely crosses.
+# MEASURED: 8989 red pixels -> 11 branches -> 10 axes over 4089 m, the calibration
+# agreeing between the picture's two axes to 0.24 %.
+#
+# These are ARTERIALS: paved, 7 m, filleted, and they carry the traffic. A traced
+# grid street that merely re-draws one of them straight is dropped (see `roads`).
+
+MK_AX = [
+    # 0: 1157 m, 62 points
+    [(-4151.1, -8316.3), (-4134.3, -8323.5), (-4117.6, -8330.9), (-4101, -8338.4), (-4084.6, -8345.7), (-4068.6, -8352.5), (-4151.1, -8316.3), (-4142.6, -8333.2), (-4133.7, -8350.2), (-4124.2, -8367.3), (-4114, -8384.1), (-4102.8, -8400), (-4090.7, -8414.5), (-4077.7, -8427.1), (-4064.3, -8438.1), (-4050.4, -8448.1), (-4036.4, -8457.6), (-4022, -8466.8), (-4007.3, -8475.9), (-3992.4, -8485), (-3977.3, -8494.2), (-3962.1, -8503.4), (-3946.5, -8512.6), (-3930.4, -8521.9), (-3914, -8531.3), (-3897.6, -8540.8), (-3881.4, -8550.4), (-3865.2, -8559.9), (-3849, -8569.1), (-3832.9, -8578.3), (-3816.9, -8587.8), (-3801.1, -8598.1), (-3785.5, -8609.3), (-3770.4, -8621.4), (-3756, -8634.2), (-3742.4, -8647.4), (-3729.5, -8661.1), (-3717.4, -8675.3), (-3706.1, -8689.7), (-3695.7, -8704.1), (-3686.1, -8718.3), (-3676.9, -8732.5), (-3667.8, -8746.7), (-3658.6, -8761), (-3649.1, -8775.6), (-3639.2, -8790.4), (-3629.2, -8805.3), (-3619.2, -8820.4), (-3609.4, -8835.6), (-3599.7, -8850.8), (-3590, -8865.7), (-3580.1, -8879.8), (-3570, -8893), (-3560, -8905.3), (-3550, -8917), (-3540.1, -8928.7), (-3530, -8940.6), (-3519.5, -8952.8), (-3508.6, -8964.9), (-3497.7, -8976.5), (-3487.2, -8987.4), (-3477.1, -8997.6)],
+    # 1: 638 m, 35 points
+    [(-3440.2, -8453.1), (-3454.9, -8439.9), (-3470.5, -8427.8), (-3487.5, -8417.3), (-3505.5, -8408.2), (-3524.2, -8400.2), (-3543.1, -8392.8), (-3562.2, -8385.8), (-3581.3, -8379.3), (-3600.3, -8373), (-3618.9, -8366.3), (-3637, -8358.7), (-3654.9, -8350.3), (-3672.9, -8341.4), (-3691.4, -8332.5), (-3710.4, -8324), (-3729.7, -8315.7), (-3749, -8307.9), (-3768.3, -8300.8), (-3787.4, -8294.4), (-3806.2, -8288.2), (-3824.5, -8281.6), (-3842.1, -8274), (-3859.6, -8265.4), (-3877.4, -8256.2), (-3895.8, -8247.3), (-3914.3, -8239.6), (-3932, -8234.4), (-3948, -8233.3), (-3961.6, -8237), (-3973, -8244.9), (-3982.6, -8255.5), (-3990.6, -8266.7), (-3997.4, -8277.5), (-4003.3, -8287.8)],
+    # 2: 616 m, 34 points
+    [(-3492.8, -8508.7), (-3504.8, -8519.8), (-3517.2, -8530.5), (-3530.3, -8540.3), (-3544, -8548.5), (-3558.4, -8554), (-3573.4, -8555.9), (-3588.9, -8554), (-3605.2, -8549.1), (-3622.1, -8542.9), (-3639.8, -8536.3), (-3658, -8529.8), (-3676.5, -8523.3), (-3695.3, -8516.9), (-3714.2, -8510.8), (-3733.2, -8504.6), (-3752.1, -8498.1), (-3770.9, -8491.3), (-3789.5, -8484.2), (-3807.9, -8476.9), (-3826, -8469.5), (-3843.8, -8461.9), (-3861.5, -8454.1), (-3879.3, -8446.2), (-3897.2, -8438.2), (-3915, -8430), (-3932.8, -8421.8), (-3950.7, -8413.5), (-3968.8, -8405.3), (-3986.7, -8397.1), (-4004.3, -8388.5), (-4021.1, -8379.3), (-4037.3, -8369.4), (-4053, -8359)],
+    # 3: 558 m, 30 points
+    [(-3492.8, -8508.7), (-3509.3, -8499.1), (-3526, -8490), (-3543, -8481.8), (-3560.7, -8474.3), (-3578.9, -8467.6), (-3597.7, -8461.5), (-3616.6, -8455.9), (-3635.4, -8450.1), (-3653.7, -8443.7), (-3671.3, -8436.5), (-3688.4, -8428.6), (-3705.2, -8420.6), (-3722.3, -8412.7), (-3739.8, -8405.3), (-3757.8, -8398.4), (-3776.1, -8391.5), (-3794.3, -8384.1), (-3812.3, -8375.6), (-3829.9, -8366.2), (-3847.3, -8356.2), (-3864.8, -8346.1), (-3882.5, -8336.1), (-3900.5, -8326.9), (-3918.8, -8318.5), (-3937.2, -8310.9), (-3955.3, -8304), (-3972.4, -8297.9), (-3988.3, -8292.6), (-4003.3, -8287.8)],
+    # 4: 385 m, 21 points
+    [(-3359.1, -8413.2), (-3344.7, -8401.4), (-3330.8, -8388.8), (-3318, -8374.7), (-3307.2, -8358.9), (-3299.5, -8341.5), (-3295.5, -8323.1), (-3294.7, -8304.2), (-3295.9, -8285.1), (-3297.3, -8265.7), (-3297.4, -8246.3), (-3295.1, -8226.9), (-3290.1, -8207.7), (-3282.6, -8189), (-3273.3, -8170.7), (-3262.9, -8152.7), (-3252.3, -8135.4), (-3242, -8118.8), (-3232.1, -8103.1), (-3222.3, -8088.3), (-3212.7, -8074)],
+    # 5: 352 m, 18 points
+    [(-3145.8, -8692.6), (-3156.6, -8677.5), (-3168.1, -8661.9), (-3180.8, -8645.8), (-3194.8, -8628.9), (-3209.6, -8611.8), (-3224.4, -8594.6), (-3238.8, -8577.7), (-3252.6, -8561.2), (-3265.9, -8544.9), (-3278.9, -8528.7), (-3291.8, -8512.3), (-3304.6, -8495.3), (-3317.1, -8477.9), (-3328.9, -8460.5), (-3339.9, -8443.8), (-3349.9, -8428.1), (-3359.1, -8413.2)],
+    # 6: 131 m, 9 points
+    [(-4151.1, -8316.3), (-4161.5, -8298.7), (-4171.3, -8281.5), (-4180.6, -8264.9), (-4189.4, -8249.3), (-4197.5, -8235.1), (-4204.9, -8222.5), (-4211.2, -8211.7), (-4216.6, -8202.3)],
+    # 7: 90 m, 6 points
+    [(-3359.1, -8413.2), (-3376.5, -8421.6), (-3393.5, -8430.1), (-3409.8, -8438.6), (-3425.3, -8446.3), (-3440.2, -8453.1)],
+    # 8: 87 m, 6 points
+    [(-4003.3, -8287.8), (-4014.3, -8302.1), (-4024.8, -8316.5), (-4034.6, -8330.9), (-4043.9, -8345.1), (-4053, -8359)],
+    # 9: 77 m, 6 points
+    [(-3492.8, -8508.7), (-3480.7, -8496.7), (-3468.9, -8484.8), (-3458.2, -8473.5), (-3448.7, -8462.9), (-3440.2, -8453.1)],
+]
+
+
+# ---- the second pass: three pens on one picture -------------------------------
+# `tools/met_axes.py --colour green|blue|red` read all three off one annotated
+# trace, and each pen means a different shape.
+#
+# GREEN, the user: "For the seafront, do the roads in green" - the waterfront
+#   street, drawn by hand because the vote was drawing it straight and wrong.
+# BLUE, the user: "delete the one I crossed in blue" - seven ticks, each within
+#   4.6 m of mk_sa27 and of nothing else. A tick is a PLACE, so the rule is a
+#   place rule: a street running under two or more marks goes. Naming the id would
+#   be easier and would rot the first time the street table is re-traced.
+# RED, the user: "in the new zone inscribed in the red annotation, you should
+#   delete your previous grid pattern" - 17.5 ha of the south-western quarter
+#   where the three drawn AXES are the street plan, and the voted grid laid over
+#   them was exactly the "absolute grid pattern" complained of. The axes do not
+#   live in STREETS and so survive; what the polygon eats is the vote's work.
+MK_SHORE = [
+    # 0: 329 m, 29 points
+    [(-3680.9, -8811.9), (-3673.2, -8821.9), (-3665.2, -8831.9), (-3656.8, -8841.8), (-3647.9, -8851.6), (-3638.9, -8861.2), (-3630, -8870.8), (-3621.7, -8880.7), (-3614.1, -8891), (-3606.9, -8901.6), (-3599.8, -8912.4), (-3592.9, -8923.2), (-3586, -8933.7), (-3579.2, -8943.7), (-3572.6, -8953.5), (-3566.1, -8963.1), (-3559.6, -8972.6), (-3553.3, -8982.1), (-3547, -8991.6), (-3540.8, -9001.2), (-3534.5, -9010.8), (-3528.4, -9020.2), (-3522.7, -9029.4), (-3517.5, -9038.5), (-3512.9, -9047.9), (-3508.7, -9057.4), (-3505.1, -9066.8), (-3501.9, -9075.6), (-3499.1, -9083.7)],
+]
+
+# THE THIRD PASS, the user: "highlighted in blue the roads you should delete".
+# Four strokes this time rather than ticks, so the rule is a LINE rule: a street
+# lying under a stroke for most of its length goes. Matched against the composed
+# record, three of the four are unambiguous at 100 % of their samples - mk_sa25,
+# mk_sa28 and mk_sc66, all three of them the vote's straight copies of the hand-
+# drawn hill road - and the fourth is the straight head of Skaters Lake Road,
+# which `trim_to_axes` had already taken off in the same pass. That agreement is
+# the check: the pen and the rule found the same four roads independently.
+MK_BLUE = [
+    # 0: 417 m, 46 points
+    [(-3939.1, -8451), (-3932.9, -8457.3), (-3926.8, -8463.6), (-3921, -8470), (-3915.5, -8476.8), (-3910.1, -8484.1), (-3904.4, -8491.5), (-3898.1, -8498.8), (-3891.4, -8505.5), (-3884.4, -8511.5), (-3877.4, -8517.4), (-3870.6, -8523.6), (-3864.1, -8530.3), (-3858, -8537.4), (-3851.7, -8544.7), (-3845.1, -8552.2), (-3838.5, -8559.6), (-3831.9, -8566.2), (-3825.3, -8572.1), (-3818.8, -8577.6), (-3812.3, -8583.4), (-3805.9, -8589.7), (-3799.8, -8596.6), (-3793.8, -8604), (-3787.7, -8611.5), (-3781.5, -8618.9), (-3775.2, -8626), (-3768.9, -8632.5), (-3762.5, -8638.7), (-3755.9, -8644.5), (-3749.4, -8650.2), (-3743.2, -8655.9), (-3737.5, -8662.1), (-3731.9, -8669), (-3726.3, -8676.7), (-3720.6, -8684.6), (-3714.8, -8691.9), (-3708.8, -8698.4), (-3702.3, -8704.6), (-3695.2, -8711.4), (-3687.4, -8718.8), (-3679.4, -8726.7), (-3671.5, -8734.6), (-3664.1, -8741.9), (-3658.1, -8748.3), (-3653.3, -8753.6)],
+    # 1: 334 m, 35 points
+    [(-3248.3, -8158.4), (-3252.5, -8168.2), (-3256.4, -8178), (-3259.8, -8187.6), (-3262.4, -8197.4), (-3264.4, -8207.2), (-3265.9, -8217.2), (-3267.4, -8227.2), (-3269.1, -8237.2), (-3271.2, -8247.2), (-3273.7, -8257.2), (-3276.6, -8267.1), (-3279.9, -8276.7), (-3283.5, -8285.7), (-3287.3, -8294), (-3291.3, -8302), (-3295.3, -8310.3), (-3299.4, -8319.2), (-3303.8, -8328.5), (-3308.4, -8337.8), (-3312.8, -8347.1), (-3316.8, -8356.2), (-3320.3, -8365.4), (-3323.2, -8374.7), (-3325.9, -8384), (-3329.2, -8392.7), (-3334, -8400.1), (-3340.8, -8405.8), (-3349.2, -8409.5), (-3358.7, -8412), (-3368.5, -8413.9), (-3378.2, -8416.1), (-3387.5, -8418.7), (-3396.4, -8421.7), (-3405, -8424.8)],
+    # 2: 200 m, 21 points
+    [(-4035.7, -8461), (-4043, -8455.1), (-4050.2, -8448.2), (-4057.2, -8440.2), (-4064, -8431.6), (-4070.5, -8423.2), (-4076.9, -8415.3), (-4083.4, -8407.8), (-4090.1, -8400.4), (-4097.2, -8392.9), (-4104.3, -8385.4), (-4111.3, -8378.2), (-4118.4, -8371.4), (-4125.7, -8364.6), (-4133, -8357.8), (-4140.1, -8351.2), (-4146.9, -8344.9), (-4153.5, -8338.7), (-4160.2, -8332.1), (-4166.9, -8324.9), (-4173.6, -8317.2)],
+    # 3: 42 m, 5 points
+    [(-3998, -8341), (-4006.6, -8348.1), (-4014.7, -8355.1), (-4022.2, -8361.8), (-4029.4, -8368.5)],
+]
+
+
+MK_KILL = [
+    (-3481.1, -9010.4, 8.8), (-3505.7, -8988.7, 10.0), (-3527.3, -8968.6, 5.6),
+    (-3544.6, -8949.3, 9.4), (-3561.5, -8930.0, 10.0), (-3577.5, -8916.8, 7.5),
+    (-3598.3, -8892.1, 8.8),
+]
+
+MK_CLEAR = [
+    # 17.5 ha, 152 points
+    [(-3600.6, -8570.1), (-3588.1, -8569.3), (-3575.6, -8568.2), (-3563.3, -8566.3), (-3551.5, -8563.4), (-3540.5, -8559.3), (-3530.8, -8554), (-3521.9, -8547.9), (-3513.4, -8541.6), (-3504.8, -8535.5), (-3495.9, -8529.8), (-3486.7, -8524.1), (-3477.4, -8517.8), (-3468.3, -8510.4), (-3459.7, -8502), (-3452, -8493), (-3445, -8483.9), (-3438.7, -8474.9), (-3433, -8465.7), (-3428.4, -8456), (-3425.4, -8445.5), (-3424.1, -8434.2), (-3424.2, -8422.1), (-3425.3, -8409.8), (-3427.2, -8397.6), (-3429.9, -8385.5), (-3433.5, -8374), (-3438.1, -8363.3), (-3443.7, -8353.6), (-3450.2, -8345.3), (-3457.7, -8338.1), (-3466.2, -8331.8), (-3475.7, -8325.7), (-3486.2, -8319.6), (-3497.4, -8313.5), (-3509, -8307.6), (-3520.6, -8301.9), (-3531.6, -8296.4), (-3542.1, -8291.2), (-3552.2, -8286.4), (-3562.7, -8281.9), (-3573.9, -8277.6), (-3585.8, -8273.8), (-3598.2, -8270.3), (-3610.7, -8267.3), (-3623.2, -8264.6), (-3635.7, -8262.1), (-3648.3, -8259.7), (-3660.7, -8257.5), (-3673.1, -8255.4), (-3685.4, -8253.5), (-3697.6, -8251.4), (-3709.9, -8249.2), (-3722.3, -8246.9), (-3734.8, -8244.3), (-3747.3, -8241.7), (-3759.8, -8238.9), (-3772.4, -8236.1), (-3784.9, -8233.4), (-3797.2, -8230.8), (-3809.5, -8228.4), (-3821.8, -8226.3), (-3834, -8224.5), (-3846.4, -8222.7), (-3858.9, -8220.9), (-3871.4, -8219.2), (-3884, -8217.7), (-3896.5, -8216.6), (-3909, -8216), (-3921.6, -8215.7), (-3934.1, -8215.7), (-3946.6, -8215.9), (-3959.2, -8216.5), (-3971.7, -8217.4), (-3984.2, -8218.7), (-3996.7, -8220.2), (-4009.1, -8221.9), (-4021.4, -8223.5), (-4033.6, -8225.1), (-4045.9, -8226.4), (-4058.3, -8227.3), (-4070.7, -8227.9), (-4083.1, -8228.3), (-4095.4, -8228.8), (-4107.6, -8229.5), (-4119.8, -8230.8), (-4132, -8232.6), (-4143.9, -8235.3), (-4155.4, -8239.1), (-4166, -8244.4), (-4174.8, -8251.4), (-4180.9, -8260.2), (-4183.7, -8270.6), (-4183.6, -8281.8), (-4181.3, -8293.2), (-4177.6, -8304), (-4172.7, -8314), (-4166.7, -8322.9), (-4159.7, -8330.7), (-4151.6, -8337.4), (-4142.5, -8343.4), (-4132.4, -8349), (-4121.6, -8354), (-4110.2, -8358.4), (-4098.7, -8362.2), (-4087.8, -8365.8), (-4078.3, -8370.2), (-4070.3, -8375.9), (-4063.2, -8383), (-4056.2, -8390.9), (-4048.5, -8398.9), (-4039.9, -8406.4), (-4030.3, -8413.2), (-4019.8, -8419.2), (-4008.8, -8424.6), (-3997.5, -8429.6), (-3985.9, -8434.5), (-3974.1, -8439.4), (-3962.3, -8444.8), (-3950.8, -8450.6), (-3940.1, -8456.8), (-3930.2, -8463), (-3921.3, -8469), (-3913, -8474.8), (-3904.7, -8480.4), (-3895.9, -8485.6), (-3886.3, -8490.3), (-3875.7, -8494.6), (-3864.5, -8498.4), (-3852.8, -8502.1), (-3840.8, -8505.8), (-3828.7, -8509.9), (-3816.5, -8514.6), (-3804.6, -8519.5), (-3793.1, -8524.4), (-3781.9, -8528.7), (-3770.7, -8532.2), (-3759.1, -8535), (-3747.1, -8537.2), (-3734.7, -8539.1), (-3722.2, -8540.8), (-3709.7, -8542.4), (-3697.2, -8544.1), (-3684.6, -8545.8), (-3672.2, -8547.4), (-3660, -8549.2), (-3648.2, -8551.3), (-3637.1, -8554.2), (-3627, -8557.9), (-3618, -8561.9), (-3610.2, -8565.6), (-3603.1, -8568.9)],
+]
+
+
+def in_clear(x, z):
+    return any(inpoly(g, x, z) for g in MK_CLEAR)
+
+
+def inpoly(poly, x, z):
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        a, b = poly[i], poly[(i + 1) % n]
+        if (a[1] > z) != (b[1] > z):
+            t = (z - a[1]) / (b[1] - a[1])
+            if x < a[0] + (b[0] - a[0]) * t:
+                inside = not inside
+    return inside
+
+
+BLUE_HIT = None
+
+
+def blue_kills(half=16.0, want=0.70):
+    """Which street each blue stroke marks.
+
+    THE TEST RUNS THE OTHER WAY ROUND from the axes' one, and getting that back to
+    front cost an hour: a stroke is drawn over PART of a street - it says "this
+    one", not "all of this" - so the share that matters is the share of the STROKE
+    lying on the street, not the share of the street lying under the stroke. Tested
+    the wrong way the three marked roads scored 0.31 to 0.54 and none of them was
+    dropped; the right way round they score 1.00, 1.00 and 1.00.
+
+    The drawn axes are not candidates. A stroke over one of them is the user
+    striking out the straight copy that used to lie there, and if that copy has
+    already gone the stroke matches nothing - which is what is reported.
+    """
+    global BLUE_HIT
+    if BLUE_HIT is not None:
+        return BLUE_HIT
+    cands = []
+    for i, (a, b, c, d, fam) in enumerate(STREETS):
+        p0, p1 = pull_inland(a, b, 22.0), pull_inland(c, d, 22.0)
+        cands.append(('mk_s%s%02d' % (fam.lower(), i), [p0, p1]))
+    for rid, name, pts, w, cls, look, grade, traffic in TRACED:
+        cands.append((rid, [pull_inland(q[0], q[1], 18.0) for q in pts]))
+    out, BLUE_REPORT[:] = set(), []
+    for k, g in enumerate(MK_BLUE):
+        best = (0.0, None)
+        for rid, pl in cands:
+            hit = 0
+            for q in g:
+                dm = 1e9
+                for i in range(1, len(pl)):
+                    a, b = pl[i - 1], pl[i]
+                    dx, dz = b[0] - a[0], b[1] - a[1]
+                    t = max(0.0, min(1.0, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dz) / max(1e-9, dx * dx + dz * dz)))
+                    dm = min(dm, math.hypot(q[0] - (a[0] + dx * t), q[1] - (a[1] + dz * t)))
+                if dm < half:
+                    hit += 1
+            sh = hit / float(len(g))
+            if sh > best[0]:
+                best = (sh, rid)
+        if best[0] >= want:
+            out.add(best[1])
+            BLUE_REPORT.append((k, best[1], best[0]))
+        else:
+            BLUE_REPORT.append((k, None, best[0]))
+    BLUE_HIT = out
+    return out
+
+
+BLUE_REPORT = []
+
+
+def crossed_out(x0, z0, x1, z1):
+    """How many blue ticks this street runs under."""
+    n = 0
+    for kx, kz, kr in MK_KILL:
+        dx, dz = x1 - x0, z1 - z0
+        t = max(0.0, min(1.0, ((kx - x0) * dx + (kz - z0) * dz) / max(1e-9, dx * dx + dz * dz)))
+        if math.hypot(kx - (x0 + dx * t), kz - (z0 + dz * t)) < kr + 9.0:
+            n += 1
+    return n
+
+
+def cleared_share(x0, z0, x1, z1):
+    """What share of this street lies in a red clearing polygon."""
+    L = math.hypot(x1 - x0, z1 - z0)
+    n = max(4, int(L / 12))
+    hit = sum(1 for k in range(n + 1)
+              if in_clear(x0 + (x1 - x0) * k / float(n), z0 + (z1 - z0) * k / float(n)))
+    return hit / float(n + 1)
+
+
+
 # ---- the street grid, pulled off the registered views (met_streets.py) -------
 # (x0, z0, x1, z1, family): A = the named cross streets, C = the numbered avenues
 STREETS = [
@@ -111,7 +299,10 @@ STREETS = [
     (-2898, -8944, -3351, -8458, 'A'),
     (-2933, -8963, -3413, -8448, 'A'),
     (-2969, -8980, -3459, -8455, 'A'),
-    (-3109, -8927, -3324, -8696, 'A'),
+    # trimmed 55 m short of its traced end: it ran INTO the ball field, and a
+    # 27 m diamond will not fit between streets 46 m apart - in the real town
+    # the field takes the block and the avenue stops at it
+    (-3109, -8927, -3286, -8736, 'A'),
     (-3597, -8407, -3695, -8302, 'A'),
     (-3493, -8567, -3631, -8419, 'A'),
     (-3324, -8753, -3457, -8611, 'A'),
@@ -223,6 +414,147 @@ def trim_dry(x0, z0, x1, z1):
             x0 + (x1 - x0) * b / n, z0 + (z1 - z0) * b / n)
 
 
+# THE BALL FIELD TAKES THE BLOCK. Metlakatla's streets are 46 m apart and the
+# smallest honest baseball park is 91 x 76 m (measured: SITE_P shrinks the lit
+# preset's outfield from 80 m to 56 and it is still that big), so NO position
+# within 120 m of the traced field clears the grid - the search says so. In the
+# real town the field occupies its block and the avenues stop at its fence, so
+# that is what is authored: any street entering this box is cut at the fence, and
+# a street the box would cut in TWO keeps its longer half and says so.
+# (cx, cz, half along U, half along V, margin) - the foot measured at compose.
+BALLFIELD = (-3324.0, -8682.0, 45.6, 38.0, 6.0)
+
+
+def clip_ballfield(x0, z0, x1, z1):
+    """The part of this street outside the ball field's box, or None."""
+    cx, cz, ha, hb, m = BALLFIELD
+    ha, hb = ha + m, hb + m
+    def inside(x, z):
+        dx, dz = x - cx, z - cz
+        return abs(dx * UAX[0] + dz * UAX[1]) < ha and abs(dx * VAX[0] + dz * VAX[1]) < hb
+    n = 60
+    keep = [k for k in range(n + 1)
+            if not inside(x0 + (x1 - x0) * k / n, z0 + (z1 - z0) * k / n)]
+    if len(keep) == n + 1:
+        return x0, z0, x1, z1
+    if not keep:
+        return None
+    # the longest unbroken run of samples outside the box
+    best, run = (keep[0], keep[0]), (keep[0], keep[0])
+    for k in keep[1:]:
+        run = (run[0], k) if k == run[1] + 1 else (k, k)
+        if run[1] - run[0] > best[1] - best[0]:
+            best = run
+    a, b = best
+    return (x0 + (x1 - x0) * a / n, z0 + (z1 - z0) * a / n,
+            x0 + (x1 - x0) * b / n, z0 + (z1 - z0) * b / n)
+
+
+def axis_polys():
+    """The drawn axes, walked ashore, as game polylines."""
+    out = []
+    for g in MK_AX:
+        pts = [pull_inland(x, z, 16.0) for x, z in g]
+        # a stroke drawn over the waterfront may have wandered into the bay; the
+        # walk brings it back, and the near-duplicates the walk makes are dropped
+        keep = [pts[0]]
+        for q in pts[1:]:
+            if math.hypot(q[0] - keep[-1][0], q[1] - keep[-1][1]) > 6.0:
+                keep.append(q)
+        if len(keep) >= 2 and sum(math.hypot(keep[i][0] - keep[i - 1][0], keep[i][1] - keep[i - 1][1])
+                                  for i in range(1, len(keep))) >= 60:
+            out.append(keep)
+    return out
+
+
+AXES = None
+
+
+def seg_near_axis(x0, z0, x1, z1, half=17.0):
+    """What share of this straight street lies within `half` m of a drawn axis?
+
+    A vote that finds a street also finds the arterial the user drew, and draws it
+    STRAIGHT: the same road twice, a few metres apart, which on the ground is a pair
+    of parallel carriageways through somebody's garden. The drawn line wins.
+    """
+    global AXES
+    if AXES is None:
+        AXES = axis_polys()
+    L = math.hypot(x1 - x0, z1 - z0)
+    n = max(4, int(L / 12))
+    hit = 0
+    for k in range(n + 1):
+        u = k / float(n)
+        px, pz = x0 + (x1 - x0) * u, z0 + (z1 - z0) * u
+        d = 1e9
+        for g in AXES:
+            for i in range(1, len(g)):
+                a, b = g[i - 1], g[i]
+                dx, dz = b[0] - a[0], b[1] - a[1]
+                t = max(0.0, min(1.0, ((px - a[0]) * dx + (pz - a[1]) * dz) / max(1e-9, dx * dx + dz * dz)))
+                d = min(d, math.hypot(px - (a[0] + dx * t), pz - (a[1] + dz * t)))
+        if d < half:
+            hit += 1
+    return hit / float(n + 1)
+
+
+def dist_to_lines(px, pz, LINES):
+    d = 1e9
+    for g in LINES:
+        for i in range(1, len(g)):
+            a, b = g[i - 1], g[i]
+            dx, dz = b[0] - a[0], b[1] - a[1]
+            t = max(0.0, min(1.0, ((px - a[0]) * dx + (pz - a[1]) * dz) / max(1e-9, dx * dx + dz * dz)))
+            d = min(d, math.hypot(px - (a[0] + dx * t), pz - (a[1] + dz * t)))
+    return d
+
+
+def dist_to_axes(px, pz):
+    global AXES
+    if AXES is None:
+        AXES = axis_polys()
+    return dist_to_lines(px, pz, AXES)
+
+
+def trim_to_axes(pts, half=20.0, step=15.0, LINES=None):
+    """The part of this TRACED road that no drawn axis already covers.
+
+    The user, of the axis running south past Skaters Lake: "The one going down to
+    the south replaced the straight approximation you made before too." A traced
+    road is not a voted street and was not being tested at all, so Skaters Lake
+    Road kept running straight under the hand-drawn curve for its first 470 m -
+    two carriageways twenty metres apart. The rule is the same one the streets
+    get, with one difference: a traced road may be only PARTLY duplicated (the
+    axis stops at the lake and the road runs on east), so it is trimmed to its
+    longest clear run rather than dropped.
+    """
+    S = []
+    for i in range(1, len(pts)):
+        a, b = pts[i - 1], pts[i]
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        n = max(1, int(L / step))
+        for k in range(n):
+            u = k / float(n)
+            S.append((a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u))
+    S.append(tuple(pts[-1]))
+    free = [(dist_to_lines(q[0], q[1], LINES) if LINES is not None else dist_to_axes(*q)) >= half for q in S]
+    if all(free):
+        return pts, 0.0
+    best = run = None
+    for k, f in enumerate(free):
+        if not f:
+            run = None
+            continue
+        run = (k, k) if run is None else (run[0], k)
+        if best is None or run[1] - run[0] > best[1] - best[0]:
+            best = run
+    if best is None or best[1] - best[0] < 3:
+        return None, 1.0
+    keep = S[best[0]:best[1] + 1]
+    cut = 1.0 - (best[1] - best[0] + 1) / float(len(S))
+    return [list(q) for q in keep], cut
+
+
 def roads():
     del DROPPED[:]
     """Every street. The grid is `paved`/`worn` where the avenues carry the town
@@ -252,16 +584,184 @@ def roads():
             if math.hypot(x1 - x0, z1 - z0) < 70:
                 DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'it crosses the water'))
                 continue
+        # THE DRAWN AXIS WINS. A straight street lying on top of one for most of its
+        # length is the same road traced twice, and two carriageways 8 m apart is
+        # exactly the "absolute grid pattern" the user asked to be broken.
+        if crossed_out(x0, z0, x1, z1) >= 2:
+            DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'crossed out in blue'))
+            continue
+        if ('mk_s%s%02d' % (fam.lower(), i)) in blue_kills():
+            DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'struck out in blue'))
+            continue
+        cl = cleared_share(x0, z0, x1, z1)
+        if cl > 0.55:
+            DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'inside the red clearing (%d %%)' % round(cl * 100)))
+            continue
+        share = seg_near_axis(x0, z0, x1, z1)
+        if share > 0.55:
+            DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'an axis is drawn along %d %% of it' % round(share * 100)))
+            continue
+        clip = clip_ballfield(x0, z0, x1, z1)
+        if clip is None:
+            DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'the ball field takes its whole length'))
+            continue
+        if clip != (x0, z0, x1, z1):
+            x0, z0, x1, z1 = clip
+            if math.hypot(x1 - x0, z1 - z0) < 40:
+                DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'the ball field leaves it a stub'))
+                continue
+            DROPPED.append(('mk_s%s%02d' % (fam.lower(), i), 'CUT at the ball field'))
+        # THE WIDTH IS THE PAINT. From G508 a paved road marks itself by its width
+        # (`lanesOf`): under 5.2 m it is ONE lane - white edge lines and no centre -
+        # and from 5.2 m it takes a dashed yellow centre line. Metlakatla's streets
+        # are single-track residential lanes and a centre line down them would read
+        # as a highway through a village, so the grid is 5.0 m and only the drawn
+        # ARTERIALS are wide enough to be painted as two lanes.
+        # ...AND NO PAINT ON A BACK STREET. A paved road takes two white edge lines
+        # 35 cm in even at one lane, which is the right general rule and the wrong
+        # one for a rural Alaskan town: Metlakatla's numbered avenues are bare chip
+        # seal to the shoulder. `pav.marks: 'none'` keeps the band, the wear and the
+        # polish and draws no paint. The ARTERIALS are left to the default - a centre
+        # line is what tells you which roads carry the town.
         out.append({'id': 'mk_s%s%02d' % (fam.lower(), i), 'pts': [pt(x0, z0), pt(x1, z1)],
-                    'w': 6.0 if paved else 5.0, 'cls': 'paved' if paved else 'gravel',
+                    'w': 5.0 if paved else 4.5, 'cls': 'paved' if paved else 'gravel',
+                    'pav': {'marks': 'none'} if paved else None,
                     'look': 'worn' if paved else None, 'band': 2 if paved else None,
                     'graded': True, 'falloff': 6, 'grade': 0.12, 'smooth': 0,
                     'traffic': 1 if paved else 0})
+    # the seafront road the user drew in green: the waterfront's own line
+    sh = [pull_inland(x, z, 14.0) for x, z in MK_SHORE[0]]
+    out.append({'id': 'mk_r_shore', 'pts': [pt(*q) for q in sh], 'w': 6.5, 'cls': 'paved',
+                'look': 'worn', 'band': 2, 'graded': True, 'falloff': 7, 'grade': 0.12,
+                'smooth': 22, 'traffic': 1})
+    for k, g in enumerate(axis_polys()):
+        out.append({'id': 'mk_ax%02d' % k, 'pts': [pt(*q) for q in g], 'w': 6.5, 'cls': 'paved',
+                    'look': 'worn', 'band': 2, 'graded': True, 'falloff': 8, 'grade': 0.12,
+                    'smooth': 26, 'traffic': 1})
     for rid, name, pts, w, cls, look, grade, traffic in TRACED:
+        if rid in blue_kills():
+            # A TRACED ROAD IS A POLYLINE and a stroke may mark only part of it:
+            # the Skaters Lake stroke covers the straight head the hill axis
+            # replaces, and the road runs on east past the lake where nothing was
+            # drawn over it. So a marked traced road is TRIMMED to the part that
+            # was not struck out, and dropped only if nothing is left.
+            pts, cut = trim_to_axes(pts, half=16.0, LINES=MK_BLUE)
+            if pts is None:
+                DROPPED.append((rid, 'struck out in blue, whole'))
+                continue
+            DROPPED.append((rid, 'STRUCK OUT in blue over %d %% of it, trimmed' % round(cut * 100)))
+        pts, cut = trim_to_axes(pts)
+        if pts is None:
+            DROPPED.append((rid, 'a drawn axis replaces it whole'))
+            continue
+        if cut > 0.02:
+            DROPPED.append((rid, 'TRIMMED: a drawn axis replaces %d %% of it' % round(cut * 100)))
         out.append({'id': rid, 'pts': [pt(*pull_inland(*p, margin=18.0)) for p in pts], 'w': w, 'cls': cls, 'look': look,
                     'band': 2 if look else None, 'graded': True, 'falloff': 8 if w > 5.5 else 6,
                     'grade': grade, 'smooth': 30, 'traffic': traffic, 'rail': 'auto'})
+    # SNAP, THEN DROP, THEN SNAP. Two streets 10 m apart score as a 19 % double and
+    # survive; snapping their ends onto each other makes the same pair a 52 % one,
+    # which is the honest reading - they were always the same street. So the pass
+    # runs after the first snap, and the second snap tidies the ends the drop freed.
+    snap_ends(out)
+    drop_doubles(out)
+    snap_ends(out)
     return out
+
+
+DOUBLED = []
+
+
+def drop_doubles(rs, share=0.45):
+    """Two roads running side by side are one road traced twice.
+
+    tools/met_cross.js measures it: how much of a road lies within half the two
+    widths plus 9 m of another, at a tangent under 22 degrees. A VOTED street
+    always loses - to a drawn axis, to a traced road, and to a longer street -
+    because the vote is the thing that invents parallels: it finds the same line
+    twice when a wide road's two kerbs each score as a peak.
+    """
+    del DOUBLED[:]
+    def samples(r):
+        S = []
+        for i in range(1, len(r['pts'])):
+            a, b = r['pts'][i - 1], r['pts'][i]
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            n = max(1, int(L / 8))
+            for k in range(n):
+                u = k / float(n)
+                S.append((a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u))
+        S.append(tuple(r['pts'][-1]))
+        return S
+    def length(r):
+        return sum(math.hypot(r['pts'][i][0] - r['pts'][i - 1][0], r['pts'][i][1] - r['pts'][i - 1][1])
+                   for i in range(1, len(r['pts'])))
+    SM = {r['id']: samples(r) for r in rs}
+    kill = set()
+    for a in rs:
+        if not a['id'].startswith('mk_s') or a['id'] in kill:      # only a voted street may lose
+            continue
+        for b in rs:
+            if b is a or b['id'] in kill:
+                continue
+            reach = (a['w'] + b['w']) / 2.0 + 9.0
+            near = sum(1 for q in SM[a['id']] if dist_to_lines(q[0], q[1], [b['pts']]) < reach)
+            sh = near / float(len(SM[a['id']]))
+            if sh < share:
+                continue
+            if b['id'].startswith('mk_s') and length(b) <= length(a):
+                continue                                            # the longer street keeps the line
+            kill.add(a['id'])
+            DOUBLED.append((a['id'], b['id'], round(sh * 100)))
+            break
+    for i in range(len(rs) - 1, -1, -1):
+        if rs[i]['id'] in kill:
+            DROPPED.append((rs[i]['id'], 'runs alongside another road'))
+            del rs[i]
+
+
+SNAPPED = []
+
+
+def snap_ends(rs, reach=12.0):
+    """An end that stops a few metres short of another road is pulled onto it.
+
+    tools/met_cross.js counted twenty-six of them, most between one and seven
+    metres. On the ground that is a junction the network does not have: the
+    traffic will not turn there, the pole line stops, the plot sower reads two
+    unconnected frontages, and from the air a street visibly stops just short of
+    the one it should meet. The ends move, never the middles, so nothing that was
+    traced moves off its street - the largest pull here is under `reach`.
+    """
+    del SNAPPED[:]
+    def foot(q, pl):
+        best = (1e9, None)
+        for i in range(1, len(pl)):
+            a, b = pl[i - 1], pl[i]
+            dx, dz = b[0] - a[0], b[1] - a[1]
+            t = max(0.0, min(1.0, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dz) / max(1e-9, dx * dx + dz * dz)))
+            f = (a[0] + dx * t, a[1] + dz * t)
+            d = math.hypot(q[0] - f[0], q[1] - f[1])
+            if d < best[0]:
+                best = (d, f)
+        return best
+    for r in rs:
+        if r['id'].startswith('mk_p') or r.get('cls') == 'water':
+            continue
+        for k in (0, -1):
+            q = r['pts'][k]
+            best = (1e9, None, None)
+            for o in rs:
+                if o is r:
+                    continue
+                d, f = foot(q, o['pts'])
+                d -= o['w'] / 2.0                     # to the far side's edge, not its middle
+                if d < best[0]:
+                    best = (d, f, o['id'])
+            if best[1] is None or not (0.4 < best[0] <= reach):
+                continue
+            r['pts'][k] = pt(*best[1])
+            SNAPPED.append((r['id'], 'start' if k == 0 else 'end', round(best[0], 1), best[2]))
 
 
 # ---- the town's own grid, as a frame ------------------------------------------
@@ -321,7 +821,11 @@ LANDMARKS = [
     ('mk_housing', 'Metlakatla Housing Authority', 'big/technical services', -3271, -7938, VAX),
     ('mk_social', 'MIC Social Services', 'big/terminal', -3279, -7838, VAX),
     ('mk_landscaping', 'Landscaping office', 'shed/tool shed', -2960, -8620, VAX),
-    ('mk_wildlife', 'MIC Fish and Wildlife', 'shed/net store', -2980, -8880, VAX),
+    # moved 22 m NE off a junction: at its read position the net store straddled
+    # the fork of the cross street and Breakwater Road and NO offset within 16 m
+    # cleared both (tools/met_nudge.js says so and then oscillates, which is the
+    # tool telling you the position is wrong, not the nudge)
+    ('mk_wildlife', 'MIC Fish and Wildlife', 'shed/net store', -2969, -8892, VAX),
 ]
 
 # the ball park is a SPORT_GEN entry, not a building
@@ -331,24 +835,66 @@ SPORTS = [
 ]
 
 
+# OFF THE STREET (measured by tools/met_nudge.js, re-run it after any move).
+# The civic buildings are placed from the registered close views to about +-10 m,
+# and seventeen of them had a corner in the carriageway - which reads exactly as
+# badly as a building ten metres out of place, and which `compose` names one by
+# one ("stands on road ... set it back"). Each entry is the shortest push that
+# clears the road's half width and 1.9 m, along the perpendicular the foul was
+# measured on; the largest is 4.5 m, so the registration is not what moved.
+NUDGE = {
+    'mk_church_duncan': (-4.9, 4.9),
+    'mk_church_presb': (2.1, -2.1),
+    'mk_clinic': (-4.2, 4.2),
+    'mk_credit_union': (3.5, -3.5),
+    'mk_employment': (-8.1, -8.1),
+    'mk_fire': (2.5, -2.5),
+    'mk_kingdom_hall': (2.1, 14.5),
+    'mk_landscaping': (-2.9, 3.4),
+    'mk_longhouse': (-2.2, -6.1),
+    'mk_marine': (-5.7, -5.7),
+    'mk_minimart': (-2.1, -2.1),
+    'mk_school_elem': (-11, 11),
+    'mk_se_winds': (9.2, -2.5),
+    'mk_senior': (7.5, 0),
+    'mk_store_acc': (2.1, 2.1),
+    'mk_wildlife': (-6.4, -5),
+}
+
+
+# How far inland a site must stand. 26 m is right for a house on a street and
+# wrong for a net store on the cannery point, where the walk moved the thing
+# forty metres up the spit and put it on a street it had been placed clear of -
+# and then every nudge fought the walk instead of the street.
+INLAND = {'mk_wildlife': 10.0, 'mk_marine': 14.0, 'mk_fuel_float': 12.0, 'mk_se_winds': 14.0}
+
+# What a site overrides on its entry's own parameters.
+# THE BALL PARK: the preset is a 125 x 100 m lit park with an 80 m outfield, and
+# Metlakatla's diamond sits in a town block - at the preset's size it reached 48 m
+# into the avenue behind it and no offset anywhere near its measured position
+# cleared the grid. A 56 m outfield and two masts is a community field, which is
+# what this is.
+SITE_P = {'mk_ballpark': {'outfield': 56, 'masts': 2, 'standRows': 4}}
+
+
 def sites():
     out = []
     for sid, name, key, x, z, dirv in LANDMARKS + [(a, b, c, d, e, VAX) for a, b, c, d, e in SPORTS]:
-        x, z = pull_inland(x, z, 26.0)
+        dn = NUDGE.get(sid)
+        if dn:
+            x, z = x + dn[0], z + dn[1]
+        x, z = pull_inland(x, z, INLAND.get(sid, 26.0))
         out.append({'id': sid, 'name': name,
                     'at': {'x': R(x), 'z': R(z), 'yaw': face(dirv[0], dirv[1])},
                     'yard': None,
                     'items': [{'id': sid + '_1', 'key': key, 'x': 0, 'z': 0, 'yaw': 0,
-                               'P': {}, 'onRoad': False, 'bottomOnRoad': False}],
+                               'P': dict(SITE_P.get(sid, {})), 'onRoad': False, 'bottomOnRoad': False}],
                     'fences': []})
     return out
 
 
-def hull(pts, margin=0.0):
-    """The convex hull of these points, pushed out by `margin`, every corner then
-    walked ashore. A zone was a rotated RECTANGLE first and it was wrong: the
-    town's quarters are not rectangles, and the box around one of them reached
-    400 m out to sea and half a kilometre into the muskeg behind."""
+def convex(pts):
+    """The convex hull of these points, anticlockwise, or None under three."""
     P = sorted(set((round(float(x), 1), round(float(z), 1)) for x, z in pts))
     if len(P) < 3:
         return None
@@ -365,14 +911,32 @@ def hull(pts, margin=0.0):
             upper.pop()
         upper.append(q)
     H = lower[:-1] + upper[:-1]
+    return H if len(H) >= 3 else None
+
+
+def hull(pts, margin=0.0):
+    """The convex hull of these points, pushed out by `margin`, every corner then
+    walked ashore. A zone was a rotated RECTANGLE first and it was wrong: the
+    town's quarters are not rectangles, and the box around one of them reached
+    400 m out to sea and half a kilometre into the muskeg behind.
+
+    THE WALK BREAKS THE WINDING, so the result is HULLED AGAIN. Three corners of
+    the town's own envelope came back from `pull_inland` two metres apart and out
+    of order - a polygon that crosses itself - and `compose` drops such a zone
+    where it stands (27_premises.js, `polySimple`), silently: the catch-all sowed
+    nothing at all and nothing anywhere said why."""
+    H = convex(pts)
+    if not H:
+        return None
     cx = sum(q[0] for q in H) / len(H)
     cz = sum(q[1] for q in H) / len(H)
     out = []
     for x, z in H:
         dx, dz = x - cx, z - cz
         L = math.hypot(dx, dz) or 1.0
-        out.append(pt(*pull_inland(x + dx / L * margin, z + dz / L * margin, 8.0)))
-    return out
+        out.append(pull_inland(x + dx / L * margin, z + dz / L * margin, 8.0))
+    H2 = convex(out)
+    return [pt(*q) for q in H2] if H2 else None
 
 
 def road_belt_raw(pts, half):
@@ -407,10 +971,20 @@ def to_waterline(x, z, step=12.0, tries=40):
     return x, z
 
 
-def street_pts(x0, x1, z0, z1):
+def street_pts(x0, x1, z0, z1, step=25.0):
+    """Every point of every street inside the window, walked at `step`.
+
+    It took the ENDS only at first, and a small window in the middle of a grid
+    town catches almost none of them: the civic core's window found two points
+    and `hull` returned None, so the town centre had no commercial zone at all
+    and nothing said so. A street that merely CROSSES the window belongs to it."""
     out = []
     for a, b, c, d, fam in STREETS:
-        for x, z in ((a, b), (c, d)):
+        L = math.hypot(c - a, d - b)
+        n = max(1, int(L / step))
+        for k in range(n + 1):
+            u = k / float(n)
+            x, z = a + (c - a) * u, b + (d - b) * u
             if x0 <= x <= x1 and z0 <= z <= z1:
                 out.append((x, z))
     return out
@@ -460,6 +1034,79 @@ def zones():
     line = [to_waterline(x, z) for x, z in SHORE_ANCHORS]
     out.append({'id': 'mk_z_harbour', 'kind': 'harbour',
                 'poly': road_belt_raw(line, 50.0), 'density': 1})
+    # THE TOWN ITSELF, SOWN LAST. The quarters above are cut from WINDOWS of the
+    # street table, and a street that falls between two windows got no zone and
+    # therefore no frontage at all: 31 of the 73 had their middle outside every
+    # zone and 21 cut not one plot - bare tarmac with nothing along it, which is
+    # what "there's still a lot of plots to fill" looks like from the air.
+    # The sower rejects a plot that overlaps one already sown (27_premises.js
+    # sowPlots, `ctx.plots` is the live list and the zones are walked in ARRAY
+    # ORDER), so a catch-all placed LAST claims only what the quarters left: the
+    # named quarters keep their own kind and density, and every other street in
+    # the town's envelope gets houses. Convexity costs nothing here - a plot is
+    # only ever cut along a road, and no road of the town runs in the sea.
+    env = hull([(a, b) for a, b, c, d, f in STREETS] + [(c, d) for a, b, c, d, f in STREETS], 44)
+    if env:
+        out.append({'id': 'mk_z_town', 'kind': 'residential', 'poly': env, 'density': 0.62})
+    return out
+
+
+# ---- the wood behind the town -------------------------------------------------
+# The user: "probably a denser tree line past the village, made of forest mix".
+# NOT a premises `forest` zone: the island's own tree fill already walks this
+# ground and a zone's trees would stand on top of its. What is wrong is the
+# TERRAIN TYPE the fill reads. Measured over the belt round the town, the raster
+# is 27 % code 7 `scrub` (the muskeg mix: holes 1, canopyFloor 3.5 - a stunted
+# few) and 5 % code 10 `built`, whose `village` mix plants FORTY trees where the
+# conifer plants five thousand; the 10 m classification calls the whole cleared
+# apron round Metlakatla built, far past the last street. So the belt stamps
+# code 8 `forest` - the `conifer_young` mix - and stamps it ONLY over 7 and 10
+# (`from`), so the bog, the heath, the rock and the beach stay themselves.
+# 13 `forest old` would be denser still and may not be stamped: it is DERIVED
+# from slope and canopy (contract v1.20).
+WOOD_IN, WOOD_OUT = 34.0, 420.0
+
+
+def wood_stamps():
+    """The belt, as one quad per edge of the town's own envelope.
+
+    Built from TWO hulls at first - an inner and an outer - and the pair has no
+    reason to have the same number of corners once each has been re-hulled after
+    its walk ashore, so the guard that asked for it silently produced nothing at
+    all. The outer ring is now the inner ring's OWN corners pushed out along their
+    own radials, which keeps them paired by construction; a quad the walk has
+    folded or collapsed is dropped and counted."""
+    ring = [(a, b) for a, b, c, d, f in STREETS] + [(c, d) for a, b, c, d, f in STREETS]
+    inner = hull(ring, WOOD_IN)
+    if not inner:
+        return []
+    cx = sum(q[0] for q in inner) / len(inner)
+    cz = sum(q[1] for q in inner) / len(inner)
+    outer = []
+    for x, z in inner:
+        dx, dz = x - cx, z - cz
+        L = math.hypot(dx, dz) or 1.0
+        k = (L + WOOD_OUT - WOOD_IN) / L
+        outer.append(pt(*pull_inland(cx + dx * k, cz + dz * k, 8.0)))
+
+    def crosses(a, b, c, d):
+        def side(p, q, r):
+            return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+        return (side(a, b, c) > 0) != (side(a, b, d) > 0) and (side(c, d, a) > 0) != (side(c, d, b) > 0)
+
+    out, dropped = [], 0
+    n = len(inner)
+    for i in range(n):
+        j = (i + 1) % n
+        q = [inner[i], inner[j], outer[j], outer[i]]
+        a = abs(sum(q[k][0] * q[(k + 1) % 4][1] - q[(k + 1) % 4][0] * q[k][1] for k in range(4))) / 2
+        if a < 400 or crosses(q[0], q[1], q[2], q[3]) or crosses(q[1], q[2], q[3], q[0]):
+            dropped += 1
+            continue
+        out.append({'id': 'mk_tt_wood%02d' % i, 'poly': [pt(*c) for c in q], 'code': 8,
+                    'from': [7, 10]})
+    if dropped:
+        print('  wood belt: %d of %d wedges dropped (walked ashore or folded)' % (dropped, n))
     return out
 
 
@@ -592,16 +1239,63 @@ def road_belt(pts, half):
 
 
 def ttype_stamps():
-    out = [{'id': 'mk_tt_walden', 'poly': road_belt(WALDEN_PNT_RD, 55.0), 'code': 15},
-           {'id': 'mk_tt_airport', 'poly': road_belt(AIRPORT_RD, 40.0), 'code': 15},
-           {'id': 'mk_tt_skaters', 'poly': road_belt(SKATERS_LAKE_RD, 35.0), 'code': 15}]
+    # THE VERGE IS A VERGE. It was a 110 m wide band down Walden Point Road, which
+    # is not what the picture shows and not what it plants: `borders` sows EIGHTY
+    # trees where `conifer_young` sows five thousand, so a corridor that wide reads
+    # as a bald scar through the wood rather than a lush edge to it. 26 m a side is
+    # the road cut and its green shoulder. `from` keeps it off the bog, the rock and
+    # the beach - a lusher border grows where the wood was cut, nowhere else.
+    LUSH_FROM = [7, 8, 10, 14]
+    out = [{'id': 'mk_tt_walden', 'poly': road_belt(WALDEN_PNT_RD, 26.0), 'code': 15, 'from': LUSH_FROM},
+           {'id': 'mk_tt_airport', 'poly': road_belt(AIRPORT_RD, 22.0), 'code': 15, 'from': LUSH_FROM},
+           {'id': 'mk_tt_skaters', 'poly': road_belt(SKATERS_LAKE_RD, 20.0), 'code': 15, 'from': LUSH_FROM}]
     for i, poly in enumerate(LUSH_CUTS):
-        out.append({'id': 'mk_tt_cut%d' % i, 'poly': [pt(*p) for p in poly], 'code': 15})
+        out.append({'id': 'mk_tt_cut%d' % i, 'poly': [pt(*p) for p in poly], 'code': 15, 'from': LUSH_FROM})
     # A MOLE IS ROCK. The terrain layer raises it out of the sea, but its cells
     # still carry ttype 0 and the ground would be drawn as water four metres up
     # in the air. Code 6 is `rock`, the island's own.
     for bid, pts, half, h in BREAKWATERS:
         out.append({'id': bid.replace('mk_bw', 'mk_tt_bw'), 'poly': breakwater_poly(pts, half + 2), 'code': 6})
+    out += wood_stamps()
+    out += resveg_stamps()
+    return out
+
+
+# ---- the residential vegetation ------------------------------------------------
+# The user, over a shot of the town with green scribbles on the gaps: "fill the
+# empty patches and in-between land with a new biome, small and medium conifers
+# from the forest pack, high density, occasional bushes. We'll call this
+# residential vegetation."
+#
+# NOT A PREMISES `forest` ZONE, and the reason is a number: at the density asked
+# for, the gaps inside Metlakatla are 40-odd hectares, which planForest would put
+# some twenty thousand INDIVIDUAL trees into the record - and render_premises
+# builds one THREE.LOD per record tree. The island's own fill draws that density
+# instanced and chunked for nothing, and it is driven by the TERRAIN TYPE. So the
+# new thing is a biome (code 16, `residential`, tools/_trees_tuning.json), and the
+# premises' job is only to say WHERE.
+#
+# THE SCRIBBLE IS NOT THE DEFINITION. The green marks sit in the western and
+# southern quarters, where the gaps are biggest, but what they point AT is a rule
+# that holds everywhere in the town: the ground the plots do not use. So the stamp
+# is the town's own zone polygons with `clear: True` - every 10 m cell that carries
+# no plot, no road, no site foot and no paving - which is that rule exactly, and
+# which no hand-traced polygon could follow round three hundred and fifty plots.
+RESVEG_ZONES = ('mk_z_core', 'mk_z_res_n', 'mk_z_res_e', 'mk_z_res_c', 'mk_z_res_w',
+                'mk_z_res_s', 'mk_z_res_sub', 'mk_z_town')
+# What it may replace: the scrub and the young wood it grows out of, the stale
+# `built` classification over the whole town, and the lush verge. Never the bog,
+# the heath, the rock, the beach or the water.
+RESVEG_FROM = [7, 8, 10, 15]
+
+
+def resveg_stamps():
+    out = []
+    for z in zones():
+        if z['id'] not in RESVEG_ZONES:
+            continue
+        out.append({'id': 'mk_tt_rv_' + z['id'][5:], 'poly': z['poly'], 'code': 16,
+                    'from': RESVEG_FROM, 'clear': True})
     return out
 
 
@@ -802,14 +1496,18 @@ def pier(pid, name, preset, root, tip, P=None):
                        'P': dict({'L': R(L, 1)}, **(P or {})), 'onRoad': False, 'bottomOnRoad': False}]}
 
 
-def spot(sid, name, preset, c, dirv, P=None, wet=0.0):
+def spot(sid, name, preset, c, dirv, P=None, wet=0.0, on_road=False):
+    """`on_road`: this thing is ALLOWED to meet a road. The composer names any
+    item standing on a road an authoring mistake, and it is right about a church;
+    it is wrong about a rubble mound whose landward section carries Breakwater
+    Road along its crest, which is what a breakwater IS."""
     if wet:
         c = wet_span(c, dirv, wet)
     return {'id': sid, 'name': name,
             'at': {'x': R(c[0]), 'z': R(c[1]), 'yaw': axis(dirv[0], dirv[1])},
             'yard': None, 'fences': [],
             'items': [{'id': sid + '_1', 'key': preset, 'x': 0, 'z': 0, 'yaw': 0,
-                       'P': dict(P or {}), 'onRoad': False, 'bottomOnRoad': False}]}
+                       'P': dict(P or {}), 'onRoad': False, 'bottomOnRoad': bool(on_road)}]}
 
 
 def marine_sites():
@@ -875,5 +1573,6 @@ def marine_sites():
                             'breakwater armour', 'marine/breakwater' + (', light' if (last and bid == 'mk_bw_outer') else ''),
                             along(a, b, 0.5), (dx / L, dz / L),
                             {'L': R(L + 6, 1), 'crest': R(half * 2 - 1.2, 1), 'crestH': R(h + 0.3, 2),
-                             'slope': 1.5, 'stones': 1, 'beacon': 1 if (i == 0 and bid == 'mk_bw_outer') else 0}))
+                             'slope': 1.5, 'stones': 1, 'beacon': 1 if (i == 0 and bid == 'mk_bw_outer') else 0},
+                            on_road=True))
     return out

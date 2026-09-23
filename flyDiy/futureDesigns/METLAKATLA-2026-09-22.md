@@ -143,3 +143,171 @@ Owed:
   says why. What can be said honestly is static: **2.48 M triangles, 1210 ground chunks, 415 built
   things, 1.9 s to compose**. The frame time, and the tuning of the zone densities and the LOD
   ladder that follows from it, are owed.
+
+---
+
+# The second day (2026-09-23) — the town by the user's own hand
+
+Everything below came from the user looking at the town and drawing on the picture. That is the
+method this half of the chantier is really about: **`tools/met_axes.py` reads an annotation back**,
+so a correction is a measurement rather than a description of one.
+
+## 8. The instrument: reading a drawing
+
+`met_axes.py --colour red|green|blue --shape lines|region|marks|hulls [--pixels]`.
+
+- The picture's own **orange grid** (drawn by `met_trace.py`) gives the calibration — as a fitted
+  LATTICE, not as whatever peaks survive a threshold: half the grid is buried under roofs and labels,
+  one threshold found four of eight columns, and the mean gap between *those* came out at exactly
+  half the real scale. A calibration wrong by a factor of two looks perfectly reasonable.
+- The strokes are masked by pen, closed, blob-filtered, **thinned** (Zhang–Suen, twenty lines) and
+  read as a **graph**. Three traps, all of them worth the ink:
+  - `np.roll(a, -dy, 0)` is the neighbour at `+dy`. With the sign the other way the ring runs
+    backwards, Zhang–Suen's c1/c2 test the wrong triples, and **8989 pixels came back as 8989**.
+  - A one-pixel 8-connected DIAGONAL has three neighbours at every step — the pixel beside it and the
+    two diagonals — so a plain degree test called 1108 staircase pixels junctions and returned 2470
+    two-pixel "branches" for nine drawn lines. A diagonal edge whose ends share a 4-neighbour is
+    redundant and is dropped; then the graph is the network.
+  - A hand-drawn stroke grows a SPUR at every bump on its edge. Shaved (leaf to junction, under 12 px,
+    repeated), 11 branches remain.
+- A stroke is carried THROUGH a junction it merely crosses, by tangent (`--turn`, 55 deg default): a
+  graph gives branches, a person draws roads.
+- `--pixels` for a GAME screenshot, which has no grid: 0..1 picture coordinates out, for something
+  else to unproject.
+
+**Measured: 8989 red pixels -> 11 branches -> 10 axes over 4089 m, the two picture axes agreeing on
+the scale to 0.24 %.**
+
+## 9. The three passes
+
+**Pass 1 — the axes** (*"you have been too approximative in your grid ... I have traced in red some
+axis ... that would break your absolute grid pattern"*). The grid came from a vote, and a vote over a
+rotated regular grid answers with a rotated regular grid: 73 straight segments on two bearings, every
+one defensible and the whole visibly wrong, because Metlakatla's arterials curve round the hill and
+cut the blocks at their own angles. The ten drawn axes are authored as arterials (paved, 6.5 m,
+`smooth: 26`, traffic); a voted street lying on one for more than 55 % of its length is dropped.
+
+**Pass 2 — three pens on one picture.** GREEN: the seafront road, `mk_r_shore`, 329 m. BLUE (ticks):
+seven marks, each within 4.6 m of `mk_sa27` and nothing else — a tick is a PLACE, so the rule is a
+place rule, not an id. RED (a closed loop): 17.5 ha of the south-western quarter where the drawn axes
+ARE the street plan; 17 voted streets dropped inside it.
+
+**Pass 3 — four blue strokes** (*"highlighted in blue the roads you should delete"*). Each matched one
+road at 100 % of the STROKE's own points. **The test runs the other way round from the axes' one and
+getting that back to front cost an hour**: a stroke is drawn over PART of a street — it says *this
+one*, not *all of this* — so the share that matters is the stroke's on the street. Tested the wrong
+way the three marked roads scored 0.31–0.54 and none was dropped. A traced road is TRIMMED rather
+than dropped (the Skaters Lake stroke covers the straight head the hill axis replaces; the road runs
+on east past the lake where nothing was drawn over it).
+
+## 10. What the roads do to each other — `tools/met_cross.js`
+
+A record's roads are authored one at a time and nothing had ever looked at what they do to EACH OTHER.
+Four faults, all visible from the air before any of them is visible in a diff: **doubles** (two roads
+side by side — the same street traced twice), **slivers** (a crossing under 28 deg, where the two
+ribbons overlap for tens of metres and the paint, the band and the guardrails fight inside the lens),
+**near misses** (an end 1–12 m short of another road: a junction the network does not have — the
+traffic will not turn there, the pole line stops, the sower reads two unconnected frontages), and
+**stubs**.
+
+| | before | after |
+|---|---|---|
+| doubles | 3 | 1 (a legitimate Y in the invented village) |
+| near misses | 26 | **0** |
+| slivers | 2 | 2 (both voted streets meeting Walden Point Road at 24 deg) |
+
+Fixed by two passes in the author, in the order **snap -> drop -> snap**: two streets 10 m apart score
+as a 19 % double and survive, and snapping their ends onto each other makes the same pair a 52 % one,
+which is the honest reading — they were always the same street.
+
+## 11. The fabric
+
+- **528 plots** (was 344). 31 of 73 streets had their middle outside every zone and 21 cut no plot at
+  all — bare tarmac with nothing along it. Fixed by a CATCH-ALL zone sown LAST: `sowPlots` rejects a
+  plot overlapping one already sown and the zones are walked in ARRAY ORDER, so the named quarters
+  claim their own and the envelope fills the rest. **The catch-all silently sowed nothing at first**
+  because `pull_inland` broke the hull's winding — three corners came back two metres apart and out
+  of order, a polygon that crosses itself, and `compose` drops such a zone where it stands. It is
+  hulled again after the walk.
+- **744 garden trees** (was 0) — contract v1.22.
+- **The ball field takes its block.** Streets are 46 m apart and the smallest honest baseball park is
+  91 x 76 m even with the outfield cut from 80 m to 56, so NO position within 120 m clears the grid.
+  Any street entering the field's box is cut at its fence; a street the box would cut in two keeps its
+  longer half.
+- **Seventeen civic buildings stood in the carriageway** and now none does (`tools/met_nudge.js`,
+  which uses the composer's own test on the COMPOSED roads — a corner test of my own missed the half
+  of it where a road runs THROUGH a foot without either corner being near its centreline). Three
+  oscillated between two streets of a corner block, so the direction is chosen by SEARCH; one had no
+  clear offset at all, which is the tool saying the POSITION is wrong, not the nudge.
+
+## 12. Terrain type 16 `residential`
+
+*"fill the empty patches and in-between land with a new biome, small and medium conifers from the
+forest pack, high density, occasional bushes. We'll call this residential vegetation."*
+
+NOT a premises `forest` zone, and the reason is a number: at that density the gaps inside Metlakatla
+are ~39 ha, which `planForest` would put some twenty thousand INDIVIDUAL trees into the record — and
+`render_premises` builds one `THREE.LOD` per record tree. The island's own fill draws that density
+instanced and chunked for nothing, and it is driven by the TERRAIN TYPE. So the new thing is a
+**biome** (`residential` in `_trees_tuning.json`: count 5200, under 4, holes 0.35, canopyFloor 6.5)
+and the premises' job is only to say WHERE — the town's own zone polygons with `clear: true`.
+**38.75 ha stamped**, and the scribble is the confirmation rather than the definition: what the green
+marks point at is a rule that holds everywhere in the town, which no hand-traced polygon could follow
+round three hundred and fifty plots.
+
+## 13. The lawn's grade, measured
+
+*"the plot grass luminosity/tint ... pale bright green against dark intense green around. There should
+be a difference, but not that big."* A four-step ladder from one boot (`LOT_GROUND.grade()`), the
+lawn's own pixels found as the ones the grade moves and the island's wood as the green it cannot:
+
+| sat / value / warm | lawn luma | lawn sat | x the wood |
+|---|---|---|---|
+| 0.70 / 0.93 / 0.50 (was) | 0.199 | 0.34 | 2.08x |
+| 0.80 / 0.80 / 0.35 | 0.172 | 0.38 | 1.79x |
+| 0.88 / 0.72 / 0.25 | 0.159 | 0.41 | 1.66x |
+| **0.95 / 0.64 / 0.15 (now)** | **0.146** | **0.44** | **1.52x** |
+
+The wood sits at luma 0.096, sat 0.37. At the old grade a lawn was twice the wood's brightness and
+two thirds its saturation — bright and washed out, exactly "pale bright green". At the new one it is
+half again as bright and a shade MORE saturated, which is what mown grass is beside a conifer stand.
+
+## 14. The clipping, and why it was everywhere
+
+The user: *"terrain clips through roads all the time, and that's unacceptable"*, and then *"but also
+plot textures clipping"*. **They are one bug.** The inner ring is a fixed 9 km square about the
+ORIGIN and it is the only ground tier that has ever heard of a premises — `world.terrainH` for its
+vertices, `groundSink` to drop it 4 m under the premises' own 2 m patch. Everything past 4.5 km is
+the baked quadtree at its raw DEM height, no modifier, no sink. Metlakatla is **9.4 km** out. So the
+town's road cuts were carved into a ground nothing drew, and the un-cut mesh stood through every
+ribbon and every lot patch alike. `sinkFar` applies the ring's own rule to the far tier after the
+patch stands: **30 369 vertices at Metlakatla**. Any premises more than 4.5 km from the origin
+depended on this and nobody had ever put one there.
+
+## 15. Where it stands, honestly
+
+**Verified:** the record composes with **zero issues**; GATE PREMISES green at 338 checks (the new
+rules are 14n lot-refusal, 14o the `from` filter and the overlapping undo, 14p the garden trees,
+14q the far sink); GATE SPLAT and GATE TREES green with `NCODE` 17; the lawn grade measured and set;
+`sinkFar` confirmed live in the game (the page logs its vertex count); code 16 confirmed live
+(`TREE_FILL.at` answers `residential` over the gaps, on FOREST_FLOOR and GRASS ground).
+
+**NOT verified, and the user asked for the box back before it could be:**
+- the full gate battery has not been run since the second day's changes;
+- the clipping fix has not been looked at in a picture from low over a graded road — the vertex count
+  says it moved, the eye has not said it is gone;
+- the residential vegetation has been probed, not judged: `TREE_FILL` was still building (1164 chunks
+  queued, 53 752 trees) when the last shot was taken;
+- **perf is still owed** and is now a bigger question than it was: 528 plots, 744 garden trees, 39 ha
+  of new dense biome and a far-terrain sink over a 7 x 12 km extent.
+
+## 16. Owed, in the order I would do it
+
+1. **Run the full gate battery** and fix what the second day broke, if anything.
+2. **Look at a graded road from low** — Walden Point Road at (-1508, -8305) is the worst cut measured
+   (-8.09 m) and is the one to photograph.
+3. **Perf.** `tools/met_perf.js` still cannot lift the boot overlay; `tools/island_shot.js` can, and
+   its rig is the one to steal for it.
+4. The two SLIVER crossings, if they look as bad as they measure.
+5. Everything from the first day's list: Walden Point Road past Bayside to the ferry, the Tsimshian
+   longhouse, the `ttype` editor tool, the civic buildings by the user's eye.

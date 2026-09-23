@@ -88,9 +88,14 @@ const GROUND_FIELDS = (() => {
       // does not carry: a premises `cover` polygon stamps it in (27_premises.js), which is why the `lush` set
       // (library index 12) was sitting unused since it left codes 3/7/14 on 2026-09-21. Its biome is `borders`.
       15: { tex: ['lush', 'grass', 'grassRock'], scale: [2.4, 2.4, 15], far: ['grassRock', null, 'grassRock'], farScale: [15, 0, 15], mix: [22, 3, 0.05, -0.15], vary: [10, 0.18, 22], para: 0.2 },
+      // 16 RESIDENTIAL (the user, 2026-09-23): the ground between a town's plots - the
+      // forest floor's own aerial, worn thinner where feet and wheels cross it, with the
+      // dirt of a yard showing through. It is NOT `built`: built is a yard, this is the
+      // wood that never left, and its trees are the `residential` mix.
+      16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [81, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
     },
     // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
-    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush' },
+    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'residential' },
     knobs: {
       cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,

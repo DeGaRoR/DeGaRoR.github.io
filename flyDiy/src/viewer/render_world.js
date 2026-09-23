@@ -20,6 +20,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let outerMatShared = null;          // G398.3: the outer ring's material (its canopy tint), for a premises' patch beyond the inner ring
   let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
+  // THE ISLAND'S FAR MESH, kept for the same reason and it was not (2026-09-23, the
+  // user: "terrain clips through roads all the time, and that's unacceptable").
+  // The INNER RING is a fixed 9 km square about the ORIGIN (INNER 4500) and it is the
+  // only ground that ever hears about a premises: its vertices are `world.terrainH`
+  // (composed, so a road's cut is in them) and `groundSink` drops it 4 m wherever the
+  // premises' own 2 m patch covers. Everything past 4.5 km is the BAKED QUADTREE -
+  // `y = n.h[...]`, the raw DEM, no modifier, no sink - and Metlakatla is 9.4 km out.
+  // So the town's roads were cut into a ground nothing drew, and the un-cut mesh stood
+  // through every ribbon. The far mesh now sinks under the patch exactly as the ring
+  // does; the sink runs after the premises renders, because `premisesR` does not exist
+  // when the far mesh is built.
+  const farGeos = [];
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
   let cliffs = null;                  // the photoscanned cliff faces (cliffs.js)
@@ -1763,6 +1775,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('uv', new THREE.Float32BufferAttribute(g.uv, 2));
         geo.setIndex(g.idx); geo.computeVertexNormals();
         const m = new THREE.Mesh(geo, oMat); m.receiveShadow = true; scene.add(m);
+        farGeos.push(geo);
         farTris += g.idx.length / 3;
       }
       console.log('island far terrain: ' + groups.size + ' meshes, ' + (farTris / 1e6).toFixed(1) + ' M tris');
@@ -4482,7 +4495,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       premisesR.rebuild();
       while (premisesR.stats.queued) premisesR.step(4);
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
-      if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) refreshGround(pb); }
+      if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) { refreshGround(pb); sinkFar(pb); } }
     } catch (e) { console.warn('premises: the record did not render', e); }
   }
   { // stage-4 aerodromes: strip decals + windsocks at every field/strip
@@ -4716,6 +4729,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // house pads and the graded shoulders laid on the composed height. At the patch's border the
   // patch tucks 2.2 m under the ring as before: the seam is the ring's, by design.
   function groundSink(x, z) { return (premisesR && premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0; }   // hoisted: the boot calls refreshGround before this line
+  // the far mesh under the premises' patch: the ring's 4 m sink, on the tier that
+  // actually draws a place more than 4.5 km from the origin
+  function sinkFar(bb) {
+    let moved = 0;
+    for (const g of farGeos) {
+      const pa = g.attributes.position; let n = 0;
+      for (let i = 0; i < pa.count; i++) {
+        const x = pa.getX(i), z = pa.getZ(i);
+        if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue;
+        const d = groundSink(x, z);
+        if (d) { pa.setY(i, pa.getY(i) - d); n++; }
+      }
+      if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); moved += n; }
+    }
+    if (moved) console.log('premises: ' + moved + ' far-terrain vertices sunk under the patch');
+    return moved;
+  }
   function refreshGround(bb) {
     for (const g of groundGeos) {
       const pa = g.attributes.position; let n = 0;

@@ -569,6 +569,10 @@ window.MARINE_GEN.CATALOGUE = Object.keys(PRESETS).map(name => {
     hooks: () => [], hooksOf: () => [], lod: { dist: [0, 220, 700, 1800] },
     slots: {}, tags: ['marine', KINDS[Math.round(Pd.kind)]], role: 'marine',
     cat: catOf(name), headless: true, gate: 'HOUSE',
+    // NO LOT (contract v1.22): a hand-placed site item is dressed like a plot -
+    // lot ground, a drive, a car, a FENCE - and a fence round a pier is absurd.
+    // Anything that stands in the water declares it wants none of that dressing.
+    lot: false,
   };
 });
 })();

@@ -739,3 +739,39 @@ after the freeze, against this document.
   `marine/trestle pier`, `float dock`, `breakwater`, `wharf deck`, `net pens`. Every entry's
   `ground.need` is `'none'`: it stands in the water on its own piles or floats on it, and cutting a
   shelf under a pier would flatten the seabed into a table.
+
+- **v1.22 (2026-09-23, METLAKATLA, the second and third passes).** Four amendments, each of them a
+  defect the user found from the air before any gate saw it.
+
+  - **`ttype` entries take `from` and `clear`.** A stamp was flat: it painted the bog, the rock and
+    the beach the same as the wood. `from: [codes]` names the codes this stamp may REPLACE, so a
+    belt of `forest` thickens the scrub and the stale `built` classification and leaves a muskeg a
+    muskeg. `clear: true` stamps only the cells this premises leaves OPEN — no plot, no road ribbon,
+    no site footprint, no paved polygon — which is what lets a terrain type mean *the ground between
+    the buildings*. At the 10 m grid a plot is two to three cells wide, so the rule resolves; it is
+    also the only way a residential wood can fill a town's gaps, because the island's own tree fill
+    knows nothing whatever about a premises and would stand a conifer on a roof.
+  - **The stamp's undo unwinds BACKWARD.** Two stamps may cover one cell, and the second one saved
+    what the FIRST had written; unwound forwards the cell keeps the first stamp's code for ever. The
+    bug was invisible until two `ttype` polygons first overlapped.
+  - **A catalogue entry may refuse a lot: `lot: false`.** `render_premises.buildItem` dresses every
+    hand-placed item like a plot — lot ground, a drive, a car and a FENCE — for every category but
+    `sports` and `landmark`. The user found a fence round a pier. Every `MARINE_GEN` entry now
+    refuses one, and so does anything standing on a deck (`P.floorOverWater`), whose lot would
+    otherwise be laid on the seabed five metres below it.
+  - **Garden trees (`compose` stage 5e).** `planForest` steps around every plot, so a sown quarter
+    came out as bare roofs on bare ground with the wood stopping at the back fence. Two rules, both
+    the village's own since G313/G323: a plot with NO pick is an empty lot and the wood comes down
+    through it; a plot that IS built keeps nought to three of the SMALL species in its back band,
+    clear of the house's envelope. A zone switches them off with `rules.trees: false` and sets the
+    count with `rules.gardens`. The trees carry `garden: true` — the one thing in the record that is
+    allowed to stand on a plot, and both the gate and the panel check say so explicitly.
+
+  **And one thing that is not the contract's but belongs beside it.** The inner ring is a fixed 9 km
+  square about the ORIGIN, and it is the only ground tier that has ever heard of a premises: its
+  vertices are `world.terrainH` (composed, so a road's cut is in them) and `groundSink` drops it 4 m
+  wherever the premises' own 2 m patch covers. Everything past 4.5 km is the baked quadtree at its
+  raw DEM height — and Metlakatla is 9.4 km out. So the town's road cuts were carved into a ground
+  nothing drew, and the un-cut mesh stood through every ribbon and every lot patch. `sinkFar` now
+  applies the ring's own rule to the far tier after the patch stands (30 369 vertices at Metlakatla).
+  **Any premises more than 4.5 km from the origin depended on this and nobody had put one there.**
