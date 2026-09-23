@@ -1458,6 +1458,17 @@ SHORE_ANCHORS = [(-4120, -8640), (-4010, -8700), (-3900, -8770), (-3780, -8830),
                  (-3660, -8890), (-3560, -8950), (-3470, -9010), (-3400, -9060)]
 
 
+# THE PLOT DIAL (2026-09-23). The boot's build queue drains WHOLE, and the comment
+# that wrote it says what it was sized for: "36 houses, 3 s on an RTX 3080 - a worker
+# or a ladder is owed" (render_world.js, the G386 premises block). Metlakatla puts 452
+# through it, twelve and a half times, and the roll-out's hard stop is 90 s - so a boot
+# here stalls, which everyone including me has been reading as machine load all day.
+# `MK_PLOTS` scales every town zone's density so the cost can be measured AS A CURVE
+# against plot count rather than as a pass/fail threshold, which on a loaded box is
+# really a machine-load threshold. tools/met_boot_curve.js drives it.
+PLOT_K = float(os.environ.get('MK_PLOTS', '1') or 1)
+
+
 def zones():
     out = []
     for zid, kind, win, margin in ZONE_WINDOWS:
@@ -1485,8 +1496,20 @@ def zones():
     # named quarters keep their own kind and density, and every other street in
     # the town's envelope gets houses. Convexity costs nothing here - a plot is
     # only ever cut along a road, and no road of the town runs in the sea.
+    # THE DIAL CUTS ZONES, not only density. Turning the density down alone floors at
+    # 293 plots however far it goes: `sowPlots` maps density to a GAP CHANCE capped at
+    # 0.95, and the catch-all then refills whatever the quarters drop - self-
+    # compensating, which is the right behaviour for authoring and useless for a curve.
+    # So under 1 the catch-all goes and only a prefix of the quarters is kept.
+    if PLOT_K < 1:
+        keep = max(0, int(round(len(out) * PLOT_K)))
+        for z in out[keep:]:
+            DROPPED.append((z['id'], 'MK_PLOTS=%g: the dial dropped it' % PLOT_K))
+        out = out[:keep]
+        for z in out:
+            z['density'] = round(z.get('density', 1) * PLOT_K, 3)
     env = hull([(a, b) for a, b, c, d, f in STREETS] + [(c, d) for a, b, c, d, f in STREETS], 44)
-    if env:
+    if env and PLOT_K >= 1:
         out.append({'id': 'mk_z_town', 'kind': 'residential', 'poly': env, 'density': 0.62})
     return out
 
