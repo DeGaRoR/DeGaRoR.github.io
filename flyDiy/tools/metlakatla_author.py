@@ -690,6 +690,37 @@ def clip_ballfield(x0, z0, x1, z1):
             x0 + (x1 - x0) * b / n, z0 + (z1 - z0) * b / n)
 
 
+def split_revisits(pl, tol=1.0):
+    """Split a polyline wherever it RETURNS TO A POINT IT HAS ALREADY VISITED.
+
+    met_axes.py walks the thinned drawing as a graph, and where the user's strokes
+    meet at a junction two branches share that vertex. `join()` concatenated them
+    into one polyline, so mk_ax00 ran 90 m out from the junction, TELEPORTED back to
+    it and set off again down the main axis - a 90 m segment retraced by a second
+    carriageway on the same ground (z-fighting with itself) and a 179 deg spike at
+    the seam, the sharpest corner on the island by a wide margin against a next-worst
+    of 48 deg. Found by the pavement session's GATE PAVEMENT section 11, which their
+    new polyRoad fillet cannot round away: a REVERSAL cannot be filleted inside the
+    road's own width, and the bound that keeps the smoothed line on the pavement is
+    exactly what stops an arc helping here.
+
+    So it is split, not moved: two roads sharing a start point, which is what a T
+    junction is and what the user drew. No authored coordinate changes.
+    """
+    out, cur = [], [pl[0]]
+    for j in range(1, len(pl)):
+        q = pl[j]
+        back = next((i for i in range(len(cur) - 1)
+                     if math.hypot(q[0] - cur[i][0], q[1] - cur[i][1]) <= tol), None)
+        if back is not None:
+            out.append(cur)
+            cur = [q]
+        else:
+            cur.append(q)
+    out.append(cur)
+    return out
+
+
 def axis_polys():
     """The drawn axes, walked ashore, as game polylines."""
     out = []
@@ -701,9 +732,11 @@ def axis_polys():
         for q in pts[1:]:
             if math.hypot(q[0] - keep[-1][0], q[1] - keep[-1][1]) > 6.0:
                 keep.append(q)
-        if len(keep) >= 2 and sum(math.hypot(keep[i][0] - keep[i - 1][0], keep[i][1] - keep[i - 1][1])
-                                  for i in range(1, len(keep))) >= 60:
-            out.append(keep)
+        # ...and a stroke that came back through its own junction is TWO roads
+        for piece in split_revisits(keep):
+            if len(piece) >= 2 and sum(math.hypot(piece[i][0] - piece[i - 1][0], piece[i][1] - piece[i - 1][1])
+                                       for i in range(1, len(piece))) >= 60:
+                out.append(piece)
     return out
 
 
