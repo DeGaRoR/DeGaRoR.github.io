@@ -1,7 +1,7 @@
 {
  "part": "mining village",
  "prefix": "mn_",
- "note": "JUMBO MINE - the mining village on the 724 m summit east of the big lake (x 5600..6900, z -11700..-10300): the Kennecott mill climbs the west face from the main street to the summit; the main street (18 m) is the wild strip mn_strip for its straight 250 m, then winds round the summit on the 676 m contour. Plain world-editor entries, authored through the editor's own record (ids mn_*); edit them in the game (WORLD) and write them back.",
+ "note": "JUMBO MINE - the mining village on a wooded knoll (381 m) in the forest band of the NE mountains (x 7100..7450, z -15600..-14900): the Kennecott mill climbs the knoll from the main street; the main street (18 m) is the wild strip mn_strip for its straight 250 m (one way: land southbound over the north end), then winds south along the ridge flank. Every building is a site item with no lot; plain world-editor entries (ids mn_*), edit them in the game (WORLD) and write them back with jolene_author.py --absorb.",
  "layers": {
   "terrain": [
    {
@@ -9,24 +9,24 @@
     "kind": "flatten",
     "poly": [
      [
-      6051.42,
-      -10870.46
+      7266.85,
+      -15353.58
      ],
      [
-      6099.42,
-      -10953.59
+      7258.74,
+      -15446.22
      ],
      [
-      6115.88,
-      -10944.09
+      7277.67,
+      -15447.88
      ],
      [
-      6067.88,
-      -10860.96
+      7285.77,
+      -15355.23
      ]
     ],
-    "level": 676.75,
-    "falloff": 11,
+    "level": 347.8,
+    "falloff": 10.8,
     "abs": true,
     "order": 0
    },
@@ -35,102 +35,24 @@
     "kind": "flatten",
     "poly": [
      [
-      6102.42,
-      -10958.79
+      7258.22,
+      -15452.2
      ],
      [
-      6122.42,
-      -10993.43
+      7252.47,
+      -15517.95
      ],
      [
-      6137.14,
-      -10984.93
+      7269.4,
+      -15519.43
      ],
      [
-      6117.14,
-      -10950.29
+      7275.15,
+      -15453.68
      ]
     ],
-    "level": 676.75,
-    "falloff": 10,
-    "abs": true,
-    "order": 0
-   },
-   {
-    "id": "mn_t_upper_s",
-    "kind": "flatten",
-    "poly": [
-     [
-      6029.42,
-      -10832.35
-     ],
-     [
-      6049.42,
-      -10866.99
-     ],
-     [
-      6064.14,
-      -10858.49
-     ],
-     [
-      6044.14,
-      -10823.85
-     ]
-    ],
-    "level": 676.75,
-    "falloff": 10,
-    "abs": true,
-    "order": 0
-   },
-   {
-    "id": "mn_t_turn_s",
-    "kind": "flatten",
-    "poly": [
-     [
-      5986.1,
-      -10812.33
-     ],
-     [
-      6003.6,
-      -10842.64
-     ],
-     [
-      6033.05,
-      -10825.64
-     ],
-     [
-      6015.55,
-      -10795.33
-     ]
-    ],
-    "level": 675.75,
-    "falloff": 10,
-    "abs": true,
-    "order": 0
-   },
-   {
-    "id": "mn_t_turn_n",
-    "kind": "flatten",
-    "poly": [
-     [
-      6099.6,
-      -11008.91
-     ],
-     [
-      6117.1,
-      -11039.22
-     ],
-     [
-      6146.55,
-      -11022.22
-     ],
-     [
-      6129.05,
-      -10991.91
-     ]
-    ],
-    "level": 675.75,
-    "falloff": 10,
+    "level": 347.8,
+    "falloff": 15.1,
     "abs": true,
     "order": 0
    },
@@ -139,24 +61,336 @@
     "kind": "flatten",
     "poly": [
      [
-      5973.72,
-      -10829.87
+      7270.77,
+      -15308.75
      ],
      [
-      5994.72,
-      -10866.24
+      7267.37,
+      -15347.6
      ],
      [
-      6017.23,
-      -10853.24
+      7300.24,
+      -15350.48
      ],
      [
-      5996.23,
-      -10816.87
+      7303.64,
+      -15311.62
      ]
     ],
-    "level": 675.75,
-    "falloff": 9.8,
+    "level": 346.8,
+    "falloff": 13.5,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_turn_s",
+    "kind": "flatten",
+    "poly": [
+     [
+      7244.16,
+      -15297.38
+     ],
+     [
+      7241.11,
+      -15332.25
+     ],
+     [
+      7274.98,
+      -15335.21
+     ],
+     [
+      7278.03,
+      -15300.35
+     ]
+    ],
+    "level": 346.8,
+    "falloff": 10.2,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_turn_n",
+    "kind": "flatten",
+    "poly": [
+     [
+      7224.37,
+      -15523.52
+     ],
+     [
+      7221.32,
+      -15558.39
+     ],
+     [
+      7255.19,
+      -15561.35
+     ],
+     [
+      7258.24,
+      -15526.48
+     ]
+    ],
+    "level": 346.8,
+    "falloff": 10,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h1",
+    "kind": "flatten",
+    "poly": [
+     [
+      7275.73,
+      -15274.77
+     ],
+     [
+      7279.18,
+      -15261.2
+     ],
+     [
+      7290.81,
+      -15264.16
+     ],
+     [
+      7287.36,
+      -15277.73
+     ]
+    ],
+    "level": 345.13,
+    "falloff": 9.6,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h2",
+    "kind": "flatten",
+    "poly": [
+     [
+      7282.99,
+      -15239.58
+     ],
+     [
+      7283.6,
+      -15225.6
+     ],
+     [
+      7295.59,
+      -15226.12
+     ],
+     [
+      7294.98,
+      -15240.11
+     ]
+    ],
+    "level": 343.31,
+    "falloff": 12.3,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h3",
+    "kind": "flatten",
+    "poly": [
+     [
+      7283.54,
+      -15200.88
+     ],
+     [
+      7283.12,
+      -15186.88
+     ],
+     [
+      7295.12,
+      -15186.52
+     ],
+     [
+      7295.54,
+      -15200.52
+     ]
+    ],
+    "level": 344.99,
+    "falloff": 9.5,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h4",
+    "kind": "flatten",
+    "poly": [
+     [
+      7284.37,
+      -15172.11
+     ],
+     [
+      7285.58,
+      -15158.16
+     ],
+     [
+      7297.54,
+      -15159.2
+     ],
+     [
+      7296.33,
+      -15173.15
+     ]
+    ],
+    "level": 344.73,
+    "falloff": 8.1,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h5",
+    "kind": "flatten",
+    "poly": [
+     [
+      7266.54,
+      -15136.88
+     ],
+     [
+      7267.15,
+      -15122.89
+     ],
+     [
+      7255.16,
+      -15122.37
+     ],
+     [
+      7254.55,
+      -15136.36
+     ]
+    ],
+    "level": 342.33,
+    "falloff": 9.9,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h6",
+    "kind": "flatten",
+    "poly": [
+     [
+      7284.72,
+      -15097.83
+     ],
+     [
+      7282.52,
+      -15084
+     ],
+     [
+      7294.37,
+      -15082.11
+     ],
+     [
+      7296.57,
+      -15095.94
+     ]
+    ],
+    "level": 343.73,
+    "falloff": 11.1,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h7",
+    "kind": "flatten",
+    "poly": [
+     [
+      7279.97,
+      -15065.77
+     ],
+     [
+      7274.61,
+      -15052.84
+     ],
+     [
+      7285.69,
+      -15048.24
+     ],
+     [
+      7291.06,
+      -15061.17
+     ]
+    ],
+    "level": 343.67,
+    "falloff": 11.7,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h8",
+    "kind": "flatten",
+    "poly": [
+     [
+      7267.35,
+      -15035.16
+     ],
+     [
+      7263.15,
+      -15021.81
+     ],
+     [
+      7274.59,
+      -15018.2
+     ],
+     [
+      7278.8,
+      -15031.56
+     ]
+    ],
+    "level": 344.72,
+    "falloff": 11.5,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h9",
+    "kind": "flatten",
+    "poly": [
+     [
+      7236.61,
+      -15005.48
+     ],
+     [
+      7231.81,
+      -14992.33
+     ],
+     [
+      7220.54,
+      -14996.45
+     ],
+     [
+      7225.34,
+      -15009.6
+     ]
+    ],
+    "level": 342.4,
+    "falloff": 9,
+    "abs": true,
+    "order": 0
+   },
+   {
+    "id": "mn_t_h10",
+    "kind": "flatten",
+    "poly": [
+     [
+      7226.03,
+      -14978.04
+     ],
+     [
+      7220.47,
+      -14965.19
+     ],
+     [
+      7209.46,
+      -14969.96
+     ],
+     [
+      7215.02,
+      -14982.81
+     ]
+    ],
+    "level": 341.8,
+    "falloff": 9.4,
     "abs": true,
     "order": 0
    }
@@ -166,20 +400,20 @@
     "id": "mn_y_works",
     "poly": [
      [
-      6051.42,
-      -10870.46
+      7266.85,
+      -15353.58
      ],
      [
-      6099.42,
-      -10953.59
+      7258.74,
+      -15446.22
      ],
      [
-      6233.65,
-      -10876.09
+      7277.67,
+      -15447.88
      ],
      [
-      6185.65,
-      -10792.96
+      7285.77,
+      -15355.23
      ]
     ],
     "surface": 6
@@ -188,20 +422,20 @@
     "id": "mn_y_stand",
     "poly": [
      [
-      5973.72,
-      -10829.87
+      7270.77,
+      -15308.75
      ],
      [
-      5994.72,
-      -10866.24
+      7267.37,
+      -15347.6
      ],
      [
-      6017.23,
-      -10853.24
+      7300.24,
+      -15350.48
      ],
      [
-      5996.23,
-      -10816.87
+      7303.64,
+      -15311.62
      ]
     ],
     "surface": 6
@@ -210,20 +444,20 @@
     "id": "mn_y_turn_s",
     "poly": [
      [
-      5986.1,
-      -10812.33
+      7244.16,
+      -15297.38
      ],
      [
-      6003.6,
-      -10842.64
+      7241.11,
+      -15332.25
      ],
      [
-      6033.05,
-      -10825.64
+      7274.98,
+      -15335.21
      ],
      [
-      6015.55,
-      -10795.33
+      7278.03,
+      -15300.35
      ]
     ],
     "surface": 6
@@ -232,20 +466,20 @@
     "id": "mn_y_turn_n",
     "poly": [
      [
-      6099.6,
-      -11008.91
+      7224.37,
+      -15523.52
      ],
      [
-      6117.1,
-      -11039.22
+      7221.32,
+      -15558.39
      ],
      [
-      6146.55,
-      -11022.22
+      7255.19,
+      -15561.35
      ],
      [
-      6129.05,
-      -10991.91
+      7258.24,
+      -15526.48
      ]
     ],
     "surface": 6
@@ -254,29 +488,27 @@
   "material": [],
   "exclude": [
    {
-    "id": "mn_x_works",
+    "id": "mn_x_fan_n",
     "poly": [
      [
-      6006.45,
-      -10882.56
+      7208.37,
+      -15557.25
      ],
      [
-      6066.45,
-      -10986.49
+      7142.38,
+      -15852.63
      ],
      [
-      6239.65,
-      -10886.49
+      7281.84,
+      -15864.83
      ],
      [
-      6179.65,
-      -10782.56
+      7268.14,
+      -15562.48
      ]
     ],
     "what": [
-     "trees",
-     "rocks",
-     "settle"
+     "trees"
     ]
    }
   ],
@@ -286,120 +518,56 @@
     "name": "Main Street (the winding end)",
     "pts": [
      [
-      6003.83,
-      -10809.02
+      7260.57,
+      -15304.84
      ],
      [
-      6013.2,
-      -10792.7
+      7265.3,
+      -15275.2
      ],
      [
-      6023.2,
-      -10775.5
+      7272.7,
+      -15246.1
      ],
      [
-      6040.8,
-      -10768.2
+      7274,
+      -15216.3
      ],
      [
-      6060.1,
-      -10773.4
+      7273.1,
+      -15186.3
      ],
      [
-      6079.9,
-      -10774.2
+      7275.7,
+      -15156.4
      ],
      [
-      6098,
-      -10765.8
+      7277,
+      -15126.5
      ],
      [
-      6114.9,
-      -10755.1
+      7274.4,
+      -15096.6
      ],
      [
-      6132.4,
-      -10745.4
+      7269.7,
+      -15067.1
      ],
      [
-      6150.1,
-      -10736.2
+      7258.2,
+      -15039.4
      ],
      [
-      6167.5,
-      -10726.2
+      7249.2,
+      -15010.8
      ],
      [
-      6186.8,
-      -10722.4
+      7238.9,
+      -14982.6
      ],
      [
-      6205.8,
-      -10728.3
-     ],
-     [
-      6223.4,
-      -10738
-     ],
-     [
-      6240.9,
-      -10747.6
-     ],
-     [
-      6257.2,
-      -10759
-     ],
-     [
-      6267.2,
-      -10776.3
-     ],
-     [
-      6272.8,
-      -10795.5
-     ],
-     [
-      6276.3,
-      -10815.1
-     ],
-     [
-      6276.3,
-      -10835.1
-     ],
-     [
-      6273.2,
-      -10854.9
-     ],
-     [
-      6268.9,
-      -10874.4
-     ],
-     [
-      6264.1,
-      -10893.8
-     ],
-     [
-      6257.7,
-      -10912.8
-     ],
-     [
-      6251.7,
-      -10931.8
-     ],
-     [
-      6249.5,
-      -10951.7
-     ],
-     [
-      6246.5,
-      -10971.5
-     ],
-     [
-      6242.1,
-      -10991
-     ],
-     [
-      6238.7,
-      -11010.7
+      7227,
+      -14955.1
      ]
     ],
     "w": 18,
@@ -414,16 +582,16 @@
     "id": "mn_stand_lane",
     "pts": [
      [
-      5990.84,
-      -10831.53
+      7281.85,
+      -15319.76
      ],
      [
-      6003.77,
-      -10837.92
+      7272.84,
+      -15331.01
      ],
      [
-      6014.7,
-      -10840.85
+      7264.17,
+      -15338.28
      ]
     ],
     "w": 8,
@@ -439,10 +607,10 @@
     "id": "mn_strip",
     "name": "Jumbo Mine Street",
     "c": [
-     6066.33,
-     -10917.28
+     7249.68,
+     -15429.37
     ],
-    "hdg": -1.0472,
+    "hdg": -1.6581,
     "len": 250,
     "wid": 18,
     "surface": 6,
@@ -464,104 +632,104 @@
     "site": {
      "pattern": {
       "id": "mn_strip",
-      "elev": 675.7605991721396,
+      "elev": 346.7980078261866,
       "fillet": 12,
       "nodes": [
        {
         "id": "hold0",
-        "x": 6031.33,
-        "z": -10856.658,
+        "x": 7255.784,
+        "z": -15359.637,
         "kind": "hold",
-        "hdg": -1.0472
+        "hdg": -1.6581
        },
        {
         "id": "l0a",
-        "x": 6017.357,
-        "z": -10810.455,
+        "x": 7270.84,
+        "z": -15313.775,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "l0b",
-        "x": 5998.304,
-        "z": -10821.455,
+        "x": 7248.923,
+        "z": -15311.856,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "l0c",
-        "x": 6009.304,
-        "z": -10840.507,
+        "x": 7247.005,
+        "z": -15333.773,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "d0",
-        "x": 6023.83,
-        "z": -10843.668,
+        "x": 7257.092,
+        "z": -15344.694,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "hold1",
-        "x": 6101.33,
-        "z": -10977.902,
+        "x": 7243.576,
+        "z": -15499.103,
         "kind": "hold",
-        "hdg": 2.0943926535897934
+        "hdg": 1.4834926535897934
        },
        {
         "id": "l1a",
-        "x": 6134.356,
-        "z": -11013.105,
+        "x": 7250.437,
+        "z": -15546.884,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "l1b",
-        "x": 6115.303,
-        "z": -11024.105,
+        "x": 7228.52,
+        "z": -15544.965,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "l1c",
-        "x": 6104.304,
-        "z": -11005.053,
+        "x": 7230.439,
+        "z": -15523.049,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "d1",
-        "x": 6108.83,
-        "z": -10990.892,
+        "x": 7242.268,
+        "z": -15514.046,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "stand",
-        "x": 5990.84,
-        "z": -10831.53,
+        "x": 7281.85,
+        "z": -15319.76,
         "kind": "stand",
-        "hdg": -0.459
+        "hdg": -2.2461
        },
        {
         "id": "tx0",
-        "x": 6003.77,
-        "z": -10837.92,
+        "x": 7272.84,
+        "z": -15331.01,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "c0",
-        "x": 6022.326,
-        "z": -10841.062,
+        "x": 7257.353,
+        "z": -15341.701,
         "kind": "taxi",
         "r": 12
        },
        {
         "id": "c1",
-        "x": 6027.955,
-        "z": -10837.812,
+        "x": 7263.829,
+        "z": -15342.268,
         "kind": "taxi",
         "r": 12
        }
@@ -662,14 +830,14 @@
       ],
       "runway": {
        "c0": {
-        "x": 6003.830265090932,
-        "z": -10809.026671477057
+        "x": 7260.579101461889,
+        "z": -15304.846068214487
        },
        "c1": {
-        "x": 6128.829734909068,
-        "z": -11025.533328522944
+        "x": 7238.780898538112,
+        "z": -15553.893931785515
        },
-       "hdg": -1.0472,
+       "hdg": -1.6581,
        "wid": 18,
        "len": 250
       },
@@ -677,47 +845,47 @@
        {
         "k": 0,
         "u": [
-         -0.4999978792725457,
-         0.8660266281835431
+         0.08719281169510955,
+         0.9961914542841156
         ],
         "thr": [
-         6126.329745512706,
-         -11021.203195382026
+         7239.216862596587,
+         -15548.912974514094
         ],
         "td": [
-         6096.329872756352,
-         -10969.241597691012
+         7244.448431298294,
+         -15489.141487257048
         ],
         "aimAP": [
-         6106.33,
-         -10986.562
+         7242.705,
+         -15509.065
         ],
         "gs": null,
         "ga": {
-         "hdg": 2.0943926535897934
+         "hdg": 1.4834926535897934
         }
        },
        {
         "k": 1,
         "u": [
-         0.4999978792725457,
-         -0.8660266281835431
+         -0.08719281169510955,
+         -0.9961914542841156
         ],
         "thr": [
-         6006.330254487294,
-         -10813.356804617975
+         7260.143137403414,
+         -15309.827025485907
         ],
         "td": [
-         6036.330127243647,
-         -10865.318402308989
+         7254.911568701707,
+         -15369.598512742954
         ],
         "aimAP": [
-         6026.33,
-         -10847.998
+         7256.655,
+         -15349.675
         ],
         "gs": null,
         "ga": {
-         "hdg": -1.0472
+         "hdg": -1.6581
         }
        }
       ]
@@ -725,493 +893,385 @@
     },
     "pattern": null,
     "profile": null,
-    "approach": 0,
+    "approach": 1,
     "stand": {
-     "x": 5990.84,
-     "z": -10831.53,
+     "x": 7281.85,
+     "z": -15319.76,
      "hdg": null
     },
     "taxiOut": [
      [
-      6003.77,
-      -10837.92
+      7272.84,
+      -15331.01
      ],
      [
-      6022.33,
-      -10841.06
+      7257.34,
+      -15341.7
      ]
     ]
    }
   ],
-  "zones": [
-   {
-    "id": "mn_z_ring",
-    "kind": "residential",
-    "poly": [
-     [
-      5984.01,
-      -10751.41
-     ],
-     [
-      6004.4,
-      -10740.08
-     ],
-     [
-      6025.47,
-      -10743.12
-     ],
-     [
-      6048.84,
-      -10740.27
-     ],
-     [
-      6073.42,
-      -10726.92
-     ],
-     [
-      6097.82,
-      -10712.39
-     ],
-     [
-      6123.03,
-      -10700.36
-     ],
-     [
-      6148.01,
-      -10690.25
-     ],
-     [
-      6171.67,
-      -10680.39
-     ],
-     [
-      6197.19,
-      -10677.59
-     ],
-     [
-      6222.53,
-      -10685.45
-     ],
-     [
-      6246.19,
-      -10698.04
-     ],
-     [
-      6269.2,
-      -10711.34
-     ],
-     [
-      6290.32,
-      -10727.08
-     ],
-     [
-      6304.49,
-      -10749.37
-     ],
-     [
-      6313.55,
-      -10774.15
-     ],
-     [
-      6319.77,
-      -10800.05
-     ],
-     [
-      6321.57,
-      -10826.92
-     ],
-     [
-      6319.19,
-      -10854.12
-     ],
-     [
-      6314.36,
-      -10881.42
-     ],
-     [
-      6307.65,
-      -10908.61
-     ],
-     [
-      6298.05,
-      -10934.89
-     ],
-     [
-      6287.98,
-      -10960.08
-     ],
-     [
-      6281.87,
-      -10984.38
-     ],
-     [
-      6275.09,
-      -11007.54
-     ],
-     [
-      6267.03,
-      -11029.66
-     ],
-     [
-      6260.57,
-      -11051.17
-     ],
-     [
-      6220.64,
-      -10977.27
-     ],
-     [
-      6221.5,
-      -10959.07
-     ],
-     [
-      6222.89,
-      -10941.73
-     ],
-     [
-      6222.76,
-      -10924.7
-     ],
-     [
-      6221.73,
-      -10908.44
-     ],
-     [
-      6224.37,
-      -10894.55
-     ],
-     [
-      6228.12,
-      -10881.56
-     ],
-     [
-      6231.35,
-      -10868.6
-     ],
-     [
-      6235.21,
-      -10855.55
-     ],
-     [
-      6238.91,
-      -10841.85
-     ],
-     [
-      6240.39,
-      -10827.54
-     ],
-     [
-      6239.14,
-      -10813.13
-     ],
-     [
-      6236.39,
-      -10798.55
-     ],
-     [
-      6229.84,
-      -10785.37
-     ],
-     [
-      6217.52,
-      -10777.56
-     ],
-     [
-      6204.58,
-      -10771.01
-     ],
-     [
-      6191.98,
-      -10763.7
-     ],
-     [
-      6178.21,
-      -10759.42
-     ],
-     [
-      6164.05,
-      -10764.04
-     ],
-     [
-      6151.83,
-      -10774.16
-     ],
-     [
-      6140.14,
-      -10782.6
-     ],
-     [
-      6129.01,
-      -10790.38
-     ],
-     [
-      6118.31,
-      -10797.92
-     ],
-     [
-      6105.56,
-      -10802.23
-     ],
-     [
-      6088.71,
-      -10798.41
-     ],
-     [
-      6070.87,
-      -10791.43
-     ],
-     [
-      6055.57,
-      -10795.4
-     ]
-    ],
-    "density": 1,
-    "seed": 15,
-    "palette": null,
-    "rules": {
-     "plotMin": 15,
-     "plotMax": 22,
-     "plotDepth": 24,
-     "gapOdds": 0.04,
-     "cats": [
-      "residential",
-      "shed"
-     ],
-     "sides": "right"
-    }
-   }
-  ],
+  "zones": [],
   "sites": [
    {
     "id": "mn_s_mine",
     "name": "Jumbo Mine",
     "at": {
-     "x": 6079.750662851832,
-     "z": -10909.525094338951,
-     "yaw": 1.0471979999999999
+     "x": 7265.12,
+     "z": -15430.72,
+     "yaw": 1.6581
     },
     "items": [
      {
+      "onRoad": false,
+      "bottomOnRoad": true,
       "id": "mill",
       "key": "house/kennecott mill",
-      "x": -4,
+      "x": -36.35,
       "z": 24,
       "yaw": 0,
-      "P": {},
-      "onRoad": false,
-      "bottomOnRoad": true
+      "P": {
+       "topDist": 63.5
+      }
      },
      {
+      "onRoad": false,
+      "bottomOnRoad": false,
       "id": "shop",
       "key": "big/mine shop",
-      "x": -34,
+      "x": -68,
       "z": 8,
       "yaw": 0,
-      "P": {},
-      "onRoad": false,
-      "bottomOnRoad": false
+      "P": {}
      },
      {
-      "id": "office",
-      "key": "house/mine office",
-      "x": 24,
-      "z": 5,
-      "yaw": -0.08,
-      "P": {},
       "onRoad": false,
-      "bottomOnRoad": false
-     },
-     {
+      "bottomOnRoad": false,
       "id": "cottage1",
       "key": "house/mine cottage",
-      "x": -21,
+      "x": -53,
       "z": 3,
       "yaw": 0.2,
-      "P": {},
-      "onRoad": false,
-      "bottomOnRoad": false
+      "P": {
+       "lot": false
+      }
      },
      {
+      "onRoad": false,
+      "bottomOnRoad": false,
       "id": "shed",
       "key": "house/storage shed",
-      "x": 10,
+      "x": -20,
       "z": 6,
       "yaw": 0.4,
-      "P": {},
-      "onRoad": false,
-      "bottomOnRoad": false
-     },
-     {
-      "id": "bunk",
-      "key": "house/mine bunkhouse",
-      "x": -32,
-      "z": -33,
-      "yaw": 3.20159,
       "P": {
-       "backDoor": 0,
-       "backPorch": 0
-      },
-      "onRoad": false,
-      "bottomOnRoad": false
+       "lot": false
+      }
      },
      {
-      "id": "hall",
-      "key": "house/mine dormer hall",
-      "x": -4,
-      "z": -34,
-      "yaw": 3.1415900000000003,
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "office",
+      "key": "house/mine office",
+      "x": -6,
+      "z": 5,
+      "yaw": -0.08,
       "P": {
-       "backDoor": 0,
-       "backPorch": 0
-      },
-      "onRoad": false,
-      "bottomOnRoad": false
+       "lot": false
+      }
      },
      {
-      "id": "mess",
-      "key": "house/mine mess hall",
-      "x": 24,
-      "z": -33,
-      "yaw": 3.0615900000000003,
-      "P": {
-       "backDoor": 0,
-       "backPorch": 0
-      },
       "onRoad": false,
-      "bottomOnRoad": false
-     },
-     {
-      "id": "cottage2",
-      "key": "house/mine cottage",
-      "x": 42,
-      "z": -32,
-      "yaw": 3.24159,
-      "P": {
-       "backDoor": 0,
-       "backPorch": 0
-      },
-      "onRoad": false,
-      "bottomOnRoad": false
-     },
-     {
-      "id": "store",
-      "key": "house/general store",
-      "x": 62,
-      "z": -33,
-      "yaw": 3.1415900000000003,
-      "P": {
-       "backDoor": 0,
-       "backPorch": 0
-      },
-      "onRoad": false,
-      "bottomOnRoad": false
-     },
-     {
-      "id": "school",
-      "key": "house/school",
-      "x": 84,
-      "z": -35,
-      "yaw": 3.1815900000000004,
-      "P": {
-       "backDoor": 0,
-       "backPorch": 0
-      },
-      "onRoad": false,
-      "bottomOnRoad": false
-     },
-     {
-      "id": "clinic",
-      "key": "house/clinic",
-      "x": -58,
-      "z": -33,
-      "yaw": 3.09159,
-      "P": {
-       "backDoor": 0,
-       "backPorch": 0
-      },
-      "onRoad": false,
-      "bottomOnRoad": false
-     },
-     {
+      "bottomOnRoad": false,
       "id": "bunk2",
       "key": "house/bunkhouse",
-      "x": 66,
+      "x": 34,
       "z": 4,
       "yaw": 0,
-      "P": {},
-      "onRoad": false,
-      "bottomOnRoad": false
+      "P": {
+       "lot": false
+      }
      },
      {
+      "onRoad": false,
+      "bottomOnRoad": false,
       "id": "cottage4",
       "key": "house/mine cottage",
-      "x": 88,
+      "x": 56,
       "z": 3,
       "yaw": 0.05,
-      "P": {},
-      "onRoad": false,
-      "bottomOnRoad": false
+      "P": {
+       "lot": false
+      }
      },
      {
+      "onRoad": false,
+      "bottomOnRoad": false,
       "id": "cottage5",
-      "key": "house/mine cottage",
-      "x": 104,
-      "z": 12,
+      "key": "house/log cabin",
+      "x": 76,
+      "z": 3,
       "yaw": -0.06,
-      "P": {},
-      "onRoad": false,
-      "bottomOnRoad": false
+      "P": {
+       "lot": false
+      }
      },
      {
-      "id": "airtaxi",
-      "key": "house/air taxi office",
-      "x": -74,
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "clinic",
+      "key": "house/clinic",
+      "x": -90,
       "z": -33,
-      "yaw": 3.1415900000000003,
+      "yaw": 3.092,
       "P": {
        "backDoor": 0,
-       "backPorch": 0
-      },
-      "onRoad": false,
-      "bottomOnRoad": false
+       "backPorch": 0,
+       "lot": false
+      }
      },
      {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "bunk",
+      "key": "house/mine bunkhouse",
+      "x": -66,
+      "z": -33,
+      "yaw": 3.202,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "hall",
+      "key": "house/mine dormer hall",
+      "x": -36,
+      "z": -34,
+      "yaw": 3.142,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "mess",
+      "key": "house/mine mess hall",
+      "x": -8,
+      "z": -33,
+      "yaw": 3.062,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "cottage2",
+      "key": "house/mine cottage",
+      "x": 12,
+      "z": -32,
+      "yaw": 3.242,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "store",
+      "key": "house/general store",
+      "x": 31,
+      "z": -33,
+      "yaw": 3.142,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "school",
+      "key": "house/school",
+      "x": 53,
+      "z": -35,
+      "yaw": 3.182,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "chapel",
+      "key": "house/chapel",
+      "x": 77,
+      "z": -33,
+      "yaw": 3.142,
+      "P": {
+       "backDoor": 0,
+       "backPorch": 0,
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "airtaxi",
+      "key": "house/air taxi office",
+      "x": -104,
+      "z": 20,
+      "yaw": 0,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
       "id": "fuel",
       "key": "big/fuel shed",
       "x": -90,
-      "z": -44,
-      "yaw": 3.1415900000000003,
-      "P": {},
-      "onRoad": false,
-      "bottomOnRoad": false
-     },
-     {
-      "id": "chapel",
-      "key": "house/chapel",
-      "x": -62,
-      "z": 5,
+      "z": 17,
       "yaw": 0,
-      "P": {},
-      "onRoad": false,
-      "bottomOnRoad": false
+      "P": {}
      },
      {
-      "id": "cottage6",
-      "key": "house/mine cottage",
-      "x": -83,
-      "z": 3,
-      "yaw": 0.08,
-      "P": {},
       "onRoad": false,
-      "bottomOnRoad": false
+      "bottomOnRoad": false,
+      "id": "house1",
+      "key": "house/mine cottage",
+      "x": -162.22,
+      "z": 4.03,
+      "yaw": -6.121,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house2",
+      "key": "house/log cabin",
+      "x": -199.22,
+      "z": 6.84,
+      "yaw": -6.327,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house3",
+      "key": "house/mine cottage",
+      "x": -238.23,
+      "z": 3.46,
+      "yaw": -6.4,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house4",
+      "key": "house/saltbox cottage",
+      "x": -266.31,
+      "z": 2.64,
+      "yaw": -6.284,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house5",
+      "key": "house/mine cottage",
+      "x": -299.58,
+      "z": -30.49,
+      "yaw": -3.185,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house6",
+      "key": "house/hip cottage",
+      "x": -341.58,
+      "z": -5.36,
+      "yaw": -6.528,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house7",
+      "key": "house/log cabin",
+      "x": -373.84,
+      "z": -14.92,
+      "yaw": -6.764,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house8",
+      "key": "house/bunkhouse",
+      "x": -403.01,
+      "z": -29.38,
+      "yaw": -6.675,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house9",
+      "key": "house/mine cottage",
+      "x": -424.94,
+      "z": -73.86,
+      "yaw": -3.579,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "house10",
+      "key": "house/log cabin",
+      "x": -450.85,
+      "z": -87,
+      "yaw": -3.637,
+      "P": {
+       "lot": false
+      }
      }
     ],
-    "yard": {
-     "x0": -48,
-     "x1": 48,
-     "z0": -5,
-     "z1": 150
-    }
+    "yard": null
    }
   ],
   "links": [],

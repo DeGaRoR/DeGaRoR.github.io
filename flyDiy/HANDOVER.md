@@ -57722,3 +57722,48 @@ NOT VERIFIED / OWED:
 - FILES: src/viewer/render_world.js, src/viewer/render_premises.js, src/core/25_airfield.js,
   tools/jolene_parts/native.json, tools/jolene_author.py (rev 11), tools/fixtures/island_jolene.json,
   futureDesigns/PREMISES-CONTRACT-2026-09-13.md (v1.24).
+
+## G528 - JUMBO MINE MOVED: a wooded knoll in the forest band, buildings only (2026-09-23)
+
+The user, on G522's summit site: "it's really bad. First of all, the real scene has trees around, and this
+changes the mood. Second, no need to generate these ugly green patches for the mining village, only buildings.
+Third, your road and your buildings are fully inside the terrain ... Do we succeed terraforming under the
+roads? ... it would be much better lower down, on a small hill but not a summit, in the band where there are
+trees ... your location is bad."
+
+WHY THE SUMMIT WAS WRONG: Jolene's canopy by height over the NE (dem.canopy.u8, cells with trees over 5 m):
+38-50 % below 250 m, 60-64 % at 250-350 m, 56 % at 350-400, falling to 6 % at 600-650 and NONE at 650-700 m -
+G522's street stood at 676 m on bare heath. THE NEW PLACE: the knoll at (7348, -15398), 381 m, on the east
+shoulder of a wooded ridge (77 % tree cover round it); the street at its west foot, 346.8 m, N-S (hdg -1.6581,
+the site frame's +x north, +z east up the knoll), level (residual 2.3 m), on a 22 deg sidehill (the runway grades
+it: ~3.5 m cut and fill across). The search scored every 250 m line in the band for forest, a knoll 25-55 m high
+with a flat top that does NOT keep climbing (not a summit), and a clear end.
+
+WHAT CHANGED IN THE PART (tools/jolene_parts/mn_mine.json, same prefix, same runway id):
+  - NO ZONE: a zone's plots are always dressed with a lot (lawn, fence, drive) - every building is now a SITE
+    ITEM with P.lot false (G527's opt-out in render_premises) - buildings only, each
+    selectable and movable in WORLD
+  - the mill's pad on the knoll (topDist 63.5), its receiving house beside the street; the works, the row below
+    the street on posts (no back stoop), store, school, clinic, chapel, bunkhouses, cottages, the air taxi office
+    and the fuel shed on the stand's pad
+  - the winding street: the street's own level walked south along the ridge's flank (~400 m), ten houses on it,
+    each on the side nearer the street's level on its OWN 14 x 12 m pad (a terrace along the whole bank needed a
+    46 m bank; the bare flank put a house 6-12 m over the street or 10-14 m under it on stilts)
+  - tree clearings kept tight: the strip's own 30 m, the buildings' feet, an approach fan over the north end
+    (300 m, 60 -> 140 m wide); no broad gravel yard over the hill
+  - ONE WAY (approach 1: land southbound over the open north end; the ridge rises past the south end)
+
+THE PILOT'S RUNWAY MODEL on a sidehill strip: siteRunwayModel reads the highest ground across a corridor
++-(wid/2 + 25) m and the core's trees within 20 m of it, so a strip cut along a 22 deg flank reports 27 % from
+the open end (the uphill edge of the corridor 25 m past the threshold is 6.8 m over the street). The pilot flies
+it regardless: FLOWN headless, the Cub from the stand (circuit, 87 m roll, 0 m off) and HOME -> mn_strip (86 m,
+0 m off). The authored pattern (holds 55 m in, U-turns on the turning bays) is kept.
+
+THE TERRAFORMING QUESTION: yes in physics and for the pilot (every cut composes into terrainH); NO in the
+picture past 4.5 km from the origin until the far-terrain sink lands (the native-area session's render_world
+port, landed as G527) - G522's screenshot showed the raw far tier over the street. Judged with G527's viewer.
+OWED: the premises ground PATCH past the inner ring draws as flat dark-green smudges over every reshaped chunk
+(G527's per-chunk far material; reported to the native-area session with pictures).
+
+GATE PREMISES, PARKED, ANIMALS; GATE WORLD's island block by hand against the main checkout's bench (+
+mn_strip's pattern and stand). Data only: no src/ change, no build.
