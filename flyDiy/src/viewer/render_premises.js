@@ -255,21 +255,27 @@ function make(THREE, scene, world, rec0, opts) {
     SET_TEX[key] = t; return t;
   }
   // the injection: after the map, the slots' sets mixed in by their weights (both the bench ground and the game patch)
+  // THE SLOTS A PROGRAM DECLARES ARE THE SLOTS IN USE (G527.1): the map + four sets were five texture units
+  // on every ground that took the injection, and the inner ring's patch twin is eleven - sixteen, the
+  // limit, nothing to spare: one sampler more on a graphics tier and the link failed and no premises
+  // ground drew at all (the perf session, 2026-09-23). A record paints with one or two sets (Jolene: one);
+  // the program declares the map and those alone, keyed by the count, recompiled when an edit changes it
+  let NSLOT = 0;
+  const CH4 = ['r', 'g', 'b', 'a'], TL4 = ['x', 'y', 'z', 'w'];
   function injectMaterials(sh) {
+    const n = NSLOT; if (!n) return;   // no set painted: no unit spent
     sh.uniforms.uMat = uMat; sh.uniforms.uMatOn = uMatOn; sh.uniforms.uTile = uTile; sh.uniforms.uMB = uMB;
-    for (let i = 0; i < 4; i++) sh.uniforms['uSet' + i] = uSet[i];
+    for (let i = 0; i < n; i++) sh.uniforms['uSet' + i] = uSet[i];
     if (sh.vertexShader.indexOf('varying vec3 vPW;') < 0) sh.vertexShader = 'varying vec3 vPW;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPW = transformed;');
-    sh.fragmentShader = (sh.fragmentShader.indexOf('varying vec3 vPW;') < 0 ? 'varying vec3 vPW;\n' : '') + 'uniform sampler2D uMat, uSet0, uSet1, uSet2, uSet3;\nuniform vec4 uMB, uTile;\nuniform float uMatOn;\n' +
+    sh.fragmentShader = (sh.fragmentShader.indexOf('varying vec3 vPW;') < 0 ? 'varying vec3 vPW;\n' : '') + 'uniform sampler2D uMat, ' + [0, 1, 2, 3].slice(0, n).map(i => 'uSet' + i).join(', ') + ';\nuniform vec4 uMB, uTile;\nuniform float uMatOn;\n' +
       // AFTER THE GROUND'S OWN STACK (G434): the island's ground hook appends its albedo (class, tint,
       // radar, shade, snow) right after map_fragment and that overwrote every material painted there -
       // on Jolene no material polygon had ever shown. The mix goes in ahead of color_fragment now, the
       // last stop before the lighting, whatever a ground hook did to the map's colour before it.
       sh.fragmentShader.replace('#include <color_fragment>', '\n' +
         '  if (uMatOn > 0.5) { vec4 mw = texture2D(uMat, (vPW.xz - uMB.xy) / uMB.zw);\n' +
-        '    if (mw.r > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet0, vPW.xz / uTile.x).rgb, mw.r);\n' +
-        '    if (mw.g > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet1, vPW.xz / uTile.y).rgb, mw.g);\n' +
-        '    if (mw.b > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet2, vPW.xz / uTile.z).rgb, mw.b);\n' +
-        '    if (mw.a > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet3, vPW.xz / uTile.w).rgb, mw.a); }\n#include <color_fragment>');
+        [0, 1, 2, 3].slice(0, n).map(i => '    if (mw.' + CH4[i] + ' > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet' + i + ', vPW.xz / uTile.' + TL4[i] + ').rgb, mw.' + CH4[i] + ');\n').join('') +
+        '  }\n#include <color_fragment>');
   }
   // the map painted: every material polygon in priority order, "over" per pixel with its fade weight
   function paintMaterials() {
@@ -308,6 +314,9 @@ function make(THREE, scene, world, rec0, opts) {
     }
     for (let i = 0; i < 4; i++) uSet[i].value = SLOTS[i] ? setTex(SLOTS[i]) : null;
     uMatOn.value = any ? 1 : 0;
+    // the slot count the programs declare (G527.1): a change recompiles every ground that takes the injection
+    const used = SLOTS.filter(Boolean).length;
+    if (used !== NSLOT) { NSLOT = used; groundMat.needsUpdate = true; for (const M of patchMatOwn) if (M) M.needsUpdate = true; }
     matTex.needsUpdate = true;
     stats.materials = mats.length;
   }
@@ -343,6 +352,7 @@ function make(THREE, scene, world, rec0, opts) {
         '    diffuseColor.rgb = mix(diffuseColor.rgb, ov.rgb, ov.a * uOvOn); }');
     injectMaterials(sh);
   };
+  groundMat.customProgramCacheKey = () => 'premises-ground-s' + NSLOT;   // the slot count is in the source (G527.1)
   const chunks = new Map();
   const ci0 = Math.floor(bounds.x0 / CHUNK), ci1 = Math.ceil(bounds.x1 / CHUNK) - 1, cj0 = Math.floor(bounds.z0 / CHUNK), cj1 = Math.ceil(bounds.z1 / CHUNK) - 1;
   function heightAt(x, z) { return o.game ? world.terrainH(x, z) : O.terrainH(x, z, world.terrainH(x, z)); }
@@ -449,7 +459,7 @@ function make(THREE, scene, world, rec0, opts) {
       // five more - 17 > MAX_TEXTURE_IMAGE_UNITS 16 fails the link and the chunks draw BLACK; G424's census)
       const inj = !(k && o.patchInject2 === false);
       M.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); if (inj) injectMaterials(sh); };   // S4
-      M.customProgramCacheKey = () => 'premises-patch-materials' + (k ? '-2' : '');
+      M.customProgramCacheKey = () => 'premises-patch-materials' + (k ? '-2' : '') + (inj ? '-s' + NSLOT : '');
       return (patchMatOwn[k] = M);
     };
     // TWO GROUNDS UNDER ONE PATCH (G527): a chunk wears the ground it lies on - the host's patchPick says

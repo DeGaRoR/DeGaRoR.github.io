@@ -50,7 +50,15 @@
       10047.34,
       -11724.72
      ]
-    ]
+    ],
+    "life": {
+     "clutter": 0,
+     "rubbish": 0,
+     "cars": 0,
+     "traffic": 0,
+     "small": 0,
+     "antennas": 0
+    }
    }
   ],
   "roads": [
@@ -292,7 +300,15 @@
       -11539.64
      ]
     ],
-    "density": 1
+    "density": 1,
+    "life": {
+     "clutter": 0,
+     "rubbish": 0,
+     "cars": 0,
+     "traffic": 0,
+     "small": 0,
+     "antennas": 0
+    }
    }
   ],
   "exclude": [
@@ -893,7 +909,15 @@
        "lot": false
       }
      }
-    ]
+    ],
+    "life": {
+     "clutter": 0,
+     "rubbish": 0,
+     "cars": 0,
+     "traffic": 0,
+     "small": 0,
+     "antennas": 0
+    }
    }
   ],
   "objects": [

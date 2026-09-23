@@ -57788,3 +57788,27 @@ the cuts and the patch finally read right 15 km out - no smudge left). Three bui
 HOUSE_GEN presets with stance 0 (a SLAB), and a slab on the 22 deg flank stood them on a 5 m brick wall; their
 P now carries stance 2 (posts), like the rest of the row. Data only (mn_mine.json), fixture rev 13. GATE
 PREMISES, WORLD green.
+
+## G527.1 - THE PATCH HAD NO UNIT TO SPARE: the material polygons declare only the sets in use; East Point goes quiet (2026-09-23)
+
+- REPORTED by the perf session on master 1e74ca1b: "FRAGMENT shader texture image units count exceeds
+  MAX_TEXTURE_IMAGE_UNITS(16)" on the premises patch - no premises ground drew. Measured here (the
+  program's active samplers): the inner patch = the ring's twin (11) + the material map and FOUR set
+  slots (5) = exactly 16, linking on this box's default tier and failing wherever one more sampler is on.
+  G527 did not add a unit to it (the same pair was used before whenever the record fitted the ring),
+  but it left none to spare. NOW: `injectMaterials` declares the map and only the slots the record
+  paints (NSLOT, the program keys `-s<n>`, recompiled when an edit changes the count; none painted =
+  no unit at all). Jolene paints one set (the hill strip's yard): the inner patch is 13 units, runnable.
+  The far patch (`-2`, no injection) and the far terrain are 16 - the far material's own budget.
+- THE MINE'S "GREEN SMUDGES" (the mining session, on a pre-G527 WIP): the W13.2 strip ground patch that
+  G527 already skips under a premises patch - it draws the analytic outer texture, black at East Point,
+  green at the mine.
+- East Point QUIET: `life: SCENERY_LIFE.QUIET` (G529's per-entry law) on nv_strip, nv_grounds and
+  nv_clearing - no aerodrome mast, no cars, rubbish or clutter on the ceremonial ground; the people stay.
+  jolene_author rev 14.
+- The short-strip pattern (G527) re-checked with sitePatternIssues on nv_strip (150 x 12) and a derived
+  pattern on mn_strip (250 x 18): no issues. The U-turn's width is the lane law's (half - 2.5 m, radius
+  12), unchanged by G527 - an 18 m strip's U-turn reaching its edge is that law's, as on any strip.
+- GATES (targeted): PREMISES, WORLD, WORLDRENDER, SITE, MEDIA, LIFE green. FILES:
+  src/viewer/render_premises.js, tools/jolene_parts/native.json, tools/jolene_author.py,
+  tools/fixtures/island_jolene.json.

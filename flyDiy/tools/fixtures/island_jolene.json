@@ -3059,7 +3059,15 @@
       10047.34,
       -11724.72
      ]
-    ]
+    ],
+    "life": {
+     "clutter": 0,
+     "rubbish": 0,
+     "cars": 0,
+     "traffic": 0,
+     "small": 0,
+     "antennas": 0
+    }
    },
    {
     "id": "tw_ski",
@@ -3371,7 +3379,15 @@
       -11539.64
      ]
     ],
-    "density": 1
+    "density": 1,
+    "life": {
+     "clutter": 0,
+     "rubbish": 0,
+     "cars": 0,
+     "traffic": 0,
+     "small": 0,
+     "antennas": 0
+    }
    },
    {
     "id": "tw_z_clear",
@@ -4061,7 +4077,15 @@
        "lot": false
       }
      }
-    ]
+    ],
+    "life": {
+     "clutter": 0,
+     "rubbish": 0,
+     "cars": 0,
+     "traffic": 0,
+     "small": 0,
+     "antennas": 0
+    }
    },
    {
     "id": "tw_s_summit",
@@ -5035,5 +5059,5 @@
   "smoke": 6,
   "people": 40
  },
- "rev": 13
+ "rev": 14
 }
