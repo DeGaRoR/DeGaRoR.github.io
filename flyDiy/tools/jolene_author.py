@@ -680,7 +680,7 @@ def main():
             ] + ANIMALS,
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 10,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json) (2026-09-23)
+        'rev': 11,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json) (2026-09-23)
     }
     if '--absorb' in sys.argv:
         k = sys.argv.index('--absorb')

@@ -57643,3 +57643,82 @@ is worse than none, and this is meant to be safe to run on an afternoon you cann
   master correctly - it had just been read a second too late to notice its own parent was no longer
   the tip. `git merge-base --is-ancestor "$CUR" "$NEW"` in the same breath as the move is the line
   that catches it, and it belongs BESIDE the expected-old, not instead of it.
+
+## G527 - EAST POINT: the native ceremonial grounds and their bush strip on the east-coast headland, and the four things that made any place past 4.5 km render wrong (2026-09-23)
+
+The user: "landmarks ... and their strips, at places not yet well covered like the north east ... built
+with the world editor, so I can edit it further myself ... a native area with celebratory grounds, in a
+remote part of the island ... a rough gravel strip of 150 m and 12 m wide unobstructed, more like a small
+clearing with a path in the middle ... ensure vegetation does not prevent approach."
+
+THE PLACE. `tools/jolene_parts/native.json` (prefix `nv_`, 31 plain editor entries; jolene_author rev 11).
+The site was SEARCHED, not picked: every 150 m line on the east/NE coast scored on grade, residual,
+cross-slope and a 1:15 obstacle plane over terrain + canopy, then refined on the one headland at
+x 9700..10400, z -12100..-11350 (15 km from the origin, 10 km E / 11.7 km N of the field). The strip
+`nv_strip` "East Point Clearing" runs N-S along the headland's spine at 21 m (grade 0.1 %, no
+profile needed), gravel, no markings, `approach: 0` (landed from the north over the forest, rolling
+toward the point and the sea). Beside it on the east terrace: `nv_clearing` - an irregular lens
+(`clear` zone) swelling round the grounds, a `grass` look over it; `nv_ground_pad` flattens a round
+dance ground (dirt look, a gravel hearth) and the clan house's pad; `nv_grounds` stands the CLAN HOUSE
+(the log cabin preset opened out to 16 x 12 m, 18 deg pitch, no windows, one centred door, a smoke-hole
+chimney, `lot: false`) with its front to the ground and the sea, and a smokehouse; the six scanned
+totems are placed as props with meaning - the tallest before the house door looking out, three in a
+crescent on the seaward rim looking back at the house, two WELCOME poles at the top of the landing
+beach looking at the water; people round the ring, stools, two boats drawn up on the south-tip beach,
+gulls; two dirt footpaths (strip -> ground, ground -> beach, poles/rails/paint off). Approach fans
+`nv_fan_n` (to 760 m) and `nv_fan_s` exclude trees.
+EDIT IT: open WORLD in the game and move anything; export the record from FILE, then
+`py -3.11 tools/jolene_author.py --absorb <export.json>` writes the nv_ entries back into native.json
+(G526), and bump `rev`.
+
+MEASURED. Approach clearance (terrain + the canopy the fill still plants): north clear at 1:20 to
+1.5 km, south clear at 1:15 (at 1:20 the far shore 1.1 km out stands 11 m into the plane). FLOWN
+HEADLESS (pilot_trace, cub): HOME -> nv_strip completed, no go-around, touchdown 5 m short of the aim,
+stopped in 74 m of 150. The DEPARTURE does not complete - see OWED.
+
+FIXED ON THE WAY (each hit every place past the inner ring - the mine at 12 km and the tramway at
+7.8 km waited on them):
+- THE FAR TIER UNDER A PREMISES. Past +-4.5 km the only ground drawn is the far quadtree at the RAW
+  DEM, so a graded strip or a flattened pad there was hidden under it (the Metlakatla branch's G511
+  `sinkFar` found this; its static vertex walk no longer fits master's view-dependent FARLOD, whose
+  patches are rebuilt as the eye moves). The sink now lives in patchOf: where the premises patch
+  covers, the tier drops to min(raw, composed) - 4 m; `FARLOD.resink(bb)` drops the cached patches
+  under a box and re-cuts, called from refreshGround - so a live editor edit re-sinks too.
+- THE PATCH WENT BLACK. render_world chose ONE material for the whole record by its extent: the day
+  a part reached past the ring, the whole patch (the airfield's too) wore the far material under the
+  analytic uv law, and that material (12 samplers) + the material map (5) is 17 >
+  MAX_TEXTURE_IMAGE_UNITS: the link failed, every chunk drew black. Now `patchGrounds()` hands
+  render_premises two grounds and a per-64 m-chunk pick (inner material + uv inside the ring, the far
+  material + islandUV past it, blocks keyed by kind); past the ring the material polygons' PBR SETS are
+  not injected (`patchInject2: false`) - a `look` polygon is the pavement's own mesh and still draws.
+- THE BLACK BLOBS. A W13.2 analytic-world "ground patch" stood under every strip past 3.9 km in the
+  analytic outer texture at the SAME composed height as the premises patch; on the island it drew black
+  and z-fought through in blob shapes. Found by raycasting the blob pixels (the plain-green patch swap
+  kept them - they were on top). Skipped wherever the premises patch covers the strip.
+- THE TREES NEVER READ THE EDITOR'S "NO TREES". The island fill cleared only each aerodrome's box and
+  the pavements; exclude polygons, `clear` zones, strip boxes + 30 m and hard surfaces were obeyed by the
+  collidable woodland only. The fill walk now tests `world.premises.overlay.excludeAt(x, z, 'trees')`.
+- A SHORT STRIP COULD NOT BE DEPARTED. sitePattern put the hold 110 m in: on 150 m, 35 m PAST the
+  middle, 40 m ahead - three replans and "taxi-lost". Under 300 m the hold/U-turn offsets close in (the
+  hold a quarter in); 300 m and more are byte-identical (no strip under 300 m existed).
+- `P.lot: false` per site item (contract v1.24): a house was dressed as a residential lot (lawn, drive,
+  car, fence) wherever it stood.
+
+GATES (targeted, per the user's standing instruction - no full battery): SITE, PREMISES, WORLDRENDER,
+WORLD (with the island's checks live since G523), MEDIA (8.71 of 8.8 MiB) green on the landing base.
+
+NOT VERIFIED / OWED:
+- THE AI DEPARTURE. The Cub lines up at the north end with 145 m ahead and ABORTS 3.5 s into the roll:
+  43_pilot's rejected-take-off keeps `reserve` (80 m, style normal) past Vr whatever the strip, so no
+  strip under ~230 m passes it ("Vr in 80 m, 102 left"). A pilot-track ruling (scale the reserve by the
+  run), not changed here. A player flies out of it by hand.
+- SCENERY LIFE (G519) stands a 30 m lattice mast by every aerodrome, this one included, and would
+  dress the clan house with cars and rubbish; rec.life is island-wide. Asked the scenery-detail session
+  for a per-entry `life` override; set it on nv_strip / nv_grounds / nv_clearing when it lands.
+- The clan house is the log cabin opened out - a real plank house (gable front, painted facade, a
+  house post) is a generator's job; Metlakatla owes a Tsimshian longhouse too.
+- Names are neutral English on purpose (East Point): no real indigenous place name was borrowed for an
+  invented place.
+- FILES: src/viewer/render_world.js, src/viewer/render_premises.js, src/core/25_airfield.js,
+  tools/jolene_parts/native.json, tools/jolene_author.py (rev 11), tools/fixtures/island_jolene.json,
+  futureDesigns/PREMISES-CONTRACT-2026-09-13.md (v1.24).

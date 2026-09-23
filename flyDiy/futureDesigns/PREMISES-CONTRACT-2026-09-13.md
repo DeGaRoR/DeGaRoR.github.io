@@ -751,3 +751,16 @@ after the freeze, against this document.
   A **cable link** may carry **`speed`** (m/s, the cabins' cruise; 6 without one, the village's) -
   an aerial tramway runs 8-12. The cabins are built lit and their lamps join the premises' night
   pool as moving lamps. Editor rows: `altiport` on the runway, the cabin speed under a station's link.
+- **v1.24 (2026-09-23, the native-area session).** A site ITEM may refuse its lot: **`P.lot: false`**
+  stands the building on the ground it is given, without the synthetic plot a hand-placed item was
+  dressed with since G401 (a lawn, a drive, a car, a fence, by its category). A clan house on a
+  ceremonial ground, a station on a summit. It rides in the item's own `P` (the editor's parameter
+  table), so it is per placement, not per catalogue entry - the Metlakatla branch's entry-level
+  `lot: false` (a pier, a float) is the other half and the two compose. Rendering rules that are not
+  record changes, stated here because an author meets them: past the inner ring (+-4440 m) a
+  material polygon's PBR `set` is NOT drawn (the far ground's material has no texture units left for
+  the material map); use a `look` (a paved polygon: grass / dirt / gravel / sand / asphalt / concrete),
+  which is the pavement's own mesh. A strip under 300 m gets its derived pattern's hold and U-turn
+  closed in on the threshold (25_airfield sitePattern, the hold a quarter in); 300 m and more keep
+  110 m. The island's tree fill now obeys every tree exclude (authored, `clear` zones, strip boxes,
+  hard surfaces) - it never had.

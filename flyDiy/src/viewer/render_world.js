@@ -24,11 +24,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
   let outerMatShared = null;          // G398.3: the outer ring's material (its canopy tint), for a premises' patch beyond the inner ring
+  let outerUVShared = null;           // G527: ...and its uv law (an island's grid, not the analytic world's square), for the same patch
   let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let ringLod = null;                // PERF 2026-09-23: the inner ring drawn in chunks by distance (its update, its rebuild, its stats)
   let farLod = null;                  // PERF 2026-09-23: the island's far terrain, cut to the eye (its update, its dials, its stats)
+  let farSinkOn = false;              // G527: the far terrain sinks under a premises' patch once the patch stands (farLod.resink; premisesR is not declared yet when the first cut is built)
   let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
   let cliffs = null;                  // the photoscanned cliff faces (cliffs.js)
   let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
@@ -1023,6 +1025,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // it. `kill > 0` is the pavement, its drawn band and the 6 m fade past it - about 7 m of clearance
   // from a road's edge. `pave` skips the query's plot walk: this runs on every lattice point.
   const paved = (x, z) => { if (!world.coverAt) return false; const c = world.coverAt(x, z, 1); return !!(c && c.kill > 0); };
+  // THE WORLD EDITOR'S "NO TREES" (G527, the user: "ensure vegetation does not prevent approach"): the fill
+  // never read the premises' tree excludes - an authored exclude (an approach fan), a 'clear' zone, a strip's
+  // box + 30 m, a gravel/paved surface. Only the aerodrome box above (len/2 + 150, wid/2 + 60) and the
+  // pavements kept it off, so the editor's tool drew a polygon the island's woods walked straight through.
+  // The collidable woodland (20_world.js) has always obeyed it. Read at call time: the editor swaps the overlay
+  const premTreeEx = (x, z) => { const o = world.premises && world.premises.overlay; return !!(o && o.excludeAt && o.excludeAt(x, z, 'trees')); };
   const openHere = (x, z) => {
     if (!world.island) return false;
     if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;
@@ -1969,6 +1977,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;
       if (islandGroundHook) oMat.customProgramCacheKey = () => 'island-outer';
       outerMatShared = oMat;
+      outerUVShared = islandUV ? ((x, z) => islandUV(x, z)) : ((x, z) => [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]);   // the far terrain's own law (patchOf)
       // the lake-free twin (no discard: early-Z) for the patches no lake reaches (PERF 2026-09-23)
       const oMatDry = islandGroundHookOuterDry ? worldLambert({ map: outerTex }) : oMat;
       if (oMatDry !== oMat) { oMatDry.onBeforeCompile = sh => { canopyHook(sh); islandGroundHookOuterDry(sh); }; oMatDry.customProgramCacheKey = () => 'island-outer-dry'; }
@@ -2046,6 +2055,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (seaFloor) { const sd = world.island.coastAt(x, z); if (sd < 0) y = Math.min(y, seaFloor(sd)); }
           const din = Math.max(Math.abs(x), Math.abs(z));
           if (din < INNER) y -= 1.5 * Math.min(1, (INNER - din) / 200);
+          // THE FAR TIER UNDER A PREMISES (G527; the Metlakatla session's sinkFar, G511 on its branch):
+          // past the inner ring this is the only ground drawn, at the RAW DEM, so a strip graded, a
+          // clearing flattened or a road cut 4.5 km or more from the origin was hidden under it. Where
+          // the premises' own patch covers, the tier drops to the COMPOSED ground (a cut deeper than
+          // the sink must not poke through) and the ring's 4 m under it - the ring's own rule
+          if (farSinkOn) { const sk = groundSink(x, z); if (sk) y = Math.min(y, world.terrainH(x, z)) - sk; }
           pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
           const t = islandUV ? islandUV(x, z) : [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]; uv[k * 2] = t[0]; uv[k * 2 + 1] = t[1];
         }
@@ -2063,7 +2078,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         tops.forEach((top, ee) => { for (let k = 0; k < N; k++) { const a = top(k), w = NN + ee * N + k;
           pos[w * 3] = pos[a * 3]; pos[w * 3 + 1] = pos[a * 3 + 1] - drop; pos[w * 3 + 2] = pos[a * 3 + 2];
           uv[w * 2] = uv[a * 2]; uv[w * 2 + 1] = uv[a * 2 + 1]; nor[w * 3] = nor[a * 3]; nor[w * 3 + 1] = nor[a * 3 + 1]; nor[w * 3 + 2] = nor[a * 3 + 2]; } });
-        P = { pos, uv, nor, used: FARLOD.stamp };
+        P = { pos, uv, nor, used: FARLOD.stamp, box: [ox, oz, s] };
         FARLOD.cache.set(n.fid, P); return P;
       };
       // the cut: descend while the node's error would show at its nearest point
@@ -2132,6 +2147,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
         let nodes = 0, tris = 0; for (const Q of FARLOD.quads.values()) { tris += Q.tris; nodes += Q.sig ? Q.sig.split(',').length : 0; }
         Object.assign(FARLOD.stats, { nodes, tris, quads: FARLOD.quads.size, cached: FARLOD.cache.size, ms: performance.now() - t0 });
+      };
+      // a premises stood or was edited (refreshGround's box): the cached patches under it are dropped and every
+      // quadrant re-cut, so the sink above reaches them (G527)
+      FARLOD.resink = bb => {
+        farSinkOn = true; let n = 0;
+        for (const [f, P] of FARLOD.cache) { const [ox, oz, s] = P.box; if (ox < bb.x1 + 40 && ox + s > bb.x0 - 40 && oz < bb.z1 + 40 && oz + s > bb.z0 - 40) { FARLOD.cache.delete(f); n++; } }
+        if (!n) return 0;
+        for (const Q of FARLOD.quads.values()) Q.sig = '';
+        FARLOD.update(true);
+        return n;
       };
       FARLOD.update(true);
       farLod = FARLOD;
@@ -4138,6 +4163,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
           if (!forestHere(x, z) && !(BIO && openHere(x, z))) continue;  // the forest's rule (the bake's too), or the biome's open ground
+          if (premTreeEx(x, z)) continue;   // the world editor's "no trees" (G527)
           if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
@@ -5075,18 +5101,27 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // the props that come by the hundred (poles, fence stretches) drawn instanced from here on (props.js G515)
   if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
+  // THE PATCH'S TWO GROUNDS (G527): a chunk inside the inner ring wears the ring's material and uv law, a chunk
+  // past it the far terrain's (render_premises patchPick) - it was one choice for the whole record by its
+  // extent, so a place 4.5 km out took the airfield's patch off the ring's material with it
+  function patchGrounds() {
+    const inner = innerPatchShared, h = inner ? inner.half - 60 : 0;
+    const outerMat = outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null);
+    const outerUV = outerUVShared || ((x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)]);
+    if (!inner) return { patchMat: outerMat, patchUV: outerUV };
+    // past the ring the polygons' PBR sets are not drawn (patchInject2): the far material has no texture units
+    // left for them (a paved polygon's look is the pavement's own mesh and still is)
+    return { patchMat: inner.mat, patchUV: inner.uv, patchMat2: outerMat, patchUV2: outerUV, patchInject2: false,
+             patchPick: (x0, z0, x1, z1) => !(Math.abs(x0) < h && Math.abs(x1) < h && Math.abs(z0) < h && Math.abs(z1) < h) };
+  }
   if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
     try {
-      // the patch wears the ring it lies in: the inner ring's material (its baked map, its detail grain)
-      // and uv law inside ±INNER, the outer ring's texture beyond
-      const ov = world.premises.overlay, F = ov.frame, e = ov.extent;
-      const corners = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)];
-      const inner = innerPatchShared && corners.every(q => Math.abs(q[0]) < innerPatchShared.half - 60 && Math.abs(q[1]) < innerPatchShared.half - 60);
+      // the patch wears the ring it lies in, chunk by chunk (patchGrounds, G527): the inner ring's material (its
+      // baked map, its detail grain) and uv law inside ±INNER, the outer ring's beyond
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
         game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
         // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)
-        patchMat: inner ? innerPatchShared.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)),
-        patchUV: inner ? innerPatchShared.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
+        ...patchGrounds(),
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath },
         // the EYE, for the animals' cull and the ambient flocks' ring: the chase
         // camera, which is where the player actually is (the CG is the aeroplane)
@@ -5173,7 +5208,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // the drawn surface. A local fine mesh renders the true grading,
       // edge-blended 2.2 m down so its border tucks under the outer ring
       // exactly like the ring seams do.
-      if (Math.abs(a.x) > 3900 || Math.abs(a.z) > 3900) {
+      // ...unless the premises' own patch is the ground there (G527): a premises strip stands on it already,
+      // and this mesh - the analytic world's outer texture under the analytic uv law, at the same composed
+      // height - fought it and won in black blobs on every strip past 3.9 km on the island
+      const onPatch = premisesR && premisesR.patchCovers && premisesR.patchCovers(a.x, a.z);
+      if ((Math.abs(a.x) > 3900 || Math.abs(a.z) > 3900) && !onPatch) {
         const MARG = 90, RES = 9;
         const LX = a.len + 2 * MARG, WZ = a.wid + 2 * MARG;
         const g2 = new THREE.PlaneGeometry(LX, WZ,
@@ -5357,6 +5396,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
     if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
     if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
+    if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
   }
   let premTramLast = 0;
   function worldUpdate(cg) {
@@ -5696,9 +5736,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
-      const inner = innerPatchShared;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
-        patchMat: inner ? inner.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)), patchUV: inner ? inner.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
+        ...patchGrounds(),
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });
       return premisesR; },

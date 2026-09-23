@@ -387,7 +387,8 @@ function make(THREE, scene, world, rec0, opts) {
   // in between where nothing was composed; the chunks the record touches are a tenth of that. The
   // border of the built region tucks 2.2 m under the ring as the whole patch did: a vertex reads its
   // distance to the nearest UNBUILT neighbour chunk (the 40 m fade fits inside one chunk).
-  let patch = null, patchKey = '', patchMatOwn = null, patchAct = null;
+  let patch = null, patchKey = '', patchAct = null;
+  const patchMatOwn = [null, null];   // G527: [the patchMat's clone, the patchMat2's] - see patchKind
   const PCH = 64;
   function activeChunks(b) {
     const F = O.frame, rec = O.rec, L = rec.layers, act = new Set(), key = (i, j) => i + ',' + j;
@@ -438,17 +439,30 @@ function make(THREE, scene, world, rec0, opts) {
     patchAct = A;   // the world's rings read it (patchCovers): the ring sinks under the patch (G434.1)
     // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
     // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
-    if (!patchMatOwn) {
-      const base = o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
-      patchMatOwn = base.clone(); const inner = base.onBeforeCompile;
-      patchMatOwn.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); injectMaterials(sh); };   // S4
-      patchMatOwn.customProgramCacheKey = () => 'premises-patch-materials';
-    }
+    const matOwn = k => {
+      if (patchMatOwn[k]) return patchMatOwn[k];
+      const base = (k ? o.patchMat2 : o.patchMat) || o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
+      const M = base.clone(), inner = base.onBeforeCompile;
+      // the material polygons ride in on top - unless the host says this ground has no units left for them
+      // (patchInject2 false: the far terrain's material is 12 samplers and the polygons' map + four sets are
+      // five more - 17 > MAX_TEXTURE_IMAGE_UNITS 16 fails the link and the chunks draw BLACK; G424's census)
+      const inj = !(k && o.patchInject2 === false);
+      M.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); if (inj) injectMaterials(sh); };   // S4
+      M.customProgramCacheKey = () => 'premises-patch-materials' + (k ? '-2' : '');
+      return (patchMatOwn[k] = M);
+    };
+    // TWO GROUNDS UNDER ONE PATCH (G527): a chunk wears the ground it lies on - the host's patchPick says
+    // which (the game: the inner ring's material and uv law inside the ring, the far terrain's past it). It
+    // was ONE material for the whole record, chosen by its extent: the day a place was put 4.5 km out,
+    // the airfield's patch changed material with it, and the far chunks sampled the island's maps through
+    // the analytic world's uv law - the deep sea bed, unpainted: black
+    const kindOf = (x0, z0) => (o.patchPick && o.patchPick(x0, z0, x0 + PCH, z0 + PCH)) ? 1 : 0;
     // ---- the ONE sampling: every active chunk a (n + 1)^2 grid at 2 m, its own vertices (the seams sample the same ground)
     const act = A.act, ck = A.key;
-    const Y = new Float32Array(list.length * per), UV = new Float32Array(list.length * per * 2);
+    const Y = new Float32Array(list.length * per), UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
     for (let c = 0; c < list.length; c++) {
       const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
+      const kc = KIND[c] = kindOf(cx0, cz0), uvOf = (kc && o.patchUV2) || o.patchUV;
       for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
         const v = c * per + j * (n + 1) + i, x = cx0 + i * RES, z = cz0 + j * RES;
         // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge
@@ -465,7 +479,7 @@ function make(THREE, scene, world, rec0, opts) {
         // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the
         // ring sinks 4 m under the patch now, so no fight there (G434: the border tucks 2.2 m under the ring)
         Y[v] = world.terrainH(x, z) - 0.02 * r - 2.2 * (1 - r) * (1 - r);
-        if (o.patchUV) { const q = o.patchUV(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
+        if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
     }
     // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
@@ -480,8 +494,8 @@ function make(THREE, scene, world, rec0, opts) {
     // ---- the blocks
     const blocks = new Map();
     for (let c = 0; c < list.length; c++) {
-      const [ci, cj] = list[c].split(',').map(Number), bk = Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block);
-      let B = blocks.get(bk); if (!B) blocks.set(bk, B = { cs: [], x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity });
+      const [ci, cj] = list[c].split(',').map(Number), bk = KIND[c] + '|' + Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block);   // a block is one material (G527)
+      let B = blocks.get(bk); if (!B) blocks.set(bk, B = { cs: [], k: KIND[c], x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity });
       B.cs.push(c); B.x0 = Math.min(B.x0, ci * PCH); B.z0 = Math.min(B.z0, cj * PCH); B.x1 = Math.max(B.x1, (ci + 1) * PCH); B.z1 = Math.max(B.z1, (cj + 1) * PCH);
     }
     const group = new THREE.Group(); group.name = 'premises:patch';
@@ -535,7 +549,7 @@ function make(THREE, scene, world, rec0, opts) {
         g.setAttribute('normal', new THREE.BufferAttribute(nrm.subarray(0, v * 3), 3));
         g.setAttribute('uv', new THREE.BufferAttribute(uv.subarray(0, v * 2), 2));
         g.setIndex(idx); g.computeBoundingSphere();
-        const mesh = new THREE.Mesh(g, patchMatOwn);
+        const mesh = new THREE.Mesh(g, matOwn(B.k));
         mesh.receiveShadow = true; mesh.name = 'premises:patch'; mesh.renderOrder = -0.3;   // the ground, after the occluders (render_world.js ORDER_NOTE)
         mesh.matrixAutoUpdate = false;
         lod.addLevel(mesh, d);
@@ -1541,7 +1555,9 @@ function make(THREE, scene, world, rec0, opts) {
     const extra = [];
     try {
       const cat = (it.entry && it.entry.cat) || (window.VILLAGE_GEN && window.VILLAGE_GEN.lotCat ? window.VILLAGE_GEN.lotCat({}, { P: it.P, gen: it.gen, preset: it.P.preset }) : null);
-      if (cat && cat !== 'sports' && cat !== 'landmark' && !it.P.mill && !it.P.station && window.VILLAGE_GEN && window.VILLAGE_GEN.finishPlot) {
+      // ...unless the ITEM says no (G527, P.lot false): a clan house on a ceremonial ground stands on the ground it is
+      // given - a residential lot would lay a lawn, a drive and a car round it
+      if (cat && it.P.lot !== false && cat !== 'sports' && cat !== 'landmark' && !it.P.mill && !it.P.station && window.VILLAGE_GEN && window.VILLAGE_GEN.finishPlot) {
         const P = it.P, L = P.L || 10, w = P.w || 8, porch = P.porch ? (P.porchD || 2.4) : (P.dock ? (P.dockD || 2.4) + 2 : 0);
         // the lot's margins: room for a drive beside a house, for a wing, for a works' yard
         const mx = (cat === 'industrial' ? 6 : (cat === 'residential' ? 7 : 5)) + (P.wing ? 7 : 0), front = cat === 'commercial' ? 14 : (cat === 'industrial' ? 16 : 10), back = cat === 'residential' ? 8 : 4;
