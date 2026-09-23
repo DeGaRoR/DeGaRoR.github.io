@@ -9681,11 +9681,14 @@ var CLOUD_FIELD = (function () {
     st: Object.freeze({ label: 'stratus',       thick: 300,  bot: 0.05, top: 0.50, freq: 2,  width: 0.45, hsMin: 0.7, erode: 0.12, period: 9000,  alt: 400 }),
     sc: Object.freeze({ label: 'stratocumulus', thick: 700,  bot: 0.06, top: 0.70, freq: 4,  width: 0.35, hsMin: 0.6, erode: 0.30, period: 4000,  alt: 1500 }),
     cu: Object.freeze({ label: 'cumulus',       thick: 1500, bot: 0.08, top: 0.82, freq: 6,  width: 0.30, hsMin: 0.5, erode: 0.50, period: 6000,  alt: 1200 }),
+    // FAIR-WEATHER CUMULUS (cumulus humilis, 2026-09-23, the user: "small, elegant summer clouds, well split, a great sky
+    // for flying"): the cumulus' profile, but many small cells (16 a tile: ~2.5 km apart) and a shallow column
+    cuh: Object.freeze({ label: 'fair-weather cumulus', thick: 800, bot: 0.10, top: 0.80, freq: 16, width: 0.30, hsMin: 0.55, erode: 0.45, period: 2500, alt: 1200 }),
     cb: Object.freeze({ label: 'cumulonimbus',  thick: 4000, bot: 0.06, top: 0.88, freq: 3,  width: 0.30, hsMin: 0.6, erode: 0.50, period: 8000,  alt: 1000 }),
     ac: Object.freeze({ label: 'altocumulus',   thick: 500,  bot: 0.10, top: 0.65, freq: 10, width: 0.40, hsMin: 0.7, erode: 0.35, period: 2500,  alt: 3500 }),
     as: Object.freeze({ label: 'altostratus',   thick: 1200, bot: 0.05, top: 0.55, freq: 2,  width: 0.50, hsMin: 0.7, erode: 0.10, period: 12000, alt: 4000 }),
   });
-  const TYPE_ORDER = ['st', 'sc', 'cu', 'cb', 'ac', 'as'];
+  const TYPE_ORDER = ['st', 'sc', 'cuh', 'cu', 'cb', 'ac', 'as'];
   const MAX_LAYERS = 3;                   // the low deck + two upper decks (the cirrus veil is the dome's, not a layer)
   const LAYER_GAP = 150;                  // m of clear air between one deck's top and the next one's base
   const typeOf = t => TYPES[t] ? t : 'cu';
@@ -38439,7 +38442,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='9578e21719e5';window.FLYDIY_BUILD='1a5d4ef497b8'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='055a009eb110';window.FLYDIY_BUILD='4cf9145f5c86'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -99697,7 +99700,16 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
 // ============================================================
 var DAY_CLOCK = (function () {
   'use strict';
-  const PREF = 'flydiy.day';
+  // v2 (2026-09-23): the game's own day below - a new key, so every player starts once on it
+  const PREF = 'flydiy.day.v2';
+  // THE GAME'S DAY (2026-09-23, the user: "small, elegant summer clouds, well split, a great sky for flying ... at day
+  // with good visibility, but still maximizing the shadows and atmospheric effects ... performance optimized"):
+  // chosen on screenshots at 30-450 m, from two sides of the sun (futureDesigns/PERF-2026-09-23.md, the default look).
+  // Midsummer, 16:00 local (the sun ~46 deg in the WSW: the ground side-lit, the clouds' shadows on it), the new
+  // fair-weather cumulus (08_cloud_field 'cuh': many small cells, a shallow column) at a quarter cover on seed 1,
+  // turbidity 2.8 (~48 km: the hills keep their aerial depth). The physics' own default (07_day DAY.DEFAULT, the gates'
+  // baseline) is untouched: this is the GAME's first day, when no link and no saved day say otherwise.
+  const GAME_DAY = { date: '2026-06-21', localHours: 16, rate: 1, cloudType: 'cuh', cloudCover: 0.25, cloudSeed: 1, turbidity: 2.8 };
   const RATES = [0, 1, 10, 60, 600];
   const PRESETS = ['dawn', 'morning', 'noon', 'afternoon', 'golden', 'sunset', 'dusk', 'night'];
   let world = null, day = null, sinceSave = 0;
@@ -99770,6 +99782,8 @@ var DAY_CLOCK = (function () {
       world = w; day = w && w.day;
       if (!day) return;
       const url = fromUrl(), pref = read();
+      if (!url && !(pref && pref.date)) w.setDay(GAME_DAY);   // a new player (or a new key): the game's day
+      else w.setDay({ cloudSeed: GAME_DAY.cloudSeed, turbidity: GAME_DAY.turbidity });   // not player-saved: the game's air and sky seed always
       if (url) { if (url.preset) api.preset(url.preset); else w.setDay(url); }
       else if (pref && pref.date) w.setDay({ date: pref.date, utc: pref.utc, rate: pref.rate != null ? pref.rate : 1 });
       // the saved weather comes back with the day (a ?cloud= on the URL, below, wins over it)
@@ -101884,12 +101898,16 @@ var CLOUDS = (function () {
   const N_MAP = 256;
   const inflate = [1, 1, 1];               // per deck: the map's cover over the day's (the cover fit below raises it when the noise carves too much)
   const mapCache = [{}, {}, {}];           // per deck: the weather noise (08_cloud_field caches per seed / type; a re-threshold is a millisecond)
+  // THE SKY'S SEED IS THE DAY'S (CLIMATE K3, made true 2026-09-23): the climate draws the thermals from the weather map of
+  // day.cloudSeed, and the renderer drew its own from S.seed (7) - the lift sat under clouds of another sky. The renderer
+  // reads the day's seed now (S.seed only where a host has no day)
+  const seedOf = () => (dayRef && dayRef.cloudSeed != null ? dayRef.cloudSeed : S.seed);
   function mapsFor(L) {
-    const key = L.map(l => S.seed + l.index * 1000 + '|' + l.cover.toFixed(3) + '|' + l.type).join(';');
+    const key = L.map(l => seedOf() + l.index * 1000 + '|' + l.cover.toFixed(3) + '|' + l.type).join(';');
     if (key === mapKey && maps.length === L.length) return maps;
     if (typeof CLOUD_FIELD === 'undefined') return null;
     for (let i = 0; i < MAXL; i++) inflate[i] = 1;
-    maps = L.map(l => CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: l.cover, type: l.type, N: N_MAP, cache: mapCache[l.index] }));
+    maps = L.map(l => CLOUD_FIELD.weatherMap({ seed: seedOf() + l.index * 1000, cover: l.cover, type: l.type, N: N_MAP, cache: mapCache[l.index] }));
     map = maps[0]; mapKey = key;
     uploadMaps();
     shadowDirty = true; needCal = true; needColumnCal = true; calDueAt = now() + 300; fit = null;   // the fit waits for a slider to settle
@@ -101918,7 +101936,7 @@ var CLOUDS = (function () {
   // one deck's map regenerated at an inflated cover (the cover fit)
   function remapDeck(i) {
     const l = lays[i]; if (!l) return;
-    maps[i] = CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: Math.min(1, l.cover * inflate[i]), type: l.type, N: N_MAP, cache: mapCache[l.index] });
+    maps[i] = CLOUD_FIELD.weatherMap({ seed: seedOf() + l.index * 1000, cover: Math.min(1, l.cover * inflate[i]), type: l.type, N: N_MAP, cache: mapCache[l.index] });
     if (i === 0) map = maps[0];
     uploadMaps();
   }
@@ -102340,7 +102358,8 @@ var CLOUDS_UI = (function () {
       // ---- the motion ---------------------------------------------------------------------
       head('motion');
       H.range(host, 'drift × wind', 0, 4, 0.1, () => s.driftK, v => { s.driftK = v; save(); }, v => v > 0 ? v.toFixed(1) + '×' : 'still');
-      H.pills(host, [{ label: 'another sky (seed ' + s.seed + ')', value: 'seed' }], () => false, () => { s.seed = 1 + Math.floor(Math.random() * 98); save(); });
+      // another sky: the DAY's seed (the renderer and the climate read one field, clouds.js seedOf)
+      H.pills(host, [{ label: 'another sky (seed ' + day().cloudSeed + ')', value: 'seed' }], () => false, () => { const n = 1 + Math.floor(Math.random() * 98); if (CK && CK.set) CK.set({ cloudSeed: n }); else { s.seed = n; save(); } refresh(); });
       // ---- the cost -----------------------------------------------------------------------
       head('render');
       const G = W.GFX;
@@ -133345,13 +133364,16 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // (~450-1 500 draws), the power poles (~260-400), then the render scale and the MSAA for the older GPU.
   // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13); every post pass OFF everywhere
   const POST_OFF = { bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear' };
+  // the soft bloom from 'current' up (2026-09-23: measured 0.25 ms on 5120 x 1440 - the sun and the highlights glow a little;
+  // the other five post rows stay off, the user's G448 ruling that the game runs whole without them)
+  const POST_BLOOM = Object.assign({}, POST_OFF, { bloom: 'soft' });
   const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
     potato:  Object.assign({ ground: 'lean', scale: 0.67, drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     retro:   Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    current: Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_OFF),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_OFF),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_OFF),
+    current: Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
   };
   const DEFAULT = 'gamer';
   const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
