@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 0f469e3b448b5824
+// body-sha256: 9e81b5fb90ada15d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8066,7 +8066,12 @@ const GROUND_FIELDS = (() => {
       // puddles"): pudFar widens the shore with distance (0 = the old hard rim; 6 = pudEdge x 7 by 500 m, so
       // 1.33 m of shore becomes 9.3 m and survives a pixel), pudRim is where the OPEN water starts in the mask
       // (under it the ground goes dark and wet but keeps its roughness - only the middle of a pond is a mirror)
-      pudFar: 12, pudRim: 0.65, pudWet: 0.62,   // pudWet: how dark the margin's wet ground goes (1 = dry, 0 = black); both pudRim and pudFar scale with distance and are 0 at the eye
+      pudFar: 12, pudRim: 0.65, pudWet: 0.62,
+      // vegLush (2026-09-23, the user: "very slightly tune the grass part of the texture to get more lush
+      // green, without modifying the rock color. Ever so subtle"): a PER-TEXEL lift on the green that
+      // stands over the other two channels, so moss and leaf in a rock photograph warm up and the boulders
+      // in the same photograph do not move at all. 0.4 moves the greenest texel about 3 %.
+      vegLush: 0.4,   // pudWet: how dark the margin's wet ground goes (1 = dry, 0 = black); both pudRim and pudFar scale with distance and are 0 at the eye
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
