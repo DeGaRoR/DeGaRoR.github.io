@@ -57027,3 +57027,74 @@ The game's first day (DAY_CLOCK GAME_DAY; the pref key is flydiy.day.v2): midsum
 'current' up. Same cost as the old sky. The renderer now draws the day's cloud seed (it drew its own 7 while the
 climate's thermals followed the day's 1). DAY.DEFAULT (the gates' baseline) untouched. futureDesigns/PERF-2026-09-23.md (G516).
 
+
+## G517 — THE PUDDLES WERE WALLPAPER: the ground's noise had a period, and the period was the grid (2026-09-23)
+
+THE USER, with four shots of the muskeg from the air: "I think your algorithm for generating puddles in the
+muskeg produces results which you can clearly see the repetition, in the attached screenshots. I think there
+should be less of them, and you should really do something so no grid pattern shows".
+
+THEY WERE NOT LOOKING AT A PATTERN THAT RESEMBLED A GRID - THEY WERE LOOKING AT ONE TILE, PRINTED 225 TIMES.
+Measured on master before a line was changed: the pool field repeats EXACTLY every 133.33 m of ground, in x
+AND in z, and 100 % of sampled points are bit-identical one tile away (worst difference 1e-12). The picture
+that settles it is bench/pools/field_2km.png - 2 km of muskeg drawn straight from the field, old on the left:
+the same cluster of ponds, stamped 15 x 15 times, like a roll of wallpaper. The user's eye found from 200 m
+what no gate looked for.
+
+THE CAUSE IS THE PRIMITIVE, NOT THE PUDDLES. `vnoiseT(u, w, N)` - the value noise every ground field is built
+on - wrapped its lattice indices `mod N`, which is exactly a period: the field cannot help repeating every N
+cells. It was written tileable because tileable is how one writes a noise for a TEXTURE, and nothing here is a
+texture; the ground is sampled at a point in the world. So every field on it had a pitch:
+  - the puddles     400 noise units / pudSlope 3 = 133.3 m   (the one the user saw)
+  - the set mask    the code's mask cell x 6 = 150 m for muskeg - WHICH of a code's two texture sets is used
+  - the blotch      cellM x cells = 1152 m - which cover species thins out where
+  - the shade       escaped by luck: its two octaves have coprime periods, so the sum repeats only at the LCM
+Two grids at 133 m and 150 m, beating against each other under the same eye. That is what "can't really put my
+finger on it" looks like when it is measured.
+
+THE FIX IS ONE FUNCTION. `vnoise(px, pz)` is the same value noise with the wrap taken out - cell 1 in its own
+coordinates, hashed on the lattice index directly (plus OFS 16384 so no index is ever negative and the JS and
+the GLSL agree bit for bit). A field's SCALE is its cell size; it never needed a period. All four fields moved
+onto it with their feature sizes unchanged, and the tiled primitive is GONE, not left standing beside the new
+one. IT IS ALSO CHEAPER: mixK 0.418 -> 0.263 us a call (-37 %), because four integer modulos per read went
+away; poolAt 0.214 -> 0.249 us (+16 %) for twice the reads.
+
+AND THE PUDDLES ARE REBUILT, because "less of them" is a separate ask from "no grid":
+  - THE OCTAVES each sit on their OWN ROTATED LATTICE (0, 0.93, 2.16 rad), so no two share an axis and the sum
+    has no square structure to show; the low octave (42 m cells) carries the pond, the other two only rough up
+    its outline (weights 0.68 / 0.22 / 0.10, against 0.55 / 0.30 / 0.15 - the old mix let the FINE octave make
+    ponds of its own, which is why the median pond was 36 m2, a speck, and there were 738 of them per km2).
+  - A DOMAIN WARP before the octaves are read (58 m cells, amplitude 29 m): the outlines stop being blobs.
+  - A BASIN FIELD decides where the ground holds water AT ALL - one slow read (600 m cells) that moves the
+    threshold + 0.45 (0.5 - d). This is the "packs" the user asked for: 29 % of 200 m blocks now hold no water
+    at all, against 0 % before, and the block-to-block spread went from 1.3 points to 9.2.
+  - THE THRESHOLD 0.66 -> 0.92 of a field of mean 0.50, sd 0.144: only the tall humps become water.
+MEASURED, over 2 km on a 2 m lattice: 13.3 % open water -> 5.6 %; 738 ponds/km2 -> 91; median pond 36 m2
+(3.4 m across) -> 136 m2 (13.2 m); the biggest 1 056 m2 -> 2.4 ha. Eight times fewer ponds, each one worth
+drawing, in packs with dry muskeg between them.
+
+GATE SPLAT GROWS §1b, and it is negative-verified the honest way: the selftest hands the gate THE FIELD AS IT
+WAS ON MASTER - the wrapped primitive and its 13 % coverage, written out verbatim - and the gate must refuse
+it. The rules: no `%` in either twin of the primitive; the tiled one gone (a comment may still name it); each
+field sampled one OLD pitch away and refused if it answers the same number (the pool read with a fat edge,
+because at the ground's own 0.01 the field is 0 or 1 almost everywhere and a sample carries no information);
+and a POND CENSUS - coverage 2-9 %, 30-200 ponds/km2, the median pond >= 80 m2, more than 15 % of 200 m blocks
+dry. A number that drifts out of those bands is a look the user has already ruled on.
+
+PICTURES: bench/pools/field_2km.png (the field itself, 1 m a pixel, old beside new - the wallpaper and what
+replaced it); bench/pools/before_b_mid.png / after_b_mid.png from 180 m over the strip, and before_a_high.png /
+after_a_high.png from 600 m, all four in the game on this machine's GPU (which is also the ANGLE/D3D compile
+proof for the new GLSL).
+
+OWED, AND RULED BY THE SESSION THAT OWNS IT. The constants in 28b_ground_fields.js are the VEGETATION
+session's table (the planter and the ground must read the same field), so this was put to them with the
+measurements before it landed, and they said GO. Their three notes, kept here because the next reader needs
+them: (1) nothing in src/ calls the primitive by name outside 28b - cover_ring and stand_cards read poolAt /
+blotch / shade / mixK / groundColor, and those signatures are unchanged; (2) THE DRIER MUSKEG IS A VEGETATION
+DEBT, not a bug in this landing - at 5.6 % water instead of 13.3 % the tufts and the debris simply plant where
+water used to refuse them, and the muskeg mix's reed beds (grass_reed 0.24/m2 in 7 m beds) were tuned against
+the wetter field, so reeds will read on dry peat until someone re-judges those rows against the pond packs
+(reeds belong at a pond's edge, which the packs actually give them); (3) tools/_trees.html keeps its own copy
+of the old tiled primitive for its preview bakes, and their ruling is to LEAVE IT - a bench preview that no
+longer wraps is cosmetic and visibly wrong, which beats a bench that quietly disagrees with the world. THE
+RULE THEY STATED: the bench follows the world, never the reverse.

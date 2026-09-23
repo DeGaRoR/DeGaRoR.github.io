@@ -21,6 +21,18 @@
 //      saturation; the library's keys unique with positive metres; CODES
 //      derived cleanly (period, sharp positive; bias finite; the sets the
 //      row's); the code count and the library fit the shader's constants.
+//   1b. THE FIELDS DO NOT REPEAT (2026-09-23, the user on four aerial shots of
+//      the muskeg: "your algorithm for generating puddles ... produces results
+//      which you can clearly see the repetition ... no grid pattern shows").
+//      The primitive wrapped its lattice indices mod N, so every field built
+//      on it was periodic: the puddles every 133 m OF GROUND, the set mask
+//      every 150 m, the blotch every 1152 m - 100 % of points bit-identical
+//      one tile away, in x AND in z. This holds the untiled primitive (no %
+//      in either twin, and the tiled one gone rather than left beside it),
+//      samples each field one old pitch away and refuses a match, and takes a
+//      POND CENSUS over 2 km: coverage, ponds per km2, the median pond, and
+//      that a fifth of the ground is still dry - the packs the user asked for
+//      ("there should be less of them ... probably in packs").
 //   2. THE MANIFEST vs THE STORE (src/viewer/splat_tex.js, media/tex/splat/):
 //      the manifest's order IS RECIPE.library (a set's index is its layer in
 //      the arrays), its metres the library's, four files per set on disk at
@@ -43,7 +55,8 @@
 //      counted, 2026-09-21); (d) the bench's fragment shader through
 //      tools/_glsl_probe.html - linked, no fxc internal error.
 //
-// NEGATIVE-VERIFIED: --selftest breaks rules of 1, 2 and 3 in turn.
+// NEGATIVE-VERIFIED: --selftest breaks rules of 1, 1b, 2 and 3 in turn (1b hands
+// the gate the puddle field as it was on master - tiled every 133 m, 13 % water).
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -196,6 +209,69 @@ function checkShader(G, splice, quiet) {
   const lost = want.filter(v => !G.glsl.includes(v));
   say(!lost.length, `GROUND_FIELDS.glsl embeds the JS table's constants${lost.length ? ' - missing ' + lost.join(', ') : ''}`);
   say(glsl.includes(G.glsl), 'the splat splices GROUND_FIELDS.glsl verbatim');
+  // ---- 1b. THE FIELDS DO NOT REPEAT, and the puddles are a pond census --------
+  // A wrap in the primitive is a period, and a period is the grid the user saw.
+  const gfSrc = fs.readFileSync(path.join(ROOT, 'src/core/28b_ground_fields.js'), 'utf8');
+  const jsVn = (gfSrc.match(/function vnoise\(px, pz\) \{[\s\S]*?\n  \}/) || [''])[0];
+  const glVn = (G.glsl.match(/float gfVnoise\(float px, float pz\)\{[\s\S]*?\n  \}/) || [''])[0];
+  say(!!jsVn && !/%/.test(jsVn), 'the JS primitive has no lattice wrap (a % here is a period, and a period is a grid)');
+  say(!!glVn && !/%/.test(glVn), 'the GLSL primitive has no lattice wrap');
+  say(!/(function|float)\s+g?f?[Vv]noiseT\s*\(/.test(gfSrc + G.glsl), 'the tiled primitive is gone, not left standing beside the new one (a comment may still name it)');
+  // each field, sampled a pitch away: a periodic field answers the SAME number there
+  const KN = G.RECIPE.knobs;
+  const poolG = (x, z) => G.poolAt((x + KN.pudCell) * KN.pudSlope, (z + KN.pudCell) * KN.pudSlope, KN.pudCover, KN.pudEdge);
+  // the repeat test reads the pool with a FAT edge: at the ground's own 0.01 the
+  // field is 0 or 1 almost everywhere and a sample carries no information - the
+  // periodicity, if there were any, belongs to the field under the threshold
+  const poolSoft = (x, z) => G.poolAt((x + KN.pudCell) * KN.pudSlope, (z + KN.pudCell) * KN.pudSlope, KN.pudCover, 0.3);
+  const FIELDS = [['the puddles ', poolSoft, [133.333, 400]],
+                  ['the set mask', (x, z) => G.mixK(x, z, 150, 0.52, 4), [150, 300]],
+                  ['the blotch  ', (x, z) => G.blotch(x, z, 5), [1152, 2304]]];
+  for (const [nm, f, pitches] of FIELDS) for (const d of pitches) {
+    let same = 0, n = 0;
+    for (let i = 0; i < 1500; i++) {
+      const x = (i * 613.7) % 9000 - 4500, z = (i * 271.3) % 9000 - 4500, a = f(x, z);
+      if (a > 0.001 && a < 0.999) { n++; if (Math.abs(a - f(x + d, z)) < 1e-9 && Math.abs(a - f(x, z + d)) < 1e-9) same++; }
+    }
+    say(n > 50 && same / n < 0.02, nm + ': ' + (100 * same / Math.max(n, 1)).toFixed(1) + ' % of ' + n + ' sampled points repeat ' + d + ' m away');
+  }
+  // THE POND CENSUS: what the eye is actually given, over 2 km on a 2 m lattice
+  {
+    const S = 2000, ST = 2, NN = S / ST, km2 = (S / 1000) * (S / 1000), g = new Uint8Array(NN * NN);
+    let wetN = 0;
+    for (let j = 0; j < NN; j++) for (let i = 0; i < NN; i++) if (poolG(-S / 2 + i * ST, -S / 2 + j * ST) > 0.5) { g[j * NN + i] = 1; wetN++; }
+    const lab = new Int32Array(NN * NN).fill(-1), sizes = [], st = [];
+    let ponds = 0;
+    for (let q0 = 0; q0 < NN * NN; q0++) {
+      if (!g[q0] || lab[q0] >= 0) continue;
+      lab[q0] = ponds; st.length = 0; st.push(q0);
+      let cnt = 0;
+      while (st.length) {
+        const p = st.pop(); cnt++;
+        const px = p % NN, pz = (p - px) / NN;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const qx = px + dx, qz = pz + dz;
+          if (qx < 0 || qz < 0 || qx >= NN || qz >= NN) continue;
+          const q = qz * NN + qx;
+          if (g[q] && lab[q] < 0) { lab[q] = ponds; st.push(q); }
+        }
+      }
+      sizes.push(cnt * ST * ST); ponds++;
+    }
+    sizes.sort((a, b) => a - b);
+    const cov = 100 * wetN / (NN * NN), per = ponds / km2, med = sizes[ponds >> 1] || 0;
+    const B = 100, nb = NN / B, blocks = [];
+    for (let bj = 0; bj < nb; bj++) for (let bi = 0; bi < nb; bi++) {
+      let c = 0;
+      for (let j = 0; j < B; j++) for (let i = 0; i < B; i++) c += g[(bj * B + j) * NN + bi * B + i];
+      blocks.push(c / (B * B));
+    }
+    const dry = 100 * blocks.filter(b => b < 0.005).length / blocks.length;
+    say(cov > 2 && cov < 9, 'the muskeg is ' + cov.toFixed(1) + ' % open water (2-9 %: it was 13.3 when the user called it too many)');
+    say(per > 30 && per < 200, per.toFixed(0) + ' ponds per km2 (30-200: it was 738, which reads as a dotted texture)');
+    say(med >= 80, 'the median pond is ' + med + ' m2 = ' + (2 * Math.sqrt(med / Math.PI)).toFixed(1) + ' m across (>= 80 m2: it was 36, a speck)');
+    say(dry > 15, dry.toFixed(0) + ' % of 200 m blocks hold no water at all (> 15 %: the packs - it was 0, an even sprinkle)');
+  }
   say(splice.uniforms.uSNCode.value > 14 && splice.uniforms.uSNCand.value >= 1 && splice.uniforms.uSNCand.value <= 8, `uSNCode ${splice.uniforms.uSNCode.value}, uSNCand ${splice.uniforms.uSNCand.value} (C[8])`);
   if (!quiet) for (const [ok, line] of out) verdict(ok, line);
   return out.every(x => x[0]);
@@ -294,6 +370,27 @@ async function checkGPU() {
     verdict(!checkShader(G, brk('uniform highp sampler2DArray uSplat, uSplatN;', 'uniform sampler2DArray uSplat, uSplatN;'), true), 'an array without highp is caught');
     verdict(!checkShader(G, brk('Smp sFetch(float layer, vec2 uv, vec2 cs){', 'void sFetch2(float layer, out Smp o){ }\n  Smp sFetch(float layer, vec2 uv, vec2 cs){'), true), 'an `out` parameter on the chain is caught');
     verdict(!checkShader(G, brk('o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;', ''), true), 'the colour left undecoded is caught');
+    // 1b: THE FIELD AS IT WAS ON MASTER, handed back to the gate - tiled every 133 m
+    // of ground and 13.3 % open water. It must be caught, or the rule is decoration.
+    {
+      const g2 = loadRecipe();
+      const h2 = g2.hash2, OCT = [[5, 0.55, 0.0, 0.0], [11, 0.30, 0.37, 0.11], [23, 0.15, 0.71, 0.53]];
+      const vT = (u, w, N) => {   // the wrapped primitive, verbatim from before 2026-09-23
+        u -= Math.floor(u); w -= Math.floor(w);
+        const fu = u * N, fw = w * N, iu = Math.floor(fu), iw = Math.floor(fw);
+        let tu = fu - iu, tw = fw - iw; tu = tu * tu * (3 - 2 * tu); tw = tw * tw * (3 - 2 * tw);
+        const i0 = iu % N, i1 = (iu + 1) % N, j0 = iw % N, j1 = (iw + 1) % N;
+        const a = h2(i0, j0), b = h2(i1, j0), c = h2(i0, j1), d = h2(i1, j1);
+        return (a + (b - a) * tu) + ((c + (d - c) * tu) - (a + (b - a) * tu)) * tw;
+      };
+      g2.poolAt = (x, z, wet, edge) => {
+        const e = edge === undefined ? 0.01 : edge;
+        let n = 0; for (const [N, k, du, dw] of OCT) n += k * vT(x / 400 + du, z / 400 + dw, N);
+        const t = Math.max(0, Math.min(1, (n - (0.66 - 0.30 * wet - e)) / (2 * e)));
+        return t * t * (3 - 2 * t);
+      };
+      verdict(!checkShader(g2, sp, true), 'the puddle field as it was - tiled every 133 m, 13 % open water - is caught');
+    }
     verdict(checkRecipe(G, splatSrc, true) && checkManifest(G, manifest, ROOT, true) && checkShader(G, sp, true), 'the tree as it stands passes all three');
     console.log(`GATE SPLAT (selftest): ${fails ? 'FAIL' : 'PASS'}`); process.exit(fails ? 1 : 0);
   }
