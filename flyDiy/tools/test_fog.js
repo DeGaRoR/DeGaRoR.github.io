@@ -103,8 +103,9 @@ console.log('GATE FOG');
 // ---- 4. the row ------------------------------------------------------------------------------
 {
   yes(/k: 'drawDist'/.test(gfx), 'GRAPHICS carries the draw-distance row');
-  const P = /const PRESETS = \{([\s\S]*?)\n  \};/.exec(gfx);
-  yes(!!P && (P[1].match(/drawDist: '/g) || []).length === 4, 'every preset names it');
+  const PRESETS = (() => { const w = { localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, requestAnimationFrame: () => 1 }; w.window = w;
+  require('vm').runInNewContext(gfx, Object.assign({ window: w, setInterval: () => 0, clearInterval() {} }, w)); return w.GFX ? w.GFX.PRESETS : {}; })();   // the evaluated presets (the five tiers, PERF 2026-09-23)
+  yes(Object.keys(PRESETS).length === 5 && Object.values(PRESETS).every(p => p.drawDist === 'vis' || p.drawDist === 'full'), 'every preset names it');
   yes(/drawDist: 'live'/.test(gfx), 'it is live - no restart');
 }
 

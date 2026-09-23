@@ -27,6 +27,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
+  let ringLod = null;                // PERF 2026-09-23: the inner ring drawn in chunks by distance (its update, its rebuild, its stats)
   let farLod = null;                  // PERF 2026-09-23: the island's far terrain, cut to the eye (its update, its dials, its stats)
   let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
   let cliffs = null;                  // the photoscanned cliff faces (cliffs.js)
@@ -1527,6 +1528,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     groundApi = {
       splat: () => (SPL ? SPL.api : null),
       fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
+      ringLod: () => ringLod,   // the inner ring's chunks: tolPx / minQuads / rimE dials, stats (PERF 2026-09-23)
       farLod: () => farLod,   // the far terrain's cut: tolPx / budget dials, stats (nodes, tris, rebuilds)
       rockMap: () => (rockMap ? rockMap.api : null),
       cliffs: () => (cliffs ? cliffs.api : null),
@@ -1756,6 +1758,110 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     ground.receiveShadow = true;
     scene.add(ground);
 
+    // THE RING IN CHUNKS, BY DISTANCE (PERF 2026-09-23). The 512 x 512 ring drawn whole was the dearest draw of
+    // the frame at 300 m over the field (7-8 ms of 22 at 1080p): its 17.6 m chords a few kilometres out are
+    // slivers under a pixel, and at 8x MSAA nearly every sliver lands on a sample and shades the whole splat in a
+    // 2x2 quad - a cost that follows the triangles, not the pixels (half the render scale bought nothing; the
+    // same ring at 128 segments was 3.6 ms). `geo` stays THE surface (the fine tiles geomorph to its triangles,
+    // a premises edit re-samples it); what is DRAWN is 16 x 16 chunks of it, each at stride 1, 2, 4 or 8 of the
+    // 512 grid - a coarse vertex IS a ring vertex (its height, its normal, its uv), the diagonal split the
+    // PlaneGeometry's. A chunk takes the coarsest level whose worst height error against the full grid projects
+    // under `tolPx` from the eye's nearest point to it, and never nearer than `minQuads` of its chords; within
+    // the fine disc's reach it is the full grid (the tiles' rim is the ring's own triangles), and on the rim
+    // of the ring (the far terrain dips 1.5 m under it) only a level within `rimE` of the grid. Skirts under
+    // every chunk edge close the cracks between two levels. ?ringlod=0: the ring whole (the A/B).
+    const RINGLOD = { on: !!(THREE.Sphere && THREE.BufferAttribute) && !(typeof location !== 'undefined' && /[?&]ringlod=0/.test(location.search)),
+                      C: 16, strides: [1, 2, 4, 8], tolPx: 1, minQuads: 25, rimE: 0.5, hyst: 0.1, chunks: [], group: null,
+                      stats: { draws: 0, tris: 0, levels: [0, 0, 0, 0] } };
+    if (RINGLOD.on) {
+      const GW = 513, Q = 512 / RINGLOD.C, SEG = 2 * INNER / 512;
+      const RG = new THREE.Group(); RG.name = 'groundRing'; RG.matrixAutoUpdate = false; scene.add(RG); RINGLOD.group = RG;
+      const build = () => {
+        for (const ch of RINGLOD.chunks) for (const m of ch.lv) { RG.remove(m); m.geometry.dispose(); }
+        RINGLOD.chunks = [];
+        const P = geo.attributes.position.array, N = geo.attributes.normal.array, U = geo.attributes.uv.array;
+        for (let cj = 0; cj < RINGLOD.C; cj++) for (let ci = 0; ci < RINGLOD.C; ci++) {
+          const i0 = ci * Q, j0 = cj * Q, rim = ci === 0 || cj === 0 || ci === RINGLOD.C - 1 || cj === RINGLOD.C - 1;
+          const vAt = (i, j) => (j0 + j) * GW + (i0 + i);
+          let lo = Infinity, hi = -Infinity, x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+          for (let j = 0; j <= Q; j++) for (let i = 0; i <= Q; i++) { const v = vAt(i, j) * 3; lo = Math.min(lo, P[v + 1]); hi = Math.max(hi, P[v + 1]); x0 = Math.min(x0, P[v]); x1 = Math.max(x1, P[v]); z0 = Math.min(z0, P[v + 2]); z1 = Math.max(z1, P[v + 2]); }
+          const ch = { x0, x1, z0, z1, lo, hi, rim, err: [], lv: [], L: -1 };
+          for (let L = 0; L < RINGLOD.strides.length; L++) {
+            const s = RINGLOD.strides[L], m = Q / s;
+            // the level's worst error: every grid vertex of the chunk against the coarse grid's bilinear surface
+            let err = 0;
+            if (s > 1) for (let j = 0; j <= Q; j++) for (let i = 0; i <= Q; i++) {
+              const I = Math.min(Math.floor(i / s), m - 1), J = Math.min(Math.floor(j / s), m - 1), fu = i / s - I, fv = j / s - J;
+              const y = (ii, jj) => P[vAt(ii * s, jj * s) * 3 + 1];
+              const h = (y(I, J) * (1 - fu) + y(I + 1, J) * fu) * (1 - fv) + (y(I, J + 1) * (1 - fu) + y(I + 1, J + 1) * fu) * fv;
+              err = Math.max(err, Math.abs(h - P[vAt(i, j) * 3 + 1]));
+            }
+            ch.err.push(err);
+            const nV = (m + 1) * (m + 1) + 4 * (m + 1), pos = new Float32Array(nV * 3), nor = new Float32Array(nV * 3), uv = new Float32Array(nV * 2), idx = [];
+            let w = 0;
+            const put = (i, j, dy) => { const v = vAt(i, j); pos[w * 3] = P[v * 3]; pos[w * 3 + 1] = P[v * 3 + 1] - dy; pos[w * 3 + 2] = P[v * 3 + 2];
+              nor[w * 3] = N[v * 3]; nor[w * 3 + 1] = N[v * 3 + 1]; nor[w * 3 + 2] = N[v * 3 + 2]; uv[w * 2] = U[v * 2]; uv[w * 2 + 1] = U[v * 2 + 1]; return w++; };
+            for (let j = 0; j <= m; j++) for (let i = 0; i <= m; i++) put(i * s, j * s, 0);
+            // PlaneGeometry's own split: a = (ix, iy), b = (ix, iy + 1), c = (ix + 1, iy + 1), d = (ix + 1, iy); faces a-b-d, b-c-d
+            for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) { const a = j * (m + 1) + i, b = a + m + 1, c = b + 1, d = a + 1; idx.push(a, b, d, b, c, d); }
+            // the skirts: each edge's vertices again, dropped by the level's error and a margin, the same normal and uv,
+            // wound to face out of the chunk (checked against the outward direction, as the far terrain's are)
+            const drop = 1 + 1.5 * err, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+            for (const e of [[k => [k, 0]], [k => [m, k]], [k => [m - k, m]], [k => [0, m - k]]]) {
+              const top = [], bot = [];
+              for (let k = 0; k <= m; k++) { const [i, j] = e[0](k); top.push(j * (m + 1) + i); bot.push(put(i * s, j * s, drop)); }
+              const A = top[0], B = top[1], S = bot[0];
+              const ax = pos[A * 3], ay = pos[A * 3 + 1], az = pos[A * 3 + 2];
+              const ux = pos[B * 3] - ax, uy = pos[B * 3 + 1] - ay, uz = pos[B * 3 + 2] - az, vx = pos[S * 3] - ax, vy = pos[S * 3 + 1] - ay, vz = pos[S * 3 + 2] - az;
+              const nx = uy * vz - uz * vy, nz = ux * vy - uy * vx, ox = ax - cx, oz = az - cz;   // the face normal of (A, B, S), and out
+              const outward = nx * ox + nz * oz > 0;
+              for (let k = 0; k < m; k++) { if (outward) idx.push(top[k], top[k + 1], bot[k], top[k + 1], bot[k + 1], bot[k]); else idx.push(top[k], bot[k], top[k + 1], top[k + 1], bot[k], bot[k + 1]); }
+            }
+            const g = new THREE.BufferGeometry();
+            g.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, w * 3), 3));
+            g.setAttribute('normal', new THREE.BufferAttribute(nor.subarray(0, w * 3), 3));
+            g.setAttribute('uv', new THREE.BufferAttribute(uv.subarray(0, w * 2), 2));
+            g.setIndex(idx); g.computeBoundingSphere();
+            const mesh = new THREE.Mesh(g, gMat);
+            mesh.renderOrder = ground.renderOrder; mesh.receiveShadow = true; mesh.castShadow = ground.castShadow;
+            mesh.matrixAutoUpdate = false; mesh.visible = false; mesh.userData.tris = idx.length / 3; mesh.userData.ringLevel = L;
+            RG.add(mesh); ch.lv.push(mesh);
+          }
+          RINGLOD.chunks.push(ch);
+        }
+        RINGLOD.whole = undefined;   // the next update decides which draws: the whole ring or its chunks
+      };
+      build();
+      RINGLOD.rebuild = build;
+      // per frame: each chunk's level from the eye (before the frame renders; the fine disc's reach from FINE's dials)
+      RINGLOD.update = () => {
+        const e = camera.position, H = (renderer && renderer.domElement && renderer.domElement.height) || 1080;
+        const K = H / (2 * Math.tan((camera.fov || 46) * Math.PI / 360));
+        const fine = fineRing && fineRing.on && !fineRing.off && Math.max(Math.abs(e.x), Math.abs(e.z)) <= INNER - fineRing.R - fineRing.band - 50;
+        const reach = fine ? fineRing.R + 3 * SEG : -1;
+        const st = RINGLOD.stats; st.draws = 0; st.tris = 0; st.levels = [0, 0, 0, 0];
+        // AT A PIXEL THE RING IS DRAWN WHOLE: on Jolene's rough ground the 1 px cut keeps most chunks at the full
+        // grid and the chunking bought nothing (134 draws against 1, within the noise) - the chunks are for the
+        // coarser tolerances of the lower tiers (gfx_settings 'terrain')
+        const whole = RINGLOD.tolPx <= 1;
+        if (whole !== RINGLOD.whole) { RINGLOD.whole = whole; ground.visible = whole; RG.visible = !whole; }
+        if (whole) { st.draws = 1; st.tris = 512 * 512 * 2; return; }
+        for (const ch of RINGLOD.chunks) {
+          const dx = Math.max(ch.x0 - e.x, 0, e.x - ch.x1), dz = Math.max(ch.z0 - e.z, 0, e.z - ch.z1), dy = Math.max(ch.lo - e.y, 0, e.y - ch.hi);
+          const dh = Math.hypot(dx, dz), d = Math.max(1, Math.hypot(dh, dy));
+          let L = 0;
+          if (dh > reach) for (let k = RINGLOD.strides.length - 1; k > 0; k--) {
+            const need = Math.max(ch.err[k] * K / RINGLOD.tolPx, RINGLOD.strides[k] * SEG * RINGLOD.minQuads) * (k > ch.L ? 1 + RINGLOD.hyst : 1);   // hysteresis: coarsen a little later than refine
+            if (d >= need && (!ch.rim || ch.err[k] <= RINGLOD.rimE)) { L = k; break; }
+          }
+          if (L !== ch.L) { if (ch.L >= 0) ch.lv[ch.L].visible = false; ch.lv[L].visible = true; ch.L = L; }
+          st.levels[L]++; st.tris += ch.lv[L].userData.tris;
+        }
+        st.draws = RINGLOD.chunks.length;
+      };
+    }
+    ringLod = RINGLOD.on ? RINGLOD : null;
+
     // THE FINE RING (TERRAIN FOLLOW-UP 2, 2026-09-22, the user: "do the drape with the fine ring"):
     // the near ring is a 512 x 512 plane over 9 km - 17.6 m chords - and the true surface is the
     // quadtree's (5 m leaves): the ring rode above every concave lake edge (G438.1), cut through the
@@ -1880,7 +1986,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // the cracks between two levels (and the T-junctions the leaves always had).
       const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch, NN = N * N, NV = NN + 4 * N;
       const seaFloor = world.island.seaFloor, qs = FH.side / 4;
-      const FARLOD = { tolPx: 1, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
+      const FARLOD = { tolPx: 1, rimE: 0.5, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
                        stats: { nodes: 0, tris: 0, quads: 0, rebuilds: 0, cached: 0, ms: 0 } };
       const boxOf = n => { const s = FH.side / (1 << n.d); return [FH.bounds.x0 + n.ix * s, FH.bounds.z0 + n.iz * s, s]; };
       const underRing = (ox, oz, s) => ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250;   // fully under the inner ring
@@ -1967,7 +2073,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const [ox, oz, s] = boxOf(n);
           if (underRing(ox, oz, s)) return;
           if (n.kids) {
-            if (n.d < 2 || nearRing(ox, oz, s)) { n.kids.forEach(walk); return; }
+            // the inner ring's rim: the leaves dip 1.5 m under it - a node whose error keeps inside `rimE` of that
+            // dip is as good there as its leaves (the ring itself is 17.6 m quads); it was every leaf in a 500 m band
+            // round a 9 km box, the most of the far terrain's triangles at the stand (PERF 2026-09-23)
+            if (n.d < 2 || (nearRing(ox, oz, s) && n.e > FARLOD.rimE)) { n.kids.forEach(walk); return; }
             const dx = Math.max(ox - ex, 0, ex - ox - s), dz = Math.max(oz - ez, 0, ez - oz - s), dy = Math.max(n.lo - ey, 0, ey - n.hi);
             if (n.e * K > FARLOD.tolPx * Math.max(1, Math.hypot(dx, dy, dz))) { n.kids.forEach(walk); return; }
           }
@@ -4980,6 +5089,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // the EYE, for the animals' cull and the ambient flocks' ring: the chase
         // camera, which is where the player actually is (the CG is the aeroplane)
         eye: () => camera.position,
+        focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
       });
       premisesR.rebuild();
       while (premisesR.stats.queued) premisesR.step(4);
@@ -5244,6 +5354,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
     }
     if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
+    if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
   }
   let premTramLast = 0;
   function worldUpdate(cg) {
@@ -5258,6 +5369,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // shifts nothing at 450 m.
     uCam.value.copy(camera.position);
     if (fineRing && fineRing.on) fineRing.update();   // the fine disc follows the eye (TERRAIN FOLLOW-UP 2)
+    if (ringLod) ringLod.update();   // the ring's chunks, their level from the eye (PERF 2026-09-23)
     if (farLod) farLod.update();     // the far terrain's cut follows the eye (a quadrant or two a frame when it changes)
     uCG.value.set(cg[0], cg[1], cg[2]);
     groundUnderUpdate(cg);           // the probe's cap follows the ground the craft is over (before the day's pass re-bakes it)
@@ -5584,7 +5696,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const inner = innerPatchShared;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
         patchMat: inner ? inner.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)), patchUV: inner ? inner.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
-        site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position });
+        site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position,
+        focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });
       return premisesR; },
            setShedDims: d => setShedDims(d),
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,

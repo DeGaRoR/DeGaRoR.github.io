@@ -36,6 +36,15 @@
         { v: 'off',  label: 'off', why: '4x MSAA - the cheapest frame' },
         { v: 'msaa', label: 'smooth', why: '8x MSAA' },
         { v: 'full', label: 'smoothest', why: '8x MSAA and a 1.25x supersample - the dearest frame' } ] },
+    // THE RENDER SCALE (PERF 2026-09-23): the scene drawn at a fraction of the screen's pixels and enlarged
+    // (aa_resolve.js, bicubic). The frame is fill-bound: on the 3080 the default preset is 16-23 ms at 1080p
+    // and 38-50 ms at 5120x1440 - the pixels, not the content, decide the frame rate on a big screen.
+    { k: 'scale', label: 'render scale', steps: [
+        { v: 1,    label: '100 %', why: 'every pixel of the screen drawn' },
+        { v: 0.85, label: '85 %', why: 'the scene at 85 % of the screen and enlarged - 72 % of the pixels' },
+        { v: 0.75, label: '75 %', why: '56 % of the pixels: a big screen at a playable rate' },
+        { v: 0.67, label: '67 %', why: '45 % of the pixels' },
+        { v: 0.5,  label: '50 %', why: 'a quarter of the pixels - an old or integrated card on a big screen' } ] },
     { k: 'density', label: 'forest density', steps: [
         { v: 100, label: 'sparse', why: 'a tree every 10.2 m at most - 95 a hectare' },
         { v: 128, label: 'normal', why: 'a tree every 8 m at most - 156 a hectare' },
@@ -67,7 +76,15 @@
     // behaviour for anyone who would rather pay than ever risk a cut.
     { k: 'drawDist', label: 'draw distance', steps: [
         { v: 'vis',  label: 'by visibility', why: 'the far plane and the far terrain follow what the mist and the air actually let through (a foggy day is the CHEAP day: -45 % at the stand)' },
-        { v: 'full', label: 'always full', why: 'draw to 100 km whatever the weather' } ] },    { k: 'mist', label: 'mist', steps: [
+        { v: 'full', label: 'always full', why: 'draw to 100 km whatever the weather' } ] },
+    // THE TERRAIN'S GEOMETRIC ERROR (PERF 2026-09-23): the ring and the far terrain drawn at the coarsest mesh whose
+    // height error stays under this many pixels. At 8x MSAA the sub-pixel chords of rough ground cost by their COUNT,
+    // not their pixels (each one that lands on a sample shades the ground's whole splat in a 2x2 quad): 2 px is
+    // ~2-3 ms of the frame at 300 m on Jolene, 3 px ~4 ms; 'exact' is the picture as it was
+    { k: 'terrain', label: 'terrain detail', steps: [
+        { v: 1, label: 'exact', why: 'every ridge and bank to a pixel (the whole ring, the far terrain at 1 px)' },
+        { v: 2, label: 'fine', why: 'the terrain within 2 px of its true shape - a far ridge may shift by a pixel as you fly' },
+        { v: 3, label: 'coarse', why: 'within 3 px - the far ground visibly re-cuts as you fly; for cards that need the time' } ] },    { k: 'mist', label: 'mist', steps: [
         { v: 'off',   label: 'off', why: 'no ground mist whatever the day' },
         { v: 'on',    label: 'flat', why: 'the day’s humidity as one level layer over the world (the closed form: no cost)' },
         { v: 'land',  label: 'on the land', why: 'the layer lies in the valleys and on the water instead of at one altitude (F2: a short march, a few tenths of a ms)' },
@@ -164,21 +181,37 @@
   const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 1024, far: false },
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 
-  // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
+  // ---- the presets: FIVE TIERS (PERF 2026-09-23, the user: "5 levels in the end: potato computer, was good
+  // 5 years ago, current, gamer and ultra. This computer is considered gamer, and it should hit consistently
+  // the 60 fps with the visual settings more or less as they are now"). GAMER is the default and is the
+  // medium of before, option for option (a saved choice that was 'medium' reads as 'gamer'); the reference
+  // machine is the gamer box (RTX 3080, i7-13700KF). Each tier's cost is measured in tools/frame_perf.js on
+  // Jolene (stand / forest / 300 m over the field) - futureDesigns/PERF-2026-09-23.md has the table.
+  // What each tier gives up is ordered by what it buys per what it shows. At 1080p the frame is CPU-bound on the
+  // DRAW COUNT (three's JavaScript per draw), so a lower tier sheds draws as well as pixels: the shadow pass
+  // (~450-1 500 draws), the power poles (~260-400), then the render scale and the MSAA for the older GPU.
+  // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13); every post pass OFF everywhere
+  const POST_OFF = { bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear' };
+  const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
-    // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { drawDist: 'vis', aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'off', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
-    medium: { drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    high:   { drawDist: 'vis', aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    ultra:  { drawDist: 'vis', aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
+    potato:  Object.assign({ scale: 0.67, drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    retro:   Object.assign({ scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    current: Object.assign({ scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_OFF),
+    gamer:   Object.assign({ scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_OFF),
+    ultra:   Object.assign({ scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_OFF),
   };
+  const DEFAULT = 'gamer';
+  const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const PRESET_WHY = {
-    low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
-    high: 'this machine at ~30 fps in the worst stand', ultra: 'when the card allows',
+    potato:  'an integrated or very old GPU: the scene at 67 % of the screen, no shadows, no clouds, sparse forest',
+    retro:   'a card that was good five years ago (GTX 1060 class): the near shadow, no clouds, sparse forest',
+    current: 'a current mid-range card (RTX 3060 class): gamer without the 8x MSAA, the mirror and the mist march',
+    gamer:   'the reference: RTX 3080 class - 53-60 fps at 1080p on Jolene (the frame is the CPU draw count there); the default',
+    ultra:   'the dearest picture: supersampled, the densest forest, 4096 shadows, live reflections - for screenshots and the cards above a 3080',
   };
 
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: 'medium' }, PRESETS.medium);
+  const S = Object.assign({ preset: DEFAULT }, PRESETS[DEFAULT]);
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -191,7 +224,7 @@
       const v = JSON.parse(W.localStorage.getItem(KEY) || 'null');
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
-    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = PRESETS.medium[o.k];
+    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = PRESETS[DEFAULT][o.k];
     S.preset = presetOf();
   };
   const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
@@ -206,6 +239,7 @@
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
     if (AA && AA.setTier && applied.aa !== S.aa) { AA.setTier(S.aa); applied.aa = S.aa; }
+    if (AA && AA.setScale && applied.scale !== S.scale) { AA.setScale(S.scale); applied.scale = S.scale; }
     if (W.TREE_FILL && applied.density !== S.density) {
       // re-grid only when the number really changes: a re-grid re-streams
       // every chunk around the aircraft
@@ -226,6 +260,10 @@
     // the sky's own switches (S7): the glare's two halves and the mist
     if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
     if (W.WORLD && W.WORLD.vis && applied.drawDist !== S.drawDist) { W.WORLD.vis.on = S.drawDist !== 'full'; applied.drawDist = S.drawDist; }
+    if (W.WORLD && W.WORLD.ground && applied.terrain !== S.terrain) {
+      const g = W.WORLD.ground, far = g.farLod && g.farLod(), ring = g.ringLod && g.ringLod();
+      if (far || ring) { if (far) { far.tolPx = S.terrain; far.update(true); } if (ring) { ring.tolPx = S.terrain; ring.update(); } applied.terrain = S.terrain; }
+    }
     if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) {
       const M = W.ATMO.MIST;
       M.on = S.mist !== 'off';
@@ -322,7 +360,7 @@
     }
     H.row(body, 'preset');
     H.pills(body, Object.keys(PRESETS).concat(['custom']).map(p => ({
-        label: p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
+        label: PRESET_LABEL[p] || p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
         why: p === 'custom' && S.preset !== 'custom' ? 'change any option below' : undefined })),
       o => o.value === S.preset, o => pick('preset', o.value));
     for (const o of OPTIONS) {
@@ -362,7 +400,7 @@
   // this script, from the same stored key, so read the truth back
   if (W.THREE && W.THREE.ColorManagement) S.colour = W.THREE.ColorManagement.enabled ? 'managed' : 'linear';
   W.GFX = {
-    OPTIONS, PRESETS, BANDS, SHADOWS,
+    OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS,
     get: () => Object.assign({}, S),
     set, apply, mount, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
@@ -370,8 +408,8 @@
     onWorld: () => { applied = {}; apply(); },
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
-                      bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live',
-                      glare: 'live', mist: 'live', drawDist: 'live', clouds: 'live',
+                      bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame)',
+                      glare: 'live', mist: 'live', drawDist: 'live', terrain: 'live (the far quadrants re-cut at once: a hitch)', clouds: 'live',
                       bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
                       compositing: 'live (reallocates the frame)', water: 'live', anything: 'no restart' }),
   };

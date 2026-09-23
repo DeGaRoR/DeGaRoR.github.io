@@ -51,6 +51,104 @@ function make(THREE, scene, world, rec0, opts) {
   let O = composeNow();
   const root = new THREE.Group(); root.name = 'premises';
   const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'traffic', 'animals', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  // THE STATIC SUBTREES LEAVE THE MATRIX WALK (PERF 2026-09-23). The frame is CPU-bound on Jolene (three's render()
+  // was 22 ms of the 24 at 300 m over the field), and 12 % of it was updateMatrixWorld: 20 500 objects composed
+  // and multiplied every frame, 17 400 of them the premises' - houses (8 000), lots, roads, the ground - none of
+  // which ever moves once built (an edit REBUILDS them). A built child of these groups is posed once and then
+  // skips both (matrixAutoUpdate composes, matrixWorldAutoUpdate multiplies); three still visits it. What moves
+  // stays out: the trams, the traffic, the animals, the handles and the ghost.
+  const FROZEN_GROUPS = ['ground', 'water', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads'];
+  // (a prop's rungs arrive AFTER its placeholder was frozen - the asset loads - so a frozen child is walked again
+  // for anything that came in since: re-posed whole, frozen again; the tick runs it every 60 frames)
+  let freezeTick = 0;
+  function freezeStatic() {
+    let n = 0, lots = false;
+    for (const k of FROZEN_GROUPS) for (const c of G[k].children) {
+      if (!c.updateMatrixWorld) continue;
+      let fresh = !c.userData.frozen;
+      if (!fresh) c.traverse(o => { if (o.matrixAutoUpdate) fresh = true; });
+      if (!fresh) continue;
+      c.traverse(o => { o.matrixWorldAutoUpdate = true; });
+      c.updateMatrixWorld(true);
+      c.traverse(o => { o.matrixAutoUpdate = false; o.matrixWorldAutoUpdate = false; });
+      c.userData.frozen = true; n++;
+      if (k === 'lots' && !c.userData.batch) lots = true;
+    }
+    if (lots) batchLots();
+    return n;
+  }
+  // THE LOTS BATCHED (PERF 2026-09-23). The fences share ONE finish (fenceFinish: every post bag and every deck
+  // bag of the premises is the same two materials) and the yards' ground patches one material - 261 meshes, 261
+  // draws, on a frame CPU-bound on its draw count. Meshes of G.lots that share a material are merged per 256 m
+  // cell (world-space positions, normals through the normal matrix, every other attribute as is - the AO, the lit,
+  // the window and the splat channels ride along), the sources hidden (they stay for picking and for the next
+  // merge). A prop (its LOD, its shared geometry) is never merged. Re-merged whenever the set of sources changes.
+  const BATCH = { cell: 256, group: null, sig: '' };
+  function mergeInto(list) {
+    const g0 = list[0].geometry, names = Object.keys(g0.attributes);
+    let nV = 0, nI = 0;
+    for (const m of list) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
+    const out = new THREE.BufferGeometry(), arrays = {};
+    for (const k of names) { const a = g0.attributes[k]; arrays[k] = new a.array.constructor(nV * a.itemSize); }
+    const idx = new Uint32Array(nI), v = new THREE.Vector3(), nm = new THREE.Matrix3();
+    let vo = 0, io = 0;
+    for (const m of list) {
+      const g = m.geometry, n = g.attributes.position.count;
+      nm.getNormalMatrix(m.matrixWorld);
+      for (const k of names) {
+        const a = g.attributes[k], dst = arrays[k], s = a.itemSize;
+        if (k === 'position') for (let i = 0; i < n; i++) { v.fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
+        else if (k === 'normal') for (let i = 0; i < n; i++) { v.fromBufferAttribute(a, i).applyMatrix3(nm).normalize(); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
+        else dst.set(a.array.subarray(0, n * s), vo * s);
+      }
+      const ix = g.index.array;
+      for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
+      vo += n; io += g.index.count;
+    }
+    for (const k of names) { const a = g0.attributes[k]; out.setAttribute(k, new THREE.BufferAttribute(arrays[k], a.itemSize, a.normalized)); }
+    out.setIndex(new THREE.BufferAttribute(idx, 1));
+    out.computeBoundingSphere();
+    return out;
+  }
+  function batchLots() {
+    if (!THREE.Matrix3 || !THREE.BufferAttribute) return 0;
+    const src = [];
+    G.lots.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.userData.sharedGeo || o.userData.batch || !o.geometry || !o.geometry.index || Array.isArray(o.material)) return;
+      if (Object.values(o.geometry.attributes).some(a => a.isInterleavedBufferAttribute)) return;
+      for (let p = o.parent; p && p !== G.lots; p = p.parent) if (p.isLOD || p.userData.batch) return;
+      src.push(o);
+    });
+    const cnt = new Map(); for (const m of src) cnt.set(m.material, (cnt.get(m.material) || 0) + 1);
+    const use = src.filter(m => cnt.get(m.material) > 1);
+    const sig = use.map(m => m.id).join(',');
+    if (sig === BATCH.sig) return 0;
+    BATCH.sig = sig;
+    if (BATCH.group) { G.lots.remove(BATCH.group); BATCH.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); BATCH.group = null; }
+    const buckets = new Map(), c = new THREE.Vector3();
+    for (const m of use) {
+      m.updateWorldMatrix(true, false);
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      c.copy(m.geometry.boundingSphere.center).applyMatrix4(m.matrixWorld);
+      const key = m.material.uuid + '|' + Math.floor(c.x / BATCH.cell) + ',' + Math.floor(c.z / BATCH.cell) + '|' + m.castShadow + ',' + m.receiveShadow + ',' + m.renderOrder +
+        '|' + Object.keys(m.geometry.attributes).sort().map(k => k + ':' + m.geometry.attributes[k].itemSize + ':' + m.geometry.attributes[k].array.constructor.name).join(',');
+      let b = buckets.get(key); if (!b) buckets.set(key, b = []); b.push(m);
+    }
+    const grp = new THREE.Group(); grp.name = 'lots:batches'; grp.userData.batch = true;
+    let n = 0;
+    for (const list of buckets.values()) {
+      if (list.length < 2) { list[0].visible = true; continue; }
+      const mesh = new THREE.Mesh(mergeInto(list), list[0].material);
+      mesh.castShadow = list[0].castShadow; mesh.receiveShadow = list[0].receiveShadow; mesh.renderOrder = list[0].renderOrder;
+      mesh.userData.batch = true; mesh.name = 'lots:batch';
+      grp.add(mesh); n++;
+      for (const m of list) m.visible = false;
+    }
+    G.lots.add(grp); BATCH.group = grp;
+    stats.lotBatches = n; stats.lotBatched = use.length;
+    return n;
+  }
+
   // THE LOTS group stands at the premises frame: what the village's plan functions draw in the
   // premises frame (fences, lot patches, cars, boats) goes in here untransformed
   const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; };
@@ -307,61 +405,135 @@ function make(THREE, scene, world, rec0, opts) {
     for (const sh of O.shelves || []) if (sh.poly) markPoly(sh.poly, (+sh.falloff || 6) + 4); else if (sh.rect && sh.c) markBox({ x0: sh.c[0] - 60, z0: sh.c[1] - 60, x1: sh.c[0] + 60, z1: sh.c[1] + 60 }, 0);
     return { act, i0, i1, j0, j1, key };
   }
+  // THE PATCH IN BLOCKS, BY DISTANCE (PERF 2026-09-23). One mesh over every active chunk was 1.5 M triangles on
+  // Jolene - drawn whole every frame (one bounding sphere round three square kilometres is always in view) and at
+  // 2 m however far: a 2 m quad a kilometre out is a pixel, and a pixel-sized triangle shades the ground's whole
+  // splat in a 2x2 quad for one covered sample. Now the active chunks are gathered in blocks of 8x8 (512 m; 4x4 was 87 draws at 300 m on a CPU-bound frame), each
+  // a THREE.LOD of four meshes - 2, 4, 8 and 16 m - every one a subsample of the ONE 2 m sampling (the same
+  // heights, the same normals, the same uvs: a coarse vertex is a fine vertex). A level is used from the distance
+  // where its worst height error over the block (measured against the 2 m grid) is under a pixel on a 1440-line
+  // screen, and never nearer than 25 of its quads; a chunk's four edges hang a skirt (its own heights 0.5-3 m down,
+  // its surface's normals) so two neighbours at different levels never open a crack onto the sunk ring below.
+  const PL = { res: [2, 4, 8, 16], block: 8, focal: 1160, tolPx: 1, minQuads: 25, skirt: [0.5, 1, 2, 3] };
   function buildPatch() {
     const b = extentWorld();
     const A = activeChunks(b), list = [...A.act].sort();
     const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
-    const RES = 2;
-    if (!patch || patchKey !== key) {
-      if (patch) { G.ground.remove(patch); patch.geometry.dispose(); }
-      // one geometry: every active chunk a (PCH/RES + 1)^2 grid, its own vertices (the seams sample the same ground)
-      const n = PCH / RES, per = (n + 1) * (n + 1), pos = new Float32Array(list.length * per * 3), uvs = new Float32Array(list.length * per * 2), idx = [];
-      let v = 0;
-      for (const k of list) {
-        const [ci, cj] = k.split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH, base = v;
-        for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) { pos[v * 3] = cx0 + i * RES; pos[v * 3 + 1] = 0; pos[v * 3 + 2] = cz0 + j * RES; v++; }
-        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const a = base + j * (n + 1) + i, b2 = a + 1, c = a + n + 1, d = c + 1; idx.push(a, c, b2, b2, c, d); }
-      }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); g.setIndex(idx);
-      g.userData.chunks = list; g.userData.neighbours = A;
-      patchAct = A;   // the world's rings read it (patchCovers): the ring sinks under the patch (G434.1)
-      // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
-      // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
-      if (!patchMatOwn) {
-        const base = o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
-        patchMatOwn = base.clone(); const inner = base.onBeforeCompile;
-        patchMatOwn.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); injectMaterials(sh); };   // S4
-        patchMatOwn.customProgramCacheKey = () => 'premises-patch-materials';
-      }
-      patch = new THREE.Mesh(g, patchMatOwn);
-      patch.receiveShadow = true; patch.name = 'premises:patch'; patch.renderOrder = -0.3;   // the ground, after the occluders (render_world.js ORDER_NOTE)
-      G.ground.add(patch); patchKey = key;
+    const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
+    if (patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
+    patchAct = A;   // the world's rings read it (patchCovers): the ring sinks under the patch (G434.1)
+    // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
+    // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
+    if (!patchMatOwn) {
+      const base = o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
+      patchMatOwn = base.clone(); const inner = base.onBeforeCompile;
+      patchMatOwn.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); injectMaterials(sh); };   // S4
+      patchMatOwn.customProgramCacheKey = () => 'premises-patch-materials';
     }
-    const pa = patch.geometry.attributes.position, uv = patch.geometry.attributes.uv;
-    const act = patch.geometry.userData.neighbours.act, ck = patch.geometry.userData.neighbours.key;
-    for (let i = 0; i < pa.count; i++) {
-      const x = pa.getX(i), z = pa.getZ(i);
-      // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge
-      let edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z);
-      const ci = Math.floor((x - 0.01) / PCH), cj = Math.floor((z - 0.01) / PCH);
-      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
-        if (!di && !dj) continue;
-        if (act.has(ck(ci + di, cj + dj))) continue;
-        const nx0 = (ci + di) * PCH, nz0 = (cj + dj) * PCH;
-        const dx = Math.max(nx0 - x, x - nx0 - PCH, 0), dz = Math.max(nz0 - z, z - nz0 - PCH, 0);
-        edge = Math.min(edge, Math.hypot(dx, dz));
+    // ---- the ONE sampling: every active chunk a (n + 1)^2 grid at 2 m, its own vertices (the seams sample the same ground)
+    const act = A.act, ck = A.key;
+    const Y = new Float32Array(list.length * per), UV = new Float32Array(list.length * per * 2);
+    for (let c = 0; c < list.length; c++) {
+      const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
+      for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+        const v = c * per + j * (n + 1) + i, x = cx0 + i * RES, z = cz0 + j * RES;
+        // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge
+        let edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z);
+        const ei = Math.floor((x - 0.01) / PCH), ej = Math.floor((z - 0.01) / PCH);
+        for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+          if (!di && !dj) continue;
+          if (act.has(ck(ei + di, ej + dj))) continue;
+          const nx0 = (ei + di) * PCH, nz0 = (ej + dj) * PCH;
+          const dx = Math.max(nx0 - x, x - nx0 - PCH, 0), dz = Math.max(nz0 - z, z - nz0 - PCH, 0);
+          edge = Math.min(edge, Math.hypot(dx, dz));
+        }
+        const r = Math.min(1, Math.max(0, edge) / 40);
+        // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the
+        // ring sinks 4 m under the patch now, so no fight there (G434: the border tucks 2.2 m under the ring)
+        Y[v] = world.terrainH(x, z) - 0.02 * r - 2.2 * (1 - r) * (1 - r);
+        if (o.patchUV) { const q = o.patchUV(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
-      const r = Math.min(1, Math.max(0, edge) / 40);
-      // 4 cm over the ground (G434): the ring's own mesh sits at the same height where the ground is
-      // flat and the two fought (the ring's pale PAVED bake speckled the pad's concrete); the strips'
-      // decals ride 7 cm up on the same law
-      pa.setY(i, world.terrainH(x, z) - 0.02 * r - 2.2 * (1 - r) * (1 - r));   // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the ring sinks 4 m under the patch now, so no fight there
-      if (o.patchUV) { const q = o.patchUV(x, z); uv.setXY(i, q[0], q[1]); }
     }
-    pa.needsUpdate = true; uv.needsUpdate = true;
-    patch.geometry.computeVertexNormals();
-    patch.geometry.computeBoundingSphere();
+    // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
+    const NRM = new Float32Array(list.length * per * 3);
+    for (let c = 0; c < list.length; c++) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+      const at = (ii, jj) => Y[c * per + Math.max(0, Math.min(n, jj)) * (n + 1) + Math.max(0, Math.min(n, ii))];
+      const i0 = Math.max(0, i - 1), i1 = Math.min(n, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(n, j + 1);
+      const gx = (at(i1, j) - at(i0, j)) / ((i1 - i0) * RES), gz = (at(i, j1) - at(i, j0)) / ((j1 - j0) * RES);
+      const l = Math.hypot(gx, 1, gz), v = (c * per + j * (n + 1) + i) * 3;
+      NRM[v] = -gx / l; NRM[v + 1] = 1 / l; NRM[v + 2] = -gz / l;
+    }
+    // ---- the blocks
+    const blocks = new Map();
+    for (let c = 0; c < list.length; c++) {
+      const [ci, cj] = list[c].split(',').map(Number), bk = Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block);
+      let B = blocks.get(bk); if (!B) blocks.set(bk, B = { cs: [], x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity });
+      B.cs.push(c); B.x0 = Math.min(B.x0, ci * PCH); B.z0 = Math.min(B.z0, cj * PCH); B.x1 = Math.max(B.x1, (ci + 1) * PCH); B.z1 = Math.max(B.z1, (cj + 1) * PCH);
+    }
+    const group = new THREE.Group(); group.name = 'premises:patch';
+    let tris0 = 0, trisAll = 0;
+    for (const B of blocks.values()) {
+      const cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2, half = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2;
+      const lod = new THREE.LOD(); lod.position.set(cx, 0, cz); lod.name = 'premises:patch';
+      let yLo = Infinity, yHi = -Infinity;
+      for (const c of B.cs) for (let v = c * per; v < (c + 1) * per; v++) { yLo = Math.min(yLo, Y[v]); yHi = Math.max(yHi, Y[v]); }
+      lod.position.y = (yLo + yHi) / 2;
+      let dPrev = 0;
+      for (let L = 0; L < PL.res.length; L++) {
+        const s = PL.res[L] / RES, m = n / s;   // index stride into the fine grid, quads a side
+        // the level's worst error over the block: every fine vertex against the coarse grid's bilinear surface
+        let err = 0;
+        if (s > 1) for (const c of B.cs) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+          const I = Math.min(Math.floor(i / s), m - 1), J = Math.min(Math.floor(j / s), m - 1), fu = i / s - I, fv = j / s - J;
+          const g = (ii, jj) => Y[c * per + jj * s * (n + 1) + ii * s];
+          const h = (g(I, J) * (1 - fu) + g(I + 1, J) * fu) * (1 - fv) + (g(I, J + 1) * (1 - fu) + g(I + 1, J + 1) * fu) * fv;
+          err = Math.max(err, Math.abs(h - Y[c * per + j * (n + 1) + i]));
+        }
+        const d = L === 0 ? 0 : Math.max(dPrev, half + Math.max(err * PL.focal / PL.tolPx, PL.res[L] * PL.minQuads));
+        dPrev = d;
+        // the geometry: the chunk grids at stride s, plus a skirt round each chunk
+        const drop = PL.skirt[L], vPer = (m + 1) * (m + 1) + 4 * (m + 1);
+        const nV = B.cs.length * vPer, pos = new Float32Array(nV * 3), nrm = new Float32Array(nV * 3), uv = new Float32Array(nV * 2), idx = [];
+        let v = 0;
+        const put = (c, i, j, dy) => {   // a fine-grid vertex (i, j in fine units) of chunk c, dy down
+          const [ci, cj] = list[c].split(',').map(Number), f = c * per + j * (n + 1) + i;
+          pos[v * 3] = ci * PCH + i * RES - cx; pos[v * 3 + 1] = Y[f] - dy - lod.position.y; pos[v * 3 + 2] = cj * PCH + j * RES - cz;
+          nrm[v * 3] = NRM[f * 3]; nrm[v * 3 + 1] = NRM[f * 3 + 1]; nrm[v * 3 + 2] = NRM[f * 3 + 2];
+          uv[v * 2] = UV[f * 2]; uv[v * 2 + 1] = UV[f * 2 + 1];
+          return v++;
+        };
+        for (const c of B.cs) {
+          const base = v;
+          for (let j = 0; j <= m; j++) for (let i = 0; i <= m; i++) put(c, i * s, j * s, 0);
+          for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) { const a = base + j * (m + 1) + i, b2 = a + 1, cc = a + m + 1, dd = cc + 1; idx.push(a, cc, b2, b2, cc, dd); }
+          if (drop > 0) {
+            // the four edges, each walked so its skirt faces outward (the material is front-sided)
+            const E = [[k => [k, 0], false], [k => [m, k], false], [k => [m - k, m], false], [k => [0, m - k], false]];
+            for (const [at] of E) {
+              const top = [], bot = [];
+              for (let k = 0; k <= m; k++) { const [i, j] = at(k); top.push(base + j * (m + 1) + i); bot.push(put(c, i * s, j * s, drop)); }
+              for (let k = 0; k < m; k++) idx.push(top[k], top[k + 1], bot[k], top[k + 1], bot[k + 1], bot[k]);
+            }
+          }
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, v * 3), 3));
+        g.setAttribute('normal', new THREE.BufferAttribute(nrm.subarray(0, v * 3), 3));
+        g.setAttribute('uv', new THREE.BufferAttribute(uv.subarray(0, v * 2), 2));
+        g.setIndex(idx); g.computeBoundingSphere();
+        const mesh = new THREE.Mesh(g, patchMatOwn);
+        mesh.receiveShadow = true; mesh.name = 'premises:patch'; mesh.renderOrder = -0.3;   // the ground, after the occluders (render_world.js ORDER_NOTE)
+        mesh.matrixAutoUpdate = false;
+        lod.addLevel(mesh, d);
+        if (L === 0) tris0 += idx.length / 3;
+        trisAll += idx.length / 3;
+      }
+      lod.updateMatrix(); lod.matrixAutoUpdate = false;
+      group.add(lod);
+    }
+    group.userData.chunks = list; group.userData.neighbours = A; group.userData.tris = tris0; group.userData.trisAll = trisAll; group.userData.blocks = blocks.size;
+    patch = group; patchKey = key;
+    G.ground.add(patch);
   }
   // THE ROADS (game): a draped ribbon per road in its class's tone (the bench wears them into its own
   // ground canvas; the game's terrain has no such canvas) - 3 m along, the width plus a soft verge
@@ -871,7 +1043,54 @@ function make(THREE, scene, world, rec0, opts) {
     }
   }
   // the clock: the host's dt in seconds; the cabins and the traffic move
-  function tick(dt) { hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  // A DISTANT HOUSE DRAWS ITS WALLS AND ROOF (PERF 2026-09-23). A house is ~11 bag meshes, each its own finish
+  // (no two houses share a material, so nothing batches), and the frame is CPU-bound on the draw count: at 300 m
+  // over the field the village's houses were 1 023 draws of the 2 470, every one of them 4-15 px tall. Under
+  // DETAIL.px of projected diameter a house hides its SMALLEST opaque bags - smallest by SURFACE AREA, as many as
+  // together make DETAIL.area of the house's (a bag gathers one finish from all over the house, so its sphere is
+  // the house's: area is the size of what it draws). That is trim, frames, steps, rails, the chimney - ~4 of 11
+  // draws, all sub-pixel there; the walls and the roof stay, and so does all that LIGHTS the village or moves in
+  // it: glass, the lit panes, emissive, transparent (the smoke), the props.
+  const DETAIL = { px: 16, area: 0.08, hyst: 0.1 };
+  const areaOf = g => {
+    const p = g.attributes.position, ix = g.index, n = ix ? ix.count : p.count;
+    let a = 0;
+    for (let i = 0; i < n; i += 3) {
+      const i0 = ix ? ix.getX(i) : i, i1 = ix ? ix.getX(i + 1) : i + 1, i2 = ix ? ix.getX(i + 2) : i + 2;
+      const ax = p.getX(i0), ay = p.getY(i0), az = p.getZ(i0);
+      const ux = p.getX(i1) - ax, uy = p.getY(i1) - ay, uz = p.getZ(i1) - az, vx = p.getX(i2) - ax, vy = p.getY(i2) - ay, vz = p.getZ(i2) - az;
+      a += Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) / 2;
+    }
+    return a;
+  };
+  function detailOf(grp) {
+    let D = grp.userData.detail;
+    if (D) return D;
+    const bags = grp.children.filter(c => c.isMesh && !c.userData.sharedGeo && c.geometry);
+    let R = 0;
+    for (const m of bags) { if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); R = Math.max(R, m.geometry.boundingSphere.radius); }
+    const plain = m => { const mt = m.material;
+      return !Array.isArray(mt) && mt.type === 'MeshStandardMaterial' && !mt.transparent && (!mt.emissive || mt.emissive.getHex() === 0) && !mt.emissiveMap; };
+    const cand = bags.filter(plain).map(m => [m, areaOf(m.geometry)]).sort((a, b) => a[1] - b[1]);
+    const total = cand.reduce((t, x) => t + x[1], 0), list = [];
+    let acc = 0;
+    for (const [m, a] of cand) { if (acc + a > DETAIL.area * total) break; acc += a; list.push(m); }
+    const big = bags.find(m => m.geometry.boundingSphere.radius === R);
+    const c = new THREE.Vector3(); if (big) c.copy(big.geometry.boundingSphere.center).applyMatrix4(big.matrixWorld); else grp.getWorldPosition(c);
+    D = grp.userData.detail = { list, c, R, on: true };
+    return D;
+  }
+  function detailTick() {
+    const e = o.eye && o.eye(); if (!e || !o.focalPx) return;
+    const K = o.focalPx();
+    for (const g of G.houses.children) {
+      if (!g.userData.frozen) continue;   // posed (its matrixWorld is final) before its centre is read
+      const D = detailOf(g); if (!D.list.length) continue;
+      const px = 2 * D.R * K / Math.max(1, e.distanceTo(D.c)), on = px >= DETAIL.px * (D.on ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
+      if (on !== D.on) { D.on = on; for (const m of D.list) m.visible = on; }
+    }
+  }
+  function tick(dt) { if (++freezeTick % 60 === 0) freezeStatic(); detailTick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -1350,6 +1569,7 @@ function make(THREE, scene, world, rec0, opts) {
     stats.obstacles = OBST_IDS.size;
     if (built) paintWear();   // the garden paths are the built houses' (planPath reads the door)
     if (built && o.onBuilt) o.onBuilt(built, queue.length);
+    if (built) freezeStatic();
     return built;
   }
 
@@ -1419,7 +1639,8 @@ function make(THREE, scene, world, rec0, opts) {
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
-      stats.tris = patch ? patch.geometry.index.count / 3 : 0; stats.chunks = patch ? patch.geometry.userData.chunks.length : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
+      freezeStatic();
+      stats.tris = patch ? patch.userData.tris : 0; stats.chunks = patch ? patch.userData.chunks.length : 0; stats.patchBlocks = patch ? patch.userData.blocks : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
       return stats;
     }
     if (!dirty || !dirty.bbox) {
@@ -1486,7 +1707,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (ANIM) { ANIM.dispose(); ANIM = null; }
     { const R = OBS(); if (R) for (const id of OBST_IDS) R.remove(id); OBST_IDS.clear(); }
     for (const [, m] of chunks) m.geometry.dispose();
-    if (patch) { patch.geometry.dispose(); patch = null; }
+    if (patch) { patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
     chunks.clear();
     for (const [, L] of LINES) { L.line.geometry.dispose(); L.line.material.dispose(); }
     LINES.clear();
@@ -1510,6 +1731,7 @@ function make(THREE, scene, world, rec0, opts) {
     // house patches"); `world` here so the rings can ask
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
     patchBounds: () => (patch ? extentWorld() : null),
+    detail: DETAIL,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },

@@ -506,6 +506,14 @@ AR.make = function (THREE, ctx) {
   }
 
   // ---- the clock ----------------------------------------------------------
+  // A HIDDEN ANIMAL LEAVES THE MATRIX WALK (PERF 2026-09-23): three composes every object with matrixAutoUpdate
+  // every frame, shown or not, and a rigged skin is dozens of bones - 4 000 objects of the premises' 20 000, most of
+  // them out of reach. Out of reach the whole rig stops composing; back in reach it composes again (its step poses it).
+  const park = (obj, on) => {
+    if (!obj || obj.userData.parked === !on) return;
+    obj.userData.parked = !on;
+    obj.traverse(o => { o.matrixAutoUpdate = on; o.matrixWorldAutoUpdate = on; });
+  };
   function tick(dt) {
     if (!(dt > 0)) dt = 0;
     dt = Math.min(0.1, dt);
@@ -517,13 +525,13 @@ AR.make = function (THREE, ctx) {
       const reach = REACH[h.kind] || 1200;
       if (h.flock) {
         const on = !e || Math.hypot(h.flock.x - e.x, h.flock.z - e.z) < reach;
-        for (const one of h.ones) one.H.obj.visible = on;
+        for (const one of h.ones) { one.H.obj.visible = on; park(one.H.obj, on); }
         if (on) { flockStep(h.flock, dt); stats.shown += h.ones.length; }
         continue;
       }
       for (const one of h.ones) {
         const on = !e || Math.hypot(one.x - e.x, one.z - e.z) < reach;
-        one.H.obj.visible = on;
+        one.H.obj.visible = on; park(one.H.obj, on);
         if (!on) { if (one.H.loomSet) one.H.loomSet(0); continue; }
         if (!one.H.ready) continue;
         stats.shown++;

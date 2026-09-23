@@ -259,6 +259,32 @@
       gl_FragColor = vec4(col, 1.0);` + AA_OUT + `
     }`;
 
+  // THE RENDER SCALE'S UPSAMPLE (PERF 2026-09-23): below 1x the scene is drawn into a smaller target and
+  // this pass enlarges it - a bicubic Catmull-Rom over the 4x4 SOURCE texels round the output pixel (the
+  // tent above is a downsample and would blur an enlargement). The frame is fill-bound at the resolutions
+  // the game is played at (1080p 16-23 ms, 5120x1440 38-50 ms on the 3080 at the default preset), and this
+  // is the lever that holds a frame rate on a big or a slow screen.
+  const AA_FS_UP = AA_COMMON + `
+    float crw(float t) {
+      t = abs(t);
+      if (t <= 1.0) return 1.5*t*t*t - 2.5*t*t + 1.0;
+      if (t <= 2.0) return -0.5*t*t*t + 2.5*t*t - 4.0*t + 2.0;
+      return 0.0;
+    }
+    void main() {
+      vec2 p = vUv / uTexel - 0.5, i = floor(p), f = p - i;
+      vec4 acc = vec4(0.0); float wsum = 0.0;
+      for (int y = -1; y <= 2; y++) for (int x = -1; x <= 2; x++) {
+        float w = crw(float(x) - f.x) * crw(float(y) - f.y);
+        acc += texture2D(tSrc, (i + vec2(float(x), float(y)) + 0.5) * uTexel) * w; wsum += w;
+      }
+      vec3 col = max(acc.rgb / wsum, 0.0);
+      #ifndef AA_LINEAR
+        col = min(col, 1.0);
+      #endif
+      gl_FragColor = vec4(col, 1.0);` + AA_OUT + `
+    }`;
+
   // -------------------------------------------------------------------------
   function aaMake(THREE, renderer) {
     // EVERY CAPABILITY IS ASKED FOR, none assumed. The headless smoke harness
@@ -266,7 +292,7 @@
     // missing constructor here must degrade to the old path and not throw at
     // module eval — a dead viewer is a worse bug than a rough edge.
     const S = {
-      tier: 'off', w: 1, h: 1, rt: null, mat: null, dither: 1,
+      tier: 'off', w: 1, h: 1, rt: null, mat: null, dither: 1, scale: 1,   // scale: the render scale (0.5-1, PERF 2026-09-23), times the tier's ss
       fsScene: null, fsCam: null, ss: 1, samples: 0, able: false, maxSamples: 0,
       // CLOUDS C1: a pass that draws OVER the scene into this target before the resolve (the cloud
       // march composites there, reading the scene's depth) - it asks for the target even at tier
@@ -297,9 +323,10 @@
 
     function buildRT() {
       disposeRT();
-      if (!S.able || (S.tier === 'off' && !S.needRT && !S.rz)) return;
-      const SW = Math.max(1, Math.round(S.w * S.ss));
-      const SH = Math.max(1, Math.round(S.h * S.ss));
+      if (!S.able || (S.tier === 'off' && !S.needRT && !S.rz && S.scale >= 0.999)) return;
+      const R = S.ss * S.scale;   // the target over the canvas: the tier's supersample times the render scale
+      const SW = Math.max(1, Math.round(S.w * R));
+      const SH = Math.max(1, Math.round(S.h * R));
       S.rt = new THREE.WebGLRenderTarget(SW, SH, {
         minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
         generateMipmaps: false, type: THREE.HalfFloatType,
@@ -358,11 +385,11 @@
         uniforms: {
           tSrc:    { value: S.rt.texture },
           uTexel:  { value: new THREE.Vector2(1 / SW, 1 / SH) },
-          uR:      { value: S.ss },
+          uR:      { value: R },
           uDither: { value: S.dither },
         },
         vertexShader: AA_VS,
-        fragmentShader: S.ss > 1.001 ? AA_FS_TENT : AA_FS_BLIT,
+        fragmentShader: R > 1.001 ? AA_FS_TENT : R < 0.999 ? AA_FS_UP : AA_FS_BLIT,
         defines: S.linear ? { AA_LINEAR: 1 } : {},
         depthTest: false, depthWrite: false,
         toneMapped: true,     // the blit carries the renderer's tone map in linear mode (a no-op define otherwise)
@@ -380,6 +407,8 @@
       return S.tier;
     }
 
+    // setScale(k): the render scale, 0.5..1 - the scene drawn at k x the canvas and enlarged by the resolve
+    function setScale(k) { k = Math.max(0.5, Math.min(1, +k || 1)); if (Math.abs(k - S.scale) < 1e-3) return S.scale; S.scale = k; buildRT(); return S.scale; }
     function setSize(w, h) {
       if (w === S.w && h === S.h) return;
       S.w = Math.max(1, w | 0); S.h = Math.max(1, h | 0);
@@ -441,7 +470,7 @@
     }
 
     return {
-      render, setSize, setTier, dispose, setDither, setLinear, linear: () => S.linear,
+      render, setSize, setTier, setScale, scale: () => S.scale, dispose, setDither, setLinear, linear: () => S.linear,
       needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the
@@ -451,7 +480,7 @@
       tier: () => S.tier,
       able: () => S.able,
       report: () => ({
-        tier: S.tier, able: S.able, ss: S.ss, dither: S.dither,
+        tier: S.tier, able: S.able, ss: S.ss, scale: S.scale, dither: S.dither,
         samples: S.rt ? S.rt.samples : 0, maxSamples: S.maxSamples, depth: S.rz ? 'reversed float' : 'log 24',
         buf: S.rt ? (S.rt.width + 'x' + S.rt.height) : (S.w + 'x' + S.h),
       }),

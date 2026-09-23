@@ -162,7 +162,9 @@ console.log('6. the splice rules');
   yes(/CLOUD_FIELD\.weatherMap\(/.test(cj) && /CLOUD_FIELD\.layers\(/.test(cj), 'the pass samples the core\'s maps and layers (one field)');
   yes(/smoothstep\(0\.0, uProfA\[li\]\.x, h\) \* \(1\.0 - smoothstep\(uProfA\[li\]\.y \* hs, hs, h\)\)/.test(cj), 'the GLSL profile is the core\'s profile, verbatim (per deck)');
   yes(!/PointsMaterial\(\{ map: tex, size: 340/.test(rw) && /CLOUDS\.update\(day, camera, world\)/.test(rw), 'render_world retired the billboard puffs and hands the day to the clouds');
-  yes(/k: 'clouds'/.test(gfx) && ['low', 'medium', 'high', 'ultra'].every(p => new RegExp(p + ':\\s*\\{[^}]*clouds: \'(off|half|full)\'').test(gfx)), 'the GRAPHICS menu has the clouds row in every preset');
+  { const PRESETS = (() => { const w = { localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, requestAnimationFrame: () => 1 }; w.window = w;
+  require('vm').runInNewContext(gfx, Object.assign({ window: w, setInterval: () => 0, clearInterval() {} }, w)); return w.GFX ? w.GFX.PRESETS : {}; })();   // the evaluated presets (the five tiers, PERF 2026-09-23)
+    yes(/k: 'clouds'/.test(gfx) && Object.keys(PRESETS).length === 5 && Object.values(PRESETS).every(p => ['off', 'half', 'full'].includes(p.clouds)), 'the GRAPHICS menu has the clouds row in every preset'); }
   yes(/depthTexture: \(S\.needRT \|\| S\.rz\)/.test(aa) && /S\.overlay\(renderer, camera, S\.rt\)/.test(aa) && /needRT, setOverlay/.test(aa), 'the resolve pass carries the depth texture and the overlay hook');
   const build = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
   yes(/'08_cloud_field\.js'/.test(build) && /'clouds\.js'/.test(build), 'both files are in the build');

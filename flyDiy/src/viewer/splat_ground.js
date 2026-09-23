@@ -120,11 +120,10 @@ const SPLAT_GROUND = (() => {
     scale = max(scale, 0.01);
     vec2 p = P.xz; float ca = 1.0, sa = 0.0;
     gSHexRot = ang != 0.0 ? -1.0 : uSHex.w;
-    // THE HEX TILING IS FOR A TILE YOU CAN SEE REPEAT (PERF 2026-09-23). Three rotated samples of a set
-    // whose tile covers a few pixels are three samples of a mip that has already averaged the tile to its
-    // mean - the one sample it takes without them. It was 10.8 ms of the frame at 300 m over the Jolene
-    // field (every ground pixel in view, three times, both arrays). Per SET, by its own scale: a 90 m
-    // rock set keeps it kilometres out, a 3 m grass set drops it past ~1 km.
+    // THE HEX CUT, A DIAL LEFT AT 0 (PERF 2026-09-23): the hex tiling dropped where a set's tile spans under
+    // uSHexPx pixels. At 4 it showed the tiles repeating as a checker over the far field (a tile of 4-16 px
+    // still has its low frequencies, and they repeat), and its 'saving' was the mip-0 bug below (NO CONTINUE):
+    // with the mips honoured the far samples are cheap and the hex costs nothing measurable. 0 = everywhere.
     if (uSHexPx > 0.0 && scale < uSHexPx * gSPixM) gSHexRot = -1.0;
     if (ang != 0.0) { ca = cos(ang); sa = sin(ang); mat2 R = mat2(ca, sa, -sa, ca); p = R * p; }
     Smp t = sTile(layer, p / scale);
@@ -134,15 +133,56 @@ const SPLAT_GROUND = (() => {
     if (tw.z > 0.01) { Smp u = sTile(layer, P.xy / scale); o.c += u.c * tw.z; o.n += vec4(u.n.x, u.n.y, 0.0, u.n.a) * tw.z; }
     return o;
   }
+  // the triplet's height blend of its (up to) three sampled sets; A says which exist
+  Smp sBlend(vec4 A, Smp a, Smp b, Smp c, float m1, float m2){
+    if (A.y < 0.0) return a;
+    Smp o;
+    if (A.z < 0.0) { vec2 w = sHweights2(a.c.a, 1.0 - m1, b.c.a, m1, uSHex.x); o.c = a.c * w.x + b.c * w.y; o.n = a.n * w.x + b.n * w.y; return o; }
+    vec3 w = sHweights3(a.c.a, (1.0 - m1) * (1.0 - m2), b.c.a, m1 * (1.0 - m2), c.c.a, m2, uSHex.x);
+    o.c = a.c * w.x + b.c * w.y + c.c * w.z; o.n = a.n * w.x + b.n * w.y + c.n * w.z;
+    return o;
+  }
   Smp sTriplet(vec4 A, vec4 S, vec3 P, vec3 tw, float ang, float m1, float m2){
     Smp a = sSet(A.x, S.x, P, tw, ang);
     if (A.y < 0.0) return a;
     Smp b = sSet(A.y, S.y, P, tw, ang);
-    Smp o;
-    if (A.z < 0.0) { vec2 w = sHweights2(a.c.a, 1.0 - m1, b.c.a, m1, uSHex.x); o.c = a.c * w.x + b.c * w.y; o.n = a.n * w.x + b.n * w.y; return o; }
-    Smp c = sSet(A.z, S.z, P, tw, ang);
-    vec3 w = sHweights3(a.c.a, (1.0 - m1) * (1.0 - m2), b.c.a, m1 * (1.0 - m2), c.c.a, m2, uSHex.x);
-    o.c = a.c * w.x + b.c * w.y + c.c * w.z; o.n = a.n * w.x + b.n * w.y + c.n * w.z;
+    Smp c = b;
+    if (A.z >= 0.0) c = sSet(A.z, S.z, P, tw, ang);
+    return sBlend(A, a, b, c, m1, m2);
+  }
+  bool sSame(float l1, float s1, float l2, float s2){ return l1 == l2 && abs(s1 - s2) < 1e-4; }
+  // THE DETAIL BAND, SHARED (PERF 2026-09-23): between detailFrom and detailTo (150-900 m) a pixel blends the
+  // near triplet and the far one, and was sampling both whole - six sets, each hex-tiled (3 fetches) in both
+  // arrays and triplanar on a slope. But a far set is very often a near one (a null far set falls back to the
+  // near set, and the recipe reuses its sets: forest, old forest, sand, snow, shingle and dense scrub have a far
+  // triplet IDENTICAL to the near, heath and scrub share two of three). A set sampled at the same layer and scale
+  // at the same point is the same sample: take it once. The same pixels, bit for bit up to the sum's order.
+  Smp sBand(vec4 A, vec4 S, vec4 F, vec4 FS, vec3 P, vec3 tw, float ang, float m1, float m2, float fw){
+    Smp a0 = sSet(A.x, S.x, P, tw, ang), a1 = a0, a2 = a0;
+    if (A.y >= 0.0) { if (sSame(A.y, S.y, A.x, S.x)) a1 = a0; else a1 = sSet(A.y, S.y, P, tw, ang); }
+    if (A.y >= 0.0 && A.z >= 0.0) { if (sSame(A.z, S.z, A.x, S.x)) a2 = a0; else if (A.y >= 0.0 && sSame(A.z, S.z, A.y, S.y)) a2 = a1; else a2 = sSet(A.z, S.z, P, tw, ang); }
+    Smp f0, f1 = a0, f2 = a0;
+    if (sSame(F.x, FS.x, A.x, S.x)) f0 = a0;
+    else if (A.y >= 0.0 && sSame(F.x, FS.x, A.y, S.y)) f0 = a1;
+    else if (A.y >= 0.0 && A.z >= 0.0 && sSame(F.x, FS.x, A.z, S.z)) f0 = a2;
+    else f0 = sSet(F.x, FS.x, P, tw, ang);
+    if (F.y >= 0.0) {
+      if (sSame(F.y, FS.y, F.x, FS.x)) f1 = f0;
+      else if (sSame(F.y, FS.y, A.x, S.x)) f1 = a0;
+      else if (A.y >= 0.0 && sSame(F.y, FS.y, A.y, S.y)) f1 = a1;
+      else if (A.y >= 0.0 && A.z >= 0.0 && sSame(F.y, FS.y, A.z, S.z)) f1 = a2;
+      else f1 = sSet(F.y, FS.y, P, tw, ang);
+    }
+    if (F.y >= 0.0 && F.z >= 0.0) {
+      if (sSame(F.z, FS.z, F.x, FS.x)) f2 = f0;
+      else if (sSame(F.z, FS.z, F.y, FS.y)) f2 = f1;
+      else if (sSame(F.z, FS.z, A.x, S.x)) f2 = a0;
+      else if (A.y >= 0.0 && sSame(F.z, FS.z, A.y, S.y)) f2 = a1;
+      else if (A.y >= 0.0 && A.z >= 0.0 && sSame(F.z, FS.z, A.z, S.z)) f2 = a2;
+      else f2 = sSet(F.z, FS.z, P, tw, ang);
+    }
+    Smp n = sBlend(A, a0, a1, a2, m1, m2), f = sBlend(F, f0, f1, f2, m1, m2), o;
+    o.c = (1.0 - fw) * n.c + fw * f.c; o.n = (1.0 - fw) * n.n + fw * f.n;
     return o;
   }
   Smp sMat(int i, vec3 P, vec3 tw, float seaAng, float fw, float slope){
@@ -155,9 +195,9 @@ const SPLAT_GROUND = (() => {
     float m2 = A.z >= 0.0 ? gfMixK(P.xz + vec2(101.0, -77.0), period * 1.61, 0.52 - M.w, sharp) : 0.0;
     vec4 F = uSMatF[i], FS = uSMatFS[i];
     if (F.x < 0.0) { F.x = A.x; FS.x = S.x; } if (F.y < 0.0) { F.y = A.y; FS.y = S.y; } if (F.z < 0.0) { F.z = A.z; FS.z = S.z; }
-    o.c = vec4(0.0); o.n = vec4(0.0);
-    if (fw < 0.999) { Smp t = sTriplet(A, S, P, tw, ang, m1, m2); o.c += (1.0 - fw) * t.c; o.n += (1.0 - fw) * t.n; }
-    if (fw > 0.001) { Smp t = sTriplet(F, FS, P, tw, ang, m1, m2); o.c += fw * t.c; o.n += fw * t.n; }
+    if (fw <= 0.001) o = sTriplet(A, S, P, tw, ang, m1, m2);
+    else if (fw >= 0.999) o = sTriplet(F, FS, P, tw, ang, m1, m2);
+    else o = sBand(A, S, F, FS, P, tw, ang, m1, m2, fw);
     vec4 V = uSVary[i];
     if (V.y > 0.0 || V.x > 0.0) { vec2 gf = gfShade(P.xz, V.z); o.c.rgb = gfHueTurn(o.c.rgb, gf.x * V.x) * (1.0 + gf.y * V.y); }
     gSRel = gLuma(o.c.rgb) / max(uSLum[int(A.x + 0.5)], 1e-3);   // the texel over its set's mean: the texture alone, no set colour
@@ -214,10 +254,15 @@ const SPLAT_GROUND = (() => {
     vec3 tw = vec3(0.0, 1.0, 0.0);
     if (uSDist2.z > 0.5) { vec3 a = pow(abs(nGeo), vec3(uSDist2.z)); tw = a / (a.x + a.y + a.z); }
     vec4 C[8]; vec4 NN[8]; float Wt[8]; float Rl[8]; int n = 0; float ma = -10.0;
+    // NO CONTINUE IN THIS LOOP (PERF 2026-09-23): ANGLE's D3D back end makes a gradient-free copy ('Lod0',
+    // SampleLevel 0) of every function that samples a texture when it is called inside a loop holding a break or
+    // a continue - the splat's every set was read at MIP 0 at every distance: shimmer, and a texture cache blown
+    // on every ground pixel past a few hundred metres. The same test as an if-block keeps the derivatives.
     for (int i = 0; i < uSNCode; i++) {
-      if (w[i] < 0.004 || n >= uSNCand) continue;
-      Smp m = sMat(i, vWPi, tw, seaAng, fw, slope);
-      C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; Rl[n] = gSRel; ma = max(ma, m.c.a + w[i]); n++;
+      if (w[i] >= 0.004 && n < uSNCand) {
+        Smp m = sMat(i, vWPi, tw, seaAng, fw, slope);
+        C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; Rl[n] = gSRel; ma = max(ma, m.c.a + w[i]); n++;
+      }
     }
     ma -= uSSeam.x;
     vec3 col = vec3(0.0); vec4 nrm = vec4(0.0); float tot = 0.0, rel = 0.0;
@@ -384,7 +429,7 @@ const SPLAT_GROUND = (() => {
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
       uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() },
-      uSHexPx: { value: 4 },   // (the dial: 0 = hex everywhere, as before 2026-09-23)
+      uSHexPx: { value: 0 },   // the hex cut's dial: 0 = hex everywhere (see sSet)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
     };

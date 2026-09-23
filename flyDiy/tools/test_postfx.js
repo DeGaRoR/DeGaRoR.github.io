@@ -56,16 +56,19 @@ if (API) {
 
 // ---- the presets ---------------------------------------------------------
 const KEYS = ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'];
-const presetsBlock = (gfx.match(/const PRESETS = \{[\s\S]*?\n  \};/) || [''])[0];
-const presetRows = presetsBlock.split('\n').filter(l => /^\s+(low|medium|high|ultra):/.test(l));
-const everyPresetOff = presetRows.length === 4 && presetRows.every(l => KEYS.every(k => new RegExp(k + ": 'off'").test(l)));
+// the EVALUATED presets (PERF 2026-09-23: the five tiers share their post rows through one block, POST_OFF -
+// a source scan of each preset's line would not see them)
+const PRESETS = (() => { const w = { localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, requestAnimationFrame: () => 1 }; w.window = w;
+  require('vm').runInNewContext(gfx, Object.assign({ window: w, setInterval: () => 0, clearInterval() {} }, w)); return w.GFX ? w.GFX.PRESETS : {}; })();
+const presetRows = Object.keys(PRESETS);
+const everyPresetOff = presetRows.length === 5 && presetRows.every(p => KEYS.every(k => PRESETS[p][k] === 'off'));
 const optionRows = KEYS.every(k => new RegExp("\\{ k: '" + k + "', label: '[^']+', steps: \\[\\s*\\{ v: 'off'").test(gfx));
 
 const checks = {
   // --- the state ------------------------------------------------------------
   'post_fx.js loads on a bare window without throwing': !threw && !!API,
   'the module starts with every effect off': !!API && API.KEYS.every(k => API.S[k] === 'off') && !API.active(),
-  'every preset (low, medium, high, ultra) says off for all six rows': everyPresetOff,
+  'every preset (potato, retro, current, gamer, ultra) says off for all six rows': everyPresetOff,
   "every post row's first step is 'off'": optionRows,
   'the menu hands each row to the module (GFX.apply -> POST_FX.set)': /W\.POST_FX\.set\(k, S\[k\]\)/.test(gfx),
 

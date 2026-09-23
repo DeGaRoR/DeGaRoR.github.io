@@ -25,7 +25,7 @@
 // Usage:  node tools/frame_perf.js [--url http://localhost:8477/flyDiy/dev.html?world=jolene]
 //              [--tiers full,msaa,off] [--places stand,forest,sea] [--frames 120]
 //              [--probes "base=1;;bloom=GFX.set('bloom','soft')"]   (named configurations, each measured at each place)
-//              [--garage] [--pre "<js>"] [--out tools/perf/frame_perf.json] [--compare <json>] [--label <name>] [--headed] [--quiet [--quiet-max 20]] [--eval "<js>"]
+//              [--size 2560x1440] [--garage] [--pre "<js>"] [--out tools/perf/frame_perf.json] [--compare <json>] [--label <name>] [--headed] [--quiet [--quiet-max 20]] [--eval "<js>"]
 // Needs the dev server up (tools/_serve.js) and Chrome. Prints a table per
 // place x tier x probe; writes the JSON. This is a MEASUREMENT, not a gate:
 // it needs a GPU and a browser, which the gate battery does not assume.
@@ -47,6 +47,8 @@ const OUT = opt('out', path.join(__dirname, 'perf', GARAGE ? 'frame_perf_garage.
 const COMPARE = opt('compare', null);
 const LABEL = opt('label', '');
 const PRE = opt('pre', null);
+// --size WxH: the page's viewport (default 1920x1080); the frame is GPU-bound, so its size is the first variable (PERF 2026-09-23)
+const SIZE = (opt('size', '1920x1080').split('x').map(Number));
 
 const PORT = 9400 + (process.pid % 500);
 const CHROME = [
@@ -71,7 +73,7 @@ if (QUIET) {
   console.log('frame_perf: GPU ' + u + ' % after ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s of waiting' + (u >= 15 ? ' - NOT QUIET, measuring anyway' : ''));
 }
 const ch = spawn(CHROME, (HEADED ? [] : ['--headless=new']).concat(['--remote-debugging-port=' + PORT,
-  '--window-size=1920,1080', '--hide-scrollbars', '--no-first-run',
+  '--window-size=' + SIZE[0] + ',' + SIZE[1], '--hide-scrollbars', '--no-first-run',
   '--user-data-dir=' + udd,
   '--disable-gpu-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync', 'about:blank']), { stdio: 'ignore' });
 const killChrome = () => { try { if (process.platform === 'win32') require('child_process').execSync('taskkill /PID ' + ch.pid + ' /T /F', { stdio: 'ignore' }); else ch.kill(); } catch (e) {} };
@@ -246,7 +248,7 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
   };
   await cmd('Page.enable'); await cmd('Runtime.enable');
   if (PRE) await cmd('Page.addScriptToEvaluateOnNewDocument', { source: PRE });
-  await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
   await sleep(1500);
   // bounded (120 s): under a saturated GPU the boot can stall past its own watchdogs
@@ -291,7 +293,8 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
     for (const probe of PROBES) {
       if (probe.js && probe.js !== '1') { await ev('(()=>{' + probe.js + ';return 1;})()'); await sleep(1500); await ev(SETTLED); }
       for (const tier of TIERS) {
-        await ev("FLYDIY_AA.setTier('" + tier + "')"); await sleep(1200);
+        // --tiers gfx: the AA the graphics menu set (a preset probe's own), not a forced tier (PERF 2026-09-23)
+        if (tier !== 'gfx') { await ev("FLYDIY_AA.setTier('" + tier + "')"); await sleep(1200); }
         await ev(SETTLED);
         const util = gpuUtil();   // includes this rig's own Chrome: a reading of the box, not of the pass
         // the first run at a configuration pays its allocations and lazy programs; only the second is recorded
@@ -315,7 +318,7 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
         console.log('      ' + order.map(k => `${k} ${tags[k].median}` + (tags[k].calls !== 1 ? `×${tags[k].calls}` : '')).join(' · '));
       }
     }
-    await ev("FLYDIY_AA.setTier('full')");
+    if (!TIERS.includes('gfx')) await ev("FLYDIY_AA.setTier('full')");
   }
   ws.close(); killChrome();
   try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
