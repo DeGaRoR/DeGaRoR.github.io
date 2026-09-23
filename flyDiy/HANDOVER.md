@@ -57186,3 +57186,30 @@ scenery-detail sessions; the scenery session is taking contract v1.22 so this on
   futureDesigns/PAVEMENT-2026-09-21.md §12-15, PREMISES-CONTRACT-2026-09-13.md v1.21.
 - PROOF: screenshots/pavement/af_*.png. GATE PAVEMENT / PREMISES green; the full battery is still
   owed and is the user's to run for all the scenery sessions at once.
+
+## G519 - SCENERY LIFE: people, wall clutter, rubbish, parked cars, small structures and antennas round what is built (2026-09-23)
+
+The user: "People in the streets, driving cars, props and rubbish disposed next to walls and corners, random rubbish,
+small structures, communication antennas ... proper LODS, and just be discarded at high distances ... roads, aprons,
+maybe lots ... controls in the world editor ... including turning off, and you will assess the performance impact at
+every step." `src/viewer/scenery_life.js` (SCENERY_LIFE, world pack, before render_premises.js): nothing authored -
+the premises renderer hands over what it BUILT and the life is stood round it by laws from the record's seed, one
+random stream per law per thing (a slider moves its own kind only). The houses' own generator report is the map:
+render_premises keeps `HOUSES[].built` and the life reads `stats.groundAO` (walls = the largest rectangle, every
+blocker), `doors`, `openings` (walls[i] = side [0, 2, 1, 3][i]), `eaveY`, `ridgeY` - clutter on the back and side walls
+and in corners, never before a door or over an opening; a dish on the wall facing the southern sky under the eaves;
+a TV aerial on the ridge; the house's fuel (a 500-gallon pig or a 275-gallon oil tank) on a gable; a mailbox at the
+frontage; people at doors, talking at frontages, on zone shoulders, round the parked aeroplanes; cars parked on
+zone shoulders; litter on shoulders, round piles and dumpsters; signs; cones and drums on the apron edges; a
+lattice mast + shelter per aerodrome and per settlement (dry level ground, out of the funnel, off the apron, 700 m
+apart, a world obstacle like the parked cars); traffic (G432's) on every road the record left without, never a
+taxiway. The pavement law is coverAt's `kill > 0.97` (the carriageway + band; kill is the trees' fade, 0.5 four
+metres out); the water is waterH AT the point (the first mast stood in a muskeg pond). Drawn with no Object3D per
+item: the 27 procedural pieces in ONE BatchedMesh per shadow class, each scanned level one InstancedMesh per part;
+levels and a last distance for everything (a person from its 24 k cut, a procedural figure past 90 m, a two-box car
+past 120 m, a scan with no cuts a box in its own mean colour past 20-40 m; rubbish 45 m .. a mast 6 km) x the record's
+`dist` x the GRAPHICS tier. Record: `rec.life` (contract v1.22); editor: the LIFE section (last on the rail).
+Measured off/on/off/on in one run (tools/frame_perf.js, new `at:x:z:agl` places): +18 draws at the club stand, +22 in
+a village street at 25 m (the first cut was +62), ~0 from 250 m; frame difference inside the noise. GATE LIFE
+(tools/_life_check.js, core, ~1 s). Owed: walking people need a rigged walk clip (the five scans stand still).
+futureDesigns/SCENERY-LIFE-2026-09-23.md.

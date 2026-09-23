@@ -38,6 +38,7 @@ const SECTIONS = [
   { k: 'objects',    label: 'OBJECTS',    icon: '⚑',  tools: ['select', 'prop', 'billboard', 'aircraft', 'animal', 'probe'] },
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
+  { k: 'life',       label: 'LIFE',       icon: '☺',  tools: [] },   // SCENERY LIFE: the record's life block (last: the 1-9 keys keep their sections)
 ];
 // the sections' icons in the flight ribbon's own grammar (18 x 18, stroked paths, '|' between them)
 const ICONS = {
@@ -50,6 +51,7 @@ const ICONS = {
   objects: 'M5 16V2|M5 3h9l-2 3 2 3H5',
   file: 'M5 2h6l3 3v11H5Z|M11 2v3h3|M7 9h4|M7 12h4',
   view: 'M2 9s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5Z|M9 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
+  life: 'M7 5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z|M4.5 16l1.3-6.2L7 7.2l1.4 2.4L9.5 16|M4 10.5l3-3.3 3 3.3|M13 16V9.5|M11.5 9.5h3l.4-2.5h-3.8Z',
 };
 const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
 const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
@@ -627,6 +629,7 @@ function mount(host, ctx) {
     insp.innerHTML = '';
     if (section === 'file') return fileRows();
     if (section === 'view') return viewRows();
+    if (section === 'life') return lifeRows();
     const f = selected && PG.findById(rec, selected);
     if (!f) {
       rows.section(insp, 'THE PREMISES');
@@ -1023,6 +1026,36 @@ function mount(host, ctx) {
       if (ctx.rig.get().manual !== undefined) rows.check(insp, 'the sun by hand', () => !!ctx.rig.get().manual, v => ctx.rig.set({ manual: !!v }));
     }
     rows.note(insp, 'Tab toggles the camera; Esc cancels; Del deletes; Ctrl+Z / Ctrl+Y undo and redo; 1-6 pick a section');
+  }
+
+  // THE LIFE (SCENERY LIFE, contract v1.22): the record's `life` block - the people, the wall clutter, the rubbish,
+  // the parked cars, the small structures and the antennas the renderer stands round what is built, by laws
+  // (src/viewer/scenery_life.js); a row writes the block and the life re-stands at once (no recompose); a key
+  // left at its default is not written
+  let lifeT = 0;
+  function lifeRows() {
+    const SL = window.SCENERY_LIFE, L = R.life;
+    rows.section(insp, 'LIFE');
+    if (!SL || !L) { rows.note(insp, 'this page has no scenery life (scenery_life.js did not load)'); return; }
+    const cur = () => Object.assign({}, SL.DEF, rec.life || {});
+    const note = rows.note(insp, '');
+    const show = () => { const S = L.stats, c = S.byCat || {};
+      note.textContent = !cur().on ? 'off: the premises as built' : (S.items || 0).toLocaleString() + ' placed (' + SL.CATS.filter(q => c[q[0]]).map(q => c[q[0]] + ' ' + q[1]).join(', ') + ') in ' + (S.placeMs || 0).toFixed(0) +
+        ' ms · ' + (S.visible || 0).toLocaleString() + ' drawn now in ' + (S.draws || 0) + ' draws · lists ' + (S.updMs || 0).toFixed(1) + ' ms'; };
+    const setK = (k, v) => {
+      const c = Object.assign({}, rec.life || {});
+      if (v === SL.DEF[k]) delete c[k]; else c[k] = v;
+      rec.life = Object.keys(c).length ? c : undefined;
+      L.set(rec.life); autosave(); ctx.redraw && ctx.redraw();
+      clearTimeout(lifeT); lifeT = setTimeout(show, 1200);
+    };
+    rows.pills(insp, 'life', [['on', 'on', 'the life stands round what is built'], ['off', 'off', 'none of it: the premises as built']], () => (cur().on ? 'on' : 'off'), v => { setK('on', v === 'on'); show(); });
+    rows.slider(insp, 'draw distance', 0.25, 2, 0.05, () => cur().dist, v => setK('dist', +v), v => 'x' + (+v).toFixed(2));
+    for (const [k, lab, mx, why] of SL.CATS) { const r = rows.slider(insp, lab, 0, mx, 0.05, () => cur()[k], v => setK(k, +v), v => (+v === 0 ? 'none' : 'x' + (+v).toFixed(2))); r.title = why; }
+    rows.slider(insp, 'life seed', 1, 99, 1, () => cur().seed, v => setK('seed', +v), v => String(v));
+    rows.button(insp, 'back to the defaults', () => { rec.life = undefined; L.set(null); autosave(); inspector.refresh(); });
+    rows.note(insp, 'every kind is drawn instanced and cut by distance (rubbish 45 m, clutter 110, people 220, cars 450, a mast 6 km) x the draw distance x the GRAPHICS tier');
+    show();
   }
 
   // ---- save / load -----------------------------------------------------------------

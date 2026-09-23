@@ -236,6 +236,8 @@ const MANIFEST = {
     ['tools', '_village_gen.js'],
     // THE PARKED AEROPLANES (G411): builds as props, before the renderer that stands them
     ['src/viewer', 'parked.js'],
+    // THE SCENERY'S LIFE (2026-09-23): people, clutter, rubbish, cars, small structures, antennas - made by the renderer below
+    ['src/viewer', 'scenery_life.js'],
     ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {

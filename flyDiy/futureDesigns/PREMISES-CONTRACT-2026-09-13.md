@@ -724,3 +724,16 @@ after the freeze, against this document.
   north of the hangars, with `pav: { paintAge: 0.45 }` so the lines stay legible under the `worn`
   look (which fades paint to 0.9, the WWII runway's wear).
 
+- **v1.22 (2026-09-23, SCENERY LIFE, the user: "people in the streets, driving cars, props and rubbish
+  disposed next to walls and corners ... controls in the world editor ... including turning off").** The
+  record may carry ONE block `life`: `{ on, dist, seed, people, clutter, rubbish, cars, traffic, small,
+  antennas }`, every key optional (absent = `SCENERY_LIFE.DEF`: on, the multipliers 1, seed 1; the editor
+  writes only the keys moved off their default, and deletes the block at "back to the defaults"). The
+  composer never reads it: nothing it stands is a feature, a height, an exclude or a surface - the life is
+  DERIVED by the renderer (`src/viewer/scenery_life.js`) from what the premises BUILT (the houses' own
+  generator reports, the plots, the roads, the aprons, the zones, the parked aeroplanes), deterministic in
+  `hash(rec.seed, life.seed)` and one stream per law per thing. `traffic` is the vehicles a km on a road
+  that carries no `traffic` of its own (never a taxiway, a track or a stub under 150 m); a road's own
+  `traffic` (v1.13) always wins. The masts and the parked cars it stands are world obstacles.
+  futureDesigns/SCENERY-LIFE-2026-09-23.md.
+

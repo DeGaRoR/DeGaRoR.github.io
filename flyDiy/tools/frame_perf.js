@@ -223,6 +223,15 @@ const PLACE_JS = {
   return JSON.stringify({ at: [best[0] | 0, 300, best[1] | 0] }); })()`,
   garage: `'garage'`,
 };
+// A PLACE BY NUMBERS (SCENERY LIFE, 2026-09-23): `at:<x>:<z>:<agl>` holds the aeroplane there, <agl> m over the
+// ground, on the heading the roll-out gave it (a village street, an apron: the chase eye behind it)
+const PLACE_AT = s => { const [x, z, agl] = s.split(':').slice(1).map(Number); return `(() => {
+  const w = FLIGHT_PROBE.world(), X = ${x || 0}, Z = ${z || 0}, gy = w.terrainH(X, Z) + ${isFinite(agl) ? agl : 60};
+  const s = FLIGHT_PROBE.sim(); const cg = s.cgPos();
+  const dx = X - cg[0], dy = gy - cg[1], dz = Z - cg[2];
+  for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; }
+  const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();
+  return JSON.stringify({ at: [X, gy | 0, Z] }); })()`; };
 
 const med = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[f.length >> 1]; };
 const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[Math.floor(f.length * 0.9)]; };
@@ -284,7 +293,7 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
     console.error('  [' + name + '] ' + await ev("document.body.innerText.replace(/\s+/g,' ').slice(0,160)")); };
   const rows = [];
   for (const place of PLACES) {
-    const where = await ev(PLACE_JS[place] || PLACE_JS.stand);
+    const where = await ev(PLACE_JS[place] || (/^at:/.test(place) ? PLACE_AT(place) : PLACE_JS.stand));
     await sleep(1500);
     let settled = false;
     for (let i = 0; i < 60 && !settled; i++) settled = await ev(SETTLED);

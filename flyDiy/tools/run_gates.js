@@ -313,6 +313,9 @@ const GATES = [
   // THE PAVEMENT (roads & runways, 2026-09-21): the one material every strip and road wears - the
   // builders' attributes, the markings recorded off sitePaintStrip, the hook rules, the recipe (~5 s)
   { id: 'PAVEMENT', file: '_pavement_check.js', tier: 'core' },
+  // THE SCENERY'S LIFE (2026-09-23): the procedural kit, the placement laws on a synthetic premises, the draw's
+  // distances, the hooks (~1 s)
+  { id: 'LIFE', file: '_life_check.js', tier: 'core' },
   // THE FLOAT IN THE SOLVER (H1, G382): the ultralight on floats settled,
   // taken off and landed on the sea, headless (~95 s)
   { id: 'FLOATS', file: '_floats_check.js', tier: 'core', wall: 140 },

@@ -155,6 +155,19 @@ function make(THREE, scene, world, rec0, opts) {
   placeLots();
   scene.add(root);
   const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0, litNow: 0, animals: 0, animalsShown: 0 };
+  // THE LIFE (SCENERY LIFE, 2026-09-23): src/viewer/scenery_life.js stands people, wall clutter, rubbish, parked cars, small
+  // structures and antennas round what is BUILT here, by laws from the record's seed (rec.life, contract v1.22); drawn in a
+  // handful of instanced draws, every kind cut by distance. It reads the built houses' own reports (HOUSES[].built)
+  const LIFE = (typeof window !== 'undefined' && window.SCENERY_LIFE) ? window.SCENERY_LIFE.make(THREE, {
+    root, game: !!o.game, record: () => rec, frame: () => O.frame, heightAt: (x, z) => heightAt(x, z), waterY: () => (world.waterH ? world.waterH(0, 0) : -1e9), waterAt: (x, z) => (world.waterH ? world.waterH(x, z) : -1e9),
+    houses: () => HOUSES, plots: () => O.records.plots, roads: () => O.roads, runways: () => O.runways, zones: () => rec.layers.zones,
+    aprons: () => (rec.layers.surface || []).filter(e => e.apron && e.poly && e.poly.length > 2).map(e => e.poly),
+    objects: () => (rec.layers.objects || []).filter(e => e.kind !== 'aircraft' && isFinite(e.x)).map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], r: e.kind === 'billboard' ? (+e.w || 3) / 2 + 0.6 : e.kind === 'tree' ? 1.5 : 1.3 }; }),
+    aircraft: () => (rec.layers.objects || []).filter(e => e.kind === 'aircraft').map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], yaw: (e.yaw || 0) + O.frame.yaw }; }),
+    sites: () => (rec.layers.sites || []).filter(st => st.at && O.runways.some(r => r.c && Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) < (r.len || 1000) / 2 + 900)).map(st => ({ x: st.at.x, z: st.at.z })),
+    cover: (x, z) => (world.coverAt ? world.coverAt(x, z, 1) : null),   // the pavement law (v1.17.1): nothing stands on a road
+    eye: () => (o.eye ? o.eye() : null), lampsOn: () => LAMPS.on, queued: () => queue.length, obstacles: () => OBS(), onTraffic: () => { syncTraffic(); },
+  }) : null;
   // THE LAMP POOL (G449 - G417's account, whose code never reached the tree: the commit carried the
   // HANDOVER, the doc and the F8 dial only). Every built thing publishes its lights (HOUSE_GEN
   // stats.lit.lights: the bulb's place in the house frame, colour, level k, reach; the fixtures
@@ -1011,7 +1024,8 @@ function make(THREE, scene, world, rec0, opts) {
   // car follows a graded road's own profile. Deterministic from the road's id: the same cars, the same
   // way round, at every boot. Rebuilt when the road's line, width or count changes.
   const TRAFFIC = new Map();       // road id -> { key, cars: [{ grp, key, s, dir, v, v0, K }], pr, w, L }
-  const trafficKey = rd => JSON.stringify([rd.pts, rd.w, rd.traffic]);
+  const trafficOf = rd => (rd.traffic > 0 ? rd.traffic : (LIFE ? LIFE.trafficOf(rd) : 0));   // the record's, else the life's (SCENERY LIFE)
+  const trafficKey = rd => JSON.stringify([rd.pts, rd.w, trafficOf(rd)]);
   const trafficMenu = () => {
     const HG = window.HOUSE_GEN, VG = window.VILLAGE_GEN, PR = propReg();
     const m = VG && VG.autoMenu ? VG.autoMenu('carpark').concat(HG && HG.AUTO_KEYS ? HG.AUTO_KEYS(['truck', 'bus']) : []) : [];
@@ -1020,13 +1034,13 @@ function make(THREE, scene, world, rec0, opts) {
   function syncTraffic() {
     const pp = typeof propPlace === 'function' ? propPlace : null, HG = window.HOUSE_GEN;
     const want = new Map();
-    if (pp) for (const rd of O.roads) if (rd.traffic > 0 && rd.pts.length >= 2) want.set(rd.id, rd);
+    if (pp) for (const rd of O.roads) if (trafficOf(rd) > 0 && rd.pts.length >= 2) want.set(rd.id, rd);
     for (const [id, t] of TRAFFIC) { const rd = want.get(id); if (!rd || trafficKey(rd) !== t.key) { for (const c of t.cars) { hitDrop(c.grp); G.traffic.remove(c.grp); } TRAFFIC.delete(id); } }
     const menu = trafficMenu();
     for (const [id, rd] of want) {
       if (TRAFFIC.has(id) || !menu.length) continue;
       const pr = PG.polyRoad(rd.pts, rd.w), L = pr.length;
-      const n = Math.max(1, Math.round(rd.traffic * L / 1000));
+      const n = Math.max(1, Math.round(trafficOf(rd) * L / 1000));
       const rnd = PG.mulberry32(PG.fnv(String(id)) ^ 0x7a4f);
       const cars = [];
       for (let i = 0; i < n; i++) {
@@ -1112,7 +1126,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (on !== D.on) { D.on = on; for (const m of D.list) m.visible = on; }
     }
   }
-  function tick(dt) { if (++freezeTick % 60 === 0) freezeStatic(); detailTick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  function tick(dt) { if (++freezeTick % 60 === 0) freezeStatic(); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -1586,7 +1600,7 @@ function make(THREE, scene, world, rec0, opts) {
     let built = 0;
     while (queue.length && built < (n || 2)) {
       const p = queue.shift();
-      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
       catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
       built++;
     }
@@ -1596,6 +1610,7 @@ function make(THREE, scene, world, rec0, opts) {
     stats.obstacles = OBST_IDS.size;
     if (built) paintWear();   // the garden paths are the built houses' (planPath reads the door)
     if (built && o.onBuilt) o.onBuilt(built, queue.length);
+    if (built && LIFE) LIFE.dirty();
     if (built) freezeStatic();
     return built;
   }
@@ -1666,6 +1681,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
+      if (LIFE) { LIFE.set(rec.life); LIFE.dirty(); stats.life = 1; }
       freezeStatic();
       stats.tris = patch ? patch.userData.tris : 0; stats.chunks = patch ? patch.userData.chunks.length : 0; stats.patchBlocks = patch ? patch.userData.blocks : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
       return stats;
@@ -1690,6 +1706,7 @@ function make(THREE, scene, world, rec0, opts) {
     buildRunways();
     buildHandles();
     syncHouses();
+    if (LIFE) { LIFE.set(rec.life); LIFE.dirty(); stats.life = 1; }
     buildTrees();
     stats.tris = 0; for (const [, m] of chunks) stats.tris += m.geometry.index.count / 3;
     stats.chunks = chunks.size; stats.ms = performance.now() - t0; stats.rebuilt = n;
@@ -1731,6 +1748,7 @@ function make(THREE, scene, world, rec0, opts) {
     return best;
   }
   function dispose() {
+    if (LIFE) LIFE.dispose();
     if (ANIM) { ANIM.dispose(); ANIM = null; }
     { const R = OBS(); if (R) for (const id of OBST_IDS) R.remove(id); OBST_IDS.clear(); }
     for (const [, m] of chunks) m.geometry.dispose();
@@ -1758,6 +1776,7 @@ function make(THREE, scene, world, rec0, opts) {
     // house patches"); `world` here so the rings can ask
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
     patchBounds: () => (patch ? extentWorld() : null),
+    life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
     detail: DETAIL,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
