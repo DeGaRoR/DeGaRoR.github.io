@@ -311,3 +311,46 @@ rules are 14n lot-refusal, 14o the `from` filter and the overlapping undo, 14p t
 4. The two SLIVER crossings, if they look as bad as they measure.
 5. Everything from the first day's list: Walden Point Road past Bayside to the ferry, the Tsimshian
    longhouse, the `ttype` editor tool, the civic buildings by the user's eye.
+
+## 17. The rebase, and what must survive it
+
+Five sessions are authoring into `island_jolene.json`. The agreed protocol (proposed by the roads
+session, accepted here) is `tools/jolene_parts/<name>.py`, one per session, each exporting `PART`;
+`jolene_author.py` imports them in a fixed order and extends the layers. Prefixes: `mk_` the town
+(mine, already asserted in GATE PREMISES §14), `af_` the airfield, `nv_` native area, `mn_` mining
+village, `tw_` tramway. **The fixture is regenerated, never hand-merged** — on a conflict take either
+side and re-run the author. `rev` must go up or `localStorage` shadows the new record.
+
+Two things in that record are order-sensitive and must not be "tidied":
+- **Zones are sown in ARRAY ORDER** and `sowPlots` refuses to overlap a plot already sown. The named
+  quarters claim their frontages and the catch-all `mk_z_town` fills the rest. Re-sorting the zones
+  layer within a part silently re-cuts the whole town.
+- The drawn axes have precedence over traced roads over voted streets (`rank()` in the author).
+
+**A known conflict, named so nobody resolves it as a choice.** In `render_premises.js`'s `rebuild()`,
+the GAME branch's early-return block now carries two independent additions after `syncHouses()`:
+
+    syncHouses();
+    if (LIFE) { LIFE.set(rec.life); LIFE.dirty(); stats.life = 1; }   // G519, the scenery-life session
+    buildTrees();                                                     // G511.1, this session
+
+Either order works; **both must survive.** Without the second, no premises record tree is drawn at
+all — which is the bug this session found and is invisible from the diff.
+
+Also landing on master while this branch was out, and relevant here:
+- **G508.1** validates a road's `pav`, `band` and `look` — checks that had never run on a road since
+  the v1.16 port. Metlakatla's 61 roads pass (`look` is `worn` or absent, `pav` is `{marks:'none'}`).
+- **The native-area session is porting `sinkFar` to master** with two improvements: it sinks to
+  `min(raw, terrainH) - d` so a cut deeper than 4 m cannot poke through, and it lives in
+  `patchOf` + `FARLOD.resink(bb)` because master's far terrain is now a view-dependent LOD that would
+  undo a one-off vertex walk. **Take theirs over mine on the rebase.**
+- They also found that a record reaching past ±4440 m switches the WHOLE patch to the far terrain's
+  material, and on master that material plus `injectMaterials` is 17 texture units against a limit of
+  16 — the program fails to link and every patch chunk draws black. Their fix picks the material per
+  64 m chunk; past the ring a `set` material polygon will not draw. **Metlakatla uses no `set`
+  materials** (all five of its material entries are `look`), so this does not bite here — but it is
+  the reason not to add one.
+- **G519 scenery life** stands people, clutter, rubbish, parked cars, mailboxes, dishes and a mast
+  round every premises road and house. Measured by that session: draws are bounded by the number of
+  KINDS near the eye, not by plots (+18 to +22 in a street, ~0 from 250 m), and the one-time stand is
+  ~0.4 ms a house, so ~200 ms at Metlakatla's 510 plots. **It is left ON at the default here.**
