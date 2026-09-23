@@ -225,16 +225,38 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       rows.push([w[0], w[1], rr(0, 6.3), rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1), Math.floor(rnd() * parts.length)]);
     }
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sv = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
-    parts.forEach((P, pi) => {
-      const mine = rows.filter(r => r[4] === pi); if (!mine.length) return;
-      const h0 = Math.max(0.05, P.bb[4] - P.bb[1]);
-      for (const part of P.parts) {
-        const im = new THREE.InstancedMesh(part.geo, part.mat, mine.length);
-        mine.forEach((r, i) => { const sc = r[3] / h0; q.setFromAxisAngle(up, r[2]); p.set(r[0], world.terrainH(r[0], r[1]) - P.bb[1] * sc - r[3] * 0.15, r[1]); sv.set(sc, sc, sc); im.setMatrixAt(i, mtx.compose(p, q, sv)); });
-        im.instanceMatrix.needsUpdate = true; im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false; im.name = 'rocks:' + o.id;
-        scene.add(keep(im));
-      }
-    });
+    // IN CELLS, CULLED, AND GONE UNDER A PIXEL (PERF 2026-09-23). The strip's stones were one
+    // InstancedMesh a part a strip with frustumCulled off - every stone of every strip in the main
+    // pass and in BOTH shadow passes, whatever the eye saw: 57 draws and 14 M triangles a frame on
+    // Jolene, the near shadow's 60 m box included. Now the stones are split into ROCK_CELL metre
+    // cells, each part of each cell its own mesh at the cell's centre with an honest sphere
+    // (frustum-culled in every pass), and a cell is a LOD whose second level is nothing: gone where
+    // its largest stone is under ~1.5 px at 1080p (730 x its size, past the cell's own reach).
+    const ROCK_CELL = 400, cellsOf = new Map();
+    for (const r of rows) { const k = Math.floor(r[0] / ROCK_CELL) + ',' + Math.floor(r[1] / ROCK_CELL); let a = cellsOf.get(k); if (!a) cellsOf.set(k, a = []); a.push(r); }
+    for (const cellRows of cellsOf.values()) {
+      const yOf = r => { const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0; return world.terrainH(r[0], r[1]) - P.bb[1] * sc - r[3] * 0.15; };
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity, big = 0;
+      const ys = cellRows.map(r => { const y = yOf(r); x0 = Math.min(x0, r[0]); x1 = Math.max(x1, r[0]); z0 = Math.min(z0, r[1]); z1 = Math.max(z1, r[1]); y0 = Math.min(y0, y); y1 = Math.max(y1, y); big = Math.max(big, r[3]); return y; });
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2, reach = Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2;
+      const grp = new THREE.Group();
+      parts.forEach((P, pi) => {
+        const idx = []; cellRows.forEach((r, i) => { if (r[4] === pi) idx.push(i); }); if (!idx.length) return;
+        const h0 = Math.max(0.05, P.bb[4] - P.bb[1]);
+        for (const part of P.parts) {
+          const im = new THREE.InstancedMesh(part.geo, part.mat, idx.length);
+          idx.forEach((ri, i) => { const r = cellRows[ri], sc = r[3] / h0; q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); sv.set(sc, sc, sc); im.setMatrixAt(i, mtx.compose(p, q, sv)); });
+          im.instanceMatrix.needsUpdate = true; im.castShadow = true; im.receiveShadow = true; im.name = 'rocks:' + o.id;
+          if (THREE.Sphere) im.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), reach + 3 * Math.max(0.5, big));
+          else im.frustumCulled = false;
+          grp.add(im);
+        }
+      });
+      let obj = grp;
+      if (THREE.LOD) { obj = new THREE.LOD(); obj.addLevel(grp, 0); obj.addLevel(new THREE.Group(), reach + 730 * Math.max(0.3, big)); }
+      obj.name = 'rocks:' + o.id; obj.position.set(cx, cy, cz);
+      scene.add(keep(obj));
+    }
   };
   const rocksWhenReady = job => { ROCK_JOBS.push(job); if (treeSettleOf) treeSettleOf().then(() => { const i = ROCK_JOBS.indexOf(job); if (i >= 0) { ROCK_JOBS.splice(i, 1); job(); } }).catch(() => {}); };
   // THE RENDERER FLAG (W0.5b): the module picks a variant per material on it
@@ -2547,6 +2569,85 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
     let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
+    // ---- THE SHEETS ARE LAYERS (PERF 2026-09-23) --------------------------------------------------
+    // Every impostor sheet was a texture of its own and every (chunk, subject, series) an InstancedMesh
+    // of its own wearing it: 1 400 impostor draws at the Jolene stand, 2 100 at 300 m over the field -
+    // two thirds of the frame's draws, each a round of GL state through Chrome's GPU process. The
+    // sheets are now LAYERS of two array textures (the albedo, sRGB; the normals), a bake copied into
+    // its layer; an atlas carries `layer`, and every impostor material samples the arrays - by a
+    // uniform layer (the stand cards, the cone fallback) or by a PER-INSTANCE one (IMP_INST: ONE mesh a
+    // chunk part, every subject and series in it, each layer's cy / diam / gain / cut / tint read from
+    // IMPA.tbl in the vertex shader). The bytes on the card are the sheets' own, not doubled.
+    const IMPA_MAX = 128;
+    const IMPA = { cap: 0, used: 0, col: null, nrm: null, tbl: null, tintU: [], dirtyMips: false,
+                   U: { col: { value: null }, nrm: { value: null }, tbl: { value: null } } };
+    const impaArr = (cap, srgb) => {
+      const N = IMP_G * IMP_TILE;
+      const t = new THREE.DataArrayTexture(null, N, N, cap);
+      t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType;
+      t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.flipY = false;
+      if (t.source) t.source.dataReady = false;                                  // storage only: there are no bytes to upload
+      t.generateMipmaps = true; t.needsUpdate = true; renderer.initTexture(t);   // the storage, every level, once
+      t.generateMipmaps = false;                                                 // the copies do not re-mip: IMPA.mips() does, once a batch
+      return t;
+    };
+    // no array textures to be had (the headless stub, GATE WORLDRENDER): the layers are counted, nothing allocated
+    IMPA.stub = !(THREE.DataArrayTexture && renderer && renderer.initTexture);
+    IMPA.grow = need => {
+      if (need <= IMPA.cap) return true;
+      if (need > IMPA_MAX) { console.error('impostor layers: ' + need + ' wanted, ' + IMPA_MAX + ' the most'); return false; }
+      if (IMPA.stub) { IMPA.cap = need; return true; }
+      const cap = Math.min(IMPA_MAX, Math.max(need + 4, Math.ceil(IMPA.cap * 1.25), 8));
+      const col = impaArr(cap, true), nrm = impaArr(cap, false);
+      if (IMPA.col && IMPA.used) {
+        const N = IMP_G * IMP_TILE, box = new THREE.Box3(), at = new THREE.Vector3();
+        for (let l = 0; l < IMPA.used; l++) {
+          box.min.set(0, 0, l); box.max.set(N, N, l + 1); at.set(0, 0, l);
+          renderer.copyTextureToTexture(IMPA.col, col, box, at);
+          renderer.copyTextureToTexture(IMPA.nrm, nrm, box, at);
+        }
+        IMPA.dirtyMips = true;
+      }
+      if (IMPA.col) { IMPA.col.dispose(); IMPA.nrm.dispose(); }
+      IMPA.col = col; IMPA.nrm = nrm; IMPA.cap = cap;
+      IMPA.U.col.value = col; IMPA.U.nrm.value = nrm;
+      if (!IMPA.tbl) {
+        IMPA.tbl = new THREE.DataTexture(new Float32Array(IMPA_MAX * 2 * 4), IMPA_MAX, 2, THREE.RGBAFormat, THREE.FloatType);
+        IMPA.tbl.minFilter = IMPA.tbl.magFilter = THREE.NearestFilter; IMPA.tbl.generateMipmaps = false; IMPA.tbl.needsUpdate = true;
+        IMPA.U.tbl.value = IMPA.tbl;
+      }
+      return true;
+    };
+    IMPA.take = () => (IMPA.grow(IMPA.used + 1) ? IMPA.used++ : -1);
+    // a layer's own numbers (row 0: cy, diam, gain, cut; row 1: the tint's hue, sat, light), from its series' material
+    IMPA.set = (layer, cy, diam, gain, cut, tintU) => {
+      if (!IMPA.tbl || !(layer >= 0)) return;
+      const d = IMPA.tbl.image.data, o = layer * 4;
+      d[o] = cy; d[o + 1] = diam; d[o + 2] = gain; d[o + 3] = cut;
+      IMPA.tintU[layer] = tintU || null;
+      const o2 = (IMPA_MAX + layer) * 4;
+      d[o2] = tintU ? tintU.uHue.value : 0; d[o2 + 1] = tintU ? tintU.uSat.value : 1; d[o2 + 2] = tintU ? tintU.uLight.value : 1;
+      IMPA.tbl.needsUpdate = true;
+    };
+    // once a frame: the mips of what was baked since, and the tint dials (live, F8's) into the table
+    IMPA.frame = () => {
+      if (IMPA.dirtyMips && IMPA.col && renderer.getContext && renderer.properties) {
+        // through three's own state cache, NOT a raw bind + resetState(): r186's state.reset() sets the
+        // depth buffer's `reversed` back to false and nothing sets it again (the renderer only does at
+        // init) - every depth test flips and the frame loses the aeroplane, the trees and the clouds
+        const gl = renderer.getContext(), st = renderer.state;
+        for (const t of [IMPA.col, IMPA.nrm]) { const w = renderer.properties.get(t).__webglTexture; if (w) { st.bindTexture(gl.TEXTURE_2D_ARRAY, w); gl.generateMipmap(gl.TEXTURE_2D_ARRAY); } }
+        st.unbindTexture();
+        IMPA.dirtyMips = false;
+      }
+      if (!IMPA.tbl) return;
+      const d = IMPA.tbl.image.data; let ch = false;
+      for (let l = 0; l < IMPA.used; l++) { const t = IMPA.tintU[l]; if (!t) continue; const o = (IMPA_MAX + l) * 4;
+        if (d[o] !== t.uHue.value || d[o + 1] !== t.uSat.value || d[o + 2] !== t.uLight.value) { d[o] = t.uHue.value; d[o + 1] = t.uSat.value; d[o + 2] = t.uLight.value; ch = true; } }
+      if (ch) IMPA.tbl.needsUpdate = true;
+    };
     function bakeImpostorAtlasNow(src, tag) {
       const parts = Array.isArray(src) ? src : null;
       const srcGeo = parts ? parts[0].geo : src;
@@ -2675,18 +2776,54 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       renderer.setRenderTarget(pRT);
       renderer.autoClear = pAC;
       renderer.setClearColor(pCol, pA);
-      atlas.tex = sheetOf(true); renderer.copyTextureToTexture(rt.texture, atlas.tex);
-      atlas.nrm = sheetOf(false); renderer.copyTextureToTexture(rtN.texture, atlas.nrm);
-      // readable by the inspector and the audit: the sheet blitted back into the shared
-      // target and read (readRenderTargetPixels needs a framebuffer; the sheet has none)
+      // THE SHEET'S LAYER (PERF 2026-09-23 - see IMPA): the two targets copied into the arrays at
+      // `layer`; atlas.tex / atlas.nrm name the arrays (a truthy "this atlas is drawable" for the
+      // callers that asked it of the sheet), the materials read them through IMPA.U
+      const layer = IMPA.take();
+      if (layer < 0) { atlas.refused = true; return atlas; }
+      if (IMPA.stub) { atlas.layer = layer; atlas.tex = atlas.nrm = new THREE.DataTexture(null, 1, 1); return atlas; }   // headless: the loop ran, there is nothing to copy
+      const at0 = new THREE.Vector3(0, 0, layer);
+      renderer.copyTextureToTexture(rt.texture, IMPA.col, null, at0);
+      renderer.copyTextureToTexture(rtN.texture, IMPA.nrm, null, at0);
+      IMPA.dirtyMips = true;
+      atlas.layer = layer; atlas.tex = IMPA.col; atlas.nrm = IMPA.nrm;
+      // readable by the inspector and the audit: the layer copied back into the shared
+      // target and read (readRenderTargetPixels needs a framebuffer; the array has none)
       atlas.N = N;
-      atlas.read = (px, which) => { const T = which === 'nrm' ? atlas.nrm : atlas.tex, R = which === 'nrm' ? rtN : rt;
-        renderer.copyTextureToTexture(T, R.texture); renderer.readRenderTargetPixels(R, 0, 0, N, N, px); return px; };
+      atlas.read = (px, which) => { const T = which === 'nrm' ? IMPA.nrm : IMPA.col, R = which === 'nrm' ? rtN : rt;
+        renderer.copyTextureToTexture(T, R.texture, new THREE.Box3(new THREE.Vector3(0, 0, atlas.layer), new THREE.Vector3(N, N, atlas.layer + 1)), null);
+        renderer.readRenderTargetPixels(R, 0, 0, N, N, px); return px; };
       return atlas;
     }
     // One quad geometry per CHUNK SIZE (the cull sphere lives on the geometry —
     // see chunkBounds), one material per source shape.
     const impQuad = half => { const g = new THREE.PlaneGeometry(1, 1); chunkBounds(g, half); return g; };
+    // THE MERGED CHUNK MESH (PERF 2026-09-23 - see IMPA): the quad's buffers shared, a per-instance
+    // layer of its own; the materials made once the arrays exist (a material made before them has no
+    // shader and would draw white cards)
+    let IMPM_ = null;
+    const IMPM = () => {
+      if (IMPM_) return IMPM_;
+      if (canBake) IMPA.grow(Math.max(1, IMPA.used));
+      // the shadow and far-cascade materials only where there are arrays to read (headless: none - GATE WORLDRENDER)
+      const far = IMPA.col ? impostorDepth(null, 0, true, 6, true) : null;
+      if (far) (far.userData = far.userData || {}).cover = impostorDepth(null, 0, 'cover', 6, true);
+      return (IMPM_ = { fill: impostorMat(null, FAR_FILL, 0, null, 6, null, null, true), fillThin: impostorMat(null, FAR_FILL, 0, null, 6, uThin, null, true),
+                        wood: impostorMat(null, FAR_WOOD, 0, null, 6, null, null, true), depth: IMPA.col ? impostorDepth(null, 0, false, 6, true) : null, far });
+    };
+    const impMerged = (geo, mat, n) => {
+      const g2 = new THREE.BufferGeometry(); g2.index = geo.index; for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]);
+      g2.setAttribute('aLayer', new THREE.InstancedBufferAttribute(new Float32Array(n), 1));
+      g2.boundingSphere = geo.boundingSphere; g2.userData = geo.userData;   // the chunk ball (GATE WORLDRENDER reads it); the mesh carries its own below
+      if (geo.tag !== undefined) g2.tag = geo.tag;                          // (the headless stub's own label for the quad)
+      const mi = new THREE.InstancedMesh(g2, mat, n);
+      mi.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3);
+      const IM = IMPM(); if (IM.depth) { mi.castShadow = true; mi.customDepthMaterial = IM.depth; }
+      mi.userData.merged = true;
+      if (mi.addEventListener) mi.addEventListener('dispose', () => g2.dispose());   // its own layer buffer (the quad's shared buffers re-upload on demand)
+      return mi;
+    };
+    const layerOf = m => (m && m.userData && m.userData.atlas && m.userData.atlas.layer >= 0) ? m.userData.atlas.layer : -1;
     // THE ALPHA CURVE, the bench's (tools/_trees.html impostorMaterial): the
     // three taps' alpha is centred on a CUT and steepened by a GAIN, with
     // `solid` mixing toward the max of the three taps so a leaf texel only
@@ -2721,15 +2858,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
       'vec2 qv = (vUvI * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',
       'vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
-      'vec4 t0 = texture2D(uAtlas, uvA), t1 = texture2D(uAtlas, uvB), t2 = texture2D(uAtlas, uvC);',
+      'vec4 t0 = texture(uImpC, vec3(uvA, vImpL)), t1 = texture(uImpC, vec3(uvB, vImpL)), t2 = texture(uImpC, vec3(uvC, vImpL));',
       'float aMix = dot(wB, vec3(t0.a, t1.a, t2.a)), aSol = max(max(t0.a, t1.a), t2.a);',
       'diffuseColor.a = clamp((mix(aMix, aSol, uISolid) - uICut) * uIGain * uIGainK + 0.5, 0.0, 1.0);',
     ].join('\n');
     const U_FARR = { value: 1e7 };            // the far pass: no reach limit
-    function impostorDepth(atlas, si, farPass, gain) {
+    function impostorDepth(atlas, si, farPass, gain, inst) {   // inst: the merged chunk mesh's (IMP_INST: the layer per instance)
       if (TSL_ON) return null;   // W0.5b: MeshDepthMaterial is refused by the node renderer; its default depth casts until the port
       const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
-      if (!atlas.tex) return d;
+      if (inst ? !IMPA.col : !atlas.tex) return d;
       const cover = farPass === 'cover';
       // THREE VARIANTS, THREE PROGRAMS. r128 keys its program cache on
       // onBeforeCompile.toString() plus the material's parameters; the three
@@ -2737,20 +2874,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // variable, so the cover material was handed the far material's
       // program - packed depth where the canopy map wanted a white mask -
       // and the floor sampled noise. The key names the variant.
-      d.customProgramCacheKey = () => 'impDepth:' + (cover ? 'cover' : (farPass ? 'far' : 'near'));
+      d.customProgramCacheKey = () => 'impDepth:' + (cover ? 'cover' : (farPass ? 'far' : 'near')) + (inst ? ':inst' : ':one');
       d.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam; sh.uniforms.uSunDir = cover ? U_UP : { value: SUN };
         sh.uniforms.uNearB = cover ? U_NONEAR : uNear; sh.uniforms.uFadeW = uFadeW;
         sh.uniforms.uShadowR = farPass ? U_FARR : uShadowR;
-        sh.uniforms.uCy = { value: atlas.cy }; sh.uniforms.uDiam = { value: atlas.diam };
+        if (!inst) { sh.uniforms.uCy = { value: atlas.cy }; sh.uniforms.uDiam = { value: atlas.diam }; sh.uniforms.uLayer = { value: atlas.layer };
+          sh.uniforms.uIGain = { value: gain || 6 }; sh.uniforms.uICut = { value: IMP_CUT[si || 0] }; }
+        else sh.uniforms.uImpTbl = IMPA.U.tbl;
         sh.uniforms.uG = { value: IMP_G }; sh.uniforms.uTile = { value: IMP_TILE };
-        sh.uniforms.uAtlas = { value: atlas.tex };
-        sh.uniforms.uIGain = { value: gain || 6 }; sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
-        sh.uniforms.uICut = { value: IMP_CUT[si || 0] };
+        sh.uniforms.uImpC = IMPA.U.col;
+        sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nuniform vec3 uCam, uSunDir;\n' +
-            'uniform float uNearB, uFadeW, uCy, uDiam, uShadowR;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;')
+            'uniform float uNearB, uFadeW, uShadowR;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
+            (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
           .replace('#include <project_vertex>', [
+            inst ? 'vec4 impP0 = texelFetch(uImpTbl, ivec2(int(max(aLayer, 0.0) + 0.5), 0), 0); uCy = impP0.x; uDiam = impP0.y; vImpP = impP0.zw; vImpL = aLayer;' : 'vImpL = uLayer;',
             'vec3 iPos = instanceMatrix[3].xyz;',
             'float sX = length(instanceMatrix[0].xyz), sY = length(instanceMatrix[1].xyz);',
             'vec3 ctr = iPos + vec3(0.0, uCy * sY, 0.0);',
@@ -2767,12 +2907,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'vUvI = uv;',
             'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
             'gl_Position = projectionMatrix * mvPosition;',
-            'if (dCam < uNearB || dCam > uShadowR * 1.6) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+            'if (dCam < uNearB || dCam > uShadowR * 1.6 || vImpL < 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
           ].join('\n'));
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform sampler2D uAtlas;\n' +
-            'uniform float uG, uTile, uIGain, uIGainK, uISolid, uICut;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;')
-          .replace('#include <map_fragment>', IMP_FOLD_GLSL);
+          .replace('#include <common>', '#include <common>\nuniform highp sampler2DArray uImpC;\n' +
+            'uniform float uG, uTile, uIGainK, uISolid;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
+            (inst ? 'flat varying vec2 vImpP;\nfloat uIGain, uICut;\n' : 'uniform float uIGain, uICut;\n'))
+          .replace('#include <map_fragment>', (inst ? 'uIGain = vImpP.x; uICut = vImpP.y;\n' : '') + IMP_FOLD_GLSL);
         // the canopy map is a mask: white where the crown is, after the cut
         if (cover) sh.fragmentShader = sh.fragmentShader.replace('packDepthToRGBA( fragCoordZ )', 'vec4( 1.0 )');
       };
@@ -2786,7 +2927,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const u = src && src.userData;
       return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight } : null;
     };
-    function impostorMat(atlas, far, si, tintU, gain, thinU, nearU) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's
+    function impostorMat(atlas, far, si, tintU, gain, thinU, nearU, inst) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's; inst: the merged chunk mesh's (IMP_INST)
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
       // substitution buys the whole rig - sun, hemisphere, environment, and the
@@ -2797,10 +2938,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // attribute the quad does not carry - an unbound attribute reads
       // (0,0,0), and every impostor drew black under a healthy atlas. The old
       // photograph impostor was a ShaderMaterial and never met this.
-      const m = new THREE.MeshStandardMaterial({ map: atlas.tex,
+      // (no `map`: the sheet is a LAYER of IMPA's arrays, sampled below - PERF 2026-09-23)
+      const m = new THREE.MeshStandardMaterial({
         alphaTest: 0.01, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       (m.userData = m.userData || {}).atlas = atlas;
-      if (!atlas.tex) { if (atlas.refused) m.visible = false; return m; }   // headless: no GL, no atlas, no shader; a refused bake draws nothing
+      if (!inst && atlas && atlas.layer >= 0) IMPA.set(atlas.layer, atlas.cy, atlas.diam, gain || 6, IMP_CUT[si || 0], tintU);   // the layer's own numbers, for the merged meshes
+      if (inst ? !IMPA.col : !atlas.tex) { if (!inst && atlas.refused) m.visible = false; return m; }   // headless: no GL, no atlas, no shader; a refused bake draws nothing
+      m.customProgramCacheKey = () => 'imp:' + (inst ? 'inst' : 'one');   // two texts, two programs (three keys the cache on the hook's source)
       const LEAF = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.uniforms) ? TREE_LEAF : null;
       m.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam;
@@ -2810,26 +2954,31 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uFadeB = { value: FAR_FADE };
         sh.uniforms.uFadeW = uFadeW;
         sh.uniforms.uThin = thinU || U_NOTHIN;
-        sh.uniforms.uCy = { value: atlas.cy };
-        sh.uniforms.uDiam = { value: atlas.diam };
+        if (!inst) {
+          sh.uniforms.uCy = { value: atlas.cy };
+          sh.uniforms.uDiam = { value: atlas.diam };
+          sh.uniforms.uLayer = { value: atlas.layer };
+          sh.uniforms.uIGain = { value: gain || 6 };
+          sh.uniforms.uICut = { value: IMP_CUT[si || 0] };
+          sh.uniforms.uHue = tintU ? tintU.uHue : { value: 0 };
+          sh.uniforms.uSat = tintU ? tintU.uSat : { value: 1 };
+          sh.uniforms.uLight = tintU ? tintU.uLight : { value: 1 };
+        } else sh.uniforms.uImpTbl = IMPA.U.tbl;
+        sh.uniforms.uImpC = IMPA.U.col; sh.uniforms.uImpN = IMPA.U.nrm;
         sh.uniforms.uG = { value: IMP_G };
-        sh.uniforms.uNrm = { value: atlas.nrm };
         sh.uniforms.uILit = uILit;
-        sh.uniforms.uIGain = { value: gain || 6 }; sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
-        sh.uniforms.uICut = { value: IMP_CUT[si || 0] };
+        sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uLeaf = { value: 1 };
-        sh.uniforms.uHue = tintU ? tintU.uHue : { value: 0 };
-        sh.uniforms.uSat = tintU ? tintU.uSat : { value: 1 };
         sh.uniforms.uFlat = { value: 1 }; sh.uniforms.uFlatMean = { value: 0.4 };   // the tint's contrast term: a cover's, never an impostor's
-        sh.uniforms.uLight = tintU ? tintU.uLight : { value: 1 };
         sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW, uCy, uDiam;\nuniform vec2 uThin;\nuniform vec4 uWind;\n' +
-            'varying vec3 vImpDir;\nvarying float vImpD;')
+            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW;\nuniform vec2 uThin;\nuniform vec4 uWind;\n' +
+            'varying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
+            (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nflat varying vec3 vImpT;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
           // The quad is built around the instance's own axes, NOT the screen's.
           // Instances carry a random yaw for the 3D tier; impostors ignore it
           // and read only position and scale out of the instance matrix. Scale
@@ -2837,6 +2986,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // UNSCALED shape's space — pick the view with the direction divided
           // by the scale, lay the quad out there, then scale the offsets back.
           .replace('#include <project_vertex>', [
+            // the layer: the instance's (merged) or the material's; its numbers from the table (merged)
+            inst ? 'int impL = int(max(aLayer, 0.0) + 0.5); vec4 impP0 = texelFetch(uImpTbl, ivec2(impL, 0), 0), impP1 = texelFetch(uImpTbl, ivec2(impL, 1), 0);\n' +
+                   'uCy = impP0.x; uDiam = impP0.y; vImpP = impP0.zw; vImpT = impP1.xyz; vImpL = aLayer;' : 'vImpL = uLayer;',
+            'vUvI = uv;',
             'vec3 iPos = instanceMatrix[3].xyz;',
             'float sX = length(instanceMatrix[0].xyz), sY = length(instanceMatrix[1].xyz);',
             'vec3 ctr = iPos + vec3(0.0, uCy * sY, 0.0);',
@@ -2873,13 +3026,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // inside the near band the 3D tier draws these trees for real;
             // the window before it is shared with the last rung (dithered)
             'vImpD = dCam;',
-            'if (dCam < uNearB - uFadeW * 0.5 || fade <= 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+            'if (dCam < uNearB - uFadeW * 0.5 || fade <= 0.0 || vImpL < 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
           ].join('\n'));
         sh.uniforms.uWind = (typeof window !== 'undefined' && window.TREE_WIND) ? window.TREE_WIND : { value: new THREE.Vector4(0, 0, 0, 0) };
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
           .replace('#include <common>', '#include <common>\n' +
-            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uIGainK, uISolid, uICut, uTile;\n' +
-            'uniform float uHue, uSat, uLight, uFlat, uFlatMean;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
+            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
+            (inst ? 'flat varying vec2 vImpP;\nflat varying vec3 vImpT;\nfloat uIGain, uICut, uHue, uSat, uLight;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight;\n') +
+            'uniform float uFlat, uFlatMean;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
             'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
@@ -2888,6 +3042,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // regular grid of tiles is a near-uniform spread of view directions
             // with the horizon ring on the square's edge (where a plane spends
             // most of its life) and straight-down at the centre.
+            inst ? 'uIGain = vImpP.x; uICut = vImpP.y; uHue = vImpT.x; uSat = vImpT.y; uLight = vImpT.z;' : '',
             'vec3 dI = vImpDir;',
             'vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
             'vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
@@ -2900,9 +3055,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
             // one texel in from the tile's border: the neighbouring tile's
             // edge bleeds through bilinear filtering otherwise
-            'vec2 qv = (vMapUv * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',   // vMapUv: r186 has no vUv (W0.5a)
+            'vec2 qv = (vUvI * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',   // vUvI: the quad's own uv (no `map`, so no vMapUv)
             'vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
-            'vec4 t0 = texture2D(map, uvA), t1 = texture2D(map, uvB), t2 = texture2D(map, uvC);',
+            'vec4 t0 = texture(uImpC, vec3(uvA, vImpL)), t1 = texture(uImpC, vec3(uvB, vImpL)), t2 = texture(uImpC, vec3(uvC, vImpL));',
             'vec4 texelColor = t0 * wB.x + t1 * wB.y + t2 * wB.z;',
             // NO HAND DECODE ANY MORE (W0.5a): the sheet is an sRGB8 target on r186 and
             // the sampler decodes it in hardware; impSRGB on top of that darkened every
@@ -2918,7 +3073,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // the collection's tint, the same words as the leaf's, at the draw
             (LEAF && LEAF.tintGlsl) ? LEAF.tintGlsl : '',
             // the other half of the G-buffer, un-premultiplied by ITS alpha
-            'vec4 n0 = texture2D(uNrm, uvA), n1 = texture2D(uNrm, uvB), n2 = texture2D(uNrm, uvC);',
+            'vec4 n0 = texture(uImpN, vec3(uvA, vImpL)), n1 = texture(uImpN, vec3(uvB, vImpL)), n2 = texture(uImpN, vec3(uvC, vImpL));',
             'float nW = dot(wB, vec3(n0.a, n1.a, n2.a));',
             'vec3 nBake = (n0.rgb * wB.x + n1.rgb * wB.y + n2.rgb * wB.z) / max(nW, 1e-4) * 2.0 - 1.0;',
             'if (dot(nBake, nBake) < 1e-4) nBake = dI;',
@@ -3531,11 +3686,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const side = (list, P, impM, fallbackGeo) => {
         const n = list.length;
         if (!n) return null;
+        // ONE IMPOSTOR MESH FOR THE SIDE (PERF 2026-09-23 - see IMPA): every series, each instance its layer
+        const mkImp = () => { const mi = impMerged(impQuadW, IMPM().wood, n);
+          mi.position.set(ox, 0, oz); if (mi.updateMatrix) { mi.matrixAutoUpdate = false; mi.updateMatrix(); }
+          if (IMPM().far) farRegister(mi, IMPM().far); mi.userData.ser = 0; return mi; };
         if (!P) {                                            // the cone
           const m = mk(fallbackGeo, canopyMat, n, true);
           m.customDepthMaterial = TSL_ON ? null : treeDepth;
-          const mi = mk(impQuadW, impM[0], n, false);
-          return { n, meshes: [m], imps: [mi], rec: null, ser: null };
+          return { n, meshes: [m], imps: [mkImp()], lay: [layerOf(impM[0])], rec: null, ser: null };
         }
         const ser = new Uint8Array(n);
         const cnt = [0, 0, 0];
@@ -3562,13 +3720,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             rec.rungs[si][ri].push(m);
             meshes.push(m);
           } });
-          const mi = mk(impQuadW, impM[si], cnt[si], false);
-          if (impM[si].userData.depth) { mi.castShadow = true; mi.customDepthMaterial = impM[si].userData.depth; }
-          if (impM[si].userData.farDepth) farRegister(mi, impM[si].userData.farDepth);
-          mi.userData.ser = si;
-          imps.push(mi);
         });
-        return { n, meshes, imps, rec, ser, cnt, scaleY: P.series.map(S => S.scaleY), sink: P.sink, size: P.size };
+        imps.push(mkImp());
+        return { n, meshes, imps, lay: impM.map(layerOf), rec, ser, cnt, scaleY: P.series.map(S => S.scaleY), sink: P.sink, size: P.size };
       };
       const HS = GROUPS.map((G, gi) => side(lists[gi], G.P, G.imp, G.geo));
 
@@ -3604,16 +3758,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             m4.toArray(H.rec.mats, i * 16);
             H.rec.pos.set([T.x, T.h, T.z], i * 3);
             const j = at[si]++;
-            const mi = H.imps[si];
-            mi.setMatrixAt(j, m4); mi.setColorAt(j, c3);
             for (const band of H.rec.rungs[si]) for (const m of band) m.setColorAt(j, c3);
-          } else {
-            for (const m of H.meshes) { m.setMatrixAt(i, m4); m.setColorAt(i, c3); }
-            H.imps[0].setMatrixAt(i, m4); H.imps[0].setColorAt(i, c3);
-          }
+          } else for (const m of H.meshes) { m.setMatrixAt(i, m4); m.setColorAt(i, c3); }
+          // the side's one impostor mesh: every tree, its series' layer
+          const mi = H.imps[0]; mi.setMatrixAt(i, m4); mi.setColorAt(i, c3); mi.geometry.attributes.aLayer.array[i] = H.lay[si];
         });
       };
       HS.forEach((H, gi) => fill(H, lists[gi]));
+      for (const H of HS) if (H) for (const mi of H.imps) if (mi) mi.geometry.attributes.aLayer.needsUpdate = true;
 
       const all = [trunks];
       for (const H of HS) if (H) all.push(...H.meshes, ...H.imps);
@@ -3647,9 +3799,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
 
     let lodTick = 0;
     lodUpdate = cg => {
+      IMPA.frame();   // the arrays' mips after a bake, the tint dials into the layer table (PERF 2026-09-23)
+      const ex = uCam.value.x, ez = uCam.value.z;
       for (const list of [nearChunks, impChunks]) for (const t of list) {
         const dx = t.x - cg[0], dz = t.z - cg[2];
-        const on = dx * dx + dz * dz < t.r * t.r;
+        let on = dx * dx + dz * dz < t.r * t.r;
+        // AND NOTHING LEFT TO DRAW (PERF 2026-09-23): the chunk's nearest ground point from the eye past the
+        // distance at which its shader has collapsed every instance (2D: the shader's 3D distance is longer)
+        if (on && t.lim) { const nx = Math.max(Math.abs(t.x - ex) - t.half, 0), nz = Math.max(Math.abs(t.z - ez) - t.half, 0), L = t.lim(); on = nx * nx + nz * nz < L * L; }
         for (const m of t.m) if (m) m.visible = on;
       }
       // the ladder partition, on its cadence - and only for chunks that can
@@ -3903,6 +4060,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       function build(cx, cz, recs, t0, t1, part) {
         const meshes = [], near = [], imp = [], recsOut = [];
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
+        // ONE IMPOSTOR MESH FOR THE CHUNK PART (PERF 2026-09-23 - see IMPA): every subject's every series,
+        // each instance naming its layer; the rungs stay per series (the partition's)
+        let nTot = 0; for (const r of recs) nTot += r.length / 6;
+        const MI = nTot ? impMerged(impQuadF, part === FILLP ? IMPM().fillThin : IMPM().fill, nTot) : null;
+        const MIL = MI ? MI.geometry.attributes.aLayer.array : null;
+        let J = 0, trI = 0;
+        const BBI = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity, 0];
         recs.forEach((r, gi) => {
           const n = r.length / 6;
           if (!n) return;
@@ -3937,17 +4101,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               // colour buffer at capacity BEFORE parking - see the woodland
               m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
               m.count = 0; m.visible = false; return m; })),
-            mi: (() => { const IM = (part === FILLP && S.impFill) ? S.impFill : S.imp;   // the complement thins with distance
-                         const mi = new THREE.InstancedMesh(impQuadF, IM, cnt[si]);
-                         if (S.imp.userData.depth) { mi.castShadow = true; mi.customDepthMaterial = S.imp.userData.depth; }
-                         if (S.imp.userData.farDepth) farRegister(mi, S.imp.userData.farDepth);
-                         return mi; })(), at: 0 } : null);
+            at: 0 } : null);
+          const lay = SH.series.map(S => layerOf(S.imp));   // each series' sheet in the arrays
           for (const P of perSer) if (P) P.ms = [].concat(...P.byRung);
           const nrOf = S => S.ladder ? S.ladder.length : 1;
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
                         buf: SH.series.map((S, si) => Array.from({ length: nrOf(S) }, () => new Float32Array(cnt[si] * 16))),
                         rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : Array.from({ length: nrOf(S) }, () => [])), x: ox, z: oz };
-          perSer.forEach((P, si) => { if (P) for (const mm of P.ms.concat([P.mi])) {
+          perSer.forEach((P, si) => { if (P) for (const mm of P.ms) {
             // STATIC (PERF 2026-09-23): the chunk's meshes never move - their matrix is composed once, not
             // every frame (~32 000 of them on the island: the bulk of updateMatrixWorld's 5 ms)
             mm.position.set(ox, 0, oz); if (mm.updateMatrix) { mm.matrixAutoUpdate = false; mm.updateMatrix(); } mm.userData.ser = si; mm.userData.fill = true; } });
@@ -3977,7 +4138,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // overwrite it: the capacity slot then holds a real tree, which is
             // what GATE WORLDRENDER's cull-sphere check reads
             for (const mm of P.ms) { mm.setMatrixAt(j, m4); mm.setColorAt(j, c3); }
-            P.mi.setMatrixAt(j, m4); P.mi.setColorAt(j, c3);
+            MI.setMatrixAt(J, m4); MI.setColorAt(J, c3); MIL[J++] = lay[si];
             const bb = BB[si]; if (pv.x < bb[0]) bb[0] = pv.x; if (pv.y < bb[1]) bb[1] = pv.y; if (pv.z < bb[2]) bb[2] = pv.z;
             if (pv.x > bb[3]) bb[3] = pv.x; if (pv.y > bb[4]) bb[4] = pv.y; if (pv.z > bb[5]) bb[5] = pv.z; bb[6] = Math.max(bb[6], sv.x, sv.y);
           }
@@ -3993,24 +4154,40 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             if (!tr) tr = 40;
             const sph = new THREE.Sphere(new THREE.Vector3((bb[0] + bb[3]) / 2, (bb[1] + bb[4]) / 2, (bb[2] + bb[5]) / 2),
               Math.hypot(bb[3] - bb[0], bb[4] - bb[1], bb[5] - bb[2]) / 2 + tr * Math.max(1, bb[6]));
-            for (const mm of P.ms.concat([P.mi])) mm.boundingSphere = sph; });
+            for (const mm of P.ms) mm.boundingSphere = sph;
+            // and the merged mesh's box, over every series of every subject
+            for (let k = 0; k < 3; k++) { BBI[k] = Math.min(BBI[k], bb[k]); BBI[k + 3] = Math.max(BBI[k + 3], bb[k + 3]); }
+            BBI[6] = Math.max(BBI[6], bb[6]); trI = Math.max(trI, tr); });
           recsOut.push(rec);
           for (const P of perSer) if (P) {
-            for (const mm of P.ms.concat([P.mi])) {
+            for (const mm of P.ms) {
               mm.instanceMatrix.needsUpdate = true;
               if (mm.instanceColor) mm.instanceColor.needsUpdate = true;
-              if (mm === P.mi) scene.add(mm); meshes.push(mm);   // the rungs join the graph when the partition gives them trees
+              meshes.push(mm);   // the rungs join the graph when the partition gives them trees
             }
             for (const mm of P.ms) near.push(mm);
-            imp.push(P.mi);
           }
         });
+        if (MI) {
+          MI.position.set(ox, 0, oz); if (MI.updateMatrix) { MI.matrixAutoUpdate = false; MI.updateMatrix(); }
+          MI.userData.ser = 0; MI.userData.fill = true;
+          if (THREE.Sphere && isFinite(BBI[0])) MI.boundingSphere = new THREE.Sphere(new THREE.Vector3((BBI[0] + BBI[3]) / 2, (BBI[1] + BBI[4]) / 2, (BBI[2] + BBI[5]) / 2),
+            Math.hypot(BBI[3] - BBI[0], BBI[4] - BBI[1], BBI[5] - BBI[2]) / 2 + (trI || 40) * Math.max(1, BBI[6]));
+          MI.count = J;
+          MI.instanceMatrix.needsUpdate = true; if (MI.instanceColor) MI.instanceColor.needsUpdate = true; MI.geometry.attributes.aLayer.needsUpdate = true;
+          scene.add(MI); meshes.push(MI); imp.push(MI);
+          if (IMPM().far) farRegister(MI, IMPM().far);
+        }
         // both tiers are built once, per chunk, from the same records; which one
         // you see is the per-instance band in the shader, and which one is even
         // SUBMITTED is these two registrations (dropped again on eviction)
         // the near meshes are the partition's (visibility included); only
         // the impostors ride the chunk register
-        const reg = [{ m: imp, x: ox, z: oz, r: FAR_FILL + hdF }];
+        // `lim`: the EYE's distance past which every instance of this part has collapsed in the shader -
+        // the base shrinks away by FAR_FILL, the complement's keep is 0 past uThin.y (PERF 2026-09-23:
+        // the complement stands out to FILL_DROP and the base to R_DROP, and past those edges their
+        // draws drew nothing)
+        const reg = [{ m: imp, x: ox, z: oz, r: FAR_FILL + hdF, half: CH / 2, lim: part === FILLP ? () => uThin.value.y : () => FAR_FILL }];
         impChunks.push(reg[0]);
         for (const rec of recsOut) ladderChunks.push(rec);
         const t2 = performance.now();
@@ -5084,12 +5261,25 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     uShadowR.value = half;
     if (sunNear) { SHADOW_NEAR.follow(sunNear, cg, SUN, agl, snapToTexels, camera); nearTag(cg); }
     farRender(uCam.value);
+    let resized = false;
     if (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) {
-      shadowHalf = half;
+      shadowHalf = half; resized = true;
       const c = sun.shadow.camera;
       c.left = -half; c.right = half; c.top = half; c.bottom = -half;
       c.updateProjectionMatrix();
     }
+    // THE SHADOW MAPS ARE DRAWN ON THE WORLD'S CLOCK, NOT THE RENDERER'S (PERF 2026-09-23). With
+    // autoUpdate three re-draws every shadow map inside EVERY render of this scene - the water's mirror
+    // and the probes drew both maps again, whole, for nothing. Now: the near map once a frame, and the
+    // big one (1 km round the craft, 0.5 m a texel, ~2 000 casters) every SHADOW_RATE.every frames,
+    // or at once when it is re-sized. What it holds is the forest, the ground, the houses - still; the
+    // craft's own shadow near it is the near map's, every frame. Its matrix is taken when it is
+    // drawn, so a map and its lookup never disagree. SHADOW_RATE.every = 1 is the old behaviour.
+    if (sun.shadow) {
+      sun.shadow.autoUpdate = false;
+      if (resized || !sun.shadow.map || (++SHADOW_RATE.n % Math.max(1, SHADOW_RATE.every | 0)) === 0) sun.shadow.needsUpdate = true;
+    }
+    if (sunNear && sunNear.shadow) { sunNear.shadow.autoUpdate = false; sunNear.shadow.needsUpdate = true; }
   }
 
   // ================= THE RIG AS DATA (W0c.11) ==============================
@@ -5112,6 +5302,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // colour is the transmittance along the sun's own path. Clouds sit at the
   // day's cloud base, by its cover.
   const SUN_MIN_Y = Math.sin(2 * Math.PI / 180);
+  const SHADOW_RATE = { every: 2, n: 0 };   // the big sun map's cadence (worldUpdate, PERF 2026-09-23)
+  if (typeof window !== 'undefined') window.SHADOW_RATE = SHADOW_RATE;
   const WARM_SUN = C(0xffa652);
   let dayVer = -1, dayEl = NaN, dayAz = NaN;
   function dayApply() {

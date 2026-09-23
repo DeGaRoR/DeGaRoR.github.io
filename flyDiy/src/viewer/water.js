@@ -850,6 +850,7 @@ const WATER = (() => {
       MIR.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: true, samples: 2,
         depthTexture: THREE.DepthTexture ? new THREE.DepthTexture(w, h, renderer.capabilities && renderer.capabilities.reversedDepthBuffer ? THREE.FloatType : THREE.UnsignedInt248Type) : null });   // float under the reversed buffer (app.js, PERF 2026-09-23)
       if (MIR.rt.depthTexture) { MIR.rt.depthTexture.format = THREE.DepthStencilFormat; MIR.rt.depthTexture.minFilter = MIR.rt.depthTexture.magFilter = THREE.NearestFilter; }
+      MIR.rt.resolveStencilBuffer = false;   // the capture's depth is read, its stencil never (aa_resolve.js: PERF 2026-09-23)
       MIR.rt.texture.wrapS = MIR.rt.texture.wrapT = THREE.ClampToEdgeWrapping;
     }
     if (!MIR.cam) MIR.cam = new THREE.PerspectiveCamera();

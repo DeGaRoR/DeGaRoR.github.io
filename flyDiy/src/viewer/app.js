@@ -3134,6 +3134,17 @@
       // applied in the view structure". It was applied. See GATE FLEX.
       const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       genNodeBody(sim, model.nodeBody, model.oNode);
+      // THE SKIN IS POSED WHEN IT HAS MOVED (PERF 2026-09-23). Everything below is in the BODY frame -
+      // the nodes against their rest, the control deflections, the gain - and it was redone, and every
+      // skin buffer re-uploaded (54 of them, 2.8 MB a frame on the Cub-alike), on every frame: paused, at
+      // the stand, in the garage. It runs now when a node has moved more than 0.3 mm or a control more
+      // than 1e-4 since the pose last APPLIED (not since the last frame, so a slow drift still lands).
+      { const nb = model.nodeBody, P = model._pose;
+        let same = !!P && P.gain === gain && P.nb.length === nb.length && P.rigs === model.rigs && P.nr === model.rigs.length && P.moving === model.moving;
+        if (same) for (let i = 0; i < nb.length; i++) if (Math.abs(nb[i] - P.nb[i]) > 3e-4) { same = false; break; }
+        if (same) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { same = false; break; }
+        if (same) return;
+        model._pose = { gain, nb: Float32Array.from(nb), link: Object.assign({}, link), rigs: model.rigs, nr: model.rigs.length, moving: model.moving }; }
       // CONTROL SURFACES: one quaternion each. They also ride the deflection of
       // the spar they hang on, so a bending wing does not leave its aileron
       // behind — a rigid transform driven by node motion, not a vertex deform.

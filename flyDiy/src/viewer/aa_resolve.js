@@ -320,6 +320,11 @@
       });
       if (S.rt.depthTexture) { S.rt.depthTexture.format = THREE.DepthStencilFormat; S.rt.depthTexture.minFilter = S.rt.depthTexture.magFilter = THREE.NearestFilter; }
       S.rt.resolveDepthBuffer = !!S.needRT;
+      // THE STENCIL IS NEVER RESOLVED (PERF 2026-09-23): nothing reads the resolved texture's stencil (the
+      // silhouette's stencil lives and dies inside the multisampled pass), and r186 resolves it by default -
+      // ANGLE on D3D11 has no native depth-stencil resolve, so every frame paid a shader pass over every
+      // sample of the stencil: 11.6 ms at 8x MSAA, 1080p, 300 m over the Jolene field (the frame study)
+      S.rt.resolveStencilBuffer = false;
       S.rt.samples = Math.min(S.tier === 'off' && !S.needRT && S.rz ? 4 : S.samples, S.maxSamples);
       // THE TWO LINES THAT KEEP THE GAME LOOKING LIKE THE GAME (see THE TARGET
       // IS DISPLAY-SPACE in the header): the XR-target rule makes r186 treat

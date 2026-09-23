@@ -34,7 +34,7 @@ var ROCK_MAP = (() => {
     const S = { on: true, half: 1000, px: 2048, recentre: 350, cell: 32, budgetMs: 3, slot: 256, off: (typeof location !== 'undefined' && /[?&]rockmap=0/.test(location.search)) };
     const STAT = { planned: 0, rocks: 0, renders: 0, sprites: 0, lastPlanMs: 0 };
     const plans = new Map();          // 'cx,cz' -> records | null
-    let cx0 = NaN, cz0 = NaN, dirty = false, ready = false;
+    let cx0 = NaN, cz0 = NaN, dirty = false, ready = false, complete = false;
 
     // ---- the sprites: each subject's top view in a slot ----------------------------------
     const ATLAS = new THREE.WebGLRenderTarget(S.px, S.px, { depthBuffer: true, stencilBuffer: false });
@@ -131,22 +131,33 @@ var ROCK_MAP = (() => {
         try { bakeSprites(); } catch (e) { console.warn('rock map: the sprites did not bake', e); S.on = false; return; } gU.uRockMap.value = MAP.texture; ready = true; }
       const ex = camera.position.x, ez = camera.position.z;
       if (!(Math.hypot(ex - cx0, ez - cz0) <= S.recentre)) {
-        cx0 = ex; cz0 = ez; dirty = true;
+        cx0 = ex; cz0 = ez; dirty = true; complete = false;
         for (const key of [...plans.keys()]) { const [cx, cz] = key.split(',').map(Number); if (Math.hypot((cx + 0.5) * S.cell - cx0, (cz + 0.5) * S.cell - cz0) > S.half + 400) plans.delete(key); }
       }
-      // the cells within the rect, nearest first, a budget a frame
+      // the cells within the rect, nearest first, a budget a frame - and NOTHING once they are all
+      // planned (PERF 2026-09-23: the rings were walked as full squares filtered to their edge, ~48 000
+      // keys built and looked up every frame of the flight after the last cell was planned: 1.2 ms)
       const t0 = performance.now(), C = S.cell, n = Math.ceil(S.half / C) + 1;
       const cxc = Math.floor(cx0 / C), czc = Math.floor(cz0 / C);
-      let planned = 0;
-      outer: for (let r = 0; r <= n; r++) {
-        for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-          const key = (cxc + dx) + ',' + (czc + dz); if (plans.has(key)) continue;
-          if (performance.now() - t0 > S.budgetMs) break outer;
+      let planned = 0, cut = false;
+      if (!complete) {
+        const visit = (dx, dz) => {
+          const key = (cxc + dx) + ',' + (czc + dz); if (plans.has(key)) return true;
+          if (performance.now() - t0 > S.budgetMs) { cut = true; return false; }
           const recs = cover.rockPlan(cxc + dx, czc + dz);
           plans.set(key, recs && recs.length ? recs : null); planned++; STAT.planned++;
           if (recs && recs.length) dirty = true;
+          return true;
+        };
+        outer: for (let r = 0; r <= n; r++) {
+          if (!r) { if (!visit(0, 0)) break; continue; }
+          // the ring's edge only, in the order the square walk met it (row by row)
+          for (let dz = -r; dz <= r; dz++) {
+            if (dz === -r || dz === r) { for (let dx = -r; dx <= r; dx++) if (!visit(dx, dz)) break outer; }
+            else { if (!visit(-r, dz) || !visit(r, dz)) break outer; }
+          }
         }
+        if (!cut) complete = true;
       }
       STAT.lastPlanMs = performance.now() - t0;
       if (dirty && !planned) { rebuild(); render(); dirty = false; }   // once the frame has nothing left to plan
@@ -159,8 +170,8 @@ var ROCK_MAP = (() => {
       const aglK = st.aglK === undefined ? 1 : st.aglK;
       gU.uRockFade.value.set(cs.near || 50, cs.reach || 220, cs.taper === undefined ? 0.5 : cs.taper, (cs.rocks === 0 ? 0 : aglK));
     }
-    const api = { get: () => Object.assign({}, S), stat: () => Object.assign({ plans: plans.size }, STAT), set: o => { Object.assign(S, o || {}); return api.get(); },
-                  replan: () => { plans.clear(); dirty = true; }, atlas: () => ATLAS.texture, map: () => MAP.texture, rt: () => MAP, atlasRT: () => ATLAS,
+    const api = { get: () => Object.assign({}, S), stat: () => Object.assign({ plans: plans.size }, STAT), set: o => { Object.assign(S, o || {}); complete = false; return api.get(); },
+                  replan: () => { plans.clear(); dirty = true; complete = false; }, atlas: () => ATLAS.texture, map: () => MAP.texture, rt: () => MAP, atlasRT: () => ATLAS,
                   // the instrument: the map's coverage over a box in WORLD metres (the rigs read it; trace before hypothesis)
                   probe: (x0, z0, side) => { const n = Math.max(1, Math.round(side)); const buf = new Uint8Array(n * n * 4);
                     const u = Math.round((x0 - (cx0 - S.half)) / (2 * S.half) * S.px), v = Math.round((z0 - (cz0 - S.half)) / (2 * S.half) * S.px);
