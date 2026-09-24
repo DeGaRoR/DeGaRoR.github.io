@@ -1137,7 +1137,7 @@ function make(THREE, scene, world, rec0, opts) {
   // the house's: area is the size of what it draws). That is trim, frames, steps, rails, the chimney - ~4 of 11
   // draws, all sub-pixel there; the walls and the roof stay, and so does all that LIGHTS the village or moves in
   // it: glass, the lit panes, emissive, transparent (the smoke), the props.
-  const DETAIL = { px: 16, area: 0.08, hyst: 0.1, px2: 60, keep2: 3 };
+  const DETAIL = { px: 16, area: 0.08, hyst: 0.1, px2: 60, keep2: 3, props: true };
   // THE SECOND CUT (G557): under px2 (a 14 m house past ~270 m at 1080p) a house keeps only its keep2 largest plain
   // bags - the walls, the roof - and whatever is glass or lit; the trims, sills, doors and boards go (Metlakatla's
   // 641 houses drew ~2 800 bags over the town)
@@ -1179,6 +1179,8 @@ function make(THREE, scene, world, rec0, opts) {
       if (g.userData.thrift) {
         const d = e.distanceTo(D.c), on = d < HOUSE_CAST_FAR * (g.userData.castOn ? 1.1 : 0.9);
         if (on !== g.userData.castOn) { g.userData.castOn = on; for (const m of g.userData.casters) m.castShadow = on; }
+        const pOn = !DETAIL.props || d < HOUSE_PROP_GONE * (g.userData.propsOn ? 1.35 : 1.15);
+        if (pOn !== g.userData.propsOn) { g.userData.propsOn = pOn; for (const x of g.userData.props) x.visible = pOn; }
       }
       if (!D.list.length && !D.list2.length) continue;
       const px = 2 * D.R * K / Math.max(1, e.distanceTo(D.c)), on = px >= DETAIL.px * (D.on ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
@@ -1695,6 +1697,10 @@ function make(THREE, scene, world, rec0, opts) {
     }
     grp.userData.casters = grp.children.filter(m => m.isMesh && m.castShadow);
     grp.userData.castOn = true;
+    // THE WALKS (G558): past the props' reach a house's whole dressing is switched off at its top, so neither the
+    // view's walk nor each shadow cascade's walks through its prop ladders (3 735 over Metlakatla)
+    const props = []; grp.traverse(x => { if (x.isLOD && x !== grp) { for (let p = x.parent; p && p !== grp; p = p.parent) if (p.isLOD) return; props.push(x); } });
+    grp.userData.props = props; if (grp.userData.propsOn === undefined) grp.userData.propsOn = true;
   }
   function step(n) {
     let built = 0;
