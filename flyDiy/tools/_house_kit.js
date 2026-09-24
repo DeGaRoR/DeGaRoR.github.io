@@ -883,7 +883,17 @@ function bakeAO(bags, o) {
     }
   }
   // ---- and the ground, which is the biggest occluder a house has ----------
-  if (opt.ground) {
+  // A COLUMN IS SAMPLED WHEN A RAY FIRST ENTERS IT (the boot's house build,
+  // 2026-09-24). The ground was filled up front, a composed-terrain query per
+  // column over the whole box: a fence's box is its plot, ~40 000 columns at
+  // a sixth of a metre, and a ray never gets further than ~4 cells from the
+  // vertex it leaves - at Metlakatla's 450 plots that was 14 s of the roll-out
+  // in the ground sampler for columns nothing ever read. Same test, same
+  // sample point, same jTop: a cell is solid when the geometry filled it OR it
+  // lies at or under its column's ground top, so the bake is byte-identical.
+  // `groundEager` is the old up-front fill, kept as the reference GATE VILLAGE
+  // 10d holds the lazy read to.
+  if (opt.ground && opt.groundEager) {
     for (let i = 0; i < nx; i++) for (let k = 0; k < nz; k++) {
       const gy = opt.ground(x0 + (i + 0.5) * cell, z0 + (k + 0.5) * cell);
       const jTop = Math.min(ny - 1, Math.floor((gy - y0) * inv));
@@ -891,6 +901,18 @@ function bakeAO(bags, o) {
       for (let j = 0; j <= jTop; j++) grid[base + j * nx] = 1;
     }
   }
+  const lazyGround = opt.ground && !opt.groundEager;
+  const gTop = lazyGround ? new Float64Array(nx * nz) : null;
+  const gHas = lazyGround ? new Uint8Array(nx * nz) : null;
+  const groundTop = (i, k) => {
+    const c = k * nx + i;
+    if (!gHas[c]) {
+      const gy = opt.ground(x0 + (i + 0.5) * cell, z0 + (k + 0.5) * cell);
+      gTop[c] = Math.min(ny - 1, Math.floor((gy - y0) * inv));
+      gHas[c] = 1;
+    }
+    return gTop[c];
+  };
 
   // ---- per-vertex normals, then march -------------------------------------
   const steps = Math.max(2, Math.round(range / cell));
@@ -945,7 +967,7 @@ function bakeAO(bags, o) {
           const i = (sx - x0) * inv | 0, j = (sy - y0) * inv | 0,
                 k = (sz - z0) * inv | 0;
           if (i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz) break;
-          if (grid[(k * ny + j) * nx + i]) { occ += 1 - (st - 1) / steps; break; }
+          if (grid[(k * ny + j) * nx + i] || (gTop && j <= groundTop(i, k))) { occ += 1 - (st - 1) / steps; break; }
         }
       }
       const a2 = Math.max(0, 1 - strength * (occ / (wsum || 1)));

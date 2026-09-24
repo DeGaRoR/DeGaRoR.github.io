@@ -49,6 +49,12 @@ function make(THREE, scene, world, rec0, opts) {
   const composeNow = () => o.game && world.premises ? (world.premises.set(rec, { build: buildFor, pool: o.pool() }) || PG.compose(rec, world.premises.base, { pool: o.pool(), globals: window, build: buildFor }))
                                                      : PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
   let O = composeNow();
+  // THE BOOT COMPOSED IT TWICE (2026-09-24): render_world makes this and calls rebuild() on the next
+  // line, which composed the same record over the same world again - 2.5 s of Metlakatla's roll-out,
+  // the same answer. In the game the first bare rebuild() after the make keeps this O; an edit, a
+  // setRecord and every later rebuild compose as before (the bench composes always: its tree pool
+  // may land between the make and the rebuild)
+  let composedFresh = !!o.game;
   const root = new THREE.Group(); root.name = 'premises';
   const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'traffic', 'animals', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
   // THE STATIC SUBTREES LEAVE THE MATRIX WALK (PERF 2026-09-23). The frame is CPU-bound on Jolene (three's render()
@@ -1723,7 +1729,8 @@ function make(THREE, scene, world, rec0, opts) {
   // ---- rebuild ---------------------------------------------------------------------------------
   function rebuild(dirty) {
     const t0 = performance.now();
-    O = composeNow();
+    if (!(composedFresh && dirty === undefined)) O = composeNow();
+    composedFresh = false;
     refreshBounds();
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
@@ -1831,7 +1838,7 @@ function make(THREE, scene, world, rec0, opts) {
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
     obstacles: () => { const R = OBS(); return R ? R.list().filter(r => OBST_IDS.has(r.id)).map(r => ({ id: r.id, tag: r.tag, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, top: r.shape.top, cells: r.shape.cells, cell: r.shape.cell })) : []; },
-    setRecord: r => { rec = PG.normalise(r); },
+    setRecord: r => { rec = PG.normalise(r); composedFresh = false; },
     lamps: LAMPS,                                                    // G449: the pool (update / mute / gain / litNow)
     // the material map as painted (a probe for scripts and the gate's eyes): the slots, whether their textures
     // arrived, and the map's weights at a world point

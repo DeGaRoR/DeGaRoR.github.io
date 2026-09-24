@@ -1005,6 +1005,74 @@ if (SELFTEST) {
   check(mi.length > 300 && !/fromBufferAttribute|applyMatrix4/.test(mi), "15 the merge reads the arrays, not three's per-vertex accessors");
 }
 
+// 16 THE COMPOSED GROUND, SAME BITS FASTER (2026-09-24): a grade files its segments in cells of its reach under
+// number keys (it was 64 m under string keys), and polyRoad's at() bisects its arclength (it walked it). Both
+// are held to the plain formula they replaced: the grade to a scan of EVERY segment in polyline order (the
+// strict < keeps the first of a tie), at() to the linear walk - Object.is on every answer, over roads that
+// curve every half metre, repeat a point, run long and straight, or are one segment.
+{
+  const r16 = PG.mulberry32(16);
+  const smf = PG.smf01;
+  const refGrade = (m, y0) => {
+    const pts = m.pts, hw = Math.max(0.5, (+m.width || 4) / 2), fall = Math.max(0.5, +m.falloff || 8);
+    const weight = d => (d <= 0 ? 1 : d >= fall ? 0 : 1 - smf(d / fall));
+    return (x, z, h) => {
+      let best = Infinity, ty = 0;
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+        const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
+        const d = Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
+        if (d < best) { best = d; ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
+      }
+      const w = weight(best - hw);
+      return w > 0 ? h + ((m.abs ? 0 : y0) + ty - h) * w : h;
+    };
+  };
+  const roads = [];
+  { const p = []; for (let k = 0; k <= 400; k++) { const a = k * 0.004; p.push([300 + 120 * Math.cos(a), -80 + 120 * Math.sin(a), 4 + Math.sin(k * 0.1)]); } roads.push(p); }   // an arc, a point every 0.48 m
+  { const p = [[0, 0, 1]]; for (let k = 1; k < 60; k++) { const q = p[p.length - 1]; p.push(k % 7 === 0 ? q.slice() : [q[0] + (r16() - 0.3) * 30, q[1] + (r16() - 0.5) * 30, q[2] + (r16() - 0.5)]); } roads.push(p); }   // a wander, some points repeated
+  roads.push([[-2000, 500, 0], [3000, 520, 12]]);                                    // one long segment
+  { const p = []; for (let k = 0; k < 200; k++) p.push([-400 + k * 6, 900 + 3 * Math.sin(k * 0.3), 2]); roads.push(p); }   // the compose's 6 m sampling
+  let n16 = 0, bad16 = 0, moved = 0, first16 = '';
+  for (const pts of roads) for (const [width, falloff, abs] of [[3.6, 6, true], [1, 0.5, false], [30, 40, true], [7, 12, false]]) {
+    const m = { id: 'g16', kind: 'grade', pts, width, falloff, abs }, y0 = 3.25;
+    const M = PG.makeModifier(m, y0), R = refGrade(m, y0);
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+    const pad = width / 2 + falloff + 5;
+    for (let s = 0; s < 6000; s++) {
+      // half anywhere in the grown box, half within reach of a random segment
+      let x, z;
+      if (s & 1) { x = x0 - pad + r16() * (x1 - x0 + 2 * pad); z = z0 - pad + r16() * (z1 - z0 + 2 * pad); }
+      else { const i = Math.floor(r16() * (pts.length - 1)), a = pts[i], b = pts[i + 1], u = r16(); x = a[0] + (b[0] - a[0]) * u + (r16() - 0.5) * 2 * pad; z = a[1] + (b[1] - a[1]) * u + (r16() - 0.5) * 2 * pad; }
+      const h = -7 + r16() * 20, got = M.apply(x, z, h), want = R(x, z, h);
+      n16++; if (!Object.is(got, want)) { bad16++; if (!first16) first16 = x.toFixed(3) + ',' + z.toFixed(3) + ': ' + got + ' vs ' + want; }
+      if (got !== h) moved++;
+    }
+  }
+  check(bad16 === 0 && moved > n16 / 5, '16 a grade answers what a scan of every segment answers', bad16 + ' of ' + n16 + ' differ, ' + moved + ' moved' + (first16 ? ' - first ' + first16 : ''));
+  // at(): the linear walk, then the same interpolation
+  const refAt = (R, t) => {
+    const s = R.s, pts = R.pts;
+    t = Math.max(0, Math.min(s[s.length - 1], t));
+    let i = 1; while (i < s.length - 1 && s[i] < t) i++;
+    const u = (t - s[i - 1]) / Math.max(1e-6, s[i] - s[i - 1]);
+    return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * u, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * u, pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]];
+  };
+  let nA = 0, badA = 0;
+  for (const pts of roads.concat([[[0, 0], [0, 0], [10, 0]]])) {
+    const R = PG.polyRoad(pts.map(p => [p[0], p[1]]), 3.6);
+    const ts = [0, -3, R.length, R.length + 9, NaN];
+    for (const v of R.s) ts.push(v, v - 1e-9, v + 1e-9);
+    for (let k = 0; k < 500; k++) ts.push(r16() * R.length);
+    for (const t of ts) {
+      const g = R.at(t), w = refAt(R, t), L = Math.hypot(w[2], w[3]) || 1;
+      nA++; if (!Object.is(g.p[0], w[0]) || !Object.is(g.p[1], w[1]) || !Object.is(g.tg[0], w[2] / L) || !Object.is(g.tg[1], w[3] / L)) badA++;
+    }
+  }
+  check(badA === 0, "16 polyRoad's at() answers what the linear walk answers", badA + ' of ' + nA + ' differ');
+}
+
 // ---------------------------------------------------------------------------
 if (fail.length) {
   for (const f of fail.slice(0, 30)) console.log('  ! ' + f);

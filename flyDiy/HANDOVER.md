@@ -59079,3 +59079,16 @@ once when the queue is empty, the merge on plain arrays: 106 -> 73 s. The ring's
 boot) are built only when a tier cuts the ring. GATE PREMISES 15 (red on the old code), GATE GFX. The remaining 73 s is
 the town's house build (bakeAO 27.7 s, fences + lot grounds sampling the ground ~37 s) - handed on.
 futureDesigns/PERF-2026-09-23.md (G554).
+
+## G555 - THE TOWN'S HOUSE BUILD, THE SAME BITS IN HALF THE TIME (2026-09-24)
+
+G554 handed on the rest of the Jolene roll-out's world step: Metlakatla's houses, fences and lot grounds sampling the
+composed ground and baking AO. Five EXACT cuts, the geometry unchanged to the bit: bakeAO samples a ground column when a
+ray first enters it (it filled the whole box, 14 s of ground queries nothing read; the old fill kept as `groundEager`,
+the gate's reference); the grade modifier files its segments in cells of its reach under number keys (was 64 m, string
+keys - 18 s); lotGround's darkening keeps per grid row only the occluders that can reach it (9 s); sowPlots boxes and
+fillets each road once, polyRoad's at() bisects; the boot no longer composes the record twice (make, then rebuild()).
+Measured A/B on a quiet box, G554 from a clean worktree vs this: step:world 69.3 / 70.2 s -> 39.0 / 37.4 s. Proof:
+every premises group hashed after the roll-out (ground, houses, parked aircraft, lots, trees, roads, runways, tram,
+traffic, animals) equal; the composed ground equal at 125.9 M points. GATE VILLAGE 10c/10d and GATE PREMISES 16 hold
+the new code to the formulas it replaced (each red on a broken copy). Not done, and why: futureDesigns/PERF-2026-09-23.md (G555).
