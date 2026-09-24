@@ -1181,7 +1181,7 @@ function make(THREE, scene, world, rec0, opts) {
   // kept bags (walls, roof: what the second cut leaves) merged in world space with a vertex colour = the bag's
   // material colour x its map's mean (linear), one shared plain material; their plain bags hide. Glass and lit bags
   // stay the house's own. Built once the build queue is empty (and again if the set of houses changes).
-  const HLOD = { on: true, cell: 256, near: 150, dirt: 0.35, gain: 0.2, sig: '', cells: [], group: null };
+  const HLOD = { on: true, bake: true, cell: 256, near: 150, dirt: 0.35, gain: 0.2, sig: '', cells: [], group: null };
   const texMean = new Map(); let texCv = null;
   function meanOf(tex) {
     const img = tex && tex.image; if (!img || !img.width) return null;
@@ -1196,7 +1196,19 @@ function make(THREE, scene, world, rec0, opts) {
     } catch (err) { c = null; }
     texMean.set(img, c); return c;
   }
+  // THE NEAR TOWN, BAKED (G566, the user: "these assets are fixed ... could be joined and baked"): the 7 805 house
+  // materials are 1 447 distinct - a house's finishes are clones carrying the same values. Once the queue is empty,
+  // each cell's house bags are merged per DISTINCT material (one shared canonical material, the render flags and the
+  // attribute set - the AO / lit / window channels ride along) into world-space meshes; the sources hide. Glass, lamps,
+  // smoke, the parked aeroplanes and anything transparent stay the house's own. While editing, the houses are whole.
+  const uval = v => v && v.isColor ? v.getHexString() : v && v.isVector2 ? v.x + ',' + v.y : v && v.isTexture ? v.uuid : (typeof v === 'number' ? +v.toFixed(4) : v && v.value !== undefined ? uval(v.value) : v && typeof v === 'object' ? Object.keys(v).map(k => k + '=' + uval(v[k])).join(';') : String(v));
+  const matSig = m => [m.type, m.map && m.map.uuid, m.normalMap && m.normalMap.uuid, m.roughnessMap && m.roughnessMap.uuid, m.aoMap && m.aoMap.uuid, m.color && m.color.getHexString(), m.roughness, m.metalness, m.side, m.alphaTest, m.vertexColors, m.flatShading, m.customProgramCacheKey ? m.customProgramCacheKey() : '', Object.keys(m.userData || {}).sort().map(k => k + ':' + uval(m.userData[k])).join('|')].join('#');
+  function nearAll(on) {
+    for (const cl of HLOD.cells) if (cl.near) cl.near.visible = on && !cl.far;
+    for (const g of G.houses.children) for (const m of g.children) if (m.userData.merged) m.visible = !on && !g.userData.far;
+  }
   function hlodBuild() {
+    for (const g of G.houses.children) for (const m of g.children) if (m.userData.merged) { m.userData.merged = false; m.visible = true; }
     if (HLOD.group) { G.houses.remove(HLOD.group); HLOD.group.traverse(m => { if (m.geometry) m.geometry.dispose(); }); HLOD.group = null; }
     for (const cl of HLOD.cells) cl.far = false;
     HLOD.cells = [];
@@ -1247,12 +1259,37 @@ function make(THREE, scene, world, rec0, opts) {
       const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = false; mesh.receiveShadow = true; mesh.visible = false; mesh.matrixAutoUpdate = false; mesh.userData.batch = true;
       grp.add(mesh); cl.mesh = mesh; HLOD.cells.push(cl);
     }
+    if (HLOD.bake) {
+      const canon = new Map(); let nd = 0, nm = 0;
+      for (const cl of HLOD.cells) {
+        const buckets = new Map();
+        for (const g of cl.houses) for (const m of g.children) {
+          if (!m.isMesh || !m.geometry || !m.geometry.index || Array.isArray(m.material)) continue;
+          const mt = m.material, ud = mt.userData || {};
+          if (mt.transparent || ud.lampKey || ud.lampCol || ud.emis0 || ud.glassShaded || ud.smokeShaded || ud.parked || ud.aeroskin) continue;
+          const ga = m.geometry.attributes, an = Object.keys(ga).sort();
+          if (an.some(k => ga[k].isInterleavedBufferAttribute)) continue;
+          const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
+          const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
+          let b = buckets.get(k); if (!b) buckets.set(k, b = { mat: cm, list: [] }); b.list.push(m);
+        }
+        const ng = new THREE.Group(); ng.name = 'houses:near'; ng.userData.batch = true;
+        for (const b of buckets.values()) {
+          const m0 = b.list[0], mesh = new THREE.Mesh(mergeInto(b.list), b.mat);
+          mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true;
+          ng.add(mesh); nd++;
+          for (const m of b.list) { m.userData.merged = true; m.visible = false; nm++; }
+        }
+        cl.near = ng; grp.add(ng);
+      }
+      stats.bakeDraws = nd; stats.bakeMerged = nm; stats.bakeMats = canon.size;
+    }
     G.houses.add(grp); HLOD.group = grp;
     stats.hlodCells = HLOD.cells.length;
   }
   function hlodTick(e) {
     if (!HLOD.on || !o.game || queue.length || (o.editing && o.editing())) {
-      if (HLOD.group) for (const cl of HLOD.cells) if (cl.far) hlodSet(cl, false);
+      if (HLOD.group) { for (const cl of HLOD.cells) if (cl.far) hlodSet(cl, false); nearAll(false); HLOD.sig = ''; }   // whole houses; rebaked on the way back
       return;
     }
     const sig = String(HOUSES.size);
@@ -1264,12 +1301,12 @@ function make(THREE, scene, world, rec0, opts) {
     }
   }
   function hlodSet(cl, far) {
-    cl.far = far; cl.mesh.visible = far;
+    cl.far = far; cl.mesh.visible = far; if (cl.near) cl.near.visible = !far;
     for (const g of cl.houses) {
       const D = detailOf(g); g.userData.far = far;
       // every bag goes, glass and lit too (G560): from the airfield, 9 km off, the town's 641 houses still drew
       // ~1 500 window bags a few hundredths of a pixel wide
-      for (const m of g.children) if (m.isMesh) m.visible = !far;
+      for (const m of g.children) if (m.isMesh) m.visible = !far && !m.userData.merged;
       if (!far) { D.on = true; D.on2 = true; }   // the per-house cuts re-decide from full
     }
   }
@@ -1306,9 +1343,9 @@ function make(THREE, scene, world, rec0, opts) {
       }
       if (g.userData.far || (!D.list.length && !D.list2.length)) continue;
       const px = 2 * D.R * K / Math.max(1, e.distanceTo(D.c)), on = px >= DETAIL.px * (D.on ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
-      if (on !== D.on) { D.on = on; for (const m of D.list) m.visible = on; }
+      if (on !== D.on) { D.on = on; for (const m of D.list) if (!m.userData.merged) m.visible = on; }
       const on2 = !(DETAIL.px2 > 0) || px >= DETAIL.px2 * (D.on2 ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
-      if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) m.visible = on2; }
+      if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) if (!m.userData.merged) m.visible = on2; }
     }
   }
   function tick(dt) { if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
