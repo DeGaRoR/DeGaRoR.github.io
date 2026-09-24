@@ -73,7 +73,7 @@ function make(THREE, scene, world, rec0, opts) {
   // rebuild's), and the lots are merged ONCE, when the queue is empty.
   let freezeTick = 0;
   function freezeStatic(walk) {
-    let n = 0, lots = BATCH.pending;
+    let n = 0, lots = BATCH.pending, roads = BATCH_R.pending;
     for (const k of FROZEN_GROUPS) for (const c of G[k].children) {
       if (!c.updateMatrixWorld) continue;
       let fresh = !c.userData.frozen;
@@ -85,10 +85,12 @@ function make(THREE, scene, world, rec0, opts) {
       c.traverse(o => { o.matrixAutoUpdate = false; o.matrixWorldAutoUpdate = false; });
       c.userData.frozen = true; n++;
       if (k === 'lots' && !c.userData.batch) lots = true;
+      if (k === 'roads' && !c.userData.batch && o.game) roads = true;
       if (k === 'lots' && o.game) c.traverse(m => { if (m.isMesh) m.castShadow = false; });   // the yards' fences, patches and cars cast none (G557)
       if (k === 'houses' && c.userData.thrift) houseThrift(c);   // a late prop rung (G557)
     }
     if (lots) { BATCH.pending = queue.length > 0; if (!BATCH.pending) batchLots(); }
+    if (roads) { BATCH_R.pending = queue.length > 0; if (!BATCH_R.pending) batchGroup(G.roads, BATCH_R, 'roads'); }
     return n;
   }
   // THE LOTS BATCHED (PERF 2026-09-23). The fences share ONE finish (fenceFinish: every post bag and every deck
@@ -131,13 +133,16 @@ function make(THREE, scene, world, rec0, opts) {
     out.computeBoundingSphere();
     return out;
   }
-  function batchLots() {
+  // THE ROADS TOO (G563): 696 road draws over the airfield, the same few pavement finishes - merged the lots' way
+  const BATCH_R = { cell: 256, group: null, sig: '', pending: false };
+  function batchLots() { return batchGroup(G.lots, BATCH, 'lots'); }
+  function batchGroup(GR, BATCH, tag) {
     if (!THREE.Matrix3 || !THREE.BufferAttribute) return 0;
     const src = [];
-    G.lots.traverse(o => {
+    GR.traverse(o => {
       if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.userData.sharedGeo || o.userData.batch || !o.geometry || !o.geometry.index || Array.isArray(o.material)) return;
       if (Object.values(o.geometry.attributes).some(a => a.isInterleavedBufferAttribute)) return;
-      for (let p = o.parent; p && p !== G.lots; p = p.parent) if (p.isLOD || p.userData.batch) return;
+      for (let p = o.parent; p && p !== GR; p = p.parent) if (p.isLOD || p.userData.batch) return;
       src.push(o);
     });
     const cnt = new Map(); for (const m of src) cnt.set(m.material, (cnt.get(m.material) || 0) + 1);
@@ -145,7 +150,7 @@ function make(THREE, scene, world, rec0, opts) {
     const sig = use.map(m => m.id).join(',');
     if (sig === BATCH.sig) return 0;
     BATCH.sig = sig;
-    if (BATCH.group) { G.lots.remove(BATCH.group); BATCH.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); BATCH.group = null; }
+    if (BATCH.group) { GR.remove(BATCH.group); BATCH.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); BATCH.group = null; }
     const buckets = new Map(), c = new THREE.Vector3();
     for (const m of use) {
       m.updateWorldMatrix(true, false);
@@ -155,18 +160,18 @@ function make(THREE, scene, world, rec0, opts) {
         '|' + Object.keys(m.geometry.attributes).sort().map(k => k + ':' + m.geometry.attributes[k].itemSize + ':' + m.geometry.attributes[k].array.constructor.name).join(',');
       let b = buckets.get(key); if (!b) buckets.set(key, b = []); b.push(m);
     }
-    const grp = new THREE.Group(); grp.name = 'lots:batches'; grp.userData.batch = true;
+    const grp = new THREE.Group(); grp.name = tag + ':batches'; grp.userData.batch = true;
     let n = 0;
     for (const list of buckets.values()) {
       if (list.length < 2) { list[0].visible = true; continue; }
       const mesh = new THREE.Mesh(mergeInto(list), list[0].material);
       mesh.castShadow = list[0].castShadow; mesh.receiveShadow = list[0].receiveShadow; mesh.renderOrder = list[0].renderOrder;
-      mesh.userData.batch = true; mesh.name = 'lots:batch';
+      mesh.userData.batch = true; mesh.name = tag + ':batch';
       grp.add(mesh); n++;
       for (const m of list) m.visible = false;
     }
-    G.lots.add(grp); BATCH.group = grp;
-    stats.lotBatches = n; stats.lotBatched = use.length;
+    GR.add(grp); BATCH.group = grp;
+    stats[tag + 'Batches'] = n; stats[tag + 'Batched'] = use.length;
     return n;
   }
 
@@ -1201,7 +1206,7 @@ function make(THREE, scene, world, rec0, opts) {
       const D = detailOf(g); if (!D.keep.length) continue;
       const k = Math.floor(D.c.x / HLOD.cell) + ',' + Math.floor(D.c.z / HLOD.cell);
       let cl = byCell.get(k); if (!cl) byCell.set(k, cl = { houses: [], x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, far: false, mesh: null });
-      cl.houses.push(g); cl.x0 = Math.min(cl.x0, D.c.x - D.R); cl.x1 = Math.max(cl.x1, D.c.x + D.R); cl.z0 = Math.min(cl.z0, D.c.z - D.R); cl.z1 = Math.max(cl.z1, D.c.z + D.R);
+      cl.houses.push(g); cl.y = ((cl.y || 0) * (cl.houses.length - 1) + D.c.y) / cl.houses.length; cl.x0 = Math.min(cl.x0, D.c.x - D.R); cl.x1 = Math.max(cl.x1, D.c.x + D.R); cl.z0 = Math.min(cl.z0, D.c.z - D.R); cl.z1 = Math.max(cl.z1, D.c.z + D.R);
     }
     const grp = new THREE.Group(); grp.name = 'houses:far'; grp.userData.batch = true;
     const mat = HLOD.mat || (HLOD.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }));
@@ -1253,7 +1258,7 @@ function make(THREE, scene, world, rec0, opts) {
     const sig = String(HOUSES.size);
     if (sig !== HLOD.sig) { HLOD.sig = sig; hlodBuild(); }
     for (const cl of HLOD.cells) {
-      const dx = Math.max(cl.x0 - e.x, 0, e.x - cl.x1), dz = Math.max(cl.z0 - e.z, 0, e.z - cl.z1), d = Math.hypot(dx, dz);
+      const dx = Math.max(cl.x0 - e.x, 0, e.x - cl.x1), dz = Math.max(cl.z0 - e.z, 0, e.z - cl.z1), d = Math.hypot(dx, dz, e.y - cl.y);   // 3D (G563): from 300 m up the houses below are far
       const far = d > HLOD.near * (cl.far ? 0.9 : 1.1);
       if (far !== cl.far) hlodSet(cl, far);
     }
@@ -1791,10 +1796,12 @@ function make(THREE, scene, world, rec0, opts) {
   // cascade, and it was most of the shadow pass. Props arrive after the house (their rungs load): freezeStatic runs
   // this again on a thrifty house with fresh content, so a late rung is thrifty too.
   const HOUSE_PROP_GONE = 200, HOUSE_CAST_R = 2, HOUSE_CAST_FAR = 600;
-  function houseThrift(grp) {
-    grp.userData.thrift = true;
+  // light (G563): a site's item, object, fence or park - the shadow cuts, the far town and the walk skip, never the
+  // prop ladder's cut (a boat, a totem, a hangar's own ladder stay as authored); they were 1 296 draws over the field
+  function houseThrift(grp, light) {
+    grp.userData.thrift = true; if (light) grp.userData.light = true; light = grp.userData.light;
     grp.traverse(obj => {
-      if (obj.isLOD && obj !== grp) {
+      if (obj.isLOD && obj !== grp && !light) {
         // the ladder is cut at HOUSE_PROP_GONE: a prop's own end (a propane bottle's 533 m, a person's 1 392 m) comes
         // in, a rung past it goes, and an empty level ends it
         const keep = [];
@@ -1817,7 +1824,7 @@ function make(THREE, scene, world, rec0, opts) {
     // THE WALKS (G558): past the props' reach a house's whole dressing is switched off at its top, so neither the
     // view's walk nor each shadow cascade's walks through its prop ladders (3 735 over Metlakatla)
     const props = []; grp.traverse(x => { if (x.isLOD && x !== grp) { for (let p = x.parent; p && p !== grp; p = p.parent) if (p.isLOD) return; props.push(x); } });
-    grp.userData.props = props; if (grp.userData.propsOn === undefined) grp.userData.propsOn = true;
+    grp.userData.props = light ? [] : props; if (grp.userData.propsOn === undefined) grp.userData.propsOn = true;
   }
   // THE BOOT BUILDS WHAT IS NEAR (G562, the user: "keep loading assets as we go ... that's how MSFS does it"): the
   // queue is sorted by distance from (cx, cz) and built while the next entry stands within R; the rest waits, nearest
@@ -1842,7 +1849,7 @@ function make(THREE, scene, world, rec0, opts) {
     let built = 0;
     while (queue.length && built < (n || 2)) {
       const p = queue.shift();
-      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h && o.game && !p.isPark && !p.isItem && !p.isObject && !p.isFence) houseThrift(h.grp); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
       catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
       built++;
     }
