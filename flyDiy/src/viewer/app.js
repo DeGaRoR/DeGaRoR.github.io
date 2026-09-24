@@ -6240,6 +6240,10 @@
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
+    // THE AEROPLANE'S CRUMBS CAST NOTHING (G564): 130 of its 254 meshes are under 15 cm (bolts, hinges, fittings),
+    // and each cast into every cascade - a shadow a pixel wide for a draw each, ~700 shadow draws a frame
+    craft.traverse(m => { if (!m.isMesh || !m.castShadow || !m.geometry) return; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      const s = m.getWorldScale(new THREE.Vector3()); if (m.geometry.boundingSphere.radius * Math.max(s.x, s.y, s.z) < 0.15) m.castShadow = false; });
     setExp(WORLD_EXPOSURE);
     // THE AEROPLANE FLEW OUT STILL REFLECTING THE SHED (user: "the planes look
     // really washed out when they get out of the garage and into the world").

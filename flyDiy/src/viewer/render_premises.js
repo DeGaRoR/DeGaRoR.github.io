@@ -1819,6 +1819,9 @@ function make(THREE, scene, world, rec0, opts) {
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       if (m.geometry.boundingSphere.radius * Math.max(m.scale.x, m.scale.y, m.scale.z) < HOUSE_CAST_R) m.castShadow = false;
     }
+    if (light) grp.traverse(m => {   // a parked aeroplane's or a site object's nested crumbs (G564): under 30 cm, no shadow
+      if (!m.isMesh || !m.castShadow || !m.geometry) return; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      if (m.geometry.boundingSphere.radius * Math.max(m.scale.x, m.scale.y, m.scale.z) < 0.3) m.castShadow = false; });
     grp.userData.casters = grp.children.filter(m => m.isMesh && m.castShadow);
     grp.userData.castOn = true;
     // THE WALKS (G558): past the props' reach a house's whole dressing is switched off at its top, so neither the
