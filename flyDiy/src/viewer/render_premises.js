@@ -1688,6 +1688,47 @@ function make(THREE, scene, world, rec0, opts) {
     const ready = typeof treeBuild === 'function' && typeof treeReady === 'function' && treeReady();
     let tris = 0;
     const F = O.frame;
+    // THE RECORD TREES INSTANCED (G556, 2026-09-24, the user: "unplayable, and unacceptable performance drop for a
+    // single town"): Metlakatla placed 3 644 trees and each was its own THREE.LOD of ~6 meshes - 21 864 draws (and as
+    // many in the shadow pass) over the town. In the game they go by CELL: the trees of a 64 m cell, per species, one
+    // InstancedMesh per rung part, the cell a THREE.LOD on the same bands and cull as a tree had (the rung is the
+    // cell's, from its centre - +-45 m on a band edge). The rungs' shared geometry and materials are the ones the
+    // cover ring already instances. The bench keeps a LOD a tree (the editor's own path).
+    if (o.game && ready) {
+      const CELL = 64, cells = new Map(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+      for (const t of O.records.trees) {
+        if (!t.key || t.key === 'stub|tree') continue;
+        const w = F.toWorld(t.x, t.z), ck = Math.floor(w[0] / CELL) + ',' + Math.floor(w[1] / CELL);
+        let c = cells.get(ck); if (!c) cells.set(ck, c = { x: (Math.floor(w[0] / CELL) + 0.5) * CELL, z: (Math.floor(w[1] / CELL) + 0.5) * CELL, keys: new Map() });
+        let l = c.keys.get(t.key); if (!l) c.keys.set(t.key, l = []);
+        l.push([w[0], t.y - 0.05 - (t.sink || 0) * t.size, w[1], t.yaw + F.yaw, t.size]);
+      }
+      const rungs = new Map();
+      const rungOf = (key, r) => { const k = key + '#' + r; if (!rungs.has(k)) { let B = null; try { B = treeBuild(THREE, key, r, 'rungs'); } catch (e) {} rungs.set(k, B); } return rungs.get(k); };
+      for (const c of cells.values()) {
+        const lod = new THREE.LOD(); lod.name = 'trees:cell'; lod.position.set(c.x, 0, c.z);
+        for (let r = 0; r < 3; r++) {
+          const g = new THREE.Group();
+          for (const [key, list] of c.keys) {
+            const B = rungOf(key, r); if (!B || !B.parts) continue;
+            if (r === 0) tris += B.tris * list.length;
+            for (const p of B.parts) {
+              const m = new THREE.InstancedMesh(p.geo, p.mat, list.length);
+              list.forEach((e, i) => { pos.set(e[0] - c.x, e[1], e[2] - c.z); q.setFromAxisAngle(up, e[3]); sc.setScalar(e[4]); m.setMatrixAt(i, mtx.compose(pos, q, sc)); });
+              m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere();
+              m.castShadow = true; m.receiveShadow = true; m.userData.sharedGeo = true;
+              if (p.cutout) m.customDepthMaterial = treeDepth(p.mat);
+              g.add(m);
+            }
+          }
+          lod.addLevel(g, TREE_BANDS[r]);
+        }
+        lod.addLevel(new THREE.Group(), TREE_GONE);
+        G.trees.add(lod);
+      }
+      stats.trees = O.records.trees.length; stats.treeTris = tris; stats.treeCells = cells.size;
+      return;
+    }
     for (const t of O.records.trees) {
       const w = F.toWorld(t.x, t.z);
       let obj;
