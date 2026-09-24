@@ -36,7 +36,11 @@
 //   - loop bounds are UNIFORMS: a constant-bound loop with the material chain
 //     inside is unrolled fourteen times;
 //   - one struct through the chain, no `out` parameters;
-//   - an oriented set (the beach facing the sea) tiles plainly, never turned.
+//   - an oriented set (the beach facing the sea) tiles plainly, never turned;
+//   - FEW CALL SITES, NO LOOP IN THE SAMPLE CHAIN (G568): HLSL inlines every
+//     call (144 inlined fetches were a 110-220 s COLD compile), and a loop of
+//     sets nested in the candidate loop drew the ground 1.5-2x slower (GATE SPLAT 3);
+//   - no ?: on a struct (WebGL refuses it: the ground drew flat grey).
 'use strict';
 const SPLAT_GROUND = (() => {
   // NCODE is the WIDTH of the per-code uniform arrays, so it must exceed the highest
@@ -136,21 +140,35 @@ const SPLAT_GROUND = (() => {
     }
     return o;
   }
+  // FEW FETCHES IN THE PROGRAM (G568, 2026-09-24): HLSL has no calls - fxc inlines every call site. sMat's three
+  // branches (near triplet, far triplet, the band's six sets) were 12 sSet -> 36 sTile -> 144 sFetch of straight
+  // code in the candidate loop: 412 KB of bytecode, 110-220 s to compile COLD per ground program under ANGLE/D3D11
+  // (six at the roll-out). Now ONE triplet (sTriplet, three sSet) is inlined once and the candidate loop runs it
+  // twice per terrain type in the band (sMatPass), and sTile's plain tile shares the first hex vertex's fetch:
+  // 27 fetch sites. NO LOOP INSIDE the candidate loop: a nested loop holding the sets (tried: the fetches in one
+  // loop, 3 s to compile) drew the ground 1.5-2x slower on the GPU even where it ran zero times.
   Smp sTile(float layer, vec2 st){
-    if (uSHex.y < 0.5 || gSHexRot < 0.0) return sFetch(layer, st, vec2(1.0, 0.0));
+    bool hex = !(uSHex.y < 0.5 || gSHexRot < 0.0);
     vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * uSHex.z);
     vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
     float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
     vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
     vec2 v1 = base + vec2(s, s), v2 = base + vec2(s, 1.0 - s), v3 = base + vec2(1.0 - s, s);
-    vec2 r1 = sHash2(v1), r2 = sHash2(v2), r3 = sHash2(v3);
-    float a1 = (r1.x - 0.5) * 2.0 * gSHexRot, a2 = (r2.x - 0.5) * 2.0 * gSHexRot, a3 = (r3.x - 0.5) * 2.0 * gSHexRot;
-    mat2 R1 = mat2(cos(a1), sin(a1), -sin(a1), cos(a1)), R2 = mat2(cos(a2), sin(a2), -sin(a2), cos(a2)), R3 = mat2(cos(a3), sin(a3), -sin(a3), cos(a3));
-    Smp s1 = sFetch(layer, R1 * st + r1 * 7.3, vec2(cos(a1), sin(a1)));
-    Smp s2v = sFetch(layer, R2 * st + r2 * 7.3, vec2(cos(a2), sin(a2)));
-    Smp s3 = sFetch(layer, R3 * st + r3 * 7.3, vec2(cos(a3), sin(a3)));
-    vec3 hw = sHweights3(s1.c.a, w.x, s2v.c.a, w.y, s3.c.a, w.z, uSHex.x);
-    Smp o; o.c = s1.c * hw.x + s2v.c * hw.y + s3.c * hw.z; o.n = s1.n * hw.x + s2v.n * hw.y + s3.n * hw.z;
+    vec2 r1 = sHash2(v1);
+    float a1 = (r1.x - 0.5) * 2.0 * gSHexRot;
+    mat2 R1 = mat2(cos(a1), sin(a1), -sin(a1), cos(a1));
+    // the first vertex's fetch is the plain tile's too (one call site): no hex = the tile as it lies
+    Smp s1 = sFetch(layer, hex ? R1 * st + r1 * 7.3 : st, hex ? vec2(cos(a1), sin(a1)) : vec2(1.0, 0.0));
+    Smp o = s1;
+    if (hex) {
+      vec2 r2 = sHash2(v2), r3 = sHash2(v3);
+      float a2 = (r2.x - 0.5) * 2.0 * gSHexRot, a3 = (r3.x - 0.5) * 2.0 * gSHexRot;
+      mat2 R2 = mat2(cos(a2), sin(a2), -sin(a2), cos(a2)), R3 = mat2(cos(a3), sin(a3), -sin(a3), cos(a3));
+      Smp s2v = sFetch(layer, R2 * st + r2 * 7.3, vec2(cos(a2), sin(a2)));
+      Smp s3 = sFetch(layer, R3 * st + r3 * 7.3, vec2(cos(a3), sin(a3)));
+      vec3 hw = sHweights3(s1.c.a, w.x, s2v.c.a, w.y, s3.c.a, w.z, uSHex.x);
+      o.c = s1.c * hw.x + s2v.c * hw.y + s3.c * hw.z; o.n = s1.n * hw.x + s2v.n * hw.y + s3.n * hw.z;
+    }
     return o;
   }
   Smp sSet(float layer, float scale, vec3 P, vec3 tw, float ang){
@@ -187,49 +205,20 @@ const SPLAT_GROUND = (() => {
     if (A.z >= 0.0) c = sSet(A.z, S.z, P, tw, ang);
     return sBlend(A, a, b, c, m1, m2);
   }
-  bool sSame(float l1, float s1, float l2, float s2){ return l1 == l2 && abs(s1 - s2) < 1e-4; }
-  // THE DETAIL BAND, SHARED (PERF 2026-09-23): between detailFrom and detailTo (150-900 m) a pixel blends the
-  // near triplet and the far one, and was sampling both whole - six sets, each hex-tiled (3 fetches) in both
-  // arrays and triplanar on a slope. But a far set is very often a near one (a null far set falls back to the
-  // near set, and the recipe reuses its sets: forest, old forest, sand, snow, shingle and dense scrub have a far
-  // triplet IDENTICAL to the near, heath and scrub share two of three). A set sampled at the same layer and scale
-  // at the same point is the same sample: take it once. The same pixels, bit for bit up to the sum's order.
-  Smp sBand(vec4 A, vec4 S, vec4 F, vec4 FS, vec3 P, vec3 tw, float ang, float m1, float m2, float fw){
-    Smp a0 = sSet(A.x, S.x, P, tw, ang), a1 = a0, a2 = a0;
-    if (A.y >= 0.0) { if (sSame(A.y, S.y, A.x, S.x)) a1 = a0; else a1 = sSet(A.y, S.y, P, tw, ang); }
-    if (A.y >= 0.0 && A.z >= 0.0) { if (sSame(A.z, S.z, A.x, S.x)) a2 = a0; else if (A.y >= 0.0 && sSame(A.z, S.z, A.y, S.y)) a2 = a1; else a2 = sSet(A.z, S.z, P, tw, ang); }
-    Smp f0, f1 = a0, f2 = a0;
-    if (sSame(F.x, FS.x, A.x, S.x)) f0 = a0;
-    else if (A.y >= 0.0 && sSame(F.x, FS.x, A.y, S.y)) f0 = a1;
-    else if (A.y >= 0.0 && A.z >= 0.0 && sSame(F.x, FS.x, A.z, S.z)) f0 = a2;
-    else f0 = sSet(F.x, FS.x, P, tw, ang);
-    if (F.y >= 0.0) {
-      if (sSame(F.y, FS.y, F.x, FS.x)) f1 = f0;
-      else if (sSame(F.y, FS.y, A.x, S.x)) f1 = a0;
-      else if (A.y >= 0.0 && sSame(F.y, FS.y, A.y, S.y)) f1 = a1;
-      else if (A.y >= 0.0 && A.z >= 0.0 && sSame(F.y, FS.y, A.z, S.z)) f1 = a2;
-      else f1 = sSet(F.y, FS.y, P, tw, ang);
-    }
-    if (F.y >= 0.0 && F.z >= 0.0) {
-      if (sSame(F.z, FS.z, F.x, FS.x)) f2 = f0;
-      else if (sSame(F.z, FS.z, F.y, FS.y)) f2 = f1;
-      else if (sSame(F.z, FS.z, A.x, S.x)) f2 = a0;
-      else if (A.y >= 0.0 && sSame(F.z, FS.z, A.y, S.y)) f2 = a1;
-      else if (A.y >= 0.0 && A.z >= 0.0 && sSame(F.z, FS.z, A.z, S.z)) f2 = a2;
-      else f2 = sSet(F.z, FS.z, P, tw, ang);
-    }
-    Smp n = sBlend(A, a0, a1, a2, m1, m2), f = sBlend(F, f0, f1, f2, m1, m2), o;
-    o.c = (1.0 - fw) * n.c + fw * f.c; o.n = (1.0 - fw) * n.n + fw * f.n;
-    return o;
-  }
-  Smp sMat(int i, vec3 P, vec3 tw, float seaAng, float fw, float slope){
+  // ONE TERRAIN TYPE IN ONE OR TWO PASSES (G568): pass 0 samples the near triplet, pass 1 the far one; a pixel
+  // under the detail fade needs only the near, past it only the far, in the band (detailFrom-To) both - and a far
+  // triplet IDENTICAL to the near (forest, old forest, sand, snow, shingle, dense scrub) is not sampled twice. The
+  // pass that completes the type returns true with it in gSOut; the other returns false. Same sets, same blend,
+  // same mix as the three branches it replaced.
+  Smp gSNear, gSFar, gSOut;
+  bool sMatPass(int i, int pass, vec3 P, vec3 tw, float seaAng, float fw, float slope){
     vec4 A = uSMatA[i]; vec4 S = uSMatS[i]; vec4 M = uSMatM[i];
     // THE BLEND'S DEPTH, A DIAL (PERF 2026-09-23): a type's 2nd and 3rd sets are its dearest pixels (each set hex-tiled,
     // colour + normal, triplanar on a slope: one set per type measured 8-10 ms cheaper at 5120 x 1440). uSNearN 1 =
     // one set everywhere (the lower tiers), uSFarN 1 = one set past the detail fade, where a blotch is a few pixels
     if (uSNearN < 1.5) { A.y = -1.0; A.z = -1.0; }
     Smp o; o.c = vec4(0.5, 0.5, 0.5, 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
-    if (A.x < 0.0) return o;
+    if (A.x < 0.0) { gSOut = o; return pass == 0; }
     float ang = A.w > 0.5 ? seaAng : 0.0;
     float period = max(M.x, 0.5) * 6.0, sharp = M.y * 2.0;   // 2x (4x cut the sets into hard blotches once lit in the game)
     float m1 = A.y >= 0.0 ? gfMixK(P.xz, period, 0.52 - M.z, sharp) : 0.0;
@@ -237,9 +226,16 @@ const SPLAT_GROUND = (() => {
     vec4 F = uSMatF[i], FS = uSMatFS[i];
     if (F.x < 0.0) { F.x = A.x; FS.x = S.x; } if (F.y < 0.0) { F.y = A.y; FS.y = S.y; } if (F.z < 0.0) { F.z = A.z; FS.z = S.z; }
     if (uSFarN < 1.5) { F.y = -1.0; F.z = -1.0; }
-    if (fw <= 0.001) o = sTriplet(A, S, P, tw, ang, m1, m2);
-    else if (fw >= 0.999) o = sTriplet(F, FS, P, tw, ang, m1, m2);
-    else o = sBand(A, S, F, FS, P, tw, ang, m1, m2, fw);
+    bool same = F == A && FS == S;
+    bool needN = fw < 0.999, needF = fw > 0.001 && !(same && needN);
+    bool run = pass == 0 ? needN : needF, last = pass == 0 ? !needF : needF;   // exactly one pass completes a type
+    if (!run && !last) return false;
+    if (run) { Smp r = sTriplet(pass == 0 ? A : F, pass == 0 ? S : FS, P, tw, ang, m1, m2); if (pass == 0) gSNear = r; else gSFar = r; }
+    if (!last) return false;
+    Smp fb = gSNear; if (needF) fb = gSFar;   // (no ?: on a struct in WebGL)
+    if (fw <= 0.001) o = gSNear;
+    else if (fw >= 0.999) o = fb;
+    else { o.c = (1.0 - fw) * gSNear.c + fw * fb.c; o.n = (1.0 - fw) * gSNear.n + fw * fb.n; }
     vec4 V = uSVary[i];
     if (V.y > 0.0 || V.x > 0.0) { vec2 gf = gfShade(P.xz, V.z); o.c.rgb = gfHueTurn(o.c.rgb, gf.x * V.x) * (1.0 + gf.y * V.y); }
     gSRel = gLuma(o.c.rgb) / max(uSLum[int(A.x + 0.5)], 1e-3);   // the texel over its set's mean: the texture alone, no set colour
@@ -276,7 +272,7 @@ const SPLAT_GROUND = (() => {
       o.c.rgb = mix(o.c.rgb, mix(o.c.rgb * uSPud2.z, vec3(0.022, 0.030, 0.034), deep), m);   // still water, linear
       o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m * deep);
     }
-    return o;
+    gSOut = o; return true;
   }
   int sCodeAt(vec2 cellIx){
     vec2 gn = uGGrid.zw / uGCell;
@@ -331,9 +327,11 @@ const SPLAT_GROUND = (() => {
     // SampleLevel 0) of every function that samples a texture when it is called inside a loop holding a break or
     // a continue - the splat's every set was read at MIP 0 at every distance: shimmer, and a texture cache blown
     // on every ground pixel past a few hundred metres. The same test as an if-block keeps the derivatives.
-    for (int i = 0; i < uSNCode; i++) {
-      if (w[i] >= 0.004 && n < uSNCand) {
-        Smp m = sMat(i, vWPi, tw, seaAng, fw, slope);
+    // two passes a terrain type (sMatPass: near, far), the bound still a uniform
+    for (int j = 0; j < uSNCode * 2; j++) {
+      int i = j / 2;
+      if (w[i] >= 0.004 && n < uSNCand && sMatPass(i, j - i * 2, vWPi, tw, seaAng, fw, slope)) {
+        Smp m = gSOut;
         C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; Rl[n] = gSRel; ma = max(ma, m.c.a + w[i]); n++;
       }
     }

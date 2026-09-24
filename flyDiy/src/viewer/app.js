@@ -6392,7 +6392,7 @@
       worldCompiled = true;
       if (typeof renderer.compileAsync !== 'function' || !WF) return;
       // CAPPED (G562): a program that never reports ready held this step to its 180 s limit behind the screen.
-      // G567: the cap is a STALL - 4 min without a program becoming ready (the ground's cold link is ~3.5 min)
+      // G567: the cap is a STALL - 4 min without a program becoming ready (the ground's cold link was ~3.5 min before G568, ~30 s now)
       // - and the wait is explained and counted on the screen (shaderProgress)
       return shaderProgress(compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
         .then(() => compileDepthVariants()), 'world', 240000);
@@ -9548,9 +9548,9 @@
   }
   // THE SHADERS' SCREEN (G567, the user: "a dedicated loading message/screen explaining the first time
   // compilation issue with a progress bar"). A COLD compile - the first launch, the first after an update
-  // that changed a shader, a cleared browser cache - is the graphics driver's work: ~3.5 min at the Jolene
-  // roll-out on the gamer box (the ground's six splat programs, ~200 s each under ANGLE/D3D11 - its cause and a
-  // fix in progress: futureDesigns/PERF-2026-09-23.md G567), a second or two warm. While the pass `p` is
+  // that changed a shader, a cleared browser cache - is the graphics driver's work: ~35 s at the Jolene
+  // roll-out on the gamer box (3.5 min before G568 cut the ground's splat programs: futureDesigns/PERF-2026-09-23.md
+  // G567/G568), a second or two warm. While the pass `p` is
   // pending this polls the renderer's programs (isReady: KHR_parallel_shader_compile, never blocks):
   // every program seen pending joins the count, the ready ones fill the overlay's shader bar (BOOT.shaders).
   // The block shows after 1.2 s when this browser has not finished a compile of this build before

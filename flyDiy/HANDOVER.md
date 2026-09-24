@@ -59123,3 +59123,11 @@ shows after 1.2 s of a compile this browser has not finished for this build (loc
 the roll-out's cap is a 4-min stall (was 20 s flat, then the page froze ~3 min in 'frames'). THE GROUND'S COLD LINK
 (~3.5 min, the splat's 144 inlined fetches) is diagnosed in futureDesigns/PERF-2026-09-23.md G567: a loop version
 compiles in seconds but draws the ground 1.5-2x slower - not landed, the bisection is written there.
+
+## G568 - THE GROUND COMPILES IN SECONDS (2026-09-24)
+
+G567's diagnosis acted on: the splat's sample chain was 144 inlined fetches (fxc inlines every call site) - the cold
+roll-out's compile step 208 s. Now one straight triplet inlined once, the candidate loop running two passes per
+terrain type (near, far) - NO loop inside the candidate loop (a nested loop of sets drew the ground 1.5-2x slower on
+the GPU). Compile step 208.6 -> 33.6 s cold; the frame and the picture unchanged (same-page A/B, 3 heights).
+splat_ground.js sMatPass / sTriplet; GATE SPLAT 3 (call sites, no loop in the chain). futureDesigns/PERF-2026-09-23.md G568.

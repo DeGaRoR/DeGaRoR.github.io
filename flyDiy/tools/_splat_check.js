@@ -214,7 +214,16 @@ function checkShader(G, splice, quiet) {
   say(/uniform highp sampler2DArray uSplat, uSplatN;/.test(glsl), 'the two arrays declared highp sampler2DArray');
   say((glsl.match(/texture\(uSplat,/g) || []).length >= 1 && (glsl.match(/texture\(uSplatN,/g) || []).length >= 1, 'the arrays read with implicit texture()');
   say(/for \(int i = 0; i < uSNCode; i\+\+\)/.test(glsl) && /for \(int j = 0; j < uSNCand; j\+\+\)/.test(glsl), 'the code and candidate loops bound by uniforms (uSNCode, uSNCand)');
-  say(!/for \(int [ij] = 0; [ij] < \d+; [ij]\+\+\) \{\s*\n?\s*if \(w\[/.test(glsl), 'no constant-bound loop over the candidates');
+  say(!/for \(int [ij] = 0; [ij] < \d+; [ij]\+\+\) \{\s*\n?\s*(int i = j \/ 2;\s*)?if \(w\[/.test(glsl), 'no constant-bound loop over the candidates');
+  // FEW CALL SITES, NO NESTED LOOP (G568): HLSL inlines every call site - the old chain's 144 inlined fetches were
+  // a 412 KB program and a 110-220 s COLD compile per ground program under ANGLE/D3D11; a loop holding the sets
+  // inside the candidate loop compiled in 3 s but drew the ground 1.5-2x slower (even where it ran zero times)
+  { const n = fn => (glsl.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
+    say(n('sMatPass') === 1 && n('sTriplet') === 1 && n('sSet') <= 3 && n('sTile') <= 3 && n('sFetch') <= 3,
+      `the sample chain inlined small: call sites sMatPass ${n('sMatPass')}, sTriplet ${n('sTriplet')}, sSet ${n('sSet')}, sTile ${n('sTile')}, sFetch ${n('sFetch')} (1, 1, <=3, <=3, <=3)`);
+    const body = f => { const i = glsl.indexOf(f); if (i < 0) return ''; let d = 0, k = glsl.indexOf('{', i); const k0 = k;
+      for (; k < glsl.length; k++) { if (glsl[k] === '{') d++; else if (glsl[k] === '}' && --d === 0) break; } return glsl.slice(k0, k); };
+    say(!/\bfor\s*\(/.test(['bool sMatPass(', 'Smp sTriplet(', 'Smp sSet(', 'Smp sTile(', 'Smp sFetch('].map(body).join('')), 'no loop inside the sample chain (nested in the candidate loop it costs the GPU)'); }
   say(/sRGBTransferEOTF/.test(glsl), 'the colour array decoded in the shader (no sRGB array upload: GL 1281)');
   say(!/\bout\s+(Smp|vec4|vec3|float)\s+\w+\s*[,)]/.test(glsl), 'no `out` parameter on the sample chain (one struct through it)');
   say(/struct Smp \{ vec4 c; vec4 n; \};/.test(glsl), 'the one struct Smp { c, n }');
@@ -510,7 +519,8 @@ async function checkGPU() {
     const sp = spliceOf(G, splatSrc, G.RECIPE.library);
     const brk = (a, b) => { const s2 = Object.assign({}, sp); s2.glslCommon = sp.glslCommon.replace(a, b); return s2; };
     verdict(!checkShader(G, brk('o.c = texture(uSplat, vec3(uv, layer));', 'o.c = textureGrad(uSplat, vec3(uv, layer), dFdx(uv), dFdy(uv));'), true), 'a textureGrad on the array is caught');
-    verdict(!checkShader(G, brk('for (int i = 0; i < uSNCode; i++) {\n      if (w[i]', 'for (int i = 0; i < 15; i++) {\n      if (w[i]'), true), 'a constant-bound candidate loop is caught');
+    verdict(!checkShader(G, brk('for (int j = 0; j < uSNCode * 2; j++) {', 'for (int j = 0; j < 34; j++) {'), true), 'a constant-bound candidate loop is caught');
+    verdict(!checkShader(G, brk('    Smp a = sSet(A.x, S.x, P, tw, ang);', '    Smp a = sSet(A.x, S.x, P, tw, ang); for (int q = 0; q < uSNCand; q++) a = sSet(A.x, S.x, P, tw, ang);'), true), 'a loop in the sample chain (and a 4th sSet call site) is caught');
     verdict(!checkShader(G, brk('uniform highp sampler2DArray uSplat, uSplatN;', 'uniform sampler2DArray uSplat, uSplatN;'), true), 'an array without highp is caught');
     verdict(!checkShader(G, brk('Smp sFetch(float layer, vec2 uv, vec2 cs){', 'void sFetch2(float layer, out Smp o){ }\n  Smp sFetch(float layer, vec2 uv, vec2 cs){'), true), 'an `out` parameter on the chain is caught');
     verdict(!checkShader(G, brk('o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;', ''), true), 'the colour left undecoded is caught');
