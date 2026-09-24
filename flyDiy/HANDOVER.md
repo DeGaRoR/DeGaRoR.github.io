@@ -59603,3 +59603,19 @@ picture; the user's ruling on the shots: "that all looks very similar to me, the
   builds every section on Jolene.
 - OWED: judged on a real GPU (the defaults of the new fades are a first guess); the stand cards and the size
   multiplier; a sampler-free way to preview a species that is not warmed.
+
+## G583 - THE LOW TIERS, RETUNED (2026-09-24, landed 2026-09-25)
+
+Written on 2026-09-24 as "G570" on a side branch and landed on the user's word ("land the low tiers retuned too").
+`src/viewer/gfx_settings.js`: two rows for what the frame has cost since the town and the ground cover -
+- 'ground cover' (cover_ring's dials): full (to 220 m, density 2, shadows from 0.35 m) / lean (120 m, half as dense,
+  shadows from 1 m) / off.
+- 'town detail' (the premises' hlod.near and detail.px2 / props): full (a house whole to 150 m, trims to ~270 m) /
+  lean (the far town from 60 m, trims to ~110 m) / low (the far town from 25 m, only walls and roofs past ~55 m, no
+  yard props).
+- potato back to the 67 % scale its card promises, cover off, town low; retro 85 %, cover and town lean; current,
+  gamer and ultra unchanged. pv 4 migration: a player saved on a preset gets that preset as it is now.
+- 'shadows off' now means off: the craft's NEAR map (shadow_near's S.on) kept rendering every caster within 90 m.
+- Measured when written (potato, 1080p, a quiet box): stand 34.5 -> 26.6 ms, 300 m over the field 24.3 -> 18.9,
+  forest 25.4 -> 19.2, town at 150 m 21.6 -> 16.2, sea 22.5 -> 16.9. Not re-measured on today's master (G574 town
+  on texture arrays, G575-G582 since); GFX, UISMOKE, BOOT, WORLDRENDER, PREMISES, TREES, BUILD green on it.

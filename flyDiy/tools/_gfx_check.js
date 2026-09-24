@@ -65,6 +65,7 @@ console.log('GATE GFX');
   ok(Object.keys(G.PRESETS).join(',') === 'potato,retro,current,gamer,ultra' && G.DEFAULT === 'gamer',
      'five tiers, potato .. ultra, gamer the default (' + Object.keys(G.PRESETS).join(',') + ')');
   const OLD_MEDIUM = { ground: 'far1', terrain: 1, scale: 1, drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' };
+  OLD_MEDIUM.cover = 'full'; OLD_MEDIUM.scenery = 'full';   // G570's rows: gamer keeps the whole of both
   OLD_MEDIUM.bloom = 'soft';   // the default look (2026-09-23): the soft bloom from 'current' up
   ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513)');
   const w2 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({ preset: 'medium' }, OLD_MEDIUM)) });
@@ -79,7 +80,7 @@ console.log('GATE GFX');
   ok(w5.GFX.get().preset === 'gamer' && w5.GFX.get().scale === 1, 'a pref saved on G528\'s gamer (auto by default) reads as today\'s gamer at 100 %');
   const w6 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'custom', pv: 3, scale: 'auto' }) });
   ok(w6.GFX.get().scale === 'auto', 'a current pref\'s auto is the player\'s choice and stays');
-  ok(Object.keys(G.PRESETS).every(p => G.PRESETS[p].scale === 1), 'no tier turns the auto render scale on: it is the player\'s option (G551)');
+  ok(Object.keys(G.PRESETS).every(p => G.PRESETS[p].scale !== 'auto'), 'no tier turns the auto render scale on: it is the player\'s option (G551)');
   ok(G.OPTIONS.find(o => o.k === 'scale').steps.some(st => st.v === 'auto'), 'the auto render scale is in the menu');
   ok(typeof G.autoTier === 'undefined', 'no first-launch tier probe (G551: start in standard, no wait)');
 }
@@ -89,7 +90,7 @@ console.log('GATE GFX');
   ok(w.GFX.get().preset === 'gamer', 'no pref boots on gamer (the default tier)');
   const w2 = boot({ 'flydiy.gfx': '{not json' });
   ok(w2.GFX.get().preset === 'gamer', 'a corrupt pref boots on gamer');
-  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 3, aa: 'nope', density: 5 }) });   // a current pref (pv 2) with values no step has
+  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 4, aa: 'nope', density: 5 }) });   // a current pref (pv 2) with values no step has
   ok(w3.GFX.get().aa === 'msaa' && w3.GFX.get().density === 128, 'unknown steps in the pref fall back to gamer’s');
 }
 // 3 + 4. applying, and custom
