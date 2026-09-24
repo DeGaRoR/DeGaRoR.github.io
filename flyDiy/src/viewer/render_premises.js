@@ -1261,7 +1261,9 @@ function make(THREE, scene, world, rec0, opts) {
     cl.far = far; cl.mesh.visible = far;
     for (const g of cl.houses) {
       const D = detailOf(g); g.userData.far = far;
-      for (const m of D.plain) m.visible = !far;
+      // every bag goes, glass and lit too (G560): from the airfield, 9 km off, the town's 641 houses still drew
+      // ~1 500 window bags a few hundredths of a pixel wide
+      for (const m of g.children) if (m.isMesh) m.visible = !far;
       if (!far) { D.on = true; D.on2 = true; }   // the per-house cuts re-decide from full
     }
   }
