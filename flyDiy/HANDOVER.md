@@ -59131,3 +59131,24 @@ roll-out's compile step 208 s. Now one straight triplet inlined once, the candid
 terrain type (near, far) - NO loop inside the candidate loop (a nested loop of sets drew the ground 1.5-2x slower on
 the GPU). Compile step 208.6 -> 33.6 s cold; the frame and the picture unchanged (same-page A/B, 3 heights).
 splat_ground.js sMatPass / sTriplet; GATE SPLAT 3 (call sites, no loop in the chain). futureDesigns/PERF-2026-09-23.md G568.
+
+## G570 - THE PREMISES DRAW AGAIN: PREM_NEAR was read in its TDZ (2026-09-24)
+
+G562 declared `const PREM_NEAR = 3000` next to worldUpdate, ~300 lines BELOW the premises block that reads it, and
+that block runs inline in buildWorldScene. Every boot since 681d799 threw `ReferenceError: Cannot access 'PREM_NEAR'
+before initialization` at `drainNear`, and the block's own catch printed it as `premises: the record did not render`.
+make + rebuild had already run, so the rig still had a premises (roads, patch, trams, traffic, animals), but the boot
+built NOTHING from the queue (houses, site objects, lamps, parked aeroplanes: 0; queued 695) and skipped the
+patch's ground re-sink (refreshGround(patchBounds), G434.1). The fix moves the declaration above the block.
+Headless roll-out of dev.html (Chromium/SwiftShader, jolene, 90 s after the press): HEAD 0 houses, 695 queued, the
+warning; fixed 84 houses (986 836 tris), 39 lamps, 42 objects, 20 obstacles, 569 queued, no premises line.
+(That rig never reaches the flight loop - worldUpdate is called 0 times in 115 frames - so the far stream could
+not be watched there, either way.)
+GATE WORLDRENDER (the only gate that runs buildWorldScene; UISMOKE stubs it) now hands the builder a premises
+record and a stub RENDER_PREMISES through a `window` that answers only the premises' two names and drops every write,
+and asserts make (game) > rebuild > drainNear(0, 0, 3000), no `premises:` warning, and WF.premises being what make
+returned. Red on 681d799..78fd4b1's source with the exact message, green with the fix. The sandbox now also injects
+sitePattern, sitePatternIssues and patternPath (the premises' `site` needs them).
+OWED: G563-G566's numbers were taken on commits that all carry this bug. Measured "settled" in the game, the
+per-frame stream would have built the queue by then (step() does not depend on drainNear), but in RECORD order, not
+nearest-first (drainNear is what sorts it), and the ground under the patch was never re-sunk. Re-take the over-the-field / stand / town numbers on a GPU.

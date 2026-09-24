@@ -238,6 +238,26 @@ const renderer = {
   render() { GLCALLS.render++; },
 };
 let WF;
+// THE PREMISES DOOR (G570). The game's premises block runs INLINE in buildWorldScene and swallows its own
+// throw into a console.warn ("premises: the record did not render") - so G562 read PREM_NEAR in its TDZ (the
+// const stood 300 lines further down, by worldUpdate) and the game drew no house, road, site or parked
+// aeroplane while every gate stayed green: nothing here handed the builder a premises. Now the world carries
+// a record and a stub RENDER_PREMISES that logs what the boot asks of it. `window` is handed to the builder
+// as a view that answers ONLY the premises' two names and drops every write, so every other
+// `typeof window !== 'undefined' && window.X` path reads exactly as it did with no window at all.
+const PREM = { calls: [], warns: [] };
+const premStub = {
+  stats: { queued: 0 },
+  rebuild() { PREM.calls.push(['rebuild']); },
+  drainNear(x, z, r) { PREM.calls.push(['drainNear', x, z, r]); },
+};
+const PREM_WINDOW = new Proxy({}, {
+  get: (o, k) => k === 'RENDER_PREMISES' ? { make(T, sc, w, rec, opts) { PREM.calls.push(['make', !!(opts && opts.game)]); return premStub; } }
+               : k === 'PREMISES_HOST_OPEN' ? false : undefined,
+  set: () => true,
+});
+const warn0 = console.warn;
+console.warn = (...a) => { if (/^premises:/.test(String(a[0]))) PREM.warns.push(a.map(x => String(x && x.message || x)).join(' ')); return warn0.apply(console, a); };
 try {
   // THE SITE IS INJECTED, the hangar and the texture payload are NOT (G123).
   // render_world.js reads the base aerodrome out of src/core/25_airfield.js —
@@ -251,15 +271,31 @@ try {
   // flat-colour paving fallback — which is exactly the half of that code a
   // headless gate can cover.
   const SITE_ARGS = ['AIRFIELD_SITE', 'AIRFIELD_SITES', 'siteOf',
-                   'siteRunway', 'siteMarkers', 'sitePaintStrip'];
-  const factory = new Function('THREE', 'document', ...SITE_ARGS,
+                   'siteRunway', 'siteMarkers', 'sitePaintStrip',
+                   'sitePattern', 'sitePatternIssues', 'patternPath'];   // the premises' site (G570)
+  const factory = new Function('THREE', 'document', 'window', ...SITE_ARGS,
                                src + '\nreturn buildWorldScene;');
-  WF = factory(THREE, global.document, ...SITE_ARGS.map(k => CORE[k]))
-       (scene, makeWorld(), renderer, camera);
+  const world = makeWorld();
+  world.premises = { rec: {} };   // a record: the block's guard opens (G570)
+  WF = factory(THREE, global.document, PREM_WINDOW, ...SITE_ARGS.map(k => CORE[k]))
+       (scene, world, renderer, camera);
 } catch (e) {
   console.log('world build threw:\n' + (e.stack || e).toString().split('\n').slice(0, 5).join('\n'));
   console.log('GATE WORLDRENDER: FAIL');
   process.exit(1);
+}
+console.warn = warn0;
+// the boot made the premises, rebuilt it and drained the near ring at PREM_NEAR (3 km; G562), and said nothing
+{
+  const seq = PREM.calls.map(c => c[0]).join(' > '), dn = PREM.calls.find(c => c[0] === 'drainNear');
+  console.log(`premises door: ${seq || 'never opened'}${dn ? ' (' + dn.slice(1).join(', ') + ')' : ''} | warnings ${PREM.warns.length}`);
+  const bad = [];
+  if (PREM.warns.length) bad.push('the premises block warned: ' + PREM.warns.join(' / '));
+  if (seq !== 'make > rebuild > drainNear') bad.push('the boot did not run make > rebuild > drainNear (got: ' + (seq || 'nothing') + ')');
+  if (PREM.calls[0] && PREM.calls[0][1] !== true) bad.push('the premises was not made for the game (opts.game)');
+  if (dn && !(dn[1] === 0 && dn[2] === 0 && dn[3] > 0)) bad.push('drainNear was not asked for a ring round the field: ' + dn.slice(1).join(', '));
+  if (WF.premises !== premStub) bad.push('the rig does not hand back the premises it made (WF.premises)');
+  if (bad.length) { console.log(bad.join('\n')); console.log('GATE WORLDRENDER: FAIL'); process.exit(1); }
 }
 // THE HANDLE ITSELF (G498.2). The rig's return object is the one place a typo costs
 // nothing visible: the scene is already in the graph by then, so a throw HERE leaves a
