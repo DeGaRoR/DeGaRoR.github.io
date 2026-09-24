@@ -27,6 +27,8 @@
 //   6  the material dupe: a pooled material's copy keeps its hook, defines
 //      and per-finish uniforms, takes the block, and leaves the original's
 //      userData untouched
+//   8  the far levels baked (G569): the unwrap, the cut per chart, the dilation,
+//      the bake hook, and L1 / L2 / L3 each ONE mesh on ONE material
 //   7  the fixture: every aircraft object in island_jolene.json names an
 //      archetype the design table declares and stands inside a flatten
 //
@@ -334,6 +336,83 @@ async function paneLevels() {
   } finally { delete W.AEROSKIN; }
 }
 
+// ---- 8 the far levels baked (G569) ------------------------------------------------------------
+// The GPU bake itself needs a page; the rest is pure and proven here: the unwrap (every triangle
+// counter-clockwise in the atlas, inside it, its chart's box clear of every other box), the cut on
+// the unwrapped mesh (a triangle never straddles two charts), the dilation (no texel left unwritten),
+// the bake hook's splices, and the assembly - L1, L2 and L3 each ONE mesh on ONE shared material,
+// standing on the same ground as L0.
+async function bakedRungs() {
+  const vis = synthVis('tail');
+  const rec = record('baked', vis);
+  const ext = PK.exteriorMesh(rec);
+  const uw = PK.unwrap(ext, { S: 256, gutter: 1 });
+  if (!check(!!uw, '8 the synthetic exterior unwraps')) return;
+  check(uw.nt === ext.nt && uw.idx.length === ext.nt * 3 && uw.cornerUV.length === ext.nt * 6, '8 the unwrap keeps every triangle', uw.nt + ' vs ' + ext.nt);
+  check(uw.nv < ext.pos.length / 3, '8 the soup is welded within a chart', uw.nv + ' wedges of ' + ext.pos.length / 3);
+  let bad = 0, out = 0;
+  for (let t = 0; t < uw.nt; t++) {
+    const a = uw.idx[t * 3], b = uw.idx[t * 3 + 1], c = uw.idx[t * 3 + 2];
+    const s = (uw.uv[b * 2] - uw.uv[a * 2]) * (uw.uv[c * 2 + 1] - uw.uv[a * 2 + 1]) - (uw.uv[b * 2 + 1] - uw.uv[a * 2 + 1]) * (uw.uv[c * 2] - uw.uv[a * 2]);
+    if (s < -1e-9) bad++;
+  }
+  for (let i = 0; i < uw.uv.length; i++) if (!(uw.uv[i] >= 0 && uw.uv[i] <= 1)) out++;
+  check(bad === 0, '8 every triangle is counter-clockwise in the atlas (the bake sees its front)', String(bad));
+  check(out === 0, '8 every uv inside the atlas', String(out));
+  const R = uw.rects, S = uw.S, G = uw.gutter, s = uw.density;
+  const box = r => [r.x, r.y, r.x + Math.max(1, Math.ceil(r.w * s)) + 2 * G, r.y + Math.max(1, Math.ceil(r.h * s)) + 2 * G];
+  let over = 0, outside = 0;
+  for (let i = 0; i < R.length; i++) { const A = box(R[i]); if (A[2] > S || A[3] > S) outside++;
+    for (let j = i + 1; j < R.length; j++) { const B = box(R[j]); if (A[0] < B[2] && B[0] < A[2] && A[1] < B[3] && B[1] < A[3]) over++; } }
+  check(over === 0 && outside === 0, '8 the chart boxes are disjoint and inside the atlas', over + ' overlaps, ' + outside + ' outside');
+  check(uw.charts >= 6 && uw.fill > 0.2, '8 the boxes chart by facing and fill the atlas', uw.charts + ' charts, fill ' + uw.fill.toFixed(2));
+  // the cut on the unwrapped mesh, as the Worker runs it: a chart border is a seam it keeps
+  const wChart = new Int32Array(uw.nv); R.forEach((r, i) => { for (let w = r.w0; w < r.w1; w++) wChart[w] = i; });
+  const bb = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < uw.nv; i++) for (let a = 0; a < 3; a++) { bb[a] = Math.min(bb[a], uw.pos[i * 3 + a]); bb[a + 3] = Math.max(bb[a + 3], uw.pos[i * 3 + a]); }
+  const q = new Int16Array(uw.nv * 3), n8 = new Int8Array(uw.nv * 3);
+  for (let i = 0; i < uw.nv; i++) for (let a = 0; a < 3; a++) { q[i * 3 + a] = Math.round((uw.pos[i * 3 + a] - bb[a]) * 65535 / (bb[a + 3] - bb[a])) - 32768; n8[i * 3 + a] = Math.round(uw.nrm[i * 3 + a] * 127); }
+  const cut = CORE.meshDecimate({ nv: uw.nv, nt: uw.nt, pos: q, nrm: n8, idx: uw.idx.slice() }, bb, Math.round(uw.nt / 3), { W_SEAM: PK.BAKE.seam });
+  let straddle = 0;
+  for (let t = 0; t < cut.nt; t++) { const a = wChart[cut.idx[t * 3]]; if (a !== wChart[cut.idx[t * 3 + 1]] || a !== wChart[cut.idx[t * 3 + 2]]) straddle++; }
+  check(cut.nt < uw.nt && straddle === 0, '8 the cut keeps every triangle inside one chart', cut.nt + ' of ' + uw.nt + ', ' + straddle + ' straddle');
+  // the dilation
+  const A = new Uint8Array(8 * 8 * 4), B = new Uint8Array(8 * 8 * 4);
+  A[(3 * 8 + 3) * 4] = 200; A[(3 * 8 + 3) * 4 + 3] = 255; B[(3 * 8 + 3) * 4 + 1] = 77;
+  const cov = PK.dilate([A, B], 8);
+  let unw = 0; for (let i = 0; i < 64; i++) if (A[i * 4 + 3] !== 255 || A[i * 4] !== 200 || B[i * 4 + 1] !== 77) unw++;
+  check(near(cov, 1 / 64, 1e-9) && unw === 0, '8 every unwritten texel takes its nearest written one', 'cov ' + cov + ', ' + unw + ' left');
+  // the bake hook: the source hook first, the atlas position and the outputs spliced at the end
+  const src = function (sh) { sh.fragmentShader = sh.fragmentShader.replace('//x', '//src'); };
+  const hk = PK.bakeHook(src);
+  check(hk === PK.bakeHook(src) && String(hk) !== String(src) && String(hk).indexOf(String(src)) >= 0, '8 one bake twin per source hook, keyed apart from it');
+  const sh = { uniforms: {}, vertexShader: 'void main() {\n  gl_Position = vec4(0.0);\n}', fragmentShader: 'void main() {\n  //x\n}' };
+  hk.call({ userData: { parkedBakeGlass: 0.12 } }, sh);
+  check(/gl_Position = vec4\(aBakeUv \* 2\.0 - 1\.0/.test(sh.vertexShader) && sh.vertexShader.lastIndexOf('aBakeUv') > sh.vertexShader.indexOf('gl_Position = vec4(0.0)'), '8 the vertex lands at its atlas texel after the flown projection');
+  check(/\/\/src/.test(sh.fragmentShader) && /uBakeOut/.test(sh.fragmentShader) && sh.uniforms.uBakeOut && near(sh.uniforms.uBakeGlass.value, 0.12, 1e-9), '8 the fragment runs the flown hook, then writes the bake');
+  // the assembly: a stand-in renderer so build takes the baked door, the record's bake in hand
+  const lvl = o => ({ pos: o.pos, nrm: o.nrm, uv: o.uv, idx: o.idx });
+  const small = { pos: uw.pos, nrm: new Int8Array(Array.from(uw.nrm, v => Math.round(v * 127))), uv: uw.uv, idx: new Uint32Array(cut.idx) };
+  const T = () => new Uint8Array(S * S * 4).fill(255);
+  rec.baked = PK.bakedFrom(THREE, { S, tex: [T(), T(), T()], cc: false, ccR: 0.1,
+    L: [lvl({ pos: uw.pos, nrm: small.nrm, uv: uw.uv, idx: uw.idx }), small, small] });
+  PK.renderer = { isWebGLRenderer: true, readRenderTargetPixels() {} };
+  try {
+    const grp = new THREE.Group(); grp.position.set(3, 1, 2); grp.rotation.y = -0.4;
+    const lod = PK.build(THREE, rec, grp);
+    const meshes = L => { const m = []; lod.levels[L].object.traverse(o => { if (o.isMesh) m.push(o); }); return m; };
+    for (const L of [1, 2, 3]) check(meshes(L).length === 1, '8 L' + L + ' is ONE draw', String(meshes(L).length));
+    const mats = new Set([1, 2, 3].map(L => meshes(L)[0] && meshes(L)[0].material));
+    const m = [...mats][0];
+    check(mats.size === 1 && m.map && m.normalMap && m.normalMapType === THREE.ObjectSpaceNormalMap && m.roughnessMap === m.metalnessMap, '8 ...on ONE standard material: the atlas, an object-space normal, roughness / metalness');
+    check(meshes(0).length > 3, '8 L0 is left as it was', String(meshes(0).length));
+    grp.updateWorldMatrix(true, true);
+    const v = new THREE.Vector3(), low = [];
+    for (const L of [0, 1]) { let lo = Infinity; lod.levels[L].object.traverse(o => { if (!o.isMesh) return; const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); lo = Math.min(lo, v.y); } }); low.push(lo); }
+    check(near(low[0], low[1], 1e-4), '8 the baked rung stands where the full one does', low.join(' vs '));
+  } finally { PK.renderer = null; }
+}
+
 // ---- 7 the fixture ------------------------------------------------------------------------------
 {
   const fx = path.join(TOOLS, 'fixtures', 'island_jolene.json');
@@ -355,7 +434,8 @@ async function paneLevels() {
 }
 
 farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || String(e)))
-  .then(() => paneLevels().catch(e => check(false, '6c the pane levels threw', e && e.stack || String(e)))).then(() => {
+  .then(() => paneLevels().catch(e => check(false, '6c the pane levels threw', e && e.stack || String(e))))
+  .then(() => bakedRungs().catch(e => check(false, '8 the baked rungs threw', e && e.stack || String(e)))).then(() => {
   if (fail.length) {
     for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
     if (fail.length > 30) console.log('  ... ' + (fail.length - 30) + ' more');
