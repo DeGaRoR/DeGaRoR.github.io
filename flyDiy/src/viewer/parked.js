@@ -722,7 +722,7 @@ self.onmessage = function (e) {
       models.push(level);
       return flip;
     };
-    const L0 = frame(levelMeshes(THREE, rec, matFor, true)), L1 = frame(levelMeshes(THREE, rec, matFor, false));
+    const L0 = frame(mergeLevel(THREE, levelMeshes(THREE, rec, matFor, true))), L1 = frame(mergeLevel(THREE, levelMeshes(THREE, rec, matFor, false)));
     lod.addLevel(L0, 0);
     lod.addLevel(L1, LEVELS.L1);
     // the far rungs stand in as L1 until the cut lands (a clone shares geometry and materials)
@@ -753,6 +753,55 @@ self.onmessage = function (e) {
       lod.userData.craftInv = block ? block.uCraftInv : null;
     }
     return lod;
+  }
+  // A PARKED LEVEL MERGED BY MATERIAL (G565): five parked aeroplanes by the stand drew ~1 000 times (213 meshes at L0,
+  // 114 at L1, a part each) for 117 / 74 materials. A parked aeroplane never moves, so a level's meshes that share a
+  // material (and its render flags and attribute set) become one mesh in the level's frame - the look is the same:
+  // the shaders read craft space through uCraftInv, which the level's frame keeps.
+  function mergeLevel(THREE, level) {
+    level.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(level.matrixWorld).invert(), rel = new THREE.Matrix4(), nm = new THREE.Matrix3();
+    const groups = new Map();
+    level.traverse(m => {
+      if (!m.isMesh || m.isSkinnedMesh || m.isInstancedMesh || Array.isArray(m.material) || !m.geometry || !m.geometry.index) return;
+      const g = m.geometry; if (g.morphAttributes && Object.keys(g.morphAttributes).length) return;
+      const at = Object.keys(g.attributes).sort();
+      if (at.some(k => g.attributes[k].isInterleavedBufferAttribute)) return;
+      const key = m.material.uuid + '|' + m.renderOrder + '|' + m.castShadow + m.receiveShadow + m.visible + '|' + (m.customDepthMaterial ? m.customDepthMaterial.uuid : '') + '|' +
+        at.map(k => k + ':' + g.attributes[k].itemSize + g.attributes[k].array.constructor.name + g.attributes[k].normalized).join(',');
+      let l = groups.get(key); if (!l) groups.set(key, l = []); l.push(m);
+    });
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      const g0 = list[0].geometry, names = Object.keys(g0.attributes);
+      let nV = 0, nI = 0; for (const m of list) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
+      const arrays = {}; for (const k of names) arrays[k] = new g0.attributes[k].array.constructor(nV * g0.attributes[k].itemSize);
+      const idx = new Uint32Array(nI); let vo = 0, io = 0;
+      for (const m of list) {
+        const g = m.geometry, n = g.attributes.position.count;
+        rel.multiplyMatrices(inv, m.matrixWorld); nm.getNormalMatrix(rel); const e = rel.elements, q = nm.elements;
+        for (const k of names) {
+          const A = g.attributes[k].array, D = arrays[k], sz = g.attributes[k].itemSize;
+          if (k === 'position') for (let i = 0; i < n; i++) { const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2], o = (vo + i) * 3;
+            D[o] = e[0] * x + e[4] * y + e[8] * z + e[12]; D[o + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; D[o + 2] = e[2] * x + e[6] * y + e[10] * z + e[14]; }
+          else if (k === 'normal') for (let i = 0; i < n; i++) { const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2], o = (vo + i) * 3;
+            const X = q[0] * x + q[3] * y + q[6] * z, Y = q[1] * x + q[4] * y + q[7] * z, Z = q[2] * x + q[5] * y + q[8] * z, L = Math.hypot(X, Y, Z) || 1; D[o] = X / L; D[o + 1] = Y / L; D[o + 2] = Z / L; }
+          else D.set(A.subarray(0, n * sz), vo * sz);
+        }
+        const ix = g.index.array; for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
+        vo += n; io += g.index.count;
+      }
+      const out = new THREE.BufferGeometry();
+      for (const k of names) out.setAttribute(k, new THREE.BufferAttribute(arrays[k], g0.attributes[k].itemSize, g0.attributes[k].normalized));
+      out.setIndex(new THREE.BufferAttribute(idx, 1)); out.computeBoundingSphere();
+      const m0 = list[0], mesh = new THREE.Mesh(out, m0.material);
+      mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.visible = m0.visible;
+      if (m0.customDepthMaterial) mesh.customDepthMaterial = m0.customDepthMaterial;
+      mesh.name = 'parked:merged';
+      for (const m of list) if (m.parent) m.parent.remove(m);
+      level.add(mesh);
+    }
+    return level;
   }
   // stand one at (x, y, z) turned by yaw (rotation.y); returns the group at once
   // — filled now when the key is captured, or when its capture lands
