@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 91766c6e03941ef5
+// body-sha256: d1a1f438ba125e71
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6202,7 +6202,7 @@ function hangarWants(S) {
 //                     fold test, the back-in loop, the riparian rule kept
 //   the forest (v1)   planForest — planTrees' wood layer (a jittered grid, a
 //                     clearing noise, the keep-outs) inside a forest zone
-//   the index         256 m cells keyed by string (treesNear's idiom) so the
+//   the index         256 m cells keyed by number (treesNear's idiom) so the
 //                     hot path is one Map.get and AABB rejects
 //   compose           the overlay a world composes at its terrainH seam:
 //                     terrainH(x, z, h) / surfaceAt / excludeAt / inExtent,
@@ -6448,10 +6448,15 @@ function polyRoad(pts0, w) {
   const pts = roadFillet(pts0, w);
   const s = [0];
   for (let i = 1; i < pts.length; i++) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  // the first i >= 1 whose arclength reaches t (the last if none): a bisection over the running sum,
+  // which never decreases - the linear walk it replaced made roadInPoly's 2 m sampling a square
+  // (2026-09-24); a sum that is not finite keeps the walk, whose stop at a NaN is its own
+  const bisect = isFinite(s[s.length - 1]);
   const at = t => {
     t = clamp(t, 0, s[s.length - 1]);
     let i = 1;
-    while (i < s.length - 1 && s[i] < t) i++;
+    if (bisect) { let hi = s.length - 1; while (i < hi) { const m = (i + hi) >> 1; if (s[m] < t) i = m + 1; else hi = m; } }
+    else while (i < s.length - 1 && s[i] < t) i++;
     const u = (t - s[i - 1]) / Math.max(1e-6, s[i] - s[i - 1]);
     const p = [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * u, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * u];
     const d = [pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]];
@@ -6578,19 +6583,28 @@ function makeModifier(m, y0) {
     // to the scan: a segment within reach of the point is always in the
     // list, one beyond it weighs nothing whether it is scanned or not, and
     // the list keeps the polyline's order so ties resolve to the same index.
-    const reach = hw + fall, CS = Math.max(64, 2 * reach), cells = new Map();
-    const ck = (i, j) => i + ',' + j;
+    // THE CELLS ARE THE REACH, THE KEYS NUMBERS (the boot's house build, 2026-09-24).
+    // At 64 m a town query still scanned ~15-25 segments of every road near it and
+    // built a string key per road per query - 18 s of Metlakatla's roll-out, the
+    // fences' AO and the lots' ground asking for the composed height. Cells of
+    // `reach` counted from the bbox's corner hold every segment within reach of a
+    // point in them (the same test, finer), in the polyline's order, so the scan
+    // is the same scan over a shorter list and the answer bit-identical.
+    const reach = hw + fall, CS = Math.max(4, reach), cells = new Map();
+    const NZ = Math.floor((bbox.z1 - bbox.z0) / CS) + 3;
+    const ck = (i, j) => (i + 1) * NZ + (j + 1);
+    const cx = x => Math.floor((x - bbox.x0) / CS), cz = z => Math.floor((z - bbox.z0) / CS);
     for (let i = 0; i + 1 < pts.length; i++) {
       const a = pts[i], b = pts[i + 1];
-      const i0 = Math.floor((Math.min(a[0], b[0]) - reach) / CS), i1 = Math.floor((Math.max(a[0], b[0]) + reach) / CS);
-      const j0 = Math.floor((Math.min(a[1], b[1]) - reach) / CS), j1 = Math.floor((Math.max(a[1], b[1]) + reach) / CS);
+      const i0 = cx(Math.min(a[0], b[0]) - reach), i1 = cx(Math.max(a[0], b[0]) + reach);
+      const j0 = cz(Math.min(a[1], b[1]) - reach), j1 = cz(Math.max(a[1], b[1]) + reach);
       for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) {
         const k = ck(ci, cj); let l = cells.get(k); if (!l) { l = []; cells.set(k, l); } l.push(i);
       }
     }
     return { id: m.id, kind: 'grade', bbox, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
-      const list = cells.get(ck(Math.floor(x / CS), Math.floor(z / CS)));
+      const list = cells.get(ck(cx(x), cz(z)));
       if (!list) return h;
       let best = Infinity, ty = 0;
       for (let n = 0; n < list.length; n++) {
@@ -6612,7 +6626,8 @@ function makeModifier(m, y0) {
 // ---------------------------------------------------------------------------
 function SpatialIndex(cell) {
   const C = cell || 256, cells = new Map();
-  const key = (i, j) => i + ',' + j;
+  // a number, not a string (2026-09-24: the composed ground asks this per height query); unique while |j| < 2^16 cells
+  const key = (i, j) => (j < 65536 && j > -65536) ? i * 131072 + j : i + ',' + j;
   return {
     add(bbox, item) {
       const i0 = Math.floor(bbox.x0 / C), i1 = Math.floor(bbox.x1 / C), j0 = Math.floor(bbox.z0 / C), j1 = Math.floor(bbox.z1 / C);
@@ -6713,12 +6728,27 @@ function sowPlots(zone, roads, ctx) {
   // at Metlakatla 166 of 510 plots overlapped another road, up to 3.1 m inside the
   // carriageway, and a house stands where its plot is. The margin is half a metre
   // over the kerb - a garden may touch the road it fronts and may not touch another.
+  // Each road's fillet is made once and boxed (2026-09-24: this test re-filleted and
+  // 2 m-sampled every road of the record for every candidate plot, 2.7 s a compose at
+  // Metlakatla): a plot whose box stays clear of a road's box grown by `half` has no
+  // corner within `half` of it and no sample of it inside, so the road is skipped
+  // with the answer the two tests would have given.
+  const boxed = roads.map(rd => {
+    const pr = polyRoad(rd.pts, rd.w || 3.6), half = (rd.w || 3.6) / 2 + 0.5;
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const p of rd.pts.concat(pr.pts)) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+    const m = half + 1e-3;
+    return { rd, pr, half, x0: x0 - m, z0: z0 - m, x1: x1 + m, z1: z1 + m };
+  });
   const onOtherRoad = (q, own) => {
-    for (const rd of roads) {
+    let qx0 = Infinity, qz0 = Infinity, qx1 = -Infinity, qz1 = -Infinity;
+    for (const c of q) { qx0 = Math.min(qx0, c[0]); qx1 = Math.max(qx1, c[0]); qz0 = Math.min(qz0, c[1]); qz1 = Math.max(qz1, c[1]); }
+    for (const B of boxed) {
+      const rd = B.rd;
       if (rd.id === own) continue;
-      const half = (rd.w || 3.6) / 2 + 0.5;
-      if (q.some(c => roadDist(rd, c[0], c[1]) < half)) return true;
-      if (roadInPoly(polyRoad(rd.pts, rd.w || 3.6), q).length) return true;   // it runs THROUGH the plot
+      if (qx1 < B.x0 || qx0 > B.x1 || qz1 < B.z0 || qz0 > B.z1) continue;
+      if (q.some(c => roadDist(rd, c[0], c[1]) < B.half)) return true;
+      if (roadInPoly(B.pr, q).length) return true;   // it runs THROUGH the plot
     }
     return false;
   };
