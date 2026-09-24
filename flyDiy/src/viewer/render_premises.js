@@ -1819,6 +1819,25 @@ function make(THREE, scene, world, rec0, opts) {
     const props = []; grp.traverse(x => { if (x.isLOD && x !== grp) { for (let p = x.parent; p && p !== grp; p = p.parent) if (p.isLOD) return; props.push(x); } });
     grp.userData.props = props; if (grp.userData.propsOn === undefined) grp.userData.propsOn = true;
   }
+  // THE BOOT BUILDS WHAT IS NEAR (G562, the user: "keep loading assets as we go ... that's how MSFS does it"): the
+  // queue is sorted by distance from (cx, cz) and built while the next entry stands within R; the rest waits, nearest
+  // first, for the game's own step (render_world: one every third frame). Metlakatla's 641 houses were 38 s of the
+  // roll-out's screen.
+  function posOf(p) {
+    const r = p.rec || p; let x = r.x, z = r.z;
+    if (!isFinite(x) && r.at) { x = r.at.x; z = r.at.z; }
+    if (!isFinite(x) && r.c) { x = r.c[0]; z = r.c[1]; }
+    const poly = r.poly || r.pts;
+    if (!isFinite(x) && poly && poly.length) { x = 0; z = 0; for (const q of poly) { x += Array.isArray(q) ? q[0] : q.x; z += Array.isArray(q) ? q[1] : q.z; } x /= poly.length; z /= poly.length; }
+    return isFinite(x) && isFinite(z) ? O.frame.toWorld(x, z) : null;
+  }
+  function drainNear(cx, cz, R) {
+    const d = p => { if (p._d === undefined) { const w = posOf(p); p._d = w ? Math.hypot(w[0] - cx, w[1] - cz) : 0; } return p._d; };
+    for (const p of queue) p._d = undefined;
+    queue.sort((a, b) => d(a) - d(b));
+    while (queue.length && d(queue[0]) <= R) step(1);
+    return queue.length;
+  }
   function step(n) {
     let built = 0;
     while (queue.length && built < (n || 2)) {
@@ -2058,6 +2077,7 @@ function make(THREE, scene, world, rec0, opts) {
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
     patchBounds: () => (patch ? extentWorld() : null),
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
+    drainNear,
     detail: DETAIL, hlod: HLOD,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },

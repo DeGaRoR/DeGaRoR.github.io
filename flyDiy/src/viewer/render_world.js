@@ -4614,14 +4614,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // and every chunk inside FILL_ACT its complement. While the payload is
       // still pending it does no walking (the cones would be evicted when the
       // trees land); a failed payload is 'fallback' and the cones are the ring.
-      const ringReady = cg => {
-        const R = Math.ceil(R_ACT / CH);
+      // reach (G562): the roll-out waits for the ring within `reach` only - the streamer grows the rest in the game,
+      // nearest first (the user: "keep loading assets as we go ... that's how MSFS does it")
+      const ringReady = (cg, reach) => {
+        const RA = Math.min(R_ACT, reach || R_ACT), R = Math.ceil(RA / CH);
         const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
         for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
           const cx = ccx + dx, cz = ccz + dz;
           const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
           const dd = mx2 * mx2 + mz2 * mz2;
-          if (dd > R_ACT * R_ACT) continue;
+          if (dd > RA * RA) continue;
           { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
             if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
           const c2 = chunks.get(keyOf(cx, cz));
@@ -4637,7 +4639,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (TREE_STATE.v === 'pending') return Object.assign({ phase: 'trees', done: false, trees: 'pending' }, ringStat());
         tick = 0;                          // a maintenance pass every tick under the screen
         fillStep(cg, budget);
-        const done = ringReady(cg);
+        const done = ringReady(cg, o && o.reach);
         return Object.assign({ phase: done ? 'done' : 'ring', done, trees: TREE_STATE.v }, ringStat());
       };
       fillApi = { prewarm, ringReady, ringStat, treeState: () => TREE_STATE.v };   // after the consts: no dead zone
@@ -5193,7 +5195,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
       });
       premisesR.rebuild();
-      while (premisesR.stats.queued) premisesR.step(4);
+      if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4);   // G562: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
       if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) refreshGround(pb); }   // refreshGround re-sinks the far tier itself (G527)
     } catch (e) { console.warn('premises: the record did not render', e); }
@@ -5499,9 +5501,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
     if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
   }
-  let premTramLast = 0;
+  let premTramLast = 0, premStreamTick = 0;
+  const PREM_NEAR = 3000;   // G562: the boot builds the premises within 3 km of the field; the rest streams in
   function worldUpdate(cg) {
-    if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
+    if (premisesR && premisesR.stats.queued && (++premStreamTick % 3 === 0 || (premisesR.editing && premisesR.editing()))) premisesR.step(1);   // a live edit's builds, and the far premises streamed in (G562): one every third frame
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave

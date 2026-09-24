@@ -6318,7 +6318,9 @@
       if (!WF || !WF.treeSettled || typeof renderer.compileAsync !== 'function') return;
       return Promise.race([WF.treeSettled(), new Promise(res => setTimeout(res, 15000))]);
     } });
-    // the ring: prewarm ticks of 40 ms until every chunk in reach stands
+    // the ring: prewarm ticks of 40 ms until every chunk within RING_REACH stands (G562: the forest out to 9 km was 47 s
+    // of a 100 s roll-out; past 3 km the game's own streamer grows it, nearest first, as the player flies)
+    const RING_REACH = 1500;
     steps.push({ id: 'ring', label: 'growing the forest', w: 30, fn: () => {
       if (!WF || !WF.prewarm || typeof renderer.compileAsync !== 'function') return;
       const cg = sim.cgPos();
@@ -6326,7 +6328,7 @@
       return new Promise(res => {
         let ticks = 0;
         const tick = () => {
-          let r; try { r = WF.prewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
+          let r; try { r = WF.prewarm(cg, { budgetMs: 40, reach: RING_REACH }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
           total = Math.max(total, r.live || 0);
           const doneN = (r.base || 0) + (r.fill || 0), want = doneN + (r.queued || 0);
           BOOT.phase('ring', 'growing the forest ' + doneN + ' / ' + Math.max(want, 1), want ? doneN / want : 0);
@@ -6385,8 +6387,9 @@
     if (!worldCompiled) steps.push({ id: 'compile', label: 'compiling the world', w: 20, fn: () => {
       worldCompiled = true;
       if (typeof renderer.compileAsync !== 'function' || !WF) return;
-      return compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
-        .then(() => compileDepthVariants());
+      // CAPPED (G562): a program that never reports ready held this step to its 180 s limit behind the screen
+      return Promise.race([compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
+        .then(() => compileDepthVariants()), new Promise(res => setTimeout(() => { try { window.__SLOWPROGS = (renderer.info.programs || []).filter(p => p.isReady && !p.isReady()).map(p => p.name + ' | ' + String(p.cacheKey).slice(0, 160)); } catch (e) {} res(); }, 20000))]);
     } });
     // two frames of the world rendered under the overlay: the passes, the
     // residue of programs the compile does not reach (the shadow variants)
