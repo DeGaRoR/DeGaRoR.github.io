@@ -80,7 +80,8 @@ function make(THREE, scene, world, rec0, opts) {
       if (!fresh && walk) c.traverse(o => { if (o.matrixAutoUpdate) fresh = true; });
       if (!fresh) continue;
       c.traverse(o => { o.matrixWorldAutoUpdate = true; });
-      c.updateMatrixWorld(true);
+      THREE.Object3D.prototype.updateMatrixWorld.call(c, true);
+      if (c.userData.skipWalk) { c.updateMatrixWorld = THREE.Object3D.prototype.updateMatrixWorld; c.userData.skipWalk = false; }   // fresh again: walked until settled
       c.traverse(o => { o.matrixAutoUpdate = false; o.matrixWorldAutoUpdate = false; });
       c.userData.frozen = true; n++;
       if (k === 'lots' && !c.userData.batch) lots = true;
@@ -1267,10 +1268,28 @@ function make(THREE, scene, world, rec0, opts) {
       if (!far) { D.on = true; D.on2 = true; }   // the per-house cuts re-decide from full
     }
   }
+  // THE MATRIX WALK (G561): three composes and visits every object every frame, frozen or not - ~75 000 premises
+  // objects, 21 % of the frame over the airfield. Once the boot is done (the queue empty), a thrifty house whose
+  // props have all landed (no propPending) is SETTLED and skipped by the walk; freezeStatic's periodic walk
+  // re-poses it with the prototype and walks it again if anything came in. G558's first try skipped during the
+  // boot and the renderer's heap ran to 18 GB: not during the boot.
+  const SKIP_UMW = function () {};
+  let settleAt = 0;
+  function settleTick() {
+    if (queue.length || !o.game || (o.editing && o.editing()) || ++settleAt % 30) return;
+    for (const g of G.houses.children) {
+      if (!g.userData.thrift || !g.userData.frozen || g.userData.skipWalk) continue;
+      let pending = false, fresh = false;
+      g.traverse(x => { if (x.userData && x.userData.propPending) pending = true; if (x.matrixAutoUpdate) fresh = true; });
+      if (pending || fresh) continue;
+      g.updateMatrixWorld = SKIP_UMW; g.userData.skipWalk = true;
+    }
+  }
   function detailTick() {
     const e = o.eye && o.eye(); if (!e || !o.focalPx) return;
     const K = o.focalPx();
     hlodTick(e);
+    if (HLOD.skip !== false) settleTick();
     for (const g of G.houses.children) {
       if (!g.userData.frozen || g.userData.batch) continue;   // posed (its matrixWorld is final) before its centre is read
       const D = detailOf(g);
