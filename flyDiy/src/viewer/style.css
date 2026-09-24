@@ -71,6 +71,17 @@
   }
   #bootTick { font-size:11px; line-height:1.5; letter-spacing:.04em; color:#97907f;
     min-height:1.5em; max-height:3em; overflow:hidden; }
+  /* the shaders' block (G567): the cold compile explained, with its own count */
+  #bootShader { margin-top:6px; padding:12px 14px 11px; border-radius:8px;
+    background:rgba(20,18,16,.62); border:1px solid rgba(255,248,236,.12);
+    display:flex; flex-direction:column; gap:7px; text-shadow:none; }
+  #bootShader[hidden] { display:none; }
+  #bootShaderHead { font-size:13px; font-weight:600; color:#f4efe6; }
+  #bootShaderText { font-size:11.5px; line-height:1.5; color:#c0b8ac; }
+  #bootShaderBar { height:5px; border-radius:3px; overflow:hidden; background:rgba(255,248,236,.14); }
+  #bootShaderBar i { display:block; height:100%; width:0; border-radius:3px; background:#e0b77f;
+    transition:width .3s ease; }
+  #bootShaderN { font-size:11px; letter-spacing:.04em; color:#97907f; font-variant-numeric:tabular-nums; }
   #bootNote { font-size:11.5px; line-height:1.45; color:#d8a07a; }
   #bootSkip { align-self:flex-start; margin-top:4px; padding:6px 12px; border-radius:6px;
     font:600 10.5px/1 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;

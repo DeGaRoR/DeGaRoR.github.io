@@ -18,6 +18,15 @@
     <div id="bootPhase">opening the shed</div>
     <div id="bootBar"><i></i></div>
     <div id="bootTick"></div>
+    <!-- THE SHADERS' BLOCK (G567): a COLD compile - the first launch, the first after an update, a
+         cleared browser cache - is the graphics driver's work, the one long wait the game cannot
+         shorten. boot.js's BOOT.shaders(done, total, warm) shows it, counts, and hides it. -->
+    <div id="bootShader" hidden>
+      <div id="bootShaderHead">Preparing the graphics for this computer</div>
+      <div id="bootShaderText">On the first launch, and after an update, your graphics driver compiles the game's shaders for this machine. It is done once: the next launches reuse them and start much faster.</div>
+      <div id="bootShaderBar"><i></i></div>
+      <div id="bootShaderN"></div>
+    </div>
     <div id="bootNote" hidden></div>
     <button id="bootSkip" type="button" hidden>continue anyway</button>
   </div>

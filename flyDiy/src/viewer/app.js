@@ -6391,9 +6391,11 @@
     if (!worldCompiled) steps.push({ id: 'compile', label: 'compiling the world', w: 20, fn: () => {
       worldCompiled = true;
       if (typeof renderer.compileAsync !== 'function' || !WF) return;
-      // CAPPED (G562): a program that never reports ready held this step to its 180 s limit behind the screen
-      return Promise.race([compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
-        .then(() => compileDepthVariants()), new Promise(res => setTimeout(() => { try { window.__SLOWPROGS = (renderer.info.programs || []).filter(p => p.isReady && !p.isReady()).map(p => p.name + ' | ' + String(p.cacheKey).slice(0, 160)); } catch (e) {} res(); }, 20000))]);
+      // CAPPED (G562): a program that never reports ready held this step to its 180 s limit behind the screen.
+      // G567: the cap is a STALL - 4 min without a program becoming ready (the ground's cold link is ~3.5 min)
+      // - and the wait is explained and counted on the screen (shaderProgress)
+      return shaderProgress(compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
+        .then(() => compileDepthVariants()), 'world', 240000);
     } });
     // two frames of the world rendered under the overlay: the passes, the
     // residue of programs the compile does not reach (the shadow variants)
@@ -9544,6 +9546,47 @@
     const target = (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || new THREE.WebGLRenderTarget(4, 4);
     return compilePass(helper, target).catch(e => console.warn('depth compile:', e && e.message));
   }
+  // THE SHADERS' SCREEN (G567, the user: "a dedicated loading message/screen explaining the first time
+  // compilation issue with a progress bar"). A COLD compile - the first launch, the first after an update
+  // that changed a shader, a cleared browser cache - is the graphics driver's work: ~3.5 min at the Jolene
+  // roll-out on the gamer box (the ground's six splat programs, ~200 s each under ANGLE/D3D11 - its cause and a
+  // fix in progress: futureDesigns/PERF-2026-09-23.md G567), a second or two warm. While the pass `p` is
+  // pending this polls the renderer's programs (isReady: KHR_parallel_shader_compile, never blocks):
+  // every program seen pending joins the count, the ready ones fill the overlay's shader bar (BOOT.shaders).
+  // The block shows after 1.2 s when this browser has not finished a compile of this build before
+  // at this site (localStorage SHADER_WARM + ':garage' / ':world' = FLYDIY_BUILD), after 6 s when it has (its cache was dropped): a warm compile
+  // never shows it. `stallMs`: resolve anyway when no program has become ready for that long (G562's cap was
+  // 20 s flat, and the frames step then froze the page ~3 min on the ground's link with no word; now the
+  // step waits, explained, with the count); the programs still pending then are kept in window.__SLOWPROGS.
+  const SHADER_WARM = 'flydiy.shaders.warm';
+  function shaderProgress(p, site, stallMs) {
+    if (typeof BOOT === 'undefined' || typeof BOOT.shaders !== 'function' || !renderer.info || !renderer.info.programs) return p;
+    const build = (typeof window !== 'undefined' && window.FLYDIY_BUILD) || 'dev';
+    const key = SHADER_WARM + ':' + site;
+    let warm = false; try { warm = localStorage.getItem(key) === build; } catch (e) {}
+    const t0 = performance.now(), showAt = warm ? 6000 : 1200, seen = new Set();
+    let live = true, shown = false, lastDone = -1, lastT = t0, stalled = null;
+    const stall = new Promise(res => { stalled = res; });
+    const poll = () => {
+      if (!live) return;
+      for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) seen.add(pr);
+      let done = 0; for (const pr of seen) if (pr.isReady()) done++;
+      const t = performance.now();
+      if (done !== lastDone) { lastDone = done; lastT = t; }
+      if (!shown && seen.size > done && t - t0 >= showAt) shown = true;
+      if (shown) BOOT.shaders(done, seen.size, warm);
+      if (stallMs && t - lastT > stallMs) {
+        try { window.__SLOWPROGS = [...seen].filter(pr => !pr.isReady()).map(pr => pr.name + ' | ' + String(pr.cacheKey).slice(0, 160)); } catch (e) {}
+        stalled('stall'); return;
+      }
+      setTimeout(poll, 150);
+    };
+    poll();
+    const end = v => { live = false; BOOT.shaders(null);
+      if (v !== 'stall') try { localStorage.setItem(key, build); } catch (e) {}
+      if (window.FLYDIY_LOG_COMPILE) console.log('shaders (' + site + '): ' + seen.size + ' pending programs, ' + Math.round(performance.now() - t0) + ' ms' + (v === 'stall' ? ' (stalled)' : '')); };
+    return Promise.race([Promise.resolve(p), stall]).then(v => { end(v); return v; }, e => { end(); throw e; });
+  }
   // one compile pass: every material of `sc`, keyed for `target` (null = the canvas);
   // `lit` is the scene whose lights, fog and environment the programs are keyed
   // for when `sc` is a helper that is not in it (three's targetScene)
@@ -9641,7 +9684,7 @@
     const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
     const t0 = performance.now();
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
-    return whenComplete().then(() => pass(ensureEnvRT())).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); }), 'garage'))
       .catch(e => { console.warn('boot compile:', e && e.message); done(); });
   });
   // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed

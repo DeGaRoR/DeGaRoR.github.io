@@ -59112,3 +59112,14 @@ Measured (same rig, box shared with one session; ms a frame): stand 140 -> 34, 3
 over the town 150 m 109 -> 26, 400 m 92 -> 20, 1.5 km from it 41 -> 27; the premises hidden: 13.6-18 ms. The rest is
 the premises' remaining walks and draws (roads 700, lots 660, near house bags) - next: merge the lots' sources out of
 the tree, a per-cell walk skip for the lots and trees.
+
+## G567 - THE COLD COMPILE, EXPLAINED AND COUNTED (2026-09-24)
+
+The user: "a dedicated loading message/screen explaining the first time compilation issue with a progress bar". The
+loading screen's shaders block (body.html #bootShader, boot.js BOOT.shaders(done, total, warm)): why the wait and a
+bar of the programs the driver has linked (app.js shaderProgress, renderer.info.programs isReady - never blocks). It
+shows after 1.2 s of a compile this browser has not finished for this build (localStorage flydiy.shaders.warm:garage /
+:world = FLYDIY_BUILD), after 6 s otherwise; a warm launch never shows it. Pending programs keep the watchdogs alive;
+the roll-out's cap is a 4-min stall (was 20 s flat, then the page froze ~3 min in 'frames'). THE GROUND'S COLD LINK
+(~3.5 min, the splat's 144 inlined fetches) is diagnosed in futureDesigns/PERF-2026-09-23.md G567: a loop version
+compiles in seconds but draws the ground 1.5-2x slower - not landed, the bisection is written there.
