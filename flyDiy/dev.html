@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garage Flight Sim</title>
-<link rel="stylesheet" href="src/viewer/style.css?v=358be0dd">
+<link rel="stylesheet" href="src/viewer/style.css?v=0e0824b4">
 <link rel="stylesheet" href="src/viewer/editor.css?v=510716ff">
 <link rel="stylesheet" href="src/viewer/flight.css?v=82e069d3">
 <link rel="stylesheet" href="src/viewer/controls.css?v=c73aba83">
@@ -40,11 +40,20 @@
     <div id="bootPhase">opening the shed</div>
     <div id="bootBar"><i></i></div>
     <div id="bootTick"></div>
+    <!-- THE SHADERS' BLOCK (G567): a COLD compile - the first launch, the first after an update, a
+         cleared browser cache - is the graphics driver's work, the one long wait the game cannot
+         shorten. boot.js's BOOT.shaders(done, total, warm) shows it, counts, and hides it. -->
+    <div id="bootShader" hidden>
+      <div id="bootShaderHead">Preparing the graphics for this computer</div>
+      <div id="bootShaderText">On the first launch, and after an update, your graphics driver compiles the game's shaders for this machine. It is done once: the next launches reuse them and start much faster.</div>
+      <div id="bootShaderBar"><i></i></div>
+      <div id="bootShaderN"></div>
+    </div>
     <div id="bootNote" hidden></div>
     <button id="bootSkip" type="button" hidden>continue anyway</button>
   </div>
 </div>
-<script src="src/viewer/boot.js?v=79137788"></script>
+<script src="src/viewer/boot.js?v=06e6b5a9"></script>
 <canvas id="c"></canvas>
 <!-- FLIGHT. Everything on this layer is about WATCHING AN AEROPLANE FLY,
      and none of it exists in the workshop (G86). One switch hides the lot —
@@ -722,7 +731,7 @@
 <script type="text/x-flydiy" src="src/core/65_gen_loadtest.js?v=25f6ff09"></script>
 <script type="text/x-flydiy" src="src/core/70_player.js?v=492b9918"></script>
 <script type="text/x-flydiy" src="src/core/90_node_exports.js?v=81a1f92f"></script>
-<script>window.FLYDIY_CORE_SHA='d1a1f438ba12';window.FLYDIY_BUILD='7c219c79db55'</script>
+<script>window.FLYDIY_CORE_SHA='d1a1f438ba12';window.FLYDIY_BUILD='f01aa58e9326'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -902,7 +911,7 @@
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=e5f64ca9"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=09f00685"></script>
-<script type="text/x-flydiy" src="src/viewer/app.js?v=b0feb27f"></script>
+<script type="text/x-flydiy" src="src/viewer/app.js?v=a863d268"></script>
 <script type="text/x-flydiy" src="src/viewer/dev_panel.js?v=6622e6eb"></script>
 <script>
 window.FLYDIY_BOOT.then(function () {
