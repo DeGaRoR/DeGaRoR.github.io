@@ -1167,14 +1167,110 @@ function make(THREE, scene, world, rec0, opts) {
     const list2 = cand.slice(0, Math.max(0, cand.length - DETAIL.keep2)).map(x => x[0]).filter(m => !list.includes(m));
     const big = bags.find(m => m.geometry.boundingSphere.radius === R);
     const c = new THREE.Vector3(); if (big) c.copy(big.geometry.boundingSphere.center).applyMatrix4(big.matrixWorld); else grp.getWorldPosition(c);
-    D = grp.userData.detail = { list, list2, c, R, on: true, on2: true };
+    const keep = cand.map(x => x[0]).filter(m => !list.includes(m) && !list2.includes(m));
+    D = grp.userData.detail = { list, list2, keep, plain: cand.map(x => x[0]), c, R, on: true, on2: true };
     return D;
+  }
+  // THE FAR TOWN (G559, HLOD): past HLOD.near from a 256 m cell's edge, the cell's houses are ONE mesh - each house's
+  // kept bags (walls, roof: what the second cut leaves) merged in world space with a vertex colour = the bag's
+  // material colour x its map's mean (linear), one shared plain material; their plain bags hide. Glass and lit bags
+  // stay the house's own. Built once the build queue is empty (and again if the set of houses changes).
+  const HLOD = { on: true, cell: 256, near: 150, dirt: 0.35, gain: 0.2, sig: '', cells: [], group: null };
+  const texMean = new Map(); let texCv = null;
+  function meanOf(tex) {
+    const img = tex && tex.image; if (!img || !img.width) return null;
+    if (texMean.has(img)) return texMean.get(img);
+    let c = null;
+    try {
+      if (!texCv) { texCv = document.createElement('canvas'); texCv.width = texCv.height = 4; }
+      const x = texCv.getContext('2d', { willReadFrequently: true }); x.clearRect(0, 0, 4, 4); x.drawImage(img, 0, 0, 4, 4);
+      const d = x.getImageData(0, 0, 4, 4).data; let r = 0, g = 0, b = 0;
+      for (let i = 0; i < 64; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+      c = new THREE.Color().setRGB(r / 4080, g / 4080, b / 4080, THREE.SRGBColorSpace);
+    } catch (err) { c = null; }
+    texMean.set(img, c); return c;
+  }
+  function hlodBuild() {
+    if (HLOD.group) { G.houses.remove(HLOD.group); HLOD.group.traverse(m => { if (m.geometry) m.geometry.dispose(); }); HLOD.group = null; }
+    for (const cl of HLOD.cells) cl.far = false;
+    HLOD.cells = [];
+    const byCell = new Map();
+    for (const g of G.houses.children) {
+      if (!g.userData.thrift || !g.userData.frozen) continue;
+      const D = detailOf(g); if (!D.keep.length) continue;
+      const k = Math.floor(D.c.x / HLOD.cell) + ',' + Math.floor(D.c.z / HLOD.cell);
+      let cl = byCell.get(k); if (!cl) byCell.set(k, cl = { houses: [], x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, far: false, mesh: null });
+      cl.houses.push(g); cl.x0 = Math.min(cl.x0, D.c.x - D.R); cl.x1 = Math.max(cl.x1, D.c.x + D.R); cl.z0 = Math.min(cl.z0, D.c.z - D.R); cl.z1 = Math.max(cl.z1, D.c.z + D.R);
+    }
+    const grp = new THREE.Group(); grp.name = 'houses:far'; grp.userData.batch = true;
+    const mat = HLOD.mat || (HLOD.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }));
+    const col = new THREE.Color(), paintC = new THREE.Color(), nm = new THREE.Matrix3();
+    for (const cl of byCell.values()) {
+      const bags = []; for (const g of cl.houses) for (const m of detailOf(g).keep) if (m.geometry.index) bags.push(m);
+      if (!bags.length) continue;
+      let nV = 0, nI = 0; for (const m of bags) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
+      const P = new Float32Array(nV * 3), N = new Float32Array(nV * 3), C = new Float32Array(nV * 3), I = new Uint32Array(nI);
+      let vo = 0, io = 0;
+      for (const m of bags) {
+        const g = m.geometry, A = g.attributes.position.array, AN = g.attributes.normal ? g.attributes.normal.array : null, n = g.attributes.position.count;
+        const vc = m.material.vertexColors && g.attributes.color ? g.attributes.color : null;
+        col.copy(m.material.color || col.setRGB(1, 1, 1)); const mm = meanOf(m.material.map);
+        const pt = m.material.userData && m.material.userData.paint;   // the house's paint is a uniform (uPaintCol) over a pale map
+        if (pt && pt.uPaintMode && pt.uPaintMode.value > 0 && pt.uPaintCol) { col.multiply(paintC.set(pt.uPaintCol.value)); if (mm) col.multiplyScalar(Math.min(1.2, (mm.r + mm.g + mm.b) / 1.5)); }
+        else if (mm) col.multiply(mm);
+        // the house shader weathers and dirties what the map says (uDirtOwn, the AO): measured against the drawn town
+        // from 150 m (side by side, the far town on and off), the far colour is the mean pulled a third toward the house's
+        // own dirt and taken to a fifth: the plain merged surface has no AO, no dirt line, no weathering to darken it
+        const dt = m.material.userData && m.material.userData.dirt;
+        if (dt && dt.uDirtOwn) col.lerp(paintC.set(dt.uDirtOwn.value), HLOD.dirt);
+        col.multiplyScalar(HLOD.gain);
+        const e = m.matrixWorld.elements; nm.getNormalMatrix(m.matrixWorld); const q = nm.elements;
+        for (let i = 0; i < n; i++) {
+          const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2], o3 = (vo + i) * 3;
+          P[o3] = e[0] * x + e[4] * y + e[8] * z + e[12]; P[o3 + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; P[o3 + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+          if (AN) { const a = AN[i * 3], b = AN[i * 3 + 1], c = AN[i * 3 + 2]; const X = q[0] * a + q[3] * b + q[6] * c, Y = q[1] * a + q[4] * b + q[7] * c, Z = q[2] * a + q[5] * b + q[8] * c, l = Math.hypot(X, Y, Z) || 1; N[o3] = X / l; N[o3 + 1] = Y / l; N[o3 + 2] = Z / l; } else N[o3 + 1] = 1;
+          const f = vc ? [vc.getX(i), vc.getY(i), vc.getZ(i)] : null;
+          C[o3] = col.r * (f ? f[0] : 1); C[o3 + 1] = col.g * (f ? f[1] : 1); C[o3 + 2] = col.b * (f ? f[2] : 1);
+        }
+        const ix = g.index.array; for (let i = 0; i < g.index.count; i++) I[io + i] = ix[i] + vo;
+        vo += n; io += g.index.count;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3)); geo.setAttribute('color', new THREE.BufferAttribute(C, 3));
+      geo.setIndex(new THREE.BufferAttribute(I, 1)); geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = false; mesh.receiveShadow = true; mesh.visible = false; mesh.matrixAutoUpdate = false; mesh.userData.batch = true;
+      grp.add(mesh); cl.mesh = mesh; HLOD.cells.push(cl);
+    }
+    G.houses.add(grp); HLOD.group = grp;
+    stats.hlodCells = HLOD.cells.length;
+  }
+  function hlodTick(e) {
+    if (!HLOD.on || !o.game || queue.length || (o.editing && o.editing())) {
+      if (HLOD.group) for (const cl of HLOD.cells) if (cl.far) hlodSet(cl, false);
+      return;
+    }
+    const sig = String(HOUSES.size);
+    if (sig !== HLOD.sig) { HLOD.sig = sig; hlodBuild(); }
+    for (const cl of HLOD.cells) {
+      const dx = Math.max(cl.x0 - e.x, 0, e.x - cl.x1), dz = Math.max(cl.z0 - e.z, 0, e.z - cl.z1), d = Math.hypot(dx, dz);
+      const far = d > HLOD.near * (cl.far ? 0.9 : 1.1);
+      if (far !== cl.far) hlodSet(cl, far);
+    }
+  }
+  function hlodSet(cl, far) {
+    cl.far = far; cl.mesh.visible = far;
+    for (const g of cl.houses) {
+      const D = detailOf(g); g.userData.far = far;
+      for (const m of D.plain) m.visible = !far;
+      if (!far) { D.on = true; D.on2 = true; }   // the per-house cuts re-decide from full
+    }
   }
   function detailTick() {
     const e = o.eye && o.eye(); if (!e || !o.focalPx) return;
     const K = o.focalPx();
+    hlodTick(e);
     for (const g of G.houses.children) {
-      if (!g.userData.frozen) continue;   // posed (its matrixWorld is final) before its centre is read
+      if (!g.userData.frozen || g.userData.batch) continue;   // posed (its matrixWorld is final) before its centre is read
       const D = detailOf(g);
       if (g.userData.thrift) {
         const d = e.distanceTo(D.c), on = d < HOUSE_CAST_FAR * (g.userData.castOn ? 1.1 : 0.9);
@@ -1182,7 +1278,7 @@ function make(THREE, scene, world, rec0, opts) {
         const pOn = !DETAIL.props || d < HOUSE_PROP_GONE * (g.userData.propsOn ? 1.35 : 1.15);
         if (pOn !== g.userData.propsOn) { g.userData.propsOn = pOn; for (const x of g.userData.props) x.visible = pOn; }
       }
-      if (!D.list.length && !D.list2.length) continue;
+      if (g.userData.far || (!D.list.length && !D.list2.length)) continue;
       const px = 2 * D.R * K / Math.max(1, e.distanceTo(D.c)), on = px >= DETAIL.px * (D.on ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
       if (on !== D.on) { D.on = on; for (const m of D.list) m.visible = on; }
       const on2 = !(DETAIL.px2 > 0) || px >= DETAIL.px2 * (D.on2 ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
@@ -1941,7 +2037,7 @@ function make(THREE, scene, world, rec0, opts) {
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
     patchBounds: () => (patch ? extentWorld() : null),
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
-    detail: DETAIL,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
+    detail: DETAIL, hlod: HLOD,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },
