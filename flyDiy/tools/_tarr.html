@@ -7,6 +7,8 @@
 <style>body{margin:0;background:#222;color:#ddd;font:12px monospace}canvas{display:block}</style></head><body>
 <canvas id="c" width="960" height="540"></canvas>
 <script src="../vendor/three.min.js"></script>
+<!-- the game's ATMO: its prototype accessor wraps every material's hook (G432.2) - classify must read the raw one -->
+<script src="../src/viewer/atmo.js"></script>
 <script>window.FLYDIY_ASSET_BASE = '../';</script>
 <script src="../src/viewer/house_tex.js"></script>
 <script src="../src/core/51_prop_codec.js"></script>
@@ -140,7 +142,7 @@ window.TARR_RUN = async function () {
   if (!b.ok) { await new Promise(r => { readyR = r; }); b = bake(); }
   console.log('tarr: second bake', JSON.stringify(b));
   const bakeMs = performance.now() - t0;
-  const out = { skipped, broken, bags: bags.length, bake: b, bakeMs: Math.round(bakeMs), stats: TA.stats, views: [] };
+  const out = { atmo: !!(window.ATMO && ATMO.installed), skipped, broken, bags: bags.length, bake: b, bakeMs: Math.round(bakeMs), stats: TA.stats, views: [] };
   // compile both first (the shots must not time a link)
   for (const v of VIEWS) { mode(false); shoot(v); mode(true); shoot(v); console.log('tarr: warmed', v.name); }
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H * 3; const cx = cv.getContext('2d');

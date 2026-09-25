@@ -59198,6 +59198,14 @@ a flip rebakes).
   the bake ~1 s; draws (shadow pass included) near 295 -> 8, street 342 -> 10, mid 391 -> 11, far 391 -> 11, dusk
   342 -> 10; picture mean |diff| (0-255) near 0.46 (0.28 % of pixels over 12: plank and rib edges - the 512 layers
   and the sRGB decode after the filter), street 0.18, mid 0.09, far 0.02, dusk (lit panes) 0.16.
+  The same run with atmo.js loaded (the game's prototype accessor wrapping every hook): identical numbers - classify
+  reads the raw hook through it.
+- OWED: THE GAME ITSELF, ON A GPU. tools/tarr_game.js rolls Jolene out, drains the premises' queue by hand, drives
+  R.tick and draws the same frame three ways (hlod.bake off / G566 / tarr) with the draw counts and a PNG each. In
+  this session's container (SwiftShader, no GPU) it never got there: the roll-out took ~10 min, then draining 561
+  houses ran at minutes a step and the page died (twice, ~20 min in) or stalled. So no in-game draw count and no
+  frame time yet: run `node tools/tarr_game.js --gl gpu` (or flip WORLD.premises.hlod.tarr in the F8 console over
+  Metlakatla and read renderer.info.render.calls + WORLD.premises.stats.tarr*), and met_perf.js for the frame.
 - GATE TARR (tools/_tarr_check.js, core, ~2 s): the edits on r186's own program after the generator's real hooks
   (nothing missed, no finish uniform left a uniform, each filled by a tLoad placed after it, one sample per array
   outside any branch, the hooks' order map -> clouds -> paint/dirt), classify by identity (a steel mix, a

@@ -18,22 +18,25 @@ try { pw = require('playwright'); } catch (e) { pw = require(path.join(require('
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const exe = opt('chrome', ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p)));
-  const args = opt('gl', 'swiftshader') === 'gpu' ? [] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
+  const args = (opt('gl', 'swiftshader') === 'gpu' ? [] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']).concat(['--js-flags=--max-old-space-size=8192']);
   const browser = await pw.chromium.launch({ executablePath: exe, headless: true, args });
   const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
   const logs = [];
+  let t0 = Date.now(), el = () => '';
   // the page's own loop draws the whole world in software every frame and starves every call made from here: from
   // the moment the premises exist, a frame is held (the shots draw one frame each, by hand). An init script, because
   // after the world is up the main thread no longer answers in time to be told.
   await page.addInitScript(() => {
     const raf = window.requestAnimationFrame.bind(window);
-    window.requestAnimationFrame = cb => (window.WORLD && window.WORLD.premises) ? 0 : raf(cb);
+    const lifted = () => { const b = document.getElementById('boot'); return !b || b.hidden || /\bgone\b/.test(b.className || ''); };
+    window.requestAnimationFrame = cb => (window.WORLD && window.WORLD.premises && lifted()) ? 0 : raf(cb);
   });
   page.on('console', m => { const t = m.text(); if (m.type() === 'error' || m.type() === 'warning' || /house_tarr|premises/.test(t)) logs.push(m.type() + ': ' + t.slice(0, 300)); });
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
+  page.on('crash', () => console.log('PAGE CRASHED', el ? el() : ''));
   const tryEv = async expr => { try { return await page.evaluate(expr); } catch (e) { return 'ERR ' + e.message.split('\n')[0]; } };
   await page.goto(URL, { waitUntil: 'load', timeout: 180000 });
-  const t0 = Date.now(), el = () => Math.round((Date.now() - t0) / 1000) + ' s';
+  t0 = Date.now(); el = () => Math.round((Date.now() - t0) / 1000) + ' s';
   for (let i = 0; i < 200; i++) {
     await sleep(2000);
     if (await tryEv("!!document.getElementById('bGo') && !document.getElementById('bGo').disabled")) break;
@@ -51,8 +54,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   if (!up) throw new Error('no WORLD.premises after ' + el());
   console.log('world up', el());
   // drain the queue by hand (the per-frame stream would, given frames)
-  for (let i = 0; i < 400; i++) {
-    const q = await tryEv("(()=>{ const R = WORLD.premises; R.step(8); return R.stats.queued; })()");
+  for (let i = 0; i < 1000; i++) {
+    const q = await tryEv("(()=>{ const R = WORLD.premises; R.step(4); return R.stats.queued; })()");
     if (q === 0 || typeof q !== 'number') { console.log('queue', q, el()); break; }
     if (i % 20 === 0) console.log('  queue', q, el());
   }
