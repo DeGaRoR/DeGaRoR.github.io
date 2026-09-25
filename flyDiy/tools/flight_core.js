@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d1a1f438ba125e71
+// body-sha256: ade7b65e86f132b9
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -14,6 +14,40 @@
 // does not. ATM.RHO0 is the same number, and 05_atmos.js keeps them exactly
 // equal on purpose.
 const RHO = 1.225;
+
+// ---- hyp2 / hyp3: Math.hypot, TO THE BIT, seven times cheaper (PHYSICS PERF 2026-09-24) ----
+// V8's Math.hypot is a builtin call that scales by the largest argument and sums the squares
+// with Kahan compensation: 47 ns a call against 2.3 for sqrt(x*x + y*y + z*z) - and the solver's
+// beam loop makes one call per beam per substep (100 000 a frame on a 200-substep alloy build).
+// sqrt of the plain sum is NOT the same number (36 % of calls differ in the last bit, and every
+// anchored gate would move); these are V8's own algorithm (src/builtins/math.tq MathHypot:
+// Infinity first, then NaN, max 0 -> 0, the scaled Kahan sum, sqrt x max) written out, so the
+// JIT inlines them: 6-7 ns, and equal to Math.hypot with Object.is on 4e7 random triples over
+// forty decades plus the specials (tools/_hypot_check.js holds it). Use them in the per-substep
+// loops; anywhere else Math.hypot is fine.
+function hyp3(x, y, z) {
+  x = Math.abs(x); y = Math.abs(y); z = Math.abs(z);
+  if (x === Infinity || y === Infinity || z === Infinity) return Infinity;
+  let m = x > y ? x : y; if (z > m) m = z;
+  if (m !== m || x !== x || y !== y || z !== z) return NaN;
+  if (m === 0) return 0;
+  let s = 0, c = 0, n, q, pr;
+  n = x / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  n = y / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  n = z / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  return Math.sqrt(s) * m;
+}
+function hyp2(x, y) {
+  x = Math.abs(x); y = Math.abs(y);
+  if (x === Infinity || y === Infinity) return Infinity;
+  if (x !== x || y !== y) return NaN;
+  const m = x > y ? x : y;
+  if (m === 0) return 0;
+  let s = 0, c = 0, n, q, pr;
+  n = x / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  n = y / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  return Math.sqrt(s) * m;
+}
 
 
 // ============================================================
@@ -1656,6 +1690,9 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 // ============================================================
 var CLIMATE = (function () {
   'use strict';
+  // Math.hypot to the bit, JIT-inlined (00_registry.js hyp2 - PHYSICS PERF 2026-09-24): the rich field's
+  // smooth() runs four times a substep for the solver's re-centre; alone (no registry) it is Math.hypot
+  const HYP2 = (typeof hyp2 === 'function') ? hyp2 : Math.hypot;
   // ---- the legacy field's tables, verbatim from 20_world.js (G72) ---------
   const GC = [ // [freq rad/s, kx, kz, phase, axis weight x,y,z]
     [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
@@ -1981,8 +2018,8 @@ var CLIMATE = (function () {
         // the deflection at a height is driven by the wind at that height.
         const R = reliefAt(x, z, RL), T = rich.terrain;
         let gxc = R[CH.gxc], gzc = R[CH.gzc], gxf = R[CH.gxf], gzf = R[CH.gzf];
-        const mc = Math.hypot(gxc, gzc); if (mc > SLOPE_CAP) { gxc *= SLOPE_CAP / mc; gzc *= SLOPE_CAP / mc; }
-        const mf = Math.hypot(gxf, gzf); if (mf > SLOPE_CAP) { gxf *= SLOPE_CAP / mf; gzf *= SLOPE_CAP / mf; }
+        const mc = HYP2(gxc, gzc); if (mc > SLOPE_CAP) { gxc *= SLOPE_CAP / mc; gzc *= SLOPE_CAP / mc; }
+        const mf = HYP2(gxf, gzf); if (mf > SLOPE_CAP) { gxf *= SLOPE_CAP / mf; gzf *= SLOPE_CAP / mf; }
         const a0 = Math.max(0, agl), ec = Math.exp(-a0 / D_COARSE), ef = Math.exp(-a0 / D_FINE);
         // THE LOCAL BAND: a 200 m raster smoothed over 300 m cuts a steep face's slope to a third (the
         // analytic world's 35 deg faces read 0.25), and a ridge pilot flies within a wingspan or two of
@@ -1991,7 +2028,7 @@ var CLIMATE = (function () {
         // face the lift is the wind times the slope, as it is. Across the solver's footprint the slope
         // is the reference's (a 140 m ground wave moves it 0.1 over 12 m; one slope per aeroplane).
         let glx = gl[0] - gxc - gxf, glz = gl[1] - gzc - gzf;
-        const ml = Math.hypot(glx, glz); if (ml > SLOPE_CAP) { glx *= SLOPE_CAP / ml; glz *= SLOPE_CAP / ml; }
+        const ml = HYP2(glx, glz); if (ml > SLOPE_CAP) { glx *= SLOPE_CAP / ml; glz *= SLOPE_CAP / ml; }
         const el = Math.exp(-a0 / D_LOCAL);
         const wy = T * ((ux * gxc + uz * gzc) * ec + (ux * gxf + uz * gzf) * ef + (ux * glx + uz * glz) * el);
         // THE CREST SPEED-UP AND THE VALLEY'S SHELTER (Jackson & Hunt 1975: the fractional speed-up at a
@@ -2005,7 +2042,7 @@ var CLIMATE = (function () {
         // here is a 17 deg hillside) the flow separates - linear theory has nothing to say, so this is a
         // declared amplitude: the gusts' intensity up to x4 at 22 deg, decaying over twice L. combine()
         // reads it.
-        const U = Math.hypot(ux, uz);
+        const U = HYP2(ux, uz);
         const lee = U > 0.1 ? Math.max(0, -((ux * (gxc + gxf) + uz * (gzc + gzf)) / U)) : 0;
         ti += 3 * T * smoothstep(0.15, 0.4, lee) * Math.exp(-a0 / (2 * D_FINE));
         ux *= m; uz *= m; uy += wy;
@@ -2172,7 +2209,7 @@ var CLIMATE = (function () {
       for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) {
         const c = thermalCell(i0 + di, j0 + dj, C, utc, dx0, dz0, TH_TMP);
         if (!c.ok) continue;
-        const ddx = tx - c.x, ddz = tz - c.z, r = Math.hypot(ddx, ddz);
+        const ddx = tx - c.x, ddz = tz - c.z, r = HYP2(ddx, ddz);
         if (r > 2 * r2) continue;
         const wstar = C.wstarOf(reliefAt(c.x, c.z, RL2)[CH.heat]);
         if (!(wstar > 0)) continue;
@@ -6276,6 +6313,10 @@ const KIND_RULES = { park: { plotMin: 36, plotMax: 44, plotDepth: 40, gap: 16, b
   // never nears the water sows nothing and says so
   harbour: { waterOnly: true, plotMin: 18, plotMax: 30, plotDepth: 34 } };   // a lawn is refused past a 10 m bank; the plot 12 m back from the road so the bank never re-grades the road
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+// Math.hypot to the bit, the JIT-inlined way (00_registry.js hyp2 - PHYSICS PERF 2026-09-24): the composed
+// ground is asked for every wheel and every node of the aeroplane every substep, and a road's grade
+// makes one distance a segment. Standalone (GATE PREMISES requires this file alone) it is Math.hypot.
+const HYP2 = (typeof hyp2 === 'function') ? hyp2 : Math.hypot;
 
 // ---------------------------------------------------------------------------
 // the seeds
@@ -6345,7 +6386,7 @@ function distPtSeg(x, z, a, b) {
   const dx = b[0] - a[0], dz = b[1] - a[1];
   const l2 = dx * dx + dz * dz;
   const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
-  return Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
+  return HYP2(x - (a[0] + dx * t), z - (a[1] + dz * t));
 }
 // signed distance to the polygon's edge: negative inside
 function sdPoly(poly, x, z) {
@@ -6543,9 +6584,27 @@ function makeModifier(m, y0) {
       } else pl = m.plane || [0, 0, 0];
       target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
     }
+    // THE TWO ENDS OF THE FEATHER NEED NO DISTANCE (PHYSICS PERF 2026-09-24). weight() is 1 for any
+    // sd <= 0 and sdPoly is -d inside, so a point inside the polygon weighs 1 whatever its distance to
+    // the edge - the aeroplane on an apron pad asked for that distance per node per substep. Outside,
+    // the plain squared distances bound the exact one from below within a hair (1e-9 relative, where
+    // the two roundings differ by 1e-16): past the falloff by that margin the weight is 0 on either
+    // reading. Everything between is sdPoly's own arithmetic, so the height is the same bits.
+    const n = poly.length, fall2 = fall * fall * (1 + 1e-9);
     return { id: m.id, kind: m.kind, bbox, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
-      const w = weight(sdPoly(poly, x, z));
+      let w;
+      if (inPoly(poly, x, z)) w = 1;
+      else {
+        let near = false;
+        for (let i = 0; i < n; i++) {
+          const a = poly[i], b = poly[(i + 1) % n], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+          const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
+          const ex = x - (a[0] + dx * t), ez = z - (a[1] + dz * t);
+          if (ex * ex + ez * ez < fall2) { near = true; break; }
+        }
+        w = near ? weight(sdPoly(poly, x, z)) : 0;
+      }
       return w > 0 ? h + (target(x, z, h) - h) * w : h;
     } };
   }
@@ -6606,13 +6665,18 @@ function makeModifier(m, y0) {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
       const list = cells.get(ck(cx(x), cz(z)));
       if (!list) return h;
-      let best = Infinity, ty = 0;
+      // (PHYSICS PERF 2026-09-24) the plain squared distance screens a segment that cannot beat the best
+      // (1e-9 relative over it - the two roundings differ by 1e-16); every one that can is measured
+      // exactly as before, in the list's order, so the winner and its tie-break are the same
+      let best = Infinity, best2 = Infinity, ty = 0;
       for (let n = 0; n < list.length; n++) {
         const i = list[n], a = pts[i], b = pts[i + 1];
         const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
         const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
-        const d = Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
-        if (d < best) { best = d; ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
+        const ex = x - (a[0] + dx * t), ez = z - (a[1] + dz * t);
+        if (ex * ex + ez * ez > best2) continue;
+        const d = HYP2(ex, ez);
+        if (d < best) { best = d; best2 = d * d * (1 + 1e-9); ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
       }
       const w = weight(best - hw);
       return w > 0 ? h + ((abs ? 0 : y0) + ty - h) * w : h;
@@ -9029,14 +9093,14 @@ function makeSim(def, world) {
       return [x / M, y / M, z / M]; };
     const c0 = cen(r0), c1 = cen(r1);
     let ax = c1[0] - c0[0], ay = c1[1] - c0[1], az = c1[2] - c0[2];
-    const L = Math.hypot(ax, ay, az);
+    const L = hyp3(ax, ay, az);
     if (L < 1e-6) return null;
     ax /= L; ay /= L; az /= L;
     const perp = (i, c) => { let x = p[i*3] - c[0], y = p[i*3+1] - c[1], z = p[i*3+2] - c[2];
       const d = x * ax + y * ay + z * az; return [x - d * ax, y - d * ay, z - d * az]; };
     const inertia = (r, c) => { let I = 0; for (const i of r) { const q = perp(i, c); I += m[i] * (q[0]*q[0] + q[1]*q[1] + q[2]*q[2]); } return I; };
     const u = perp(r0[0], c0), v = perp(r1[0], c1);
-    const lu = Math.hypot(u[0], u[1], u[2]), lv = Math.hypot(v[0], v[1], v[2]);
+    const lu = hyp3(u[0], u[1], u[2]), lv = hyp3(v[0], v[1], v[2]);
     if (lu < 1e-6 || lv < 1e-6) return null;
     const cx = u[1]*v[2] - u[2]*v[1], cy = u[2]*v[0] - u[0]*v[2], cz = u[0]*v[1] - u[1]*v[0];
     const s = (cx * ax + cy * ay + cz * az) / (lu * lv), c = (u[0]*v[0] + u[1]*v[1] + u[2]*v[2]) / (lu * lv);
@@ -9135,7 +9199,7 @@ function makeSim(def, world) {
       const dx = (bx * (M4 * M8 - M5 * M5) - M1 * (by * M8 - M5 * bz) + M2 * (by * M5 - M4 * bz)) / det;
       const dy = (M0 * (by * M8 - M5 * bz) - bx * (M1 * M8 - M5 * M2) + M2 * (M1 * bz - by * M2)) / det;
       const dz = (M0 * (M4 * bz - by * M5) - M1 * (M1 * bz - by * M2) + bx * (M1 * M5 - M4 * M2)) / det;
-      const w = Math.hypot(dx, dy, dz);
+      const w = hyp3(dx, dy, dz);
       if (w < 1e-9) break;
       // R <- R * Rot(axis, w)  (Rodrigues, the axis in the cluster's rest frame)
       const ax = dx / w, ay = dy / w, az = dz / w;
@@ -9402,7 +9466,7 @@ function makeSim(def, world) {
     hdgPrev = hdg; out.hdg = hdg;
     // sideslip: the air-relative velocity against the right axis
     const ax = cv[0] - (out.windX || 0), ay = cv[1] - (out.windY || 0), az = cv[2] - (out.windZ || 0);
-    const Vt = Math.hypot(ax, ay, az);
+    const Vt = hyp3(ax, ay, az);
     out.beta = Vt > 1 ? Math.asin(Math.max(-1, Math.min(1, (ax * zRt[0] + ay * zRt[1] + az * zRt[2]) / Vt))) : 0;
     // G435: UNDER THE WATER THE FLIGHT IS OVER. A wheeled build in the sea
     // stands on the seabed as on any ground (the floats' hydro is the only
@@ -9616,7 +9680,7 @@ function makeSim(def, world) {
       rigGround(i, nd.m);          // hoisted; reset only ever runs post-build
     }
     for (const b of beams) {
-      b.L0 = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
+      b.L0 = hyp3(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
       // G185: RIGGING. A wire's rest length is a hair short of the drawn
       // distance, so it stands in tension at rest — the turnbuckle's job.
       if (b.pre) b.L0 *= (1 - b.pre);
@@ -9665,7 +9729,7 @@ function makeSim(def, world) {
     for (const i of M) { ax += p[i*3]; ay += p[i*3+1]; }
     ax /= M.length; ay /= M.length;
     const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = r[tw] - r[M[0]];
-    const R = Math.hypot(A, B);
+    const R = hyp2(A, B);
     if (R < 1e-6 || Math.abs(C) > R) return 0;
     const th = Math.asin(C / R) - Math.atan2(B, A);
     if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
@@ -9679,7 +9743,7 @@ function makeSim(def, world) {
   }
 
   // ---- small vec helpers on flat arrays ----
-  const norm3 = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9;
+  const norm3 = a => { const L = hyp3(a[0], a[1], a[2]) || 1e-9;
     a[0] /= L; a[1] /= L; a[2] /= L; return a; };
   const xAft = [0,0,0], yUp = [0,0,0], zRt = [0,0,0], t1 = [0,0,0], t2 = [0,0,0];
   const avgP = (ids, o) => { o[0]=o[1]=o[2]=0;
@@ -9712,6 +9776,12 @@ function makeSim(def, world) {
 
   // strip force pass. probe=true: no prop/wash, aero only.
   const sc=[0,0,0], sw_=[0,0,0], sn=[0,0,0];
+  // the engines' constant bookkeeping, once per sim rather than once per substep (PHYSICS PERF
+  // 2026-09-24: the pass allocated these every call - GC is 4 % of a frame)
+  const LEV = i => { const e = ctl.eng && ctl.eng[i]; return e ? (e.on ? +e.thr : 0) : 1; };
+  const ENG_OF = def.refs.engineOf || def.refs.engine.map(() => 0);
+  const ENG_CNT = (() => { const nE = def.params.nEngines || 1, c = new Array(nE).fill(0); for (const k of ENG_OF) if (k < nE) c[k]++; return c; })();
+  const CW_I = [0, 0, 0, 0], CW_W = [0, 0, 0, 0];
   function aeroPass(probe) {
     bodyAxes();
     // mean velocity (mass-weighted), and the mean altitude in the same sweep
@@ -9802,10 +9872,8 @@ function makeSim(def, world) {
       // or trimmed engine on a wing pair is a real yaw couple through the two
       // nodes at +-z, with no new physics. With ctl.eng null this is
       // Tper * nE spread evenly, to the bit.
-      const lev = i => { const e = ctl.eng && ctl.eng[i]; return e ? (e.on ? +e.thr : 0) : 1; };
-      const EO = def.refs.engineOf || def.refs.engine.map(() => 0);
-      const cnt = new Array(nE).fill(0);
-      for (const k of EO) if (k < nE) cnt[k]++;
+      const lev = LEV;
+      const EO = ENG_OF, cnt = ENG_CNT;   // (constant per def: hoisted, PHYSICS PERF 2026-09-24)
       const Ti = out.thrustPer; Ti.length = nE;
       T = 0;
       for (let i = 0; i < nE; i++) {
@@ -9854,9 +9922,9 @@ function makeSim(def, world) {
     // instrument feel, out.Vg is over the ground (wheels, brakes, stop
     // detection). At sea level the first two are the same number exactly.
     const avx = vmx - wcx, avy = vmy - wcy, avz = vmz - wcz;
-    out.V = Math.hypot(avx, avy, avz);
+    out.V = hyp3(avx, avy, avz);
     out.Veas = out.V * easK;
-    out.Vg = Math.hypot(vmx, vmy, vmz);
+    out.Vg = hyp3(vmx, vmy, vmz);
     out.windX = wcx; out.windY = wcy; out.windZ = wcz;
     out.alpha = Math.atan2(-(avx*yUp[0]+avy*yUp[1]+avz*yUp[2]),
                            -(avx*xAft[0]+avy*xAft[1]+avz*xAft[2]));
@@ -9869,7 +9937,7 @@ function makeSim(def, world) {
     // (a probe with new positions, a frame in flight), never per substep.
     let tailEpsSum = 0, tailEpsN = 0;
     if (NP) {
-      const va = Math.hypot(avx, avy, avz) || 1;
+      const va = hyp3(avx, avy, avz) || 1;
       const dx = -avx / va, dy = -avy / va, dz = -avz / va;
       const sg = aicSig(gH, dx, dy, dz);
       if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
@@ -10026,8 +10094,10 @@ function makeSim(def, world) {
         // G185: the strip's own plane's Cm0 and spar spacing
         const Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
                      * st.chord / (st.sparSpacing || P_.sparSpacing), t = st.t;
-        const cW = [[st.fIn, (1-t)], [st.fOut, t], [st.rIn, -(1-t)], [st.rOut, -t]];
-        for (const [i, w] of cW) {
+        CW_I[0] = st.fIn; CW_W[0] = (1-t); CW_I[1] = st.fOut; CW_W[1] = t;
+        CW_I[2] = st.rIn; CW_W[2] = -(1-t); CW_I[3] = st.rOut; CW_W[3] = -t;
+        for (let q = 0; q < 4; q++) {
+          const i = CW_I[q], w = CW_W[q];
           f[i*3] += Fc*w*sn[0]; f[i*3+1] += Fc*w*sn[1]; f[i*3+2] += Fc*w*sn[2];
         }
       }
@@ -10044,7 +10114,7 @@ function makeSim(def, world) {
       // wind on the fuselage: without this there is no weathercocking
       let wx_ = 0, wy_ = 0, wz_ = 0;
       if (world && world.wind) { const wv = world.wind(bx, by, bz, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
-      const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz, Vr = Math.hypot(rx, ry, rz);
+      const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz, Vr = hyp3(rx, ry, rz);
       if (Vr < 0.1) return;
       const cb = [rx*xAft[0]+ry*xAft[1]+rz*xAft[2],
                   rx*yUp[0]+ry*yUp[1]+rz*yUp[2],
@@ -10083,7 +10153,7 @@ function makeSim(def, world) {
         // forward) and from below (wn > 0 along up) with the nose up
         const alB = Math.atan2(wn, u);
         const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * Math.sin(2 * alB) * 0.5;
-        const L = Math.hypot(bx - ax, by - ay);
+        const L = hyp2(bx - ax, by - ay);
         if (L > 0.3) {
           const F = M / L;      // nose-up couple: up on the fore ring, down on the aft
           for (const i of A)  { f[i*3] += F/A.length*yUp[0];  f[i*3+1] += F/A.length*yUp[1];  f[i*3+2] += F/A.length*yUp[2]; }
@@ -10152,7 +10222,7 @@ function makeSim(def, world) {
     for (const b of beams) {
       const a3=b.a*3, b3=b.b*3;
       let dx=p[b3]-p[a3], dy=p[b3+1]-p[a3+1], dz=p[b3+2]-p[a3+2];
-      const L = Math.hypot(dx, dy, dz) || 1e-9;
+      const L = hyp3(dx, dy, dz) || 1e-9;
       dx/=L; dy/=L; dz/=L;
       const vrel = (v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz;
       b.strain = (L - b.L0) / b.L0;
@@ -10190,7 +10260,7 @@ function makeSim(def, world) {
           const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs;
           hx = nx; hz = nz;
         }
-        const hL = Math.hypot(hx, hz) || 1e-9; hx/=hL; hz/=hL;
+        const hL = hyp2(hx, hz) || 1e-9; hx/=hL; hz/=hL;
         const lx = -hz, lz = hx;
         const vr_ = v[i3]*hx + v[i3+2]*hz, vl = v[i3]*lx + v[i3+2]*lz;
         // G115: the wheel asks WHAT IT IS ROLLING ON. `world.surface` is the
@@ -10224,7 +10294,7 @@ function makeSim(def, world) {
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
       } else {
-        const vx=v[i3], vz=v[i3+2], sp = Math.hypot(vx, vz);
+        const vx=v[i3], vz=v[i3+2], sp = hyp2(vx, vz);
         if (sp > 1e-6) {
           const kf = Math.min(0.8 * Fn / sp, m[i]/dt);
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
@@ -10265,7 +10335,7 @@ function makeSim(def, world) {
         const i3 = i*3;
         for (const r of _obstRecs) {
           if (!OBSTACLES.penetration(r, p[i3], p[i3+1], p[i3+2], _pen)) continue;
-          const px = _pen[0], py = _pen[1], pz = _pen[2], L = Math.hypot(px, py, pz) || 1e-6;
+          const px = _pen[0], py = _pen[1], pz = _pen[2], L = hyp3(px, py, pz) || 1e-6;
           const nx = px / L, ny = py / L, nz = pz / L;
           const vn = v[i3]*nx + v[i3+1]*ny + v[i3+2]*nz;               // the velocity into the thing, damped; the rest kept
           const fk = KTn[i] * L - (vn < 0 ? CTn[i] * vn : 0);
@@ -10740,7 +10810,10 @@ const add = (a, b, o = v3()) => { o[0] = a[0] + b[0]; o[1] = a[1] + b[1]; o[2] =
 const scl = (a, s, o = v3()) => { o[0] = a[0] * s; o[1] = a[1] * s; o[2] = a[2] * s; return o; };
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b, o = v3()) => { const x = a[1] * b[2] - a[2] * b[1], y = a[2] * b[0] - a[0] * b[2], z = a[0] * b[1] - a[1] * b[0]; o[0] = x; o[1] = y; o[2] = z; return o; };
-const len = a => Math.hypot(a[0], a[1], a[2]);
+// Math.hypot to the bit, JIT-inlined (00_registry.js hyp3 - PHYSICS PERF 2026-09-24): len runs per wet
+// panel per hydro pass; standalone (a bench loading this file alone) it is Math.hypot
+const HYP3 = (typeof hyp3 === 'function') ? hyp3 : Math.hypot, HYP2 = (typeof hyp2 === 'function') ? hyp2 : Math.hypot;
+const len = a => HYP3(a[0], a[1], a[2]);
 const nrm = (a, o = a) => { const L = len(a) || 1e-12; o[0] = a[0] / L; o[1] = a[1] / L; o[2] = a[2] / L; return o; };
 // 3x3 row-major
 const matVec = (R, a, o = v3()) => { const x = R[0] * a[0] + R[1] * a[1] + R[2] * a[2], y = R[3] * a[0] + R[4] * a[1] + R[5] * a[2], z = R[6] * a[0] + R[7] * a[1] + R[8] * a[2]; o[0] = x; o[1] = y; o[2] = z; return o; };
@@ -11844,7 +11917,7 @@ function waterRudder(fx, ctl, water, simT, f) {
   const Fy = q * WR_A * sub * Cl;
   const Fv = [zR[0] * Fy, zR[1] * Fy, zR[2] * Fy];
   // and its drag, along the flow
-  const Vt = Math.hypot(Vf, vy) || 1e-6, Cd = 0.02 + 0.6 * al * al;
+  const Vt = HYP2(Vf, vy) || 1e-6, Cd = 0.02 + 0.6 * al * al;
   const D = q * WR_A * sub * Cd;
   Fv[0] -= vS[0] / Vt * D; Fv[1] -= vS[1] / Vt * D; Fv[2] -= vS[2] / Vt * D;
   const at = [sK[0], sK[1] - 0.5 * WR_D * sub, sK[2]];
@@ -30833,4 +30906,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
