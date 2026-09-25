@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// _cover_check.js — GATE COVER (G581): the cover ring's rocks and debris drawn as batches are the same picture
+// _cover_check.js — GATE COVER (G584): the cover ring's rocks and debris drawn as batches are the same picture
 // for a fraction of the draws.
 //
 // At the airfield stand the ring drew ~1 600 times a frame (rock 252 + 270 shadow, debris 340 + 181, shrub 192 +
@@ -13,7 +13,7 @@
 //      its matrix, its colour and its fade threshold (aRand there, the colour's alpha here) - and nothing else is.
 //   2. THE SAME REACH. An instance draws where its block does (the fade's reach test), and nowhere else.
 //   3. FEWER DRAWS. One frame counted per kind (main and shadow): the batched kinds draw once per batch at most.
-//   4. SHADOWS FROM 0.5 m. No prototype under castMinH (0.5 m since G581) casts, in either path.
+//   4. SHADOWS FROM 0.5 m. No prototype under castMinH (0.5 m since G584) casts, in either path.
 //   5. NOTHING LEAKS. The eye leaves and comes back: cells drop and replant, the batches hold exactly the live
 //      cells' instances (a dropped cell's ids are reused without switching anybody else's).
 //   6. THE FADE READS THE BATCH. The batched program takes aRand from the colour's alpha after <color_vertex>,

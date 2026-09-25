@@ -861,3 +861,9 @@ body.premOpen #flFly { display:none; }
 #ui .pr-insp .pr-name::placeholder, #ui .pr-insp .pr-paste::placeholder { color:var(--ed-faint); }
 #ui .pr-insp canvas { display:block; max-width:100%; height:auto;
   background:var(--ed-track); border:1px solid var(--ed-hair); border-radius:5px; }
+
+/* THE SCENERY MODE (2026-09-24, app.js SCENERY, ?scenery=1): the flight is held and the aeroplane is off the
+   stage, so its chrome steps aside - the brief, the PFD, the verbs, the trace, the map, the arrival card. The
+   left rail stays: the camera, the graphics, the time of day and the weather are how the world is looked at. */
+body.sceneryMode #flTop, body.sceneryMode #flActs, body.sceneryMode #pfd, body.sceneryMode #mmp,
+body.sceneryMode #telp, body.sceneryMode #arrCard, body.sceneryMode #flHint, body.sceneryMode #flNotice { display:none !important; }

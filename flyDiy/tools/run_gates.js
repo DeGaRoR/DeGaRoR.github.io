@@ -62,6 +62,9 @@ const GATES = [
   // PHYSICS PERF (2026-09-24): hyp2 / hyp3 are Math.hypot to the bit - the solver's hot loops call
   // them, and the trajectory is the same bits only while they are; seconds
   { id: 'HYPOT', file: '_hypot_check.js', tier: 'core' },
+  // G580: the integrator's step on the springs, the dampers it can carry - never above the old rule,
+  // every cut damper overdamped, the network inside the stability margin (4 000-pass eigenvalues); ~15 s
+  { id: 'SUBSTEP', file: '_substep_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -140,10 +143,10 @@ const GATES = [
   { id: 'TREES', file: '_tree_check.js', tier: 'core' },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
-  // G580: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
+  // G583: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
   // boots key and link the same sources, a bake links each program once, the off-scene passes are listed
   { id: 'PROGRAMS', file: '_program_check.js', tier: 'core' },
-  // G581: the cover ring's rocks and debris as batches - the same instances, reach and thresholds, a draw per batch
+  // G584: the cover ring's rocks and debris as batches - the same instances, reach and thresholds, a draw per batch
   { id: 'COVER', file: '_cover_check.js', tier: 'core' },
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last

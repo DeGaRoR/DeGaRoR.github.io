@@ -49,7 +49,7 @@ var ROCK_MAP = (() => {
       const oldCol = renderer.getClearColor(new THREE.Color()), oldA = renderer.getClearAlpha();
       renderer.setRenderTarget(ATLAS); renderer.setClearColor(0x000000, 0); renderer.clear();
       let k = 0;
-      // G580: THE MATERIALS ARE KEPT FOR THE WHOLE BAKE. One made and disposed per part released its program with
+      // G583: THE MATERIALS ARE KEPT FOR THE WHOLE BAKE. One made and disposed per part released its program with
       // it, and the next part linked the same program again - the census: 30 links of 2 programs in one roll-out.
       // Now one material per (map, cut), all alive until the atlas is drawn: the two programs link once each
       const kinds = new Map();
@@ -94,7 +94,7 @@ var ROCK_MAP = (() => {
     const quad = new THREE.PlaneGeometry(1, 1); quad.rotateX(-Math.PI / 2);   // local +y (texture up) -> -z, as the bake
     let meshes = [];
     const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
-    // ONE MATERIAL FOR EVERY SPRITE OF THE MAP (G580): they were identical, made per species and disposed at every
+    // ONE MATERIAL FOR EVERY SPRITE OF THE MAP (G583): they were identical, made per species and disposed at every
     // rebuild - so a recentre let the program go and linked it again
     const mapMat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
     function rebuild() {

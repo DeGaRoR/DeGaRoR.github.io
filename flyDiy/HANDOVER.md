@@ -59301,7 +59301,8 @@ a flip rebakes).
   environmentIntensity when a material has no envMap of its own. Also noted, not changed: the dirt line compares the
   WORLD y (vHouseY) with uDirtTop in the house frame (g(0,0) + dirtH x 0.55), and the game stands a house's group at
   its ground height (placeHouse's y = oy): a house whose ground is more than ~1 m above world y 0 has no dirt line at
-  all. A fix is a per-house offset (the slot has room); not done here, it changes the picture.
+  all. A fix is a per-house offset (the slot has room); not done here, it changes the picture. (All three mended by
+  G581.)
 - MEASURED, the bench (tools/_tarr.html + tools/tarr_shot.js: 19 buildings - 14 houses, 2 big, a hangar, a tower, a
   shed - drawn whole then on the stack, SwiftShader 960 x 540, shadows on): 195 bags -> 192 merged into 2 town
   meshes (3 flat flags / awnings stay), 33 colour + 30 normal/rough layers, 170 slots, 84 MB of arrays with mips,
@@ -59478,7 +59479,132 @@ of the frame's substeps, round(substeps x 60 / 360) - the old 8 at 45 substeps; 
 The Cessna on floats: solver -30 %, the cg 1 mm off after 20 s. FLOATS, HYDRODYN, WIPLINE, WATER green; SEAPLANE's
 known reds unchanged.
 
-## G580 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
+## G580 - THE DAMPER THE STEP CAN CARRY: the substeps on the springs (2026-09-25)
+
+The tailwheel leg's damper set the step of every taildragger it limited, at zeta ~5 (dead-beat five times over): the
+birdman's 121 substeps were two beams (TW-S6BL/R, 3.45 kg into 0.55 kg), the next asked 77. genSubsteps (62_gen_aero)
+now sizes the step on the SPRINGS and cuts a damper past the c dt bound to what that step carries (b.cSized keeps the
+sized value) - only if the whole NETWORK stays inside the integrator's stability with a margin: (omega dt)^2 +
+2 gamma dt <= 3.0 of the network's own highest modes (genNetEig, power iteration; symplectic Euler's bound on a
+damped mode is 4). The per-beam rule is not enough: a node's dampers add, and the metal Cessna capped per beam to 80
+substeps diverged at once. The smallest step that holds is taken (bisection), never more than the old rule's; a
+build whose springs set the step is untouched (the same number, no beam changed: the stock build, the user's metal
+Cessnas, most archetypes); the floatplane's 82 float-keel dampers keep their old step. Six builds move: birdman
+121 -> 78, chinook 110 -> 68, stearman 134 -> 89, beaver 200 -> 131, jodel 200 -> 185, pietenpol 79 -> 75; every cut
+damper stays overdamped (zeta >= 2.67), the networks 2.42-2.84. Circuits flown old/new: the same phases to a few
+frames; solver birdman -31 % (-32 % on the Jolene roll-out), chinook -46 %, stearman -63 %, beaver -39 %. GATE
+SUBSTEP (tools/_substep_check.js, core) holds it with 4 000-pass eigenvalues over every archetype and fixture.
+futureDesigns/PHYSICS-PERF-2026-09-24.md G578-G580, and THE METAL WING BOX, measured: capped at 120 substeps the
+metal Cessna flies the same circuit (-41 %, the tips 2-3 mm more bend), at 80 per-beam it diverges - the next
+chantier, network-sized, the load test keeping the true stiffness.
+
+## G581 - THREE DEAD HOUSE DIALS, MENDED (2026-09-25)
+
+Found while building G574 (the town on texture arrays), which had kept them dead to match the game. Each changes the
+picture; the user's ruling on the shots: "that all looks very similar to me, the tile sizing is much better. Please land that"; before/after shots in `screenshots/g574/` (the tarr bench at y 0 and lifted 20 m, the house bench).
+- THE WANDER AND THE ROOF TILE SCALE (uWander G273, uUvK G329 / P.roofTile). r186 runs onBeforeCompile before it
+  resolves the #includes, so wanderUV's token rewrite of v*MapUv matched nothing. Now `#define vMapUv hUv` (and the
+  other map varyings) sits at the top of main, below the varyings' declarations and above every chunk that reads them:
+  the preprocessor renames each later read. The flag (no map) still gets none. Visible: kennecott mill's roofTile 4
+  finally draws its shakes 4x larger; the siding's courses wander by a few mm.
+- THE GLASS'S envMapIntensity (2.3 glass / 1.9 pane). r186 gives that uniform the scene's environmentIntensity when a
+  material has no envMap (a house's never has). shadeGlass now scales radiance and iblIrradiance after
+  lights_fragment_maps (only the environment puts anything in them) by uGlassEnvK = the material's own number (1 if
+  it carries an envMap), on top of the scene's. Visible: windows reflect the sky far more.
+- THE DIRT LINE ON A HILL. uDirtTop is in the house frame, vHouseY world; the game stands a house at its ground.
+  New SHADE_U.uDirtY0 (0 on the benches), added in DIRT_EXPR; render_premises placeBuilt sets it to the group's world
+  y. Not mended: the fences' and the poles' shared finishes (FENCE_F, lampFinish) draw in the premises frame at world
+  heights, so their dirt line is still world-relative (a per-vertex ground height would be needed).
+- THE TOWN FOLLOWS (house_tarr.js): uUvK folded into the slot's uv transform, uWander in the spare l.w (added to
+  tUvT exactly as wanderUV does), uDirtY0 folded into the slot's dirt line, uGlassEnvK in the glass slot's c.y. The
+  tarr bench after the fix: town vs houses mean |diff| near 0.455 / street 0.183 / mid 0.086 / dusk 0.157 - as
+  before the fix (0.456 / 0.183 / 0.086 / 0.158), at y 0 and at y 20. Before vs after (the houses): near 1.39/255,
+  3.2 % of pixels over 12 (the glass); street 0.09.
+- _tarr.html takes `?lift=<m>`. GATE TARR 50 checks (+1t 1u 1v 1w 1x 3l 4g; 1w resolves the includes as three does
+  and proves the macros sit between the varyings and the map reads; the new checks are red on the pre-G581 tree).
+
+## G582 - THE WORLD RAIL: the right-hand rail of the world's art, the scenery mode, the ground's filtering (2026-09-24)
+
+- The user: streamline the game as the bench (the graphics without the flight), revamp F8 into a RIGHT rail
+  structured by TERRAIN TYPE (a type = a biome + a ground set), proper layers, previews, recolour down to one
+  hue of a set, the noise and the shimmer of the detail textures, the anti-tiling and grazing-angle filtering,
+  the photoscanned coastal rocks, an export to report the settings back as the new defaults. Left rail =
+  flight; right rail = world editing.
+- THE SCENERY MODE (app.js SCENERY, `?scenery=1`): rolls out when the boot lifts, HOLDS the solver
+  (running = false), takes the aeroplane off the stage, gives the eye to DEVCAM 60 m over the stand, closes a
+  fresh profile's aeroplane chooser, hides the flight chrome (flight.css body.sceneryMode; the left rail stays:
+  camera, graphics, night, weather) and opens the WORLD rail. The world already streams round DEVCAM.
+- THE WORLD RAIL (src/viewer/world_rail.js, F9, in the WORLD PACK - fetched and cached, not inlined): COVERAGE (the stack as
+  Photoshop-like layers - eye, thumbnail off the island's rasters, blend, opacity, solo - the view modes, the
+  terrain-type map with the camera's mark, click = open the type, double-click = fly there, the legend with
+  shares, the global colour), TYPES (chips; per type: the derived split, where it is, BIOME tab - the mix,
+  "own copy", the stand, five categories trees / bushes / grass & flowers / stones / debris with species cards
+  rendered from the pack through the game's renderer, each with its planters' keys, + add from the catalogue,
+  x remove; GROUND tab - three detail and three aerial slots with previews, the mask, the variation, the sets'
+  recolour inline), MATERIALS (the library side by side, each at its repeat or all at 4/16/64/200 m; the set
+  editor), FILTERING, VEGETATION, CLIFFS, SCENERY (the premises editor - "the world editor" is the SCENERY
+  editor now - the scenery mode, the air while you work, the maps), EXPORT (the whole look as JSON with
+  `where` each part goes and `changes` against the shipped defaults; copy, download, changes only, import,
+  reset). Alt+click on the ground opens the type under the mouse. THE LOOK (localStorage flydiy.worldlook.v1)
+  keeps what the handles did not persist (the ground's colour knobs, the biomes, the ring, species sizes and
+  tints, the cliffs) and puts it back when the world is up.
+- THE METHOD, CONFIRMED: detail sets near (up to three, cloud mask, height blend), the aerial sets over
+  detailFrom..detailTo (150-900 m), the imagery's stack from macroFrom (full by macroTo).
+- THE GROUND'S FILTERING (splat_ground.js, knobs defaulted under the recipe's: FILTER_DEFAULTS): mip bias
+  (texture() bias on the arrays - implicit derivatives kept, no textureGrad), anisotropy (1-16, re-upload),
+  the detail's contrast near/far by distance (rel^k), the relief's fade by distance, specular anti-alias
+  (roughness widened by the pixel's footprint). The hex hash is master's sin() hash, unchanged (an integer
+  hash was tried and REVERTED in the audit below: +9 k inlined chars across the nine sTile copies for a banding
+  never observed). NOTHING in the splat is recomputed per frame: the "jitter" is sub-pixel relief and gloss aliasing under the
+  sun as the eye moves - the fades and the AA are its levers.
+- THE RECOLOUR per set (grade: hue, contrast, selHue/selWidth/selSoft/selShift/selSat/selLight): the whole
+  set's hue turn and contrast, then one hue band of it turned / saturated / lit (the grass of grass-and-rock
+  alone); grey texels are never selected; `showMask` paints the selection magenta on the ground. The rail's
+  preview is the shader's grade on the CPU (exposure normalised for legibility), with an eyedropper.
+- SPECIES SIZE for trees (render_world SP_SIZE, TREE_FILL.speciesSize): a multiplier over the canopy's size,
+  per species, every biome (the far stand cards do not read it yet).
+- THE COASTAL SCANS: the small ones are STONES (biome species; shingle plants them, `shore` keeps them by the
+  sea, the rock map carries them far); the cliff faces keep their own section (placed by slope and contour).
+- F8 AUDIT: the map layers, the splat, the biomes, the island rule, the fill, the ring and the env albedo
+  moved to the rail (a pointer and a button remain); F8 keeps the ladder, the leaf, the sky, the clock, the
+  climate, the atmosphere, the clouds, the lighting, the water, the frame, the camera. The left rail's WORLD
+  button moved to the rail's SCENERY. F8's climate readout read `WORLD.world` (no such key): fixed.
+- FOG / CLOUD (the user asked): the empty sky in the headless shots was NOT the air - at the eye the mist was
+  dry (rho0 0), no deck, base 1293 m, 48 km; SwiftShader draws a frame every few seconds here (the garage
+  too). The rail's SCENERY > "the air while you work" has mist, haze, cover, clouds, in-cloud mist, the hour
+  and a reversible "clear view".
+- THE PERFORMANCE AUDIT (the user, at the landing: "I need to be sure you did not undo or rendered moot some
+  optimization on ground textures done recently"), measured on the ground program inlined as fxc inlines it
+  (every user function's body at every call site, from sSplat down; the gate's own splice):
+      base 63e4c37 (this branch's start)   288 fetches  165.9 k chars
+      master 6f4a506 (after G568)           54 fetches   76.1 k chars
+      merged as first resolved              54 fetches   88.7 k  (+16.5 %)
+      landed                                54 fetches   80.1 k  (+5.3 %)
+  G568 kept whole: ONE straight triplet (3 sSet sites), 9 sTile, 27 fetch sites, no loop in the chain (GATE SPLAT
+  3). The recolour runs ONCE per set after the triplanar sum (not per projection: 9 copies -> 3) and only under
+  uSRecolOn (1 when any set is recoloured or a mask shows) - at the defaults one uniform branch per set. The
+  bias is an argument of the same texture() call (no extra fetch, implicit derivatives kept: no Lod0 copy, no
+  textureGrad). uSNearN / uSFarN (the GRAPHICS 'ground' row), uSHexPx, the candidate loop's no-continue rule,
+  the sampler count (no new sampler) untouched. Per pixel added: one pow (the detail's far contrast, default
+  on past 60 m), a smoothstep (the relief's fade), a sqrt (the specular AA). CPU: two vec4[24] uniform arrays
+  more (uploaded on a material refresh), one lookup per chunk shape (the species' size).
+  THE LOOK AT BOOT was the regression found: every setter it called evicts or rebuilds (setBiome x15, the
+  island, the fill, the thin, a mix, the ring, the cliffs - ~21 re-plants a boot once any rail value was saved).
+  It saves only the DELTA against the shipped defaults now and applies only what differs from what stands,
+  every biome change in ONE replant: measured with counting stubs, a boot with no look or a look equal to the
+  defaults 0 evictions, one species changed 1.
+  index.html 8.88 MiB (master 8.89: the rail rides the world pack, F8 lost its world folds) - MEDIA red as on
+  master, by master's own overage.
+  NOT MEASURED: a frame on a GPU (this container's SwiftShader draws one every few seconds); owed:
+  tools/frame_perf.js and GATE SPLAT --gpu (the cold link) on the user's machine, master vs this.
+- GATES: SPLAT (the roughness rule now carries the footprint term; the selftest's textureGrad mutation
+  follows the biased fetch), UISMOKE, BOOT, WORLDRENDER, TREE, TREES, GFX, LIGHT, CLOUD, CLIMATE, FOG, ATMO,
+  ATMOS, POSTFX, MEDIA, PREMISES, PARKED, BUILD green. Headless: every program links (0 unrunnable), the rail
+  builds every section on Jolene.
+- OWED: judged on a real GPU (the defaults of the new fades are a first guess); the stand cards and the size
+  multiplier; a sampler-free way to preview a species that is not warmed.
+
+## G583 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
 
 The user: the Jolene roll-out's compile step takes 16-26 s of a 32-44 s screen WARM (cold 32 s) - "a warm boot should
 compile ~nothing": find what gets a different source or key each boot, or is made fresh each boot. Measured by COUNTS
@@ -59519,16 +59645,16 @@ new on the first frame, and the old warm-up is the CONTROL that must miss (8); t
 sources; no cache key in src/viewer reads a uuid, an id, a clock or a counter; the rock map links each program once
 and a recentre none (red on the old code: 10 links / 4 distinct, 2 on the recentre); a kept PMREMGenerator bakes
 again on no link; the three passes publish warmList() and the step compiles them in the lit, fogless scene.
-futureDesigns/PERF-2026-09-23.md G580.
+futureDesigns/PERF-2026-09-23.md G583.
 
-## G581 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
+## G584 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
 
 The user: at the airfield stand the cover ring issues ~1 600 draws a frame counting shadows; cut them without a visible
 change. Counted by wrapping renderer.renderBufferDirect (the shadow pass flagged) over 6 frames, by `coverKind`, at
 the roll-out stand (-154, 31.6, 712), master aa1846bd against this build (the scratchpad rig drives headless Chrome
 with the GL's clears, uploads and draws stubbed - three's draw path is JavaScript, the counts are its own):
 
-| kind | master (main + shadow) | G581 |
+| kind | master (main + shadow) | G584 |
 |---|---|---|
 | rock | 142 + 172 | 9 + 7 |
 | debris | 196 + 116 | 28 + 10 |
@@ -59570,5 +59696,5 @@ with the GL's clears, uploads and draws stubbed - three's draw path is JavaScrip
   the instanced path is in a batch with its geometry, matrix, colour and threshold, the same ones within reach after
   the eye moves, a draw per batch and pass at most (rock 81 -> 5, debris 33 -> 3, shrub 96 -> 8 there), no caster
   under 0.5 m, no instance left over after the eye leaves and returns, the batched programs read the colour's alpha
-  and the batched leaf its indirect index. GATE MEDIA's budget 8.8 -> 9.0 MiB (master was already at 8.887; these two entries add ~20 KB of code, no data). futureDesigns/
-  PERF-2026-09-23.md G581.
+  and the batched leaf its indirect index. GATE MEDIA: these two entries add ~20 KB of code, no data (under master's wire and step budgets). futureDesigns/
+  PERF-2026-09-23.md G584.

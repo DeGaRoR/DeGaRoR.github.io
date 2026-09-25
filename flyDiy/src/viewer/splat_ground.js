@@ -49,8 +49,14 @@ const SPLAT_GROUND = (() => {
   const G = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null;
 
   // ---- the state: the recipe (the module's default under the browser's copy) --
+  // THE FILTERING KNOBS (the world rail, 2026-09-24): defaults that sit under the recipe's own knobs until the recipe
+  // carries them - the mip bias (+ blurs), the anisotropy, the specular anti-alias, the normal's fade and the detail's
+  // contrast near and far. The fades' defaults are the answer to "how noisy detailed textures appear": the relief and
+  // the grain give way where a texel is under a pixel and can only alias.
+  const FILTER_DEFAULTS = { lodBias: 0, aniso: 8, specAA: 0.35, nrmFadeFrom: 250, nrmFadeTo: 1400, conNear: 1, conFar: 0.7, conFrom: 60, conTo: 700 };
   const load = () => {
     const R = JSON.parse(JSON.stringify(G.RECIPE));
+    R.knobs = Object.assign({}, FILTER_DEFAULTS, R.knobs);
     let sv0 = null;
     try { const sv = JSON.parse(localStorage.getItem('flydiy.ground.splat.v1') || 'null'); sv0 = sv;
       if (sv) { if (sv.codes) for (const k in sv.codes) R.codes[k] = Object.assign(R.codes[k] || {}, sv.codes[k]);
@@ -74,6 +80,14 @@ const SPLAT_GROUND = (() => {
   uniform float uSLum[${NLIB}];   // each set's mean luminance after its grade (linear): the detail's texel over it is pure TEXTURE
   uniform float uSGrass[${NLIB}];   // per set: how far its DARK texels are pulled to the open ground's grass (the forest floor's, 2026-09-23)
   uniform vec4 uSGrassC;            // that grass, MEASURED - the mean of the open-ground sets after their own normalisation
+  // THE RECOLOUR per set (the world rail, 2026-09-24): x hue turn (rad), y the selected hue (rad), z its half width (rad,
+  // 0 = no selection), w the selection's hue turn (rad) | x the selection's saturation, y its lightness, z the set's
+  // contrast about its mean, w the selection's softness (0 hard .. 1 soft)
+  uniform vec4 uSRecol[${NLIB}], uSRecol2[${NLIB}];
+  uniform vec4 uSFilt;    // x the mip bias, y the specular anti-alias, z/w the normal's fade from / gone by (m; 0 = no fade)
+  uniform vec4 uSCon;     // the detail's contrast: x near, y far, z from (m), w to (m)
+  uniform float uSMaskL;  // the recolour's selection shown in magenta on this set (-1 = off)
+  uniform float uSRecolOn;   // 1 when any set is recoloured or a mask is shown: the recolour is one uniform branch per set otherwise
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2, uSVeg;
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
@@ -97,11 +111,30 @@ const SPLAT_GROUND = (() => {
     return b / (b.x + b.y);
   }
   vec2 sHash2(vec2 p){ return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
+  // hue of a linear colour about the grey axis (0 red, +2pi/3 green, -2pi/3 blue), the angle gfHueTurn turns
+  float sHueOf(vec3 c){ return atan(1.7320508 * (c.g - c.b), 2.0 * c.r - c.g - c.b); }
+  // the set's recolour: the whole set's hue turn and contrast, then the selected hue band's turn, saturation, lightness
+  vec3 sRecolour(vec3 c, int L, float mean){
+    vec4 A = uSRecol[L], B = uSRecol2[L];
+    if (B.z != 1.0) c = max(vec3(mean) + (c - vec3(mean)) * B.z, vec3(0.0));   // the contrast about the set's mean
+    if (A.x != 0.0) c = gfHueTurn(c, A.x);
+    if (A.z > 0.0) {
+      float l = gLuma(c), ch = length(c - vec3(l));
+      float dh = abs(mod(sHueOf(c) - A.y + 3.14159265, 6.2831853) - 3.14159265);
+      float w = (1.0 - smoothstep(A.z * (1.0 - B.w), A.z, dh)) * smoothstep(0.0, 0.02 + 0.1 * B.w, ch / max(l, 1e-3));
+      if (int(uSMaskL + 0.5) == L && uSMaskL >= 0.0) return mix(c, vec3(1.0, 0.0, 1.0), w);
+      vec3 t = gfHueTurn(c, A.w * w);
+      float lt = gLuma(t);
+      t = vec3(lt) + (t - vec3(lt)) * mix(1.0, B.x, w);
+      c = max(t * mix(1.0, B.y, w), vec3(0.0));
+    }
+    return c;
+  }
   Smp sFetch(float layer, vec2 uv, vec2 cs){
     Smp o;
-    o.c = texture(uSplat, vec3(uv, layer));
+    o.c = texture(uSplat, vec3(uv, layer), uSFilt.x);
     o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;   // the colour is sRGB bytes decoded here (an sRGB array texture is refused - GL 1281); the height in alpha is linear
-    vec4 nr = texture(uSplatN, vec3(uv, layer));
+    vec4 nr = texture(uSplatN, vec3(uv, layer), uSFilt.x);
     vec2 t = nr.xy * 2.0 - 1.0;
     t = vec2(cs.x * t.x + cs.y * t.y, -cs.y * t.x + cs.x * t.y);
     o.n = vec4(t, nr.z * 2.0 - 1.0, 1.0 - (1.0 - nr.a) * uSGloss[int(layer + 0.5)]);   // the rough map through the set's gloss grade (1 = the map's, 0 = matte)
@@ -186,6 +219,10 @@ const SPLAT_GROUND = (() => {
     Smp o; o.c = t.c * tw.y; o.n = vec4(tt.x, 0.0, tt.y, t.n.a) * tw.y;
     if (tw.x > 0.01) { Smp u = sTile(layer, P.zy / scale); o.c += u.c * tw.x; o.n += vec4(0.0, u.n.y, u.n.x, u.n.a) * tw.x; }
     if (tw.z > 0.01) { Smp u = sTile(layer, P.xy / scale); o.c += u.c * tw.z; o.n += vec4(u.n.x, u.n.y, 0.0, u.n.a) * tw.z; }
+    // THE RECOLOUR ONCE PER SET (2026-09-25): after the triplanar sum, not per projection - one inlined copy per sSet call
+    // site instead of three (ANGLE/fxc inlines every call; the ground program's compile is the long pole on D3D). The
+    // weights sum to 1, so a recolour of the blend is the blend of the recolours up to the recolour's curvature.
+    if (uSRecolOn > 0.5) { int Li = int(layer + 0.5); o.c.rgb = sRecolour(o.c.rgb, Li, uSLum[Li]); }
     return o;
   }
   // the triplet's height blend of its (up to) three sampled sets; A says which exist
@@ -345,8 +382,19 @@ const SPLAT_GROUND = (() => {
     rel = tot > 1e-5 ? rel / tot : 1.0;
     col = tot > 1e-5 ? col / tot : macro;
     nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
-    gSN = nrm.xyz * uSNrm.x * (1.0 - mw) * (1.0 - lakeM);
-    gSRough = mix(clamp(nrm.a, 0.05, 1.0), 1.0, mw);   // the far tier is the lit stack: no sheen out there
+    // THE DETAIL'S CONTRAST BY DISTANCE (the world rail, 2026-09-24; the user: "how noisy detailed textures appear"):
+    // the texel over its set's mean (rel) raised to a power - 1 as shipped, under 1 the texture's grain flattens toward
+    // the set's own colour. Near and far values, faded between two distances: the pebbles keep their grain at the wheel
+    // and stop fizzing at 300 m, where a texel is a fraction of a pixel and the grain is only aliasing.
+    { float ck = mix(uSCon.x, uSCon.y, smoothstep(uSCon.z, max(uSCon.w, uSCon.z + 1.0), d));
+      if (ck != 1.0 && tot > 1e-5) { float r2 = pow(max(rel, 1e-3), ck); col *= r2 / max(rel, 1e-3); rel = r2; } }
+    // THE NORMAL'S FADE (2026-09-24): the sets' relief is a sub-pixel pattern past a few hundred metres - under the
+    // sun's lobe it crawls as the eye moves (the frame-to-frame 'noise'); it gives way between uSFilt.z and .w
+    float nf = uSFilt.w > uSFilt.z ? 1.0 - smoothstep(uSFilt.z, uSFilt.w, d) : 1.0;
+    gSN = nrm.xyz * uSNrm.x * (1.0 - mw) * (1.0 - lakeM) * nf;
+    // SPECULAR ANTI-ALIAS (2026-09-24): the roughness widened by the pixel's footprint (Kaplanyan-style, on the
+    // footprint rather than the normal's variance - the arrays refuse textureGrad), so a glossy set does not sparkle
+    gSRough = mix(clamp(max(nrm.a, min(1.0, uSFilt.y * sqrt(gSPixM))), 0.05, 1.0), 1.0, mw);   // the far tier is the lit stack: no sheen out there
     vec3 mac = macro * uSSeam.y;
     // THE MACRO IN THE NEAR GROUND (the user, 2026-09-21: "the whole island looks yellow, while the colour data
     // gives mostly green and brown and there is little macro contrast remaining once the detailed textures show"):
@@ -374,7 +422,7 @@ const SPLAT_GROUND = (() => {
 
   // ---- the arrays: seventeen sets, assembled once the Images have decoded -----
   // colour + height (rgb + a) and normal + rough (rgb + a): four maps per set
-  function buildArrays(sets, U, done) {
+  function buildArrays(sets, U, R, done) {
     const N = sets.length, px = sets[0].px, S = px * px * 4;
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
     const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
@@ -398,7 +446,7 @@ const SPLAT_GROUND = (() => {
         t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
         t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
         // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes
-        t.anisotropy = 8; t.needsUpdate = true; return t; };
+        t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 8; t.needsUpdate = true; return t; };
       U.uSplat.value = mk(data, true); U.uSplatN.value = mk(dataN, false);
       done();
     });
@@ -532,6 +580,9 @@ const SPLAT_GROUND = (() => {
       uSMatM: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(30, 1, 0, 0)) },
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
+      uSRecol: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(0, 0, 0, 0)) },
+      uSRecol2: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 0.5)) },
+      uSFilt: { value: V4() }, uSCon: { value: new THREE.Vector4(1, 1, 0, 1) }, uSMaskL: { value: -1 }, uSRecolOn: { value: 0 },
       uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
       uSGrass: { value: new Float32Array(NLIB).fill(0) }, uSGrassC: { value: V4() },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() }, uSVeg: { value: V4() },
@@ -562,7 +613,19 @@ const SPLAT_GROUND = (() => {
         U.uSGrass.value[i] = g.grass === undefined ? 0 : +g.grass;   // the forest floor's dark texels toward the open grass
         // the set's mean luminance after its grade (the import's linear mean x the gain; the saturation leaves luma alone)
         const mn = (SPLAT_TEX_SETS.find(x => x.key === k) || {}).mean || [0.2, 0.2, 0.2];
-        U.uSLum.value[i] = Math.max(1e-3, 0.2126 * mn[0] * c.r + 0.7152 * mn[1] * c.g + 0.0722 * mn[2] * c.b); });
+        U.uSLum.value[i] = Math.max(1e-3, 0.2126 * mn[0] * c.r + 0.7152 * mn[1] * c.g + 0.0722 * mn[2] * c.b);
+        // the recolour (degrees in the record, radians in the shader)
+        const d2r = Math.PI / 180;
+        U.uSRecol.value[i].set((g.hue || 0) * d2r, (g.selHue || 0) * d2r, (g.selWidth || 0) * d2r, (g.selShift || 0) * d2r);
+        U.uSRecol2.value[i].set(g.selSat === undefined ? 1 : +g.selSat, g.selLight === undefined ? 1 : +g.selLight,
+                                g.contrast === undefined ? 1 : +g.contrast, g.selSoft === undefined ? 0.5 : +g.selSoft); });
+      { let on = U.uSMaskL.value >= 0 ? 1 : 0;
+        for (const k of LIB) { const g = R.grade[k]; if (g && ((g.hue || 0) !== 0 || (g.contrast !== undefined && +g.contrast !== 1) || (g.selWidth || 0) > 0)) on = 1; }
+        U.uSRecolOn.value = on; }
+      U.uSFilt.value.set(K.lodBias || 0, K.specAA || 0, K.nrmFadeFrom || 0, K.nrmFadeTo || 0);
+      U.uSCon.value.set(K.conNear === undefined ? 1 : K.conNear, K.conFar === undefined ? 1 : K.conFar, K.conFrom || 0, K.conTo || 1);
+      const an = Math.max(1, K.aniso | 0);
+      for (const t of [U.uSplat.value, U.uSplatN.value]) if (t && t.image && t.image.depth > 1 && t.anisotropy !== an) { t.anisotropy = an; t.needsUpdate = true; }
       // THE OPEN GROUND'S GRASS, MEASURED (2026-09-23): the mean of the sets the eye compares the forest
       // floor against - the heath's `grass` and `dry` and the scrub's `grassRock` - each after its own
       // normalisation, so the target moves with the island rather than being a colour someone picked.
@@ -592,7 +655,7 @@ const SPLAT_GROUND = (() => {
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
     };
     push();
-    buildArrays(SPLAT_TEX_SETS, U, () => { ready = true; push(); });
+    buildArrays(SPLAT_TEX_SETS, U, R, () => { ready = true; push(); });
     const api = {
       on: () => !!R.on,
       ready: () => ready,
@@ -610,10 +673,20 @@ const SPLAT_GROUND = (() => {
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },
-      grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1 }, R.grade[k] || {}),
+      grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R.grade[k] || {}),
+      // the recolour's selection shown in magenta on one set (its key), or off (null)
+      showMask: k => { U.uSMaskL.value = k ? LIB.indexOf(k) : -1; push(); return U.uSMaskL.value; },
+      // the set's images (the rail's previews): diff / nor / height / rough, lazily-made Images
+      images: k => SPLAT_TEX_SETS.find(x => x.key === k) || null,
+      filterDefaults: () => Object.assign({}, FILTER_DEFAULTS),
+      // replace the whole state at once (an imported world look): codes, knobs, grade, on
+      load: o => { if (!o) return; if (o.codes) for (const k in o.codes) R.codes[k] = JSON.parse(JSON.stringify(o.codes[k]));
+        if (o.knobs) for (const k in o.knobs) R.knobs[k] = +o.knobs[k]; if (o.grade) R.grade = JSON.parse(JSON.stringify(o.grade));
+        if (o.on !== undefined) R.on = o.on ? 1 : 0; push(); save(R); },
       setGrade: (k, o) => { R.grade[k] = Object.assign(api.grade(k), o); push(); save(R); return api.grade(k); },
       reset: () => { try { localStorage.removeItem('flydiy.ground.splat.v1'); } catch (e) {} Object.assign(R, load()); push(); },
       export: () => JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade }),
+      state: () => JSON.parse(JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })),
     };
     return { uniforms: U, glslCommon: glslCommon(), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
   }

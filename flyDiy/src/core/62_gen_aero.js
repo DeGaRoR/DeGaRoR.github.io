@@ -932,7 +932,65 @@ function genSubsteps(nodes, beams) {
   }
   const need = Math.max(wMax / (60 * GEN_WDT_MAX), cMax / (60 * GEN_CDT_MAX));
   // floor at 24: the whole fleet's minimum, and what the gated preset runs at
-  return Math.min(200, Math.max(24, Math.ceil(need)));
+  const legacy = Math.min(200, Math.max(24, Math.ceil(need)));
+  // THE DAMPER THE STEP CAN CARRY (G580, PHYSICS PERF). On a taildragger the step was set by the
+  // tailwheel leg's DAMPER, not by any spring: the birdman's 121 substeps are two beams (TW-S6BL/R,
+  // 3.45 kg into 0.55 kg), and they damp at zeta 5.3 - dead-beat five times over; the next beam asks
+  // 77. So where the springs alone ask fewer substeps than the dampers, the step is the springs' and
+  // a damper past the c dt bound is cut to it (every such damper stays overdamped: zeta 1.6-3.7 on the
+  // archetypes it touches) - PROVIDED the whole network stays inside the integrator's stability with a
+  // margin: symplectic Euler on a damped mode holds while (omega dt)^2 + 2 gamma dt < 4, and a node
+  // joined to several dampers adds them, so the per-beam bounds are not enough (the floatplane's 82
+  // float-keel dampers would reach 5.5). The network's own highest omega^2 and gamma (genNetEig) must
+  // give <= GEN_NET_MAX; the smallest step that does is taken, never more than the old rule's, and a
+  // build whose springs set the step is untouched - the same number, no beam changed.
+  const byW = Math.min(200, Math.max(24, Math.ceil(wMax / (60 * GEN_WDT_MAX))));
+  if (byW >= legacy) return legacy;
+  const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
+  const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
+  const capAt = N => b => Math.min(b.c, GEN_CDT_MAX * 60 * N / invOf(b));
+  const w2 = genNetEig(nodes, beams, b => b.k, dry);
+  const metric = N => { const dt = 1 / (60 * N); return w2 * dt * dt + 2 * genNetEig(nodes, beams, capAt(N), dry) * dt; };
+  let N = byW;
+  if (metric(N) > GEN_NET_MAX) {
+    let lo = byW, hi = legacy;
+    if (metric(hi) > GEN_NET_MAX) return legacy;       // no step under the old one holds: the old rule, no cut
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (metric(mid) <= GEN_NET_MAX) hi = mid; else lo = mid; }
+    N = hi;
+  }
+  if (N >= legacy) return legacy;
+  const cap = capAt(N);
+  for (const b of beams) { const c = cap(b); if (c < b.c) { b.cSized = b.c; b.c = c; } }
+  return N;
+}
+// the network's highest eigenvalue of M^-1/2 A M^-1/2, A the axial springs (val = k: omega^2) or dampers
+// (val = c: the damping rate), each beam along its rest direction, dry masses; power iteration from a
+// fixed start (deterministic), 600 passes, and 5 % over what it reads (it converges from below)
+const GEN_NET_MAX = 3.0;
+function genNetEig(nodes, beams, val, dry) {
+  const n = nodes.length, sm = new Float64Array(n);
+  for (let i = 0; i < n; i++) sm[i] = 1 / Math.sqrt(dry(i));
+  const B = beams.length, dA = new Int32Array(B), dB = new Int32Array(B), D = new Float64Array(B * 3), V = new Float64Array(B);
+  for (let q = 0; q < B; q++) {
+    const b = beams[q], pa = nodes[b.a].p, pb = nodes[b.b].p;
+    const dx = pb[0] - pa[0], dy = pb[1] - pa[1], dz = pb[2] - pa[2], L = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+    dA[q] = b.a; dB[q] = b.b; D[q * 3] = dx / L; D[q * 3 + 1] = dy / L; D[q * 3 + 2] = dz / L; V[q] = val(b);
+  }
+  let x = new Float64Array(n * 3), y = new Float64Array(n * 3), lam = 0;
+  for (let i = 0; i < x.length; i++) x[i] = Math.sin(i * 1.7 + 0.3);
+  for (let it = 0; it < 600; it++) {
+    y.fill(0);
+    for (let q = 0; q < B; q++) {
+      const a3 = dA[q] * 3, b3 = dB[q] * 3, sa = sm[dA[q]], sb = sm[dB[q]], d0 = D[q * 3], d1 = D[q * 3 + 1], d2 = D[q * 3 + 2];
+      const r = V[q] * (d0 * (x[b3] * sb - x[a3] * sa) + d1 * (x[b3 + 1] * sb - x[a3 + 1] * sa) + d2 * (x[b3 + 2] * sb - x[a3 + 2] * sa));
+      y[b3] += d0 * r * sb; y[b3 + 1] += d1 * r * sb; y[b3 + 2] += d2 * r * sb;
+      y[a3] -= d0 * r * sa; y[a3 + 1] -= d1 * r * sa; y[a3 + 2] -= d2 * r * sa;
+    }
+    let nrm = 0; for (let i = 0; i < y.length; i++) nrm += y[i] * y[i];
+    nrm = Math.sqrt(nrm); lam = nrm; if (!(nrm > 0)) return 0;
+    for (let i = 0; i < y.length; i++) x[i] = y[i] / nrm;
+  }
+  return lam * 1.05;
 }
 
 // ---------------------------------------------------------------------------

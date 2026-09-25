@@ -27,12 +27,16 @@
 //              100 MiB limit was enforced by comments in build.js and a
 //              hand-computed margin ("0.42 MiB under a limit FIVE OTHER
 //              SESSIONS are committing towards"). Never again: the number
-//              lives here and goes red.
+//              lives here and goes red. Since 2026-09-25 it is two numbers
+//              (see WIRE_BUDGET_MIB / STEP_BUDGET_MIB below): what a player
+//              downloads, and how much one build step may add.
 //
 // NEGATIVE-VERIFIED: --selftest breaks each rule in turn.
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
+const { execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const MEDIA = path.join(ROOT, 'media');
@@ -40,8 +44,9 @@ const MEDIA = path.join(ROOT, 'media');
 const fail = [];
 const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 
-// index.html budget, MiB. Code-only now: three.js + core + editor + viewer +
-// styles + inlined fonts. Raising this needs a reason written here.
+// index.html budget. Code-only now: three.js + core + editor + viewer +
+// styles + inlined fonts. THE HISTORY OF THE RAW CEILING (retired 2026-09-25,
+// the last entry below says why); the two budgets that replaced it follow it.
 //   6.0 -> 6.5 (W0c.29.1, 2026-09-12): the artifact reached 6.03 MiB on the
 //   day the tree chantier closed - the ladder, the impostors and their shadow
 //   cascades (render_world.js +86 KB, trees.js 21 KB), the F8 panel (12 KB),
@@ -136,12 +141,33 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              altiport's rules in 27_premises.js, its landing and departure in 43_pilot.js, the
 //              lit cabins and the link's speed row) - 8.699 -> 8.705. It carries NO asset: the
 //              data: payload is unmoved at 118 KB of its 400.
-//   8.8 -> 9.0 (G580 + G581, the warm compile and the cover ring's batches, 2026-09-25): master was already over
-//              the line - 8.887 MiB at 570a18e (G573's blueprint and G576; G577 left the budget to its owners) -
-//              and these add ~20 KB of CODE: shader_warm.js and the passes' warm lists (G580), cover_ring.js's
-//              batches and trees.js's batch branch of the fade and the leaf sway (G581) - 8.887 -> 8.907. It
-//              carries NO asset: the data: payload is unmoved at 118 KB of its 400.
-const BUDGET_MIB = 9.0;
+//   8.8 RETIRED (2026-09-25): red on master since G574 at 8.89 MiB, all of it code. The
+//              ceiling had been raised 14 times in 11 days by 0.05-0.25 MiB against a page
+//              that grows ~0.22 MiB a day (6.03 MiB on 09-12, 8.89 on 09-25), so every raise
+//              bought a session or two and the gate was red more often than not - and a gate
+//              that is always red is one nobody reads. It was answering two questions with
+//              one number; each now has its own:
+//                - IS THE PAGE TOO BIG FOR A PLAYER?  WIRE_BUDGET_MIB, the gzipped size, which
+//                  is what GitHub Pages sends: 2.96 MiB that day against media/'s 310 MB. The
+//                  line sits where a first load starts to hurt on a phone (a few seconds on
+//                  4G), not a hair above today's size. Measured with the CRs removed, so an
+//                  autocrlf worktree measures what master ships (no line-ending margin).
+//                - DID SOMETHING HEAVY JUST MOVE IN?  STEP_BUDGET_MIB, the growth of this build
+//                  over the one before it. The last 30 builds added 0-10 KB each and a merge
+//                  carrying several landings ~94 KB; an inlined manifest, geometry table or
+//                  asset is hundreds of KB to MBs in ONE step. Organic growth never trips it,
+//                  so it never needs raising - it is the tripwire the raw ceiling meant to be.
+//              DATA_BUDGET_KB (base64) is unchanged.
+//
+// WIRE: index.html gzipped (CRs removed), MiB. Raising this needs a reason written here.
+const WIRE_BUDGET_MIB = 4.0;
+// STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
+// "The build before" is git's: if the built page differs from HEAD's, HEAD (and
+// its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
+// that last changed it - so the check reads the same before and after the
+// "(built)" commit. The LARGEST of those candidates is the baseline, so merging
+// a master that grew for days is not charged as this step's growth.
+const STEP_BUDGET_MIB = 0.3;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;
@@ -284,18 +310,77 @@ function dataBytes(html) {
   return n;
 }
 
+// the page as master ships it: an autocrlf worktree's CRs are not the player's bytes
+const noCR = buf => buf.includes(13) ? buf.filter(b => b !== 13) : buf;
+const MiB = n => n / 1048576;
+
+// compared in whole bytes: 0.3 MiB as a float difference is 0.30000000000000007
+const WIRE_BUDGET_B = Math.round(WIRE_BUDGET_MIB * 1048576);
+const STEP_BUDGET_B = Math.round(STEP_BUDGET_MIB * 1048576);
+
+function checkWire(gzBytes) {
+  return check(gzBytes <= WIRE_BUDGET_B,
+    `index.html is ${MiB(gzBytes).toFixed(2)} MiB gzipped against a declared ` +
+    `${WIRE_BUDGET_MIB} MiB budget — the first load is getting heavy for a player`);
+}
+
+function checkStep(nowBytes, baseBytes, baseAt) {
+  const step = MiB(nowBytes - baseBytes);
+  return check(nowBytes - baseBytes <= STEP_BUDGET_B,
+    `index.html grew ${step.toFixed(2)} MiB over ${baseAt} against the ` +
+    `${STEP_BUDGET_MIB} MiB one build may add — something heavy moved inside the artifact`);
+}
+
+// index.html in git (CRs removed) at a revision, or null (none there, no git,
+// a shallow clone's missing history)
+function gitPage(rev) {
+  try {
+    return noCR(execFileSync('git', ['show', `${rev}:./index.html`],
+      { cwd: ROOT, maxBuffer: 256 << 20, stdio: ['ignore', 'pipe', 'ignore'] }));
+  } catch (e) { return null; }
+}
+function gitRevs(args) {
+  try {
+    return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .split('\n').map(s => s.trim()).filter(Boolean);
+  } catch (e) { return []; }
+}
+const parentsOf = rev => gitRevs(['rev-parse', `${rev}^@`]);
+
+// the build before this one (see STEP_BUDGET_MIB): { bytes, at } or { why }
+function stepBaseline(page) {
+  const head = gitPage('HEAD');
+  if (!head) return { why: 'no index.html at HEAD (or no git)' };
+  let cands;
+  if (!head.equals(page)) cands = ['HEAD'].concat(parentsOf('HEAD'));
+  else {
+    const last = gitRevs(['log', '-1', '--format=%H', '--', 'index.html'])[0];
+    if (!last) return { why: 'no commit changed index.html' };
+    cands = parentsOf(last);
+  }
+  let best = null;
+  for (const rev of cands) {
+    const b = gitPage(rev);
+    if (b && (!best || b.length > best.bytes))
+      best = { bytes: b.length, at: rev === 'HEAD' ? 'HEAD' : rev.slice(0, 8) };
+  }
+  return best || { why: 'no earlier build in reach (shallow clone?)' };
+}
+
 function checkArtifact() {
   const f = path.join(ROOT, 'index.html');
   if (!check(fs.existsSync(f), 'index.html is not built')) return;
-  const mib = fs.statSync(f).size / 1048576;
-  check(mib <= BUDGET_MIB,
-    `index.html is ${mib.toFixed(2)} MiB against a declared ${BUDGET_MIB} MiB ` +
-    'budget — something heavy moved back inside the artifact');
-  const kb = dataBytes(fs.readFileSync(f, 'utf8')) / 1024;
+  const page = noCR(fs.readFileSync(f));
+  const mib = MiB(page.length);
+  const gz = zlib.gzipSync(page).length;
+  checkWire(gz);
+  const base = stepBaseline(page);
+  if (base.bytes != null) checkStep(page.length, base.bytes, base.at);
+  const kb = dataBytes(page.toString('utf8')) / 1024;
   check(kb <= DATA_BUDGET_KB,
     `index.html carries ${kb.toFixed(0)} KB of data: URIs against the ` +
     `${DATA_BUDGET_KB} KB the fonts are allowed — base64 is creeping back`);
-  return { mib, kb };
+  return { mib, gz: MiB(gz), base, step: base.bytes != null ? MiB(page.length - base.bytes) : null, kb };
 }
 
 // ---------------------------------------------------------------------------
@@ -340,10 +425,23 @@ if (process.argv.includes('--selftest')) {
       fail.length = before;
       fs.unlinkSync(tmp);
       return caught; }],
-    ['an artifact past its budget', () =>
-      // the shape of the check, on a synthetic size: the real budget has
-      // headroom, so the assertion is exercised against a doctored ceiling
-      !(art && art.mib <= 0.001)],
+    ['an artifact too heavy on the wire', () => {
+      const before = fail.length;
+      const quiet = checkWire(WIRE_BUDGET_B);
+      checkWire(WIRE_BUDGET_B + 1);
+      const caught = quiet && fail.length === before + 1;
+      fail.length = before;
+      return caught; }],
+    ['one build step that grows the page too much', () => {
+      const before = fail.length;
+      const quiet = checkStep(9e6, 9e6 - STEP_BUDGET_B, 'synthetic');
+      checkStep(9e6, 9e6 - STEP_BUDGET_B - 1, 'synthetic');
+      const caught = quiet && fail.length === before + 1;
+      fail.length = before;
+      return caught; }],
+    ['the gzip measure on a real page', () =>
+      // the wire number is the compressed page, not the raw one
+      !!(art && art.gz > 0.1 && art.gz < art.mib * 0.6)],
     ['a data: payload past what the fonts cost', () =>
       dataBytes('data:font/woff2;base64,' + 'A'.repeat(500 * 1024)) / 1024
         > DATA_BUDGET_KB],
@@ -370,7 +468,11 @@ for (const d of Object.keys(byDir).sort())
   console.log(`  ${d}: ${byDir[d].n} files, ${(byDir[d].b / 1048576).toFixed(2)} MB`);
 console.log(`  ${refs.size} references from ${files.length} manifests, ` +
   `${present.length} files in media/` +
-  (art ? ` · index.html ${art.mib.toFixed(2)} MiB (budget ${BUDGET_MIB}), ` +
+  (art ? ` · index.html ${art.mib.toFixed(2)} MiB, ` +
+         `${art.gz.toFixed(2)} MiB gzipped (budget ${WIRE_BUDGET_MIB}), ` +
+         (art.step != null
+           ? `${art.step >= 0 ? '+' : ''}${(art.step * 1024).toFixed(1)} KB over ${art.base.at} (budget ${STEP_BUDGET_MIB * 1024} KB), `
+           : `step not measured: ${art.base.why}, `) +
          `data: ${art.kb.toFixed(0)} KB (budget ${DATA_BUDGET_KB})` : ''));
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
