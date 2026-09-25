@@ -5180,6 +5180,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     return { patchMat: inner.mat, patchUV: inner.uv, patchMat2: outerMat, patchUV2: outerUV, patchInject2: false,
              patchPick: (x0, z0, x1, z1) => !(Math.abs(x0) < h && Math.abs(x1) < h && Math.abs(z0) < h && Math.abs(z1) < h) };
   }
+  // G570: declared ABOVE the premises block, which runs inline in buildWorldScene - declared where worldUpdate
+  // stands (G562) it was in its TDZ when the block ran: a ReferenceError the catch below printed as "the record
+  // did not render", and the game drew no premises at all
+  const PREM_NEAR = 3000;   // G562: the boot builds the premises within 3 km of the field; the rest streams in
   if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
     try {
       // the patch wears the ring it lies in, chunk by chunk (patchGrounds, G527): the inner ring's material (its
@@ -5502,7 +5506,6 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
   }
   let premTramLast = 0, premStreamTick = 0;
-  const PREM_NEAR = 3000;   // G562: the boot builds the premises within 3 km of the field; the rest streams in
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued && (++premStreamTick % 3 === 0 || (premisesR.editing && premisesR.editing()))) premisesR.step(1);   // a live edit's builds, and the far premises streamed in (G562): one every third frame
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move

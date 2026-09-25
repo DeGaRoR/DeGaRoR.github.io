@@ -24,7 +24,7 @@
 // fall, and the climate's counters. An optimisation that claims to change
 // nothing prints the same HASH line before and after; time A and B at the
 // same moment (the machine's speed drifts between runs). The audit that
-// made it: futureDesigns/PHYSICS-PERF-2026-09-24.md (G571).
+// made it: futureDesigns/PHYSICS-PERF-2026-09-24.md (G572).
 // ============================================================
 'use strict';
 const path = require('path');

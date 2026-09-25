@@ -1,4 +1,4 @@
-# PHYSICS PERFORMANCE AUDIT (2026-09-24, G571)
+# PHYSICS PERFORMANCE AUDIT (2026-09-24, G572)
 
 The user's brief: "we have been, and still are optimizing the graphics hard, but it seems like there's a CPU floor
 we're hitting. I'm wondering if the physics have been audited for performance as well as the graphics have ...
@@ -26,7 +26,7 @@ render, on the same thread, every frame.
    (breeze, ridge, thermal, front, gale - and a player's saved day keeps one) costs ~20-30 % more solver: the
    linearisation is re-centred every substep (4 field evaluations + 5 terrain reads) and every wind call inside the
    surface layer reads the terrain exactly.
-5. **Landed (G571), bit-identical**: 9-30 % off the solver, proven by 12 trajectory hashes. **Ruled levers**
+5. **Landed (G572), bit-identical**: 9-30 % off the solver, proven by 12 trajectory hashes. **Ruled levers**
    measured below: the island's clearance cone (-40 %, same trajectory), the vortex kernel once a frame (-17 to
    -33 %), the substep drivers (up to -60 % on the metal builds), the hydro at a fixed rate (-30 % on floats), and
    frame pacing.
@@ -65,7 +65,7 @@ Where the stock roll-out's solver time went (V8 profile, Jolene, stand): the com
 road grades alone 28 %: `Math.hypot` per segment), the beams ~16 % (one `Math.hypot` per beam per substep), the aero
 pass ~22 % of which the vortex kernel's rebuild ~10 %, GC ~4 %. On floats the hydro pass is ~30 %.
 
-## LANDED - G571: the same bits, faster
+## LANDED - G572: the same bits, faster
 
 Every change below leaves every node's p and v bit-identical: 12 scenarios (stock / birdman / metal / floats on
 Jolene; stock thermal; c172 ridge; the floatplane archetype in a breeze; stock, stearman, cub hot-and-high, jodel
@@ -88,7 +88,7 @@ gale and da62 on the analytic world through a full circuit), 25-150 s each, the 
    counts, the lever closure) once per sim; the wing's pitching couple through two fixed arrays instead of four new
    pairs per strip.
 
-Paired timings (A = HEAD, B = G571, same moment, solver ms a frame):
+Paired timings (A = HEAD, B = G572, same moment, solver ms a frame):
 
 | scenario | A | B | |
 |---|---|---|---|
@@ -101,11 +101,11 @@ Paired timings (A = HEAD, B = G571, same moment, solver ms a frame):
 
 ## THE LEVERS THAT NEED A RULING (measured, NOT landed)
 
-Measured on an experimental copy of the core with each lever on a switch, paired against G571 (solver ms a frame).
+Measured on an experimental copy of the core with each lever on a switch, paired against G572 (solver ms a frame).
 
 ### 1. The clearance cone on the island (-40 %, the same trajectory where the bound holds)
 
-| scenario | G571 | cone S = 12 | trajectory |
+| scenario | G572 | cone S = 12 | trajectory |
 |---|---|---|---|
 | stock, Jolene taxi | 8.1 | 4.6 (-43 %) | hash identical |
 | metal Cessna, Jolene taxi | 22.0 | 13.3 (-40 %) | hash identical |
@@ -133,7 +133,7 @@ says "called once per frame in flight ... never per substep"; what runs is a reb
 it hashes the node positions, which move every substep - so it is rebuilt every substep (10-16 % of the solver).
 Rebuilding on the frame's first substep only (the circulations still update every substep):
 
-| scenario | G571 | once a frame | effect |
+| scenario | G572 | once a frame | effect |
 |---|---|---|---|
 | stock, Jolene taxi | 8.0 | 6.6 (-18 %) | cg 0.05 mm off after 30 s |
 | metal Cessna, Jolene taxi | 21.1 | 17.5 (-17 %) | cg 0.4 mm off after 20 s |
