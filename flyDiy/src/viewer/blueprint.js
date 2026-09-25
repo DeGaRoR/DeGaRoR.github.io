@@ -1,4 +1,4 @@
-// blueprint.js — THE BLUEPRINT (G570, the user: "I need the blueprint import
+// blueprint.js — THE BLUEPRINT (G573, the user: "I need the blueprint import
 // functionality. The base case is a single blueprint image").
 //
 // A three-view drawing, cut up and pinned in the shed around the aeroplane you

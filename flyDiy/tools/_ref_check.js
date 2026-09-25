@@ -426,7 +426,7 @@ function checkOneRoot(src, file) {
 }
 const REF_TEXT = fs.readFileSync(REF_SRC, 'utf8');
 checkOneRoot(REF_TEXT);
-// ...and its second source (G570): a blueprint you can measure against is
+// ...and its second source (G573): a blueprint you can measure against is
 // the same one step from a blueprint you build from
 const BP_SRC = path.join(SRC, 'viewer', 'blueprint.js');
 if (fs.existsSync(BP_SRC)) checkOneRoot(fs.readFileSync(BP_SRC, 'utf8'), 'blueprint.js');

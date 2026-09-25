@@ -971,7 +971,7 @@
     if (craft.parent !== s) s.add(craft);
     if (edSit.parent !== s) s.add(edSit);   // the editor's mount (G36)
     if (refSit.parent !== s) s.add(refSit); // the reference's (G89)
-    if (bpSit.parent !== s) s.add(bpSit);   // the blueprint's (G570)
+    if (bpSit.parent !== s) s.add(bpSit);   // the blueprint's (G573)
     // `rigLift` is the load test's own 200 m hop clear of the ground. The room
     // takes the same offset so the aeroplane stays standing in it: the camera
     // tracks the CG and went up with the aeroplane, but the hangar did not, and
@@ -6512,7 +6512,7 @@
   // only the group, the floor line and the build's box to measure against.
   const refSit = new THREE.Group();
   refSit.visible = false;
-  // THE BLUEPRINT'S MOUNT (G570), a sibling of the reference's rather than a
+  // THE BLUEPRINT'S MOUNT (G573), a sibling of the reference's rather than a
   // child: refplane.js hides refSit whenever no 3D model is standing, and a
   // blueprint pinned up with no model beside it must not vanish with it.
   // blueprint.js owns everything inside it, under the same display-only rule.

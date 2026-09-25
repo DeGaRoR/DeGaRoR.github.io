@@ -310,8 +310,8 @@ var S = {
   mode: 'clay', alpha: 1, occlude: false, cut: 'off', half: false, showBox: false,
   off: {},                      // matKey -> true when hidden
   matA: {},                     // matKey -> its own alpha
-  src: 'all',                   // G570: which tree row the panel was built for (all | model | bp)
-  folds: {},                    // G570: the model tab's folds, open or shut
+  src: 'all',                   // G573: which tree row the panel was built for (all | model | bp)
+  folds: {},                    // G573: the model tab's folds, open or shut
 };
 try {
   var raw = localStorage.getItem(LS);
@@ -609,7 +609,7 @@ function drawBox() {
 // THE PANEL. Hand-built, in _cage_ui.js's row grammar, owning nothing of the
 // aeroplane.
 //
-// G570, the user: "we need first to revise the UI of the reference plane,
+// G573, the user: "we need first to revise the UI of the reference plane,
 // because it gets really messy at time". What was messy, measured on the
 // C172 (26 materials): one flat column of 8 headings and ~50 rows, the
 // materials list scrolling INSIDE the scrolling column, the measurements it
@@ -985,7 +985,7 @@ function buildModelTab(host) {
   mf.appendChild(matsEl);
 }
 
-// WHICH SOURCES THE PANEL SHOWS (G570). The tree carries the choice now —
+// WHICH SOURCES THE PANEL SHOWS (G573). The tree carries the choice now —
 // `Reference plane` with `3D model` and `Blueprint` under it, the way an
 // assembly carries its parts: the root shows both sections, each under its
 // own name heading (the column's part rung, .edHP) with its groups inside;
@@ -1073,7 +1073,7 @@ function rebuildPanel() {
 // ===========================================================================
 window.REFPLANE = {
   presets: REF_PRESETS,
-  // the row helpers, for blueprint.js's half of the panel (G570)
+  // the row helpers, for blueprint.js's half of the panel (G573)
   ui: UI,
   // the tree row's badge: what is standing there, or nothing. Both sources
   // can stand at once, and the badge says so.

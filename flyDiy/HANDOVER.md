@@ -59132,7 +59132,68 @@ terrain type (near, far) - NO loop inside the candidate loop (a nested loop of s
 the GPU). Compile step 208.6 -> 33.6 s cold; the frame and the picture unchanged (same-page A/B, 3 heights).
 splat_ground.js sMatPass / sTriplet; GATE SPLAT 3 (call sites, no loop in the chain). futureDesigns/PERF-2026-09-23.md G568.
 
-## G570 - THE REFERENCE PLANE, TIDIED, AND ITS SECOND SOURCE: THE BLUEPRINT (2026-09-25)
+## G570 - THE PREMISES DRAW AGAIN: PREM_NEAR was read in its TDZ (2026-09-24)
+
+G562 declared `const PREM_NEAR = 3000` next to worldUpdate, ~300 lines BELOW the premises block that reads it, and
+that block runs inline in buildWorldScene. Every boot since 681d799 threw `ReferenceError: Cannot access 'PREM_NEAR'
+before initialization` at `drainNear`, and the block's own catch printed it as `premises: the record did not render`.
+make + rebuild had already run, so the rig still had a premises (roads, patch, trams, traffic, animals), but the boot
+built NOTHING from the queue (houses, site objects, lamps, parked aeroplanes: 0; queued 695) and skipped the
+patch's ground re-sink (refreshGround(patchBounds), G434.1). The fix moves the declaration above the block.
+Headless roll-out of dev.html (Chromium/SwiftShader, jolene, 90 s after the press): HEAD 0 houses, 695 queued, the
+warning; fixed 84 houses (986 836 tris), 39 lamps, 42 objects, 20 obstacles, 569 queued, no premises line.
+(That rig never reaches the flight loop - worldUpdate is called 0 times in 115 frames - so the far stream could
+not be watched there, either way.)
+GATE WORLDRENDER (the only gate that runs buildWorldScene; UISMOKE stubs it) now hands the builder a premises
+record and a stub RENDER_PREMISES through a `window` that answers only the premises' two names and drops every write,
+and asserts make (game) > rebuild > drainNear(0, 0, 3000), no `premises:` warning, and WF.premises being what make
+returned. Red on 681d799..78fd4b1's source with the exact message, green with the fix. The sandbox now also injects
+sitePattern, sitePatternIssues and patternPath (the premises' `site` needs them).
+OWED: G563-G566's numbers were taken on commits that all carry this bug. Measured "settled" in the game, the
+per-frame stream would have built the queue by then (step() does not depend on drainNear), but in RECORD order, not
+nearest-first (drainNear is what sorts it), and the ground under the patch was never re-sunk. Re-take the over-the-field / stand / town numbers on a GPU.
+
+## G571 - L0 SHELVED: a parked aeroplane is L1 from 0 m (2026-09-25)
+
+The user: "They look good, so simply get rid of L0 for now (keep available for possible later reactivation, but
+transparent to the game) and have L1 by default, should be enough, and allow plenty of planes."
+`PARKED.L0` (default false) decides at `build` time whether a placement gets the interior rung. Off, the LOD is
+L1 (0 m) / L2 (120) / L3 (450) / cull (2500): no interior bucket, gauge, control, pushrod or wire is ever built
+(no geometry uploaded, no material made for them), and once the bake lands (G569) the aeroplane is ONE draw on ONE
+material from 0 m out - the draw count per parked aeroplane no longer depends on how close the camera stands, which
+is what lets the apron hold many of them. Before the bake lands, or with no WebGL renderer, L1 is the per-material
+exterior (merged by material, G565). The panes read as L1's dark slab even up close. The obstacle rasteriser and
+hitReady (render_premises) walk `levels[0]`, which is now the exterior: the same outline the aeroplane shows.
+`PARKED.L0 = true` restores the full ladder for placements built after the switch - nothing of L0 was deleted.
+GATE PARKED: 5b / 6c / 8 switch L0 on to keep proving the full ladder; new checks 9 prove the default (off by
+default; four rungs, L1 at 0 m, no interior geometry built, the far rungs one index lower and on the ground, the
+craft matrix; with the bake in hand, L1 / L2 / L3 each one draw on the bake's one material, standing where the
+full ladder does). 104 checks green.
+
+## G572 - THE PHYSICS, AUDITED FOR THE FRAME (2026-09-24)
+
+The user: "it seems like there's a CPU floor we're hitting ... have the physics been audited for performance as well
+as the graphics? ... bad performance when getting out of the hangar ... the climate manager, could it have introduced
+physics changes?". The graphics study timed the renderer; nobody had timed `sim.step` - which runs on the same thread
+before it. `tools/physics_perf.js` flies the game's road headless (Jolene + premises, the stand, the pilot's
+departFrom; floats on the SEA lane) and times the pilot and the solver per frame, `--hash` for bit-identity, `--core`
+for an A/B. BEFORE (this container): the stock build's taxi out of the door 11-18 ms of solver a frame, the user's
+birdman 19-29, metal Cessna 31-49 (200 substeps, the cap), Cessna on floats 36-50. Why the roll-out: on the island's
+composed ground every node reads the terrain every substep (the clearance cone is off: no slope bound declared) -
+~45 % of the solver on the stand. The climate: zero cost on the default (calm) day; a rich preset +20-30 %.
+LANDED, bit-identical (12 scenarios, same FNV hash of every p and v before and after): hyp2/hyp3 (00_registry.js) =
+Math.hypot TO THE BIT at 6 ns instead of 47 (V8's own algorithm written out; GATE HYPOT), in the solver, the hydro,
+the climate's field and the premises; the premises' pads skip the edge distance inside the polygon and past the
+feather; the road grade's scan screens segments by squared distance (1e-9 margin); the aero pass stops allocating
+per substep. Paired A/B: -22 % stock taxi, -30 % metal Cessna, -29 % birdman, -29 % thermal day, -16 % floats, -9 %
+analytic circuit. THE RULINGS WAITING (measured, not landed - futureDesigns/PHYSICS-PERF-2026-09-24.md): the island's
+cone (-40 %, hash identical where the bound holds; needs a true bound, a local one proposed), the vortex kernel once
+a frame as its own note says (-17 / -33 %; every build flies vortex since P5), the substep drivers (the alloy wing
+box asks 225; the birdman's 121 is two tailwheel dampers, the next beam asks 77), the hydro at a fixed 360 Hz
+(-30 % floats), frame pacing (the sim steps 1/60 per rAF: slow motion under 60 fps, fast and dearer on a 144 Hz
+screen), the solver's JIT warm-up in the first 0.5 s at the door (pre-step it under the roll-out screen).
+
+## G573 - THE REFERENCE PLANE, TIDIED, AND ITS SECOND SOURCE: THE BLUEPRINT (2026-09-25)
 
 The user: "we need first to revise the UI of the reference plane, because it gets really messy at time. Then I need the
 blueprint import functionality. The base case is a single blueprint image" - scale the sheet, isolate and name the views

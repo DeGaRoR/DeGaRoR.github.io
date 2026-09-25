@@ -193,7 +193,7 @@ function editorInit(api) {
   //     shown:   on => {}        — optional, told when it is/stops being shown
   //     refresh: () => {}        — optional, called at the end of every build
   //     kids:    [{ key, name, badge?, meta? }]
-  //                              — optional (G570): rows under the root, each
+  //                              — optional (G573): rows under the root, each
   //                                selectable; its panel is the root's own,
   //                                asked for that kid: panel(kid.key)
   //   })
@@ -202,7 +202,7 @@ function editorInit(api) {
   // scalable answer the user asked for — and the thing three sessions editing
   // one file most needed.
   const ROOTS = [];
-  // A ROOT'S KID IS A ROOT TOO, as far as selection is concerned (G570, the
+  // A ROOT'S KID IS A ROOT TOO, as far as selection is concerned (G573, the
   // user: "accessible from the reference plane entry in the tree, grouping
   // the existing under a 3D model section, and these new ones under a
   // blueprint section"). Its definition is derived ONCE from the parent's and
@@ -245,7 +245,7 @@ function editorInit(api) {
   registerRoot({
     key: REF_KEY, name: 'Reference plane', order: 10,
     meta: 'display only · not part of your build',
-    // G570: two sources, two rows under the root. Selecting the root shows
+    // G573: two sources, two rows under the root. Selecting the root shows
     // both sections; selecting a row shows its own.
     kids: [
       { key: 'ref.model', name: '3D model',

@@ -58,6 +58,9 @@ const GATES = [
   // re-engage after hand flying, flown headless on both pilots.
   { id: 'INPUT', file: 'test_input.js', tier: 'core', wall: 160 },
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
+  // PHYSICS PERF (2026-09-24): hyp2 / hyp3 are Math.hypot to the bit - the solver's hot loops call
+  // them, and the trajectory is the same bits only while they are; seconds
+  { id: 'HYPOT', file: '_hypot_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -280,7 +283,7 @@ const GATES = [
   // measurement taken against a reference is worth exactly what that check is
   // — and the display-only rule, read off refplane.js's own source
   { id: 'REF', file: '_ref_check.js', tier: 'core' },
-  // THE BLUEPRINT (G570): the reference plane's second source, a three-view
+  // THE BLUEPRINT (G573): the reference plane's second source, a three-view
   // cut into views and stood in 3D — its frames, its scale, its level tool,
   // its ink and its layout, on a fixture the desk itself produced
   { id: 'BLUEPRINT', file: '_blueprint_check.js', tier: 'core' },

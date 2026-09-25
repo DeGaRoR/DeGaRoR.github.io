@@ -27,6 +27,10 @@
 //   6  the material dupe: a pooled material's copy keeps its hook, defines
 //      and per-finish uniforms, takes the block, and leaves the original's
 //      userData untouched
+//   9  L0 shelved (G571): by default a placement has no L0 - L1 from 0 m, no
+//      interior mesh built, the far rungs one index lower, and with the bake
+//      ONE draw from 0 m; 5b / 6c / 8 switch PARKED.L0 on to prove the full
+//      ladder the switch keeps
 //   8  the far levels baked (G569): the unwrap, the cut per chart, the dilation,
 //      the bake hook, and L1 / L2 / L3 each ONE mesh on ONE material
 //   7  the fixture: every aircraft object in island_jolene.json names an
@@ -55,6 +59,7 @@ W.window = W; W.globalThis = W;
 vm.createContext(W);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8'), W, { filename: 'parked.js' });
 const PK = W.PARKED;
+check(PK.L0 === false, '9 L0 is off by default (G571): L1 stands from 0 m');
 check(!!PK && typeof PK.build === 'function', 'the module loads headless');
 if (PK) PK.quiet = true;
 
@@ -218,7 +223,9 @@ async function farRungs() {
   const vis = synthVis('tail');
   const rec = record('k', vis);
   const grp = new THREE.Group(); grp.position.set(10, 5, -3); grp.rotation.y = 0.7;
+  PK.L0 = true;
   const lod = PK.build(THREE, rec, grp);
+  PK.L0 = false;
   check(lod.isLOD && lod.levels.length === 5, '5b a five-rung LOD', String(lod.levels.length));
   check(near(lod.levels[1].distance, PK.LEVELS.L1, 0) && near(lod.levels[4].distance, PK.LEVELS.cull, 0), '5b the rungs at the declared distances');
   const t0 = Date.now();
@@ -319,7 +326,9 @@ async function paneLevels() {
   try {
     const vis = synthVis('tail');
     const rec = record('pane', vis);
+    PK.L0 = true;
     const lod = PK.build(THREE, rec, new THREE.Group());
+    PK.L0 = false;
     const t0 = Date.now();
     while (!rec.far && Date.now() - t0 < 30000) await new Promise(r => setTimeout(r, 50));
     await new Promise(r => setTimeout(r, 20));
@@ -399,7 +408,9 @@ async function bakedRungs() {
   PK.renderer = { isWebGLRenderer: true, readRenderTargetPixels() {} };
   try {
     const grp = new THREE.Group(); grp.position.set(3, 1, 2); grp.rotation.y = -0.4;
+    PK.L0 = true;
     const lod = PK.build(THREE, rec, grp);
+    PK.L0 = false;
     const meshes = L => { const m = []; lod.levels[L].object.traverse(o => { if (o.isMesh) m.push(o); }); return m; };
     for (const L of [1, 2, 3]) check(meshes(L).length === 1, '8 L' + L + ' is ONE draw', String(meshes(L).length));
     const mats = new Set([1, 2, 3].map(L => meshes(L)[0] && meshes(L)[0].material));
@@ -410,7 +421,45 @@ async function bakedRungs() {
     const v = new THREE.Vector3(), low = [];
     for (const L of [0, 1]) { let lo = Infinity; lod.levels[L].object.traverse(o => { if (!o.isMesh) return; const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); lo = Math.min(lo, v.y); } }); low.push(lo); }
     check(near(low[0], low[1], 1e-4), '8 the baked rung stands where the full one does', low.join(' vs '));
+    // 9 the default (L0 shelved) with the bake in hand: the baked L1 from 0 m, one draw a rung, on the same ground
+    const g9 = new THREE.Group(); g9.position.set(3, 1, 2); g9.rotation.y = -0.4;
+    const lod9 = PK.build(THREE, rec, g9);
+    const m9 = L => { const m = []; lod9.levels[L].object.traverse(o => { if (o.isMesh) m.push(o); }); return m; };
+    check(lod9.levels.length === 4 && lod9.levels[0].distance === 0, '9 baked, no L0: four rungs, L1 from 0 m', lod9.levels.map(l => l.distance).join(' / '));
+    check([0, 1, 2].every(L => m9(L).length === 1 && m9(L)[0].material === m), '9 ...each ONE draw on the bake\'s one material', [0, 1, 2].map(L => m9(L).length).join(' / '));
+    g9.updateWorldMatrix(true, true);
+    let lo9 = Infinity; lod9.levels[0].object.traverse(o => { if (!o.isMesh) return; const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); lo9 = Math.min(lo9, v.y); } });
+    check(near(lo9, low[0], 1e-4), '9 ...standing where the full ladder does', lo9 + ' vs ' + low[0]);
   } finally { PK.renderer = null; }
+}
+
+// ---- 9 L0 shelved (G571): the default ladder, headless (no bake) ------------------------------
+async function shelvedL0() {
+  const vis = synthVis('tail');
+  const rec = record('noL0', vis);
+  const grp = new THREE.Group(); grp.position.set(-4, 2, 7); grp.rotation.y = 1.1;
+  const lod = PK.build(THREE, rec, grp);
+  check(lod.isLOD && lod.levels.length === 4, '9 a four-rung LOD', String(lod.levels.length));
+  check(lod.levels[0].distance === 0 && near(lod.levels[1].distance, PK.LEVELS.L2, 0) && near(lod.levels[2].distance, PK.LEVELS.L3, 0) && near(lod.levels[3].distance, PK.LEVELS.cull, 0),
+    '9 L1 from 0 m, L2 / L3 / cull at their declared distances', lod.levels.map(l => l.distance).join(' / '));
+  const interior = Object.keys(vis.mats).filter(k => PK.isInterior(vis.mats[k]));
+  const built = new Set(); lod.traverse(o => { if (o.isMesh && o.geometry) built.add(o.geometry); });
+  const made = interior.map(k => rec.geos.get(vis.groups[k])).filter(Boolean);
+  check(interior.length > 0 && made.length === 0 && built.size > 0, '9 no interior bucket is built for any rung', interior.join(',') + ': ' + made.length + ' built');
+  const t0 = Date.now();
+  while (!rec.far && Date.now() - t0 < 30000) await new Promise(r => setTimeout(r, 50));
+  if (!check(!!rec.far, '9 the far levels land without L0')) return;
+  await new Promise(r => setTimeout(r, 20));
+  const count = g => { let n = 0; g.traverse(o => { if (o.isMesh) n++; }); return n; };
+  check(count(lod.levels[2].object) <= 3 && count(lod.levels[2].object) >= 2, '9 the far rungs one index lower: L3 at index 2', String(count(lod.levels[2].object)));
+  grp.updateWorldMatrix(true, true);
+  const v = new THREE.Vector3();
+  for (const li of [0, 1, 2]) {
+    let low = Infinity;
+    lod.levels[li].object.traverse(m => { if (!m.isMesh) return; const p = m.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(m.matrixWorld); if (v.y < low) low = v.y; } });
+    check(near(low - grp.position.y, 0, 0.015), '9 rung ' + li + ' stands on the ground', String(low - grp.position.y));
+  }
+  check(!!(lod.userData.craftInv && lod.userData.craftInv.value), '9 the placement has its craft matrix');
 }
 
 // ---- 7 the fixture ------------------------------------------------------------------------------
@@ -435,7 +484,8 @@ async function bakedRungs() {
 
 farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || String(e)))
   .then(() => paneLevels().catch(e => check(false, '6c the pane levels threw', e && e.stack || String(e))))
-  .then(() => bakedRungs().catch(e => check(false, '8 the baked rungs threw', e && e.stack || String(e)))).then(() => {
+  .then(() => bakedRungs().catch(e => check(false, '8 the baked rungs threw', e && e.stack || String(e))))
+  .then(() => shelvedL0().catch(e => check(false, '9 the shelved L0 threw', e && e.stack || String(e)))).then(() => {
   if (fail.length) {
     for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
     if (fail.length > 30) console.log('  ... ' + (fail.length - 30) + ' more');

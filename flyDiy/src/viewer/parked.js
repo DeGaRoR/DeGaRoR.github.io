@@ -50,6 +50,14 @@
 //   L3  450 m   decimated to ~2.5 %, one vertex-coloured Standard material
 //               for paint, one for bare metal, one for glass — three draws
 //   L4 2500 m   nothing
+// L0 IS SHELVED (G571, the user: "get rid of L0 for now (keep available for
+// possible later reactivation, but transparent to the game) and have L1 by
+// default ... allow plenty of planes"). By default a placement is built
+// WITHOUT L0: L1 stands from 0 m, so no interior bucket, gauge, control or
+// link is ever built or drawn, and with the bake in hand a parked aeroplane
+// is ONE draw on ONE material at every distance it is drawn at. The rung is
+// kept whole behind `PARKED.L0` (true = the full ladder above, for every
+// placement built after the switch).
 // L2/L3 arrive from the Worker seconds after L0/L1 (L1 stands in for them
 // until then); the cut geometry is cached per key in IndexedDB so a second
 // boot skips the decimation.
@@ -1184,9 +1192,12 @@ self.onmessage = function (e) {
       models.push(level);
       return flip;
     };
-    const L0 = frame(mergeLevel(THREE, levelMeshes(THREE, rec, matFor, true))), L1 = frame(mergeLevel(THREE, levelMeshes(THREE, rec, matFor, false)));
-    lod.addLevel(L0, 0);
-    lod.addLevel(L1, LEVELS.L1);
+    // L0 only when the switch asks for it (G571); without it L1 is the first rung, from 0 m,
+    // and every rung past it sits one index lower (`o`, L1's index)
+    const full = !!W.PARKED.L0, o = full ? 1 : 0;
+    if (full) lod.addLevel(frame(mergeLevel(THREE, levelMeshes(THREE, rec, matFor, true))), 0);
+    const L1 = frame(mergeLevel(THREE, levelMeshes(THREE, rec, matFor, false)));
+    lod.addLevel(L1, full ? LEVELS.L1 : 0);
     // the far rungs stand in as L1 until the cut lands (a clone shares geometry and materials)
     const stand2 = L1.clone(), stand3 = L1.clone();
     lod.addLevel(stand2, LEVELS.L2);
@@ -1196,7 +1207,7 @@ self.onmessage = function (e) {
     const setFar = far => {
       const ext = exteriorMesh(rec);       // the same order the cut was made in: srf and uv per wedge
       const L2 = frame(farLevel(THREE, ext, far.levels[0], far.nrm, matFor)), L3 = frame(farLevel(THREE, ext, far.levels[1], far.nrm, null));
-      swap(2, L2); swap(3, L3);
+      swap(o + 1, L2); swap(o + 2, L3);
     };
     const ladder = () => {
       if (rec.far) setFar(rec.far);
@@ -1205,10 +1216,11 @@ self.onmessage = function (e) {
     // THE BAKED RUNGS (G569): L1 out, one mesh on the build's atlas each; until they land
     // (or where there is nothing to bake with) the per-material ladder stands. L1's merged
     // meshes were this placement's own geometry: freed with it (the singletons are the
-    // record's, shared with L0 and every other placement).
+    // record's, shared with L0 and every other placement). Without L0 the baked L1 is the
+    // aeroplane from 0 m.
     const setBaked = bk => {
       if (!bk) { ladder(); return; }
-      const old = [1, 2, 3].map(lv => swap(lv, frame(bakedLevel(THREE, bk, lv - 1))));
+      const old = [0, 1, 2].map(i => swap(o + i, frame(bakedLevel(THREE, bk, i))));
       const gone = new Set();
       for (const o of old) o.traverse(m => { if (m.isMesh && m.name === 'parked:merged' && m.geometry) gone.add(m.geometry); });
       for (const g of gone) g.dispose();
@@ -1322,7 +1334,7 @@ self.onmessage = function (e) {
   const trisOf = grp => { let n = 0; grp.traverse(o => { if (o.isMesh && o.geometry && o.visible) { const g = o.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3; } }); return n; };
 
   W.PARKED = { keys, specOf, capture, captureAll, place, build, stance, hitboxOf, records: REC, pending: PENDING,
-               LEVELS, CUT, WEAR, ready: false, boxes: false, quiet: false, trisOf, drawBoxes, exteriorMesh, cloneBlock, copyBlock,
+               LEVELS, CUT, WEAR, ready: false, boxes: false, L0: false /* the interior rung, shelved: G571 */, quiet: false, trisOf, drawBoxes, exteriorMesh, cloneBlock, copyBlock,
                dupe, levelMeshes, farLevel, cutFar, isInterior, PART_L1,   // GATE PARKED drives these headless
                // G569, the baked far rungs: the dials, the unwrap, the assembly, the bake's own hook, and
                // the cache's key and door (bakeClear drops every build's bake: the next boot bakes again)

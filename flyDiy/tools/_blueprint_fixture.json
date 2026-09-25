@@ -1,5 +1,5 @@
 {
- "_note": "GATE BLUEPRINT's fixture (G570): the state the desk produced on a synthetic Cub three-view (2600 x 2150 px at 8 mm a pixel, a 5 m scale bar; side view datum-level with the tail tyre tan(12 deg) * 5.3 m above the main's; top view nose-left; front view drawn at 45 degrees, lassoed, LEVELled with two clicks along the wing, its extent's top dragged down off a label). Driven through the desk's own pointer handlers.",
+ "_note": "GATE BLUEPRINT's fixture (G573): the state the desk produced on a synthetic Cub three-view (2600 x 2150 px at 8 mm a pixel, a 5 m scale bar; side view datum-level with the tail tyre tan(12 deg) * 5.3 m above the main's; top view nose-left; front view drawn at 45 degrees, lassoed, LEVELled with two clicks along the wing, its extent's top dragged down off a label). Driven through the desk's own pointer handlers.",
  "state": {
   "v": 1,
   "on": true,

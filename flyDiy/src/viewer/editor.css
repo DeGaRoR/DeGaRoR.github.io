@@ -354,7 +354,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    aeroplane's, so both pills were visible and inert there (named at G129). */
 #edWrap.noview #edViewTabs,
 #edWrap.fin #edResetPart, #edWrap.fin #edExpert,
-/* G570: a root that builds its own panel (the reference plane, the shed) has
+/* G573: a root that builds its own panel (the reference plane, the shed) has
    no part to reset, no expert rows and none of the column's sections to fold
    — the three pills sat over the reference panel doing nothing */
 #edWrap.noview #edResetPart, #edWrap.noview #edExpert, #edWrap.noview #edSecAll,
@@ -1517,7 +1517,7 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #edRef .refDims { margin-top:4px; }
 
-/* G570 — THE PANEL, REVISED, in the column's own ladder. The tree carries
+/* G573 — THE PANEL, REVISED, in the column's own ladder. The tree carries
    the two sources (`Reference plane` > `3D model`, `Blueprint`), so the panel
    reads the way an assembly does: selected whole, each source heads its block
    in the PART rung (.edH.edHP) with its groups (.edH) under it and the rows

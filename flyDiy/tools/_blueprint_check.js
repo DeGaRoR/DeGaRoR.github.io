@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// GATE BLUEPRINT — the blueprint import (G570, src/viewer/blueprint.js).
+// GATE BLUEPRINT — the blueprint import (G573, src/viewer/blueprint.js).
 //
 //   node tools/_blueprint_check.js            -> "GATE BLUEPRINT: PASS|FAIL"
 //   node tools/_blueprint_check.js --selftest -> negative verification
