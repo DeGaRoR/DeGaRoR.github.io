@@ -135,6 +135,16 @@
     // THE ROAD FURNITURE (2026-09-22): the W-beam guardrails the roads raise where the ground falls
     // away past the shoulder and on the outside of a tight bend (src/viewer/guardrail.js). The switch
     // hides them - nothing is rebuilt, so it is free either way.
+    // THE TWO ROWS THE LOW TIERS NEEDED (G570, 2026-09-24): what the frame costs since the town and the ground's cover -
+    // the cover ring's rocks, debris and shrubs (~1 600 draws at the stand with their shadows) and the premises' houses
+    { k: 'cover', label: 'ground cover', steps: [
+        { v: 'full', label: 'full', why: 'rocks, debris and shrubs to 220 m, their shadows from 35 cm' },
+        { v: 'lean', label: 'lean', why: 'to 120 m, half as dense, shadows only from 1 m: about a third of the draws' },
+        { v: 'off',  label: 'off', why: 'no ground cover (the ground and the forest as they are)' } ] },
+    { k: 'scenery', label: 'town detail', steps: [
+        { v: 'full', label: 'full', why: 'a house whole to 150 m (the far town past it), its trims to ~270 m' },
+        { v: 'lean', label: 'lean', why: 'the far town from 60 m, the trims to ~110 m' },
+        { v: 'low',  label: 'low', why: 'the far town from 25 m, only walls and roofs past ~55 m, no yard props' } ] },
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
@@ -209,24 +219,24 @@
   const POST_BLOOM = Object.assign({}, POST_OFF, { bloom: 'soft' });
   const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
-    potato:  Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    retro:   Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    current: Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
+    potato:  Object.assign({ ground: 'lean', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
   };
   const DEFAULT = 'gamer';
   const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const PRESET_WHY = {
-    potato:  'an integrated or very old GPU: the scene at 67 % of the screen, no shadows, no clouds, sparse forest',
-    retro:   'a card that was good five years ago (GTX 1060 class): the near shadow, no clouds, sparse forest',
+    potato:  'an integrated or very old GPU: the scene at 67 % of the screen, no shadows, no clouds, no ground cover, the town at its least, sparse forest',
+    retro:   'a card that was good five years ago (GTX 1060 class): 85 % of the screen, the near shadow, no clouds, lean ground cover and town, sparse forest',
     current: 'a current mid-range card (RTX 3060 class): gamer without the 8x MSAA, the mirror and the mist march',
     gamer:   'the reference: RTX 3080 class - 53-60 fps at 1080p on Jolene (the frame is the CPU draw count there); the default (the medium of before, with the far ground lean)',
     ultra:   'the dearest picture: supersampled, the densest forest, 4096 shadows, live reflections - for screenshots and the cards above a 3080',
   };
 
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: DEFAULT, pv: 3 }, PRESETS[DEFAULT]);   // pv: the pref's version (3: G551, the auto scale an option)
+  const S = Object.assign({ preset: DEFAULT, pv: 4 }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -241,12 +251,12 @@
       // and G551 made it an option again) - once: a player who was ON a preset gets that preset as it is now (the old
       // names mapped), or every returning player would read 'custom'; a player's own custom mix keeps its options, but
       // not the 'auto' G528 put there (it was the default for a day, not their pick)
-      if (v && !(v.pv >= 3)) {
+      if (v && !(v.pv >= 4)) {
         const MAP = { low: 'retro', medium: 'gamer', high: 'gamer', ultra: 'ultra', potato: 'potato', retro: 'retro', current: 'current', gamer: 'gamer' };
         const np = MAP[v.preset];
         if (np && PRESETS[np]) { for (const o of OPTIONS) delete v[o.k]; Object.assign(v, PRESETS[np]); v.preset = np; }
-        else if (v.scale === 'auto') v.scale = 1;
-        v.pv = 3;
+        else if (v.scale === 'auto' && !(v.pv >= 3)) v.scale = 1;
+        v.pv = 4;
       }
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
@@ -265,6 +275,17 @@
   let applied = {};                          // what the handles currently hold
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
+    // the cover ring and the premises (G570): both exist only in the flight world, so they apply when it has them
+    const cov = W.TREE_FILL && W.TREE_FILL.cover ? W.TREE_FILL.cover() : null;
+    if (cov && cov.set && applied.cover !== S.cover) {
+      const C = { full: { on: true, reach: 220, density: 2, castMinH: 0.35 }, lean: { on: true, reach: 120, density: 1, castMinH: 1 }, off: { on: false } }[S.cover];
+      if (C) { cov.set(C); applied.cover = S.cover; }
+    }
+    const PR = world && world.premises;
+    if (PR && PR.hlod && PR.detail && applied.scenery !== S.scenery) {
+      const D = { full: { near: 150, px2: 60, props: true }, lean: { near: 60, px2: 150, props: true }, low: { near: 25, px2: 300, props: false } }[S.scenery];
+      if (D) { PR.hlod.near = D.near; PR.detail.px2 = D.px2; PR.detail.props = D.props; applied.scenery = S.scenery; }
+    }
     if (AA && AA.setTier && applied.aa !== S.aa) { AA.setTier(S.aa); applied.aa = S.aa; }
     if (AA && AA.setScale && applied.scale !== S.scale) {
       // 'auto' (G528): the controller starts from 100 %; a rig (a headless or driven browser) keeps 100 % unless ?autoscale=1
@@ -287,6 +308,9 @@
       // makes three.js recompile the lit materials; shadowMap.enabled alone
       // leaves them sampling a stale map
       world.sun.castShadow = sh.on;
+      // ...and the NEAR map (G570): the craft's own shadow light kept casting with the row 'off' - at the stand it drew
+      // every caster within 90 m, ~5 ms of a potato frame
+      if (W.SHADOW_NEAR && W.SHADOW_NEAR.S) W.SHADOW_NEAR.S.on = !!sh.on;   // shadow_near's own dial (follow() re-asserts castShadow from it)
       rig.set({ shadowMap: sh.map, farShadow: sh.on && sh.far });
       applied.shadows = S.shadows;
     }

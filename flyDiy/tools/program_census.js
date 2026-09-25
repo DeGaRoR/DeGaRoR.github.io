@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// program_census.js - THE PROGRAMS A BOOT LINKS, COUNTED (G583, 2026-09-25)
+// program_census.js - THE PROGRAMS A BOOT LINKS, COUNTED (G584, 2026-09-25)
 //
 // A MEASUREMENT, not a gate (it needs Chrome; GATE PROGRAMS holds the mechanisms in node). Boots the game N
 // times in headless Chrome with ONE profile (the second boot is the warm one), presses ROLL OUT, and records

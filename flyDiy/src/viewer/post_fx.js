@@ -433,7 +433,7 @@ const POST_FX = (() => {
     renderer.setRenderTarget(prevTarget);
   }
   const active = () => KEYS.some(k => S[k] !== 'off');
-  // warmList() (G583): the programs the passes switched on will draw with, for the roll-out's compile step
+  // warmList() (G584): the programs the passes switched on will draw with, for the roll-out's compile step
   // (shader_warm.js) - { m, to }: `to` null is the canvas, 'rt' one of the pyramid's plain targets
   function warmList() {
     if (!ready || !active() || !hooked) return [];

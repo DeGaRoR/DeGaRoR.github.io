@@ -59604,7 +59604,23 @@ picture; the user's ruling on the shots: "that all looks very similar to me, the
 - OWED: judged on a real GPU (the defaults of the new fades are a first guess); the stand cards and the size
   multiplier; a sampler-free way to preview a species that is not warmed.
 
-## G583 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
+## G583 - THE LOW TIERS, RETUNED (2026-09-24, landed 2026-09-25)
+
+Written on 2026-09-24 as "G570" on a side branch and landed on the user's word ("land the low tiers retuned too").
+`src/viewer/gfx_settings.js`: two rows for what the frame has cost since the town and the ground cover -
+- 'ground cover' (cover_ring's dials): full (to 220 m, density 2, shadows from 0.35 m) / lean (120 m, half as dense,
+  shadows from 1 m) / off.
+- 'town detail' (the premises' hlod.near and detail.px2 / props): full (a house whole to 150 m, trims to ~270 m) /
+  lean (the far town from 60 m, trims to ~110 m) / low (the far town from 25 m, only walls and roofs past ~55 m, no
+  yard props).
+- potato back to the 67 % scale its card promises, cover off, town low; retro 85 %, cover and town lean; current,
+  gamer and ultra unchanged. pv 4 migration: a player saved on a preset gets that preset as it is now.
+- 'shadows off' now means off: the craft's NEAR map (shadow_near's S.on) kept rendering every caster within 90 m.
+- Measured when written (potato, 1080p, a quiet box): stand 34.5 -> 26.6 ms, 300 m over the field 24.3 -> 18.9,
+  forest 25.4 -> 19.2, town at 150 m 21.6 -> 16.2, sea 22.5 -> 16.9. Not re-measured on today's master (G574 town
+  on texture arrays, G575-G582 since); GFX, UISMOKE, BOOT, WORLDRENDER, PREMISES, TREES, BUILD green on it.
+
+## G584 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
 
 The user: the Jolene roll-out's compile step takes 16-26 s of a 32-44 s screen WARM (cold 32 s) - "a warm boot should
 compile ~nothing": find what gets a different source or key each boot, or is made fresh each boot. Measured by COUNTS
@@ -59645,16 +59661,16 @@ new on the first frame, and the old warm-up is the CONTROL that must miss (8); t
 sources; no cache key in src/viewer reads a uuid, an id, a clock or a counter; the rock map links each program once
 and a recentre none (red on the old code: 10 links / 4 distinct, 2 on the recentre); a kept PMREMGenerator bakes
 again on no link; the three passes publish warmList() and the step compiles them in the lit, fogless scene.
-futureDesigns/PERF-2026-09-23.md G583.
+futureDesigns/PERF-2026-09-23.md G584.
 
-## G584 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
+## G585 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
 
 The user: at the airfield stand the cover ring issues ~1 600 draws a frame counting shadows; cut them without a visible
 change. Counted by wrapping renderer.renderBufferDirect (the shadow pass flagged) over 6 frames, by `coverKind`, at
 the roll-out stand (-154, 31.6, 712), master aa1846bd against this build (the scratchpad rig drives headless Chrome
 with the GL's clears, uploads and draws stubbed - three's draw path is JavaScript, the counts are its own):
 
-| kind | master (main + shadow) | G584 |
+| kind | master (main + shadow) | G585 |
 |---|---|---|
 | rock | 142 + 172 | 9 + 7 |
 | debris | 196 + 116 | 28 + 10 |
@@ -59697,4 +59713,4 @@ with the GL's clears, uploads and draws stubbed - three's draw path is JavaScrip
   the eye moves, a draw per batch and pass at most (rock 81 -> 5, debris 33 -> 3, shrub 96 -> 8 there), no caster
   under 0.5 m, no instance left over after the eye leaves and returns, the batched programs read the colour's alpha
   and the batched leaf its indirect index. GATE MEDIA: these two entries add ~20 KB of code, no data (under master's wire and step budgets). futureDesigns/
-  PERF-2026-09-23.md G584.
+  PERF-2026-09-23.md G585.

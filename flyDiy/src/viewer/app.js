@@ -642,7 +642,7 @@
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
   }
-  // G583: THE GENERATORS ARE KEPT. A PMREMGenerator owns its shaders, and dispose() frees them - a generator
+  // G584: THE GENERATORS ARE KEPT. A PMREMGenerator owns its shaders, and dispose() frees them - a generator
   // made and disposed per bake re-linked its programs every bake (the census: the room's PMREM 14 times in one
   // roll-out, the hangar's textures landing under the world's loading screen). One per source kind, kept for
   // the page's life: the room's cube (256) and the sky's equirect (their sizes differ, and a generator that
@@ -9635,7 +9635,7 @@
   // those materials goes through compileAsync with a plain target bound
   // (a shadow map is one: linear, no tone map). What it misses still
   // compiles on the frame; what it catches links on the driver's threads.
-  // G583: THE SHADOW PASS'S OWN PROGRAMS. This used to warm MeshDepthMaterial({ RGBADepthPacking }) per side
+  // G584: THE SHADOW PASS'S OWN PROGRAMS. This used to warm MeshDepthMaterial({ RGBADepthPacking }) per side
   // against a helper with no lights - eight programs the shadow pass never draws with (r186 draws with its own
   // BasicDepthPacking material, in the lit scene's light state, the caster's map / alphaTest / side copied on);
   // the ~12 it does draw with linked on the first frame. PROG_WARM.depthVariants mirrors three's rule (GATE
@@ -9655,7 +9655,7 @@
       far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
     if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
     if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
-    // G583: THE PASSES OUTSIDE THE SCENE - the resolve's blit, the post chain, the clouds' bake / march / shadow:
+    // G584: THE PASSES OUTSIDE THE SCENE - the resolve's blit, the post chain, the clouds' bake / march / shadow:
     // full-screen quads in scenes of their own that compileAsync(scene) never meets; each module lists its own
     if (typeof PROG_WARM !== 'undefined') {
       const lists = [];
