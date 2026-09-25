@@ -215,9 +215,15 @@ if (!SELF) {
   {
     const xwWorld = C.makeWorld(), memo = new Map();   // one world, and the rungs shared by the three ladders
     const R = C.siteRunway(xwWorld.aerodromes[0]);
-    const t0 = Date.now();
+    // THE COST IS CPU TIME, NOT WALL CLOCK: the minute bounds the WORK (the
+    // page runs the same probe after the circuit lands), and wall clock also
+    // measured the machine - 67 s with four gates on four cores, 47 s alone,
+    // the same work. The probe is synchronous, so this process's own CPU time
+    // is its cost whatever else runs; the wall is still printed beside it
+    const t0 = Date.now(), c0 = process.cpuUsage();
     const xw = C.genCrosswindLimit(def, { world: xwWorld, memo });
     const wall = (Date.now() - t0) / 1000;
+    const cu = process.cpuUsage(c0), cpu = (cu.user + cu.system) / 1e6;
     const tag = 'crosswind limit: ';
     check(xw && typeof xw.limit === 'number' && xw.limit >= 1 && xw.limit <= 10,
           tag + 'a measured number between 1 and 10 m/s', xw ? String(xw.limit) : 'none');
@@ -232,7 +238,7 @@ if (!SELF) {
     check(xw.roll != null && xw.roll <= xw.band, tag + 'the roll at the limit is inside the band', xw.roll + ' m');
     check(xw.failWhy === 'off the edge line' || xw.failWhy == null,
           tag + 'past the limit it is the edge line that goes, not a rejection', String(xw.failWhy));
-    check(wall < 60, tag + 'measured inside a minute of wall clock', wall.toFixed(1) + ' s');
+    check(cpu < 60, tag + 'measured inside a minute of CPU time', cpu.toFixed(1) + ' s CPU, ' + wall.toFixed(1) + ' s wall');
     // declared knobs move it as declared: a 1 m band cannot be held even in
     // calm air; a 4 m/s cap with a 100 m band reports "> cap"
     // A TIGHTER BAND READS A SMALLER LIMIT — the knob, not a magic number
@@ -251,7 +257,7 @@ if (!SELF) {
     const loose = C.genCrosswindLimit(def, { band: 100, cap: 4, world: xwWorld, memo });
     check(loose.limit == null && loose.cap === 4, tag + 'a 100 m band with a 4 m/s cap reads "> 4"', String(loose.limit));
     console.log('  crosswind limit ' + xw.limit + ' m/s (band ' + xw.band + ' m, roll ' + xw.roll +
-                ' m at the limit; first failure ' + xw.failW + ' m/s, ' + xw.failRoll + ' m) in ' + wall.toFixed(1) + ' s');
+                ' m at the limit; first failure ' + xw.failW + ' m/s, ' + xw.failRoll + ' m) in ' + cpu.toFixed(1) + ' s CPU, ' + wall.toFixed(1) + ' s wall');
   }
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE TAKEOFF: ' + (fail.length ? 'FAIL' : 'PASS'));

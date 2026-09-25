@@ -59145,5 +59145,18 @@ and the allowance is 0 (negative-verified: a probe row in AERO_ROLE fails it).
 **COWL** ("the original tool is available to compare against") failed on every checkout but the user's machine: it
 read `C:/Users/denis/Downloads/cowl-generator-v19 (1).html`, which the repo never carried. The original is now looked
 for at `--orig <file>`, `COWL_ORIG`, `tools/_cowl_orig.html`, then the Downloads path; none on disk is a SKIP of the
-port-faithfulness section, not a FAIL. Still open: commit a byte copy as `tools/_cowl_orig.html` (the _cage_ref_*.obj
-way) so the 1e-12 port comparison runs everywhere again.
+port-faithfulness section, not a FAIL. The user supplied the original the same day: it is committed byte for byte as
+`tools/_cowl_orig.html` (the _cage_ref_*.obj way), and the comparison runs on every checkout again - 504 points,
+max deviation 0, 11 presets, 104 original parameters all present (120 now).
+
+**TAKEOFF** ("crosswind limit: measured inside a minute of wall clock", 67 s with four gates on four cores, 46.9 s
+alone). The minute bounds the probe's WORK - the page runs the same probe after the circuit lands - and wall clock
+also measured the machine. It now reads the process's own CPU time (the probe is synchronous), bound unchanged at
+60 s, the wall printed beside it: 40.6 s CPU / 40.8 s wall with the battery running alongside.
+
+**THE SCAN for machine paths** (`C:/Users`, `D:/Dev`, `Downloads`, `/Users/`, `/home/`) over tools/, src/: src/ is
+clean; nothing else a battery gate needs. Left as they are, all authoring tools or opt-in modes whose repo-relative
+path is tried FIRST and `D:/Dev/DeGaRoR.github.io` is a worktree's fallback onto the main checkout's gitignored data:
+splat_tex_prep.js, pavement_tex_prep.js, coast_rocks_tune.py (ROOTS), splat_tex_import.py, coast_rocks_prep.py,
+met_trace.py, met_fit.py, metlakatla_author.py, and _splat_check.js --gpu. pavement_tex_import.py's `--out` DEFAULTS to
+the D:/Dev path (overridable). The *_tex_import.py `--src` default `~/Downloads` is per-user, not a fixed path.
