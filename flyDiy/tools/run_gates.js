@@ -280,6 +280,10 @@ const GATES = [
   // measurement taken against a reference is worth exactly what that check is
   // — and the display-only rule, read off refplane.js's own source
   { id: 'REF', file: '_ref_check.js', tier: 'core' },
+  // THE BLUEPRINT (G570): the reference plane's second source, a three-view
+  // cut into views and stood in 3D — its frames, its scale, its level tool,
+  // its ink and its layout, on a fixture the desk itself produced
+  { id: 'BLUEPRINT', file: '_blueprint_check.js', tier: 'core' },
   // THE SITE (G123): the base aerodrome as ONE declared place. Asserts that
   // neither scene restates the runway the HOME record already carries, that
   // the frame conversion between the world and the shed round-trips, and the

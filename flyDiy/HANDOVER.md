@@ -59131,3 +59131,73 @@ roll-out's compile step 208 s. Now one straight triplet inlined once, the candid
 terrain type (near, far) - NO loop inside the candidate loop (a nested loop of sets drew the ground 1.5-2x slower on
 the GPU). Compile step 208.6 -> 33.6 s cold; the frame and the picture unchanged (same-page A/B, 3 heights).
 splat_ground.js sMatPass / sTriplet; GATE SPLAT 3 (call sites, no loop in the chain). futureDesigns/PERF-2026-09-23.md G568.
+
+## G570 - THE REFERENCE PLANE, TIDIED, AND ITS SECOND SOURCE: THE BLUEPRINT (2026-09-25)
+
+The user: "we need first to revise the UI of the reference plane, because it gets really messy at time. Then I need the
+blueprint import functionality. The base case is a single blueprint image" - scale the sheet, isolate and name the views
+(box or lasso; front / top / side plus a free label), rotate (45 degree views) and mirror, set the ground line
+("especially important for taildraggers"), place the views in 3D automatically with sliders to move and turn them -
+"we need to have transparency on these too". Then, mid-way: "accessible from the reference plane entry in the tree,
+grouping the existing under a 3D model section, and these new ones under a blueprint section".
+
+THE TREE. `Reference plane` has two rows under it now, `3D model` and `Blueprint` (editor.js: a root may declare
+`kids: [{ key, name, badge }]`; a kid resolves through rootFor like a root, its panel is the root's own asked for that
+kid, `panel(kid.key)`, and the crumb says `Reference plane /`). Selected whole, the panel reads like an assembly: each
+source heads its block in the part rung (.edHP) with its groups under it; selected alone, a source starts at its
+groups. The root's badge shows only while it is folded (the rows carry their own).
+
+THE PANEL, REVISED (refplane.js). What was messy, measured on the C172: one flat column of 8 headings and ~50 rows, the
+26-row materials list scrolling inside the scrolling column, the measurements below both, every control drawn with
+nothing standing, the editor's reset part / expert rows / fold sections pills over a panel they do nothing to (hidden
+for every panel root now, editor.css `.noview`), "display only" said twice. Now: nothing but the picker and one status
+line until a model stands; folds (placement, look, size & measure open; materials shut, with its count); every value is
+TYPED as well as dragged (the `.v` readout is an input, and a typed number may pass the slider's ends); LABEL
+CONVENTIONS (`up / down`, `hides what is behind`). The row helpers are REFPLANE.ui, and blueprint.js builds its half
+from them.
+
+THE BLUEPRINT (src/viewer/blueprint.js, blueprint.css). THE DESK is a full-screen 2D sheet over the shed (inside #wsUI,
+so the row controls are the column's own), five steps: 1 SCALE (two points, a length, a unit - one metres-a-pixel for
+the whole sheet), 2 VIEWS (box or lasso, a kind and a label; drag to move, corners to resize, Delete), 3 ORIENT
+(rotation slider, the right angles, LEVEL / PLUMB = two clicks along a line that should be horizontal / vertical,
+mirror, and the EXTENT: the dashed box of the aeroplane's outline, trimmed off the ink automatically, edges draggable -
+it is what registers the views against each other), 4 GROUND (the side view's two tyre contacts: the parked attitude,
+and the wheels on the floor; front / rear views may set their own), 5 PLACE. MEASURE (two clicks, metres and feet) works
+in every step. Load by button, drop or paste; a sheet over 8192 px is scaled down once at import.
+
+THE LAYOUT (bpLayout, pure): one body frame off the side view's extent (nose x = 0, lowest point y = 0; x aft, y up,
+z left - the reference model's own frame). Side view on the centreline; top view with its nose under the side view's
+and its middle on the centreline; front view 0.5 m ahead of the nose, centred, its wheels (its ground line, else its
+extent's bottom) on the mains; rear view behind the tail; `other` beside the aeroplane, facing as asked. The body is
+pitched to the ground attitude (or datum level) + a trim and dropped so the lower tyre is on the build's floor. THE PLAN
+IS NOT PITCHED: pitched with the body, the test sheet's top view was a plane from the floor at the tail to 1.4 m at the
+nose, through the fuselage; it lies flat on the floor, its length foreshortened by cos(pitch), which is the parked
+aeroplane seen from above. The first placement snaps the nose to the build's; after that it stays put (a build that
+grows must not drag its blueprint along) - `snap to nose` is a pill.
+
+TRANSPARENCY: an opacity for the set and per view, `over the build` (no depth test: the linework drawn through
+everything, for tracing), and PAPER: `clear` (the default) makes the sheet's paper colour transparent - the mode colour,
+so white, cream or a real blueprint's blue - with a `clear level` for yellowed scans, and the lines re-inked (cyan by
+default; as drawn is dark ink in a dark shed). A 45 degree cut kept with its paper stood as a 15 m opaque sheet in
+front of the camera, which is why clear is the default.
+
+STORAGE: IndexedDB `flydiy-blueprint` (cfg + the image blob) - an image does not fit in localStorage. Display state
+only; GATE REF's ONE ROOT scan covers blueprint.js too. app.js: REF_MOUNT.bpGroup, a sibling of refSit (refplane hides
+refSit when no model stands) and a probe subject like it.
+
+VERIFIED: the whole workflow driven in headless Chromium through the desk's own pointer handlers on a synthetic Cub
+three-view (8 mm a pixel, 5 m scale bar, side view datum-level, tail tyre tan(12) x 5.3 m up, front view at 45 degrees,
+lassoed round a label): 8.00 mm/px, length 6.98 m (6.95 drawn + the stroke), span 10.76 (10.73), LEVEL -> 45.0 deg,
+ground attitude 12.00 deg, tyres 5.30 m apart; pictures of the three views standing round the build. That state is
+tools/_blueprint_fixture.json, and GATE BLUEPRINT (core, 0.2 s, --selftest 7/7) holds the frames, scale, level, ink
+(paper, a run-length ink box that ignores a speck - a real bug the gate found: one stray pixel stretched the extent
+across the cut), clearing, and the layout on it. Gates run: BLUEPRINT, REF (+selftest), UISMOKE - PASS. NOT run: the
+full battery (nothing in core/ or the flight path changed).
+
+OPEN, and ideas the user was offered: several sheets (the data is per-sheet-ready in spirit, one image in practice);
+PDF import; a per-view scale of its own measured on the desk (today `size` is the slider); stations (fuselage sections
+as `other` views facing front at a typed x); reading dimensions off the blueprint into the build is exactly what ONE
+ROOT forbids - a measure tool that shows the number beside the build's own row would be the honest version.
+- FILES: src/viewer/blueprint.js, blueprint.css (new), refplane.js, editor.js (root kids), editor.css, app.js
+  (bpGroup), tools/build.js (manifest), tools/run_gates.js, tools/_blueprint_check.js, tools/_blueprint_fixture.json,
+  tools/_ref_check.js.

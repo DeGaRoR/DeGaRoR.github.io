@@ -354,6 +354,10 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    aeroplane's, so both pills were visible and inert there (named at G129). */
 #edWrap.noview #edViewTabs,
 #edWrap.fin #edResetPart, #edWrap.fin #edExpert,
+/* G570: a root that builds its own panel (the reference plane, the shed) has
+   no part to reset, no expert rows and none of the column's sections to fold
+   — the three pills sat over the reference panel doing nothing */
+#edWrap.noview #edResetPart, #edWrap.noview #edExpert, #edWrap.noview #edSecAll,
 #edWrap.des #edResetPart, #edWrap.des #edExpert { display:none; }
 
 /* ...and the two accordion groups the FINISH view took over are gone from the
@@ -1512,6 +1516,34 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   color:var(--ed-faint); }
 
 #edRef .refDims { margin-top:4px; }
+
+/* G570 — THE PANEL, REVISED, in the column's own ladder. The tree carries
+   the two sources (`Reference plane` > `3D model`, `Blueprint`), so the panel
+   reads the way an assembly does: selected whole, each source heads its block
+   in the PART rung (.edH.edHP) with its groups (.edH) under it and the rows
+   one indent step in; selected alone, a source starts at its groups. Every
+   heading folds, the column's chevron and all. */
+#edRef .refSrcH { margin:22px 0 2px; }
+#edRef .refSrcH:first-child { margin-top:4px; }
+#edRef .refSrcH > em { margin-left:auto; max-width:60%; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; text-align:right; }
+#edRef .refSrc[hidden], #edRef .refSecB[hidden], #edRef .refNote[hidden] { display:none; }
+#edRef .refSec > .edH { margin:16px 0 4px; }
+#edRef.refOne > .refSec:first-of-type > .edH { margin-top:10px; }
+#edRef .refSecB, #edRef .refSrc > .r, #edRef.refOne > .r,
+#edRef .bpPanel > .r { margin-left:var(--ed-indent); }
+/* a note under a source says what stands; it hangs where the rows do */
+#edRef .refSrc > .refNote, #edRef.refOne > .refNote,
+#edRef .bpPanel > .refNote { padding:4px 0 6px var(--ed-indent); }
+#edRef .bpPanel > .refBtns { padding:4px 0 6px var(--ed-indent); }
+/* the typed value: the readout IS the field, and says so only on hover */
+#edRef .r > input.v { cursor:text; border-bottom:1px solid transparent !important; }
+#edRef .r > input.v:hover { border-bottom-color:var(--ed-border) !important; }
+#edRef .r > input.v:focus { border-bottom-color:var(--ed-acc) !important; }
+/* the materials list no longer scrolls inside the column: it is a fold, shut
+   by default, and opens to its full length */
+#edRef .refMats { max-height:none; overflow:visible; }
+#edRef .refMats .refBtns { padding-left:0; }
 
 /* =========================================================================
    THE DESIGN TILES (design_flow.js over _cage_design.js). One component,

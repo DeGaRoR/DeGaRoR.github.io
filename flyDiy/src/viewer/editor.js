@@ -192,13 +192,37 @@ function editorInit(api) {
   //     meta:    string          — optional, the properties column's foot line
   //     shown:   on => {}        — optional, told when it is/stops being shown
   //     refresh: () => {}        — optional, called at the end of every build
+  //     kids:    [{ key, name, badge?, meta? }]
+  //                              — optional (G570): rows under the root, each
+  //                                selectable; its panel is the root's own,
+  //                                asked for that kid: panel(kid.key)
   //   })
   //
   // so the shed's session adds a root without editing this file, which is the
   // scalable answer the user asked for — and the thing three sessions editing
   // one file most needed.
   const ROOTS = [];
-  const rootFor = k => { for (const r of ROOTS) if (r.key === k) return r; return null; };
+  // A ROOT'S KID IS A ROOT TOO, as far as selection is concerned (G570, the
+  // user: "accessible from the reference plane entry in the tree, grouping
+  // the existing under a 3D model section, and these new ones under a
+  // blueprint section"). Its definition is derived ONCE from the parent's and
+  // cached, so `was !== rdef` in select() keeps meaning "another row".
+  const kidDefs = new Map();
+  const kidDef = (r, k) => {
+    const id = r.key + '>' + k.key;
+    if (!kidDefs.has(id)) kidDefs.set(id, {
+      key: k.key, name: k.name, parent: r, meta: k.meta || r.meta,
+      panel: r.panel && (() => r.panel(k.key)),
+      badge: k.badge, shown: r.shown, refresh: r.refresh });
+    return kidDefs.get(id);
+  };
+  const rootFor = k => {
+    for (const r of ROOTS) {
+      if (r.key === k) return r;
+      for (const c of (r.kids || [])) if (c.key === k) return kidDef(r, c);
+    }
+    return null;
+  };
   function registerRoot(r) {
     if (!r || !r.key || rootFor(r.key)) return;
     ROOTS.push(r);
@@ -221,14 +245,24 @@ function editorInit(api) {
   registerRoot({
     key: REF_KEY, name: 'Reference plane', order: 10,
     meta: 'display only · not part of your build',
-    panel: () => {
-      if (window.REFPLANE) { window.REFPLANE.shown(true); return window.REFPLANE.panel(); }
+    // G570: two sources, two rows under the root. Selecting the root shows
+    // both sections; selecting a row shows its own.
+    kids: [
+      { key: 'ref.model', name: '3D model',
+        badge: () => (window.REFPLANE && window.REFPLANE.badge('model')) || '' },
+      { key: 'ref.bp', name: 'Blueprint',
+        badge: () => (window.REFPLANE && window.REFPLANE.badge('bp')) || '' },
+    ],
+    panel: which => {
+      if (window.REFPLANE) { window.REFPLANE.shown(true); return window.REFPLANE.panel(which); }
       const w = document.createElement('div');
       w.className = 'refNote';
       w.textContent = 'The reference plane is not in this build.';
       return w;
     },
-    badge: () => (window.REFPLANE && window.REFPLANE.badge()) || '',
+    // the root's own badge only while it is folded: open, its two rows carry
+    // their own, and saying it three times is the clutter this chantier removed
+    badge: () => (folded.has(REF_KEY) && window.REFPLANE && window.REFPLANE.badge()) || '',
     refresh: () => { if (window.REFPLANE && window.REFPLANE.refresh) window.REFPLANE.refresh(); },
   });
   // THE SHED (G108; THE WORLD ROOT RETIRED at G136, the user: "I think we can
@@ -1172,9 +1206,14 @@ function editorInit(api) {
       const p = (r.parts && partRoot)
         ? Object.assign({}, partRoot, { name: r.name })
         : { key: r.key, name: r.name, root: true };
+      const kids = r.kids || [];
       rows.push({ p, lvl: 0, name: r.name, rootDef: r,
-                  kids: !!(r.parts && partRoot) });
+                  kids: !!(r.parts && partRoot) || kids.length > 0 });
       if (r.parts && !folded.has(r.key)) walk(null, 0);
+      // a declared kid is a row at the parts' first rung, under its root
+      if (!folded.has(r.key)) for (const k of kids)
+        rows.push({ p: { key: k.key, name: k.name }, lvl: 0, name: k.name,
+                    rootDef: kidDef(r, k), kids: false });
     }
     // THE SELECTION FOLLOWS THE AEROPLANE. Turn the mirrored pod off while the
     // aft deck is selected and that part stops existing — the tree drops it and
@@ -1345,7 +1384,7 @@ function editorInit(api) {
     wrap.classList.toggle('noview', !!(rdef && rdef.panel));
     if (rdef && rdef.panel) {
       $('edPartName').textContent = rdef.name;
-      $('edCrumb').textContent = '';
+      $('edCrumb').textContent = rdef.parent ? rdef.parent.name + ' /' : '';
       const rm = $('edPartMeta');
       if (rm) rm.textContent = rdef.meta || '';
       treeSig = '';
