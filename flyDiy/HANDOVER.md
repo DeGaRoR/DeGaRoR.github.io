@@ -59301,7 +59301,8 @@ a flip rebakes).
   environmentIntensity when a material has no envMap of its own. Also noted, not changed: the dirt line compares the
   WORLD y (vHouseY) with uDirtTop in the house frame (g(0,0) + dirtH x 0.55), and the game stands a house's group at
   its ground height (placeHouse's y = oy): a house whose ground is more than ~1 m above world y 0 has no dirt line at
-  all. A fix is a per-house offset (the slot has room); not done here, it changes the picture.
+  all. A fix is a per-house offset (the slot has room); not done here, it changes the picture. (All three mended by
+  G581.)
 - MEASURED, the bench (tools/_tarr.html + tools/tarr_shot.js: 19 buildings - 14 houses, 2 big, a hangar, a tower, a
   shed - drawn whole then on the stack, SwiftShader 960 x 540, shadows on): 195 bags -> 192 merged into 2 town
   meshes (3 flat flags / awnings stay), 33 colour + 30 normal/rough layers, 170 slots, 84 MB of arrays with mips,
@@ -59496,3 +59497,28 @@ SUBSTEP (tools/_substep_check.js, core) holds it with 4 000-pass eigenvalues ove
 futureDesigns/PHYSICS-PERF-2026-09-24.md G578-G580, and THE METAL WING BOX, measured: capped at 120 substeps the
 metal Cessna flies the same circuit (-41 %, the tips 2-3 mm more bend), at 80 per-beam it diverges - the next
 chantier, network-sized, the load test keeping the true stiffness.
+
+## G581 - THREE DEAD HOUSE DIALS, MENDED (2026-09-25)
+
+Found while building G574 (the town on texture arrays), which had kept them dead to match the game. Each changes the
+picture; the user's ruling on the shots: "that all looks very similar to me, the tile sizing is much better. Please land that"; before/after shots in `screenshots/g574/` (the tarr bench at y 0 and lifted 20 m, the house bench).
+- THE WANDER AND THE ROOF TILE SCALE (uWander G273, uUvK G329 / P.roofTile). r186 runs onBeforeCompile before it
+  resolves the #includes, so wanderUV's token rewrite of v*MapUv matched nothing. Now `#define vMapUv hUv` (and the
+  other map varyings) sits at the top of main, below the varyings' declarations and above every chunk that reads them:
+  the preprocessor renames each later read. The flag (no map) still gets none. Visible: kennecott mill's roofTile 4
+  finally draws its shakes 4x larger; the siding's courses wander by a few mm.
+- THE GLASS'S envMapIntensity (2.3 glass / 1.9 pane). r186 gives that uniform the scene's environmentIntensity when a
+  material has no envMap (a house's never has). shadeGlass now scales radiance and iblIrradiance after
+  lights_fragment_maps (only the environment puts anything in them) by uGlassEnvK = the material's own number (1 if
+  it carries an envMap), on top of the scene's. Visible: windows reflect the sky far more.
+- THE DIRT LINE ON A HILL. uDirtTop is in the house frame, vHouseY world; the game stands a house at its ground.
+  New SHADE_U.uDirtY0 (0 on the benches), added in DIRT_EXPR; render_premises placeBuilt sets it to the group's world
+  y. Not mended: the fences' and the poles' shared finishes (FENCE_F, lampFinish) draw in the premises frame at world
+  heights, so their dirt line is still world-relative (a per-vertex ground height would be needed).
+- THE TOWN FOLLOWS (house_tarr.js): uUvK folded into the slot's uv transform, uWander in the spare l.w (added to
+  tUvT exactly as wanderUV does), uDirtY0 folded into the slot's dirt line, uGlassEnvK in the glass slot's c.y. The
+  tarr bench after the fix: town vs houses mean |diff| near 0.455 / street 0.183 / mid 0.086 / dusk 0.157 - as
+  before the fix (0.456 / 0.183 / 0.086 / 0.158), at y 0 and at y 20. Before vs after (the houses): near 1.39/255,
+  3.2 % of pixels over 12 (the glass); street 0.09.
+- _tarr.html takes `?lift=<m>`. GATE TARR 50 checks (+1t 1u 1v 1w 1x 3l 4g; 1w resolves the includes as three does
+  and proves the macros sit between the varyings and the map reads; the new checks are red on the pre-G581 tree).
