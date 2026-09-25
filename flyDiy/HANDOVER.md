@@ -59342,6 +59342,122 @@ build: 14 archetypes and the user's three metal Cessnas fly at the 200 cap on th
 tailwheel's damper sets the stearman, chinook, savannah, beaver, jodel, radial and the birdman; the float keel the
 floatplane).
 
+## G576 - THE STILL AIRFRAME, ONE DRAW PER MATERIAL (2026-09-25)
+
+The user: "merge by material the meshes that are STATIC relative to the airframe, inside the build ... not by guessing
+afterwards". Done in `buildModel` (app.js `mergeStill`), right after the rigs are bound, on the cage path. The build
+knows each bucket's facts, so none of them is guessed. A bucket whose rig binds no vertex and turns no hinge is the
+one poseModel already skips (`if (!r.hb && !r.bind.bound.length) continue`), so it never leaves the model frame.
+The flown buckets of one pooled AEROSKIN material (AERO_POOL keys on LOOK, so nine plywood sections are nine meshes
+on one material) are concatenated into one mesh in that frame. Positions, normals, uv, aStruct and aCav (baked
+before the merge) are the members' own bytes, the index is rebased, and the merged mesh sits where the first
+member stood in the draw list.
+NOT TAKEN, each for a stated reason (`still.skip`): a bucket the flex or a hinge writes (the wing, the struts' wing
+ends); every PART, which is not a bucket at all (gear rigs, surfaces and their hinges, rods, controls, gauges, the
+engine, the propeller and spinner); a lamp (the cockpit dims it by mesh); the crew (the cockpit view hides the pilot
+by bucket: `char` / `dummy1`); anything see-through or carrying a glass companion; and any mesh the build posed,
+flagged, named or gave its own depth material. The livery's craft frame holds: uCraftInv reads the group's matrix,
+which the merged mesh shares at identity. The see-inside is a material question (and the editor's cage), so a merge
+by material identity cannot split it.
+G564's crumb rule keeps its per-bucket answer: crumbs (under 15 cm) merge only with crumbs, the merged crumb carries
+`userData.crumbR` (its biggest member), and the roll-out reads it. Rebuilt with the model: every garage edit
+rebuilds both. `window.FLYDIY_CRAFT_MERGE = 0` before a build is the A/B dial. `model.rigs` drops the merged
+buckets' rigs but always keeps rigs[0], whose station table sparDeltas reads.
+
+MEASURED (cloud box, SwiftShader: COUNTS only, no ms; against 78fd4b1, before G570-G575 landed - re-proven on the rebased tree below). Default build (the boot's garage aeroplane): 89 buckets + 63
+parts. 53 buckets are still candidates, and they hold only 42 distinct materials: 14 buckets -> 3 meshes (9 fuselage
+sections on one plywood, joint + fire seal on one bare alu, bulkhead + wood frame + firewall on one spruce).
+- the flown model: 258 -> 247 meshes (142 materials, unchanged)
+- `renderBufferDirect` calls under `craft` a frame, the flown model shown in the shed (cage hidden), controls fixed,
+  same 3 frames: main 493 -> 471, shadow 1398 -> 1332, total 1891 -> 1803 (-88, -4.7 %).
+- out in the world after the roll-out (?premises=none on both: measured before G570 fixed the PREM_NEAR throw), ONE scene render
+  (renderer.render(worldScene, camera), called by hand: the render loop never resumes after the roll-out in this box),
+  craft only: the model 254 -> 243 meshes, casters after G564 115 -> 104, main 242 -> 231, shadow 230 -> 208, total
+  472 -> 439 (-33, -7 %). The game's own frame renders the scene more than once (the pipeline's passes, the probes),
+  so the saving scales with it; the reference GPU's ~850 + shadows a frame is that multiple.
+WHY NOT MORE, honestly: by material IDENTITY the default build's still airframe offers 11 meshes. The rest is (a)
+the parts: 165 meshes, and inside every part each mesh is already its own material (probed: 63 parts, 0 shared); and
+(b) buckets whose materials differ only by TINT (the engine unit's 27 castAlu greys, the interior's plastic / trim /
+chrome colours). (b) cannot become one material by vertex colour without a shader change: AEROSKIN mixes the decals
+over diffuseColor inside map_fragment, BEFORE three's color_fragment would multiply vColor, so a vertex tint would
+tint the livery too. The tint would have to enter before the decal mix (a USE_COLOR-style attribute read in
+AERO_ALBEDO_FS), at the cost of a program variant per merged family. That is the next lever, and it is not a merge
+by material.
+
+PROOF, vertex for vertex (a scratch rig, not a gate: HEAD and this build side by side in two pages, the same bend written into
+sim.p - every WF/WR node up 3 % of |z|^1.5 and aft 1 % |z|, the engine nodes down 2 cm, the axles up 3 cm - Flex x4,
+controls held flap 1 / da 0.5 / de -0.3 / dr 0.4 / thr 0.8 / brake 0.5 / trim 0.3 through the input's own door, 260
+frames for the linkage): 87 of 89 buckets and all 169 part meshes are BIT-IDENTICAL in world-space position, normal,
+uv, aStruct, aCav, triangles, material and flags. That includes the wing fabric (1.30 m of tip travel at x4), the
+struts, the wing lamps, the surfaces, the gauges and controls, and the gear. The two that differ are the fin
+beacon's lens and cup (up to 1.2 cm, normals, cavity). They are lamps, never merged, and HEAD against HEAD differs
+the same way (the beacon's snapshot is not deterministic run to run: a pre-existing fact, not this chantier's).
+
+GATE SKIN (G576 block): mergeStill lifted from app.js and run on the real vendor three over a synthetic flown group:
+5 still buckets -> 2 meshes (A1-A3 on their material, the crumbs apart with crumbR). The flex, the hinge, a
+different attribute set, the lamps, the crew, the glass, a posed mesh and a part each stay their own mesh. The
+merged bytes are the members' own, the flags and frame are kept, the draw-list place is kept, the dial works. Then
+four source anchors: the call site after the rigs, poseModel's skip (the merge's premise), rigs[0] kept, the
+roll-out reading crumbR. Red on a copy that drops the flex exclusion.
+
+GATES: SKIN, GFX, MEDIA, BUILD, UISMOKE, PARKED, PANEL, PILOT, TAKEOFF green (geometry only: the solver, the pilot and
+the physics are untouched). SKINMAT is RED AT HEAD TOO, identically ("role rows for sections no build emits -
+taperPanel, drawnPane, reveal, shoulder, doorPanel": the AEROSKIN role table against the cage's sections, nothing
+here reads it), and so is not this landing's.
+PICTURES (shed, flown model shown, cage hidden, the same fixed controls; HEAD | G576 | diff): quarter, side, front
+quarter, gear, top, cockpit (panel, instruments), controls (stick, switches, pilot's legs), see-inside (cage and
+flown): the cockpit, controls and quarter views agree to 2/255; every other difference is the propeller blade and
+its shadow, which turn with time (the two pages captured at different frame counts).
+OWED: pictures in the air (prop spinning, chase, livery in daylight) and a counted game FRAME in flight: in this box the
+render loop stays held after the roll-out screen ("the last pieces"), so neither could be taken.
+
+## G577 - SKINMAT AND COWL GREEN AGAIN: two gates red for reasons that were not the aeroplane's (2026-09-25)
+
+**SKINMAT** ("role rows for sections no build emits - taperPanel, drawnPane, reveal, shoulder, doorPanel", 5 against
+an allowance of 4). All five ARE emitted by the editor's build; the gate built its coverage meshes from a hand copy of
+cageSheet's pass list that stopped at cageInterior, so the shoulder (G325), the door panel riding it (off by default)
+and the drawn windows' knife (G245) never ran, and its 'taper panels' shape asked for panels on the stock boom with the
+interior off (they are laid on the ROD's truss, which cageInterior draws). The gate now builds through `cageSheet`
+itself (level 2), with shapes for the rod taper panels, the door panel and drawn windows: 37 sections, zero stale rows,
+and the allowance is 0 (negative-verified: a probe row in AERO_ROLE fails it).
+
+**COWL** ("the original tool is available to compare against") failed on every checkout but the user's machine: it
+read `C:/Users/denis/Downloads/cowl-generator-v19 (1).html`, which the repo never carried. The original is now looked
+for at `--orig <file>`, `COWL_ORIG`, `tools/_cowl_orig.html`, then the Downloads path; none on disk is a SKIP of the
+port-faithfulness section, not a FAIL. The user supplied the original the same day: it is committed byte for byte as
+`tools/_cowl_orig.html` (the _cage_ref_*.obj way), and the comparison runs on every checkout again - 504 points,
+max deviation 0, 11 presets, 104 original parameters all present (120 now).
+
+**TAKEOFF** ("crosswind limit: measured inside a minute of wall clock", 67 s with four gates on four cores, 46.9 s
+alone). The minute bounds the probe's WORK - the page runs the same probe after the circuit lands - and wall clock
+also measured the machine. It now reads the process's own CPU time (the probe is synchronous), bound unchanged at
+60 s, the wall printed beside it: 40.6 s CPU / 40.8 s wall with the battery running alongside.
+
+**THE RUNNER LOST OUTPUT (ENGINE, a core run on Linux).** ENGINE came back as its first line with exit 0, so no
+verdict line and a FAIL; alone it passed. Every gate ends with `process.exit()`, and on Linux Node writes a PIPE
+asynchronously: what is still queued at exit is dropped. Reproduced 16 runs in 40 (8 in parallel on 4 cores), cut at
+~9.5 KB; through a file, 0 in 120. `runJob` now hands each child a temporary FILE for stdout and stderr (written
+synchronously on every platform; Windows already wrote pipes synchronously, which is why it never showed there),
+reads them on close and deletes them. Any gate could have lost its tail this way; ENGINE's 13 KB was the one that did.
+
+**THE SCAN for machine paths** (`C:/Users`, `D:/Dev`, `Downloads`, `/Users/`, `/home/`) over tools/, src/: src/ is
+clean; nothing else a battery gate needs. Left as they are, all authoring tools or opt-in modes whose repo-relative
+path is tried FIRST and `D:/Dev/DeGaRoR.github.io` is a worktree's fallback onto the main checkout's gitignored data:
+splat_tex_prep.js, pavement_tex_prep.js, coast_rocks_tune.py (ROOTS), splat_tex_import.py, coast_rocks_prep.py,
+met_trace.py, met_fit.py, metlakatla_author.py, and _splat_check.js --gpu. pavement_tex_import.py's `--out` DEFAULTS to
+the D:/Dev path (overridable). The *_tex_import.py `--src` default `~/Downloads` is per-user, not a fixed path.
+
+**LANDED RED, NOT THIS ENTRY'S** (the user: "if the reds are not yours, you may land"). This entry changes six files
+(the four gates' scripts, the runner, tools/_cowl_orig.html) and nothing the game draws or flies; a rebuild of the
+merged tree is byte-identical to master's built files but version.json's date. Measured on the merged trees: `--all`
+over master 4e2983c/aa1846b - every core gate green, three full-tier reds that HANDOVER already carried as master's:
+PILOTMATRIX (9 regressed: c172 sink 0.95 -> 2.04, cub HOME-A3 1.49 -> 3.95 - G477's "red on master itself"),
+ARCHETYPES (Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler give up - G454/G457), SEAPLANE (the
+crosswind water run stays wet and swings 180 deg - G474). Core over 8856dc0: one red, MEDIA - index.html 8.87 MiB
+against its 8.8 MiB budget, and 8.88 MiB on a clean master worktree at 843629a (G573's blueprint grew the artifact;
+8.89 MiB at 3b26d07 after G576): the budget or the payload is its owners' call. Over 843629a the merged tree ran SKINMAT
+COWL ENGINE TAKEOFF TARR BLUEPRINT HOUSE VILLAGE PREMISES WORLD UISMOKE BUILD PARKED GEN green, MEDIA the one red.
+
 ## G578 - THE VORTEX KERNEL ONCE A FRAME (2026-09-25)
 
 G572's lever 2. Every garage build flies the vortex downwash (TAIL CHANTIER 2 P5), and the horseshoe coefficients

@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cowl &amp; Propeller Generator — v3</title>
+<style>
+  :root{--bg:#1a1c1f;--panel:#22262b;--panel2:#2a2f35;--line:#383e46;
+        --ink:#dfe4ea;--dim:#8d97a3;--accent:#e0a13c;--accent2:#7fb7d4;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+  #app{display:flex;height:100%}
+  #view{flex:1;position:relative;min-width:0}
+  canvas{display:block}
+  #panel{width:334px;flex:none;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:0 0 40px}
+  #panel::-webkit-scrollbar{width:8px}
+  #panel::-webkit-scrollbar-thumb{background:#3c434b;border-radius:4px}
+  .head{padding:14px 16px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:3}
+  .head h1{margin:0;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  .head p{margin:4px 0 0;font-size:11px;color:var(--dim)}
+  details{border-bottom:1px solid var(--line)}
+  summary{padding:10px 16px;cursor:pointer;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--dim);user-select:none;list-style:none;display:flex;justify-content:space-between}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";color:var(--accent)}
+  details[open] summary::after{content:"–"}
+  details[open] summary{color:var(--ink)}
+  .body{padding:4px 16px 14px}
+  .row{display:grid;grid-template-columns:1fr 58px;gap:6px;align-items:center;margin:7px 0}
+  .row label{font-size:11.5px;color:var(--dim)}
+  .row .val{font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent2);text-align:right}
+  .row input[type=range]{grid-column:1/3;width:100%;height:3px;-webkit-appearance:none;
+    background:var(--panel2);border-radius:2px;outline:none;margin:2px 0 0}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--accent);cursor:pointer;border:2px solid var(--panel)}
+  input[type=range]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:var(--accent);
+    border:2px solid var(--panel);cursor:pointer}
+  select{width:100%;background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+    border-radius:3px;padding:6px 7px;font-size:12px;font-family:inherit}
+  .chk{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:11.5px;color:var(--dim);cursor:pointer}
+  .chk input{accent-color:var(--accent)}
+  .full{margin:8px 0}
+  .full>span{display:block;font-size:11.5px;color:var(--dim);margin-bottom:4px}
+  .note{font-size:10.5px;color:var(--dim);margin:6px 0 2px;line-height:1.5}
+  .cap{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#616b77;
+    margin:14px 0 2px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+  .cap:first-child{margin-top:2px}
+  details.sub{border:0;margin:12px 0 0}
+  details.sub>summary{padding:7px 0;font-size:9.5px;letter-spacing:.14em;color:#616b77;
+    border-top:1px solid var(--line)}
+  details.sub>summary::after{content:"+";color:#616b77}
+  details.sub[open]>summary{color:var(--accent2)}
+  details.sub[open]>summary::after{content:"–";color:var(--accent2)}
+  .subbody{padding:2px 0 4px}
+  textarea{width:100%;height:190px;background:#191c20;color:#c9d3dd;border:1px solid var(--line);
+    border-radius:3px;padding:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:10.5px;line-height:1.45;resize:vertical}
+  .btnrow{display:flex;gap:6px;margin:8px 0 0;flex-wrap:wrap}
+  .btnrow .btn{flex:1;min-width:74px;text-align:center}
+  #ioMsg{font-size:10.5px;color:var(--accent2);margin:8px 0 0;min-height:14px}
+  #readout{padding:12px 16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.65}
+  #readout .k{color:var(--dim)} #readout .v{color:var(--ink);float:right}
+  #readout .warn{color:#e07a5f} #readout .ok{color:#8bbf7a}
+  #readout hr{border:0;border-top:1px solid var(--line);margin:8px 0}
+  #hud{position:absolute;left:14px;bottom:12px;font-family:ui-monospace,monospace;font-size:10.5px;color:var(--dim);pointer-events:none;line-height:1.5}
+  #topbar{position:absolute;left:14px;top:12px;display:flex;gap:6px;flex-wrap:wrap}
+  .btn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);font-size:11px;
+    padding:5px 10px;border-radius:3px;cursor:pointer;font-family:inherit}
+  .btn:hover{border-color:var(--accent)} .btn.on{border-color:var(--accent);color:var(--accent)}
+  @media(max-width:820px){#app{flex-direction:column}
+    #panel{width:100%;height:52%;border-left:0;border-top:1px solid var(--line)} #view{height:48%}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="view">
+    <div id="topbar">
+      <button class="btn" id="btnSpin">Spin</button>
+      <button class="btn on" id="btnGrid">Reference</button>
+      <button class="btn" id="btnWire">Wireframe</button>
+      <button class="btn" id="btnSec">Section cut</button>
+    </div>
+    <div id="hud">drag — orbit &nbsp;·&nbsp; shift+drag — pan &nbsp;·&nbsp; wheel — zoom</div>
+  </div>
+  <div id="panel">
+    <div class="head"><h1>Cowl &amp; Prop Generator</h1><p>v3 — one continuous surface, apertures cut into it</p></div>
+    <details open><summary>Preset</summary><div class="body">
+      <select id="preset"></select><p class="note" id="presetNote"></p></div></details>
+    <details open><summary>Cowl body</summary><div class="body" id="g_body"></div></details>
+    <details open><summary>Section shape</summary><div class="body" id="g_sect"></div></details>
+    <details><summary>Mesh</summary><div class="body" id="g_mesh"></div></details>
+    <details><summary>Panel seam</summary><div class="body" id="g_seam"></div></details>
+    <details open><summary>Apertures</summary><div class="body" id="g_ap"></div></details>
+    <details><summary>Lip</summary><div class="body" id="g_lip"></div></details>
+    <details open><summary>Nose cone &amp; shaft</summary><div class="body" id="g_spin"></div></details>
+    <details open><summary>Propeller</summary><div class="body" id="g_prop"></div></details>
+    <details><summary>Bulges &amp; cut-out</summary><div class="body" id="g_lobe"></div></details>
+    <details><summary>Chin scoop</summary><div class="body" id="g_scoop"></div></details>
+    <details><summary>Aft termination</summary><div class="body" id="g_aft"></div></details>
+    <details open><summary>Derived</summary><div id="readout"></div></details>
+    <details><summary>Export / import</summary><div class="body" id="g_io"></div></details>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+const TAU=Math.PI*2, DEG=Math.PI/180, M2IN=39.3701;
+
+/* ============================ PARAMETERS ============================ */
+const P={
+  // body — straight/tapered barrel, firewall at z = 0
+  cowlLen:0.365, aftW:0.425, aftH:0.3, taperW:0.82, taperH:0.78,
+  // section control points: width, plus independent top and bottom apex + squareness
+  sqAftTop:0.82, sqAftBot:0.82, sqFrontTop:0.54, sqFrontBot:0.48,
+  deckH:1, deckSweep:0, waist:0, waistSweep:0, keelH:0.95, keelSweep:0.55,
+  // lid
+  lidRise:0.06, faceRise:0.018, lidLen:0.125, lidMode:1, lidR:0.17, lidGap:0.009,
+  lidRound:0.53, lidSqTop:0.62, lidSqBot:0.6, lidShoulder:0.45,
+  // apertures cut into the surface
+  detail:1.0,
+  seamOn:1, seamType:1, seamPos:0.745, seamWidth:0.005, seamDepth:0.0022,
+  apMode:3, apW:0.112, apH:0.106, apSq:0.47, apOffX:0, apOffY:0,
+  pairX:0.2, pairY:0.012, pairW:0.08, pairH:0.048, pairSq:0.625,
+  // lip
+  lipMode:0, lipThick:0.009, lipProtrude:0.5, lipInset:0.028, lipDepth:0.055,
+  lipRound:0.55, ductLen:0.12, ductFlare:0,
+  // nose cone + shaft, stationed relative to the lid end
+  noseOff:-0.04, spinR:0.101, spinLen:0.25, spinRound:0.6,
+  shaftR:0.045, shaftLen:0.3, bladeStation:0.42,
+  // lobes / cut
+  lobeN:2, lobeAmp:0.022, lobeAz:0, lobeSig:34.0, lobeT:0.45, lobeTSig:0.3,
+  cutSpan:0, cutAz:270.0,
+  // chin scoop
+  scoopOn:1, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
+  scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
+  scoopLipH:0.011, scoopLipDepth:0.032, scoopDuct:0.125,
+  // aft — the fuselage is a given; the cowl inherits its section by default
+  aftMode:0, stubLen:0.5, tailLen:1.5, tailDrop:0.02, pylon:1,
+  inheritStub:1, stubSqTop:0.81, stubSqBot:0.79, stubDeckH:0.99, stubWaist:0.34, stubKeelH:0.98,
+  // propeller
+  bladeN:2, propD:1.91, rootChord:0.165, tipChord:0.05, chordBulge:0.18,
+  thickRoot:0.2, thickTip:0.09, camb:0.04, sweep:0, cuff:0.22, tipRound:0.1,
+  shankR:0.045, material:0, rpm:2400.0, tas:205.0, power:160.0, slip:12.0
+};
+
+const MATERIALS=[
+  {name:"Birch laminate",rho:700,col:0xc79a63,met:0.0,rgh:0.62},
+  {name:"Beech laminate",rho:730,col:0xb08050,met:0.0,rgh:0.58},
+  {name:"Aluminium 2025-T6",rho:2790,col:0xc9cdd2,met:0.92,rgh:0.24},
+  {name:"Carbon / epoxy",rho:1550,col:0x2b2e33,met:0.15,rgh:0.38},
+  {name:"Glass / epoxy",rho:1900,col:0xd9d5cc,met:0.05,rgh:0.42},
+  {name:"Wood core + CFRP shell",rho:950,col:0x8a7a63,met:0.05,rgh:0.48}
+];
+
+/* ============================ PRESETS ============================ */
+const PRESETS={
+  "Working default":{note:"Current tuned baseline: short square-shouldered cowl, raised waist, central aperture plus a pair, plain cut lips, wooden prop.",
+  p:{cowlLen:0.365,aftW:0.425,aftH:0.3,taperW:0.82,taperH:0.78,sqAftTop:0.82,sqAftBot:0.82,sqFrontTop:0.54,sqFrontBot:0.48,deckH:1,deckSweep:0,waist:0,waistSweep:0,keelH:0.95,keelSweep:0.55,lidRise:0.06,faceRise:0.018,lidLen:0.125,lidMode:1,lidR:0.17,lidGap:0.009,lidRound:0.53,lidSqTop:0.62,lidSqBot:0.6,lidShoulder:0.45,apMode:3,apW:0.112,apH:0.106,apSq:0.47,apOffX:0,apOffY:0,pairX:0.2,pairY:0.012,pairW:0.08,pairH:0.048,pairSq:0.625,lipMode:0,lipThick:0.009,lipProtrude:0.5,lipInset:0.028,lipDepth:0.055,lipRound:0.55,ductLen:0.12,ductFlare:0,noseOff:-0.04,spinR:0.101,spinLen:0.25,spinRound:0.6,shaftR:0.045,shaftLen:0.3,bladeStation:0.42,lobeN:2,lobeAmp:0.022,lobeAz:0,lobeSig:34.0,lobeT:0.45,lobeTSig:0.3,cutSpan:0,cutAz:270.0,scoopOn:1,scoopW:0.065,scoopH:0.055,scoopLen:0.22,scoopDrop:0.7,scoopAp:0.68,scoopSq:0.5,scoopRake:0.18,scoopLipH:0.011,scoopLipDepth:0.032,scoopDuct:0.125,aftMode:0,stubLen:0.5,tailLen:1.5,tailDrop:0.02,pylon:1,inheritStub:1,stubSqTop:0.81,stubSqBot:0.79,stubDeckH:0.99,stubWaist:0.34,stubKeelH:0.98,bladeN:2,propD:1.91,rootChord:0.165,tipChord:0.05,chordBulge:0.18,thickRoot:0.2,thickTip:0.09,camb:0.04,sweep:0,cuff:0.22,tipRound:0.1,shankR:0.045,material:0,rpm:2400.0,tas:205.0,power:160.0,slip:12.0,seamOn:1,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022}},
+
+"Piper PA-18 Super Cub":{note:"O-320. Square-ish barrel with big cylinder cheeks, short blunt lid, round aperture around an exposed hub.",
+  p:{detail:1,seamOn:0,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022,inheritStub:1,stubSqTop:0.8,stubSqBot:0.8,stubDeckH:1,stubKeelH:1.0,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:0.48,aftW:0.345,aftH:0.325,taperW:0.9,taperH:0.88,sqAftTop:0.8,sqAftBot:0.8,sqFrontTop:0.76,sqFrontBot:0.76,faceRise:0.01,keelSweep:0.34,lidRise:0.02,keelH:1.0,
+     lidShoulder:0.5,lidLen:0.21,lidMode:1,lidGap:0.010,lidRound:0.55,lidSqTop:0.625,lidSqBot:0.625,
+     apMode:1,apW:0.135,apH:0.128,apSq:0.575,apOffX:0,apOffY:0,
+     lipMode:1,lipThick:0.012,lipProtrude:0.4,lipInset:0.016,lipDepth:0.030,lipRound:0.5,ductLen:0.09,
+     noseOff:-0.02,spinR:0.105,spinLen:0.15,spinRound:0.30,shaftR:0.040,shaftLen:0.24,
+     lobeN:2,lobeAmp:0.055,lobeAz:0,lobeSig:30,lobeT:0.40,lobeTSig:0.30,cutSpan:0,
+     scoopLipH:0.009,scoopOn:1,scoopW:0.11,scoopH:0.065,scoopLen:0.26,scoopDrop:0.60,scoopAp:0.66,scoopSq:0.775,scoopRake:0.30,
+     aftMode:0,shankR:0.038,bladeN:2,propD:1.93,rootChord:0.155,tipChord:0.095,material:2,rpm:2350,tas:160,power:150}},
+
+ "Cessna 172":{note:"Wide flat barrel, top deck raked down, blunt lid faired onto the spinner, twin openings either side of it.",
+  p:{detail:1,inheritStub:1,stubSqTop:0.82,stubSqBot:0.82,stubDeckH:1,stubKeelH:0.95,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:0.6,aftW:0.425,aftH:0.300,taperW:0.9,taperH:0.92,sqAftTop:0.82,sqAftBot:0.82,sqFrontTop:0.75,sqFrontBot:0.75,faceRise:0.018,keelSweep:0.45,lidRise:-0.03,keelH:0.95,
+     lidShoulder:0.45,lidLen:0.34,lidMode:1,lidGap:0.012,lidRound:0.72,lidSqTop:0.6,lidSqBot:0.6,
+     detail:1.0,
+  seamOn:1, seamType:1, seamPos:0.745, seamWidth:0.005, seamDepth:0.0022,
+  apMode:2,pairX:0.228,pairY:0.012,pairW:0.072,pairH:0.062,pairSq:0.625,
+     lipMode:1,lipThick:0.016,lipProtrude:0.5,lipInset:0.028,lipDepth:0.055,lipRound:0.55,ductLen:0.12,
+     noseOff:-0.04,spinR:0.135,spinLen:0.25,spinRound:0.60,shaftR:0.045,shaftLen:0.30,
+     lobeN:2,lobeAmp:0.022,lobeAz:0,lobeSig:34,lobeT:0.45,lobeTSig:0.30,cutSpan:0,
+     scoopLipH:0.01,scoopOn:1,scoopW:0.13,scoopH:0.055,scoopLen:0.22,scoopDrop:0.72,scoopAp:0.60,scoopSq:0.675,scoopRake:0.25,
+     aftMode:0,shankR:0.045,bladeN:2,propD:1.90,rootChord:0.165,tipChord:0.105,material:2,rpm:2400,tas:205,power:160}},
+
+ "Jodel D.1050 Ambassadeur":{note:"Rounder small cowl, annular gap around a slim spinner, prominent belly scoop, wooden prop.",
+  p:{detail:1,seamOn:0,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022,inheritStub:1,stubSqTop:0.67,stubSqBot:0.67,stubDeckH:1,stubKeelH:0.99,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:0.48,aftW:0.335,aftH:0.315,taperW:0.88,taperH:0.88,sqAftTop:0.67,sqAftBot:0.67,sqFrontTop:0.61,sqFrontBot:0.61,faceRise:0.008,keelSweep:0.4,lidRise:0.015,keelH:0.99,
+     lidShoulder:0.5,lidLen:0.25,lidMode:1,lidGap:0.012,lidRound:0.6,lidSqTop:0.525,lidSqBot:0.525,
+     apMode:1,apW:0.145,apH:0.145,apSq:0.5,apOffX:0,apOffY:0.005,
+     lipMode:1,lipThick:0.013,lipProtrude:0.55,lipInset:0.018,lipDepth:0.040,lipRound:0.6,ductLen:0.10,
+     noseOff:-0.03,spinR:0.100,spinLen:0.20,spinRound:0.50,shaftR:0.036,shaftLen:0.24,
+     lobeN:2,lobeAmp:0.038,lobeAz:0,lobeSig:32,lobeT:0.42,lobeTSig:0.30,cutSpan:0,
+     scoopLipH:0.01,scoopOn:1,scoopW:0.115,scoopH:0.085,scoopLen:0.30,scoopDrop:0.66,scoopAp:0.68,scoopSq:0.65,scoopRake:0.35,
+     aftMode:0,shankR:0.034,bladeN:2,propD:1.75,rootChord:0.150,tipChord:0.105,material:0,rpm:2600,tas:175,power:100}},
+
+ "Faired inline (Spitfire type)":{note:"No aperture: the lid runs continuously onto a long ogival spinner. Cooling lives in the wing radiators.",
+  p:{detail:1,seamOn:0,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022,inheritStub:1,stubSqTop:0.55,stubSqBot:0.55,stubDeckH:1,stubKeelH:1.0,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:1.02,aftW:0.46,aftH:0.42,taperW:0.82,taperH:0.84,sqAftTop:0.55,sqAftBot:0.55,sqFrontTop:0.525,sqFrontBot:0.525,faceRise:0.01,keelSweep:0.3,lidRise:0.015,keelH:1.0,
+     lidShoulder:0.62,lidLen:0.55,lidMode:1,lidGap:0.004,lidRound:0.3,lidSqTop:0.5,lidSqBot:0.5,
+     apMode:0,lipMode:1,
+     noseOff:0.0,spinR:0.22,spinLen:0.60,spinRound:0.32,shaftR:0.07,shaftLen:0.35,
+     lobeN:2,lobeAmp:0.045,lobeAz:52,lobeSig:26,lobeT:0.55,lobeTSig:0.26,cutSpan:0,
+     scoopLipH:0.014,scoopOn:1,scoopW:0.13,scoopH:0.09,scoopLen:0.5,scoopDrop:0.80,scoopAp:0.75,scoopSq:0.7,scoopRake:0.4,
+     aftMode:0,shankR:0.078,bladeN:3,propD:3.27,rootChord:0.26,tipChord:0.16,material:5,rpm:1450,tas:480,power:1030}},
+
+ "NACA cowl, radial":{note:"Full-chord ring over an air-cooled radial: circular section, very blunt lid, deep rolled lip, large annular inlet.",
+  p:{detail:1,seamOn:0,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022,inheritStub:1,stubSqTop:0.5,stubSqBot:0.5,stubDeckH:1,stubKeelH:1.0,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:0.72,aftW:0.70,aftH:0.70,taperW:0.99,taperH:0.99,sqAftTop:0.5,sqAftBot:0.5,sqFrontTop:0.5,sqFrontBot:0.5,faceRise:0.0,keelSweep:0.0,lidRise:0.0,keelH:1.0,
+     lidShoulder:0.3,lidLen:0.22,lidMode:0,lidR:0.16,lidRound:0.85,lidSqTop:0.5,lidSqBot:0.5,
+     apMode:1,apW:0.40,apH:0.40,apSq:0.5,apOffX:0,apOffY:0,
+     lipMode:1,lipThick:0.030,lipProtrude:0.7,lipInset:0.06,lipDepth:0.17,lipRound:0.75,ductLen:0.26,
+     noseOff:-0.06,spinR:0.16,spinLen:0.30,spinRound:0.55,shaftR:0.06,shaftLen:0.35,
+     lobeN:0,cutSpan:0,scoopOn:0,aftMode:0,
+     shankR:0.056,bladeN:3,propD:2.90,rootChord:0.24,tipChord:0.15,material:2,rpm:2000,tas:290,power:600}},
+
+ "Townend ring":{note:"Narrow-chord ring only — cylinders stay in the airflow ahead of and behind it.",
+  p:{detail:1,seamOn:0,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022,inheritStub:1,stubSqTop:0.5,stubSqBot:0.5,stubDeckH:1,stubKeelH:1.0,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:0.23,aftW:0.72,aftH:0.72,taperW:1.0,taperH:1.0,sqAftTop:0.5,sqAftBot:0.5,sqFrontTop:0.5,sqFrontBot:0.5,faceRise:0.0,keelSweep:0.0,lidRise:0.0,keelH:1.0,
+     lidShoulder:0.22,lidLen:0.1,lidMode:0,lidR:0.30,lidRound:0.85,lidSqTop:0.5,lidSqBot:0.5,
+     apMode:1,apW:0.60,apH:0.60,apSq:0.5,
+     lipMode:1,lipThick:0.022,lipProtrude:0.9,lipInset:0.03,lipDepth:0.07,lipRound:0.8,ductLen:0.07,
+     noseOff:0.06,spinR:0.14,spinLen:0.24,spinRound:0.5,shaftR:0.05,shaftLen:0.3,
+     lobeN:0,cutSpan:0,scoopOn:0,aftMode:0,stubLen:0.5,
+     shankR:0.048,bladeN:2,propD:2.75,rootChord:0.22,tipChord:0.14,material:0,rpm:1700,tas:220,power:420}},
+
+ "Rotary horseshoe (Camel type)":{note:"Rotary engine: bowl with the lower sector cut away so castor oil and hot air dump overboard.",
+  p:{detail:1,seamOn:0,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022,inheritStub:1,stubSqTop:0.5,stubSqBot:0.5,stubDeckH:1,stubKeelH:1.0,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:0.35,aftW:0.50,aftH:0.50,taperW:0.99,taperH:0.99,sqAftTop:0.5,sqAftBot:0.5,sqFrontTop:0.5,sqFrontBot:0.5,faceRise:0.0,keelSweep:0.0,lidRise:0.0,keelH:1.0,
+     lidShoulder:0.3,lidLen:0.15,lidMode:0,lidR:0.14,lidRound:0.8,lidSqTop:0.5,lidSqBot:0.5,
+     apMode:1,apW:0.20,apH:0.20,apSq:0.5,
+     lipMode:0,lipThick:0.014,ductLen:0.05,
+     noseOff:0.02,spinR:0.08,spinLen:0.10,spinRound:0.9,shaftR:0.05,shaftLen:0.28,
+     lobeN:0,cutSpan:130,cutAz:270,scoopOn:0,aftMode:0,
+     shankR:0.04,bladeN:2,propD:2.60,rootChord:0.20,tipChord:0.13,material:1,rpm:1250,tas:170,power:130}},
+
+ "Wing nacelle (twin)":{note:"Same grammar, different aft end: closes on its own tail cone above the wing instead of blending into a fuselage.",
+  p:{detail:1,seamOn:0,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022,inheritStub:1,stubSqTop:0.53,stubSqBot:0.53,stubDeckH:1,stubKeelH:1.0,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:0.8,aftW:0.58,aftH:0.60,taperW:0.96,taperH:0.96,sqAftTop:0.53,sqAftBot:0.53,sqFrontTop:0.52,sqFrontBot:0.52,faceRise:0.0,keelSweep:0.0,lidRise:0.0,keelH:1.0,
+     lidShoulder:0.4,lidLen:0.26,lidMode:0,lidR:0.17,lidRound:0.8,lidSqTop:0.5,lidSqBot:0.5,
+     apMode:1,apW:0.34,apH:0.34,apSq:0.5,
+     lipMode:1,lipThick:0.026,lipProtrude:0.7,lipInset:0.05,lipDepth:0.14,lipRound:0.7,ductLen:0.20,
+     noseOff:-0.04,spinR:0.17,spinLen:0.34,spinRound:0.50,shaftR:0.055,shaftLen:0.30,
+     lobeN:0,cutSpan:0,scoopOn:0,aftMode:1,tailLen:1.5,tailDrop:0.02,pylon:1,
+     shankR:0.058,bladeN:3,propD:2.60,rootChord:0.22,tipChord:0.14,material:2,rpm:2200,tas:280,power:450}},
+
+ "Sharp-edge apertures, no lip":{note:"Plain cut openings with wall thickness only — no rolled lip, no fairing onto the cone. Fibreglass homebuilt style.",
+  p:{detail:1,seamOn:0,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022,inheritStub:1,stubSqTop:0.725,stubSqBot:0.725,stubDeckH:1,stubKeelH:0.975,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:0.56,aftW:0.38,aftH:0.30,taperW:0.9,taperH:0.92,sqAftTop:0.725,sqAftBot:0.725,sqFrontTop:0.65,sqFrontBot:0.65,faceRise:0.006,keelSweep:0.3,lidRise:0.0,keelH:0.975,
+     lidShoulder:0.45,lidLen:0.24,lidMode:1,lidGap:0.014,lidRound:0.65,lidSqTop:0.675,lidSqBot:0.675,
+     apMode:3,apW:0.15,apH:0.105,apSq:0.775,apOffX:0,apOffY:-0.02,
+     pairX:0.21,pairY:0.0,pairW:0.052,pairH:0.042,pairSq:0.8,
+     lipMode:0,lipThick:0.012,ductLen:0.10,
+     noseOff:-0.03,spinR:0.115,spinLen:0.22,spinRound:0.55,shaftR:0.042,shaftLen:0.26,
+     lobeN:0,cutSpan:0,scoopOn:0,aftMode:0,
+     shankR:0.038,bladeN:2,propD:1.78,rootChord:0.15,tipChord:0.10,material:3,rpm:2700,tas:230,power:100}},
+
+ "No cowl — faired nose":{note:"Long lid closing onto the cone with nothing cut into it: the degenerate case of the same surface.",
+  p:{detail:1,seamOn:0,seamType:1,seamPos:0.745,seamWidth:0.005,seamDepth:0.0022,inheritStub:1,stubSqTop:0.525,stubSqBot:0.525,stubDeckH:1,stubKeelH:1.0,stubWaist:0,deckH:1,deckSweep:0,waist:0,waistSweep:0,cowlLen:0.66,aftW:0.40,aftH:0.38,taperW:0.86,taperH:0.86,sqAftTop:0.525,sqAftBot:0.525,sqFrontTop:0.5,sqFrontBot:0.5,faceRise:0.0,keelSweep:0.0,lidRise:0.0,keelH:1.0,
+     lidShoulder:0.55,lidLen:0.46,lidMode:1,lidGap:0.003,lidRound:0.4,lidSqTop:0.5,lidSqBot:0.5,
+     apMode:0,noseOff:0.0,spinR:0.19,spinLen:0.42,spinRound:0.45,shaftR:0.06,shaftLen:0.3,
+     lobeN:0,cutSpan:0,scoopOn:0,aftMode:0,
+     shankR:0.062,bladeN:3,propD:2.10,rootChord:0.18,tipChord:0.11,material:3,rpm:2200,tas:250,power:260}}
+};
+
+/* ============================ MATH ============================ */
+const lerp=(a,b,t)=>a+(b-a)*t;
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const smooth=t=>t*t*(3-2*t);
+/* 0 = straight faces (n=1, a true polygon edge), 0.5 = ellipse (n=2),
+   1 = flat face with tight corners (n=10). Below 0.5 was unreachable before,
+   which is why no setting could ever produce a facet. */
+const sqExp=s=>{s=clamp(s,0,1); return s<0.5 ? lerp(1,2,s/0.5) : 2*Math.pow(5,(s-0.5)/0.5);};
+function superPt(th,a,b,n){
+  const c=Math.cos(th),s=Math.sin(th),e=2/n;
+  return [Math.sign(c)*Math.pow(Math.abs(c),e)*a, Math.sign(s)*Math.pow(Math.abs(s),e)*b];
+}
+function angDiff(a,b){let d=(a-b)%TAU; if(d>Math.PI)d-=TAU; if(d<-Math.PI)d+=TAU; return d;}
+
+/* ============================ SURFACE DEFINITION ============================ */
+const SEG=112;
+const zEnd=()=>P.cowlLen+P.lidLen;
+function lidRadius(){ return P.lidMode===1 ? P.spinR+P.lidGap : P.lidR; }
+/* No spine curvature. The barrel is a straight ruled surface from the firewall
+   loop to the lid loop; the lid axis then runs straight to the face, which can
+   be lifted independently of the barrel-end offset. */
+function spineY(z){
+  if(z<=0) return 0;
+  if(z<=P.cowlLen) return P.lidRise*clamp(z/Math.max(P.cowlLen,1e-4),0,1);
+  return P.lidRise + P.faceRise*clamp((z-P.cowlLen)/Math.max(P.lidLen,1e-4),0,1);
+}
+
+/* The meridian is one continuous curve: a straight barrel, then a cubic that
+   leaves it along its own tangent and arrives at the lid plane almost normal
+   to the axis. No shoulder, no S.
+   The keel gets its own copy of that curve, allowed to start bending earlier
+   than the barrel end, so the underside can sweep up into the lid while the
+   top deck stays straight. Both curves finish on the same lid radius, so the
+   end ring is still circular about the cone. */
+const bez=(p,u)=>{const v=1-u;
+  return v*v*v*p[0]+3*v*v*u*p[1]+3*v*u*u*p[2]+u*u*u*p[3];};
+function mkCurve(pz,pv){
+  const N=192, tz=new Float64Array(N+1);
+  for(let i=0;i<=N;i++) tz[i]=bez(pz,i/N);
+  return {pz,pv,tz,N,
+    uOf(z){
+      if(z<=this.tz[0])return 0; if(z>=this.tz[this.N])return 1;
+      let lo=0,hi=this.N;
+      while(hi-lo>1){const m=(lo+hi)>>1; if(this.tz[m]<=z)lo=m;else hi=m;}
+      const d=this.tz[hi]-this.tz[lo];
+      return (lo+(d>1e-12?(z-this.tz[lo])/d:0))/this.N;
+    },
+    at(z){ return bez(this.pv,this.uOf(z)); }};
+}
+let LID=null;
+/* The cowl section is defined by four control points — the two sides at +/-a,
+   the top apex and the bottom apex — plus a squareness per half that says how
+   the arcs between them are filled. Top and bottom each get their own meridian
+   curve, so the deck and the keel can bend at different stations. Both finish
+   on the lid radius, keeping the closing ring circular about the cone. */
+const eSqAftTop=()=>P.inheritStub?P.stubSqTop:P.sqAftTop;
+const eSqAftBot=()=>P.inheritStub?P.stubSqBot:P.sqAftBot;
+const eDeckH   =()=>P.inheritStub?P.stubDeckH:P.deckH;
+const eKeelH   =()=>P.inheritStub?P.stubKeelH:P.keelH;
+
+const eWaist   =()=>P.inheritStub?P.stubWaist:P.waist;
+
+function prepareLid(){
+  const cl=Math.max(P.cowlLen,1e-4), ze=zEnd(), L=Math.max(P.lidLen,1e-4), lr=lidRadius();
+  const a0=P.aftW, h0=P.aftH, a1=P.aftW*P.taperW, h1=P.aftH*P.taperH;
+  const sa=(a1-a0)/cl, sh=(h1-h0)/cl;
+  const c1=clamp(P.lidShoulder,0,0.92), c2=clamp(P.lidRound,0,1);
+  const pz=[cl, cl+L*c1, ze-L*0.05, ze];
+  const A=mkCurve(pz,[a1, a1+sa*L*c1, lr+(a1-lr)*c2, lr]);
+  // one recipe, used for the deck and the keel with their own scale and sweep
+  const half=(k,sweep,end)=>{
+    const z0=cl-clamp(sweep,0,0.95)*cl, Lh=ze-z0;
+    const v0=k*lerp(h0,h1,z0/cl), sv=sh*k;
+    return {z0, k, c:mkCurve([z0, z0+Lh*c1, ze-Lh*0.05, ze],
+                             [v0, v0+sv*Lh*c1, end+(v0-end)*c2, end])};
+  };
+  const kT=eDeckH(), kB=eKeelH();
+  // the waist is the height of the widest line; it must return to the axis by
+  // the lid end, otherwise the closing ring would not be circular on the cone
+  const kW=clamp(eWaist(),-0.85*kB,0.85*kT);
+  const T=half(kT, P.deckSweep, lr);
+  const K=half(kB, P.keelSweep, lr);
+  const W=half(kW, P.waistSweep, 0);
+  LID={pz,A,T,K,W,cl};
+}
+/* Panel seam. Real cowls are several panels, so the face is a separate skin
+   from the barrel and there is a visible joint. This is a small radial inset
+   applied to the section itself rather than a decal, so the implicit field,
+   the aperture rim solver and the scoop trim all see the same surface.
+   Type 0 = symmetric groove. Type 1 = step, with the aft panel set in and the
+   face panel proud, which is how a lapped joint reads. */
+function seamInset(z){
+  if(!P.seamOn||!seamOn2) return 0;
+  const w=Math.max(P.seamWidth,5e-4), z0=clamp(P.seamPos,0,1)*zEnd();
+  if(P.seamType===0){
+    const t=Math.abs(z-z0)/w;
+    return t>=1 ? 0 : P.seamDepth*(1-t);
+  }
+  return P.seamDepth*clamp((z0+w*0.5-z)/w,0,1);
+}
+function sectionAtZ(z){
+  if(!LID) prepareLid();
+  const cy=spineY(z), cl=Math.max(P.cowlLen,1e-4);
+  let a,nT,nB;
+  if(z<=cl){
+    const u=clamp(z/cl,0,1);                       // straight: constant slope
+    a=lerp(P.aftW,P.aftW*P.taperW,u);
+    nT=sqExp(lerp(eSqAftTop(),P.sqFrontTop,u));
+    nB=sqExp(lerp(eSqAftBot(),P.sqFrontBot,u));
+  }else{
+    const u=LID.A.uOf(z);
+    a=Math.max(LID.A.at(z),0.003);
+    nT=sqExp(lerp(P.sqFrontTop,P.lidSqTop,u));
+    nB=sqExp(lerp(P.sqFrontBot,P.lidSqBot,u));
+  }
+  const hLin=lerp(P.aftH,P.aftH*P.taperH,clamp(z/cl,0,1));
+  let bT = z<=LID.T.z0 ? LID.T.k*hLin : Math.max(LID.T.c.at(z),0.003);
+  let bB = z<=LID.K.z0 ? LID.K.k*hLin : Math.max(LID.K.c.at(z),0.003);
+  const yw = z<=LID.W.z0 ? LID.W.k*hLin : LID.W.c.at(z);
+  const si=seamInset(z);
+  if(si){ a=Math.max(a-si,0.003); bT=Math.max(bT-si,0.003); bB=Math.max(bB-si,0.003); }
+  return {a,bT,bB,nT,nB,cy,yw:clamp(yw,-bB*0.9,bT*0.9),b:bT};
+}
+/* one section point, given the four control values */
+/* Six control points, not four: the sides now sit at the waist height yw
+   rather than on the spine, so each half spans from the waist to its own apex.
+   yw = 0 reproduces the old rounded-rectangle section exactly. */
+function sectPt(th,s){
+  const c=Math.cos(th), sn=Math.sin(th), up=sn>=0;
+  const yw=s.yw||0, n=up?s.nT:s.nB, e=2/n;
+  const h=Math.max(up?s.bT-yw:s.bB+yw,0.002);
+  return [Math.sign(c)*Math.pow(Math.abs(c),e)*s.a,
+          yw+(up?1:-1)*Math.pow(Math.abs(sn),e)*h];
+}
+function lobeAt(th,z){
+  if(P.lobeN<1||P.lobeAmp<=0) return 0;
+  const t=clamp(z/Math.max(zEnd(),1e-4),0,1);
+  const w=Math.exp(-Math.pow((t-P.lobeT)/Math.max(0.03,P.lobeTSig),2));
+  if(w<0.008) return 0;
+  const azs=[P.lobeAz*DEG]; if(P.lobeN>=2) azs.push(Math.PI-P.lobeAz*DEG);
+  let d=0;
+  for(const az of azs) d+=P.lobeAmp*w*Math.exp(-Math.pow(angDiff(th,az)/(P.lobeSig*DEG),2));
+  return d;
+}
+function surfPoint(th,z){
+  const s=sectionAtZ(z);
+  let [x,y]=sectPt(th,s);
+  const d=lobeAt(th,z);
+  if(d){const L=Math.hypot(x,y)||1; x+=x/L*d; y+=y/L*d;}
+  return [x, s.cy+y];
+}
+/* implicit: <1 inside the section at that z (lobes ignored — they live on the barrel flanks) */
+function sectF(x,y,z){
+  const s=sectionAtZ(z);
+  const dy=y-s.cy-s.yw, up=dy>=0;
+  const h=Math.max(up?s.bT-s.yw:s.bB+s.yw,0.002), n=up?s.nT:s.nB;
+  return Math.pow(Math.abs(x/s.a),n)+Math.pow(Math.abs(dy/h),n);
+}
+/* where does the Z-line through (px,py) pierce the surface? */
+function pierceZ(px,py){
+  let lo=0, hi=zEnd();
+  if(sectF(px,py,hi)<1) return hi;
+  if(sectF(px,py,lo)>1) return null;
+  for(let i=0;i<40;i++){const m=(lo+hi)/2; if(sectF(px,py,m)<1) lo=m; else hi=m;}
+  return (lo+hi)/2;
+}
+
+/* ---------------------------------------------------------------------------
+   Adaptive sampling. Samples are placed at equal increments of a weight that
+   mixes arc length with sqrt(turning x arc), which is the equal-sagitta rule:
+   chord error is constant along the curve rather than piling up at the corners.
+   Measured against uniform spacing at matched counts this is only ~6% better,
+   because a superellipse parametrised in theta already clusters reasonably —
+   but it holds up when the section is asymmetric (raised waist, different
+   exponents top and bottom), where uniform does not.
+   The seam is added afterwards: its profile is a step, not a curve. */
+let AZ=[], ZS=[], NDISC=4, seamOn2=true;
+function equalise(w,N,M){
+  const cum=new Float64Array(M+1);
+  for(let i=0;i<M;i++) cum[i+1]=cum[i]+w[i];
+  const tot=cum[M]||1, out=[];
+  for(let k=0;k<N;k++){
+    const t=k*tot/N;
+    let lo=0,hi=M;
+    while(hi-lo>1){const m=(lo+hi)>>1; if(cum[m]<=t)lo=m;else hi=m;}
+    const d=cum[lo+1]-cum[lo];
+    out.push((lo+(d>1e-12?(t-cum[lo])/d:0))/M);
+  }
+  return out;
+}
+function prepareMesh(){
+  const d=clamp(P.detail,0.35,2), ze=zEnd();
+  seamOn2=false;                                   // tables ignore the seam step
+
+  // --- azimuth: weighted by turning of the squarest section in the cowl ---
+  const probe=[0,0.5,1].map(t=>sectionAtZ(t*P.cowlLen));
+  const rep=probe.reduce((a,b)=>(b.nT+b.nB>a.nT+a.nB?b:a));
+  const M=512, pt=[];
+  for(let i=0;i<M;i++) pt.push(sectPt(i/M*TAU,rep));
+  const R=(rep.a+rep.bT)*0.5, w=new Float64Array(M);
+  for(let i=0;i<M;i++){
+    const a=pt[(i-1+M)%M],b=pt[i],c=pt[(i+1)%M];
+    const seg=Math.hypot(b[0]-a[0],b[1]-a[1]);
+    const t1=Math.atan2(b[1]-a[1],b[0]-a[0]), t2=Math.atan2(c[1]-b[1],c[0]-b[0]);
+    let dt=Math.abs(t2-t1); if(dt>Math.PI)dt=TAU-dt;
+    w[i]=0.15*seg+Math.sqrt(dt*seg*R);   // equal sagitta: density ~ sqrt(kappa)
+  }
+  AZ=equalise(w,Math.max(28,Math.round(60*d)),M).map(u=>u*TAU);
+
+  // --- stations: weighted by turning of the deck meridian ---
+  const MZ=480, mp=[];
+  for(let i=0;i<=MZ;i++){const z=i/MZ*ze, sc=sectionAtZ(z); mp.push([z,sc.cy+sc.bT]);}
+  const wz=new Float64Array(MZ);
+  for(let i=0;i<MZ;i++){
+    const a=mp[Math.max(i-1,0)],b=mp[i],c=mp[i+1];
+    const seg=Math.hypot(b[0]-a[0],b[1]-a[1])+Math.hypot(c[0]-b[0],c[1]-b[1]);
+    const t1=Math.atan2(b[1]-a[1],b[0]-a[0]), t2=Math.atan2(c[1]-b[1],c[0]-b[0]);
+    let dt=Math.abs(t2-t1); if(dt>Math.PI)dt=TAU-dt;
+    wz[i]=0.15*seg+Math.sqrt(dt*seg*ze*0.3);
+  }
+  ZS=equalise(wz,Math.max(12,Math.round(26*d)),MZ).map(u=>u*ze);
+  ZS.push(ze);
+  seamOn2=true;
+
+  if(P.seamOn){                                    // a step needs its own rows
+    const sw=Math.max(P.seamWidth,5e-4), z0=clamp(P.seamPos,0,1)*ze;
+    // rows sit either side of each crease; a step has two, a groove three
+    const off = P.seamType===1
+      ? [-1.2,-0.51,-0.5,-0.49,0,0.49,0.5,0.51,1.2]
+      : [-1.3,-1.01,-1,-0.99,-0.4,0,0.4,0.99,1,1.01,1.3];
+    for(const t of off){ const z=z0+t*sw; if(z>1e-4&&z<ze-1e-4) ZS.push(z); }
+  }
+  ZS.sort((p,q)=>p-q);
+  for(let i=ZS.length-1;i>0;i--) if(ZS[i]-ZS[i-1]<1e-6) ZS.splice(i,1);
+  NDISC=Math.max(3,Math.round(4*d));
+}
+
+/* apertures, fitted so they always stay inside the barrel-end section */
+function apertureList(){
+  const list=[], ax={x:P.apOffX,y:spineY(zEnd())+P.apOffY};
+  if(P.apMode===1||P.apMode===3) list.push({cx:ax.x,cy:ax.y,w:P.apW,h:P.apH,n:sqExp(P.apSq)});
+  if(P.apMode===2||P.apMode===3)
+    for(const s of [1,-1]) list.push({cx:ax.x+s*P.pairX,cy:ax.y+P.pairY,w:P.pairW,h:P.pairH,n:sqExp(P.pairSq)});
+  for(const o of list) fitAperture(o);
+  return list;
+}
+function fitAperture(o){
+  for(let it=0;it<26;it++){
+    let mx=0;
+    for(let j=0;j<28;j++){
+      const th=j/28*TAU,[px,py]=superPt(th,o.w,o.h,o.n);
+      mx=Math.max(mx,sectF(o.cx+px,o.cy+py,P.cowlLen));
+    }
+    if(mx<=0.80) break;
+    o.cx*=0.94; o.cy=spineY(zEnd())+(o.cy-spineY(zEnd()))*0.94;
+    o.w*=0.96; o.h*=0.96;
+  }
+}
+const apG=(o,x,y)=>Math.pow(Math.abs((x-o.cx)/o.w),o.n)+Math.pow(Math.abs((y-o.cy)/o.h),o.n)-1;
+
+/* ============================ TRIMMED SURFACE ============================ */
+function buildSurface(group,mats,aps){
+  const ze=zEnd(), lr=lidRadius(), NC=NDISC, zs=ZS, SEG=AZ.length;
+  const R=zs.length+NC;
+
+  // vertex grid
+  const px=[],py=[],pz=[];
+  for(let i=0;i<zs.length;i++){
+    const z=zs[i], rx=[],ry=[],rz=[];
+    for(let j=0;j<SEG;j++){
+      const th=AZ[j], [x,y]=surfPoint(th,z);
+      rx.push(x); ry.push(y); rz.push(z);
+    }
+    px.push(rx); py.push(ry); pz.push(rz);
+  }
+  // closing panel at the lid end, in the same plane the rim solver reports
+  const cyE=spineY(ze);
+  for(let i=1;i<=NC;i++){
+    const f=1-i/NC, r=Math.max(lr*f,0.004);
+    const rx=[],ry=[],rz=[];
+    for(let j=0;j<SEG;j++){const th=AZ[j];
+      rx.push(Math.cos(th)*r); ry.push(cyE+Math.sin(th)*r); rz.push(ze);}
+    px.push(rx); py.push(ry); pz.push(rz);
+  }
+
+  // smooth normals from the grid
+  const nx=[],ny=[],nz=[];
+  const NROW=zs.length;
+  for(let i=0;i<R;i++){
+    const a=[],b=[],c=[];
+    for(let j=0;j<SEG;j++){
+      if(i>=NROW){ a.push(0); b.push(0); c.push(1); continue; }
+      const i0=Math.max(0,i-1), i1=Math.min(NROW-1,i+1);
+      const j0=(j-1+SEG)%SEG, j1=(j+1)%SEG;
+      const tu=[px[i1][j]-px[i0][j], py[i1][j]-py[i0][j], pz[i1][j]-pz[i0][j]];
+      const tv=[px[i][j1]-px[i][j0], py[i][j1]-py[i][j0], pz[i][j1]-pz[i][j0]];
+      let n=[tv[1]*tu[2]-tv[2]*tu[1], tv[2]*tu[0]-tv[0]*tu[2], tv[0]*tu[1]-tv[1]*tu[0]];
+      const L=Math.hypot(n[0],n[1],n[2])||1; n=[n[0]/L,n[1]/L,n[2]/L];
+      if(n[0]*px[i][j]+n[1]*(py[i][j]-cyE)<0) n=[-n[0],-n[1],-n[2]];
+      a.push(n[0]); b.push(n[1]); c.push(n[2]);
+    }
+    nx.push(a); ny.push(b); nz.push(c);
+  }
+
+  // per-vertex aperture fields
+  const G=aps.map(o=>{
+    const g=[];
+    for(let i=0;i<R;i++){const r=[];
+      for(let j=0;j<SEG;j++) r.push(apG(o,px[i][j],py[i][j]));
+      g.push(r);}
+    return g;
+  });
+
+  const cutA=P.cutSpan*DEG, cutC=P.cutAz*DEG;
+  const pos=[], nor=[];
+  const V=(i,j)=>[px[i][j],py[i][j],pz[i][j],nx[i][j],ny[i][j],nz[i][j]];
+  const mix=(A,B,t)=>A.map((v,k)=>v+(B[k]-v)*t);
+
+  for(let i=0;i<R-1;i++){
+    for(let j=0;j<SEG;j++){
+      if(cutA>0 && Math.abs(angDiff(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2,cutC))<cutA/2) continue;
+      const j2=(j+1)%SEG;
+      let poly=[V(i,j),V(i,j2),V(i+1,j2),V(i+1,j)];
+      let gv=[[i,j],[i,j2],[i+1,j2],[i+1,j]];
+      for(let k=0;k<aps.length && poly.length;k++){
+        const g=G[k];
+        let vals = gv ? gv.map(q=>g[q[0]][q[1]]) : null;
+        if(vals && vals.every(v=>v>=0)) continue;       // wholly outside: keep
+        if(vals && vals.every(v=>v<0)){ poly=[]; break; } // wholly inside: drop
+        const out=[], N=poly.length;
+        const gAt=(idx)=>vals?vals[idx]:apG(aps[k],poly[idx][0],poly[idx][1]);
+        const gcache=[]; for(let q=0;q<N;q++) gcache.push(gAt(q));
+        for(let q=0;q<N;q++){
+          const A=poly[q], B=poly[(q+1)%N], ga=gcache[q], gb=gcache[(q+1)%N];
+          if(ga>=0) out.push(A);
+          if((ga>=0)!==(gb>=0)) out.push(mix(A,B,ga/(ga-gb)));
+        }
+        poly=out; gv=null;
+      }
+      for(let q=1;q+1<poly.length;q++){
+        for(const v of [poly[0],poly[q],poly[q+1]]){
+          pos.push(v[0],v[1],v[2]); nor.push(v[3],v[4],v[5]);
+        }
+      }
+    }
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));
+  group.add(new THREE.Mesh(g,mats.skin));
+}
+
+/* ============================ LIP ============================ */
+function lipProfile(){
+  const prof=[], t=Math.max(0.004,P.lipThick);
+  prof.push({d:-0.0025,dz:0});                     // slight overlap onto the cut edge
+  if(P.lipMode===0){
+    prof.push({d:t*0.5,dz:0});
+    prof.push({d:t,dz:-t*0.4});
+    prof.push({d:t,dz:-Math.max(0.01,P.ductLen)});
+  }else{
+    const K=Math.max(5,Math.round(7*clamp(P.detail,0.35,2)));
+    for(let k=0;k<K;k++){const a=k/(K-1)*Math.PI;
+      prof.push({d:t*0.5*(1-Math.cos(a)), dz:t*Math.sin(a)*P.lipProtrude});}
+    const K2=Math.max(4,Math.round(7*clamp(P.detail,0.35,2))), e=lerp(2.6,0.9,clamp(P.lipRound,0,1));
+    for(let k=1;k<=K2;k++){const u=k/K2;
+      prof.push({d:t+P.lipInset*Math.pow(u,e), dz:-P.lipDepth*u});}
+    const dl=Math.max(0.005,P.ductLen);
+    prof.push({d:t+P.lipInset-P.ductFlare*dl, dz:-P.lipDepth-dl});
+  }
+  return prof;
+}
+function buildLips(group,mats,aps){
+  const prof=lipProfile(), d=clamp(P.detail,0.35,2);
+  const SO=Math.max(20,Math.round(40*d));
+  const cutA=P.cutSpan*DEG, cutC=P.cutAz*DEG;
+  for(const o of aps){
+    const rimZ=[], ok=[];
+    for(let j=0;j<SO;j++){
+      const th=j/SO*TAU,[x,y]=superPt(th,o.w,o.h,o.n);
+      const z=pierceZ(o.cx+x,o.cy+y);
+      ok.push(z!==null); rimZ.push(z===null?zEnd():z);
+    }
+    if(!ok.some(v=>v)) continue;
+    const rings=prof.map(s=>{
+      const w=Math.max(0.005,o.w-s.d), h=Math.max(0.005,o.h-s.d), ring=[];
+      for(let j=0;j<SO;j++){
+        const th=j/SO*TAU,[x,y]=superPt(th,w,h,o.n);
+        let z;
+        if(s.d<0){                       // sits outside the cut: solve its own rim
+          const zz=pierceZ(o.cx+x,o.cy+y);
+          z=(zz===null?rimZ[j]:zz)+s.dz;
+        }else z=rimZ[j]+s.dz;
+        ring.push(new THREE.Vector3(o.cx+x,o.cy+y,z));
+      }
+      return ring;
+    });
+    const skip=cutA>0?(i,j)=>Math.abs(angDiff((j+0.5)/SO*TAU,cutC))<cutA/2:null;
+    group.add(new THREE.Mesh(loftRings(rings,skip),mats.skin));
+    const last=rings[rings.length-1];
+    const zc=last.reduce((s,v)=>s+v.z,0)/last.length;
+    group.add(new THREE.Mesh(fan(last,new THREE.Vector3(o.cx,o.cy,zc),false,skip?j=>skip(0,j):null),mats.dark));
+  }
+}
+function loftRings(rings,skip){
+  const R=rings.length,S=rings[0].length,pos=[],idx=[];
+  for(const r of rings) for(const v of r) pos.push(v.x,v.y,v.z);
+  for(let i=0;i<R-1;i++) for(let j=0;j<S;j++){
+    if(skip&&skip(i,j))continue;
+    const j2=(j+1)%S,a=i*S+j,b=i*S+j2,c=(i+1)*S+j2,d=(i+1)*S+j;
+    idx.push(a,b,c,a,c,d);
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+function fan(ring,center,flip,skip){
+  const pos=[center.x,center.y,center.z],idx=[];
+  for(const v of ring)pos.push(v.x,v.y,v.z);
+  for(let j=0;j<ring.length;j++){
+    if(skip&&skip(j))continue;
+    const a=1+j,b=1+(j+1)%ring.length;
+    if(flip)idx.push(0,b,a);else idx.push(0,a,b);
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+
+/* ============================ CHIN SCOOP ============================ */
+function buildScoop(group,mats){
+  if(!P.scoopOn) return;
+  const d=clamp(P.detail,0.35,2), ze=zEnd(), rings=[], inside=[];
+  const NS=Math.max(9,Math.round(14*d)), SS=Math.max(18,Math.round(32*d));
+  const baseY=spineY(ze*0.6)-sectionAtZ(P.cowlLen*0.5).bB*P.scoopDrop;
+  const z1=P.cowlLen+P.lidLen*0.35, z0=z1-P.scoopLen;
+  const n=sqExp(P.scoopSq);
+  for(let i=0;i<NS;i++){
+    const t=i/(NS-1), e=smooth(t);
+    const a=P.scoopW*lerp(0.5,1,e), b=P.scoopH*lerp(0.30,1,e);
+    const y=baseY-P.scoopH*P.scoopRake*e, z=lerp(z0,z1,t);
+    const ring=[],ins=[];
+    for(let j=0;j<SS;j++){
+      const th=j/SS*TAU,[x,yy]=superPt(th,a,b,n);
+      let vx=x, vy=y+yy;
+      const f=sectF(vx,vy,z), isIn=(f<1 && z>=0 && z<=ze);
+      if(isIn){
+        const s=sectionAtZ(z), dy=vy-s.cy-s.yw, nn=dy<0?s.nB:s.nT;
+        const k=Math.pow(Math.max(f,1e-6),-1/nn)*1.003;
+        vx*=k; vy=s.cy+s.yw+dy*k;
+      }
+      ins.push(isIn); ring.push(new THREE.Vector3(vx,vy,z));
+    }
+    rings.push(ring); inside.push(ins);
+  }
+  const skip=(i,j)=>{const j2=(j+1)%SS;
+    return inside[i][j]&&inside[i][j2]&&inside[i+1][j]&&inside[i+1][j2];};
+  group.add(new THREE.Mesh(loftRings(rings,skip),mats.skin));
+
+  /* Mouth lip: same cross-section idea as the aperture lip — a rounded edge of
+     real thickness, then a converging throat, then a duct. Offsets are applied
+     to the actual mouth ring, so it still works where the scoop was trimmed. */
+  const cyF=baseY-P.scoopH*P.scoopRake, mouth=rings[NS-1];
+  const off=(d,dz)=>mouth.map(v=>{
+    const dx=v.x, dy=v.y-cyF, r=Math.hypot(dx,dy)||1e-6, f=Math.max(0.06,(r-d)/r);
+    return new THREE.Vector3(dx*f, cyF+dy*f, v.z+dz);
+  });
+  const th0=Math.max(0.002,P.scoopLipH);
+  const inset=Math.max(0,(1-clamp(P.scoopAp,0.05,0.99))*P.scoopH-th0);
+  const dep=Math.max(0.002,P.scoopLipDepth);
+  const KL=Math.max(5,Math.round(6*d)), lipP=[{d:0,dz:0}];
+  for(let k=1;k<KL;k++){const a=k/(KL-1)*Math.PI;
+    lipP.push({d:th0*0.5*(1-Math.cos(a)), dz:th0*0.55*Math.sin(a)});}
+  const outer=lipP.map(s=>off(s.d,s.dz));
+  group.add(new THREE.Mesh(loftRings(outer,null),mats.skin));
+  const inP=[lipP[lipP.length-1]];
+  const KI=Math.max(3,Math.round(5*d));
+  for(let k=1;k<=KI;k++){const u=k/KI;
+    inP.push({d:th0+inset*Math.pow(u,1.4), dz:-dep*u});}
+  inP.push({d:th0+inset, dz:-dep-Math.max(0.005,P.scoopDuct)});
+  const innerR=inP.map(s=>off(s.d,s.dz));
+  group.add(new THREE.Mesh(loftRings(innerR,null),mats.dark));
+  const last=innerR[innerR.length-1];
+  const zc=last.reduce((s,v)=>s+v.z,0)/last.length;
+  group.add(new THREE.Mesh(fan(last,new THREE.Vector3(0,cyF,zc),false,null),mats.dark));
+}
+
+/* ============================ AFT ============================ */
+function buildAft(group,mats){
+  const s0=sectionAtZ(0);
+  if(P.aftMode===0){
+    /* The fuselage is a given, not a consequence of the cowl: a constant
+       section carried aft from the firewall loop. Its size comes from the
+       firewall half-width and half-height and nothing else. */
+    const L=Math.max(P.stubLen,1e-4);
+    const a=P.aftW;
+    const bT=P.aftH*P.stubDeckH, bB=P.aftH*P.stubKeelH;
+    const nT=sqExp(P.stubSqTop), nB=sqExp(P.stubSqBot);
+    const yw=clamp(P.stubWaist,-0.85,0.85)*P.aftH;
+    const sect={a,bT,bB,nT,nB,yw};
+    const NS=4, rings=[];
+    for(let i=0;i<NS;i++){
+      const z=-i/(NS-1)*L, ring=[];
+      for(let j=0;j<AZ.length;j++){
+        const th=AZ[j];
+        const [x,y]=sectPt(th,sect);
+        ring.push(new THREE.Vector3(x,y,z));
+      }
+      rings.push(ring);
+    }
+    group.add(new THREE.Mesh(loftRings(rings,null),mats.host));
+  }else{
+    const NS=22,rings=[];
+    for(let i=0;i<NS;i++){
+      const e=smooth(i/(NS-1)), k=Math.sqrt(Math.max(0,1-Math.pow(e,2.2))), ring=[];
+      for(let j=0;j<AZ.length;j++){
+        const th=AZ[j];
+        const [x,y]=sectPt(th,{a:Math.max(s0.a*k,0.012),bT:Math.max(s0.bT*k,0.012),
+          bB:Math.max(s0.bB*k,0.012),nT:lerp(s0.nT,2,e),nB:lerp(s0.nB,2,e),
+          yw:s0.yw*k*(1-e)});
+        ring.push(new THREE.Vector3(x,s0.cy-P.tailDrop*e+y,-e*P.tailLen));
+      }
+      rings.push(ring);
+    }
+    group.add(new THREE.Mesh(loftRings(rings,null),mats.skin));
+    if(P.pylon){
+      const w=s0.a*0.42,h=s0.bT*1.5;
+      const m=new THREE.Mesh(new THREE.BoxGeometry(w*2,h,P.tailLen*0.75),mats.host);
+      m.position.set(0,s0.cy-h*0.55,-P.tailLen*0.42); group.add(m);
+      const wg=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.10,1.1),mats.host);
+      wg.position.set(0,s0.cy-h*0.95,-P.tailLen*0.45); group.add(wg);
+    }
+  }
+}
+
+/* ============================ NOSE CONE + SHAFT ============================ */
+function spinProfile(u){
+  const k=lerp(1.0,2.8,clamp(P.spinRound,0,1)), e=lerp(1.0,0.5,clamp(P.spinRound,0,1));
+  return Math.pow(Math.max(0,1-Math.pow(u,k)),e);
+}
+function coneBaseZ(){ return zEnd()+P.noseOff; }
+function axisXY(){ return {x:P.apOffX, y:spineY(zEnd())+P.apOffY}; }
+function bladePlaneZ(){ return coneBaseZ()+P.spinLen*clamp(P.bladeStation,0.02,0.95); }
+function coneRadiusAtBlade(){ return P.spinR*spinProfile(clamp(P.bladeStation,0.02,0.95)); }
+
+function buildNose(group,mats){
+  const d=clamp(P.detail,0.35,2), ax=axisXY(), z0=coneBaseZ();
+  const NS=Math.max(10,Math.round(16*d)), SA=Math.max(20,Math.round(40*d)), rings=[];
+  for(let i=0;i<NS;i++){
+    const u=i/(NS-1), r=P.spinR*spinProfile(u), z=z0+u*P.spinLen, ring=[];
+    for(let j=0;j<SA;j++){const th=j/SA*TAU;
+      ring.push(new THREE.Vector3(ax.x+Math.cos(th)*r,ax.y+Math.sin(th)*r,z));}
+    rings.push(ring);
+  }
+  group.add(new THREE.Mesh(loftRings(rings,null),mats.prop));
+  group.add(new THREE.Mesh(fan(rings[0],new THREE.Vector3(ax.x,ax.y,z0),true,null),mats.prop));
+  const sr=Math.min(P.shaftR,P.spinR*0.9), zA=z0-P.shaftLen, a=[],b=[];
+  const SS2=Math.max(14,Math.round(24*d));
+  for(let j=0;j<SS2;j++){const th=j/SS2*TAU;
+    a.push(new THREE.Vector3(ax.x+Math.cos(th)*sr,ax.y+Math.sin(th)*sr,z0));
+    b.push(new THREE.Vector3(ax.x+Math.cos(th)*sr*1.3,ax.y+Math.sin(th)*sr*1.3,zA));}
+  group.add(new THREE.Mesh(loftRings([a,b],null),mats.steel));
+  group.add(new THREE.Mesh(fan(b,new THREE.Vector3(ax.x,ax.y,zA),true,null),mats.steel));
+}
+
+/* ============================ BLADES ============================ */
+function naca(m,p,t,x){
+  const yt=5*t*(0.2969*Math.sqrt(x)-0.1260*x-0.3516*x*x+0.2843*x*x*x-0.1036*x*x*x*x);
+  let yc,dy;
+  if(x<p){yc=m/(p*p)*(2*p*x-x*x); dy=2*m/(p*p)*(p-x);}
+  else{yc=m/((1-p)*(1-p))*((1-2*p)+2*p*x-x*x); dy=2*m/((1-p)*(1-p))*(p-x);}
+  const th=Math.atan(dy);
+  return [x-yt*Math.sin(th),yc+yt*Math.cos(th),x+yt*Math.sin(th),yc-yt*Math.cos(th)];
+}
+function airfoilLoop(m,t,NPT){
+  const up=[],lo=[];
+  for(let i=0;i<NPT;i++){
+    const x=0.5*(1-Math.cos(i/(NPT-1)*Math.PI));
+    const [xu,yu,xl,yl]=naca(m,0.42,t,x);
+    up.push([xu,yu]); lo.push([xl,yl]);
+  }
+  return up.concat(lo.slice(1,NPT-1).reverse());
+}
+function propGeometry(){
+  const R=P.propD/2, d=clamp(P.detail,0.35,2);
+  const rh=coneRadiusAtBlade()*0.82;             // root buried inside the cone
+  const NPT=Math.max(10,Math.round(16*d));
+  const NS=Math.max(14,Math.round(22*d)), stations=[], rings=[];
+  const V=P.tas/3.6, n=P.rpm/60;
+  const Pgeo=V/Math.max(n,1)/(1-clamp(P.slip,0,40)/100);
+  const uc=1-clamp(P.tipRound,0.01,0.35);        // where the rounded tip cap starts
+  for(let i=0;i<NS;i++){
+    const q=i/(NS-1);
+    const u=0.5-0.5*Math.cos(Math.PI*q);          // dense at root cuff and tip
+    const r=lerp(rh,R,u);
+    let c=lerp(P.rootChord,P.tipChord,smooth(u))*(1+P.chordBulge*Math.sin(Math.PI*u));
+    let t=lerp(P.thickRoot,P.thickTip,u);
+    let scale=1;
+    if(u>uc){ const q=(u-uc)/(1-uc); scale=Math.sqrt(Math.max(0,1-q*q)); }
+    const beta=Math.atan2(Pgeo,TAU*r);
+    const loop=airfoilLoop(P.camb,t,NPT);
+    const cuffU=clamp(P.cuff,0.001,0.6);
+    const blend=u<cuffU?Math.pow(1-u/cuffU,1.7):0;
+    const shank=clamp(P.shankR,0.012,coneRadiusAtBlade()*0.92);
+    const sw=P.sweep*R*u*u, ring=[];
+    const cEff=Math.max(c*scale,0.0015);
+    const L=loop.length;
+    const pts=new Array(L);
+    for(let j=0;j<L;j++) pts[j]=[(loop[j][0]-0.35)*cEff, loop[j][1]*cEff];
+    if(blend>0){
+      /* Blend to the round shank by arc-length position, not by index. The
+         airfoil loop is cosine-spaced from the leading edge, so an index-based
+         mapping sends the LE to the far side of the circle and the section
+         twists through itself — that was the root pinch. Index 0 is the LE,
+         and the loop runs LE -> upper -> TE -> lower, i.e. clockwise, so the
+         target angle starts at pi and decreases. */
+      const seg=new Array(L); let tot=0;
+      for(let j=0;j<L;j++){
+        const a=pts[j], b=pts[(j+1)%L];
+        seg[j]=Math.hypot(b[0]-a[0],b[1]-a[1]); tot+=seg[j];
+      }
+      let acc=0;
+      for(let j=0;j<L;j++){
+        const ang=Math.PI-(acc/Math.max(tot,1e-9))*TAU; acc+=seg[j];
+        pts[j][0]=lerp(pts[j][0],Math.cos(ang)*shank,blend);
+        pts[j][1]=lerp(pts[j][1],Math.sin(ang)*shank,blend);
+      }
+    }
+    const cb=Math.cos(beta),sb=Math.sin(beta);
+    for(let j=0;j<L;j++){
+      const xc=pts[j][0], yc=pts[j][1];
+      ring.push(new THREE.Vector3(xc*cb-yc*sb+sw,r,xc*sb+yc*cb));
+    }
+    rings.push(ring); stations.push({r,c:cEff,t:t*cEff});
+  }
+  return {geom:loftRings(rings,null),
+          root:fan(rings[0],new THREE.Vector3(0,rh,0),true,null),
+          tip:fan(rings[NS-1],new THREE.Vector3(0,R,0),false,null),
+          stations,Pgeo,rh};
+}
+
+/* ============================ SCENE ============================ */
+let renderer,scene,camera,root,propGroup,gridGrp,propInfo=null;
+let spinning=false,wire=false,showRef=true,secCut=false;
+const view=document.getElementById('view');
+renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+view.appendChild(renderer.domElement);
+scene=new THREE.Scene(); scene.background=new THREE.Color(0x1a1c1f);
+camera=new THREE.PerspectiveCamera(38,1,0.05,200);
+const key=new THREE.DirectionalLight(0xfff3e2,2.0); key.position.set(3,5,4); scene.add(key);
+const fill=new THREE.DirectionalLight(0x9fc4dd,0.9); fill.position.set(-4,1,-3); scene.add(fill);
+const rimL=new THREE.DirectionalLight(0xffffff,0.7); rimL.position.set(0,-3,-5); scene.add(rimL);
+scene.add(new THREE.HemisphereLight(0x6a7480,0x14161a,0.6));
+root=new THREE.Group(); scene.add(root);
+gridGrp=new THREE.Group();
+const grid=new THREE.GridHelper(8,32,0x3a424c,0x282e35); grid.position.y=-1.0; gridGrp.add(grid);
+gridGrp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+  [new THREE.Vector3(0,0,-2.2),new THREE.Vector3(0,0,3.2)]),
+  new THREE.LineBasicMaterial({color:0x55606c})));
+scene.add(gridGrp);
+
+const CLIP=[new THREE.Plane(new THREE.Vector3(-1,0,0),0)];
+function makeMats(){
+  const M=MATERIALS[clamp(P.material,0,MATERIALS.length-1)], D=THREE.DoubleSide;
+  const mats={
+    skin :new THREE.MeshStandardMaterial({color:0xdfe3e7,metalness:0.55,roughness:0.36,side:D,wireframe:wire}),
+    host :new THREE.MeshStandardMaterial({color:0x99a3ad,metalness:0.40,roughness:0.55,side:D,wireframe:wire}),
+    dark :new THREE.MeshStandardMaterial({color:0x15181b,metalness:0.10,roughness:0.92,side:D,wireframe:wire}),
+    steel:new THREE.MeshStandardMaterial({color:0x6d737a,metalness:0.90,roughness:0.35,side:D,wireframe:wire}),
+    prop :new THREE.MeshStandardMaterial({color:M.col,metalness:M.met,roughness:M.rgh,side:D,wireframe:wire})
+  };
+  if(secCut) for(const k in mats) mats[k].clippingPlanes=CLIP;
+  return mats;
+}
+function disposeGroup(g){ g.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+  while(g.children.length) g.remove(g.children[0]); }
+
+let TRIS=0;
+function rebuild(){
+  disposeGroup(root);
+  prepareLid();
+  prepareMesh();
+  TRIS=0;
+  const mats=makeMats(), aps=apertureList();
+  const cowl=new THREE.Group();
+  buildSurface(cowl,mats,aps);
+  buildLips(cowl,mats,aps);
+  buildScoop(cowl,mats);
+  buildAft(cowl,mats);
+  root.add(cowl);
+  const ax=axisXY();
+  propGroup=new THREE.Group();
+  propGroup.position.set(ax.x,ax.y,bladePlaneZ());
+  propInfo=propGeometry();
+  for(let k=0;k<P.bladeN;k++){
+    const b=new THREE.Group();
+    b.add(new THREE.Mesh(propInfo.geom,mats.prop));
+    b.add(new THREE.Mesh(propInfo.root,mats.prop));
+    b.add(new THREE.Mesh(propInfo.tip,mats.prop));
+    b.rotation.z=k/P.bladeN*TAU;
+    propGroup.add(b);
+  }
+  root.add(propGroup);
+  buildNose(root,mats);
+  root.traverse(o=>{ if(o.geometry){
+    const ix=o.geometry.getIndex(), pos=o.geometry.getAttribute('position');
+    TRIS += ix ? ix.count/3 : (pos?pos.count/3:0);
+  }});
+  updateReadout();
+  applyVisibility();
+  if(typeof refreshIO==='function' && ioBox.value!=='') refreshIO();
+}
+
+/* orbit */
+let yaw=-0.75,pitch=0.22,dist=3.4,tgt=new THREE.Vector3(0,0,0.35),drag=null,lx=0,ly=0;
+function place(){
+  camera.position.set(tgt.x+dist*Math.cos(pitch)*Math.sin(yaw),
+                      tgt.y+dist*Math.sin(pitch),
+                      tgt.z+dist*Math.cos(pitch)*Math.cos(yaw));
+  camera.lookAt(tgt);
+}
+renderer.domElement.addEventListener('pointerdown',e=>{
+  drag=(e.shiftKey||e.button===2||e.button===1)?'pan':'orb'; lx=e.clientX; ly=e.clientY;
+  renderer.domElement.setPointerCapture(e.pointerId);});
+renderer.domElement.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const dx=e.clientX-lx,dy=e.clientY-ly; lx=e.clientX; ly=e.clientY;
+  if(drag==='orb'){yaw-=dx*0.006; pitch=clamp(pitch+dy*0.006,-1.3,1.3);}
+  else{const rt=new THREE.Vector3().subVectors(camera.position,tgt).cross(new THREE.Vector3(0,1,0)).normalize();
+    tgt.addScaledVector(rt,-dx*dist*0.0016);
+    tgt.addScaledVector(new THREE.Vector3(0,1,0),dy*dist*0.0016);}
+  place();});
+addEventListener('pointerup',()=>drag=null);
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+renderer.domElement.addEventListener('wheel',e=>{
+  e.preventDefault(); dist=clamp(dist*(1+Math.sign(e.deltaY)*0.10),0.6,25); place();},{passive:false});
+function resize(){const w=view.clientWidth,h=view.clientHeight;
+  renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix();}
+addEventListener('resize',resize);
+let last=performance.now();
+function tick(){
+  requestAnimationFrame(tick);
+  const now=performance.now(),dt=(now-last)/1000; last=now;
+  if(spinning&&propGroup) propGroup.rotation.z-=P.rpm/60*TAU*dt*0.06;
+  gridGrp.visible=showRef;
+  renderer.render(scene,camera);
+}
+
+/* ============================ DERIVED ============================ */
+function computed(){
+  const M=MATERIALS[clamp(P.material,0,MATERIALS.length-1)];
+  const R=P.propD/2, st=propInfo?propInfo.stations:[];
+  let vol=0,J=0;
+  for(let i=0;i<st.length-1;i++){
+    const dr=st[i+1].r-st[i].r;
+    const dv=(0.68*st[i].c*st[i].t+0.68*st[i+1].c*st[i+1].t)/2*dr;
+    vol+=dv; const rm=(st[i].r+st[i+1].r)/2; J+=dv*M.rho*rm*rm;
+  }
+  const bladeM=vol*M.rho, hubM=P.bladeN*(M.met>0.5?1.6:0.9)+P.propD*2.2;
+  const V=P.tas/3.6,n=P.rpm/60,Pgeo=propInfo?propInfo.Pgeo:0;
+  const A=Math.PI*R*R, Pw=P.power*745.7;
+  const tipV=Math.sqrt(Math.pow(Math.PI*P.propD*n,2)+V*V);
+  return {bladeM,total:bladeM*P.bladeN+hubM+0.8,J:J*P.bladeN,Pgeo,
+          beta75:Math.atan2(Pgeo,TAU*0.75*R)/DEG,tipV,mach:tipV/340.3,
+          discLoad:P.power/(A*10.7639),Tstat:Math.pow(Pw*Pw*2*1.225*A,1/3)*0.85,
+          adv:V/(n*P.propD)};
+}
+function throatArea(){
+  let A=0;
+  for(const o of apertureList()){
+    const d=P.lipMode?P.lipThick+P.lipInset:P.lipThick;
+    const w=Math.max(0.005,o.w-d), h=Math.max(0.005,o.h-d);
+    A+=lerp(Math.PI,4,clamp((o.n-2)/8,0,1))*w*h;
+  }
+  return A;
+}
+const rowHTML=(k,v)=>'<div><span class="k">'+k+'</span><span class="v">'+v+'</span></div>';
+function updateReadout(){
+  const c=computed(), Ai=throatArea();
+  const mc=c.mach>0.88?'warn':(c.mach>0.82?'':'ok');
+  document.getElementById('readout').innerHTML=
+   rowHTML('Diameter',(P.propD*M2IN).toFixed(1)+' in / '+P.propD.toFixed(2)+' m')+
+   rowHTML('Geometric pitch',(c.Pgeo*M2IN).toFixed(1)+' in')+
+   rowHTML('Designation',Math.round(P.propD*M2IN)+' × '+Math.round(c.Pgeo*M2IN))+
+   rowHTML('Blade angle @0.75R',c.beta75.toFixed(1)+'°')+
+   rowHTML('Root radius (in cone)',(propInfo?propInfo.rh*1000:0).toFixed(0)+' mm')+
+   rowHTML('Advance ratio J',c.adv.toFixed(2))+'<hr>'+
+   rowHTML('Blade mass',c.bladeM.toFixed(2)+' kg × '+P.bladeN)+
+   rowHTML('Prop assembly',c.total.toFixed(1)+' kg')+
+   rowHTML('Polar inertia',c.J.toFixed(2)+' kg·m²')+'<hr>'+
+   rowHTML('Helical tip speed',c.tipV.toFixed(0)+' m/s')+
+   rowHTML('Tip Mach','<span class="'+mc+'">'+c.mach.toFixed(3)+'</span>')+
+   rowHTML('Disc loading',c.discLoad.toFixed(1)+' hp/ft²')+
+   rowHTML('Static thrust ≈',c.Tstat.toFixed(0)+' N')+'<hr>'+
+   rowHTML('Barrel / lid',(P.cowlLen*1000).toFixed(0)+' + '+(P.lidLen*1000).toFixed(0)+' mm')+
+   rowHTML('Total cowl',(zEnd()*1000).toFixed(0)+' mm')+
+   rowHTML('Lid end radius',(lidRadius()*1000).toFixed(0)+' mm')+
+   rowHTML('Throat area',Ai>0?(Ai*1e4).toFixed(0)+' cm²':'none')+
+   rowHTML('Area per hp',Ai>0?(Ai*1e4/P.power).toFixed(2)+' cm²/hp':'—')+'<hr>'+
+   rowHTML('Mesh',AZ.length+' × '+ZS.length+' grid')+
+   rowHTML('Triangles',Math.round(TRIS).toLocaleString());
+}
+
+/* ============================ UI ============================ */
+function slider(parent,key,label,min,max,step,fmt){
+  const d=document.createElement('div'); d.className='row';
+  const l=document.createElement('label'); l.textContent=label;
+  const v=document.createElement('div'); v.className='val';
+  const i=document.createElement('input');
+  i.type='range'; i.min=min; i.max=max; i.step=step; i.value=P[key];
+  const show=()=>v.textContent=fmt?fmt(P[key]):(+P[key]).toFixed(step<0.01?3:(step<1?2:0));
+  i.addEventListener('input',()=>{P[key]=parseFloat(i.value); show(); rebuild();});
+  d.appendChild(l); d.appendChild(v); d.appendChild(i); parent.appendChild(d); show();
+  return {el:d, set:val=>{i.value=val; show();}};
+}
+function toggle(parent,key,label){
+  const l=document.createElement('label'); l.className='chk';
+  const i=document.createElement('input'); i.type='checkbox'; i.checked=!!P[key];
+  i.addEventListener('change',()=>{P[key]=i.checked?1:0; rebuild();});
+  l.appendChild(i); l.appendChild(document.createTextNode(label)); parent.appendChild(l);
+  return {el:l, set:v=>i.checked=!!v};
+}
+function dropdown(parent,key,label,opts){
+  const w=document.createElement('div'); w.className='full';
+  const s=document.createElement('span'); s.textContent=label;
+  const sel=document.createElement('select');
+  opts.forEach((o,i)=>{const op=document.createElement('option'); op.value=i; op.textContent=o; sel.appendChild(op);});
+  sel.value=P[key];
+  sel.addEventListener('change',()=>{P[key]=parseInt(sel.value); rebuild();});
+  w.appendChild(s); w.appendChild(sel); parent.appendChild(w);
+  return {el:w, set:v=>sel.value=v};
+}
+function note(parent,txt){const p=document.createElement('p'); p.className='note'; p.textContent=txt; parent.appendChild(p); return {el:p};}
+function cap(parent,txt){const d=document.createElement('div'); d.className='cap'; d.textContent=txt; parent.appendChild(d); return {el:d};}
+function advanced(parent){
+  const d=document.createElement('details'); d.className='sub';
+  const s=document.createElement('summary'); s.textContent='Advanced';
+  const b=document.createElement('div'); b.className='subbody';
+  d.appendChild(s); d.appendChild(b); parent.appendChild(d); return b;
+}
+
+/* controls declare when they are relevant; irrelevant ones are hidden */
+const vis=[];
+function when(c,fn){ if(c&&c.el) vis.push([c.el,fn]); return c; }
+function applyVisibility(){ for(const [el,fn] of vis) el.style.display=fn()?'':'none'; }
+
+const ctl={}, mm=v=>(v*1000).toFixed(0)+' mm', deg=v=>v.toFixed(0)+'\u00b0';
+const central=()=>P.apMode===1||P.apMode===3;
+const paired =()=>P.apMode===2||P.apMode===3;
+
+(function(){
+  /* ---------------- COWL BODY ---------------- */
+  const C=document.getElementById('g_body');
+  cap(C,'Barrel');
+  ctl.cowlLen=slider(C,'cowlLen','Length from firewall',0.05,2.0,0.005,mm);
+  ctl.aftW=slider(C,'aftW','Half-width at firewall',0.15,0.90,0.005,mm);
+  ctl.aftH=slider(C,'aftH','Half-height at firewall',0.15,0.90,0.005,mm);
+  ctl.taperW=slider(C,'taperW','Width taper',0.30,1.15,0.01);
+  ctl.taperH=slider(C,'taperH','Height taper',0.30,1.15,0.01);
+  cap(C,'Lid');
+  note(C,'The barrel runs straight from the firewall loop to the lid loop. The lid offset moves that loop bodily up or down.');
+  ctl.lidRise=slider(C,'lidRise','Vertical offset',-0.22,0.22,0.002,mm);
+  ctl.faceRise=slider(C,'faceRise','Face lift at end',-0.12,0.12,0.002,mm);
+  ctl.lidLen=slider(C,'lidLen','Length',0.02,1.0,0.005,mm);
+  ctl.lidShoulder=slider(C,'lidShoulder','Tangent carry from barrel',0,0.92,0.01);
+  ctl.keelSweep=slider(C,'keelSweep','Bottom line sweep back into barrel',0,0.95,0.01);
+  ctl.deckSweep=slider(C,'deckSweep','Top line sweep back into barrel',0,0.95,0.01);
+  ctl.waistSweep=slider(C,'waistSweep','Waist line sweep back into barrel',0,0.95,0.01);
+  ctl.lidRound=slider(C,'lidRound','Fullness  (cone \u2192 blunt)',0,1,0.01);
+  ctl.lidMode=dropdown(C,'lidMode','End',['Independent radius','Matched to nose cone']);
+  when(ctl.lidR=slider(C,'lidR','End radius',0.005,0.55,0.002,mm), ()=>P.lidMode===0);
+  when(ctl.lidGap=slider(C,'lidGap','Gap around cone',0,0.06,0.001,mm), ()=>P.lidMode===1);
+
+  /* ---------------- SECTION SHAPE ---------------- */
+  const Sh=document.getElementById('g_sect');
+  note(Sh,'Three lengthwise lines set the section: the top line on the symmetry plane, the waist line at the widest point, and the bottom line. Roundness says how the faces between them are filled — 0 gives straight polygon edges, 0.5 an ellipse, 1 a flat face with tight corners.');
+  ctl.inheritStub=toggle(Sh,'inheritStub','Cowl inherits the fuselage section');
+  cap(Sh,'Fuselage — master section');
+  ctl.stubDeckH=slider(Sh,'stubDeckH','Top line height',0.20,1.90,0.01);
+  ctl.stubWaist=slider(Sh,'stubWaist','Waist line height',-0.85,0.85,0.01);
+  ctl.stubKeelH=slider(Sh,'stubKeelH','Bottom line depth',0.20,1.90,0.01);
+  ctl.stubSqTop=slider(Sh,'stubSqTop','Upper faces  (straight \u2192 flat)',0,1,0.01);
+  ctl.stubSqBot=slider(Sh,'stubSqBot','Lower faces  (straight \u2192 flat)',0,1,0.01);
+  const inh=()=>!P.inheritStub;
+  when(cap(Sh,'Cowl at firewall — override'),inh);
+  when(ctl.deckH=slider(Sh,'deckH','Top line height',0.20,1.90,0.01),inh);
+  when(ctl.waist=slider(Sh,'waist','Waist line height',-0.85,0.85,0.01),inh);
+  when(ctl.keelH=slider(Sh,'keelH','Bottom line depth',0.20,1.90,0.01),inh);
+  when(ctl.sqAftTop=slider(Sh,'sqAftTop','Upper faces  (straight \u2192 flat)',0,1,0.01),inh);
+  when(ctl.sqAftBot=slider(Sh,'sqAftBot','Lower faces  (straight \u2192 flat)',0,1,0.01),inh);
+  cap(Sh,'Barrel end');
+  ctl.sqFrontTop=slider(Sh,'sqFrontTop','Upper faces',0,1,0.01);
+  ctl.sqFrontBot=slider(Sh,'sqFrontBot','Lower faces',0,1,0.01);
+  cap(Sh,'Lid');
+  ctl.lidSqTop=slider(Sh,'lidSqTop','Upper faces',0,1,0.01);
+  ctl.lidSqBot=slider(Sh,'lidSqBot','Lower faces',0,1,0.01);
+
+  /* ---------------- MESH ---------------- */
+  const Me=document.getElementById('g_mesh');
+  note(Me,'Samples are placed by curvature, not evenly, so corners get rows and flats do not. Detail scales every component together.');
+  ctl.detail=slider(Me,'detail','Detail',0.35,2.0,0.05);
+
+  /* ---------------- PANEL SEAM ---------------- */
+  const Se=document.getElementById('g_seam');
+  note(Se,'The face is a separate panel in real life. This cuts a joint into the surface itself, so it shades like geometry rather than sitting on top as a line.');
+  ctl.seamOn=toggle(Se,'seamOn','Panel seam');
+  const sOn=()=>!!P.seamOn;
+  when(ctl.seamType=dropdown(Se,'seamType','Joint',['Groove','Step — face panel proud']),sOn);
+  when(ctl.seamPos=slider(Se,'seamPos','Station along cowl',0.05,0.98,0.005),sOn);
+  when(ctl.seamWidth=slider(Se,'seamWidth','Width',0.001,0.030,0.0005,mm),sOn);
+  when(ctl.seamDepth=slider(Se,'seamDepth','Depth',0.0002,0.010,0.0002,mm),sOn);
+
+  /* ---------------- APERTURES ---------------- */
+  const A=document.getElementById('g_ap');
+  ctl.apMode=dropdown(A,'apMode','Openings',
+    ['None','One, on the axis','Pair, cone between them','One + pair']);
+  note(A,'Cut through the cowl surface wherever it happens to be. The cone and shaft follow the axis opening.');
+  when(cap(A,'Axis opening'), central);
+  when(ctl.apW=slider(A,'apW','Half-width',0.02,0.70,0.002,mm), central);
+  when(ctl.apH=slider(A,'apH','Half-height',0.02,0.70,0.002,mm), central);
+  when(ctl.apSq=slider(A,'apSq','Squareness  (round \u2192 rect)',0,1,0.01), central);
+  when(cap(A,'Pair'), paired);
+  when(ctl.pairX=slider(A,'pairX','Spacing from axis',0.03,0.55,0.005,mm), paired);
+  when(ctl.pairW=slider(A,'pairW','Half-width',0.012,0.30,0.002,mm), paired);
+  when(ctl.pairH=slider(A,'pairH','Half-height',0.012,0.30,0.002,mm), paired);
+  const Aa=advanced(A);
+  when(ctl.apOffX=slider(Aa,'apOffX','Axis offset X',-0.30,0.30,0.002,mm), central);
+  when(ctl.apOffY=slider(Aa,'apOffY','Axis offset Y',-0.30,0.30,0.002,mm), central);
+  when(ctl.pairY=slider(Aa,'pairY','Pair height offset',-0.25,0.25,0.002,mm), paired);
+  when(ctl.pairSq=slider(Aa,'pairSq','Pair squareness',0,1,0.01), paired);
+
+  /* ---------------- LIP ---------------- */
+  const I=document.getElementById('g_lip');
+  ctl.lipMode=dropdown(I,'lipMode','Edge',['Plain cut (thickness only)','Rolled lip']);
+  ctl.lipThick=slider(I,'lipThick','Skin thickness',0.004,0.06,0.001,mm);
+  when(ctl.lipDepth=slider(I,'lipDepth','Roll depth',0,0.35,0.002,mm), ()=>P.lipMode===1);
+  ctl.ductLen=slider(I,'ductLen','Inner duct length',0,0.50,0.005,mm);
+  const Ia=advanced(I);
+  when(ctl.lipProtrude=slider(Ia,'lipProtrude','Leading-edge protrusion',0,1.5,0.02), ()=>P.lipMode===1);
+  when(ctl.lipInset=slider(Ia,'lipInset','Throat inset',0,0.20,0.002,mm), ()=>P.lipMode===1);
+  when(ctl.lipRound=slider(Ia,'lipRound','Roll fullness',0,1,0.01), ()=>P.lipMode===1);
+  ctl.ductFlare=slider(Ia,'ductFlare','Duct flare',-0.4,0.4,0.01);
+
+  /* ---------------- NOSE CONE & SHAFT ---------------- */
+  const S=document.getElementById('g_spin');
+  ctl.noseOff=slider(S,'noseOff','Base from cowl end',-0.35,0.40,0.005,mm);
+  ctl.spinR=slider(S,'spinR','Base radius',0.04,0.35,0.001,mm);
+  ctl.spinLen=slider(S,'spinLen','Length',0.05,0.80,0.005,mm);
+  ctl.spinRound=slider(S,'spinRound','Roundness  (cone \u2192 ogive)',0,1,0.01);
+  const Sa=advanced(S);
+  note(Sa,'Blade roots start at 82% of the cone radius at the blade plane, so they stay attached wherever it sits.');
+  ctl.bladeStation=slider(Sa,'bladeStation','Blade plane on cone',0.05,0.9,0.01);
+  ctl.shaftR=slider(Sa,'shaftR','Shaft radius',0.015,0.12,0.001,mm);
+  ctl.shaftLen=slider(Sa,'shaftLen','Shaft length aft',0.05,0.9,0.005,mm);
+
+  /* ---------------- PROPELLER ---------------- */
+  const B=document.getElementById('g_prop');
+  ctl.bladeN=slider(B,'bladeN','Blades',2,6,1);
+  ctl.propD=slider(B,'propD','Diameter',0.8,4.2,0.01,v=>(v*M2IN).toFixed(0)+' in');
+  ctl.material=dropdown(B,'material','Blade material',MATERIALS.map(m=>m.name+'  \u00b7  '+m.rho+' kg/m\u00b3'));
+  cap(B,'Operating point');
+  note(B,'Blade angles are derived from these, not set directly.');
+  ctl.rpm=slider(B,'rpm','Cruise RPM',600,3200,10,v=>v.toFixed(0));
+  ctl.tas=slider(B,'tas','Cruise TAS',60,700,5,v=>v.toFixed(0)+' km/h');
+  ctl.power=slider(B,'power','Engine power',40,2000,5,v=>v.toFixed(0)+' hp');
+  const Ba=advanced(B);
+  cap(Ba,'Planform');
+  ctl.rootChord=slider(Ba,'rootChord','Root chord',0.05,0.40,0.005,mm);
+  ctl.tipChord=slider(Ba,'tipChord','Tip chord',0.03,0.30,0.005,mm);
+  ctl.chordBulge=slider(Ba,'chordBulge','Planform bulge',0,0.6,0.01);
+  ctl.sweep=slider(Ba,'sweep','Tip sweep',-0.25,0.25,0.01);
+  cap(Ba,'Section');
+  ctl.thickRoot=slider(Ba,'thickRoot','Root thickness t/c',0.08,0.35,0.005);
+  ctl.thickTip=slider(Ba,'thickTip','Tip thickness t/c',0.03,0.20,0.005);
+  ctl.camb=slider(Ba,'camb','Camber',0,0.09,0.002);
+  ctl.tipRound=slider(Ba,'tipRound','Tip rounding span',0.02,0.30,0.005);
+  ctl.cuff=slider(Ba,'cuff','Root cuff extent',0.05,0.5,0.01);
+  ctl.shankR=slider(Ba,'shankR','Root shank radius',0.012,0.14,0.001,mm);
+  cap(Ba,'Aerodynamic assumption');
+  ctl.slip=slider(Ba,'slip','Assumed slip',0,35,1,v=>v.toFixed(0)+' %');
+
+  /* ---------------- BULGES & CUT-OUT ---------------- */
+  const O=document.getElementById('g_lobe');
+  ctl.lobeN=slider(O,'lobeN','Bulge count',0,2,1);
+  when(ctl.lobeAmp=slider(O,'lobeAmp','Amount',0,0.16,0.002,mm), ()=>P.lobeN>0);
+  when(ctl.lobeT=slider(O,'lobeT','Station along cowl',0,1,0.01), ()=>P.lobeN>0);
+  ctl.cutSpan=slider(O,'cutSpan','Cut-out span (horseshoe)',0,200,1,deg);
+  const Oa=advanced(O);
+  when(ctl.lobeAz=slider(Oa,'lobeAz','Bulge azimuth',-90,90,1,deg), ()=>P.lobeN>0);
+  when(ctl.lobeSig=slider(Oa,'lobeSig','Bulge angular spread',8,70,1,deg), ()=>P.lobeN>0);
+  when(ctl.lobeTSig=slider(Oa,'lobeTSig','Bulge lengthwise spread',0.05,0.6,0.01), ()=>P.lobeN>0);
+  when(ctl.cutAz=slider(Oa,'cutAz','Cut-out azimuth',0,359,1,deg), ()=>P.cutSpan>0);
+
+  /* ---------------- CHIN SCOOP ---------------- */
+  const K=document.getElementById('g_scoop');
+  ctl.scoopOn=toggle(K,'scoopOn','Chin scoop');
+  const on=()=>!!P.scoopOn;
+  when(ctl.scoopLen=slider(K,'scoopLen','Length',0.05,0.80,0.01,mm), on);
+  when(ctl.scoopW=slider(K,'scoopW','Half-width',0.03,0.30,0.005,mm), on);
+  when(ctl.scoopH=slider(K,'scoopH','Half-height',0.02,0.20,0.002,mm), on);
+  when(ctl.scoopSq=slider(K,'scoopSq','Angularity  (round \u2192 box)',0,1,0.01), on);
+  when(ctl.scoopLipH=slider(K,'scoopLipH','Lip height',0.002,0.05,0.001,mm), on);
+  const Ka=advanced(K);
+  when(ctl.scoopDrop=slider(Ka,'scoopDrop','Drop below axis',0.2,1.2,0.02), on);
+  when(ctl.scoopRake=slider(Ka,'scoopRake','Mouth rake',0,1.2,0.02), on);
+  when(ctl.scoopAp=slider(Ka,'scoopAp','Mouth opening',0.2,0.95,0.02), on);
+  when(ctl.scoopLipDepth=slider(Ka,'scoopLipDepth','Lip roll depth',0,0.15,0.002,mm), on);
+  when(ctl.scoopDuct=slider(Ka,'scoopDuct','Inner duct length',0,0.30,0.005,mm), on);
+
+  /* ---------------- AFT ---------------- */
+  const F=document.getElementById('g_aft');
+  ctl.aftMode=dropdown(F,'aftMode','Termination',['Blend into fuselage','Nacelle tail cone']);
+  when(ctl.stubLen=slider(F,'stubLen','Fuselage stub length',0.2,2.0,0.02,mm), ()=>P.aftMode===0);
+  when(ctl.tailLen=slider(F,'tailLen','Tail cone length',0.4,3.0,0.02,mm), ()=>P.aftMode===1);
+  const Fa=advanced(F);
+  when(ctl.tailDrop=slider(Fa,'tailDrop','Tail cone droop',-0.2,0.2,0.005,mm), ()=>P.aftMode===1);
+  when(ctl.pylon=toggle(Fa,'pylon','Pylon + wing stub'), ()=>P.aftMode===1);
+})();
+
+function syncUI(){ for(const k in ctl) if(ctl[k]&&ctl[k].set) ctl[k].set(P[k]); }
+
+/* ============================ EXPORT / IMPORT ============================ */
+const round5=(k,v)=>typeof v==='number'&&isFinite(v)?Math.round(v*1e5)/1e5:v;
+function paramJSON(){
+  return JSON.stringify({
+    generator:'cowl-gen v12',
+    basedOn:document.getElementById('preset').value,
+    exported:new Date().toISOString().slice(0,10),
+    params:P
+  },round5,2);
+}
+const ioBox=document.createElement('textarea');
+const ioMsg=document.createElement('div'); ioMsg.id='ioMsg';
+function say(t,bad){ ioMsg.textContent=t; ioMsg.style.color=bad?'#e07a5f':'var(--accent2)'; }
+function refreshIO(){ ioBox.value=paramJSON(); }
+(function(){
+  const G=document.getElementById('g_io');
+  note(G,'Full parameter set for the current model. Edit and apply, or copy it out.');
+  G.appendChild(ioBox);
+  const row=document.createElement('div'); row.className='btnrow';
+  const mk=(label,fn)=>{const b=document.createElement('button');
+    b.className='btn'; b.textContent=label; b.addEventListener('click',fn); row.appendChild(b); return b;};
+  mk('Refresh',()=>{refreshIO(); say('Refreshed from the current model.');});
+  mk('Copy',async()=>{
+    refreshIO();
+    try{ await navigator.clipboard.writeText(ioBox.value); say('Copied to clipboard.'); }
+    catch(e){ ioBox.focus(); ioBox.select(); say('Clipboard blocked — text selected, press Ctrl/Cmd+C.',true); }
+  });
+  mk('Download',()=>{
+    refreshIO();
+    try{
+      const blob=new Blob([ioBox.value],{type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='cowl-params.json'; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+      say('Downloaded cowl-params.json.');
+    }catch(e){ say('Download blocked here — use Copy instead.',true); }
+  });
+  mk('Apply',()=>{
+    let src;
+    try{ src=JSON.parse(ioBox.value); }
+    catch(e){ return say('Not valid JSON: '+e.message,true); }
+    const incoming=src&&src.params?src.params:src;
+    if(!incoming||typeof incoming!=='object') return say('No parameter object found.',true);
+    const known=[], unknown=[], bad=[];
+    for(const k of Object.keys(incoming)){
+      if(!(k in P)){ unknown.push(k); continue; }
+      const v=incoming[k];
+      if(typeof v!=='number'||!isFinite(v)){ bad.push(k); continue; }
+      P[k]=v; known.push(k);
+    }
+    syncUI(); rebuild();
+    let m=known.length+' parameters applied.';
+    if(unknown.length) m+=' Ignored unknown: '+unknown.join(', ')+'.';
+    if(bad.length) m+=' Ignored non-numeric: '+bad.join(', ')+'.';
+    say(m, unknown.length>0||bad.length>0);
+  });
+  G.appendChild(row); G.appendChild(ioMsg);
+  refreshIO();
+})();
+const psel=document.getElementById('preset');
+Object.keys(PRESETS).forEach(k=>{const o=document.createElement('option'); o.textContent=k; psel.appendChild(o);});
+function applyPreset(name){
+  const pr=PRESETS[name]; if(!pr) return;
+  Object.assign(P,pr.p);
+  document.getElementById('presetNote').textContent=pr.note;
+  syncUI(); rebuild();
+}
+psel.addEventListener('change',()=>applyPreset(psel.value));
+document.getElementById('btnSpin').addEventListener('click',e=>{spinning=!spinning; e.target.classList.toggle('on',spinning);});
+document.getElementById('btnGrid').addEventListener('click',e=>{showRef=!showRef; e.target.classList.toggle('on',showRef);});
+document.getElementById('btnWire').addEventListener('click',e=>{wire=!wire; e.target.classList.toggle('on',wire); rebuild();});
+document.getElementById('btnSec').addEventListener('click',e=>{
+  secCut=!secCut; e.target.classList.toggle('on',secCut);
+  renderer.localClippingEnabled=secCut; rebuild();});
+
+resize(); place(); applyPreset('Working default'); psel.value='Working default'; tick();
+</script>
+</body>
+</html>
