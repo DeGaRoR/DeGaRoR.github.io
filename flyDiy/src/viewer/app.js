@@ -7426,8 +7426,8 @@
     // in-game readout of the biomes, not a dial (F8 has the dials). A tuft glyph.
     { k: 'ground', label: 'ground', title: 'What is under you: the ground, the biome, the canopy',
       icon: 'M9 15.4V8.2|M9 8.2C9 5.6 7 4.2 5 4.6c.4 2.6 2 4 4 3.6Z|M9 10.4c0-2.6 2-4 4-3.6-.4 2.6-2 4-4 3.6Z|M3.6 15.4h10.8' },
-    { k: 'world', label: 'world', title: 'The premises of the world: roads, zones, strips, sites',
-      icon: 'M9 16.2s-5-4.6-5-8.3a5 5 0 0 1 10 0c0 3.7-5 8.3-5 8.3Z|M9 9.7a1.9 1.9 0 1 0 0-3.8 1.9 1.9 0 0 0 0 3.8Z' },
+    // (2026-09-24) the WORLD button moved to the right-hand WORLD rail (world_rail.js > scenery): the left rail
+    // flies, the right one edits the world. Its flyout (FL_SLOTS.world) stays for the rail's callers.
   ];
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
@@ -7876,7 +7876,7 @@
       flLive(body, 'slope', 'flGndSlope');
       flLive(body, 'height', 'flGndAgl');
       flLive(body, 'cover', 'flGndRing');
-      flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. F8 > trees > biomes holds the dials.');
+      flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. The WORLD rail (F9, the right edge) holds the dials.');
       flGroundLive(sim ? sim.out : null);
     },
     clouds(body) {
@@ -9645,7 +9645,39 @@
     hud(); loop();
     setTimeout(() => { compileXrayVariants(); }, 1500);   // G441: the see-through programs, after the room is up
   });
+  // THE SCENERY MODE (the world rail, 2026-09-24; the user: "launch only the graphics parts of the game, at least not
+  // the flight simulation ... so we don't need lots of benches anymore"): ?scenery=1 rolls out the moment the boot
+  // lifts, then HOLDS the solver (running = false: no step, no pilot, no director), takes the aeroplane off the
+  // stage, gives the eye to the free camera 60 m over the stand and opens the WORLD rail (world_rail.js). The world
+  // streams round the eye (worldUpdate reads the camera under DEVCAM), so this is the game's own renderer, the
+  // game's own world and its own GRAPHICS tier - the bench is the game. `S` (or the rail's button) leaves it.
+  const SCENERY_Q = (() => { try { return /[?&]scenery(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
+  const SCENERY = { on: false,
+    enter() {
+      if (SCENERY.on) return;
+      const go = () => {
+        SCENERY.on = true; running = false; started = false;
+        // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the scenery
+        for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
+        if (craft && craft.parent) craft.parent.remove(craft);
+        document.body.classList.add('sceneryMode');
+        flCamMode('free');
+        const cg = sim.cgPos();
+        devCam.pos.set(cg[0], cg[1] + 60, cg[2] + 40); devCam.pitch = -0.45; devCam.yaw = Math.PI; devCam.speed = 40;
+        if (window.WORLD_RAIL) window.WORLD_RAIL.open();
+      };
+      if (inGarage) rollOut(go); else go();
+    },
+    leave() {
+      if (!SCENERY.on) return;
+      SCENERY.on = false; running = true;
+      if (craft && !craft.parent) scene.add(craft);
+      document.body.classList.remove('sceneryMode');
+      flCamMode('chase');
+    } };
+  if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   BOOT.run(bootSteps, { set: 'garage', landingLabel: 'the last pieces landing',
+    done: () => { if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0); },
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });

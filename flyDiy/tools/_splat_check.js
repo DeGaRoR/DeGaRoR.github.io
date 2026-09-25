@@ -193,7 +193,7 @@ function checkShader(G, splice, quiet) {
   say(/sRGBTransferEOTF/.test(glsl), 'the colour array decoded in the shader (no sRGB array upload: GL 1281)');
   say(!/\bout\s+(Smp|vec4|vec3|float)\s+\w+\s*[,)]/.test(glsl), 'no `out` parameter on the sample chain (one struct through it)');
   say(/struct Smp \{ vec4 c; vec4 n; \};/.test(glsl), 'the one struct Smp { c, n }');
-  say(/gSRough = mix\(clamp\(nrm\.a, 0\.05, 1\.0\), 1\.0, mw\);/.test(glsl) && /roughnessFactor = 1\.0 - \(1\.0 - gSRough\) \* uSNrm\.y;/.test(splice.glslRough), 'the sets\' roughness reaches roughnessFactor (the Standard ring), faded to matte at the macro range, the sheen knob its lever');
+  say(/gSRough = mix\(clamp\(max\(nrm\.a, min\(1\.0, uSFilt\.y \* sqrt\(gSPixM\)\)\), 0\.05, 1\.0\), 1\.0, mw\);/.test(glsl) && /roughnessFactor = 1\.0 - \(1\.0 - gSRough\) \* uSNrm\.y;/.test(splice.glslRough), 'the sets\' roughness reaches roughnessFactor (the Standard ring), faded to matte at the macro range, the sheen knob its lever, widened by the pixel\'s footprint (the specular AA, 2026-09-24)');
   say(!/`/.test(glsl), 'no backtick in the spliced GLSL (a backtick in a GLSL comment closes the JS template)');
   // THE STANDARD RING'S HOOK (render_world.js, 2026-09-21): the IBL's irradiance cut (the hemisphere is the
   // one ambient) and BOTH specular lobes faded out by roughness 0.9 (GGX at 1 on a dark ground measured
@@ -365,7 +365,7 @@ async function checkGPU() {
     verdict(!checkManifest(G, manifest.replace('metres: 1.25', 'metres: 2.5'), ROOT, true), 'a manifest metres off the library is caught');
     const sp = spliceOf(G, splatSrc, G.RECIPE.library);
     const brk = (a, b) => { const s2 = Object.assign({}, sp); s2.glslCommon = sp.glslCommon.replace(a, b); return s2; };
-    verdict(!checkShader(G, brk('o.c = texture(uSplat, vec3(uv, layer));', 'o.c = textureGrad(uSplat, vec3(uv, layer), dFdx(uv), dFdy(uv));'), true), 'a textureGrad on the array is caught');
+    verdict(!checkShader(G, brk('o.c = texture(uSplat, vec3(uv, layer), uSFilt.x);', 'o.c = textureGrad(uSplat, vec3(uv, layer), dFdx(uv), dFdy(uv));'), true), 'a textureGrad on the array is caught');
     verdict(!checkShader(G, brk('for (int i = 0; i < uSNCode; i++) {\n      if (w[i]', 'for (int i = 0; i < 15; i++) {\n      if (w[i]'), true), 'a constant-bound candidate loop is caught');
     verdict(!checkShader(G, brk('uniform highp sampler2DArray uSplat, uSplatN;', 'uniform sampler2DArray uSplat, uSplatN;'), true), 'an array without highp is caught');
     verdict(!checkShader(G, brk('Smp sFetch(float layer, vec2 uv, vec2 cs){', 'void sFetch2(float layer, out Smp o){ }\n  Smp sFetch(float layer, vec2 uv, vec2 cs){'), true), 'an `out` parameter on the chain is caught');

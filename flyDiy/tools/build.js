@@ -385,7 +385,10 @@ const MANIFEST = {
               'input.js', 'input_panel.js', 'gfx_settings.js', 'editor.js',
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
-              'cockpit.js', 'app.js', 'dev_panel.js'],
+              'cockpit.js', 'app.js',
+              // world_rail.js (2026-09-24): the WORLD rail on the right edge - the terrain types' biomes and
+              // ground, the layers, the materials, the filtering, the export; DOM-lazy over the world's handles
+              'world_rail.js', 'dev_panel.js'],
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's

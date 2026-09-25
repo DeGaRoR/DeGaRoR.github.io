@@ -57889,3 +57889,60 @@ into ~40 m.
 - ANY CODE THAT COPIES A MATERIAL IN THE GAME must carry `_atmoHook` - `copy()` and `clone()` do not.
 - GATES: PARKED, PREMISES, UISMOKE, MEDIA, WORLDRENDER, SKIN, GFX green. FILES: src/viewer/parked.js,
   tools/_parked_check.js.
+
+## G533 - THE WORLD RAIL: the right-hand rail of the world's art, the scenery mode, the ground's filtering (2026-09-24)
+
+- The user: streamline the game as the bench (the graphics without the flight), revamp F8 into a RIGHT rail
+  structured by TERRAIN TYPE (a type = a biome + a ground set), proper layers, previews, recolour down to one
+  hue of a set, the noise and the shimmer of the detail textures, the anti-tiling and grazing-angle filtering,
+  the photoscanned coastal rocks, an export to report the settings back as the new defaults. Left rail =
+  flight; right rail = world editing.
+- THE SCENERY MODE (app.js SCENERY, `?scenery=1`): rolls out when the boot lifts, HOLDS the solver
+  (running = false), takes the aeroplane off the stage, gives the eye to DEVCAM 60 m over the stand, closes a
+  fresh profile's aeroplane chooser, hides the flight chrome (flight.css body.sceneryMode; the left rail stays:
+  camera, graphics, night, weather) and opens the WORLD rail. The world already streams round DEVCAM.
+- THE WORLD RAIL (src/viewer/world_rail.js, F9, after app.js in the manifest): COVERAGE (the stack as
+  Photoshop-like layers - eye, thumbnail off the island's rasters, blend, opacity, solo - the view modes, the
+  terrain-type map with the camera's mark, click = open the type, double-click = fly there, the legend with
+  shares, the global colour), TYPES (chips; per type: the derived split, where it is, BIOME tab - the mix,
+  "own copy", the stand, five categories trees / bushes / grass & flowers / stones / debris with species cards
+  rendered from the pack through the game's renderer, each with its planters' keys, + add from the catalogue,
+  x remove; GROUND tab - three detail and three aerial slots with previews, the mask, the variation, the sets'
+  recolour inline), MATERIALS (the library side by side, each at its repeat or all at 4/16/64/200 m; the set
+  editor), FILTERING, VEGETATION, CLIFFS, SCENERY (the premises editor - "the world editor" is the SCENERY
+  editor now - the scenery mode, the air while you work, the maps), EXPORT (the whole look as JSON with
+  `where` each part goes and `changes` against the shipped defaults; copy, download, changes only, import,
+  reset). Alt+click on the ground opens the type under the mouse. THE LOOK (localStorage flydiy.worldlook.v1)
+  keeps what the handles did not persist (the ground's colour knobs, the biomes, the ring, species sizes and
+  tints, the cliffs) and puts it back when the world is up.
+- THE METHOD, CONFIRMED: detail sets near (up to three, cloud mask, height blend), the aerial sets over
+  detailFrom..detailTo (150-900 m), the imagery's stack from macroFrom (full by macroTo).
+- THE GROUND'S FILTERING (splat_ground.js, knobs defaulted under the recipe's: FILTER_DEFAULTS): mip bias
+  (texture() bias on the arrays - implicit derivatives kept, no textureGrad), anisotropy (1-16, re-upload),
+  the detail's contrast near/far by distance (rel^k), the relief's fade by distance, specular anti-alias
+  (roughness widened by the pixel's footprint). The hex cell's hash is the ground fields' INTEGER hash (the
+  sin() hash took world metres x 311 - arguments of 10^6, float range reduction noise, driver-dependent).
+  NOTHING in the splat is recomputed per frame: the "jitter" is sub-pixel relief and gloss aliasing under the
+  sun as the eye moves - the fades and the AA are its levers.
+- THE RECOLOUR per set (grade: hue, contrast, selHue/selWidth/selSoft/selShift/selSat/selLight): the whole
+  set's hue turn and contrast, then one hue band of it turned / saturated / lit (the grass of grass-and-rock
+  alone); grey texels are never selected; `showMask` paints the selection magenta on the ground. The rail's
+  preview is the shader's grade on the CPU (exposure normalised for legibility), with an eyedropper.
+- SPECIES SIZE for trees (render_world SP_SIZE, TREE_FILL.speciesSize): a multiplier over the canopy's size,
+  per species, every biome (the far stand cards do not read it yet).
+- THE COASTAL SCANS: the small ones are STONES (biome species; shingle plants them, `shore` keeps them by the
+  sea, the rock map carries them far); the cliff faces keep their own section (placed by slope and contour).
+- F8 AUDIT: the map layers, the splat, the biomes, the island rule, the fill, the ring and the env albedo
+  moved to the rail (a pointer and a button remain); F8 keeps the ladder, the leaf, the sky, the clock, the
+  climate, the atmosphere, the clouds, the lighting, the water, the frame, the camera. The left rail's WORLD
+  button moved to the rail's SCENERY. F8's climate readout read `WORLD.world` (no such key): fixed.
+- FOG / CLOUD (the user asked): the empty sky in the headless shots was NOT the air - at the eye the mist was
+  dry (rho0 0), no deck, base 1293 m, 48 km; SwiftShader draws a frame every few seconds here (the garage
+  too). The rail's SCENERY > "the air while you work" has mist, haze, cover, clouds, in-cloud mist, the hour
+  and a reversible "clear view".
+- GATES: SPLAT (the roughness rule now carries the footprint term; the selftest's textureGrad mutation
+  follows the biased fetch), UISMOKE, BOOT, WORLDRENDER, TREE, TREES, GFX, LIGHT, CLOUD, CLIMATE, FOG, ATMO,
+  ATMOS, POSTFX, MEDIA, PREMISES, PARKED, BUILD green. Headless: every program links (0 unrunnable), the rail
+  builds every section on Jolene.
+- OWED: judged on a real GPU (the defaults of the new fades are a first guess); the stand cards and the size
+  multiplier; a sampler-free way to preview a species that is not warmed.
