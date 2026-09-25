@@ -83,6 +83,21 @@ const spec = buildPath ? (j => j.spec || j)(JSON.parse(fs.readFileSync(buildPath
       if (!a) throw new Error('no archetype ' + archKey + ': ' + D.ARCHETYPES.map(x => x.key).join(' ')); return D.designBake(a.sel, a.over); })()
   : JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'build_v9_stock_2026-09-15.json'), 'utf8')).spec;
 const def = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec) : spec);
+// --subcap N (an EXPERIMENT, not the game): every beam that asks more than N substeps has its spring
+// (omega dt 0.45) and its damper (c dt 0.65) cut to what N carries, and the build flies N - what a
+// stiffness cap would cost the flight. --tip prints the wing tips' height over the root in the air.
+const SUBCAP = +arg('subcap', 0);
+const capInfo = { k: 0, c: 0, kMin: 1 };
+if (SUBCAP > 0) {
+  const N = def.nodes, dry = i => (N[i].mFuel ? Math.max(0.5, N[i].m - N[i].mFuel) : N[i].m), dt = 1 / (60 * SUBCAP);
+  for (const b of def.beams) {
+    const inv = 1 / dry(b.a) + 1 / dry(b.b);
+    const kMax = (0.45 / dt) * (0.45 / dt) / inv, cMax = 0.65 / (inv * dt);
+    if (b.k > kMax) { capInfo.kMin = Math.min(capInfo.kMin, kMax / b.k); b.k = kMax; capInfo.k++; }
+    if (b.c > cMax) { b.c = cMax; capInfo.c++; }
+  }
+  def.params.substeps = Math.min(def.params.substeps, SUBCAP);
+}
 const sim = C.makeSim(def, world);
 sim.reset(0);
 const home = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
@@ -129,6 +144,17 @@ console.log(`ALL            ${String(allAp.length).padStart(6)} | mean pilot ${f
 { const sp = spikes.slice().sort((x, y) => y[0] - x[0]).slice(0, 6);
   const med = q(spikes.map(x => x[0]), 0.5);
   console.log('longest frames: ' + sp.map(x => x[0].toFixed(0) + ' ms @ ' + x[1].toFixed(2) + ' s').join(', ') + ` · frames over 2x the median: ${spikes.filter(x => x[0] > 2 * med).length}, of them after the first 2 s: ${spikes.filter(x => x[0] > 2 * med && x[1] > 2 + warm).length}`); }
+if (SUBCAP > 0) console.log(`subcap ${SUBCAP}: ${capInfo.k} springs cut (to x${capInfo.kMin.toFixed(2)} at most), ${capInfo.c} dampers`);
+if (argv.includes('--tip')) {
+  // the wing's bend: each tip's front spar node over the root's, in the aeroplane's up axis
+  const [, yU] = sim.axes(); const P = sim.p;
+  let rootI = -1, tipL = -1, tipR = -1, zR = Infinity, zMin = Infinity, zMax = -Infinity;
+  for (const st of def.strips) if (st.kind === 'wing' && (st.plane | 0) === 0) for (const i of [st.fIn, st.fOut]) {
+    const z = def.nodes[i].p[2]; if (Math.abs(z) < zR) { zR = Math.abs(z); rootI = i; } if (z < zMin) { zMin = z; tipL = i; } if (z > zMax) { zMax = z; tipR = i; } }
+  const up = (i, j) => (P[i*3]-P[j*3]) * yU[0] + (P[i*3+1]-P[j*3+1]) * yU[1] + (P[i*3+2]-P[j*3+2]) * yU[2];
+  const up0 = (i, j) => def.nodes[i].p[1] - def.nodes[j].p[1];
+  console.log(`wing bend (tip over root, change from the drawn pose): L ${((up(tipL, rootI) - up0(tipL, rootI)) * 1000).toFixed(1)} mm, R ${((up(tipR, rootI) - up0(tipR, rootI)) * 1000).toFixed(1)} mm · V ${sim.out.V.toFixed(1)} m/s, alt ${sim.out.alt.toFixed(0)} m`);
+}
 if (cstat) console.log('climate:', JSON.stringify(cstat));
 // --hash: the trajectory's fingerprint (every node's p and v, to the bit) - an optimisation that claims
 // to change nothing must print the same line before and after

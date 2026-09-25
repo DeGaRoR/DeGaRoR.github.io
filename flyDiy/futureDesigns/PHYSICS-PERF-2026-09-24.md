@@ -252,6 +252,65 @@ Fourteen archetypes and all three of the user's metal Cessnas fly at the cap, mo
 runs them past the omega dt bound. The alloy wing box is the multiplier the metal builds pay; the tailwheel's damper
 (and the float keel's) is the one the taildraggers pay.
 
+## G578 - THE VORTEX KERNEL ONCE A FRAME (landed)
+
+Lever 2. The horseshoe coefficients (buildAIC: two horseshoes and the ground image per pair) are rebuilt on the
+frame's first substep, from the frame-start geometry; the circulations and the induced field still update every
+substep, and a probe (the design sheet) rebuilds whenever its geometry moves, as before. The geometry a frame moves
+is millimetres: measured 0.05-0.4 mm off after a 20-30 s taxi, 3 cm after a 150 s circuit. Solver -17 % on the
+ground, -33 % in flight. Not bit-identical; the core battery (GEN, PILOT, FLEX, LOAD, TAKEOFF, BIPLANE, DRAG, the
+floats) passed on it.
+
+## G579 - THE WATER AT A RATE, NOT A COUNT (landed)
+
+Lever 4. The hydro's sub-rate was 8 substeps on every build: 360 Hz on the 45-substep 172 G451.1 measured it on,
+1 500 Hz on a 200-substep alloy build. Now round(substeps x 60 / 360) - the old 8 at 45 substeps - and
+params.hydroEvery still overrides. Cessna on floats: -30 %, the cg 1 mm off after 20 s. FLOATS, HYDRODYN, WIPLINE,
+WATER passed; SEAPLANE's three known reds unchanged.
+
+## G580 - THE DAMPER THE STEP CAN CARRY (landed)
+
+The tailwheel's damper set the step of every taildragger it limited, at zeta ~5 - dead-beat five times over. Now
+genSubsteps sizes the step on the SPRINGS; a damper past the c dt bound at that step is cut to it, and the cut is
+only taken if the whole NETWORK stays inside the integrator's stability with a margin. The per-beam rule is not
+enough: a node joined to several dampers adds them, and the network's own highest frequency is always at or above
+any single beam's (the metal Cessna capped per beam to 80 substeps diverged at once). Symplectic Euler on a damped
+mode holds while (omega dt)^2 + 2 gamma dt < 4; the builder asks <= 3.0 of the network's own highest omega^2 and
+damping rate (genNetEig: power iteration, 600 passes + 5 %), takes the smallest step that holds (bisection), never
+more than the old rule's, and leaves a build whose springs set the step untouched (the same number, no beam
+changed - the stock build, the metal Cessnas, most archetypes). Today's fleet flies with the network measure up to
+3.84 (caravan) and 4.22 (floatplane - its 82 float-keel dampers keep their old step here).
+
+| build | substeps | dampers cut (zeta after) | network | circuit (frames per phase, old / new) | solver ms |
+|---|---|---|---|---|---|
+| birdman (the user's) | 121 -> 78 | 2 (>= 3.44) | 2.45 | downwind 6 814 / 6 814, base 917 / 916 | 9.8 -> 6.8 |
+| chinook | 110 -> 68 | 2 (>= 3.37) | 2.50 | downwind 4 658 / 4 656, final 2 803 / 2 808 | 10.1 -> 5.5 |
+| stearman | 134 -> 89 | 4 (>= 3.71) | 2.49 | downwind 5 007 / 5 007, base 1 794 / 1 794 | 37.5 -> 13.8 |
+| beaver | 200 -> 131 | 4 (>= 2.67) | 2.84 | downwind 6 595 / 6 593, base 1 287 / 1 289 | 17.3 -> 10.5 |
+| jodel | 200 -> 185 | 2 (>= 4.64) | 2.42 | | |
+| pietenpol | 79 -> 75 | 1 (>= 3.59) | 2.75 | | |
+
+GATE SUBSTEP (`tools/_substep_check.js`, core) holds it over every active archetype and fixture build: never above
+the old rule; untouched where the springs set the step; every cut damper overdamped; the network <= 3.0 re-measured
+with 4 000-pass eigenvalues.
+
+## THE METAL WING BOX (measured, not landed - the next chantier)
+
+The alloy wing box (WB-WB beams on ~0.9 kg nodes) asks 213-265 substeps per beam; 14 archetypes and the user's
+three metal Cessnas fly at the 200 cap. Measured on the metal Cessna, a 150 s circuit on the analytic world:
+
+| step | springs cut | circuit | wing bend in cruise (tip over root) | solver ms |
+|---|---|---|---|---|
+| 200 (today) | - | the same phases | 15-19 mm | 8.8 |
+| 120 | 66 (to x0.28 at most) | the same phases, the cg 3.5 m off after 150 s | 17-22 mm | 5.2 (-41 %) |
+| 80 | 196 (to x0.13) | DIVERGED at once (per-beam caps; the network is not) | - | - |
+
+So a softer box flies the same aeroplane for a few mm more bend, and the step must be sized on the network, as
+G580 does for the dampers. The honest version keeps the TRUE stiffness where it matters - the load test (65_gen_
+loadtest) reads strain and must fly the real k - and gives the flight a box whose highest mode (a kilohertz axial
+mode no flight dynamics can see) is bounded; or lumps the box's nodes. A chantier of its own, with the load test's
+verdicts as its anchor.
+
 ## Viewer-side notes (not timed)
 
 - `syncWaterFx`: per live droplet per frame, `world.waterH` and two new arrays for the sprite's set - a few hundred

@@ -62,6 +62,9 @@ const GATES = [
   // PHYSICS PERF (2026-09-24): hyp2 / hyp3 are Math.hypot to the bit - the solver's hot loops call
   // them, and the trajectory is the same bits only while they are; seconds
   { id: 'HYPOT', file: '_hypot_check.js', tier: 'core' },
+  // G580: the integrator's step on the springs, the dampers it can carry - never above the old rule,
+  // every cut damper overdamped, the network inside the stability margin (4 000-pass eigenvalues); ~15 s
+  { id: 'SUBSTEP', file: '_substep_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a

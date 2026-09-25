@@ -59477,3 +59477,22 @@ the water needs on the 45-substep 172 it was measured on, 1 500 Hz on a 200-subs
 of the frame's substeps, round(substeps x 60 / 360) - the old 8 at 45 substeps; params.hydroEvery still overrides.
 The Cessna on floats: solver -30 %, the cg 1 mm off after 20 s. FLOATS, HYDRODYN, WIPLINE, WATER green; SEAPLANE's
 known reds unchanged.
+
+## G580 - THE DAMPER THE STEP CAN CARRY: the substeps on the springs (2026-09-25)
+
+The tailwheel leg's damper set the step of every taildragger it limited, at zeta ~5 (dead-beat five times over): the
+birdman's 121 substeps were two beams (TW-S6BL/R, 3.45 kg into 0.55 kg), the next asked 77. genSubsteps (62_gen_aero)
+now sizes the step on the SPRINGS and cuts a damper past the c dt bound to what that step carries (b.cSized keeps the
+sized value) - only if the whole NETWORK stays inside the integrator's stability with a margin: (omega dt)^2 +
+2 gamma dt <= 3.0 of the network's own highest modes (genNetEig, power iteration; symplectic Euler's bound on a
+damped mode is 4). The per-beam rule is not enough: a node's dampers add, and the metal Cessna capped per beam to 80
+substeps diverged at once. The smallest step that holds is taken (bisection), never more than the old rule's; a
+build whose springs set the step is untouched (the same number, no beam changed: the stock build, the user's metal
+Cessnas, most archetypes); the floatplane's 82 float-keel dampers keep their old step. Six builds move: birdman
+121 -> 78, chinook 110 -> 68, stearman 134 -> 89, beaver 200 -> 131, jodel 200 -> 185, pietenpol 79 -> 75; every cut
+damper stays overdamped (zeta >= 2.67), the networks 2.42-2.84. Circuits flown old/new: the same phases to a few
+frames; solver birdman -31 % (-32 % on the Jolene roll-out), chinook -46 %, stearman -63 %, beaver -39 %. GATE
+SUBSTEP (tools/_substep_check.js, core) holds it with 4 000-pass eigenvalues over every archetype and fixture.
+futureDesigns/PHYSICS-PERF-2026-09-24.md G578-G580, and THE METAL WING BOX, measured: capped at 120 substeps the
+metal Cessna flies the same circuit (-41 %, the tips 2-3 mm more bend), at 80 per-beam it diverges - the next
+chantier, network-sized, the load test keeping the true stiffness.
