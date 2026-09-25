@@ -59322,3 +59322,22 @@ a flip rebakes).
   transparent bag, a clone refused), the merge (world positions with the sag off to 0.1 mm, one slot per finish -
   the same finish on two houses one slot, another dirt line another), the host's wiring (TARR above LAMPS - G570's
   TDZ - the lamps' factor, the sig carries the dials, build.js order). 1r red on the head-placed tLoad.
+
+## G575 - THE GROUND'S CEILING: the island's ground skip, bit-identical (2026-09-25)
+
+G572's lever 1, landed differently than measured. The clearance cone needs a SLOPE bound and the island has none that
+is true: its raster steps by up to 1.99 m where a coarse leaf meets a fine one (968 240 leaf-edge probes). So the
+solver's sibling skip reads a CEILING: once a frame, `world.groundMaxRect(ax, az, bx, bz)` over the nodes' footprint
+grown by 0.5 m + twice the fastest node's travel; a node inside that box whose bottom is above the ceiling skips its
+ground sample (exactly the `pen <= 0 -> continue` the sample would take), a node that leaves the box samples. True by
+construction: the raster's highest vertex over the cells touched (19_terrain_codec `maxRect`; the coast's min only
+lowers), the analytic pad blend / carve / meadows (convex or lowering), the premises' modifiers (27_premises
+`hMaxRect`: every one blends toward a target with w in [0, 1] - max of the targets + the raises; each modifier's
+`bound()` says its target's highest over a rectangle). `groundMaxRect.of` is the terrainH it bounds: a re-wrapped
+world (HOTHIGH, pilot_trace --slope) samples as before; FLYDIY_EXACT_GROUND=1 turns it off with the cone. GATE GE
+holds it (the ceiling over 2.76 M points / 1 077 rectangles, a lying ceiling caught, a 30 s taxi out of HOME
+identical both ways every frame). Paired vs G572, the same FNV hash: stock taxi -29 %, metal Cessna -40 %, birdman
+-31 %, thermal day -26 %, floats -17 %. futureDesigns/PHYSICS-PERF-2026-09-24.md G575 (and the substep drivers per
+build: 14 archetypes and the user's three metal Cessnas fly at the 200 cap on the wing box's stiffness; the
+tailwheel's damper sets the stearman, chinook, savannah, beaver, jodel, radial and the birdman; the float keel the
+floatplane).
