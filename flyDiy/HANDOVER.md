@@ -59217,7 +59217,7 @@ a flip rebakes).
 ## G574 - THREE DEAD HOUSE DIALS, MENDED (2026-09-25) - PROPOSED, AWAITING THE USER'S RULING
 
 Found while building G571 (the town on texture arrays), which had kept them dead to match the game. Each changes the
-picture; before/after shots in `screenshots/g574/` (the tarr bench at y 0 and lifted 20 m, the house bench).
+picture; before/after shots sent to the user in the session (`screenshots/g574/` is gitignored; regenerate with tools/tarr_shot.js `?lift=` against the pre-G574 tree, the tarr bench at y 0 and lifted 20 m, the house bench).
 - THE WANDER AND THE ROOF TILE SCALE (uWander G273, uUvK G329 / P.roofTile). r186 runs onBeforeCompile before it
   resolves the #includes, so wanderUV's token rewrite of v*MapUv matched nothing. Now `#define vMapUv hUv` (and the
   other map varyings) sits at the top of main, below the varyings' declarations and above every chunk that reads them:
