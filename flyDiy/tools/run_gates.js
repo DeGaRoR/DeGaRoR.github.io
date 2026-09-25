@@ -59,6 +59,9 @@ const GATES = [
   // re-engage after hand flying, flown headless on both pilots.
   { id: 'INPUT', file: 'test_input.js', tier: 'core', wall: 160 },
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
+  // PHYSICS PERF (2026-09-24): hyp2 / hyp3 are Math.hypot to the bit - the solver's hot loops call
+  // them, and the trajectory is the same bits only while they are; seconds
+  { id: 'HYPOT', file: '_hypot_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -448,7 +451,7 @@ function runJob(job) {
   return new Promise(resolve => {
     const t0 = Date.now();
     const timeoutMs = job.gate.timeout || 1800_000;
-    // THE CHILD WRITES TO FILES, NOT PIPES (G572): on Linux Node writes a
+    // THE CHILD WRITES TO FILES, NOT PIPES (G573): on Linux Node writes a
     // pipe asynchronously, so a gate that ends with process.exit() loses
     // whatever is still queued - ENGINE came back as its first line and exit
     // 0 (16 runs in 40 at 8 in parallel, cut at ~9.5 KB; 0 in 120 through a

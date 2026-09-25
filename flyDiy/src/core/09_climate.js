@@ -43,6 +43,9 @@
 // ============================================================
 var CLIMATE = (function () {
   'use strict';
+  // Math.hypot to the bit, JIT-inlined (00_registry.js hyp2 - PHYSICS PERF 2026-09-24): the rich field's
+  // smooth() runs four times a substep for the solver's re-centre; alone (no registry) it is Math.hypot
+  const HYP2 = (typeof hyp2 === 'function') ? hyp2 : Math.hypot;
   // ---- the legacy field's tables, verbatim from 20_world.js (G72) ---------
   const GC = [ // [freq rad/s, kx, kz, phase, axis weight x,y,z]
     [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
@@ -368,8 +371,8 @@ var CLIMATE = (function () {
         // the deflection at a height is driven by the wind at that height.
         const R = reliefAt(x, z, RL), T = rich.terrain;
         let gxc = R[CH.gxc], gzc = R[CH.gzc], gxf = R[CH.gxf], gzf = R[CH.gzf];
-        const mc = Math.hypot(gxc, gzc); if (mc > SLOPE_CAP) { gxc *= SLOPE_CAP / mc; gzc *= SLOPE_CAP / mc; }
-        const mf = Math.hypot(gxf, gzf); if (mf > SLOPE_CAP) { gxf *= SLOPE_CAP / mf; gzf *= SLOPE_CAP / mf; }
+        const mc = HYP2(gxc, gzc); if (mc > SLOPE_CAP) { gxc *= SLOPE_CAP / mc; gzc *= SLOPE_CAP / mc; }
+        const mf = HYP2(gxf, gzf); if (mf > SLOPE_CAP) { gxf *= SLOPE_CAP / mf; gzf *= SLOPE_CAP / mf; }
         const a0 = Math.max(0, agl), ec = Math.exp(-a0 / D_COARSE), ef = Math.exp(-a0 / D_FINE);
         // THE LOCAL BAND: a 200 m raster smoothed over 300 m cuts a steep face's slope to a third (the
         // analytic world's 35 deg faces read 0.25), and a ridge pilot flies within a wingspan or two of
@@ -378,7 +381,7 @@ var CLIMATE = (function () {
         // face the lift is the wind times the slope, as it is. Across the solver's footprint the slope
         // is the reference's (a 140 m ground wave moves it 0.1 over 12 m; one slope per aeroplane).
         let glx = gl[0] - gxc - gxf, glz = gl[1] - gzc - gzf;
-        const ml = Math.hypot(glx, glz); if (ml > SLOPE_CAP) { glx *= SLOPE_CAP / ml; glz *= SLOPE_CAP / ml; }
+        const ml = HYP2(glx, glz); if (ml > SLOPE_CAP) { glx *= SLOPE_CAP / ml; glz *= SLOPE_CAP / ml; }
         const el = Math.exp(-a0 / D_LOCAL);
         const wy = T * ((ux * gxc + uz * gzc) * ec + (ux * gxf + uz * gzf) * ef + (ux * glx + uz * glz) * el);
         // THE CREST SPEED-UP AND THE VALLEY'S SHELTER (Jackson & Hunt 1975: the fractional speed-up at a
@@ -392,7 +395,7 @@ var CLIMATE = (function () {
         // here is a 17 deg hillside) the flow separates - linear theory has nothing to say, so this is a
         // declared amplitude: the gusts' intensity up to x4 at 22 deg, decaying over twice L. combine()
         // reads it.
-        const U = Math.hypot(ux, uz);
+        const U = HYP2(ux, uz);
         const lee = U > 0.1 ? Math.max(0, -((ux * (gxc + gxf) + uz * (gzc + gzf)) / U)) : 0;
         ti += 3 * T * smoothstep(0.15, 0.4, lee) * Math.exp(-a0 / (2 * D_FINE));
         ux *= m; uz *= m; uy += wy;
@@ -559,7 +562,7 @@ var CLIMATE = (function () {
       for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) {
         const c = thermalCell(i0 + di, j0 + dj, C, utc, dx0, dz0, TH_TMP);
         if (!c.ok) continue;
-        const ddx = tx - c.x, ddz = tz - c.z, r = Math.hypot(ddx, ddz);
+        const ddx = tx - c.x, ddz = tz - c.z, r = HYP2(ddx, ddz);
         if (r > 2 * r2) continue;
         const wstar = C.wstarOf(reliefAt(c.x, c.z, RL2)[CH.heat]);
         if (!(wstar > 0)) continue;

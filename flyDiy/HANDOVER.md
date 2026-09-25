@@ -59170,7 +59170,30 @@ default; four rungs, L1 at 0 m, no interior geometry built, the far rungs one in
 craft matrix; with the bake in hand, L1 / L2 / L3 each one draw on the bake's one material, standing where the
 full ladder does). 104 checks green.
 
-## G572 - SKINMAT AND COWL GREEN AGAIN: two gates red for reasons that were not the aeroplane's (2026-09-25)
+## G572 - THE PHYSICS, AUDITED FOR THE FRAME (2026-09-24)
+
+The user: "it seems like there's a CPU floor we're hitting ... have the physics been audited for performance as well
+as the graphics? ... bad performance when getting out of the hangar ... the climate manager, could it have introduced
+physics changes?". The graphics study timed the renderer; nobody had timed `sim.step` - which runs on the same thread
+before it. `tools/physics_perf.js` flies the game's road headless (Jolene + premises, the stand, the pilot's
+departFrom; floats on the SEA lane) and times the pilot and the solver per frame, `--hash` for bit-identity, `--core`
+for an A/B. BEFORE (this container): the stock build's taxi out of the door 11-18 ms of solver a frame, the user's
+birdman 19-29, metal Cessna 31-49 (200 substeps, the cap), Cessna on floats 36-50. Why the roll-out: on the island's
+composed ground every node reads the terrain every substep (the clearance cone is off: no slope bound declared) -
+~45 % of the solver on the stand. The climate: zero cost on the default (calm) day; a rich preset +20-30 %.
+LANDED, bit-identical (12 scenarios, same FNV hash of every p and v before and after): hyp2/hyp3 (00_registry.js) =
+Math.hypot TO THE BIT at 6 ns instead of 47 (V8's own algorithm written out; GATE HYPOT), in the solver, the hydro,
+the climate's field and the premises; the premises' pads skip the edge distance inside the polygon and past the
+feather; the road grade's scan screens segments by squared distance (1e-9 margin); the aero pass stops allocating
+per substep. Paired A/B: -22 % stock taxi, -30 % metal Cessna, -29 % birdman, -29 % thermal day, -16 % floats, -9 %
+analytic circuit. THE RULINGS WAITING (measured, not landed - futureDesigns/PHYSICS-PERF-2026-09-24.md): the island's
+cone (-40 %, hash identical where the bound holds; needs a true bound, a local one proposed), the vortex kernel once
+a frame as its own note says (-17 / -33 %; every build flies vortex since P5), the substep drivers (the alloy wing
+box asks 225; the birdman's 121 is two tailwheel dampers, the next beam asks 77), the hydro at a fixed 360 Hz
+(-30 % floats), frame pacing (the sim steps 1/60 per rAF: slow motion under 60 fps, fast and dearer on a 144 Hz
+screen), the solver's JIT warm-up in the first 0.5 s at the door (pre-step it under the roll-out screen).
+
+## G573 - SKINMAT AND COWL GREEN AGAIN: two gates red for reasons that were not the aeroplane's (2026-09-25)
 
 **SKINMAT** ("role rows for sections no build emits - taperPanel, drawnPane, reveal, shoulder, doorPanel", 5 against
 an allowance of 4). All five ARE emitted by the editor's build; the gate built its coverage meshes from a hand copy of
