@@ -334,7 +334,9 @@ const MANIFEST = {
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
-              'post_fx.js', 'shadow_near.js', 'site_tex.js', 'site_ground.js',
+              'post_fx.js', 'shadow_near.js',
+              'shader_warm.js',   // G570: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
+              'site_tex.js', 'site_ground.js',
               'splat_tex.js', 'splat_ground.js',   // the island's ground library (17 sets, lazily-made Images) + the splat: the arrays, the GLSL, F8's handle
               // THE PAVEMENT (v1.16, 2026-09-22): the library manifest + the one material every strip, road and apron wears
               'pavement_tex.js', 'pavement.js',

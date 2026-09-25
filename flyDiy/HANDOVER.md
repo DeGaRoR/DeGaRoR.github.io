@@ -59192,3 +59192,46 @@ a frame as its own note says (-17 / -33 %; every build flies vortex since P5), t
 box asks 225; the birdman's 121 is two tailwheel dampers, the next beam asks 77), the hydro at a fixed 360 Hz
 (-30 % floats), frame pacing (the sim steps 1/60 per rAF: slow motion under 60 fps, fast and dearer on a 144 Hz
 screen), the solver's JIT warm-up in the first 0.5 s at the door (pre-step it under the roll-out screen).
+
+## G573 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
+
+The user: the Jolene roll-out's compile step takes 16-26 s of a 32-44 s screen WARM (cold 32 s) - "a warm boot should
+compile ~nothing": find what gets a different source or key each boot, or is made fresh each boot. Measured by COUNTS
+(a cloud box on SwiftShader: no reference GPU, times meaningless) with `tools/program_census.js` (new): N boots in one
+Chrome profile, every linkProgram recorded before any page script - its source hashed, the boot step it ran in, the
+stack - optionally `--linkless` (sources recorded, the driver's link skipped: the keys and sources are three's either
+way) and `--drain` (the streamed premises built, then drawn).
+- (a) NOTHING VARIES PER BOOT. Two boots in one profile link the same sources (master: 254/256 programs, the two extra
+  in boot 2 a tree species that streamed in under the census's watch; after this change 249/251 alike). The only
+  source that differs is the first launch in a FRESH profile: the AA resolve starts on its own default tier `full` (the
+  user's ruling, GATE AA) before the menu applies gamer's `msaa` - one program, once per browser.
+- (b) THE FIRST FRAMES LINKED 16 PROGRAMS the compile step never made, synchronously: the shadow pass's whole depth
+  set (the warm-up, S3's compileDepthVariants, built MeshDepthMaterial({ RGBADepthPacking }) per side against a helper
+  with no lights - r186 draws shadows with its OWN BasicDepthPacking material, in the lit scene's light state, the
+  caster's map / alphaTest / side copied on: all eight warmed programs were never drawn with), the AA resolve's blit,
+  the bloom chain (4), the clouds' noise bake. And a first fix that mirrored three's rule still re-linked them all:
+  the shadow pass draws with NO scene (no fog) and fogExp2 is in the key ('' under a THREE.Fog, false under none) -
+  the same source, keyed apart. NOW: shader_warm.js (PROG_WARM) builds one stand-in per distinct depth program the
+  pass will ask for (three's getDepthMaterial mirrored; a stand-in is Object.create(caster), never a copy of its
+  instance data) and app.js compiles it in the lit scene with the fog lifted; aa_resolve / post_fx / clouds publish
+  warmList() and the step compiles those quads too. Census: first frames 16 -> 0 links, compile step 113 -> 128.
+- RE-LINKS 49-50 -> 16 a boot: bakeHangarEnv made and disposed a PMREMGenerator per bake (its programs go with it:
+  14 links of the same two programs while the shed's textures landed under the world's screen) - now one kept per
+  source kind (room, sky); the rock map's sprite bake made and disposed a material per part (30 links of 2 programs)
+  and every recentre re-linked the map's material - now kept. What is left is three keying the garage's and the
+  world's identical depth sources apart (their light counts) and one tree species' programs that stream in.
+- NOT FOUND HERE, AND THE NEXT QUESTION FOR THE REFERENCE BOX: with identical sources every boot, a warm compile step
+  of 16-26 s says the browser's cache did not hold them. Chrome keeps GPU program binaries in a size-capped cache
+  (the switch is --gpu-program-cache-size-kb); ~250 programs with the ground's (a 412 KB program before G568) may not
+  fit. The one-line test: two roll-outs with `--gpu-program-cache-size-kb=262144` on the same profile - if the second
+  one's compile step drops to seconds, the cap is the cause.
+- Owed: the premises that stream in link their new variants in flight (7 programs past the drain here: instanced and
+  batched variants of house, lot and life materials); a tree species that first appears after the step (2).
+GATE PROGRAMS (new, core): the real three.js on a fake WebGL2 context that records every source and link - the depth
+warm-up against the real shadow pass over a caster zoo with fog (sides, map, alphaTest, coverage, instancing with and
+without colour, skinning, a batch, draw groups, a custom depth with its own hook and key, a point light) links nothing
+new on the first frame, and the old warm-up is the CONTROL that must miss (8); two boots key and link the same
+sources; no cache key in src/viewer reads a uuid, an id, a clock or a counter; the rock map links each program once
+and a recentre none (red on the old code: 10 links / 4 distinct, 2 on the recentre); a kept PMREMGenerator bakes
+again on no link; the three passes publish warmList() and the step compiles them in the lit, fogless scene.
+futureDesigns/PERF-2026-09-23.md G573.
