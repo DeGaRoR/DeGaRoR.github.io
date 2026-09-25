@@ -1247,10 +1247,17 @@ function hydroBuild(def, p, v) {
   // own frequencies are low (heave ~7 Hz, the slam bounded per compute by
   // mNode Vn / dt with dt the HELD interval), so 360 Hz is more than the
   // water needs. 1 = every substep (the H0-H4 calibration figure).
-  const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || HYDRO_EVERY));
+  // G579 (PHYSICS PERF): A RATE, NOT A COUNT. `every` was 8 substeps on every build - 360 Hz on the
+  // 45-substep 172 it was measured on, 1 500 Hz on a 200-substep alloy build, the water's forces
+  // computed four times as often as the note above says they need (30 % of that build's frame). Now
+  // HYDRO_HZ of the frame's substeps: round(substeps x 60 / 360), which is the old 8 at 45 substeps.
+  // params.hydroEvery still overrides (1 = every substep, the H0-H4 calibration figure).
+  const sub = (def.params && def.params.substeps) || 24;
+  const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub * 60 / HYDRO_HZ)));
   return { floats, every, tick: 0, fh: new Float64Array(p.length), wet: 0 };
 }
-const HYDRO_EVERY = 8;
+const HYDRO_EVERY = 8;   // (the S1 figure at 45 substeps; kept for the readers that quote it)
+const HYDRO_HZ = 360;    // the water's compute rate (G579)
 // one substep's hydro pass over the solver's floats: forces onto the frame
 // nodes by the barycentrics of each term's point of application. water.h is
 // sampled ONCE per float at its step keel (a lake is level; waterH costs

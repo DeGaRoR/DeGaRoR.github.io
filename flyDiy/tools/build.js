@@ -339,7 +339,7 @@ const MANIFEST = {
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',
-              'shader_warm.js',   // G578: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
+              'shader_warm.js',   // G580: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
               'site_tex.js', 'site_ground.js',
               'splat_tex.js', 'splat_ground.js',   // the island's ground library (17 sets, lazily-made Images) + the splat: the arrays, the GLSL, F8's handle
               // THE PAVEMENT (v1.16, 2026-09-22): the library manifest + the one material every strip, road and apron wears

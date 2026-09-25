@@ -201,7 +201,7 @@ var COVER_RING = (() => {
           const sorted = subs.slice().sort((a, b) => hOf(a) - hOf(b)), n = S.debrisKinds;
           subs = Array.from({ length: n }, (_, k) => sorted[Math.round(k * (sorted.length - 1) / Math.max(1, n - 1))]);
         }
-        // ONE MATERIAL PER MAP (G579): a rock's material is a plain copy made per part - the same values, the same
+        // ONE MATERIAL PER MAP (G581): a rock's material is a plain copy made per part - the same values, the same
         // program - and a species' models mostly share one picture (the census: 16 rock parts on 4 maps). Shared, the
         // parts that wear the same picture can be one batch (below) instead of one draw each
         const plain = new Map();
@@ -445,7 +445,7 @@ var COVER_RING = (() => {
       return out;
     }
 
-    // ---- THE BATCHES (G579) ---------------------------------------------------------
+    // ---- THE BATCHES (G581) ---------------------------------------------------------
     // The rocks, the debris and the shrubs drew one InstancedMesh per prototype PART per block, and cast from each: at
     // the airfield stand ~1 400 draws a frame between them (rock 252 + 270 shadow, debris 340 + 181, shrub 192 + 198 -
     // the user's count). The tufts (cover) stay by block: 60 000+ instances, culled cheaply by the block's sphere.
@@ -505,7 +505,7 @@ var COVER_RING = (() => {
       const G = subGrid(x0, z0, C);
       const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
       // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
-      const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz };   // inst: [batch, id, ...] - the batched instances (G579)   // by: this cell's tally per species (STAT.by is the live sum)
+      const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz };   // inst: [batch, id, ...] - the batched instances (G581)   // by: this cell's tally per species (STAT.by is the live sum)
       cells.set(cx + ',' + cz, cell); markBlock(cx, cz);
       if (!centreMix && !G.lawn) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
@@ -608,7 +608,7 @@ var COVER_RING = (() => {
         const col = it.col ? new Float32Array(it.col) : null;
         // every part of the prototype draws the same instances (a bark part and a leaf part)
         // (a twig or a pebble under S.castMinH casts no shadow: a texel of the map at most, and a shadow draw per model per
-        // block; 0.5 m since G579 - the user: "shadows only for the kinds/sizes that show one (rocks > ~0.5 m)")
+        // block; 0.5 m since G581 - the user: "shadows only for the kinds/sizes that show one (rocks > ~0.5 m)")
         const cast = castOf(it.p);
         if (batched(it.p.kind)) {   // into the ring's batches, hidden until the block they fall in is (re)built (buildBlock)
           for (const part of it.p.parts) {

@@ -18068,7 +18068,7 @@ function makeSim(def, world) {
   for (const j of WS) { PLANE[j] = def.strips[j].plane | 0; NPL = Math.max(NPL, PLANE[j] + 1); }
   const bHalf = new Float64Array(NPL);
   const ellF = u => { u = Math.max(-1, Math.min(1, u)); return 0.5 * (u * Math.sqrt(1 - u * u) + Math.asin(u)); };
-  let aicHash = NaN;
+  let aicHash = NaN, aicFresh = true;
   const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
     o[0] = o[1] = o[2] = 0;
     for (const [i, w] of st.w) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
@@ -18461,8 +18461,16 @@ function makeSim(def, world) {
     if (NP) {
       const va = hyp3(avx, avy, avz) || 1;
       const dx = -avx / va, dy = -avy / va, dz = -avz / va;
-      const sg = aicSig(gH, dx, dy, dz);
-      if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+      // ONCE A FRAME IN FLIGHT (G578, PHYSICS PERF): the signature hashes the node positions, which
+      // move every substep, so this rebuilt every substep - 10-16 % of the solver - where the note on
+      // buildAIC says "once per frame in flight". In a step it is rebuilt on the frame's first substep
+      // (the geometry a frame moves is millimetres; the circulations still update every substep); a
+      // probe rebuilds whenever its geometry moves, as before
+      if (probe || aicFresh) {
+        const sg = aicSig(gH, dx, dy, dz);
+        if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+        if (!probe) aicFresh = false;
+      }
       applyInduction();
       out.tailEps = out.V > 0.5 ? measureTailEps() / out.V : 0;
     } else out.tailEps = 0;
@@ -18892,6 +18900,7 @@ function makeSim(def, world) {
 
   function step(dtFrame, sub = P_.substeps ?? 24) {
     const dt = dtFrame / sub;
+    aicFresh = true;
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
@@ -20392,10 +20401,17 @@ function hydroBuild(def, p, v) {
   // own frequencies are low (heave ~7 Hz, the slam bounded per compute by
   // mNode Vn / dt with dt the HELD interval), so 360 Hz is more than the
   // water needs. 1 = every substep (the H0-H4 calibration figure).
-  const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || HYDRO_EVERY));
+  // G579 (PHYSICS PERF): A RATE, NOT A COUNT. `every` was 8 substeps on every build - 360 Hz on the
+  // 45-substep 172 it was measured on, 1 500 Hz on a 200-substep alloy build, the water's forces
+  // computed four times as often as the note above says they need (30 % of that build's frame). Now
+  // HYDRO_HZ of the frame's substeps: round(substeps x 60 / 360), which is the old 8 at 45 substeps.
+  // params.hydroEvery still overrides (1 = every substep, the H0-H4 calibration figure).
+  const sub = (def.params && def.params.substeps) || 24;
+  const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub * 60 / HYDRO_HZ)));
   return { floats, every, tick: 0, fh: new Float64Array(p.length), wet: 0 };
 }
-const HYDRO_EVERY = 8;
+const HYDRO_EVERY = 8;   // (the S1 figure at 45 substeps; kept for the readers that quote it)
+const HYDRO_HZ = 360;    // the water's compute rate (G579)
 // one substep's hydro pass over the solver's floats: forces onto the frame
 // nodes by the barycentrics of each term's point of application. water.h is
 // sampled ONCE per float at its step keel (a lake is level; waterH costs
@@ -39448,7 +39464,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5b74f5dc5a6d';window.FLYDIY_BUILD='dfdd5e14e587'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='e9dacef04911';window.FLYDIY_BUILD='9dfa7541c7d1'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -100464,8 +100480,6 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
       // carries the canvas's tone mapping and colour space, which is what the
       // first frame will ask for - null at tier 'off', where the canvas is the target
       target: () => S.rt || null,
-      // G578: the blit's program, for the roll-out's compile step (shader_warm.js) - drawn onto the canvas
-      warmList: () => (S.rt && S.mat ? [{ m: S.mat, to: null }] : []),
       dither: () => S.dither,
       tier: () => S.tier,
       able: () => S.able,
@@ -103329,10 +103343,7 @@ var CLOUDS = (function () {
   // hemiUnder(T): the hemisphere's gain under a cloud of transmittance T at the eye - the diffuse light rises as the sun is lost
   // (an overcast day's diffuse is ~1.7x a clear day's), a dial
   const hemiUnder = T => 1 + S.hemiUnderCloud * (1 - Math.max(0, Math.min(1, T)));
-  // warmList() (G578): the full-screen passes' programs (the noise bake, the sky fit, the shadow map, the march) for the
-  // roll-out's compile step (shader_warm.js); all draw into targets of their own. The composite is in the world scene.
-  function warmList() { if (!ready || !active()) return []; skyMats(); return [bakeMat, skyMat, shadowMat, marchMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
-  const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
+  const API = { S, init, install, inject, update, draw, composite, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();
@@ -104472,19 +104483,6 @@ const POST_FX = (() => {
     renderer.setRenderTarget(prevTarget);
   }
   const active = () => KEYS.some(k => S[k] !== 'off');
-  // warmList() (G578): the programs the passes switched on will draw with, for the roll-out's compile step
-  // (shader_warm.js) - { m, to }: `to` null is the canvas, 'rt' one of the pyramid's plain targets
-  function warmList() {
-    if (!ready || !active() || !hooked) return [];
-    build();
-    const out = [], add = (m, canvas) => { if (m) out.push({ m, to: canvas ? null : 'rt' }); };
-    if (S.look !== 'off' || S.lens !== 'off') add(M.look, true);
-    if (S.ao !== 'off') { add(M.ao); add(M.aoBlur); add(M.aoApply, true); }
-    if (S.rays !== 'off') { add(M.raysMask); add(M.raysBlur); add(M.add, true); }
-    if (S.bloom !== 'off') { add(M.thr); add(M.down); add(M.up); add(M.upOut, true); }
-    if (S.eye !== 'off') add(M.eye);
-    return out;
-  }
   // apply(): the hook installed only while something is on; nothing else touched otherwise
   function apply() {
     if (!aa) return false;
@@ -104503,7 +104501,7 @@ const POST_FX = (() => {
     for (const k in M) { M[k].dispose(); delete M[k]; }
     installed = false; sized = { w: 0, h: 0 };
   }
-  const API = { S, KEYS, stats, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, stats, init, apply, set, render, active, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();
@@ -104658,149 +104656,6 @@ var SHADOW_NEAR = (function () {
   const API = { S, NEAR_LAYER, FAR_LAYER, install, inject, make, tag, tagCraft, follow, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
   return API;
-})();
-</script>
-<script type="text/x-flydiy">
-// ============================================================================
-// shader_warm.js — THE PROGRAMS A FRAME WILL ASK FOR, BUILT BEFORE IT ASKS (G578)
-//
-// The roll-out's compile step (app.js rollOutScreen 'compile') hands the world
-// scene to renderer.compileAsync, which links every program on the driver's
-// threads while the loading screen moves. What it cannot see links on the
-// first frame instead, synchronously, one program at a time. The census of
-// that residue (two headless boots, every linkProgram recorded with the boot
-// step it ran in - futureDesigns/PERF-2026-09-23.md G578) found:
-//
-//   THE SHADOW PASS'S DEPTH PROGRAMS, ALL OF THEM. The old warm-up (app.js
-//   compileDepthVariants, S3) built MeshDepthMaterial({ RGBADepthPacking })
-//   one per side and compiled them against a helper scene with no lights. In
-//   r186 the shadow map draws with three's OWN depth material - BasicDepthPacking
-//   (3200) - in the LIT scene's light state (USE_SHADOWMAP, the shadow type),
-//   with the caster's map / alphaMap / alphaTest / displacement / side copied
-//   onto it (WebGLShadowMap getDepthMaterial). So the eight programs the
-//   warm-up linked were never drawn with, and the ~12 the shadow pass does
-//   draw with linked on the first frame.
-//
-//   THE PASSES OUTSIDE THE SCENE. The AA resolve's blit, the bloom chain and
-//   the clouds' bake / march / shadow draw full-screen quads in scenes of their
-//   own: compileAsync(scene) never meets them. Each module now lists its own
-//   (aa_resolve / post_fx / clouds warmList()) and the step compiles them too.
-//
-// depthVariants() mirrors getDepthMaterial exactly (three r186; GATE PROGRAMS
-// renders the real shadow pass in node on a fake GL context and holds every
-// depth program it draws with to this warm-up, so a three upgrade that moves
-// the rule turns the gate red rather than the first frame slow).
-//
-//   PROG_WARM.depthVariants(THREE, renderer, scenes, opt) -> { helper, n }
-//     scenes: the lit scene(s) whose casters the shadow pass will draw
-//     helper: a THREE.Scene of stand-ins (the caster's own geometry, instance /
-//             skin / batch kind, never its data), one per distinct depth
-//             program; compile it with the lit scene as targetScene, its fog
-//             lifted (fogless: the pass draws with none), and a plain render
-//             target bound (a shadow map is one: linear, no tone map)
-//   PROG_WARM.passes(THREE, lists) -> [{ helper, target }]
-//     lists: [{ m, to }] from the modules' warmList(); `to` null = the canvas,
-//            'rt' = any plain render target; one helper scene per kind
-// ============================================================================
-'use strict';
-var PROG_WARM = (() => {
-  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
-  // A STAND-IN, NOT A CLONE: an object whose prototype is the caster, so every
-  // property the program key reads (isInstancedMesh, instanceColor, isSkinnedMesh,
-  // isBatchedMesh, _colorsTexture, morphTargetInfluences, the geometry's attributes)
-  // is the caster's own, while its material, parent and children are its own. A
-  // clone(false) of an InstancedMesh copied its whole instance buffer to compile
-  // one program (the cover ring's tufts: 60 000 matrices a block).
-  function standIn(o, mat) {
-    const s = Object.create(o);
-    s.parent = null; s.children = []; s.material = mat; s.visible = true;
-    s._listeners = undefined;   // the caster's own listeners must not hear the helper's 'added'
-    return s;
-  }
-  // a copy of a material that keys the SAME program: its type, its defines, its
-  // hook and its own cache key (the hook through ATMO's accessor: the material's own
-  // hook is `_atmoHook`, and assigning the served wrapper would wrap it twice -
-  // app.js compileXrayVariants learnt that first)
-  function twin(m) {
-    const t = new m.constructor();
-    t.copy(m);
-    if (m.defines) t.defines = Object.assign({}, m.defines);
-    t.userData = m.userData;
-    const hook = own(m, '_atmoHook') ? m._atmoHook : own(m, 'onBeforeCompile') ? m.onBeforeCompile : undefined;
-    if (hook !== undefined) t.onBeforeCompile = hook;
-    if (own(m, 'customProgramCacheKey')) t.customProgramCacheKey = m.customProgramCacheKey;
-    return t;
-  }
-  // three r186 WebGLShadowMap: which caster materials get a depth material of their own
-  const needsOwn = (renderer, m) => (renderer.localClippingEnabled && m.clipShadows === true && Array.isArray(m.clippingPlanes) && m.clippingPlanes.length !== 0)
-    || (m.displacementMap && m.displacementScale !== 0) || (m.alphaMap && m.alphaTest > 0) || (m.map && m.alphaTest > 0) || m.alphaToCoverage === true;
-
-  function depthVariants(THREE, renderer, scenes, opt) {
-    opt = opt || {};
-    const helper = new THREE.Scene(), seen = new Set();
-    const vsm = renderer.shadowMap && renderer.shadowMap.type === THREE.VSMShadowMap;
-    const FLIP = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
-    const base = new THREE.MeshDepthMaterial(), baseDist = THREE.MeshDistanceMaterial ? new THREE.MeshDistanceMaterial() : null;
-    // what the pass draws with, as a light kind asks: point lights draw distance, the rest depth
-    let kinds = { depth: false, distance: false };
-    for (const sc of scenes) if (sc) sc.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
-    if (opt.kinds) kinds = opt.kinds;
-    const variant = (o, R, dist) => {
-      const custom = dist ? o.customDistanceMaterial : o.customDepthMaterial;
-      const src = custom || (dist ? baseDist : base);
-      if (!src) return;
-      const side = vsm ? (R.shadowSide !== null ? R.shadowSide : R.side) : (R.shadowSide !== null ? R.shadowSide : FLIP[R.side]);
-      const alphaTest = R.alphaToCoverage === true ? 0.5 : R.alphaTest;
-      // the key's reads, as a signature: one stand-in per distinct answer
-      const sig = [src.uuid, custom ? 'c' : (needsOwn(renderer, R) ? 'own' : 'base'), side, !!R.map, !!R.alphaMap, alphaTest > 0 ? 1 : 0,
-        !!(R.displacementMap && R.displacementScale !== 0), R.clipShadows && R.clippingPlanes ? R.clippingPlanes.length : 0, R.visible, R.wireframe,
-        o.isInstancedMesh ? 'i' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '', o.isSkinnedMesh ? 's' : '',
-        o.isBatchedMesh ? 'b' + (o._colorsTexture ? 'c' : '') : '', o.morphTargetInfluences ? 'mt' + o.morphTargetInfluences.length : '',
-        Object.keys((o.geometry && o.geometry.attributes) || {}).sort().join('.'), Object.keys((o.geometry && o.geometry.morphAttributes) || {}).sort().join('.')].join('|');
-      if (seen.has(sig)) return; seen.add(sig);
-      const d = custom ? twin(custom) : new src.constructor();
-      d.visible = true; d.wireframe = R.wireframe; d.side = side;
-      d.alphaMap = R.alphaMap; d.alphaTest = alphaTest; d.map = R.map;
-      d.clipShadows = R.clipShadows; d.clippingPlanes = R.clippingPlanes; d.clipIntersection = R.clipIntersection;
-      d.displacementMap = R.displacementMap; d.displacementScale = R.displacementScale; d.displacementBias = R.displacementBias;
-      helper.add(standIn(o, d));
-    };
-    for (const sc of scenes) if (sc) sc.traverse(o => {
-      if (!(o.isMesh || o.isLine || o.isPoints) || !o.castShadow || !o.material) return;
-      const mats = Array.isArray(o.material) ? (o.geometry && o.geometry.groups && o.geometry.groups.length ? o.geometry.groups.map(g => o.material[g.materialIndex]) : o.material) : [o.material];
-      for (const R of mats) {
-        if (!R || !R.visible) continue;
-        if (kinds.depth) variant(o, R, false);
-        if (kinds.distance) variant(o, R, true);
-      }
-    });
-    return { helper, n: helper.children.length };
-  }
-
-  // fogless(scene, fn): fn() with the scene's fog lifted. The shadow pass draws with no scene (three's empty one: no
-  // fog), and the fog is in the program key (fogExp2: '' under a THREE.Fog, false under none) though a depth
-  // program never reads it - compiled with the world's fog on, every warmed depth program keyed apart from the one
-  // the pass asks for and linked AGAIN on the first frame, same source (the second census). The lights stay: they
-  // are the shadow map's key (USE_SHADOWMAP, the shadow type)
-  function fogless(scene, fn) { const f = scene.fog; scene.fog = null; try { return fn(); } finally { scene.fog = f; } }
-
-  // the full-screen passes: one quad per material, grouped by where it draws
-  function passes(THREE, lists) {
-    const by = new Map();
-    for (const list of lists) for (const e of (list || [])) {
-      if (!e || !e.m) continue;
-      const k = e.to === null ? 'canvas' : 'rt';
-      let g = by.get(k); if (!g) by.set(k, g = { helper: new THREE.Scene(), target: k === 'canvas' ? null : 'rt', mats: new Set() });
-      if (g.mats.has(e.m)) continue; g.mats.add(e.m);
-      const q = new THREE.Mesh(passes.quad || (passes.quad = new THREE.PlaneGeometry(2, 2)), e.m); q.frustumCulled = false;
-      g.helper.add(q);
-    }
-    return [...by.values()];
-  }
-  const api = { depthVariants, fogless, passes, twin, standIn };
-  if (typeof window !== 'undefined') window.PROG_WARM = api;
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  return api;
 })();
 </script>
 <script type="text/x-flydiy">
@@ -109257,8 +109112,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   const FADE_VS = [
     '#ifdef USE_INSTANCING',
     '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
-    '#elif defined( USE_BATCHING )',
-    '  vec3 _fp = (modelMatrix * vec4(batchingMatrix[3].xyz, 1.0)).xyz;',   // the cover ring's batches (G579): an instance's origin
     '#else',
     '  vec3 _fp = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;',
     '#endif',
@@ -109326,18 +109179,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   const swayOnce = (src, ph) => src.indexOf(SWAY_MARK) >= 0 ? src
     : src.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + swayVS(ph));
   const UP_VS = 'if (uUp > 0.5) { objectNormal = vec3(0.0, 1.0, 0.0); }';
-  // A BATCH HAS NO PER-INSTANCE ATTRIBUTE (G579): the cover ring draws its rocks and debris as BatchedMeshes, one
-  // draw per material across the ring, and an instance there carries a matrix and a colour only. So the fade's
-  // threshold rides in the colour's ALPHA (the ring writes aRand's own value there) and is taken back here, right
-  // after the colour is read, the alpha then set to 1 (an opaque material ignores it; nothing else reads it). The
-  // same stream, the same thresholds: the thinning is the instanced draw's, instance for instance.
-  const BATCH_RAND_VS = '#ifdef USE_BATCHING\n  float _bRand = 0.5;\n  #ifdef USE_BATCHING_COLOR\n  _bRand = vColor.a; vColor.a = 1.0;\n  #endif\n#endif';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
-      .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
       .replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
     // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already
@@ -109345,8 +109191,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
     vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;');
-    // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read
-    vs = declOnce(vs, '#ifdef USE_BATCHING\n#define aRand _bRand\n#endif');
     sh.vertexShader = declOnce(vs, 'attribute float aRand;');
   };
   // upHook(mat): the cover's material shades as the ground (see UP_VS); the uniform is the material's own
@@ -109411,10 +109255,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
       sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.uniforms.uWind = U_WIND;
       { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
-        vs = swayOnce(vs, 'LEAF_SWAY_PH');   // a leaf flutters on its own instance id
-        // ...which a batch (the cover ring's shrubs, G579) does not have: a multi-draw draws each instance as its own
-        // draw of one, gl_InstanceID 0 for all of them - its instance's own index is the draw's indirect index
-        vs = declOnce(vs, '#ifdef USE_BATCHING\n#define LEAF_SWAY_PH (getIndirectIndex(gl_DrawID) * 1.7)\n#else\n#define LEAF_SWAY_PH (float(gl_InstanceID) * 1.7)\n#endif');
+        vs = swayOnce(vs, 'float(gl_InstanceID) * 1.7');   // a leaf flutters on its own instance id
         vs = declOnce(vs, 'uniform vec4 uWind;');
         vs = declOnce(vs, 'varying float vAoV;');
         sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
@@ -109452,7 +109293,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     terms: LEAF_TERMS,
     tintGlsl: TINT_GLSL,
     // the ring's fade (G454.13): the hook and the four dials, shared by every faded material
-    fadeHook: fadeHook, upHook: upHook, hookLeaf: hookLeaf,   // hookLeaf: GATE COVER builds a leaf the way the loader does
+    fadeHook: fadeHook, upHook: upHook,
     // what the loader holds (bytes): the decoded rungs and the coverage mip chains
     memory: () => { let geo = 0, mip = 0, n = 0; for (const b of BUILT.values()) for (const q of b.parts) { n++; for (const k in q.geo.attributes) geo += q.geo.attributes[k].array.byteLength; if (q.geo.index) geo += q.geo.index.array.byteLength; }
       for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },
@@ -109685,7 +109526,7 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.5, batch: true };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
@@ -109752,19 +109593,13 @@ var COVER_RING = (() => {
           const sorted = subs.slice().sort((a, b) => hOf(a) - hOf(b)), n = S.debrisKinds;
           subs = Array.from({ length: n }, (_, k) => sorted[Math.round(k * (sorted.length - 1) / Math.max(1, n - 1))]);
         }
-        // ONE MATERIAL PER MAP (G579): a rock's material is a plain copy made per part - the same values, the same
-        // program - and a species' models mostly share one picture (the census: 16 rock parts on 4 maps). Shared, the
-        // parts that wear the same picture can be one batch (below) instead of one draw each
-        const plain = new Map();
         for (const e of subs) {
           let b = null; try { b = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
           if (!b || !b.parts.length) continue;
           const parts = b.parts.map(q => {
             let mat = q.mat;
-            if (rockish(c) && plain.has(q.mat.map || null)) mat = plain.get(q.mat.map || null);
-            else if (rockish(c)) {                              // the leaf hook's AO attribute drew the rocks black (the bench): a plain copy
+            if (rockish(c)) {                                   // the leaf hook's AO attribute drew the rocks black (the bench): a plain copy
               mat = new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 });
-              plain.set(q.mat.map || null, mat);
               // THE SKIRT IS CUT (2026-09-22, the coast scans): a photoscanned strip carries the sand round its rocks, and
               // that skirt lay on the terrain as a pale plate wherever the ground fell away under it. A rock row's
               // `cut` (metres above the subject's floor - its own ground level, coast_rocks_tune.py) discards every
@@ -109818,8 +109653,6 @@ var COVER_RING = (() => {
         }
       }
       protos.set(c.name, P);
-      P.species = c.name;
-      for (const p of P) p.all = P;   // a prototype knows its species' set (the batches are sized from it)
       return P;
     }
     const draw = (P, r) => { let acc = r; for (const p of P) { acc -= p.w; if (acc <= 0) return p; } return P[P.length - 1]; };
@@ -109996,55 +109829,6 @@ var COVER_RING = (() => {
       return out;
     }
 
-    // ---- THE BATCHES (G579) ---------------------------------------------------------
-    // The rocks, the debris and the shrubs drew one InstancedMesh per prototype PART per block, and cast from each: at
-    // the airfield stand ~1 400 draws a frame between them (rock 252 + 270 shadow, debris 340 + 181, shrub 192 + 198 -
-    // the user's count). The tufts (cover) stay by block: 60 000+ instances, culled cheaply by the block's sphere.
-    // A part's instances in a block are a handful, and every one of them paid the whole three.js draw. They are
-    // BatchedMeshes now: one per (species, material, casts or not) ACROSS THE RING - the parts that share a picture
-    // are one draw (a multi-draw of their ranges), three culls each INSTANCE against each camera and each shadow
-    // camera (so no block is drawn for the one rock of it in view), and the block's reach test (below) switches its
-    // instances instead of its meshes. The picture: the same geometry, material, matrices and colours, and the
-    // fade's threshold carried in the colour's alpha (trees.js BATCH_RAND_VS) - the same instances thin at the same
-    // distances. `batch: false` is the per-block instanced path, as before (the A/B).
-    const batched = kind => S.batch && (kind === 'rock' || kind === 'debris' || kind === 'shrub');
-    const castOf = p => p.kind !== 'cover' && !((p.kind === 'debris' || p.kind === 'rock') && p.h < S.castMinH);
-    const attrSig = g => Object.keys(g.attributes).sort().map(k => k + g.attributes[k].itemSize).join(',') + (g.index ? '|i' : '');
-    const batches = new Map();   // key -> BatchedMesh
-    const V4 = new THREE.Vector4();
-    // keyed by the SPECIES too: two species of one file share its material objects (trees.js, PACK.materials), and a
-    // batch is sized for, and holds, the geometries of the one species it was made for
-    function batchFor(P, part, cast) {
-      const key = P.species + '|' + part.mat.uuid + '|' + (cast ? 1 : 0) + '|' + attrSig(part.geo);
-      let bm = batches.get(key);
-      if (bm) return bm;
-      // every geometry this batch will ever draw is known now: the species' prototypes are built together (protosOf)
-      const geos = [];
-      for (const p of P) if (castOf(p) === cast) for (const q of p.parts) if (q.mat === part.mat && attrSig(q.geo) === attrSig(part.geo) && !geos.includes(q.geo)) geos.push(q.geo);
-      let nv = 0, ni = 0; for (const g of geos) { nv += g.attributes.position.count; ni += g.index ? g.index.count : 0; }
-      bm = new THREE.BatchedMesh(64, nv, ni, part.mat);
-      bm.userData.geoIds = new Map(geos.map(g => [g, bm.addGeometry(g)]));
-      bm.userData.nVis = 0; bm.visible = false;
-      bm.perObjectFrustumCulled = true; bm.sortObjects = false; bm.frustumCulled = false;   // three's per-instance culling, each camera
-      bm.matrixAutoUpdate = false; bm.renderOrder = -1;   // at the origin for ever; an occluder before the ground (render_world.js ORDER_NOTE)
-      bm.castShadow = cast; bm.receiveShadow = true;
-      bm.userData.coverKind = P[0].kind;
-      bm.name = 'cover:' + P[0].kind;
-      batches.set(key, bm); root.add(bm);
-      return bm;
-    }
-    // a batch with no instance shown draws nothing at all (three would still set its program up, every pass): the
-    // count of its shown instances decides its own visibility
-    function batchVis(bm, id, v) {
-      if (bm.getVisibleAt(id) === v) return;
-      bm.setVisibleAt(id, v); bm.userData.nVis += v ? 1 : -1;
-      const on = bm.userData.nVis > 0; if (bm.visible !== on) bm.visible = on;
-    }
-    function batchAdd(bm, geo) {
-      if (bm.instanceCount >= bm.maxInstanceCount) bm.setInstanceCount(bm.maxInstanceCount * 2);   // full (no id to reuse): twice the room
-      return bm.addInstance(bm.userData.geoIds.get(geo));
-    }
-
     // ---- one cell -------------------------------------------------------------------
     function buildCell(cx, cz) {
       const t0 = performance.now();
@@ -110056,7 +109840,7 @@ var COVER_RING = (() => {
       const G = subGrid(x0, z0, C);
       const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
       // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
-      const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz };   // inst: [batch, id, ...] - the batched instances (G579)   // by: this cell's tally per species (STAT.by is the live sum)
+      const cell = { n: 0, parts: new Map(), by: {}, cx, cz };   // by: this cell's tally per species (STAT.by is the live sum)
       cells.set(cx + ',' + cz, cell); markBlock(cx, cz);
       if (!centreMix && !G.lawn) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
@@ -110158,21 +109942,9 @@ var COVER_RING = (() => {
         }
         const col = it.col ? new Float32Array(it.col) : null;
         // every part of the prototype draws the same instances (a bark part and a leaf part)
-        // (a twig or a pebble under S.castMinH casts no shadow: a texel of the map at most, and a shadow draw per model per
-        // block; 0.5 m since G579 - the user: "shadows only for the kinds/sizes that show one (rocks > ~0.5 m)")
-        const cast = castOf(it.p);
-        if (batched(it.p.kind)) {   // into the ring's batches, hidden until the block they fall in is (re)built (buildBlock)
-          for (const part of it.p.parts) {
-            const bm = batchFor(it.p.all, part, cast);
-            for (let i = 0; i < n; i++) {
-              const id = batchAdd(bm, part.geo);
-              T.fromArray(mats, i * 16); bm.setMatrixAt(id, T);
-              V4.set(col ? col[i * 3] : 1, col ? col[i * 3 + 1] : 1, col ? col[i * 3 + 2] : 1, rand[i]); bm.setColorAt(id, V4);
-              bm.setVisibleAt(id, false);
-              cell.inst.push(bm, id);
-            }
-          }
-        } else for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
+        // (a twig or a pebble under S.castMinH casts no shadow: a texel of the map at most, and a shadow draw per model per block)
+        const cast = it.p.kind !== 'cover' && !((it.p.kind === 'debris' || it.p.kind === 'rock') && it.p.h < S.castMinH);
+        for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
         cell.n += n;
       }
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
@@ -110181,8 +109953,6 @@ var COVER_RING = (() => {
     function dropCell(key) {
       const cell = cells.get(key); if (!cell) return;
       markBlock(cell.cx, cell.cz);
-      for (let k = 0; k < cell.inst.length; k += 2) { batchVis(cell.inst[k], cell.inst[k + 1], false); cell.inst[k].deleteInstance(cell.inst[k + 1]); }   // the batched ones go now (past Rdrop: out of reach)
-      cell.inst.length = 0;
       for (const k in cell.by) { STAT.by[k] -= cell.by[k]; if (STAT.by[k] <= 0) delete STAT.by[k]; }   // the tally is LIVE (it ran up for the page's life before L4)
       cells.delete(key);
     }
@@ -110207,12 +109977,9 @@ var COVER_RING = (() => {
       for (const m of b.meshes) { b.group.remove(m); m.geometry.dispose(); if (m.dispose) m.dispose(); }   // the wrapper and the instance buffers; the prototype's own are shared
       b.meshes = []; b.dirty = false;
       const parts = new Map(); let box = null, live = 0;
-      b.instCells = []; b.instVis = null;   // the cells whose batched instances this block switches with its reach (update) - cells, not
-                                            // ids: a dropped cell's ids are handed to the next instances made
       for (let dz = 0; dz < B; dz++) for (let dx = 0; dx < B; dx++) {
         const cell = cells.get((b.bx * B + dx) + ',' + (b.bz * B + dz)); if (!cell) continue;
         live++;
-        if (cell.inst.length) b.instCells.push(cell);
         if (cell.box) { const c = cell.box; box = box ? [Math.min(box[0], c[0]), Math.min(box[1], c[1]), Math.min(box[2], c[2]), Math.max(box[3], c[3]), Math.max(box[4], c[4]), Math.max(box[5], c[5])] : c.slice(); }
         for (const [part, d] of cell.parts) { let a = parts.get(part); if (!a) parts.set(part, a = []); a.push(d); }
       }
@@ -110277,9 +110044,8 @@ var COVER_RING = (() => {
         const dirty = []; for (const b of blocks.values()) if (b.dirty) dirty.push(b);
         if (dirty.length) { dirty.sort((a, b) => dist2(a) - dist2(b)); for (const b of dirty.slice(0, S.blockBudget)) buildBlock(b); }
         let shown = 0, draws = 0;
-        for (const b of blocks.values()) { const v = !!b.box && dist2(b) < R2r; if (b.group.visible !== v) b.group.visible = v; if (v) { shown++; draws += b.meshes.length; }
-          if (b.instCells && b.instVis !== v) { for (const cell of b.instCells) for (let k = 0; k < cell.inst.length; k += 2) batchVis(cell.inst[k], cell.inst[k + 1], v); b.instVis = v; } }
-        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws + batches.size; STAT.batches = batches.size; }
+        for (const b of blocks.values()) { const v = !!b.box && dist2(b) < R2r; if (b.group.visible !== v) b.group.visible = v; if (v) { shown++; draws += b.meshes.length; } }
+        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws; }
       STAT.live = cells.size; STAT.queued = queue.length;
       let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
       STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
@@ -110287,8 +110053,8 @@ var COVER_RING = (() => {
     const api = {
       update, root,
       get: () => Object.assign({}, S),
-      set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks, batch: S.batch, castMinH: S.castMinH }; Object.assign(S, o || {});
-        if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks || S.batch !== was.batch || S.castMinH !== was.castMinH) api.replant(); return api.get(); },
+      set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks }; Object.assign(S, o || {});
+        if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks) api.replant(); return api.get(); },
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); },
       rockPlan,                                                           // the rock map's read (above)
       // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
@@ -110298,7 +110064,7 @@ var COVER_RING = (() => {
         return { cell: [cx, cz], mix: G.mix[k], code: G.code[k], ok: !!G.ok[k], kill: +G.kill[k].toFixed(3), cls: G.cls[k], kind: G.kind[k], boost: +G.boost[k].toFixed(3) }; },
       rockProtos: () => speciesOf().filter(rockish).map(c => ({ c, P: protosOf(c) })),   // the sprites' subjects (rocks and debris)
       stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
-      dispose: () => { api.replant(); for (const bm of batches.values()) { root.remove(bm); bm.dispose(); } batches.clear(); scene.remove(root); },
+      dispose: () => { api.replant(); scene.remove(root); },
     };
     return api;
   }
@@ -110547,27 +110313,17 @@ var ROCK_MAP = (() => {
       const oldCol = renderer.getClearColor(new THREE.Color()), oldA = renderer.getClearAlpha();
       renderer.setRenderTarget(ATLAS); renderer.setClearColor(0x000000, 0); renderer.clear();
       let k = 0;
-      // G578: THE MATERIALS ARE KEPT FOR THE WHOLE BAKE. One made and disposed per part released its program with
-      // it, and the next part linked the same program again - the census: 30 links of 2 programs in one roll-out.
-      // Now one material per (map, cut), all alive until the atlas is drawn: the two programs link once each
-      const kinds = new Map();
-      const spriteMat = (map, cut) => {
-        const key = (map ? map.uuid : '-') + '|' + (cut > 0 ? cut : 0);
-        let m = kinds.get(key);
-        if (!m) {
-          m = new THREE.MeshBasicMaterial({ map: map || null, toneMapped: false });
-          if (cut > 0) { const uCut = { value: cut }; m.onBeforeCompile = sh => { sh.uniforms.uCut = uCut;
-            sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY;').replace('#include <begin_vertex>', '#include <begin_vertex>' + String.fromCharCode(10) + 'vRockY = position.y;');
-            sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY; uniform float uCut;').replace('#include <map_fragment>', 'if (vRockY < uCut) discard;' + String.fromCharCode(10) + '#include <map_fragment>'); };
-            m.customProgramCacheKey = () => 'rockmap-cut'; }
-          kinds.set(key, m);
-        }
-        return m;
-      };
       for (const { c, P } of protos) for (const p of P) {
         if (k >= perRow * perRow) break;
         const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || 1);
-        const meshes = p.parts.map(part => new THREE.Mesh(part.geo, spriteMat(part.mat.map, cut)));
+        const meshes = p.parts.map(part => {
+          const m = new THREE.MeshBasicMaterial({ map: part.mat.map || null, toneMapped: false });
+          if (cut > 0) { m.onBeforeCompile = sh => { sh.uniforms.uCut = { value: cut };
+            sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY;').replace('#include <begin_vertex>', '#include <begin_vertex>' + String.fromCharCode(10) + 'vRockY = position.y;');
+            sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY; uniform float uCut;').replace('#include <map_fragment>', 'if (vRockY < uCut) discard;' + String.fromCharCode(10) + '#include <map_fragment>'); };
+            m.customProgramCacheKey = () => 'rockmap-cut'; }
+          return new THREE.Mesh(part.geo, m);
+        });
         sc.clear(); meshes.forEach(m => sc.add(m));
         // from above: right = +x, up = -z (the world's north), the footprint [-r0, r0]
         cam.left = -r0; cam.right = r0; cam.top = r0; cam.bottom = -r0; cam.updateProjectionMatrix();
@@ -110576,9 +110332,9 @@ var ROCK_MAP = (() => {
         renderer.setViewport(x, y, S.slot, S.slot); renderer.setScissor(x, y, S.slot, S.slot); renderer.setScissorTest(true);
         renderer.render(sc, cam);
         slots.set(p.key, { u0: x / S.px, v0: y / S.px, du: S.slot / S.px, dv: S.slot / S.px, r0, proto: p, c });
+        meshes.forEach(m => m.material.dispose());
         k++;
       }
-      for (const m of kinds.values()) m.dispose();
       renderer.setRenderTarget(old); renderer.setViewport(oldVp); renderer.setScissor(oldSc); renderer.setScissorTest(oldSt); renderer.setClearColor(oldCol, oldA);
       STAT.sprites = k;
     }
@@ -110592,11 +110348,8 @@ var ROCK_MAP = (() => {
     const quad = new THREE.PlaneGeometry(1, 1); quad.rotateX(-Math.PI / 2);   // local +y (texture up) -> -z, as the bake
     let meshes = [];
     const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
-    // ONE MATERIAL FOR EVERY SPRITE OF THE MAP (G578): they were identical, made per species and disposed at every
-    // rebuild - so a recentre let the program go and linked it again
-    const mapMat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
     function rebuild() {
-      for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); }
+      for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); m.material.dispose(); }
       meshes = [];
       const by = new Map();   // proto key -> records
       let total = 0;
@@ -110606,7 +110359,8 @@ var ROCK_MAP = (() => {
         const sl = slots.get(pk); if (!sl) continue;
         const g = quad.clone();
         const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, sl.u0 + uv.getX(i) * sl.du, sl.v0 + uv.getY(i) * sl.dv);
-        const m = new THREE.InstancedMesh(g, mapMat, recs.length);
+        const mat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
+        const m = new THREE.InstancedMesh(g, mat, recs.length);
         let anyCol = false;
         for (let i = 0; i < recs.length; i++) { const r = recs[i];
           Q.setFromAxisAngle(UP, r.yaw); V.set(r.x, 0, r.z); SC.set(2 * sl.r0 * r.s, 1, 2 * sl.r0 * r.s);
@@ -142067,18 +141821,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
   }
-  // G578: THE GENERATORS ARE KEPT. A PMREMGenerator owns its shaders, and dispose() frees them - a generator
-  // made and disposed per bake re-linked its programs every bake (the census: the room's PMREM 14 times in one
-  // roll-out, the hangar's textures landing under the world's loading screen). One per source kind, kept for
-  // the page's life: the room's cube (256) and the sky's equirect (their sizes differ, and a generator that
-  // changes size rebuilds its blur program too).
-  const envGens = {};
-  const envGen = k => envGens[k] || (envGens[k] = new THREE.PMREMGenerator(renderer));
   function bakeHangarEnv() {
     if (envDeferred) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
     // (one light model everywhere since W0.5a: r186 has only the physical one)
-    const pm = envGen('room');
+    const pm = new THREE.PMREMGenerator(renderer);
     // ASKED FOR, not remembered (G62): the sky changes with the mood, so the
     // texture to bake is whichever one is hanging outside right now
     // A GRADED ROOM (G62.2) has no baked picture to hand over: its sky only
@@ -142095,9 +141842,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // leaks a render target per click (measured: +2 textures a change).
     let rt = null;
     if (skyReady) {
-      const pmS = envGen('sky');
-      pmS.compileEquirectangularShader();
-      rt = pmS.fromEquirectangular(sky);
+      pm.compileEquirectangularShader();
+      rt = pm.fromEquirectangular(sky);
     } else if (THREE.WebGLCubeRenderTarget) {
       ensureEnvRT();
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
@@ -142212,9 +141958,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         if (shedSkyProbe) { shedSkyProbe.bake(world.day); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
       }
       if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
-        const pm2 = envGen('sky');
+        const pm2 = new THREE.PMREMGenerator(renderer);
         pm2.compileEquirectangularShader();
         srt = pm2.fromEquirectangular(sky);
+        pm2.dispose();
         if (skyPM && skyPM !== srt) skyPM.dispose();
         skyPM = srt;
       }
@@ -142224,6 +141971,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         m.needsUpdate = true;
       }
     }
+    pm.dispose();
     // the equirect is a data-URI image and decode is asynchronous: a 'sky' bake
     // asked for before it lands falls back to the room and comes back here.
     // The room's own `onSkyReady` (wired in getHangar) covers the swap case;
@@ -151060,36 +150808,28 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // those materials goes through compileAsync with a plain target bound
   // (a shadow map is one: linear, no tone map). What it misses still
   // compiles on the frame; what it catches links on the driver's threads.
-  // G578: THE SHADOW PASS'S OWN PROGRAMS. This used to warm MeshDepthMaterial({ RGBADepthPacking }) per side
-  // against a helper with no lights - eight programs the shadow pass never draws with (r186 draws with its own
-  // BasicDepthPacking material, in the lit scene's light state, the caster's map / alphaTest / side copied on);
-  // the ~12 it does draw with linked on the first frame. PROG_WARM.depthVariants mirrors three's rule (GATE
-  // PROGRAMS holds it to the real shadow pass) and the helper is compiled with the world scene as its lit scene.
-  const PLAIN_RT = () => PLAIN_RT.rt || (PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4));
   function compileDepthVariants() {
     if (typeof renderer.compileAsync !== 'function' || !WF) return Promise.resolve();
-    const jobs = [];
-    if (typeof PROG_WARM !== 'undefined') {
-      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [scene]);
-      jobs.push(PROG_WARM.fogless(scene, () => compilePass(helper, PLAIN_RT(), scene)).catch(e => console.warn('depth compile:', e && e.message)));
-    }
-    // the far cascade's proxies (their far depth) and the canopy cover's swap: drawn by their own
-    // renders into their own targets, keyed without the world's lights, as before
-    const far = new THREE.Scene(), seen = new Set();
-    const add = (o, mat) => { if (!mat) return; const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m'); if (seen.has(key)) return; seen.add(key);
-      far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
+    const helper = new THREE.Scene(), seen = new Set(), defDepth = new Map();
+    const SIDE = m => m.side === THREE.DoubleSide ? THREE.DoubleSide : m.side === THREE.BackSide ? THREE.FrontSide : THREE.BackSide;
+    const add = (o, mat) => {
+      if (!mat) return;
+      const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m') + (o.isSkinnedMesh ? ':s' : '');
+      if (seen.has(key)) return; seen.add(key);
+      const c = o.clone(false); c.material = mat; c.visible = true; if (o.isInstancedMesh) c.count = Math.max(1, o.count); helper.add(c);   // shallow: a child's real material is not a depth variant
+    };
+    scene.traverse(o => {
+      if (!o.isMesh || !o.castShadow) return;
+      if (o.customDepthMaterial) { add(o, o.customDepthMaterial); return; }
+      const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m) return;
+      const s = SIDE(m); let d = defDepth.get(s);
+      if (!d) { d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: s }); defDepth.set(s, d); }
+      add(o, d);
+    });
+    // the far cascade's proxies (their far depth) and the canopy cover's swap
     if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
-    if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
-    // G578: THE PASSES OUTSIDE THE SCENE - the resolve's blit, the post chain, the clouds' bake / march / shadow:
-    // full-screen quads in scenes of their own that compileAsync(scene) never meets; each module lists its own
-    if (typeof PROG_WARM !== 'undefined') {
-      const lists = [];
-      try { if (aa && aa.warmList) lists.push(aa.warmList()); } catch (e) {}
-      try { if (typeof POST_FX !== 'undefined' && POST_FX.warmList) lists.push(POST_FX.warmList()); } catch (e) {}
-      try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmList) lists.push(CLOUDS.warmList()); } catch (e) {}
-      for (const g of PROG_WARM.passes(THREE, lists)) jobs.push(compilePass(g.helper, g.target === null ? null : PLAIN_RT()).catch(e => console.warn('pass compile:', e && e.message)));
-    }
-    return Promise.all(jobs);
+    const target = (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || new THREE.WebGLRenderTarget(4, 4);
+    return compilePass(helper, target).catch(e => console.warn('depth compile:', e && e.message));
   }
   // THE SHADERS' SCREEN (G567, the user: "a dedicated loading message/screen explaining the first time
   // compilation issue with a progress bar"). A COLD compile - the first launch, the first after an update
@@ -151219,7 +150959,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // first frame. A PMREM of the still-black probe target is that map with
     // zero radiance: same key, same look, and the real bake replaces it.
     if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
-      try { const rt = envGen('room').fromCubemap(envRT.texture);
+      try { const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromCubemap(envRT.texture); pm.dispose();
             hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
     }
     const pass = target => compilePass(hangarScene, target);

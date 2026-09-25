@@ -59458,7 +59458,27 @@ against its 8.8 MiB budget, and 8.88 MiB on a clean master worktree at 843629a (
 8.89 MiB at 3b26d07 after G576): the budget or the payload is its owners' call. Over 843629a the merged tree ran SKINMAT
 COWL ENGINE TAKEOFF TARR BLUEPRINT HOUSE VILLAGE PREMISES WORLD UISMOKE BUILD PARKED GEN green, MEDIA the one red.
 
-## G578 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
+## G578 - THE VORTEX KERNEL ONCE A FRAME (2026-09-25)
+
+G572's lever 2. Every garage build flies the vortex downwash (TAIL CHANTIER 2 P5), and the horseshoe coefficients
+(buildAIC) were rebuilt EVERY SUBSTEP: aicSig hashes the node positions, which move every substep - where the note on
+buildAIC says "once per frame in flight". Now a step rebuilds them on the frame's first substep (aicFresh); the
+circulations and the induced field still update every substep; a probe rebuilds whenever its geometry moves, as
+before (the sheet's numbers unchanged). Solver -17 % on the ground, -33 % in flight; the geometry a frame moves is
+millimetres (0.05-0.4 mm after a 20-30 s taxi, 3 cm after a 150 s circuit). Core battery green on it (GEN, PILOT,
+FLEX, LOAD, TAKEOFF, BIPLANE, DRAG, the floats); the full tier's three known reds (ARCHETYPES, PILOTMATRIX, SEAPLANE)
+fail the same checks as before it, every matrix cell and archetype outcome unchanged (SEAPLANE's lane miss 69.8 ->
+44.5 m against its 30 m bound).
+
+## G579 - THE WATER AT A RATE, NOT A COUNT (2026-09-25)
+
+G572's lever 4. The hydro's sub-rate (G451.1) was 8 substeps on every build: the 360 Hz its note says is more than
+the water needs on the 45-substep 172 it was measured on, 1 500 Hz on a 200-substep alloy build. Now HYDRO_HZ = 360
+of the frame's substeps, round(substeps x 60 / 360) - the old 8 at 45 substeps; params.hydroEvery still overrides.
+The Cessna on floats: solver -30 %, the cg 1 mm off after 20 s. FLOATS, HYDRODYN, WIPLINE, WATER green; SEAPLANE's
+known reds unchanged.
+
+## G580 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
 
 The user: the Jolene roll-out's compile step takes 16-26 s of a 32-44 s screen WARM (cold 32 s) - "a warm boot should
 compile ~nothing": find what gets a different source or key each boot, or is made fresh each boot. Measured by COUNTS
@@ -59499,16 +59519,16 @@ new on the first frame, and the old warm-up is the CONTROL that must miss (8); t
 sources; no cache key in src/viewer reads a uuid, an id, a clock or a counter; the rock map links each program once
 and a recentre none (red on the old code: 10 links / 4 distinct, 2 on the recentre); a kept PMREMGenerator bakes
 again on no link; the three passes publish warmList() and the step compiles them in the lit, fogless scene.
-futureDesigns/PERF-2026-09-23.md G578.
+futureDesigns/PERF-2026-09-23.md G580.
 
-## G579 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
+## G581 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
 
 The user: at the airfield stand the cover ring issues ~1 600 draws a frame counting shadows; cut them without a visible
 change. Counted by wrapping renderer.renderBufferDirect (the shadow pass flagged) over 6 frames, by `coverKind`, at
 the roll-out stand (-154, 31.6, 712), master aa1846bd against this build (the scratchpad rig drives headless Chrome
 with the GL's clears, uploads and draws stubbed - three's draw path is JavaScript, the counts are its own):
 
-| kind | master (main + shadow) | G579 |
+| kind | master (main + shadow) | G581 |
 |---|---|---|
 | rock | 142 + 172 | 9 + 7 |
 | debris | 196 + 116 | 28 + 10 |
@@ -59551,4 +59571,4 @@ with the GL's clears, uploads and draws stubbed - three's draw path is JavaScrip
   the eye moves, a draw per batch and pass at most (rock 81 -> 5, debris 33 -> 3, shrub 96 -> 8 there), no caster
   under 0.5 m, no instance left over after the eye leaves and returns, the batched programs read the colour's alpha
   and the batched leaf its indirect index. GATE MEDIA's budget 8.8 -> 9.0 MiB (master was already at 8.887; these two entries add ~20 KB of code, no data). futureDesigns/
-  PERF-2026-09-23.md G579.
+  PERF-2026-09-23.md G581.

@@ -638,7 +638,7 @@ function makeSim(def, world) {
   for (const j of WS) { PLANE[j] = def.strips[j].plane | 0; NPL = Math.max(NPL, PLANE[j] + 1); }
   const bHalf = new Float64Array(NPL);
   const ellF = u => { u = Math.max(-1, Math.min(1, u)); return 0.5 * (u * Math.sqrt(1 - u * u) + Math.asin(u)); };
-  let aicHash = NaN;
+  let aicHash = NaN, aicFresh = true;
   const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
     o[0] = o[1] = o[2] = 0;
     for (const [i, w] of st.w) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
@@ -1031,8 +1031,16 @@ function makeSim(def, world) {
     if (NP) {
       const va = hyp3(avx, avy, avz) || 1;
       const dx = -avx / va, dy = -avy / va, dz = -avz / va;
-      const sg = aicSig(gH, dx, dy, dz);
-      if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+      // ONCE A FRAME IN FLIGHT (G578, PHYSICS PERF): the signature hashes the node positions, which
+      // move every substep, so this rebuilt every substep - 10-16 % of the solver - where the note on
+      // buildAIC says "once per frame in flight". In a step it is rebuilt on the frame's first substep
+      // (the geometry a frame moves is millimetres; the circulations still update every substep); a
+      // probe rebuilds whenever its geometry moves, as before
+      if (probe || aicFresh) {
+        const sg = aicSig(gH, dx, dy, dz);
+        if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+        if (!probe) aicFresh = false;
+      }
       applyInduction();
       out.tailEps = out.V > 0.5 ? measureTailEps() / out.V : 0;
     } else out.tailEps = 0;
@@ -1462,6 +1470,7 @@ function makeSim(def, world) {
 
   function step(dtFrame, sub = P_.substeps ?? 24) {
     const dt = dtFrame / sub;
+    aicFresh = true;
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;

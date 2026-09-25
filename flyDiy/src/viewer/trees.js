@@ -307,7 +307,7 @@
     '#ifdef USE_INSTANCING',
     '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
     '#elif defined( USE_BATCHING )',
-    '  vec3 _fp = (modelMatrix * vec4(batchingMatrix[3].xyz, 1.0)).xyz;',   // the cover ring's batches (G579): an instance's origin
+    '  vec3 _fp = (modelMatrix * vec4(batchingMatrix[3].xyz, 1.0)).xyz;',   // the cover ring's batches (G581): an instance's origin
     '#else',
     '  vec3 _fp = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;',
     '#endif',
@@ -375,7 +375,7 @@
   const swayOnce = (src, ph) => src.indexOf(SWAY_MARK) >= 0 ? src
     : src.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + swayVS(ph));
   const UP_VS = 'if (uUp > 0.5) { objectNormal = vec3(0.0, 1.0, 0.0); }';
-  // A BATCH HAS NO PER-INSTANCE ATTRIBUTE (G579): the cover ring draws its rocks and debris as BatchedMeshes, one
+  // A BATCH HAS NO PER-INSTANCE ATTRIBUTE (G581): the cover ring draws its rocks and debris as BatchedMeshes, one
   // draw per material across the ring, and an instance there carries a matrix and a colour only. So the fade's
   // threshold rides in the colour's ALPHA (the ring writes aRand's own value there) and is taken back here, right
   // after the colour is read, the alpha then set to 1 (an opaque material ignores it; nothing else reads it). The
@@ -461,7 +461,7 @@
       sh.uniforms.uWind = U_WIND;
       { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
         vs = swayOnce(vs, 'LEAF_SWAY_PH');   // a leaf flutters on its own instance id
-        // ...which a batch (the cover ring's shrubs, G579) does not have: a multi-draw draws each instance as its own
+        // ...which a batch (the cover ring's shrubs, G581) does not have: a multi-draw draws each instance as its own
         // draw of one, gl_InstanceID 0 for all of them - its instance's own index is the draw's indirect index
         vs = declOnce(vs, '#ifdef USE_BATCHING\n#define LEAF_SWAY_PH (getIndirectIndex(gl_DrawID) * 1.7)\n#else\n#define LEAF_SWAY_PH (float(gl_InstanceID) * 1.7)\n#endif');
         vs = declOnce(vs, 'uniform vec4 uWind;');
