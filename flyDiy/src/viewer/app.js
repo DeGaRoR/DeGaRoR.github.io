@@ -642,11 +642,18 @@
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
   }
+  // G584: THE GENERATORS ARE KEPT. A PMREMGenerator owns its shaders, and dispose() frees them - a generator
+  // made and disposed per bake re-linked its programs every bake (the census: the room's PMREM 14 times in one
+  // roll-out, the hangar's textures landing under the world's loading screen). One per source kind, kept for
+  // the page's life: the room's cube (256) and the sky's equirect (their sizes differ, and a generator that
+  // changes size rebuilds its blur program too).
+  const envGens = {};
+  const envGen = k => envGens[k] || (envGens[k] = new THREE.PMREMGenerator(renderer));
   function bakeHangarEnv() {
     if (envDeferred) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
     // (one light model everywhere since W0.5a: r186 has only the physical one)
-    const pm = new THREE.PMREMGenerator(renderer);
+    const pm = envGen('room');
     // ASKED FOR, not remembered (G62): the sky changes with the mood, so the
     // texture to bake is whichever one is hanging outside right now
     // A GRADED ROOM (G62.2) has no baked picture to hand over: its sky only
@@ -663,8 +670,9 @@
     // leaks a render target per click (measured: +2 textures a change).
     let rt = null;
     if (skyReady) {
-      pm.compileEquirectangularShader();
-      rt = pm.fromEquirectangular(sky);
+      const pmS = envGen('sky');
+      pmS.compileEquirectangularShader();
+      rt = pmS.fromEquirectangular(sky);
     } else if (THREE.WebGLCubeRenderTarget) {
       ensureEnvRT();
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
@@ -779,10 +787,9 @@
         if (shedSkyProbe) { shedSkyProbe.bake(world.day); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
       }
       if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
-        const pm2 = new THREE.PMREMGenerator(renderer);
+        const pm2 = envGen('sky');
         pm2.compileEquirectangularShader();
         srt = pm2.fromEquirectangular(sky);
-        pm2.dispose();
         if (skyPM && skyPM !== srt) skyPM.dispose();
         skyPM = srt;
       }
@@ -792,7 +799,6 @@
         m.needsUpdate = true;
       }
     }
-    pm.dispose();
     // the equirect is a data-URI image and decode is asynchronous: a 'sky' bake
     // asked for before it lands falls back to the room and comes back here.
     // The room's own `onSkyReady` (wired in getHangar) covers the swap case;
@@ -7541,8 +7547,8 @@
     // in-game readout of the biomes, not a dial (F8 has the dials). A tuft glyph.
     { k: 'ground', label: 'ground', title: 'What is under you: the ground, the biome, the canopy',
       icon: 'M9 15.4V8.2|M9 8.2C9 5.6 7 4.2 5 4.6c.4 2.6 2 4 4 3.6Z|M9 10.4c0-2.6 2-4 4-3.6-.4 2.6-2 4-4 3.6Z|M3.6 15.4h10.8' },
-    { k: 'world', label: 'world', title: 'The premises of the world: roads, zones, strips, sites',
-      icon: 'M9 16.2s-5-4.6-5-8.3a5 5 0 0 1 10 0c0 3.7-5 8.3-5 8.3Z|M9 9.7a1.9 1.9 0 1 0 0-3.8 1.9 1.9 0 0 0 0 3.8Z' },
+    // (2026-09-24) the WORLD button moved to the right-hand WORLD rail (world_rail.js > scenery): the left rail
+    // flies, the right one edits the world. Its flyout (FL_SLOTS.world) stays for the rail's callers.
   ];
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
@@ -7991,7 +7997,7 @@
       flLive(body, 'slope', 'flGndSlope');
       flLive(body, 'height', 'flGndAgl');
       flLive(body, 'cover', 'flGndRing');
-      flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. F8 > trees > biomes holds the dials.');
+      flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. The WORLD rail (F9, the right edge) holds the dials.');
       flGroundLive(sim ? sim.out : null);
     },
     clouds(body) {
@@ -9743,28 +9749,36 @@
   // those materials goes through compileAsync with a plain target bound
   // (a shadow map is one: linear, no tone map). What it misses still
   // compiles on the frame; what it catches links on the driver's threads.
+  // G584: THE SHADOW PASS'S OWN PROGRAMS. This used to warm MeshDepthMaterial({ RGBADepthPacking }) per side
+  // against a helper with no lights - eight programs the shadow pass never draws with (r186 draws with its own
+  // BasicDepthPacking material, in the lit scene's light state, the caster's map / alphaTest / side copied on);
+  // the ~12 it does draw with linked on the first frame. PROG_WARM.depthVariants mirrors three's rule (GATE
+  // PROGRAMS holds it to the real shadow pass) and the helper is compiled with the world scene as its lit scene.
+  const PLAIN_RT = () => PLAIN_RT.rt || (PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4));
   function compileDepthVariants() {
     if (typeof renderer.compileAsync !== 'function' || !WF) return Promise.resolve();
-    const helper = new THREE.Scene(), seen = new Set(), defDepth = new Map();
-    const SIDE = m => m.side === THREE.DoubleSide ? THREE.DoubleSide : m.side === THREE.BackSide ? THREE.FrontSide : THREE.BackSide;
-    const add = (o, mat) => {
-      if (!mat) return;
-      const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m') + (o.isSkinnedMesh ? ':s' : '');
-      if (seen.has(key)) return; seen.add(key);
-      const c = o.clone(false); c.material = mat; c.visible = true; if (o.isInstancedMesh) c.count = Math.max(1, o.count); helper.add(c);   // shallow: a child's real material is not a depth variant
-    };
-    scene.traverse(o => {
-      if (!o.isMesh || !o.castShadow) return;
-      if (o.customDepthMaterial) { add(o, o.customDepthMaterial); return; }
-      const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m) return;
-      const s = SIDE(m); let d = defDepth.get(s);
-      if (!d) { d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: s }); defDepth.set(s, d); }
-      add(o, d);
-    });
-    // the far cascade's proxies (their far depth) and the canopy cover's swap
+    const jobs = [];
+    if (typeof PROG_WARM !== 'undefined') {
+      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [scene]);
+      jobs.push(PROG_WARM.fogless(scene, () => compilePass(helper, PLAIN_RT(), scene)).catch(e => console.warn('depth compile:', e && e.message)));
+    }
+    // the far cascade's proxies (their far depth) and the canopy cover's swap: drawn by their own
+    // renders into their own targets, keyed without the world's lights, as before
+    const far = new THREE.Scene(), seen = new Set();
+    const add = (o, mat) => { if (!mat) return; const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m'); if (seen.has(key)) return; seen.add(key);
+      far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
     if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
-    const target = (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || new THREE.WebGLRenderTarget(4, 4);
-    return compilePass(helper, target).catch(e => console.warn('depth compile:', e && e.message));
+    if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
+    // G584: THE PASSES OUTSIDE THE SCENE - the resolve's blit, the post chain, the clouds' bake / march / shadow:
+    // full-screen quads in scenes of their own that compileAsync(scene) never meets; each module lists its own
+    if (typeof PROG_WARM !== 'undefined') {
+      const lists = [];
+      try { if (aa && aa.warmList) lists.push(aa.warmList()); } catch (e) {}
+      try { if (typeof POST_FX !== 'undefined' && POST_FX.warmList) lists.push(POST_FX.warmList()); } catch (e) {}
+      try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmList) lists.push(CLOUDS.warmList()); } catch (e) {}
+      for (const g of PROG_WARM.passes(THREE, lists)) jobs.push(compilePass(g.helper, g.target === null ? null : PLAIN_RT()).catch(e => console.warn('pass compile:', e && e.message)));
+    }
+    return Promise.all(jobs);
   }
   // THE SHADERS' SCREEN (G567, the user: "a dedicated loading message/screen explaining the first time
   // compilation issue with a progress bar"). A COLD compile - the first launch, the first after an update
@@ -9894,7 +9908,7 @@
     // first frame. A PMREM of the still-black probe target is that map with
     // zero radiance: same key, same look, and the real bake replaces it.
     if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
-      try { const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromCubemap(envRT.texture); pm.dispose();
+      try { const rt = envGen('room').fromCubemap(envRT.texture);
             hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
     }
     const pass = target => compilePass(hangarScene, target);
@@ -9915,7 +9929,39 @@
     hud(); loop();
     setTimeout(() => { compileXrayVariants(); }, 1500);   // G441: the see-through programs, after the room is up
   });
+  // THE SCENERY MODE (the world rail, 2026-09-24; the user: "launch only the graphics parts of the game, at least not
+  // the flight simulation ... so we don't need lots of benches anymore"): ?scenery=1 rolls out the moment the boot
+  // lifts, then HOLDS the solver (running = false: no step, no pilot, no director), takes the aeroplane off the
+  // stage, gives the eye to the free camera 60 m over the stand and opens the WORLD rail (world_rail.js). The world
+  // streams round the eye (worldUpdate reads the camera under DEVCAM), so this is the game's own renderer, the
+  // game's own world and its own GRAPHICS tier - the bench is the game. `S` (or the rail's button) leaves it.
+  const SCENERY_Q = (() => { try { return /[?&]scenery(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
+  const SCENERY = { on: false,
+    enter() {
+      if (SCENERY.on) return;
+      const go = () => {
+        SCENERY.on = true; running = false; started = false;
+        // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the scenery
+        for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
+        if (craft && craft.parent) craft.parent.remove(craft);
+        document.body.classList.add('sceneryMode');
+        flCamMode('free');
+        const cg = sim.cgPos();
+        devCam.pos.set(cg[0], cg[1] + 60, cg[2] + 40); devCam.pitch = -0.45; devCam.yaw = Math.PI; devCam.speed = 40;
+        if (window.WORLD_RAIL) window.WORLD_RAIL.open();
+      };
+      if (inGarage) rollOut(go); else go();
+    },
+    leave() {
+      if (!SCENERY.on) return;
+      SCENERY.on = false; running = true;
+      if (craft && !craft.parent) scene.add(craft);
+      document.body.classList.remove('sceneryMode');
+      flCamMode('chase');
+    } };
+  if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   BOOT.run(bootSteps, { set: 'garage', landingLabel: 'the last pieces landing',
+    done: () => { if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0); },
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });

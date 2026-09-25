@@ -95,218 +95,14 @@
     root.appendChild($('div', { class: 'hd' }, [$('b', { text: 'DEVELOPER' }), fpsEl,
       (() => { const b = $('button', { text: 'close (F8)' }); b.onclick = toggle; return b; })()]));
 
-    // ---- MAP LAYERS: the bench's layer views and the stack's knobs, top-level (G403) ----
-    if (world() && world().ground && world().ground.on()) {
-      const M = fold(root, 'map layers (the island)', true);
-      const gs = k => v => world().ground.set({ [k]: v });
-      M.appendChild(select('view', world().ground.modes().map((m, i) => [String(i), m]),
-        () => String(world().ground.get().mode), v => world().ground.set({ mode: +v })));
-      M.appendChild(note('the bench’s layer views: the stack, then each map alone - tint (Landsat), radar (IFSAR), canopy (Meta/WRI), class (WorldCover), NDVI, coast (the signed field), height, snow'));
-      M.appendChild(slider('lightness', 0.2, 2.5, 0.02, () => world().ground.get().light, gs('light')));
-      M.appendChild(slider('saturation', 0, 2, 0.02, () => world().ground.get().sat, gs('sat')));
-      M.appendChild(slider('shore band', 0, 1, 0.05, () => world().ground.get().shore, gs('shore')));
-      M.appendChild(slider('class blur', 0, 200, 5, () => world().ground.get().classBlur, gs('classBlur'), v => v + ' m'));
-      M.appendChild(slider('class wobble', 0, 60, 2, () => world().ground.get().edgeWobble, gs('edgeWobble'), v => v + ' m'));
-      M.appendChild(select('water', [['1', 'the map (class 80 lakes)'], ['0', 'off']], () => String(world().ground.get().waterMap), v => world().ground.set({ waterMap: +v })));
-      M.appendChild(note('water from the map: the cover\u2019s class 80 UNIONED with the imagery\u2019s NDWI (green vs NIR - water absorbs NIR), as a signed field (a smooth edge) and one flat surface per lake at the 85th percentile of the DEM under it. The bake\u2019s rivers run between them (the BLEND, the default: ?hydro=blend); ?hydro=map for the lakes alone, ?hydro=proc for the bake\u2019s own lakes and rivers.'));
-      M.appendChild(note('TERRAIN TYPE legend (recomputed, not recoloured): dark blue sea \u00b7 blue lake \u00b7 yellow-green heath (grass/moss) \u00b7 olive muskeg (grass, flat, wet, low) \u00b7 pale sand (shore, low NDVI) \u00b7 grey-brown scree (bare) \u00b7 dark grey rock (slope > 38\u00b0, or bare > 28\u00b0) \u00b7 mustard scrub (tree cover under 2.5 m canopy, shrub) \u00b7 dark green forest (tree cover, canopy 2.5 m+) \u00b7 white snow (900 m+, slope under 35°) \u00b7 red built'));
-      M.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
-      // THE STACK (G404): each albedo layer - on, blend mode, alpha - in the bench's order
-      const Ms = fold(M, 'the stack (bottom first)', true, true);
-      const G = world().ground, BL = G.blends().map((b, i) => [String(i), b]);
-      G.stack().forEach((l, i) => {
-        Ms.appendChild(note(l.src));
-        Ms.appendChild(select('  on', [['1', 'on'], ['0', 'off']], () => String(G.stack()[i].on ? 1 : 0), v => G.setLayer(i, { on: +v })));
-        Ms.appendChild(select('  blend', BL, () => String(G.stack()[i].mode), v => G.setLayer(i, { mode: +v })));
-        Ms.appendChild(slider('  alpha', 0, 1, 0.01, () => G.stack()[i].op, v => G.setLayer(i, { op: v })));
-      });
-      Ms.appendChild(note('class (WorldCover palette) > tint (Landsat) > radar (IFSAR, level 1) > shade (canopy, normalised) > snow (its own mask). Remembered in this browser.'));
-      M.appendChild(note('after the stack: the rocky shore off the coast field, then lightness and saturation; lit by the sun after'));
-      // ---- THE SPLAT (alpha splatting, 2026-09-20): the textures by terrain type ----
-      const SP = world().ground.splat && world().ground.splat();
-      if (SP) {
-        const Sf = fold(M, 'splat (the textures by terrain type)', true, true);
-        const ss = k => v => SP.set({ [k]: v });
-        const kn = k => () => SP.knobs()[k];
-        Sf.appendChild(select('splat', [['1', 'on'], ['0', 'off (the stack alone)']], () => String(SP.on() ? 1 : 0), v => SP.set({ on: +v })));
-        Sf.appendChild(note('the ground drawn by terrain type from the library (17 sets): up to three sets per type mixed by the shared cloud mask, height-blended, hex-tiled, triplanar on the steep; the detail gives way to the aerial sets, then to the stack above. The bench (tools/_island.html) has the same knobs; `export` prints this browser\u2019s table.'));
-        const LIB = [['', '- none -']].concat(SP.library().map(l => [l.key, `${l.key} (${l.metres} m)`]));
-        const NAMES = SP.names();
-        // THE TEXTURE PICKER: one surface at a time - its near and far triplets with their scales, the mask, the variation
-        const Sp = fold(Sf, 'surfaces (the texture picker)', true, true);
-        let cur = 2;
-        const codeOpts = Object.keys(NAMES).filter(k => +k >= 2).map(k => [k, `${k} ${NAMES[k]}`]);
-        Sp.appendChild(select('surface', codeOpts, () => String(cur), v => { cur = +v; }));
-        Sp.appendChild(note('12 cliff, 13 forest old and 14 scrub dense are derived in the shader from rock / forest / scrub by slope and canopy (the splits below)'));
-        const C = () => SP.code(cur) || { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] };
-        const setArr = (key, j, v) => { const c = C(); const a = (c[key] || [null, null, null]).slice(); a[j] = v; SP.setCode(cur, { [key]: a }); };
-        const metres = k => { const l = SP.library().find(x => x.key === k); return l ? l.metres : 1; };
-        ['A', 'B', 'C'].forEach((L, j) => {
-          Sp.appendChild(select(`near ${L}`, LIB, () => C().tex[j] || '', v => { setArr('tex', j, v || null); if (v) setArr('scale', j, metres(v)); }));
-          Sp.appendChild(slider(`  metres`, 0.5, 120, 0.5, () => C().scale[j], v => setArr('scale', j, v), v => v + ' m'));
-        });
-        ['A', 'B', 'C'].forEach((L, j) => {
-          Sp.appendChild(select(`far ${L}`, LIB, () => (C().far || [])[j] || '', v => { setArr('far', j, v || null); if (v) setArr('farScale', j, metres(v)); }));
-          Sp.appendChild(slider(`  metres`, 0.5, 120, 0.5, () => (C().farScale || [0, 0, 0])[j], v => setArr('farScale', j, v), v => v + ' m'));
-        });
-        Sp.appendChild(note('an empty far slot keeps the near set at distance; picking a set takes its own scale, then adjust'));
-        Sp.appendChild(slider('mask cell', 2, 200, 1, () => C().mix[0], v => setArr('mix', 0, v), v => v + ' m'));
-        Sp.appendChild(slider('mask sharpness', 0.1, 6, 0.1, () => C().mix[1], v => setArr('mix', 1, v)));
-        Sp.appendChild(slider('bias A|B', -1, 1, 0.05, () => C().mix[2], v => setArr('mix', 2, v)));
-        Sp.appendChild(slider('bias C', -1, 1, 0.05, () => C().mix[3], v => setArr('mix', 3, v)));
-        Sp.appendChild(slider('hue swing', 0, 40, 1, () => (C().vary || [0, 0, 20])[0], v => setArr('vary', 0, v), v => v + '\u00b0'));
-        Sp.appendChild(slider('value swing', 0, 0.6, 0.01, () => (C().vary || [0, 0, 20])[1], v => setArr('vary', 1, v)));
-        Sp.appendChild(slider('vary cell', 2, 120, 1, () => (C().vary || [0, 0, 20])[2], v => setArr('vary', 2, v), v => v + ' m'));
-        Sp.appendChild(select('orient', [['', 'as is'], ['sea', 'face the sea (the beach)']], () => C().orient || '', v => SP.setCode(cur, { orient: v || undefined })));
-        // THE GRADE per set: a gain and a saturation - the sheet's numbers (tools/splat_sheet.py)
-        const Sg = fold(Sf, 'grade (per set)', false, true);
-        let gk = 'dry';
-        Sg.appendChild(select('set', LIB.slice(1), () => gk, v => { gk = v; }));
-        Sg.appendChild(color('gain', () => SP.grade(gk).gain, v => SP.setGrade(gk, { gain: v })));
-        Sg.appendChild(slider('saturation', 0, 2, 0.05, () => SP.grade(gk).sat, v => SP.setGrade(gk, { sat: v })));
-        Sg.appendChild(slider('gloss', 0, 1, 0.05, () => SP.grade(gk).gloss, v => SP.setGrade(gk, { gloss: v })));
-        Sg.appendChild(note('gloss: the set’s roughness map as shipped at 1, matte at 0 (the near ring is a Standard material: wet sand, shingle and the pools catch the sun)'));
-        const Sd = fold(Sf, 'distance \u00b7 macro', false, true);
-        Sd.appendChild(slider('detail fades from', 0, 2000, 25, kn('detailFrom'), ss('detailFrom'), v => v + ' m'));
-        Sd.appendChild(slider('detail gone by', 50, 4000, 25, kn('detailTo'), ss('detailTo'), v => v + ' m'));
-        Sd.appendChild(slider('macro from', 0, 10000, 100, kn('macroFrom'), ss('macroFrom'), v => v + ' m'));
-        Sd.appendChild(slider('macro full by', 100, 30000, 100, kn('macroTo'), ss('macroTo'), v => v + ' m'));
-        Sd.appendChild(slider('macro strength', 0, 1, 0.05, kn('macroMix'), ss('macroMix')));
-        Sd.appendChild(slider('macro tint under', 0, 1, 0.05, kn('macroNear'), ss('macroNear')));
-        Sd.appendChild(slider('macro light kept', 0, 1, 0.05, kn('macroLum'), ss('macroLum')));
-        Sd.appendChild(slider('albedo to imagery', 0, 1, 0.05, kn('albedoNorm'), ss('albedoNorm')));
-        Sd.appendChild(note('albedo to imagery: each set\u2019s mean pulled onto the imagery\u2019s mean colour for the terrain types it stands on (one gain per channel per set, from the map\u2019s own pixels); 1 = the imagery is the level, 0 = the sets as shipped. The table is in the console at boot (SP.norm())'));
-        Sd.appendChild(note('tint under: how much of the near ground’s colour is the imagery’s (the sets keep their texture); light kept: how much of the imagery’s own light and dark the tint carries (0 = the detail’s brightness, 1 = the imagery’s - the valley green, the slope brown, the flat pale)'));
-        Sd.appendChild(note('the macro is the stack above (the Landsat albedo the game already ships); \u201ctint under\u201d gives the detail the place\u2019s colour, luminance kept'));
-        const Sb = fold(Sf, 'blend \u00b7 tiling', false, true);
-        Sb.appendChild(slider('blend radius', 0.5, 3, 0.1, kn('splatBlend'), ss('splatBlend'), v => v + ' cells'));
-        Sb.appendChild(slider('edge wobble', 0, 40, 1, kn('splatWobble'), ss('splatWobble'), v => v + ' m'));
-        Sb.appendChild(slider('zone seam depth', 0.02, 1, 0.02, kn('seamDepth'), ss('seamDepth')));
-        Sb.appendChild(slider('height depth', 0.02, 1, 0.02, kn('hDepth'), ss('hDepth')));
-        Sb.appendChild(select('hex tiling', [['1', 'on'], ['0', 'off']], () => String(SP.knobs().hexOn), v => SP.set({ hexOn: +v })));
-        Sb.appendChild(slider('hex cells', 0.5, 6, 0.5, kn('hexN'), ss('hexN'), v => v + ' /tile'));
-        Sb.appendChild(slider('hex rotation', 0, 180, 5, kn('hexRot'), ss('hexRot'), v => v + '\u00b0'));
-        Sb.appendChild(slider('triplanar', 0, 16, 1, kn('triK'), ss('triK'), v => v ? 'k ' + v : 'off'));
-        Sb.appendChild(slider('normal strength', 0, 3, 0.05, kn('nrmK'), ss('nrmK')));
-        Sb.appendChild(slider('sheen', 0, 1, 0.05, kn('sheen'), ss('sheen')));
-        Sb.appendChild(note('sheen: the sets’ roughness on the near ring (the muskeg pools, wet mud and bare rock catch the sun and the sky’s reflection); 0 is matte, the old look'));
-        const Ss = fold(Sf, 'splits (derived surfaces)', false, true);
-        Ss.appendChild(slider('cliff from', 10, 60, 1, kn('cliffLo'), ss('cliffLo'), v => v + '\u00b0'));
-        Ss.appendChild(slider('cliff full at', 10, 70, 1, kn('cliffHi'), ss('cliffHi'), v => v + '\u00b0'));
-        Ss.appendChild(slider('old growth from', 2, 30, 0.5, kn('oldLo'), ss('oldLo'), v => v + ' m'));
-        Ss.appendChild(slider('old growth full', 2, 35, 0.5, kn('oldHi'), ss('oldHi'), v => v + ' m'));
-        Ss.appendChild(slider('dense scrub from', 0, 5, 0.1, kn('denseLo'), ss('denseLo'), v => v + ' m'));
-        Ss.appendChild(slider('dense scrub full', 0, 6, 0.1, kn('denseHi'), ss('denseHi'), v => v + ' m'));
-        const Sm = fold(Sf, 'micro (puddles \u00b7 water\u2019s edge \u00b7 beach)', false, true);
-        Sm.appendChild(slider('puddle wet', 0, 0.8, 0.01, kn('pudCover'), ss('pudCover')));
-        Sm.appendChild(slider('puddle edge', 0.002, 0.05, 0.001, kn('pudEdge'), ss('pudEdge')));
-        Sm.appendChild(slider('puddle scale', 0.5, 8, 0.5, kn('pudSlope'), ss('pudSlope'), v => 'x' + v));
-        Sm.appendChild(slider('lake edge', 0.2, 8, 0.2, kn('lakeEdge'), ss('lakeEdge'), v => v + ' m'));
-        Sm.appendChild(slider('beach angle', -180, 180, 5, kn('beachRot'), ss('beachRot'), v => v + '\u00b0'));
-        // THE ROCK MAP (2026-09-22): the rocks' far tier - their top view projected on the ground where the meshes have faded
-        const RM = world().ground.rockMap && world().ground.rockMap();
-        if (RM) { const Sr = fold(Sf, 'rocks at distance (the rock map)', false, true);
-          Sr.appendChild(select('rock map', [['1', 'on'], ['0', 'off (the meshes alone)']], () => String(RM.get().on ? 1 : 0), v => RM.set({ on: !!+v })));
-          Sr.appendChild(slider('half width', 300, 2000, 50, () => RM.get().half, v => { RM.set({ half: v }); RM.replan(); }, v => v + ' m'));
-          Sr.appendChild(slider('re-centre at', 100, 900, 25, () => RM.get().recentre, v => RM.set({ recentre: v }), v => v + ' m'));
-          Sr.appendChild(button('replan', () => RM.replan()));
-          Sr.appendChild(note('the cover ring plants the rocks within 220 m and thins them by its fade law; the same rocks are drawn top-down into a map over this half width (1 m a texel) and the ground reads it where the meshes have gone - one sampler, ?rockmap=0 for the A/B')); }
-        Sf.appendChild(button('reset to the recipe', () => SP.reset()));
-        Sf.appendChild(button('export (console)', () => { const j = SP.export(); console.log('SPLAT RECIPE ' + j); try { navigator.clipboard && navigator.clipboard.writeText(j); } catch (e) {} }));
-        Sf.appendChild(note('remembered in this browser; `export` prints the table to the console (and the clipboard) - paste it into 28b_ground_fields.js RECIPE to make it the default'));
-      }
-    }
+    // ---- THE WORLD'S ART MOVED (2026-09-24): the map layers, the splat (the sets, grades, filtering), the
+    // biomes and their species, the island's tree rule, the fill, the cover ring, the rock map and the
+    // environment albedo are the WORLD rail's now (world_rail.js, F9, the right edge) - one place for the
+    // art, with previews and an export. F8 keeps the renderer's and the sky's dials.
+    root.appendChild(note('the world’s art - layers, ground sets, recolours, filtering, biomes, species, the ring, the cliffs - is on the WORLD rail: F9 (the right edge), or ?scenery=1 for the world without the flight'));
+    if (W.WORLD_RAIL) root.appendChild(button('open the world rail', () => W.WORLD_RAIL.open()));
     // ---- TREES: everything about the forest, folded by concern ----------------
     const T = fold(root, 'trees', true);
-    if (W.TREE_FILL && W.TREE_FILL.onIsland && W.TREE_FILL.onIsland()) {
-      const Ti = fold(T, 'from the map (the island)', true, true);
-      const isl = k => v => W.TREE_FILL.setIsland({ [k]: v });
-      Ti.appendChild(note('THE RULE: the terrain type says the kind of stand (forest full, scrub half, muskeg a stunted few, heath almost none, rock/sand/water none); the canopy says how much of it stands (the ramp from `cover from` to `full cover`) and how tall (canopy x gain over the model\'s height); NDVI is the vigour (a weak stand thins); a slope over 35\u00b0 thins to a third; species by altitude, wet ground and steepness (the pool)'));
-      Ti.appendChild(slider('cover from', 0, 10, 0.5, () => W.TREE_FILL.island().from, isl('from'), v => v + ' m'));
-      Ti.appendChild(slider('full cover', 2, 30, 1, () => W.TREE_FILL.island().full, isl('full'), v => v + ' m'));
-      Ti.appendChild(slider('size gain', 0.3, 2.5, 0.05, () => W.TREE_FILL.island().gain, isl('gain')));
-      Ti.appendChild(slider('size min', 0.1, 1, 0.05, () => W.TREE_FILL.island().min, isl('min')));
-      Ti.appendChild(slider('size max', 1, 4, 0.1, () => W.TREE_FILL.island().max, isl('max')));
-    }
-    // ---- THE BIOMES (L4, 2026-09-21; BIOMES-IN-GAME-2026-09-20.md): the code -> mix map, the mixes'
-    // own numbers, the cover ring, and the export back to tools/_trees_tuning.json ----
-    if (W.TREE_FILL.biomes && W.TREE_FILL.biomes()) {
-      const BIO = W.TREE_FILL.biomes(), TF = W.TREE_FILL;
-      const B = fold(T, 'biomes', true, true);
-      B.appendChild(note('a terrain-type code names a bench mix; the fill and the woodland draw their species from it, the cover ring plants its grass, flowers, rocks and bushes. Every number here is the bench’s (tools/_trees_tuning.json mixes) moved live; `export` prints the map + the mixes for that file, then `python tools/tree_prep.py` bakes the payload.'));
-      { const n = note(''); const R = { el: n, refresh: () => { const c = TF.cover && TF.cover(); const st = c && c.stat(); n.textContent = st ? ('under the eye: ' + (st.mixAt || 'no biome') + ' · ring ' + st.live + ' cells / ' + st.instances + ' instances, ' + st.lastMs.toFixed(1) + ' ms last build · ' + st.agl.toFixed(0) + ' m AGL') : 'no cover ring'; } };
-        B.appendChild(n); rows.push(R); live.push(R); }
-      const mixNames = Object.keys(BIO.mixes);
-      const isl = k => v => TF.setIsland({ [k]: v });
-      B.appendChild(slider('biome gain', 0.5, 8, 0.1, () => TF.island().biomeGain, isl('biomeGain')));
-      B.appendChild(slider('wobble', 0, 30, 1, () => TF.island().biomeWobble, isl('biomeWobble'), v => v + ' m'));
-      B.appendChild(note('gain: a mix’s trees per m² over the grid’s (3.5 puts the conifer at the grid’s full density); wobble: the code read this far off the point on a 23 m noise, so a biome edge is not the map’s cell edge'));
-      const Bm = fold(B, 'code → mix (the map)', true, true);
-      for (const code of Object.keys(BIO.names).map(Number).filter(c => c >= 2)) {
-        Bm.appendChild(select(code + ' ' + BIO.names[code], [['', '— none']].concat(mixNames.map(m => [m, m])),
-          () => BIO.map[code] || '', v => TF.setBiome(code, v || null)));
-      }
-      Bm.appendChild(note('12 cliff, 13 old forest, 14 dense scrub are derived from rock / forest / scrub by slope and canopy (the splat’s knobs); none = nothing planted (sea, lake, snow, built)'));
-      // the mixes: each one a fold of its forest knobs and its species rows
-      const Bx = fold(B, 'the mixes', false, true);
-      const spKind = name => { const P = W.TREE_PACK, c = P && P.collections.find(q => q.name === name); return c ? (c.kind || 'tree') : '?'; };
-      for (const name of mixNames) {
-        const M = BIO.mixOf(name), Fm = fold(Bx, name, false, true), F = () => (BIO.mixOf(name).forest || (BIO.mixOf(name).forest = {}));
-        const fs = k => v => TF.setMix(name, ['forest', k], v);
-        Fm.appendChild(slider('trees', 0, 1500, 10, () => F().count || 0, fs('count'), v => v + ' (' + (BIO.density(name) * 10000).toFixed(1) + '/ha)'));
-        Fm.appendChild(slider('shrubs', 0, 20, 0.5, () => F().under || 0, fs('under'), v => v + ' /1000 m²'));
-        Fm.appendChild(slider('rocks', 0, 30, 0.5, () => F().rocks || 0, fs('rocks'), v => v + ' /1000 m²'));
-        Fm.appendChild(slider('blotch', 0, 1, 0.05, () => F().blotch || 0, fs('blotch')));
-        Fm.appendChild(slider('blotch m', 4, 60, 1, () => F().blotchM || 18, fs('blotchM'), v => v + ' m'));
-        Fm.appendChild(slider('cover spread', 0, 0.5, 0.01, () => F().coverSpread || 0, fs('coverSpread')));
-        for (const sp of Object.keys(M.species || {})) {
-          const row = () => BIO.mixOf(name).species[sp], kind = spKind(sp), Fs = fold(Fm, sp + ' (' + kind + ')', false, true);
-          const ss = k => v => TF.setMix(name, ['species', sp, k], v);
-          Fs.appendChild(slider('proportion', 0, 4, 0.05, () => row().proportion === undefined ? 1 : row().proportion, ss('proportion')));
-          if (kind === 'tree') Fs.appendChild(slider('dead', 0, 0.5, 0.01, () => row().dead || 0, ss('dead')));
-          if (kind === 'cover') {
-            Fs.appendChild(slider('density', 0, 6, 0.05, () => row().density || 0, ss('density'), v => v + ' /m²'));
-            Fs.appendChild(slider('patch', 0, 20, 0.5, () => row().patch || 0, ss('patch'), v => v ? v + ' m' : 'even'));
-            Fs.appendChild(slider('patch share', 0, 1, 0.05, () => row().patchShare === undefined ? 0.25 : row().patchShare, ss('patchShare')));
-          }
-          if (kind === 'rock') Fs.appendChild(slider('size', 1, 40, 1, () => row().size || 1, ss('size')));
-        }
-      }
-      // the cover ring's own dials
-      if (TF.cover && TF.cover()) {
-        const Bc = fold(B, 'the cover ring', false, true), C = () => TF.cover(), cs = k => v => C().set({ [k]: v });
-        Bc.appendChild(slider('reach', 60, 400, 10, () => C().get().reach, cs('reach'), v => v + ' m'));
-        Bc.appendChild(slider('full to', 10, 200, 5, () => C().get().near, cs('near'), v => v + ' m'));
-        Bc.appendChild(slider('taper', 0, 1, 0.05, () => C().get().taper, cs('taper')));
-        Bc.appendChild(slider('AGL full', 10, 200, 5, () => C().get().aglFull, cs('aglFull'), v => v + ' m'));
-        Bc.appendChild(slider('AGL off', 30, 400, 5, () => C().get().aglOff, cs('aglOff'), v => v + ' m'));
-        Bc.appendChild(slider('density', 0, 2, 0.05, () => C().get().density, cs('density')));
-        Bc.appendChild(slider('shrubs', 0, 2, 0.05, () => C().get().shrubs, cs('shrubs')));
-        Bc.appendChild(slider('rocks', 0, 2, 0.05, () => C().get().rocks, cs('rocks')));
-        Bc.appendChild(slider('build ms', 0.5, 12, 0.5, () => C().get().budgetMs, cs('budgetMs'), v => v + ' ms'));
-        Bc.appendChild(note('the ring fades in the vertex shader: full to `full to`, gone at `reach` (taper shapes the thinning), full under `AGL full`, gone above `AGL off`; density / shrubs / rocks scale the mix’s numbers and replant'));
-      }
-      B.appendChild(button('export (console)', () => { const j = BIO.export(); console.log('BIOMES ' + j); try { navigator.clipboard && navigator.clipboard.writeText(j); } catch (e) {} }));
-      B.appendChild(note('export prints { biomes, mixes } to the console (and the clipboard): paste them over the two keys of tools/_trees_tuning.json, then `python tools/tree_prep.py` bakes the payload (TREE_PACK.biomes) - the bench reads the same file'));
-    }
-    T.appendChild(slider('fill density', 16, 400, 8, () => W.TREE_FILL.get(), v => W.TREE_FILL.set(v),
-      v => v + ' (' + (1024 / v).toFixed(1) + ' m)'));
-    // THE THINNING (G420, the row owed there): the complement's impostors keep
-    // every tree to `thin from`, a quarter (the base's share) by `thin to`
-    if (W.TREE_FILL.thin) {
-      const th = () => W.TREE_FILL.thin();
-      T.appendChild(slider('thin from', 500, 8000, 100, () => th()[0], v => W.TREE_FILL.thin(v, th()[1]), v => v + ' m'));
-      T.appendChild(slider('thin to', 1000, 9000, 100, () => th()[1], v => W.TREE_FILL.thin(th()[0], v), v => v + ' m'));
-      T.appendChild(note('one grid in two parts: the base (every 2nd point each way) stands to the ring\u2019s edge, the complement inside the fill reach thins in the shader between these two distances - no chunk is regenerated on approach'));
-    }
-    // ONE lightness for the trees, both tiers: the leaf master light (the
-    // models) and the impostors' lit term, moved together (the user, G400)
-    T.appendChild(slider('tree lightness', 0.2, 2, 0.02, () => leaf().master().light,
-      v => { leaf().tint({ light: v }); world().treeLod.lit.value = v * 0.9; }));
-    const mix = k => v => { W.TREE_MIX[k] = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); };
-    T.appendChild(slider('furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, mix('furnished')));
-    T.appendChild(slider('size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, mix('spread')));
-    T.appendChild(note('furnished = share of living trees drawn as the specimen (the rest as the stand shape); both replant on release'));
     genEl = note('');
     T.appendChild(genEl);
     const Tl = fold(T, 'ladder', false, true);
@@ -368,7 +164,7 @@
     // The player's dials are the WEATHER panel's (weather_ui.js, both rails); these
     // are the developer's: the same day fields, plus what the climate makes of them.
     {
-      const wx = () => (W.WORLD && W.WORLD.world ? W.WORLD.world : null);
+      const wx = () => { const fp = W.FLIGHT_PROBE, w = fp && fp.world && fp.world(); return w || null; };   // the world (WORLD is the renderer's handle, it has no .world)
       const cl = () => { const w = wx(); return w && w.climate ? w.climate : null; };
       const wd = () => { const d = dy(); return (d && d.wind) || {}; };
       const setW = patch => { if (!ck()) return; const w = Object.assign({ refH: 10 }, wd(), patch);
@@ -510,10 +306,6 @@
     }
     // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------
     const E = fold(root, 'environment', true);
-    if (world() && world().envAlbedo) {
-      E.appendChild(slider('albedo', 0.2, 1.5, 0.02, () => world().envAlbedo(), v => world().envAlbedo(v)));
-      E.appendChild(note('one gain over the ground (after the splat) and the vegetation (leaf light + impostor lit) - the environment alone; the aeroplane, the buildings and the sky keep theirs'));
-    }
     E.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)'], ['island', 'island (alps, hemisphere x2)']],
       () => rigRowName, v => { rigRowName = v; rig().row(v); }));
     // dragging either sun slider takes the rig MANUAL (the clock fold above hands it back)

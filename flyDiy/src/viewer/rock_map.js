@@ -49,17 +49,27 @@ var ROCK_MAP = (() => {
       const oldCol = renderer.getClearColor(new THREE.Color()), oldA = renderer.getClearAlpha();
       renderer.setRenderTarget(ATLAS); renderer.setClearColor(0x000000, 0); renderer.clear();
       let k = 0;
-      for (const { c, P } of protos) for (const p of P) {
-        if (k >= perRow * perRow) break;
-        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || 1);
-        const meshes = p.parts.map(part => {
-          const m = new THREE.MeshBasicMaterial({ map: part.mat.map || null, toneMapped: false });
-          if (cut > 0) { m.onBeforeCompile = sh => { sh.uniforms.uCut = { value: cut };
+      // G584: THE MATERIALS ARE KEPT FOR THE WHOLE BAKE. One made and disposed per part released its program with
+      // it, and the next part linked the same program again - the census: 30 links of 2 programs in one roll-out.
+      // Now one material per (map, cut), all alive until the atlas is drawn: the two programs link once each
+      const kinds = new Map();
+      const spriteMat = (map, cut) => {
+        const key = (map ? map.uuid : '-') + '|' + (cut > 0 ? cut : 0);
+        let m = kinds.get(key);
+        if (!m) {
+          m = new THREE.MeshBasicMaterial({ map: map || null, toneMapped: false });
+          if (cut > 0) { const uCut = { value: cut }; m.onBeforeCompile = sh => { sh.uniforms.uCut = uCut;
             sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY;').replace('#include <begin_vertex>', '#include <begin_vertex>' + String.fromCharCode(10) + 'vRockY = position.y;');
             sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY; uniform float uCut;').replace('#include <map_fragment>', 'if (vRockY < uCut) discard;' + String.fromCharCode(10) + '#include <map_fragment>'); };
             m.customProgramCacheKey = () => 'rockmap-cut'; }
-          return new THREE.Mesh(part.geo, m);
-        });
+          kinds.set(key, m);
+        }
+        return m;
+      };
+      for (const { c, P } of protos) for (const p of P) {
+        if (k >= perRow * perRow) break;
+        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || 1);
+        const meshes = p.parts.map(part => new THREE.Mesh(part.geo, spriteMat(part.mat.map, cut)));
         sc.clear(); meshes.forEach(m => sc.add(m));
         // from above: right = +x, up = -z (the world's north), the footprint [-r0, r0]
         cam.left = -r0; cam.right = r0; cam.top = r0; cam.bottom = -r0; cam.updateProjectionMatrix();
@@ -68,9 +78,9 @@ var ROCK_MAP = (() => {
         renderer.setViewport(x, y, S.slot, S.slot); renderer.setScissor(x, y, S.slot, S.slot); renderer.setScissorTest(true);
         renderer.render(sc, cam);
         slots.set(p.key, { u0: x / S.px, v0: y / S.px, du: S.slot / S.px, dv: S.slot / S.px, r0, proto: p, c });
-        meshes.forEach(m => m.material.dispose());
         k++;
       }
+      for (const m of kinds.values()) m.dispose();
       renderer.setRenderTarget(old); renderer.setViewport(oldVp); renderer.setScissor(oldSc); renderer.setScissorTest(oldSt); renderer.setClearColor(oldCol, oldA);
       STAT.sprites = k;
     }
@@ -84,8 +94,11 @@ var ROCK_MAP = (() => {
     const quad = new THREE.PlaneGeometry(1, 1); quad.rotateX(-Math.PI / 2);   // local +y (texture up) -> -z, as the bake
     let meshes = [];
     const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+    // ONE MATERIAL FOR EVERY SPRITE OF THE MAP (G584): they were identical, made per species and disposed at every
+    // rebuild - so a recentre let the program go and linked it again
+    const mapMat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
     function rebuild() {
-      for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+      for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); }
       meshes = [];
       const by = new Map();   // proto key -> records
       let total = 0;
@@ -95,8 +108,7 @@ var ROCK_MAP = (() => {
         const sl = slots.get(pk); if (!sl) continue;
         const g = quad.clone();
         const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, sl.u0 + uv.getX(i) * sl.du, sl.v0 + uv.getY(i) * sl.dv);
-        const mat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
-        const m = new THREE.InstancedMesh(g, mat, recs.length);
+        const m = new THREE.InstancedMesh(g, mapMat, recs.length);
         let anyCol = false;
         for (let i = 0; i < recs.length; i++) { const r = recs[i];
           Q.setFromAxisAngle(UP, r.yaw); V.set(r.x, 0, r.z); SC.set(2 * sl.r0 * r.s, 1, 2 * sl.r0 * r.s);

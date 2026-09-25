@@ -2791,6 +2791,12 @@ body.premOpen #flFly { display:none; }
 #ui .pr-insp canvas { display:block; max-width:100%; height:auto;
   background:var(--ed-track); border:1px solid var(--ed-hair); border-radius:5px; }
 
+/* THE SCENERY MODE (2026-09-24, app.js SCENERY, ?scenery=1): the flight is held and the aeroplane is off the
+   stage, so its chrome steps aside - the brief, the PFD, the verbs, the trace, the map, the arrival card. The
+   left rail stays: the camera, the graphics, the time of day and the weather are how the world is looked at. */
+body.sceneryMode #flTop, body.sceneryMode #flActs, body.sceneryMode #pfd, body.sceneryMode #mmp,
+body.sceneryMode #telp, body.sceneryMode #arrCard, body.sceneryMode #flHint, body.sceneryMode #flNotice { display:none !important; }
+
 /* =========================================================================
    THE CONTROLS PANEL (G200) — the one mapping interface, on both screens.
 
@@ -39522,7 +39528,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='9bcfedaaa888';window.FLYDIY_BUILD='12967c9c1e1c'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='9bcfedaaa888';window.FLYDIY_BUILD='a0a4b356f91c'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -100538,6 +100544,8 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
       // carries the canvas's tone mapping and colour space, which is what the
       // first frame will ask for - null at tier 'off', where the canvas is the target
       target: () => S.rt || null,
+      // G584: the blit's program, for the roll-out's compile step (shader_warm.js) - drawn onto the canvas
+      warmList: () => (S.rt && S.mat ? [{ m: S.mat, to: null }] : []),
       dither: () => S.dither,
       tier: () => S.tier,
       able: () => S.able,
@@ -103401,7 +103409,10 @@ var CLOUDS = (function () {
   // hemiUnder(T): the hemisphere's gain under a cloud of transmittance T at the eye - the diffuse light rises as the sun is lost
   // (an overcast day's diffuse is ~1.7x a clear day's), a dial
   const hemiUnder = T => 1 + S.hemiUnderCloud * (1 - Math.max(0, Math.min(1, T)));
-  const API = { S, init, install, inject, update, draw, composite, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
+  // warmList() (G584): the full-screen passes' programs (the noise bake, the sky fit, the shadow map, the march) for the
+  // roll-out's compile step (shader_warm.js); all draw into targets of their own. The composite is in the world scene.
+  function warmList() { if (!ready || !active()) return []; skyMats(); return [bakeMat, skyMat, shadowMat, marchMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
+  const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();
@@ -104541,6 +104552,19 @@ const POST_FX = (() => {
     renderer.setRenderTarget(prevTarget);
   }
   const active = () => KEYS.some(k => S[k] !== 'off');
+  // warmList() (G584): the programs the passes switched on will draw with, for the roll-out's compile step
+  // (shader_warm.js) - { m, to }: `to` null is the canvas, 'rt' one of the pyramid's plain targets
+  function warmList() {
+    if (!ready || !active() || !hooked) return [];
+    build();
+    const out = [], add = (m, canvas) => { if (m) out.push({ m, to: canvas ? null : 'rt' }); };
+    if (S.look !== 'off' || S.lens !== 'off') add(M.look, true);
+    if (S.ao !== 'off') { add(M.ao); add(M.aoBlur); add(M.aoApply, true); }
+    if (S.rays !== 'off') { add(M.raysMask); add(M.raysBlur); add(M.add, true); }
+    if (S.bloom !== 'off') { add(M.thr); add(M.down); add(M.up); add(M.upOut, true); }
+    if (S.eye !== 'off') add(M.eye);
+    return out;
+  }
   // apply(): the hook installed only while something is on; nothing else touched otherwise
   function apply() {
     if (!aa) return false;
@@ -104559,7 +104583,7 @@ const POST_FX = (() => {
     for (const k in M) { M[k].dispose(); delete M[k]; }
     installed = false; sized = { w: 0, h: 0 };
   }
-  const API = { S, KEYS, stats, init, apply, set, render, active, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, stats, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();
@@ -104714,6 +104738,149 @@ var SHADOW_NEAR = (function () {
   const API = { S, NEAR_LAYER, FAR_LAYER, install, inject, make, tag, tagCraft, follow, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
   return API;
+})();
+</script>
+<script type="text/x-flydiy">
+// ============================================================================
+// shader_warm.js — THE PROGRAMS A FRAME WILL ASK FOR, BUILT BEFORE IT ASKS (G584)
+//
+// The roll-out's compile step (app.js rollOutScreen 'compile') hands the world
+// scene to renderer.compileAsync, which links every program on the driver's
+// threads while the loading screen moves. What it cannot see links on the
+// first frame instead, synchronously, one program at a time. The census of
+// that residue (two headless boots, every linkProgram recorded with the boot
+// step it ran in - futureDesigns/PERF-2026-09-23.md G584) found:
+//
+//   THE SHADOW PASS'S DEPTH PROGRAMS, ALL OF THEM. The old warm-up (app.js
+//   compileDepthVariants, S3) built MeshDepthMaterial({ RGBADepthPacking })
+//   one per side and compiled them against a helper scene with no lights. In
+//   r186 the shadow map draws with three's OWN depth material - BasicDepthPacking
+//   (3200) - in the LIT scene's light state (USE_SHADOWMAP, the shadow type),
+//   with the caster's map / alphaMap / alphaTest / displacement / side copied
+//   onto it (WebGLShadowMap getDepthMaterial). So the eight programs the
+//   warm-up linked were never drawn with, and the ~12 the shadow pass does
+//   draw with linked on the first frame.
+//
+//   THE PASSES OUTSIDE THE SCENE. The AA resolve's blit, the bloom chain and
+//   the clouds' bake / march / shadow draw full-screen quads in scenes of their
+//   own: compileAsync(scene) never meets them. Each module now lists its own
+//   (aa_resolve / post_fx / clouds warmList()) and the step compiles them too.
+//
+// depthVariants() mirrors getDepthMaterial exactly (three r186; GATE PROGRAMS
+// renders the real shadow pass in node on a fake GL context and holds every
+// depth program it draws with to this warm-up, so a three upgrade that moves
+// the rule turns the gate red rather than the first frame slow).
+//
+//   PROG_WARM.depthVariants(THREE, renderer, scenes, opt) -> { helper, n }
+//     scenes: the lit scene(s) whose casters the shadow pass will draw
+//     helper: a THREE.Scene of stand-ins (the caster's own geometry, instance /
+//             skin / batch kind, never its data), one per distinct depth
+//             program; compile it with the lit scene as targetScene, its fog
+//             lifted (fogless: the pass draws with none), and a plain render
+//             target bound (a shadow map is one: linear, no tone map)
+//   PROG_WARM.passes(THREE, lists) -> [{ helper, target }]
+//     lists: [{ m, to }] from the modules' warmList(); `to` null = the canvas,
+//            'rt' = any plain render target; one helper scene per kind
+// ============================================================================
+'use strict';
+var PROG_WARM = (() => {
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  // A STAND-IN, NOT A CLONE: an object whose prototype is the caster, so every
+  // property the program key reads (isInstancedMesh, instanceColor, isSkinnedMesh,
+  // isBatchedMesh, _colorsTexture, morphTargetInfluences, the geometry's attributes)
+  // is the caster's own, while its material, parent and children are its own. A
+  // clone(false) of an InstancedMesh copied its whole instance buffer to compile
+  // one program (the cover ring's tufts: 60 000 matrices a block).
+  function standIn(o, mat) {
+    const s = Object.create(o);
+    s.parent = null; s.children = []; s.material = mat; s.visible = true;
+    s._listeners = undefined;   // the caster's own listeners must not hear the helper's 'added'
+    return s;
+  }
+  // a copy of a material that keys the SAME program: its type, its defines, its
+  // hook and its own cache key (the hook through ATMO's accessor: the material's own
+  // hook is `_atmoHook`, and assigning the served wrapper would wrap it twice -
+  // app.js compileXrayVariants learnt that first)
+  function twin(m) {
+    const t = new m.constructor();
+    t.copy(m);
+    if (m.defines) t.defines = Object.assign({}, m.defines);
+    t.userData = m.userData;
+    const hook = own(m, '_atmoHook') ? m._atmoHook : own(m, 'onBeforeCompile') ? m.onBeforeCompile : undefined;
+    if (hook !== undefined) t.onBeforeCompile = hook;
+    if (own(m, 'customProgramCacheKey')) t.customProgramCacheKey = m.customProgramCacheKey;
+    return t;
+  }
+  // three r186 WebGLShadowMap: which caster materials get a depth material of their own
+  const needsOwn = (renderer, m) => (renderer.localClippingEnabled && m.clipShadows === true && Array.isArray(m.clippingPlanes) && m.clippingPlanes.length !== 0)
+    || (m.displacementMap && m.displacementScale !== 0) || (m.alphaMap && m.alphaTest > 0) || (m.map && m.alphaTest > 0) || m.alphaToCoverage === true;
+
+  function depthVariants(THREE, renderer, scenes, opt) {
+    opt = opt || {};
+    const helper = new THREE.Scene(), seen = new Set();
+    const vsm = renderer.shadowMap && renderer.shadowMap.type === THREE.VSMShadowMap;
+    const FLIP = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
+    const base = new THREE.MeshDepthMaterial(), baseDist = THREE.MeshDistanceMaterial ? new THREE.MeshDistanceMaterial() : null;
+    // what the pass draws with, as a light kind asks: point lights draw distance, the rest depth
+    let kinds = { depth: false, distance: false };
+    for (const sc of scenes) if (sc) sc.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
+    if (opt.kinds) kinds = opt.kinds;
+    const variant = (o, R, dist) => {
+      const custom = dist ? o.customDistanceMaterial : o.customDepthMaterial;
+      const src = custom || (dist ? baseDist : base);
+      if (!src) return;
+      const side = vsm ? (R.shadowSide !== null ? R.shadowSide : R.side) : (R.shadowSide !== null ? R.shadowSide : FLIP[R.side]);
+      const alphaTest = R.alphaToCoverage === true ? 0.5 : R.alphaTest;
+      // the key's reads, as a signature: one stand-in per distinct answer
+      const sig = [src.uuid, custom ? 'c' : (needsOwn(renderer, R) ? 'own' : 'base'), side, !!R.map, !!R.alphaMap, alphaTest > 0 ? 1 : 0,
+        !!(R.displacementMap && R.displacementScale !== 0), R.clipShadows && R.clippingPlanes ? R.clippingPlanes.length : 0, R.visible, R.wireframe,
+        o.isInstancedMesh ? 'i' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '', o.isSkinnedMesh ? 's' : '',
+        o.isBatchedMesh ? 'b' + (o._colorsTexture ? 'c' : '') : '', o.morphTargetInfluences ? 'mt' + o.morphTargetInfluences.length : '',
+        Object.keys((o.geometry && o.geometry.attributes) || {}).sort().join('.'), Object.keys((o.geometry && o.geometry.morphAttributes) || {}).sort().join('.')].join('|');
+      if (seen.has(sig)) return; seen.add(sig);
+      const d = custom ? twin(custom) : new src.constructor();
+      d.visible = true; d.wireframe = R.wireframe; d.side = side;
+      d.alphaMap = R.alphaMap; d.alphaTest = alphaTest; d.map = R.map;
+      d.clipShadows = R.clipShadows; d.clippingPlanes = R.clippingPlanes; d.clipIntersection = R.clipIntersection;
+      d.displacementMap = R.displacementMap; d.displacementScale = R.displacementScale; d.displacementBias = R.displacementBias;
+      helper.add(standIn(o, d));
+    };
+    for (const sc of scenes) if (sc) sc.traverse(o => {
+      if (!(o.isMesh || o.isLine || o.isPoints) || !o.castShadow || !o.material) return;
+      const mats = Array.isArray(o.material) ? (o.geometry && o.geometry.groups && o.geometry.groups.length ? o.geometry.groups.map(g => o.material[g.materialIndex]) : o.material) : [o.material];
+      for (const R of mats) {
+        if (!R || !R.visible) continue;
+        if (kinds.depth) variant(o, R, false);
+        if (kinds.distance) variant(o, R, true);
+      }
+    });
+    return { helper, n: helper.children.length };
+  }
+
+  // fogless(scene, fn): fn() with the scene's fog lifted. The shadow pass draws with no scene (three's empty one: no
+  // fog), and the fog is in the program key (fogExp2: '' under a THREE.Fog, false under none) though a depth
+  // program never reads it - compiled with the world's fog on, every warmed depth program keyed apart from the one
+  // the pass asks for and linked AGAIN on the first frame, same source (the second census). The lights stay: they
+  // are the shadow map's key (USE_SHADOWMAP, the shadow type)
+  function fogless(scene, fn) { const f = scene.fog; scene.fog = null; try { return fn(); } finally { scene.fog = f; } }
+
+  // the full-screen passes: one quad per material, grouped by where it draws
+  function passes(THREE, lists) {
+    const by = new Map();
+    for (const list of lists) for (const e of (list || [])) {
+      if (!e || !e.m) continue;
+      const k = e.to === null ? 'canvas' : 'rt';
+      let g = by.get(k); if (!g) by.set(k, g = { helper: new THREE.Scene(), target: k === 'canvas' ? null : 'rt', mats: new Set() });
+      if (g.mats.has(e.m)) continue; g.mats.add(e.m);
+      const q = new THREE.Mesh(passes.quad || (passes.quad = new THREE.PlaneGeometry(2, 2)), e.m); q.frustumCulled = false;
+      g.helper.add(q);
+    }
+    return [...by.values()];
+  }
+  const api = { depthVariants, fogless, passes, twin, standIn };
+  if (typeof window !== 'undefined') window.PROG_WARM = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  return api;
 })();
 </script>
 <script type="text/x-flydiy">
@@ -105161,8 +105328,14 @@ const SPLAT_GROUND = (() => {
   const G = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null;
 
   // ---- the state: the recipe (the module's default under the browser's copy) --
+  // THE FILTERING KNOBS (the world rail, 2026-09-24): defaults that sit under the recipe's own knobs until the recipe
+  // carries them - the mip bias (+ blurs), the anisotropy, the specular anti-alias, the normal's fade and the detail's
+  // contrast near and far. The fades' defaults are the answer to "how noisy detailed textures appear": the relief and
+  // the grain give way where a texel is under a pixel and can only alias.
+  const FILTER_DEFAULTS = { lodBias: 0, aniso: 8, specAA: 0.35, nrmFadeFrom: 250, nrmFadeTo: 1400, conNear: 1, conFar: 0.7, conFrom: 60, conTo: 700 };
   const load = () => {
     const R = JSON.parse(JSON.stringify(G.RECIPE));
+    R.knobs = Object.assign({}, FILTER_DEFAULTS, R.knobs);
     let sv0 = null;
     try { const sv = JSON.parse(localStorage.getItem('flydiy.ground.splat.v1') || 'null'); sv0 = sv;
       if (sv) { if (sv.codes) for (const k in sv.codes) R.codes[k] = Object.assign(R.codes[k] || {}, sv.codes[k]);
@@ -105186,6 +105359,14 @@ const SPLAT_GROUND = (() => {
   uniform float uSLum[${NLIB}];   // each set's mean luminance after its grade (linear): the detail's texel over it is pure TEXTURE
   uniform float uSGrass[${NLIB}];   // per set: how far its DARK texels are pulled to the open ground's grass (the forest floor's, 2026-09-23)
   uniform vec4 uSGrassC;            // that grass, MEASURED - the mean of the open-ground sets after their own normalisation
+  // THE RECOLOUR per set (the world rail, 2026-09-24): x hue turn (rad), y the selected hue (rad), z its half width (rad,
+  // 0 = no selection), w the selection's hue turn (rad) | x the selection's saturation, y its lightness, z the set's
+  // contrast about its mean, w the selection's softness (0 hard .. 1 soft)
+  uniform vec4 uSRecol[${NLIB}], uSRecol2[${NLIB}];
+  uniform vec4 uSFilt;    // x the mip bias, y the specular anti-alias, z/w the normal's fade from / gone by (m; 0 = no fade)
+  uniform vec4 uSCon;     // the detail's contrast: x near, y far, z from (m), w to (m)
+  uniform float uSMaskL;  // the recolour's selection shown in magenta on this set (-1 = off)
+  uniform float uSRecolOn;   // 1 when any set is recoloured or a mask is shown: the recolour is one uniform branch per set otherwise
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2, uSVeg;
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
@@ -105209,11 +105390,30 @@ const SPLAT_GROUND = (() => {
     return b / (b.x + b.y);
   }
   vec2 sHash2(vec2 p){ return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
+  // hue of a linear colour about the grey axis (0 red, +2pi/3 green, -2pi/3 blue), the angle gfHueTurn turns
+  float sHueOf(vec3 c){ return atan(1.7320508 * (c.g - c.b), 2.0 * c.r - c.g - c.b); }
+  // the set's recolour: the whole set's hue turn and contrast, then the selected hue band's turn, saturation, lightness
+  vec3 sRecolour(vec3 c, int L, float mean){
+    vec4 A = uSRecol[L], B = uSRecol2[L];
+    if (B.z != 1.0) c = max(vec3(mean) + (c - vec3(mean)) * B.z, vec3(0.0));   // the contrast about the set's mean
+    if (A.x != 0.0) c = gfHueTurn(c, A.x);
+    if (A.z > 0.0) {
+      float l = gLuma(c), ch = length(c - vec3(l));
+      float dh = abs(mod(sHueOf(c) - A.y + 3.14159265, 6.2831853) - 3.14159265);
+      float w = (1.0 - smoothstep(A.z * (1.0 - B.w), A.z, dh)) * smoothstep(0.0, 0.02 + 0.1 * B.w, ch / max(l, 1e-3));
+      if (int(uSMaskL + 0.5) == L && uSMaskL >= 0.0) return mix(c, vec3(1.0, 0.0, 1.0), w);
+      vec3 t = gfHueTurn(c, A.w * w);
+      float lt = gLuma(t);
+      t = vec3(lt) + (t - vec3(lt)) * mix(1.0, B.x, w);
+      c = max(t * mix(1.0, B.y, w), vec3(0.0));
+    }
+    return c;
+  }
   Smp sFetch(float layer, vec2 uv, vec2 cs){
     Smp o;
-    o.c = texture(uSplat, vec3(uv, layer));
+    o.c = texture(uSplat, vec3(uv, layer), uSFilt.x);
     o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;   // the colour is sRGB bytes decoded here (an sRGB array texture is refused - GL 1281); the height in alpha is linear
-    vec4 nr = texture(uSplatN, vec3(uv, layer));
+    vec4 nr = texture(uSplatN, vec3(uv, layer), uSFilt.x);
     vec2 t = nr.xy * 2.0 - 1.0;
     t = vec2(cs.x * t.x + cs.y * t.y, -cs.y * t.x + cs.x * t.y);
     o.n = vec4(t, nr.z * 2.0 - 1.0, 1.0 - (1.0 - nr.a) * uSGloss[int(layer + 0.5)]);   // the rough map through the set's gloss grade (1 = the map's, 0 = matte)
@@ -105298,6 +105498,10 @@ const SPLAT_GROUND = (() => {
     Smp o; o.c = t.c * tw.y; o.n = vec4(tt.x, 0.0, tt.y, t.n.a) * tw.y;
     if (tw.x > 0.01) { Smp u = sTile(layer, P.zy / scale); o.c += u.c * tw.x; o.n += vec4(0.0, u.n.y, u.n.x, u.n.a) * tw.x; }
     if (tw.z > 0.01) { Smp u = sTile(layer, P.xy / scale); o.c += u.c * tw.z; o.n += vec4(u.n.x, u.n.y, 0.0, u.n.a) * tw.z; }
+    // THE RECOLOUR ONCE PER SET (2026-09-25): after the triplanar sum, not per projection - one inlined copy per sSet call
+    // site instead of three (ANGLE/fxc inlines every call; the ground program's compile is the long pole on D3D). The
+    // weights sum to 1, so a recolour of the blend is the blend of the recolours up to the recolour's curvature.
+    if (uSRecolOn > 0.5) { int Li = int(layer + 0.5); o.c.rgb = sRecolour(o.c.rgb, Li, uSLum[Li]); }
     return o;
   }
   // the triplet's height blend of its (up to) three sampled sets; A says which exist
@@ -105457,8 +105661,19 @@ const SPLAT_GROUND = (() => {
     rel = tot > 1e-5 ? rel / tot : 1.0;
     col = tot > 1e-5 ? col / tot : macro;
     nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
-    gSN = nrm.xyz * uSNrm.x * (1.0 - mw) * (1.0 - lakeM);
-    gSRough = mix(clamp(nrm.a, 0.05, 1.0), 1.0, mw);   // the far tier is the lit stack: no sheen out there
+    // THE DETAIL'S CONTRAST BY DISTANCE (the world rail, 2026-09-24; the user: "how noisy detailed textures appear"):
+    // the texel over its set's mean (rel) raised to a power - 1 as shipped, under 1 the texture's grain flattens toward
+    // the set's own colour. Near and far values, faded between two distances: the pebbles keep their grain at the wheel
+    // and stop fizzing at 300 m, where a texel is a fraction of a pixel and the grain is only aliasing.
+    { float ck = mix(uSCon.x, uSCon.y, smoothstep(uSCon.z, max(uSCon.w, uSCon.z + 1.0), d));
+      if (ck != 1.0 && tot > 1e-5) { float r2 = pow(max(rel, 1e-3), ck); col *= r2 / max(rel, 1e-3); rel = r2; } }
+    // THE NORMAL'S FADE (2026-09-24): the sets' relief is a sub-pixel pattern past a few hundred metres - under the
+    // sun's lobe it crawls as the eye moves (the frame-to-frame 'noise'); it gives way between uSFilt.z and .w
+    float nf = uSFilt.w > uSFilt.z ? 1.0 - smoothstep(uSFilt.z, uSFilt.w, d) : 1.0;
+    gSN = nrm.xyz * uSNrm.x * (1.0 - mw) * (1.0 - lakeM) * nf;
+    // SPECULAR ANTI-ALIAS (2026-09-24): the roughness widened by the pixel's footprint (Kaplanyan-style, on the
+    // footprint rather than the normal's variance - the arrays refuse textureGrad), so a glossy set does not sparkle
+    gSRough = mix(clamp(max(nrm.a, min(1.0, uSFilt.y * sqrt(gSPixM))), 0.05, 1.0), 1.0, mw);   // the far tier is the lit stack: no sheen out there
     vec3 mac = macro * uSSeam.y;
     // THE MACRO IN THE NEAR GROUND (the user, 2026-09-21: "the whole island looks yellow, while the colour data
     // gives mostly green and brown and there is little macro contrast remaining once the detailed textures show"):
@@ -105486,7 +105701,7 @@ const SPLAT_GROUND = (() => {
 
   // ---- the arrays: seventeen sets, assembled once the Images have decoded -----
   // colour + height (rgb + a) and normal + rough (rgb + a): four maps per set
-  function buildArrays(sets, U, done) {
+  function buildArrays(sets, U, R, done) {
     const N = sets.length, px = sets[0].px, S = px * px * 4;
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
     const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
@@ -105510,7 +105725,7 @@ const SPLAT_GROUND = (() => {
         t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
         t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
         // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes
-        t.anisotropy = 8; t.needsUpdate = true; return t; };
+        t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 8; t.needsUpdate = true; return t; };
       U.uSplat.value = mk(data, true); U.uSplatN.value = mk(dataN, false);
       done();
     });
@@ -105644,6 +105859,9 @@ const SPLAT_GROUND = (() => {
       uSMatM: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(30, 1, 0, 0)) },
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
+      uSRecol: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(0, 0, 0, 0)) },
+      uSRecol2: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 0.5)) },
+      uSFilt: { value: V4() }, uSCon: { value: new THREE.Vector4(1, 1, 0, 1) }, uSMaskL: { value: -1 }, uSRecolOn: { value: 0 },
       uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
       uSGrass: { value: new Float32Array(NLIB).fill(0) }, uSGrassC: { value: V4() },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() }, uSVeg: { value: V4() },
@@ -105674,7 +105892,19 @@ const SPLAT_GROUND = (() => {
         U.uSGrass.value[i] = g.grass === undefined ? 0 : +g.grass;   // the forest floor's dark texels toward the open grass
         // the set's mean luminance after its grade (the import's linear mean x the gain; the saturation leaves luma alone)
         const mn = (SPLAT_TEX_SETS.find(x => x.key === k) || {}).mean || [0.2, 0.2, 0.2];
-        U.uSLum.value[i] = Math.max(1e-3, 0.2126 * mn[0] * c.r + 0.7152 * mn[1] * c.g + 0.0722 * mn[2] * c.b); });
+        U.uSLum.value[i] = Math.max(1e-3, 0.2126 * mn[0] * c.r + 0.7152 * mn[1] * c.g + 0.0722 * mn[2] * c.b);
+        // the recolour (degrees in the record, radians in the shader)
+        const d2r = Math.PI / 180;
+        U.uSRecol.value[i].set((g.hue || 0) * d2r, (g.selHue || 0) * d2r, (g.selWidth || 0) * d2r, (g.selShift || 0) * d2r);
+        U.uSRecol2.value[i].set(g.selSat === undefined ? 1 : +g.selSat, g.selLight === undefined ? 1 : +g.selLight,
+                                g.contrast === undefined ? 1 : +g.contrast, g.selSoft === undefined ? 0.5 : +g.selSoft); });
+      { let on = U.uSMaskL.value >= 0 ? 1 : 0;
+        for (const k of LIB) { const g = R.grade[k]; if (g && ((g.hue || 0) !== 0 || (g.contrast !== undefined && +g.contrast !== 1) || (g.selWidth || 0) > 0)) on = 1; }
+        U.uSRecolOn.value = on; }
+      U.uSFilt.value.set(K.lodBias || 0, K.specAA || 0, K.nrmFadeFrom || 0, K.nrmFadeTo || 0);
+      U.uSCon.value.set(K.conNear === undefined ? 1 : K.conNear, K.conFar === undefined ? 1 : K.conFar, K.conFrom || 0, K.conTo || 1);
+      const an = Math.max(1, K.aniso | 0);
+      for (const t of [U.uSplat.value, U.uSplatN.value]) if (t && t.image && t.image.depth > 1 && t.anisotropy !== an) { t.anisotropy = an; t.needsUpdate = true; }
       // THE OPEN GROUND'S GRASS, MEASURED (2026-09-23): the mean of the sets the eye compares the forest
       // floor against - the heath's `grass` and `dry` and the scrub's `grassRock` - each after its own
       // normalisation, so the target moves with the island rather than being a colour someone picked.
@@ -105704,7 +105934,7 @@ const SPLAT_GROUND = (() => {
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
     };
     push();
-    buildArrays(SPLAT_TEX_SETS, U, () => { ready = true; push(); });
+    buildArrays(SPLAT_TEX_SETS, U, R, () => { ready = true; push(); });
     const api = {
       on: () => !!R.on,
       ready: () => ready,
@@ -105722,10 +105952,20 @@ const SPLAT_GROUND = (() => {
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },
-      grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1 }, R.grade[k] || {}),
+      grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R.grade[k] || {}),
+      // the recolour's selection shown in magenta on one set (its key), or off (null)
+      showMask: k => { U.uSMaskL.value = k ? LIB.indexOf(k) : -1; push(); return U.uSMaskL.value; },
+      // the set's images (the rail's previews): diff / nor / height / rough, lazily-made Images
+      images: k => SPLAT_TEX_SETS.find(x => x.key === k) || null,
+      filterDefaults: () => Object.assign({}, FILTER_DEFAULTS),
+      // replace the whole state at once (an imported world look): codes, knobs, grade, on
+      load: o => { if (!o) return; if (o.codes) for (const k in o.codes) R.codes[k] = JSON.parse(JSON.stringify(o.codes[k]));
+        if (o.knobs) for (const k in o.knobs) R.knobs[k] = +o.knobs[k]; if (o.grade) R.grade = JSON.parse(JSON.stringify(o.grade));
+        if (o.on !== undefined) R.on = o.on ? 1 : 0; push(); save(R); },
       setGrade: (k, o) => { R.grade[k] = Object.assign(api.grade(k), o); push(); save(R); return api.grade(k); },
       reset: () => { try { localStorage.removeItem('flydiy.ground.splat.v1'); } catch (e) {} Object.assign(R, load()); push(); },
       export: () => JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade }),
+      state: () => JSON.parse(JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })),
     };
     return { uniforms: U, glslCommon: glslCommon(), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
   }
@@ -109170,6 +109410,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   const FADE_VS = [
     '#ifdef USE_INSTANCING',
     '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
+    '#elif defined( USE_BATCHING )',
+    '  vec3 _fp = (modelMatrix * vec4(batchingMatrix[3].xyz, 1.0)).xyz;',   // the cover ring's batches (G585): an instance's origin
     '#else',
     '  vec3 _fp = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;',
     '#endif',
@@ -109237,11 +109479,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   const swayOnce = (src, ph) => src.indexOf(SWAY_MARK) >= 0 ? src
     : src.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + swayVS(ph));
   const UP_VS = 'if (uUp > 0.5) { objectNormal = vec3(0.0, 1.0, 0.0); }';
+  // A BATCH HAS NO PER-INSTANCE ATTRIBUTE (G585): the cover ring draws its rocks and debris as BatchedMeshes, one
+  // draw per material across the ring, and an instance there carries a matrix and a colour only. So the fade's
+  // threshold rides in the colour's ALPHA (the ring writes aRand's own value there) and is taken back here, right
+  // after the colour is read, the alpha then set to 1 (an opaque material ignores it; nothing else reads it). The
+  // same stream, the same thresholds: the thinning is the instanced draw's, instance for instance.
+  const BATCH_RAND_VS = '#ifdef USE_BATCHING\n  float _bRand = 0.5;\n  #ifdef USE_BATCHING_COLOR\n  _bRand = vColor.a; vColor.a = 1.0;\n  #endif\n#endif';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
+      .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
       .replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
     // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already
@@ -109249,6 +109498,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
     vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;');
+    // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read
+    vs = declOnce(vs, '#ifdef USE_BATCHING\n#define aRand _bRand\n#endif');
     sh.vertexShader = declOnce(vs, 'attribute float aRand;');
   };
   // upHook(mat): the cover's material shades as the ground (see UP_VS); the uniform is the material's own
@@ -109313,7 +109564,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
       sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.uniforms.uWind = U_WIND;
       { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
-        vs = swayOnce(vs, 'float(gl_InstanceID) * 1.7');   // a leaf flutters on its own instance id
+        vs = swayOnce(vs, 'LEAF_SWAY_PH');   // a leaf flutters on its own instance id
+        // ...which a batch (the cover ring's shrubs, G585) does not have: a multi-draw draws each instance as its own
+        // draw of one, gl_InstanceID 0 for all of them - its instance's own index is the draw's indirect index
+        vs = declOnce(vs, '#ifdef USE_BATCHING\n#define LEAF_SWAY_PH (getIndirectIndex(gl_DrawID) * 1.7)\n#else\n#define LEAF_SWAY_PH (float(gl_InstanceID) * 1.7)\n#endif');
         vs = declOnce(vs, 'uniform vec4 uWind;');
         vs = declOnce(vs, 'varying float vAoV;');
         sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
@@ -109351,7 +109605,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     terms: LEAF_TERMS,
     tintGlsl: TINT_GLSL,
     // the ring's fade (G454.13): the hook and the four dials, shared by every faded material
-    fadeHook: fadeHook, upHook: upHook,
+    fadeHook: fadeHook, upHook: upHook, hookLeaf: hookLeaf,   // hookLeaf: GATE COVER builds a leaf the way the loader does
     // what the loader holds (bytes): the decoded rungs and the coverage mip chains
     memory: () => { let geo = 0, mip = 0, n = 0; for (const b of BUILT.values()) for (const q of b.parts) { n++; for (const k in q.geo.attributes) geo += q.geo.attributes[k].array.byteLength; if (q.geo.index) geo += q.geo.index.array.byteLength; }
       for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },
@@ -109584,7 +109838,7 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.5, batch: true };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
@@ -109651,13 +109905,19 @@ var COVER_RING = (() => {
           const sorted = subs.slice().sort((a, b) => hOf(a) - hOf(b)), n = S.debrisKinds;
           subs = Array.from({ length: n }, (_, k) => sorted[Math.round(k * (sorted.length - 1) / Math.max(1, n - 1))]);
         }
+        // ONE MATERIAL PER MAP (G585): a rock's material is a plain copy made per part - the same values, the same
+        // program - and a species' models mostly share one picture (the census: 16 rock parts on 4 maps). Shared, the
+        // parts that wear the same picture can be one batch (below) instead of one draw each
+        const plain = new Map();
         for (const e of subs) {
           let b = null; try { b = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
           if (!b || !b.parts.length) continue;
           const parts = b.parts.map(q => {
             let mat = q.mat;
-            if (rockish(c)) {                                   // the leaf hook's AO attribute drew the rocks black (the bench): a plain copy
+            if (rockish(c) && plain.has(q.mat.map || null)) mat = plain.get(q.mat.map || null);
+            else if (rockish(c)) {                              // the leaf hook's AO attribute drew the rocks black (the bench): a plain copy
               mat = new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 });
+              plain.set(q.mat.map || null, mat);
               // THE SKIRT IS CUT (2026-09-22, the coast scans): a photoscanned strip carries the sand round its rocks, and
               // that skirt lay on the terrain as a pale plate wherever the ground fell away under it. A rock row's
               // `cut` (metres above the subject's floor - its own ground level, coast_rocks_tune.py) discards every
@@ -109711,6 +109971,8 @@ var COVER_RING = (() => {
         }
       }
       protos.set(c.name, P);
+      P.species = c.name;
+      for (const p of P) p.all = P;   // a prototype knows its species' set (the batches are sized from it)
       return P;
     }
     const draw = (P, r) => { let acc = r; for (const p of P) { acc -= p.w; if (acc <= 0) return p; } return P[P.length - 1]; };
@@ -109887,6 +110149,55 @@ var COVER_RING = (() => {
       return out;
     }
 
+    // ---- THE BATCHES (G585) ---------------------------------------------------------
+    // The rocks, the debris and the shrubs drew one InstancedMesh per prototype PART per block, and cast from each: at
+    // the airfield stand ~1 400 draws a frame between them (rock 252 + 270 shadow, debris 340 + 181, shrub 192 + 198 -
+    // the user's count). The tufts (cover) stay by block: 60 000+ instances, culled cheaply by the block's sphere.
+    // A part's instances in a block are a handful, and every one of them paid the whole three.js draw. They are
+    // BatchedMeshes now: one per (species, material, casts or not) ACROSS THE RING - the parts that share a picture
+    // are one draw (a multi-draw of their ranges), three culls each INSTANCE against each camera and each shadow
+    // camera (so no block is drawn for the one rock of it in view), and the block's reach test (below) switches its
+    // instances instead of its meshes. The picture: the same geometry, material, matrices and colours, and the
+    // fade's threshold carried in the colour's alpha (trees.js BATCH_RAND_VS) - the same instances thin at the same
+    // distances. `batch: false` is the per-block instanced path, as before (the A/B).
+    const batched = kind => S.batch && (kind === 'rock' || kind === 'debris' || kind === 'shrub');
+    const castOf = p => p.kind !== 'cover' && !((p.kind === 'debris' || p.kind === 'rock') && p.h < S.castMinH);
+    const attrSig = g => Object.keys(g.attributes).sort().map(k => k + g.attributes[k].itemSize).join(',') + (g.index ? '|i' : '');
+    const batches = new Map();   // key -> BatchedMesh
+    const V4 = new THREE.Vector4();
+    // keyed by the SPECIES too: two species of one file share its material objects (trees.js, PACK.materials), and a
+    // batch is sized for, and holds, the geometries of the one species it was made for
+    function batchFor(P, part, cast) {
+      const key = P.species + '|' + part.mat.uuid + '|' + (cast ? 1 : 0) + '|' + attrSig(part.geo);
+      let bm = batches.get(key);
+      if (bm) return bm;
+      // every geometry this batch will ever draw is known now: the species' prototypes are built together (protosOf)
+      const geos = [];
+      for (const p of P) if (castOf(p) === cast) for (const q of p.parts) if (q.mat === part.mat && attrSig(q.geo) === attrSig(part.geo) && !geos.includes(q.geo)) geos.push(q.geo);
+      let nv = 0, ni = 0; for (const g of geos) { nv += g.attributes.position.count; ni += g.index ? g.index.count : 0; }
+      bm = new THREE.BatchedMesh(64, nv, ni, part.mat);
+      bm.userData.geoIds = new Map(geos.map(g => [g, bm.addGeometry(g)]));
+      bm.userData.nVis = 0; bm.visible = false;
+      bm.perObjectFrustumCulled = true; bm.sortObjects = false; bm.frustumCulled = false;   // three's per-instance culling, each camera
+      bm.matrixAutoUpdate = false; bm.renderOrder = -1;   // at the origin for ever; an occluder before the ground (render_world.js ORDER_NOTE)
+      bm.castShadow = cast; bm.receiveShadow = true;
+      bm.userData.coverKind = P[0].kind;
+      bm.name = 'cover:' + P[0].kind;
+      batches.set(key, bm); root.add(bm);
+      return bm;
+    }
+    // a batch with no instance shown draws nothing at all (three would still set its program up, every pass): the
+    // count of its shown instances decides its own visibility
+    function batchVis(bm, id, v) {
+      if (bm.getVisibleAt(id) === v) return;
+      bm.setVisibleAt(id, v); bm.userData.nVis += v ? 1 : -1;
+      const on = bm.userData.nVis > 0; if (bm.visible !== on) bm.visible = on;
+    }
+    function batchAdd(bm, geo) {
+      if (bm.instanceCount >= bm.maxInstanceCount) bm.setInstanceCount(bm.maxInstanceCount * 2);   // full (no id to reuse): twice the room
+      return bm.addInstance(bm.userData.geoIds.get(geo));
+    }
+
     // ---- one cell -------------------------------------------------------------------
     function buildCell(cx, cz) {
       const t0 = performance.now();
@@ -109898,7 +110209,7 @@ var COVER_RING = (() => {
       const G = subGrid(x0, z0, C);
       const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
       // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
-      const cell = { n: 0, parts: new Map(), by: {}, cx, cz };   // by: this cell's tally per species (STAT.by is the live sum)
+      const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz };   // inst: [batch, id, ...] - the batched instances (G585)   // by: this cell's tally per species (STAT.by is the live sum)
       cells.set(cx + ',' + cz, cell); markBlock(cx, cz);
       if (!centreMix && !G.lawn) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
@@ -110000,9 +110311,21 @@ var COVER_RING = (() => {
         }
         const col = it.col ? new Float32Array(it.col) : null;
         // every part of the prototype draws the same instances (a bark part and a leaf part)
-        // (a twig or a pebble under S.castMinH casts no shadow: a texel of the map at most, and a shadow draw per model per block)
-        const cast = it.p.kind !== 'cover' && !((it.p.kind === 'debris' || it.p.kind === 'rock') && it.p.h < S.castMinH);
-        for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
+        // (a twig or a pebble under S.castMinH casts no shadow: a texel of the map at most, and a shadow draw per model per
+        // block; 0.5 m since G585 - the user: "shadows only for the kinds/sizes that show one (rocks > ~0.5 m)")
+        const cast = castOf(it.p);
+        if (batched(it.p.kind)) {   // into the ring's batches, hidden until the block they fall in is (re)built (buildBlock)
+          for (const part of it.p.parts) {
+            const bm = batchFor(it.p.all, part, cast);
+            for (let i = 0; i < n; i++) {
+              const id = batchAdd(bm, part.geo);
+              T.fromArray(mats, i * 16); bm.setMatrixAt(id, T);
+              V4.set(col ? col[i * 3] : 1, col ? col[i * 3 + 1] : 1, col ? col[i * 3 + 2] : 1, rand[i]); bm.setColorAt(id, V4);
+              bm.setVisibleAt(id, false);
+              cell.inst.push(bm, id);
+            }
+          }
+        } else for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
         cell.n += n;
       }
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
@@ -110011,6 +110334,8 @@ var COVER_RING = (() => {
     function dropCell(key) {
       const cell = cells.get(key); if (!cell) return;
       markBlock(cell.cx, cell.cz);
+      for (let k = 0; k < cell.inst.length; k += 2) { batchVis(cell.inst[k], cell.inst[k + 1], false); cell.inst[k].deleteInstance(cell.inst[k + 1]); }   // the batched ones go now (past Rdrop: out of reach)
+      cell.inst.length = 0;
       for (const k in cell.by) { STAT.by[k] -= cell.by[k]; if (STAT.by[k] <= 0) delete STAT.by[k]; }   // the tally is LIVE (it ran up for the page's life before L4)
       cells.delete(key);
     }
@@ -110035,9 +110360,12 @@ var COVER_RING = (() => {
       for (const m of b.meshes) { b.group.remove(m); m.geometry.dispose(); if (m.dispose) m.dispose(); }   // the wrapper and the instance buffers; the prototype's own are shared
       b.meshes = []; b.dirty = false;
       const parts = new Map(); let box = null, live = 0;
+      b.instCells = []; b.instVis = null;   // the cells whose batched instances this block switches with its reach (update) - cells, not
+                                            // ids: a dropped cell's ids are handed to the next instances made
       for (let dz = 0; dz < B; dz++) for (let dx = 0; dx < B; dx++) {
         const cell = cells.get((b.bx * B + dx) + ',' + (b.bz * B + dz)); if (!cell) continue;
         live++;
+        if (cell.inst.length) b.instCells.push(cell);
         if (cell.box) { const c = cell.box; box = box ? [Math.min(box[0], c[0]), Math.min(box[1], c[1]), Math.min(box[2], c[2]), Math.max(box[3], c[3]), Math.max(box[4], c[4]), Math.max(box[5], c[5])] : c.slice(); }
         for (const [part, d] of cell.parts) { let a = parts.get(part); if (!a) parts.set(part, a = []); a.push(d); }
       }
@@ -110102,8 +110430,9 @@ var COVER_RING = (() => {
         const dirty = []; for (const b of blocks.values()) if (b.dirty) dirty.push(b);
         if (dirty.length) { dirty.sort((a, b) => dist2(a) - dist2(b)); for (const b of dirty.slice(0, S.blockBudget)) buildBlock(b); }
         let shown = 0, draws = 0;
-        for (const b of blocks.values()) { const v = !!b.box && dist2(b) < R2r; if (b.group.visible !== v) b.group.visible = v; if (v) { shown++; draws += b.meshes.length; } }
-        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws; }
+        for (const b of blocks.values()) { const v = !!b.box && dist2(b) < R2r; if (b.group.visible !== v) b.group.visible = v; if (v) { shown++; draws += b.meshes.length; }
+          if (b.instCells && b.instVis !== v) { for (const cell of b.instCells) for (let k = 0; k < cell.inst.length; k += 2) batchVis(cell.inst[k], cell.inst[k + 1], v); b.instVis = v; } }
+        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws + batches.size; STAT.batches = batches.size; }
       STAT.live = cells.size; STAT.queued = queue.length;
       let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
       STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
@@ -110111,8 +110440,8 @@ var COVER_RING = (() => {
     const api = {
       update, root,
       get: () => Object.assign({}, S),
-      set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks }; Object.assign(S, o || {});
-        if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks) api.replant(); return api.get(); },
+      set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks, batch: S.batch, castMinH: S.castMinH }; Object.assign(S, o || {});
+        if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks || S.batch !== was.batch || S.castMinH !== was.castMinH) api.replant(); return api.get(); },
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); },
       rockPlan,                                                           // the rock map's read (above)
       // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
@@ -110122,7 +110451,7 @@ var COVER_RING = (() => {
         return { cell: [cx, cz], mix: G.mix[k], code: G.code[k], ok: !!G.ok[k], kill: +G.kill[k].toFixed(3), cls: G.cls[k], kind: G.kind[k], boost: +G.boost[k].toFixed(3) }; },
       rockProtos: () => speciesOf().filter(rockish).map(c => ({ c, P: protosOf(c) })),   // the sprites' subjects (rocks and debris)
       stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
-      dispose: () => { api.replant(); scene.remove(root); },
+      dispose: () => { api.replant(); for (const bm of batches.values()) { root.remove(bm); bm.dispose(); } batches.clear(); scene.remove(root); },
     };
     return api;
   }
@@ -110371,17 +110700,27 @@ var ROCK_MAP = (() => {
       const oldCol = renderer.getClearColor(new THREE.Color()), oldA = renderer.getClearAlpha();
       renderer.setRenderTarget(ATLAS); renderer.setClearColor(0x000000, 0); renderer.clear();
       let k = 0;
-      for (const { c, P } of protos) for (const p of P) {
-        if (k >= perRow * perRow) break;
-        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || 1);
-        const meshes = p.parts.map(part => {
-          const m = new THREE.MeshBasicMaterial({ map: part.mat.map || null, toneMapped: false });
-          if (cut > 0) { m.onBeforeCompile = sh => { sh.uniforms.uCut = { value: cut };
+      // G584: THE MATERIALS ARE KEPT FOR THE WHOLE BAKE. One made and disposed per part released its program with
+      // it, and the next part linked the same program again - the census: 30 links of 2 programs in one roll-out.
+      // Now one material per (map, cut), all alive until the atlas is drawn: the two programs link once each
+      const kinds = new Map();
+      const spriteMat = (map, cut) => {
+        const key = (map ? map.uuid : '-') + '|' + (cut > 0 ? cut : 0);
+        let m = kinds.get(key);
+        if (!m) {
+          m = new THREE.MeshBasicMaterial({ map: map || null, toneMapped: false });
+          if (cut > 0) { const uCut = { value: cut }; m.onBeforeCompile = sh => { sh.uniforms.uCut = uCut;
             sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY;').replace('#include <begin_vertex>', '#include <begin_vertex>' + String.fromCharCode(10) + 'vRockY = position.y;');
             sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY; uniform float uCut;').replace('#include <map_fragment>', 'if (vRockY < uCut) discard;' + String.fromCharCode(10) + '#include <map_fragment>'); };
             m.customProgramCacheKey = () => 'rockmap-cut'; }
-          return new THREE.Mesh(part.geo, m);
-        });
+          kinds.set(key, m);
+        }
+        return m;
+      };
+      for (const { c, P } of protos) for (const p of P) {
+        if (k >= perRow * perRow) break;
+        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || 1);
+        const meshes = p.parts.map(part => new THREE.Mesh(part.geo, spriteMat(part.mat.map, cut)));
         sc.clear(); meshes.forEach(m => sc.add(m));
         // from above: right = +x, up = -z (the world's north), the footprint [-r0, r0]
         cam.left = -r0; cam.right = r0; cam.top = r0; cam.bottom = -r0; cam.updateProjectionMatrix();
@@ -110390,9 +110729,9 @@ var ROCK_MAP = (() => {
         renderer.setViewport(x, y, S.slot, S.slot); renderer.setScissor(x, y, S.slot, S.slot); renderer.setScissorTest(true);
         renderer.render(sc, cam);
         slots.set(p.key, { u0: x / S.px, v0: y / S.px, du: S.slot / S.px, dv: S.slot / S.px, r0, proto: p, c });
-        meshes.forEach(m => m.material.dispose());
         k++;
       }
+      for (const m of kinds.values()) m.dispose();
       renderer.setRenderTarget(old); renderer.setViewport(oldVp); renderer.setScissor(oldSc); renderer.setScissorTest(oldSt); renderer.setClearColor(oldCol, oldA);
       STAT.sprites = k;
     }
@@ -110406,8 +110745,11 @@ var ROCK_MAP = (() => {
     const quad = new THREE.PlaneGeometry(1, 1); quad.rotateX(-Math.PI / 2);   // local +y (texture up) -> -z, as the bake
     let meshes = [];
     const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+    // ONE MATERIAL FOR EVERY SPRITE OF THE MAP (G584): they were identical, made per species and disposed at every
+    // rebuild - so a recentre let the program go and linked it again
+    const mapMat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
     function rebuild() {
-      for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+      for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); }
       meshes = [];
       const by = new Map();   // proto key -> records
       let total = 0;
@@ -110417,8 +110759,7 @@ var ROCK_MAP = (() => {
         const sl = slots.get(pk); if (!sl) continue;
         const g = quad.clone();
         const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, sl.u0 + uv.getX(i) * sl.du, sl.v0 + uv.getY(i) * sl.dv);
-        const mat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
-        const m = new THREE.InstancedMesh(g, mat, recs.length);
+        const m = new THREE.InstancedMesh(g, mapMat, recs.length);
         let anyCol = false;
         for (let i = 0; i < recs.length; i++) { const r = recs[i];
           Q.setFromAxisAngle(UP, r.yaw); V.set(r.x, 0, r.z); SC.set(2 * sl.r0 * r.s, 1, 2 * sl.r0 * r.s);
@@ -114420,6 +114761,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
 
     // (hoisted above the woodland planter, 2026-09-21: the woodland's stands drew their
     // species from the WHOLE pool - a pine no mix names stood in every stand)
+    const SP_SIZE = {};   // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards)
     const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
       // the island's knobs (F8 > trees > from the map): coverage ramps from
       // `from` to `full` metres of canopy; a tree is canopy x gain over the
@@ -114962,6 +115304,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const n = r.length / 6;
           if (!n) return;
           const SH = SHAPE.list[gi];
+          // THE SPECIES' SIZE (the world rail, 2026-09-24): one multiplier per species over the canopy's size, every biome
+          const kSz = (SH.key && SP_SIZE[SH.key.split('|')[0]]) || 1;
           // deal every instance its series first, so each series' meshes are
           // sized to what they will hold and nothing empty is submitted
           const ser = new Uint8Array(n), cnt = SH.series.map(() => 0);
@@ -115012,7 +115356,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // map says (x gain), over the model's own height, with the mix's
             // spread as jitter; elsewhere the collection's size
             const s = (ISLC && can > 0 && SH.h)
-              ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9))
+              ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
               : SH.white ? sizeOf(SH.size, w)
                          : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
             // the stand series is drawn stretched - the dial, not the bake
@@ -115193,6 +115537,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
             o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); return value; },
+          // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
+          speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; evictAll(); } return SP_SIZE[name] || 1; },
+          speciesSizes: () => Object.assign({}, SP_SIZE),
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
@@ -136634,6 +136981,16 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     // THE ROAD FURNITURE (2026-09-22): the W-beam guardrails the roads raise where the ground falls
     // away past the shoulder and on the outside of a tight bend (src/viewer/guardrail.js). The switch
     // hides them - nothing is rebuilt, so it is free either way.
+    // THE TWO ROWS THE LOW TIERS NEEDED (G570, 2026-09-24): what the frame costs since the town and the ground's cover -
+    // the cover ring's rocks, debris and shrubs (~1 600 draws at the stand with their shadows) and the premises' houses
+    { k: 'cover', label: 'ground cover', steps: [
+        { v: 'full', label: 'full', why: 'rocks, debris and shrubs to 220 m, their shadows from 35 cm' },
+        { v: 'lean', label: 'lean', why: 'to 120 m, half as dense, shadows only from 1 m: about a third of the draws' },
+        { v: 'off',  label: 'off', why: 'no ground cover (the ground and the forest as they are)' } ] },
+    { k: 'scenery', label: 'town detail', steps: [
+        { v: 'full', label: 'full', why: 'a house whole to 150 m (the far town past it), its trims to ~270 m' },
+        { v: 'lean', label: 'lean', why: 'the far town from 60 m, the trims to ~110 m' },
+        { v: 'low',  label: 'low', why: 'the far town from 25 m, only walls and roofs past ~55 m, no yard props' } ] },
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
@@ -136708,24 +137065,24 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   const POST_BLOOM = Object.assign({}, POST_OFF, { bloom: 'soft' });
   const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
-    potato:  Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    retro:   Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    current: Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
+    potato:  Object.assign({ ground: 'lean', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
   };
   const DEFAULT = 'gamer';
   const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const PRESET_WHY = {
-    potato:  'an integrated or very old GPU: the scene at 67 % of the screen, no shadows, no clouds, sparse forest',
-    retro:   'a card that was good five years ago (GTX 1060 class): the near shadow, no clouds, sparse forest',
+    potato:  'an integrated or very old GPU: the scene at 67 % of the screen, no shadows, no clouds, no ground cover, the town at its least, sparse forest',
+    retro:   'a card that was good five years ago (GTX 1060 class): 85 % of the screen, the near shadow, no clouds, lean ground cover and town, sparse forest',
     current: 'a current mid-range card (RTX 3060 class): gamer without the 8x MSAA, the mirror and the mist march',
     gamer:   'the reference: RTX 3080 class - 53-60 fps at 1080p on Jolene (the frame is the CPU draw count there); the default (the medium of before, with the far ground lean)',
     ultra:   'the dearest picture: supersampled, the densest forest, 4096 shadows, live reflections - for screenshots and the cards above a 3080',
   };
 
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: DEFAULT, pv: 3 }, PRESETS[DEFAULT]);   // pv: the pref's version (3: G551, the auto scale an option)
+  const S = Object.assign({ preset: DEFAULT, pv: 4 }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -136740,12 +137097,12 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       // and G551 made it an option again) - once: a player who was ON a preset gets that preset as it is now (the old
       // names mapped), or every returning player would read 'custom'; a player's own custom mix keeps its options, but
       // not the 'auto' G528 put there (it was the default for a day, not their pick)
-      if (v && !(v.pv >= 3)) {
+      if (v && !(v.pv >= 4)) {
         const MAP = { low: 'retro', medium: 'gamer', high: 'gamer', ultra: 'ultra', potato: 'potato', retro: 'retro', current: 'current', gamer: 'gamer' };
         const np = MAP[v.preset];
         if (np && PRESETS[np]) { for (const o of OPTIONS) delete v[o.k]; Object.assign(v, PRESETS[np]); v.preset = np; }
-        else if (v.scale === 'auto') v.scale = 1;
-        v.pv = 3;
+        else if (v.scale === 'auto' && !(v.pv >= 3)) v.scale = 1;
+        v.pv = 4;
       }
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
@@ -136764,6 +137121,17 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   let applied = {};                          // what the handles currently hold
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
+    // the cover ring and the premises (G570): both exist only in the flight world, so they apply when it has them
+    const cov = W.TREE_FILL && W.TREE_FILL.cover ? W.TREE_FILL.cover() : null;
+    if (cov && cov.set && applied.cover !== S.cover) {
+      const C = { full: { on: true, reach: 220, density: 2, castMinH: 0.35 }, lean: { on: true, reach: 120, density: 1, castMinH: 1 }, off: { on: false } }[S.cover];
+      if (C) { cov.set(C); applied.cover = S.cover; }
+    }
+    const PR = world && world.premises;
+    if (PR && PR.hlod && PR.detail && applied.scenery !== S.scenery) {
+      const D = { full: { near: 150, px2: 60, props: true }, lean: { near: 60, px2: 150, props: true }, low: { near: 25, px2: 300, props: false } }[S.scenery];
+      if (D) { PR.hlod.near = D.near; PR.detail.px2 = D.px2; PR.detail.props = D.props; applied.scenery = S.scenery; }
+    }
     if (AA && AA.setTier && applied.aa !== S.aa) { AA.setTier(S.aa); applied.aa = S.aa; }
     if (AA && AA.setScale && applied.scale !== S.scale) {
       // 'auto' (G528): the controller starts from 100 %; a rig (a headless or driven browser) keeps 100 % unless ?autoscale=1
@@ -136786,6 +137154,9 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       // makes three.js recompile the lit materials; shadowMap.enabled alone
       // leaves them sampling a stale map
       world.sun.castShadow = sh.on;
+      // ...and the NEAR map (G570): the craft's own shadow light kept casting with the row 'off' - at the stand it drew
+      // every caster within 90 m, ~5 ms of a potato frame
+      if (W.SHADOW_NEAR && W.SHADOW_NEAR.S) W.SHADOW_NEAR.S.on = !!sh.on;   // shadow_near's own dial (follow() re-asserts castShadow from it)
       rig.set({ shadowMap: sh.map, farShadow: sh.on && sh.far });
       applied.shadows = S.shadows;
     }
@@ -141213,7 +141584,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
 <script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
 <script type="text/x-flydiy" src="tools/_house_kit.js?v=5d5c479e"></script>
-<script type="text/x-flydiy" src="tools/_house_gen.js?v=5b7370d4"></script>
+<script type="text/x-flydiy" src="tools/_house_gen.js?v=d9999195"></script>
 <script type="text/x-flydiy" src="tools/_big_gen.js?v=8670619d"></script>
 <script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
 <script type="text/x-flydiy" src="tools/_marine_gen.js?v=7e5624cd"></script>
@@ -141230,10 +141601,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=f80b94dd"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=1a9cffb9"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=a2698c61"></script>
-<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=8839219c"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=efdc085f"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=db4052c4"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=75159f78"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=09f00685"></script>
+<script type="text/x-flydiy" src="src/viewer/world_rail.js?v=b6a49b7b"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -141879,11 +142251,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
   }
+  // G584: THE GENERATORS ARE KEPT. A PMREMGenerator owns its shaders, and dispose() frees them - a generator
+  // made and disposed per bake re-linked its programs every bake (the census: the room's PMREM 14 times in one
+  // roll-out, the hangar's textures landing under the world's loading screen). One per source kind, kept for
+  // the page's life: the room's cube (256) and the sky's equirect (their sizes differ, and a generator that
+  // changes size rebuilds its blur program too).
+  const envGens = {};
+  const envGen = k => envGens[k] || (envGens[k] = new THREE.PMREMGenerator(renderer));
   function bakeHangarEnv() {
     if (envDeferred) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
     // (one light model everywhere since W0.5a: r186 has only the physical one)
-    const pm = new THREE.PMREMGenerator(renderer);
+    const pm = envGen('room');
     // ASKED FOR, not remembered (G62): the sky changes with the mood, so the
     // texture to bake is whichever one is hanging outside right now
     // A GRADED ROOM (G62.2) has no baked picture to hand over: its sky only
@@ -141900,8 +142279,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // leaks a render target per click (measured: +2 textures a change).
     let rt = null;
     if (skyReady) {
-      pm.compileEquirectangularShader();
-      rt = pm.fromEquirectangular(sky);
+      const pmS = envGen('sky');
+      pmS.compileEquirectangularShader();
+      rt = pmS.fromEquirectangular(sky);
     } else if (THREE.WebGLCubeRenderTarget) {
       ensureEnvRT();
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
@@ -142016,10 +142396,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         if (shedSkyProbe) { shedSkyProbe.bake(world.day); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
       }
       if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
-        const pm2 = new THREE.PMREMGenerator(renderer);
+        const pm2 = envGen('sky');
         pm2.compileEquirectangularShader();
         srt = pm2.fromEquirectangular(sky);
-        pm2.dispose();
         if (skyPM && skyPM !== srt) skyPM.dispose();
         skyPM = srt;
       }
@@ -142029,7 +142408,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         m.needsUpdate = true;
       }
     }
-    pm.dispose();
     // the equirect is a data-URI image and decode is asynchronous: a 'sky' bake
     // asked for before it lands falls back to the room and comes back here.
     // The room's own `onSkyReady` (wired in getHangar) covers the swap case;
@@ -148778,8 +149156,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // in-game readout of the biomes, not a dial (F8 has the dials). A tuft glyph.
     { k: 'ground', label: 'ground', title: 'What is under you: the ground, the biome, the canopy',
       icon: 'M9 15.4V8.2|M9 8.2C9 5.6 7 4.2 5 4.6c.4 2.6 2 4 4 3.6Z|M9 10.4c0-2.6 2-4 4-3.6-.4 2.6-2 4-4 3.6Z|M3.6 15.4h10.8' },
-    { k: 'world', label: 'world', title: 'The premises of the world: roads, zones, strips, sites',
-      icon: 'M9 16.2s-5-4.6-5-8.3a5 5 0 0 1 10 0c0 3.7-5 8.3-5 8.3Z|M9 9.7a1.9 1.9 0 1 0 0-3.8 1.9 1.9 0 0 0 0 3.8Z' },
+    // (2026-09-24) the WORLD button moved to the right-hand WORLD rail (world_rail.js > scenery): the left rail
+    // flies, the right one edits the world. Its flyout (FL_SLOTS.world) stays for the rail's callers.
   ];
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
@@ -149228,7 +149606,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       flLive(body, 'slope', 'flGndSlope');
       flLive(body, 'height', 'flGndAgl');
       flLive(body, 'cover', 'flGndRing');
-      flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. F8 > trees > biomes holds the dials.');
+      flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. The WORLD rail (F9, the right edge) holds the dials.');
       flGroundLive(sim ? sim.out : null);
     },
     clouds(body) {
@@ -150866,28 +151244,36 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // those materials goes through compileAsync with a plain target bound
   // (a shadow map is one: linear, no tone map). What it misses still
   // compiles on the frame; what it catches links on the driver's threads.
+  // G584: THE SHADOW PASS'S OWN PROGRAMS. This used to warm MeshDepthMaterial({ RGBADepthPacking }) per side
+  // against a helper with no lights - eight programs the shadow pass never draws with (r186 draws with its own
+  // BasicDepthPacking material, in the lit scene's light state, the caster's map / alphaTest / side copied on);
+  // the ~12 it does draw with linked on the first frame. PROG_WARM.depthVariants mirrors three's rule (GATE
+  // PROGRAMS holds it to the real shadow pass) and the helper is compiled with the world scene as its lit scene.
+  const PLAIN_RT = () => PLAIN_RT.rt || (PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4));
   function compileDepthVariants() {
     if (typeof renderer.compileAsync !== 'function' || !WF) return Promise.resolve();
-    const helper = new THREE.Scene(), seen = new Set(), defDepth = new Map();
-    const SIDE = m => m.side === THREE.DoubleSide ? THREE.DoubleSide : m.side === THREE.BackSide ? THREE.FrontSide : THREE.BackSide;
-    const add = (o, mat) => {
-      if (!mat) return;
-      const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m') + (o.isSkinnedMesh ? ':s' : '');
-      if (seen.has(key)) return; seen.add(key);
-      const c = o.clone(false); c.material = mat; c.visible = true; if (o.isInstancedMesh) c.count = Math.max(1, o.count); helper.add(c);   // shallow: a child's real material is not a depth variant
-    };
-    scene.traverse(o => {
-      if (!o.isMesh || !o.castShadow) return;
-      if (o.customDepthMaterial) { add(o, o.customDepthMaterial); return; }
-      const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m) return;
-      const s = SIDE(m); let d = defDepth.get(s);
-      if (!d) { d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: s }); defDepth.set(s, d); }
-      add(o, d);
-    });
-    // the far cascade's proxies (their far depth) and the canopy cover's swap
+    const jobs = [];
+    if (typeof PROG_WARM !== 'undefined') {
+      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [scene]);
+      jobs.push(PROG_WARM.fogless(scene, () => compilePass(helper, PLAIN_RT(), scene)).catch(e => console.warn('depth compile:', e && e.message)));
+    }
+    // the far cascade's proxies (their far depth) and the canopy cover's swap: drawn by their own
+    // renders into their own targets, keyed without the world's lights, as before
+    const far = new THREE.Scene(), seen = new Set();
+    const add = (o, mat) => { if (!mat) return; const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m'); if (seen.has(key)) return; seen.add(key);
+      far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
     if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
-    const target = (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || new THREE.WebGLRenderTarget(4, 4);
-    return compilePass(helper, target).catch(e => console.warn('depth compile:', e && e.message));
+    if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
+    // G584: THE PASSES OUTSIDE THE SCENE - the resolve's blit, the post chain, the clouds' bake / march / shadow:
+    // full-screen quads in scenes of their own that compileAsync(scene) never meets; each module lists its own
+    if (typeof PROG_WARM !== 'undefined') {
+      const lists = [];
+      try { if (aa && aa.warmList) lists.push(aa.warmList()); } catch (e) {}
+      try { if (typeof POST_FX !== 'undefined' && POST_FX.warmList) lists.push(POST_FX.warmList()); } catch (e) {}
+      try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmList) lists.push(CLOUDS.warmList()); } catch (e) {}
+      for (const g of PROG_WARM.passes(THREE, lists)) jobs.push(compilePass(g.helper, g.target === null ? null : PLAIN_RT()).catch(e => console.warn('pass compile:', e && e.message)));
+    }
+    return Promise.all(jobs);
   }
   // THE SHADERS' SCREEN (G567, the user: "a dedicated loading message/screen explaining the first time
   // compilation issue with a progress bar"). A COLD compile - the first launch, the first after an update
@@ -151017,7 +151403,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // first frame. A PMREM of the still-black probe target is that map with
     // zero radiance: same key, same look, and the real bake replaces it.
     if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
-      try { const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromCubemap(envRT.texture); pm.dispose();
+      try { const rt = envGen('room').fromCubemap(envRT.texture);
             hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
     }
     const pass = target => compilePass(hangarScene, target);
@@ -151038,7 +151424,39 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     hud(); loop();
     setTimeout(() => { compileXrayVariants(); }, 1500);   // G441: the see-through programs, after the room is up
   });
+  // THE SCENERY MODE (the world rail, 2026-09-24; the user: "launch only the graphics parts of the game, at least not
+  // the flight simulation ... so we don't need lots of benches anymore"): ?scenery=1 rolls out the moment the boot
+  // lifts, then HOLDS the solver (running = false: no step, no pilot, no director), takes the aeroplane off the
+  // stage, gives the eye to the free camera 60 m over the stand and opens the WORLD rail (world_rail.js). The world
+  // streams round the eye (worldUpdate reads the camera under DEVCAM), so this is the game's own renderer, the
+  // game's own world and its own GRAPHICS tier - the bench is the game. `S` (or the rail's button) leaves it.
+  const SCENERY_Q = (() => { try { return /[?&]scenery(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
+  const SCENERY = { on: false,
+    enter() {
+      if (SCENERY.on) return;
+      const go = () => {
+        SCENERY.on = true; running = false; started = false;
+        // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the scenery
+        for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
+        if (craft && craft.parent) craft.parent.remove(craft);
+        document.body.classList.add('sceneryMode');
+        flCamMode('free');
+        const cg = sim.cgPos();
+        devCam.pos.set(cg[0], cg[1] + 60, cg[2] + 40); devCam.pitch = -0.45; devCam.yaw = Math.PI; devCam.speed = 40;
+        if (window.WORLD_RAIL) window.WORLD_RAIL.open();
+      };
+      if (inGarage) rollOut(go); else go();
+    },
+    leave() {
+      if (!SCENERY.on) return;
+      SCENERY.on = false; running = true;
+      if (craft && !craft.parent) scene.add(craft);
+      document.body.classList.remove('sceneryMode');
+      flCamMode('chase');
+    } };
+  if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   BOOT.run(bootSteps, { set: 'garage', landingLabel: 'the last pieces landing',
+    done: () => { if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0); },
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
@@ -151142,218 +151560,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     root.appendChild($('div', { class: 'hd' }, [$('b', { text: 'DEVELOPER' }), fpsEl,
       (() => { const b = $('button', { text: 'close (F8)' }); b.onclick = toggle; return b; })()]));
 
-    // ---- MAP LAYERS: the bench's layer views and the stack's knobs, top-level (G403) ----
-    if (world() && world().ground && world().ground.on()) {
-      const M = fold(root, 'map layers (the island)', true);
-      const gs = k => v => world().ground.set({ [k]: v });
-      M.appendChild(select('view', world().ground.modes().map((m, i) => [String(i), m]),
-        () => String(world().ground.get().mode), v => world().ground.set({ mode: +v })));
-      M.appendChild(note('the bench’s layer views: the stack, then each map alone - tint (Landsat), radar (IFSAR), canopy (Meta/WRI), class (WorldCover), NDVI, coast (the signed field), height, snow'));
-      M.appendChild(slider('lightness', 0.2, 2.5, 0.02, () => world().ground.get().light, gs('light')));
-      M.appendChild(slider('saturation', 0, 2, 0.02, () => world().ground.get().sat, gs('sat')));
-      M.appendChild(slider('shore band', 0, 1, 0.05, () => world().ground.get().shore, gs('shore')));
-      M.appendChild(slider('class blur', 0, 200, 5, () => world().ground.get().classBlur, gs('classBlur'), v => v + ' m'));
-      M.appendChild(slider('class wobble', 0, 60, 2, () => world().ground.get().edgeWobble, gs('edgeWobble'), v => v + ' m'));
-      M.appendChild(select('water', [['1', 'the map (class 80 lakes)'], ['0', 'off']], () => String(world().ground.get().waterMap), v => world().ground.set({ waterMap: +v })));
-      M.appendChild(note('water from the map: the cover\u2019s class 80 UNIONED with the imagery\u2019s NDWI (green vs NIR - water absorbs NIR), as a signed field (a smooth edge) and one flat surface per lake at the 85th percentile of the DEM under it. The bake\u2019s rivers run between them (the BLEND, the default: ?hydro=blend); ?hydro=map for the lakes alone, ?hydro=proc for the bake\u2019s own lakes and rivers.'));
-      M.appendChild(note('TERRAIN TYPE legend (recomputed, not recoloured): dark blue sea \u00b7 blue lake \u00b7 yellow-green heath (grass/moss) \u00b7 olive muskeg (grass, flat, wet, low) \u00b7 pale sand (shore, low NDVI) \u00b7 grey-brown scree (bare) \u00b7 dark grey rock (slope > 38\u00b0, or bare > 28\u00b0) \u00b7 mustard scrub (tree cover under 2.5 m canopy, shrub) \u00b7 dark green forest (tree cover, canopy 2.5 m+) \u00b7 white snow (900 m+, slope under 35°) \u00b7 red built'));
-      M.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
-      // THE STACK (G404): each albedo layer - on, blend mode, alpha - in the bench's order
-      const Ms = fold(M, 'the stack (bottom first)', true, true);
-      const G = world().ground, BL = G.blends().map((b, i) => [String(i), b]);
-      G.stack().forEach((l, i) => {
-        Ms.appendChild(note(l.src));
-        Ms.appendChild(select('  on', [['1', 'on'], ['0', 'off']], () => String(G.stack()[i].on ? 1 : 0), v => G.setLayer(i, { on: +v })));
-        Ms.appendChild(select('  blend', BL, () => String(G.stack()[i].mode), v => G.setLayer(i, { mode: +v })));
-        Ms.appendChild(slider('  alpha', 0, 1, 0.01, () => G.stack()[i].op, v => G.setLayer(i, { op: v })));
-      });
-      Ms.appendChild(note('class (WorldCover palette) > tint (Landsat) > radar (IFSAR, level 1) > shade (canopy, normalised) > snow (its own mask). Remembered in this browser.'));
-      M.appendChild(note('after the stack: the rocky shore off the coast field, then lightness and saturation; lit by the sun after'));
-      // ---- THE SPLAT (alpha splatting, 2026-09-20): the textures by terrain type ----
-      const SP = world().ground.splat && world().ground.splat();
-      if (SP) {
-        const Sf = fold(M, 'splat (the textures by terrain type)', true, true);
-        const ss = k => v => SP.set({ [k]: v });
-        const kn = k => () => SP.knobs()[k];
-        Sf.appendChild(select('splat', [['1', 'on'], ['0', 'off (the stack alone)']], () => String(SP.on() ? 1 : 0), v => SP.set({ on: +v })));
-        Sf.appendChild(note('the ground drawn by terrain type from the library (17 sets): up to three sets per type mixed by the shared cloud mask, height-blended, hex-tiled, triplanar on the steep; the detail gives way to the aerial sets, then to the stack above. The bench (tools/_island.html) has the same knobs; `export` prints this browser\u2019s table.'));
-        const LIB = [['', '- none -']].concat(SP.library().map(l => [l.key, `${l.key} (${l.metres} m)`]));
-        const NAMES = SP.names();
-        // THE TEXTURE PICKER: one surface at a time - its near and far triplets with their scales, the mask, the variation
-        const Sp = fold(Sf, 'surfaces (the texture picker)', true, true);
-        let cur = 2;
-        const codeOpts = Object.keys(NAMES).filter(k => +k >= 2).map(k => [k, `${k} ${NAMES[k]}`]);
-        Sp.appendChild(select('surface', codeOpts, () => String(cur), v => { cur = +v; }));
-        Sp.appendChild(note('12 cliff, 13 forest old and 14 scrub dense are derived in the shader from rock / forest / scrub by slope and canopy (the splits below)'));
-        const C = () => SP.code(cur) || { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] };
-        const setArr = (key, j, v) => { const c = C(); const a = (c[key] || [null, null, null]).slice(); a[j] = v; SP.setCode(cur, { [key]: a }); };
-        const metres = k => { const l = SP.library().find(x => x.key === k); return l ? l.metres : 1; };
-        ['A', 'B', 'C'].forEach((L, j) => {
-          Sp.appendChild(select(`near ${L}`, LIB, () => C().tex[j] || '', v => { setArr('tex', j, v || null); if (v) setArr('scale', j, metres(v)); }));
-          Sp.appendChild(slider(`  metres`, 0.5, 120, 0.5, () => C().scale[j], v => setArr('scale', j, v), v => v + ' m'));
-        });
-        ['A', 'B', 'C'].forEach((L, j) => {
-          Sp.appendChild(select(`far ${L}`, LIB, () => (C().far || [])[j] || '', v => { setArr('far', j, v || null); if (v) setArr('farScale', j, metres(v)); }));
-          Sp.appendChild(slider(`  metres`, 0.5, 120, 0.5, () => (C().farScale || [0, 0, 0])[j], v => setArr('farScale', j, v), v => v + ' m'));
-        });
-        Sp.appendChild(note('an empty far slot keeps the near set at distance; picking a set takes its own scale, then adjust'));
-        Sp.appendChild(slider('mask cell', 2, 200, 1, () => C().mix[0], v => setArr('mix', 0, v), v => v + ' m'));
-        Sp.appendChild(slider('mask sharpness', 0.1, 6, 0.1, () => C().mix[1], v => setArr('mix', 1, v)));
-        Sp.appendChild(slider('bias A|B', -1, 1, 0.05, () => C().mix[2], v => setArr('mix', 2, v)));
-        Sp.appendChild(slider('bias C', -1, 1, 0.05, () => C().mix[3], v => setArr('mix', 3, v)));
-        Sp.appendChild(slider('hue swing', 0, 40, 1, () => (C().vary || [0, 0, 20])[0], v => setArr('vary', 0, v), v => v + '\u00b0'));
-        Sp.appendChild(slider('value swing', 0, 0.6, 0.01, () => (C().vary || [0, 0, 20])[1], v => setArr('vary', 1, v)));
-        Sp.appendChild(slider('vary cell', 2, 120, 1, () => (C().vary || [0, 0, 20])[2], v => setArr('vary', 2, v), v => v + ' m'));
-        Sp.appendChild(select('orient', [['', 'as is'], ['sea', 'face the sea (the beach)']], () => C().orient || '', v => SP.setCode(cur, { orient: v || undefined })));
-        // THE GRADE per set: a gain and a saturation - the sheet's numbers (tools/splat_sheet.py)
-        const Sg = fold(Sf, 'grade (per set)', false, true);
-        let gk = 'dry';
-        Sg.appendChild(select('set', LIB.slice(1), () => gk, v => { gk = v; }));
-        Sg.appendChild(color('gain', () => SP.grade(gk).gain, v => SP.setGrade(gk, { gain: v })));
-        Sg.appendChild(slider('saturation', 0, 2, 0.05, () => SP.grade(gk).sat, v => SP.setGrade(gk, { sat: v })));
-        Sg.appendChild(slider('gloss', 0, 1, 0.05, () => SP.grade(gk).gloss, v => SP.setGrade(gk, { gloss: v })));
-        Sg.appendChild(note('gloss: the set’s roughness map as shipped at 1, matte at 0 (the near ring is a Standard material: wet sand, shingle and the pools catch the sun)'));
-        const Sd = fold(Sf, 'distance \u00b7 macro', false, true);
-        Sd.appendChild(slider('detail fades from', 0, 2000, 25, kn('detailFrom'), ss('detailFrom'), v => v + ' m'));
-        Sd.appendChild(slider('detail gone by', 50, 4000, 25, kn('detailTo'), ss('detailTo'), v => v + ' m'));
-        Sd.appendChild(slider('macro from', 0, 10000, 100, kn('macroFrom'), ss('macroFrom'), v => v + ' m'));
-        Sd.appendChild(slider('macro full by', 100, 30000, 100, kn('macroTo'), ss('macroTo'), v => v + ' m'));
-        Sd.appendChild(slider('macro strength', 0, 1, 0.05, kn('macroMix'), ss('macroMix')));
-        Sd.appendChild(slider('macro tint under', 0, 1, 0.05, kn('macroNear'), ss('macroNear')));
-        Sd.appendChild(slider('macro light kept', 0, 1, 0.05, kn('macroLum'), ss('macroLum')));
-        Sd.appendChild(slider('albedo to imagery', 0, 1, 0.05, kn('albedoNorm'), ss('albedoNorm')));
-        Sd.appendChild(note('albedo to imagery: each set\u2019s mean pulled onto the imagery\u2019s mean colour for the terrain types it stands on (one gain per channel per set, from the map\u2019s own pixels); 1 = the imagery is the level, 0 = the sets as shipped. The table is in the console at boot (SP.norm())'));
-        Sd.appendChild(note('tint under: how much of the near ground’s colour is the imagery’s (the sets keep their texture); light kept: how much of the imagery’s own light and dark the tint carries (0 = the detail’s brightness, 1 = the imagery’s - the valley green, the slope brown, the flat pale)'));
-        Sd.appendChild(note('the macro is the stack above (the Landsat albedo the game already ships); \u201ctint under\u201d gives the detail the place\u2019s colour, luminance kept'));
-        const Sb = fold(Sf, 'blend \u00b7 tiling', false, true);
-        Sb.appendChild(slider('blend radius', 0.5, 3, 0.1, kn('splatBlend'), ss('splatBlend'), v => v + ' cells'));
-        Sb.appendChild(slider('edge wobble', 0, 40, 1, kn('splatWobble'), ss('splatWobble'), v => v + ' m'));
-        Sb.appendChild(slider('zone seam depth', 0.02, 1, 0.02, kn('seamDepth'), ss('seamDepth')));
-        Sb.appendChild(slider('height depth', 0.02, 1, 0.02, kn('hDepth'), ss('hDepth')));
-        Sb.appendChild(select('hex tiling', [['1', 'on'], ['0', 'off']], () => String(SP.knobs().hexOn), v => SP.set({ hexOn: +v })));
-        Sb.appendChild(slider('hex cells', 0.5, 6, 0.5, kn('hexN'), ss('hexN'), v => v + ' /tile'));
-        Sb.appendChild(slider('hex rotation', 0, 180, 5, kn('hexRot'), ss('hexRot'), v => v + '\u00b0'));
-        Sb.appendChild(slider('triplanar', 0, 16, 1, kn('triK'), ss('triK'), v => v ? 'k ' + v : 'off'));
-        Sb.appendChild(slider('normal strength', 0, 3, 0.05, kn('nrmK'), ss('nrmK')));
-        Sb.appendChild(slider('sheen', 0, 1, 0.05, kn('sheen'), ss('sheen')));
-        Sb.appendChild(note('sheen: the sets’ roughness on the near ring (the muskeg pools, wet mud and bare rock catch the sun and the sky’s reflection); 0 is matte, the old look'));
-        const Ss = fold(Sf, 'splits (derived surfaces)', false, true);
-        Ss.appendChild(slider('cliff from', 10, 60, 1, kn('cliffLo'), ss('cliffLo'), v => v + '\u00b0'));
-        Ss.appendChild(slider('cliff full at', 10, 70, 1, kn('cliffHi'), ss('cliffHi'), v => v + '\u00b0'));
-        Ss.appendChild(slider('old growth from', 2, 30, 0.5, kn('oldLo'), ss('oldLo'), v => v + ' m'));
-        Ss.appendChild(slider('old growth full', 2, 35, 0.5, kn('oldHi'), ss('oldHi'), v => v + ' m'));
-        Ss.appendChild(slider('dense scrub from', 0, 5, 0.1, kn('denseLo'), ss('denseLo'), v => v + ' m'));
-        Ss.appendChild(slider('dense scrub full', 0, 6, 0.1, kn('denseHi'), ss('denseHi'), v => v + ' m'));
-        const Sm = fold(Sf, 'micro (puddles \u00b7 water\u2019s edge \u00b7 beach)', false, true);
-        Sm.appendChild(slider('puddle wet', 0, 0.8, 0.01, kn('pudCover'), ss('pudCover')));
-        Sm.appendChild(slider('puddle edge', 0.002, 0.05, 0.001, kn('pudEdge'), ss('pudEdge')));
-        Sm.appendChild(slider('puddle scale', 0.5, 8, 0.5, kn('pudSlope'), ss('pudSlope'), v => 'x' + v));
-        Sm.appendChild(slider('lake edge', 0.2, 8, 0.2, kn('lakeEdge'), ss('lakeEdge'), v => v + ' m'));
-        Sm.appendChild(slider('beach angle', -180, 180, 5, kn('beachRot'), ss('beachRot'), v => v + '\u00b0'));
-        // THE ROCK MAP (2026-09-22): the rocks' far tier - their top view projected on the ground where the meshes have faded
-        const RM = world().ground.rockMap && world().ground.rockMap();
-        if (RM) { const Sr = fold(Sf, 'rocks at distance (the rock map)', false, true);
-          Sr.appendChild(select('rock map', [['1', 'on'], ['0', 'off (the meshes alone)']], () => String(RM.get().on ? 1 : 0), v => RM.set({ on: !!+v })));
-          Sr.appendChild(slider('half width', 300, 2000, 50, () => RM.get().half, v => { RM.set({ half: v }); RM.replan(); }, v => v + ' m'));
-          Sr.appendChild(slider('re-centre at', 100, 900, 25, () => RM.get().recentre, v => RM.set({ recentre: v }), v => v + ' m'));
-          Sr.appendChild(button('replan', () => RM.replan()));
-          Sr.appendChild(note('the cover ring plants the rocks within 220 m and thins them by its fade law; the same rocks are drawn top-down into a map over this half width (1 m a texel) and the ground reads it where the meshes have gone - one sampler, ?rockmap=0 for the A/B')); }
-        Sf.appendChild(button('reset to the recipe', () => SP.reset()));
-        Sf.appendChild(button('export (console)', () => { const j = SP.export(); console.log('SPLAT RECIPE ' + j); try { navigator.clipboard && navigator.clipboard.writeText(j); } catch (e) {} }));
-        Sf.appendChild(note('remembered in this browser; `export` prints the table to the console (and the clipboard) - paste it into 28b_ground_fields.js RECIPE to make it the default'));
-      }
-    }
+    // ---- THE WORLD'S ART MOVED (2026-09-24): the map layers, the splat (the sets, grades, filtering), the
+    // biomes and their species, the island's tree rule, the fill, the cover ring, the rock map and the
+    // environment albedo are the WORLD rail's now (world_rail.js, F9, the right edge) - one place for the
+    // art, with previews and an export. F8 keeps the renderer's and the sky's dials.
+    root.appendChild(note('the world’s art - layers, ground sets, recolours, filtering, biomes, species, the ring, the cliffs - is on the WORLD rail: F9 (the right edge), or ?scenery=1 for the world without the flight'));
+    if (W.WORLD_RAIL) root.appendChild(button('open the world rail', () => W.WORLD_RAIL.open()));
     // ---- TREES: everything about the forest, folded by concern ----------------
     const T = fold(root, 'trees', true);
-    if (W.TREE_FILL && W.TREE_FILL.onIsland && W.TREE_FILL.onIsland()) {
-      const Ti = fold(T, 'from the map (the island)', true, true);
-      const isl = k => v => W.TREE_FILL.setIsland({ [k]: v });
-      Ti.appendChild(note('THE RULE: the terrain type says the kind of stand (forest full, scrub half, muskeg a stunted few, heath almost none, rock/sand/water none); the canopy says how much of it stands (the ramp from `cover from` to `full cover`) and how tall (canopy x gain over the model\'s height); NDVI is the vigour (a weak stand thins); a slope over 35\u00b0 thins to a third; species by altitude, wet ground and steepness (the pool)'));
-      Ti.appendChild(slider('cover from', 0, 10, 0.5, () => W.TREE_FILL.island().from, isl('from'), v => v + ' m'));
-      Ti.appendChild(slider('full cover', 2, 30, 1, () => W.TREE_FILL.island().full, isl('full'), v => v + ' m'));
-      Ti.appendChild(slider('size gain', 0.3, 2.5, 0.05, () => W.TREE_FILL.island().gain, isl('gain')));
-      Ti.appendChild(slider('size min', 0.1, 1, 0.05, () => W.TREE_FILL.island().min, isl('min')));
-      Ti.appendChild(slider('size max', 1, 4, 0.1, () => W.TREE_FILL.island().max, isl('max')));
-    }
-    // ---- THE BIOMES (L4, 2026-09-21; BIOMES-IN-GAME-2026-09-20.md): the code -> mix map, the mixes'
-    // own numbers, the cover ring, and the export back to tools/_trees_tuning.json ----
-    if (W.TREE_FILL.biomes && W.TREE_FILL.biomes()) {
-      const BIO = W.TREE_FILL.biomes(), TF = W.TREE_FILL;
-      const B = fold(T, 'biomes', true, true);
-      B.appendChild(note('a terrain-type code names a bench mix; the fill and the woodland draw their species from it, the cover ring plants its grass, flowers, rocks and bushes. Every number here is the bench’s (tools/_trees_tuning.json mixes) moved live; `export` prints the map + the mixes for that file, then `python tools/tree_prep.py` bakes the payload.'));
-      { const n = note(''); const R = { el: n, refresh: () => { const c = TF.cover && TF.cover(); const st = c && c.stat(); n.textContent = st ? ('under the eye: ' + (st.mixAt || 'no biome') + ' · ring ' + st.live + ' cells / ' + st.instances + ' instances, ' + st.lastMs.toFixed(1) + ' ms last build · ' + st.agl.toFixed(0) + ' m AGL') : 'no cover ring'; } };
-        B.appendChild(n); rows.push(R); live.push(R); }
-      const mixNames = Object.keys(BIO.mixes);
-      const isl = k => v => TF.setIsland({ [k]: v });
-      B.appendChild(slider('biome gain', 0.5, 8, 0.1, () => TF.island().biomeGain, isl('biomeGain')));
-      B.appendChild(slider('wobble', 0, 30, 1, () => TF.island().biomeWobble, isl('biomeWobble'), v => v + ' m'));
-      B.appendChild(note('gain: a mix’s trees per m² over the grid’s (3.5 puts the conifer at the grid’s full density); wobble: the code read this far off the point on a 23 m noise, so a biome edge is not the map’s cell edge'));
-      const Bm = fold(B, 'code → mix (the map)', true, true);
-      for (const code of Object.keys(BIO.names).map(Number).filter(c => c >= 2)) {
-        Bm.appendChild(select(code + ' ' + BIO.names[code], [['', '— none']].concat(mixNames.map(m => [m, m])),
-          () => BIO.map[code] || '', v => TF.setBiome(code, v || null)));
-      }
-      Bm.appendChild(note('12 cliff, 13 old forest, 14 dense scrub are derived from rock / forest / scrub by slope and canopy (the splat’s knobs); none = nothing planted (sea, lake, snow, built)'));
-      // the mixes: each one a fold of its forest knobs and its species rows
-      const Bx = fold(B, 'the mixes', false, true);
-      const spKind = name => { const P = W.TREE_PACK, c = P && P.collections.find(q => q.name === name); return c ? (c.kind || 'tree') : '?'; };
-      for (const name of mixNames) {
-        const M = BIO.mixOf(name), Fm = fold(Bx, name, false, true), F = () => (BIO.mixOf(name).forest || (BIO.mixOf(name).forest = {}));
-        const fs = k => v => TF.setMix(name, ['forest', k], v);
-        Fm.appendChild(slider('trees', 0, 1500, 10, () => F().count || 0, fs('count'), v => v + ' (' + (BIO.density(name) * 10000).toFixed(1) + '/ha)'));
-        Fm.appendChild(slider('shrubs', 0, 20, 0.5, () => F().under || 0, fs('under'), v => v + ' /1000 m²'));
-        Fm.appendChild(slider('rocks', 0, 30, 0.5, () => F().rocks || 0, fs('rocks'), v => v + ' /1000 m²'));
-        Fm.appendChild(slider('blotch', 0, 1, 0.05, () => F().blotch || 0, fs('blotch')));
-        Fm.appendChild(slider('blotch m', 4, 60, 1, () => F().blotchM || 18, fs('blotchM'), v => v + ' m'));
-        Fm.appendChild(slider('cover spread', 0, 0.5, 0.01, () => F().coverSpread || 0, fs('coverSpread')));
-        for (const sp of Object.keys(M.species || {})) {
-          const row = () => BIO.mixOf(name).species[sp], kind = spKind(sp), Fs = fold(Fm, sp + ' (' + kind + ')', false, true);
-          const ss = k => v => TF.setMix(name, ['species', sp, k], v);
-          Fs.appendChild(slider('proportion', 0, 4, 0.05, () => row().proportion === undefined ? 1 : row().proportion, ss('proportion')));
-          if (kind === 'tree') Fs.appendChild(slider('dead', 0, 0.5, 0.01, () => row().dead || 0, ss('dead')));
-          if (kind === 'cover') {
-            Fs.appendChild(slider('density', 0, 6, 0.05, () => row().density || 0, ss('density'), v => v + ' /m²'));
-            Fs.appendChild(slider('patch', 0, 20, 0.5, () => row().patch || 0, ss('patch'), v => v ? v + ' m' : 'even'));
-            Fs.appendChild(slider('patch share', 0, 1, 0.05, () => row().patchShare === undefined ? 0.25 : row().patchShare, ss('patchShare')));
-          }
-          if (kind === 'rock') Fs.appendChild(slider('size', 1, 40, 1, () => row().size || 1, ss('size')));
-        }
-      }
-      // the cover ring's own dials
-      if (TF.cover && TF.cover()) {
-        const Bc = fold(B, 'the cover ring', false, true), C = () => TF.cover(), cs = k => v => C().set({ [k]: v });
-        Bc.appendChild(slider('reach', 60, 400, 10, () => C().get().reach, cs('reach'), v => v + ' m'));
-        Bc.appendChild(slider('full to', 10, 200, 5, () => C().get().near, cs('near'), v => v + ' m'));
-        Bc.appendChild(slider('taper', 0, 1, 0.05, () => C().get().taper, cs('taper')));
-        Bc.appendChild(slider('AGL full', 10, 200, 5, () => C().get().aglFull, cs('aglFull'), v => v + ' m'));
-        Bc.appendChild(slider('AGL off', 30, 400, 5, () => C().get().aglOff, cs('aglOff'), v => v + ' m'));
-        Bc.appendChild(slider('density', 0, 2, 0.05, () => C().get().density, cs('density')));
-        Bc.appendChild(slider('shrubs', 0, 2, 0.05, () => C().get().shrubs, cs('shrubs')));
-        Bc.appendChild(slider('rocks', 0, 2, 0.05, () => C().get().rocks, cs('rocks')));
-        Bc.appendChild(slider('build ms', 0.5, 12, 0.5, () => C().get().budgetMs, cs('budgetMs'), v => v + ' ms'));
-        Bc.appendChild(note('the ring fades in the vertex shader: full to `full to`, gone at `reach` (taper shapes the thinning), full under `AGL full`, gone above `AGL off`; density / shrubs / rocks scale the mix’s numbers and replant'));
-      }
-      B.appendChild(button('export (console)', () => { const j = BIO.export(); console.log('BIOMES ' + j); try { navigator.clipboard && navigator.clipboard.writeText(j); } catch (e) {} }));
-      B.appendChild(note('export prints { biomes, mixes } to the console (and the clipboard): paste them over the two keys of tools/_trees_tuning.json, then `python tools/tree_prep.py` bakes the payload (TREE_PACK.biomes) - the bench reads the same file'));
-    }
-    T.appendChild(slider('fill density', 16, 400, 8, () => W.TREE_FILL.get(), v => W.TREE_FILL.set(v),
-      v => v + ' (' + (1024 / v).toFixed(1) + ' m)'));
-    // THE THINNING (G420, the row owed there): the complement's impostors keep
-    // every tree to `thin from`, a quarter (the base's share) by `thin to`
-    if (W.TREE_FILL.thin) {
-      const th = () => W.TREE_FILL.thin();
-      T.appendChild(slider('thin from', 500, 8000, 100, () => th()[0], v => W.TREE_FILL.thin(v, th()[1]), v => v + ' m'));
-      T.appendChild(slider('thin to', 1000, 9000, 100, () => th()[1], v => W.TREE_FILL.thin(th()[0], v), v => v + ' m'));
-      T.appendChild(note('one grid in two parts: the base (every 2nd point each way) stands to the ring\u2019s edge, the complement inside the fill reach thins in the shader between these two distances - no chunk is regenerated on approach'));
-    }
-    // ONE lightness for the trees, both tiers: the leaf master light (the
-    // models) and the impostors' lit term, moved together (the user, G400)
-    T.appendChild(slider('tree lightness', 0.2, 2, 0.02, () => leaf().master().light,
-      v => { leaf().tint({ light: v }); world().treeLod.lit.value = v * 0.9; }));
-    const mix = k => v => { W.TREE_MIX[k] = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); };
-    T.appendChild(slider('furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, mix('furnished')));
-    T.appendChild(slider('size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, mix('spread')));
-    T.appendChild(note('furnished = share of living trees drawn as the specimen (the rest as the stand shape); both replant on release'));
     genEl = note('');
     T.appendChild(genEl);
     const Tl = fold(T, 'ladder', false, true);
@@ -151415,7 +151629,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // The player's dials are the WEATHER panel's (weather_ui.js, both rails); these
     // are the developer's: the same day fields, plus what the climate makes of them.
     {
-      const wx = () => (W.WORLD && W.WORLD.world ? W.WORLD.world : null);
+      const wx = () => { const fp = W.FLIGHT_PROBE, w = fp && fp.world && fp.world(); return w || null; };   // the world (WORLD is the renderer's handle, it has no .world)
       const cl = () => { const w = wx(); return w && w.climate ? w.climate : null; };
       const wd = () => { const d = dy(); return (d && d.wind) || {}; };
       const setW = patch => { if (!ck()) return; const w = Object.assign({ refH: 10 }, wd(), patch);
@@ -151557,10 +151771,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     }
     // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------
     const E = fold(root, 'environment', true);
-    if (world() && world().envAlbedo) {
-      E.appendChild(slider('albedo', 0.2, 1.5, 0.02, () => world().envAlbedo(), v => world().envAlbedo(v)));
-      E.appendChild(note('one gain over the ground (after the splat) and the vegetation (leaf light + impostor lit) - the environment alone; the aeroplane, the buildings and the sky keep theirs'));
-    }
     E.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)'], ['island', 'island (alps, hemisphere x2)']],
       () => rigRowName, v => { rigRowName = v; rig().row(v); }));
     // dragging either sun slider takes the rig MANUAL (the clock fold above hands it back)

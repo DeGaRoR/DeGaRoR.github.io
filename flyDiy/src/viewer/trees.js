@@ -306,6 +306,8 @@
   const FADE_VS = [
     '#ifdef USE_INSTANCING',
     '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
+    '#elif defined( USE_BATCHING )',
+    '  vec3 _fp = (modelMatrix * vec4(batchingMatrix[3].xyz, 1.0)).xyz;',   // the cover ring's batches (G585): an instance's origin
     '#else',
     '  vec3 _fp = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;',
     '#endif',
@@ -373,11 +375,18 @@
   const swayOnce = (src, ph) => src.indexOf(SWAY_MARK) >= 0 ? src
     : src.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + swayVS(ph));
   const UP_VS = 'if (uUp > 0.5) { objectNormal = vec3(0.0, 1.0, 0.0); }';
+  // A BATCH HAS NO PER-INSTANCE ATTRIBUTE (G585): the cover ring draws its rocks and debris as BatchedMeshes, one
+  // draw per material across the ring, and an instance there carries a matrix and a colour only. So the fade's
+  // threshold rides in the colour's ALPHA (the ring writes aRand's own value there) and is taken back here, right
+  // after the colour is read, the alpha then set to 1 (an opaque material ignores it; nothing else reads it). The
+  // same stream, the same thresholds: the thinning is the instanced draw's, instance for instance.
+  const BATCH_RAND_VS = '#ifdef USE_BATCHING\n  float _bRand = 0.5;\n  #ifdef USE_BATCHING_COLOR\n  _bRand = vColor.a; vColor.a = 1.0;\n  #endif\n#endif';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
+      .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
       .replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
     // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already
@@ -385,6 +394,8 @@
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
     vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;');
+    // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read
+    vs = declOnce(vs, '#ifdef USE_BATCHING\n#define aRand _bRand\n#endif');
     sh.vertexShader = declOnce(vs, 'attribute float aRand;');
   };
   // upHook(mat): the cover's material shades as the ground (see UP_VS); the uniform is the material's own
@@ -449,7 +460,10 @@
       sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.uniforms.uWind = U_WIND;
       { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
-        vs = swayOnce(vs, 'float(gl_InstanceID) * 1.7');   // a leaf flutters on its own instance id
+        vs = swayOnce(vs, 'LEAF_SWAY_PH');   // a leaf flutters on its own instance id
+        // ...which a batch (the cover ring's shrubs, G585) does not have: a multi-draw draws each instance as its own
+        // draw of one, gl_InstanceID 0 for all of them - its instance's own index is the draw's indirect index
+        vs = declOnce(vs, '#ifdef USE_BATCHING\n#define LEAF_SWAY_PH (getIndirectIndex(gl_DrawID) * 1.7)\n#else\n#define LEAF_SWAY_PH (float(gl_InstanceID) * 1.7)\n#endif');
         vs = declOnce(vs, 'uniform vec4 uWind;');
         vs = declOnce(vs, 'varying float vAoV;');
         sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
@@ -487,7 +501,7 @@
     terms: LEAF_TERMS,
     tintGlsl: TINT_GLSL,
     // the ring's fade (G454.13): the hook and the four dials, shared by every faded material
-    fadeHook: fadeHook, upHook: upHook,
+    fadeHook: fadeHook, upHook: upHook, hookLeaf: hookLeaf,   // hookLeaf: GATE COVER builds a leaf the way the loader does
     // what the loader holds (bytes): the decoded rungs and the coverage mip chains
     memory: () => { let geo = 0, mip = 0, n = 0; for (const b of BUILT.values()) for (const q of b.parts) { n++; for (const k in q.geo.attributes) geo += q.geo.attributes[k].array.byteLength; if (q.geo.index) geo += q.geo.index.array.byteLength; }
       for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },

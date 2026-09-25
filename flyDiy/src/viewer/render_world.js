@@ -3750,6 +3750,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
 
     // (hoisted above the woodland planter, 2026-09-21: the woodland's stands drew their
     // species from the WHOLE pool - a pine no mix names stood in every stand)
+    const SP_SIZE = {};   // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards)
     const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
       // the island's knobs (F8 > trees > from the map): coverage ramps from
       // `from` to `full` metres of canopy; a tree is canopy x gain over the
@@ -4292,6 +4293,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const n = r.length / 6;
           if (!n) return;
           const SH = SHAPE.list[gi];
+          // THE SPECIES' SIZE (the world rail, 2026-09-24): one multiplier per species over the canopy's size, every biome
+          const kSz = (SH.key && SP_SIZE[SH.key.split('|')[0]]) || 1;
           // deal every instance its series first, so each series' meshes are
           // sized to what they will hold and nothing empty is submitted
           const ser = new Uint8Array(n), cnt = SH.series.map(() => 0);
@@ -4342,7 +4345,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // map says (x gain), over the model's own height, with the mix's
             // spread as jitter; elsewhere the collection's size
             const s = (ISLC && can > 0 && SH.h)
-              ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9))
+              ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
               : SH.white ? sizeOf(SH.size, w)
                          : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
             // the stand series is drawn stretched - the dial, not the bake
@@ -4523,6 +4526,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
             o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); return value; },
+          // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
+          speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; evictAll(); } return SP_SIZE[name] || 1; },
+          speciesSizes: () => Object.assign({}, SP_SIZE),
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1

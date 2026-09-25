@@ -433,6 +433,19 @@ const POST_FX = (() => {
     renderer.setRenderTarget(prevTarget);
   }
   const active = () => KEYS.some(k => S[k] !== 'off');
+  // warmList() (G584): the programs the passes switched on will draw with, for the roll-out's compile step
+  // (shader_warm.js) - { m, to }: `to` null is the canvas, 'rt' one of the pyramid's plain targets
+  function warmList() {
+    if (!ready || !active() || !hooked) return [];
+    build();
+    const out = [], add = (m, canvas) => { if (m) out.push({ m, to: canvas ? null : 'rt' }); };
+    if (S.look !== 'off' || S.lens !== 'off') add(M.look, true);
+    if (S.ao !== 'off') { add(M.ao); add(M.aoBlur); add(M.aoApply, true); }
+    if (S.rays !== 'off') { add(M.raysMask); add(M.raysBlur); add(M.add, true); }
+    if (S.bloom !== 'off') { add(M.thr); add(M.down); add(M.up); add(M.upOut, true); }
+    if (S.eye !== 'off') add(M.eye);
+    return out;
+  }
   // apply(): the hook installed only while something is on; nothing else touched otherwise
   function apply() {
     if (!aa) return false;
@@ -451,7 +464,7 @@ const POST_FX = (() => {
     for (const k in M) { M[k].dispose(); delete M[k]; }
     installed = false; sized = { w: 0, h: 0 };
   }
-  const API = { S, KEYS, stats, init, apply, set, render, active, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, stats, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();

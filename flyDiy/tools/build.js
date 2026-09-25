@@ -241,6 +241,10 @@ const MANIFEST = {
     // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with
     ['src/viewer', 'house_tarr.js'],
     ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
+    // THE WORLD RAIL (G582): 90 KB of editing UI no flight needs at boot - fetched once and cached here rather than
+    // inlined (index.html's budget, GATE MEDIA). It only publishes window.WORLD_RAIL at eval and polls for the world,
+    // so landing before app.js is soon enough; app.js's SCENERY and F8 reach it at call time.
+    ['src/viewer', 'world_rail.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
     shell: 'shell.html',
@@ -338,7 +342,9 @@ const MANIFEST = {
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
-              'post_fx.js', 'shadow_near.js', 'site_tex.js', 'site_ground.js',
+              'post_fx.js', 'shadow_near.js',
+              'shader_warm.js',   // G584: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
+              'site_tex.js', 'site_ground.js',
               'splat_tex.js', 'splat_ground.js',   // the island's ground library (17 sets, lazily-made Images) + the splat: the arrays, the GLSL, F8's handle
               // THE PAVEMENT (v1.16, 2026-09-22): the library manifest + the one material every strip, road and apron wears
               'pavement_tex.js', 'pavement.js',
@@ -392,7 +398,8 @@ const MANIFEST = {
               'input.js', 'input_panel.js', 'gfx_settings.js', 'editor.js',
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
-              'cockpit.js', 'app.js', 'dev_panel.js'],
+              'cockpit.js', 'app.js',
+              'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's

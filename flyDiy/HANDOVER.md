@@ -59301,7 +59301,8 @@ a flip rebakes).
   environmentIntensity when a material has no envMap of its own. Also noted, not changed: the dirt line compares the
   WORLD y (vHouseY) with uDirtTop in the house frame (g(0,0) + dirtH x 0.55), and the game stands a house's group at
   its ground height (placeHouse's y = oy): a house whose ground is more than ~1 m above world y 0 has no dirt line at
-  all. A fix is a per-house offset (the slot has room); not done here, it changes the picture.
+  all. A fix is a per-house offset (the slot has room); not done here, it changes the picture. (All three mended by
+  G581.)
 - MEASURED, the bench (tools/_tarr.html + tools/tarr_shot.js: 19 buildings - 14 houses, 2 big, a hangar, a tower, a
   shed - drawn whole then on the stack, SwiftShader 960 x 540, shadows on): 195 bags -> 192 merged into 2 town
   meshes (3 flat flags / awnings stay), 33 colour + 30 normal/rough layers, 170 slots, 84 MB of arrays with mips,
@@ -59496,6 +59497,223 @@ SUBSTEP (tools/_substep_check.js, core) holds it with 4 000-pass eigenvalues ove
 futureDesigns/PHYSICS-PERF-2026-09-24.md G578-G580, and THE METAL WING BOX, measured: capped at 120 substeps the
 metal Cessna flies the same circuit (-41 %, the tips 2-3 mm more bend), at 80 per-beam it diverges - the next
 chantier, network-sized, the load test keeping the true stiffness.
+
+## G581 - THREE DEAD HOUSE DIALS, MENDED (2026-09-25)
+
+Found while building G574 (the town on texture arrays), which had kept them dead to match the game. Each changes the
+picture; the user's ruling on the shots: "that all looks very similar to me, the tile sizing is much better. Please land that"; before/after shots in `screenshots/g574/` (the tarr bench at y 0 and lifted 20 m, the house bench).
+- THE WANDER AND THE ROOF TILE SCALE (uWander G273, uUvK G329 / P.roofTile). r186 runs onBeforeCompile before it
+  resolves the #includes, so wanderUV's token rewrite of v*MapUv matched nothing. Now `#define vMapUv hUv` (and the
+  other map varyings) sits at the top of main, below the varyings' declarations and above every chunk that reads them:
+  the preprocessor renames each later read. The flag (no map) still gets none. Visible: kennecott mill's roofTile 4
+  finally draws its shakes 4x larger; the siding's courses wander by a few mm.
+- THE GLASS'S envMapIntensity (2.3 glass / 1.9 pane). r186 gives that uniform the scene's environmentIntensity when a
+  material has no envMap (a house's never has). shadeGlass now scales radiance and iblIrradiance after
+  lights_fragment_maps (only the environment puts anything in them) by uGlassEnvK = the material's own number (1 if
+  it carries an envMap), on top of the scene's. Visible: windows reflect the sky far more.
+- THE DIRT LINE ON A HILL. uDirtTop is in the house frame, vHouseY world; the game stands a house at its ground.
+  New SHADE_U.uDirtY0 (0 on the benches), added in DIRT_EXPR; render_premises placeBuilt sets it to the group's world
+  y. Not mended: the fences' and the poles' shared finishes (FENCE_F, lampFinish) draw in the premises frame at world
+  heights, so their dirt line is still world-relative (a per-vertex ground height would be needed).
+- THE TOWN FOLLOWS (house_tarr.js): uUvK folded into the slot's uv transform, uWander in the spare l.w (added to
+  tUvT exactly as wanderUV does), uDirtY0 folded into the slot's dirt line, uGlassEnvK in the glass slot's c.y. The
+  tarr bench after the fix: town vs houses mean |diff| near 0.455 / street 0.183 / mid 0.086 / dusk 0.157 - as
+  before the fix (0.456 / 0.183 / 0.086 / 0.158), at y 0 and at y 20. Before vs after (the houses): near 1.39/255,
+  3.2 % of pixels over 12 (the glass); street 0.09.
+- _tarr.html takes `?lift=<m>`. GATE TARR 50 checks (+1t 1u 1v 1w 1x 3l 4g; 1w resolves the includes as three does
+  and proves the macros sit between the varyings and the map reads; the new checks are red on the pre-G581 tree).
+
+## G582 - THE WORLD RAIL: the right-hand rail of the world's art, the scenery mode, the ground's filtering (2026-09-24)
+
+- The user: streamline the game as the bench (the graphics without the flight), revamp F8 into a RIGHT rail
+  structured by TERRAIN TYPE (a type = a biome + a ground set), proper layers, previews, recolour down to one
+  hue of a set, the noise and the shimmer of the detail textures, the anti-tiling and grazing-angle filtering,
+  the photoscanned coastal rocks, an export to report the settings back as the new defaults. Left rail =
+  flight; right rail = world editing.
+- THE SCENERY MODE (app.js SCENERY, `?scenery=1`): rolls out when the boot lifts, HOLDS the solver
+  (running = false), takes the aeroplane off the stage, gives the eye to DEVCAM 60 m over the stand, closes a
+  fresh profile's aeroplane chooser, hides the flight chrome (flight.css body.sceneryMode; the left rail stays:
+  camera, graphics, night, weather) and opens the WORLD rail. The world already streams round DEVCAM.
+- THE WORLD RAIL (src/viewer/world_rail.js, F9, in the WORLD PACK - fetched and cached, not inlined): COVERAGE (the stack as
+  Photoshop-like layers - eye, thumbnail off the island's rasters, blend, opacity, solo - the view modes, the
+  terrain-type map with the camera's mark, click = open the type, double-click = fly there, the legend with
+  shares, the global colour), TYPES (chips; per type: the derived split, where it is, BIOME tab - the mix,
+  "own copy", the stand, five categories trees / bushes / grass & flowers / stones / debris with species cards
+  rendered from the pack through the game's renderer, each with its planters' keys, + add from the catalogue,
+  x remove; GROUND tab - three detail and three aerial slots with previews, the mask, the variation, the sets'
+  recolour inline), MATERIALS (the library side by side, each at its repeat or all at 4/16/64/200 m; the set
+  editor), FILTERING, VEGETATION, CLIFFS, SCENERY (the premises editor - "the world editor" is the SCENERY
+  editor now - the scenery mode, the air while you work, the maps), EXPORT (the whole look as JSON with
+  `where` each part goes and `changes` against the shipped defaults; copy, download, changes only, import,
+  reset). Alt+click on the ground opens the type under the mouse. THE LOOK (localStorage flydiy.worldlook.v1)
+  keeps what the handles did not persist (the ground's colour knobs, the biomes, the ring, species sizes and
+  tints, the cliffs) and puts it back when the world is up.
+- THE METHOD, CONFIRMED: detail sets near (up to three, cloud mask, height blend), the aerial sets over
+  detailFrom..detailTo (150-900 m), the imagery's stack from macroFrom (full by macroTo).
+- THE GROUND'S FILTERING (splat_ground.js, knobs defaulted under the recipe's: FILTER_DEFAULTS): mip bias
+  (texture() bias on the arrays - implicit derivatives kept, no textureGrad), anisotropy (1-16, re-upload),
+  the detail's contrast near/far by distance (rel^k), the relief's fade by distance, specular anti-alias
+  (roughness widened by the pixel's footprint). The hex hash is master's sin() hash, unchanged (an integer
+  hash was tried and REVERTED in the audit below: +9 k inlined chars across the nine sTile copies for a banding
+  never observed). NOTHING in the splat is recomputed per frame: the "jitter" is sub-pixel relief and gloss aliasing under the
+  sun as the eye moves - the fades and the AA are its levers.
+- THE RECOLOUR per set (grade: hue, contrast, selHue/selWidth/selSoft/selShift/selSat/selLight): the whole
+  set's hue turn and contrast, then one hue band of it turned / saturated / lit (the grass of grass-and-rock
+  alone); grey texels are never selected; `showMask` paints the selection magenta on the ground. The rail's
+  preview is the shader's grade on the CPU (exposure normalised for legibility), with an eyedropper.
+- SPECIES SIZE for trees (render_world SP_SIZE, TREE_FILL.speciesSize): a multiplier over the canopy's size,
+  per species, every biome (the far stand cards do not read it yet).
+- THE COASTAL SCANS: the small ones are STONES (biome species; shingle plants them, `shore` keeps them by the
+  sea, the rock map carries them far); the cliff faces keep their own section (placed by slope and contour).
+- F8 AUDIT: the map layers, the splat, the biomes, the island rule, the fill, the ring and the env albedo
+  moved to the rail (a pointer and a button remain); F8 keeps the ladder, the leaf, the sky, the clock, the
+  climate, the atmosphere, the clouds, the lighting, the water, the frame, the camera. The left rail's WORLD
+  button moved to the rail's SCENERY. F8's climate readout read `WORLD.world` (no such key): fixed.
+- FOG / CLOUD (the user asked): the empty sky in the headless shots was NOT the air - at the eye the mist was
+  dry (rho0 0), no deck, base 1293 m, 48 km; SwiftShader draws a frame every few seconds here (the garage
+  too). The rail's SCENERY > "the air while you work" has mist, haze, cover, clouds, in-cloud mist, the hour
+  and a reversible "clear view".
+- THE PERFORMANCE AUDIT (the user, at the landing: "I need to be sure you did not undo or rendered moot some
+  optimization on ground textures done recently"), measured on the ground program inlined as fxc inlines it
+  (every user function's body at every call site, from sSplat down; the gate's own splice):
+      base 63e4c37 (this branch's start)   288 fetches  165.9 k chars
+      master 6f4a506 (after G568)           54 fetches   76.1 k chars
+      merged as first resolved              54 fetches   88.7 k  (+16.5 %)
+      landed                                54 fetches   80.1 k  (+5.3 %)
+  G568 kept whole: ONE straight triplet (3 sSet sites), 9 sTile, 27 fetch sites, no loop in the chain (GATE SPLAT
+  3). The recolour runs ONCE per set after the triplanar sum (not per projection: 9 copies -> 3) and only under
+  uSRecolOn (1 when any set is recoloured or a mask shows) - at the defaults one uniform branch per set. The
+  bias is an argument of the same texture() call (no extra fetch, implicit derivatives kept: no Lod0 copy, no
+  textureGrad). uSNearN / uSFarN (the GRAPHICS 'ground' row), uSHexPx, the candidate loop's no-continue rule,
+  the sampler count (no new sampler) untouched. Per pixel added: one pow (the detail's far contrast, default
+  on past 60 m), a smoothstep (the relief's fade), a sqrt (the specular AA). CPU: two vec4[24] uniform arrays
+  more (uploaded on a material refresh), one lookup per chunk shape (the species' size).
+  THE LOOK AT BOOT was the regression found: every setter it called evicts or rebuilds (setBiome x15, the
+  island, the fill, the thin, a mix, the ring, the cliffs - ~21 re-plants a boot once any rail value was saved).
+  It saves only the DELTA against the shipped defaults now and applies only what differs from what stands,
+  every biome change in ONE replant: measured with counting stubs, a boot with no look or a look equal to the
+  defaults 0 evictions, one species changed 1.
+  index.html 8.88 MiB (master 8.89: the rail rides the world pack, F8 lost its world folds) - MEDIA red as on
+  master, by master's own overage.
+  NOT MEASURED: a frame on a GPU (this container's SwiftShader draws one every few seconds); owed:
+  tools/frame_perf.js and GATE SPLAT --gpu (the cold link) on the user's machine, master vs this.
+- GATES: SPLAT (the roughness rule now carries the footprint term; the selftest's textureGrad mutation
+  follows the biased fetch), UISMOKE, BOOT, WORLDRENDER, TREE, TREES, GFX, LIGHT, CLOUD, CLIMATE, FOG, ATMO,
+  ATMOS, POSTFX, MEDIA, PREMISES, PARKED, BUILD green. Headless: every program links (0 unrunnable), the rail
+  builds every section on Jolene.
+- OWED: judged on a real GPU (the defaults of the new fades are a first guess); the stand cards and the size
+  multiplier; a sampler-free way to preview a species that is not warmed.
+
+## G583 - THE LOW TIERS, RETUNED (2026-09-24, landed 2026-09-25)
+
+Written on 2026-09-24 as "G570" on a side branch and landed on the user's word ("land the low tiers retuned too").
+`src/viewer/gfx_settings.js`: two rows for what the frame has cost since the town and the ground cover -
+- 'ground cover' (cover_ring's dials): full (to 220 m, density 2, shadows from 0.35 m) / lean (120 m, half as dense,
+  shadows from 1 m) / off.
+- 'town detail' (the premises' hlod.near and detail.px2 / props): full (a house whole to 150 m, trims to ~270 m) /
+  lean (the far town from 60 m, trims to ~110 m) / low (the far town from 25 m, only walls and roofs past ~55 m, no
+  yard props).
+- potato back to the 67 % scale its card promises, cover off, town low; retro 85 %, cover and town lean; current,
+  gamer and ultra unchanged. pv 4 migration: a player saved on a preset gets that preset as it is now.
+- 'shadows off' now means off: the craft's NEAR map (shadow_near's S.on) kept rendering every caster within 90 m.
+- Measured when written (potato, 1080p, a quiet box): stand 34.5 -> 26.6 ms, 300 m over the field 24.3 -> 18.9,
+  forest 25.4 -> 19.2, town at 150 m 21.6 -> 16.2, sea 22.5 -> 16.9. Not re-measured on today's master (G574 town
+  on texture arrays, G575-G582 since); GFX, UISMOKE, BOOT, WORLDRENDER, PREMISES, TREES, BUILD green on it.
+
+## G584 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
+
+The user: the Jolene roll-out's compile step takes 16-26 s of a 32-44 s screen WARM (cold 32 s) - "a warm boot should
+compile ~nothing": find what gets a different source or key each boot, or is made fresh each boot. Measured by COUNTS
+(a cloud box on SwiftShader: no reference GPU, times meaningless) with `tools/program_census.js` (new): N boots in one
+Chrome profile, every linkProgram recorded before any page script - its source hashed, the boot step it ran in, the
+stack - optionally `--linkless` (sources recorded, the driver's link skipped: the keys and sources are three's either
+way) and `--drain` (the streamed premises built, then drawn).
+- (a) NOTHING VARIES PER BOOT. Two boots in one profile link the same sources (master: 254/256 programs, the two extra
+  in boot 2 a tree species that streamed in under the census's watch; after this change 249/251 alike). The only
+  source that differs is the first launch in a FRESH profile: the AA resolve starts on its own default tier `full` (the
+  user's ruling, GATE AA) before the menu applies gamer's `msaa` - one program, once per browser.
+- (b) THE FIRST FRAMES LINKED 16 PROGRAMS the compile step never made, synchronously: the shadow pass's whole depth
+  set (the warm-up, S3's compileDepthVariants, built MeshDepthMaterial({ RGBADepthPacking }) per side against a helper
+  with no lights - r186 draws shadows with its OWN BasicDepthPacking material, in the lit scene's light state, the
+  caster's map / alphaTest / side copied on: all eight warmed programs were never drawn with), the AA resolve's blit,
+  the bloom chain (4), the clouds' noise bake. And a first fix that mirrored three's rule still re-linked them all:
+  the shadow pass draws with NO scene (no fog) and fogExp2 is in the key ('' under a THREE.Fog, false under none) -
+  the same source, keyed apart. NOW: shader_warm.js (PROG_WARM) builds one stand-in per distinct depth program the
+  pass will ask for (three's getDepthMaterial mirrored; a stand-in is Object.create(caster), never a copy of its
+  instance data) and app.js compiles it in the lit scene with the fog lifted; aa_resolve / post_fx / clouds publish
+  warmList() and the step compiles those quads too. Census: first frames 16 -> 0 links, compile step 113 -> 128.
+- RE-LINKS 49-50 -> 16 a boot: bakeHangarEnv made and disposed a PMREMGenerator per bake (its programs go with it:
+  14 links of the same two programs while the shed's textures landed under the world's screen) - now one kept per
+  source kind (room, sky); the rock map's sprite bake made and disposed a material per part (30 links of 2 programs)
+  and every recentre re-linked the map's material - now kept. What is left is three keying the garage's and the
+  world's identical depth sources apart (their light counts) and one tree species' programs that stream in.
+- NOT FOUND HERE, AND THE NEXT QUESTION FOR THE REFERENCE BOX: with identical sources every boot, a warm compile step
+  of 16-26 s says the browser's cache did not hold them. Chrome keeps GPU program binaries in a size-capped cache
+  (the switch is --gpu-program-cache-size-kb); ~250 programs with the ground's (a 412 KB program before G568) may not
+  fit. The one-line test: two roll-outs with `--gpu-program-cache-size-kb=262144` on the same profile - if the second
+  one's compile step drops to seconds, the cap is the cause.
+- Owed: the premises that stream in link their new variants in flight (7 programs past the drain here: instanced and
+  batched variants of house, lot and life materials); a tree species that first appears after the step (2).
+GATE PROGRAMS (new, core): the real three.js on a fake WebGL2 context that records every source and link - the depth
+warm-up against the real shadow pass over a caster zoo with fog (sides, map, alphaTest, coverage, instancing with and
+without colour, skinning, a batch, draw groups, a custom depth with its own hook and key, a point light) links nothing
+new on the first frame, and the old warm-up is the CONTROL that must miss (8); two boots key and link the same
+sources; no cache key in src/viewer reads a uuid, an id, a clock or a counter; the rock map links each program once
+and a recentre none (red on the old code: 10 links / 4 distinct, 2 on the recentre); a kept PMREMGenerator bakes
+again on no link; the three passes publish warmList() and the step compiles them in the lit, fogless scene.
+futureDesigns/PERF-2026-09-23.md G584.
+
+## G585 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
+
+The user: at the airfield stand the cover ring issues ~1 600 draws a frame counting shadows; cut them without a visible
+change. Counted by wrapping renderer.renderBufferDirect (the shadow pass flagged) over 6 frames, by `coverKind`, at
+the roll-out stand (-154, 31.6, 712), master aa1846bd against this build (the scratchpad rig drives headless Chrome
+with the GL's clears, uploads and draws stubbed - three's draw path is JavaScript, the counts are its own):
+
+| kind | master (main + shadow) | G585 |
+|---|---|---|
+| rock | 142 + 172 | 9 + 7 |
+| debris | 196 + 116 | 28 + 10 |
+| shrub | 112 + 128 | 19 + 13 |
+| cover (tufts) | 84 | 84 |
+| the ring | 950 | **170** |
+
+(the user's 1 600 was a wider view; each object shows twice in the main column - G569: the pipeline's two passes.)
+- WHY SO MANY: one InstancedMesh per prototype PART per 128 m block, and a part holds a handful of instances in a
+  block: 408 rocks on 20 parts in 19 blocks were 166 meshes, 1 347 debris 210, 390 shrubs 134 - each paying three's
+  whole per-draw cost in every pass that sees it (the main pass twice, the sun's map).
+- THE BATCHES (cover_ring.js): the rocks, the debris and the shrubs are THREE.BatchedMesh, one per (species,
+  material, casts or not) across the whole ring: 24 at the stand. A rock's material is now one per picture (a
+  species' 20 parts wore 4 pictures). three culls each INSTANCE against each camera and shadow camera; a block's
+  reach test switches its cells' instances (setVisibleAt) where it used to switch its meshes, at the same moments
+  (a new cell shows when its block is rebuilt). The same picture, instance for instance: the same geometry,
+  material, matrix and colour, and the fade's threshold rides in the batch colour's ALPHA - trees.js takes it back
+  after <color_vertex> (BATCH_RAND_VS; `aRand` names it in a batch) and sets the alpha to 1. A leaf's sway phase was
+  gl_InstanceID, which a multi-draw does not have: a batched leaf uses its draw's indirect index (LEAF_SWAY_PH).
+  Batches are keyed by species: two species of one file share its material objects (a first cut keyed by material
+  alone met a geometry it was not built with and hung the page).
+- THE PICTURE, MEASURED: in one page at the stand (headless Chrome, SwiftShader, real links), the ring's own objects
+  drawn from the game camera into a plain lit scene - the old path, the batches, the old path again, each replanted
+  synchronously in one task (the wind held still): 0 of 384 000 pixels differ, both ways (71 359 instances; the
+  ring's own draws 569 -> 112). The full game frame could not be the witness here: on this box's SwiftShader the
+  aerial perspective zeroes every near lit surface (the far terrain keeps only the in-scatter), in both builds.
+- SHADOWS FROM 0.5 m: castMinH 0.35 -> 0.5 (the user: "rocks > ~0.5 m") - the pebbles and twigs between cast
+  nothing; a prototype that casts and one that does not are separate batches.
+- THE TUFTS stay by block (68 840 instances at the stand: a per-instance cull there would cost more than the 84 draws).
+- NOT DONE, AND WHY: a per-kind distance cull. The fade already thins every kind to nothing at the ring's 220 m, and
+  nothing the ring plants is under a pixel inside it at 1080p (a 0.3 m tuft at 220 m is ~1.8 px under the 46 deg field) - a shorter reach
+  for any kind is a visible change, not a free one. With per-instance culling the draws no longer grow with the
+  reach anyway.
+- COST MOVED, NOT MEASURED HERE: three's batch culling walks every instance per pass (~2 100 at the stand x 3 passes)
+  in JavaScript, against ~780 draws saved (~7 us each on the reference box, PERF-2026-09-23).
+- `COVER_RING` dial `batch` (default true; false = the per-block instanced path, the A/B). GATE COVER (new, core): the
+  real ring and the real fade/leaf hooks on the real three over a fake GL (tools/_fake_gl.js, shared with GATE
+  PROGRAMS), a stub pack with two shrub species sharing a file's materials - every rock / debris / shrub instance of
+  the instanced path is in a batch with its geometry, matrix, colour and threshold, the same ones within reach after
+  the eye moves, a draw per batch and pass at most (rock 81 -> 5, debris 33 -> 3, shrub 96 -> 8 there), no caster
+  under 0.5 m, no instance left over after the eye leaves and returns, the batched programs read the colour's alpha
+  and the batched leaf its indirect index. GATE MEDIA: these two entries add ~20 KB of code, no data (under master's wire and step budgets). futureDesigns/
+  PERF-2026-09-23.md G585.
 
 ## G586 - THE FRAME CLOCK: the game on the wall clock, the frame capped at auto / 60 / 30 / off (2026-09-25)
 
