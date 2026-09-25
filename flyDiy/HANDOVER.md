@@ -59353,3 +59353,11 @@ millimetres (0.05-0.4 mm after a 20-30 s taxi, 3 cm after a 150 s circuit). Core
 FLEX, LOAD, TAKEOFF, BIPLANE, DRAG, the floats); the full tier's three known reds (ARCHETYPES, PILOTMATRIX, SEAPLANE)
 fail the same checks as before it, every matrix cell and archetype outcome unchanged (SEAPLANE's lane miss 69.8 ->
 44.5 m against its 30 m bound).
+
+## G579 - THE WATER AT A RATE, NOT A COUNT (2026-09-25)
+
+G572's lever 4. The hydro's sub-rate (G451.1) was 8 substeps on every build: the 360 Hz its note says is more than
+the water needs on the 45-substep 172 it was measured on, 1 500 Hz on a 200-substep alloy build. Now HYDRO_HZ = 360
+of the frame's substeps, round(substeps x 60 / 360) - the old 8 at 45 substeps; params.hydroEvery still overrides.
+The Cessna on floats: solver -30 %, the cg 1 mm off after 20 s. FLOATS, HYDRODYN, WIPLINE, WATER green; SEAPLANE's
+known reds unchanged.
