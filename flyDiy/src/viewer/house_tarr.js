@@ -21,10 +21,12 @@
 // cloudWeather, or shadeGlass) run on the program as it is, then four edits: the finish's uniforms become globals
 // filled from the slot at the top of main; the map / roughness / metalness / normal-map chunks sample the arrays; the
 // material colour is the slot's; the ridge sag (a vertex-shader bend in the house's own frame) is 0 because the merge
-// bakes it into the positions. The material's envMapIntensity is left alone: three r186 feeds that uniform the
-// SCENE's environmentIntensity when a material has no envMap of its own (a house's never has), so the glass's 2.3 and
-// the pane's 1.9 (applyFinish) have never reached the screen in the game - the town keeps that. So the dirt line, the punch, the paint blends, the noise, the clouds, the curtains
-// and the lit panes are the very GLSL the house draws with; GATE TARR holds the edits.
+// bakes it into the positions. G574 mended three dials the house shader had never drawn, and the town follows: the
+// map's scale (uUvK) is folded into the slot's uv transform and the courses' wander (uWander) rides the slot's spare
+// .w, added to the array uv exactly as wanderUV adds it to the house's; the house's world height (uDirtY0) is folded
+// into the slot's dirt line; the glass's own envMapIntensity (uGlassEnvK) rides its slot. So the dirt line, the punch,
+// the paint blends, the noise, the clouds, the curtains and the lit panes are the very GLSL the house draws with;
+// GATE TARR holds the edits.
 //
 // WHAT RIDES AND WHAT DOES NOT (classify): a MeshStandardMaterial hooked by the house generator ONLY (its raw hook
 // is the one shadeHouse / cloudWeather / shadeGlass left - a steel mix, a lot patch or any other hook wrapped over
@@ -47,9 +49,9 @@ const HOUSE_TARR = (() => {
   const rawHook = m => Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
 
   // THE EDITS, pure text (GATE TARR runs them on r186's own ShaderLib): `sh` after the house generator's hook
-  const PLAIN_U = ['uDirtTop', 'uDirtH', 'uDirtK', 'uSat', 'uCon', 'uAOd', 'uNoiseK', 'uNoiseS', 'uDirtCol', 'uDirtOwn', 'uPaintCol',
+  const PLAIN_U = ['uDirtTop', 'uDirtY0', 'uDirtH', 'uDirtK', 'uSat', 'uCon', 'uAOd', 'uNoiseK', 'uNoiseS', 'uDirtCol', 'uDirtOwn', 'uPaintCol',
                    'uPaintMode', 'uDirtGain', 'uAgeDesat', 'uAgeDark', 'uWander', 'uUvK', 'uCloudK', 'uCloudMode'];
-  const GLASS_U = ['uGlassWave', 'uGlassRough', 'uGlassFres', 'uLitK'];
+  const GLASS_U = ['uGlassWave', 'uGlassRough', 'uGlassFres', 'uLitK', 'uGlassEnvK'];
   const SAG_DECL = 'uniform float uSag, uSagL, uSagY0, uSagY1;';
   const SAG_ZERO = 'const float uSag = 0.0, uSagL = 1.0, uSagY0 = 0.0, uSagY1 = 1.0;';
   function globals(src, names, miss) {
@@ -78,13 +80,16 @@ void tLoad() {
   tUvT = vec2(dot(c.yzw, vec3(vTUv, 1.0)), dot(d.xyz, vec3(vTUv, 1.0)));
   uPaintMode = d.w; uPaintCol = e.rgb; uDirtGain = e.a; uDirtOwn = g.rgb; uAgeDesat = g.a;
   uAgeDark = h.x; uDirtTop = h.y; uDirtH = h.z; uDirtK = h.w; uSat = k.x; uCon = k.y; uAOd = k.z; uNoiseK = k.w;
-  uNoiseS = l.x; uCloudK = l.y; uCloudMode = l.z; uDirtCol = vec3(0.0); uWander = 0.0; uUvK = 1.0;
+  uNoiseS = l.x; uCloudK = l.y; uCloudMode = l.z; uDirtCol = vec3(0.0); uDirtY0 = 0.0; uWander = l.w; uUvK = 1.0;
+  // wanderUV's own offset (the scale is in the transform already)
+  tUvT.y += uWander * (hNoise(vec3(vHouseP.x * 0.45, vHouseP.z * 0.45, vHouseP.y * 0.2 + 1.7)) * 2.0 - 1.0)
+          + uWander * 0.35 * (hNoise(vec3(vHouseP.x * 2.1, vHouseP.z * 2.1, 3.3)) * 2.0 - 1.0);
 }
 `;
   const GLASS_LOAD = `
 void tLoad() {
   vec4 a = tFetch(0), b = tFetch(1), c = tFetch(2);
-  tCol = a.rgb; tRough = a.a; tMetal = b.x; uGlassWave = b.y; uGlassRough = b.z; uGlassFres = b.w; uLitK = c.x * tLit;
+  tCol = a.rgb; tRough = a.a; tMetal = b.x; uGlassWave = b.y; uGlassRough = b.z; uGlassFres = b.w; uLitK = c.x * tLit; uGlassEnvK = c.y;
 }
 `;
   const VERT_HEAD = 'attribute float aSlot;\nflat varying float vSlot;\nvarying vec2 vTUv;\n';
@@ -179,7 +184,9 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
     function layerN(n, r) { if (!n && !r) return -1; const k = nrKey(idOf(n), idOf(r)); wantN.set(k, [n, r]); return NR.has(k) ? NR.get(k) : -2; }
     function slotPlain(m) {
       const ud = m.userData, S = ud.houseU, P = ud.paint, D = ud.dirt;
-      const t0 = m.map || m.normalMap || m.roughnessMap, X = t0 ? xform(t0) : [1, 0, 0, 0, 1, 0];
+      // the scale and the wander are wanderUV's: they apply where the material has a map (hUv exists only then)
+      const uk = m.map ? D.uUvK.value : 1, wd = m.map ? D.uWander.value : 0;
+      const t0 = m.map || m.normalMap || m.roughnessMap, X = (t0 ? xform(t0) : [1, 0, 0, 0, 1, 0]).map(x => x * uk);
       const la = layerA(imgOf(m.map)), ln = layerN(imgOf(m.normalMap), imgOf(m.roughnessMap));
       const ns = m.normalMap ? m.normalScale : { x: 0, y: 0 };
       const v = [m.color.r, m.color.g, m.color.b, m.roughness,
@@ -188,15 +195,15 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
         X[3], X[4], X[5], P.uPaintMode.value,
         P.uPaintCol.value.r, P.uPaintCol.value.g, P.uPaintCol.value.b, D.uDirtGain.value,
         D.uDirtOwn.value.r, D.uDirtOwn.value.g, D.uDirtOwn.value.b, D.uAgeDesat.value,
-        D.uAgeDark.value, S.uDirtTop.value, S.uDirtH.value, S.uDirtK.value,
+        D.uAgeDark.value, S.uDirtTop.value + (S.uDirtY0 ? S.uDirtY0.value : 0), S.uDirtH.value, S.uDirtK.value,
         S.uSat.value, S.uCon.value, S.uAOd.value, S.uNoiseK.value,
-        S.uNoiseS.value, ud.clouded ? ud.uCloudK.value : 0, ud.clouded ? ud.uCloudMode.value : 0, 0];
+        S.uNoiseS.value, ud.clouded ? ud.uCloudK.value : 0, ud.clouded ? ud.uCloudMode.value : 0, wd];
       return (la === -2 || ln === -2) ? -1 : slotOf(v);
     }
     function slotGlass(m, litBase) {
       const G = m.userData.glassU;
       return slotOf([m.color.r, m.color.g, m.color.b, m.roughness, m.metalness, G.uGlassWave.value, G.uGlassRough.value, G.uGlassFres.value,
-                     litBase(G.uLitK), 0, 0, 0]);
+                     litBase(G.uLitK), m.envMap ? 1 : m.envMapIntensity, 0, 0]);
     }
     function slotOf(v) {
       const k = v.map(x => Math.fround(+x || 0)).join(',');

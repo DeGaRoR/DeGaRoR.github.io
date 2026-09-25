@@ -728,6 +728,11 @@ function makeShadeU() {
   // geometry is untouched: this is the building settling, drawn.
   uSag: { value: 0.0 }, uSagL: { value: 5.0 }, uSagY0: { value: 3.0 }, uSagY1: { value: 5.0 },
   uDirtTop: { value: 0.6 }, uDirtH: { value: 0.9 }, uDirtK: { value: 0.45 },
+  // G574: WHERE THE HOUSE STANDS. uDirtTop is in the house's own frame (the
+  // ground under its middle) and vHouseY is world; the game stands the house
+  // at its ground height (render_premises placeBuilt), so the line has to be
+  // lifted by that much or a house on a hill has none. 0 on the benches.
+  uDirtY0: { value: 0.0 },
   uDirtCol: { value: null }, uSat: { value: 1.0 }, uCon: { value: 1.0 },
   // how much of the BAKED occlusion is allowed to touch DIRECT light. All of
   // it goes on the indirect term (that is what occlusion means); a third of it
@@ -746,7 +751,7 @@ function makeShadeU() {
 }
 const SHADE_U = makeShadeU();
 const DIRT_EXPR =
-  'clamp((uDirtTop - vHouseY) / max(0.01, uDirtH), 0.0, 1.0)';
+  'clamp((uDirtTop + uDirtY0 - vHouseY) / max(0.01, uDirtH), 0.0, 1.0)';
 
 // HOW THE PAINT MEETS THE SCAN (the user: "We should try other blend modes for
 // the paint as well, as an option. The wall paint is the one I'm interested
@@ -803,12 +808,19 @@ function shadeHouse(m, U) {
       // a material with no map (the flag, G309) declares no map uv at all -
       // the shifted copy would be of nothing. r186 (W0.5a) gives every map
       // its own varying (vMapUv, vNormalMapUv, ...) where r128 had one vUv;
-      // they all carry the same uv here, so every one of them slides
+      // they all carry the same uv here, so every one of them slides.
+      // G574: r186 runs onBeforeCompile BEFORE it resolves the #includes, so
+      // the chunks that read those varyings are not in the text yet (a token
+      // rewrite of the body matched nothing: the wander and uUvK never drew).
+      // A macro does it instead: defined at the top of main, after the
+      // varyings are declared, it renames every later use - the chunks too,
+      // once the preprocessor pastes them in - and nothing before it.
       if (i < 0 || !m.map) return fs;
-      const head = fs.slice(0, i), body = fs.slice(i);
-      return head + body.replace(/\bv(?:Map|NormalMap|RoughnessMap|MetalnessMap|AoMap|EmissiveMap|AlphaMap|BumpMap|SpecularMap)Uv\b/g, 'hUv').replace('void main() {',
+      return fs.replace('void main() {',
         'void main() {\n  vec2 hUv = vMapUv * uUvK + vec2(0.0, uWander * (hNoise(vec3(vHouseP.x * 0.45, vHouseP.z * 0.45, vHouseP.y * 0.2 + 1.7)) * 2.0 - 1.0)\n' +
-        '                    + uWander * 0.35 * (hNoise(vec3(vHouseP.x * 2.1, vHouseP.z * 2.1, 3.3)) * 2.0 - 1.0));');
+        '                    + uWander * 0.35 * (hNoise(vec3(vHouseP.x * 2.1, vHouseP.z * 2.1, 3.3)) * 2.0 - 1.0));\n' +
+        ['Map', 'NormalMap', 'RoughnessMap', 'MetalnessMap', 'AoMap', 'EmissiveMap', 'AlphaMap', 'BumpMap', 'SpecularMap']
+          .map(n => '#define v' + n + 'Uv hUv\n').join(''));
     };
     sh.vertexShader = 'varying float vHouseY;\nvarying float vHouseAO;\n' +
       'varying vec3 vHouseP;\nattribute float aHouseAO;\n' +
@@ -824,7 +836,7 @@ function shadeHouse(m, U) {
       '\n  vHouseY = vHouseP.y;\n  vHouseAO = aHouseAO;');
     sh.fragmentShader =
       'varying float vHouseY;\nvarying float vHouseAO;\nvarying vec3 vHouseP;\n' +
-      'uniform float uDirtTop, uDirtH, uDirtK, uSat, uCon, uAOd, uNoiseK, uNoiseS;\n' +
+      'uniform float uDirtTop, uDirtY0, uDirtH, uDirtK, uSat, uCon, uAOd, uNoiseK, uNoiseS;\n' +
       'uniform vec3 uDirtCol, uDirtOwn, uPaintCol;\n' +
       'uniform float uPaintMode, uDirtGain, uAgeDesat, uAgeDark, uWander, uUvK;\n' +
       'float hHash(vec3 p) { return fract(sin(dot(floor(p), ' +
@@ -940,6 +952,13 @@ function shadeGlass(m, GU0, SU0) {
     sh.uniforms.uGlassRough = GU.uGlassRough;
     sh.uniforms.uGlassFres = GU.uGlassFres;
     sh.uniforms.uLitK = GU.uLitK;
+    // G574: THE GLASS'S OWN REFLECTION DIAL. r186 feeds the envMapIntensity
+    // uniform the SCENE's environmentIntensity when a material has no envMap
+    // of its own (a house's never has: the game lights with scene.environment),
+    // so applyFinish's 2.3 / 1.9 never drew. The material's number now scales
+    // what the environment adds, on top of the scene's (a material that does
+    // carry an envMap already gets its own number from three: 1 then).
+    sh.uniforms.uGlassEnvK = { get value() { return m.envMap ? 1 : m.envMapIntensity; } };
     for (const k of ['uSag', 'uSagL', 'uSagY0', 'uSagY1']) sh.uniforms[k] = SU[k];
     sh.vertexShader = 'varying vec3 vGlassP;\nvarying float vHouseLit;\n' +
       'attribute float aHouseLit;\nattribute vec3 aHouseWin;\n' +
@@ -958,6 +977,7 @@ function shadeGlass(m, GU0, SU0) {
       'varying vec3 vGlassP;\nvarying float vHouseLit;\n' +
       'varying vec3 vWin;\nvarying vec2 vWinUV;\n' +
       'uniform float uGlassWave, uGlassRough, uGlassFres, uLitK;\n' +
+      'uniform float uGlassEnvK;\n' +
       // WHAT HANGS BEHIND THE GLASS (G273): from the pane's own width and
       // height (vWin.xy) and its dressing code (vWin.z), how much fabric is
       // behind this fragment and what colour it is. A curtain hangs from the
@@ -1030,6 +1050,11 @@ function shadeGlass(m, GU0, SU0) {
           '    roughnessFactor = clamp(roughnessFactor + gv * uGlassRough,\n' +
           '                            0.015, 0.45);\n' +
           '  }')
+        // radiance and iblIrradiance hold only what the environment gave
+        // (lights_fragment_begin zeroes both; lights_fragment_maps adds the env)
+        .replace('#include <lights_fragment_maps>',
+          '#include <lights_fragment_maps>\n' +
+          '  radiance *= uGlassEnvK; iblIrradiance *= uGlassEnvK;')
         .replace('#include <lights_fragment_end>',
           '#include <lights_fragment_end>\n' +
           '  {\n' +

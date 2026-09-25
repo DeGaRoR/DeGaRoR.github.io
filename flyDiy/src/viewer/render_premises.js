@@ -1574,6 +1574,8 @@ function make(THREE, scene, world, rec0, opts) {
       if (st.lit) for (const L of st.lit.lights) if (L.prop && PR.props[L.prop]) grp.add(pp(THREE, L.prop, L.mx, L.mz, L.ry, L.my));
     }
     parent.add(grp);
+    // G574: the dirt line is drawn in the house's frame (uDirtTop) against a world height - lift it by where it stands
+    if (F && F.SHADE_U && F.SHADE_U.uDirtY0) { grp.updateWorldMatrix(true, false); F.SHADE_U.uDirtY0.value = grp.matrixWorld.elements[13]; }
     // G449: the lamps this thing published, for the pool (world positions resolved when first assigned);
     // its finish's lit panes for the day's hand (the base is the generator's lightK, set at build)
     if (st.lit && st.lit.lights) for (const L of st.lit.lights) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) { LAMPS.pub.push({ grp, p: [L.x, L.y, L.z], col: L.col || [1, 0.85, 0.6], k: L.k == null ? 1 : L.k, range: L.range || 10, kind: L.kind }); if (L.prop) LAMPS.glowKeys.add(L.prop); }

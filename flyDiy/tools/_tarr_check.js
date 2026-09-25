@@ -59,6 +59,9 @@ const rawHook = TARR.rawHook;
   check(f.includes('vec4 diffuseColor = vec4( tCol, opacity );') && !f.includes('vec4( diffuse, opacity )'), '1f the colour is the slot\'s');
   check(v.includes('const float uSag = 0.0') && !/uniform float uSag/.test(v) && v.includes('vSlot = aSlot'), '1g the sag is baked (0 in the shader), the slot travels');
   check(!/envMapIntensity\s*=/.test(f), '1h envMapIntensity untouched (r186 feeds it the scene\'s environmentIntensity: a house material has no envMap)');
+  // G574: the dirt line is lifted by where the house stands (uDirtY0), which the slot folds into its dirt line
+  check(/uDirtTop \+ uDirtY0 - vHouseY/.test(f) && /uDirtY0 = 0\.0;/.test(load), '1t the dirt line is in the house\'s frame (uDirtY0), folded into the slot');
+  check(/uWander = l\.w;/.test(load) && /tUvT\.y \+= uWander \* \(hNoise\(/.test(load), '1u the courses\' wander rides the slot\'s spare .w onto the array uv');
   const main = f.slice(f.indexOf('void main() {'));
   const tex = [...main.matchAll(/texture\(\s*(tAlb|tNR)\b/g)].map(m => m[1]);
   check(tex.length === 2 && tex[0] === 'tAlb' && tex[1] === 'tNR', '1i each array sampled once in main', tex.join(','));
@@ -85,7 +88,25 @@ const rawHook = TARR.rawHook;
   check(!/uniform float uGlassWave|uniform float uLitK/.test(gs.fragmentShader) && /uLitK = c\.x \* tLit/.test(gs.fragmentShader), '1p the glass dials are the slot\'s, the lit pane x the lamps\' factor');
   { const g = gs.fragmentShader, iL = g.indexOf('void tLoad()'), bad = ['uGlassWave', 'uGlassRough', 'uGlassFres', 'uLitK'].filter(n => { const d = g.search(new RegExp('^float[^;(]*\\b' + n + '\\b[^;(]*;', 'm')); return !(d >= 0 && d < iL); });
     check(iL > 0 && !bad.length, '1s the glass tLoad follows its globals', bad.join(' ')); }
+  check(/uGlassEnvK = c\.y;/.test(gs.fragmentShader) && !/uniform float uGlassEnvK/.test(gs.fragmentShader) && /radiance \*= uGlassEnvK; iblIrradiance \*= uGlassEnvK;/.test(gs.fragmentShader),
+        '1v the glass\'s own envMapIntensity scales what the environment adds (G574), from its slot in the town');
   check(gs.fragmentShader.includes('gLitCol(vHouseLit)') && gs.fragmentShader.includes('gDress('), '1q the lit windows and the curtains are the generator\'s own GLSL');
+}
+
+// G574: THE WANDER DRAWS. r186 runs onBeforeCompile before it resolves the #includes, so the hook's text holds no
+// map uv to rewrite; the macros at the top of main rename them once the chunks are pasted. Resolved here as three
+// does it (recursively from ShaderChunk): the varying is declared above the macros, every map read below them.
+{
+  const m = new THREE.MeshStandardMaterial(); m.map = new THREE.Texture(); m.normalMap = new THREE.Texture(); m.roughnessMap = new THREE.Texture();
+  HG.shadeHouse(m, HG.makeShadeU()); const sh = SH(); rawHook(m)(sh);
+  const inc = src => src.replace(/^[ \t]*#include +<([\w\d./]+)>/gm, (a, n) => inc(THREE.ShaderChunk[n] || ''));
+  const f = inc(sh.fragmentShader), iM = f.indexOf('void main() {'), iD = f.indexOf('#define vMapUv hUv');
+  const iV = f.search(/varying vec2 vMapUv;/), uses = ['texture2D( map, vMapUv )', 'texture2D( normalMap, vNormalMapUv )', 'texture2D( roughnessMap, vRoughnessMapUv )'].map(u => f.indexOf(u));
+  check(iV >= 0 && iV < iM && iM < iD && f.indexOf('vec2 hUv = vMapUv * uUvK') > iM && f.indexOf('vec2 hUv = vMapUv * uUvK') < iD &&
+        uses.every(u => u > iD) && /#define vNormalMapUv hUv/.test(f) && /#define vRoughnessMapUv hUv/.test(f),
+        '1w the wander and the map scale reach every map read (the macros sit between the varyings and the chunks)', [iV, iM, iD, ...uses].join(','));
+  const m0 = new THREE.MeshStandardMaterial(); HG.shadeHouse(m0, HG.makeShadeU()); const s0 = SH(); rawHook(m0)(s0);
+  check(!/#define vMapUv/.test(s0.fragmentShader), '1x a material with no map declares no map uv: no wander (the flag, G309; the town\'s base)');
 }
 
 // ---- 2 classify + 3 merge on real houses ------------------------------------------------------------------------
@@ -152,6 +173,11 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
   check(near(R[15], m.userData.paint.uPaintMode.value) && near(R[19], m.userData.dirt.uDirtGain.value) && near(R[25], SU.uDirtTop.value) && near(R[28], SU.uSat.value),
         '3i ... the paint, the dirt, the house\'s dirt line and punch');
   check(T.stats.slots === 3, '3j three slots in the table', T.stats.slots);
+  // G574: where the house stands lifts its slot's dirt line (placeBuilt's uDirtY0)
+  { const D = house(1234, 90, 40, 0.3, P => { P.sag = 0.12; }); (D.F.SHADE_U.uDirtY0 || (D.F.SHADE_U.uDirtY0 = { value: 0 })).value = 3.5;
+    T.begin(); const rd = T.merge([D.bags.siding], 'plain'); T.end();
+    const Rd = row(rd.geo.attributes.aSlot.array[0]);
+    check(near(Rd[25], D.F.SHADE_U.uDirtTop.value + 3.5), '3l the house\'s world height is folded into its slot\'s dirt line', Rd[25]); }
   if (A.bags.glass) {
     T.begin(); const g = T.merge([A.bags.glass, B.bags.glass], 'glass', u => u.value * 2); T.end();
     const gr = row(g.geo.attributes.aSlot.array[0]);
@@ -168,6 +194,7 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
   check(/const sig = HOUSES\.size \+ '\|' \+ HLOD\.bake \+ '\|' \+ HLOD\.tarr;/.test(RP), '4c the bake\'s sig carries the dials');
   check(/filter\(k => !TARR_UD\.has\(k\)\)/.test(RP) && /TARR_UD = new Set\(\['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud'\]\)/.test(RP), '4d G566\'s signature leaves G571\'s handles out');
   check(/const HLOD = \{ on: true, bake: true, tarr: true,/.test(RP), '4e the dial: WORLD.premises.hlod.tarr');
+  check(/F\.SHADE_U\.uDirtY0\.value = grp\.matrixWorld\.elements\[13\]/.test(RP), '4g placeBuilt stands the dirt line where it stands the house (G574)');
   const BJ = fs.readFileSync(path.join(TOOLS, 'build.js'), 'utf8');
   check(BJ.indexOf("'house_tarr.js'") > 0 && BJ.indexOf("'house_tarr.js'") < BJ.indexOf("['src/viewer', 'render_premises.js']"), '4f build.js ships house_tarr.js before render_premises.js');
 }

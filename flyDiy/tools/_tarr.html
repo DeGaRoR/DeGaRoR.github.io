@@ -66,7 +66,11 @@ const hemi = new THREE.HemisphereLight(0xbcd4ee, 0x5a5040, 0.9); scene.add(hemi)
     fragmentShader: 'varying vec3 vP; void main(){ float h = normalize(vP).y; gl_FragColor = vec4(mix(vec3(0.25,0.22,0.18), mix(vec3(0.75,0.82,0.9), vec3(0.3,0.5,0.85), max(h,0.0)), smoothstep(-0.05,0.05,h)), 1.0); }' });
   es.add(new THREE.Mesh(g, m)); scene.environment = new THREE.PMREMGenerator(renderer).fromScene(es, 0.02).texture; }
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x55603f, roughness: 1 }));
-ground.position.y = -0.05; ground.receiveShadow = true; scene.add(ground);
+// ?lift=<m>: the street stood that high, as the game stands a house at its ground (G574: the dirt line is drawn
+// against a world height, so a bench at y 0 never showed that it went missing on a hill)
+const LIFT = +(new URLSearchParams(location.search).get('lift') || 0);
+sun.position.y += LIFT; sun.target.position.y = LIFT;
+ground.position.y = LIFT - 0.05; ground.receiveShadow = true; scene.add(ground);
 
 // the street: generator, seed; each its own finish, as render_premises' buildHouse does
 const GENS = [];
@@ -82,9 +86,10 @@ GENS.forEach(([gname, rname, seed], i) => {
     const b = G.build(P, 0, F);
     const grp = new THREE.Group();
     const col = i % 5, row = Math.floor(i / 5);
-    grp.position.set((col - 2) * 30, 0, (row - 1.5) * 32); grp.rotation.y = (i * 0.7) % 1.2 - 0.6;
+    grp.position.set((col - 2) * 30, LIFT, (row - 1.5) * 32); grp.rotation.y = (i * 0.7) % 1.2 - 0.6;
     for (const k of (G.BAGS || HOUSE_GEN.BAGS)) if (b.bags[k] && F.MAT[k] && k !== 'smoke' && k !== 'aoskirt') { const m = b.bags[k].mesh(grp, F.MAT[k]); if (m) bags.push(m); }
     houses.add(grp);
+    if (F.SHADE_U && F.SHADE_U.uDirtY0) F.SHADE_U.uDirtY0.value = LIFT;   // render_premises placeBuilt's
   } catch (e) { skipped.push(gname + ':' + e.message); }
 });
 houses.updateMatrixWorld(true);
@@ -122,7 +127,7 @@ const VIEWS = [
 ];
 const cam = new THREE.PerspectiveCamera(50, W / H, 0.1, 3000);
 function shoot(v) {
-  cam.position.set(...v.p); cam.lookAt(...v.t); cam.updateMatrixWorld();
+  cam.position.set(v.p[0], v.p[1] + LIFT, v.p[2]); cam.lookAt(v.t[0], v.t[1] + LIFT, v.t[2]); cam.updateMatrixWorld();
   sun.intensity = v.dusk ? 0.15 : 3.0; hemi.intensity = v.dusk ? 0.12 : 0.9; scene.background.set(v.dusk ? 0x1c2233 : 0x8fb4d8);
   renderer.info.reset(); renderer.info.autoReset = false;
   renderer.render(scene, cam);
