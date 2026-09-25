@@ -459,7 +459,7 @@ function runJob(job) {
   return new Promise(resolve => {
     const t0 = Date.now();
     const timeoutMs = job.gate.timeout || 1800_000;
-    // THE CHILD WRITES TO FILES, NOT PIPES (G576): on Linux Node writes a
+    // THE CHILD WRITES TO FILES, NOT PIPES (G577): on Linux Node writes a
     // pipe asynchronously, so a gate that ends with process.exit() loses
     // whatever is still queued - ENGINE came back as its first line and exit
     // 0 (16 runs in 40 at 8 in parallel, cut at ~9.5 KB; 0 in 120 through a
