@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tarr_game.js - THE TOWN ON TEXTURE ARRAYS, IN THE GAME (G571). The game rolled out on Jolene (met_perf.js's boot
+// tarr_game.js - THE TOWN ON TEXTURE ARRAYS, IN THE GAME (G574). The game rolled out on Jolene (met_perf.js's boot
 // poll, through Playwright), the premises' build queue drained by hand, the camera stood over the houses and the
 // premises' tick driven by hand (a SwiftShader roll-out never reaches the flight loop - G570), then the same frame
 // drawn three ways: the houses whole (hlod.bake off), G566's per-material bake (tarr off), and the arrays (tarr on):

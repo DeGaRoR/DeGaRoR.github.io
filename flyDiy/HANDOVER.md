@@ -59153,7 +59153,117 @@ OWED: G563-G566's numbers were taken on commits that all carry this bug. Measure
 per-frame stream would have built the queue by then (step() does not depend on drainNear), but in RECORD order, not
 nearest-first (drainNear is what sorts it), and the ground under the patch was never re-sunk. Re-take the over-the-field / stand / town numbers on a GPU.
 
-## G571 - THE TOWN ON TEXTURE ARRAYS (2026-09-25)
+## G571 - L0 SHELVED: a parked aeroplane is L1 from 0 m (2026-09-25)
+
+The user: "They look good, so simply get rid of L0 for now (keep available for possible later reactivation, but
+transparent to the game) and have L1 by default, should be enough, and allow plenty of planes."
+`PARKED.L0` (default false) decides at `build` time whether a placement gets the interior rung. Off, the LOD is
+L1 (0 m) / L2 (120) / L3 (450) / cull (2500): no interior bucket, gauge, control, pushrod or wire is ever built
+(no geometry uploaded, no material made for them), and once the bake lands (G569) the aeroplane is ONE draw on ONE
+material from 0 m out - the draw count per parked aeroplane no longer depends on how close the camera stands, which
+is what lets the apron hold many of them. Before the bake lands, or with no WebGL renderer, L1 is the per-material
+exterior (merged by material, G565). The panes read as L1's dark slab even up close. The obstacle rasteriser and
+hitReady (render_premises) walk `levels[0]`, which is now the exterior: the same outline the aeroplane shows.
+`PARKED.L0 = true` restores the full ladder for placements built after the switch - nothing of L0 was deleted.
+GATE PARKED: 5b / 6c / 8 switch L0 on to keep proving the full ladder; new checks 9 prove the default (off by
+default; four rungs, L1 at 0 m, no interior geometry built, the far rungs one index lower and on the ground, the
+craft matrix; with the bake in hand, L1 / L2 / L3 each one draw on the bake's one material, standing where the
+full ladder does). 104 checks green.
+
+## G572 - THE PHYSICS, AUDITED FOR THE FRAME (2026-09-24)
+
+The user: "it seems like there's a CPU floor we're hitting ... have the physics been audited for performance as well
+as the graphics? ... bad performance when getting out of the hangar ... the climate manager, could it have introduced
+physics changes?". The graphics study timed the renderer; nobody had timed `sim.step` - which runs on the same thread
+before it. `tools/physics_perf.js` flies the game's road headless (Jolene + premises, the stand, the pilot's
+departFrom; floats on the SEA lane) and times the pilot and the solver per frame, `--hash` for bit-identity, `--core`
+for an A/B. BEFORE (this container): the stock build's taxi out of the door 11-18 ms of solver a frame, the user's
+birdman 19-29, metal Cessna 31-49 (200 substeps, the cap), Cessna on floats 36-50. Why the roll-out: on the island's
+composed ground every node reads the terrain every substep (the clearance cone is off: no slope bound declared) -
+~45 % of the solver on the stand. The climate: zero cost on the default (calm) day; a rich preset +20-30 %.
+LANDED, bit-identical (12 scenarios, same FNV hash of every p and v before and after): hyp2/hyp3 (00_registry.js) =
+Math.hypot TO THE BIT at 6 ns instead of 47 (V8's own algorithm written out; GATE HYPOT), in the solver, the hydro,
+the climate's field and the premises; the premises' pads skip the edge distance inside the polygon and past the
+feather; the road grade's scan screens segments by squared distance (1e-9 margin); the aero pass stops allocating
+per substep. Paired A/B: -22 % stock taxi, -30 % metal Cessna, -29 % birdman, -29 % thermal day, -16 % floats, -9 %
+analytic circuit. THE RULINGS WAITING (measured, not landed - futureDesigns/PHYSICS-PERF-2026-09-24.md): the island's
+cone (-40 %, hash identical where the bound holds; needs a true bound, a local one proposed), the vortex kernel once
+a frame as its own note says (-17 / -33 %; every build flies vortex since P5), the substep drivers (the alloy wing
+box asks 225; the birdman's 121 is two tailwheel dampers, the next beam asks 77), the hydro at a fixed 360 Hz
+(-30 % floats), frame pacing (the sim steps 1/60 per rAF: slow motion under 60 fps, fast and dearer on a 144 Hz
+screen), the solver's JIT warm-up in the first 0.5 s at the door (pre-step it under the roll-out screen).
+
+## G573 - THE REFERENCE PLANE, TIDIED, AND ITS SECOND SOURCE: THE BLUEPRINT (2026-09-25)
+
+The user: "we need first to revise the UI of the reference plane, because it gets really messy at time. Then I need the
+blueprint import functionality. The base case is a single blueprint image" - scale the sheet, isolate and name the views
+(box or lasso; front / top / side plus a free label), rotate (45 degree views) and mirror, set the ground line
+("especially important for taildraggers"), place the views in 3D automatically with sliders to move and turn them -
+"we need to have transparency on these too". Then, mid-way: "accessible from the reference plane entry in the tree,
+grouping the existing under a 3D model section, and these new ones under a blueprint section".
+
+THE TREE. `Reference plane` has two rows under it now, `3D model` and `Blueprint` (editor.js: a root may declare
+`kids: [{ key, name, badge }]`; a kid resolves through rootFor like a root, its panel is the root's own asked for that
+kid, `panel(kid.key)`, and the crumb says `Reference plane /`). Selected whole, the panel reads like an assembly: each
+source heads its block in the part rung (.edHP) with its groups under it; selected alone, a source starts at its
+groups. The root's badge shows only while it is folded (the rows carry their own).
+
+THE PANEL, REVISED (refplane.js). What was messy, measured on the C172: one flat column of 8 headings and ~50 rows, the
+26-row materials list scrolling inside the scrolling column, the measurements below both, every control drawn with
+nothing standing, the editor's reset part / expert rows / fold sections pills over a panel they do nothing to (hidden
+for every panel root now, editor.css `.noview`), "display only" said twice. Now: nothing but the picker and one status
+line until a model stands; folds (placement, look, size & measure open; materials shut, with its count); every value is
+TYPED as well as dragged (the `.v` readout is an input, and a typed number may pass the slider's ends); LABEL
+CONVENTIONS (`up / down`, `hides what is behind`). The row helpers are REFPLANE.ui, and blueprint.js builds its half
+from them.
+
+THE BLUEPRINT (src/viewer/blueprint.js, blueprint.css). THE DESK is a full-screen 2D sheet over the shed (inside #wsUI,
+so the row controls are the column's own), five steps: 1 SCALE (two points, a length, a unit - one metres-a-pixel for
+the whole sheet), 2 VIEWS (box or lasso, a kind and a label; drag to move, corners to resize, Delete), 3 ORIENT
+(rotation slider, the right angles, LEVEL / PLUMB = two clicks along a line that should be horizontal / vertical,
+mirror, and the EXTENT: the dashed box of the aeroplane's outline, trimmed off the ink automatically, edges draggable -
+it is what registers the views against each other), 4 GROUND (the side view's two tyre contacts: the parked attitude,
+and the wheels on the floor; front / rear views may set their own), 5 PLACE. MEASURE (two clicks, metres and feet) works
+in every step. Load by button, drop or paste; a sheet over 8192 px is scaled down once at import.
+
+THE LAYOUT (bpLayout, pure): one body frame off the side view's extent (nose x = 0, lowest point y = 0; x aft, y up,
+z left - the reference model's own frame). Side view on the centreline; top view with its nose under the side view's
+and its middle on the centreline; front view 0.5 m ahead of the nose, centred, its wheels (its ground line, else its
+extent's bottom) on the mains; rear view behind the tail; `other` beside the aeroplane, facing as asked. The body is
+pitched to the ground attitude (or datum level) + a trim and dropped so the lower tyre is on the build's floor. THE PLAN
+IS NOT PITCHED: pitched with the body, the test sheet's top view was a plane from the floor at the tail to 1.4 m at the
+nose, through the fuselage; it lies flat on the floor, its length foreshortened by cos(pitch), which is the parked
+aeroplane seen from above. The first placement snaps the nose to the build's; after that it stays put (a build that
+grows must not drag its blueprint along) - `snap to nose` is a pill.
+
+TRANSPARENCY: an opacity for the set and per view, `over the build` (no depth test: the linework drawn through
+everything, for tracing), and PAPER: `clear` (the default) makes the sheet's paper colour transparent - the mode colour,
+so white, cream or a real blueprint's blue - with a `clear level` for yellowed scans, and the lines re-inked (cyan by
+default; as drawn is dark ink in a dark shed). A 45 degree cut kept with its paper stood as a 15 m opaque sheet in
+front of the camera, which is why clear is the default.
+
+STORAGE: IndexedDB `flydiy-blueprint` (cfg + the image blob) - an image does not fit in localStorage. Display state
+only; GATE REF's ONE ROOT scan covers blueprint.js too. app.js: REF_MOUNT.bpGroup, a sibling of refSit (refplane hides
+refSit when no model stands) and a probe subject like it.
+
+VERIFIED: the whole workflow driven in headless Chromium through the desk's own pointer handlers on a synthetic Cub
+three-view (8 mm a pixel, 5 m scale bar, side view datum-level, tail tyre tan(12) x 5.3 m up, front view at 45 degrees,
+lassoed round a label): 8.00 mm/px, length 6.98 m (6.95 drawn + the stroke), span 10.76 (10.73), LEVEL -> 45.0 deg,
+ground attitude 12.00 deg, tyres 5.30 m apart; pictures of the three views standing round the build. That state is
+tools/_blueprint_fixture.json, and GATE BLUEPRINT (core, 0.2 s, --selftest 7/7) holds the frames, scale, level, ink
+(paper, a run-length ink box that ignores a speck - a real bug the gate found: one stray pixel stretched the extent
+across the cut), clearing, and the layout on it. Gates run: BLUEPRINT, REF (+selftest), UISMOKE - PASS. NOT run: the
+full battery (nothing in core/ or the flight path changed).
+
+OPEN, and ideas the user was offered: several sheets (the data is per-sheet-ready in spirit, one image in practice);
+PDF import; a per-view scale of its own measured on the desk (today `size` is the slider); stations (fuselage sections
+as `other` views facing front at a typed x); reading dimensions off the blueprint into the build is exactly what ONE
+ROOT forbids - a measure tool that shows the number beside the build's own row would be the honest version.
+- FILES: src/viewer/blueprint.js, blueprint.css (new), refplane.js, editor.js (root kids), editor.css, app.js
+  (bpGroup), tools/build.js (manifest), tools/run_gates.js, tools/_blueprint_check.js, tools/_blueprint_fixture.json,
+  tools/_ref_check.js.
+
+## G574 - THE TOWN ON TEXTURE ARRAYS (2026-09-25)
 
 The user: "performance optimization using texture arrays ... handling texture arrays and single material". G566
 merged a 256 m cell's house bags per DISTINCT material and still drew ~2 300 times over Jolene, because a house

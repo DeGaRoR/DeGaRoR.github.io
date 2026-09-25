@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// _tarr_check.js — GATE TARR: the town on texture arrays (G571, src/viewer/house_tarr.js), headless under the real
+// _tarr_check.js — GATE TARR: the town on texture arrays (G574, src/viewer/house_tarr.js), headless under the real
 // vendor three.js and the real house generator (no library payload: the flat colours, every layer -1).
 //
 //   1  THE EDITS: the house generator's own hooks (shadeHouse + cloudWeather; shadeGlass) run on r186's standard
@@ -15,7 +15,7 @@
 //      (colour, roughness, metalness, paint, dirt, the house's dirt line and punch); the index points inside; the
 //      same finish on two houses is one slot, a different dirt line two
 //   4  THE HOST: render_premises declares TARR above LAMPS (G570's TDZ), the lamps drive the lit factor, the
-//      bake's sig carries the dials, G566's material signature leaves G571's handles out; build.js ships the
+//      bake's sig carries the dials, G566's material signature leaves G574's handles out; build.js ships the
 //      module before render_premises.js
 //
 // Usage: node tools/_tarr_check.js          (prints GATE TARR: PASS|FAIL)
@@ -166,7 +166,7 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
   check(RP.indexOf('let TARR = null;') > 0 && RP.indexOf('let TARR = null;') < RP.indexOf('const LAMPS = {'), '4a TARR is declared above LAMPS (G570: no TDZ)');
   check(/LAMPS\.kLit = on \* kGlass/.test(RP) && /TARR\.lit\.value = LAMPS\.kLit/.test(RP) && /TARR\.lit\.value = 0/.test(RP), '4b the lamps drive the town\'s lit panes, the mute too');
   check(/const sig = HOUSES\.size \+ '\|' \+ HLOD\.bake \+ '\|' \+ HLOD\.tarr;/.test(RP), '4c the bake\'s sig carries the dials');
-  check(/filter\(k => !TARR_UD\.has\(k\)\)/.test(RP) && /TARR_UD = new Set\(\['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud'\]\)/.test(RP), '4d G566\'s signature leaves G571\'s handles out');
+  check(/filter\(k => !TARR_UD\.has\(k\)\)/.test(RP) && /TARR_UD = new Set\(\['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud'\]\)/.test(RP), '4d G566\'s signature leaves G574\'s handles out');
   check(/const HLOD = \{ on: true, bake: true, tarr: true,/.test(RP), '4e the dial: WORLD.premises.hlod.tarr');
   const BJ = fs.readFileSync(path.join(TOOLS, 'build.js'), 'utf8');
   check(BJ.indexOf("'house_tarr.js'") > 0 && BJ.indexOf("'house_tarr.js'") < BJ.indexOf("['src/viewer', 'render_premises.js']"), '4f build.js ships house_tarr.js before render_premises.js');

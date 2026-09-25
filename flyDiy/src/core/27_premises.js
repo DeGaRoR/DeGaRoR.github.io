@@ -99,6 +99,10 @@ const KIND_RULES = { park: { plotMin: 36, plotMax: 44, plotDepth: 40, gap: 16, b
   // never nears the water sows nothing and says so
   harbour: { waterOnly: true, plotMin: 18, plotMax: 30, plotDepth: 34 } };   // a lawn is refused past a 10 m bank; the plot 12 m back from the road so the bank never re-grades the road
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+// Math.hypot to the bit, the JIT-inlined way (00_registry.js hyp2 - PHYSICS PERF 2026-09-24): the composed
+// ground is asked for every wheel and every node of the aeroplane every substep, and a road's grade
+// makes one distance a segment. Standalone (GATE PREMISES requires this file alone) it is Math.hypot.
+const HYP2 = (typeof hyp2 === 'function') ? hyp2 : Math.hypot;
 
 // ---------------------------------------------------------------------------
 // the seeds
@@ -168,7 +172,7 @@ function distPtSeg(x, z, a, b) {
   const dx = b[0] - a[0], dz = b[1] - a[1];
   const l2 = dx * dx + dz * dz;
   const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
-  return Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
+  return HYP2(x - (a[0] + dx * t), z - (a[1] + dz * t));
 }
 // signed distance to the polygon's edge: negative inside
 function sdPoly(poly, x, z) {
@@ -366,9 +370,27 @@ function makeModifier(m, y0) {
       } else pl = m.plane || [0, 0, 0];
       target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
     }
+    // THE TWO ENDS OF THE FEATHER NEED NO DISTANCE (PHYSICS PERF 2026-09-24). weight() is 1 for any
+    // sd <= 0 and sdPoly is -d inside, so a point inside the polygon weighs 1 whatever its distance to
+    // the edge - the aeroplane on an apron pad asked for that distance per node per substep. Outside,
+    // the plain squared distances bound the exact one from below within a hair (1e-9 relative, where
+    // the two roundings differ by 1e-16): past the falloff by that margin the weight is 0 on either
+    // reading. Everything between is sdPoly's own arithmetic, so the height is the same bits.
+    const n = poly.length, fall2 = fall * fall * (1 + 1e-9);
     return { id: m.id, kind: m.kind, bbox, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
-      const w = weight(sdPoly(poly, x, z));
+      let w;
+      if (inPoly(poly, x, z)) w = 1;
+      else {
+        let near = false;
+        for (let i = 0; i < n; i++) {
+          const a = poly[i], b = poly[(i + 1) % n], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+          const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
+          const ex = x - (a[0] + dx * t), ez = z - (a[1] + dz * t);
+          if (ex * ex + ez * ez < fall2) { near = true; break; }
+        }
+        w = near ? weight(sdPoly(poly, x, z)) : 0;
+      }
       return w > 0 ? h + (target(x, z, h) - h) * w : h;
     } };
   }
@@ -429,13 +451,18 @@ function makeModifier(m, y0) {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
       const list = cells.get(ck(cx(x), cz(z)));
       if (!list) return h;
-      let best = Infinity, ty = 0;
+      // (PHYSICS PERF 2026-09-24) the plain squared distance screens a segment that cannot beat the best
+      // (1e-9 relative over it - the two roundings differ by 1e-16); every one that can is measured
+      // exactly as before, in the list's order, so the winner and its tie-break are the same
+      let best = Infinity, best2 = Infinity, ty = 0;
       for (let n = 0; n < list.length; n++) {
         const i = list[n], a = pts[i], b = pts[i + 1];
         const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
         const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
-        const d = Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
-        if (d < best) { best = d; ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
+        const ex = x - (a[0] + dx * t), ez = z - (a[1] + dz * t);
+        if (ex * ex + ez * ez > best2) continue;
+        const d = HYP2(ex, ez);
+        if (d < best) { best = d; best2 = d * d * (1 + 1e-9); ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
       }
       const w = weight(best - hw);
       return w > 0 ? h + ((abs ? 0 : y0) + ty - h) * w : h;

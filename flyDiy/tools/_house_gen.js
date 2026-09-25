@@ -789,7 +789,7 @@ function shadeHouse(m, U) {
               // building that wants its shingles larger scales the uv here
               uUvK: { value: 1.0 } };
   if (!SU.uDirtCol.value) SU.uDirtCol.value = new THREE.Color(0x6d6353);
-  // THE TOWN ON TEXTURE ARRAYS (G571) reads a finish off its material: the uniform set it was shaded with and the
+  // THE TOWN ON TEXTURE ARRAYS (G574) reads a finish off its material: the uniform set it was shaded with and the
   // raw hook (a hook wrapped over this one - a steel mix - is how house_tarr.js knows the bag is not plain)
   ud.houseU = SU;
   m.onBeforeCompile = ud.hookHouse = sh => {
@@ -934,7 +934,7 @@ function shadeGlass(m, GU0, SU0) {
   const ud = m.userData || (m.userData = {});
   if (ud.glassShaded) return;
   ud.glassShaded = true;
-  ud.glassU = GU; ud.houseU = SU;   // G571: house_tarr.js reads the finish off the material
+  ud.glassU = GU; ud.houseU = SU;   // G574: house_tarr.js reads the finish off the material
   m.onBeforeCompile = ud.hookGlass = sh => {
     sh.uniforms.uGlassWave = GU.uGlassWave;
     sh.uniforms.uGlassRough = GU.uGlassRough;

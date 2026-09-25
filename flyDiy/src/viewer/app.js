@@ -718,7 +718,7 @@
       // one object is not a rule, it is a special case. What belongs in a
       // room's probe is THE ROOM — everything the player brought into it is a
       // subject, and a subject that lights itself is a mirror.
-      const subjects = [craft, edSit, refSit];
+      const subjects = [craft, edSit, refSit, bpSit];
       const subWas = subjects.map(o => o && o.visible);
       if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
       // THE GROUND BOUNCE IS OCCLUDED (user: "the plane is lit from the
@@ -971,6 +971,7 @@
     if (craft.parent !== s) s.add(craft);
     if (edSit.parent !== s) s.add(edSit);   // the editor's mount (G36)
     if (refSit.parent !== s) s.add(refSit); // the reference's (G89)
+    if (bpSit.parent !== s) s.add(bpSit);   // the blueprint's (G573)
     // `rigLift` is the load test's own 200 m hop clear of the ground. The room
     // takes the same offset so the aeroplane stays standing in it: the camera
     // tracks the CG and went up with the aeroplane, but the hangar did not, and
@@ -6511,8 +6512,14 @@
   // only the group, the floor line and the build's box to measure against.
   const refSit = new THREE.Group();
   refSit.visible = false;
+  // THE BLUEPRINT'S MOUNT (G573), a sibling of the reference's rather than a
+  // child: refplane.js hides refSit whenever no 3D model is standing, and a
+  // blueprint pinned up with no model beside it must not vanish with it.
+  // blueprint.js owns everything inside it, under the same display-only rule.
+  const bpSit = new THREE.Group();
   window.REF_MOUNT = {
     group: refSit,
+    bpGroup: bpSit,
     // the floor the build stands on — the main wheel's centre less its radius
     groundY: () => groundY,
     // the build's own as-displayed box, in WORLD units, for the discrepancy

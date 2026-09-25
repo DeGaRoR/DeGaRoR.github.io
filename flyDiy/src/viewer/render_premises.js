@@ -207,7 +207,7 @@ function make(THREE, scene, world, rec0, opts) {
   // stops. The lit panes follow: each finish's glass uniform uLitK (its base the generator's
   // lightK) x on x the runway lenses' colour-keeping dimmer. The world switchboard declares it
   // as `lamps` (render_world) and the mute is honoured here. F8: `village lamps` reads .gain.
-  let TARR = null;   // the town's texture arrays (G571, hlodBuild) - above LAMPS, which reads it (G570: no TDZ)
+  let TARR = null;   // the town's texture arrays (G574, hlodBuild) - above LAMPS, which reads it (G570: no TDZ)
   const LAMPS = { pool: [], pub: [], glass: new Map(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500 };
   const lampPoolInit = () => {
     if (LAMPS.pool.length) return;
@@ -221,7 +221,7 @@ function make(THREE, scene, world, rec0, opts) {
     const kGlass = 0.45 * Math.pow(0.92 / Math.max(0.92, ex), 1.0), kLamp = 2.2 * 1.1 * LAMPS.gain / Math.max(1, ex);
     // the panes: the generator's lightK (judged on the bench by DAY, 2.2) x 0.45 x the exposure's inverse - a lit window at night is warm, not white (at the lenses' 0.9 the mill's windows saturated)
     for (const [u, base] of LAMPS.glass) u.value = base * on * kGlass * (LAMPS.muted ? 0 : 1);
-    LAMPS.kLit = on * kGlass * (LAMPS.muted ? 0 : 1); if (TARR) TARR.lit.value = LAMPS.kLit;   // the town's lit panes (G571): the base rides the slot
+    LAMPS.kLit = on * kGlass * (LAMPS.muted ? 0 : 1); if (TARR) TARR.lit.value = LAMPS.kLit;   // the town's lit panes (G574): the base rides the slot
     // the chimney smoke is lit by the sky: its unlit colour dimmed back through the exposure schedule (a haze, not a lamp)
     // the fixtures' own glass (G456): the author's emissive x on x the lenses' colour-keeping dimmer, every placement of a lit prop key together
     if (typeof propSetGlowOf === 'function') { const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9); for (const key of LAMPS.glowKeys) propSetGlowOf(key, kFix); }
@@ -1205,12 +1205,12 @@ function make(THREE, scene, world, rec0, opts) {
   // smoke, the parked aeroplanes and anything transparent stay the house's own. While editing, the houses are whole.
   const uval = v => v && v.isColor ? v.getHexString() : v && v.isVector2 ? v.x + ',' + v.y : v && v.isTexture ? v.uuid : (typeof v === 'number' ? +v.toFixed(4) : v && v.value !== undefined ? uval(v.value) : v && typeof v === 'object' ? Object.keys(v).map(k => k + '=' + uval(v[k])).join(';') : String(v));
   const matSig = m => [m.type, m.map && m.map.uuid, m.normalMap && m.normalMap.uuid, m.roughnessMap && m.roughnessMap.uuid, m.aoMap && m.aoMap.uuid, m.color && m.color.getHexString(), m.roughness, m.metalness, m.side, m.alphaTest, m.vertexColors, m.flatShading, m.customProgramCacheKey ? m.customProgramCacheKey() : '', Object.keys(m.userData || {}).filter(k => !TARR_UD.has(k)).sort().map(k => k + ':' + uval(m.userData[k])).join('|')].join('#');
-  const TARR_UD = new Set(['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud']);   // G571's handles: G566's signature is as it was
+  const TARR_UD = new Set(['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud']);   // G574's handles: G566's signature is as it was
   function nearAll(on) {
     for (const cl of HLOD.cells) if (cl.near) cl.near.visible = on && !cl.far;
     for (const g of G.houses.children) for (const m of g.children) if (m.userData.merged) m.visible = !on && !g.userData.far;
   }
-  // the stack (G571): made on first use; its ready signal rebakes (the sig is cleared). TARR is declared by LAMPS.
+  // the stack (G574): made on first use; its ready signal rebakes (the sig is cleared). TARR is declared by LAMPS.
   function tarr() {
     if (TARR || typeof window === 'undefined' || !window.HOUSE_TARR || !THREE.DataArrayTexture) return TARR;
     TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { HLOD.sig = ''; } });
@@ -1271,7 +1271,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     if (HLOD.bake) {
       const canon = new Map(); let nd = 0, nm = 0, td = 0, tm = 0;
-      // THE TOWN ON TEXTURE ARRAYS (G571, house_tarr.js): a bag whose finish can ride the stack goes into one of a
+      // THE TOWN ON TEXTURE ARRAYS (G574, house_tarr.js): a bag whose finish can ride the stack goes into one of a
       // cell's few town meshes (plain / glass x side x whether it casts) whatever its material; the rest merge per
       // distinct material as G566 does. Until the stack holds every layer the bake asked for, the bags it could not
       // place go G566's way too, and the stack's ready signal rebakes.
@@ -1345,7 +1345,7 @@ function make(THREE, scene, world, rec0, opts) {
       const dx = Math.max(cl.x0 - e.x, 0, e.x - cl.x1), dz = Math.max(cl.z0 - e.z, 0, e.z - cl.z1), d = Math.hypot(dx, dz, e.y - cl.y);   // 3D (G563): from 300 m up the houses below are far
       const far = d > HLOD.near * (cl.far ? 0.9 : 1.1);
       if (far !== cl.far) hlodSet(cl, far);
-      // the town meshes that cast (G571): a house's own casters go at HOUSE_CAST_FAR (detailTick), the cell's at its box's
+      // the town meshes that cast (G574): a house's own casters go at HOUSE_CAST_FAR (detailTick), the cell's at its box's
       if (cl.casters && cl.casters.length) { const on = d < HOUSE_CAST_FAR * (cl.castOn ? 1.1 : 0.9); if (on !== cl.castOn) { cl.castOn = on; for (const m of cl.casters) m.castShadow = on; } }
     }
   }

@@ -58,6 +58,9 @@ const GATES = [
   // re-engage after hand flying, flown headless on both pilots.
   { id: 'INPUT', file: 'test_input.js', tier: 'core', wall: 160 },
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
+  // PHYSICS PERF (2026-09-24): hyp2 / hyp3 are Math.hypot to the bit - the solver's hot loops call
+  // them, and the trajectory is the same bits only while they are; seconds
+  { id: 'HYPOT', file: '_hypot_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -280,6 +283,10 @@ const GATES = [
   // measurement taken against a reference is worth exactly what that check is
   // — and the display-only rule, read off refplane.js's own source
   { id: 'REF', file: '_ref_check.js', tier: 'core' },
+  // THE BLUEPRINT (G573): the reference plane's second source, a three-view
+  // cut into views and stood in 3D — its frames, its scale, its level tool,
+  // its ink and its layout, on a fixture the desk itself produced
+  { id: 'BLUEPRINT', file: '_blueprint_check.js', tier: 'core' },
   // THE SITE (G123): the base aerodrome as ONE declared place. Asserts that
   // neither scene restates the runway the HOME record already carries, that
   // the frame conversion between the world and the shed round-trips, and the
@@ -294,7 +301,7 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
-  // THE TOWN ON TEXTURE ARRAYS (G571): house_tarr.js's shader edits on r186's own program after the house
+  // THE TOWN ON TEXTURE ARRAYS (G574): house_tarr.js's shader edits on r186's own program after the house
   // generator's real hooks, the classify by hook identity, the merge (world, the sag baked, one slot a finish), the
   // host's wiring (~2 s)
   { id: 'TARR', file: '_tarr_check.js', tier: 'core' },

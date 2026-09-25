@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tarr_shot.js - THE TOWN ON TEXTURE ARRAYS, PHOTOGRAPHED (G571). Opens tools/_tarr.html in a browser, runs
+// tarr_shot.js - THE TOWN ON TEXTURE ARRAYS, PHOTOGRAPHED (G574). Opens tools/_tarr.html in a browser, runs
 // window.TARR_RUN() and writes, per view, a PNG of three bands - the street as drawn before the bake, the street on
 // house_tarr.js's stack, and the difference x4 - with the draw counts and the mean pixel difference printed.
 //
