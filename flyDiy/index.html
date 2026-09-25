@@ -39191,7 +39191,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ade7b65e86f1';window.FLYDIY_BUILD='4a906deebb71'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ade7b65e86f1';window.FLYDIY_BUILD='182b26b100a8'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -100207,6 +100207,8 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
       // carries the canvas's tone mapping and colour space, which is what the
       // first frame will ask for - null at tier 'off', where the canvas is the target
       target: () => S.rt || null,
+      // G570: the blit's program, for the roll-out's compile step (shader_warm.js) - drawn onto the canvas
+      warmList: () => (S.rt && S.mat ? [{ m: S.mat, to: null }] : []),
       dither: () => S.dither,
       tier: () => S.tier,
       able: () => S.able,
@@ -103070,7 +103072,10 @@ var CLOUDS = (function () {
   // hemiUnder(T): the hemisphere's gain under a cloud of transmittance T at the eye - the diffuse light rises as the sun is lost
   // (an overcast day's diffuse is ~1.7x a clear day's), a dial
   const hemiUnder = T => 1 + S.hemiUnderCloud * (1 - Math.max(0, Math.min(1, T)));
-  const API = { S, init, install, inject, update, draw, composite, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
+  // warmList() (G570): the full-screen passes' programs (the noise bake, the sky fit, the shadow map, the march) for the
+  // roll-out's compile step (shader_warm.js); all draw into targets of their own. The composite is in the world scene.
+  function warmList() { if (!ready || !active()) return []; skyMats(); return [bakeMat, skyMat, shadowMat, marchMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
+  const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();
@@ -104210,6 +104215,19 @@ const POST_FX = (() => {
     renderer.setRenderTarget(prevTarget);
   }
   const active = () => KEYS.some(k => S[k] !== 'off');
+  // warmList() (G570): the programs the passes switched on will draw with, for the roll-out's compile step
+  // (shader_warm.js) - { m, to }: `to` null is the canvas, 'rt' one of the pyramid's plain targets
+  function warmList() {
+    if (!ready || !active() || !hooked) return [];
+    build();
+    const out = [], add = (m, canvas) => { if (m) out.push({ m, to: canvas ? null : 'rt' }); };
+    if (S.look !== 'off' || S.lens !== 'off') add(M.look, true);
+    if (S.ao !== 'off') { add(M.ao); add(M.aoBlur); add(M.aoApply, true); }
+    if (S.rays !== 'off') { add(M.raysMask); add(M.raysBlur); add(M.add, true); }
+    if (S.bloom !== 'off') { add(M.thr); add(M.down); add(M.up); add(M.upOut, true); }
+    if (S.eye !== 'off') add(M.eye);
+    return out;
+  }
   // apply(): the hook installed only while something is on; nothing else touched otherwise
   function apply() {
     if (!aa) return false;
@@ -104228,7 +104246,7 @@ const POST_FX = (() => {
     for (const k in M) { M[k].dispose(); delete M[k]; }
     installed = false; sized = { w: 0, h: 0 };
   }
-  const API = { S, KEYS, stats, init, apply, set, render, active, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, stats, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();
@@ -104383,6 +104401,149 @@ var SHADOW_NEAR = (function () {
   const API = { S, NEAR_LAYER, FAR_LAYER, install, inject, make, tag, tagCraft, follow, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
   return API;
+})();
+</script>
+<script type="text/x-flydiy">
+// ============================================================================
+// shader_warm.js — THE PROGRAMS A FRAME WILL ASK FOR, BUILT BEFORE IT ASKS (G570)
+//
+// The roll-out's compile step (app.js rollOutScreen 'compile') hands the world
+// scene to renderer.compileAsync, which links every program on the driver's
+// threads while the loading screen moves. What it cannot see links on the
+// first frame instead, synchronously, one program at a time. The census of
+// that residue (two headless boots, every linkProgram recorded with the boot
+// step it ran in - futureDesigns/PERF-2026-09-23.md G570) found:
+//
+//   THE SHADOW PASS'S DEPTH PROGRAMS, ALL OF THEM. The old warm-up (app.js
+//   compileDepthVariants, S3) built MeshDepthMaterial({ RGBADepthPacking })
+//   one per side and compiled them against a helper scene with no lights. In
+//   r186 the shadow map draws with three's OWN depth material - BasicDepthPacking
+//   (3200) - in the LIT scene's light state (USE_SHADOWMAP, the shadow type),
+//   with the caster's map / alphaMap / alphaTest / displacement / side copied
+//   onto it (WebGLShadowMap getDepthMaterial). So the eight programs the
+//   warm-up linked were never drawn with, and the ~12 the shadow pass does
+//   draw with linked on the first frame.
+//
+//   THE PASSES OUTSIDE THE SCENE. The AA resolve's blit, the bloom chain and
+//   the clouds' bake / march / shadow draw full-screen quads in scenes of their
+//   own: compileAsync(scene) never meets them. Each module now lists its own
+//   (aa_resolve / post_fx / clouds warmList()) and the step compiles them too.
+//
+// depthVariants() mirrors getDepthMaterial exactly (three r186; GATE PROGRAMS
+// renders the real shadow pass in node on a fake GL context and holds every
+// depth program it draws with to this warm-up, so a three upgrade that moves
+// the rule turns the gate red rather than the first frame slow).
+//
+//   PROG_WARM.depthVariants(THREE, renderer, scenes, opt) -> { helper, n }
+//     scenes: the lit scene(s) whose casters the shadow pass will draw
+//     helper: a THREE.Scene of stand-ins (the caster's own geometry, instance /
+//             skin / batch kind, never its data), one per distinct depth
+//             program; compile it with the lit scene as targetScene, its fog
+//             lifted (fogless: the pass draws with none), and a plain render
+//             target bound (a shadow map is one: linear, no tone map)
+//   PROG_WARM.passes(THREE, lists) -> [{ helper, target }]
+//     lists: [{ m, to }] from the modules' warmList(); `to` null = the canvas,
+//            'rt' = any plain render target; one helper scene per kind
+// ============================================================================
+'use strict';
+var PROG_WARM = (() => {
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  // A STAND-IN, NOT A CLONE: an object whose prototype is the caster, so every
+  // property the program key reads (isInstancedMesh, instanceColor, isSkinnedMesh,
+  // isBatchedMesh, _colorsTexture, morphTargetInfluences, the geometry's attributes)
+  // is the caster's own, while its material, parent and children are its own. A
+  // clone(false) of an InstancedMesh copied its whole instance buffer to compile
+  // one program (the cover ring's tufts: 60 000 matrices a block).
+  function standIn(o, mat) {
+    const s = Object.create(o);
+    s.parent = null; s.children = []; s.material = mat; s.visible = true;
+    s._listeners = undefined;   // the caster's own listeners must not hear the helper's 'added'
+    return s;
+  }
+  // a copy of a material that keys the SAME program: its type, its defines, its
+  // hook and its own cache key (the hook through ATMO's accessor: the material's own
+  // hook is `_atmoHook`, and assigning the served wrapper would wrap it twice -
+  // app.js compileXrayVariants learnt that first)
+  function twin(m) {
+    const t = new m.constructor();
+    t.copy(m);
+    if (m.defines) t.defines = Object.assign({}, m.defines);
+    t.userData = m.userData;
+    const hook = own(m, '_atmoHook') ? m._atmoHook : own(m, 'onBeforeCompile') ? m.onBeforeCompile : undefined;
+    if (hook !== undefined) t.onBeforeCompile = hook;
+    if (own(m, 'customProgramCacheKey')) t.customProgramCacheKey = m.customProgramCacheKey;
+    return t;
+  }
+  // three r186 WebGLShadowMap: which caster materials get a depth material of their own
+  const needsOwn = (renderer, m) => (renderer.localClippingEnabled && m.clipShadows === true && Array.isArray(m.clippingPlanes) && m.clippingPlanes.length !== 0)
+    || (m.displacementMap && m.displacementScale !== 0) || (m.alphaMap && m.alphaTest > 0) || (m.map && m.alphaTest > 0) || m.alphaToCoverage === true;
+
+  function depthVariants(THREE, renderer, scenes, opt) {
+    opt = opt || {};
+    const helper = new THREE.Scene(), seen = new Set();
+    const vsm = renderer.shadowMap && renderer.shadowMap.type === THREE.VSMShadowMap;
+    const FLIP = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
+    const base = new THREE.MeshDepthMaterial(), baseDist = THREE.MeshDistanceMaterial ? new THREE.MeshDistanceMaterial() : null;
+    // what the pass draws with, as a light kind asks: point lights draw distance, the rest depth
+    let kinds = { depth: false, distance: false };
+    for (const sc of scenes) if (sc) sc.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
+    if (opt.kinds) kinds = opt.kinds;
+    const variant = (o, R, dist) => {
+      const custom = dist ? o.customDistanceMaterial : o.customDepthMaterial;
+      const src = custom || (dist ? baseDist : base);
+      if (!src) return;
+      const side = vsm ? (R.shadowSide !== null ? R.shadowSide : R.side) : (R.shadowSide !== null ? R.shadowSide : FLIP[R.side]);
+      const alphaTest = R.alphaToCoverage === true ? 0.5 : R.alphaTest;
+      // the key's reads, as a signature: one stand-in per distinct answer
+      const sig = [src.uuid, custom ? 'c' : (needsOwn(renderer, R) ? 'own' : 'base'), side, !!R.map, !!R.alphaMap, alphaTest > 0 ? 1 : 0,
+        !!(R.displacementMap && R.displacementScale !== 0), R.clipShadows && R.clippingPlanes ? R.clippingPlanes.length : 0, R.visible, R.wireframe,
+        o.isInstancedMesh ? 'i' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '', o.isSkinnedMesh ? 's' : '',
+        o.isBatchedMesh ? 'b' + (o._colorsTexture ? 'c' : '') : '', o.morphTargetInfluences ? 'mt' + o.morphTargetInfluences.length : '',
+        Object.keys((o.geometry && o.geometry.attributes) || {}).sort().join('.'), Object.keys((o.geometry && o.geometry.morphAttributes) || {}).sort().join('.')].join('|');
+      if (seen.has(sig)) return; seen.add(sig);
+      const d = custom ? twin(custom) : new src.constructor();
+      d.visible = true; d.wireframe = R.wireframe; d.side = side;
+      d.alphaMap = R.alphaMap; d.alphaTest = alphaTest; d.map = R.map;
+      d.clipShadows = R.clipShadows; d.clippingPlanes = R.clippingPlanes; d.clipIntersection = R.clipIntersection;
+      d.displacementMap = R.displacementMap; d.displacementScale = R.displacementScale; d.displacementBias = R.displacementBias;
+      helper.add(standIn(o, d));
+    };
+    for (const sc of scenes) if (sc) sc.traverse(o => {
+      if (!(o.isMesh || o.isLine || o.isPoints) || !o.castShadow || !o.material) return;
+      const mats = Array.isArray(o.material) ? (o.geometry && o.geometry.groups && o.geometry.groups.length ? o.geometry.groups.map(g => o.material[g.materialIndex]) : o.material) : [o.material];
+      for (const R of mats) {
+        if (!R || !R.visible) continue;
+        if (kinds.depth) variant(o, R, false);
+        if (kinds.distance) variant(o, R, true);
+      }
+    });
+    return { helper, n: helper.children.length };
+  }
+
+  // fogless(scene, fn): fn() with the scene's fog lifted. The shadow pass draws with no scene (three's empty one: no
+  // fog), and the fog is in the program key (fogExp2: '' under a THREE.Fog, false under none) though a depth
+  // program never reads it - compiled with the world's fog on, every warmed depth program keyed apart from the one
+  // the pass asks for and linked AGAIN on the first frame, same source (the second census). The lights stay: they
+  // are the shadow map's key (USE_SHADOWMAP, the shadow type)
+  function fogless(scene, fn) { const f = scene.fog; scene.fog = null; try { return fn(); } finally { scene.fog = f; } }
+
+  // the full-screen passes: one quad per material, grouped by where it draws
+  function passes(THREE, lists) {
+    const by = new Map();
+    for (const list of lists) for (const e of (list || [])) {
+      if (!e || !e.m) continue;
+      const k = e.to === null ? 'canvas' : 'rt';
+      let g = by.get(k); if (!g) by.set(k, g = { helper: new THREE.Scene(), target: k === 'canvas' ? null : 'rt', mats: new Set() });
+      if (g.mats.has(e.m)) continue; g.mats.add(e.m);
+      const q = new THREE.Mesh(passes.quad || (passes.quad = new THREE.PlaneGeometry(2, 2)), e.m); q.frustumCulled = false;
+      g.helper.add(q);
+    }
+    return [...by.values()];
+  }
+  const api = { depthVariants, fogless, passes, twin, standIn };
+  if (typeof window !== 'undefined') window.PROG_WARM = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  return api;
 })();
 </script>
 <script type="text/x-flydiy">
@@ -110040,17 +110201,27 @@ var ROCK_MAP = (() => {
       const oldCol = renderer.getClearColor(new THREE.Color()), oldA = renderer.getClearAlpha();
       renderer.setRenderTarget(ATLAS); renderer.setClearColor(0x000000, 0); renderer.clear();
       let k = 0;
-      for (const { c, P } of protos) for (const p of P) {
-        if (k >= perRow * perRow) break;
-        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || 1);
-        const meshes = p.parts.map(part => {
-          const m = new THREE.MeshBasicMaterial({ map: part.mat.map || null, toneMapped: false });
-          if (cut > 0) { m.onBeforeCompile = sh => { sh.uniforms.uCut = { value: cut };
+      // G570: THE MATERIALS ARE KEPT FOR THE WHOLE BAKE. One made and disposed per part released its program with
+      // it, and the next part linked the same program again - the census: 30 links of 2 programs in one roll-out.
+      // Now one material per (map, cut), all alive until the atlas is drawn: the two programs link once each
+      const kinds = new Map();
+      const spriteMat = (map, cut) => {
+        const key = (map ? map.uuid : '-') + '|' + (cut > 0 ? cut : 0);
+        let m = kinds.get(key);
+        if (!m) {
+          m = new THREE.MeshBasicMaterial({ map: map || null, toneMapped: false });
+          if (cut > 0) { const uCut = { value: cut }; m.onBeforeCompile = sh => { sh.uniforms.uCut = uCut;
             sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY;').replace('#include <begin_vertex>', '#include <begin_vertex>' + String.fromCharCode(10) + 'vRockY = position.y;');
             sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY; uniform float uCut;').replace('#include <map_fragment>', 'if (vRockY < uCut) discard;' + String.fromCharCode(10) + '#include <map_fragment>'); };
             m.customProgramCacheKey = () => 'rockmap-cut'; }
-          return new THREE.Mesh(part.geo, m);
-        });
+          kinds.set(key, m);
+        }
+        return m;
+      };
+      for (const { c, P } of protos) for (const p of P) {
+        if (k >= perRow * perRow) break;
+        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || 1);
+        const meshes = p.parts.map(part => new THREE.Mesh(part.geo, spriteMat(part.mat.map, cut)));
         sc.clear(); meshes.forEach(m => sc.add(m));
         // from above: right = +x, up = -z (the world's north), the footprint [-r0, r0]
         cam.left = -r0; cam.right = r0; cam.top = r0; cam.bottom = -r0; cam.updateProjectionMatrix();
@@ -110059,9 +110230,9 @@ var ROCK_MAP = (() => {
         renderer.setViewport(x, y, S.slot, S.slot); renderer.setScissor(x, y, S.slot, S.slot); renderer.setScissorTest(true);
         renderer.render(sc, cam);
         slots.set(p.key, { u0: x / S.px, v0: y / S.px, du: S.slot / S.px, dv: S.slot / S.px, r0, proto: p, c });
-        meshes.forEach(m => m.material.dispose());
         k++;
       }
+      for (const m of kinds.values()) m.dispose();
       renderer.setRenderTarget(old); renderer.setViewport(oldVp); renderer.setScissor(oldSc); renderer.setScissorTest(oldSt); renderer.setClearColor(oldCol, oldA);
       STAT.sprites = k;
     }
@@ -110075,8 +110246,11 @@ var ROCK_MAP = (() => {
     const quad = new THREE.PlaneGeometry(1, 1); quad.rotateX(-Math.PI / 2);   // local +y (texture up) -> -z, as the bake
     let meshes = [];
     const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+    // ONE MATERIAL FOR EVERY SPRITE OF THE MAP (G570): they were identical, made per species and disposed at every
+    // rebuild - so a recentre let the program go and linked it again
+    const mapMat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
     function rebuild() {
-      for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+      for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); }
       meshes = [];
       const by = new Map();   // proto key -> records
       let total = 0;
@@ -110086,8 +110260,7 @@ var ROCK_MAP = (() => {
         const sl = slots.get(pk); if (!sl) continue;
         const g = quad.clone();
         const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, sl.u0 + uv.getX(i) * sl.du, sl.v0 + uv.getY(i) * sl.dv);
-        const mat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
-        const m = new THREE.InstancedMesh(g, mat, recs.length);
+        const m = new THREE.InstancedMesh(g, mapMat, recs.length);
         let anyCol = false;
         for (let i = 0; i < recs.length; i++) { const r = recs[i];
           Q.setFromAxisAngle(UP, r.yaw); V.set(r.x, 0, r.z); SC.set(2 * sl.r0 * r.s, 1, 2 * sl.r0 * r.s);
@@ -139740,11 +139913,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
   }
+  // G570: THE GENERATORS ARE KEPT. A PMREMGenerator owns its shaders, and dispose() frees them - a generator
+  // made and disposed per bake re-linked its programs every bake (the census: the room's PMREM 14 times in one
+  // roll-out, the hangar's textures landing under the world's loading screen). One per source kind, kept for
+  // the page's life: the room's cube (256) and the sky's equirect (their sizes differ, and a generator that
+  // changes size rebuilds its blur program too).
+  const envGens = {};
+  const envGen = k => envGens[k] || (envGens[k] = new THREE.PMREMGenerator(renderer));
   function bakeHangarEnv() {
     if (envDeferred) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
     // (one light model everywhere since W0.5a: r186 has only the physical one)
-    const pm = new THREE.PMREMGenerator(renderer);
+    const pm = envGen('room');
     // ASKED FOR, not remembered (G62): the sky changes with the mood, so the
     // texture to bake is whichever one is hanging outside right now
     // A GRADED ROOM (G62.2) has no baked picture to hand over: its sky only
@@ -139761,8 +139941,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // leaks a render target per click (measured: +2 textures a change).
     let rt = null;
     if (skyReady) {
-      pm.compileEquirectangularShader();
-      rt = pm.fromEquirectangular(sky);
+      const pmS = envGen('sky');
+      pmS.compileEquirectangularShader();
+      rt = pmS.fromEquirectangular(sky);
     } else if (THREE.WebGLCubeRenderTarget) {
       ensureEnvRT();
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
@@ -139877,10 +140058,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         if (shedSkyProbe) { shedSkyProbe.bake(world.day); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
       }
       if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
-        const pm2 = new THREE.PMREMGenerator(renderer);
+        const pm2 = envGen('sky');
         pm2.compileEquirectangularShader();
         srt = pm2.fromEquirectangular(sky);
-        pm2.dispose();
         if (skyPM && skyPM !== srt) skyPM.dispose();
         skyPM = srt;
       }
@@ -139890,7 +140070,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         m.needsUpdate = true;
       }
     }
-    pm.dispose();
     // the equirect is a data-URI image and decode is asynchronous: a 'sky' bake
     // asked for before it lands falls back to the room and comes back here.
     // The room's own `onSkyReady` (wired in getHangar) covers the swap case;
@@ -148621,28 +148800,36 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // those materials goes through compileAsync with a plain target bound
   // (a shadow map is one: linear, no tone map). What it misses still
   // compiles on the frame; what it catches links on the driver's threads.
+  // G570: THE SHADOW PASS'S OWN PROGRAMS. This used to warm MeshDepthMaterial({ RGBADepthPacking }) per side
+  // against a helper with no lights - eight programs the shadow pass never draws with (r186 draws with its own
+  // BasicDepthPacking material, in the lit scene's light state, the caster's map / alphaTest / side copied on);
+  // the ~12 it does draw with linked on the first frame. PROG_WARM.depthVariants mirrors three's rule (GATE
+  // PROGRAMS holds it to the real shadow pass) and the helper is compiled with the world scene as its lit scene.
+  const PLAIN_RT = () => PLAIN_RT.rt || (PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4));
   function compileDepthVariants() {
     if (typeof renderer.compileAsync !== 'function' || !WF) return Promise.resolve();
-    const helper = new THREE.Scene(), seen = new Set(), defDepth = new Map();
-    const SIDE = m => m.side === THREE.DoubleSide ? THREE.DoubleSide : m.side === THREE.BackSide ? THREE.FrontSide : THREE.BackSide;
-    const add = (o, mat) => {
-      if (!mat) return;
-      const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m') + (o.isSkinnedMesh ? ':s' : '');
-      if (seen.has(key)) return; seen.add(key);
-      const c = o.clone(false); c.material = mat; c.visible = true; if (o.isInstancedMesh) c.count = Math.max(1, o.count); helper.add(c);   // shallow: a child's real material is not a depth variant
-    };
-    scene.traverse(o => {
-      if (!o.isMesh || !o.castShadow) return;
-      if (o.customDepthMaterial) { add(o, o.customDepthMaterial); return; }
-      const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m) return;
-      const s = SIDE(m); let d = defDepth.get(s);
-      if (!d) { d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: s }); defDepth.set(s, d); }
-      add(o, d);
-    });
-    // the far cascade's proxies (their far depth) and the canopy cover's swap
+    const jobs = [];
+    if (typeof PROG_WARM !== 'undefined') {
+      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [scene]);
+      jobs.push(PROG_WARM.fogless(scene, () => compilePass(helper, PLAIN_RT(), scene)).catch(e => console.warn('depth compile:', e && e.message)));
+    }
+    // the far cascade's proxies (their far depth) and the canopy cover's swap: drawn by their own
+    // renders into their own targets, keyed without the world's lights, as before
+    const far = new THREE.Scene(), seen = new Set();
+    const add = (o, mat) => { if (!mat) return; const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m'); if (seen.has(key)) return; seen.add(key);
+      far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
     if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
-    const target = (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || new THREE.WebGLRenderTarget(4, 4);
-    return compilePass(helper, target).catch(e => console.warn('depth compile:', e && e.message));
+    if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
+    // G570: THE PASSES OUTSIDE THE SCENE - the resolve's blit, the post chain, the clouds' bake / march / shadow:
+    // full-screen quads in scenes of their own that compileAsync(scene) never meets; each module lists its own
+    if (typeof PROG_WARM !== 'undefined') {
+      const lists = [];
+      try { if (aa && aa.warmList) lists.push(aa.warmList()); } catch (e) {}
+      try { if (typeof POST_FX !== 'undefined' && POST_FX.warmList) lists.push(POST_FX.warmList()); } catch (e) {}
+      try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmList) lists.push(CLOUDS.warmList()); } catch (e) {}
+      for (const g of PROG_WARM.passes(THREE, lists)) jobs.push(compilePass(g.helper, g.target === null ? null : PLAIN_RT()).catch(e => console.warn('pass compile:', e && e.message)));
+    }
+    return Promise.all(jobs);
   }
   // THE SHADERS' SCREEN (G567, the user: "a dedicated loading message/screen explaining the first time
   // compilation issue with a progress bar"). A COLD compile - the first launch, the first after an update
@@ -148772,7 +148959,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // first frame. A PMREM of the still-black probe target is that map with
     // zero radiance: same key, same look, and the real bake replaces it.
     if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
-      try { const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromCubemap(envRT.texture); pm.dispose();
+      try { const rt = envGen('room').fromCubemap(envRT.texture);
             hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
     }
     const pass = target => compilePass(hangarScene, target);
