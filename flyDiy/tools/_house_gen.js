@@ -789,7 +789,10 @@ function shadeHouse(m, U) {
               // building that wants its shingles larger scales the uv here
               uUvK: { value: 1.0 } };
   if (!SU.uDirtCol.value) SU.uDirtCol.value = new THREE.Color(0x6d6353);
-  m.onBeforeCompile = sh => {
+  // THE TOWN ON TEXTURE ARRAYS (G571) reads a finish off its material: the uniform set it was shaded with and the
+  // raw hook (a hook wrapped over this one - a steel mix - is how house_tarr.js knows the bag is not plain)
+  ud.houseU = SU;
+  m.onBeforeCompile = ud.hookHouse = sh => {
     for (const k in SU) sh.uniforms[k] = SU[k];
     for (const k in ud.paint) sh.uniforms[k] = ud.paint[k];
     for (const k in ud.dirt) sh.uniforms[k] = ud.dirt[k];
@@ -931,7 +934,8 @@ function shadeGlass(m, GU0, SU0) {
   const ud = m.userData || (m.userData = {});
   if (ud.glassShaded) return;
   ud.glassShaded = true;
-  m.onBeforeCompile = sh => {
+  ud.glassU = GU; ud.houseU = SU;   // G571: house_tarr.js reads the finish off the material
+  m.onBeforeCompile = ud.hookGlass = sh => {
     sh.uniforms.uGlassWave = GU.uGlassWave;
     sh.uniforms.uGlassRough = GU.uGlassRough;
     sh.uniforms.uGlassFres = GU.uGlassFres;
@@ -7806,7 +7810,7 @@ function cloudWeather(m, k, mode) {
   ud.uCloudK = { value: k };
   ud.uCloudMode = { value: mode || 0 };
   const prev = m.onBeforeCompile;
-  m.onBeforeCompile = sh => {
+  m.onBeforeCompile = ud.hookCloud = sh => {
     if (prev) prev(sh);
     sh.uniforms.uCloudK = ud.uCloudK;
     sh.uniforms.uCloudMode = ud.uCloudMode;
