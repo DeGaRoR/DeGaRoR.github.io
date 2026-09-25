@@ -204,7 +204,10 @@ const add = (a, b, o = v3()) => { o[0] = a[0] + b[0]; o[1] = a[1] + b[1]; o[2] =
 const scl = (a, s, o = v3()) => { o[0] = a[0] * s; o[1] = a[1] * s; o[2] = a[2] * s; return o; };
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b, o = v3()) => { const x = a[1] * b[2] - a[2] * b[1], y = a[2] * b[0] - a[0] * b[2], z = a[0] * b[1] - a[1] * b[0]; o[0] = x; o[1] = y; o[2] = z; return o; };
-const len = a => Math.hypot(a[0], a[1], a[2]);
+// Math.hypot to the bit, JIT-inlined (00_registry.js hyp3 - PHYSICS PERF 2026-09-24): len runs per wet
+// panel per hydro pass; standalone (a bench loading this file alone) it is Math.hypot
+const HYP3 = (typeof hyp3 === 'function') ? hyp3 : Math.hypot, HYP2 = (typeof hyp2 === 'function') ? hyp2 : Math.hypot;
+const len = a => HYP3(a[0], a[1], a[2]);
 const nrm = (a, o = a) => { const L = len(a) || 1e-12; o[0] = a[0] / L; o[1] = a[1] / L; o[2] = a[2] / L; return o; };
 // 3x3 row-major
 const matVec = (R, a, o = v3()) => { const x = R[0] * a[0] + R[1] * a[1] + R[2] * a[2], y = R[3] * a[0] + R[4] * a[1] + R[5] * a[2], z = R[6] * a[0] + R[7] * a[1] + R[8] * a[2]; o[0] = x; o[1] = y; o[2] = z; return o; };
@@ -1308,7 +1311,7 @@ function waterRudder(fx, ctl, water, simT, f) {
   const Fy = q * WR_A * sub * Cl;
   const Fv = [zR[0] * Fy, zR[1] * Fy, zR[2] * Fy];
   // and its drag, along the flow
-  const Vt = Math.hypot(Vf, vy) || 1e-6, Cd = 0.02 + 0.6 * al * al;
+  const Vt = HYP2(Vf, vy) || 1e-6, Cd = 0.02 + 0.6 * al * al;
   const D = q * WR_A * sub * Cd;
   Fv[0] -= vS[0] / Vt * D; Fv[1] -= vS[1] / Vt * D; Fv[2] -= vS[2] / Vt * D;
   const at = [sK[0], sK[1] - 0.5 * WR_D * sub, sK[2]];

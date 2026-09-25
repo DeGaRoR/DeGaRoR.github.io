@@ -59131,3 +59131,26 @@ roll-out's compile step 208 s. Now one straight triplet inlined once, the candid
 terrain type (near, far) - NO loop inside the candidate loop (a nested loop of sets drew the ground 1.5-2x slower on
 the GPU). Compile step 208.6 -> 33.6 s cold; the frame and the picture unchanged (same-page A/B, 3 heights).
 splat_ground.js sMatPass / sTriplet; GATE SPLAT 3 (call sites, no loop in the chain). futureDesigns/PERF-2026-09-23.md G568.
+
+## G571 - THE PHYSICS, AUDITED FOR THE FRAME (2026-09-24)
+
+The user: "it seems like there's a CPU floor we're hitting ... have the physics been audited for performance as well
+as the graphics? ... bad performance when getting out of the hangar ... the climate manager, could it have introduced
+physics changes?". The graphics study timed the renderer; nobody had timed `sim.step` - which runs on the same thread
+before it. `tools/physics_perf.js` flies the game's road headless (Jolene + premises, the stand, the pilot's
+departFrom; floats on the SEA lane) and times the pilot and the solver per frame, `--hash` for bit-identity, `--core`
+for an A/B. BEFORE (this container): the stock build's taxi out of the door 11-18 ms of solver a frame, the user's
+birdman 19-29, metal Cessna 31-49 (200 substeps, the cap), Cessna on floats 36-50. Why the roll-out: on the island's
+composed ground every node reads the terrain every substep (the clearance cone is off: no slope bound declared) -
+~45 % of the solver on the stand. The climate: zero cost on the default (calm) day; a rich preset +20-30 %.
+LANDED, bit-identical (12 scenarios, same FNV hash of every p and v before and after): hyp2/hyp3 (00_registry.js) =
+Math.hypot TO THE BIT at 6 ns instead of 47 (V8's own algorithm written out; GATE HYPOT), in the solver, the hydro,
+the climate's field and the premises; the premises' pads skip the edge distance inside the polygon and past the
+feather; the road grade's scan screens segments by squared distance (1e-9 margin); the aero pass stops allocating
+per substep. Paired A/B: -22 % stock taxi, -30 % metal Cessna, -29 % birdman, -29 % thermal day, -16 % floats, -9 %
+analytic circuit. THE RULINGS WAITING (measured, not landed - futureDesigns/PHYSICS-PERF-2026-09-24.md): the island's
+cone (-40 %, hash identical where the bound holds; needs a true bound, a local one proposed), the vortex kernel once
+a frame as its own note says (-17 / -33 %; every build flies vortex since P5), the substep drivers (the alloy wing
+box asks 225; the birdman's 121 is two tailwheel dampers, the next beam asks 77), the hydro at a fixed 360 Hz
+(-30 % floats), frame pacing (the sim steps 1/60 per rAF: slow motion under 60 fps, fast and dearer on a 144 Hz
+screen), the solver's JIT warm-up in the first 0.5 s at the door (pre-step it under the roll-out screen).
