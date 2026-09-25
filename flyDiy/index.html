@@ -18068,7 +18068,7 @@ function makeSim(def, world) {
   for (const j of WS) { PLANE[j] = def.strips[j].plane | 0; NPL = Math.max(NPL, PLANE[j] + 1); }
   const bHalf = new Float64Array(NPL);
   const ellF = u => { u = Math.max(-1, Math.min(1, u)); return 0.5 * (u * Math.sqrt(1 - u * u) + Math.asin(u)); };
-  let aicHash = NaN;
+  let aicHash = NaN, aicFresh = true;
   const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
     o[0] = o[1] = o[2] = 0;
     for (const [i, w] of st.w) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
@@ -18461,8 +18461,16 @@ function makeSim(def, world) {
     if (NP) {
       const va = hyp3(avx, avy, avz) || 1;
       const dx = -avx / va, dy = -avy / va, dz = -avz / va;
-      const sg = aicSig(gH, dx, dy, dz);
-      if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+      // ONCE A FRAME IN FLIGHT (G578, PHYSICS PERF): the signature hashes the node positions, which
+      // move every substep, so this rebuilt every substep - 10-16 % of the solver - where the note on
+      // buildAIC says "once per frame in flight". In a step it is rebuilt on the frame's first substep
+      // (the geometry a frame moves is millimetres; the circulations still update every substep); a
+      // probe rebuilds whenever its geometry moves, as before
+      if (probe || aicFresh) {
+        const sg = aicSig(gH, dx, dy, dz);
+        if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+        if (!probe) aicFresh = false;
+      }
       applyInduction();
       out.tailEps = out.V > 0.5 ? measureTailEps() / out.V : 0;
     } else out.tailEps = 0;
@@ -18892,6 +18900,7 @@ function makeSim(def, world) {
 
   function step(dtFrame, sub = P_.substeps ?? 24) {
     const dt = dtFrame / sub;
+    aicFresh = true;
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
@@ -20392,10 +20401,17 @@ function hydroBuild(def, p, v) {
   // own frequencies are low (heave ~7 Hz, the slam bounded per compute by
   // mNode Vn / dt with dt the HELD interval), so 360 Hz is more than the
   // water needs. 1 = every substep (the H0-H4 calibration figure).
-  const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || HYDRO_EVERY));
+  // G579 (PHYSICS PERF): A RATE, NOT A COUNT. `every` was 8 substeps on every build - 360 Hz on the
+  // 45-substep 172 it was measured on, 1 500 Hz on a 200-substep alloy build, the water's forces
+  // computed four times as often as the note above says they need (30 % of that build's frame). Now
+  // HYDRO_HZ of the frame's substeps: round(substeps x 60 / 360), which is the old 8 at 45 substeps.
+  // params.hydroEvery still overrides (1 = every substep, the H0-H4 calibration figure).
+  const sub = (def.params && def.params.substeps) || 24;
+  const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub * 60 / HYDRO_HZ)));
   return { floats, every, tick: 0, fh: new Float64Array(p.length), wet: 0 };
 }
-const HYDRO_EVERY = 8;
+const HYDRO_EVERY = 8;   // (the S1 figure at 45 substeps; kept for the readers that quote it)
+const HYDRO_HZ = 360;    // the water's compute rate (G579)
 // one substep's hydro pass over the solver's floats: forces onto the frame
 // nodes by the barycentrics of each term's point of application. water.h is
 // sampled ONCE per float at its step keel (a lake is level; waterH costs
@@ -39448,7 +39464,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5b74f5dc5a6d';window.FLYDIY_BUILD='1558d9f9f9a3'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='e9dacef04911';window.FLYDIY_BUILD='9dfa7541c7d1'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
