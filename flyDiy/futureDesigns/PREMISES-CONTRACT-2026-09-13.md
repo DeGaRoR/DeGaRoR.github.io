@@ -774,3 +774,109 @@ after the freeze, against this document.
   its edge) a category set to 0 is refused and one set lower is thinned. The editor's inspector offers it as `life
   here`: as the premises / people only / none (a hand-written block shows as its own and is kept).
 
+- **v1.25 (2026-09-23, the native-area session).** A runway may carry **`treeBox: false`**: the renderer's
+  generic tree box round every aerodrome (len/2 + 150 m along, wid/2 + 60 m across) is not cut, and the
+  strip's trees are the record's alone - its own box + 30 m (the derived exclude) and whatever `exclude`
+  polygons and `clear` zones the author draws (the approach wedges). And **`departure`** (0 | 1): the end
+  a one-way strip's take-off leaves OVER, so a strip landed over one end may be left back out over the same
+  end (East Point: landed from the sea, left to the sea, the trees close in at the other end); without it
+  a one-way strip is left the way it is landed (the altiport reverses on its own). The aerodrome record
+  carries `treeBox` and `takeoffHdg`; 43_pilot's dirAt honours `takeoffHdg` in calm air.
+- **v1.26 (2026-09-22, METLAKATLA, the user: "maybe we need smooth roads too").** A road entry may
+  carry `smooth`: a fillet RADIUS in metres (`true` means 25). A road has always been VERTICALLY
+  smooth — its grade is re-densified every 6 m and run through four 3-tap passes — and horizontally
+  POLYGONAL: `polyRoad`'s tangent is per segment and jumps at every vertex, so `PAVEMENT.roadGeometry`
+  lays its cross-rows on a normal that jumps with it and the ribbon pinches inside a bend and gapes
+  outside. `smooth` rounds the corner: a circular fillet at each interior vertex, its tangent length
+  cut back to 45 % of the shorter neighbouring segment where the radius will not fit, the two ends
+  held. It is applied ONCE, in `compose` (`smoothPath`, 27_premises.js), before anything reads `pts`,
+  so the ribbon, the grade, the surface strip, the cover query, the traffic and the guardrails all see
+  the same line — and the RECORD keeps the polyline the editor drew, which is what the editor edits.
+  Absent, the polyline is passed through unchanged and nothing that exists moves.
+
+- **v1.27 (2026-09-22, METLAKATLA, the user: "you will notice some more lush vegetation. We should
+  identify this as new terrain type and give them the border biome for now").** A new LAYER, `ttype`:
+  `{ id, poly, code }`, the eleventh, and the only one that writes into the world's own data rather
+  than over it. At composition the overlay publishes `stampTtype(island)`, which writes `code` into
+  the island's `ttype` grid for every cell whose centre falls inside the polygon and returns the
+  function that puts the old bytes back; `20_world.js setPremises` undoes the previous stamp and
+  applies the new one, so a live edit never compounds. That one grid is read by the ground's packed
+  texture, by the tree fill's `ttypeAt` and by the cover ring, which is why one polygon moves
+  the ground and the vegetation together with no second path.
+  Rules: the code must be 2..15; 0 sea and 1 lake are skipped UNLESS this premises has raised that
+  cell clear of the water (a breakwater is the case — the rubble has to say `rock`, or the ground is
+  drawn as sea four metres up in the air); 12, 13 and 14 may not be stamped at all, because they are
+  DERIVED from slope and canopy, not from a polygon. It is NOT called `cover`: `coverAt` on the overlay already means what the COVER
+  RING may plant at a point, and two unrelated things may not share that word.
+  15 `lush` was added with this amendment
+  (28b_ground_fields RECIPE.codes[15], 28c_biomes NAMES, the `borders` mix in `_trees_tuning.json`);
+  it needed the shader's raster clamp lifted from 11 to 15 and `NCODE` widened to 16.
+
+- **v1.28 (2026-09-22, METLAKATLA).** Two fixes the harbour kit forced, both in `placeItem`:
+  - `P.waterY` is the water AT THE ITEM. It was one number read at the premises' ANCHOR, and on an
+    island that anchor is inland, so it read `-Infinity` — the same trap that had stopped a harbour
+    zone sowing (G434) — and every pier, float and wharf was built at minus infinity. `ctx.waterAt`
+    ring-samples outward (0/18/40/90/160 m, eight ways) and takes the nearest finite level: the
+    nearest water IS the water a thing floats in, and a mole whose middle has been raised out of the
+    sea still finds the sea beside it.
+  - `P.floorOverWater` stands a building on a DECK. An item's floor is otherwise the ground under its
+    footprint, and a warehouse on a wharf has no ground under it — the seabed is five metres down.
+    Given `floorOverWater`, the composer sets `P.floorY = P.waterY + floorOverWater`. Metlakatla's
+    packing plant is four BIG_GEN sheds on one `marine/wharf deck`, in one site.
+  And a new generator namespace: `MARINE_GEN` -> `marine` (`GENERATORS` / `GEN_NS`), the harbour kit —
+  `marine/trestle pier`, `float dock`, `breakwater`, `wharf deck`, `net pens`. Every entry's
+  `ground.need` is `'none'`: it stands in the water on its own piles or floats on it, and cutting a
+  shelf under a pier would flatten the seabed into a table.
+
+- **v1.29 (2026-09-23, METLAKATLA, the second and third passes).** Four amendments, each of them a
+  defect the user found from the air before any gate saw it.
+
+  - **`ttype` entries take `from` and `clear`.** A stamp was flat: it painted the bog, the rock and
+    the beach the same as the wood. `from: [codes]` names the codes this stamp may REPLACE, so a
+    belt of `forest` thickens the scrub and the stale `built` classification and leaves a muskeg a
+    muskeg. `clear: true` stamps only the cells this premises leaves OPEN — no plot, no road ribbon,
+    no site footprint, no paved polygon — which is what lets a terrain type mean *the ground between
+    the buildings*. At the 10 m grid a plot is two to three cells wide, so the rule resolves; it is
+    also the only way a residential wood can fill a town's gaps, because the island's own tree fill
+    knows nothing whatever about a premises and would stand a conifer on a roof.
+  - **The stamp's undo unwinds BACKWARD.** Two stamps may cover one cell, and the second one saved
+    what the FIRST had written; unwound forwards the cell keeps the first stamp's code for ever. The
+    bug was invisible until two `ttype` polygons first overlapped.
+  - **A catalogue entry may refuse a lot: `lot: false`.** `render_premises.buildItem` dresses every
+    hand-placed item like a plot — lot ground, a drive, a car and a FENCE — for every category but
+    `sports` and `landmark`. The user found a fence round a pier. Every `MARINE_GEN` entry now
+    refuses one, and so does anything standing on a deck (`P.floorOverWater`), whose lot would
+    otherwise be laid on the seabed five metres below it.
+  - **Garden trees (`compose` stage 5e) — ADDED AND THEN REMOVED, 2026-09-23.** Plots were given their
+    own trees so a sown quarter was not bare roofs on bare ground. The user's ruling retired them:
+    "never any tree as fixture without its lod system, we take the normal ones, maybe alter the terrain
+    type, let the game do the work." The stage is gone; a town's trees come from `planForest` (which
+    steps round every plot, road, site and exclude by construction) or, where the island's fill can
+    deliver it, from a painted terrain type. `rules.trees` and `rules.gardens` are retired with it.
+
+  **And one thing that is not the contract's but belongs beside it.** The inner ring is a fixed 9 km
+  square about the ORIGIN, and it is the only ground tier that has ever heard of a premises: its
+  vertices are `world.terrainH` (composed, so a road's cut is in them) and `groundSink` drops it 4 m
+  wherever the premises' own 2 m patch covers. Everything past 4.5 km is the baked quadtree at its
+  raw DEM height — and Metlakatla is 9.4 km out. So the town's road cuts were carved into a ground
+  nothing drew, and the un-cut mesh stood through every ribbon and every lot patch. `sinkFar` now
+  applies the ring's own rule to the far tier after the patch stands (30 369 vertices at Metlakatla).
+  **Any premises more than 4.5 km from the origin depended on this and nobody had put one there.**
+
+- **v1.30 (2026-09-23, METLAKATLA).** A `ttype` entry may carry **`cover`**: the WORLD-COVER class to
+  write beside the terrain type. **This is the piece without which a painted biome plants nothing over
+  a town, and it fails silently.** The island's tree fill is gated on `world.surface`, which comes from
+  the COVER raster and not from `ttype` at all — and over a settlement that raster says `BUILT`, which
+  maps to `PAVED`, which both `forestHere` and `openHere` refuse. So a `ttype` stamp over a town could
+  move the ground's texture and could not put one tree on it. The stamp writes the cover class as well,
+  with the same exact undo, and **only over `BUILT` and `CROP`** — writing it everywhere turned 391
+  cells of the island's own forest floor inside Metlakatla's envelope into grassland. Two traps: the
+  WORLD's island handle renames the array (`cover`, not `coverU8`), so a write to the wrong name lands
+  on `undefined` and nothing moves; and `clear` must skip only a PICKED plot, because an empty lot is
+  ground and is exactly what a town wants planted.
+
+  **Metlakatla uses none of this today.** The paint is correct and cannot be delivered at a settlement:
+  the island's fill had 13 465 trees built with 55 576 chunks still queued after 61 s, so the town's own
+  chunks never come up. The town places its conifers through `planForest` instead. The mechanism stays
+  because it is right and the next tree pack makes it live — and GATE PREMISES 14p holds it by source
+  check while no record paints one, so it cannot rot while it is unused.

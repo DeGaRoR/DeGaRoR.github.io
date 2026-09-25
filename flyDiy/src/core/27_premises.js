@@ -25,7 +25,7 @@
 //                     fold test, the back-in loop, the riparian rule kept
 //   the forest (v1)   planForest — planTrees' wood layer (a jittered grid, a
 //                     clearing noise, the keep-outs) inside a forest zone
-//   the index         256 m cells keyed by string (treesNear's idiom) so the
+//   the index         256 m cells keyed by number (treesNear's idiom) so the
 //                     hot path is one Map.get and AABB rejects
 //   compose           the overlay a world composes at its terrainH seam:
 //                     terrainH(x, z, h) / surfaceAt / excludeAt / inExtent,
@@ -54,7 +54,14 @@ const PREMISES_GEN = (function () {
 'use strict';
 
 const PREMISES_V = 1;
-const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects'];
+// `ttype` (v1.20, 2026-09-22): polygons that STAMP a terrain-type code into the
+// island's own ttype grid at composition. It is the one layer that writes into the
+// world's data rather than over it, and it is how a place gets a terrain type the
+// island's classifier never made - Metlakatla's alder corridor, code 15 `lush`.
+// NOT `cover`: `coverAt` on the overlay already means what the COVER RING may plant
+// at a point (the pavement's kill and boost, the plot's grass rule), and two unrelated
+// things sharing that word in one file is how a reader is misled.
+const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype'];
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
@@ -92,6 +99,10 @@ const KIND_RULES = { park: { plotMin: 36, plotMax: 44, plotDepth: 40, gap: 16, b
   // never nears the water sows nothing and says so
   harbour: { waterOnly: true, plotMin: 18, plotMax: 30, plotDepth: 34 } };   // a lawn is refused past a 10 m bank; the plot 12 m back from the road so the bank never re-grades the road
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+// Math.hypot to the bit, the JIT-inlined way (00_registry.js hyp2 - PHYSICS PERF 2026-09-24): the composed
+// ground is asked for every wheel and every node of the aeroplane every substep, and a road's grade
+// makes one distance a segment. Standalone (GATE PREMISES requires this file alone) it is Math.hypot.
+const HYP2 = (typeof hyp2 === 'function') ? hyp2 : Math.hypot;
 
 // ---------------------------------------------------------------------------
 // the seeds
@@ -161,7 +172,7 @@ function distPtSeg(x, z, a, b) {
   const dx = b[0] - a[0], dz = b[1] - a[1];
   const l2 = dx * dx + dz * dz;
   const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
-  return Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
+  return HYP2(x - (a[0] + dx * t), z - (a[1] + dz * t));
 }
 // signed distance to the polygon's edge: negative inside
 function sdPoly(poly, x, z) {
@@ -194,13 +205,85 @@ const polysOverlap = (a, b) => a.some(p => inPoly(b, p[0], p[1])) || b.some(p =>
 // ---------------------------------------------------------------------------
 // the roads — the village's polyRoad: arclength, tangent, and a normal
 // ---------------------------------------------------------------------------
-function polyRoad(pts, w) {
+// A ROAD DOES NOT TURN ON A POINT (2026-09-23, the user, on the totem grounds' 2.2 m track: "can you
+// ensure that all path have no sharp angles ... They should be rounded at least a little, or smoothed
+// overall"). An authored centreline is a handful of points and every one of them was a CORNER: the
+// drawn ribbon, its band, its ruts and its markings all kinked, because nothing between the author's
+// clicks and the mesh ever asked what radius a vehicle turns at.
+//
+// FILLETED, not resampled. A spline through the points would move the STRAIGHTS - a road would drift
+// off the shore it was traced along - so the straights are kept exactly and only the corner is
+// replaced, by the arc tangent to both legs. That is what a road actually is, and it is what an
+// author expects when they drag a point: the line goes where they put it.
+//
+// THE RADIUS is the road's own: `w * 2.5` (a 2.2 m track rounds at 5.5 m, an 18 m street at 45),
+// clamped to 4..60 m, and then bounded twice so it can never misbehave -
+//   by the LEGS: the tangent length takes at most 45 % of either adjacent segment, so two corners
+//     close together cannot eat each other and a short leg is not swallowed;
+//   by the WIDTH: the arc's sagitta stays under 0.35 * w, so the smoothed centreline never leaves
+//     the authored corner by more than a third of the road's width. That bound is what keeps every
+//     consumer still reading the AUTHORED points - the pilot's taxi route, a premises surface
+//     polygon, the editor's own drag handles - safely on the pavement.
+// A turn under 3 degrees is left alone (it reads straight and an arc there is noise); the ends are
+// never touched. The arc is walked every ~8 degrees, at least two segments, so `at()` traces a curve
+// rather than a cut corner.
+function roadFillet(pts, w) {
+  const P = [];
+  for (const q of pts) { const l = P[P.length - 1]; if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 1e-6) P.push([q[0], q[1]]); }
+  if (P.length < 3) return P;
+  const want = clamp((+w || 4) * 2.5, 4, 60);
+  const out = [P[0]];
+  for (let i = 1; i < P.length - 1; i++) {
+    const A = P[i - 1], B = P[i], C = P[i + 1];
+    const a = [A[0] - B[0], A[1] - B[1]], c = [C[0] - B[0], C[1] - B[1]];
+    const la = Math.hypot(a[0], a[1]), lc = Math.hypot(c[0], c[1]);
+    if (la < 1e-6 || lc < 1e-6) { out.push(B); continue; }
+    const ua = [a[0] / la, a[1] / la], uc = [c[0] / lc, c[1] / lc];
+    const cosA = clamp(ua[0] * uc[0] + ua[1] * uc[1], -1, 1);
+    const inner = Math.acos(cosA);                       // the angle of the corner itself, A-B-C
+    const turn = Math.PI - inner;                        // how far the road turns through it
+    // under 3 degrees reads straight and an arc there is noise; over 150 is not a corner at all but
+    // a road DOUBLING BACK on itself, and filleting one produces a 15 cm u-turn of twenty points -
+    // geometrically smooth, visually the same spike, and a ribbon that folds on itself. Leave it
+    // exactly as authored so it stays visible, and let GATE PAVEMENT section 11 name it.
+    if (turn < 3 * Math.PI / 180 || turn > 150 * Math.PI / 180 || inner < 1e-3) { out.push(B); continue; }
+    const half = inner / 2, tanHalf = Math.tan(half);
+    let R = want;
+    R = Math.min(R, 0.45 * Math.min(la, lc) * tanHalf);  // the legs: tangent = R / tan(inner/2)
+    const sag = 1 - Math.sin(half);                      // sagitta = R * (1/sin(half) - 1) * sin(half)
+    if (sag > 1e-6) R = Math.min(R, 0.35 * (+w || 4) * Math.sin(half) / sag);
+    const tl = R / tanHalf;                              // how far back along each leg the arc starts
+    if (!(R > 0.05) || !(tl > 0.05)) { out.push(B); continue; }
+    const T0 = [B[0] + ua[0] * tl, B[1] + ua[1] * tl], T1 = [B[0] + uc[0] * tl, B[1] + uc[1] * tl];
+    const bis = [ua[0] + uc[0], ua[1] + uc[1]];
+    const lb = Math.hypot(bis[0], bis[1]);
+    if (lb < 1e-6) { out.push(B); continue; }            // a straight-back hairpin: no centre to find
+    const d = R / Math.sin(half);                        // B to the arc's centre, along the bisector
+    const O = [B[0] + bis[0] / lb * d, B[1] + bis[1] / lb * d];
+    let a0 = Math.atan2(T0[1] - O[1], T0[0] - O[0]);
+    const a1 = Math.atan2(T1[1] - O[1], T1[0] - O[0]);
+    let sweep = a1 - a0;
+    while (sweep > Math.PI) sweep -= 2 * Math.PI;
+    while (sweep < -Math.PI) sweep += 2 * Math.PI;
+    const n = Math.max(2, Math.ceil(Math.abs(sweep) / (8 * Math.PI / 180)));
+    for (let k = 0; k <= n; k++) { const ang = a0 + sweep * k / n; out.push([O[0] + Math.cos(ang) * R, O[1] + Math.sin(ang) * R]); }
+  }
+  out.push(P[P.length - 1]);
+  return out;
+}
+function polyRoad(pts0, w) {
+  const pts = roadFillet(pts0, w);
   const s = [0];
   for (let i = 1; i < pts.length; i++) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  // the first i >= 1 whose arclength reaches t (the last if none): a bisection over the running sum,
+  // which never decreases - the linear walk it replaced made roadInPoly's 2 m sampling a square
+  // (2026-09-24); a sum that is not finite keeps the walk, whose stop at a NaN is its own
+  const bisect = isFinite(s[s.length - 1]);
   const at = t => {
     t = clamp(t, 0, s[s.length - 1]);
     let i = 1;
-    while (i < s.length - 1 && s[i] < t) i++;
+    if (bisect) { let hi = s.length - 1; while (i < hi) { const m = (i + hi) >> 1; if (s[m] < t) i = m + 1; else hi = m; } }
+    else while (i < s.length - 1 && s[i] < t) i++;
     const u = (t - s[i - 1]) / Math.max(1e-6, s[i] - s[i - 1]);
     const p = [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * u, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * u];
     const d = [pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]];
@@ -287,9 +370,36 @@ function makeModifier(m, y0) {
       } else pl = m.plane || [0, 0, 0];
       target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
     }
-    return { id: m.id, kind: m.kind, bbox, apply: (x, z, h) => {
+    // THE TWO ENDS OF THE FEATHER NEED NO DISTANCE (PHYSICS PERF 2026-09-24). weight() is 1 for any
+    // sd <= 0 and sdPoly is -d inside, so a point inside the polygon weighs 1 whatever its distance to
+    // the edge - the aeroplane on an apron pad asked for that distance per node per substep. Outside,
+    // the plain squared distances bound the exact one from below within a hair (1e-9 relative, where
+    // the two roundings differ by 1e-16): past the falloff by that margin the weight is 0 on either
+    // reading. Everything between is sdPoly's own arithmetic, so the height is the same bits.
+    const n = poly.length, fall2 = fall * fall * (1 + 1e-9);
+    // THE CEILING (PHYSICS PERF, the solver's ground skip): apply() returns h + (T - h) w with w in
+    // [0, 1] - never above max(h, T). bound() answers T's highest over a rectangle (local frame):
+    // { t } for a level or a plane (a plane's highest is at a corner), { add } for a raise (T = h + dh).
+    const bound = (x0, z0, x1, z1) => {
+      if (m.kind === 'raise') return { t: -Infinity, add: Math.max(0, +m.dh || 0) };
+      if (m.kind === 'flatten') return { t: target(0, 0, 0), add: 0 };
+      const a0 = Math.max(x0, bbox.x0), a1 = Math.min(x1, bbox.x1), b0 = Math.max(z0, bbox.z0), b1 = Math.min(z1, bbox.z1);
+      return { t: Math.max(target(a0, b0), target(a1, b0), target(a0, b1), target(a1, b1)), add: 0 };
+    };
+    return { id: m.id, kind: m.kind, bbox, bound, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
-      const w = weight(sdPoly(poly, x, z));
+      let w;
+      if (inPoly(poly, x, z)) w = 1;
+      else {
+        let near = false;
+        for (let i = 0; i < n; i++) {
+          const a = poly[i], b = poly[(i + 1) % n], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+          const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
+          const ex = x - (a[0] + dx * t), ez = z - (a[1] + dz * t);
+          if (ex * ex + ez * ez < fall2) { near = true; break; }
+        }
+        w = near ? weight(sdPoly(poly, x, z)) : 0;
+      }
       return w > 0 ? h + (target(x, z, h) - h) * w : h;
     } };
   }
@@ -301,7 +411,8 @@ function makeModifier(m, y0) {
     const corners = [[R.x0 - mF, R.z0 - mB], [R.x1 + mF, R.z0 - mB], [R.x1 + mF, R.z1 + mF], [R.x0 - mF, R.z1 + mF]].map(q => [c[0] + q[0] * cy + q[1] * sy, c[1] - q[0] * sy + q[1] * cy]);
     const bbox = polyBBox(corners);
     const level = +m.level;
-    return { id: m.id, kind: 'shelf', bbox, apply: (x, z, h) => {
+    // (the ceiling: level + (h - level) sm, sm in [0, 1] - between h and the level)
+    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const dx = x - c[0], dz = z - c[1];
       const lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
@@ -327,27 +438,52 @@ function makeModifier(m, y0) {
     // to the scan: a segment within reach of the point is always in the
     // list, one beyond it weighs nothing whether it is scanned or not, and
     // the list keeps the polyline's order so ties resolve to the same index.
-    const reach = hw + fall, CS = Math.max(64, 2 * reach), cells = new Map();
-    const ck = (i, j) => i + ',' + j;
+    // THE CELLS ARE THE REACH, THE KEYS NUMBERS (the boot's house build, 2026-09-24).
+    // At 64 m a town query still scanned ~15-25 segments of every road near it and
+    // built a string key per road per query - 18 s of Metlakatla's roll-out, the
+    // fences' AO and the lots' ground asking for the composed height. Cells of
+    // `reach` counted from the bbox's corner hold every segment within reach of a
+    // point in them (the same test, finer), in the polyline's order, so the scan
+    // is the same scan over a shorter list and the answer bit-identical.
+    const reach = hw + fall, CS = Math.max(4, reach), cells = new Map();
+    const NZ = Math.floor((bbox.z1 - bbox.z0) / CS) + 3;
+    const ck = (i, j) => (i + 1) * NZ + (j + 1);
+    const cx = x => Math.floor((x - bbox.x0) / CS), cz = z => Math.floor((z - bbox.z0) / CS);
     for (let i = 0; i + 1 < pts.length; i++) {
       const a = pts[i], b = pts[i + 1];
-      const i0 = Math.floor((Math.min(a[0], b[0]) - reach) / CS), i1 = Math.floor((Math.max(a[0], b[0]) + reach) / CS);
-      const j0 = Math.floor((Math.min(a[1], b[1]) - reach) / CS), j1 = Math.floor((Math.max(a[1], b[1]) + reach) / CS);
+      const i0 = cx(Math.min(a[0], b[0]) - reach), i1 = cx(Math.max(a[0], b[0]) + reach);
+      const j0 = cz(Math.min(a[1], b[1]) - reach), j1 = cz(Math.max(a[1], b[1]) + reach);
       for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) {
         const k = ck(ci, cj); let l = cells.get(k); if (!l) { l = []; cells.set(k, l); } l.push(i);
       }
     }
-    return { id: m.id, kind: 'grade', bbox, apply: (x, z, h) => {
+    // (the ceiling: h + (y + ty - h) w, w in [0, 1], ty between the ends of a segment in the point's
+    // cell - so the highest end of any segment filed in a cell the rectangle touches, one cell of slack)
+    const bound = (x0, z0, x1, z1) => {
+      x0 = Math.max(x0, bbox.x0); x1 = Math.min(x1, bbox.x1); z0 = Math.max(z0, bbox.z0); z1 = Math.min(z1, bbox.z1);
+      let t = -Infinity;
+      for (let ci = cx(x0) - 1, c1 = cx(x1) + 1; ci <= c1; ci++) for (let cj = cz(z0) - 1, d1 = cz(z1) + 1; cj <= d1; cj++) {
+        const list = cells.get(ck(ci, cj)); if (!list) continue;
+        for (let q = 0; q < list.length; q++) { const a = pts[list[q]], b = pts[list[q] + 1]; t = Math.max(t, a[2] || 0, b[2] || 0); }
+      }
+      return { t: t === -Infinity ? t : (abs ? 0 : y0) + t, add: 0 };
+    };
+    return { id: m.id, kind: 'grade', bbox, bound, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
-      const list = cells.get(ck(Math.floor(x / CS), Math.floor(z / CS)));
+      const list = cells.get(ck(cx(x), cz(z)));
       if (!list) return h;
-      let best = Infinity, ty = 0;
+      // (PHYSICS PERF 2026-09-24) the plain squared distance screens a segment that cannot beat the best
+      // (1e-9 relative over it - the two roundings differ by 1e-16); every one that can is measured
+      // exactly as before, in the list's order, so the winner and its tie-break are the same
+      let best = Infinity, best2 = Infinity, ty = 0;
       for (let n = 0; n < list.length; n++) {
         const i = list[n], a = pts[i], b = pts[i + 1];
         const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
         const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
-        const d = Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
-        if (d < best) { best = d; ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
+        const ex = x - (a[0] + dx * t), ez = z - (a[1] + dz * t);
+        if (ex * ex + ez * ez > best2) continue;
+        const d = HYP2(ex, ez);
+        if (d < best) { best = d; best2 = d * d * (1 + 1e-9); ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
       }
       const w = weight(best - hw);
       return w > 0 ? h + ((abs ? 0 : y0) + ty - h) * w : h;
@@ -361,7 +497,8 @@ function makeModifier(m, y0) {
 // ---------------------------------------------------------------------------
 function SpatialIndex(cell) {
   const C = cell || 256, cells = new Map();
-  const key = (i, j) => i + ',' + j;
+  // a number, not a string (2026-09-24: the composed ground asks this per height query); unique while |j| < 2^16 cells
+  const key = (i, j) => (j < 65536 && j > -65536) ? i * 131072 + j : i + ',' + j;
   return {
     add(bbox, item) {
       const i0 = Math.floor(bbox.x0 / C), i1 = Math.floor(bbox.x1 / C), j0 = Math.floor(bbox.z0 / C), j1 = Math.floor(bbox.z1 / C);
@@ -373,6 +510,11 @@ function SpatialIndex(cell) {
       }
     },
     query(x, z) { return cells.get(key(Math.floor(x / C), Math.floor(z / C))) || null; },
+    // every item filed in a cell the rectangle touches (an item in two cells comes twice)
+    rect(x0, z0, x1, z1, fn) {
+      const i0 = Math.floor(x0 / C), i1 = Math.floor(x1 / C), j0 = Math.floor(z0 / C), j1 = Math.floor(z1 / C);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const a = cells.get(key(i, j)); if (a) for (let n = 0; n < a.length; n++) fn(a[n]); }
+    },
     size: () => cells.size,
   };
 }
@@ -383,7 +525,7 @@ function SpatialIndex(cell) {
 function DEF() {
   return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
-           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [] },
+           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
 }
 const PREMISES_MIGRATORS = {};
@@ -418,7 +560,7 @@ function unwrap(txt) {
   if (o && o.layers) return { rec: normalise(migrate(o)), name: null, plaque: null, log: null };
   throw new Error('not a flyDiy premises');
 }
-const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o' };
+const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k' };
 function newId(rec, layer) {
   const used = new Set((rec.layers[layer] || []).map(e => e.id));
   for (let i = 1; ; i++) { const id = (ID_PREFIX[layer] || layer[0]) + i; if (!used.has(id)) return id; }
@@ -455,6 +597,37 @@ function sowPlots(zone, roads, ctx) {
   const plots = [];
   const all = () => ctx.plots.concat(plots);
   const rejectAt = (x, z) => !inPoly(zone.poly, x, z) || ctx.excludes.some(p => inPoly(p, x, z)) || (ctx.keepOut || []).some(p => inPoly(p, x, z));
+  // A PLOT MAY NOT LIE ON A ROAD THAT IS NOT ITS OWN (2026-09-23, the user, of three
+  // houses in the carriageway: "Some houses are drawn over the roads. Not what we
+  // want..."). The sower cut a plot against the road it FRONTS and against nothing
+  // else, so a plot at a junction ran its side or its back into the crossing street:
+  // at Metlakatla 166 of 510 plots overlapped another road, up to 3.1 m inside the
+  // carriageway, and a house stands where its plot is. The margin is half a metre
+  // over the kerb - a garden may touch the road it fronts and may not touch another.
+  // Each road's fillet is made once and boxed (2026-09-24: this test re-filleted and
+  // 2 m-sampled every road of the record for every candidate plot, 2.7 s a compose at
+  // Metlakatla): a plot whose box stays clear of a road's box grown by `half` has no
+  // corner within `half` of it and no sample of it inside, so the road is skipped
+  // with the answer the two tests would have given.
+  const boxed = roads.map(rd => {
+    const pr = polyRoad(rd.pts, rd.w || 3.6), half = (rd.w || 3.6) / 2 + 0.5;
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const p of rd.pts.concat(pr.pts)) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+    const m = half + 1e-3;
+    return { rd, pr, half, x0: x0 - m, z0: z0 - m, x1: x1 + m, z1: z1 + m };
+  });
+  const onOtherRoad = (q, own) => {
+    let qx0 = Infinity, qz0 = Infinity, qx1 = -Infinity, qz1 = -Infinity;
+    for (const c of q) { qx0 = Math.min(qx0, c[0]); qx1 = Math.max(qx1, c[0]); qz0 = Math.min(qz0, c[1]); qz1 = Math.max(qz1, c[1]); }
+    for (const B of boxed) {
+      const rd = B.rd;
+      if (rd.id === own) continue;
+      if (qx1 < B.x0 || qx0 > B.x1 || qz1 < B.z0 || qz0 > B.z1) continue;
+      if (q.some(c => roadDist(rd, c[0], c[1]) < B.half)) return true;
+      if (roadInPoly(B.pr, q).length) return true;   // it runs THROUGH the plot
+    }
+    return false;
+  };
   for (const road of roads) {
     const rd = polyRoad(road.pts, road.w || 3.6);
     if (rd.length < 40) continue;
@@ -505,7 +678,7 @@ function sowPlots(zone, roads, ctx) {
           for (let cut = 0; depth - cut >= dMin && !ok; cut += 2) {
             back(cut);
             const q = [f0, f1, b1, b0];
-            ok = !all().some(p => polysOverlap(p.poly, q)) && !q.some(c => rejectAt(c[0], c[1]));
+            ok = !all().some(p => polysOverlap(p.poly, q)) && !q.some(c => rejectAt(c[0], c[1])) && !onOtherRoad(q, road.id);
           }
           if (!ok) continue;
           be = [b1[0] - b0[0], b1[1] - b0[1]];
@@ -554,7 +727,12 @@ function planForest(zone, ctx) {
   // ctx = { T, waterY, seed, excludes, plots, roads: [{pts, w}], pool: [{key, size, sink, proportion, h}], trees: [existing] }
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0.05, 3);
   const step = 6 / Math.sqrt(density);
-  const pool = (zone.palette && zone.palette.length ? ctx.pool.filter(p => zone.palette.indexOf(p.key) >= 0) : ctx.pool);
+  // A PALETTE ENTRY MAY NAME A COLLECTION, not only a subject. A tree's key is
+  // `<collection>|<subject>` and an author has no way to know the subject names, so
+  // 'spruce_tree.glb' selects every spruce in the pack. An exact key still matches.
+  const pool = (zone.palette && zone.palette.length
+    ? ctx.pool.filter(p => zone.palette.some(k => p.key === k || String(p.key).indexOf(k + '|') === 0))
+    : ctx.pool);
   const list = pool.length ? pool : [{ key: 'stub|tree', size: 1, sink: 0, proportion: 1, h: 12 }];
   const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
   const rnd = mulberry32(zoneSeed);
@@ -574,7 +752,10 @@ function planForest(zone, ctx) {
     if (ctx.excludes.some(p => inPoly(p, px, pz))) continue;
     if (!clearOf(px, pz, Math.min(3.2, step * 0.55))) continue;
     const p = draw();
-    const size = (p.size || 1) * (0.82 + rnd() * 0.4);
+    // `rules.size` scales the stand (2026-09-23, the user: "normal conifers from the
+    // forest, just not too tall"): a MEDIUM canopy is the same species grown less.
+    const sizeK = zone.rules && zone.rules.size !== undefined ? +zone.rules.size : 1;
+    const size = (p.size || 1) * (0.82 + rnd() * 0.4) * sizeK;
     trees.push({ x: px, z: pz, key: p.key, size, yaw: rnd() * Math.PI * 2, sink: p.sink || 0, h: (p.h || 12) * size / (p.size || 1), zone: zone.id });
   }
   return trees;
@@ -787,6 +968,13 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null,
            altiport: !!r.altiport,   // GTRAM: landed uphill and left downhill whatever the wind (43_pilot reads it)
+           // THE TREES ROUND THE STRIP ARE THE RECORD'S (G527.3, contract v1.25): treeBox false - the renderer's generic box
+           // (len/2 + 150 along, wid/2 + 60 across) is not cut; the strip's own box + 30 m and the authored excludes are
+           treeBox: r.treeBox !== false,
+           // THE WAY OUT OF A ONE-WAY STRIP (G527.3, contract v1.25): `departure` names the end the take-off leaves OVER
+           // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
+           // back out over it - the trees close in at the other end
+           takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
 }
 
@@ -823,7 +1011,14 @@ function placeSite(site, cat, ctx) {
     const oy = ctx.T(c[0], c[1]);
     const ground = (lx, lz) => { const w = toWorld(lx, lz); return ctx.T(w[0], w[1]) - oy; };
     const P = entry.params ? entry.params(it.P || {}) : Object.assign({}, entry.P || {}, it.P || {});
-    P.preset = entry.preset; P.slopeX = 0; P.slopeZ = 0; P.ground = ground; P.waterY = ctx.waterY - oy;
+    P.preset = entry.preset; P.slopeX = 0; P.slopeZ = 0; P.ground = ground;
+    // THE WATER IS WHERE THE ITEM IS, not where the anchor is. `ctx.waterY` is one
+    // number read at the premises' anchor, and on an island that anchor is inland,
+    // so it reads -Infinity (the same trap that stopped a harbour zone sowing,
+    // G434): every pier, float and wharf was then built at -Infinity. A marine
+    // entry lives ON the water and has to be told which water.
+    const wHere = ctx.waterAt ? ctx.waterAt(c[0], c[1]) : ctx.waterY;
+    P.waterY = (isFinite(wHere) ? wHere : ctx.waterY) - oy;
     if (entry.gen === 'BIG_GEN') P.big = 1;
     if (entry.gen === 'HOUSE_GEN') { P.water = 0; P.pier = 0; }
     const size = entry.size ? entry.size(P) : { L: P.L || 8, w: P.w || 6 };
@@ -844,6 +1039,12 @@ function placeSite(site, cat, ctx) {
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * size.L / 2, sz * size.w / 2));
       if (entry.gen === 'BIG_GEN') { P.floorY = hiC + (it.onRoad ? 0.06 : Math.max(0.3, P.floorY || 0)); if (it.onRoad) P.plinth = 0; }
       else P.floorY = hiC + (P.stance === 0 ? 0.3 : 0.55);
+      // ON A DECK, NOT ON THE GROUND (2026-09-22). A warehouse that stands on a
+      // wharf has no ground under it - the seabed is five metres down - so its
+      // floor is given over the WATER instead, and the composer turns that into
+      // the item's own frame. Metlakatla's packing plant is four sheds on a pile
+      // deck, and without this they all stood on the bottom of the sea.
+      if (isFinite(P.floorOverWater) && isFinite(P.waterY)) P.floorY = P.waterY + P.floorOverWater;
     }
     P.site = site.name || site.id;
     const rec = { id: site.id + '/' + (it.id || ('i' + k)), item: it.id || ('i' + k), site: site.id, key, entry, gen: entry.gen, P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground,
@@ -974,6 +1175,47 @@ function solveLinks(rec, items, phase, ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// SMOOTH ROADS (contract v1.19, 2026-09-22)
+// ---------------------------------------------------------------------------
+// A road has always been VERTICALLY smooth - its grade is re-densified every 6 m
+// and run through four 3-tap passes - and horizontally POLYGONAL: polyRoad's
+// tangent is per segment and jumps at every vertex, so pavement.js lays its cross
+// rows on a normal that jumps with it and the ribbon pinches inside a bend and
+// gapes outside. `smooth` rounds the corner instead: a circular fillet of that
+// radius at each interior vertex, cut back when the neighbouring segments are too
+// short to carry it. It is applied ONCE, in compose, before anything reads `pts` -
+// so the ribbon, the grade, the surface strip, the cover query and the traffic all
+// see the same line, and the record keeps the polyline the editor drew.
+function smoothPath(pts, radius) {
+  const R0 = radius === true ? 25 : +radius;
+  if (!(R0 > 0) || !pts || pts.length < 3) return pts;
+  const out = [[pts[0][0], pts[0][1]]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p = pts[i], a = pts[i - 1], b = pts[i + 1];
+    const l0 = Math.hypot(a[0] - p[0], a[1] - p[1]), l1 = Math.hypot(b[0] - p[0], b[1] - p[1]);
+    if (l0 < 1e-6 || l1 < 1e-6) continue;
+    const v0 = [(a[0] - p[0]) / l0, (a[1] - p[1]) / l0], v1 = [(b[0] - p[0]) / l1, (b[1] - p[1]) / l1];
+    const ang = Math.acos(Math.max(-1, Math.min(1, v0[0] * v1[0] + v0[1] * v1[1])));
+    if (!(ang > 0.02) || ang > Math.PI - 0.02) { out.push([p[0], p[1]]); continue; }
+    let R = R0, t = R / Math.tan(ang / 2);
+    const tmax = Math.min(l0, l1) * 0.45;
+    if (t > tmax) { t = tmax; R = t * Math.tan(ang / 2); }
+    const P0 = [p[0] + v0[0] * t, p[1] + v0[1] * t], P1 = [p[0] + v1[0] * t, p[1] + v1[1] * t];
+    const bl = Math.hypot(v0[0] + v1[0], v0[1] + v1[1]) || 1;
+    const bis = [(v0[0] + v1[0]) / bl, (v0[1] + v1[1]) / bl];
+    const C = [p[0] + bis[0] * R / Math.sin(ang / 2), p[1] + bis[1] * R / Math.sin(ang / 2)];
+    const a0 = Math.atan2(P0[1] - C[1], P0[0] - C[0]);
+    let da = Math.atan2(P1[1] - C[1], P1[0] - C[0]) - a0;
+    while (da > Math.PI) da -= Math.PI * 2;
+    while (da < -Math.PI) da += Math.PI * 2;
+    const n = Math.max(2, Math.ceil(Math.abs(da) / 0.3));
+    for (let k = 0; k <= n; k++) { const th = a0 + da * k / n; out.push([C[0] + Math.cos(th) * R, C[1] + Math.sin(th) * R]); }
+  }
+  out.push([pts[pts.length - 1][0], pts[pts.length - 1][1]]);
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // compose — the overlay a world composes at its terrainH seam
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
@@ -987,7 +1229,9 @@ function compose(rec0, world, opts) {
   // THE ROADS (stage 2): a graded road is a DERIVED grade whose nodes sit on
   // T1, 3-tap smoothed along the profile (WORLD-GEN-PROC stage 3's roadbed
   // rule: flat across, the profile smoothed along); a surface strip of its class
-  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2);
+  // `smooth` (v1.19) is applied HERE, once, so every reader sees the same line
+  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2)
+    .map(r => (r.smooth ? Object.assign({}, r, { pts: smoothPath(r.pts, r.smooth) }) : r));
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
@@ -1077,6 +1321,34 @@ function compose(rec0, world, opts) {
   for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) excl.push({ poly: sp.poly, bbox: polyBBox(sp.poly), what: ['trees', 'plots'], derived: true, surface: sp.id });
   // a clear zone is a derived exclude of trees
   for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) excl.push({ poly: z.poly, bbox: polyBBox(z.poly), what: ['trees'], derived: true });
+  // THE TTYPE STAMPS (v1.20): each polygon with the code it stamps. 0 sea and 1 lake are
+  // never overwritten - the water is not a place's to re-classify - and the codes
+  // the ISLAND itself derives (12 cliff, 13 forest old, 14 scrub dense) are not
+  // stamped either: they are a slope and a canopy, not a polygon.
+  const ttypes = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && isFinite(+c.code))
+    .map(c => ({ id: c.id, poly: c.poly, bbox: polyBBox(c.poly), code: Math.round(+c.code),
+                 // `from` (contract v1.22): the codes this stamp is allowed to REPLACE. Without it a
+                 // stamp is flat and paints the bog, the rock and the beach the same as the wood;
+                 // with it, a belt of `forest old` thickens the scrub and the young wood and leaves
+                 // the muskeg a muskeg, which is the difference between a terrain type and a blanket.
+                 from: Array.isArray(c.from) && c.from.length ? c.from.map(v => Math.round(+v)) : null,
+                 // `clear` (contract v1.22): stamp only the cells this premises leaves OPEN -
+                 // no plot, no road ribbon, no site footprint, no paved surface. It is what
+                 // lets a terrain type mean "the ground between the buildings": a residential
+                 // wood may fill a town's gaps without standing a conifer on a roof, because
+                 // the island's own tree fill knows nothing at all about a premises.
+                 clear: c.clear === true,
+                 // `cover` (contract v1.23): the WORLD-COVER class to write beside the
+                 // terrain type. THIS IS THE PIECE THAT MADE A PAINTED BIOME PLANT
+                 // NOTHING. The island's tree fill is gated on `world.surface`, which
+                 // comes from the COVER raster and not from ttype at all - and over a
+                 // town that raster says BUILT, which maps to PAVED, which both
+                 // forestHere and openHere refuse. So a ttype stamp over a town could
+                 // move the ground's texture and could not put one tree on it. Writing
+                 // the cover as well (GRASS, WC 30) lets the fill see open ground and
+                 // the BIOME decide what stands there, which is the whole point of
+                 // painting a terrain type instead of placing trees.
+                 cover: isFinite(+c.cover) ? Math.round(+c.cover) : null }));
   let ext = rec.frame.extent;
   if (!ext) {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -1093,7 +1365,71 @@ function compose(rec0, world, opts) {
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
-    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves,
+    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
+    // THE STAMP: the island's ttype grid is ONE array, read by the tree
+    // walk (render_world's ttypeAt), by the cover ring and by the ground's packed
+    // texture. Writing the code into it once, here, is why one polygon moves the
+    // ground and the vegetation together with no second path. The returned function
+    // puts the old bytes back, so a live edit re-stamps cleanly.
+    stampTtype(isl) {
+      if (!isl || !isl.ttype || !isl.grid || !ttypes.length) return null;
+      const g = isl.grid, T = isl.ttype, saved = [];
+      // the WORLD's island handle renames it (`cover`, not `coverU8`) - read both, or
+      // the write lands on undefined and the surface never moves, which is silent
+      const CV = isl.cover || isl.coverU8 || null, savedC = [];
+      for (const c of ttypes) {
+        const w = [F.toWorld(c.bbox.x0, c.bbox.z0), F.toWorld(c.bbox.x1, c.bbox.z0),
+                   F.toWorld(c.bbox.x1, c.bbox.z1), F.toWorld(c.bbox.x0, c.bbox.z1)];
+        const wx0 = Math.min(w[0][0], w[1][0], w[2][0], w[3][0]), wx1 = Math.max(w[0][0], w[1][0], w[2][0], w[3][0]);
+        const wz0 = Math.min(w[0][1], w[1][1], w[2][1], w[3][1]), wz1 = Math.max(w[0][1], w[1][1], w[2][1], w[3][1]);
+        const i0 = Math.max(0, Math.floor((wx0 - g.x0) / g.cell)), i1 = Math.min(g.w - 1, Math.ceil((wx1 - g.x0) / g.cell));
+        const j0 = Math.max(0, Math.floor((wz0 - g.z0) / g.cell)), j1 = Math.min(g.h - 1, Math.ceil((wz1 - g.z0) / g.cell));
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+          const L = F.toLocal(g.x0 + (i + 0.5) * g.cell, g.z0 + (j + 0.5) * g.cell);
+          if (!inPoly(c.poly, L[0], L[1])) continue;
+          const k = j * g.w + i;
+          // `from` (contract v1.22): this stamp may replace only the codes it names
+          if (c.from && c.from.indexOf(T[k]) < 0) continue;
+          if (c.clear) {
+            const cx = g.x0 + (i + 0.5) * g.cell, cz = g.z0 + (j + 0.5) * g.cell;
+            const lc = F.toLocal(cx, cz);
+            // AN EMPTY LOT IS GROUND (the user: "the empty lots and the zones between
+            // houses without roads should have forest biome"). Only a plot that
+            // actually carries a building keeps the paint off it.
+            if (O.records.plots.some(q => q.pick && sdPoly(q.poly, lc[0], lc[1]) < 3)) continue;
+            if (roadObjs.some(rd => roadDist(rd, lc[0], lc[1]) < (rd.w || 3.6) / 2 + 4)) continue;
+            if (O.records.items.some(it => it.foot && sdPoly(it.foot, lc[0], lc[1]) < 4)) continue;   // a foot is in the PREMISES frame, like the roads and the plots
+            if (pavePolys.some(pp => inPoly(pp.poly, lc[0], lc[1]))) continue;
+          }
+          // OPEN WATER IS NOT A PLACE'S TO PAINT - but a MOLE is. A cell the
+          // island calls sea or lake is skipped unless this premises has raised
+          // it clear of the water, which is exactly the breakwater case: the
+          // terrain layer lifts the rubble out of the sea and the cover layer
+          // then has to say `rock`, or the ground is drawn as water four metres
+          // up in the air.
+          if (T[k] < 2) {
+            const wx = g.x0 + (i + 0.5) * g.cell, wz = g.z0 + (j + 0.5) * g.cell;
+            const wl = world.waterH ? world.waterH(wx, wz) : 0;
+            if (!(O.terrainAt(wx, wz) > wl + 0.3)) continue;
+          }
+          saved.push(k, T[k]);
+          T[k] = c.code;
+          // ...but only over the classes the fill REFUSES. Writing it everywhere turned
+          // 391 cells of real forest floor inside the town's envelope into grassland,
+          // which loses the wood the island already had there. BUILT and CROP are the
+          // two that map to PAVED; everything else the fill can already plant on.
+          if (c.cover !== null && CV && (CV[k] === 50 || CV[k] === 40)) { savedC.push(k, CV[k]); CV[k] = c.cover; }
+        }
+      }
+      // BACKWARD, and it matters: two stamps may cover the same cell (a lush verge
+      // crossing another's), and the second one saved what the FIRST had written.
+      // Unwound forward, the cell ends up holding the first stamp's code instead of
+      // the island's own byte - an undo that quietly does not undo.
+      return () => {
+        for (let n = saved.length - 2; n >= 0; n -= 2) T[saved[n]] = saved[n + 1];
+        if (CV) for (let n = savedC.length - 2; n >= 0; n -= 2) CV[savedC[n]] = savedC[n + 1];
+      };
+    },
     terrainH(x, z, h) {
       if (!mods.length) return h;
       const L = F.toLocal(x, z);
@@ -1101,6 +1437,28 @@ function compose(rec0, world, opts) {
       if (!cell) return h;
       for (let i = 0; i < cell.length; i++) h = cell[i].apply(L[0], L[1], h);
       return h;
+    },
+    // THE CEILING OVER A WORLD RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH(x, z, h)
+    // for every point of it, given B >= h there. Each modifier blends h toward its target with a
+    // weight in [0, 1] (a raise adds at most dh), whatever the order: max(B, every target) + the
+    // raises. The rectangle's local box (the frame is rotated) holds every point's local cell.
+    hMaxRect(ax, az, bx, bz, B) {
+      if (!mods.length) return B;
+      const p1 = F.toLocal(ax, az), p2 = F.toLocal(bx, az), p3 = F.toLocal(ax, bz), p4 = F.toLocal(bx, bz);
+      const lx0 = Math.min(p1[0], p2[0], p3[0], p4[0]) - 0.01, lx1 = Math.max(p1[0], p2[0], p3[0], p4[0]) + 0.01;
+      const lz0 = Math.min(p1[1], p2[1], p3[1], p4[1]) - 0.01, lz1 = Math.max(p1[1], p2[1], p3[1], p4[1]) + 0.01;
+      let T = B, add = 0;
+      const seen = new Set();
+      index.rect(lx0, lz0, lx1, lz1, M => {
+        if (seen.has(M)) return; seen.add(M);
+        const b = M.bbox;
+        if (lx1 < b.x0 || lx0 > b.x1 || lz1 < b.z0 || lz0 > b.z1) return;
+        if (!M.bound) { T = Infinity; return; }          // a modifier that cannot say: no ceiling
+        const r = M.bound(lx0, lz0, lx1, lz1);
+        if (r.t > T) T = r.t;
+        add += r.add;
+      });
+      return T + add;
     },
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),
     // the composed ground in the PREMISES frame
@@ -1219,7 +1577,27 @@ function compose(rec0, world, opts) {
       for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12); const v = world.waterH(w[0], w[1]); if (isFinite(v) && v < best) best = v; }
       return isFinite(best) ? best : waterY;
     };
-    const ctx = { T: O.localH, waterY, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
+    // THE WATER THAT REACHES AN ITEM. world.waterH answers with the body that
+    // TOUCHES a point and -Infinity where none does, so a mole whose middle has
+    // been raised out of the sea, or a wharf standing on its own piles, reads no
+    // water at all under itself. Ring-sample outward until some is found: the
+    // nearest water IS the water that thing floats in.
+    const waterAt = (lx, lz) => {
+      if (!world.waterH) return -Infinity;
+      for (const r of [0, 18, 40, 90, 160]) {
+        const n = r ? 8 : 1;
+        let best = -Infinity;
+        for (let k = 0; k < n; k++) {
+          const a = Math.PI * 2 * k / n;
+          const w = F.toWorld(lx + Math.cos(a) * r, lz + Math.sin(a) * r);
+          const v = world.waterH(w[0], w[1]);
+          if (isFinite(v) && v > best) best = v;
+        }
+        if (isFinite(best)) return best;
+      }
+      return -Infinity;
+    };
+    const ctx = { T: O.localH, waterY, waterAt, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
     const cat = catS;
     for (const st of rec.layers.sites) {
@@ -1318,10 +1696,23 @@ function compose(rec0, world, opts) {
       }
       O.n = mods.length;
     }
-    const pool = o.pool || [];
+    // the tree pool, from a caller that hands the list or the function that makes it
+    // (the renderer passes `o.pool()`, some callers pass `pool: () => []`); planForest
+    // only ever indexed it and never noticed, the garden pass filters it and did
+    const pool = (typeof o.pool === 'function' ? o.pool() : o.pool) || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes, plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
       for (const t of planForest(z, Object.assign({}, tctx, { waterY: zoneWaterY(z) }))) O.records.trees.push(t);
+    // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
+    // trees, I want to use the normal tree system, and just paint those zones ... never
+    // any tree as fixture without its lod system, we take the normal ones, maybe alter
+    // the terrain type, let the game do the work"). They were right and the reasoning is
+    // worth keeping: a record tree is ONE THREE.LOD with three hand-built rungs and no
+    // impostor, no instancing, no chunking and no stand card - a poor cousin of the
+    // island's own fill, which has all of it. Painting the terrain type (and, since
+    // v1.23, the cover class with it) puts the same job in the system that was built
+    // for it. `planForest` and the `forest` zone kind remain for a place that genuinely
+    // wants hand-placed trees; nothing on Jolene does.
     // the hand-placed trees (objects of kind 'tree'), in the premises frame, TREE_PLACE's record
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') O.records.trees.push({ x: ob.x, z: ob.z, key: ob.key, size: ob.size || 1, yaw: ob.yaw || 0, sink: 0, h: 12, id: ob.id, placed: true });
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
@@ -1434,6 +1825,12 @@ function issues(rec0) {
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
   for (const L of rec.layers.links) { if (!LINK_SOLVERS[L.kind]) out.push('link ' + L.id + ': unknown kind ' + L.kind); if (!L.from || !L.to || !L.from.item || !L.to.item) out.push('link ' + L.id + ': needs two ends'); }
   const ids = new Set();
+  for (const c of rec.layers.ttype) {
+    if (!c.poly || c.poly.length < 3) out.push('ttype ' + c.id + ': needs a polygon');
+    const code = Math.round(+c.code);
+    if (!isFinite(code) || code < 2 || code > 16) out.push('ttype ' + c.id + ': code ' + c.code + ' is not a terrain type a place may stamp (2..16)');
+    else if (code === 12 || code === 13 || code === 14) out.push('ttype ' + c.id + ': ' + code + ' is DERIVED from slope and canopy, not stamped');
+  }
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
   return out;
 }
@@ -1567,7 +1964,7 @@ function checks(rec0, world, opts) {
     put(ok, ok ? P.length + ' plots sown: none overlap, all in their zone' : why);
   }
   const Tn = O.records.trees;
-  if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || P.some(p => inPoly(p.poly, t.x, t.z)))), Tn.length + ' trees: none in an exclude or a plot');
+  if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || (!t.garden && P.some(p => inPoly(p.poly, t.x, t.z))))), Tn.length + ' trees: none in an exclude, none but a GARDEN tree on a plot');
   // the sites (rules 3 and 9): every item resolved, every link solved
   if (O.records.items.some(i => !i.park) || rec.layers.sites.length) {
     const want = rec.layers.sites.reduce((a, st) => a + (st.items || []).length, 0);
@@ -1600,8 +1997,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', MARINE_GEN: 'marine' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -1634,7 +2031,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

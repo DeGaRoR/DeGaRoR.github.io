@@ -718,7 +718,7 @@
       // one object is not a rule, it is a special case. What belongs in a
       // room's probe is THE ROOM — everything the player brought into it is a
       // subject, and a subject that lights itself is a mirror.
-      const subjects = [craft, edSit, refSit];
+      const subjects = [craft, edSit, refSit, bpSit];
       const subWas = subjects.map(o => o && o.visible);
       if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
       // THE GROUND BOUNCE IS OCCLUDED (user: "the plane is lit from the
@@ -971,6 +971,7 @@
     if (craft.parent !== s) s.add(craft);
     if (edSit.parent !== s) s.add(edSit);   // the editor's mount (G36)
     if (refSit.parent !== s) s.add(refSit); // the reference's (G89)
+    if (bpSit.parent !== s) s.add(bpSit);   // the blueprint's (G573)
     // `rigLift` is the load test's own 200 m hop clear of the ground. The room
     // takes the same offset so the aeroplane stays standing in it: the camera
     // tracks the CG and went up with the aeroplane, but the hangar did not, and
@@ -1592,6 +1593,98 @@
       CC.dress(P.inst, P.dum, { fist: P.fist, from: P.sDum });
       if (P.anim && CC.animStep) CC.animStep(P.inst, now, P.anim);
     }
+  }
+  // G576: THE STILL AIRFRAME, ONE DRAW PER MATERIAL. The flown aeroplane is a
+  // bucket per material KEY (colour, finish, section), and AEROSKIN pools its
+  // materials on LOOK, so nine fuselage sections of one plywood are nine meshes
+  // on one material - a draw each, in every pass and every cascade. A bucket
+  // that nothing moves (no vertex in the wing's binding box, no hinge id: its
+  // rig is skipped by poseModel) never leaves the model frame, so the buckets
+  // of one material are concatenated into one mesh right here, where the build
+  // KNOWS which is which - never guessed at afterwards from the scene graph.
+  // Not taken, each for a reason the code states: a bucket the flex or a hinge
+  // writes (the wing, the struts' wing ends), anything a part carries (it is
+  // not a bucket: gear, surfaces, rods, controls, gauges, the engine, the
+  // propeller), a lamp (the cockpit dims it by mesh), the crew (the cockpit
+  // view hides the pilot by bucket), anything see-through or with a glass
+  // companion, and any mesh the build has already posed, flagged or named.
+  // Same frame, same attributes, same material: the look, the livery's craft
+  // frame (uCraftInv reads the group's matrix, which the merged mesh shares),
+  // the weathering's baked cavity and the see-inside (a material question)
+  // are carried exactly. Rebuilt with the model: a garage edit rebuilds both.
+  // G564's crumb rule (a caster under 15 cm stops casting at the roll-out)
+  // keeps its answer per bucket: crumbs merge only with crumbs, and the merged
+  // crumb says how big its biggest member was. `window.FLYDIY_CRAFT_MERGE = 0`
+  // before a build is the A/B dial.
+  const STILL_CRUMB = 0.15;          // G564's radius, metres
+  function mergeStill(grp, meshes, mats, rigs, lamps) {
+    if (typeof window !== 'undefined' && window.FLYDIY_CRAFT_MERGE === 0) return null;
+    if (!THREE.BufferGeometry || !grp.children) return null;   // the smoke stub
+    const rigOf = {}; for (const r of rigs) rigOf[r.name] = r;
+    const lampMesh = new Set((lamps || []).map(l => l.mesh));
+    const skip = {}, why = (k) => { skip[k] = (skip[k] || 0) + 1; return null; };
+    const I = new THREE.Matrix4();
+    const keyOf = (name, o) => {
+      const rec = mats[name] || {}, r = rigOf[name], mt = o.material, g = o.geometry;
+      if (!r || r.hb || !r.bind || r.bind.bound.length) return why('moves');        // the flex or a hinge writes it
+      if (o.parent !== grp || !o.matrix.equals(I) || !o.position.equals({ x: 0, y: 0, z: 0 })) return why('posed');
+      if (lampMesh.has(o) || rec.lamp || rec.lampCup) return why('lamp');
+      if (rec.char || rec.sec === 'dummy1') return why('crew');
+      if (!mt || Array.isArray(mt) || mt.transparent || !(mt.opacity >= 1) || rec.opacity < 1 ||
+          rec.fin === 'glass' || (mt.userData && mt.userData.aeroFinish === 'glass') || o.children.length) return why('clear');
+      if (o.isSkinnedMesh || o.isInstancedMesh || !g || !g.index || !g.attributes.position ||
+          (g.morphAttributes && Object.keys(g.morphAttributes).length) || g.groups.length ||
+          Object.keys(o.userData).length || Object.prototype.hasOwnProperty.call(o, 'onBeforeRender') ||
+          o.customDepthMaterial || o.customDistanceMaterial) return why('own');
+      const at = Object.keys(g.attributes).sort();
+      if (at.some(k => g.attributes[k].isInterleavedBufferAttribute)) return why('own');
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      const crumb = g.boundingSphere.radius < STILL_CRUMB;
+      return mt.uuid + '|' + o.renderOrder + '|' + o.castShadow + o.receiveShadow + o.visible + o.frustumCulled +
+        '|' + o.layers.mask + '|' + (crumb ? 'c' : '') + '|' +
+        at.map(k => k + ':' + g.attributes[k].itemSize + g.attributes[k].array.constructor.name + g.attributes[k].normalized).join(',');
+    };
+    const groups = new Map();
+    for (const name in meshes) {
+      const o = meshes[name], k = keyOf(name, o);
+      if (!k) continue;
+      let l = groups.get(k); if (!l) groups.set(k, l = []);
+      l.push(name);
+    }
+    const names = new Set();
+    let from = 0, to = 0;
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      const m0 = meshes[list[0]], g0 = m0.geometry, at = Object.keys(g0.attributes);
+      let nV = 0, nI = 0, rMax = 0;
+      for (const n of list) { const g = meshes[n].geometry; nV += g.attributes.position.count; nI += g.index.count; rMax = Math.max(rMax, g.boundingSphere.radius); }
+      const arr = {}; for (const k of at) arr[k] = new g0.attributes[k].array.constructor(nV * g0.attributes[k].itemSize);
+      const idx = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
+      let vo = 0, io = 0;
+      for (const n of list) {
+        const g = meshes[n].geometry, c = g.attributes.position.count;
+        for (const k of at) arr[k].set(g.attributes[k].array.subarray(0, c * g.attributes[k].itemSize), vo * g.attributes[k].itemSize);
+        const ix = g.index.array; for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
+        vo += c; io += g.index.count;
+      }
+      const geo = new THREE.BufferGeometry();
+      for (const k of at) geo.setAttribute(k, new THREE.BufferAttribute(arr[k], g0.attributes[k].itemSize, g0.attributes[k].normalized));
+      geo.setIndex(new THREE.BufferAttribute(idx, 1));
+      geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, m0.material);
+      mesh.name = 'craftStill';
+      mesh.renderOrder = m0.renderOrder; mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow;
+      mesh.visible = m0.visible; mesh.frustumCulled = m0.frustumCulled; mesh.layers.mask = m0.layers.mask;
+      mesh.userData.still = list.slice();
+      if (rMax < STILL_CRUMB) mesh.userData.crumbR = rMax;
+      // where the first of them stood in the group, so the draw list keeps its order
+      const at0 = grp.children.indexOf(m0);
+      for (const n of list) { grp.remove(meshes[n]); meshes[n] = mesh; names.add(n); }
+      grp.add(mesh);
+      if (at0 >= 0) { grp.children.splice(grp.children.indexOf(mesh), 1); grp.children.splice(Math.min(at0, grp.children.length), 0, mesh); }
+      from += list.length; to++;
+    }
+    return { names, from, to, skip };
   }
   // curDef is only read on the GARAGE path: the generated payload is a function
   // of the very fiche the sim is running, so it must be that object and not a
@@ -2850,6 +2943,8 @@
     // station structure is a property of the fiche, so one delta buffer serves all
     const nz = rigs[0].bind.zs.length;
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
+    // G576: THE STILL AIRFRAME, ONE DRAW PER MATERIAL - see mergeStill
+    const still = data.cage ? mergeStill(grp, meshes, mats, rigs, lamps) : null;
     const people = buildPeople(data, grp, ctlMoves);   // live crew
     // G357: THE CAPTURE'S MAP, AND ITS INVERSE. The snapshot stores every
     // vertex through B⁻¹ (G337) so the oblique pose lands it exactly; a part
@@ -2867,7 +2962,10 @@
         } catch (e) { K4 = Ki4 = null; }
       }
     }
-    const m = Object.assign(entry, { grp, props, rigs, deltas, people,
+    // a merged bucket's rig moved nothing (the merge takes only those); the
+    // first rig stays whatever it is - sparDeltas reads its station table
+    const m = Object.assign(entry, { grp, props, deltas, people, still,
+                        rigs: still ? rigs.filter((r, i) => i === 0 || !still.names.has(r.name)) : rigs,
                         poseK, K4, Ki4,                                 // G357
                         // the panel arc (session 4): the hands, the lamps and
                         // the bucket records the cockpit reads
@@ -6240,6 +6338,12 @@
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
+    // THE AEROPLANE'S CRUMBS CAST NOTHING (G564): 130 of its 254 meshes are under 15 cm (bolts, hinges, fittings),
+    // and each cast into every cascade - a shadow a pixel wide for a draw each, ~700 shadow draws a frame
+    // (a merged still bucket of crumbs answers for its biggest member, G576: crumbs merge only with crumbs)
+    craft.traverse(m => { if (!m.isMesh || !m.castShadow || !m.geometry) return; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      const r = m.userData.crumbR != null ? m.userData.crumbR : m.geometry.boundingSphere.radius;
+      const s = m.getWorldScale(new THREE.Vector3()); if (r * Math.max(s.x, s.y, s.z) < 0.15) m.castShadow = false; });
     setExp(WORLD_EXPOSURE);
     // THE AEROPLANE FLEW OUT STILL REFLECTING THE SHED (user: "the planes look
     // really washed out when they get out of the garage and into the world").
@@ -6318,7 +6422,9 @@
       if (!WF || !WF.treeSettled || typeof renderer.compileAsync !== 'function') return;
       return Promise.race([WF.treeSettled(), new Promise(res => setTimeout(res, 15000))]);
     } });
-    // the ring: prewarm ticks of 40 ms until every chunk in reach stands
+    // the ring: prewarm ticks of 40 ms until every chunk within RING_REACH stands (G562: the forest out to 9 km was 47 s
+    // of a 100 s roll-out; past 3 km the game's own streamer grows it, nearest first, as the player flies)
+    const RING_REACH = 1500;
     steps.push({ id: 'ring', label: 'growing the forest', w: 30, fn: () => {
       if (!WF || !WF.prewarm || typeof renderer.compileAsync !== 'function') return;
       const cg = sim.cgPos();
@@ -6326,7 +6432,7 @@
       return new Promise(res => {
         let ticks = 0;
         const tick = () => {
-          let r; try { r = WF.prewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
+          let r; try { r = WF.prewarm(cg, { budgetMs: 40, reach: RING_REACH }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
           total = Math.max(total, r.live || 0);
           const doneN = (r.base || 0) + (r.fill || 0), want = doneN + (r.queued || 0);
           BOOT.phase('ring', 'growing the forest ' + doneN + ' / ' + Math.max(want, 1), want ? doneN / want : 0);
@@ -6385,8 +6491,11 @@
     if (!worldCompiled) steps.push({ id: 'compile', label: 'compiling the world', w: 20, fn: () => {
       worldCompiled = true;
       if (typeof renderer.compileAsync !== 'function' || !WF) return;
-      return compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
-        .then(() => compileDepthVariants());
+      // CAPPED (G562): a program that never reports ready held this step to its 180 s limit behind the screen.
+      // G567: the cap is a STALL - 4 min without a program becoming ready (the ground's cold link was ~3.5 min before G568, ~30 s now)
+      // - and the wait is explained and counted on the screen (shaderProgress)
+      return shaderProgress(compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
+        .then(() => compileDepthVariants()), 'world', 240000);
     } });
     // two frames of the world rendered under the overlay: the passes, the
     // residue of programs the compile does not reach (the shadow variants)
@@ -6502,8 +6611,14 @@
   // only the group, the floor line and the build's box to measure against.
   const refSit = new THREE.Group();
   refSit.visible = false;
+  // THE BLUEPRINT'S MOUNT (G573), a sibling of the reference's rather than a
+  // child: refplane.js hides refSit whenever no 3D model is standing, and a
+  // blueprint pinned up with no model beside it must not vanish with it.
+  // blueprint.js owns everything inside it, under the same display-only rule.
+  const bpSit = new THREE.Group();
   window.REF_MOUNT = {
     group: refSit,
+    bpGroup: bpSit,
     // the floor the build stands on — the main wheel's centre less its radius
     groundY: () => groundY,
     // the build's own as-displayed box, in WORLD units, for the discrepancy
@@ -9537,6 +9652,47 @@
     const target = (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || new THREE.WebGLRenderTarget(4, 4);
     return compilePass(helper, target).catch(e => console.warn('depth compile:', e && e.message));
   }
+  // THE SHADERS' SCREEN (G567, the user: "a dedicated loading message/screen explaining the first time
+  // compilation issue with a progress bar"). A COLD compile - the first launch, the first after an update
+  // that changed a shader, a cleared browser cache - is the graphics driver's work: ~35 s at the Jolene
+  // roll-out on the gamer box (3.5 min before G568 cut the ground's splat programs: futureDesigns/PERF-2026-09-23.md
+  // G567/G568), a second or two warm. While the pass `p` is
+  // pending this polls the renderer's programs (isReady: KHR_parallel_shader_compile, never blocks):
+  // every program seen pending joins the count, the ready ones fill the overlay's shader bar (BOOT.shaders).
+  // The block shows after 1.2 s when this browser has not finished a compile of this build before
+  // at this site (localStorage SHADER_WARM + ':garage' / ':world' = FLYDIY_BUILD), after 6 s when it has (its cache was dropped): a warm compile
+  // never shows it. `stallMs`: resolve anyway when no program has become ready for that long (G562's cap was
+  // 20 s flat, and the frames step then froze the page ~3 min on the ground's link with no word; now the
+  // step waits, explained, with the count); the programs still pending then are kept in window.__SLOWPROGS.
+  const SHADER_WARM = 'flydiy.shaders.warm';
+  function shaderProgress(p, site, stallMs) {
+    if (typeof BOOT === 'undefined' || typeof BOOT.shaders !== 'function' || !renderer.info || !renderer.info.programs) return p;
+    const build = (typeof window !== 'undefined' && window.FLYDIY_BUILD) || 'dev';
+    const key = SHADER_WARM + ':' + site;
+    let warm = false; try { warm = localStorage.getItem(key) === build; } catch (e) {}
+    const t0 = performance.now(), showAt = warm ? 6000 : 1200, seen = new Set();
+    let live = true, shown = false, lastDone = -1, lastT = t0, stalled = null;
+    const stall = new Promise(res => { stalled = res; });
+    const poll = () => {
+      if (!live) return;
+      for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) seen.add(pr);
+      let done = 0; for (const pr of seen) if (pr.isReady()) done++;
+      const t = performance.now();
+      if (done !== lastDone) { lastDone = done; lastT = t; }
+      if (!shown && seen.size > done && t - t0 >= showAt) shown = true;
+      if (shown) BOOT.shaders(done, seen.size, warm);
+      if (stallMs && t - lastT > stallMs) {
+        try { window.__SLOWPROGS = [...seen].filter(pr => !pr.isReady()).map(pr => pr.name + ' | ' + String(pr.cacheKey).slice(0, 160)); } catch (e) {}
+        stalled('stall'); return;
+      }
+      setTimeout(poll, 150);
+    };
+    poll();
+    const end = v => { live = false; BOOT.shaders(null);
+      if (v !== 'stall') try { localStorage.setItem(key, build); } catch (e) {}
+      if (window.FLYDIY_LOG_COMPILE) console.log('shaders (' + site + '): ' + seen.size + ' pending programs, ' + Math.round(performance.now() - t0) + ' ms' + (v === 'stall' ? ' (stalled)' : '')); };
+    return Promise.race([Promise.resolve(p), stall]).then(v => { end(v); return v; }, e => { end(); throw e; });
+  }
   // one compile pass: every material of `sc`, keyed for `target` (null = the canvas);
   // `lit` is the scene whose lights, fog and environment the programs are keyed
   // for when `sc` is a helper that is not in it (three's targetScene)
@@ -9634,7 +9790,7 @@
     const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
     const t0 = performance.now();
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
-    return whenComplete().then(() => pass(ensureEnvRT())).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); }), 'garage'))
       .catch(e => { console.warn('boot compile:', e && e.message); done(); });
   });
   // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed

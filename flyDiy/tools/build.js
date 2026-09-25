@@ -228,7 +228,7 @@ const MANIFEST = {
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'totems', 'totems_packs.json'), 'utf8')).map(f => ['src/totems', f]); } catch (e) { return []; } })(),
-    ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_sport_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_tower_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
+    ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_tower_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'cabin', 'cabin_packs.json'), 'utf8')).map(f => ['src/cabin', f]); } catch (e) { return []; } })(),
     ['src/viewer', 'cabin_livery.js'], ['src/viewer', 'cabin.js'], ['src/viewer', 'tram_run.js'],
     // powerline.js after tram_run.js (it takes its sag from the tram's rope) and before the renderer
@@ -238,7 +238,13 @@ const MANIFEST = {
     ['src/viewer', 'parked.js'],
     // THE SCENERY'S LIFE (2026-09-23): people, clutter, rubbish, cars, small structures, antennas - made by the renderer below
     ['src/viewer', 'scenery_life.js'],
+    // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with
+    ['src/viewer', 'house_tarr.js'],
     ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
+    // THE WORLD RAIL (G582): 90 KB of editing UI no flight needs at boot - fetched once and cached here rather than
+    // inlined (index.html's budget, GATE MEDIA). It only publishes window.WORLD_RAIL at eval and polls for the world,
+    // so landing before app.js is soon enough; app.js's SCENERY and F8 reach it at call time.
+    ['src/viewer', 'world_rail.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
     shell: 'shell.html',
@@ -260,7 +266,9 @@ const MANIFEST = {
     // flight layer and the workshop layer each hide the other (editor.css's
     // mode rules) and this one panel opens from BOTH screens. It redeclares
     // the palette it uses for the same reason flight.css does.
-    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css'],
+    // ...and blueprint.css (G573): the blueprint desk, a full-screen sheet
+    // appended inside #wsUI, scoped entirely under #bpDesk.
+    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css', 'blueprint.css'],
     body: 'body.html',
     // THE LOADING SCREEN (LOADING S1, 2026-09-14): boot.js fills the BOOT slot
     // of body.html - a plain script in BOTH pages (inlined here, a src ref in
@@ -364,7 +372,10 @@ const MANIFEST = {
     // ladder's thread (window.BENCH_WORKER), imported RAW by its own Blob
     // worker next to tools/flight_core.js — so it must stay a file the page
     // can fetch, like balance.js.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js',
+    // blueprint.js after refplane.js (G573): the reference plane's second
+    // source. It builds its half of the panel from REFPLANE.ui, lazily, and
+    // stands its planes in app.js's REF_MOUNT.bpGroup.
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint.js',
     // balance.js before editor.js (G101): the energy layer's panel draws the
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,
@@ -386,9 +397,7 @@ const MANIFEST = {
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
               'cockpit.js', 'app.js',
-              // world_rail.js (2026-09-24): the WORLD rail on the right edge - the terrain types' biomes and
-              // ground, the layers, the materials, the filtering, the export; DOM-lazy over the world's handles
-              'world_rail.js', 'dev_panel.js'],
+              'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's

@@ -57890,7 +57890,1640 @@ into ~40 m.
 - GATES: PARKED, PREMISES, UISMOKE, MEDIA, WORLDRENDER, SKIN, GFX green. FILES: src/viewer/parked.js,
   tools/_parked_check.js.
 
-## G533 - THE WORLD RAIL: the right-hand rail of the world's art, the scenery mode, the ground's filtering (2026-09-24)
+## G533 - THE NEW PLAYER KEPT OUT OF HARM'S WAY: the auto render scale and the first launch's tier (2026-09-23)
+
+The render scale's new first step, 'auto' (every tier but ultra): held at 60 fps from 100 % down to 50 %, one menu step at
+most every 2 s, and a step that does not PAY is taken back (a CPU-bound frame is not faster with fewer pixels - the
+hold doubles on each repeat): never blurred for nothing. The first launch (no saved choice) reads 6 s of frames after
+the roll-out and steps the untouched gamer default down if it still misses (current / 5 years ago / potato); kept in
+flydiy.gfx.auto and said in the menu. Rigs (HeadlessChrome / webdriver) stand down unless ?autoscale=1 / ?autotier=1.
+Old prefs migrate once (pv 2). GATE AA drives the pure decision with simulated frames; GATE GFX the migration.
+futureDesigns/PERF-2026-09-23.md (G533).
+
+
+## G534 — MUD IS A MINERAL SURFACE: the ground between the trees was painted algae (2026-09-23)
+
+THE USER, on a shot of the Jumbo Mine from the air: "we have screwed up on the coloration of some assets. In
+particular the rock assets have been fully colored green and they look real bad ... Can you revert at least for
+this texture."
+
+THE FIRST GUESS WAS WRONG, AND THE PICTURE SAID SO. The obvious suspect was the macro tint (macroNear 0.45 -
+how much of the detail's colour gives way to the imagery's under the near ground), so the rig took the same eye
+twice from one boot with it at 0.45 and at 0: bench/rock/b_now.png and b_now_s0.png are nearly the same frame.
+The green did not come from there. The second A/B found it: albedoNorm 0 (the sets as shipped, c_now_s0.png)
+turns the whole hillside back to tan rock and pale slabs, so the colour is coming from THE PER-SET
+NORMALISATION TO THE IMAGERY (splat_ground normGains, 2026-09-22).
+
+THE MEASUREMENT, over the real island with the real manifest (the vm harness GATE SPLAT already had):
+
+  set        mineral   shipped mean rgb     gain r/g/b        green pull
+  mud           -      0.090/0.070/0.046    0.29/0.55/0.29       1.92   <-- algae
+  forestAir     -      0.126/0.083/0.026    0.15/0.36/0.35       1.44
+  dry           -      0.300/0.249/0.124    0.19/0.26/0.23       1.23
+  rockyA     MINERAL   0.081/0.077/0.012    0.75/0.75/0.75       1.00
+  cliff      MINERAL   0.314/0.173/0.110    0.50/0.50/0.50       1.00
+  ...every other rock, sand and snow set 1.00
+
+So the rock sets were NOT being recoloured - G-2026-09-22's mineral rule ("a mineral set keeps its hue", from
+the user's earlier "you have coloured the rocks a little too much") already had them on a single luminance
+gain. `mud` WAS LEFT OUT OF THAT LIST, and mud is the worst case in the table by a distance: a green channel
+nearly twice the other two, on a texture whose whole job is bare peat and dirt. It is also the set that covers
+the most ground the eye ever sees - the FIRST (0.6 weight) set of BOTH muskeg and scrub and the second of
+forest. Rock seen through and beside that is what reads as "the rock assets have been fully colored green".
+
+THE FIX IS ONE WORD: `mud` joins the MINERAL list, so it takes one luminance gain (0.50/0.50/0.50, the rule's
+floor) instead of 0.29/0.55/0.29. Nothing else changed - the vegetation sets still take the imagery's colour,
+which is the normalisation the user asked for in the first place. bench/rock/d_mudfixed.png is the same eye
+after: the slabs are tan and brown again, the grass is green where grass is.
+
+GATE SPLAT GROWS 1c, and it is the check that would have caught this the day the list was written: it builds
+the REAL gains (the real manifest, the real island, the module's own normGains through the vm harness) and
+refuses any set in the mineral list - rocksA/B/G, rockyA/B, cliff, pebble, beach, coastA, coastSand, dirt, mud,
+snowAir - whose gain is not ONE NUMBER. It also requires the vegetation sets to still carry a per-channel gain,
+so the rule can never be "fixed" by turning the normalisation off. Where the island is not on the box it says
+so and passes (GATE SPLAT is not an island gate).
+
+WHAT IS STILL OWED AND IS THE USER'S CALL, not a defect: `dry` (heath's own set) takes 0.19/0.26/0.23 - the
+imagery is 4x darker than the texture ships, so the heath is darkened as well as pulled green, and `forestAir`
+takes 0.15/0.36/0.35. Both are vegetation, where the imagery is the authority by the user's own ruling, so they
+are left alone. If the ground is still too green for them, the knob is albedoNorm (F8 > ground > distance
+macro > "albedo to imagery"): 1 is the imagery's level, 0 is the sets as shipped, and c_now_s0.png shows 0.
+
+GATE SPLAT (with the selftest), GFX and MEDIA green.
+
+## G535 — THE TRAMWAY'S TOP REACHES THE TOP: the summit station pulled up its line onto the plateau with a square beside its back building, the road on the ground, a simpler profile, an altiport departure committed at brake release (2026-09-23, the user on G525's scene: "many issues, but the main one by far is full clipping of the terrain through your runway, your parking. The base station not excluding trees, having no road leading to it. On top, there's really no need for drawing plots below the structures, and you should ensure that the tramway base arrives on some flat terrain ... so the building at the back is on top, at the flat place, perfect place to do a little square. Then you should just do simpler with your runway, and it should not clip, and be practicable"; and with a drawing: "just pull the top base towards the top")
+
+WHAT WAS NOT THIS SCENE'S: the clipping, the trees and the plots were the far tier (everything past the
+inner ring's 4.5 km drawn at the raw DEM, so every cut out there stood under the un-cut mesh), the tree
+fill that ignored clear zones, and the residential lot dressing under every item - all three fixed by
+the native-area session's G527, which landed after G525. Judged in the game on G528: no terrain through
+the strip or the car park, the valley complex clear of trees, no lawn plates under the summit.
+
+WHAT WAS: (1) THE ROAD'S TRENCH. `tw_r_access` climbs 26 m in its first 150 m off the Walden Point stub
+and carried `grade: 0.08` - the composer cut a 16 m trench to honour it. It follows the ground now
+(grade null). It still starts at Metlakatla's stub, which is on that session's branch: until it lands
+the road meets nothing. (2) THE TOP STATION, pulled 35 m up its own line (the site's `at` moved, the
+other items held in place in the world): its back building stands at the summit plateau's edge and
+the cable still solves (20.4 deg, the rope 14 m over the ground at its worst). (3) THE SQUARE, beside
+the back building on the 709 m plateau: `tw_t_square` (a flatten at the median, 707.5-709.7 under it)
+and `tw_m_square` (a concrete `look` polygon - PBR `set` polygons do not draw past the ring). A first
+cut straddled the plateau's north edge (688-709 m under it) and was undone. (4) THE PROFILE, four
+control points instead of eight, the same ramp easing to the flat top (within 0.4 m of the old
+curve): simpler to take in hand in the graph. (5) AN ALTIPORT DEPARTURE IS COMMITTED AT BRAKE RELEASE
+(43_pilot, `altiport`-gated like the rest): the normal technique also asked the stop after Vr to fit,
+and on 10 % of downhill grass that stop is longer than the strip - the cub was condemned needing 33 m
+of the 227 left. Flown: cub and C172 depart from the summit stand (lift-off 82 m and 279 m) and land
+uphill; the stock cub circuit bit-identical to master's core. GATE PREMISES and WORLD green.
+
+## G536 — A POND IS A SHORE AND A MARGIN, NOT A SPOT (2026-09-23)
+
+THE USER, on a near-vertical shot from about 400 m over a bush strip: "Puddles just look too harsh seen from
+there. They look like speckles on a surface, not like puddles." G517 had already made them eight times fewer
+and four times bigger; this is about how the remaining ones are DRAWN.
+
+TWO REASONS A POND READ AS A SPECKLE, both measurable from the numbers already in the recipe:
+  - THE SHORE WAS UNDER A PIXEL. `pudEdge` is 0.01 noise units, and the pool field is sampled at pudSlope 3
+    over a 400-unit period, so that is 1.33 m of ground: right from the bank, invisible from altitude. The
+    mask's whole 0..1 ramp fell inside one pixel, so every pond had a hard, aliasing rim - the definition of a
+    speckle.
+  - AND IT HAD NO MARGIN. Real muskeg water sits in a wet hollow: peat-stained shallows over the bed, then
+    open water. The shader painted one still-water colour from the first fragment inside the mask, so a pond
+    was a flat dark disc with nothing around it.
+
+THE FIX IS TWO TERMS THAT BOTH RIDE THE DISTANCE AND ARE ZERO AT THE EYE:
+  - `pudFar` (12) widens the shore with distance - pudEdge x 13 by 500 m, so 1.33 m of shore becomes 17 m and
+    survives a pixel. The 0.5 contour of the mask is fixed (the ramp is centred on the threshold), so the pond
+    neither grows nor shrinks as it softens.
+  - `pudRim` (0.65) opens a wet margin, again scaled by distance: under it the ground's own colour goes dark
+    and wet (`pudWet` 0.62) AND KEEPS ITS ROUGHNESS, so only the middle of a pond is a mirror. A small pond
+    seen from height never reaches the open-water band at all and reads as a wet patch, which is what it is.
+BOTH ARE ZERO AT THE EYE BY CONSTRUCTION. The close view was not broken and must not be traded away to fix the
+far one: a pond you taxi past keeps the hard shoreline and the open water it has today. GATE SPLAT §3 holds
+that - it walks the pond block in the spliced GLSL and requires both terms to be multiplied by `far`.
+
+THE PICTURES, one boot, one eye, the knobs stepped (bench/pools/): f_a_s0 and f_a_s1 are the middle and strong
+settings against `e_soft_s0`, which is the old hard rim (pudFar 0, pudRim 0) - the speckles the user saw. The
+shipped values are the middle; the strong one washed the ponds out. g_final_air_s0 is the result from an
+oblique eye: soft wet hollows with graded shores, the lakes still mirrors.
+
+THE KNOBS ARE LIVE (F8 > ground, or `WORLD.ground.splat().set({...})`), so the next judgement needs no build:
+pudFar 0 restores the old rim exactly, pudWet 1 leaves the margin dry, pudRim 0 removes the margin.
+
+## G527.3 - EAST POINT'S TREES CUT BACK TO THE USER'S LINES; a strip that names its way out (2026-09-23)
+
+- The user, on a picture of the site with red over what was cut and green over what to cut: "You've cut
+  too much in the trees ... feel free to cut trees where you place assets." Most of the red was not the
+  record's: render_world's generic tree box clears len/2 + 150 m along and wid/2 + 60 m across EVERY
+  aerodrome (450 x 132 m here), whatever the editor says. Contract v1.25 `treeBox: false` on a runway
+  leaves the strip's trees to the record (its box + 30 m, the authored excludes).
+- The record redrawn to the green: `nv_clearing` (and its meadow) is the strip's corridor and the grounds
+  only, nothing past the ends; `nv_fan_n` a slim wedge 100 m off the north end tapering to a point;
+  `nv_fan_s` a funnel from the south end to the shore (half-width 14 -> 55 m over 230 m).
+- With the north end in the trees the strip is landed FROM THE SOUTH over the cove (`approach: 1`) and must
+  be left back to the south: v1.25 `departure: 1` (the end the take-off leaves over) -> aerodrome
+  `takeoffHdg`, honoured by 43_pilot dirAt in calm air (the site-model branch and, per the pilot session,
+  the fallback branch). Gated on the field: only nv_strip carries it.
+- MEASURED: the south approach clears at 1:15 to 1.5 km and 1:20 to 600 m (unchanged); the north is
+  wooded 50 m past the end (7 m into a 1:15 plane) - no longer an approach. FLOWN (cub): HOME -> nv_strip
+  lands from the south, 74 m roll; nv_strip -> HOME departs from the north hold rolling south, lift-off at
+  104 m, committed with 84 m left. Without `departure` the cub tried to leave north and gave up on the
+  ground (taxi-lost) - that is why the field exists.
+- GATES (targeted): PILOT, SITE, WORLD, PREMISES, WORLDRENDER, LIFE green. jolene_author rev 16.
+- FILES: src/core/27_premises.js, src/core/43_pilot.js, src/viewer/render_world.js,
+  tools/jolene_parts/native.json, tools/jolene_author.py, tools/fixtures/island_jolene.json,
+  futureDesigns/PREMISES-CONTRACT-2026-09-13.md (v1.25).
+
+## G537 — THE ROCK IS THE PHOTOGRAPH'S OWN TONE, AND ONLY THE GREEN TEXELS ARE TUNED (2026-09-23)
+
+THE USER, after G534: "fix for the rock color not working at all. Try that; restore only the rock texture to its
+original tone, then very slightly tune the grass part of the texture to get more lush green, without modifying
+the rock color. Ever so subtle."
+
+WHY G534 WAS NOT ENOUGH, in one line of the table it printed: the mineral rule keeps a set's HUE but still
+moves its TONE, and for the rock sets the tone was moved a long way - rocksA, rocksB and cliff all halved
+(gain 0.50) and rockyB pushed to the 2.50 clamp. A grey gain is still the island's mean vegetation telling a
+boulder how dark to be. And it cannot be otherwise: at 10 m a pixel the imagery's own rock cells are ROCK WITH
+TREES ON THEM, so the number it offers a rock set is not about rock at all.
+
+SO A ROCK SET NOW TAKES NO GAIN: rocks[A-Z], rocky[A-Z], cliff and pebble are 1/1/1, the texture exactly as it
+shipped (rocksA 0.215/0.190/0.107, cliff 0.314/0.173/0.110, rockyA 0.081/0.077/0.012 - a warm tan, a red-brown
+and an olive, which is what those photographs are). The rest of the mineral list - beach, coastA, coastSand,
+dirt, mud, snowAir - keeps the single luminance gain from G534: sand, shingle, peat and snow really do vary in
+brightness with the place, and the imagery is a fair judge of that. The vegetation sets keep the per-channel
+colour normalisation the user asked for in the first place.
+
+AND THE GRASS IS TUNED PER TEXEL, NOT PER SET, which is the whole trick and the reason the earlier attempts
+kept failing: a set is ONE PHOTOGRAPH OF GROUND. rocksA is boulders with vegetation between them; grassRock is
+the pair in a single image. Any per-set gain moves the boulders with the moss, so "greener grass, same rock"
+is impossible at that level. In sFetch, after a texel is graded, `veg` measures how far the GREEN channel
+stands over the other two, normalised by the brightest channel and scaled by 3: it is 0 on anything grey or
+brown (rock, sand, peat, dead grass) and rises on leaf and moss. The texel is then lifted by
+vec3(0.96, 1.08, 0.92) weighted by veg x vegLush. At the shipped vegLush 0.4 the greenest texel in a texture
+moves about 3 % - the "ever so subtle" the user asked for, and a boulder in the same image does not move at
+all because its veg is zero.
+
+MEASURED (the vm harness of GATE SPLAT, the real manifest and the real island): the six rock sets 1/1/1; beach
+0.50, dirt 0.85, mud 0.50, coastA 1.13, coastSand 1.17, snowAir 2.50, all neutral; forestAir 0.15/0.36/0.35,
+dry 0.19/0.26/0.23, grass and grassRock per channel - the vegetation still takes the imagery's colour.
+
+PICTURES (bench/rock/): e_rockrestored.png is the Jumbo Mine from the air - the strip and the bare ground read
+tan and grey again, the grass reads green, and the hillside is no longer a rock painted the colour of a leaf;
+e_rockrestored_s0.png is the same frame with vegLush 0, which is how subtle the lift is. Beside them,
+c_now.png is where this started.
+
+GATE SPLAT 1c grows the stronger half of the rule: every ROCK set's gain must be exactly 1/1/1, the other
+mineral sets neutral, and the vegetation sets must still carry a per-channel gain, so none of this can be
+"fixed" later by turning the normalisation off. vegLush is live in F8 (WORLD.ground.splat().set({vegLush})),
+0 for none of it.
+
+## G538 - THE CARDS WERE WASHED OUT AND THE FIRST EXPLANATION WAS WRONG: the impostor canopy measured on its own pixels, one dial kept, one deleted (2026-09-23)
+
+THE COMPLAINT, over a world-editor shot of Jolene AFB: "the impostors look washed out on the lit
+side, especially when contrasted to the terrain below them ... anything we can do to have them more
+in-line with the world, and more 'bitty' in terms of colours and shadows? ... washed out trees over
+saturated terrain". It is a number, and this is it. With the sim frozen and a mask built by hiding
+the impostor meshes for one frame - so the stats are the CARD'S pixels and not the 60 % of the frame
+that is ground - the canopy drew at luma 0.1317 with a coefficient of variation of 0.223, over
+ground that drew DARKER at 0.1212 and with cv 0.766. Brighter than the land it stands on, with three
+and a half times less variation in it. That is the whole complaint in two rows.
+
+THE FIRST EXPLANATION WAS WRONG, AND THE MEASUREMENT IS WHAT SAID SO. The impostor took the
+geometry's leaf terms by reference - wrap 0.80 and SSS 1.12, both ADDITIVE - and the theory was that
+a card, whose baked normal varies slowly across a whole crown, has the entire crown lifted by them at
+once where real foliage scatters them over thousands of differently-angled needles. It reads well and
+it is false: switching the entire block off (uLeaf 0) moved the canopy from 0.1317 to 0.1279, three
+per cent, against a control of 0.006, and uWrap at 0 and at 6 are both indistinguishable from doing
+nothing at all. A dial for wrapK/sssK had already been written, defaulted and gated; it is deleted
+rather than landed, because a dial whose extremes are the control is furniture.
+
+WHAT MOVES IT is uFlat, the tint's contrast term `mix(vec3(uFlatMean), texel, uFlat)`, which this
+material pinned at 1 - the texel exactly as baked. Above 1 it EXTRAPOLATES away from the sheet's own
+mean, and it is the only lever in the draw that reaches the card's texels rather than the light
+falling on them. At 1.35 the canopy goes to luma 0.1025 (-22 %, now UNDER the ground instead of over
+it) and cv to 0.291 (+30 %); p10 0.1028 -> 0.077 and p90 0.1574 -> 0.129, so it is a darkening with a
+spread gain rather than a clip. It SATURATES: 3.0 and 1.35 are the same frame to four decimals, which
+is why 1.35 is the top of the useful range and not a number to push further.
+
+AND ONE TREE IS NOT ITS NEIGHBOUR. A baked tree wore `c3.setRGB(1, 1, 1)`, so a whole stand carried
+one colour and read as one flat mass from the air. Its instance colour is now a lightness off its own
+position, +-10 % (TREE_LOD.imp({ vary })), on BOTH tiers - the near geometry and the far card share
+the rule, so a crown that is dark up close is dark as a card too - and the stand cards take the same
+hash off the card's own position. Measured in the scene: 215367 instance colours on 120 meshes, mean
+1.0002, sd 0.0577, min 0.90, max 1.10.
+
+THREE INSTRUMENT FAULTS, each of which cost a run, each worth more than the fix.
+- A FRAME MEAN TAKEN WHILE THE AEROPLANE FLIES IS NOT A MEASUREMENT. The first A/B had both extremes
+  come back BRIGHTER than the base (87.59 base, 91.39 with the terms off, 93.13 with them at x4):
+  chunks stream and the view moves between 20-frame samples, and the drift was larger than the
+  effect. Freeze the sim (TEST_FLIGHT.rate(0)), take ONE reference frame, and diff every state
+  against it - and print the control (change nothing) and the restore. Both read 0.003 to 0.006 here.
+  Without a control that reads zero, a null result is indistinguishable from a broken rig.
+- A UNIFORM READ BACK FROM THREE'S OWN BLOCK PROVES NOTHING ABOUT THE DRAW. uWrap read back as 0.304
+  on the drawn material while contributing nothing, because a declared-but-unused uniform is stripped
+  by the GLSL compiler and keeps its JS-side value regardless. Ask the LINKED PROGRAM for the
+  location (`renderer.properties.get(mat).currentProgram.getUniforms().seq`), and always run a
+  POSITIVE CONTROL with a uniform known to be read: uILit at 0.45 moved 40 % of the frame's pixels,
+  which is what made the wrap/SSS nulls trustworthy.
+- `texture.needsUpdate = true` ON A RENDER TARGET'S TEXTURE DESTROYS THE BAKED CONTENT. The
+  experiment that was to test the mip chain toggled minFilter that way, and every reading after its
+  first toggle came back identical to four decimals - the atlas had been re-initialised from an empty
+  image. The run invalidated itself; only its first line is usable. A sheet that lives in a render
+  target is not re-uploaded, it is re-created.
+
+OWED, to whoever next opens the bake: the atlas is a 1024x1024x74 array with `mipmaps: 0` and
+`generateMipmaps: false`, while its minFilter is LinearMipmapLinearFilter and anisotropy is 1 - a
+minification filter asking for a chain that does not exist. Whether that costs anything is untested
+(the experiment above wrecked itself before it could say), but a card's bittiness lives in its
+texels, and cv 0.291 against the ground's 0.766 says most of it is still missing. This is flagged,
+not touched.
+
+- FILES: src/viewer/render_world.js (uIFlat + IMPK, impostorMat's own uFlat, treeVary on both plant
+  sites, TREE_LOD.imp({ flat, vary }) and TREE_LOD.impVary), src/viewer/stand_cards.js (the card's
+  own lightness).
+
+## G527.4 - EAST POINT'S FOOTPATHS LIE ON THE GROUND (2026-09-23)
+
+- The user, circling the path from the dance ground down to the beach: "you seem to have done a little
+  waterway or something? ... without water, it does not look like much". It was the footpath: authored as
+  a GRADED track with a 14 % grade limit down a 20 m bank, so the grade cut a trench into the slope to hold
+  it - a dry channel between saw-toothed banks. Both nv_ footpaths are `graded: false` now (no cut, no
+  fill: the dirt ribbon is draped on the ground as it lies). jolene_author rev 17. Shot: the path runs from
+  the totems into the trees as a path.
+- FILES: tools/jolene_parts/native.json, tools/jolene_author.py, tools/fixtures/island_jolene.json.
+
+## G539 — WATER STANDS WHERE THE GROUND IS LEVEL: 91 % of the puddles removed, and the rest put where they belong (2026-09-23)
+
+THE USER, with a photograph of a wet apron and an X-Plane frame beside our own: "still very chippy ... there are
+too many small ones, that just read like noise. Also real puddles would be distributed along terrain depressions
+and ridges. Here you splatter them everywhere and it looks bad. Take a back step. Think of how puddles form and
+where ... let's get rid of 90% of them, and keep some only where it really makes sense."
+
+THE MEASUREMENT THAT SETTLED IT, taken on Jolene before anything was changed - the slope of the ground UNDER
+each pool the game was drawing:
+
+    < 1 deg  7 %     1-2  11 %     2-3  9 %     3-5  14 %     5-10  16 %     > 10 deg  42 %
+
+FORTY-TWO PER CENT OF THE PUDDLES WERE ON GROUND STEEPER THAN TEN DEGREES, and 72 % steeper than three. Water
+does not stand on a hillside. The field had never asked the terrain anything at all: it was a noise mask over
+the muskeg and scrub codes, and that - not the count, not the edge - is why it read as splatter.
+
+THE LAW NOW HAS TWO PARTS, and both twins run them:
+  - A PUDDLE NEEDS A LEVEL PLACE. The mask is multiplied by a ramp on the ground's own slope (knobs.pudFlat 4
+    degrees: full water under two, none above four). In the shader that is gSSlope, which sSplat already
+    computes for the splat; on the CPU it is the same ramp in render_world's poolAt from world.terrainH, so a
+    tuft is refused and a log floats exactly where water is DRAWN. Before this the ring believed every pool the
+    shader painted on a hillside.
+  - A PUDDLE IS A BASIN, NOT A WIGGLE. The octaves were three comparable voices (0.68 / 0.22 / 0.10), so the
+    fine ones made ponds of their own - the specks. They are one basin plus a whisker now (0.94 at a 133 m
+    cell, then 0.04 and 0.02 only to rough the outline), and the threshold went 0.92 -> 1.06.
+
+MEASURED OVER 2.71 km2 OF REAL MUSKEG ON JOLENE, with the gate the game applies:
+                      before        after
+    ponds per km2      105            9        (91 % gone - the user's number, arrived at from the terrain)
+    of them < 200 m2    67            4        (the speckles)
+    median pond        112 m2       336 m2     (12 m across -> 21 m)
+    water              4.85 %       1.46 %
+The survivors are the large shallow basins on the flats, which is where muskeg water actually is.
+
+GATE SPLAT'S POND CENSUS NOW WALKS THE REAL ISLAND when the box has it (the world ships since G523), applying
+the same slope ramp, and holds the user's ruling as bounds: 4-20 ponds per km2, at most 10 of them under
+200 m2, the median at least 200 m2, water 0.4-3 %. Without the island it walks the bare field with wider
+bounds and says which it did. Two source rules hold the twins together: the shader must gate by gSSlope and
+render_world must run the same ramp - if either is dropped the ring and the picture disagree again.
+
+PICTURES (bench/pools/): h_fewer.png is the vertical view that drew the complaint - the speckle field is gone;
+i_low.png is an oblique eye over the same flats, where the survivors read as ponds in a wet plain. f_a_s0.png
+is what it looked like before.
+
+STILL OPEN, and NOT this landing: the user's photographs are of PAVEMENT - sheet water on an apron, which is a
+roughness variation rather than a dark hole, and that belongs to the pavement material (the roads session), not
+to the muskeg. Nothing here touches a paved surface.
+
+## G540 — THE ALTIPORT'S HEAD IS ONE PLATFORM: the tram's terminal house on it, the strip unmarked and flush with it (2026-09-23, the user: "move the whole top station so the back building lands in the flat zone you've just made. Remove all markings of the runway, and do an elegant joint with the new platform you've made")
+
+ONE PLATFORM INSTEAD OF TWO FLATS. G535's parking apron (709.8) and square (709.0) overlapped at
+different levels - `issues()` refuses it ("two flattens at different levels overlap"), which nothing on
+master asserted over the shipped record until the Metlakatla session's GATE PREMISES section 14 (they
+found it and left the fix to its author). Both are gone, with the summit footpath. `tw_t_platform` +
+`tw_m_platform` (concrete `look`, turned with the strip): the strip's head WIDENED to the west - a
+chamfered polygon in the strip's own frame (t 288..382 along, 9..50 m west of the centreline), its east
+side ON the strip's west edge and its level the head's own (708.7 m, the profile's flat top reads
+708.6-708.8 over its last 50 m), so the grass runs onto the concrete with no step and no bank between.
+
+THE WHOLE TOP STATION MOVED: site at (277, -7868) so the TERMINAL HOUSE (14 x 9.5 m, 38 m behind the
+rope end) stands on the platform - all four corners inside it at 708.70 - and BOTH stations turned
+1.8 deg (yaw pi/2 - 0.0312 and -pi/2 - 0.0312) so each faces the other exactly (the two track hooks'
+line square to the rope at both ends: 0.0 deg; it was 1.8). The cable solves at 20.6 deg, the rope
+14.2 m over the ground at its worst. The lodge, the patrol cabin, the pilot hut, the groomer's garage,
+the shed and the outhouse re-laid round the platform's west side clear of the station, the stand on
+the platform (310.4, -7844), the summit's people and tables clear of both.
+
+THE STRIP UNMARKED: `pav: { marks: 'none' }` on tw_ski - a summer ski slope, grass with the wheels'
+track and nothing painted. All of it in the world editor, extracted into tools/jolene_parts/tramway.json;
+`issues()` over the whole regenerated record: none. Flown both ways again (below); GATE PREMISES, WORLD.
+
+## G541 — THE FOREST FLOOR IS NOT THE CANOPY: the ground under the trees gets its brown back (2026-09-23)
+
+THE USER, circling the ground under and between the trees round the Jumbo Mine: "we misunderstand each other
+since the beginning on the rock color. That's the rock texture, but used for the forest ground. And this one has
+become terribly green. That is the one I want restored to original tones ... that's the same terrain going on
+under the trees."
+
+THE SET IS `forestAir`, the near AND far set of codes 8 (forest) and 13 (old forest) - the ground the eye sees
+between the trunks everywhere the island is wooded, which is most of it. Three landings went past it because
+the word was "rock" and this set is not in the rock family; the measurement was in the table the whole time:
+
+    forestAir   ships  0.126 / 0.083 / 0.026     RED highest, blue almost nothing - a forest-floor BROWN
+                gain   0.15  / 0.36  / 0.35
+                after  0.019 / 0.030 / 0.009     GREEN highest, and six times darker
+
+So the floor was turned from brown to green and then dimmed to a sixth. "Terribly green" is exactly right.
+
+THE REASON IS A CONFUSION THE NORMALISATION MAKES ONLY HERE, and it is worth stating because it will come up
+again for any set that lives under a canopy: the imagery's colour for a forest cell IS THE CANOPY, seen from
+orbit. `forestAir` is the GROUND UNDER that canopy - and this game draws its own trees on top of it. Painting
+the floor with the canopy's colour and then standing the trees over it counts the canopy twice, and what shows
+between the trunks is a green that belongs to the leaves. The imagery has nothing to say about a forest floor,
+because it has never seen one.
+
+SO forestAir JOINS THE SETS THAT TAKE NO GAIN (G537's rock list): 1/1/1, the photograph's own tone. The trees
+are the green; the ground under them is brown. GATE SPLAT 1c holds it with the rest - seven sets now, each
+exactly 1/1/1 - and still requires the vegetation sets (grass, grassRock, dry) to carry a per-channel gain, so
+the normalisation the user asked for on OPEN ground is untouched.
+
+PICTURE: bench/rock/f_forestfloor.png, the mine from the air - the floor between the trunks is forest-floor
+brown and the canopy is what is green. e_rockrestored.png beside it is the same eye one landing earlier, with
+the floor still on the imagery's colour.
+
+<<<<<<< HEAD
+## G506 — METLAKATLA: THE ISLAND'S ONE REAL TOWN, AND THE HARBOUR KIT IT NEEDED (2026-09-22, the user:
+## "YOU know that there is a single town on Anette island, and it's metlakata ... we should have traces
+## of it in our own map ... It is essential you try and understand well the city structure")
+
+- WHAT WAS THERE: nothing. Jolene IS Annette, cut from real IFSAR elevation, and its one settlement
+  existed only as a patch of `ttype 10 built` - no road, no street, no building, no name. The village
+  on `island_jolene.json` is 2.8 km north of the airfield and invented; the user's ruling was to keep
+  it and put the real town where it really is, 9.4 km north-north-west at x -4300..-2400, z -9150..-7650.
+
+- THE METHOD, and it is the reusable part. Authoring a real place means reading streets off a
+  satellite view and writing world coordinates; doing that by eye (as jolene_author.py had to) costs a
+  round per feature and is wrong by tens of metres. But the island already ships a picture that IS in
+  the game frame - `bench/jolene/dem.ori.u8`, the IFSAR radar orthoimage, which resolves the street
+  grid at 10 m. Three new tools:
+  - `tools/geo.py` - the frame in one place at last: `lonlat_to_game` / `game_to_lonlat` through
+    rasterio (pyproj is NOT installed on this machine), and the convergence as a bearing conversion.
+    Until now nothing in the repo could turn a latitude into a game coordinate.
+  - `tools/met_fit.py` - registers a north-up Google view onto the frame by its COASTLINE: the
+    rotation is PINNED at the 19.32 deg convergence (let free it peaks at 15-16 deg with a very flat
+    maximum - Metlakatla's coast is one long convex arc and hardly constrains an angle - and the town
+    then lands 30-50 m off at both ends), the scale and the offset fall out of one FFT
+    cross-correlation of the view's water/land split against `dem.coast.u8`. A close view with no
+    coastline (the civic core, the harbour, the piers) is fitted against an ALREADY registered view
+    instead, on a high-passed greyscale: same projection, same rotation, so only scale and offset are
+    open and the streets correlate. Water is BLUE MINUS GREEN over an Otsu threshold - open sea reads
+    0.12-0.13 on these views and every land cover under 0.04; a darkness rule had put shadowed forest
+    in the water and fitted the coast to the wrong shape.
+  - `tools/met_streets.py` - pulls the grid off a registered view: every road-like pixel VOTES on the
+    perpendicular offset of the line it lies on, per street family, and each peak is walked to its
+    ends. A road detector worth the name would be a project; a vote is not fooled by roofs.
+  - `tools/met_trace.py` - the drawing board AND the check: any layer of the island's own rasters,
+    cropped in game coordinates with a labelled grid, with the RECORD drawn over it and, optionally,
+    a registered view warped into it. Every verification picture of this chantier came from here.
+  TRAP MET: a street detector finds FLOATS. The marina's finger floats and the cannery's dock read
+  exactly like a bright grey line on a dark ground; five of them came back as streets and are dropped
+  by the author (its middle is at sea / an end will not come ashore).
+  TRAP MET: the DEM is clamped at 0 over the sea - there is no bathymetry in it, the seabed is
+  synthesised by 28_island.js `seaFloor` - so `dem <= -1` is never true anywhere and everything that
+  searched for water by height searched for ever. The COAST FIELD is the test.
+  TRAP MET (dangerous): bench/ was junctioned into the worktree to run the gates. `tools/_serve.js`
+  records that `git worktree remove` and the app's cleanup FOLLOW a junction and have emptied the real
+  bench/ twice. The junctions were removed the moment that was read; `tools/island_node.js` now falls
+  back to the main checkout's bake the way `jolene_author.py` already did, and the preview is served
+  with `--fallback`.
+
+- THE RECORD. `tools/metlakatla_author.py` (new) holds the town; `tools/jolene_author.py` imports it
+  and splices its layers in, because ONE record per island is all the runtime composes. rev 5, the
+  extent the union. 73 streets (the grid pulled off the view, plus Walden Point Road, Airport Road,
+  Skaters Lake Road, the graveyard road, the subdivision and Breakwater Road traced by hand), 11
+  zones, 63 sites, 11 ttype polygons, 40 poles, the `MKSEA` sea lane off the north point - Metlakatla's
+  own seaplane base, and an aerodrome of the world like any other. The zone sower cuts 348 plots: the
+  real town is about 350 houses.
+  THE WATERLINE IS NOT THE BEACH. The 10 m grid's coastline sits some 30 m inland of the real one
+  here, so a street traced at its true position lands in the sea. Rather than invent fill under the
+  whole waterfront - which would cut a step through the town behind it - a point that is not far
+  enough inland WALKS up the coast field's own gradient until it is (`pull_inland`), a straight street
+  that still crosses a cove is trimmed to its longest dry run, and what cannot be got ashore is
+  dropped and said so. A pier's root walks the other way, to the waterline.
+
+- THE HARBOUR KIT, `tools/_marine_gen.js` (new, the fifth generator): `marine/trestle pier` (piled
+  walkway, T or L head), `float dock` (a REAL float - pontoons at water level, finger floats at a slip
+  pitch, a hinged gangway, pile GUIDES the collar rides), `breakwater` (a rubble mound, armour stone
+  on its flanks, a light on the head), `wharf deck` (a planked platform on bents - the thing BIG_GEN
+  cannot do, it has no stance and no water at all), `net pens` (the fish farm: a collar grid, nets
+  under it, a feed shed on a float, mooring buoys). 11 presets, all built headless. None of this
+  existed: the wooden `pier_*` props are a fixed piled kit reachable only as a slot on a house that
+  sits in the tide, and `placeSite` turns that off for every hand-placed item.
+  THE BUG THAT HID THE WHOLE HARBOUR: `render_premises.js` placeBuilt iterates `stats.lit.lights`.
+  MARINE_GEN published a NUMBER there; the loop threw inside the renderer's own try, and all 26 items
+  silently built nothing while the record said they were placed and the gate said the record was
+  clean. GATE PREMISES rule 14m now builds every placed item and asserts the lamp LIST.
+
+- THE CONTRACT (§9): v1.19 road `smooth` (a circular fillet applied once in compose, so the ribbon,
+  the grade, the cover query, the traffic and the guardrails see one line and the record keeps the
+  drawn polyline); v1.20 the `ttype` LAYER, which stamps a terrain-type code into the island's own
+  ttype grid - the one grid the ground's packed texture, the tree fill and the cover ring all read,
+  which is why one polygon moves the ground and the vegetation together; v1.21 `P.waterY` measured AT
+  THE ITEM (it was one number read at the anchor, inland, `-Infinity`: every pier was built at minus
+  infinity - the same trap that stopped a harbour zone sowing at G434) and `P.floorOverWater`, which
+  stands a building on a DECK.
+
+- 15 LUSH, the terrain type the user asked for: the bright green that borders a road cut and fills an
+  old clearing, mapped to the `borders` mix - deciduous shrubs, holly, raspberry, a birch here and
+  there - which had been ORPHANED since codes 7 and 14 were re-pointed on 2026-09-21. The `lush`
+  texture set (library index 12) had been sitting unused since the same day. It needed the shader's
+  raster clamp lifted from 11 to 15 and `NCODE` widened to 16, in both the viewer and the bench: a
+  byte over the clamp read as shingle. 42 ha stamped along Walden Point Road and its clearings.
+
+- GATE PREMISES section 14 (new): the island's own premises, composed on JOLENE with the full
+  catalogue - no other section touches the record the game actually boots, and nothing at all touched
+  the harbour kit. It holds: no issues; every site item resolves; every marine item REACHES the water
+  (a pier may start on the beach, its far end may not); no street of the town runs through the sea;
+  every town flatten is absolute; the cover stamp lands and is exactly undone; `smooth` is a no-op
+  when absent; the sea lane is an aerodrome; and 14m above. bench/ absent, the section says so and
+  skips.
+
+- MEASURED / OWED: see the entry's tail.
+
+- MEASURED (static): the record composes in 1.9 s headless; the renderer reports 2.48 M triangles,
+  1210 ground chunks and 415 built things over the two places. GATE PREMISES 325 checks green, and the world /
+  biome / settle / house / village / pavement / tree / splat / light gates with it.
+- RED AT HEAD, NOT MINE: GATE SKINMAT (`role rows for sections no build emits - taperPanel,
+  drawnPane, reveal, shoulder, doorPanel`) fails identically on a clean worktree at 15ed5bfc.
+- tools/met_perf.js (new) is the TOWN's benchmark - headless Chrome, the game rolled out on Jolene,
+  the aeroplane teleported to a named station and held, the streamer settled, 120 frames with the
+  world update and the render timed apart, and THE AIRFIELD AS THE CONTROL in the same run. It does
+  NOT yet produce a number on this machine: the headless page never lifts its boot overlay and the
+  first run printed 0.4 ms medians with ONE draw call and twelve triangles - a number that looks
+  like a result and is not. It now REFUSES a frame under 50 calls and says why. What can be said
+  honestly is static: 2.48 M triangles, 1210 ground chunks, 415 built things, 1.9 s to compose.
+- OWED: the frame time itself, from that tool on a page that renders (or the F8 counter by hand);
+  Walden Point Road past Bayside to the ferry terminal; a Tsimshian LONGHOUSE (the Long House has no
+  equivalent - `totem/park`'s clan house stands in); the fuel tanks, the ferry linkspan and the quarry
+  (deferred by the user); and the civic buildings by the user's eye - they are placed from the
+  registered close views to about +-10 m, and the residential fabric is sown, not placed.
+
+## G511 — METLAKATLA, THE SECOND DAY: THE TOWN BY THE USER'S OWN HAND, AND THE CLIPPING THAT WAS NEVER THE ROAD'S
+
+Everything here came from the user looking at the town from the air and **drawing on the picture**.
+The reusable half of it is `tools/met_axes.py`, which reads an annotation back into game coordinates,
+so a correction arrives as a measurement rather than as a description of one.
+Full account: `futureDesigns/METLAKATLA-2026-09-22.md` §8-16. Contract: v1.22.
+
+### The clipping, and why it was everywhere (the priority, and it was not the road's)
+
+The user: *"terrain clips through roads all the time, and that's unacceptable"*, then *"but also plot
+textures clipping"*. **One bug.** The INNER RING is a fixed 9 km square about the ORIGIN (`INNER
+4500`) and it is the only ground tier that has ever heard of a premises: its vertices are
+`world.terrainH` — composed, so a road's cut is in them — and `groundSink` drops it 4 m wherever the
+premises' own 2 m patch covers. Everything past 4.5 km is the baked quadtree at its **raw DEM
+height**: `y = n.h[...]`, no modifier, no sink. Metlakatla is **9.4 km** out. So the town's road cuts
+were carved into a ground nothing drew, and the un-cut mesh stood through every ribbon and every lot
+patch alike. `sinkFar` now applies the ring's own rule to the far tier after the patch stands —
+**30 369 vertices at Metlakatla**, and the page says so in the console. The roads session was right
+that it was the bake and not `pavement.js`; it was not the bake's *heights*, it was that nobody had
+ever put a premises more than 4.5 km from the origin. GATE PREMISES 14q.
+
+### Reading a drawing — `tools/met_axes.py`
+
+`--colour red|green|blue --shape lines|region|marks|hulls [--pixels]`. The picture's own orange grid
+(drawn by `met_trace.py`) gives the calibration as a fitted **lattice**: half the grid is buried under
+roofs and labels, one threshold found four of eight columns, and the mean gap between *those* came out
+at exactly half the real scale — a calibration wrong by a factor of two that looks entirely
+reasonable. The strokes are masked, closed, blob-filtered, thinned (Zhang-Suen) and read as a graph.
+**Three traps worth the ink**: `np.roll(a, -dy, 0)` is the neighbour at `+dy` and with the sign the
+other way the thinning does nothing at all (8989 pixels came back as 8989); a one-pixel 8-connected
+DIAGONAL has three neighbours at every step, so a plain degree test called 1108 staircase pixels
+junctions and returned 2470 two-pixel "branches" for nine drawn lines (a diagonal edge whose ends
+share a 4-neighbour is redundant and is dropped); and a hand-drawn stroke grows a spur at every bump
+on its edge. A stroke is carried THROUGH a junction it merely crosses, by tangent. Measured: **8989
+red pixels -> 11 branches -> 10 axes over 4089 m**, the two picture axes agreeing on the scale to
+0.24 %.
+
+### The three passes
+
+1. **The axes.** *"you have been too approximative in your grid ... I have traced in red some axis ...
+   that would break your absolute grid pattern."* The grid came from a vote, and a vote over a rotated
+   regular grid answers with a rotated regular grid: 73 straight segments on two bearings, every one
+   defensible and the whole visibly wrong. The ten drawn axes are arterials (paved, 6.5 m,
+   `smooth: 26`); a voted street lying on one for over 55 % of its length is dropped.
+2. **Three pens on one picture.** GREEN the seafront road (`mk_r_shore`, 329 m); BLUE seven ticks,
+   each within 4.6 m of `mk_sa27` and nothing else — a tick is a PLACE, so the rule is a place rule,
+   not an id, which survives a re-trace; RED a closed loop, 17.5 ha of the south-western quarter where
+   the drawn axes ARE the street plan, and 17 voted streets dropped inside it.
+3. **Four blue strokes**, each matching one road at 100 % of the STROKE's own points. **The test runs
+   the other way round from the axes' one and getting that back to front cost an hour**: a stroke is
+   drawn over PART of a street — it says *this one*, not *all of this*. Tested the wrong way the three
+   marked roads scored 0.31-0.54 and none was dropped. A traced road is TRIMMED rather than dropped.
+
+### What the roads do to each other — `tools/met_cross.js` (new)
+
+A record's roads are authored one at a time and nothing had ever looked at what they do to EACH
+OTHER. Doubles (the same street traced twice), sliver crossings (under 28 deg, where the ribbons
+overlap for tens of metres and the paint, the band and the guardrails fight inside the lens), near
+misses (an end 1-12 m short of another road — a junction the network does not have: the traffic will
+not turn there, the pole line stops, the sower reads two unconnected frontages) and stubs.
+**Doubles 3 -> 1, near misses 26 -> 0**, by a **snap -> drop -> snap** pass in the author: two streets
+10 m apart score as a 19 % double and survive, and snapping their ends onto each other makes the same
+pair a 52 % one, which is the honest reading — they were always the same street.
+
+### The fabric
+
+**528 plots** (was 344): 31 of 73 streets had their middle outside every zone and 21 cut no plot at
+all. A CATCH-ALL zone sown LAST fixes it, because `sowPlots` rejects a plot overlapping one already
+sown and the zones are walked in ARRAY ORDER — the named quarters claim their own, the envelope fills
+the rest. **It silently sowed nothing at first**: `pull_inland` broke the hull's winding, three
+corners came back two metres apart and out of order, and `compose` drops a self-crossing zone where it
+stands without a word. **744 garden trees** (was 0). **Seventeen civic buildings stood in the
+carriageway** and now none does (`tools/met_nudge.js`, using the composer's own test on the COMPOSED
+roads — my own corner test missed the half of it where a road runs THROUGH a foot without either
+corner being near its centreline). **The ball field takes its block**: streets are 46 m apart and the
+smallest honest park is 91 x 76 m even with the outfield cut from 80 to 56, so no position within
+120 m clears the grid — any street entering its box is cut at the fence.
+
+### Terrain type 16 `residential`
+
+*"fill the empty patches and in-between land with a new biome, small and medium conifers from the
+forest pack, high density, occasional bushes."* NOT a premises `forest` zone, and the reason is a
+number: at that density the gaps are ~39 ha, which `planForest` would put twenty thousand INDIVIDUAL
+trees into the record — and `render_premises` builds one `THREE.LOD` per record tree. The island's own
+fill draws that density instanced for nothing and is driven by the TERRAIN TYPE. So the new thing is a
+**biome** and the premises' job is only to say WHERE: the town's own zone polygons with the new
+`clear: true`, which stamps only the cells with no plot, no road, no site foot and no paving.
+**38.75 ha.** The scribble is the confirmation, not the definition — what the green marks point at is
+a rule that holds everywhere in the town, which no traced polygon could follow round 350 plots.
+
+### The lawn's grade, measured not guessed
+
+A four-step ladder from one boot (`LOT_GROUND.grade()`), the lawn's own pixels found as the ones the
+grade moves and the island's wood as the green it cannot, both in linear light: **0.70/0.93/0.50 ->
+luma 0.199, sat 0.34, 2.08x the wood**; **0.95/0.64/0.15 -> luma 0.146, sat 0.44, 1.52x**. The wood is
+luma 0.096, sat 0.37. At the old grade a lawn was twice the wood's brightness and two thirds its
+saturation, which is exactly "pale bright green"; at the new one it is half again as bright and a
+shade MORE saturated, which is what mown grass is beside a conifer stand. The new value is the
+default for every premises, not just this one.
+
+### Contract v1.22
+
+`ttype` takes **`from`** (the codes a stamp may replace — a flat stamp painted the bog, the rock and
+the beach the same as the wood) and **`clear`** (only the cells the premises leaves open). The
+stamp's undo **unwinds BACKWARD**: two stamps may cover one cell and the second saved what the FIRST
+wrote, so forwards the cell keeps the first stamp's code for ever — invisible until two `ttype`
+polygons first overlapped. A catalogue entry may refuse a lot with **`lot: false`** (the user found a
+fence round a pier: `buildItem` dresses every hand-placed item like a plot for every category but
+`sports` and `landmark`), and so does anything on a deck, whose lot would be laid on the seabed.
+**Garden trees**, compose stage 5e.
+
+### Widths, and the roads session
+
+Metlakatla's grid is 5.0 m paved / 4.5 gravel and the arterials 6.5 m, chosen against G508's
+`lanesOf` so the back streets come up one-lane and only the arterials take a centre line; every paved
+grid street carries `pav: { marks: 'none' }`, because a rural Alaskan town's avenues are bare chip
+seal to the shoulder. Asking whether a `pav` typo would be caught produced **G508.1** on master: it
+would not have been, and the band/pav/look checks had never run on a road or a runway at all.
+
+### MEASURED
+
+Record composes in 1.3 s with **zero issues**. 62 town roads, 528 plots, 744 garden trees, 63 sites,
+24 ttype polygons. GATE PREMISES **PASS at 338 checks** (14n/14o/14p/14q new, each with a negative
+test — 14o was proved by deleting the `from` filter and watching it go red). GATE SPLAT and GATE TREES
+green with `NCODE` 17.
+
+### NOT VERIFIED — the user asked for the box back
+
+The **full gate battery has not been run** since these changes. The clipping fix has **not been looked
+at in a picture** from low over a graded road: the vertex count says the ground moved, the eye has not
+said the clipping is gone. The residential vegetation has been **probed, not judged** (`TREE_FILL.at`
+answers `residential` over the gaps, on FOREST_FLOOR and GRASS ground, but the fill still had 1164
+chunks queued when the last shot was taken). **Perf is still owed** and is a bigger question than it
+was. `futureDesigns/METLAKATLA-2026-09-22.md` §16 lists what I would do, in order.
+
+## G542 — THE GRASS UNDER THE TREES IS THE SAME GRASS: the forest floor's dark texels, and only those, walk to the open ground's colour (2026-09-23)
+
+THE USER, circling two patches where the forest floor meets an open slope: "move the forest texture to match
+better the surrounding grass. Not perfectly, but better. So we can believe that the grass in between the rocks
+is the same as the grass on flat planes. On the forest floor texture, the brightest areas are rock, the darkest
+are grass. If you can selectively edit only the grass, that would be ace."
+
+THE SENTENCE THAT MADE IT POSSIBLE is the third one, and it is an observation about THIS photograph that no
+general rule would have found: in `forestAir` the BRIGHT texels are rock and the DARK ones are grass. G537's
+per-texel lift keys on green-dominance, which is right for a leaf on a boulder and useless here - the floor's
+grass is a dark brown-green and its rock is the bright part, so hue separates them badly and VALUE separates
+them perfectly.
+
+SO THE MASK IS LUMINANCE, against the set's OWN mean (uSLum, which the shader already carries for the macro
+tint): dark = 1 - smoothstep(0.55 x mean, 1.25 x mean, texel). The split therefore follows the photograph, not
+a number someone typed, and it will follow it again if the set is ever re-baked.
+
+AND THE PULL IS A RECOLOUR AT CONSTANT VALUE: the texel keeps its own light and dark - all of the texture's
+structure, every pebble and shadow - and only its COLOUR walks toward the target, by `hue * l` where `hue` is
+the target at unit luminance. Nothing is brightened or flattened.
+
+THE TARGET IS MEASURED, NOT PICKED: it is the mean of the open-ground sets the user is comparing the floor
+against - the heath's `grass` and `dry` and the scrub's `grassRock` - each after its own normalisation, so if
+the island's grass moves the forest floor follows it. `grade.forestAir.grass` is how far the pull goes: 0 is
+the photograph alone, 1 is the open grass on every dark texel, and 0.6 is the user's "not perfectly, but
+better". It is live in F8 (WORLD.ground.splat().setGrade('forestAir', { grass: 0.4 })).
+
+GATE SPLAT holds the three things that make it that rule rather than a tint: the mask is the texel's value
+against the set's own mean, the pull is at constant value (`hue * l`), and the target is built from the
+open-ground sets rather than a constant in the shader. `grade.<set>.grass` joins the validated grade fields
+(0..1).
+
+PICTURES (bench/rock/): g_grassmatch.png is the mine with the pull at 0.6 - the slope's grass and the floor
+between the trunks now read as one grass, while the floor's bright rock keeps the tan it got back in G541;
+g_grassmatch_s0.png is the same frame with the pull at 0, which is G541 exactly.
+>>>>>>> 9d993ce3
+
+## G543 — METLAKATLA LANDS: the town merged onto master, as a jolene_parts part
+
+The chantier's own account is `futureDesigns/METLAKATLA-2026-09-22.md` (§1-17) and the contract
+amendments are v1.26-v1.30. This entry is the LANDING: what had to change to bring 112 commits of
+master and one town together, and what another session should not undo.
+
+### What the town is
+
+455 sown plots, 61 roads, 63 sites carrying 72 items, 3 699 placed conifers, 24 ttype polygons, the
+`mk_sea` seaplane base. Traced from the island's own IFSAR radar (which is already in the game frame,
+so no lat/lon is needed), then corrected five times from the user's own drawings — `tools/met_axes.py`
+reads an annotation back off a picture, whether it is a `met_trace` render with a coordinate grid or a
+raw GAME SCREENSHOT, which the game unprojects by restoring the shot's camera and marching a ray
+against the terrain.
+
+### The landing itself
+
+- **The town is now `tools/jolene_parts/metlakatla.py`**, the fifth part beside the airfield, the mine,
+  the native grounds and the tramway. Twenty lines: the 1 500-line author stays in `tools/`, and the
+  part is only the protocol's handle on it. `PREFIX = 'mk_'`, `PART = MK.layers()`, `EXTENT` as the
+  loader's `[x0, z0, x1, z1]`.
+- **`MKSEA` is `mk_sea`.** The loader refuses an id without its part's prefix, which is right, and
+  `mn_strip` / `nv_strip` / `tw_ski` already followed it. GATE PREMISES 14l moved with it.
+- **The base record declares `ttype`** (contract v1.27). It is the one layer a part may carry that
+  master's own record had never needed.
+- **`tw_t_square` and `tw_m_square` are deleted from `tramway.json`**, at that session's own request
+  and in their words: their summit becomes one platform at the strip head's level in their next
+  landing, and the two entries overlapped `tw_t_summit_apron` by 24 x 18 m at 0.8 m of level. That is
+  a defect the new GATE PREMISES section 14 found the moment the shipped record was first asserted
+  whole — it was there before this chantier and nothing on master had ever looked.
+
+### What master took from this branch, and what this branch gave up
+
+TAKEN FROM MASTER, and my versions deleted:
+- **`sinkFar` is theirs (G527).** Mine walked the far mesh's vertices once at boot; master's far
+  terrain is a view-dependent LOD that re-cuts as the eye moves, so a one-off walk is undone at the
+  next cut. Theirs lives in `patchOf` + `FARLOD.resink(bb)`, is called from `refreshGround`, sinks to
+  `min(raw, composed) - 4` so a cut deeper than 4 m cannot poke through, and re-sinks after a live
+  edit. The idea was this branch's and the implementation is better than it was.
+- **`island_node.js`'s bench fallback is gone** for G521/G523's explicit `FLYDIY_BENCH`. Mine existed
+  only because the island's grids were gitignored; they ship now.
+- **The patch materials, the per-chunk pick, `freezeStatic`, the LIFE block** — all master's.
+
+KEPT FROM THIS BRANCH, and both of these are load-bearing:
+- **`buildTrees()` in `rebuild()`'s GAME branch.** It sat below the early return in the bench path
+  only, so no premises record tree had EVER been drawn in the game. Invisible in a diff and invisible
+  in a screenshot until a record carried one. **GATE PREMISES 14p now asserts the call and the cull
+  level by source**, so a rebase cannot quietly read that hunk as a choice.
+- **The tree pool.** Every caller passed `pool: () => []`, so a record tree came out keyed
+  `stub|tree` and built as a placeholder cone. `premisesTreePool()` derives
+  `{key, size, sink, proportion, h}` from the pack's own collections.
+
+MERGED, not chosen:
+- **The lot refusal is now three tests.** `entry.lot === false` (v1.29, the harbour kit), `P.lot ===
+  false` (v1.24, the native session's clan house) and `isFinite(P.floorOverWater)` (anything on a
+  deck, whose lot would be laid on the seabed). They compose and all three are needed.
+
+### The measurements this chantier leaves behind
+
+- **The boot is linear in plots: 4.4 ms each.** Five cold boots at 92 / 138 / 264 / 318 / 455 plots,
+  all completing; 455 plots adds 1.6 s to a 14.6 s boot. The cost lands BEFORE the first named boot
+  step (+1385 ms at `treeBins`, the world's make where the record is composed); the span from the
+  first step to the first frame is flat (+235 ms across a five-fold range) and the `compile` step is
+  **7-9 ms at every size**. `render_world.js`'s "36 houses, 3 s — a worker or a ladder is owed" is not
+  the bottleneck any more, and a stall at a premises is not plot count. `tools/met_boot_curve.js` with
+  `MK_PLOTS` as the dial; it cuts ZONES and not only density, because the sower's gap chance caps at
+  0.95 and the catch-all refills whatever the quarters drop.
+- **Do not read a per-unit cost against a large fixed cost.** The ms/plot column FALLS from 159 to 36
+  as the town grows, purely because ~13 s of the boot is premises-independent. The slope is the fact;
+  the ratio is an artefact that says the town gets cheaper the bigger it is.
+- **The island's tree fill cannot deliver a painted biome at a settlement**, measured twice: 13 465
+  trees built with 55 576 chunks still queued after 61 s, and 29 531 with 71 771 after 92 s. Neither
+  converged. So the town PLACES its conifers.
+- **The pack has no small conifer.** Every conifer in it is a full-size model and the only species
+  with an `hMin`/`hMax` under 4 m are four deciduous shrubs. The canopy number scales a tree
+  UNIFORMLY (`s = can * gain / SH.h`, `sv.set(s, s*…, s)`) — it does not stretch a trunk, which I
+  asserted twice before reading the line that does it.
+
+### Owed
+
+A GPU frame time at the town. Walden Point Road past Bayside to the ferry. A Tsimshian longhouse
+(`totem/park`'s clan house stands in). The `ttype` layer has no editor tool. The civic buildings are
+placed from registered views to about +-10 m. And `city trees` (terrain type 16, its mix, the cover
+stamp of v1.30) is built, gated and switched OFF: it needs a small conifer asset, and turning it back
+on is one uncommented line in `metlakatla_author.py`.
+=======
+
+## G544 - THE PUDDLES ARE GONE FROM THE PAVEMENT: a draped mesh has no low spot, so a puddle on it
+## is a shape painted on a slope (2026-09-23, the user: "just fully remove the puddles on the
+## runways and the roads, they just look bad ... let's just remove them overall")
+
+TWO PASSES FIXED THEM AND NEITHER SAVED THEM, both today. The first found the cover knob applied
+twice, so `pudK` never got past 0.41 and the bed blended in at two fifths - a gloss decal on dry
+concrete. The second found that with a dark bed they still read BRIGHTER than the concrete, because
+at roughness 0.02 a puddle returns the whole sky and a mirror of a bright sky beats dark wet
+concrete; half the sky came back instead. Both were real, both measured, and the look did not
+arrive.
+
+THE REASON IS STRUCTURAL, WHICH IS WHY NO SETTING REACHED IT. The pavement is a DRAPED mesh: it
+follows the composed ground, and a runway laid over terrain has a crown, a crossfall and a grade.
+Water lies in a LOW SPOT and the mesh has none, so a puddle drawn on it is a shape painted on a
+slope - and the eye reads the shape before it reads the shine. A flat mirror normal on a surface
+that is not flat is the tell. That is a modelling problem, not a shading one: to draw standing water
+honestly the profile would have to carry real depressions and the puddle would have to fill them,
+which is the phase-2 item the design doc has always listed as "low spots off the drape".
+
+REMOVED: the `pud` field, `pudK`, the dark bed, the flat mirror normal, the roughness-to-0.02 mix,
+and the `gPudK` term in the specular hook (the shader global is gone with it). `puddleCover`,
+`puddleScale` and `puddleEdge` are retired from the recipe and from the editor's PAVEMENT knob
+table; `uWet` is `uWet.x` now, its other three components explicitly zeroed rather than left as
+stale meaning. `rec.pavement.puddleCover` has left Jolene's record - a retired knob left in a record
+is read by nothing and reported by nothing, which is the exact silence G508.1 existed to end.
+
+`wet` STAYS, and is the point of the distinction. A damp coast is a FILM: it follows the surface it
+wets, needs no low spot and makes no shape. Jolene keeps `wet: 0.45`, so 13/31 still reads damp -
+darker, glossier, the lane tones showing through - with nothing lying on it.
+
+- PROOF: screenshots/pavement/af_dry_s0.png (13/31 at 18 m: dry concrete, its joints, cracks, lane
+  tones, centreline and moss, no water anywhere) and af_dry_s1.png (the 13/31 designation plate: the
+  pale sheets that covered the band beside it are gone). Compare af_soft_s3.png and af_final_s0.png,
+  the two earlier passes. GATE PAVEMENT green; the record validates with 0 issues at rev 20.
+- LEFT ALONE ON THE USER'S RULING: the ground shader's bog pools on the muskeg (GF.poolAt on ttype
+  codes 3 and 7, the terrain session's). They are painted COLOUR, not a mirror, they sit in real
+  muskeg rather than on a graded surface, and they are what makes the bog read as bog from the air.
+  Different system, different verdict.
+- FOUND WHILE LANDING, AND NOT MINE TO FIX: the island fixture NO LONGER REGENERATES
+  DETERMINISTICALLY. Three consecutive `python tools/jolene_author.py` runs with no edits give three
+  different md5s. `tools/metlakatla_author.py:1206` seeds an RNG with the builtin `hash()` of a
+  tuple containing a string, which Python randomises per process, so the walked yard rings move
+  every run. That breaks "regenerate, never hand-merge" - the property the five-session parts scheme
+  rests on - and makes `--absorb` report phantom edits for `metlakatla.py`. Reported to that session
+  with the one-line fix (a stable digest: crc32 / md5, anything but `hash()`). Until it lands, a
+  fixture diff between two sessions cannot be trusted to mean anything.
+- FILES: src/viewer/pavement.js (the recipe, the KNOBS row, the wet block, the globals, the debug
+  view, the specular hook, the uniform), tools/jolene_author.py (the record's `pavement`, rev 20),
+  tools/fixtures/island_jolene.json, futureDesigns/PAVEMENT-2026-09-21.md section 13 - rewritten as
+  the retirement, keeping both passes' reasoning, because the reasoning is why the feature could not
+  be saved.
+
+## G545 — THE TRAMWAY ROAD IS A SMOOTH T OFF WALDEN POINT ROAD (2026-09-23, the user: "do the road to metlakatla yourself" ... "make it smooth, no hard corners")
+
+With Metlakatla on master (G543) the valley station's road met mk_r_walden - at its very END, leaving it
+backwards: Walden arrives heading ENE and tw_r_access left NNW, a ~120 deg hairpin, and it then climbed
+the coastal bank where it is steepest (x -1500: 23 %). Redrawn in the world editor as a T square to
+Walden's straight run between (-1570,-8312) and (-1437,-8296), at x -1550 where the bank is gentle
+(8-10 %), sweeping east up to the car park and ending inside it, `smooth: 40` (the circular fillet of
+contract v1.19) so every bend is an arc; it follows the ground (grade null). met_cross: no double, no
+sliver, no near miss on it. THE FIXTURE WAS SPLICED, NOT REGENERATED: on master, jolene_author.py does not
+reproduce the committed record - 14 of Metlakatla's DEM-walked shapes come out with other vertices in a
+clean worktree (told them) - so only tw_r_access changed in island_jolene.json, rev 21.
+
+## G546 — THE ISLAND FIXTURE WAS NON-DETERMINISTIC, AND IT WAS ONE LINE OF MINE (2026-09-23, reported by the pavement session)
+
+- THE SYMPTOM: three consecutive `py -3.11 tools/jolene_author.py` with no edits between them gave three
+  different md5s of `tools/fixtures/island_jolene.json`. THE LINE, in `metlakatla_author.py`'s `gyard()`:
+  `random.Random(hash((yid, seed)) & 0xffffffff)`. Python randomises `hash()` of a str PER PROCESS
+  (PYTHONHASHSEED is random by default since 3.3), so it seeded a different generator every run - while the
+  docstring three lines above promised "the same bay on every re-run". It is `zlib.crc32` of a formatted
+  string now. Proved with eight consecutive regenerations to one md5, three of them under an explicitly
+  randomised PYTHONHASHSEED.
+- WHY IT IS NOT A COSMETIC DIFF: five sessions author ONE generated 176 kB record through `jolene_parts`,
+  and the property that makes that safe is REGENERATE, NEVER HAND-MERGE - anyone may regenerate and get the
+  same bytes. Every session that ran the author got a spurious fixture diff, `--absorb` (G526) reported
+  phantom edits for parts nobody had touched, and the tramway session SPLICED its G545 road into the
+  committed fixture rather than regenerating, because regenerating moved 14 of Metlakatla's shapes.
+- AND THE RANDOMNESS WAS HIDING A SECOND DEFECT. With the seed stable the FERRY yard came out at 134 m2 of
+  its 8400 - four vertices, a sliver. `gyard`'s repair loop deletes self-crossing vertices one at a time and
+  nothing asked how big what was left still was, so a folded ring was eaten down to something perfectly
+  simple and perfectly useless and every test above it passed. The old random seed had simply thrown a good
+  ferry yard on the run that happened to get committed. Now an AREA GUARD (under 0.40 of the rectangle is
+  destroyed, not repaired - the four sound yards keep 0.59 to 0.92) and a DETERMINISTIC SEARCH in place of
+  one throw: four salts at each of three bites, fixed order, first that comes right wins. The ferry's
+  rectangle lies half in the water so its walk ashore drags every seaward vertex onto its neighbours; with
+  the search it is 11 vertices at 0.58 of its rectangle instead of falling back to a bare rectangle.
+- A DIAGNOSIS WORTH KEEPING, because it looked like something else: the tramway session reasonably read the
+  14 moving entries as a bench-vs-shipped DEM mismatch. It was not. `mk_f_gas` is built `coast=False` and
+  its outline reads NO DEM at all, so it cannot move for a DEM reason; and a reseed moves a non-corner yard
+  vertex by up to 5.8 m while the four CORNERS never move at all (`edge` is 0 there, so `k2` is 1 whatever
+  the draw), which is why a 6 cm delta on one vertex looks far too small to be a reseed and is exactly that.
+- GATE PREMISES 14r, negative-tested: a source scan over `metlakatla_author.py`, `jolene_author.py` and
+  every `tools/jolene_parts/*.py` refusing a builtin `hash(`. Reintroducing one makes the gate FAIL on that
+  line. 338 checks. It guards all five parts, not only this one.
+- FILES: tools/metlakatla_author.py, tools/_premises_check.js, tools/fixtures/island_jolene.json.
+
+## G547 — THE USER'S OWN TONE ON THE FOREST FLOOR, in the photograph where it belongs (2026-09-23)
+
+THE USER tuned the forest ground in GIMP and sent the dialog: Hue-Saturation, Master, HUE +13.2, LIGHTNESS
+-60.4, SATURATION +0.6, Overlap 0, Replace, 100 %. "Simply apply that transformation to the forest ground, and
+screenshot, nothing else." The first attempt came back far too dark - "we didn't have the same methods" - so the
+transform was split at the place where the two tools disagree:
+  - THE HUE AND THE SATURATION ARE BAKED INTO THE MAP, in GIMP's own HSL over the sRGB values, which is
+    unambiguous and is what the user actually saw;
+  - THE LIGHTNESS IS THE SHADER'S GRADE, because a slider called "lightness" is not the same operation in two
+    programs and guessing which one it is was the whole error. A ladder of greys was shot from ONE boot with
+    the live grade (bench/rock/i_l100*.png: the hue alone, then #bfbfbf, #8c8c8c, #666666) and the user chose
+    #bfbfbf.
+The forest floor therefore ships as: forestAir's colour map hue-rotated +13.2 and saturated +0.6, under a grade
+gain of #bfbfbf. G542's grass pull is OFF for this set (grass: 0) - the tone is in the photograph now, and the
+two together would have been the correction applied twice. The mechanism and its gate rules stay.
+
+THE STORE IS CONTENT-ADDRESSED, and this is the part a future reader must not trip over: a file under
+media/tex/splat is NAMED BY THE SHA256 OF ITS OWN BYTES, so a hand-edited map under the old name is a lie the
+whole chain believes. The toned map is written as its own hash (forestAir_diff_512.98ef9d66.jpg), the untoned
+one is pruned, and splat_tex.js carries both the new path AND THE RE-MEASURED MEAN (0.132/0.1172/0.0305 against
+0.1259/0.083/0.026) - that mean is not decoration: the macro tint's `rel`, the uSLum pivot G542's grass mask
+uses, and the colour a grass tuft takes at its foot all read it.
+
+AND THE TONE IS REPRODUCIBLE, because tools/splat_tex_prep.js rebuilds every file in that store from
+assets/splat/ and would silently drop this one: tools/splat_tex_tone.py (new) holds the numbers, applies them,
+renames by hash, patches the manifest and re-measures the mean. It is SAFE TO RE-RUN - the table carries the
+prep's own untoned hash (c019a81f) and the tool refuses to act unless the manifest still names it, so toning
+twice, which would rotate the hue twice and leave nothing to see it, cannot happen.
+
+PICTURE: bench/rock/j_landed.png - the mine with what is now on master.
+
+## G548 - THE PIVOT WAS THE GRASS CARD'S: G538's contrast dial was an albedo kill switch, and the user's eye caught it a day later (2026-09-23)
+
+G538 landed uFlat 1.35 on the impostor and justified it with real numbers - canopy luma 0.1317 ->
+0.1025 and cv 0.223 -> 0.291, darker and bittier, exactly what had been asked for. Both numbers were
+true and the reading of them was wrong. The user, a day on: "the trees are now a little too dark.
+Yet they were too bright before. Can you bring them back about 2/3 of the way towards the tree color
+of now?" Measuring the way back is what found the fault.
+
+THE TERM IS `mix(vec3(uFlatMean), texel, uFlat)` AND IT EXPANDS CONTRAST AROUND uFlatMean. That pivot
+is meant to be the map's own mean lightness - cover_ring.js computes it per material, (mx + mn) / 2.
+The impostor material inherited the literal 0.4, the grass card's number, while the sheet's own mean
+albedo MEASURES 0.0154 (read back off the drawn layer through textureLod, scratch sheet.js). Every
+texel darker than the pivot is driven down, so the whole canopy clamps to zero at flat ~ 1.04. The
+swept curve says it plainly: 0.1344 at flat 1.0, 0.1165 at 1.025, 0.1068 at 1.05, and then PINNED at
+0.1053 for 1.15, 1.6, 2.6 and everything above. G538's 1.35 is not "more contrast", it is the albedo
+switched OFF and the card left wearing ambient and fog alone. It read better only because it was
+darker than the bright ground, and its cv rose because what remained was lighting structure rather
+than tree.
+
+THE TELL WAS IN G538'S OWN DATA. That entry records "3.0 and 1.35 are the same frame to four
+decimals" and calls it saturation, without asking why a contrast term would ever saturate. A dial
+that stops responding is not a dial that has reached its limit, it is a dial whose output has been
+clamped, and the difference is the whole diagnosis. Written down because the measurement was right
+and the inference was not - the instrument rules from G538 do not protect against that.
+
+THE FIX is to put the pivot where the sheet actually lives. At uFlatMean 0.05 flat is a dial again
+and the whole curve is usable: 1.15 -> 0.1240, 1.3 -> 0.1145, 1.6 -> 0.1068, 2.0 -> 0.1054. The
+default is 0.05 / 1.30, which is the user's own two-thirds: their target computed from the ends
+measured in the same run was luma 0.1150 and the shipped pair reads 0.1145. It also lands the tier on
+its reference - the SAME trees drawn as real geometry in the same frame measure luma 0.1140 and cv
+0.223, against the card's 0.1145 and 0.252 - so the cards now match the trees they stand in for by
+expanding contrast rather than by deleting albedo.
+
+AND THE CARDS WERE NEVER THE PROBLEM. Before the pivot was found, this session spent four runs
+hunting the "missing bittiness" against the GROUND's cv of 0.766 - which was never a comparable
+number, because the ground's mask carries roads, shadows and terrain features while the card's
+carries crowns. Drawn as geometry at the same eye the same trees read cv 0.254 against the cards'
+0.229: the impostor tier is faithful, and the atlas baker needs nothing. Two further claims from that
+hunt are RETRACTED here: the atlas is NOT missing its mip chain (initTexture allocates every level
+and gl.generateMipmap runs once a batch - the empty `mipmaps` array and generateMipmaps false are
+what that design looks like from the JS side), and the sheet is NOT flat (cv 0.633 at mip 0, the
+chain costing about a quarter of it). What does compress the canopy is an additive, texel-independent
+term worth roughly two thirds of what reaches the eye - and it compresses GEOMETRY identically, so it
+is a world-lighting question and not an impostor one. Never measured to a single term; the run that
+would have named it (fog / hemisphere / environment) produced nothing in ten minutes with the GPU at
+9.5 of 10 GB under peers.
+
+- REVERT, with no code change: TREE_LOD.imp({ mean: 0.4, flat: 1.35 }) is G538 exactly, and
+  TREE_LOD.imp({ mean: 0.4, flat: 1.0 }) is the draw as it was before either.
+- OWED: the pivot should be the SHEET'S OWN mean, computed at bake time per layer. 0.05 is one
+  measured conifer's; a birch or deciduous sheet will not share it, and until then those sheets are
+  tuned by a number that is not theirs.
+- FILES: src/viewer/render_world.js (uIFlatMean, IMPK.mean, TREE_LOD.imp({ flat, mean, vary })),
+  src/viewer/dev_panel.js (`imp pivot` slider, contrast range to 2.6).
+
+## G549 — A DRAWN AXIS THAT CAME BACK THROUGH ITS OWN JUNCTION IS TWO ROADS (2026-09-23, reported by the pavement session)
+
+- `mk_ax00` held the point (-4151.1, -8316.3) TWICE, at index 0 and again at index 6: the polyline walked
+  90 m out from it, teleported back to it and set off down the main axis. On the ground that is a 6.5 m
+  paved ribbon drawn twice over the same 90 m (z-fighting with itself) and a 179 deg spike at the seam -
+  the sharpest corner on the island by a wide margin, against a next-worst of 48 deg.
+- WHERE IT CAME FROM: `met_axes.py` walks the thinned drawing as a graph, and where the user's strokes meet
+  at a junction two branches share that vertex; `join()` concatenated them into one polyline. The extracted
+  MK_AX table has carried it since G511, and its own comment ("1157 m, 62 points") measured the length
+  THROUGH the teleport.
+- THE FIX IS A SPLIT, NOT A MOVE: `split_revisits()` in `axis_polys()` cuts a polyline wherever it returns
+  within a metre of a point it has already visited, and each piece runs the existing 60 m length filter. The
+  two pieces share a start point, which is what a T junction is and what the user drew. No authored
+  coordinate changes; the axes go from 10 to 11 and the ids shift, which nothing references by name.
+- MEASURED: the revisit is gone, no `mk_` road revisits any point, and the sharpest turn on any road of the
+  town falls from 179 deg to 40.6 deg (mk_r_skaters at index 1). met_cross stays clean - doubles 0, slivers
+  0, near misses 0 - so the 90 m spur reads as a junction and not as a double.
+- WHY IT HAD TO BE FIXED IN THE DATA: the pavement session's new `polyRoad` fillet rounds every real corner
+  to under 8 deg, but a REVERSAL cannot be filleted inside the road's own width - the bound that keeps the
+  smoothed line on the pavement is exactly what stops an arc helping. NOT YET VERIFIED against their GATE
+  PAVEMENT section 11: that check is not on master at the time of this landing, so the numbers above are
+  from this session's own measurement, not from their gate.
+- FILES: tools/metlakatla_author.py, tools/fixtures/island_jolene.json.
+
+## G549.1 — A REVISIT IS NOT A DEFECT; A REVISIT THAT TURNS BACK IS (2026-09-23)
+
+- G549's `split_revisits()` split a drawn axis wherever it returned within a metre of a point it had already
+  visited. The pavement session, testing their own section 11, found the counterexample and it applies here
+  too: **a RING ROAD returns to its own start legitimately**, and a bare revisit rule cuts it in two. They
+  built a 12-point circular street and their revisit test failed it, so they dropped the test; the same
+  counterexample would have hit this author the first time the user drew a loop.
+- TWO GUARDS NOW, and the reason each is needed: the polyline's own CLOSURE is left alone (a last point back
+  at the first is a ring, and a ring is one road); and the seam must TURN BACK, over 120 deg between the
+  segment arriving at the revisited point and the one leaving it. A loop rejoins itself going FORWARDS - a
+  small turn - while two branches concatenated at a junction leave along a different arm entirely. The
+  revisit is the trigger; the reversal is the test.
+- NEGATIVE-TESTED four ways, their method: a 12-point ring closing exactly on its own start survives whole;
+  mk_ax00's real seam still splits 6 + 4; a plain straight road is untouched; and a proper multi-point
+  hairpin - several points round the bend, no single vertex turning much - survives whole.
+- THE RECORD DOES NOT MOVE: three regenerations to md5 80510e64, byte-identical to G549's. The guards change
+  no shipped geometry, they stop a defect that is not in the drawing yet.
+- STILL OWED: verification against their GATE PAVEMENT section 11. It is not on master at the time of this
+  landing either; they are landing it on top of G549 and will re-run it over the island.
+- FILES: tools/metlakatla_author.py.
+
+## G550 - A ROAD DOES NOT TURN ON A POINT: every corner in the game is an arc now (2026-09-23, the
+## user, on the totem grounds' 2.2 m track: "can you ensure that all path have no sharp angles like
+## the ones in the image attached? They should be rounded at least a little, or smoothed overall")
+
+AN AUTHORED CENTRELINE IS A HANDFUL OF POINTS AND EVERY ONE OF THEM WAS A CORNER. The drawn ribbon,
+its band, its ruts, its markings, its guardrail and its power line all kinked at the same vertex,
+because nothing between the author's clicks and the mesh ever asked what radius a vehicle turns at.
+`PG.polyRoad` is the ONE function every road in the game goes through - the premises' roads and the
+analytic world's, their geometry, their surface tests, `roadDist`, the traffic, GUARDRAIL, POWERLINE
+- so the rule belongs there and nowhere else. It fillets now.
+
+FILLETED, NOT RESAMPLED, and that is the whole design. A spline through the authored points would
+move the STRAIGHTS: a road traced along a shore would drift off it, and a point dragged in the
+editor would stop meaning what it says. So the straights are kept exactly and only the corner is
+replaced, by the arc tangent to both legs. That is what a road is.
+
+THE RADIUS is the road's own, `w * 2.5` (a 2.2 m track rounds at 5.5 m, an 18 m street at 45),
+clamped to 4..60 m, then bounded twice so it can never misbehave:
+- BY THE LEGS: the tangent takes at most 45 % of either adjacent segment, so two corners close
+  together cannot eat each other and a short leg is not swallowed;
+- BY THE WIDTH: the arc's sagitta stays under 0.35 * w. THIS IS THE LOAD-BEARING BOUND. It is what
+  keeps everything that still reads the AUTHORED points - the pilot's taxi route, a premises surface
+  polygon, the editor's own drag handles - safely on the pavement, and it is why a narrow road
+  rounds less than a wide one. Past 0.5 the authored centreline would start leaving its own road.
+A turn under 3 degrees is left alone (it reads straight and an arc there is noise). The arc is
+walked every ~8 degrees, so `at()` traces a curve rather than a cut corner. The ends never move.
+
+MEASURED over the shipped island: the sharpest authored vertex is 48.5 degrees and every road comes
+out under 8. Nineteen of the 76 had a corner over 12 degrees - the airport road, the village
+streets, both totem paths, Metlakatla's shore and Skaters roads, the taxiway V.
+
+AND A TURN OVER 150 DEGREES IS LEFT EXACTLY AS AUTHORED, because it is not a corner: it is a road
+DOUBLING BACK on itself. Filleting one produces a 15 cm u-turn of twenty points - geometrically
+smooth, visually the same spike, and a ribbon folded on itself. A defect wearing a smooth face.
+
+- THE GATE, AND THE INSTRUMENT I HAD TO FIX FIRST (GATE PAVEMENT section 11). Its first version
+  measured the worst turn AFTER filleting, and that is the wrong instrument: a fillet spreads a 177
+  degree reversal over twenty 8 degree steps, so the road still doubles back and the number reads
+  7.7. Proved by planting a reversal in an 18 m road - the check said PASS. It had caught the one
+  real defect on the island only BY ACCIDENT, because at 6.5 m wide that corner's radius fell under
+  the fillet's own floor and was skipped rather than smoothed. It measures the AUTHORED line now:
+  a turn over 150 degrees at a single vertex, which is an invariant that holds for every road
+  whatever it was traced from.
+  I also WROTE AND THEN REMOVED a revisit test (a line returning within a metre of somewhere it has
+  been). It flags a RING ROAD, which is legitimate - a 12-point circular street failed it. The
+  Metlakatla session's author is right to act on a revisit because it knows the line came from a
+  traced drawing where branches meet at a vertex; a gate over every road on the island knows no such
+  thing and may only assert what holds for all of them. Their phrasing is the better one: the
+  revisit is the trigger, the reversal is the test.
+  NEGATIVE-TESTED THREE WAYS: a planted 177 degree reversal FAILS, a ring road closing exactly on
+  its own start PASSES, the island PASSES.
+- FOUND BY IT, AND FIXED BY ITS OWNER: `mk_ax00` repeated its start point at index 6 - the line
+  walked 90 m away and teleported back, drawing a 6.5 m paved ribbon twice over the same ground with
+  a 179 degree spike at the seam. Two roads concatenated at a junction by met_axes' graph walk,
+  carried since G511 and unnoticed because its own comment measured the length THROUGH the teleport.
+  Reported rather than patched (their geometry, their call); split by them as G549/G549.1. Verified
+  from the outside here on master's own record: 76 roads, no vertex over 150 degrees, 11 axes,
+  mk_ax00 6 points and mk_ax01 56, both starting at the junction.
+- AND MEASURED, because the bound is the whole safety argument: how far the DRAWN centreline moves
+  from the points the author placed, over all 76 roads. Worst on the island is r_airport at 1.48 m
+  on a 6 m road = 0.49 of its half-width; then v_west 0.45, v_north 0.43, r_village 0.42, the totem
+  track 0.35. Metlakatla's worst is mk_r_skaters at 0.99 m = 0.33. EVERY AUTHORED POINT IS STILL ON
+  ITS OWN ROAD, everywhere, with the nearest case at half the half-width.
+- FILES: src/core/27_premises.js (roadFillet, and polyRoad calls it), tools/_pavement_check.js
+  (GATE PAVEMENT section 11). No record moved: the fillet is runtime, every authored point is
+  untouched, and the fixture is byte-identical.
+
+## G551 - THE BENCH'S REED, IN THE GAME: the grass was a black mask because the game multiplied it by a number ten times too small (2026-09-24)
+
+THE USER, on the taxi shot at Jolene AFB: "That grass is ugly. I thought we obtained better results in
+the bench ... The shading is terrible." Three sessions had tuned shading dials against it. The ruling
+that ended that: "We will consider the mission over ONLY when we will have the same species, the same
+geometry, the same density and the same shading in game ... using the same methods exactly as the
+bench. We have it right just here, it's only about faithful port." Then one species: the bench with
+ONLY grass_reed, on its exact panel.
+
+THE BENCH AND THE GAME ARE TWO IMPLEMENTATIONS. tools/_trees.html does not load trees.js or
+cover_ring.js. Every cover dial was fitted on the bench and shipped to the game, and nothing checked
+that the two agreed on what the dials multiply. They did not, in four places, and none is a dial:
+
+- THE GROUND MEAN, 9-10x. The bench's GROUND_MEANS are the canvas BYTES' mean fed to
+  `new THREE.Color(r/255..)` - the sRGB mean used as linear - and that is what every `lift` was fitted
+  against. The game took means.json's TRUE linear mean and put the splat grade and G485's imagery
+  normalisation on top: dry 0.057 against the bench's 0.581, grass 0.044 against 0.378. A tuft's
+  instanceColor, dumped live, was (0.005, 0.008, 0.003). The texel was multiplied into nothing and the
+  screen showed sky ambient on a silhouette - "no shading, no texture beyond a mask" - and every A/B
+  of contrast or sat did nothing because both sit upstream of that multiply. meanOf is now
+  srgbEncode(linear mean), no grade: it reproduces GROUND_MEANS within 1 % (dry .584 vs .581, grass
+  .380 vs .378), so no second table ships.
+- THE MASTER, 1.87x. trees.js MASTER (sat 1.2, light 0.6) is, by its own comment, the CONIFER canopy
+  fitted to the imagery; the cover inherited it. Cover now takes the bench's committed master
+  (COVER_MASTER sat 1.58, light 1.12); the trees keep theirs.
+- THE NORMAL. G484's upHook forced the OBJECT normal up on a DoubleSide card; three flips it to
+  (0,-1,0) on every back face, so half the tufts went dark by where the camera stood. The bench has no
+  override. Removed from cover AND flowers.
+- THE AO. The bench forces a cover's aoV to 1; tree_prep never learnt it and grass_reed ships
+  0.565..1, i.e. 0.10 of the ambient at uAoBake 4. Filled with 1 on every cover geometry.
+And the count now takes the mix's forest.cover as the bench does (1 on every shipped mix; nothing
+moves). The ring's global density 2 stays - the user's density ruling was made with it in place.
+
+THE USER'S RULINGS, on the pictures:
+- "replace the grass within the biomes. They can all feature reed grass, but no other grass" / "keep
+  the pines, the debris and the bushes". Every mix that had grass now has one row,
+  grass_reed { proportion 0.4, density 0.48, patch 0, size 0.75 } - "twice the count in game today,
+  and 75 % size". Includes city_trees (Metlakatla), which landed after this chantier forked.
+  grass_plates, grass_dry, grass_scan stay in the pack, planted nowhere ("we may reintroduce plates").
+- "Leave the rig, accept the difference": the bench is ACES with no fill and a warmer, lower sun;
+  the game is Cineon with a 2.16 hemisphere. The albedo path agrees now; the paler read that is left
+  is the rig's, by the user's choice.
+- FIREWEED BACK in grassland, "a little taller than the other weeds", not ground-tinted, beds "a
+  little less regular than the ones of the bench, who really did super circular spots".
+  { proportion 1, density 0.12, patch 9, size 0.85 }.
+
+THE BEDS WERE NEVER PLANTED, which is why fireweed was never seen. The ring kept a flower where one
+octave of value noise exceeded 1 - bedFrac; bilinear value noise has thin tails, so measured over
+200 000 points the beds realised 7 % of fireweed's intended area and 14 % of foam's and bunchberry's.
+A thresholded field cannot hold the beds' SIZE and SPACING at once (a fine one shreds into slivers,
+a coarse one makes a few huge blobs - both tried), and the bench's own method can. So bedKeep keeps
+its structure - one bed per square of side patch x sqrt(pi/share), centre jittered, radius patch x
+its own 0.7-1.3 - and changes only the outline: an oval of its own axis and stretch (1-1.6), weak
+2/3/5 harmonics, a rim wobbled by a small noise and a soft ramp the tufts thin across. It realises
+the intended share within a few %. Its draw uses its own hash, so no other species' positions in the
+cell move. AND `size` WAS APPLIED TWICE: flowerCards was built at size and instanced at size, so
+fireweed stood 2.75 m and bunchberry 0.19 m (the bench: 0.43). Built at unit height now.
+Side effect, intended: foam and bunchberry under the forests get their full bed area and bench
+height - they were at a seventh of it.
+
+OPEN: fireweed from above. Beside a bed it fills ~4 % of the frame, from 30 m ~0.03 % - a vertical
+card is edge-on to a high eye. A top-facing card in the flower, or a ground tint under the beds; not
+decided.
+
+THE CONTRACT: futureDesigns/GRASS-PORT-CONTRACT-2026-09-23.md, the bench-vs-game table, and the
+standing rule it leaves - a cover dial fitted on the bench may not ship to the game until the two
+agree on the quantities the dial multiplies.
+
+- FILES: src/viewer/cover_ring.js (meanOf, COVER_MASTER, no upHook on cover/flowers, cover aoV 1,
+  forest.cover in the count, bedKeep, flowers at unit height), tools/_trees_tuning.json (the mixes),
+  src/core/trees_pack.json + src/viewer/trees_pack.js (tree_prep.py --biomes).
+- PICTURES (local, in the grass worktree's screenshots/grass/): BIOMES_LOW.png, BIOMES_30M.png,
+  FIREWEED.png, BEDS_MAP.png, RIG_VS_BENCH.png, REFERENCE_vs_GAME.png.
+- GATES: TREE, TREES, SPLAT, MEDIA, BIOME, WORLDRENDER green in the landing worktree.
+
+## G552 - ONE CONTROL, BOTH TIERS: the master tint down to 0.5, and why three attempts at "darker" took a day (2026-09-24)
+
+The user, after G548: "we're almost back to original look. I think it needs to be a little darker
+still. Don't try and be too clever here. Didn't we have a control to get both the mesh and the
+impostor darker at once? ... we're not converging here, and that's tiring." They were right on every
+count, including the last one.
+
+THE CONTROL THEY REMEMBERED IS `TREE_LEAF.tint({ light })`, the master tint over every collection.
+The near geometry's material reads those three numbers straight; IMPA.tbl carries the same three per
+layer for the impostor, synced live in IMPA.frame(). So it moves BOTH tiers by the same amount, and
+because it scales the tree's own colour it darkens without the clamping that made G538 a silhouette.
+MASTER.light 0.6 -> 0.5 here. Measured off one frozen boot over the forest strip alone: 0.60 ->
+luma 0.0767 cv 0.425, 0.50 -> 0.0722 cv 0.450, 0.42 -> 0.0687 cv 0.480 - smooth, monotonic, and the
+cv RISES as it darkens, which is the signature of scaling colour rather than crushing it. 0.42 is on
+the shelf: it lands on G538's brightness, which the user had already called a little too dark.
+
+WHY THIS TOOK THREE LANDINGS. Worth writing down, because the code was never the slow part.
+- G538 darkened by CLAMPING the albedo to zero (the pivot fault, see G548). It measured as darker
+  and bittier, both true, both for the wrong reason.
+- G548 fixed the pivot correctly and therefore handed the brightness BACK, because the albedo
+  returned. To the user that looked like a round trip: two landings to arrive where they started.
+  It was not - the colour and the detail are now real - but "you got them back to really bright" is
+  a fair description of what the screen showed, and the right answer was always the master tint,
+  which neither landing had touched.
+- Then two runs were burned on MY errors, not on the problem: `TREE_LEAF.master()` is a GETTER and
+  was called with an argument, so a six-row sweep returned the baseline six times and looked like
+  "the control does nothing"; and a `grep` on the rig's output swallowed the next run's result whole.
+  Each of those costs a full headless boot - roll-out, teleport, settle - about ten minutes on a GPU
+  shared with four other sessions.
+
+THE RULE OUT OF IT: when the user names a control, READ ITS SIGNATURE before sweeping it, and when a
+sweep returns the same number for every input, suspect the call before the renderer. And the cheap
+trick that ended it - three settings rendered in ONE boot into a 3-up overlay, then measured off the
+PNG afterwards with PIL. No second boot, and the user picks from a picture instead of from a number.
+The overlay's panels drifted slightly (the aeroplane moves between grabs even frozen), so the image
+is for judging and the strip measurements are for deciding; do not quote one as the other.
+
+- REVERT: TREE_LEAF.tint({ light: 0.6 }) live, or the constant in trees.js. G548's impostor dials are
+  untouched and still revert independently - TREE_LOD.imp({ mean: 0.4, flat: 1.35 }) is G538.
+- FILES: src/viewer/trees.js (MASTER.light).
+
+## G553 - GO C: the master tint to 0.42, the darkest of the three panels (2026-09-24)
+
+G552 shipped 0.5 out of the three settings rendered in one boot; shown the picture the user went
+straight to the darkest - "go C and land, don't run gates". MASTER.light 0.42, about 10 % off where
+G548 left the forest (measured over the forest strip: 0.60 -> luma 0.0767 cv 0.425, 0.50 -> 0.0722
+cv 0.450, 0.42 -> 0.0687 cv 0.480).
+
+Worth recording WHY 0.42 was the one held back and is now the one chosen. It lands on G538's
+brightness, which the user had called a little too dark - but G538 got there by clamping the albedo
+to zero, so the trees were silhouettes at that luma. At the same luma with the albedo intact, and
+with the extra detail the user noticed after G548, it is the look that was wanted from the start.
+A brightness number means nothing without saying what is producing it: the same luma read as "too
+dark" one day and as the target the next, and only the mechanism underneath had changed.
+
+GATES WERE NOT RUN, at the user's explicit instruction ("don't run gates"), to spend the box's time
+on the look rather than on a battery. `node tools/build.js` only. The change is one constant in one
+file with no structural reach, and the identical constant at 0.5 went through the full battery green
+one commit earlier (G552: TREE, TREES, MEDIA, WORLDRENDER, UISMOKE, WORLD, GFX). Anyone landing on
+top of this should treat the battery as owed rather than passed.
+
+- REVERT: TREE_LEAF.tint({ light: 0.5 }) is G552, 0.6 is G548, and TREE_LOD.imp({ mean: 0.4,
+  flat: 1.35 }) is still G538's impostor look, independently.
+- FILES: src/viewer/trees.js (MASTER.light).
+
+
+## G554 - NO WAIT, NO GUESS, AND THE LOADING TIME THAT WAS OURS (2026-09-24)
+
+The user: "not happy with the 6 seconds wait for profiling. Just start in standard. And have it as an option to have the
+adaptative quality on ... let's not do anything giving us a longer loading time". G533's first-launch tier probe is
+removed (gamer starts, nothing waits); the auto render scale stays in the menu as the render scale row's last step and
+no tier turns it on (pv 3 migration). LOADING, MEASURED: the Jolene roll-out's world step went 22.2 s (G533) -> 106.3 s
+(today's master, Metlakatla in); 28 s of it was OUR lots batcher (render_premises.js freezeStatic -> batchLots, G515)
+re-merging every lot at every build step of the boot - a square. Now a step freezes only what is new and the lots merge
+once when the queue is empty, the merge on plain arrays: 106 -> 73 s. The ring's LOD chunks (0.5 s a build, twice at
+boot) are built only when a tier cuts the ring. GATE PREMISES 15 (red on the old code), GATE GFX. The remaining 73 s is
+the town's house build (bakeAO 27.7 s, fences + lot grounds sampling the ground ~37 s) - handed on.
+futureDesigns/PERF-2026-09-23.md (G554).
+
+## G555 - THE TOWN'S HOUSE BUILD, THE SAME BITS IN HALF THE TIME (2026-09-24)
+
+G554 handed on the rest of the Jolene roll-out's world step: Metlakatla's houses, fences and lot grounds sampling the
+composed ground and baking AO. Five EXACT cuts, the geometry unchanged to the bit: bakeAO samples a ground column when a
+ray first enters it (it filled the whole box, 14 s of ground queries nothing read; the old fill kept as `groundEager`,
+the gate's reference); the grade modifier files its segments in cells of its reach under number keys (was 64 m, string
+keys - 18 s); lotGround's darkening keeps per grid row only the occluders that can reach it (9 s); sowPlots boxes and
+fillets each road once, polyRoad's at() bisects; the boot no longer composes the record twice (make, then rebuild()).
+Measured A/B on a quiet box, G554 from a clean worktree vs this: step:world 69.3 / 70.2 s -> 39.0 / 37.4 s. Proof:
+every premises group hashed after the roll-out (ground, houses, parked aircraft, lots, trees, roads, runways, tram,
+traffic, animals) equal; the composed ground equal at 125.9 M points. GATE VILLAGE 10c/10d and GATE PREMISES 16 hold
+the new code to the formulas it replaced (each red on a broken copy). Not done, and why: futureDesigns/PERF-2026-09-23.md (G555).
+
+
+## G556-G561 - METLAKATLA'S FRAME (2026-09-24)
+
+The user: "unplayable, and unacceptable performance drop for a single town ... do something and fix". The town (641
+houses, 3 644 record trees, 3 735 dressing props) took Jolene from ~17 ms to 108 ms over it (1080p gamer); hiding the
+premises gave the frame back whole, so it was all the premises: draw count, then shadow draws, then the walks.
+- G556 record trees instanced per 64 m cell, per species, per rung part (21 864 draws -> ~900).
+- G557 a house's thrift: dressing props end at 200 m and cast nothing, bags < 2 m cast nothing, a house past 600 m
+  casts nothing, the yards cast nothing, the trees' far rung casts nothing, and under 60 px a house keeps its 3
+  largest plain bags (+ glass, lit).
+- G558 a house's dressing is switched off at its top past 270 m (the walks skip it).
+- G559 THE FAR TOWN: past 150 m from a 256 m cell, its houses are one merged vertex-coloured mesh (WORLD.premises.hlod).
+- G560 a far house draws nothing of its own (its glass and lit bags went on drawing from 9 km).
+- G561 a settled house (after the boot, its props landed) is skipped by three's matrix walk; freezeStatic re-poses it.
+  (Skipping DURING the boot ran the heap to 18 GB - not done.)
+Measured (same rig, box shared with one session; ms a frame): stand 140 -> 34, 300 m over the airfield 41 -> 26.5,
+over the town 150 m 109 -> 26, 400 m 92 -> 20, 1.5 km from it 41 -> 27; the premises hidden: 13.6-18 ms. The rest is
+the premises' remaining walks and draws (roads 700, lots 660, near house bags) - next: merge the lots' sources out of
+the tree, a per-cell walk skip for the lots and trees.
+
+## G567 - THE COLD COMPILE, EXPLAINED AND COUNTED (2026-09-24)
+
+The user: "a dedicated loading message/screen explaining the first time compilation issue with a progress bar". The
+loading screen's shaders block (body.html #bootShader, boot.js BOOT.shaders(done, total, warm)): why the wait and a
+bar of the programs the driver has linked (app.js shaderProgress, renderer.info.programs isReady - never blocks). It
+shows after 1.2 s of a compile this browser has not finished for this build (localStorage flydiy.shaders.warm:garage /
+:world = FLYDIY_BUILD), after 6 s otherwise; a warm launch never shows it. Pending programs keep the watchdogs alive;
+the roll-out's cap is a 4-min stall (was 20 s flat, then the page froze ~3 min in 'frames'). THE GROUND'S COLD LINK
+(~3.5 min, the splat's 144 inlined fetches) is diagnosed in futureDesigns/PERF-2026-09-23.md G567: a loop version
+compiles in seconds but draws the ground 1.5-2x slower - not landed, the bisection is written there.
+
+## G568 - THE GROUND COMPILES IN SECONDS (2026-09-24)
+
+G567's diagnosis acted on: the splat's sample chain was 144 inlined fetches (fxc inlines every call site) - the cold
+roll-out's compile step 208 s. Now one straight triplet inlined once, the candidate loop running two passes per
+terrain type (near, far) - NO loop inside the candidate loop (a nested loop of sets drew the ground 1.5-2x slower on
+the GPU). Compile step 208.6 -> 33.6 s cold; the frame and the picture unchanged (same-page A/B, 3 heights).
+splat_ground.js sMatPass / sTriplet; GATE SPLAT 3 (call sites, no loop in the chain). futureDesigns/PERF-2026-09-23.md G568.
+
+## G570 - THE PREMISES DRAW AGAIN: PREM_NEAR was read in its TDZ (2026-09-24)
+
+G562 declared `const PREM_NEAR = 3000` next to worldUpdate, ~300 lines BELOW the premises block that reads it, and
+that block runs inline in buildWorldScene. Every boot since 681d799 threw `ReferenceError: Cannot access 'PREM_NEAR'
+before initialization` at `drainNear`, and the block's own catch printed it as `premises: the record did not render`.
+make + rebuild had already run, so the rig still had a premises (roads, patch, trams, traffic, animals), but the boot
+built NOTHING from the queue (houses, site objects, lamps, parked aeroplanes: 0; queued 695) and skipped the
+patch's ground re-sink (refreshGround(patchBounds), G434.1). The fix moves the declaration above the block.
+Headless roll-out of dev.html (Chromium/SwiftShader, jolene, 90 s after the press): HEAD 0 houses, 695 queued, the
+warning; fixed 84 houses (986 836 tris), 39 lamps, 42 objects, 20 obstacles, 569 queued, no premises line.
+(That rig never reaches the flight loop - worldUpdate is called 0 times in 115 frames - so the far stream could
+not be watched there, either way.)
+GATE WORLDRENDER (the only gate that runs buildWorldScene; UISMOKE stubs it) now hands the builder a premises
+record and a stub RENDER_PREMISES through a `window` that answers only the premises' two names and drops every write,
+and asserts make (game) > rebuild > drainNear(0, 0, 3000), no `premises:` warning, and WF.premises being what make
+returned. Red on 681d799..78fd4b1's source with the exact message, green with the fix. The sandbox now also injects
+sitePattern, sitePatternIssues and patternPath (the premises' `site` needs them).
+OWED: G563-G566's numbers were taken on commits that all carry this bug. Measured "settled" in the game, the
+per-frame stream would have built the queue by then (step() does not depend on drainNear), but in RECORD order, not
+nearest-first (drainNear is what sorts it), and the ground under the patch was never re-sunk. Re-take the over-the-field / stand / town numbers on a GPU.
+
+## G571 - L0 SHELVED: a parked aeroplane is L1 from 0 m (2026-09-25)
+
+The user: "They look good, so simply get rid of L0 for now (keep available for possible later reactivation, but
+transparent to the game) and have L1 by default, should be enough, and allow plenty of planes."
+`PARKED.L0` (default false) decides at `build` time whether a placement gets the interior rung. Off, the LOD is
+L1 (0 m) / L2 (120) / L3 (450) / cull (2500): no interior bucket, gauge, control, pushrod or wire is ever built
+(no geometry uploaded, no material made for them), and once the bake lands (G569) the aeroplane is ONE draw on ONE
+material from 0 m out - the draw count per parked aeroplane no longer depends on how close the camera stands, which
+is what lets the apron hold many of them. Before the bake lands, or with no WebGL renderer, L1 is the per-material
+exterior (merged by material, G565). The panes read as L1's dark slab even up close. The obstacle rasteriser and
+hitReady (render_premises) walk `levels[0]`, which is now the exterior: the same outline the aeroplane shows.
+`PARKED.L0 = true` restores the full ladder for placements built after the switch - nothing of L0 was deleted.
+GATE PARKED: 5b / 6c / 8 switch L0 on to keep proving the full ladder; new checks 9 prove the default (off by
+default; four rungs, L1 at 0 m, no interior geometry built, the far rungs one index lower and on the ground, the
+craft matrix; with the bake in hand, L1 / L2 / L3 each one draw on the bake's one material, standing where the
+full ladder does). 104 checks green.
+
+## G572 - THE PHYSICS, AUDITED FOR THE FRAME (2026-09-24)
+
+The user: "it seems like there's a CPU floor we're hitting ... have the physics been audited for performance as well
+as the graphics? ... bad performance when getting out of the hangar ... the climate manager, could it have introduced
+physics changes?". The graphics study timed the renderer; nobody had timed `sim.step` - which runs on the same thread
+before it. `tools/physics_perf.js` flies the game's road headless (Jolene + premises, the stand, the pilot's
+departFrom; floats on the SEA lane) and times the pilot and the solver per frame, `--hash` for bit-identity, `--core`
+for an A/B. BEFORE (this container): the stock build's taxi out of the door 11-18 ms of solver a frame, the user's
+birdman 19-29, metal Cessna 31-49 (200 substeps, the cap), Cessna on floats 36-50. Why the roll-out: on the island's
+composed ground every node reads the terrain every substep (the clearance cone is off: no slope bound declared) -
+~45 % of the solver on the stand. The climate: zero cost on the default (calm) day; a rich preset +20-30 %.
+LANDED, bit-identical (12 scenarios, same FNV hash of every p and v before and after): hyp2/hyp3 (00_registry.js) =
+Math.hypot TO THE BIT at 6 ns instead of 47 (V8's own algorithm written out; GATE HYPOT), in the solver, the hydro,
+the climate's field and the premises; the premises' pads skip the edge distance inside the polygon and past the
+feather; the road grade's scan screens segments by squared distance (1e-9 margin); the aero pass stops allocating
+per substep. Paired A/B: -22 % stock taxi, -30 % metal Cessna, -29 % birdman, -29 % thermal day, -16 % floats, -9 %
+analytic circuit. THE RULINGS WAITING (measured, not landed - futureDesigns/PHYSICS-PERF-2026-09-24.md): the island's
+cone (-40 %, hash identical where the bound holds; needs a true bound, a local one proposed), the vortex kernel once
+a frame as its own note says (-17 / -33 %; every build flies vortex since P5), the substep drivers (the alloy wing
+box asks 225; the birdman's 121 is two tailwheel dampers, the next beam asks 77), the hydro at a fixed 360 Hz
+(-30 % floats), frame pacing (the sim steps 1/60 per rAF: slow motion under 60 fps, fast and dearer on a 144 Hz
+screen), the solver's JIT warm-up in the first 0.5 s at the door (pre-step it under the roll-out screen).
+
+## G573 - THE REFERENCE PLANE, TIDIED, AND ITS SECOND SOURCE: THE BLUEPRINT (2026-09-25)
+
+The user: "we need first to revise the UI of the reference plane, because it gets really messy at time. Then I need the
+blueprint import functionality. The base case is a single blueprint image" - scale the sheet, isolate and name the views
+(box or lasso; front / top / side plus a free label), rotate (45 degree views) and mirror, set the ground line
+("especially important for taildraggers"), place the views in 3D automatically with sliders to move and turn them -
+"we need to have transparency on these too". Then, mid-way: "accessible from the reference plane entry in the tree,
+grouping the existing under a 3D model section, and these new ones under a blueprint section".
+
+THE TREE. `Reference plane` has two rows under it now, `3D model` and `Blueprint` (editor.js: a root may declare
+`kids: [{ key, name, badge }]`; a kid resolves through rootFor like a root, its panel is the root's own asked for that
+kid, `panel(kid.key)`, and the crumb says `Reference plane /`). Selected whole, the panel reads like an assembly: each
+source heads its block in the part rung (.edHP) with its groups under it; selected alone, a source starts at its
+groups. The root's badge shows only while it is folded (the rows carry their own).
+
+THE PANEL, REVISED (refplane.js). What was messy, measured on the C172: one flat column of 8 headings and ~50 rows, the
+26-row materials list scrolling inside the scrolling column, the measurements below both, every control drawn with
+nothing standing, the editor's reset part / expert rows / fold sections pills over a panel they do nothing to (hidden
+for every panel root now, editor.css `.noview`), "display only" said twice. Now: nothing but the picker and one status
+line until a model stands; folds (placement, look, size & measure open; materials shut, with its count); every value is
+TYPED as well as dragged (the `.v` readout is an input, and a typed number may pass the slider's ends); LABEL
+CONVENTIONS (`up / down`, `hides what is behind`). The row helpers are REFPLANE.ui, and blueprint.js builds its half
+from them.
+
+THE BLUEPRINT (src/viewer/blueprint.js, blueprint.css). THE DESK is a full-screen 2D sheet over the shed (inside #wsUI,
+so the row controls are the column's own), five steps: 1 SCALE (two points, a length, a unit - one metres-a-pixel for
+the whole sheet), 2 VIEWS (box or lasso, a kind and a label; drag to move, corners to resize, Delete), 3 ORIENT
+(rotation slider, the right angles, LEVEL / PLUMB = two clicks along a line that should be horizontal / vertical,
+mirror, and the EXTENT: the dashed box of the aeroplane's outline, trimmed off the ink automatically, edges draggable -
+it is what registers the views against each other), 4 GROUND (the side view's two tyre contacts: the parked attitude,
+and the wheels on the floor; front / rear views may set their own), 5 PLACE. MEASURE (two clicks, metres and feet) works
+in every step. Load by button, drop or paste; a sheet over 8192 px is scaled down once at import.
+
+THE LAYOUT (bpLayout, pure): one body frame off the side view's extent (nose x = 0, lowest point y = 0; x aft, y up,
+z left - the reference model's own frame). Side view on the centreline; top view with its nose under the side view's
+and its middle on the centreline; front view 0.5 m ahead of the nose, centred, its wheels (its ground line, else its
+extent's bottom) on the mains; rear view behind the tail; `other` beside the aeroplane, facing as asked. The body is
+pitched to the ground attitude (or datum level) + a trim and dropped so the lower tyre is on the build's floor. THE PLAN
+IS NOT PITCHED: pitched with the body, the test sheet's top view was a plane from the floor at the tail to 1.4 m at the
+nose, through the fuselage; it lies flat on the floor, its length foreshortened by cos(pitch), which is the parked
+aeroplane seen from above. The first placement snaps the nose to the build's; after that it stays put (a build that
+grows must not drag its blueprint along) - `snap to nose` is a pill.
+
+TRANSPARENCY: an opacity for the set and per view, `over the build` (no depth test: the linework drawn through
+everything, for tracing), and PAPER: `clear` (the default) makes the sheet's paper colour transparent - the mode colour,
+so white, cream or a real blueprint's blue - with a `clear level` for yellowed scans, and the lines re-inked (cyan by
+default; as drawn is dark ink in a dark shed). A 45 degree cut kept with its paper stood as a 15 m opaque sheet in
+front of the camera, which is why clear is the default.
+
+STORAGE: IndexedDB `flydiy-blueprint` (cfg + the image blob) - an image does not fit in localStorage. Display state
+only; GATE REF's ONE ROOT scan covers blueprint.js too. app.js: REF_MOUNT.bpGroup, a sibling of refSit (refplane hides
+refSit when no model stands) and a probe subject like it.
+
+VERIFIED: the whole workflow driven in headless Chromium through the desk's own pointer handlers on a synthetic Cub
+three-view (8 mm a pixel, 5 m scale bar, side view datum-level, tail tyre tan(12) x 5.3 m up, front view at 45 degrees,
+lassoed round a label): 8.00 mm/px, length 6.98 m (6.95 drawn + the stroke), span 10.76 (10.73), LEVEL -> 45.0 deg,
+ground attitude 12.00 deg, tyres 5.30 m apart; pictures of the three views standing round the build. That state is
+tools/_blueprint_fixture.json, and GATE BLUEPRINT (core, 0.2 s, --selftest 7/7) holds the frames, scale, level, ink
+(paper, a run-length ink box that ignores a speck - a real bug the gate found: one stray pixel stretched the extent
+across the cut), clearing, and the layout on it. Gates run: BLUEPRINT, REF (+selftest), UISMOKE - PASS. NOT run: the
+full battery (nothing in core/ or the flight path changed).
+
+OPEN, and ideas the user was offered: several sheets (the data is per-sheet-ready in spirit, one image in practice);
+PDF import; a per-view scale of its own measured on the desk (today `size` is the slider); stations (fuselage sections
+as `other` views facing front at a typed x); reading dimensions off the blueprint into the build is exactly what ONE
+ROOT forbids - a measure tool that shows the number beside the build's own row would be the honest version.
+- FILES: src/viewer/blueprint.js, blueprint.css (new), refplane.js, editor.js (root kids), editor.css, app.js
+  (bpGroup), tools/build.js (manifest), tools/run_gates.js, tools/_blueprint_check.js, tools/_blueprint_fixture.json,
+  tools/_ref_check.js.
+
+## G574 - THE TOWN ON TEXTURE ARRAYS (2026-09-25)
+
+The user: "performance optimization using texture arrays ... handling texture arrays and single material". G566
+merged a 256 m cell's house bags per DISTINCT material and still drew ~2 300 times over Jolene, because a house
+finish is a material each (its paint, its dirt, its weather): 929 stayed distinct. Now every finish (clapboard,
+shingle, trim, ...) is a LAYER of a stack and what made two materials differ rides the vertex as ONE float, the
+SLOT: an index into a float table (RGBA32F, 9 texels a slot) carrying the finish's colour, roughness, metalness,
+normal scale, its two layers and uv transform, the paint and its blend mode, the dirt colour / gain / age, the
+house's own dirt line, punch and noise, and the weather clouds. A cell draws a handful of town meshes: plain / glass
+x side x (casts or not). `src/viewer/house_tarr.js`; `WORLD.premises.hlod.tarr` is the dial (A/B against G566 live,
+a flip rebakes).
+- THE LOOK IS THE HOUSE'S OWN SHADER. The town material's hook is the generator's (shadeHouse + cloudWeather; for the
+  glass shadeGlass) run on the program as it is, then edited: the finish uniforms become globals filled from the
+  slot (tLoad, right above main - GLSL declares before use: the first cut put it in the head and the program did not
+  compile, the town drew only its shadows), the map / roughness / metalness / normal-map chunks sample the arrays,
+  the colour is the slot's, the ridge sag (hSag, a vertex bend in the house frame) is 0 because the merge bakes it
+  into the positions. The dirt line, the punch, the paint blends, the noise, the clouds, the curtains and the lit
+  panes are the very GLSL the houses draw with. The lit panes: the slot holds the finish's lightK base, LAMPS.update
+  sets the one factor (on x kGlass x mute) - `TARR.lit`.
+- WHAT RIDES: classify() - a MeshStandardMaterial whose RAW hook (atmo.js's _atmoHook) is the one shadeHouse /
+  cloudWeather / shadeGlass left (they now record ud.hookHouse / hookCloud / hookGlass and ud.houseU / glassU), opaque,
+  no vertex colours, no emissive, only map / normalMap / roughnessMap sharing one uv transform, decoded. A steel mix,
+  a lot patch, a clone, the flat flag / awning materials stay on G566's merge, unchanged (its signature ignores the
+  new handles). Until the stack holds every layer a bake asked for, those bags go G566's way and the stack's ready
+  signal rebakes.
+- THE ARRAYS: built on the CPU once the images have decoded (splat_ground.js's recipe and its rules: linear bytes,
+  the shader decodes sRGB - an sRGB array upload was GL_INVALID_VALUE on ANGLE/D3D; implicit texture() only, both
+  arrays sampled once, outside any branch). Layers are 512 (1024 sets halved, 256 doubled), rows flipped on the
+  canvas (an array cannot flipY). Colour: diff / paint; normal + rough: the normal's rgb, the rough map's green in
+  alpha. A canvas map (the hangar's baked sheets) is a layer like an image.
+- The town's casters toggle per cell at HOUSE_CAST_FAR from the cell's box (a house's own at its centre, detailTick).
+- TWO THINGS FOUND DEAD, KEPT DEAD (the town reproduces what the game draws): (1) shadeHouse's wanderUV rewrites
+  v*MapUv in the program text, but in r186 onBeforeCompile runs BEFORE the #includes are resolved, so the regex
+  matches nothing - uWander (the courses' wander, G273) and uUvK (the roof tile scale, G329) have never reached the
+  screen; (2) the glass's envMapIntensity 2.3 / the pane's 1.9 (applyFinish): r186 feeds that uniform the SCENE's
+  environmentIntensity when a material has no envMap of its own. Also noted, not changed: the dirt line compares the
+  WORLD y (vHouseY) with uDirtTop in the house frame (g(0,0) + dirtH x 0.55), and the game stands a house's group at
+  its ground height (placeHouse's y = oy): a house whose ground is more than ~1 m above world y 0 has no dirt line at
+  all. A fix is a per-house offset (the slot has room); not done here, it changes the picture. (All three mended by
+  G581.)
+- MEASURED, the bench (tools/_tarr.html + tools/tarr_shot.js: 19 buildings - 14 houses, 2 big, a hangar, a tower, a
+  shed - drawn whole then on the stack, SwiftShader 960 x 540, shadows on): 195 bags -> 192 merged into 2 town
+  meshes (3 flat flags / awnings stay), 33 colour + 30 normal/rough layers, 170 slots, 84 MB of arrays with mips,
+  the bake ~1 s; draws (shadow pass included) near 295 -> 8, street 342 -> 10, mid 391 -> 11, far 391 -> 11, dusk
+  342 -> 10; picture mean |diff| (0-255) near 0.46 (0.28 % of pixels over 12: plank and rib edges - the 512 layers
+  and the sRGB decode after the filter), street 0.18, mid 0.09, far 0.02, dusk (lit panes) 0.16.
+  The same run with atmo.js loaded (the game's prototype accessor wrapping every hook): identical numbers - classify
+  reads the raw hook through it.
+- OWED: THE GAME ITSELF, ON A GPU. tools/tarr_game.js rolls Jolene out, drains the premises' queue by hand, drives
+  R.tick and draws the same frame three ways (hlod.bake off / G566 / tarr) with the draw counts and a PNG each. In
+  this session's container (SwiftShader, no GPU) it never got there: the roll-out took ~10 min, then draining 561
+  houses ran at minutes a step and the page died (twice, ~20 min in) or stalled. So no in-game draw count and no
+  frame time yet: run `node tools/tarr_game.js --gl gpu` (or flip WORLD.premises.hlod.tarr in the F8 console over
+  Metlakatla and read renderer.info.render.calls + WORLD.premises.stats.tarr*), and met_perf.js for the frame.
+- GATE TARR (tools/_tarr_check.js, core, ~2 s): the edits on r186's own program after the generator's real hooks
+  (nothing missed, no finish uniform left a uniform, each filled by a tLoad placed after it, one sample per array
+  outside any branch, the hooks' order map -> clouds -> paint/dirt), classify by identity (a steel mix, a
+  transparent bag, a clone refused), the merge (world positions with the sag off to 0.1 mm, one slot per finish -
+  the same finish on two houses one slot, another dirt line another), the host's wiring (TARR above LAMPS - G570's
+  TDZ - the lamps' factor, the sig carries the dials, build.js order). 1r red on the head-placed tLoad.
+
+## G575 - THE GROUND'S CEILING: the island's ground skip, bit-identical (2026-09-25)
+
+G572's lever 1, landed differently than measured. The clearance cone needs a SLOPE bound and the island has none that
+is true: its raster steps by up to 1.99 m where a coarse leaf meets a fine one (968 240 leaf-edge probes). So the
+solver's sibling skip reads a CEILING: once a frame, `world.groundMaxRect(ax, az, bx, bz)` over the nodes' footprint
+grown by 0.5 m + twice the fastest node's travel; a node inside that box whose bottom is above the ceiling skips its
+ground sample (exactly the `pen <= 0 -> continue` the sample would take), a node that leaves the box samples. True by
+construction: the raster's highest vertex over the cells touched (19_terrain_codec `maxRect`; the coast's min only
+lowers), the analytic pad blend / carve / meadows (convex or lowering), the premises' modifiers (27_premises
+`hMaxRect`: every one blends toward a target with w in [0, 1] - max of the targets + the raises; each modifier's
+`bound()` says its target's highest over a rectangle). `groundMaxRect.of` is the terrainH it bounds: a re-wrapped
+world (HOTHIGH, pilot_trace --slope) samples as before; FLYDIY_EXACT_GROUND=1 turns it off with the cone. GATE GE
+holds it (the ceiling over 2.76 M points / 1 077 rectangles, a lying ceiling caught, a 30 s taxi out of HOME
+identical both ways every frame). Paired vs G572, the same FNV hash: stock taxi -29 %, metal Cessna -40 %, birdman
+-31 %, thermal day -26 %, floats -17 %. futureDesigns/PHYSICS-PERF-2026-09-24.md G575 (and the substep drivers per
+build: 14 archetypes and the user's three metal Cessnas fly at the 200 cap on the wing box's stiffness; the
+tailwheel's damper sets the stearman, chinook, savannah, beaver, jodel, radial and the birdman; the float keel the
+floatplane).
+
+## G576 - THE STILL AIRFRAME, ONE DRAW PER MATERIAL (2026-09-25)
+
+The user: "merge by material the meshes that are STATIC relative to the airframe, inside the build ... not by guessing
+afterwards". Done in `buildModel` (app.js `mergeStill`), right after the rigs are bound, on the cage path. The build
+knows each bucket's facts, so none of them is guessed. A bucket whose rig binds no vertex and turns no hinge is the
+one poseModel already skips (`if (!r.hb && !r.bind.bound.length) continue`), so it never leaves the model frame.
+The flown buckets of one pooled AEROSKIN material (AERO_POOL keys on LOOK, so nine plywood sections are nine meshes
+on one material) are concatenated into one mesh in that frame. Positions, normals, uv, aStruct and aCav (baked
+before the merge) are the members' own bytes, the index is rebased, and the merged mesh sits where the first
+member stood in the draw list.
+NOT TAKEN, each for a stated reason (`still.skip`): a bucket the flex or a hinge writes (the wing, the struts' wing
+ends); every PART, which is not a bucket at all (gear rigs, surfaces and their hinges, rods, controls, gauges, the
+engine, the propeller and spinner); a lamp (the cockpit dims it by mesh); the crew (the cockpit view hides the pilot
+by bucket: `char` / `dummy1`); anything see-through or carrying a glass companion; and any mesh the build posed,
+flagged, named or gave its own depth material. The livery's craft frame holds: uCraftInv reads the group's matrix,
+which the merged mesh shares at identity. The see-inside is a material question (and the editor's cage), so a merge
+by material identity cannot split it.
+G564's crumb rule keeps its per-bucket answer: crumbs (under 15 cm) merge only with crumbs, the merged crumb carries
+`userData.crumbR` (its biggest member), and the roll-out reads it. Rebuilt with the model: every garage edit
+rebuilds both. `window.FLYDIY_CRAFT_MERGE = 0` before a build is the A/B dial. `model.rigs` drops the merged
+buckets' rigs but always keeps rigs[0], whose station table sparDeltas reads.
+
+MEASURED (cloud box, SwiftShader: COUNTS only, no ms; against 78fd4b1, before G570-G575 landed - re-proven on the rebased tree below). Default build (the boot's garage aeroplane): 89 buckets + 63
+parts. 53 buckets are still candidates, and they hold only 42 distinct materials: 14 buckets -> 3 meshes (9 fuselage
+sections on one plywood, joint + fire seal on one bare alu, bulkhead + wood frame + firewall on one spruce).
+- the flown model: 258 -> 247 meshes (142 materials, unchanged)
+- `renderBufferDirect` calls under `craft` a frame, the flown model shown in the shed (cage hidden), controls fixed,
+  same 3 frames: main 493 -> 471, shadow 1398 -> 1332, total 1891 -> 1803 (-88, -4.7 %).
+- out in the world after the roll-out (?premises=none on both: measured before G570 fixed the PREM_NEAR throw), ONE scene render
+  (renderer.render(worldScene, camera), called by hand: the render loop never resumes after the roll-out in this box),
+  craft only: the model 254 -> 243 meshes, casters after G564 115 -> 104, main 242 -> 231, shadow 230 -> 208, total
+  472 -> 439 (-33, -7 %). The game's own frame renders the scene more than once (the pipeline's passes, the probes),
+  so the saving scales with it; the reference GPU's ~850 + shadows a frame is that multiple.
+WHY NOT MORE, honestly: by material IDENTITY the default build's still airframe offers 11 meshes. The rest is (a)
+the parts: 165 meshes, and inside every part each mesh is already its own material (probed: 63 parts, 0 shared); and
+(b) buckets whose materials differ only by TINT (the engine unit's 27 castAlu greys, the interior's plastic / trim /
+chrome colours). (b) cannot become one material by vertex colour without a shader change: AEROSKIN mixes the decals
+over diffuseColor inside map_fragment, BEFORE three's color_fragment would multiply vColor, so a vertex tint would
+tint the livery too. The tint would have to enter before the decal mix (a USE_COLOR-style attribute read in
+AERO_ALBEDO_FS), at the cost of a program variant per merged family. That is the next lever, and it is not a merge
+by material.
+
+PROOF, vertex for vertex (a scratch rig, not a gate: HEAD and this build side by side in two pages, the same bend written into
+sim.p - every WF/WR node up 3 % of |z|^1.5 and aft 1 % |z|, the engine nodes down 2 cm, the axles up 3 cm - Flex x4,
+controls held flap 1 / da 0.5 / de -0.3 / dr 0.4 / thr 0.8 / brake 0.5 / trim 0.3 through the input's own door, 260
+frames for the linkage): 87 of 89 buckets and all 169 part meshes are BIT-IDENTICAL in world-space position, normal,
+uv, aStruct, aCav, triangles, material and flags. That includes the wing fabric (1.30 m of tip travel at x4), the
+struts, the wing lamps, the surfaces, the gauges and controls, and the gear. The two that differ are the fin
+beacon's lens and cup (up to 1.2 cm, normals, cavity). They are lamps, never merged, and HEAD against HEAD differs
+the same way (the beacon's snapshot is not deterministic run to run: a pre-existing fact, not this chantier's).
+
+GATE SKIN (G576 block): mergeStill lifted from app.js and run on the real vendor three over a synthetic flown group:
+5 still buckets -> 2 meshes (A1-A3 on their material, the crumbs apart with crumbR). The flex, the hinge, a
+different attribute set, the lamps, the crew, the glass, a posed mesh and a part each stay their own mesh. The
+merged bytes are the members' own, the flags and frame are kept, the draw-list place is kept, the dial works. Then
+four source anchors: the call site after the rigs, poseModel's skip (the merge's premise), rigs[0] kept, the
+roll-out reading crumbR. Red on a copy that drops the flex exclusion.
+
+GATES: SKIN, GFX, MEDIA, BUILD, UISMOKE, PARKED, PANEL, PILOT, TAKEOFF green (geometry only: the solver, the pilot and
+the physics are untouched). SKINMAT is RED AT HEAD TOO, identically ("role rows for sections no build emits -
+taperPanel, drawnPane, reveal, shoulder, doorPanel": the AEROSKIN role table against the cage's sections, nothing
+here reads it), and so is not this landing's.
+PICTURES (shed, flown model shown, cage hidden, the same fixed controls; HEAD | G576 | diff): quarter, side, front
+quarter, gear, top, cockpit (panel, instruments), controls (stick, switches, pilot's legs), see-inside (cage and
+flown): the cockpit, controls and quarter views agree to 2/255; every other difference is the propeller blade and
+its shadow, which turn with time (the two pages captured at different frame counts).
+OWED: pictures in the air (prop spinning, chase, livery in daylight) and a counted game FRAME in flight: in this box the
+render loop stays held after the roll-out screen ("the last pieces"), so neither could be taken.
+
+## G577 - SKINMAT AND COWL GREEN AGAIN: two gates red for reasons that were not the aeroplane's (2026-09-25)
+
+**SKINMAT** ("role rows for sections no build emits - taperPanel, drawnPane, reveal, shoulder, doorPanel", 5 against
+an allowance of 4). All five ARE emitted by the editor's build; the gate built its coverage meshes from a hand copy of
+cageSheet's pass list that stopped at cageInterior, so the shoulder (G325), the door panel riding it (off by default)
+and the drawn windows' knife (G245) never ran, and its 'taper panels' shape asked for panels on the stock boom with the
+interior off (they are laid on the ROD's truss, which cageInterior draws). The gate now builds through `cageSheet`
+itself (level 2), with shapes for the rod taper panels, the door panel and drawn windows: 37 sections, zero stale rows,
+and the allowance is 0 (negative-verified: a probe row in AERO_ROLE fails it).
+
+**COWL** ("the original tool is available to compare against") failed on every checkout but the user's machine: it
+read `C:/Users/denis/Downloads/cowl-generator-v19 (1).html`, which the repo never carried. The original is now looked
+for at `--orig <file>`, `COWL_ORIG`, `tools/_cowl_orig.html`, then the Downloads path; none on disk is a SKIP of the
+port-faithfulness section, not a FAIL. The user supplied the original the same day: it is committed byte for byte as
+`tools/_cowl_orig.html` (the _cage_ref_*.obj way), and the comparison runs on every checkout again - 504 points,
+max deviation 0, 11 presets, 104 original parameters all present (120 now).
+
+**TAKEOFF** ("crosswind limit: measured inside a minute of wall clock", 67 s with four gates on four cores, 46.9 s
+alone). The minute bounds the probe's WORK - the page runs the same probe after the circuit lands - and wall clock
+also measured the machine. It now reads the process's own CPU time (the probe is synchronous), bound unchanged at
+60 s, the wall printed beside it: 40.6 s CPU / 40.8 s wall with the battery running alongside.
+
+**THE RUNNER LOST OUTPUT (ENGINE, a core run on Linux).** ENGINE came back as its first line with exit 0, so no
+verdict line and a FAIL; alone it passed. Every gate ends with `process.exit()`, and on Linux Node writes a PIPE
+asynchronously: what is still queued at exit is dropped. Reproduced 16 runs in 40 (8 in parallel on 4 cores), cut at
+~9.5 KB; through a file, 0 in 120. `runJob` now hands each child a temporary FILE for stdout and stderr (written
+synchronously on every platform; Windows already wrote pipes synchronously, which is why it never showed there),
+reads them on close and deletes them. Any gate could have lost its tail this way; ENGINE's 13 KB was the one that did.
+
+**THE SCAN for machine paths** (`C:/Users`, `D:/Dev`, `Downloads`, `/Users/`, `/home/`) over tools/, src/: src/ is
+clean; nothing else a battery gate needs. Left as they are, all authoring tools or opt-in modes whose repo-relative
+path is tried FIRST and `D:/Dev/DeGaRoR.github.io` is a worktree's fallback onto the main checkout's gitignored data:
+splat_tex_prep.js, pavement_tex_prep.js, coast_rocks_tune.py (ROOTS), splat_tex_import.py, coast_rocks_prep.py,
+met_trace.py, met_fit.py, metlakatla_author.py, and _splat_check.js --gpu. pavement_tex_import.py's `--out` DEFAULTS to
+the D:/Dev path (overridable). The *_tex_import.py `--src` default `~/Downloads` is per-user, not a fixed path.
+
+**LANDED RED, NOT THIS ENTRY'S** (the user: "if the reds are not yours, you may land"). This entry changes six files
+(the four gates' scripts, the runner, tools/_cowl_orig.html) and nothing the game draws or flies; a rebuild of the
+merged tree is byte-identical to master's built files but version.json's date. Measured on the merged trees: `--all`
+over master 4e2983c/aa1846b - every core gate green, three full-tier reds that HANDOVER already carried as master's:
+PILOTMATRIX (9 regressed: c172 sink 0.95 -> 2.04, cub HOME-A3 1.49 -> 3.95 - G477's "red on master itself"),
+ARCHETYPES (Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler give up - G454/G457), SEAPLANE (the
+crosswind water run stays wet and swings 180 deg - G474). Core over 8856dc0: one red, MEDIA - index.html 8.87 MiB
+against its 8.8 MiB budget, and 8.88 MiB on a clean master worktree at 843629a (G573's blueprint grew the artifact;
+8.89 MiB at 3b26d07 after G576): the budget or the payload is its owners' call. Over 843629a the merged tree ran SKINMAT
+COWL ENGINE TAKEOFF TARR BLUEPRINT HOUSE VILLAGE PREMISES WORLD UISMOKE BUILD PARKED GEN green, MEDIA the one red.
+
+## G578 - THE VORTEX KERNEL ONCE A FRAME (2026-09-25)
+
+G572's lever 2. Every garage build flies the vortex downwash (TAIL CHANTIER 2 P5), and the horseshoe coefficients
+(buildAIC) were rebuilt EVERY SUBSTEP: aicSig hashes the node positions, which move every substep - where the note on
+buildAIC says "once per frame in flight". Now a step rebuilds them on the frame's first substep (aicFresh); the
+circulations and the induced field still update every substep; a probe rebuilds whenever its geometry moves, as
+before (the sheet's numbers unchanged). Solver -17 % on the ground, -33 % in flight; the geometry a frame moves is
+millimetres (0.05-0.4 mm after a 20-30 s taxi, 3 cm after a 150 s circuit). Core battery green on it (GEN, PILOT,
+FLEX, LOAD, TAKEOFF, BIPLANE, DRAG, the floats); the full tier's three known reds (ARCHETYPES, PILOTMATRIX, SEAPLANE)
+fail the same checks as before it, every matrix cell and archetype outcome unchanged (SEAPLANE's lane miss 69.8 ->
+44.5 m against its 30 m bound).
+
+## G579 - THE WATER AT A RATE, NOT A COUNT (2026-09-25)
+
+G572's lever 4. The hydro's sub-rate (G451.1) was 8 substeps on every build: the 360 Hz its note says is more than
+the water needs on the 45-substep 172 it was measured on, 1 500 Hz on a 200-substep alloy build. Now HYDRO_HZ = 360
+of the frame's substeps, round(substeps x 60 / 360) - the old 8 at 45 substeps; params.hydroEvery still overrides.
+The Cessna on floats: solver -30 %, the cg 1 mm off after 20 s. FLOATS, HYDRODYN, WIPLINE, WATER green; SEAPLANE's
+known reds unchanged.
+
+## G580 - THE DAMPER THE STEP CAN CARRY: the substeps on the springs (2026-09-25)
+
+The tailwheel leg's damper set the step of every taildragger it limited, at zeta ~5 (dead-beat five times over): the
+birdman's 121 substeps were two beams (TW-S6BL/R, 3.45 kg into 0.55 kg), the next asked 77. genSubsteps (62_gen_aero)
+now sizes the step on the SPRINGS and cuts a damper past the c dt bound to what that step carries (b.cSized keeps the
+sized value) - only if the whole NETWORK stays inside the integrator's stability with a margin: (omega dt)^2 +
+2 gamma dt <= 3.0 of the network's own highest modes (genNetEig, power iteration; symplectic Euler's bound on a
+damped mode is 4). The per-beam rule is not enough: a node's dampers add, and the metal Cessna capped per beam to 80
+substeps diverged at once. The smallest step that holds is taken (bisection), never more than the old rule's; a
+build whose springs set the step is untouched (the same number, no beam changed: the stock build, the user's metal
+Cessnas, most archetypes); the floatplane's 82 float-keel dampers keep their old step. Six builds move: birdman
+121 -> 78, chinook 110 -> 68, stearman 134 -> 89, beaver 200 -> 131, jodel 200 -> 185, pietenpol 79 -> 75; every cut
+damper stays overdamped (zeta >= 2.67), the networks 2.42-2.84. Circuits flown old/new: the same phases to a few
+frames; solver birdman -31 % (-32 % on the Jolene roll-out), chinook -46 %, stearman -63 %, beaver -39 %. GATE
+SUBSTEP (tools/_substep_check.js, core) holds it with 4 000-pass eigenvalues over every archetype and fixture.
+futureDesigns/PHYSICS-PERF-2026-09-24.md G578-G580, and THE METAL WING BOX, measured: capped at 120 substeps the
+metal Cessna flies the same circuit (-41 %, the tips 2-3 mm more bend), at 80 per-beam it diverges - the next
+chantier, network-sized, the load test keeping the true stiffness.
+
+## G581 - THREE DEAD HOUSE DIALS, MENDED (2026-09-25)
+
+Found while building G574 (the town on texture arrays), which had kept them dead to match the game. Each changes the
+picture; the user's ruling on the shots: "that all looks very similar to me, the tile sizing is much better. Please land that"; before/after shots in `screenshots/g574/` (the tarr bench at y 0 and lifted 20 m, the house bench).
+- THE WANDER AND THE ROOF TILE SCALE (uWander G273, uUvK G329 / P.roofTile). r186 runs onBeforeCompile before it
+  resolves the #includes, so wanderUV's token rewrite of v*MapUv matched nothing. Now `#define vMapUv hUv` (and the
+  other map varyings) sits at the top of main, below the varyings' declarations and above every chunk that reads them:
+  the preprocessor renames each later read. The flag (no map) still gets none. Visible: kennecott mill's roofTile 4
+  finally draws its shakes 4x larger; the siding's courses wander by a few mm.
+- THE GLASS'S envMapIntensity (2.3 glass / 1.9 pane). r186 gives that uniform the scene's environmentIntensity when a
+  material has no envMap (a house's never has). shadeGlass now scales radiance and iblIrradiance after
+  lights_fragment_maps (only the environment puts anything in them) by uGlassEnvK = the material's own number (1 if
+  it carries an envMap), on top of the scene's. Visible: windows reflect the sky far more.
+- THE DIRT LINE ON A HILL. uDirtTop is in the house frame, vHouseY world; the game stands a house at its ground.
+  New SHADE_U.uDirtY0 (0 on the benches), added in DIRT_EXPR; render_premises placeBuilt sets it to the group's world
+  y. Not mended: the fences' and the poles' shared finishes (FENCE_F, lampFinish) draw in the premises frame at world
+  heights, so their dirt line is still world-relative (a per-vertex ground height would be needed).
+- THE TOWN FOLLOWS (house_tarr.js): uUvK folded into the slot's uv transform, uWander in the spare l.w (added to
+  tUvT exactly as wanderUV does), uDirtY0 folded into the slot's dirt line, uGlassEnvK in the glass slot's c.y. The
+  tarr bench after the fix: town vs houses mean |diff| near 0.455 / street 0.183 / mid 0.086 / dusk 0.157 - as
+  before the fix (0.456 / 0.183 / 0.086 / 0.158), at y 0 and at y 20. Before vs after (the houses): near 1.39/255,
+  3.2 % of pixels over 12 (the glass); street 0.09.
+- _tarr.html takes `?lift=<m>`. GATE TARR 50 checks (+1t 1u 1v 1w 1x 3l 4g; 1w resolves the includes as three does
+  and proves the macros sit between the varyings and the map reads; the new checks are red on the pre-G581 tree).
+
+## G582 - THE WORLD RAIL: the right-hand rail of the world's art, the scenery mode, the ground's filtering (2026-09-24)
 
 - The user: streamline the game as the bench (the graphics without the flight), revamp F8 into a RIGHT rail
   structured by TERRAIN TYPE (a type = a biome + a ground set), proper layers, previews, recolour down to one
@@ -57901,7 +59534,7 @@ into ~40 m.
   (running = false), takes the aeroplane off the stage, gives the eye to DEVCAM 60 m over the stand, closes a
   fresh profile's aeroplane chooser, hides the flight chrome (flight.css body.sceneryMode; the left rail stays:
   camera, graphics, night, weather) and opens the WORLD rail. The world already streams round DEVCAM.
-- THE WORLD RAIL (src/viewer/world_rail.js, F9, after app.js in the manifest): COVERAGE (the stack as
+- THE WORLD RAIL (src/viewer/world_rail.js, F9, in the WORLD PACK - fetched and cached, not inlined): COVERAGE (the stack as
   Photoshop-like layers - eye, thumbnail off the island's rasters, blend, opacity, solo - the view modes, the
   terrain-type map with the camera's mark, click = open the type, double-click = fly there, the legend with
   shares, the global colour), TYPES (chips; per type: the derived split, where it is, BIOME tab - the mix,
@@ -57920,9 +59553,9 @@ into ~40 m.
 - THE GROUND'S FILTERING (splat_ground.js, knobs defaulted under the recipe's: FILTER_DEFAULTS): mip bias
   (texture() bias on the arrays - implicit derivatives kept, no textureGrad), anisotropy (1-16, re-upload),
   the detail's contrast near/far by distance (rel^k), the relief's fade by distance, specular anti-alias
-  (roughness widened by the pixel's footprint). The hex cell's hash is the ground fields' INTEGER hash (the
-  sin() hash took world metres x 311 - arguments of 10^6, float range reduction noise, driver-dependent).
-  NOTHING in the splat is recomputed per frame: the "jitter" is sub-pixel relief and gloss aliasing under the
+  (roughness widened by the pixel's footprint). The hex hash is master's sin() hash, unchanged (an integer
+  hash was tried and REVERTED in the audit below: +9 k inlined chars across the nine sTile copies for a banding
+  never observed). NOTHING in the splat is recomputed per frame: the "jitter" is sub-pixel relief and gloss aliasing under the
   sun as the eye moves - the fades and the AA are its levers.
 - THE RECOLOUR per set (grade: hue, contrast, selHue/selWidth/selSoft/selShift/selSat/selLight): the whole
   set's hue turn and contrast, then one hue band of it turned / saturated / lit (the grass of grass-and-rock
@@ -57940,6 +59573,30 @@ into ~40 m.
   dry (rho0 0), no deck, base 1293 m, 48 km; SwiftShader draws a frame every few seconds here (the garage
   too). The rail's SCENERY > "the air while you work" has mist, haze, cover, clouds, in-cloud mist, the hour
   and a reversible "clear view".
+- THE PERFORMANCE AUDIT (the user, at the landing: "I need to be sure you did not undo or rendered moot some
+  optimization on ground textures done recently"), measured on the ground program inlined as fxc inlines it
+  (every user function's body at every call site, from sSplat down; the gate's own splice):
+      base 63e4c37 (this branch's start)   288 fetches  165.9 k chars
+      master 6f4a506 (after G568)           54 fetches   76.1 k chars
+      merged as first resolved              54 fetches   88.7 k  (+16.5 %)
+      landed                                54 fetches   80.1 k  (+5.3 %)
+  G568 kept whole: ONE straight triplet (3 sSet sites), 9 sTile, 27 fetch sites, no loop in the chain (GATE SPLAT
+  3). The recolour runs ONCE per set after the triplanar sum (not per projection: 9 copies -> 3) and only under
+  uSRecolOn (1 when any set is recoloured or a mask shows) - at the defaults one uniform branch per set. The
+  bias is an argument of the same texture() call (no extra fetch, implicit derivatives kept: no Lod0 copy, no
+  textureGrad). uSNearN / uSFarN (the GRAPHICS 'ground' row), uSHexPx, the candidate loop's no-continue rule,
+  the sampler count (no new sampler) untouched. Per pixel added: one pow (the detail's far contrast, default
+  on past 60 m), a smoothstep (the relief's fade), a sqrt (the specular AA). CPU: two vec4[24] uniform arrays
+  more (uploaded on a material refresh), one lookup per chunk shape (the species' size).
+  THE LOOK AT BOOT was the regression found: every setter it called evicts or rebuilds (setBiome x15, the
+  island, the fill, the thin, a mix, the ring, the cliffs - ~21 re-plants a boot once any rail value was saved).
+  It saves only the DELTA against the shipped defaults now and applies only what differs from what stands,
+  every biome change in ONE replant: measured with counting stubs, a boot with no look or a look equal to the
+  defaults 0 evictions, one species changed 1.
+  index.html 8.88 MiB (master 8.89: the rail rides the world pack, F8 lost its world folds) - MEDIA red as on
+  master, by master's own overage.
+  NOT MEASURED: a frame on a GPU (this container's SwiftShader draws one every few seconds); owed:
+  tools/frame_perf.js and GATE SPLAT --gpu (the cold link) on the user's machine, master vs this.
 - GATES: SPLAT (the roughness rule now carries the footprint term; the selftest's textureGrad mutation
   follows the biased fetch), UISMOKE, BOOT, WORLDRENDER, TREE, TREES, GFX, LIGHT, CLOUD, CLIMATE, FOG, ATMO,
   ATMOS, POSTFX, MEDIA, PREMISES, PARKED, BUILD green. Headless: every program links (0 unrunnable), the rail

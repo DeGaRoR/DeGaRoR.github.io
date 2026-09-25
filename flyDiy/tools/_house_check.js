@@ -86,7 +86,7 @@ let VMCTX = null;          // kept: the PBR check has to inject a stub library
   ctx.globalThis = ctx;
   VMCTX = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_sport_gen.js', '_hangar_gen.js', '_tower_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_sport_gen.js', '_marine_gen.js', '_hangar_gen.js', '_tower_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx,
                     { filename: f });
 }

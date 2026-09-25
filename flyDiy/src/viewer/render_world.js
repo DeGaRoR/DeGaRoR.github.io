@@ -160,6 +160,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // row, mean luminance over the forest half of the frame 81.9 against 85.8
   // at 0.9 / 92.1 at 1.0 / 79.0 at 0.8 (scratch steps_ilit.js, W0c.18)
   const uILit = { value: 0.9 };
+  // the impostor's own contrast term (see impostorMat), and the per-tree lightness the bake threw away.
+  const uIFlat = { value: 1.30 }, uIFlatMean = { value: 0.05 };
+  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10 };
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
@@ -997,7 +1000,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // end for the approach, the width + 60 m each side - where it was a CIRCLE of len/2 + 70
   // (a kilometre round a 2 km runway, the whole airport bare). A record without a heading keeps
   // the circle.
-  const treeEx = world.aerodromes.map(a => (typeof a.hdg === 'number' && a.wid)
+  // ...unless the strip says its trees are the record's (G527.3, the user at East Point: "you've cut too much in the
+  // trees"): treeBox false leaves the clearing to the premises' own excludes (the strip's box + 30 m, the fans)
+  const treeEx = world.aerodromes.filter(a => a.treeBox !== false).map(a => (typeof a.hdg === 'number' && a.wid)
     ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), hl: a.len / 2 + 150, hw: a.wid / 2 + 60, strip: true }
     : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 });
   const inEx = (e, x, z) => {
@@ -1384,11 +1389,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  A /= ws; B /= ws; float tot = A.r + A.g + A.b + A.a + B.r + B.g + B.b + B.a;\n' +
             '  vec3 c = A.r * c0 + A.g * c1 + A.b * c2 + A.a * c3 + B.r * c4 + B.g * c5 + B.b * c6 + B.a * c7;\n' +
             '  return tot > 1e-3 ? c / tot : c0; }\n' +
-            // the terrain type palette (G405): sea, lake, heath, muskeg, sand, scree, rock, scrub, forest, snow, built
+            // the terrain type palette (G405): sea, lake, heath, muskeg, sand, scree, rock, scrub, forest, snow, built - and 15 lush (2026-09-22)
             'vec3 gTTCol(float c){ int i = int(c + 0.5);\n' +
             '  if (i == 0) return vec3(0.02,0.05,0.30); if (i == 1) return vec3(0.05,0.35,0.95); if (i == 2) return vec3(0.75,0.85,0.25); if (i == 3) return vec3(0.35,0.55,0.15);\n' +
             '  if (i == 4) return vec3(0.95,0.85,0.55); if (i == 5) return vec3(0.55,0.50,0.45); if (i == 6) return vec3(0.30,0.28,0.28); if (i == 7) return vec3(0.60,0.65,0.05);\n' +
-            '  if (i == 8) return vec3(0.02,0.35,0.05); if (i == 9) return vec3(0.98,0.98,1.0); return vec3(0.95,0.10,0.10); }\n' +
+            '  if (i == 8) return vec3(0.02,0.35,0.05); if (i == 9) return vec3(0.98,0.98,1.0); if (i == 15) return vec3(0.45,0.95,0.20); return vec3(0.95,0.10,0.10); }\n' +
             'uniform float uGOverlay, uGShade, uGLight, uGSat, uGSnow, uGShore, uGP90, uGHMax; uniform int uGMode;\n' +
             'uniform int uLOn[5]; uniform int uLMode[5]; uniform float uLOp[5]; uniform int uLStart;\n' +
             'float gLuma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }\n' +
@@ -1838,9 +1843,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           RINGLOD.chunks.push(ch);
         }
         RINGLOD.whole = undefined;   // the next update decides which draws: the whole ring or its chunks
+        RINGLOD.built = true;
       };
-      build();
-      RINGLOD.rebuild = build;
+      // LAZY (G551, the user: "let's not do anything giving us a longer loading time"): the 1024 chunk geometries cost
+      // ~0.5 s a build and the boot built them twice (here and after the premises' sink) for gamer and ultra, which draw
+      // the ring whole - the chunks are built the first frame a tier cuts the ring, and rebuilt only once they exist
+      RINGLOD.built = false;
+      RINGLOD.rebuild = () => { if (RINGLOD.built) build(); };
       // per frame: each chunk's level from the eye (before the frame renders; the fine disc's reach from FINE's dials)
       RINGLOD.update = () => {
         const e = camera.position, H = (renderer && renderer.domElement && renderer.domElement.height) || 1080;
@@ -1852,6 +1861,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // grid and the chunking bought nothing (134 draws against 1, within the noise) - the chunks are for the
         // coarser tolerances of the lower tiers (gfx_settings 'terrain')
         const whole = RINGLOD.tolPx <= 1;
+        if (!whole && !RINGLOD.built) build();
         if (whole !== RINGLOD.whole) { RINGLOD.whole = whole; ground.visible = whole; RG.visible = !whole; }
         if (whole) { st.draws = 1; st.tris = 512 * 512 * 2; return; }
         for (const ch of RINGLOD.chunks) {
@@ -3134,7 +3144,43 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uLeaf = { value: 1 };
-        sh.uniforms.uFlat = { value: 1 }; sh.uniforms.uFlatMean = { value: 0.4 };   // the tint's contrast term: a cover's, never an impostor's
+        // WASHED OUT ON THE LIT SIDE (2026-09-23, the user, over a Jolene shot: "washed out trees over
+        // saturated terrain ... more bitty in terms of colours and shadows"). Measured on the card's OWN
+        // pixels - a mask built by hiding the impostor meshes for one frame, the sim frozen so the frame is
+        // a control (scratch mask.js) - the complaint is a number: the canopy drew at luma 0.1317 with a
+        // coefficient of variation of 0.223 over ground that drew DARKER, 0.1212, at cv 0.766. Brighter than
+        // the land it stands on and with three and a half times less variation in it.
+        //
+        // The first suspect was wrong and the measurement said so. The impostor took the GEOMETRY's leaf
+        // terms by reference - wrap 0.80, SSS 1.12, both additive - and the theory was that a card, whose
+        // baked normal varies slowly, has the whole crown lifted by them at once. It does not: switching the
+        // entire block off (uLeaf 0) moved the canopy 0.1317 -> 0.1279, three per cent, against a control of
+        // 0.006. wrap x0 and wrap x6 are both indistinguishable from doing nothing. So the terms stay shared
+        // with the geometry, where they belong, and the dial that was going to hold them is gone.
+        //
+        // What moves it is uFlat, the tint's contrast term `mix(vec3(uFlatMean), texel, uFlat)`, which was
+        // pinned at 1 here - the texel exactly as baked. Above 1 it expands contrast AWAY FROM uFlatMean,
+        // and that pivot is the whole story.
+        //
+        // THE PIVOT WAS THE GRASS CARD'S, NOT THE SHEET'S, AND IT MADE THE DIAL A CLIFF (G539). uFlatMean
+        // is meant to be the map's own mean lightness - cover_ring computes it per material, (mx + mn) / 2.
+        // The impostor inherited the literal 0.4 while its sheet's mean albedo MEASURES 0.0154 (read back
+        // off the drawn layer, scratch sheet.js). Everything darker than the pivot is driven DOWN, so at
+        // flat ~ 1.04 the entire canopy clamps to zero: the swept curve is 0.1344 at flat 1.0, 0.1165 at
+        // 1.025, 0.1068 at 1.05, and then pinned at 0.1053 for every value above - 1.15, 1.6, 2.6 are the
+        // same frame. G538 shipped 1.35, which is not "more contrast" at all: it is the albedo switched
+        // OFF, the card left wearing ambient and fog alone. It read better only because it was darker than
+        // the ground, and the user called it a day later - "the trees are now a little too dark".
+        //
+        // So the pivot goes where the sheet actually lives. At 0.05, flat is a dial again and the whole
+        // curve is usable: 1.15 -> 0.1240, 1.3 -> 0.1145, 1.6 -> 0.1068, 2.0 -> 0.1054. The default 1.30
+        // is the user's own call, two thirds of G538's darkening and one third of the old brightness
+        // (0.1145 against a target of 0.1150), and it lands the card's cv at 0.257 - the SAME trees drawn
+        // as real geometry measure 0.254, so the tier now matches its reference by expanding contrast
+        // rather than by deleting albedo. TREE_LOD.imp({ flat, mean, vary }); mean 0.4 restores G538.
+        // OWED: the pivot should be the SHEET'S OWN mean, computed at bake time per layer - 0.05 is one
+        // measured conifer's, and a birch or a deciduous sheet will not share it.
+        sh.uniforms.uFlat = uIFlat; sh.uniforms.uFlatMean = uIFlatMean;
         sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
@@ -3292,8 +3338,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         return treeLod.get();
       },
     };
-    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid; }
-      return { gain: uIGainK.value, solid: uISolid.value }; };
+    // ONE TREE IS NOT ITS NEIGHBOUR (2026-09-23, the user: "more bitty in terms of colours"): a baked tree
+    // wore pure white, so a whole stand carried one colour and read flat. Its instance colour is a
+    // lightness off its own position now - +-IMPK.vary, stable per tree, on BOTH tiers (the near geometry
+    // and the card share the instance colour), so a crown that is dark up close is dark as a card too.
+    const treeVary = (x, z) => { const v = IMPK.vary; if (!(v > 0)) return 1;
+      const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return 1 + (2 * (h - Math.floor(h)) - 1) * v; };
+    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid;
+        for (const k of ['flat', 'mean', 'vary']) if (o[k] !== undefined) IMPK[k] = +o[k];
+        uIFlat.value = IMPK.flat; uIFlatMean.value = IMPK.mean; }
+      return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, mean: IMPK.mean, vary: IMPK.vary }; };
+    treeLod.impVary = () => IMPK.vary;
     if (typeof window !== 'undefined') window.TREE_LOD = treeLod;
     // ================= W0c.5: THE MIX ======================================
     // Which SERIES a tree is drawn as. The bench's rule, ported: a fraction is
@@ -3917,7 +3972,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (trunks) trunks.setMatrixAt(i, m4);
           // a baked tree wears its own colour; tinting it again would paint one
           // green over the whole stand
-          if (PROTO) c3.setRGB(1, 1, 1);
+          if (PROTO) { const k = treeVary(T.x, T.z); c3.setRGB(k, k, k); }
           else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
           if (H.rec) {
             // the partition record, indexed as the SERIES sees it
@@ -4298,7 +4353,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             pv.set(r[o] - ox, r[o + 1] - 0.05 - (SH.sink || 0) * sv.y, r[o + 2] - oz);
             m4.compose(pv, q, sv);
             // a baked tree wears its own colour (see the woodland layer)
-            if (SH.white) c3.setRGB(1, 1, 1);
+            if (SH.white) { const k = treeVary(r[o], r[o + 2]); c3.setRGB(k, k, k); }
             else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w * 0.85);
             const j = P.at++;
             m4.toArray(rec.mats, i * 16);
@@ -4409,7 +4464,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null; if (!GF || !GF.poolAt) return 0;
             const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's
             if (!(K.pudCover > 0)) return 0;
-            return GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
+            let m = GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
+            // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23): the same ramp the shader runs (splat_ground sMat,
+            // uSPud2.w), so a tuft is refused and a log floats exactly where water is DRAWN - 42 % of the
+            // pools stood on ground over 10 degrees before this gate, and the ring believed every one.
+            if (m > 0 && K.pudFlat > 0.01) {
+              const d = 5, gx = (world.terrainH(x + d, z) - world.terrainH(x - d, z)) / (2 * d), gz = (world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+              const sl = Math.atan(Math.hypot(gx, gz)) * 180 / Math.PI;
+              m *= Math.max(0, Math.min(1, (K.pudFlat - sl) / (K.pudFlat * 0.5)));
+            }
+            return m;
           };
           const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
@@ -4556,14 +4620,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // and every chunk inside FILL_ACT its complement. While the payload is
       // still pending it does no walking (the cones would be evicted when the
       // trees land); a failed payload is 'fallback' and the cones are the ring.
-      const ringReady = cg => {
-        const R = Math.ceil(R_ACT / CH);
+      // reach (G562): the roll-out waits for the ring within `reach` only - the streamer grows the rest in the game,
+      // nearest first (the user: "keep loading assets as we go ... that's how MSFS does it")
+      const ringReady = (cg, reach) => {
+        const RA = Math.min(R_ACT, reach || R_ACT), R = Math.ceil(RA / CH);
         const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
         for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
           const cx = ccx + dx, cz = ccz + dz;
           const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
           const dd = mx2 * mx2 + mz2 * mz2;
-          if (dd > R_ACT * R_ACT) continue;
+          if (dd > RA * RA) continue;
           { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
             if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
           const c2 = chunks.get(keyOf(cx, cz));
@@ -4579,7 +4645,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (TREE_STATE.v === 'pending') return Object.assign({ phase: 'trees', done: false, trees: 'pending' }, ringStat());
         tick = 0;                          // a maintenance pass every tick under the screen
         fillStep(cg, budget);
-        const done = ringReady(cg);
+        const done = ringReady(cg, o && o.reach);
         return Object.assign({ phase: done ? 'done' : 'ring', done, trees: TREE_STATE.v }, ringStat());
       };
       fillApi = { prewarm, ringReady, ringStat, treeState: () => TREE_STATE.v };   // after the consts: no dead zone
@@ -5120,12 +5186,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     return { patchMat: inner.mat, patchUV: inner.uv, patchMat2: outerMat, patchUV2: outerUV, patchInject2: false,
              patchPick: (x0, z0, x1, z1) => !(Math.abs(x0) < h && Math.abs(x1) < h && Math.abs(z0) < h && Math.abs(z1) < h) };
   }
+  // G570: declared ABOVE the premises block, which runs inline in buildWorldScene - declared where worldUpdate
+  // stands (G562) it was in its TDZ when the block ran: a ReferenceError the catch below printed as "the record
+  // did not render", and the game drew no premises at all
+  const PREM_NEAR = 3000;   // G562: the boot builds the premises within 3 km of the field; the rest streams in
   if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
     try {
       // the patch wears the ring it lies in, chunk by chunk (patchGrounds, G527): the inner ring's material (its
       // baked map, its detail grain) and uv law inside ±INNER, the outer ring's beyond
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
-        game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
+        game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)
         ...patchGrounds(),
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath },
@@ -5135,10 +5205,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
       });
       premisesR.rebuild();
-      while (premisesR.stats.queued) premisesR.step(4);
+      if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4);   // G562: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
-      if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) refreshGround(pb); }
+      if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) refreshGround(pb); }   // refreshGround re-sinks the far tier itself (G527)
     } catch (e) { console.warn('premises: the record did not render', e); }
+  } else if (world.premises && world.premises.rec) {
+    // A SILENT SKIP IS WHAT COST AN AFTERNOON (2026-09-23). render_premises prints
+    // NOTHING on success - every console call in it is a warn on a failure path - so
+    // the absence of a premises line means nothing at all, and a session hunting a
+    // blank frame over Metlakatla read that absence as a signal. Worse, the guard
+    // above can be false with a perfectly good record: if the world pack did not
+    // carry render_premises.js, `window.RENDER_PREMISES` is undefined and the whole
+    // place is skipped without a word - invisible everywhere except where a premises
+    // actually is. It says so now.
+    console.warn('premises: the record is here and RENDER_PREMISES is not loaded - nothing of the place will draw');
   }
   { // stage-4 aerodromes: strip decals + windsocks at every field/strip
     const mkTex = kind => {
@@ -5393,6 +5473,33 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // above the true ground wherever it is concave, no longer cut through the roads, the lots, the
   // house pads and the graded shoulders laid on the composed height. At the patch's border the
   // patch tucks 2.2 m under the ring as before: the seam is the ring's, by design.
+  // THE PREMISES' TREE POOL (2026-09-23). Every caller passed `pool: () => []`, so a
+  // record tree came out keyed `stub|tree` and built as a placeholder cone - which is
+  // what a BENCH wants and not what a town does. The premises wants
+  // `{ key, size, sink, proportion, h }`; the pack's collection carries `place.size`,
+  // `place.sink` and `place.proportion`, and a HEIGHT only for the shrubs (`hMin`/
+  // `hMax`), so a tree takes 12 m x its size and a shrub the middle of its own range.
+  // `h` is a SELECTOR, not a drawn dimension: the garden pass plants the small half of
+  // the pool and the renderer scales by `size`.
+  function premisesTreePool() {
+    if (typeof treeList !== 'function') return [];
+    try {
+      const out = [];
+      for (const e of treeList()) {
+        const c = e.col, P = (c && c.place) || {};
+        if (!c || (c.kind !== 'tree' && c.kind !== 'shrub')) continue;
+        const n = (c.subjects && c.subjects.length) || 1;
+        const w = (P.proportion === undefined ? 1 : P.proportion) / n;
+        if (!(w > 0)) continue;
+        const size = P.size || 1;
+        const h = c.kind === 'shrub'
+          ? ((P.hMin || 0.5) + (P.hMax || 3)) / 2
+          : 12 * size;
+        out.push({ key: e.key, size, sink: P.sink || 0, proportion: w, h });
+      }
+      return out;
+    } catch (e) { return []; }
+  }
   function groundSink(x, z) { return (premisesR && premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0; }   // hoisted: the boot calls refreshGround before this line
   function refreshGround(bb) {
     for (const g of groundGeos) {
@@ -5404,9 +5511,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
     if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
   }
-  let premTramLast = 0;
+  let premTramLast = 0, premStreamTick = 0;
   function worldUpdate(cg) {
-    if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
+    if (premisesR && premisesR.stats.queued && (++premStreamTick % 3 === 0 || (premisesR.editing && premisesR.editing()))) premisesR.step(1);   // a live edit's builds, and the far premises streamed in (G562): one every third frame
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
@@ -5742,7 +5849,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
-      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
+      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         ...patchGrounds(),
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });

@@ -27,6 +27,12 @@
 //   6  the material dupe: a pooled material's copy keeps its hook, defines
 //      and per-finish uniforms, takes the block, and leaves the original's
 //      userData untouched
+//   9  L0 shelved (G571): by default a placement has no L0 - L1 from 0 m, no
+//      interior mesh built, the far rungs one index lower, and with the bake
+//      ONE draw from 0 m; 5b / 6c / 8 switch PARKED.L0 on to prove the full
+//      ladder the switch keeps
+//   8  the far levels baked (G569): the unwrap, the cut per chart, the dilation,
+//      the bake hook, and L1 / L2 / L3 each ONE mesh on ONE material
 //   7  the fixture: every aircraft object in island_jolene.json names an
 //      archetype the design table declares and stands inside a flatten
 //
@@ -53,6 +59,7 @@ W.window = W; W.globalThis = W;
 vm.createContext(W);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8'), W, { filename: 'parked.js' });
 const PK = W.PARKED;
+check(PK.L0 === false, '9 L0 is off by default (G571): L1 stands from 0 m');
 check(!!PK && typeof PK.build === 'function', 'the module loads headless');
 if (PK) PK.quiet = true;
 
@@ -216,7 +223,9 @@ async function farRungs() {
   const vis = synthVis('tail');
   const rec = record('k', vis);
   const grp = new THREE.Group(); grp.position.set(10, 5, -3); grp.rotation.y = 0.7;
+  PK.L0 = true;
   const lod = PK.build(THREE, rec, grp);
+  PK.L0 = false;
   check(lod.isLOD && lod.levels.length === 5, '5b a five-rung LOD', String(lod.levels.length));
   check(near(lod.levels[1].distance, PK.LEVELS.L1, 0) && near(lod.levels[4].distance, PK.LEVELS.cull, 0), '5b the rungs at the declared distances');
   const t0 = Date.now();
@@ -317,7 +326,9 @@ async function paneLevels() {
   try {
     const vis = synthVis('tail');
     const rec = record('pane', vis);
+    PK.L0 = true;
     const lod = PK.build(THREE, rec, new THREE.Group());
+    PK.L0 = false;
     const t0 = Date.now();
     while (!rec.far && Date.now() - t0 < 30000) await new Promise(r => setTimeout(r, 50));
     await new Promise(r => setTimeout(r, 20));
@@ -332,6 +343,123 @@ async function paneLevels() {
     const t1 = panes(1).map(p => p.children[0].material);
     check(t1.length && t1.every(m => m === t1[0]) && t1[0] !== panes(0)[0].children[0].material, '6c one companion material per pane and level kind, not one per mesh');
   } finally { delete W.AEROSKIN; }
+}
+
+// ---- 8 the far levels baked (G569) ------------------------------------------------------------
+// The GPU bake itself needs a page; the rest is pure and proven here: the unwrap (every triangle
+// counter-clockwise in the atlas, inside it, its chart's box clear of every other box), the cut on
+// the unwrapped mesh (a triangle never straddles two charts), the dilation (no texel left unwritten),
+// the bake hook's splices, and the assembly - L1, L2 and L3 each ONE mesh on ONE shared material,
+// standing on the same ground as L0.
+async function bakedRungs() {
+  const vis = synthVis('tail');
+  const rec = record('baked', vis);
+  const ext = PK.exteriorMesh(rec);
+  const uw = PK.unwrap(ext, { S: 256, gutter: 1 });
+  if (!check(!!uw, '8 the synthetic exterior unwraps')) return;
+  check(uw.nt === ext.nt && uw.idx.length === ext.nt * 3 && uw.cornerUV.length === ext.nt * 6, '8 the unwrap keeps every triangle', uw.nt + ' vs ' + ext.nt);
+  check(uw.nv < ext.pos.length / 3, '8 the soup is welded within a chart', uw.nv + ' wedges of ' + ext.pos.length / 3);
+  let bad = 0, out = 0;
+  for (let t = 0; t < uw.nt; t++) {
+    const a = uw.idx[t * 3], b = uw.idx[t * 3 + 1], c = uw.idx[t * 3 + 2];
+    const s = (uw.uv[b * 2] - uw.uv[a * 2]) * (uw.uv[c * 2 + 1] - uw.uv[a * 2 + 1]) - (uw.uv[b * 2 + 1] - uw.uv[a * 2 + 1]) * (uw.uv[c * 2] - uw.uv[a * 2]);
+    if (s < -1e-9) bad++;
+  }
+  for (let i = 0; i < uw.uv.length; i++) if (!(uw.uv[i] >= 0 && uw.uv[i] <= 1)) out++;
+  check(bad === 0, '8 every triangle is counter-clockwise in the atlas (the bake sees its front)', String(bad));
+  check(out === 0, '8 every uv inside the atlas', String(out));
+  const R = uw.rects, S = uw.S, G = uw.gutter, s = uw.density;
+  const box = r => [r.x, r.y, r.x + Math.max(1, Math.ceil(r.w * s)) + 2 * G, r.y + Math.max(1, Math.ceil(r.h * s)) + 2 * G];
+  let over = 0, outside = 0;
+  for (let i = 0; i < R.length; i++) { const A = box(R[i]); if (A[2] > S || A[3] > S) outside++;
+    for (let j = i + 1; j < R.length; j++) { const B = box(R[j]); if (A[0] < B[2] && B[0] < A[2] && A[1] < B[3] && B[1] < A[3]) over++; } }
+  check(over === 0 && outside === 0, '8 the chart boxes are disjoint and inside the atlas', over + ' overlaps, ' + outside + ' outside');
+  check(uw.charts >= 6 && uw.fill > 0.2, '8 the boxes chart by facing and fill the atlas', uw.charts + ' charts, fill ' + uw.fill.toFixed(2));
+  // the cut on the unwrapped mesh, as the Worker runs it: a chart border is a seam it keeps
+  const wChart = new Int32Array(uw.nv); R.forEach((r, i) => { for (let w = r.w0; w < r.w1; w++) wChart[w] = i; });
+  const bb = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < uw.nv; i++) for (let a = 0; a < 3; a++) { bb[a] = Math.min(bb[a], uw.pos[i * 3 + a]); bb[a + 3] = Math.max(bb[a + 3], uw.pos[i * 3 + a]); }
+  const q = new Int16Array(uw.nv * 3), n8 = new Int8Array(uw.nv * 3);
+  for (let i = 0; i < uw.nv; i++) for (let a = 0; a < 3; a++) { q[i * 3 + a] = Math.round((uw.pos[i * 3 + a] - bb[a]) * 65535 / (bb[a + 3] - bb[a])) - 32768; n8[i * 3 + a] = Math.round(uw.nrm[i * 3 + a] * 127); }
+  const cut = CORE.meshDecimate({ nv: uw.nv, nt: uw.nt, pos: q, nrm: n8, idx: uw.idx.slice() }, bb, Math.round(uw.nt / 3), { W_SEAM: PK.BAKE.seam });
+  let straddle = 0;
+  for (let t = 0; t < cut.nt; t++) { const a = wChart[cut.idx[t * 3]]; if (a !== wChart[cut.idx[t * 3 + 1]] || a !== wChart[cut.idx[t * 3 + 2]]) straddle++; }
+  check(cut.nt < uw.nt && straddle === 0, '8 the cut keeps every triangle inside one chart', cut.nt + ' of ' + uw.nt + ', ' + straddle + ' straddle');
+  // the dilation
+  const A = new Uint8Array(8 * 8 * 4), B = new Uint8Array(8 * 8 * 4);
+  A[(3 * 8 + 3) * 4] = 200; A[(3 * 8 + 3) * 4 + 3] = 255; B[(3 * 8 + 3) * 4 + 1] = 77;
+  const cov = PK.dilate([A, B], 8);
+  let unw = 0; for (let i = 0; i < 64; i++) if (A[i * 4 + 3] !== 255 || A[i * 4] !== 200 || B[i * 4 + 1] !== 77) unw++;
+  check(near(cov, 1 / 64, 1e-9) && unw === 0, '8 every unwritten texel takes its nearest written one', 'cov ' + cov + ', ' + unw + ' left');
+  // the bake hook: the source hook first, the atlas position and the outputs spliced at the end
+  const src = function (sh) { sh.fragmentShader = sh.fragmentShader.replace('//x', '//src'); };
+  const hk = PK.bakeHook(src);
+  check(hk === PK.bakeHook(src) && String(hk) !== String(src) && String(hk).indexOf(String(src)) >= 0, '8 one bake twin per source hook, keyed apart from it');
+  const sh = { uniforms: {}, vertexShader: 'void main() {\n  gl_Position = vec4(0.0);\n}', fragmentShader: 'void main() {\n  //x\n}' };
+  hk.call({ userData: { parkedBakeGlass: 0.12 } }, sh);
+  check(/gl_Position = vec4\(aBakeUv \* 2\.0 - 1\.0/.test(sh.vertexShader) && sh.vertexShader.lastIndexOf('aBakeUv') > sh.vertexShader.indexOf('gl_Position = vec4(0.0)'), '8 the vertex lands at its atlas texel after the flown projection');
+  check(/\/\/src/.test(sh.fragmentShader) && /uBakeOut/.test(sh.fragmentShader) && sh.uniforms.uBakeOut && near(sh.uniforms.uBakeGlass.value, 0.12, 1e-9), '8 the fragment runs the flown hook, then writes the bake');
+  // the assembly: a stand-in renderer so build takes the baked door, the record's bake in hand
+  const lvl = o => ({ pos: o.pos, nrm: o.nrm, uv: o.uv, idx: o.idx });
+  const small = { pos: uw.pos, nrm: new Int8Array(Array.from(uw.nrm, v => Math.round(v * 127))), uv: uw.uv, idx: new Uint32Array(cut.idx) };
+  const T = () => new Uint8Array(S * S * 4).fill(255);
+  rec.baked = PK.bakedFrom(THREE, { S, tex: [T(), T(), T()], cc: false, ccR: 0.1,
+    L: [lvl({ pos: uw.pos, nrm: small.nrm, uv: uw.uv, idx: uw.idx }), small, small] });
+  PK.renderer = { isWebGLRenderer: true, readRenderTargetPixels() {} };
+  try {
+    const grp = new THREE.Group(); grp.position.set(3, 1, 2); grp.rotation.y = -0.4;
+    PK.L0 = true;
+    const lod = PK.build(THREE, rec, grp);
+    PK.L0 = false;
+    const meshes = L => { const m = []; lod.levels[L].object.traverse(o => { if (o.isMesh) m.push(o); }); return m; };
+    for (const L of [1, 2, 3]) check(meshes(L).length === 1, '8 L' + L + ' is ONE draw', String(meshes(L).length));
+    const mats = new Set([1, 2, 3].map(L => meshes(L)[0] && meshes(L)[0].material));
+    const m = [...mats][0];
+    check(mats.size === 1 && m.map && m.normalMap && m.normalMapType === THREE.ObjectSpaceNormalMap && m.roughnessMap === m.metalnessMap, '8 ...on ONE standard material: the atlas, an object-space normal, roughness / metalness');
+    check(meshes(0).length > 3, '8 L0 is left as it was', String(meshes(0).length));
+    grp.updateWorldMatrix(true, true);
+    const v = new THREE.Vector3(), low = [];
+    for (const L of [0, 1]) { let lo = Infinity; lod.levels[L].object.traverse(o => { if (!o.isMesh) return; const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); lo = Math.min(lo, v.y); } }); low.push(lo); }
+    check(near(low[0], low[1], 1e-4), '8 the baked rung stands where the full one does', low.join(' vs '));
+    // 9 the default (L0 shelved) with the bake in hand: the baked L1 from 0 m, one draw a rung, on the same ground
+    const g9 = new THREE.Group(); g9.position.set(3, 1, 2); g9.rotation.y = -0.4;
+    const lod9 = PK.build(THREE, rec, g9);
+    const m9 = L => { const m = []; lod9.levels[L].object.traverse(o => { if (o.isMesh) m.push(o); }); return m; };
+    check(lod9.levels.length === 4 && lod9.levels[0].distance === 0, '9 baked, no L0: four rungs, L1 from 0 m', lod9.levels.map(l => l.distance).join(' / '));
+    check([0, 1, 2].every(L => m9(L).length === 1 && m9(L)[0].material === m), '9 ...each ONE draw on the bake\'s one material', [0, 1, 2].map(L => m9(L).length).join(' / '));
+    g9.updateWorldMatrix(true, true);
+    let lo9 = Infinity; lod9.levels[0].object.traverse(o => { if (!o.isMesh) return; const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); lo9 = Math.min(lo9, v.y); } });
+    check(near(lo9, low[0], 1e-4), '9 ...standing where the full ladder does', lo9 + ' vs ' + low[0]);
+  } finally { PK.renderer = null; }
+}
+
+// ---- 9 L0 shelved (G571): the default ladder, headless (no bake) ------------------------------
+async function shelvedL0() {
+  const vis = synthVis('tail');
+  const rec = record('noL0', vis);
+  const grp = new THREE.Group(); grp.position.set(-4, 2, 7); grp.rotation.y = 1.1;
+  const lod = PK.build(THREE, rec, grp);
+  check(lod.isLOD && lod.levels.length === 4, '9 a four-rung LOD', String(lod.levels.length));
+  check(lod.levels[0].distance === 0 && near(lod.levels[1].distance, PK.LEVELS.L2, 0) && near(lod.levels[2].distance, PK.LEVELS.L3, 0) && near(lod.levels[3].distance, PK.LEVELS.cull, 0),
+    '9 L1 from 0 m, L2 / L3 / cull at their declared distances', lod.levels.map(l => l.distance).join(' / '));
+  const interior = Object.keys(vis.mats).filter(k => PK.isInterior(vis.mats[k]));
+  const built = new Set(); lod.traverse(o => { if (o.isMesh && o.geometry) built.add(o.geometry); });
+  const made = interior.map(k => rec.geos.get(vis.groups[k])).filter(Boolean);
+  check(interior.length > 0 && made.length === 0 && built.size > 0, '9 no interior bucket is built for any rung', interior.join(',') + ': ' + made.length + ' built');
+  const t0 = Date.now();
+  while (!rec.far && Date.now() - t0 < 30000) await new Promise(r => setTimeout(r, 50));
+  if (!check(!!rec.far, '9 the far levels land without L0')) return;
+  await new Promise(r => setTimeout(r, 20));
+  const count = g => { let n = 0; g.traverse(o => { if (o.isMesh) n++; }); return n; };
+  check(count(lod.levels[2].object) <= 3 && count(lod.levels[2].object) >= 2, '9 the far rungs one index lower: L3 at index 2', String(count(lod.levels[2].object)));
+  grp.updateWorldMatrix(true, true);
+  const v = new THREE.Vector3();
+  for (const li of [0, 1, 2]) {
+    let low = Infinity;
+    lod.levels[li].object.traverse(m => { if (!m.isMesh) return; const p = m.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(m.matrixWorld); if (v.y < low) low = v.y; } });
+    check(near(low - grp.position.y, 0, 0.015), '9 rung ' + li + ' stands on the ground', String(low - grp.position.y));
+  }
+  check(!!(lod.userData.craftInv && lod.userData.craftInv.value), '9 the placement has its craft matrix');
 }
 
 // ---- 7 the fixture ------------------------------------------------------------------------------
@@ -355,7 +483,9 @@ async function paneLevels() {
 }
 
 farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || String(e)))
-  .then(() => paneLevels().catch(e => check(false, '6c the pane levels threw', e && e.stack || String(e)))).then(() => {
+  .then(() => paneLevels().catch(e => check(false, '6c the pane levels threw', e && e.stack || String(e))))
+  .then(() => bakedRungs().catch(e => check(false, '8 the baked rungs threw', e && e.stack || String(e))))
+  .then(() => shelvedL0().catch(e => check(false, '9 the shelved L0 threw', e && e.stack || String(e)))).then(() => {
   if (fail.length) {
     for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
     if (fail.length > 30) console.log('  ... ' + (fail.length - 30) + ' more');

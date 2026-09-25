@@ -502,13 +502,17 @@ function makePilot(sim, def, world, opts) {
       if (typeof a.landHdg === 'number') pref = [Math.cos(a.landHdg), Math.sin(a.landHdg)];
       // GTRAM: an ALTIPORT is landed uphill and LEFT DOWNHILL - its one way reverses for the take-off
       if (typeof a.landHdg === 'number' && a.altiport && mode === 'takeoff') pref = [-pref[0], -pref[1]];
-      const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number');
+      // G527.3: a strip that names its way out (runway `departure`) is left that way in calm air
+      const tko = mode === 'takeoff' && typeof a.takeoffHdg === 'number';
+      if (tko) pref = [Math.cos(a.takeoffHdg), Math.sin(a.takeoffHdg)];
+      const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number' || tko);
       ap.dirWhy = sc.why[sc.k];
       return M.dir[sc.k].u.slice();
     }
     let dx = px, dz = pz;
     if (a.altiport && typeof a.landHdg === 'number') { const k = mode === 'takeoff' ? -1 : 1; dx = k * Math.cos(a.landHdg); dz = k * Math.sin(a.landHdg); }   // GTRAM: whatever the wind
     else if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    else if (mode === 'takeoff' && typeof a.takeoffHdg === 'number') { dx = Math.cos(a.takeoffHdg); dz = Math.sin(a.takeoffHdg); }   // G527.3: the named way out, in calm air
     else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
@@ -1837,7 +1841,9 @@ function makePilot(sim, def, world, opts) {
             // P1.C short: the take-off must FIT, the stop is not asked (the
             // accelerate-stop is the long strip's luxury; on 340 m of gravel
             // the cub rejected at 7 s a run the sheet says it makes)
-            const shortT = ap.dep && ap.dep.technique === 'short';
+            // GTRAM: an ALTIPORT's departure is committed at brake release (the stop after Vr is asked on no slope:
+            // on 10 % of downhill grass it is longer than the strip, and the cub was condemned needing 33 m of 227)
+            const shortT = (ap.dep && ap.dep.technique === 'short') || !!ap.route.from.altiport;
             // GTRAM: an altiport's low end is the mountain falling away, not a fence - the run may use it all
             if (dVr > left - (shortT ? 0 : stopDist(vr)) - (ap.route.from.altiport ? 0 : resv))
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +

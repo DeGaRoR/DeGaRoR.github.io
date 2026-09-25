@@ -146,6 +146,91 @@ const checks = {
   console.log(`negative control: a lying slope bound ${rn.first ? 'DIVERGED at frame ' + rn.first.f : 'went unseen'}`);
 }
 
+// ---------------------------------------------------------------------------
+// THE ISLAND'S CEILING (PHYSICS PERF 2026-09-24). Jolene declares no slope
+// bound (its raster steps by up to 2 m where a coarse leaf meets a fine one),
+// so the solver skips a node's sample against a CEILING instead:
+// world.groundMaxRect over the aeroplane's footprint (20_world.js). Claimed
+// exact, so proven the same way: (1) the ceiling bounds the ground - random
+// rectangles over the whole island, 6 m to 200 m, and every premises modifier's
+// own box, each sampled on a grid and at random; (2) a ceiling a metre low is
+// caught by the same check (the check can fail); (3) the stock build taxied
+// 30 s out of HOME's stand twice, the skip on and off, every p and v compared
+// every frame; (4) the skip engages.
+{
+  const path = require('path'), fs = require('fs');
+  const C = require('./flight_core.js'), IN = require('./island_node.js');
+  const boot = IN.islandBoot('jolene');
+  if (!boot) console.log('island ceiling: no Jolene in this checkout - skipped');
+  else {
+    const J = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8') });
+    let s = 20260924;
+    const rnd = () => { s = (Math.imul(s, 1103515245) + 12345) >>> 0; return s / 4294967296; };
+    const rects = [];
+    const Bd = boot.header.bounds;
+    for (let k = 0; k < 400; k++) {
+      const w = 6 + rnd() * 194, d = 6 + rnd() * 194;
+      const x = Bd.x0 + 200 + rnd() * (Bd.x1 - Bd.x0 - 400), z = Bd.z0 + 200 + rnd() * (Bd.z1 - Bd.z0 - 400);
+      rects.push([x, z, x + w, z + d]);
+    }
+    // the ground people taxi on: around every aerodrome, and every premises modifier's own box
+    for (const a of J.aerodromes) for (let k = 0; k < 12; k++) {
+      const x = a.x + (rnd() - 0.5) * 600, z = a.z + (rnd() - 0.5) * 600, w = 8 + rnd() * 30;
+      rects.push([x, z, x + w, z + w]);
+    }
+    const O = J.premises && J.premises.overlay;
+    if (O && O.index) {
+      const F = O.frame; let nm = 0;
+      O.index.rect(-1e6, -1e6, 1e6, 1e6, M => {
+        if (nm++ > 2000) return;
+        const b = M.bbox, c = [F.toWorld(b.x0, b.z0), F.toWorld(b.x1, b.z0), F.toWorld(b.x0, b.z1), F.toWorld(b.x1, b.z1)];
+        rects.push([Math.min(...c.map(q => q[0])), Math.min(...c.map(q => q[1])), Math.max(...c.map(q => q[0])), Math.max(...c.map(q => q[1]))]);
+      });
+    }
+    const check = (ceil) => {
+      let bad = 0, n = 0, slack = 0, nf = 0, worst = null;
+      for (const [x0, z0, x1, z1] of rects) {
+        const H = ceil(x0, z0, x1, z1);
+        if (!Number.isFinite(H)) { nf++; continue; }
+        let top = -Infinity;
+        const st = Math.max(0.5, Math.max(x1 - x0, z1 - z0) / 60);
+        for (let x = x0; x <= x1 + 1e-9; x += st) for (let z = z0; z <= z1 + 1e-9; z += st) { const h = J.terrainH(x, z); n++; if (h > top) top = h; if (h > H) { bad++; worst = worst || [x, z, h, H]; } }
+        for (let k = 0; k < 200; k++) { const x = x0 + rnd() * (x1 - x0), z = z0 + rnd() * (z1 - z0), h = J.terrainH(x, z); n++; if (h > top) top = h; if (h > H) { bad++; worst = worst || [x, z, h, H]; } }
+        slack += H - top;
+      }
+      return { bad, n, nf, worst, slack: slack / Math.max(1, rects.length - nf) };
+    };
+    const c1 = check(J.groundMaxRect);
+    checks['the island ceiling bounds the composed ground'] = c1.bad === 0 && c1.n > 1e5 && c1.nf < rects.length / 2;
+    console.log(`island ceiling: ${rects.length} rectangles, ${c1.n} points, ${c1.bad} above it${c1.worst ? ' e.g. ' + c1.worst.map(v => v.toFixed(3)).join(', ') : ''}; ${c1.nf} without one; mean slack ${c1.slack.toFixed(2)} m`);
+    const c2 = check((a, b, c, d) => J.groundMaxRect(a, b, c, d) - 1);
+    checks['a ceiling a metre low is caught (negative control)'] = c2.bad > 0;
+    // the taxi, both ways
+    const sp = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v9_stock_2026-09-15.json'), 'utf8')).spec;
+    const dJ = C.buildGen(C.genMigrateSpec(sp));
+    const home = J.aerodromes.find(a => a.id === 'HOME'), site = C.siteOf(home.id);
+    const mk = on => {
+      const s2 = C.makeSim(dJ, J); s2.setGroundCone(on); s2.reset(0);
+      if (s2.stance) s2.stance();
+      C.placeAtStand(s2, home, site.stand);
+      const ap = C.makePilot(s2, dJ, J, { style: 'normal' }); ap.setRoute(home, home); ap.departFrom(home, home, site);
+      return { s: s2, ap };
+    };
+    const A = mk(true), Bs = mk(false);
+    let first = null, skipped = 0, sampled = 0;
+    for (let f = 0; f < 60 * 30 && !first; f++) {
+      A.ap.update(1 / 60); A.s.step(1 / 60); Bs.ap.update(1 / 60); Bs.s.step(1 / 60);
+      skipped += A.s.out.gndSkipped; sampled += A.s.out.gndSampled;
+      for (let i = 0; i < A.s.p.length; i++)
+        if (!Object.is(A.s.p[i], Bs.s.p[i]) || !Object.is(A.s.v[i], Bs.s.v[i])) { first = { f, i }; break; }
+    }
+    const fr = skipped / Math.max(1, skipped + sampled);
+    checks['the island ceiling taxis the identical trajectory'] = first === null;
+    checks['the island ceiling engages on the stand'] = fr > 0.5;
+    console.log(`island ceiling A/B 30 s taxi out of HOME: ${first ? 'DIVERGED at frame ' + first.f + ' index ' + first.i : 'identical'} | ${(fr * 100).toFixed(1)} % of node samples skipped (${A.ap.phase})`);
+  }
+}
+
 const failed = Object.keys(checks).filter(k => !checks[k]);
 if (failed.length) console.log(`FAILED CHECKS: ${failed.join(', ')}`);
 const pass = failed.length === 0;

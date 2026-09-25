@@ -188,7 +188,7 @@ const TTYPES = [
   [11,'shingle', '#9a8f80'],   // the rocky beach - a MAP code (the prep's shore band, 2026-09-20)
   [12,'cliff',  '#3a3634'], [13,'forest old', '#0f3a18'], [14,'scrub dense', '#5a7c34'],
 ];
-const NCODE = 15;
+const NCODE = 17;   // 16 residential is a code now (2026-09-23); this is the arrays' width
 
 // THE SPLAT: per effective code, up to THREE sets of the ground library mixed
 // by a noise mask (Photoshop again: a mask with a cell size, a sharpness and a
@@ -548,7 +548,7 @@ const FS = `
   }
   int codeAt(vec2 cellIx){
     vec2 uv = (cellIx + 0.5) * uCell / uBounds.zw;
-    return min(int(texture2D(uTtype, uv).r * 255.0 + 0.5), 11);
+    return min(int(texture2D(uTtype, uv).r * 255.0 + 0.5), 16);   // 16 residential, not 15 (2026-09-23)
   }
   // THE SPLAT: the four cells around the (wobbled) point vote one-hot with
   // bilinear weights - a smooth blend over one cell, never a hard texel edge;

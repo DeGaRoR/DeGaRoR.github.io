@@ -13,6 +13,40 @@
 // equal on purpose.
 const RHO = 1.225;
 
+// ---- hyp2 / hyp3: Math.hypot, TO THE BIT, seven times cheaper (PHYSICS PERF 2026-09-24) ----
+// V8's Math.hypot is a builtin call that scales by the largest argument and sums the squares
+// with Kahan compensation: 47 ns a call against 2.3 for sqrt(x*x + y*y + z*z) - and the solver's
+// beam loop makes one call per beam per substep (100 000 a frame on a 200-substep alloy build).
+// sqrt of the plain sum is NOT the same number (36 % of calls differ in the last bit, and every
+// anchored gate would move); these are V8's own algorithm (src/builtins/math.tq MathHypot:
+// Infinity first, then NaN, max 0 -> 0, the scaled Kahan sum, sqrt x max) written out, so the
+// JIT inlines them: 6-7 ns, and equal to Math.hypot with Object.is on 4e7 random triples over
+// forty decades plus the specials (tools/_hypot_check.js holds it). Use them in the per-substep
+// loops; anywhere else Math.hypot is fine.
+function hyp3(x, y, z) {
+  x = Math.abs(x); y = Math.abs(y); z = Math.abs(z);
+  if (x === Infinity || y === Infinity || z === Infinity) return Infinity;
+  let m = x > y ? x : y; if (z > m) m = z;
+  if (m !== m || x !== x || y !== y || z !== z) return NaN;
+  if (m === 0) return 0;
+  let s = 0, c = 0, n, q, pr;
+  n = x / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  n = y / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  n = z / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  return Math.sqrt(s) * m;
+}
+function hyp2(x, y) {
+  x = Math.abs(x); y = Math.abs(y);
+  if (x === Infinity || y === Infinity) return Infinity;
+  if (x !== x || y !== y) return NaN;
+  const m = x > y ? x : y;
+  if (m === 0) return 0;
+  let s = 0, c = 0, n, q, pr;
+  n = x / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  n = y / m; q = n * n - c; pr = s + q; c = (pr - s) - q; s = pr;
+  return Math.sqrt(s) * m;
+}
+
 
 // ============================================================
 // REGISTRIES — powerplants (engine + propeller) and airfoil polars.

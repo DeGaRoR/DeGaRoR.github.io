@@ -114,6 +114,9 @@
     Tl.appendChild(slider('imp lit', 0, 3, 0.05, () => world().treeLod.lit.value, v => { world().treeLod.lit.value = v; }));
     Tl.appendChild(slider('imp gain', 1, 12, 0.25, () => lod().imp().gain, v => lod().imp({ gain: v })));
     Tl.appendChild(slider('imp solid', 0, 1, 0.05, () => lod().imp().solid, v => lod().imp({ solid: v })));
+    Tl.appendChild(slider('imp contrast', 0.6, 2.6, 0.05, () => lod().imp().flat, v => lod().imp({ flat: v })));
+    Tl.appendChild(slider('imp pivot', 0.01, 0.4, 0.01, () => lod().imp().mean, v => lod().imp({ mean: v })));
+    Tl.appendChild(note('imp contrast expands the sheet texels away from imp pivot, which must sit where the sheet MEAN actually is (0.0154 measured on the conifer layer). At the old pivot of 0.4 every canopy texel clamped to zero above flat 1.04 and contrast became an albedo kill switch - G539. Pivot 0.05 / contrast 1.30 puts the cards on the same cv as the same trees drawn as geometry. The per-tree lightness is plant-time, not a live dial.'));
     const Tf = fold(T, 'leaf', false, true);
     Tf.appendChild(slider('wrap', 0, 1, 0.02, () => leaf().get().wrap, v => leaf().set({ wrap: v })));
     Tf.appendChild(slider('sss', 0, 2, 0.02, () => leaf().get().sss, v => leaf().set({ sss: v })));

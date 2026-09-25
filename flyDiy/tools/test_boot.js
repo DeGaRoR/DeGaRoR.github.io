@@ -32,7 +32,8 @@ function el(id) {
     addEventListener(k, f) { (this.ev = this.ev || {})[k] = f; },
     get firstElementChild() { return this.children[0] || null; } };
 }
-const KNOWN = ['boot', 'bootShots', 'bootVeil', 'bootPanel', 'bootBrand', 'bootPhase', 'bootBar', 'bootTick', 'bootNote', 'bootSkip'];
+const KNOWN = ['boot', 'bootShots', 'bootVeil', 'bootPanel', 'bootBrand', 'bootPhase', 'bootBar', 'bootTick', 'bootNote', 'bootSkip',
+  'bootShader', 'bootShaderHead', 'bootShaderText', 'bootShaderBar', 'bootShaderN'];   // G567: the cold compile's block
 const els = {};
 let timers = 0, maxDepth = 0, depth = 0;
 const errs = [];
@@ -48,6 +49,7 @@ const sandbox = {
 sandbox.window = sandbox;
 // the bar's fill and two figures of each set, as build.js writes them
 els.bootBar = el('bootBar'); els.bootBar.children = [el('fill')];
+els.bootShaderBar = el('bootShaderBar'); els.bootShaderBar.children = [el('fill')];
 els.bootShots = el('bootShots');
 for (const set of ['garage', 'garage', 'rollout', 'rollout']) { const f = el('fig'); f.setAttribute('data-set', set); els.bootShots.children.push(f); }
 vm.createContext(sandbox);
@@ -130,6 +132,25 @@ if (B.keys.room.landed !== 2) fail('the shared image did not land once');
 B.frame(); B.frame(); B.frame();
 if (B.state !== 'gone') fail('did not lift after the images');
 ok('img() dedupes a shared Image, a broken one lands as failed');
+
+// ---- G567: the shaders' block - shown with a count, its words by warm/cold, pending keeps the step alive, hidden on hide
+['bootShader', 'bootShaderText', 'bootShaderN'].forEach(k => sandbox.document.getElementById(k));
+els.bootShader.hidden = true; els.bootShaderText.textContent = 'cold words';
+B.show('rollout', {});
+B.shaders(3, 10, false);
+if (els.bootShader.hidden) fail('the shaders block did not show');
+if (!/3 \/ 10/.test(els.bootShaderN.textContent)) fail('the count reads ' + els.bootShaderN.textContent);
+if (!/30\.0%/.test(els.bootShaderBar.children[0].style.width)) fail('the bar is ' + els.bootShaderBar.children[0].style.width);
+{ const t0 = B.lastEvent; sandbox.__t += 5000; B.shaders(3, 10, false); if (!(B.lastEvent > t0)) fail('a pending compile did not re-arm the watchdog'); }
+B.shaders(4, 10, true);
+if (els.bootShaderText.textContent === 'cold words') fail('the warm words were not used');
+B.shaders(5, 10, false);
+if (els.bootShaderText.textContent !== 'cold words') fail('the cold words did not come back');
+B.shaders(null);
+if (!els.bootShader.hidden) fail('shaders(null) did not hide the block');
+B.shaders(1, 2, false); B.hide();
+if (!els.bootShader.hidden) fail('hide() left the shaders block up');
+ok('the shaders block: count and bar, warm/cold words, pending re-arms the watchdog, hidden on null and on hide');
 
 setTimeout(() => {}, 0);
 Promise.resolve().then(() => {

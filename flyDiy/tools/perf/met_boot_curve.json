@@ -1,0 +1,36 @@
+{
+ "when": "2026-09-23T17:05:35.455Z",
+ "url": "http://localhost:8497/flyDiy/dev.html",
+ "rows": [
+  {
+   "dial": 0.1,
+   "plots": 92,
+   "total": null,
+   "json": "tools\\perf\\boot_mk0p1.json"
+  },
+  {
+   "dial": 0.25,
+   "plots": 138,
+   "total": null,
+   "json": "tools\\perf\\boot_mk0p25.json"
+  },
+  {
+   "dial": 0.5,
+   "plots": 264,
+   "total": null,
+   "json": "tools\\perf\\boot_mk0p5.json"
+  },
+  {
+   "dial": 0.75,
+   "plots": 318,
+   "total": null,
+   "json": "tools\\perf\\boot_mk0p75.json"
+  },
+  {
+   "dial": 1,
+   "plots": 455,
+   "total": null,
+   "json": "tools\\perf\\boot_mk1.json"
+  }
+ ]
+}

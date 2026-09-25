@@ -263,7 +263,20 @@
   // read 0.026 (0.017/0.030/0.009 - a spruce canopy's real albedo). light 1.12 -> 0.6 puts the rendered
   // canopy on the imagery's level; sat 1.58 -> 1.2 (the imagery's green is moderate, g/r 1.75 against
   // the fir map's 1.85 - the boost was against the OLD bright ground). W0c.31 had 1.58 / 1.12 by eye.
-  const MASTER = { hue: 0.045, sat: 1.2, light: 0.6 };
+  // light 0.6 -> 0.5 (G552, the user: "it needs to be a little darker still ... didn't we have a
+  // control to get both the mesh and the impostor darker at once?"). This is that control: the master
+  // tint over every collection, read straight by the near geometry's material and carried per layer
+  // into the impostor table (IMPA.tbl row 1), so it moves BOTH tiers by the same amount - and it
+  // scales the tree's own colour, so unlike G538's clamp the detail survives the darkening.
+  // Measured off one frozen boot, forest only: 0.60 -> luma 0.0767 cv 0.425, 0.50 -> 0.0722 cv 0.450,
+  // 0.42 -> 0.0687 cv 0.480. Smooth and monotonic, and the cv RISES as it darkens.
+  //
+  // 0.5 lasted one landing (G553): shown the three panels the user went straight to the darkest,
+  // "go C", so this is 0.42 - about 10 % off where G548 left it. It lands on G538's brightness,
+  // which they had called a little too dark WHEN IT WAS A SILHOUETTE; at the same luma with the
+  // albedo intact it is the look that was wanted all along, which is the whole lesson of G548.
+  // TREE_LEAF.tint({ light }) moves it live; TREE_LEAF.master() only READS it.
+  const MASTER = { hue: 0.045, sat: 1.2, light: 0.42 };
   const TINT_GLSL = [
     // THE DIAL'S SIGN IS THE MEASUREMENT'S (2026-09-20): the YIQ rotation below turns the
     // OPPOSITE way to the HSL hue the colour pass measures, so every fitted hue (ref - mine)

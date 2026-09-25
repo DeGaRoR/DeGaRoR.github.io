@@ -33,6 +33,24 @@
 //      POND CENSUS over 2 km: coverage, ponds per km2, the median pond, and
 //      that a fifth of the ground is still dry - the packs the user asked for
 //      ("there should be less of them ... probably in packs").
+//   1c. A ROCK SET IS ITS SHIPPED TONE, A MINERAL SET KEEPS ITS HUE (the user on a shot of the
+//      Jumbo Mine: "the rock assets have been fully colored green and they
+//      look real bad ... revert at least for this texture"). normGains pulls
+//      each set's mean onto the imagery's PER CHANNEL, which is right for a
+//      vegetation set and a hue shift for rock, dirt, sand or snow - the
+//      imagery's rock cells are forested rock. The carve-out existed and `mud`
+//      was not in its list: gain 0.29/0.55/0.29 on Jolene, a green pull of
+//      1.92, on the first (0.6) set of both muskeg and scrub. This measures the
+//      REAL gains (the real manifest, the real island) and refuses any mineral
+//      set whose gain is not one number, while requiring the vegetation sets to
+//      still take the imagery's colour - a carve-out, not a retreat.
+//      THEN THE ROCK SETS LEFT THE NORMALISATION ALTOGETHER (2026-09-23, the
+//      user: "fix for the rock color not working at all ... restore only the rock
+//      texture to its original tone"): one luminance gain still moved them - rocksA,
+//      rocksB and cliff halved, rockyB at the 2.50 clamp - and the photograph of a
+//      rock IS its tone. rocks*/rocky*/cliff/pebble take 1/1/1 and this rule holds
+//      that exactly; sand, shingle, dirt, peat and snow do vary with the place and
+//      keep their single gain.
 //   2. THE MANIFEST vs THE STORE (src/viewer/splat_tex.js, media/tex/splat/):
 //      the manifest's order IS RECIPE.library (a set's index is its layer in
 //      the arrays), its metres the library's, four files per set on disk at
@@ -102,8 +120,14 @@ function checkRecipe(G, splatSrc, quiet) {
   say(R.library.length === new Set(R.library.map(x => x[0])).size, `library: ${R.library.length} sets, keys unique`);
   say(R.library.every(([k, m]) => typeof k === 'string' && /^[a-zA-Z]\w*$/.test(k) && num(m) && m > 0), 'library: every row [key, metres > 0]');
   const codes = Object.keys(R.codes).map(Number).sort((a, b) => a - b);
-  say(codes.length === 13 && codes[0] === 2 && codes[12] === 14 && codes.every((c, i) => c === i + 2), `codes: rows for 2..14 (${codes.join(' ')})`);
-  say([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].every(c => typeof R.names[c] === 'string' && R.names[c]), 'names: 0..14 named');
+  // A CONTIGUOUS RUN FROM 2, and the top is no longer fixed: 15 `lush` was added
+  // for Metlakatla (contract v1.20 - a premises `cover` polygon stamps it into the
+  // island's own ttype grid), and a code may be added again. What must hold is
+  // that there is no HOLE - the shader indexes its uniform arrays by the code.
+  const TOP = codes[codes.length - 1];
+  say(codes[0] === 2 && TOP >= 14 && codes.every((c, i) => c === i + 2), `codes: a contiguous run 2..${TOP} (${codes.join(' ')})`);
+  const named = []; for (let c = 0; c <= TOP; c++) named.push(c);
+  say(named.every(c => typeof R.names[c] === 'string' && R.names[c]), `names: 0..${TOP} named`);
   const NC = splatSrc.match(/const NCODE = (\d+), NLIB = (\d+)/);
   say(!!NC && +NC[1] > Math.max(...codes) && +NC[2] >= R.library.length, `the shader's constants hold them: NCODE ${NC && NC[1]} > ${Math.max(...codes)}, NLIB ${NC && NC[2]} >= ${R.library.length}`);
   let bad = [];
@@ -144,7 +168,8 @@ function checkRecipe(G, splatSrc, quiet) {
     if (!LIB.has(k)) gb.push(`grade '${k}' names no library set`);
     if (!(typeof g.gain === 'string' && /^#[0-9a-fA-F]{6}$/.test(g.gain))) gb.push(`grade ${k}: gain '${g.gain}' is not #rrggbb`);
     if (!(num(g.sat) && g.sat >= 0 && g.sat <= 2)) gb.push(`grade ${k}: sat ${g.sat} outside 0..2`);
-    if (g.gloss !== undefined && !(num(g.gloss) && g.gloss >= 0 && g.gloss <= 1)) gb.push(`grade ${k}: gloss ${g.gloss} outside 0..1`); }
+    if (g.gloss !== undefined && !(num(g.gloss) && g.gloss >= 0 && g.gloss <= 1)) gb.push(`grade ${k}: gloss ${g.gloss} outside 0..1`);
+    if (g.grass !== undefined && !(num(g.grass) && g.grass >= 0 && g.grass <= 1)) gb.push(`grade ${k}: grass ${g.grass} outside 0..1`); }
   say(!gb.length, `grades: ${Object.keys(R.grade).length} sets, a hex gain and a saturation each, a gloss in 0..1 where given${gb.length ? ' - ' + gb.join('; ') : ''}`);
   const cb = [];
   for (const c of codes) { const d = G.CODES[c], r = R.codes[c];
@@ -189,7 +214,16 @@ function checkShader(G, splice, quiet) {
   say(/uniform highp sampler2DArray uSplat, uSplatN;/.test(glsl), 'the two arrays declared highp sampler2DArray');
   say((glsl.match(/texture\(uSplat,/g) || []).length >= 1 && (glsl.match(/texture\(uSplatN,/g) || []).length >= 1, 'the arrays read with implicit texture()');
   say(/for \(int i = 0; i < uSNCode; i\+\+\)/.test(glsl) && /for \(int j = 0; j < uSNCand; j\+\+\)/.test(glsl), 'the code and candidate loops bound by uniforms (uSNCode, uSNCand)');
-  say(!/for \(int [ij] = 0; [ij] < \d+; [ij]\+\+\) \{\s*\n?\s*if \(w\[/.test(glsl), 'no constant-bound loop over the candidates');
+  say(!/for \(int [ij] = 0; [ij] < \d+; [ij]\+\+\) \{\s*\n?\s*(int i = j \/ 2;\s*)?if \(w\[/.test(glsl), 'no constant-bound loop over the candidates');
+  // FEW CALL SITES, NO NESTED LOOP (G568): HLSL inlines every call site - the old chain's 144 inlined fetches were
+  // a 412 KB program and a 110-220 s COLD compile per ground program under ANGLE/D3D11; a loop holding the sets
+  // inside the candidate loop compiled in 3 s but drew the ground 1.5-2x slower (even where it ran zero times)
+  { const n = fn => (glsl.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
+    say(n('sMatPass') === 1 && n('sTriplet') === 1 && n('sSet') <= 3 && n('sTile') <= 3 && n('sFetch') <= 3,
+      `the sample chain inlined small: call sites sMatPass ${n('sMatPass')}, sTriplet ${n('sTriplet')}, sSet ${n('sSet')}, sTile ${n('sTile')}, sFetch ${n('sFetch')} (1, 1, <=3, <=3, <=3)`);
+    const body = f => { const i = glsl.indexOf(f); if (i < 0) return ''; let d = 0, k = glsl.indexOf('{', i); const k0 = k;
+      for (; k < glsl.length; k++) { if (glsl[k] === '{') d++; else if (glsl[k] === '}' && --d === 0) break; } return glsl.slice(k0, k); };
+    say(!/\bfor\s*\(/.test(['bool sMatPass(', 'Smp sTriplet(', 'Smp sSet(', 'Smp sTile(', 'Smp sFetch('].map(body).join('')), 'no loop inside the sample chain (nested in the candidate loop it costs the GPU)'); }
   say(/sRGBTransferEOTF/.test(glsl), 'the colour array decoded in the shader (no sRGB array upload: GL 1281)');
   say(!/\bout\s+(Smp|vec4|vec3|float)\s+\w+\s*[,)]/.test(glsl), 'no `out` parameter on the sample chain (one struct through it)');
   say(/struct Smp \{ vec4 c; vec4 n; \};/.test(glsl), 'the one struct Smp { c, n }');
@@ -204,6 +238,27 @@ function checkShader(G, splice, quiet) {
   say(rw.includes(".replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '/*"), "the hook cuts the IBL irradiance (the hemisphere stays the world's one ambient)");
   say(rw.includes("'vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness )' + GLOSS + ';'") && rw.includes("'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'") && /const SC = THREE\.ShaderChunk, GLOSS = ' \* smoothstep\( 0\.9, 0\.6, material\.roughness \)';/.test(rw), "the hook fades both specular lobes (the probe's and the sun's) out by roughness 0.9: dry ground is the Lambert it was");
   say(rw.includes("'#include <roughnessmap_fragment>' + SPL.glslRough"), "the sets' roughness spliced after roughnessmap_fragment");
+  // THE FOREST FLOOR'S GRASS IS PULLED BY VALUE, TOWARD A MEASURED TARGET (2026-09-23, the user:
+  // "the brightest areas are rock, the darkest are grass ... if you can selectively edit only the
+  // grass"). Two things must stay true or it stops being that: the mask is the texel's LUMINANCE
+  // against the set's own mean (not hue - the floor's grass is a dark brown-green), and the target
+  // is the open-ground sets' own colour rather than a constant typed into the shader.
+  { const grassBlk = (glsl.match(/float gr = uSGrass\[[\s\S]{0,420}/) || [''])[0];
+    say(/uSLum\[int\(layer \+ 0\.5\)\]/.test(grassBlk) && /1\.0 - smoothstep\(lm \* 0\.55, lm \* 1\.25, l\)/.test(grassBlk),
+      "the forest floor's grass mask is the texel's value against the set's own mean");
+    say(/hue \* l/.test(grassBlk), 'it recolours at CONSTANT VALUE - the photograph keeps its light and dark');
+    const src2 = fs.readFileSync(path.join(ROOT, 'src/viewer/splat_ground.js'), 'utf8');
+    say(/for \(const gk of \['grass', 'grassRock', 'dry'\]\)/.test(src2), 'and the target is MEASURED from the open-ground sets, not a constant'); }
+
+  // THE POND'S SOFTENING IS A DISTANCE TERM AND DIES AT THE EYE (2026-09-23, the user
+  // at 400 m: "they look like speckles on a surface, not like puddles"). The shore is
+  // widened and the wet margin opened with distance; both must be scaled by `far`, or
+  // the fix for altitude quietly softens the pond you are taxiing past.
+  { const pool = (glsl.match(/the pools: muskeg AND scrub[\s\S]{0,2400}/) || [''])[0];
+    say(/float far = clamp\(pd \/ 500\.0, 0\.0, 1\.0\);/.test(pool), 'the pond block measures its own distance (far, 0 at the eye and 1 by 500 m)');
+    say(/uSPud\.z \* \(1\.0 \+ uSPud2\.x \* far\)/.test(pool), "the shore's width rides it (pudFar)");
+    say(/float rim = uSPud2\.y \* far;/.test(pool), 'the wet margin rides it too (pudRim) - nothing softens up close'); }
+
   // the fields: the GLSL string carries GROUND_FIELDS.C's numbers (the JS is the reference)
   const C = G.C, want = [C.pool.period.toFixed(1), C.pool.thr0.toFixed(4), C.pool.thrWet.toFixed(4), C.mix.norm.toFixed(4), C.mix.scale2.toFixed(4), C.mix.w1.toFixed(4), C.mix.w2.toFixed(4), C.shade.scaleB.toFixed(4), String(C.blotch.cells)];
   const lost = want.filter(v => !G.glsl.includes(v));
@@ -235,11 +290,29 @@ function checkShader(G, splice, quiet) {
     }
     say(n > 50 && same / n < 0.02, nm + ': ' + (100 * same / Math.max(n, 1)).toFixed(1) + ' % of ' + n + ' sampled points repeat ' + d + ' m away');
   }
-  // THE POND CENSUS: what the eye is actually given, over 2 km on a 2 m lattice
+  // THE POND CENSUS: what the eye is actually given. On a box that has the island
+  // it walks REAL muskeg with the SLOPE GATE the game applies (2026-09-23, the user:
+  // "real puddles would be distributed along terrain depressions ... let's get rid of
+  // 90% of them" - 42 % of them stood on ground over 10 degrees before that gate);
+  // without the island it walks the bare field, which is the same law minus the terrain.
   {
-    const S = 2000, ST = 2, NN = S / ST, km2 = (S / 1000) * (S / 1000), g = new Uint8Array(NN * NN);
-    let wetN = 0;
-    for (let j = 0; j < NN; j++) for (let i = 0; i < NN; i++) if (poolG(-S / 2 + i * ST, -S / 2 + j * ST) > 0.5) { g[j * NN + i] = 1; wetN++; }
+    let WI = null; try { WI = require('./island_node.js').islandWorld('jolene'); } catch (e) { WI = null; }
+    const onIsland = !!(WI && WI.island && WI.island.cellAt && WI.island.ttype);
+    const typeAt = onIsland ? ((x, z) => { const k = WI.island.cellAt(x, z); return k < 0 ? -1 : WI.island.ttype[k]; }) : null;
+    const slopeAt = onIsland ? ((x, z) => { const d = 5, gx = (WI.terrainH(x + d, z) - WI.terrainH(x - d, z)) / (2 * d), gz = (WI.terrainH(x, z + d) - WI.terrainH(x, z - d)) / (2 * d);
+      return Math.atan(Math.hypot(gx, gz)) * 180 / Math.PI; }) : null;
+    const X0 = onIsland ? -1200 : -1000, Z0 = onIsland ? -1200 : -1000;
+    const S = 2000, ST = onIsland ? 4 : 2, NN = S / ST, g = new Uint8Array(NN * NN);
+    let wetN = 0, landN = 0;
+    for (let j = 0; j < NN; j++) for (let i = 0; i < NN; i++) {
+      const x = X0 + i * ST, z = Z0 + j * ST;
+      if (onIsland) { const t = typeAt(x, z); if (t !== 3 && t !== 7) continue; }
+      landN++;
+      let m = poolG(x, z);
+      if (onIsland && KN.pudFlat > 0.01) m *= Math.max(0, Math.min(1, (KN.pudFlat - slopeAt(x, z)) / (KN.pudFlat * 0.5)));
+      if (m > 0.5) { g[j * NN + i] = 1; wetN++; }
+    }
+    const km2 = landN * ST * ST / 1e6;
     const lab = new Int32Array(NN * NN).fill(-1), sizes = [], st = [];
     let ponds = 0;
     for (let q0 = 0; q0 < NN * NN; q0++) {
@@ -259,20 +332,100 @@ function checkShader(G, splice, quiet) {
       sizes.push(cnt * ST * ST); ponds++;
     }
     sizes.sort((a, b) => a - b);
-    const cov = 100 * wetN / (NN * NN), per = ponds / km2, med = sizes[ponds >> 1] || 0;
-    const B = 100, nb = NN / B, blocks = [];
-    for (let bj = 0; bj < nb; bj++) for (let bi = 0; bi < nb; bi++) {
-      let c = 0;
-      for (let j = 0; j < B; j++) for (let i = 0; i < B; i++) c += g[(bj * B + j) * NN + bi * B + i];
-      blocks.push(c / (B * B));
+    const cov = 100 * wetN / Math.max(landN, 1), per = ponds / Math.max(km2, 1e-6), med = sizes[ponds >> 1] || 0;
+    const small = sizes.filter(v => v < 200).length / Math.max(km2, 1e-6);
+    console.log('   ' + (onIsland ? 'real muskeg on Jolene with the slope gate' : 'the bare field (no island on this box)') +
+      ': ' + km2.toFixed(2) + ' km2, ' + cov.toFixed(2) + ' % water, ' + per.toFixed(0) + ' ponds/km2, median ' + med + ' m2, largest ' + (sizes[ponds - 1] || 0) + ' m2');
+    // THE BOUNDS ARE THE USER'S RULING (2026-09-23): 105 ponds a km2 on this same
+    // ground read as noise, and 90 % of them had to go. Under 4 a km2 the muskeg has
+    // no water at all, which is not Alaska either; over 20 the speckle is coming back.
+    if (onIsland) {
+      say(per >= 4 && per <= 20, per.toFixed(0) + ' ponds per km2 of muskeg (4-20: it was 105 when the user called it noise)');
+      say(small <= 10, small.toFixed(0) + ' of them per km2 are under 200 m2 (bound 10: it was 67 - those are what read as speckles)');
+      say(med >= 200, 'the median pond is ' + med + ' m2 = ' + (2 * Math.sqrt(med / Math.PI)).toFixed(0) + ' m across (>= 200 m2: it was 112)');
+      say(cov >= 0.4 && cov <= 3, cov.toFixed(2) + ' % of the muskeg is water (0.4-3 %: it was 4.85)');
+    } else {
+      say(per >= 1 && per <= 10, per.toFixed(0) + ' ponds per km2 of the bare field (1-10; the terrain gate takes it further)');
+      say(med >= 500, 'the median basin is ' + med + ' m2 (>= 500: the field is one basin plus a whisker now)');
     }
-    const dry = 100 * blocks.filter(b => b < 0.005).length / blocks.length;
-    say(cov > 2 && cov < 9, 'the muskeg is ' + cov.toFixed(1) + ' % open water (2-9 %: it was 13.3 when the user called it too many)');
-    say(per > 30 && per < 200, per.toFixed(0) + ' ponds per km2 (30-200: it was 738, which reads as a dotted texture)');
-    say(med >= 80, 'the median pond is ' + med + ' m2 = ' + (2 * Math.sqrt(med / Math.PI)).toFixed(1) + ' m across (>= 80 m2: it was 36, a speck)');
-    say(dry > 15, dry.toFixed(0) + ' % of 200 m blocks hold no water at all (> 15 %: the packs - it was 0, an even sprinkle)');
+    // and the gate the game applies must exist in BOTH twins, or the ring plants
+    // tufts in water the shader does not draw (and refuses them where it does)
+    { const rw = fs.readFileSync(path.join(ROOT, 'src/viewer/render_world.js'), 'utf8');
+      say(/uSPud2\.w > 0\.01\) m \*= clamp\(\(uSPud2\.w - gSSlope\)/.test(G.glsl + splice.glslCommon), 'the shader gates the pools by the ground slope (gSSlope)');
+      say(/K\.pudFlat > 0\.01[\s\S]{0,400}?Math\.atan\(Math\.hypot\(gx, gz\)\)/.test(rw), 'render_world runs the SAME ramp on the CPU, so the tufts and the debris agree'); }
   }
   say(splice.uniforms.uSNCode.value > 14 && splice.uniforms.uSNCand.value >= 1 && splice.uniforms.uSNCand.value <= 8, `uSNCode ${splice.uniforms.uSNCode.value}, uSNCand ${splice.uniforms.uSNCand.value} (C[8])`);
+  if (!quiet) for (const [ok, line] of out) verdict(ok, line);
+  return out.every(x => x[0]);
+}
+
+// ---- 1c. A MINERAL SET KEEPS ITS HUE ----------------------------------------
+// (2026-09-23, the user on a shot of the Jumbo Mine: "the rock assets have been
+// fully colored green and they look real bad ... revert at least for this
+// texture".) normGains (splat_ground.js) pulls each set's mean onto the
+// imagery's, per channel, so that the island's colour is the authority. For a
+// VEGETATION set that is the point; for rock, dirt, sand or snow it is a hue
+// shift, and the imagery's rock cells are forested rock. The rule existed and
+// `mud` was left out of its list - measured on Jolene its gain was
+// 0.29/0.55/0.29, a GREEN PULL OF 1.92, and mud is the first (0.6) set of both
+// muskeg and scrub, so most of the ground between the trees was algae. This
+// walks the REAL gains, with the real manifest and the real island, and refuses
+// any mineral set whose gain is not neutral.
+function checkMineral(quiet) {
+  const out = [], say = (ok, line) => { out.push([ok, line]); return ok; };
+  let W = null;
+  try { W = require('./island_node.js').islandWorld('jolene'); } catch (e) { W = null; }
+  if (!W) { say(true, 'the island is not on this box - the gains cannot be measured here (FLYDIY_BENCH=<path>, or media/world)');
+    if (!quiet) for (const [ok, line] of out) verdict(ok, line); return true; }
+  const V4c = class { constructor(x = 0, y = 0, z = 0, w = 0) { Object.assign(this, { x, y, z, w }); } set(x, y, z, w) { Object.assign(this, { x, y, z, w }); return this; } };
+  const ctx = { GROUND_FIELDS: loadRecipe(), console: { log() {} }, Promise, Uint8Array, Float32Array, Math, JSON, Object, Array, Number, String, isFinite, parseFloat,
+    THREE: { Vector4: V4c, Vector2: class { constructor(x = 0, y = 0) { this.x = x; this.y = y; } set(x, y) { this.x = x; this.y = y; return this; } },
+      Color: class { constructor() { this.r = this.g = this.b = 1; } }, DataArrayTexture: class { constructor() {} },
+      RGBAFormat: 1, UnsignedByteType: 2, RepeatWrapping: 3, LinearMipmapLinearFilter: 4, LinearFilter: 5 },
+    document: { createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: new Uint8Array(4) }) }) }) },
+    localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, location: { search: '' } };
+  ctx.Image = class { constructor() { this.complete = true; this.naturalWidth = 0; } set src(v) {} get src() { return ''; } addEventListener() {} };
+  ctx.window = ctx;
+  const EOL = String.fromCharCode(10);
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/splat_tex.js'), 'utf8') + EOL + 'this.SPLAT_TEX_SETS = SPLAT_TEX_SETS;', ctx, { filename: 'splat_tex.js' });
+  if (!ctx.SPLAT_TEX_SETS) { say(false, 'the manifest did not build in the harness'); if (!quiet) for (const [ok, l] of out) verdict(ok, l); return false; }
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/splat_ground.js'), 'utf8'), ctx, { filename: 'splat_ground.js' });
+  const gU = {};
+  for (const k of ['uSMatA', 'uSMatS', 'uSMatM', 'uSMatF', 'uSMatFS', 'uSVary', 'uSLum', 'uSplat', 'uSplatN', 'uSDist', 'uSDist2',
+                   'uSSeam', 'uSHex', 'uSPud', 'uSSplit', 'uSSplit2', 'uSNrm', 'uSNCode', 'uSNCand', 'uSNearN', 'uSFarN', 'uSplatOn', 'uSGrade', 'uSLib']) gU[k] = { value: new V4c() };
+  const SP = ctx.SPLAT_GROUND.make(gU, W.island);
+  const norm = (SP && SP.api) ? SP.api.norm() : {};
+  say(Object.keys(norm).length > 8, `${Object.keys(norm).length} sets carry a gain from the imagery`);
+  // THE LIST IS THE RULE: every surface here is rock, dirt, sand or snow and may
+  // only be brightened or darkened, never recoloured. A new mineral set joins it.
+  // A ROCK SET TAKES NO GAIN AT ALL (2026-09-23, the user, after one luminance gain was not
+  // enough: "restore only the rock texture to its original tone"). The photograph of a rock IS
+  // its tone; the imagery cannot judge it, because at 10 m a pixel its rock cells are rock with
+  // trees on them. The rest of the mineral list does vary with the place and keeps ONE gain.
+  // forestAir joined them (2026-09-23): it is the GROUND UNDER the canopy, and the imagery's
+  // forest colour is the canopy itself - normalising the floor to it paints the leaves on the
+  // ground and then stands the drawn trees on top, counting the canopy twice. It ships brown
+  // (0.126/0.083/0.026) and the gain made it green (0.019/0.030/0.009) and six times darker.
+  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble', 'forestAir'];
+  const MUST_KEEP_HUE = ['beach', 'coastA', 'coastSand', 'dirt', 'mud', 'snowAir'];
+  const moved = [];
+  for (const k of ROCK_AS_SHIPPED) {
+    const g = norm[k]; if (!g) continue;
+    if (Math.abs(g[0] - 1) > 1e-6 || Math.abs(g[1] - 1) > 1e-6 || Math.abs(g[2] - 1) > 1e-6) moved.push(`${k} ${g.map(v => v.toFixed(2)).join('/')}`);
+  }
+  say(!moved.length, `every rock set AND the forest floor are their shipped tone, gain 1/1/1: ${moved.length ? moved.join(', ') : ROCK_AS_SHIPPED.filter(k => norm[k]).length + ' checked'}`);
+  const bad = [];
+  for (const k of MUST_KEEP_HUE) {
+    const g = norm[k]; if (!g) continue;
+    const pull = g[1] / Math.max((g[0] + g[2]) / 2, 1e-6);
+    if (Math.abs(g[0] - g[1]) > 1e-6 || Math.abs(g[1] - g[2]) > 1e-6) bad.push(`${k} ${g.map(v => v.toFixed(2)).join('/')} (green pull ${pull.toFixed(2)})`);
+  }
+  say(!bad.length, `the other mineral sets take ONE luminance gain, not a colour: ${bad.length ? bad.join(', ') : MUST_KEEP_HUE.filter(k => norm[k]).length + ' checked, all neutral'}`);
+  // and the vegetation sets still DO take the imagery's colour - the rule is a
+  // carve-out, not a retreat from the normalisation the user asked for
+  const veg = ['grass', 'grassRock', 'dry', 'lush', 'leaves'].filter(k => norm[k]);
+  const coloured = veg.filter(k => { const g = norm[k]; return Math.abs(g[0] - g[1]) > 1e-6 || Math.abs(g[1] - g[2]) > 1e-6; });
+  say(coloured.length >= 2, `the vegetation sets still take the imagery's colour (${coloured.length} of ${veg.length} have a per-channel gain)`);
   if (!quiet) for (const [ok, line] of out) verdict(ok, line);
   return out.every(x => x[0]);
 }
@@ -366,7 +519,8 @@ async function checkGPU() {
     const sp = spliceOf(G, splatSrc, G.RECIPE.library);
     const brk = (a, b) => { const s2 = Object.assign({}, sp); s2.glslCommon = sp.glslCommon.replace(a, b); return s2; };
     verdict(!checkShader(G, brk('o.c = texture(uSplat, vec3(uv, layer), uSFilt.x);', 'o.c = textureGrad(uSplat, vec3(uv, layer), dFdx(uv), dFdy(uv));'), true), 'a textureGrad on the array is caught');
-    verdict(!checkShader(G, brk('for (int i = 0; i < uSNCode; i++) {\n      if (w[i]', 'for (int i = 0; i < 15; i++) {\n      if (w[i]'), true), 'a constant-bound candidate loop is caught');
+    verdict(!checkShader(G, brk('for (int j = 0; j < uSNCode * 2; j++) {', 'for (int j = 0; j < 34; j++) {'), true), 'a constant-bound candidate loop is caught');
+    verdict(!checkShader(G, brk('    Smp a = sSet(A.x, S.x, P, tw, ang);', '    Smp a = sSet(A.x, S.x, P, tw, ang); for (int q = 0; q < uSNCand; q++) a = sSet(A.x, S.x, P, tw, ang);'), true), 'a loop in the sample chain (and a 4th sSet call site) is caught');
     verdict(!checkShader(G, brk('uniform highp sampler2DArray uSplat, uSplatN;', 'uniform sampler2DArray uSplat, uSplatN;'), true), 'an array without highp is caught');
     verdict(!checkShader(G, brk('Smp sFetch(float layer, vec2 uv, vec2 cs){', 'void sFetch2(float layer, out Smp o){ }\n  Smp sFetch(float layer, vec2 uv, vec2 cs){'), true), 'an `out` parameter on the chain is caught');
     verdict(!checkShader(G, brk('o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;', ''), true), 'the colour left undecoded is caught');
@@ -396,6 +550,8 @@ async function checkGPU() {
   }
   console.log('1. THE RECIPE\'S SHAPE (28b_ground_fields.js RECIPE)');
   checkRecipe(G, splatSrc, false);
+  console.log('1c. A MINERAL SET KEEPS ITS HUE (the gains normGains computes on the island)');
+  checkMineral(false);
   console.log('2. THE MANIFEST vs THE STORE (splat_tex.js, media/tex/splat/)');
   checkManifest(G, manifest, ROOT, false);
   console.log('3. THE SHADER\'S RULES (the GLSL splat_ground.js splices)');

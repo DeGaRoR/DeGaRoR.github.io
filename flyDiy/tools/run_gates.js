@@ -25,6 +25,7 @@
 // nothing: the sequential battery, in this order, as before.
 const { spawn } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 // TIERS (2026-08-11; the fleet retired 2026-09-05). The project is a GARAGE:
@@ -58,6 +59,12 @@ const GATES = [
   // re-engage after hand flying, flown headless on both pilots.
   { id: 'INPUT', file: 'test_input.js', tier: 'core', wall: 160 },
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
+  // PHYSICS PERF (2026-09-24): hyp2 / hyp3 are Math.hypot to the bit - the solver's hot loops call
+  // them, and the trajectory is the same bits only while they are; seconds
+  { id: 'HYPOT', file: '_hypot_check.js', tier: 'core' },
+  // G580: the integrator's step on the springs, the dampers it can carry - never above the old rule,
+  // every cut damper overdamped, the network inside the stability margin (4 000-pass eigenvalues); ~15 s
+  { id: 'SUBSTEP', file: '_substep_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -280,6 +287,10 @@ const GATES = [
   // measurement taken against a reference is worth exactly what that check is
   // — and the display-only rule, read off refplane.js's own source
   { id: 'REF', file: '_ref_check.js', tier: 'core' },
+  // THE BLUEPRINT (G573): the reference plane's second source, a three-view
+  // cut into views and stood in 3D — its frames, its scale, its level tool,
+  // its ink and its layout, on a fixture the desk itself produced
+  { id: 'BLUEPRINT', file: '_blueprint_check.js', tier: 'core' },
   // THE SITE (G123): the base aerodrome as ONE declared place. Asserts that
   // neither scene restates the runway the HOME record already carries, that
   // the frame conversion between the world and the shed round-trips, and the
@@ -294,6 +305,10 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
+  // THE TOWN ON TEXTURE ARRAYS (G574): house_tarr.js's shader edits on r186's own program after the house
+  // generator's real hooks, the classify by hook identity, the merge (world, the sag baked, one slot a finish), the
+  // host's wiring (~2 s)
+  { id: 'TARR', file: '_tarr_check.js', tier: 'core' },
   // THE PARKED AEROPLANES (G411): builds as props, headless on a synthetic
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs
@@ -447,17 +462,26 @@ function runJob(job) {
   return new Promise(resolve => {
     const t0 = Date.now();
     const timeoutMs = job.gate.timeout || 1800_000;
+    // THE CHILD WRITES TO FILES, NOT PIPES (G577): on Linux Node writes a
+    // pipe asynchronously, so a gate that ends with process.exit() loses
+    // whatever is still queued - ENGINE came back as its first line and exit
+    // 0 (16 runs in 40 at 8 in parallel, cut at ~9.5 KB; 0 in 120 through a
+    // file). A file is written synchronously on every platform, Windows
+    // included, where pipes already were, so the output is byte for byte
+    // what it was there
+    const tag = `${job.gate.id}_${job.shard ? job.shard.i : 0}_${process.pid}_${t0}`;
+    const outF = path.join(os.tmpdir(), `gate_${tag}.out`), errF = path.join(os.tmpdir(), `gate_${tag}.err`);
+    const outFd = fs.openSync(outF, 'w'), errFd = fs.openSync(errF, 'w');
     const child = spawn(process.execPath, [job.gate.file, ...job.argv],
-                        { cwd: __dirname, stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
-    const out = [], err = [];
-    child.stdout.on('data', d => out.push(d));
-    child.stderr.on('data', d => err.push(d));
+                        { cwd: __dirname, stdio: ['ignore', outFd, errFd], env: process.env });
+    fs.closeSync(outFd); fs.closeSync(errFd);
+    const slurp = f => { try { const t = fs.readFileSync(f, 'utf8'); fs.unlinkSync(f); return t; } catch (e) { return ''; } };
     let error = null;
     const timer = setTimeout(() => { error = { message: `ETIMEDOUT after ${timeoutMs} ms` }; child.kill(); }, timeoutMs);
     child.on('error', e => { error = e; });
     child.on('close', status => {
       clearTimeout(timer);
-      resolve({ job, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8'),
+      resolve({ job, stdout: slurp(outF), stderr: slurp(errF),
                 status, error, secs: ((Date.now() - t0) / 1000).toFixed(1) });
     });
   });

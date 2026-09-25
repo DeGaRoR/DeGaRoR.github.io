@@ -29,6 +29,10 @@
   const W = (typeof window !== 'undefined') ? window : null;
   if (!W) return;
   const KEY = 'flydiy.gfx';
+  // THE RIGS (G528): a headless or driven browser - the gates, frame_perf, the scratch rigs - measures a FIXED frame; the
+  // auto scale, when a player picked it, stands down there unless the URL asks (?autoscale=1)
+  const RIG = !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
+  const FORCE = k => !!(W.location && new RegExp('[?&]' + k + '=1').test(W.location.search || ''));
 
   // ---- the options: named steps over the handles ---------------------------
   const OPTIONS = [
@@ -44,7 +48,8 @@
         { v: 0.85, label: '85 %', why: 'the scene at 85 % of the screen and enlarged - 72 % of the pixels' },
         { v: 0.75, label: '75 %', why: '56 % of the pixels: a big screen at a playable rate' },
         { v: 0.67, label: '67 %', why: '45 % of the pixels' },
-        { v: 0.5,  label: '50 %', why: 'a quarter of the pixels - an old or integrated card on a big screen' } ] },
+        { v: 0.5,  label: '50 %', why: 'a quarter of the pixels - an old or integrated card on a big screen' },
+        { v: 'auto', label: 'auto', why: 'adaptive: held at 60 fps, 100 % down to 50 % as the frame needs, and only where the pixels are the cost (a step that does not pay is taken back) - aa_resolve.js AUTO. Off by default: the player turns it on' } ] },
     { k: 'density', label: 'forest density', steps: [
         { v: 100, label: 'sparse', why: 'a tree every 10.2 m at most - 95 a hectare' },
         { v: 128, label: 'normal', why: 'a tree every 8 m at most - 156 a hectare' },
@@ -204,7 +209,7 @@
   const POST_BLOOM = Object.assign({}, POST_OFF, { bloom: 'soft' });
   const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
-    potato:  Object.assign({ ground: 'lean', scale: 0.67, drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    potato:  Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     retro:   Object.assign({ ground: 'lean', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     current: Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
     gamer:   Object.assign({ ground: 'far1', scale: 1,    drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
@@ -221,7 +226,7 @@
   };
 
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: DEFAULT }, PRESETS[DEFAULT]);
+  const S = Object.assign({ preset: DEFAULT, pv: 3 }, PRESETS[DEFAULT]);   // pv: the pref's version (3: G551, the auto scale an option)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -232,6 +237,18 @@
   const load = () => {
     try {
       const v = JSON.parse(W.localStorage.getItem(KEY) || 'null');
+      // A CHOICE SAVED BEFORE THE TIERS' LAST CHANGES (pv < 3: G516's soft bloom; G528 made the auto scale the default
+      // and G551 made it an option again) - once: a player who was ON a preset gets that preset as it is now (the old
+      // names mapped), or every returning player would read 'custom'; a player's own custom mix keeps its options, but
+      // not the 'auto' G528 put there (it was the default for a day, not their pick)
+      if (v && !(v.pv >= 3)) {
+        const MAP = { low: 'retro', medium: 'gamer', high: 'gamer', ultra: 'ultra', potato: 'potato', retro: 'retro', current: 'current', gamer: 'gamer' };
+        const np = MAP[v.preset];
+        if (np && PRESETS[np]) { for (const o of OPTIONS) delete v[o.k]; Object.assign(v, PRESETS[np]); v.preset = np; }
+        else if (v.scale === 'auto') v.scale = 1;
+        v.pv = 3;
+      }
+      try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
     for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = PRESETS[DEFAULT][o.k];
@@ -249,7 +266,14 @@
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
     if (AA && AA.setTier && applied.aa !== S.aa) { AA.setTier(S.aa); applied.aa = S.aa; }
-    if (AA && AA.setScale && applied.scale !== S.scale) { AA.setScale(S.scale); applied.scale = S.scale; }
+    if (AA && AA.setScale && applied.scale !== S.scale) {
+      // 'auto' (G528): the controller starts from 100 %; a rig (a headless or driven browser) keeps 100 % unless ?autoscale=1
+      const auto = S.scale === 'auto' && (!RIG || FORCE('autoscale'));
+      if (AA.autoScale) AA.autoScale(false);
+      AA.setScale(S.scale === 'auto' ? 1 : S.scale);
+      if (auto && AA.autoScale) AA.autoScale(true);
+      applied.scale = S.scale;
+    }
     if (W.TREE_FILL && applied.density !== S.density) {
       // re-grid only when the number really changes: a re-grid re-streams
       // every chunk around the aircraft
@@ -420,7 +444,7 @@
     onWorld: () => { applied = {}; apply(); },
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
-                      bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame)',
+                      bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame; auto re-sizes it at most every 2 s)',
                       glare: 'live', mist: 'live', drawDist: 'live', terrain: 'live (the far quadrants re-cut at once: a hitch)', ground: 'live', clouds: 'live',
                       bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
                       compositing: 'live (reallocates the frame)', water: 'live', anything: 'no restart' }),

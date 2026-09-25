@@ -199,6 +199,56 @@ function battery(name, vil) {
     }
     check(off === 0, name + ': the ground patch on plot ' + plot.id + ' is not on the terrain', off + ' vertices');
     check(bad === 0, name + ': the ground patch on plot ' + plot.id + ' has a weight out of range');
+    // 10c THE DARKENING, CUT BY ROW (2026-09-24): lotGround keeps, per row of its grid, only the
+    //   occluders whose soft edge can reach it. Fed what the game feeds it (the house's ground
+    //   occluders, a post every 2 m of fence, a car by the door), its darkening must equal, bit
+    //   for bit, the product over EVERY occluder - the formula as it stood before the cut.
+    {
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const occ = (h.built.stats.groundAO || []).map(o => { const w = h.toWorld(o.x, o.z); return Object.assign({}, o, { x: w[0], z: w[1], ry: (o.ry || 0) + h.yaw }); });
+      for (const f of plot.fences || []) { const L2 = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]); for (let s = 0; s <= L2; s += 2) occ.push({ x: f.a[0] + (f.b[0] - f.a[0]) * s / L2, z: f.a[1] + (f.b[1] - f.a[1]) * s / L2, r: 0.07, k: 0.45, soft: 0.35 }); }
+      { const w = h.toWorld(h.P.L / 2 + 2, 0); occ.push({ x: w[0], z: w[1], hx: 0.9, hz: 2.2, ry: h.yaw + 0.3, k: 0.65, soft: 1.0 }); }
+      const Ld = VG.lotGround(vil, plot, h, h.built, occ);
+      const fenced = [];
+      for (let i = 0; i < 4; i++) { const a = plot.poly[i], b = plot.poly[(i + 1) % 4]; if (vil.fenced && vil.fenced.has(VG.edgeKey(a, b))) fenced.push([a, b]); }
+      const refDark = (x, z) => {
+        let keep = 1;
+        for (const o of occ) {
+          const c = Math.cos(o.ry || 0), s = Math.sin(o.ry || 0);
+          const dx = x - o.x, dz = z - o.z, lx = dx * c - dz * s, lz = dx * s + dz * c;
+          const out = o.hx !== undefined ? Math.hypot(Math.max(0, Math.abs(lx) - o.hx), Math.max(0, Math.abs(lz) - o.hz)) : Math.max(0, Math.hypot(lx, lz) - o.r);
+          const t = 1 - clamp(out / Math.max(0.05, o.soft === undefined ? 0.5 : o.soft), 0, 1);
+          keep *= 1 - (o.k === undefined ? 0.4 : o.k) * t * t;
+        }
+        let d = 1e9;
+        for (const sg of fenced) {
+          const dx = sg[1][0] - sg[0][0], dz = sg[1][1] - sg[0][1];
+          const t = clamp(((x - sg[0][0]) * dx + (z - sg[0][1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1);
+          d = Math.min(d, Math.hypot(x - (sg[0][0] + dx * t), z - (sg[0][1] + dz * t)));
+        }
+        const ft = 1 - clamp((d - 0.12) / 0.7, 0, 1);
+        keep *= 1 - 0.4 * ft * ft;
+        return Math.min(0.85, 1 - keep);
+      };
+      let differ = 0, dark = 0;
+      for (let i = 0; i < Ld.verts; i++) { const v = refDark(Ld.pos[i * 3], Ld.pos[i * 3 + 2]); if (!Object.is(v, Ld.tone[i * 2])) differ++; if (v > 0.05) dark++; }
+      check(differ === 0 && dark > 0, name + ': plot ' + plot.id + ' darkening differs from every-occluder product (10c)', differ + ' of ' + Ld.verts + ' vertices, ' + dark + ' dark');
+    }
+    // 10d THE GROUND IN THE AO, READ WHERE A RAY GOES (2026-09-24): bakeAO samples a ground
+    //   column when a ray first enters it instead of filling the whole box up front. The house's
+    //   own bags baked both ways must carry the same occlusion, bit for bit - over its own ground,
+    //   and over a steep plane that fills many cells of every column.
+    {
+      const bags = HG.BAGS.map(k => h.built.bags[k]).filter(Boolean);
+      const snap = () => bags.map(b => b.data().ao.slice());
+      for (const [tag, g] of [['its own ground', h.built.stats.ground], ['a steep plane', (x, z) => 0.35 * x - 0.2 * z - 0.5]]) {
+        const ref = (HK.bakeAO(bags, { strength: 0.85, range: 0.55, ground: g, groundEager: true }), snap());
+        const got = (HK.bakeAO(bags, { strength: 0.85, range: 0.55, ground: g }), snap());
+        let differ = 0, n = 0;
+        for (let b = 0; b < ref.length; b++) for (let i = 0; i < ref[b].length; i++) { n++; if (!Object.is(ref[b][i], got[b][i])) differ++; }
+        check(n > 100 && differ === 0, name + ': plot ' + plot.id + ' AO with the ground read lazily differs (10d, ' + tag + ')', differ + ' of ' + n + ' vertices');
+      }
+    }
     // the nearest vertex to a point, and its weights
     const at = (x, z) => {
       let bi = 0, bd = 1e9;

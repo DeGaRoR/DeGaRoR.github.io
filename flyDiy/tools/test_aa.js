@@ -66,6 +66,26 @@ if (made) {
   try { made.setSize(800, 600); made.setTier('full'); made.render({}, {}); } catch (e) { threw = threw || e.message; }
 }
 
+// ---- the auto scale (G528), driven with simulated frames ---------------------
+// frame(scale) -> [median frame ms, scene GPU ms]; the controller is read every 0.5 s of simulated time for 3 minutes
+function simAuto(frame) {
+  const A = { T: 1000 / 60, steps: [1, 0.85, 0.75, 0.67, 0.5], i: 0, since: -1e9, probe: null, up: null, holdDown: 0, holdUp: 0, reverts: 0, stats: { down: 0, up: 0, reverts: 0 } };
+  const seen = [];
+  for (let t = 0; t < 180000; t += 500) {
+    const [f, g] = frame(A.steps[A.i]);
+    const ni = API.autoDecide(A, f, g, t);
+    if (ni !== A.i) { A.i = ni; A.since = t; }
+    seen.push(A.steps[A.i]);
+  }
+  return { A, end: A.steps[A.i], min: Math.min(...seen), changes: seen.filter((v, k) => k && v !== seen[k - 1]).length };
+}
+// CPU-bound (1080p on the reference box): 22 ms whatever the pixels - the scale must end at 100 %, trying seldom
+const simCpu = API && API.autoDecide ? simAuto(() => [22, 21.5]) : null;
+// GPU-bound (5120 x 1440): the frame is 8 ms + 32 ms of pixels at full scale - it must come down and hold 60
+const simGpu = API && API.autoDecide ? simAuto(k => { const ms = 8 + 32 * k * k; return [Math.max(1000 / 60, ms), ms - 2]; }) : null;
+// a fast machine: 10 ms at full scale - it must never leave 100 %
+const simFast = API && API.autoDecide ? simAuto(() => [1000 / 60, 9]) : null;
+
 const T = API && API.TIERS;
 const tierList = T ? Object.keys(T) : [];
 
@@ -77,6 +97,15 @@ const checks = {
   'setTier cannot force a tier the card cannot carry':
     !!made && made.setTier('full') === 'off',
   'render() falls through to renderer.render when not able': stubRendered > 0,
+
+  // --- the auto scale (G528) -----------------------------------------------
+  'auto scale: a CPU-bound frame ends at 100 % (fewer pixels do not pay: the step is taken back)':
+    !!simCpu && simCpu.end === 1 && simCpu.A.stats.reverts >= 1,
+  'auto scale: a CPU-bound frame is probed seldom (the hold doubles: at most 6 changes in 3 minutes)':
+    !!simCpu && simCpu.changes <= 6,
+  'auto scale: a GPU-bound frame comes down to where it holds 60 and stays':
+    !!simGpu && simGpu.end <= 0.75 && simGpu.end >= 0.5 && simGpu.changes <= 8,
+  'auto scale: a machine with room never leaves 100 %': !!simFast && simFast.min === 1,
 
   // --- the tier table ------------------------------------------------------
   'three tiers declared': tierList.length === 3,

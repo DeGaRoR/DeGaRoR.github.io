@@ -112,7 +112,7 @@ try {
   const ctx = { window: GENS, THREE: makeTHREE(), console, Math, JSON, Float32Array, Object, Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 } catch (e) { console.log('  (generators not loaded headless: ' + e.message + ')'); }
 const CAT = PG.collect(GENS);
@@ -325,7 +325,9 @@ for (const fx of fixtures) {
     const Tn = O1.records.trees;
     if (rec.layers.zones.some(z => z.kind === 'forest')) {
       check(Tn.some(t => !t.placed), '11 ' + fx + ' the forest plants trees');
-      const bad = Tn.find(t => !t.placed && (ex.some(e => PG.inPoly(e, t.x, t.z)) || P.some(q => PG.inPoly(q.poly, t.x, t.z)) || O1.roads.some(r => PG.roadDist(r, t.x, t.z) < r.w / 2 + 2.9)));
+      // a GARDEN tree (contract v1.22) is ON a plot on purpose - that is the whole of
+      // it; everything else the rule says still holds for it
+      const bad = Tn.find(t => !t.placed && (ex.some(e => PG.inPoly(e, t.x, t.z)) || (!t.garden && P.some(q => PG.inPoly(q.poly, t.x, t.z))) || O1.roads.some(r => PG.roadDist(r, t.x, t.z) < r.w / 2 + 2.9)));
       check(!bad, '11 no forest tree in an exclude, a clear zone, a plot or a road', bad ? bad.x.toFixed(1) + ',' + bad.z.toFixed(1) : '');
     }
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') check(Tn.some(t => t.placed && t.id === ob.id && t.x === ob.x), '11 tree ' + ob.id + ' is planted where it was put');
@@ -786,6 +788,289 @@ if (SELFTEST) {
   const st = JSON.parse(JSON.stringify(rec)); st.layers.terrain[0].falloff = 0;
   neg.push([PG.issues(st).length > 0, 'a zero falloff is refused']);
   for (const [ok, what] of neg) check(ok, 'selftest: ' + what);
+}
+
+// ---------------------------------------------------------------------------
+// 14  THE ISLAND'S OWN PREMISES (2026-09-22): the field AND Metlakatla, composed
+//     on Jolene itself with the full catalogue. Every other section composes a
+//     premises_v1_* fixture on a synthetic world; nothing held the record the
+//     GAME actually boots, and nothing at all held the harbour kit, whose whole
+//     point is to stand over water where no other entry may.
+//     bench/ is the developer's machine: absent, the section says so and skips.
+{
+  let IW = null;
+  try { IW = require(path.join(TOOLS, 'island_node.js')).islandWorld('jolene', {}); } catch (e) { IW = null; }
+  if (!IW) {
+    console.log('  14 the island premises: bench/jolene absent, skipped');
+  } else {
+    const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8');
+    const rec = PG.unwrap(txt).rec;
+    check(PG.issues(rec).length === 0, '14a island_jolene has no issues', PG.issues(rec).slice(0, 4).join(' / '));
+    const O = PG.compose(rec, IW, { catalogue: CAT, globals: GENS });
+    // every site item names an entry the catalogue has
+    const miss = [];
+    for (const st of rec.layers.sites) for (const it of (st.items || [])) if (!CAT.entries.get(CAT.aliases[it.key] || it.key)) miss.push(it.key);
+    check(miss.length === 0, '14b every site item resolves from the catalogue', [...new Set(miss)].join(', '));
+    check(O.records.items.length >= rec.layers.sites.length, '14c every site placed an item',
+          O.records.items.length + ' of ' + rec.layers.sites.length + ' sites');
+    // a marine item stands OVER THE WATER and its deck is above it; and it cuts no ground
+    const marine = O.records.items.filter(r => r.entry && r.entry.gen === 'MARINE_GEN');
+    check(marine.length >= 10, '14d the harbour kit is placed', marine.length + ' marine items');
+    // THE SEA IS AT ZERO, and `world.waterH` is not the test: it answers with the
+    // level of the water body that TOUCHES a point, which inland is -Infinity and
+    // beside a lake is the lake's - it read 13 m over Airport Road. The island's
+    // sea level is 0 (20_world.js ~:520), so that is what "over the water" means.
+    // A pier is allowed to START on the beach; what must be wet is its FAR END.
+    const dry = [];
+    for (const r of marine) {
+      if (String(r.key).indexOf('breakwater') >= 0) continue;   // a mole IS raised ground
+      const L = (r.size && r.size.L) || 0;
+      const far = r.toWorld(L / 2 - 2, 0);
+      if (!(O.terrainAt(far[0], far[1]) <= 0.05)) dry.push(r.key + ' @' + far.map(v => v.toFixed(0)));
+    }
+    check(dry.length === 0, '14e a pier, a float and a wharf reaches the water', dry.slice(0, 5).join(', '));
+    check(rec.layers.terrain.every(t => !/^mk_/.test(t.id) || t.abs === true),
+          "14f the town's terrain is absolute — a level read off the DEM is not relative to an anchor");
+    // the road network is dry, end to end
+    const wetRoad = [];
+    for (const r of rec.layers.roads) {
+      if (!/^mk_/.test(r.id)) continue;
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        const a = r.pts[i], b = r.pts[i + 1];
+        const n = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 20));
+        for (let k = 0; k <= n; k++) {
+          const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n;
+          if (O.terrainAt(x, z) <= 0.15) { wetRoad.push(r.id); break; }     // sea level is 0
+        }
+      }
+    }
+    check(wetRoad.length === 0, "14g no street of the town runs through the water", [...new Set(wetRoad)].slice(0, 5).join(', '));
+    // the ttype stamp: it lands, and it puts the old bytes back
+    if (IW.ttype) {
+      const before = IW.ttype.slice(0, 0);   // (a copy of the whole grid would be 12 MB; count instead)
+      const count = c => { let n = 0; for (let k = 0; k < IW.ttype.length; k++) if (IW.ttype[k] === c) n++; return n; };
+      const l0 = count(15), undo = O.stampTtype(IW), l1 = count(15);
+      check(l1 > l0 && l1 > 1000, '14h the ttype layer stamps its terrain type', l0 + ' -> ' + l1 + ' cells');
+      undo();
+      check(count(15) === l0, '14i and the stamp is exactly undone', count(15) + ' left of ' + l0);
+      void before;
+    }
+    // `smooth` is a no-op when it is absent, and rounds when it is there
+    const straight = [[0, 0], [100, 0], [100, 100]];
+    check(PG.smoothPath(straight, 0) === straight, '14j smooth: absent is a no-op');
+    const sm = PG.smoothPath(straight, 25);
+    check(sm.length > straight.length && Math.abs(sm[0][0]) < 1e-9 && Math.abs(sm[sm.length - 1][1] - 100) < 1e-9,
+          '14k smooth: the corner rounds and the ends hold');
+    // the seaplane base is an aerodrome of the world
+    check(O.aerodromes.some(a => a.id === 'mk_sea' && a.kind === 'water'), '14l Metlakatla has its own sea lane');
+    // 14m EVERY PLACED ITEM ACTUALLY BUILDS, and publishes what the renderer reads.
+    // render_premises.js placeBuilt iterates `stats.lit.lights`; MARINE_GEN handed
+    // it a NUMBER, the loop threw inside the renderer's own try, and all 26 harbour
+    // items silently vanished from the game while the record said they were placed.
+    const broke = [];
+    for (const r of O.records.items) {
+      const G = GENS[r.gen];
+      if (!G || !G.build) { broke.push(r.key + ': no generator'); continue; }
+      let b = null;
+      try { b = G.build(r.P, 0, null); } catch (e) { broke.push(r.key + ': ' + e.message); continue; }
+      const st = b && b.stats;
+      if (!st || !(st.tris > 0)) broke.push(r.key + ': no triangles');
+      else if (st.lit && !Array.isArray(st.lit.lights)) broke.push(r.key + ': stats.lit.lights is not a list');
+      else if (st.nan) broke.push(r.key + ': ' + st.nan + ' NaN vertices');
+    }
+    check(broke.length === 0, '14m every placed item builds and publishes a lamp LIST', [...new Set(broke)].slice(0, 5).join(' / '));
+    // 14n NOTHING THAT STANDS IN THE WATER TAKES LOT DRESSING. render_premises
+    // dresses a hand-placed item like a plot - lot ground, a drive, a car and a
+    // FENCE - for every category but sports and landmark, and the user found a
+    // fence round a pier. An entry refuses with `lot: false`; the renderer must
+    // honour it, and must also refuse one to anything standing on a DECK, whose
+    // lot would be laid on the seabed under it.
+    const noLot = (GENS.MARINE_GEN && GENS.MARINE_GEN.CATALOGUE || []).filter(e => e.lot !== false);
+    check(noLot.length === 0, '14n every marine entry refuses a lot', noLot.map(e => e.key).join(', '));
+    const RP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+    check(/entry\.lot === false/.test(RP) && /isFinite\(it\.P\.floorOverWater\)/.test(RP),
+          '14n the renderer honours lot:false and refuses a lot over water');
+    // 14o THE ttype STAMP'S `from` FILTER, and the undo under OVERLAP. Two stamps
+    // may cover one cell, and the second one saved what the FIRST had written:
+    // unwound forwards the cell keeps the first stamp's code for ever.
+    if (IW.island && IW.island.ttype) {
+      const g = IW.island.grid, T = IW.island.ttype;
+      const at = (x, z) => T[Math.round((z - g.z0) / g.cell - 0.5) * g.w + Math.round((x - g.x0) / g.cell - 0.5)];
+      const box = (cx, cz, r) => [[cx - r, cz - r], [cx + r, cz - r], [cx + r, cz + r], [cx - r, cz + r]];
+      const two = PG.normalise(JSON.parse(JSON.stringify(rec)));
+      const C = [-3500, -8450];
+      two.layers.ttype = [{ id: 'kA', poly: box(C[0], C[1], 120), code: 8, from: [7] },
+                          { id: 'kB', poly: box(C[0], C[1], 120), code: 15 }];
+      const was = [];
+      for (let z = C[1] - 110; z < C[1] + 110; z += 10) for (let x = C[0] - 110; x < C[0] + 110; x += 10) was.push(at(x, z));
+      const O2 = PG.compose(two, IW, { catalogue: CAT, globals: GENS });
+      const un = O2.stampTtype(IW.island);
+      let only7 = true, all15 = true, i = 0;
+      for (let z = C[1] - 110; z < C[1] + 110; z += 10) for (let x = C[0] - 110; x < C[0] + 110; x += 10) {
+        const now = at(x, z), old = was[i++];
+        if (old >= 2 && now !== 15) all15 = false;                       // the unfiltered stamp takes every land cell
+        if (old < 2 && now !== old) only7 = false;                       // and neither stamp touches the water
+      }
+      check(all15 && only7, '14o a ttype stamp takes the land it covers and leaves the water');
+      if (un) un();
+      let back = true; i = 0;
+      for (let z = C[1] - 110; z < C[1] + 110; z += 10) for (let x = C[0] - 110; x < C[0] + 110; x += 10) if (at(x, z) !== was[i++]) back = false;
+      check(back, '14o two OVERLAPPING stamps undo exactly (the unwind runs backwards)');
+      const one = PG.normalise(JSON.parse(JSON.stringify(rec)));
+      one.layers.ttype = [{ id: 'kA', poly: box(C[0], C[1], 120), code: 8, from: [7] }];
+      const O3 = PG.compose(one, IW, { catalogue: CAT, globals: GENS });
+      const u3 = O3.stampTtype(IW.island);
+      let kept = true; i = 0;
+      for (let z = C[1] - 110; z < C[1] + 110; z += 10) for (let x = C[0] - 110; x < C[0] + 110; x += 10) {
+        const old = was[i++], now = at(x, z);
+        if (old === 7 ? now !== 8 : now !== old) kept = false;
+      }
+      check(kept, "14o `from` replaces only the codes it names");
+      if (u3) u3();
+    }
+    // 14p THE TOWN'S TREES, and the two things that must hold about them.
+    // The user's rule is "never any tree as fixture without its lod system, we take
+    // the normal ones, maybe alter the terrain type, let the game do the work". The
+    // PAINTED route is built (14p below) and cannot be delivered at a settlement -
+    // the island's fill had 13 465 trees built with 55 576 chunks still queued after
+    // 61 s, so the town's own chunks never come up - so Metlakatla PLACES its
+    // conifers through planForest, which steps round every plot, road, site and
+    // exclude by construction. What must hold is that they are drawn at all, and
+    // that they are not drawn for ever.
+    const mkTrees = O.records.trees.filter(t => /^mk_/.test(String(t.zone || '')));
+    check(mkTrees.length > 500, '14p the town has its wood', mkTrees.length + ' trees in mk_ zones');
+    const RP2 = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+    // THE REGRESSION THIS EXISTS FOR: rebuild()'s GAME branch takes an early return,
+    // and buildTrees() sat below it in the bench path only - so no premises record
+    // tree had EVER been drawn in the game, silently, because until now no record
+    // carried one. Both the call and the cull must survive a rebase.
+    const gameBranch = RP2.slice(RP2.indexOf('if (o.game) {'), RP2.indexOf('if (!dirty || !dirty.bbox) {'));
+    check(gameBranch.length > 200 && /buildTrees\(\);/.test(gameBranch),
+          "14p buildTrees() is called in rebuild()'s GAME branch, not only the bench's");
+    check(/addLevel\(new THREE\.Group\(\), TREE_GONE\)/.test(RP2) && /const TREE_GONE = \d+/.test(RP2),
+          '14p a record tree has a cull level (the ladder ended at 132 m and drew at any distance)');
+    check(/CV\[k\] = c\.cover/.test(fs.readFileSync(path.join(TOOLS, '..', 'src', 'core', '27_premises.js'), 'utf8')),
+          '14p the cover stamp exists (the piece that lets a painted biome plant over a town)');
+    const paints = rec.layers.ttype.some(c => isFinite(+c.cover));
+    if (paints && IW.island && IW.island.cover) {
+      const surf = () => { const c = {}; for (let z = -9100; z < -8200; z += 15) for (let x = -4200; x < -2900; x += 15) { const s2 = IW.surface(x, z); c[s2] = (c[s2] || 0) + 1; } return c; };
+      const b4 = surf();
+      const un2 = O.stampTtype(IW.island);
+      const af = surf();
+      check((af[PG.SURFACE.PAVED] || 0) < (b4[PG.SURFACE.PAVED] || 0),
+            '14p the paint lifts the cover the fill refuses',
+            (b4[PG.SURFACE.PAVED] || 0) + ' -> ' + (af[PG.SURFACE.PAVED] || 0) + ' paved samples');
+      check((af[PG.SURFACE.FOREST_FLOOR] || 0) === (b4[PG.SURFACE.FOREST_FLOOR] || 0),
+            "14p ...and does not take the island's own forest floor with it",
+            (b4[PG.SURFACE.FOREST_FLOOR] || 0) + ' -> ' + (af[PG.SURFACE.FOREST_FLOOR] || 0));
+      if (un2) un2();
+      const bk = surf();
+      check(Object.keys(b4).every(k => b4[k] === bk[k]), '14p the cover stamp is exactly undone');
+    }
+
+    // 14r THE AUTHORS ARE DETERMINISTIC, held by a source scan rather than by
+    // regenerating (which costs seconds and needs the DEM). Python randomises
+    // hash() of a str PER PROCESS, so `random.Random(hash((name, seed)))` seeds a
+    // different generator on every run: the island fixture came out with a
+    // different md5 three times running, the walked yard rings moved, and
+    // jolene_author --absorb reported phantom edits for a part nobody had touched.
+    // Five sessions now author ONE generated 176 kB record and the rule that makes
+    // that safe is that anyone may regenerate it and get the same bytes, so a
+    // builtin hash() anywhere in an author is a defect by construction. Use a
+    // stable digest - zlib.crc32, an FNV, hashlib - and never hash().
+    const authors = [path.join(TOOLS, 'metlakatla_author.py'), path.join(TOOLS, 'jolene_author.py')]
+      .concat(fs.readdirSync(path.join(TOOLS, 'jolene_parts')).filter(f => f.endsWith('.py'))
+                .map(f => path.join(TOOLS, 'jolene_parts', f)))
+      .filter(f => fs.existsSync(f));
+    for (const f of authors) {
+      const src = fs.readFileSync(f, 'utf8');
+      const bad = src.split(new RegExp('\\r?\\n')).map((L, i) => [i + 1, L])
+        .filter(([, L]) => /(?:^|[^.\w])hash\s*\(/.test(L) && !/^\s*#/.test(L) && !/hashlib/.test(L));
+      check(bad.length === 0, '14r ' + path.basename(f) + ": no builtin hash() - it is randomised per process",
+            bad.length ? 'line ' + bad[0][0] + ': ' + bad[0][1].trim() : 'none');
+    }
+  }
+}
+
+// 15 THE BOOT'S SQUARE (G554, 2026-09-24): the boot drains the build queue four at a time and every step froze - re-walking
+// every frozen child and RE-MERGING every lot of the premises: 28 s of a 106 s roll-out at Metlakatla's 450 plots.
+// Held by a source scan (the anchors checked, so a moved function turns this red instead of quiet).
+{
+  const RP3 = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+  const i0 = RP3.indexOf('function freezeStatic('), i1 = RP3.indexOf('function mergeInto('), i2 = RP3.indexOf('function batchLots(');
+  check(i0 > 0 && i1 > i0 && i2 > i1, "15 freezeStatic / mergeInto / batchLots found in render_premises.js, in that order");
+  const fz = RP3.slice(i0, i1), mi = RP3.slice(i1, i2);
+  check(/if \(!fresh && walk\)/.test(fz), '15 a build step freezes only what is new (the frozen children are re-walked by the tick and the rebuild)');
+  check(/BATCH\.pending = queue\.length > 0; if \(!BATCH\.pending\) batchLots\(\)/.test(fz), '15 the lots are merged once the queue is empty, not at every step');
+  check(mi.length > 300 && !/fromBufferAttribute|applyMatrix4/.test(mi), "15 the merge reads the arrays, not three's per-vertex accessors");
+}
+
+// 16 THE COMPOSED GROUND, SAME BITS FASTER (2026-09-24): a grade files its segments in cells of its reach under
+// number keys (it was 64 m under string keys), and polyRoad's at() bisects its arclength (it walked it). Both
+// are held to the plain formula they replaced: the grade to a scan of EVERY segment in polyline order (the
+// strict < keeps the first of a tie), at() to the linear walk - Object.is on every answer, over roads that
+// curve every half metre, repeat a point, run long and straight, or are one segment.
+{
+  const r16 = PG.mulberry32(16);
+  const smf = PG.smf01;
+  const refGrade = (m, y0) => {
+    const pts = m.pts, hw = Math.max(0.5, (+m.width || 4) / 2), fall = Math.max(0.5, +m.falloff || 8);
+    const weight = d => (d <= 0 ? 1 : d >= fall ? 0 : 1 - smf(d / fall));
+    return (x, z, h) => {
+      let best = Infinity, ty = 0;
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+        const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
+        const d = Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
+        if (d < best) { best = d; ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
+      }
+      const w = weight(best - hw);
+      return w > 0 ? h + ((m.abs ? 0 : y0) + ty - h) * w : h;
+    };
+  };
+  const roads = [];
+  { const p = []; for (let k = 0; k <= 400; k++) { const a = k * 0.004; p.push([300 + 120 * Math.cos(a), -80 + 120 * Math.sin(a), 4 + Math.sin(k * 0.1)]); } roads.push(p); }   // an arc, a point every 0.48 m
+  { const p = [[0, 0, 1]]; for (let k = 1; k < 60; k++) { const q = p[p.length - 1]; p.push(k % 7 === 0 ? q.slice() : [q[0] + (r16() - 0.3) * 30, q[1] + (r16() - 0.5) * 30, q[2] + (r16() - 0.5)]); } roads.push(p); }   // a wander, some points repeated
+  roads.push([[-2000, 500, 0], [3000, 520, 12]]);                                    // one long segment
+  { const p = []; for (let k = 0; k < 200; k++) p.push([-400 + k * 6, 900 + 3 * Math.sin(k * 0.3), 2]); roads.push(p); }   // the compose's 6 m sampling
+  let n16 = 0, bad16 = 0, moved = 0, first16 = '';
+  for (const pts of roads) for (const [width, falloff, abs] of [[3.6, 6, true], [1, 0.5, false], [30, 40, true], [7, 12, false]]) {
+    const m = { id: 'g16', kind: 'grade', pts, width, falloff, abs }, y0 = 3.25;
+    const M = PG.makeModifier(m, y0), R = refGrade(m, y0);
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+    const pad = width / 2 + falloff + 5;
+    for (let s = 0; s < 6000; s++) {
+      // half anywhere in the grown box, half within reach of a random segment
+      let x, z;
+      if (s & 1) { x = x0 - pad + r16() * (x1 - x0 + 2 * pad); z = z0 - pad + r16() * (z1 - z0 + 2 * pad); }
+      else { const i = Math.floor(r16() * (pts.length - 1)), a = pts[i], b = pts[i + 1], u = r16(); x = a[0] + (b[0] - a[0]) * u + (r16() - 0.5) * 2 * pad; z = a[1] + (b[1] - a[1]) * u + (r16() - 0.5) * 2 * pad; }
+      const h = -7 + r16() * 20, got = M.apply(x, z, h), want = R(x, z, h);
+      n16++; if (!Object.is(got, want)) { bad16++; if (!first16) first16 = x.toFixed(3) + ',' + z.toFixed(3) + ': ' + got + ' vs ' + want; }
+      if (got !== h) moved++;
+    }
+  }
+  check(bad16 === 0 && moved > n16 / 5, '16 a grade answers what a scan of every segment answers', bad16 + ' of ' + n16 + ' differ, ' + moved + ' moved' + (first16 ? ' - first ' + first16 : ''));
+  // at(): the linear walk, then the same interpolation
+  const refAt = (R, t) => {
+    const s = R.s, pts = R.pts;
+    t = Math.max(0, Math.min(s[s.length - 1], t));
+    let i = 1; while (i < s.length - 1 && s[i] < t) i++;
+    const u = (t - s[i - 1]) / Math.max(1e-6, s[i] - s[i - 1]);
+    return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * u, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * u, pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]];
+  };
+  let nA = 0, badA = 0;
+  for (const pts of roads.concat([[[0, 0], [0, 0], [10, 0]]])) {
+    const R = PG.polyRoad(pts.map(p => [p[0], p[1]]), 3.6);
+    const ts = [0, -3, R.length, R.length + 9, NaN];
+    for (const v of R.s) ts.push(v, v - 1e-9, v + 1e-9);
+    for (let k = 0; k < 500; k++) ts.push(r16() * R.length);
+    for (const t of ts) {
+      const g = R.at(t), w = refAt(R, t), L = Math.hypot(w[2], w[3]) || 1;
+      nA++; if (!Object.is(g.p[0], w[0]) || !Object.is(g.p[1], w[1]) || !Object.is(g.tg[0], w[2] / L) || !Object.is(g.tg[1], w[3] / L)) badA++;
+    }
+  }
+  check(badA === 0, "16 polyRoad's at() answers what the linear walk answers", badA + ' of ' + nA + ' differ');
 }
 
 // ---------------------------------------------------------------------------

@@ -70,6 +70,18 @@ console.log('GATE GFX');
   const w2 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({ preset: 'medium' }, OLD_MEDIUM)) });
   ok(w2.GFX.get().preset === 'gamer', 'a choice saved as medium reads as gamer');
   ok(Object.keys(G.PRESETS).every(p => G.PRESET_LABEL[p]), 'every tier has its label');
+  // the pv migration (G528, G551): an old pref ON a preset is that preset as it is now; an old custom mix keeps its options
+  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'medium', scale: 1, bloom: 'off', aa: 'msaa', density: 128 }) });
+  ok(w3.GFX.get().preset === 'gamer' && w3.GFX.get().scale === 1 && w3.GFX.get().bloom === 'soft', 'an old pref saved on medium reads as today\'s gamer (100 %, soft bloom)');
+  const w4 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'custom', scale: 1, lighting: 'alps', density: 200 }) });
+  ok(w4.GFX.get().scale === 1 && w4.GFX.get().lighting === 'alps' && w4.GFX.get().density === 200, 'an old custom mix keeps its options');
+  const w5 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, OLD_MEDIUM, { preset: 'gamer', pv: 2, scale: 'auto' })) });
+  ok(w5.GFX.get().preset === 'gamer' && w5.GFX.get().scale === 1, 'a pref saved on G528\'s gamer (auto by default) reads as today\'s gamer at 100 %');
+  const w6 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'custom', pv: 3, scale: 'auto' }) });
+  ok(w6.GFX.get().scale === 'auto', 'a current pref\'s auto is the player\'s choice and stays');
+  ok(Object.keys(G.PRESETS).every(p => G.PRESETS[p].scale === 1), 'no tier turns the auto render scale on: it is the player\'s option (G551)');
+  ok(G.OPTIONS.find(o => o.k === 'scale').steps.some(st => st.v === 'auto'), 'the auto render scale is in the menu');
+  ok(typeof G.autoTier === 'undefined', 'no first-launch tier probe (G551: start in standard, no wait)');
 }
 // 5. no pref, corrupt pref
 {
@@ -77,7 +89,7 @@ console.log('GATE GFX');
   ok(w.GFX.get().preset === 'gamer', 'no pref boots on gamer (the default tier)');
   const w2 = boot({ 'flydiy.gfx': '{not json' });
   ok(w2.GFX.get().preset === 'gamer', 'a corrupt pref boots on gamer');
-  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'retro', aa: 'nope', density: 5 }) });
+  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 3, aa: 'nope', density: 5 }) });   // a current pref (pv 2) with values no step has
   ok(w3.GFX.get().aa === 'msaa' && w3.GFX.get().density === 128, 'unknown steps in the pref fall back to gamer’s');
 }
 // 3 + 4. applying, and custom

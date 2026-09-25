@@ -774,6 +774,15 @@
         "."
       ],
       "port": 8495
+    },
+    {
+      "name": "flydiy-metlakatla",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8497"
+      ],
+      "port": 8497
     }
   ]
 }

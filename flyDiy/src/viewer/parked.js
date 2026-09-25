@@ -50,9 +50,33 @@
 //   L3  450 m   decimated to ~2.5 %, one vertex-coloured Standard material
 //               for paint, one for bare metal, one for glass — three draws
 //   L4 2500 m   nothing
+// L0 IS SHELVED (G571, the user: "get rid of L0 for now (keep available for
+// possible later reactivation, but transparent to the game) and have L1 by
+// default ... allow plenty of planes"). By default a placement is built
+// WITHOUT L0: L1 stands from 0 m, so no interior bucket, gauge, control or
+// link is ever built or drawn, and with the bake in hand a parked aeroplane
+// is ONE draw on ONE material at every distance it is drawn at. The rung is
+// kept whole behind `PARKED.L0` (true = the full ladder above, for every
+// placement built after the switch).
 // L2/L3 arrive from the Worker seconds after L0/L1 (L1 stands in for them
 // until then); the cut geometry is cached per key in IndexedDB so a second
 // boot skips the decimation.
+//
+// THE FAR LEVELS BAKED (G569). The ladder above still costs a draw per
+// material: ~135 at L1, ~60 at L2, for each aeroplane. A parked aeroplane
+// never changes, so from L1 out it is ONE mesh with ONE standard material:
+// the exterior is cut into charts (triangles sharing an edge and the axis
+// they face), each laid flat on its mean facing, turned to its smallest box
+// and packed into one atlas; then the FLOWN SHADER ITSELF (each bucket's own
+// AEROSKIN material on this aeroplane's block — livery, weathering, grammar,
+// relief) is drawn in atlas space and its albedo, normal (object space) and
+// clear coat / roughness / metalness written out instead of lit. L1 is the
+// full exterior on that atlas, L2 and L3 the same mesh decimated (a chart
+// border is a seam the decimator keeps, so the atlas holds). The panes bake
+// opaque: a dark slab with the glass's own gloss, which is what they were
+// past L0. Baked once per build, kept in IndexedDB (`bake`, keyed by the
+// build's content and the game's build id); a boot finds it there. Without
+// a WebGL renderer (headless) the per-material ladder above stands.
 //
 // THE STANCE. The snapshot is in the MODEL frame (x aft, y up, z left, the
 // join's pitch calibration) and its origin is the mount's. The wheels are
@@ -76,7 +100,7 @@
 // dummy and every seat's occupancy are switched off before the capture.
 'use strict';
 (function () {
-  const PARKED_V = 1;                       // bumps the IndexedDB cache
+  const PARKED_V = 2;                       // the IndexedDB schema (2: the `bake` store)
   const LEVELS = { L1: 30, L2: 120, L3: 450, cull: 2500 };
   const CUT = { L2: [0.12, 6000], L3: [0.025, 1500] };   // [share of the exterior, floor]
   const ATLAS_PX = 2048;                    // the per-craft atlas copy (the shared one is 4096)
@@ -502,7 +526,7 @@ self.onmessage = function (e) {
   let M = { nv, nt: D.idx.length / 3, pos: q, nrm: n8, idx: D.idx };
   const out = [], t0 = Date.now();
   for (const target of D.targets) {
-    const r = meshDecimate(M, bb, target);
+    const r = meshDecimate(M, bb, target, D.opt);
     M = { nv: M.nv, nt: r.nt, pos: M.pos, nrm: M.nrm, idx: Uint32Array.from(r.idx) };
     out.push({ idx: M.idx, pos: M.pos.slice(), nt: r.nt, ms: Date.now() - t0 });
   }
@@ -618,7 +642,7 @@ self.onmessage = function (e) {
     DB.p = new Promise((res, rej) => {
       try {
         const rq = indexedDB.open(DB.name, PARKED_V);
-        rq.onupgradeneeded = () => { const d = rq.result; if (!d.objectStoreNames.contains(DB.store)) d.createObjectStore(DB.store); };
+        rq.onupgradeneeded = () => { const d = rq.result; for (const st of [DB.store, 'bake']) if (!d.objectStoreNames.contains(st)) d.createObjectStore(st); };
         rq.onsuccess = () => res(rq.result);
         rq.onerror = () => rej(rq.error);
       } catch (e) { rej(e); }
@@ -636,6 +660,452 @@ self.onmessage = function (e) {
     if (!rec.far) return;
     const d = await db();
     await new Promise((res, rej) => { const tx = d.transaction(DB.store, 'readwrite'); tx.objectStore(DB.store).put({ far: rec.far, when: Date.now() }, cacheKey(rec)); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+  }
+
+  // ---- THE FAR LEVELS BAKED (G569): one atlas, one material, one draw a level ----------
+  // S the atlas side (1024: the C172's 97 m2 of exterior at ~1.4 cm a texel, twice what
+  // a 1080p eye resolves at 30 m); gutter the texels round each chart; glassK what of
+  // the pane's tint the opaque slab keeps; seam the decimator's weight on a chart border
+  const BAKE = { on: true, V: 1, S: 1024, gutter: 1, glassK: 0.12, seam: 12 };
+
+  // THE UNWRAP. The snapshot's buckets are triangle soups, so the positions are welded
+  // first (on a 17-bit grid over the box). A CHART is the triangles that share an edge
+  // and face the same way (the axis their winding's normal leans on most, signed) — a
+  // height field over that axis, so laid flat it does not fold over itself. Each chart
+  // is projected on its own mean facing (the axis itself when that would turn a
+  // triangle over), turned to the smallest box round its hull, long side along u, and
+  // never mirrored: every triangle stays counter-clockwise in the atlas, so the bake
+  // sees each face from its front. The boxes are packed bottom-left under a skyline and
+  // the texel density searched until they just fit. Out: the welded mesh (a wedge per
+  // chart and position — a chart border is a seam), its atlas uv, and each corner's uv
+  // for the bake's soups.
+  function unwrap(ext, opt) {
+    const S = (opt && opt.S) || BAKE.S, G = (opt && opt.gutter != null) ? opt.gutter : BAKE.gutter;
+    const nt = ext.nt, P = ext.pos, I = ext.idx, NR = ext.nrm, nv = P.length / 3, bb = ext.bb;
+    const kx = 131071 / (bb[3] - bb[0]), ky = 131071 / (bb[4] - bb[1]), kz = 131071 / (bb[5] - bb[2]);
+    const pid = new Int32Array(nv), pmap = new Map();
+    let np = 0;
+    for (let i = 0; i < nv; i++) {
+      const k = Math.round((P[i * 3] - bb[0]) * kx) * 17179869184 + Math.round((P[i * 3 + 1] - bb[1]) * ky) * 131072 + Math.round((P[i * 3 + 2] - bb[2]) * kz);
+      let p = pmap.get(k); if (p === undefined) { p = np++; pmap.set(k, p); } pid[i] = p;
+    }
+    pmap.clear();
+    const fn = new Float32Array(nt * 3), area = new Float32Array(nt), lab = new Uint8Array(nt);
+    for (let t = 0; t < nt; t++) {
+      const a = I[t * 3] * 3, b = I[t * 3 + 1] * 3, c = I[t * 3 + 2] * 3;
+      const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const l = Math.hypot(nx, ny, nz);
+      if (l < 1e-14) { nx = NR[a] + NR[b] + NR[c]; ny = NR[a + 1] + NR[b + 1] + NR[c + 1]; nz = NR[a + 2] + NR[b + 2] + NR[c + 2]; const m = Math.hypot(nx, ny, nz) || 1; nx /= m; ny /= m; nz /= m; }
+      else { nx /= l; ny /= l; nz /= l; }
+      fn[t * 3] = nx; fn[t * 3 + 1] = ny; fn[t * 3 + 2] = nz; area[t] = l * 0.5;
+      const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+      lab[t] = ax >= ay && ax >= az ? (nx >= 0 ? 0 : 1) : ay >= az ? (ny >= 0 ? 2 : 3) : (nz >= 0 ? 4 : 5);
+    }
+    // the charts (union-find over the edges a facing shares)
+    const par = new Int32Array(nt); for (let t = 0; t < nt; t++) par[t] = t;
+    const find = x => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+    const emap = new Map();
+    for (let t = 0; t < nt; t++) for (let e = 0; e < 3; e++) {
+      let a = pid[I[t * 3 + e]], b = pid[I[t * 3 + (e + 1) % 3]];
+      if (a === b) continue;
+      if (a > b) { const s = a; a = b; b = s; }
+      const k = (a * np + b) * 6 + lab[t], o = emap.get(k);
+      if (o === undefined) emap.set(k, t); else { const ra = find(t), rb = find(o); if (ra !== rb) par[ra] = rb; }
+    }
+    emap.clear();
+    const cid = new Int32Array(nt), roots = new Map();
+    let nc = 0;
+    for (let t = 0; t < nt; t++) { const r = find(t); let c = roots.get(r); if (c === undefined) { c = nc++; roots.set(r, c); } cid[t] = c; }
+    const cStart = new Int32Array(nc + 1); for (let t = 0; t < nt; t++) cStart[cid[t] + 1]++;
+    for (let c = 0; c < nc; c++) cStart[c + 1] += cStart[c];
+    const cTri = new Int32Array(nt), at = cStart.slice(0, nc);
+    for (let t = 0; t < nt; t++) cTri[at[cid[t]]++] = t;
+    // each chart flat, turned, in its box
+    const stamp = new Int32Array(np).fill(-1), wloc = new Int32Array(np), cornerW = new Int32Array(nt * 3);
+    const wCorner = [], wU = [], wV = [], charts = [];
+    const AX = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+    const basis = N => { const up = Math.abs(N[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const U = [up[1] * N[2] - up[2] * N[1], up[2] * N[0] - up[0] * N[2], up[0] * N[1] - up[1] * N[0]], l = Math.hypot(U[0], U[1], U[2]);
+      U[0] /= l; U[1] /= l; U[2] /= l;
+      return [U, [N[1] * U[2] - N[2] * U[1], N[2] * U[0] - N[0] * U[2], N[0] * U[1] - N[1] * U[0]]]; };   // U x V = N
+    let nw = 0, nAxis = 0;
+    for (let c = 0; c < nc; c++) {
+      const t0 = cStart[c], t1 = cStart[c + 1], w0 = nw;
+      let Nx = 0, Ny = 0, Nz = 0, A = 0;
+      for (let i = t0; i < t1; i++) { const t = cTri[i]; Nx += fn[t * 3] * area[t]; Ny += fn[t * 3 + 1] * area[t]; Nz += fn[t * 3 + 2] * area[t]; A += area[t];
+        for (let e = 0; e < 3; e++) { const v = I[t * 3 + e], p = pid[v];
+          if (stamp[p] !== c) { stamp[p] = c; wloc[p] = nw++; wCorner.push(v); wU.push(0); wV.push(0); }
+          cornerW[t * 3 + e] = wloc[p]; } }
+      const project = ([U, V]) => { for (let w = w0; w < nw; w++) { const v = wCorner[w] * 3; wU[w] = P[v] * U[0] + P[v + 1] * U[1] + P[v + 2] * U[2]; wV[w] = P[v] * V[0] + P[v + 1] * V[1] + P[v + 2] * V[2]; } };
+      const folds = () => { for (let i = t0; i < t1; i++) { const t = cTri[i], a = cornerW[t * 3], b = cornerW[t * 3 + 1], d = cornerW[t * 3 + 2];
+        if ((wU[b] - wU[a]) * (wV[d] - wV[a]) - (wV[b] - wV[a]) * (wU[d] - wU[a]) < -1e-3 * area[t] - 1e-12) return true; } return false; };
+      const nl = Math.hypot(Nx, Ny, Nz);
+      let ok = false;
+      if (nl > 1e-9 * (A + 1e-12)) { project(basis([Nx / nl, Ny / nl, Nz / nl])); ok = !folds(); }
+      if (!ok) { nAxis++; project(basis(AX[lab[cTri[t0]]])); }
+      // the smallest box, over the hull's edge directions (90 sampled turns round a long hull)
+      const pts = []; for (let w = w0; w < nw; w++) pts.push(w);
+      pts.sort((a, b) => wU[a] - wU[b] || wV[a] - wV[b]);
+      const cross = (o, a, b) => (wU[a] - wU[o]) * (wV[b] - wV[o]) - (wV[a] - wV[o]) * (wU[b] - wU[o]);
+      const lo = [], hi = [];
+      for (const p of pts) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+      for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
+      const hull = pts.length > 2 ? lo.slice(0, -1).concat(hi.slice(0, -1)) : pts;
+      const angles = [];
+      if (hull.length > 1 && hull.length <= 200) for (let i = 0; i < hull.length; i++) { const a = hull[i], b = hull[(i + 1) % hull.length]; angles.push(Math.atan2(wV[b] - wV[a], wU[b] - wU[a])); }
+      else for (let i = 0; i < 90; i++) angles.push(i * Math.PI / 180);
+      let best = null;
+      for (const th of angles) {
+        const cs = Math.cos(th), sn = Math.sin(th);
+        let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+        for (const p of hull) { const x = wU[p] * cs + wV[p] * sn, y = -wU[p] * sn + wV[p] * cs; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+        const ar = (x1 - x0) * (y1 - y0);
+        if (!best || ar < best.ar - 1e-12) best = { ar, cs, sn, w: x1 - x0, h: y1 - y0 };
+      }
+      let { cs, sn, w, h } = best;
+      if (h > w) { const c2 = -sn, s2 = cs; cs = c2; sn = s2; const s = w; w = h; h = s; }   // a quarter turn more, not a mirror
+      let x0 = Infinity, y0 = Infinity;
+      for (let q = w0; q < nw; q++) { const x = wU[q] * cs + wV[q] * sn, y = -wU[q] * sn + wV[q] * cs; wU[q] = x; wV[q] = y; if (x < x0) x0 = x; if (y < y0) y0 = y; }
+      for (let q = w0; q < nw; q++) { wU[q] -= x0; wV[q] -= y0; }
+      charts.push({ w0, w1: nw, w: Math.max(w, 1e-6), h: Math.max(h, 1e-6), area: A, x: 0, y: 0 });
+    }
+    // the packing: tallest first, each box where its top stands lowest under the skyline
+    const order = charts.map((c, i) => i).sort((a, b) => charts[b].h - charts[a].h || charts[b].w - charts[a].w);
+    const rectOf = (c, s) => [Math.max(1, Math.ceil(c.w * s)) + 2 * G, Math.max(1, Math.ceil(c.h * s)) + 2 * G];
+    function pack(s, commit) {
+      let sky = [{ x: 0, y: 0, w: S }];
+      for (const i of order) {
+        const c = charts[i], [rw, rh] = rectOf(c, s);
+        if (rw > S) return false;
+        let by = Infinity, bx = -1;
+        for (let k = 0; k < sky.length; k++) {
+          const x = sky[k].x; if (x + rw > S) break;
+          let y = 0, wl = rw, j = k;
+          while (wl > 0) { if (sky[j].y > y) y = sky[j].y; wl -= sky[j].w; j++; }
+          if (y + rh <= S && y < by) { by = y; bx = x; }
+        }
+        if (bx < 0) return false;
+        if (commit) { c.x = bx; c.y = by; }
+        const next = [];
+        for (const g of sky) {
+          if (g.x + g.w <= bx || g.x >= bx + rw) { next.push(g); continue; }
+          if (g.x < bx) next.push({ x: g.x, y: g.y, w: bx - g.x });
+          if (g.x + g.w > bx + rw) next.push({ x: bx + rw, y: g.y, w: g.x + g.w - bx - rw });
+        }
+        next.push({ x: bx, y: by + rh, w: rw });
+        next.sort((a, b) => a.x - b.x);
+        sky = [];
+        for (const g of next) { const l = sky[sky.length - 1]; if (l && l.y === g.y && l.x + l.w === g.x) l.w += g.w; else sky.push(g); }
+      }
+      return true;
+    }
+    let bbA = 0; for (const c of charts) bbA += c.w * c.h;
+    let lo = 0, hi = Math.sqrt(S * S / Math.max(bbA, 1e-9)) * 1.2;
+    while (pack(hi, false)) { lo = hi; hi *= 1.3; }
+    if (!lo) { lo = hi; while (lo > 1e-3 && !pack(lo, false)) lo *= 0.85; }
+    for (let it = 0; it < 10; it++) { const m = (lo + hi) / 2; if (pack(m, false)) lo = m; else hi = m; }
+    const s = lo;
+    if (!pack(s, true)) return null;
+    // the atlas coordinates (a chart under a texel is stretched to one, so the bake reaches it)
+    const uv = new Float32Array(nw * 2);
+    let texels = 0;
+    for (const c of charts) {
+      const sx = c.w * s < 1 ? 1 / c.w : s, sy = c.h * s < 1 ? 1 / c.h : s;
+      texels += Math.max(1, Math.ceil(c.w * s)) * Math.max(1, Math.ceil(c.h * s));
+      for (let q = c.w0; q < c.w1; q++) { uv[q * 2] = (c.x + G + wU[q] * sx) / S; uv[q * 2 + 1] = (c.y + G + wV[q] * sy) / S; }
+    }
+    const pos = new Float32Array(nw * 3), nrm = new Float32Array(nw * 3), idx = new Uint32Array(nt * 3), cornerUV = new Float32Array(nt * 6);
+    for (let w = 0; w < nw; w++) { const v = wCorner[w] * 3; pos[w * 3] = P[v]; pos[w * 3 + 1] = P[v + 1]; pos[w * 3 + 2] = P[v + 2]; }
+    for (let t = 0; t < nt; t++) for (let e = 0; e < 3; e++) {
+      const w = cornerW[t * 3 + e], v = I[t * 3 + e] * 3;
+      idx[t * 3 + e] = w; cornerUV[(t * 3 + e) * 2] = uv[w * 2]; cornerUV[(t * 3 + e) * 2 + 1] = uv[w * 2 + 1];
+      nrm[w * 3] += NR[v] * area[t]; nrm[w * 3 + 1] += NR[v + 1] * area[t]; nrm[w * 3 + 2] += NR[v + 2] * area[t];
+    }
+    for (let w = 0; w < nw; w++) { const l = Math.hypot(nrm[w * 3], nrm[w * 3 + 1], nrm[w * 3 + 2]); if (l > 0) { nrm[w * 3] /= l; nrm[w * 3 + 1] /= l; nrm[w * 3 + 2] /= l; } else nrm[w * 3 + 1] = 1; }
+    return { S, gutter: G, density: s, charts: nc, axis: nAxis, fill: texels / (S * S), nv: nw, nt, pos, nrm, uv, idx, cornerUV, rects: charts };
+  }
+
+  // THE BAKE VARIANT OF A MATERIAL: its own hook first (the flown program, on this
+  // aeroplane's block), then two splices at the very end of main — the vertex lands at
+  // its atlas texel instead of the screen, the fragment writes what the lighting would
+  // have read (uBakeOut 0 the albedo in sRGB, 1 the normal in the level's frame, 2 the
+  // clear coat / roughness / metalness) instead of the lit colour. One wrapper per source
+  // hook, its text the program's cache key, so each flown program has one bake twin.
+  const BAKE_U = { uBakeOut: { value: 0 } };
+  const BAKE_WRAP = new Map();
+  const BAKE_FS = `
+  {
+    vec3 bkN = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+    vec3 bkA = clamp(diffuseColor.rgb, 0.0, 1.0);
+    float bkR = 0.8, bkM = 0.0, bkC = 0.0;
+  #ifdef STANDARD
+    bkR = roughnessFactor; bkM = metalnessFactor;
+  #endif
+  #ifdef USE_CLEARCOAT
+    bkC = material.clearcoat;
+  #endif
+    if (uBakeGlass > 0.0) { bkA *= uBakeGlass; bkM = 0.0; bkC = 0.0; }
+    gl_FragColor = uBakeOut < 0.5 ? vec4(sRGBTransferOETF(vec4(bkA, 1.0)).rgb, 1.0)
+                 : uBakeOut < 1.5 ? vec4(bkN * 0.5 + 0.5, 1.0)
+                 : vec4(clamp(bkC, 0.0, 1.0), clamp(bkR, 0.0, 1.0), clamp(bkM, 0.0, 1.0), 1.0);
+  }
+`;
+  function bakeHook(h) {
+    let w = BAKE_WRAP.get(h);
+    if (w) return w;
+    w = function (sh, r) {
+      if (h) h.call(this, sh, r);
+      sh.uniforms.uBakeOut = BAKE_U.uBakeOut;
+      sh.uniforms.uBakeGlass = { value: +(this.userData.parkedBakeGlass || 0) };
+      sh.vertexShader = 'attribute vec2 aBakeUv;\n' + sh.vertexShader.replace(/\}\s*$/, '  gl_Position = vec4(aBakeUv * 2.0 - 1.0, 0.0, 1.0);\n}\n');
+      sh.fragmentShader = 'uniform float uBakeOut;\nuniform float uBakeGlass;\n' + sh.fragmentShader.replace(/\}\s*$/, BAKE_FS + '}\n');
+    };
+    w.toString = () => 'parked.bake|' + BAKE.V + '|' + (h ? h.toString() : '');
+    BAKE_WRAP.set(h, w);
+    return w;
+  }
+  function bakeRenderer() {
+    const R = (W.PARKED && W.PARKED.renderer) || W.FLYDIY_RENDERER || null;
+    return R && R.isWebGLRenderer && typeof R.readRenderTargetPixels === 'function' ? R : null;
+  }
+  const craftP = THREE => new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+  // the flown materials, drawn into the atlas: each bucket's corners as a soup carrying the
+  // snapshot's own attributes and the corner's atlas uv; the edges first (lines reach the
+  // charts too small for a texel centre), the faces over them; read back, then every
+  // unwritten texel takes its nearest written one's value so no mip reaches the black
+  async function bakeAtlas(THREE, R, rec, ext, uw) {
+    const S = uw.S, vis = rec.vis;
+    const block = rec.block ? Object.assign({}, rec.block, { uCraftInv: { value: craftP(THREE) } }) : null;
+    const matFor = makeMats(THREE, rec, block);
+    const tris = new Map();
+    for (let t = 0; t < ext.nt; t++) { const b = ext.wb[ext.idx[t * 3]]; let l = tris.get(b); if (!l) tris.set(b, l = []); l.push(t); }
+    const solid = new THREE.Scene(), wire = new THREE.Scene(), made = [];
+    let ccW = 0, ccR = 0;
+    for (const [b, ts] of tris) {
+      const key = ext.buckets[b].key, m = vis.mats[key] || {};
+      let src = null;
+      try { src = matFor(key); } catch (e) { src = null; }
+      if (!src || !src.isMeshStandardMaterial) src = new THREE.MeshStandardMaterial({ color: src && src.color ? src.color : (m.color != null ? m.color : 0x808080), roughness: 0.6 });
+      const n = ts.length * 3, p = new Float32Array(n * 3), q = new Float32Array(n * 3), u = new Float32Array(n * 2), s = new Float32Array(n * 4), a = new Float32Array(n * 2);
+      for (let i = 0; i < ts.length; i++) for (let e = 0; e < 3; e++) {
+        const c = ts[i] * 3 + e, v = ext.idx[c], o = i * 3 + e;
+        p[o * 3] = ext.pos[v * 3]; p[o * 3 + 1] = ext.pos[v * 3 + 1]; p[o * 3 + 2] = ext.pos[v * 3 + 2];
+        q[o * 3] = ext.nrm[v * 3]; q[o * 3 + 1] = ext.nrm[v * 3 + 1]; q[o * 3 + 2] = ext.nrm[v * 3 + 2];
+        u[o * 2] = ext.uv[v * 2]; u[o * 2 + 1] = ext.uv[v * 2 + 1];
+        s[o * 4] = ext.srf[v * 4]; s[o * 4 + 1] = ext.srf[v * 4 + 1]; s[o * 4 + 2] = ext.srf[v * 4 + 2]; s[o * 4 + 3] = ext.srf[v * 4 + 3];
+        a[o * 2] = uw.cornerUV[c * 2]; a[o * 2 + 1] = uw.cornerUV[c * 2 + 1];
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(p, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(q, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(u, 2)); geo.setAttribute('aStruct', new THREE.BufferAttribute(s, 4));
+      geo.setAttribute('aBakeUv', new THREE.BufferAttribute(a, 2));
+      for (const wf of [false, true]) {
+        const bm = dupe(src, block);
+        bm.userData.parkedBakeGlass = m.fin === 'glass' ? BAKE.glassK : 0;
+        bm.onBeforeCompile = bakeHook(hookOf(bm));
+        bm.transparent = false; bm.blending = THREE.NoBlending; bm.depthTest = false; bm.depthWrite = false;
+        bm.side = THREE.DoubleSide; bm.alphaTest = 0; bm.wireframe = wf; bm.needsUpdate = true;
+        const mesh = new THREE.Mesh(geo, bm);
+        mesh.frustumCulled = false;
+        (wf ? wire : solid).add(mesh);
+        made.push(bm);
+      }
+      if (src.clearcoat > 0) { ccW += ts.length; ccR += ts.length * (src.clearcoatRoughness || 0); }
+      made.push(geo);
+    }
+    const cam = new THREE.PerspectiveCamera();
+    cam.matrixAutoUpdate = false; cam.matrixWorld.identity(); cam.matrixWorldInverse.identity();
+    const rt = new THREE.WebGLRenderTarget(S, S, { depthBuffer: false, stencilBuffer: false, generateMipmaps: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+    // the programs off the main thread where the driver can (KHR_parallel_shader_compile).
+    // compile() is synchronous and keys each program on the target bound AT THE CALL (a
+    // render target has no tone map and a linear output), so the target is bound for the
+    // call only - the game draws its own frames while the link finishes
+    if (R.compileAsync) {
+      const prev = R.getRenderTarget();
+      let p = null;
+      try { R.setRenderTarget(rt); p = R.compileAsync(solid, cam); } catch (e) { p = null; } finally { R.setRenderTarget(prev); }
+      if (p) { try { await p; } catch (e) {} }
+    }
+    const prevRT = R.getRenderTarget(), prevAC = R.autoClear, cc = R.getClearColor(new THREE.Color()), ca = R.getClearAlpha();
+    const prevSM = R.shadowMap.enabled;
+    const out = [];
+    try {
+      R.shadowMap.enabled = false;
+      R.autoClear = false;
+      R.setRenderTarget(rt);
+      R.setClearColor(0x000000, 0);
+      for (let k = 0; k < 3; k++) {
+        BAKE_U.uBakeOut.value = k;
+        for (const m of made) if (m.isMaterial) m.uniformsNeedUpdate = true;
+        R.clear(true, false, false);
+        R.render(wire, cam);
+        R.render(solid, cam);
+        const buf = new Uint8Array(S * S * 4);
+        R.readRenderTargetPixels(rt, 0, 0, S, S, buf);
+        out.push(buf);
+      }
+    } finally {
+      R.setRenderTarget(prevRT); R.setClearColor(cc, ca); R.autoClear = prevAC; R.shadowMap.enabled = prevSM;
+      rt.dispose();
+      for (const m of made) m.dispose();
+    }
+    const cov = dilate(out, S);
+    if (cov < 0.05) throw new Error('the bake wrote ' + (cov * 100).toFixed(1) + ' % of the atlas');
+    return { tex: out, S, cov, ccR: ccW ? ccR / ccW : 0.1, cc: ccW > 0 };
+  }
+  // every texel the bake did not write takes its nearest written neighbour's (a
+  // breadth-first flood, four-connected); returns the share that was written
+  function dilate(bufs, S) {
+    const n = S * S, src = new Int32Array(n).fill(-1), queue = new Int32Array(n), A = bufs[0];
+    let qt = 0;
+    for (let i = 0; i < n; i++) if (A[i * 4 + 3] > 0) { src[i] = i; queue[qt++] = i; }
+    const written = qt;
+    if (!written) return 0;
+    for (let qh = 0; qh < qt; qh++) {
+      const i = queue[qh], x = i % S, s = src[i];
+      if (x > 0 && src[i - 1] < 0) { src[i - 1] = s; queue[qt++] = i - 1; }
+      if (x < S - 1 && src[i + 1] < 0) { src[i + 1] = s; queue[qt++] = i + 1; }
+      if (i >= S && src[i - S] < 0) { src[i - S] = s; queue[qt++] = i - S; }
+      if (i < n - S && src[i + S] < 0) { src[i + S] = s; queue[qt++] = i + S; }
+    }
+    for (const B of bufs) for (let i = 0; i < n; i++) {
+      const s = src[i];
+      if (s !== i) { B[i * 4] = B[s * 4]; B[i * 4 + 1] = B[s * 4 + 1]; B[i * 4 + 2] = B[s * 4 + 2]; }
+      B[i * 4 + 3] = 255;
+    }
+    return written / n;
+  }
+  // the unwrapped mesh cut to the far rungs' targets, in the Worker, a chart border a
+  // seam it keeps (W_SEAM) — L1's wedges, so every rung reads the same atlas
+  function cutBaked(uw, cb) {
+    const bb = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < uw.nv; i++) for (let a = 0; a < 3; a++) { const v = uw.pos[i * 3 + a]; if (v < bb[a]) bb[a] = v; if (v > bb[a + 3]) bb[a + 3] = v; }
+    for (let a = 0; a < 3; a++) if (bb[a + 3] - bb[a] < 1e-3) bb[a + 3] = bb[a] + 1e-3;
+    const targets = ['L2', 'L3'].map(L => Math.max(CUT[L][1], Math.round(CUT[L][0] * uw.nt)));
+    decimateAsync({ pos: uw.pos, nrm: uw.nrm, idx: uw.idx, bb, targets, opt: { W_SEAM: BAKE.seam } }, (res, err) => {
+      if (!res) { cb(null, err); return; }
+      cb(res.out.map(o => rungOf(uw, bb, o, res.nrm)), null);
+    });
+  }
+  // a cut rung as its own compact mesh: the wedges it still uses, where the cut left
+  // them (a wedge with no twin moved), each with its atlas uv
+  function rungOf(uw, bb, lvl, n8) {
+    const map = new Int32Array(uw.nv).fill(-1);
+    let n = 0;
+    for (let i = 0; i < lvl.idx.length; i++) if (map[lvl.idx[i]] < 0) map[lvl.idx[i]] = n++;
+    const pos = new Float32Array(n * 3), nrm = new Int8Array(n * 3), uv = new Float32Array(n * 2), idx = new Uint32Array(lvl.idx.length);
+    const sx = (bb[3] - bb[0]) / 65535, sy = (bb[4] - bb[1]) / 65535, sz = (bb[5] - bb[2]) / 65535;
+    for (let w = 0; w < uw.nv; w++) {
+      const j = map[w]; if (j < 0) continue;
+      pos[j * 3] = bb[0] + (lvl.pos[w * 3] + 32768) * sx; pos[j * 3 + 1] = bb[1] + (lvl.pos[w * 3 + 1] + 32768) * sy; pos[j * 3 + 2] = bb[2] + (lvl.pos[w * 3 + 2] + 32768) * sz;
+      nrm[j * 3] = n8[w * 3]; nrm[j * 3 + 1] = n8[w * 3 + 1]; nrm[j * 3 + 2] = n8[w * 3 + 2];
+      uv[j * 2] = uw.uv[w * 2]; uv[j * 2 + 1] = uw.uv[w * 2 + 1];
+    }
+    for (let i = 0; i < lvl.idx.length; i++) idx[i] = map[lvl.idx[i]];
+    return { pos, nrm, uv, idx };
+  }
+  const n8Of = f => { const o = new Int8Array(f.length); for (let i = 0; i < f.length; i++) o[i] = Math.max(-127, Math.min(127, Math.round(f[i] * 127))); return o; };
+  // the record's far levels as data (what the cache keeps) -> three objects every
+  // placement of the build shares: ONE material, a geometry per rung
+  function bakedFrom(THREE, d) {
+    const tex = (data, srgb) => {
+      const t = new THREE.DataTexture(data, d.S, d.S, THREE.RGBAFormat, THREE.UnsignedByteType);
+      t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      t.flipY = false; t.generateMipmaps = true;
+      t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      t.anisotropy = W.FLYDIY_ANISO || 8;
+      t.needsUpdate = true;
+      return t;
+    };
+    const map = tex(d.tex[0], true), nmap = tex(d.tex[1], false), orm = tex(d.tex[2], false);
+    const o = { map, normalMap: nmap, normalMapType: THREE.ObjectSpaceNormalMap, roughnessMap: orm, metalnessMap: orm,
+                roughness: 1, metalness: 1, side: THREE.DoubleSide };
+    const mat = d.cc ? new THREE.MeshPhysicalMaterial(Object.assign(o, { clearcoat: 1, clearcoatMap: orm, clearcoatRoughness: d.ccR }))
+                     : new THREE.MeshStandardMaterial(o);
+    mat.name = 'parked:baked';
+    mat.userData.parkedBaked = 1;
+    const geos = d.L.map(L => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(L.pos, 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(L.nrm, 3, true));
+      g.setAttribute('uv', new THREE.BufferAttribute(L.uv, 2));
+      g.setIndex(new THREE.BufferAttribute(L.idx, 1));
+      g.computeBoundingSphere();
+      return g;
+    });
+    return { mat, geos, S: d.S, tris: d.L.map(L => L.idx.length / 3), ms: d.ms || 0 };
+  }
+  // THE BAKE'S KEY: the build's whole content (its spec, which carries the livery and the
+  // finishes), what the capture made of it, the game's build (the shaders the bake ran)
+  // and this file's bake version — any of them moving bakes again
+  function hash(str) {
+    let h1 = 0x811c9dc5, h2 = 0x01000193 ^ str.length;
+    for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 ^ c, 2246822519) ^ (h2 >>> 13); }
+    return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+  }
+  const bakeKey = rec => rec.bakeKey || (rec.bakeKey = [BAKE.V, BAKE.S, BAKE.gutter, BAKE.glassK, rec.tris, Object.keys(rec.vis.mats).length,
+    (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0, W.FLYDIY_BUILD || 'dev', hash(JSON.stringify(rec.spec || {})), JSON.stringify(WEAR)].join('|'));
+  // the textures ride compressed where the browser can (gzip streams): ~12 MB raw a build
+  async function squeeze(u8) {
+    if (typeof CompressionStream === 'undefined' || typeof Response === 'undefined') return u8;
+    try { return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()); } catch (e) { return u8; }
+  }
+  async function unsqueeze(v, n) {
+    if (v && v.length === n) return v;
+    return new Uint8Array(await new Response(new Blob([v]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+  }
+  async function bakeGet(rec) {
+    try {
+      const d = await db();
+      const v = await new Promise((res, rej) => { const tx = d.transaction('bake', 'readonly'); const rq = tx.objectStore('bake').get(rec.key); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => rej(rq.error); });
+      if (!v || v.ck !== bakeKey(rec)) return null;
+      const n = v.S * v.S * 4;
+      v.tex = await Promise.all(v.tex.map(t => unsqueeze(t, n)));
+      return v.tex.every(t => t.length === n) ? v : null;
+    } catch (e) { return null; }
+  }
+  async function bakePut(rec, data) {
+    const v = Object.assign({}, data, { ck: bakeKey(rec), when: Date.now() });
+    v.tex = await Promise.all(data.tex.map(squeeze));
+    const d = await db();
+    await new Promise((res, rej) => { const tx = d.transaction('bake', 'readwrite'); tx.objectStore('bake').put(v, rec.key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+  }
+  // the record's baked far levels: from the cache, else baked now (a frame later, off the
+  // capture's task), handed to every placement waiting on them; null = the ladder stands
+  function farBaked(THREE, rec, onDone) {
+    if (rec.baked !== undefined && !rec.baking) { onDone(rec.baked); return; }
+    (rec.bakeWait || (rec.bakeWait = [])).push(onDone);
+    if (rec.baking) return;
+    rec.baking = true;
+    const done = bk => { rec.baking = false; rec.baked = bk || null; const w = rec.bakeWait; rec.bakeWait = [];
+      for (const f of w) { try { f(rec.baked); } catch (e) { console.error('parked: bake handoff', e); } } };
+    const t0 = performance.now();
+    bakeGet(rec).then(hit => {
+      if (hit) { const bk = bakedFrom(THREE, hit); log(rec.key, 'far levels baked (cache):', bk.tris.join(' / '), 'tris in', Math.round(performance.now() - t0), 'ms'); done(bk); return; }
+      setTimeout(() => bakeNow(THREE, rec).then(done, e => { console.warn('parked: bake of', rec.key, 'failed, the ladder stands:', e && e.message || e); done(null); }), 0);
+    });
+  }
+  async function bakeNow(THREE, rec) {
+    const R = bakeRenderer();
+    if (!R) return null;
+    const t0 = performance.now();
+    const ext = exteriorMesh(rec);
+    const uw = unwrap(ext, { S: BAKE.S, gutter: BAKE.gutter });
+    if (!uw) throw new Error('the charts do not pack');
+    const t1 = performance.now();
+    const at = await bakeAtlas(THREE, R, rec, ext, uw);
+    const t2 = performance.now();
+    const rungs = await new Promise((res, rej) => cutBaked(uw, (r, err) => r ? res(r) : rej(new Error(err || 'no cut'))));
+    const data = { S: at.S, tex: at.tex, cc: at.cc, ccR: at.ccR,
+                   L: [{ pos: uw.pos, nrm: n8Of(uw.nrm), uv: uw.uv, idx: uw.idx }].concat(rungs),
+                   stats: { charts: uw.charts, axis: uw.axis, fill: +uw.fill.toFixed(3), cm: +(100 / uw.density).toFixed(2), cov: +at.cov.toFixed(3) } };
+    data.ms = Math.round(performance.now() - t0);
+    log(rec.key, 'far levels baked:', uw.charts, 'charts,', data.stats.cm, 'cm a texel,', (uw.fill * 100).toFixed(0), '% of the atlas; unwrap', Math.round(t1 - t0),
+        'ms, bake', Math.round(t2 - t1), 'ms, total', data.ms, 'ms;', data.L.map(L => L.idx.length / 3).join(' / '), 'tris');
+    bakePut(rec, data).catch(e => console.warn('parked: bake not cached', e && e.message || e));
+    return bakedFrom(THREE, data);
   }
 
   // ---- the hitbox --------------------------------------------------------------------
@@ -722,21 +1192,41 @@ self.onmessage = function (e) {
       models.push(level);
       return flip;
     };
-    const L0 = frame(levelMeshes(THREE, rec, matFor, true)), L1 = frame(levelMeshes(THREE, rec, matFor, false));
-    lod.addLevel(L0, 0);
-    lod.addLevel(L1, LEVELS.L1);
+    // L0 only when the switch asks for it (G571); without it L1 is the first rung, from 0 m,
+    // and every rung past it sits one index lower (`o`, L1's index)
+    const full = !!W.PARKED.L0, o = full ? 1 : 0;
+    if (full) lod.addLevel(frame(mergeLevel(THREE, levelMeshes(THREE, rec, matFor, true))), 0);
+    const L1 = frame(mergeLevel(THREE, levelMeshes(THREE, rec, matFor, false)));
+    lod.addLevel(L1, full ? LEVELS.L1 : 0);
     // the far rungs stand in as L1 until the cut lands (a clone shares geometry and materials)
     const stand2 = L1.clone(), stand3 = L1.clone();
     lod.addLevel(stand2, LEVELS.L2);
     lod.addLevel(stand3, LEVELS.L3);
     lod.addLevel(new THREE.Group(), LEVELS.cull);
+    const swap = (lv, obj) => { const old = lod.levels[lv].object; lod.remove(old); lod.levels[lv].object = obj; lod.add(obj); return old; };
     const setFar = far => {
       const ext = exteriorMesh(rec);       // the same order the cut was made in: srf and uv per wedge
       const L2 = frame(farLevel(THREE, ext, far.levels[0], far.nrm, matFor)), L3 = frame(farLevel(THREE, ext, far.levels[1], far.nrm, null));
-      for (const [lv, obj] of [[2, L2], [3, L3]]) { const old = lod.levels[lv].object; lod.remove(old); lod.levels[lv].object = obj; lod.add(obj); }
+      swap(o + 1, L2); swap(o + 2, L3);
     };
-    if (rec.far) setFar(rec.far);
-    else cacheGet(rec).then(hit => { if (hit && hit.far) { rec.far = hit.far; log(rec.key, 'far levels from the cache'); setFar(rec.far); } else cutFar(THREE, rec, setFar); });
+    const ladder = () => {
+      if (rec.far) setFar(rec.far);
+      else cacheGet(rec).then(hit => { if (hit && hit.far) { rec.far = hit.far; log(rec.key, 'far levels from the cache'); setFar(rec.far); } else cutFar(THREE, rec, setFar); });
+    };
+    // THE BAKED RUNGS (G569): L1 out, one mesh on the build's atlas each; until they land
+    // (or where there is nothing to bake with) the per-material ladder stands. L1's merged
+    // meshes were this placement's own geometry: freed with it (the singletons are the
+    // record's, shared with L0 and every other placement). Without L0 the baked L1 is the
+    // aeroplane from 0 m.
+    const setBaked = bk => {
+      if (!bk) { ladder(); return; }
+      const old = [0, 1, 2].map(i => swap(o + i, frame(bakedLevel(THREE, bk, i))));
+      const gone = new Set();
+      for (const o of old) o.traverse(m => { if (m.isMesh && m.name === 'parked:merged' && m.geometry) gone.add(m.geometry); });
+      for (const g of gone) g.dispose();
+    };
+    if (BAKE.on && rec.block && bakeRenderer()) farBaked(THREE, rec, setBaked);
+    else ladder();
     lod.userData.hitbox = hitboxOf(rec, st);
     lod.userData.parked = rec.key;
     lod.userData.stance = st;
@@ -753,6 +1243,62 @@ self.onmessage = function (e) {
       lod.userData.craftInv = block ? block.uCraftInv : null;
     }
     return lod;
+  }
+  // a baked rung: the record's geometry for it under the record's one material
+  function bakedLevel(THREE, bk, i) {
+    const g = new THREE.Group(), m = new THREE.Mesh(bk.geos[i], bk.mat);
+    m.name = 'parked:baked'; m.castShadow = true; m.receiveShadow = true;
+    g.add(m);
+    return g;
+  }
+  // A PARKED LEVEL MERGED BY MATERIAL (G565): five parked aeroplanes by the stand drew ~1 000 times (213 meshes at L0,
+  // 114 at L1, a part each) for 117 / 74 materials. A parked aeroplane never moves, so a level's meshes that share a
+  // material (and its render flags and attribute set) become one mesh in the level's frame - the look is the same:
+  // the shaders read craft space through uCraftInv, which the level's frame keeps.
+  function mergeLevel(THREE, level) {
+    level.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(level.matrixWorld).invert(), rel = new THREE.Matrix4(), nm = new THREE.Matrix3();
+    const groups = new Map();
+    level.traverse(m => {
+      if (!m.isMesh || m.isSkinnedMesh || m.isInstancedMesh || Array.isArray(m.material) || !m.geometry || !m.geometry.index) return;
+      const g = m.geometry; if (g.morphAttributes && Object.keys(g.morphAttributes).length) return;
+      const at = Object.keys(g.attributes).sort();
+      if (at.some(k => g.attributes[k].isInterleavedBufferAttribute)) return;
+      const key = m.material.uuid + '|' + m.renderOrder + '|' + m.castShadow + m.receiveShadow + m.visible + '|' + (m.customDepthMaterial ? m.customDepthMaterial.uuid : '') + '|' +
+        at.map(k => k + ':' + g.attributes[k].itemSize + g.attributes[k].array.constructor.name + g.attributes[k].normalized).join(',');
+      let l = groups.get(key); if (!l) groups.set(key, l = []); l.push(m);
+    });
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      const g0 = list[0].geometry, names = Object.keys(g0.attributes);
+      let nV = 0, nI = 0; for (const m of list) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
+      const arrays = {}; for (const k of names) arrays[k] = new g0.attributes[k].array.constructor(nV * g0.attributes[k].itemSize);
+      const idx = new Uint32Array(nI); let vo = 0, io = 0;
+      for (const m of list) {
+        const g = m.geometry, n = g.attributes.position.count;
+        rel.multiplyMatrices(inv, m.matrixWorld); nm.getNormalMatrix(rel); const e = rel.elements, q = nm.elements;
+        for (const k of names) {
+          const A = g.attributes[k].array, D = arrays[k], sz = g.attributes[k].itemSize;
+          if (k === 'position') for (let i = 0; i < n; i++) { const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2], o = (vo + i) * 3;
+            D[o] = e[0] * x + e[4] * y + e[8] * z + e[12]; D[o + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; D[o + 2] = e[2] * x + e[6] * y + e[10] * z + e[14]; }
+          else if (k === 'normal') for (let i = 0; i < n; i++) { const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2], o = (vo + i) * 3;
+            const X = q[0] * x + q[3] * y + q[6] * z, Y = q[1] * x + q[4] * y + q[7] * z, Z = q[2] * x + q[5] * y + q[8] * z, L = Math.hypot(X, Y, Z) || 1; D[o] = X / L; D[o + 1] = Y / L; D[o + 2] = Z / L; }
+          else D.set(A.subarray(0, n * sz), vo * sz);
+        }
+        const ix = g.index.array; for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
+        vo += n; io += g.index.count;
+      }
+      const out = new THREE.BufferGeometry();
+      for (const k of names) out.setAttribute(k, new THREE.BufferAttribute(arrays[k], g0.attributes[k].itemSize, g0.attributes[k].normalized));
+      out.setIndex(new THREE.BufferAttribute(idx, 1)); out.computeBoundingSphere();
+      const m0 = list[0], mesh = new THREE.Mesh(out, m0.material);
+      mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.visible = m0.visible;
+      if (m0.customDepthMaterial) mesh.customDepthMaterial = m0.customDepthMaterial;
+      mesh.name = 'parked:merged';
+      for (const m of list) if (m.parent) m.parent.remove(m);
+      level.add(mesh);
+    }
+    return level;
   }
   // stand one at (x, y, z) turned by yaw (rotation.y); returns the group at once
   // — filled now when the key is captured, or when its capture lands
@@ -788,8 +1334,12 @@ self.onmessage = function (e) {
   const trisOf = grp => { let n = 0; grp.traverse(o => { if (o.isMesh && o.geometry && o.visible) { const g = o.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3; } }); return n; };
 
   W.PARKED = { keys, specOf, capture, captureAll, place, build, stance, hitboxOf, records: REC, pending: PENDING,
-               LEVELS, CUT, WEAR, ready: false, boxes: false, quiet: false, trisOf, drawBoxes, exteriorMesh, cloneBlock, copyBlock,
+               LEVELS, CUT, WEAR, ready: false, boxes: false, L0: false /* the interior rung, shelved: G571 */, quiet: false, trisOf, drawBoxes, exteriorMesh, cloneBlock, copyBlock,
                dupe, levelMeshes, farLevel, cutFar, isInterior, PART_L1,   // GATE PARKED drives these headless
+               // G569, the baked far rungs: the dials, the unwrap, the assembly, the bake's own hook, and
+               // the cache's key and door (bakeClear drops every build's bake: the next boot bakes again)
+               BAKE, unwrap, dilate, bakedFrom, bakedLevel, bakeHook, farBaked, bakeKey, renderer: null,
+               bakeClear: () => db().then(d => new Promise((res, rej) => { const tx = d.transaction('bake', 'readwrite'); tx.objectStore('bake').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })),
                // the record's far levels as the object holds them, for the gate's numbers
                hitbox: grp => { let hb = null; grp.traverse(o => { if (!hb && o.userData && o.userData.hitbox) hb = o.userData.hitbox; }); return hb; } };
 })();

@@ -285,6 +285,29 @@
       gl_FragColor = vec4(col, 1.0);` + AA_OUT + `
     }`;
 
+  // THE AUTO SCALE'S DECISION (G528), pure: the state A (i: the step, probe / up: a step on trial, the holds), the median
+  // frame f and the scene's GPU time g (null without the timer), the clock t (ms) -> the step to take. tools/test_aa.js
+  // drives it with simulated frames: a CPU-bound frame must end where it started, a GPU-bound one must come down.
+  function aaAutoDecide(A, f, g, t) {
+    const T = A.T, ST = A.steps;
+    if (A.probe) {                         // a step down was taken: did the pixels pay?
+      const p = A.probe; A.probe = null;
+      if (f > T * 1.05 && f > p.f * 0.95) {
+        A.reverts++; A.stats.reverts++;
+        A.holdDown = t + Math.min(300000, 30000 * Math.pow(2, A.reverts - 1));
+        return A.i - 1;
+      }
+      A.reverts = 0; return A.i;
+    }
+    if (A.up) { A.up = null; if (f > T * 1.08) { A.holdUp = t + 60000; return A.i + 1; } return A.i; }
+    if (f > T * 1.08 && A.i < ST.length - 1 && t > A.holdDown && t - A.since > 2000) { A.probe = { f }; return A.i + 1; }
+    if (f <= T * 1.05 && A.i > 0 && t > A.holdUp && t - A.since > 4000) {
+      const k = ST[A.i - 1] / ST[A.i];
+      if (g == null || g * k * k < T * 0.8) { A.up = { f }; return A.i - 1; }
+    }
+    return A.i;
+  }
+
   // -------------------------------------------------------------------------
   function aaMake(THREE, renderer) {
     // EVERY CAPABILITY IS ASKED FOR, none assumed. The headless smoke harness
@@ -409,6 +432,45 @@
 
     // setScale(k): the render scale, 0.5..1 - the scene drawn at k x the canvas and enlarged by the resolve
     function setScale(k) { k = Math.max(0.5, Math.min(1, +k || 1)); if (Math.abs(k - S.scale) < 1e-3) return S.scale; S.scale = k; buildRT(); return S.scale; }
+    // THE AUTO SCALE (PERF 2026-09-23, G528): the render scale held to the frame budget - a new player's machine is not
+    // known, and a big screen or a small GPU is exactly what the scale buys back. Every 30 frames the median frame is
+    // read: over 1.08 x the budget (60 fps) the scale steps DOWN one of the menu's own steps (1 / .85 / .75 / .67 / .5,
+    // a target rebuild each, at most every 2 s) - and the next reading must show it PAID: a frame the CPU binds (1080p
+    // on the reference box: three's draws) does not get faster with fewer pixels, so an unpaid step is taken back and
+    // the scale left alone for 30 s (doubling on each repeat, 5 min at most) - the picture is never blurred for nothing.
+    // It steps UP when the frame holds the budget and the scene's own GPU time (the timer query round the scene pass)
+    // says the next step's pixels fit in 80 % of it; an up step that then misses holds the ups for a minute.
+    const AUTO = { on: false, T: 1000 / 60, steps: [1, 0.85, 0.75, 0.67, 0.5], i: 0, fr: [], gpu: [], q: [], last: 0, since: 0,
+                   probe: null, up: null, holdDown: 0, holdUp: 0, reverts: 0, ext: null, stats: { down: 0, up: 0, reverts: 0 } };
+    function autoScale(on) {
+      on = !!on;
+      AUTO.on = on; AUTO.fr = []; AUTO.gpu = []; AUTO.last = 0; AUTO.probe = AUTO.up = null;
+      if (on) {
+        let bi = 0, bd = 9;
+        AUTO.steps.forEach((k, i) => { const d = Math.abs(k - S.scale); if (d < bd) { bd = d; bi = i; } });
+        AUTO.i = bi;
+        if (!AUTO.ext) { try { AUTO.ext = renderer.getContext().getExtension('EXT_disjoint_timer_query_webgl2'); } catch (e) {} }
+      }
+      return AUTO.on;
+    }
+    const aMed = a => { const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1]; };
+    function autoStep(i, t) { AUTO.stats[i > AUTO.i ? 'down' : 'up']++; AUTO.i = i; AUTO.since = t; setScale(AUTO.steps[i]); AUTO.fr = []; AUTO.gpu = []; }
+    function autoTick() {
+      const t = performance.now();
+      if (AUTO.last) { const dt = t - AUTO.last; if (dt < 250) AUTO.fr.push(dt); }   // a stall (a tab away, a load) is not a frame
+      AUTO.last = t;
+      const gl = renderer.getContext(), ext = AUTO.ext;
+      while (ext && AUTO.q.length && gl.getQueryParameter(AUTO.q[0], gl.QUERY_RESULT_AVAILABLE)) {
+        const q = AUTO.q.shift();
+        if (!gl.getParameter(ext.GPU_DISJOINT_EXT)) AUTO.gpu.push(gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6);
+        gl.deleteQuery(q);
+      }
+      if (AUTO.fr.length < 30) return;
+      const f = aMed(AUTO.fr), g = AUTO.gpu.length >= 5 ? aMed(AUTO.gpu) : null;
+      AUTO.fr = []; AUTO.gpu = [];
+      const ni = aaAutoDecide(AUTO, f, g, t);
+      if (ni !== AUTO.i) autoStep(ni, t);
+    }
     function setSize(w, h) {
       if (w === S.w && h === S.h) return;
       S.w = Math.max(1, w | 0); S.h = Math.max(1, h | 0);
@@ -423,13 +485,18 @@
       // TONE MAPPING AND EXPOSURE ARE NOT TOUCHED. The materials do both, into
       // an encoded target, exactly as they do onto the canvas — so the hangar's
       // moods reach the frame without this pass knowing they exist.
+      if (AUTO.on) autoTick();
       const prevTarget = renderer.getRenderTarget ? renderer.getRenderTarget() : null;
       // THE PRE HOOK (A6): the clouds march BEFORE the scene, off the previous frame's resolved depth
       // (their integration's end - a frame stale at a ridge, invisible), and composite INSIDE the pass
       // as a quad at their own depth (the silhouettes per MSAA sample) - see clouds.js COMP_FRAG
       if (S.pre) S.pre(renderer, camera, S.rt);
       renderer.setRenderTarget(S.rt);
+      // the auto scale's GPU reading: the scene pass alone (the clouds' and the post passes' own timers are outside it)
+      let aq = null;
+      if (AUTO.on && AUTO.ext && AUTO.q.length < 6) { const gl = renderer.getContext(); aq = gl.createQuery(); gl.beginQuery(AUTO.ext.TIME_ELAPSED_EXT, aq); }
       renderer.render(scene, camera);
+      if (aq) { renderer.getContext().endQuery(AUTO.ext.TIME_ELAPSED_EXT); AUTO.q.push(aq); }
       if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds' march (reads the target's depth)
       renderer.setRenderTarget(prevTarget);
       renderer.render(S.fsScene, S.fsCam);
@@ -470,7 +537,8 @@
     }
 
     return {
-      render, setSize, setTier, setScale, scale: () => S.scale, dispose, setDither, setLinear, linear: () => S.linear,
+      render, setSize, setTier, setScale, scale: () => S.scale, dispose,
+      autoScale, autoState: () => ({ on: AUTO.on, scale: S.scale, step: AUTO.i, holdDownS: Math.max(0, (AUTO.holdDown - performance.now()) / 1000) | 0, stats: Object.assign({}, AUTO.stats) }), setDither, setLinear, linear: () => S.linear,
       needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the
@@ -480,14 +548,14 @@
       tier: () => S.tier,
       able: () => S.able,
       report: () => ({
-        tier: S.tier, able: S.able, ss: S.ss, scale: S.scale, dither: S.dither,
+        tier: S.tier, able: S.able, ss: S.ss, scale: S.scale, auto: AUTO.on, dither: S.dither,
         samples: S.rt ? S.rt.samples : 0, maxSamples: S.maxSamples, depth: S.rz ? 'reversed float' : 'log 24',
         buf: S.rt ? (S.rt.width + 'x' + S.rt.height) : (S.w + 'x' + S.h),
       }),
     };
   }
 
-  const API = { make: aaMake, TIERS: AA_TIERS, DEF: AA_DEF, PREF: AA_PREF };
+  const API = { make: aaMake, TIERS: AA_TIERS, DEF: AA_DEF, PREF: AA_PREF, autoDecide: aaAutoDecide };
   if (typeof window !== 'undefined') window.AA_RESOLVE = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

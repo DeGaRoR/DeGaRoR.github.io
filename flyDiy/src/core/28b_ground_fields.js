@@ -75,10 +75,18 @@ const GROUND_FIELDS = (() => {
     //          in packs with dry muskeg between them instead of an even sprinkle (the user's "less of them")
     //          - 35 % of 200 m blocks now hold no water at all, against 0 % before
     //   thr0   0.92 of a field of mean 0.50, sd 0.144: only the tall humps become water. MEASURED on the
-    pool:   { period: 400, oct: [[3.2, 0.68, 0.0, 0.0, 0.0], [7.5, 0.22, 0.9273, 0.37, 0.11], [17, 0.10, 2.1588, 0.71, 0.53]],   // [cells, weight, rot, du, dw]
+    // AND THEY ARE NOT SPLATTERED (2026-09-23, the user on a shot from 400 m: "there are too many small
+    // ones, that just read like noise ... real puddles would be distributed along terrain depressions ...
+    // let's get rid of 90% of them, and keep some only where it really makes sense"). MEASURED on Jolene
+    // before the change: 42 % of the pools sat on ground STEEPER THAN 10 DEGREES and 72 % steeper than 3 -
+    // the field never asked the terrain anything. Water stands where the ground is level, so the pool mask
+    // is now gated by the slope (knobs.pudFlat, in both twins), and the octaves are one basin plus a
+    // whisker: 0.94 at 133 m, then 0.04 and 0.02 only to rough the outline. With the threshold at 1.06
+    // that is 9 ponds a km2 against 105, a 91 % cut, and the median pond is 336 m2 instead of 112.
+    pool:   { period: 400, oct: [[1.0, 0.94, 0.0, 0.0, 0.0], [3, 0.04, 0.9273, 0.37, 0.11], [9, 0.02, 2.1588, 0.71, 0.53]],   // [cells, weight, rot, du, dw]
               warp:  { cells: 2.3, amp: 0.22, off: [3.11, 7.53, 9.27, 1.87] },
               basin: { cells: 0.22, rot: 1.4234, off: [5.41, 2.19], k: 0.45 },
-              thr0: 0.92, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
+              thr0: 1.06, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
     mix:    { period: 160, oct: [[6, 0.5, 0.0, 0.0], [12, 0.25, 0.3, 0.7], [24, 0.125, 0.6, 0.2], [48, 0.0625, 0.1, 0.9]], norm: 0.9375,
               rot: [0.62, -0.78, 0.78, 0.62], scale2: 0.41, off2: [0.37, 0.71], w1: 0.65, w2: 0.35, bias: 0.52, biasMuskeg: 0.60, sharp: 4 },
     blotch: { cellM: 18, cells: 64, amount: 0.6 },
@@ -106,9 +114,19 @@ const GROUND_FIELDS = (() => {
       12: { tex: ['cliff', 'rocksA', null],    scale: [7, 79, 0],   far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [40, 3, 0, 0],       vary: [2, 0.08, 40], para: 1 },
       13: { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.3, 0],    vary: [5, 0.12, 30], para: 0.3 },
       14: { tex: ['grassRock', 'grass', 'rockyA'], scale: [15, 4, 90], far: ['grassRock', null, 'rockyA'],     farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25], para: 0.2 },   // 2026-09-21: the lush lawn out here too
+      // 15 LUSH (METLAKATLA, 2026-09-22): the bright green that borders a road cut and fills an old clearing -
+      // alder and salmonberry on drained ground, not the moor. It is the ONE terrain type the island's raster
+      // does not carry: a premises `cover` polygon stamps it in (27_premises.js), which is why the `lush` set
+      // (library index 12) was sitting unused since it left codes 3/7/14 on 2026-09-21. Its biome is `borders`.
+      15: { tex: ['lush', 'grass', 'grassRock'], scale: [2.4, 2.4, 15], far: ['grassRock', null, 'grassRock'], farScale: [15, 0, 15], mix: [22, 3, 0.05, -0.15], vary: [10, 0.18, 22], para: 0.2 },
+      // 16 RESIDENTIAL (the user, 2026-09-23): the ground between a town's plots - the
+      // forest floor's own aerial, worn thinner where feet and wheels cross it, with the
+      // dirt of a yard showing through. It is NOT `built`: built is a yard, this is the
+      // wood that never left, and its trees are the `residential` mix.
+      16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [81, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
     },
     // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
-    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense' },
+    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees' },
     knobs: {
       cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,
@@ -116,6 +134,17 @@ const GROUND_FIELDS = (() => {
       hDepth: 0.2, seamDepth: 0.45, hexOn: 1, hexN: 2, hexRot: 180, nrmK: 1, specK: 0.6,
       sheen: 1,   // the GAME's lever on the sets' roughness (the near ring is a Standard material, 2026-09-21): 1 = the sets' own, 0 = matte (specK is the bench's Blinn strength)
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
+      // THE POND FROM THE AIR (2026-09-23, the user at 400 m: "they look like speckles on a surface, not like
+      // puddles"): pudFar widens the shore with distance (0 = the old hard rim; 6 = pudEdge x 7 by 500 m, so
+      // 1.33 m of shore becomes 9.3 m and survives a pixel), pudRim is where the OPEN water starts in the mask
+      // (under it the ground goes dark and wet but keeps its roughness - only the middle of a pond is a mirror)
+      pudFar: 12, pudRim: 0.65, pudWet: 0.62,
+      pudFlat: 4,   // degrees: full water under half of it, none above it - a puddle is a level place (2026-09-23)
+      // vegLush (2026-09-23, the user: "very slightly tune the grass part of the texture to get more lush
+      // green, without modifying the rock color. Ever so subtle"): a PER-TEXEL lift on the green that
+      // stands over the other two channels, so moss and leaf in a rock photograph warm up and the boulders
+      // in the same photograph do not move at all. 0.4 moves the greenest texel about 3 %.
+      vegLush: 0.4,   // pudWet: how dark the margin's wet ground goes (1 = dry, 0 = black); both pudRim and pudFar scale with distance and are 0 at the eye
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
@@ -123,7 +152,11 @@ const GROUND_FIELDS = (() => {
     // lot's lawn grasses ship a roughness of 0.26 (ambientCG's number for a blade, not a lawn from 60 m: the whole
     // heath took the sky), the dry and the dirt 0.55; the beach (0.61) and the pebbles (0.46) keep theirs - wet sand
     // and shingle catching the sun is what the user asked the roughness for
-    grade: { dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
+    // forestAir's `grass` (2026-09-23, the user: "move the forest texture to match better the surrounding
+    // grass ... on the forest floor texture, the brightest areas are rock, the darkest are grass"): how far the
+    // set's DARK texels are recoloured - at constant value - toward the open ground's measured grass. 0 = the
+    // photograph alone, 1 = the open grass's colour on every dark texel. 0.6 is "not perfectly, but better".
+    grade: { forestAir: { gain: '#bfbfbf', sat: 1, grass: 0 }, dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
              // THE LAWN GRASSES TURNED YELLOW (the user, 2026-09-21: "golf grass ... should be more yellow, like all the other textures"): grass's mean sat at hue 72,
              // lush's at 88 (blue-green) against the moor's 40-48; the gain pulls the green channel down - grass to hue ~45 at value 0.39, lush to ~50 at 0.29
              grass: { gain: '#ffc8a0', sat: 0.75, gloss: 0.3 }, lush: { gain: '#ffb890', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 } },

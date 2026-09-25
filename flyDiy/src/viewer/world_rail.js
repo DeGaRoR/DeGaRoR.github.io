@@ -79,18 +79,27 @@
   const pretty = name => name.replace(/\.glb$/, '').replace(/_trees_pack_lods_gameready|realistic_|_-_free_download/g, '').replace(/_/g, ' ');
 
   // ---- THE DEFAULTS, for the diff (taken at load, before any look is put back) ------------------
-  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, env: null, cliffs: null };
+  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, env: null, cliffs: null, tints: null, leafMaster: null, treeMix: null, fillDensity: null, thin: null };
+  const tintsNow = () => { const L = W.TREE_LEAF, o = {}; if (L && L.collections) for (const col of L.collections()) o[col.name] = clone(col.tint || {}); return o; };
   const takeDefaults = () => {
     const P = PACK(); if (P && P.biomes && !DEF.biomes) DEF.biomes = clone({ map: P.biomes.map, mixes: P.biomes.mixes });
     const g = G(); if (g && !DEF.ground) { DEF.ground = clone(g.get()); DEF.stack = clone(g.stack()); }
-    const t = TF(); if (t && t.island && !DEF.island) DEF.island = clone(t.island());
+    const t = TF(); if (t && t.island && !DEF.island) { DEF.island = clone(t.island()); DEF.fillDensity = t.get ? t.get() : null; DEF.thin = t.thin ? t.thin() : null; }
     const r = RING(); if (r && !DEF.ring) DEF.ring = clone(r.get());
     const c = CLF(); if (c && !DEF.cliffs) DEF.cliffs = clone(c.get());
     if (WF() && WF().envAlbedo && DEF.env === null) DEF.env = WF().envAlbedo();
+    const L = W.TREE_LEAF; if (L && L.collections && !DEF.tints) { DEF.tints = tintsNow(); if (L.master) DEF.leafMaster = clone(L.master()); }
+    if (W.TREE_MIX && !DEF.treeMix) DEF.treeMix = { furnished: W.TREE_MIX.furnished, spread: W.TREE_MIX.spread };
   };
 
   // ---- THE LOOK: what the handles do not keep, kept here ----------------------------------------
+  // lookNow() is the WHOLE state (the export's); the browser keeps only its DELTA against the shipped defaults
+  // (lookDelta), so a look saved before a new default is baked never pins the old value, and applyLook sets only
+  // what differs from what is standing - a boot with nothing changed re-plants nothing (every biome, fill, ring
+  // and cliff setter below evicts and rebuilds: G582's audit, the user: "we have spent many sessions on performance").
   const GROUND_KEYS = ['light', 'sat', 'shore', 'classBlur', 'edgeWobble', 'snow', 'waterMap'];
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const deltaOf = (cur, def) => { if (!cur) return null; if (!def) return clone(cur); const o = {}; for (const k in cur) if (!same(cur[k], def[k])) o[k] = clone(cur[k]); return Object.keys(o).length ? o : null; };
   let saveT = 0;
   const lookNow = () => {
     const o = {};
@@ -100,38 +109,59 @@
     const B = BIO(); if (B) o.biomes = { map: clone(B.map), mixes: clone(B.mixes) };
     const r = RING(); if (r) o.ring = r.get();
     const c = CLF(); if (c) o.cliffs = c.get();
-    const L = W.TREE_LEAF; if (L && L.collections) { o.tints = {}; for (const col of L.collections()) if (col.tint && Object.keys(col.tint).length) o.tints[col.name] = clone(col.tint); if (L.master) o.leafMaster = clone(L.master()); }
+    const L = W.TREE_LEAF; if (L && L.collections) { o.tints = tintsNow(); if (L.master) o.leafMaster = clone(L.master()); }
     if (W.TREE_MIX) o.treeMix = { furnished: W.TREE_MIX.furnished, spread: W.TREE_MIX.spread };
     return o;
   };
-  const saveLook = () => { clearTimeout(saveT); saveT = setTimeout(() => lsSet(LOOK_KEY, lookNow()), 250); };
+  const lookDelta = () => {
+    const N = lookNow(), o = {}, put = (k, v) => { if (v !== null && v !== undefined) o[k] = v; };
+    if (N.ground && DEF.ground) { const b = {}; for (const k of GROUND_KEYS) b[k] = DEF.ground[k]; put('ground', deltaOf(N.ground, b)); }
+    if (DEF.env !== null && N.envAlbedo !== undefined && N.envAlbedo !== DEF.env) o.envAlbedo = N.envAlbedo;
+    put('island', deltaOf(N.island, DEF.island));
+    if (N.speciesSize && Object.keys(N.speciesSize).length) o.speciesSize = N.speciesSize;
+    if (N.fillDensity !== undefined && N.fillDensity !== DEF.fillDensity) o.fillDensity = N.fillDensity;
+    if (N.thin && !same(N.thin, DEF.thin)) o.thin = N.thin;
+    if (N.biomes && DEF.biomes) { const map = same(N.biomes.map, DEF.biomes.map) ? null : N.biomes.map, mixes = deltaOf(N.biomes.mixes, DEF.biomes.mixes);
+      if (map || mixes) o.biomes = Object.assign({}, map ? { map } : {}, mixes ? { mixes } : {}); }
+    put('ring', deltaOf(N.ring, DEF.ring)); put('cliffs', deltaOf(N.cliffs, DEF.cliffs));
+    put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
+    return o;
+  };
+  const saveLook = () => { clearTimeout(saveT); saveT = setTimeout(() => { const d = lookDelta(); if (Object.keys(d).length) lsSet(LOOK_KEY, d); else { try { localStorage.removeItem(LOOK_KEY); } catch (e) {} } }, 250); };
+  // set only what differs from what is standing: each of these setters evicts, replants or rebuilds
   const applyLook = (o, full) => {
     if (!o) return;
-    const g = G(); if (g && o.ground) g.set(o.ground);
-    if (o.stack && g) o.stack.forEach((l, i) => g.setLayer(i, { on: l.on, mode: l.mode, op: l.op }));
-    if (o.splat && SP()) SP().load(o.splat);
-    if (o.envAlbedo !== undefined && WF() && WF().envAlbedo) WF().envAlbedo(o.envAlbedo);
+    const g = G();
+    if (g && o.ground) { const q = g.get(), d = {}; for (const k in o.ground) if (q[k] !== o.ground[k]) d[k] = o.ground[k]; if (Object.keys(d).length) g.set(d); }
+    if (o.stack && g) { const S = g.stack(); o.stack.forEach((l, i) => { if (S[i] && (S[i].on !== l.on || S[i].mode !== l.mode || S[i].op !== l.op)) g.setLayer(i, { on: l.on, mode: l.mode, op: l.op }); }); }
+    if (o.splat && SP() && !same(SP().state(), Object.assign({}, SP().state(), o.splat))) SP().load(o.splat);
+    if (o.envAlbedo !== undefined && WF() && WF().envAlbedo && WF().envAlbedo() !== o.envAlbedo) WF().envAlbedo(o.envAlbedo);
     const t = TF();
     if (t) {
-      if (o.island && t.setIsland) t.setIsland(o.island);
-      if (o.speciesSize && t.speciesSize) { for (const k in t.speciesSizes()) if (!(k in o.speciesSize)) t.speciesSize(k, 1); for (const k in o.speciesSize) t.speciesSize(k, o.speciesSize[k]); }
-      if (o.fillDensity && t.set) t.set(o.fillDensity);
-      if (o.thin && t.thin) t.thin(o.thin[0], o.thin[1]);
+      if (o.island && t.setIsland) { const I = t.island(), d = {}; for (const k in o.island) if (!same(I[k], o.island[k])) d[k] = o.island[k]; if (Object.keys(d).length) t.setIsland(d); }
+      if (o.speciesSize && t.speciesSize) { const cur = t.speciesSizes();
+        if (full) for (const k in cur) if (!(k in o.speciesSize)) t.speciesSize(k, 1);
+        for (const k in o.speciesSize) if ((cur[k] || 1) !== o.speciesSize[k]) t.speciesSize(k, o.speciesSize[k]); }
+      if (o.fillDensity && t.set && t.get() !== o.fillDensity) t.set(o.fillDensity);
+      if (o.thin && t.thin && !same(t.thin(), o.thin)) t.thin(o.thin[0], o.thin[1]);
     }
     const B = BIO();
     if (B && o.biomes && t) {
-      if (o.biomes.mixes) for (const name in o.biomes.mixes) B.mixes[name] = clone(o.biomes.mixes[name]);
-      if (full && o.biomes.mixes) for (const name of Object.keys(B.mixes)) if (!(name in o.biomes.mixes) && DEF.biomes && !(name in DEF.biomes.mixes)) delete B.mixes[name];
+      let dirty = false;
+      if (o.biomes.mixes) for (const name in o.biomes.mixes) if (!same(B.mixes[name], o.biomes.mixes[name])) { B.mixes[name] = clone(o.biomes.mixes[name]); dirty = true; }
+      if (full && o.biomes.mixes) for (const name of Object.keys(B.mixes)) if (!(name in o.biomes.mixes) && DEF.biomes && !(name in DEF.biomes.mixes)) { delete B.mixes[name]; dirty = true; }
       const map = o.biomes.map || o.biomes.biomes;
-      if (map) for (let c = 0; c <= 14; c++) t.setBiome(c, map[c] || null);
-      const any = Object.keys(B.mixes)[0]; if (any) t.setMix(any, ['forest', 'count'], (B.mixOf(any).forest || {}).count || 0);   // replant once
+      if (map) for (let c = 0; c <= 14; c++) { const want = map[c] || null; if ((B.map[c] || null) !== want) { B.set(c, want); dirty = true; } }
+      // ONE replant for the lot (setMix clears the pools, evicts the fill and replants the ring once)
+      if (dirty) { const any = Object.keys(B.mixes)[0]; if (any) t.setMix(any, ['forest', 'count'], (B.mixOf(any).forest || {}).count || 0); }
     }
-    const r = RING(); if (r && o.ring) r.set(o.ring);
-    const c = CLF(); if (c && o.cliffs) c.set(o.cliffs);
+    const r = RING(); if (r && o.ring) { const d = deltaOf(Object.assign({}, r.get(), o.ring), r.get()); if (d) r.set(d); }
+    const c = CLF(); if (c && o.cliffs) { const d = deltaOf(Object.assign({}, c.get(), o.cliffs), c.get()); if (d) c.set(d); }
     const L = W.TREE_LEAF;
-    if (L && o.tints && L.tintOf) for (const n in o.tints) L.tintOf(n, o.tints[n]);
-    if (L && o.leafMaster && L.tint) L.tint(o.leafMaster);
-    if (W.TREE_MIX && o.treeMix) { Object.assign(W.TREE_MIX, o.treeMix); if (W.TREE_MIX.apply) W.TREE_MIX.apply(); }
+    if (L && o.tints && L.tintOf) { const cur = tintsNow(); for (const n in o.tints) if (!same(Object.assign({}, cur[n], o.tints[n]), cur[n])) L.tintOf(n, o.tints[n]); }
+    if (L && o.leafMaster && L.tint && L.master && !same(Object.assign({}, L.master(), o.leafMaster), L.master())) L.tint(o.leafMaster);
+    if (W.TREE_MIX && o.treeMix && (W.TREE_MIX.furnished !== (o.treeMix.furnished === undefined ? W.TREE_MIX.furnished : o.treeMix.furnished) || W.TREE_MIX.spread !== (o.treeMix.spread === undefined ? W.TREE_MIX.spread : o.treeMix.spread))) {
+      Object.assign(W.TREE_MIX, o.treeMix); if (W.TREE_MIX.apply) W.TREE_MIX.apply(); }
   };
 
   // ---- THE EXPORT: everything, the changes against the defaults, and where each part goes -----------
@@ -169,7 +199,7 @@
     const ch = [];
     if (recipe && out.splat) {
       // the grades compared through their defaults (a set touched once carries every key), macroExp left out (the game derives it)
-      const GD = { gain: '#ffffff', sat: 1, gloss: 1, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 };
+      const GD = { gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 };
       const keys = new Set([...Object.keys(recipe.grade || {}), ...Object.keys(out.splat.grade || {})]);
       const norm = gr => { const o = {}; for (const k of keys) o[k] = Object.assign({}, GD, (gr || {})[k] || {}); return o; };
       const kb = Object.assign({}, sp.filterDefaults(), recipe.knobs), kn = Object.assign({}, out.splat.knobs); delete kb.macroExp; delete kn.macroExp;
@@ -490,6 +520,7 @@
       range(C, 'tint under', 0, 1, 0.05, kn('macroNear'), ss('macroNear'), null, 0.45);
       range(C, 'light kept', 0, 1, 0.05, kn('macroLum'), ss('macroLum'), null, 0.6);
       range(C, 'macro strength', 0, 1, 0.05, kn('macroMix'), ss('macroMix'), null, 0.85);
+      if (sp.knobs().vegLush !== undefined) range(C, 'green lushness', 0, 1, 0.02, kn('vegLush'), ss('vegLush'), null, (typeof GROUND_FIELDS !== 'undefined' && GROUND_FIELDS.RECIPE.knobs.vegLush !== undefined) ? GROUND_FIELDS.RECIPE.knobs.vegLush : undefined);
       note(C, 'to imagery: each set’s mean pulled onto the imagery’s colour where it stands (1 = the imagery is the level). Tint under: how much of the near ground’s colour is the imagery’s; light kept: how much of its light and dark. Macro strength: how far the imagery takes over in the distance.');
     }
     const Cs = sec(body, 'map edges and water', false);
@@ -758,6 +789,7 @@
     range(S1, 'hue turn', -180, 180, 1, () => g().hue, v => set({ hue: v }), v => v + '°', 0);
     range(S1, 'contrast', 0, 2, 0.02, () => g().contrast, v => set({ contrast: v }), null, 1);
     range(S1, 'gloss', 0, 1, 0.05, () => g().gloss, v => set({ gloss: v }), null, 1);
+    range(S1, 'dark \u2192 grass', 0, 1, 0.02, () => g().grass || 0, v => set({ grass: v }), null, 0);
     const S2 = $('div', 'wr-sub'); ctl.appendChild(S2); S2.appendChild($('div', 'wr-subh', 'one colour of it'));
     range(S2, 'pick hue', 0, 359, 1, () => ((g().selHue % 360) + 360) % 360, v => set({ selHue: v }), v => v + '°');
     range(S2, 'band', 0, 120, 1, () => g().selWidth, v => set({ selWidth: v }), v => v ? '±' + v + '°' : 'off', 0);
@@ -770,7 +802,7 @@
     note(S2, 'select the grass in a grass-and-rock set (pick its green, widen the band) and turn only it; the rock keeps its colour. Grey texels are never selected.');
     const acts = $('div', 'wr-acts'); ctl.appendChild(acts);
     button(acts, 'reset this set', () => { const R = (typeof GROUND_FIELDS !== 'undefined' && GROUND_FIELDS.RECIPE.grade[key]) || {};
-      sp.setGrade(key, Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R)); repaint(); changed(); });
+      sp.setGrade(key, Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R)); repaint(); changed(); });
     repaint();
   }
 
@@ -815,6 +847,13 @@
     range(Mi, 'pool wet', 0, 0.8, 0.01, kn('pudCover'), ss('pudCover'), null, D.pudCover);
     range(Mi, 'pool edge', 0.002, 0.05, 0.001, kn('pudEdge'), ss('pudEdge'), v => v.toFixed(3), D.pudEdge);
     range(Mi, 'pool scale', 0.5, 8, 0.5, kn('pudSlope'), ss('pudSlope'), v => 'x' + v, D.pudSlope);
+    if (sp.knobs().pudFlat !== undefined) {
+      range(Mi, 'pool flat', 0, 15, 0.5, kn('pudFlat'), ss('pudFlat'), v => v + '\u00b0', D.pudFlat);
+      range(Mi, 'pool shore far', 0, 20, 0.5, kn('pudFar'), ss('pudFar'), null, D.pudFar);
+      range(Mi, 'pool open water', 0, 1, 0.01, kn('pudRim'), ss('pudRim'), null, D.pudRim);
+      range(Mi, 'pool margin wet', 0, 1, 0.01, kn('pudWet'), ss('pudWet'), null, D.pudWet);
+      note(Mi, 'pool flat: water only where the ground is under this slope; shore far widens the pools\u2019 shore with distance so it survives a pixel; open water: where the open water starts in the pool; margin wet: how dark the wet margin goes (1 dry)');
+    }
     range(Mi, 'lake edge', 0.2, 8, 0.2, kn('lakeEdge'), ss('lakeEdge'), v => v + ' m', D.lakeEdge);
     range(Mi, 'beach angle', -180, 180, 5, kn('beachRot'), ss('beachRot'), v => v + '°', D.beachRot);
   }
@@ -1048,7 +1087,7 @@
     for (const b of rail.querySelectorAll('.wrBtn')) b.classList.toggle('on', b.dataset.k === k);
     if (!tick) tick = setInterval(() => { if (fly && !fly.hidden) for (const f of live) { try { f(); } catch (e) {} } }, 500);
   }
-  function close() { if (fly) fly.hidden = true; if (rail) for (const b of rail.querySelectorAll('.wrBtn')) b.classList.remove('on'); }
+  function close() { if (tick) { clearInterval(tick); tick = 0; } if (fly) fly.hidden = true; if (rail) for (const b of rail.querySelectorAll('.wrBtn')) b.classList.remove('on'); }
   function refreshRail() { if (fly && !fly.hidden) setTimeout(() => open(UI.sec, true), 50); }
   function show(on) {
     if (!rail) build();

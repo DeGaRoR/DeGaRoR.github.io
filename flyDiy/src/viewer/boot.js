@@ -24,6 +24,9 @@
 //   fail(reason)             the watchdog's path: the note says what never
 //                            landed, then hide()
 //   show(set, opt) / hide()  the overlay for a second use (the roll-out)
+//   shaders(done, total, warm)  the shaders' block (G567): a cold compile explained,
+//                            its bar done/total; shaders(null) hides it. Pending
+//                            programs re-arm the watchdogs: a compile is alive
 //   whenReady()              a Promise resolved on hide; window.FLYDIY_READY
 //                            is the current set's - the rigs wait on it
 //   log[]                    every event with its ms - tools/boot_perf.js
@@ -76,6 +79,27 @@
   }
   const fmtMB = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB';
   function setPhase(label) { const el = $('bootPhase'); if (el) el.textContent = label; }
+  // THE SHADERS' BLOCK (G567): a cold compile - the first launch, the first after an update, a cleared
+  // cache - is the graphics driver's work and can take far longer than any step; the block says why, and
+  // its bar counts the programs the driver has linked. While programs are pending the step is live: it re-arms
+  // the idle watchdog and the hard one waits (a slow machine compiling is not a stuck boot; app.js's stall cap ends a hang).
+  function shaders(done, total, warm) {
+    const box = $('bootShader');
+    if (done === null || done === undefined) { B._shaderT = 0; B._shaderN = -1; if (box) box.hidden = true; return; }
+    if (done !== B._shaderN) { if (B._shaderN === undefined || B._shaderN < 0) rec('shaders', { total }); B._shaderN = done; }
+    if (done < total) { B._shaderT = now(); armWatch(); }   // the driver is still at it: alive (the caller's stall cap ends a hang)
+    if (!box) return;
+    box.hidden = false;
+    const bar = $('bootShaderBar'), fill = bar && bar.firstElementChild;
+    if (fill) fill.style.width = (total ? Math.min(100, done / total * 100) : 0).toFixed(1) + '%';
+    const n = $('bootShaderN'); if (n) n.textContent = done + ' / ' + total + ' shaders ready';
+    // the words: the markup's (a first launch, an update), or - when this browser had compiled this very
+    // build before - the cache it has lost
+    const tx = $('bootShaderText');
+    if (tx) { if (B._shaderCold === undefined) B._shaderCold = tx.textContent;
+      const w = warm ? "Your graphics driver is compiling the game's shaders again (the browser's shader cache was cleared). It is done once: the next launches reuse them." : B._shaderCold;
+      if (tx.textContent !== w) tx.textContent = w; }
+  }
   function note(text) { const el = $('bootNote'); if (!el) return; if (text) { el.textContent = text; el.hidden = false; } else el.hidden = true; rec('note', { text }); }
 
   // ---- the pictures: CSS crossfade + Ken Burns; this only flips `on` -----
@@ -106,7 +130,8 @@
     // at 30 s of silence or 2 min in all
     const idle = B.opt.idle || 30000, hard = B.opt.hard || 120000, skipAt = B.opt.skipAt || 14000;
     if (t - B.lastEvent >= skipAt || t - B.opt.t0 >= 45000) { const b = $('bootSkip'); if (b) b.hidden = false; }
-    if (t - B.lastEvent >= idle || t - B.opt.t0 >= hard) { fail(t - B.opt.t0 >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }
+    const compiling = B._shaderT && t - B._shaderT < idle;   // G567: a moving shader count is not a stuck boot
+    if (t - B.lastEvent >= idle || (t - B.opt.t0 >= hard && !compiling)) { fail(t - B.opt.t0 >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }
     B._watchArmed = t; if (hasTimer) setTimeout(watch, 2000);
   }
   function armWatch() { B.lastEvent = now(); }
@@ -223,7 +248,7 @@
     B.state = 'ready'; hide();
   }
   function hide() {
-    rec('gone'); const b = $('boot'); B.state = 'gone';
+    rec('gone'); const b = $('boot'); B.state = 'gone'; shaders(null);
     if (b && b.classList) { b.classList.add('gone'); if (hasTimer) setTimeout(() => { if (B.state === 'gone' && b.classList.contains('gone')) b.hidden = true; }, 700); }
     if (B.opt.done) { try { B.opt.done(); } catch (e) { if (typeof console !== 'undefined') console.error('boot done:', e); } }
     const r = B._readyRes; B._readyRes = null; B._readyP = null; if (r) r(B.log);
@@ -240,7 +265,7 @@
     // mentioning the garage after roll out untested".
     setPhase(B.set === 'rollout' ? 'rolling out to the strip' : 'opening the shed');
     { const tk = $('bootTick'); if (tk) tk.textContent = ''; }
-    note(''); const sk = $('bootSkip'); if (sk) sk.hidden = true;
+    note(''); shaders(null); const sk = $('bootSkip'); if (sk) sk.hidden = true;
     rec('show', { set: B.set });
     if (opt && opt.steps) run(opt.steps, opt);
   }
@@ -251,7 +276,7 @@
   try { new PerformanceObserver(l => { for (const en of l.getEntries()) { const u = en.name; const k = /media\/tex\/chars\//.test(u) ? 'crewTex' : /media\/tex\/sky\//.test(u) ? 'sky' : /media\/tex\/trees\//.test(u) ? 'trees' : /media\/geo\/trees\//.test(u) ? 'treeBin' : /media\/geo\/props\//.test(u) ? 'props' : /media\/tex\/props\//.test(u) ? 'propTex' : /media\/geo\/chars\//.test(u) ? 'crew' : null;
     if (k) key(k).bytes += en.transferSize || en.encodedBodySize || 0; } paint(); }).observe({ type: 'resource', buffered: true }); } catch (e) {}
 
-  B.phase = phase; B.run = run; B.expect = expect; B.landed = landed; B.img = img; B.note = note; B.frame = frame;
+  B.shaders = shaders; B.phase = phase; B.run = run; B.expect = expect; B.landed = landed; B.img = img; B.note = note; B.frame = frame;
   B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.settled = settled; B.hasUI = HAS_UI;
   if (typeof window !== 'undefined') window.BOOT = B;
   if (typeof module !== 'undefined') module.exports = B;

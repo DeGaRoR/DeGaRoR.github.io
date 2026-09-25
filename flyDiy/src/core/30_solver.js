@@ -176,14 +176,14 @@ function makeSim(def, world) {
       return [x / M, y / M, z / M]; };
     const c0 = cen(r0), c1 = cen(r1);
     let ax = c1[0] - c0[0], ay = c1[1] - c0[1], az = c1[2] - c0[2];
-    const L = Math.hypot(ax, ay, az);
+    const L = hyp3(ax, ay, az);
     if (L < 1e-6) return null;
     ax /= L; ay /= L; az /= L;
     const perp = (i, c) => { let x = p[i*3] - c[0], y = p[i*3+1] - c[1], z = p[i*3+2] - c[2];
       const d = x * ax + y * ay + z * az; return [x - d * ax, y - d * ay, z - d * az]; };
     const inertia = (r, c) => { let I = 0; for (const i of r) { const q = perp(i, c); I += m[i] * (q[0]*q[0] + q[1]*q[1] + q[2]*q[2]); } return I; };
     const u = perp(r0[0], c0), v = perp(r1[0], c1);
-    const lu = Math.hypot(u[0], u[1], u[2]), lv = Math.hypot(v[0], v[1], v[2]);
+    const lu = hyp3(u[0], u[1], u[2]), lv = hyp3(v[0], v[1], v[2]);
     if (lu < 1e-6 || lv < 1e-6) return null;
     const cx = u[1]*v[2] - u[2]*v[1], cy = u[2]*v[0] - u[0]*v[2], cz = u[0]*v[1] - u[1]*v[0];
     const s = (cx * ax + cy * ay + cz * az) / (lu * lv), c = (u[0]*v[0] + u[1]*v[1] + u[2]*v[2]) / (lu * lv);
@@ -282,7 +282,7 @@ function makeSim(def, world) {
       const dx = (bx * (M4 * M8 - M5 * M5) - M1 * (by * M8 - M5 * bz) + M2 * (by * M5 - M4 * bz)) / det;
       const dy = (M0 * (by * M8 - M5 * bz) - bx * (M1 * M8 - M5 * M2) + M2 * (M1 * bz - by * M2)) / det;
       const dz = (M0 * (M4 * bz - by * M5) - M1 * (M1 * bz - by * M2) + bx * (M1 * M5 - M4 * M2)) / det;
-      const w = Math.hypot(dx, dy, dz);
+      const w = hyp3(dx, dy, dz);
       if (w < 1e-9) break;
       // R <- R * Rot(axis, w)  (Rodrigues, the axis in the cluster's rest frame)
       const ax = dx / w, ay = dy / w, az = dz / w;
@@ -388,6 +388,15 @@ function makeSim(def, world) {
   let coneOn = !(typeof process !== 'undefined' && process.env && process.env.FLYDIY_EXACT_GROUND === '1');
   let coneLive = false, coneS2 = 0;
   const gcx = new Float64Array(n), gcz = new Float64Array(n), gcy = new Float64Array(n);
+  // THE GROUND'S CEILING (PHYSICS PERF 2026-09-24) - the cone's sibling for a world that declares no
+  // slope bound: the island's raster steps by up to 2 m where a coarse leaf meets a fine one, so no
+  // slope bound is true there, but a CEILING is (world.groundMaxRect: the mesh's highest vertex, every
+  // premises target over the rectangle). Once a frame, over the nodes' footprint grown by twice the
+  // fastest node's travel and half a metre: a node still inside that box whose bottom is above the
+  // ceiling cannot touch the ground this substep - EXACTLY the `pen <= 0 -> continue` its sample would
+  // take, so the trajectory is the same bits. A node that leaves the box samples as before. Measured on
+  // the Jolene roll-out: ~45 % of the solver was this pass.
+  let hbLive = false, hbH = 0, hbX0 = 0, hbX1 = 0, hbZ0 = 0, hbZ1 = 0;
   out.gndSampled = 0; out.gndSkipped = 0;
   function setGroundCone(on) { coneOn = !!on; }
   // THE FLOATS (H1, G382): a build on floats carries parts.floats — two
@@ -549,7 +558,7 @@ function makeSim(def, world) {
     hdgPrev = hdg; out.hdg = hdg;
     // sideslip: the air-relative velocity against the right axis
     const ax = cv[0] - (out.windX || 0), ay = cv[1] - (out.windY || 0), az = cv[2] - (out.windZ || 0);
-    const Vt = Math.hypot(ax, ay, az);
+    const Vt = hyp3(ax, ay, az);
     out.beta = Vt > 1 ? Math.asin(Math.max(-1, Math.min(1, (ax * zRt[0] + ay * zRt[1] + az * zRt[2]) / Vt))) : 0;
     // G435: UNDER THE WATER THE FLIGHT IS OVER. A wheeled build in the sea
     // stands on the seabed as on any ground (the floats' hydro is the only
@@ -629,7 +638,7 @@ function makeSim(def, world) {
   for (const j of WS) { PLANE[j] = def.strips[j].plane | 0; NPL = Math.max(NPL, PLANE[j] + 1); }
   const bHalf = new Float64Array(NPL);
   const ellF = u => { u = Math.max(-1, Math.min(1, u)); return 0.5 * (u * Math.sqrt(1 - u * u) + Math.asin(u)); };
-  let aicHash = NaN;
+  let aicHash = NaN, aicFresh = true;
   const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
     o[0] = o[1] = o[2] = 0;
     for (const [i, w] of st.w) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
@@ -763,7 +772,7 @@ function makeSim(def, world) {
       rigGround(i, nd.m);          // hoisted; reset only ever runs post-build
     }
     for (const b of beams) {
-      b.L0 = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
+      b.L0 = hyp3(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
       // G185: RIGGING. A wire's rest length is a hair short of the drawn
       // distance, so it stands in tension at rest — the turnbuckle's job.
       if (b.pre) b.L0 *= (1 - b.pre);
@@ -812,7 +821,7 @@ function makeSim(def, world) {
     for (const i of M) { ax += p[i*3]; ay += p[i*3+1]; }
     ax /= M.length; ay /= M.length;
     const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = r[tw] - r[M[0]];
-    const R = Math.hypot(A, B);
+    const R = hyp2(A, B);
     if (R < 1e-6 || Math.abs(C) > R) return 0;
     const th = Math.asin(C / R) - Math.atan2(B, A);
     if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
@@ -826,7 +835,7 @@ function makeSim(def, world) {
   }
 
   // ---- small vec helpers on flat arrays ----
-  const norm3 = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9;
+  const norm3 = a => { const L = hyp3(a[0], a[1], a[2]) || 1e-9;
     a[0] /= L; a[1] /= L; a[2] /= L; return a; };
   const xAft = [0,0,0], yUp = [0,0,0], zRt = [0,0,0], t1 = [0,0,0], t2 = [0,0,0];
   const avgP = (ids, o) => { o[0]=o[1]=o[2]=0;
@@ -859,6 +868,12 @@ function makeSim(def, world) {
 
   // strip force pass. probe=true: no prop/wash, aero only.
   const sc=[0,0,0], sw_=[0,0,0], sn=[0,0,0];
+  // the engines' constant bookkeeping, once per sim rather than once per substep (PHYSICS PERF
+  // 2026-09-24: the pass allocated these every call - GC is 4 % of a frame)
+  const LEV = i => { const e = ctl.eng && ctl.eng[i]; return e ? (e.on ? +e.thr : 0) : 1; };
+  const ENG_OF = def.refs.engineOf || def.refs.engine.map(() => 0);
+  const ENG_CNT = (() => { const nE = def.params.nEngines || 1, c = new Array(nE).fill(0); for (const k of ENG_OF) if (k < nE) c[k]++; return c; })();
+  const CW_I = [0, 0, 0, 0], CW_W = [0, 0, 0, 0];
   function aeroPass(probe) {
     bodyAxes();
     // mean velocity (mass-weighted), and the mean altitude in the same sweep
@@ -949,10 +964,8 @@ function makeSim(def, world) {
       // or trimmed engine on a wing pair is a real yaw couple through the two
       // nodes at +-z, with no new physics. With ctl.eng null this is
       // Tper * nE spread evenly, to the bit.
-      const lev = i => { const e = ctl.eng && ctl.eng[i]; return e ? (e.on ? +e.thr : 0) : 1; };
-      const EO = def.refs.engineOf || def.refs.engine.map(() => 0);
-      const cnt = new Array(nE).fill(0);
-      for (const k of EO) if (k < nE) cnt[k]++;
+      const lev = LEV;
+      const EO = ENG_OF, cnt = ENG_CNT;   // (constant per def: hoisted, PHYSICS PERF 2026-09-24)
       const Ti = out.thrustPer; Ti.length = nE;
       T = 0;
       for (let i = 0; i < nE; i++) {
@@ -1001,9 +1014,9 @@ function makeSim(def, world) {
     // instrument feel, out.Vg is over the ground (wheels, brakes, stop
     // detection). At sea level the first two are the same number exactly.
     const avx = vmx - wcx, avy = vmy - wcy, avz = vmz - wcz;
-    out.V = Math.hypot(avx, avy, avz);
+    out.V = hyp3(avx, avy, avz);
     out.Veas = out.V * easK;
-    out.Vg = Math.hypot(vmx, vmy, vmz);
+    out.Vg = hyp3(vmx, vmy, vmz);
     out.windX = wcx; out.windY = wcy; out.windZ = wcz;
     out.alpha = Math.atan2(-(avx*yUp[0]+avy*yUp[1]+avz*yUp[2]),
                            -(avx*xAft[0]+avy*xAft[1]+avz*xAft[2]));
@@ -1016,10 +1029,18 @@ function makeSim(def, world) {
     // (a probe with new positions, a frame in flight), never per substep.
     let tailEpsSum = 0, tailEpsN = 0;
     if (NP) {
-      const va = Math.hypot(avx, avy, avz) || 1;
+      const va = hyp3(avx, avy, avz) || 1;
       const dx = -avx / va, dy = -avy / va, dz = -avz / va;
-      const sg = aicSig(gH, dx, dy, dz);
-      if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+      // ONCE A FRAME IN FLIGHT (G578, PHYSICS PERF): the signature hashes the node positions, which
+      // move every substep, so this rebuilt every substep - 10-16 % of the solver - where the note on
+      // buildAIC says "once per frame in flight". In a step it is rebuilt on the frame's first substep
+      // (the geometry a frame moves is millimetres; the circulations still update every substep); a
+      // probe rebuilds whenever its geometry moves, as before
+      if (probe || aicFresh) {
+        const sg = aicSig(gH, dx, dy, dz);
+        if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+        if (!probe) aicFresh = false;
+      }
       applyInduction();
       out.tailEps = out.V > 0.5 ? measureTailEps() / out.V : 0;
     } else out.tailEps = 0;
@@ -1173,8 +1194,10 @@ function makeSim(def, world) {
         // G185: the strip's own plane's Cm0 and spar spacing
         const Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
                      * st.chord / (st.sparSpacing || P_.sparSpacing), t = st.t;
-        const cW = [[st.fIn, (1-t)], [st.fOut, t], [st.rIn, -(1-t)], [st.rOut, -t]];
-        for (const [i, w] of cW) {
+        CW_I[0] = st.fIn; CW_W[0] = (1-t); CW_I[1] = st.fOut; CW_W[1] = t;
+        CW_I[2] = st.rIn; CW_W[2] = -(1-t); CW_I[3] = st.rOut; CW_W[3] = -t;
+        for (let q = 0; q < 4; q++) {
+          const i = CW_I[q], w = CW_W[q];
           f[i*3] += Fc*w*sn[0]; f[i*3+1] += Fc*w*sn[1]; f[i*3+2] += Fc*w*sn[2];
         }
       }
@@ -1191,7 +1214,7 @@ function makeSim(def, world) {
       // wind on the fuselage: without this there is no weathercocking
       let wx_ = 0, wy_ = 0, wz_ = 0;
       if (world && world.wind) { const wv = world.wind(bx, by, bz, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
-      const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz, Vr = Math.hypot(rx, ry, rz);
+      const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz, Vr = hyp3(rx, ry, rz);
       if (Vr < 0.1) return;
       const cb = [rx*xAft[0]+ry*xAft[1]+rz*xAft[2],
                   rx*yUp[0]+ry*yUp[1]+rz*yUp[2],
@@ -1230,7 +1253,7 @@ function makeSim(def, world) {
         // forward) and from below (wn > 0 along up) with the nose up
         const alB = Math.atan2(wn, u);
         const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * Math.sin(2 * alB) * 0.5;
-        const L = Math.hypot(bx - ax, by - ay);
+        const L = hyp2(bx - ax, by - ay);
         if (L > 0.3) {
           const F = M / L;      // nose-up couple: up on the fore ring, down on the aft
           for (const i of A)  { f[i*3] += F/A.length*yUp[0];  f[i*3+1] += F/A.length*yUp[1];  f[i*3+2] += F/A.length*yUp[2]; }
@@ -1299,7 +1322,7 @@ function makeSim(def, world) {
     for (const b of beams) {
       const a3=b.a*3, b3=b.b*3;
       let dx=p[b3]-p[a3], dy=p[b3+1]-p[a3+1], dz=p[b3+2]-p[a3+2];
-      const L = Math.hypot(dx, dy, dz) || 1e-9;
+      const L = hyp3(dx, dy, dz) || 1e-9;
       dx/=L; dy/=L; dz/=L;
       const vrel = (v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz;
       b.strain = (L - b.L0) / b.L0;
@@ -1319,7 +1342,9 @@ function makeSim(def, world) {
         const c = p[i3+1] - r[i] - gcy[i] - GROUND_CONE_EPS;
         if (c > 0 && c * c > coneS2 * (dx * dx + dz * dz)) { out.gndSkipped++; continue; }
         gy = gH(p[i3], p[i3+2]); gcx[i] = p[i3]; gcz[i] = p[i3+2]; gcy[i] = gy; out.gndSampled++;
-      } else gy = gH ? gH(p[i3], p[i3+2]) : 0;
+      } else if (hbLive && p[i3+1] - r[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
+        out.gndSkipped++; continue;
+      } else { gy = gH ? gH(p[i3], p[i3+2]) : 0; if (hbLive) out.gndSampled++; }
       const pen = gy + r[i] - p[i3+1];
       if (pen <= 0) continue;
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
@@ -1337,7 +1362,7 @@ function makeSim(def, world) {
           const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs;
           hx = nx; hz = nz;
         }
-        const hL = Math.hypot(hx, hz) || 1e-9; hx/=hL; hz/=hL;
+        const hL = hyp2(hx, hz) || 1e-9; hx/=hL; hz/=hL;
         const lx = -hz, lz = hx;
         const vr_ = v[i3]*hx + v[i3+2]*hz, vl = v[i3]*lx + v[i3+2]*lz;
         // G115: the wheel asks WHAT IT IS ROLLING ON. `world.surface` is the
@@ -1371,7 +1396,7 @@ function makeSim(def, world) {
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
       } else {
-        const vx=v[i3], vz=v[i3+2], sp = Math.hypot(vx, vz);
+        const vx=v[i3], vz=v[i3+2], sp = hyp2(vx, vz);
         if (sp > 1e-6) {
           const kf = Math.min(0.8 * Fn / sp, m[i]/dt);
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
@@ -1412,7 +1437,7 @@ function makeSim(def, world) {
         const i3 = i*3;
         for (const r of _obstRecs) {
           if (!OBSTACLES.penetration(r, p[i3], p[i3+1], p[i3+2], _pen)) continue;
-          const px = _pen[0], py = _pen[1], pz = _pen[2], L = Math.hypot(px, py, pz) || 1e-6;
+          const px = _pen[0], py = _pen[1], pz = _pen[2], L = hyp3(px, py, pz) || 1e-6;
           const nx = px / L, ny = py / L, nz = pz / L;
           const vn = v[i3]*nx + v[i3+1]*ny + v[i3+2]*nz;               // the velocity into the thing, damped; the rest kept
           const fk = KTn[i] * L - (vn < 0 ? CTn[i] * vn : 0);
@@ -1445,6 +1470,7 @@ function makeSim(def, world) {
 
   function step(dtFrame, sub = P_.substeps ?? 24) {
     const dt = dtFrame / sub;
+    aicFresh = true;
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
@@ -1453,6 +1479,21 @@ function makeSim(def, world) {
       coneS2 = S * S;
       const gH = world.terrainH;
       for (let i = 0; i < n; i++) { gcx[i] = p[i*3]; gcz[i] = p[i*3+2]; gcy[i] = gH(p[i*3], p[i*3+2]); }
+    }
+    // the ceiling (above): only where the world's ground is the one it bounds
+    const GM = coneOn && !coneLive && world ? world.groundMaxRect : null;
+    hbLive = false;
+    if (GM && GM.of === world.terrainH) {
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, v2 = 0;
+      for (let i = 0; i < n; i++) {
+        const x = p[i*3], z = p[i*3+2];
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z;
+        const s2 = v[i*3]*v[i*3] + v[i*3+2]*v[i*3+2]; if (s2 > v2) v2 = s2;
+      }
+      const mg = 0.5 + 2 * Math.sqrt(v2) * dtFrame;
+      hbX0 = x0 - mg; hbX1 = x1 + mg; hbZ0 = z0 - mg; hbZ1 = z1 + mg;
+      const H = GM(hbX0, hbZ0, hbX1, hbZ1);
+      if (Number.isFinite(H)) { hbH = H + 1e-6; hbLive = true; }
     }
     obstFrame();
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
