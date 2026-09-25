@@ -59341,3 +59341,15 @@ identical both ways every frame). Paired vs G572, the same FNV hash: stock taxi 
 build: 14 archetypes and the user's three metal Cessnas fly at the 200 cap on the wing box's stiffness; the
 tailwheel's damper sets the stearman, chinook, savannah, beaver, jodel, radial and the birdman; the float keel the
 floatplane).
+
+## G578 - THE VORTEX KERNEL ONCE A FRAME (2026-09-25)
+
+G572's lever 2. Every garage build flies the vortex downwash (TAIL CHANTIER 2 P5), and the horseshoe coefficients
+(buildAIC) were rebuilt EVERY SUBSTEP: aicSig hashes the node positions, which move every substep - where the note on
+buildAIC says "once per frame in flight". Now a step rebuilds them on the frame's first substep (aicFresh); the
+circulations and the induced field still update every substep; a probe rebuilds whenever its geometry moves, as
+before (the sheet's numbers unchanged). Solver -17 % on the ground, -33 % in flight; the geometry a frame moves is
+millimetres (0.05-0.4 mm after a 20-30 s taxi, 3 cm after a 150 s circuit). Core battery green on it (GEN, PILOT,
+FLEX, LOAD, TAKEOFF, BIPLANE, DRAG, the floats); the full tier's three known reds (ARCHETYPES, PILOTMATRIX, SEAPLANE)
+fail the same checks as before it, every matrix cell and archetype outcome unchanged (SEAPLANE's lane miss 69.8 ->
+44.5 m against its 30 m bound).
