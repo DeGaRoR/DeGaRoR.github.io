@@ -412,19 +412,24 @@ function checkRefPayloads(publishList) {
 // front of the user — not in a diff that turns this line green by deleting it.
 const FORBIDDEN = ['GARAGE_SPEC', 'setParam', 'cageToSpec', 'BUILD_SYNC',
                    'applySpec', 'CAGE_UI_SCENE', 'CAGE_JOIN'];
-function checkOneRoot(src) {
+function checkOneRoot(src, file) {
+  file = file || 'refplane.js';
   // comments are where the rule is EXPLAINED, so they are stripped before the
   // source is searched — otherwise the file cannot describe what it must not do
   const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   for (const name of FORBIDDEN)
     check(code.indexOf(name) < 0,
-      `refplane.js reaches ${name} — the reference is DISPLAY ONLY, and the ` +
+      `${file} reaches ${name} — the reference is DISPLAY ONLY, and the ` +
       'mesh is never an input to the spec (HANDOVER, the 2026-08-08 scope ' +
       'decision)');
   return fail.length;
 }
 const REF_TEXT = fs.readFileSync(REF_SRC, 'utf8');
 checkOneRoot(REF_TEXT);
+// ...and its second source (G573): a blueprint you can measure against is
+// the same one step from a blueprint you build from
+const BP_SRC = path.join(SRC, 'viewer', 'blueprint.js');
+if (fs.existsSync(BP_SRC)) checkOneRoot(fs.readFileSync(BP_SRC, 'utf8'), 'blueprint.js');
 
 // and the seams that carry it are really in the build
 {

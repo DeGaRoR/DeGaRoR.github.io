@@ -284,6 +284,10 @@ const GATES = [
   // measurement taken against a reference is worth exactly what that check is
   // — and the display-only rule, read off refplane.js's own source
   { id: 'REF', file: '_ref_check.js', tier: 'core' },
+  // THE BLUEPRINT (G573): the reference plane's second source, a three-view
+  // cut into views and stood in 3D — its frames, its scale, its level tool,
+  // its ink and its layout, on a fixture the desk itself produced
+  { id: 'BLUEPRINT', file: '_blueprint_check.js', tier: 'core' },
   // THE SITE (G123): the base aerodrome as ONE declared place. Asserts that
   // neither scene restates the runway the HOME record already carries, that
   // the frame conversion between the world and the shed round-trips, and the
@@ -451,7 +455,7 @@ function runJob(job) {
   return new Promise(resolve => {
     const t0 = Date.now();
     const timeoutMs = job.gate.timeout || 1800_000;
-    // THE CHILD WRITES TO FILES, NOT PIPES (G573): on Linux Node writes a
+    // THE CHILD WRITES TO FILES, NOT PIPES (G574): on Linux Node writes a
     // pipe asynchronously, so a gate that ends with process.exit() loses
     // whatever is still queued - ENGINE came back as its first line and exit
     // 0 (16 runs in 40 at 8 in parallel, cut at ~9.5 KB; 0 in 120 through a

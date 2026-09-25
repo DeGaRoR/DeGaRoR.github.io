@@ -260,7 +260,9 @@ const MANIFEST = {
     // flight layer and the workshop layer each hide the other (editor.css's
     // mode rules) and this one panel opens from BOTH screens. It redeclares
     // the palette it uses for the same reason flight.css does.
-    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css'],
+    // ...and blueprint.css (G573): the blueprint desk, a full-screen sheet
+    // appended inside #wsUI, scoped entirely under #bpDesk.
+    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css', 'blueprint.css'],
     body: 'body.html',
     // THE LOADING SCREEN (LOADING S1, 2026-09-14): boot.js fills the BOOT slot
     // of body.html - a plain script in BOTH pages (inlined here, a src ref in
@@ -364,7 +366,10 @@ const MANIFEST = {
     // ladder's thread (window.BENCH_WORKER), imported RAW by its own Blob
     // worker next to tools/flight_core.js — so it must stay a file the page
     // can fetch, like balance.js.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js',
+    // blueprint.js after refplane.js (G573): the reference plane's second
+    // source. It builds its half of the panel from REFPLANE.ui, lazily, and
+    // stands its planes in app.js's REF_MOUNT.bpGroup.
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint.js',
     // balance.js before editor.js (G101): the energy layer's panel draws the
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,
