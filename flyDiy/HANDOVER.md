@@ -59235,3 +59235,55 @@ sources; no cache key in src/viewer reads a uuid, an id, a clock or a counter; t
 and a recentre none (red on the old code: 10 links / 4 distinct, 2 on the recentre); a kept PMREMGenerator bakes
 again on no link; the three passes publish warmList() and the step compiles them in the lit, fogless scene.
 futureDesigns/PERF-2026-09-23.md G573.
+
+## G574 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
+
+The user: at the airfield stand the cover ring issues ~1 600 draws a frame counting shadows; cut them without a visible
+change. Counted by wrapping renderer.renderBufferDirect (the shadow pass flagged) over 6 frames, by `coverKind`, at
+the roll-out stand (-154, 31.6, 712), master aa1846bd against this build (the scratchpad rig drives headless Chrome
+with the GL's clears, uploads and draws stubbed - three's draw path is JavaScript, the counts are its own):
+
+| kind | master (main + shadow) | G574 |
+|---|---|---|
+| rock | 142 + 172 | 9 + 7 |
+| debris | 196 + 116 | 28 + 10 |
+| shrub | 112 + 128 | 19 + 13 |
+| cover (tufts) | 84 | 84 |
+| the ring | 950 | **170** |
+
+(the user's 1 600 was a wider view; each object shows twice in the main column - G569: the pipeline's two passes.)
+- WHY SO MANY: one InstancedMesh per prototype PART per 128 m block, and a part holds a handful of instances in a
+  block: 408 rocks on 20 parts in 19 blocks were 166 meshes, 1 347 debris 210, 390 shrubs 134 - each paying three's
+  whole per-draw cost in every pass that sees it (the main pass twice, the sun's map).
+- THE BATCHES (cover_ring.js): the rocks, the debris and the shrubs are THREE.BatchedMesh, one per (species,
+  material, casts or not) across the whole ring: 24 at the stand. A rock's material is now one per picture (a
+  species' 20 parts wore 4 pictures). three culls each INSTANCE against each camera and shadow camera; a block's
+  reach test switches its cells' instances (setVisibleAt) where it used to switch its meshes, at the same moments
+  (a new cell shows when its block is rebuilt). The same picture, instance for instance: the same geometry,
+  material, matrix and colour, and the fade's threshold rides in the batch colour's ALPHA - trees.js takes it back
+  after <color_vertex> (BATCH_RAND_VS; `aRand` names it in a batch) and sets the alpha to 1. A leaf's sway phase was
+  gl_InstanceID, which a multi-draw does not have: a batched leaf uses its draw's indirect index (LEAF_SWAY_PH).
+  Batches are keyed by species: two species of one file share its material objects (a first cut keyed by material
+  alone met a geometry it was not built with and hung the page).
+- THE PICTURE, MEASURED: in one page at the stand (headless Chrome, SwiftShader, real links), the ring's own objects
+  drawn from the game camera into a plain lit scene - the old path, the batches, the old path again, each replanted
+  synchronously in one task (the wind held still): 0 of 384 000 pixels differ, both ways (71 359 instances; the
+  ring's own draws 569 -> 112). The full game frame could not be the witness here: on this box's SwiftShader the
+  aerial perspective zeroes every near lit surface (the far terrain keeps only the in-scatter), in both builds.
+- SHADOWS FROM 0.5 m: castMinH 0.35 -> 0.5 (the user: "rocks > ~0.5 m") - the pebbles and twigs between cast
+  nothing; a prototype that casts and one that does not are separate batches.
+- THE TUFTS stay by block (68 840 instances at the stand: a per-instance cull there would cost more than the 84 draws).
+- NOT DONE, AND WHY: a per-kind distance cull. The fade already thins every kind to nothing at the ring's 220 m, and
+  nothing the ring plants is under a pixel inside it at 1080p (a 0.3 m tuft at 220 m is ~1.8 px under the 46 deg field) - a shorter reach
+  for any kind is a visible change, not a free one. With per-instance culling the draws no longer grow with the
+  reach anyway.
+- COST MOVED, NOT MEASURED HERE: three's batch culling walks every instance per pass (~2 100 at the stand x 3 passes)
+  in JavaScript, against ~780 draws saved (~7 us each on the reference box, PERF-2026-09-23).
+- `COVER_RING` dial `batch` (default true; false = the per-block instanced path, the A/B). GATE COVER (new, core): the
+  real ring and the real fade/leaf hooks on the real three over a fake GL (tools/_fake_gl.js, shared with GATE
+  PROGRAMS), a stub pack with two shrub species sharing a file's materials - every rock / debris / shrub instance of
+  the instanced path is in a batch with its geometry, matrix, colour and threshold, the same ones within reach after
+  the eye moves, a draw per batch and pass at most (rock 81 -> 5, debris 33 -> 3, shrub 96 -> 8 there), no caster
+  under 0.5 m, no instance left over after the eye leaves and returns, the batched programs read the colour's alpha
+  and the batched leaf its indirect index. GATE MEDIA's budget 8.8 -> 8.9 MiB (code: +7 KB). futureDesigns/
+  PERF-2026-09-23.md G574.

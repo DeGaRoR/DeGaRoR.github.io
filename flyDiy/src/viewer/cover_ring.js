@@ -134,7 +134,7 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.5, batch: true };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
@@ -201,13 +201,19 @@ var COVER_RING = (() => {
           const sorted = subs.slice().sort((a, b) => hOf(a) - hOf(b)), n = S.debrisKinds;
           subs = Array.from({ length: n }, (_, k) => sorted[Math.round(k * (sorted.length - 1) / Math.max(1, n - 1))]);
         }
+        // ONE MATERIAL PER MAP (G574): a rock's material is a plain copy made per part - the same values, the same
+        // program - and a species' models mostly share one picture (the census: 16 rock parts on 4 maps). Shared, the
+        // parts that wear the same picture can be one batch (below) instead of one draw each
+        const plain = new Map();
         for (const e of subs) {
           let b = null; try { b = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
           if (!b || !b.parts.length) continue;
           const parts = b.parts.map(q => {
             let mat = q.mat;
-            if (rockish(c)) {                                   // the leaf hook's AO attribute drew the rocks black (the bench): a plain copy
+            if (rockish(c) && plain.has(q.mat.map || null)) mat = plain.get(q.mat.map || null);
+            else if (rockish(c)) {                              // the leaf hook's AO attribute drew the rocks black (the bench): a plain copy
               mat = new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 });
+              plain.set(q.mat.map || null, mat);
               // THE SKIRT IS CUT (2026-09-22, the coast scans): a photoscanned strip carries the sand round its rocks, and
               // that skirt lay on the terrain as a pale plate wherever the ground fell away under it. A rock row's
               // `cut` (metres above the subject's floor - its own ground level, coast_rocks_tune.py) discards every
@@ -261,6 +267,8 @@ var COVER_RING = (() => {
         }
       }
       protos.set(c.name, P);
+      P.species = c.name;
+      for (const p of P) p.all = P;   // a prototype knows its species' set (the batches are sized from it)
       return P;
     }
     const draw = (P, r) => { let acc = r; for (const p of P) { acc -= p.w; if (acc <= 0) return p; } return P[P.length - 1]; };
@@ -437,6 +445,55 @@ var COVER_RING = (() => {
       return out;
     }
 
+    // ---- THE BATCHES (G574) ---------------------------------------------------------
+    // The rocks, the debris and the shrubs drew one InstancedMesh per prototype PART per block, and cast from each: at
+    // the airfield stand ~1 400 draws a frame between them (rock 252 + 270 shadow, debris 340 + 181, shrub 192 + 198 -
+    // the user's count). The tufts (cover) stay by block: 60 000+ instances, culled cheaply by the block's sphere.
+    // A part's instances in a block are a handful, and every one of them paid the whole three.js draw. They are
+    // BatchedMeshes now: one per (species, material, casts or not) ACROSS THE RING - the parts that share a picture
+    // are one draw (a multi-draw of their ranges), three culls each INSTANCE against each camera and each shadow
+    // camera (so no block is drawn for the one rock of it in view), and the block's reach test (below) switches its
+    // instances instead of its meshes. The picture: the same geometry, material, matrices and colours, and the
+    // fade's threshold carried in the colour's alpha (trees.js BATCH_RAND_VS) - the same instances thin at the same
+    // distances. `batch: false` is the per-block instanced path, as before (the A/B).
+    const batched = kind => S.batch && (kind === 'rock' || kind === 'debris' || kind === 'shrub');
+    const castOf = p => p.kind !== 'cover' && !((p.kind === 'debris' || p.kind === 'rock') && p.h < S.castMinH);
+    const attrSig = g => Object.keys(g.attributes).sort().map(k => k + g.attributes[k].itemSize).join(',') + (g.index ? '|i' : '');
+    const batches = new Map();   // key -> BatchedMesh
+    const V4 = new THREE.Vector4();
+    // keyed by the SPECIES too: two species of one file share its material objects (trees.js, PACK.materials), and a
+    // batch is sized for, and holds, the geometries of the one species it was made for
+    function batchFor(P, part, cast) {
+      const key = P.species + '|' + part.mat.uuid + '|' + (cast ? 1 : 0) + '|' + attrSig(part.geo);
+      let bm = batches.get(key);
+      if (bm) return bm;
+      // every geometry this batch will ever draw is known now: the species' prototypes are built together (protosOf)
+      const geos = [];
+      for (const p of P) if (castOf(p) === cast) for (const q of p.parts) if (q.mat === part.mat && attrSig(q.geo) === attrSig(part.geo) && !geos.includes(q.geo)) geos.push(q.geo);
+      let nv = 0, ni = 0; for (const g of geos) { nv += g.attributes.position.count; ni += g.index ? g.index.count : 0; }
+      bm = new THREE.BatchedMesh(64, nv, ni, part.mat);
+      bm.userData.geoIds = new Map(geos.map(g => [g, bm.addGeometry(g)]));
+      bm.userData.nVis = 0; bm.visible = false;
+      bm.perObjectFrustumCulled = true; bm.sortObjects = false; bm.frustumCulled = false;   // three's per-instance culling, each camera
+      bm.matrixAutoUpdate = false; bm.renderOrder = -1;   // at the origin for ever; an occluder before the ground (render_world.js ORDER_NOTE)
+      bm.castShadow = cast; bm.receiveShadow = true;
+      bm.userData.coverKind = P[0].kind;
+      bm.name = 'cover:' + P[0].kind;
+      batches.set(key, bm); root.add(bm);
+      return bm;
+    }
+    // a batch with no instance shown draws nothing at all (three would still set its program up, every pass): the
+    // count of its shown instances decides its own visibility
+    function batchVis(bm, id, v) {
+      if (bm.getVisibleAt(id) === v) return;
+      bm.setVisibleAt(id, v); bm.userData.nVis += v ? 1 : -1;
+      const on = bm.userData.nVis > 0; if (bm.visible !== on) bm.visible = on;
+    }
+    function batchAdd(bm, geo) {
+      if (bm.instanceCount >= bm.maxInstanceCount) bm.setInstanceCount(bm.maxInstanceCount * 2);   // full (no id to reuse): twice the room
+      return bm.addInstance(bm.userData.geoIds.get(geo));
+    }
+
     // ---- one cell -------------------------------------------------------------------
     function buildCell(cx, cz) {
       const t0 = performance.now();
@@ -448,7 +505,7 @@ var COVER_RING = (() => {
       const G = subGrid(x0, z0, C);
       const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
       // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
-      const cell = { n: 0, parts: new Map(), by: {}, cx, cz };   // by: this cell's tally per species (STAT.by is the live sum)
+      const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz };   // inst: [batch, id, ...] - the batched instances (G574)   // by: this cell's tally per species (STAT.by is the live sum)
       cells.set(cx + ',' + cz, cell); markBlock(cx, cz);
       if (!centreMix && !G.lawn) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
@@ -550,9 +607,21 @@ var COVER_RING = (() => {
         }
         const col = it.col ? new Float32Array(it.col) : null;
         // every part of the prototype draws the same instances (a bark part and a leaf part)
-        // (a twig or a pebble under S.castMinH casts no shadow: a texel of the map at most, and a shadow draw per model per block)
-        const cast = it.p.kind !== 'cover' && !((it.p.kind === 'debris' || it.p.kind === 'rock') && it.p.h < S.castMinH);
-        for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
+        // (a twig or a pebble under S.castMinH casts no shadow: a texel of the map at most, and a shadow draw per model per
+        // block; 0.5 m since G574 - the user: "shadows only for the kinds/sizes that show one (rocks > ~0.5 m)")
+        const cast = castOf(it.p);
+        if (batched(it.p.kind)) {   // into the ring's batches, hidden until the block they fall in is (re)built (buildBlock)
+          for (const part of it.p.parts) {
+            const bm = batchFor(it.p.all, part, cast);
+            for (let i = 0; i < n; i++) {
+              const id = batchAdd(bm, part.geo);
+              T.fromArray(mats, i * 16); bm.setMatrixAt(id, T);
+              V4.set(col ? col[i * 3] : 1, col ? col[i * 3 + 1] : 1, col ? col[i * 3 + 2] : 1, rand[i]); bm.setColorAt(id, V4);
+              bm.setVisibleAt(id, false);
+              cell.inst.push(bm, id);
+            }
+          }
+        } else for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
         cell.n += n;
       }
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
@@ -561,6 +630,8 @@ var COVER_RING = (() => {
     function dropCell(key) {
       const cell = cells.get(key); if (!cell) return;
       markBlock(cell.cx, cell.cz);
+      for (let k = 0; k < cell.inst.length; k += 2) { batchVis(cell.inst[k], cell.inst[k + 1], false); cell.inst[k].deleteInstance(cell.inst[k + 1]); }   // the batched ones go now (past Rdrop: out of reach)
+      cell.inst.length = 0;
       for (const k in cell.by) { STAT.by[k] -= cell.by[k]; if (STAT.by[k] <= 0) delete STAT.by[k]; }   // the tally is LIVE (it ran up for the page's life before L4)
       cells.delete(key);
     }
@@ -585,9 +656,12 @@ var COVER_RING = (() => {
       for (const m of b.meshes) { b.group.remove(m); m.geometry.dispose(); if (m.dispose) m.dispose(); }   // the wrapper and the instance buffers; the prototype's own are shared
       b.meshes = []; b.dirty = false;
       const parts = new Map(); let box = null, live = 0;
+      b.instCells = []; b.instVis = null;   // the cells whose batched instances this block switches with its reach (update) - cells, not
+                                            // ids: a dropped cell's ids are handed to the next instances made
       for (let dz = 0; dz < B; dz++) for (let dx = 0; dx < B; dx++) {
         const cell = cells.get((b.bx * B + dx) + ',' + (b.bz * B + dz)); if (!cell) continue;
         live++;
+        if (cell.inst.length) b.instCells.push(cell);
         if (cell.box) { const c = cell.box; box = box ? [Math.min(box[0], c[0]), Math.min(box[1], c[1]), Math.min(box[2], c[2]), Math.max(box[3], c[3]), Math.max(box[4], c[4]), Math.max(box[5], c[5])] : c.slice(); }
         for (const [part, d] of cell.parts) { let a = parts.get(part); if (!a) parts.set(part, a = []); a.push(d); }
       }
@@ -652,8 +726,9 @@ var COVER_RING = (() => {
         const dirty = []; for (const b of blocks.values()) if (b.dirty) dirty.push(b);
         if (dirty.length) { dirty.sort((a, b) => dist2(a) - dist2(b)); for (const b of dirty.slice(0, S.blockBudget)) buildBlock(b); }
         let shown = 0, draws = 0;
-        for (const b of blocks.values()) { const v = !!b.box && dist2(b) < R2r; if (b.group.visible !== v) b.group.visible = v; if (v) { shown++; draws += b.meshes.length; } }
-        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws; }
+        for (const b of blocks.values()) { const v = !!b.box && dist2(b) < R2r; if (b.group.visible !== v) b.group.visible = v; if (v) { shown++; draws += b.meshes.length; }
+          if (b.instCells && b.instVis !== v) { for (const cell of b.instCells) for (let k = 0; k < cell.inst.length; k += 2) batchVis(cell.inst[k], cell.inst[k + 1], v); b.instVis = v; } }
+        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws + batches.size; STAT.batches = batches.size; }
       STAT.live = cells.size; STAT.queued = queue.length;
       let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
       STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
@@ -661,8 +736,8 @@ var COVER_RING = (() => {
     const api = {
       update, root,
       get: () => Object.assign({}, S),
-      set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks }; Object.assign(S, o || {});
-        if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks) api.replant(); return api.get(); },
+      set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks, batch: S.batch, castMinH: S.castMinH }; Object.assign(S, o || {});
+        if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks || S.batch !== was.batch || S.castMinH !== was.castMinH) api.replant(); return api.get(); },
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); },
       rockPlan,                                                           // the rock map's read (above)
       // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
@@ -672,7 +747,7 @@ var COVER_RING = (() => {
         return { cell: [cx, cz], mix: G.mix[k], code: G.code[k], ok: !!G.ok[k], kill: +G.kill[k].toFixed(3), cls: G.cls[k], kind: G.kind[k], boost: +G.boost[k].toFixed(3) }; },
       rockProtos: () => speciesOf().filter(rockish).map(c => ({ c, P: protosOf(c) })),   // the sprites' subjects (rocks and debris)
       stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
-      dispose: () => { api.replant(); scene.remove(root); },
+      dispose: () => { api.replant(); for (const bm of batches.values()) { root.remove(bm); bm.dispose(); } batches.clear(); scene.remove(root); },
     };
     return api;
   }

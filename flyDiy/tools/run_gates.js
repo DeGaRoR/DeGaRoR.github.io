@@ -142,6 +142,8 @@ const GATES = [
   // G570: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
   // boots key and link the same sources, a bake links each program once, the off-scene passes are listed
   { id: 'PROGRAMS', file: '_program_check.js', tier: 'core' },
+  // G574: the cover ring's rocks and debris as batches - the same instances, reach and thresholds, a draw per batch
+  { id: 'COVER', file: '_cover_check.js', tier: 'core' },
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last
   { id: 'MEDIA', file: '_media_check.js', tier: 'core' },
