@@ -25,6 +25,7 @@
 // nothing: the sequential battery, in this order, as before.
 const { spawn } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 // TIERS (2026-08-11; the fleet retired 2026-09-05). The project is a GARAGE:
@@ -447,17 +448,26 @@ function runJob(job) {
   return new Promise(resolve => {
     const t0 = Date.now();
     const timeoutMs = job.gate.timeout || 1800_000;
+    // THE CHILD WRITES TO FILES, NOT PIPES (G572): on Linux Node writes a
+    // pipe asynchronously, so a gate that ends with process.exit() loses
+    // whatever is still queued - ENGINE came back as its first line and exit
+    // 0 (16 runs in 40 at 8 in parallel, cut at ~9.5 KB; 0 in 120 through a
+    // file). A file is written synchronously on every platform, Windows
+    // included, where pipes already were, so the output is byte for byte
+    // what it was there
+    const tag = `${job.gate.id}_${job.shard ? job.shard.i : 0}_${process.pid}_${t0}`;
+    const outF = path.join(os.tmpdir(), `gate_${tag}.out`), errF = path.join(os.tmpdir(), `gate_${tag}.err`);
+    const outFd = fs.openSync(outF, 'w'), errFd = fs.openSync(errF, 'w');
     const child = spawn(process.execPath, [job.gate.file, ...job.argv],
-                        { cwd: __dirname, stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
-    const out = [], err = [];
-    child.stdout.on('data', d => out.push(d));
-    child.stderr.on('data', d => err.push(d));
+                        { cwd: __dirname, stdio: ['ignore', outFd, errFd], env: process.env });
+    fs.closeSync(outFd); fs.closeSync(errFd);
+    const slurp = f => { try { const t = fs.readFileSync(f, 'utf8'); fs.unlinkSync(f); return t; } catch (e) { return ''; } };
     let error = null;
     const timer = setTimeout(() => { error = { message: `ETIMEDOUT after ${timeoutMs} ms` }; child.kill(); }, timeoutMs);
     child.on('error', e => { error = e; });
     child.on('close', status => {
       clearTimeout(timer);
-      resolve({ job, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8'),
+      resolve({ job, stdout: slurp(outF), stderr: slurp(errF),
                 status, error, secs: ((Date.now() - t0) / 1000).toFixed(1) });
     });
   });

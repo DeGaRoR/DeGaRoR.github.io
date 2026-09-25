@@ -59192,6 +59192,13 @@ alone). The minute bounds the probe's WORK - the page runs the same probe after 
 also measured the machine. It now reads the process's own CPU time (the probe is synchronous), bound unchanged at
 60 s, the wall printed beside it: 40.6 s CPU / 40.8 s wall with the battery running alongside.
 
+**THE RUNNER LOST OUTPUT (ENGINE, a core run on Linux).** ENGINE came back as its first line with exit 0, so no
+verdict line and a FAIL; alone it passed. Every gate ends with `process.exit()`, and on Linux Node writes a PIPE
+asynchronously: what is still queued at exit is dropped. Reproduced 16 runs in 40 (8 in parallel on 4 cores), cut at
+~9.5 KB; through a file, 0 in 120. `runJob` now hands each child a temporary FILE for stdout and stderr (written
+synchronously on every platform; Windows already wrote pipes synchronously, which is why it never showed there),
+reads them on close and deletes them. Any gate could have lost its tail this way; ENGINE's 13 KB was the one that did.
+
 **THE SCAN for machine paths** (`C:/Users`, `D:/Dev`, `Downloads`, `/Users/`, `/home/`) over tools/, src/: src/ is
 clean; nothing else a battery gate needs. Left as they are, all authoring tools or opt-in modes whose repo-relative
 path is tried FIRST and `D:/Dev/DeGaRoR.github.io` is a worktree's fallback onto the main checkout's gitignored data:
