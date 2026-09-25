@@ -207,6 +207,7 @@ function make(THREE, scene, world, rec0, opts) {
   // stops. The lit panes follow: each finish's glass uniform uLitK (its base the generator's
   // lightK) x on x the runway lenses' colour-keeping dimmer. The world switchboard declares it
   // as `lamps` (render_world) and the mute is honoured here. F8: `village lamps` reads .gain.
+  let TARR = null;   // the town's texture arrays (G574, hlodBuild) - above LAMPS, which reads it (G570: no TDZ)
   const LAMPS = { pool: [], pub: [], glass: new Map(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500 };
   const lampPoolInit = () => {
     if (LAMPS.pool.length) return;
@@ -220,6 +221,7 @@ function make(THREE, scene, world, rec0, opts) {
     const kGlass = 0.45 * Math.pow(0.92 / Math.max(0.92, ex), 1.0), kLamp = 2.2 * 1.1 * LAMPS.gain / Math.max(1, ex);
     // the panes: the generator's lightK (judged on the bench by DAY, 2.2) x 0.45 x the exposure's inverse - a lit window at night is warm, not white (at the lenses' 0.9 the mill's windows saturated)
     for (const [u, base] of LAMPS.glass) u.value = base * on * kGlass * (LAMPS.muted ? 0 : 1);
+    LAMPS.kLit = on * kGlass * (LAMPS.muted ? 0 : 1); if (TARR) TARR.lit.value = LAMPS.kLit;   // the town's lit panes (G574): the base rides the slot
     // the chimney smoke is lit by the sky: its unlit colour dimmed back through the exposure schedule (a haze, not a lamp)
     // the fixtures' own glass (G456): the author's emissive x on x the lenses' colour-keeping dimmer, every placement of a lit prop key together
     if (typeof propSetGlowOf === 'function') { const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9); for (const key of LAMPS.glowKeys) propSetGlowOf(key, kFix); }
@@ -246,7 +248,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     LAMPS.litNow = stats.litNow = near.length;
   };
-  LAMPS.mute = () => { LAMPS.muted = true; for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } for (const [u] of LAMPS.glass) u.value = 0; if (typeof propSetGlowOf === 'function') for (const key of LAMPS.glowKeys) propSetGlowOf(key, 0); };
+  LAMPS.mute = () => { LAMPS.muted = true; for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } for (const [u] of LAMPS.glass) u.value = 0; LAMPS.kLit = 0; if (TARR) TARR.lit.value = 0; if (typeof propSetGlowOf === 'function') for (const key of LAMPS.glowKeys) propSetGlowOf(key, 0); };
   LAMPS.unmute = () => { LAMPS.muted = false; };
   // the bench's bounds are the world's window; the game's are the premises' extent in the world (+ a margin)
   const extentWorld = () => { const F = O.frame, e = O.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; return { x0: Math.min(...c.map(q => q[0])) - 40, z0: Math.min(...c.map(q => q[1])) - 40, x1: Math.max(...c.map(q => q[0])) + 40, z1: Math.max(...c.map(q => q[1])) + 40 }; };
@@ -1181,7 +1183,7 @@ function make(THREE, scene, world, rec0, opts) {
   // kept bags (walls, roof: what the second cut leaves) merged in world space with a vertex colour = the bag's
   // material colour x its map's mean (linear), one shared plain material; their plain bags hide. Glass and lit bags
   // stay the house's own. Built once the build queue is empty (and again if the set of houses changes).
-  const HLOD = { on: true, bake: true, cell: 256, near: 150, dirt: 0.35, gain: 0.2, sig: '', cells: [], group: null };
+  const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, dirt: 0.35, gain: 0.2, sig: '', cells: [], group: null };
   const texMean = new Map(); let texCv = null;
   function meanOf(tex) {
     const img = tex && tex.image; if (!img || !img.width) return null;
@@ -1202,10 +1204,18 @@ function make(THREE, scene, world, rec0, opts) {
   // attribute set - the AO / lit / window channels ride along) into world-space meshes; the sources hide. Glass, lamps,
   // smoke, the parked aeroplanes and anything transparent stay the house's own. While editing, the houses are whole.
   const uval = v => v && v.isColor ? v.getHexString() : v && v.isVector2 ? v.x + ',' + v.y : v && v.isTexture ? v.uuid : (typeof v === 'number' ? +v.toFixed(4) : v && v.value !== undefined ? uval(v.value) : v && typeof v === 'object' ? Object.keys(v).map(k => k + '=' + uval(v[k])).join(';') : String(v));
-  const matSig = m => [m.type, m.map && m.map.uuid, m.normalMap && m.normalMap.uuid, m.roughnessMap && m.roughnessMap.uuid, m.aoMap && m.aoMap.uuid, m.color && m.color.getHexString(), m.roughness, m.metalness, m.side, m.alphaTest, m.vertexColors, m.flatShading, m.customProgramCacheKey ? m.customProgramCacheKey() : '', Object.keys(m.userData || {}).sort().map(k => k + ':' + uval(m.userData[k])).join('|')].join('#');
+  const matSig = m => [m.type, m.map && m.map.uuid, m.normalMap && m.normalMap.uuid, m.roughnessMap && m.roughnessMap.uuid, m.aoMap && m.aoMap.uuid, m.color && m.color.getHexString(), m.roughness, m.metalness, m.side, m.alphaTest, m.vertexColors, m.flatShading, m.customProgramCacheKey ? m.customProgramCacheKey() : '', Object.keys(m.userData || {}).filter(k => !TARR_UD.has(k)).sort().map(k => k + ':' + uval(m.userData[k])).join('|')].join('#');
+  const TARR_UD = new Set(['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud']);   // G574's handles: G566's signature is as it was
   function nearAll(on) {
     for (const cl of HLOD.cells) if (cl.near) cl.near.visible = on && !cl.far;
     for (const g of G.houses.children) for (const m of g.children) if (m.userData.merged) m.visible = !on && !g.userData.far;
+  }
+  // the stack (G574): made on first use; its ready signal rebakes (the sig is cleared). TARR is declared by LAMPS.
+  function tarr() {
+    if (TARR || typeof window === 'undefined' || !window.HOUSE_TARR || !THREE.DataArrayTexture) return TARR;
+    TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { HLOD.sig = ''; } });
+    TARR.lit.value = LAMPS.kLit === undefined ? 1 : LAMPS.kLit;
+    return TARR;
   }
   function hlodBuild() {
     for (const g of G.houses.children) for (const m of g.children) if (m.userData.merged) { m.userData.merged = false; m.visible = true; }
@@ -1260,28 +1270,65 @@ function make(THREE, scene, world, rec0, opts) {
       grp.add(mesh); cl.mesh = mesh; HLOD.cells.push(cl);
     }
     if (HLOD.bake) {
-      const canon = new Map(); let nd = 0, nm = 0;
+      const canon = new Map(); let nd = 0, nm = 0, td = 0, tm = 0;
+      // THE TOWN ON TEXTURE ARRAYS (G574, house_tarr.js): a bag whose finish can ride the stack goes into one of a
+      // cell's few town meshes (plain / glass x side x whether it casts) whatever its material; the rest merge per
+      // distinct material as G566 does. Until the stack holds every layer the bake asked for, the bags it could not
+      // place go G566's way too, and the stack's ready signal rebakes.
+      const TA = HLOD.tarr ? tarr() : null;
+      if (TA) TA.begin();
+      const litBase = u => (LAMPS.glass.has(u) ? LAMPS.glass.get(u) : u.value);
       for (const cl of HLOD.cells) {
-        const buckets = new Map();
-        for (const g of cl.houses) for (const m of g.children) {
-          if (!m.isMesh || !m.geometry || !m.geometry.index || Array.isArray(m.material)) continue;
-          const mt = m.material, ud = mt.userData || {};
-          if (mt.transparent || ud.lampKey || ud.lampCol || ud.emis0 || ud.glassShaded || ud.smokeShaded || ud.parked || ud.aeroskin) continue;
-          const ga = m.geometry.attributes, an = Object.keys(ga).sort();
-          if (an.some(k => ga[k].isInterleavedBufferAttribute)) continue;
-          const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
-          const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
-          let b = buckets.get(k); if (!b) buckets.set(k, b = { mat: cm, list: [] }); b.list.push(m);
+        const buckets = new Map(), tb = new Map();
+        for (const g of cl.houses) {
+          const cast = new Set(g.userData.casters || []);
+          for (const m of g.children) {
+            if (!m.isMesh || !m.geometry || !m.geometry.index || Array.isArray(m.material)) continue;
+            const mt = m.material, ud = mt.userData || {};
+            const c = TA && TA.classify(m);
+            if (c) {
+              const k = c.key + '|' + m.renderOrder + '|' + m.receiveShadow + '|' + cast.has(m);
+              let b = tb.get(k); if (!b) tb.set(k, b = { c, cast: cast.has(m), list: [] }); b.list.push(m);
+              continue;
+            }
+            if (mt.transparent || ud.lampKey || ud.lampCol || ud.emis0 || ud.glassShaded || ud.smokeShaded || ud.parked || ud.aeroskin) continue;
+            const ga = m.geometry.attributes, an = Object.keys(ga).sort();
+            if (an.some(k => ga[k].isInterleavedBufferAttribute)) continue;
+            const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
+            const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
+            let b = buckets.get(k); if (!b) buckets.set(k, b = { mat: cm, list: [] }); b.list.push(m);
+          }
         }
         const ng = new THREE.Group(); ng.name = 'houses:near'; ng.userData.batch = true;
+        cl.casters = [];
+        for (const b of tb.values()) {
+          const r = TA.merge(b.list, b.c.kind, litBase), m0 = b.list[0], mat = r.geo && TA.material(b.c.kind, b.c.side, m0.material.dithering);
+          const usedS = new Set(r.used), left = b.list.filter(m => !usedS.has(m));
+          if (r.geo && mat) {
+            const mesh = new THREE.Mesh(r.geo, mat);
+            mesh.castShadow = b.cast; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true; mesh.name = 'houses:town';
+            if (b.cast) cl.casters.push(mesh);
+            ng.add(mesh); td++;
+            for (const m of r.used) { m.userData.merged = true; m.visible = false; tm++; }
+          } else if (r.geo) r.geo.dispose();
+          // not (yet) on the stack: G566's way, the glass as the house's own
+          for (const m of (r.geo && mat) ? left : b.list) {
+            const mt = m.material; if (mt.userData.glassShaded) continue;
+            const ga = m.geometry.attributes, an = Object.keys(ga).sort();
+            const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
+            const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
+            let bb = buckets.get(k); if (!bb) buckets.set(k, bb = { mat: cm, list: [] }); bb.list.push(m);
+          }
+        }
         for (const b of buckets.values()) {
           const m0 = b.list[0], mesh = new THREE.Mesh(mergeInto(b.list), b.mat);
           mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true;
           ng.add(mesh); nd++;
           for (const m of b.list) { m.userData.merged = true; m.visible = false; nm++; }
         }
-        cl.near = ng; grp.add(ng);
+        cl.near = ng; cl.castOn = true; grp.add(ng);
       }
+      if (TA) { TA.end(); Object.assign(stats, { tarrDraws: td, tarrMerged: tm, tarrSlots: TA.stats.slots, tarrLayers: TA.stats.layers + '+' + TA.stats.nrLayers, tarrMB: TA.stats.mb }); }
       stats.bakeDraws = nd; stats.bakeMerged = nm; stats.bakeMats = canon.size;
     }
     G.houses.add(grp); HLOD.group = grp;
@@ -1292,12 +1339,14 @@ function make(THREE, scene, world, rec0, opts) {
       if (HLOD.group) { for (const cl of HLOD.cells) if (cl.far) hlodSet(cl, false); nearAll(false); HLOD.sig = ''; }   // whole houses; rebaked on the way back
       return;
     }
-    const sig = String(HOUSES.size);
+    const sig = HOUSES.size + '|' + HLOD.bake + '|' + HLOD.tarr;   // a dial flipped (F8 / WORLD.premises.hlod) rebakes
     if (sig !== HLOD.sig) { HLOD.sig = sig; hlodBuild(); }
     for (const cl of HLOD.cells) {
       const dx = Math.max(cl.x0 - e.x, 0, e.x - cl.x1), dz = Math.max(cl.z0 - e.z, 0, e.z - cl.z1), d = Math.hypot(dx, dz, e.y - cl.y);   // 3D (G563): from 300 m up the houses below are far
       const far = d > HLOD.near * (cl.far ? 0.9 : 1.1);
       if (far !== cl.far) hlodSet(cl, far);
+      // the town meshes that cast (G574): a house's own casters go at HOUSE_CAST_FAR (detailTick), the cell's at its box's
+      if (cl.casters && cl.casters.length) { const on = d < HOUSE_CAST_FAR * (cl.castOn ? 1.1 : 0.9); if (on !== cl.castOn) { cl.castOn = on; for (const m of cl.casters) m.castShadow = on; } }
     }
   }
   function hlodSet(cl, far) {

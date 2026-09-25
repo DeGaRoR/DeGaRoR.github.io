@@ -310,6 +310,8 @@ var S = {
   mode: 'clay', alpha: 1, occlude: false, cut: 'off', half: false, showBox: false,
   off: {},                      // matKey -> true when hidden
   matA: {},                     // matKey -> its own alpha
+  src: 'all',                   // G573: which tree row the panel was built for (all | model | bp)
+  folds: {},                    // G573: the model tab's folds, open or shut
 };
 try {
   var raw = localStorage.getItem(LS);
@@ -606,6 +608,27 @@ function drawBox() {
 // ===========================================================================
 // THE PANEL. Hand-built, in _cage_ui.js's row grammar, owning nothing of the
 // aeroplane.
+//
+// G573, the user: "we need first to revise the UI of the reference plane,
+// because it gets really messy at time". What was messy, measured on the
+// C172 (26 materials): one flat column of 8 headings and ~50 rows, the
+// materials list scrolling INSIDE the scrolling column, the measurements it
+// exists for below both, every control drawn whether or not an aeroplane was
+// standing, the editor's `reset part / expert rows / fold sections` pills
+// sitting over a panel they do nothing to, and "display only" said twice.
+// Now:
+//   - TWO SOURCES, one switch: `3D model` (this file) and `blueprint`
+//     (blueprint.js). Both can stand at once; the switch picks whose
+//     controls are shown.
+//   - Nothing but the picker until something is standing.
+//   - FOLDS, the column's own `.edH` heading with its chevron, remembered in
+//     this file's own state: placement, look, size & measure open; the
+//     materials list shut, with its count on the heading.
+//   - A value is TYPED as well as dragged (the `.v` readout is an input), so
+//     "pitch trim 2.5" is a keystroke rather than a hunt along 30 degrees of
+//     slider.
+// The row helpers are published as REFPLANE.ui so blueprint.js builds its
+// half out of the same parts and the two tabs cannot drift apart.
 // ===========================================================================
 function el(tag, cls, html) {
   var d = document.createElement(tag);
@@ -613,99 +636,185 @@ function el(tag, cls, html) {
   if (html != null) d.innerHTML = html;
   return d;
 }
-function head(host, name, meta) {
-  var h = el('div', 'edH');
-  h.appendChild(el('span', null, name));
-  h.appendChild(el('i'));
-  h.appendChild(el('em', null, meta || ''));
-  host.appendChild(h);
-  return h;
+function txt(tag, cls, s) {
+  var d = document.createElement(tag);
+  if (cls) d.className = cls;
+  d.textContent = s;
+  return d;
 }
-function row(host, label) {
+function row(host, label, title) {
   var d = el('div', 'r');
-  d.appendChild(el('span', 'k', label));
+  var k = txt('span', 'k', label);
+  if (title) { d.title = title; k.title = title; }
+  d.appendChild(k);
   host.appendChild(d);
   return d;
 }
-// `dflt` is what double-clicking the label goes back to — the same gesture the
-// editor's own rows have carried since G27. It is a parameter and not a
-// hardcoded zero because "reset the scale" is 1, not 0, and a scale of 0 is an
-// aeroplane you cannot see.
-function slider(host, label, lo, hi, step, dflt, get, set, fmt) {
-  var d = row(host, label);
-  var i = document.createElement('input');
-  i.type = 'range'; i.min = lo; i.max = hi; i.step = step; i.value = get();
-  var v = el('span', 'v', fmt(get()));
-  var fire = function () {
-    var n = parseFloat(i.value);
-    set(n); v.textContent = fmt(n); save(); place();
+// A FOLD: the column's own section heading (label, chevron, meta), clickable.
+function fold(host, title, meta, open, onToggle) {
+  var wrap = el('div', 'refSec');
+  var h = el('div', 'edH edHC');
+  h.appendChild(txt('span', null, title));
+  var chev = el('i');
+  h.appendChild(chev);
+  h.appendChild(txt('em', null, meta || ''));
+  var body = el('div', 'refSecB');
+  var paint = function () {
+    h.classList.toggle('shut', !open);
+    chev.textContent = open ? '▾' : '▸';
+    body.hidden = !open;
   };
-  i.oninput = fire;
-  d.firstChild.ondblclick = function () { i.value = dflt; fire(); };
+  h.onclick = function () { open = !open; paint(); if (onToggle) onToggle(open); };
+  paint();
+  wrap.appendChild(h); wrap.appendChild(body);
+  host.appendChild(wrap);
+  return body;
+}
+// THE SLIDER, with a typed value. `o`: label, lo, hi, step, dflt, get, set,
+// fmt, title, and `commit` for a setter too heavy to run on every pixel of a
+// drag (it then runs on release). `dflt` is what double-clicking the label
+// goes back to — the gesture the editor's own rows have carried since G27.
+// A typed number may go past the slider's ends: the range is a convenience
+// for the hand, not a limit on the value.
+function slider(host, o) {
+  var d = row(host, o.label, o.title);
+  var i = document.createElement('input');
+  i.type = 'range'; i.min = o.lo; i.max = o.hi; i.step = o.step; i.value = o.get();
+  var v = document.createElement('input');
+  v.type = 'text'; v.className = 'v'; v.value = o.fmt(o.get());
+  v.title = 'Type a value';
+  var put = function (n) { o.set(n); v.value = o.fmt(n); };
+  i.oninput = function () {
+    var n = parseFloat(i.value);
+    if (o.commit) v.value = o.fmt(n); else put(n);
+  };
+  if (o.commit) i.onchange = function () { put(parseFloat(i.value)); };
+  v.onfocus = function () { v.value = String(+(+o.get()).toFixed(4)); v.select(); };
+  v.onchange = function () {
+    var n = parseFloat(v.value);
+    if (isFinite(n)) { i.value = n; put(n); } else v.value = o.fmt(o.get());
+  };
+  v.onblur = function () { v.value = o.fmt(o.get()); };
+  v.onkeydown = function (e) { if (e.key === 'Enter') v.blur(); };
+  d.firstChild.ondblclick = function () { i.value = o.dflt; put(o.dflt); };
   d.appendChild(i); d.appendChild(v);
   return i;
 }
-function check(host, label, get, set) {
-  var d = row(host, label);
+function check(host, label, get, set, title) {
+  var d = row(host, label, title);
   var i = document.createElement('input');
   i.type = 'checkbox'; i.checked = !!get();
-  i.onchange = function () { set(i.checked); save(); applyFinish(); place(); };
+  i.onchange = function () { set(i.checked); };
   d.appendChild(i);
   return i;
 }
+function select(host, label, opts, get, set, title) {
+  var d = row(host, label, title);
+  var s = document.createElement('select');
+  opts.forEach(function (o) {
+    var op = document.createElement('option');
+    op.value = o[0]; op.textContent = o[1];
+    s.appendChild(op);
+  });
+  s.value = get();
+  s.onchange = function () { set(s.value); };
+  d.appendChild(s);
+  return s;
+}
+function pills(host) {
+  var b = el('div', 'refBtns');
+  host.appendChild(b);
+  return b;
+}
 function pill(host, label, fn, title) {
-  var b = el('button', 'pill', label);
+  var b = txt('button', 'pill', label);
+  b.type = 'button';
   if (title) b.title = title;
   b.onclick = fn;
   host.appendChild(b);
   return b;
 }
+function note(host, s) {
+  var n = txt('div', 'refNote', s);
+  host.appendChild(n);
+  return n;
+}
+var UI = { el: el, row: row, fold: fold, slider: slider, check: check,
+           select: select, pills: pills, pill: pill, note: note };
 
+// the model tab's folds, by key; the default is the second argument
+function mfold(host, key, title, meta, dflt) {
+  var f = S.folds || (S.folds = {});
+  return fold(host, title, meta, key in f ? f[key] : dflt,
+              function (open) { f[key] = open; save(); });
+}
+// the setters the model tab's rows share
+function moved() { save(); place(); }
+function refinished() { save(); applyFinish(); }
+
+var matsMeta = null;            // the materials fold's heading meta
 function paintMats() {
   if (!matsEl) return;
   matsEl.textContent = '';
-  if (!built) {
-    matsEl.appendChild(el('div', 'refNote', 'Pick an aeroplane first.'));
-    return;
-  }
+  if (!built) return;
   var mt = built.payload.mats || {};
   var keys = Object.keys(built.mats).sort();
+  // the count on the heading, so a shut fold still says what it holds — and
+  // it is painted HERE because a model's bytes can land after the panel
+  if (matsMeta) matsMeta.textContent = keys.length + ' · the model’s own, one row each';
+  var b = pills(matsEl);
+  pill(b, 'all on', function () { S.off = {}; refinished(); paintMats(); });
+  pill(b, 'all off', function () {
+    keys.forEach(function (k) { S.off[k] = true; }); refinished(); paintMats();
+  });
+  pill(b, 'opacities back', function () { S.matA = {}; refinished(); paintMats(); },
+       'Every material back to the opacity the model declares');
   keys.forEach(function (mk) {
-    var d = row(matsEl, mk);
+    var d = row(matsEl, mk, mk);
     var c = document.createElement('input');
     c.type = 'checkbox'; c.checked = !S.off[mk];
     c.onchange = function () {
       if (c.checked) delete S.off[mk]; else S.off[mk] = true;
-      save(); applyFinish();
+      refinished();
     };
     var decl = mt[mk] || {};
     var a = document.createElement('input');
     a.type = 'range'; a.min = 0; a.max = 1; a.step = 0.05;
     a.value = (S.matA[mk] != null) ? S.matA[mk]
             : (decl.opacity != null ? decl.opacity : 1);
-    var v = el('span', 'v', (+a.value).toFixed(2));
+    var v = txt('span', 'v', (+a.value).toFixed(2));
     a.oninput = function () {
       S.matA[mk] = parseFloat(a.value);
       v.textContent = (+a.value).toFixed(2);
-      save(); applyFinish();
+      refinished();
     };
     d.appendChild(c); d.appendChild(a); d.appendChild(v);
   });
 }
 
-function paintDims() {
-  if (!dimsEl) return;
-  if (!built || !built.box) {
-    // G153: three different silences, told apart. Names come from REF_PRESETS,
-    // our own declared table, so they are safe to write into the note.
-    var w = presetOf(loadingKey || failedKey);
-    var nm = w ? w.name : '';
-    dimsEl.innerHTML = '<div class="refNote">' +
-      (loadingKey ? 'Loading ' + nm + '…'
-       : failedKey ? nm + ' could not be loaded.'
-       : 'No reference standing.') + '</div>';
-    return;
+function paintStatus() {
+  if (!statusEl) return;
+  // G153: three different silences, told apart. Names come from REF_PRESETS,
+  // our own declared table, so they are safe to write into the note.
+  var w = presetOf(loadingKey || failedKey), nm = w ? w.name : '';
+  var pre = presetOf(S.preset);
+  var s = loadingKey ? 'Loading ' + nm + '…'
+        : failedKey ? nm + ' could not be loaded.'
+        : (!pre || !pre.model) ? 'No 3D model standing. Pick an aeroplane to stand it beside your build.'
+        : '';
+  if (!s && built && built.box && pre && pre.pub) {
+    var b = built.box, out = Math.abs(b.span - pre.pub.span) / pre.pub.span * 100;
+    s = 'published span ' + pre.pub.span.toFixed(2) + ' m · the model measures ' +
+        b.span.toFixed(3) + ' m (' + out.toFixed(2) + '% out)';
   }
+  statusEl.textContent = s;
+  statusEl.hidden = !s;
+}
+
+function paintDims() {
+  paintStatus();
+  if (!dimsEl) return;
+  if (!built || !built.box) { dimsEl.innerHTML = ''; return; }
   var b = built.box, s = S.scale, m = M();
   var r = function (label, val) {
     var f = refFmtLen(val);
@@ -727,7 +836,7 @@ function paintDims() {
     var rb = new THREE.Box3().setFromObject(body);
     if (isFinite(rb.max.y)) refTop = rb.max.y - gy;
   }
-  var html = '<div class="refCap">REFERENCE</div>' +
+  var html = '<div class="refCap">the reference</div>' +
     r('span', b.span * s) + r('length', b.len * s) +
     r('height', refTop != null ? refTop : b.hgt * s);
 
@@ -747,26 +856,16 @@ function paintDims() {
         ours.toFixed(2) + ' m</b><i>' + sg + Math.abs(d2).toFixed(2) +
         ' m</i><em>' + pc + '</em></div>';
     };
-    html += '<div class="refCap">YOUR BUILD, AND THE GAP</div>' +
+    html += '<div class="refCap">your build, and the gap</div>' +
       dl('span', mine.span, b.span * s) +
       dl('length', mine.len, b.len * s) +
       dl('height', mine.hgt, refTop != null ? refTop : b.hgt * s);
   }
-  var pre = presetOf(S.preset);
-  if (pre && pre.pub) {
-    var out = Math.abs(b.span - pre.pub.span) / pre.pub.span * 100;
-    html += '<div class="refNote">published ' + pre.pub.span.toFixed(2) +
-      ' m span · the model measures ' + b.span.toFixed(3) + ' m (' +
-      out.toFixed(2) + '% out) · scale ×' + s.toFixed(3) + '</div>';
-  }
   dimsEl.innerHTML = html;
 }
 
-function buildPanel() {
-  var host = el('div');
-  host.id = 'edRef';
-
-  head(host, 'reference', 'display only · never the spec');
+var statusEl = null;
+function buildModelTab(host) {
   var pr = row(host, 'aeroplane');
   var sel = document.createElement('select');
   // ONLY WHAT SHIPPED. build.js MANIFEST.models decides which payloads the
@@ -788,35 +887,44 @@ function buildPanel() {
   sel.value = S.preset;
   sel.onchange = function () {
     S.preset = sel.value; save();
-    build(S.preset); paintMats(); paintDims();
+    build(S.preset);
+    // the panel's SHAPE depends on whether anything stands, so it is rebuilt
+    rebuildPanel();
     if (typeof window.REF_ON_CHANGE === 'function') window.REF_ON_CHANGE();
   };
   pr.appendChild(sel);
+  statusEl = note(host, '');
+  paintStatus();
+  // NOTHING BUT THE PICKER until an aeroplane is standing: thirty controls
+  // for nothing is most of what "messy" meant
+  var pre = presetOf(S.preset);
+  if (!pre || !pre.model) { matsEl = dimsEl = null; return; }
 
-  head(host, 'placement', 'metres, from where your build stands');
-  slider(host, 'fore/aft', -6, 6, 0.01, 0,
-    function () { return S.fore; }, function (v) { S.fore = v; },
-    function (v) { return v.toFixed(2) + ' m'; });
-  slider(host, 'lateral', -4, 4, 0.01, 0,
-    function () { return S.lat; }, function (v) { S.lat = v; },
-    function (v) { return v.toFixed(2) + ' m'; });
-  slider(host, 'vertical trim', -1, 1, 0.005, 0,
-    function () { return S.trim; }, function (v) { S.trim = v; },
-    function (v) { return v.toFixed(3) + ' m'; });
-  slider(host, 'yaw', -180, 180, 1, 0,
-    function () { return S.yaw; }, function (v) { S.yaw = v; },
-    function (v) { return v.toFixed(0) + '°'; });
-  // A TRIM, and now it says so: the preset's declared attitude is the zero,
-  // and this is the correction on top for a model drawn slightly off.
-  slider(host, 'pitch trim', -15, 15, 0.1, 0,
-    function () { return S.pitch; }, function (v) { S.pitch = v; },
-    function (v) { return v.toFixed(1) + '°'; });
-  var pb = el('div', 'refBtns');
-  // THE BUTTON'S NAME IS TRUE NOW. Both of these are TRIMS ON the preset's
+  var pl = mfold(host, 'place', 'placement', 'metres, from where your build stands', true);
+  slider(pl, { label: 'fore / aft', lo: -6, hi: 6, step: 0.01, dflt: 0,
+    get: function () { return S.fore; }, set: function (v) { S.fore = v; moved(); },
+    fmt: function (v) { return v.toFixed(2) + ' m'; } });
+  slider(pl, { label: 'lateral', lo: -4, hi: 4, step: 0.01, dflt: 0,
+    get: function () { return S.lat; }, set: function (v) { S.lat = v; moved(); },
+    fmt: function (v) { return v.toFixed(2) + ' m'; } });
+  slider(pl, { label: 'up / down', lo: -1, hi: 1, step: 0.005, dflt: 0,
+    title: 'A trim on the sit: the model already stands on the floor your build stands on',
+    get: function () { return S.trim; }, set: function (v) { S.trim = v; moved(); },
+    fmt: function (v) { return v.toFixed(3) + ' m'; } });
+  slider(pl, { label: 'yaw', lo: -180, hi: 180, step: 1, dflt: 0,
+    get: function () { return S.yaw; }, set: function (v) { S.yaw = v; moved(); },
+    fmt: function (v) { return v.toFixed(0) + '°'; } });
+  // A TRIM, and it says so: the preset's declared attitude is the zero, and
+  // this is the correction on top for a model drawn slightly off.
+  slider(pl, { label: 'pitch trim', lo: -15, hi: 15, step: 0.1, dflt: 0,
+    title: 'On top of the aeroplane\'s own parked attitude (' +
+           refSitPitch(pre).toFixed(1) + '° nose-up)',
+    get: function () { return S.pitch; }, set: function (v) { S.pitch = v; moved(); },
+    fmt: function (v) { return v.toFixed(1) + '°'; } });
+  var pb = pills(pl);
+  // THE BUTTON'S NAME IS TRUE. Both of these are TRIMS ON the preset's
   // declared ground attitude, so zeroing them returns the aeroplane to the
   // attitude it actually parks in — which for a taildragger is not level.
-  // Before the attitude was declared, zeroing `pitch` was the very move that
-  // lifted the Cub's tailwheel off the floor.
   pill(pb, 'sit on wheels', function () {
     S.trim = 0; S.pitch = 0; save(); rebuildPanel();
   }, 'Back onto the floor your build stands on, in its own parked attitude');
@@ -831,50 +939,30 @@ function buildPanel() {
   pill(pb, 'centre', function () {
     S.fore = 0; S.lat = 0; S.yaw = 0; save(); rebuildPanel();
   }, 'Back to where it lands by default');
-  host.appendChild(pb);
 
-  head(host, 'finish', 'what it is drawn as');
-  var mr = row(host, 'mode');
-  var ms = document.createElement('select');
-  MODES.forEach(function (m2) {
-    var o = document.createElement('option');
-    o.value = m2[0]; o.textContent = m2[1];
-    ms.appendChild(o);
-  });
-  ms.value = S.mode;
-  ms.onchange = function () { S.mode = ms.value; save(); applyFinish(); };
-  mr.appendChild(ms);
-  slider(host, 'opacity', 0, 1, 0.05, 1,
-    function () { return S.alpha; },
-    function (v) { S.alpha = v; applyFinish(); },
-    function (v) { return v.toFixed(2); });
-  check(host, 'occludes', function () { return S.occlude; },
-    function (v) { S.occlude = v; });
+  var lk = mfold(host, 'look', 'look', 'what it is drawn as', true);
+  select(lk, 'mode', MODES, function () { return S.mode; },
+    function (v) { S.mode = v; refinished(); });
+  slider(lk, { label: 'opacity', lo: 0, hi: 1, step: 0.05, dflt: 1,
+    get: function () { return S.alpha; },
+    set: function (v) { S.alpha = v; refinished(); },
+    fmt: function (v) { return v.toFixed(2); } });
+  // OCCLUDES OFF is what makes it a ghost you can read your build through;
+  // on, it hides what is behind it
+  check(lk, 'hides what is behind', function () { return S.occlude; },
+    function (v) { S.occlude = v; refinished(); },
+    'On: a see-through reference still hides your build behind it — for comparing silhouettes. ' +
+    'Off: you read your build through it — for tracing inside it.');
   // THE CUT (G142). A select rather than two checkboxes, because 'reference
   // half' and 'split' are mutually exclusive views of the same plane and a
   // pair of tick-boxes would let you ask for a state that has no meaning.
-  var cr = row(host, 'cut');
-  var cs = document.createElement('select');
-  CUTS.forEach(function (c) {
-    var o = document.createElement('option');
-    o.value = c[0]; o.textContent = c[1];
-    cs.appendChild(o);
-  });
-  cs.value = S.cut;
-  cs.onchange = function () { setCut(cs.value); };
-  cr.appendChild(cs);
+  select(lk, 'cut', CUTS, function () { return S.cut; }, function (v) { setCut(v); });
 
-  head(host, 'materials', 'the model’s own, one row each');
-  matsEl = el('div', 'refMats');
-  host.appendChild(matsEl);
-
-  head(host, 'measure', 'the reference’s own box');
-  check(host, 'reference box', function () { return S.showBox; },
-    function (v) { S.showBox = v; });
-  slider(host, 'scale', 0.5, 2, 0.001, 1,
-    function () { return S.scale; }, function (v) { S.scale = v; },
-    function (v) { return '×' + v.toFixed(3); });
-  var mm = row(host, 'match span');
+  var ms = mfold(host, 'size', 'size & measure', 'the reference’s own box', true);
+  slider(ms, { label: 'scale', lo: 0.5, hi: 2, step: 0.001, dflt: 1,
+    get: function () { return S.scale; }, set: function (v) { S.scale = v; moved(); },
+    fmt: function (v) { return '×' + v.toFixed(3); } });
+  var mm = row(ms, 'match span', 'Set the scale so the reference’s span is the number you type');
   var ti = document.createElement('input');
   ti.type = 'text'; ti.className = 'v'; ti.placeholder = 'm';
   var solve = function () {
@@ -886,11 +974,73 @@ function buildPanel() {
   mm.appendChild(ti);
   pill(mm, 'solve', solve,
     'Set the scale so the reference’s span is the number you typed');
+  check(ms, 'show its box', function () { return S.showBox; },
+    function (v) { S.showBox = v; save(); place(); });
   dimsEl = el('div', 'refDims');
-  host.appendChild(dimsEl);
+  ms.appendChild(dimsEl);
 
+  var mf = mfold(host, 'mats', 'materials', 'the model’s own', false);
+  matsMeta = mf.previousSibling.lastChild;
+  matsEl = el('div', 'refMats');
+  mf.appendChild(matsEl);
+}
+
+// WHICH SOURCES THE PANEL SHOWS (G573). The tree carries the choice now —
+// `Reference plane` with `3D model` and `Blueprint` under it, the way an
+// assembly carries its parts: the root shows both sections, each under its
+// own name heading (the column's part rung, .edHP) with its groups inside;
+// a kid row shows its own section alone, with nothing above its groups.
+var SRC_KEYS = { 'ref.model': 'model', 'ref.bp': 'bp' };
+function srcHead(host, key, name, meta) {
+  var f = S.folds || (S.folds = {});
+  var open = !(('src.' + key) in f) || f['src.' + key];
+  var h = el('div', 'edH edHP edHC refSrcH');
+  h.appendChild(txt('span', null, name));
+  var chev = el('i');
+  h.appendChild(chev);
+  var em = txt('em', null, meta || '');
+  h.appendChild(em);
+  var body = el('div', 'refSrc');
+  var paint = function () {
+    h.classList.toggle('shut', !open);
+    chev.textContent = open ? '▾' : '▸';
+    body.hidden = !open;
+  };
+  h.onclick = function () { open = !open; f['src.' + key] = open; save(); paint(); };
+  paint();
+  host.appendChild(h); host.appendChild(body);
+  return { body: body, meta: em };
+}
+function srcMeta(k) {
+  if (k === 'model') {
+    var p = presetOf(S.preset);
+    return p && p.model ? p.name : 'none standing';
+  }
+  var B = window.BLUEPRINT;
+  return !B ? 'not in this build' : B.summary ? B.summary() : '';
+}
+function buildPanel() {
+  var host = el('div');
+  host.id = 'edRef';
+  var B = window.BLUEPRINT;
+  var one = S.src === 'model' || S.src === 'bp' ? S.src : null;
+  matsEl = dimsEl = statusEl = matsMeta = null;
+  host.classList.toggle('refOne', !!one);
+  if (one === 'model') buildModelTab(host);
+  else if (one === 'bp') {
+    if (B) host.appendChild(B.panel());
+    else note(host, 'The blueprint is not in this build.');
+  } else {
+    var a = srcHead(host, 'model', '3D model', srcMeta('model'));
+    buildModelTab(a.body);
+    var b = srcHead(host, 'bp', 'Blueprint', srcMeta('bp'));
+    if (B) b.body.appendChild(B.panel());
+    else note(b.body, 'The blueprint is not in this build.');
+    bpMetaEl = b.meta;
+  }
   return host;
 }
+var bpMetaEl = null;
 
 // THE CUT, FROM EITHER DOOR (2026-09-03). The panel's select and the editor's
 // quick-action button both land here, so the extra thing this control does
@@ -923,17 +1073,37 @@ function rebuildPanel() {
 // ===========================================================================
 window.REFPLANE = {
   presets: REF_PRESETS,
-  // the tree row's badge: what is standing there, or nothing
-  badge: function () {
-    if (S.preset === 'none') return '';
-    var p = presetOf(S.preset);
-    return p ? p.name.split(' ').slice(-2).join(' ') : '';
+  // the row helpers, for blueprint.js's half of the panel (G573)
+  ui: UI,
+  // the tree row's badge: what is standing there, or nothing. Both sources
+  // can stand at once, and the badge says so.
+  badge: function (which) {
+    var p = S.preset === 'none' ? null : presetOf(S.preset);
+    var a = p ? p.name.split(' ').slice(-2).join(' ') : '';
+    var b = (window.BLUEPRINT && window.BLUEPRINT.badge()) || '';
+    if (which === 'model') return a;
+    if (which === 'bp') return b;
+    return a && b ? a + ' · ' + b : a || b;
+  },
+  // blueprint.js after placing, or after its summary changed: repaint what
+  // the tree and the headings say, and if the reference is on screen, show
+  // the blueprint's own row
+  showSource: function (k) {
+    if (bpMetaEl) bpMetaEl.textContent = srcMeta('bp');
+    if (k === 'bp' && S.src && typeof window.EDITOR_SELECT === 'function' &&
+        panelEl && panelEl.isConnected) window.EDITOR_SELECT('ref.bp');
+    if (typeof window.REF_ON_CHANGE === 'function') window.REF_ON_CHANGE();
   },
   // The panel is built ONCE and REUSED. render() drops it out of #edRows on
   // every selection change and hands it back on the next — rebuilding it there
   // would throw away a slider mid-drag and re-read localStorage for no reason.
-  panel: function () {
-    if (!panelEl) { panelEl = buildPanel(); paintMats(); }
+  // `which` is the tree row asked for: 'ref.model', 'ref.bp', or the root
+  // (both). A different ask rebuilds; the same one hands the element back.
+  panel: function (which) {
+    var src = SRC_KEYS[which] || 'all';
+    if (panelEl && S.src === src) return panelEl;
+    S.src = src; save();
+    panelEl = buildPanel(); paintMats(); place(); paintDims();
     return panelEl;
   },
   // THE GAP FOLLOWS THE BUILD. Every editor rebuild ends in applyVis, and the
@@ -942,6 +1112,8 @@ window.REFPLANE = {
   // precisely when you are watching it.
   refresh: function () {
     if (panelEl && dimsEl) paintDims();
+    // the floor moves with the build's gear, and the blueprint stands on it
+    if (window.BLUEPRINT) window.BLUEPRINT.refresh();
   },
   // THE CUT, CYCLED — the editor's quick-action button, and the reason the
   // three ways of looking at a reference are reachable without opening the
@@ -964,6 +1136,7 @@ window.REFPLANE = {
   // first garage entry: put back whatever was standing here last session
   boot: function () {
     if (S.preset !== 'none' && !built) { build(S.preset); place(); }
+    if (window.BLUEPRINT) window.BLUEPRINT.boot();
   },
   state: S,
 };

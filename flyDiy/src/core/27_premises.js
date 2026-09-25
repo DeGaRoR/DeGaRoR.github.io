@@ -377,7 +377,16 @@ function makeModifier(m, y0) {
     // the two roundings differ by 1e-16): past the falloff by that margin the weight is 0 on either
     // reading. Everything between is sdPoly's own arithmetic, so the height is the same bits.
     const n = poly.length, fall2 = fall * fall * (1 + 1e-9);
-    return { id: m.id, kind: m.kind, bbox, apply: (x, z, h) => {
+    // THE CEILING (PHYSICS PERF, the solver's ground skip): apply() returns h + (T - h) w with w in
+    // [0, 1] - never above max(h, T). bound() answers T's highest over a rectangle (local frame):
+    // { t } for a level or a plane (a plane's highest is at a corner), { add } for a raise (T = h + dh).
+    const bound = (x0, z0, x1, z1) => {
+      if (m.kind === 'raise') return { t: -Infinity, add: Math.max(0, +m.dh || 0) };
+      if (m.kind === 'flatten') return { t: target(0, 0, 0), add: 0 };
+      const a0 = Math.max(x0, bbox.x0), a1 = Math.min(x1, bbox.x1), b0 = Math.max(z0, bbox.z0), b1 = Math.min(z1, bbox.z1);
+      return { t: Math.max(target(a0, b0), target(a1, b0), target(a0, b1), target(a1, b1)), add: 0 };
+    };
+    return { id: m.id, kind: m.kind, bbox, bound, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       let w;
       if (inPoly(poly, x, z)) w = 1;
@@ -402,7 +411,8 @@ function makeModifier(m, y0) {
     const corners = [[R.x0 - mF, R.z0 - mB], [R.x1 + mF, R.z0 - mB], [R.x1 + mF, R.z1 + mF], [R.x0 - mF, R.z1 + mF]].map(q => [c[0] + q[0] * cy + q[1] * sy, c[1] - q[0] * sy + q[1] * cy]);
     const bbox = polyBBox(corners);
     const level = +m.level;
-    return { id: m.id, kind: 'shelf', bbox, apply: (x, z, h) => {
+    // (the ceiling: level + (h - level) sm, sm in [0, 1] - between h and the level)
+    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const dx = x - c[0], dz = z - c[1];
       const lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
@@ -447,7 +457,18 @@ function makeModifier(m, y0) {
         const k = ck(ci, cj); let l = cells.get(k); if (!l) { l = []; cells.set(k, l); } l.push(i);
       }
     }
-    return { id: m.id, kind: 'grade', bbox, apply: (x, z, h) => {
+    // (the ceiling: h + (y + ty - h) w, w in [0, 1], ty between the ends of a segment in the point's
+    // cell - so the highest end of any segment filed in a cell the rectangle touches, one cell of slack)
+    const bound = (x0, z0, x1, z1) => {
+      x0 = Math.max(x0, bbox.x0); x1 = Math.min(x1, bbox.x1); z0 = Math.max(z0, bbox.z0); z1 = Math.min(z1, bbox.z1);
+      let t = -Infinity;
+      for (let ci = cx(x0) - 1, c1 = cx(x1) + 1; ci <= c1; ci++) for (let cj = cz(z0) - 1, d1 = cz(z1) + 1; cj <= d1; cj++) {
+        const list = cells.get(ck(ci, cj)); if (!list) continue;
+        for (let q = 0; q < list.length; q++) { const a = pts[list[q]], b = pts[list[q] + 1]; t = Math.max(t, a[2] || 0, b[2] || 0); }
+      }
+      return { t: t === -Infinity ? t : (abs ? 0 : y0) + t, add: 0 };
+    };
+    return { id: m.id, kind: 'grade', bbox, bound, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
       const list = cells.get(ck(cx(x), cz(z)));
       if (!list) return h;
@@ -489,6 +510,11 @@ function SpatialIndex(cell) {
       }
     },
     query(x, z) { return cells.get(key(Math.floor(x / C), Math.floor(z / C))) || null; },
+    // every item filed in a cell the rectangle touches (an item in two cells comes twice)
+    rect(x0, z0, x1, z1, fn) {
+      const i0 = Math.floor(x0 / C), i1 = Math.floor(x1 / C), j0 = Math.floor(z0 / C), j1 = Math.floor(z1 / C);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const a = cells.get(key(i, j)); if (a) for (let n = 0; n < a.length; n++) fn(a[n]); }
+    },
     size: () => cells.size,
   };
 }
@@ -1411,6 +1437,28 @@ function compose(rec0, world, opts) {
       if (!cell) return h;
       for (let i = 0; i < cell.length; i++) h = cell[i].apply(L[0], L[1], h);
       return h;
+    },
+    // THE CEILING OVER A WORLD RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH(x, z, h)
+    // for every point of it, given B >= h there. Each modifier blends h toward its target with a
+    // weight in [0, 1] (a raise adds at most dh), whatever the order: max(B, every target) + the
+    // raises. The rectangle's local box (the frame is rotated) holds every point's local cell.
+    hMaxRect(ax, az, bx, bz, B) {
+      if (!mods.length) return B;
+      const p1 = F.toLocal(ax, az), p2 = F.toLocal(bx, az), p3 = F.toLocal(ax, bz), p4 = F.toLocal(bx, bz);
+      const lx0 = Math.min(p1[0], p2[0], p3[0], p4[0]) - 0.01, lx1 = Math.max(p1[0], p2[0], p3[0], p4[0]) + 0.01;
+      const lz0 = Math.min(p1[1], p2[1], p3[1], p4[1]) - 0.01, lz1 = Math.max(p1[1], p2[1], p3[1], p4[1]) + 0.01;
+      let T = B, add = 0;
+      const seen = new Set();
+      index.rect(lx0, lz0, lx1, lz1, M => {
+        if (seen.has(M)) return; seen.add(M);
+        const b = M.bbox;
+        if (lx1 < b.x0 || lx0 > b.x1 || lz1 < b.z0 || lz0 > b.z1) return;
+        if (!M.bound) { T = Infinity; return; }          // a modifier that cannot say: no ceiling
+        const r = M.bound(lx0, lz0, lx1, lz1);
+        if (r.t > T) T = r.t;
+        add += r.add;
+      });
+      return T + add;
     },
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),
     // the composed ground in the PREMISES frame

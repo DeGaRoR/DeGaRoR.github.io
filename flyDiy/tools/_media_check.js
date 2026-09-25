@@ -136,11 +136,12 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              altiport's rules in 27_premises.js, its landing and departure in 43_pilot.js, the
 //              lit cabins and the link's speed row) - 8.699 -> 8.705. It carries NO asset: the
 //              data: payload is unmoved at 118 KB of its 400.
-//   8.8 -> 8.9 (G574, the cover ring's batches, 2026-09-25): master sat at 8.798 MiB after G573 (shader_warm.js,
-//              the passes' warm lists); G574 adds ~7 KB of CODE - cover_ring.js's batches and trees.js's batch
-//              branch of the fade and the leaf sway - 8.798 -> 8.805. It carries NO asset: the data: payload is
-//              unmoved at 118 KB of its 400.
-const BUDGET_MIB = 8.9;
+//   8.8 -> 9.0 (G578 + G579, the warm compile and the cover ring's batches, 2026-09-25): master was already over
+//              the line - 8.887 MiB at 570a18e (G573's blueprint and G576; G577 left the budget to its owners) -
+//              and these add ~20 KB of CODE: shader_warm.js and the passes' warm lists (G578), cover_ring.js's
+//              batches and trees.js's batch branch of the fade and the leaf sway (G579) - 8.887 -> 8.907. It
+//              carries NO asset: the data: payload is unmoved at 118 KB of its 400.
+const BUDGET_MIB = 9.0;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

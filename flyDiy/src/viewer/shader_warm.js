@@ -1,12 +1,12 @@
 // ============================================================================
-// shader_warm.js — THE PROGRAMS A FRAME WILL ASK FOR, BUILT BEFORE IT ASKS (G570)
+// shader_warm.js — THE PROGRAMS A FRAME WILL ASK FOR, BUILT BEFORE IT ASKS (G578)
 //
 // The roll-out's compile step (app.js rollOutScreen 'compile') hands the world
 // scene to renderer.compileAsync, which links every program on the driver's
 // threads while the loading screen moves. What it cannot see links on the
 // first frame instead, synchronously, one program at a time. The census of
 // that residue (two headless boots, every linkProgram recorded with the boot
-// step it ran in - futureDesigns/PERF-2026-09-23.md G570) found:
+// step it ran in - futureDesigns/PERF-2026-09-23.md G578) found:
 //
 //   THE SHADOW PASS'S DEPTH PROGRAMS, ALL OF THEM. The old warm-up (app.js
 //   compileDepthVariants, S3) built MeshDepthMaterial({ RGBADepthPacking })

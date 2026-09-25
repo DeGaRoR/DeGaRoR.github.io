@@ -103,7 +103,10 @@ Paired timings (A = HEAD, B = G572, same moment, solver ms a frame):
 
 Measured on an experimental copy of the core with each lever on a switch, paired against G572 (solver ms a frame).
 
-### 1. The clearance cone on the island (-40 %, the same trajectory where the bound holds)
+### 1. The clearance cone on the island -> LANDED as THE GROUND'S CEILING (G575, below)
+
+(Measured first as a slope cone with a declared S = 12, below. It is NOT what landed: the island's raster steps by up
+to 1.99 m along 968 240 probed leaf edges where a coarse leaf meets a fine one, so no slope bound is true there.)
 
 | scenario | G572 | cone S = 12 | trajectory |
 |---|---|---|---|
@@ -172,12 +175,13 @@ At 200 substeps it is 1 500 Hz. Every = round(substeps x 60 / 360): floats 31.2 
 accumulator (step 1/60 per 16.7 ms of wall clock, at most N steps a frame, the render interpolating or not) is the
 standard answer; it is a gameplay ruling (what a slow machine should feel: slow motion or dropped sim time).
 
-### 6. The first frames after the roll-out: the solver's JIT warm-up
+### 6. The first frames after the roll-out: the solver's JIT warm-up - ALREADY PAID BEHIND THE SCREEN
 
-The longest solver frames of every run fall in its first 0.5 s (150-300 ms, then 60-200 ms frames as V8 optimises
-substep/aeroPass/the hydro), i.e. exactly as the aeroplane appears at the door. The roll-out screen's `frames` step
-could step the sim a second or two under the overlay (the aeroplane settles on its wheels anyway; pilot_trace
-settles 600 frames before it flies), so the warm-up is paid behind the screen.
+The bench's longest frames fall in the solver's first 0.5 s (150-300 ms: V8 optimising substep / aeroPass / the
+hydro). In the game that cost is already hidden: rollOut() resets the sim and sets `running` before the roll-out
+screen's steps, and loop() steps the sim BEFORE its `holdRender` return, so the solver runs every frame under the
+overlay (the tree ring, the pictures, the compile - seconds of it) and V8's optimised code is shared by every later
+sim of the page. Nothing to do.
 
 ### 7. The climate (only when a rich preset is on)
 
@@ -189,6 +193,64 @@ settles 600 frames before it flies), so the warm-up is paid behind the screen.
   is bounded by S x the distance to the reference).
 - `convNow()` builds a string cache key on every call (4 a substep under breeze / thermals); a numeric key or the
   day's version counter would do.
+
+## LANDED - G575: THE GROUND'S CEILING (the island's skip, bit-identical)
+
+The cone's sibling for a world that declares no slope bound. Once a frame the solver asks the world for an upper
+bound of the ground over the nodes' footprint (grown by 0.5 m + twice the fastest node's frame travel):
+`world.groundMaxRect(ax, az, bx, bz)`. A node still inside that box whose bottom is above the ceiling cannot touch
+the ground this substep - exactly the `pen <= 0 -> continue` its sample would have taken - so it skips the sample;
+a node that leaves the box samples as before. The ceiling is true stage by stage, by construction:
+
+- the raster: a bilinear patch never exceeds its highest corner, so the highest vertex of every leaf cell the
+  rectangle touches (19_terrain_codec.js `maxRect`, a cell of slack each side); the coast's `min` only lowers it;
+- the pad blend (a convex blend toward PADH), the carve (a depth >= 0, then a `min`), the meadows (convex), the
+  island's settlements (no road delta);
+- the premises (27_premises.js `hMaxRect`): every modifier blends h toward a target with a weight in [0, 1] (a raise
+  adds at most dh), so max(B, every target touching the rectangle) + the raises, whatever the order. Each modifier
+  says its target's highest: a level, a plane's highest corner, a grade's highest segment end in the cells the
+  rectangle touches, a shelf's level.
+
+It carries the terrainH it bounds (`groundMaxRect.of`): a world re-wrapped with another ground (HOTHIGH's tilt,
+pilot_trace --slope) keeps the function but not the ground, and the solver then samples as before.
+FLYDIY_EXACT_GROUND=1 turns it off with the cone.
+
+GATE GE holds it: 1 077 rectangles (400 random over the whole island 6-200 m, 12 around every aerodrome, every
+premises modifier's own box), 2.76 M points on a grid and at random - none above the ceiling (mean slack 5.4 m); a
+ceiling a metre low is caught by the same check; the stock build taxied 30 s out of HOME's stand with the skip on and
+off, every p and v identical every frame, 80 % of node samples skipped.
+
+Paired against G572 (solver ms a frame, the same FNV hash every time):
+
+| scenario | G572 | G575 | |
+|---|---|---|---|
+| stock, Jolene taxi | 8.5 | 6.1 | -29 % |
+| metal Cessna, Jolene taxi | 22.0 | 13.1 | -40 % |
+| birdman, Jolene taxi | 13.9 | 9.7 | -31 % |
+| stock, thermal day, Jolene taxi | 10.3 | 7.6 | -26 % |
+| Cessna on floats, SEA lane | 31.4 | 25.9 | -17 % |
+
+In flight every node is far above the ceiling of its own footprint and the whole ground pass goes.
+
+## THE SUBSTEP DRIVERS, per build (genSubsteps' two limits; `need` = substeps each asks)
+
+| build | substeps | need (stiffness) | need (damping) | the damping beam |
+|---|---|---|---|---|
+| cub, pietenpol, pittsAlike, ul1, mw5, pusherPod, archaeopteryx, twinBush, caravan | 70-126 | = | below | - |
+| tigermoth, sesqui, c172, rv, motorglider, etrainer, ttail, vtail, da62, skymaster, p38 | 146-200 (cap) | 146-265 | below | - (the wing box, WB-WB) |
+| cessnaMetal, cessnaFloats, cessna (2) (the user's) | 200 (cap) | 222-229 | 94-127 | - |
+| stearman | 134 | 89 | 134 | TW-S6BL (the tailwheel) |
+| chinook | 110 | 67 | 109 | TW-S6BL |
+| savannah | 113 | 103 | 113 | TW-TPT |
+| floatplane | 142 | 78 | 142 | FLK-FLK (the float keel) |
+| beaver | 200 (cap) | 108 | 285 | TW-TPB |
+| jodel | 200 (cap) | 184 | 213 | TW-S6BL |
+| radial | 200 (cap) | 213 | 263 | TW-TPT |
+| birdman (the user's) | 121 | 77 | 120 | TW-S6BL |
+
+Fourteen archetypes and all three of the user's metal Cessnas fly at the cap, most asking 213-265: the cap already
+runs them past the omega dt bound. The alloy wing box is the multiplier the metal builds pay; the tailwheel's damper
+(and the float keel's) is the one the taildraggers pay.
 
 ## Viewer-side notes (not timed)
 

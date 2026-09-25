@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// _program_check.js — GATE PROGRAMS (G570): the programs a boot links are the same every boot, and the
+// _program_check.js — GATE PROGRAMS (G578): the programs a boot links are the same every boot, and the
 // roll-out's compile step warms the ones the first frames draw with.
 //
-// The warm roll-out spent 16-26 s in its compile step (futureDesigns/PERF-2026-09-23.md G570). A census of
+// The warm roll-out spent 16-26 s in its compile step (futureDesigns/PERF-2026-09-23.md G578). A census of
 // two boots (headless Chrome, every linkProgram recorded with the boot step it ran in - tools/program_census.js)
 // found no program whose source changes from boot to boot, but a first frame that still linked the shadow
 // pass's whole depth set (the warm-up compiled other programs), the passes outside the scene, and programs
@@ -85,7 +85,7 @@ function warmThenFrame(useOld) {
   const plain = new THREE.WebGLRenderTarget(4, 4);
   // the scene's own pass first (compilePass(scene) in app.js), then the depth helper - as the roll-out does
   R.compile(sc, cam);
-  if (useOld) {   // THE CONTROL: app.js's warm-up before G570, verbatim in effect
+  if (useOld) {   // THE CONTROL: app.js's warm-up before G578, verbatim in effect
     const helper = new THREE.Scene(), seen = new Set(), defDepth = new Map();
     const SIDE = m => m.side === THREE.DoubleSide ? THREE.DoubleSide : m.side === THREE.BackSide ? THREE.FrontSide : THREE.BackSide;
     const add = (o, mat) => { const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m') + (o.isSkinnedMesh ? ':s' : ''); if (seen.has(key)) return; seen.add(key); helper.add(W.standIn(o, mat)); };

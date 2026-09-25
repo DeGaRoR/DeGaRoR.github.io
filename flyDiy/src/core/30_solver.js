@@ -388,6 +388,15 @@ function makeSim(def, world) {
   let coneOn = !(typeof process !== 'undefined' && process.env && process.env.FLYDIY_EXACT_GROUND === '1');
   let coneLive = false, coneS2 = 0;
   const gcx = new Float64Array(n), gcz = new Float64Array(n), gcy = new Float64Array(n);
+  // THE GROUND'S CEILING (PHYSICS PERF 2026-09-24) - the cone's sibling for a world that declares no
+  // slope bound: the island's raster steps by up to 2 m where a coarse leaf meets a fine one, so no
+  // slope bound is true there, but a CEILING is (world.groundMaxRect: the mesh's highest vertex, every
+  // premises target over the rectangle). Once a frame, over the nodes' footprint grown by twice the
+  // fastest node's travel and half a metre: a node still inside that box whose bottom is above the
+  // ceiling cannot touch the ground this substep - EXACTLY the `pen <= 0 -> continue` its sample would
+  // take, so the trajectory is the same bits. A node that leaves the box samples as before. Measured on
+  // the Jolene roll-out: ~45 % of the solver was this pass.
+  let hbLive = false, hbH = 0, hbX0 = 0, hbX1 = 0, hbZ0 = 0, hbZ1 = 0;
   out.gndSampled = 0; out.gndSkipped = 0;
   function setGroundCone(on) { coneOn = !!on; }
   // THE FLOATS (H1, G382): a build on floats carries parts.floats — two
@@ -1325,7 +1334,9 @@ function makeSim(def, world) {
         const c = p[i3+1] - r[i] - gcy[i] - GROUND_CONE_EPS;
         if (c > 0 && c * c > coneS2 * (dx * dx + dz * dz)) { out.gndSkipped++; continue; }
         gy = gH(p[i3], p[i3+2]); gcx[i] = p[i3]; gcz[i] = p[i3+2]; gcy[i] = gy; out.gndSampled++;
-      } else gy = gH ? gH(p[i3], p[i3+2]) : 0;
+      } else if (hbLive && p[i3+1] - r[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
+        out.gndSkipped++; continue;
+      } else { gy = gH ? gH(p[i3], p[i3+2]) : 0; if (hbLive) out.gndSampled++; }
       const pen = gy + r[i] - p[i3+1];
       if (pen <= 0) continue;
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
@@ -1459,6 +1470,21 @@ function makeSim(def, world) {
       coneS2 = S * S;
       const gH = world.terrainH;
       for (let i = 0; i < n; i++) { gcx[i] = p[i*3]; gcz[i] = p[i*3+2]; gcy[i] = gH(p[i*3], p[i*3+2]); }
+    }
+    // the ceiling (above): only where the world's ground is the one it bounds
+    const GM = coneOn && !coneLive && world ? world.groundMaxRect : null;
+    hbLive = false;
+    if (GM && GM.of === world.terrainH) {
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, v2 = 0;
+      for (let i = 0; i < n; i++) {
+        const x = p[i*3], z = p[i*3+2];
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z;
+        const s2 = v[i*3]*v[i*3] + v[i*3+2]*v[i*3+2]; if (s2 > v2) v2 = s2;
+      }
+      const mg = 0.5 + 2 * Math.sqrt(v2) * dtFrame;
+      hbX0 = x0 - mg; hbX1 = x1 + mg; hbZ0 = z0 - mg; hbZ1 = z1 + mg;
+      const H = GM(hbX0, hbZ0, hbX1, hbZ1);
+      if (Number.isFinite(H)) { hbH = H + 1e-6; hbLive = true; }
     }
     obstFrame();
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }

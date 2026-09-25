@@ -238,6 +238,8 @@ const MANIFEST = {
     ['src/viewer', 'parked.js'],
     // THE SCENERY'S LIFE (2026-09-23): people, clutter, rubbish, cars, small structures, antennas - made by the renderer below
     ['src/viewer', 'scenery_life.js'],
+    // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with
+    ['src/viewer', 'house_tarr.js'],
     ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
@@ -260,7 +262,9 @@ const MANIFEST = {
     // flight layer and the workshop layer each hide the other (editor.css's
     // mode rules) and this one panel opens from BOTH screens. It redeclares
     // the palette it uses for the same reason flight.css does.
-    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css'],
+    // ...and blueprint.css (G573): the blueprint desk, a full-screen sheet
+    // appended inside #wsUI, scoped entirely under #bpDesk.
+    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css', 'blueprint.css'],
     body: 'body.html',
     // THE LOADING SCREEN (LOADING S1, 2026-09-14): boot.js fills the BOOT slot
     // of body.html - a plain script in BOTH pages (inlined here, a src ref in
@@ -335,7 +339,7 @@ const MANIFEST = {
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',
-              'shader_warm.js',   // G570: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
+              'shader_warm.js',   // G578: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
               'site_tex.js', 'site_ground.js',
               'splat_tex.js', 'splat_ground.js',   // the island's ground library (17 sets, lazily-made Images) + the splat: the arrays, the GLSL, F8's handle
               // THE PAVEMENT (v1.16, 2026-09-22): the library manifest + the one material every strip, road and apron wears
@@ -366,7 +370,10 @@ const MANIFEST = {
     // ladder's thread (window.BENCH_WORKER), imported RAW by its own Blob
     // worker next to tools/flight_core.js — so it must stay a file the page
     // can fetch, like balance.js.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js',
+    // blueprint.js after refplane.js (G573): the reference plane's second
+    // source. It builds its half of the panel from REFPLANE.ui, lazily, and
+    // stands its planes in app.js's REF_MOUNT.bpGroup.
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint.js',
     // balance.js before editor.js (G101): the energy layer's panel draws the
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,

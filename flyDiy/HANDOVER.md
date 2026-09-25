@@ -59193,7 +59193,272 @@ box asks 225; the birdman's 121 is two tailwheel dampers, the next beam asks 77)
 (-30 % floats), frame pacing (the sim steps 1/60 per rAF: slow motion under 60 fps, fast and dearer on a 144 Hz
 screen), the solver's JIT warm-up in the first 0.5 s at the door (pre-step it under the roll-out screen).
 
-## G573 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
+## G573 - THE REFERENCE PLANE, TIDIED, AND ITS SECOND SOURCE: THE BLUEPRINT (2026-09-25)
+
+The user: "we need first to revise the UI of the reference plane, because it gets really messy at time. Then I need the
+blueprint import functionality. The base case is a single blueprint image" - scale the sheet, isolate and name the views
+(box or lasso; front / top / side plus a free label), rotate (45 degree views) and mirror, set the ground line
+("especially important for taildraggers"), place the views in 3D automatically with sliders to move and turn them -
+"we need to have transparency on these too". Then, mid-way: "accessible from the reference plane entry in the tree,
+grouping the existing under a 3D model section, and these new ones under a blueprint section".
+
+THE TREE. `Reference plane` has two rows under it now, `3D model` and `Blueprint` (editor.js: a root may declare
+`kids: [{ key, name, badge }]`; a kid resolves through rootFor like a root, its panel is the root's own asked for that
+kid, `panel(kid.key)`, and the crumb says `Reference plane /`). Selected whole, the panel reads like an assembly: each
+source heads its block in the part rung (.edHP) with its groups under it; selected alone, a source starts at its
+groups. The root's badge shows only while it is folded (the rows carry their own).
+
+THE PANEL, REVISED (refplane.js). What was messy, measured on the C172: one flat column of 8 headings and ~50 rows, the
+26-row materials list scrolling inside the scrolling column, the measurements below both, every control drawn with
+nothing standing, the editor's reset part / expert rows / fold sections pills over a panel they do nothing to (hidden
+for every panel root now, editor.css `.noview`), "display only" said twice. Now: nothing but the picker and one status
+line until a model stands; folds (placement, look, size & measure open; materials shut, with its count); every value is
+TYPED as well as dragged (the `.v` readout is an input, and a typed number may pass the slider's ends); LABEL
+CONVENTIONS (`up / down`, `hides what is behind`). The row helpers are REFPLANE.ui, and blueprint.js builds its half
+from them.
+
+THE BLUEPRINT (src/viewer/blueprint.js, blueprint.css). THE DESK is a full-screen 2D sheet over the shed (inside #wsUI,
+so the row controls are the column's own), five steps: 1 SCALE (two points, a length, a unit - one metres-a-pixel for
+the whole sheet), 2 VIEWS (box or lasso, a kind and a label; drag to move, corners to resize, Delete), 3 ORIENT
+(rotation slider, the right angles, LEVEL / PLUMB = two clicks along a line that should be horizontal / vertical,
+mirror, and the EXTENT: the dashed box of the aeroplane's outline, trimmed off the ink automatically, edges draggable -
+it is what registers the views against each other), 4 GROUND (the side view's two tyre contacts: the parked attitude,
+and the wheels on the floor; front / rear views may set their own), 5 PLACE. MEASURE (two clicks, metres and feet) works
+in every step. Load by button, drop or paste; a sheet over 8192 px is scaled down once at import.
+
+THE LAYOUT (bpLayout, pure): one body frame off the side view's extent (nose x = 0, lowest point y = 0; x aft, y up,
+z left - the reference model's own frame). Side view on the centreline; top view with its nose under the side view's
+and its middle on the centreline; front view 0.5 m ahead of the nose, centred, its wheels (its ground line, else its
+extent's bottom) on the mains; rear view behind the tail; `other` beside the aeroplane, facing as asked. The body is
+pitched to the ground attitude (or datum level) + a trim and dropped so the lower tyre is on the build's floor. THE PLAN
+IS NOT PITCHED: pitched with the body, the test sheet's top view was a plane from the floor at the tail to 1.4 m at the
+nose, through the fuselage; it lies flat on the floor, its length foreshortened by cos(pitch), which is the parked
+aeroplane seen from above. The first placement snaps the nose to the build's; after that it stays put (a build that
+grows must not drag its blueprint along) - `snap to nose` is a pill.
+
+TRANSPARENCY: an opacity for the set and per view, `over the build` (no depth test: the linework drawn through
+everything, for tracing), and PAPER: `clear` (the default) makes the sheet's paper colour transparent - the mode colour,
+so white, cream or a real blueprint's blue - with a `clear level` for yellowed scans, and the lines re-inked (cyan by
+default; as drawn is dark ink in a dark shed). A 45 degree cut kept with its paper stood as a 15 m opaque sheet in
+front of the camera, which is why clear is the default.
+
+STORAGE: IndexedDB `flydiy-blueprint` (cfg + the image blob) - an image does not fit in localStorage. Display state
+only; GATE REF's ONE ROOT scan covers blueprint.js too. app.js: REF_MOUNT.bpGroup, a sibling of refSit (refplane hides
+refSit when no model stands) and a probe subject like it.
+
+VERIFIED: the whole workflow driven in headless Chromium through the desk's own pointer handlers on a synthetic Cub
+three-view (8 mm a pixel, 5 m scale bar, side view datum-level, tail tyre tan(12) x 5.3 m up, front view at 45 degrees,
+lassoed round a label): 8.00 mm/px, length 6.98 m (6.95 drawn + the stroke), span 10.76 (10.73), LEVEL -> 45.0 deg,
+ground attitude 12.00 deg, tyres 5.30 m apart; pictures of the three views standing round the build. That state is
+tools/_blueprint_fixture.json, and GATE BLUEPRINT (core, 0.2 s, --selftest 7/7) holds the frames, scale, level, ink
+(paper, a run-length ink box that ignores a speck - a real bug the gate found: one stray pixel stretched the extent
+across the cut), clearing, and the layout on it. Gates run: BLUEPRINT, REF (+selftest), UISMOKE - PASS. NOT run: the
+full battery (nothing in core/ or the flight path changed).
+
+OPEN, and ideas the user was offered: several sheets (the data is per-sheet-ready in spirit, one image in practice);
+PDF import; a per-view scale of its own measured on the desk (today `size` is the slider); stations (fuselage sections
+as `other` views facing front at a typed x); reading dimensions off the blueprint into the build is exactly what ONE
+ROOT forbids - a measure tool that shows the number beside the build's own row would be the honest version.
+- FILES: src/viewer/blueprint.js, blueprint.css (new), refplane.js, editor.js (root kids), editor.css, app.js
+  (bpGroup), tools/build.js (manifest), tools/run_gates.js, tools/_blueprint_check.js, tools/_blueprint_fixture.json,
+  tools/_ref_check.js.
+
+## G574 - THE TOWN ON TEXTURE ARRAYS (2026-09-25)
+
+The user: "performance optimization using texture arrays ... handling texture arrays and single material". G566
+merged a 256 m cell's house bags per DISTINCT material and still drew ~2 300 times over Jolene, because a house
+finish is a material each (its paint, its dirt, its weather): 929 stayed distinct. Now every finish (clapboard,
+shingle, trim, ...) is a LAYER of a stack and what made two materials differ rides the vertex as ONE float, the
+SLOT: an index into a float table (RGBA32F, 9 texels a slot) carrying the finish's colour, roughness, metalness,
+normal scale, its two layers and uv transform, the paint and its blend mode, the dirt colour / gain / age, the
+house's own dirt line, punch and noise, and the weather clouds. A cell draws a handful of town meshes: plain / glass
+x side x (casts or not). `src/viewer/house_tarr.js`; `WORLD.premises.hlod.tarr` is the dial (A/B against G566 live,
+a flip rebakes).
+- THE LOOK IS THE HOUSE'S OWN SHADER. The town material's hook is the generator's (shadeHouse + cloudWeather; for the
+  glass shadeGlass) run on the program as it is, then edited: the finish uniforms become globals filled from the
+  slot (tLoad, right above main - GLSL declares before use: the first cut put it in the head and the program did not
+  compile, the town drew only its shadows), the map / roughness / metalness / normal-map chunks sample the arrays,
+  the colour is the slot's, the ridge sag (hSag, a vertex bend in the house frame) is 0 because the merge bakes it
+  into the positions. The dirt line, the punch, the paint blends, the noise, the clouds, the curtains and the lit
+  panes are the very GLSL the houses draw with. The lit panes: the slot holds the finish's lightK base, LAMPS.update
+  sets the one factor (on x kGlass x mute) - `TARR.lit`.
+- WHAT RIDES: classify() - a MeshStandardMaterial whose RAW hook (atmo.js's _atmoHook) is the one shadeHouse /
+  cloudWeather / shadeGlass left (they now record ud.hookHouse / hookCloud / hookGlass and ud.houseU / glassU), opaque,
+  no vertex colours, no emissive, only map / normalMap / roughnessMap sharing one uv transform, decoded. A steel mix,
+  a lot patch, a clone, the flat flag / awning materials stay on G566's merge, unchanged (its signature ignores the
+  new handles). Until the stack holds every layer a bake asked for, those bags go G566's way and the stack's ready
+  signal rebakes.
+- THE ARRAYS: built on the CPU once the images have decoded (splat_ground.js's recipe and its rules: linear bytes,
+  the shader decodes sRGB - an sRGB array upload was GL_INVALID_VALUE on ANGLE/D3D; implicit texture() only, both
+  arrays sampled once, outside any branch). Layers are 512 (1024 sets halved, 256 doubled), rows flipped on the
+  canvas (an array cannot flipY). Colour: diff / paint; normal + rough: the normal's rgb, the rough map's green in
+  alpha. A canvas map (the hangar's baked sheets) is a layer like an image.
+- The town's casters toggle per cell at HOUSE_CAST_FAR from the cell's box (a house's own at its centre, detailTick).
+- TWO THINGS FOUND DEAD, KEPT DEAD (the town reproduces what the game draws): (1) shadeHouse's wanderUV rewrites
+  v*MapUv in the program text, but in r186 onBeforeCompile runs BEFORE the #includes are resolved, so the regex
+  matches nothing - uWander (the courses' wander, G273) and uUvK (the roof tile scale, G329) have never reached the
+  screen; (2) the glass's envMapIntensity 2.3 / the pane's 1.9 (applyFinish): r186 feeds that uniform the SCENE's
+  environmentIntensity when a material has no envMap of its own. Also noted, not changed: the dirt line compares the
+  WORLD y (vHouseY) with uDirtTop in the house frame (g(0,0) + dirtH x 0.55), and the game stands a house's group at
+  its ground height (placeHouse's y = oy): a house whose ground is more than ~1 m above world y 0 has no dirt line at
+  all. A fix is a per-house offset (the slot has room); not done here, it changes the picture.
+- MEASURED, the bench (tools/_tarr.html + tools/tarr_shot.js: 19 buildings - 14 houses, 2 big, a hangar, a tower, a
+  shed - drawn whole then on the stack, SwiftShader 960 x 540, shadows on): 195 bags -> 192 merged into 2 town
+  meshes (3 flat flags / awnings stay), 33 colour + 30 normal/rough layers, 170 slots, 84 MB of arrays with mips,
+  the bake ~1 s; draws (shadow pass included) near 295 -> 8, street 342 -> 10, mid 391 -> 11, far 391 -> 11, dusk
+  342 -> 10; picture mean |diff| (0-255) near 0.46 (0.28 % of pixels over 12: plank and rib edges - the 512 layers
+  and the sRGB decode after the filter), street 0.18, mid 0.09, far 0.02, dusk (lit panes) 0.16.
+  The same run with atmo.js loaded (the game's prototype accessor wrapping every hook): identical numbers - classify
+  reads the raw hook through it.
+- OWED: THE GAME ITSELF, ON A GPU. tools/tarr_game.js rolls Jolene out, drains the premises' queue by hand, drives
+  R.tick and draws the same frame three ways (hlod.bake off / G566 / tarr) with the draw counts and a PNG each. In
+  this session's container (SwiftShader, no GPU) it never got there: the roll-out took ~10 min, then draining 561
+  houses ran at minutes a step and the page died (twice, ~20 min in) or stalled. So no in-game draw count and no
+  frame time yet: run `node tools/tarr_game.js --gl gpu` (or flip WORLD.premises.hlod.tarr in the F8 console over
+  Metlakatla and read renderer.info.render.calls + WORLD.premises.stats.tarr*), and met_perf.js for the frame.
+- GATE TARR (tools/_tarr_check.js, core, ~2 s): the edits on r186's own program after the generator's real hooks
+  (nothing missed, no finish uniform left a uniform, each filled by a tLoad placed after it, one sample per array
+  outside any branch, the hooks' order map -> clouds -> paint/dirt), classify by identity (a steel mix, a
+  transparent bag, a clone refused), the merge (world positions with the sag off to 0.1 mm, one slot per finish -
+  the same finish on two houses one slot, another dirt line another), the host's wiring (TARR above LAMPS - G570's
+  TDZ - the lamps' factor, the sig carries the dials, build.js order). 1r red on the head-placed tLoad.
+
+## G575 - THE GROUND'S CEILING: the island's ground skip, bit-identical (2026-09-25)
+
+G572's lever 1, landed differently than measured. The clearance cone needs a SLOPE bound and the island has none that
+is true: its raster steps by up to 1.99 m where a coarse leaf meets a fine one (968 240 leaf-edge probes). So the
+solver's sibling skip reads a CEILING: once a frame, `world.groundMaxRect(ax, az, bx, bz)` over the nodes' footprint
+grown by 0.5 m + twice the fastest node's travel; a node inside that box whose bottom is above the ceiling skips its
+ground sample (exactly the `pen <= 0 -> continue` the sample would take), a node that leaves the box samples. True by
+construction: the raster's highest vertex over the cells touched (19_terrain_codec `maxRect`; the coast's min only
+lowers), the analytic pad blend / carve / meadows (convex or lowering), the premises' modifiers (27_premises
+`hMaxRect`: every one blends toward a target with w in [0, 1] - max of the targets + the raises; each modifier's
+`bound()` says its target's highest over a rectangle). `groundMaxRect.of` is the terrainH it bounds: a re-wrapped
+world (HOTHIGH, pilot_trace --slope) samples as before; FLYDIY_EXACT_GROUND=1 turns it off with the cone. GATE GE
+holds it (the ceiling over 2.76 M points / 1 077 rectangles, a lying ceiling caught, a 30 s taxi out of HOME
+identical both ways every frame). Paired vs G572, the same FNV hash: stock taxi -29 %, metal Cessna -40 %, birdman
+-31 %, thermal day -26 %, floats -17 %. futureDesigns/PHYSICS-PERF-2026-09-24.md G575 (and the substep drivers per
+build: 14 archetypes and the user's three metal Cessnas fly at the 200 cap on the wing box's stiffness; the
+tailwheel's damper sets the stearman, chinook, savannah, beaver, jodel, radial and the birdman; the float keel the
+floatplane).
+
+## G576 - THE STILL AIRFRAME, ONE DRAW PER MATERIAL (2026-09-25)
+
+The user: "merge by material the meshes that are STATIC relative to the airframe, inside the build ... not by guessing
+afterwards". Done in `buildModel` (app.js `mergeStill`), right after the rigs are bound, on the cage path. The build
+knows each bucket's facts, so none of them is guessed. A bucket whose rig binds no vertex and turns no hinge is the
+one poseModel already skips (`if (!r.hb && !r.bind.bound.length) continue`), so it never leaves the model frame.
+The flown buckets of one pooled AEROSKIN material (AERO_POOL keys on LOOK, so nine plywood sections are nine meshes
+on one material) are concatenated into one mesh in that frame. Positions, normals, uv, aStruct and aCav (baked
+before the merge) are the members' own bytes, the index is rebased, and the merged mesh sits where the first
+member stood in the draw list.
+NOT TAKEN, each for a stated reason (`still.skip`): a bucket the flex or a hinge writes (the wing, the struts' wing
+ends); every PART, which is not a bucket at all (gear rigs, surfaces and their hinges, rods, controls, gauges, the
+engine, the propeller and spinner); a lamp (the cockpit dims it by mesh); the crew (the cockpit view hides the pilot
+by bucket: `char` / `dummy1`); anything see-through or carrying a glass companion; and any mesh the build posed,
+flagged, named or gave its own depth material. The livery's craft frame holds: uCraftInv reads the group's matrix,
+which the merged mesh shares at identity. The see-inside is a material question (and the editor's cage), so a merge
+by material identity cannot split it.
+G564's crumb rule keeps its per-bucket answer: crumbs (under 15 cm) merge only with crumbs, the merged crumb carries
+`userData.crumbR` (its biggest member), and the roll-out reads it. Rebuilt with the model: every garage edit
+rebuilds both. `window.FLYDIY_CRAFT_MERGE = 0` before a build is the A/B dial. `model.rigs` drops the merged
+buckets' rigs but always keeps rigs[0], whose station table sparDeltas reads.
+
+MEASURED (cloud box, SwiftShader: COUNTS only, no ms; against 78fd4b1, before G570-G575 landed - re-proven on the rebased tree below). Default build (the boot's garage aeroplane): 89 buckets + 63
+parts. 53 buckets are still candidates, and they hold only 42 distinct materials: 14 buckets -> 3 meshes (9 fuselage
+sections on one plywood, joint + fire seal on one bare alu, bulkhead + wood frame + firewall on one spruce).
+- the flown model: 258 -> 247 meshes (142 materials, unchanged)
+- `renderBufferDirect` calls under `craft` a frame, the flown model shown in the shed (cage hidden), controls fixed,
+  same 3 frames: main 493 -> 471, shadow 1398 -> 1332, total 1891 -> 1803 (-88, -4.7 %).
+- out in the world after the roll-out (?premises=none on both: measured before G570 fixed the PREM_NEAR throw), ONE scene render
+  (renderer.render(worldScene, camera), called by hand: the render loop never resumes after the roll-out in this box),
+  craft only: the model 254 -> 243 meshes, casters after G564 115 -> 104, main 242 -> 231, shadow 230 -> 208, total
+  472 -> 439 (-33, -7 %). The game's own frame renders the scene more than once (the pipeline's passes, the probes),
+  so the saving scales with it; the reference GPU's ~850 + shadows a frame is that multiple.
+WHY NOT MORE, honestly: by material IDENTITY the default build's still airframe offers 11 meshes. The rest is (a)
+the parts: 165 meshes, and inside every part each mesh is already its own material (probed: 63 parts, 0 shared); and
+(b) buckets whose materials differ only by TINT (the engine unit's 27 castAlu greys, the interior's plastic / trim /
+chrome colours). (b) cannot become one material by vertex colour without a shader change: AEROSKIN mixes the decals
+over diffuseColor inside map_fragment, BEFORE three's color_fragment would multiply vColor, so a vertex tint would
+tint the livery too. The tint would have to enter before the decal mix (a USE_COLOR-style attribute read in
+AERO_ALBEDO_FS), at the cost of a program variant per merged family. That is the next lever, and it is not a merge
+by material.
+
+PROOF, vertex for vertex (a scratch rig, not a gate: HEAD and this build side by side in two pages, the same bend written into
+sim.p - every WF/WR node up 3 % of |z|^1.5 and aft 1 % |z|, the engine nodes down 2 cm, the axles up 3 cm - Flex x4,
+controls held flap 1 / da 0.5 / de -0.3 / dr 0.4 / thr 0.8 / brake 0.5 / trim 0.3 through the input's own door, 260
+frames for the linkage): 87 of 89 buckets and all 169 part meshes are BIT-IDENTICAL in world-space position, normal,
+uv, aStruct, aCav, triangles, material and flags. That includes the wing fabric (1.30 m of tip travel at x4), the
+struts, the wing lamps, the surfaces, the gauges and controls, and the gear. The two that differ are the fin
+beacon's lens and cup (up to 1.2 cm, normals, cavity). They are lamps, never merged, and HEAD against HEAD differs
+the same way (the beacon's snapshot is not deterministic run to run: a pre-existing fact, not this chantier's).
+
+GATE SKIN (G576 block): mergeStill lifted from app.js and run on the real vendor three over a synthetic flown group:
+5 still buckets -> 2 meshes (A1-A3 on their material, the crumbs apart with crumbR). The flex, the hinge, a
+different attribute set, the lamps, the crew, the glass, a posed mesh and a part each stay their own mesh. The
+merged bytes are the members' own, the flags and frame are kept, the draw-list place is kept, the dial works. Then
+four source anchors: the call site after the rigs, poseModel's skip (the merge's premise), rigs[0] kept, the
+roll-out reading crumbR. Red on a copy that drops the flex exclusion.
+
+GATES: SKIN, GFX, MEDIA, BUILD, UISMOKE, PARKED, PANEL, PILOT, TAKEOFF green (geometry only: the solver, the pilot and
+the physics are untouched). SKINMAT is RED AT HEAD TOO, identically ("role rows for sections no build emits -
+taperPanel, drawnPane, reveal, shoulder, doorPanel": the AEROSKIN role table against the cage's sections, nothing
+here reads it), and so is not this landing's.
+PICTURES (shed, flown model shown, cage hidden, the same fixed controls; HEAD | G576 | diff): quarter, side, front
+quarter, gear, top, cockpit (panel, instruments), controls (stick, switches, pilot's legs), see-inside (cage and
+flown): the cockpit, controls and quarter views agree to 2/255; every other difference is the propeller blade and
+its shadow, which turn with time (the two pages captured at different frame counts).
+OWED: pictures in the air (prop spinning, chase, livery in daylight) and a counted game FRAME in flight: in this box the
+render loop stays held after the roll-out screen ("the last pieces"), so neither could be taken.
+
+## G577 - SKINMAT AND COWL GREEN AGAIN: two gates red for reasons that were not the aeroplane's (2026-09-25)
+
+**SKINMAT** ("role rows for sections no build emits - taperPanel, drawnPane, reveal, shoulder, doorPanel", 5 against
+an allowance of 4). All five ARE emitted by the editor's build; the gate built its coverage meshes from a hand copy of
+cageSheet's pass list that stopped at cageInterior, so the shoulder (G325), the door panel riding it (off by default)
+and the drawn windows' knife (G245) never ran, and its 'taper panels' shape asked for panels on the stock boom with the
+interior off (they are laid on the ROD's truss, which cageInterior draws). The gate now builds through `cageSheet`
+itself (level 2), with shapes for the rod taper panels, the door panel and drawn windows: 37 sections, zero stale rows,
+and the allowance is 0 (negative-verified: a probe row in AERO_ROLE fails it).
+
+**COWL** ("the original tool is available to compare against") failed on every checkout but the user's machine: it
+read `C:/Users/denis/Downloads/cowl-generator-v19 (1).html`, which the repo never carried. The original is now looked
+for at `--orig <file>`, `COWL_ORIG`, `tools/_cowl_orig.html`, then the Downloads path; none on disk is a SKIP of the
+port-faithfulness section, not a FAIL. The user supplied the original the same day: it is committed byte for byte as
+`tools/_cowl_orig.html` (the _cage_ref_*.obj way), and the comparison runs on every checkout again - 504 points,
+max deviation 0, 11 presets, 104 original parameters all present (120 now).
+
+**TAKEOFF** ("crosswind limit: measured inside a minute of wall clock", 67 s with four gates on four cores, 46.9 s
+alone). The minute bounds the probe's WORK - the page runs the same probe after the circuit lands - and wall clock
+also measured the machine. It now reads the process's own CPU time (the probe is synchronous), bound unchanged at
+60 s, the wall printed beside it: 40.6 s CPU / 40.8 s wall with the battery running alongside.
+
+**THE RUNNER LOST OUTPUT (ENGINE, a core run on Linux).** ENGINE came back as its first line with exit 0, so no
+verdict line and a FAIL; alone it passed. Every gate ends with `process.exit()`, and on Linux Node writes a PIPE
+asynchronously: what is still queued at exit is dropped. Reproduced 16 runs in 40 (8 in parallel on 4 cores), cut at
+~9.5 KB; through a file, 0 in 120. `runJob` now hands each child a temporary FILE for stdout and stderr (written
+synchronously on every platform; Windows already wrote pipes synchronously, which is why it never showed there),
+reads them on close and deletes them. Any gate could have lost its tail this way; ENGINE's 13 KB was the one that did.
+
+**THE SCAN for machine paths** (`C:/Users`, `D:/Dev`, `Downloads`, `/Users/`, `/home/`) over tools/, src/: src/ is
+clean; nothing else a battery gate needs. Left as they are, all authoring tools or opt-in modes whose repo-relative
+path is tried FIRST and `D:/Dev/DeGaRoR.github.io` is a worktree's fallback onto the main checkout's gitignored data:
+splat_tex_prep.js, pavement_tex_prep.js, coast_rocks_tune.py (ROOTS), splat_tex_import.py, coast_rocks_prep.py,
+met_trace.py, met_fit.py, metlakatla_author.py, and _splat_check.js --gpu. pavement_tex_import.py's `--out` DEFAULTS to
+the D:/Dev path (overridable). The *_tex_import.py `--src` default `~/Downloads` is per-user, not a fixed path.
+
+**LANDED RED, NOT THIS ENTRY'S** (the user: "if the reds are not yours, you may land"). This entry changes six files
+(the four gates' scripts, the runner, tools/_cowl_orig.html) and nothing the game draws or flies; a rebuild of the
+merged tree is byte-identical to master's built files but version.json's date. Measured on the merged trees: `--all`
+over master 4e2983c/aa1846b - every core gate green, three full-tier reds that HANDOVER already carried as master's:
+PILOTMATRIX (9 regressed: c172 sink 0.95 -> 2.04, cub HOME-A3 1.49 -> 3.95 - G477's "red on master itself"),
+ARCHETYPES (Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler give up - G454/G457), SEAPLANE (the
+crosswind water run stays wet and swings 180 deg - G474). Core over 8856dc0: one red, MEDIA - index.html 8.87 MiB
+against its 8.8 MiB budget, and 8.88 MiB on a clean master worktree at 843629a (G573's blueprint grew the artifact;
+8.89 MiB at 3b26d07 after G576): the budget or the payload is its owners' call. Over 843629a the merged tree ran SKINMAT
+COWL ENGINE TAKEOFF TARR BLUEPRINT HOUSE VILLAGE PREMISES WORLD UISMOKE BUILD PARKED GEN green, MEDIA the one red.
+
+## G578 - THE WARM COMPILE: THE FIRST FRAME LINKS NOTHING, AND NO PROGRAM IS LINKED TWICE FOR NOTHING (2026-09-25)
 
 The user: the Jolene roll-out's compile step takes 16-26 s of a 32-44 s screen WARM (cold 32 s) - "a warm boot should
 compile ~nothing": find what gets a different source or key each boot, or is made fresh each boot. Measured by COUNTS
@@ -59234,16 +59499,16 @@ new on the first frame, and the old warm-up is the CONTROL that must miss (8); t
 sources; no cache key in src/viewer reads a uuid, an id, a clock or a counter; the rock map links each program once
 and a recentre none (red on the old code: 10 links / 4 distinct, 2 on the recentre); a kept PMREMGenerator bakes
 again on no link; the three passes publish warmList() and the step compiles them in the lit, fogless scene.
-futureDesigns/PERF-2026-09-23.md G573.
+futureDesigns/PERF-2026-09-23.md G578.
 
-## G574 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
+## G579 - THE COVER RING'S ROCKS, DEBRIS AND SHRUBS ARE BATCHES: 950 -> 170 draws a frame at the stand (2026-09-25)
 
 The user: at the airfield stand the cover ring issues ~1 600 draws a frame counting shadows; cut them without a visible
 change. Counted by wrapping renderer.renderBufferDirect (the shadow pass flagged) over 6 frames, by `coverKind`, at
 the roll-out stand (-154, 31.6, 712), master aa1846bd against this build (the scratchpad rig drives headless Chrome
 with the GL's clears, uploads and draws stubbed - three's draw path is JavaScript, the counts are its own):
 
-| kind | master (main + shadow) | G574 |
+| kind | master (main + shadow) | G579 |
 |---|---|---|
 | rock | 142 + 172 | 9 + 7 |
 | debris | 196 + 116 | 28 + 10 |
@@ -59285,5 +59550,5 @@ with the GL's clears, uploads and draws stubbed - three's draw path is JavaScrip
   the instanced path is in a batch with its geometry, matrix, colour and threshold, the same ones within reach after
   the eye moves, a draw per batch and pass at most (rock 81 -> 5, debris 33 -> 3, shrub 96 -> 8 there), no caster
   under 0.5 m, no instance left over after the eye leaves and returns, the batched programs read the colour's alpha
-  and the batched leaf its indirect index. GATE MEDIA's budget 8.8 -> 8.9 MiB (code: +7 KB). futureDesigns/
-  PERF-2026-09-23.md G574.
+  and the batched leaf its indirect index. GATE MEDIA's budget 8.8 -> 9.0 MiB (master was already at 8.887; these two entries add ~20 KB of code, no data). futureDesigns/
+  PERF-2026-09-23.md G579.

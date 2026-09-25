@@ -949,7 +949,7 @@ var CLOUDS = (function () {
   // hemiUnder(T): the hemisphere's gain under a cloud of transmittance T at the eye - the diffuse light rises as the sun is lost
   // (an overcast day's diffuse is ~1.7x a clear day's), a dial
   const hemiUnder = T => 1 + S.hemiUnderCloud * (1 - Math.max(0, Math.min(1, T)));
-  // warmList() (G570): the full-screen passes' programs (the noise bake, the sky fit, the shadow map, the march) for the
+  // warmList() (G578): the full-screen passes' programs (the noise bake, the sky fit, the shadow map, the march) for the
   // roll-out's compile step (shader_warm.js); all draw into targets of their own. The composite is in the world scene.
   function warmList() { if (!ready || !active()) return []; skyMats(); return [bakeMat, skyMat, shadowMat, marchMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
   const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
