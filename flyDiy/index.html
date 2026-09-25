@@ -11128,6 +11128,31 @@ function sampler(root, header) {
   };
 }
 
+// THE GROUND'S CEILING OVER A RECTANGLE (PHYSICS PERF, 2026-09-24) — an upper
+// bound of sampler() over [ax, bx] x [az, bz], and an exact one up to a cell:
+// a bilinear patch never exceeds its highest corner, so the ceiling is the
+// highest vertex of every leaf cell the rectangle touches (one cell of slack
+// each side for the sampler's own rounding at a cell edge). The mesh is NOT
+// continuous - a coarse leaf beside a fine one steps by up to 2 m along their
+// edge on Jolene - which is why the solver's ground skip reads a ceiling and
+// not a slope bound. Outside the root the sampler extrapolates: Infinity.
+function maxRect(root, header, ax, az, bx, bz) {
+  const { x0, z0 } = header.bounds, S = header.side, P = header.patch, N = P + 1;
+  if (!(ax >= x0 && az >= z0 && bx <= x0 + S && bz <= z0 + S)) return Infinity;
+  let m = -Infinity;
+  const cl = v => (v < 0 ? 0 : v > P - 1 ? P - 1 : v);
+  (function walk(n) {
+    const s = S / (1 << n.d), nx = x0 + n.ix * s, nz = z0 + n.iz * s;
+    if (bx < nx || ax > nx + s || bz < nz || az > nz + s) return;
+    if (n.kids) { for (let k = 0; k < 4; k++) walk(n.kids[k]); return; }
+    const c = s / P, h = n.h;
+    const i0 = cl(Math.floor((ax - nx) / c) - 1), i1 = cl(Math.floor((bx - nx) / c) + 1) + 1;
+    const j0 = cl(Math.floor((az - nz) / c) - 1), j1 = cl(Math.floor((bz - nz) / c) + 1) + 1;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const v = h[j * N + i]; if (v > m) m = v; }
+  })(root);
+  return m;
+}
+
 // ===========================================================================
 // ROUND TRIP — the seed of GATE TERRAIN. Encode, decode, and compare the
 // decoded sampler against the ORIGINAL tree at deterministic probe points.
@@ -11155,7 +11180,7 @@ function roundTrip(root, meta, probes = 4096) {
   return { worst, step, ok: worst <= step * 1.5, enc };
 }
 
-return { encode, decode, decodeRaw, sampler, roundTrip, MAGIC };
+return { encode, decode, decodeRaw, sampler, maxRect, roundTrip, MAGIC };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = TERRAIN_CODEC;
 // ============================================================
@@ -11530,6 +11555,28 @@ function makeWorld(seed, opts) {
   if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
 
   // stage 0-4 terrain: the world as the generator makes it
+  // THE GROUND'S CEILING OVER A RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH at
+  // every point of [ax, bx] x [az, bz] - the solver's ground skip (30_solver.js) reads it once a frame
+  // over the aeroplane's footprint. The island's raster is not continuous (a coarse leaf beside a
+  // fine one steps by up to 2 m), so no SLOPE bound is true there; a ceiling is, stage by stage:
+  // the mesh's highest vertex (19_terrain_codec maxRect; the coast's min only lowers it), the
+  // analytic pad's level where its blend applies, the carve (it only lowers: a depth >= 0, then a
+  // min), a meadow's level (a convex blend), the island's settlements have no road delta, and the
+  // premises' modifiers (27_premises hMaxRect: every one a blend toward a target). Infinity where
+  // it cannot say (the analytic world: its cone stands on slopeMax instead).
+  function groundMaxRect(ax, az, bx, bz) {
+    if (!ISL || !ISL.hMaxRect) return Infinity;
+    let B = ISL.hMaxRect(ax, az, bx, bz);
+    if (ISL_CUT) B = Math.max(B, PADH);
+    for (const m of meadows) {
+      const dx = Math.max(ax - m.x, 0, m.x - bx), dz = Math.max(az - m.z, 0, m.z - bz);
+      if (dx * dx + dz * dz < m.r * m.r) B = Math.max(B, Number.isFinite(m.h) ? m.h : Infinity);
+    }
+    return PM && PM.hMaxRect ? PM.hMaxRect(ax, az, bx, bz, B) : B;
+  }
+  // the terrainH it bounds: a world re-wrapped with another ground (HOTHIGH's tilt, pilot_trace --slope)
+  // keeps this function but not its ground, and the solver reads it only where the two still agree
+  groundMaxRect.of = terrainH;
   function baseH(x, z) {
     // strip grading must never fill a carved river bed (same rule as
     // roads) — fade it out by carve depth, sampled in the tV2 call
@@ -12142,7 +12189,7 @@ function makeWorld(seed, opts) {
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
-    terrainH, waterH, surface, SURFACE,
+    terrainH, waterH, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
@@ -15007,7 +15054,16 @@ function makeModifier(m, y0) {
     // the two roundings differ by 1e-16): past the falloff by that margin the weight is 0 on either
     // reading. Everything between is sdPoly's own arithmetic, so the height is the same bits.
     const n = poly.length, fall2 = fall * fall * (1 + 1e-9);
-    return { id: m.id, kind: m.kind, bbox, apply: (x, z, h) => {
+    // THE CEILING (PHYSICS PERF, the solver's ground skip): apply() returns h + (T - h) w with w in
+    // [0, 1] - never above max(h, T). bound() answers T's highest over a rectangle (local frame):
+    // { t } for a level or a plane (a plane's highest is at a corner), { add } for a raise (T = h + dh).
+    const bound = (x0, z0, x1, z1) => {
+      if (m.kind === 'raise') return { t: -Infinity, add: Math.max(0, +m.dh || 0) };
+      if (m.kind === 'flatten') return { t: target(0, 0, 0), add: 0 };
+      const a0 = Math.max(x0, bbox.x0), a1 = Math.min(x1, bbox.x1), b0 = Math.max(z0, bbox.z0), b1 = Math.min(z1, bbox.z1);
+      return { t: Math.max(target(a0, b0), target(a1, b0), target(a0, b1), target(a1, b1)), add: 0 };
+    };
+    return { id: m.id, kind: m.kind, bbox, bound, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       let w;
       if (inPoly(poly, x, z)) w = 1;
@@ -15032,7 +15088,8 @@ function makeModifier(m, y0) {
     const corners = [[R.x0 - mF, R.z0 - mB], [R.x1 + mF, R.z0 - mB], [R.x1 + mF, R.z1 + mF], [R.x0 - mF, R.z1 + mF]].map(q => [c[0] + q[0] * cy + q[1] * sy, c[1] - q[0] * sy + q[1] * cy]);
     const bbox = polyBBox(corners);
     const level = +m.level;
-    return { id: m.id, kind: 'shelf', bbox, apply: (x, z, h) => {
+    // (the ceiling: level + (h - level) sm, sm in [0, 1] - between h and the level)
+    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const dx = x - c[0], dz = z - c[1];
       const lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
@@ -15077,7 +15134,18 @@ function makeModifier(m, y0) {
         const k = ck(ci, cj); let l = cells.get(k); if (!l) { l = []; cells.set(k, l); } l.push(i);
       }
     }
-    return { id: m.id, kind: 'grade', bbox, apply: (x, z, h) => {
+    // (the ceiling: h + (y + ty - h) w, w in [0, 1], ty between the ends of a segment in the point's
+    // cell - so the highest end of any segment filed in a cell the rectangle touches, one cell of slack)
+    const bound = (x0, z0, x1, z1) => {
+      x0 = Math.max(x0, bbox.x0); x1 = Math.min(x1, bbox.x1); z0 = Math.max(z0, bbox.z0); z1 = Math.min(z1, bbox.z1);
+      let t = -Infinity;
+      for (let ci = cx(x0) - 1, c1 = cx(x1) + 1; ci <= c1; ci++) for (let cj = cz(z0) - 1, d1 = cz(z1) + 1; cj <= d1; cj++) {
+        const list = cells.get(ck(ci, cj)); if (!list) continue;
+        for (let q = 0; q < list.length; q++) { const a = pts[list[q]], b = pts[list[q] + 1]; t = Math.max(t, a[2] || 0, b[2] || 0); }
+      }
+      return { t: t === -Infinity ? t : (abs ? 0 : y0) + t, add: 0 };
+    };
+    return { id: m.id, kind: 'grade', bbox, bound, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
       const list = cells.get(ck(cx(x), cz(z)));
       if (!list) return h;
@@ -15119,6 +15187,11 @@ function SpatialIndex(cell) {
       }
     },
     query(x, z) { return cells.get(key(Math.floor(x / C), Math.floor(z / C))) || null; },
+    // every item filed in a cell the rectangle touches (an item in two cells comes twice)
+    rect(x0, z0, x1, z1, fn) {
+      const i0 = Math.floor(x0 / C), i1 = Math.floor(x1 / C), j0 = Math.floor(z0 / C), j1 = Math.floor(z1 / C);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const a = cells.get(key(i, j)); if (a) for (let n = 0; n < a.length; n++) fn(a[n]); }
+    },
     size: () => cells.size,
   };
 }
@@ -16042,6 +16115,28 @@ function compose(rec0, world, opts) {
       for (let i = 0; i < cell.length; i++) h = cell[i].apply(L[0], L[1], h);
       return h;
     },
+    // THE CEILING OVER A WORLD RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH(x, z, h)
+    // for every point of it, given B >= h there. Each modifier blends h toward its target with a
+    // weight in [0, 1] (a raise adds at most dh), whatever the order: max(B, every target) + the
+    // raises. The rectangle's local box (the frame is rotated) holds every point's local cell.
+    hMaxRect(ax, az, bx, bz, B) {
+      if (!mods.length) return B;
+      const p1 = F.toLocal(ax, az), p2 = F.toLocal(bx, az), p3 = F.toLocal(ax, bz), p4 = F.toLocal(bx, bz);
+      const lx0 = Math.min(p1[0], p2[0], p3[0], p4[0]) - 0.01, lx1 = Math.max(p1[0], p2[0], p3[0], p4[0]) + 0.01;
+      const lz0 = Math.min(p1[1], p2[1], p3[1], p4[1]) - 0.01, lz1 = Math.max(p1[1], p2[1], p3[1], p4[1]) + 0.01;
+      let T = B, add = 0;
+      const seen = new Set();
+      index.rect(lx0, lz0, lx1, lz1, M => {
+        if (seen.has(M)) return; seen.add(M);
+        const b = M.bbox;
+        if (lx1 < b.x0 || lx0 > b.x1 || lz1 < b.z0 || lz0 > b.z1) return;
+        if (!M.bound) { T = Infinity; return; }          // a modifier that cannot say: no ceiling
+        const r = M.bound(lx0, lz0, lx1, lz1);
+        if (r.t > T) T = r.t;
+        add += r.add;
+      });
+      return T + add;
+    },
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),
     // the composed ground in the PREMISES frame
     localH: (lx, lz) => { const w = F.toWorld(lx, lz); return O.terrainAt(w[0], w[1]); },
@@ -16728,6 +16823,8 @@ var ISLAND_GEN = (function () {
       geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, lakeAt, seaFloor: coast ? seaFloor : null, WC,
+      // the ground's ceiling over a rectangle (the codec's maxRect; the coast's min only lowers it)
+      hMaxRect: (ax, az, bx, bz) => TERRAIN_CODEC.maxRect(root, H, ax, az, bx, bz),
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
       coverU8: cover, ndvi: src.grid.ndvi || null, lake: src.grid.lake || null, ttype: src.grid.ttype || null, lakes: src.grid.lakes || null,
@@ -17721,6 +17818,15 @@ function makeSim(def, world) {
   let coneOn = !(typeof process !== 'undefined' && process.env && process.env.FLYDIY_EXACT_GROUND === '1');
   let coneLive = false, coneS2 = 0;
   const gcx = new Float64Array(n), gcz = new Float64Array(n), gcy = new Float64Array(n);
+  // THE GROUND'S CEILING (PHYSICS PERF 2026-09-24) - the cone's sibling for a world that declares no
+  // slope bound: the island's raster steps by up to 2 m where a coarse leaf meets a fine one, so no
+  // slope bound is true there, but a CEILING is (world.groundMaxRect: the mesh's highest vertex, every
+  // premises target over the rectangle). Once a frame, over the nodes' footprint grown by twice the
+  // fastest node's travel and half a metre: a node still inside that box whose bottom is above the
+  // ceiling cannot touch the ground this substep - EXACTLY the `pen <= 0 -> continue` its sample would
+  // take, so the trajectory is the same bits. A node that leaves the box samples as before. Measured on
+  // the Jolene roll-out: ~45 % of the solver was this pass.
+  let hbLive = false, hbH = 0, hbX0 = 0, hbX1 = 0, hbZ0 = 0, hbZ1 = 0;
   out.gndSampled = 0; out.gndSkipped = 0;
   function setGroundCone(on) { coneOn = !!on; }
   // THE FLOATS (H1, G382): a build on floats carries parts.floats — two
@@ -18658,7 +18764,9 @@ function makeSim(def, world) {
         const c = p[i3+1] - r[i] - gcy[i] - GROUND_CONE_EPS;
         if (c > 0 && c * c > coneS2 * (dx * dx + dz * dz)) { out.gndSkipped++; continue; }
         gy = gH(p[i3], p[i3+2]); gcx[i] = p[i3]; gcz[i] = p[i3+2]; gcy[i] = gy; out.gndSampled++;
-      } else gy = gH ? gH(p[i3], p[i3+2]) : 0;
+      } else if (hbLive && p[i3+1] - r[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
+        out.gndSkipped++; continue;
+      } else { gy = gH ? gH(p[i3], p[i3+2]) : 0; if (hbLive) out.gndSampled++; }
       const pen = gy + r[i] - p[i3+1];
       if (pen <= 0) continue;
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
@@ -18792,6 +18900,21 @@ function makeSim(def, world) {
       coneS2 = S * S;
       const gH = world.terrainH;
       for (let i = 0; i < n; i++) { gcx[i] = p[i*3]; gcz[i] = p[i*3+2]; gcy[i] = gH(p[i*3], p[i*3+2]); }
+    }
+    // the ceiling (above): only where the world's ground is the one it bounds
+    const GM = coneOn && !coneLive && world ? world.groundMaxRect : null;
+    hbLive = false;
+    if (GM && GM.of === world.terrainH) {
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, v2 = 0;
+      for (let i = 0; i < n; i++) {
+        const x = p[i*3], z = p[i*3+2];
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z;
+        const s2 = v[i*3]*v[i*3] + v[i*3+2]*v[i*3+2]; if (s2 > v2) v2 = s2;
+      }
+      const mg = 0.5 + 2 * Math.sqrt(v2) * dtFrame;
+      hbX0 = x0 - mg; hbX1 = x1 + mg; hbZ0 = z0 - mg; hbZ1 = z1 + mg;
+      const H = GM(hbX0, hbZ0, hbX1, hbZ1);
+      if (Number.isFinite(H)) { hbH = H + 1e-6; hbLive = true; }
     }
     obstFrame();
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
@@ -39325,7 +39448,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ade7b65e86f1';window.FLYDIY_BUILD='9deeab45b8ce'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5b74f5dc5a6d';window.FLYDIY_BUILD='d3e26fde553d'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -141016,7 +141139,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
 <script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
 <script type="text/x-flydiy" src="tools/_house_kit.js?v=5d5c479e"></script>
-<script type="text/x-flydiy" src="tools/_house_gen.js?v=ec32f923"></script>
+<script type="text/x-flydiy" src="tools/_house_gen.js?v=5b7370d4"></script>
 <script type="text/x-flydiy" src="tools/_big_gen.js?v=8670619d"></script>
 <script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
 <script type="text/x-flydiy" src="tools/_marine_gen.js?v=7e5624cd"></script>
@@ -141033,7 +141156,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=f80b94dd"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=1a9cffb9"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=a2698c61"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=e5f64ca9"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=8839219c"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=efdc085f"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=09f00685"></script>
 <script type="text/x-flydiy">

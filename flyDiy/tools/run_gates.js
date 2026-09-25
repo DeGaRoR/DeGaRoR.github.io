@@ -302,6 +302,10 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
+  // THE TOWN ON TEXTURE ARRAYS (G574): house_tarr.js's shader edits on r186's own program after the house
+  // generator's real hooks, the classify by hook identity, the merge (world, the sag baked, one slot a finish), the
+  // host's wiring (~2 s)
+  { id: 'TARR', file: '_tarr_check.js', tier: 'core' },
   // THE PARKED AEROPLANES (G411): builds as props, headless on a synthetic
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs
@@ -455,7 +459,7 @@ function runJob(job) {
   return new Promise(resolve => {
     const t0 = Date.now();
     const timeoutMs = job.gate.timeout || 1800_000;
-    // THE CHILD WRITES TO FILES, NOT PIPES (G574): on Linux Node writes a
+    // THE CHILD WRITES TO FILES, NOT PIPES (G576): on Linux Node writes a
     // pipe asynchronously, so a gate that ends with process.exit() loses
     // whatever is still queued - ENGINE came back as its first line and exit
     // 0 (16 runs in 40 at 8 in parallel, cut at ~9.5 KB; 0 in 120 through a

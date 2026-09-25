@@ -370,6 +370,28 @@ function makeWorld(seed, opts) {
   if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
 
   // stage 0-4 terrain: the world as the generator makes it
+  // THE GROUND'S CEILING OVER A RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH at
+  // every point of [ax, bx] x [az, bz] - the solver's ground skip (30_solver.js) reads it once a frame
+  // over the aeroplane's footprint. The island's raster is not continuous (a coarse leaf beside a
+  // fine one steps by up to 2 m), so no SLOPE bound is true there; a ceiling is, stage by stage:
+  // the mesh's highest vertex (19_terrain_codec maxRect; the coast's min only lowers it), the
+  // analytic pad's level where its blend applies, the carve (it only lowers: a depth >= 0, then a
+  // min), a meadow's level (a convex blend), the island's settlements have no road delta, and the
+  // premises' modifiers (27_premises hMaxRect: every one a blend toward a target). Infinity where
+  // it cannot say (the analytic world: its cone stands on slopeMax instead).
+  function groundMaxRect(ax, az, bx, bz) {
+    if (!ISL || !ISL.hMaxRect) return Infinity;
+    let B = ISL.hMaxRect(ax, az, bx, bz);
+    if (ISL_CUT) B = Math.max(B, PADH);
+    for (const m of meadows) {
+      const dx = Math.max(ax - m.x, 0, m.x - bx), dz = Math.max(az - m.z, 0, m.z - bz);
+      if (dx * dx + dz * dz < m.r * m.r) B = Math.max(B, Number.isFinite(m.h) ? m.h : Infinity);
+    }
+    return PM && PM.hMaxRect ? PM.hMaxRect(ax, az, bx, bz, B) : B;
+  }
+  // the terrainH it bounds: a world re-wrapped with another ground (HOTHIGH's tilt, pilot_trace --slope)
+  // keeps this function but not its ground, and the solver reads it only where the two still agree
+  groundMaxRect.of = terrainH;
   function baseH(x, z) {
     // strip grading must never fill a carved river bed (same rule as
     // roads) — fade it out by carve depth, sampled in the tV2 call
@@ -982,7 +1004,7 @@ function makeWorld(seed, opts) {
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
-    terrainH, waterH, surface, SURFACE,
+    terrainH, waterH, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,

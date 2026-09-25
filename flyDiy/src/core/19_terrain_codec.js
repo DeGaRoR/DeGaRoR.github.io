@@ -222,6 +222,31 @@ function sampler(root, header) {
   };
 }
 
+// THE GROUND'S CEILING OVER A RECTANGLE (PHYSICS PERF, 2026-09-24) — an upper
+// bound of sampler() over [ax, bx] x [az, bz], and an exact one up to a cell:
+// a bilinear patch never exceeds its highest corner, so the ceiling is the
+// highest vertex of every leaf cell the rectangle touches (one cell of slack
+// each side for the sampler's own rounding at a cell edge). The mesh is NOT
+// continuous - a coarse leaf beside a fine one steps by up to 2 m along their
+// edge on Jolene - which is why the solver's ground skip reads a ceiling and
+// not a slope bound. Outside the root the sampler extrapolates: Infinity.
+function maxRect(root, header, ax, az, bx, bz) {
+  const { x0, z0 } = header.bounds, S = header.side, P = header.patch, N = P + 1;
+  if (!(ax >= x0 && az >= z0 && bx <= x0 + S && bz <= z0 + S)) return Infinity;
+  let m = -Infinity;
+  const cl = v => (v < 0 ? 0 : v > P - 1 ? P - 1 : v);
+  (function walk(n) {
+    const s = S / (1 << n.d), nx = x0 + n.ix * s, nz = z0 + n.iz * s;
+    if (bx < nx || ax > nx + s || bz < nz || az > nz + s) return;
+    if (n.kids) { for (let k = 0; k < 4; k++) walk(n.kids[k]); return; }
+    const c = s / P, h = n.h;
+    const i0 = cl(Math.floor((ax - nx) / c) - 1), i1 = cl(Math.floor((bx - nx) / c) + 1) + 1;
+    const j0 = cl(Math.floor((az - nz) / c) - 1), j1 = cl(Math.floor((bz - nz) / c) + 1) + 1;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const v = h[j * N + i]; if (v > m) m = v; }
+  })(root);
+  return m;
+}
+
 // ===========================================================================
 // ROUND TRIP — the seed of GATE TERRAIN. Encode, decode, and compare the
 // decoded sampler against the ORIGINAL tree at deterministic probe points.
@@ -249,6 +274,6 @@ function roundTrip(root, meta, probes = 4096) {
   return { worst, step, ok: worst <= step * 1.5, enc };
 }
 
-return { encode, decode, decodeRaw, sampler, roundTrip, MAGIC };
+return { encode, decode, decodeRaw, sampler, maxRect, roundTrip, MAGIC };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = TERRAIN_CODEC;

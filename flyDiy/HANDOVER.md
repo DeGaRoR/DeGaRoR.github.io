@@ -59263,7 +59263,86 @@ ROOT forbids - a measure tool that shows the number beside the build's own row w
   (bpGroup), tools/build.js (manifest), tools/run_gates.js, tools/_blueprint_check.js, tools/_blueprint_fixture.json,
   tools/_ref_check.js.
 
-## G574 - SKINMAT AND COWL GREEN AGAIN: two gates red for reasons that were not the aeroplane's (2026-09-25)
+## G574 - THE TOWN ON TEXTURE ARRAYS (2026-09-25)
+
+The user: "performance optimization using texture arrays ... handling texture arrays and single material". G566
+merged a 256 m cell's house bags per DISTINCT material and still drew ~2 300 times over Jolene, because a house
+finish is a material each (its paint, its dirt, its weather): 929 stayed distinct. Now every finish (clapboard,
+shingle, trim, ...) is a LAYER of a stack and what made two materials differ rides the vertex as ONE float, the
+SLOT: an index into a float table (RGBA32F, 9 texels a slot) carrying the finish's colour, roughness, metalness,
+normal scale, its two layers and uv transform, the paint and its blend mode, the dirt colour / gain / age, the
+house's own dirt line, punch and noise, and the weather clouds. A cell draws a handful of town meshes: plain / glass
+x side x (casts or not). `src/viewer/house_tarr.js`; `WORLD.premises.hlod.tarr` is the dial (A/B against G566 live,
+a flip rebakes).
+- THE LOOK IS THE HOUSE'S OWN SHADER. The town material's hook is the generator's (shadeHouse + cloudWeather; for the
+  glass shadeGlass) run on the program as it is, then edited: the finish uniforms become globals filled from the
+  slot (tLoad, right above main - GLSL declares before use: the first cut put it in the head and the program did not
+  compile, the town drew only its shadows), the map / roughness / metalness / normal-map chunks sample the arrays,
+  the colour is the slot's, the ridge sag (hSag, a vertex bend in the house frame) is 0 because the merge bakes it
+  into the positions. The dirt line, the punch, the paint blends, the noise, the clouds, the curtains and the lit
+  panes are the very GLSL the houses draw with. The lit panes: the slot holds the finish's lightK base, LAMPS.update
+  sets the one factor (on x kGlass x mute) - `TARR.lit`.
+- WHAT RIDES: classify() - a MeshStandardMaterial whose RAW hook (atmo.js's _atmoHook) is the one shadeHouse /
+  cloudWeather / shadeGlass left (they now record ud.hookHouse / hookCloud / hookGlass and ud.houseU / glassU), opaque,
+  no vertex colours, no emissive, only map / normalMap / roughnessMap sharing one uv transform, decoded. A steel mix,
+  a lot patch, a clone, the flat flag / awning materials stay on G566's merge, unchanged (its signature ignores the
+  new handles). Until the stack holds every layer a bake asked for, those bags go G566's way and the stack's ready
+  signal rebakes.
+- THE ARRAYS: built on the CPU once the images have decoded (splat_ground.js's recipe and its rules: linear bytes,
+  the shader decodes sRGB - an sRGB array upload was GL_INVALID_VALUE on ANGLE/D3D; implicit texture() only, both
+  arrays sampled once, outside any branch). Layers are 512 (1024 sets halved, 256 doubled), rows flipped on the
+  canvas (an array cannot flipY). Colour: diff / paint; normal + rough: the normal's rgb, the rough map's green in
+  alpha. A canvas map (the hangar's baked sheets) is a layer like an image.
+- The town's casters toggle per cell at HOUSE_CAST_FAR from the cell's box (a house's own at its centre, detailTick).
+- TWO THINGS FOUND DEAD, KEPT DEAD (the town reproduces what the game draws): (1) shadeHouse's wanderUV rewrites
+  v*MapUv in the program text, but in r186 onBeforeCompile runs BEFORE the #includes are resolved, so the regex
+  matches nothing - uWander (the courses' wander, G273) and uUvK (the roof tile scale, G329) have never reached the
+  screen; (2) the glass's envMapIntensity 2.3 / the pane's 1.9 (applyFinish): r186 feeds that uniform the SCENE's
+  environmentIntensity when a material has no envMap of its own. Also noted, not changed: the dirt line compares the
+  WORLD y (vHouseY) with uDirtTop in the house frame (g(0,0) + dirtH x 0.55), and the game stands a house's group at
+  its ground height (placeHouse's y = oy): a house whose ground is more than ~1 m above world y 0 has no dirt line at
+  all. A fix is a per-house offset (the slot has room); not done here, it changes the picture.
+- MEASURED, the bench (tools/_tarr.html + tools/tarr_shot.js: 19 buildings - 14 houses, 2 big, a hangar, a tower, a
+  shed - drawn whole then on the stack, SwiftShader 960 x 540, shadows on): 195 bags -> 192 merged into 2 town
+  meshes (3 flat flags / awnings stay), 33 colour + 30 normal/rough layers, 170 slots, 84 MB of arrays with mips,
+  the bake ~1 s; draws (shadow pass included) near 295 -> 8, street 342 -> 10, mid 391 -> 11, far 391 -> 11, dusk
+  342 -> 10; picture mean |diff| (0-255) near 0.46 (0.28 % of pixels over 12: plank and rib edges - the 512 layers
+  and the sRGB decode after the filter), street 0.18, mid 0.09, far 0.02, dusk (lit panes) 0.16.
+  The same run with atmo.js loaded (the game's prototype accessor wrapping every hook): identical numbers - classify
+  reads the raw hook through it.
+- OWED: THE GAME ITSELF, ON A GPU. tools/tarr_game.js rolls Jolene out, drains the premises' queue by hand, drives
+  R.tick and draws the same frame three ways (hlod.bake off / G566 / tarr) with the draw counts and a PNG each. In
+  this session's container (SwiftShader, no GPU) it never got there: the roll-out took ~10 min, then draining 561
+  houses ran at minutes a step and the page died (twice, ~20 min in) or stalled. So no in-game draw count and no
+  frame time yet: run `node tools/tarr_game.js --gl gpu` (or flip WORLD.premises.hlod.tarr in the F8 console over
+  Metlakatla and read renderer.info.render.calls + WORLD.premises.stats.tarr*), and met_perf.js for the frame.
+- GATE TARR (tools/_tarr_check.js, core, ~2 s): the edits on r186's own program after the generator's real hooks
+  (nothing missed, no finish uniform left a uniform, each filled by a tLoad placed after it, one sample per array
+  outside any branch, the hooks' order map -> clouds -> paint/dirt), classify by identity (a steel mix, a
+  transparent bag, a clone refused), the merge (world positions with the sag off to 0.1 mm, one slot per finish -
+  the same finish on two houses one slot, another dirt line another), the host's wiring (TARR above LAMPS - G570's
+  TDZ - the lamps' factor, the sig carries the dials, build.js order). 1r red on the head-placed tLoad.
+
+## G575 - THE GROUND'S CEILING: the island's ground skip, bit-identical (2026-09-25)
+
+G572's lever 1, landed differently than measured. The clearance cone needs a SLOPE bound and the island has none that
+is true: its raster steps by up to 1.99 m where a coarse leaf meets a fine one (968 240 leaf-edge probes). So the
+solver's sibling skip reads a CEILING: once a frame, `world.groundMaxRect(ax, az, bx, bz)` over the nodes' footprint
+grown by 0.5 m + twice the fastest node's travel; a node inside that box whose bottom is above the ceiling skips its
+ground sample (exactly the `pen <= 0 -> continue` the sample would take), a node that leaves the box samples. True by
+construction: the raster's highest vertex over the cells touched (19_terrain_codec `maxRect`; the coast's min only
+lowers), the analytic pad blend / carve / meadows (convex or lowering), the premises' modifiers (27_premises
+`hMaxRect`: every one blends toward a target with w in [0, 1] - max of the targets + the raises; each modifier's
+`bound()` says its target's highest over a rectangle). `groundMaxRect.of` is the terrainH it bounds: a re-wrapped
+world (HOTHIGH, pilot_trace --slope) samples as before; FLYDIY_EXACT_GROUND=1 turns it off with the cone. GATE GE
+holds it (the ceiling over 2.76 M points / 1 077 rectangles, a lying ceiling caught, a 30 s taxi out of HOME
+identical both ways every frame). Paired vs G572, the same FNV hash: stock taxi -29 %, metal Cessna -40 %, birdman
+-31 %, thermal day -26 %, floats -17 %. futureDesigns/PHYSICS-PERF-2026-09-24.md G575 (and the substep drivers per
+build: 14 archetypes and the user's three metal Cessnas fly at the 200 cap on the wing box's stiffness; the
+tailwheel's damper sets the stearman, chinook, savannah, beaver, jodel, radial and the birdman; the float keel the
+floatplane).
+
+## G576 - SKINMAT AND COWL GREEN AGAIN: two gates red for reasons that were not the aeroplane's (2026-09-25)
 
 **SKINMAT** ("role rows for sections no build emits - taperPanel, drawnPane, reveal, shoulder, doorPanel", 5 against
 an allowance of 4). All five ARE emitted by the editor's build; the gate built its coverage meshes from a hand copy of
@@ -59298,3 +59377,13 @@ path is tried FIRST and `D:/Dev/DeGaRoR.github.io` is a worktree's fallback onto
 splat_tex_prep.js, pavement_tex_prep.js, coast_rocks_tune.py (ROOTS), splat_tex_import.py, coast_rocks_prep.py,
 met_trace.py, met_fit.py, metlakatla_author.py, and _splat_check.js --gpu. pavement_tex_import.py's `--out` DEFAULTS to
 the D:/Dev path (overridable). The *_tex_import.py `--src` default `~/Downloads` is per-user, not a fixed path.
+
+**LANDED RED, NOT THIS ENTRY'S** (the user: "if the reds are not yours, you may land"). This entry changes six files
+(the four gates' scripts, the runner, tools/_cowl_orig.html) and nothing the game draws or flies; a rebuild of the
+merged tree is byte-identical to master's built files but version.json's date. Measured on the merged trees: `--all`
+over master 4e2983c/aa1846b - every core gate green, three full-tier reds that HANDOVER already carried as master's:
+PILOTMATRIX (9 regressed: c172 sink 0.95 -> 2.04, cub HOME-A3 1.49 -> 3.95 - G477's "red on master itself"),
+ARCHETYPES (Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler give up - G454/G457), SEAPLANE (the
+crosswind water run stays wet and swings 180 deg - G474). Core over 8856dc0: one red, MEDIA - index.html 8.87 MiB
+against its 8.8 MiB budget, and 8.88 MiB on a clean master worktree at 843629a (G573's blueprint grew the artifact):
+the budget or the payload is G573's owner's call.
