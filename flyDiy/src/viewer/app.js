@@ -1594,6 +1594,98 @@
       if (P.anim && CC.animStep) CC.animStep(P.inst, now, P.anim);
     }
   }
+  // G576: THE STILL AIRFRAME, ONE DRAW PER MATERIAL. The flown aeroplane is a
+  // bucket per material KEY (colour, finish, section), and AEROSKIN pools its
+  // materials on LOOK, so nine fuselage sections of one plywood are nine meshes
+  // on one material - a draw each, in every pass and every cascade. A bucket
+  // that nothing moves (no vertex in the wing's binding box, no hinge id: its
+  // rig is skipped by poseModel) never leaves the model frame, so the buckets
+  // of one material are concatenated into one mesh right here, where the build
+  // KNOWS which is which - never guessed at afterwards from the scene graph.
+  // Not taken, each for a reason the code states: a bucket the flex or a hinge
+  // writes (the wing, the struts' wing ends), anything a part carries (it is
+  // not a bucket: gear, surfaces, rods, controls, gauges, the engine, the
+  // propeller), a lamp (the cockpit dims it by mesh), the crew (the cockpit
+  // view hides the pilot by bucket), anything see-through or with a glass
+  // companion, and any mesh the build has already posed, flagged or named.
+  // Same frame, same attributes, same material: the look, the livery's craft
+  // frame (uCraftInv reads the group's matrix, which the merged mesh shares),
+  // the weathering's baked cavity and the see-inside (a material question)
+  // are carried exactly. Rebuilt with the model: a garage edit rebuilds both.
+  // G564's crumb rule (a caster under 15 cm stops casting at the roll-out)
+  // keeps its answer per bucket: crumbs merge only with crumbs, and the merged
+  // crumb says how big its biggest member was. `window.FLYDIY_CRAFT_MERGE = 0`
+  // before a build is the A/B dial.
+  const STILL_CRUMB = 0.15;          // G564's radius, metres
+  function mergeStill(grp, meshes, mats, rigs, lamps) {
+    if (typeof window !== 'undefined' && window.FLYDIY_CRAFT_MERGE === 0) return null;
+    if (!THREE.BufferGeometry || !grp.children) return null;   // the smoke stub
+    const rigOf = {}; for (const r of rigs) rigOf[r.name] = r;
+    const lampMesh = new Set((lamps || []).map(l => l.mesh));
+    const skip = {}, why = (k) => { skip[k] = (skip[k] || 0) + 1; return null; };
+    const I = new THREE.Matrix4();
+    const keyOf = (name, o) => {
+      const rec = mats[name] || {}, r = rigOf[name], mt = o.material, g = o.geometry;
+      if (!r || r.hb || !r.bind || r.bind.bound.length) return why('moves');        // the flex or a hinge writes it
+      if (o.parent !== grp || !o.matrix.equals(I) || !o.position.equals({ x: 0, y: 0, z: 0 })) return why('posed');
+      if (lampMesh.has(o) || rec.lamp || rec.lampCup) return why('lamp');
+      if (rec.char || rec.sec === 'dummy1') return why('crew');
+      if (!mt || Array.isArray(mt) || mt.transparent || !(mt.opacity >= 1) || rec.opacity < 1 ||
+          rec.fin === 'glass' || (mt.userData && mt.userData.aeroFinish === 'glass') || o.children.length) return why('clear');
+      if (o.isSkinnedMesh || o.isInstancedMesh || !g || !g.index || !g.attributes.position ||
+          (g.morphAttributes && Object.keys(g.morphAttributes).length) || g.groups.length ||
+          Object.keys(o.userData).length || Object.prototype.hasOwnProperty.call(o, 'onBeforeRender') ||
+          o.customDepthMaterial || o.customDistanceMaterial) return why('own');
+      const at = Object.keys(g.attributes).sort();
+      if (at.some(k => g.attributes[k].isInterleavedBufferAttribute)) return why('own');
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      const crumb = g.boundingSphere.radius < STILL_CRUMB;
+      return mt.uuid + '|' + o.renderOrder + '|' + o.castShadow + o.receiveShadow + o.visible + o.frustumCulled +
+        '|' + o.layers.mask + '|' + (crumb ? 'c' : '') + '|' +
+        at.map(k => k + ':' + g.attributes[k].itemSize + g.attributes[k].array.constructor.name + g.attributes[k].normalized).join(',');
+    };
+    const groups = new Map();
+    for (const name in meshes) {
+      const o = meshes[name], k = keyOf(name, o);
+      if (!k) continue;
+      let l = groups.get(k); if (!l) groups.set(k, l = []);
+      l.push(name);
+    }
+    const names = new Set();
+    let from = 0, to = 0;
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      const m0 = meshes[list[0]], g0 = m0.geometry, at = Object.keys(g0.attributes);
+      let nV = 0, nI = 0, rMax = 0;
+      for (const n of list) { const g = meshes[n].geometry; nV += g.attributes.position.count; nI += g.index.count; rMax = Math.max(rMax, g.boundingSphere.radius); }
+      const arr = {}; for (const k of at) arr[k] = new g0.attributes[k].array.constructor(nV * g0.attributes[k].itemSize);
+      const idx = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
+      let vo = 0, io = 0;
+      for (const n of list) {
+        const g = meshes[n].geometry, c = g.attributes.position.count;
+        for (const k of at) arr[k].set(g.attributes[k].array.subarray(0, c * g.attributes[k].itemSize), vo * g.attributes[k].itemSize);
+        const ix = g.index.array; for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
+        vo += c; io += g.index.count;
+      }
+      const geo = new THREE.BufferGeometry();
+      for (const k of at) geo.setAttribute(k, new THREE.BufferAttribute(arr[k], g0.attributes[k].itemSize, g0.attributes[k].normalized));
+      geo.setIndex(new THREE.BufferAttribute(idx, 1));
+      geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, m0.material);
+      mesh.name = 'craftStill';
+      mesh.renderOrder = m0.renderOrder; mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow;
+      mesh.visible = m0.visible; mesh.frustumCulled = m0.frustumCulled; mesh.layers.mask = m0.layers.mask;
+      mesh.userData.still = list.slice();
+      if (rMax < STILL_CRUMB) mesh.userData.crumbR = rMax;
+      // where the first of them stood in the group, so the draw list keeps its order
+      const at0 = grp.children.indexOf(m0);
+      for (const n of list) { grp.remove(meshes[n]); meshes[n] = mesh; names.add(n); }
+      grp.add(mesh);
+      if (at0 >= 0) { grp.children.splice(grp.children.indexOf(mesh), 1); grp.children.splice(Math.min(at0, grp.children.length), 0, mesh); }
+      from += list.length; to++;
+    }
+    return { names, from, to, skip };
+  }
   // curDef is only read on the GARAGE path: the generated payload is a function
   // of the very fiche the sim is running, so it must be that object and not a
   // second call to the builder.
@@ -2851,6 +2943,8 @@
     // station structure is a property of the fiche, so one delta buffer serves all
     const nz = rigs[0].bind.zs.length;
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
+    // G576: THE STILL AIRFRAME, ONE DRAW PER MATERIAL - see mergeStill
+    const still = data.cage ? mergeStill(grp, meshes, mats, rigs, lamps) : null;
     const people = buildPeople(data, grp, ctlMoves);   // live crew
     // G357: THE CAPTURE'S MAP, AND ITS INVERSE. The snapshot stores every
     // vertex through B⁻¹ (G337) so the oblique pose lands it exactly; a part
@@ -2868,7 +2962,10 @@
         } catch (e) { K4 = Ki4 = null; }
       }
     }
-    const m = Object.assign(entry, { grp, props, rigs, deltas, people,
+    // a merged bucket's rig moved nothing (the merge takes only those); the
+    // first rig stays whatever it is - sparDeltas reads its station table
+    const m = Object.assign(entry, { grp, props, deltas, people, still,
+                        rigs: still ? rigs.filter((r, i) => i === 0 || !still.names.has(r.name)) : rigs,
                         poseK, K4, Ki4,                                 // G357
                         // the panel arc (session 4): the hands, the lamps and
                         // the bucket records the cockpit reads
@@ -6243,8 +6340,10 @@
     scene.add(craft);                  // out of the room, onto the strip
     // THE AEROPLANE'S CRUMBS CAST NOTHING (G564): 130 of its 254 meshes are under 15 cm (bolts, hinges, fittings),
     // and each cast into every cascade - a shadow a pixel wide for a draw each, ~700 shadow draws a frame
+    // (a merged still bucket of crumbs answers for its biggest member, G576: crumbs merge only with crumbs)
     craft.traverse(m => { if (!m.isMesh || !m.castShadow || !m.geometry) return; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
-      const s = m.getWorldScale(new THREE.Vector3()); if (m.geometry.boundingSphere.radius * Math.max(s.x, s.y, s.z) < 0.15) m.castShadow = false; });
+      const r = m.userData.crumbR != null ? m.userData.crumbR : m.geometry.boundingSphere.radius;
+      const s = m.getWorldScale(new THREE.Vector3()); if (r * Math.max(s.x, s.y, s.z) < 0.15) m.castShadow = false; });
     setExp(WORLD_EXPOSURE);
     // THE AEROPLANE FLEW OUT STILL REFLECTING THE SHED (user: "the planes look
     // really washed out when they get out of the garage and into the world").
