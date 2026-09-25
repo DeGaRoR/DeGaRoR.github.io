@@ -59496,3 +59496,19 @@ SUBSTEP (tools/_substep_check.js, core) holds it with 4 000-pass eigenvalues ove
 futureDesigns/PHYSICS-PERF-2026-09-24.md G578-G580, and THE METAL WING BOX, measured: capped at 120 substeps the
 metal Cessna flies the same circuit (-41 %, the tips 2-3 mm more bend), at 80 per-beam it diverges - the next
 chantier, network-sized, the load test keeping the true stiffness.
+
+## G586 - THE FRAME CLOCK: the game on the wall clock, the frame capped at auto / 60 / 30 / off (2026-09-25)
+
+The user: "shouldn't we do frame pacing at 30 fps? ... an rtx 3080 barely reaches 60 fps anywhere" - all three parts,
+the default auto. (1) app.js PACE: every rAF stepped the sim 1/60 s whatever the real time (at ~50 fps the game ran
+at 83 % speed); now each rendered frame owes floor(acc x 60 + 0.25) solver steps of 1/60 (a steady 30 fps exactly 2,
+60 exactly 1, at most 4); the pilot per step, the day and the panel on the sim's time. (2) The graphics menu's
+`frame rate` (gfx_settings `fps`, a free option no preset sets): auto (the default) holds 60 and drops to 30 after
+two readings over 18.5 ms, tries 60 again when the frame's work with one step reads under 12.5 ms, a missed trial
+holds 20 s doubling to 5 min; the auto render scale gets the budget (aa_resolve autoTarget); the readout reads the
+rendered frames. (3) The frame-counted parts on time: the orbit ease, the reveal, the chase lead, the head's level,
+the prop spin, the readouts, the spray and the water field, the near sea, the climate link, the mirror, the shed's
+sweep. A rig (webdriver / headless) and a call with no timestamp keep the old clock (?pace=1 forces it on). GATE
+PACE (core) drives the block with synthetic refreshes; GFX / WATER / PANEL / BENCH read the new wiring. Core battery
+green but MEDIA (pre-existing). NOT seen on a real display yet: the feel at 30 and auto's switching want the user's
+eye on the gamer box (a headless software-GL run was cut short). futureDesigns/PHYSICS-PERF-2026-09-24.md G586.

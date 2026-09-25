@@ -538,7 +538,10 @@
 
     return {
       render, setSize, setTier, setScale, scale: () => S.scale, dispose,
-      autoScale, autoState: () => ({ on: AUTO.on, scale: S.scale, step: AUTO.i, holdDownS: Math.max(0, (AUTO.holdDown - performance.now()) / 1000) | 0, stats: Object.assign({}, AUTO.stats) }), setDither, setLinear, linear: () => S.linear,
+      autoScale, autoState: () => ({ on: AUTO.on, scale: S.scale, step: AUTO.i, probing: !!(AUTO.probe || AUTO.up), holdDownS: Math.max(0, (AUTO.holdDown - performance.now()) / 1000) | 0, stats: Object.assign({}, AUTO.stats) }),
+      // G586: THE BUDGET IS THE FRAME CAP'S (app.js FLYDIY_PACE): 1000/60 ms at 60, 1000/30 at 30 - held at 30 the
+      // scale does not blur a picture trying for a 60 the cap will never show, and may raise it back
+      autoTarget: ms => { if (ms > 0 && ms !== AUTO.T) { AUTO.T = ms; AUTO.fr = []; AUTO.gpu = []; AUTO.probe = AUTO.up = null; } return AUTO.T; }, setDither, setLinear, linear: () => S.linear,
       needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the

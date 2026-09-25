@@ -451,7 +451,7 @@ function run() {
     check(/\(m\.lamp \|\| m\.lampCup\) && window\.CAGE_LIGHT/.test(app) && /src\.clone\(\)/.test(app), 'app: a lamp bucket takes a CLONED lens / cup');
     check(/pt\.kind === 'gauge' && pt\.ctl/.test(app) && /gauges\.push\(\{ obj: pg, c: pt\.ctl/.test(app), 'app: gauge parts build like controls, into model.gauges');
     check(/gauges, lamps, mats, meshes, data,/.test(app), 'app: the model record carries gauges, lamps, mats, meshes');
-    for (const call of ['CK.bind(model', 'CK.pose(model)', 'CK.frame(1 / 60, sim, ap, { day: world.day, byHand: manual })', "CK.cockpitView(cam.mode === 'cockpit', model)", 'CK.pick(camera', 'CK.click(hit, e.button)'])
+    for (const call of ['CK.bind(model', 'CK.pose(model)', 'CK.frame(simDt, sim, ap, { day: world.day, byHand: manual })', "CK.cockpitView(cam.mode === 'cockpit', model)", 'CK.pick(camera', 'CK.click(hit, e.button)'])
       check(app.includes(call), 'app: calls ' + call);
     check(/if \(cam\.mode === 'cockpit'\) \{ headCam\.enter\(\); return; \}/.test(app), 'app: rolling out into the cockpit seats the head');
     const build = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');

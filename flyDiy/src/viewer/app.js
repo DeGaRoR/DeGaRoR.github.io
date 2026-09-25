@@ -3207,9 +3207,9 @@
           target = on ? 8 + 110 * sim.ctl.thr * lever : Math.min(8, 0.4 * V);
         }
         ud.spinRate = (ud.spinRate == null ? target : ud.spinRate) +
-                      (target - (ud.spinRate == null ? target : ud.spinRate)) * (1 - Math.exp(-(1/60) / 1.5));
+                      (target - (ud.spinRate == null ? target : ud.spinRate)) * (1 - Math.exp(-frameDt() / 1.5));
         const sense = ((def && def.params && def.params.engines || [])[ei] || {}).sense || 1;
-        const d = sense * ud.spinRate * (1/60);                     // visual only
+        const d = sense * ud.spinRate * frameDt();                    // visual only (G586: the frame's own dt)
         const ax2 = ud.spinAxis;
         if (ax2 && p.quaternion && p.quaternion.setFromAxisAngle) {
           // G59.1: about the shaft, so the disc stays in its own plane
@@ -8642,7 +8642,7 @@
       headCam.tmp.normalize().add(headCam.p);
       camera.up.set(0, 1, 0);
       camera.lookAt(headCam.tmp);
-      headCam.qP.slerp(camera.quaternion, HEAD_LEVEL_K);
+      headCam.qP.slerp(camera.quaternion, easeK(HEAD_LEVEL_K, dt));   // (G586: per 60th of a second)
     }
     camera.quaternion.copy(headCam.qP);
     return headCam.p;
@@ -8816,9 +8816,10 @@
     flReveal = FL_REVEAL_FRAMES;
   }
   // the slow ease, until it settles or the frames run out
-  function flRevealK() {
+  function flRevealK(dt) {
     if (flReveal <= 0) return 0.28;
-    if (--flReveal === 0) return 0.28;
+    flReveal -= (dt != null ? dt : 1 / 60) * 60;   // (G586: 60ths of a second, not frames)
+    if (flReveal <= 0) { flReveal = 0; return 0.28; }
     if (Math.abs(azT - az) < 0.01 && Math.abs(elT - el) < 0.01
         && Math.abs(distT - dist) < 0.05) { flReveal = 0; return 0.28; }
     return FL_REVEAL_K;
@@ -8850,7 +8851,10 @@
     // moving and the filter unwound to zero in a second, so pressing Pause in
     // a turn swung the eye back by the whole lead - "clicking on pause
     // changes the camera angle". The rate is frozen while the sim is.
-    if (running) { flYawRate += (dh * 60 - flYawRate) * 0.1; flHdg0 = hdg; }
+    if (running) {   // G586: the rate over the frame's own dt, the tenth-a-60th filter taken over it
+      const fd = frameDt() > 1e-4 ? frameDt() : 1 / 60;
+      flYawRate += (dh / fd - flYawRate) * easeK(0.1, fd); flHdg0 = hdg;
+    }
     // LEVEL HORIZON, off, rolls the camera with the aeroplane — which is what
     // the wing view and the cockpit are for, and what makes a turn read as a
     // turn instead of as the world sliding sideways.
@@ -9284,15 +9288,117 @@
   canvas.addEventListener('transitionend', resize);
   resize();
 
-  let frame = 0, wdFrame = 0;
-  function loop() {
+  // ---- THE FRAME CLOCK (G586, the user: "shouldn't we do frame pacing at 30 fps? ... an RTX 3080 barely
+  // reaches 60 fps anywhere") ------------------------------------------------------------------------------
+  // THE GAME RAN ON THE FRAME: every requestAnimationFrame stepped the sim 1/60 s whatever the real time,
+  // so at 50 fps the whole game - the aeroplane, the day, the water - ran at 83 % of real time, at 30 fps
+  // it would have run at half, and on a 144 Hz screen with frames to spare at 2.4x (and paid the physics
+  // 2.4x a second). Now the sim is stepped by the WALL CLOCK: each rendered frame owes floor-ish(elapsed x
+  // 60) solver steps of 1/60 s (the solver's own step, unchanged), at most 4 (under 15 fps the game slows
+  // rather than spiralling), rounded so a steady 30 fps owes exactly 2 every frame and a steady 60 exactly 1.
+  // AND THE FRAME IS CAPPED: 'auto' (the default), 60, 30 or 'off' - the graphics menu's `frame rate`
+  // (gfx_settings.js, localStorage flydiy.gfx .fps). A cap renders on the display's refreshes that fall due
+  // (every 2nd at 30 on a 60 Hz screen). 30 is the clean fallback: two solver steps a frame, the motion
+  // perfectly even with no interpolation (at an uncapped 45 fps the frames alternate 1 and 2 steps - a
+  // judder). AUTO holds 60 while it can: two readings (60 frames each) with the median frame over 18.5 ms
+  // drop it to 30; at 30 it tries 60 again when the frame's own work WITH ONE STEP (the loop's JavaScript,
+  // the extra steps taken out) reads under 12.5 ms, and a trial that misses sends it back to 30 for 20 s,
+  // doubling (5 min at most). The auto render scale (aa_resolve.js) is told the budget: it holds 30 fps
+  // at 30 - and may raise the picture back - and 60 at 60.
+  // A RIG (a headless or driven browser: the gates, frame_perf.js, the shot tools) and a harness that calls
+  // the loop with no timestamp (GATE UISMOKE's vm) keep the old clock exactly: one 1/60 step a call,
+  // uncapped - every measurement and every gate reads the frame it always read (?pace=1 forces the clock on).
+  const PACE = (() => {
+    const W = window, nav = W.navigator || {};
+    const RIG = !!(nav.webdriver || /HeadlessChrome/.test(nav.userAgent || ''));
+    const FORCE = !!(W.location && /[?&]pace=1/.test(W.location.search || ''));
+    const P = {
+      mode: 'auto', cap: 60, legacy: RIG && !FORCE,
+      acc: 0, lastT: 0, due: 0, dt: 1 / 60, steps: 1, t0: 0,
+      iv: [], work: [], hist: [], strikes: 0, goods: 0, trial: null, holdUp: 0, trials: 0,
+      stats: { down: 0, up: 0, trialsFailed: 0 },
+    };
+    try { const g = JSON.parse(W.localStorage.getItem('flydiy.gfx') || 'null'); if (g && g.fps != null) P.mode = g.fps; } catch (e) {}
+    const capOf = () => (P.mode === 'auto' ? P.cap : P.mode === 'off' ? 0 : +P.mode || 0);
+    const med = a => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
+    const tellScale = () => { const AA = W.FLYDIY_AA; if (AA && AA.autoTarget) AA.autoTarget(1000 / (capOf() || 60)); };
+    function setCap(c, now) { if (c === P.cap) return; P.cap = c; P.iv = []; P.work = []; P.strikes = P.goods = 0; P.t0 = now; tellScale(); }
+    // the frame at time ts (ms, rAF's own): null when the cap says this refresh is not ours, else P with
+    // P.dt (s, the real time since the last rendered frame, 0.25 at most) and P.steps (solver steps owed)
+    function frame(ts) {
+      if (P.legacy || typeof ts !== 'number') { P.dt = 1 / 60; P.steps = 1; return P; }
+      const cap = capOf(), iv = cap ? 1000 / cap : 0;
+      if (iv && P.lastT && ts < P.due - 2) return null;
+      const dms = P.lastT ? ts - P.lastT : 1000 / 60;
+      if (iv) P.due = (P.due && ts - P.due < iv) ? P.due + iv : ts + iv;
+      P.lastT = ts;
+      P.dt = Math.min(0.25, Math.max(0, dms / 1000));
+      P.acc += P.dt;
+      let n = Math.floor(P.acc * 60 + 0.25);
+      if (n > 4) { n = 4; P.acc = 0; } else P.acc -= n / 60;
+      P.steps = n;
+      if (dms < 250) { P.iv.push(dms); P.hist.push(dms); if (P.hist.length > 120) P.hist.shift(); }   // a stall (a tab away, a load) is not a frame
+      return P;
+    }
+    // the sim is not running (the shed, a pause): nothing is owed across the gap
+    function hold() { P.acc = 0; }
+    // the loop's own work this frame (ms) and what its solver steps took, for auto's reading
+    function end(workMs, physMs, steps, now) {
+      if (P.legacy || P.mode !== 'auto') return;
+      P.work.push(workMs - (steps > 1 ? physMs * (steps - 1) / steps : 0));   // the frame's work with ONE step
+      if (P.iv.length < 60) return;
+      const f = med(P.iv), w = med(P.work);
+      P.iv = []; P.work = [];
+      if (now - P.t0 < 1500) return;                      // the first readings after a change are the change's
+      if (P.cap === 60) {
+        if (P.trial) {                                    // a trial of 60 from 30: did it hold?
+          const ok = f <= 18.5; P.trial = null;
+          if (ok) { P.trials = 0; return; }
+          P.stats.trialsFailed++; P.trials++;
+          P.holdUp = now + Math.min(300000, 20000 * Math.pow(2, P.trials - 1));
+          P.stats.down++; setCap(30, now); return;
+        }
+        P.strikes = f > 18.5 ? P.strikes + 1 : 0;
+        const AA = W.FLYDIY_AA, A = AA && AA.autoState ? AA.autoState() : null;
+        if (P.strikes >= 2 && !(A && A.on && A.probing)) { P.stats.down++; setCap(30, now); }
+      } else {
+        P.goods = w < 12.5 ? P.goods + 1 : 0;
+        if (P.goods >= 2 && now > P.holdUp) { P.stats.up++; P.trial = { t: now }; setCap(60, now); }
+      }
+    }
+    function set(mode) {
+      P.mode = (mode === 'auto' || mode === 'off') ? mode : (+mode === 30 ? 30 : 60);
+      P.cap = P.mode === 'auto' ? 60 : (P.mode === 'off' ? 60 : P.mode);
+      P.iv = []; P.work = []; P.strikes = P.goods = 0; P.trial = null; P.holdUp = 0; P.trials = 0; P.due = 0;
+      tellScale();
+      return P.mode;
+    }
+    const api = { frame, hold, end, set, tellScale,
+      recent: () => (P.legacy ? null : P.hist.slice()),   // the RENDERED frames' intervals (ms), for the menu's readout
+      get dt() { return P.dt; }, get steps() { return P.steps; },
+      budgetMs: () => 1000 / (capOf() || 60),
+      state: () => ({ mode: P.mode, cap: capOf(), legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0 }) };
+    W.FLYDIY_PACE = api;
+    return api;
+  })();
+  // an ease written per 60 Hz frame (k of the gap each 1/60 s), taken over dt seconds
+  function easeK(k, dt) { return 1 - Math.pow(1 - k, dt * 60); }
+  // the rendered frame's real dt for code that may run before PACE exists (a boot step posing the model)
+  function frameDt() { const P = window.FLYDIY_PACE; return P ? P.dt : 1 / 60; }
+  let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
+  function loop(ts) {
     requestAnimationFrame(loop);
+    const pc = PACE.frame(ts);
+    if (!pc) return;                   // the cap: this refresh is not ours
+    const fdt = pc.dt, tLoop0 = perfNow();
+    let physMs = 0, simDt = 0;
     // MANUAL CONTROLS (G200): the hand is read FIRST, every frame, in the shed
     // and in the air — the toggle and the view keys work under the AP, and
     // a stand with a real hand on it shows THAT instead of the sweep below.
-    inpEv = INP ? INP.update(1 / 60) : null;
+    inpEv = INP ? INP.update(fdt) : null;
     // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
-    if (typeof DAY_CLOCK !== 'undefined' && (running || inGarage)) DAY_CLOCK.tick(1 / 60);
+    // (G586: in the shed on the frame's own time; in flight it ticks after the solver, on the sim's)
+    if (typeof DAY_CLOCK !== 'undefined' && inGarage) DAY_CLOCK.tick(fdt);
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
       if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
@@ -9317,7 +9423,8 @@
       // ...unless a hand is on it (G200): a stick moved or a key held in the
       // last seconds is a control check the player is doing, and the stand
       // answers it — physics off, so it costs nothing either.
-      const tS = frame / 60;
+      shedT += fdt;
+      const tS = shedT;                // (G586: the sweep on seconds, not frames)
       if (INP && INP.active()) INP.write(sim.ctl);
       else {
         sim.ctl.de = 0.30 * Math.sin(tS * 0.90);
@@ -9339,21 +9446,25 @@
     // held at ultimate: the bags stay on and the wing stays bent, so the result
     // is still there to look at rather than snapping back the frame it finishes
     else if (inGarage && rig) updateLoadViz(rig);
-    if (inGarage) fixTick();          // A9: the advisor's page slice, when it has no thread
+    if (inGarage) { fixTick(); PACE.hold(); }   // A9: the advisor's page slice, when it has no thread
     else if (running && !inGarage) {
       // A9: 2× steps twice a frame on the test flight; a doubled step that
       // costs more than a frame for half a second drops itself back to 1×
-      const t2 = perfNow();
-      for (let k = 0; k < simRate; k++) {
+      // G586: THE STEPS THE REAL TIME OWES (PACE.frame), each the solver's own 1/60 s - one at a steady 60,
+      // two at 30; 2x flies twice as many, and "a frame" is the cap's budget
+      const t2 = perfNow(), nStep = pc.steps * simRate;
+      for (let k = 0; k < nStep; k++) {
         script(1 / 60);
         sim.step(1 / 60);              // substep rate is a per-aircraft property
       }
+      physMs = perfNow() - t2; simDt = nStep / 60;
       if (simRate > 1) {
-        if (perfNow() - t2 > 20) { if (++slowFrames >= 30) simRateSet(1); } else slowFrames = 0;
+        if (physMs > 0.6 * PACE.budgetMs()) { if (++slowFrames >= 30) simRateSet(1); } else slowFrames = 0;
       }
+      if (typeof DAY_CLOCK !== 'undefined') DAY_CLOCK.tick(simDt);
       director.frame();
       if (window.WATER && WATER.setTime) WATER.setTime(sim.t);   // G460: the water is drawn at the solver's own time
-      if (CK) CK.frame(1 / 60, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
+      if (CK) CK.frame(simDt, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
         // G130: a divergence is an ENDING, not a caption — the card comes up
         // with the door home on it, and the logbook gets its broke-up row
@@ -9407,7 +9518,7 @@
     flCamera();
     // ease the orbit toward its targets (see the G39 note at the top);
     // snap the last hair so it settles instead of drizzling
-    const kE = flRevealK();          // 0.28, or the roll-out shot's slow ease
+    const kE = easeK(flRevealK(fdt), fdt);   // 0.28, or the roll-out shot's slow ease - per 1/60 s, over the frame's dt (G586)
     az += (azT - az) * kE; if (Math.abs(azT - az) < 1e-4) az = azT;
     el += (elT - el) * kE; if (Math.abs(elT - el) < 1e-4) el = elT;
     dist += (distT - dist) * kE;
@@ -9422,7 +9533,7 @@
     // BufferAttributes and two fewer draws every frame
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
     if (floatMeshes.length) syncFloats();
-    if (waterFx && !inGarage) syncWaterFx(running ? 1 / 60 : 0);
+    if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets
@@ -9434,9 +9545,11 @@
       const cgF = sim.cgPos(), wl = world.waterH ? world.waterH(cgF[0], cgF[2]) : -Infinity;
       const want = Number.isFinite(wl) && cgF[1] - wl < 60;
       if (want !== WATER.field.on) WATER.fieldOn(want);
-      if (want) { const cv = sim.cgVel ? sim.cgVel() : [0, 0, 0]; WATER.fieldStep(THREE, renderer, cgF[0], cgF[2], running ? 1 / 60 : 0, cv[0], cv[2]); }   // (the velocity: the box slides aft of the CG under way)
+      if (want) { const cv = sim.cgVel ? sim.cgVel() : [0, 0, 0]; WATER.fieldStep(THREE, renderer, cgF[0], cgF[2], running ? fdt : 0, cv[0], cv[2]); }   // (the velocity: the box slides aft of the CG under way)
     }
-    if (++frame % 6 === 0) {
+    ++frame; hudAcc += fdt * 60;        // (G586: the readouts every 0.1 s, six 60 Hz frames' worth)
+    if (hudAcc >= 5.999) {
+      hudAcc -= 6; if (hudAcc > 6) hudAcc = 0;
       hud();
       flLayout();
       if (panels.map) drawMap();
@@ -9472,7 +9585,7 @@
       let wl = WF.waterDrawY ? WF.waterDrawY(camera.position.x, camera.position.z) : null;
       if (wl == null && WF.waterDrawY) wl = WF.waterDrawY(cgM[0], cgM[2]);
       if (wl == null) { wl = world.waterH ? world.waterH(camera.position.x, camera.position.z) : NaN; if (!Number.isFinite(wl) && world.waterH) wl = world.waterH(cgM[0], cgM[2]); }
-      if (Number.isFinite(wl)) WATER.mirrorRender(THREE, renderer, scene, camera, wl, { dt: 1 / 60, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
+      if (Number.isFinite(wl)) WATER.mirrorRender(THREE, renderer, scene, camera, wl, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
       else if (WATER.mirror.on) WATER.mirrorOff();
     }
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
@@ -9495,6 +9608,7 @@
         SKY_GLARE.render(renderer);
       }
     }
+    PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow());   // G586: auto's reading
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
     if (frameWait && --frameWait.n <= 0) { const r = frameWait.res; frameWait = null; r(); }
   }

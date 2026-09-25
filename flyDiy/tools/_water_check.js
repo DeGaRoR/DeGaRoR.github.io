@@ -306,7 +306,7 @@ console.log('\n5. THE FIELD');
   // the emitters in app.js: the press under a wet hull, the ring on touchdown, the foam on the chine; the ribbons retired
   verdict(/WT\.stamp\([^\n]*'press'\)/.test(app) && /WT\.stamp\([^\n]*'ring'\)/.test(app) && /WT\.stamp\([^\n]*'foam'\)/.test(app), 'app.js stamps press / ring / foam from the hydro\'s own numbers');
   verdict(/const ribbons = \[\];/.test(app) && !/rb\.trail\.push/.test(app), 'the wake ribbons are retired (the field carries the wake)');
-  verdict(/WATER\.fieldStep\(THREE, renderer, cgF\[0\], cgF\[2\], running \? 1 \/ 60 : 0, cv\[0\], cv\[2\]\)/.test(app) && /WATER\.fieldOn\(want\)/.test(app), 'app.js steps the field at the CG (with its velocity) every frame while a floatplane is over water');
+  verdict(/WATER\.fieldStep\(THREE, renderer, cgF\[0\], cgF\[2\], running \? fdt : 0, cv\[0\], cv\[2\]\)/.test(app) && /WATER\.fieldOn\(want\)/.test(app), 'app.js steps the field at the CG (with its velocity) every frame while a floatplane is over water, on the frame\'s own dt (G586)');
   // THE THIRD WAY IN (2026-09-22, G498): a surfaced whale within 150 m of the eye sets
   // WATER.field.ask, so a LANDPLANE low over a pod gets the wake and the splash too (the user:
   // "at close range, the whales should trigger the water surface effects, just like the planes").

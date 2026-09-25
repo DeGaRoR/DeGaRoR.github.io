@@ -5510,7 +5510,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (premisesR && premisesR.stats.queued && (++premStreamTick % 3 === 0 || (premisesR.editing && premisesR.editing()))) premisesR.step(1);   // a live edit's builds, and the far premises streamed in (G562): one every third frame
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
-    if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
+    // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
+    const fdt = (typeof window !== 'undefined' && window.FLYDIY_PACE) ? window.FLYDIY_PACE.dt : 1 / 60;
+    if (cg) seaUpdate(cg[0], cg[2], fdt);                          // H4: the near sea, in the aeroplane's wave
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
     // parallax at the near edge of the band. One frame stale (the viewer places
@@ -5531,7 +5533,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // no DOM at all. Every other window reach in this file is guarded the same
     // way, and this one was not - it threw on the gate and nowhere else.
     if (typeof window !== 'undefined' && window.CLIMATE_LINK && window.CLIMATE_LINK.pub.on) {
-      window.CLIMATE_LINK.frame(cg, camera.position, 1 / 60, (typeof FLIGHT_PROBE !== 'undefined' && FLIGHT_PROBE.sim) ? FLIGHT_PROBE.sim().t : 0);
+      window.CLIMATE_LINK.frame(cg, camera.position, fdt, (typeof FLIGHT_PROBE !== 'undefined' && FLIGHT_PROBE.sim) ? FLIGHT_PROBE.sim().t : 0);
       sockFrame();
     }
     dayApply();

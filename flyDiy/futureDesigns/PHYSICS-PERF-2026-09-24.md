@@ -168,12 +168,7 @@ Not bit-identical, so the GEN / PILOT / BIPLANE anchors want a re-read; the geom
 At 200 substeps it is 1 500 Hz. Every = round(substeps x 60 / 360): floats 31.2 -> 21.7 ms, the cg 1 mm off after
 20 s. GATE HYDRODYN / FLOATS / WIPLINE / SEAPLANE are the anchors to re-read.
 
-### 5. Frame pacing - the sim is tied to requestAnimationFrame
-
-`loop()` steps exactly 1/60 s per rAF whatever the real frame time. Below 60 fps the game runs in slow motion; on a
-120-240 Hz display with frames to spare it would run 2-4x fast AND pay the physics 2-4x per second. A fixed-step
-accumulator (step 1/60 per 16.7 ms of wall clock, at most N steps a frame, the render interpolating or not) is the
-standard answer; it is a gameplay ruling (what a slow machine should feel: slow motion or dropped sim time).
+### 5. Frame pacing - LANDED as G586 (the frame clock, below)
 
 ### 6. The first frames after the roll-out: the solver's JIT warm-up - ALREADY PAID BEHIND THE SCREEN
 
@@ -310,6 +305,38 @@ G580 does for the dampers. The honest version keeps the TRUE stiffness where it 
 loadtest) reads strain and must fly the real k - and gives the flight a box whose highest mode (a kilohertz axial
 mode no flight dynamics can see) is bounded; or lumps the box's nodes. A chantier of its own, with the load test's
 verdicts as its anchor.
+
+## G586 - THE FRAME CLOCK: the game on the wall clock, the frame capped (auto by default)
+
+The user: "shouldn't we do frame pacing at 30 fps? The benchmarks on the local box, which is already an rtx 3080
+barely reaches 60 fps anywhere" - and the ruling: all three parts, the default auto.
+
+1. THE GAME RUNS ON THE WALL CLOCK. app.js `PACE.frame(ts)` gives each rendered frame its real dt and the solver
+   steps it owes (each the solver's own 1/60 s): floor(acc x 60 + 0.25) - a steady 30 fps owes exactly 2 every
+   frame, a steady 60 exactly 1 - at most 4 (under 15 fps the game slows rather than spiralling; a stall's time is
+   forgotten). Before it every rAF stepped 1/60: at the gamer box's ~50 fps the game ran at 83 % of real time.
+   The pilot runs per step (script(1/60) inside the loop); the day in flight on the sim's time, in the shed on the
+   frame's; the panel (CK.frame) on the sim's; 2x flies twice the steps.
+2. THE CAP: the graphics menu's `frame rate` - auto / 60 / 30 / uncapped (gfx_settings.js `fps`, a FREE option: no
+   preset sets it, a pick leaves the preset). A cap renders on the display refreshes that fall due (every 2nd at 30
+   on a 60 Hz screen). AUTO: two readings (60 frames) with the median frame over 18.5 ms -> 30; at 30, the frame's
+   own work with ONE step (the loop's JavaScript, the extra step taken out) under 12.5 ms for two readings -> a
+   trial of 60; a trial that misses -> 30, the next trial held 20 s, doubling to 5 min. The auto render scale
+   (aa_resolve.js `autoTarget`) is told the budget: it holds 30 at 30 (it would otherwise blur the picture chasing a
+   60 the cap never shows) and may raise it back. The menu's frame readout reads the RENDERED frames and says
+   what auto holds.
+3. THE FRAME-COUNTED PARTS ON TIME: the orbit ease (0.28 of the gap a 60th of a second), the roll-out and
+   director's slow reveal (360 sixtieths), the chase view's yaw-rate lead (the rate over the frame's dt, its filter
+   a tenth a 60th), the cockpit head's level ease, the propeller's spin, the readouts (every 0.1 s), the spray and
+   the water's interaction field, the near sea and the climate link (render_world), the mirror, the shed's control
+   sweep. Already on the wall clock and left alone: the trams, traffic and animals, the free and cockpit eyes'
+   motion, the premises' ease, the clouds (the day's clock).
+A RIG (webdriver / headless Chrome: the gates, frame_perf.js, the shot tools) and a call with no timestamp (GATE
+UISMOKE's vm) keep the old clock exactly - one 1/60 step a call, uncapped - so every measurement reads the frame it
+always read (?pace=1 turns the clock on). GATE PACE (tools/_pace_check.js, core) drives the app.js block as written
+with synthetic refreshes: 60 Hz at a 30 cap is every 2nd refresh with 2 steps each; 144 Hz capped and uncapped keeps
+the sim on the wall clock; a 50 ms frame owes 3 steps, a stall 4; auto drops, trials, holds and backs off; the rigs
+keep the old clock. GFX / WATER / PANEL / BENCH's wiring checks read the new calls.
 
 ## Viewer-side notes (not timed)
 

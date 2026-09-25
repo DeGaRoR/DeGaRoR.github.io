@@ -65,6 +65,9 @@ const GATES = [
   // G580: the integrator's step on the springs, the dampers it can carry - never above the old rule,
   // every cut damper overdamped, the network inside the stability margin (4 000-pass eigenvalues); ~15 s
   { id: 'SUBSTEP', file: '_substep_check.js', tier: 'core' },
+  // G586: the frame clock - the game's time on the wall clock, the frame capped at auto / 60 / 30 / off; the
+  // app.js block driven with synthetic refreshes (steps per frame, auto's drop and trials, the rigs' old clock); <1 s
+  { id: 'PACE', file: '_pace_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a

@@ -299,7 +299,7 @@ console.log('THE THREAD');
      && /testFlight: card => startTestFlight\(card\)/.test(APP) && !/circuitStart/.test(APP), 'logFlight hands every flight to the bench; the offscreen circuit is gone');
   ok(/report\.trimDe/.test(rd('src/core/43_pilot.js')) && /trimAcc/.test(rd('src/core/43_pilot.js')), 'the game pilot publishes the trim it held (the advisor reads the real flight now)');
   ok(/const DIRECTOR_CUTS = \{/.test(APP) && /director\.frame\(\)/.test(APP) && /if \(!directorPick\) director\.stop\(\)/.test(APP), 'the director cuts on the phases and a framing pick ends it');
-  ok(/let simRate = 1/.test(APP) && /for \(let k = 0; k < simRate; k\+\+\)/.test(APP) && /not on floats/.test(APP) && /simRateSet\(1\)/.test(APP), '2x steps twice a frame, refuses floats, drops itself');
+  ok(/let simRate = 1/.test(APP) && /nStep = pc\.steps \* simRate/.test(APP) && /for \(let k = 0; k < nStep; k\+\+\)/.test(APP) && /not on floats/.test(APP) && /simRateSet\(1\)/.test(APP), '2x steps twice a frame (twice what the real time owes, G586), refuses floats, drops itself');
   // the crosswind card
   ok(xw && xw.advisory === true && xw.kind === 'live' && xw.offscreen === true && xw.needs.join() === 'xwindStart,xwindPoll,xwindEnd', 'the crosswind is its own advisory card');
   const api = { xwindPoll: () => ({ done: true, result: { limit: 5.5, cap: 10, failW: 6, failWhy: 'off the edge line', runs: [] }, runs: [{ w: 2, ok: true, roll: 1.2 }, { w: 6, ok: false, why: 'off the edge line', roll: 3.4 }] }) };

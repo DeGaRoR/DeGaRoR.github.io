@@ -54,9 +54,23 @@ console.log('GATE GFX');
   const w = boot({});
   const G = w.GFX;
   let complete = true;
-  for (const p in G.PRESETS) for (const o of G.OPTIONS)
+  for (const p in G.PRESETS) for (const o of G.OPTIONS) if (!o.free)
     if (!o.steps.some(s => s.v === G.PRESETS[p][o.k])) { complete = false; console.log('    ' + p + '.' + o.k + ' = ' + G.PRESETS[p][o.k] + ' is not a step'); }
-  ok(complete, 'every preset resolves every option to a named step (' + Object.keys(G.PRESETS).length + ' presets, ' + G.OPTIONS.length + ' options)');
+  ok(complete, 'every preset resolves every option to a named step (' + Object.keys(G.PRESETS).length + ' presets, ' + G.OPTIONS.filter(o => !o.free).length + ' options; the free ones apart)');
+}
+// 1a. THE FRAME RATE (G586) is a FREE option: no preset sets it, 'auto' by default, and picking a cap
+// leaves the preset what it was
+{
+  const w = boot({});
+  const G = w.GFX, o = G.OPTIONS.find(x => x.k === 'fps');
+  ok(!!o && o.free && o.steps.map(x => x.v).join(',') === 'auto,60,30,off' && Object.keys(G.PRESETS).every(p => !('fps' in G.PRESETS[p])),
+     'the frame rate: auto / 60 / 30 / uncapped, set by no preset');
+  ok(G.get().fps === 'auto', "the frame rate's default is auto (" + G.get().fps + ')');
+  const before = G.get().preset;
+  const after = G.set('fps', 30);
+  ok(after.fps === 30 && after.preset === before, 'a 30 cap leaves the preset ' + before + ' (' + after.preset + ')');
+  const w2 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'gamer', pv: 3, fps: 'bogus' }) });
+  ok(w2.GFX.get().fps === 'auto', 'a stored frame rate that is not a step reads auto');
 }
 // 1b. the five tiers (PERF 2026-09-23): named, labelled, gamer the default, and gamer IS the medium of before
 {

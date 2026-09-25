@@ -36,6 +36,14 @@
 
   // ---- the options: named steps over the handles ---------------------------
   const OPTIONS = [
+    // THE FRAME RATE (G586): the cap the frame clock (app.js FLYDIY_PACE) renders at - the game's time runs on
+    // the wall clock at every one of them. `free`: not a picture's, so no preset sets it and picking one does
+    // not make the preset 'custom'.
+    { k: 'fps', label: 'frame rate', free: true, steps: [
+        { v: 'auto', label: 'auto', why: 'held at 60 fps while the frame can, 30 when it cannot (two readings over 18.5 ms), back to 60 when a trial holds - the default' },
+        { v: 60, label: '60', why: 'capped at 60 fps' },
+        { v: 30, label: '30', why: 'capped at 30 fps: every frame the same length, two physics steps each - the smoothest when 60 is out of reach' },
+        { v: 'off', label: 'uncapped', why: 'every refresh of the screen drawn (a 144 Hz screen draws up to 144)' } ] },
     { k: 'aa', label: 'anti-aliasing', steps: [
         { v: 'off',  label: 'off', why: '4x MSAA - the cheapest frame' },
         { v: 'msaa', label: 'smooth', why: '8x MSAA' },
@@ -226,7 +234,7 @@
   };
 
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: DEFAULT, pv: 3 }, PRESETS[DEFAULT]);   // pv: the pref's version (3: G551, the auto scale an option)
+  const S = Object.assign({ preset: DEFAULT, pv: 3, fps: 'auto' }, PRESETS[DEFAULT]);   // pv: the pref's version (3: G551, the auto scale an option)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -251,13 +259,13 @@
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
-    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = PRESETS[DEFAULT][o.k];
+    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = o.free ? o.steps[0].v : PRESETS[DEFAULT][o.k];
     S.preset = presetOf();
   };
   const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   // which preset the current options ARE, or 'custom'
   const presetOf = () => {
-    for (const p in PRESETS) if (OPTIONS.every(o => PRESETS[p][o.k] === S[o.k])) return p;
+    for (const p in PRESETS) if (OPTIONS.every(o => o.free || PRESETS[p][o.k] === S[o.k])) return p;
     return 'custom';
   };
 
@@ -265,6 +273,7 @@
   let applied = {};                          // what the handles currently hold
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
+    if (W.FLYDIY_PACE && applied.fps !== S.fps) { W.FLYDIY_PACE.set(S.fps); applied.fps = S.fps; }   // G586: the frame cap
     if (AA && AA.setTier && applied.aa !== S.aa) { AA.setTier(S.aa); applied.aa = S.aa; }
     if (AA && AA.setScale && applied.scale !== S.scale) {
       // 'auto' (G528): the controller starts from 100 %; a rig (a headless or driven browser) keeps 100 % unless ?autoscale=1
@@ -375,10 +384,15 @@
     else { rafId = 0; last = 0; }
   };
   const frameText = () => {
-    if (frames.length < 10) return 'measuring the frame…';
-    const f = frames.slice().sort((a, b) => a - b);
+    // G586: the RENDERED frames when the frame clock caps them (the menu's own refresh count would read 60 at a 30 cap)
+    const PC = W.FLYDIY_PACE, rec = PC && PC.recent ? PC.recent() : null;
+    const src = rec && rec.length >= 10 ? rec : frames;
+    if (src.length < 10) return 'measuring the frame…';
+    const f = src.slice().sort((a, b) => a - b);
     const med = f[f.length >> 1], p90 = f[Math.floor(f.length * 0.9)];
-    return 'last ' + f.length + ' frames: ' + med.toFixed(0) + ' ms median (' + (1000 / med).toFixed(0) + ' fps) · ' + p90.toFixed(0) + ' ms p90';
+    let pace = '';
+    if (PC && PC.state) { const st = PC.state(); if (!st.legacy) pace = ' · ' + (st.mode === 'auto' ? 'auto, holding ' + st.cap : st.mode === 'off' ? 'uncapped' : 'capped at ' + st.cap) + (st.cap ? ' fps' : ''); }
+    return 'last ' + f.length + ' frames: ' + med.toFixed(0) + ' ms median (' + (1000 / med).toFixed(0) + ' fps) · ' + p90.toFixed(0) + ' ms p90' + pace;
   };
 
   // ---- the menu, in the host's own words ---------------------------------
