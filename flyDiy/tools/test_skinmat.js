@@ -76,21 +76,27 @@ const SHAPES = [
   ['interior tube', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 1 }],
   ['interior wood', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 2 }],
   ['interior metal', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 3 }],
-  ['taper panels', { taperOn: 1, taperPanels: 1, taperLen: 1.0 }],
+  // the panels are laid on the ROD's truss, which cageInterior draws: on the
+  // stock boom or with the interior off taperPanels draws nothing
+  ['taper panels', { boomStyle: 1, taperOn: 1, taperPanels: 1, taperLen: 1.0,
+                     intOn: 1 }],
+  // the door inner panel is off by default; its section exists only here
+  ['door panel', { doorOn: 1, cutParts: 1, intOn: 1, doorPanelOn: 1 }],
+  // the drawn windows' panes and reveals exist only when a row draws
+  ['drawn windows', { paxWinN: 2, win2N: 1, win2Z: -0.9, win2Y: 0.3 }],
 ];
 const D = G.cageDefaults();
 const sections = new Set();
 for (const [nm, over] of SHAPES) {
   const P = JSON.parse(JSON.stringify(D));
   Object.assign(P, over);
+  // THE EDITOR'S OWN BUILD (cageSheet), not a copy of its pass list: the
+  // copy that stood here stopped at cageInterior, so the shoulder (G325), the
+  // door panel riding it and the drawn windows' knife (G245) never ran, and
+  // their role rows read as stale
   let s;
   try {
-    const S = G.cageSpec(P);
-    s = G.buildCage2(S, 'crease');
-    for (let i = 0; i < 2; i++) s = G.cageSubdivide(s);
-    for (const fn of ['cageGlassSill', 'cageCut', 'cageCanopy', 'cageRims',
-                      'cageInterior'])
-      if (G[fn]) s = G[fn](s, S);
+    s = G.cageSheet(P, { step: 'crease', level: 2 }).mesh;
   } catch (e) { check(false, `${nm}: build threw`, e.message); continue; }
   for (const f of s.F) sections.add(f.m);
 }
@@ -120,9 +126,11 @@ check(unhoused.length === 0,
   unhoused.join(', '));
 
 // and the reverse: a role table row for a section the cage never emits is a
-// row that has gone stale, which is how a table stops describing the thing
+// row that has gone stale, which is how a table stops describing the thing.
+// No allowance: the shapes above reach every row (the <= 4 that stood here
+// was an allowance for the rows the old hand-copied pass list missed)
 const ghosts = Object.keys(A.AERO_ROLE).filter(k => !sections.has(k));
-check(ghosts.length <= 4, 'role rows for sections no build emits',
+check(ghosts.length === 0, 'role rows for sections no build emits',
   ghosts.join(', '));
 
 // ---------------------------------------------------------------------------

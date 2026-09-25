@@ -24,9 +24,19 @@ const f = (x, n) => x.toFixed(n === undefined ? 3 : n);
 // ---- 1. the port is faithful --------------------------------------------
 // Load the ORIGINAL tool's generator half in a sandbox and compare surfaces
 // point for point. If the port drifted, this is where it shows.
-const SRC = 'C:/Users/denis/Downloads/cowl-generator-v19 (1).html';
+// WHERE THE ORIGINAL IS: `--orig <file>` or COWL_ORIG, else a byte copy in
+// the repo (tools/_cowl_orig.html, the _cage_ref_*.obj way), else the
+// Downloads copy this always read. None of them on disk (a clean worktree,
+// another machine) is a SKIP, not a FAIL: the gate was red on every checkout
+// but one for want of a file the repo never carried, which is a red that
+// says nothing about the port. The comparison runs wherever the file is.
+const _oi = process.argv.indexOf('--orig');
+const SRC = [_oi >= 0 ? process.argv[_oi + 1] : null, process.env.COWL_ORIG,
+             path.join(__dirname, '_cowl_orig.html'),
+             'C:/Users/denis/Downloads/cowl-generator-v19 (1).html']
+  .find(p => p && fs.existsSync(p)) || null;
 let orig = null;
-if (fs.existsSync(SRC)) {
+if (SRC) {
   const L = fs.readFileSync(SRC, 'utf8').split(/\r?\n/);
   const find = p => { for (let i = 0; i < L.length; i++) if (p(L[i])) return i;
                       throw new Error('marker'); };
@@ -38,8 +48,9 @@ if (fs.existsSync(SRC)) {
     ' zEnd, apertureList, propGeometry, PRESETS};';
   orig = new Function(src)();
 }
-ok('the original tool is available to compare against', !!orig,
-   orig ? '' : '(skipped — Downloads copy not found)');
+if (orig) ok('the original tool is available to compare against', true, SRC);
+else console.log('  skip the port-faithfulness section — the original tool is not on disk' +
+                 ' (tools/_cowl_orig.html, COWL_ORIG or --orig <file>)');
 
 if (orig) {
   orig.prepareLid(); C.prepareLid();

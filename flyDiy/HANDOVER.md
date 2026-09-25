@@ -59131,3 +59131,19 @@ roll-out's compile step 208 s. Now one straight triplet inlined once, the candid
 terrain type (near, far) - NO loop inside the candidate loop (a nested loop of sets drew the ground 1.5-2x slower on
 the GPU). Compile step 208.6 -> 33.6 s cold; the frame and the picture unchanged (same-page A/B, 3 heights).
 splat_ground.js sMatPass / sTriplet; GATE SPLAT 3 (call sites, no loop in the chain). futureDesigns/PERF-2026-09-23.md G568.
+
+## G570 - SKINMAT AND COWL GREEN AGAIN: two gates red for reasons that were not the aeroplane's (2026-09-25)
+
+**SKINMAT** ("role rows for sections no build emits - taperPanel, drawnPane, reveal, shoulder, doorPanel", 5 against
+an allowance of 4). All five ARE emitted by the editor's build; the gate built its coverage meshes from a hand copy of
+cageSheet's pass list that stopped at cageInterior, so the shoulder (G325), the door panel riding it (off by default)
+and the drawn windows' knife (G245) never ran, and its 'taper panels' shape asked for panels on the stock boom with the
+interior off (they are laid on the ROD's truss, which cageInterior draws). The gate now builds through `cageSheet`
+itself (level 2), with shapes for the rod taper panels, the door panel and drawn windows: 37 sections, zero stale rows,
+and the allowance is 0 (negative-verified: a probe row in AERO_ROLE fails it).
+
+**COWL** ("the original tool is available to compare against") failed on every checkout but the user's machine: it
+read `C:/Users/denis/Downloads/cowl-generator-v19 (1).html`, which the repo never carried. The original is now looked
+for at `--orig <file>`, `COWL_ORIG`, `tools/_cowl_orig.html`, then the Downloads path; none on disk is a SKIP of the
+port-faithfulness section, not a FAIL. Still open: commit a byte copy as `tools/_cowl_orig.html` (the _cage_ref_*.obj
+way) so the 1e-12 port comparison runs everywhere again.
