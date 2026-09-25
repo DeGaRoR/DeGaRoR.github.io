@@ -1,5 +1,15 @@
 # flyDiy — ROADMAP (v3 2026-09-01: the player's reorder · v2 2026-08-26: the vertical slice)
 
+> **2026-09-25 — READ FIRST.** The game is now the spine, not Phase 8: the
+> "I don't care so much about the game aspect" ruling below was reversed on
+> 2026-09-14 (`futureDesigns/GAME-LAYER-2026-09-14.md` ruling (be)), and the
+> user's full game vision — the WWII field and one Cub, the contract board
+> (missions / competitions / routes), vendors and second-hand, the three owned
+> hangars, the living island — is `futureDesigns/GAME-VISION-2026-09-25.md`.
+> Its §9 build order (performance → the company → the build loop → routes →
+> Show HN → depth → Steam) is the proposed successor to the phases below,
+> pending the user's rulings in its §10. This file's v4 rewrite waits on them.
+
 This document SUPERSEDES `HANDOVER.md` § ROADMAP (the sessions 1-6 / W-branch
 list). That section stays where it is as history — its entries are cited all
 over the handover — but the living plan is here. One chantier per session, the
