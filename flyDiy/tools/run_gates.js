@@ -301,6 +301,10 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
+  // THE TOWN ON TEXTURE ARRAYS (G574): house_tarr.js's shader edits on r186's own program after the house
+  // generator's real hooks, the classify by hook identity, the merge (world, the sag baked, one slot a finish), the
+  // host's wiring (~2 s)
+  { id: 'TARR', file: '_tarr_check.js', tier: 'core' },
   // THE PARKED AEROPLANES (G411): builds as props, headless on a synthetic
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs
