@@ -59152,3 +59152,20 @@ sitePattern, sitePatternIssues and patternPath (the premises' `site` needs them)
 OWED: G563-G566's numbers were taken on commits that all carry this bug. Measured "settled" in the game, the
 per-frame stream would have built the queue by then (step() does not depend on drainNear), but in RECORD order, not
 nearest-first (drainNear is what sorts it), and the ground under the patch was never re-sunk. Re-take the over-the-field / stand / town numbers on a GPU.
+
+## G571 - L0 SHELVED: a parked aeroplane is L1 from 0 m (2026-09-25)
+
+The user: "They look good, so simply get rid of L0 for now (keep available for possible later reactivation, but
+transparent to the game) and have L1 by default, should be enough, and allow plenty of planes."
+`PARKED.L0` (default false) decides at `build` time whether a placement gets the interior rung. Off, the LOD is
+L1 (0 m) / L2 (120) / L3 (450) / cull (2500): no interior bucket, gauge, control, pushrod or wire is ever built
+(no geometry uploaded, no material made for them), and once the bake lands (G569) the aeroplane is ONE draw on ONE
+material from 0 m out - the draw count per parked aeroplane no longer depends on how close the camera stands, which
+is what lets the apron hold many of them. Before the bake lands, or with no WebGL renderer, L1 is the per-material
+exterior (merged by material, G565). The panes read as L1's dark slab even up close. The obstacle rasteriser and
+hitReady (render_premises) walk `levels[0]`, which is now the exterior: the same outline the aeroplane shows.
+`PARKED.L0 = true` restores the full ladder for placements built after the switch - nothing of L0 was deleted.
+GATE PARKED: 5b / 6c / 8 switch L0 on to keep proving the full ladder; new checks 9 prove the default (off by
+default; four rungs, L1 at 0 m, no interior geometry built, the far rungs one index lower and on the ground, the
+craft matrix; with the bake in hand, L1 / L2 / L3 each one draw on the bake's one material, standing where the
+full ladder does). 104 checks green.
