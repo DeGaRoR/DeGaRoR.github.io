@@ -39118,7 +39118,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='d1a1f438ba12';window.FLYDIY_BUILD='33b47851c9b3'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='d1a1f438ba12';window.FLYDIY_BUILD='023e04dd28be'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -115446,6 +115446,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     return { patchMat: inner.mat, patchUV: inner.uv, patchMat2: outerMat, patchUV2: outerUV, patchInject2: false,
              patchPick: (x0, z0, x1, z1) => !(Math.abs(x0) < h && Math.abs(x1) < h && Math.abs(z0) < h && Math.abs(z1) < h) };
   }
+  // G570: declared ABOVE the premises block, which runs inline in buildWorldScene - declared where worldUpdate
+  // stands (G562) it was in its TDZ when the block ran: a ReferenceError the catch below printed as "the record
+  // did not render", and the game drew no premises at all
+  const PREM_NEAR = 3000;   // G562: the boot builds the premises within 3 km of the field; the rest streams in
   if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
     try {
       // the patch wears the ring it lies in, chunk by chunk (patchGrounds, G527): the inner ring's material (its
@@ -115768,7 +115772,6 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
   }
   let premTramLast = 0, premStreamTick = 0;
-  const PREM_NEAR = 3000;   // G562: the boot builds the premises within 3 km of the field; the rest streams in
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued && (++premStreamTick % 3 === 0 || (premisesR.editing && premisesR.editing()))) premisesR.step(1);   // a live edit's builds, and the far premises streamed in (G562): one every third frame
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
@@ -139023,7 +139026,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
 <script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
 <script type="text/x-flydiy" src="tools/_house_kit.js?v=5d5c479e"></script>
-<script type="text/x-flydiy" src="tools/_house_gen.js?v=ec32f923"></script>
+<script type="text/x-flydiy" src="tools/_house_gen.js?v=3c342a3f"></script>
 <script type="text/x-flydiy" src="tools/_big_gen.js?v=8670619d"></script>
 <script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
 <script type="text/x-flydiy" src="tools/_marine_gen.js?v=7e5624cd"></script>
@@ -139040,7 +139043,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=f80b94dd"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=8dbc02eb"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=a2698c61"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=e5f64ca9"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=2db2dffe"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=da53cf9e"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=09f00685"></script>
 <script type="text/x-flydiy">

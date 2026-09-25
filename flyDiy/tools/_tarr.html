@@ -1,0 +1,164 @@
+<!doctype html>
+<!-- _tarr.html - THE TOWN ON TEXTURE ARRAYS, SIDE BY SIDE (G571). A street of generated buildings (houses, a big
+     building, a hangar, a tower) drawn as the game draws them before the near bake, then merged onto house_tarr.js's
+     stack (one town mesh per kind x side x caster), the same views photographed, and the pixels compared.
+     Driven by tools/tarr_shot.js; window.TARR_RUN() -> { views: [{ name, calls: [orig, tarr], diff, png }] }. -->
+<html><head><meta charset="utf-8"><title>tarr bench</title>
+<style>body{margin:0;background:#222;color:#ddd;font:12px monospace}canvas{display:block}</style></head><body>
+<canvas id="c" width="960" height="540"></canvas>
+<script src="../vendor/three.min.js"></script>
+<!-- the game's ATMO: its prototype accessor wraps every material's hook (G432.2) - classify must read the raw one -->
+<script src="../src/viewer/atmo.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/viewer/house_tex.js"></script>
+<script src="../src/core/51_prop_codec.js"></script>
+<script src="../src/viewer/assets.js"></script>
+<script src="../src/viewer/props.js"></script>
+<script src="../src/pier/pier_pier.js"></script>
+<script src="../src/pier/pier_boat.js"></script>
+<script src="../src/pier/pier_people.js"></script>
+<script src="../src/pier/pier_lods.js"></script>
+<script src="../src/pier/pier_yard.js"></script>
+<script src="../src/pier/pier_vehicle.js"></script>
+<script src="../src/pier/pier_auto.js"></script>
+<script src="../src/props/props_vessel.js"></script>
+<script src="../src/props/props_handling.js"></script>
+<script src="../src/props/props_storage.js"></script>
+<script src="../src/props/props_machine.js"></script>
+<script src="../src/props/props_fixture.js"></script>
+<script src="../src/props/props_vehicle.js"></script>
+<script src="../src/props/props_bench.js"></script>
+<script src="../src/viewer/site_tex.js"></script>
+<script src="../src/viewer/sign_tex.js"></script>
+<script src="_house_kit.js"></script>
+<script src="_house_gen.js"></script>
+<script src="_shed_gen.js"></script>
+<script src="../src/viewer/hangar_walls.js"></script>
+<script src="../src/viewer/hangar_floor.js"></script>
+<script src="../src/viewer/hangar_sky.js"></script>
+<script src="../src/viewer/hangar.js"></script>
+<script src="_big_gen.js"></script>
+<script src="_sport_gen.js"></script>
+<script src="_marine_gen.js"></script>
+<script src="_hangar_gen.js"></script>
+<script src="_tower_gen.js"></script>
+<script src="../src/viewer/lot_tex.js"></script>
+<script src="_tram_gen.js"></script>
+<script src="../src/cabin/cabin_cabin.js"></script>
+<script src="../src/viewer/cabin_livery.js"></script>
+<script src="../src/viewer/cabin.js"></script>
+<script src="../src/viewer/house_tarr.js"></script>
+<script>
+'use strict';
+(function () {
+const W = 960, H = 540;
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: false, preserveDrawingBuffer: true });
+renderer.setSize(W, H, false); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8fb4d8);
+const sun = new THREE.DirectionalLight(0xfff1dd, 3.0); sun.position.set(60, 90, 40); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90, near: 1, far: 300 }); sun.shadow.bias = -0.0005;
+scene.add(sun); scene.add(sun.target);
+const hemi = new THREE.HemisphereLight(0xbcd4ee, 0x5a5040, 0.9); scene.add(hemi);
+// an environment for the glass to reflect: a gradient sky scene through PMREM
+{ const es = new THREE.Scene(); const g = new THREE.SphereGeometry(50, 32, 16);
+  const m = new THREE.ShaderMaterial({ side: THREE.BackSide, vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: 'varying vec3 vP; void main(){ float h = normalize(vP).y; gl_FragColor = vec4(mix(vec3(0.25,0.22,0.18), mix(vec3(0.75,0.82,0.9), vec3(0.3,0.5,0.85), max(h,0.0)), smoothstep(-0.05,0.05,h)), 1.0); }' });
+  es.add(new THREE.Mesh(g, m)); scene.environment = new THREE.PMREMGenerator(renderer).fromScene(es, 0.02).texture; }
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x55603f, roughness: 1 }));
+ground.position.y = -0.05; ground.receiveShadow = true; scene.add(ground);
+
+// the street: generator, seed; each its own finish, as render_premises' buildHouse does
+const GENS = [];
+for (let i = 0; i < 14; i++) GENS.push(['HOUSE_GEN', 'randomHouse', 1000 + i * 37]);
+GENS.push(['BIG_GEN', 'randomBig', 7], ['BIG_GEN', 'randomBig', 19], ['HANGAR_GEN', 'randomHangar', 3], ['TOWER_GEN', 'randomTower', 5], ['SHED_GEN', 'randomShed', 11]);
+const houses = new THREE.Group(); scene.add(houses);
+const bags = [], skipped = [];
+GENS.forEach(([gname, rname, seed], i) => {
+  const G = window[gname]; if (!G || !G[rname]) { skipped.push(gname); return; }
+  try {
+    let P = G[rname](seed); if (P && P.P) P = P.P;
+    const F = G.makeFinish(); G.applyFinish(P, F);
+    const b = G.build(P, 0, F);
+    const grp = new THREE.Group();
+    const col = i % 5, row = Math.floor(i / 5);
+    grp.position.set((col - 2) * 30, 0, (row - 1.5) * 32); grp.rotation.y = (i * 0.7) % 1.2 - 0.6;
+    for (const k of (G.BAGS || HOUSE_GEN.BAGS)) if (b.bags[k] && F.MAT[k] && k !== 'smoke' && k !== 'aoskirt') { const m = b.bags[k].mesh(grp, F.MAT[k]); if (m) bags.push(m); }
+    houses.add(grp);
+  } catch (e) { skipped.push(gname + ':' + e.message); }
+});
+houses.updateMatrixWorld(true);
+
+const imgsOf = () => { const s = new Set(); for (const m of bags) for (const k of ['map', 'normalMap', 'roughnessMap']) { const t = m.material[k]; if (t && t.image) s.add(t.image); } return [...s]; };
+const loaded = () => Promise.all(imgsOf().map(i => (!('complete' in i) || i.complete) ? 0 : new Promise(r => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); })));
+
+// the bake: render_premises' bucket rule (kind x side x caster)
+let TA = null, town = null, readyR = null;
+function bake() {
+  if (town) { scene.remove(town); town.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+  for (const m of bags) m.userData.merged = false;
+  town = new THREE.Group(); scene.add(town);
+  TA.begin();
+  const B = new Map(), rest = [];
+  for (const m of bags) { const c = TA.classify(m); if (!c) { rest.push(m); continue; } const k = c.key + '|' + m.castShadow; let b = B.get(k); if (!b) B.set(k, b = { c, list: [] }); b.list.push(m); }
+  let draws = 0, merged = 0;
+  for (const b of B.values()) {
+    const r = TA.merge(b.list, b.c.kind); if (!r.geo) continue;
+    const mesh = new THREE.Mesh(r.geo, TA.material(b.c.kind, b.c.side, b.list[0].material.dithering));
+    mesh.castShadow = b.list[0].castShadow; mesh.receiveShadow = true; town.add(mesh); draws++;
+    for (const m of r.used) { m.userData.merged = true; merged++; }
+  }
+  const ok = TA.end();
+  return { ok, draws, merged, rest: rest.length, restMats: [...new Set(rest.map(m => m.material.type + (m.material.userData.flat ? ':flat' : '') + (m.material.transparent ? ':transp' : '') + (m.material.userData.steelMixed ? ':steel' : '') + (m.material.userData.houseShaded ? ':house' : '') + (m.material.userData.glassShaded ? ':glass' : '')))] };
+}
+function mode(tarr) { for (const m of bags) m.visible = !(tarr && m.userData.merged); if (town) town.visible = !!tarr; }
+
+const VIEWS = [
+  { name: 'near', p: [8, 4.5, 26], t: [-4, 3, 10] },
+  { name: 'street', p: [-40, 10, 60], t: [0, 3, 0] },
+  { name: 'mid', p: [90, 45, 110], t: [0, 0, 0] },
+  { name: 'far', p: [220, 120, 260], t: [0, 0, 0] },
+  { name: 'dusk', p: [-40, 10, 60], t: [0, 3, 0], dusk: true },
+];
+const cam = new THREE.PerspectiveCamera(50, W / H, 0.1, 3000);
+function shoot(v) {
+  cam.position.set(...v.p); cam.lookAt(...v.t); cam.updateMatrixWorld();
+  sun.intensity = v.dusk ? 0.15 : 3.0; hemi.intensity = v.dusk ? 0.12 : 0.9; scene.background.set(v.dusk ? 0x1c2233 : 0x8fb4d8);
+  renderer.info.reset(); renderer.info.autoReset = false;
+  renderer.render(scene, cam);
+  const calls = renderer.info.render.calls; renderer.info.autoReset = true;
+  const gl = renderer.getContext(), px = new Uint8Array(W * H * 4);
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  return { calls, px };
+}
+window.TARR_RUN = async function () {
+  await loaded();
+  console.log('tarr: images settled', imgsOf().length);
+  const broken = imgsOf().filter(i => ('complete' in i) && !i.naturalWidth).map(i => i.src.split('/').pop());
+  TA = HOUSE_TARR.make(THREE, { onReady: () => readyR && readyR() });
+  const t0 = performance.now();
+  let b = bake();
+  console.log('tarr: first bake', JSON.stringify(b));
+  if (!b.ok) { await new Promise(r => { readyR = r; }); b = bake(); }
+  console.log('tarr: second bake', JSON.stringify(b));
+  const bakeMs = performance.now() - t0;
+  const out = { atmo: !!(window.ATMO && ATMO.installed), skipped, broken, bags: bags.length, bake: b, bakeMs: Math.round(bakeMs), stats: TA.stats, views: [] };
+  // compile both first (the shots must not time a link)
+  for (const v of VIEWS) { mode(false); shoot(v); mode(true); shoot(v); console.log('tarr: warmed', v.name); }
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H * 3; const cx = cv.getContext('2d');
+  for (const v of VIEWS) {
+    mode(false); const A = shoot(v); mode(true); const Bv = shoot(v);
+    let sum = 0, big = 0; const D = new Uint8ClampedArray(W * H * 4);
+    const put = (px, y0) => { const id = cx.createImageData(W, H); for (let y = 0; y < H; y++) id.data.set(px.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4); cx.putImageData(id, 0, y0); };
+    for (let i = 0; i < W * H * 4; i += 4) {
+      const d = (Math.abs(A.px[i] - Bv.px[i]) + Math.abs(A.px[i + 1] - Bv.px[i + 1]) + Math.abs(A.px[i + 2] - Bv.px[i + 2])) / 3;
+      sum += d; if (d > 12) big++;
+      D[i] = D[i + 1] = D[i + 2] = Math.min(255, d * 4); D[i + 3] = 255;
+    }
+    put(A.px, 0); put(Bv.px, H); put(D, 2 * H);
+    out.views.push({ name: v.name, calls: [A.calls, Bv.calls], meanDiff: +(sum / (W * H)).toFixed(3), over12: +(100 * big / (W * H)).toFixed(3), png: cv.toDataURL('image/png') });
+  }
+  return out;
+};
+})();
+</script></body></html>

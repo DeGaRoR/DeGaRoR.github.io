@@ -238,6 +238,8 @@ const MANIFEST = {
     ['src/viewer', 'parked.js'],
     // THE SCENERY'S LIFE (2026-09-23): people, clutter, rubbish, cars, small structures, antennas - made by the renderer below
     ['src/viewer', 'scenery_life.js'],
+    // THE TOWN ON TEXTURE ARRAYS (G571): the stack, the slot table and the town materials the near bake draws with
+    ['src/viewer', 'house_tarr.js'],
     ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
