@@ -59736,6 +59736,8 @@ eye on the gamer box (a headless software-GL run was cut short). futureDesigns/P
 Batch A of the Jolene playtest (futureDesigns/PLAYTEST-2026-09-26.md §1.1 item 1, numbers in §0.4). Warm stock taxi
 12 -> 30 fps (60 when the auto cap holds; the cap's recovery is A1-PHYS's), the premises stream 29.6 -> 0 ms a frame,
 the frame p90 183 -> 33 ms, no frame over 100 ms after the reveal; the roll-out's longest task 17.8 -> 3.9 s.
+frame_perf (paused): stand 60.5 -> 18.8 ms (2 108 -> 1 478 draws), the mill 20.1 -> 14.1 ms. NB the fps median depends on
+whether the auto cap latched to 30 once (A1-STAND saw 60 vs 30 at equal cost) - compare loop / render ms.
 - G590 THE TOWN SWITCH. Every `mk_` entry (231 over ten layers) is dropped at load unless the GRAPHICS 'towns' row
   is 'with Metlakatla' or the URL says ?town=1 (app.js TOWN; the row is `free` and reloads the page). The data stays:
   `PREMISES_GEN.dropPlaces(rec, prefixes)` returns a COPY and what it cut; `restorePlaces(rec, cut)` puts it back,
