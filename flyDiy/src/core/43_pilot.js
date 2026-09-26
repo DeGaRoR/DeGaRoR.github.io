@@ -362,6 +362,16 @@ function makePilot(sim, def, world, opts) {
   let taxiI = 0, taxiLastT = -1e9;
   let thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
   let eAP = 0, eAR = 0, eARslow = 0;
+  // G630: AN ANGLE'S RATE IS THE RATE OF A WRAPPED DIFFERENCE. The heading
+  // errors live in (-pi, pi]; differenced raw, an error that crosses +-pi
+  // (the nose 180 deg from a target nobody refreshed) steps 2 pi in one
+  // 1/60 s step, a 377 rad/s spike the 2 s washout then holds for seconds
+  // — the downwind's rudder square wave on its +-0.25 stop, measured
+  let tgtHP = null;                          // G630: the target heading one step ago
+  let flatRoll = null;                       // G630.1: the level stretch of a sloped strip the rollout rolls on to
+  let taxiHdgF = null, taxiHdgT = -1e9;      // G630: the taxi target heading, filtered, and when it was last flown
+  let pG = 0;                                // G630: the ground roll rate, slow (the contact springs' jitter filtered out)
+  const wrapPi = a => a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
   let eTrim = 0;
   let pendReEng = false;
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
@@ -921,6 +931,14 @@ function makePilot(sim, def, world, opts) {
       const l = Math.hypot(tx, tz); tx /= l; tz /= l;
     }
     const e = Math.atan2(tz * nose[0] - tx * nose[1], tx * nose[0] + tz * nose[1]);
+    // G630: A TARGET THAT JUMPS IS NOT A RATE. A new target heading (a mode
+    // change, a taxi point shifted, a look-ahead index stepping past a
+    // corner) moves e in one step; no aeroplane's target turns 3 rad/s, so
+    // a step past 0.05 rad is carried into the rate filters' memory (eP,
+    // eAP) and they see only the continuous part — a bumpless transfer
+    const tgtH = Math.atan2(tz, tx);
+    if (tgtHP != null) { const dT = wrapPi(tgtH - tgtHP); if (Math.abs(dT) > 0.05) { eP = wrapPi(eP + dT); eAP = wrapPi(eAP + dT); } }
+    tgtHP = tgtH;
     let eA = e;
     const tl2 = Math.hypot(vcg[0], vcg[2]);
     if (tl2 > 5) {
@@ -934,7 +952,7 @@ function makePilot(sim, def, world, opts) {
     if (pendReEng) {
       pendReEng = false;
       thF = thRaw; phF = phRaw; thP = thRaw; phP = phRaw; q = p = 0;
-      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0;
+      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0; pG = 0;
       vsF = vcg[1]; thCA = thRaw; phCA = 0;
       aDe = sim.ctl.de; aDa = sim.ctl.da; aDr = sim.ctl.dr;
       Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6; IthMax = IthMaxT = 0.15; IthGain = null;
@@ -946,10 +964,11 @@ function makePilot(sim, def, world, opts) {
     const RF = A.rateFilt ?? 0.12;
     q += RF * ((th - thP) / dt - q); thP = th;
     p += RF * ((ph - phP) / dt - p); phP = ph;
-    eR += RF * 0.85 * ((e - eP) / dt - eR); eP = e;
+    eR += RF * 0.85 * (wrapPi(e - eP) / dt - eR); eP = e;
     eRslow += dt / 2.0 * (eR - eRslow);
-    eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
+    eAR += RF * 0.85 * (wrapPi(eA - eAP) / dt - eAR); eAP = eA;
     eARslow += dt / 2.0 * (eAR - eARslow);
+    pG += dt / 0.3 * (p - pG);
     vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
     const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
     if (vPrev !== null) accF += dt / 2.0 * ((V - vPrev) / dt - accF);
@@ -1032,6 +1051,18 @@ function makePilot(sim, def, world, opts) {
       // toward the path, the way Park's law captures from any side
       if (L.dist > 2 * L1) { L = pathLocate(airPath, airPathI, cg[0], cg[2], true); }
       airPathI = L.i;
+      // G630: THE TARGET IS THE PATH'S TANGENT. PATH never wrote
+      // ap.targetDir, so the yaw damper's eA (the track against the target)
+      // was measured against the TAXI's last heading for the whole circuit:
+      // on the downwind, 180 deg from the runway's, it sat on +-pi and the
+      // damper rang the rudder stop to stop (6 s, the Jolene playtest). The
+      // tangent is interpolated between the 5 m samples (a fillet's heading
+      // steps 1-2 deg per sample, and the damper differentiates it)
+      const q0 = P[L.i], qd = (cg[0] - q0.x) * Math.cos(q0.hdg) + (cg[2] - q0.z) * Math.sin(q0.hdg);
+      const qa = qd >= 0 ? q0 : P[Math.max(0, L.i - 1)], qb = qd >= 0 ? P[Math.min(P.length - 1, L.i + 1)] : q0;
+      const qf = qb.s > qa.s ? clamp((qd >= 0 ? qd : qd + (qb.s - qa.s)) / (qb.s - qa.s), 0, 1) : 0;
+      const hT = qa.hdg + qf * wrapPi(qb.hdg - qa.hdg);
+      ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
       let j = L.i;
       const s0 = P[L.i].s;
       while (j < P.length - 1 && P[j].s - s0 < L1) j++;
@@ -1204,6 +1235,52 @@ function makePilot(sim, def, world, opts) {
       holdPitch(thC);
       tecsDbg = { hdotC, Vc, STEr, STErC, ff, thr: c.thr, wK: tWk, thC, eB };
     };
+    // THE STEER GAINS (groundSteer's, factored out G630 so the taxi flies
+    // them too — the taxi ran the fixed 3.2 / 1.2 at any mass, the fault
+    // G250 fixed for the take-off roll; a taildragger bit-identical)
+    const steerK = (tailUp) => {
+      const kS = trike ? clamp(((A.VSteer ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0)
+               : clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0);
+      const kM = Math.sqrt(Math.max(200, sim.totalM || 500) / 500);
+      const kP = (tailUp
+        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
+        : 3.2 * kS) / kM;
+      // P1.D: the heading gain falls and the damping rises with the square
+      // root of the mass — the yaw inertia grows with it, the tailwheel's
+      // moment does not, and a loop tuned on a 480 kg cub rang a 2 t beaver
+      // at 10-19 m/s (+-35 deg at a 4 s period in 4 m/s gusting across)
+      const kD = (tailUp ? 3.0 : 1.2 * (trike ? Math.sqrt(kS) : kS)) * kM;
+      // G630: A TRICYCLE'S RATE TERM IS A QUARTER, AND NONE UNDER THE BRAKES.
+      // The nosewheel turns the heading kinematically (yaw rate = V steer
+      // dr / wheelbase: no inertia to damp at taxi speed), and the full rate
+      // term fed the tyres' and springs' own 2.5 Hz yaw mode instead: the
+      // rudder rang +-0.05..0.1 down every take-off roll and rollout of the
+      // C172s (freeze test: rudder held at 0, the heading stays within 0.16
+      // deg — the ring was ALL the loop's). Measured on the aluminium C172:
+      // a quarter is quiet on the roll (169 -> 0 reversals/min) and still
+      // GREW under the rollout's brakes (the loaded nosewheel); none is
+      // quiet everywhere but gave back the crosswind damping (x2 rollout
+      // swing 1.6 -> 5.6 deg on the C172); a quarter off the brakes, none on
+      // them: 2.9 deg, 0 reversals. `trikeSteerD` is the fraction.
+      // ...AND ITS P IS CAPPED AT A FIXED KINEMATIC BANDWIDTH: the loop's
+      // crossover is kP V steer / Lwb and it GROWS with the ground speed
+      // until the (VSteer/V)^2 schedule starts — ~7 rad/s at VSteer on the
+      // C172 archetype, where it rang 1.7 Hz +-0.7 deg under the brakes on
+      // P alone (frozen rudder: calm). `steerBW` rad/s.
+      if (tailUp || !trike) return [kP, kD];
+      const kPb = Math.min(kP, (A.steerBW ?? 3.5) * TW.Lwb / (Math.max(Vg, 3) * TW.steer));
+      return [kPb, kD * (A.trikeSteerD ?? 0.25) * (1 - clamp((c.brake || 0) / 0.1, 0, 1))];
+    };
+    // G630: THE WINGS-LEVEL LOOP ON THE WHEELS. -2 ph - p differentiated the
+    // contact springs' bank jitter (a tenth of a degree at 1-2 Hz) into
+    // aileron chatter the trace's aileron lane showed the whole taxi and
+    // roll; on the ground the bank error has a 0.6 deg deadband and the
+    // rate is the slow one (0.3 s) with its own 0.02 rad/s deadband. Off
+    // the wheels it is the air's law, unchanged.
+    const db = (x, w) => x - clamp(x, -w, w);
+    const groundAil = (phT, lim) => onG > 0
+      ? clamp(-2.0 * db(ph - phT, 0.010) - 1.0 * db(pG, 0.02), -lim, lim)
+      : clamp(-2.0 * (ph - phT) - 1.0 * p, -lim, lim);
     const groundSteer = () => {
       // H4 (G393): ON THE WATER the split is displacement / on the step
       // (wheelsOnGround reads 3 / 2 for exactly that), the water rudder is
@@ -1245,17 +1322,7 @@ function makePilot(sim, def, world, opts) {
       // the gains were sized for, and the weave grew 2 -> 7 -> 12 -> 52 deg
       // with the rudder on its stop (stearman and cub archetypes, measured).
       // The floor 0.3 = VTailUp x 1.8, the fastest a tail-down roll gets.
-      const kS = trike ? clamp(((A.VSteer ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0)
-               : clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0);
-      const kM = Math.sqrt(Math.max(200, sim.totalM || 500) / 500);
-      const kP = (tailUp
-        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
-        : 3.2 * kS) / kM;
-      // P1.D: the heading gain falls and the damping rises with the square
-      // root of the mass — the yaw inertia grows with it, the tailwheel's
-      // moment does not, and a loop tuned on a 480 kg cub rang a 2 t beaver
-      // at 10-19 m/s (+-35 deg at a 4 s period in 4 m/s gusting across)
-      const kD = (tailUp ? 3.0 : 1.2 * (trike ? Math.sqrt(kS) : kS)) * kM;
+      const [kP, kD] = steerK(tailUp);
       c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
       // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
       // ground roll, and the pilot had only the first. This held the wings
@@ -1295,7 +1362,7 @@ function makePilot(sim, def, world, opts) {
       // wing down against the crosswind's own rolling moment; from the FIRST
       // main down on a taildragger (the wing-low touchdown lands one wheel)
       if (!onWater && onG >= (trike ? 3 : 1)) phW = clamp(phW, -(A.xwBankGround ?? 0.035), A.xwBankGround ?? 0.035);
-      c.da = clamp(-2.0 * (ph - phW) - 1.0 * p, -0.30, 0.30);
+      c.da = groundAil(phW, 0.30);
       tailUpNow = tailUp;
     };
     const taxi = (Vtgt) => {
@@ -1310,7 +1377,7 @@ function makePilot(sim, def, world, opts) {
         taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
       c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
       c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+      c.da = groundAil(0, 0.25);
     };
     const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     const taxiV = (A.taxiV ?? 5.0) * ST.taxiK;
@@ -1539,6 +1606,19 @@ function makePilot(sim, def, world, opts) {
       const ex = from.x + t[0] * from.len / 2, ez = from.z + t[1] * from.len / 2;
       return (ex - cg[0]) * t[0] + (ez - cg[2]) * t[1];
     };
+    // G630.1: the nearest LEVEL ground on the strip still ahead of a rollout
+    // stopped on a grade (grade over +-20 m under 1 %, 25 m short of the end,
+    // 400 m at most), or null — none needed, none there, no terrain
+    const flatAhead = () => {
+      const to = ap.route && ap.route.to;
+      if (!to || !to.len || !world || typeof world.terrainH !== 'function' || sim.hydro || to.surface === 4 || Math.abs(gGrade) < 0.015) return null;
+      const ux = ap.dirX * F.ux, uz = ap.dirX * F.uz;
+      const rem = (to.x + ux * to.len / 2 - cg[0]) * ux + (to.z + uz * to.len / 2 - cg[2]) * uz;
+      const gAt = d => (groundH(cg[0] + ux * (d + 20), cg[2] + uz * (d + 20)) - groundH(cg[0] + ux * (d - 20), cg[2] + uz * (d - 20))) / 40;
+      for (let d = 10; d <= Math.min(rem - 25, 400); d += 10)
+        if (Math.abs(gAt(d)) < 0.01) return { x: cg[0] + ux * d, z: cg[2] + uz * d, ux, uz, d, t0: ap.t };
+      return null;
+    };
     const FS = def.params.flaps;
     const flapsTo = (tgt) => {
       if (!FS) return;
@@ -1664,13 +1744,26 @@ function makePilot(sim, def, world, opts) {
           const K = pathLook(ap.path, L.i, Vg);
           const eXT = clamp(Math.atan2(0.9 * L.ey, Vg + 1.0), -0.6, 0.6);
           const hT = K.hdgL - eXT;
-          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          // G630: THE LOOK-AHEAD TARGET, FILTERED (0.4 s). hdgL is a sample's
+          // heading a look-ahead away, and it STEPS as the index passes each
+          // sample of a bend (and as the look-ahead shrinks with the speed):
+          // the rudder differentiated every step into a kick
+          if (taxiHdgF == null || ap.t - taxiHdgT > 0.5) taxiHdgF = hT;
+          else taxiHdgF = wrapPi(taxiHdgF + wrapPi(hT - taxiHdgF) * Math.min(1, dt / 0.4));
+          taxiHdgT = ap.t;
+          ap.targetDir = [Math.cos(taxiHdgF), 0, Math.sin(taxiHdgF)];
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
           // a long straight (a backtrack) is taxied faster; the bend ahead
           // and the stop still govern through pathSpeed
           const vMax = L.sRem > 150 && Math.abs(L.ey) < 2 ? Math.min(A.taxiVFast ?? 8, 1.6 * taxiV) : taxiV;
-          engage('TAXI', 'DE', 'TAXI', { dr: clamp(-3.2 * e - 1.2 * eR + drFF, -drMaxG, drMaxG),
+          // G630: groundSteer's gain schedule (speed, mass), and NO rate
+          // term: at taxi speed the wheel steers the heading kinematically on
+          // either gear, and the rate term only differentiated the contact's
+          // yaw jitter (the rudder lane's 2.5-4 Hz chatter, 76-290 reversals
+          // a minute on the stock, the C172 and the aluminium C172)
+          const [kPt] = steerK(false);
+          engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e + drFF, -drMaxG, drMaxG),
                                           de: A.taxiDe ?? 0.30, gsp: pathSpeed(ap.path, L.i, Vg, vMax, L.sRem) });
           const tMax = 40 + 1.6 * ap.path.len / taxiV;
           setStatus('following the taxi route to the hold', [
@@ -1683,7 +1776,8 @@ function makePilot(sim, def, world, opts) {
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
-        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45), de: A.taxiDe ?? 0.30,
+        const [kPt] = steerK(false);
+        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e, -0.45, 0.45), de: A.taxiDe ?? 0.30,
                                         gsp: Math.abs(e) > 0.6 ? 2.5 : taxiV });
         const lastLeg = !(ap.taxiPath && ap.taxiPath.length);
         setStatus('taxiing to the next point', [cond('to the point', Math.round(dist), lastLeg ? 22 : 10, false, 'm')]);
@@ -1696,7 +1790,8 @@ function makePilot(sim, def, world, opts) {
 
       case 'LINEUP': {
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);
-        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45), de: A.taxiDe ?? 0.30,
+        const [kPt] = steerK(false);
+        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e, -0.45, 0.45), de: A.taxiDe ?? 0.30,
                                         gsp: alig > 0.5 ? 4.5 : 2.4 });
         ap.trackHold = true;
         setStatus('lining up on the centreline', [
@@ -1715,11 +1810,16 @@ function makePilot(sim, def, world, opts) {
           const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
-          ap.targetDir = [Math.cos(K.hdgL), 0, Math.sin(K.hdgL)];
-          dr = clamp(-3.2 * e - 1.2 * eR, -0.85, 0.85);
+          const hT = K.hdgL;
+          if (taxiHdgF == null || ap.t - taxiHdgT > 0.5) taxiHdgF = hT;
+          else taxiHdgF = wrapPi(taxiHdgF + wrapPi(hT - taxiHdgF) * Math.min(1, dt / 0.4));
+          taxiHdgT = ap.t;
+          ap.targetDir = [Math.cos(taxiHdgF), 0, Math.sin(taxiHdgF)];
+          const [kPt] = steerK(false);
+          dr = clamp(-kPt * e, -0.85, 0.85);
         }
         engage('TAXI', 'DE', 'SET', { dr, de: A.taxiDe ?? 0.30, thr: 0 });
-        c.brake = 0.7; c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+        c.brake = 0.7; c.da = groundAil(0, 0.25);
         setStatus('braking to a standstill', [cond('ground speed', Vg, 0.3, Vg < 0.3, 'm/s')]);
         if (Vg < 0.3 || phaseT > 30) go('HOLD');
         break;
@@ -2369,6 +2469,17 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'ROLLOUT': {
+        if (flatRoll) {
+          // G630.1: the slow roll to the level part (see the stop below)
+          const dRem = (flatRoll.x - cg[0]) * flatRoll.ux + (flatRoll.z - cg[2]) * flatRoll.uz;
+          engage('RWY', 'DE', 'TAXI', { de: A.taxiDe ?? 0.30, gsp: Math.min(0.6 * taxiV, Math.sqrt(2 * 0.5 * Math.max(0, dRem - 1.5))) });
+          setStatus('rolling on to the level part of the strip', [cond('to the level part', Math.round(Math.max(0, dRem)), 2, dRem < 2, 'm')]);
+          if (dRem < 2 || (dRem < 6 && Vg < 0.3) || ap.t - flatRoll.t0 > 90) {
+            ap.report.outcome = ap.report.outcome || 'completed';
+            go('STOPPED');
+          }
+          break;
+        }
         if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
           const soft = ap.appr && ap.appr.technique === 'soft';
@@ -2415,7 +2526,7 @@ function makePilot(sim, def, world, opts) {
         c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));
         setStatus('rolling out', [cond('ground speed', Vg, A.VStop, Vg < A.VStop, 'm/s')]);
         if (Vg < A.VStop || phaseT > 120) {
-          if (ap.tdInfo) ap.report.landing = {
+          if (ap.tdInfo && !flatRoll) ap.report.landing = {
             run: Math.round(Math.abs(sAl - ap.tdInfo.x)),
             sink: Math.round(ap.tdInfo.sink * 100) / 100,
             V: Math.round(ap.tdInfo.V * 10) / 10,
@@ -2423,6 +2534,16 @@ function makePilot(sim, def, world, opts) {
             pastAim: Math.round(ap.tdInfo.x - ap.xAim),
             k: F.k, three: !!ap.tdInfo.three,
           };
+          // G630.1: ON A SLOPED STRIP, ROLL ON TO THE LEVEL PART (the Jolene
+          // playtest: "on inclined runways, the pilot should try and reach
+          // the flat part before stopping"). Stopped on a grade past 1.5 %,
+          // the pilot looks down the strip still ahead (to 25 m short of its
+          // end, 400 m at most) for ground under 1 %, and taxis there. None
+          // ahead (the whole strip is the hill — the matrix's up4 / dn4) and
+          // it stops where it is, as before; the landing is judged at the
+          // first stop either way.
+          if (!flatRoll && phaseT <= 120) flatRoll = flatAhead();
+          if (flatRoll) { say('slope', 'stopped on a ' + (Math.abs(gGrade) * 100).toFixed(1) + ' % grade — rolling ' + Math.round(flatRoll.d) + ' m on to the level part'); break; }
           ap.report.outcome = ap.report.outcome || 'completed';
           go('STOPPED');
         }
@@ -2430,6 +2551,7 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'STOPPED':
+        flatRoll = null;
         engage('NONE', 'DE', 'SET', { de: 0.35, thr: 0 });
         c.brake = 0.25;
         setStatus('stopped', []);
