@@ -15,6 +15,9 @@
 //   - THE STEP-DEBT GUARD (G612): a frame bound by its own solver (the next refresh after other + steps x step)
 //     that cannot hold real time is capped at the cap's steps - the frames stop collapsing, the dilation is
 //     reported; one that can hold real time (however heavy) is never touched, and a light 30 reads 100 %.
+//   - G620: A FREEZE IS KEPT: a stall of 250 ms or more stays in the readout's history (recent()) and is counted and
+//     timed (freezes()) - it was dropped, so a real freeze never showed in the menu's note - while auto's readings
+//     still skip it; a gap the page spent hidden (a tab away) is neither a frame nor a freeze.
 //   node tools/_pace_check.js          -> "GATE PACE: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -29,15 +32,19 @@ const block = src.slice(a, b + '    W.FLYDIY_PACE = api;\n    return api;\n  })(
 function make(opts) {
   const store = {}; if (opts.pref) store['flydiy.gfx'] = JSON.stringify(opts.pref);
   const targets = [];
+  const clock = { t: 0 }, vis = [];
+  const document = { hidden: false, addEventListener: (k, f) => { if (k === 'visibilitychange') vis.push(f); } };
   const window = {
+    document,
     navigator: { webdriver: !!opts.rig, userAgent: opts.rig ? 'HeadlessChrome' : 'Chrome' },
     location: { search: opts.search || '' },
     localStorage: { getItem: k => (k in store ? store[k] : null) },
     FLYDIY_AA: { autoTarget: ms => targets.push(ms), autoState: () => ({ on: true, probing: false }) },
   };
-  const performance = { now: () => 0 };
+  const performance = { now: () => clock.t };
   const PACE = new Function('window', 'performance', block + '\nreturn PACE;')(window, performance);
-  return { PACE, targets };
+  const hide = t => { clock.t = t; document.hidden = true; vis.forEach(f => f()); document.hidden = false; };
+  return { PACE, targets, clock, hide };
 }
 // drive: refreshes every `hz`, a frame's work `work(t)` ms (which also delays nothing - the cap is what is tested),
 // returns { rendered, steps[], simS, wallS }
@@ -181,6 +188,27 @@ function driveCpu(PACE, other, step, secs) {
   const { PACE: P3 } = make({ pref: { fps: 30 } });
   driveCpu(P3, 8, 3, 10); const s3 = P3.state();
   verdict(s3.stats.guarded === 0 && Math.abs(s3.dilation - 1) < 0.02, `a light 30 (8 ms + 3 ms a step): the dilation ${(100 * s3.dilation).toFixed(0)} %, nothing capped`);
+}
+// 9. G620: a freeze is kept in the readout's history, flagged and counted; auto's reading does not take it; a hidden gap is not one
+{
+  const { PACE, clock, hide } = make({ pref: { fps: 60 } });
+  let t = 1000;
+  for (let i = 0; i < 30; i++) { t += 1000 / 60; PACE.frame(t); }
+  t += 900; clock.t = t; PACE.frame(t);                            // a 900 ms freeze
+  for (let i = 0; i < 10; i++) { t += 1000 / 60; PACE.frame(t); }
+  const h = PACE.recent(), fz = PACE.freezes();
+  verdict(h.some(x => Math.abs(x - 900) < 1e-6) && fz.n === 1 && Math.abs(fz.maxMs - 900) < 1e-6 && fz.agoS !== null,
+    `a 900 ms freeze stays in the readout's history (max ${Math.max(...h).toFixed(0)} ms) and is counted (${fz.n}, worst ${fz.maxMs.toFixed(0)} ms)`);
+  // auto's reading: a freeze in a 60-frame reading does not move the median (the reading skips it, as it always did)
+  const { PACE: PA } = make({});
+  let ta = 1000;
+  for (let k = 0; k < 400; k++) { ta += (k % 59 === 30) ? 600 : 1000 / 60; const f = PA.frame(ta); if (f) PA.end(5, 1, f.steps, ta); }
+  verdict(PA.state().cap === 60 && PA.state().stats.down === 0, `  auto at 60 fps with a 600 ms freeze every second: still 60 (${PA.state().stats.down} drops) - a freeze is not a frame rate`);
+  // hidden across the gap: away, not a freeze, not in the history
+  const n0 = PACE.freezes().n, len0 = PACE.recent().length;
+  hide(t + 5); t += 4000; PACE.frame(t); t += 1000 / 60; PACE.frame(t);
+  const fz2 = PACE.freezes();
+  verdict(fz2.n === n0 && fz2.away === 1 && !PACE.recent().some(x => x > 3000), `  a 4 s gap with the page hidden (a tab away): not a freeze (${fz2.n}), counted away (${fz2.away}), not in the history`);
 }
 console.log('GATE PACE: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

@@ -338,7 +338,9 @@ const MANIFEST = {
     // before it decides between a real tree and the cone it drew for a year.
     // storage.js first (LOADING S4): the media cache's worker registers at load and
     // the version line reads FLYDIY_BUILD; nothing else depends on it
-    scripts: ['storage.js', 'assets.js', 'aa_resolve.js',
+    // flight_recorder.js right after it (G620): the long-task and error observers and the boot's events from
+    // the first scripts on; app.js attaches the renderer and the loop's hooks, gfx_settings.js mounts its rows
+    scripts: ['storage.js', 'flight_recorder.js', 'assets.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows

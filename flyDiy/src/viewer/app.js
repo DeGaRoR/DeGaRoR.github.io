@@ -7223,14 +7223,17 @@
     if (flyOpen === 'weather') flWeatherLive();       // CLIMATE K2: the front walks the clock, these walk with it
     if (flyOpen === 'ground') flGroundLive(o);
     // G441 (A4): the frame rate, on the GRAPHICS flyout while it is open (the user:
-    // "we need a framerate indicator, optional") - a half-second window of frames
+    // "we need a framerate indicator, optional") - twice a second.
+    // G620: THE RENDERED FRAMES, NOT THE READOUTS. It counted hud() calls, and hud() runs every 0.1 s (the
+    // loop's hudAcc), so it read 10 fps at best whatever the frame did. Now: the flight recorder's last 2 s of
+    // rendered frames (a freeze counts), else the frame clock's own intervals.
     if (flyOpen === 'graphics') {
       const now = performance.now();
-      if (!flFps.t0) { flFps.t0 = now; flFps.n = 0; }
-      flFps.n++;
+      if (!flFps.t0) flFps.t0 = now - 500;
       if (now - flFps.t0 >= 500) {
-        const el = $('flFps'); if (el) el.textContent = (flFps.n * 1000 / (now - flFps.t0)).toFixed(0) + ' fps';
-        flFps.t0 = now; flFps.n = 0;
+        flFps.t0 = now;
+        const el = $('flFps');
+        if (el) el.textContent = flFpsText();
       }
     } else flFps.t0 = 0;
     if (flyOpen === 'engines' && o.thrustPer)
@@ -7601,6 +7604,15 @@
 
   let flyOpen = null;
   const flFps = { t0: 0, n: 0 };   // G441: the frame-rate row's window
+  // G620: the rendered frames' rate: the recorder's 2 s (freezes in), else PACE's last 120 intervals
+  function flFpsText() {
+    const R = window.FLIGHT_REC, st = R && R.stats && !R.off ? R.stats(2000) : null;
+    if (st && st.n >= 5) return st.fps.toFixed(0) + ' fps \u00b7 ' + st.med.toFixed(1) + ' ms median, ' + st.max.toFixed(0) + ' max';
+    const P = window.FLYDIY_PACE, h = P && P.recent ? P.recent() : null;
+    if (!h || h.length < 5) return 'measuring\u2026';
+    let sum = 0; for (const x of h) sum += x;
+    return (h.length * 1000 / sum).toFixed(0) + ' fps';
+  }
   window.flRefreshLook = () => { if (flyOpen === 'camera') flyOpenSet('camera'); };   // G441: the head-look pills follow the lock
   { const r = $('flRail');
     for (const t of FL_RAIL) {
@@ -9383,10 +9395,13 @@
       acc: 0, lastT: 0, due: 0, dt: 1 / 60, steps: 1, t0: 0,
       iv: [], work: [], hist: [], strikes: 0, goods: 0, trial: null, holdUp: 0, trials: 0,
       stats: { down: 0, up: 0, trialsFailed: 0, guarded: 0 },
+      hiddenT: -1, frz: { n: 0, maxMs: 0, lastT: 0, away: 0 },   // G620: the freezes the readout keeps; the page's last hidden moment
       // the guard's readings (G612): a solver step (ms), the frame less its solver (ms), the last frame's solver;
       // the dilation's window (sim s and wall s, decaying over a second) and the sim time the guard let go
       stepMs: 0, otherMs: 0, lastPhys: 0, simW: 0, wallW: 0, droppedS: 0,
     };
+    // G620: a gap the page spent HIDDEN (a tab away) is not a freeze - the moment it was hidden, on rAF's clock
+    if (W.document && W.document.addEventListener) W.document.addEventListener('visibilitychange', () => { if (W.document.hidden) P.hiddenT = performance.now(); });
     try { const g = JSON.parse(W.localStorage.getItem('flydiy.gfx') || 'null'); if (g && g.fps != null) P.mode = g.fps; } catch (e) {}
     const capOf = () => (P.mode === 'auto' ? P.cap : P.mode === 'off' ? 0 : +P.mode || 0);
     const med = a => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
@@ -9418,11 +9433,16 @@
       }
       P.steps = n;
       P.lastPhys = 0;
-      if (dms < 250) {
-        if (!(iv && dms > 3 * iv)) P.iv.push(dms);        // a hitch is not a reading (G615)
-        P.hist.push(dms); if (P.hist.length > 120) P.hist.shift();   // a stall (a tab away, a load) is not a frame
-        const k = Math.exp(-P.dt);                        // the dilation over the last second of frames
-        P.simW = P.simW * k + n / 60; P.wallW = P.wallW * k + P.dt;
+      // A FREEZE IS KEPT (G620): the readout's history holds every rendered interval, a stall of 250 ms or more
+      // FLAGGED (frz) rather than dropped - a freeze is what the readout is for. Auto's readings still skip it (a
+      // stall is not a frame rate; G615: nor is a hitch), and a gap the page spent hidden (a tab away) is neither a frame nor a freeze.
+      const away = P.hiddenT >= ts - dms;
+      if (dms < 250 && !(iv && dms > 3 * iv)) P.iv.push(dms);   // a hitch is not a reading (G615)
+      if (dms < 250) { const k = Math.exp(-P.dt); P.simW = P.simW * k + n / 60; P.wallW = P.wallW * k + P.dt; }   // the dilation over the last second of frames (G612)
+      if (away) P.frz.away++;
+      else {
+        P.hist.push(dms); if (P.hist.length > 120) P.hist.shift();
+        if (dms >= 250) { P.frz.n++; P.frz.lastT = ts; if (dms > P.frz.maxMs) P.frz.maxMs = dms; }
       }
       return P;
     }
@@ -9464,7 +9484,8 @@
       return P.mode;
     }
     const api = { frame, hold, end, set, tellScale,
-      recent: () => (P.legacy ? null : P.hist.slice()),   // the RENDERED frames' intervals (ms), for the menu's readout
+      recent: () => (P.legacy ? null : P.hist.slice()),   // the RENDERED frames' intervals (ms), for the menu's readout - freezes included (G620)
+      freezes: () => ({ n: P.frz.n, maxMs: P.frz.maxMs, agoS: P.frz.n ? (performance.now() - P.frz.lastT) / 1000 : null, away: P.frz.away }),   // G620: the stalls of 250 ms or more, kept
       get dt() { return P.dt; }, get steps() { return P.steps; },
       get dilation() { return P.wallW > 0.2 ? P.simW / P.wallW : 1; },   // the sim's seconds over the wall's, the last second (G612)
       budgetMs: () => 1000 / (capOf() || 60),
@@ -9477,11 +9498,30 @@
   function easeK(k, dt) { return 1 - Math.pow(1 - k, dt * 60); }
   // the rendered frame's real dt for code that may run before PACE exists (a boot step posing the model)
   function frameDt() { const P = window.FLYDIY_PACE; return P ? P.dt : 1 / 60; }
+  // G620: THE FLIGHT RECORDER (flight_recorder.js). The loop times its sections into it (FR.lap / push / pop, one
+  // line each below; a hook changes nothing the frame does) and, once a frame, this says what the frame was OF -
+  // the loop's own state read where it lives, nothing allocated. null under ?rec=0 and where the module is absent.
+  const FR = (window.FLIGHT_REC && window.FLIGHT_REC.attach) ? window.FLIGHT_REC.attach(renderer, {
+    frame(R, cg) {
+      R.garage = inGarage; R.running = running; R.held = holdRender; R.manual = manual;
+      R.cam = cam.mode; R.phase = ap ? ap.phase : '';
+      const o = sim && sim.out;
+      R.spd = o ? (o.Vg != null ? o.Vg : o.V) : NaN; R.vs = o ? o.vs : NaN;   // the GROUND speed: a parked aeroplane in a wind has an airspeed
+      R.agl = (!inGarage && cg) ? cg[1] - groundH(cg[0], cg[2]) : NaN;
+    },
+    info: () => {   // the aeroplane, for the log's header: the build's own scalar parameters
+      const p = (def && def.params) || {}, out = { key: curKey || null, name: p.name || null, nodes: sim ? sim.n : null, massKg: sim ? Math.round(sim.totalM) : null };
+      let n = 0;
+      for (const k in p) { const v = p[k]; if ((typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') && n++ < 80) out['p.' + k] = v; }
+      return out;
+    },
+  }) : null;
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
   function loop(ts) {
     requestAnimationFrame(loop);
     const pc = PACE.frame(ts);
     if (!pc) return;                   // the cap: this refresh is not ours
+    if (FR) FR.begin(ts, pc);          // G620: the flight recorder's row for this frame
     const fdt = pc.dt, tLoop0 = perfNow();
     let physMs = 0, simDt = 0, ran = 0;
     // MANUAL CONTROLS (G200): the hand is read FIRST, every frame, in the shed
@@ -9546,8 +9586,8 @@
       // two at 30; 2x flies twice as many, and "a frame" is the cap's budget
       const t2 = perfNow(), nStep = pc.steps * simRate;
       for (let k = 0; k < nStep; k++) {
-        script(1 / 60);
-        sim.step(1 / 60);              // substep rate is a per-aircraft property
+        if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
+        if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
       }
       physMs = perfNow() - t2; simDt = nStep / 60; ran = nStep;
       if (simRate > 1) {
@@ -9564,6 +9604,7 @@
         $('phName').textContent = 'SIM DIVERGED — RESET';
       }
     }
+    if (FR) FR.lap(FR.S.other);        // G620: the hand, the shed, the day, the director, the panel
     const cg = sim.cgPos();
     // The world does not exist while you are in the garage, so it is not
     // updated: no terrain paging, no sky, no weather, no LOD churn. That is
@@ -9577,6 +9618,7 @@
     if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
+    if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
     // per-frame cg overwrite silently un-centred it), the craft otherwise;
     // the editor's pan offset rides on top (G41)
@@ -9639,6 +9681,7 @@
       if (want !== WATER.field.on) WATER.fieldOn(want);
       if (want) { const cv = sim.cgVel ? sim.cgVel() : [0, 0, 0]; WATER.fieldStep(THREE, renderer, cgF[0], cgF[2], running ? fdt : 0, cv[0], cv[2]); }   // (the velocity: the box slides aft of the CG under way)
     }
+    if (FR) FR.lap(FR.S.scene);        // G620: the pose, the camera, the buffers, the spray and the water field
     ++frame; hudAcc += fdt * 60;        // (G586: the readouts every 0.1 s, six 60 Hz frames' worth)
     if (hudAcc >= 5.999) {
       hudAcc -= 6; if (hudAcc > 6) hudAcc = 0;
@@ -9647,6 +9690,7 @@
       if (panels.map) drawMap();
       if (panels.trace) drawTel();
     }
+    if (FR) FR.lap(FR.S.hud);
     // THE ONLY RENDER TO THE DEFAULT FRAMEBUFFER in the whole viewer, which is
     // what makes G144's pass a single substitution rather than a campaign:
     // every other renderer.render() in hangar.js and render_world.js is bound
@@ -9655,7 +9699,7 @@
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender) { BOOT.frame(); return; }
+    if (holdRender) { if (FR) FR.end(false, cg); BOOT.frame(); return; }
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
@@ -9680,8 +9724,10 @@
       if (Number.isFinite(wl)) WATER.mirrorRender(THREE, renderer, scene, camera, wl, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
       else if (WATER.mirror.on) WATER.mirrorOff();
     }
+    if (FR) FR.lap(FR.S.mirror);
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
+    if (FR) FR.lap(FR.S.render);       // G620: the submit (the shadow passes and the shader links pushed apart)
     // F1: the contract comes OFF here, after the main render and the mirror capture it covers
     if (!inGarage && WF && WF.vis) WF.vis.release();
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
@@ -9700,6 +9746,7 @@
         SKY_GLARE.render(renderer);
       }
     }
+    if (FR) FR.end(true, cg);          // G620: the glare and the rest to `other`; the row written
     PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), ran);   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
     if (frameWait && --frameWait.n <= 0) { const r = frameWait.res; frameWait = null; r(); }
