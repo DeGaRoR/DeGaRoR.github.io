@@ -466,7 +466,7 @@ function makeWorld(seed, opts) {
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
     const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
-    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals }, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
+    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: !!(opts && opts.groundRaster) }, extra || {}));   // G614: the height raster, opt-in (below)   // the renderer hands its builder (the cable's phase B) and the tree pool
     PMrec = rec;
     // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
     // code into the island's own ttype grid, which the ground's packed texture, the
@@ -502,7 +502,8 @@ function makeWorld(seed, opts) {
     const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
     if (thX[i] === x && thZ[i] === z) return thH[i];
     const h0 = baseH(x, z);
-    const h = PM ? PM.terrainH(x, z, h0) : h0;
+    // (G614: the premises' raster - the composed ground baked lazily off the same modifiers, 27_premises.js)
+    const h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
     thX[i] = x; thZ[i] = z; thH[i] = h;
     return h;
   }
@@ -528,6 +529,9 @@ function makeWorld(seed, opts) {
         const dx = x - a.x, dz = z - a.z;
         if (dx * dx + dz * dz <= a.r * a.r) return a.surface;
       } else {
+        // (G614: past the box's corner radius no rotation can bring the point inside it - no trig; the same answer)
+        const ex = x - a.x, ez = z - a.z, hl = a.len / 2 + 20, hw = a.wid / 2 + 6;
+        if (ex * ex + ez * ez > (hl * hl + hw * hw) * (1 + 1e-9)) continue;
         const c = Math.cos(a.hdg), s = Math.sin(a.hdg);
         const u = (x - a.x) * c + (z - a.z) * s,
               v = -(x - a.x) * s + (z - a.z) * c;
