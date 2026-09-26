@@ -1,0 +1,157 @@
+Screenshots under bugreports again
+
+Playtest in the garage
+FPS is good over there
+Shading is good over there
+
+Playtest feedback on Jolene island, first time
+
+Very first load, I never really played Jolene before, just seen benches, early versions and screenshots. I run it straight from Github pages, not locally, like players would.
+The performance is unacceptable when getting out of the hangar.
+Screenshot 2026-09-26 140339.png an effect that I cannot disable manually gives a lot of dark lines and hachure patterns, very undesirable
+On top of the lag, there is constant flickering. You can see on the Screenshot 2026-09-26 140339.png on the ground, some small hachure patterns again. These ones flicker like hell
+The cloud refelctions in the water are updated to infrequently by default, giving a laggy feeling too. and with low framerates, the clouds do not move at the same pace as the landscape when orbiting, which is extremely starnge.
+The very shadow of the plane flickers a lot, and also give a low framerate feeling.
+All ruts of roads flicker like hell, anything related to normals Screenshot 2026-09-26 141608.png
+The framerate indicator under graphics is unreliable, caps at 10 fps. We need a reliablme oàne, that can be displayed on screen.
+The loading times are long, but not dramatic. The feedback really helps, and all screens should have some. It feels like the same loadings happen several times. For one loading, chrome sent the unresponsive page warning, that should never happen. Same when I swapped the setting to potato. And this did not help the framerate of the first run.
+I got better framerates in the subsequent runs, but it is unacceptable that the first run is so laggy. Not a great first impression at all.
+Much better FPS as soon as we're off the ground. MAybe we have a ground physics issue?
+The grass and debris should have some fade effect when being diaplyed and not
+
+I want to study the possibility of getting rid of Metlakatla, at least for testing purposes. We have made this unplayable really. We should have performance at the stand similar to the one of the procedural island. We have optimized a lot everything we could, it's probably now time to cut in content our technology just cannot deliver to us? I'm still surprised, it looks good, but today's world engines felt a lot more capable than that to me... I'm questioning the web choice increasingly.
+
+apparent shading issue, or maybe simply a cloud? Screenshot 2026-09-26 150251.png feels too straight anyways. I think it is the forest floor being drawn arounf the plane. That looks odd, this also flickers when being regenrated. Can't we just bake this once and for all, and have an island shadow map, cheap in real time?
+
+Choosing shadows off generated an unexpectedly long freeze, but the aircraft lost its hachure patterns, and the FPS is much better, even though I have some periodic sevre lags still. Honest, the island does not look that bad without the shadows, and the perfromance seems to have really appreciated the operation. That might be one of the most interesting directions.
+
+The grass still does not blend well enough with the ground Screenshot 2026-09-26 151554.png
+
+There seem to be a road, mut no texture, normal? Screenshot 2026-09-26 150403.png
+
+Some lag when flying close to the cliffs, probably the load up of debris and scattered rocks. Felt like a lot of FPS drop for a few meshes only
+
+Things really kept getting better as I played, but that's quite wrong to penalize the first impression this way.
+
+The reflections of the clouds in the water, even on live setting and good FPS, is quite unacceptable.
+
+Did we review the performance of the runway drawing? I'm surpirsed abut how bad the FPS is on startup, next to the stand. We need to profile that
+
+It's been a while that wheel sink in the runway about 5 cm. That's not acceptable anymore, we have to fix thta properly Screenshot 2026-09-26 142532.png
+The subsequent runs are much more enjoyable, 20 min in, I'm starting to enjoy myself and discover the island watching the pilot, that's cool. But the autopilot oscillating behaviour, the flickering, the shading issue (looks like badly parametrized SSAO to me), and the initial experience absolutely need to change.
+
+There's still a wrong filtering setting on the normal maps, like trilinear or something not being right, so the normals blur in the distance at razing angles, which is physically incorrect, and it shows Screenshot 2026-09-26 142931.png
+
+I'm wondering if we shouldn't tetxure bake our planes before getting in game for the better texture averaging of colors blending. less pixel harshness, lower need for anti-aliasing, which currently cannot save it all
+
+Synchronizing the movement of the clouds and the rest of the world on camera orbiting is really important.
+
+Did we ever profile the autopilot itself for performance issues?
+Are our bench testing holistically the integrated CPU+GPU experience?
+
+the sides of the runways look quite bad, in temrs of color and detailled textures. We'll need to do a more tasteful job, with more macro variations
+
+Look at the AGL reading, completely faulty, and it's unclear to what altitude the autopilot intends to go. There are also no waypoints on the map, so it is very unclear what the autopilot intedns to do. I think we need to see the waypoints and their target altitude, and maybe the vertical speed limits Screenshot 2026-09-26 143705.png
+
+I checked the real island, and actually the mountain with the skyline is the most rocky one by far, almost tree-bold, and that's the one everyone will see a lot. We probably need mesh cliffs for that part. The current cliff material also does not fit the color/light scheme, to be reworked anyways, with much more macro variation Screenshot 2026-09-26 144049.png
+
+The grass probably appears a little too late on approach. The runways should be able excluding the grass.
+
+The plane is dropped from very high on reload. Fun, but unrealistic, and possibly damaging
+There should be a way to select the circuit either from the garage, or straight at roll outThe inaugural flight i!s detected, but not kept. I did not run the other checks, but everytime it tells me it's my first flight. I try clicking on fly on, but it still relaods, so I cannot test different hops so far, or the autopilot capability to land and take-off from the same place
+
+The runway number panels flicker too, and their poles are going through the panel often. The panel needs to be posytioned at a distance from the pole for no clipping and flickering of the clipping
+
+The first roll-out phase is really the worst by far in terms of FPS. We need to understand why.
+
+documented further the runway flickering Screenshot 2026-09-26 144959.png you could see some hachure effects, and these move everyframe almost. it looks to me like the traingles of the runway mesh getting confused on a z depth or something like that Screenshot 2026-09-26 145145.png Te camera movement makes it flicker too, even on pause
+
+The game seems to managed poorly the overlapping runways, and I think it changed between 2 consecutive runs. I also wanted the sides of the runway not to be drawn on the intersection, not sure if it had been done, does not look like it
+
+apparent DEM tiling issues Screenshot 2026-09-26 145815.png, or terraforming issues? Looks bad anyways Screenshot 2026-09-26 152402.png
+
+unidentified white pathc, looking glitchy Screenshot 2026-09-26 145924.png
+
+Metlakatla flickers like hell, and looks like a pack of colored pixels from far away Screenshot 2026-09-26 150029.png Screenshot 2026-09-26 150123.png
+
+The shadow of the plane feels laggy for several reasons:
+- blurred and pixelated outline, being constantly redrawn approximately, leading to flickering feeling
+- In movement, it's like it gets a trailing shadow, that I cna't isolate on screenshots. Like a trailing shadow appears, then disappears, quickly. Like a leftover of the shadow of the previous frame or somehting, so it feels like the shadow is bleeding temporaly. STarnge
+
+Why are we even bothering with calculating a forest ground, while we already have a deterministic forest ground coverege? Just apply that very mask, or even simlpler, apply some darkening on the textures that make it, and done...
+
+I landed at the old mill, that's fun. Yet, as soon as building are displayed, FPS drops. Again, I don't understand, this is simple geometry, stadard PBR materials. I am ready to compromise on texture quality, little detail, etc. How can we get this better?
+
+I'm getting realtively inconsistent result on the stand. The taxiing part over the runway intersection is alwyas quite laggy, but the lag straight at the stand has been terrible, or pretty acceptable depending on the runs
+The spinning prop also contributes to the feeling of lag. Can we repalce with textured disc, slightly animated, MSFS style?
+
+The taxiing part i always quite painful in terms of FPS
+
+ended upin an empty garage, not sure how Screenshot 2026-09-26 153936.png
+
+there is a leftover materials and extra piece of UI in the garage editor Screenshot 2026-09-26 154024.png
+
+White artefact near East point Screenshot 2026-09-26 153018.png Screenshot 2026-09-26 153114.png Screenshot 2026-09-26 153245.png
+
+There's been a flickering square appearign on approach of West point, and it seems to follow the plane, slightly ahead of it. It disappeared below 150 m altitude
+
+IAS and Tas BOTH INDICATING 15 KM/H WHE THE PLANE IS STopped
+
+The sea animation does not stop with pause
+
+The default day settings should be light beez, so the sea is not fully calm by default
+
+The rails are overdue a cleanup and grouping phase. The graphics option is too long and lacks structure, engine options have nothing to do there anymore, weather and clouds should probably fit under a same umbrella, UI options should be grouped under an umbrella as well, we should have collapsable sections for the options sub-categories, and not much more than 4-6 rail items. The world editor does not belong there, and we need UI for the test mode without physics, that might be a new path to enable. What do you suggest? These are mostly developer tools, but they should be properly accessible still.
+
+Landing near the tramway at the top, the grass feels odd. It should not bee on the runway. On the other way, the runway feels odd too with its sides lush green and perfectly straight. We need the sides more adaptative to the ground below them really, possibly transparent or tinted
+
+Playtest on the procedural island
+The whole area around the highway flickers enormously
+The FPS is much more acceptable, yet flickering everywhere makes the experience unpleasant (flickering show lines on the plane, too infrequient shadow update, perceived laggy cloud reflections in the water, harsh flickering of the area around the runway, etc.)
+
+
+
+Feedback on autopilot
+This guy has become an oscillation monster. Look at the graph when it's just taxiing. Ans it shows, the plane shakes everywhere. This was not the case with the previous, seemingly dumber versions of the autopilot. Screenshot 2026-09-26 141335.png
+Enormous oscillations on straight path Screenshot 2026-09-26 142036.png Screenshot 2026-09-26 142343.png. That stops after the straight art of the circuit
+On inclined runways, the pilot should try and reach the flat part before stopping
+The autopilot gets a collision witht he wing of the cub when getting out of the hangar
+
+
+Recommendations form chatGPT on the analysis of the streaming strategy for Metlakatla, impacting the initial framerate badly:
+Stream by aircraft proximity and direction; do not build the entire 9.4-km-distant town while parked at the field.
+Use a 2–4 ms per-frame work budget instead of “one item every three frames.”
+Move generation/AO/obstacle preparation to a worker or prebake static town data.
+Coalesce wear painting and final batching instead of repeating work per item.
+Adopt a gate of no more than 3 consecutive seconds below 30 fps and no post-rollout frame above 100 ms. If that cannot be met, keep an explicit loading screen.
+
+
+Overall, reflecting on that playtest session, the order of priority is, including the structuring in different sessions, in that order (and indicate what can proceed in parallel, ideally everything would proceed in parallel)
+The objetive of this session is to slice the work and prepare it for other sessions. Flag what can be done cloud-side, because my macine may not support too many threads, especially if they all run batteries or srceenshots, or performance profiling. They need to coordinate in 2 batches: A is the must-have, urgent, B is for afterwards, opening with a new test phase on my side, which meanjs a clean push
+
+A0 FIRST, in plan mode (to be launched in this very conversation, along the plannig and slicing): status on performance, quiet box benchmarking, investigations and planning - understand the cause of everything I reported, have a real plan that guarantees a playable game, even with functional cuts (as of now, we have assumed everything has to stay and we have to optimize. Now we allow for things have to go,n the most expensive ones, in terms of FPS first, load times second)
+We may also want to start a global reflexion on our approach, choice of technology and architecture. Are all these to the level of state-of-the-art engines?
+Could we ever imagine to have larger maps and still get a good performance? Is there anything overly costly that really does not contribute that much to either the fun of gameplay or the looks that should be removed? I have the feeling our approach to towns is fully wrong, and has shown its scalability limits almost immediately, with a few hundreds of buildings
+
+A1 FPS: good framerate at start, taxi and launch, even if we have to sacrifice (temporarily) Metlakatla - its price both on FPS and load time is not acceptable. Maybe we want to make it much smaller later, or understand how we can elegantly handle the whole thing. But right now, it seems clear that we don't manage. Look at the runways as well, I'm not sure they've been optimized, and they look flickery and laggy. This under high scrutiny for load times. The live loadig of metlakatla seems like one of the worst ideas I had, or maybe the execution is also faulty, not sure, but it does not work. There's really only the garage where we could spare some FPS, and I'm not sure I want to pollute the only game part that dopes not feel laggy
+
+A2 FLICKER: fix all flickering issues, make the shadows work well, or disable them. Do soemthing clever and cheap in perfromance for the forest ground, right now it is a source of flickering and possibly perfromance which is unacceptable and does not feel necessary. Look at runways and roads closely. Ensure our FPS drop is not due to the little stones the runways spawn for example, or a bad texture management. The sides will need a big rework anyways, and I'm wodnering if the simplest wouldn't be to make the outer side just transparent for now.  It would only keep its ability to disable vegetation underneath. Transitions (fading or "growing") for everythign that appears or disappears too. Possibly the spinner too, as these contribute to the flickery/laggy feeling. Sky movement sync too belong here
+
+A3 AUTOPILOT: Fix the oscillations of the autopilot
+
+A4 LOAD: current load times are acceptable, but not much more. The user feedback should increase again, progress bars for every loading screen, no freezing ever, no browser pop-up saying the page does not respond. This includes possible setting changes. We have a lot of new screenshots that can be displayed. That's a lot of time for users to read, so tell them what happens, but also cool things about the game, or some more advanced techniques for flying their planes or playing the game. Let's make loading time relatively fun
+
+B1 LAG_MANUAL: understand where the remaining lag comes from, by giving me profiling options, as I am unsure your environment is fully representative. I can play, you log and anlyze afterwards
+
+B2 DEFAULTS: Find/set a new set of default settings sacrificing on some aspects, but offering good perfromance (probably simplified sea, with some ripples by default, and let's see for shadows). Even the soft bloom is far too bloomy. One fifth or 1 third of the intensity would feel better probably, if we want to keep it on
+B3 HONESTY: Then the honesty pass, any faulty readings, any obvious bugs
+B4 LOOKS: The blending of the grass color, the sides of the runways and possibly roads, larger size tilings and use of the detailled tiling textures maybe only as a mask, colored by the larger texture? Or simply larger tiled textures for the sides for now woulf do. Do not tuoch the runways, they look good, just their sides
+Maybe the sides should accept vegeattion  in them, and have a fading color to aplha gradient, helping with their integration with the surroundings
+B5 MISC: all remaining items
+
+I have to admit I defered a real playtest for too long, and some issues have become really annoying, borderline unplayable
+
+
+
+You may challenge my order, but you have to take my player priorities into account, and prioritize what frustrated me the most in the above playtest, where you can see the emotional progression.
+
