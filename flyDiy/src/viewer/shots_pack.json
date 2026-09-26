@@ -5,7 +5,8 @@
   "h": 1080,
   "kb": 260,
   "set": "garage",
-  "cap": "the steel shed, afternoon"
+  "cap": "the steel shed, afternoon",
+  "txt": "The shed follows the clock: afternoon, golden, sunset, dusk, night - and overcast when the clouds close in."
  },
  {
   "src": "media/tex/shots/shot_2026-09-12_214350.023acbe1.jpg",
@@ -13,7 +14,8 @@
   "h": 1080,
   "kb": 262,
   "set": "garage",
-  "cap": "cowl off, night"
+  "cap": "cowl off, night",
+  "txt": "The explode button pulls the aeroplane apart, part from part."
  },
  {
   "src": "media/tex/shots/shot_2026-09-12_223748.700b726c.jpg",
@@ -29,7 +31,8 @@
   "h": 1080,
   "kb": 275,
   "set": "garage",
-  "cap": "a wing on the bench"
+  "cap": "a wing on the bench",
+  "txt": "Wing loading is the weight over the wing area: a trainer near 40 kg/m\u00b2, an ultralight under 25."
  },
  {
   "src": "media/tex/shots/shot_2026-09-12_224119.f0c40363.jpg",
@@ -37,7 +40,8 @@
   "h": 1080,
   "kb": 259,
   "set": "garage",
-  "cap": "F-PGAR"
+  "cap": "F-PGAR",
+  "txt": "Every new aeroplane is registered F-PGAR until you letter your own."
  },
  {
   "src": "media/tex/shots/shot_2026-09-12_223943.2205afec.jpg",
@@ -45,7 +49,8 @@
   "h": 1080,
   "kb": 276,
   "set": "garage",
-  "cap": "from the loft"
+  "cap": "from the loft",
+  "txt": "The camera pills: 3/4 front, side, plan, nose, and the pilot\u2019s own eyes."
  },
  {
   "src": "media/tex/shots/shot_2026-09-12_022252.efc84a24.jpg",
@@ -53,7 +58,8 @@
   "h": 906,
   "kb": 108,
   "set": "world",
-  "cap": "over the fields"
+  "cap": "over the fields",
+  "txt": "The procedural world the game was built on, still one pick away in the graphics menu."
  },
  {
   "src": "media/tex/shots/shot_2026-09-09_011423.1425d277.jpg",
@@ -70,5 +76,95 @@
   "kb": 219,
   "set": "world",
   "cap": "the alps behind"
+ },
+ {
+  "src": "media/tex/shots/shot_2026-09-01_031521.309c34ae.jpg",
+  "w": 1600,
+  "h": 900,
+  "kb": 198,
+  "set": "garage",
+  "cap": "the engineering bench",
+  "txt": "Bench check, wing loading, density altitude, test flight: the tests that earn the plaque, and the logbook under them."
+ },
+ {
+  "src": "media/tex/shots/shot_2026-08-30_234008.5f72b8f3.jpg",
+  "w": 1600,
+  "h": 900,
+  "kb": 173,
+  "set": "garage",
+  "cap": "sun on the shed floor",
+  "txt": "The room is lit by the same sky as the island: the hour you pick in the shed is the hour you fly in."
+ },
+ {
+  "src": "media/tex/shots/g3455_side_grooves.16199905.jpg",
+  "w": 1173,
+  "h": 660,
+  "kb": 105,
+  "set": "garage",
+  "cap": "centre of gravity, neutral point",
+  "txt": "Both are drawn on the aeroplane. The centre of gravity must sit ahead of the neutral point: the gap between them is the stability margin."
+ },
+ {
+  "src": "media/tex/shots/shot_2026-09-12_183934.07ee0c50.jpg",
+  "w": 976,
+  "h": 549,
+  "kb": 54,
+  "set": "garage",
+  "cap": "the switch row",
+  "txt": "The switches work: M the master, K the beacon, N the navigation lights, T the taxi light, I the instruments."
+ },
+ {
+  "src": "media/tex/shots/shot_2026-09-08_005742.67a12259.jpg",
+  "w": 1210,
+  "h": 681,
+  "kb": 81,
+  "set": "world",
+  "cap": "an evening on the apron",
+  "txt": "A garage build out on the concrete. The time of day, the clouds and the wind are yours to set."
+ },
+ {
+  "src": "media/tex/shots/shot_2026-09-26_144049.1b4eff2f.jpg",
+  "w": 1134,
+  "h": 638,
+  "kb": 95,
+  "set": "world",
+  "cap": "every field on the map",
+  "txt": "The island is Annette Island, Alaska, from its real elevation data. The map names every field you can land on."
+ },
+ {
+  "src": "media/tex/shots/shot_2026-09-26_145815.76f87664.jpg",
+  "w": 1600,
+  "h": 900,
+  "kb": 206,
+  "set": "world",
+  "cap": "climbing out over the muskeg",
+  "txt": "Forest, muskeg, heath and rock: the ground is read from the island's own land-cover maps."
+ },
+ {
+  "src": "media/tex/shots/shot_2026-09-17_195236.e5334829.jpg",
+  "w": 1268,
+  "h": 713,
+  "kb": 62,
+  "set": "world",
+  "cap": "floats, over the coast",
+  "txt": "Floats are a gear choice in the garage. The sea and the lakes are runways too."
+ },
+ {
+  "src": "media/tex/shots/30_flight_cockpit_forward.98819e34.jpg",
+  "w": 1600,
+  "h": 900,
+  "kb": 100,
+  "set": "world",
+  "cap": "the cockpit, before the roll",
+  "txt": "C cycles the views: chase, orbit, cockpit, wing and tower."
+ },
+ {
+  "src": "media/tex/shots/shot_2026-09-12_213534.ff29ceb7.jpg",
+  "w": 1444,
+  "h": 812,
+  "kb": 123,
+  "set": "world",
+  "cap": "stilt houses, night",
+  "txt": "After dark the windows light up and the piers keep their lamps on."
  }
 ]

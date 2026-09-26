@@ -6443,8 +6443,34 @@
       { id: 'board', label: 'the drawing board', w: 4, fn: () => { openEditor(); } },
       { id: 'frames', label: 'first light', w: 2, fn: () => framesRendered(2) },
     ];
-    BOOT.show('garage', { steps, set: 'garage', require: [], landingLabel: 'the last pieces', done: () => { if (after) after(); }, idle: 20000, hard: 60000, quietFrames: 1 });
+    BOOT.show('garage', { steps, set: 'garage', deck: 'rollin', require: [], landingLabel: 'the last pieces', done: () => { if (after) after(); }, idle: 20000, hard: 60000, quietFrames: 1 });
   }
+  // G640: A SETTINGS CHANGE HAS A SCREEN TOO (the 2026-09-26 playtest: "progress bars for every loading
+  // screen ... This includes possible setting changes"). A graphics row that re-keys the lit programs
+  // (shadows, water, clouds, the tone curve) linked them synchronously on the next frame, under a frozen
+  // picture. Now the same overlay, set 'settings', over the scene that is showing: its programs through the
+  // parallel compile, counted (the world's depth variants too), then two frames. The overlay fades in only
+  // after 0.45 s (style.css), so a change that re-keys nothing never shows. gfx_settings.js calls it after a
+  // row is picked; the frame rate row, a screen already up and a page without compileAsync skip it.
+  function settleScreen(what) {
+    if (what === 'fps' || typeof BOOT === 'undefined' || typeof BOOT.show !== 'function' || !BOOT.log || typeof renderer.compileAsync !== 'function') return;
+    // a loading screen is up (its own steps compile what they draw), or a lifted one's chain still runs
+    if (BOOT.state !== 'gone' || (typeof BOOT.busy === 'function' && BOOT.busy())) return;
+    const garage = !!inGarage, sc = garage ? hangarScene : scene;
+    if (!sc || (!garage && !WF)) return;
+    // the flight holds while the screen is up (nobody flies blind), and goes on where it was
+    const held = !garage && running;
+    if (held) running = false;
+    holdRender = true;
+    const steps = [
+      { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compilePass(sc, aa && aa.target ? aa.target() : null)
+          .then(() => garage ? null : compileDepthVariants()).catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
+      { id: 'frames', label: 'first light', w: 2, fn: () => { holdRender = false; return framesRendered(2); } },
+    ];
+    BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
+      done: () => { holdRender = false; if (held && !inGarage) running = true; }, idle: 20000, hard: 90000, quietFrames: 1 });
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_SETTLE = settleScreen;
   function rollOutScreen(done) {
     const steps = [];
     holdRender = typeof renderer.compileAsync === 'function';   // the harness renders nothing anyway
@@ -9942,6 +9968,7 @@
       if (done !== lastDone) { lastDone = done; lastT = t; }
       if (!shown && seen.size > done && t - t0 >= showAt) shown = true;
       if (shown) BOOT.shaders(done, seen.size, warm);
+      else if (seen.size && typeof BOOT.sub === 'function') BOOT.sub(done / seen.size);   // G640: the step's own count moves the main bar
       if (stallMs && t - lastT > stallMs) {
         try { window.__SLOWPROGS = [...seen].filter(pr => !pr.isReady()).map(pr => pr.name + ' | ' + String(pr.cacheKey).slice(0, 160)); } catch (e) {}
         stalled('stall'); return;

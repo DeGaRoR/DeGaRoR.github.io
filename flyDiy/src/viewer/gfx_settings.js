@@ -438,7 +438,9 @@
   // ---- the menu, in the host's own words ---------------------------------
   // helpers: { row(host, label) -> element, pills(host, list, isOn, pick), note(host, text) }
   const mount = (body, H) => {
-    const pick = (k, v) => { set(k, v); if (H.refresh) H.refresh(); };
+    // G640: a picked row that re-keys programs gets the loading screen (app.js FLYDIY_SETTLE: the compile
+    // counted under the overlay, never a frozen frame); the frame rate row is not a picture's
+    const pick = (k, v) => { set(k, v); if (H.refresh) H.refresh(); if (k !== 'fps' && typeof W.FLYDIY_SETTLE === 'function') W.FLYDIY_SETTLE(k); };
     // THE WORLD (G434): the map the game boots on - the page's loader published the list and its
     // choice (build.js: ?world=, else this pref, else Jolene); picking another stores it and reloads
     if (Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length) {

@@ -16,7 +16,9 @@
   <div id="bootPanel">
     <span id="bootBrand">Garage Flight Sim</span>
     <div id="bootPhase">opening the shed</div>
-    <div id="bootBar"><i></i></div>
+    <!-- G640: the step in plain words, and the bar with its per cent (boot.js drives both) -->
+    <div id="bootWhy"></div>
+    <div id="bootMeter"><div id="bootBar" class="idle"><i></i></div><span id="bootPct"></span></div>
     <div id="bootTick"></div>
     <!-- THE SHADERS' BLOCK (G567): a COLD compile - the first launch, the first after an update, a
          cleared browser cache - is the graphics driver's work, the one long wait the game cannot
@@ -30,6 +32,21 @@
     <div id="bootNote" hidden></div>
     <button id="bootSkip" type="button" hidden>continue anyway</button>
   </div>
+  <!-- G640: THE CAROUSEL - what is happening, the island, flying, the shed; the
+       pictures' own cards in between. boot.js deals it from window.BOOT_CARDS
+       (boot_cards.js) and the pictures above; a timer on the card's length,
+       prev / next by hand, the pointer over it holds it. -->
+  <aside id="bootCard" hidden>
+    <div id="bootCardKind"></div>
+    <div id="bootCardTitle"></div>
+    <div id="bootCardText"></div>
+    <div id="bootCardFoot">
+      <button id="bootCardPrev" type="button" aria-label="previous card">&#8249;</button>
+      <span id="bootCardN"></span>
+      <button id="bootCardNext" type="button" aria-label="next card">&#8250;</button>
+      <div id="bootCardTime"></div>
+    </div>
+  </aside>
 </div>
 <!--__BOOT_SLOT__-->
 <canvas id="c"></canvas>
