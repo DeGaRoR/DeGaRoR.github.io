@@ -13,6 +13,8 @@
 //   node tools/physics_perf.js --build bugReports/cessnaFloats.json   a saved build (floats start on the SEA lane)
 //   node tools/physics_perf.js --preset thermal        a WEATHER_UI preset's wind (calm/breeze/ridge/thermal/hot/front/gale)
 //   node tools/physics_perf.js --world none            the analytic world
+//   node tools/physics_perf.js --premises none         the island without its premises layer (the ?premises=none page)
+//   node tools/physics_perf.js --raster                the premises' ground off its lazily baked lattice (G614, opt-in)
 //   node tools/physics_perf.js --secs 60 --warm 2      the clock (after `warm` s of settle)
 //   node tools/physics_perf.js --arch stearman         an archetype (tools/_cage_design.js ARCHETYPES)
 //   node tools/physics_perf.js --hash                  + the trajectory's FNV hash (every node's p, v)
@@ -59,7 +61,7 @@ else {
   // composed with THIS core (island_node's islandWorld requires tools/flight_core.js, which is the B of an A/B)
   const boot = IN.islandBoot(worldId);
   if (!boot) throw new Error('no island ' + worldId);
-  world = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: fs.existsSync(fx) ? fs.readFileSync(fx, 'utf8') : null });
+  world = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: arg('premises', '') === 'none' ? null : fs.existsSync(fx) ? fs.readFileSync(fx, 'utf8') : null, groundRaster: argv.includes('--raster') });
 }
 const tWorld = Date.now() - t0;
 const preset = arg('preset', 'calm');

@@ -402,7 +402,7 @@ function makeModifier(m, y0) {
       for (let i = 0; i < n; i++) if (segHitsRect(poly[i], poly[(i + 1) % n], x0, z0, x1, z1)) return false;
       return true;
     };
-    return { id: m.id, kind: m.kind, bbox, bound, covers, apply: (x, z, h) => {
+    return { id: m.id, kind: m.kind, bbox, bound, covers, feather: fall, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       let w;
       if (inPoly(poly, x, z)) w = 1;
@@ -433,7 +433,7 @@ function makeModifier(m, y0) {
     const inR = (x, z) => { const dx = x - c[0], dz = z - c[1], lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
       return lx >= R.x0 + 1e-6 && lx <= R.x1 - 1e-6 && lz >= R.z0 + 1e-6 && lz <= R.z1 - 1e-6; };
     const covers = (x0, z0, x1, z1) => inR(x0, z0) && inR(x1, z0) && inR(x0, z1) && inR(x1, z1);
-    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), covers, apply: (x, z, h) => {
+    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), covers, feather: Math.min(mF, mB), apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const dx = x - c[0], dz = z - c[1];
       const lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
@@ -498,7 +498,13 @@ function makeModifier(m, y0) {
       SG[o] = a[0]; SG[o + 1] = a[1]; SG[o + 2] = dx; SG[o + 3] = dz; SG[o + 4] = dx * dx + dz * dz; SG[o + 5] = a[2] || 0; SG[o + 6] = b[2] || 0;
     }
     const bx0 = bbox.x0, bz0 = bbox.z0;
-    return { id: m.id, kind: 'grade', bbox, bound, apply: (x, z, h) => {
+    // (G614) does any segment reach into the rectangle? - its reach cells (the scan's own lists)
+    const touches = (x0, z0, x1, z1) => {
+      for (let ci = cx(Math.max(x0, bbox.x0)), c1 = cx(Math.min(x1, bbox.x1)); ci <= c1; ci++)
+        for (let cj = cz(Math.max(z0, bbox.z0)), d1 = cz(Math.min(z1, bbox.z1)); cj <= d1; cj++) if (cells.get(ck(ci, cj))) return true;
+      return false;
+    };
+    return { id: m.id, kind: 'grade', bbox, bound, touches, feather: fall, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
       const list = cells.get((Math.floor((x - bx0) / CS) + 1) * NZ + (Math.floor((z - bz0) / CS) + 1));
       if (!list) return h;
@@ -1392,6 +1398,110 @@ function compose(rec0, world, opts) {
     ext = isFinite(x0) ? { x0, z0, x1, z1 } : { x0: 0, z0: 0, x1: 0, z1: 0 };
   }
   const inBB = (b, x, z) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
+  // ---- THE GROUND RASTER (G614, the A0 baseline: the premises' composed ground was evaluated per query - every
+  // wheel every substep, the wind's surface layer, the ring's and the cover's walks) ----------------------------
+  // EVERY MODIFIER IS AFFINE IN THE HEIGHT UNDER IT: h' = h + (T - h) w (a flatten, a slope pad, a grade), h + dh w
+  // (a raise), L + (h - L) sm (a shelf) - w, T, sm functions of the point alone. So is their stack, in order:
+  // terrainH(x, z, h) = A(x, z) h + B(x, z), with B = terrainH(x, z, 0) and A = terrainH(x, z, 1) - B. The raster
+  // holds A and B on a lattice, per 16 m tile of the premises frame, BAKED LAZILY the first time a tile is asked
+  // for (the bake is the analytic path: this file stays the source), and a query is A h + B bilinear at the point,
+  // with h - the island's own DEM, carve and all - read exactly as before: the DEM's seams stay where they are, a
+  // pad inside its feather is its level exactly (A = 0, B = the level at every node), and only the feathers are
+  // interpolated. The lattice is a quarter of the finest feather touching the tile (0.25-1 m). A tile no modifier
+  // touches (a road's reach cells, a pad's box) is the ground itself, exactly as the analytic path returns it.
+  // Tiles are Float64 (a Float32 level would stand 4e-7 m over the ceiling's own bound) and capped (GR_CAP bytes;
+  // the oldest go first); `o.raster === false` (the editor, a proof)
+  // keeps the analytic path. GATE PREMRASTER holds the agreement.
+  const GR_TS = 16, GR_CAP = 48 * 1024 * 1024, GR_TOL = 0.01, GR_RELIEF = 2;
+  const grOn = o.raster !== false && mods.length > 0;
+  const grTiles = new Map(), grStats = { baked: 0, empty: 0, evicted: 0, bytes: 0, bakeMs: 0, rMin: Infinity, rMax: 0 };
+  let grRmax = 0;
+  const grKey = (i, j) => i * 131072 + j;
+  const grNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+  function grBake(ti, tj) {
+    const x0 = ti * GR_TS, z0 = tj * GR_TS, x1 = x0 + GR_TS, z1 = z0 + GR_TS;
+    const hit = [], seen = new Set();
+    index.rect(x0, z0, x1, z1, M => {
+      if (seen.has(M)) return; seen.add(M);
+      const b = M.bbox;
+      if (x1 < b.x0 || x0 > b.x1 || z1 < b.z0 || z0 > b.z1) return;
+      if (M.touches && !M.touches(x0, z0, x1, z1)) return;
+      hit.push(M);
+    });
+    if (!hit.length) { grStats.empty++; return null; }
+    const t0 = grNow();
+    hit.sort((a, b) => a.ord - b.ord);
+    let fe = Infinity; for (const M of hit) fe = Math.min(fe, M.feather > 0 ? M.feather : 1);
+    // THE LATTICE EARNS ITS CELL: from a quarter of the finest feather (1 m at most), halved (to 0.25 m) while any
+    // cell's midpoint reads more than GR_TOL (1 cm) off the analytic ground there - a deep cut's feather (twenty metres
+    // of target over the DEM) needs a finer lattice than a road's half metre
+    let n = Math.min(64, Math.max(16, Math.ceil(GR_TS / Math.max(0.25, Math.min(1, fe / 4))))), N, r, A, B, hc;
+    for (;;) {
+      N = n + 1; r = GR_TS / n; A = new Float64Array(N * N); B = new Float64Array(N * N);
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const x = x0 + i * r, z = z0 + j * r;
+        let b0 = 0, b1 = 1;
+        for (let q = 0; q < hit.length; q++) { b0 = hit[q].apply(x, z, b0); b1 = hit[q].apply(x, z, b1); }
+        B[j * N + i] = b0; A[j * N + i] = b1 - b0;
+      }
+      if (n >= 64) break;
+      // (the error at a midpoint is dA h + dB: h is the tile centre's ground, give or take GR_RELIEF of the DEM)
+      if (hc === undefined) { const w = F.toWorld(x0 + GR_TS / 2, z0 + GR_TS / 2); hc = world.terrainH(w[0], w[1]); }
+      let bad = false;
+      for (let j = 0; j < n && !bad; j++) for (let i = 0; i < n && !bad; i++) {
+        const x = x0 + (i + 0.5) * r, z = z0 + (j + 0.5) * r;
+        let b0 = 0, b1 = 1;
+        for (let q = 0; q < hit.length; q++) { b0 = hit[q].apply(x, z, b0); b1 = hit[q].apply(x, z, b1); }
+        const k = j * N + i, da = (A[k] + A[k + 1] + A[k + N] + A[k + N + 1]) / 4 - (b1 - b0), db = (B[k] + B[k + 1] + B[k + N] + B[k + N + 1]) / 4 - b0;
+        if (Math.abs(da * hc + db) + Math.abs(da) * GR_RELIEF > GR_TOL) bad = true;
+      }
+      if (!bad) break;
+      n *= 2;
+    }
+    if (r > grRmax) grRmax = r;
+    grStats.baked++; grStats.bytes += 16 * N * N; grStats.bakeMs += grNow() - t0;
+    grStats.rMin = Math.min(grStats.rMin, r); grStats.rMax = Math.max(grStats.rMax, r); grStats['n' + n] = (grStats['n' + n] || 0) + 1;
+    while (grStats.bytes > GR_CAP) {                                  // the oldest baked tile goes first
+      let gone = false;
+      for (const [k, T] of grTiles) { if (T) { grTiles.delete(k); grStats.bytes -= 16 * T.N * T.N; grStats.evicted++; gone = true; break; } }
+      if (!gone) break;
+    }
+    return { x0, z0, r, n, N, A, B };
+  }
+  // the composed height at a LOCAL point over the ground h under it (the raster's answer to terrainH(x, z, h))
+  function grHeight(lx, lz, h) {
+    const ti = Math.floor(lx / GR_TS), tj = Math.floor(lz / GR_TS), k = grKey(ti, tj);
+    let T = grTiles.get(k);
+    if (T === undefined) { T = grBake(ti, tj); grTiles.set(k, T); }
+    if (T === null) return h;
+    const u = (lx - T.x0) / T.r, v = (lz - T.z0) / T.r;
+    let i = Math.floor(u), j = Math.floor(v);
+    if (i >= T.n) i = T.n - 1; else if (i < 0) i = 0;
+    if (j >= T.n) j = T.n - 1; else if (j < 0) j = 0;
+    const fu = u - i, fv = v - j, N = T.N, q = j * N + i, A = T.A, B = T.B;
+    const a0 = A[q] + (A[q + 1] - A[q]) * fu, a1 = A[q + N] + (A[q + N + 1] - A[q + N]) * fu;
+    const b0 = B[q] + (B[q + 1] - B[q]) * fu, b1 = B[q + N] + (B[q + N + 1] - B[q + N]) * fu;
+    return (a0 + (a1 - a0) * fv) * h + (b0 + (b1 - b0) * fv);
+  }
+  // THE SURFACE, INDEXED (G614, exact - the A0 ring: every forest lattice point asks world.surface, and this scan
+  // of every surface polygon and every road was a third of it): 64 m cells, each holding the surface polygons
+  // whose box touches it and the roads with a SEGMENT within its half width + a hair of it (a point on a road is
+  // within w/2 of one of its segments, so that segment's cell holds it), in the priority order the scan used.
+  // A query reads its cell's lists - the same tests, the same order, the same answer.
+  const GS_C = 64, gsCells = new Map();
+  const gsKey = (i, j) => i * 131072 + j;
+  const gsAdd = (x0, z0, x1, z1, fn) => { for (let i = Math.floor(x0 / GS_C), i1 = Math.floor(x1 / GS_C); i <= i1; i++) for (let j = Math.floor(z0 / GS_C), j1 = Math.floor(z1 / GS_C); j <= j1; j++) { const k = gsKey(i, j); let c = gsCells.get(k); if (!c) gsCells.set(k, c = { S: [], R: [] }); fn(c); } };
+  surf.forEach((sf, i) => gsAdd(sf.bbox.x0, sf.bbox.z0, sf.bbox.x1, sf.bbox.z1, c => c.S.push(i)));
+  roadObjs.forEach((r, i) => {
+    const m = r.w / 2 + 0.01;
+    for (let q = 1; q < r.pts.length; q++) {
+      const a = r.pts[q - 1], b = r.pts[q];
+      gsAdd(Math.min(a[0], b[0]) - m, Math.min(a[1], b[1]) - m, Math.max(a[0], b[0]) + m, Math.max(a[1], b[1]) + m, c => { if (c.R[c.R.length - 1] !== i) c.R.push(i); });
+    }
+  });
+  for (const [, c] of gsCells) { c.S.sort((a, b) => a - b); c.R = Array.from(new Set(c.R)).sort((a, b) => a - b); }
+  const exIdx = new Map(); let exIdxN = -1;
+  const gsAddTo = (M, b, e) => { for (let i = Math.floor(b.x0 / GS_C), i1 = Math.floor(b.x1 / GS_C); i <= i1; i++) for (let j = Math.floor(b.z0 / GS_C), j1 = Math.floor(b.z1 / GS_C); j <= j1; j++) { const k = gsKey(i, j); let l = M.get(k); if (!l) M.set(k, l = []); l.push(e); } };
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
@@ -1469,6 +1579,15 @@ function compose(rec0, world, opts) {
       for (let i = 0; i < cell.length; i++) h = cell[i].apply(lx, lz, h);
       return h;
     },
+    // THE RASTER'S ANSWER (G614): terrainH off the lazily baked A / B lattice - the world's terrainH reads this;
+    // terrainH above stays the analytic source (the editor's, the bake's, the proof's)
+    terrainFast(x, z, h) {
+      if (!grOn) return O.terrainH(x, z, h);
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      if (!index.query(lx, lz)) return h;
+      return grHeight(lx, lz, h);
+    },
+    get raster() { return grOn ? { on: true, tile: GR_TS, cap: GR_CAP, tiles: grTiles.size, ...grStats, rMaxBaked: grRmax } : { on: false }; },
     // THE CEILING OVER A WORLD RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH(x, z, h)
     // for every point of it, given B >= h there. Each modifier blends h toward its target with a
     // weight in [0, 1] (a raise adds at most dh), whatever the order: max(B, every target) + the
@@ -1476,8 +1595,11 @@ function compose(rec0, world, opts) {
     hMaxRect(ax, az, bx, bz, B) {
       if (!mods.length) return B;
       const p1 = F.toLocal(ax, az), p2 = F.toLocal(bx, az), p3 = F.toLocal(ax, bz), p4 = F.toLocal(bx, bz);
-      const lx0 = Math.min(p1[0], p2[0], p3[0], p4[0]) - 0.01, lx1 = Math.max(p1[0], p2[0], p3[0], p4[0]) + 0.01;
-      const lz0 = Math.min(p1[1], p2[1], p3[1], p4[1]) - 0.01, lz1 = Math.max(p1[1], p2[1], p3[1], p4[1]) + 0.01;
+      let lx0 = Math.min(p1[0], p2[0], p3[0], p4[0]) - 0.01, lx1 = Math.max(p1[0], p2[0], p3[0], p4[0]) + 0.01;
+      let lz0 = Math.min(p1[1], p2[1], p3[1], p4[1]) - 0.01, lz1 = Math.max(p1[1], p2[1], p3[1], p4[1]) + 0.01;
+      // (G614) under the raster a point reads the lattice nodes around it - the modifiers of every node within
+      // a lattice cell, each at the point's own ground: the bound of the rectangle grown by the coarsest cell
+      if (grOn) { lx0 -= 1.01; lx1 += 1.01; lz0 -= 1.01; lz1 += 1.01; }
       // IN THE ORDER A POINT APPLIES THEM (G611): a pad whose full weight covers the rectangle sets every point
       // to its target, so the bound restarts there - at the target's highest (1 nm over it: the blend's own
       // rounding) - and whatever lay under it (the DEM, an earlier modifier) is out of it
@@ -1497,7 +1619,7 @@ function compose(rec0, world, opts) {
         if (r.t > T) T = r.t;
         add += r.add;
       }
-      return T + add;
+      return T + add + (grOn ? 1e-7 : 0);                  // (G614: the lattice's bilinear rounding, 100 nm)
     },
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),
     // the composed ground in the PREMISES frame
@@ -1527,12 +1649,30 @@ function compose(rec0, world, opts) {
     materialWeight: (m, lx, lz) => matWeight(m, lx, lz),
     surfaceAt(x, z) {
       const L = F.toLocal(x, z);
-      for (let i = surf.length - 1; i >= 0; i--) { const s = surf[i]; if (inBB(s.bbox, L[0], L[1]) && inPoly(s.poly, L[0], L[1])) return s.surface; }
-      for (let i = 0; i < roadObjs.length; i++) if (inBB(roadBB[i], L[0], L[1]) && roadDist(roadObjs[i], L[0], L[1]) <= roadObjs[i].w / 2) return roadObjs[i].surface;
+      const G = gsCells.get(gsKey(Math.floor(L[0] / GS_C), Math.floor(L[1] / GS_C)));   // (G614: the cell's own lists, the same order)
+      if (!G) return -1;
+      for (let n = G.S.length - 1; n >= 0; n--) { const s = surf[G.S[n]]; if (inBB(s.bbox, L[0], L[1]) && inPoly(s.poly, L[0], L[1])) return s.surface; }
+      for (let n = 0; n < G.R.length; n++) { const i = G.R[n]; if (inBB(roadBB[i], L[0], L[1]) && roadDist(roadObjs[i], L[0], L[1]) <= roadObjs[i].w / 2) return roadObjs[i].surface; }
       return -1;
     },
     excludeAt(x, z, what) {
       if (!excl.length) return false;
+      const L = F.toLocal(x, z);
+      // (G614: the excludes whose box touches the point's 64 m cell - an OR, so any order; rebuilt when one is added)
+      if (exIdxN !== excl.length) { exIdx.clear(); exIdxN = excl.length; excl.forEach(e => gsAddTo(exIdx, e.bbox, e)); }
+      const list = exIdx.get(gsKey(Math.floor(L[0] / GS_C), Math.floor(L[1] / GS_C)));
+      if (!list) return false;
+      for (const e of list) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && inPoly(e.poly, L[0], L[1])) return true;
+      return false;
+    },
+    // (G614) the linear scans the indexes replaced - the reference GATE PREMRASTER holds them to
+    surfaceAtScan(x, z) {
+      const L = F.toLocal(x, z);
+      for (let i = surf.length - 1; i >= 0; i--) { const s = surf[i]; if (inBB(s.bbox, L[0], L[1]) && inPoly(s.poly, L[0], L[1])) return s.surface; }
+      for (let i = 0; i < roadObjs.length; i++) if (inBB(roadBB[i], L[0], L[1]) && roadDist(roadObjs[i], L[0], L[1]) <= roadObjs[i].w / 2) return roadObjs[i].surface;
+      return -1;
+    },
+    excludeAtScan(x, z, what) {
       const L = F.toLocal(x, z);
       for (const e of excl) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && inPoly(e.poly, L[0], L[1])) return true;
       return false;
