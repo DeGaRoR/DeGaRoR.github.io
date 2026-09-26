@@ -9,7 +9,10 @@
 //   - AUTO: frames over 18.5 ms drop it to 30 after two readings; at 30 a light frame earns a trial of 60;
 //     a trial that misses goes back to 30 and holds the next trial off (20 s, doubling); a trial that
 //     holds stays at 60; the auto render scale is told the budget each time;
-//   - a RIG (webdriver / headless) and a call with no timestamp keep the old clock: 1 step of 1/60, uncapped.
+//   - a RIG (webdriver / headless) and a call with no timestamp keep the old clock: 1 step of 1/60, uncapped;
+//   - THE STEP-DEBT GUARD (G612): a frame bound by its own solver (the next refresh after other + steps x step)
+//     that cannot hold real time is capped at the cap's steps - the frames stop collapsing, the dilation is
+//     reported; one that can hold real time (however heavy) is never touched, and a light 30 reads 100 %.
 //   node tools/_pace_check.js          -> "GATE PACE: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -115,6 +118,38 @@ for (const fps of [60, 'off']) {
   const { PACE: P3 } = make({ pref: { fps: 30 } });
   const f = P3.frame(undefined);
   verdict(f && f.steps === 1 && f.dt === 1 / 60, 'a call with no timestamp (the harness): one step of 1/60');
+}
+// 7. THE STEP-DEBT GUARD (G612): a 60 Hz screen capped at 30, the frame bound by its own work - the next refresh
+// after `other + steps x step` ms (the solver's steps run in the frame they are owed) - for 20 s
+function driveCpu(PACE, other, step, secs) {
+  const R = 1000 / 60; let t = 1000, frames = 0, sim = 0, maxSteps = 0; const end = t + secs * 1000;
+  while (t < end) {
+    const f = PACE.frame(t);
+    if (!f) { t += R; continue; }
+    const n = f.steps, work = other + n * step;
+    frames++; sim += n / 60; if (t > 3000) maxSteps = Math.max(maxSteps, n);
+    PACE.end(work, n * step, n, t, n);
+    t = Math.ceil((t + work + 1e-6) / R) * R;
+  }
+  return { fps: frames / secs, speed: sim / secs, maxSteps };
+}
+{
+  // the runaway: 15 ms of frame and a 16 ms solver step - real time needs 15 / (16.7 - 16) = 21 steps a frame
+  const { PACE } = make({ pref: { fps: 30 } });
+  const r = driveCpu(PACE, 15, 16, 20), st = PACE.state();
+  verdict(r.maxSteps === 2 && r.fps >= 18 && st.stats.guarded > 0,
+    `the runaway (15 ms + 16 ms a step, capped at 30): ${r.fps.toFixed(1)} fps (the unguarded clock ~12), at most ${r.maxSteps} steps a frame, ${st.stats.guarded} frames capped`);
+  verdict(Math.abs(st.dilation - r.speed) < 0.08 && st.dilation < 0.8 && st.droppedS > 0,
+    `  the dilation reported ${(100 * st.dilation).toFixed(0)} % (the sim ran ${(100 * r.speed).toFixed(0)} % of the wall clock), ${st.droppedS.toFixed(1)} s let go, the step read ${st.stepMs.toFixed(1)} ms`);
+  // heavy but holdable: 15 ms + 9 ms a step needs 15 / 7.7 = 2 steps - the G586 clock, untouched
+  const { PACE: P2 } = make({ pref: { fps: 30 } });
+  const r2 = driveCpu(P2, 15, 9, 20), s2 = P2.state();
+  verdict(s2.stats.guarded === 0 && Math.abs(r2.speed - 1) < 0.02,
+    `heavy but holdable (15 ms + 9 ms a step): no frame capped, the sim at ${(100 * r2.speed).toFixed(0)} % of the wall clock (${r2.fps.toFixed(1)} fps)`);
+  // a light 30: 100 %, nothing capped
+  const { PACE: P3 } = make({ pref: { fps: 30 } });
+  driveCpu(P3, 8, 3, 10); const s3 = P3.state();
+  verdict(s3.stats.guarded === 0 && Math.abs(s3.dilation - 1) < 0.02, `a light 30 (8 ms + 3 ms a step): the dilation ${(100 * s3.dilation).toFixed(0)} %, nothing capped`);
 }
 console.log('GATE PACE: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);
