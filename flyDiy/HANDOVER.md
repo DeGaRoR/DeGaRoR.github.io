@@ -498,6 +498,24 @@ gate and the game fly one condition and not two.
   (scratch osc probe) before and after any lateral gain change — the
   circuit gates do NOT see cruise smoothness, and cruise-quiet probes do
   NOT see capture/decrab: run BOTH.
+- **G630: every lateral mode WRITES `ap.targetDir`, and every angle
+  difference fed to a rate filter is WRAPPED.** PATH (L1, default since P0.6)
+  steered by its own reference point and left targetDir at the taxi's last
+  heading; the yaw damper's eA read the track against it, sat on +-pi on the
+  downwind, and the raw-differenced rate (377 rad/s per crossing, held by the
+  2 s washout) put the rudder on its +-0.25 stop in a 6 s square wave. A
+  target that STEPS (mode change, taxi point, look-ahead index) is carried
+  into the filters' memory (bumpless). Measure a lateral change with
+  GATE PILOTACT (control reversals per minute per phase) as well as the
+  matrix: the circuit gates never saw a rudder beating stop to stop.
+- **G630: on the wheels the rate term is the enemy.** The nosewheel / tailwheel
+  steers the heading kinematically at taxi speed; the rate term only fed the
+  tyres' and springs' 2.5-4 Hz yaw mode (freeze test: rudder held at 0, the
+  heading stays within 0.16 deg). Taxi = P + curvature feed-forward; a trike's
+  ground D is a quarter off the brakes and none on them, and its P is capped
+  at a 3.5 rad/s kinematic bandwidth (kP V steer / Lwb). The FREEZE TEST
+  (hold the surface, see if the motion survives) is the first instrument for
+  any "is it the loop or the airframe" question.
 - Trim-heavy stable aircraft need pitchI authority (DC-3: 0.05 → 0.25).
 - **W10 runway frames (contract rule 6 DONE)**: all along/cross geometry
   runs in a runway frame {origin, unit axis} from a W.aerodromes record;
@@ -59730,3 +59748,77 @@ sweep. A rig (webdriver / headless) and a call with no timestamp keep the old cl
 PACE (core) drives the block with synthetic refreshes; GFX / WATER / PANEL / BENCH read the new wiring. Core battery
 green but MEDIA (pre-existing). NOT seen on a real display yet: the feel at 30 and auto's switching want the user's
 eye on the gamer box (a headless software-GL run was cut short). futureDesigns/PHYSICS-PERF-2026-09-24.md G586.
+
+## G630 - THE PILOT'S HANDS: the downwind rudder square wave, the ground's chatter, GATE PILOTACT (2026-09-26, the Jolene playtest, batch A3)
+
+The user, on the Jolene playtest: the autopilot "oscillates" - the trace's rudder lane a square wave on its stops all
+down the downwind, stopping at base (bugReports 142036 / 142343), and jitter on both lateral lanes through the taxi
+(141335). The lanes named `roll` / `yaw` were the AILERON and RUDDER positions; they are named for the surface now
+(elevator / aileron / rudder, app.js TEL_CH, keys unchanged).
+
+**ROOT CAUSE, CONFIRMED BY TRACE** (stock C172 archetype, HOME calm, per-step probe): in PATH mode (L1, the default
+since P0.6) `ap.targetDir` was never written - pathFollow steers by its own reference point - so it kept the value
+the ground phases left (180 deg at HOME). The yaw damper's eA (track against targetDir) walked through +-pi on the
+downwind; the rate filters differentiated the RAW angles, each crossing was a 2 pi step (377 rad/s), and the 2 s
+washout eARslow held ~pi, so `-(yawDampK)(eAR - eARslow)` sat on the +-0.25 clamp for seconds: rudder square wave,
+61 % of the downwind saturated, 27.8 reversals/min. Base turned the heading off +-pi and the wave stopped - exactly
+the report. FIX (43_pilot.js): pathFollow writes targetDir from the path tangent, interpolated between the 5 m
+samples; every angle difference fed to a rate filter goes through `wrapPi`; a target that steps more than 0.05 rad in
+one step is carried into the filters' memory (eP, eAP) - bumpless. Downwind after: 0-0.8 reversals/min, never saturated.
+
+**THE GROUND** (the taxi jitter, and the same disease on the take-off roll and the rollout, which the user had not
+yet reported). Three faults: (1) the ground aileron loop `-2 ph - p` differentiated the contact springs' tenth-of-a-
+degree bank jitter - now a 0.6 deg deadband on the bank error and the slow (0.3 s) roll rate with a 0.02 rad/s
+deadband while on the wheels (the air's law unchanged off them); (2) the taxi's fixed `-3.2 e - 1.2 eR` - now
+groundSteer's own gain schedule (speed, mass; `steerK`, factored out, bit-identical for a taildragger's groundSteer)
+on P, with the curvature feed-forward, NO rate term, and the look-ahead target heading filtered (0.4 s: hdgL steps
+as the index passes each sample of a bend); (3) the tricycle's ground steer. FREEZE TEST first (rudder held at 0 in
+the rollout): the heading stays within 0.16 deg - every ring was the LOOP's. The rate term fed the tyres' own
+2.5-4 Hz yaw mode; on P alone the C172 archetype rang 1.7 Hz +-0.7 deg under the brakes because the kinematic
+crossover `kP V steer / Lwb` grows with speed up to VSteer (~7 rad/s there). The trike now flies D x `trikeSteerD`
+(0.25) off the brakes and none on them (0.25 still GREW under the loaded nosewheel; none gave back the crosswind
+damping - C172 x2 rollout swing 1.6 -> 5.6 deg), and P capped at `steerBW` 3.5 rad/s. Measured on the C172:
+x2 swing 1.6 -> 2.9 deg, x4 2.9 -> 5.2 (both "good" <= 6), TAKEOFF's pusher green.
+
+**GATE PILOTACT** (core, ~4 min): `pilot_trace` reports `activity` - aileron / rudder / elevator reversals per minute
+past 0.03 rad (1.7 deg) of hysteresis, per phase group (taxi, takeoff, climb, legs, downwind, base, final, landing;
+a group under 30 s is judged over 30 s). `pilot_matrix --set activity --activity`: the stock build (`stock` =
+GEN_DEFAULT), the C172 archetype and the user's aluminium C172 (`tools/fixtures/build_v10_cessnaMetal_2026-09-26.json`,
+copied from bugReports) taxiing off HOME's stand (the new `stand` fixture), every group under ACT_LIMIT (taxi and
+take-off 20, the air 12, landing 40) and every cell flown to a stop through taxi, take-off, downwind, base and final.
+The matrix also carries it as the `ctl rev` column (not judged against a baseline that predates it). Calibration,
+aileron/rudder reversals per minute, the old core -> this one:
+
+```
+cell           taxi                 takeoff         downwind              landing
+stock          25/101 -> 1.5/14.6   0/0 -> 0/0      26.5/48.9 -> 0.6/0    0/0 -> 0/0
+c172           154/223 -> 0/16      89/91 -> 0/0    26.5/28 -> 0.7/0      142/156 -> 0/0
+cessnaMetal    59/286 -> 0/16.3     0/54 -> 0/0     25.2/23.2 -> 0/0      52/158 -> 0/0
+```
+(climb, legs, base, final: <= 10 on both cores.) GATE PILOTACT: FAIL (19) on the old core, PASS on this one.
+
+**G630.1 - THE SLOPE ROLL-OUT** (stretch (a); the playtest: "on inclined runways, the pilot should try and reach the
+flat part before stopping"): a rollout that slows to VStop on a grade past 1.5 % looks down the strip still ahead
+(to 25 m short of its end, 400 m at most) for ground under 1 % over +-20 m and taxis there (`flatRoll`, a sub-mode of
+ROLLOUT; the landing is judged at the first stop). None ahead - the matrix's up4 / dn4 tilt the whole strip - and it
+stops where it is, as before. Scratch fixture (3 % ramp under the aluminium C172's stop, level 60 m on): stopped on
+3.0 %, "rolling 80 m on to the level part", stopped on the level.
+
+**NOT DONE - stretch (b)**, the taxi clearance from parked aircraft (the Jolene taxiOut's first point puts the Cessna's
+wing over the parked Cub o1 at (-150, 670)): TAXI never reads world.obstacles; it wants a clearance check of the
+wingtip swept path against the parked records when the site's taxi path is built (39_ground_path / the site's
+taxiOut), not a steering patch. Owed.
+
+**PILOT CPU**: ap.update 0.052 ms per 1/60 s step mean over a whole aluminium-C172 flight off the stand (0.04-0.10 by
+phase; 6.5 ms once, the departure planning) - unchanged budget.
+
+**PILOTMATRIX** (full tier, red on master since G477): the quick set on this core against pilot_baseline.json -
+4 bad / 8 warn (the old core: 12 bad / 1 warn; the downwinds' and rollouts' `ctl rev` were the difference), 10
+regressed against 9 on the old core: the same nine sink / verdict drifts, plus stearman:HOME:calm sink 0.95 -> 1.47
+(the old core already read 1.42, the ratchet's tolerance is 0.5). The baseline was NOT moved. Left bad: the
+stearman's tail-up take-off rudder in wind (120-130 reversals/min, the tail-up gains, untouched here), cub x4's
+rollout swing 21.5 deg, cub A3's 4 m/s sink - all as on the old core.
+
+- Gates: `node tools/run_gates.js` CORE BATTERY PASS (99 gates, 106 jobs incl. shards; PILOTACT new). Full tier not
+  run as a battery; PILOTMATRIX as above.
+- AUTOPILOT RULES carry the two rules (targetDir / wrapped rates; the ground's rate term and the freeze test).
