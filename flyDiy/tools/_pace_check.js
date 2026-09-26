@@ -6,9 +6,11 @@
 //     capped at 60 every refresh, 1 step each;
 //   - a 144 Hz screen, capped at 60 or uncapped: the sim time kept equal to the wall time (to a frame);
 //   - a slow frame owes its steps (50 ms -> 3), a stall owes at most 4 and forgets the rest;
-//   - AUTO: frames over 18.5 ms drop it to 30 after two readings; at 30 a light frame earns a trial of 60;
-//     a trial that misses goes back to 30 and holds the next trial off (20 s, doubling); a trial that
-//     holds stays at 60; the auto render scale is told the budget each time;
+//   - AUTO: frames over 18.5 ms drop it to 30 after three readings; at 30 a frame whose one-step work fits
+//     60's budget earns a trial of 60; a trial that misses goes back to 30 and holds the next trial off
+//     (5 s, doubling, 30 s at most); a trial that holds stays at 60; the auto render scale is told the
+//     budget each time; AUTO RECOVERS (G615): hitches (a frame over 3x the cap's interval) are not
+//     readings, a 2 s slow burst does not drop it, 14 ms of one-step work at 30 earns the trial;
 //   - a RIG (webdriver / headless) and a call with no timestamp keep the old clock: 1 step of 1/60, uncapped;
 //   - THE STEP-DEBT GUARD (G612): a frame bound by its own solver (the next refresh after other + steps x step)
 //     that cannot hold real time is capped at the cap's steps - the frames stop collapsing, the dilation is
@@ -118,6 +120,35 @@ for (const fps of [60, 'off']) {
   const { PACE: P3 } = make({ pref: { fps: 30 } });
   const f = P3.frame(undefined);
   verdict(f && f.steps === 1 && f.dt === 1 / 60, 'a call with no timestamp (the harness): one step of 1/60');
+}
+// 8. AUTO RECOVERS (G615)
+{
+  // hitches at 60: one 120 ms frame a second is not a reading - it holds 60
+  const { PACE } = make({});
+  drive(PACE, 60, 10, { frameMs: t => (Math.floor(t / 1000) !== Math.floor((t + 1000 / 60) / 1000) ? 120 : 1000 / 60), work: () => 9 });
+  let st = PACE.state();
+  verdict(st.cap === 60 && st.stats.down === 0, `a 120 ms hitch every second at 60: not a reading, it holds 60 (cap ${st.cap}, ${st.stats.down} down)`);
+  // a 2 s burst of 22 ms frames (a reveal, a stream item): two slow readings, not three - it holds 60
+  const { PACE: P2 } = make({});
+  drive(P2, 60, 3, { work: () => 9 });
+  drive(P2, 60, 2, { frameMs: () => 22, work: () => 21 });
+  drive(P2, 60, 4, { work: () => 9 });
+  st = P2.state();
+  verdict(st.cap === 60 && st.stats.down === 0, `a 2 s burst of 22 ms frames: it holds 60 (cap ${st.cap})`);
+  // after a real drop, 14 ms of one-step work (over the old 12.5, inside 60's 16.7) earns the trial, and it holds
+  const { PACE: P3 } = make({});
+  drive(P3, 60, 6, { frameMs: () => 22, work: () => 21 });
+  const s0 = P3.state();
+  drive(P3, 60, 10, { work: () => 14 });
+  st = P3.state();
+  verdict(s0.cap === 30 && st.cap === 60 && st.stats.up >= 1, `dropped to 30, then 14 ms of one-step work: a trial of 60 that holds (cap ${s0.cap} -> ${st.cap})`);
+  // trials that keep missing: the hold never past 30 s
+  const { PACE: P4 } = make({});
+  drive(P4, 60, 6, { frameMs: () => 22, work: () => 21 });
+  let maxHold = 0;
+  for (let k = 0; k < 8; k++) { drive(P4, 60, 8, { frameMs: () => 22, work: () => 9 }); maxHold = Math.max(maxHold, P4.state().holdUpS - P4.__t / 1000); }   // (the stub's performance.now() is 0: the hold against the drive's own clock)
+  st = P4.state();
+  verdict(st.stats.trialsFailed >= 3 && maxHold <= 30, `trials that miss (${st.stats.trialsFailed}): the next held ${maxHold.toFixed(0)} s at most (<= 30)`);
 }
 // 7. THE STEP-DEBT GUARD (G612): a 60 Hz screen capped at 30, the frame bound by its own work - the next refresh
 // after `other + steps x step` ms (the solver's steps run in the frame they are owed) - for 20 s

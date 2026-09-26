@@ -9313,6 +9313,12 @@
   // the extra steps taken out) reads under 12.5 ms, and a trial that misses sends it back to 30 for 20 s,
   // doubling (5 min at most). The auto render scale (aa_resolve.js) is told the budget: it holds 30 fps
   // at 30 - and may raise the picture back - and 60 at 60.
+  // AUTO RECOVERS (G615, the A0 baseline: the procedural island - 16 ms of loop JavaScript - sat at 30 for
+  // 94 % of its frames after one hitch at the reveal, because a trial needed the one-step work under 12.5 ms
+  // and a miss held the next one 20 s..5 min): a frame over three times the cap's interval is a HITCH, not a
+  // reading (the rendered-frame readout still shows it); the drop needs three slow readings running (3 s at
+  // 60, where it was two); a trial of 60 needs the one-step work under 60's own budget (16.7 ms - the trial
+  // itself is the measurement: its median frame decides); a missed trial holds the next 5 s, doubling to 30 s.
   // A RIG (a headless or driven browser: the gates, frame_perf.js, the shot tools) and a harness that calls
   // the loop with no timestamp (GATE UISMOKE's vm) keep the old clock exactly: one 1/60 step a call,
   // uncapped - every measurement and every gate reads the frame it always read (?pace=1 forces the clock on).
@@ -9373,7 +9379,8 @@
       P.steps = n;
       P.lastPhys = 0;
       if (dms < 250) {
-        P.iv.push(dms); P.hist.push(dms); if (P.hist.length > 120) P.hist.shift();   // a stall (a tab away, a load) is not a frame
+        if (!(iv && dms > 3 * iv)) P.iv.push(dms);        // a hitch is not a reading (G615)
+        P.hist.push(dms); if (P.hist.length > 120) P.hist.shift();   // a stall (a tab away, a load) is not a frame
         const k = Math.exp(-P.dt);                        // the dilation over the last second of frames
         P.simW = P.simW * k + n / 60; P.wallW = P.wallW * k + P.dt;
       }
@@ -9398,14 +9405,14 @@
           const ok = f <= 18.5; P.trial = null;
           if (ok) { P.trials = 0; return; }
           P.stats.trialsFailed++; P.trials++;
-          P.holdUp = now + Math.min(300000, 20000 * Math.pow(2, P.trials - 1));
+          P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1));   // G615: 5 s, doubling, 30 s at most
           P.stats.down++; setCap(30, now); return;
         }
         P.strikes = f > 18.5 ? P.strikes + 1 : 0;
         const AA = W.FLYDIY_AA, A = AA && AA.autoState ? AA.autoState() : null;
-        if (P.strikes >= 2 && !(A && A.on && A.probing)) { P.stats.down++; setCap(30, now); }
+        if (P.strikes >= 3 && !(A && A.on && A.probing)) { P.stats.down++; setCap(30, now); }   // G615: three readings running
       } else {
-        P.goods = w < 12.5 ? P.goods + 1 : 0;
+        P.goods = w < 1000 / 60 ? P.goods + 1 : 0;       // G615: the one-step work inside 60's own budget
         if (P.goods >= 2 && now > P.holdUp) { P.stats.up++; P.trial = { t: now }; setCap(60, now); }
       }
     }
