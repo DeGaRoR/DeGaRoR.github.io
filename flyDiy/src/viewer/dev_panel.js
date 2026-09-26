@@ -417,7 +417,11 @@
   function tick(t) {
     frames++;
     if (t - tLast > 500) {
-      fpsEl.textContent = (frames * 1000 / (t - tLast)).toFixed(0) + ' fps'; frames = 0; tLast = t;
+      // G620: the RENDERED frames (the flight recorder's last 2 s, a freeze in): under the frame cap (G586) a rAF
+      // is not a frame - this panel's own callbacks read 60 at a 30 cap
+      const FRs = W.FLIGHT_REC && W.FLIGHT_REC.stats && !W.FLIGHT_REC.off ? W.FLIGHT_REC.stats(2000) : null;
+      fpsEl.textContent = FRs && FRs.n >= 5 ? FRs.fps.toFixed(0) + ' fps (' + FRs.med.toFixed(1) + ' ms med, ' + FRs.max.toFixed(0) + ' max)'
+        : (frames * 1000 / (t - tLast)).toFixed(0) + ' refreshes/s'; frames = 0; tLast = t;
       for (const r of live) r.refresh();
       if (genEl && W.TREE_FILL && W.TREE_FILL.stat) { const S = W.TREE_FILL.stat();
         genEl.textContent = 'fill chunks: ' + S.live + ' live, ' + S.queued + ' queued; gen ' + S.gens + ' x ' +

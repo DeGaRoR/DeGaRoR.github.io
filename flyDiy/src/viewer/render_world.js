@@ -5513,7 +5513,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   }
   let premTramLast = 0, premStreamTick = 0;
   function worldUpdate(cg) {
-    if (premisesR && premisesR.stats.queued && (++premStreamTick % 3 === 0 || (premisesR.editing && premisesR.editing()))) premisesR.step(1);   // a live edit's builds, and the far premises streamed in (G562): one every third frame
+    // G620: the flight recorder's pushes (flight_recorder.js; each a no-op outside the game's frame) - the premises' step,
+    // the cover ring and the fill timed apart from the rest of this update, and each premises build an event
+    const FRw = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+    if (premisesR && premisesR.stats.queued && (++premStreamTick % 3 === 0 || (premisesR.editing && premisesR.editing()))) {   // a live edit's builds, and the far premises streamed in (G562): one every third frame
+      const tP = FRw ? performance.now() : 0;
+      if (FRw) FRw.push(FRw.S.prem);
+      const built = premisesR.step(1);
+      if (FRw) { FRw.pop(); if (built) FRw.event('prem', performance.now() - tP, built + ' built, ' + premisesR.stats.queued + ' queued'); }
+    }
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
@@ -5543,9 +5551,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       sockFrame();
     }
     dayApply();
+    if (FRw) FRw.push(FRw.S.fill);
     fillUpdate(cg);
+    if (FRw) FRw.pop();
     lodUpdate(cg);
+    if (FRw) FRw.push(FRw.S.cover);
     if (coverRing) coverRing.update();
+    if (FRw) FRw.pop();
     if (standCards) standCards.update(cg);
     if (rockMap) rockMap.update();   // the rocks' far tier follows the eye (rock_map.js)
     const gy = world.terrainH(cg[0], cg[2]);

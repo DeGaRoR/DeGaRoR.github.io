@@ -388,6 +388,7 @@
   const set = (k, v) => {
     if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; }
     else { S[k] = v; S.preset = presetOf(); }
+    if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('gfx', null, k + ' = ' + v);   // G620: the flight log's settings events
     save(); apply();
     // colour management is decided at construction: store the choice for the
     // page's loader (flydiy.cm) and reload when it differs from what runs
@@ -416,7 +417,11 @@
     const med = f[f.length >> 1], p90 = f[Math.floor(f.length * 0.9)];
     let pace = '';
     if (PC && PC.state) { const st = PC.state(); if (!st.legacy) pace = ' · ' + (st.mode === 'auto' ? 'auto, holding ' + st.cap : st.mode === 'off' ? 'uncapped' : 'capped at ' + st.cap) + (st.cap ? ' fps' : ''); }
-    return 'last ' + f.length + ' frames: ' + med.toFixed(0) + ' ms median (' + (1000 / med).toFixed(0) + ' fps) · ' + p90.toFixed(0) + ' ms p90' + pace;
+    // G620: A FREEZE IS KEPT, and said: the history holds every interval (it dropped any of 250 ms or more, so a
+    // real freeze never showed here), the worst of them is the max, and the stalls since the page loaded are counted
+    const fz = PC && PC.freezes ? PC.freezes() : null;
+    const frz = fz && fz.n ? ' · ' + fz.n + (fz.n === 1 ? ' freeze' : ' freezes') + ' of 250 ms or more since load (worst ' + fz.maxMs.toFixed(0) + ' ms, last ' + (fz.agoS || 0).toFixed(0) + ' s ago)' : '';
+    return 'last ' + f.length + ' frames: ' + med.toFixed(0) + ' ms median (' + (1000 / med).toFixed(0) + ' fps) · ' + p90.toFixed(0) + ' ms p90 · ' + f[f.length - 1].toFixed(0) + ' ms max' + pace + frz;
   };
 
   // ---- the menu, in the host's own words ---------------------------------
@@ -443,6 +448,8 @@
         x => x.value === S[o.k], x => pick(o.k, x.value));
     }
     const readout = H.note(body, frameText());
+    // G620: THE FPS METER and THE FLIGHT LOG (flight_recorder.js): the meter's switch, the log's download
+    if (W.FLIGHT_REC && W.FLIGHT_REC.mount) W.FLIGHT_REC.mount(body, H);
     H.note(body, 'Everything takes effect at once; nothing needs a restart. Changing the ' +
                  'anti-aliasing reallocates the frame (a blink), a new density re-streams the ' +
                  'forest around you (about ten seconds), and shadows off or on recompiles the ' +
