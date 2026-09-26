@@ -6409,10 +6409,17 @@
     // all under the overlay with the world pictures. A second roll-out at
     // the same stand finds everything resident and reveals at once; a spawn
     // elsewhere grows its ring again.
+    rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
     if (needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); if (after) after(); });
     else { if (!WF) buildWorld(); flRevealStart(); if (after) after(); }   // the aeroplane is on the stand now
   }
   let frameWait = null, worldCompiled = false, holdRender = false;
+  // G690: THE STAND WAITS FOR THE PLAYER. `holdRender` only skips the DRAW; the solver, the pilot, the director
+  // and the panel kept running under the roll-out screen (30-44 s on the user's box), so a start pressed under it
+  // (the rig's second "roll out" click; bGo's fall-through) had the aeroplane taxiing at 4.5 m/s when the screen
+  // lifted. `rollHold` is the screen's hold on the FLIGHT: set with the screen, cleared by its done callback (a
+  // roll-in over it and every roll-out clear it too); the loop steps nothing and owes the frame clock nothing.
+  let rollHold = false;
   const framesRendered = n => (typeof renderer.compileAsync !== 'function') ? null   // the harness: no frames to wait for
     : new Promise(res => { frameWait = { n, res }; });
   function needsRollOutScreen() {
@@ -6437,7 +6444,7 @@
     // that cuts a roll-out short (a rig's click under the overlay; a door
     // pressed the instant the overlay lifts) inherited the hold and the shed
     // drew nothing but sky. The garage renders from its first frame.
-    holdRender = false;
+    holdRender = false; rollHold = false;
     const steps = [
       { id: 'shed', label: 'back into the shed', w: 6, fn: () => { enterGarage(); } },
       { id: 'board', label: 'the drawing board', w: 4, fn: () => { openEditor(); } },
@@ -6474,6 +6481,7 @@
   function rollOutScreen(done) {
     const steps = [];
     holdRender = typeof renderer.compileAsync === 'function';   // the harness renders nothing anyway
+    rollHold = true;                   // G690: no step, no pilot, no director until the screen lifts
     if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => { buildWorld(); } });
     // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
     // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
@@ -6574,7 +6582,7 @@
     // two frames of the world rendered under the overlay: the passes, the
     // residue of programs the compile does not reach (the shadow variants)
     steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => { holdRender = false; return framesRendered(2); } });
-    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
+    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; rollHold = false; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
       probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
   }
 
@@ -6583,6 +6591,9 @@
     // bar's `Fly the circuit` went dead after a landing; there is one primary
     // verb now, at the far right of the top row, and after a stop it means
     // reset-and-go — which is the whole of that dead end fixed.
+    // G690: a press under the roll-out screen is not a start (it fell through to `started = true`): the screen's
+    // own done callback starts the flight when it lifts
+    if (rollHold) return;
     if (!inGarage && (flightOver || (started && ap.phase === 'STOPPED'))) {
       $('arrCard').hidden = true;
       fullReset();
@@ -9605,6 +9616,7 @@
     // is still there to look at rather than snapping back the frame it finishes
     else if (inGarage && rig) updateLoadViz(rig);
     if (inGarage) { fixTick(); PACE.hold(); }   // A9: the advisor's page slice, when it has no thread
+    else if (rollHold) PACE.hold();    // G690: the roll-out screen is up - the flight starts on the stand when it lifts
     else if (running && !inGarage) {
       // A9: 2× steps twice a frame on the test flight; a doubled step that
       // costs more than a frame for half a second drops itself back to 1×
