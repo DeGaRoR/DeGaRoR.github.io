@@ -1,0 +1,285 @@
+#!/usr/bin/env node
+// rollout_perf.js - THE ROLL-OUT AS THE PLAYER LIVES IT (A0, Jolene playtest 2026-09-26)
+//
+// Every other rig in tools/ measures a PAUSED scene after the streamers settled (frame_perf,
+// tree_perf, premises_perf) or the boot alone (boot_perf) - and every one of them runs in a RIG
+// browser, which G586's frame clock keeps on the legacy one-step-a-call clock. The window the user
+// found unplayable is none of those: the first minutes after the roll-out screen lifts, the sim
+// running on the WALL clock (steps owed per frame, the auto 60/30 cap), the pilot taxiing, the far
+// premises still streaming in. This rig measures exactly that window:
+//   - a HEADED Chrome (not headless: navigator.webdriver false, no HeadlessChrome UA -> the live
+//     clock), vsync ON (the player's frame pacing), at the player's viewport;
+//   - --cold: a fresh profile (no shader cache, no service worker, no IndexedDB bake cache = a first
+//     visit from GitHub Pages); default: a persistent profile warmed by a previous run;
+//   - the page's own loop is read through FLYDIY_PACE.end (called once per rendered frame with the
+//     loop's JS work and its solver ms), WORLD.worldUpdate is timed, long tasks are observed from
+//     the first byte, and each frame also records the phase, the premises queue and the cap.
+// Variants need no code change: --build <file.json> loads a garage build into the WIP slot,
+// --variant nomet filters Metlakatla (mk_*) out of the premises through the WORLD rail's saved-copy
+// slot, --gfx '{"shadows":"off"}' pre-sets graphics rows, --world none boots the analytic world.
+//
+// THE ROLLOUT TARGETS (batch A gate, futureDesigns/PLAYTEST-2026-09-26.md): after the reveal no
+// frame over 100 ms, never more than 3 s in a row below 30 fps, stand + taxi median >= 50 fps, and no
+// main-thread task over 1 s anywhere (boot and roll-out included). Printed as PASS/FAIL lines, but
+// this is a MEASUREMENT (GPU + headed browser), not a battery gate.
+//
+// Usage: node tools/rollout_perf.js [--cold] [--secs 150] [--build "bugReports/cessnaMetal (1).json"]
+//          [--variant base|nomet|nopremises] [--gfx '<json>'] [--world jolene|none] [--page index.html|dev.html]
+//          [--size 2216x1023] [--label name] [--out tools/perf/rollout_<label>.json] [--quiet]
+//          [--port 8531] [--fallback D:/Dev/DeGaRoR.github.io] [--q 'depth=log'] [--shot 5,20]
+// Starts its own static server (tools/_serve.js) on the repo root (with --fallback for a worktree's
+// gitignored data) unless --url is given.
+'use strict';
+const { spawn, execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
+const os = require('os');
+
+const argv = process.argv.slice(2);
+const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
+const flag = k => argv.includes('--' + k);
+const COLD = flag('cold');
+const SECS = +opt('secs', 150);
+const BUILD = opt('build', null);
+const VARIANT = opt('variant', 'base');
+const GFX = opt('gfx', null);
+const WORLDN = opt('world', null);
+const PAGE = opt('page', 'index.html');
+const SIZE = opt('size', '2216x1023').split('x').map(Number);
+const LABEL = opt('label', [COLD ? 'cold' : 'warm', VARIANT, BUILD ? path.basename(BUILD, '.json').replace(/\W+/g, '') : 'stock', WORLDN || 'jolene'].join('_'));
+const OUT = opt('out', path.join(__dirname, 'perf', 'rollout_' + LABEL + '.json'));
+const SPORT = +opt('port', 8531);
+const REPO = path.resolve(__dirname, '..', '..');
+const FALLBACK = opt('fallback', null);
+let URL = opt('url', null);
+
+const CHROME = [
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  '/usr/bin/google-chrome', '/usr/bin/chromium',
+].find(p => fs.existsSync(p));
+if (!CHROME) { console.error('rollout_perf: no Chrome found'); process.exit(2); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const getJSON = url => new Promise((res, rej) => {
+  http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => { try { res(JSON.parse(b)); } catch (e) { rej(e); } }); }).on('error', rej);
+});
+const gpuUtil = () => { try { return +execSync('nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits', { stdio: ['ignore', 'pipe', 'ignore'], timeout: 4000 }).toString().trim(); } catch (e) { return -1; } };
+const cpuLoad = () => { try { return +execSync('powershell -NoProfile -Command "(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average"', { stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 }).toString().trim(); } catch (e) { return -1; } };
+
+// ---- the static server -----------------------------------------------------
+let server = null;
+if (!URL) {
+  const a = [path.join(__dirname, '_serve.js'), String(SPORT), REPO];
+  if (FALLBACK) a.push('--fallback', FALLBACK);
+  server = spawn(process.execPath, a, { stdio: 'ignore' });
+  URL = 'http://localhost:' + SPORT + '/flyDiy/' + PAGE;
+}
+const q = [];
+if (WORLDN) q.push('world=' + WORLDN);
+if (VARIANT === 'nopremises') q.push('premises=none');
+// --q 'a=1&b=2': extra URL parameters (a switch under test: ?depth=log, ?cover=0 ...)
+if (opt('q', null)) q.push(opt('q'));
+// --shot <s>[,<s>...]: PNG captures that many seconds after the reveal (tools/perf/rollout_<label>_<s>s.png)
+const SHOTS = (opt('shot', '') || '').split(',').filter(Boolean).map(Number);
+if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
+
+// ---- what the page is given before its first script --------------------------
+function preScript() {
+  const lines = [];
+  // a warm profile keeps localStorage between runs: every run states its build and graphics afresh
+  if (BUILD) {
+    const txt = fs.readFileSync(path.resolve(REPO, 'flyDiy', BUILD), 'utf8');
+    lines.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(txt) + ')}catch(e){}');
+  } else lines.push('try{localStorage.removeItem("flydiy.wip")}catch(e){}');
+  lines.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
+  if (VARIANT === 'nomet') {
+    const F = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
+    let cut = 0;
+    for (const k of Object.keys(F.layers)) if (Array.isArray(F.layers[k])) {
+      const n = F.layers[k].length;
+      F.layers[k] = F.layers[k].filter(e => !(e && typeof e.id === 'string' && e.id.startsWith('mk_')));
+      cut += n - F.layers[k].length;
+    }
+    console.log('  variant nomet: ' + cut + ' mk_ records removed (rev ' + F.rev + ' kept, so the saved copy wins)');
+    lines.push('try{localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(JSON.stringify(F)) + ')}catch(e){}');
+  } else {
+    lines.push('try{localStorage.removeItem("flydiy.premises.game.jolene")}catch(e){}');
+  }
+  if (GFX) lines.push('try{localStorage.setItem("flydiy.gfx",JSON.stringify(' + GFX + '))}catch(e){}');
+  // the recorder's early half: long tasks from the first byte (buffered), and the boot's own clock
+  lines.push(`(function(){ if (window.__RP) return; var R = window.__RP = { t0: performance.now(), lt: [], ev: [] };
+    try { new PerformanceObserver(function(l){ l.getEntries().forEach(function(e){ R.lt.push([Math.round(e.startTime), Math.round(e.duration)]); }); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
+  })();`);
+  return lines.join('\n');
+}
+
+// ---- the page-side recorder, installed once the game exists --------------------
+const INSTALL = `(() => {
+  const R = window.__RP; if (R.on) return 'have';
+  const P = window.FLYDIY_PACE; if (!P) throw new Error('no FLYDIY_PACE');
+  R.fr = []; R.on = true; R.rev = 0;
+  const endW = P.end.bind(P);
+  let wuMs = 0;
+  const W = window.WORLD;
+  if (W && W.worldUpdate && !W.__rpW) { const wu = W.worldUpdate; W.worldUpdate = function (cg) { const t = performance.now(); const r = wu.apply(this, arguments); wuMs += performance.now() - t; return r; }; W.__rpW = 1; }
+  // the CPU side of every renderer.render() (the scene, the mirror, the probes: submit + any sync
+  // stall), three's shadow pass inside it, and each premises stream step
+  let rMs = 0, shMs = 0, pmMs = 0, pmN = 0;
+  const RD = W && W.renderer;
+  if (RD && !RD.__rp) { const rr = RD.render; RD.render = function () { const t = performance.now(); const x = rr.apply(this, arguments); rMs += performance.now() - t; return x; };
+    const SM = RD.shadowMap; if (SM && SM.render) { const sr = SM.render; SM.render = function () { const t = performance.now(); const x = sr.apply(this, arguments); shMs += performance.now() - t; return x; }; }
+    RD.__rp = 1; }
+  const PR = W && W.premises;
+  if (PR && PR.step && !PR.__rp) { const ps = PR.step; PR.step = function () { const t = performance.now(); const x = ps.apply(this, arguments); pmMs += performance.now() - t; pmN++; return x; }; PR.__rp = 1; }
+  let lastNow = 0;
+  const ph = document.getElementById('phName');
+  const prem = () => { const p = W && W.premises; return p && p.stats ? p.stats.queued : -1; };
+  P.end = function (workMs, physMs, steps, now) {
+    const st = P.state();
+    let agl = null, x = null, z = null; try { const s = window.FLIGHT_PROBE && FLIGHT_PROBE.sim(); if (s) { const cg = s.cgPos(); agl = cg[1] - FLIGHT_PROBE.world().terrainH(cg[0], cg[2]); x = cg[0]; z = cg[2]; } } catch (e) {}
+    R.fr.push([ +now.toFixed(1), lastNow ? +(now - lastNow).toFixed(2) : 0, +workMs.toFixed(2), +physMs.toFixed(2), steps, +wuMs.toFixed(2), st.cap, ph ? ph.textContent : '', prem(), agl == null ? null : +agl.toFixed(1),
+      +rMs.toFixed(2), +shMs.toFixed(2), +pmMs.toFixed(2), pmN, x == null ? null : +x.toFixed(2), z == null ? null : +z.toFixed(2) ]);
+    lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0;
+    return endW(workMs, physMs, steps, now);
+  };
+  return 'installed';
+})()`;
+
+const med = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[f.length >> 1]; };
+const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[Math.min(f.length - 1, Math.floor(f.length * p))]; };
+
+(async () => {
+  if (flag('quiet')) {
+    const t0 = Date.now(); let u = gpuUtil(), calm = 0;
+    while (u >= 0 && Date.now() - t0 < 20 * 60000) { if (u < 15) { if (++calm >= 3) break; } else calm = 0; await sleep(4000); u = gpuUtil(); }
+    console.log('rollout_perf: GPU ' + u + ' % after ' + ((Date.now() - t0) / 1000 | 0) + ' s of waiting');
+  }
+  const box = { gpuUtil: gpuUtil(), cpuLoad: cpuLoad() };
+  const DPORT = 9300 + (process.pid % 500);
+  const UDD = COLD ? path.join(os.tmpdir(), 'rollout_cold_' + DPORT + '_' + Date.now()) : path.join(os.tmpdir(), 'flydiy_rollout_warm_profile');
+  const ch = spawn(CHROME, ['--remote-debugging-port=' + DPORT, '--window-size=' + (SIZE[0] + 16) + ',' + (SIZE[1] + 140),
+    '--window-position=0,0', '--no-first-run', '--no-default-browser-check', '--user-data-dir=' + UDD,
+    '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', 'about:blank'], { stdio: 'ignore' });
+  const kill = () => { try { if (process.platform === 'win32') execSync('taskkill /PID ' + ch.pid + ' /T /F', { stdio: 'ignore' }); else ch.kill(); } catch (e) {}
+    if (server) try { if (process.platform === 'win32') execSync('taskkill /PID ' + server.pid + ' /T /F', { stdio: 'ignore' }); else server.kill(); } catch (e) {} };
+  process.on('exit', kill);
+  let tgt = null;
+  for (let i = 0; i < 50 && !tgt; i++) { await sleep(400); try { tgt = (await getJSON('http://127.0.0.1:' + DPORT + '/json')).find(t => t.type === 'page'); } catch (e) {} }
+  if (!tgt) throw new Error('no page target');
+  const ws = new WebSocket(tgt.webSocketDebuggerUrl);
+  await new Promise(r => ws.onopen = r);
+  let id = 0; const waits = new Map(); const exc = [];
+  ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+    if (m.method === 'Runtime.exceptionThrown') exc.push((m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text || '').split('\n')[0]); };
+  const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
+  const ev = async (expr, timeoutMs) => {
+    const p = cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
+    const r = await (timeoutMs ? Promise.race([p, sleep(timeoutMs).then(() => ({ result: { result: { value: '__timeout' } } }))]) : p);
+    const d = r.result;
+    if (!d || d.exceptionDetails) throw new Error('page: ' + (d && d.exceptionDetails ? (d.exceptionDetails.exception && d.exceptionDetails.exception.description || d.exceptionDetails.text) : JSON.stringify(r)));
+    return d.result.value;
+  };
+  await cmd('Page.enable'); await cmd('Runtime.enable');
+  await cmd('Page.addScriptToEvaluateOnNewDocument', { source: preScript() });
+  await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: 1, mobile: false });
+  await cmd('Page.bringToFront');
+  const tNav = Date.now();
+  await cmd('Page.navigate', { url: URL });
+  await sleep(2000);
+  const boot = await ev("(() => Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 30000)), new Promise(r => setTimeout(() => r('boot timeout'), 240000))]))()", 250000);
+  const tGarage = (Date.now() - tNav) / 1000;
+  console.log('rollout_perf [' + LABEL + '] ' + URL);
+  console.log('  garage ready: ' + boot + ' after ' + tGarage.toFixed(1) + ' s');
+  const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
+  for (let i = 0; i < 10; i++) { const n = await ev(KEEP); await sleep(400); if (!n && i > 3) break; }
+  await sleep(1500);
+  const gpu = await ev("(()=>{const c=document.createElement('canvas').getContext('webgl2');const d=c&&c.getExtension('WEBGL_debug_renderer_info');return d?c.getParameter(d.UNMASKED_RENDERER_WEBGL):'?';})()");
+  const gfx0 = await ev('JSON.stringify(window.GFX ? GFX.get() : null)');
+  console.log('  ' + gpu + ' · gfx ' + gfx0);
+  // ROLL OUT
+  const tRoll = Date.now();
+  await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent).forEach(x=>x.click());return 1;})()");
+  // the roll-out screen: wait for the overlay to go (the reveal)
+  let bs = '', installed = false;
+  for (let i = 0; i < 400; i++) {
+    bs = await ev("window.BOOT ? BOOT.state : 'none'", 20000);
+    if (!installed && await ev('!!(window.FLYDIY_PACE && window.WORLD && WORLD.worldUpdate)', 20000)) { installed = (await ev(INSTALL)) !== ''; }
+    if ((bs === 'gone' || bs === 'none') && Date.now() - tRoll > 3000) break;
+    await sleep(500);
+  }
+  if (!installed) await ev(INSTALL);
+  const revealAt = await ev('performance.now()');
+  const tReveal = (Date.now() - tRoll) / 1000;
+  console.log('  roll-out screen: ' + bs + ' after ' + tReveal.toFixed(1) + ' s');
+  // the flight: make sure the sim runs (the circuit button, if the roll-out left it held)
+  await sleep(1500);
+  const t1 = await ev('FLIGHT_PROBE.sim().t'); await sleep(1500); const t2 = await ev('FLIGHT_PROBE.sim().t');
+  if (!(t2 > t1)) { await ev("(()=>{const b=document.getElementById('bGo');if(b&&b.offsetParent)b.click();const p=document.getElementById('bPause');if(p&&/run/i.test(p.textContent))p.click();return 1;})()"); }
+  // record SECS seconds of the live game
+  const every = 10;
+  const shots = [];
+  const tRec = Date.now();
+  for (const at of SHOTS) {
+    const wait = at * 1000 - (Date.now() - tRec); if (wait > 0) await sleep(wait);
+    const r = await cmd('Page.captureScreenshot', { format: 'png' });
+    const f = OUT.replace(/\.json$/, '_' + at + 's.png'); fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, Buffer.from(r.result.data, 'base64')); console.log('  shot -> ' + f);
+  }
+  for (let s = 0; s < SECS; s += every) {
+    await sleep(every * 1000);
+    const st = await ev("JSON.stringify({ph: (document.getElementById('phName')||{}).textContent, pace: FLYDIY_PACE.state(), q: WORLD.premises && WORLD.premises.stats ? WORLD.premises.stats.queued : -1, t: FLIGHT_PROBE.sim().t})", 30000);
+    shots.push(st);
+    console.log('  +' + String(s + every).padStart(3) + ' s ' + st);
+  }
+  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt })', 60000));
+  const bootLog = await ev('JSON.stringify(window.BOOT && BOOT.log ? BOOT.log : null)').catch(() => null);
+  ws.close(); kill();
+  if (COLD) try { fs.rmSync(UDD, { recursive: true, force: true }); } catch (e) {}
+
+  // ---- the reading ------------------------------------------------------------
+  // fr rows: [now, dt, workMs, physMs, steps, worldMs, cap, phase, premQueued, agl, renderMs, shadowMs, premStepMs, premSteps, x, z]
+  const fr = R.fr.filter(r => r[0] >= revealAt && r[1] > 0);
+  // ground speed from the CG track (m/s), over the frame's own dt
+  for (let i = 0; i < fr.length; i++) { const a = fr[Math.max(0, i - 1)], b = fr[i]; fr[i].spd = (i && a[14] != null && b[14] != null) ? Math.hypot(b[14] - a[14], b[15] - a[15]) / Math.max(1e-3, b[1] / 1000) : 0; }
+  let everMoved = false;
+  const phaseOf = r => { const p = (r[7] || '').toUpperCase(); const agl = r[9] == null ? 0 : r[9];
+    if (agl > 4) return 'air';
+    if (/TAKE|ROLL|LINE|DEPART/.test(p)) return 'takeoff';
+    if (r.spd > 0.4) everMoved = true;
+    return everMoved ? 'taxi' : 'stand'; };
+  for (const r of fr) r.ph = phaseOf(r);
+  const groups = {};
+  for (const r of fr) (groups[r.ph] = groups[r.ph] || []).push(r);
+  const row = rs => { const dt = rs.map(r => r[1]); return { frames: rs.length, fpsMedian: +(1000 / med(dt)).toFixed(1), dtMedian: +med(dt).toFixed(1), dtP90: +pct(dt, 0.9).toFixed(1), dtMax: +Math.max(0, ...dt).toFixed(0),
+    workMed: +med(rs.map(r => r[2])).toFixed(1), physMed: +med(rs.map(r => r[3])).toFixed(1), physP90: +pct(rs.map(r => r[3]), 0.9).toFixed(1), worldMed: +med(rs.map(r => r[5])).toFixed(1), worldP90: +pct(rs.map(r => r[5]), 0.9).toFixed(1),
+    steps: +(rs.reduce((s, r) => s + r[4], 0) / Math.max(1, rs.length)).toFixed(2), renderMed: +med(rs.map(r => r[10])).toFixed(1), renderP90: +pct(rs.map(r => r[10]), 0.9).toFixed(1), shadowMed: +med(rs.map(r => r[11])).toFixed(1), premStepMs: +(rs.reduce((s, r) => s + r[12], 0) / Math.max(1, rs.length)).toFixed(2), cap30: +(rs.filter(r => r[6] === 30).length / Math.max(1, rs.length)).toFixed(2) }; };
+  const phases = {}; for (const k of Object.keys(groups)) phases[k] = row(groups[k]);
+  // the gate numbers
+  let run = 0, worstRun = 0; for (const r of fr) { if (r[1] > 1000 / 30) { run += r[1]; worstRun = Math.max(worstRun, run); } else run = 0; }
+  const over100 = fr.filter(r => r[1] > 100);
+  const lt = R.lt.slice().sort((a, b) => b[1] - a[1]);
+  const lt1s = R.lt.filter(x => x[1] > 1000);
+  const premEmptyAt = (() => { const r = fr.find(r => r[8] === 0); return r ? +((r[0] - revealAt) / 1000).toFixed(1) : null; })();
+  const standTaxi = fr.filter(r => ['stand', 'taxi'].includes(r.ph));
+  const standTaxiFps = standTaxi.length ? 1000 / med(standTaxi.map(r => r[1])) : 0;
+  const gates = {
+    over100ms: { n: over100.length, worst: over100.length ? Math.max(...over100.map(r => r[1])) | 0 : 0, pass: over100.length === 0 },
+    below30run: { sec: +(worstRun / 1000).toFixed(2), pass: worstRun <= 3000 },
+    standTaxiMedianFps: { fps: +standTaxiFps.toFixed(1), pass: standTaxiFps >= 50 },
+    longTask1s: { n: lt1s.length, worst: lt.length ? lt[0][1] : 0, pass: lt1s.length === 0 },
+  };
+  console.log('  ---- ' + LABEL + ' · garage ' + tGarage.toFixed(1) + ' s · roll-out screen ' + tReveal.toFixed(1) + ' s · premises queue empty at +' + premEmptyAt + ' s');
+  for (const k of ['stand', 'taxi', 'takeoff', 'air']) if (phases[k]) { const p = phases[k];
+    console.log(`  ${k.padEnd(8)} ${String(p.fpsMedian).padStart(5)} fps (dt med ${p.dtMedian} p90 ${p.dtP90} max ${p.dtMax}) · loop JS ${p.workMed} · solver ${p.physMed} (p90 ${p.physP90}) · world ${p.worldMed} (p90 ${p.worldP90}) · render ${p.renderMed} (p90 ${p.renderP90}, shadow ${p.shadowMed}) · prem ${p.premStepMs}/fr · ${p.steps} steps/frame · at 30-cap ${Math.round(p.cap30 * 100)} % · ${p.frames} fr`); }
+  for (const [k, g] of Object.entries(gates)) console.log('  ROLLOUT ' + k + ': ' + (g.pass ? 'PASS' : 'FAIL') + ' ' + JSON.stringify(g));
+  console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
+  if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
+  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
+    tGarage, tReveal, premEmptyAt, phases, gates, longTasks: R.lt, shots, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
+  fs.writeFileSync(OUT, JSON.stringify(result));
+  console.log('  -> ' + OUT);
+  process.exit(0);
+})().catch(e => { console.error('rollout_perf: ' + (e && e.stack || e)); process.exit(1); });
