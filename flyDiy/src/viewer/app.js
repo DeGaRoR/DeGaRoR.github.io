@@ -4589,6 +4589,10 @@
   //     readout.
   //   - `stick` went off the three control labels: on a lane already named
   //     `pitch`, in degrees, the word was noise.
+  //   - G630: and the three control lanes are named for the SURFACE they
+  //     plot (elevator / aileron / rudder): `roll` and `yaw` read as the
+  //     aeroplane's attitude, and the Jolene playtest read the rudder's
+  //     square wave as the aeroplane yawing. The keys stay.
   const TEL_CH = [
     { k: 'alt',   l: 'altitude',        u: 'm',    f: 'path',  get: (o, c, d) => d.alt || 0 },
     { k: 'agl',   l: 'height agl',      u: 'm',    f: 'path',  get: (o, c, d) => d.agl || 0 },
@@ -4596,9 +4600,9 @@
     { k: 'tas',   l: 'speed',           u: 'km/h', f: 'speed', get: o => (o.V || 0) * 3.6 },
     { k: 'aoa',   l: 'angle of attack', u: '°', f: 'att', sgn: 1, get: o => (o.alpha || 0) * 57.3 },
     { k: 'thr',   l: 'throttle',        u: '%',    f: 'ctl',   get: (o, c) => c.thr * 100 },
-    { k: 'pitch', l: 'pitch',           u: '°', f: 'ctl', sgn: 1, get: (o, c) => c.de * 57.3 },
-    { k: 'roll',  l: 'roll',            u: '°', f: 'ctl', sgn: 1, get: (o, c) => c.da * 57.3 },
-    { k: 'yaw',   l: 'yaw',             u: '°', f: 'ctl', sgn: 1, get: (o, c) => c.dr * 57.3 },
+    { k: 'pitch', l: 'elevator',        u: '°', f: 'ctl', sgn: 1, get: (o, c) => c.de * 57.3 },
+    { k: 'roll',  l: 'aileron',         u: '°', f: 'ctl', sgn: 1, get: (o, c) => c.da * 57.3 },
+    { k: 'yaw',   l: 'rudder',          u: '°', f: 'ctl', sgn: 1, get: (o, c) => c.dr * 57.3 },
     { k: 'flap',  l: 'flap',            u: '%',    f: 'ctl',   get: (o, c) => (c.flap || 0) * 100 },
     { k: 'str',   l: 'peak strain',     u: '%',    f: 'load',  get: (o, c, d, sm) => sm * 100 },
   ];
