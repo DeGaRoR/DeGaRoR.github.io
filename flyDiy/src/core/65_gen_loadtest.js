@@ -147,6 +147,12 @@ function makeLoadTest(sim, def, cfg) {
   // and the linearity check reads that as a bent rig.
   if (sim.setEngine && sim.eng)
     for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+  // THE ACTUAL WING ON THE TRESTLES (G610). A metal build FLIES a softened wing box (62_gen_aero
+  // genFlightBox: its kilohertz axial mode cut to what 120 substeps carry); the sandbags go on the
+  // wing as BUILT - the rig switches the sim it is handed to the true k and c and steps it at the
+  // step the true box needs. The user: "I don't want to fake the test. Let the test test the actual
+  // wing." A build that softened nothing is untouched (the same sim, the same step).
+  const SUB = (sim.trueBox ? sim.trueBox() : 0) || (def.params && (def.params.substepsTrue || def.params.substeps)) || 24;
   // THE WING IS JUDGED AS WHAT IT IS BUILT OF (G213). `cfg.wingMaterial` is a
   // GEN_SURF_MATERIALS key (or row): the wing class's allowable is that
   // row's section and yield, not the fuselage's. Measured before this: the
@@ -294,7 +300,6 @@ function makeLoadTest(sim, def, cfg) {
   // strains 0.11-0.20 at 1 g, tips -13 % to +35 %, tubeFabric alone sane)
   // made it a defect. A trestle does not let go between substeps: the
   // clamp now runs inside the frame, after every substep.
-  const SUB = (def.params && def.params.substeps) || 24;
   function stepClamped(dt) {
     for (let k = 0; k < SUB; k++) { sim.step(dt / SUB, 1); clamp(); }
   }

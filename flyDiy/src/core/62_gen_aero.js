@@ -909,7 +909,16 @@ function genGroundPowerCap(def, T0, W) {
 
 const GEN_WDT_MAX = 0.45;      // omega * dt
 const GEN_CDT_MAX = 0.65;      // damping rate * dt
+// THE STEP A BUILD FLIES (G610): the TRUE step (genSubstepsTrue, the rule below and G580's dampers),
+// then THE FLIGHT BOX (genFlightBox) where the wing's springs ask for more than GEN_BOX_N. The params
+// carry both: `substeps` is what flies, `substepsTrue` (only when they differ) what the actual wing
+// needs - the load test flies that one (sim.trueBox(), 30_solver.js).
 function genSubsteps(nodes, beams) {
+  const N0 = genSubstepsTrue(nodes, beams);
+  const N = genFlightBox(nodes, beams, N0);
+  return N < N0 ? { substeps: N, substepsTrue: N0 } : { substeps: N0 };
+}
+function genSubstepsTrue(nodes, beams) {
   let wMax = 0, cMax = 0;
   for (const b of beams) {
     // G121 (the review's B2): omega at DRY mass, not full-tanks mass. Fuel
@@ -962,6 +971,74 @@ function genSubsteps(nodes, beams) {
   const cap = capAt(N);
   for (const b of beams) { const c = cap(b); if (c < b.c) { b.cSized = b.c; b.c = c; } }
   return N;
+}
+// THE FLIGHT BOX (G610, PHYSICS PERF - the metal wing box). An alloy wing box (the WB-WB beams on
+// ~0.9 kg nodes) asks 213-265 substeps per beam, so every metal build flew at the 200 cap - for an
+// axial mode of the box at a kilohertz and more that no flight dynamics can see: the metal Cessna's
+// lowest wing mode is two orders under it. Where the springs set a step over GEN_BOX_N, the FLIGHT
+// flies a box softened to that step: every WING spring (cls 'wing' - the spars, the ribs, the
+// diagonals, the carry-through) past omega dt GEN_WDT_MAX at the new step is cut to it, and its
+// damper with it by the same sqrt, so each softened beam keeps its own damping ratio (the box rings
+// and dies as the true one does); a damper anywhere past c dt at the new step is cut to it, as G580
+// does. Taken only if the whole NETWORK holds the integrator's margin (genNetEig, the same <= 3.0 as
+// G580 - the per-beam bound alone diverged at 80 substeps, measured) and no spring flies softer than
+// GEN_BOX_KMIN of its true k; the smallest such step at or over GEN_BOX_N and every non-wing spring's
+// own need, never more than the true one. Nothing else moves: the fuselage, the tail, the gear and
+// every mass fly as built.
+// The TRUE box is kept on the beam (kTrue, cTrue: what the true step flies) and it is what every
+// structural number reads: the load test (65_gen_loadtest) and GATE FLEX fly it (sim.trueBox()), and
+// the solver's strain in flight is reported against the true k - the force the soft spring carries
+// over the true stiffness, which is what the real wing's strain is under the same load.
+// The user's rule: "I'm OK with it, but I don't want to fake the test. Let the test test the actual
+// wing." Measured on the metal Cessna: 200 -> 120 substeps, the wing's tips 2-3 mm more bend in
+// cruise (HANDOVER G610).
+const GEN_BOX_N = 120;
+const GEN_BOX_KMIN = 0.25;
+function genFlightBox(nodes, beams, N0) {
+  if (!(N0 > GEN_BOX_N)) return N0;
+  const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
+  const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
+  let wOther = 0, anyWing = false;
+  for (const b of beams) { if (b.cls === 'wing') anyWing = true; else wOther = Math.max(wOther, Math.sqrt(b.k * invOf(b))); }
+  if (!anyWing) return N0;
+  const lo = Math.max(GEN_BOX_N, Math.ceil(wOther / (60 * GEN_WDT_MAX)));
+  if (lo >= N0) return N0;
+  const kAt = N => { const w = GEN_WDT_MAX * 60 * N; return b => (b.cls === 'wing' ? Math.min(b.k, w * w / invOf(b)) : b.k); };
+  const cAt = N => { const kf = kAt(N); return b => Math.min(b.c * Math.sqrt(kf(b) / b.k), GEN_CDT_MAX * 60 * N / invOf(b)); };
+  const holds = N => {
+    const kf = kAt(N);
+    for (const b of beams) if (kf(b) < GEN_BOX_KMIN * b.k) return false;
+    const dt = 1 / (60 * N);
+    return genNetEig(nodes, beams, kf, dry) * dt * dt + 2 * genNetEig(nodes, beams, cAt(N), dry) * dt <= GEN_NET_MAX;
+  };
+  let N = lo;
+  if (!holds(N)) {
+    let a = lo, z = N0 - 1;
+    if (z <= a || !holds(z)) return N0;              // no softer step holds: the true box flies
+    while (z - a > 1) { const mid = (a + z) >> 1; if (holds(mid)) z = mid; else a = mid; }
+    N = z;
+  }
+  const kf = kAt(N), cf = cAt(N);
+  for (const b of beams) {
+    const k = kf(b), c = cf(b);
+    if (k < b.k || c < b.c) { b.kTrue = b.k; b.cTrue = b.c; b.k = k; b.c = c; }
+  }
+  return N;
+}
+// the flight def's TRUE twin: the actual wing (kTrue, cTrue) at the step it needs - for a reader that
+// builds its own sim off a def (a sim in hand switches itself: sim.trueBox()). The def itself when
+// nothing was softened.
+function genTrueBox(def) {
+  if (!def || !def.beams || !def.beams.some(b => b.kTrue != null)) return def;
+  const beams = def.beams.map(b => {
+    if (b.kTrue == null) return b;
+    const o = Object.assign({}, b, { k: b.kTrue, c: b.cTrue });
+    delete o.kTrue; delete o.cTrue;
+    return o;
+  });
+  const params = Object.assign({}, def.params, { substeps: def.params.substepsTrue });
+  delete params.substepsTrue;
+  return Object.assign({}, def, { beams, params });
 }
 // the network's highest eigenvalue of M^-1/2 A M^-1/2, A the axial springs (val = k: omega^2) or dampers
 // (val = c: the damping rate), each beam along its rest direction, dry masses; power iteration from a
@@ -1272,7 +1349,7 @@ function genParams(S, fr, strips) {
           // per tank, in spec order, what the frame billed (the fuel gauges)
           vessels: ((S.energy && S.energy.vessels) || []).map(v => ({
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
-    substeps: genSubsteps(fr.nodes, fr.beams),
+    ...genSubsteps(fr.nodes, fr.beams),        // substeps (+ substepsTrue where the flight box is softened, G610)
     polarWing, polarTail, polarFin,
     // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
     // GATE GEN's G9 and every reader of the flat name keep working)
