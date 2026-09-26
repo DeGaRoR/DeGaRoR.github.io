@@ -9314,6 +9314,18 @@
   // A RIG (a headless or driven browser: the gates, frame_perf.js, the shot tools) and a harness that calls
   // the loop with no timestamp (GATE UISMOKE's vm) keep the old clock exactly: one 1/60 step a call,
   // uncapped - every measurement and every gate reads the frame it always read (?pace=1 forces the clock on).
+  // THE STEP-DEBT GUARD (G612): the steps a frame owes grow with the frame's own length, and the frame grows
+  // with its steps - so where a step costs too much the debt cannot be repaid and the loop runs away to the
+  // 4-step ceiling: the frames stall (a metal build at the stand) AND the game dilates anyway, the 4 steps
+  // covering less than the frame. The clock keeps two readings (EMAs): a solver step's cost and the frame's
+  // time that is not the solver (its interval less the solver: the JavaScript, the GPU, the wait). To hold real
+  // time a frame must take other / (1/60 s - step) steps; where that is past the 4-step ceiling (or a step costs
+  // a 60th or more) real time is lost whatever is done, and the frame's catch-up steps are capped at what
+  // max(the cap's budget, the rest of the frame) carries - the solver may at most double the frame - never
+  // under the cap's own steps (2 at 30, 1 at 60). The sim dilates a little more; the frame rate stops
+  // collapsing (modelled: 12 -> 20 fps at 80 -> 67 % time). Anywhere real time can be held the clock is the
+  // G586 clock to the step. The dilation (the sim's seconds over the wall's, over the last second) and the
+  // frames it capped are in state(); the menu's frame readout says when the game runs slow.
   const PACE = (() => {
     const W = window, nav = W.navigator || {};
     const RIG = !!(nav.webdriver || /HeadlessChrome/.test(nav.userAgent || ''));
@@ -9322,7 +9334,10 @@
       mode: 'auto', cap: 60, legacy: RIG && !FORCE,
       acc: 0, lastT: 0, due: 0, dt: 1 / 60, steps: 1, t0: 0,
       iv: [], work: [], hist: [], strikes: 0, goods: 0, trial: null, holdUp: 0, trials: 0,
-      stats: { down: 0, up: 0, trialsFailed: 0 },
+      stats: { down: 0, up: 0, trialsFailed: 0, guarded: 0 },
+      // the guard's readings (G612): a solver step (ms), the frame less its solver (ms), the last frame's solver;
+      // the dilation's window (sim s and wall s, decaying over a second) and the sim time the guard let go
+      stepMs: 0, otherMs: 0, lastPhys: 0, simW: 0, wallW: 0, droppedS: 0,
     };
     try { const g = JSON.parse(W.localStorage.getItem('flydiy.gfx') || 'null'); if (g && g.fps != null) P.mode = g.fps; } catch (e) {}
     const capOf = () => (P.mode === 'auto' ? P.cap : P.mode === 'off' ? 0 : +P.mode || 0);
@@ -9337,20 +9352,40 @@
       if (iv && P.lastT && ts < P.due - 2) return null;
       const dms = P.lastT ? ts - P.lastT : 1000 / 60;
       if (iv) P.due = (P.due && ts - P.due < iv) ? P.due + iv : ts + iv;
+      const hadT = P.lastT > 0;
       P.lastT = ts;
       P.dt = Math.min(0.25, Math.max(0, dms / 1000));
       P.acc += P.dt;
       let n = Math.floor(P.acc * 60 + 0.25);
       if (n > 4) { n = 4; P.acc = 0; } else P.acc -= n / 60;
+      if (hadT && dms < 250) { const o = Math.max(0, dms - P.lastPhys); P.otherMs = P.otherMs ? P.otherMs + 0.1 * (o - P.otherMs) : o; }
+      // the guard (above): only past the point where real time cannot be held
+      const nom = cap ? Math.max(1, Math.round(60 / cap)) : 1;
+      if (n > nom && P.stepMs > 0) {
+        const room = 1000 / 60 - P.stepMs, need = room > 0 ? P.otherMs / room : Infinity;
+        if (need > 4) {
+          const fit = Math.max(nom, Math.floor(Math.max(1000 / (cap || 60), P.otherMs) / P.stepMs));
+          if (fit < n) { P.droppedS += (n - fit) / 60; P.stats.guarded++; n = fit; }
+        }
+      }
       P.steps = n;
-      if (dms < 250) { P.iv.push(dms); P.hist.push(dms); if (P.hist.length > 120) P.hist.shift(); }   // a stall (a tab away, a load) is not a frame
+      P.lastPhys = 0;
+      if (dms < 250) {
+        P.iv.push(dms); P.hist.push(dms); if (P.hist.length > 120) P.hist.shift();   // a stall (a tab away, a load) is not a frame
+        const k = Math.exp(-P.dt);                        // the dilation over the last second of frames
+        P.simW = P.simW * k + n / 60; P.wallW = P.wallW * k + P.dt;
+      }
       return P;
     }
     // the sim is not running (the shed, a pause): nothing is owed across the gap
     function hold() { P.acc = 0; }
-    // the loop's own work this frame (ms) and what its solver steps took, for auto's reading
-    function end(workMs, physMs, steps, now) {
-      if (P.legacy || P.mode !== 'auto') return;
+    // the loop's own work this frame (ms) and what its solver steps took, for auto's reading; `ran` the solver
+    // steps actually run (0 when the sim is still - the shed, a pause; 2x runs twice the steps owed)
+    function end(workMs, physMs, steps, now, ran) {
+      if (P.legacy) return;
+      if (ran == null) ran = steps;
+      if (ran > 0 && physMs > 0) { const s = physMs / ran; P.stepMs = P.stepMs ? P.stepMs + 0.1 * (s - P.stepMs) : s; P.lastPhys = physMs; }
+      if (P.mode !== 'auto') return;
       P.work.push(workMs - (steps > 1 ? physMs * (steps - 1) / steps : 0));   // the frame's work with ONE step
       if (P.iv.length < 60) return;
       const f = med(P.iv), w = med(P.work);
@@ -9382,8 +9417,10 @@
     const api = { frame, hold, end, set, tellScale,
       recent: () => (P.legacy ? null : P.hist.slice()),   // the RENDERED frames' intervals (ms), for the menu's readout
       get dt() { return P.dt; }, get steps() { return P.steps; },
+      get dilation() { return P.wallW > 0.2 ? P.simW / P.wallW : 1; },   // the sim's seconds over the wall's, the last second (G612)
       budgetMs: () => 1000 / (capOf() || 60),
-      state: () => ({ mode: P.mode, cap: capOf(), legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0 }) };
+      state: () => ({ mode: P.mode, cap: capOf(), legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0,
+                      dilation: api.dilation, stepMs: P.stepMs, otherMs: P.otherMs, droppedS: P.droppedS }) };
     W.FLYDIY_PACE = api;
     return api;
   })();
@@ -9397,7 +9434,7 @@
     const pc = PACE.frame(ts);
     if (!pc) return;                   // the cap: this refresh is not ours
     const fdt = pc.dt, tLoop0 = perfNow();
-    let physMs = 0, simDt = 0;
+    let physMs = 0, simDt = 0, ran = 0;
     // MANUAL CONTROLS (G200): the hand is read FIRST, every frame, in the shed
     // and in the air — the toggle and the view keys work under the AP, and
     // a stand with a real hand on it shows THAT instead of the sweep below.
@@ -9463,7 +9500,7 @@
         script(1 / 60);
         sim.step(1 / 60);              // substep rate is a per-aircraft property
       }
-      physMs = perfNow() - t2; simDt = nStep / 60;
+      physMs = perfNow() - t2; simDt = nStep / 60; ran = nStep;
       if (simRate > 1) {
         if (physMs > 0.6 * PACE.budgetMs()) { if (++slowFrames >= 30) simRateSet(1); } else slowFrames = 0;
       }
@@ -9614,7 +9651,7 @@
         SKY_GLARE.render(renderer);
       }
     }
-    PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow());   // G586: auto's reading
+    PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), ran);   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
     if (frameWait && --frameWait.n <= 0) { const r = frameWait.res; frameWait = null; r(); }
   }

@@ -415,7 +415,9 @@
     const f = src.slice().sort((a, b) => a - b);
     const med = f[f.length >> 1], p90 = f[Math.floor(f.length * 0.9)];
     let pace = '';
-    if (PC && PC.state) { const st = PC.state(); if (!st.legacy) pace = ' · ' + (st.mode === 'auto' ? 'auto, holding ' + st.cap : st.mode === 'off' ? 'uncapped' : 'capped at ' + st.cap) + (st.cap ? ' fps' : ''); }
+    if (PC && PC.state) { const st = PC.state(); if (!st.legacy) pace = ' · ' + (st.mode === 'auto' ? 'auto, holding ' + st.cap : st.mode === 'off' ? 'uncapped' : 'capped at ' + st.cap) + (st.cap ? ' fps' : '')
+      // G612: the step-debt guard - the game's time slower than the wall's (the solver cannot keep up)
+      + (st.dilation != null && st.dilation < 0.97 ? ' · the game at ' + Math.round(100 * st.dilation) + ' % speed' : ''); }
     return 'last ' + f.length + ' frames: ' + med.toFixed(0) + ' ms median (' + (1000 / med).toFixed(0) + ' fps) · ' + p90.toFixed(0) + ' ms p90' + pace;
   };
 
