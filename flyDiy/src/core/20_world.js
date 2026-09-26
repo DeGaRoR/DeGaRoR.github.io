@@ -247,18 +247,25 @@ function makeWorld(seed, opts) {
   aerodromes.filter(a => a.kind === 'meadow').forEach((a, i) => { a.elev = meadows[i].h; });
   // meadow blend, factored: used by the pre-hydro base and final terrainH.
   // Applied AFTER the river carve so meadow interiors stay exactly flat.
+  // (G611: past the radius by a hair of the squared distance, no Math.hypot - it was per ground read; the same
+  // bits: hypot >= r there, and the branch was not taken)
   function blendM(x, z, h) {
     for (const m of meadows) {
-      const d = Math.hypot(x - m.x, z - m.z);
+      const ex = x - m.x, ez = z - m.z;
+      if (ex * ex + ez * ez >= m.r * m.r * (1 + 1e-9)) continue;
+      const d = Math.hypot(ex, ez);
       if (d < m.r) { const w = sstep(m.r * 0.45, m.r, d); h = m.h * (1 - w) + h * w; }
     }
     return h;
   }
   // runway-pad ramp: 0 inside the pad box, 1 past 260 m out — the same box
   // the h0 flatten uses; masks the river carve so the pad stays exactly 0.
+  // (G611: past 260 m by a hair of the squared distance the ramp is smf(1) = 1 without the Math.hypot - the
+  // island's every ground read is far from this analytic box; the same bits)
   function padRamp(x, z) {
     const dxR = Math.max(0, Math.max(-1180 - x, x - 130));
     const dzR = Math.max(0, Math.abs(z) - 90);
+    if (dxR * dxR + dzR * dzR >= 67600 * (1 + 1e-9)) return smf(1);
     return sstep(0, 260, Math.hypot(dxR, dzR));
   }
   // ---- stage 1 hydrology (WORLD-GEN-PROC): baked on the pre-hydro base
@@ -486,9 +493,10 @@ function makeWorld(seed, opts) {
   // not const: terrainH is a hoisted declaration called before this line
   // runs, and a const would be in its dead zone. Cleared when the premises
   // change (setPremises), the one thing that moves the ground after make.
-  var thX, thZ, thH;
+  var thX, thZ, thH, groundVer;
   const TH_N = 16384;
-  function terrainClear() { if (thX) thX.fill(NaN); }
+  // (G611: and the ground's version - the climate's lattice of the solver's ground reads it)
+  function terrainClear() { if (thX) thX.fill(NaN); groundVer = (groundVer | 0) + 1; }
   function terrainH(x, z) {
     if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); }
     const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
@@ -852,6 +860,7 @@ function makeWorld(seed, opts) {
   const climate = CLIMATE.make({
     terrainH, surface, SURFACE, bounds: BOUNDS, day, geo: GEO, seed: SEED,
     atmos: () => airNow(),                    // the column, live (K2)
+    groundVer: () => groundVer | 0,           // G611: the ground's version (setPremises bumps it)
     typeAt: ISL && ISL.ttype ? (x, z) => { const k = ISL.cellAt(x, z); return k < 0 ? -1 : ISL.ttype[k]; } : null,
     coastAt: ISL ? ISL.coastAt : null,
   });
