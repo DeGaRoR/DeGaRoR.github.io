@@ -60230,3 +60230,53 @@ Beaver / Motorglider / Twin bush hauler give up; PILOTMATRIX 9 regressed against
 the water in 25 s, 44.5 m off the lane, 180 deg heading swing), and tools/flight_core.js, which is all they fly, is
 byte-identical before and after this change (app.js is not in it). Not seen on the user's box yet: a recorder log of
 a roll-out should now show sim time frozen and 0 m/s on every `boot` frame.
+
+## G600-G604 - THE STAND'S FRAME: the club hangar merged, its glass opaque to three's transmission pass, the near map from a registry, the cover ring's keys (A1-STAND, 2026-09-27)
+
+Playtest 2026-09-26 batch A, session A1-STAND (futureDesigns/PLAYTEST-2026-09-26.md §0.5 has the tables). The render
+side of the stand and the taxi; the town (A1-TOWN), the solver and the frame clock (A1-PHYS) were not touched.
+- G600 THE SHELL MERGED (render_world.js `mergeShell`, in standShed): the exterior shed was 222 meshes, drawn in the
+  main pass, in the near map EVERY frame (the stand is inside its 90 m) and in the far map. Its opaque pieces are
+  merged by (material, attribute layout, casts, receives, renderOrder) into the shed's own frame (the LOD above keeps
+  the pose; a mirrored piece is re-wound): 31 meshes. Kept apart: transparent panes (three sorts them back to front),
+  instanced / skinned / multi-material / morphed / interleaved meshes; a hidden piece is dropped. A piece under 0.5 m
+  in two extents (trim, gutter, kerb) casts nothing. A BoxGeometry's six face groups do not block a merge (one
+  material draws the whole geometry - the first cut refused them and merged 64 of 222). Dial: `WORLD.shell({ merge,
+  castMin })` re-stands the shed. PROOF (tools/shell_ab.js, four fixed eyes, one synchronous task): merged with every
+  piece casting, 3-457 of 518 400 px differ, single-pixel float speckle; the same picture twice, 0.
+- G604 THE EXTERIOR'S GLASS (hangar.js, EXT only): the room's glass is MeshPhysical `transmission 0.90`, and while ANY
+  transmissive mesh is on screen three (r186) renders every opaque object of the scene a second time into its
+  transmission target - with the shed in view, the whole field, town and forest. Four views of the shed: 1 524 ->
+  640 draws (merge + glass together). The exterior wears a MeshStandard pane, darker (0x56626c) at opacity 0.3: the
+  same read from outside, a hair darker. RULE: never give a world-scene material `transmission` > 0; the census
+  (`transmissive`) lists any that appear. The premises have none (A1-TOWN checked every generator); parked.js copies
+  the flown materials', which aeroskin sets to 0.
+- G601 THE NEAR MAP'S REGISTRY (render_world.js nearTag): no whole-scene walk every 30 frames (67 000 objects with the
+  town, 7.5 ms bare - a hitch a second). The scene is watched through three's `childadded` / `childremoved`: an
+  object joins FAR_LAYER the moment it joins the scene (a rebuilt cover block used to cast nothing for up to 30
+  frames), a plain mesh enters the registry, a removed subtree leaves it, a piece added under the craft takes the
+  craft's layers. The pass reads the registry: a frozen object (render_premises freezeStatic) by the sphere cached
+  the first time, the rest re-posed; a mesh tagged craft after it registered is dropped from it. Only a caster whose
+  sphere is at least NEAR_MIN_R (0.75 m) goes into the near map; the small keep the far map's shadow. At the stand:
+  413 casters / 1.05 M triangles -> 209 / 0.31 M.
+- G603 THE COVER RING (cover_ring.js): numeric cell keys (`cellKey`), no string built or split per cell per frame; a
+  rebuilt block's InstancedMesh is made with count 0 and handed its buffer - three's constructor wrote an identity
+  matrix into each of ~66 000 tufts that the next line overwrote.
+- TOOLS: `rollout_perf --profile-live <at>,<secs>` (a live-game CPU profile: self ms/s by function and script,
+  `<label>_live.cpuprofile`; A1-TOWN's `--profile` covers the roll-out screen) and `--eval <js|@file>`;
+  `frame_perf --eval @file` (awaited, printed as JSON); tools/rollout_census.js (draws by owner in the main pass and
+  the shadow maps, near casters, transmissive meshes, what updateMatrixWorld still composes);
+  tools/shell_ab.js. A profile's `(apply)` with no script is the flight core (inline, no URL).
+- GATE STAND (core, new): mergeShell and the near registry LIFTED from render_world.js and run on the vendor three
+  (every triangle in the group's frame, the winding, the bins, the carried and dropped pieces, the cast gate; the
+  layers, the add / remove / craft cases, no walk after the first pass), the exterior glass, the ring's keys.
+  Negative-verified (no re-wind -> 38/50; no craft branch -> red). GATE LIGHT's nearTag anchor follows the new pass.
+- MEASURED (§0.5): the taxi does not move (rollout nomet, cap 60: render 10.9 -> 11.2 ms stock, 12.5 -> 12.5 alu,
+  noise) - its view never holds the hangar, and its near map was already the craft. The wins are at the stand and
+  wherever the shed is on screen. The fps headline follows the auto cap's latch (HEAD's own re-run held 60, an
+  equal-cost run latched to 30): pin `--gfx '{"pv":4,"fps":60}'` to A/B a render change.
+- LEFT (owners): the aeroplane is ~225-270 main-pass draws after G576 - its parts, each mesh its own material; the
+  lever is G576's vertex tint before the decal mix (a chantier). standCards 86 draws (one per 2 km chunk). Strip
+  stones 114 (A2-RUNWAYS). The solver's road-grade `apply` is 207 of ~370 ms/s of solver time (A1-PHYS's raster).
+- GATES: the full battery green but SEAPLANE and PILOTMATRIX, red at db4f9cc2 line for line (checked on a clean HEAD
+  worktree), and LIGHT (the anchor, fixed). ARCHETYPES green here, red in A1-TOWN's run (flaky).
