@@ -41,8 +41,24 @@ const WEATHERS = {
 // around for terrain, and has to choose the other direction — P1)
 // `sand`: the destination's surface is SAND (7) — the soft-field arrival (P1.B); `rh`: a declared
 // right-hand circuit at 150 m with no straight-in (P1.E, the protocol record)
-const FIXTURES = { flat: {}, up4: { slope: -0.04 }, dn4: { slope: 0.04 }, up2: { slope: -0.02 }, dn2: { slope: 0.02 }, sand: { surface: 7 }, rh: { circuit: 'right,150,downwind' } };
+// `stand` (G630): the departure starts on HOME's stand and TAXIS out (--stand), so the taxi is flown
+const FIXTURES = { flat: {}, stand: { stand: true }, up4: { slope: -0.04 }, dn4: { slope: 0.04 }, up2: { slope: -0.02 }, dn2: { slope: 0.02 }, sand: { surface: 7 }, rh: { circuit: 'right,150,downwind' } };
 const MACHINES_QUICK = ['cub', 'c172', 'stearman'];
+const ACT_KEYS = ['stock', 'c172', 'fixtures/build_v10_cessnaMetal_2026-09-26.json'];
+// G630: CONTROL ACTIVITY (pilot_trace `activity`: aileron / rudder reversals
+// per minute past 1.7 deg, per phase group). The limit is per group; the
+// matrix column reads the worst group against it. Calibrated on the Jolene
+// playtest's defects (see the G630 HANDOVER entry for the before / after)
+const ACT_LIMIT = { taxi: 20, takeoff: 20, climb: 12, legs: 12, downwind: 12, base: 12, final: 12, landing: 40 };
+const actWorst = r => {
+  if (!r.activity) return null;
+  let w = null;
+  for (const [g, a] of Object.entries(r.activity)) {
+    const lim = ACT_LIMIT[g] ?? 12, v = Math.max(a.da, a.dr);
+    if (!w || v / lim > w.v / w.lim) w = { g, v, lim };
+  }
+  return w;
+};
 const MACHINES_CORE = ['cub', 'pietenpol', 'tigermoth', 'stearman', 'jodel', 'c172', 'rv', 'savannah', 'ul1', 'pusherPod', 'motorglider', 'etrainer', 'vtail', 'twinBush', 'beaver'];
 const MACHINES_ALL = MACHINES_CORE.concat(['pittsAlike', 'sesqui', 'caravan', 'radial', 'ttail', 'mw5', 'archaeopteryx', 'da62', 'skymaster', 'p38']);
 
@@ -66,6 +82,10 @@ function cellsOf(set) {
     for (const k of ['cub', 'stearman', 'tigermoth', 'beaver', 'c172', 'twinBush']) add(k, 'HOME', null, 'x4');
     for (const k of ['cub', 'c172']) add(k, 'HOME', null, 'calm', null, false, 'sand');
     for (const k of ['cub', 'c172']) add(k, 'HOME', null, 'calm', null, false, 'rh');
+  } else if (set === 'activity') {
+    // G630: GATE PILOTACT — the stock build, the C172 archetype and the user's aluminium
+    // C172 build (the Jolene playtest's aeroplane), off HOME's stand: taxi, circuit, landing
+    for (const k of ACT_KEYS) add(k, 'HOME', null, 'calm', null, false, 'stand');
   } else if (set === 'all') {
     for (const k of MACHINES_ALL) for (const w of ['calm', 'x2', 'x4', 'hot']) add(k, 'HOME', null, w);
     for (const k of MACHINES_ALL) { add(k, 'HOME', null, 'calm', null, true); }
@@ -90,6 +110,7 @@ const CHECKS = [
   ['go-arounds',r => r.goArounds,                     v => v === 0 ? true : v <= 1 ? 'warn' : false,                  v => v],
   ['overshoot', r => r.legs.length ? Math.max(...r.legs.map(l => l.overshoot)) : null, v => v <= 40 ? true : v <= 100 ? 'warn' : false, v => v + ' m'],
   ['roll rev', r => r.legs.length ? Math.max(...r.legs.map(l => l.rollRev || 0)) : null, v => v <= 8 ? true : v <= 20 ? 'warn' : false, v => v + '/min'],
+  ['ctl rev',   r => actWorst(r),                     v => v.v <= v.lim ? true : v.v <= 2 * v.lim ? 'warn' : false,   v => v.g + ' ' + v.v],
   ['slope rms', r => r.final && r.final.aboveRms,     v => v <= 3 ? true : v <= 8 ? 'warn' : false,                   v => v + ' m'],
   ['speed rms', r => r.final && r.final.vRms,         v => v <= 1.5 ? true : v <= 3 ? 'warn' : false,                 v => v + ' m/s'],
   ['sink',      r => r.landing && r.landing.sink,     v => v <= 1.5 ? true : v <= 2.5 ? 'warn' : false,               v => v + ' m/s'],
@@ -99,11 +120,11 @@ const CHECKS = [
   ['swing',     r => r.rollout && r.rollout.maxE,     v => v <= 6 ? true : v <= 15 ? 'warn' : false,                  v => v + ' deg'],
   ['reversals', r => r.rollout && r.rollout.zeroX,    v => v <= 3 ? true : v <= 10 ? 'warn' : false,                  v => v],
 ];
-const judge = r => {
+const judge = (r, skip) => {
   if (r.error) return { verdict: false, cols: [] };
   let verdict = true; const cols = [];
   for (const [label, get, ok, fmt] of CHECKS) {
-    const v = get(r);
+    const v = skip && skip.has(label) ? null : get(r);
     if (v == null) { cols.push({ label, s: '—', ok: null }); continue; }
     const o = ok(v);
     if (o === false) verdict = false; else if (o === 'warn' && verdict === true) verdict = 'warn';
@@ -126,6 +147,7 @@ function runCell(c, extra) {
     if (fx.slope) args.push('--slope', String(fx.slope));
     if (fx.surface != null) args.push('--surface', String(fx.surface));
     if (fx.circuit) args.push('--circuit', fx.circuit);
+    if (fx.stand) args.push('--stand');
     for (const a of extra || []) args.push(a);
     const p = spawn(process.execPath, args, { cwd: T, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
@@ -202,7 +224,9 @@ function ratchet(results, baseline) {
   for (const r of results) {
     const b = B[r.cell]; if (!b) continue;
     if (r.error) { bad.push(r.cell + ': errored (' + String(r.error).slice(0, 60) + ')'); continue; }
-    const jr = judge(r), jb = judge(b);
+    // G630: a baseline from before a column existed (no `activity`) is not
+    // judged on it — the new column is not a regression of that cell
+    const jr = judge(r, b.activity ? null : new Set(['ctl rev'])), jb = judge(b);
     if (rank(jr.verdict) < rank(jb.verdict)) bad.push(r.cell + ': verdict ' + String(jb.verdict) + ' -> ' + String(jr.verdict));
     for (let i = 0; i < jr.cols.length; i++) {
       const cr = jr.cols[i], cb = jb.cols[i];
@@ -212,6 +236,25 @@ function ratchet(results, baseline) {
       if (r.landing.sink > b.landing.sink + 0.5) bad.push(r.cell + ': sink ' + b.landing.sink + ' -> ' + r.landing.sink);
       if (Math.abs(r.landing.pastAim) > Math.abs(b.landing.pastAim) + 60) bad.push(r.cell + ': aim ' + b.landing.pastAim + ' -> ' + r.landing.pastAim);
       if (r.rollout && b.rollout && r.rollout.maxE > b.rollout.maxE + 5) bad.push(r.cell + ': swing ' + b.rollout.maxE + ' -> ' + r.rollout.maxE);
+    }
+  }
+  return bad;
+}
+
+// G630: THE ACTIVITY VERDICT (GATE PILOTACT) — absolute, not a ratchet:
+// every phase group of every cell under its limit, aileron and rudder, and
+// every cell flew to a stop (a pilot that never reached the downwind cannot
+// pass a downwind limit by not flying it)
+function activityVerdict(results) {
+  const bad = [];
+  for (const r of results) {
+    if (r.error) { bad.push(r.cell + ': errored (' + String(r.error).slice(0, 80) + ')'); continue; }
+    if (r.outcome !== 'completed') bad.push(r.cell + ': ' + r.outcome);
+    for (const g of ['taxi', 'takeoff', 'downwind', 'base', 'final'])
+      if (!r.activity || !r.activity[g]) bad.push(r.cell + ': flew no ' + g);
+    for (const [g, a] of Object.entries(r.activity || {})) {
+      const lim = ACT_LIMIT[g] ?? 12;
+      for (const k of ['da', 'dr']) if (a[k] > lim) bad.push(r.cell + ': ' + g + ' ' + (k === 'da' ? 'aileron' : 'rudder') + ' ' + a[k] + ' reversals/min > ' + lim);
     }
   }
   return bad;
@@ -244,6 +287,13 @@ if (require.main === module) {
     console.log('wall ' + Math.round((Date.now() - t0) / 1000) + ' s');
     if (out) fs.writeFileSync(out, JSON.stringify({ set, when: new Date().toISOString(), results }, null, 1));
     try { fs.unlinkSync(coreSnap); } catch (e) {}
+    if (argv.includes('--activity')) {
+      for (const r of results) if (r.activity) console.log('  ' + r.cell.padEnd(52) + ' ' + Object.entries(r.activity).map(([g, a]) => g + ' ' + a.da + '/' + a.dr).join('  '));
+      const bad = activityVerdict(results);
+      for (const b of bad) console.log('  TOO BUSY ' + b);
+      console.log('GATE PILOTACT: ' + (bad.length ? 'FAIL (' + bad.length + ')' : 'PASS'));
+      process.exit(bad.length ? 1 : 0);
+    }
     if (rat) {
       const rb = loadRes(rat);
       const worse = rb ? ratchet(results, rb) : ['no baseline at ' + rat];
@@ -259,4 +309,4 @@ if (require.main === module) {
     process.exit(rep.nBad ? 1 : 0);
   });
 }
-module.exports = { ratchet, WEATHERS, FIXTURES, cellsOf, parseCell, cellId, runCell, runMatrix, judge, report, CHECKS };
+module.exports = { ACT_LIMIT, ACT_KEYS, actWorst, activityVerdict, ratchet, WEATHERS, FIXTURES, cellsOf, parseCell, cellId, runCell, runMatrix, judge, report, CHECKS };

@@ -30,7 +30,9 @@
 //     legs: [{ name, overshoot, settleT, rollRev }], final: { aboveRms, vRms,
 //     vErrMean, thrMin, thrMax, captureT }, flare: { entryAgl, entryVs, dur },
 //     landing: { sink, V, VoverVs, pastAim, off, run, three, drift },
-//     rollout: { maxE, zeroX, maxDr, xtEnd }, wall }
+//     rollout: { maxE, zeroX, maxDr, xtEnd }, activity: { <group>: { s, da, dr, de } }, wall }
+// (activity, G630: control-surface reversals per minute per phase group —
+// taxi, takeoff, climb, legs, downwind, base, final, landing)
 //
 // PURE NODE, no THREE: the panel is loaded the way arch_fly.js loads it (the
 // pre-join spec is designBake's, exactly what the birth overlay applies).
@@ -68,6 +70,8 @@ function specOf(key, drawnTail) {
     const raw = JSON.parse(fs.readFileSync(key, 'utf8'));
     return { spec: raw.spec || raw, name: raw.name || path.basename(key), tail: 'file' };
   }
+  // G630: 'stock' = the garage's default build (GEN_DEFAULT, what GATE PILOT flies)
+  if (key === 'stock') return { spec: JSON.parse(JSON.stringify(coreOf().GEN_DEFAULT)), name: 'stock build', tail: 'stock' };
   const a = D.ARCHETYPES.find(x => x.key === key);
   if (!a) throw new Error('no such archetype: ' + key + '\n  keys: ' + D.ARCHETYPES.map(x => x.key).join(' '));
   const inactive = D.archInactive(a);
@@ -85,6 +89,16 @@ function specOf(key, drawnTail) {
 }
 
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
+// G630: the control-activity metric's phase groups and its hysteresis (rad)
+const ACT_GROUPS = {
+  taxi: ['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD'],
+  takeoff: ['ROLL', 'LIFTOFF', 'ABORT'],
+  climb: ['CLIMB'],
+  legs: ['CROSSWIND', 'ENROUTE', 'INBOUND', 'TURNBACK', 'GOAROUND', 'GLIDE', 'PUTDOWN'],
+  downwind: ['DOWNWIND'], base: ['BASE'], final: ['FINAL'],
+  landing: ['FLARE', 'ROLLOUT', 'STOPPED'],
+};
+const ACT_H = 0.03;
 const rms = a => a.length ? Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length) : null;
 const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
 
@@ -166,6 +180,22 @@ function runTrace(o) {
   const legs = []; let leg = null;
   let capT = null, above = [], vErr = [], thrs = [];
   let flare = null; const roll = { e: [], dr: [], xt: [] };
+  // G630: CONTROL ACTIVITY — the surfaces' REVERSALS per minute, per phase
+  // group: a reversal is a turn of the surface's motion after it moved more
+  // than ACT_H (1.7 deg) from the last extreme, so a clean fillet counts 2
+  // and the Jolene downwind's rudder square wave (+-14 deg, 6 s) counts ~20.
+  // Streamed (no arrays): one counter per group and surface.
+  const actOf = {}, act = {};
+  for (const [g, phs] of Object.entries(ACT_GROUPS)) for (const ph of phs) actOf[ph] = g;
+  const actStep = (g, k, v) => {
+    const G = act[g] || (act[g] = { n: 0, da: { r: 0, d: 0, x: null }, dr: { r: 0, d: 0, x: null }, de: { r: 0, d: 0, x: null } });
+    const R = G[k];
+    if (R.x == null) { R.x = v; return; }
+    const dv = v - R.x;
+    if (R.d === 0) { if (Math.abs(dv) > ACT_H) { R.d = Math.sign(dv); R.x = v; } }
+    else if (R.d * dv > 0) R.x = v;
+    else if (-R.d * dv > ACT_H) { R.r++; R.d = -R.d; R.x = v; }
+  };
   for (let s = 0; s < maxS * 60; s++) {
     ap.update(1 / 60); sim.step(1 / 60);
     const t = s / 60, d = ap.dbg, c = sim.ctl, v = sim.cgVel(), ph = ap.phase, onG = sim.wheelsOnGround();
@@ -222,6 +252,7 @@ function runTrace(o) {
       if (capT != null) { if (ab != null) above.push(ab); vErr.push(d.V - VApprOf()); thrs.push(c.thr); }
     }
     if (ph === 'ROLLOUT') { roll.e.push(d.e * 57.3); roll.dr.push(c.dr); roll.xt.push(d.z); }
+    { const g = actOf[ph] || 'legs'; actStep(g, 'da', c.da); actStep(g, 'dr', c.dr); actStep(g, 'de', c.de); act[g].n++; }
     if (o.csv && s % 6 === 0)
       rows.push([t.toFixed(2), ph, d.agl.toFixed(2), (ap._m ? ap._m.aglT : d.agl).toFixed(2), d.V.toFixed(2), v[1].toFixed(2),
                  (d.th * 57.3).toFixed(1), (d.ph * 57.3).toFixed(1), (d.e * 57.3).toFixed(1), d.z.toFixed(1), d.s.toFixed(0),
@@ -260,6 +291,10 @@ function runTrace(o) {
     flare: flare,
     landing: L ? { sink: L.sink, V: L.V, VoverVs: r2(L.V / VsL), pastAim: L.pastAim, off: L.offCentre, run: L.run,
                    three: !!L.three, drift: TD ? r2(TD.drift) : null } : null,
+    // G630: reversals per minute per phase group (a group under 30 s is
+    // judged over 30 s, so one honest correction in a short phase is not a rate)
+    activity: Object.fromEntries(Object.entries(act).map(([g, G]) => { const m = Math.max(0.5, G.n / 3600);
+      return [g, { s: Math.round(G.n / 60), da: r1(G.da.r / m), dr: r1(G.dr.r / m), de: r1(G.de.r / m) }]; })),
     rollout: roll.e.length ? { maxE: r1(Math.max(...roll.e.map(Math.abs))), zeroX, maxDr: r2(Math.max(...roll.dr.map(Math.abs))),
                                xtEnd: r1(roll.xt[roll.xt.length - 1]) } : null,
     Vs: r1(Vs), VsLanding: r1(VsL), VAppr: r1(VApprOf()), appr: ap.report.appr || null, dep: ap.report.dep || null, circuit: ap.report.circuit || null, mass: Math.round(sim.totalM),
@@ -321,6 +356,7 @@ if (require.main === module) {
     if (out.circuit) console.log('  circuit: ' + out.circuit.hand + '-hand at ' + out.circuit.hC + ' m, join ' + out.circuit.join + (out.circuit.declared ? ' (declared ' + JSON.stringify(out.circuit.declared) + ')' : ''));
     if (out.appr) console.log('  approach: ' + out.appr.technique + ' · Vref ' + out.appr.Vref + ' m/s' + (out.appr.gust ? ' (+' + (out.appr.gust / 2).toFixed(1) + ' for a ' + out.appr.gust + ' m/s gust)' : '') + ' · aim ' + out.appr.aimIn + ' m in · flap ' + out.appr.flap + (out.appr.runNeed ? ' · run needed ' + out.appr.runNeed + ' m of ' + out.appr.len : ''));
     if (out.landing) console.log('  landing: sink ' + out.landing.sink + ' m/s · ' + out.landing.V + ' m/s = ' + out.landing.VoverVs + ' Vs · ' + out.landing.pastAim + ' m past the aim · ' + out.landing.off + ' m off · run ' + out.landing.run + ' m' + (out.landing.three ? ' · three-point' : ''));
+    if (out.activity) console.log('  control reversals /min (da dr de): ' + Object.entries(out.activity).map(([g, a]) => g + ' ' + a.da + ' ' + a.dr + ' ' + a.de).join(' · '));
     if (out.rollout) console.log('  rollout: max heading ' + out.rollout.maxE + ' deg, ' + out.rollout.zeroX + ' reversals, rudder ' + out.rollout.maxDr + ' · ' + out.rollout.xtEnd + ' m off at the stop');
     for (const v of out.verdicts) console.log('  ! ' + v);
     console.log('  ' + out.outcome + ' at ' + out.t + ' s (' + out.wall + ' s wall)');
@@ -328,4 +364,4 @@ if (require.main === module) {
   if (o.json) fs.writeFileSync(o.json, JSON.stringify(out, null, 1));
   console.log(JSON.stringify(out));
 }
-module.exports = { runTrace, parseArgs, specOf, loadPanel };
+module.exports = { runTrace, parseArgs, specOf, loadPanel, ACT_GROUPS, ACT_H };
