@@ -185,6 +185,13 @@ function segsCross(a, b, c, d) {
   const o1 = o(a, b, c), o2 = o(a, b, d), o3 = o(c, d, a), o4 = o(c, d, b);
   return (o1 > 0) !== (o2 > 0) && (o3 > 0) !== (o4 > 0) && o1 !== 0 && o2 !== 0 && o3 !== 0 && o4 !== 0;
 }
+// a segment against a closed axis-aligned rectangle (Liang-Barsky): true if any point of it lies in the rectangle
+function segHitsRect(a, b, x0, z0, x1, z1) {
+  let t0 = 0, t1 = 1;
+  const dx = b[0] - a[0], dz = b[1] - a[1];
+  const clip = (p, q) => { if (p === 0) return q >= 0; const r = q / p; if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; } return true; };
+  return clip(-dx, a[0] - x0) && clip(dx, x1 - a[0]) && clip(-dz, a[1] - z0) && clip(dz, z1 - a[1]) && t0 <= t1;
+}
 function polySimple(poly) {
   const n = poly.length;
   if (n < 3) return false;
@@ -386,7 +393,16 @@ function makeModifier(m, y0) {
       const a0 = Math.max(x0, bbox.x0), a1 = Math.min(x1, bbox.x1), b0 = Math.max(z0, bbox.z0), b1 = Math.min(z1, bbox.z1);
       return { t: Math.max(target(a0, b0), target(a1, b0), target(a0, b1), target(a1, b1)), add: 0 };
     };
-    return { id: m.id, kind: m.kind, bbox, bound, apply: (x, z, h) => {
+    // THE PAD THAT COVERS THE RECTANGLE (G611, the ceiling): a rectangle wholly inside the polygon - its corners
+    // inside and no edge touching it - is at weight 1 at every point, so every point reads the target whatever
+    // lay under it: hMaxRect restarts its bound there (the stand's apron over a DEM that rises under it). A
+    // raise adds to what lay under it and never covers.
+    const covers = m.kind === 'raise' ? null : (x0, z0, x1, z1) => {
+      if (!(inPoly(poly, x0, z0) && inPoly(poly, x1, z0) && inPoly(poly, x0, z1) && inPoly(poly, x1, z1))) return false;
+      for (let i = 0; i < n; i++) if (segHitsRect(poly[i], poly[(i + 1) % n], x0, z0, x1, z1)) return false;
+      return true;
+    };
+    return { id: m.id, kind: m.kind, bbox, bound, covers, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       let w;
       if (inPoly(poly, x, z)) w = 1;
@@ -412,7 +428,12 @@ function makeModifier(m, y0) {
     const bbox = polyBBox(corners);
     const level = +m.level;
     // (the ceiling: level + (h - level) sm, sm in [0, 1] - between h and the level)
-    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), apply: (x, z, h) => {
+    // (G611: a rectangle whose four corners lie in the pad rect - the item's frame, a margin of a micron - reads
+    // the level at every point: k = 0 there)
+    const inR = (x, z) => { const dx = x - c[0], dz = z - c[1], lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
+      return lx >= R.x0 + 1e-6 && lx <= R.x1 - 1e-6 && lz >= R.z0 + 1e-6 && lz <= R.z1 - 1e-6; };
+    const covers = (x0, z0, x1, z1) => inR(x0, z0) && inR(x1, z0) && inR(x0, z1) && inR(x1, z1);
+    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), covers, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const dx = x - c[0], dz = z - c[1];
       const lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
@@ -468,22 +489,30 @@ function makeModifier(m, y0) {
       }
       return { t: t === -Infinity ? t : (abs ? 0 : y0) + t, add: 0 };
     };
+    // THE SEGMENTS, FLAT (G611): each segment's start, direction, squared length and end heights in one
+    // typed array, computed once with the very operations the scan did per query - the same numbers, no
+    // nested-array reads and no closures in the solver's per-wheel, per-substep query
+    const SG = new Float64Array(Math.max(0, pts.length - 1) * 7);
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], o = i * 7;
+      SG[o] = a[0]; SG[o + 1] = a[1]; SG[o + 2] = dx; SG[o + 3] = dz; SG[o + 4] = dx * dx + dz * dz; SG[o + 5] = a[2] || 0; SG[o + 6] = b[2] || 0;
+    }
+    const bx0 = bbox.x0, bz0 = bbox.z0;
     return { id: m.id, kind: 'grade', bbox, bound, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
-      const list = cells.get(ck(cx(x), cz(z)));
+      const list = cells.get((Math.floor((x - bx0) / CS) + 1) * NZ + (Math.floor((z - bz0) / CS) + 1));
       if (!list) return h;
       // (PHYSICS PERF 2026-09-24) the plain squared distance screens a segment that cannot beat the best
       // (1e-9 relative over it - the two roundings differ by 1e-16); every one that can is measured
       // exactly as before, in the list's order, so the winner and its tie-break are the same
       let best = Infinity, best2 = Infinity, ty = 0;
       for (let n = 0; n < list.length; n++) {
-        const i = list[n], a = pts[i], b = pts[i + 1];
-        const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
-        const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
-        const ex = x - (a[0] + dx * t), ez = z - (a[1] + dz * t);
+        const o = list[n] * 7, ax = SG[o], az = SG[o + 1], dx = SG[o + 2], dz = SG[o + 3], l2 = SG[o + 4];
+        const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)) : 0;
+        const ex = x - (ax + dx * t), ez = z - (az + dz * t);
         if (ex * ex + ez * ez > best2) continue;
         const d = HYP2(ex, ez);
-        if (d < best) { best = d; best2 = d * d * (1 + 1e-9); ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
+        if (d < best) { best = d; best2 = d * d * (1 + 1e-9); ty = SG[o + 5] + (SG[o + 6] - SG[o + 5]) * t; }
       }
       const w = weight(best - hw);
       return w > 0 ? h + ((abs ? 0 : y0) + ty - h) * w : h;
@@ -580,7 +609,8 @@ function frameOf(rec, world) {
   const toWorld = (lx, lz) => [a.x + lx * c + lz * s, a.z - lx * s + lz * c];
   const toLocal = (x, z) => { const dx = x - a.x, dz = z - a.z; return [dx * c - dz * s, dx * s + dz * c]; };
   const y0 = world && world.terrainH ? world.terrainH(a.x, a.z) : 0;
-  return { anchor: a, toWorld, toLocal, y0, worldId: wid, yaw: a.yaw || 0 };
+  // c, s: toLocal's own rotation, for a reader that must not allocate (the height query, G611)
+  return { anchor: a, toWorld, toLocal, y0, worldId: wid, yaw: a.yaw || 0, c, s };
 }
 
 // ---------------------------------------------------------------------------
@@ -1303,7 +1333,7 @@ function compose(rec0, world, opts) {
   const shelves = [];
   for (const st of rec.layers.sites) for (const sh of siteShelves(st, catS, T1s)) { const M = makeModifier(sh, F.y0); if (M) { mods.push(M); shelves.push(sh); } }
   const index = SpatialIndex(256);
-  for (const M of mods) index.add(M.bbox, M);
+  mods.forEach((M, i) => { M.ord = i; index.add(M.bbox, M); });   // ord: the order every point applies them in (G611)
   // the surface polygons in PRIORITY order (z, then the record's order): the last wins at a point
   const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map((s, i) => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface, z: +s.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // THE MATERIALS (v8, contract v1.9): a PBR set projected on the ground inside a polygon, its contour
@@ -1432,10 +1462,11 @@ function compose(rec0, world, opts) {
     },
     terrainH(x, z, h) {
       if (!mods.length) return h;
-      const L = F.toLocal(x, z);
-      const cell = index.query(L[0], L[1]);
+      // (G611: toLocal's arithmetic, in place - no array per query; the same bits)
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      const cell = index.query(lx, lz);
       if (!cell) return h;
-      for (let i = 0; i < cell.length; i++) h = cell[i].apply(L[0], L[1], h);
+      for (let i = 0; i < cell.length; i++) h = cell[i].apply(lx, lz, h);
       return h;
     },
     // THE CEILING OVER A WORLD RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH(x, z, h)
@@ -1447,17 +1478,25 @@ function compose(rec0, world, opts) {
       const p1 = F.toLocal(ax, az), p2 = F.toLocal(bx, az), p3 = F.toLocal(ax, bz), p4 = F.toLocal(bx, bz);
       const lx0 = Math.min(p1[0], p2[0], p3[0], p4[0]) - 0.01, lx1 = Math.max(p1[0], p2[0], p3[0], p4[0]) + 0.01;
       const lz0 = Math.min(p1[1], p2[1], p3[1], p4[1]) - 0.01, lz1 = Math.max(p1[1], p2[1], p3[1], p4[1]) + 0.01;
-      let T = B, add = 0;
-      const seen = new Set();
+      // IN THE ORDER A POINT APPLIES THEM (G611): a pad whose full weight covers the rectangle sets every point
+      // to its target, so the bound restarts there - at the target's highest (1 nm over it: the blend's own
+      // rounding) - and whatever lay under it (the DEM, an earlier modifier) is out of it
+      const hit = [], seen = new Set();
       index.rect(lx0, lz0, lx1, lz1, M => {
         if (seen.has(M)) return; seen.add(M);
         const b = M.bbox;
         if (lx1 < b.x0 || lx0 > b.x1 || lz1 < b.z0 || lz0 > b.z1) return;
-        if (!M.bound) { T = Infinity; return; }          // a modifier that cannot say: no ceiling
+        hit.push(M);
+      });
+      hit.sort((a, b) => a.ord - b.ord);
+      let T = B, add = 0;
+      for (const M of hit) {
+        if (!M.bound) { T = Infinity; continue; }        // a modifier that cannot say: no ceiling
         const r = M.bound(lx0, lz0, lx1, lz1);
+        if (M.covers && M.covers(lx0, lz0, lx1, lz1)) { T = r.t + 1e-9; add = 0; continue; }
         if (r.t > T) T = r.t;
         add += r.add;
-      });
+      }
       return T + add;
     },
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),

@@ -615,10 +615,41 @@ var CLIMATE = (function () {
       gl[0] = (terrainH(x + GD, z) - terrainH(x - GD, z)) / (2 * GD);
       gl[1] = (terrainH(x, z + GD) - terrainH(x, z - GD)) / (2 * GD);
     }
+    // THE SOLVER'S GROUND, ON A LATTICE (G611, PHYSICS PERF). Inside the surface layer every wind call read
+    // the composed ground exactly - 30 a substep on the ground, ~2 100 a frame at 70 substeps: a third of
+    // the solver's frame at the stand under any rich day (the premises' pads and grades, the raster, the
+    // carve, per strip per substep). A strip moves centimetres a substep, so the ground under it is read
+    // off a 0.5 m lattice instead: the lattice's heights are the world's own terrainH, each read once and
+    // kept (a direct-mapped cache), and the ground between them is bilinear - continuous, and within the
+    // ground's own curvature over half a metre of the exact height (millimetres on a pad; a raster seam's
+    // step is spread over the cell). The wind's power law sees that as a few thousandths of its speed. The
+    // re-centre's ground and slope (per substep) read it too; sample() and a far call stay exact, and so
+    // does the legacy field (GATE CLIMATE holds it verbatim). The world's ground version (a new premises
+    // layer) empties it.
+    const GLC = 0.5, GLN = 8192;
+    const glI = new Int32Array(GLN), glJ = new Int32Array(GLN), glH = new Float64Array(GLN).fill(NaN);
+    let glVer = -1;
+    function glAt(i, j) {
+      const k = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) & (GLN - 1);
+      const h = glH[k];
+      if (glI[k] === i && glJ[k] === j && h === h) return h;
+      const g = terrainH(i * GLC, j * GLC);
+      glI[k] = i; glJ[k] = j; glH[k] = g;
+      return g;
+    }
+    function groundLat(x, z) {
+      const u = x / GLC, v = z / GLC, i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
+      const a = glAt(i, j), b = glAt(i + 1, j), c = glAt(i, j + 1), d = glAt(i + 1, j + 1);
+      const e = a + (b - a) * fu;
+      return e + (c + (d - c) * fu - e) * fv;
+    }
     function recentre(x, y, z, t) {
       const w0 = C.w0, J = C.J;
-      const g0 = terrainH(x, z);
-      groundAt(x, z, GL);
+      const gv = env.groundVer ? env.groundVer() : 0;
+      if (gv !== glVer) { glH.fill(NaN); glVer = gv; }
+      const g0 = groundLat(x, z);
+      GL[0] = (groundLat(x + GD, z) - groundLat(x - GD, z)) / (2 * GD);
+      GL[1] = (groundLat(x, z + GD) - groundLat(x, z - GD)) / (2 * GD);
       C.g0 = g0; C.gx = GL[0]; C.gz = GL[1];
       smooth(x, y, z, t, y - g0, GL, w0);
       smooth(x + LIN_H, y, z, t, y - g0 - GL[0] * LIN_H, GL, T1);  for (let c = 0; c < NCHN; c++) J[c * 3] = (T1[c] - w0[c]) / LIN_H;
@@ -649,7 +680,7 @@ var CLIMATE = (function () {
       // a metre — the take-off roll and the final are flown on the true ground, as the legacy field
       // was (one memoised terrainH per call, what every refH preset costs today); above it the
       // ground's plane is within a percent of the wind and costs nothing
-      const agl = (C.y - C.g0) < LIN_GROUND_H ? y - terrainH(x, z) : y - (C.g0 + C.gx * dx + C.gz * dz);
+      const agl = (C.y - C.g0) < LIN_GROUND_H ? y - groundLat(x, z) : y - (C.g0 + C.gx * dx + C.gz * dz);
       return combine(T2, agl, x, y, z, t, WV);
     }
     // sample(x, y, z, t, out): the full field into `out` (allocated when absent), never the cache
