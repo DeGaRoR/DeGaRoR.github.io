@@ -59730,3 +59730,44 @@ sweep. A rig (webdriver / headless) and a call with no timestamp keep the old cl
 PACE (core) drives the block with synthetic refreshes; GFX / WATER / PANEL / BENCH read the new wiring. Core battery
 green but MEDIA (pre-existing). NOT seen on a real display yet: the feel at 30 and auto's switching want the user's
 eye on the gamer box (a headless software-GL run was cut short). futureDesigns/PHYSICS-PERF-2026-09-24.md G586.
+
+## G690 - THE STAND WAITS FOR THE PLAYER: nothing steps under the roll-out screen (2026-09-26)
+
+The finding (the G620 flight recorder's first log, the G585 headless rig): after "roll out" the pilot went DEPART ->
+TAXI as the roll-out screen came up, and the aeroplane was taxiing at 4.5 m/s when it lifted - no stand at the reveal.
+`holdRender` (rollOutScreen) only skips the DRAW; loop() stepped the solver whenever `running && !inGarage`, and
+fullReset() sets `running = true`, so the solver, the pilot script, the director, the panel and the day clock all ran
+under the screen (30-44 s on the user's box).
+MEASURED (scratchpad probe: headless Chrome, SwiftShader with the GL's draws / clears / uploads stubbed as the G585
+rig did, the legacy rig clock; sampled every 200 ms: BOOT set/state/step, ap.phase, sim.t, ground speed, ctl.brake):
+- WHY IT TAXIED - TWO CLICKS. The rig presses every button matching /roll out/i: `#bGo` AND the editor's `#edRoll`
+  (both read "Roll out & fly"; edRoll calls bGo.onclick). The first rolls out; the second finds `inGarage` false,
+  not flightOver, not STOPPED, and FALLS THROUGH to bGo's last line `started = true` - the flight started under the
+  screen. Before: TAXI and brake 0 from the `world` step on, sim.t advancing through the whole screen.
+- ONE CLICK (the player's path), before: the pilot held (DEPART, parking brake 0.6, script() returns while !started)
+  but the solver stepped all along (0.77 s of sim time here, the stand creeping 0.01-0.06 m/s; a real box renders
+  far more frames under the screen), and the director / panel / day clock ran. TAXI came at the lift, as designed
+  (`rollOut(() => { started = true; })`).
+- AFTER, both cases: sim.t 0.00, DEPART, 0 m/s for every sample under the screen; TAXI at the lift, 0.33-0.5 m/s
+  4 s later (before, one click: 0.47).
+THE FIX (src/viewer/app.js, the flag `rollHold` beside `holdRender`): set by rollOutScreen, cleared by its done
+callback (BOOT's `gone`, which the hard 90 s cap also reaches), by rollInScreen (a roll-in cutting the screen short,
+like G446.1's holdRender) and at every rollOut before the screen decision (a screen-less roll-out can never inherit
+it). While it is up loop() runs `PACE.hold()` and nothing else of the flight branch: no step, no script, no
+director.frame, no CK.frame, no DAY_CLOCK tick - and the frame clock owes nothing across the screen, so the first
+frame after the lift steps 1 (or 2 at 30), not a burst. bGo returns at once under the screen (the rig's second click
+is no longer a start; the screen's done callback starts the flight). `running` is NOT used for the hold: the Pause
+button and the scenery mode own it. The shed and the G586 clock are unchanged (the shed branch is first; PACE.hold
+is the same call the shed makes). The rig and a real box behave the same: the draw was never the question.
+NOTES: the aeroplane is revealed in its reset pose (as a second roll-out at a resident stand always was - it
+reveals at once, no screen); the pilot still starts taxiing the moment the screen lifts (after() sets started) -
+a longer stand during the reveal shot would be a design call, not this fix. G572's "pre-step the solver under the
+roll-out screen" for the JIT warm-up must now be a THROWAWAY sim, not the live aeroplane. analyze_log.js and the
+recorder are G620's (not on master when this landed); the measurement above is this session's own probe.
+VERDICTS (this container, the branch over master 3da1c82): CORE BATTERY PASS, 98/98 (PACE, UISMOKE, BOOT, MEDIA
+green). Full tier: HOTHIGH PASS, SOAR PASS; ARCHETYPES, PILOTMATRIX, SEAPLANE FAIL - PRE-EXISTING: the same three
+fail on master 3da1c82 itself in a clean worktree with the IDENTICAL FAIL lines (ARCHETYPES: Caravan / Tiger Moth /
+Beaver / Motorglider / Twin bush hauler give up; PILOTMATRIX 9 regressed against pilot_baseline.json; SEAPLANE not off
+the water in 25 s, 44.5 m off the lane, 180 deg heading swing), and tools/flight_core.js, which is all they fly, is
+byte-identical before and after this change (app.js is not in it). Not seen on the user's box yet: a recorder log of
+a roll-out should now show sim time frozen and 0 m/s on every `boot` frame.
