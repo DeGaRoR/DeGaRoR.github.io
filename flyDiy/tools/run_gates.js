@@ -92,6 +92,9 @@ const GATES = [
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
   { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core', wall: 300 },
+  // G630: the pilot's control activity - aileron / rudder reversals per minute per phase,
+  // stock + C172 + the user's aluminium C172 off HOME's stand (pilot_matrix --set activity; ~4 min)
+  { id: 'PILOTACT', file: '_pilotact_check.js', tier: 'core', weight: 3, wall: 300 },
   // THE SIM DOES NOT LIE (G115): gear/strut drag as a delta from the
   // calibration's reference gear, the ground's surface table, the fin's own
   // polar + the measured weathervane, and the plaque agreeing with itself.
