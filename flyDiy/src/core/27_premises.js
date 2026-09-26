@@ -560,6 +560,34 @@ function unwrap(txt) {
   if (o && o.layers) return { rec: normalise(migrate(o)), name: null, plaque: null, log: null };
   throw new Error('not a flyDiy premises');
 }
+// A PLACE SWITCHED OFF (G590, the 2026-09-26 playtest: Metlakatla - 375 plots, 65 site items, 62 roads - held
+// the Jolene taxi at 12-15 fps; the user: off by default behind a switch, code and data kept). A place is its id
+// PREFIX in every layer (the authoring tools write one per part: mk_ Metlakatla, mn_ the mine, nv_ the native
+// village, tw_ the tramway, af_ the airfield). dropPlaces returns a COPY without them and what it cut, by layer;
+// restorePlaces puts the cut back into a record that was edited without them (an entry the edit re-used the id
+// of is the edit's) - so a save made with the place off never deletes it.
+const placeOf = (e, prefixes) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)));
+function dropPlaces(rec, prefixes) {
+  const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) }), cut = {};
+  let n = 0;
+  for (const k of Object.keys(out.layers)) {
+    const a = out.layers[k]; if (!Array.isArray(a)) continue;
+    const keep = [], gone = [];
+    for (const e of a) (placeOf(e, prefixes) ? gone : keep).push(e);
+    if (gone.length) { out.layers[k] = keep; cut[k] = gone; n += gone.length; }
+  }
+  return { rec: out, cut, n };
+}
+function restorePlaces(rec, cut) {
+  if (!cut) return rec;
+  const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) });
+  for (const k of Object.keys(cut)) {
+    const a = (out.layers[k] || []).slice(), have = new Set(a.map(e => e && e.id));
+    for (const e of cut[k]) if (!have.has(e.id)) a.push(e);
+    out.layers[k] = a;
+  }
+  return out;
+}
 const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k' };
 function newId(rec, layer) {
   const used = new Set((rec.layers[layer] || []).map(e => e.id));
@@ -2035,7 +2063,7 @@ const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, 
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
-  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
+  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core

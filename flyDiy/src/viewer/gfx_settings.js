@@ -153,6 +153,13 @@
         { v: 'full', label: 'full', why: 'a house whole to 150 m (the far town past it), its trims to ~270 m' },
         { v: 'lean', label: 'lean', why: 'the far town from 60 m, the trims to ~110 m' },
         { v: 'low',  label: 'low', why: 'the far town from 25 m, only walls and roofs past ~55 m, no yard props' } ] },
+    // THE TOWN SWITCH (G590, the 2026-09-26 playtest): which PLACES of the map's premises are built at all. Metlakatla
+    // (375 houses) held the Jolene taxi at 12-15 fps on the reference 3080 (30 without it): off by default, its record
+    // kept. `free`: no preset sets it. Decided when the world is composed, so a change RELOADS the page (app.js TOWN;
+    // ?town=1 in the URL wins over the row)
+    { k: 'town', label: 'towns', free: true, steps: [
+        { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the native village and the tramway - Metlakatla off (the default) - RELOADS the page' },
+        { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too: 375 houses 9 km east of the field, built as you come near - the taxi falls to ~15 fps on an RTX 3080 - RELOADS the page' } ] },
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
@@ -395,6 +402,8 @@
       const want = S.colour === 'managed', is = !!W.THREE.ColorManagement.enabled;
       if (want !== is) { try { W.localStorage.setItem('flydiy.cm', want ? '1' : '0'); } catch (e) {} W.location.reload(); }
     }
+    // the town switch (G590) is decided when the world is composed (app.js TOWN): reload when the row and the world differ
+    if (k === 'town' && W.FLYDIY_TOWN && (S.town === 'all') !== !!W.FLYDIY_TOWN.all && W.location && !/[?&]town=/.test(W.location.search || '')) W.location.reload();
     return Object.assign({}, S);
   };
 
@@ -447,7 +456,7 @@
                  'anti-aliasing reallocates the frame (a blink), a new density re-streams the ' +
                  'forest around you (about ten seconds), and shadows off or on recompiles the ' +
                  'lit surfaces (a short hitch). The tone curve and the exposure are live; ' +
-                 'colour management reloads the page. The F8 panel is the developer’s: every ' +
+                 'colour management and the towns row reload the page. The F8 panel is the developer’s: every ' +
                  'dial, nothing saved.');
     // THE STORAGE LINE (LOADING S4, the user: "a clear button from the interface
     // to refresh caches manually, and show the version numbers local and server
@@ -485,6 +494,6 @@
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame; auto re-sizes it at most every 2 s)',
                       glare: 'live', mist: 'live', drawDist: 'live', terrain: 'live (the far quadrants re-cut at once: a hitch)', ground: 'live', clouds: 'live',
                       bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
-                      compositing: 'live (reallocates the frame)', water: 'live', anything: 'no restart' }),
+                      compositing: 'live (reallocates the frame)', water: 'live', town: 'reloads the page (G590)', anything: 'no restart' }),
   };
 })();

@@ -27,6 +27,9 @@
 //          [--variant base|nomet|nopremises] [--gfx '<json>'] [--world jolene|none] [--page index.html|dev.html]
 //          [--size 2216x1023] [--label name] [--out tools/perf/rollout_<label>.json] [--quiet]
 //          [--port 8531] [--fallback D:/Dev/DeGaRoR.github.io] [--q 'depth=log'] [--shot 5,20]
+//          [--profile] (a CPU profile of the roll-out screen, summarised) [--progwatch] (the slowest program links)
+// It prints the premises stream's slow builds (WORLD.premises.streamState, G591) and closes Chrome through CDP before
+// the kill (a killed Chrome drops its GPU program cache writes: every 'warm' run linked cold).
 // Starts its own static server (tools/_serve.js) on the repo root (with --fallback for a worktree's
 // gitignored data) unless --url is given.
 'use strict';
@@ -131,7 +134,8 @@ const INSTALL = `(() => {
     const SM = RD.shadowMap; if (SM && SM.render) { const sr = SM.render; SM.render = function () { const t = performance.now(); const x = sr.apply(this, arguments); shMs += performance.now() - t; return x; }; }
     RD.__rp = 1; }
   const PR = W && W.premises;
-  if (PR && PR.step && !PR.__rp) { const ps = PR.step; PR.step = function () { const t = performance.now(); const x = ps.apply(this, arguments); pmMs += performance.now() - t; pmN++; return x; }; PR.__rp = 1; }
+  // the stream: step (a live edit, the old one-every-third-frame) and, since G591, stream (the aircraft-centred bank)
+  if (PR && PR.step && !PR.__rp) { for (const k of ['step', 'stream']) if (PR[k]) { const ps = PR[k]; PR[k] = function () { const t = performance.now(); const x = ps.apply(this, arguments); pmMs += performance.now() - t; if (x) pmN++; return x; }; } PR.__rp = 1; }
   let lastNow = 0;
   const ph = document.getElementById('phName');
   const prem = () => { const p = W && W.premises; return p && p.stats ? p.stats.queued : -1; };
@@ -197,6 +201,10 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const gpu = await ev("(()=>{const c=document.createElement('canvas').getContext('webgl2');const d=c&&c.getExtension('WEBGL_debug_renderer_info');return d?c.getParameter(d.UNMASKED_RENDERER_WEBGL):'?';})()");
   const gfx0 = await ev('JSON.stringify(window.GFX ? GFX.get() : null)');
   console.log('  ' + gpu + ' · gfx ' + gfx0);
+  // --profile: a CPU profile of the roll-out screen (the click to the reveal), saved next to the JSON and summarised
+  // by self and inclusive time per function (G591: where the roll-out's long tasks go)
+  const PROFILE = flag('profile');
+  if (PROFILE) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 1000 }); await cmd('Profiler.start'); }
   // ROLL OUT
   const tRoll = Date.now();
   await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent).forEach(x=>x.click());return 1;})()");
@@ -204,11 +212,25 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   let bs = '', installed = false;
   for (let i = 0; i < 400; i++) {
     bs = await ev("window.BOOT ? BOOT.state : 'none'", 20000);
+    // --progwatch: every program three made, when it was first seen pending and when it was ready (the compile step's slow links)
+    if (flag('progwatch')) await ev("(() => { const P = window.__PW || (window.__PW = new Map()); const R = window.WORLD && WORLD.renderer; if (!R || !R.info || !R.info.programs) return 0; const t = performance.now(); for (const pr of R.info.programs) { let e = P.get(pr); if (!e) P.set(pr, e = { n: pr.name, k: String(pr.cacheKey).slice(0, 40) + '#' + (() => { let h = 2166136261; const c = String(pr.cacheKey); for (let i = 0; i < c.length; i++) h = Math.imul(h ^ c.charCodeAt(i), 16777619) >>> 0; return h.toString(16) + '/' + c.length; })(), t0: t, t1: null }); if (e.t1 == null && (!pr.isReady || pr.isReady())) e.t1 = t; } if (!window.__PWI) window.__PWI = setInterval(() => { const t = performance.now(); for (const pr of R.info.programs) { let e = P.get(pr); if (!e) P.set(pr, e = { n: pr.name, k: String(pr.cacheKey).slice(0, 40) + '#' + (() => { let h = 2166136261; const c = String(pr.cacheKey); for (let i = 0; i < c.length; i++) h = Math.imul(h ^ c.charCodeAt(i), 16777619) >>> 0; return h.toString(16) + '/' + c.length; })(), t0: t, t1: null }); if (e.t1 == null && (!pr.isReady || pr.isReady())) e.t1 = t; } }, 100); return P.size; })()", 20000);
     if (!installed && await ev('!!(window.FLYDIY_PACE && window.WORLD && WORLD.worldUpdate)', 20000)) { installed = (await ev(INSTALL)) !== ''; }
     if ((bs === 'gone' || bs === 'none') && Date.now() - tRoll > 3000) break;
     await sleep(500);
   }
   if (!installed) await ev(INSTALL);
+  if (PROFILE) {
+    const pr = (await cmd('Profiler.stop')).result.profile;
+    fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT.replace(/.json$/, '.cpuprofile'), JSON.stringify(pr));
+    const byId = new Map(pr.nodes.map(n => [n.id, n])), self = new Map(), dt = new Map();
+    for (let i = 0; i < pr.samples.length; i++) dt.set(pr.samples[i], (dt.get(pr.samples[i]) || 0) + (pr.timeDeltas[i] || 0) / 1000);
+    const par = new Map(); for (const n of pr.nodes) for (const c of (n.children || [])) par.set(c, n.id);
+    const key = n => (n.callFrame.functionName || '(anon)') + ' ' + (n.callFrame.url || '').split('/').pop() + ':' + (n.callFrame.lineNumber + 1);
+    const incl = new Map();
+    for (const [id, ms] of dt) { const n = byId.get(id); self.set(key(n), (self.get(key(n)) || 0) + ms); const seen = new Set(); for (let x = id; x != null; x = par.get(x)) { const k = key(byId.get(x)); if (seen.has(k)) continue; seen.add(k); incl.set(k, (incl.get(k) || 0) + ms); } }
+    const top = (m, n) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => '    ' + (v / 1000).toFixed(2).padStart(7) + ' s  ' + k).join('\n');
+    console.log('  profile, self:\n' + top(self, 25) + '\n  profile, inclusive:\n' + top(incl, 40));
+  }
   const revealAt = await ev('performance.now()');
   const tReveal = (Date.now() - tRoll) / 1000;
   console.log('  roll-out screen: ' + bs + ' after ' + tReveal.toFixed(1) + ' s');
@@ -232,8 +254,16 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     shots.push(st);
     console.log('  +' + String(s + every).padStart(3) + ' s ' + st);
   }
+  let premStream = null;
+  if (flag('progwatch')) { const pw = JSON.parse(await ev("(() => { const who = new Map(); try { WORLD.scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) { const p = WORLD.renderer.properties.get(m).currentProgram; if (p && !who.has(p)) who.set(p, (o.name || o.type) + '/' + (m.name || m.type) + (m.userData && Object.keys(m.userData).length ? '{' + Object.keys(m.userData).slice(0, 4).join(',') + '}' : '')); } }); } catch (e) {} for (const [pr, e] of (window.__PW || new Map())) e.who = who.get(pr) || ''; return 1; })() && JSON.stringify([...(window.__PW || new Map()).values()].map(e => [e.n, e.k, Math.round(e.t0), e.t1 == null ? -1 : Math.round(e.t1 - e.t0), e.who || '']))", 20000)); pw.sort((a, b) => b[3] - a[3]); console.log('  programs: ' + pw.length + ', slowest links (name, key length, seen at ms, ms to ready):\n' + pw.slice(0, 30).map(x => '    ' + x.join('  ')).join('\n')); }
   const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt })', 60000));
   const bootLog = await ev('JSON.stringify(window.BOOT && BOOT.log ? BOOT.log : null)').catch(() => null);
+  // the premises stream's own account (G591: its dials, the slow builds [id, ms])
+  premStream = null; try { premStream = JSON.parse(await ev("JSON.stringify(window.WORLD && WORLD.premises && WORLD.premises.streamState ? Object.assign({}, WORLD.premises.streamState, { stats: WORLD.premises.stats }) : null)", 20000)); } catch (e) {}
+  if (premStream && premStream.slow && premStream.slow.length) console.log('  premises slow builds: ' + premStream.slow.slice().sort((a, b) => b[1] - a[1]).slice(0, 12).map(x => x[0] + ' ' + x[1]).join(', '));
+  // CLOSED, NOT KILLED (G591): Chrome writes its GPU program cache on the way out; the taskkill /F alone left the warm
+  // profile's cache without the programs a run compiled, so every 'warm' run linked them again (the compile step 15 -> 40 s)
+  try { await Promise.race([cmd('Browser.close'), sleep(8000)]); await sleep(2500); } catch (e) {}
   ws.close(); kill();
   if (COLD) try { fs.rmSync(UDD, { recursive: true, force: true }); } catch (e) {}
 
@@ -276,7 +306,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
-    tGarage, tReveal, premEmptyAt, phases, gates, longTasks: R.lt, shots, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    tGarage, tReveal, premEmptyAt, phases, gates, longTasks: R.lt, shots, premStream, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));

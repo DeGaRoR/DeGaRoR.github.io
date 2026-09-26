@@ -59730,3 +59730,48 @@ sweep. A rig (webdriver / headless) and a call with no timestamp keep the old cl
 PACE (core) drives the block with synthetic refreshes; GFX / WATER / PANEL / BENCH read the new wiring. Core battery
 green but MEDIA (pre-existing). NOT seen on a real display yet: the feel at 30 and auto's switching want the user's
 eye on the gamer box (a headless software-GL run was cut short). futureDesigns/PHYSICS-PERF-2026-09-24.md G586.
+
+## G590-G594 - A1-TOWN: METLAKATLA OFF, THE PREMISES STREAM BY THE AIRCRAFT, THE TOWN'S OPTIMIZATIONS PER CELL (2026-09-26)
+
+Batch A of the Jolene playtest (futureDesigns/PLAYTEST-2026-09-26.md §1.1 item 1, numbers in §0.4). Warm stock taxi
+12 -> 30 fps (60 when the auto cap holds; the cap's recovery is A1-PHYS's), the premises stream 29.6 -> 0 ms a frame,
+the frame p90 183 -> 33 ms, no frame over 100 ms after the reveal; the roll-out's longest task 17.8 -> 3.9 s.
+- G590 THE TOWN SWITCH. Every `mk_` entry (231 over ten layers) is dropped at load unless the GRAPHICS 'towns' row
+  is 'with Metlakatla' or the URL says ?town=1 (app.js TOWN; the row is `free` and reloads the page). The data stays:
+  `PREMISES_GEN.dropPlaces(rec, prefixes)` returns a COPY and what it cut; `restorePlaces(rec, cut)` puts it back,
+  and app.js wraps the world editor's storage so every autosave and slot save restores the cut - an edit made with
+  the town off never deletes it. GATE PREMISES 14q tests the record both ways: nothing left names a cut id, no issues,
+  mk_sea goes and HOME/SEA/mn_strip/nv_strip/tw_ski stay destinations, the mine / native village / tramway / field
+  still place their items, no town plot or tree, the ttype stamp writes no code 15/16, restore keeps an edit.
+- G591 THE STREAM BY THE AIRCRAFT (render_premises stream/prewarm, render_world worldUpdate): the queue is ordered by
+  distance to the aircraft (re-sorted every 60 m), only what is within `streamState.reach` (6 km) is built, on a
+  time BANK of `budget` (3 ms) a frame - a cheap item goes several to a frame, a house (not cuttable) once the bank
+  has paid for it. It was one item every 3rd frame from anywhere, parked or not. The roll-out screen has a 'town' step
+  (app.js): `WORLD.premisesPrewarm(cg)` builds what lies within 4 km of the aeroplane in 40 ms slices - it was the
+  origin's 3 km drained synchronously inside the world step (the harness, with no compileAsync, still drains the old
+  way at the make). The post-work of a build (stats, the freeze, LIFE.dirty) runs once a batch, not once an item; the
+  game's 1024^2 paintWear repaint per item is gone (groundMat is the bench's chunk material - the game draws no chunk).
+  shapeOf (the obstacle raster) reads the arrays directly, same arithmetic as applyMatrix4. streamState.slow keeps the
+  builds over 60 ms, .worst the dearest stream frame. LIFE re-stands when nothing is queued within reach (was: the whole
+  queue). frame_perf's settle waits for streamState.near = 0 (a place held far from the stand fills in first).
+- G592 PER CELL. A 256 m cell with nothing queued in it (CELLQ / cellLive / boxLive) is LIVE, and its optimizations
+  run while the rest streams - they all waited for the WHOLE queue, which by proximity is never empty: the far town +
+  near bake + TARR are baked per cell (hlodCell), ONE cell a frame, rebaked only when that cell's houses change (the
+  dial sig no longer carries HOUSES.size); the lot and road merges are per cell (batchGroup keeps an unchanged cell's
+  merge, leaves a streaming cell whole, a stream frame only marks them and the tick's walk merges); settleTick settles
+  a house whose surroundings are live; freezeStatic's 60-frame walk skips settled houses.
+- G593 THE BAKE'S BURST. TARR's ready signal rebakes only the cells that baked short of a layer (it cleared the sig
+  and the whole town rebaked twice at the end of the queue); the slot table lives with the stack (a rebake reuses its
+  rows); each baked cell's new programs go through renderer.compileAsync (make opts renderer/camera).
+- G594 THE COARSEST RUNG (screens 150029/150123, the far town's flickering pixels): past HLOD.far2 (1 200 m) a cell's
+  houses are BOXES - the kept bags' extent in the house frame, the walls the mean of what faces sideways, the top the
+  mean of what faces up, at 85 % of the ridge: ten triangles a house.
+- The rig (tools/rollout_perf.js): wraps `stream` as well as `step`; `--profile` (a CPU profile of the roll-out screen,
+  summarised by self and inclusive time), `--progwatch` (the slowest program links, with their owners); closes Chrome
+  through CDP before the kill. TRAP, measured: a run killed mid-compile left the shared warm profile's GPU cache
+  without the ground programs and every 'warm' run linked them cold (compile 15 -> 37 s). Deleting
+  %TEMP%/flydiy_rollout_warm_profile/Default/GPUCache + GrShaderCache + ShaderCache re-warms over 3-4 runs.
+- LEFT (owners): the parked aeroplanes' capture, 2-3 s a build, is now the roll-out's longest task after the world step
+  (parked.js - A4-FREEZE); the world step's 3.9 s (A4-FREEZE); the solver (11 ms stock, p90 70 ms alu) and the auto
+  cap's recovery (A1-PHYS); flying toward a far site, a 100-200 ms house is one long frame every 1-2 s while it
+  streams (§2.4: cooked premises / a worker). With ?town=1 Metlakatla streams at 3 ms a frame: minutes to fill in.

@@ -968,6 +968,46 @@ if (SELFTEST) {
       check(Object.keys(b4).every(k => b4[k] === bk[k]), '14p the cover stamp is exactly undone');
     }
 
+    // 14q THE TOWN SWITCH (G590, the 2026-09-26 playtest): Metlakatla held the Jolene taxi at 12-15 fps, so the game
+    // drops every mk_ entry at load unless the GRAPHICS 'towns' row or ?town=1 says otherwise. Everything above
+    // tested the record WITH the town (the data is kept and must stay whole); this tests it WITHOUT: nothing left
+    // points at a cut id, the other fields and sites stand, the terrain codes the town stamped (15, 16) are not
+    // stamped, the town's wood is not planted - and a save made with the town off puts it back.
+    {
+      const D = PG.dropPlaces(rec, ['mk_']);
+      const isMk = e => e && typeof e.id === 'string' && e.id.startsWith('mk_');
+      const left = Object.keys(D.rec.layers).filter(k => Array.isArray(D.rec.layers[k]) && D.rec.layers[k].some(isMk));
+      check(D.n > 200 && !left.length, '14q the switch drops every mk_ entry', D.n + ' cut; left in ' + (left.join(', ') || 'none'));
+      check(Object.keys(rec.layers).some(k => Array.isArray(rec.layers[k]) && rec.layers[k].some(isMk)), '14q ...from a COPY: the record itself keeps the town');
+      const refs = (JSON.stringify(D.rec).match(/"mk_[\w-]*"/g) || []);
+      check(!refs.length, '14q nothing left refers to a cut id', [...new Set(refs)].slice(0, 5).join(', '));
+      check(PG.issues(D.rec).length === 0, '14q the record without the town has no issues', PG.issues(D.rec).slice(0, 3).join(' / '));
+      const OD = PG.compose(D.rec, IW, { catalogue: CAT, globals: GENS });
+      const ids = OD.aerodromes.map(a => a.id);
+      check(!ids.includes('mk_sea') && ['HOME', 'SEA', 'mn_strip', 'nv_strip', 'tw_ski'].every(id => ids.includes(id)), '14q the other fields stay destinations, the town\'s sea lane goes', ids.join(','));
+      const pre = x => String(x || '').split('_')[0];
+      const sites = new Set(OD.records.items.map(r => pre(r.site)));
+      check(['mn', 'nv', 'tw', 'af'].every(p => sites.has(p)), '14q the mine, the native village, the tramway and the field still place their items', [...sites].join(','));
+      check(OD.records.trees.filter(t => /^mk_/.test(String(t.zone || ''))).length === 0 && OD.records.plots.every(p => !/^mk_/.test(String(p.zone || p.id))), '14q no town plot and no town tree is composed');
+      if (IW.ttype) {
+        const cnt = c => { let n = 0; for (let k = 0; k < IW.ttype.length; k++) if (IW.ttype[k] === c) n++; return n; };
+        const a15 = cnt(15), a16 = cnt(16), un = OD.stampTtype(IW), b15 = cnt(15), b16 = cnt(16); if (un) un();
+        check(b15 === a15 && b16 === a16, '14q the town\'s terrain types (15, 16) are not stamped', '15: ' + a15 + ' -> ' + b15 + ', 16: ' + a16 + ' -> ' + b16);
+      }
+      // a save made with the town off (the editor's autosave through app.js's storage wrapper) puts the cut back;
+      // an entry the edit added, and one it changed, are the edit's
+      const E = JSON.parse(JSON.stringify(D.rec));
+      E.layers.objects.push({ id: 'o_g590', kind: 'tree', x: 1, z: 2 });
+      const mv = E.layers.sites.find(s => !isMk(s)); if (mv && mv.at) mv.at = { x: mv.at.x + 5, z: mv.at.z };
+      const back = PG.restorePlaces(E, D.cut);
+      const same = Object.keys(rec.layers).every(k => !Array.isArray(rec.layers[k]) || rec.layers[k].every(e => (back.layers[k] || []).some(b => b.id === e.id)));
+      check(same && back.layers.objects.some(e => e.id === 'o_g590') && (!mv || back.layers.sites.find(s => s.id === mv.id).at.x === mv.at.x),
+            '14q restorePlaces puts every cut entry back and keeps the edit');
+      const AP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
+      check(/off: \['mk_'\]/.test(AP) && /PREMISES_GEN\.dropPlaces\(U\.rec, TOWN\.off\)/.test(AP) && /makeWorld\(0, \{ premises: premisesPlaced/.test(AP) && /restorePlaces\(U\.rec, TOWN\.cut\)/.test(AP),
+            '14q app.js drops the town at load by default and restores it in every editor save');
+    }
+
     // 14r THE AUTHORS ARE DETERMINISTIC, held by a source scan rather than by
     // regenerating (which costs seconds and needs the DEM). Python randomises
     // hash() of a str PER PROCESS, so `random.Random(hash((name, seed)))` seeds a
@@ -1000,8 +1040,12 @@ if (SELFTEST) {
   const i0 = RP3.indexOf('function freezeStatic('), i1 = RP3.indexOf('function mergeInto('), i2 = RP3.indexOf('function batchLots(');
   check(i0 > 0 && i1 > i0 && i2 > i1, "15 freezeStatic / mergeInto / batchLots found in render_premises.js, in that order");
   const fz = RP3.slice(i0, i1), mi = RP3.slice(i1, i2);
-  check(/if \(!fresh && walk\)/.test(fz), '15 a build step freezes only what is new (the frozen children are re-walked by the tick and the rebuild)');
-  check(/BATCH\.pending = queue\.length > 0; if \(!BATCH\.pending\) batchLots\(\)/.test(fz), '15 the lots are merged once the queue is empty, not at every step');
+  check(/if \(!fresh && walk && !c\.userData\.skipWalk\)/.test(fz), '15 a build step freezes only what is new (the frozen children are re-walked by the tick and the rebuild; a settled house is not, G592)');
+  // G592: per cell, as each cell goes live - a frame of the stream only marks the lots (the merge walks the group) and
+  // the tick's walk merges; batchGroup keeps a cell's merge while its source set is the same
+  check(/if \(lots\) \{ if \(walk \|\| !STREAMING\) batchLots\(\); else BATCH\.pending = true; \}/.test(fz), '15 a frame of the stream marks the lots, the walk merges them (not at every step)');
+  const bg = RP3.slice(RP3.indexOf('function batchGroup('), RP3.indexOf('// THE LOTS group stands'));
+  check(/if \(was && was\.sig === sig\)/.test(bg) && /if \(!cellLive\(ck\)\) \{ pend = true;/.test(bg), '15 the merge is per cell: an unchanged cell is kept, a cell still streaming waits');
   check(mi.length > 300 && !/fromBufferAttribute|applyMatrix4/.test(mi), "15 the merge reads the arrays, not three's per-vertex accessors");
 }
 

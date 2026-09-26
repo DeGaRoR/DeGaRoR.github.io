@@ -191,7 +191,7 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
   const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   check(RP.indexOf('let TARR = null;') > 0 && RP.indexOf('let TARR = null;') < RP.indexOf('const LAMPS = {'), '4a TARR is declared above LAMPS (G570: no TDZ)');
   check(/LAMPS\.kLit = on \* kGlass/.test(RP) && /TARR\.lit\.value = LAMPS\.kLit/.test(RP) && /TARR\.lit\.value = 0/.test(RP), '4b the lamps drive the town\'s lit panes, the mute too');
-  check(/const sig = HOUSES\.size \+ '\|' \+ HLOD\.bake \+ '\|' \+ HLOD\.tarr;/.test(RP), '4c the bake\'s sig carries the dials');
+  check(/const sig = HLOD\.bake \+ '\|' \+ HLOD\.tarr;/.test(RP) && /if \(sig !== HLOD\.sig\) \{ HLOD\.sig = sig; hlodDropAll\(\);/.test(RP), '4c the bake\'s sig carries the dials (a flip rebakes every cell, per cell since G592)');
   check(/filter\(k => !TARR_UD\.has\(k\)\)/.test(RP) && /TARR_UD = new Set\(\['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud'\]\)/.test(RP), '4d G566\'s signature leaves G574\'s handles out');
   check(/const HLOD = \{ on: true, bake: true, tarr: true,/.test(RP), '4e the dial: WORLD.premises.hlod.tarr');
   check(/F\.SHADE_U\.uDirtY0\.value = grp\.matrixWorld\.elements\[13\]/.test(RP), '4g placeBuilt stands the dirt line where it stands the house (G581)');

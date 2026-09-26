@@ -6,7 +6,11 @@
 //
 //   RENDER_PREMISES.make(THREE, scene, world, rec, opts) -> R
 //     R.rebuild(dirty)      dirty = null (everything) | { layer, bbox } in the premises frame
-//     R.step(n)             build up to n queued houses (the host's tick calls it)
+//     R.step(n)             build up to n queued houses (the bench; a live edit in the game)
+//     R.stream(x, z)        the game's stream (G591): the queue by distance to the aircraft at (x, z), built within
+//                           R.streamState.reach on a time bank of .budget ms a frame
+//     R.prewarm(x, z, reach, ms)  the roll-out's share: what lies within reach, in slices of ms (G591)
+//     R.cellLive(key)       a 256 m cell with nothing queued in it (its merges and far town run, G592)
 //     R.setRecord(rec)      the record the next rebuild reads
 //     R.ghost(feature, ok)  a Group for a feature not yet committed (outline, 0.45)
 //     R.handles(id)         [{ key, p: [x, y, z] }] for one feature's handles
@@ -71,13 +75,15 @@ function make(THREE, scene, world, rec0, opts) {
   // premises. Harmless at Jolene's 60 plots; at Metlakatla's 450 it was 28 s of a 106 s roll-out. Now a step
   // freezes only what is new (`walk` - the frozen children re-walked for a late rung - is the tick's and the
   // rebuild's), and the lots are merged ONCE, when the queue is empty.
-  let freezeTick = 0;
+  let freezeTick = 0, STREAMING = false;
   function freezeStatic(walk) {
     let n = 0, lots = BATCH.pending, roads = BATCH_R.pending;
     for (const k of FROZEN_GROUPS) for (const c of G[k].children) {
       if (!c.updateMatrixWorld) continue;
       let fresh = !c.userData.frozen;
-      if (!fresh && walk) c.traverse(o => { if (o.matrixAutoUpdate) fresh = true; });
+      // a SETTLED house (settleTick: every prop landed, nothing posed since) is not re-walked (G592): the tick's walk was
+      // every premises object every 60 frames - the periodic lag the playtest felt
+      if (!fresh && walk && !c.userData.skipWalk) c.traverse(o => { if (o.matrixAutoUpdate) fresh = true; });
       if (!fresh) continue;
       c.traverse(o => { o.matrixWorldAutoUpdate = true; });
       THREE.Object3D.prototype.updateMatrixWorld.call(c, true);
@@ -89,8 +95,11 @@ function make(THREE, scene, world, rec0, opts) {
       if (k === 'lots' && o.game) c.traverse(m => { if (m.isMesh) m.castShadow = false; });   // the yards' fences, patches and cars cast none (G557)
       if (k === 'houses' && c.userData.thrift) houseThrift(c);   // a late prop rung (G557)
     }
-    if (lots) { BATCH.pending = queue.length > 0; if (!BATCH.pending) batchLots(); }
-    if (roads) { BATCH_R.pending = queue.length > 0; if (!BATCH_R.pending) batchGroup(G.roads, BATCH_R, 'roads'); }
+    // merged per cell as each cell goes live (G592: batchGroup leaves `pending` for a cell still streaming, and the
+    // tick's walk comes back to it) - the boot's square of G554 stays gone: a step re-merges only the cells it touched
+    // (a frame of the stream only marks them: the merge walks the whole group, so the tick's walk does it, every 60 frames)
+    if (lots) { if (walk || !STREAMING) batchLots(); else BATCH.pending = true; }
+    if (roads && o.game) { if (walk || !STREAMING) batchGroup(G.roads, BATCH_R, 'roads'); else BATCH_R.pending = true; }
     return n;
   }
   // THE LOTS BATCHED (PERF 2026-09-23). The fences share ONE finish (fenceFinish: every post bag and every deck
@@ -145,34 +154,49 @@ function make(THREE, scene, world, rec0, opts) {
       for (let p = o.parent; p && p !== GR; p = p.parent) if (p.isLOD || p.userData.batch) return;
       src.push(o);
     });
-    const cnt = new Map(); for (const m of src) cnt.set(m.material, (cnt.get(m.material) || 0) + 1);
-    const use = src.filter(m => cnt.get(m.material) > 1);
-    const sig = use.map(m => m.id).join(',');
-    if (sig === BATCH.sig) return 0;
-    BATCH.sig = sig;
-    if (BATCH.group) { GR.remove(BATCH.group); BATCH.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); BATCH.group = null; }
-    const buckets = new Map(), c = new THREE.Vector3();
-    for (const m of use) {
+    // PER CELL (G592): a cell's merge is its own - made when the cell is LIVE (nothing queued in it, cellLive) and
+    // its set of sources changed, left as it stands otherwise; a cell still streaming keeps its sources whole (and
+    // BATCH.pending, so the tick comes back). It was one merge of the whole group, made when the WHOLE queue was
+    // empty - with the far premises streaming by proximity, never.
+    if (BATCH.group && BATCH.group.parent !== GR) { BATCH.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); BATCH.group = null; BATCH.cells = null; }
+    if (!BATCH.group) { BATCH.group = new THREE.Group(); BATCH.group.name = tag + ':batches'; BATCH.group.userData.batch = true; GR.add(BATCH.group); }
+    const CELLS = BATCH.cells || (BATCH.cells = new Map());
+    const byCell = new Map(), c = new THREE.Vector3();
+    for (const m of src) {
       m.updateWorldMatrix(true, false);
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       c.copy(m.geometry.boundingSphere.center).applyMatrix4(m.matrixWorld);
-      const key = m.material.uuid + '|' + Math.floor(c.x / BATCH.cell) + ',' + Math.floor(c.z / BATCH.cell) + '|' + m.castShadow + ',' + m.receiveShadow + ',' + m.renderOrder +
-        '|' + Object.keys(m.geometry.attributes).sort().map(k => k + ':' + m.geometry.attributes[k].itemSize + ':' + m.geometry.attributes[k].array.constructor.name).join(',');
-      let b = buckets.get(key); if (!b) buckets.set(key, b = []); b.push(m);
+      const ck = Math.floor(c.x / BATCH.cell) + ',' + Math.floor(c.z / BATCH.cell);
+      let L = byCell.get(ck); if (!L) byCell.set(ck, L = []); L.push(m);
     }
-    const grp = new THREE.Group(); grp.name = tag + ':batches'; grp.userData.batch = true;
-    let n = 0;
-    for (const list of buckets.values()) {
-      if (list.length < 2) { list[0].visible = true; continue; }
-      const mesh = new THREE.Mesh(mergeInto(list), list[0].material);
-      mesh.castShadow = list[0].castShadow; mesh.receiveShadow = list[0].receiveShadow; mesh.renderOrder = list[0].renderOrder;
-      mesh.userData.batch = true; mesh.name = tag + ':batch';
-      grp.add(mesh); n++;
-      for (const m of list) m.visible = false;
+    for (const ck of CELLS.keys()) if (!byCell.has(ck)) byCell.set(ck, []);
+    let n = 0, made = 0, pend = false;
+    for (const [ck, list] of byCell) {
+      const sig = list.map(m => m.id).join(','), was = CELLS.get(ck);
+      if (was && was.sig === sig) { n += was.meshes.length; continue; }
+      if (!cellLive(ck)) { pend = true; if (was) n += was.meshes.length; continue; }
+      if (was) { for (const mesh of was.meshes) { BATCH.group.remove(mesh); mesh.geometry.dispose(); } for (const m of was.src) if (m.parent) m.visible = true; }
+      const buckets = new Map();
+      for (const m of list) {
+        const key = m.material.uuid + '|' + m.castShadow + ',' + m.receiveShadow + ',' + m.renderOrder +
+          '|' + Object.keys(m.geometry.attributes).sort().map(k => k + ':' + m.geometry.attributes[k].itemSize + ':' + m.geometry.attributes[k].array.constructor.name).join(',');
+        let b = buckets.get(key); if (!b) buckets.set(key, b = []); b.push(m);
+      }
+      const cell = { sig, meshes: [], src: [] };
+      for (const bl of buckets.values()) {
+        if (bl.length < 2) { bl[0].visible = true; continue; }
+        const mesh = new THREE.Mesh(mergeInto(bl), bl[0].material);
+        mesh.castShadow = bl[0].castShadow; mesh.receiveShadow = bl[0].receiveShadow; mesh.renderOrder = bl[0].renderOrder;
+        mesh.userData.batch = true; mesh.name = tag + ':batch';
+        BATCH.group.add(mesh); cell.meshes.push(mesh);
+        for (const m of bl) { m.visible = false; cell.src.push(m); }
+      }
+      if (list.length) CELLS.set(ck, cell); else CELLS.delete(ck);
+      n += cell.meshes.length; made++;
     }
-    GR.add(grp); BATCH.group = grp;
-    stats[tag + 'Batches'] = n; stats[tag + 'Batched'] = use.length;
-    return n;
+    BATCH.pending = pend;
+    stats[tag + 'Batches'] = n; stats[tag + 'Batched'] = 0; for (const cl of CELLS.values()) stats[tag + 'Batched'] += cl.src.length;
+    return made;
   }
 
   // THE LOTS group stands at the premises frame: what the village's plan functions draw in the
@@ -193,7 +217,7 @@ function make(THREE, scene, world, rec0, opts) {
     sites: () => (rec.layers.sites || []).filter(st => st.at && O.runways.some(r => r.c && Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) < (r.len || 1000) / 2 + 900)).map(st => { let rw = null, rd = Infinity; for (const r of O.runways) if (r.c) { const d = Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) - (r.len || 1000) / 2; if (d < rd) { rd = d; rw = r.id; } } return { x: st.at.x, z: st.at.z, id: st.id, runway: rw }; }),
     items: () => O.records.items,   // the site items' feet (a site's own life covers them, v1.22.1)
     cover: (x, z) => (world.coverAt ? world.coverAt(x, z, 1) : null),   // the pavement law (v1.17.1): nothing stands on a road
-    eye: () => (o.eye ? o.eye() : null), lampsOn: () => LAMPS.on, queued: () => queue.length, obstacles: () => OBS(), onTraffic: () => { syncTraffic(); },
+    eye: () => (o.eye ? o.eye() : null), lampsOn: () => LAMPS.on, queued: () => (o.game && !(o.editing && o.editing()) ? STREAM.near : queue.length), obstacles: () => OBS(), onTraffic: () => { syncTraffic(); },
   }) : null;
   // THE LAMP POOL (G449 - G417's account, whose code never reached the tree: the commit carried the
   // HANDOVER, the doc and the F8 dial only). Every built thing publishes its lights (HOUSE_GEN
@@ -1182,8 +1206,8 @@ function make(THREE, scene, world, rec0, opts) {
   // THE FAR TOWN (G559, HLOD): past HLOD.near from a 256 m cell's edge, the cell's houses are ONE mesh - each house's
   // kept bags (walls, roof: what the second cut leaves) merged in world space with a vertex colour = the bag's
   // material colour x its map's mean (linear), one shared plain material; their plain bags hide. Glass and lit bags
-  // stay the house's own. Built once the build queue is empty (and again if the set of houses changes).
-  const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, dirt: 0.35, gain: 0.2, sig: '', cells: [], group: null };
+  // stay the house's own. Built per cell once the cell is live (G592: it waited for the whole queue), rebuilt when its houses change.
+  const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, far2: 1200, dirt: 0.35, gain: 0.2, sig: '', cells: [], cellMap: new Map(), todo: [], warm: [], group: null };
   const texMean = new Map(); let texCv = null;
   function meanOf(tex) {
     const img = tex && tex.image; if (!img || !img.width) return null;
@@ -1206,38 +1230,54 @@ function make(THREE, scene, world, rec0, opts) {
   const uval = v => v && v.isColor ? v.getHexString() : v && v.isVector2 ? v.x + ',' + v.y : v && v.isTexture ? v.uuid : (typeof v === 'number' ? +v.toFixed(4) : v && v.value !== undefined ? uval(v.value) : v && typeof v === 'object' ? Object.keys(v).map(k => k + '=' + uval(v[k])).join(';') : String(v));
   const matSig = m => [m.type, m.map && m.map.uuid, m.normalMap && m.normalMap.uuid, m.roughnessMap && m.roughnessMap.uuid, m.aoMap && m.aoMap.uuid, m.color && m.color.getHexString(), m.roughness, m.metalness, m.side, m.alphaTest, m.vertexColors, m.flatShading, m.customProgramCacheKey ? m.customProgramCacheKey() : '', Object.keys(m.userData || {}).filter(k => !TARR_UD.has(k)).sort().map(k => k + ':' + uval(m.userData[k])).join('|')].join('#');
   const TARR_UD = new Set(['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud']);   // G574's handles: G566's signature is as it was
-  function nearAll(on) {
-    for (const cl of HLOD.cells) if (cl.near) cl.near.visible = on && !cl.far;
-    for (const g of G.houses.children) for (const m of g.children) if (m.userData.merged) m.visible = !on && !g.userData.far;
-  }
-  // the stack (G574): made on first use; its ready signal rebakes (the sig is cleared). TARR is declared by LAMPS.
+
+  // the stack (G574): made on first use. Its ready signal (a layer the bake asked for is in the stack now) marks the
+  // cells that baked without it (cl.tarrShort) for a rebake - one cell a frame, like every bake (G593: it cleared the
+  // signature and the WHOLE town rebaked twice in a row at the end of the queue). TARR is declared by LAMPS.
   function tarr() {
     if (TARR || typeof window === 'undefined' || !window.HOUSE_TARR || !THREE.DataArrayTexture) return TARR;
-    TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { HLOD.sig = ''; } });
+    TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { for (const cl of HLOD.cellMap.values()) if (cl.tarrShort) cl.sig = ''; hlodHouses = -1; } });
     TARR.lit.value = LAMPS.kLit === undefined ? 1 : LAMPS.kLit;
+    TARR.begin();   // the slot table lives as long as the stack: a cell's rebake re-uses the rows it had (same values, same slot)
     return TARR;
   }
-  function hlodBuild() {
-    for (const g of G.houses.children) for (const m of g.children) if (m.userData.merged) { m.userData.merged = false; m.visible = true; }
-    if (HLOD.group) { G.houses.remove(HLOD.group); HLOD.group.traverse(m => { if (m.geometry) m.geometry.dispose(); }); HLOD.group = null; }
-    for (const cl of HLOD.cells) cl.far = false;
-    HLOD.cells = [];
+  // THE FAR TOWN PER CELL (G592): a 256 m cell of houses is baked on its own, once the cell is LIVE (nothing queued
+  // in or around it) and when its set of houses changed - one cell a frame at most, so the bake never bursts. It was
+  // one hlodBuild of every cell, run when the WHOLE build queue was empty, and redone whole for any change.
+  function hlodCellDrop(cl) {
+    for (const g of cl.houses) { for (const m of g.children) if (m.userData.merged) { m.userData.merged = false; m.visible = true; } if (g.userData.far) { g.userData.far = false; const D = detailOf(g); D.on = true; D.on2 = true; } }
+    for (const x of [cl.mesh, cl.box, cl.near]) if (x) { if (x.parent) x.parent.remove(x); x.traverse(m => { if (m.geometry) m.geometry.dispose(); }); }
+    cl.mesh = cl.box = cl.near = null; cl.casters = []; cl.far = false; cl.far2 = false;
+  }
+  function hlodDropAll() {
+    for (const cl of HLOD.cellMap.values()) hlodCellDrop(cl);
+    HLOD.cellMap.clear(); HLOD.cells = []; HLOD.todo = [];
+  }
+  // the houses by cell, as they stand now (thrifty and posed)
+  function hlodScan() {
     const byCell = new Map();
     for (const g of G.houses.children) {
-      if (!g.userData.thrift || !g.userData.frozen) continue;
+      if (!g.userData.thrift || !g.userData.frozen || g.userData.batch) continue;
       const D = detailOf(g); if (!D.keep.length) continue;
       const k = Math.floor(D.c.x / HLOD.cell) + ',' + Math.floor(D.c.z / HLOD.cell);
-      let cl = byCell.get(k); if (!cl) byCell.set(k, cl = { houses: [], x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, far: false, mesh: null });
-      cl.houses.push(g); cl.y = ((cl.y || 0) * (cl.houses.length - 1) + D.c.y) / cl.houses.length; cl.x0 = Math.min(cl.x0, D.c.x - D.R); cl.x1 = Math.max(cl.x1, D.c.x + D.R); cl.z0 = Math.min(cl.z0, D.c.z - D.R); cl.z1 = Math.max(cl.z1, D.c.z + D.R);
+      let L = byCell.get(k); if (!L) byCell.set(k, L = []); L.push(g);
     }
-    const grp = new THREE.Group(); grp.name = 'houses:far'; grp.userData.batch = true;
+    return byCell;
+  }
+  function hlodCell(key, houses) {
+    const cl = { key, sig: houses.map(g => g.id).join(','), houses, x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, y: 0, far: false, far2: false, mesh: null, box: null, near: null, casters: [], castOn: true, tarrShort: false, bake: null };
+    for (const g of houses) { const D = detailOf(g); cl.y += D.c.y / houses.length; cl.x0 = Math.min(cl.x0, D.c.x - D.R); cl.x1 = Math.max(cl.x1, D.c.x + D.R); cl.z0 = Math.min(cl.z0, D.c.z - D.R); cl.z1 = Math.max(cl.z1, D.c.z + D.R); }
     const mat = HLOD.mat || (HLOD.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }));
     const col = new THREE.Color(), paintC = new THREE.Color(), nm = new THREE.Matrix3();
-    for (const cl of byCell.values()) {
-      const bags = []; for (const g of cl.houses) for (const m of detailOf(g).keep) if (m.geometry.index) bags.push(m);
-      if (!bags.length) continue;
+    const bags = []; for (const g of houses) for (const m of detailOf(g).keep) if (m.geometry.index) bags.push(m);
+    if (bags.length) {
       let nV = 0, nI = 0; for (const m of bags) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
       const P = new Float32Array(nV * 3), N = new Float32Array(nV * 3), C = new Float32Array(nV * 3), I = new Uint32Array(nI);
+      // THE COARSEST RUNG (G594, screens 150029/150123: the far town was flickering coloured pixels): past HLOD.far2 a
+      // house is a BOX - its kept bags' extent in its own frame, the walls the mean colour of what faces sideways,
+      // the top the mean of what faces up, the top at 85 % of the ridge. Ten triangles a house, no sub-pixel trims.
+      const HB = new Map();   // house -> { b: Box3 (house frame), wall: [r, g, b, n], roof: [r, g, b, n] }
+      const inv = new THREE.Matrix4(), rel = new THREE.Matrix4(), bx = new THREE.Box3();
       let vo = 0, io = 0;
       for (const m of bags) {
         const g = m.geometry, A = g.attributes.position.array, AN = g.attributes.normal ? g.attributes.normal.array : null, n = g.attributes.position.count;
@@ -1253,104 +1293,187 @@ function make(THREE, scene, world, rec0, opts) {
         if (dt && dt.uDirtOwn) col.lerp(paintC.set(dt.uDirtOwn.value), HLOD.dirt);
         col.multiplyScalar(HLOD.gain);
         const e = m.matrixWorld.elements; nm.getNormalMatrix(m.matrixWorld); const q = nm.elements;
+        let up = 0, side = 0;
         for (let i = 0; i < n; i++) {
           const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2], o3 = (vo + i) * 3;
           P[o3] = e[0] * x + e[4] * y + e[8] * z + e[12]; P[o3 + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; P[o3 + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
-          if (AN) { const a = AN[i * 3], b = AN[i * 3 + 1], c = AN[i * 3 + 2]; const X = q[0] * a + q[3] * b + q[6] * c, Y = q[1] * a + q[4] * b + q[7] * c, Z = q[2] * a + q[5] * b + q[8] * c, l = Math.hypot(X, Y, Z) || 1; N[o3] = X / l; N[o3 + 1] = Y / l; N[o3 + 2] = Z / l; } else N[o3 + 1] = 1;
+          if (AN) { const a = AN[i * 3], b = AN[i * 3 + 1], c = AN[i * 3 + 2]; const X = q[0] * a + q[3] * b + q[6] * c, Y = q[1] * a + q[4] * b + q[7] * c, Z = q[2] * a + q[5] * b + q[8] * c, l = Math.hypot(X, Y, Z) || 1; N[o3] = X / l; N[o3 + 1] = Y / l; N[o3 + 2] = Z / l; if (Y / l > 0.45) up++; else side++; } else N[o3 + 1] = 1;
           const f = vc ? [vc.getX(i), vc.getY(i), vc.getZ(i)] : null;
           C[o3] = col.r * (f ? f[0] : 1); C[o3 + 1] = col.g * (f ? f[1] : 1); C[o3 + 2] = col.b * (f ? f[2] : 1);
         }
         const ix = g.index.array; for (let i = 0; i < g.index.count; i++) I[io + i] = ix[i] + vo;
         vo += n; io += g.index.count;
+        // the box: the bag's extent in its house's frame, its colour to the walls or the roof by where its vertices face
+        const h = m.parent; if (!h) continue;
+        let hb = HB.get(h); if (!hb) HB.set(h, hb = { b: new THREE.Box3(), wall: [0, 0, 0, 0], roof: [0, 0, 0, 0] });
+        if (!g.boundingBox) g.computeBoundingBox();
+        inv.copy(h.matrixWorld).invert(); rel.multiplyMatrices(inv, m.matrixWorld);
+        hb.b.union(bx.copy(g.boundingBox).applyMatrix4(rel));
+        hb.wall[0] += col.r * side; hb.wall[1] += col.g * side; hb.wall[2] += col.b * side; hb.wall[3] += side;
+        hb.roof[0] += col.r * up; hb.roof[1] += col.g * up; hb.roof[2] += col.b * up; hb.roof[3] += up;
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3)); geo.setAttribute('color', new THREE.BufferAttribute(C, 3));
       geo.setIndex(new THREE.BufferAttribute(I, 1)); geo.computeBoundingSphere();
-      const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = false; mesh.receiveShadow = true; mesh.visible = false; mesh.matrixAutoUpdate = false; mesh.userData.batch = true;
-      grp.add(mesh); cl.mesh = mesh; HLOD.cells.push(cl);
+      const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = false; mesh.receiveShadow = true; mesh.visible = false; mesh.matrixAutoUpdate = false; mesh.userData.batch = true; mesh.name = 'houses:far';
+      HLOD.group.add(mesh); cl.mesh = mesh;
+      cl.box = hlodBoxes(HB, mat);
     }
-    if (HLOD.bake) {
-      const canon = new Map(); let nd = 0, nm = 0, td = 0, tm = 0;
-      // THE TOWN ON TEXTURE ARRAYS (G574, house_tarr.js): a bag whose finish can ride the stack goes into one of a
-      // cell's few town meshes (plain / glass x side x whether it casts) whatever its material; the rest merge per
-      // distinct material as G566 does. Until the stack holds every layer the bake asked for, the bags it could not
-      // place go G566's way too, and the stack's ready signal rebakes.
-      const TA = HLOD.tarr ? tarr() : null;
-      if (TA) TA.begin();
-      const litBase = u => (LAMPS.glass.has(u) ? LAMPS.glass.get(u) : u.value);
-      for (const cl of HLOD.cells) {
-        const buckets = new Map(), tb = new Map();
-        for (const g of cl.houses) {
-          const cast = new Set(g.userData.casters || []);
-          for (const m of g.children) {
-            if (!m.isMesh || !m.geometry || !m.geometry.index || Array.isArray(m.material)) continue;
-            const mt = m.material, ud = mt.userData || {};
-            const c = TA && TA.classify(m);
-            if (c) {
-              const k = c.key + '|' + m.renderOrder + '|' + m.receiveShadow + '|' + cast.has(m);
-              let b = tb.get(k); if (!b) tb.set(k, b = { c, cast: cast.has(m), list: [] }); b.list.push(m);
-              continue;
-            }
-            if (mt.transparent || ud.lampKey || ud.lampCol || ud.emis0 || ud.glassShaded || ud.smokeShaded || ud.parked || ud.aeroskin) continue;
-            const ga = m.geometry.attributes, an = Object.keys(ga).sort();
-            if (an.some(k => ga[k].isInterleavedBufferAttribute)) continue;
-            const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
-            const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
-            let b = buckets.get(k); if (!b) buckets.set(k, b = { mat: cm, list: [] }); b.list.push(m);
-          }
-        }
-        const ng = new THREE.Group(); ng.name = 'houses:near'; ng.userData.batch = true;
-        cl.casters = [];
-        for (const b of tb.values()) {
-          const r = TA.merge(b.list, b.c.kind, litBase), m0 = b.list[0], mat = r.geo && TA.material(b.c.kind, b.c.side, m0.material.dithering);
-          const usedS = new Set(r.used), left = b.list.filter(m => !usedS.has(m));
-          if (r.geo && mat) {
-            const mesh = new THREE.Mesh(r.geo, mat);
-            mesh.castShadow = b.cast; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true; mesh.name = 'houses:town';
-            if (b.cast) cl.casters.push(mesh);
-            ng.add(mesh); td++;
-            for (const m of r.used) { m.userData.merged = true; m.visible = false; tm++; }
-          } else if (r.geo) r.geo.dispose();
-          // not (yet) on the stack: G566's way, the glass as the house's own
-          for (const m of (r.geo && mat) ? left : b.list) {
-            const mt = m.material; if (mt.userData.glassShaded) continue;
-            const ga = m.geometry.attributes, an = Object.keys(ga).sort();
-            const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
-            const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
-            let bb = buckets.get(k); if (!bb) buckets.set(k, bb = { mat: cm, list: [] }); bb.list.push(m);
-          }
-        }
-        for (const b of buckets.values()) {
-          const m0 = b.list[0], mesh = new THREE.Mesh(mergeInto(b.list), b.mat);
-          mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true;
-          ng.add(mesh); nd++;
-          for (const m of b.list) { m.userData.merged = true; m.visible = false; nm++; }
-        }
-        cl.near = ng; cl.castOn = true; grp.add(ng);
-      }
-      if (TA) { TA.end(); Object.assign(stats, { tarrDraws: td, tarrMerged: tm, tarrSlots: TA.stats.slots, tarrLayers: TA.stats.layers + '+' + TA.stats.nrLayers, tarrMB: TA.stats.mb }); }
-      stats.bakeDraws = nd; stats.bakeMerged = nm; stats.bakeMats = canon.size;
-    }
-    G.houses.add(grp); HLOD.group = grp;
-    stats.hlodCells = HLOD.cells.length;
+    if (HLOD.bake) hlodBake(cl);
+    return cl;
   }
+  // five faces a house (no floor), world space, flat normals, the walls' and the roof's colours
+  const BOX_F = [[[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1], [1, 0, 0]], [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0], [-1, 0, 0]],
+                 [[1, 0, 1], [1, 1, 1], [0, 1, 1], [0, 0, 1], [0, 0, 1]], [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0], [0, 0, -1]],
+                 [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]]];
+  function hlodBoxes(HB, mat) {
+    const nH = HB.size; if (!nH) return null;
+    const P = new Float32Array(nH * 20 * 3), N = new Float32Array(nH * 20 * 3), C = new Float32Array(nH * 20 * 3), I = new Uint32Array(nH * 30);
+    const v = new THREE.Vector3(), nrm = new THREE.Vector3(), nmx = new THREE.Matrix3();
+    let vi = 0, ii = 0;
+    for (const [h, hb] of HB) {
+      if (hb.b.isEmpty()) continue;
+      const lo = hb.b.min, hi = hb.b.max, top = lo.y + 0.85 * (hi.y - lo.y);
+      const wc = hb.wall[3] ? hb.wall.slice(0, 3).map(x => x / hb.wall[3]) : null, rc = hb.roof[3] ? hb.roof.slice(0, 3).map(x => x / hb.roof[3]) : null;
+      const Wc = wc || rc || [0.1, 0.1, 0.1], Rc = rc || Wc;
+      nmx.getNormalMatrix(h.matrixWorld);
+      for (let f = 0; f < 5; f++) {
+        const face = BOX_F[f], c = f === 4 ? Rc : Wc, b0 = vi;
+        nrm.fromArray(face[4]).applyMatrix3(nmx).normalize();
+        for (let k = 0; k < 4; k++) {
+          const s = face[k];
+          v.set(s[0] ? hi.x : lo.x, s[1] ? top : lo.y, s[2] ? hi.z : lo.z).applyMatrix4(h.matrixWorld);
+          P[vi * 3] = v.x; P[vi * 3 + 1] = v.y; P[vi * 3 + 2] = v.z; N[vi * 3] = nrm.x; N[vi * 3 + 1] = nrm.y; N[vi * 3 + 2] = nrm.z;
+          C[vi * 3] = c[0]; C[vi * 3 + 1] = c[1]; C[vi * 3 + 2] = c[2]; vi++;
+        }
+        I[ii++] = b0; I[ii++] = b0 + 1; I[ii++] = b0 + 2; I[ii++] = b0; I[ii++] = b0 + 2; I[ii++] = b0 + 3;
+      }
+    }
+    if (!vi) return null;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(P.slice(0, vi * 3), 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N.slice(0, vi * 3), 3)); geo.setAttribute('color', new THREE.BufferAttribute(C.slice(0, vi * 3), 3));
+    geo.setIndex(new THREE.BufferAttribute(I.slice(0, ii), 1)); geo.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = false; mesh.receiveShadow = true; mesh.visible = false; mesh.matrixAutoUpdate = false; mesh.userData.batch = true; mesh.name = 'houses:boxes';
+    HLOD.group.add(mesh);
+    return mesh;
+  }
+  function hlodBake(cl) {
+    const canon = HLOD.canon || (HLOD.canon = new Map()); let nd = 0, nm = 0, td = 0, tm = 0;
+    // THE TOWN ON TEXTURE ARRAYS (G574, house_tarr.js): a bag whose finish can ride the stack goes into one of a
+    // cell's few town meshes (plain / glass x side x whether it casts) whatever its material; the rest merge per
+    // distinct material as G566 does. Until the stack holds every layer the bake asked for, the bags it could not
+    // place go G566's way too, and the stack's ready signal rebakes that cell.
+    const TA = HLOD.tarr ? tarr() : null;
+    const litBase = u => (LAMPS.glass.has(u) ? LAMPS.glass.get(u) : u.value);
+    const buckets = new Map(), tb = new Map();
+    for (const g of cl.houses) {
+      const cast = new Set(g.userData.casters || []);
+      for (const m of g.children) {
+        if (!m.isMesh || !m.geometry || !m.geometry.index || Array.isArray(m.material)) continue;
+        const mt = m.material, ud = mt.userData || {};
+        const c = TA && TA.classify(m);
+        if (c) {
+          const k = c.key + '|' + m.renderOrder + '|' + m.receiveShadow + '|' + cast.has(m);
+          let b = tb.get(k); if (!b) tb.set(k, b = { c, cast: cast.has(m), list: [] }); b.list.push(m);
+          continue;
+        }
+        if (mt.transparent || ud.lampKey || ud.lampCol || ud.emis0 || ud.glassShaded || ud.smokeShaded || ud.parked || ud.aeroskin) continue;
+        const ga = m.geometry.attributes, an = Object.keys(ga).sort();
+        if (an.some(k => ga[k].isInterleavedBufferAttribute)) continue;
+        const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
+        const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
+        let b = buckets.get(k); if (!b) buckets.set(k, b = { mat: cm, list: [] }); b.list.push(m);
+      }
+    }
+    const ng = new THREE.Group(); ng.name = 'houses:near'; ng.userData.batch = true;
+    for (const b of tb.values()) {
+      const r = TA.merge(b.list, b.c.kind, litBase), m0 = b.list[0], mat = r.geo && TA.material(b.c.kind, b.c.side, m0.material.dithering);
+      const usedS = new Set(r.used), left = b.list.filter(m => !usedS.has(m));
+      if (left.length) cl.tarrShort = true;
+      if (r.geo && mat) {
+        const mesh = new THREE.Mesh(r.geo, mat);
+        mesh.castShadow = b.cast; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true; mesh.name = 'houses:town';
+        if (b.cast) cl.casters.push(mesh);
+        ng.add(mesh); td++;
+        for (const m of r.used) { m.userData.merged = true; m.visible = false; tm++; }
+      } else if (r.geo) r.geo.dispose();
+      // not (yet) on the stack: G566's way, the glass as the house's own
+      for (const m of (r.geo && mat) ? left : b.list) {
+        const mt = m.material; if (mt.userData.glassShaded) continue;
+        const ga = m.geometry.attributes, an = Object.keys(ga).sort();
+        const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
+        const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
+        let bb = buckets.get(k); if (!bb) buckets.set(k, bb = { mat: cm, list: [] }); bb.list.push(m);
+      }
+    }
+    for (const b of buckets.values()) {
+      const m0 = b.list[0], mesh = new THREE.Mesh(mergeInto(b.list), b.mat);
+      mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true;
+      ng.add(mesh); nd++;
+      for (const m of b.list) { m.userData.merged = true; m.visible = false; nm++; }
+    }
+    if (TA && tb.size && !TA.end()) cl.tarrShort = true;
+    cl.near = ng; cl.castOn = true; HLOD.group.add(ng);
+    cl.bake = { nd, nm, td, tm };
+    if (ng.children.length) HLOD.warm.push(ng);   // its programs linked off the frame (hlodWarm)
+  }
+  // THE BAKE'S PROGRAMS OFF THE FRAME (G593): a town material's first variant, or a canonical finish no house had
+  // drawn with, linked synchronously on the first frame that drew the cell. compileAsync (KHR_parallel_shader_compile)
+  // links them in the background; three reuses the program on the draw.
+  function hlodWarm() {
+    const R = o.renderer && o.renderer(), cam = o.camera && o.camera();
+    if (!HLOD.warm.length || !R || !cam || typeof R.compileAsync !== 'function') { HLOD.warm.length = 0; return; }
+    for (const ng of HLOD.warm.splice(0)) { try { const p = R.compileAsync(ng, cam, scene); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+  }
+  function hlodStats() {
+    let nd = 0, nm = 0, td = 0, tm = 0;
+    for (const cl of HLOD.cellMap.values()) if (cl.bake) { nd += cl.bake.nd; nm += cl.bake.nm; td += cl.bake.td; tm += cl.bake.tm; }
+    stats.bakeDraws = nd; stats.bakeMerged = nm; stats.bakeMats = HLOD.canon ? HLOD.canon.size : 0; stats.hlodCells = HLOD.cellMap.size;
+    if (TARR) Object.assign(stats, { tarrDraws: td, tarrMerged: tm, tarrSlots: TARR.stats.slots, tarrLayers: TARR.stats.layers + '+' + TARR.stats.nrLayers, tarrMB: TARR.stats.mb });
+  }
+  let hlodFrame = 0, hlodHouses = -1;
   function hlodTick(e) {
-    if (!HLOD.on || !o.game || queue.length || (o.editing && o.editing())) {
-      if (HLOD.group) { for (const cl of HLOD.cells) if (cl.far) hlodSet(cl, false); nearAll(false); HLOD.sig = ''; }   // whole houses; rebaked on the way back
+    if (!HLOD.on || !o.game || (o.editing && o.editing())) {
+      if (HLOD.cellMap.size) { hlodDropAll(); HLOD.sig = ''; hlodStats(); }   // whole houses; rebaked on the way back
       return;
     }
-    const sig = HOUSES.size + '|' + HLOD.bake + '|' + HLOD.tarr;   // a dial flipped (F8 / WORLD.premises.hlod) rebakes
-    if (sig !== HLOD.sig) { HLOD.sig = sig; hlodBuild(); }
+    if (!HLOD.group || HLOD.group.parent !== G.houses) { HLOD.group = new THREE.Group(); HLOD.group.name = 'houses:hlod'; HLOD.group.userData.batch = true; G.houses.add(HLOD.group); }
+    const sig = HLOD.bake + '|' + HLOD.tarr;   // a dial flipped (F8 / WORLD.premises.hlod) rebakes every cell
+    if (sig !== HLOD.sig) { HLOD.sig = sig; hlodDropAll(); hlodHouses = -1; }
+    // the cells whose houses changed - re-read when a house came or went, and every 30 frames: ONE live cell a frame
+    if (HOUSES.size !== hlodHouses || ++hlodFrame % 30 === 0) {
+      hlodHouses = HOUSES.size;
+      const byCell = hlodScan();
+      HLOD.todo = [];
+      for (const [k, list] of byCell) { const cl = HLOD.cellMap.get(k); if (!cl || cl.sig !== list.map(g => g.id).join(',')) HLOD.todo.push([k, list]); }
+      for (const [k, cl] of HLOD.cellMap) if (!byCell.has(k)) { hlodCellDrop(cl); HLOD.cellMap.delete(k); }
+      HLOD.cells = [...HLOD.cellMap.values()];
+    }
+    for (let i = 0; i < HLOD.todo.length; i++) {
+      const [k, list] = HLOD.todo[i];
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (const g of list) { const c = detailOf(g).c; x0 = Math.min(x0, c.x); x1 = Math.max(x1, c.x); z0 = Math.min(z0, c.z); z1 = Math.max(z1, c.z); }
+      if (!boxLive(x0 - 60, z0 - 60, x1 + 60, z1 + 60)) continue;   // still streaming there: its houses stay whole
+      HLOD.todo.splice(i, 1);
+      const old = HLOD.cellMap.get(k); if (old) hlodCellDrop(old);
+      HLOD.cellMap.set(k, hlodCell(k, list)); HLOD.cells = [...HLOD.cellMap.values()];
+      hlodStats(); hlodWarm();
+      break;
+    }
     for (const cl of HLOD.cells) {
+      if (!cl.mesh) continue;
       const dx = Math.max(cl.x0 - e.x, 0, e.x - cl.x1), dz = Math.max(cl.z0 - e.z, 0, e.z - cl.z1), d = Math.hypot(dx, dz, e.y - cl.y);   // 3D (G563): from 300 m up the houses below are far
       const far = d > HLOD.near * (cl.far ? 0.9 : 1.1);
       if (far !== cl.far) hlodSet(cl, far);
+      // the coarsest rung (G594): the boxes past far2
+      const far2 = far && !!cl.box && d > HLOD.far2 * (cl.far2 ? 0.9 : 1.1);
+      if (far2 !== cl.far2) { cl.far2 = far2; cl.mesh.visible = far && !far2; cl.box.visible = far2; }
       // the town meshes that cast (G574): a house's own casters go at HOUSE_CAST_FAR (detailTick), the cell's at its box's
       if (cl.casters && cl.casters.length) { const on = d < HOUSE_CAST_FAR * (cl.castOn ? 1.1 : 0.9); if (on !== cl.castOn) { cl.castOn = on; for (const m of cl.casters) m.castShadow = on; } }
     }
   }
   function hlodSet(cl, far) {
-    cl.far = far; cl.mesh.visible = far; if (cl.near) cl.near.visible = !far;
+    cl.far = far; cl.far2 = false; cl.mesh.visible = far; if (cl.box) cl.box.visible = false; if (cl.near) cl.near.visible = !far;
     for (const g of cl.houses) {
       const D = detailOf(g); g.userData.far = far;
       // every bag goes, glass and lit too (G560): from the airfield, 9 km off, the town's 641 houses still drew
@@ -1367,9 +1490,11 @@ function make(THREE, scene, world, rec0, opts) {
   const SKIP_UMW = function () {};
   let settleAt = 0;
   function settleTick() {
-    if (queue.length || !o.game || (o.editing && o.editing()) || ++settleAt % 30) return;
+    if (!o.game || (o.editing && o.editing()) || ++settleAt % 30) return;
     for (const g of G.houses.children) {
-      if (!g.userData.thrift || !g.userData.frozen || g.userData.skipWalk) continue;
+      if (!g.userData.thrift || !g.userData.frozen || g.userData.skipWalk || g.userData.batch) continue;
+      // per cell (G592): a house settles once nothing is queued round it - it waited for the WHOLE queue
+      if (queue.length) { const D = detailOf(g); if (!boxLive(D.c.x - 60, D.c.z - 60, D.c.x + 60, D.c.z + 60)) continue; }
       let pending = false, fresh = false;
       g.traverse(x => { if (x.userData && x.userData.propPending) pending = true; if (x.matrixAutoUpdate) fresh = true; });
       if (pending || fresh) continue;
@@ -1503,9 +1628,18 @@ function make(THREE, scene, world, rec0, opts) {
           M.multiplyMatrices(inv, obj.matrixWorld);
           const P = obj.geometry.attributes.position, base = pos.length / 3;
           let y0 = Infinity, y1 = -Infinity;
-          for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(M); pos.push(v.x, v.y, v.z); if (v.y < y0) y0 = v.y; if (v.y > y1) y1 = v.y; }
+          // the arrays read directly (G591: three's per-vertex accessors were 1.3 s of the roll-out's 150 items), the
+          // same arithmetic as applyMatrix4 (its w divide included), so the raster is the same bits
+          if (!P.isInterleavedBufferAttribute && !P.normalized && P.itemSize === 3) {
+            const A = P.array, m = M.elements, n = P.count;
+            for (let i = 0; i < n; i++) {
+              const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2], w = 1 / (m[3] * x + m[7] * y + m[11] * z + m[15]);
+              const X = (m[0] * x + m[4] * y + m[8] * z + m[12]) * w, Y = (m[1] * x + m[5] * y + m[9] * z + m[13]) * w, Z = (m[2] * x + m[6] * y + m[10] * z + m[14]) * w;
+              pos.push(X, Y, Z); if (Y < y0) y0 = Y; if (Y > y1) y1 = Y;
+            }
+          } else for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(M); pos.push(v.x, v.y, v.z); if (v.y < y0) y0 = v.y; if (v.y > y1) y1 = v.y; }
           if (y1 - y0 < 0.15) pos.length = base * 3;                                              // a flat thing (a lot patch, a slab) is the ground's
-          else { const I = obj.geometry.index; if (I) for (let i = 0; i < I.count; i++) idx.push(base + I.getX(i)); else for (let i = 0; i < P.count; i++) idx.push(base + i); }
+          else { const I = obj.geometry.index; if (I && !I.isInterleavedBufferAttribute) { const IA = I.array; for (let i = 0; i < I.count; i++) idx.push(base + IA[i]); } else if (I) for (let i = 0; i < I.count; i++) idx.push(base + I.getX(i)); else for (let i = 0; i < P.count; i++) idx.push(base + i); }
         }
       }
       for (const c of obj.children) walk(c);
@@ -1873,7 +2007,8 @@ function make(THREE, scene, world, rec0, opts) {
       HOUSES.delete(id);
     } }
     queue.length = 0;
-    for (const [id, p] of want) if (!HOUSES.has(id)) queue.push(p);
+    for (const [id, p] of want) if (!HOUSES.has(id)) { p._w = undefined; p._d = undefined; queue.push(p); }
+    queueCells(); STREAM.cx = NaN;   // the stream re-sorts from the aircraft at its next call
     stats.queued = queue.length;
   }
   // A HOUSE'S THRIFT (G557, 2026-09-24): over Metlakatla (641 houses) the shadow pass drew the houses ~8 000 times and
@@ -1929,30 +2064,106 @@ function make(THREE, scene, world, rec0, opts) {
     if (!isFinite(x) && poly && poly.length) { x = 0; z = 0; for (const q of poly) { x += Array.isArray(q) ? q[0] : q.x; z += Array.isArray(q) ? q[1] : q.z; } x /= poly.length; z /= poly.length; }
     return isFinite(x) && isFinite(z) ? O.frame.toWorld(x, z) : null;
   }
+  // THE QUEUE BY CELL (G592): what is still to build, counted per LIVE_CELL square of the world (the far town's and the
+  // lots' 256 m cells). A cell with nothing queued in it is LIVE: its optimizations (the far town, the near bake, the
+  // lot and road merges, the walk skip) run for it while the rest of the map still streams - they used to wait for
+  // the WHOLE queue, which with the far premises streaming by proximity is never empty
+  const LIVE_CELL = 256;
+  const CELLQ = new Map();
+  const cellKey = (x, z) => Math.floor(x / LIVE_CELL) + ',' + Math.floor(z / LIVE_CELL);
+  const qPos = p => { if (p._w === undefined) p._w = posOf(p) || null; return p._w; };
+  const qCell = p => { const w = qPos(p); return w ? cellKey(w[0], w[1]) : '*'; };
+  function queueCells() { CELLQ.clear(); for (const p of queue) { const k = qCell(p); CELLQ.set(k, (CELLQ.get(k) || 0) + 1); } }
+  const cellLive = k => !(CELLQ.get(k) > 0) && !(CELLQ.get('*') > 0);
+  // a box (world x0..x1, z0..z1) is live when no cell it touches has anything queued
+  function boxLive(x0, z0, x1, z1) {
+    if (!queue.length) return true;
+    if (CELLQ.get('*') > 0) return false;
+    for (let i = Math.floor(x0 / LIVE_CELL); i <= Math.floor(x1 / LIVE_CELL); i++) for (let j = Math.floor(z0 / LIVE_CELL); j <= Math.floor(z1 / LIVE_CELL); j++) if (CELLQ.get(i + ',' + j) > 0) return false;
+    return true;
+  }
   function drainNear(cx, cz, R) {
-    const d = p => { if (p._d === undefined) { const w = posOf(p); p._d = w ? Math.hypot(w[0] - cx, w[1] - cz) : 0; } return p._d; };
-    for (const p of queue) p._d = undefined;
-    queue.sort((a, b) => d(a) - d(b));
-    while (queue.length && d(queue[0]) <= R) step(1);
+    sortFrom(cx, cz);
+    let n = 0;
+    while (queue.length && queue[0]._d <= R) { buildOne(queue.shift()); n++; }
+    afterBuilt(n);   // once for the whole drain (G591): it ran per item - a 1024^2 wear repaint and a freeze walk each
     return queue.length;
   }
-  function step(n) {
-    let built = 0;
-    while (queue.length && built < (n || 2)) {
-      const p = queue.shift();
-      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
-      catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
-      built++;
+  function sortFrom(cx, cz) {
+    for (const p of queue) { const w = qPos(p); p._d = w ? Math.hypot(w[0] - cx, w[1] - cz) : 0; }
+    queue.sort((a, b) => a._d - b._d);
+  }
+  // THE STREAM (G591, the 2026-09-26 playtest): the far premises came in one item every third rendered frame, from
+  // any distance, parked or not - 18-29 ms a frame over the taxi, a house being ~45 ms. Now the host hands the
+  // AIRCRAFT's position each frame: the queue is ordered by distance to it (re-sorted every STREAM.resort metres),
+  // only what lies within STREAM.reach (what the next minutes of flight can reach) is built, and on a time BANK -
+  // STREAM.budget ms credited a frame, an item built while the bank is positive and its cost (and the frame's
+  // post-work) taken off. A cheap item (a fence, an object) goes several to a frame; a house, which cannot be cut,
+  // goes once the bank has paid for it - the stream averages the budget whatever the item.
+  const STREAM = { reach: 6000, budget: 3, cap: 12, resort: 60, bank: 0, cx: NaN, cz: NaN, near: 0, ms: 0, built: 0, slow: [] };   // slow: the last builds over 60 ms [id, ms]
+  function stream(cx, cz) {
+    const S = STREAM;
+    if (!queue.length) { S.near = 0; return 0; }
+    if (!(Math.abs(cx - S.cx) + Math.abs(cz - S.cz) < S.resort) || queue[0]._d === undefined) {
+      sortFrom(cx, cz); S.cx = cx; S.cz = cz;
+      let k = 0; while (k < queue.length && queue[k]._d <= S.reach) k++; S.near = k;
     }
+    S.bank = Math.min(S.cap, S.bank + S.budget);
+    if (!(queue[0]._d <= S.reach) || S.bank <= 0) return 0;
+    const t0 = performance.now();
+    let n = 0;
+    while (queue.length && S.bank > 0 && queue[0]._d <= S.reach) {
+      const t = performance.now(); buildOne(queue.shift()); n++; S.near = Math.max(0, S.near - 1);
+      S.bank -= performance.now() - t;
+    }
+    const t1 = performance.now(); STREAMING = true; try { afterBuilt(n); } finally { STREAMING = false; } S.bank -= performance.now() - t1;
+    const t2 = performance.now(); S.ms += t2 - t0; S.built += n;
+    if (t2 - t0 > (S.worst ? S.worst[0] : 0)) S.worst = [Math.round(t2 - t0), n, Math.round(t2 - t1), queue.length ? Math.round(queue[0]._d) : -1];   // the dearest frame of the stream: [ms, items, post-work ms, next item metres]
+    return n;
+  }
+  // THE ROLL-OUT'S SHARE (G591): what lies within `reach` of the aircraft, built under the roll-out screen in slices
+  // of `budgetMs` (app.js's 'town' step calls it until done) - it was one synchronous drain inside the world step, the
+  // 15-18 s main-thread task behind Chrome's "page unresponsive". The merges wait for the last slice.
+  function prewarm(cx, cz, reach, budgetMs) {
+    sortFrom(cx, cz); STREAM.cx = cx; STREAM.cz = cz;
+    const t0 = performance.now();
+    let n = 0;
+    STREAMING = true;
+    try { while (queue.length && queue[0]._d <= reach && (n === 0 || performance.now() - t0 < budgetMs)) { buildOne(queue.shift()); n++; } }
+    finally { STREAMING = false; }
+    let near = 0; while (near < queue.length && queue[near]._d <= reach) near++;
+    if (near) { STREAMING = true; try { afterBuilt(n); } finally { STREAMING = false; } }
+    else { afterBuilt(n); freezeStatic(true); }   // the last slice: the lots and roads of every live cell merged now
+    let k = 0; while (k < queue.length && queue[k]._d <= STREAM.reach) k++; STREAM.near = k;
+    return { done: !near, built: n, near, queued: queue.length, ms: performance.now() - t0 };
+  }
+  function buildOne(p) {
+    const k = qCell(p), c = CELLQ.get(k) || 0; if (c > 1) CELLQ.set(k, c - 1); else CELLQ.delete(k);
+    const tb = performance.now();
+    try { buildOne0(p); } finally { const ms = performance.now() - tb; if (ms > 60) { const L = STREAM.slow; L.push([p.id, Math.round(ms)]); if (L.length > 60) L.shift(); } }
+  }
+  function buildOne0(p) {
+    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+    catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
+  }
+  // what a batch of builds owes once (not once an item)
+  function afterBuilt(built) {
     stats.queued = queue.length; stats.houses = 0; stats.objects = 0; stats.houseTris = 0; stats.lights = 0;
     for (const [, h] of HOUSES) { stats.houseTris += h.tris || 0; stats.lights += h.lights || 0; if (h.isObject) stats.objects++; else stats.houses++; }
     hitPendingStep();
     stats.obstacles = OBST_IDS.size;
-    if (built) paintWear();   // the garden paths are the built houses' (planPath reads the door)
+    // the garden paths are the built houses' (planPath reads the door) - on the BENCH's ground: the game draws no
+    // premises chunk (its patch is the ring's material), so its 1024^2 repaint an item was work nobody read (G591)
+    if (built && !o.game) paintWear();
     if (built && o.onBuilt) o.onBuilt(built, queue.length);
     if (built && LIFE) LIFE.dirty();
     if (built) freezeStatic();
     return built;
+  }
+  function step(n) {
+    let built = 0;
+    while (queue.length && built < (n || 2)) { buildOne(queue.shift()); built++; }
+    return afterBuilt(built);
   }
 
   // ---- the trees: the payload's rungs in a THREE.LOD, a cone until it lands -----------------
@@ -2175,7 +2386,7 @@ function make(THREE, scene, world, rec0, opts) {
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
     patchBounds: () => (patch ? extentWorld() : null),
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
-    drainNear,
+    drainNear, stream, prewarm, streamState: STREAM, cellLive,   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued
     detail: DETAIL, hlod: HLOD,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },

@@ -44,10 +44,27 @@
       return saved || fixture;
     } catch (e) { return null; }
   })();
+  // THE TOWN SWITCH (G590, the 2026-09-26 playtest): Metlakatla (every `mk_` entry of the record) held the Jolene
+  // taxi at 12-15 fps, so it is OFF unless the GRAPHICS 'town' row says 'all' or the URL ?town=1 - dropped at load,
+  // code and data kept; the editor's autosave puts the cut back (below), so a save made with it off keeps it
+  const TOWN = (() => {
+    const T = { all: false, off: ['mk_'], cut: null, n: 0 };
+    try { const q = new URLSearchParams(location.search).get('town'); const g = window.GFX && window.GFX.get ? window.GFX.get() : null;
+      T.all = q !== null ? (q === '1' || q === 'all') : !!(g && g.town === 'all'); } catch (e) {}
+    return T;
+  })();
+  const premisesPlaced = (() => {
+    if (TOWN.all || !premisesAtBoot || typeof PREMISES_GEN === 'undefined') return premisesAtBoot;
+    try { const U = PREMISES_GEN.unwrap(premisesAtBoot), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off);
+      if (!D.n) return premisesAtBoot;
+      TOWN.cut = D.cut; TOWN.n = D.n;
+      return PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log); } catch (e) { return premisesAtBoot; }
+  })();
+  if (typeof window !== 'undefined') window.FLYDIY_TOWN = TOWN;
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
   const islandAtBoot = (typeof window !== 'undefined' && window.ISLAND_BOOT && typeof ISLAND_GEN !== 'undefined')
     ? ISLAND_GEN.makeIsland(window.ISLAND_BOOT) : null;
-  const world = makeWorld(0, { premises: premisesAtBoot, island: islandAtBoot });
+  const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot });
   // THE CLOCK (SKY S1): the day boots fixed (07_day.js), then the pref or ?day= moves it
   if (typeof DAY_CLOCK !== 'undefined') DAY_CLOCK.bind(world);
   // `gen` is the GARAGE: not a fiche but a generator, rebuilt from a live spec
@@ -111,7 +128,10 @@
       PREM.ed = window.PREMISES_UI.mount(PREM.body, {
         onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
-        viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: WIP_KEY,
+        viewEl: PREM.view, storage: (() => { try { const ls = localStorage;   // G590: the places the town switch cut go back into every save
+          return !TOWN.cut ? ls : { getItem: k => ls.getItem(k), removeItem: k => ls.removeItem(k), key: i => ls.key(i), get length() { return ls.length; },
+            setItem: (k, v) => { if (k === WIP_KEY || k.startsWith('flydiy.premises.slot.')) try { const U = PREMISES_GEN.unwrap(v); v = PREMISES_GEN.envelope(U.name, PREMISES_GEN.restorePlaces(U.rec, TOWN.cut), U.plaque, U.log); } catch (e) {} ls.setItem(k, v); } };
+        } catch (e) { return null; } })(), wipKey: WIP_KEY,
         rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
         redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
         onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } },
@@ -6423,6 +6443,22 @@
     const steps = [];
     holdRender = typeof renderer.compileAsync === 'function';   // the harness renders nothing anyway
     if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => { buildWorld(); } });
+    // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
+    // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
+    steps.push({ id: 'town', label: 'building the field', w: 8, fn: () => {
+      if (!WF || !WF.premisesPrewarm || typeof renderer.compileAsync !== 'function') return;
+      const cg = sim.cgPos();
+      let built = 0;
+      return new Promise(res => {
+        const tick = () => {
+          let r; try { r = WF.premisesPrewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
+          built += r.built || 0;
+          BOOT.phase('town', 'building the field ' + built + ' / ' + (built + (r.near || 0)), (built + (r.near || 0)) ? built / (built + (r.near || 0)) : 1);
+          if (r.done) res(); else setTimeout(tick, 0);
+        };
+        tick();
+      });
+    } });
     // the payload: wait for it (15 s at most - a failed fetch leaves cones)
     steps.push({ id: 'trees', label: 'the tree models', w: 4, fn: () => {
       if (!WF || !WF.treeSettled || typeof renderer.compileAsync !== 'function') return;

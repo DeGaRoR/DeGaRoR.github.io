@@ -5190,6 +5190,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // stands (G562) it was in its TDZ when the block ran: a ReferenceError the catch below printed as "the record
   // did not render", and the game drew no premises at all
   const PREM_NEAR = 3000;   // G562: the boot builds the premises within 3 km of the field; the rest streams in
+  // G591 (the 2026-09-26 playtest): WHERE THE AIRCRAFT IS. The roll-out screen builds what lies within PREM_BOOT of the
+  // aeroplane on its stand, in 40 ms slices (app.js 'town' step -> premisesPrewarm), not the origin's 3 km in one
+  // synchronous drain inside the world step; the game then streams by the aircraft's position (worldUpdate ->
+  // premisesR.stream: within its reach, on a 3 ms/frame bank). Only a page with no roll-out screen (the harness: no
+  // compileAsync) still drains the old way at the make.
+  const PREM_BOOT = 4000;
+  const premRenderer = () => renderer, premCamera = () => camera;   // the far town's bake links its programs off the frame (G593)
   if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
     try {
       // the patch wears the ring it lies in, chunk by chunk (patchGrounds, G527): the inner ring's material (its
@@ -5203,9 +5210,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // camera, which is where the player actually is (the CG is the aeroplane)
         eye: () => camera.position,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
+        renderer: premRenderer, camera: premCamera,
       });
       premisesR.rebuild();
-      if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4);   // G562: the rest streams in the game
+      if (typeof renderer.compileAsync !== 'function' || !premisesR.prewarm) { if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4); }   // G562 / G591: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
       if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) refreshGround(pb); }   // refreshGround re-sinks the far tier itself (G527)
     } catch (e) { console.warn('premises: the record did not render', e); }
@@ -5513,7 +5521,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   }
   let premTramLast = 0, premStreamTick = 0;
   function worldUpdate(cg) {
-    if (premisesR && premisesR.stats.queued && (++premStreamTick % 3 === 0 || (premisesR.editing && premisesR.editing()))) premisesR.step(1);   // a live edit's builds, and the far premises streamed in (G562): one every third frame
+    // a live edit's builds one a frame; the premises streamed by the AIRCRAFT's position (G591: it was one item every
+    // third frame from anywhere, parked or not - 18-29 ms a frame of the taxi)
+    if (premisesR && premisesR.stats.queued) { if (typeof window !== 'undefined' && window.PREMISES_HOST_OPEN) premisesR.step(1); else if (premisesR.stream) { if (cg) premisesR.stream(cg[0], cg[2]); } else if (++premStreamTick % 3 === 0) premisesR.step(1); }
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
@@ -5850,10 +5860,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
+    // G591: the roll-out's share of the premises, round the aircraft, in slices (app.js 'town' step)
+    premisesPrewarm: (cg, o) => (premisesR && premisesR.prewarm && premisesR.stats.queued ? premisesR.prewarm(cg[0], cg[2], (o && o.reach) || PREM_BOOT, (o && o.budgetMs) || 40) : { done: true, built: 0, near: 0, queued: premisesR ? premisesR.stats.queued : 0 }),
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         ...patchGrounds(),
-        site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position,
+        site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position, renderer: premRenderer, camera: premCamera,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });
       return premisesR; },
            setShedDims: d => setShedDims(d),

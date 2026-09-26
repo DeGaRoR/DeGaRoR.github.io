@@ -188,7 +188,10 @@ const SETTLED = `(() => new Promise(res => {
   const wu = WORLD.worldUpdate; let worst = 0, n = 0, busy = false;
   const st = () => (window.TREE_FILL && TREE_FILL.stat) ? TREE_FILL.stat() : null;
   const g0 = st() ? st().gens : -1;
-  WORLD.worldUpdate = cg => { const t0 = performance.now(); wu(cg); worst = Math.max(worst, performance.now() - t0); const S = st(); if (S && (S.busy || S.gens !== g0)) busy = true; };
+  // ...nor the premises (G591: they stream by the aircraft's position now - a place held far from the stand fills in
+  // over a few hundred frames; streamState.near = what is still queued within the stream's reach)
+  const pq = () => { const P = WORLD.premises; return P && P.streamState ? P.streamState.near : 0; };
+  WORLD.worldUpdate = cg => { const t0 = performance.now(); wu(cg); worst = Math.max(worst, performance.now() - t0); const S = st(); if (S && (S.busy || S.gens !== g0)) busy = true; if (pq() > 0) busy = true; };
   const tick = () => { if (++n < 60) requestAnimationFrame(tick); else { WORLD.worldUpdate = wu; res(st() ? !busy : worst < 8); } };
   requestAnimationFrame(tick); }))()`;
 
