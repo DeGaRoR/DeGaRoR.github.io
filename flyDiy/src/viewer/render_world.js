@@ -76,6 +76,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
   let setShedDims = () => {};         // HANGARS S1: re-stand the shed at new dims (airfield block)
+  let shellDial = () => null;         // G600: the shed's merge dial (airfield block)
   // W17 tree LOD uniforms, shared by every tree material and refreshed once a
   // frame in worldUpdate. uCam drives the impostor view direction (so it wants
   // the CHASE CAMERA, not the CG); uCG drives the shadow-pass cull, because the
@@ -883,23 +884,56 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // the far map already holds every shadow the world casts, the near map exists for the craft and for what
   // shades the CRAFT (it reads the near map alone: the club hangar over a parked aeroplane); tagging all
   // 3 600 casters drew 218 meshes / 300 k triangles a frame into the near map)
-  let nearTagTick = 0;
+  //
+  // G601 (A1-STAND, playtest 2026-09-26): NO WHOLE-SCENE WALK. The walk above visited every object of the scene
+  // every 30 frames - 67 000 at Jolene's stand with the whole town, 7.5 ms for the bare traverse before a single
+  // bounding sphere was moved, a hitch a second - and a caster made between two walks (a cover block rebuilt, a
+  // house streamed in) was missing from the far map until the next one. Now the scene is WATCHED: three announces
+  // every add and remove (Object3D 'childadded' / 'childremoved', r163+), an object joins the far map the moment it
+  // joins the scene, and the plain meshes are kept in a registry the 30-frame pass reads instead of the scene - a
+  // frozen one (render_premises freezeStatic: its matrixWorld is final) by the sphere cached the first time, the
+  // rest re-posed. And only what can shade the craft is tagged: a caster whose sphere is under NEAR_MIN_R (a post,
+  // a crate, a trim) keeps the far map's shadow - the near map drew 412 meshes / 1.05 M triangles a frame there.
+  const NEAR_MIN_R = 0.75;
+  let nearTagTick = 0, nearReg = null;
   const _nS = THREE.Sphere ? new THREE.Sphere() : null;   // (the headless world test's THREE stub has no Sphere)
-  const nearTag = cg => {
-    if (!sunNear || !_nS || (nearTagTick++ % 30)) return;
-    const NL = SHADOW_NEAR.NEAR_LAYER, R = SHADOW_NEAR.S.half * 3;
-    const FL = SHADOW_NEAR.FAR_LAYER;
-    scene.traverse(o => {
-      if (!o.castShadow || o.userData.craft) return;
-      if (!o.layers.isEnabled(FL)) o.layers.enable(FL);              // every caster into the far map (the trees, the lot)
-      if (!o.isMesh || o.isInstancedMesh || !o.geometry) return;
-      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
-      if (!o.geometry.boundingSphere) return;
-      _nS.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
-      const dx = _nS.center.x - cg[0], dy = _nS.center.y - cg[1], dz = _nS.center.z - cg[2];
-      const near = Math.sqrt(dx * dx + dy * dy + dz * dz) - _nS.radius < R;
-      if (near !== o.layers.isEnabled(NL)) { if (near) o.layers.enable(NL); else o.layers.disable(NL); }
+  const nearWatched = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+  const nearCraftRoot = o => { let c = null; for (let p = o; p; p = p.parent) if (p.userData && p.userData.craft) c = p; return c; };
+  function nearOnAdd(e) { if (e && e.child) nearWatch(e.child); }
+  function nearOnRemove(e) { if (e && e.child && nearReg) e.child.traverse(o => { if (nearReg.has(o)) nearReg.delete(o); }); }
+  function nearWatch(root) {
+    const NL = SHADOW_NEAR.NEAR_LAYER, FL = SHADOW_NEAR.FAR_LAYER;
+    const craft = nearCraftRoot(root);
+    root.traverse(o => {
+      if (!nearWatched.has(o)) { nearWatched.add(o); o.addEventListener('childadded', nearOnAdd); o.addEventListener('childremoved', nearOnRemove); }
+      if (craft) {   // a piece joining the craft after tagCraft: the craft's near layer, the craft's far state (follow() owns it)
+        if (o !== craft) { o.layers.enable(NL); if (craft.layers.isEnabled(FL)) o.layers.enable(FL); else o.layers.disable(FL); }
+        return;
+      }
+      if (o.userData.craft) return;
+      if (!o.layers.isEnabled(FL)) o.layers.enable(FL);              // everything into the far map (it draws the casters among them)
+      if (o.isMesh && !o.isInstancedMesh && !o.isBatchedMesh && o.geometry && !nearReg.has(o)) nearReg.set(o, null);
     });
+  }
+  const nearTag = cg => {
+    if (!sunNear || !_nS || !nearWatched || (nearTagTick++ % 30)) return;
+    if (!nearReg) { nearReg = new Map(); nearWatch(scene); }         // the first pass watches what the boot built; adds and removes after it announce themselves
+    const NL = SHADOW_NEAR.NEAR_LAYER, R = SHADOW_NEAR.S.half * 3;
+    for (const [o, c] of nearReg) {
+      if (o.userData.craft) { nearReg.delete(o); continue; }        // joined before tagCraft marked it: the craft's layers are shadow_near's
+      let s = c;
+      if (!s || o.matrixWorldAutoUpdate || o.matrixAutoUpdate) {    // not frozen (or never seen): posed again
+        const g = o.geometry; if (!g) continue;
+        if (!g.boundingSphere) g.computeBoundingSphere();
+        if (!g.boundingSphere) continue;
+        _nS.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);
+        if (s) { s[0] = _nS.center.x; s[1] = _nS.center.y; s[2] = _nS.center.z; s[3] = _nS.radius; }
+        else nearReg.set(o, s = [_nS.center.x, _nS.center.y, _nS.center.z, _nS.radius]);
+      }
+      const dx = s[0] - cg[0], dy = s[1] - cg[1], dz = s[2] - cg[2];
+      const near = o.castShadow && s[3] >= NEAR_MIN_R && Math.sqrt(dx * dx + dy * dy + dz * dz) - s[3] < R;
+      if (near !== o.layers.isEnabled(NL)) { if (near) o.layers.enable(NL); else o.layers.disable(NL); }
+    }
   };
 
   // ---- THE WORLD'S SWITCHBOARD -------------------------------------------
@@ -4790,6 +4824,86 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // stubbed THREE is a missing building, not a crash, and the smoke gate
     // runs with one (which also leaves shedDims undefined there — the
     // declaration is the fallback, and SITE.hangar is a legal dims object).
+    // mergeShell(group, castMin): a static group's plain meshes merged by (material, attribute layout, casts,
+    // receives, renderOrder) into one mesh each, in the group's own frame (the LOD above it keeps its pose).
+    // A mesh casts only if it did AND its posed box is at least castMin in two of its three extents. What cannot
+    // be merged as is (an instanced, skinned or multi-material mesh, interleaved or morphed buffers, a transparent
+    // piece) is carried across untouched. Returns the new group (the sources' geometries disposed), or null when there was
+    // nothing to merge.
+    // SHELL: the dial (the A/B): merge false = the 278 meshes as built; castMin 0 = every piece casts as before.
+    // WORLD.shell(o) sets it and re-stands the shed at its current dims.
+    const SHELL = { merge: true, castMin: 0.5 };
+    function mergeShell(group, castMin) {
+      if (!THREE.BufferGeometry || !THREE.Box3 || !THREE.Matrix3) return null;
+      group.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(group.matrixWorld).invert(), rel = new THREE.Matrix4(), bx = new THREE.Box3(), sz = new THREE.Vector3();
+      const bins = new Map(), keep = [];
+      let n = 0;
+      group.traverse(o => {
+        if (!o.isMesh) return;
+        const g = o.geometry, m = o.material;
+        let ok = !o.isInstancedMesh && !o.isSkinnedMesh && !o.isBatchedMesh && g && g.attributes.position && !Array.isArray(m) && m &&
+          !m.transparent &&   // a pane stays its own mesh: three sorts transparent draws back to front, a merged pair would not be
+          !(g.morphAttributes && Object.keys(g.morphAttributes).length) &&   // (groups: a single material draws the whole geometry - a box's six are moot)
+          !(g.drawRange && (g.drawRange.start > 0 || g.drawRange.count < (g.index ? g.index.count : g.attributes.position.count)));
+        let vis = true; for (let p = o; p && p !== group; p = p.parent) if (!p.visible) vis = false;
+        if (!vis) { n++; return; }                                   // a hidden piece stays hidden: dropped
+        const names = ok ? Object.keys(g.attributes).sort() : [];
+        if (ok) for (const k of names) if (g.attributes[k].isInterleavedBufferAttribute) ok = false;
+        if (!ok) { keep.push(o); return; }
+        rel.multiplyMatrices(inv, o.matrixWorld);
+        if (!g.boundingBox) g.computeBoundingBox();
+        bx.copy(g.boundingBox).applyMatrix4(rel).getSize(sz);
+        const e = [sz.x, sz.y, sz.z].sort((a, b) => b - a);
+        const cast = o.castShadow && e[1] >= castMin;
+        const key = m.uuid + '|' + names.map(k => k + g.attributes[k].itemSize).join(',') + '|' + (cast ? 1 : 0) + (o.receiveShadow ? 1 : 0) + '|' + o.renderOrder;
+        let b = bins.get(key); if (!b) bins.set(key, b = { m, names, cast, recv: o.receiveShadow, order: o.renderOrder, list: [] });
+        b.list.push({ g, M: rel.clone() }); n++;
+      });
+      if (!n) return null;
+      const out = new THREE.Group(), nm = new THREE.Matrix3();
+      out.name = group.name; out.userData = group.userData;
+      for (const b of bins.values()) {
+        let nV = 0, nI = 0;
+        for (const s of b.list) { const c = s.g.attributes.position.count; nV += c; nI += s.g.index ? s.g.index.count : c; }
+        const arrays = {};
+        for (const k of b.names) arrays[k] = new Float32Array(nV * b.list[0].g.attributes[k].itemSize);
+        const idx = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
+        let vo = 0, io = 0;
+        for (const s of b.list) {
+          const g = s.g, c = g.attributes.position.count, e = s.M.elements;
+          nm.getNormalMatrix(s.M); const q = nm.elements;
+          for (const k of b.names) {
+            const a = g.attributes[k], is = a.itemSize, dst = arrays[k], o0 = vo * is;
+            if (k === 'position') for (let i = 0; i < c; i++) {
+              const x = a.getX(i), y = a.getY(i), z = a.getZ(i), o = o0 + i * 3;
+              dst[o] = e[0] * x + e[4] * y + e[8] * z + e[12]; dst[o + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; dst[o + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+            } else if (k === 'normal') for (let i = 0; i < c; i++) {
+              const x = a.getX(i), y = a.getY(i), z = a.getZ(i), o = o0 + i * 3;
+              const X = q[0] * x + q[3] * y + q[6] * z, Y = q[1] * x + q[4] * y + q[7] * z, Z = q[2] * x + q[5] * y + q[8] * z, l = Math.hypot(X, Y, Z) || 1;
+              dst[o] = X / l; dst[o + 1] = Y / l; dst[o + 2] = Z / l;
+            } else for (let i = 0; i < c; i++) for (let j = 0; j < is; j++) dst[o0 + i * is + j] = a.getComponent(i, j);   // (getComponent: a normalized attribute reads as its float)
+          }
+          // a mirrored piece (negative determinant) keeps its faces outward: its triangles are re-wound
+          const flip = s.M.determinant() < 0;
+          if (g.index) { const ix = g.index; for (let i = 0; i < ix.count; i += 3) { const a0 = ix.getX(i), a1 = ix.getX(i + 1), a2 = ix.getX(i + 2);
+            idx[io + i] = a0 + vo; idx[io + i + 1] = (flip ? a2 : a1) + vo; idx[io + i + 2] = (flip ? a1 : a2) + vo; } io += ix.count; }
+          else { for (let i = 0; i < c; i += 3) { idx[io + i] = vo + i; idx[io + i + 1] = vo + (flip ? i + 2 : i + 1); idx[io + i + 2] = vo + (flip ? i + 1 : i + 2); } io += c; }
+          vo += c;
+          g.dispose();
+        }
+        const geo = new THREE.BufferGeometry();
+        for (const k of b.names) geo.setAttribute(k, new THREE.BufferAttribute(arrays[k], b.list[0].g.attributes[k].itemSize));
+        geo.setIndex(new THREE.BufferAttribute(idx, 1));
+        geo.computeBoundingSphere(); geo.computeBoundingBox();
+        const mesh = new THREE.Mesh(geo, b.m);
+        mesh.castShadow = b.cast; mesh.receiveShadow = b.recv; mesh.renderOrder = b.order;
+        mesh.userData.shellMerged = b.list.length;
+        out.add(mesh);
+      }
+      for (const o of keep) { rel.multiplyMatrices(inv, o.matrixWorld); if (o.parent) o.parent.remove(o); rel.decompose(o.position, o.quaternion, o.scale); out.add(o); }
+      return out;
+    }
     let shedNode = null;
     function standShed(dims) {
       if (!(typeof genHangarBuild === 'function' &&
@@ -4816,6 +4930,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       shed.group.traverse(o => {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
+      // G600 (A1-STAND, playtest 2026-09-26): THE SHELL IS A HANDFUL OF DRAWS. The 278 meshes below were 278
+      // draws in the main pass, 278 more in the near shadow map (every frame: the stand is inside its 90 m) and
+      // again in the far map - at the stand, where the frame was measured. Nothing in the exterior moves (the
+      // doors are shut, nothing is picked), so its meshes are merged by material into the shed's own frame, and
+      // only a piece at least SHELL_CAST_MIN in two dimensions casts (the walls, the roof, the doors; not the
+      // kerbs, the gutters, the downpipes - a texel or two of the far map, a sliver on the near one).
+      const merged = SHELL.merge ? mergeShell(shed.group, SHELL.castMin) : null;
+      if (merged) shed.group = merged;
 
       // AND IT HAS A DISTANCE, because it was measured. The shell is 278
       // meshes and this scene merges and instances nothing, so meshes ARE draw
@@ -4896,7 +5018,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       shedNode = node;
     }
     standShed(shedDims);
-    setShedDims = dims => standShed(dims);
+    let shedDimsNow = shedDims;
+    setShedDims = dims => { shedDimsNow = dims; standShed(dims); };
+    shellDial = o => { Object.assign(SHELL, o || {}); standShed(shedDimsNow); let n = 0; if (shedNode) shedNode.traverse(m => { if (m.isMesh) n++; }); return Object.assign({ meshes: n }, SHELL); };
     if (!ISLAND_SITE) {   // the analytic furniture (G434: the premises draw an island's)
 
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, SITE.windsock.h),
@@ -5881,6 +6005,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });
       return premisesR; },
            setShedDims: d => setShedDims(d),
+           shell: o => shellDial(o),   // G600: { merge, castMin } -> the shed re-stood, its mesh count
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            treeAtlases,   // the impostor sheets by subject, readable (tools/imp_audit.js)
            // the world's own light panel — the same shape the shed exposes, so

@@ -1,0 +1,48 @@
+{
+ "date": "2026-09-26T22:05:32.303Z",
+ "url": "http://localhost:8617/flyDiy/index.html?world=jolene",
+ "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "label": "a1s_shell_ab",
+ "frames": 10,
+ "rows": [
+  {
+   "place": "stand",
+   "probe": "base",
+   "tier": "gfx",
+   "where": {
+    "at": [
+     -135,
+     31,
+     656
+    ]
+   },
+   "frame": {
+    "median": 56.7,
+    "p90": 162.3,
+    "timed": 58.4
+   },
+   "gpuSum": 0,
+   "cpuWorld": 26.24,
+   "calls": 5946,
+   "tris": 34781372,
+   "gpuUtilBefore": 51,
+   "tags": {
+    "shadow:maps": {
+     "median": 2.23,
+     "p90": 3.52,
+     "calls": 18.8
+    }
+   },
+   "post": {
+    "bloomMs": 0.11090775929469372,
+    "lookMs": 0,
+    "raysMs": 0,
+    "aoMs": 0,
+    "eyeMs": 0,
+    "eyeK": 1,
+    "eyeLum": 0,
+    "passes": 1
+   }
+  }
+ ]
+}

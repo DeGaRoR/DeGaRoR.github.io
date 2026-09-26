@@ -301,7 +301,9 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
     let settled = false;
     for (let i = 0; i < 60 && !settled; i++) settled = await ev(SETTLED);
     await snap(place);
-    if (opt('eval', null)) console.log('  eval -> ' + await ev(opt('eval')));
+    // --eval '<js>' or '@file' (A1-STAND G600: tools/rollout_census.js): an expression (a promise is awaited), printed as JSON
+    if (opt('eval', null)) { const e = opt('eval'), src = e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e;
+      console.log('  eval -> ' + await ev('(async () => JSON.stringify(await (' + src + '\n)))()')); }
     for (const probe of PROBES) {
       if (probe.js && probe.js !== '1') { await ev('(()=>{' + probe.js + ';return 1;})()'); await sleep(1500); await ev(SETTLED); }
       for (const tier of TIERS) {

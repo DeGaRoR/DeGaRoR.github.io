@@ -136,7 +136,10 @@ var COVER_RING = (() => {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
     const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.5, batch: true };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
-    const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
+    const cells = new Map();            // cellKey(cx, cz) -> { n, parts, inst, by, cx, cz, box }
+    // G603 (A1-STAND): a cell's key is a NUMBER - update() asked the map for ~290 cells a frame by a fresh 'cx,cz'
+    // string each, and split every live cell's key back into numbers to test its reach
+    const cellKey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
     const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {} };
     let flowerTex = new Map();
@@ -506,7 +509,7 @@ var COVER_RING = (() => {
       const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
       // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
       const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz };   // inst: [batch, id, ...] - the batched instances (G585)   // by: this cell's tally per species (STAT.by is the live sum)
-      cells.set(cx + ',' + cz, cell); markBlock(cx, cz);
+      cells.set(cellKey(cx, cz), cell); markBlock(cx, cz);
       if (!centreMix && !G.lawn) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
       const blotch = F.blotch || 0, blotchM = F.blotchM || 18, spread = F.coverSpread === undefined ? 0.08 : F.coverSpread;
@@ -659,7 +662,7 @@ var COVER_RING = (() => {
       b.instCells = []; b.instVis = null;   // the cells whose batched instances this block switches with its reach (update) - cells, not
                                             // ids: a dropped cell's ids are handed to the next instances made
       for (let dz = 0; dz < B; dz++) for (let dx = 0; dx < B; dx++) {
-        const cell = cells.get((b.bx * B + dx) + ',' + (b.bz * B + dz)); if (!cell) continue;
+        const cell = cells.get(cellKey(b.bx * B + dx, b.bz * B + dz)); if (!cell) continue;
         live++;
         if (cell.inst.length) b.instCells.push(cell);
         if (cell.box) { const c = cell.box; box = box ? [Math.min(box[0], c[0]), Math.min(box[1], c[1]), Math.min(box[2], c[2]), Math.max(box[3], c[3]), Math.max(box[4], c[4]), Math.max(box[5], c[5])] : c.slice(); }
@@ -672,7 +675,10 @@ var COVER_RING = (() => {
                                    Math.hypot(box[3] - box[0], box[4] - box[1], box[5] - box[2]) / 2 + 8);
       for (const [part, list] of parts) {
         let n = 0; for (const d of list) n += d.n; if (!n) continue;
-        const m = new THREE.InstancedMesh(part.geo, part.mat, n);
+        // (made EMPTY and given its buffer: three's constructor writes an identity matrix into every instance, all of
+        // them overwritten on the next line - most of a rebuilt block's cost at the stand's 66 000 tufts; G603)
+        const m = new THREE.InstancedMesh(part.geo, part.mat, 0);
+        m.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(n * 16), 16); m.count = n;
         const hasCol = list.some(d => d.col), col = hasCol ? new Float32Array(n * 3).fill(1) : null, rand = new Float32Array(n);
         let o = 0;
         for (const d of list) { m.instanceMatrix.array.set(d.mats, o * 16); if (d.col) col.set(d.col, o * 3); rand.set(d.rand, o); o += d.n; }
@@ -710,12 +716,12 @@ var COVER_RING = (() => {
         const cx = cx0 + dx, cz = cz0 + dz;
         const mx = (cx + 0.5) * C - ex, mz = (cz + 0.5) * C - ez, d2 = mx * mx + mz * mz;
         if (d2 > R2) continue;
-        if (!cells.has(cx + ',' + cz)) queue.push([d2, cx, cz]);
+        if (!cells.has(cellKey(cx, cz))) queue.push([d2, cx, cz]);
       }
       queue.sort((a, b) => a[0] - b[0]);
       const t0 = performance.now();
       while (queue.length && performance.now() - t0 < S.budgetMs && cells.size < S.maxCells) { const [, cx, cz] = queue.shift(); buildCell(cx, cz); }
-      for (const [k, cell] of cells) { const [cx, cz] = k.split(',').map(Number); const mx = (cx + 0.5) * C - ex, mz = (cz + 0.5) * C - ez; if (mx * mx + mz * mz > Rdrop) dropCell(k); }
+      for (const [k, cell] of cells) { const mx = (cell.cx + 0.5) * C - ex, mz = (cell.cz + 0.5) * C - ez; if (mx * mx + mz * mz > Rdrop) dropCell(k); }
       // A CELL PAST THE REACH DRAWS NOTHING (PERF 2026-09-23): the fade collapses every instance whose
       // 3D distance to the eye is past `reach` (trees.js FADE_VS), so a cell whose NEAREST point is past
       // it is only vertex work, a draw and a shadow draw - in flight most of the ring (at 120 m AGL the

@@ -797,6 +797,15 @@ const M = {
     transparent: true, opacity: 0.30, depthWrite: false }),
   daylight: new THREE.MeshBasicMaterial({ color: 0xf2ecdc, side: THREE.FrontSide }),
 };
+// G604 (A1-STAND, playtest 2026-09-26): THE EXTERIOR'S GLASS TRANSMITS NOTHING. `transmission` above is not a
+// property of one pane: while ANY transmissive mesh is in view, three (r186) draws every opaque object of the
+// scene a second time, into the transmission target, before the transparent pass - in the world scene that is
+// the whole field, town and forest (the shed's own 200 meshes cost 400 draws at the stand, measured). Out there
+// the band is a pane seen from outside over a dark interior, so it is glass by opacity and reflection: the same
+// finish and envMap, a darker colour and a lower opacity standing in for the transmitted share (compared from four
+// fixed eyes against the transmissive pane: the same read, a hair darker).
+if (EXT) M.glass = new THREE.MeshStandardMaterial({ color: 0x56626c, roughness: 0.06, metalness: 0,
+  transparent: true, opacity: 0.3, envMapIntensity: 1.4, side: THREE.DoubleSide });
 // the slab is the biggest single thing the probe sees under itself
 ground(M.floor);
 // DEDICATED PART MATERIALS (G41, user: assign materials to parts of the

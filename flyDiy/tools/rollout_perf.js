@@ -85,6 +85,10 @@ if (VARIANT === 'nopremises') q.push('premises=none');
 if (opt('q', null)) q.push(opt('q'));
 // --shot <s>[,<s>...]: PNG captures that many seconds after the reveal (tools/perf/rollout_<label>_<s>s.png)
 const SHOTS = (opt('shot', '') || '').split(',').filter(Boolean).map(Number);
+// --profile-live <at>,<secs>: a CPU profile window of the live game (below); --eval '<js>': an expression evaluated in the page at the end of the
+// recording (a census: renderer.info, a module's stats), its value printed and kept in the JSON
+const PROFILE_LIVE = opt('profile-live', null);
+const EVAL = (e => e && e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e)(opt('eval', null));   // '@tools/rollout_census.js': from a file
 if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
 
 // ---- what the page is given before its first script --------------------------
@@ -242,6 +246,18 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const every = 10;
   const shots = [];
   const tRec = Date.now();
+  // --profile-live <at>,<secs> (A1-STAND G600): a V8 CPU profile of the live game from <at> s after the reveal for <secs> s -
+  // self time by function and by script (three's minified internals read as `three.min.js`), written beside the JSON
+  // as <label>_live.cpuprofile (DevTools opens it). The sampler costs a little: read the frame numbers from a run without it.
+  let profDone = Promise.resolve(null);
+  if (PROFILE_LIVE) profDone = (async () => {
+    const [pAt, pSecs] = PROFILE_LIVE.split(',').map(Number);
+    await sleep(Math.max(0, pAt * 1000 - (Date.now() - tRec)));
+    await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 250 });
+    await cmd('Profiler.start'); await sleep((pSecs || 10) * 1000);
+    const r = await cmd('Profiler.stop');
+    return r.result && r.result.profile;
+  })();
   for (const at of SHOTS) {
     const wait = at * 1000 - (Date.now() - tRec); if (wait > 0) await sleep(wait);
     const r = await cmd('Page.captureScreenshot', { format: 'png' });
@@ -256,6 +272,29 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   }
   let premStream = null;
   if (flag('progwatch')) { const pw = JSON.parse(await ev("(() => { const who = new Map(); try { WORLD.scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) { const p = WORLD.renderer.properties.get(m).currentProgram; if (p && !who.has(p)) who.set(p, (o.name || o.type) + '/' + (m.name || m.type) + (m.userData && Object.keys(m.userData).length ? '{' + Object.keys(m.userData).slice(0, 4).join(',') + '}' : '')); } }); } catch (e) {} for (const [pr, e] of (window.__PW || new Map())) e.who = who.get(pr) || ''; return 1; })() && JSON.stringify([...(window.__PW || new Map()).values()].map(e => [e.n, e.k, Math.round(e.t0), e.t1 == null ? -1 : Math.round(e.t1 - e.t0), e.who || '']))", 20000)); pw.sort((a, b) => b[3] - a[3]); console.log('  programs: ' + pw.length + ', slowest links (name, key length, seen at ms, ms to ready):\n' + pw.slice(0, 30).map(x => '    ' + x.join('  ')).join('\n')); }
+  const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', 60000).catch(e => 'error: ' + e.message) : null;
+  if (EVAL) console.log('  eval: ' + evalOut);
+  const prof = await profDone;
+  let profTop = null;
+  if (prof) {
+    // self time per node = its samples x the mean interval; aggregated by function (name + script + line) and by script
+    const dtUs = (prof.endTime - prof.startTime) / Math.max(1, prof.samples.length);
+    const hits = new Map(); for (const s of prof.samples) hits.set(s, (hits.get(s) || 0) + 1);
+    const byFn = new Map(), byUrl = new Map(); let tot = 0;
+    for (const n of prof.nodes) {
+      const h = hits.get(n.id) || 0; if (!h) continue;
+      const cf = n.callFrame, url = (cf.url || '').split('/').pop().split('?')[0] || '(' + (cf.functionName || 'native') + ')';
+      const k = (cf.functionName || '(anon)') + ' ' + url + ':' + (cf.lineNumber + 1);
+      byFn.set(k, (byFn.get(k) || 0) + h); byUrl.set(url, (byUrl.get(url) || 0) + h); tot += h;
+    }
+    const ms = h => +(h * dtUs / 1000).toFixed(1), secs = (prof.endTime - prof.startTime) / 1e6;
+    const fnTop = [...byFn].sort((a, b) => b[1] - a[1]).slice(0, 45), urlTop = [...byUrl].sort((a, b) => b[1] - a[1]).slice(0, 12);
+    console.log('  profile ' + secs.toFixed(1) + ' s, ' + prof.samples.length + ' samples · by script (ms/s): ' + urlTop.map(([u, h]) => u + ' ' + (ms(h) / secs).toFixed(1)).join(' · '));
+    for (const [k, h] of fnTop) console.log('    ' + String((ms(h) / secs).toFixed(2)).padStart(7) + ' ms/s  ' + k);
+    profTop = { secs, byUrl: urlTop.map(([u, h]) => [u, ms(h)]), byFn: fnTop.map(([k, h]) => [k, ms(h)]) };
+    fs.mkdirSync(path.dirname(OUT), { recursive: true });
+    fs.writeFileSync(OUT.replace(/\.json$/, '_live.cpuprofile'), JSON.stringify(prof));
+  }
   const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt })', 60000));
   const bootLog = await ev('JSON.stringify(window.BOOT && BOOT.log ? BOOT.log : null)').catch(() => null);
   // the premises stream's own account (G591: its dials, the slow builds [id, ms])
@@ -306,7 +345,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
-    tGarage, tReveal, premEmptyAt, phases, gates, longTasks: R.lt, shots, premStream, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    tGarage, tReveal, premEmptyAt, phases, gates, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));
