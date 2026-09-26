@@ -18,6 +18,17 @@
 //      an immediate setTimeout); fail() lists what never landed and lifts
 //   7  show('rollout') re-arms everything for a second set
 //   8  img() dedupes a shared Image and answers a broken one as failed
+//   G640 (the measured bar and the carousel, with the real boot_cards.js):
+//   9  the deck opens on the set's NOW card, next / prev by hand wrap, a
+//      picture item crossfades its figure, fetches the NEXT picture's data-src
+//      and the place is kept in localStorage; the cards are well-formed
+//  10  the bar never goes back - over a run whose step reports a falling
+//      count, a sub() count, the landing and the lift (full at the end)
+//  11  the weights are MEASURED: a run's step ms are kept, a second run of
+//      the same list weighs its steps by them; the words say what the step is,
+//      the compile's cold / warm by the shaders' own key
+//  12  a settings screen takes the pictures of the scene it covers and opens
+//      on its own NOW card
 // Prints GATE BOOT: PASS|FAIL, exits non-zero on FAIL.
 'use strict';
 const fs = require('fs'), vm = require('vm'), path = require('path');
@@ -30,10 +41,13 @@ function el(id) {
                  contains: x => set.has(x), toString: () => [...set].join(' ') },
     setAttribute(k, v) { this['@' + k] = v; }, getAttribute(k) { return this['@' + k]; },
     addEventListener(k, f) { (this.ev = this.ev || {})[k] = f; },
-    get firstElementChild() { return this.children[0] || null; } };
+    get firstElementChild() { return this.children[0] || null; },
+    get lastElementChild() { return this.children[this.children.length - 1] || null; } };
 }
 const KNOWN = ['boot', 'bootShots', 'bootVeil', 'bootPanel', 'bootBrand', 'bootPhase', 'bootBar', 'bootTick', 'bootNote', 'bootSkip',
-  'bootShader', 'bootShaderHead', 'bootShaderText', 'bootShaderBar', 'bootShaderN'];   // G567: the cold compile's block
+  'bootShader', 'bootShaderHead', 'bootShaderText', 'bootShaderBar', 'bootShaderN',   // G567: the cold compile's block
+  'bootWhy', 'bootMeter', 'bootPct', 'bootCard', 'bootCardKind', 'bootCardTitle', 'bootCardText', 'bootCardFoot',
+  'bootCardPrev', 'bootCardNext', 'bootCardN', 'bootCardTime'];   // G640: the words, the per cent, the carousel
 const els = {};
 let timers = 0, maxDepth = 0, depth = 0;
 const errs = [];
@@ -45,14 +59,25 @@ const sandbox = {
   clearTimeout() {},
   performance: { now: () => sandbox.__t },
   __t: 0,
+  // G640: the measured weights and the deck's place live here
+  localStorage: (() => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k), _m: m }; })(),
+  FLYDIY_BUILD: 'testbuild',
 };
 sandbox.window = sandbox;
 // the bar's fill and two figures of each set, as build.js writes them
 els.bootBar = el('bootBar'); els.bootBar.children = [el('fill')];
 els.bootShaderBar = el('bootShaderBar'); els.bootShaderBar.children = [el('fill')];
 els.bootShots = el('bootShots');
-for (const set of ['garage', 'garage', 'rollout', 'rollout']) { const f = el('fig'); f.setAttribute('data-set', set); els.bootShots.children.push(f); }
+// (G640: each with its image - the first eager, the rest data-src as build.js writes them - and its caption)
+['garage', 'garage', 'rollout', 'rollout'].forEach((set, i) => {
+  const f = el('fig' + i); f.setAttribute('data-set', set); f.setAttribute('data-txt', 'txt ' + i);
+  const im = el('img' + i); im.complete = true; im.setAttribute(i === 0 ? 'src' : 'data-src', 'shot' + i + '.jpg');
+  const cap = el('cap' + i); cap.textContent = 'caption ' + i;
+  f.children = [im, cap]; els.bootShots.children.push(f);
+});
 vm.createContext(sandbox);
+const cardsSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'boot_cards.js'), 'utf8');
+vm.runInContext(cardsSrc, sandbox, { filename: 'boot_cards.js' });   // the same block as the page: the cards ahead of boot.js
 vm.runInContext(src, sandbox, { filename: 'boot.js' });
 const B = sandbox.BOOT;
 const fail = m => { console.log('  FAIL: ' + m); console.log('GATE BOOT: FAIL'); process.exit(1); };
@@ -60,6 +85,8 @@ const ok = m => console.log('  ok: ' + m);
 if (!B || typeof B.run !== 'function') fail('window.BOOT not defined');
 if (!B.hasUI) fail('the stub DOM was not recognised as the overlay');
 if (!els.bootShots.children[0].classList.contains('on')) fail('the first picture is not on at eval');
+// G640: at eval only the page's one eager picture is fetched - the garage deck fetches one garage picture ahead, never the roll-out's
+if (els.bootShots.children.slice(2).some(f => f.children[0].getAttribute('src'))) fail('a roll-out picture was fetched by the garage boot');
 ok('BOOT defined, first picture on, a phase set: ' + els.bootPhase.textContent);
 
 // ---- 1: the chain -------------------------------------------------------
@@ -96,7 +123,8 @@ if (!els.boot.classList.contains('gone')) fail('#boot has no .gone');
 if (!els.boot.hidden) fail('#boot not hidden after the fade timer');
 if (doneRan !== 1) fail('done() ran ' + doneRan + ' times');
 if (!B.log.some(e => e.k === 'landed' && e.ok === false)) fail('the failed landing is not in the log');
-ok('required keys gate the lift, optional (trees) and never-expected (skin) do not; a failed landing balances; three quiet frames');
+if (els.bootShots.children[2].children[0].getAttribute('src') !== 'shot2.jpg') fail('the garage lift did not fetch the roll-out\'s first picture ahead');
+ok('required keys gate the lift, optional (trees) and never-expected (skin) do not; a failed landing balances; three quiet frames; the roll-out\'s first picture fetched at the lift');
 
 // ---- 5: the promise ------------------------------------------------------
 let resolved = false;
@@ -152,8 +180,146 @@ B.shaders(1, 2, false); B.hide();
 if (!els.bootShader.hidden) fail('hide() left the shaders block up');
 ok('the shaders block: count and bar, warm/cold words, pending re-arms the watchdog, hidden on null and on hide');
 
+// ---- G640 --------------------------------------------------------------
+const CARDS = sandbox.BOOT_CARDS;
+const KINDS = ['now', 'island', 'game', 'fly', 'garage'];
+{
+  if (!Array.isArray(CARDS) || CARDS.length < 40) fail('BOOT_CARDS has ' + (CARDS && CARDS.length) + ' cards (40+ wanted)');
+  const bad = CARDS.filter(c => !KINDS.includes(c.k) || !c.t || !c.x || (c.t + c.x).length > 260
+    || (c.k === 'now' && !['garage', 'rollin', 'rollout', 'settings'].includes(c.set))
+    || (c.k !== 'now' && c.set && !['garage', 'rollout', 'any'].includes(c.set)) || (c.when && c.when !== 'cold'));
+  if (bad.length) fail('malformed cards: ' + bad.map(c => c.t).join(' | '));
+  const kinds = KINDS.map(k => CARDS.filter(c => c.k === k).length);
+  if (kinds.some(n => n < 4)) fail('each kind wants 4+ cards: ' + KINDS.map((k, i) => k + ' ' + kinds[i]).join(', '));
+  ok(CARDS.length + ' cards well-formed (' + KINDS.map((k, i) => k + ' ' + kinds[i]).join(', ') + ')');
+}
+// ---- 9: the deck ----------------------------------------------------------
+sandbox.localStorage._m.clear();
+B.show('garage', { deck: 'garage' });
+{
+  const first = CARDS.find(c => c.k === 'now' && c.set === 'garage');
+  if (els.bootCard.hidden) fail('the carousel is hidden');
+  if (els.bootCardTitle.textContent !== first.t) fail('the garage deck opens on "' + els.bootCardTitle.textContent + '", not its NOW card');
+  if (!els.bootShots.children[0].classList.contains('on')) fail('the garage deck has no picture behind its first card');
+  const n = B._deck.length;
+  if (!/^1 \/ \d+$/.test(els.bootCardN.textContent) || n < 20) fail('the deck reads ' + els.bootCardN.textContent);
+  if (B._deck.some(it => it.card && it.card.set === 'rollout')) fail('a roll-out card in the garage deck');
+  els.bootCardPrev.ev.click();
+  if (B._deckI !== n - 1) fail('prev from the first card did not wrap to the last (' + B._deckI + ')');
+  els.bootCardNext.ev.click();
+  if (B._deckI !== 0) fail('next did not come back to the first');
+  // the first picture item: its figure on, its caption the title; the NEXT picture's image fetched
+  const pi = B._deck.findIndex(it => it.pic);
+  while (B._deckI !== pi) B.card(1);
+  const it = B._deck[pi], fi = els.bootShots.children.indexOf(it.pic);
+  if (!it.pic.classList.contains('on')) fail('the picture item did not turn its figure on');
+  if (els.bootCardTitle.textContent !== 'caption ' + fi || els.bootCardText.textContent !== 'txt ' + fi) fail('the picture card reads ' + els.bootCardTitle.textContent + ' / ' + els.bootCardText.textContent);
+  const nx = B._deck.slice(pi + 1).concat(B._deck.slice(0, pi)).find(x => x.pic);
+  if (nx && nx.pic.children[0].getAttribute('src') !== nx.pic.children[0].getAttribute('data-src')) fail('the next picture was not fetched one turn ahead');
+  const st = JSON.parse(sandbox.localStorage.getItem('flydiy.boot.deck') || '{}');
+  if (!st.garage || !(st.garage.c > 0) || !(st.garage.p > 0)) fail('the deck place was not kept: ' + JSON.stringify(st));
+  // a second deal starts past what was read
+  const firstPool = B._deck.find(x => x.card && x.card.k !== 'now');
+  B.show('garage', { deck: 'garage' });
+  const again = B._deck.find(x => x.card && x.card.k !== 'now');
+  if (again.card === firstPool.card) fail('a second load dealt the same first card');
+  ok('the deck: NOW card first, prev/next wrap, a picture item crossfades and fetches the next one, the place kept (' + n + ' items)');
+}
+// ---- 10 + 11: the bar and the weights ---------------------------------------
+{
+  const fill = els.bootBar.children[0];
+  const shownAt = () => B._anim.from + (B._anim.to - B._anim.from) * (B._anim.dur > 0 ? Math.min(1, Math.max(0, (sandbox.__t - B._anim.t0) / B._anim.dur)) : 1);
+  let last = -1, backs = 0, samples = 0;
+  const probe = () => { const v = shownAt(); if (v < last - 1e-6) { backs++; if (process.env.DBG) console.log("back", sandbox.__t, v, last, JSON.stringify(B._anim)); } last = Math.max(last, v); samples++;
+    const m = /scaleX\(([\d.]+)\)/.exec(fill.style.transform || ''); if (!m) fail('the fill has no scaleX: ' + fill.style.transform); if (+m[1] < v - 1e-4) backs++; };   // (the style carries 4 decimals)
+  const adv = ms => { for (let i = 0; i < ms; i += 50) { sandbox.__t += 50; B.frame(); probe(); } };
+  B.show('rollout', {});
+  const list = [
+    { id: 'world', label: 'world', w: 20, fn: () => { adv(3000); } },
+    { id: 'ring', label: 'ring', w: 30, fn: () => { B.phase('ring', 'ring 5/10', 0.5); probe(); adv(400); B.phase('ring', 'ring 5/40', 0.125); probe(); adv(400); } },
+    { id: 'compile', label: 'compile', w: 20, fn: () => { B.sub(0.3); probe(); adv(500); B.sub(0.9); probe(); adv(200); } },
+  ];
+  sandbox.localStorage.removeItem('flydiy.shaders.warm:world');
+  B.run(list, { set: 'rollout', require: ['fill'], quietFrames: 1 });
+  if (B.state !== 'landing') fail('the measured run did not reach landing');
+  B.expect('fill', 2); adv(300); B.landed('fill'); adv(300); B.landed('fill');
+  if (els.bootWhy.textContent === '') fail('no words for the landing');
+  adv(100);
+  if (B.state !== 'gone') fail('the measured run did not lift (' + B.state + ')');
+  if (backs) fail('the bar went back ' + backs + ' times in ' + samples + ' samples');
+  if (!/scaleX\(1\.0000\)/.test(fill.style.transform) || els.bootPct.textContent !== '100 %') fail('the bar is not full at the lift: ' + fill.style.transform + ' ' + els.bootPct.textContent);
+  ok('the bar never went back over ' + samples + ' samples (a falling ring count, sub(), the landing), full at the lift');
+  const h = JSON.parse(sandbox.localStorage.getItem('flydiy.boot.ms') || '{}'), rowK = 'rollout:world:3', r = h[rowK];
+  if (!r || !(r.world >= 2900 && r.world <= 3100) || !(r.ring > 700) || !(r['compile:cold'] > 600) || r.compile || !(r._landing > 0)) fail('the step ms were not kept (a cold compile is its own row): ' + JSON.stringify(h));
+  B.show('rollout', {});
+  let whyCompile = '';
+  const list2 = list.map(s => Object.assign({}, s, { fn: s.id === 'compile' ? () => { whyCompile = els.bootWhy.textContent; } : () => {} }));
+  B.run(list2, { set: 'rollout', require: [] });
+  const want = r.world + r.ring + r['compile:cold'];
+  if (!(Math.abs(B.weights - want) <= 1)) fail('the second run weighs ' + B.weights + ', the kept ms sum to ' + want);
+  if (!/first visit only/.test(whyCompile)) fail('the cold compile reads: ' + whyCompile);
+  B.frame(); B.frame();
+  sandbox.localStorage.setItem('flydiy.shaders.warm:world', 'testbuild');
+  B.show('rollout', {});
+  B.run(list2, { set: 'rollout', require: [] });
+  if (/first visit only/.test(whyCompile) || !whyCompile) fail('the warm compile reads: ' + whyCompile);
+  // warm, the compile has no row yet: its `w` x 150 ms x the machine's pace, not the cold one's row
+  const pace = JSON.parse(sandbox.localStorage.getItem('flydiy.boot.ms'))._pace;
+  if (!(pace >= 0.3 && pace <= 10)) fail('no pace was kept: ' + pace);
+  if (!(Math.abs(B.weights - (r.world + r.ring + 20 * 150 * pace)) <= 1)) fail('the warm run weighs ' + B.weights + ' (the cold compile\'s row leaked into it?)');
+  B.frame(); B.frame();
+  if (maxDepth > 20) fail('timer recursion depth ' + maxDepth);
+  ok('the weights are the kept ms (' + Math.round(want) + ' ms for the list), the words cold then warm');
+}
+// ---- 12: the settings screen ----------------------------------------------
+{
+  B.show('settings', { shots: 'rollout' });
+  const now = CARDS.find(c => c.k === 'now' && c.set === 'settings');
+  if (els.bootCardTitle.textContent !== now.t) fail('the settings deck opens on ' + els.bootCardTitle.textContent);
+  const on = els.bootShots.children.filter(f => f.classList.contains('on'));
+  if (on.length !== 1 || on[0].getAttribute('data-set') !== 'rollout') fail('the settings screen shows ' + on.map(f => f.getAttribute('data-set')).join(','));
+  if (!on[0].children[0].getAttribute('src')) fail('the settings screen\'s picture was never fetched');
+  B.hide();
+  // the procedural world is no island: its roll-out deals no island card and its words say "the world"
+  B.show('rollout', {});
+  const isl = B._deck.filter(it => it.card && it.card.k === 'island').length;
+  sandbox.FLYDIY_WORLD = 'none';
+  B.show('rollout', {});
+  if (!isl || B._deck.some(it => it.card && it.card.k === 'island')) fail('the island cards (' + isl + ') ride the procedural world\'s roll-out');
+  let wordsW = '';
+  B.run([{ id: 'world', label: 'world', w: 1, fn: () => { wordsW = els.bootWhy.textContent; } }], { set: 'rollout', require: [] });
+  if (/island/.test(wordsW) || !/the world/.test(wordsW)) fail('the procedural world\'s words: ' + wordsW);
+  delete sandbox.FLYDIY_WORLD; B.hide();
+  ok('a settings screen over the world wears the world\'s pictures and its own NOW card; the procedural world deals no island card');
+}
+
+// ---- 13: a lifted screen's chain does not run a newer screen's -------------
+let release = null, newRan = 0;
+{
+  // (first: a lifted run's chain finishes QUIETLY - no second 'landing', no second done(); a thenable
+  // resolved by hand keeps the harness synchronous)
+  let done0 = 0; const th = { then(res) { this.res = res; } };
+  B.show('rollout', {});
+  B.run([{ id: 'upload', label: 'upload', w: 1, fn: () => th }], { set: 'rollout', require: [], done: () => done0++ });
+  B.fail('hard timeout');
+  th.res();
+  if (B.state !== 'gone' || done0 !== 1 || B.busy()) fail('a lifted run\'s chain came back: state ' + B.state + ', done() ran ' + done0 + ' times, busy ' + B.busy());
+  ok('a run the watchdog lifted finishes its chain quietly (one done(), still gone, not busy)');
+}
+{
+  B.show('rollout', {});
+  B.run([{ id: 'upload', label: 'upload', w: 1, fn: () => new Promise(r => { release = r; }) }, { id: 'frames', label: 'frames', w: 1, fn: () => {} }], { set: 'rollout', require: [] });
+  B.fail('hard timeout');                                    // the watchdog lifts it; its chain is still in 'upload'
+  if (!B.busy()) fail('busy() does not see the lifted chain');
+  B.show('settings', { shots: 'rollout', steps: [{ id: 'compile', label: 'the new settings', w: 1, fn: () => { newRan++; return new Promise(() => {}); } }] });
+  B.phase('upload', 'uploading the textures 85 / 145', 0.6);   // the old step still ticking
+  if (/uploading/.test(els.bootPhase.textContent)) fail('the old step\'s count shows on the new screen: ' + els.bootPhase.textContent);
+  release(); }
 setTimeout(() => {}, 0);
-Promise.resolve().then(() => {
+Promise.resolve().then(() => Promise.resolve()).then(() => {
+  if (B.stepI !== 1 || B.doneW !== 0 || !B.current || B.current.id !== 'compile' || newRan !== 1) fail('the old chain advanced the new one (step ' + B.stepI + ', done ' + B.doneW + ', at ' + (B.current && B.current.id) + ', ran ' + newRan + ')');
+  B.hide();
+  ok('a lifted screen\'s chain finishing under a newer one neither advances it nor speaks on it');
   if (!resolved) fail('whenReady() did not resolve');
   console.log('GATE BOOT: PASS');
 });

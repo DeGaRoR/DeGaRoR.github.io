@@ -277,6 +277,9 @@ const MANIFEST = {
     // the baker's manifest (tools/shots_prep.py) of the pictures it rotates,
     // spliced into the SHOTS slot as <figure>s
     boot: 'boot.js',
+    // G640: the carousel's cards (window.BOOT_CARDS, data only) ride in the
+    // SAME inline block, ahead of boot.js (a second tag in dev.html)
+    bootCards: 'boot_cards.js',
     shots: 'shots_pack.json',
     // the LAST entry fills the APP slot; everything before it fills RENDER
     // hangar.js before app.js: app.js asks whether the room can be built at all
@@ -576,14 +579,25 @@ function buildViewer(coreBody) {
   syntaxCheck(V.boot, bootJs);
   const shotsPath = path.join(VIEW_DIR, V.shots);
   const shots = fs.existsSync(shotsPath) ? JSON.parse(read(shotsPath)) : [];
+  // G640: ONE picture per page load is fetched with the page - the garage's
+  // first, the one the overlay opens on; every other figure carries data-src
+  // and boot.js fetches it one turn ahead of its showing (the roll-out's
+  // pictures when the roll-out screen opens). An <img src> under display:none
+  // is still fetched: all nine pictures used to race the boot's own bytes.
+  const esc = t => String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   const figures = shots.map((r, i) => {
     const set = r.set === 'world' ? 'rollout' : 'garage';
-    return `<figure class="bs" data-set="${set}"><img src="${r.src}" alt="" decoding="async"${i === 0 ? ' fetchpriority="high"' : ''}><figcaption>${r.cap || ''}</figcaption></figure>`;
+    const img = i === 0 ? `src="${r.src}" fetchpriority="high"` : `data-src="${r.src}"`;
+    return `<figure class="bs" data-set="${set}"${r.txt ? ` data-txt="${esc(r.txt)}"` : ''}><img ${img} alt="" decoding="async"><figcaption>${esc(r.cap)}</figcaption></figure>`;
   }).join('\n');
   let bodyHtml = read(path.join(VIEW_DIR, V.body));
   bodyHtml = fill(bodyHtml, 'SHOTS', figures);
-  const bodyArt = fill(bodyHtml, 'BOOT', `<script>\n${bootJs}</script>`);
-  const bodyDev = fill(bodyHtml, 'BOOT', `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`);
+  const cardsPath = path.join(VIEW_DIR, V.bootCards);
+  const cardsJs = fs.existsSync(cardsPath) ? read(cardsPath) : '';
+  if (cardsJs) syntaxCheck(V.bootCards, cardsJs);
+  const bodyArt = fill(bodyHtml, 'BOOT', `<script>\n${cardsJs}\n${bootJs}</script>`);
+  const bodyDev = fill(bodyHtml, 'BOOT', (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
+    + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`);
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));
   const editor = MANIFEST.editor.map(f => read(path.join(__dirname, f)));
