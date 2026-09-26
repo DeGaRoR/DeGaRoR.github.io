@@ -59777,3 +59777,85 @@ whether the auto cap latched to 30 once (A1-STAND saw 60 vs 30 at equal cost) - 
   (parked.js - A4-FREEZE); the world step's 3.9 s (A4-FREEZE); the solver (11 ms stock, p90 70 ms alu) and the auto
   cap's recovery (A1-PHYS); flying toward a far site, a 100-200 ms house is one long frame every 1-2 s while it
   streams (§2.4: cooked premises / a worker). With ?town=1 Metlakatla streams at 3 ms a frame: minutes to fill in.
+
+## G610-G615 - THE JOLENE PLAYTEST'S GROUND FRAME: the metal box flies 120, the ground under the wheels, the step debt, the linkage, the premises' queries, auto recovers (2026-09-26)
+
+The playtest (Jolene, the user's aluminium Cessna 172): FPS "unacceptable" at the stand, the roll-out and the taxi,
+"much better as soon as we're off the ground". Measured first: after G572-G580 the composed-ground reads were 4 %
+of the metal Cessna's solver on the taxi and 11 % of the stock build's - the metal build's multiplier was its 200
+substeps, and on a rich day the wind's surface-layer ground reads were a third of the solver.
+G610 THE FLIGHT BOX (the audit's "next chantier"). The user: "I'm OK with it, but I don't want to fake the test. Let
+the test test the actual wing." genSubsteps (62_gen_aero) = genSubstepsTrue (the old rule + G580, unchanged: the TRUE
+step) then genFlightBox: where the true step is over GEN_BOX_N = 120, every WING spring (cls 'wing') past omega dt
+0.45 at a softer step is cut to it with its damper by the same sqrt (damping ratio kept - it is the box's dampers that
+break the network first), taken only if the network holds <= 3.0 (genNetEig, G580's margin) and no spring flies
+under x0.25 (GEN_BOX_KMIN); the smallest such step >= 120 and >= every non-wing spring's own need. Beams keep
+kTrue / cTrue; params carry substeps + substepsTrue. THE ACTUAL WING: sim.trueBox() (30_solver) restores every true k
+and c and the true step until the next reset() (a reset is the aeroplane as it flies: the garage's sandbag test runs
+on the game's own sim, the roll-out's fullReset gives the box back); makeLoadTest calls it on the sim it is handed -
+the user's two metal Cessnas' sandbag tests end in the SAME BITS as on HEAD (flown on the soft box they would have
+read the tip 36 % bendier: 1.60 % of semispan at limit against the actual 1.17 %); GATE FLEX calls it after every
+reset; in flight a softened beam's strain is reported against its true k (sK = k / kTrue: the force over the true
+stiffness), so the strain frame and 'peak strain' read the actual wing; genTrueBox(def) for a reader that builds its
+own sim. 13 of 38 builds fly a box (742 substeps saved): the user's metal Cessnas and the c172 200 -> 120-121,
+tigermoth 200 -> 120, jodel 185 -> 120, rv / motorglider / ttail / vtail / skymaster / p38 / radial / etrainer / da62
+134-179, sesqui 147 -> 120. NOT the Cessna on floats: its float keel's dampers break the margin at 200 already (3.61;
+5.67 at 120) - the float keel's step, a chantier of its own. The metal Cessna's 150 s circuit (analytic world): the
+same phases to 3 frames, cg 3.5 m apart after 150 s, solver -36 %. THE WING-BEND DELTA IN CRUISE (the level downwind
+leg, the tips' mean, physics_perf --tip now per phase): 18.0 mm [17.2..19.0] true -> 21.1 mm [20.1..22.2] flown,
++3.1 mm (0.33 -> 0.38 % of the 5.5 m semispan); parked -5.9 -> -6.8 mm. GATE SUBSTEP re-cut honestly: every G580
+rule on the TRUE box (the old rule on kTrue, the damper cuts, the true network); the flight box asserted on its own
+(fewer than the true, never under 120, only wing springs, none under x0.25, every softened damper at or under its
+ratio, the flight network <= 3.0 at 4 000 passes, trueBox() returns the true k, c and step).
+G611 THE GROUND UNDER THE WHEELS. (1) The ceiling over the pad (27_premises hMaxRect, bit-identical): at the stand
+the ceiling sat at the raw DEM's 30.99 m over the pad's 30.60, so the belly's 13 nodes sampled every substep; the
+bound now runs in the order a point applies the modifiers (M.ord) and a flatten / slope pad / shelf whose full weight
+covers the rectangle (`covers`: corners inside, no edge touching) restarts it at its target (+1 nm): 857 -> 210
+samples a frame at the stand (the wheels). GATE GE green (0 of 2.76 M points above it; the taxi A/B identical; 88.5 %
+skipped, 80 before). (2) The wind's surface layer on a 0.5 m lattice (09_climate, rich days only): the world's own
+heights read once into a direct-mapped cache, bilinear between them, for the surface-layer AGL and the re-centre;
+sample(), a far call and the legacy field stay exact; the world's ground version (setPremises) empties it. cg the same
+to the micrometre after a 30 s taxi. (3) Exact micro-levers: the premises' query without an array (toLocal in place),
+the grade's segments in one typed array, squared-distance screens before Math.hypot in padRamp / blendM: terrainH
+617 -> ~500 ns a call on the solver's own captured queries. The stock build's and the birdman's trajectories are
+the same bits (FNV 591d1827, df7520e8).
+G612 THE STEP-DEBT GUARD (app.js PACE). Where a step costs too much the G586 debt cannot be repaid - the frame owes
+more because it was long and is longer because it owed more - and runs away to the 4-step ceiling (modelled on the
+block as written, 15 ms + 16 ms a step at a 30 cap: 12.1 fps at 80 % time). Two EMAs (a step's cost, the frame's
+non-solver time from its interval); only where real time cannot be held (other / (1/60 - step) > 4, or a step >= a
+60th) the catch-up is capped at what max(the cap's budget, the rest of the frame) carries, never under the cap's own
+steps: the same case 20.1 fps at 67 %. Elsewhere the G586 clock to the step (a naive budget cap was modelled and
+rejected: it turned 15 fps at 100 % into 20 at 67). PACE.state(): dilation, stats.guarded, droppedS, stepMs, otherMs;
+the graphics menu's readout adds "the game at N % speed" under 97 %. GATE PACE: the runaway capped and its dilation
+reported, heavy-but-holdable untouched, a light 30 at 100 %. NOT seen on a real display.
+G613 THE LINKAGE ON THE FRAME'S TIME: model.link.step(sim.ctl, frameDt()) - at 30 fps the fixed 1/60 moved the
+control surfaces' visual lag at half speed.
+G614 THE PREMISES' GROUND (the A0 baseline's ask: bake the composed terrain into a height raster). Measured first:
+headless the premises no longer cost the solver (stock from the stand, the same moment: HEAD 5.76 ms, this 5.20, no
+premises 5.43 - the browser's 11 vs 2.1 was HEAD's, before G611, and carries the viewer's obstacles and the day's
+wind; re-read it with rollout_perf.js), and the ring's premises cost is not the height: per forest lattice point
+coverAt, world.surface (1.3 us with premises: PM.surfaceAt scanned every polygon and road, the registry took a cos
+and a sin per aerodrome), the tree exclude, then terrainH. LANDED, bit-identical: 64 m cell indexes for surfaceAt
+(polygons by box, roads by segment, the scan's priority order) and excludeAt, the strip test's corner-radius reject:
+a ring-like walk (564 k points) 1 274 -> 816 ms of premises queries, world.surface 635 -> 360 ms, the same answers on
+20 M points, the same trajectory hashes. THE HEIGHT RASTER, BUILT AND GATED, OPT-IN (makeWorld opts.groundRaster,
+physics_perf --raster): every modifier is affine in the ground under it, so the stack is A h + B; A and B baked
+lazily per 16 m tile (a quarter of the finest feather, halved to 0.25 m while a midpoint misses 1 cm), read bilinear
+with the exact DEM (its seams stay, a pad is its level to the bit); the ceiling grows by the lattice cell. GATE
+PREMRASTER (new, core, ~25 s): p99 1.7 mm, p99.9 5.3 mm, worst 18 mm (a concave pad corner) on 136 k points, the
+stand's pad exact, the ceiling bounds it on 116 k points, the indexes equal the scans (kept: surfaceAtScan /
+excludeAtScan) on 1.3 M points. Why opt-in: a tile bakes in 1-1.6 ms - the world's own make-time walks bake 1 100
+(+1.2 s), a 2 m walk goes 65 -> 623 ms; the solver gains 4-7 % and loses its bit-identity.
+G615 AUTO RECOVERS (the A0 baseline: the procedural island at the 30 cap 94 % of its frames). A frame over 3x the
+cap's interval is a hitch, not a reading; the drop needs three slow readings (was two); the trial needs the one-step
+work under 60's budget (16.7 ms, was 12.5 - the trial's own median frame decides); a missed trial holds 5 s doubling
+to 30 s (was 20 s to 5 min). GATE PACE: a 2 s burst holds 60, 14 ms of work earns a trial that holds, misses hold
+<= 30 s (all three red on HEAD's block).
+THE FULL TIER, HEAD and this side by side: the same verdicts check for check (ARCHETYPES' five known reds, PILOTMATRIX's
+cells - the c172 at 121 substeps lands 332.7 -> 332.9 s -, SEAPLANE's three; HOTHIGH, SOAR green), 3 990 s of gate time
+against 4 914.
+PAIRED (HEAD / this, the same moment, solver ms a frame, 30 s from Jolene's stand): stock calm 5.11 -> 4.64 (-9 %,
+same bits), birdman calm 7.12 -> 5.96 (-16 %, same bits), metal Cessna calm 11.89 -> 7.38 (-38 %), stock thermal
+9.72 -> 7.44 (-23 %), birdman thermal 11.45 -> 8.30 (-28 %), metal Cessna thermal 24.87 -> 11.50 (-54 %).
+node tools/run_gates.js on the final tree: CORE BATTERY PASS, 99 gates (GATE PREMRASTER new; SUBSTEP and PACE re-cut).
+futureDesigns/PHYSICS-PERF-2026-09-24.md G610-G615.
