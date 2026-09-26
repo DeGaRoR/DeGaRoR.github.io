@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 669abdb5f8f18f07
+// body-sha256: 66bf073e2f089feb
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2262,10 +2262,41 @@ var CLIMATE = (function () {
       gl[0] = (terrainH(x + GD, z) - terrainH(x - GD, z)) / (2 * GD);
       gl[1] = (terrainH(x, z + GD) - terrainH(x, z - GD)) / (2 * GD);
     }
+    // THE SOLVER'S GROUND, ON A LATTICE (G611, PHYSICS PERF). Inside the surface layer every wind call read
+    // the composed ground exactly - 30 a substep on the ground, ~2 100 a frame at 70 substeps: a third of
+    // the solver's frame at the stand under any rich day (the premises' pads and grades, the raster, the
+    // carve, per strip per substep). A strip moves centimetres a substep, so the ground under it is read
+    // off a 0.5 m lattice instead: the lattice's heights are the world's own terrainH, each read once and
+    // kept (a direct-mapped cache), and the ground between them is bilinear - continuous, and within the
+    // ground's own curvature over half a metre of the exact height (millimetres on a pad; a raster seam's
+    // step is spread over the cell). The wind's power law sees that as a few thousandths of its speed. The
+    // re-centre's ground and slope (per substep) read it too; sample() and a far call stay exact, and so
+    // does the legacy field (GATE CLIMATE holds it verbatim). The world's ground version (a new premises
+    // layer) empties it.
+    const GLC = 0.5, GLN = 8192;
+    const glI = new Int32Array(GLN), glJ = new Int32Array(GLN), glH = new Float64Array(GLN).fill(NaN);
+    let glVer = -1;
+    function glAt(i, j) {
+      const k = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) & (GLN - 1);
+      const h = glH[k];
+      if (glI[k] === i && glJ[k] === j && h === h) return h;
+      const g = terrainH(i * GLC, j * GLC);
+      glI[k] = i; glJ[k] = j; glH[k] = g;
+      return g;
+    }
+    function groundLat(x, z) {
+      const u = x / GLC, v = z / GLC, i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
+      const a = glAt(i, j), b = glAt(i + 1, j), c = glAt(i, j + 1), d = glAt(i + 1, j + 1);
+      const e = a + (b - a) * fu;
+      return e + (c + (d - c) * fu - e) * fv;
+    }
     function recentre(x, y, z, t) {
       const w0 = C.w0, J = C.J;
-      const g0 = terrainH(x, z);
-      groundAt(x, z, GL);
+      const gv = env.groundVer ? env.groundVer() : 0;
+      if (gv !== glVer) { glH.fill(NaN); glVer = gv; }
+      const g0 = groundLat(x, z);
+      GL[0] = (groundLat(x + GD, z) - groundLat(x - GD, z)) / (2 * GD);
+      GL[1] = (groundLat(x, z + GD) - groundLat(x, z - GD)) / (2 * GD);
       C.g0 = g0; C.gx = GL[0]; C.gz = GL[1];
       smooth(x, y, z, t, y - g0, GL, w0);
       smooth(x + LIN_H, y, z, t, y - g0 - GL[0] * LIN_H, GL, T1);  for (let c = 0; c < NCHN; c++) J[c * 3] = (T1[c] - w0[c]) / LIN_H;
@@ -2296,7 +2327,7 @@ var CLIMATE = (function () {
       // a metre — the take-off roll and the final are flown on the true ground, as the legacy field
       // was (one memoised terrainH per call, what every refH preset costs today); above it the
       // ground's plane is within a percent of the wind and costs nothing
-      const agl = (C.y - C.g0) < LIN_GROUND_H ? y - terrainH(x, z) : y - (C.g0 + C.gx * dx + C.gz * dz);
+      const agl = (C.y - C.g0) < LIN_GROUND_H ? y - groundLat(x, z) : y - (C.g0 + C.gx * dx + C.gz * dz);
       return combine(T2, agl, x, y, z, t, WV);
     }
     // sample(x, y, z, t, out): the full field into `out` (allocated when absent), never the cache
@@ -3016,18 +3047,25 @@ function makeWorld(seed, opts) {
   aerodromes.filter(a => a.kind === 'meadow').forEach((a, i) => { a.elev = meadows[i].h; });
   // meadow blend, factored: used by the pre-hydro base and final terrainH.
   // Applied AFTER the river carve so meadow interiors stay exactly flat.
+  // (G611: past the radius by a hair of the squared distance, no Math.hypot - it was per ground read; the same
+  // bits: hypot >= r there, and the branch was not taken)
   function blendM(x, z, h) {
     for (const m of meadows) {
-      const d = Math.hypot(x - m.x, z - m.z);
+      const ex = x - m.x, ez = z - m.z;
+      if (ex * ex + ez * ez >= m.r * m.r * (1 + 1e-9)) continue;
+      const d = Math.hypot(ex, ez);
       if (d < m.r) { const w = sstep(m.r * 0.45, m.r, d); h = m.h * (1 - w) + h * w; }
     }
     return h;
   }
   // runway-pad ramp: 0 inside the pad box, 1 past 260 m out — the same box
   // the h0 flatten uses; masks the river carve so the pad stays exactly 0.
+  // (G611: past 260 m by a hair of the squared distance the ramp is smf(1) = 1 without the Math.hypot - the
+  // island's every ground read is far from this analytic box; the same bits)
   function padRamp(x, z) {
     const dxR = Math.max(0, Math.max(-1180 - x, x - 130));
     const dzR = Math.max(0, Math.abs(z) - 90);
+    if (dxR * dxR + dzR * dzR >= 67600 * (1 + 1e-9)) return smf(1);
     return sstep(0, 260, Math.hypot(dxR, dzR));
   }
   // ---- stage 1 hydrology (WORLD-GEN-PROC): baked on the pre-hydro base
@@ -3228,7 +3266,7 @@ function makeWorld(seed, opts) {
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
     const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
-    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals }, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
+    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: !!(opts && opts.groundRaster) }, extra || {}));   // G614: the height raster, opt-in (below)   // the renderer hands its builder (the cable's phase B) and the tree pool
     PMrec = rec;
     // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
     // code into the island's own ttype grid, which the ground's packed texture, the
@@ -3255,15 +3293,17 @@ function makeWorld(seed, opts) {
   // not const: terrainH is a hoisted declaration called before this line
   // runs, and a const would be in its dead zone. Cleared when the premises
   // change (setPremises), the one thing that moves the ground after make.
-  var thX, thZ, thH;
+  var thX, thZ, thH, groundVer;
   const TH_N = 16384;
-  function terrainClear() { if (thX) thX.fill(NaN); }
+  // (G611: and the ground's version - the climate's lattice of the solver's ground reads it)
+  function terrainClear() { if (thX) thX.fill(NaN); groundVer = (groundVer | 0) + 1; }
   function terrainH(x, z) {
     if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); }
     const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
     if (thX[i] === x && thZ[i] === z) return thH[i];
     const h0 = baseH(x, z);
-    const h = PM ? PM.terrainH(x, z, h0) : h0;
+    // (G614: the premises' raster - the composed ground baked lazily off the same modifiers, 27_premises.js)
+    const h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
     thX[i] = x; thZ[i] = z; thH[i] = h;
     return h;
   }
@@ -3289,6 +3329,9 @@ function makeWorld(seed, opts) {
         const dx = x - a.x, dz = z - a.z;
         if (dx * dx + dz * dz <= a.r * a.r) return a.surface;
       } else {
+        // (G614: past the box's corner radius no rotation can bring the point inside it - no trig; the same answer)
+        const ex = x - a.x, ez = z - a.z, hl = a.len / 2 + 20, hw = a.wid / 2 + 6;
+        if (ex * ex + ez * ez > (hl * hl + hw * hw) * (1 + 1e-9)) continue;
         const c = Math.cos(a.hdg), s = Math.sin(a.hdg);
         const u = (x - a.x) * c + (z - a.z) * s,
               v = -(x - a.x) * s + (z - a.z) * c;
@@ -3621,6 +3664,7 @@ function makeWorld(seed, opts) {
   const climate = CLIMATE.make({
     terrainH, surface, SURFACE, bounds: BOUNDS, day, geo: GEO, seed: SEED,
     atmos: () => airNow(),                    // the column, live (K2)
+    groundVer: () => groundVer | 0,           // G611: the ground's version (setPremises bumps it)
     typeAt: ISL && ISL.ttype ? (x, z) => { const k = ISL.cellAt(x, z); return k < 0 ? -1 : ISL.ttype[k]; } : null,
     coastAt: ISL ? ISL.coastAt : null,
   });
@@ -6446,6 +6490,13 @@ function segsCross(a, b, c, d) {
   const o1 = o(a, b, c), o2 = o(a, b, d), o3 = o(c, d, a), o4 = o(c, d, b);
   return (o1 > 0) !== (o2 > 0) && (o3 > 0) !== (o4 > 0) && o1 !== 0 && o2 !== 0 && o3 !== 0 && o4 !== 0;
 }
+// a segment against a closed axis-aligned rectangle (Liang-Barsky): true if any point of it lies in the rectangle
+function segHitsRect(a, b, x0, z0, x1, z1) {
+  let t0 = 0, t1 = 1;
+  const dx = b[0] - a[0], dz = b[1] - a[1];
+  const clip = (p, q) => { if (p === 0) return q >= 0; const r = q / p; if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; } return true; };
+  return clip(-dx, a[0] - x0) && clip(dx, x1 - a[0]) && clip(-dz, a[1] - z0) && clip(dz, z1 - a[1]) && t0 <= t1;
+}
 function polySimple(poly) {
   const n = poly.length;
   if (n < 3) return false;
@@ -6647,7 +6698,16 @@ function makeModifier(m, y0) {
       const a0 = Math.max(x0, bbox.x0), a1 = Math.min(x1, bbox.x1), b0 = Math.max(z0, bbox.z0), b1 = Math.min(z1, bbox.z1);
       return { t: Math.max(target(a0, b0), target(a1, b0), target(a0, b1), target(a1, b1)), add: 0 };
     };
-    return { id: m.id, kind: m.kind, bbox, bound, apply: (x, z, h) => {
+    // THE PAD THAT COVERS THE RECTANGLE (G611, the ceiling): a rectangle wholly inside the polygon - its corners
+    // inside and no edge touching it - is at weight 1 at every point, so every point reads the target whatever
+    // lay under it: hMaxRect restarts its bound there (the stand's apron over a DEM that rises under it). A
+    // raise adds to what lay under it and never covers.
+    const covers = m.kind === 'raise' ? null : (x0, z0, x1, z1) => {
+      if (!(inPoly(poly, x0, z0) && inPoly(poly, x1, z0) && inPoly(poly, x0, z1) && inPoly(poly, x1, z1))) return false;
+      for (let i = 0; i < n; i++) if (segHitsRect(poly[i], poly[(i + 1) % n], x0, z0, x1, z1)) return false;
+      return true;
+    };
+    return { id: m.id, kind: m.kind, bbox, bound, covers, feather: fall, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       let w;
       if (inPoly(poly, x, z)) w = 1;
@@ -6673,7 +6733,12 @@ function makeModifier(m, y0) {
     const bbox = polyBBox(corners);
     const level = +m.level;
     // (the ceiling: level + (h - level) sm, sm in [0, 1] - between h and the level)
-    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), apply: (x, z, h) => {
+    // (G611: a rectangle whose four corners lie in the pad rect - the item's frame, a margin of a micron - reads
+    // the level at every point: k = 0 there)
+    const inR = (x, z) => { const dx = x - c[0], dz = z - c[1], lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
+      return lx >= R.x0 + 1e-6 && lx <= R.x1 - 1e-6 && lz >= R.z0 + 1e-6 && lz <= R.z1 - 1e-6; };
+    const covers = (x0, z0, x1, z1) => inR(x0, z0) && inR(x1, z0) && inR(x0, z1) && inR(x1, z1);
+    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), covers, feather: Math.min(mF, mB), apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const dx = x - c[0], dz = z - c[1];
       const lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
@@ -6729,22 +6794,36 @@ function makeModifier(m, y0) {
       }
       return { t: t === -Infinity ? t : (abs ? 0 : y0) + t, add: 0 };
     };
-    return { id: m.id, kind: 'grade', bbox, bound, apply: (x, z, h) => {
+    // THE SEGMENTS, FLAT (G611): each segment's start, direction, squared length and end heights in one
+    // typed array, computed once with the very operations the scan did per query - the same numbers, no
+    // nested-array reads and no closures in the solver's per-wheel, per-substep query
+    const SG = new Float64Array(Math.max(0, pts.length - 1) * 7);
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], o = i * 7;
+      SG[o] = a[0]; SG[o + 1] = a[1]; SG[o + 2] = dx; SG[o + 3] = dz; SG[o + 4] = dx * dx + dz * dz; SG[o + 5] = a[2] || 0; SG[o + 6] = b[2] || 0;
+    }
+    const bx0 = bbox.x0, bz0 = bbox.z0;
+    // (G614) does any segment reach into the rectangle? - its reach cells (the scan's own lists)
+    const touches = (x0, z0, x1, z1) => {
+      for (let ci = cx(Math.max(x0, bbox.x0)), c1 = cx(Math.min(x1, bbox.x1)); ci <= c1; ci++)
+        for (let cj = cz(Math.max(z0, bbox.z0)), d1 = cz(Math.min(z1, bbox.z1)); cj <= d1; cj++) if (cells.get(ck(ci, cj))) return true;
+      return false;
+    };
+    return { id: m.id, kind: 'grade', bbox, bound, touches, feather: fall, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
-      const list = cells.get(ck(cx(x), cz(z)));
+      const list = cells.get((Math.floor((x - bx0) / CS) + 1) * NZ + (Math.floor((z - bz0) / CS) + 1));
       if (!list) return h;
       // (PHYSICS PERF 2026-09-24) the plain squared distance screens a segment that cannot beat the best
       // (1e-9 relative over it - the two roundings differ by 1e-16); every one that can is measured
       // exactly as before, in the list's order, so the winner and its tie-break are the same
       let best = Infinity, best2 = Infinity, ty = 0;
       for (let n = 0; n < list.length; n++) {
-        const i = list[n], a = pts[i], b = pts[i + 1];
-        const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
-        const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
-        const ex = x - (a[0] + dx * t), ez = z - (a[1] + dz * t);
+        const o = list[n] * 7, ax = SG[o], az = SG[o + 1], dx = SG[o + 2], dz = SG[o + 3], l2 = SG[o + 4];
+        const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)) : 0;
+        const ex = x - (ax + dx * t), ez = z - (az + dz * t);
         if (ex * ex + ez * ez > best2) continue;
         const d = HYP2(ex, ez);
-        if (d < best) { best = d; best2 = d * d * (1 + 1e-9); ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
+        if (d < best) { best = d; best2 = d * d * (1 + 1e-9); ty = SG[o + 5] + (SG[o + 6] - SG[o + 5]) * t; }
       }
       const w = weight(best - hw);
       return w > 0 ? h + ((abs ? 0 : y0) + ty - h) * w : h;
@@ -6869,7 +6948,8 @@ function frameOf(rec, world) {
   const toWorld = (lx, lz) => [a.x + lx * c + lz * s, a.z - lx * s + lz * c];
   const toLocal = (x, z) => { const dx = x - a.x, dz = z - a.z; return [dx * c - dz * s, dx * s + dz * c]; };
   const y0 = world && world.terrainH ? world.terrainH(a.x, a.z) : 0;
-  return { anchor: a, toWorld, toLocal, y0, worldId: wid, yaw: a.yaw || 0 };
+  // c, s: toLocal's own rotation, for a reader that must not allocate (the height query, G611)
+  return { anchor: a, toWorld, toLocal, y0, worldId: wid, yaw: a.yaw || 0, c, s };
 }
 
 // ---------------------------------------------------------------------------
@@ -7592,7 +7672,7 @@ function compose(rec0, world, opts) {
   const shelves = [];
   for (const st of rec.layers.sites) for (const sh of siteShelves(st, catS, T1s)) { const M = makeModifier(sh, F.y0); if (M) { mods.push(M); shelves.push(sh); } }
   const index = SpatialIndex(256);
-  for (const M of mods) index.add(M.bbox, M);
+  mods.forEach((M, i) => { M.ord = i; index.add(M.bbox, M); });   // ord: the order every point applies them in (G611)
   // the surface polygons in PRIORITY order (z, then the record's order): the last wins at a point
   const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map((s, i) => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface, z: +s.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // THE MATERIALS (v8, contract v1.9): a PBR set projected on the ground inside a polygon, its contour
@@ -7651,6 +7731,110 @@ function compose(rec0, world, opts) {
     ext = isFinite(x0) ? { x0, z0, x1, z1 } : { x0: 0, z0: 0, x1: 0, z1: 0 };
   }
   const inBB = (b, x, z) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
+  // ---- THE GROUND RASTER (G614, the A0 baseline: the premises' composed ground was evaluated per query - every
+  // wheel every substep, the wind's surface layer, the ring's and the cover's walks) ----------------------------
+  // EVERY MODIFIER IS AFFINE IN THE HEIGHT UNDER IT: h' = h + (T - h) w (a flatten, a slope pad, a grade), h + dh w
+  // (a raise), L + (h - L) sm (a shelf) - w, T, sm functions of the point alone. So is their stack, in order:
+  // terrainH(x, z, h) = A(x, z) h + B(x, z), with B = terrainH(x, z, 0) and A = terrainH(x, z, 1) - B. The raster
+  // holds A and B on a lattice, per 16 m tile of the premises frame, BAKED LAZILY the first time a tile is asked
+  // for (the bake is the analytic path: this file stays the source), and a query is A h + B bilinear at the point,
+  // with h - the island's own DEM, carve and all - read exactly as before: the DEM's seams stay where they are, a
+  // pad inside its feather is its level exactly (A = 0, B = the level at every node), and only the feathers are
+  // interpolated. The lattice is a quarter of the finest feather touching the tile (0.25-1 m). A tile no modifier
+  // touches (a road's reach cells, a pad's box) is the ground itself, exactly as the analytic path returns it.
+  // Tiles are Float64 (a Float32 level would stand 4e-7 m over the ceiling's own bound) and capped (GR_CAP bytes;
+  // the oldest go first); `o.raster === false` (the editor, a proof)
+  // keeps the analytic path. GATE PREMRASTER holds the agreement.
+  const GR_TS = 16, GR_CAP = 48 * 1024 * 1024, GR_TOL = 0.01, GR_RELIEF = 2;
+  const grOn = o.raster !== false && mods.length > 0;
+  const grTiles = new Map(), grStats = { baked: 0, empty: 0, evicted: 0, bytes: 0, bakeMs: 0, rMin: Infinity, rMax: 0 };
+  let grRmax = 0;
+  const grKey = (i, j) => i * 131072 + j;
+  const grNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+  function grBake(ti, tj) {
+    const x0 = ti * GR_TS, z0 = tj * GR_TS, x1 = x0 + GR_TS, z1 = z0 + GR_TS;
+    const hit = [], seen = new Set();
+    index.rect(x0, z0, x1, z1, M => {
+      if (seen.has(M)) return; seen.add(M);
+      const b = M.bbox;
+      if (x1 < b.x0 || x0 > b.x1 || z1 < b.z0 || z0 > b.z1) return;
+      if (M.touches && !M.touches(x0, z0, x1, z1)) return;
+      hit.push(M);
+    });
+    if (!hit.length) { grStats.empty++; return null; }
+    const t0 = grNow();
+    hit.sort((a, b) => a.ord - b.ord);
+    let fe = Infinity; for (const M of hit) fe = Math.min(fe, M.feather > 0 ? M.feather : 1);
+    // THE LATTICE EARNS ITS CELL: from a quarter of the finest feather (1 m at most), halved (to 0.25 m) while any
+    // cell's midpoint reads more than GR_TOL (1 cm) off the analytic ground there - a deep cut's feather (twenty metres
+    // of target over the DEM) needs a finer lattice than a road's half metre
+    let n = Math.min(64, Math.max(16, Math.ceil(GR_TS / Math.max(0.25, Math.min(1, fe / 4))))), N, r, A, B, hc;
+    for (;;) {
+      N = n + 1; r = GR_TS / n; A = new Float64Array(N * N); B = new Float64Array(N * N);
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const x = x0 + i * r, z = z0 + j * r;
+        let b0 = 0, b1 = 1;
+        for (let q = 0; q < hit.length; q++) { b0 = hit[q].apply(x, z, b0); b1 = hit[q].apply(x, z, b1); }
+        B[j * N + i] = b0; A[j * N + i] = b1 - b0;
+      }
+      if (n >= 64) break;
+      // (the error at a midpoint is dA h + dB: h is the tile centre's ground, give or take GR_RELIEF of the DEM)
+      if (hc === undefined) { const w = F.toWorld(x0 + GR_TS / 2, z0 + GR_TS / 2); hc = world.terrainH(w[0], w[1]); }
+      let bad = false;
+      for (let j = 0; j < n && !bad; j++) for (let i = 0; i < n && !bad; i++) {
+        const x = x0 + (i + 0.5) * r, z = z0 + (j + 0.5) * r;
+        let b0 = 0, b1 = 1;
+        for (let q = 0; q < hit.length; q++) { b0 = hit[q].apply(x, z, b0); b1 = hit[q].apply(x, z, b1); }
+        const k = j * N + i, da = (A[k] + A[k + 1] + A[k + N] + A[k + N + 1]) / 4 - (b1 - b0), db = (B[k] + B[k + 1] + B[k + N] + B[k + N + 1]) / 4 - b0;
+        if (Math.abs(da * hc + db) + Math.abs(da) * GR_RELIEF > GR_TOL) bad = true;
+      }
+      if (!bad) break;
+      n *= 2;
+    }
+    if (r > grRmax) grRmax = r;
+    grStats.baked++; grStats.bytes += 16 * N * N; grStats.bakeMs += grNow() - t0;
+    grStats.rMin = Math.min(grStats.rMin, r); grStats.rMax = Math.max(grStats.rMax, r); grStats['n' + n] = (grStats['n' + n] || 0) + 1;
+    while (grStats.bytes > GR_CAP) {                                  // the oldest baked tile goes first
+      let gone = false;
+      for (const [k, T] of grTiles) { if (T) { grTiles.delete(k); grStats.bytes -= 16 * T.N * T.N; grStats.evicted++; gone = true; break; } }
+      if (!gone) break;
+    }
+    return { x0, z0, r, n, N, A, B };
+  }
+  // the composed height at a LOCAL point over the ground h under it (the raster's answer to terrainH(x, z, h))
+  function grHeight(lx, lz, h) {
+    const ti = Math.floor(lx / GR_TS), tj = Math.floor(lz / GR_TS), k = grKey(ti, tj);
+    let T = grTiles.get(k);
+    if (T === undefined) { T = grBake(ti, tj); grTiles.set(k, T); }
+    if (T === null) return h;
+    const u = (lx - T.x0) / T.r, v = (lz - T.z0) / T.r;
+    let i = Math.floor(u), j = Math.floor(v);
+    if (i >= T.n) i = T.n - 1; else if (i < 0) i = 0;
+    if (j >= T.n) j = T.n - 1; else if (j < 0) j = 0;
+    const fu = u - i, fv = v - j, N = T.N, q = j * N + i, A = T.A, B = T.B;
+    const a0 = A[q] + (A[q + 1] - A[q]) * fu, a1 = A[q + N] + (A[q + N + 1] - A[q + N]) * fu;
+    const b0 = B[q] + (B[q + 1] - B[q]) * fu, b1 = B[q + N] + (B[q + N + 1] - B[q + N]) * fu;
+    return (a0 + (a1 - a0) * fv) * h + (b0 + (b1 - b0) * fv);
+  }
+  // THE SURFACE, INDEXED (G614, exact - the A0 ring: every forest lattice point asks world.surface, and this scan
+  // of every surface polygon and every road was a third of it): 64 m cells, each holding the surface polygons
+  // whose box touches it and the roads with a SEGMENT within its half width + a hair of it (a point on a road is
+  // within w/2 of one of its segments, so that segment's cell holds it), in the priority order the scan used.
+  // A query reads its cell's lists - the same tests, the same order, the same answer.
+  const GS_C = 64, gsCells = new Map();
+  const gsKey = (i, j) => i * 131072 + j;
+  const gsAdd = (x0, z0, x1, z1, fn) => { for (let i = Math.floor(x0 / GS_C), i1 = Math.floor(x1 / GS_C); i <= i1; i++) for (let j = Math.floor(z0 / GS_C), j1 = Math.floor(z1 / GS_C); j <= j1; j++) { const k = gsKey(i, j); let c = gsCells.get(k); if (!c) gsCells.set(k, c = { S: [], R: [] }); fn(c); } };
+  surf.forEach((sf, i) => gsAdd(sf.bbox.x0, sf.bbox.z0, sf.bbox.x1, sf.bbox.z1, c => c.S.push(i)));
+  roadObjs.forEach((r, i) => {
+    const m = r.w / 2 + 0.01;
+    for (let q = 1; q < r.pts.length; q++) {
+      const a = r.pts[q - 1], b = r.pts[q];
+      gsAdd(Math.min(a[0], b[0]) - m, Math.min(a[1], b[1]) - m, Math.max(a[0], b[0]) + m, Math.max(a[1], b[1]) + m, c => { if (c.R[c.R.length - 1] !== i) c.R.push(i); });
+    }
+  });
+  for (const [, c] of gsCells) { c.S.sort((a, b) => a - b); c.R = Array.from(new Set(c.R)).sort((a, b) => a - b); }
+  const exIdx = new Map(); let exIdxN = -1;
+  const gsAddTo = (M, b, e) => { for (let i = Math.floor(b.x0 / GS_C), i1 = Math.floor(b.x1 / GS_C); i <= i1; i++) for (let j = Math.floor(b.z0 / GS_C), j1 = Math.floor(b.z1 / GS_C); j <= j1; j++) { const k = gsKey(i, j); let l = M.get(k); if (!l) M.set(k, l = []); l.push(e); } };
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
@@ -7721,12 +7905,22 @@ function compose(rec0, world, opts) {
     },
     terrainH(x, z, h) {
       if (!mods.length) return h;
-      const L = F.toLocal(x, z);
-      const cell = index.query(L[0], L[1]);
+      // (G611: toLocal's arithmetic, in place - no array per query; the same bits)
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      const cell = index.query(lx, lz);
       if (!cell) return h;
-      for (let i = 0; i < cell.length; i++) h = cell[i].apply(L[0], L[1], h);
+      for (let i = 0; i < cell.length; i++) h = cell[i].apply(lx, lz, h);
       return h;
     },
+    // THE RASTER'S ANSWER (G614): terrainH off the lazily baked A / B lattice - the world's terrainH reads this;
+    // terrainH above stays the analytic source (the editor's, the bake's, the proof's)
+    terrainFast(x, z, h) {
+      if (!grOn) return O.terrainH(x, z, h);
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      if (!index.query(lx, lz)) return h;
+      return grHeight(lx, lz, h);
+    },
+    get raster() { return grOn ? { on: true, tile: GR_TS, cap: GR_CAP, tiles: grTiles.size, ...grStats, rMaxBaked: grRmax } : { on: false }; },
     // THE CEILING OVER A WORLD RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH(x, z, h)
     // for every point of it, given B >= h there. Each modifier blends h toward its target with a
     // weight in [0, 1] (a raise adds at most dh), whatever the order: max(B, every target) + the
@@ -7734,20 +7928,31 @@ function compose(rec0, world, opts) {
     hMaxRect(ax, az, bx, bz, B) {
       if (!mods.length) return B;
       const p1 = F.toLocal(ax, az), p2 = F.toLocal(bx, az), p3 = F.toLocal(ax, bz), p4 = F.toLocal(bx, bz);
-      const lx0 = Math.min(p1[0], p2[0], p3[0], p4[0]) - 0.01, lx1 = Math.max(p1[0], p2[0], p3[0], p4[0]) + 0.01;
-      const lz0 = Math.min(p1[1], p2[1], p3[1], p4[1]) - 0.01, lz1 = Math.max(p1[1], p2[1], p3[1], p4[1]) + 0.01;
-      let T = B, add = 0;
-      const seen = new Set();
+      let lx0 = Math.min(p1[0], p2[0], p3[0], p4[0]) - 0.01, lx1 = Math.max(p1[0], p2[0], p3[0], p4[0]) + 0.01;
+      let lz0 = Math.min(p1[1], p2[1], p3[1], p4[1]) - 0.01, lz1 = Math.max(p1[1], p2[1], p3[1], p4[1]) + 0.01;
+      // (G614) under the raster a point reads the lattice nodes around it - the modifiers of every node within
+      // a lattice cell, each at the point's own ground: the bound of the rectangle grown by the coarsest cell
+      if (grOn) { lx0 -= 1.01; lx1 += 1.01; lz0 -= 1.01; lz1 += 1.01; }
+      // IN THE ORDER A POINT APPLIES THEM (G611): a pad whose full weight covers the rectangle sets every point
+      // to its target, so the bound restarts there - at the target's highest (1 nm over it: the blend's own
+      // rounding) - and whatever lay under it (the DEM, an earlier modifier) is out of it
+      const hit = [], seen = new Set();
       index.rect(lx0, lz0, lx1, lz1, M => {
         if (seen.has(M)) return; seen.add(M);
         const b = M.bbox;
         if (lx1 < b.x0 || lx0 > b.x1 || lz1 < b.z0 || lz0 > b.z1) return;
-        if (!M.bound) { T = Infinity; return; }          // a modifier that cannot say: no ceiling
+        hit.push(M);
+      });
+      hit.sort((a, b) => a.ord - b.ord);
+      let T = B, add = 0;
+      for (const M of hit) {
+        if (!M.bound) { T = Infinity; continue; }        // a modifier that cannot say: no ceiling
         const r = M.bound(lx0, lz0, lx1, lz1);
+        if (M.covers && M.covers(lx0, lz0, lx1, lz1)) { T = r.t + 1e-9; add = 0; continue; }
         if (r.t > T) T = r.t;
         add += r.add;
-      });
-      return T + add;
+      }
+      return T + add + (grOn ? 1e-7 : 0);                  // (G614: the lattice's bilinear rounding, 100 nm)
     },
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),
     // the composed ground in the PREMISES frame
@@ -7777,12 +7982,30 @@ function compose(rec0, world, opts) {
     materialWeight: (m, lx, lz) => matWeight(m, lx, lz),
     surfaceAt(x, z) {
       const L = F.toLocal(x, z);
-      for (let i = surf.length - 1; i >= 0; i--) { const s = surf[i]; if (inBB(s.bbox, L[0], L[1]) && inPoly(s.poly, L[0], L[1])) return s.surface; }
-      for (let i = 0; i < roadObjs.length; i++) if (inBB(roadBB[i], L[0], L[1]) && roadDist(roadObjs[i], L[0], L[1]) <= roadObjs[i].w / 2) return roadObjs[i].surface;
+      const G = gsCells.get(gsKey(Math.floor(L[0] / GS_C), Math.floor(L[1] / GS_C)));   // (G614: the cell's own lists, the same order)
+      if (!G) return -1;
+      for (let n = G.S.length - 1; n >= 0; n--) { const s = surf[G.S[n]]; if (inBB(s.bbox, L[0], L[1]) && inPoly(s.poly, L[0], L[1])) return s.surface; }
+      for (let n = 0; n < G.R.length; n++) { const i = G.R[n]; if (inBB(roadBB[i], L[0], L[1]) && roadDist(roadObjs[i], L[0], L[1]) <= roadObjs[i].w / 2) return roadObjs[i].surface; }
       return -1;
     },
     excludeAt(x, z, what) {
       if (!excl.length) return false;
+      const L = F.toLocal(x, z);
+      // (G614: the excludes whose box touches the point's 64 m cell - an OR, so any order; rebuilt when one is added)
+      if (exIdxN !== excl.length) { exIdx.clear(); exIdxN = excl.length; excl.forEach(e => gsAddTo(exIdx, e.bbox, e)); }
+      const list = exIdx.get(gsKey(Math.floor(L[0] / GS_C), Math.floor(L[1] / GS_C)));
+      if (!list) return false;
+      for (const e of list) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && inPoly(e.poly, L[0], L[1])) return true;
+      return false;
+    },
+    // (G614) the linear scans the indexes replaced - the reference GATE PREMRASTER holds them to
+    surfaceAtScan(x, z) {
+      const L = F.toLocal(x, z);
+      for (let i = surf.length - 1; i >= 0; i--) { const s = surf[i]; if (inBB(s.bbox, L[0], L[1]) && inPoly(s.poly, L[0], L[1])) return s.surface; }
+      for (let i = 0; i < roadObjs.length; i++) if (inBB(roadBB[i], L[0], L[1]) && roadDist(roadObjs[i], L[0], L[1]) <= roadObjs[i].w / 2) return roadObjs[i].surface;
+      return -1;
+    },
+    excludeAtScan(x, z, what) {
       const L = F.toLocal(x, z);
       for (const e of excl) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && inPoly(e.poly, L[0], L[1])) return true;
       return false;
@@ -9156,7 +9379,11 @@ function makeSim(def, world) {
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
         r = new Float64Array(n);
-  const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0 }));
+  // THE FLIGHT BOX (G610, 62_gen_aero genFlightBox): a softened wing spring (kTrue on the beam) reports
+  // its strain against the TRUE k - the force it carries over the actual wing's stiffness, which is the
+  // real wing's strain under the same load (sK = k / kTrue; 1, exactly, on every other beam)
+  const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0, sK: b.kTrue != null ? b.k / b.kTrue : 1, kF: b.k, cF: b.c }));
+  let subN = P_.substeps ?? 24;
   // THE TUBE (G294): RIGID CLUSTERS, shape-matched every substep. A group of
   // nodes (a twin boom's) is pulled onto the best-fit rigid transform of
   // its rest shape — Müller's shape matching: the mass-weighted centre,
@@ -9802,6 +10029,12 @@ function makeSim(def, world) {
   }
 
   function reset(drop = 0) {
+    // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
+    // lasts until the next one, so the roll-out after a sandbag test flies the flight box again
+    if (subN !== (P_.substeps ?? 24)) {
+      for (const b of beams) if (b.kTrue != null) { b.k = b.kF; b.c = b.cF; b.sK = b.kF / b.kTrue; }
+      subN = P_.substeps ?? 24;
+    }
     if (NP) { Gam.fill(0); GamPrev.fill(0); aicHash = NaN; }   // G185.5
     totalM = 0;                    // G121: masses may have changed (setNodeMass)
     resetPanel();                  // the panel arc: tanks as built, engines running
@@ -10367,7 +10600,7 @@ function makeSim(def, world) {
       const L = hyp3(dx, dy, dz) || 1e-9;
       dx/=L; dy/=L; dz/=L;
       const vrel = (v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz;
-      b.strain = (L - b.L0) / b.L0;
+      b.strain = (L - b.L0) / b.L0 * b.sK;
       // G185: a WIRE carries tension only — slack, it is not there (no
       // spring, and no damper either: a slack cable damps nothing)
       const Fb = (b.tens && L <= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
@@ -10510,7 +10743,15 @@ function makeSim(def, world) {
     out.alt = cy/totalM;
   }
 
-  function step(dtFrame, sub = P_.substeps ?? 24) {
+  // THE ACTUAL WING (G610): this sim flies the true box until its next reset() - every softened beam back
+  // to its true k and c, the step the true box needs as the default. The load test and GATE FLEX call it
+  // (after their reset): "let the test test the actual wing". Returns the step.
+  function trueBox() {
+    for (const b of beams) if (b.kTrue != null) { b.k = b.kTrue; b.c = b.cTrue; b.sK = 1; }
+    if (P_.substepsTrue) subN = P_.substepsTrue;
+    return subN;
+  }
+  function step(dtFrame, sub = subN) {
     const dt = dtFrame / sub;
     aicFresh = true;
     // the cone's frame-start samples (a bound the world declares, else off)
@@ -10667,7 +10908,7 @@ function makeSim(def, world) {
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY,
-           reset, stance, step, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
+           reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
@@ -15106,6 +15347,16 @@ function makePilot(sim, def, world, opts) {
   let taxiI = 0, taxiLastT = -1e9;
   let thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
   let eAP = 0, eAR = 0, eARslow = 0;
+  // G630: AN ANGLE'S RATE IS THE RATE OF A WRAPPED DIFFERENCE. The heading
+  // errors live in (-pi, pi]; differenced raw, an error that crosses +-pi
+  // (the nose 180 deg from a target nobody refreshed) steps 2 pi in one
+  // 1/60 s step, a 377 rad/s spike the 2 s washout then holds for seconds
+  // — the downwind's rudder square wave on its +-0.25 stop, measured
+  let tgtHP = null;                          // G630: the target heading one step ago
+  let flatRoll = null;                       // G630.1: the level stretch of a sloped strip the rollout rolls on to
+  let taxiHdgF = null, taxiHdgT = -1e9;      // G630: the taxi target heading, filtered, and when it was last flown
+  let pG = 0;                                // G630: the ground roll rate, slow (the contact springs' jitter filtered out)
+  const wrapPi = a => a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
   let eTrim = 0;
   let pendReEng = false;
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
@@ -15665,6 +15916,14 @@ function makePilot(sim, def, world, opts) {
       const l = Math.hypot(tx, tz); tx /= l; tz /= l;
     }
     const e = Math.atan2(tz * nose[0] - tx * nose[1], tx * nose[0] + tz * nose[1]);
+    // G630: A TARGET THAT JUMPS IS NOT A RATE. A new target heading (a mode
+    // change, a taxi point shifted, a look-ahead index stepping past a
+    // corner) moves e in one step; no aeroplane's target turns 3 rad/s, so
+    // a step past 0.05 rad is carried into the rate filters' memory (eP,
+    // eAP) and they see only the continuous part — a bumpless transfer
+    const tgtH = Math.atan2(tz, tx);
+    if (tgtHP != null) { const dT = wrapPi(tgtH - tgtHP); if (Math.abs(dT) > 0.05) { eP = wrapPi(eP + dT); eAP = wrapPi(eAP + dT); } }
+    tgtHP = tgtH;
     let eA = e;
     const tl2 = Math.hypot(vcg[0], vcg[2]);
     if (tl2 > 5) {
@@ -15678,7 +15937,7 @@ function makePilot(sim, def, world, opts) {
     if (pendReEng) {
       pendReEng = false;
       thF = thRaw; phF = phRaw; thP = thRaw; phP = phRaw; q = p = 0;
-      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0;
+      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0; pG = 0;
       vsF = vcg[1]; thCA = thRaw; phCA = 0;
       aDe = sim.ctl.de; aDa = sim.ctl.da; aDr = sim.ctl.dr;
       Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6; IthMax = IthMaxT = 0.15; IthGain = null;
@@ -15690,10 +15949,11 @@ function makePilot(sim, def, world, opts) {
     const RF = A.rateFilt ?? 0.12;
     q += RF * ((th - thP) / dt - q); thP = th;
     p += RF * ((ph - phP) / dt - p); phP = ph;
-    eR += RF * 0.85 * ((e - eP) / dt - eR); eP = e;
+    eR += RF * 0.85 * (wrapPi(e - eP) / dt - eR); eP = e;
     eRslow += dt / 2.0 * (eR - eRslow);
-    eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
+    eAR += RF * 0.85 * (wrapPi(eA - eAP) / dt - eAR); eAP = eA;
     eARslow += dt / 2.0 * (eAR - eARslow);
+    pG += dt / 0.3 * (p - pG);
     vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
     const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
     if (vPrev !== null) accF += dt / 2.0 * ((V - vPrev) / dt - accF);
@@ -15776,6 +16036,18 @@ function makePilot(sim, def, world, opts) {
       // toward the path, the way Park's law captures from any side
       if (L.dist > 2 * L1) { L = pathLocate(airPath, airPathI, cg[0], cg[2], true); }
       airPathI = L.i;
+      // G630: THE TARGET IS THE PATH'S TANGENT. PATH never wrote
+      // ap.targetDir, so the yaw damper's eA (the track against the target)
+      // was measured against the TAXI's last heading for the whole circuit:
+      // on the downwind, 180 deg from the runway's, it sat on +-pi and the
+      // damper rang the rudder stop to stop (6 s, the Jolene playtest). The
+      // tangent is interpolated between the 5 m samples (a fillet's heading
+      // steps 1-2 deg per sample, and the damper differentiates it)
+      const q0 = P[L.i], qd = (cg[0] - q0.x) * Math.cos(q0.hdg) + (cg[2] - q0.z) * Math.sin(q0.hdg);
+      const qa = qd >= 0 ? q0 : P[Math.max(0, L.i - 1)], qb = qd >= 0 ? P[Math.min(P.length - 1, L.i + 1)] : q0;
+      const qf = qb.s > qa.s ? clamp((qd >= 0 ? qd : qd + (qb.s - qa.s)) / (qb.s - qa.s), 0, 1) : 0;
+      const hT = qa.hdg + qf * wrapPi(qb.hdg - qa.hdg);
+      ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
       let j = L.i;
       const s0 = P[L.i].s;
       while (j < P.length - 1 && P[j].s - s0 < L1) j++;
@@ -15948,6 +16220,52 @@ function makePilot(sim, def, world, opts) {
       holdPitch(thC);
       tecsDbg = { hdotC, Vc, STEr, STErC, ff, thr: c.thr, wK: tWk, thC, eB };
     };
+    // THE STEER GAINS (groundSteer's, factored out G630 so the taxi flies
+    // them too — the taxi ran the fixed 3.2 / 1.2 at any mass, the fault
+    // G250 fixed for the take-off roll; a taildragger bit-identical)
+    const steerK = (tailUp) => {
+      const kS = trike ? clamp(((A.VSteer ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0)
+               : clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0);
+      const kM = Math.sqrt(Math.max(200, sim.totalM || 500) / 500);
+      const kP = (tailUp
+        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
+        : 3.2 * kS) / kM;
+      // P1.D: the heading gain falls and the damping rises with the square
+      // root of the mass — the yaw inertia grows with it, the tailwheel's
+      // moment does not, and a loop tuned on a 480 kg cub rang a 2 t beaver
+      // at 10-19 m/s (+-35 deg at a 4 s period in 4 m/s gusting across)
+      const kD = (tailUp ? 3.0 : 1.2 * (trike ? Math.sqrt(kS) : kS)) * kM;
+      // G630: A TRICYCLE'S RATE TERM IS A QUARTER, AND NONE UNDER THE BRAKES.
+      // The nosewheel turns the heading kinematically (yaw rate = V steer
+      // dr / wheelbase: no inertia to damp at taxi speed), and the full rate
+      // term fed the tyres' and springs' own 2.5 Hz yaw mode instead: the
+      // rudder rang +-0.05..0.1 down every take-off roll and rollout of the
+      // C172s (freeze test: rudder held at 0, the heading stays within 0.16
+      // deg — the ring was ALL the loop's). Measured on the aluminium C172:
+      // a quarter is quiet on the roll (169 -> 0 reversals/min) and still
+      // GREW under the rollout's brakes (the loaded nosewheel); none is
+      // quiet everywhere but gave back the crosswind damping (x2 rollout
+      // swing 1.6 -> 5.6 deg on the C172); a quarter off the brakes, none on
+      // them: 2.9 deg, 0 reversals. `trikeSteerD` is the fraction.
+      // ...AND ITS P IS CAPPED AT A FIXED KINEMATIC BANDWIDTH: the loop's
+      // crossover is kP V steer / Lwb and it GROWS with the ground speed
+      // until the (VSteer/V)^2 schedule starts — ~7 rad/s at VSteer on the
+      // C172 archetype, where it rang 1.7 Hz +-0.7 deg under the brakes on
+      // P alone (frozen rudder: calm). `steerBW` rad/s.
+      if (tailUp || !trike) return [kP, kD];
+      const kPb = Math.min(kP, (A.steerBW ?? 3.5) * TW.Lwb / (Math.max(Vg, 3) * TW.steer));
+      return [kPb, kD * (A.trikeSteerD ?? 0.25) * (1 - clamp((c.brake || 0) / 0.1, 0, 1))];
+    };
+    // G630: THE WINGS-LEVEL LOOP ON THE WHEELS. -2 ph - p differentiated the
+    // contact springs' bank jitter (a tenth of a degree at 1-2 Hz) into
+    // aileron chatter the trace's aileron lane showed the whole taxi and
+    // roll; on the ground the bank error has a 0.6 deg deadband and the
+    // rate is the slow one (0.3 s) with its own 0.02 rad/s deadband. Off
+    // the wheels it is the air's law, unchanged.
+    const db = (x, w) => x - clamp(x, -w, w);
+    const groundAil = (phT, lim) => onG > 0
+      ? clamp(-2.0 * db(ph - phT, 0.010) - 1.0 * db(pG, 0.02), -lim, lim)
+      : clamp(-2.0 * (ph - phT) - 1.0 * p, -lim, lim);
     const groundSteer = () => {
       // H4 (G393): ON THE WATER the split is displacement / on the step
       // (wheelsOnGround reads 3 / 2 for exactly that), the water rudder is
@@ -15989,17 +16307,7 @@ function makePilot(sim, def, world, opts) {
       // the gains were sized for, and the weave grew 2 -> 7 -> 12 -> 52 deg
       // with the rudder on its stop (stearman and cub archetypes, measured).
       // The floor 0.3 = VTailUp x 1.8, the fastest a tail-down roll gets.
-      const kS = trike ? clamp(((A.VSteer ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0)
-               : clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0);
-      const kM = Math.sqrt(Math.max(200, sim.totalM || 500) / 500);
-      const kP = (tailUp
-        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
-        : 3.2 * kS) / kM;
-      // P1.D: the heading gain falls and the damping rises with the square
-      // root of the mass — the yaw inertia grows with it, the tailwheel's
-      // moment does not, and a loop tuned on a 480 kg cub rang a 2 t beaver
-      // at 10-19 m/s (+-35 deg at a 4 s period in 4 m/s gusting across)
-      const kD = (tailUp ? 3.0 : 1.2 * (trike ? Math.sqrt(kS) : kS)) * kM;
+      const [kP, kD] = steerK(tailUp);
       c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
       // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
       // ground roll, and the pilot had only the first. This held the wings
@@ -16039,7 +16347,7 @@ function makePilot(sim, def, world, opts) {
       // wing down against the crosswind's own rolling moment; from the FIRST
       // main down on a taildragger (the wing-low touchdown lands one wheel)
       if (!onWater && onG >= (trike ? 3 : 1)) phW = clamp(phW, -(A.xwBankGround ?? 0.035), A.xwBankGround ?? 0.035);
-      c.da = clamp(-2.0 * (ph - phW) - 1.0 * p, -0.30, 0.30);
+      c.da = groundAil(phW, 0.30);
       tailUpNow = tailUp;
     };
     const taxi = (Vtgt) => {
@@ -16054,7 +16362,7 @@ function makePilot(sim, def, world, opts) {
         taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
       c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
       c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+      c.da = groundAil(0, 0.25);
     };
     const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     const taxiV = (A.taxiV ?? 5.0) * ST.taxiK;
@@ -16283,6 +16591,19 @@ function makePilot(sim, def, world, opts) {
       const ex = from.x + t[0] * from.len / 2, ez = from.z + t[1] * from.len / 2;
       return (ex - cg[0]) * t[0] + (ez - cg[2]) * t[1];
     };
+    // G630.1: the nearest LEVEL ground on the strip still ahead of a rollout
+    // stopped on a grade (grade over +-20 m under 1 %, 25 m short of the end,
+    // 400 m at most), or null — none needed, none there, no terrain
+    const flatAhead = () => {
+      const to = ap.route && ap.route.to;
+      if (!to || !to.len || !world || typeof world.terrainH !== 'function' || sim.hydro || to.surface === 4 || Math.abs(gGrade) < 0.015) return null;
+      const ux = ap.dirX * F.ux, uz = ap.dirX * F.uz;
+      const rem = (to.x + ux * to.len / 2 - cg[0]) * ux + (to.z + uz * to.len / 2 - cg[2]) * uz;
+      const gAt = d => (groundH(cg[0] + ux * (d + 20), cg[2] + uz * (d + 20)) - groundH(cg[0] + ux * (d - 20), cg[2] + uz * (d - 20))) / 40;
+      for (let d = 10; d <= Math.min(rem - 25, 400); d += 10)
+        if (Math.abs(gAt(d)) < 0.01) return { x: cg[0] + ux * d, z: cg[2] + uz * d, ux, uz, d, t0: ap.t };
+      return null;
+    };
     const FS = def.params.flaps;
     const flapsTo = (tgt) => {
       if (!FS) return;
@@ -16408,13 +16729,26 @@ function makePilot(sim, def, world, opts) {
           const K = pathLook(ap.path, L.i, Vg);
           const eXT = clamp(Math.atan2(0.9 * L.ey, Vg + 1.0), -0.6, 0.6);
           const hT = K.hdgL - eXT;
-          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          // G630: THE LOOK-AHEAD TARGET, FILTERED (0.4 s). hdgL is a sample's
+          // heading a look-ahead away, and it STEPS as the index passes each
+          // sample of a bend (and as the look-ahead shrinks with the speed):
+          // the rudder differentiated every step into a kick
+          if (taxiHdgF == null || ap.t - taxiHdgT > 0.5) taxiHdgF = hT;
+          else taxiHdgF = wrapPi(taxiHdgF + wrapPi(hT - taxiHdgF) * Math.min(1, dt / 0.4));
+          taxiHdgT = ap.t;
+          ap.targetDir = [Math.cos(taxiHdgF), 0, Math.sin(taxiHdgF)];
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
           // a long straight (a backtrack) is taxied faster; the bend ahead
           // and the stop still govern through pathSpeed
           const vMax = L.sRem > 150 && Math.abs(L.ey) < 2 ? Math.min(A.taxiVFast ?? 8, 1.6 * taxiV) : taxiV;
-          engage('TAXI', 'DE', 'TAXI', { dr: clamp(-3.2 * e - 1.2 * eR + drFF, -drMaxG, drMaxG),
+          // G630: groundSteer's gain schedule (speed, mass), and NO rate
+          // term: at taxi speed the wheel steers the heading kinematically on
+          // either gear, and the rate term only differentiated the contact's
+          // yaw jitter (the rudder lane's 2.5-4 Hz chatter, 76-290 reversals
+          // a minute on the stock, the C172 and the aluminium C172)
+          const [kPt] = steerK(false);
+          engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e + drFF, -drMaxG, drMaxG),
                                           de: A.taxiDe ?? 0.30, gsp: pathSpeed(ap.path, L.i, Vg, vMax, L.sRem) });
           const tMax = 40 + 1.6 * ap.path.len / taxiV;
           setStatus('following the taxi route to the hold', [
@@ -16427,7 +16761,8 @@ function makePilot(sim, def, world, opts) {
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
-        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45), de: A.taxiDe ?? 0.30,
+        const [kPt] = steerK(false);
+        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e, -0.45, 0.45), de: A.taxiDe ?? 0.30,
                                         gsp: Math.abs(e) > 0.6 ? 2.5 : taxiV });
         const lastLeg = !(ap.taxiPath && ap.taxiPath.length);
         setStatus('taxiing to the next point', [cond('to the point', Math.round(dist), lastLeg ? 22 : 10, false, 'm')]);
@@ -16440,7 +16775,8 @@ function makePilot(sim, def, world, opts) {
 
       case 'LINEUP': {
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);
-        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45), de: A.taxiDe ?? 0.30,
+        const [kPt] = steerK(false);
+        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e, -0.45, 0.45), de: A.taxiDe ?? 0.30,
                                         gsp: alig > 0.5 ? 4.5 : 2.4 });
         ap.trackHold = true;
         setStatus('lining up on the centreline', [
@@ -16459,11 +16795,16 @@ function makePilot(sim, def, world, opts) {
           const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
-          ap.targetDir = [Math.cos(K.hdgL), 0, Math.sin(K.hdgL)];
-          dr = clamp(-3.2 * e - 1.2 * eR, -0.85, 0.85);
+          const hT = K.hdgL;
+          if (taxiHdgF == null || ap.t - taxiHdgT > 0.5) taxiHdgF = hT;
+          else taxiHdgF = wrapPi(taxiHdgF + wrapPi(hT - taxiHdgF) * Math.min(1, dt / 0.4));
+          taxiHdgT = ap.t;
+          ap.targetDir = [Math.cos(taxiHdgF), 0, Math.sin(taxiHdgF)];
+          const [kPt] = steerK(false);
+          dr = clamp(-kPt * e, -0.85, 0.85);
         }
         engage('TAXI', 'DE', 'SET', { dr, de: A.taxiDe ?? 0.30, thr: 0 });
-        c.brake = 0.7; c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+        c.brake = 0.7; c.da = groundAil(0, 0.25);
         setStatus('braking to a standstill', [cond('ground speed', Vg, 0.3, Vg < 0.3, 'm/s')]);
         if (Vg < 0.3 || phaseT > 30) go('HOLD');
         break;
@@ -17113,6 +17454,17 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'ROLLOUT': {
+        if (flatRoll) {
+          // G630.1: the slow roll to the level part (see the stop below)
+          const dRem = (flatRoll.x - cg[0]) * flatRoll.ux + (flatRoll.z - cg[2]) * flatRoll.uz;
+          engage('RWY', 'DE', 'TAXI', { de: A.taxiDe ?? 0.30, gsp: Math.min(0.6 * taxiV, Math.sqrt(2 * 0.5 * Math.max(0, dRem - 1.5))) });
+          setStatus('rolling on to the level part of the strip', [cond('to the level part', Math.round(Math.max(0, dRem)), 2, dRem < 2, 'm')]);
+          if (dRem < 2 || (dRem < 6 && Vg < 0.3) || ap.t - flatRoll.t0 > 90) {
+            ap.report.outcome = ap.report.outcome || 'completed';
+            go('STOPPED');
+          }
+          break;
+        }
         if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
           const soft = ap.appr && ap.appr.technique === 'soft';
@@ -17159,7 +17511,7 @@ function makePilot(sim, def, world, opts) {
         c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));
         setStatus('rolling out', [cond('ground speed', Vg, A.VStop, Vg < A.VStop, 'm/s')]);
         if (Vg < A.VStop || phaseT > 120) {
-          if (ap.tdInfo) ap.report.landing = {
+          if (ap.tdInfo && !flatRoll) ap.report.landing = {
             run: Math.round(Math.abs(sAl - ap.tdInfo.x)),
             sink: Math.round(ap.tdInfo.sink * 100) / 100,
             V: Math.round(ap.tdInfo.V * 10) / 10,
@@ -17167,6 +17519,16 @@ function makePilot(sim, def, world, opts) {
             pastAim: Math.round(ap.tdInfo.x - ap.xAim),
             k: F.k, three: !!ap.tdInfo.three,
           };
+          // G630.1: ON A SLOPED STRIP, ROLL ON TO THE LEVEL PART (the Jolene
+          // playtest: "on inclined runways, the pilot should try and reach
+          // the flat part before stopping"). Stopped on a grade past 1.5 %,
+          // the pilot looks down the strip still ahead (to 25 m short of its
+          // end, 400 m at most) for ground under 1 %, and taxis there. None
+          // ahead (the whole strip is the hill — the matrix's up4 / dn4) and
+          // it stops where it is, as before; the landing is judged at the
+          // first stop either way.
+          if (!flatRoll && phaseT <= 120) flatRoll = flatAhead();
+          if (flatRoll) { say('slope', 'stopped on a ' + (Math.abs(gGrade) * 100).toFixed(1) + ' % grade — rolling ' + Math.round(flatRoll.d) + ' m on to the level part'); break; }
           ap.report.outcome = ap.report.outcome || 'completed';
           go('STOPPED');
         }
@@ -17174,6 +17536,7 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'STOPPED':
+        flatRoll = null;
         engage('NONE', 'DE', 'SET', { de: 0.35, thr: 0 });
         c.brake = 0.25;
         setStatus('stopped', []);
@@ -27807,7 +28170,16 @@ function genGroundPowerCap(def, T0, W) {
 
 const GEN_WDT_MAX = 0.45;      // omega * dt
 const GEN_CDT_MAX = 0.65;      // damping rate * dt
+// THE STEP A BUILD FLIES (G610): the TRUE step (genSubstepsTrue, the rule below and G580's dampers),
+// then THE FLIGHT BOX (genFlightBox) where the wing's springs ask for more than GEN_BOX_N. The params
+// carry both: `substeps` is what flies, `substepsTrue` (only when they differ) what the actual wing
+// needs - the load test flies that one (sim.trueBox(), 30_solver.js).
 function genSubsteps(nodes, beams) {
+  const N0 = genSubstepsTrue(nodes, beams);
+  const N = genFlightBox(nodes, beams, N0);
+  return N < N0 ? { substeps: N, substepsTrue: N0 } : { substeps: N0 };
+}
+function genSubstepsTrue(nodes, beams) {
   let wMax = 0, cMax = 0;
   for (const b of beams) {
     // G121 (the review's B2): omega at DRY mass, not full-tanks mass. Fuel
@@ -27860,6 +28232,74 @@ function genSubsteps(nodes, beams) {
   const cap = capAt(N);
   for (const b of beams) { const c = cap(b); if (c < b.c) { b.cSized = b.c; b.c = c; } }
   return N;
+}
+// THE FLIGHT BOX (G610, PHYSICS PERF - the metal wing box). An alloy wing box (the WB-WB beams on
+// ~0.9 kg nodes) asks 213-265 substeps per beam, so every metal build flew at the 200 cap - for an
+// axial mode of the box at a kilohertz and more that no flight dynamics can see: the metal Cessna's
+// lowest wing mode is two orders under it. Where the springs set a step over GEN_BOX_N, the FLIGHT
+// flies a box softened to that step: every WING spring (cls 'wing' - the spars, the ribs, the
+// diagonals, the carry-through) past omega dt GEN_WDT_MAX at the new step is cut to it, and its
+// damper with it by the same sqrt, so each softened beam keeps its own damping ratio (the box rings
+// and dies as the true one does); a damper anywhere past c dt at the new step is cut to it, as G580
+// does. Taken only if the whole NETWORK holds the integrator's margin (genNetEig, the same <= 3.0 as
+// G580 - the per-beam bound alone diverged at 80 substeps, measured) and no spring flies softer than
+// GEN_BOX_KMIN of its true k; the smallest such step at or over GEN_BOX_N and every non-wing spring's
+// own need, never more than the true one. Nothing else moves: the fuselage, the tail, the gear and
+// every mass fly as built.
+// The TRUE box is kept on the beam (kTrue, cTrue: what the true step flies) and it is what every
+// structural number reads: the load test (65_gen_loadtest) and GATE FLEX fly it (sim.trueBox()), and
+// the solver's strain in flight is reported against the true k - the force the soft spring carries
+// over the true stiffness, which is what the real wing's strain is under the same load.
+// The user's rule: "I'm OK with it, but I don't want to fake the test. Let the test test the actual
+// wing." Measured on the metal Cessna: 200 -> 120 substeps, the wing's tips 2-3 mm more bend in
+// cruise (HANDOVER G610).
+const GEN_BOX_N = 120;
+const GEN_BOX_KMIN = 0.25;
+function genFlightBox(nodes, beams, N0) {
+  if (!(N0 > GEN_BOX_N)) return N0;
+  const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
+  const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
+  let wOther = 0, anyWing = false;
+  for (const b of beams) { if (b.cls === 'wing') anyWing = true; else wOther = Math.max(wOther, Math.sqrt(b.k * invOf(b))); }
+  if (!anyWing) return N0;
+  const lo = Math.max(GEN_BOX_N, Math.ceil(wOther / (60 * GEN_WDT_MAX)));
+  if (lo >= N0) return N0;
+  const kAt = N => { const w = GEN_WDT_MAX * 60 * N; return b => (b.cls === 'wing' ? Math.min(b.k, w * w / invOf(b)) : b.k); };
+  const cAt = N => { const kf = kAt(N); return b => Math.min(b.c * Math.sqrt(kf(b) / b.k), GEN_CDT_MAX * 60 * N / invOf(b)); };
+  const holds = N => {
+    const kf = kAt(N);
+    for (const b of beams) if (kf(b) < GEN_BOX_KMIN * b.k) return false;
+    const dt = 1 / (60 * N);
+    return genNetEig(nodes, beams, kf, dry) * dt * dt + 2 * genNetEig(nodes, beams, cAt(N), dry) * dt <= GEN_NET_MAX;
+  };
+  let N = lo;
+  if (!holds(N)) {
+    let a = lo, z = N0 - 1;
+    if (z <= a || !holds(z)) return N0;              // no softer step holds: the true box flies
+    while (z - a > 1) { const mid = (a + z) >> 1; if (holds(mid)) z = mid; else a = mid; }
+    N = z;
+  }
+  const kf = kAt(N), cf = cAt(N);
+  for (const b of beams) {
+    const k = kf(b), c = cf(b);
+    if (k < b.k || c < b.c) { b.kTrue = b.k; b.cTrue = b.c; b.k = k; b.c = c; }
+  }
+  return N;
+}
+// the flight def's TRUE twin: the actual wing (kTrue, cTrue) at the step it needs - for a reader that
+// builds its own sim off a def (a sim in hand switches itself: sim.trueBox()). The def itself when
+// nothing was softened.
+function genTrueBox(def) {
+  if (!def || !def.beams || !def.beams.some(b => b.kTrue != null)) return def;
+  const beams = def.beams.map(b => {
+    if (b.kTrue == null) return b;
+    const o = Object.assign({}, b, { k: b.kTrue, c: b.cTrue });
+    delete o.kTrue; delete o.cTrue;
+    return o;
+  });
+  const params = Object.assign({}, def.params, { substeps: def.params.substepsTrue });
+  delete params.substepsTrue;
+  return Object.assign({}, def, { beams, params });
 }
 // the network's highest eigenvalue of M^-1/2 A M^-1/2, A the axial springs (val = k: omega^2) or dampers
 // (val = c: the damping rate), each beam along its rest direction, dry masses; power iteration from a
@@ -28170,7 +28610,7 @@ function genParams(S, fr, strips) {
           // per tank, in spec order, what the frame billed (the fuel gauges)
           vessels: ((S.energy && S.energy.vessels) || []).map(v => ({
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
-    substeps: genSubsteps(fr.nodes, fr.beams),
+    ...genSubsteps(fr.nodes, fr.beams),        // substeps (+ substepsTrue where the flight box is softened, G610)
     polarWing, polarTail, polarFin,
     // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
     // GATE GEN's G9 and every reader of the flat name keep working)
@@ -30777,6 +31217,12 @@ function makeLoadTest(sim, def, cfg) {
   // and the linearity check reads that as a bent rig.
   if (sim.setEngine && sim.eng)
     for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+  // THE ACTUAL WING ON THE TRESTLES (G610). A metal build FLIES a softened wing box (62_gen_aero
+  // genFlightBox: its kilohertz axial mode cut to what 120 substeps carry); the sandbags go on the
+  // wing as BUILT - the rig switches the sim it is handed to the true k and c and steps it at the
+  // step the true box needs. The user: "I don't want to fake the test. Let the test test the actual
+  // wing." A build that softened nothing is untouched (the same sim, the same step).
+  const SUB = (sim.trueBox ? sim.trueBox() : 0) || (def.params && (def.params.substepsTrue || def.params.substeps)) || 24;
   // THE WING IS JUDGED AS WHAT IT IS BUILT OF (G213). `cfg.wingMaterial` is a
   // GEN_SURF_MATERIALS key (or row): the wing class's allowable is that
   // row's section and yield, not the fuselage's. Measured before this: the
@@ -30924,7 +31370,6 @@ function makeLoadTest(sim, def, cfg) {
   // strains 0.11-0.20 at 1 g, tips -13 % to +35 %, tubeFabric alone sane)
   // made it a defect. A trestle does not let go between substeps: the
   // clamp now runs inside the frame, after every substep.
-  const SUB = (def.params && def.params.substeps) || 24;
   function stepClamped(dt) {
     for (let k = 0; k < SUB; k++) { sim.step(dt / SUB, 1); clamp(); }
   }
@@ -31131,4 +31576,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
