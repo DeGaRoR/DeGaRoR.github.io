@@ -114,7 +114,11 @@ function makeSim(def, world) {
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
         r = new Float64Array(n);
-  const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0 }));
+  // THE FLIGHT BOX (G610, 62_gen_aero genFlightBox): a softened wing spring (kTrue on the beam) reports
+  // its strain against the TRUE k - the force it carries over the actual wing's stiffness, which is the
+  // real wing's strain under the same load (sK = k / kTrue; 1, exactly, on every other beam)
+  const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0, sK: b.kTrue != null ? b.k / b.kTrue : 1, kF: b.k, cF: b.c }));
+  let subN = P_.substeps ?? 24;
   // THE TUBE (G294): RIGID CLUSTERS, shape-matched every substep. A group of
   // nodes (a twin boom's) is pulled onto the best-fit rigid transform of
   // its rest shape — Müller's shape matching: the mass-weighted centre,
@@ -760,6 +764,12 @@ function makeSim(def, world) {
   }
 
   function reset(drop = 0) {
+    // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
+    // lasts until the next one, so the roll-out after a sandbag test flies the flight box again
+    if (subN !== (P_.substeps ?? 24)) {
+      for (const b of beams) if (b.kTrue != null) { b.k = b.kF; b.c = b.cF; b.sK = b.kF / b.kTrue; }
+      subN = P_.substeps ?? 24;
+    }
     if (NP) { Gam.fill(0); GamPrev.fill(0); aicHash = NaN; }   // G185.5
     totalM = 0;                    // G121: masses may have changed (setNodeMass)
     resetPanel();                  // the panel arc: tanks as built, engines running
@@ -1325,7 +1335,7 @@ function makeSim(def, world) {
       const L = hyp3(dx, dy, dz) || 1e-9;
       dx/=L; dy/=L; dz/=L;
       const vrel = (v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz;
-      b.strain = (L - b.L0) / b.L0;
+      b.strain = (L - b.L0) / b.L0 * b.sK;
       // G185: a WIRE carries tension only — slack, it is not there (no
       // spring, and no damper either: a slack cable damps nothing)
       const Fb = (b.tens && L <= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
@@ -1468,7 +1478,15 @@ function makeSim(def, world) {
     out.alt = cy/totalM;
   }
 
-  function step(dtFrame, sub = P_.substeps ?? 24) {
+  // THE ACTUAL WING (G610): this sim flies the true box until its next reset() - every softened beam back
+  // to its true k and c, the step the true box needs as the default. The load test and GATE FLEX call it
+  // (after their reset): "let the test test the actual wing". Returns the step.
+  function trueBox() {
+    for (const b of beams) if (b.kTrue != null) { b.k = b.kTrue; b.c = b.cTrue; b.sK = 1; }
+    if (P_.substepsTrue) subN = P_.substepsTrue;
+    return subN;
+  }
+  function step(dtFrame, sub = subN) {
     const dt = dtFrame / sub;
     aicFresh = true;
     // the cone's frame-start samples (a bound the world declares, else off)
@@ -1625,7 +1643,7 @@ function makeSim(def, world) {
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY,
-           reset, stance, step, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
+           reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,

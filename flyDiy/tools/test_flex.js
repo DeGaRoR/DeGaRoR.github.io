@@ -150,6 +150,7 @@ function audit(def, matKey) {
 function statTorsion(def, torque, plane) {
   const sim = makeSim(def, null);            // no world: free-air, gear on a flat plane
   sim.reset(0);
+  sim.trueBox();                             // G610: the actual wing, never the flight box (after the reset)
   const st = stations(def, plane);
   if (st.length < 2) return null;
   const root = st[0], tip = st[st.length - 1];
@@ -200,6 +201,7 @@ function statTorsion(def, torque, plane) {
 function statBend(def, load, plane) {
   const sim = makeSim(def, null);
   sim.reset(0);
+  sim.trueBox();                             // G610: the actual wing
   const st = stations(def, plane);
   if (st.length < 2) return null;
   const root = st[0], tip = st[st.length - 1];
@@ -244,6 +246,7 @@ function statBend(def, load, plane) {
 function flex(name, def, matKey) {
   const sim = makeSim(def, world);
   sim.reset(0);
+  sim.trueBox();                             // G610: the structural instrument flies the actual wing, at its own step
   const st = stations(def);
   if (st.length < 2) { say(`  ${name}: fewer than two spar stations — skipped`); return null; }
   const root = st[0], tip = st[st.length - 1];
@@ -655,6 +658,7 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m, the couple's way
 function statTail(def) {
   const sim = makeSim(def, null);
   sim.reset(0);
+  const SUB = sim.trueBox() || 24;           // G610: the actual airframe, at the step it needs
   const P = def.parts, S = def.spec;
   if (P.HTL == null || P.HTR == null) return null;
   const free = new Set();
@@ -669,7 +673,6 @@ function statTail(def) {
     def.nodes.forEach((n, i) => { if (!free.has(i)) pin.push([i, sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]]); });
   };
   const clamp = () => { for (const p of pin) { const i = p[0]*3; sim.p[i] = p[1]; sim.p[i+1] = p[2]; sim.p[i+2] = p[3]; sim.v[i] = sim.v[i+1] = sim.v[i+2] = 0; } };
-  const SUB = def.params.substeps || 24;
   let W = 0; for (const n of def.nodes) W += n.m; W *= 9.81;
   const F = W * S.tail.Sh / S.geom.Sw;
   const HTL = P.HTL, HTR = P.HTR;
