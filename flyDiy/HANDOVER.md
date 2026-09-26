@@ -59950,3 +59950,146 @@ rollout swing 21.5 deg, cub A3's 4 m/s sink - all as on the old core.
 - Gates: `node tools/run_gates.js` CORE BATTERY PASS (99 gates, 106 jobs incl. shards; PILOTACT new). Full tier not
   run as a battery; PILOTMATRIX as above.
 - AUTOPILOT RULES carry the two rules (targetDir / wrapped rates; the ground's rate term and the freeze test).
+## G620 - THE A-METER: THE FLIGHT RECORDER, THE FPS METER, AND THE FREEZES THAT NEVER SHOWED (2026-09-26, the Jolene playtest plan, batch A)
+
+The plan: batch B starts with the user PLAYING while a recorder logs, so batch A ships the instrument. Three readouts
+lied about the frame, and none of them could see a freeze:
+- the graphics flyout's `frame rate` (flFps, app.js hud()) counted hud() CALLS - and hud() runs every 0.1 s (the
+  loop's hudAcc), so it read 10 fps at best whatever the frame did;
+- PACE's history (G586) dropped every interval of 250 ms or more ("a stall is not a frame"), so a real freeze never
+  reached the GFX note's median / p90;
+- the F8 panel counted its own rAF callbacks, which under the G586 cap are refreshes, not rendered frames (60 at a 30 cap).
+
+WHAT SHIPS
+- `src/viewer/flight_recorder.js` (new, MANIFEST right after storage.js; window.FLIGHT_REC). ALWAYS ON. A ring of
+  65 536 rendered frames (~18 min at 60, ~36 at 30) in preallocated typed arrays, one row a frame written in place:
+  the wall interval (rAF's clock since the last RENDERED frame - a freeze is an interval like any other), the loop's
+  work, the solver steps owed and taken, the CPU split (script = the pilot, solver, world = worldUpdate minus its
+  premises step / cover ring / fill, scene = pose + camera + buffers + spray + water field, hud, mirror, render =
+  the submit minus the shadow passes and the shader links, shadow = renderer.shadowMap.render wrapped, shader =
+  linkProgram + the first link-status read, other = the hand, the shed, the director, the panel, the glare), the
+  GPU time (EXT_disjoint_timer_query_webgl2 round the frame, results read 2+ frames later; it YIELDS - ends itself
+  first - when another module opens a TIME_ELAPSED query, and stays off 2 s: aa_resolve's auto scale, clouds,
+  post_fx and water time themselves, and queries cannot nest), draws and triangles (renderer.info after each
+  render() of the frame, summed: three's autoReset leaves one call's worth), the CG, height above the ground,
+  speed, climb, the autopilot's phase, the camera, flags (shed, running, held, manual, away, freeze, loading screen,
+  foreign timer, not rendered), the cap, the JS heap. Events beside it: longtask, long-animation-frame (Chrome 123+:
+  the scripts that held it, >= 100 ms), link / linkwait, prem (a stream build: ms, built, queued), gfx (a setting),
+  cap (auto's switches), boot (the loading screens' states) and REVEAL (the roll-out screen gone), gc (heap down
+  > 8 MB), freeze, err (page errors, rejections), vis, pagehide, save, MARK (a click on the meter). A header:
+  build + core + version.json, UA, GPU (WEBGL_debug_renderer_info), screen / window / canvas / DPR, the graphics
+  settings, the frame clock's state, the AA tier, the aeroplane (key, name, nodes, mass, its scalar params), the
+  boot's own log (every step with its ms), and the recorder's own cost.
+  THE STORE: IndexedDB `flydiy-flightrec`: a chunk of 1 024 frames when it fills (16 frames late, for the GPU's
+  results), the partial chunk + new events every 5 s and on pagehide / hidden, the header when the boot log grows
+  (and every 30 s, and on the way out); the last 4 sessions kept, 600 chunks a session at most. So a page that
+  froze or was killed has its log at the next load (`previous session`).
+  THE HOOKS (app.js, ~20 one-line edits, all `if (FR)`): FR.begin(ts, pc) after PACE says the refresh is ours;
+  push/pop round script() and each sim.step(); FR.lap(other / world / scene / hud / mirror / render) at the loop's
+  section boundaries; FR.end(false, cg) on the boot's hold, FR.end(true, cg) before PACE.end. render_world.js
+  pushes the premises' step (and emits the build event), fillUpdate and the cover ring. A lap gives its slot the
+  time since the last lap MINUS the nested pushes, so the split sums to the work exactly. `?rec=0` (or
+  localStorage flydiy.rec.off = '1') leaves the page unhooked - the A/B.
+- THE FPS METER: graphics flyout (both rails) `fps meter` off / on, off by default, remembered (flydiy.rec). Top
+  right: rendered fps over the last 2 s of wall time (freezes in, a hidden gap out), the interval's median / p90 /
+  max there, the cap (auto 60 / auto 30 / cap 30 / uncapped / rig clock), the solver steps of the last frame, the
+  CPU work and the latest GPU time, PACE's freeze count, and the last 120 frames as bars (0-50 ms; lines at 16.7 and
+  33.3; amber over 35 ms, red to the top over 100). It takes no clicks (what is under it stays usable) except its
+  yellow DOT: a MARK in the log.
+- THE FLIGHT LOG ROW (same flyout): the recording's state and its own cost, `save log` (this session: the ring, or
+  the store's chunks when the session outgrew the ring) and `previous session` - a JSON download,
+  flydiy-flightlog-<sid>.json, columnar.
+- `tools/analyze_log.js <log.json[.gz]> [--gate] [--json out] [--worst N] [--all]`: the session, the loading
+  screens (each run's steps with their ms, the screen's time), PER PHASE (boot, shed, stand, taxi, take-off,
+  climb, cruise, descent, approach, landing, paused - from the autopilot's phase, from the aeroplane itself under
+  the hand) frames, seconds, mean fps, p50 / p10 / p1 fps, worst interval, seconds under 30, mean CPU split / GPU /
+  draws; the WORST 20 frames after the reveal with what the frame BEFORE did (an interval is the previous frame's
+  work plus what ran between: `outside the loop`) and the events in the interval; the stretches under 30 fps
+  (interval > 35 ms; up to two quick frames carried while the stretch's own mean stays under 30); frames over
+  100 ms; long tasks over 1 s with the long animation frames that name their scripts. THE ROLLOUT TARGETS, scored:
+  no frame > 100 ms after the reveal; never > 3 s in a row under 30 fps; stand and taxi median >= 50 fps (after the
+  reveal); no task > 1 s (the whole log, the loading screens included). `--gate` exits 1 on any FAIL.
+- THE FIXES: flFps reads the recorder's 2 s (else PACE's intervals) - `43 fps · 23.1 ms median, 120 max`; the F8
+  panel likewise (its own rAF count only as a fallback, labelled `refreshes/s`); PACE KEEPS a stall of 250 ms or
+  more in its history and counts it (freezes(): n, worst, last ago, away) - auto's readings still skip it, and a gap
+  the page spent hidden (visibilitychange) is neither; the GFX note says `... · N ms max · k freezes of 250 ms or
+  more since load (worst X ms, last Y s ago)`.
+
+THE COST, PROVED (budget 0.2 ms a frame):
+- HOT: GATE FLIGHTREC runs the loop's real hook sequence (2 steps, 3 renders with their shadow passes, the world's
+  three pushes, 6 laps, the end with its probe) 100 000 times: 2.2-3.1 us a frame over a no-op control (asserted
+  < 20 us); in Chrome, the same sequence in the page on its JIT and clock: 3.5-4.1 us.
+- ALLOCATION: 0.11 bytes a frame over 20 000 frames (asserted < 4) with a clock that cannot box - nothing. Measured
+  with a double-valued clock it reads 16-60 B: V8 boxes a double returned from a call it does not inline, or passed
+  across one (the clock's cost in any caller); and a double stored in a CLOSURE boxes on every store, which is why
+  the recorder's clock state lives in a Float64Array (it read 16 B more before).
+- LIVE, the worst box there is: this cloud box (4 vCPU; SwiftShader's GPU process on ~2 of them; draws stubbed, the
+  G585 rig, ~3 fps in the taxi), cross-origin isolated for a 5 us clock: the recorder's own sampled self-timing 46 us a
+  frame + 44 us for the GPU timer's GL calls; every hook wrapped and timed: 106-165 us a frame over 60-85 frames
+  (begin p50 20-30 us, end p50 40-55 us - both carry the timer's GL calls, which wait when the GPU's command buffer
+  is full; lap / push / pop p50 0-5 us; no call over 200 us but 1-2 a run). The difference from the hot 3.5 us is a
+  cold cache once a frame and a contended CPU. EVERY LOG NOW CARRIES ITS OWN NUMBER: the recorder times itself every
+  17th frame (17: the samples fall on every phase of the reads done every 4th / 16th / 64th frame - the first cut
+  sampled every 16th, which is exactly the frames with all the periodic reads, and read 400 us), frames under a
+  loading screen excluded, the GPU timer's calls apart - header.overhead.frameUsMean / gpuTimerUsMean, and the
+  flyout's line once 200 frames are sampled.
+
+GATES: FLIGHTREC (new, core, ~2 s): the row's split exact on a scripted clock and summing to the work, nested
+pushes out of their section, a freeze kept + flagged + an event, a hidden gap away, an abandoned frame closed by the
+next begin, a held frame flagged, the wrappers returning what the originals return with their arguments, the GPU
+query timing the frame / yielding to a foreign one (the fake GL throws on nesting) / staying off 2 s, 3 000 frames
+through a 1 024 ring and 11 chunks, the log's JSON, analyze_log on scripted sessions (clean: 5 PASS; a 150 ms
+freeze + 4 s at 20 fps + a 40 fps taxi + a 1.2 s task: 4 FAIL, the stand PASS; two reveals scored from the first;
+the phases under the hand), the cost (time, allocation), the wiring. PACE: +3 (a 900 ms freeze kept and counted;
+auto unmoved by freezes; a hidden 4 s gap not a freeze).
+THE BATTERY (`--all`, a clean worktree of the G620 source commit, jobs 4, 92 min wall): CORE ALL GREEN - 104 jobs,
+FLIGHTREC / PACE / UISMOKE / GFX / PROGRAMS / COVER / BOOT / WORLDRENDER among them; MEDIA 8.96 MiB, 2.99 MiB
+gzipped (budget 4), +49.3 KB over HEAD (budget 307.2 KB). FULL TIER RED, PRE-EXISTING: ARCHETYPES (Caravan-,
+Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler give up the circuit), PILOTMATRIX (9 regressed against
+pilot_baseline.json: cub / c172 HOME landings, sink 0.95 -> 2.04, 1.05 -> 2.34, 1.49 -> 3.92), SEAPLANE (3: not off
+the water in 25 s, 44.5 m off the lane, 180 deg swing) - the SAME lines, number for number, on 3da1c82 (master, the
+base) run alone the same day; tools/flight_core.js built from this commit is byte-identical to the base's, and none
+of the three reads a file G620 touches. Not this chantier's; OWED to whoever owns the pilot / the frame clock
+(G580 / G586 are the physics' last movers). PAVEMENT / BIOME / SETTLE, red on the base's core run under a loaded
+box (timing budgets: 100 000 coverAt calls, surface perf < 5 us, the settle bake), passed on this one.
+
+SEEN IN A BROWSER (headless Chrome 141 on this box, index.html?pace=1, the potato preset, 960x540, draws stubbed - the
+G585 rig; SwiftShader drawing for real ran the shed at one frame in 7-15 s): the shed boots at 30 fps (auto drops to
+30), the meter shows (`4 fps  auto 30  4 steps | frame ms  med 150  p90 733  max 733 | cpu 199  gpu 572 ms  freezes 106`),
+the flyout's `frame rate` reads `4 fps · 166.7 ms median, 450 max`, the GPU timer times 559 of 562 frames (it
+works under SwiftShader), IndexedDB holds the session, `save log` downloads 270-290 KB for ~550 frames, `previous
+session` after a reload downloads the first page's log (its frames and its mark) from the store, the meter's
+on-state survives a reload, clicks pass through it, its dot marks. analyze_log.js on those logs, as a demonstration
+of what it says (the rig's numbers are the rig's, not the game's):
+- the loading screens with their steps: the shed 25-28 s (editor 4.8-5.9 s, sync 3.9-4.4 s, compile 7-9 s), the
+  roll-out 98-126 s (world 68-75 s, trees 37-64 s, ring 65-68 s, upload 10-11 s);
+- the worst frames after the reveal are the PREMISES STREAM: one `premisesR.step(1)` = one house or park built in one
+  frame, 535-830 ms of a 767-983 ms frame (`prem 830.7, render 80.6, world 37.0 ...`; the long animation frame names
+  `FrameRequestCallback loop`); 104-128 builds with ~450 queued behind them in the taxi's first minute;
+- the loading screen's HARD TIMEOUT (app.js hands boot.js `hard: 90000` for the roll-out; the watchdog checked late,
+  the world step being one 68 s task) lifted the screen at 180 s while its steps were still running - the real end came at 262 s: two `reveal`s in one log (the scorer takes the first: from then on it
+  is in plain sight);
+- THE SIM RUNS UNDER THE ROLL-OUT SCREEN: the autopilot went DEPART -> TAXI as the roll-out began and the aeroplane
+  was taxiing at 4.5 m/s when the screen lifted (the loop steps the solver while holdRender only skips the draw) -
+  so this log has no `stand` after the reveal. Worth a look on the user's box: does the player see the aeroplane
+  already rolling?
+
+OWED: the meter and the log on the user's real display (batch B). GPU time only where the browser exposes the timer
+and no module's own timer runs (the auto render scale's runs every frame while it is on; the log flags those frames
+`gpuForeign`). `performance.now()` is coarsened to 100 us in a page without cross-origin isolation (the shipped
+page), so ONE frame's small slots are quantised to 0 / 0.1 / 0.2 ms - their means over many frames are not, and the
+worst frames are tens of ms where it does not matter. The recorder does not change what a frame does, but the
+three it found above (the premises' one-frame builds, the early reveal, the sim under the screen) are batch B/C's.
+
+HOW THE USER RECORDS A SESSION (batch B):
+1. Play the build as usual. The recorder is ALWAYS ON from the first script - nothing to start.
+2. (Optional) GRAPHICS (the left rail) -> `fps meter` -> on: the meter sits top right (remembered).
+3. When something stutters or freezes, click the meter's YELLOW DOT: a mark in the log at that moment. Keep a word
+   of what you saw (the stand, the taxi, a turn, the town...).
+4. Before closing the tab: GRAPHICS -> `flight log` -> `save log` - a file `flydiy-flightlog-<date>-<id>.json` in
+   your downloads (a few MB for a long session). The console has it too: `FLIGHT_REC.save()`.
+5. After a freeze you had to kill, or a crash: reload the page, then GRAPHICS -> `flight log` -> `previous session`
+   (`FLIGHT_REC.savePrevious()`): the log of the page before, from the browser's store (saved every 5 s).
+6. Send the file with a sentence: what you did, what you saw, when (the marks say where).
+Reading it: `node tools/analyze_log.js <file>` (the ROLLOUT verdicts at the bottom; `--gate` exits 1 on a FAIL,
+`--json out.json` for the numbers).
