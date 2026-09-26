@@ -40,7 +40,7 @@
     // the wall clock at every one of them. `free`: not a picture's, so no preset sets it and picking one does
     // not make the preset 'custom'.
     { k: 'fps', label: 'frame rate', free: true, steps: [
-        { v: 'auto', label: 'auto', why: 'held at 60 fps while the frame can, 30 when it cannot (two readings over 18.5 ms), back to 60 when a trial holds - the default' },
+        { v: 'auto', label: 'auto', why: 'held at 60 fps while the frame can, 30 when it cannot (three readings over 18.5 ms; a hitch is not a reading), back to 60 when a trial holds (tried every 5-30 s while the work fits 60) - the default' },
         { v: 60, label: '60', why: 'capped at 60 fps' },
         { v: 30, label: '30', why: 'capped at 30 fps: every frame the same length, two physics steps each - the smoothest when 60 is out of reach' },
         { v: 'off', label: 'uncapped', why: 'every refresh of the screen drawn (a 144 Hz screen draws up to 144)' } ] },
