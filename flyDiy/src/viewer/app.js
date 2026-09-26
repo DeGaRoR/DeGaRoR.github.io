@@ -3225,7 +3225,9 @@
         } else p.rotation.x += d;
         poseRigid(p);                                 // G357: in the true frame
       }
-    const link = model.link.step(sim.ctl, 1/60);   // once per frame: it is stateful
+    // once per frame: it is stateful - and on the frame's own dt (G613; G586's clock): at 30 fps a fixed
+    // 1/60 moved the control surfaces at half their speed. A rig and the old clock read 1/60, as before.
+    const link = model.link.step(sim.ctl, frameDt());
     if (model.gen) {
       // ONLY mode 1 exaggerates. This used to read SKIN_GAINS[min(skinMode,1)],
       // which handed mode 2 a gain of 4 as well — so the GARAGE's Bare frame,
