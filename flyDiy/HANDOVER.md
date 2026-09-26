@@ -134,7 +134,9 @@ before every battery so stale hand-edits get overwritten, loudly.
   boot.js (THE LOADING SCREEN, G406: window.BOOT - the boot's step chain, the
   readiness aggregator, the overlay's words; in the BOOT slot of body.html,
   before the vendor; the pictures are tools/shots_prep.py's, named by
-  shots_pack.json), storage.js (THE MEDIA CACHE + THE VERSION LINE, G421:
+  shots_pack.json; G640: the measured bar, the step's words and the carousel,
+  whose cards are boot_cards.js - data only, window.BOOT_CARDS, in the same
+  block ahead of boot.js), storage.js (THE MEDIA CACHE + THE VERSION LINE, G421:
   window.STORAGE - registers sw.js from index.html only, reads FLYDIY_BUILD
   against version.json, measures the cache, REFRESH CACHES; sw.js and
   version.json are build.js's, generated beside the pages). MANIFEST.viewer.scripts:
@@ -59730,3 +59732,99 @@ sweep. A rig (webdriver / headless) and a call with no timestamp keep the old cl
 PACE (core) drives the block with synthetic refreshes; GFX / WATER / PANEL / BENCH read the new wiring. Core battery
 green but MEDIA (pre-existing). NOT seen on a real display yet: the feel at 30 and auto's switching want the user's
 eye on the gamer box (a headless software-GL run was cut short). futureDesigns/PHYSICS-PERF-2026-09-24.md G586.
+
+## G640 - THE LOADING SCREENS: A MEASURED BAR, THE STEP IN PLAIN WORDS, AND SOMETHING TO READ (2026-09-26, A4-COPY of the Jolene playtest plan)
+
+The user (bugReports/jolenePlaytestFeedback.txt, A4): "current load times are acceptable, but not much more. The user
+feedback should increase again, progress bars for every loading screen ... This includes possible setting changes. We
+have a lot of new screenshots that can be displayed. That's a lot of time for users to read, so tell them what happens,
+but also cool things about the game, or some more advanced techniques for flying their planes or playing the game.
+Let's make loading time relatively fun". This is the COPY half of A4: the boot sequence itself is not restructured
+(A4-FREEZE owns the long tasks and compileAsync); the screens got hooks, words, cards and pictures.
+
+- THE BAR IS MEASURED (boot.js). Every set's steps are timed and kept in localStorage `flydiy.boot.ms`, one row per
+  set + step list (`garage:treeBins:9` the boot, `garage:shed:3` the way back, `rollout:world:7` the first roll-out,
+  `rollout:trees:6` a second one, `settings:compile:2`), halved toward each new run; a step's share of the bar is its
+  expected ms. A step this browser never timed weighs `w` x 150 ms x THE PACE (`_pace`, 0.3-10: how much slower than
+  its `w` this machine ran the untimed steps before - the first roll-out on a slow box learns from the boot). A COLD
+  compile is its own row (`compile:cold`, a 20 s prior): a warm launch never inherits the first visit's 35 s. The garage boot's bar opens with the scripts' own
+  share (T0 to run(), measured too; the island loader's `reading the island` count drives it on a first visit), and
+  every set closes with a LANDING share (the last assets, the quiet frames): the bar is never full while it waits.
+- INSIDE A STEP it creeps on the expected time (73 % of the step at the expected time, 88 % at twice it, 0.92 at
+  most: never stuck, never past the step) or on the step's own count when that is ahead: `phase(id, label, frac)`
+  (the ring, the pictures, the upload - their fraction now only ever rises for the same step) and the new
+  `BOOT.sub(frac)`, which app.js shaderProgress feeds with linked / seen programs from its first poll (before the
+  shaders' block shows at all). MONOTONIC BY CONSTRUCTION: the fill is a scaleX transform on a LINEAR transition,
+  the drawn position is computed from the running transition, and no new target is ever set below it.
+- THE COMPOSITOR MOVES IT: each paint aims the transition at where the estimate will be a few seconds on (the rest
+  of the step's expected time, 2.5-20 s), so a step that blocks the main thread (openEditor, the world build) still
+  sees the bar crawl; one 250 ms timer while the overlay is up re-aims it and drives the cards, nothing once it is
+  gone. A per cent sits beside the bar.
+- THE STEP IN PLAIN WORDS (#bootWhy, boot.js WHY): a sentence per set and step id ("Compiling the island's shaders -
+  first visit only, cached next time" / "Linking the island's shaders from your browser's cache", told apart by the
+  shaders' own warm key `flydiy.shaders.warm:<site>` against FLYDIY_BUILD; the build id is written after boot.js, so
+  at eval only "never compiled here" counts as cold and run() re-checks and slips the cold card in).
+- THE CAROUSEL (#bootCard; `src/viewer/boot_cards.js`, data only, window.BOOT_CARDS, inlined in the SAME block ahead
+  of boot.js - GATE UISMOKE executes both; a second tag in dev.html): 66 cards - 6 NOW cards (each screen opens on
+  its own: the shed that shows only when finished, why the first visit / first flight is slower (cold only), the
+  world built on the first roll-out, back to the shed, applying your settings), 10 on the island (Annette Island,
+  Jolene AFB's WWII cross, Skyline Altiport uphill-in downhill-out, Tamgas Hill Strip, Jumbo Mine Street, East Point
+  Clearing, the two water lanes, Metlakatla, the tramway, the wildlife on the map), 10 on the game (the procedural
+  world one pick away, one clock, the weather, the clouds, who flies, routes, the phase rail, views, presets, the
+  cache), 18 on flying (Vref 1.3 / 1.2 Vs0, flaps and the cockpit's F, trim, no stall horn, crosswind is built not
+  flown, brakes and nose-over, the throttle lever, hot and high by powerplant, the air rail, the trace, netto,
+  floats' hump and water rudders, ground effect, master / key / fuel, lights, patterns, start, the keys) and 22 in
+  the shed (CG / NP / margin and its 10-25 %, moving the margin, fuel walking the CG, wing loading, the sandbag
+  test's 3.8 / 5.7 g, the advisor, the plaque earned and withdrawn, roll out untested, archetypes, materials,
+  weathervane, taildraggers, spats and fairings, the four flaps, saving, floats and the hydroplane test, density
+  altitude, the test flight, the engines, explode, the cameras, the light). EVERY CLAIM WAS CHECKED against the code
+  (the file's header names the sources and what is deliberately NOT claimed: a map or pause key, player AP modes, a
+  gear lever, a wing that breaks, a stall horn). A deck is the set's NOW cards, then the pool two cards to a
+  picture; the island cards ride the roll-out (not on the procedural world, whose words say "the world" too), the
+  shed's the boot and the way back, flying and the game both. A
+  timer on the card's length (50 ms a character, 7-15 s; a hairline shows it), prev / next by hand (a hand-picked
+  card stays 1.8x), the pointer over the card holds it; the deck's place is kept (`flydiy.boot.deck`) so the next
+  load deals the cards not yet read.
+- THE PICTURES: 10 new (4 garage: the engineering bench, sun on the shed floor, CG and NP drawn on the aeroplane,
+  the switch row; 6 world: an evening on the apron, every field on the map, climbing out over the muskeg, floats
+  over the coast, the cockpit, stilt houses at night) - the playtest's own captures (`../bugReports/`, only those
+  without the red marks) and the clean ones under screenshots/; shots_prep.py rows take a fifth element
+  {w, q, txt} (1600 wide q80 for these; txt is the picture card's line; the nine old rows got a txt and kept their
+  bytes). A picture item crossfades its figure and its card is the caption; the caption itself moved top-right.
+  LAZY: build.js writes `src` on the page's FIRST picture only, `data-src` on the rest; boot.js fetches a picture one
+  turn ahead of its showing and crossfades it only once landed (an <img src> under display:none is fetched anyway:
+  all nine used to race the boot's own bytes - the roll-out's three included). The roll-out's first picture is
+  fetched when the garage boot LIFTS: asked for at the roll-out itself it landed only after the world step released
+  the main thread (seen in the browser: ~70 s of empty background on software GL).
+- A SETTINGS CHANGE HAS A SCREEN (app.js settleScreen = window.FLYDIY_SETTLE, called by gfx_settings.js's pick for
+  every row but the frame rate): the scene that shows (the shed or the world) through compilePass + shaderProgress
+  (+ the world's depth variants), then two frames, render held, the flight's solver held (nobody flies blind) and
+  resumed. The overlay fades in only after 0.45 s (style.css `bootLate`), so a row that re-keys nothing never
+  shows it. It uses the existing compile machinery; A4-FREEZE owns making that compile cheaper.
+- A RUN OWNS ITS CHAIN: a screen the watchdog lifts (the roll-out's 90 s hard cap on a slow machine - seen twice in the
+  browser on software GL, the tree wait alone 48-59 s there) leaves its chain running; each run() is a generation now,
+  an older run's step finishing under a newer screen only logs, and phase() from a step that is not the current one
+  is recorded as stale, not shown (the roll-out's "uploading the textures 85 / 145" was painted over a settings
+  screen). `BOOT.busy()`: a chain still has steps - settleScreen does not open a screen over a lifted one's chain.
+- SEEN IN THE BROWSER (headless Chromium on SwiftShader, this cloud box: slow and software-GL, so the timings are
+  the box's, the behaviour is the point; four passes, Jolene then ?world=none): the garage boot opens at the scripts'
+  share with its NOW card, the cold card slips in second (FLYDIY_BUILD known at run()), the words follow every step,
+  the bar only ever rose; pictures fetched during the boot 3 (the eager one, one ahead, the roll-out's first at the
+  lift) where the page used to fetch all 9; the shed's settings screen stayed invisible at 300 ms and lifted after
+  its compile + frames; the roll-out opened on its picture (no empty background) and the procedural world's words
+  said "the world"; the in-flight settings screen ran once the lifted roll-out's chain had finished; the history
+  kept (`garage:treeBins:9` with `compile:cold`, `_scripts`, `_boot`, `_pace` 4.2 on this box) and the deck's place.
+  On this box the roll-out lifts at its existing 90 s hard cap (the tree wait 46-59 s, the upload 457 s on software
+  GL) - not this entry's; it is what found the two chain fixes above. NOT SEEN on a real GPU yet: the feel of the
+  crawl on the reference box, and the card copy on the user's eye.
+- MEDIA: the shots 9 files 2.2 MB -> 19 files 3.4 MB on disk (+1.2 MB of 321 MB), fetched one at a time behind the
+  overlay; the page's own image bytes at boot go DOWN (one picture eager instead of nine: -1.9 MB). index.html
+  +42 KB raw (the cards ~14 KB, boot.js +10 KB, the markup), 2.98 -> 2.99 MiB gzipped (budget 4).
+- OWED / FOR THE OTHER A4 SESSIONS: the settings screen reuses compilePass + shaderProgress as they are - A4-FREEZE
+  owns making that compile cheaper or splitting it; the roll-out's `hard: 90000` lifts a screen whose chain is still
+  working on a slow machine (the chain now finishes quietly behind it, but the player sees the world before it is
+  compiled) - a hard cap that waits while a step reports progress is FREEZE's call; the first visit's weights are
+  priors (`w` x 150 ms, the cold compile 20 s) until the browser has timed a run.
+- GATES (--all, a clean worktree of the G640 commit): 100 rows PASS - UISMOKE, BOOT (+ G640's 9-13, each negative-
+  verified on a broken copy), MEDIA, BUILD among them. ARCHETYPES, PILOTMATRIX (9 regressed) and SEAPLANE (44.5 m off
+  the lane) are RED and red identically on the base 3da1c82 (the same three run there): the pilot's, not this entry's.
