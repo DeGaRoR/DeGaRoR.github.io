@@ -99,6 +99,12 @@ const GATES = [
   // G630: the pilot's control activity - aileron / rudder reversals per minute per phase,
   // stock + C172 + the user's aluminium C172 off HOME's stand (pilot_matrix --set activity; ~4 min)
   { id: 'PILOTACT', file: '_pilotact_check.js', tier: 'core', weight: 3, wall: 300 },
+  // G710: the way out of every Jolene stand bent round the parked aeroplanes (planned, for the stock
+  // build's and the aluminium C172's span, and flown off HOME's stand past the Cub); ~40 s
+  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 60 },
+  // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
+  // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
+  { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },
   // THE SIM DOES NOT LIE (G115): gear/strut drag as a delta from the
   // calibration's reference gear, the ground's surface table, the fin's own
   // polar + the measured weathervane, and the plaque agreeing with itself.

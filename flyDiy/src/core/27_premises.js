@@ -1327,6 +1327,19 @@ function compose(rec0, world, opts) {
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
     aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)));   // T1 sees the strip's own grade (pushed above)
     r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
+    // G710: THE PARKED AEROPLANES the way out must clear (25_airfield.js gpClearWay): every `aircraft`
+    // object within 400 m of the stand or a taxi point, in the world (x, z, and `ry` = rotation.y, the
+    // record's yaw plus the frame's - render_premises' own placement), its key naming the footprint
+    if (r.site && r.site.stand && r.site.taxiOut) {
+      const way = [[r.site.stand.x, r.site.stand.z]].concat(r.site.taxiOut), park = [];
+      for (const ob of rec.layers.objects || []) {
+        if (ob.kind !== 'aircraft' || !ob.key || !isFinite(+ob.x) || !isFinite(+ob.z)) continue;
+        const w = F.toWorld(+ob.x, +ob.z);
+        if (way.some(q => Math.hypot(q[0] - w[0], q[1] - w[1]) < 400))
+          park.push({ id: ob.id, key: ob.key, x: +w[0].toFixed(3), z: +w[1].toFixed(3), ry: +((+ob.yaw || 0) + F.yaw).toFixed(4) });
+      }
+      if (park.length) r.site.parked = park;
+    }
     if (r.site && r.site.stand) { const L = F.toLocal(r.site.stand.x, r.site.stand.z); r.site.stand.elev = +T1(L[0], L[1]).toFixed(2); }   // the ground under the stand (v9): the placer reads it
     if (r.site && r.site.hangar) { const L = F.toLocal(r.site.hangar.x, r.site.hangar.z); r.site.hangar.y = +T1(L[0], L[1]).toFixed(2); }   // the ground under the club hangar (G434): the shed stands on it
   }
