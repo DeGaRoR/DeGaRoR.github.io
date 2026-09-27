@@ -135,11 +135,11 @@ function ramp(P) {     // along the middle rows, over the WATER's pixels (the al
     const dx=${AT[0]}-cg[0],dy=(gy+${AT[1]})-cg[1],dz=${AT[2]}-cg[2];
     for(let i=0;i<s.n;i++){s.p[i*3]+=dx;s.p[i*3+1]+=dy;s.p[i*3+2]+=dz;s.v[i*3]=s.v[i*3+1]=s.v[i*3+2]=0;}
     const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return 1;})()`);
-  await ev("(()=>{const r=document.querySelector('#flRail [data-f=camera]');if(r)r.click();return 1;})()");
+  await ev("(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById('flFly');if(R)R.open(f&&!f.hidden?null:'camera');return 1;})()");
   await sleep(300);
   const got = await ev("(()=>{const p=[...document.querySelectorAll('#flFlyBody .pill')].find(b=>b.textContent.trim()==='free');if(!p)return 0;p.click();return 1;})()");
   if (!got) throw new Error('no free pill on the camera flyout');
-  await ev("(()=>{const r=document.querySelector('#flRail [data-f=camera]');if(r)r.click();return 1;})()");
+  await ev("(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById('flFly');if(R)R.open(f&&!f.hidden?null:'camera');return 1;})()");
   await ev("(()=>{if(window.SHOT_MODE)SHOT_MODE.enter();return 1;})()");
   await ev('(()=>{' + CA + ';return 1;})()');
   await sleep(500);

@@ -99,10 +99,10 @@ function diff(a, b) {
     console.log('postfx_shot: roll-out screen ' + bs);
     await ev("(()=>{const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return 1;})()");
     // THE FREE EYE, relative to the aeroplane
-    await ev("(()=>{const r=document.querySelector('#flRail [data-f=camera]');if(r)r.click();return 1;})()"); await sleep(300);
+    await ev("(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById('flFly');if(R)R.open(f&&!f.hidden?null:'camera');return 1;})()"); await sleep(300);
     const got = await ev("(()=>{const p=[...document.querySelectorAll('#flFlyBody .pill')].find(b=>b.textContent.trim()==='free');if(!p)return 0;p.click();return 1;})()");
     if (!got) throw new Error('no free pill on the camera flyout');
-    await ev("(()=>{const r=document.querySelector('#flRail [data-f=camera]');if(r)r.click();return 1;})()");
+    await ev("(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById('flFly');if(R)R.open(f&&!f.hidden?null:'camera');return 1;})()");
     await ev("(()=>{if(window.SHOT_MODE)SHOT_MODE.enter();return 1;})()");
     const cg = JSON.parse(await ev("JSON.stringify(FLIGHT_PROBE.sim().cgPos())"));
     await ev(`(()=>{const c=DEV_CAM;c.pos.set(${cg[0] + EYE[0]},${cg[1] + EYE[1]},${cg[2] + EYE[2]});c.yaw=${YAW * Math.PI / 180};c.pitch=${PITCH * Math.PI / 180};return 1;})()`);

@@ -708,7 +708,7 @@ console.log('14. the sources');
   yes(!/windBase/.test(app), 'app.js has no windBase: every reader is on the climate now');
   yes(/selCond.\)\.onchange/.test(app) && /WEATHER_UI[\s\S]{0,200}PRESETS\.find/.test(app),
       'the #selCond handler is still the one keeper, and what it applies is a WEATHER panel preset');
-  yes(/flWeatherLive/.test(app) && /flyOpen === 'weather'/.test(app), "and the panel's live rows tick on its own flyout");
+  yes(/flWeatherLive/.test(app) && /flShown\.has\('weather'\)/.test(app), "and the panel's live rows tick on its own section (G760: the section built, not the flyout's name)");
   yes(/'weather_ui\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'build.js MANIFEST carries weather_ui.js');
   const wu = vw('weather_ui.js');
   // every write is a day write: no setWeather CALL anywhere in the panel's code

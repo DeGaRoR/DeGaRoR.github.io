@@ -86,7 +86,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     // doing, and a roll-out that starts in one this list forgot reads as "never happened" - four dead runs
     // in a row today, with a real shader error hiding underneath them. The FLIGHT RAIL exists only on the
     // flight screen, so its presence IS the roll-out; the phase words stay as the fast path.
-    flying = await ev("/TAXI|DOWNWIND|FINAL|TAKEOFF|CLIMB/.test(document.body.innerText) || !!(document.querySelector('#flRail [data-f=camera]') && document.querySelector('#flRail [data-f=camera]').offsetParent)");
+    flying = await ev("/TAXI|DOWNWIND|FINAL|TAKEOFF|CLIMB/.test(document.body.innerText) || !!(document.querySelector('#flRail [data-f=view]') && document.querySelector('#flRail [data-f=view]').offsetParent)");
   }
   if (!flying) throw new Error('the roll-out never happened');
   // the fresh profile's chooser (NEW AEROPLANE / keep the current build) can appear after the roll-out: poll it away
@@ -98,14 +98,14 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     for(let i=0;i<s.n;i++){s.p[i*3]+=dx;s.p[i*3+1]+=dy;s.p[i*3+2]+=dz;s.v[i*3]=s.v[i*3+1]=s.v[i*3+2]=0;}
     const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return 1;})()`);
   // THE FREE EYE: the CAMERA rail's `free` pill, the flyout closed, the UI out of the frame
-  await ev("(()=>{const r=document.querySelector('#flRail [data-f=camera]');if(r)r.click();return 1;})()");
+  await ev("(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById('flFly');if(R)R.open(f&&!f.hidden?null:'camera');return 1;})()");
   await sleep(300);
   const got = await ev("(()=>{const p=[...document.querySelectorAll('#flFlyBody .pill')].find(b=>b.textContent.trim()==='free');if(!p)return 0;p.click();return 1;})()");
   if (!got) throw new Error('no free pill on the camera flyout');
   // --ui <slot>: the flyout of that rail slot left open and the UI in the frame (a picture of the rows), else SHOT_MODE hides it
   const UI = opt('ui', null);
-  await ev("(()=>{const r=document.querySelector('#flRail [data-f=camera]');if(r)r.click();return 1;})()");
-  if (UI) await ev(`(()=>{const s=document.querySelector('#flSlots .flSlot[data-s="${UI}"]')||document.querySelector('#flRail [data-f="${UI}"]');if(s)s.click();return 1;})()`);   // a brief slot or a rail item
+  await ev("(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById('flFly');if(R)R.open(f&&!f.hidden?null:'camera');return 1;})()");
+  if (UI) await ev(`(()=>{const s=document.querySelector('#flSlots .flSlot[data-s="${UI}"]');if(s){s.click();return 1;}if(window.FLYDIY_RAIL)FLYDIY_RAIL.open("${UI}");return 1;})()`);   // a brief slot, or a rail item / section / old item's name (G760: FLYDIY_RAIL.open)
   else await ev("(()=>{if(window.SHOT_MODE)SHOT_MODE.enter();return 1;})()");
   // THE SKIP IS THE LAST RESORT, NOT THE FIRST MOVE (2026-09-23, and this cost a whole afternoon of blank
   // frames). CONTINUE ANYWAY is `boot.js` fail('skipped by the user'): it ABORTS the roll-out's remaining

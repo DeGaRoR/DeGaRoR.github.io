@@ -147,5 +147,49 @@ console.log('GATE GFX');
   ok(r.anything === 'no restart' && Object.keys(r).length >= 7, 'every option states what changing it costs; nothing needs a restart');
 }
 
+// 7. G760: THE GROUPS - the rails' folds (the user: "The graphics option is too long and lacks structure"). Every
+//    option in exactly one of the seven groups PLAYTEST-2026-09-26 §3 names, and NO ROW LOST: the rows (and every
+//    pill under them) the menu mounts as the one flat list it was, counted, against the rows the grouped menu mounts
+//    with every fold open plus the three rows the hosts now place themselves (the map, the fps meter, the flight log)
+{
+  // the 32 options of the menu the day it was regrouped (base 5d55dbf) - a row that leaves OPTIONS fails here
+  const BASE = ['fps', 'aa', 'scale', 'density', 'bands', 'shadows', 'canopy', 'glare', 'sway', 'drawDist', 'ground', 'terrain',
+                'mist', 'clouds', 'bloom', 'look', 'lens', 'rays', 'ao', 'eye', 'cover', 'scenery', 'town', 'rails', 'poles',
+                'water', 'mirror', 'lighting', 'compositing', 'tone', 'exposure', 'colour'];
+  const w = boot({});
+  w.FLYDIY_WORLDS = [{ id: 'none', name: 'the analytic world' }, { id: 'jolene', name: 'Jolene' }]; w.FLYDIY_WORLD = 'jolene';
+  w.STORAGE = { line: () => 'build x', checkServer: () => Promise.resolve(), measure: () => Promise.resolve(), refresh() {} };
+  w.FLIGHT_REC = { mount(b, H) { this.mountMeter(b, H); this.mountLog(b, H); },
+                   mountMeter(b, H) { H.row(b, 'fps meter'); H.pills(b, [{ label: 'off' }, { label: 'on' }], () => false, () => {}); },
+                   mountLog(b, H) { H.row(b, 'flight log'); H.note(b, ''); H.pills(b, [{ label: 'save log' }, { label: 'previous session' }], () => false, () => {}); } };
+  const G = w.GFX;
+  const keys = G.OPTIONS.map(o => o.k);
+  ok(BASE.every(k => keys.includes(k)), 'every option of the menu as it was regrouped is still an option (' + BASE.length + ' of ' + keys.length + ')' +
+     (BASE.some(k => !keys.includes(k)) ? ' - lost: ' + BASE.filter(k => !keys.includes(k)).join(', ') : ''));
+  const inG = [].concat(...G.GROUPS.map(g => g.rows));
+  const twice = inG.filter((k, i) => inG.indexOf(k) !== i), none = keys.filter(k => !inG.includes(k)), alien = inG.filter(k => !keys.includes(k));
+  ok(!twice.length && !none.length && !alien.length, 'every option in exactly one group' +
+     (twice.length ? ' - twice: ' + twice.join(', ') : '') + (none.length ? ' - in none: ' + none.join(', ') : '') + (alien.length ? ' - not an option: ' + alien.join(', ') : ''));
+  ok(G.GROUPS.map(g => g.label).join('|') === 'performance|light & shadows|terrain & vegetation|water|sky|post-fx|town',
+     'the seven groups of PLAYTEST-2026-09-26 §3, in its order: ' + G.GROUPS.map(g => g.label).join(' · '));
+  ok(G.GROUPS[0].rows.slice(0, 3).join() === 'fps,scale,aa', 'performance carries the frame rate, the scale and the smoothing (the preset heads it)');
+  const collect = grouped => {
+    const got = { rows: [], pills: [], secs: [] };
+    const el = () => ({ appendChild() {}, classList: { add() {} }, set textContent(v) {}, get isConnected() { return false; } });
+    const H = { row: (h, l) => { got.rows.push(l); return el(); }, pills: (h, list) => { for (const o of list) got.pills.push(o.label); return el(); },
+                note: () => el() };
+    if (grouped) H.section = (h, k) => { got.secs.push(k); return el(); };
+    return { got, H };
+  };
+  const A = collect(false); G.mount({}, A.H);
+  const B = collect(true); G.mount({}, B.H); G.mountWorld({}, B.H); w.FLIGHT_REC.mountMeter({}, B.H); w.FLIGHT_REC.mountLog({}, B.H);
+  const norm = a => a.slice().sort().join('\n');
+  ok(A.got.rows.length === B.got.rows.length && norm(A.got.rows) === norm(B.got.rows),
+     'no row lost: ' + A.got.rows.length + ' rows flat, ' + B.got.rows.length + ' grouped (' + B.got.secs.length + ' folds) + the map, the meter and the log placed by the hosts' +
+     (norm(A.got.rows) !== norm(B.got.rows) ? ' - flat only: ' + A.got.rows.filter(r => !B.got.rows.includes(r)).join(', ') + '; grouped only: ' + B.got.rows.filter(r => !A.got.rows.includes(r)).join(', ') : ''));
+  ok(A.got.pills.length === B.got.pills.length && norm(A.got.pills) === norm(B.got.pills), 'and no pill: ' + A.got.pills.length + ' flat, ' + B.got.pills.length + ' grouped');
+  ok(B.got.secs.join() === G.GROUPS.map(g => 'gfx.' + g.k).join(), 'a host with sections gets one per group, keyed gfx.<group>');
+}
+
 console.log(fails ? 'GATE GFX: FAIL' : 'GATE GFX: PASS');
 process.exit(fails ? 1 : 0);
