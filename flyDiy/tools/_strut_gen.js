@@ -68,7 +68,33 @@ const STRUT_FIT = {
   pinR: 0.009, pinShank: 0.040,
   screwR: 0.0055, screwL: 0.007,
   strutR: 0.023,        // 63_gen_skin's own: GEN_TUBE_R.wing * 1.15 (ext)
-  chordK: 3.6,          // ...and its chord rule, cw = 3.6 r
+  chordK: 3.6,          // ...and its chord rule, cw = 3.6 r — the BRACE layer's
+                        // truss members (_cage_brace.js) still draw at this
+  // THE LIFT STRUT'S OWN SECTION IS A REAL ONE (G776, the user: "The section
+  // of the struts seems little, can we compare with reality?"). It was the
+  // rule above — 82.8 x 19.5 mm, 4.2:1, one size for every member of every
+  // aeroplane — MEASURED off the drawn mesh in the page (world scale 1: this
+  // hardware is metric and never scales). Real lift struts are fuller and
+  // are not all one size:
+  //   Piper PA-18 front strut   3.825 x 1.25 in  = 97 x 32 mm, 3.1:1
+  //   Piper PA-18 rear strut    2.45  x 0.81 in  = 62 x 21 mm, 3.0:1
+  //     (4130 / mild-steel streamline, .035 wall; supercub.org's strut
+  //     dimension thread, matched within 3 % by a measured 3.938 / 2.438 in
+  //     on shortwingpipers.org — the J-3's are drawn on the same Univair dies)
+  //   Cessna 172 (one strut a side)  ~120 x 50 mm, ~2.4:1 — ESTIMATED: the
+  //     strut is a 3.5 in x .083 round aluminium tube formed to a streamline
+  //     on a die (cessna170.org), taken at constant perimeter to the standard
+  //     streamline proportions (major 1.349 D, minor 0.571 D); no published
+  //     chord exists, Cessna's included
+  // So a V pair draws the Piper front and rear members, and a single strut
+  // (bracing.struts 1) the Cessna's. Physics is NOT moved by this: the strut's
+  // drag is priced at 60 mm frontal a side (62_gen_aero genGearCdA, a delta
+  // against a strut-braced reference) — against 32 + 21 = 53 mm for the
+  // Piper pair and ~50 mm for the Cessna — and its mass and stiffness are the
+  // wing class's (61_gen_frame), neither of which reads the drawn section.
+  frontC: 0.097, frontT: 0.032,
+  rearC: 0.062, rearT: 0.021,
+  oneC: 0.120, oneT: 0.050,
   bladeC: 0.052,        // the machined end, flattened into the clevis
   bladeT: 0.011,
   endFrac: 0.11,        // how much of each end is that transition
@@ -448,19 +474,23 @@ function strutBuild(bags, AF, site, ends, opt) {
     }
   }
 
-  const cw = FIT.chordK * FIT.strutR;
   const SECT = (typeof GEN_STRUT_SECT !== 'undefined') ? GEN_STRUT_SECT : null;
   const mix = (a, b, t) => a + (b - a) * t;
   // the member's own section: streamline over its length, flattened into a
-  // blade at BOTH ends so it can enter a clevis at each.
-  const sect = t => {
+  // blade at BOTH ends so it can enter a clevis at each. C x T is the real
+  // strut's chord and thickness (G776); GEN_STRUT_SECT's contour is 0.236
+  // thick for its chord, so the thickness is scaled apart from the chord.
+  const sectOf = (C, T) => t => {
     const e = FIT.endFrac;
     const k = Math.min(1, Math.min(t, 1 - t) / e);
-    const us = mix(FIT.bladeC, cw, k);
-    const vs = mix(FIT.bladeT / (2 * 0.118), cw, k);
+    const us = mix(FIT.bladeC, C, k);
+    const vs = mix(FIT.bladeT, T, k) / (2 * 0.118);
     return SECT ? SECT.map(c => [(c[0] - 0.40) * us, c[1] * vs])
                 : K.secBlade(us, vs * 0.236, 4);
   };
+  // which member is which: a single strut, or the front / rear of a V
+  const memberSec = i => ends.length === 1 ? [FIT.oneC, FIT.oneT]
+    : i === 0 ? [FIT.frontC, FIT.frontT] : [FIT.rearC, FIT.rearT];
 
   // A CLEVIS, wherever a strut end lands: two ears across a pin, the pin
   // FORE-AND-AFT. A lift strut works in the lateral/vertical plane — it hinges
@@ -549,7 +579,8 @@ function strutBuild(bags, AF, site, ends, opt) {
     // upHint [0,0,1] pins the section's chord FORE-AND-AFT — the whole point
     // of a streamline strut, and the thing a transported frame loses if you
     // let it pick its own start.
-    K.sweep(bags.strut, K.resample([foot, tip], 16), sect, true, [0, 0, 1]);
+    const [sC, sT] = memberSec(i);
+    K.sweep(bags.strut, K.resample([foot, tip], 16), sectOf(sC, sT), true, [0, 0, 1]);
     // HOW FAR THE DRAWN END IS FROM THE BEAM IT STANDS FOR, IN PLAN. The
     // caller reports and gates on this: the visuals are constrained to the
     // physics, never the other way round.
