@@ -124,6 +124,13 @@ const SETTINGS = flag('settings') ? (() => { const v = opt('settings', null); re
 // summarised by self time and by the calling chain - where a change's long task goes
 const PROFILE_SET = flag('profile-settings');
 const CHROME_FLAGS = argv.reduce((a, x, i) => (x === '--chrome-flag' && argv[i + 1] ? a.concat([argv[i + 1]]) : a), []);
+// --udd <dir> (G995, A5-LOAD): a PERSISTENT profile of one's own (the shader-cache study: a private warm profile, the
+// shared one untouched); --progsrc: every program's real GLSL hashed (vertex + fragment as the driver got them) and kept
+// in the JSON as progSrc [name, fnv of the source, source length, fnv of three's key] - two runs' lists say whether a
+// program's SOURCE changed between them (a key built per run) or the same source linked again (Chrome's cache);
+// with --progwatch each row also carries [first seen at ms, ms to ready]
+const UDD_OPT = opt('udd', null);
+const PROGSRC = flag('progsrc');
 if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
 
 // ---- what the page is given before its first script --------------------------
@@ -265,7 +272,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   }
   const box = { gpuUtil: gpuUtil(), cpuLoad: cpuLoad() };
   const DPORT = 9300 + (process.pid % 500);
-  const UDD = COLD ? path.join(os.tmpdir(), 'rollout_cold_' + DPORT + '_' + Date.now()) : path.join(os.tmpdir(), 'flydiy_rollout_warm_profile');
+  const UDD = UDD_OPT ? path.resolve(UDD_OPT) : COLD ? path.join(os.tmpdir(), 'rollout_cold_' + DPORT + '_' + Date.now()) : path.join(os.tmpdir(), 'flydiy_rollout_warm_profile');
   const ch = spawn(CHROME, ['--remote-debugging-port=' + DPORT, '--window-size=' + (SIZE[0] + 16) + ',' + (SIZE[1] + 140),
     '--window-position=0,0', '--no-first-run', '--no-default-browser-check', '--user-data-dir=' + UDD,
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'].concat(CHROME_FLAGS, ['about:blank']), { stdio: 'ignore' });
@@ -436,6 +443,12 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
       console.log('  SETTINGS ' + run.change.padEnd(16) + ' click task ' + run.clickMs + ' ms · ' + (shown ? 'screen' : 'no screen') + ' · settled in ' + (run.spanMs / 1000).toFixed(1) + ' s · worst task ' + worst + ' ms · >1 s: ' + run.over1s + (run.over200.length ? ' · >200 ms: ' + run.over200.join(' ') : ''));
     }
   }
+  let progSrc = null;
+  if (PROGSRC) {
+    progSrc = JSON.parse(await ev("(() => { const R = WORLD.renderer, gl = R.getContext(); const fnv = c => { let h = 2166136261; for (let i = 0; i < c.length; i++) h = Math.imul(h ^ c.charCodeAt(i), 16777619) >>> 0; return h.toString(16); }; return JSON.stringify(R.info.programs.map(pr => { let src = ''; try { for (const sh of gl.getAttachedShaders(pr.program) || []) src += gl.getShaderSource(sh) + '//--'; } catch (e) {} const w = window.__PW && window.__PW.get(pr); return [pr.name, fnv(src), src.length, fnv(String(pr.cacheKey))].concat(w ? [Math.round(w.t0), w.t1 == null ? -1 : Math.round(w.t1 - w.t0)] : []); })); })()", 60000));
+    const bytes = progSrc.reduce((a, x) => a + x[2], 0);
+    console.log('  programs (source hashed): ' + progSrc.length + ', ' + new Set(progSrc.map(x => x[1])).size + ' distinct sources, ' + (bytes / 1e6).toFixed(1) + ' MB of GLSL');
+  }
   const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', 60000).catch(e => 'error: ' + e.message) : null;
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
@@ -538,7 +551,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, phases, gates, settings: settingsRuns, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    tGarage, tReveal, premEmptyAt, phases, gates, settings: settingsRuns, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));
