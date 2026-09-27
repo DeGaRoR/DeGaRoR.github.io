@@ -504,6 +504,14 @@ function editorInit(api) {
           const r = idx.get(label);
           if (r) nursery.appendChild(r);
         }
+      // G700: ...AND WHAT WAS RETIRED IS PARKED WITH ITS PANE. G439 retired the dims box (the whole
+      // aeroplane's length, span and weight sit in #acSpec) and parked its pane, not its toggle - which
+      // stayed under `materials & extras` as the one row the overflow still showed (the Jolene playtest's
+      // orphan bar, 154024)
+      for (const label of RETIRED_ROWS) {
+        const r = idx.get(label);
+        if (r) nursery.appendChild(r);
+      }
     }
     // 5. THE ROOM GOES TO ITS OWN ROOT, whole (G108). It went to a SHEET at
     //    G78 on the ruling that tuning the room is a different interface from
@@ -522,8 +530,10 @@ function editorInit(api) {
       if (det.tagName !== 'DETAILS') continue;
       if (!det.querySelector('.r')) nursery.appendChild(det);
     }
-    // an overflow section with nothing in it is a heading about nothing
-    if (ui) wrap.classList.toggle('opts-empty', !ui.querySelector('.r'));
+    // an overflow section with nothing in it is a heading about nothing - and the FINISH view's pools
+    // (editor.css hides `materials` and `decals` here; the finish tab borrows their rows) are not in it
+    // (G700: 392 + 101 pooled rows kept the bar up over a single retired toggle)
+    if (ui) wrap.classList.toggle('opts-empty', !optsLoose(ui));
     // what stays in #cgUi is what the part table does NOT claim — how you look
     // at the build, the shed, and the aeroplane's materials: exactly the split
     // the user asked for, "the options belonging to the editor and not the
@@ -1539,6 +1549,16 @@ function editorInit(api) {
   // three other files push into, and a label that changes makes a control land
   // in the overflow section rather than vanish. Anything not claimed here is
   // still reachable under `materials & extras`.
+  // G700: rows no flyout claims because their feature is RETIRED (G439: the measuring box) - parked, never shown
+  const RETIRED_ROWS = ['dims box'];
+  // the accordion groups the FINISH view borrows from: pools, hidden in the overflow (editor.css)
+  const OPTS_POOLS = ['materials', 'decals'];
+  // a row the overflow would actually show: in #cgUi, outside the finish view's pools
+  const optsLoose = ui => [...ui.querySelectorAll('.r')].some(r => {
+    for (let e = r.parentElement; e && e !== ui; e = e.parentElement)
+      if (e.tagName === 'DETAILS' && e.parentElement === ui && OPTS_POOLS.includes(e.dataset.g)) return false;
+    return true;
+  });
   const RAIL = [
     { k: 'camera', label: 'camera', title: 'How the build is framed',
       icon: 'M4 5.5h2.2l1-1.5h3.6l1 1.5H14a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z|M9 11.6a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z' },

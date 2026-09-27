@@ -241,7 +241,7 @@ function make(THREE) {
     const gyroOk = aiElec ? busOk : vacOk;
     CK.gyroOk = gyroOk; CK.busOk = busOk;
     // the raw numbers
-    raw.ias = ias;
+    raw.ias = ias < 35 / 3.6 ? 0 : ias;   // G700: the ASI's floor - the needle sits on its stop below ~35 km/h (app.js hud)
     raw.alt = cg[1] - CK.qnh;
     raw.vs = o.vs || 0;
     raw.roll = gyroOk ? (o.roll || 0) : REST.roll;

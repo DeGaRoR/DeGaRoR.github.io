@@ -18,7 +18,8 @@
 var DAY_CLOCK = (function () {
   'use strict';
   // v2 (2026-09-23): the game's own day below - a new key, so every player starts once on it
-  const PREF = 'flydiy.day.v2';
+  // v3 (G700, 2026-09-26): the game's day carries a light breeze; a v2 pref comes across (below)
+  const PREF = 'flydiy.day.v3', PREF_V2 = 'flydiy.day.v2';
   // THE GAME'S DAY (2026-09-23, the user: "small, elegant summer clouds, well split, a great sky for flying ... at day
   // with good visibility, but still maximizing the shadows and atmospheric effects ... performance optimized"):
   // chosen on screenshots at 30-450 m, from two sides of the sun (futureDesigns/PERF-2026-09-23.md, the default look).
@@ -26,13 +27,28 @@ var DAY_CLOCK = (function () {
   // fair-weather cumulus (08_cloud_field 'cuh': many small cells, a shallow column) at a quarter cover on seed 1,
   // turbidity 2.8 (~48 km: the hills keep their aerial depth). The physics' own default (07_day DAY.DEFAULT, the gates'
   // baseline) is untouched: this is the GAME's first day, when no link and no saved day say otherwise.
-  const GAME_DAY = { date: '2026-06-21', localHours: 16, rate: 1, cloudType: 'cuh', cloudCover: 0.25, cloudSeed: 1, turbidity: 2.8 };
+  // G700 (the Jolene playtest: "light breeze by default, so the sea is not fully calm"): the day's wind is the
+  // weather card's `light breeze` preset (weather_ui.js), 8 kt off the sea from 250 deg - the sea gets its ripples
+  // and the windsock its lift. GATE HONESTY holds the two equal (and the pilot matrix's `breeze` weather to them).
+  const GAME_WIND = { kts: 8, dirDeg: 250, gust: 0.15, refH: 10, breeze: 1 };
+  const GAME_DAY = { date: '2026-06-21', localHours: 16, rate: 1, cloudType: 'cuh', cloudCover: 0.25, cloudSeed: 1, turbidity: 2.8, wind: GAME_WIND };
   const RATES = [0, 1, 10, 60, 600];
   const PRESETS = ['dawn', 'morning', 'noon', 'afternoon', 'golden', 'sunset', 'dusk', 'night'];
   let world = null, day = null, sinceSave = 0;
   const W = typeof window !== 'undefined' ? window : null;
 
-  const read = () => { try { return JSON.parse(localStorage.getItem(PREF) || 'null'); } catch (e) { return null; } };
+  // A v2 PREF COMES ACROSS once: its date, hour and weather kept, except the still air every v2 day was saved
+  // with by default (the old game day had no wind) - that one takes the new day's breeze. A calm picked on
+  // purpose is picked again in one click, and saved as v3 from then on.
+  const read = () => {
+    try {
+      const v3 = JSON.parse(localStorage.getItem(PREF) || 'null');
+      if (v3) return v3;
+      const v2 = JSON.parse(localStorage.getItem(PREF_V2) || 'null');
+      if (v2 && !v2.wind) v2.wind = Object.assign({}, GAME_WIND);
+      return v2;
+    } catch (e) { return null; }
+  };
   // ... and THE WEATHER with it (2026-09-20, the clouds panel): the low deck's cover and type, the upper decks
   // ...and THE WEATHER with it (CLIMATE K2): the wind, the air, the column's
   // shape and a front all live on the day's declared spec, so the pref carries

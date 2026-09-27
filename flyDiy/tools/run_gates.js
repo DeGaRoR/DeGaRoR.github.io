@@ -314,6 +314,9 @@ const GATES = [
   // building, a taxiway that reaches the strip, a fence with a gate in it, and
   // everything inside the flat pad where y = 0 is exact.
   { id: 'SITE', file: '_site_check.js', tier: 'core' },
+  // G700 (B3a, the Jolene playtest's honesty items): every Jolene stand places the wheels on their own ground (the
+  // walked stand read the runway's elevation - a 1.08 m drop), applyRoute's wiring, the default day's breeze; ~25 s
+  { id: 'HONESTY', file: '_honesty_check.js', tier: 'core', wall: 40 },
   // THE PREMISES (G353): the world editor's record, headless - the envelope
   // round-trips, the modifiers hold (a flatten flat to 1 cm, no step across a
   // falloff, a million terrainH calls under budget), an empty record changes

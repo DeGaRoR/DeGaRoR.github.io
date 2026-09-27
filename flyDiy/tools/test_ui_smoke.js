@@ -378,6 +378,41 @@ try {
     if (typeof P.ap().phase !== 'string') throw new Error('the AP came back with no phase');
     console.log('manual controls: a key flew it, the AP took it back in ' + P.ap().phase);
   }
+  // ---- THE HONEST READINGS (G700, the Jolene playtest) ----
+  // AGL: the wheels over the ground under them, 0 standing (the PFD read cg - ap.refAlt: -2..-4 m on the
+  // runway, -235 m at the altiport); lifted 40 m it reads 40. IAS: an ASI's floor - 0 below ~35 km/h.
+  // FLY ON: after a stop at the destination the next leg flies from where the aeroplane stands (it was a
+  // fullReset back onto the departure stand).
+  {
+    const P = sandbox.window.FLIGHT_PROBE;
+    if (typeof P.agl !== 'function') throw new Error('FLIGHT_PROBE has no agl (G700)');
+    const sim = P.sim(), n = sim.n;
+    const a0 = P.agl();
+    if (!(a0 >= 0 && a0 < 0.05)) throw new Error(`AGL on the ground reads ${a0.toFixed(2)} m (want 0)`);
+    for (let i = 0; i < n; i++) sim.p[i * 3 + 1] += 40;
+    const a1 = P.agl();
+    for (let i = 0; i < n; i++) sim.p[i * 3 + 1] -= 40;
+    if (!(Math.abs(a1 - 40 - a0) < 0.05)) throw new Error(`AGL 40 m up reads ${a1.toFixed(2)} m`);
+    const raw = ((sim.out.Veas ?? sim.out.V) || 0) * 3.6;
+    const shown = els['r-ias'].textContent;
+    if (raw < 25 && shown !== '0') throw new Error(`the IAS reads ${shown} at ${raw.toFixed(1)} km/h (the ASI's floor is 35)`);
+    // FLY ON: an arrival (the pilot STOPPED where it said), the aeroplane 100 m from the stand
+    const apOld = P.ap();
+    for (let i = 0; i < n; i++) sim.p[i * 3] -= 100;
+    for (let i = 0; i < n * 3; i++) sim.v[i] = 0;
+    const cg0 = sim.cgPos().slice();
+    apOld.phase = 'STOPPED';
+    handlers['bGo']();
+    const cg1 = P.sim().cgPos();
+    if (P.ap() === apOld) throw new Error('fly on did not hand the aeroplane to a fresh pilot');
+    if (P.ap().phase === 'STOPPED') throw new Error('fly on left the pilot STOPPED');
+    if (Math.hypot(cg1[0] - cg0[0], cg1[2] - cg0[2]) > 0.5)
+      throw new Error(`fly on moved the aeroplane ${Math.hypot(cg1[0] - cg0[0], cg1[2] - cg0[2]).toFixed(1)} m (a reset, not a leg)`);
+    frames(30);
+    console.log(`honest readings: AGL ${a0.toFixed(2)} m standing, ${a1.toFixed(2)} m lifted 40 (the pilot's own datum read ` +
+      `${apOld.dbg && apOld.dbg.agl != null ? apOld.dbg.agl.toFixed(2) : '-'}); IAS "${shown}" at ${raw.toFixed(1)} km/h; ` +
+      `fly on: a new leg in place (${P.ap().phase}), not a reset`);
+  }
   // exercise every wired button (Skin cycles all 3 states)
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
   // does not exist in this sandbox, so what it proves is the WIRING — that the
