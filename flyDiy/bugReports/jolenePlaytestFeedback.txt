@@ -8,7 +8,7 @@ Playtest feedback on Jolene island, first time
 
 Very first load, I never really played Jolene before, just seen benches, early versions and screenshots. I run it straight from Github pages, not locally, like players would.
 The performance is unacceptable when getting out of the hangar.
-Screenshot 2026-09-26 140339.png an effect that I cannot disable manually gives a lot of dark lines and hachure patterns, very undesirable
+Screenshot 2026-09-26 140339.png an effect that I cannot disable manually gives a lot of dark lines and hachure patterns, very undesirable - I later identified that it was the shadows option, and the only way to remove them was to remove shadows, and I beleive it was not like this before. I had a clean plane with shadow emitting impostors for example.
 On top of the lag, there is constant flickering. You can see on the Screenshot 2026-09-26 140339.png on the ground, some small hachure patterns again. These ones flicker like hell
 The cloud refelctions in the water are updated to infrequently by default, giving a laggy feeling too. and with low framerates, the clouds do not move at the same pace as the landscape when orbiting, which is extremely starnge.
 The very shadow of the plane flickers a lot, and also give a low framerate feeling.

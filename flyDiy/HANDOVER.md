@@ -58275,7 +58275,6 @@ PICTURE: bench/rock/f_forestfloor.png, the mine from the air - the floor between
 brown and the canopy is what is green. e_rockrestored.png beside it is the same eye one landing earlier, with
 the floor still on the imagery's colour.
 
-<<<<<<< HEAD
 ## G506 — METLAKATLA: THE ISLAND'S ONE REAL TOWN, AND THE HARBOUR KIT IT NEEDED (2026-09-22, the user:
 ## "YOU know that there is a single town on Anette island, and it's metlakata ... we should have traces
 ## of it in our own map ... It is essential you try and understand well the city structure")
@@ -58562,7 +58561,6 @@ open-ground sets rather than a constant in the shader. `grade.<set>.grass` joins
 PICTURES (bench/rock/): g_grassmatch.png is the mine with the pull at 0.6 - the slope's grass and the floor
 between the trunks now read as one grass, while the floor's bright rock keeps the tan it got back in G541;
 g_grassmatch_s0.png is the same frame with the pull at 0, which is G541 exactly.
->>>>>>> 9d993ce3
 
 ## G543 — METLAKATLA LANDS: the town merged onto master, as a jolene_parts part
 
@@ -58649,7 +58647,6 @@ A GPU frame time at the town. Walden Point Road past Bayside to the ferry. A Tsi
 placed from registered views to about +-10 m. And `city trees` (terrain type 16, its mix, the cover
 stamp of v1.30) is built, gated and switched OFF: it needs a small conifer asset, and turning it back
 on is one uncommented line in `metlakatla_author.py`.
-=======
 
 ## G544 - THE PUDDLES ARE GONE FROM THE PAVEMENT: a draped mesh has no low spot, so a puddle on it
 ## is a shape painted on a slope (2026-09-23, the user: "just fully remove the puddles on the
