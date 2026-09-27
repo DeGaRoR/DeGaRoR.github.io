@@ -7371,6 +7371,68 @@
   let mapBig = false, mapNoseUp = false;
   let mapBaseCv = null, mapBaseFor = null;   // G130: cached north-up underlay
   const NOSE_RANGE = 6000;
+  // G710: the pilot's published plan on the minimap (drawMap calls it after the aerodromes, so their
+  // names keep the ledger; the frame (PX, PY), the scale mk, the size W2 and the ledger are drawMap's)
+  function drawPlanOnMap(g, PX, PY, mk, W2, labPut) {
+    const IT = ap && ap.intent;
+    if (IT && !(manual && !(ap.box && ap.box.on))) {
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      const polyline = (pts, i0, i1, step) => {
+        if (i1 - i0 < 1) return;
+        g.beginPath(); g.moveTo(PX(pts[i0].x, pts[i0].z), PY(pts[i0].x, pts[i0].z));
+        for (let i = i0 + step; i < i1; i += step) g.lineTo(PX(pts[i].x, pts[i].z), PY(pts[i].x, pts[i].z));
+        g.lineTo(PX(pts[i1].x, pts[i1].z), PY(pts[i1].x, pts[i1].z)); g.stroke();
+      };
+      const onGround = IT.phase === 'TAXI' || IT.phase === 'LINEUP' || IT.phase === 'STOP' || IT.phase === 'HOLD' || IT.phase === 'DEPART';
+      if (IT.taxi && IT.taxi.pts && IT.taxi.pts.length > 1 && onGround) {
+        const TP = IT.taxi.pts, e = TP[TP.length - 1];
+        g.strokeStyle = 'rgba(255,211,90,.9)'; g.lineWidth = 1.6 * mk;
+        polyline(TP, 0, TP.length - 1, Math.max(1, Math.floor(TP.length / 200)));
+        g.beginPath(); g.arc(PX(e.x, e.z), PY(e.x, e.z), 2.8 * mk, 0, 6.283); g.fillStyle = '#ffd35a'; g.fill();
+      }
+      const legs = IT.legs;
+      if (legs && legs.length) {
+        const li = Math.min(IT.legI | 0, legs.length - 1), LA = legs[li];
+        const P = IT.path && IT.path.pts;
+        if (P && P.length > 1) {
+          const n = P.length - 1, iNow = Math.max(0, Math.min(n, IT.pathI | 0)), step = Math.max(1, Math.floor(P.length / 400));
+          // the active leg runs from the aeroplane to the path sample nearest its waypoint
+          let iB = n;
+          if (LA && LA.B && LA.name !== 'FINAL') { let bd = Infinity; for (let i = iNow; i <= n; i++) { const d = (P[i].x - LA.B[0]) ** 2 + (P[i].z - LA.B[1]) ** 2; if (d < bd) { bd = d; iB = i; } } }
+          g.strokeStyle = 'rgba(255,178,87,.28)'; g.lineWidth = 1.5 * mk; polyline(P, 0, iNow, step);
+          g.strokeStyle = 'rgba(255,178,87,.7)'; g.lineWidth = 1.6 * mk; polyline(P, iB, n, step);
+          g.strokeStyle = '#ffd35a'; g.lineWidth = 2.6 * mk; polyline(P, iNow, iB, step);
+        } else {
+          for (let k = 0; k < legs.length; k++) {
+            const L = legs[k]; if (!L.A || !L.B) continue;
+            g.strokeStyle = k === li ? '#ffd35a' : k < li ? 'rgba(255,178,87,.28)' : 'rgba(255,178,87,.7)';
+            g.lineWidth = (k === li ? 2.6 : 1.6) * mk;
+            g.beginPath(); g.moveTo(PX(L.A[0], L.A[1]), PY(L.A[0], L.A[1])); g.lineTo(PX(L.B[0], L.B[1]), PY(L.B[0], L.B[1])); g.stroke();
+          }
+        }
+        // the waypoints: the active one first (its label wins the ledger), then the ones still ahead
+        const order = [li]; for (let k = li + 1; k < legs.length; k++) order.push(k);
+        const wpLabel = (L, act) => {
+          const final = L.name === 'FINAL';
+          const h = act && IT.h != null && !final ? Math.round(IT.h) : L.hPlan;
+          const agl = act && IT.hGround != null && !final ? Math.round(IT.hGround) : (L.hPlan != null && L.gB != null ? L.hPlan - L.gB : null);
+          if (h == null) return final ? 'AIM' : L.name;
+          if (final) return 'AIM · ground ' + h + ' m';
+          return L.name + ' ' + h + ' m' + (agl != null && (mapBig || mapNoseUp || act) ? ' (' + agl + ' agl)' : '');
+        };
+        for (const k of order) {
+          const L = legs[k]; if (!L || !L.B) continue;
+          const act = k === li, sx = PX(L.B[0], L.B[1]), sy = PY(L.B[0], L.B[1]);
+          if (sx < -30 || sx > W2 + 30 || sy < -30 || sy > W2 + 30) continue;
+          g.beginPath(); g.arc(sx, sy, (act ? 3.4 : 2.4) * mk, 0, 6.283);
+          g.fillStyle = act ? '#ffd35a' : 'rgba(255,178,87,.9)'; g.fill();
+          g.strokeStyle = 'rgba(20,14,8,.8)'; g.lineWidth = 1 * mk; g.stroke();
+          if (act) { g.strokeStyle = 'rgba(255,211,90,.6)'; g.lineWidth = 1.4 * mk; g.beginPath(); g.arc(sx, sy, 6.5 * mk, 0, 6.283); g.stroke(); }
+          if (act || mapBig || mapNoseUp) labPut(sx, sy, wpLabel(L, act), 'rgba(20,14,8,.8)', act ? '#ffe3a0' : 'rgba(255,215,160,.9)');
+        }
+      }
+    }
+  }
   function drawMap() {
     const base = WF && WF.minimap, cv = $('mm');
     if (!base || !cv.getContext || !sim) return;   // G194: a persisted 'large map' drew it at boot, before the sim
@@ -7510,64 +7572,7 @@
     // and the height planned there, MSL and over the ground under it (the active one the live target,
     // ringed). On the ground, the taxi route to the hold. Labels through the ledger, the active first;
     // the others once the map is big or nose-up (at 24 km a circuit is 40 px).
-    const IT = ap && ap.intent;
-    if (IT && !(manual && !(ap.box && ap.box.on))) {
-      g.lineCap = 'round'; g.lineJoin = 'round';
-      const polyline = (pts, i0, i1, step) => {
-        if (i1 - i0 < 1) return;
-        g.beginPath(); g.moveTo(PX(pts[i0].x, pts[i0].z), PY(pts[i0].x, pts[i0].z));
-        for (let i = i0 + step; i < i1; i += step) g.lineTo(PX(pts[i].x, pts[i].z), PY(pts[i].x, pts[i].z));
-        g.lineTo(PX(pts[i1].x, pts[i1].z), PY(pts[i1].x, pts[i1].z)); g.stroke();
-      };
-      const onGround = IT.phase === 'TAXI' || IT.phase === 'LINEUP' || IT.phase === 'STOP' || IT.phase === 'HOLD' || IT.phase === 'DEPART';
-      if (IT.taxi && IT.taxi.pts && IT.taxi.pts.length > 1 && onGround) {
-        const TP = IT.taxi.pts, e = TP[TP.length - 1];
-        g.strokeStyle = 'rgba(255,211,90,.9)'; g.lineWidth = 1.6 * mk;
-        polyline(TP, 0, TP.length - 1, Math.max(1, Math.floor(TP.length / 200)));
-        g.beginPath(); g.arc(PX(e.x, e.z), PY(e.x, e.z), 2.8 * mk, 0, 6.283); g.fillStyle = '#ffd35a'; g.fill();
-      }
-      const legs = IT.legs;
-      if (legs && legs.length) {
-        const li = Math.min(IT.legI | 0, legs.length - 1), LA = legs[li];
-        const P = IT.path && IT.path.pts;
-        if (P && P.length > 1) {
-          const n = P.length - 1, iNow = Math.max(0, Math.min(n, IT.pathI | 0)), step = Math.max(1, Math.floor(P.length / 400));
-          // the active leg runs from the aeroplane to the path sample nearest its waypoint
-          let iB = n;
-          if (LA && LA.B && LA.name !== 'FINAL') { let bd = Infinity; for (let i = iNow; i <= n; i++) { const d = (P[i].x - LA.B[0]) ** 2 + (P[i].z - LA.B[1]) ** 2; if (d < bd) { bd = d; iB = i; } } }
-          g.strokeStyle = 'rgba(255,178,87,.28)'; g.lineWidth = 1.5 * mk; polyline(P, 0, iNow, step);
-          g.strokeStyle = 'rgba(255,178,87,.7)'; g.lineWidth = 1.6 * mk; polyline(P, iB, n, step);
-          g.strokeStyle = '#ffd35a'; g.lineWidth = 2.6 * mk; polyline(P, iNow, iB, step);
-        } else {
-          for (let k = 0; k < legs.length; k++) {
-            const L = legs[k]; if (!L.A || !L.B) continue;
-            g.strokeStyle = k === li ? '#ffd35a' : k < li ? 'rgba(255,178,87,.28)' : 'rgba(255,178,87,.7)';
-            g.lineWidth = (k === li ? 2.6 : 1.6) * mk;
-            g.beginPath(); g.moveTo(PX(L.A[0], L.A[1]), PY(L.A[0], L.A[1])); g.lineTo(PX(L.B[0], L.B[1]), PY(L.B[0], L.B[1])); g.stroke();
-          }
-        }
-        // the waypoints: the active one first (its label wins the ledger), then the ones still ahead
-        const order = [li]; for (let k = li + 1; k < legs.length; k++) order.push(k);
-        const wpLabel = (L, act) => {
-          const final = L.name === 'FINAL';
-          const h = act && IT.h != null && !final ? Math.round(IT.h) : L.hPlan;
-          const agl = act && IT.hGround != null && !final ? Math.round(IT.hGround) : (L.hPlan != null && L.gB != null ? L.hPlan - L.gB : null);
-          if (h == null) return final ? 'AIM' : L.name;
-          if (final) return 'AIM · ground ' + h + ' m';
-          return L.name + ' ' + h + ' m' + (agl != null && (mapBig || mapNoseUp || act) ? ' (' + agl + ' agl)' : '');
-        };
-        for (const k of order) {
-          const L = legs[k]; if (!L || !L.B) continue;
-          const act = k === li, sx = PX(L.B[0], L.B[1]), sy = PY(L.B[0], L.B[1]);
-          if (sx < -30 || sx > W2 + 30 || sy < -30 || sy > W2 + 30) continue;
-          g.beginPath(); g.arc(sx, sy, (act ? 3.4 : 2.4) * mk, 0, 6.283);
-          g.fillStyle = act ? '#ffd35a' : 'rgba(255,178,87,.9)'; g.fill();
-          g.strokeStyle = 'rgba(20,14,8,.8)'; g.lineWidth = 1 * mk; g.stroke();
-          if (act) { g.strokeStyle = 'rgba(255,211,90,.6)'; g.lineWidth = 1.4 * mk; g.beginPath(); g.arc(sx, sy, 6.5 * mk, 0, 6.283); g.stroke(); }
-          if (act || mapBig || mapNoseUp) labPut(sx, sy, wpLabel(L, act), 'rgba(20,14,8,.8)', act ? '#ffe3a0' : 'rgba(255,215,160,.9)');
-        }
-      }
-    }
+    drawPlanOnMap(g, PX, PY, mk, W2, labPut);
     // THE ANIMAL HOTSPOTS (G498): where the wildlife lives is a thing a pilot plans a flight
     // around - the sanctuary you land at, the pod you fly over - so the map says so. ONE mark a
     // HOTSPOT, never one an animal: the record is the hotspot, and its individuals wander inside
