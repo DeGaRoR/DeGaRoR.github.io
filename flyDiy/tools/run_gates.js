@@ -356,6 +356,10 @@ const GATES = [
   // G614: the premises' composed ground as an A h + B lattice (opt-in) against the analytic path, the ceiling over
   // it, and the surface / exclude cell indexes against the scans they replaced; ~40 s
   { id: 'PREMRASTER', file: '_premraster_check.js', tier: 'core' },
+  // G835: the premises' DATA COOK (tools/premises_cook.js) - the committed cook equals a fresh one (the fixture, the
+  // generators, the page's placement code lifted from render_premises.js: a red here is a STALE cook - re-cook), the
+  // cooked raster loads under the flag and reads the lazy raster to 0.05 mm, a stale cell is refused (~3 min)
+  { id: 'PREMCOOK', file: '_premcook_check.js', tier: 'core', wall: 200 },
   // THE TOWN ON TEXTURE ARRAYS (G574): house_tarr.js's shader edits on r186's own program after the house
   // generator's real hooks, the classify by hook identity, the merge (world, the sag baked, one slot a finish), the
   // host's wiring (~2 s)

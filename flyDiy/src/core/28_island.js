@@ -115,6 +115,9 @@ var ISLAND_GEN = (function () {
       canopyP90: (g.layers && g.layers.canopy && g.layers.canopy.p90OverTreeCover) || 15,
       grid: { w: W, h: Hn, cell, x0: gx0, z0: gz0 },
       header: H, root,
+      // (G835) the premises' cooked data the loader fetched for this island (tools/premises_cook.js), or null:
+      // today its raster cells, read by makeWorld's setPremises when the ground raster is on
+      premCook: src.premCook || null,
     };
   }
 

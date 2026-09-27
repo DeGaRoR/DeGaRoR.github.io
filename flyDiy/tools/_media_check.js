@@ -254,6 +254,9 @@ function manifestFiles() {
   // map and until this landed none of its data was in git at all.
   const worlds = fs.existsSync(path.join(ROOT, 'src', 'core', 'world_packs.json'))
     ? [path.join(ROOT, 'src', 'core', 'world_packs.json')] : [];
+  // the premises' cook (G835): tools/premises_cook.js writes media/world/<id>/premises (its own subdirectory -
+  // world_prep's prune is not recursive, so neither bake prunes the other's) and names every cell here
+  if (fs.existsSync(path.join(ROOT, 'src', 'core', 'premises_packs.json'))) worlds.push(path.join(ROOT, 'src', 'core', 'premises_packs.json'));
   return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds);
 }
 

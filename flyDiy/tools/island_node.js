@@ -59,7 +59,32 @@ function worldPack() {
 // spells a filename; the page loader in tools/build.js carries the same line
 const set = (o, k, v) => { const p = k.split('.'); for (let i = 0; i < p.length - 1; i++) o = (o[p[i]] = o[p[i]] || {}); o[p[p.length - 1]] = v; };
 
-function islandBoot(name) {
+// THE PREMISES' COOK (G835, tools/premises_cook.js): src/core/premises_packs.json names the island's cooked
+// raster cells. They ride on the boot object (boot.premCook, carried by makeIsland) ONLY when the ground raster
+// flag is on - FLYDIY_GROUND_RASTER=1, the page's ?raster=1 - since off, nothing reads them and a gate should not
+// pay the gunzip. makeWorld loads the cells whose signature its composition gives (27_premises.js rasterLoad).
+function premisesPack() {
+  const p = path.join(ROOT, 'src', 'core', 'premises_packs.json');
+  return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : { islands: [] };
+}
+function premCook(name) {
+  const isl = (premisesPack().islands || []).find(w => w.id === name);
+  if (!isl || !isl.raster) return null;
+  const raster = isl.raster.cells.map(c => {
+    const abs = path.join(ROOT, ...c.src.split('/'));
+    if (!fs.existsSync(abs)) throw new Error('island_node: premises_packs.json names ' + c.src + ' and it is not on disk - re-cook with tools/premises_cook.js');
+    const b = zlib.gunzipSync(fs.readFileSync(abs));
+    return { ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: new Uint8Array(b.buffer, b.byteOffset, b.length) };
+  });
+  return { raster };
+}
+
+function islandBoot(name, o) {
+  const boot = islandBoot0(name);
+  if (boot && process.env.FLYDIY_GROUND_RASTER === '1' && !(o && o.noCook)) boot.premCook = premCook(name);
+  return boot;
+}
+function islandBoot0(name) {
   if (process.env.FLYDIY_BENCH) return benchBoot(name, process.env.FLYDIY_BENCH);   // explicit: the un-baked bench
   const isl = (worldPack().islands || []).find(w => w.id === name);
   if (!isl) return null;
@@ -98,7 +123,7 @@ function islandWorld(name, opts) {
   return C.makeWorld(0, Object.assign({ island }, opts || {}));
 }
 
-module.exports = { islandBoot, islandWorld, islandAuthoring, worldPack };
+module.exports = { islandBoot, islandWorld, islandAuthoring, worldPack, premisesPack, premCook };
 
 if (require.main === module) {
   const name = process.argv[2] || 'jolene';

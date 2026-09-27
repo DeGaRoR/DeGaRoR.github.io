@@ -458,6 +458,10 @@ function makeWorld(seed, opts) {
     return { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null };
   }
   let ttypeUndo = null;
+  function groundRasterFlag() {
+    if (typeof window !== 'undefined' && window.FLYDIY_GROUND_RASTER !== undefined) return !!window.FLYDIY_GROUND_RASTER;
+    return typeof process !== 'undefined' && !!process.env && process.env.FLYDIY_GROUND_RASTER === '1';
+  }
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
@@ -466,7 +470,15 @@ function makeWorld(seed, opts) {
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
     const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
-    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: !!(opts && opts.groundRaster) }, extra || {}));   // G614: the height raster, opt-in (below)   // the renderer hands its builder (the cable's phase B) and the tree pool
+    // G614: the height raster, opt-in. G835 (the architecture queue's C2b): the flag also reads the environment -
+    // FLYDIY_GROUND_RASTER=1 in node, window.FLYDIY_GROUND_RASTER in the page (the island loader sets it from
+    // ?raster=1 or localStorage flydiy.raster) - and, when on, the island's COOKED raster cells (tools/
+    // premises_cook.js; the loader fetched them onto the boot object) are loaded: a cell whose signature is this
+    // composition's is read off the cook, the rest bake lazily as before. OFF BY DEFAULT: it moves flight
+    // numbers (the ground within 0.04 mm of the lattice, the lattice within G614's tolerance of the analytic)
+    const rasterOn = !!(opts && opts.groundRaster) || groundRasterFlag();
+    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: rasterOn }, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
+    if (PM.rasterLoad && ISL && ISL.premCook && ISL.premCook.raster && PM.raster.on) PM.rasterCooked = PM.rasterLoad(ISL.premCook.raster);
     PMrec = rec;
     // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
     // code into the island's own ttype grid, which the ground's packed texture, the
