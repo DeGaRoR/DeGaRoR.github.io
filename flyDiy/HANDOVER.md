@@ -61365,3 +61365,73 @@ TREES, ANIMALS, REF, HOUSE, OBSTACLE among them). FULL TIER RED, PRE-EXISTING: S
 give up the circuit - the G620/G640 lines, 4 shards), PILOTMATRIX (10 regressed), SOAR (2: 0.21 m/s in the thermal,
 -6 m in 200 s) - and tools/flight_core.js, all they fly, is byte-identical to master bd234d3's build (the only
 src/core change is trees_pack.json's bin names, which the core does not carry).
+## G780 - THE FULL TIER, BISECTED: SOAR fixed (a sampled turn is not a jump), and every older red to its first bad commit (2026-09-27, batch A of the Jolene playtest, the GREEN session)
+
+The batch-A landings never ran `--all`. The user's bisect of 2026-09-27 (each commit built first) found SOAR new
+at G630 and the stearman's PILOTMATRIX line new at G630, the rest older. This session: fix today's two, bisect the
+older reds from source, run the battery.
+
+**THE RIG (scratch, not committed):** each probed first-parent commit is checked out as a SPARSE worktree
+(flyDiy/tools, src, vendor, package.json) and BUILT FROM ITS OWN SOURCE (`node tools/build.js`), then its own gate
+runs there (pilot_matrix `--cells`, `_arch_check --only=<card>`, `_seaplane_check`). The committed flight_core.js at
+a non-build commit is stale and must not be bisected: the committed core at d83905fb (the G422 baseline's own
+commit) gave A3 and dn4 `gave-up`; the same commit built from source reproduces pilot_baseline.json bit for bit (all
+nine cells). The clone is shallow - `git fetch --deepen=500` reaches 2026-09-12.
+
+**SOAR - first bad e8f919b9 (G630), FIXED (43_pilot.js).** G630 carried every target-heading step over 0.05 rad into
+the rate filters' memory (the bumpless transfer). test_soar's orbit law re-selects HDG every 0.25 s, 0.11 rad a time
+at the circle's 0.45 rad/s: every step of the circle was dropped, the rate filters saw the nose turn and never the
+target, `hdgD x eAR` became -0.9 x 0.45 rad of bank against the 0.72 asked, and the glider circled wide of the core.
+Confirmed by the A/B: the bumpless rule off -> S3 green. G780: a step is a jump only if no aeroplane could have turned
+it since the target last moved (1 rad/s, over 0.5 s at most, never under 0.05 rad). Measured on a logging core: every
+step the circuit makes (the CROSSWIND entry's -pi and its 0.28-0.36 rad/step sweep, FINAL's one-step +-0.6 rad
+glitch at the PATH -> LOC hand-off, the -0.08..-0.22 rad hand-off step, a rollout step) comes one step after the
+target last moved and is judged on 0.05 exactly as G630 wrote it; the first taxi target is new (carried too). The
+stearman and stock circuits are bit-identical to G630's (the same landing, the same reversals per phase group).
+S3: climbs 0.59 m/s (air 2.76), gains 61 m in 200 s, the control loses 429 (G630: 0.21 m/s, -6 m). GATE SOAR PASS.
+
+**PILOTMATRIX (10 regressed, against pilot_baseline.json = G422 d83905fb) - NOT FIXED, a pilot retune owed:**
+
+| line | first bad (last good) | cause | what the aeroplane does |
+|---|---|---|---|
+| c172 calm sink 0.95 -> 2.04, x2 1.05 -> 2.34, both verdicts warn | aa8b8a59 G428-G431 (355bcf12): 2.00 / 2.16 | the perf study's cards and weights (G428-G431's own commit: "RED on the pilot's side, rulings owed ... seven matrix cells to warn") | NON-MONOTONIC after it: the c172 card was redefined (G445.x, the corrected 172); at G460 94c6a3e6 calm 0.68 / x2 gave-up; G461 2e40f653 (the neutral point) is the last transition to today's 2.04 / 2.34 (G477 said so; confirmed). The trike flare pins at `flCap = A.thMax` (0.67 aStall, 6.9 deg) from 311 s, the elevator winds to its 0.35 stop, the sink grows 1.3 -> 2.0 as the speed bleeds to 1.07 Vs. Scratch: cap +0.03 rad -> 1.71 at 1.05 Vs, +0.06 -> 1.45 at 1.03 Vs (trades sink for float - a fleet flare retune, not taken) |
+| stearman calm sink 0.95 -> 1.47 (today's) | aa8b8a59 G428-G431 (355bcf12): 0.95 -> 1.44 | the same cards change; then G630 1.42 -> 1.47 | the +0.05 is ALL G630's intended PATH `targetDir` write (the yaw damper's reference is the path tangent now): that one write disabled on this core -> 1.42 to the hundredth (off 2.7 -> 1.6 m, drift -0.82 -> -1.37). The sink column still reads ok (<= 1.5); only the +0.5 drift rule trips. RE-BASELINE PROPOSED, not done (the user signs off) |
+| cub calm / x2 verdict true -> warn (V/Vs 1.16 -> 1.02, 1.15 -> 1.01) | c774c623 G457 (b2a3eb5a) | G457's forward mass (Cub CG 27.1 -> 26.0 % MAC) flipped genTrim's flap choice | see the A3 row: the cub lands on full flap now, Vref 20.7 -> 17.8, and touches at 1.01-1.02 Vs |
+| cub A3 sink 1.49 -> 4.03, verdict false (two lines) | c774c623 G457 (b2a3eb5a): 0.83 -> 3.08 | 64_gen_build genTrim's TRIM BUDGET: land flapless when the full-flap approach trim `|deAppr| > 0.18`. The cub's full-flap deAppr went -0.200 -> -0.102 with the 1 % CG move, so `flaps.ldg` 0 -> 1 (VAppr 23.7 -> 19.9, Vs0 16.0 -> 13.7, LDGrun 134 -> 101) | on A3's short final at 0.51 throttle the flapped cub flies -10 deg of pitch with the elevator at +0.19 (the tunnel, prop off, said -0.10), and in the flare the elevator sits on its 0.35 stop while the nose falls to -17 deg: 4 m/s at 1.33 Vs. The budget checks the approach trim free-air, prop off, and never asks whether the FLARE fits under the stop |
+
+(G630 moved cub A3 3.92 -> 4.03 too; it was already a ratchet line.) The x4 / A5 / sand / rh cells post-date the
+baseline and are not ratcheted. Side finding, not judged by any gate: the stearman's ELEVATOR reverses ~890 times a
+minute on the downwind (226 on base) - pilot_trace activity `de`; PILOTACT judges aileron and rudder only.
+
+**ARCHETYPES (5 cards give up) - NOT FIXED:** every one the same way - "go-around: terrain under the approach"
+(below 15 m more than 400 m out on final) twice, then the 600 s patience give-up.
+
+| card | first bad (last good) |
+|---|---|
+| Caravan-alike | aa8b8a59 G428-G431 (355bcf12) |
+| Beaver-alike | 3e1ea8dd G422.1, the approach plan (d74d65f4) |
+| Tiger Moth-alike | 3e1ea8dd G422.1, the approach plan (d74d65f4) |
+| Motorglider | 4b42ba84 G445.7, the mass chantier - the aft fuselage by its section (172b86b7) |
+| Twin bush hauler | aee1f2e8 G399.3, TECS + L1 over the path (1aa8d2b0) - before the G422 baseline; the gate has been red since 2026-09-14 (G416 saw it) |
+
+**SEAPLANE (3: the crosswind water take-off) - first bad aa8b8a59 G428-G431 (355bcf12), NOT FIXED.** At G426 the
+crosswind run lifts at 5.5 s, 8.8 m off, 27.7 deg of swing; from G428 it never leaves the water (779 m off on G422.2's
+pilot, 44-70 m and 180 deg later). On this core: the float ultralight skips off the step at 12.4-14.2 m/s (t 5.0-5.5
+s, ~0.9 Vs), falls back at 6 s and water-loops 165 deg in half a second with the rudder on its stop, then ABORT.
+G428-G431 named it itself ("the seaplane's 35.8 deg swing"); the water arc's re-tune, owed since.
+
+The ARCHETYPES gate as a whole first went red at aee1f2e8 (G399.3, 2026-09-14); the Caravan's G428 card is the
+fast-card half of "five fast cards go around with full tanks" (G455's half tanks did not bring it back), the Beaver's
+and the Tiger Moth's is G422.1's approach plan, the Motorglider's G445.7's aft-fuselage mass.
+
+**RE-BASELINE - PROPOSED, NOT DONE (the user signs off):** only `stearman:HOME:calm` (sink 0.95 -> 1.47; the cell's
+sink column still ok). Every other line is a genuinely worse landing on a deliberately truer aeroplane (G428-G431
+cards and weights, G457 mass, G461 neutral point) - re-blessing them would record them as the floor (G455's ruling).
+The pilot's work, in order of harm: (1) genTrim's flap choice must ask whether the flare fits under the elevator
+stop, powered (cub A3's 4 m/s); (2) the trike flare cap (c172); (3) the approach over terrain on the heavy cards
+(ARCHETYPES); (4) the water run's hump (SEAPLANE).
+
+**GATES** (`node tools/run_gates.js --all --jobs=3`, this tree, two bisect probes alongside): 117 jobs, wall 5 742 s.
+PASS: every core gate but PAVEMENT; SOAR, HOTHIGH; PILOT, PILOTACT. FAIL: ARCHETYPES (the five above - the five G620 read on 3da1c82a), PILOTMATRIX
+(the ten above: 3da1c82a's nine + the stearman's, G630's), SEAPLANE (the three above, 3da1c82a's); PAVEMENT's "100 000 coverAt
+calls in 2050 ms" (a wall-clock bound under the load) - `--only=PAVEMENT` alone: PASS.
