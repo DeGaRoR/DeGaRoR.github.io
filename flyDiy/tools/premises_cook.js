@@ -80,16 +80,19 @@ function headless() {
   return HL;
 }
 
-// the island's world (no premises: they are composed below, per variant, the way the page's premises host does -
-// world.premises.set(rec, { build, pool }) with the generators as the globals). The boot is read WITHOUT its
-// cook: what is cooked must not be read off an earlier cook.
+// the island's world, MADE WITH PREMISES as the page's is (app.js: makeWorld(0, { premises, island })) - an island
+// made without any cuts the analytic world's old pad into the ground round (-520, 0), 500 m from HOME
+// (20_world.js ISL_CUT), and a cook on that ground is a cook of another world (G835's first cook was: every cell's
+// signature missed the page's). The variants are composed onto it below the way the page's premises host does -
+// world.premises.set(rec, { build, pool }) with the generators as the globals. The boot is read WITHOUT its cook:
+// what is cooked must not be read off an earlier cook.
 const WORLDS = new Map();
 function islandWorld(id) {
   if (WORLDS.has(id)) return WORLDS.get(id);
-  const { C, IN } = headless();
+  const { C, IN, PG } = headless();
   const boot = IN.islandBoot(id, { noCook: true });
   if (!boot) throw new Error('premises_cook: no island "' + id + '" in src/core/world_packs.json');
-  const W = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot) });
+  const W = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, PG.DEF()) });
   WORLDS.set(id, W);
   return W;
 }

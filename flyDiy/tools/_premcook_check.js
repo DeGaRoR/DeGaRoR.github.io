@@ -77,7 +77,7 @@ const build = r => (GENS[r.gen] ? GENS[r.gen].build(r.P, 0) : null);
 function cookWorld() {
   const boot = IN.islandBoot(ID, { noCook: true });
   boot.premCook = IN.premCook(ID);
-  return C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot) });
+  return C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, PG.DEF()) });   // made with premises, as the page's
 }
 const VD = K.VARIANTS[0], rec0 = recOf(VD.drop);
 const WC = cookWorld();
@@ -130,7 +130,7 @@ console.log('4. a stale cook is detected');
     const W1 = cookWorld(), O1 = W1.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });
     const r = O1.rasterCooked || { taken: 0, stale: 0 };
     ok(r.taken > 0 && r.taken < mine.length && r.stale > ISL.raster.cells.length - mine.length, 'the edited cells are refused, the rest load (' + r.taken + ' taken, ' + r.stale + ' refused)');
-    const boot = IN.islandBoot(ID, { noCook: true }), WLz = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot) });
+    const boot = IN.islandBoot(ID, { noCook: true }), WLz = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, PG.DEF()) });
     WLz.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });
     const b = M.poly.reduce((a, p) => [Math.min(a[0], p[0]), Math.min(a[1], p[1]), Math.max(a[2], p[0]), Math.max(a[3], p[1])], [1e9, 1e9, -1e9, -1e9]);
     let diff = 0, n = 0;
