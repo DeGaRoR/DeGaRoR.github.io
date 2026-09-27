@@ -624,6 +624,7 @@ function makeSim(def, world) {
   const vi = new Float64Array(NST * 3);
   const AIC = new Float64Array(NP * 3);
   const sA = new Float64Array(NST * 3), sB = new Float64Array(NST * 3), sD = [0, 0, 0];
+  const sZA = new Float64Array(NST), sZB = new Float64Array(NST), sC = [0, 0, 0];   // G970: the bound's span coordinates (body lateral)
   const cpt = new Float64Array(NST * 3);
   // G197: THE WAKE THE POLAR ALREADY ASSUMES. Every strip carries the same
   // 2D lift coefficient, so the circulation is spanwise-uniform and the
@@ -674,10 +675,23 @@ function makeSim(def, world) {
     for (const j of WS) { boundOf(def.strips[j], _A, _B); for (let k = 0; k < 3; k++) { sA[j*3+k] = _A[k]; sB[j*3+k] = _B[k]; } }
     // the template: the mean of sqrt(1 - (2z/b)^2) over each strip's bound
     // sub-span, b = the plane's live projected span (its outermost endpoint)
-    bHalf.fill(0);
-    for (const j of WS) bHalf[PLANE[j]] = Math.max(bHalf[PLANE[j]], Math.abs(sA[j*3+2]), Math.abs(sB[j*3+2]));
+    // G970: z is the SPAN coordinate - the endpoint's offset from the nose
+    // frame (the symmetry plane) along the body's own lateral axis (zRt,
+    // fresh from bodyAxes() at the top of this pass). It read the WORLD z:
+    // the span only while the aeroplane sat on z = 0 flying along x (HOME's
+    // final, the tunnel's rest pose, where the two are the same number). At
+    // A3, 11.6 km down z, every strip read u = -1, the sources came out
+    // lopsided and the tail's downwash flipped 0.35 -> 0.18 on a flapped
+    // final - a 0.35 elevator trim jump, and the cub flared into the ground
+    avgP(def.refs.noseFrame, sC);
     for (const j of WS) {
-      const b2 = bHalf[PLANE[j]] || 1, zA = sA[j*3+2], zB = sB[j*3+2];
+      sZA[j] = (sA[j*3] - sC[0]) * zRt[0] + (sA[j*3+1] - sC[1]) * zRt[1] + (sA[j*3+2] - sC[2]) * zRt[2];
+      sZB[j] = (sB[j*3] - sC[0]) * zRt[0] + (sB[j*3+1] - sC[1]) * zRt[1] + (sB[j*3+2] - sC[2]) * zRt[2];
+    }
+    bHalf.fill(0);
+    for (const j of WS) bHalf[PLANE[j]] = Math.max(bHalf[PLANE[j]], Math.abs(sZA[j]), Math.abs(sZB[j]));
+    for (const j of WS) {
+      const b2 = bHalf[PLANE[j]] || 1, zA = sZA[j], zB = sZB[j];
       Dz[j] = Math.abs(zB - zA);
       const u0 = Math.min(zA, zB) / b2, u1 = Math.max(zA, zB) / b2;
       Ez[j] = LOADING === 'uniform' ? 1
@@ -1666,7 +1680,7 @@ function makeSim(def, world) {
            fuel, eng, setEngine, thrEffOf, hydro: HY,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
-           induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
+           induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
            setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, probeAir };
   return sim;
