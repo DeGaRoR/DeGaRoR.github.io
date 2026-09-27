@@ -60572,3 +60572,65 @@ ARCH-2026-09-27 §2.5 step 1: the worker side of "physics in a Web Worker", no a
   archetypes that gave up the circuit: Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler - the
   queue listed "ARCHETYPES(4)"; HANDOVER G600 already calls it flaky). Built outputs rebuilt by the runner and
   restored, not committed (a cloud branch).
+
+## G900-G902 - GATE ASSETS: THE CENSUS AS A RATCHET; THE MEDIA WRITERS FOLD BY CONTENT; THE RUNTIME SNIPPET AGAINST CDP (2026-09-27, AS0a, cloud)
+
+AS0a of futureDesigns/ASSETS-2026-09-27.md (§5.2 P2, §5.4). Tools only: nothing under src/ or media/ changed, no built
+output committed.
+G900 GATE ASSETS (tools/_asset_check.js, core, ~15 s: ~2 s of census + ~13 s of PIL decode; row after MEDIA). It runs
+asset_census.js's staticCensus() with the cheap options (staticCensus(o) now takes { decode, gz, payloads, biomes,
+houses, world }; the command line's flags are the defaults, its output is unchanged) and holds five counts as a
+RATCHET against ALLOW in the gate file, measured on bd234d3: FLAT maps (every channel std < 2 at 256 px) per
+directory, 48; byte-identical copies under media/ per content hash, 29 groups / 45 redundant files (the census's 32
+groups include three assets/pa18 source/baked pairs: assets/ holds bake sources and is not gated); images over
+4096 px per directory, 2 (the sky pair); JPEG normal maps (by the bakers' names) per directory, 186; `new
+THREE.*Material` sites per file (the census's own MAT_RE and file set), 176 in 39 files, src/viewer/matlib.js (AS4a)
+exempt. Red only when a count exceeds its allowance; a count under it prints "can tighten" and stays green - the
+session that lowered it runs `node tools/_asset_check.js --baseline` and pastes the smaller ALLOW (AS0b: the flat maps
+and the bark aliases; AS2: the ground libraries; AS4: the material sites). Per-directory counts, not paths, so a
+re-bake that moves a hash is not "new". Without python + Pillow the FLAT check is SKIPPED with a line and the other
+four run (verified with python off the PATH); an image PIL cannot open under media/ is a FAIL when PIL is there.
+--selftest breaks each rule in turn (13 cases, all caught; the flat ones print "skipped" without PIL): a flat map in
+a new and in an allowed directory, PIL's verdict on a constant vs a textured PNG, the no-PIL skip, a new copy and a
+grown group, a real 8192 px PNG header, a real JPEG named _nor_gl, a material site in a new and an allowed file (not
+in matlib.js), and a media writer that does not fold. A doctored ALLOW (sky 1, hangar.js 42) went red on both.
+G901 THE WRITERS FOLD BY CONTENT (P2). tools/_media_lib.js writeMedia and tools/media_lib.py write_media return a
+file already in the same subdir (that directory, not below) holding exactly these bytes, whatever its stem: only
+names ending .<h8>.<ext> are candidates, compared byte for byte, the first in sort order (so the fold does not depend
+on which alias a bake writes first). The returned path is in the baker's emitted list, so its prune keeps it while
+the bake asks for those bytes and removes the other copies. Caveat written into media_lib.py: in a directory SHARED
+by bakers (prune_media_stems: model_prep / ref_prep in geo/models) the file returned can carry another baker's stem,
+and that baker's prune could remove it - GATE MEDIA's referenced == present would then go red; today no two models
+share a bin. GATE ASSETS runs both writers every time in a scratch root (a copy of each under <tmp>/tools/, so
+media/ is never touched): same bytes under two stems -> one path, one file, nothing pruned. No bake was run here:
+AS0b's re-bake is the first to fold real files (the bark aliases).
+G902 THE RUNTIME SNIPPET AGAINST boot_perf.js's CDP LOG. Checked for real, not only read: this container's Chromium
+(/opt/pw-browsers, headless, SwiftShader) boots index.html to the garage in ~100 s; a scratch probe recorded
+boot_perf's CDP network log (requestWillBeSent / responseReceived / loadingFinished) and evaluated PAGE_SNIPPET in
+the same page. The roll-out lifts (113 s) but the live world then holds the page's main thread (SwiftShader, the GPU
+process at 260 % CPU) and no evaluate returns - the scene half stays for the GPU box. Results: the URLs agree
+exactly (cold 104 = 104 media URLs, reload 105 = 105, none on one side only); the cut is the same ('media/...' after
+/flyDiy/); encodedBodySize is the file's bytes (9 796 050 for e2_tree) where CDP's encodedDataLength adds ~190 B of
+headers, and a worker-served response is 0 on both (transferSize, encodedDataLength); the SW cache name
+'flydiy-media-v1' is right (sw.js, build.js, storage.js), and with a worker controlling the page its keys equal the
+105 media URLs CDP marks fromServiceWorker. Fixed: (1) the snippet read the network only after the scene check, so a
+garage-stage run returned nothing - the network now comes first and a sceneless page returns { err, network } (the
+runtime report prints the network and the per-family fetched table, '-' for the scene columns); (2) caches.open
+CREATED the cache it read - now caches.has first; (3) resource timing keeps 250 entries and a roll-out fetches more:
+tools/rollout_perf.js's pre-script raises the buffer to 20 000 before the first fetch and says so in
+window.__RTBUF, which the snippet's "buffer full" flag reads; (4) the report says that a CPU-packed library
+(splat, pavement: DataArrayTextures, no URL) reads as "fetched, not in the scene"; (5) the runtime diff's static side
+runs the cheap census (no gzip / houses / world pass).
+FOUND, NOT FIXED (src/, a player-facing change - the user's call): THE MEDIA CACHE'S WORKER NEVER REGISTERS.
+storage.js registers sw.js in a window 'load' listener, but index.html's scripts are text/x-flydiy, run by the loader
+after the world fetch: measured, 'load' fired at 197 ms and storage.js added its listener at 1 185 ms, so it never
+runs - STORAGE.state.sw stays 'none', no registration after a boot and a reload, while register('sw.js') by hand in
+the same page works (and then serves all 105 media from the cache on the next load). So G421's cache-first media
+cache has, at least on this build, never been on for a player. The fix is one line in storage.js register()
+(register at once when document.readyState === 'complete', else at 'load') - but it switches a service worker on
+for every player (the user had "sync trouble" with them, G421), so it is left for the user to rule on.
+Gates: `node tools/run_gates.js --all`, run twice (on bd234d3, then on 03a62e4 after the rebase): 108 PASS on the rebased
+tree (ASSETS, MEDIA, and the base's new SIMWORKER, PLAN, TAXICLEAR among them), FAIL = the four known full-tier reds
+with their known lines, nothing new - ARCHETYPES (Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler
+give up; shards 2/4/4), PILOTMATRIX (10 regressed), SEAPLANE (3), SOAR (2 checks); nothing this touches is read by a
+flight sweep. The battery rebuilds the built outputs; they were restored, not committed.
