@@ -244,6 +244,11 @@ const GATES = [
   // fingerprint ignores paint/finish/meta and nothing else) and wears its
   // stickers (one roundel per test, page 6, the seventh decal slot).
   { id: 'BENCH', file: '_bench_check.js', tier: 'core', wall: 90 },
+  // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
+  // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
+  // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,
+  // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; ~40 s
+  { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 60 },
   // THE UNDERCARRIAGE (G67.3), and it closes the one gap G67.2 declared: the
   // three leg families as three different drawings — the check GATE GEN lost
   // when the old skin's leg drawer went — plus the wheel turning on its own,

@@ -379,10 +379,17 @@ const MANIFEST = {
     // ladder's thread (window.BENCH_WORKER), imported RAW by its own Blob
     // worker next to tools/flight_core.js — so it must stay a file the page
     // can fetch, like balance.js.
+    // sim_host.js + sim_view.js (G810): the solver's own thread and the page's
+    // view of it (ARCH-2026-09-27 §2). sim_host.js is imported RAW by its own
+    // Blob worker next to tools/flight_core.js, like bench_worker.js - so it
+    // must stay a file the page can fetch; inlined here it only publishes
+    // window.SIM_HOST (the starter, the Blob's source) and window.SIM_VIEW.
+    // Nothing calls either yet: app.js takes them behind ?simw=1 (C1b).
     // blueprint.js after refplane.js (G573): the reference plane's second
     // source. It builds its half of the panel from REFPLANE.ui, lazily, and
     // stands its planes in app.js's REF_MOUNT.bpGroup.
               'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint.js',
+              'sim_host.js', 'sim_view.js',
     // balance.js before editor.js (G101): the energy layer's panel draws the
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,
