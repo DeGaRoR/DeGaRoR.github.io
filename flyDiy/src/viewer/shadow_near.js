@@ -75,13 +75,16 @@ var SHADOW_NEAR = (function () {
   // clean. The fix is three's own VSM rule in the PCF path: under the reversed buffer the bias is subtracted.
   // THE CRAWL: r186's PCF is five taps of a Vogel disc turned per pixel by interleaved-gradient noise - a kernel built
   // for a TAA that averages the noise away over frames. The game has none, so every shadow edge dithered and crawled as
-  // the camera moved. A 3x3 grid of hardware-compared (bilinear) taps, one texel apart: a stable ~3-texel penumbra, no
+  // the camera moved. Four hardware-compared (bilinear) taps half a texel off the point: a stable ~3-texel penumbra, no
   // noise. `?pcf=noise` keeps three's kernel for the A/B.
   const PCF_BIAS = 'shadowCoord.z += shadowBias;';   // its first occurrence is the PCF getShadow's (#if SHADOWMAP_TYPE_PCF comes first)
   const PCF_NOISE_A = 'float phi = interleavedGradientNoise( gl_FragCoord.xy ) * PI2;';
-  // (written out, not a nested loop: ANGLE's fxc inlines loops of texture fetches badly - G567's 216 s cold link)
-  const PCF_GRID = 'shadow = (\n' + [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]
-    .map(([x, y]) => `texture( shadowMap, vec3( shadowCoord.xy + vec2( ${x}.0, ${y}.0 ) * radius, shadowCoord.z ) )`).join(' +\n') + '\n) * ( 1.0 / 9.0 );';
+  // FOUR taps, not nine: each is a hardware-compared BILINEAR fetch, so four at (+-0.5, +-0.5) texel cover the 3x3 texels
+  // round the point with a tent - the same footprint as a 3x3 grid of nearest compares, smoother. The first cut had nine
+  // (written out: fxc inlines loops of fetches badly - G567), inlined three times in every lit program by the near rule:
+  // the roll-out's compile step went 13.8 -> 36 s on every warm run (rollout_perf, G650). Four is fewer than three's five.
+  const PCF_GRID = 'shadow = (\n' + [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]
+    .map(([x, y]) => `texture( shadowMap, vec3( shadowCoord.xy + vec2( ${x.toFixed(1)}, ${y.toFixed(1)} ) * radius, shadowCoord.z ) )`).join(' +\n') + '\n) * 0.25;';
   const pcf = { bias: false, grid: false };
   function patchPCF(SC) {
     let f = SC.shadowmap_pars_fragment || '';

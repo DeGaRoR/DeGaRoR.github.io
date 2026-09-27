@@ -7,7 +7,7 @@
 //   1. THE PCF LOOKUP UNDER THE REVERSED BUFFER (G650, shadow_near.js patchPCF): three r186's PCF getShadow added the bias
 //      with no reversed case - every receiver behind its own depth, the stripes. After install() the PCF function
 //      SUBTRACTS the bias under USE_REVERSED_DEPTH_BUFFER and adds it otherwise, and the per-pixel noise disc is gone
-//      (a fixed 3x3 grid of hardware-compared taps: no crawl without TAA). The VSM / BASIC functions are untouched.
+//      (four fixed hardware-compared bilinear taps at +-0.5 texel: no crawl without TAA, no heavier to compile). The VSM / BASIC functions are untouched.
 //   2. THE CRAFT'S SHADOW AT ANY HEIGHT (G651, shadow_near.js follow): the near map's depth reaches the ground shadow
 //      (far plane >= 2 x half + height / sun elevation), the bias is held in metres, the craft never joins the far map
 //      while the near map is live (the trailing ghost), and joins it when the near map is off.
@@ -40,7 +40,7 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
   const pcf0 = f.indexOf('float getShadow( sampler2DShadow'), vsm0 = f.indexOf('#elif defined( SHADOWMAP_TYPE_VSM )', pcf0);
   const pcfFn = pcf0 >= 0 && vsm0 > pcf0 ? f.slice(pcf0, vsm0) : '';
   ok(/#ifdef USE_REVERSED_DEPTH_BUFFER\s*shadowCoord\.z -= shadowBias;\s*#else\s*shadowCoord\.z \+= shadowBias;\s*#endif/.test(pcfFn), '1 PCF: the bias is subtracted under the reversed buffer, added otherwise');
-  ok(pcfFn && !/interleavedGradientNoise|vogelDiskSample/.test(pcfFn) && (pcfFn.match(/texture\( shadowMap, vec3\(/g) || []).length === 9, '1 PCF: nine fixed taps, no per-pixel noise disc');
+  ok(pcfFn && !/interleavedGradientNoise|vogelDiskSample/.test(pcfFn) && (pcfFn.match(/texture\( shadowMap, vec3\(/g) || []).length === 4, '1 PCF: four fixed bilinear-compare taps (a 3x3 tent), no per-pixel noise disc - fewer than the five of three: no heavier to compile');
   ok(!/for \(/.test(pcfFn), '1 PCF: the taps are written out (no loop of fetches for fxc to inline)');
   ok(f.slice(vsm0) === before.slice(before.indexOf('#elif defined( SHADOWMAP_TYPE_VSM )', before.indexOf('float getShadow( sampler2DShadow'))), '1 the VSM and BASIC lookups are untouched');
 }
