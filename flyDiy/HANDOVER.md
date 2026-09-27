@@ -62252,3 +62252,134 @@ TRAPS: textureGrad on the pavement's arrays is an fxc internal error (stopped be
 stock build (--pre runs after the pin); a merged caster's bounding sphere (the poles, the town batch) is 90-140 m round;
 the pavement's variant in a live page needs onBeforeCompile + a new customProgramCacheKey + needsUpdate; clouds cast
 on the ground - a before/after pair minutes apart differs by cloud shadows unless the clouds row is off.
+## G1010-G1014 - GATE FRAMECOST: THE FRAME'S WORK, COUNTED AND RATCHETED (2026-09-27, GATE-FRAMECOST, a cloud session, node only)
+
+WHY: on 2026-09-27 the render CPU at the Jolene taxi grew 11.0 -> 14.7 ms (48 -> 43 fps, the old stock plane, pinned 60)
+across eight landings, every one with a green battery; the draw counts had not moved and a live profile spread the cost
+over three's per-draw path (uniformMatrix4fv, the renderer's internals, updateMatrixWorld, onBeforeRender, the frustum,
+terrainH + grHeight). No gate counted per-frame WORK. GATE FRAMECOST does, node only, deterministic. No src/ hook.
+
+G1010 THE PAGE IN NODE (tools/_page_node.js, tools/_page_dom.js, new). dev.html's own scripts in the page's order in ONE
+vm context (a DONT_CONTEXTIFY global: a contextified sandbox routes every global read through an interceptor and made the
+solver ~10x slower), over: a small document holding dev.html's body markup (getElementById, a selector engine, innerHTML
+that parses, classes, styles, listeners), fetch / XMLHttpRequest / Image off the disk (app.js reads the premises fixture
+with a SYNCHRONOUS XHR - without one the page boots with no premises, caught and silent; the gate now asserts the
+premises composed), a VIRTUAL clock (performance.now moves 10 us a call; timers, intervals and animation frames queued on
+it; Date on it; Math.random and crypto seeded) and navigator.webdriver (the page's rig paths: G586's one-step clock, the
+graphics auto-scale down). No Worker, IndexedDB, audio or service worker: the page takes its no-such-thing paths. The
+garage boots, `Roll out` (#bGo) is pressed, the roll-out screen runs, all through the page's own BOOT chain.
+G1011 THE RECORDING GL (tools/_fake_gl.js makeGL + makeRecorder; boot() now builds on makeGL with the same behaviour -
+PROGRAMS, COVER, FADES pass unchanged). With a recorder: every GL call counted by name, the bytes of every uniform /
+buffer / texture upload, the draws by pass (the recorder's phase: `shadow` inside renderer.shadowMap.render, `main` for
+the world or shed scene drawn with the page's camera, `other` for the rest), and REFLECTION: each linked program's
+active uniforms (struct arrays expanded) and attributes read off its GLSL after a small preprocessor (#if/#ifdef/#elif,
+defined(), macro arithmetic), with the real GL type codes - so three builds its uniform tables and uploads exactly what
+its caches let through, as on a driver.
+G1012 THE CENSUS (tools/_framecost_check.js). Two builds, each in its own child process (in parallel): the default Cub
+(no working build: the first boot) and the metal Cessna (bugReports/cessnaMetal (1).json as flydiy.wip). Gamer preset,
+shadows full (GFX.set after gfx_settings.js loads), Jolene, the premises with Metlakatla cut (the page's default since
+G590: 231 mk_ entries), the ground raster on (the page's default since RASTER-ON). After the reveal the flight is PAUSED
+(#bPause: FLYDIY_HELD) and two VIEWS render through the page's own loop, 6 warm-up + 12 measured frames each, the chase
+camera settled (FLIGHT_PROBE.camSettle); a view's row is the MEDIAN of its frames, counter by counter (a streamer's burst
+is not the frame; a period-2 cascade reads as its midpoint):
+  stand  HOME's stand (-154.5, 712.7);
+  taxi   a PINNED pose, TAXI_PIN (263.5, 727.6, hdg 0.716): half-way (s = 475 of 951 m) along the route the pilot plans
+         from the stand (ap.lineupPose's planDeparture -> patternPath, captured), placed as the skip-to-line-up places an
+         aeroplane (reset, stance, placeAtLineup / placeAtAerodrome + seatOnGround). Pinned so a pilot-planning change
+         cannot move the camera, and so a tree older than G771 is measured at the same place; the live route's half-way
+         point is reported beside it ("route 0.1 m off").
+Per frame: draws.main / .shadow / .other / .total, gl.calls (everything but the queries), programs (distinct used),
+gl.useProgram (switches), gl.bindTexture, gl.bindVertexArray, every gl.uniform* by kind + bytes.uniforms, bufferData /
+bufferSubData / texImage / texSubImage calls and bytes, three.renders (renderer.render calls), three.updateMatrixWorld and
+three.updateMatrix calls (Object3D.prototype, subclasses reach them through super), cb.onBeforeRender / onAfterRender /
+onShadow (object) and cb.material.onBeforeRender - CUSTOM callbacks only (an accessor on the prototypes counts each read
+of a non-default hook, i.e. each per-draw call), three.frustumTests (Frustum.intersectsObject / intersectsSprite),
+world.terrainH (the world object's own property: every caller outside the world) and world.grHeight (the premises
+overlay's terrainFast: every terrainH that misses the world's cache reaches the raster there). Per BOOT STEP (BOOT.run's
+list and BOOT.show's - the roll-out screen's - wrapped; the scripts' own evaluation is `garage:scripts`; the frames from
+the last step to the lift are `<set>:landing`): gl.calls, draws, program links, buffer / texture / uniform bytes,
+updateMatrixWorld, frustum tests, terrainH, grHeight (and wallMs, reported, never ratcheted).
+DETERMINISM: two independent runs of one tree: 0 of 433 values differ. What the page budgets in milliseconds (the fill,
+the premises stream, the prewarms) runs on the virtual clock, so a streamer finishes in fewer, fuller frames than in
+Chrome: the counts are this harness's, exact and repeatable, NOT a browser's and NOT milliseconds. A change that makes
+each call dearer (the raster's lookup against the analytic sum) is invisible to it; a change that makes MORE calls is not.
+G1013 THE RATCHET. tools/perf/framecost_baseline.json (every view counter; the boot rows' gl.calls, draws, links, byte
+and matrix / frustum / terrain counts). RED when a count rises above its baseline by more than max(1 %, 2); a fall is
+reported ("ratchet down: run --update"). A rise is admitted ONLY by an ALLOW entry in the gate ({ key: 'stand/draws.shadow'
+or a row prefix 'boot/rollout:compile/', build: 'cub'|'cessna'|'*', upTo, why, g }, GATE ASSETS' rule), until the next
+--update takes it in. `node tools/_framecost_check.js --update` rewrites the baseline and prints the diff (refuses when a
+check failed); `--json <f>` writes the whole census; `--compare a.json b.json` prints what moved between two censuses;
+FRAMECOST_QUERY='x=1' hands the page a URL query (hold a default equal across commits); FRAMECOST_WHO=1 samples the
+callers of terrainH, of the buffer / texture uploads and of every needsUpdate = true (stderr), FRAMECOST_WHAT=1 lists what
+the main pass drew, FRAMECOST_PROBE=N traces N frames. Every run prints the table: view x counter, baseline vs now.
+G1014 THE PROOF (every run, on the Cub's stand): three regressions injected, each measured in its own window and in a
+CONTROL window right after its removal (the world streams on between windows), each must turn its counter RED against
+the view and against the control: (a) a no-op onBeforeRender on 100 meshes the main pass drew (cb.onBeforeRender 1 ->
+101), (b) a uniform set per frame on every one of the scene's 2407 materials (gl.uniform3f 291 -> 421, uniform1f,
+uniform4fv), (c) matrixAutoUpdate forced on the 10 780 static objects (three.updateMatrix 8 336 -> 18 916).
+Registered in tools/run_gates.js, tier core, weight 2 (two children), wall 180.
+
+THE FIRST BASELINE (b78f8d0c = origin/claude/batch-a-base; per frame, median of 12):
+| counter | Cub stand | Cub taxi | Cessna stand | Cessna taxi |
+|---|---|---|---|---|
+| draws.main / .shadow / .other | 1246.5 / 668.5 / 19 | 1091 / 401.5 / 14 | 1265.5 / 666.5 / 19 | 1078 / 445.5 / 14 |
+| programs used / useProgram | 106 / 342.5 | 88.5 / 231 | 107 / 350.5 | 89 / 241 |
+| gl.bindTexture | 1309 | 980 | 1328 | 994.5 |
+| gl.uniformMatrix4fv / 3fv | 2389 / 569 | 2009 / 470 | 2441 / 569 | 1998 / 473 |
+| gl.uniform4fv | 4564 | 2355 | 4623 | 2414 |
+| bytes.uniforms | 703 374 | 442 008 | 713 154 | 447 336 |
+| bufferSubData (calls, bytes) | 63, 3 670 056 | 63, 3 670 056 | 62, 2 990 736 | 62, 2 990 736 |
+| gl.calls | 17 907 | 12 112 | 18 153 | 12 374.5 |
+| three.renders | 20 | 15 | 20 | 15 |
+| updateMatrixWorld / updateMatrix | 18 012.5 / 8 336.5 | 9 283.5 / 4 115.5 | 18 571.5 / 9 695.5 | 18 564.5 / 9 634 |
+| custom onBeforeRender | 1 | 1 | 1 | 1 |
+| frustum tests | 2504.5 | 2179 | 2505.5 | 2395 |
+| terrainH / grHeight | 100 110 / 105 131 | 27 603 / 42 010 | 100 110 / 105 131 | 62 458 / 69 939 |
+(the browser's 1184 main / 429 shadow were read at the moving taxi in Chrome at 2216 x 1023; these are paused frames at
+1920 x 1080. The terrainH at the stand is the forest fill still streaming its cells - FRAMECOST_WHO: render_world fillStep
+-> walk -> codeAt.) Boot, the Cub (gl.calls / draws / links / terrainH): garage:compile 102 280 / 15 625 / 89 / 0;
+garage:firstFrame 141 962 / 22 510 / 4; garage:landing 371 320 / 73 164 / 4 / 3 108; rollout:world 153 724 / 13 779 / 7 /
+3 537 722; rollout:parked 81 871 / 3 271 / 38 / 1 100 867; rollout:compile 1 409 / 0 / 123; rollout:frames 48 621 /
+2 368 / 0 / 333 997; rollout:ring terrainH 151 878. Programs at the end: 264 (Cub), 249 (Cessna).
+
+BONUS - WHAT GREW BETWEEN 01c1ba47 (built 07:20) AND b78f8d0c (tools/perf/framecost_census_{01c1ba47,b78f8d0c}.json;
+`node tools/_framecost_check.js --compare tools/perf/framecost_census_01c1ba47.json tools/perf/framecost_census_b78f8d0c.json`):
+the same harness on both trees (a worktree of 01c1ba47 with these four tools copied in). The render-side counts mostly
+FELL: stand main draws 1417 -> 1246.5, gl.calls 21 060 -> 17 907, uniformMatrix4fv 2688 -> 2389, uniformMatrix3fv 1070 ->
+569, uniform1f 1935 -> 901, useProgram 466 -> 342, bindTexture 1677 -> 1309 (the Cessna alike); at the taxi they are flat
+(main 1110 -> 1091, uniformMatrix4fv 2043 -> 2009). What ROSE, for the B1 bisect:
+  1. THE SHADOW PASS: stand shadow draws 552.5 -> 668.5 (Cub +21 %), 561 -> 666.5 (Cessna +19 %); taxi 387 -> 401.5
+     (Cub), 423 -> 445.5 (Cessna). The census does not name the commit; the 41 commits do not include a shadow-tier
+     change, so the likelier sources are what now STANDS near the stand (G680's batched parked captures, G850/G980's
+     premises changes). Bisect it with the census itself: a worktree per commit, the four tools copied in
+     (_page_node.js, _page_dom.js, _fake_gl.js, _framecost_check.js), `node tools/_framecost_check.js --census cub` and
+     `--compare` (~3 min a commit; one census at a time on a 16 GB box).
+  2. THE AIRCRAFT'S VERTEX RE-UPLOAD: bufferSubData 53 -> 63 calls, 2.96 -> 3.67 MB a frame on the Cub (flat on the
+     Cessna at 2.99 MB) - EVERY frame, paused or not: poseModel (app.js ~3368 applySkinDeform, ~3479, ~3519 the hinge /
+     anchor rows, ~3621) sets posAttr.needsUpdate = true on every deformed skin section each frame whether or not a
+     delta moved (the largest one attribute is 904 KB). At 60 fps that is ~220 MB/s through bufferSubData - a real,
+     cheap-to-fix cost (skip when the deltas did not change), and it grew in the window.
+  3. updateMatrix +8 % (stand 7690 -> 8336 Cub, 9093 -> 9695 Cessna), frustum tests +3 %, uniform4f +4-18 %, the Cessna
+     taxi's terrainH 42 255 -> 62 458 and grHeight 57 049 -> 69 939.
+  4. RASTER-ON (e9323a2 / f4471b9, and G835 before them) is IN the window and is invisible to counts: 01c1ba47 has no
+     ground raster at all (terrainFast falls back to the analytic sum; the same number of calls, a different cost each),
+     so ?raster=1 cannot be held equal there. The +3.7 ms that the counts do not explain is most likely per-call cost
+     (the raster's lookups, the solver's ground) - time it in Chrome (rollout_perf --q raster=0 vs default).
+  The boot rows also moved (the roll-out's steps were re-cut by G680: town / trees / parked / world now hold what the
+  old list did elsewhere) - not comparable step by step across that change.
+
+COST: ~172 s wall for the gate on this 4-core cloud box (the two children ~170 s each in parallel: garage ~30 s, roll-out
+~90-100 s, views and proof ~50 s), ~3.6 GB RSS per child (4 page processes at once OOM'd a 15 GB box). The ~60 s target
+is NOT met here: the time is the page's own JS (the shakedown's solver in the garage boot, the editor, the parked captures
+on the main thread with no Worker ~37 s, the world step ~34 s, the town ~13 s), not the harness (profiled: the recording
+GL and the DOM are a few %). A faster box or a cut step list (fewer injection frames) is where it would come from.
+
+FOR THE COORDINATOR:
+- THE BASELINE IS TO BE RE-TAKEN when the next merge train lands: `node tools/_framecost_check.js --update` on the merged
+  tree, commit tools/perf/framecost_baseline.json with the train. Train 11 adds a contact-shadow pass and probably a
+  craft-only shadow cascade: those rises (draws.other / draws.shadow / three.renders / the uniform and bind counts at both
+  views, the roll-out's compile links) are to be ALLOW-ed with their reasons and G-numbers, or taken in by that --update
+  with the reasons written in its HANDOVER entry.
+- Any session that adds per-frame work now sees FRAMECOST red with the counter named; the table says which view.
+GATES (targeted): FRAMECOST PASS (against its own first baseline), PROGRAMS PASS, BUILD PASS, BOOT PASS, COVER PASS, FADES
+PASS (the three sharing tools/_fake_gl.js). The full tier was not run.
