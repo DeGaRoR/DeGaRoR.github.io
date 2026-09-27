@@ -60572,3 +60572,119 @@ ARCH-2026-09-27 §2.5 step 1: the worker side of "physics in a Web Worker", no a
   archetypes that gave up the circuit: Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler - the
   queue listed "ARCHETYPES(4)"; HANDOVER G600 already calls it flaky). Built outputs rebuilt by the runner and
   restored, not committed (a cloud branch).
+## G775-G776 — THE LIVERY STAYS WITH ITS AEROPLANE, AND THE LIFT STRUT IS A REAL ONE (2026-09-27, session B7; block G775-G779, G777-G779 unused)
+
+### G775 — THE LEAK WAS THE FINISH'S STATE, NOT THE POOL
+
+The user: "at some point, tests were loading the cessna, then the default plane came back, but with the cessna
+livery, the metallic paint, but still the original plane's color. Maybe it exposed a leak."
+
+REPRODUCED FIRST, in headless Chrome (the container's Chromium over CDP on SwiftShader, the built index.html,
+a fresh profile). Load `bugReports/cessnaMetal (1).json` through `GARAGE_SPEC.set`, drop `flydiy.wip`, reload:
+the default aeroplane booted in ITS OWN colour (#955a25 — the colour is `spec.paint`, which the finish does not
+carry) under the Cessna's metal flake on twelve sections (`aeroMetalK` 1, metalness 0.00 -> 0.85 on body, wing,
+pillars, loops, taper, waistband; steelTube 0.80 -> 0.85) and its two metallic markings (`uDecN` 1 -> 2) — and the
+spec itself now held the Cessna's `finish`, because the join exports the editor's finish INTO the spec: the next
+save kept the leak for good. Exactly the report.
+
+THE CHAIN. (1) every load writes its finish to the `flydiy.aeroSections` pref (finishFromSpec -> aeroSavePrefs,
+decSavePrefs — the bench's memory, G105 kept it); (2) `_cage_ui.js` read that pref back AT SCRIPT EVAL
+(`aeroLoadPrefs()`, and `decLoadPrefs()` when the decal panel first builds); (3) app.js `seedEditor` returned
+before ANY seeding for a spec with no cage — the default plane — so no applySpec, no finishFromSpec, and the
+pref's finish was the one the editor drew and the join exported.
+
+THE POOL WAS MEASURED CLEAN, as the brief suspected it might not be: a direct A -> B load in the same page
+(`GARAGE_SPEC.set` twice, no reload) leaves B's materials byte-identical to a fresh boot (every aeroskin
+material's finish, colour, metalness, roughness, clear coat, the flake, and the decal block). The key
+(aeroskin.js aeroMaterial) covers every dial the factory reads, and the only in-place writers of a pooled
+material (aeroLabRefresh, aeroSetEnv, aeroSetGlassBlend) write aeroplane-wide or per-row facts, never a build's.
+
+THE FIX, two halves, each needed:
+- `_cage_ui.js`: `aeroPrefsOwn()` — the pref is the finish's owner only where `CAGE_IN_GAME` is not set (the
+  bench pages). The module boots through `aeroBootPrefs()` and the decal panel's read is guarded the same way.
+  In the game the spec is the finish's only owner (G105's own words: "no longer the AUTHORITY").
+- app.js `seedEditor`: a cage-less spec still seeds its FINISH (`finishFromSpec(genSpec.finish || null)` +
+  `build()`) — skipping the cage stays right, skipping the paint with it was the hole. A cage-less aeroplane
+  with a finish of its own lost that finish to the editor's boot state the same way.
+AFTER, same repro in the browser: the default plane after the Cessna equals a fresh boot (empty material diff,
+one non-metal marking, `spec.finish` its own).
+
+GATE LIVERY (tools/_livery_check.js, core, ~15 s). No harness boots `_cage_ui.js`, so it runs the editor's OWN
+finish code cut out of the source by declaration (the maps, the prefs keeper and boot read, DEC and its kit,
+finishFromSpec / finishToSpec, secMat), app.js's OWN seedEditor, one vm context per page load over one shared
+localStorage, and the real AEROSKIN factory on the vendor three (a canvas stub for the bakes; one factory shared
+by all the page loads of a run, which is stricter than a reload — the pool persists into the next "page").
+1 the sequence both ways — A then B (the default, no cage), A then B' (the default with a finish of its own),
+B' then A, B then A: the second aeroplane holds EXACTLY its spec's finish, and every declared section's material
+(37: finish, colour, metalness, roughness, clear coat + its roughness, opacity, the flake, tile, normal gain, wear
+rate, field, the detail map, `aeroMetalK`) and the marking block equal a clean load in an empty browser; the
+Cessna is checked to wear its metal (>= 10 sections) and two markings when loaded, so the fingerprint can see
+it. 2 the boot: a game page holds the factory finish before any spec reaches it whatever the pref says; a bench
+page still gets its memory back. 3 the pool: eleven dials (tint, metalK, roughK, ccK, tileK, nrmK, fieldK,
+fieldLK, wearM, wearK, opacity), each both ways — two looks two materials, the second equal to a fresh pool's,
+the first untouched and still pooled. 4 the source: applySpec applies the finish unconditionally (the gate's
+applySpec stand-in relies on it), no bare `aeroLoadPrefs();` at eval, the decal panel's read guarded.
+NEGATIVE-VERIFIED (`--selftest`, 4/4 red): the boot guard removed; the seed's finish removed (red only because
+the sequence also checks the finish ABSOLUTELY — against a clean load it stayed green, both runs sharing the
+fault, so that check was added); both removed (the shipped bug); metalK out of the pool key.
+
+LEFT: (a) a build SAVED while the leak was live carries the leaked finish in its own `spec.finish`; there is no
+telling a leaked finish from a chosen one, so nothing migrates it — reload the build and reset the finish. (b)
+`genNormaliseSpec` sniffs a bare `{ finish }` (or `{ paint, finish }`) as a pre-G3 flat spec and drops the
+finish; the working build is always sectioned so the game never meets it, but a hand-written partial file would.
+(c) FOR C4a (ARCH-2026-09-27 §7, the aeroplane bake keyed on the spec's content hash): with this the spec's
+finish is the aeroplane's own, but the MATERIAL LAB (`AERO_LAB`, a per-browser localStorage deviation of the
+finish rows, G206) still changes what a finish looks like without touching the spec — the bake key must carry
+the lab's deviations (or the bake must refuse a lab-modified row), or two browsers bake one hash two ways.
+
+### G776 — THE LIFT STRUT'S SECTION, AGAINST REAL ONES
+
+The user: "The section of the struts seems little, can we compare with reality?" It was little. MEASURED off the
+drawn mesh in the page (world scale 1 — `_strut_gen.js` hardware is metric and never scales, the planeScale only
+moves where the ends are): every lift strut of every aeroplane was 82.8 x 19.5 mm, 4.2:1 (`chordK 3.6 x strutR
+0.023`, 63_gen_skin's round-tube rule turned into a streamline).
+
+REAL SECTIONS (research, WebSearch snippets of the cited pages — the proxy refused a direct fetch):
+- Piper PA-18 front strut 3.825 x 1.25 in = 97 x 32 mm (3.1:1), rear 2.45 x 0.81 in = 62 x 21 mm, .035 wall
+  (supercub.org "Supercub strut dimensions for camera mount"; a measured 3.938 / 2.438 in on shortwingpipers.org).
+  J-3 struts are drawn on the same Univair dies; J-3 lengths 122-3/8 in front, 122-5/16 in rear = 3.11 m (supercub
+  .org "Lift struts"), PA-18 about 0.5 in longer.
+- Cessna 172 (one strut a side): a 3.5 in x .083 round aluminium tube formed to a streamline on a die
+  (cessna170.org); no published chord exists. ESTIMATED at constant perimeter with the standard streamline
+  proportions: ~120 x 50 mm (2.4:1). Length ~2.3 m (a C180 measured 90.25-91 in, fuselage to wing underside).
+
+NOW: a V pair draws the Piper FRONT (97 x 32) and REAR (62 x 21) members; a single strut (bracing.struts 1) draws
+the Cessna's 120 x 50 (`STRUT_FIT.frontC/T, rearC/T, oneC/T`, the section built per member in strutBuild; the
+contour is still GEN_STRUT_SECT, its thickness scaled apart from its chord). Measured after, in the page: the
+Cub 97 x 32 / 62 x 21, exactly. The stock 'cessna 172' row (and so the C172-alike archetype, which bakes from it)
+now has `wgStruts: 1` — a 172 has one strut a side; the V pair was the page default, never the aeroplane's.
+T2.3 (83) keeps the rear member as a hidden fan member, and it was VERIFIED here that the truss is the same: 457
+beams with identical (a, b, cls, k), mass 993.899 kg both, genShakedown byte-identical.
+
+PHYSICS: NOT MOVED, BY CONSTRUCTION, and measured close to real already. The drawn section is read by nothing in
+the solver. Drag: 62_gen_aero genGearCdA prices two lift struts at 60 mm frontal a side, Cd 0.10, as a DELTA
+against a strut-braced reference — a strut build's delta is zero whatever the number; real is 32 + 21 = 53 mm a
+side (Piper), ~50 mm (Cessna), so the credit a cantilever build gets for having none is ~13-20 % generous (left:
+moving it moves every cantilever build's numbers and GATE HONEST's rows for 0.004 m2). Mass and stiffness: the
+members are wing-class beams billed at the fuselage material's `lin.wing` (61_gen_frame): Cub-alike 4 x 3.58 m x
+0.62 kg/m = 8.9 kg against ~15.4 kg for real .035-wall 4130 at the Piper sections (1.51 + 0.97 kg/m x 3.11 m x 2)
+— 42 % light; C172-alike ~6.5 kg against ~7.5 kg (two 3.5 in x .083 2024 tubes, 2.3 m) — 14 % light. The Cub's
+strut mass is a real gap, left for a weight chantier (it moves GATE WEIGHT's calibration and the CG), not
+fixed from a visual.
+
+LENGTHS, reported not changed (they are the physics truss's): our struts run from the frame's strut root to the
+first interior (or crank) station — Cub-alike 3.59 / 3.57 m (frame; drawn pin to pin 3.59 / 3.68) against the
+J-3's 3.11 m; C172-alike 2.78 m against ~2.3 m. The strut station sits further outboard than the types'.
+
+GATE STRUT: the declared table's narrowing / flattening rules read the three sections; three new rules (each a
+streamline 2.2-3.6:1; the rear of a V the lighter member, a lone strut the fullest; none under 20 mm thick), each
+broken by the probe table. The brace layer's truss members (`_cage_brace.js`, cabane / interplane) still draw
+at `chordK x strutR` — not researched here, not changed.
+
+GATES: `node tools/run_gates.js --all` (118 jobs, wall 5396 s on 4 cores) — every gate green but the four known
+reds on this base: SEAPLANE (3), PILOTMATRIX (10 regressed), SOAR (2), ARCHETYPES (Caravan, Tiger Moth, Beaver,
+Motorglider and Twin bush hauler `gave-up` — flight outcomes on cards this change does not reach: the strut edit
+is drawing-only and the one spec edit, the C172's wgStruts 1, was shown shakedown-identical). LIVERY and STRUT
+green; LIVERY --selftest 4/4 red.
+Built outputs (index.html, dev.html, sw.js, version.json) rebuilt locally for the browser runs, restored, not
+committed.
