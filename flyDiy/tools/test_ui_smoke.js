@@ -720,6 +720,7 @@ try {
                   (it.k === 'dev' && !skinShown ? ' (the covering hidden with #bSkin: no model on the stand here)' : ''));
     }
     if (R.current() !== null) throw new Error('the census left a flyout open (' + R.current() + ')');
+    if (R.dev() !== false) throw new Error('the census of DEV put DEV on the rail (a census saves nothing)');
     // NO GRAPHICS ROW LOST: the menu as the one flat list it was, counted, against the rows the rail reaches
     {
       const flat = { rows: [], pills: [] };
