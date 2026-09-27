@@ -665,6 +665,10 @@ function buildViewer(coreBody) {
   if (name === null) { try { name = localStorage.getItem('flydiy.world'); } catch (e) {} }
   if (!name) name = 'jolene';
   window.FLYDIY_WORLD = name;
+  // (G835) the ground raster's flag, for any world: read by makeWorld (20_world.js groundRasterFlag)
+  var rq = new URLSearchParams(location.search).get('raster');
+  if (rq === null) { try { rq = localStorage.getItem('flydiy.raster'); } catch (e) {} }
+  window.FLYDIY_GROUND_RASTER = rq === '1';
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either
@@ -705,6 +709,22 @@ function buildViewer(coreBody) {
         });
     })).then(function () {
       if (!(boot.far && boot.far.header && boot.far.topo && boot.far.payload)) boot.far = null;
+      // THE GROUND RASTER (G835, OFF BY DEFAULT): ?raster=1 (or localStorage flydiy.raster = '1') turns on the
+      // premises' composed-ground raster, and brings its COOKED cells (tools/premises_cook.js, named by
+      // src/core/premises_packs.json) onto the boot object; makeWorld loads those whose signature its own
+      // composition gives, the rest bake lazily. Off, nothing here is fetched. A cook that does not arrive is
+      // a lazy raster, never a failed boot.
+      if (!window.FLYDIY_GROUND_RASTER) return;
+      return fetch('src/core/premises_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }).then(function (PP) {
+        var pi = null; for (var q = 0; q < (PP.islands || []).length; q++) if (PP.islands[q].id === name) pi = PP.islands[q];
+        if (!pi || !pi.raster) return;
+        var cells = pi.raster.cells, got = [];
+        return Promise.all(cells.map(function (c) {
+          return fetch(c.src).then(function (res) { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
+            .then(gz).then(function (u) { got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u }); });
+        })).then(function () { boot.premCook = { raster: got }; });
+      }).catch(function (e) { console.warn('flyDiy: the cooked ground raster did not load (' + (e && e.message) + '); it bakes lazily'); });
+    }).then(function () {
       window.ISLAND_BOOT = boot;
     });
     })
