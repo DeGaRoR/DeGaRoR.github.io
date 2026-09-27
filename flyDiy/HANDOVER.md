@@ -61944,3 +61944,63 @@ profiles of the garage boot and the roll-out, split into tasks; a private-profil
   MEDIA, HANGAR, ASSETS, OBSTACLE, SITE, ENERGY, JOIN, REF, TAXICLEAR, LINEUP - all 34 PASS. Gates touched: UISMOKE (the
   'seed' step; world_boot's block run ahead of app's), PREMISES 14q (scans app.js + world_boot.js), PREMCOOK §3/§4 (the
   page's world). BENCH scans genShakedown(def, ...) - shakeFetch keeps the parameter named def.
+## G975 - THE APPROACH LAWS: the servo finds the approach trim, the landing flap the elevator holds, the terrain go-around judged against the plan (2026-09-27, batch A of the Jolene playtest, FLIGHT-2)
+
+GATE ARCHETYPES' four cards that "gave up" on terrain go-arounds (G780: Beaver- and Tiger Moth-alike first bad
+3e1ea8dd G422.1, Motorglider 4b42ba84 G445.7, Twin bush hauler aee1f2e8 G399.3). The bisect names where each card
+went red; the cards and the pilot have moved a long way since, so each was traced on TODAY's core (a scratch probe
+flying _arch_check's own spec, half tanks, one line per 2 s of FINAL with TECS's internals). Three laws, all in
+43_pilot.js (FINAL / goAround); no card, gate or bound touched.
+
+**WHAT EACH CARD DID.**
+- Tiger Moth-alike: 13 m UNDER the slope from 2.5 km out, 26.1 m/s against Vref 23.1, throttle 0.24, the whole
+  way down; the go-around at 489 m out, aglT 15. TECS asked 12.5 deg (thC on its thMax cap) and the aeroplane held
+  5 deg with the elevator at 0.24 of its 0.35: holdPitch's integrator is capped at 0.15 in the air, and the drawn
+  tail's approach trim is more than P + 0.15 can give. The pitch error stood, the speed stayed 3 m/s over, the
+  energy loop read "too fast" and took the power off, and the aeroplane rode under the slope. The elevator never
+  reached 0.30, so G399.7's Vref raise (the stop test) never fired either.
+- Beaver-alike: the same, 14 m under, 36 m/s against 29 (flapless: genTrim landed it flapless).
+- Motorglider: 3 m under its 2.1 deg slope (gs 0.037). On THAT slope the plan itself is 15 m over the ground 400 m
+  out: "below 15 m more than 400 m out" is the plan's own path. With the first law it flies the slope to the metre
+  and passed 407 m out at 16 m - a metre from a go-around the next circuit re-flies over the same ground.
+- Twin bush hauler: never "terrain". 5 s into FINAL, flap running out at 32 m/s, the elevator hit its stop and the
+  nose went +8 -> -73 deg in two seconds; it flew into the ground 2.2 km out, the trigger read aglT < 15 on the way
+  down, and the aeroplane sat in GOAROUND on the grass until the 600 s patience. THE FREEZE TEST (scratch core,
+  FINAL only): flap frozen at 0 or 0.5 flies the slope on 0.2 of elevator; full flap at IDLE flies; full flap at
+  0.25 throttle tucks; 0.75 flap with the throttle free tucks. The prop-off tunnel agrees it is the configuration:
+  at flap 1 the pitch balance goes UNSTABLE below the trim alpha (V 30: full up elevator is -509 N m 3 deg under
+  trim - a negative tail stall), and genTrim's trim budget (deAppr 0.116 at VAppr, inside 0.18) cannot see it -
+  it measures one alpha, prop off. The propwash of two wing engines over the flaps is the rest. Holding the flap
+  until 1.25 Vref did not save it (tucked at 22.8 m/s); stepping it back once on the stop did not either (too late).
+
+**THE LAWS.**
+1. THE APPROACH'S TRIM IS THE SERVO'S TO FIND: on FINAL IthMaxT opens to rotateIMax (0.30, the flare's and the
+   rotation's own authority); goAround closes it to 0.15. An aeroplane whose integrator stays inside 0.15 on final
+   flies bit-for-bit as before.
+2. THE LANDING FLAP COMES OUT AS FAR AS THE ELEVATOR HOLDS IT: past the take-off setting, the extension stops where
+   it is while the elevator (0.5 s filter) is past genTrim's trim budget, 0.18; on the stop (> 0.30 for 0.3 s) it
+   comes back a stage (0.25, never below the take-off setting). The cap (fLandCap) only comes down and holds for
+   the flight - the flare and the next circuit read it through fLDG. Said once: `flap-limited`. No flap, or an
+   elevator inside its budget: nothing changes.
+3. THE TERRAIN GO-AROUND IS FOR AN AEROPLANE UNDER ITS PLAN: `aglT < min(15, 0.67 (hGS - terrain))` - under 15 m
+   AND more than a third below what the slope leaves over the ground there. On the slope the clearance is the
+   runway model's to plan (reqGs, the canopy included); over trees the 15 m still rules.
+
+**MEASURED (the gate, `_arch_check --only=<card>`, laws 1+2).** Beaver completes (1 approach; vref-raised to 33.1),
+Tiger Moth completes (1), Motorglider completes, Twin completes at 272 s on flap 0.28 (flap-limited 0.59 at the
+budget, back to 0.34 / 0.28 on the stop; the slope flown at 21.4 m/s, elevator 0.16-0.18). The Caravan-alike
+(FLIGHT-1's, G970) completes too, full stop inside 700 s, on this build. Before, on this branch's base
+(scratch probes): Beaver, Tiger Moth, Motorglider gave up after two terrain go-arounds; the Twin crashed at 157 s.
+
+**PILOTMATRIX** (today's baseline measured on a clean worktree of 42ac7fea: FAIL, 10 regressed - G780's ten). After:
+FAIL, 9 regressed, no new line: cub:HOME:x2 is off the list (warn -> ok, 1.01 -> 1.06 Vs). Moved without a
+ratchet line: cub calm sink 1.30 -> 1.14 (aim 7 -> -11), cub A3 4.03 -> 3.82, cub calm:dn4 1.34 -> 1.84 (ok ->
+warn; baseline 1.76, inside the 0.5 tolerance), cub x4 swing 22 -> 15.3; the c172 and stearman cells identical.
+
+**GATES** (`node tools/run_gates.js --all --jobs=3`, this tree, a baseline matrix alongside): 129 jobs, wall 4 077 s.
+PASS: every core gate (PILOT x3, PILOTACT, HONESTY, LINEUP, TAXICLEAR, ...), ARCHETYPES (4 shards, 27 cards),
+SOAR, HOTHIGH. FAIL: PILOTMATRIX (9, above - FLIGHT-1's), SEAPLANE (3: the crosswind water run - the same three
+lines, 47.2 m and 180 deg, on the baseline worktree; G780's aa8b8a59). Before (G780 + the baseline worktree):
+ARCHETYPES FAIL (5 cards), PILOTMATRIX FAIL (10), SEAPLANE FAIL (3), SOAR / HOTHIGH PASS.
+OWED: genTrim's flap choice read powered and over an alpha band (the tuck is an airframe fact the pilot now
+flies around, not a sheet number); a crash on the approach still reads as a terrain go-around and a give-up.
