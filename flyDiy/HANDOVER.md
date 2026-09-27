@@ -152,6 +152,11 @@ before every battery so stale hand-edits get overwritten, loudly.
   circuit pipeline (GATE GEN, HOTHIGH and the archetypes fly through it);
   `test_*.js` — the solver/world/codec gates, every one of them on a
   generated build since G184.
+- `tools/_stock_pin.js` (G770) — THE OLD STOCK FOR A BROWSER RIG: since G770 a fresh first boot is the Cub, so every
+  rig whose numbers are compared as "the stock build" writes GEN_DEFAULT into the working-build slot before the page's
+  first script (`pinScript()`); the list of pinned rigs is in its header and GATE DEFAULT holds it.
+  `tools/apron_map.js` (G772) — Jolene's club apron from above with both taxi routes as the pilot plans them, their
+  lengths, backtracks and wingtip clearances; `--taxiOut/--taxiOut1` tries a way out before it is authored.
 - `tools/test_flex.js` — GATE FLEX, the structural-realism instrument. Not a
   bound: it measures deflection/g, torsion, softness and load margin against
   real-aeroplane figures and prints both. Read STRUCTURAL REALISM before
@@ -523,6 +528,11 @@ gate and the game fly one condition and not two.
   at a 3.5 rad/s kinematic bandwidth (kP V steer / Lwb). The FREEZE TEST
   (hold the surface, see if the motion survives) is the first instrument for
   any "is it the loop or the airframe" question.
+- **G771/G772: the pilot says where its taxi ends, and the calm day goes the short way.** `ap.lineupPose()` is
+  planDeparture's own answer from the stand (the hold, the take-off direction); a line-up placed there is handed over
+  with `departFrom(.., { atHold })` - STOP / HOLD, never a fresh plan (the uncapped need U-turns a short strip's
+  hold). The take-off direction score carries each way out's taxi length off the strip (1 point a km): a calm-air
+  choice settled by the nose tie-break alone moved with the stand's heading (Jolene: 13 vs 31 on 0.12 points).
 - Trim-heavy stable aircraft need pitchI authority (DC-3: 0.05 → 0.25).
 - **W10 runway frames (contract rule 6 DONE)**: all along/cross geometry
   runs in a runway frame {origin, unit axis} from a W.aerodromes record;
