@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 8e6e0df0ad1c76ac
+// body-sha256: 69f8aba70d9e4e3e
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7924,6 +7924,62 @@ function compose(rec0, world, opts) {
   // never overwritten - the water is not a place's to re-classify - and the codes
   // the ISLAND itself derives (12 cliff, 13 forest old, 14 scrub dense) are not
   // stamped either: they are a slope and a canopy, not a polygon.
+  // THE JUNCTIONS CLOSE (G981, the user: "in the junctions between the different aprons and runways, there are gaps,
+  // and it would be good that the pavement is continuous"). A taxiway ribbon stopped where it was traced: r_taxi_ne
+  // 7.2 m short of 13/31's edge, r_taxi_e 5 m short of the pad - the ground showed through. A road END within JOIN m of
+  // a strip's pavement or a paved polygon (or already on it) is carried along its own tangent until it lies OVER m
+  // inside; the renderer fades that end out over the overlap (fadeA / fadeB, metres) and fades any road or apron
+  // surface inside a strip's box, so one surface shows at every junction and nothing is drawn twice at full weight.
+  // Only the drawn / classed line moves (roadObjs: surfaceAt, coverAt, pavedAt, the ribbon); the grade (stage 3)
+  // keeps the traced points, so the runway's own ground is not re-graded under the extension.
+  {
+    const JOIN = 15, OVER = 3.5;
+    const tgts = runways.filter(r => !runwayIsWater(r)).map(r => ({ kind: 'strip', poly: runwayBox(r, 0) }))
+      .concat(pavePolys.map(pp => ({ kind: 'poly', poly: pp.poly })));
+    const sdT = (x, z) => { let d = Infinity, k = null; for (const t of tgts) { const e = sdPoly(t.poly, x, z); if (e < d) { d = e; k = t.kind; } } return [d, k]; };
+    for (const ro of roadObjs) {
+      if (ro.runway || ro.ribbon === false || !ro.pts || ro.pts.length < 2) continue;
+      const pts = ro.pts.slice();
+      for (const end of [0, 1]) {
+        const i = end ? pts.length - 1 : 0, j = end ? pts.length - 2 : 1, P = pts[i], Q = pts[j];
+        const l = Math.hypot(P[0] - Q[0], P[1] - Q[1]); if (!(l > 1e-6)) continue;
+        const dx = (P[0] - Q[0]) / l, dz = (P[1] - Q[1]) / l;
+        let [d0, kind] = sdT(P[0], P[1]);
+        if (d0 > JOIN) continue;
+        let np = P;
+        if (d0 > -OVER) {
+          let got = null;
+          for (let t = 0.5; t <= JOIN + OVER + ro.w; t += 0.5) { const x = P[0] + dx * t, z = P[1] + dz * t, r = sdT(x, z); if (r[0] <= -OVER) { got = [x, z]; kind = r[1]; break; } }
+          if (!got) continue;
+          np = got;
+        }
+        if (np !== P) { if (end) pts.push(np); else pts.unshift(np); }
+        ro[end ? 'fadeB' : 'fadeA'] = kind === 'strip' ? 0 : 3;   // in a strip's box the renderer's box fade takes it
+        ro[end ? 'joinB' : 'joinA'] = kind;
+      }
+      ro.pts = pts;
+      // a TAXIWAY: a concrete road 10 m wide or more that meets a strip or an apron - its sides are the airfield's (G980)
+      ro.taxiway = (RUNWAY_LOOKS[ro.look] || {}).cls === 'concrete' && ro.w >= 10 && !!(ro.joinA || ro.joinB);
+    }
+  }
+  // G980: the bands the ground's own code is drawn under (stampTtype): a strip's box and a paved polygon, each out
+  // to its band + the fade (sd: + outside the pavement, metres; reach: how far out the stamp goes)
+  const BAND_SKIP = [0, 1, 8, 12, 13, 16];   // water, forest, cliff, old forest, city trees: never what a cleared band copies
+  const bandStamps = [];
+  for (const r of runways) {
+    if (runwayIsWater(r)) continue;
+    const L = RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass, box = runwayBox(r, 0), reach = paveBand(r, L.cls || 'grass', false) + PAVE_FADE;
+    bandStamps.push({ bbox: polyBBox(runwayBox(r, reach)), reach, sd: (x, z) => sdPoly(box, x, z) });
+  }
+  for (const ro of roadObjs) {   // a taxiway's sides are the airfield's too
+    if (!ro.taxiway) continue;
+    const reach = paveBand(ro, 'concrete', true) + PAVE_FADE, bb = polyBBox(ro.pts), m = ro.w / 2 + reach;
+    bandStamps.push({ bbox: { x0: bb.x0 - m, z0: bb.z0 - m, x1: bb.x1 + m, z1: bb.z1 + m }, reach, sd: (x, z) => roadDist(ro, x, z) - ro.w / 2 });
+  }
+  for (const pp of pavePolys) {
+    const reach = paveBand(pp, RUNWAY_LOOKS[pp.look].cls, true) + PAVE_FADE, bb = pp.bbox;
+    bandStamps.push({ bbox: { x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, reach, sd: (x, z) => sdPoly(pp.poly, x, z) });
+  }
   const ttypes = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && isFinite(+c.code))
     .map(c => ({ id: c.id, poly: c.poly, bbox: polyBBox(c.poly), code: Math.round(+c.code),
                  // `from` (contract v1.22): the codes this stamp is allowed to REPLACE. Without it a
@@ -8171,8 +8227,37 @@ function compose(rec0, world, opts) {
     // ground and the vegetation together with no second path. The returned function
     // puts the old bytes back, so a live edit re-stamps cleanly.
     stampTtype(isl) {
-      if (!isl || !isl.ttype || !isl.grid || !ttypes.length) return null;
+      if (!isl || !isl.ttype || !isl.grid || (!ttypes.length && !bandStamps.length)) return null;
       const g = isl.grid, T = isl.ttype, saved = [];
+      // THE GROUND BESIDE THE PAVEMENT IS THE ISLAND'S (G980, the user: "making the outside runway lanes transparent
+      // shows the ground below, was a bad suggestion ... use the same texture as the surroundings and the same
+      // transformation, so it blends better"). The island's land cover calls the real airfield's whole footprint
+      // BUILT (code 10, drawn as dirt) ~40 m either side of a runway's centreline - the brown the transparent side
+      // showed. Every BUILT cell inside a strip's or a paved polygon's band + fade takes the code of the ground just
+      // beyond the band (the nearest that is not forest, cliff or water - a cleared field; BUILT itself where the
+      // surroundings ARE built, round the pad and the hangars, so no green halo rings an apron), so the ground's own splat,
+      // with its own uv law and grades, draws the surroundings right up to the pavement's edge. Only the ttype byte
+      // moves: the cover raster (the wheels' class, the fill's refusal) is untouched, and coverAt still keeps the
+      // vegetation off the band. Before the authored stamps, so an authored polygon still has the last word.
+      for (const b of bandStamps) {
+        const w = [F.toWorld(b.bbox.x0, b.bbox.z0), F.toWorld(b.bbox.x1, b.bbox.z0), F.toWorld(b.bbox.x1, b.bbox.z1), F.toWorld(b.bbox.x0, b.bbox.z1)];
+        const i0 = Math.max(0, Math.floor((Math.min(w[0][0], w[1][0], w[2][0], w[3][0]) - g.x0) / g.cell)), i1 = Math.min(g.w - 1, Math.ceil((Math.max(w[0][0], w[1][0], w[2][0], w[3][0]) - g.x0) / g.cell));
+        const j0 = Math.max(0, Math.floor((Math.min(w[0][1], w[1][1], w[2][1], w[3][1]) - g.z0) / g.cell)), j1 = Math.min(g.h - 1, Math.ceil((Math.max(w[0][1], w[1][1], w[2][1], w[3][1]) - g.z0) / g.cell));
+        const codeAt = (x, z) => { const ii = Math.floor((x - g.x0) / g.cell), jj = Math.floor((z - g.z0) / g.cell); return ii < 0 || jj < 0 || ii >= g.w || jj >= g.h ? -1 : T[jj * g.w + ii]; };
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+          const k = j * g.w + i; if (T[k] !== 10) continue;
+          const cx = g.x0 + (i + 0.5) * g.cell, cz = g.z0 + (j + 0.5) * g.cell, L = F.toLocal(cx, cz);
+          if (b.sd(L[0], L[1]) > b.reach) continue;
+          // the nearest open ground beyond the reach: rings of 8 directions, 10 m apart, out to 120 m
+          let code = -1;
+          for (let r = g.cell; r <= 120 && code < 0; r += g.cell) for (let q = 0; q < 8 && code < 0; q++) {
+            const x = cx + Math.cos(q * Math.PI / 4) * r, z = cz + Math.sin(q * Math.PI / 4) * r, L2 = F.toLocal(x, z);
+            if (b.sd(L2[0], L2[1]) <= b.reach) continue;
+            const c = codeAt(x, z); if (c >= 0 && BAND_SKIP.indexOf(c) < 0) code = c;
+          }
+          saved.push(k, T[k]); T[k] = code >= 0 ? code : 7;
+        }
+      }
       // the WORLD's island handle renames it (`cover`, not `coverU8`) - read both, or
       // the write lands on undefined and the surface never moves, which is silent
       const CV = isl.cover || isl.coverU8 || null, savedC = [];

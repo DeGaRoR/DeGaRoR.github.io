@@ -3817,7 +3817,11 @@ body.bpOpen #edView { visibility:hidden; }
       frames: 'First light in the shed.',
       _landing: 'The last textures landing: the shed opens when everything is in place, never half-dressed.' },
     rollout: {
+      sync: 'Committing your build: the shape you drew becomes the aeroplane the physics fly.',
+      stand: 'Wheeling the aeroplane out of the shed onto its stand.',
       world: 'Laying out the island: the ground, the water, the fields, the roads and the villages. Only the first roll-out of a visit.',
+      town: 'Building the field around the stand: the hangars, the houses and the aeroplanes parked on it.',
+      parked: "Parking the other aeroplanes on the field - each one is built by the same workshop as yours.",
       trees: 'Waiting for the tree models.',
       ring: 'Planting the forest around the stand, nearest first. Farther out it keeps growing while you fly.',
       images: "Fetching the pictures the world's buildings and signs wear.",
@@ -16969,6 +16973,62 @@ function compose(rec0, world, opts) {
   // never overwritten - the water is not a place's to re-classify - and the codes
   // the ISLAND itself derives (12 cliff, 13 forest old, 14 scrub dense) are not
   // stamped either: they are a slope and a canopy, not a polygon.
+  // THE JUNCTIONS CLOSE (G981, the user: "in the junctions between the different aprons and runways, there are gaps,
+  // and it would be good that the pavement is continuous"). A taxiway ribbon stopped where it was traced: r_taxi_ne
+  // 7.2 m short of 13/31's edge, r_taxi_e 5 m short of the pad - the ground showed through. A road END within JOIN m of
+  // a strip's pavement or a paved polygon (or already on it) is carried along its own tangent until it lies OVER m
+  // inside; the renderer fades that end out over the overlap (fadeA / fadeB, metres) and fades any road or apron
+  // surface inside a strip's box, so one surface shows at every junction and nothing is drawn twice at full weight.
+  // Only the drawn / classed line moves (roadObjs: surfaceAt, coverAt, pavedAt, the ribbon); the grade (stage 3)
+  // keeps the traced points, so the runway's own ground is not re-graded under the extension.
+  {
+    const JOIN = 15, OVER = 3.5;
+    const tgts = runways.filter(r => !runwayIsWater(r)).map(r => ({ kind: 'strip', poly: runwayBox(r, 0) }))
+      .concat(pavePolys.map(pp => ({ kind: 'poly', poly: pp.poly })));
+    const sdT = (x, z) => { let d = Infinity, k = null; for (const t of tgts) { const e = sdPoly(t.poly, x, z); if (e < d) { d = e; k = t.kind; } } return [d, k]; };
+    for (const ro of roadObjs) {
+      if (ro.runway || ro.ribbon === false || !ro.pts || ro.pts.length < 2) continue;
+      const pts = ro.pts.slice();
+      for (const end of [0, 1]) {
+        const i = end ? pts.length - 1 : 0, j = end ? pts.length - 2 : 1, P = pts[i], Q = pts[j];
+        const l = Math.hypot(P[0] - Q[0], P[1] - Q[1]); if (!(l > 1e-6)) continue;
+        const dx = (P[0] - Q[0]) / l, dz = (P[1] - Q[1]) / l;
+        let [d0, kind] = sdT(P[0], P[1]);
+        if (d0 > JOIN) continue;
+        let np = P;
+        if (d0 > -OVER) {
+          let got = null;
+          for (let t = 0.5; t <= JOIN + OVER + ro.w; t += 0.5) { const x = P[0] + dx * t, z = P[1] + dz * t, r = sdT(x, z); if (r[0] <= -OVER) { got = [x, z]; kind = r[1]; break; } }
+          if (!got) continue;
+          np = got;
+        }
+        if (np !== P) { if (end) pts.push(np); else pts.unshift(np); }
+        ro[end ? 'fadeB' : 'fadeA'] = kind === 'strip' ? 0 : 3;   // in a strip's box the renderer's box fade takes it
+        ro[end ? 'joinB' : 'joinA'] = kind;
+      }
+      ro.pts = pts;
+      // a TAXIWAY: a concrete road 10 m wide or more that meets a strip or an apron - its sides are the airfield's (G980)
+      ro.taxiway = (RUNWAY_LOOKS[ro.look] || {}).cls === 'concrete' && ro.w >= 10 && !!(ro.joinA || ro.joinB);
+    }
+  }
+  // G980: the bands the ground's own code is drawn under (stampTtype): a strip's box and a paved polygon, each out
+  // to its band + the fade (sd: + outside the pavement, metres; reach: how far out the stamp goes)
+  const BAND_SKIP = [0, 1, 8, 12, 13, 16];   // water, forest, cliff, old forest, city trees: never what a cleared band copies
+  const bandStamps = [];
+  for (const r of runways) {
+    if (runwayIsWater(r)) continue;
+    const L = RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass, box = runwayBox(r, 0), reach = paveBand(r, L.cls || 'grass', false) + PAVE_FADE;
+    bandStamps.push({ bbox: polyBBox(runwayBox(r, reach)), reach, sd: (x, z) => sdPoly(box, x, z) });
+  }
+  for (const ro of roadObjs) {   // a taxiway's sides are the airfield's too
+    if (!ro.taxiway) continue;
+    const reach = paveBand(ro, 'concrete', true) + PAVE_FADE, bb = polyBBox(ro.pts), m = ro.w / 2 + reach;
+    bandStamps.push({ bbox: { x0: bb.x0 - m, z0: bb.z0 - m, x1: bb.x1 + m, z1: bb.z1 + m }, reach, sd: (x, z) => roadDist(ro, x, z) - ro.w / 2 });
+  }
+  for (const pp of pavePolys) {
+    const reach = paveBand(pp, RUNWAY_LOOKS[pp.look].cls, true) + PAVE_FADE, bb = pp.bbox;
+    bandStamps.push({ bbox: { x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, reach, sd: (x, z) => sdPoly(pp.poly, x, z) });
+  }
   const ttypes = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && isFinite(+c.code))
     .map(c => ({ id: c.id, poly: c.poly, bbox: polyBBox(c.poly), code: Math.round(+c.code),
                  // `from` (contract v1.22): the codes this stamp is allowed to REPLACE. Without it a
@@ -17216,8 +17276,37 @@ function compose(rec0, world, opts) {
     // ground and the vegetation together with no second path. The returned function
     // puts the old bytes back, so a live edit re-stamps cleanly.
     stampTtype(isl) {
-      if (!isl || !isl.ttype || !isl.grid || !ttypes.length) return null;
+      if (!isl || !isl.ttype || !isl.grid || (!ttypes.length && !bandStamps.length)) return null;
       const g = isl.grid, T = isl.ttype, saved = [];
+      // THE GROUND BESIDE THE PAVEMENT IS THE ISLAND'S (G980, the user: "making the outside runway lanes transparent
+      // shows the ground below, was a bad suggestion ... use the same texture as the surroundings and the same
+      // transformation, so it blends better"). The island's land cover calls the real airfield's whole footprint
+      // BUILT (code 10, drawn as dirt) ~40 m either side of a runway's centreline - the brown the transparent side
+      // showed. Every BUILT cell inside a strip's or a paved polygon's band + fade takes the code of the ground just
+      // beyond the band (the nearest that is not forest, cliff or water - a cleared field; BUILT itself where the
+      // surroundings ARE built, round the pad and the hangars, so no green halo rings an apron), so the ground's own splat,
+      // with its own uv law and grades, draws the surroundings right up to the pavement's edge. Only the ttype byte
+      // moves: the cover raster (the wheels' class, the fill's refusal) is untouched, and coverAt still keeps the
+      // vegetation off the band. Before the authored stamps, so an authored polygon still has the last word.
+      for (const b of bandStamps) {
+        const w = [F.toWorld(b.bbox.x0, b.bbox.z0), F.toWorld(b.bbox.x1, b.bbox.z0), F.toWorld(b.bbox.x1, b.bbox.z1), F.toWorld(b.bbox.x0, b.bbox.z1)];
+        const i0 = Math.max(0, Math.floor((Math.min(w[0][0], w[1][0], w[2][0], w[3][0]) - g.x0) / g.cell)), i1 = Math.min(g.w - 1, Math.ceil((Math.max(w[0][0], w[1][0], w[2][0], w[3][0]) - g.x0) / g.cell));
+        const j0 = Math.max(0, Math.floor((Math.min(w[0][1], w[1][1], w[2][1], w[3][1]) - g.z0) / g.cell)), j1 = Math.min(g.h - 1, Math.ceil((Math.max(w[0][1], w[1][1], w[2][1], w[3][1]) - g.z0) / g.cell));
+        const codeAt = (x, z) => { const ii = Math.floor((x - g.x0) / g.cell), jj = Math.floor((z - g.z0) / g.cell); return ii < 0 || jj < 0 || ii >= g.w || jj >= g.h ? -1 : T[jj * g.w + ii]; };
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+          const k = j * g.w + i; if (T[k] !== 10) continue;
+          const cx = g.x0 + (i + 0.5) * g.cell, cz = g.z0 + (j + 0.5) * g.cell, L = F.toLocal(cx, cz);
+          if (b.sd(L[0], L[1]) > b.reach) continue;
+          // the nearest open ground beyond the reach: rings of 8 directions, 10 m apart, out to 120 m
+          let code = -1;
+          for (let r = g.cell; r <= 120 && code < 0; r += g.cell) for (let q = 0; q < 8 && code < 0; q++) {
+            const x = cx + Math.cos(q * Math.PI / 4) * r, z = cz + Math.sin(q * Math.PI / 4) * r, L2 = F.toLocal(x, z);
+            if (b.sd(L2[0], L2[1]) <= b.reach) continue;
+            const c = codeAt(x, z); if (c >= 0 && BAND_SKIP.indexOf(c) < 0) code = c;
+          }
+          saved.push(k, T[k]); T[k] = code >= 0 ? code : 7;
+        }
+      }
       // the WORLD's island handle renames it (`cover`, not `coverU8`) - read both, or
       // the write lands on undefined and the surface never moves, which is silent
       const CV = isl.cover || isl.coverU8 || null, savedC = [];
@@ -41313,7 +41402,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='8e6e0df0ad1c';window.FLYDIY_BUILD='8295e62772ed'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='69f8aba70d9e';window.FLYDIY_BUILD='7c7b9c44a242'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=36d97ef0"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -95588,6 +95677,24 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     VIEW_STATE.forEach((r, i) => { if (was[i] !== null) r.set(was[i]); });
     window.CAGE_UI.build();
   };
+  // G680: THE VIEW HELD FOR A BATCH (parked.js's captures). The same rows set to the capture's values, WITHOUT a
+  // build: the caller's next applySpec builds in them, every snapshot inside finds nothing bent (no build of its
+  // own), and viewRelease puts the rows back for the caller's restoring applySpec to build. Its own memory, not
+  // viewWas: a snapshot inside the hold clears viewWas on its way in.
+  let heldWas = null;
+  const viewHold = () => {
+    if (heldWas) return false;
+    heldWas = VIEW_STATE.map(r => r.get());
+    let bent = false;
+    VIEW_STATE.forEach((r, i) => { if (heldWas[i] === null || heldWas[i] === r.to) return; r.set(r.to); bent = true; });
+    if (!bent) heldWas = null;
+    return bent;
+  };
+  const viewRelease = () => {
+    if (!heldWas) return;
+    const was = heldWas; heldWas = null;
+    VIEW_STATE.forEach((r, i) => { if (was[i] !== null) r.set(was[i]); });
+  };
 
   // WHICH OBJECT IS THE AEROPLANE (G216). The bake is in this frame, so the
   // payload's origin IS this object's origin — which makes it the only
@@ -96695,6 +96802,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     try { return snapshotAt(spec); }
     finally { viewRestore(); }
   };
+  // G680: THE SAME CAPTURE IN THREE TASKS (app.js syncBuildSteps, under the roll-out screen): the view neutralised
+  // (a build), the snapshot, the view back (a build) - 1.2-1.9 s in one task on the click of "roll out". Its
+  // caller drives it to the end (the finally is the view's way back, as above).
+  function* snapshotSteps(spec) {
+    try { if (viewNeutral()) yield 'view'; const r = snapshotAt(spec); yield 'snapshot'; return r; }
+    finally { viewRestore(); }
+  }
   // THE FIT REPORT (G52, user: "the visual fit remains very approximate").
   // Frame vs visual, in numbers, in the model frame the pose shares (the
   // snapshot's `off` applied to the visual). Printed at every build & fly
@@ -96869,7 +96983,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // read AFTER export: measure() is what fills it
     errors: () => ERRS.slice(),
     notes: () => NOTES.slice(),
-    snapshot, fitReport,
+    snapshot, snapshotSteps, fitReport, viewHold, viewRelease,   // G680: the capture in tasks; the view held for parked.js's batch
     mount: joinMount,                // G216: the craft root, for the editor
   };
   // THE BUTTON IS GONE (G65, user: "there's an intermediate step to build...
@@ -98211,7 +98325,12 @@ function updateDims(box, FS) {
 }
 
 // ---- build ----------------------------------------------------------------
-function build() {
+// G680 (A4-FREEZE): buildSteps is the build as a generator with ONE yield, between the sheet (the mesh, the decals)
+// and the page's post chain (the layers): ~0.5 + ~0.45 s for a larger aeroplane, which as one task was the longest
+// of parked.js's captures under the roll-out screen (applySpecSteps). build() runs it to the end - every slider,
+// every door, exactly as before.
+function build() { const g = buildSteps(); while (!g.next().done); }
+function* buildSteps() {
   // T2.1: a retired row (a preset written against the ring editor, a class
   // seed's taperW) is lifted into the frames' rows the moment it lands in P
   if (G.cageHasLegacy && G.cageHasLegacy(P)) {
@@ -98441,6 +98560,7 @@ function build() {
   // below. Cheap by construction: buildMatPanel's signature check makes the
   // second call a no-op on every build where no layer appeared or vanished.
   SEC_EPOCH++;
+  yield 'post';                          // G680: the layers in a task of their own when a caller slices the build
   if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat') }); }
   catch (e) { console.error('page post hook:', e); }
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
@@ -98853,7 +98973,9 @@ const anchorSize = () => {
 // through here: a tile writing `engPreset` IS a row change and must fire.
 const loaded = () => { if (PAGE.load) try { PAGE.load(); } catch (e) {} };
 
-function applySpec(spec, what) {
+// G680: `steps` - the load is done now and the build comes back as a generator (buildSteps: the sheet | the layers),
+// for parked.js's capture a step a task (applySpecSteps); without it, as always, the build runs here
+function applySpec(spec, what, steps) {
   Object.assign(P, G.cageFromSpec(spec));
   loaded();
   // THE PAINT COMES WITH THE AEROPLANE (G105). Unconditional, INCLUDING when
@@ -98878,7 +99000,9 @@ function applySpec(spec, what) {
     try { window.CAGE_PANEL.fromSpec(spec && spec.systems); }
     catch (e) { console.error('instruments from spec:', e); }
   anchorSize();                            // the loaded design is now x1.000
-  syncSliders(); build();
+  syncSliders();
+  if (steps) return (function* () { yield* buildSteps(); if (what && $('stat')) $('stat').textContent = what; })();
+  build();
   if (what && $('stat')) $('stat').textContent = what;
 }
 
@@ -101663,7 +101787,7 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders, reg: () => decReg()
   // every import and the game's own openEditor go through these, so there is
   // one route in and one route out instead of a preset menu standing in for
   // the load path that never existed.
-  applySpec, toSpec: () => G.cageToSpec(P),
+  applySpec, applySpecSteps: (spec, what) => applySpec(spec, what, true), toSpec: () => G.cageToSpec(P),
   setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z;
     centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; },
   get M0() { return M0; }, get MS() { return MS; },
@@ -106032,7 +106156,10 @@ var CLOUDS = (function () {
   const hemiUnder = T => 1 + S.hemiUnderCloud * (1 - Math.max(0, Math.min(1, T)));
   // warmList() (G584): the full-screen passes' programs (the noise bake, the sky fit, the shadow map, the march) for the
   // roll-out's compile step (shader_warm.js); all draw into targets of their own. The composite is in the world scene.
-  function warmList() { if (!ready || !active()) return []; skyMats(); return [bakeMat, skyMat, shadowMat, marchMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
+  // G680: listed whenever the layer exists (ready, not 'off') - not only while active(): under the roll-out screen the
+  // day's cover was not measured yet (lastCover 0), the list came back empty, and the march linked on the first world
+  // frame (0.5-1.4 s at the Jolene reveal, found by rollout_perf's program census). Its key reads no map and no cover.
+  function warmList() { if (!ready || S.mode === 'off') return []; skyMats(); return [bakeMat, skyMat, shadowMat, marchMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
   const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
@@ -107736,7 +107863,9 @@ var PROG_WARM = (() => {
   // app.js compileXrayVariants learnt that first)
   function twin(m) {
     const t = new m.constructor();
-    t.copy(m);
+    // G680: copy() deep-clones userData through JSON, and AEROSKIN's holds textures - every twin encoded canvases
+    // to data URLs (1.4 s in one task after the shed's boot); the twin takes m.userData by reference below anyway
+    { const ud = m.userData; m.userData = {}; try { t.copy(m); } finally { m.userData = ud; } }
     if (m.defines) t.defines = Object.assign({}, m.defines);
     t.userData = m.userData;
     const hook = own(m, '_atmoHook') ? m._atmoHook : own(m, 'onBeforeCompile') ? m.onBeforeCompile : undefined;
@@ -109207,7 +109336,7 @@ const PAVEMENT = (() => {
     // polygon's band - the gravel, the grass creeping in, the shoulder's vehicle paths - is no longer drawn:
     // past the edge the surface's own colour goes to alpha over sideW metres (from sideA), and the island's
     // ground shows. The band still EXCLUDES the vegetation (coverAt's PAVE_BAND is untouched). 0 = the band.
-    sideFade: 1, sideW: 2, sideA: 0.5,
+    sideFade: 1, sideW: 1.2, sideA: 0.35,
     detailFrom: 250, detailTo: 900, normalFrom: 120, normalTo: 500,
     specK: 1.0, nrmK: 1.0,
     softMix: 0.8, coarseK: 0.7, wheelBand: 0.85, treadK: 0.8, paintRelief: 1.0, mow: 0.6, edgeSoft: 2.6, grassRough: 0.82,
@@ -109684,7 +109813,7 @@ uniform vec4 uGrade[8], uTint[8];
 uniform vec4 uMean;
 uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
-uniform vec4 uSide; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];
+uniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
 float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
 struct Smp { vec4 c; vec4 n; };
@@ -109752,6 +109881,18 @@ float pvKeep(vec2 p) {
     k = min(k, smoothstep(0.3, 2.0, sd));
   }
   return k;
+}
+// how deep p lies inside the deepest keep box (metres, <= 0 outside): a road's or an apron's own surface fades out
+// just inside a strip's box (G981), so the strip's surface is the one seen at a junction
+float pvInside(vec2 p) {
+  float din = -1e3;
+  for (int i = 0; i < ${NKEEP}; i++) {
+    if (i >= uKeepN) break;
+    vec4 A = uKeepA[i], B = uKeepB[i]; vec2 d = p - A.xy;
+    vec2 q = vec2(abs(d.x * A.z + d.y * A.w) - B.x, abs(-d.x * A.w + d.y * A.z) - B.y);
+    din = max(din, -(length(max(q, 0.0)) + min(max(q.x, q.y), 0.0)));
+  }
+  return din;
 }
 // a slot's set at the pavement's (u, v): the paved slots turn a little (a brushed finish has a grain), the loose ones any way
 Smp pvSet(int slot, vec2 uv) {
@@ -110175,6 +110316,13 @@ float pvTread(float u, float x, float w, float seed) {
       gPavA = max(wPav, sideA * clamp(vPavSh, 0.0, 1.0));
     }
     if (dE < 0.0 && uKeepN > 0) gPavA *= pvKeep(vPavW.xz);
+    // THE JUNCTIONS (G981): a road or an apron over a strip hands over to it 0.8-2.5 m inside the strip's box (the
+    // strip's chipped edge stays covered); a road END carried onto an apron fades over its last metres
+    if (uSide.w > 0.5 && uKeepN > 0) gPavA *= 1.0 - smoothstep(0.8, 2.5, pvInside(vPavW.xz));
+    if (road && !isPoly) {
+      if (uRoadEnd.x > 0.0) gPavA *= smoothstep(0.0, uRoadEnd.x, u);
+      if (uRoadEnd.y > 0.0) gPavA *= smoothstep(0.0, uRoadEnd.y, 2.0 * halfL - u);
+    }
     // A GRASS ROAD IS THE WORLD'S GRASS WITH TRACKS IN IT: the mesh shows only where the wheels wore
     // it (the ruts, the compacted band, the tread); a grass STRIP keeps a share of its own lawn (it
     // is mown, and that reads) - the rest is the ground under it
@@ -110253,7 +110401,7 @@ float pvTread(float u, float x, float w, float seed) {
     const sk = cls.soft || [1, 1, 1, 1];                                       // the class's own share of each soft layer
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);
-    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, r.sideW || 2, r.sideA === undefined ? 0.5 : r.sideA, 0);
+    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, r.sideW || 1.2, r.sideA === undefined ? 0.35 : r.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons)
   }
   // setKeep(m, boxes): the pavements this one's side must not lie over (G664) - [{ cx, cz, hdg, halfL, halfW }],
   // the strip frame's own convention (T = [cos hdg, sin hdg]); at most NKEEP, the nearest first
@@ -110291,8 +110439,8 @@ float pvTread(float u, float x, float w, float seed) {
       uMean: { value: new THREE.Vector4(0.2, 0.2, 0.2, 0.9) }, uGrade: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 0, 0)) }, uTint: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 1, 0)) },
       uMarkN: { value: Math.min(NMARK, marks.rects.length) }, uSegN: { value: Math.min(NSEG, marks.segs.length) },
       uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk },
-      uSide: v4(), uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
-    // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, never a road's
+      uSide: v4(), uRoadEnd: { value: new THREE.Vector4(+o.fadeA || 0, +o.fadeB || 0, 0, 0) }, uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
+    // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
     m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); };
@@ -114132,7 +114280,24 @@ if (typeof window !== 'undefined') window.CLIFFS = CLIFFS;
 // returns { worldUpdate(cg) } — per-frame sun-frustum follow + cloud drift.
 // Airfield decals are scaled to the CURRENT 1100 m runway (centre x=-520,
 // thresholds +20/-1060); the physics flat pad is x in [-1180, 130].
+//
+// G680 (A4-FREEZE, the 2026-09-26 playtest: "no freezing ever"): THE BUILD IS A GENERATOR. The world step was ONE
+// main-thread task (4.6 s warm with Jolene's premises; 15-18 s before G591), long enough for Chrome's "page
+// unresponsive". buildWorldSceneSteps yields between its stages, the premises' rebuild yields between its own
+// (render_premises rebuildSteps), and the roll-out screen's 'world' step (app.js) runs it a slice per task;
+// every `yield` is at the function's top level, so the closure is the same one the synchronous build made.
+// buildWorldScene runs it to the end in one call - the harness, the rigs and a page without the screen.
+// THE TRAP A SLICE OPENS: a promise settled before the build (the tree payload, loaded since the garage boot)
+// resolves its .then at the first yield, when the declarations below it are still in their TDZ (G570's
+// PREM_NEAR). Such callbacks go through afterBuild(), which holds them until the generator has returned (after the
+// build, where the synchronous build ran them) and runs each in a task of its own.
 function buildWorldScene(scene, world, renderer, camera, shedDims) {
+  const g = buildWorldSceneSteps(scene, world, renderer, camera, shedDims);
+  for (;;) { const r = g.next(); if (r.done) return r.value; }
+}
+function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+  const BUILT = { done: false, q: [] };
+  const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
   const C = h => new THREE.Color(h).convertSRGBToLinear();
   const HAZE = 0xe8bd8d, SUNC = 0xffd39a;
   const SUN = new THREE.Vector3(0.80, 0.185, 0.57).normalize();
@@ -114402,7 +114567,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       scene.add(keep(obj));
     }
   };
-  const rocksWhenReady = job => { ROCK_JOBS.push(job); if (treeSettleOf) treeSettleOf().then(() => { const i = ROCK_JOBS.indexOf(job); if (i >= 0) { ROCK_JOBS.splice(i, 1); job(); } }).catch(() => {}); };
+  const rocksWhenReady = job => { ROCK_JOBS.push(job); if (treeSettleOf) treeSettleOf().then(() => afterBuild(() => { const i = ROCK_JOBS.indexOf(job); if (i >= 0) { ROCK_JOBS.splice(i, 1); job(); } })).catch(() => {}); };
   // THE RENDERER FLAG (W0.5b): the module picks a variant per material on it
   const TSL_ON = !!(renderer && renderer.isWebGPURenderer);
   // THE ATMOSPHERE (SKY S3): Hillaire's model in atmo.js draws the sky and
@@ -114630,6 +114795,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const groundUnder = () => ({ cls: GU.pin ? 'PIN' : GU.cls, alb: capOf().slice(), target: GU.target.slice(), r: GU.r, mix: Object.assign({}, GU.mix), table: GROUND_ALBEDO });
   let envMap = null, probe = null;
   let envIn = null, probeIn = null, interiorView = false;   // A6: the cabin's own probe (a neutral cap), swapped in for the cockpit view
+  yield 'sky';
   if (ATMO_ON && THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     // THE PROBE FOLLOWS THE SUN (S5). The sky-view LUT for the boot hour and
     // the dome's scale (K_SUN x the world's light unit - LIGHT_UNIT below is
@@ -114659,6 +114825,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
     if (probeIn) probeIn.bake(world.day);
   } else {
+  yield 'probe';
   if (THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     const es = new THREE.Scene();
     const domeG = new THREE.SphereGeometry(20, 32, 20);
@@ -114986,6 +115153,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     FAR.on.value = 1;
     coverRender(eye);
   };
+  yield 'light';
   const hemiLight = () => {
     const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi * LIGHT_UNIT);
     h.groundColor.multiplyScalar(gb);      // occluded, like every bounce here
@@ -115238,6 +115406,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
 
+  yield 'terrain';
   { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
     // home ±4500 so river carves resolve, coarse ~100 m strips out to
     // ±12000 (fog caps visibility ~5 km: the far ring only needs
@@ -115438,6 +115607,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // baked by island_prep (unlit), one texture over the whole grid, mapped by
     // world position on both rings. The analytic bake still runs for the
     // forest mask and the minimap; its colours are not drawn on an island.
+    yield 'ground';
     const ISLA = world.island && world.island.albedo && world.island.grid ? world.island : null;
     let islandTex = null, islandUV = null;
     if (ISLA) {
@@ -115483,6 +115653,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {}; groundU = gU;
     let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookOuterDry = null, islandGroundHookFine = null, SPL = null;
+    yield 'island ground';
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
       // THE LAYERS PACKED (G424): the six single-channel fields ride two RGBA textures - A = (ori, canopy,
@@ -115739,11 +115910,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                     classBlur: 'uGBlur', edgeWobble: 'uGWobble', waterMap: 'uGWaterMap' }[k];
         if (u && gU[u]) gU[u].value = GROUND[k]; } return groundApi.get(); },
     };
+    yield 'ground bake';
     const tex = islandTex || bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
+    yield 'outer bake';
     const outerBake = bakeGround(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
     const outerTex = islandTex || outerBake;
     outerTexShared = outerTex;
 
+    yield 'ring';
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
     geo.rotateX(-Math.PI / 2);
     const posA = geo.attributes.position;
@@ -115913,6 +116087,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // PATCH: it clones the ring's material and adds five of its own (15 of 16 as a Lambert; a
     // Standard clone would ask 17 and fail to link, drawing nothing - G424) - innerPatchShared
     // hands it a Lambert TWIN under the same hook. The analytic world's ring is untouched.
+    yield 'ground material';
     const gMat = islandGroundHook ? new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 }) : worldLambert({ map: tex });
     const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
@@ -115963,6 +116138,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the fine disc's reach it is the full grid (the tiles' rim is the ring's own triangles), and on the rim
     // of the ring (the far terrain dips 1.5 m under it) only a level within `rimE` of the grid. Skirts under
     // every chunk edge close the cracks between two levels. ?ringlod=0: the ring whole (the A/B).
+    yield 'ring lod';
     const RINGLOD = { on: !!(THREE.Sphere && THREE.BufferAttribute) && !(typeof location !== 'undefined' && /[?&]ringlod=0/.test(location.search)),
                       C: 16, strides: [1, 2, 4, 8], tolPx: 1, minQuads: 25, rimE: 0.5, hyst: 0.1, chunks: [], group: null,
                       stats: { draws: 0, tris: 0, levels: [0, 0, 0, 0] } };
@@ -116073,6 +116249,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // nothing tears. The tiles stream with the eye (a budget a frame; the ring's discard radius is
     // held to the radius the tiles have reached). Off when the eye is within reach of the ring's rim
     // (the outer ring's surface is another) - INNER - R - band from the origin.
+    yield 'fine ring';
     const FINE = { on: !!islandGroundHook, R: 700, band: 120, T: 160, step: 5, tiles: new Map(), mat: null, budget: 6, off: (typeof location !== 'undefined' && /[?&]fine=0/.test(location.search)) };   // ?fine=0: the ring alone (the A/B)
     if (FINE.on) {
       FINE.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
@@ -116156,6 +116333,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
     fineRing = FINE;
 
+    yield 'far terrain';
     if (world.island && world.island.farRoot) {
       // THE FAR TERRAIN IS THE ASSET (G400, the user: "don't hide terrain
       // geometry in a flight game ... some trees are not on the ground"): the
@@ -116386,6 +116564,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // WORLDRENDER stub, an old page) the stock material stands as it did.
     // ?water=0: the stock material, for an A/B (the perf rig's, the eye's)
     const WSH = (typeof WATER !== 'undefined' && THREE.MeshPhysicalMaterial && !(typeof location !== 'undefined' && /[?&]water=0/.test(location.search))) ? WATER : null;
+    yield 'water';
     const waterMat = WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
     const wtag = (g, body, wavy) => WSH ? WSH.tag(THREE, g, body, wavy) : g;
@@ -116484,6 +116663,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       seaNear.visible = true;
     }
 
+    yield 'rivers';
     { // stage-1 water: river ribbons + per-cell lake quads at their baked
       // surface heights, one merged mesh, same material as the sea.
       // Edges are trimmed by terrain intersection — ribbons overshoot into
@@ -116667,6 +116847,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
   }
 
+  yield 'woodland';
   { // woodland: every physics tree seeds a clump of non-colliding neighbours
     const hsh = (a, b) => { let h = (a * 374761393 + b * 668265263 + 1013904223) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -116912,6 +117093,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     function sheetCheck(rt, N) {
       const px = new Uint8Array(N * N * 4);
       renderer.readRenderTargetPixels(rt, 0, 0, N, N, px);
+      return sheetStat(px, N);
+    }
+    function sheetCheckAsync(rt, N) {
+      const px = new Uint8Array(N * N * 4);
+      return Promise.resolve(renderer.readRenderTargetPixelsAsync(rt, 0, 0, N, N, px)).then(() => sheetStat(px, N));
+    }
+    function sheetStat(px, N) {
       let n = 0, sum = 0;
       for (let i = 0; i < N * N; i++) if (px[i * 4 + 3] >= 128) { n++; sum += px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2]; }
       return { cover: n / (N * N), mean: n ? sum / n / 3 : 0 };
@@ -117114,10 +117302,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // fraction and the mean byte of the drawn texels, kept on the atlas
       // (`check`, WORLD.treeAtlases / tools/imp_audit.js) and shouted when
       // the sheet is empty (< 0.5 % drawn) or black (mean byte < 8).
-      atlas.check = (typeof renderer.readRenderTargetPixels === 'function') ? sheetCheck(rt, N) : null;   // the headless stub (GATE WORLDRENDER) has no readback
-      if (atlas.check && (atlas.check.cover < 0.005 || atlas.check.mean < 8))
+      // G680: READ BACK WITHOUT WAITING. The synchronous readPixels waited for the GPU to finish everything queued
+      // before it - 1.1 s of the Jolene roll-out's 1.4 s bake task (the uploads and links in flight). The async
+      // readback (a pixel buffer and a fence, three r186) is queued at the same point in the command stream, so it
+      // reads this sheet whatever is drawn into the shared target after it; the verdict lands a few frames later
+      const shout = c => { atlas.check = c; if (c && (c.cover < 0.005 || c.mean < 8))
         console.error('impostor bake: ' + (tag ? tag.key + ' ' + tag.series : 'cone') + ' sheet ' +
-          (atlas.check.cover < 0.005 ? 'EMPTY' : 'BLACK') + ' (drawn ' + (atlas.check.cover * 100).toFixed(2) + ' %, mean byte ' + atlas.check.mean.toFixed(1) + ')');
+          (c.cover < 0.005 ? 'EMPTY' : 'BLACK') + ' (drawn ' + (c.cover * 100).toFixed(2) + ' %, mean byte ' + c.mean.toFixed(1) + ')'); };
+      atlas.check = null;
+      if (typeof renderer.readRenderTargetPixelsAsync === 'function' && renderer.capabilities && renderer.capabilities.isWebGL2 !== false) sheetCheckAsync(rt, N).then(shout, () => {});
+      else if (typeof renderer.readRenderTargetPixels === 'function') shout(sheetCheck(rt, N));   // the headless stub (GATE WORLDRENDER) has no readback
       const swap = [];                       // pass 2: the tree's own normals
       for (const mm of meshes) { swap.push([mm, mm.material]); mm.material = normalMatFor(mm.material); }
       drawAll(rtN);
@@ -117805,6 +117999,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // THE BIOMES (G454.12, BIOMES-IN-GAME-2026-09-20.md): the terrain-type code names a bench
     // mix; the fill draws its species from THAT mix's pool. BIO.map / BIO.mixes are the
     // payload's (tree_prep.py bakes the bench's tuning); F8 edits BIO.map and exports it.
+    yield 'biomes';
     const BIO = (typeof BIOMES !== 'undefined' && typeof TREE_PACK !== 'undefined') ? BIOMES.make(TREE_PACK) : null;
     const treePool = () => {
       const pool = [];
@@ -118229,6 +118424,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
       }
     };
+    yield 'trees';
     plantWoodland();
     // ONE CALL, AND IT WAS THE WHOLE OF W0c'S LAST MILE. Everything else was
     // written and gated: the payload, the codec, the loader, the switch above.
@@ -118236,7 +118432,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // world drew the 14-triangle cone it has drawn since W17. A rejection is
     // the asset-absent path and already handled — the cone stays.
     if (!treesSettled())
-      treeSettle().then(() => { plantWoodland(); }).catch(() => {});
+      treeSettle().then(() => afterBuild(plantWoodland)).catch(() => {});
 
     // ---- W13 dense fill: the collidable set is a 64 m stage-2 grid, so
     // stands render sparse even with the clump layer. This plants
@@ -118254,6 +118450,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the spacing at a constant chunk size would have quadrupled the per-chunk
     // hitch (~3 -> 12 ms); at 2x it lands near 6 ms, which the burst budget
     // below still hides.
+    yield 'fill';
     {
       // DENSITY IS A DIAL. NG is the fill grid per 1024 m chunk: 112 is the
       // W17 number (9.1 m spacing, ~11 000/km² before dropout), and a closed
@@ -118373,7 +118570,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
         return !!real;
       }
+      yield 'fill shapes';
       setShapes();
+      yield 'fill ring';
       // THE STREAMER'S OWN CLOCK (W0c.30): what a chunk costs to generate,
       // split between the grid walk (classify, place, draw the species) and
       // the build (the matrices, the meshes) - TREE_FILL.stat() reads it
@@ -118627,7 +118826,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         queue.length = 0;
       };
       if (!treesSettled())
-        treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
+        treeSettle().then(() => afterBuild(() => { if (setShapes()) evictAll(); })).catch(() => {});
       FILL.budgetMs = 4;
       // THE TREE STATE (S3): the roll-out screen asks whether the payload is in
       // before it grows the ring, or it would grow cones and evict them
@@ -118635,8 +118834,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       treeSettle().then(() => { TREE_STATE.v = 'ready'; }).catch(() => { TREE_STATE.v = 'fallback'; });
       // THE COVER RING (G454.13): the grass, flowers, rocks and bushes of the biome around the
       // eye, once the payload is in (its materials are the trees' loader's)
+      yield 'cover';
       if (ISLC && BIO && typeof COVER_RING !== 'undefined' && !/[?&]cover=0/.test(location.search))   // ?cover=0: the ring off (an A/B, and the rigs' control)
-        treeSettle().then(() => {
+        treeSettle().then(() => afterBuild(() => {   // G680: held until the build is whole (its body reads the rest)
           // THE POOLS ARE THE SHADER'S (2026-09-22, the user: "are we sure vegetation does not render on top of
           // water bodies?"): a puddle is a colour the ground shader paints from GF.poolAt on codes 3 and 7 - no water
           // height, so the lakes' test never saw one. The same function, in JS, with the splat's live knobs.
@@ -118675,7 +118875,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
-        }).catch(e => { console.error('cover ring: ' + (e && e.message)); });
+        })).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
@@ -118840,6 +119040,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // composed ground, the building the aeroplane rolls out of; the apron, the fence, the windsock,
   // the paving and the strip's paint are the premises record's own (materials, surfaces, sites,
   // the strip's look), drawn by render_premises and standStrip below. Nothing analytic is invented.
+  yield 'airfield';
   const ISLAND_SITE = !!world.island;
   if (!(world.island && !(siteOf('HOME') && siteOf('HOME').hangar))) { // THE BASE AERODROME, from the ONE declaration (G123)
     // Every number in this block used to be a literal: a 1100 x 30 strip at
@@ -119326,6 +119527,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }   // !ISLAND_SITE
   }
 
+  yield 'settlements';
   { // stage-3 settlements: instanced houses/barns + bridge decks
     const BL = world.roadNet.buildings;
     if (BL.length) {
@@ -119441,6 +119643,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // painted with every other below. The build queue drains here at the boot, whole (36 houses,
   // 3 s on an RTX 3080 - a worker or a ladder is owed); after a live edit worldUpdate drains it.
   // the props that come by the hundred (poles, fence stretches) drawn instanced from here on (props.js G515)
+  yield 'props';
   if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
   // THE PATCH'S TWO GROUNDS (G527): a chunk inside the inner ring wears the ring's material and uv law, a chunk
@@ -119471,6 +119674,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     try {
       // the patch wears the ring it lies in, chunk by chunk (patchGrounds, G527): the inner ring's material (its
       // baked map, its detail grain) and uv law inside ±INNER, the outer ring's beyond
+      yield 'premises';
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
         game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)
@@ -119482,9 +119686,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
         renderer: premRenderer, camera: premCamera,
       });
-      premisesR.rebuild();
+      yield 'premises made';
+      if (premisesR.rebuildSteps) yield* premisesR.rebuildSteps(); else premisesR.rebuild();   // G680: the rebuild in its own slices
       if (typeof renderer.compileAsync !== 'function' || !premisesR.prewarm) { if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4); }   // G562 / G591: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
+      yield 'premises ground';
       if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) refreshGround(pb); }   // refreshGround re-sinks the far tier itself (G527)
     } catch (e) { console.warn('premises: the record did not render', e); }
   } else if (world.premises && world.premises.rec) {
@@ -119498,6 +119704,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // actually is. It says so now.
     console.warn('premises: the record is here and RENDER_PREMISES is not loaded - nothing of the place will draw');
   }
+  yield 'strips';
   { // stage-4 aerodromes: strip decals + windsocks at every field/strip
     const mkTex = kind => {
       const cv2 = document.createElement('canvas'); cv2.width = 512; cv2.height = 64;
@@ -119688,6 +119895,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     };
   }
 
+  yield 'meadows';
   { // landing meadows: marker ring + beacon
     const beaconGeo = new THREE.CylinderGeometry(0.16, 0.22, 7);
     const flagGeo = new THREE.PlaneGeometry(2.4, 1.4);
@@ -119968,6 +120176,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
     if (!ATMO_ON && scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);   // the painted haze, when the atmosphere is off
   }
+  yield 'rig';
   const rigRows = {};
   const hexOf = (c, d) => (c && c.getHex) ? c.getHex() : d;   // the gate's stub has no Color
   const rigSnapshot = () => ({
@@ -120153,6 +120362,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (Number.isFinite(h) && Math.abs(h) < 3) return seaPlaneY;   // the sea's plane
     return null;
   }
+  // G680: the callbacks held while the build was in slices (only a sliced build holds any: a synchronous one runs no
+  // .then before it returns), each in a task of its own after the last slice - the cover ring's make, a rock job
+  BUILT.done = true;
+  if (BUILT.q.length) { const q = BUILT.q.splice(0); const next = () => { const f = q.shift(); if (!f) return; try { f(); } catch (e) { console.warn('world: after the build', e); } if (q.length) setTimeout(next, 0); }; setTimeout(next, 0); }
   return { worldUpdate, vis: VIS,
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
@@ -145748,10 +145961,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/viewer/tram_run.js?v=9bccf31a"></script>
 <script type="text/x-flydiy" src="src/viewer/powerline.js?v=5f386c32"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=f80b94dd"></script>
-<script type="text/x-flydiy" src="src/viewer/parked.js?v=1a9cffb9"></script>
+<script type="text/x-flydiy" src="src/viewer/parked.js?v=e4e81017"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=a2698c61"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=db4052c4"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=9d104101"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=a18a4b60"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=b6af9ad0"></script>
 <script type="text/x-flydiy" src="src/viewer/world_rail.js?v=b6a49b7b"></script>
@@ -146260,17 +146473,50 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // loading screen as its own task, with the phase line on it, and every
   // reader below guards `WF &&` (S3 moves it under the roll-out screen).
   let WF = null;
-  function buildWorld() {
-    if (WF) return WF;
-    WF = buildWorldScene(scene, world, renderer, camera,
-      Object.assign({ shell: shedHome().shell },
-        playerShedDims(playerLoad(), 'HOME',
-          (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+  const worldShed = () => Object.assign({ shell: shedHome().shell },
+    playerShedDims(playerLoad(), 'HOME', (typeof siteOf === 'function') ? siteOf('HOME') : null));
+  function worldBuilt(wf) {
+    WF = wf;
     if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
     if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
     return WF;
+  }
+  function buildWorld() {
+    if (WF) return WF;
+    return worldBuilt(buildWorldScene(scene, world, renderer, camera, worldShed()));
+  }
+  // G680 (A4-FREEZE): THE WORLD IN SLICES. The roll-out screen's 'world' step was buildWorld() in one task - 4.6 s warm
+  // on Jolene (15-18 s before G591), Chrome's "page unresponsive" window. render_world's buildWorldSceneSteps is the same
+  // build as a generator; this runs it a ~40 ms slice per task, the screen's bar on its yields (WORLD_YIELDS: the count a
+  // Jolene build yields, measured - a guess only shapes the bar, which never passes 0.95 before the end). The harness
+  // (no compileAsync) and a page without the generator build in one call, as before.
+  const WORLD_YIELDS = 150;
+  function buildWorldSliced() {
+    if (WF) return;
+    if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
+    const g = buildWorldSceneSteps(scene, world, renderer, camera, worldShed());
+    let n = 0, worst = 0;
+    const t00 = performance.now();
+    return new Promise(res => {
+      const tick = () => {
+        if (WF) { res(); return; }   // built meanwhile by a synchronous door (none today: the screen owns the first build)
+        const t0 = performance.now(); let r = null, lab = '';
+        try { do { r = g.next(); n++; if (!r.done) lab = r.value; } while (!r.done && performance.now() - t0 < 40); }
+        catch (e) { console.error('world build:', e); res(); return; }
+        worst = Math.max(worst, performance.now() - t0);
+        if (r.done) {
+          worldBuilt(r.value);
+          if (window.FLYDIY_LOG_COMPILE || window.FLYDIY_LOG_WORLD) console.log('world: ' + n + ' yields, ' + Math.round(performance.now() - t00) + ' ms, the longest slice ' + Math.round(worst) + ' ms');
+          window.__WORLD_SLICES = { n, worst: Math.round(worst), ms: Math.round(performance.now() - t00) };
+          res(); return;
+        }
+        BOOT.phase('world', 'laying out the world' + (lab ? ': ' + lab : ''), Math.min(0.95, n / WORLD_YIELDS));
+        setTimeout(tick, 0);
+      };
+      tick();
+    });
   }
 
   // ================= THE GARAGE'S OWN SCENE =================
@@ -151058,7 +151304,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   let testFlight = null;
   function startTestFlight(card) {
     if (!inGarage) return false;
-    if (window.CAGE_UI) syncBuild();
     const fp = card && card.fp;
     rollOut(() => {
       started = true;
@@ -151068,7 +151313,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       testFlight = { fp: fp || null, when: new Date().toISOString().slice(0, 10) };
       director.start();
       flRender();
-    });
+    }, true);   // G680: the build's sync under the roll-out screen
     return true;
   }
   // the real flight's sheet for the plaque (what tfIfRun used to memoise
@@ -152200,7 +152445,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     flReveal = 0;
     camera.fov = garageFov; camera.updateProjectionMatrix();
   }
+  // G680: a parked aeroplane's capture in flight holds the editor between its tasks - the doors that need the
+  // player's own aeroplane in it (the shed, the editor, the sync) finish it first (parked.js flush)
+  function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
   function enterGarage() {
+    parkedFlush();
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
     if (!inGarage) garageCamera();
@@ -152268,7 +152517,31 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // previous build's (shakeOf caches per def, so this is one settle).
     drawPlaque();
   }
-  function rollOut(after) {            // `after` runs when the aeroplane is on the stand and on screen (S3)
+  // G680 (A4-FREEZE): THE CLICK OF "ROLL OUT" DOES NOTHING HEAVY. Both doors out of the shed (the bar's button, the
+  // bench's test flight) ran syncBuild in the click - the join's export, the snapshot with the view neutralised and
+  // put back (two editor builds), the spec's update: 1.9 s in one task before the screen could even paint. With the
+  // screen machinery, rollOut(after, true) shows the roll-out screen first and runs the sync inside it a step a task
+  // (syncBuildSteps; CAGE_JOIN.snapshotSteps), then the stand ('stand': rollOutStand, what rollOut did before its
+  // screen decision), then the screen's own steps. A page without it syncs and rolls out inline, as before.
+  const screenCan = () => typeof BOOT.show === 'function' && !!BOOT.log && typeof renderer.compileAsync === 'function';
+  function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
+    if (sync) {
+      if (screenCan() && window.CAGE_UI) { rollHold = false; rollOutScreen(() => { flRevealStart(); if (after) after(); }, true); return; }
+      if (window.CAGE_UI) syncBuild();
+    }
+    rollOutStand();
+    // THE ROLL-OUT SCREEN (LOADING S3). The first roll-out builds the world
+    // scene (3-5 s), grows the tree ring around the stand (it used to fill
+    // in front of you for 16 s), settles the atlases and compiles the
+    // world's programs (100-150 of them, the freeze at the first frame) -
+    // all under the overlay with the world pictures. A second roll-out at
+    // the same stand finds everything resident and reveals at once; a spawn
+    // elsewhere grows its ring again.
+    rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
+    if (needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); if (after) after(); });
+    else { if (!WF) buildWorld(); flRevealStart(); if (after) after(); }   // the aeroplane is on the stand now
+  }
+  function rollOutStand() {
     // G700: the bench fingerprints the aeroplane that rolls out HERE, with the editor still up (an arrival
     // fingerprinted out in the world read a closed editor, and the first flight never stayed certified)
     if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
@@ -152316,16 +152589,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     buildIndicators();                 // clears them
     $('bGo').textContent = 'Fly the circuit';
     fullReset();
-    // THE ROLL-OUT SCREEN (LOADING S3). The first roll-out builds the world
-    // scene (3-5 s), grows the tree ring around the stand (it used to fill
-    // in front of you for 16 s), settles the atlases and compiles the
-    // world's programs (100-150 of them, the freeze at the first frame) -
-    // all under the overlay with the world pictures. A second roll-out at
-    // the same stand finds everything resident and reveals at once; a spawn
-    // elsewhere grows its ring again.
-    rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
-    if (needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); if (after) after(); });
-    else { if (!WF) buildWorld(); flRevealStart(); if (after) after(); }   // the aeroplane is on the stand now
   }
   let frameWait = null, worldCompiled = false, holdRender = false;
   // G690: THE STAND WAITS FOR THE PLAYER. `holdRender` only skips the DRAW; the solver, the pilot, the director
@@ -152385,7 +152648,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (held) running = false;
     holdRender = true;
     const steps = [
-      { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compilePass(sc, aa && aa.target ? aa.target() : null)
+      { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compileSliced(sc, aa && aa.target ? aa.target() : null)
           .then(() => garage ? null : compileDepthVariants()).catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
       { id: 'frames', label: 'first light', w: 2, fn: () => { holdRender = false; return framesRendered(2); } },
     ];
@@ -152393,11 +152656,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       done: () => { holdRender = false; if (held && !inGarage) running = true; }, idle: 20000, hard: 90000, quietFrames: 1 });
   }
   if (typeof window !== 'undefined') window.FLYDIY_SETTLE = settleScreen;
-  function rollOutScreen(done) {
+  function rollOutScreen(done, sync) {
     const steps = [];
+    // G680: from the shed, the build's sync and the stand are the screen's first steps (rollOut(after, true))
+    if (sync) {
+      steps.push({ id: 'sync', label: 'committing your build', w: 8, fn: () => sliced(syncBuildSteps(), 'sync', 'committing your build') });
+      steps.push({ id: 'stand', label: 'onto the strip', w: 3, fn: () => { rollOutStand(); } });
+    }
     holdRender = typeof renderer.compileAsync === 'function';   // the harness renders nothing anyway
     rollHold = true;                   // G690: no step, no pilot, no director until the screen lifts
-    if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => { buildWorld(); } });
+    // G680: the parked aeroplanes the world stands under this screen are captured a step a task (parked.js), not
+    // in the 2.3-3.5 s task each they were; nothing is drawn meanwhile (holdRender), which that door needs
+    const PK = (typeof window !== 'undefined' && window.PARKED && typeof renderer.compileAsync === 'function') ? window.PARKED : null;
+    if (PK) PK.async = true;
+    if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => buildWorldSliced() });   // G680: a slice a task
     // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
     // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
     steps.push({ id: 'town', label: 'building the field', w: 8, fn: () => {
@@ -152413,6 +152685,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         };
         tick();
       });
+    } });
+    // G680: the parked aeroplanes the town placed, captured a step a task; the door closes behind them (a capture in
+    // flight is on the spot again, as before - the screen is gone)
+    steps.push({ id: 'parked', label: 'parking the other aeroplanes', w: 6, fn: () => {
+      if (!PK || !PK.whenIdle) return;
+      return PK.whenIdle((d, n) => { if (n) BOOT.phase('parked', 'parking the other aeroplanes ' + d + ' / ' + n, d / n); }).then(() => { PK.async = false; });
     } });
     // the payload: wait for it (15 s at most - a failed fetch leaves cones)
     steps.push({ id: 'trees', label: 'the tree models', w: 4, fn: () => {
@@ -152496,11 +152774,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     } });
     // two frames of the world rendered under the overlay: the passes, the
     // residue of programs the compile does not reach (the shadow variants)
-    steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => { holdRender = false; return framesRendered(2); } });
+    // G680: ...AND WHAT JOINED THE SCENE WHILE IT COMPILED. The game streams under this screen (the premises within
+    // reach, the cover ring's blocks, the parked aeroplanes' holders filling), so a material or an object kind first
+    // seen after the compile pass linked synchronously on the first frame: 1.2 s in getProgramInfoLog at the Jolene
+    // reveal (G584's owed "premises that stream in"). A second, sliced pass right before the frames: the programs it
+    // already knows cost their key, the new ones link on the driver's threads.
+    steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => {
+      if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
+      return shaderProgress(compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants()).catch(e => console.warn('catch-up compile:', e && e.message)), 'world', 60000)
+        .then(() => { holdRender = false; return framesRendered(2); });
+    } });
     // G710: the route, on the screen while nothing flies (the selects' block below builds it)
     const bR = $('bootRoute');
     if (bR) { bR.hidden = false; if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); }
-    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; rollHold = false; if (bR) bR.hidden = true; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
+    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; rollHold = false; if (PK) { PK.async = false; parkedFlush(); } if (bR) bR.hidden = true; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
       probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
   }
 
@@ -152536,8 +152823,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       // second button's job: the export through the join is a STEP inside
       // rolling out, and it runs whether or not the panel happens to be open,
       // because the panel is a view and the design is not.
-      if (window.CAGE_UI) syncBuild();
-      rollOut(() => { started = true; });   // the sim starts when the screen has lifted, not under it
+      rollOut(() => { started = true; }, true);   // the sim starts when the screen has lifted, not under it (G680: the sync inside it)
       return;
     }
     started = true;
@@ -152788,8 +153074,28 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // it belongs inside the two things that need it: running a test, and rolling
   // out. Returns the list of measurements that could not be taken (G64), so a
   // caller can refuse rather than fly a build the join could not read.
-  function syncBuild() {
+  // G680: syncBuildSteps is the sync as a generator (the snapshot's view builds and the snapshot in tasks of their
+  // own: CAGE_JOIN.snapshotSteps); syncBuild runs it to the end at once - the bench's test, the API, a page
+  // without the roll-out screen
+  function syncBuild() { const g = syncBuildSteps(); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // one generator a slice per task: next() until ~40 ms have gone, then the next task; the phase line on its yields
+  function sliced(g, id, label) {
+    return new Promise(res => {
+      let n = 0;
+      const tick = () => {
+        const t0 = performance.now(); let r = null;
+        try { do { r = g.next(); n++; } while (!r.done && performance.now() - t0 < 40); }
+        catch (e) { console.error(id + ':', e); res(); return; }
+        if (r.done) { res(r.value); return; }
+        BOOT.phase(id, label, Math.min(0.9, n / 6));
+        setTimeout(tick, 0);
+      };
+      tick();
+    });
+  }
+  function* syncBuildSteps() {
     if (!window.CAGE_UI || !window.CAGE_JOIN || !window.GARAGE_SPEC) return null;
+    parkedFlush();
     try {
       const spec = window.CAGE_JOIN.export();
       // the visual freezes BEFORE the spec applies: setAircraft('gen')
@@ -152800,7 +153106,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       // (see GARAGE_SPEC.preview for the 8.6 deg this cost)
       if (window.CAGE_JOIN.snapshot) {
         const flown = window.GARAGE_SPEC.preview ? window.GARAGE_SPEC.preview(spec) : spec;
-        window.CAGE_VISUAL = window.CAGE_JOIN.snapshot(flown);
+        window.CAGE_VISUAL = window.CAGE_JOIN.snapshotSteps ? yield* window.CAGE_JOIN.snapshotSteps(flown) : window.CAGE_JOIN.snapshot(flown);
       }
       (window.GARAGE_SPEC.update || window.GARAGE_SPEC.set)(spec);
       return (window.CAGE_JOIN.errors && window.CAGE_JOIN.errors()) || [];
@@ -152904,6 +153210,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     } catch (err) { console.error('cage editor seed (images):', err); }
   }
   function openEditor() {
+    parkedFlush();
     const w = $('edWrap');
     if (!w || typeof CAGE_UI_BOOT !== 'function') return;
     w.hidden = false;
@@ -155985,7 +156292,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // agreed. Committing at boot is the same step roll-out takes, taken once
   // more, and it is what lets the old generated skin stop being a thing the
   // game can fall back into.
-  bootStep('sync', 'committing the build', 10, syncBuild);
+  bootStep('sync', 'committing the build', 10, () => screenCan() ? sliced(syncBuildSteps(), 'sync', 'committing the build') : syncBuild());   // G680: the snapshot's builds a task each
   // THE PARKED AEROPLANES (G411): the world's aircraft objects were stood as
   // empty holders at the world step (the editor did not exist yet); each is
   // captured now through the editor - a round trip, the user's build put back
@@ -156027,20 +156334,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // the ~12 it does draw with linked on the first frame. PROG_WARM.depthVariants mirrors three's rule (GATE
   // PROGRAMS holds it to the real shadow pass) and the helper is compiled with the world scene as its lit scene.
   const PLAIN_RT = () => PLAIN_RT.rt || (PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4));
-  function compileDepthVariants() {
-    if (typeof renderer.compileAsync !== 'function' || !WF) return Promise.resolve();
+  // G680: `sc` - the shed too (its boot's compile warmed the room for its two targets, not its shadow pass nor the
+  // passes outside the scene: the garage's first frame linked them, 1.8 s cold); the far cascade is the world's alone
+  function compileDepthVariants(sc) {
+    sc = sc || scene;
+    const inWorld = sc === scene;
+    if (typeof renderer.compileAsync !== 'function' || (inWorld && !WF)) return Promise.resolve();
     const jobs = [];
     if (typeof PROG_WARM !== 'undefined') {
-      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [scene]);
-      jobs.push(PROG_WARM.fogless(scene, () => compilePass(helper, PLAIN_RT(), scene)).catch(e => console.warn('depth compile:', e && e.message)));
+      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [sc]);
+      jobs.push(PROG_WARM.fogless(sc, () => compilePass(helper, PLAIN_RT(), sc)).catch(e => console.warn('depth compile:', e && e.message)));
     }
     // the far cascade's proxies (their far depth) and the canopy cover's swap: drawn by their own
     // renders into their own targets, keyed without the world's lights, as before
     const far = new THREE.Scene(), seen = new Set();
-    const add = (o, mat) => { if (!mat) return; const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m'); if (seen.has(key)) return; seen.add(key);
-      far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
-    if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
-    if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
+    if (inWorld) {
+      const add = (o, mat) => { if (!mat) return; const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m'); if (seen.has(key)) return; seen.add(key);
+        far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
+      if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
+      if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
+    }
     // G584: THE PASSES OUTSIDE THE SCENE - the resolve's blit, the post chain, the clouds' bake / march / shadow:
     // full-screen quads in scenes of their own that compileAsync(scene) never meets; each module lists its own
     if (typeof PROG_WARM !== 'undefined') {
@@ -156102,6 +156415,59 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(sc, camera, lit || null); }
     finally { renderer.setRenderTarget(prev); }
   }
+  // G680 (A4-FREEZE): THE COMPILE IN SLICES. compileAsync's link is the driver's, in parallel - but its first half,
+  // three's compile(), is synchronous: every material's parameters and key, and for every NEW program its whole
+  // source (the includes, the hooks - AEROSKIN's and ATMO's are long): 1.4 s in one task for the ~30 see-through
+  // twins after the shed's boot, and a settings change that re-keys every lit program (the shadows) builds them all
+  // in the click. This is compilePass cut into tasks: ONE stand-in (PROG_WARM.standIn: the object itself by
+  // prototype, so everything the key reads of it - instancing, skinning, morphs, the geometry's attributes - is its
+  // own) per distinct (material, object kind, attribute layout), compiled a group per task (the group sized to
+  // ~30 ms, adaptively), then the programs polled until ready - compileAsync's promise, without its long first task.
+  function compileSliced(sc, target, lit) {
+    if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return compilePass(sc, target, lit);
+    const reps = [], seen = new Set(), mats = new Set();
+    sc.traverse(o => {
+      if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.material) return;
+      const g = o.geometry;
+      const gk = g && g.attributes ? Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.morphTargetsRelative ? 'r' : '') : '';
+      const ok = (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '')
+        + (o.isPoints ? 'P' : o.isLine ? 'L' + (o.isLineSegments ? 's' : '') : o.isSprite ? 'p' : 'M');
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        if (!m) continue;
+        const k = m.uuid + '|' + ok + '|' + gk;
+        if (seen.has(k)) continue;
+        seen.add(k); reps.push([o, m]); mats.add(m);
+      }
+    });
+    const litScene = lit || sc;
+    let i = 0, G = 1;                     // a NEW AEROSKIN program's source alone is ~0.1-0.3 s: start at one, grow on the cheap ones
+    return new Promise(res => {
+      const tick = () => {
+        const t0 = performance.now();
+        const prev = renderer.getRenderTarget();
+        try {
+          renderer.setRenderTarget(target, 0);
+          while (i < reps.length && performance.now() - t0 < 30) {
+            const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
+            for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
+            i += n;
+            try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
+            grp.clear();
+            const dt = performance.now() - t1;
+            G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
+          }
+        } finally { renderer.setRenderTarget(prev); }
+        if (i < reps.length) { setTimeout(tick, 0); return; }
+        // the link: compileAsync's own poll (a program three made for a material is its currentProgram)
+        const poll = () => {
+          for (const m of mats) { const p = renderer.properties.get(m).currentProgram; if (!p || !p.isReady || p.isReady()) mats.delete(m); }
+          if (!mats.size) res(sc); else setTimeout(poll, 10);
+        };
+        poll();
+      };
+      tick();
+    });
+  }
   // THE SEE-THROUGH VARIANTS (G441, A4 - the user: "show interior takes
   // seconds and freezes the UI; it was fast before"). Measured on the Cessna:
   // the `see inside` flip spent 15.8 s inside getProgramInfoLog on its first
@@ -156127,7 +156493,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     let n = 0;
     const twin = (m, side) => {
       const t = new m.constructor();
-      t.copy(m);
+      // G680: copy() deep-clones userData through JSON, and AEROSKIN's holds textures - every twin encoded canvases
+      // to data URLs (1.4 s in one task after the shed's boot); the twin takes m.userData by reference below anyway
+      { const ud = m.userData; m.userData = {}; try { t.copy(m); } finally { m.userData = ud; } }
       // Standard's and Physical's copy() put the constructor's defines back
       // ({STANDARD}, {STANDARD, PHYSICAL}) over AEROSKIN's own ({AEROSKIN_SURF},
       // PHYSICAL by hand - G206); the key lists them in insertion order
@@ -156168,7 +156536,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     });
     if (!n) return Promise.resolve();
     const t0 = performance.now();
-    return compilePass(helper, aa && aa.target ? aa.target() : null, hangarScene)
+    return compileSliced(helper, aa && aa.target ? aa.target() : null, hangarScene)   // G680: a few twins a task (it was 1.4 s in one)
       .then(() => { if (window.FLYDIY_LOG_COMPILE) console.log('xray variants: ' + n + ' programs, ' + Math.round(performance.now() - t0) + ' ms'); })
       .catch(e => console.warn('xray compile:', e && e.message));
   }
@@ -156191,7 +156559,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
     const t0 = performance.now();
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
-    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); }), 'garage'))
+    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+      .then(() => compileDepthVariants(hangarScene)), 'garage'))   // G680: its shadow pass and the full-screen passes too
       .catch(e => { console.warn('boot compile:', e && e.message); done(); });
   });
   // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed
