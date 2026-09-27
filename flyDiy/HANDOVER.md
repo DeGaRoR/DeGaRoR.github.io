@@ -60296,3 +60296,33 @@ step old (11-23 ms); a round trip carrying the node positions 0.04 ms (transfer)
 NB: the committed tools/flight_core.js on this base predates G610 (it flies the metal Cessna at 200 substeps); the
 probe rebuilt it locally and the built files were restored, not committed. Gates: none run - nothing under src/ or
 tools/ changed (a markdown file, four probe scripts under futureDesigns/, this entry).
+
+## G890 - THE ASSET CENSUS: WHAT SHIPS, WHAT LOADS, WHAT IS SHARED (2026-09-27, a study + a measuring tool, no game code)
+
+The user: "assets have been developed with no concern for reusability of textures or materials ... single materials
+that get PBR settings rather than per-part? ... the buildings, being procedural, would share a lot of DNA ... some may
+be redundant ... loaded while not used? Like the grass or some trees and ecosystems?" futureDesigns/ASSETS-2026-09-27.md
+answers with a static census, a load census, a candid diagnosis and a plan of ten sessions (AS0a-AS6, proposed
+G-blocks G900-G939) fitted into QUEUE-C's order without redoing TARR / C2c / C3 / C4 / A2-RUNWAYS.
+THE TOOL: tools/asset_census.js (a measurement, not a gate; writes nothing under media/ or src/). Static mode (node,
+1.5 s; --decode adds python/PIL near-duplicates, flat and grey maps, decode ms, 15 s): every texture (size, format,
+channels, role by name, GPU bytes as RGBA8 + mips, sha256 duplicates), who references each media file and whether
+the shipped page loads that manifest, every mesh payload evaluated with stub registrars (triangles, parts, LODs, gzip
+ratio), the biome reach of the vegetation collections, the material/texture/instancing code sites, the house
+generator run on _house_check.js's stub THREE (materials a finish makes, per-house uniforms, distinct value sets),
+the world pack gunzipped and the terrain quadtrees decoded. --runtime (LOCAL GPU box, written and smoke-tested in
+node against three r186, NOT run here) drives rollout_perf --eval with a page snippet: renderer.info, materials by
+uuid vs by signature, live textures by kind/owner/GPU MB, the SW media cache + resource timing, fetched-vs-bound.
+MEASURED [census]: 1 206 textures, 157 MiB shipped, ~3.2 GiB GPU if all resident, 0 KTX2; 186 of 208 normal maps
+JPEG; 48 flat maps (constants as textures: seven white 2048² char specular maps, 239 MiB GPU if bound); 32
+byte-identical groups (5.8 MiB) - the same ground sets in four libraries (lot, splat, pavement, site); 103 MiB of
+mesh bins raw on the wire (gzip -26 %); the hangar's 45 props with no LOD (~1 M tris); 54.6 MiB of Jodel OBJ
+variants no baker reads; the house finish = 27 materials and 159 per-house uniform values, 46 presets -> 1 242
+materials / 520 distinct value sets / 7 program shapes; the boot's world fetch 35.6 MiB / 181 MiB decoded (ARCH's
+48.7/238 counted the never-fetched authoring DEM) and the quadtrees decoded to 238 MiB of Float64 at every node.
+READ (file:line in the doc): the albedo RGBA DataTexture painted over by the ground hook (render_world.js:1545), the
+W1/W2 class weights sampled only by stack layer 0 / mode 4 (default stack starts at 1), every island DataTexture's
+image.data kept, ASSET_FETCH never releasing bytes, four tree species and two grasses no biome reachable on Jolene
+plants (fetched in the garage, built at roll-out), 3 of 19 splat sets unused on Jolene.
+Gates: none run - nothing under src/ changed; tools/asset_census.js is a standalone measurement no gate or build
+reads (node --check clean; GATE MEDIA re-run: PASS, the store untouched).
