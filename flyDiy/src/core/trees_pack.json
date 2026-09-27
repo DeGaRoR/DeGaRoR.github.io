@@ -29,7 +29,7 @@
     "bark": 0.34,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/cedar_tree.b6bfe359.bin",
+   "bin": "media/geo/trees/cedar_tree.b6bfe359.gz.bin",
    "bytes": 1508548,
    "subjects": [
     {
@@ -319,7 +319,7 @@
     "bark": 0.42,
     "alpha": 0.1
    },
-   "bin": "media/geo/trees/fir_tree_georgeous.5f4d8053.bin",
+   "bin": "media/geo/trees/fir_tree_georgeous.5f4d8053.gz.bin",
    "bytes": 457952,
    "subjects": [
     {
@@ -609,7 +609,7 @@
     "bark": 0.84,
     "alpha": 0
    },
-   "bin": "media/geo/trees/larch_tree.edb35369.bin",
+   "bin": "media/geo/trees/larch_tree.edb35369.gz.bin",
    "bytes": 761868,
    "subjects": [
     {
@@ -899,7 +899,7 @@
     "bark": 0.64,
     "alpha": 0.1
    },
-   "bin": "media/geo/trees/realistic_fir_trees_pack_lods_gameready.35a94bf6.bin",
+   "bin": "media/geo/trees/realistic_fir_trees_pack_lods_gameready.35a94bf6.gz.bin",
    "bytes": 1157756,
    "subjects": [
     {
@@ -1446,7 +1446,7 @@
     "bark": 0.42,
     "alpha": 0.2
    },
-   "bin": "media/geo/trees/spruce_tree.03b48def.bin",
+   "bin": "media/geo/trees/spruce_tree.03b48def.gz.bin",
    "bytes": 582900,
    "subjects": [
     {
@@ -1746,7 +1746,7 @@
     "bark": 1,
     "alpha": 0
    },
-   "bin": "media/geo/trees/pine_georgeous.e5a37d5b.bin",
+   "bin": "media/geo/trees/pine_georgeous.e5a37d5b.gz.bin",
    "bytes": 2050850,
    "subjects": [
     {
@@ -2046,7 +2046,7 @@
     "bark": 1,
     "alpha": 0.1
    },
-   "bin": "media/geo/trees/pine_evolveduk.e693ba46.bin",
+   "bin": "media/geo/trees/pine_evolveduk.e693ba46.gz.bin",
    "bytes": 288998,
    "subjects": [
     {
@@ -2336,7 +2336,7 @@
     "bark": 1,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/birch.e9b48ec1.bin",
+   "bin": "media/geo/trees/birch.e9b48ec1.gz.bin",
    "bytes": 529812,
    "subjects": [
     {
@@ -3140,7 +3140,7 @@
     "bark": 1,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/birch_autumn.fc8f08be.bin",
+   "bin": "media/geo/trees/birch_autumn.fc8f08be.gz.bin",
    "bytes": 377804,
    "subjects": [
     {
@@ -3687,7 +3687,7 @@
     "bark": 1,
     "alpha": 0.7
    },
-   "bin": "media/geo/trees/maple.5cb7ab83.bin",
+   "bin": "media/geo/trees/maple.5cb7ab83.gz.bin",
    "bytes": 289652,
    "subjects": [
     {
@@ -3977,7 +3977,7 @@
     "bark": 1,
     "alpha": 0.7
    },
-   "bin": "media/geo/trees/oak.bce4730a.bin",
+   "bin": "media/geo/trees/oak.bce4730a.gz.bin",
    "bytes": 223324,
    "subjects": [
     {
@@ -4267,7 +4267,7 @@
     "bark": 1,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/ash.8d0f2cd6.bin",
+   "bin": "media/geo/trees/ash.8d0f2cd6.gz.bin",
    "bytes": 170300,
    "subjects": [
     {
@@ -4563,7 +4563,7 @@
     "bark": 1,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/shrub_deciduous.7cab430b.bin",
+   "bin": "media/geo/trees/shrub_deciduous.7cab430b.gz.bin",
    "bytes": 133910,
    "subjects": [
     {
@@ -4706,7 +4706,7 @@
     "bark": 1,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/holly.01566cb7.bin",
+   "bin": "media/geo/trees/holly.01566cb7.gz.bin",
    "bytes": 141184,
    "subjects": [
     {
@@ -4795,7 +4795,7 @@
     "bark": 1,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/raspberry.61546274.bin",
+   "bin": "media/geo/trees/raspberry.61546274.gz.bin",
    "bytes": 272404,
    "subjects": [
     {
@@ -4884,7 +4884,7 @@
     "bark": 1,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/sapling_deciduous.a137063e.bin",
+   "bin": "media/geo/trees/sapling_deciduous.a137063e.gz.bin",
    "bytes": 5522,
    "subjects": [
     {
@@ -5025,7 +5025,7 @@
    "tint": {
     "bark": 1.6
    },
-   "bin": "media/geo/trees/dead_conifer.b97a48ba.bin",
+   "bin": "media/geo/trees/dead_conifer.b97a48ba.gz.bin",
    "bytes": 38080,
    "subjects": [
     {
@@ -5136,7 +5136,7 @@
    "tint": {
     "bark": 1.6
    },
-   "bin": "media/geo/trees/dead_deciduous.a24d213a.bin",
+   "bin": "media/geo/trees/dead_deciduous.a24d213a.gz.bin",
    "bytes": 31370,
    "subjects": [
     {
@@ -5266,7 +5266,7 @@
     "bark": 1,
     "alpha": 0.3
    },
-   "bin": "media/geo/trees/grass_dry.41af29d9.bin",
+   "bin": "media/geo/trees/grass_dry.41af29d9.gz.bin",
    "bytes": 3108,
    "subjects": [
     {
@@ -5578,7 +5578,7 @@
     "bark": 1,
     "alpha": 0.3
    },
-   "bin": "media/geo/trees/grass_reed.6a745c82.bin",
+   "bin": "media/geo/trees/grass_reed.6a745c82.gz.bin",
    "bytes": 38306,
    "subjects": [
     {
@@ -5732,7 +5732,7 @@
     "bark": 1,
     "alpha": 0.3
    },
-   "bin": "media/geo/trees/grass_plates.7ba183a5.bin",
+   "bin": "media/geo/trees/grass_plates.7ba183a5.gz.bin",
    "bytes": 1296,
    "subjects": [
     {
@@ -6133,7 +6133,7 @@
     "bark": 1,
     "alpha": 0.3
    },
-   "bin": "media/geo/trees/grass_scan.77547fdb.bin",
+   "bin": "media/geo/trees/grass_scan.77547fdb.gz.bin",
    "bytes": 850,
    "subjects": [
     {
@@ -6205,7 +6205,7 @@
     "bark": 1,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/pine_lampi.5311eee2.bin",
+   "bin": "media/geo/trees/pine_lampi.5311eee2.gz.bin",
    "bytes": 781650,
    "subjects": [
     {
@@ -6542,7 +6542,7 @@
     "bark": 1,
     "alpha": 0.4
    },
-   "bin": "media/geo/trees/rocks.4c24a02b.bin",
+   "bin": "media/geo/trees/rocks.4c24a02b.gz.bin",
    "bytes": 76936,
    "subjects": [
     {
@@ -7080,7 +7080,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/coast_land_rocks_02.8b112d45.bin",
+   "bin": "media/geo/trees/coast_land_rocks_02.8b112d45.gz.bin",
    "bytes": 27268,
    "subjects": [
     {
@@ -7150,7 +7150,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/coast_land_rocks_03.2e104166.bin",
+   "bin": "media/geo/trees/coast_land_rocks_03.2e104166.gz.bin",
    "bytes": 27346,
    "subjects": [
     {
@@ -7220,7 +7220,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/coast_land_rocks_04.95cd4b4f.bin",
+   "bin": "media/geo/trees/coast_land_rocks_04.95cd4b4f.gz.bin",
    "bytes": 23768,
    "subjects": [
     {
@@ -7290,7 +7290,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/coast_rocks_05.44cd05bd.bin",
+   "bin": "media/geo/trees/coast_rocks_05.44cd05bd.gz.bin",
    "bytes": 29452,
    "subjects": [
     {
@@ -7360,7 +7360,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/sand_rocks_small_01.a308c9cb.bin",
+   "bin": "media/geo/trees/sand_rocks_small_01.a308c9cb.gz.bin",
    "bytes": 31322,
    "subjects": [
     {
@@ -7430,7 +7430,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/coast_rocks_03.f0708f09.bin",
+   "bin": "media/geo/trees/coast_rocks_03.f0708f09.gz.bin",
    "bytes": 24594,
    "subjects": [
     {
@@ -7499,7 +7499,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/lowpoly_sticks.75854bd4.bin",
+   "bin": "media/geo/trees/lowpoly_sticks.75854bd4.gz.bin",
    "bytes": 377672,
    "subjects": [
     {
@@ -7997,7 +7997,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/lowpoly_sticks_-_free_download.eed7a20b.bin",
+   "bin": "media/geo/trees/lowpoly_sticks_-_free_download.eed7a20b.gz.bin",
    "bytes": 61640,
    "subjects": [
     {
@@ -8807,7 +8807,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/log.aa386e95.bin",
+   "bin": "media/geo/trees/log.aa386e95.gz.bin",
    "bytes": 12680,
    "subjects": [
     {
@@ -8876,7 +8876,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/dry_branches_medium_01.ceb36b1f.bin",
+   "bin": "media/geo/trees/dry_branches_medium_01.ceb36b1f.gz.bin",
    "bytes": 20938,
    "subjects": [
     {
@@ -8945,7 +8945,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/dead_tree_trunk_02.36cba24e.bin",
+   "bin": "media/geo/trees/dead_tree_trunk_02.36cba24e.gz.bin",
    "bytes": 23032,
    "subjects": [
     {
@@ -9014,7 +9014,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/tree_stump_01.b9d0eda0.bin",
+   "bin": "media/geo/trees/tree_stump_01.b9d0eda0.gz.bin",
    "bytes": 16920,
    "subjects": [
     {
@@ -9083,7 +9083,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/coastal_cliff_02.d3b13303.bin",
+   "bin": "media/geo/trees/coastal_cliff_02.d3b13303.gz.bin",
    "bytes": 123066,
    "subjects": [
     {
@@ -9152,7 +9152,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/coastal_cliff_04.d8bba191.bin",
+   "bin": "media/geo/trees/coastal_cliff_04.d8bba191.gz.bin",
    "bytes": 128624,
    "subjects": [
     {
@@ -9221,7 +9221,7 @@
     "sat": 1,
     "light": 1
    },
-   "bin": "media/geo/trees/namaqualand_cliff_02.8070e416.bin",
+   "bin": "media/geo/trees/namaqualand_cliff_02.8070e416.gz.bin",
    "bytes": 138034,
    "subjects": [
     {
