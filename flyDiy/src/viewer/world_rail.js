@@ -444,7 +444,7 @@
     { k: 'filter', label: 'filtering', title: 'Tiling, blending, distance, texture filtering', build: buildFilter },
     { k: 'veg', label: 'vegetation', title: 'The fill’s rule, the cover ring, the trees’ colour', build: buildVeg },
     { k: 'cliffs', label: 'cliffs', title: 'The photoscanned cliffs and the rocks at distance', build: buildCliffs },
-    { k: 'scenery', label: 'scenery', title: 'The scenery editor (roads, zones, strips, sites) and the maps', build: buildScenery },
+    { k: 'scenery', label: 'air & map', title: 'The air while you work and the maps (the scenery editor and the test mode are the left rail\u2019s DEV)', build: buildScenery },
     { k: 'file', label: 'export', title: 'Export, import, the changes against the defaults, reset', build: buildFile },
   ];
 
@@ -946,17 +946,14 @@
   }
 
   // ---- SCENERY ----
+  // G760 (the rails regrouped, the user: "The world editor does not belong there"): the scenery editor (the
+  // premises editor, what was called the world editor) and the scenery mode (the test mode without physics)
+  // moved to the LEFT rail's DEV item, which shows itself in the scenery mode; this card points there
   function buildScenery(body) {
-    const S = sec(body, 'the scenery editor', true, 'roads, zones, strips, sites, objects');
-    const PE = W.PREMISES_EDITOR;
-    note(S, 'what was called the world editor: the premises composed into the world - airfields, roads, zones, sites and their objects. It opens over the scene with the sim held, on its own right-hand panel (this rail steps aside while it is open).');
-    if (PE && W.PREMISES_UI) button(S, PE.open ? 'close the scenery editor' : 'open the scenery editor', () => { if (PE.open) PE.close(); else { PE.openEditor(); } refreshRail(); });
-    else note(S, 'this build has no scenery editor (the world pack did not load)');
-    const M = sec(body, 'the scenery mode', true, 'the world without the flight');
-    const SC = W.SCENERY;
-    note(M, 'the flight held, the aeroplane off the stage, the free camera (WASD/ZQSD, R/F up and down, Shift x5, the wheel for speed, drag to look). Start the game in it with ?scenery=1.');
-    if (SC) button(M, SC.on ? 'back to the flight' : 'enter the scenery mode', () => { if (SC.on) SC.leave(); else SC.enter(); setTimeout(() => open('scenery', true), 900); });
-    if (W.DEV_CAM) range(M, 'camera speed', 1, 400, 1, () => W.DEV_CAM.speed, v => { W.DEV_CAM.speed = v; }, v => v.toFixed(0) + ' m/s');
+    const S = sec(body, 'the scenery editor and the test mode', true, 'moved to the left rail: DEV');
+    note(S, 'the scenery editor (roads, zones, strips, sites and their objects) and the test mode without physics (the scenery mode, ?scenery=1) live on the left rail\u2019s DEV item now, with the flight log and the overlays; DEV shows itself in the test mode.');
+    const FR = W.FLYDIY_RAIL;
+    if (FR) button(S, 'open DEV on the left rail', () => FR.open('dev'));
     airCard(body);
     if (Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length) {
       const Mp = sec(body, 'the map', false);
@@ -1088,7 +1085,6 @@
     if (!tick) tick = setInterval(() => { if (fly && !fly.hidden) for (const f of live) { try { f(); } catch (e) {} } }, 500);
   }
   function close() { if (tick) { clearInterval(tick); tick = 0; } if (fly) fly.hidden = true; if (rail) for (const b of rail.querySelectorAll('.wrBtn')) b.classList.remove('on'); }
-  function refreshRail() { if (fly && !fly.hidden) setTimeout(() => open(UI.sec, true), 50); }
   function show(on) {
     if (!rail) build();
     UI.shown = on; saveUI();
