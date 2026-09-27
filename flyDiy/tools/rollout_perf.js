@@ -302,8 +302,15 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (premStream && premStream.slow && premStream.slow.length) console.log('  premises slow builds: ' + premStream.slow.slice().sort((a, b) => b[1] - a[1]).slice(0, 12).map(x => x[0] + ' ' + x[1]).join(', '));
   // CLOSED, NOT KILLED (G591): Chrome writes its GPU program cache on the way out; the taskkill /F alone left the warm
   // profile's cache without the programs a run compiled, so every 'warm' run linked them again (the compile step 15 -> 40 s)
-  try { await Promise.race([cmd('Browser.close'), sleep(8000)]); await sleep(2500); } catch (e) {}
-  ws.close(); kill();
+  // ...AND WAITED FOR (2026-09-27, A2-SHADOW-SKY's find): a fixed 2.5 s then `taskkill /T /F` of the whole tree still cut
+  // the cache write short - the warm profile's GPUCache/index stopped being rewritten, so every program first compiled
+  // after that linked cold on every 'warm' run (a changed-shader branch read 36 s, the cold number). Wait for Chrome's
+  // own exit (15 s at most); the kill is only the fallback for a Chrome that did not go.
+  const exited = new Promise(res => { if (ch.exitCode !== null) return res(true); ch.once('exit', () => res(true)); setTimeout(() => res(false), 15000); });
+  try { await Promise.race([cmd('Browser.close'), sleep(8000)]); } catch (e) {}
+  const clean = await exited;
+  if (!clean) console.log('  (Chrome did not exit within 15 s of Browser.close - killed; the warm profile\'s GPU cache may be stale)');
+  ws.close(); if (!clean) kill(); else if (server) try { if (process.platform === 'win32') execSync('taskkill /PID ' + server.pid + ' /T /F', { stdio: 'ignore' }); else server.kill(); } catch (e) {}
   if (COLD) try { fs.rmSync(UDD, { recursive: true, force: true }); } catch (e) {}
 
   // ---- the reading ------------------------------------------------------------
