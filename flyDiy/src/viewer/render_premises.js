@@ -673,7 +673,10 @@ function make(THREE, scene, world, rec0, opts) {
     }
     return k;
   };
-  const stripKeep = (x, z) => { const L = O.frame.toLocal(x, z); let k = 1; for (const r of O.runways) { if (PG.runwayIsWater(r)) continue; const box = PG.runwayBox(r, 0); if (PG.inPoly(box, L[0], L[1])) return 0; const d = -PG.sdPoly(box, L[0], L[1]); k = Math.min(k, Math.max(0, Math.min(1, (-d - 1) / 4))); } return k; };
+  const stripKeep = (x, z) => { const L = O.frame.toLocal(x, z); let k = 1; for (const r of O.runways) { if (PG.runwayIsWater(r)) continue; const box = PG.runwayBox(r, 0); if (PG.inPoly(box, L[0], L[1])) return 0; const d = -PG.sdPoly(box, L[0], L[1]); k = Math.min(k, Math.max(0, Math.min(1, (-d - 1) / 4))); }
+    // G981: nor over an apron - the taxiways' bands crossed the pad
+    for (const pp of O.pavePolys || []) { const d = PG.sdPoly(pp.poly, L[0], L[1]); if (d <= 0) return 0; k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4))); }
+    return k; };
   const disposePav = m => { if (m.material && m.material.userData && m.material.userData.pav && PAV) PAV.dispose(m.material); };
   // THE GUARDRAIL (2026-09-22): the W-beam module decides WHERE from the ground itself (the drop past
   // the shoulder, the bend's outside); this says where one may not stand - the user's "the large road
@@ -769,7 +772,8 @@ function make(THREE, scene, world, rec0, opts) {
           sinkD0: o.game ? PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe) : null });   // the patch is sunk under it (G660)
         const marks = RS.marks === 'none' ? { rects: [], segs: [], wid: rd.w } : PAV.roadMarks(pr.length, rd.w, RS.cls, RS.recipe);
         if (RS.marks === 'edges') marks.rects = marks.rects.filter(r => !(r[5] > 0)); else if (RS.marks === 'centre') marks.rects = marks.rects.filter(r => r[5] > 0);
-        const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band });
+        const rb = geo.boundingSphere, rKeep = rb ? stripBoxesNear(rb.center.x - rb.radius, rb.center.z - rb.radius, rb.center.x + rb.radius, rb.center.z + rb.radius, null) : [];
+        const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band, keep: rKeep, fadeA: rd.fadeA, fadeB: rd.fadeB, side: !!rd.taxiway });   // G981: the junctions; G980: a taxiway's sides
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.name = 'road:' + rd.id;   // culled by its own sphere (G663) m.userData.premId = rd.id;
         G.roads.add(m);
         buildLine(rd, pr, buildRail(rd, pr));

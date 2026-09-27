@@ -98,7 +98,7 @@ const PAVEMENT = (() => {
     // polygon's band - the gravel, the grass creeping in, the shoulder's vehicle paths - is no longer drawn:
     // past the edge the surface's own colour goes to alpha over sideW metres (from sideA), and the island's
     // ground shows. The band still EXCLUDES the vegetation (coverAt's PAVE_BAND is untouched). 0 = the band.
-    sideFade: 1, sideW: 2, sideA: 0.5,
+    sideFade: 1, sideW: 1.2, sideA: 0.35,
     detailFrom: 250, detailTo: 900, normalFrom: 120, normalTo: 500,
     specK: 1.0, nrmK: 1.0,
     softMix: 0.8, coarseK: 0.7, wheelBand: 0.85, treadK: 0.8, paintRelief: 1.0, mow: 0.6, edgeSoft: 2.6, grassRough: 0.82,
@@ -575,7 +575,7 @@ uniform vec4 uGrade[8], uTint[8];
 uniform vec4 uMean;
 uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
-uniform vec4 uSide; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];
+uniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
 float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
 struct Smp { vec4 c; vec4 n; };
@@ -643,6 +643,18 @@ float pvKeep(vec2 p) {
     k = min(k, smoothstep(0.3, 2.0, sd));
   }
   return k;
+}
+// how deep p lies inside the deepest keep box (metres, <= 0 outside): a road's or an apron's own surface fades out
+// just inside a strip's box (G981), so the strip's surface is the one seen at a junction
+float pvInside(vec2 p) {
+  float din = -1e3;
+  for (int i = 0; i < ${NKEEP}; i++) {
+    if (i >= uKeepN) break;
+    vec4 A = uKeepA[i], B = uKeepB[i]; vec2 d = p - A.xy;
+    vec2 q = vec2(abs(d.x * A.z + d.y * A.w) - B.x, abs(-d.x * A.w + d.y * A.z) - B.y);
+    din = max(din, -(length(max(q, 0.0)) + min(max(q.x, q.y), 0.0)));
+  }
+  return din;
 }
 // a slot's set at the pavement's (u, v): the paved slots turn a little (a brushed finish has a grain), the loose ones any way
 Smp pvSet(int slot, vec2 uv) {
@@ -1066,6 +1078,13 @@ float pvTread(float u, float x, float w, float seed) {
       gPavA = max(wPav, sideA * clamp(vPavSh, 0.0, 1.0));
     }
     if (dE < 0.0 && uKeepN > 0) gPavA *= pvKeep(vPavW.xz);
+    // THE JUNCTIONS (G981): a road or an apron over a strip hands over to it 0.8-2.5 m inside the strip's box (the
+    // strip's chipped edge stays covered); a road END carried onto an apron fades over its last metres
+    if (uSide.w > 0.5 && uKeepN > 0) gPavA *= 1.0 - smoothstep(0.8, 2.5, pvInside(vPavW.xz));
+    if (road && !isPoly) {
+      if (uRoadEnd.x > 0.0) gPavA *= smoothstep(0.0, uRoadEnd.x, u);
+      if (uRoadEnd.y > 0.0) gPavA *= smoothstep(0.0, uRoadEnd.y, 2.0 * halfL - u);
+    }
     // A GRASS ROAD IS THE WORLD'S GRASS WITH TRACKS IN IT: the mesh shows only where the wheels wore
     // it (the ruts, the compacted band, the tread); a grass STRIP keeps a share of its own lawn (it
     // is mown, and that reads) - the rest is the ground under it
@@ -1144,7 +1163,7 @@ float pvTread(float u, float x, float w, float seed) {
     const sk = cls.soft || [1, 1, 1, 1];                                       // the class's own share of each soft layer
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);
-    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, r.sideW || 2, r.sideA === undefined ? 0.5 : r.sideA, 0);
+    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, r.sideW || 1.2, r.sideA === undefined ? 0.35 : r.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons)
   }
   // setKeep(m, boxes): the pavements this one's side must not lie over (G664) - [{ cx, cz, hdg, halfL, halfW }],
   // the strip frame's own convention (T = [cos hdg, sin hdg]); at most NKEEP, the nearest first
@@ -1182,8 +1201,8 @@ float pvTread(float u, float x, float w, float seed) {
       uMean: { value: new THREE.Vector4(0.2, 0.2, 0.2, 0.9) }, uGrade: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 0, 0)) }, uTint: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 1, 0)) },
       uMarkN: { value: Math.min(NMARK, marks.rects.length) }, uSegN: { value: Math.min(NSEG, marks.segs.length) },
       uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk },
-      uSide: v4(), uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
-    // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, never a road's
+      uSide: v4(), uRoadEnd: { value: new THREE.Vector4(+o.fadeA || 0, +o.fadeB || 0, 0, 0) }, uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
+    // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
     m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); };

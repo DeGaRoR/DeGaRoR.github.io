@@ -61704,3 +61704,46 @@ see-through variants after the lift (1.4 s); a shadows toggle's click (1.3 s on 
   SITE, PAVEMENT) on the commit rebased on f0bd9eaf: BATTERY PASS. Red on the way, mine and fixed: LIGHT and BENCH (source
   scans of `function rollOut`), STARTER and LIVERY (scans of `function applySpec`'s body - it stayed there), UISMOKE (the
   frames step returned a promise in the synchronous harness). The full tier was not run (merge train: the integrator's).
+## G980-G982 - THE SIDES ARE THE ISLAND'S GROUND, THE JUNCTIONS CLOSE, THE FLICKER RE-SHOT (2026-09-27, A2-RUNWAYS follow-up, batch A)
+
+The user, after G660: "making the outside runway lanes transparent shows the ground below, was a bad suggestion. I now
+think that we should simply use the same texture as the surroundings (grass, is it?) and the same transformation, so it
+blends better. Also, in the junctions between the different aprons and runways, there are gaps, and it would be good
+that the pavement is continuous." And: "the runway flicker is still present". PLAYTEST-2026-09-26.md §0.7b.
+
+G980 THE SIDES ARE THE ISLAND'S GROUND (27_premises stampTtype's band stamps; pavement.js side defaults). What showed
+through the transparent side was not "the ground below" in general: it was the island's land cover, which calls the
+real airfield's whole footprint BUILT (code 10, drawn as dirt) ~40 m either side of a runway's centreline, where the
+open ground beyond is scrub (7), heath (2), muskeg (3). Every BUILT cell inside a strip's, a paved polygon's or a
+TAXIWAY's band + fade now takes the code of the ground just beyond the band (rings of 8 directions 10 m apart out to
+120 m, the nearest cell outside the reach that is not forest, cliff or water - BAND_SKIP; 7 if none). Round the pad and
+the hangars the surroundings ARE built, so the ground stays built there (a first cut that always took open ground
+ringed the apron with a green halo inside the dirt). The ground's own splat - its own layers, uv law,
+grades and tint - then draws the surroundings up to the pavement's edge. Only the ttype byte moves: the cover raster
+(the wheels' class, the fill's refusal) is untouched, and coverAt still keeps the vegetation off the band. The band
+stamps run before the authored ttype polygons, so an authored stamp keeps the last word; the undo unwinds both.
+The pavement's own side is down to a 1.2 m edge fade from alpha 0.35 (RECIPE sideW / sideA; sideFade 0 restores the old
+band). A TAXIWAY (core roadObj.taxiway: a concrete road 10 m wide or more that meets a strip or an apron - on Jolene
+r_taxi_ne and r_taxi_e) takes the same side and the same stamp; every other road keeps its band. Measured: across 13/31
+and 02/20 the 10s beside the pavement are 7/3 now (tools: the code walk in §0.7b).
+G981 THE JUNCTIONS (27_premises roadObjs, pavement.js uRoadEnd / pvInside, render_premises). The taxiways stopped where
+they were traced: r_taxi_ne 7.2 m short of 13/31's edge, r_taxi_e 5 m short of the pad - the ground showed through, and
+the taxiways' gravel bands ran across the pad. (1) A road END within 15 m of a strip's box or a paved polygon (or on it)
+is carried along its own tangent until it lies 3.5 m inside; roadObjs only (surfaceAt, coverAt, pavedAt, the ribbon) -
+the grade keeps the traced points, so the runway's ground is not re-graded under it. (2) A road's and an apron's own
+surface hands over to a strip 0.8-2.5 m inside the strip's box (keep boxes, uSide.w): the strip's chipped edge stays
+covered and the strip's surface - its markings, the threshold - is the one seen at the junction (the turnarounds
+overlapped their runways by 6-10 m at full weight). (3) A road end on an apron fades over its last 3 m (uRoadEnd).
+(4) A road's band fades inside a paved polygon as it did inside a strip (stripKeep). One surface at every junction, no
+two pavements drawn over each other at full weight; the draw order is still the fixed one (strips 1.990+, aprons 2.0+,
+roads 3).
+G982 THE FLICKER, RE-SHOT on the user's eyes (the taxiway at (45, 672): 144959/145145's 28 m top-down, 142931's 14 m
+grazing), PAUSED with the camera still, diffed pixel by pixel on the ground half: 0 pixels change by more than 24 on
+master 5666f3ad and on this branch, with shadows on and off, AA off and msaa. G660's sink holds; the slow orbit pops
+nothing. The flicker the user still sees is the Pages build (no batch A); what motion leaves is sub-pixel aliasing of
+the finest pavement detail, the same with shadows or AA off - no other system implicated.
+PICTURES: tools/perf/a2r2_{before,after}_{B,B_s0,B_s4,A_s1,A}.jpg (island_shot, one boot each; before = master
+5666f3ad from a clean worktree). Rig: the scratch shots2.sh pattern (--step with a paused teleport + camSet).
+GATES (targeted): PAVEMENT, PREMISES, PREMRASTER, SITE, WORLDRENDER, GFX, PROGRAMS, COVER, SPLAT, UISMOKE, BOOT, MEDIA,
+WORLD, SETTLE, SURF, GE, TAKEOFF, TAXICLEAR, PILOTACT, STAND, PARKED, OBSTACLE - all PASS. (PREMISES 14o caught a first
+taxiway rule that took Metlakatla's narrow worn-concrete streets; the 10 m + joins-a-strip-or-apron rule fixed it.)
