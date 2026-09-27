@@ -228,8 +228,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const u = rr(-2, o.len + 2), v = (rnd() < 0.5 ? -1 : 1) * rr(o.wid / 2 + 0.2, o.wid / 2 + band + 1.5);
       const w = o.toWorld(u, v), f = field.at(w[0], w[1]); const d = -f.dEdge;
       if (d < 0.2 || d > band + 1.5) continue;
-      // not in a pond (G660: with the band no longer drawn over it, a pool beside 02/20 showed its stones afloat)
-      if (world.waterH) { const wy = world.waterH(w[0], w[1]); if (Number.isFinite(wy) && wy > world.terrainH(w[0], w[1]) - 0.05) continue; }
+      // not in a pond (G667: with the band no longer drawn over it, a pool beside 02/20 showed its stones afloat) - the
+      // DRAWN water (waterDrawY: a lake's quad), not the physics' waterH, which there is dry: the runway's flatten dug
+      // the ground under the DEM lake's plane
+      { const wy = waterDrawY(w[0], w[1]); if (wy !== null && Number.isFinite(wy) && wy > world.terrainH(w[0], w[1]) - 0.05) continue; }
       if (rnd() > 0.35 + 0.65 * Math.min(1, d / band)) continue;
       rows.push([w[0], w[1], rr(0, 6.3), rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1), Math.floor(rnd() * parts.length)]);
     }

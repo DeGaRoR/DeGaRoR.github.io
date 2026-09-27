@@ -60739,7 +60739,9 @@ G665 no grass on a grass STRIP's surface: coverAt kills 1 there (a grass road, a
 G666 tools/_big_gen.js billboard: the posts centred at z -0.14 (front face -0.06), 3 cm behind the backing. They were
 centred at -0.06 with a 16 cm section: the front face was the sign's own plane (+0.02), and the post cut the backing box.
 G667 strip stones: under 0.5 m no shadow; the ones of 0.5 m and more cast from their own InstancedMesh per part per cell.
-Casting instances 7 389 -> 134 (meshes 501 -> 612). No stone is stood where the world's water is over the ground.
+Casting instances 7 389 -> 134 (meshes 501 -> 612). No stone is stood where the DRAWN water (waterDrawY, a lake's
+quad) is over the ground. The physics' waterH is dry at the 02/20 pond: the runway's flatten dug the ground under the
+DEM lake's plane, so the picture holds water the solver does not (a B4 / terrain item).
 PICTURES: tools/perf/a2r_{before,after}_s{0,1,2,4}.jpg, one boot each (tools/island_shot.js --at 152,0.992,615 on
 13/31 + --cam / --step): s0 the wheel, s1 30 m top-down (before: white blotches of ground through the concrete),
 s2 grazing down the runway, s4 the 02/20 crossing from 160 m (before: the bands over each other).
@@ -60752,4 +60754,10 @@ Serve a clean worktree of the base (rollout_perf from that worktree, `--eval @<a
 MEASURED (warm, pinned 60, 120 s; stock / metal Cessna, before -> after): taxi 59.9 / 59.5 fps both; loop 19.5 -> 19.6 /
 21.7 -> 21.6 ms; render 10.9 -> 10.8 / 11.1 -> 10.9 (shadow 1.8 -> 1.7 / 1.9 -> 1.8). The taxi frame does not move; the
 wins are the shadow casters and the culled pavement once the eye leaves the field.
-GATES: see the ready message / §0.7 (targeted, and the flight sweeps base vs branch).
+GATES (branch vs base 4f685458, one run each): every targeted core gate green - the flight set (GEN, PILOT, FLEX, LOAD,
+TAKEOFF, PILOTACT, HONEST, GE, SUBSTEP, PACE, STAND, PARKED, FLOATS, HYDRODYN, ...) and the render set (PAVEMENT,
+PREMISES, PREMRASTER, SPLAT, WORLDRENDER, GFX, PROGRAMS, COVER, UISMOKE, BOOT, MEDIA, SITE, HOUSE, VILLAGE, WORLD,
+SETTLE, SURF); UISMOKE and LOAD crashed natively (0xC0000005 / 0x80000003) with two batteries at once and passed
+alone. The full tier's known reds identical in verdict: PILOTMATRIX every cell the same X/~/ok (sink +-0.04 m/s, aim
++-1 m, swing +-0.5 deg), SEAPLANE the same 3 (the lane 44.3 -> 47.2 m, bound 30), ARCHETYPES FAIL 2/4/4 + PASS per
+shard on the same lines, SOAR identical. The integrator's train runs --all on top of 03a62e4a.
