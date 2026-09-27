@@ -435,35 +435,72 @@
     return 'last ' + f.length + ' frames: ' + med.toFixed(0) + ' ms median (' + (1000 / med).toFixed(0) + ' fps) · ' + p90.toFixed(0) + ' ms p90 · ' + f[f.length - 1].toFixed(0) + ' ms max' + pace + frz;
   };
 
+  // ---- G760: THE GROUPS (the Jolene playtest's §3, the user: "The graphics option is too long and lacks structure
+  // ... we should have collapsable sections for the options sub-categories") ------------------------------------------
+  // Every option in exactly ONE group (GATE GFX holds it: none twice, none left out; GATE UISMOKE counts the rows the
+  // menu mounts before and after the grouping). The groups are the host's collapsible sections when it gives
+  // H.section, and are ordered by what a player reaches for: the cost first, the picture's parts after it.
+  const GROUPS = [
+    { k: 'perf', label: 'performance', sub: 'the preset, the frame rate, the scale, the smoothing', rows: ['fps', 'scale', 'aa', 'drawDist'] },
+    { k: 'light', label: 'light & shadows', sub: 'the shadows, the light rig, the exposure, the tone curve', rows: ['shadows', 'canopy', 'lighting', 'exposure', 'tone', 'compositing', 'colour'] },
+    { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover'] },
+    { k: 'water', label: 'water', sub: 'the sea and its reflections', rows: ['water', 'mirror'] },
+    { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'glare'] },
+    { k: 'post', label: 'post-fx', sub: 'the passes over the finished frame', rows: ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'] },
+    { k: 'town', label: 'town', sub: 'which towns, their detail, the road furniture', rows: ['town', 'scenery', 'rails', 'poles'] },
+  ];
+  const OPT = {}; for (const o of OPTIONS) OPT[o.k] = o;
+
   // ---- the menu, in the host's own words ---------------------------------
-  // helpers: { row(host, label) -> element, pills(host, list, isOn, pick), note(host, text) }
+  // helpers: { row(host, label) -> element, pills(host, list, isOn, pick), note(host, text) [, section(host, key, title, sub)
+  // -> the section's body, or null while it is folded] [, refresh()] }. WITH H.section (G760, both rails) the menu is the
+  // seven GROUPS above and the preset heads `performance`; the map row (mountWorld), the fps meter and the flight log
+  // (FLIGHT_REC.mountMeter / mountLog) are the hosts' to place - the flight rail puts them in SKY & WORLD, VIEW and DEV.
+  // WITHOUT it the menu is the one flat list it was (every row, the map and the recorder's rows included).
+  const pickFor = H => (k, v) => { set(k, v); if (H.refresh) H.refresh(); if (k !== 'fps' && typeof W.FLYDIY_SETTLE === 'function') W.FLYDIY_SETTLE(k); };
+  const optionRow = (host, H, o, pick) => {
+    H.row(host, o.label);
+    H.pills(host, o.steps.map(s => ({ label: s.label, value: s.v, title: s.why })),
+      x => x.value === S[o.k], x => pick(o.k, x.value));
+  };
+  // THE WORLD (G434): the map the game boots on - the page's loader published the list and its
+  // choice (build.js: ?world=, else this pref, else Jolene); picking another stores it and reloads
+  const mountWorld = (body, H) => {
+    if (!(Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length)) return false;
+    const cur = W.FLYDIY_WORLD || 'none';
+    H.row(body, 'world');
+    H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : 'the island from the data: its own field, dock and village' })),
+      o => o.value === cur, o => { if (o.value === cur) return; try { W.localStorage.setItem('flydiy.world', o.value); } catch (e) {} W.location.reload(); });
+    H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the world editor’s record).');
+    return true;
+  };
   const mount = (body, H) => {
     // G640: a picked row that re-keys programs gets the loading screen (app.js FLYDIY_SETTLE: the compile
     // counted under the overlay, never a frozen frame); the frame rate row is not a picture's
-    const pick = (k, v) => { set(k, v); if (H.refresh) H.refresh(); if (k !== 'fps' && typeof W.FLYDIY_SETTLE === 'function') W.FLYDIY_SETTLE(k); };
-    // THE WORLD (G434): the map the game boots on - the page's loader published the list and its
-    // choice (build.js: ?world=, else this pref, else Jolene); picking another stores it and reloads
-    if (Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length) {
-      const cur = W.FLYDIY_WORLD || 'none';
-      H.row(body, 'world');
-      H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : 'the island from the data: its own field, dock and village' })),
-        o => o.value === cur, o => { if (o.value === cur) return; try { W.localStorage.setItem('flydiy.world', o.value); } catch (e) {} W.location.reload(); });
-      H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the world editor’s record).');
+    const pick = pickFor(H);
+    const grouped = typeof H.section === 'function';
+    if (!grouped) mountWorld(body, H);
+    // the performance group carries the preset, the options, the frame's readout and the storage line
+    const perf = grouped ? H.section(body, 'gfx.perf', GROUPS[0].label, GROUPS[0].sub) : body;
+    let readout = null;
+    if (perf) {
+      H.row(perf, 'preset');
+      H.pills(perf, Object.keys(PRESETS).concat(['custom']).map(p => ({
+          label: PRESET_LABEL[p] || p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
+          why: p === 'custom' && S.preset !== 'custom' ? 'change any option below' : undefined })),
+        o => o.value === S.preset, o => pick('preset', o.value));
+      if (grouped) { for (const k of GROUPS[0].rows) optionRow(perf, H, OPT[k], pick); }
+      else for (const o of OPTIONS) optionRow(perf, H, o, pick);
+      readout = H.note(perf, frameText());
     }
-    H.row(body, 'preset');
-    H.pills(body, Object.keys(PRESETS).concat(['custom']).map(p => ({
-        label: PRESET_LABEL[p] || p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
-        why: p === 'custom' && S.preset !== 'custom' ? 'change any option below' : undefined })),
-      o => o.value === S.preset, o => pick('preset', o.value));
-    for (const o of OPTIONS) {
-      H.row(body, o.label);
-      H.pills(body, o.steps.map(s => ({ label: s.label, value: s.v, title: s.why })),
-        x => x.value === S[o.k], x => pick(o.k, x.value));
+    if (grouped) for (const g of GROUPS.slice(1)) {
+      const b = H.section(body, 'gfx.' + g.k, g.label, g.sub);
+      if (b) for (const k of g.rows) optionRow(b, H, OPT[k], pick);
     }
-    const readout = H.note(body, frameText());
     // G620: THE FPS METER and THE FLIGHT LOG (flight_recorder.js): the meter's switch, the log's download
-    if (W.FLIGHT_REC && W.FLIGHT_REC.mount) W.FLIGHT_REC.mount(body, H);
-    H.note(body, 'Everything takes effect at once; nothing needs a restart. Changing the ' +
+    if (!grouped && W.FLIGHT_REC && W.FLIGHT_REC.mount) W.FLIGHT_REC.mount(body, H);
+    const tail = perf || (grouped ? null : body);
+    if (tail) H.note(tail, 'Everything takes effect at once; nothing needs a restart. Changing the ' +
                  'anti-aliasing reallocates the frame (a blink), a new density re-streams the ' +
                  'forest around you (about ten seconds), and shadows off or on recompiles the ' +
                  'lit surfaces (a short hitch). The tone curve and the exposure are live; ' +
@@ -473,14 +510,15 @@
     // to refresh caches manually, and show the version numbers local and server
     // side"): the build this page runs, the server's (version.json, no-store),
     // the media cache's size, the worker's state - and the button
-    if (W.STORAGE) {
-      H.row(body, 'storage');
-      const st = H.note(body, W.STORAGE.line());
-      const upd = () => { if (st && body.isConnected) st.textContent = W.STORAGE.line(); };
+    if (W.STORAGE && tail) {
+      H.row(tail, 'storage');
+      const st = H.note(tail, W.STORAGE.line());
+      const upd = () => { if (st && tail.isConnected) st.textContent = W.STORAGE.line(); };
       W.STORAGE.checkServer().then(upd); W.STORAGE.measure().then(upd);
-      H.pills(body, [{ label: 'refresh caches', value: 'refresh', title: 'drop the media cache, update the worker and reload the page' }],
+      H.pills(tail, [{ label: 'refresh caches', value: 'refresh', title: 'drop the media cache, update the worker and reload the page' }],
         () => false, () => { if (st) st.textContent = 'refreshing…'; W.STORAGE.refresh(); });
     }
+    if (!readout) return;
     hosts++;
     if (!rafId) { last = 0; rafId = W.requestAnimationFrame(tick); }
     const iv = setInterval(() => {
@@ -494,9 +532,9 @@
   // this script, from the same stored key, so read the truth back
   if (W.THREE && W.THREE.ColorManagement) S.colour = W.THREE.ColorManagement.enabled ? 'managed' : 'linear';
   W.GFX = {
-    OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS,
+    OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS, GROUPS,
     get: () => Object.assign({}, S),
-    set, apply, mount, presetOf, frameText,
+    set, apply, mount, mountWorld, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
     // the world calls this once it exists (render_world.js, end of build)
     onWorld: () => { applied = {}; apply(); },
