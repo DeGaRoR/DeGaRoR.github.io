@@ -61068,3 +61068,158 @@ brought to green by another session) - it sits behind a flag, OFF, and this entr
   "surface perf < 5 us" budget at 5.1 us under the pool's load: alone, 3.3-3.5 us here and on a clean base worktree,
   the same checksum - the analytic world composes no premises. Built outputs rebuilt by the runner and restored, not
   committed (a cloud branch). futureDesigns: none changed; QUEUE-C's C2b row is this.
+## G770-G772 - THE CUB BY DEFAULT, SKIP TO LINE-UP, AND THE RIGHT ARM OF THE V (2026-09-27, B6, cloud)
+
+Three asks from the user after the Jolene playtest. Built on claude/batch-a-base 4f68545, then REBASED on 01c1ba4
+(G700 B3a, G710 B3b, G810 and batch A-2 landed meanwhile) and reconciled with them - see ON G700 / G710 below.
+
+**G770 - THE CUB IS THE PLAYER'S DEFAULT** ("the default plane should be updated to the cub once and for all, sick of
+seeing the very first test aircraft for so long"). Where "the stock build" was the default, found by search:
+- the garage bridge's `api.defaults()` (app.js garageInit): `GEN_DEFAULT`, which garage.js puts on the shelf
+  (garage.js:745 `let spec = api.defaults()`) when there is no working build, and the boot's syncBuild then joined
+  with the editor's page-default cage - the 'Garage Special' the user was sick of. NOW `playerDefaultSpec()`: the Cub
+  archetype exactly as the birth flow's Cub tile bakes it (`CAGE_DESIGN.designBake` on the 'cub' card, normalised),
+  with a cage, so the boot adopts it (app.js 'aircraft' step), seeds the editor with it and the join measures it.
+  GEN_DEFAULT only if the design rows are absent. A saved working build (flydiy.wip) still wins, untouched.
+- the editor's `reset` (the display section's file row, tools/_cage_ui.js): it reset the cage rows to the page's own
+  cage, the old stock's shape. In the game it now hands back the player's default through the shelf
+  (`window.CAGE_RESET_BUILD`); the cage bench (no game around it) keeps the page reset.
+- NOT changed, deliberately: the first-launch chooser still opens on a first boot (the Cub is behind it; "keep the
+  current build" keeps the Cub); its "Custom build" tile is a birth, not the stock; `GEN_DEFAULT` itself (60_gen_spec)
+  and `buildGen()` with no spec; `CAGE_PAGE.defaults` (the cage template's page - GATE CLIP / HINGE / PARTS build it as
+  their 'stock'); workshop.js's half-built props; app.js's transient `setAircraft('gen')` before the garage bridge.
+- THE BASELINES DO NOT MOVE. Every node gate, bench and tool that flies "the stock build" names it - `buildGen()`,
+  `GEN_DEFAULT`, pilot_trace's 'stock' key, the stock fixtures (`_bench_fixture_build.json`, `build_v9_stock`) - so
+  none of them moved with the player's default: GEN, PILOT, FLEX, STRESS, LOAD, HONEST, GE, SKIN, TREE, INPUT,
+  BIPLANE, HOTHIGH, OBSTACLE, DESIGN, ENERGY(BASE), FLAPS, MASS, DRAG, MOUNT, ENGINE, HINGE, WINGSPLIT, KNIFE, ELEC,
+  PANEL, RPM, SKINMAT, BENCH, BUILD and SAVE (both drive garage.js with their own `defaults: () => clone(GEN_DEFAULT)`),
+  PILOTACT / PILOTMATRIX (pilot_matrix's 'stock'), UISMOKE (its stubbed garageInit keeps app.js on GEN_DEFAULT).
+  PINNED EXPLICITLY (a browser rig on a fresh profile flies whatever the first boot puts on the stand - the Cub now):
+  `tools/_stock_pin.js` writes the working-build slot, before the page's first script, with garage.js's own envelope
+  around GEN_DEFAULT (cage null), so the page takes the pre-G770 road to the byte (the shelf restores GEN_DEFAULT, the
+  boot adopts nothing, the editor opens on the page's cage, the join) - the only visible difference is that the
+  first-launch chooser does not open. Pinned: tools/rollout_perf.js (no --build = the old stock; `--build default` =
+  the new first boot), frame_perf.js (before its --pre, so a --pre build still wins), tree_perf.js, met_perf.js,
+  boot_perf.js, program_census.js, sampler_census.js. NOT pinned (pictures, no baseline): postfx_shot, light_shot,
+  island_shot, cloud_shot, water_shot, imp_audit, tarr_game - they show the Cub from now on.
+- GATE DEFAULT (core, `tools/_default_check.js`, ~5 s): GEN_DEFAULT is still 'Garage Special'; the pin is GEN_DEFAULT
+  verbatim with no cage, and all seven rigs carry it; on the ARTIFACT's own text (index.html) the garage bridge's
+  defaults() is playerDefaultSpec, run in a vm against the real design rows it is the Cub card exactly as the birth
+  flow bakes it, with a cage, named Piper Cub; the editor's reset hands back the same; without the design rows it
+  falls back to GEN_DEFAULT; the joined Cub builds.
+- Headless (Playwright + SwiftShader, index.html?world=jolene, a fresh profile): the first boot puts
+  {name "Piper Cub", reg F-BCUB, cage, tandem2} on the stand with the chooser over it.
+
+**G771 - SKIP TO LINE-UP** ("button to skip the taxi phase and straight to starting line").
+- CORE. `ap.lineupPose()` (43_pilot): planDeparture run from the live pose exactly as DEPART runs it (the direction,
+  the route) and the route's END read off it - the hold its path stops on (or the centreline under the legacy point
+  list's last point, or the computed backtrack target), heading the take-off direction; the plan is put back, it asks,
+  it does not fly. An aeroplane already lined up on the strip with HOLD's own run ahead (the need capped at 0.7 of the
+  strip) is its own line-up: a spawn start on a 340 m strip must not be sent round to the far hold, which leaves
+  less than HOLD accepts (the analytic A5-A7 were, before this rule). `placeAtLineup(sim, a, pose, world)` (40_):
+  placeAtAerodrome's one transform onto the pose, then every node's bottom (y - r) measured against the solver's own
+  ground (world.terrainH, what the tyres roll on - no record's elev, no premises' declared height, so a sloped or
+  crowned strip and a hold off the datum get the right ground) and seated with G700's `seatOnGround` (the third wheel
+  pitched onto its own ground, the lowest contact 1 cm clear) - `placeAtLineup(sim, a, pose, world, def.refs)`. `departFrom(from, to, site, { atHold: pose })`: DEPART takes that direction (setTakeoffDir, the
+  frame lines factored out of planDeparture) and goes STOP / HOLD with no route - the state a taxi ends in - instead
+  of planning afresh (planDeparture's uncapped need would U-turn a short strip's hold).
+- VIEWER. `#bSkip` "Skip to line-up" beside Pause / Restart. Offered from a taxi start (the stand): at the roll-out
+  before Fly is pressed, and while the pilot is in DEPART / TAXI / LINEUP / STOP (by hand: on the wheels); disabled at
+  the hold, rolling, and for the rest of the flight once airborne (1 m over the ground with no wheel down; Restart and
+  the shed clear it); hidden in the shed, on floats, for the classic and test pilots (they cannot say where their taxi
+  ends) and on a start with no stand. The press: a fresh pilot asked on the stand (placeLinedUp), a reset onto the
+  pose, engine on, the pilot handed the hold; a kilometre from the stand, the roll-out screen grows the town and the
+  forest there when they are not standing yet (the same steps, the same hold on the flight), then the reveal.
+- THE 'LINED UP' START (the rail's `start` flyout) was a latent bug on every premises strip: it placed the aeroplane
+  on the record's spawn, which on a premises strip IS the stand, with the pilot already in its initial ROLL - it took
+  off across the apron. It is the skip's line-up now wherever the site has a stand; the analytic world's strips with
+  no stand start on their spawn as before.
+- GATE LINEUP (core, `tools/_lineup_check.js`, ~4.5 min; --selftest: a metre in the air, 30 cm into the ground and
+  turned 20 deg are each caught). A: every land aerodrome of both worlds (analytic HOME, A0-A7; Jolene w2, HOME, w3,
+  mn_strip, nv_strip, tw_ski), the default build (the joined Cub): the pose on the centreline (< 1 m) and along the
+  strip (< 0.5 deg), placed with the lowest wheel 1 cm over terrainH and nothing under it, DEPART -> STOP|HOLD -> ROLL
+  with no taxi, no line-up turn and no replan, ROLL inside 8 s lined up (< 2.5 m, < 6 deg), the gear at rest height
+  (the CG over the ground within 6 cm of the same aeroplane settled on its stand; measured -0.7..+0.3 cm), no bounce.
+  Every one: HOLD -> ROLL at 2.0 s, 0.00 m. B: the take-off roll completes from the skip at Jolene HOME for the Cub
+  (lift-off at 10.9 s, 0.00 m across, airborne past hSafe 16.8 s) and bugReports/cessnaMetal (1).json (its fixture
+  copy; 9.8 s / 14.3 s). C: the Cub taxied the whole way from Jolene's stand hands over to ROLL 0.31 m / 2.3 deg from
+  where the skip does (inside HOLD's own 2.5 m / 6 deg gate); the skip saves those 171 s.
+- UISMOKE: after roll out -> TAXI, #bSkip is offered and enabled; pressed, the pilot is in HOLD 120 m on at HOME's
+  hold, on its wheels, and the button stands down.
+- Headless (Playwright + SwiftShader, index.html?world=none, a fresh profile): rolled out, the pilot in TAXI, #bSkip
+  shown and enabled; pressed, the pilot in HOLD at (-79.1, 0) (HOME's hold), three wheels down, the engine running,
+  the button disabled ('lined up already, or rolling'), no page error. A disabled verb is dimmed now
+  (flight.css #ui .verb:disabled) - it looked like an enabled one. Software GL steps the sim too slowly to see the
+  roll there; GATE LINEUP flies it.
+
+**G772 - THE WAY OUT OF THE CLUB, BY THE PAINT** ("Is the taxiway optimized? ... In the 'V' shape out of the hangar,
+it should take right and it takes left, is it?"). YES. The route is authored, and it was wrong for the calm day:
+- The V is two painted taxiways (roads r_taxi_ne / r_taxi_e, 24 m, a double yellow centreline): the NE (left) arm meets
+  13/31 in its MIDDLE, 1465 m from the NW end; the E (right) arm meets it 473 m from the SE end, at the junction with
+  02/20. HOME had one way out, the NE arm, for both directions. The calm day departs on 31 (off the SE end): up the
+  left arm, then 750 m of backtrack on the runway (through the 02/20 crossing) to the hold - 1220 m in all; 13 (off
+  the NW end): 1661 m, 1355 m of it on the runway.
+- NOW `taxiOut1` (new, optional, on any runway record: the way out for a departure ALONG -hdg, off end1; absent,
+  taxiOut serves both - every other strip is unchanged to the bit): premises (runwaySite, RUNWAY_DEF), the core
+  (sitePattern's taxiOut branch: out[1] walks it to its own entry, then the lane and the U-turn), the editor (drawn and
+  draggable 'ty' handles, 'remove the stand' clears it), PREMISES-CONTRACT v1.7's paragraph and the editor doc's key
+  list. Jolene HOME: 31 by the right arm - 948 m, 363 m of it on the runway; 13 keeps the left arm.
+- THE APRON (G630's owed stretch (b)): the old first leg passed the parked Cub o1 (-150, 670) at 9.5 m - an 11 m wing
+  1.1 m from it. The gap between o1's nose and the fence's end post (-128, 670) is ~19 m, so both ways out thread it
+  with their own corner: 31 turns east north of the post (-138,690 -> -137.5,657 -> the E arm's paint), 13 bears east
+  of the parked C172 o2's nose (-138,690 -> -137.5,664 -> -132,648 -> the NE arm's paint from -133,590). FLOWN by the
+  pilot (the joined Cub and the aluminium C172, calm, NW and SE winds): the wing's least clearance to every parked
+  aircraft and fence run on the apron 3.6-4.2 m (the first cut, sharing one corner, flew 1.8 m from the post: the
+  flown track is what the gate holds, not the plan). The stand's derived heading follows the first point (-72 -> -54
+  deg).
+- THE DIRECTION, NOT THE NOSE. The calm day's 31 was settled by the nose tie-break alone (0.12 points: 13 is 0.4 %
+  downhill) - moving the first taxi point turned the stand 18 deg and flipped it to 13, a 1.7 km taxi. The take-off
+  score now carries the way out: off the strip, each direction's route is measured from the pose (patternPath) and a
+  kilometre of taxi weighs 1 point (a third of a m/s of headwind; 0.6 km of a 1 % uphill run) - the wind still
+  decides, the calm day goes the short way. ap.dirWhy says 'taxi N m'. PILOTACT's taxi numbers are G630's to the
+  decimal (the analytic HOME's calm choice already was the short way); TAKEOFF unchanged.
+- DOES THE ENTRY WASTE RUNWAY? No - the pilot never takes off from the entry; it backtracks to the hold 110 m in from
+  the threshold (pattern GP_HOLD_IN), so 2215 m of the 2325 are ahead of it either way (110 m, 4.7 %, behind). An
+  intersection take-off from the entries would give 860 m (13, from the NE arm) or 1852 m (31, from the E arm) and
+  save the backtrack - not done: holds are the pattern's, and the user asked a question, not for that.
+- THE FIXTURE: tools/jolene_author.py (APRON_13, APRON_31, rev 22 so a stale saved copy yields). It could not run
+  whole here - its metlakatla part reads the raw bench/ rasters, which do not ship - so it was run with metlakatla
+  stood in by its own committed rows (a .json part of the fixture's mk_ entries and extent; it sorts in the same
+  place between airfield.py and mn_mine.json): the UNCHANGED source regenerated the committed fixture byte for byte
+  through that stand-in, then the edited source wrote this one (diff: HOME's taxiOut, taxiOut1, rev).
+- `tools/apron_map.js` (new tool): the apron from above (the pavement, the two painted taxiways and their yellow
+  centrelines, the fence, the club, the parked aircraft, both runways) with both routes as the pilot plans them
+  (sitePattern -> patternPath) and their wing's swept band; prints each route's length, its runway backtrack, the run
+  ahead and the least wingtip clearance on the apron. `--fixture` draws another rev, `--taxiOut/--taxiOut1` tries a
+  way out before it is authored, `--wide` shows the runway.
+- GATE LINEUP C holds it: in calm air the Cub leaves by the right arm for 31 (ty0 .. hold1), the flown wing more than
+  3 m (the ICAO apron figure for a code-A wing) from what stands on the apron (4.0 m), stand to roll inside 190 s
+  (171; 208 up the left arm before).
+
+GATES: `node tools/run_gates.js --all --jobs=3` on the rebased sources (9c28739, over 01c1ba4): 113 PASS, 4 FAIL -
+BATTERY FAIL, the base's known reds and nothing new: SEAPLANE (3: the lane 44.3 m off, the heading swing), SOAR (2: the
+thermal climbs 0.21 m/s, -6 m in 200 s), PILOTMATRIX (10 regressed - the G630 set: the nine sink/verdict drifts +
+stearman calm sink 0.95 -> 1.48), ARCHETYPES (10 checks over 5 cards - Caravan, Tiger Moth, Beaver, Motorglider, Twin bush
+hauler, each 'gave-up' at the budget) - the same four G700 and G710 measured red on the base in clean worktrees; before
+the rebase this branch read the same four (105 PASS), and the five ARCHETYPES cards re-flown `--only=<card>` on a clean
+worktree of 4f68545 failed identically, line for line. New and green: LINEUP (--selftest 3/3 caught), DEFAULT;
+UISMOKE carries the skip; TAXICLEAR green with its calibration updated (above). Wall 7009 s at 3 jobs, 4 cores.
+
+ON G700 / G710 (the rebase)
+- G700: placeAtLineup ends in seatOnGround; the skip asks its question on the stand walked with G700's ground
+  (standFor(st, dims, groundAt)) and seated like the game's stand. The conflict was 40_autopilot.js's placement block
+  and the exports line; app.js merged clean.
+- G710 bends a site's declared way out round its parked aeroplanes (gpClearWay) - it bent taxiOut only. taxiOut1 now
+  takes the same bend (new corners 'j<n>': gpClearWay gained an optional id prefix; the pattern's `clearance` is the
+  worse way's). HOME's re-authored ways need no bend for the Cub's span and one corner a way for an 11 m wing.
+  TAXICLEAR asserted HOME's way WAS bent and calibrated on the AUTHORED way passing inside o1's clearance - true only
+  of the pre-G772 route: now "the way out is clear (authored or bent)" and the calibration replays the pre-G772 way
+  explicitly (2.5 m inside for the stock span, as G710 measured). Flown (TAXICLEAR 5): the stock build 2.14 m, the
+  aluminium C172 1.74 m from the nearest parked footprint (1.09 / 0.91 on G710's bent route).
+
+LEFT
+- The 340 m analytic strips' pattern hold (110 m in) leaves 230 m, under HOLD's 0.7 x 340 = 238: a taxi to it would
+  replan. The skip never goes there (the spawn is its own line-up), but the pattern's kIn rule (under 300 m only) could
+  cover < 450 m. Not touched.
+- On Jolene the headless rig (SwiftShader) never got through the roll-out screen (the island's world build on
+  software GL); the analytic world's did, and the skip was pressed there. A GPU session could eyeball Jolene's hold.
