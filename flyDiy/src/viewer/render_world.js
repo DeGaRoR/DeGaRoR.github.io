@@ -951,7 +951,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     root.traverse(o => {
       if (!nearWatched.has(o)) { nearWatched.add(o); o.addEventListener('childadded', nearOnAdd); o.addEventListener('childremoved', nearOnRemove); }
       if (craft) {   // a piece joining the craft after tagCraft: the craft's near layer, the craft's far state (follow() owns it)
-        if (o !== craft) { o.layers.enable(NL); if (craft.layers.isEnabled(FL)) o.layers.enable(FL); else o.layers.disable(FL); }
+        if (o !== craft) { o.layers.enable(SHADOW_NEAR.CRAFT_LAYER || NL); if (craft.layers.isEnabled(FL)) o.layers.enable(FL); else o.layers.disable(FL); }   // G1005: the craft's cascade layer
         return;
       }
       if (o.userData.craft) return;

@@ -47,17 +47,35 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
 {
   const scene = new THREE.Scene(), L = SN.make(scene);
   const craft = new THREE.Group(), m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
-  m.castShadow = true; craft.add(m); scene.add(craft); SN.tagCraft(craft);
+  m.castShadow = true; craft.add(m); scene.add(craft); SN.tagCraft(craft, craft);
   const sun = new THREE.Vector3(0.6, 0.5, 0.2).normalize(), c = L.shadow.camera;
   const cases = [[5, 'the stand'], [60, 'the circuit'], [400, 'the cruise'], [1500, 'high']];
   for (const [agl, what] of cases) {
+    craft.position.set(0, agl + 10, 0); craft.updateMatrixWorld(true);   // the craft stands at its CG (the cascade's fit reads its pose)
     SN.follow(L, [0, agl + 10, 0], sun, agl, null, null);
     const reach = 2 * SN.S.half + Math.min(SN.S.slantMax, agl / sun.y);
     ok(c.far >= reach * 0.95, `2 ${what} (${agl} m AGL): the near depth reaches the ground shadow`, `far ${c.far.toFixed(0)} m >= ${reach.toFixed(0)}`);
     ok(Math.abs(L.shadow.bias * (c.far - c.near) + SN.S.biasM) < 1e-6, `2 ${what}: the bias is ${SN.S.biasM} m of depth`);
-    ok(!m.layers.isEnabled(SN.FAR_LAYER) && m.layers.isEnabled(SN.NEAR_LAYER), `2 ${what}: the craft is in the near map, not the far map`);
+    ok(!m.layers.isEnabled(SN.FAR_LAYER) && m.layers.isEnabled(SN.CRAFT_LAYER) && !m.layers.isEnabled(SN.NEAR_LAYER), `2 ${what}: the craft is in the near map's craft cascade, not the far map (nor the 60 m viewport)`);
+    // G1005 THE CRAFT'S CASCADE: fitted to the craft at the stand, grown with the slant, never past the 60 m box; its depth reaches the ground shadow too
+    const C1 = SN.C1, cam1 = C1.cam, tx = 2 * C1.H / SN.S.size;
+    ok(C1.H <= SN.S.half + 1e-9 && cam1.right === C1.H && cam1.far >= reach * 0.95, `2 ${what}: the craft's cascade half ${C1.H.toFixed(2)} m (<= ${SN.S.half}), its depth ${cam1.far.toFixed(0)} m reaches the ground shadow`);
+    ok(Math.abs(SN.S.slant * SN.S.penumbra / tx) <= 2 * SN.S.radiusMax + 1 + 1e-6 || C1.H === SN.S.half, `2 ${what}: the sun's penumbra fits the kernel in the craft's texels (${(SN.S.slant * SN.S.penumbra / tx).toFixed(2)} texels)`);
+    { const want = 1.1 * Math.min(SN.S.half, Math.max(SN.S.fitMin, SN.S.craftR + SN.S.fitMargin, SN.S.slant * SN.S.penumbra * SN.S.size / (2 * (2 * SN.S.radiusMax + 1))));
+      if (agl <= 60) ok(SN.S.craftR > 0.8 && SN.S.craftR < 0.9 && Math.abs(C1.H - Math.min(SN.S.half, want)) < 1e-6, `2 ${what}: fitted to the craft's sphere and the penumbra (r ${SN.S.craftR.toFixed(3)} m -> half ${C1.H.toFixed(2)} m, ${(100 * tx).toFixed(2)} cm a texel)`); }
+    if (agl >= 1500) ok(C1.H === SN.S.half, `2 ${what}: the cascade is the 60 m box again`);
     ok(L.shadow.radius >= 1 && L.shadow.radius <= SN.S.radiusMax, `2 ${what}: the kernel radius ${L.shadow.radius.toFixed(2)} in [1, ${SN.S.radiusMax}]`);
   }
+  // the atlas: two viewports side by side, viewport 0 the near casters (three's camera), viewport 1 the craft + the near casters
+  const sh = L.shadow;
+  ok(sh.getViewportCount() === 2 && sh.getFrameExtents().x === 2 && sh.getFrameExtents().y === 1 && sh.getViewport(1).x === 1, '2 G1005: the near map is a 2 x 1 atlas of two viewports');
+  sh.updateMatrices(L);
+  ok(sh.getCamera(0).layers.isEnabled(SN.NEAR_LAYER) && !sh.getCamera(0).layers.isEnabled(SN.CRAFT_LAYER) && sh.getCamera(1).layers.isEnabled(SN.NEAR_LAYER) && sh.getCamera(1).layers.isEnabled(SN.CRAFT_LAYER), '2 G1005: viewport 0 draws the near casters, viewport 1 the craft and the near casters');
+  { const p = new THREE.Vector3(0, 10, 0), a = p.clone().applyMatrix4(sh.matrix), b = p.clone().applyMatrix4(SN.C1.cam && sh.getCamera(1) ? new THREE.Matrix4().copy(THREE.ShaderLib.standard.uniforms.uNearM1.value) : sh.matrix);
+    ok(a.x > 0 && a.x < 0.5 && b.x > 0.5 && b.x < 1, '2 G1005: the CG maps into the left half through the 60 m matrix and into the right half through uNearM1', `${a.x.toFixed(3)} / ${b.x.toFixed(3)}`); }
+  { const R = THREE.ShaderChunk.lights_fragment_begin, F = THREE.ShaderChunk.shadowmap_pars_fragment;
+    ok(/uNearM1 \* vec4\( cameraPosition \+/.test(R) && /in1 \? nc1 : vDirectionalShadowCoord\[ 1 \]/.test(R) && (R.match(/getShadow\( directionalShadowMap\[ 1 \]/g) || []).length === 1, '2 G1005: one near lookup - the craft cascade inside its box, the 60 m viewport elsewhere');
+    ok(/vec2 pcfR = radius \* vec2\( 1\.0, texelSize\.y \/ texelSize\.x \);/.test(F), '2 G1005: the PCF taps are square in texels on the 2 x 1 atlas'); }
   SN.S.on = false; SN.follow(L, [0, 10, 0], sun, 5, null, null);
   ok(m.layers.isEnabled(SN.FAR_LAYER) && !L.castShadow, '2 near map off: the craft casts into the far map');
   SN.S.on = true; SN.follow(L, [0, 10, 0], sun, 5, null, null);

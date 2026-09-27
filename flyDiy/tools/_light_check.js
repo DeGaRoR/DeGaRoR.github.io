@@ -187,7 +187,8 @@ check(/bakeHangarEnv\(\)/.test(setLightBody(app)),
 {
   // G680: the door's body is rollOutStand now (rollOut decides the screen; the sync can run under it first)
   const rollAt = app.indexOf('function rollOutStand') >= 0 ? app.indexOf('function rollOutStand') : app.indexOf('function rollOut');
-  const roll = app.slice(rollAt, rollAt + 3400);
+  // (to the function's end, not a fixed 3400 chars: the write sat 121 chars from that edge and G1005's crumb note pushed it out)
+  const rollEnd = app.indexOf('\n  function ', rollAt + 10), roll = app.slice(rollAt, rollEnd > rollAt ? rollEnd : rollAt + 3400);
   check(/scene\.environmentIntensity\s*=\s*WORLD_ENV/.test(roll),
         'rollOut no longer writes the world scene\'s environmentIntensity (WORLD_ENV) at the door');
   const we = /const\s+WORLD_ENV\s*=\s*([\d.]+)/.exec(app);
@@ -595,7 +596,7 @@ if (process.argv.includes('--selftest')) {
   check(/SHADOW_NEAR\.make\(scene\)/.test(world) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera\)/.test(world), 'world: the near light made and followed each frame, snapped to its own texels');
   // (G601: the registry's pass - a caster over NEAR_MIN_R within reach; GATE STAND runs it)
   check(/nearTag = cg =>/.test(world) && /s\[3\] >= NEAR_MIN_R && Math\.sqrt\(dx \* dx \+ dy \* dy \+ dz \* dz\) - s\[3\] < R/.test(world) &&/Math\.max\(512, Math\.min\(2048, R\.shadowMap \/ 2\)\)/.test(world), 'world: the near casters are the plain meshes (over NEAR_MIN_R) within reach of the CG; the map is half the tier\'s far map');
-  check(/SHADOW_NEAR\.tagCraft\(craft\)/.test(app), 'app: the craft is tagged when the model joins the world');
+  check(/SHADOW_NEAR\.tagCraft\(craft(, model\.grp)?\)/.test(app), 'app: the craft is tagged when the model joins the world');
   check(/SHADOW_NEAR\.inject\(sh\)/.test(atmo), 'atmo: the near flag rides the inject chain');
   check(/'shadow_near\.js'/.test(build), 'build: shadow_near.js is in the page');
 }

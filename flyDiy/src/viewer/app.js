@@ -4220,7 +4220,7 @@
       for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
       if (mm > 0 && typeof window !== 'undefined') { window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; window.FLYDIY_MASS_MODEL = mm; } }   // S1 (G451.1): the all-up mass, for the float advisor
     if (model) craft.add(model.grp);
-    if (model && window.SHADOW_NEAR) SHADOW_NEAR.tagCraft(craft);   // A6: the craft casts into its own 3 cm shadow map and reads only that one
+    if (model && window.SHADOW_NEAR) SHADOW_NEAR.tagCraft(craft, model.grp);   // A6: the craft casts into its own shadow map and reads only that one (G1005: its cascade fitted to model.grp's sphere)
     // THE COCKPIT (the panel arc, session 4): the readings, the switches,
     // the bus and the lamps bind to this aeroplane; the altimeter's datum
     // is the field it stands on. Absent the module (the smoke gate) nothing
@@ -6565,9 +6565,15 @@
     // THE AEROPLANE'S CRUMBS CAST NOTHING (G564): 130 of its 254 meshes are under 15 cm (bolts, hinges, fittings),
     // and each cast into every cascade - a shadow a pixel wide for a draw each, ~700 shadow draws a frame
     // (a merged still bucket of crumbs answers for its biggest member, G576: crumbs merge only with crumbs)
+    // ...BUT THE WHEELS DO (G1005, A6-SHADOW): a Cub's tailwheel (8 cm), a Cessna's nose tyre (14 cm) and every hub fell
+    // under the crumb line - the one part touching the ground cast nothing, and the user saw "the tailwheel seems to have
+    // no shadow". A wheel part's meshes over 4 cm cast (the Cub +8 draws, the Cessna +9, into the craft's cascade only)
+    const wheelMesh = new Set();
+    if (model && model.wheelParts) for (const w of model.wheelParts) if (w.obj && w.obj.traverse) w.obj.traverse(o => { if (o.isMesh) wheelMesh.add(o); });
     craft.traverse(m => { if (!m.isMesh || !m.castShadow || !m.geometry) return; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       const r = m.userData.crumbR != null ? m.userData.crumbR : m.geometry.boundingSphere.radius;
-      const s = m.getWorldScale(new THREE.Vector3()); if (r * Math.max(s.x, s.y, s.z) < 0.15) m.castShadow = false; });
+      const s = m.getWorldScale(new THREE.Vector3()), rw = r * Math.max(s.x, s.y, s.z);
+      if (rw < 0.15 && !(wheelMesh.has(m) && rw >= 0.04)) m.castShadow = false; });
     setExp(WORLD_EXPOSURE);
     // THE AEROPLANE FLEW OUT STILL REFLECTING THE SHED (user: "the planes look
     // really washed out when they get out of the garage and into the world").
