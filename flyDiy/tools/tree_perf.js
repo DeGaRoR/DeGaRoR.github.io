@@ -119,6 +119,7 @@ const PROFILE = `(() => new Promise(res => {
   };
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  await cmd('Page.addScriptToEvaluateOnNewDocument', { source: require('./_stock_pin.js').pinScript() });   // G770: the OLD stock (GEN_DEFAULT), pinned - a fresh first boot is the Cub
   await cmd('Page.navigate', { url: URL });
   // the loading screen says when the garage is finished (LOADING S1); a page
   // without one gets the old twenty seconds

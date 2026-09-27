@@ -259,6 +259,7 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
     return d.result.value;
   };
   await cmd('Page.enable'); await cmd('Runtime.enable');
+  await cmd('Page.addScriptToEvaluateOnNewDocument', { source: require('./_stock_pin.js').pinScript() });   // G770: the OLD stock (GEN_DEFAULT), pinned - a fresh first boot is the Cub
   if (PRE) await cmd('Page.addScriptToEvaluateOnNewDocument', { source: PRE });
   await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });

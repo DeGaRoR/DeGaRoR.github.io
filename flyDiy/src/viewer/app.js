@@ -9447,8 +9447,33 @@
 
   // ---- GARAGE bridge. src/viewer/garage.js owns the panel and the paint; this
   // is the only surface it touches. Guarded, so a core-only build still runs.
+  // G770: THE PLAYER'S DEFAULT AEROPLANE IS THE CUB (the user, 2026-09-27: "the default plane should be
+  // updated to the cub once and for all, sick of seeing the very first test aircraft for so long"). A
+  // session with no working build opens on the Cub archetype exactly as the birth flow's Cub tile bakes
+  // it (CAGE_DESIGN.designBake on the card; the boot seeds the editor with its cage and the join measures
+  // it, as for any build with a cage). GEN_DEFAULT - 'Garage Special', the first test aircraft - stays
+  // the CORE's default: buildGen() with no spec, every gate, bench and rig builds it, so nothing measured
+  // against it moves; it is also what this falls back to when the design rows are not on the page.
+  // A saved working build (flydiy.wip) still wins: garage.js restores it over this.
+  const PLAYER_DEFAULT_ARCH = 'cub';
+  function playerDefaultSpec() {
+    try {
+      const D = window.CAGE_DESIGN;
+      const a = D && D.ARCHETYPES && D.ARCHETYPES.find(x => x.key === PLAYER_DEFAULT_ARCH);
+      if (a && typeof D.designBake === 'function') {
+        let s = D.designBake(a.sel, a.over);
+        if (s && s.cage && Object.keys(s.cage).length) {
+          if (typeof genNormaliseSpec === 'function') s = genNormaliseSpec(s);
+          return s;
+        }
+      }
+    } catch (e) { console.error('default build (the ' + PLAYER_DEFAULT_ARCH + '):', e); }
+    return JSON.parse(JSON.stringify(GEN_DEFAULT));
+  }
+  // ...and the editor's `reset` (the display section's file row) hands it back, whole, through the shelf
+  window.CAGE_RESET_BUILD = () => { if (window.GARAGE_SPEC) window.GARAGE_SPEC.set(playerDefaultSpec()); };
   if (typeof garageInit === 'function') garageInit({
-    defaults: () => JSON.parse(JSON.stringify(GEN_DEFAULT)),
+    defaults: playerDefaultSpec,
     // a changed spec is a DIFFERENT AEROPLANE, and editing one puts it back on
     // the stand: the solver stops, so a slider drag costs you nothing
     // ...UNLESS THE AEROPLANE HAS ALREADY ROLLED OUT (G434): the roll-out's own syncBuild commits the

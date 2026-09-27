@@ -14,7 +14,8 @@
 //   - the page's own loop is read through FLYDIY_PACE.end (called once per rendered frame with the
 //     loop's JS work and its solver ms), WORLD.worldUpdate is timed, long tasks are observed from
 //     the first byte, and each frame also records the phase, the premises queue and the cap.
-// Variants need no code change: --build <file.json> loads a garage build into the WIP slot,
+// Variants need no code change: --build <file.json> loads a garage build into the WIP slot (none = the OLD
+// STOCK, GEN_DEFAULT, pinned by tools/_stock_pin.js since G770; `--build default` = the new first boot, the Cub),
 // --variant nomet filters Metlakatla (mk_*) out of the premises through the WORLD rail's saved-copy
 // slot, --gfx '{"shadows":"off"}' pre-sets graphics rows, --world none boots the analytic world.
 //
@@ -97,10 +98,14 @@ if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
 function preScript() {
   const lines = [];
   // a warm profile keeps localStorage between runs: every run states its build and graphics afresh
-  if (BUILD) {
+  // G770: no --build is THE OLD STOCK, pinned by name (tools/_stock_pin.js) - a fresh first boot is the Cub
+  // since G770, and every 'stock' row measured before it was GEN_DEFAULT's; `--build default` measures that
+  // new first boot (no working build at all)
+  if (BUILD === 'default') lines.push('try{localStorage.removeItem("flydiy.wip")}catch(e){}');
+  else if (BUILD) {
     const txt = fs.readFileSync(path.resolve(REPO, 'flyDiy', BUILD), 'utf8');
     lines.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(txt) + ')}catch(e){}');
-  } else lines.push('try{localStorage.removeItem("flydiy.wip")}catch(e){}');
+  } else lines.push(require('./_stock_pin.js').pinScript());
   lines.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
   if (VARIANT === 'nomet') {
     const F = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));

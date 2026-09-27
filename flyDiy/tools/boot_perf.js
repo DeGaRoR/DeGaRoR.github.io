@@ -130,6 +130,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: INJECT });
   // a same-origin page first, so the profiler survives the navigation (a
   // cross-origin hop would swap the renderer process)
+  await cmd('Page.addScriptToEvaluateOnNewDocument', { source: require('./_stock_pin.js').pinScript() });   // G770: the OLD stock (GEN_DEFAULT), pinned - a fresh first boot is the Cub
   await cmd('Page.navigate', { url: ORIGIN + '/__boot_perf_warm__' }); await sleep(800);
   await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 500 });
   await cmd('Profiler.start');

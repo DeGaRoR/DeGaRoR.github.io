@@ -34,6 +34,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && r.result.exceptionDetails.text)); return r.result.result.value; };
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await cmd('Page.addScriptToEvaluateOnNewDocument', { source: require('./_stock_pin.js').pinScript() });   // G770: the OLD stock (GEN_DEFAULT), pinned - a fresh first boot is the Cub
   await cmd('Page.navigate', { url: URL });
   await sleep(WAIT * 0.5);
   // the roll-out: the chooser's first row, then the button (island_shot's steps)

@@ -118,6 +118,7 @@ const PROFILE = `(() => new Promise(res => {
   // and a step that is not there yet must not throw the run away
   const tryEv = async expr => { try { return await ev('(()=>{ try { return ' + expr + '; } catch (e) { return "ERR " + e.message; } })()'); } catch (e) { return 'ERR ' + e.message; } };
   await cmd('Page.enable'); await cmd('Runtime.enable');
+  await cmd('Page.addScriptToEvaluateOnNewDocument', { source: require('./_stock_pin.js').pinScript() });   // G770: the OLD stock (GEN_DEFAULT), pinned - a fresh first boot is the Cub
   await cmd('Page.navigate', { url: URL });
   console.log('met_perf:', URL);
   // THE BOOT IS SLOW HERE. Headless falls back to swiftshader on this machine and

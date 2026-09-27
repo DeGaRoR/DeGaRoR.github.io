@@ -4682,6 +4682,10 @@ function applyPreset(name) {
   syncSliders(); build();
 }
 $('resetBtn').onclick = () => {
+  // G770: IN THE GAME, reset is the PLAYER'S default aeroplane (the Cub), a whole build through the
+  // shelf - the page's own cage below is the old stock's shape, the first test aircraft the user asked
+  // never to be handed again; the bench (no game around it) keeps the page reset
+  if (typeof window !== 'undefined' && typeof window.CAGE_RESET_BUILD === 'function') { window.CAGE_RESET_BUILD(); return; }
   for (const k in DEFAULTS) P[k] = DEFAULTS[k];
   loaded();
   anchorSize();

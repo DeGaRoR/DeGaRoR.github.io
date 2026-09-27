@@ -83,6 +83,7 @@ async function boot(n) {
       if (!d || d.exceptionDetails) throw new Error('page: ' + JSON.stringify(d && d.exceptionDetails || r).slice(0, 300)); return d.result.value; };
     await cmd('Page.enable'); await cmd('Runtime.enable'); await cmd('Page.addScriptToEvaluateOnNewDocument', { source: INJECT });
     const t0 = Date.now(), T = () => ((Date.now() - t0) / 1000).toFixed(0) + ' s';
+    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: require('./_stock_pin.js').pinScript() });   // G770: the OLD stock (GEN_DEFAULT), pinned - a fresh first boot is the Cub
     await cmd('Page.navigate', { url: URL });
     for (;;) { await sleep(1000); let s = null; try { s = await ev('window.BOOT && BOOT.state'); } catch (e) {} if (s === 'gone') break; if (Date.now() - t0 > 1800000) throw new Error('the shed never opened'); }
     await sleep(2000);
