@@ -36,7 +36,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const { writeMedia, pruneMedia, BASE_DECL, readGeo } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
 const PIER = path.join(ROOT, 'src', 'pier');
@@ -238,7 +238,7 @@ function main(argv) {
     const prop = pack.props[key];
     const levels = levelsFor(prop);
     if (!levels.length || (only.length && !only.includes(key))) continue;
-    const bin = fs.readFileSync(path.join(ROOT, prop.bin));
+    const bin = readGeo(prop.bin);
     // the material meshes, welded across the baker's 65k cuts
     const byMat = new Map();
     for (const part of prop.parts) (byMat.get(part.mat) || byMat.set(part.mat, []).get(part.mat)).push(readPart(bin, part));

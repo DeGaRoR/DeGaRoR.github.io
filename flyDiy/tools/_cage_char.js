@@ -157,11 +157,12 @@ function ready(key) { return DEC[key] || null; }
 // 300 MB of textures (the dev servers drop connections under load) left
 // that character a mannequin until a reload. Now a failure is forgotten,
 // the next build tries again, and the retry goes round ASSET_FETCH's cached
-// rejection with a plain fetch.
+// rejection with a fresh fetch. Both go through assets.js, which gunzips the
+// `.gz.bin` transport (G930): a plain fetch() here would hand the codec gzip.
 function fetchBytes(url, plain) {
   if (!plain && typeof window.ASSET_FETCH === 'function') return window.ASSET_FETCH(url);
-  return fetch(url).then(r => { if (!r.ok) throw new Error(url + ' -> ' + r.status);
-                                return r.arrayBuffer(); }).then(b => new Uint8Array(b));
+  if (typeof window.ASSET_FETCH_FRESH === 'function') return window.ASSET_FETCH_FRESH(url);
+  return Promise.reject(new Error(url + ': no ASSET_FETCH here'));
 }
 function load(key) {
   if (DEC[key]) return Promise.resolve(DEC[key]);

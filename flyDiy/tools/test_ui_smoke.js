@@ -8,6 +8,7 @@
 // handler and the aircraft-change door (selAc, the garage build — the fleet
 // keys it used to switch through retired with the fiches, 2026-09-05).
 const fs = require('fs'), vm = require('vm'), path = require('path');
+const { readGeo } = require('./_media_lib.js');   // G930: the geo bins are gzip on disk
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const blocks = [...html.matchAll(/<script(?: type="text\/x-flydiy")?>([\s\S]*?)<\/script>/g)].map(m => m[1]);   // G434.3: the inlined scripts are inert (text/x-flydiy) until the island loader promotes them
@@ -310,8 +311,7 @@ sandbox.window.document = sandbox.document;
 // would fetch.
 sandbox.window.ASSET_FETCH = url => {
   try {
-    return Promise.resolve(new Uint8Array(fs.readFileSync(
-      path.join(__dirname, '..', ...url.split('?')[0].split('/')))));
+    return Promise.resolve(readGeo(url.split('?')[0]));   // gunzips the .gz.bin transport, as assets.js does
   } catch (e) { return Promise.reject(e); }
 };
 vm.createContext(sandbox);

@@ -345,7 +345,7 @@ the same 2.2x encoding bug.
     python tools/tree_prep.py --report   # inventory only, writes nothing
     node   tools/_tree_check.js          # GATE TREES
 
-Writes `media/geo/trees/<collection>.<h8>.bin` (one binary per collection),
+Writes `media/geo/trees/<collection>.<h8>.gz.bin` (one gzip stream, h8 of the as-is bytes - G930) (one binary per collection),
 `media/tex/trees/*` (the maps) and `src/core/trees_pack.json` (the manifest).
 Decoded by `src/core/53_tree_codec.js`, pure JS, no three.js.
 

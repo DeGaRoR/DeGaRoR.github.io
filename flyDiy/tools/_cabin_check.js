@@ -9,6 +9,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { readGeo } = require('./_media_lib.js');   // G930: the geo bins are gzip on disk
 const vm = require('vm');
 
 const TOOLS = __dirname;
@@ -32,7 +33,7 @@ for (const f of packs) vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'c
 const REG = ctx.PROP_REG, CABIN = ctx.CABIN;
 const prop = REG && REG.props && REG.props.tram_cabin;
 if (check(!!prop, 'the pack does not carry tram_cabin')) {
-  const bin = fs.readFileSync(path.join(ROOT, prop.bin));
+  const bin = readGeo(prop.bin);
   const dec = ctx.decodeProp(prop, bin);
   const names = dec.parts.map(p => p.mat);
   // 1 — every material the file ships is a part with a role, the glass among them

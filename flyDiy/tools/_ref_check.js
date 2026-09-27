@@ -62,6 +62,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { readGeo } = require('./_media_lib.js');   // G930: the geo bins are gzip on disk
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -111,7 +112,7 @@ function binOf(p) {
             'page disagree about where the geometry lives');
       return undefined;
     }
-    binCache[p.bin] = new Uint8Array(fs.readFileSync(f));
+    binCache[p.bin] = readGeo(f);
   }
   return binCache[p.bin];
 }

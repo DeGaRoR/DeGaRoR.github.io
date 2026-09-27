@@ -11,6 +11,7 @@
 // channel that carries information and rungs that share a frame.
 'use strict';
 const fs = require('fs'), path = require('path');
+const { readGeo } = require('./_media_lib.js');   // G930: the geo bins are gzip on disk
 const { decodeTreePart } = require(path.join(__dirname, '..', 'src', 'core', '53_tree_codec.js'));
 
 const ROOT = path.join(__dirname, '..');
@@ -48,7 +49,7 @@ function check() {
     }
     const bp = path.join(ROOT, ...C.bin.split('/'));
     if (!fs.existsSync(bp)) { fail.push(C.name + ': missing ' + C.bin); continue; }
-    const bin = new Uint8Array(fs.readFileSync(bp));
+    const bin = readGeo(bp);
     bytes += bin.length;
     if (bin.length !== C.bytes) fail.push(C.name + ': bin is ' + bin.length + ', pack says ' + C.bytes);
 

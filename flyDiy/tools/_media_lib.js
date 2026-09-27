@@ -33,21 +33,52 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const ROOT = path.join(__dirname, '..');
 const MEDIA = path.join(ROOT, 'media');
 
+// GEOMETRY TRAVELS AS ONE GZIP STREAM (G930, AS5a). GitHub Pages compresses
+// text types only and serves a .bin raw, so every file under media/geo/ is
+// written as exactly one gzip stream (the world pack's pattern, world_prep.js)
+// and named `<stem>.<h8>.gz.bin`, where h8 is still the hash of the AS-IS
+// bytes the baker encoded - not of the gzip. Three reasons, in order:
+//   - the decoded bytes are provably the as-is bytes: GATE GEO gunzips every
+//     file and re-hashes it against its own name ([[import-models-as-is]]:
+//     transport compression only, the geometry is never re-encoded);
+//   - a re-bake of unchanged geometry writes nothing, whatever zlib the
+//     machine has (Python's system zlib and node's bundled one do not emit
+//     the same deflate bytes; hashing the gzip would churn git on every
+//     re-bake from another box);
+//   - the NAME changes with the transport (`.gz.bin`), so sw.js's permanent
+//     cache-first /media/ store can never hand a raw pre-G930 body to a page
+//     that gunzips.
+// Consumers: ASSET_FETCH (src/viewer/assets.js) gunzips by that suffix in the
+// page; node reads through readGeo below. Nothing else changes: the manifests'
+// off/len still index the as-is bytes.
+const isGeo = subdir => subdir === 'geo' || subdir.startsWith('geo/');
+const GZ_BIN = /\.gz\.bin$/;
+const sha8 = buf => crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);
+
+// the name a buffer gets, without writing it (report runs, the migration)
+function mediaRel(subdir, stem, ext, buf) {
+  if (isGeo(subdir) && ext === 'bin') ext = 'gz.bin';
+  return `media/${subdir}/${stem}.${sha8(buf)}.${ext}`;
+}
+
 // writeMedia('tex/wood', 'maple_aero_512', 'jpg', buf)
 //   -> 'media/tex/wood/maple_aero_512.<h8>.jpg'  (page-relative, forward /)
+// writeMedia('geo/props', 'bandsaw', 'bin', asIs)
+//   -> 'media/geo/props/bandsaw.<h8 of asIs>.gz.bin'  (the file: gzip(asIs))
 function writeMedia(subdir, stem, ext, buf) {
-  const h8 = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);
-  const same = sameBytes(subdir, h8, ext, buf);
-  if (same) return `media/${subdir}/${same}`;
-  const rel = `media/${subdir}/${stem}.${h8}.${ext}`;
+  const rel = mediaRel(subdir, stem, ext, buf);
+  // G901 (AS0a): a non-geometry file whose exact bytes already sit in this directory under another stem is
+  // reused (the fold); a geometry .gz.bin is named by its as-is bytes' hash already (G930), so it needs none
+  if (!GZ_BIN.test(rel)) { const same = sameBytes(subdir, sha8(buf), ext, buf); if (same) return `media/${subdir}/${same}`; }
   const abs = path.join(ROOT, ...rel.split('/'));
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   // content-addressed: an existing file with this name IS these bytes
-  if (!fs.existsSync(abs)) fs.writeFileSync(abs, buf);
+  if (!fs.existsSync(abs)) fs.writeFileSync(abs, GZ_BIN.test(rel) ? gzipGeo(buf) : buf);
   return rel;
 }
 
@@ -67,6 +98,18 @@ function sameBytes(subdir, h8, ext, buf) {
     if (st.isFile() && st.size === buf.length && fs.readFileSync(p).equals(buf)) return f;
   }
   return null;
+}
+
+function gzipGeo(buf) { return zlib.gzipSync(buf, { level: 9 }); }
+
+// readGeo(relOrAbs) -> Uint8Array of the AS-IS bytes, the node twin of
+// ASSET_FETCH: a `.gz.bin` is gunzipped, anything else (a bench stage the
+// LOD tools read, a synthetic fixture) is returned as read. Always a fresh
+// buffer at byteOffset 0, so the float32 codecs view it without a copy.
+function readGeo(file) {
+  const abs = path.isAbsolute(file) ? file : path.join(ROOT, ...file.split('/'));
+  const raw = fs.readFileSync(abs);
+  return new Uint8Array(GZ_BIN.test(abs) ? zlib.gunzipSync(raw) : raw);
 }
 
 // pruneMedia('tex/wood', [rel, rel, ...]) — delete everything in the owned
@@ -106,4 +149,4 @@ function encodeTex(buf, role, maxPx) {
   try { fs.unlinkSync(tmp + '.in'); fs.unlinkSync(tmp + '.out'); } catch (e) {}
   return { data, ext };
 }
-module.exports = { writeMedia, pruneMedia, BASE_DECL, MEDIA, encodeTex };
+module.exports = { writeMedia, pruneMedia, BASE_DECL, MEDIA, encodeTex, mediaRel, readGeo, gzipGeo, isGeo, GZ_BIN, sha8 };

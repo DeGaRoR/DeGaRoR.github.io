@@ -38,7 +38,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const { writeMedia, pruneMedia, BASE_DECL, readGeo } = require('./_media_lib.js');
 const { decimate, mergeParts, packParts, readPart } = require('./prop_lod.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -116,7 +116,7 @@ function main(argv) {
       if (only.length && !only.includes(key)) continue;
       const base = baseFor(prop);
       if (base === null) throw new Error(key + ': group ' + prop.group + ' has no entry in the SHEET');
-      const bin = fs.readFileSync(path.join(ROOT, prop.bin));
+      const bin = readGeo(prop.bin);   // the STAGE's raw bin: readGeo passes a non-.gz.bin through
       const byMat = new Map();
       for (const part of prop.parts) (byMat.get(part.mat) || byMat.set(part.mat, []).get(part.mat)).push(readPart(bin, part));
       let meshes = [];
