@@ -755,7 +755,10 @@ function make(THREE, scene, world, rec0, opts) {
     G.roads.add(g);
     return g;
   }
-  function buildRoads() {
+  // G995 (A5-LOAD): the roads a yield each (their ribbons sample the ground's raster: 1.3 s in one task of the
+  // roll-out's world step on Jolene); buildRoads runs it to the end
+  function buildRoads() { const g = buildRoadsSteps(); while (!g.next().done); }
+  function* buildRoadsSteps() {
     for (const c of G.roads.children.slice()) {
       if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; }
       if (PWR && c.userData.powerline) { PWR.dispose(c); continue; }      // the cable's own geometry; the poles are shared prop meshes
@@ -777,8 +780,9 @@ function make(THREE, scene, world, rec0, opts) {
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.name = 'road:' + rd.id;   // culled by its own sphere (G663) m.userData.premId = rd.id;
         G.roads.add(m);
         buildLine(rd, pr, buildRail(rd, pr));
+        yield 'roads';
       }
-      buildPolys();
+      yield* buildPolysSteps();
       return;
     }
     if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -808,7 +812,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (d < R + 15) out.push({ d, cx: A.x, cz: A.z, hdg: A.hdg, halfL: A.len / 2, halfW: A.wid / 2 }); });
     return out.sort((a, b) => a.d - b.d);
   };
-  function buildPolys() {
+  function* buildPolysSteps() {
     if (!PAV) return;
     const lib = pavLib();
     for (const pp of O.pavePolys || []) {
@@ -823,6 +827,7 @@ function make(THREE, scene, world, rec0, opts) {
       const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band, keep });
       const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
       G.roads.add(m);
+      yield 'paved';
     }
   }
   function buildWater() {
@@ -2354,7 +2359,7 @@ function make(THREE, scene, world, rec0, opts) {
       yield 'lots';
       placeLots();
       yield 'roads';
-      buildRoads();
+      yield* buildRoadsSteps();
       yield 'runways';
       buildRunways();
       yield 'trams';

@@ -1203,14 +1203,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (world.roadNet.roadNear(x, z) < 9) c.lerp(c2.setHex(0xa38b5c), 0.7);
     };
     let forestMask = null;                 // W17 far tier: 512^2 over the domain
-    function bakeGround(x0, z0, x1, z1, N, opts) {
+    // G995 (A5-LOAD): THE BAKE IN SLICES. N^2 texels of colorAt (five height taps, the classifier, the forest
+    // test, the road distance each) - the 512^2 outer bake was one 1.2-1.7 s task of the roll-out's world step on
+    // Jolene. The generator yields every 32 rows (and before the fields and the grain); bakeGround drains it for any
+    // caller outside the build.
+    function bakeGround(x0, z0, x1, z1, N, opts) { const g = bakeGroundSteps(x0, z0, x1, z1, N, opts); let r; while (!(r = g.next()).done); return r.value; }
+    function* bakeGroundSteps(x0, z0, x1, z1, N, opts) {
       const EXT = x1 - x0;
       const small = document.createElement('canvas'); small.width = small.height = N;
       const sctx = small.getContext('2d'), img = sctx.createImageData(N, N);
       const hG = new Float32Array(N * N), lowG = new Float32Array(N * N);
       const mimg = opts.mini ? sctx.createImageData(N, N) : null;
       const fimg = opts.mask ? sctx.createImageData(N, N) : null;
-      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) { if (j && !(j & 31)) yield 'ground colour'; for (let i = 0; i < N; i++) {
         const x = x0 + (i + 0.5) / N * EXT, z = z0 + (j + 0.5) / N * EXT;
         colorAt(x, z);
         hG[j * N + i] = _h; lowG[j * N + i] = _low;
@@ -1227,7 +1232,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           mimg.data[o+2] = wet ? 0x9e : img.data[o+2];
           mimg.data[o+3] = 255;
         }
-      }
+      } }
       sctx.putImageData(img, 0, 0);
       if (fimg) {                          // own canvas: the colour bake below
         const fc = document.createElement('canvas');   // resamples to 2048 and
@@ -1270,6 +1275,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const j = Math.min(N-1, Math.max(0, Math.round((z - z0) / EXT * N - 0.5)));
         return lowG[j * N + i];
       };
+      yield 'ground fields';
       const FIELDS = ['#8a9a4e', '#c0aa61', '#b0a05e', '#96764f', '#6d8036',
                       '#9aa855', '#a8ab52', '#7e8f42'];
       const CS = 190;
@@ -1310,6 +1316,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         g.restore();
       }
       g.globalAlpha = 1;
+      if (opts.grain) yield 'ground grain';
       if (opts.grain) { // fine speckle so the ground has texture down low
         let seed = 5;
         const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
@@ -1635,9 +1642,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (u && gU[u]) gU[u].value = GROUND[k]; } return groundApi.get(); },
     };
     yield 'ground bake';
-    const tex = islandTex || bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
+    const tex = islandTex || (yield* bakeGroundSteps(-INNER, -INNER, INNER, INNER, 512, { grain: true }));
     yield 'outer bake';
-    const outerBake = bakeGround(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
+    const outerBake = yield* bakeGroundSteps(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
     const outerTex = islandTex || outerBake;
     outerTexShared = outerTex;
 
@@ -1645,10 +1652,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
     geo.rotateX(-Math.PI / 2);
     const posA = geo.attributes.position;
-    for (let i = 0; i < posA.count; i++)
+    // G995 (A5-LOAD): 513^2 heights, a yield every 16 rows (the raster reads made this one 2 s task of the world step)
+    for (let i = 0; i < posA.count; i++) {
+      if (i && !(i % (513 * 16))) yield 'ring heights';
       posA.setY(i, world.terrainH(posA.getX(i), posA.getZ(i)));
+    }
     if (islandUV) { const uvA = geo.attributes.uv;
       for (let i = 0; i < posA.count; i++) { const t = islandUV(posA.getX(i), posA.getZ(i)); uvA.setXY(i, t[0], t[1]); } }
+    yield 'ring normals';
     geo.computeVertexNormals();
     groundGeos.push(geo);
     // close-range detail: fine tiling grain multiplied in, faded out with distance
@@ -2215,7 +2226,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
       };
-      FARLOD.update = force => {
+      FARLOD.update = (force, nMax) => {   // nMax (G995): at most that many stale quadrants this call (the build's slices)
         const t0 = performance.now(), e = camera.position;
         const H = (renderer && renderer.domElement && renderer.domElement.height) || 1080;
         const K = H / (2 * Math.tan((camera.fov || 46) * Math.PI / 360));
@@ -2232,7 +2243,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (stale.length) {
           FARLOD.stamp++;
           stale.sort((a, b) => (a.m.geometry.boundingSphere ? a.m.geometry.boundingSphere.center.distanceTo(e) : 0) - (b.m.geometry.boundingSphere ? b.m.geometry.boundingSphere.center.distanceTo(e) : 0));
-          for (const Q of stale.slice(0, force ? stale.length : FARLOD.budget)) buildQuad(Q);
+          for (const Q of stale.slice(0, nMax != null ? nMax : force ? stale.length : FARLOD.budget)) buildQuad(Q);
           // the patches no quadrant draws any more leave the cache
           const live = new Set(); for (const Q of FARLOD.quads.values()) for (const f of Q.sig.split(',')) if (f) live.add(+f);
           for (const f of [...FARLOD.cache.keys()]) if (!live.has(f)) FARLOD.cache.delete(f);
@@ -2242,12 +2253,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       };
       // a premises stood or was edited (refreshGround's box): the cached patches under it are dropped and every
       // quadrant re-cut, so the sink above reaches them (G527)
-      FARLOD.resink = bb => {
+      FARLOD.resink = bb => { const g = FARLOD.resinkSteps(bb); let r; while (!(r = g.next()).done); return r.value; };
+      // G995 (A5-LOAD): the same, a quadrant a step - the roll-out's world build runs it in slices ('premises ground')
+      FARLOD.resinkSteps = function* (bb) {
         farSinkOn = true; let n = 0;
         for (const [f, P] of FARLOD.cache) { const [ox, oz, s] = P.box; if (ox < bb.x1 + 40 && ox + s > bb.x0 - 40 && oz < bb.z1 + 40 && oz + s > bb.z0 - 40) { FARLOD.cache.delete(f); n++; } }
         if (!n) return 0;
         for (const Q of FARLOD.quads.values()) Q.sig = '';
-        FARLOD.update(true);
+        FARLOD.update(true, 1);
+        while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain sink'; FARLOD.update(false, 1); }
         return n;
       };
       FARLOD.update(true);
@@ -5415,7 +5429,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (typeof renderer.compileAsync !== 'function' || !premisesR.prewarm) { if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4); }   // G562 / G591: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
       yield 'premises ground';
-      if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) refreshGround(pb); }   // refreshGround re-sinks the far tier itself (G527)
+      if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) yield* refreshGroundSteps(pb); }   // refreshGround re-sinks the far tier itself (G527)
     } catch (e) { console.warn('premises: the record did not render', e); }
   } else if (world.premises && world.premises.rec) {
     // A SILENT SKIP IS WHAT COST AN AFTERNOON (2026-09-23). render_premises prints
@@ -5721,15 +5735,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     } catch (e) { return []; }
   }
   function groundSink(x, z) { return (premisesR && premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0; }   // hoisted: the boot calls refreshGround before this line
-  function refreshGround(bb) {
+  function refreshGround(bb) { const g = refreshGroundSteps(bb); while (!g.next().done); }
+  // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
+  // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested
+  function* refreshGroundSteps(bb) {
     for (const g of groundGeos) {
       const pa = g.attributes.position; let n = 0;
-      for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z) - groundSink(x, z)); n++; }
+      for (let i = 0; i < pa.count; i++) {
+        if (i && !(i & 8191)) yield 'ground under the premises';
+        const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z) - groundSink(x, z)); n++;
+      }
       if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
     }
     if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
     if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
-    if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
+    if (farLod && farLod.resinkSteps) yield* farLod.resinkSteps(bb); else if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
   }
   let premTramLast = 0, premStreamTick = 0;
   function worldUpdate(cg) {
