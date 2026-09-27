@@ -522,7 +522,15 @@ function make(THREE, scene, world, rec0, opts) {
     const kindOf = (x0, z0) => (o.patchPick && o.patchPick(x0, z0, x0 + PCH, z0 + PCH)) ? 1 : 0;
     // ---- the ONE sampling: every active chunk a (n + 1)^2 grid at 2 m, its own vertices (the seams sample the same ground)
     const act = A.act, ck = A.key;
-    const Y = new Float32Array(list.length * per), UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
+    // THE GROUND UNDER THE PAVEMENT IS SUNK (G660): under a pavement's opaque interior the patch drops
+    // PAVEMENT.SINK.S (0.8 m, twice the worst LOD error measured) and the pavement is drawn at terrainH there
+    // (its builders' sinkD0) - nothing can pierce it from any distance, and the wheels meet it. Y0 is the
+    // ground as it was: the LOD errors and the normals are measured on it (the sink is never seen)
+    const PAVs = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
+    const pavR = PAVs && O.pavedAt ? PAVs.resolve(null, O.rec, null).recipe : null;
+    const sinkOf = pavR ? (x, z) => { const q = O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR)) : 0; } : null;
+    let sunk = 0;
+    const Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
     for (let c = 0; c < list.length; c++) {
       const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
       const kc = KIND[c] = kindOf(cx0, cz0), uvOf = (kc && o.patchUV2) || o.patchUV;
@@ -541,14 +549,15 @@ function make(THREE, scene, world, rec0, opts) {
         const r = Math.min(1, Math.max(0, edge) / 40);
         // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the
         // ring sinks 4 m under the patch now, so no fight there (G434: the border tucks 2.2 m under the ring)
-        Y[v] = world.terrainH(x, z) - 0.02 * r - 2.2 * (1 - r) * (1 - r);
+        Y0[v] = world.terrainH(x, z) - 0.02 * r - 2.2 * (1 - r) * (1 - r);
+        if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; }
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
     }
     // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
     const NRM = new Float32Array(list.length * per * 3);
     for (let c = 0; c < list.length; c++) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
-      const at = (ii, jj) => Y[c * per + Math.max(0, Math.min(n, jj)) * (n + 1) + Math.max(0, Math.min(n, ii))];
+      const at = (ii, jj) => Y0[c * per + Math.max(0, Math.min(n, jj)) * (n + 1) + Math.max(0, Math.min(n, ii))];
       const i0 = Math.max(0, i - 1), i1 = Math.min(n, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(n, j + 1);
       const gx = (at(i1, j) - at(i0, j)) / ((i1 - i0) * RES), gz = (at(i, j1) - at(i, j0)) / ((j1 - j0) * RES);
       const l = Math.hypot(gx, 1, gz), v = (c * per + j * (n + 1) + i) * 3;
@@ -576,9 +585,9 @@ function make(THREE, scene, world, rec0, opts) {
         let err = 0;
         if (s > 1) for (const c of B.cs) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
           const I = Math.min(Math.floor(i / s), m - 1), J = Math.min(Math.floor(j / s), m - 1), fu = i / s - I, fv = j / s - J;
-          const g = (ii, jj) => Y[c * per + jj * s * (n + 1) + ii * s];
+          const g = (ii, jj) => Y0[c * per + jj * s * (n + 1) + ii * s];
           const h = (g(I, J) * (1 - fu) + g(I + 1, J) * fu) * (1 - fv) + (g(I, J + 1) * (1 - fu) + g(I + 1, J + 1) * fu) * fv;
-          err = Math.max(err, Math.abs(h - Y[c * per + j * (n + 1) + i]));
+          err = Math.max(err, Math.abs(h - Y0[c * per + j * (n + 1) + i]));
         }
         const d = L === 0 ? 0 : Math.max(dPrev, half + Math.max(err * PL.focal / PL.tolPx, PL.res[L] * PL.minQuads));
         dPrev = d;
@@ -622,7 +631,7 @@ function make(THREE, scene, world, rec0, opts) {
       lod.updateMatrix(); lod.matrixAutoUpdate = false;
       group.add(lod);
     }
-    group.userData.chunks = list; group.userData.neighbours = A; group.userData.tris = tris0; group.userData.trisAll = trisAll; group.userData.blocks = blocks.size;
+    group.userData.chunks = list; group.userData.neighbours = A; group.userData.tris = tris0; group.userData.trisAll = trisAll; group.userData.blocks = blocks.size; group.userData.sunk = sunk;
     patch = group; patchKey = key;
     G.ground.add(patch);
   }
@@ -751,11 +760,12 @@ function make(THREE, scene, world, rec0, opts) {
         const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
         const RS = PAV.resolve(rd, O.rec, L);
         const pr = PG.polyRoad(rd.pts, rd.w);
-        const geo = PAV.roadGeometry(THREE, { road: pr, w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), toWorld: (x, z) => O.frame.toWorld(x, z), heightAt, lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6), shoulderK: stripKeep });
+        const geo = PAV.roadGeometry(THREE, { road: pr, w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), toWorld: (x, z) => O.frame.toWorld(x, z), heightAt, lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6), shoulderK: stripKeep,
+          sinkD0: o.game ? PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe) : null });   // the patch is sunk under it (G660)
         const marks = RS.marks === 'none' ? { rects: [], segs: [], wid: rd.w } : PAV.roadMarks(pr.length, rd.w, RS.cls, RS.recipe);
         if (RS.marks === 'edges') marks.rects = marks.rects.filter(r => !(r[5] > 0)); else if (RS.marks === 'centre') marks.rects = marks.rects.filter(r => r[5] > 0);
         const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band });
-        const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.frustumCulled = false; m.name = 'road:' + rd.id; m.userData.premId = rd.id;
+        const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.name = 'road:' + rd.id;   // culled by its own sphere (G663) m.userData.premId = rd.id;
         G.roads.add(m);
         buildLine(rd, pr, buildRail(rd, pr));
       }
@@ -781,6 +791,14 @@ function make(THREE, scene, world, rec0, opts) {
   }
   // THE PAVED POLYGONS (v1.16): an apron, a turnaround, a pad - a material polygon with a look; drawn under
   // the roads group (renderOrder 2: a road crossing an apron draws over it), the lanes turned by its yaw
+  // the strips near a world box, as PAVEMENT keep boxes (G664): a side fading over a strip's surface is cut there
+  const stripBoxesNear = (x0, z0, x1, z1, self) => {
+    const out = [];
+    O.runways.forEach((r, i) => { const A = O.aerodromes[i]; if (!A || r === self || PG.runwayIsWater(r)) return;
+      const R = Math.hypot(A.len, A.wid) / 2, dx = Math.max(x0 - A.x, A.x - x1, 0), dz = Math.max(z0 - A.z, A.z - z1, 0), d = Math.hypot(dx, dz);
+      if (d < R + 15) out.push({ d, cx: A.x, cz: A.z, hdg: A.hdg, halfL: A.len / 2, halfW: A.wid / 2 }); });
+    return out.sort((a, b) => a.d - b.d);
+  };
   function buildPolys() {
     if (!PAV) return;
     const lib = pavLib();
@@ -788,11 +806,13 @@ function make(THREE, scene, world, rec0, opts) {
       const L = PG.RUNWAY_LOOKS[pp.look]; if (!L || !L.cls) continue;
       const RS = PAV.resolve(pp, O.rec, L);
       const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
-      const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw });
+      const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw,
+        sinkD0: o.game ? PAV.opaqueDepth(RS.cls, 1e3, RS.recipe) : null });
       // an apron may be a PARKING AREA: its stands' lead-in lines and nose stops, in its own frame
       const marks = pp.stands ? PAV.standMarks(pp.stands, (geo.userData.pav || {}).halfW || 0) : { rects: [], segs: [] };
-      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band });
-      const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.frustumCulled = false; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
+      const bs = geo.boundingSphere, keep = bs ? stripBoxesNear(bs.center.x - bs.radius, bs.center.z - bs.radius, bs.center.x + bs.radius, bs.center.z + bs.radius, null) : [];
+      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band, keep });
+      const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
       G.roads.add(m);
     }
   }
@@ -951,8 +971,9 @@ function make(THREE, scene, world, rec0, opts) {
         // THE PAVEMENT STRIP (v1.16): what the game will stand - the same builder, the same recipe
         const RS = PAV.resolve(r, O.rec, LKp);
         const geo = PAV.stripGeometry(THREE, { len: A.len, wid: A.wid, hdg: A.hdg, cx: A.x, cz: A.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(r.id), heightAt, lift: 0.07, resU: 6, resV: 3, shoulderK: pavedKeep(r) });
-        const mat = PAV.make(THREE, { lib: pavLib(), cls: RS.cls, marks: RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(R, SITE.sitePaintStrip), recipe: RS.recipe, band: RS.band });
-        const pm = new THREE.Mesh(geo, mat); pm.renderOrder = 2; pm.receiveShadow = true; pm.frustumCulled = false; pm.name = 'runway:' + r.id; pm.userData.premId = r.id; pm.userData.pavMat = true;
+        const keep = stripBoxesNear(A.x - A.len / 2, A.z - A.len / 2, A.x + A.len / 2, A.z + A.len / 2, r);
+        const mat = PAV.make(THREE, { lib: pavLib(), cls: RS.cls, marks: RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(R, SITE.sitePaintStrip), recipe: RS.recipe, band: RS.band, keep });
+        const pm = new THREE.Mesh(geo, mat); pm.renderOrder = 2; pm.receiveShadow = true; pm.name = 'runway:' + r.id; pm.userData.premId = r.id; pm.userData.pavMat = true;
         G.runways.add(pm);
         if (SITE.sitePattern && window.PATTERN_VIS) {
           try { const pat = SITE.sitePattern(A, r.site || null); const pv = window.PATTERN_VIS.buildPatternVis(THREE, pat, (x, z) => heightAt(x, z), { patternPath: SITE.patternPath, siteRunway: SITE.siteRunway }); const grp = pv.group || pv; if (pv.setLayers) pv.setLayers({ graph: true, slope: true, targets: true }); grp.name = 'pattern:' + r.id; G.runways.add(grp); } catch (e) { console.warn('premises pattern', r.id, e && e.message); }
@@ -2383,6 +2404,7 @@ function make(THREE, scene, world, rec0, opts) {
     // chords sat above the true ground wherever it is concave and cut through every road, lot and pad
     // laid on the composed height (the user: "roads clip through terrain, the terrain shows through the
     // house patches"); `world` here so the rings can ask
+    pavedAt: (x, z) => (O.pavedAt ? O.pavedAt(x, z) : null),       // G660: the patch is sunk under a pavement's opaque interior by it
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
     patchBounds: () => (patch ? extentWorld() : null),
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()

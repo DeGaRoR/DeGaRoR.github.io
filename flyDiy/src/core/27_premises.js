@@ -1680,6 +1680,10 @@ function compose(rec0, world, opts) {
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
     coverAt: (x, z, pave) => coverAt(x, z, pave),
+    // pavedAt(x, z) -> null | { d, cls, halfW, kind }: the pavement whose surface the point lies deepest
+    // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
+    // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
+    pavedAt: (x, z) => pavedAt(x, z),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -1763,7 +1767,9 @@ function compose(rec0, world, opts) {
       if (out > it.band + PAVE_FADE + 6) continue;
       // the pavement and its band: nothing; the fade: 1 -> 0 over PAVE_FADE; the border bump past the band
       let k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
-      if (it.cls === 'grass') k *= 0.6;              // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare
+      // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare - except a STRIP's
+      // surface, where no grass grows at all (G665, the user: "the runways should be able excluding the grass")
+      if (it.cls === 'grass' && !(it.kind === 'strip' && d >= 0)) k *= 0.6;
       const bump = out <= it.band ? 0 : (out < it.band + PAVE_FADE + 6 ? Math.sin(Math.PI * Math.min(1, (out - it.band) / (PAVE_FADE + 6))) : 0);
       // a soft road's own edge is where the grass creeps in: the bump reaches into its last metre
       const soft = it.soft && d > 0 && d < 1 ? 0.5 * (1 - d) : 0;
@@ -1779,6 +1785,17 @@ function compose(rec0, world, opts) {
     if (kind === 'lawn' && kill < 1) kill = 0;
     if (!kill && !boost && !kind) return null;
     return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+  }
+
+  function pavedAt(x, z) {
+    const L = F.toLocal(x, z), lx = L[0], lz = L[1];
+    const cell = CIDX.query(lx, lz);
+    let best = null;
+    if (cell) for (const it of cell) {
+      const d = dEdgeOf(it, lx, lz);
+      if (d > 0 && (!best || d > best.d)) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind };
+    }
+    return best;
   }
 
   // PLACEMENT (stage 5): the zones sown in array order — a later zone's plots

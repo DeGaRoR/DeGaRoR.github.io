@@ -228,6 +228,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const u = rr(-2, o.len + 2), v = (rnd() < 0.5 ? -1 : 1) * rr(o.wid / 2 + 0.2, o.wid / 2 + band + 1.5);
       const w = o.toWorld(u, v), f = field.at(w[0], w[1]); const d = -f.dEdge;
       if (d < 0.2 || d > band + 1.5) continue;
+      // not in a pond (G660: with the band no longer drawn over it, a pool beside 02/20 showed its stones afloat)
+      if (world.waterH) { const wy = world.waterH(w[0], w[1]); if (Number.isFinite(wy) && wy > world.terrainH(w[0], w[1]) - 0.05) continue; }
       if (rnd() > 0.35 + 0.65 * Math.min(1, d / band)) continue;
       rows.push([w[0], w[1], rr(0, 6.3), rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1), Math.floor(rnd() * parts.length)]);
     }
@@ -247,16 +249,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const ys = cellRows.map(r => { const y = yOf(r); x0 = Math.min(x0, r[0]); x1 = Math.max(x1, r[0]); z0 = Math.min(z0, r[1]); z1 = Math.max(z1, r[1]); y0 = Math.min(y0, y); y1 = Math.max(y1, y); big = Math.max(big, r[3]); return y; });
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2, reach = Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2;
       const grp = new THREE.Group();
+      // NO SHADOW UNDER HALF A METRE (G667, the playtest's cut list): a 7-30 cm stone's shadow is a few texels
+      // of either map, and every stone was a caster in both - the ones of 0.5 m and more (the 5 % drawn 2.5x,
+      // about 2 % of them) keep theirs, in a mesh of their own
       parts.forEach((P, pi) => {
-        const idx = []; cellRows.forEach((r, i) => { if (r[4] === pi) idx.push(i); }); if (!idx.length) return;
         const h0 = Math.max(0.05, P.bb[4] - P.bb[1]);
+        for (const bigSet of [false, true]) {
+        const idx = []; cellRows.forEach((r, i) => { if (r[4] === pi && (r[3] >= 0.5) === bigSet) idx.push(i); }); if (!idx.length) continue;
         for (const part of P.parts) {
           const im = new THREE.InstancedMesh(part.geo, part.mat, idx.length);
           idx.forEach((ri, i) => { const r = cellRows[ri], sc = r[3] / h0; q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); sv.set(sc, sc, sc); im.setMatrixAt(i, mtx.compose(p, q, sv)); });
-          im.instanceMatrix.needsUpdate = true; im.castShadow = true; im.receiveShadow = true; im.name = 'rocks:' + o.id;
+          im.instanceMatrix.needsUpdate = true; im.castShadow = bigSet; im.receiveShadow = true; im.name = 'rocks:' + o.id;
           if (THREE.Sphere) im.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), reach + 3 * Math.max(0.5, big));
           else im.frustumCulled = false;
           grp.add(im);
+        }
         }
       });
       let obj = grp;
@@ -5474,12 +5481,22 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // the band beside it, the markings recorded off sitePaintStrip, the rocks along the band
         const RS = PAV.resolve(a.premises ? a : null, a.premises ? pavRec() : null, LKp);
         const shW = PAV.shoulderFor(RS.band, RS.recipe);
-        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3 };
+        // G660: on the premises' patch the ground is sunk under the strip's opaque interior, and the strip is
+        // drawn at terrainH there (the wheels' surface); elsewhere (the analytic world's ground) it keeps its lift
+        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3,
+          sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe) : null };
         const pgeo = PAV.stripGeometry(THREE, sd);
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
-        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band });
-        const pm = new THREE.Mesh(pgeo, pmat); pm.renderOrder = 2; pm.receiveShadow = true; pm.frustumCulled = false; pm.name = 'pavement:' + a.id; pm.userData.pavMat = true;
+        // G664: the side is cut per pixel over every other strip's surface (the game's strips never had the
+        // bench's shoulder keep), and the strips draw in a FIXED order - the longest last, on top - where they
+        // shared renderOrder 2 and the stream's creation order decided which crossing won
+        const others = world.aerodromes.filter(b => b !== a && b.len && b.wid && b.kind !== 'meadow' && b.kind !== 'water')
+          .map(b => ({ b, d: Math.hypot(b.x - a.x, b.z - a.z) - (b.len + a.len) / 2 })).filter(q => q.d < 30).sort((p, q) => p.d - q.d)
+          .map(q => ({ cx: q.b.x, cz: q.b.z, hdg: q.b.hdg, halfL: q.b.len / 2, halfW: q.b.wid / 2 }));
+        const rank = world.aerodromes.filter(b => b.len && b.kind !== 'meadow' && b.kind !== 'water' && (b.len < a.len || (b.len === a.len && String(b.id) < String(a.id)))).length;
+        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others });
+        const pm = new THREE.Mesh(pgeo, pmat); pm.renderOrder = 1.99 + Math.min(19, rank) * 0.0005; pm.receiveShadow = true; pm.name = 'pavement:' + a.id; pm.userData.pavMat = true;
         scene.add(keep(pm));
         geo.dispose();
         const F = PAV.field(sd);

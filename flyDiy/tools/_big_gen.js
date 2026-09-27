@@ -1126,9 +1126,15 @@ function billboard(o) {
   const bags = { sign: Bag('sign'), door: Bag('door'), metal: Bag('metal'), aoskirt: Bag('aoskirt') };
   const g = o.ground || ((x, z) => 0);
   const px = w / 2 - 0.35;
+  // THE POSTS STAND BEHIND THE BOARD (G666, the playtest: "their poles are going through the panel often ...
+  // the panel needs to be positioned at a distance from the pole"): a post is 16 cm square, and centred at
+  // z -0.06 its FRONT face was the sign's own plane (z +0.02) - the two z-fought - and it cut the backing box
+  // (z -0.03..+0.016). Centred at -0.14 its front face is at -0.06: 3 cm behind the backing, the rails
+  // (-0.14..-0.04) bolted across its face and a centimetre clear of the board
+  const PZ = -0.14;
   for (const x of [-px, px]) {
-    const gy = g(x, 0) - 0.3;
-    beam(bags.metal, [x, gy, -0.06], [x, top + 0.12, -0.06], 0.08, 0.08, [0, 0, 1], 0);
+    const gy = g(x, PZ) - 0.3;
+    beam(bags.metal, [x, gy, PZ], [x, top + 0.12, PZ], 0.08, 0.08, [0, 0, 1], 0);
   }
   const y0 = top - h, z = 0.02;
   const q = [[-w / 2, y0, z], [w / 2, y0, z], [w / 2, top, z], [-w / 2, top, z]];
@@ -1136,7 +1142,7 @@ function billboard(o) {
   boxAB(bags.door, [-w / 2, y0, z - 0.05], [w / 2, top, z - 0.004], { pz: true });
   // the rails behind the board
   for (const y of [y0 + 0.15, top - 0.15]) beam(bags.metal, [-w / 2, y, -0.09], [w / 2, y, -0.09], 0.03, 0.05, [0, 0, 1], 0);
-  HG.buildGroundAO(bags.aoskirt, [{ x: -px, z: 0, r: 0.1, k: 0.5, soft: 0.4, dry: true }, { x: px, z: 0, r: 0.1, k: 0.5, soft: 0.4, dry: true }], g);
+  HG.buildGroundAO(bags.aoskirt, [{ x: -px, z: PZ, r: 0.1, k: 0.5, soft: 0.4, dry: true }, { x: px, z: PZ, r: 0.1, k: 0.5, soft: 0.4, dry: true }], g);
   return { bags, BAGS: ['sign', 'door', 'metal'], stats: { w, h, top, key, sign: { x: 0, y: top - h / 2, z, w, h, nx: 0, nz: 1 } } };
 }
 // the finish for one: the board's texture, timber posts, the backing's rust

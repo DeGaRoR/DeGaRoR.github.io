@@ -53,7 +53,8 @@ const SPLAT_GROUND = (() => {
   // carries them - the mip bias (+ blurs), the anisotropy, the specular anti-alias, the normal's fade and the detail's
   // contrast near and far. The fades' defaults are the answer to "how noisy detailed textures appear": the relief and
   // the grain give way where a texel is under a pixel and can only alias.
-  const FILTER_DEFAULTS = { lodBias: 0, aniso: 8, specAA: 0.35, nrmFadeFrom: 250, nrmFadeTo: 1400, conNear: 1, conFar: 0.7, conFrom: 60, conTo: 700 };
+  // aniso 16 (G662): three clamps it to the GPU's own maximum; 8 blurred the grain at grazing angles (the playtest's 142931)
+  const FILTER_DEFAULTS = { lodBias: 0, aniso: 16, specAA: 0.35, nrmFadeFrom: 250, nrmFadeTo: 1400, conNear: 1, conFar: 0.7, conFrom: 60, conTo: 700 };
   const load = () => {
     const R = JSON.parse(JSON.stringify(G.RECIPE));
     R.knobs = Object.assign({}, FILTER_DEFAULTS, R.knobs);
@@ -446,7 +447,7 @@ const SPLAT_GROUND = (() => {
         t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
         t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
         // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes
-        t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 8; t.needsUpdate = true; return t; };
+        t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 16; t.needsUpdate = true; return t; };
       U.uSplat.value = mk(data, true); U.uSplatN.value = mk(dataN, false);
       done();
     });

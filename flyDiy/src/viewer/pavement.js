@@ -93,6 +93,12 @@ const PAVEMENT = (() => {
     // Two levers, both here: the grass reaches FURTHER in over the band and its edge is raggeder
     // (below), and the `dry` set's own grade is pulled down and turned toward the ground (in `grade`).
     edgeChip: 0.6, band: -1, grassReach: 13, fadeW: 6, bandNoise: 0.85,
+    // THE SIDES FADE TO THE GROUND (G660, the user after the 2026-09-26 playtest: "do not touch the runways
+    // (their surface looks good), just their sides ... maybe transparent for now"). A strip's and a paved
+    // polygon's band - the gravel, the grass creeping in, the shoulder's vehicle paths - is no longer drawn:
+    // past the edge the surface's own colour goes to alpha over sideW metres (from sideA), and the island's
+    // ground shows. The band still EXCLUDES the vegetation (coverAt's PAVE_BAND is untouched). 0 = the band.
+    sideFade: 1, sideW: 2, sideA: 0.5,
     detailFrom: 250, detailTo: 900, normalFrom: 120, normalTo: 500,
     specK: 1.0, nrmK: 1.0,
     softMix: 0.8, coarseK: 0.7, wheelBand: 0.85, treadK: 0.8, paintRelief: 1.0, mow: 0.6, edgeSoft: 2.6, grassRough: 0.82,
@@ -129,6 +135,7 @@ const PAVEMENT = (() => {
     ['softMix', 'second ground in patches', 0, 1, 0.02], ['coarseK', 'coarse stony patches', 0, 1, 0.02], ['wheelBand', 'compacted wheel band', 0, 1, 0.02], ['treadK', 'tyre tread in the tracks', 0, 1, 0.02],
     ['edgeSoft', 'soft edge spread (m)', 0.3, 5, 0.1], ['mow', 'mowing stripes (grass)', 0, 1, 0.05], ['grassRough', 'soft roughness floor', 0.5, 1, 0.02],
     ['— edge zone —'],
+    ['sideFade', 'strip sides fade to the ground (0/1)', 0, 1, 1], ['sideW', 'side fade width (m)', 0.5, 10, 0.5], ['sideA', 'side fade from alpha', 0, 1, 0.05],
     ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
     ['— distance —'],
     ['detailFrom', 'detail fades from (m)', 20, 1500, 10], ['detailTo', 'detail gone by (m)', 50, 3000, 10], ['normalFrom', 'normal fades from (m)', 10, 1000, 10], ['normalTo', 'normal gone by (m)', 30, 2000, 10],
@@ -181,6 +188,34 @@ const PAVEMENT = (() => {
       toLocal: (x, z) => { const dx = x - cx, dz = z - cz; return [dx * T[0] + dz * T[1] + halfL, dx * N[0] + dz * N[1]]; } };
   }
   const sdBox = (u, v, halfL, halfW, len) => { const du = Math.max(-u, u - len), dv = Math.abs(v) - halfW; return -(Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0)); };
+  // ---- THE GROUND UNDER THE PAVEMENT (G660) ------------------------------------
+  // The pavement is transparent (its sides fade), writes no depth, and was lifted 5-8 cm over a ground
+  // patch whose LOD levels stray up to ~40 cm from the fine grid: at a distance, and at a grazing angle
+  // anywhere, the ground's triangles pierced it and which ones did moved with the camera (the playtest's
+  // 141608 / 144959 / 145145) - and the wheels, which roll on terrainH, sat those 5-8 cm into it (142532).
+  // Now the ground is SUNK under the pavement's opaque interior (render_premises' patch, by sinkAt) and
+  // the pavement comes DOWN to terrainH there (liftK), so no camera distance can pierce it and the drawn
+  // surface is the solver's. Near the edge, where the pavement is not yet opaque, both keep the old lift.
+  //   opaqueDepth(cls, halfW, recipe): how far inside the edge the shader's alpha is 1 for sure - the paved
+  //     edge's chipping (edgeChip), the soft edge's three octaves of noise (2.45 x edgeSoft); a grass
+  //     pavement is translucent over its whole width and never sinks (Infinity)
+  //   sinkAt(dE, d0): the ground's drop, S over `ramp` metres from d0 inward
+  //   liftK(dE, d0): the pavement's lift factor, 1 -> 0 only `pad` metres past the full sink - a pavement
+  //     triangle spans 3 m and a patch triangle's corner 1.4 m, so no point of a lowered triangle stands
+  //     over ground that is not already sunk by more than the lift it lost
+  const SINK = { S: 0.8, ramp: 3, pad: 3, fall: 1.5 };
+  const ss01 = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  function opaqueDepth(cls, halfW, recipe) {
+    const r = recipe || R;
+    if (cls === 'grass') return Infinity;
+    if (cls === 'concrete' || cls === 'asphalt') return (r.edgeChip || 0) + 0.2;
+    const soft = Math.max(0.3, Math.min(6, Math.min(r.edgeSoft || 2.6, (halfW || 3) * 0.6)));
+    return soft * 2.45 + 0.2;
+  }
+  const sinkAt = (dE, d0) => (isFinite(d0) ? SINK.S * ss01(d0, d0 + SINK.ramp, dE) : 0);
+  const liftK = (dE, d0) => (isFinite(d0) ? 1 - ss01(d0 + SINK.ramp + SINK.pad, d0 + SINK.ramp + SINK.pad + SINK.fall, dE) : 1);
+  // a builder's lift at a vertex: o.sinkD0 (the caller's opaqueDepth) says the ground under it is sunk
+  const liftOf = (o, lift, dE) => (o.sinkD0 !== undefined && o.sinkD0 !== null ? lift * liftK(dE, o.sinkD0) : lift);
   function stripGeometry(THREE, o) {
     const cls = CLASSES.indexOf(o.cls || 'concrete'), seed = o.seed || 0, shW = o.shoulderW !== undefined ? o.shoulderW : 12;
     const lift = o.lift !== undefined ? o.lift : 0.07, resU = o.resU || 6, resV = o.resV || 3;
@@ -197,7 +232,7 @@ const PAVEMENT = (() => {
     let k = 0;
     for (let i = 0; i < nU; i++) for (let j = 0; j < nV; j++, k++) {
       const u = U[i], v = V[j], w = F.toWorld(u, v);
-      const y = (o.heightAt ? o.heightAt(w[0], w[1]) : 0) + lift;
+      const y = (o.heightAt ? o.heightAt(w[0], w[1]) : 0) + liftOf(o, lift, sdBox(u, v, halfL, halfW, len));
       pos[k * 3] = w[0]; pos[k * 3 + 1] = y; pos[k * 3 + 2] = w[1];
       pav[k * 4] = u; pav[k * 4 + 1] = v; pav[k * 4 + 2] = sdBox(u, v, halfL, halfW, len); pav[k * 4 + 3] = shW;
       pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = halfL;
@@ -217,7 +252,7 @@ const PAVEMENT = (() => {
     g.setAttribute('aPavT', new THREE.BufferAttribute(pt, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeVertexNormals();
+    g.computeVertexNormals(); g.computeBoundingSphere();   // world-space vertices: an honest sphere, frustum-culled (G663)
     // a winding check: the first triangle must face +y once draped (the drape never flips it)
     g.userData.pav = { kind: 'strip', len, wid: o.wid, shoulderW: shW, cls: CLASSES[cls], seed, frame: F, rows: V.length, cols: U.length };
     return g;
@@ -248,7 +283,7 @@ const PAVEMENT = (() => {
       const tx = p1[0] - p0[0], tz = p1[1] - p0[1], tl = Math.hypot(tx, tz) || 1;
       for (let j = 0; j < nV; j++, k++) {
         const v = V[j], lp = [A.p[0] + A.n[0] * v, A.p[1] + A.n[1] * v], wp = tw(lp[0], lp[1]);
-        const y = (o.heightAt ? o.heightAt(wp[0], wp[1]) : 0) + lift;
+        const y = (o.heightAt ? o.heightAt(wp[0], wp[1]) : 0) + liftOf(o, lift, halfW - Math.abs(v));
         pos[k * 3] = wp[0]; pos[k * 3 + 1] = y; pos[k * 3 + 2] = wp[1];
         pav[k * 4] = S[i]; pav[k * 4 + 1] = v; pav[k * 4 + 2] = halfW - Math.abs(v); pav[k * 4 + 3] = shW;
         pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = L / 2;
@@ -269,7 +304,7 @@ const PAVEMENT = (() => {
     g.setAttribute('aPavT', new THREE.BufferAttribute(pt, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeVertexNormals();
+    g.computeVertexNormals(); g.computeBoundingSphere();
     g.userData.pav = { kind: 'road', len: L, wid: w, shoulderW: shW, cls: CLASSES[cls], seed, rows: V.length, cols: S.length };
     return g;
   }
@@ -295,11 +330,11 @@ const PAVEMENT = (() => {
     const sd = (x, z) => { let d = Infinity; for (let i = 0; i < poly.length; i++) d = Math.min(d, dSeg(x, z, poly[i], poly[(i + 1) % poly.length])); return inP(x, z) ? d : -d; };
     let k = 0;
     for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++, k++) {
-      const x = x0 + (x1 - x0) * i / nx, z = z0 + (z1 - z0) * j / nz;
-      const y = (o.heightAt ? o.heightAt(x, z) : 0) + lift;
+      const x = x0 + (x1 - x0) * i / nx, z = z0 + (z1 - z0) * j / nz, dE = sd(x, z);
+      const y = (o.heightAt ? o.heightAt(x, z) : 0) + liftOf(o, lift, dE);
       const dx = x - cx, dz = z - cz, u = dx * c + dz * sn, v = -dx * sn + dz * c;
       pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
-      pav[k * 4] = u + halfW; pav[k * 4 + 1] = v; pav[k * 4 + 2] = sd(x, z); pav[k * 4 + 3] = shW;
+      pav[k * 4] = u + halfW; pav[k * 4 + 1] = v; pav[k * 4 + 2] = dE; pav[k * 4 + 3] = shW;
       pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = halfW;
       pt[k * 3] = c; pt[k * 3 + 1] = 1; pt[k * 3 + 2] = sn;
       uv[k * 2] = u; uv[k * 2 + 1] = v;
@@ -315,7 +350,7 @@ const PAVEMENT = (() => {
     g.setAttribute('aPavT', new THREE.BufferAttribute(pt, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeVertexNormals();
+    g.computeVertexNormals(); g.computeBoundingSphere();
     g.userData.pav = { kind: 'poly', shoulderW: shW, cls: CLASSES[cls], seed, rows: nz + 1, cols: nx + 1, halfW, cx, cz };
     return g;
   }
@@ -482,7 +517,7 @@ const PAVEMENT = (() => {
         // texel came out 17-29 % darker than the near ones on the dark, contrasty sets (Jensen). The
         // height in alpha rides along untouched (alpha is never transferred)
         if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-        t.anisotropy = 8; t.needsUpdate = true; return t; };
+        t.anisotropy = 16; t.needsUpdate = true; return t; };   // G662: three clamps to the GPU's maximum; 8 blurred the grain at grazing angles (142931)
       lib.texA = mk(data, true); lib.texN = mk(dataN, false); lib.ready = true;
       for (const m of MATS) if (m.userData.pavLib === lib) { m.uniforms.uPavA.value = lib.texA; m.uniforms.uPavN.value = lib.texN; m.uniforms.uPavOn.value = 1; applyOne(THREE, m); }
       if (done) done(lib);
@@ -521,7 +556,7 @@ const PAVEMENT = (() => {
   }
 
   // ---- the shader ------------------------------------------------------------
-  const NMARK = 40, NSEG = 8;
+  const NMARK = 40, NSEG = 8, NKEEP = 4;
   const GLSL = {};
   GLSL.vertex = `
 attribute vec4 aPav; attribute vec4 aPavK; attribute vec3 aPavT;
@@ -540,6 +575,7 @@ uniform vec4 uGrade[8], uTint[8];
 uniform vec4 uMean;
 uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
+uniform vec4 uSide; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
 float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
 struct Smp { vec4 c; vec4 n; };
@@ -571,7 +607,7 @@ Smp pvFetch(float layer, vec2 uv, vec2 cs, int slot) {
   return o;
 }
 Smp pvTile(float layer, vec2 st, int slot) {
-  if (uHex.y < 0.5 || gPlain > 0.5) return pvFetch(layer, st, vec2(1.0, 0.0), slot);
+  if (uHex.y < 0.5 || gPlain > 0.999) return pvFetch(layer, st, vec2(1.0, 0.0), slot);
   vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * uHex.z);
   vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
   float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
@@ -589,7 +625,24 @@ Smp pvTile(float layer, vec2 st, int slot) {
   // own mean (what the far tier is); the ramp has no such bias, and no cell border becomes a seam
   vec3 hw = pow(w, vec3(3.0)) / max(dot(pow(w, vec3(3.0)), vec3(1.0)), 1e-5);
   Smp o; o.c = s1.c * hw.x + s2v.c * hw.y + s3.c * hw.z; o.n = s1.n * hw.x + s2v.n * hw.y + s3.n * hw.z;
+  // the far tier's plain fetch comes in over a band, not at one distance (G662: a hard step at 900 m swept
+  // down the runway as the camera moved)
+  if (gPlain > 0.001) { Smp pl = pvFetch(layer, st, vec2(1.0, 0.0), slot); o.c = mix(o.c, pl.c, gPlain); o.n = mix(o.n, pl.n, gPlain); }
   return o;
+}
+// THE OTHER PAVEMENTS' BOXES (G664): a strip's side does not lie over another strip's surface - exact per
+// pixel (the per-vertex shoulder keep was 3 x 6 m coarse, and the game's strips never had it). A box is
+// (centre x, z, the axis cos, sin) + (half length, half width); 0 inside, 1 two metres out
+float pvKeep(vec2 p) {
+  float k = 1.0;
+  for (int i = 0; i < ${NKEEP}; i++) {
+    if (i >= uKeepN) break;
+    vec4 A = uKeepA[i], B = uKeepB[i]; vec2 d = p - A.xy;
+    vec2 q = vec2(abs(d.x * A.z + d.y * A.w) - B.x, abs(-d.x * A.w + d.y * A.z) - B.y);
+    float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+    k = min(k, smoothstep(0.3, 2.0, sd));
+  }
+  return k;
 }
 // a slot's set at the pavement's (u, v): the paved slots turn a little (a brushed finish has a grain), the loose ones any way
 Smp pvSet(int slot, vec2 uv) {
@@ -689,7 +742,8 @@ float pvTread(float u, float x, float w, float seed) {
     float dist = distance(vPavW, cameraPosition);
     float detail = 1.0 - smoothstep(uDist.x, uDist.y, dist);
     float nrmK = uSpec.y * (1.0 - smoothstep(uDist.z, uDist.w, dist));
-    gPlain = step(uDist.y, dist);
+    gPlain = smoothstep(uDist.y * 0.8, uDist.y * 1.1, dist);
+    bool sideFade = uSide.x > 0.5;
     bool paved = cls < 1.5, concrete = cls < 0.5, grassy = cls > 4.5, road = uClass.w > 0.5, isPoly = uClass.w > 1.5;
     // THE FOOTPRINT RULE: a thin feature (a joint, a crack, a paint edge) is anti-aliased by fwidth,
     // and once the pixel's footprint exceeds the feature's width its coverage must SHRINK to the
@@ -940,7 +994,7 @@ float pvTread(float u, float x, float w, float seed) {
       col *= 1.0 - rubber * 0.8; rough = mix(rough, 0.45, rubber); nT.xy *= 1.0 - rubber * 0.5;
     }
     // ---- 9 the shoulder's vehicle paths (any class with a band wide enough to drive on)
-    if (dE < -0.5 && uRut2.w > 0.5 && uEdge.y > 4.0) {
+    if (dE < -0.5 && uRut2.w > 0.5 && uEdge.y > 4.0 && !sideFade) {
       float room = smoothstep(4.0, 9.0, uEdge.y);
       for (int k = 0; k < 4; k++) {
         if (float(k) >= uRut2.w) break;
@@ -974,6 +1028,7 @@ float pvTread(float u, float x, float w, float seed) {
     // a soft strip's border: the loose stuff and the grass mingle over the band, the coarse set among them
     if (!paved) { wBand *= 0.6; coarse = max(coarse, (1.0 - wPav) * wBand * 0.5); }
     wGrass = max(wGrass, grassStripe);
+    if (sideFade) { wBand = 0.0; wGrass = 0.0; coarse = 0.0; }        // no band sets: the side is the surface fading out
     vec3 nS = nT; float rS = rough; vec3 cS = col; float hS = hgt;
     float outside = 1.0 - wPav;
     float wb = outside * wBand * (1.0 - wGrass), wg = wGrass, wp = 1.0 - wb - wg;
@@ -1004,6 +1059,13 @@ float pvTread(float u, float x, float w, float seed) {
     float fade1 = shW, fade0 = clamp(min(bandW + 0.3, shW - max(uEdge.w, 0.6)), 0.0, shW - 0.3);
     gPavA = 1.0 - smoothstep(fade0, fade1, -dE);
     gPavA = mix(wPav, gPavA, clamp(vPavSh, 0.0, 1.0));
+    if (sideFade) {
+      // THE SIDE (G660): the surface's own colour going to alpha past the (chipped) edge; a soft edge is
+      // already a torn fade and keeps it
+      float sideA = paved ? uSide.z * (1.0 - smoothstep(0.0, uSide.y, -eEdge)) : 0.0;
+      gPavA = max(wPav, sideA * clamp(vPavSh, 0.0, 1.0));
+    }
+    if (dE < 0.0 && uKeepN > 0) gPavA *= pvKeep(vPavW.xz);
     // A GRASS ROAD IS THE WORLD'S GRASS WITH TRACKS IN IT: the mesh shows only where the wheels wore
     // it (the ruts, the compacted band, the tread); a grass STRIP keeps a share of its own lawn (it
     // is mown, and that reads) - the rest is the ground under it
@@ -1082,6 +1144,14 @@ float pvTread(float u, float x, float w, float seed) {
     const sk = cls.soft || [1, 1, 1, 1];                                       // the class's own share of each soft layer
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);
+    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, r.sideW || 2, r.sideA === undefined ? 0.5 : r.sideA, 0);
+  }
+  // setKeep(m, boxes): the pavements this one's side must not lie over (G664) - [{ cx, cz, hdg, halfL, halfW }],
+  // the strip frame's own convention (T = [cos hdg, sin hdg]); at most NKEEP, the nearest first
+  function setKeep(m, boxes) {
+    const U = m.uniforms, B = (boxes || []).slice(0, NKEEP);
+    B.forEach((b, i) => { U.uKeepA.value[i].set(b.cx, b.cz, Math.cos(b.hdg || 0), Math.sin(b.hdg || 0)); U.uKeepB.value[i].set(b.halfL, b.halfW, 0, 0); });
+    U.uKeepN.value = B.length;
   }
   // the hook: ONE function, its source the program's key; the uniforms ride in on sh._pavU
   const hook = sh => {
@@ -1111,13 +1181,16 @@ float pvTread(float u, float x, float w, float seed) {
       uRubber: v4(), uRubber2: v4(), uRut: v4(), uRut2: v4(), uRoad: v4(), uEdge: v4(), uEdge2: v4(), uDist: v4(), uSpec: v4(), uSoft: v4(), uSoft2: v4(),
       uMean: { value: new THREE.Vector4(0.2, 0.2, 0.2, 0.9) }, uGrade: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 0, 0)) }, uTint: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 1, 0)) },
       uMarkN: { value: Math.min(NMARK, marks.rects.length) }, uSegN: { value: Math.min(NSEG, marks.segs.length) },
-      uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk } };
-    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0 }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
+      uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk },
+      uSide: v4(), uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
+    // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, never a road's
+    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); };
     m.customProgramCacheKey = () => 'pavement:' + hook.toString().length;
     MATS.push(m);
     applyOne(THREE, m);
+    if (o.keep) setKeep(m, o.keep);
     return m;
   }
   // the mesh's shoulder for a band: the band, the fade past it, a metre of grass creep
@@ -1128,7 +1201,7 @@ float pvTread(float u, float x, float w, float seed) {
   function exportRecipe() { return JSON.parse(JSON.stringify(R)); }
   function dispose(m) { const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose(); }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
+    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;

@@ -60688,3 +60688,68 @@ is drawing-only and the one spec edit, the C172's wgStruts 1, was shown shakedow
 green; LIVERY --selftest 4/4 red.
 Built outputs (index.html, dev.html, sw.js, version.json) rebuilt locally for the browser runs, restored, not
 committed.
+## G660-G667 - A2-RUNWAYS: THE GROUND SINKS UNDER THE PAVEMENT, THE SIDES FADE TO THE ISLAND, THE WHEELS STAND ON THE RUNWAY (2026-09-27, the Jolene playtest, batch A2)
+
+The playtest: runways and roads "flicker like hell", triangles of hachures that move with the camera even when paused
+(141608 / 144959 / 145145); overlapping runways that "changed between 2 consecutive runs", with the sides drawn over the
+intersection; the wheels 5 cm into the runway, "not acceptable anymore" (142532); normals blurred at grazing angles
+(142931); the number signs' posts through their panels. The user's rule for this session: "Do not touch the runways
+(their surface looks good), just their sides", the sides "maybe transparent for now", still excluding the vegetation.
+Measured and pictured: futureDesigns/PLAYTEST-2026-09-26.md §0.7.
+
+G660 THE GROUND UNDER THE PAVEMENT (pavement.js SINK / opaqueDepth / sinkAt / liftK; 27_premises pavedAt;
+render_premises buildPatch; the builders' `sinkD0`). The cause of the flicker was one mismatch: the pavement is
+transparent, writes no depth and was lifted 5-8 cm over a ground patch whose LOD levels stray up to ~40 cm from the fine
+grid (and whose 2 m grid is not the pavement's 6 x 3 m drape). The fix is structural. Under a pavement's OPAQUE interior
+the patch drops SINK.S = 0.8 m (smoothstep over 3 m from opaqueDepth inward), and the pavement comes DOWN to terrainH
+there. opaqueDepth is the shader's own alpha law: edgeChip + 0.2 on paved classes, 2.45 x edgeSoft + 0.2 on the soft
+ones (three octaves of noise), Infinity on grass (translucent over its whole width: never sinks). liftK takes the lift
+away only `pad` 3 m past the full sink, so no point of a lowered pavement triangle (3 m) stands over ground that a patch
+triangle (1.4 m corner) has not already sunk by more than the lift it lost. The LOD errors and the normals are measured
+on the UNSUNK heights (Y0): the sink is never seen, and it only lowers every coarse chord. The core's
+`premises.pavedAt(x, z)` -> { d, cls, halfW, kind } shares coverAt's 64 m index and dEdgeOf. Game strips
+(render_world standStrip) take the sink only on the premises' patch (`onPatch && a.premises`); the analytic world keeps
+its lift. On Jolene 64 285 patch vertices sink. The drawn surface in the interior is now the solver's surface.
+G660 THE SIDES (pavement.js RECIPE sideFade / sideW / sideA, uSide). A strip's and a paved polygon's band (the band
+sets, the grass creeping in, the shoulder's vehicle paths, the coarse patches) is no longer drawn. Past the chipped edge
+the surface's own colour goes to alpha over sideW 2 m from sideA 0.5; a soft class keeps its torn fade. `sideFade: 0`
+restores the band (a knob, per premises through rec.pavement). Roads keep theirs (make's `side` defaults to !road).
+coverAt is untouched: the band still kills the vegetation. FOUND with the band gone: a pond of the world's water beside
+02/20 near the crossing now shows (the island's own ground: a B4 look item).
+G661 THE WHEEL STANDS ON THE GROUND (30_solver.js, a small local edit in A1-PHYS's file, agreed with the integrator).
+The ground spring holds a wheel's share of the weight by penetrating: 2.0 cm under the stock mains, 2.8 cm under the
+metal Cessna's nosewheel (measured, 6 s settle on Jolene's stand). The drawn tyre IS the loaded tyre, so each wheel's
+contact radius rC = r + its static deflection: the share the level stance gives it (the CG's lever between the mains'
+x and the third wheel's) x the weight / its own KGn, clamped 0..5 cm, computed at reset(). K, C and every force law are
+unchanged: the spring meets the ground that much earlier. rC replaces r in the contact, the cone and ceiling skips,
+the on-ground readers, the placement's minC and the stance. Measured after: -0.6 / +1.4 mm stock, -0.2 / +0.4 mm
+metal (was 20 / 5 and 20 / 28 mm).
+G662 anisotropy 16 on the pavement arrays and the splat ground (three clamps it to the GPU's maximum; 8 blurred the
+grain at grazing angles). The far tier's plain fetch blends in over 0.8-1.1 x detailTo instead of one step at 900 m.
+The 120-500 m normal fade is the recipe's and the user asked to leave the surface alone: NOT changed. NB a live
+PAVEMENT.set() does not reach the game's materials (each carries its own resolved recipe).
+G663 every pavement mesh (strip, road, paved polygon) computes its bounding sphere and is frustum-culled (all were
+`frustumCulled = false`): 22 of 30 drawn at the end of the rollout's taxi, 8 culled.
+G664 THE INTERSECTIONS. A side is cut PER PIXEL over the other strips' surfaces: up to NKEEP 4 boxes (uKeepA/uKeepB,
+PAVEMENT.setKeep, make's `keep`), 0 inside a box, 1 two metres out. The game's strips never had the bench's per-vertex
+shoulder keep (render_world passed none). Aprons take the strips near them too. The strips draw in a FIXED order,
+renderOrder 1.990 + rank x 0.0005 (by length, the longest last, on top; below the aprons' 2.0+). They shared 2, and the
+stream's creation order decided which crossing won.
+G665 no grass on a grass STRIP's surface: coverAt kills 1 there (a grass road, and a grass strip's band, still thin to 0.6).
+G666 tools/_big_gen.js billboard: the posts centred at z -0.14 (front face -0.06), 3 cm behind the backing. They were
+centred at -0.06 with a 16 cm section: the front face was the sign's own plane (+0.02), and the post cut the backing box.
+G667 strip stones: under 0.5 m no shadow; the ones of 0.5 m and more cast from their own InstancedMesh per part per cell.
+Casting instances 7 389 -> 134 (meshes 501 -> 612). No stone is stood where the world's water is over the ground.
+PICTURES: tools/perf/a2r_{before,after}_s{0,1,2,4}.jpg, one boot each (tools/island_shot.js --at 152,0.992,615 on
+13/31 + --cam / --step): s0 the wheel, s1 30 m top-down (before: white blotches of ground through the concrete),
+s2 grazing down the runway, s4 the 02/20 crossing from 160 m (before: the bands over each other).
+TOOLS: tools/pavement_census.js (rollout_perf --eval: the pavement meshes and how many the frustum holds, the stones'
+casters, the patch's sunk count, renderer.render CPU over 30 frames).
+TRAP (cost a GPU slot): `git show HEAD:flyDiy/index.html > index_before.html` in a MODIFIED worktree is NOT the before
+page. The built page loads some viewer sources externally (render_premises.js among them): it ran the new
+render_premises against the old inlined pavement.js, threw ("premises: the record did not render") and drew no premises.
+Serve a clean worktree of the base (rollout_perf from that worktree, `--eval @<abs path>`).
+MEASURED (warm, pinned 60, 120 s; stock / metal Cessna, before -> after): taxi 59.9 / 59.5 fps both; loop 19.5 -> 19.6 /
+21.7 -> 21.6 ms; render 10.9 -> 10.8 / 11.1 -> 10.9 (shadow 1.8 -> 1.7 / 1.9 -> 1.8). The taxi frame does not move; the
+wins are the shadow casters and the culled pavement once the eye leaves the field.
+GATES: see the ready message / §0.7 (targeted, and the flight sweeps base vs branch).
