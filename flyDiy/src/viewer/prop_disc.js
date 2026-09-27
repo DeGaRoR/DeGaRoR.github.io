@@ -32,7 +32,7 @@
 // ============================================================================
 const PROP_DISC = (() => {
   'use strict';
-  const S = { on: true, rpmLo: 150, rpmHi: 420, ghost: 0.35, blurDeg: 22, gain: 1.35, maxA: 0.82, drift: 0.11, streak: 0.14 };
+  const S = { on: true, rpmLo: 150, rpmHi: 420, ghost: 0.35, blurDeg: 22, gain: 2.2, maxA: 0.82, drift: 0.11, streak: 0.14 };
 
   // an orthonormal pair (u, v) with u x v = axis, so a turn of +a about the axis takes angle t to t + a
   function basis(ax) {

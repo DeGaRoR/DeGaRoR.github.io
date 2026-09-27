@@ -273,9 +273,6 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
     for (let attempt = 0; attempt < 8 && !flying; attempt++) {
       await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
       await sleep(6000);
-      // (G670: the roll-out screen outlasts the eight tries on a fresh profile - 51 s warm, more cold: an attempt
-      // waits for it to go before it counts as one)
-      for (let i = 0; i < 240; i++) { const bs = await ev("window.BOOT ? BOOT.state : 'none'"); if (bs === 'gone' || bs === 'none' || bs === 'ready') break; await sleep(1000); }
       flying = await ev("/TAXI|DOWNWIND|FINAL/.test(document.body.innerText)");
     }
     if (!flying) throw new Error('the roll-out never happened (no TAXI/DOWNWIND/FINAL on the page after 8 tries)');
