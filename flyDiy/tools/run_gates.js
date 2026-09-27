@@ -177,6 +177,10 @@ const GATES = [
   // AEROSKIN (G67): the declared finish + role tables against the cage's own
   // section list, and the r186 spellings the shader stands on (W0.5a)
   { id: 'SKINMAT', file: 'test_skinmat.js', tier: 'core' },
+  // THE LIVERY STAYS WITH ITS AEROPLANE (G775): build A then build B (and
+  // back) — B's finish, every section's material and the marking block equal
+  // a clean load of B; the pool key covers every dial
+  { id: 'LIVERY', file: '_livery_check.js', tier: 'core' },
   // THE WEATHERING (G345): the module's GLSL rules, its tables, its load order
   { id: 'WEATHER', file: '_weather_check.js', tier: 'core' },
   // THE SURFACE FIELD (G66): the coordinate AEROSKIN tiles and structures on
