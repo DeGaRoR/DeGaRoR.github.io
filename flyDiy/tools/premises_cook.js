@@ -182,6 +182,11 @@ function cellError(buf, tiles, PG, hMax) {
 // 1 km -> 30 cells, 1.37 MB; + 300 m round HOME's and w2's runways -> 51 cells, 2.19 MB; every strip's 600 m and
 // every stand's 1 km -> 77 cells, 4.63 MB. REACH.runway (metres off a strip's centreline, null: none) adds strips.
 const REACH = { stand: 1000, runway: null, fields: ['HOME'] };
+// EVERY CELL FOR THE VARIANT THE PAGE FLIES (2026-09-27, RASTER-ON): with the raster on in the page, every tile outside
+// the reach was baked LAZILY on its first read - and the render side reads the ground island-wide while the world
+// is made, so the roll-out's world step grew one 13.4 s task (4.6 s before; node: 8 638 tiles, 4.6 s of bakes).
+// The default variant (Metlakatla off, the page's default) is cooked whole; 'town' keeps REACH (it is opt-in).
+const EVERYWHERE = new Set(['default']);
 function rasterAnchors(O) {
   const segs = [], pts = [], only = REACH.fields ? new Set(REACH.fields) : null;
   for (const a of O.aerodromes) {
@@ -411,7 +416,7 @@ function cook(id, opt) {
     const t0 = Date.now();
     const { W, O, rec } = composeVariant(id, V, fixtureText);
     const tc = Date.now() - t0;
-    const R = opt.noRaster ? { cells: [], tiles: 0, nodes: 0, raw: 0, bakeMs: 0, worst: 0, anchors: [] } : cookRaster(O, PG, opt);
+    const R = opt.noRaster ? { cells: [], tiles: 0, nodes: 0, raw: 0, bakeMs: 0, worst: 0, anchors: [] } : cookRaster(O, PG, EVERYWHERE.has(V.name) ? Object.assign({}, opt, { everywhere: true }) : opt);
     const Pl = opt.places === false ? null : cookPlaces(W, O, opt);
     if (Pl) for (const c of Pl.cells) c.gz = zlib.gzipSync(c.buf, { level: LEVEL });
     for (const c of R.cells) {
