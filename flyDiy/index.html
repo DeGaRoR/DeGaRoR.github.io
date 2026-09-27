@@ -8975,7 +8975,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
   // (G835) the ground raster's flag, for any world: read by makeWorld (20_world.js groundRasterFlag)
   var rq = new URLSearchParams(location.search).get('raster');
   if (rq === null) { try { rq = localStorage.getItem('flydiy.raster'); } catch (e) {} }
-  window.FLYDIY_GROUND_RASTER = rq === '1';
+  // ON BY DEFAULT IN THE PAGE (2026-09-27, the batch-A integration): the analytic composed terrain made the solver's
+  // step climb 2.6 -> 8.1 ms along Jolene's taxi and the auto cap fell to 30; the cooked raster held it at ~3.3 ms and
+  // 60 fps all the way (rollout_perf A/B). ?raster=0 or localStorage flydiy.raster = '0' turns it off; node (the gates)
+  // keeps the analytic path unless FLYDIY_GROUND_RASTER=1 (GATE PREMRASTER holds the two within tolerance)
+  window.FLYDIY_GROUND_RASTER = rq !== '0';
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either
@@ -41210,7 +41214,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='82a68c08dd6c';window.FLYDIY_BUILD='0cbd9cc21ab7'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='82a68c08dd6c';window.FLYDIY_BUILD='1099c95191cf'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=36d97ef0"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -101631,14 +101635,17 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
 
   function register() {
     if (!hasSW() || isDev()) { S.sw = isDev() ? 'off (dev.html)' : 'unavailable'; return; }
-    W.addEventListener('load', () => {
+    const go = () => {
       W.navigator.serviceWorker.register('sw.js').then(r => {
         S.sw = r.active ? 'active' : 'installing';
         r.addEventListener('updatefound', () => { const had = !!r.active; const w = r.installing; S.sw = had ? 'updating' : 'installing';
           if (w) w.addEventListener('statechange', () => { if (w.state === 'activated') S.sw = 'active'; }); });
       })
         .catch(e => { S.sw = 'failed'; S.error = String(e && e.message || e); });
-    });
+    };
+    // AS0a's find (G902): this script can run after the page's `load` has fired, and a listener added then
+    // never runs - the worker never registered. Register at once when the load is behind us.
+    if (W.document && W.document.readyState === 'complete') go(); else W.addEventListener('load', go);
   }
   // the server's build: version.json, never from a cache
   function checkServer() {
@@ -106733,10 +106740,27 @@ const POST_FX = (() => {
 
   // BLOOM: threshold (soft knee) at half resolution, a 13-tap downsample chain, a 9-tap tent
   // upsample chain, additive onto the canvas (the CoD:AW pyramid, Jimenez 2014)
-  const BLOOM_THR = `${LUMA} uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uThr, uKnee; varying vec2 vUv;
+  // G960 THE GLINTS DO NOT EXPLODE (A2-GLINT, the user: "all landmarks, houses and little towns emit crazy flashes,
+  // and I think the bloom effect has them explode"): the first pass is where one hot pixel becomes a flare, so it
+  // takes the frame's four pixels (the taps sit on the source's pixel centres: each IS one pixel) through
+  //   - a GUARD: a NaN or an Inf (a half-float overflow, a 0/0 in some hook) is black - one of them spread through the
+  //     pyramid was a black or white square;
+  //   - a CLAMP on the input's luminance (uClamp, the hue kept): what is far over the threshold blooms as a lot, not
+  //     as a thousand times the threshold;
+  //   - KARIS'S AVERAGE (Karis 2013, the CoD:AW talk's firefly fix): each pixel weighted by 1 / (1 + luma), so a lone
+  //     hot pixel among dark ones counts about as much as a pixel of 1 and stays under the threshold, while an area
+  //     that is bright as a whole (the sun, a lamp, a lit window up close) averages as itself.
+  const BLOOM_THR = `${LUMA} uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uThr, uKnee, uClamp; varying vec2 vUv;
+    vec3 bSafe(vec3 c) {
+      if (any(isnan(c)) || any(isinf(c))) return vec3(0.0);
+      c = max(c, vec3(0.0));
+      float l = luma(c);
+      return l > uClamp ? c * (uClamp / l) : c; }
     void main() {
-      vec3 c = 0.25 * (texture2D(tSrc, vUv + uTexel * vec2(-0.5, -0.5)).rgb + texture2D(tSrc, vUv + uTexel * vec2(0.5, -0.5)).rgb
-                     + texture2D(tSrc, vUv + uTexel * vec2(-0.5, 0.5)).rgb + texture2D(tSrc, vUv + uTexel * vec2(0.5, 0.5)).rgb);
+      vec3 s0 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(-0.5, -0.5)).rgb), s1 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(0.5, -0.5)).rgb);
+      vec3 s2 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(-0.5, 0.5)).rgb), s3 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(0.5, 0.5)).rgb);
+      float w0 = 1.0 / (1.0 + luma(s0)), w1 = 1.0 / (1.0 + luma(s1)), w2 = 1.0 / (1.0 + luma(s2)), w3 = 1.0 / (1.0 + luma(s3));
+      vec3 c = (s0 * w0 + s1 * w1 + s2 * w2 + s3 * w3) / (w0 + w1 + w2 + w3);
       float l = luma(c);
       float soft = clamp(l - uThr + uKnee, 0.0, 2.0 * uKnee); soft = soft * soft / (4.0 * uKnee + 1e-4);
       float w = max(soft, l - uThr) / max(l, 1e-4);
@@ -106869,8 +106893,12 @@ const POST_FX = (() => {
   // ---- presets ------------------------------------------------------------------------------
   // the bloom's numbers per compositing: display thresholds sit on the curve (0..1), linear ones are
   // radiances (white is ~1 / exposure; the sun's disc and a lamp's filament are far above it)
-  const BLOOM = { display: { soft: { thr: 0.82, knee: 0.15, gain: 0.32 }, strong: { thr: 0.66, knee: 0.25, gain: 0.7 } },
-                  linear:  { soft: { thr: 1.6, knee: 0.6, gain: 0.35 }, strong: { thr: 0.9, knee: 0.6, gain: 0.6 } } };
+  // G960: the glow a third of what it was (the user: "Even the soft bloom is far too bloomy. One fifth or one third
+  // of the intensity would feel better"). Measured as the mean display increment over bloom off, the same paused
+  // frame, 2216 x 1023, into the sun from 300 m: soft (0.35 -> 0.12) x0.31 at golden hour, x0.36 at noon; strong at
+  // 0.2 was x0.45 / x0.40, so 0.16. clamp: the luminance the threshold pass lets in (display values stop at 1).
+  const BLOOM = { display: { soft: { thr: 0.82, knee: 0.15, gain: 0.11, clamp: 4 }, strong: { thr: 0.66, knee: 0.25, gain: 0.2, clamp: 4 } },
+                  linear:  { soft: { thr: 1.6, knee: 0.6, gain: 0.12, clamp: 16 }, strong: { thr: 0.9, knee: 0.6, gain: 0.16, clamp: 16 } } };
   const LOOKS = {
     punchy: { lift: [0, 0, 0], gain: [1, 1, 1], contrast: 1.14, sat: 1.15 },
     soft:   { lift: [0.015, 0.012, 0.01], gain: [0.985, 0.985, 0.985], contrast: 0.93, sat: 0.96 },
@@ -106913,7 +106941,7 @@ const POST_FX = (() => {
     quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); quad.frustumCulled = false;
     fsScene.add(quad);
     const V2 = () => new THREE.Vector2(1, 1);
-    M.thr = mat(BLOOM_THR, { tSrc: { value: null }, uTexel: { value: V2() }, uThr: { value: 0.8 }, uKnee: { value: 0.2 } });
+    M.thr = mat(BLOOM_THR, { tSrc: { value: null }, uTexel: { value: V2() }, uThr: { value: 0.8 }, uKnee: { value: 0.2 }, uClamp: { value: 16 } });
     M.down = mat(BLOOM_DOWN, { tSrc: { value: null }, uTexel: { value: V2() } });
     M.up = mat(BLOOM_UP, { tSrc: { value: null }, uTexel: { value: V2() }, uGain: { value: 1 }, uFinal: { value: 0 } }, { blending: THREE.AdditiveBlending, transparent: true });
     // the glow onto the canvas: SCREEN, the add that cannot clip (the canopy's lesson, G448.2)
@@ -106952,7 +106980,7 @@ const POST_FX = (() => {
     const P = BLOOM[linear ? 'linear' : 'display'][S.bloom]; if (!P) return;
     const h = tBegin('bloom');
     M.thr.uniforms.tSrc.value = rt.texture; M.thr.uniforms.uTexel.value.set(1 / rt.width, 1 / rt.height);
-    M.thr.uniforms.uThr.value = P.thr; M.thr.uniforms.uKnee.value = P.knee;
+    M.thr.uniforms.uThr.value = P.thr; M.thr.uniforms.uKnee.value = P.knee; M.thr.uniforms.uClamp.value = P.clamp;
     draw(M.thr, T.b0);
     for (let i = 1; i < 5; i++) { M.down.uniforms.tSrc.value = T['b' + (i - 1)].texture; M.down.uniforms.uTexel.value.set(1 / T['b' + (i - 1)].width, 1 / T['b' + (i - 1)].height); draw(M.down, T['b' + i]); }
     // up: the smallest level into the next, additively, each with the tent
@@ -107098,7 +107126,7 @@ const POST_FX = (() => {
     for (const k in M) { M[k].dispose(); delete M[k]; }
     installed = false; sized = { w: 0, h: 0 };
   }
-  const API = { S, KEYS, stats, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, BLOOM, stats, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();
@@ -145590,11 +145618,11 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script type="text/x-flydiy" src="src/viewer/plume.js?v=4cedfcb1"></script>
+<script type="text/x-flydiy" src="src/viewer/plume.js?v=5c0e2637"></script>
 <script type="text/x-flydiy" src="src/viewer/animals.js?v=b9ebe7aa"></script>
 <script type="text/x-flydiy" src="src/viewer/animal_run.js?v=ca5d1f21"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
-<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=9993a844"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=0007bc57"></script>
 <script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
 <script type="text/x-flydiy" src="src/pier/pier_pier.js?v=39ada5a0"></script>
 <script type="text/x-flydiy" src="src/pier/pier_boat.js?v=38534008"></script>
@@ -145606,7 +145634,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/pier/pier_lods.js?v=32a31007"></script>
 <script type="text/x-flydiy" src="src/totems/totems_poles.js?v=e732f551"></script>
 <script type="text/x-flydiy" src="tools/_house_kit.js?v=5d5c479e"></script>
-<script type="text/x-flydiy" src="tools/_house_gen.js?v=d9999195"></script>
+<script type="text/x-flydiy" src="tools/_house_gen.js?v=181c5df0"></script>
 <script type="text/x-flydiy" src="tools/_big_gen.js?v=2e8ec6cb"></script>
 <script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
 <script type="text/x-flydiy" src="tools/_marine_gen.js?v=7e5624cd"></script>

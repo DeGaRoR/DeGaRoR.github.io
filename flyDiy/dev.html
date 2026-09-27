@@ -681,7 +681,11 @@
   // (G835) the ground raster's flag, for any world: read by makeWorld (20_world.js groundRasterFlag)
   var rq = new URLSearchParams(location.search).get('raster');
   if (rq === null) { try { rq = localStorage.getItem('flydiy.raster'); } catch (e) {} }
-  window.FLYDIY_GROUND_RASTER = rq === '1';
+  // ON BY DEFAULT IN THE PAGE (2026-09-27, the batch-A integration): the analytic composed terrain made the solver's
+  // step climb 2.6 -> 8.1 ms along Jolene's taxi and the auto cap fell to 30; the cooked raster held it at ~3.3 ms and
+  // 60 fps all the way (rollout_perf A/B). ?raster=0 or localStorage flydiy.raster = '0' turns it off; node (the gates)
+  // keeps the analytic path unless FLYDIY_GROUND_RASTER=1 (GATE PREMRASTER holds the two within tolerance)
+  window.FLYDIY_GROUND_RASTER = rq !== '0';
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either
@@ -791,7 +795,7 @@
 <script type="text/x-flydiy" src="src/core/65_gen_loadtest.js?v=3b1e454e"></script>
 <script type="text/x-flydiy" src="src/core/70_player.js?v=492b9918"></script>
 <script type="text/x-flydiy" src="src/core/90_node_exports.js?v=d236c33c"></script>
-<script>window.FLYDIY_CORE_SHA='82a68c08dd6c';window.FLYDIY_BUILD='0cbd9cc21ab7'</script>
+<script>window.FLYDIY_CORE_SHA='82a68c08dd6c';window.FLYDIY_BUILD='1099c95191cf'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=36d97ef0"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -878,7 +882,7 @@
 <script type="text/x-flydiy" src="tools/_cage_hinge.js?v=e72e2c3c"></script>
 <script type="text/x-flydiy" src="tools/_cage_join.js?v=fccf74f3"></script>
 <script type="text/x-flydiy" src="tools/_cage_ui.js?v=cb7cd396"></script>
-<script type="text/x-flydiy" src="src/viewer/storage.js?v=8db5ea93"></script>
+<script type="text/x-flydiy" src="src/viewer/storage.js?v=6e3f4c2d"></script>
 <script type="text/x-flydiy" src="src/viewer/flight_recorder.js?v=58abec04"></script>
 <script type="text/x-flydiy" src="src/viewer/assets.js?v=386ee796"></script>
 <script type="text/x-flydiy" src="src/viewer/aa_resolve.js?v=cf0b0ef6"></script>
@@ -892,7 +896,7 @@
 <script type="text/x-flydiy" src="src/viewer/day_ui.js?v=8c3cc738"></script>
 <script type="text/x-flydiy" src="src/viewer/weather_ui.js?v=04827e56"></script>
 <script type="text/x-flydiy" src="src/viewer/climate_link.js?v=0955694e"></script>
-<script type="text/x-flydiy" src="src/viewer/post_fx.js?v=402fb34f"></script>
+<script type="text/x-flydiy" src="src/viewer/post_fx.js?v=31136220"></script>
 <script type="text/x-flydiy" src="src/viewer/shadow_near.js?v=6d087979"></script>
 <script type="text/x-flydiy" src="src/viewer/prop_disc.js?v=52204263"></script>
 <script type="text/x-flydiy" src="src/viewer/shader_warm.js?v=0d6bdb89"></script>
@@ -941,11 +945,11 @@
 <script type="text/x-flydiy" src="src/viewer/gfx_settings.js?v=f78fe022"></script>
 <script type="text/x-flydiy" src="src/viewer/editor.js?v=f4e6293b"></script>
 <script type="text/x-flydiy" src="src/viewer/cockpit.js?v=2c567994"></script>
-<script type="text/x-flydiy" src="src/viewer/plume.js?v=4cedfcb1"></script>
+<script type="text/x-flydiy" src="src/viewer/plume.js?v=5c0e2637"></script>
 <script type="text/x-flydiy" src="src/viewer/animals.js?v=b9ebe7aa"></script>
 <script type="text/x-flydiy" src="src/viewer/animal_run.js?v=ca5d1f21"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
-<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=9993a844"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=0007bc57"></script>
 <script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
 <script type="text/x-flydiy" src="src/pier/pier_pier.js?v=39ada5a0"></script>
 <script type="text/x-flydiy" src="src/pier/pier_boat.js?v=38534008"></script>
@@ -957,7 +961,7 @@
 <script type="text/x-flydiy" src="src/pier/pier_lods.js?v=32a31007"></script>
 <script type="text/x-flydiy" src="src/totems/totems_poles.js?v=e732f551"></script>
 <script type="text/x-flydiy" src="tools/_house_kit.js?v=5d5c479e"></script>
-<script type="text/x-flydiy" src="tools/_house_gen.js?v=d9999195"></script>
+<script type="text/x-flydiy" src="tools/_house_gen.js?v=181c5df0"></script>
 <script type="text/x-flydiy" src="tools/_big_gen.js?v=2e8ec6cb"></script>
 <script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
 <script type="text/x-flydiy" src="tools/_marine_gen.js?v=7e5624cd"></script>
