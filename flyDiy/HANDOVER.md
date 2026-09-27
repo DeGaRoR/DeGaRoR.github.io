@@ -61275,3 +61275,93 @@ futureDesigns/TOWNKIT-2026-09-27.png (the contact sheet) and .md (the note: form
   tools/flight_core.js, index.html and dev.html are byte-identical to 4f68545's (built in a clean worktree and
   compared), and _arch_check.js requires none of the files this session touched; circuit give-ups under load are
   the flake G600 already recorded. Built outputs restored, not committed.
+
+## G930 - THE GEOMETRY TRAVELS GZIPPED: every media/geo bin one gzip stream, byte-exact (2026-09-27, AS5a of the asset plan, §5.3 M10; a cloud session, node only)
+
+The brief (futureDesigns/ASSETS-2026-09-27.md Appendix A, AS5a): every media/geo bin as ONE gzip stream (world_prep's
+pattern) - or meshopt's lossless vertex/index codec if the measured gain justifies vendoring its decoder - decoded in
+ASSET_FETCH; the bakers write the compressed form; a gate decodes every bin and asserts the bytes equal the as-is
+layout. [[import-models-as-is]]: transport only - no geometry is decimated, quantised, reordered or re-encoded here.
+
+MEASURED FIRST - the codec choice (MiB; meshopt = meshoptimizer 1.3.0's encodeVertexBuffer per attribute stream,
+padded to a 4-byte stride, + encodeIndexSequence, then gzip over it; numbers from scratch scripts, not a tool):
+  family                                                  raw     gzip    meshopt+gzip
+  prop layout (pier, pier_lod, props, totems, airframe,  64.93    51.20       36.25
+    cabin, panelhw, animal_lod)
+  trees                                                   10.48     7.67        5.12
+  models (reference planes)                               15.34     9.74        4.08
+  chars + animals (float32, skinned)                      11.05     7.13        5.83
+  clips (chars' anims, animals' clips; no vertex stride)   1.62     0.91        0.91 (gzip only)
+  media/geo                                              103.42    76.65      ~52.2
+- meshopt's encodeIndexBuffer is NOT byte-exact: it rotated the triangles of 828 of 840 prop-layout parts (winding
+  kept, bytes not), so only encodeIndexSequence survives a byte-equality gate (~2 MiB dearer).
+- The plan estimated meshopt "2-3x better than gzip" (35-50 MiB total); measured it is 1.47x (-24.5 MiB beyond gzip).
+WHY GZIP LANDED, NOT MESHOPT: gzip is LAYOUT-FREE - one edit in each media lib covers every baker (eleven Python, three
+node) and the decoder is the platform's (DecompressionStream, already the world pack's). Meshopt is layout-AWARE: each
+writer must hand over every attribute's stride (eleven Python bakers whose sources live on the local box only, with no
+Python encoder here - a node subprocess per bake), and the sync node readers would need a sync wasm path. It stays a
+clean follow-up that STACKS on this one: a meshopt container INSIDE the gzip stream, decoded after the gunzip in
+ASSET_FETCH / readGeo - the names, the gate's transport and AS-IS rules and the sw.js sweep carry over unchanged.
+THE USER'S CALL: is -24.5 MiB of first-visit wire worth a layout-aware writer in every baker?
+
+THE NAME: `<stem>.<h8>.gz.bin`, with h8 still the sha256 of the AS-IS bytes (not of the gzip). Three reasons:
+- the name PROVES the decoded bytes: GATE GEO gunzips every file and re-hashes it against its own name - and the 434
+  renames of this landing keep their h8 (`bandsaw.22a10af5.bin` -> `bandsaw.22a10af5.gz.bin`), so the diff itself
+  shows the transport changed and the geometry did not;
+- a re-bake of unchanged geometry writes NOTHING whatever zlib the machine has: Python's system zlib and node's bundled
+  one do not emit the same deflate bytes, so hashing the gzip would re-write the store into git from another box;
+- the name changes with the transport: sw.js's permanent cache-first /media/ store can never hand a raw pre-G930 body
+  to a page that gunzips (a new name is a cache miss by construction).
+THE WRITE PATH: tools/_media_lib.js writeMedia and tools/media_lib.py write_media - a subdir under geo/ writes gzip
+(level 9; Python mtime 0) as `.gz.bin`; everything else byte-exact as before. mediaRel / media_rel name a buffer
+without writing it (ref_prep's dry run and tree_prep's --report spelled `.bin` by hand and now ask the lib). Every
+geo writer already went through the two libs (prop_prep for props/pier/cabin/panelhw, jodel_prep, model_prep,
+ref_prep, char_prep, animal_prep, tree_prep; prop_lod, totem_lod, animal_lod), so no baker's code changed.
+THE READ PATH - the page: src/viewer/assets.js ASSET_FETCH pipes a `.gz.bin` body through DecompressionStream (the
+suffix decides, never a sniff) and hands back the as-is Uint8Array; a browser without DecompressionStream rejects,
+the asset-absent path every caller has. ASSET_FETCH_FRESH is the same without the cache, for tools/_cage_char.js's
+retry-after-failure path, whose plain fetch() would have handed decodeChar the gzip. - node: _media_lib.js readGeo
+(gunzips a `.gz.bin`, passes anything else - the totem bench stage - through; always a fresh buffer at offset 0),
+used by the twelve node sites that read a bin: _animal_check (2), _cabin_check, _house_check, _obstacle_check,
+_prop_check, _ref_check, _ref_sit, _tree_check, test_ui_smoke's fs-backed ASSET_FETCH, prop_lod, totem_lod,
+animal_lod (2). asset_census already read gzip (its meshInfo tests the magic): 'as gzip MB' = shipped now.
+THE MIGRATION: tools/geo_gzip.js (`--report` measures; a run re-writes every raw bin, refusing any whose sha256 is
+not its name's h8, re-points the manifests, deletes the raw). Idempotent - a second run changes nothing. CAUGHT IN
+THE DIFF: the first cut read and wrote the manifests as utf8 and turned the model/ref payloads' cp1252 dash into
+U+FFFD; restored from git, the tool now works in latin1, and every changed manifest line differs by `.bin` ->
+`.gz.bin` only (473 references, 54 manifests, 0 other lines).
+GATE GEO (core, tools/_geo_check.js, ~2-4 s): NAME (`.gz.bin`), ONE STREAM (magic, and the trailer's CRC32 + ISIZE
+describe the whole decoded file), AS-IS (sha256 of the decoded bytes = the name's h8), LAYOUT (every record that
+names the bin: prop/model/tree u32 nv/nt headers = the manifest's counts, len = the codec's layout for them, slices
+inside the file, the parts TILE the file for the quantised families; chars/animals: 4-aligned meshes whose len is the
+float layout + at most 3 bytes of alignment, the inverse bind matrices before the first mesh; anims: frames x joints
+x f32[4] = the file; clips: 4-aligned slices that hold their frames), COVERED (every file is named by a record the
+gate parsed: 434 files, 434 records). Its selftest runs every time (9 synthetic cases, a clean one included); by hand,
+one real record per kind (prop, model, tree, char, anim, animal, clips) mutated in memory: all seven caught, all
+seven clean unmutated. Red on the raw store before the migration (434 x NAME), green after.
+sw.js (tools/build.js): the cache-first /media/ path is untouched. The activate sweep that drops superseded
+media/world/ entries now drops media/geo/ entries outside GEO_KEEP too (the store on disk, which GATE MEDIA holds
+equal to what the manifests reference): a returning player's cache otherwise keeps the ~103 MiB of raw pre-G930
+bins for ever. sw.js 2 -> 24 KB (434 paths).
+
+WIRE: media/geo 103.42 -> 76.65 MiB (-26.8 MiB, -26 %), asset_census's 'as gzip MB' column. Decode: node gunzips the whole store in
+0.6 s; Chromium's ASSET_FETCH decoded and hashed all 434 bins (103.4 MiB) in 13 s on localhost, SwiftShader.
+GIT HISTORY, out loud: this landing writes 76.65 MiB (80.4 MB) of new blobs (gzip does not compress again in a
+pack); the 103.42 MiB of raw bins stay in history for ever. From now on a re-bake of unchanged geometry adds nothing.
+
+VERIFIED: the twelve gates that read bins green before and after, GATE GEO after (PROPS, TOTEM, ANIMALS, CABIN, TREES,
+MEDIA, HOUSE, REF, OBSTACLE, UISMOKE, SKIN, HANGAR). Chromium (headless, SwiftShader, tools/_serve.js): ASSET_FETCH
+on every one of the 434 bins -> sha256 = the name's h8, byteOffset 0; ASSET_FETCH_FRESH; the built index.html
+?world=none fetched 43 geo bins, all 200 - the same 43 as master bd234d3 served from a worktree, with the same console
+(a /favicon.ico 404 and a SwiftShader warning on both). media_lib.py write_media called directly: the gzip it writes
+is accepted by the gate and readGeo, and its name equals node's for the same bytes; textures untouched. animal_lod
+--report and prop_lod --report read the gz store. NOT verified: a GPU boot on the local box; the wire on GitHub
+Pages itself (the cloud container gets 403 from Pages; per the census Pages serves .bin raw, so the file IS the wire).
+OWED: meshopt (the user's call, the table above); the local box's first bake after this lands should leave
+`git status media/geo` clean for unchanged sources - the check that the name rule holds on that machine's zlib.
+GATES: `node tools/run_gates.js --all` (jobs 4, 62 min wall): CORE ALL GREEN, GEO included (MEDIA, UISMOKE, PROPS,
+TREES, ANIMALS, REF, HOUSE, OBSTACLE among them). FULL TIER RED, PRE-EXISTING: SEAPLANE (3: not off the water in 25 s,
+44.3 m off the lane, 180 deg swing), ARCHETYPES (Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler
+give up the circuit - the G620/G640 lines, 4 shards), PILOTMATRIX (10 regressed), SOAR (2: 0.21 m/s in the thermal,
+-6 m in 200 s) - and tools/flight_core.js, all they fly, is byte-identical to master bd234d3's build (the only
+src/core change is trees_pack.json's bin names, which the core does not carry).
