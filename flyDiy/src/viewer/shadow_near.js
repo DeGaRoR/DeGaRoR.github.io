@@ -42,21 +42,27 @@
 // The near light's map is now an ATLAS of two viewports (three's multi-viewport shadow path - the one a point light
 // uses - on a DirectionalLight: _frameExtents 2 x 1, getCamera(i) / getFrustum(i) per viewport), no new sampler (the
 // island ground programs stand at 15 of 16):
-//   viewport 0: the 60 m box as before, the NEAR casters only (NEAR_LAYER) - the craft is no longer drawn into it;
-//   viewport 1: THE CRAFT'S CASCADE, fitted to the craft's bounding sphere round the CG (a Cub: ~7 m a side, 1.4 cm a
+//   viewport 1 (right): the 60 m box as before, the NEAR casters only (NEAR_LAYER) - the craft is no longer drawn into it;
+//   viewport 0 (left): THE CRAFT'S CASCADE, fitted to the craft's bounding sphere round the CG (a Cub: ~8 m a side, 1.6 cm a
 //     texel at 1024), the craft (CRAFT_LAYER) and the near casters inside it. The craft and every ground point its
 //     shadow falls on lie on the same light rays, so the tight box holds the whole shadow at any sun and any height
 //     (the depth reaches down to the ground as G650's does); it grows with the slant so the sun's penumbra never needs
 //     more than radiusMax texels (at a few hundred metres AGL it is the 60 m box again).
-// The lookup: a receiver inside the craft's box reads viewport 1 (its coordinate from uNearM1 and the world position,
-// with its own bias, radius and normal offset in uNearP.yzw - world units scaled by that cascade's texel), else
-// viewport 0 through three's own varying. One getShadow either way.
+// The lookup: a receiver inside the craft's box reads the craft's cascade (its coordinate from uNearM1 and the world
+// position, with its own bias, radius and normal offset in uNearP.yzw - world units scaled by that cascade's texel),
+// else the 60 m box through three's own varying. One getShadow either way.
+// THE COST (measured: the second viewport cost +1.3 ms of render CPU at the taxi - three's shadow pass walks the WHOLE
+// scene graph for every viewport, 67 000 objects at Jolene's stand): the craft's cascade is drawn FIRST, and while it
+// draws, every top-level child of the scene but the craft's is hidden (getCamera(0) hides, getCamera(1) - the next
+// viewport, three's own loop - restores; follow() restores too, should a pass ever throw). Unless a near caster stands
+// in the craft's box (a hangar over a parked aeroplane: nearTag's spheres against the cascade's frustum) - then the
+// cascade walks everything, as the 60 m box does.
 // ============================================================
 var SHADOW_NEAR = (function () {
   'use strict';
   const NEAR_LAYER = 3, FAR_LAYER = 2, CRAFT_LAYER = 5;   // the near map's viewport 0 sees 3, its viewport 1 (the craft's cascade) 3 + 5; the far map sees 2 (everything but the craft, unless it is high)
   const S = { on: true, half: 30, size: 1024, bias: -0.0004, biasM: 0.05, normalBias: 0.02, normalBiasTx: 0.9, relief: 150, slantMax: 3000, penumbra: 0.0093, radiusMax: 2.5, self: true, slant: 0,   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra), per viewport
-    craft: true, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0 };   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
+    craft: true, prune: true, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0 };   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
   const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0); yzw: the craft cascade's bias (depth), PCF radius (texels), normal offset (m)
   const nearUniforms = { uNearP: { value: nearScalars }, uNearM1: { value: (typeof THREE !== 'undefined' && THREE.Matrix4) ? new THREE.Matrix4() : null } };
   let installed = false;
@@ -67,9 +73,9 @@ var SHADOW_NEAR = (function () {
 		if ( uNearP.x > 0.5 ) {
 			float sFar = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ 0 ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ 0 ] ) : 1.0;
 			vec3 nc = vDirectionalShadowCoord[ 1 ].xyz / vDirectionalShadowCoord[ 1 ].w;
-			bool in0 = nc.x > 0.005 && nc.x < 0.495 && nc.y > 0.01 && nc.y < 0.99 && nc.z > 0.0 && nc.z < 1.0;
+			bool in0 = nc.x > 0.505 && nc.x < 0.995 && nc.y > 0.01 && nc.y < 0.99 && nc.z > 0.0 && nc.z < 1.0;
 			vec4 nc1 = uNearM1 * vec4( cameraPosition + ( vec4( geometryPosition + geometryNormal * uNearP.w, 0.0 ) * viewMatrix ).xyz, 1.0 );
-			bool in1 = nc1.x > 0.505 && nc1.x < 0.995 && nc1.y > 0.01 && nc1.y < 0.99 && nc1.z > 0.0 && nc1.z < 1.0;
+			bool in1 = nc1.x > 0.005 && nc1.x < 0.495 && nc1.y > 0.01 && nc1.y < 0.99 && nc1.z > 0.0 && nc1.z < 1.0;
 			bool inNear = in0 || in1;
 			float sNear = ( inNear && receiveShadow ) ? getShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowMapSize * vec2( 2.0, 1.0 ), directionalLightShadows[ 1 ].shadowIntensity, in1 ? uNearP.y : directionalLightShadows[ 1 ].shadowBias, in1 ? uNearP.z : directionalLightShadows[ 1 ].shadowRadius, in1 ? nc1 : vDirectionalShadowCoord[ 1 ] ) : 1.0;
 			#ifdef CRAFT_NEAR_ONLY
@@ -159,7 +165,7 @@ var SHADOW_NEAR = (function () {
     const c = L.shadow.camera;
     c.left = -S.half; c.right = S.half; c.top = S.half; c.bottom = -S.half; c.near = 1; c.far = 4 * S.half + 10; c.updateProjectionMatrix();
     c.layers.set(NEAR_LAYER);
-    atlas(L.shadow);
+    atlas(L.shadow); C1.scene = scene;
     scene.add(L); scene.add(L.target);
     L.name = 'sunNear';
     return L;
@@ -167,24 +173,38 @@ var SHADOW_NEAR = (function () {
   // atlas(shadow): the 2 x 1 map - viewport 0 the 60 m box (three's own camera, matrix and frustum), viewport 1 the
   // craft's cascade (C1.cam, uNearM1). three's shadow pass calls updateMatrices once, then draws each viewport with
   // getCamera(i) and getFrustum(i); _updateMatrix(camera, matrix, frustum, viewport) folds the atlas offset in.
-  const C1 = { cam: null, frustum: null, pos: null, tgt: null, H: 0 };
+  const C1 = { cam: null, frustum: null, pos: null, tgt: null, H: 0, scene: null, hidden: [], pruned: 0, full: 0 };
+  const _ns = (typeof THREE !== 'undefined' && THREE.Sphere) ? new THREE.Sphere() : null;
+  let nearSpheres = null;   // render_world's nearTag: [x, y, z, r] of the casters on NEAR_LAYER now (setNear)
+  function setNear(list) { nearSpheres = list; }
+  // prune(): the craft's cascade walks the craft's subtree alone - unless a near caster reaches into its frustum
+  function prune() {
+    const sc = C1.scene; if (!sc || !craftGroup || C1.hidden.length) return;
+    if (nearSpheres) for (const q of nearSpheres) { _ns.center.set(q[0], q[1], q[2]); _ns.radius = q[3]; if (C1.frustum.intersectsSphere(_ns)) { C1.full++; return; } }
+    let top = craftGroup; while (top.parent && top.parent !== sc) top = top.parent;
+    if (top.parent !== sc) return;
+    for (const o of sc.children) if (o !== top && o.visible && !o.isLight) { o.visible = false; C1.hidden.push(o); }
+    C1.pruned++;
+  }
+  function unprune() { const h = C1.hidden; for (let i = 0; i < h.length; i++) h[i].visible = true; h.length = 0; }
   function atlas(sh) {
     if (!sh || typeof sh._updateMatrix !== 'function' || !nearUniforms.uNearM1 || !THREE.Frustum) { S.on = false; return; }   // not this three: no near map rather than a wrong one
     sh._frameExtents.set(2, 1); sh._viewportCount = 2;
-    sh._viewports = [new THREE.Vector4(0, 0, 1, 1), new THREE.Vector4(1, 0, 1, 1)];
+    sh._viewports = [new THREE.Vector4(0, 0, 1, 1), new THREE.Vector4(1, 0, 1, 1)];   // 0 (left): the craft's cascade, 1 (right): the 60 m box
     const cam1 = C1.cam = sh.camera.clone(); cam1.layers.set(NEAR_LAYER); cam1.layers.enable(CRAFT_LAYER);
     C1.frustum = new THREE.Frustum(); C1.pos = new THREE.Vector3(); C1.tgt = new THREE.Vector3();
     const t0 = new THREE.Vector3();
-    sh.getCamera = function (i) { return i ? cam1 : this.camera; };
-    sh.getFrustum = function (i) { return i ? C1.frustum : this._frustum; };
+    // three's loop: getCamera(i) then getFrustum(i) then the walk, for i = 0, 1 - the bracket round the craft's pass
+    sh.getCamera = function (i) { if (i === 0) { if (S.prune) prune(); return cam1; } unprune(); return this.camera; };
+    sh.getFrustum = function (i) { return i ? this._frustum : C1.frustum; };
     sh.updateMatrices = function (light) {
       const c0 = this.camera;
       c0.position.setFromMatrixPosition(light.matrixWorld); t0.setFromMatrixPosition(light.target.matrixWorld);
       c0.lookAt(t0); c0.updateMatrixWorld();
-      this._updateMatrix(c0, this.matrix, this._frustum, this._viewports[0]);
+      this._updateMatrix(c0, this.matrix, this._frustum, this._viewports[1]);
       if (cam1._reversedDepth !== c0._reversedDepth) { cam1._reversedDepth = c0._reversedDepth; cam1.updateProjectionMatrix(); }   // three flips its own camera; this one is ours
       cam1.position.copy(C1.pos); cam1.lookAt(C1.tgt); cam1.updateMatrixWorld();
-      this._updateMatrix(cam1, nearUniforms.uNearM1.value, C1.frustum, this._viewports[1]);
+      this._updateMatrix(cam1, nearUniforms.uNearM1.value, C1.frustum, this._viewports[0]);
     };
   }
   // tag(o): a caster into the near map (the craft's group, a house, the pier)
@@ -235,6 +255,7 @@ var SHADOW_NEAR = (function () {
   const _t = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
   function follow(L, cg, sun, agl, snap, camera) {
     if (!L) return;
+    unprune();   // (a pass that threw between getCamera(0) and getCamera(1) must not leave the world hidden)
     const live = S.on ? 1 : 0;
     nearScalars[0] = live; L.visible = !!live; L.castShadow = !!live;
     const far = !live;   // the craft is on the far map only while the near map is off
@@ -287,7 +308,7 @@ var SHADOW_NEAR = (function () {
     nearScalars[3] = S.normalBiasTx * tx;
     S.craftHalf = Hh;
   }
-  const API = { S, pcf, C1, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, get installed() { return installed; } };
+  const API = { S, pcf, C1, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
   return API;
 })();

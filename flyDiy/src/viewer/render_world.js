@@ -962,7 +962,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const nearTag = cg => {
     if (!sunNear || !_nS || !nearWatched || (nearTagTick++ % 30)) return;
     if (!nearReg) { nearReg = new Map(); nearWatch(scene); }         // the first pass watches what the boot built; adds and removes after it announce themselves
-    const NL = SHADOW_NEAR.NEAR_LAYER, R = SHADOW_NEAR.S.half * 3;
+    const NL = SHADOW_NEAR.NEAR_LAYER, R = SHADOW_NEAR.S.half * 3, nearNow = [];   // G1005: the tagged casters' spheres, for the craft cascade's walk
     for (const [o, c] of nearReg) {
       if (o.userData.craft) { nearReg.delete(o); continue; }        // joined before tagCraft marked it: the craft's layers are shadow_near's
       let s = c;
@@ -977,7 +977,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const dx = s[0] - cg[0], dy = s[1] - cg[1], dz = s[2] - cg[2];
       const near = o.castShadow && s[3] >= NEAR_MIN_R && Math.sqrt(dx * dx + dy * dy + dz * dz) - s[3] < R;
       if (near !== o.layers.isEnabled(NL)) { if (near) o.layers.enable(NL); else o.layers.disable(NL); }
+      if (near) nearNow.push(s);
     }
+    if (SHADOW_NEAR.setNear) SHADOW_NEAR.setNear(nearNow);
   };
 
   // ---- THE WORLD'S SWITCHBOARD -------------------------------------------

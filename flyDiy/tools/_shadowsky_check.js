@@ -70,9 +70,16 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
   const sh = L.shadow;
   ok(sh.getViewportCount() === 2 && sh.getFrameExtents().x === 2 && sh.getFrameExtents().y === 1 && sh.getViewport(1).x === 1, '2 G1005: the near map is a 2 x 1 atlas of two viewports');
   sh.updateMatrices(L);
-  ok(sh.getCamera(0).layers.isEnabled(SN.NEAR_LAYER) && !sh.getCamera(0).layers.isEnabled(SN.CRAFT_LAYER) && sh.getCamera(1).layers.isEnabled(SN.NEAR_LAYER) && sh.getCamera(1).layers.isEnabled(SN.CRAFT_LAYER), '2 G1005: viewport 0 draws the near casters, viewport 1 the craft and the near casters');
+  { const other = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial()); other.castShadow = true; other.position.set(500, 0, 0); scene.add(other);
+    SN.setNear([]); const c0 = sh.getCamera(0), hid = !other.visible && craft.visible && L.visible; const c1 = sh.getCamera(1), back = other.visible;
+    ok(c0.layers.isEnabled(SN.CRAFT_LAYER) && c0.layers.isEnabled(SN.NEAR_LAYER) && c1.layers.isEnabled(SN.NEAR_LAYER) && !c1.layers.isEnabled(SN.CRAFT_LAYER), '2 G1005: viewport 0 draws the craft (and the near casters in its box), viewport 1 the near casters');
+    ok(hid && back, '2 G1005: the craft cascade walks the craft alone - the rest of the scene hidden for viewport 0, back for viewport 1', `hidden ${hid} restored ${back}`);
+    const cg = SN.C1.tgt; SN.setNear([[cg.x, cg.y, cg.z, 2]]); sh.getCamera(0); const kept = other.visible; sh.getCamera(1);
+    ok(kept, '2 G1005: a near caster in the craft box (a hangar over the aeroplane) - the cascade walks everything');
+    SN.setNear(null); sh.getCamera(0); SN.follow(L, [0, 10, 0], sun, 5, null, null);
+    ok(other.visible, '2 G1005: follow() restores a walk that never reached viewport 1'); scene.remove(other); }
   { const p = new THREE.Vector3(0, 10, 0), a = p.clone().applyMatrix4(sh.matrix), b = p.clone().applyMatrix4(SN.C1.cam && sh.getCamera(1) ? new THREE.Matrix4().copy(THREE.ShaderLib.standard.uniforms.uNearM1.value) : sh.matrix);
-    ok(a.x > 0 && a.x < 0.5 && b.x > 0.5 && b.x < 1, '2 G1005: the CG maps into the left half through the 60 m matrix and into the right half through uNearM1', `${a.x.toFixed(3)} / ${b.x.toFixed(3)}`); }
+    ok(a.x > 0.5 && a.x < 1 && b.x > 0 && b.x < 0.5, '2 G1005: the CG maps into the right half through the 60 m matrix and into the left half (the craft cascade) through uNearM1', `${a.x.toFixed(3)} / ${b.x.toFixed(3)}`); }
   { const R = THREE.ShaderChunk.lights_fragment_begin, F = THREE.ShaderChunk.shadowmap_pars_fragment;
     ok(/uNearM1 \* vec4\( cameraPosition \+/.test(R) && /in1 \? nc1 : vDirectionalShadowCoord\[ 1 \]/.test(R) && (R.match(/getShadow\( directionalShadowMap\[ 1 \]/g) || []).length === 1, '2 G1005: one near lookup - the craft cascade inside its box, the 60 m viewport elsewhere');
     ok(/vec2 pcfR = radius \* vec2\( 1\.0, texelSize\.y \/ texelSize\.x \);/.test(F), '2 G1005: the PCF taps are square in texels on the 2 x 1 atlas'); }
