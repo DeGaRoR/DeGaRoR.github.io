@@ -826,19 +826,37 @@ window.FLYDIY_BOOT.then(function () {
   // a stale tab would 404 and fall back to the analytic world either way).
   const WORLD_KEEP = JSON.stringify([].concat(...JSON.parse(WORLD_PACK).islands
     .map(w => Object.values(w.files || {}).filter(r => r.src).map(r => r.src))));
+  // THE GEOMETRY, swept the same way (G930): the mesh bins became one gzip
+  // stream each under NEW names (`<stem>.<h8>.gz.bin`), so a returning player's
+  // cache still holds every raw pre-G930 bin (~103 MB) that nothing will ask
+  // for again - and a re-bake of any prop/pier/tree family orphans more.
+  // The keep list is the store on disk, which GATE MEDIA holds equal to what
+  // the manifests reference. Stale bodies were never the risk (a new name is
+  // a cache miss by construction); the dead weight is.
+  const GEO_KEEP = JSON.stringify((function walk(d, out) {
+    if (fs.existsSync(d)) for (const f of fs.readdirSync(d).sort()) {
+      const p = path.join(d, f);
+      if (fs.statSync(p).isDirectory()) walk(p, out); else out.push(path.relative(ROOT, p).split(path.sep).join('/'));
+    }
+    return out;
+  })(path.join(ROOT, 'media', 'geo'), []));
   fs.writeFileSync(path.join(ROOT, 'sw.js'), `// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build ${BUILD_ID}.
 // The media cache: cache-first for media/ (content-hashed, immutable), nothing else.
-// The world payloads this build asks for; anything else under media/world/ is
-// swept on activate (a superseded world is ~35 MB and nothing will ask for it).
+// The world payloads and mesh bins this build asks for; anything else under
+// media/world/ or media/geo/ is swept on activate (a superseded world is ~35 MB,
+// the pre-gzip mesh bins ~103 MB, and nothing will ask for either again).
 const WORLD_KEEP = ${WORLD_KEEP};
+const GEO_KEEP = ${GEO_KEEP};
 const CACHE = 'flydiy-media-v1';
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil((async () => {
   await self.clients.claim();
   try {
-    const c = await caches.open(CACHE), keep = new Set(WORLD_KEEP);
+    const c = await caches.open(CACHE), keep = new Set(WORLD_KEEP.concat(GEO_KEEP));
     for (const req of await c.keys()) {
-      const p = new URL(req.url).pathname, i = p.indexOf('/media/world/');
+      const p = new URL(req.url).pathname;
+      let i = p.indexOf('/media/world/');
+      if (i < 0) i = p.indexOf('/media/geo/');
       if (i >= 0 && !keep.has(p.slice(i + 1))) await c.delete(req);
     }
   } catch (err) {}   // a cache that will not open is not worth failing activate over
