@@ -440,6 +440,7 @@
     save: () => save(null), savePrevious: () => save('previous'), mark: note => mark(note),
     hud: on => hudSet(on), hudOn: () => pref.hud,
     mount: (body, H) => mount(body, H),
+    mountMeter: (body, H) => mountMeter(body, H), mountLog: (body, H) => mountLog(body, H),   // G760
   };
   if (OFF) { API.begin = API.end = API.lap = API.push = API.pop = NOOP; }
 
@@ -677,13 +678,18 @@
   }
 
   // ---- the graphics flyout's rows (both rails: GFX.mount calls this with its own helpers) --------------------------
+  // G760 (the rails regrouped): the meter's switch and the log's row are two rows with two homes - the flight rail's
+  // VIEW (the screen) and DEV (the flight log); mount() is both, for a host that keeps one list
   let lastSave = '';
-  function mount(body, H) {
+  function mount(body, H) { mountMeter(body, H); mountLog(body, H); }
+  function mountMeter(body, H) {
     H.row(body, 'fps meter');
     const refresh = () => { if (H.refresh) H.refresh(); };
     H.pills(body, [{ label: 'off', value: false, title: 'no meter' },
                    { label: 'on', value: true, title: 'the rendered frames per second, the frame time (median / p90 / max over 2 s), the frame cap, the solver steps, the CPU and GPU time, and the last 120 frames. Its yellow dot marks a moment in the flight log.' }],
       o => o.value === pref.hud, o => { hudSet(o.value); refresh(); });
+  }
+  function mountLog(body, H) {
     H.row(body, 'flight log');
     const st = H.note(body, '');
     const line = () => {
