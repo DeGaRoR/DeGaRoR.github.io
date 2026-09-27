@@ -7960,9 +7960,9 @@
   // G620: the rendered frames' rate: the recorder's 2 s (freezes in), else PACE's last 120 intervals
   function flFpsText() {
     const R = window.FLIGHT_REC, st = R && R.stats && !R.off ? R.stats(2000) : null;
-    if (st && st.n >= 5) return st.fps.toFixed(0) + ' fps · ' + st.med.toFixed(1) + ' ms median, ' + st.max.toFixed(0) + ' max';
+    if (st && st.n >= 5) return st.fps.toFixed(0) + ' fps \u00b7 ' + st.med.toFixed(1) + ' ms median, ' + st.max.toFixed(0) + ' max';
     const P = window.FLYDIY_PACE, h = P && P.recent ? P.recent() : null;
-    if (!h || h.length < 5) return 'measuring…';
+    if (!h || h.length < 5) return 'measuring\u2026';
     let sum = 0; for (const x of h) sum += x;
     return (h.length * 1000 / sum).toFixed(0) + ' fps';
   }
@@ -8147,7 +8147,7 @@
       if (!flSecIsOpen(focus)) flSecSet(focus, true);
       k = FL_HOME[k];
     }
-    if (k === 'dev' && !flDevOn && !(window.SCENERY && window.SCENERY.on)) flDevSet(true);   // asked for by name: shown
+    if (k === 'dev' && !flDevOn && !flCensus && !(window.SCENERY && window.SCENERY.on)) flDevSet(true);   // asked for by name: shown (a census asks nothing)
     // a rebuild of the same flyout (a pick, a fold) keeps its scroll: a fold near the bottom of GRAPHICS
     // must not throw the player back to the top
     const keep = (k && k === flyOpen && fly.scrollTop) || 0;
