@@ -61824,3 +61824,42 @@ SIMWORKER, BENCH, DRAG, WEIGHT, PILOTACT - all PASS. The same set plus PILOT (3 
 (1683e64d), and ARCHETYPES --only=floatplane PASS. DEFERRED to the merge train's --all (the coordinator's call, the
 GPU critical path): ARCHETYPES (all cards), PILOTMATRIX, PILOT. Land flights are bit-identical by construction and
 by hash (above); the float cards are the ones that move.
+## G990-G994 - A5-CAP: THE AUTO CAP COMES BACK (G990, or 60 ONLY WHERE EVEN: G994, the user's pick); THE SHADOWS TOGGLE UNDER 1 S; R3 ON THE DELIVERED RATE (2026-09-27, batch A final fix pass, local GPU)
+
+A-END failed R3 (stand + taxi >= 50 fps) and R4 (the settings probe's shadows=off: a 3469 ms task, 36.8 s to settle).
+- G990 THE LATCH (app.js PACE.end). On auto, G615 tried 60 again only when the one-step loop read under 16.7 ms; the
+  Cub's taxi reads 18-23 ms at 30, so one drop was for good. Now two readings at 30 and the hold past earn a trial
+  whatever the work reads; the trial's median decides as before. A drop within 20 s of an up is a missed trial (the
+  hold doubles 5 s..30 s); the doubling forgets once 60 has held 20 s - no flapping (GATE PACE 10: a vsync-bound driver,
+  rAF late on the vsync it owes; the latch (master fails it), a frame that cannot hold 60, a load swinging across the
+  edge: 10 cap changes in 5 min, 24 without the rule). state() adds workMs, trials.
+- WHY otherMs ROSE 17 -> 27 ms (A-END's taxi +30..+60 s): it is the rendered INTERVAL less the solver, not a cost. At 60
+  the share of doubled intervals grew 35 -> 55 % as the loop grew 21 -> 24 ms with the taxi's speed (17 -> 21), then the
+  cap dropped to 30: 33.3 less two 3 ms steps = 27.
+- G991 + G992 THE SHADOWS TOGGLE (app.js). Profiled (rollout_perf --profile-settings, below): (1) compileDepthVariants()
+  was unsliced on the settings screen - a shadows change re-keys the whole depth set; settleScreen now calls
+  compileDepthVariants(scene, true): the depth helper, the far cascade and the passes through compileSliced (a 4th
+  argument `fogless` lifts the lit scene's fog per task, PROG_WARM.fogless's rule). The roll-out's path is unchanged
+  (GATE PROGRAMS' scan keeps its literal). (2) compileSliced's poll read each material's currentProgram only (compileAsync's
+  rule); a material keyed twice had its other programs still linking when the screen's first frame drew them: 1518 ms,
+  1.1 s of it getProgramInfoLog under renderBufferDirect. The poll now waits for every program in properties.programs.
+  After: 467 ms warm (19.7 s to settle), 534 ms cold; the recorder shows 2 programs first keyed by the frame, 8 short waits.
+- G991 / G993 THE RIG (tools/rollout_perf.js). The pre-script clears flydiy.fl* (manual, the start, the panels),
+  flydiy.route and flydiy.world: peers' sessions in the SHARED warm profile left a departure from another strip (the
+  "taxi" a take-off roll there) and a manual flight (150 s on the stand in DEPART) - every warm run since is suspect.
+  --profile-settings: a CPU profile per change, its worst long task summarised (self time, calling chains; the page's
+  clock at Profiler.start anchors the samples) and the flight recorder's links (made, inside the task, waits). R3 is now
+  judged on the DELIVERED rate (standTaxiDeliveredFps: frames over wall time, the doubled share, p90/p99): the median
+  interval read "59.9 fps" for a 45 fps frame alternating 16.7 / 33.3 ms (it says only that more than half the frames
+  were on time) - every "59.9" in PLAYTEST §0.6-0.8 was 43-53 fps delivered.
+- G994 (branch claude/a5-cap-g994-clean30, on top of this one - THE USER PICKS): auto judges a reading on its
+  delivered rate; a trial holds at 55 fps, 60 is kept over 52. 60 where it is even, else a clean 30. GATE PACE 10 re-cast:
+  the latch is a 17.5 ms loop (even at 60), the Cub's 21 ms loop stays at 30 (6 trials in 120 s). Not measured on the GPU.
+- MEASURED (futureDesigns/PLAYTEST-2026-09-26.md §0.11; RTX 3080, 2216x1023, gamer, prefs cleared): delivered fps /
+  uneven frames (interval changed > 8 ms from the last) - Cub warm 34.5 / 34 % -> 39.4 / 56 %; Cub cold 31.1 / 14 % ->
+  39.4 / 54 %; metal warm 29.8 / 4 % -> 39.2 / 56 %; metal cold 30.7 (its trials miss, the hold at 30 s). G990 buys rate
+  and pays evenness - the old auto's 30 was the even one. Neither policy meets R3 here: the frame is 22-27 ms of main thread.
+- FOUND, NOT FIXED (split off by A0): a REGRESSION since this morning - the old stock pinned at 60, like for like: 48.3 ->
+  43.2 fps delivered, render CPU 11.0 -> 14.7 ms, the same draws (census 1184 main). The Cub is not the cost (15.0 vs
+  14.7 ms render, +7 draws).
+- GATES (targeted): PACE, PROGRAMS, BOOT, BUILD, UISMOKE, GFX, SETTLE, LOAD - PASS (G994's branch: PACE, PROGRAMS).
