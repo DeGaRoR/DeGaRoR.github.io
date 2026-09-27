@@ -60977,3 +60977,94 @@ shadow-default recommendation for B2; before/after pairs in tools/perf/shadowsky
   had segfaulted, 0xC0000005, under three concurrent batteries - and identically on a clean worktree of master 4f685458:
   the box, not the code). Negative-verified SHADOWSKY (the bias sign, the far-layer rule, the reversed clip each turn it
   red).
+
+## G835-G836 - THE DATA COOK AND THE TERRAIN RASTER OFFLINE, BEHIND A FLAG (2026-09-27, C2b of QUEUE-C, cloud, node only)
+
+The brief: futureDesigns/QUEUE-C-2026-09-27.md "C2b", ARCH-2026-09-27.md §3.2 (a) / §3.4 steps 2-3. ONE CHANGE BY THE
+USER: the composed-terrain raster is cooked and loadable but NOT the solver's default (master's full tier is being
+brought to green by another session) - it sits behind a flag, OFF, and this entry reports what flipping it does.
+- G835 tools/premises_cook.js (a sibling of world_prep.js; `--report` cooks in memory and writes nothing) cooks
+  tools/fixtures/island_<id>.json into media/world/<id>/premises (its OWN subdirectory: world_prep's prune is not
+  recursive, so neither bake prunes the other's), one gzip stream per 256 m cell, content-hashed, named by a new
+  manifest src/core/premises_packs.json (GATE MEDIA reads it). Two VARIANTS, as app.js composes: `default` drops
+  'mk_' (TOWN.off), `town` drops nothing; a cell the same in both is one file.
+  PLACES (p_<i>_<j>, world LIVE_CELL squares - the stream's own): render_premises.js's placement code is LIFTED at cook
+  time (extentWorld, buildHouse, SPREAD..dressPlot, objectSeed..buildItem, parkSeed..syncHouses, posOf, LIVE_CELL -
+  GATE STAND's convention: the page's code, never a copy) and run on the generators headless (the vm + stub THREE of
+  GATE PREMISES), THREE-side calls stubbed (placeBuilt, hitAdd, the fence geometry, the props registry). Per queued
+  thing: the plot as sown and as dressed (finishPlot's plan: cat, path, fences, out incl. the outbuilding's P, outPath,
+  car, boat, drive, lot), where the house stands (x y z yaw local, `at` world), its resolved P (less P.ground - a
+  function of the ground the builder re-makes - and P.spread, the generator's shared table), its props (people, yard,
+  pier, lamps in the house frame), its OBSTACLE SHAPE (29_obstacles rasterise on the build's own bags with shapeOf's
+  filters, lo/hi in mm; the props keep their own per-key shapes, NOT merged as the page merges them); items the same
+  with their synthetic lot plan; parks, objects (`at` = the page's obY), site fences as records. Jolene: default 215
+  things in 23 cells, 234 KB shipped; town 695 things in 56 cells, 1.0 MB. A cell carries `sig` (what the composition
+  queued there, before building, and the composed ground at its corners); a variant carries `record` (sha of the
+  normalised record) and `hash` (the placements, not triangles). NOT COOKED, measured: the lot patches' meshes (46.7 MB
+  of arrays default, 244.5 MB town) and the road ribbons - megabytes of triangles C2c's worker re-makes from the plans.
+  Fence ownership of a shared edge (FENCED) follows the build order: the cook's is the queue's (record order), the
+  page's the aircraft's distance - the same fence, possibly the other neighbour's.
+  RASTER (r_<i>_<j>, 256 m cells of the premises frame, 16 x 16 of G614's 16 m tiles): the A / B lattice as grBake makes
+  it, quantized (27_premises.js rasterCellIndex / rasterTileDecode: 1 - A in 2^-24, B in 2^-15 m off the tile's own
+  commonest pad level, 2-D predicted, 8 byte planes - the ground itself and the tile's pad EXACT): a cooked tile is the
+  lazily baked one to 0.033 mm at 600 m. Each cell has a SIGNATURE (O.rasterCellSig: the frame, every modifier reaching
+  the cell - its definition, now kept on it as M.def / M.y0, in apply order, and what it answers at five points, i.e.
+  the composer's code - and the base ground at the cell's corners, i.e. the island) and loads only onto a composition
+  that gives the same one (O.rasterLoad(cells) -> { taken, stale }): an edit, a dropped town, another island or a changed
+  composer re-bakes lazily just the cells it moved. A loaded cell answers for every tile of it (a tile it does not list
+  is the ground itself); a cooked tile is DECODED on first read into the same capped cache (0.045-0.058 ms a tile,
+  against 0.76 ms to bake); the ceiling (hMaxRect) is widened by GR_COOK_EPS = 0.1 mm while a cook is loaded.
+  THE BYTES, THE RULING: a lattice is not a placement. Jolene's default record is 8 638 tiles / 5.6 M nodes: every cell
+  would ship 5.65 MB (byte planes; 17 MB as varints, 26 MB as exact Float64), the town variant 16 M nodes. The cook
+  ships only the whole cells within 1 km of HOME's stand (REACH in the tool: the roll-out's walks, the taxi, most of
+  the take-off roll - the stand is 510 m off the runway's centre): 30 cells, 4 040 tiles, 1.37 MB; everywhere else the
+  raster bakes lazily as G614 left it. Measured alternatives (--reach-stand / --reach-runway / --fields): + HOME's and
+  w2's runways at 300 m 51 cells 2.19 MB; every strip at 600 m and every stand 1 km 77 cells 4.63 MB. The world's own
+  make-time bakes 780 tiles (571 ms) spread over the island (median 1.3 km from the stand), so no small set removes
+  them all. Every re-cook writes only the cells it changed (content-addressed).
+  THE FLAG: makeWorld's setPremises turns the raster on for opts.groundRaster (as before) OR FLYDIY_GROUND_RASTER=1 (node)
+  OR window.FLYDIY_GROUND_RASTER (the page: ?raster=1 or localStorage flydiy.raster = '1', read by build.js's island
+  loader, which then - and only then - fetches premises_packs.json and the island's raster cells onto the boot object;
+  a failed fetch is a lazy raster, never a failed boot). makeIsland carries boot.premCook; island_node.islandBoot
+  attaches it under the env flag (islandBoot(id, { noCook: true }) never). When the composed overlay's raster is on and
+  the island has a cook, setPremises loads it (PM.rasterCooked). OFF BY DEFAULT: without the flag every bit is as before
+  (GATE PREMCOOK 5, GATE PREMRASTER's own "off by default").
+  THE PAGE-SIDE LOADING OF THE PLACES IS LEFT TO C2c (nothing in the page reads them; they are for its worker path).
+  GATE PREMCOOK (core, ~3 min): the committed cook equals a fresh one byte for byte (the lifted page code's hash, each
+  variant's record and places hash, every place and raster cell) - a red is a STALE cook: `node tools/premises_cook.js
+  --island jolene`, commit media/world/jolene/premises + src/core/premises_packs.json (ANY session that changes the
+  fixture, a generator's output, the composer or render_premises' placement code must re-cook); the raster loaded as
+  the page composes (30 of 30 cells taken), under it the lazy raster to 0.015 mm and the analytic within PREMRASTER's
+  tolerances (p99 0.28 mm, p99.9 1.3 mm, worst 11 mm on 36 000 points), nothing baked there, the stand's pad exact, the
+  ceiling holds on 55 708 points; a flatten +1 cm refuses exactly its cells (19 taken, 11 refused) and those read the
+  lazy bake of the edited record to the bit; a fixture edit, a generator edit (randomHouse +1 cm) and a page edit
+  (buildHouse's seed) each move the places' hash; the flag is off by default and the loader fetches only under it.
+- G836 THE COOK'S WORLD IS MADE WITH PREMISES. An island made WITHOUT premises cuts the analytic world's old pad into
+  the ground round (-520, 0), 500 m from HOME (20_world.js ISL_CUT); the page always makes its world with them. The first
+  cook was on the cut ground - every raster signature missed the page's composition, the places near HOME stood on
+  another ground - and the gate agreed, its worlds made the same way. Both make it as app.js does; 23 cells re-cooked.
+  NB for node tools: a world composed WITHOUT the generators' catalogue (makeWorld(0, { premises }) in node - most gates,
+  physics_perf) takes 12 of the 30 cells; the 18 under an item's shelf or a park (the stand's among them) bake lazily.
+  The page and GATE PREMCOOK compose with the generators and take all 30.
+- WHAT FLIPPING THE FLAG DOES (FLYDIY_GROUND_RASTER=1, run_gates --only, against the same tree's flag-off battery):
+  the four known reds are IDENTICAL LINE FOR LINE - ARCHETYPES 185 lines, SEAPLANE 22, PILOTMATRIX 47 (the 10 regressed
+  cells to the digit; only the temp core's file name differs), SOAR 23 - and must be: all four fly makeWorld(), the
+  analytic world with no premises, where the raster never runs (it lives in setPremises). The flag moves the Jolene
+  gates: GE's island ceiling slack 5.39 -> 5.40 m and its taxi skip 88.6 -> 88.1 % (the ceiling grows by the lattice
+  cell under the raster), GE's WALL 70 -> 391 s (its 2.76 M ceiling points over 1 077 rectangles round every aerodrome
+  bake lazily - 18 of the cells are refused in a catalogue-less compose, and most points are outside the cook);
+  WORLDRENDER's LOD at the origin 366 -> 364 chunks on, 238 -> 237 impostors; PREMRASTER FAILS its own "off by default"
+  line (by construction); PREMCOOK skips its default check; PREMISES, SPLAT, WATER, PAVEMENT, WORLD, BIOME the same.
+  A Jolene flight (physics_perf, the stock build, 60 s taxi out of HOME, calm): off cg (-90.952721, 31.358754,
+  447.662577) solver 6.84 ms a frame; on (lazy and cooked the same bits in node, the stand's cells being lazy there)
+  cg (-90.951466, 31.357466, 447.662543) - 1.8 mm apart after 60 s - solver 4.14 ms (-40 %).
+  TO FLIP THE DEFAULT (after GREEN): the island loader's `rq === '1'` (build.js) and groundRasterFlag() (20_world.js)
+  default to on unless '0'; re-read GE's wall
+  (consider GE with groundRaster: false for its exact-ceiling proof, or a cook with --reach-runway for every strip);
+  PREMRASTER's "off by default" check and PREMCOOK 5 invert; the solver's gain is G614's.
+- THE BATTERY (`node tools/run_gates.js --all`, rebased onto claude/batch-a-base 03a62e4, jobs 4, 69 min wall): 108 PASS
+  (PREMCOOK new, 169 s), the four known reds only and line for line as before the rebase: ARCHETYPES (shards 0/2/4/4),
+  PILOTMATRIX (10 regressed), SEAPLANE (3), SOAR (2). The first run (before the rebase) also read BIOME red on its
+  "surface perf < 5 us" budget at 5.1 us under the pool's load: alone, 3.3-3.5 us here and on a clean base worktree,
+  the same checksum - the analytic world composes no premises. Built outputs rebuilt by the runner and restored, not
+  committed (a cloud branch). futureDesigns: none changed; QUEUE-C's C2b row is this.
