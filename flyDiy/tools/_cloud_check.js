@@ -130,7 +130,7 @@ console.log('6. the splice rules');
   yes(/s\.rgb \*= s\.a;/.test(cj) && /c\.rgb \/= max\(c\.a, 1e-4\);/.test(cj), 'the composite filters premultiplied (an empty texel must not darken its neighbour)');
   yes(/EXT_disjoint_timer_query_webgl2/.test(cj), 'the pass carries its own GPU timer');
   // C3: the probe and the shed see the layer (the dome march), the hemisphere rises under a cloud, the shed's key takes the column
-  yes(/vec4 march\(vec3 o, vec3 d, float tScene, float jitterK\)/.test(cj) && /gl_FragColor = march\(o, d, tScene, uDials2\.x\);/.test(cj) && /vec4 m = march\(uEye, d, 1e9, 0\.0\);/.test(cj), 'one march text serves the fullscreen pass and the dome (the probe, the shed)');
+  yes(/vec4 march\(vec3 o, vec3 d, float tScene, float jitterK\)/.test(cj) && /gl_FragColor = march\(o, d, thru \? 1e9 : tScene, uDials2\.x\);/.test(cj) && /vec4 m = march\(uEye, d, 1e9, 0\.0\);/.test(cj), 'one march text serves the fullscreen pass and the dome (the probe, the shed)');
   const rw3 = src('viewer/render_world.js');
   yes(/decorate: typeof CLOUDS !== 'undefined' && CLOUDS\.domeMesh \? es => \{ const m = CLOUDS\.domeMesh\(0, 20, 24\);/.test(rw3) && /dirty: typeof CLOUDS !== 'undefined' && CLOUDS\.probeDirty/.test(rw3), 'the world\'s probe bakes the layer and re-bakes as it drifts (the water reflects the clouds)');
   yes(/if \(o\.decorate\) o\.decorate\(es\);/.test(at) && /\(\(o\.dirty && o\.dirty\(\)\) \|\| \(o\.cap && capMoved\(\)\)\)\) return probe\.bake\(day\);/.test(at),
