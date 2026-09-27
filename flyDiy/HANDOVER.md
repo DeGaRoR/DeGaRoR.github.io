@@ -60230,3 +60230,23 @@ Beaver / Motorglider / Twin bush hauler give up; PILOTMATRIX 9 regressed against
 the water in 25 s, 44.5 m off the lane, 180 deg heading swing), and tools/flight_core.js, which is all they fly, is
 byte-identical before and after this change (app.js is not in it). Not seen on the user's box yet: a recorder log of
 a roll-out should now show sim time frozen and 0 m/s on every `boot` frame.
+
+## G720 - THE ARCHITECTURE STUDY: IS THE WEB THE LIMIT? (2026-09-27, a study, no game code)
+
+The user, after the Jolene playtest: "today's world engines felt a lot more capable than that ... I'm questioning the
+web choice increasingly", larger maps, what to cut, "our approach to towns is fully wrong", and baking the aeroplanes'
+textures. futureDesigns/ARCH-2026-09-27.md answers with seven chantiers (what exists at file:line, the target, the
+migration, the risks, sessions, the gain against PLAYTEST §0.2/§0.4), a ranked cut list and the order after batch B:
+quick wins (the generator's own lod 1 past 150 m - the game only ever builds lod 0, render_premises.js:1736; the
+outbuilding lod 1; stock parked aircraft cooked) -> physics in a worker -> worker-built premises + an offline DATA cook
+-> towns as an instanced kit (Metlakatla returns) -> the aeroplane bake (in parallel, on G569's machinery) -> WebGPU
+only if measured to be the floor -> larger maps when wanted. The verdict: the playtest's failures were architectural
+(runtime generation, per-finish materials, the solver on the render thread); the web's real taxes are ~7 us of JS a
+draw, no shared-memory threads by default on Pages, and cold compiles.
+Measured here, node only (futureDesigns/ARCH-2026-09-27.probes/, not gates): a HOUSE_GEN house at lod 0 median 70 ms /
+9 796 tris, at lod 1 10.8 ms / 996 tris (41 presets, this container); the solver + pilot in a worker_threads Worker
+on Jolene's taxi: the render thread's physics 3-23 ms -> 0.02-0.03 ms, the worst frame 59-125 -> 18-34 ms, the pose one
+step old (11-23 ms); a round trip carrying the node positions 0.04 ms (transfer), 0.026 ms (SharedArrayBuffer).
+NB: the committed tools/flight_core.js on this base predates G610 (it flies the metal Cessna at 200 substeps); the
+probe rebuilt it locally and the built files were restored, not committed. Gates: none run - nothing under src/ or
+tools/ changed (a markdown file, four probe scripts under futureDesigns/, this entry).
