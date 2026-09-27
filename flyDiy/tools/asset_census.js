@@ -611,7 +611,29 @@ function report(C) {
 // =============================================================================================
 const PAGE_SNIPPET = String.raw`(async () => {
   const W = window.WORLD, sc = W && W.scene, R = W && W.renderer;
-  if (!sc || !R) return { err: 'no WORLD.scene / WORLD.renderer' };
+  // THE NETWORK first, and without the scene (the garage has no WORLD yet: a census taken there still
+  // reads what was fetched). Checked against boot_perf.js's CDP network log (G902): the same URLs, cut
+  // the same way (the page-relative 'media/...'), with the two holes the CDP log does not have -
+  //   the SW cache is the worker's (sw.js / build.js / storage.js: 'flydiy-media-v1'), registered by
+  //   index.html only (never dev.html) at 'load' - and on 2026-09-27 NEVER: storage.js runs from the
+  //   text/x-flydiy loader after the world fetch, ~1 s after 'load' fired, so its listener never runs
+  //   (measured, HANDOVER G902). 'sw' says whether a worker controls the page; the cache is read
+  //   only if it exists (caches.open would CREATE it); and resource timing keeps 250 entries unless
+  //   the page raised its buffer before the first fetch (rollout_perf's pre-script does, and says so
+  //   in window.__RTBUF) - a boot and a roll-out fetch more.
+  let swKeys = [], swErr = null;
+  try { if (await caches.has('flydiy-media-v1')) { const c = await caches.open('flydiy-media-v1'); swKeys = (await c.keys()).map(r => new URL(r.url).pathname.replace(/^.*?\/media\//, 'media/')); } } catch (e) { swErr = String(e && e.message || e); }
+  const sw = (() => { try { const c = navigator.serviceWorker && navigator.serviceWorker.controller; return c ? 'controlling' : (navigator.serviceWorker ? 'not controlling' : 'unavailable'); } catch (e) { return 'unavailable'; } })();
+  const res = performance.getEntriesByType('resource').map(e => ({ u: e.name.replace(/^.*?\/flyDiy\//, '').split('?')[0], t: e.initiatorType, tx: e.transferSize, enc: e.encodedBodySize, dec: e.decodedBodySize, ms: +e.duration.toFixed(1), at: +e.startTime.toFixed(0) }));
+  const rtCap = window.__RTBUF || 250;
+  const fetchedMedia = [...new Set(swKeys.concat(res.map(r => r.u).filter(u => u.startsWith('media/'))))];
+  const fetchedTex = fetchedMedia.filter(u => /\.(jpg|png|webp|ktx2)$/.test(u));
+  const famOf = u => u.split('/').slice(0, 3).join('/');
+  const famCount = a => { const o = {}; for (const u of a) o[famOf(u)] = (o[famOf(u)] || 0) + 1; return Object.entries(o).sort((x, y) => y[1] - x[1]); };
+  const mem = performance.memory ? { usedJSHeapMB: +(performance.memory.usedJSHeapSize / 1048576).toFixed(0), totalJSHeapMB: +(performance.memory.totalJSHeapSize / 1048576).toFixed(0) } : null;
+  const network = { sw, swErr, swMediaCached: swKeys.length, resourceEntries: res.length, resourceBufferSize: rtCap, resourceBufferMaybeFull: res.length >= rtCap, fetchedMedia: fetchedMedia.length, fetchedTex: fetchedTex.length,
+    fetchedByFamily: famCount(fetchedMedia), top: res.filter(r => r.enc > 0).sort((a, b) => b.enc - a.enc).slice(0, 40), all: fetchedMedia };
+  if (!sc || !R) return { err: 'no WORLD.scene / WORLD.renderer (the garage? the scene census runs after the roll-out) - the network only', network, memory: mem };
   const gpuB = (w, h, mips) => Math.round(w * h * 4 * (mips ? 4 / 3 : 1));
   const SLOTS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap', 'bumpMap', 'displacementMap', 'lightMap', 'clearcoatMap', 'clearcoatNormalMap', 'clearcoatRoughnessMap', 'sheenColorMap', 'transmissionMap', 'thicknessMap', 'specularIntensityMap', 'specularColorMap', 'iridescenceMap', 'envMap'];
   const mats = new Map(), texs = new Map(), geos = new Map();
@@ -656,17 +678,12 @@ const PAGE_SNIPPET = String.raw`(async () => {
   const texByKind = {}; for (const t of texRows) { const k = texByKind[t.kind] = texByKind[t.kind] || { n: 0, mb: 0 }; k.n++; k.mb += tb(t) / 1048576; }
   const texByOwner = {}; for (const t of texRows) for (const o of t.owners) { const k = texByOwner[o] = texByOwner[o] || { n: 0, mb: 0 }; k.n++; k.mb += tb(t) / 1048576 / t.owners.size; }
   const progs = (R.info.programs || []).map(p => ({ name: p.name, key: (p.cacheKey || '').length, users: p.usedTimes }));
-  // THE NETWORK: the service worker's media cache (every /media/ URL this profile fetched) + resource timing
-  let swKeys = [];
-  try { const c = await caches.open('flydiy-media-v1'); swKeys = (await c.keys()).map(r => new URL(r.url).pathname.replace(/^.*?\/media\//, 'media/')); } catch (e) {}
-  const res = performance.getEntriesByType('resource').map(e => ({ u: e.name.replace(/^.*?\/flyDiy\//, '').split('?')[0], t: e.initiatorType, tx: e.transferSize, enc: e.encodedBodySize, dec: e.decodedBodySize, ms: +e.duration.toFixed(1), at: +e.startTime.toFixed(0) }));
+  // FETCHED vs IN THE SCENE. An image the page decoded into a DataArrayTexture (the pavement and
+  // splat libraries pack theirs on the CPU) is bound by no URL: it reads as "not in the scene" here,
+  // which is the family's CPU packing, not an unused fetch - the families are listed, read them so.
   const inScene = new Set(texRows.map(t => t.src).filter(Boolean));
-  const fetchedMedia = [...new Set(swKeys.concat(res.map(r => r.u).filter(u => u.startsWith('media/'))))];
-  const fetchedTex = fetchedMedia.filter(u => /\.(jpg|png|webp|ktx2)$/.test(u));
   const notInScene = fetchedTex.filter(u => !inScene.has(u));
-  const famOf = u => u.split('/').slice(0, 3).join('/');
-  const famCount = a => { const o = {}; for (const u of a) o[famOf(u)] = (o[famOf(u)] || 0) + 1; return Object.entries(o).sort((x, y) => y[1] - x[1]); };
-  const mem = performance.memory ? { usedJSHeapMB: +(performance.memory.usedJSHeapSize / 1048576).toFixed(0), totalJSHeapMB: +(performance.memory.totalJSHeapSize / 1048576).toFixed(0) } : null;
+  Object.assign(network, { texNotInScene: notInScene.length, texNotInSceneByFamily: famCount(notInScene), texNotInSceneSample: notInScene.slice(0, 80) });
   return {
     info: { programs: progs.length, geometries: R.info.memory.geometries, textures: R.info.memory.textures, calls: R.info.render.calls, triangles: R.info.render.triangles },
     programsTop: progs.sort((a, b) => b.users - a.users).slice(0, 60),
@@ -676,9 +693,7 @@ const PAGE_SNIPPET = String.raw`(async () => {
     textures: { n: texRows.length, gpuMB: +(sum2(texRows, tb) / 1048576).toFixed(1), byKind: texByKind, byOwner: Object.entries(texByOwner).map(([k, v]) => [k, v.n, +v.mb.toFixed(1)]).sort((a, b) => b[2] - a[2]).slice(0, 30),
       biggest: texRows.sort((a, b) => tb(b) - tb(a)).slice(0, 30).map(t => [t.src || t.name || t.kind, t.kind, t.w + 'x' + t.h + (t.d > 1 ? 'x' + t.d : ''), +(tb(t) / 1048576).toFixed(1), [...t.owners].slice(0, 3).join(',')]),
       srcs: [...inScene] },
-    network: { swMediaCached: swKeys.length, resourceEntries: res.length, resourceBufferMaybeFull: res.length >= 250, fetchedMedia: fetchedMedia.length, fetchedTex: fetchedTex.length,
-      fetchedByFamily: famCount(fetchedMedia), texNotInScene: notInScene.length, texNotInSceneByFamily: famCount(notInScene), texNotInSceneSample: notInScene.slice(0, 80),
-      top: res.filter(r => r.enc > 0).sort((a, b) => b.enc - a.enc).slice(0, 40), all: fetchedMedia },
+    network,
     memory: mem, world: window.FLYDIY_WORLD, towns: (() => { try { return GFX && GFX.get ? GFX.get('towns') : null; } catch (e) { return null; } })()
   };
   function sum2(a, f) { let s = 0; for (const x of a) s += f(x); return s; }
@@ -698,23 +713,30 @@ function runtime() {
   if (r.status !== 0 && !fs.existsSync(out)) { console.error('rollout_perf failed (' + r.status + ')'); process.exit(r.status || 1); }
   const J = JSON.parse(fs.readFileSync(out, 'utf8'));
   let E = J.eval; try { E = typeof E === 'string' ? JSON.parse(E) : E; } catch (e) { console.error('the page census did not parse: ' + String(E).slice(0, 300)); process.exit(1); }
-  if (!E || E.err) { console.error('page census: ' + (E && E.err)); process.exit(1); }
+  if (!E || (E.err && !E.network)) { console.error('page census: ' + (E && E.err)); process.exit(1); }
   // the diff against the static census: what ships, what is fetched, what is in the scene
-  const S = staticCensus();
-  const fetched = new Set(E.network.all), inScene = new Set(E.textures.srcs);
+  const S = staticCensus({ decode: false, gz: false, payloads: false, biomes: false, houses: false, world: false });
+  const fetched = new Set(E.network.all), inScene = new Set(E.textures ? E.textures.srcs : []);
   const famRows = [...group(S.tex.concat(S.mesh), t => t.fam).entries()].map(([f, a]) => {
     const fe = a.filter(t => fetched.has(t.path)), sc = a.filter(t => inScene.has(t.path));
-    return [f, a.length, MB(sum(a, t => t.bytes)), fe.length, MB(sum(fe, t => t.bytes)), sc.length, fe.filter(t => !inScene.has(t.path) && t.w).length];
+    return [f, a.length, MB(sum(a, t => t.bytes)), fe.length, MB(sum(fe, t => t.bytes)), E.err ? '-' : sc.length, E.err ? '-' : fe.filter(t => !inScene.has(t.path) && t.w).length];
   }).sort((a, b) => b[4] - a[4]);
   const o = [];
   o.push('\n== RUNTIME ASSET CENSUS (' + label + ', world ' + E.world + ', towns ' + E.towns + ')');
-  o.push('renderer.info: ' + JSON.stringify(E.info));
-  o.push('scene: ' + JSON.stringify(E.scene));
-  o.push('textures: ' + E.textures.n + ' live, ~' + E.textures.gpuMB + ' MB GPU (RGBA8 + mips estimate); by kind ' + JSON.stringify(E.textures.byKind));
-  o.push('network: ' + E.network.fetchedMedia + ' media URLs fetched (' + E.network.swMediaCached + ' in the SW cache' + (E.network.resourceBufferMaybeFull ? '; resource-timing buffer FULL - sizes partial' : '') + '); ' + E.network.texNotInScene + ' fetched textures carried by no live material');
+  const N = E.network;
+  if (E.err) o.push('NO SCENE CENSUS: ' + E.err);
+  else {
+    o.push('renderer.info: ' + JSON.stringify(E.info));
+    o.push('scene: ' + JSON.stringify(E.scene));
+    o.push('textures: ' + E.textures.n + ' live, ~' + E.textures.gpuMB + ' MB GPU (RGBA8 + mips estimate); by kind ' + JSON.stringify(E.textures.byKind));
+  }
+  o.push('network: ' + N.fetchedMedia + ' media URLs fetched (' + N.swMediaCached + ' in the SW cache, worker ' + N.sw + '; ' + N.resourceEntries + ' resource-timing entries of a ' + N.resourceBufferSize + ' buffer' +
+    (N.resourceBufferMaybeFull ? ' - FULL: the fetched list is partial' : '') + ')' + (E.err ? '' : '; ' + N.texNotInScene + ' fetched textures carried by no live material (a CPU-packed array library counts here: splat, pavement)'));
   o.push(table(['family', 'on disk', 'MB', 'fetched', 'MB fetched', 'in scene', 'fetched, not in scene'], famRows));
-  o.push(table(['owner (top-level)', 'meshes', 'materials', 'geometries', 'tris', 'instances'], E.byTop));
-  o.push(table(['heaviest textures', 'kind', 'size', 'MB', 'owners'], E.textures.biggest));
+  if (!E.err) {
+    o.push(table(['owner (top-level)', 'meshes', 'materials', 'geometries', 'tris', 'instances'], E.byTop));
+    o.push(table(['heaviest textures', 'kind', 'size', 'MB', 'owners'], E.textures.biggest));
+  }
   console.log(o.join('\n'));
   const jf = out.replace(/\.json$/, '_census.json');
   fs.writeFileSync(jf, JSON.stringify({ page: E, families: famRows }, null, 1));
