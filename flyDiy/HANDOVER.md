@@ -61865,3 +61865,82 @@ A-END failed R3 (stand + taxi >= 50 fps) and R4 (the settings probe's shadows=of
   43.2 fps delivered, render CPU 11.0 -> 14.7 ms, the same draws (census 1184 main). The Cub is not the cost (15.0 vs
   14.7 ms render, +7 draws).
 - GATES (targeted): PACE, PROGRAMS, BOOT, BUILD, UISMOKE, GFX, SETTLE, LOAD - PASS (G994's branch: PACE, PROGRAMS).
+## G995-G999 - A5-LOAD: THE ROLL-OUT UNDER A SECOND A TASK; THE COOK THE PAGE REFUSED; ONE PROGRAM CHROME NEVER KEEPS, LINKED UNDER THE TOWN (2026-09-27, batch A final fix pass, local GPU)
+
+The A-END measurement of master b78f8d0c failed R4 (no main-thread task over 1 s, first byte to the end of the
+roll-out) and R1 (no frame over 100 ms after the reveal): warm Cub 6 tasks over 1 s (worst 2 456 ms), metal 8, cold
+11; the roll-out screen 75 s warm, 99 s cold; its compile step ~35 s on every run, warm or cold. MEASURED FIRST (CPU
+profiles of the garage boot and the roll-out, split into tasks; a private-profile shader study; --progsrc):
+
+- G995 / G995.1 THE COOK THE PAGE REFUSED. Every world slice over 1 s was lazy raster bakes (terrainH -> grHeight ->
+  grBake -> apply): the page took 59 of the 92 cooked cells. Two causes, one after the other. (1) The cook and GATE
+  PREMCOOK made the island's world with PG.DEF() premises and then set() the record; the page makes it WITH the
+  record (the premises' seven strips stand, not the analytic HOME) - the base ground differed (to 0.30 m) at the
+  corners of 32 cells. premises_cook.islandWorld(id, variant, fixtureText) now makes one world per variant with its
+  own record (+ the catalogue), and PREMCOOK composes the same way (its hole: it passed on the DEF world). (2) The
+  node replica then took 92/92 and the page still 59: rasterCellParts / rasterModParts (new: a signature's parts,
+  readable) diffed a page against node - the grade modifiers of HOME, r_airport and r_taxi_e differed in the LAST
+  BIT (-1038.14518562303 vs -1038.1451856230306): Chrome's V8 and node's V8 round the frame's trig differently and the
+  signature hashed raw doubles. It hashes them at 1e-5 m now (Q5). RE-COOK: `node tools/premises_cook.js --island
+  jolene` (FLYDIY_GROUND_RASTER=1 not needed); the cook composes each variant ('default' drops mk_, 'town' none) on a
+  world made with THAT variant's record, as app.js/world_boot.js do - an edit to a premises record, the fixture, a
+  generator or the composer re-cooks; GATE PREMCOOK says when. 3 cells' bytes changed in all; the rest signatures.
+- G996 THE WORLD BUILD'S RASTER STATEMENTS IN SLICES (render_world, render_premises): the inner ring's 513^2 heights
+  (a yield every 16 rows), refreshGround at 'premises ground' (refreshGroundSteps, then FARLOD.resinkSteps a quadrant a
+  step), the premises' roads and paved polygons (a yield an item), the analytic ground bake (bakeGroundSteps) - the
+  safety net for a record the cook does not match (an edit).
+- G997 THE EDITOR'S BOOT: CAGE_ON_ROWS ran setExpert, which BUILT the aeroplane right before _cage_ui's own first
+  build (a second build); openEditor(noSeed) + a 'seed' boot step (applySpecSteps, sliced) under bootEditorHold
+  (parked.js holdEditor's lesson: CAGE_ON_BUILD a no-op then run once, GARAGE_SPEC.update refused, timers held).
+- G998 THE PREMISES FIXTURE FETCHED WITH THE ISLAND (build.js island loader -> boot.premFixture), not by a synchronous
+  XHR inside app.js's evaluation.
+- G999 THE GARAGE BOOT'S SCRIPT TASK IN FIVE (build.js promote: the core | the island's decode | the scripts up to
+  world_boot.js | the world's composition (world_boot.js FLYDIY_WORLD_COMPOSE, moved from app.js verbatim) | app.js
+  and the rest; external scripts preloaded, appended last - they still run after every inline one); the room built
+  in its own step (GARAGE_ENV.moods no longer builds it); CAGE_UI_BOOT's template build skipped when the seed follows
+  (CAGE_UI_DEFER_BUILD: 1.26 s thrown away a task later); the garage's textures uploaded in its compile step
+  (uploadSliced); the shakedown warmed a task before setAircraft (shakeFetch: a new core's first boot); the parked
+  batch's player restore sliced (parked.js: applySpecSteps under the hold, the view and the spec door back first);
+  the town's obstacle registration in a slice of its own (render_premises prewarm); THE WORLD'S PROGRAMS LINK UNDER
+  THE TOWN (the 'town' step starts compileSliced(scene), not awaited - see (c)).
+- TRIED AND DROPPED: pre-drawing the world a top-level group a task before first light (to upload its buffers:
+  bufferData was 0.5 s of the first frame). Each partial draw waited synchronously on the programs still linking,
+  one group after another: the 'frames' step went to 73 s with tasks of 6-19 s. Never draw ahead of the links.
+- (c) THE SHADER CACHE, WITH EVIDENCE (a private profile, --progsrc: every program's GLSL hashed): no program's source
+  changes between runs (not a per-run key); 249 of 251 programs hit the cache warm; ONE never does - the near ring's
+  splat program (MeshStandardMaterial + islandGroundHook, 150 KB of GLSL) links 12.7-14.8 s on EVERY run, cold or
+  warm, and it was nearly all of the warm compile step. Not the cache's size: with --gpu-program-cache-size-kb=262144
+  and --gpu-disk-cache-size-kb=1048576 two runs in a row both linked it for 12.7 s while everything else hit. So
+  Chrome/ANGLE never reuses that binary (below our code). Ours was WHEN it links: it now starts at the town step and
+  links under it; the compile step fell from ~35 s to ~0.85 s. The shared warm profile's extra misses (35 s there vs
+  13.5 s on a private profile before the prelink) are its many sessions' variants in one 6 MB-class cache.
+- RIG (tools/rollout_perf.js): --udd <dir> (a persistent profile of one's own - keep the path SHORT: under a scratchpad
+  path Chrome's CacheStorage passes MAX_PATH, the tree bins never land and the second run composes another world);
+  --progsrc ([name, source fnv, length, key fnv, seen at, ms to ready, the object/material wearing it]).
+- MEASURED (rollout_perf, RTX 3080, 2216x1023, gamer, the SHARED warm profile at :8531 - the A-END conditions - 60 s
+  of taxi; before = tools/perf/rollout_aend_*.json; tasks from the first byte to the reveal):
+  | run | tasks > 1 s (worst) | roll-out screen | compile step | world step (longest slice) | frames > 100 ms after the reveal |
+  |---|---|---|---|---|---|
+  | Cub warm, before | 6 (2 456 ms) | 74.9 s | 35.3 s | 11.5 s (2 035 ms) | 3 (634 ms) |
+  | Cub warm, after (x2) | 0 (935 / 915 ms) | 37.1 / 35.4 s | 0.8 s | 6.6 s (695 ms) | 1 / 2 (567 ms at +32 s; 334 at the reveal) |
+  | metal warm, before | 8 (2 600 ms) | 75.4 s | 35.5 s | 12.2 s (2 046 ms) | 3 (584 ms) |
+  | metal warm, after | 0 (779 ms) | 37.1 s | 0.8 s | 7.1 s (595 ms) | 2 (567 ms at +34 s; 334 at the reveal) |
+  | Cub cold, before | 11 (2 862 ms) | 99.1 s | 52.7 s | 14.3 s (2 334 ms) | 3 (567 ms) |
+  | Cub cold, after | 3 (1 680 ms) | 50.5 s | 8.0 s | 6.8 s (757 ms) | 3 (567 ms) |
+  The garage boot, warm: the script task 1.8-2.2 s -> its five tasks under 0.9 s; 'editor' 2.45 s -> 0.08 s; 'firstFrame'
+  1.07 -> 0.44 s. A new core's first boot: 'aircraft' 1.03 s (the shakedown) -> the shakedown a task of its own.
+- LEFT (owed):
+  - R1's +32 s frame (567 ms, every run, every build): a tree species first drawn in the taxi links synchronously -
+    M_Branch.003 / M_Bark.003 + two depth variants, first seen at +32.6 s (rollout_perf --progwatch --progsrc: the
+    object column). Warm every species' programs (series, LOD, the object kind, the depth pass) in the roll-out, or
+    hold a new species' chunk until its programs are ready (trees.js treeBuild makes the materials lazily).
+  - The reveal frame (334-350 ms, 2 of 3 warm runs).
+  - Cold: the garage compile step (1.0 s), the garage's first frame (1.2 s), the roll-out's first frame (1.7 s) - all
+    waits on programs still linking; A5-CAP's G992 (compileSliced waits for every program a material keyed) should
+    take part of them in the train.
+  - (e) in-flight parked captures still synchronous (not touched).
+- GATES (targeted, on the built branch): UISMOKE, BOOT, BUILD, WORLDRENDER, PREMISES, PREMRASTER, PREMCOOK, PAVEMENT,
+  PARKED, PROGRAMS, LIGHT, BENCH, SAVE, STARTER, LIVERY, DESIGN, VIEW, PLAYER, SPLAT, STAND, FADES, DEFAULT, GFX, SHADOWSKY,
+  MEDIA, HANGAR, ASSETS, OBSTACLE, SITE, ENERGY, JOIN, REF, TAXICLEAR, LINEUP - all 34 PASS. Gates touched: UISMOKE (the
+  'seed' step; world_boot's block run ahead of app's), PREMISES 14q (scans app.js + world_boot.js), PREMCOOK §3/§4 (the
+  page's world). BENCH scans genShakedown(def, ...) - shakeFetch keeps the parameter named def.
