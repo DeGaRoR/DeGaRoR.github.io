@@ -16,6 +16,12 @@
 //   - the whole flight network inside the integrator's margin at its step: <= 3.0, re-measured (4 000 passes);
 //   - the actual wing is one call away: sim.trueBox() puts every true k and c back and returns the true
 //     step - what the load test flies ("let the test test the actual wing").
+// THE FLOAT IS A RIGID BODY (G790): the members inside one rigid float cluster (61_gen_frame's hull: 15 nodes,
+// shape-matched onto its rigid fit every substep, no omega) are out of the box's network - projected, they start
+// every substep unstretched and carry no force. Asserted: every float cluster is rigid, its members are out of the
+// flight network re-measured here and untouched by the box (no kTrue / cTrue: the hull's members and every strain
+// readout keep their k and c), and the premise itself, flown: the build afloat at rest on the SEA lane for 3 s at
+// its flight step, with its hull members as built against k = c = 0 - the CG within 1 mm.
 //   node tools/_substep_check.js          -> "GATE SUBSTEP: PASS|FAIL"
 'use strict';
 const path = require('path'), fs = require('fs');
@@ -96,8 +102,26 @@ for (const [key, spec] of builds) {
   }
   verdict(onlyWing && kMin >= KMIN, `${key}: ${nK} springs softened, every one a wing member, none under x${KMIN} (softest x${kMin.toFixed(2)})`);
   verdict(zetaKept, `${key}: every softened damper at or under its spring's damping ratio (c / cTrue <= sqrt(k / kTrue))`);
-  const dt = 1 / (60 * N), w2 = netEig(def, b => b.k), g = netEig(def, b => b.c), m = w2 * dt * dt + 2 * g * dt;
-  verdict(m <= 3.0, `${key}: the flight network at ${N} substeps: ${m.toFixed(2)} <= 3.0 (omega dt ${(Math.sqrt(w2) * dt).toFixed(2)}, gamma dt ${(g * dt).toFixed(2)})`);
+  // G790: the rigid float hulls' members are out of the network (projected every substep: no force, no frequency)
+  const hull = C.genRigidFloatOf(def.nodes, def.clusters);
+  const net = hull ? Object.assign({}, def, { beams: def.beams.filter(b => !hull(b)) }) : def;
+  if (hull) {
+    const inHull = def.beams.filter(hull), fl = (def.clusters || []).filter(c => c.cls === 'float');
+    verdict(fl.length && fl.every(c => !(c.omega > 0)) && inHull.length > 0, `${key}: ${fl.length} float hulls, every one a RIGID cluster (no omega), ${inHull.length} members inside them`);
+    verdict(inHull.every(b => b.kTrue == null && b.cTrue == null), `${key}: no hull member softened or cut by the box`);
+    const fly = zero => {
+      const d = C.buildGen(JSON.parse(JSON.stringify(spec))), h = C.genRigidFloatOf(d.nodes, d.clusters); if (zero) for (const b of d.beams) if (h(b)) { b.k = 0; b.c = 0; }
+      const w = C.makeWorld(), sm = C.makeSim(d, w); sm.reset(0);
+      const sea = w.aerodromes.find(a => a.id === 'SEA'); C.placeAtAerodrome(sm, sea);
+      const p0 = (sm.ctl.thr = 1, sm.cgPos()); for (let i = 0; i < 180; i++) sm.step(1 / 60);   // full power from rest: into the hump, the hull loaded
+      fly.run = Math.hypot(sm.cgPos()[0] - p0[0], sm.cgPos()[2] - p0[2]);
+      return sm.cgPos();
+    };
+    const a = fly(false), z = fly(true), dcg = Math.hypot(a[0] - z[0], a[1] - z[1], a[2] - z[2]);
+    verdict(dcg < 1e-3, `${key}: the hull's members are inert under the projection - 3 s from rest at full power on the SEA lane at ${N} substeps, ${fly.run.toFixed(1)} m run, as built vs k = c = 0: the CG ${(dcg * 1e6).toFixed(1)} um apart`);
+  }
+  const dt = 1 / (60 * N), w2 = netEig(net, b => b.k), g = netEig(net, b => b.c), m = w2 * dt * dt + 2 * g * dt;
+  verdict(m <= 3.0, `${key}: the flight network at ${N} substeps: ${m.toFixed(2)} <= 3.0 (omega dt ${(Math.sqrt(w2) * dt).toFixed(2)}, gamma dt ${(g * dt).toFixed(2)})${hull ? ' - the rigid float hulls out' : ''}`);
   const sim = C.makeSim(def, null), Nt = sim.trueBox();
   const back = sim.beams.every((b, i) => b.k === kT(def.beams[i]) && b.c === cT(def.beams[i]) && b.sK === 1);
   verdict(Nt === N0 && back, `${key}: sim.trueBox() flies the actual wing - every true k and c back, the step ${Nt} (the true ${N0})`);

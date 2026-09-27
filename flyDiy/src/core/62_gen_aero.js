@@ -913,9 +913,9 @@ const GEN_CDT_MAX = 0.65;      // damping rate * dt
 // then THE FLIGHT BOX (genFlightBox) where the wing's springs ask for more than GEN_BOX_N. The params
 // carry both: `substeps` is what flies, `substepsTrue` (only when they differ) what the actual wing
 // needs - the load test flies that one (sim.trueBox(), 30_solver.js).
-function genSubsteps(nodes, beams) {
+function genSubsteps(nodes, beams, clusters) {
   const N0 = genSubstepsTrue(nodes, beams);
-  const N = genFlightBox(nodes, beams, N0);
+  const N = genFlightBox(nodes, beams, N0, clusters);
   return N < N0 ? { substeps: N, substepsTrue: N0 } : { substeps: N0 };
 }
 function genSubstepsTrue(nodes, beams) {
@@ -994,22 +994,43 @@ function genSubstepsTrue(nodes, beams) {
 // cruise (HANDOVER G610).
 const GEN_BOX_N = 120;
 const GEN_BOX_KMIN = 0.25;
-function genFlightBox(nodes, beams, N0) {
+// THE FLOAT IS A RIGID BODY (G790, W-CHECK - the float keel's step, PHYSICS PERF's own chantier). A float's hull is
+// 15 nodes held by 45 members (61_gen_frame, kMul 8, damped at zeta ~1.9) AND one shape-matched cluster with no
+// omega: the solver projects every node onto the hull's rigid fit every substep and takes the deformation out of
+// the velocities with it (30_solver shapeMatch, al = 1). So each substep starts with no stretch and no stretch
+// rate in any member inside the hull: their forces are zero there, whatever their k and c - no frequency, nothing
+// for the integrator to carry. Measured on the user's Cessna on floats: the 90 members with k = c = 0 fly the
+// same 56 s take-off run (the CG 0.5 mm apart after 1 s, under 1 m after 700 m of hump and porpoise, V to 0.1 m/s,
+// the lift-off in the same second). Yet the network's power iteration counted them: their dampers summed on each
+// hull node were 2.93 of the float Cessna's 3.61 at 200 (5.67 at 120), which is the whole reason G610's box
+// refused it and it flew 200. The box's network is the aeroplane AS IT FLIES: the members inside one rigid float
+// cluster are left out of it (and out of the non-wing springs' need), and nothing of theirs is softened or cut -
+// the hull's members, the struts and every strain readout keep what the builder gave them. Only 'float' clusters
+// (the other rigid groups - the fin, a rod, a boom with omega 0 - are the same physics, not asked here).
+function genRigidFloatOf(nodes, clusters) {
+  const tag = new Int32Array(nodes.length);
+  let t = 0;
+  for (const C of clusters || []) if (C && C.cls === 'float' && !(C.omega > 0) && C.nodes) { t++; for (const i of C.nodes) tag[i] = t; }
+  return t ? b => tag[b.a] !== 0 && tag[b.a] === tag[b.b] : null;
+}
+function genFlightBox(nodes, beams, N0, clusters) {
   if (!(N0 > GEN_BOX_N)) return N0;
   const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
   const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
+  const hull = genRigidFloatOf(nodes, clusters);
+  const net = hull ? beams.filter(b => !hull(b)) : beams;   // G790: the network the integrator carries
   let wOther = 0, anyWing = false;
-  for (const b of beams) { if (b.cls === 'wing') anyWing = true; else wOther = Math.max(wOther, Math.sqrt(b.k * invOf(b))); }
+  for (const b of net) { if (b.cls === 'wing') anyWing = true; else wOther = Math.max(wOther, Math.sqrt(b.k * invOf(b))); }
   if (!anyWing) return N0;
   const lo = Math.max(GEN_BOX_N, Math.ceil(wOther / (60 * GEN_WDT_MAX)));
   if (lo >= N0) return N0;
   const kAt = N => { const w = GEN_WDT_MAX * 60 * N; return b => (b.cls === 'wing' ? Math.min(b.k, w * w / invOf(b)) : b.k); };
-  const cAt = N => { const kf = kAt(N); return b => Math.min(b.c * Math.sqrt(kf(b) / b.k), GEN_CDT_MAX * 60 * N / invOf(b)); };
+  const cAt = N => { const kf = kAt(N); return b => (hull && hull(b) ? b.c : Math.min(b.c * Math.sqrt(kf(b) / b.k), GEN_CDT_MAX * 60 * N / invOf(b))); };
   const holds = N => {
     const kf = kAt(N);
     for (const b of beams) if (kf(b) < GEN_BOX_KMIN * b.k) return false;
     const dt = 1 / (60 * N);
-    return genNetEig(nodes, beams, kf, dry) * dt * dt + 2 * genNetEig(nodes, beams, cAt(N), dry) * dt <= GEN_NET_MAX;
+    return genNetEig(nodes, net, kf, dry) * dt * dt + 2 * genNetEig(nodes, net, cAt(N), dry) * dt <= GEN_NET_MAX;
   };
   let N = lo;
   if (!holds(N)) {
@@ -1349,7 +1370,7 @@ function genParams(S, fr, strips) {
           // per tank, in spec order, what the frame billed (the fuel gauges)
           vessels: ((S.energy && S.energy.vessels) || []).map(v => ({
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
-    ...genSubsteps(fr.nodes, fr.beams),        // substeps (+ substepsTrue where the flight box is softened, G610)
+    ...genSubsteps(fr.nodes, fr.beams, fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
     polarWing, polarTail, polarFin,
     // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
     // GATE GEN's G9 and every reader of the flat name keep working)
