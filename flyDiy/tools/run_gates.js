@@ -169,6 +169,11 @@ const GATES = [
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last
   { id: 'MEDIA', file: '_media_check.js', tier: 'core' },
+  // THE ASSET CENSUS AS A RATCHET (G900, AS0a): no NEW flat map, byte-identical media copy, image
+  // over 4096 px, JPEG normal map or material site outside the allowed files; the media writers
+  // fold by content. The flat check needs python + Pillow and is skipped (never failed) without.
+  // ~2 s + ~13 s of PIL decode. Carries --selftest.
+  { id: 'ASSETS', file: '_asset_check.js', tier: 'core', wall: 20 },
   // THE SPLAT (TERRAIN FOLLOW-UP 3, 2026-09-21): RECIPE's shape, the manifest against the
   // store, the shader's ANGLE rules in node; --gpu (by hand) adds the sampler census and the fxc probe
   { id: 'SPLAT', file: '_splat_check.js', tier: 'core' },

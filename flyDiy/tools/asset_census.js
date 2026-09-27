@@ -194,7 +194,7 @@ json.dump(out, sys.stdout)
 `;
 function decodePass(paths) {
   const py = ['python3', 'python'].find(p => spawnSync(p, ['-c', 'import PIL'], { encoding: 'utf8' }).status === 0);
-  if (!py) return { err: 'python with PIL not found (pip install pillow): --decode skipped' };
+  if (!py) return { err: 'python with PIL not found (pip install pillow): --decode skipped', noPIL: true };
   const r = spawnSync(py, ['-c', PY], { input: paths.join('\n'), encoding: 'utf8', maxBuffer: 1 << 28 });
   if (r.status !== 0) return { err: r.stderr.slice(0, 400) };
   return { data: JSON.parse(r.stdout) };
@@ -229,13 +229,13 @@ function nearDupes(tex) {
 // ---------------------------------------------------------------------------------------------
 // MESH BINS: size, gzip or raw, family; the vertex/triangle counts the manifests carry
 // ---------------------------------------------------------------------------------------------
-function meshInfo(buf) {
+function meshInfo(buf, gzWire) {
   const gz = buf[0] === 0x1F && buf[1] === 0x8B;
   let raw = buf.length, ms = 0, gzBytes = buf.length;
   if (gz) { const t0 = process.hrtime.bigint(); raw = zlib.gunzipSync(buf).length; ms = Number(process.hrtime.bigint() - t0) / 1e6; }
   // what the WIRE would carry if the file were one gzip stream, as the world pack's are: GitHub Pages
   // compresses text types only, and a .bin is served as application/octet-stream - raw
-  else if (!flag('no-gz')) gzBytes = zlib.gzipSync(buf, { level: 6 }).length;
+  else if (gzWire) gzBytes = zlib.gzipSync(buf, { level: 6 }).length;
   return { gz, raw, gunzipMs: ms, gzBytes };
 }
 
@@ -436,9 +436,13 @@ function worldLoad() {
 }
 
 // =============================================================================================
-// THE STATIC CENSUS
+// THE STATIC CENSUS. The options default to the command line's flags; GATE ASSETS (G900,
+// tools/_asset_check.js) asks for the cheap subset: { decode: true, gz: false, payloads: false,
+// houses: false, world: false } - the files, their headers, the duplicates, the flat maps (when
+// PIL is there) and the material sites, ~2 s + the decode pass.
 // =============================================================================================
-function staticCensus() {
+function staticCensus(o) {
+  o = Object.assign({ decode: flag('decode'), gz: !flag('no-gz'), houses: !flag('no-houses'), payloads: true, biomes: true, world: true }, o || {});
   const t0 = Date.now();
   const refs = refScan();
   const shipped = shippedManifests();
@@ -458,7 +462,7 @@ function staticCensus() {
     if (ii) {
       Object.assign(row, ii, { role: roleOf(name), stem: stemOf(name), set: setOf(name), pot: isPOT(ii.w) && isPOT(ii.h), gpu: gpuBytes(ii.w, ii.h) });
       tex.push(row);
-    } else if (/\.bin$/.test(name) && r.startsWith('media/geo/')) { Object.assign(row, meshInfo(buf)); mesh.push(row); }
+    } else if (/\.bin$/.test(name) && r.startsWith('media/geo/')) { Object.assign(row, meshInfo(buf, o.gz)); mesh.push(row); }
     else if (/\.obj$/i.test(name)) {
       const t = buf.toString('utf8'); let v = 0, fcount = 0, tri = 0;
       for (const line of t.split('\n')) { if (line.startsWith('v ')) v++; else if (line.startsWith('f ')) { fcount++; tri += line.trim().split(/\s+/).length - 3; } }
@@ -466,7 +470,7 @@ function staticCensus() {
     } else other.push(row);
   }
   let dec = null;
-  if (flag('decode')) {
+  if (o.decode) {
     dec = decodePass(tex.map(t => path.join(ROOT, t.path)));
     if (dec.data) for (const t of tex) { const d = dec.data[path.join(ROOT, t.path)]; if (d && !d.err) Object.assign(t, d); }
   }
@@ -476,8 +480,8 @@ function staticCensus() {
   const byStem = new Map();
   for (const t of tex) { const k = path.dirname(t.path) + '/' + t.stem; if (!byStem.has(k)) byStem.set(k, []); byStem.get(k).push(t); }
   const multiSize = [...byStem.values()].filter(g => new Set(g.map(t => t.w + 'x' + t.h)).size > 1);
-  return { ms: Date.now() - t0, tex, mesh, other, exactDupes, near, multiSize, decodeErr: dec && dec.err,
-    payloads: meshPayloads(), biomes: biomeReach(), materials: materialSites(), houses: flag('no-houses') ? null : houseMaterials(), world: worldLoad(), worldTtype, shippedErr: shipped.err,
+  return { ms: Date.now() - t0, tex, mesh, other, exactDupes, near, multiSize, decodeErr: dec && dec.err, decodeNoPIL: !!(dec && dec.noPIL),
+    payloads: o.payloads ? meshPayloads() : null, biomes: o.biomes ? biomeReach() : null, materials: materialSites(), houses: o.houses ? houseMaterials() : null, world: o.world ? worldLoad() : [], worldTtype, shippedErr: shipped.err,
     shippedManifestCount: shipped.set.size };
 }
 
@@ -728,4 +732,4 @@ if (require.main === module) {
     if (jf) { fs.writeFileSync(jf, JSON.stringify(C, (k, v) => (k === 'th' ? undefined : v), 1)); console.log('-> ' + jf); }
   }
 }
-module.exports = { staticCensus, imageInfo, PAGE_SNIPPET };
+module.exports = { staticCensus, imageInfo, roleOf, decodePass, MAT_RE, FLAT_STD, PAGE_SNIPPET };
