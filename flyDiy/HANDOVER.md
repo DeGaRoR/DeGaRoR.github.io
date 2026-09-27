@@ -60813,7 +60813,9 @@ feeling of lag - replace with a textured disc, slightly animated, MSFS style".
   approach (tools/approach_eval.js) - when the height term opens at 148 m the ring held 6 cells with 188 queued,
   now 214 with 0 (planted 260 -> 246 m while hidden, 2.1 s at 1.5 ms a frame); frames per band equal within the
   noise (260-150 m p90 21.8 -> 21.4 ms, 150-60 m 27.2 -> 26.6). Rollout taxi: stock loop 19.8 -> 19.5, render
-  11.4 -> 10.8 ms; alu 22.0 -> 21.5, 11.0 -> 11.0; 59.9 / 59.5 fps both. frame_perf: see §0.8.
+  11.4 -> 10.8 ms; alu 22.0 -> 21.5, 11.0 -> 11.0; 59.9 / 59.5 fps both. frame_perf (paused, base 03a62e4a):
+  stand 23.3 -> 23.4 ms, 770 -> 785 draws; forest untimed frame 17.1 -> 16.8 ms (its median / p90 flip on vsync).
+- frame_perf: the 'shadows' / 'passes' reads skip frames with no sample (SHADOW_RATE leaves null holes in S.acc).
 - TRAPS MET: three's Matrix4.elements is a plain Array (no .set; GATE FADES caught it). A "before" page made by
   `git show HEAD:index.html` runs your NEW externally-loaded viewer files (render_premises.js is one): serve a clean
   detached worktree. The shared GPU_BENCH.lock must be taken with noclobber (`set -C`), never `echo >`.
