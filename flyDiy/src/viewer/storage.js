@@ -21,14 +21,17 @@
 
   function register() {
     if (!hasSW() || isDev()) { S.sw = isDev() ? 'off (dev.html)' : 'unavailable'; return; }
-    W.addEventListener('load', () => {
+    const go = () => {
       W.navigator.serviceWorker.register('sw.js').then(r => {
         S.sw = r.active ? 'active' : 'installing';
         r.addEventListener('updatefound', () => { const had = !!r.active; const w = r.installing; S.sw = had ? 'updating' : 'installing';
           if (w) w.addEventListener('statechange', () => { if (w.state === 'activated') S.sw = 'active'; }); });
       })
         .catch(e => { S.sw = 'failed'; S.error = String(e && e.message || e); });
-    });
+    };
+    // AS0a's find (G902): this script can run after the page's `load` has fired, and a listener added then
+    // never runs - the worker never registered. Register at once when the load is behind us.
+    if (W.document && W.document.readyState === 'complete') go(); else W.addEventListener('load', go);
   }
   // the server's build: version.json, never from a cache
   function checkServer() {
