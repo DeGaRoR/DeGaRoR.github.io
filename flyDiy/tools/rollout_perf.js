@@ -114,6 +114,9 @@ function preScript() {
     lines.push('try{localStorage.removeItem("flydiy.premises.game.jolene")}catch(e){}');
   }
   if (GFX) lines.push('try{localStorage.setItem("flydiy.gfx",JSON.stringify(' + GFX + '))}catch(e){}');
+  // resource timing keeps 250 entries by default and a boot fetches more: raised before the first fetch so
+  // an --eval census (tools/asset_census.js --runtime, G902) sees every URL; the size rides in __RTBUF
+  lines.push('try{performance.setResourceTimingBufferSize(20000);window.__RTBUF=20000}catch(e){}');
   // the recorder's early half: long tasks from the first byte (buffered), and the boot's own clock
   lines.push(`(function(){ if (window.__RP) return; var R = window.__RP = { t0: performance.now(), lt: [], ev: [] };
     try { new PerformanceObserver(function(l){ l.getEntries().forEach(function(e){ R.lt.push([Math.round(e.startTime), Math.round(e.duration)]); }); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
