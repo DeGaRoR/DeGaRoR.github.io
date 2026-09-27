@@ -192,7 +192,10 @@
     W.CAGE_ON_BUILD = () => {};
     let refused = 0;
     if (upd) G.update = () => { refused++; return G.get ? G.get() : null; };
-    const viewHeld = !!(J && J.viewHold && J.viewHold());
+    let viewHeld = !!(J && J.viewHold && J.viewHold());
+    // (G999) the view and the spec door back ahead of the release: the player's restore is sliced under the hold
+    const releaseView = () => { if (viewHeld && J.viewRelease) J.viewRelease(); viewHeld = false; };
+    const unrefuse = () => { if (upd) G.update = upd; };
     const later = []; let open = true;
     const realST = W.setTimeout;
     const run = fn => {
@@ -202,14 +205,14 @@
     };
     const release = fn => {
       W.CAGE_ON_BUILD = onBuild; if (upd) G.update = upd;
-      if (viewHeld && J.viewRelease) J.viewRelease();
+      releaseView();
       open = false;
       try { fn(); } finally {
         for (const f of later.splice(0)) realST.call(W, f, 0);
         if (refused) log('held', refused, 'spec write(s) made while the editor held a parked aeroplane');
       }
     };
-    return { run, release };
+    return { run, release, releaseView, unrefuse };
   }
   // keys: the list the batch takes from (the async queue, live: a key queued while the batch runs joins it; or one
   // key); specs: key -> a spec handed in (capture(key, spec0), the world editor's new aeroplane)
@@ -228,7 +231,7 @@
     const macro0 = (WX && WX.aeroWxSetMacro) ? Object.assign({}, WX.aeroWxSetMacro(THREE, null)) : null;
     const extra = W.AERO_EXTRA_DECALS;         // the bench's stickers are the player's, not this one's
     const H = holdEditor();
-    let n = 0;
+    let n = 0, restored = 0;
     try {
       W.AERO_EXTRA_DECALS = null;
       while (keys.length) {
@@ -280,11 +283,24 @@
         }
         yield key;                             // the next aeroplane, or the player's restore, in a task of its own
       }
+      // G999 (A5-LOAD): THE PLAYER'S AEROPLANE BACK, A SLICE A TASK (the restore was one applySpec: 1.05 s, the
+      // roll-out's last task over a second). The view and the spec door are the player's again first (the rows
+      // before the build, as the release did); CAGE_ON_BUILD and the timers the build arms stay held to the release
+      // (CAGE_ON_BUILD then runs once: a resync of the mount, the clip, the fingerprint, the touch).
+      if (E.applySpecSteps) {
+        W.AERO_EXTRA_DECALS = extra;
+        H.releaseView(); H.unrefuse();
+        const tR = performance.now();
+        const g = H.run(() => E.applySpecSteps(mine));
+        for (;;) { const r = H.run(() => g.next()); if (r.done) break; yield 'restore'; }
+        restored = Math.max(1, performance.now() - tR);
+      }
     } finally {
       W.AERO_EXTRA_DECALS = extra;
       H.release(() => {
-        const t0 = performance.now();
-        try { E.applySpec(mine); } catch (e) { console.error('parked: restore', e); }
+        const t0 = performance.now() - restored;
+        if (!restored) try { E.applySpec(mine); } catch (e) { console.error('parked: restore', e); }
+        else if (typeof W.CAGE_ON_BUILD === 'function') try { W.CAGE_ON_BUILD(); } catch (e) { console.error('parked: restore (on build)', e); }
         try { if (E.decalImagesFrom && G.images) E.decalImagesFrom(G.images() || {}); } catch (e) {}
         if (U && saved) copyBlock(U, saved);
         if (WX && macro0) WX.aeroWxSetMacro(THREE, macro0);

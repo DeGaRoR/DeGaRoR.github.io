@@ -124,11 +124,11 @@ const SETTINGS = flag('settings') ? (() => { const v = opt('settings', null); re
 // summarised by self time and by the calling chain - where a change's long task goes
 const PROFILE_SET = flag('profile-settings');
 const CHROME_FLAGS = argv.reduce((a, x, i) => (x === '--chrome-flag' && argv[i + 1] ? a.concat([argv[i + 1]]) : a), []);
-// --udd <dir> (G995, A5-LOAD): a PERSISTENT profile of one's own (the shader-cache study: a private warm profile, the
+// --udd <dir> (G999, A5-LOAD): a PERSISTENT profile of one's own (the shader-cache study: a private warm profile, the
 // shared one untouched); --progsrc: every program's real GLSL hashed (vertex + fragment as the driver got them) and kept
 // in the JSON as progSrc [name, fnv of the source, source length, fnv of three's key] - two runs' lists say whether a
 // program's SOURCE changed between them (a key built per run) or the same source linked again (Chrome's cache);
-// with --progwatch each row also carries [first seen at ms, ms to ready]
+// with --progwatch each row also carries [first seen at ms, ms to ready] (else two nulls), then the object/material wearing it
 const UDD_OPT = opt('udd', null);
 const PROGSRC = flag('progsrc');
 if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
@@ -445,7 +445,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   }
   let progSrc = null;
   if (PROGSRC) {
-    progSrc = JSON.parse(await ev("(() => { const R = WORLD.renderer, gl = R.getContext(); const fnv = c => { let h = 2166136261; for (let i = 0; i < c.length; i++) h = Math.imul(h ^ c.charCodeAt(i), 16777619) >>> 0; return h.toString(16); }; return JSON.stringify(R.info.programs.map(pr => { let src = ''; try { for (const sh of gl.getAttachedShaders(pr.program) || []) src += gl.getShaderSource(sh) + '//--'; } catch (e) {} const w = window.__PW && window.__PW.get(pr); return [pr.name, fnv(src), src.length, fnv(String(pr.cacheKey))].concat(w ? [Math.round(w.t0), w.t1 == null ? -1 : Math.round(w.t1 - w.t0)] : []); })); })()", 60000));
+    progSrc = JSON.parse(await ev("(() => { const R = WORLD.renderer, gl = R.getContext(); const fnv = c => { let h = 2166136261; for (let i = 0; i < c.length; i++) h = Math.imul(h ^ c.charCodeAt(i), 16777619) >>> 0; return h.toString(16); }; const who = new Map(); try { WORLD.scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) { const p = R.properties.get(m).currentProgram; if (p && !who.has(p)) who.set(p, (o.name || o.type) + '/' + (m.name || m.type)); } }); } catch (e) {} return JSON.stringify(R.info.programs.map(pr => { let src = ''; try { for (const sh of gl.getAttachedShaders(pr.program) || []) src += gl.getShaderSource(sh) + '//--'; } catch (e) {} const w = window.__PW && window.__PW.get(pr); return [pr.name, fnv(src), src.length, fnv(String(pr.cacheKey))].concat(w ? [Math.round(w.t0), w.t1 == null ? -1 : Math.round(w.t1 - w.t0)] : [null, null], [who.get(pr) || '']); })); })()", 60000));
     const bytes = progSrc.reduce((a, x) => a + x[2], 0);
     console.log('  programs (source hashed): ' + progSrc.length + ', ' + new Set(progSrc.map(x => x[1])).size + ' distinct sources, ' + (bytes / 1e6).toFixed(1) + ' MB of GLSL');
   }

@@ -2202,15 +2202,25 @@ function make(THREE, scene, world, rec0, opts) {
   // THE ROLL-OUT'S SHARE (G591): what lies within `reach` of the aircraft, built under the roll-out screen in slices
   // of `budgetMs` (app.js's 'town' step calls it until done) - it was one synchronous drain inside the world step, the
   // 15-18 s main-thread task behind Chrome's "page unresponsive". The merges wait for the last slice.
+  // G999 (A5-LOAD): AN OBSTACLE'S REGISTRATION HAS A SLICE OF ITS OWN. A slice built its item(s) and then
+  // afterBuilt registered one pending obstacle (hitPendingStep: a parked aeroplane's hitbox is ~0.8 s of
+  // rasterising) - with a house in the same slice, a 1.0 s task of the town step. A slice that starts with a ready
+  // obstacle registers it and builds nothing; a slice that builds leaves the registration to the next.
+  const hitPendingReady = () => PENDING_HIT.some(q => q.grp.parent && hitReady(q.grp));
   function prewarm(cx, cz, reach, budgetMs) {
     sortFrom(cx, cz); STREAM.cx = cx; STREAM.cz = cz;
     const t0 = performance.now();
     let n = 0;
+    if (hitPendingReady()) {
+      hitPendingStep(); stats.obstacles = OBST_IDS.size;
+      let near0 = 0; while (near0 < queue.length && queue[near0]._d <= reach) near0++;
+      return { done: false, built: 0, near: near0, queued: queue.length, ms: performance.now() - t0 };
+    }
     STREAMING = true;
     try { while (queue.length && queue[0]._d <= reach && (n === 0 || performance.now() - t0 < budgetMs)) { buildOne(queue.shift()); n++; } }
     finally { STREAMING = false; }
     let near = 0; while (near < queue.length && queue[near]._d <= reach) near++;
-    if (near) { STREAMING = true; try { afterBuilt(n); } finally { STREAMING = false; } }
+    if (near || hitPendingReady()) { STREAMING = true; try { afterBuilt(n, true); } finally { STREAMING = false; } if (!near) return { done: false, built: n, near: 0, queued: queue.length, ms: performance.now() - t0 }; }
     else { afterBuilt(n); freezeStatic(true); }   // the last slice: the lots and roads of every live cell merged now
     let k = 0; while (k < queue.length && queue[k]._d <= STREAM.reach) k++; STREAM.near = k;
     return { done: !near, built: n, near, queued: queue.length, ms: performance.now() - t0 };
@@ -2225,10 +2235,10 @@ function make(THREE, scene, world, rec0, opts) {
     catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
   }
   // what a batch of builds owes once (not once an item)
-  function afterBuilt(built) {
+  function afterBuilt(built, noHit) {
     stats.queued = queue.length; stats.houses = 0; stats.objects = 0; stats.houseTris = 0; stats.lights = 0;
     for (const [, h] of HOUSES) { stats.houseTris += h.tris || 0; stats.lights += h.lights || 0; if (h.isObject) stats.objects++; else stats.houses++; }
-    hitPendingStep();
+    if (!noHit) hitPendingStep();   // (G999: the prewarm gives it its own slice)
     stats.obstacles = OBST_IDS.size;
     // the garden paths are the built houses' (planPath reads the door) - on the BENCH's ground: the game draws no
     // premises chunk (its patch is the ring's material), so its 1024^2 repaint an item was work nobody read (G591)

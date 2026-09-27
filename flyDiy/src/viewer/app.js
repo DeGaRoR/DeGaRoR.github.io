@@ -5410,6 +5410,23 @@
     try { const st = JSON.parse(prefGet(SHAKE_KEY, 'null')); return (st && st.core === core) ? st : { core, entries: {} }; }
     catch (e) { return { core, entries: {} }; }
   };
+  // the shakedown of a def, off the memo (this page's, then the core's store) or run and kept - shakeOf's, and the
+  // garage boot's 'aircraft' step warms it a task ahead (G999: a new core's first boot ran it inside that step's
+  // setAircraft, ~0.9 s of a 1.0 s task)
+  function shakeFetch(def) {   // (the name GATE BENCH reads: genShakedown(def, { corners: false }))
+    let key = null;
+    try { key = def && def.spec ? shakeHash(JSON.stringify(def.spec)) : null; } catch (e) { key = null; }
+    let v = key ? shakeMem.get(key) : undefined;
+    if (v === undefined && key) { const st = shakeStore(); if (st && st.entries[key]) { v = st.entries[key]; shakeMem.set(key, v); } }
+    if (v === undefined) {
+      v = genShakedown(def, { corners: false });
+      if (key) {
+        shakeMem.set(key, v);
+        try { const st = shakeStore(); if (st) { st.entries[key] = v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
+      }
+    }
+    return v;
+  }
   const shakeOf = () => {
     if (curKey !== 'gen') return null;
     // G208: WITHOUT THE FOUR LOADING CORNERS (the user: "drop the four corner
@@ -5419,18 +5436,7 @@
     // a loading sheet is not a test.
     if (shakeFor !== def) {
       shakeFor = def;
-      let key = null;
-      try { key = def && def.spec ? shakeHash(JSON.stringify(def.spec)) : null; } catch (e) { key = null; }
-      let v = key ? shakeMem.get(key) : undefined;
-      if (v === undefined && key) { const st = shakeStore(); if (st && st.entries[key]) v = st.entries[key]; }
-      if (v === undefined) {
-        v = genShakedown(def, { corners: false });
-        if (key) {
-          shakeMem.set(key, v);
-          try { const st = shakeStore(); if (st) { st.entries[key] = v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
-        }
-      }
-      shakeVal = v;
+      shakeVal = shakeFetch(def);
     }
 
     return shakeVal;
@@ -10315,6 +10321,11 @@
         const wip = window.GARAGE_SPEC.get();
         if (wip && wip.cage && Object.keys(wip.cage).length) genSpec = wip;
       } catch (e) { console.error('wip restore:', e); }
+    }
+    // G999: the shakedown of the aeroplane about to be built, in this task; the build in the next
+    if (screenCan() && typeof buildGen === 'function' && typeof genShakedown === 'function') {
+      try { shakeFetch(buildGen(genSpec)); } catch (e) { console.warn('shakedown warm:', e && e.message); }
+      return new Promise(res => setTimeout(() => { try { setAircraft('gen'); } finally { res(); } }, 0));
     }
     setAircraft('gen');
   });
