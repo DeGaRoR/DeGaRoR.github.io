@@ -86,6 +86,13 @@
   }
   #bootTick { font-size:11px; line-height:1.5; letter-spacing:.04em; color:#97907f;
     min-height:1.5em; max-height:3em; overflow:hidden; }
+  /* G710: the route at roll-out (app.js fills it; shown only under the roll-out screen) */
+  #bootRoute { display:flex; flex-wrap:wrap; gap:10px; margin-top:4px; }
+  #bootRoute[hidden] { display:none; }
+  #bootRoute label { display:flex; align-items:center; gap:6px; }
+  #bootRoute span { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#97907f; }
+  #bootRoute select { max-width:190px; padding:6px 8px; font:400 12px/1.2 'IBM Plex Sans', sans-serif; color:#f4efe6;
+    background:rgba(20,18,16,.62); border:1px solid rgba(255,248,236,.18); border-radius:7px; color-scheme:dark; }
   /* the shaders' block (G567): the cold compile explained, with its own count */
   #bootShader { margin-top:6px; padding:12px 14px 11px; border-radius:8px;
     background:rgba(20,18,16,.62); border:1px solid rgba(255,248,236,.12);
@@ -1673,6 +1680,14 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 .verb.pri { font-weight:600; padding:11px 18px; color:var(--ed-acc-ink);
   background:var(--ed-acc); border-color:var(--ed-acc); }
 
+/* G710: WHERE THE ROLL-OUT GOES - from / to beside ROLL OUT, the verbs' own row and the row selects'
+   dress (#edRoute; the roll-out screen's #bootRoute is style.css's, on the loading panel) */
+#edRoute { display:flex; align-items:center; gap:8px; }
+#edRoute label { display:flex; align-items:center; gap:5px; }
+#edRoute span { font:500 8.5px/1 'IBM Plex Sans'; letter-spacing:.14em; text-transform:uppercase; color:var(--ed-faint); }
+#edRoute select { max-width:150px; padding:7px 8px; font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
+  background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); border-radius:7px; color-scheme:dark; }
+
 .verb.pri:hover { background:#f0e7d8; }
 
 .verb.pri.warn { color:var(--ed-acc-ink); background:var(--ed-warn);
@@ -2462,6 +2477,13 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   text-overflow:ellipsis; font-style:normal; }
 #rail.held #phNext { display:none; }
 #ui #pfd.small #phNext { display:none; }
+/* G710: THE PLAN LINE - under the rail, the point flown to, the height asked there and the vertical
+   speed against its limit; the ink, not the faint (it is the answer to "what is it doing"), one line,
+   clipped; gone when empty and on the small PFD */
+#phPlan { display:block; margin-top:6px; font:500 8.5px/1.2 'IBM Plex Mono', monospace; letter-spacing:.02em;
+  color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-style:normal; }
+#phPlan:empty { display:none; }
+#ui #pfd.small #phPlan { display:none; }
 
 #track { display:flex; gap:3px; align-items:center; margin-left:auto;
   margin-block:-7px; }
@@ -3332,6 +3354,9 @@ body.bpOpen #edView { visibility:hidden; }
     <div id="bootWhy"></div>
     <div id="bootMeter"><div id="bootBar" class="idle"><i></i></div><span id="bootPct"></span></div>
     <div id="bootTick"></div>
+    <!-- G710: THE ROUTE AT ROLL-OUT - from / to, filled and driven by app.js (never boot.js), shown only
+         under the roll-out screen: nothing flies until it lifts, so a change re-plans the stand there -->
+    <div id="bootRoute" class="routePick" hidden></div>
     <!-- THE SHADERS' BLOCK (G567): a COLD compile - the first launch, the first after an update, a
          cleared browser cache - is the graphics driver's work, the one long wait the game cannot
          shorten. boot.js's BOOT.shaders(done, total, warm) shows it, counts, and hides it. -->
@@ -4193,7 +4218,7 @@ body.bpOpen #edView { visibility:hidden; }
          stays THE KEEPER - the panel presses it, never replaces it. -->
     <select id="selCond" aria-label="Conditions">
       <option value="calm">Standard day &middot; calm</option>
-      <option value="breeze">Standard &middot; light breeze 8 kt</option>
+      <option value="breeze" selected>Standard &middot; light breeze 8 kt</option>
       <option value="ridge">Ridge day &middot; 20 kt on the hills</option>
       <option value="thermal">Thermal day &middot; cumulus, a lid at 1900</option>
       <option value="hot">Hot and high &middot; 35&deg;C, 1008</option>
@@ -4310,6 +4335,9 @@ body.bpOpen #edView { visibility:hidden; }
              as long as it is on, and says so there. -->
         <button id="pfdFold" type="button" title="Smaller">&#9662;</button>
       </div>
+      <!-- G710: THE PLAN LINE - where the pilot is flying to, the height it asks there, the vertical
+           speed against its limit (app.js railPlan, off ap.intent) -->
+      <i id="phPlan"></i>
     </div>
   </div>
 
@@ -4658,6 +4686,8 @@ body.bpOpen #edView { visibility:hidden; }
        your aeroplane, and building it wrong and learning why is content, not
        error; it changes its WORDS, not its state. -->
   <div id="edActs">
+    <!-- G710: WHERE THE ROLL-OUT GOES - from / to (the circuit, or a strip), remembered; app.js fills it -->
+    <div id="edRoute" class="routePick"></div>
     <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
   </div>
 
@@ -14367,7 +14397,12 @@ function siteHangarBox(H) {
 // the apron when the site declares one (HOME's z0 30 - the fence stands at z 26): a deck deeper
 // than the apron allows is the sliders' extreme, not a preset, and noted. The heading is kept:
 // the aeroplane still points at taxiOut[0] within a degree at these shifts.
-function standFor(site, dims) {
+// G700: ...AND IT STANDS ON ITS OWN GROUND. The walked stand carried no `elev`, so placeAtStand fell
+// back to the RUNWAY's elevation (40_autopilot.js) - on Jolene HOME's stand ground is 30.60 m and the
+// strip's centre 31.68, and every roll-out from a deeper shell dropped the aeroplane 1.08 m onto the
+// apron. `groundAt(x, z)` (the world's terrainH, when the caller has one) reads the ground under the
+// walked point; without it the declared stand's own elev is kept (the apron is graded flat).
+function standFor(site, dims, groundAt) {
   if (!site || !site.stand) return site ? site.stand : null;
   const h = site.hangar, st = site.stand;
   if (!h || !dims || !(dims.HD > h.HD)) return st;
@@ -14379,7 +14414,10 @@ function standFor(site, dims) {
     const limz = dz < -1e-6 ? (st.z - (ap.z0 + EDGE)) / -dz : dz > 1e-6 ? ((ap.z1 - EDGE) - st.z) / dz : Infinity;
     d = Math.max(0, Math.min(d, lim, limz));
   }
-  return { x: +(st.x + dx * d).toFixed(3), z: +(st.z + dz * d).toFixed(3), hdg: st.hdg, walked: +d.toFixed(3) };
+  const x = +(st.x + dx * d).toFixed(3), z = +(st.z + dz * d).toFixed(3);
+  const g = typeof groundAt === 'function' ? +groundAt(x, z) : NaN;
+  const elev = Number.isFinite(g) ? +g.toFixed(2) : st.elev;
+  return elev !== undefined ? { x, z, hdg: st.hdg, walked: +d.toFixed(3), elev } : { x, z, hdg: st.hdg, walked: +d.toFixed(3) };
 }
 
 // ---- THE PATTERN (G193): the ground graph and the two approaches ---------
@@ -14416,7 +14454,121 @@ function standFor(site, dims) {
 // null = the aircraft's own slope; a number is the editor's future
 // declaration, flown if shallower than the aircraft's.
 const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
-function sitePattern(aero, site) {
+
+// ---- THE PARKED AEROPLANES, AND THE WAY OUT ROUND THEM (G710) ----------------
+// The Jolene playtest: "the autopilot gets a collision with the wing of the cub when getting out of the
+// hangar". HOME's stand is at (-154, 712), its first taxi point at (-135, 655), and the Cub o1 is parked
+// at (-150, 670) nose to the hangar: the straight line between the two passes 9.5 m from the Cub's
+// centre, and a 10 m span over a 10.7 m one overlapped by 0.76 m (flown, the stock build). The pilot's
+// TAXI never read an obstacle, and should not: the way round a parked aeroplane is the PLACE's, like
+// every other obstacle on the ground (the ruling above), so the site's declared way out is BENT here,
+// when the pattern is built, until the path the pilot follows keeps the taxiing wingtip GP_CLEAR clear
+// of every parked footprint.
+// A FOOTPRINT is the parked aeroplane's plan-view box in its own frame (parked.js: nose +x, right +z,
+// the record's yaw is rotation.y; origin the engine mount): half the span across, the nose (and the
+// propeller) ahead of the origin, the tail behind it, per archetype key - the numbers are designBake's
+// own nodes, rounded UP (GATE TAXICLEAR holds this table against them, so it cannot drift); any other
+// key ('stock:', 'mine:') gets the default, an 12 m-span single. The world's obstacle registry holds
+// the real meshes in the browser only; the core plans from these.
+const GP_CLEAR = 1.5, GP_HALF_DEFAULT = 6.0;
+const GP_PARKED_FOOT = {   // [half-span, nose + prop ahead of the mount, tail behind it], metres
+  cub: [5.4, 1.3, 5.5], pietenpol: [4.4, 0.9, 5.6], tigermoth: [4.5, 0.9, 5.6], stearman: [4.9, 1.0, 5.4], pittsAlike: [3.3, 0.9, 4.4],
+  sesqui: [5.0, 0.9, 5.6], jodel: [4.2, 1.4, 4.5], c172: [5.5, 1.5, 6.1], chinook: [4.9, 0.4, 5.2], caravan: [7.0, 2.1, 6.6],
+  rv: [4.9, 0.9, 5.7], savannah: [4.6, 0.9, 5.4], ul1: [4.7, 0.9, 5.4], floatplane: [5.9, 1.2, 5.8], pusherPod: [4.6, 0.6, 5.7],
+  motorglider: [6.5, 0.9, 5.0], radial: [5.5, 0.9, 5.8], etrainer: [4.5, 0.9, 5.6], ttail: [5.5, 0.9, 5.8], vtail: [5.5, 0.9, 5.9],
+  mw5: [4.7, 0.6, 5.6], archaeopteryx: [5.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 5.7],
+  p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9],
+};
+const GP_PARKED_DEFAULT = [6.0, 1.6, 6.6];
+function parkedFoot(p) {
+  const m = /^arch:(.+)$/.exec((p && p.key) || '');
+  const d = (m && GP_PARKED_FOOT[m[1]]) || GP_PARKED_DEFAULT;
+  return { half: d[0], fwd: d[1], aft: d[2] };
+}
+// the signed distance from (x, z) to a parked record's footprint (negative inside), and the way out of it
+function gpParkedDist(p, x, z) {
+  const f = p.foot || (p.foot = parkedFoot(p));
+  const c = Math.cos(p.ry || 0), s = Math.sin(p.ry || 0), dx = x - p.x, dz = z - p.z;
+  const ox = dx * c - dz * s, oz = dx * s + dz * c;          // along the nose, along the right wing
+  const ex = Math.max(-f.aft - ox, ox - f.fwd, 0), ez = Math.max(Math.abs(oz) - f.half, 0);
+  if (ex || ez) return Math.hypot(ex, ez);
+  return -Math.min(f.fwd - ox, ox + f.aft, f.half - Math.abs(oz));
+}
+function gpParkedOut(p, x, z) {
+  const f = p.foot || (p.foot = parkedFoot(p));
+  const c = Math.cos(p.ry || 0), s = Math.sin(p.ry || 0), dx = x - p.x, dz = z - p.z;
+  const ox = dx * c - dz * s, oz = dx * s + dz * c;
+  // the nearest point of the box (inside: the nearest face), then the local offset back to the world
+  let qx = Math.max(-f.aft, Math.min(f.fwd, ox)), qz = Math.max(-f.half, Math.min(f.half, oz));
+  let lx = ox - qx, lz = oz - qz;
+  if (!lx && !lz) { const m = [f.fwd - ox, ox + f.aft, f.half - oz, oz + f.half], k = m.indexOf(Math.min(...m)); lx = [1, -1, 0, 0][k]; lz = [0, 0, 1, -1][k]; }
+  const L = Math.hypot(lx, lz) || 1;
+  lx /= L; lz /= L;
+  return [lx * c + lz * s, -lx * s + lz * c];                 // local (nose, right) back to world (x, z)
+}
+// the samples of a route closer to a parked footprint than `need` (the worst first), or null
+function gpParkedWorst(pts, parked, need) {
+  let w = null;
+  for (let i = 0; i < pts.length; i++) {
+    const q = pts[i];
+    for (const p of parked) {
+      if (Math.abs(q.x - p.x) > need + 20 || Math.abs(q.z - p.z) > need + 20) continue;
+      const d = gpParkedDist(p, q.x, q.z) - need;
+      if (d < 0 && (!w || d < w.d)) w = { d, i, x: q.x, z: q.z, p };
+    }
+  }
+  return w;
+}
+// THE BEND. The way out (stand, the declared points, the entry) is sampled the way the pilot's path is
+// (patternPath, fillets and all, when the core is whole; the straight legs otherwise) and while a sample
+// comes within `need` of a footprint the route is pushed away from it there: a declared point within 6 m
+// of that sample moves, else a new corner ('k<n>', kind 'taxi', the site's fillet) is put in at the
+// sample, pushed out by the shortfall and half a metre. The stand and the entry never move. At most 24
+// rounds; what is left is reported (pattern.clearance), never hidden - GATE TAXICLEAR fails on it.
+function gpClearWay(nodes, ids, parked, need) {
+  const byId = {}; for (const n of nodes) byId[n.id] = n;
+  let added = 0, moved = 0;
+  const sample = () => {
+    if (typeof patternPath === 'function') return patternPath({ nodes, fillet: GP_FILLET }, ids, 1.0).pts;
+    const pts = [];
+    for (let k = 0; k + 1 < ids.length; k++) {
+      const A = byId[ids[k]], B = byId[ids[k + 1]], n = Math.max(1, Math.ceil(Math.hypot(B.x - A.x, B.z - A.z)));
+      for (let i = 0; i <= n; i++) pts.push({ x: A.x + (B.x - A.x) * i / n, z: A.z + (B.z - A.z) * i / n });
+    }
+    return pts;
+  };
+  let w = null;
+  for (let it = 0; it < 24; it++) {
+    w = gpParkedWorst(sample(), parked, need);
+    if (!w) break;
+    const dir = gpParkedOut(w.p, w.x, w.z), push = -w.d + 0.5;
+    // the leg of the declared polyline the sample lies on
+    let kB = 0, dB = Infinity;
+    for (let k = 0; k + 1 < ids.length; k++) {
+      const A = byId[ids[k]], B = byId[ids[k + 1]], vx = B.x - A.x, vz = B.z - A.z, l2 = vx * vx + vz * vz || 1e-9;
+      const t = Math.max(0, Math.min(1, ((w.x - A.x) * vx + (w.z - A.z) * vz) / l2));
+      const d = Math.hypot(A.x + vx * t - w.x, A.z + vz * t - w.z);
+      if (d < dB) { dB = d; kB = k; }
+    }
+    let j = -1, dj = 6;
+    for (const k of [kB, kB + 1]) {
+      if (k <= 0 || k >= ids.length - 1) continue;
+      const n = byId[ids[k]], d = Math.hypot(n.x - w.x, n.z - w.z);
+      if (d < dj) { dj = d; j = k; }
+    }
+    if (j >= 0) { const n = byId[ids[j]]; n.x = +(n.x + dir[0] * push).toFixed(3); n.z = +(n.z + dir[1] * push).toFixed(3); n.clear = w.p.id || true; moved++; }
+    else {
+      const id = 'k' + added++;
+      const n = { id, x: +(w.x + dir[0] * push).toFixed(3), z: +(w.z + dir[1] * push).toFixed(3), kind: 'taxi', r: GP_FILLET, clear: w.p.id || true };
+      nodes.push(n); byId[id] = n; ids.splice(kB + 1, 0, id);
+    }
+  }
+  return { ok: !w, added, moved, need, worst: w ? { d: +w.d.toFixed(2), x: +w.x.toFixed(1), z: +w.z.toFixed(1), id: w.p.id || null } : null };
+}
+
+// opts (G710): { half } - the taxiing aeroplane's half-span, for the way round the site's parked
+// aeroplanes (GP_HALF_DEFAULT when absent); a pattern of a site with none is the same whatever it says
+function sitePattern(aero, site, opts) {
   if (site && site.pattern) return site.pattern;
   const R = siteRunway(aero);
   const d = [R.dx, R.dz], n = [R.nx, R.nz];
@@ -14427,6 +14579,7 @@ function sitePattern(aero, site) {
     return id;
   };
   const link = (a, b) => arcs.push([a, b]);
+  let clearance = null;                      // G710: the way out round the parked aeroplanes, as built
   // the taxiway side, so the backtrack lane keeps AWAY from it
   let laneSg = 1;
   if (site && site.taxiway) {
@@ -14482,12 +14635,20 @@ function sitePattern(aero, site) {
     // U-turn. Nothing else is invented: no gate, no fence, no apron.
     const st = add('stand', [site.stand.x, site.stand.z], 'stand', { hdg: site.stand.hdg });
     const tx = site.taxiOut, ids = [];
-    let prev = st;
-    for (let i = 0; i + 1 < tx.length; i++) { const id = add('tx' + i, tx[i], 'taxi', { r: GP_FILLET }); link(prev, id); ids.push(id); prev = id; }
+    for (let i = 0; i + 1 < tx.length; i++) ids.push(add('tx' + i, tx[i], 'taxi', { r: GP_FILLET }));
     const last = tx[tx.length - 1];
     const along = (last[0] - R.cx) * d[0] + (last[1] - R.cz) * d[1];
     const ex = R.cx + d[0] * along, ez = R.cz + d[1] * along;
     const c0 = add('c0', [ex, ez], 'taxi', { r: GP_FILLET });
+    // G710: round the parked aeroplanes (the declared points bend; new corners go into `ids`)
+    if (site.parked && site.parked.length) {
+      const half = (opts && opts.half > 0) ? opts.half : GP_HALF_DEFAULT;
+      const way = [st].concat(ids, [c0]);
+      clearance = gpClearWay(nodes, way, site.parked, half + GP_CLEAR);
+      ids.length = 0; for (let k = 1; k < way.length - 1; k++) ids.push(way[k]);
+    }
+    let prev = st;
+    for (const id of ids) { link(prev, id); prev = id; }
     link(prev, c0); link(c0, holds[0]);
     // A SHORT STRIP'S WAY OUT HOLDS WHERE IT JOINS (G527.2, the pilot session's G531 measure: the cub off
     // East Point lifted at 104 m of the 112 ahead - the declared way out met the centreline 8 m from the
@@ -14535,7 +14696,7 @@ function sitePattern(aero, site) {
     mk(1, [d[0], d[1]], R.thr0, [R.td1.x, R.td1.z]),
   ];
   return { id: aero.id || 'HOME', elev: aero.elev || 0, fillet: GP_FILLET,
-           nodes, arcs, routes, stops: holds,
+           nodes, arcs, routes, stops: holds, clearance,
            runway: { c0: { x: R.end0.x, z: R.end0.z }, c1: { x: R.end1.x, z: R.end1.z },
                      hdg: R.hdg, wid: R.wid, len: R.len },
            approaches };
@@ -14605,6 +14766,9 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
     }
   };
   for (const T of [0, 1]) { walk(pat.routes.out[T], 'route out[' + T + ']'); walk(pat.routes.back[T], 'route back[' + T + ']'); }
+  // G710: a way out that could not be bent clear of a parked aeroplane
+  if (pat.clearance && !pat.clearance.ok && pat.clearance.worst)
+    out.push('the way out passes ' + (-pat.clearance.worst.d).toFixed(1) + ' m inside the clearance of the parked ' + (pat.clearance.worst.id || 'aeroplane') + ' at (' + pat.clearance.worst.x + ', ' + pat.clearance.worst.z + ')');
   const A = pat.approaches || [];
   if (A.length !== 2) out.push('a pattern has two approaches, one per direction');
   for (const ap of A) {
@@ -16617,6 +16781,19 @@ function compose(rec0, world, opts) {
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
     aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)));   // T1 sees the strip's own grade (pushed above)
     r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
+    // G710: THE PARKED AEROPLANES the way out must clear (25_airfield.js gpClearWay): every `aircraft`
+    // object within 400 m of the stand or a taxi point, in the world (x, z, and `ry` = rotation.y, the
+    // record's yaw plus the frame's - render_premises' own placement), its key naming the footprint
+    if (r.site && r.site.stand && r.site.taxiOut) {
+      const way = [[r.site.stand.x, r.site.stand.z]].concat(r.site.taxiOut), park = [];
+      for (const ob of rec.layers.objects || []) {
+        if (ob.kind !== 'aircraft' || !ob.key || !isFinite(+ob.x) || !isFinite(+ob.z)) continue;
+        const w = F.toWorld(+ob.x, +ob.z);
+        if (way.some(q => Math.hypot(q[0] - w[0], q[1] - w[1]) < 400))
+          park.push({ id: ob.id, key: ob.key, x: +w[0].toFixed(3), z: +w[1].toFixed(3), ry: +((+ob.yaw || 0) + F.yaw).toFixed(4) });
+      }
+      if (park.length) r.site.parked = park;
+    }
     if (r.site && r.site.stand) { const L = F.toLocal(r.site.stand.x, r.site.stand.z); r.site.stand.elev = +T1(L[0], L[1]).toFixed(2); }   // the ground under the stand (v9): the placer reads it
     if (r.site && r.site.hangar) { const L = F.toLocal(r.site.hangar.x, r.site.hangar.z); r.site.hangar.y = +T1(L[0], L[1]).toFixed(2); }   // the ground under the club hangar (G434): the shed stands on it
   }
@@ -21943,6 +22120,49 @@ function placeAtStand(sim, a, st) {
     ? { hdg: st.hdg, spawn: [st.x, st.z], elev: st.elev !== undefined ? st.elev : a.elev } : a);   // G398.3: the stand's own ground when the site names it
 }
 
+// G700: THE WHEELS ON THE GROUND UNDER THEM. placeAtStand lifts the airframe by ONE elevation, read at
+// the stand's point, and stance() set the third wheel on the mains' ground line in the design frame, which
+// is flat; the wheels stand metres away on a slope (Jolene's East Point clearing is a 15 % grade under the
+// stand: the tailwheel 84 cm up, the airframe falling 19 cm onto it at 0.9 m/s; the Skyline altiport's
+// lowest tyre 2.7 cm into the ground). seatOnGround pitches the airframe about the mains' centroid until
+// the third wheel (refs.tw, the nose wheel of a tricycle) meets ITS ground as the mains meet theirs, then
+// moves it vertically so the lowest contact (node minus radius, over the ground at its own x, z) is 1 cm
+// clear - the clearance sim.reset() leaves on the design floor. The GAME's placement step (app.js
+// applyRoute); the gates' spawn datums are untouched. Returns the vertical shift (m).
+function seatOnGround(sim, groundH, refs) {
+  if (typeof groundH !== 'function') return 0;
+  const P = sim.p, R = sim.r;
+  const clr = i => P[i * 3 + 1] - (R[i] || 0) - groundH(P[i * 3], P[i * 3 + 2]);
+  const M = refs && refs.mains, tw = refs && refs.tw;
+  if (M && M.length && tw != null && tw >= 0) {
+    for (let it = 0; it < 3; it++) {           // the ground under the wheel moves as it swings: three passes
+      let ax = 0, ay = 0, az = 0, cM = 0;
+      for (const i of M) { ax += P[i * 3]; ay += P[i * 3 + 1]; az += P[i * 3 + 2]; cM += clr(i); }
+      ax /= M.length; ay /= M.length; az /= M.length; cM /= M.length;
+      let ux = P[tw * 3] - ax, uz = P[tw * 3 + 2] - az;
+      const L = Math.hypot(ux, uz);
+      if (L < 0.2) break;
+      ux /= L; uz /= L;
+      const hT = P[tw * 3 + 1] - ay, Rr = Math.hypot(L, hT), want = hT - (clr(tw) - cM);
+      if (Math.abs(want) >= Rr) break;
+      const th = Math.asin(want / Rr) - Math.atan2(hT, L);
+      if (!(Math.abs(th) < 0.35) || Math.abs(th) < 1e-5) break;   // 20 deg: past that it is not a stand
+      const cs = Math.cos(th), sn = Math.sin(th);
+      for (let i = 0; i < sim.n; i++) {
+        const s = (P[i * 3] - ax) * ux + (P[i * 3 + 2] - az) * uz, h = P[i * 3 + 1] - ay;
+        const s2 = s * cs - h * sn, h2 = s * sn + h * cs;
+        P[i * 3] += (s2 - s) * ux; P[i * 3 + 2] += (s2 - s) * uz; P[i * 3 + 1] = ay + h2;
+      }
+    }
+  }
+  let minC = Infinity;
+  for (let i = 0; i < sim.n; i++) minC = Math.min(minC, clr(i));
+  if (!Number.isFinite(minC)) return 0;
+  const dy = 0.01 - minC;
+  for (let i = 0; i < sim.n; i++) P[i * 3 + 1] += dy;
+  return dy;
+}
+
 function makeAutopilot(sim, def, world) {
   const A = def.params.ap;
   // TAXI BREAKAWAY (G4.9). The taxi governor below is a proportional speed
@@ -24246,6 +24466,16 @@ function makePilot(sim, def, world, opts) {
     // never was - the panel came (the netto variometer reads its polar), so it
     // is published now, lazily, through the same memo the pilot uses.
     get sheet() { return sheetOf(); },
+    // G710: THE PLAN, PUBLISHED (the Jolene playtest: "it's unclear to what altitude the autopilot
+    // intends to go ... no waypoints on the map"). Written at the end of every update, one object
+    // mutated in place (no garbage at 60 Hz): the phase, the legs and the active one, the point flown
+    // to and the height asked there (MSL; `hField` over the field's datum altRef, `hGround` over the
+    // ground under that point), the vertical speed asked and the TECS limits it is clamped to (the
+    // ones the law used this step; the sheet's climbMax / idle sink otherwise), and the filleted air
+    // path L1 follows (null on the ground and in the climb-out). The map, the HUD's plan line and
+    // the 3-D legs read THIS - nothing re-derives the plan.
+    intent: { phase: 'ROLL', legs: null, legI: 0, to: null, x: null, z: null, h: null, hField: null, hGround: null, vs: 0, vsCmd: null,
+              vsUp: null, vsDn: null, climbMax: null, sinkIdle: null, path: null, pathI: 0, taxi: null },
   };
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
@@ -24256,6 +24486,7 @@ function makePilot(sim, def, world, opts) {
     ap.phase = ph; phaseT = 0;
   };
   const PATS = {};
+  const patOpts = { half: (def.params.gen && def.params.gen.span > 0) ? def.params.gen.span / 2 : null };
   ap.patOf = a => {
     if (!a) return null;
     const key = a.id || 'HOME';
@@ -24263,7 +24494,7 @@ function makePilot(sim, def, world, opts) {
     let P = null;
     try {
       if (typeof sitePattern === 'function')
-        P = sitePattern(a, typeof siteOf === 'function' ? siteOf(a.id) : null);
+        P = sitePattern(a, typeof siteOf === 'function' ? siteOf(a.id) : null, patOpts);   // G710: the way out round the parked aeroplanes, for THIS span
     } catch (e) { P = null; }
     PATS[key] = P;
     return P;
@@ -24706,7 +24937,45 @@ function makePilot(sim, def, world, opts) {
       { name: 'FINAL', A: wp(F, P.sIaf, 0), B: wp(F, P.sAim, 0) },
     ];
   };
-  const startLegs = (legs) => { ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null; };
+  // G710: EACH LEG'S HEIGHT AS IT WILL BE FLOWN, planned when the legs are: legAlt's rule (the leg's
+  // height over the datum, raised to 2 hSafe (40 m at least) over the ground a 1.5 km look-ahead sees
+  // anywhere along the leg - the union of every look-ahead from A to B), the enroute leg's cruise and
+  // hClear; the FINAL from the slope's height at its start (never above the leg before it) down to
+  // the ground at the aim. `hPlan` (MSL) at B, `hPlanA` at A, `gB` the ground under B. The live
+  // target of the active leg (ap.intent.h) is the pilot's own, read every step.
+  const planLegH = (legs) => {
+    const hasT = !!(world && typeof world.terrainH === 'function');
+    let prev = null;
+    for (const L of legs) {
+      if (!L.A || !L.B) continue;
+      const dx = L.B[0] - L.A[0], dz = L.B[1] - L.A[1], len = Math.hypot(dx, dz) || 1e-9, ux = dx / len, uz = dz / len;
+      L.gB = hasT ? Math.round(groundH(L.B[0], L.B[1])) : ap.altRef;
+      if (L.name === 'FINAL') {
+        L.hPlan = L.gB;
+        L.hPlanA = Math.round(Math.min(prev != null ? prev : Infinity, L.gB + len * (ap.gs || 0.06)));
+        continue;
+      }
+      // the highest ground from A to B + 1.5 km (every 150 m), and over B's own 1.5 km look-ahead
+      let top = -1e9, topB = -1e9;
+      if (hasT) {
+        const reach = len + 1500, n = Math.max(6, Math.ceil(reach / 150));
+        for (let k = 0; k <= n; k++) { const d = reach * k / n, h = groundH(L.A[0] + ux * d, L.A[1] + uz * d); top = Math.max(top, h); if (d >= len) topB = Math.max(topB, h); }
+      }
+      const base = ap.altRef + (L.h != null ? L.h : ap.hCruise);
+      if (L.enroute) {
+        // the enroute leg cruises (the departure's cruise height or the terrain's hClear) and arrives at
+        // the circuit height at its end (ENROUTE's own descent, 800 m before the entry)
+        L.hCruiseLeg = Math.round(Math.max(Math.max(ap.route.from.elev + A.hCruise, base), top + (A.hClear ?? 130)));
+        L.hPlan = Math.round(Math.max(base, topB + (A.hClear ?? 130)));
+        L.hPlanA = L.hCruiseLeg;
+      } else {
+        L.hPlan = Math.round(Math.max(base, top + Math.max(2 * A.hSafe, 40)));
+        L.hPlanA = prev != null ? prev : L.hPlan;
+      }
+      prev = L.hPlan;
+    }
+  };
+  const startLegs = (legs) => { ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null; planLegH(legs); };
   // P0.6: THE CIRCUIT AS ONE PATH. The legs' corners become patternPath's
   // nodes with the fillet radius the aeroplane turns at each corner's speed
   // (the leg's own: cruise / turn / the approach speed on the last corner)
@@ -24849,6 +25118,7 @@ function makePilot(sim, def, world, opts) {
 
   ap.update = (dt) => {
     ap.t += dt; phaseT += dt;
+    let pubH = null, pubN = null, pubX = null, pubZ = null;   // G710: the height asked and the point flown to, this step (ap.intent)
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
     if (ap.restAlt === null) {
@@ -25203,7 +25473,7 @@ function makePilot(sim, def, world, opts) {
       const gammaC = (tWk < 1.99 ? hdotC / Math.max(V, 8) : 0);
       const thC = clamp(tAlphaAt(V) + gammaC + 0.8 * eB + tIpit, A.vsFloor ?? -0.08, o.thMax ?? A.thMax);
       holdPitch(thC);
-      tecsDbg = { hdotC, Vc, STEr, STErC, ff, thr: c.thr, wK: tWk, thC, eB };
+      tecsDbg = { hdotC, Vc, STEr, STErC, ff, thr: c.thr, wK: tWk, thC, eB, vsUp, vsDn };
     };
     // THE STEER GAINS (groundSteer's, factored out G630 so the taxi flies
     // them too — the taxi ran the fixed 3.2 / 1.2 at any mass, the fault
@@ -25667,6 +25937,7 @@ function makePilot(sim, def, world, opts) {
       ap.report.outcome = ap.report.outcome || 'in-the-water';
       go('STOPPED');
     }
+    const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
     if (BX.on) boxFly(); else
     switch (ap.phase) {
       case 'GLIDE': {
@@ -25722,6 +25993,7 @@ function makePilot(sim, def, world, opts) {
           else taxiHdgF = wrapPi(taxiHdgF + wrapPi(hT - taxiHdgF) * Math.min(1, dt / 0.4));
           taxiHdgT = ap.t;
           ap.targetDir = [Math.cos(taxiHdgF), 0, Math.sin(taxiHdgF)];
+          { const pe = ap.path.pts[ap.path.pts.length - 1]; if (pe) { pubN = 'HOLD'; pubX = pe.x; pubZ = pe.z; } }
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
           // a long straight (a backtrack) is taxied faster; the bend ahead
@@ -25745,6 +26017,7 @@ function makePilot(sim, def, world, opts) {
         }
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
+        pubN = 'TAXI POINT'; pubX = ap.taxiTgt[0]; pubZ = ap.taxiTgt[1];
         ap.targetDir = [ddx / dist, 0, ddz / dist];
         const [kPt] = steerK(false);
         engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e, -0.45, 0.45), de: A.taxiDe ?? 0.30,
@@ -26131,6 +26404,7 @@ function makePilot(sim, def, world, opts) {
         // 45 m on the cub, "it turns really low"), never above hCruise - 15
         const hTurn = ap.xc ? ap.hCruise - 8
                     : Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
+        pubH = ap.refAlt + hTurn; pubN = ap.xc ? 'CRUISE HEIGHT' : 'CROSSWIND TURN'; pubX = null; pubZ = null;
         const stalled = phaseT > 60 && vsSlow < 0.15, marginal = phaseT > 75 && vsSlow < 0.4;
         setStatus(ap.xc ? 'climbing to cruise height on the runway heading' : 'climbing straight ahead to the crosswind turn', [
           cond('height', Math.round(agl), Math.round(hTurn), agl >= hTurn, 'm'),
@@ -26187,6 +26461,7 @@ function makePilot(sim, def, world, opts) {
           const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, dRem))) + (A.hClear ?? 130);
           hTgt = Math.max(cruise, floor);
         } else hTgt = legAlt(L);
+        pubH = hTgt; pubN = L.name; pubX = L.B[0]; pubZ = L.B[1];
         // P1: THE HOLD IS THE OBSTACLE-CLEARANCE CLIMB (PILOT-ROADMAP C.3):
         // while the ground along the leg asks a gradient the aeroplane
         // cannot make from here (0.8 of its measured climb, 30 m clear) the
@@ -26233,7 +26508,7 @@ function makePilot(sim, def, world, opts) {
         // turn-back); the path starts at the aeroplane
         if (heldOut && !holdOut && L.enroute && ap.legI === 0) {
           const tl = Math.hypot(vcg[0], vcg[2]) || 1, Rc2 = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
-          L.A = [cg[0] + vcg[0] / tl * Rc2, cg[2] + vcg[2] / tl * Rc2]; airPath = null; pathFrom = [cg[0], cg[2]];
+          L.A = [cg[0] + vcg[0] / tl * Rc2, cg[2] + vcg[2] / tl * Rc2]; airPath = null; pathFrom = [cg[0], cg[2]]; planLegH(ap.legs);
         }
         heldOut = !!holdOut;
         // P0.6: the path is built once per leg list and followed by L1; the
@@ -26299,6 +26574,7 @@ function makePilot(sim, def, world, opts) {
         // then the tracking bank of 0.18 — the 10 deg cap alone could not
         // finish a turn planned at 23 and crossed the centreline by 147 m.
         if (finalLevel == null) finalLevel = Math.min(cg[1], hGS + 10);
+        { const aim = wp(F, ap.xAim, 0); pubH = (slopeCaptured || above < 0 || above > 4) ? hGS : finalLevel; pubN = 'AIM'; pubX = aim[0]; pubZ = aim[1]; }
         // P0.6: the last fillet (base -> final) is the path's; LOC takes over
         // once the nose is within 11 deg of the runway and 60 m of the line
         const nS = nose[0] * F.ux + nose[1] * F.uz;
@@ -26372,6 +26648,7 @@ function makePilot(sim, def, world, opts) {
         engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: ap.VClimb, bank: 0.20 });
         flapTgt = fTO;
         const hTurn = Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
+        pubH = ap.refAlt + hTurn; pubN = 'CROSSWIND TURN'; pubX = null; pubZ = null;
         setStatus('going around: climbing on the runway heading', [
           cond('height', Math.round(agl), Math.round(hTurn), agl >= hTurn, 'm')]);
         if (agl >= hTurn || (phaseT > 60 && vsSlow < 0.15)) {
@@ -26555,6 +26832,17 @@ function makePilot(sim, def, world, opts) {
               hdg: PILOT_UNITS.deg(Math.atan2(nose[1], nose[0])),
               trk: tl2 > 0.5 ? PILOT_UNITS.deg(Math.atan2(vcg[2], vcg[0])) : null,
               beta, x: cg[0], z: cg[2], onGround: onG, t: ap.t };
+    // G710: THE PLAN, published (see ap.intent above)
+    const IN_ = ap.intent, TD = AF.vert === 'TECS' ? tecsDbg : null;
+    IN_.phase = phRun; IN_.legs = ap.legs; IN_.legI = legRun;
+    IN_.to = pubN; IN_.x = pubX; IN_.z = pubZ;
+    IN_.h = pubH; IN_.hField = pubH != null ? pubH - ap.altRef : null;
+    IN_.hGround = (pubH != null && pubX != null && world && typeof world.terrainH === 'function') ? pubH - groundH(pubX, pubZ) : IN_.hField;
+    IN_.vs = vcg[1]; IN_.vsCmd = TD ? TD.hdotC : null;
+    IN_.vsUp = TD ? TD.vsUp : tClimbMax; IN_.vsDn = TD ? TD.vsDn : -Math.max(3.0, 1.5 * tSinkIdle);
+    IN_.climbMax = tClimbMax; IN_.sinkIdle = tSinkIdle;
+    IN_.path = (onG === 0 && ap.legs) ? airPath : null; IN_.pathI = airPathI;
+    IN_.taxi = ap.path || null;
   };
   return ap;
 }
@@ -40561,10 +40849,10 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='66bf073e2f08';window.FLYDIY_BUILD='735c0dec54c4'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='7c5e34dd0ae6';window.FLYDIY_BUILD='2e57a5624181'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -102608,7 +102896,8 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
 var DAY_CLOCK = (function () {
   'use strict';
   // v2 (2026-09-23): the game's own day below - a new key, so every player starts once on it
-  const PREF = 'flydiy.day.v2';
+  // v3 (G700, 2026-09-26): the game's day carries a light breeze; a v2 pref comes across (below)
+  const PREF = 'flydiy.day.v3', PREF_V2 = 'flydiy.day.v2';
   // THE GAME'S DAY (2026-09-23, the user: "small, elegant summer clouds, well split, a great sky for flying ... at day
   // with good visibility, but still maximizing the shadows and atmospheric effects ... performance optimized"):
   // chosen on screenshots at 30-450 m, from two sides of the sun (futureDesigns/PERF-2026-09-23.md, the default look).
@@ -102616,13 +102905,28 @@ var DAY_CLOCK = (function () {
   // fair-weather cumulus (08_cloud_field 'cuh': many small cells, a shallow column) at a quarter cover on seed 1,
   // turbidity 2.8 (~48 km: the hills keep their aerial depth). The physics' own default (07_day DAY.DEFAULT, the gates'
   // baseline) is untouched: this is the GAME's first day, when no link and no saved day say otherwise.
-  const GAME_DAY = { date: '2026-06-21', localHours: 16, rate: 1, cloudType: 'cuh', cloudCover: 0.25, cloudSeed: 1, turbidity: 2.8 };
+  // G700 (the Jolene playtest: "light breeze by default, so the sea is not fully calm"): the day's wind is the
+  // weather card's `light breeze` preset (weather_ui.js), 8 kt off the sea from 250 deg - the sea gets its ripples
+  // and the windsock its lift. GATE HONESTY holds the two equal (and the pilot matrix's `breeze` weather to them).
+  const GAME_WIND = { kts: 8, dirDeg: 250, gust: 0.15, refH: 10, breeze: 1 };
+  const GAME_DAY = { date: '2026-06-21', localHours: 16, rate: 1, cloudType: 'cuh', cloudCover: 0.25, cloudSeed: 1, turbidity: 2.8, wind: GAME_WIND };
   const RATES = [0, 1, 10, 60, 600];
   const PRESETS = ['dawn', 'morning', 'noon', 'afternoon', 'golden', 'sunset', 'dusk', 'night'];
   let world = null, day = null, sinceSave = 0;
   const W = typeof window !== 'undefined' ? window : null;
 
-  const read = () => { try { return JSON.parse(localStorage.getItem(PREF) || 'null'); } catch (e) { return null; } };
+  // A v2 PREF COMES ACROSS once: its date, hour and weather kept, except the still air every v2 day was saved
+  // with by default (the old game day had no wind) - that one takes the new day's breeze. A calm picked on
+  // purpose is picked again in one click, and saved as v3 from then on.
+  const read = () => {
+    try {
+      const v3 = JSON.parse(localStorage.getItem(PREF) || 'null');
+      if (v3) return v3;
+      const v2 = JSON.parse(localStorage.getItem(PREF_V2) || 'null');
+      if (v2 && !v2.wind) v2.wind = Object.assign({}, GAME_WIND);
+      return v2;
+    } catch (e) { return null; }
+  };
   // ... and THE WEATHER with it (2026-09-20, the clouds panel): the low deck's cover and type, the upper decks
   // ...and THE WEATHER with it (CLIMATE K2): the wind, the air, the column's
   // shape and a front all live on the day's declared spec, so the pref carries
@@ -133401,12 +133705,25 @@ function benchInit(api) {
     render();
     if (F.after) F.after();
   };
+  // G700: THE FIRST FLIGHT IS KEPT, AND AWARDED ONCE (the Jolene playtest: "the inaugural flight is detected,
+  // but not kept - every time it tells me it's my first flight"). An UNARMED arrival (you rolled out and
+  // flew) was fingerprinted by fpNow() at the arrival, out in the world - where the join's export reads an
+  // editor that is closed (CAGE_UI.P, measure()) and answers null or not the garage's number. A null fp
+  // settled an unstamped certificate, which the next restore (a reload) or dirty hook WITHDREW as
+  // "certified before fingerprints"; a different one, as "the build changed". So the aeroplane is
+  // fingerprinted where the bench fingerprints everything, IN THE GARAGE, as it rolls out (BENCH_ROLLOUT,
+  // app.js rollOut) - the same moment an armed test flight takes its own - and the arrival reads that.
+  // And an arrival of an aeroplane whose flight certificate already stands (settled, awarded, the same
+  // fingerprint) changes nothing: the certificate keeps its first day and its card is not shown again.
+  let outFp = null;
+  window.BENCH_ROLLOUT = () => { outFp = fpNow(); };
   window.BENCH_FLIGHT_LOGGED = f => {
     const t = BENCH_TESTS.filter(x => x.id === 'flight')[0];
     if (!t || !f) return;
     const F = flown; flown = null;
-    const fp = (f.armed && f.armed.fp) || (F && F.fp) || fpNow();
+    const fp = (f.armed && f.armed.fp) || (F && F.fp) || outFp || fpNow();
     if (!F && !f.armed && !f.arrived) return;
+    if (!F && !f.armed && awarded('flight') && results.flight.fp && results.flight.fp === fp) return;   // held: once
     if (results.flight && results.flight.running) delete results.flight;
     const r = t.judge(f);
     settle(t, r, fp, F ? F.after : null);
@@ -136598,6 +136915,749 @@ window.BLUEPRINT = {
 })();
 </script>
 <script type="text/x-flydiy">
+// ============================================================
+// THE SOLVER'S OWN THREAD (G810, 2026-09-27; futureDesigns/ARCH-2026-09-27.md
+// §2, chantier 1, step 1). The page's loop runs `script(1/60); sim.step(1/60)`
+// on the render thread (app.js loop()), so physics and render SUM: the taxi's
+// 18-24 ms frame is the solver's 6-11 plus the render's 9-10, and every
+// catch-up step G586 owes after a long frame makes the next frame longer. The
+// node prototype (futureDesigns/ARCH-2026-09-27.probes/worker_proto.js) moved
+// the solver and the pilot into a worker: the render thread's physics went
+// from 3-23 ms to 0.02-0.03 ms and the worst frame from 59-125 to 18-34 ms.
+//
+// This file is that worker's BODY, built the way bench_worker.js is (A9): a
+// Blob whose source imports this file and the built core bundle by URL next to
+// the page, so it must stay a file the page can fetch. Nothing here is
+// physics: the host owns
+//   the WORLD   makeWorld on a TRIMMED island boot (SIM_HOST_KEYS: the height
+//               tree and the grids the world's physics half reads - cover,
+//               canopy, coast, lake, ttype, the lake records; not albedo,
+//               tint, ori1, ndvi or the far tree, which only the renderer
+//               reads; ARCH §1.6: ~70-80 MB against 638 MB for the whole
+//               pack) + the premises record, fetched through the page's own
+//               path (simHostFetchBoot) or handed in (the node gate);
+//   the SIM     buildGen(spec) -> makeSim, reset, and the page's placement
+//               (app.js applyRoute: the stance, the stand or the spawn, the
+//               route, departFrom) and its pilot (mkPilot);
+//   the STEP    per 1/60 s: the commands due at this step index, the
+//               non-UI half of app.js script() (the hold's brake, the hand
+//               under MANUAL, ap.update), sim.step(1/60), then the day's
+//               physics half (world.dayTick on the sim's own clock - ARCH
+//               §2.2: the climate reads the sun, so the day lives here and
+//               the sky derives from snapshot t);
+//   the CLOCK   its own: steps while sim time is behind wall time
+//               (performance.timeOrigin + now(), the same epoch on both
+//               threads), one step at a time, at most SIM_HOST_CATCH owed
+//               per turn - past that the excess is let go and the DILATION
+//               (G612's reading: sim seconds over wall seconds, the last
+//               second) says so. Or LOCKSTEP ({cmd:'steps', n}) for a gate;
+//   the SNAPSHOT a Float64Array in a TRANSFERRED ArrayBuffer (SIM_SNAP
+//               layout: the head, p in float64 - ARCH §2.2, a float32 CG at
+//               30 km quantizes to 2-4 mm - optionally v, the fuel nodes'
+//               masses) + a small structured-clone `meta` (out, eng, fuel,
+//               hydro, wheels, ctl, the pilot's snapshot). The page hands
+//               each buffer back ({cmd:'release'}): no allocation per frame
+//               once the pool is warm (the head counts every allocation).
+//               postMessage with transfer first, as ARCH §2.2 recommends;
+//               SharedArrayBuffer needs crossOriginIsolated and is a later,
+//               measured option.
+//
+// INPUTS ARE STAMPED BY STEP INDEX. A command carries `k`, the step before
+// which it applies; one that arrives late (or carries none) applies at the
+// next boundary and is counted. Every application is LOGGED with the step it
+// actually took ({cmd:'log'}), so a flight replays to the bit from its log in
+// node (GATE SIMWORKER proves it) - ARCH §2.4's clean replay point.
+//
+// NOT HERE YET (C1b/C1c): app.js does not use this (behind ?simw=1 next), the
+// viewer's obstacles (render_premises hitAdd, the club hangar, the parked
+// aircraft), manualEnding's touchdown, the telemetry record(), editor edits.
+//
+// sim_view.js is the page's side: the read API the page already uses on
+// `sim`, over these snapshots. GATE SIMWORKER (tools/_simworker_check.js)
+// drives this host in a worker_threads Worker against the inline loop.
+// ============================================================
+
+// the trimmed boot: the manifest keys (dotted paths into the boot object, as
+// src/core/world_packs.json and tools/island_node.js name them) the world's
+// physics half reads. 28_island.js makeIsland takes the rest as optional.
+const SIM_HOST_KEYS = ['header', 'topo', 'payload', 'grid.meta', 'grid.cover', 'grid.canopy',
+                       'grid.coast', 'grid.lake', 'grid.ttype', 'grid.lakes'];
+// the core names the worker's Blob picks out of the imported bundle
+const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'makeAutopilot',
+                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome'];
+const SIM_HOST_DT = 1 / 60;
+const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
+const SIM_HOST_POOL = 3;           // snapshot buffers: the page holds two (interpolation), the host writes the third
+const SIM_HOST_LOG = 8192;         // applied commands kept for {cmd:'log'}
+// THE SNAPSHOT'S HEAD (float64 slots), then p (3n), then v (3n, when asked), then the fuel nodes' masses
+const SIM_SNAP = { SEQ: 0, STEP: 1, T: 2, WALL: 3, STEPMS: 4, DIL: 5, WV: 6, N: 7, FLAGS: 8, CG: 9, CGV: 12,
+                   TOTALM: 15, WHEELS: 16, SMAX: 17, LATE: 18, DROPPED: 19, MAXMS: 20, RAN: 21, ALLOCS: 22,
+                   RATE: 23, EPOCH: 24, NF: 25, HEAD: 26,
+                   F_DIVERGED: 1, F_V: 2, F_RUNNING: 4, F_MANUAL: 8, F_STARTED: 16 };
+
+const simHostGet = (o, k) => { const p = k.split('.'); for (const s of p) { if (o == null) return undefined; o = o[s]; } return o; };
+const simHostSet = (o, k, v) => { const p = k.split('.'); for (let i = 0; i < p.length - 1; i++) o = (o[p[i]] = o[p[i]] || {}); o[p[p.length - 1]] = v; };
+
+// the physics half of a boot the page (or island_node.js) assembled - the same
+// arrays, not copies
+function simHostTrimBoot(boot) {
+  if (!boot) return null;
+  const out = { id: boot.id, grid: {}, far: null, hydro: boot.hydro || 'blend' };
+  if (boot.reclass != null) out.reclass = boot.reclass;
+  for (const k of SIM_HOST_KEYS) { const v = simHostGet(boot, k); if (v != null) simHostSet(out, k, v); }
+  return out;
+}
+function simHostBootBytes(boot) {
+  let b = 0;
+  for (const k of SIM_HOST_KEYS) { const v = simHostGet(boot, k); if (v && v.byteLength) b += v.byteLength; }
+  return b;
+}
+
+// the trimmed boot fetched the way the page's loader fetches the whole one
+// (tools/build.js, the island block): the manifest, then each named payload,
+// ONE gzip stream each - through the same URLs, so the page's cache serves the
+// worker. opts: { fetch, hydro }.
+function simHostFetchBoot(base, name, opts) {
+  opts = opts || {};
+  const F = opts.fetch || fetch;
+  const gz = buf => new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer().then(b => new Uint8Array(b));
+  return F(base + 'src/core/world_packs.json').then(r => (r.ok ? r.json() : { islands: [] })).then(PACK => {
+    const isl = (PACK.islands || []).find(w => w.id === name);
+    if (!isl) return null;
+    const boot = { id: name, grid: {}, far: null, hydro: opts.hydro || 'blend' };
+    return Promise.all(SIM_HOST_KEYS.map(k => {
+      const r = isl.files[k];
+      if (!r) return null;
+      if ('json' in r) { simHostSet(boot, k, r.json); return null; }
+      return F(base + r.src).then(res => { if (!res.ok) throw new Error(r.src + ' ' + res.status); return res.arrayBuffer(); })
+        .then(gz).then(u => simHostSet(boot, k, r.kind === 'json' ? JSON.parse(new TextDecoder().decode(u)) : u));
+    })).then(() => boot);
+  });
+}
+
+// plain data, for a structured clone: numbers, strings, booleans, arrays and
+// objects to `depth`, small typed arrays copied; functions, getters and the
+// `skip` keys dropped
+function simHostPlain(o, depth, skip) {
+  if (o === null || typeof o !== 'object') return typeof o === 'function' ? undefined : o;
+  if (ArrayBuffer.isView(o)) return o.length <= 64 ? Array.from(o) : undefined;
+  if (depth <= 0) return undefined;
+  if (Array.isArray(o)) return o.map(x => simHostPlain(x, depth - 1));
+  const r = {};
+  for (const k of Object.keys(o)) {
+    if (skip && skip.indexOf(k) >= 0) continue;
+    const d = Object.getOwnPropertyDescriptor(o, k);
+    if (!d || d.get || typeof d.value === 'function') continue;
+    const v = simHostPlain(d.value, depth - 1);
+    if (v !== undefined) r[k] = v;
+  }
+  return r;
+}
+
+// the pilot's fields that are big and change rarely: sent when the object
+// changes (by reference), the rest of the pilot every snapshot
+const SIM_HOST_AP_RARE = ['legs', 'path', 'plan', 'taxiOut', 'site'];
+const SIM_HOST_AP_SKIP = ['nav', 'sheet'];
+
+// ---- THE HOST: world, sim, pilot, the step and the snapshot; thread-agnostic
+// init: { world: { boot, premises, seed, opts, day } | a world to keep,
+//         spec (as buildGen takes it), place: { from, to, stand }, pilot: { kind, shakedown, nav },
+//         withV, day (tick the day, default true) }
+function makeSimHost(CORE, init, keptWorld) {
+  const W = init.world || {};
+  let world = keptWorld || null;
+  if (!world) {
+    const island = W.boot ? CORE.ISLAND_GEN.makeIsland(W.boot) : null;
+    const wo = Object.assign({}, W.opts || {});
+    if (island) wo.island = island;
+    if (W.premises != null) wo.premises = W.premises;
+    world = CORE.makeWorld(W.seed || 0, wo);
+    if (W.day) world.setDay(W.day);
+  }
+  const def = CORE.buildGen(init.spec);
+  const sim = CORE.makeSim(def, world);
+  const n = sim.n, withV = !!init.withV, dayOn = init.day !== false;
+  const fuelIdx = [];
+  for (let i = 0; i < n; i++) if (def.nodes[i].mFuel > 0) fuelIdx.push(i);
+  const S = SIM_SNAP, LEN = S.HEAD + 3 * n * (withV ? 2 : 1) + fuelIdx.length;
+  const H = { world, def, sim, ap: null, steps: 0, epoch: 0, worldV: 0, late: 0, started: false, manual: false, hand: null,
+              queue: [], log: [], logDropped: 0, n, withV, fuelIdx, len: LEN };
+  const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
+  // app.js mkPilot
+  function mkPilot() {
+    const PK = init.pilot || {}, kind = PK.kind || 'auto';
+    if (kind === 'classic') return CORE.makeAutopilot(sim, def, world);
+    if (kind === 'test' && typeof CORE.makeTestPilot === 'function') return CORE.makeTestPilot(sim, def, world);
+    if (typeof CORE.makePilot === 'function') {
+      const sd = PK.shakedown || null;
+      const p = CORE.makePilot(sim, def, world, { style: kind === 'auto' ? 'normal' : kind, shakedown: () => sd });
+      if (PK.nav !== false && typeof CORE.navMake === 'function') {
+        if (!H.nav) H.nav = CORE.navMake({ waypoints: world.aerodromes });
+        p.setNav(H.nav);
+      }
+      return p;
+    }
+    return CORE.makeTestPilot(sim, def, world);
+  }
+  // app.js applyRoute; `stand`: true = the site's own, an object = the page's (standFor, the player's door), false = the spawn
+  function place() {
+    const PL = init.place || {}, ap = H.ap;
+    const from = aeroById(PL.from || 'HOME');
+    const to = (PL.to == null || PL.to === 'CIRCUIT') ? from : aeroById(PL.to);
+    if (sim.hydro) {
+      const sea = aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 };
+      CORE.placeAtAerodrome(sim, sea);
+      ap.setRoute(sea, (PL.to == null || PL.to === 'CIRCUIT' || PL.to === 'SEA') ? sea : to);
+      return;
+    }
+    if (typeof sim.stance === 'function') sim.stance();
+    const st = typeof CORE.siteOf === 'function' ? CORE.siteOf(from.id) : null;
+    const stand = (st && PL.stand !== false) ? (PL.stand && typeof PL.stand === 'object' ? PL.stand : st.stand) : null;
+    const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
+    if (stand) {
+      CORE.placeAtStand(sim, from, stand);
+      ap.setRoute(from, to);
+      ap.departFrom(from, to, stSite);
+    } else {
+      CORE.placeAtAerodrome(sim, from);
+      ap.setRoute(from, to);
+    }
+  }
+  // the step index runs on across a reset (a command stamped before it keeps its place); the epoch counts them
+  function fresh() {
+    sim.reset(0);
+    H.ap = mkPilot();
+    place();
+    H.started = false; H.epoch++;
+  }
+  fresh();
+
+  // app.js resyncPhase (the hand given back to the pilot)
+  const GROUND = ['DEPART', 'TAXI', 'LINEUP', 'HOLD', 'STOP', 'ROLL', 'LIFTOFF', 'ROLLOUT', 'STOPPED', 'ABORT', 'PUTDOWN'];
+  function resyncPhase() {
+    const ap = H.ap, onG = sim.wheelsOnGround(), cg = sim.cgPos(), v = sim.cgVel();
+    const agl = cg[1] - world.terrainH(cg[0], cg[2]);
+    const Vg = Math.hypot(v[0], v[2]);
+    const wasGround = GROUND.indexOf(ap.phase) >= 0;
+    if (onG === 0 && agl > 10 && wasGround) return 'CLIMB';
+    if (onG >= 2 && Vg < 15 && !wasGround) return 'ROLLOUT';
+    return ap.phase;
+  }
+  function writeCtl(set) {
+    const c = sim.ctl;
+    for (const k of Object.keys(set)) {
+      if (k !== 'eng') { c[k] = set[k]; continue; }
+      c.eng = Array.isArray(set.eng) ? set.eng.map(e => (e ? Object.assign({}, e) : e)) : null;
+    }
+  }
+  // INP.write's door: the hand's axes every step it is on; an engine lever only where the aeroplane has one
+  function writeHand(h) {
+    const c = sim.ctl;
+    for (const k of ['de', 'da', 'dr', 'thr', 'brake', 'flap']) if (h[k] != null) c[k] = h[k];
+    if (Array.isArray(h.eng) && Array.isArray(c.eng))
+      for (let i = 0; i < c.eng.length && i < h.eng.length; i++) if (h.eng[i] != null && c.eng[i]) c.eng[i].thr = h.eng[i];
+  }
+  function apply(c) {
+    const ap = H.ap;
+    switch (c.cmd) {
+      case 'ctl': writeCtl(c.set || {}); break;
+      case 'hand': H.hand = c.ctl || null; break;
+      case 'start': H.started = true; break;
+      case 'hold': H.started = false; break;
+      case 'manual':
+        if (!!c.on === H.manual) break;
+        H.manual = !!c.on;
+        if (!H.manual) {
+          if (ap.reEngage) ap.reEngage({ phase: resyncPhase() });
+          if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
+        }
+        break;
+      case 'setEngine': {
+        // the cockpit's starterOk is the page's (the bus): the view reads it when the key turns and sends it along
+        const had = Object.prototype.hasOwnProperty.call(sim, 'starterOk'), was = sim.starterOk;
+        if ('starterOk' in c) sim.starterOk = () => !!c.starterOk;
+        sim.setEngine(c.i, c.patch);
+        if (had) sim.starterOk = was; else delete sim.starterOk;
+        break;
+      }
+      case 'impulse': sim.impulse(c.i, c.ix || 0, c.iy || 0, c.iz || 0); break;
+      case 'setCard': if (ap.setCard) ap.setCard(c.card || {}); break;
+      case 'setDay': world.setDay(c.day || {}); H.worldV++; break;
+      case 'reset': fresh(); break;   // app.js fullReset: a fresh pilot on the same route, held until a 'start'
+    }
+  }
+  // a command queued for step k (the next boundary when absent or past)
+  H.queueCmd = c => {
+    const k = c.k == null ? H.steps : c.k;
+    const e = { k, c };
+    let i = H.queue.length;
+    while (i > 0 && H.queue[i - 1].k > k) i--;
+    H.queue.splice(i, 0, e);
+  };
+  function applyDue() {
+    while (H.queue.length && H.queue[0].k <= H.steps) {
+      const e = H.queue.shift();
+      if (e.c.k != null && e.c.k < H.steps) H.late++;
+      if (H.log.length >= SIM_HOST_LOG) { H.log.shift(); H.logDropped++; }
+      H.log.push({ k: H.steps, c: e.c });
+      apply(e.c);
+    }
+  }
+  // ONE STEP: app.js loop()'s `script(1/60); sim.step(1/60)`, the commands before it, the day after it
+  H.step = () => {
+    applyDue();
+    const ap = H.ap, dt = SIM_HOST_DT;
+    if (!H.started) sim.ctl.brake = 0.6;
+    else if (H.manual) {
+      if (H.hand) writeHand(H.hand);
+      if (ap.box && ap.box.on) ap.update(dt); else ap.t += dt;
+    } else ap.update(dt);
+    sim.step(dt);
+    if (dayOn && world.dayTick) { const cg = sim.cgPos(); world.dayTick(dt, sim.t, cg[0], cg[2]); }
+    H.steps++;
+  };
+  H.diverged = () => !Number.isFinite(sim.p[1]);
+
+  // THE SNAPSHOT: the head, p, v, the fuel masses into `f` (a Float64Array of H.len)
+  H.write = (f, x) => {
+    const cg = sim.cgPos(), cv = sim.cgVel();
+    f[S.STEP] = H.steps; f[S.T] = sim.t; f[S.WV] = H.worldV; f[S.N] = n;
+    f[S.FLAGS] = (H.diverged() ? S.F_DIVERGED : 0) | (withV ? S.F_V : 0) | (x.running ? S.F_RUNNING : 0) |
+                 (H.manual ? S.F_MANUAL : 0) | (H.started ? S.F_STARTED : 0);
+    f[S.CG] = cg[0]; f[S.CG + 1] = cg[1]; f[S.CG + 2] = cg[2];
+    f[S.CGV] = cv[0]; f[S.CGV + 1] = cv[1]; f[S.CGV + 2] = cv[2];
+    f[S.TOTALM] = sim.totalM; f[S.WHEELS] = sim.wheelsOnGround(); f[S.SMAX] = sim.stats().smax;
+    f[S.LATE] = H.late; f[S.EPOCH] = H.epoch; f[S.NF] = fuelIdx.length;
+    f[S.SEQ] = x.seq; f[S.WALL] = x.wall; f[S.STEPMS] = x.stepMs; f[S.DIL] = x.dil; f[S.DROPPED] = x.droppedS;
+    f[S.MAXMS] = x.maxMs; f[S.RAN] = x.ran; f[S.ALLOCS] = x.allocs; f[S.RATE] = x.rate;
+    let o = S.HEAD;
+    const p = sim.p, v = sim.v, N3 = 3 * n;
+    for (let i = 0; i < N3; i++) f[o + i] = p[i];
+    o += N3;
+    if (withV) { for (let i = 0; i < N3; i++) f[o + i] = v[i]; o += N3; }
+    for (let j = 0; j < fuelIdx.length; j++) f[o + j] = sim.m[fuelIdx[j]];
+  };
+  const rare = {};
+  H.meta = () => {
+    const ap = H.ap, A = {};
+    for (const k of Object.keys(ap)) {
+      if (SIM_HOST_AP_SKIP.indexOf(k) >= 0) continue;
+      const d = Object.getOwnPropertyDescriptor(ap, k);
+      if (!d || d.get || typeof d.value === 'function') continue;
+      const v = d.value;
+      if (v === null || typeof v !== 'object') { A[k] = v; continue; }
+      if (k === 'route') { A.route = { from: v.from && v.from.id, to: v.to && v.to.id }; continue; }
+      if (k === 'report') {
+        const sig = (v.verdicts ? v.verdicts.length : 0) + ':' + (v.phases ? v.phases.length : 0) + ':' + v.outcome + ':' + !!v.landing;
+        if (rare.report !== sig) { rare.report = sig; A.report = simHostPlain(v, 5); }
+        continue;
+      }
+      if (SIM_HOST_AP_RARE.indexOf(k) >= 0) { if (rare[k] !== v) { rare[k] = v; A[k] = simHostPlain(v, 5); } continue; }
+      A[k] = simHostPlain(v, 4);
+    }
+    for (const k of SIM_HOST_AP_RARE) if (!(k in ap) && rare[k] !== undefined) { rare[k] = undefined; A[k] = null; }
+    const HY = sim.hydro;
+    return {
+      out: simHostPlain(sim.out, 3, ['hydro']),
+      eng: simHostPlain(sim.eng, 3),
+      fuel: simHostPlain(sim.fuel, 3),
+      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2), lam: fx.lam.slice() })) } : null,
+      wheels: sim.wheelContacts ? sim.wheelContacts() : null,
+      ctl: simHostPlain(sim.ctl, 3),
+      ap: A,
+    };
+  };
+  // the pilot's rare fields go again after a re-init of the view (a new epoch)
+  H.forgetRare = () => { for (const k of Object.keys(rare)) delete rare[k]; };
+  H.ready = () => ({ kind: 'ready', n, substeps: def.params.substeps, withV, len: LEN, fuelIdx: fuelIdx.slice(),
+                     slots: SIM_SNAP, dt: SIM_HOST_DT, defSig: simHostDefSig(def), epoch: H.epoch });
+  return H;
+}
+
+// what the page's own buildGen must agree with: the node count and the rest
+// pose, FNV over the float64 bytes (a stale tools/flight_core.js in a cache
+// would build another aeroplane - the view refuses it)
+function simHostDefSig(def) {
+  const a = new Float64Array(def.nodes.length * 4);
+  def.nodes.forEach((nd, i) => { a[i * 4] = nd.p[0]; a[i * 4 + 1] = nd.p[1]; a[i * 4 + 2] = nd.p[2]; a[i * 4 + 3] = nd.m; });
+  const u = new Uint8Array(a.buffer);
+  let h = 2166136261;
+  for (let i = 0; i < u.length; i++) h = Math.imul(h ^ u[i], 16777619) >>> 0;
+  return def.nodes.length + ':' + h.toString(16);
+}
+
+// ---- THE THREAD: messages, the clock, the buffers --------------------------
+// port: { post(msg, transfer), on(fn(msg)), close() } - self in a browser
+// worker, parentPort under node's worker_threads (the gate)
+function simHostBody(CORE, SH, port) {
+  const S = SH.SIM_SNAP;
+  const wallNow = () => performance.timeOrigin + performance.now();
+  let H = null, world = null, bootInfo = null;
+  let pool = [], allocs = 0, seq = 0;
+  let running = false, wall0 = 0, step0 = 0, rate = 1, timer = null;
+  // G612's readings: a step's cost (ms, eased), the dilation's window (sim s at the set rate over wall s,
+  // decaying over a second) and the sim time let go when the physics cannot hold real time
+  const P = { stepMs: 0, simW: 0, wallW: 0, lastWall: 0, droppedS: 0, guarded: 0 };
+  const dil = () => (P.wallW > 0.2 ? P.simW / P.wallW : 1);
+  const post = (m, tr) => { try { port.post(m, tr || []); } catch (e) { /* the page is gone */ } };
+  function publish(ran, maxMs) {
+    let buf = null;
+    while (pool.length && !buf) { const b = pool.pop(); if (b.byteLength === H.len * 8) buf = b; }
+    if (!buf) { buf = new ArrayBuffer(H.len * 8); allocs++; }
+    H.write(new Float64Array(buf), { seq: seq++, wall: wallNow(), stepMs: P.stepMs, dil: dil(), droppedS: P.droppedS,
+                                     maxMs, ran, allocs, rate, running });
+    post({ kind: 'snap', buf, meta: H.meta() }, [buf]);
+  }
+  function stepTimed() {
+    const s0 = performance.now();
+    H.step();
+    const ms = performance.now() - s0;
+    P.stepMs = P.stepMs ? P.stepMs + 0.1 * (ms - P.stepMs) : ms;
+    return ms;
+  }
+  function anchor() { wall0 = wallNow(); step0 = H.steps; P.lastWall = wall0; }
+  function pump() {
+    timer = null;
+    if (!running || !H) return;
+    const t = wallNow();
+    const dW = Math.min(0.25, Math.max(0, (t - P.lastWall) / 1000));
+    P.lastWall = t;
+    let owed = Math.floor((t - wall0) / 1000 * 60 * rate) - (H.steps - step0);
+    if (owed > SIM_HOST_CATCH) {
+      // the physics cannot hold real time: the excess is let go, and the dilation says so
+      const drop = owed - SIM_HOST_CATCH;
+      wall0 += drop / (60 * rate) * 1000; P.droppedS += drop / 60; P.guarded++;
+      owed = SIM_HOST_CATCH;
+    }
+    let ran = 0, maxMs = 0;
+    while (ran < owed) {
+      const ms = stepTimed(); ran++;
+      if (ms > maxMs) maxMs = ms;
+      if (H.diverged()) { running = false; break; }
+    }
+    const k = Math.exp(-dW);
+    P.simW = P.simW * k + ran / 60 / rate; P.wallW = P.wallW * k + dW;
+    if (ran) publish(ran, maxMs);   // one snapshot a turn: the newest state is the only one the page draws
+    if (!running) return;
+    const next = wall0 + (H.steps - step0 + 1) / (60 * rate) * 1000;
+    timer = setTimeout(pump, Math.max(0, next - wallNow()));
+  }
+  function stopClock() { running = false; if (timer) { clearTimeout(timer); timer = null; } }
+  function initHost(m) {
+    stopClock();
+    const keep = m.world === 'keep' ? world : null;
+    const t0 = performance.now();
+    H = SH.makeSimHost(CORE, m, keep);
+    world = H.world;
+    pool = []; seq = 0;
+    for (let i = 0; i < SIM_HOST_POOL; i++) pool.push(new ArrayBuffer(H.len * 8));
+    allocs = 0;
+    const r = H.ready();
+    r.initMs = performance.now() - t0; r.boot = bootInfo;
+    post(r);
+    publish(0, 0);
+  }
+  function onMsg(m) {
+    if (!m) return;
+    try {
+      switch (m.cmd) {
+        case 'init':
+          if (m.world && m.world.fetch) {
+            const F = m.world.fetch, t0 = performance.now();
+            SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro }).then(boot => {
+              bootInfo = { fetchMs: performance.now() - t0, bytes: boot ? SH.simHostBootBytes(boot) : 0 };
+              initHost(Object.assign({}, m, { world: Object.assign({}, m.world, { boot, fetch: null }) }));
+            }).catch(err => post({ kind: 'error', error: String(err && err.stack || err) }));
+            return;
+          }
+          if (m.world && m.world.boot) bootInfo = { bytes: SH.simHostBootBytes(m.world.boot) };
+          initHost(m);
+          return;
+        case 'release': if (m.buf) pool.push(m.buf); return;
+        case 'run': if (H && !running) { running = true; anchor(); pump(); } return;
+        case 'pause': stopClock(); if (H) publish(0, 0); return;
+        case 'rate': rate = m.x > 0 ? m.x : 1; if (running) anchor(); return;
+        case 'steps': {
+          // LOCKSTEP: exactly n steps now, a snapshot after each (`every`) or after the last
+          if (!H) return;
+          stopClock();
+          const n = m.n | 0, each = !!m.every;
+          let maxMs = 0, ran = 0;
+          while (ran < n) {
+            const ms = stepTimed(); ran++;
+            if (ms > maxMs) maxMs = ms;
+            if (each) publish(1, ms);
+            if (H.diverged()) break;
+          }
+          if (!each) publish(ran, maxMs);
+          return;
+        }
+        case 'snap': if (H) publish(0, 0); return;
+        case 'resend': if (H) { H.forgetRare(); publish(0, 0); } return;   // a new view: the pilot's rare fields again
+        case 'log': if (H) { post({ kind: 'log', list: H.log.slice(), dropped: H.logDropped, late: H.late }); if (m.clear) H.log.length = 0; } return;
+        case 'ping': post({ kind: 'pong', t: m.t, tw: wallNow(), buf: m.buf }, m.buf ? [m.buf] : []); return;
+        case 'state': post({ kind: 'state', running, rate, stepMs: P.stepMs, dilation: dil(), droppedS: P.droppedS, guarded: P.guarded,
+                             allocs, steps: H ? H.steps : 0, late: H ? H.late : 0, queued: H ? H.queue.length : 0 }); return;
+        case 'stop': stopClock(); H = null; world = null; if (port.close) port.close(); return;
+        case 'batch': if (H) for (const c of m.list || []) H.queueCmd(c); return;
+        default: if (H) H.queueCmd(m);
+      }
+    } catch (err) {
+      post({ kind: 'error', error: String(err && err.stack || err) });
+    }
+  }
+  port.on(onMsg);
+}
+
+// the Blob's source: this file and the built core bundle, by URL next to the
+// page, then the body. `ver` busts a stale cache: FLYDIY_BUILD for this file,
+// FLYDIY_CORE_SHA for the core (the inlined core's own hash).
+function simHostSource(base, ver, coreVer) {
+  const q = v => (v ? '?v=' + encodeURIComponent(v) : '');
+  return 'self.module = { exports: {} };\n' +
+    'importScripts(' + JSON.stringify(base + 'src/viewer/sim_host.js' + q(ver)) + ');\n' +
+    'const SH = self.module.exports; self.module = { exports: {} };\n' +
+    'importScripts(' + JSON.stringify(base + 'tools/flight_core.js' + q(coreVer)) + ');\n' +
+    'const CORE = { ' + SIM_HOST_CORE.map(k => k + ": typeof " + k + " !== 'undefined' ? " + k + ' : undefined').join(', ') + ' };\n' +
+    'SH.simHostBody(CORE, SH, { post: function (m, tr) { self.postMessage(m, tr || []); },\n' +
+    '  on: function (f) { self.onmessage = function (e) { f(e.data); }; }, close: function () { self.close(); } });\n';
+}
+
+// ---- the page's side --------------------------------------------------------
+// One worker per flight. Null when there is no worker to be had (file://, no
+// Worker) - the caller keeps the inline loop, byte for byte (ARCH §2.3).
+function simHostStart(onMessage, onError) {
+  try {
+    if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' ||
+        typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return null;
+    const base = new URL('.', location.href).href;
+    const W = typeof window !== 'undefined' ? window : {};
+    const url = URL.createObjectURL(new Blob([simHostSource(base, W.FLYDIY_BUILD, W.FLYDIY_CORE_SHA)], { type: 'text/javascript' }));
+    const w = new Worker(url);
+    const kill = () => { try { w.terminate(); } catch (e) {} try { URL.revokeObjectURL(url); } catch (e) {} };
+    w.onmessage = e => { try { onMessage(e.data); } catch (err) { console.warn('sim worker message:', err); } };
+    w.onerror = err => { kill(); if (onError) onError(err && err.message || 'worker failed'); };
+    return {
+      post: (m, tr) => { try { w.postMessage(m, tr || []); return true; } catch (e) { return false; } },
+      base, kill,
+    };
+  } catch (e) { return null; }
+}
+
+if (typeof window !== 'undefined') {
+  window.SIM_HOST = { start: simHostStart, source: simHostSource, trimBoot: simHostTrimBoot, fetchBoot: simHostFetchBoot,
+                      KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP };
+}
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes,
+                     simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart };
+</script>
+<script type="text/x-flydiy">
+// ============================================================
+// THE SIM, SEEN FROM THE PAGE (G810, 2026-09-27; ARCH-2026-09-27 §2.2, the
+// main side of chantier 1 step 1). sim_host.js steps the solver on its own
+// thread and publishes snapshots; this is the object the page reads INSTEAD of
+// `sim` when it does - the same surface the viewer reads today (grep
+// `sim\.[a-z]+` in src/viewer: p, ctl, cgPos, out, eng, setEngine, axes,
+// hydro, fuel, cgVel, totalM, n, beams, t, reset, stance, wheelsOnGround,
+// bodyOrigin, impulse, stats, starterOk), so poseModel, the flex skin, the
+// cockpit, the director and the HUD keep their lines.
+//
+//   READS     computed from the snapshot. p is float64 and INTERPOLATED
+//             between the two newest snapshots at T - 1 step (frame(T), once
+//             a rendered frame): smooth at 30/45/60/144 Hz, one 60 Hz step
+//             behind (ARCH §2.2's latency, the prototype's 11-23 ms pose
+//             age). cgPos / axes / bodyOrigin are the solver's own formulas
+//             (30_solver.js, the same sums in the same order, Math.hypot for
+//             hyp3 - GATE HYPOT holds them equal) on the view's p, with the
+//             fuel nodes' masses and totalM from the snapshot: at the newest
+//             snapshot they are the solver's numbers to the bit (GATE
+//             SIMWORKER). out / eng / fuel / hydro / ctl / ap are the
+//             newest snapshot's plain copies.
+//   WRITES    become COMMANDS, stamped with a step index (at(k); none = the
+//             next boundary) and posted once a frame (flush()): sim.ctl's
+//             six scalar levers are accessors that queue a `ctl` command,
+//             ctl.eng is diffed at flush; setEngine carries the page's
+//             starterOk (the bus) with it; reset, stance, impulse go as they
+//             are. hand(h) is the manual hand, written by the host every step
+//             (INP.write's door). step() does nothing and is COUNTED
+//             (strays): a stray caller is a hidden sim writer ARCH §2.6
+//             warned of.
+//   BUFFERS   each snapshot's ArrayBuffer goes back to the host when a newer
+//             pair no longer needs it ({cmd:'release'}, transferred).
+//
+// Transport-agnostic: `opts.post(msg, transfer)` reaches the host and the
+// caller hands every message from it to take(msg). `opts.ready` is the host's
+// ready message (the snapshot layout, the fuel nodes, the def's signature).
+// ============================================================
+
+const SIM_VIEW_LEVERS = ['thr', 'de', 'da', 'dr', 'brake', 'flap'];
+
+function simViewDefSig(def) {
+  const a = new Float64Array(def.nodes.length * 4);
+  def.nodes.forEach((nd, i) => { a[i * 4] = nd.p[0]; a[i * 4 + 1] = nd.p[1]; a[i * 4 + 2] = nd.p[2]; a[i * 4 + 3] = nd.m; });
+  const u = new Uint8Array(a.buffer);
+  let h = 2166136261;
+  for (let i = 0; i < u.length; i++) h = Math.imul(h ^ u[i], 16777619) >>> 0;
+  return def.nodes.length + ':' + h.toString(16);
+}
+
+function makeSimView(def, opts) {
+  const R = opts.ready, S = R.slots, n = def.nodes.length, N3 = n * 3;
+  const post = opts.post || (() => false);
+  const delayS = opts.delayS != null ? opts.delayS : R.dt;     // T - 1 step
+  const now = opts.now || (() => performance.timeOrigin + performance.now());
+  const mismatch = R.n !== n || (R.defSig && R.defSig !== simViewDefSig(def));
+  const p = new Float64Array(N3), m = new Float64Array(n);
+  for (let i = 0; i < n; i++) { const q = def.nodes[i].p; p[i * 3] = q[0]; p[i * 3 + 1] = q[1]; p[i * 3 + 2] = q[2]; m[i] = def.nodes[i].m; }
+  const fuelIdx = R.fuelIdx || [];
+  const oP = S.HEAD, oV = R.withV ? S.HEAD + N3 : -1, oM = S.HEAD + N3 * (R.withV ? 2 : 1);
+  let A = null, B = null;                  // the two newest snapshots: { f, buf }
+  let stamp = null, pending = [], ctlPatch = null, engSent = 'null';
+  let strays = 0, takes = 0, mCur = null;
+  const cv = [0, 0, 0];
+
+  // the levers: reads show the host's (the pilot writes them), a write queues a command
+  const lever = {};
+  const ctl = {};
+  for (const k of SIM_VIEW_LEVERS) {
+    lever[k] = 0;
+    Object.defineProperty(ctl, k, { enumerable: true, get: () => lever[k],
+      set: v => { lever[k] = v; (ctlPatch = ctlPatch || {})[k] = v; } });
+  }
+  ctl.eng = null;
+
+  const cmd = c => { if (stamp != null && c.k == null) c.k = stamp; pending.push(c); };
+  const release = s => { if (s && s.buf) post({ cmd: 'release', buf: s.buf }, [s.buf]); };
+  // the masses the solver's sums use: the def's, the fuel nodes' from the snapshot
+  function massesOf(s) {
+    if (mCur === s) return;
+    mCur = s;
+    for (let j = 0; j < fuelIdx.length; j++) m[fuelIdx[j]] = s.f[oM + j];
+  }
+  // 30_solver.js avgP / bodyAxes / cgPos, on the view's p
+  const avgP = (ids, o) => { o[0] = o[1] = o[2] = 0;
+    for (const i of ids) { o[0] += p[i * 3]; o[1] += p[i * 3 + 1]; o[2] += p[i * 3 + 2]; }
+    const k = 1 / ids.length; o[0] *= k; o[1] *= k; o[2] *= k; return o; };
+  const norm3 = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; a[0] /= L; a[1] /= L; a[2] /= L; return a; };
+
+  const view = {
+    n, p, ctl, def, mismatch,
+    v: R.withV ? new Float64Array(N3) : null,
+    beams: def.beams,                      // the topology (a, b); the strains stay the host's (stats().smax)
+    out: {}, eng: [], fuel: {}, hydro: null, wheels: null, ap: {},
+    starterOk: null,                       // the cockpit's (the bus) - read when a key turns, sent with it
+    get t() { return B ? B.f[S.T] : 0; },
+    get totalM() { return B ? B.f[S.TOTALM] : def.nodes.reduce((a, nd) => a + nd.m, 0); },
+    get stepIndex() { return B ? B.f[S.STEP] : 0; },
+    snapshot: () => B && B.f,
+
+    // ---- the frame: the pose at T - 1 step, from the two newest snapshots
+    frame(T) {
+      if (!B) return null;
+      if (T == null) T = now();
+      const fB = B.f;
+      let alpha = 1;
+      if (A && A.f[S.EPOCH] === fB[S.EPOCH] && fB[S.T] > A.f[S.T]) {
+        // the sim time T maps to: B's, plus the wall time since B was published, at the host's rate
+        const tau = fB[S.T] + (T - fB[S.WALL]) / 1000 * (fB[S.RATE] || 1) - delayS;
+        alpha = (tau - A.f[S.T]) / (fB[S.T] - A.f[S.T]);
+      }
+      if (alpha >= 1) { alpha = 1; p.set(fB.subarray(oP, oP + N3)); }
+      else if (alpha <= 0) { alpha = 0; p.set(A.f.subarray(oP, oP + N3)); }
+      else { const fA = A.f; for (let i = 0; i < N3; i++) p[i] = fA[oP + i] + (fB[oP + i] - fA[oP + i]) * alpha; }
+      for (let j = 0; j < 3; j++) cv[j] = alpha === 1 ? fB[S.CGV + j] : A.f[S.CGV + j] + (fB[S.CGV + j] - A.f[S.CGV + j]) * alpha;
+      if (view.v) view.v.set(fB.subarray(oV, oV + N3));
+      massesOf(B);
+      // the pose's age: now, less the wall moment the host held the drawn state (between A's and B's publishing)
+      const wShown = A && alpha < 1 ? A.f[S.WALL] + (fB[S.WALL] - A.f[S.WALL]) * alpha : fB[S.WALL];
+      return { alpha, ageMs: T - wShown };
+    },
+
+    // ---- a message from the host; true when it was a snapshot
+    take(msg) {
+      if (!msg || msg.kind !== 'snap') return false;
+      const s = { f: new Float64Array(msg.buf), buf: msg.buf };
+      if (A) release(A);
+      A = B; B = s; takes++;
+      const M = msg.meta || {};
+      if (M.out) { view.out = M.out; view.out.hydro = M.hydro || null; }
+      if (M.eng) view.eng = M.eng;
+      if (M.fuel) view.fuel = M.fuel;
+      view.hydro = M.hydro || null;
+      view.wheels = M.wheels || null;
+      if (M.ap) for (const k of Object.keys(M.ap)) view.ap[k] = M.ap[k];
+      if (M.ctl) {
+        for (const k of SIM_VIEW_LEVERS) if (!(ctlPatch && k in ctlPatch) && M.ctl[k] !== undefined) lever[k] = M.ctl[k];
+        if (!pending.some(c => c.cmd === 'ctl' && c.set && 'eng' in c.set)) {
+          ctl.eng = M.ctl.eng ? M.ctl.eng.map(e => (e ? Object.assign({}, e) : e)) : null;
+          engSent = JSON.stringify(ctl.eng);
+        }
+      }
+      if (!A) view.frame(Infinity);          // the first snapshot: the pose at once
+      return true;
+    },
+
+    // ---- the reads the solver answers (30_solver.js), on the view's p
+    cgPos() {
+      if (B) massesOf(B);
+      let x = 0, y = 0, z = 0;
+      for (let i = 0; i < n; i++) { x += p[i * 3] * m[i]; y += p[i * 3 + 1] * m[i]; z += p[i * 3 + 2] * m[i]; }
+      const M = view.totalM;
+      return [x / M, y / M, z / M];
+    },
+    cgVel() { return B ? cv.slice() : [0, 0, 0]; },
+    axes() {
+      const t1 = avgP(def.refs.noseFrame, [0, 0, 0]), t2 = avgP(def.refs.tailMid, [0, 0, 0]);
+      const xAft = norm3([t2[0] - t1[0], t2[1] - t1[1], t2[2] - t1[2]]);
+      avgP(def.refs.upLo, t1); avgP(def.refs.upHi, t2);
+      const yUp = norm3([t2[0] - t1[0], t2[1] - t1[1], t2[2] - t1[2]]);
+      const zRt = norm3([yUp[1] * xAft[2] - yUp[2] * xAft[1], yUp[2] * xAft[0] - yUp[0] * xAft[2], yUp[0] * xAft[1] - yUp[1] * xAft[0]]);
+      return [xAft, yUp, zRt];
+    },
+    bodyOrigin() { return avgP(def.refs.origin || def.refs.noseFrame, [0, 0, 0]); },
+    wheelsOnGround() { return B ? B.f[S.WHEELS] : 0; },
+    wheelContacts() { return view.wheels; },
+    stats() { return { smax: B ? B.f[S.SMAX] : 0, bad: B ? !!(B.f[S.FLAGS] & S.F_DIVERGED) : false }; },
+
+    // ---- the writes, as commands
+    at(k) { stamp = k == null ? null : k; return view; },
+    send(c) { cmd(c); return view; },
+    setEngine(i, patch) {
+      const c = { cmd: 'setEngine', i, patch: Object.assign({}, patch) };
+      if (patch && patch.start && typeof view.starterOk === 'function') c.starterOk = !!view.starterOk(i);
+      cmd(c);
+    },
+    impulse(i, ix, iy, iz) { cmd({ cmd: 'impulse', i, ix, iy, iz }); },
+    hand(h) { cmd({ cmd: 'hand', ctl: h ? Object.assign({}, h, h.eng ? { eng: h.eng.slice() } : {}) : null }); },
+    reset() { cmd({ cmd: 'reset' }); },
+    stance() { return 0; },                // the host's placement takes the stance (sim_host.js place)
+    step() { strays++; },
+    // the frame's commands, in one message
+    flush() {
+      const e = JSON.stringify(ctl.eng);
+      if (e !== engSent) { (ctlPatch = ctlPatch || {}).eng = ctl.eng ? ctl.eng.map(x => (x ? Object.assign({}, x) : x)) : null; engSent = e; }
+      if (ctlPatch) { cmd({ cmd: 'ctl', set: ctlPatch }); ctlPatch = null; }
+      if (!pending.length) return 0;
+      const list = pending; pending = [];
+      post({ cmd: 'batch', list });
+      return list.length;
+    },
+    state() {
+      const f = B && B.f;
+      return f ? { seq: f[S.SEQ], step: f[S.STEP], t: f[S.T], stepMs: f[S.STEPMS], dilation: f[S.DIL], worldV: f[S.WV],
+                   late: f[S.LATE], droppedS: f[S.DROPPED], allocs: f[S.ALLOCS], rate: f[S.RATE], epoch: f[S.EPOCH],
+                   running: !!(f[S.FLAGS] & S.F_RUNNING), manual: !!(f[S.FLAGS] & S.F_MANUAL), started: !!(f[S.FLAGS] & S.F_STARTED),
+                   diverged: !!(f[S.FLAGS] & S.F_DIVERGED), takes, strays, mismatch } : { takes, strays, mismatch };
+    },
+  };
+  return view;
+}
+
+if (typeof window !== 'undefined') window.SIM_VIEW = { make: makeSimView, defSig: simViewDefSig };
+if (typeof module !== 'undefined' && module.exports) module.exports = { makeSimView, simViewDefSig, SIM_VIEW_LEVERS };
+</script>
+<script type="text/x-flydiy">
 // DESIGN FLOW — the tile RENDERER over tools/_cage_design.js, and the birth
 // flow's viewport host. One component, two hosts (NEW-AIRCRAFT §8.1):
 //
@@ -137695,6 +138755,12 @@ function buildPatternVis(THREE, pattern, groundY, core) {
     }
   };
   // ---- THE PILOT'S LEGS (G202): the circuit as planned, a line in the air
+  // G710: AT THE HEIGHT IT WILL BE FLOWN. It drew altRef + h, the leg's height over the departure's
+  // datum - under the pilot's own terrain floor wherever the ground rises (legAlt: 2 hSafe over the
+  // ground a 1.5 km look-ahead sees), and the FINAL from the datum itself. The pilot now plans each
+  // leg's height when it plans the legs (43_pilot.js planLegH: hPlanA at A, hPlan at B, MSL; an
+  // enroute leg's cruise hCruiseLeg, down to the circuit height from 800 m + 5 % out, as ENROUTE flies
+  // it); a leg without them (an older pilot) keeps the old line
   let legsObj = null;
   const setLegs = (legs, altRef) => {
     if (legsObj) { layers.legs.remove(legsObj); if (legsObj.geometry) legsObj.geometry.dispose(); legsObj = null; }
@@ -137702,8 +138768,21 @@ function buildPatternVis(THREE, pattern, groundY, core) {
     const pos = [];
     for (const L of legs) {
       if (!L.A || !L.B) continue;
-      const hA = altRef + (L.h != null ? L.h : 0), hB = L.name === 'FINAL' ? gy(L.B[0], L.B[1]) + 2 : hA;
-      pos.push(L.A[0], hA, L.A[1], L.B[0], hB, L.B[1]);
+      if (L.hPlan == null) {
+        const hA = altRef + (L.h != null ? L.h : 0), hB = L.name === 'FINAL' ? gy(L.B[0], L.B[1]) + 2 : hA;
+        pos.push(L.A[0], hA, L.A[1], L.B[0], hB, L.B[1]);
+        continue;
+      }
+      const hA = L.hPlanA != null ? L.hPlanA : L.hPlan, hB = L.name === 'FINAL' ? L.hPlan + 2 : L.hPlan;
+      const dx = L.B[0] - L.A[0], dz = L.B[1] - L.A[1], len = Math.hypot(dx, dz) || 1e-9;
+      if (L.enroute && L.hCruiseLeg != null && L.hCruiseLeg > hB + 1) {
+        // the cruise, the 5 % descent that meets the circuit height 800 m before the entry, the level to it
+        const at = dRem => { const f = Math.max(0, Math.min(1, 1 - dRem / len)); return [L.A[0] + dx * f, L.A[1] + dz * f]; };
+        const K = at(800 + (L.hCruiseLeg - hB) / 0.05), M = at(800);
+        pos.push(L.A[0], L.hCruiseLeg, L.A[1], K[0], L.hCruiseLeg, K[1],
+                 K[0], L.hCruiseLeg, K[1], M[0], hB, M[1],
+                 M[0], hB, M[1], L.B[0], hB, L.B[1]);
+      } else pos.push(L.A[0], hA, L.A[1], L.B[0], hB, L.B[1]);
     }
     if (!pos.length) return;
     const g = new THREE.BufferGeometry();
@@ -139779,6 +140858,14 @@ function editorInit(api) {
           const r = idx.get(label);
           if (r) nursery.appendChild(r);
         }
+      // G700: ...AND WHAT WAS RETIRED IS PARKED WITH ITS PANE. G439 retired the dims box (the whole
+      // aeroplane's length, span and weight sit in #acSpec) and parked its pane, not its toggle - which
+      // stayed under `materials & extras` as the one row the overflow still showed (the Jolene playtest's
+      // orphan bar, 154024)
+      for (const label of RETIRED_ROWS) {
+        const r = idx.get(label);
+        if (r) nursery.appendChild(r);
+      }
     }
     // 5. THE ROOM GOES TO ITS OWN ROOT, whole (G108). It went to a SHEET at
     //    G78 on the ruling that tuning the room is a different interface from
@@ -139797,8 +140884,10 @@ function editorInit(api) {
       if (det.tagName !== 'DETAILS') continue;
       if (!det.querySelector('.r')) nursery.appendChild(det);
     }
-    // an overflow section with nothing in it is a heading about nothing
-    if (ui) wrap.classList.toggle('opts-empty', !ui.querySelector('.r'));
+    // an overflow section with nothing in it is a heading about nothing - and the FINISH view's pools
+    // (editor.css hides `materials` and `decals` here; the finish tab borrows their rows) are not in it
+    // (G700: 392 + 101 pooled rows kept the bar up over a single retired toggle)
+    if (ui) wrap.classList.toggle('opts-empty', !optsLoose(ui));
     // what stays in #cgUi is what the part table does NOT claim — how you look
     // at the build, the shed, and the aeroplane's materials: exactly the split
     // the user asked for, "the options belonging to the editor and not the
@@ -140814,6 +141903,16 @@ function editorInit(api) {
   // three other files push into, and a label that changes makes a control land
   // in the overflow section rather than vanish. Anything not claimed here is
   // still reachable under `materials & extras`.
+  // G700: rows no flyout claims because their feature is RETIRED (G439: the measuring box) - parked, never shown
+  const RETIRED_ROWS = ['dims box'];
+  // the accordion groups the FINISH view borrows from: pools, hidden in the overflow (editor.css)
+  const OPTS_POOLS = ['materials', 'decals'];
+  // a row the overflow would actually show: in #cgUi, outside the finish view's pools
+  const optsLoose = ui => [...ui.querySelectorAll('.r')].some(r => {
+    for (let e = r.parentElement; e && e !== ui; e = e.parentElement)
+      if (e.tagName === 'DETAILS' && e.parentElement === ui && OPTS_POOLS.includes(e.dataset.g)) return false;
+    return true;
+  });
   const RAIL = [
     { k: 'camera', label: 'camera', title: 'How the build is framed',
       icon: 'M4 5.5h2.2l1-1.5h3.6l1 1.5H14a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z|M9 11.6a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z' },
@@ -143158,7 +144257,7 @@ function make(THREE) {
     const gyroOk = aiElec ? busOk : vacOk;
     CK.gyroOk = gyroOk; CK.busOk = busOk;
     // the raw numbers
-    raw.ias = ias;
+    raw.ias = ias < 35 / 3.6 ? 0 : ias;   // G700: the ASI's floor - the needle sits on its stop below ~35 km/h (app.js hud)
     raw.alt = cg[1] - CK.qnh;
     raw.vs = o.vs || 0;
     raw.roll = gyroOk ? (o.roll || 0) : REST.roll;
@@ -147275,6 +148374,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // ---- W10 route: spawn at any aerodrome (default the home base), fly
   // a circuit there or cross-country to any other strip ----
   let fromId = 'HOME', destId = 'CIRCUIT';
+  // G710: THE ROUTE IS REMEMBERED (flydiy.route: { from, dest }); checked against the world's strips
+  // where the selects are filled (an id the world no longer has falls back to HOME / the circuit)
+  try { const r = JSON.parse(prefGet('flydiy.route', 'null')); if (r && typeof r.from === 'string') fromId = r.from; if (r && typeof r.dest === 'string') destId = r.dest; } catch (e) {}
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
   // 'taxi' (the stand, G151) or 'lineup' (the runway). A string on purpose:
   // the flight layer's flPref objects are declared far below this and this
@@ -147293,7 +148395,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (patVis) { try { patVis.dispose(); } catch (e) {} patVis = null; }
     if (!from || !window.PATTERN_VIS || typeof sitePattern !== 'function') return;
     let P = null;
-    try { P = sitePattern(from, st || null); } catch (e) { P = null; }
+    // G710: the way out round the parked aeroplanes is planned for the span the pilot taxis (ap.patOf's own)
+    try { P = sitePattern(from, st || null, { half: (def && def.params && def.params.gen && def.params.gen.span > 0) ? def.params.gen.span / 2 : null }); } catch (e) { P = null; }
     if (!P) return;
     const gy = (x, z) => (world && typeof world.terrainH === 'function')
       ? world.terrainH(x, z) : (from.elev || 0);
@@ -147350,11 +148453,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // THE STAND FOLLOWS THE DOOR (2026-09-20): the site's stand is authored for the declared shell; the
     // player's (the works is 7.5 m deeper) walks it out of the doorway - 25_airfield.js standFor
     const shedD = (st && typeof playerShedDims === 'function') ? playerShedDims(playerLoad(), 'HOME', st) : null;
-    const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD) : st.stand) : null;
+    // G700: ...on ITS OWN GROUND - the walked stand reads the terrain under it (it fell back to the runway's elevation)
+    const stGround = (world && typeof world.terrainH === 'function') ? ((x, z) => world.terrainH(x, z)) : null;
+    const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
     const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
     patternVisFor(from, stSite);
     if (stand) {
       placeAtStand(sim, from, stand);
+      if (stGround && typeof seatOnGround === 'function') seatOnGround(sim, stGround, def.refs);   // G700: the wheels on the ground under them
       ap.setRoute(from, to);      // frame + altRef, so the HUD has them at once
       // G193: the whole SITE, not its taxiOut list — the pilot builds the
       // pattern (the taxi graph, the hold, the two touchdown targets) from it
@@ -148070,6 +149176,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     const af = st.afcs ? '  [' + st.afcs.lat + ' ' + st.afcs.vert + ' ' + st.afcs.thr + ']' : '';
     el.textContent = (st.goal || '') + (conds ? ' — ' + conds : '') + af;
   }
+  // G710: THE PLAN LINE (the Jolene playtest: "it's unclear to what altitude the autopilot intends to
+  // go ... we need to see the waypoints and their target altitude, and maybe the vertical speed
+  // limits"). Under the rail, off ap.intent (43_pilot.js): the point flown to and how far, the height
+  // asked there (MSL, and over the ground under it - over the field where the target is a height, not
+  // a place), and the vertical speed now against the limit the law clamps it to. Empty when nothing
+  // is being flown to (the roll, the flare, a hand-flown flight).
+  let railPlanN = 0;
+  function railPlan(IT) {
+    const el = $('phPlan');
+    if (!el) return;
+    if ((railPlanN++ % 6) !== 0) return;
+    if (!IT || !IT.to || railPhase === null || (manual && !(ap && ap.box && ap.box.on))) { if (el.textContent) el.textContent = ''; return; }
+    const cg = sim.cgPos(), parts = [];
+    let head = 'to ' + IT.to.toLowerCase();
+    if (IT.x != null) {
+      const d = Math.hypot(IT.x - cg[0], IT.z - cg[2]);
+      head += ' ' + (d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m');
+    }
+    parts.push(head);
+    if (IT.h != null) {
+      const over = IT.x != null ? IT.hGround : IT.hField;
+      parts.push('target ' + Math.round(IT.h) + ' m' + (over != null ? ' (' + Math.round(over) + (IT.x != null ? ' agl' : ' over the field') + ')' : ''));
+      const vs = IT.vs, sg = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
+      if (Math.abs(vs) < 0.3 && Math.abs(IT.h - cg[1]) < 12) parts.push('level');
+      else if (vs >= 0) parts.push('climbing ' + sg(vs) + ' m/s' + (IT.vsUp != null ? ' (limit ' + sg(IT.vsUp) + ')' : ''));
+      else parts.push('descending ' + sg(vs) + ' m/s' + (IT.vsDn != null ? ' (limit ' + sg(IT.vsDn) + ')' : ''));
+    }
+    el.textContent = parts.join(' · ');
+  }
   function setRail(active) {
     if (active === railPhase) return;
     railPhase = active;
@@ -148371,6 +149506,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     record(dt);
     setRail(ap.phase);
     railStatus(ap.status);
+    railPlan(ap.intent);
     // G202: the PAPI reads the aeroplane's position; the planned legs are
     // drawn the moment the pilot plans them
     if (patVis) {
@@ -148421,6 +149557,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // hopeless build keep trying; Restart and the hangar door stay the real
   // exits. fullReset clears the latch.
   let flightOver = false;
+  let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
   function endFlight(outcome) {
     if (flightOver || inGarage) return;
     flightOver = true;
@@ -148441,6 +149578,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
                           world: () => world,                                   // W2: the world that booted (an island, or the analytic one)
                           setManual, manual: () => manual, input: () => INP,     // G200
                           nav: () => flNav,                                         // G202.1
+                          agl: () => hudAgl(),                                      // G700: the height the PFD and the trace read
                           // 2026-09-11: the orbit's state, and a jump to where it
                           // is easing to — the roll-out shot takes 360 frames,
                           // which a swiftshader capture rig cannot wait out
@@ -148525,10 +149663,32 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // ap.dbg, which the AP writes on every update — and under your hand it is
   // not updating. The same numbers, from the same solver facts the AP reads
   // (40_autopilot.js:309-310 for the attitude), computed here instead.
-  // AGL is against the terrain, not ap.refAlt: a flight that STARTS by hand
-  // never latched one.
+  // AGL is against the ground, not ap.refAlt: a flight that STARTS by hand
+  // never latched one (G700: and under the AP the same hudAgl replaces it).
+  // G700: THE HEIGHT A PILOT READS IS THE WHEELS' OVER THE GROUND UNDER THEM ("AGL completely faulty":
+  // the runway read -2 to -4 m and the altiport trip -235 m). The AP's ap.dbg.agl is cg - ap.refAlt, a FLAT
+  // reference latched at the stand and shifted by the destination's elevation (43_pilot planArrival) - the
+  // pilot's own datum, kept internal; and the hand's read the CG over the terrain (1-2 m standing still, and
+  // the sea floor under a floatplane). This is the lowest of the gear's contacts (refs.mains + the third
+  // wheel; node minus its radius) over the surface at its own x, z - terrain or water, whichever is higher -
+  // 0 standing, 0 at touchdown, the same number under the AP and under your hand. Without gear refs, the
+  // CG over the surface.
+  function surfH(x, z) {
+    const t = groundH(x, z);
+    const w = (world && typeof world.waterH === 'function') ? world.waterH(x, z) : -Infinity;
+    return w > t ? w : t;
+  }
+  function hudAgl() {
+    if (!sim || !def) return 0;
+    const R = def.refs, P = sim.p, r = sim.r;
+    const G = R && R.mains && R.mains.length ? R.mains.concat(R.tw != null && R.tw >= 0 ? [R.tw] : []) : null;
+    if (!G || !P || !r) { const cg = sim.cgPos(); return cg[1] - surfH(cg[0], cg[2]); }
+    let h = Infinity;
+    for (const i of G) h = Math.min(h, P[i * 3 + 1] - (r[i] || 0) - surfH(P[i * 3], P[i * 3 + 2]));
+    return Math.max(0, h);   // a tyre pressed into the ground reads 0, as the instrument would
+  }
   function flDbg() {
-    if (!manual || !INP || !ap) return ap ? ap.dbg : {};
+    if (!manual || !INP || !ap) return ap ? Object.assign({}, ap.dbg, { agl: hudAgl() }) : {};
     const [xA, yU, zR] = sim.axes(), cg = sim.cgPos(), v = sim.cgVel(), o = sim.out || {};
     const th = Math.asin(Math.max(-1, Math.min(1, -xA[1])));
     const ph = Math.atan2(-zR[1], yU[1]);
@@ -148537,7 +149697,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     const beta = Math.asin(Math.max(-1, Math.min(1, (ax * zR[0] + ay * zR[1] + az * zR[2]) / Vt)));
     const F = ap.frame || { ox: 0, oz: 0, ux: 1, uz: 0 };
     const rx = cg[0] - F.ox, rz = cg[2] - F.oz;
-    return { th, ph, beta, V: Vt * (o.easK || 1), alt: cg[1], agl: cg[1] - groundH(cg[0], cg[2]),
+    return { th, ph, beta, V: Vt * (o.easK || 1), alt: cg[1], agl: hudAgl(),
              s: rx * F.ux + rz * F.uz, z: -rx * F.uz + rz * F.ux, q: 0, e: 0 };
   }
   // the view key walks the camera flyout's own list, skipping a cockpit the
@@ -149918,6 +151078,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     drawPlaque();
   }
   function rollOut(after) {            // `after` runs when the aeroplane is on the stand and on screen (S3)
+    // G700: the bench fingerprints the aeroplane that rolls out HERE, with the editor still up (an arrival
+    // fingerprinted out in the world read a closed editor, and the first flight never stayed certified)
+    if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
     closeEditor();       // flying with the craft hidden is not a thing (G36)
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
     killLoadRun(); killLoadFix();
@@ -149996,6 +151159,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // the doors call this instead of the pair; the shim (no BOOT.show) runs
   // the pair inline as before.
   function rollInScreen(after) {
+    if ($('bootRoute')) $('bootRoute').hidden = true;   // G710: the roll-out's route picker goes with its screen
     if (typeof BOOT === 'undefined' || typeof BOOT.show !== 'function' || !BOOT.log || typeof renderer.compileAsync !== 'function') {
       enterGarage(); openEditor(); if (after) after(); return;
     }
@@ -150142,7 +151306,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // two frames of the world rendered under the overlay: the passes, the
     // residue of programs the compile does not reach (the shadow variants)
     steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => { holdRender = false; return framesRendered(2); } });
-    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; rollHold = false; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
+    // G710: the route, on the screen while nothing flies (the selects' block below builds it)
+    const bR = $('bootRoute');
+    if (bR) { bR.hidden = false; if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); }
+    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; rollHold = false; if (bR) bR.hidden = true; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
       probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
   }
 
@@ -150154,6 +151321,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // G690: a press under the roll-out screen is not a start (it fell through to `started = true`): the screen's
     // own done callback starts the flight when it lifts
     if (rollHold) return;
+    // G700: ...AND AFTER A LANDING IT FLIES ON FROM WHERE THE AEROPLANE STANDS (the playtest: "Fly on" reloaded -
+    // fullReset put it back on the departure stand). An arrival at the destination chains the next leg in place,
+    // exactly as picking a new destination after landing always did (W14's nextLeg): the same sim, a fresh pilot
+    // departing from here to the destination select - the same place (a circuit, or a leg back onto the strip it
+    // just left: "the autopilot capability to land and take off from the same place") or another hop. A flight
+    // that ENDED (a crash, a give-up, frozen by endFlight) or landed OUT (not where it said) still resets.
+    if (!inGarage && !flightOver && started && ap.phase === 'STOPPED' && flNextLeg
+        && !(ap.report && ap.report.outcome === 'landed-out')) {
+      $('arrCard').hidden = true; arrivalShown = false;
+      flNextLeg();
+      return;
+    }
     if (!inGarage && (flightOver || (started && ap.phase === 'STOPPED'))) {
       $('arrCard').hidden = true;
       fullReset();
@@ -150646,6 +151825,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     };
     fill($('selFrom'), null, null, null);
     fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null);
+    // G710: a remembered id the world does not have (another island, a strip deleted) is not a route
+    if (![...$('selFrom').options].some(o => o.value === fromId)) fromId = 'HOME';
+    if (![...$('selDest').options].some(o => o.value === destId)) destId = 'CIRCUIT';
+    if ([...$('selDest').options].some(o => o.value === destId)) $('selDest').value = destId;
     // the select SAYS where the flight starts (G434): HOME need not be the registry's first row (Jolene's
     // 02/20 is composed before 13/31 so the crossing keeps 13/31's profile) and the bar read the first option
     if ([...$('selFrom').options].some(o => o.value === fromId)) $('selFrom').value = fromId;
@@ -150659,13 +151842,58 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       if (started && ap.phase === 'STOPPED') nextLeg();
       else fullReset();
     };
+    // G710: THE ROUTE, CHOSEN BEFORE THE FLIGHT (the Jolene playtest: "there should be a way to select
+    // the circuit either from the garage, or straight at roll out"). It was #selFrom / #selDest alone,
+    // which live in #flStore and are borrowed by the flight plate's `route` flyout - reachable only once
+    // flying, where a change restarts the flight. Two more pickers, the same two choices: in the shed
+    // beside ROLL OUT (#edRoute: it sets the route the roll-out applies - fullReset -> applyRoute) and
+    // on the roll-out screen (#bootRoute: under the screen nothing has stepped (G690), so a change
+    // re-plans the stand and the taxi there and then). Every picker, the flight's two included, shows
+    // the one fromId / destId, and every change is remembered (flydiy.route). A departure changed under
+    // the screen takes the new stand; its town and trees then stream in flight as any spawn's do.
+    const routeRemember = () => prefSet('flydiy.route', JSON.stringify({ from: fromId, dest: destId }));
+    const routeSels = [];                // { sel, kind } - the pickers this block built
+    const routeSync = () => {
+      for (const r of routeSels) r.sel.value = r.kind === 'from' ? fromId : destId;
+      if ($('selFrom').value !== fromId && [...$('selFrom').options].some(o => o.value === fromId)) $('selFrom').value = fromId;
+      if ($('selDest').value !== destId) $('selDest').value = destId;
+    };
+    const routeBuild = (host, where) => {
+      if (!host) return;
+      host.innerHTML = '';
+      const pick = (kind, label, cap) => {
+        const lab = document.createElement('label');
+        const sp = document.createElement('span'); sp.textContent = cap; lab.appendChild(sp);
+        const sel = document.createElement('select');
+        sel.title = label; routeSels.push({ sel, kind });
+        if (kind === 'from') fill(sel, null, null, null); else fill(sel, 'CIRCUIT', '⟳ Circuit', null);
+        sel.value = kind === 'from' ? fromId : destId;
+        sel.onchange = e => {
+          if (kind === 'from') fromId = e.target.value; else destId = e.target.value;
+          routeRemember(); routeSync();
+          if (where === 'rollout' && rollHold && !inGarage) fullReset();
+        };
+        lab.appendChild(sel); host.appendChild(lab);
+      };
+      pick('from', 'Departure', 'from');
+      pick('dest', 'Destination', 'to');
+    };
+    routeBuild($('edRoute'), 'garage');
+    routeBuild($('bootRoute'), 'rollout');
+    // the flight's own two: remembered and mirrored (their handlers - the reset, the chained leg - untouched)
+    $('selFrom').addEventListener('change', () => { routeRemember(); routeSync(); });
+    $('selDest').addEventListener('change', () => { routeRemember(); routeSync(); });
+    window.FLYDIY_ROUTE = { get: () => ({ from: fromId, dest: destId }), sync: routeSync };
     function nextLeg() {
       const cur = (ap.route && ap.route.to) || aeroById(fromId);
       if (cur.id) { fromId = cur.id; $('selFrom').value = fromId; }
       telBase += ap.t;                 // new AP restarts its clock at 0
       ap = mkPilot(curKey);
       ap.departFrom(cur, destId === 'CIRCUIT' ? cur : aeroById(destId));
+      // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
+      flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
     }
+    flNextLeg = nextLeg;
   }
   // ---- W13 wind, G72 conditions: presets drive world.setWeather live — no
   // reset needed, the AP flies EAS and takes changes mid-flight. FRESH is
@@ -150766,7 +151994,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // o.V, which is TRUE airspeed — identical at sea level and a lie everywhere
     // else, on the one instrument a pilot would use to decide not to stall.
     const ias = (o.Veas ?? o.V) * 3.6;
-    R.ias.textContent = ias.toFixed(0);
+    // G700: ...AND IT HAS THE REAL INSTRUMENT'S FLOOR. An airspeed indicator's pitot pressure at a walking
+    // pace moves nothing: the needle sits on its stop below 30-40 km/h (the dial is not even marked
+    // there), so a taxi or a breeze on the stand reads 0 (the playtest: "IAS 20 standing still"). The floor
+    // is 35 km/h, held under 0.6 Vs so a slow-flying build's dial still reads its own stall; TAS (the
+    // instruments flyout) stays the solver's number - honest, and 0 at rest in calm air.
+    const iasFloor = Math.min(35, flVs > 0 ? flVs * 3.6 * 0.6 : 35);
+    R.ias.textContent = (ias < iasFloor ? 0 : ias).toFixed(0);
     R.alt.textContent = cg[1].toFixed(0);
     R.vs.textContent = (o.vs >= 0 ? '+' : '') + o.vs.toFixed(1);
     // THE NETTO VARIOMETER (CLIMATE K3). `vs` is what the AEROPLANE is doing;
@@ -150847,6 +152081,68 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   let mapBig = false, mapNoseUp = false;
   let mapBaseCv = null, mapBaseFor = null;   // G130: cached north-up underlay
   const NOSE_RANGE = 6000;
+  // G710: the pilot's published plan on the minimap (drawMap calls it after the aerodromes, so their
+  // names keep the ledger; the frame (PX, PY), the scale mk, the size W2 and the ledger are drawMap's)
+  function drawPlanOnMap(g, PX, PY, mk, W2, labPut) {
+    const IT = ap && ap.intent;
+    if (IT && !(manual && !(ap.box && ap.box.on))) {
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      const polyline = (pts, i0, i1, step) => {
+        if (i1 - i0 < 1) return;
+        g.beginPath(); g.moveTo(PX(pts[i0].x, pts[i0].z), PY(pts[i0].x, pts[i0].z));
+        for (let i = i0 + step; i < i1; i += step) g.lineTo(PX(pts[i].x, pts[i].z), PY(pts[i].x, pts[i].z));
+        g.lineTo(PX(pts[i1].x, pts[i1].z), PY(pts[i1].x, pts[i1].z)); g.stroke();
+      };
+      const onGround = IT.phase === 'TAXI' || IT.phase === 'LINEUP' || IT.phase === 'STOP' || IT.phase === 'HOLD' || IT.phase === 'DEPART';
+      if (IT.taxi && IT.taxi.pts && IT.taxi.pts.length > 1 && onGround) {
+        const TP = IT.taxi.pts, e = TP[TP.length - 1];
+        g.strokeStyle = 'rgba(255,211,90,.9)'; g.lineWidth = 1.6 * mk;
+        polyline(TP, 0, TP.length - 1, Math.max(1, Math.floor(TP.length / 200)));
+        g.beginPath(); g.arc(PX(e.x, e.z), PY(e.x, e.z), 2.8 * mk, 0, 6.283); g.fillStyle = '#ffd35a'; g.fill();
+      }
+      const legs = IT.legs;
+      if (legs && legs.length) {
+        const li = Math.min(IT.legI | 0, legs.length - 1), LA = legs[li];
+        const P = IT.path && IT.path.pts;
+        if (P && P.length > 1) {
+          const n = P.length - 1, iNow = Math.max(0, Math.min(n, IT.pathI | 0)), step = Math.max(1, Math.floor(P.length / 400));
+          // the active leg runs from the aeroplane to the path sample nearest its waypoint
+          let iB = n;
+          if (LA && LA.B && LA.name !== 'FINAL') { let bd = Infinity; for (let i = iNow; i <= n; i++) { const d = (P[i].x - LA.B[0]) ** 2 + (P[i].z - LA.B[1]) ** 2; if (d < bd) { bd = d; iB = i; } } }
+          g.strokeStyle = 'rgba(255,178,87,.28)'; g.lineWidth = 1.5 * mk; polyline(P, 0, iNow, step);
+          g.strokeStyle = 'rgba(255,178,87,.7)'; g.lineWidth = 1.6 * mk; polyline(P, iB, n, step);
+          g.strokeStyle = '#ffd35a'; g.lineWidth = 2.6 * mk; polyline(P, iNow, iB, step);
+        } else {
+          for (let k = 0; k < legs.length; k++) {
+            const L = legs[k]; if (!L.A || !L.B) continue;
+            g.strokeStyle = k === li ? '#ffd35a' : k < li ? 'rgba(255,178,87,.28)' : 'rgba(255,178,87,.7)';
+            g.lineWidth = (k === li ? 2.6 : 1.6) * mk;
+            g.beginPath(); g.moveTo(PX(L.A[0], L.A[1]), PY(L.A[0], L.A[1])); g.lineTo(PX(L.B[0], L.B[1]), PY(L.B[0], L.B[1])); g.stroke();
+          }
+        }
+        // the waypoints: the active one first (its label wins the ledger), then the ones still ahead
+        const order = [li]; for (let k = li + 1; k < legs.length; k++) order.push(k);
+        const wpLabel = (L, act) => {
+          const final = L.name === 'FINAL';
+          const h = act && IT.h != null && !final ? Math.round(IT.h) : L.hPlan;
+          const agl = act && IT.hGround != null && !final ? Math.round(IT.hGround) : (L.hPlan != null && L.gB != null ? L.hPlan - L.gB : null);
+          if (h == null) return final ? 'AIM' : L.name;
+          if (final) return 'AIM · ground ' + h + ' m';
+          return L.name + ' ' + h + ' m' + (agl != null && (mapBig || mapNoseUp || act) ? ' (' + agl + ' agl)' : '');
+        };
+        for (const k of order) {
+          const L = legs[k]; if (!L || !L.B) continue;
+          const act = k === li, sx = PX(L.B[0], L.B[1]), sy = PY(L.B[0], L.B[1]);
+          if (sx < -30 || sx > W2 + 30 || sy < -30 || sy > W2 + 30) continue;
+          g.beginPath(); g.arc(sx, sy, (act ? 3.4 : 2.4) * mk, 0, 6.283);
+          g.fillStyle = act ? '#ffd35a' : 'rgba(255,178,87,.9)'; g.fill();
+          g.strokeStyle = 'rgba(20,14,8,.8)'; g.lineWidth = 1 * mk; g.stroke();
+          if (act) { g.strokeStyle = 'rgba(255,211,90,.6)'; g.lineWidth = 1.4 * mk; g.beginPath(); g.arc(sx, sy, 6.5 * mk, 0, 6.283); g.stroke(); }
+          if (act || mapBig || mapNoseUp) labPut(sx, sy, wpLabel(L, act), 'rgba(20,14,8,.8)', act ? '#ffe3a0' : 'rgba(255,215,160,.9)');
+        }
+      }
+    }
+  }
   function drawMap() {
     const base = WF && WF.minimap, cv = $('mm');
     if (!base || !cv.getContext || !sim) return;   // G194: a persisted 'large map' drew it at boot, before the sim
@@ -150979,6 +152275,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       if (mapBig && !mead)                             // labels once there's room, and where they fit
         labPut(sx, sy, a.name, 'rgba(20,14,8,.75)', active ? '#ffd9a3' : 'rgba(251,244,234,.9)');
     }
+    // G710: THE PLAN ON THE MAP (the Jolene playtest: "there are also no waypoints on the map, so it is
+    // very unclear what the autopilot intends to do"). What the pilot PUBLISHED (ap.intent, 43_pilot.js),
+    // nothing re-derived here: the filleted air path L1 follows (else the legs' straight lines) - flown
+    // part faint, the active leg bright, the rest amber - and a waypoint at each leg's end with its name
+    // and the height planned there, MSL and over the ground under it (the active one the live target,
+    // ringed). On the ground, the taxi route to the hold. Labels through the ledger, the active first;
+    // the others once the map is big or nose-up (at 24 km a circuit is 40 px).
+    drawPlanOnMap(g, PX, PY, mk, W2, labPut);
     // THE ANIMAL HOTSPOTS (G498): where the wildlife lives is a thing a pilot plans a flight
     // around - the sanctuary you land at, the pod you fly over - so the map says so. ONE mark a
     // HOTSPOT, never one an animal: the record is the hotspot, and its individuals wander inside
