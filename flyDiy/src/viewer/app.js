@@ -7535,6 +7535,7 @@
   const RD = {};
   for (const d0 of document.querySelectorAll ? document.querySelectorAll('#pfdRow .rd') : [])
     RD[d0.dataset.i] = d0;
+  let hudIasGs = null;   // G1016: which speed the readout shows (null: not written yet)
   function hud() {
     const o = sim.out, cg = sim.cgPos(), c = sim.ctl, d = flDbg();
     syncSkip();                 // G771: disabled at the hold, rolling, and for good once airborne
@@ -7548,7 +7549,13 @@
     // is 35 km/h, held under 0.6 Vs so a slow-flying build's dial still reads its own stall; TAS (the
     // instruments flyout) stays the solver's number - honest, and 0 at rest in calm air.
     const iasFloor = Math.min(35, flVs > 0 ? flVs * 3.6 * 0.6 : 35);
-    R.ias.textContent = (ias < iasFloor ? 0 : ias).toFixed(0);
+    // G1016: ...AND UNDER THAT FLOOR THE READOUT IS THE GROUND SPEED, SAID SO. The floor made the whole taxi read 0 while the
+    // aeroplane plainly rolled (the user, 2026-09-28: "the speed shows 0 for most of the taxiing, while the plane clearly
+    // moves"). Below the dial's floor the number is out.Vg, over the ground, labelled GS - 0 standing still in any breeze,
+    // the taxi's own pace rolling; past the floor it is the IAS again. The label is written only when it changes.
+    const underFloor = ias < iasFloor;
+    R.ias.textContent = (underFloor ? (o.Vg || 0) * 3.6 : ias).toFixed(0);
+    if (hudIasGs !== underFloor) { hudIasGs = underFloor; const lab = RD.ias && RD.ias.querySelector('i'); if (lab) lab.textContent = underFloor ? 'km/h gs' : 'km/h ias'; }
     R.alt.textContent = cg[1].toFixed(0);
     R.vs.textContent = (o.vs >= 0 ? '+' : '') + o.vs.toFixed(1);
     // THE NETTO VARIOMETER (CLIMATE K3). `vs` is what the AEROPLANE is doing;
