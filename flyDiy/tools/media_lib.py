@@ -14,6 +14,17 @@ writes an external media file. Same rules as the JS half, one addition:
                     named `<stem>.<h8>.<ext>` for its own stems, and leaves
                     every other baker's files standing (the props_packs.json
                     lesson, G62.11, applied to a directory).
+  ONE COPY      (G901, the asset census's P2) write_media returns a file
+                already in the subdir with the same bytes, whatever its stem,
+                instead of writing a second copy (ashbark = hollybark =
+                raspberrybark shipped three times). The returned path is in
+                the baker's keep list, so its prune keeps the file for as long
+                as the bake asks for those bytes. In a SHARED directory
+                (prune_media_stems) the file returned can carry another
+                baker's stem; that baker's prune may then remove it, and GATE
+                MEDIA (referenced == present) goes red on the next run - the
+                bakers sharing a directory today (model_prep / ref_prep in
+                geo/models) write bins no two models share.
 
 Paths returned are PAGE-RELATIVE ('media/...'), forward slashes. The emitted
 payload prefixes them with FLYDIY_ASSET_BASE at its own eval — see BASE_DECL.
@@ -43,6 +54,9 @@ def write_media_named(subdir, name, raw):
 
 def write_media(subdir, stem, ext, raw):
     h8 = hashlib.sha256(raw).hexdigest()[:8]
+    same = _same_bytes(subdir, h8, ext, raw)
+    if same:
+        return 'media/%s/%s' % (subdir, same)
     rel = 'media/%s/%s.%s.%s' % (subdir, stem, h8, ext)
     ap = os.path.join(ROOT, *rel.split('/'))
     os.makedirs(os.path.dirname(ap), exist_ok=True)
@@ -50,6 +64,24 @@ def write_media(subdir, stem, ext, raw):
         with open(ap, 'wb') as f:
             f.write(raw)
     return rel
+
+
+def _same_bytes(subdir, h8, ext, raw):
+    """The file already in media/<subdir> (that directory only) holding exactly
+    these bytes, whatever its stem, or None - tools/_media_lib.js sameBytes,
+    the same rule: only names ending in .<h8>.<ext>, compared byte for byte,
+    the first in sort order (the fold never depends on the bake's order)."""
+    d = os.path.join(MEDIA, *subdir.split('/'))
+    if not os.path.isdir(d):
+        return None
+    tail = '.%s.%s' % (h8, ext)
+    for f in sorted(os.listdir(d)):
+        p = os.path.join(d, f)
+        if f.endswith(tail) and os.path.isfile(p) and os.path.getsize(p) == len(raw):
+            with open(p, 'rb') as fh:
+                if fh.read() == bytes(raw):
+                    return f
+    return None
 
 
 def _prune(d, keep_names, own):
