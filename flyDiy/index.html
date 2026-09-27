@@ -24972,6 +24972,8 @@ function makePilot(sim, def, world, opts) {
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
+  // G975: the landing flap the ELEVATOR can hold (FINAL, below) - a cap that only comes down, kept for the flight
+  let fLandCap = 1, fCapT = 0, deF = 0;
   let abortV0 = null, abortS0 = null, committedTO = false;
   ap.reEngage = (o) => {
     pendReEng = true;
@@ -26274,7 +26276,7 @@ function makePilot(sim, def, world, opts) {
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
-      go('GOAROUND'); gaT = 0; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
+      go('GOAROUND'); gaT = 0; IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
       thrC = A.thrCruise; thLift0 = th;
     };
     // the arrival at the destination, planned from where the aeroplane is now
@@ -26364,7 +26366,7 @@ function makePilot(sim, def, world, opts) {
       c.flap = clamp(c.flap + clamp(tgt - c.flap, -rr, rr), 0, 1);
     };
     let flapTgt = 0;
-    const fTO = FS ? (FS.to ?? 0) : 0, fLDG = FS ? (FS.ldg ?? 1) : 0;
+    const fTO = FS ? (FS.to ?? 0) : 0, fLDG = FS ? Math.min(FS.ldg ?? 1, fLandCap) : 0;
 
     // THE AP BOX flies instead of the phases while it is on; a disengage
     // resumes the pilot at a phase that fits where the aeroplane is
@@ -27063,7 +27065,7 @@ function makePilot(sim, def, world, opts) {
           const N = ap.legs[ap.legI];
           if (!N || N.name === 'FINAL') {
             ap.trackHold = true; ap.dirX = 1;
-            slopeCaptured = false; finalT0 = ap.t; thrC = A.thrAppr;
+            slopeCaptured = false; finalT0 = ap.t; thrC = A.thrAppr; deF = aDe;
             finalLevel = null;                    // G381: latched on entry
             go('FINAL');
           } else go(N.name);
@@ -27115,6 +27117,31 @@ function makePilot(sim, def, world, opts) {
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
         flapTgt = fLDG;
+        // G975: THE LANDING FLAP COMES OUT AS FAR AS THE ELEVATOR HOLDS IT. genTrim sizes the landing
+        // flap in the tunnel, prop OFF (deAppr inside the 0.18 budget); under approach power the
+        // propwash over the flaps is another airframe. The twin bush hauler (two wing engines 0.26 m
+        // over the CG) on full flap at 0.25 throttle: the elevator reached its stop and the nose
+        // went -2 -> -70 deg in 2 s, into the ground 2.2 km out ("terrain under the approach", twice,
+        // gave up) - the freeze test: flap frozen at 0 or 0.5 flies the slope on 0.2 of elevator,
+        // full flap at IDLE flies, full flap at 0.25 throttle tucks. So the flap comes out in the
+        // pilot's stages: past the take-off setting it stops where it is while the elevator (0.5 s
+        // filter) is past the trim budget the build was sized to, and it comes back a stage (0.25,
+        // never below the take-off setting) when the elevator sits on its stop; the cap holds for
+        // the flight (the flare, the next circuit). No flap, or an elevator inside its budget: as before
+        deF += (aDe - deF) * Math.min(1, dt / 0.5);
+        if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > 0.18) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
+        if (FS && c.flap > fTO + 0.01 && aDe > 0.30) {
+          fCapT += dt;
+          if (fCapT > 0.3) { fLandCap = Math.max(fTO, c.flap - 0.25); fCapT = 0; flapTgt = Math.min(flapTgt, fLandCap); say('flap-limited', 'the elevator cannot hold flap ' + c.flap.toFixed(2) + ' — landing on ' + fLandCap.toFixed(2)); }
+        } else fCapT = 0;
+        // G975: THE APPROACH'S TRIM IS THE SERVO'S TO FIND. holdPitch's integrator is capped at 0.15 in
+        // the air, and a drawn tail's approach trim is more than that: the Tiger Moth-alike on final
+        // held 5 deg against the 12.5 TECS asked (elevator 0.24 of its 0.35, the pitch error standing),
+        // so the speed stayed 3 m/s over Vref, the energy loop read "too fast" and took the power off,
+        // and the aeroplane rode 13 m under the slope to the terrain go-around (the Beaver-alike: 7 m/s
+        // over, 14 m under). On final the cap opens to the rotation's authority (rotateIMax, as the
+        // flare's does); a go-around closes it again. An aeroplane that trims inside 0.15 flies as before
+        IthMaxT = A.rotateIMax ?? 0.30;
         const canGA = (ap.gaN || 0) < 2 && !committed;
         setStatus(slopeCaptured ? 'down the slope to the aim point' : 'level, waiting for the slope', [
           cond('to the aim', Math.round(d), 0, d <= 0, 'm'),
@@ -27128,7 +27155,13 @@ function makePilot(sim, def, world, opts) {
           if (canGA) { goAround('off the centreline by ' + Math.round(Math.abs(sCr)) + ' m on short final'); break; }
           else if (!committed) { committed = true; say('committed-landing', 'off centre but committed'); }
         }
-        if (world && d > 400 && canGA && aglT < 15) { goAround('terrain under the approach'); break; }
+        // G975: THE TERRAIN GO-AROUND IS FOR AN AEROPLANE UNDER ITS PLAN. The slope from the aim at
+        // the motorglider's 2.1 deg (gs 0.037) is itself 15 m over the ground 400 m out: flown to the
+        // metre it passed 407 m out at 16 m, and a metre's sag was a go-around that the next circuit
+        // flies again, the same slope over the same ground. The clearance on the slope is the runway
+        // model's to plan (its cone, the canopy included); the pilot goes around when it is under 15 m
+        // AND more than a third below what the slope leaves over the ground here
+        if (world && d > 400 && canGA && aglT < Math.min(15, 0.67 * (hGS - terrainNow))) { goAround('terrain under the approach'); break; }
         if (d <= -150 && agl > A.flareAgl * 3) {
           if (canGA) { goAround('past the aim at ' + Math.round(agl) + ' m'); break; }
           if (!committed) { committed = true; say('committed-landing', 'past the aim at ' + Math.round(agl) + ' m agl — landing it'); }
@@ -41402,7 +41435,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='69f8aba70d9e';window.FLYDIY_BUILD='7c7b9c44a242'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='45ed03b979bb';window.FLYDIY_BUILD='a8b34f0df53d'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=36d97ef0"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
