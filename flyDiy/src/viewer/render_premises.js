@@ -1543,7 +1543,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) if (!m.userData.merged) m.visible = on2; }
     }
   }
-  function tick(dt) { if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -2121,6 +2121,44 @@ function make(THREE, scene, world, rec0, opts) {
   // STREAM.budget ms credited a frame, an item built while the bank is positive and its cost (and the frame's
   // post-work) taken off. A cheap item (a fence, an object) goes several to a frame; a house, which cannot be cut,
   // goes once the bank has paid for it - the stream averages the budget whatever the item.
+  // THE RISE (G673, A2-FADES; the user: "transitions (fading or growing) for everything that appears or
+  // disappears"). An item the STREAM builds after the roll-out (a house, a site item, a parked aeroplane, a
+  // fence) rises out of the ground over RISE.secs instead of appearing whole. Only its DRAW is scaled: each mesh's
+  // onBeforeRender multiplies its matrixWorld by the rise (about the item's foot, world up) and onAfterRender puts
+  // it back, so everything that READS the scene - the hit raster, the obstacle shapes, the lot and road merges, the
+  // far-town bake, the near shadow registry's frozen spheres, the shadow pass itself (which calls no
+  // onBeforeRender) - sees the item as built. The hooks are removed when the rise ends. A merge made mid-rise
+  // hides its sources (they simply stop drawing); a rung that lands mid-rise is not hooked (it appears whole).
+  // What the roll-out's prewarm builds is under the loading screen and does not rise.
+  const RISE = { on: true, secs: 0.6, list: [], n: 0 };
+  function riseAdd(grp) {
+    if (!RISE.on || !o.game || !grp || !THREE.Matrix4 || !grp.traverse) return;
+    const R = { grp, t0: performance.now(), e: 0, S: new THREE.Matrix4(), hooks: [] };
+    grp.traverse(m => {
+      if (!(m.isMesh || m.isLine || m.isPoints)) return;
+      const pb = m.onBeforeRender, pa = m.onAfterRender, save = new THREE.Matrix4();
+      let on = false;
+      m.onBeforeRender = function () { pb.apply(this, arguments); on = R.e < 1; if (on) { save.copy(this.matrixWorld); this.matrixWorld.premultiply(R.S); } };
+      m.onAfterRender = function () { if (on) { this.matrixWorld.copy(save); on = false; } pa.apply(this, arguments); };
+      R.hooks.push([m, pb, pa]);
+    });
+    if (!R.hooks.length) return;
+    RISE.list.push(R); RISE.n++; riseSet(R, 0);
+  }
+  // the rise's matrix: y scaled by e about the item's foot (its group's world position), x and z untouched
+  function riseSet(R, e) {
+    R.e = e;
+    const w = R.grp.matrixWorld.elements, y0 = w[13], k = Math.max(0.02, e);
+    R.S.set(1, 0, 0, 0,  0, k, 0, y0 * (1 - k),  0, 0, 1, 0,  0, 0, 0, 1);
+  }
+  function riseTick() {
+    const t = performance.now();
+    for (let i = RISE.list.length - 1; i >= 0; i--) {
+      const R = RISE.list[i], k = Math.min(1, (t - R.t0) / (RISE.secs * 1000));
+      riseSet(R, 1 - Math.pow(1 - k, 3));   // out-cubic: most of the height in the first third
+      if (k >= 1) { for (const [m, pb, pa] of R.hooks) { m.onBeforeRender = pb; m.onAfterRender = pa; } RISE.list.splice(i, 1); }
+    }
+  }
   const STREAM = { reach: 6000, budget: 3, cap: 12, resort: 60, bank: 0, cx: NaN, cz: NaN, near: 0, ms: 0, built: 0, slow: [] };   // slow: the last builds over 60 ms [id, ms]
   function stream(cx, cz) {
     const S = STREAM;
@@ -2134,7 +2172,8 @@ function make(THREE, scene, world, rec0, opts) {
     const t0 = performance.now();
     let n = 0;
     while (queue.length && S.bank > 0 && queue[0]._d <= S.reach) {
-      const t = performance.now(); buildOne(queue.shift()); n++; S.near = Math.max(0, S.near - 1);
+      const t = performance.now(), p = queue.shift(); buildOne(p); n++; S.near = Math.max(0, S.near - 1);
+      const h = HOUSES.get(p.id); if (h && !h.failed) { riseAdd(h.grp); for (const g of h.extra || []) riseAdd(g); }   // G673
       S.bank -= performance.now() - t;
     }
     const t1 = performance.now(); STREAMING = true; try { afterBuilt(n); } finally { STREAMING = false; } S.bank -= performance.now() - t1;

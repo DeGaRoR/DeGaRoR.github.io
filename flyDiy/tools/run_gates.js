@@ -165,6 +165,7 @@ const GATES = [
   // G585: the cover ring's rocks and debris as batches - the same instances, reach and thresholds, a draw per batch
   { id: 'COVER', file: '_cover_check.js', tier: 'core' },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
+  { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last
   { id: 'MEDIA', file: '_media_check.js', tier: 'core' },

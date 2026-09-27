@@ -2248,6 +2248,16 @@
           // pitch calibration and the mount offsets have tilted
           if (pt.axis) pg.userData.spinAxis = pt.axis;
           grp.add(pg); props.push(pg);
+          // G672: THE DISC, measured off these blades (prop_disc.js); its program linked now, off the
+          // first frame that shows it (a start is at full weight within a second)
+          if (typeof PROP_DISC !== 'undefined') try {
+            const dc = pg.userData.disc = PROP_DISC.make(THREE, pg, null, pt.axis);
+            if (dc && typeof renderer.compileAsync === 'function') {
+              dc.mesh.visible = true;
+              renderer.compileAsync(dc.mesh, camera, scene).catch(() => {});
+              dc.mesh.visible = false;
+            }
+          } catch (e) { console.warn('prop disc', e && e.message); }
           // ...and it rides the same node as its engine (G179.2)
           { const idxs = engNodesFor(pt.pivot[2]);
             if (idxs.length) engRigs.push({ obj: pg, idxs, pivot: pt.pivot,
@@ -3243,6 +3253,8 @@
           vSpin.set(ax2[0], ax2[1], ax2[2]);
           p.quaternion.setFromAxisAngle(vSpin, ud.spinAng);
         } else p.rotation.x += d;
+        // G672: past ~150 rpm the blades strobe (480 degrees a frame at 2 400 rpm and 30 fps): the disc takes over
+        if (ud.disc) ud.disc.update(ud.spinRate * 60 / (2 * Math.PI), ax2 ? ud.spinAng : p.rotation.x, sense, frameDt());
         poseRigid(p);                                 // G357: in the true frame
       }
     // once per frame: it is stateful - and on the frame's own dt (G613; G586's clock): at 30 fps a fixed

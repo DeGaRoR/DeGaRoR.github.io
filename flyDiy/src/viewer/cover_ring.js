@@ -134,7 +134,8 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.5, batch: true };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.5, batch: true,
+                aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // cellKey(cx, cz) -> { n, parts, inst, by, cx, cz, box }
     // G603 (A1-STAND): a cell's key is a NUMBER - update() asked the map for ~290 cells a frame by a fresh 'cx,cz'
@@ -624,7 +625,7 @@ var COVER_RING = (() => {
               cell.inst.push(bm, id);
             }
           }
-        } else for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
+        } else for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind, cell });
         cell.n += n;
       }
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
@@ -636,6 +637,7 @@ var COVER_RING = (() => {
       for (let k = 0; k < cell.inst.length; k += 2) { batchVis(cell.inst[k], cell.inst[k + 1], false); cell.inst[k].deleteInstance(cell.inst[k + 1]); }   // the batched ones go now (past Rdrop: out of reach)
       cell.inst.length = 0;
       for (const k in cell.by) { STAT.by[k] -= cell.by[k]; if (STAT.by[k] <= 0) delete STAT.by[k]; }   // the tally is LIVE (it ran up for the page's life before L4)
+      cell.dead = true;   // (a grow in flight lets go of it)
       cells.delete(key);
     }
 
@@ -649,6 +651,23 @@ var COVER_RING = (() => {
     // sphere (the frustum) and the fade's reach (below); the instances and the shader are the
     // cells' own, so the picture is the same.
     const B = 4, blocks = new Map();
+    const now = () => performance.now() / 1000;   // the grow's clock (trees.js uFadeNow / aBorn)
+    // THE BATCHES GROW ON THE CPU (G670): a BatchedMesh instance has a matrix and a colour and no attribute of its own
+    // (the fade's threshold already rides the colour's alpha), so a near cell's rocks, debris and shrubs are scaled
+    // about their own origins, frame by frame, for S.grow s - [cell, t0, [bm, id, matrix x16, ...]]
+    const growing = [], GM = new THREE.Matrix4();
+    function growTick(t) {
+      for (let g = growing.length - 1; g >= 0; g--) {
+        const G = growing[g], cell = G[0], k = Math.min(1, (t - G[1]) / Math.max(1e-3, S.grow)), L = G[2];
+        if (cell.dead) { growing.splice(g, 1); continue; }
+        for (let i = 0; i < L.length; i += 3) {
+          GM.fromArray(L[i + 2]); const e = GM.elements;
+          if (k < 1) for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) e[j] *= Math.max(1e-3, k);
+          L[i].setMatrixAt(L[i + 1], GM);
+        }
+        if (k >= 1) growing.splice(g, 1);
+      }
+    }
     const blockOf = (cx, cz) => Math.floor(cx / B) + ',' + Math.floor(cz / B);
     function markBlock(cx, cz) {
       const k = blockOf(cx, cz); let b = blocks.get(k);
@@ -661,9 +680,21 @@ var COVER_RING = (() => {
       const parts = new Map(); let box = null, live = 0;
       b.instCells = []; b.instVis = null;   // the cells whose batched instances this block switches with its reach (update) - cells, not
                                             // ids: a dropped cell's ids are handed to the next instances made
+      const t = now(), ex = camera.position.x, ez = camera.position.z;
       for (let dz = 0; dz < B; dz++) for (let dx = 0; dx < B; dx++) {
         const cell = cells.get(cellKey(b.bx * B + dx, b.bz * B + dz)); if (!cell) continue;
         live++;
+        // the first block that holds a cell is the moment it can be seen: its birth for the grow (a cell planted
+        // while the ring is hidden - the pre-grow - is old by the time the fade lets it show, and does not grow)
+        if (cell.born === undefined) {
+          cell.born = root.visible ? t : -1e9;
+          const mx = (cell.cx + 0.5) * S.cell - ex, mz = (cell.cz + 0.5) * S.cell - ez;
+          if (cell.born > 0 && cell.inst.length && S.grow > 0 && mx * mx + mz * mz < S.growNear * S.growNear) {
+            const L = [];
+            for (let k = 0; k < cell.inst.length; k += 2) { const bm = cell.inst[k], id = cell.inst[k + 1]; bm.getMatrixAt(id, GM); L.push(bm, id, Float32Array.from(GM.elements)); }
+            growing.push([cell, t, L]); growTick(t);
+          }
+        }
         if (cell.inst.length) b.instCells.push(cell);
         if (cell.box) { const c = cell.box; box = box ? [Math.min(box[0], c[0]), Math.min(box[1], c[1]), Math.min(box[2], c[2]), Math.max(box[3], c[3]), Math.max(box[4], c[4]), Math.max(box[5], c[5])] : c.slice(); }
         for (const [part, d] of cell.parts) { let a = parts.get(part); if (!a) parts.set(part, a = []); a.push(d); }
@@ -679,13 +710,14 @@ var COVER_RING = (() => {
         // them overwritten on the next line - most of a rebuilt block's cost at the stand's 66 000 tufts; G603)
         const m = new THREE.InstancedMesh(part.geo, part.mat, 0);
         m.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(n * 16), 16); m.count = n;
-        const hasCol = list.some(d => d.col), col = hasCol ? new Float32Array(n * 3).fill(1) : null, rand = new Float32Array(n);
+        const hasCol = list.some(d => d.col), col = hasCol ? new Float32Array(n * 3).fill(1) : null, rand = new Float32Array(n), born = new Float32Array(n);
         let o = 0;
-        for (const d of list) { m.instanceMatrix.array.set(d.mats, o * 16); if (d.col) col.set(d.col, o * 3); rand.set(d.rand, o); o += d.n; }
+        for (const d of list) { m.instanceMatrix.array.set(d.mats, o * 16); if (d.col) col.set(d.col, o * 3); rand.set(d.rand, o); born.fill(d.cell.born, o, o + d.n); o += d.n; }
         if (col) m.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
         // the prototype's buffers shared, the instanced aRand per mesh: a thin geometry wrapper
         const geo = part.geo, g2 = new THREE.BufferGeometry(); g2.index = geo.index; for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]);
         g2.setAttribute('aRand', new THREE.InstancedBufferAttribute(rand, 1));
+        g2.setAttribute('aBorn', new THREE.InstancedBufferAttribute(born, 1));   // G670: each instance its cell's birth (trees.js FADE_VS)
         // the block's own sphere (the instances hold world positions, the mesh stands at the origin),
         // on the geometry AND the object: r186 culls an InstancedMesh on its own, and would union the
         // geometry's at every instance otherwise
@@ -701,26 +733,45 @@ var COVER_RING = (() => {
 
     // ---- per frame ------------------------------------------------------------------
     let queue = [];
+    const EYE = { x: NaN, z: NaN, t: 0, vx: 0, vz: 0 };   // the eye's ground velocity, smoothed (the lead)
     function update() {
       if (!S.on || !pack || !BIO) { if (root.visible) root.visible = false; return; }
       const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
       const agl = Math.max(0, camera.position.y - gy); STAT.agl = agl;
       const aglK = 1 - smooth(S.aglFull, S.aglOff, agl); STAT.aglK = aglK;   // (the rock map reads the fade's height term)
+      const t = now();
       LEAF.fade(S.near, S.reach, S.taper, aglK);
+      if (LEAF.grow) LEAF.grow(t, null, S.grow);
+      { const dt = t - EYE.t;
+        if (dt > 0 && dt < 0.5 && isFinite(EYE.x)) { const a = Math.min(1, dt / 0.5); EYE.vx += ((ex - EYE.x) / dt - EYE.vx) * a; EYE.vz += ((ez - EYE.z) / dt - EYE.vz) * a; }
+        else if (!(dt > 0 && dt < 0.5)) { EYE.vx = 0; EYE.vz = 0; }   // a jump (a teleport, a pause): no lead from it
+        EYE.x = ex; EYE.z = ez; EYE.t = t; }
       root.visible = aglK > 0.001;
-      if (aglK <= 0.001) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); queue.length = 0; STAT.live = 0; return; }
+      if (growing.length) growTick(t);
+      // THE PRE-GROW (G671, A2-FADES; the playtest: "grass too late on approach"). The ring used to be dropped whole
+      // above aglOff (150 m) and planted again from nothing on the way down - at budgetMs a frame, nearest first -
+      // so the field was still filling while the fade was already letting it show. Below aglPre it now keeps
+      // PLANTING while hidden (on preBudgetMs: it draws nothing, the fade holds every instance at 0), so on a
+      // descent the ring is there when the height term opens; over aglPre it is dropped, as before.
+      const hidden = aglK <= 0.001; STAT.hidden = hidden;
+      if (hidden && agl > S.aglPre) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); queue.length = 0; STAT.live = 0; return; }
       const C = S.cell, R2 = (S.reach + C) * (S.reach + C), Rdrop = (S.reach + 2 * C) * (S.reach + 2 * C);
       const cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C), nr = Math.ceil((S.reach + C) / C);
+      // THE LEAD (G671): what the aeroplane is flying toward is planted first - the queue is ordered by the distance
+      // to where the eye will be in S.lead s (at most 60 % of the reach ahead), still only the cells within the reach
+      let lx = EYE.vx * S.lead, lz = EYE.vz * S.lead; { const l = Math.hypot(lx, lz), m = 0.6 * S.reach; if (l > m) { lx *= m / l; lz *= m / l; } }
+      STAT.lead = Math.round(Math.hypot(lx, lz));
       queue.length = 0;
       for (let dz = -nr; dz <= nr; dz++) for (let dx = -nr; dx <= nr; dx++) {
         const cx = cx0 + dx, cz = cz0 + dz;
         const mx = (cx + 0.5) * C - ex, mz = (cz + 0.5) * C - ez, d2 = mx * mx + mz * mz;
         if (d2 > R2) continue;
-        if (!cells.has(cellKey(cx, cz))) queue.push([d2, cx, cz]);
+        if (!cells.has(cellKey(cx, cz))) { const ax = mx - lx, az = mz - lz; queue.push([Math.min(d2, ax * ax + az * az), cx, cz]); }
       }
       queue.sort((a, b) => a[0] - b[0]);
-      const t0 = performance.now();
-      while (queue.length && performance.now() - t0 < S.budgetMs && cells.size < S.maxCells) { const [, cx, cz] = queue.shift(); buildCell(cx, cz); }
+      const t0 = performance.now(), budget = hidden ? S.preBudgetMs : S.budgetMs;
+      while (queue.length && performance.now() - t0 < budget && cells.size < S.maxCells) { const [, cx, cz] = queue.shift(); buildCell(cx, cz); }
+      STAT.plantMs = performance.now() - t0;
       for (const [k, cell] of cells) { const mx = (cell.cx + 0.5) * C - ex, mz = (cell.cz + 0.5) * C - ez; if (mx * mx + mz * mz > Rdrop) dropCell(k); }
       // A CELL PAST THE REACH DRAWS NOTHING (PERF 2026-09-23): the fade collapses every instance whose
       // 3D distance to the eye is past `reach` (trees.js FADE_VS), so a cell whose NEAREST point is past
@@ -744,7 +795,7 @@ var COVER_RING = (() => {
       get: () => Object.assign({}, S),
       set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks, batch: S.batch, castMinH: S.castMinH }; Object.assign(S, o || {});
         if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks || S.batch !== was.batch || S.castMinH !== was.castMinH) api.replant(); return api.get(); },
-      replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); },
+      replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
       rockPlan,                                                           // the rock map's read (above)
       // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
       // the mix, the pavement's kill and class, the land test - so a "why is there a log on the runway"

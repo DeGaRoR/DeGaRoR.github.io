@@ -68,7 +68,7 @@ function ring(batch) {
   B.load(path.join('src', 'viewer', 'cover_ring.js'));
   const CR = ctx.COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null,
     biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true });
-  CR.set({ batch, budgetMs: 1e9, blockBudget: 1e9 });
+  CR.set({ batch, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });   // the picture as planted (G670: the batched grow is on the CPU; GATE FADES holds it ends here)
   for (let i = 0; i < 4; i++) CR.update();
   return { B, THREE, R, CR, scene, camera, ctx };
 }

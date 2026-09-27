@@ -85,6 +85,8 @@ if (VARIANT === 'nopremises') q.push('premises=none');
 if (opt('q', null)) q.push(opt('q'));
 // --shot <s>[,<s>...]: PNG captures that many seconds after the reveal (tools/perf/rollout_<label>_<s>s.png)
 const SHOTS = (opt('shot', '') || '').split(',').filter(Boolean).map(Number);
+// --shot-eval '<js>' (G672): evaluated before each shot, then 0.8 s of frames (an orbit set for the propeller: FLIGHT_PROBE.camSet)
+const SHOT_EVAL = opt('shot-eval', null);
 // --profile-live <at>,<secs>: a CPU profile window of the live game (below); --eval '<js>': an expression evaluated in the page at the end of the
 // recording (a census: renderer.info, a module's stats), its value printed and kept in the JSON
 const PROFILE_LIVE = opt('profile-live', null);
@@ -260,6 +262,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   })();
   for (const at of SHOTS) {
     const wait = at * 1000 - (Date.now() - tRec); if (wait > 0) await sleep(wait);
+    if (SHOT_EVAL) { await ev('(()=>{' + SHOT_EVAL + ';return 1;})()').catch(e => console.log('  shot-eval: ' + e.message)); await sleep(800); }
     const r = await cmd('Page.captureScreenshot', { format: 'png' });
     const f = OUT.replace(/\.json$/, '_' + at + 's.png'); fs.mkdirSync(path.dirname(f), { recursive: true });
     fs.writeFileSync(f, Buffer.from(r.result.data, 'base64')); console.log('  shot -> ' + f);

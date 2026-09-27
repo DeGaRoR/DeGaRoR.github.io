@@ -303,6 +303,15 @@
   // instance's own aRand is its threshold, so the ring is planted once at full density and
   // thins in the vertex shader as the eye moves (the trees' uThin, the bench's taper)
   const U_FADE_NEAR = { value: 1e9 }, U_FADE_REACH = { value: 2e9 }, U_FADE_TAPER = { value: 0.5 }, U_FADE_AGL = { value: 1 };
+  // THE GROW (G670, A2-FADES; the user: "transitions (fading or growing) for everything that appears or
+  // disappears"). The threshold used to be a switch: an instance was whole while aRand < _fk and gone the frame
+  // it was not, so every tuft popped at the reach, on the way up and on the way down. Now it SHRINKS through a
+  // band of the threshold - whole while _fk (1 + band) >= aRand + band, nothing once _fk (1 + band) <= aRand -
+  // toward its own origin (its foot), after the sway (the rule below: the shear before the shrink). At _fk = 1
+  // every instance is still whole; at 0 every one is still gone. And a cell the ring has just planted GROWS in
+  // over uFadeGrow s from its birth (aBorn, the ring's per-instance time; a mesh without one reads 0, i.e. born
+  // long ago): the late cell at the eye's feet rises instead of appearing. Vertex work only - no blend, no sort.
+  const U_FADE_BAND = { value: 0.25 }, U_FADE_NOW = { value: 0 }, U_FADE_GROW = { value: 0.8 };
   const FADE_VS = [
     '#ifdef USE_INSTANCING',
     '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
@@ -314,8 +323,14 @@
     'float _fd = distance(_fp, cameraPosition);',
     'float _ft = clamp((_fd - uFadeNear) / max(1.0, uFadeReach - uFadeNear), 0.0, 1.0);',
     'float _fk = pow(1.0 - _ft, 1.0 + 2.0 * uFadeTaper) * uFadeAgl;',
-    'if (aRand > _fk) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);',
+    'float _fg = clamp((_fk * (1.0 + uFadeBand) - aRand) / max(1e-3, uFadeBand), 0.0, 1.0);',
+    '#ifdef USE_INSTANCING',
+    '_fg *= clamp((uFadeNow - aBorn) / max(1e-3, uFadeGrow), 0.0, 1.0);',
+    '#endif',
+    'transformed *= _fg;',
   ].join('\n');
+  // ...before <project_vertex>; after it, a nought instance is thrown off screen (no triangle set-up for it)
+  const FADE_CUT_VS = 'if (_fg <= 0.0) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);';
   // THE GRASS SHADES AS THE GROUND (2026-09-22, the user: "its shading looks real harsh"): a tuft is
   // two or three crossed cards, and lit by their own normals half of every tuft faces away from
   // the sun - a field of light and dark halves, the harshness. The fix every grass renderer uses:
@@ -383,17 +398,19 @@
   const BATCH_RAND_VS = '#ifdef USE_BATCHING\n  float _bRand = 0.5;\n  #ifdef USE_BATCHING_COLOR\n  _bRand = vColor.a; vColor.a = 1.0;\n  #endif\n#endif';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
+    sh.uniforms.uFadeBand = U_FADE_BAND; sh.uniforms.uFadeNow = U_FADE_NOW; sh.uniforms.uFadeGrow = U_FADE_GROW;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
       .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
-      .replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
+      .replace('#include <project_vertex>', FADE_VS + '\n#include <project_vertex>\n' + FADE_CUT_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
     // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already
     // carries, and its NORMAL is not touched (see UP_VS)
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
-    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;');
+    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp, uFadeBand, uFadeNow, uFadeGrow;');
+    vs = declOnce(vs, '#ifdef USE_INSTANCING\nattribute float aBorn;\n#endif');
     // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read
     vs = declOnce(vs, '#ifdef USE_BATCHING\n#define aRand _bRand\n#endif');
     sh.vertexShader = declOnce(vs, 'attribute float aRand;');
@@ -507,6 +524,9 @@
       for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },
     fade: (near, reach, taper, agl) => { if (near !== undefined) U_FADE_NEAR.value = near; if (reach !== undefined) U_FADE_REACH.value = reach;
       if (taper !== undefined) U_FADE_TAPER.value = taper; if (agl !== undefined) U_FADE_AGL.value = agl; return [U_FADE_NEAR.value, U_FADE_REACH.value, U_FADE_TAPER.value, U_FADE_AGL.value]; },
+    // G670: the grow's clock (s; the ring's aBorn are on it), its band and its time; null leaves a term as it is
+    grow: (now, band, secs) => { if (now != null) U_FADE_NOW.value = now; if (band != null) U_FADE_BAND.value = band; if (secs != null) U_FADE_GROW.value = secs;
+      return [U_FADE_NOW.value, U_FADE_BAND.value, U_FADE_GROW.value]; },
     // a collection's own row, live on every material that wears it (the
     // rows are shared by reference with the payload's `tint`) and on its
     // impostors through tintGlsl; TREE_LEAF.collections() lists them
