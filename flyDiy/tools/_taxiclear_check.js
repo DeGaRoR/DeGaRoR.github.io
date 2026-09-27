@@ -25,7 +25,8 @@
 //     sitePatternIssues is empty
 //   4 CALIBRATION: the same site with its parked list withheld plans the old
 //     straight way, and THAT route comes inside the Cub's clearance - the
-//     check in 3 can see the fault it guards
+//     check in 3 can see the fault it guards (G772: HOME's authored ways now
+//     thread the apron's gap, so the calibration replays the pre-G772 way)
 //   5 FLOWN: both aeroplanes flown by THE PILOT (43_pilot.js) from HOME's
 //     stand until they are 30 m past the farthest parked aeroplane: the wing
 //     (the CG +- the half-span along the right axis, every 1/60 s) never
@@ -108,8 +109,12 @@ for (const B of BUILDS) {
             w ? 'nearest ' + w.id + ' at ' + (w.d + need).toFixed(2) + ' m, (' + w.x.toFixed(1) + ', ' + w.z.toFixed(1) + ')' : 'none near');
     }
     if (a.id === 'HOME') {
-      check(!!(P.clearance && P.clearance.ok && (P.clearance.added + P.clearance.moved) > 0), '3 ' + B.name + ' HOME way out was bent', JSON.stringify(P.clearance));
-      const s0 = Object.assign({}, s); delete s0.parked;
+      // G772: HOME's ways out were re-authored through the apron's gap (taxiOut for 13, taxiOut1 for 31), so a
+      // narrow wing needs no bend and a wide one a small one: the way is CLEAR, as authored or as bent
+      check(!!(P.clearance && P.clearance.ok), '3 ' + B.name + ' HOME way out is clear (as authored or bent)', JSON.stringify(P.clearance));
+      // ...and the calibration replays the way that was authored before G772 (the straight leg to the NE arm's
+      // mouth, G710's own fault case), unbent: it must still read as the fault check 3 guards
+      const s0 = Object.assign({}, s, { taxiOut: [[-135, 655], [-133, 590], [-120, 500], [-92, 442]] }); delete s0.parked; delete s0.taxiOut1;
       const P0 = C.sitePattern(a, s0, { half });
       const w0 = worstOf(P0, s.parked, P0.routes.out[0], need);
       check(!!w0 && w0.d < -1 && w0.id === 'o1', '4 ' + B.name + ' calibration: the unbent HOME way passes inside the Cub o1\'s clearance',

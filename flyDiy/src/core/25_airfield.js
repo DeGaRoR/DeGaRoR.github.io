@@ -605,7 +605,7 @@ function gpParkedWorst(pts, parked, need) {
 // of that sample moves, else a new corner ('k<n>', kind 'taxi', the site's fillet) is put in at the
 // sample, pushed out by the shortfall and half a metre. The stand and the entry never move. At most 24
 // rounds; what is left is reported (pattern.clearance), never hidden - GATE TAXICLEAR fails on it.
-function gpClearWay(nodes, ids, parked, need) {
+function gpClearWay(nodes, ids, parked, need, pre) {   // pre (G772): the new corners' id prefix, 'k' by default
   const byId = {}; for (const n of nodes) byId[n.id] = n;
   let added = 0, moved = 0;
   const sample = () => {
@@ -638,7 +638,7 @@ function gpClearWay(nodes, ids, parked, need) {
     }
     if (j >= 0) { const n = byId[ids[j]]; n.x = +(n.x + dir[0] * push).toFixed(3); n.z = +(n.z + dir[1] * push).toFixed(3); n.clear = w.p.id || true; moved++; }
     else {
-      const id = 'k' + added++;
+      const id = (pre || 'k') + added++;
       const n = { id, x: +(w.x + dir[0] * push).toFixed(3), z: +(w.z + dir[1] * push).toFixed(3), kind: 'taxi', r: GP_FILLET, clear: w.p.id || true };
       nodes.push(n); byId[id] = n; ids.splice(kB + 1, 0, id);
     }
@@ -756,6 +756,20 @@ function sitePattern(aero, site, opts) {
       e1 = [R.cx + d[0] * al1, R.cz + d[1] * al1];
     }
     const c1 = add('c1', at(e1[0], e1[1], n, laneSg * lane), 'taxi', { r: GP_FILLET });
+    // ...round the parked aeroplanes too (G710's bend, on this way: the stand and the lane point never move);
+    // the pattern reports the worse of the two ways
+    if (site.taxiOut1 && site.taxiOut1.length && site.parked && site.parked.length) {
+      const half = (opts && opts.half > 0) ? opts.half : GP_HALF_DEFAULT;
+      const way1 = [st].concat(ids1, [c1]);
+      const c1r = gpClearWay(nodes, way1, site.parked, half + GP_CLEAR, 'j');
+      const fresh = way1.slice(1, -1).filter(id => ids1.indexOf(id) < 0);
+      ids1 = way1.slice(1, -1);
+      prev1 = ids1.length ? ids1[ids1.length - 1] : st;
+      for (const id of fresh) { const k = ids1.indexOf(id); link(k > 0 ? ids1[k - 1] : st, id); }
+      if (!clearance || (clearance.ok && !c1r.ok) || (!c1r.ok && c1r.worst && clearance.worst && c1r.worst.d < clearance.worst.d))
+        clearance = Object.assign({}, c1r, { added: c1r.added + (clearance ? clearance.added : 0), moved: c1r.moved + (clearance ? clearance.moved : 0) });
+      else clearance = Object.assign({}, clearance, { added: clearance.added + c1r.added, moved: clearance.moved + c1r.moved });
+    }
     link(prev1, c1); link(c1, 'l1a');
     routes.out[1] = [st].concat(ids1, [c1]).concat(routes.back[1]);
   } else if (aero.spawn) {
