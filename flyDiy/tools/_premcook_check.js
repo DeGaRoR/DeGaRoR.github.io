@@ -74,15 +74,18 @@ console.log('3. the raster, loaded');
 const fixture = fs.readFileSync(K.fixturePath(ID), 'utf8');
 const recOf = drop => { let r = PG.unwrap(fixture).rec; if (drop.length) r = PG.dropPlaces(r, drop).rec; return r; };
 const build = r => (GENS[r.gen] ? GENS[r.gen].build(r.P, 0) : null);
-function cookWorld() {
+// G995: made with THE VARIANT'S OWN RECORD, as the page's is (app.js makeWorld(0, { premises: premisesPlaced, island })):
+// a world made with PG.DEF() has another base ground under 32 of the 92 cells, and a gate composing there passed a
+// cook the page refused (its signatures) - the page baked those cells lazily
+function cookWorld(rec) {
   const boot = IN.islandBoot(ID, { noCook: true });
   boot.premCook = IN.premCook(ID);
-  return C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, PG.DEF()) });   // made with premises, as the page's
+  return C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, rec), catalogue: CAT });
 }
 const VD = K.VARIANTS[0], rec0 = recOf(VD.drop);
-const WC = cookWorld();
+const WC = cookWorld(rec0);
 let tq = Date.now(); const OC = WC.premises.set(rec0, { catalogue: CAT, globals: GENS, build, pool: [], raster: true }); const tCook = Date.now() - tq;
-const WL = K.islandWorld(ID);
+const WL = K.islandWorld(ID, VD);
 tq = Date.now(); const OL = WL.premises.set(rec0, { catalogue: CAT, globals: GENS, build, pool: [], raster: true }); const tLazy = Date.now() - tq;
 console.log('     compose + load: ' + tCook + ' ms with the cook, ' + tLazy + ' ms without (the difference: the cells\' signatures and indexes)');
 const mine = ISL.raster.cells.filter(c => c.in.indexOf(VD.name) >= 0);
@@ -127,10 +130,10 @@ console.log('4. a stale cook is detected');
   const M = r1.layers.terrain.find(m => m.kind === 'flatten' && m.poly && cooked.has(cellOfLocal(m.poly[0][0], m.poly[0][1]).join(',')));
   if (ok(!!M, 'a flatten under a cooked cell (' + (M ? M.id : '-') + ')')) {
     M.level = (+M.level || 0) + 0.01;
-    const W1 = cookWorld(), O1 = W1.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });
+    const W1 = cookWorld(rec0), O1 = W1.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });
     const r = O1.rasterCooked || { taken: 0, stale: 0 };
     ok(r.taken > 0 && r.taken < mine.length && r.stale > ISL.raster.cells.length - mine.length, 'the edited cells are refused, the rest load (' + r.taken + ' taken, ' + r.stale + ' refused)');
-    const boot = IN.islandBoot(ID, { noCook: true }), WLz = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, PG.DEF()) });
+    const boot = IN.islandBoot(ID, { noCook: true }), WLz = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, rec0), catalogue: CAT });
     WLz.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });
     const b = M.poly.reduce((a, p) => [Math.min(a[0], p[0]), Math.min(a[1], p[1]), Math.max(a[2], p[0]), Math.max(a[3], p[1])], [1e9, 1e9, -1e9, -1e9]);
     let diff = 0, n = 0;

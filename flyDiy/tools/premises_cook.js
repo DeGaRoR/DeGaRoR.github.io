@@ -86,20 +86,34 @@ function headless() {
 // signature missed the page's). The variants are composed onto it below the way the page's premises host does -
 // world.premises.set(rec, { build, pool }) with the generators as the globals. The boot is read WITHOUT its cook:
 // what is cooked must not be read off an earlier cook.
+// G995 (A5-LOAD): ...AND MADE WITH THE VARIANT'S OWN RECORD, as the page's is (app.js premisesPlaced: the fixture,
+// Metlakatla cut unless the town is on). A world made with PG.DEF() stands the analytic HOME alone; the page's stands
+// the premises' strips (HOME among them), and the island's base ground under 32 of the 92 default cells differed (to
+// 0.30 m at their corners) - their signatures refused the cook in the page, which baked them lazily: the 1.6-2.4 s
+// raster slices of the roll-out's world step, and 0.2-0.3 s of makeWorld inside the boot's script task. One world per
+// (island, variant, fixture); islandWorld(id) with no variant keeps the old DEF world (the gate's own probes).
 const WORLDS = new Map();
-function islandWorld(id) {
-  if (WORLDS.has(id)) return WORLDS.get(id);
-  const { C, IN, PG } = headless();
+function islandWorld(id, variant, fixtureText) {
+  const { C, IN, PG, CAT } = headless();
+  let prem = PG.envelope(null, PG.DEF()), key = id;
+  if (variant) {
+    const txt = fixtureText !== undefined ? fixtureText : fs.readFileSync(fixturePath(id), 'utf8');
+    let rec = PG.unwrap(txt).rec;
+    if (variant.drop.length) rec = PG.dropPlaces(rec, variant.drop).rec;
+    prem = PG.envelope(null, rec);
+    key = id + '|' + variant.name + '|' + crypto.createHash('sha256').update(txt).digest('hex');
+  }
+  if (WORLDS.has(key)) return WORLDS.get(key);
   const boot = IN.islandBoot(id, { noCook: true });
   if (!boot) throw new Error('premises_cook: no island "' + id + '" in src/core/world_packs.json');
-  const W = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, PG.DEF()) });
-  WORLDS.set(id, W);
+  const W = C.makeWorld(0, Object.assign({ island: C.ISLAND_GEN.makeIsland(boot), premises: prem }, variant ? { catalogue: CAT } : {}));
+  WORLDS.set(key, W);
   return W;
 }
 function fixturePath(id) { return path.join(TOOLS, 'fixtures', 'island_' + id + '.json'); }
 function composeVariant(id, variant, fixtureText) {
   const { PG, GENS, CAT } = headless();
-  const W = islandWorld(id);
+  const W = islandWorld(id, variant, fixtureText);
   let rec = PG.unwrap(fixtureText !== undefined ? fixtureText : fs.readFileSync(fixturePath(id), 'utf8')).rec;
   if (variant.drop.length) rec = PG.dropPlaces(rec, variant.drop).rec;
   const O = W.premises.set(rec, { catalogue: CAT, globals: GENS, build: r => (GENS[r.gen] ? GENS[r.gen].build(r.P, 0) : null), pool: [], raster: true });
