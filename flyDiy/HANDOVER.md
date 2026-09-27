@@ -510,6 +510,11 @@ gate and the game fly one condition and not two.
   into the filters' memory (bumpless). Measure a lateral change with
   GATE PILOTACT (control reversals per minute per phase) as well as the
   matrix: the circuit gates never saw a rudder beating stop to stop.
+- **G710: the plan is PUBLISHED, and the ground's way round a parked aeroplane is the PLACE's.** Anything
+  that shows what the pilot intends (the map, the plan line, the 3-D legs) reads `ap.intent` and the legs'
+  `hPlan` - it never re-derives a target the law did not ask (GATE PLAN holds intent.h to afcs.sel.alt).
+  A taxi route that must avoid something is bent where the site's pattern is built (gpClearWay, for the
+  aeroplane's own span), never by a steering patch in TAXI (GATE TAXICLEAR).
 - **G630: on the wheels the rate term is the enemy.** The nosewheel / tailwheel
   steers the heading kinematically at taxi speed; the rate term only fed the
   tyres' and springs' 2.5-4 Hz yaw mode (freeze test: rudder held at 0, the
@@ -60403,3 +60408,101 @@ core diff is standFor's optional third argument and the new seatOnGround, on non
 master 3da1c82 per G690 - it went red inside batch A, not here.)
 FOR THE INTEGRATOR: app.js edits are local (applyRoute's stand, flDbg/hudAgl, rollOut's first line, bGo's fly-on
 branch, nextLeg, hud's IAS line, FLIGHT_PROBE.agl). The pref key moved to flydiy.day.v3.
+
+## G710 - THE PLAN, SHOWN: the waypoints and their heights on the map, the plan line, the route before the roll-out, the way out round the parked aeroplanes (2026-09-27, the Jolene playtest, batch B3b)
+
+The user, on the Jolene playtest: "it's unclear to what altitude the autopilot intends to go. There are also no
+waypoints on the map, so it is very unclear what the autopilot intends to do. I think we need to see the waypoints and
+their target altitude, and maybe the vertical speed limits." / "There should be a way to select the circuit either
+from the garage, or straight at roll out." / "The autopilot gets a collision with the wing of the cub when getting out
+of the hangar." (PLAYTEST-2026-09-26.md §1.4, §1.5.)
+
+**THE PLAN, PUBLISHED (43_pilot.js `ap.intent`).** One object, mutated at the end of every update (no garbage at 60 Hz):
+the phase and the leg the step FLEW (a step that moves on publishes the old one - the target and the leg agree), `to` /
+`x` / `z` (the point flown to: the leg's end, 'AIM' on final, 'HOLD' / 'TAXI POINT' on the ground, the CROSSWIND TURN
+or CRUISE HEIGHT in the climb-out, which has a height and no point), `h` (MSL: what the TECS law was asked - the legs'
+hTgt, the slope or the latched level on final, the turn height in the climb and the go-around), `hField` (over altRef)
+and `hGround` (over the ground under the point), `vs`, `vsCmd` and the limits the law clamped it to (`vsUp` / `vsDn`,
+now in tecsDbg; the sheet's climbMax / idle sink otherwise), `path` (the filleted air path, airPath - private until now)
+with `pathI`, and `taxi` (ap.path). EACH LEG'S HEIGHT AS IT WILL BE FLOWN is planned when the legs are (planLegH, from
+startLegs and when the climb-out hold re-anchors the enroute leg): legAlt's rule over the whole leg - the datum height,
+raised to max(2 hSafe, 40) m over the highest ground from A to B + 1.5 km (the union of every look-ahead the pilot will
+take along it, every 150 m) - as `hPlan` at B, `hPlanA` at A; an enroute leg's `hCruiseLeg` (the departure's cruise or
+hClear over the terrain) down to the circuit height at its end; the FINAL from the slope's height at its start (never
+above the leg before) to the ground at the aim; `gB` the ground under B. Nothing else in the pilot reads them.
+
+**THE MAP (app.js drawPlanOnMap, called by drawMap after the aerodromes - its own function because GATE
+ANIMALS reads drawMap's first 12 000 characters).** What the pilot published, nothing re-derived: the air path (flown part faint, the active
+leg from the aeroplane to the path sample nearest its waypoint bright, the rest amber; the legs' straight lines when no
+path is published - on final), a dot at each leg's end, the active one ringed, labelled `DOWNWIND 187 m (187 agl)` -
+the live target for the active one, the plan for the others; the labels through G498's ledger, the active first, the
+others once the map is big or nose-up (a circuit is ~40 px on the 24 km map); on the ground the taxi route to the hold.
+Nothing while the hand flies (the AP box on still shows it). **THE PLAN LINE** (#phPlan, under the rail, the ink not the
+faint, hidden on the small PFD like #phNext): `to downwind 1.2 km · target 187 m (187 agl) · level` / `to crosswind turn
+· target 76 m (76 over the field) · climbing +3.2 m/s (limit +3.4)` / `descending −1.2 m/s (limit −3.0)` on final.
+**THE 3-D LEGS** (pattern_vis.js setLegs) are drawn at hPlanA -> hPlan (the enroute leg as cruise, the 5 % descent from
+800 m out, level to the entry), not altRef + h: the FINAL started at the datum itself before. A leg without a plan (an
+older pilot) keeps the old line.
+
+**THE ROUTE BEFORE THE FLIGHT.** #selFrom / #selDest live in #flStore and are borrowed by the plate's `route` flyout -
+reachable only once flying. Two more pickers show the same fromId / destId: #edRoute beside ROLL OUT in the shed (it
+sets the route the roll-out applies: rollOut -> fullReset -> applyRoute), #bootRoute on the roll-out screen (shown by
+rollOutScreen, hidden by its done and by rollInScreen; under the screen nothing has stepped (G690), so a change calls
+fullReset there and then - the stand, the pilot and the taxi are re-planned before the reveal). Every change, the
+flight's two included (addEventListener beside their untouched handlers), is remembered: `flydiy.route` {from, dest},
+read where fromId is declared and checked against the world's options where the selects are filled (an unknown id
+falls back to HOME / the circuit). A DEPARTURE changed under the screen takes the new stand; the town and trees the
+screen built round the old one stay, the new one's stream in flight as any spawn's (the ring step may already be done).
+The pickers keep their own list (no dataset / setAttribute: UISMOKE's DOM shim has neither).
+
+**THE WAY OUT ROUND THE PARKED AEROPLANES (A3-PILOT's stretch (b)).** MEASURED FIRST (a per-step probe: the wing =
+the CG +- the half-span along the right axis, against each parked aeroplane's plan-view box): the stock build flown off
+Jolene's HOME stand put its wingtip 0.76 m INSIDE the Cub o1's footprint at (-140.7, 672.0) in TAXI - the straight
+line stand (-154, 712) -> taxiOut[0] (-135, 655) passes 9.5 m from the Cub's centre, its wing reaches 5.35 m, ours 5.0.
+Per the G193 ruling ("every obstacle on the ground belongs to the PLACE, and so does the way round it") the fix is in
+the site's pattern, not the TAXI steer: 27_premises gives the composed runway's site `parked` (every aircraft object
+within 400 m of its way, in the world: x, z, ry = yaw + the frame's, key); 25_airfield sitePattern(aero, site, { half })
+bends the declared way out (stand, taxi points, entry) with gpClearWay: the route is sampled as the pilot's path is
+(patternPath, fillets and all) and while a sample comes within half + GP_CLEAR (1.5 m) of a footprint, a declared point
+within 6 m of it moves out, else a corner 'k<n>' (the site's 12 m fillet) goes in at the sample, pushed out by the
+shortfall + 0.5 m; the stand and the entry never move; 24 rounds, the result as `pattern.clearance` and a
+sitePatternIssues complaint when it cannot be done. FOOTPRINTS: GP_PARKED_FOOT per archetype ([half-span, nose +
+propeller ahead of the mount, tail behind it] - designBake's own nodes rounded up; the parked origin is the engine mount,
+parked.js), GP_PARKED_DEFAULT [6.0, 1.6, 6.6] for 'stock:' / 'mine:' keys. The core plans from these; the browser's
+obstacle registry holds the meshes but TAXI still reads nothing (a route the place declares is the one flown). The
+pilot's patOf and the app's pattern overlay pass the aeroplane's own half-span (GP_HALF_DEFAULT 6.0 for every other
+caller). A site with no parked aeroplane builds its pattern exactly as before (every other island stand, HOME in the
+analytic world). Jolene HOME now: one corner k0 at (-137.7, 674.3) for the C172's span (and tx0 nudged 0.7 m for a
+12 m one). FLOWN AFTER: stock 1.09 m, aluminium C172 (bugReports/cessnaMetal (1).json = tools/fixtures/build_v10_
+cessnaMetal_2026-09-26.json) 0.91 m from the Cub's footprint (the planned 1.5 m less the taxi's ~0.5 m of tracking).
+
+**GATES.** TAXICLEAR (core, ~30 s): the footprint table against all 27 archetypes' nodes; every Jolene parked aeroplane
+known and on its site; every Jolene stand's out[0] / out[1] for the stock and the C172 spans clear by half + 1.5 m and
+sitePatternIssues empty; CALIBRATION - the same HOME site with `parked` withheld plans the old way, 3.97 m from the Cub
+(6.5 / 7.0 needed); both builds flown off HOME's stand to 30 m past the farthest parked aeroplane, the wing never within
+0.5 m. PLAN (core, ~7 min): the stock HOME circuit and the aluminium C172's Jolene circuit, every step: intent.to / x /
+z the active leg's end, intent.h === afcs.sel.alt (0 of 8673 / 6956 leg steps differ), the path published, vsCmd
+inside the published limits (0 of 17175 / 13536), every leg planned, never flown 15 m over its plan, the settled
+downwind 0.3 / 0.5 m off its planned height, FINAL at the aim, both to a stop.
+THE PILOT IS UNCHANGED WHERE NO AEROPLANE IS PARKED: pilot_trace with --core on the pre-G710 and the G710 flight_core,
+summary JSON identical (wall aside) for c172 --stand, stock --stand, the aluminium C172 --stand, the cub's HOME
+circuit and the stearman to A3 - the analytic world has no parked aeroplane, so its patterns and every flight in it
+are unchanged; the intent is written, never read, by the law.
+
+- Gates (a worktree at the branch rebased on claude/batch-a-base c3c1feb; rebased again on bd234d3 before the push -
+  its three commits are a study, QUEUE-C and tools/asset_census.js, nothing a gate runs): `node tools/run_gates.js` CORE BATTERY
+  PASS, 104 gates (TAXICLEAR 38 s and PLAN 446 s new; PILOTACT, PILOT, TAKEOFF, UISMOKE, ANIMALS green). The first run
+  had ANIMALS red - the plan block inlined in drawMap pushed its hotspot code past the gate's 12 000-character window;
+  moved to drawPlanOnMap. Full tier
+  (--only, same worktree): HOTHIGH PASS; ARCHETYPES, PILOTMATRIX, SEAPLANE, SOAR FAIL - PRE-EXISTING, measured on
+  claude/batch-a-base c3c1feb in a clean worktree on this box: PILOTMATRIX "10 regressed against pilot_baseline.json;
+  4 known bad, 8 warn" with all 14 rows number-identical (the wall column aside), SOAR "climbs 0.21 m/s (the air under
+  it averaging 2.09)" on both; ARCHETYPES (Caravan / Tiger Moth / Beaver / Motorglider / Twin bush hauler give up) and
+  SEAPLANE (44.3 m off the lane, 180 deg) are G690's list. (G690 read SOAR PASS on its box; it is red on the base here.)
+- NOT SEEN IN A BROWSER HERE: the map layer and the plan line were exercised by UISMOKE's shim and their data by GATE
+  PLAN, but a SwiftShader Chromium in this container took minutes a frame at the stand and never reached the legs;
+  the pickers were seen filled (#edRoute's options) and #bootRoute shown under the roll-out screen. A look on a real
+  box is owed: the labels' placement at 344 px and the plan line's width on the plate.
+- Not done: the circuit's legs are planned at the crosswind turn (planFromHere), so on the ground and in the climb-out
+  the map shows the taxi route and the plan line the turn height - no preview of the circuit yet (planArrival has side
+  effects; a pure preview is the next step). A change of route in flight still restarts the flight (B3a owns "Fly on").
