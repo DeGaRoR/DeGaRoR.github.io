@@ -10506,9 +10506,14 @@
           }
         } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
         if (i < reps.length) { setTimeout(tick, 0); return; }
-        // the link: compileAsync's own poll (a program three made for a material is its currentProgram)
+        // the link: compileAsync's own poll - over EVERY program of the material (G992: compileAsync reads only its
+        // currentProgram, the last one keyed; a material met as two object kinds, or lit and fogless, has one program
+        // per key, and the ones still linking made the settings screen's first frame wait 1.1 s in getProgramInfoLog)
+        const ready = p => !p || !p.isReady || p.isReady();
         const poll = () => {
-          for (const m of mats) { const p = renderer.properties.get(m).currentProgram; if (!p || !p.isReady || p.isReady()) mats.delete(m); }
+          for (const m of mats) { const pr = renderer.properties.get(m); let ok = ready(pr.currentProgram);
+            if (ok && pr.programs) for (const p of pr.programs.values()) if (!ready(p)) { ok = false; break; }
+            if (ok) mats.delete(m); }
           if (!mats.size) res(sc); else setTimeout(poll, 10);
         };
         poll();

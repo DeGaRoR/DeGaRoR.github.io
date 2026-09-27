@@ -137,9 +137,10 @@ function preScript() {
     lines.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(txt) + ')}catch(e){}');
   } else lines.push(require('./_stock_pin.js').pinScript());
   lines.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
-  // G991: and the route (G710 remembers it, flydiy.route): a peer's run left a departure elsewhere in the shared warm
-  // profile and the "taxi" was a take-off roll from another strip, a different frame to measure
-  lines.push('try{localStorage.removeItem("flydiy.route")}catch(e){}');
+  // G991: and the flight's own prefs - the route (G710, flydiy.route), the flight panel's (flydiy.fl*: manual, the start,
+  // the pilot's rows) and the world: peers' sessions in the shared warm profile left a departure from another strip (the
+  // "taxi" a take-off roll there) and an aeroplane that never left the stand (DEPART, 150 s) - different frames to measure
+  lines.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
   // G790: the route and who flies, stated every run (a warm profile keeps both from the last one)
   lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ from: FROM, dest: DEST })) + ');localStorage.setItem("flydiy.flManual","' + (AFLOAT > 0 ? '1' : '0') + '")}catch(e){}');
   if (VARIANT === 'nomet') {
@@ -421,6 +422,13 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
       const lt = JSON.parse(await ev('JSON.stringify(__RP.lt)', 30000)).filter(x => x[0] >= t0 - 5 && x[0] <= t1);
       const worst = lt.reduce((m, x) => Math.max(m, x[1]), 0);
       const run = { change: k + '=' + v, clickMs: Math.round(tClick - t0), screen: shown, spanMs: Math.round(t1 - t0 - 2000), worst, over1s: lt.filter(x => x[1] > 1000).length, over200: lt.filter(x => x[1] > 200).map(x => x[1]) };
+      // G992: the shader links of the change (the flight recorder's events): made in the window, made inside the worst
+      // task (a program first keyed by the frame), and the task's waits on a link (linkwait: a program made before, still linking)
+      { const wt = lt.reduce((m, x) => (!m || x[1] > m[1] ? x : m), null);
+        run.links = JSON.parse(await ev('(() => { const E = (window.FLIGHT_REC && FLIGHT_REC.rec && FLIGHT_REC.rec.events) || []; const a = ' + t0 + ', b = ' + t1 + ', w0 = ' + (wt ? wt[0] : -1) + ', w1 = ' + (wt ? wt[0] + wt[1] : -1) + ';'
+          + " let n = 0, inW = 0, waitN = 0, waitMs = 0; for (const e of E) { if (e[0] < a || e[0] > b) continue; if (e[1] === 'link') { n++; if (e[0] >= w0 && e[0] <= w1) inW++; } if (e[1] === 'linkwait' && e[0] >= w0 && e[0] <= w1) { waitN++; waitMs += e[2] || 0; } }"
+          + ' return JSON.stringify({ n, inWorst: inW, waitsInWorst: waitN, waitMsInWorst: Math.round(waitMs) }); })()', 30000).catch(() => 'null'));
+        if (run.links) console.log('    links: ' + run.links.n + ' made, ' + run.links.inWorst + ' inside the worst task, ' + run.links.waitsInWorst + ' waits there (' + run.links.waitMsInWorst + ' ms)'); }
       if (PROFILE_SET) { const pr = (await cmd('Profiler.stop')).result.profile; run.profile = profileTask(pr, OUT.replace(/\.json$/, '_set_' + k + '_' + v + '.cpuprofile'), pT0, lt.reduce((m, x) => (!m || x[1] > m[1] ? x : m), null)); }
       settingsRuns.push(run);
       console.log('  SETTINGS ' + run.change.padEnd(16) + ' click task ' + run.clickMs + ' ms · ' + (shown ? 'screen' : 'no screen') + ' · settled in ' + (run.spanMs / 1000).toFixed(1) + ' s · worst task ' + worst + ' ms · >1 s: ' + run.over1s + (run.over200.length ? ' · >200 ms: ' + run.over200.join(' ') : ''));
