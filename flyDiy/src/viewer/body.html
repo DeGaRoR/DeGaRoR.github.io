@@ -20,6 +20,9 @@
     <div id="bootWhy"></div>
     <div id="bootMeter"><div id="bootBar" class="idle"><i></i></div><span id="bootPct"></span></div>
     <div id="bootTick"></div>
+    <!-- G710: THE ROUTE AT ROLL-OUT - from / to, filled and driven by app.js (never boot.js), shown only
+         under the roll-out screen: nothing flies until it lifts, so a change re-plans the stand there -->
+    <div id="bootRoute" class="routePick" hidden></div>
     <!-- THE SHADERS' BLOCK (G567): a COLD compile - the first launch, the first after an update, a
          cleared browser cache - is the graphics driver's work, the one long wait the game cannot
          shorten. boot.js's BOOT.shaders(done, total, warm) shows it, counts, and hides it. -->
@@ -215,6 +218,9 @@
              as long as it is on, and says so there. -->
         <button id="pfdFold" type="button" title="Smaller">&#9662;</button>
       </div>
+      <!-- G710: THE PLAN LINE - where the pilot is flying to, the height it asks there, the vertical
+           speed against its limit (app.js railPlan, off ap.intent) -->
+      <i id="phPlan"></i>
     </div>
   </div>
 
@@ -563,6 +569,8 @@
        your aeroplane, and building it wrong and learning why is content, not
        error; it changes its WORDS, not its state. -->
   <div id="edActs">
+    <!-- G710: WHERE THE ROLL-OUT GOES - from / to (the circuit, or a strip), remembered; app.js fills it -->
+    <div id="edRoute" class="routePick"></div>
     <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
   </div>
 

@@ -263,6 +263,12 @@ function buildPatternVis(THREE, pattern, groundY, core) {
     }
   };
   // ---- THE PILOT'S LEGS (G202): the circuit as planned, a line in the air
+  // G710: AT THE HEIGHT IT WILL BE FLOWN. It drew altRef + h, the leg's height over the departure's
+  // datum - under the pilot's own terrain floor wherever the ground rises (legAlt: 2 hSafe over the
+  // ground a 1.5 km look-ahead sees), and the FINAL from the datum itself. The pilot now plans each
+  // leg's height when it plans the legs (43_pilot.js planLegH: hPlanA at A, hPlan at B, MSL; an
+  // enroute leg's cruise hCruiseLeg, down to the circuit height from 800 m + 5 % out, as ENROUTE flies
+  // it); a leg without them (an older pilot) keeps the old line
   let legsObj = null;
   const setLegs = (legs, altRef) => {
     if (legsObj) { layers.legs.remove(legsObj); if (legsObj.geometry) legsObj.geometry.dispose(); legsObj = null; }
@@ -270,8 +276,21 @@ function buildPatternVis(THREE, pattern, groundY, core) {
     const pos = [];
     for (const L of legs) {
       if (!L.A || !L.B) continue;
-      const hA = altRef + (L.h != null ? L.h : 0), hB = L.name === 'FINAL' ? gy(L.B[0], L.B[1]) + 2 : hA;
-      pos.push(L.A[0], hA, L.A[1], L.B[0], hB, L.B[1]);
+      if (L.hPlan == null) {
+        const hA = altRef + (L.h != null ? L.h : 0), hB = L.name === 'FINAL' ? gy(L.B[0], L.B[1]) + 2 : hA;
+        pos.push(L.A[0], hA, L.A[1], L.B[0], hB, L.B[1]);
+        continue;
+      }
+      const hA = L.hPlanA != null ? L.hPlanA : L.hPlan, hB = L.name === 'FINAL' ? L.hPlan + 2 : L.hPlan;
+      const dx = L.B[0] - L.A[0], dz = L.B[1] - L.A[1], len = Math.hypot(dx, dz) || 1e-9;
+      if (L.enroute && L.hCruiseLeg != null && L.hCruiseLeg > hB + 1) {
+        // the cruise, the 5 % descent that meets the circuit height 800 m before the entry, the level to it
+        const at = dRem => { const f = Math.max(0, Math.min(1, 1 - dRem / len)); return [L.A[0] + dx * f, L.A[1] + dz * f]; };
+        const K = at(800 + (L.hCruiseLeg - hB) / 0.05), M = at(800);
+        pos.push(L.A[0], L.hCruiseLeg, L.A[1], K[0], L.hCruiseLeg, K[1],
+                 K[0], L.hCruiseLeg, K[1], M[0], hB, M[1],
+                 M[0], hB, M[1], L.B[0], hB, L.B[1]);
+      } else pos.push(L.A[0], hA, L.A[1], L.B[0], hB, L.B[1]);
     }
     if (!pos.length) return;
     const g = new THREE.BufferGeometry();
