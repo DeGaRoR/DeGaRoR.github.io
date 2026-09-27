@@ -60506,3 +60506,69 @@ are unchanged; the intent is written, never read, by the law.
 - Not done: the circuit's legs are planned at the crosswind turn (planFromHere), so on the ground and in the climb-out
   the map shows the taxi route and the plan line the turn height - no preview of the circuit yet (planArrival has side
   effects; a pure preview is the next step). A change of route in flight still restarts the flight (B3a owns "Fly on").
+## G810 - THE PHYSICS WORKER: THE HOST, THE VIEW, AND GATE SIMWORKER (2026-09-27, C1a of QUEUE-C, cloud, node only)
+
+ARCH-2026-09-27 §2.5 step 1: the worker side of "physics in a Web Worker", no app.js change (that is C1b, behind
+`?simw=1`). Nothing in src/core changed. Three new files, two lines of registry:
+- `src/viewer/sim_host.js` - the worker's BODY, loaded the way bench_worker.js is (a Blob that `importScripts` this
+  file and `tools/flight_core.js` by URL next to the page, `?v=` FLYDIY_BUILD / FLYDIY_CORE_SHA; `SIM_HOST.start()`
+  returns null where there is no Worker or on file://, and the page keeps its inline loop). `makeSimHost(CORE, init)`
+  is thread-agnostic: the world on a TRIMMED boot (`SIM_HOST_KEYS`: the height tree + cover, canopy, coast, lake,
+  ttype, the lake records - canopy is NOT optional, effClass reads it for the surface and the collidable woodland;
+  no albedo / tint / ori1 / ndvi / far tree: 79.0 MiB decoded of Jolene's 180.9) + the premises; the build, app.js
+  applyRoute's placement and mkPilot; ONE STEP = the commands due at this step index, script()'s non-UI half (the
+  hold's brake, the hand under MANUAL - INP.write's door - or ap.update), `sim.step(1/60)`, then `world.dayTick` on
+  the sim's clock (the day's physics half lives with the solver; the sky will read snapshot t). `simHostBody` owns
+  the clock (sim time vs `performance.timeOrigin + now()`, one step at a time, at most 4 owed a turn, the excess let
+  go and reported as G612's dilation / droppedS) or LOCKSTEP (`{cmd:'steps', n}`), and publishes a Float64Array
+  snapshot in a transferred ArrayBuffer (`SIM_SNAP`: a 26-slot head - step, t, wall, stepMs, dilation, world
+  version, flags, cg, cgVel, totalM, wheels, smax, late, allocations, rate, epoch - then p, optionally v, the fuel
+  nodes' masses: 2.4 KB stock / 2.6 KB metal without v) + a structured-clone meta (out, eng, fuel, hydro, wheels,
+  ctl, the pilot's fields; legs / path / plan / site / taxiOut only when they change): 3.7 KB, 0.04 ms to build.
+  Buffers come back (`release`); a pool of 3, allocations counted in the head. Commands carry `k`, the step they
+  apply before; a late or unstamped one applies at the next boundary; EVERY application is logged with its actual
+  step (`{cmd:'log'}`) - the replay point of ARCH §2.4. `simHostFetchBoot` fetches the trimmed boot the page's way
+  (world_packs.json, one gzip stream per payload through DecompressionStream, the same URLs so the page's cache
+  serves them).
+- `src/viewer/sim_view.js` - `makeSimView(def, { ready, post })`: the `sim` surface the viewer reads today (p, ctl,
+  cgPos, cgVel, axes, bodyOrigin, totalM, t, n, beams, out, eng, fuel, hydro, wheelsOnGround, wheelContacts, stats,
+  setEngine, impulse, reset, stance, starterOk) from the snapshots: p float64, interpolated between the two newest
+  at T - 1 step (`frame(T)` once a rendered frame), cgPos / axes / bodyOrigin the solver's own sums on it (bit-exact
+  at the newest snapshot). Writes are commands: the six scalar levers of `ctl` are accessors that queue a `ctl`
+  command, `ctl.eng` is diffed at `flush()`, `setEngine` carries the page's starterOk (the bus) evaluated when the
+  key turns, `hand(h)` is the manual hand, `at(k)` stamps; `step()` does nothing and is counted (`strays`: a hidden
+  sim writer, ARCH §2.6). `mismatch` when the host's def signature is not the page's (a stale cached core).
+- `tools/_simworker_check.js` = GATE SIMWORKER (core, ~50 s; ~70 s with --selftest). THE PAGE is this process set
+  up as physics_perf.js sets it (the core's globals, the cage's scripts, the WHOLE boot) flying app.js's lines; THE
+  HOST is sim_host.js in a worker_threads Worker holding the core only and the trimmed boot, driven through
+  sim_view.js. (1) the Blob's source run in a worker-like vm global flies 120 analytic steps to the page's bits;
+  (2) LOCKSTEP on Jolene + premises, stock and the metal Cessna, 600 steps with a scripted list (a lever before
+  ROLL, ROLL, a knock under the tail, MANUAL with two hands, the hand back, the key off, a start on the bus, the day
+  at 600x with a diurnal swing, a brake): every step's FNV of p and v equal, and the view's p, cgPos, cgVel, totalM,
+  axes, bodyOrigin, wheels, smax, out, fuel, eng, levers and the pilot's phase / clock / status equal the page's at
+  the end; the interpolation checked; (3) REAL TIME 3.5 s on the host's clock against a 60 Hz loop busy 8 ms a
+  frame, the actions sent UNSTAMPED: the host's log replayed inline reproduces all ~209 published snapshots to the
+  bit; (4) the fetch path = island_node's bytes; (5) the manifest and index.html. Negative-verified (--selftest):
+  the impulse one step late (caught at 151), the day not ticked (501 - it took the diurnal swing: at rate 10 alone the
+  day moved nothing in 10 s and the gate could not see a missing tick), the step before the script (31).
+- MEASURED (this container, node 22, 4 cores, the host on its own thread): the round trip of a snapshot-sized
+  transferred buffer 0.044 ms p50 / 0.14 p99; a snapshot's one-way latency 4.2 ms p50 / 6.0 max with the render
+  loop busy 8 of each 16.7 ms (it waits for the loop to yield); the pose age at the render 16.7 ms p50 / 17.0 p90
+  (T - 1 step, as designed); the render thread's cost 0.054 ms a snapshot taken + 0.01-0.03 ms a frame; the host 210
+  steps in 3.5 s, 4.4-5.7 ms a stock step here, dilation 1.00, nothing dropped, 1 buffer allocated past the pool (0
+  after the first second). Host init on the trimmed boot 5.1-5.8 s (makeWorld is ~4 s of it, as on the page).
+- FOR C1b, found here: (a) 27_premises.js `stampTtype` WRITES the premises' codes into the island's `ttype` (and
+  `cover`) grids in place when the world is made - never post `window.ISLAND_BOOT` to the worker after the page's
+  makeWorld (it would stamp twice); fetch (`{world: {fetch: {base, name}}}`) or hand over a boot no world was made
+  on. (b) a premises world writes the process-global AIRFIELD_SITES (20_world.js:481): one worker per world - a new
+  map is a new worker, not a re-init. (c) the day ticks per STEP in the host (the page ticks per frame today). (d)
+  still on main and reading the page's sim: manualEnding (it writes ap.phase STOPPED / tdInfo - it belongs in the
+  worker, C1c), record(), the G130 watchdog / endFlight (main reads ap.report from the snapshot and sends `pause`),
+  the obstacles the viewer registers (render_premises hitAdd, the hangar, the parked aircraft).
+- GATES (`node tools/run_gates.js --all`, this branch on 4f685458): 114 of 118 rows PASS, SIMWORKER among them (61 s).
+  RED, exactly the four full-tier reds already on master and not this change's (the built core and src/core are
+  byte-identical to the base; none of the four loads a viewer file): SEAPLANE (3: off the water, the lane, the
+  heading), PILOTMATRIX (10 regressed), SOAR (2: the thermal climb), ARCHETYPES (shards 0/2/4/4 = 10 checks, five
+  archetypes that gave up the circuit: Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler - the
+  queue listed "ARCHETYPES(4)"; HANDOVER G600 already calls it flaky). Built outputs rebuilt by the runner and
+  restored, not committed (a cloud branch).
