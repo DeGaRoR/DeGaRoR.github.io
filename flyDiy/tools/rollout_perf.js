@@ -20,7 +20,9 @@
 // slot, --gfx '{"shadows":"off"}' pre-sets graphics rows, --world none boots the analytic world.
 //
 // THE ROLLOUT TARGETS (batch A gate, futureDesigns/PLAYTEST-2026-09-26.md): after the reveal no
-// frame over 100 ms, never more than 3 s in a row below 30 fps, stand + taxi median >= 50 fps, and no
+// frame over 100 ms, never more than 3 s in a row below 30 fps, stand + taxi at 50 fps DELIVERED (G993: frames over
+// the wall time - standTaxiDeliveredFps, with the share of doubled intervals and p90/p99; the old median line stays
+// for comparison: a 45 fps frame alternating 16.7 / 33.3 ms read "59.9"), and no
 // main-thread task over 1 s anywhere (boot and roll-out included). Printed as PASS/FAIL lines, but
 // this is a MEASUREMENT (GPU + headed browser), not a battery gate.
 //
@@ -493,7 +495,11 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   for (const r of fr) r.ph = HYDRO && r[25] ? r[25] : phaseOf(r);
   const groups = {};
   for (const r of fr) (groups[r.ph] = groups[r.ph] || []).push(r);
-  const row = rs => { const dt = rs.map(r => r[1]); return { frames: rs.length, fpsMedian: +(1000 / med(dt)).toFixed(1), dtMedian: +med(dt).toFixed(1), dtP90: +pct(dt, 0.9).toFixed(1), dtMax: +Math.max(0, ...dt).toFixed(0),
+  // G993: THE DELIVERED RATE (frames over the wall time they took) and the share of DOUBLED intervals (over 1.5 refreshes of
+  // 60 Hz): the median interval read 16.7 ms ("59.9 fps") for a 45 fps frame whose intervals alternate 16.7 / 33.3 - it
+  // says only that more than half the frames were on time. R3 is judged on the delivered rate.
+  const row = rs => { const dt = rs.map(r => r[1]), wall = dt.reduce((a, b) => a + b, 0); return { frames: rs.length, fpsDelivered: +(wall > 0 ? 1000 * rs.length / wall : 0).toFixed(1), doubled: +(dt.filter(x => x > 25).length / Math.max(1, dt.length)).toFixed(3),
+    fpsMedian: +(1000 / med(dt)).toFixed(1), dtMedian: +med(dt).toFixed(1), dtP90: +pct(dt, 0.9).toFixed(1), dtP99: +pct(dt, 0.99).toFixed(1), dtMax: +Math.max(0, ...dt).toFixed(0),
     workMed: +med(rs.map(r => r[2])).toFixed(1), physMed: +med(rs.map(r => r[3])).toFixed(1), physP90: +pct(rs.map(r => r[3]), 0.9).toFixed(1), worldMed: +med(rs.map(r => r[5])).toFixed(1), worldP90: +pct(rs.map(r => r[5]), 0.9).toFixed(1),
     steps: +(rs.reduce((s, r) => s + r[4], 0) / Math.max(1, rs.length)).toFixed(2), msPerStep: +(rs.reduce((s, r) => s + r[3], 0) / Math.max(1, rs.reduce((s, r) => s + r[4], 0))).toFixed(2),
     secs: +(rs.reduce((s, r) => s + r[1], 0) / 1000).toFixed(1), mirrorMs: +(rs.reduce((s, r) => s + (r[20] || 0), 0) / Math.max(1, rs.length)).toFixed(2), mirrorPerS: +(rs.reduce((s, r) => s + (r[21] || 0), 0) / Math.max(1e-3, rs.reduce((s, r) => s + r[1], 0) / 1000)).toFixed(2),
@@ -508,16 +514,18 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const premEmptyAt = (() => { const r = fr.find(r => r[8] === 0); return r ? +((r[0] - revealAt) / 1000).toFixed(1) : null; })();
   const standTaxi = fr.filter(r => ['stand', 'taxi', 'to-afloat', 'to-displace', 'to-step'].includes(r.ph));
   const standTaxiFps = standTaxi.length ? 1000 / med(standTaxi.map(r => r[1])) : 0;
+  const standTaxiRow = standTaxi.length ? row(standTaxi) : { fpsDelivered: 0, doubled: 0, dtP90: 0, dtP99: 0 };
   const gates = {
     over100ms: { n: over100.length, worst: over100.length ? Math.max(...over100.map(r => r[1])) | 0 : 0, pass: over100.length === 0 },
     below30run: { sec: +(worstRun / 1000).toFixed(2), pass: worstRun <= 3000 },
     standTaxiMedianFps: { fps: +standTaxiFps.toFixed(1), pass: standTaxiFps >= 50 },
+    standTaxiDeliveredFps: { fps: standTaxiRow.fpsDelivered, doubled: standTaxiRow.doubled, dtP90: standTaxiRow.dtP90, dtP99: standTaxiRow.dtP99, pass: standTaxiRow.fpsDelivered >= 50 },   // G993: R3
     longTask1s: { n: lt1s.length, worst: lt.length ? lt[0][1] : 0, pass: lt1s.length === 0 },
   };
   console.log('  ---- ' + LABEL + ' · garage ' + tGarage.toFixed(1) + ' s · roll-out screen ' + tReveal.toFixed(1) + ' s · premises queue empty at +' + premEmptyAt + ' s');
   const ORDER = HYDRO ? ['to-afloat', 'to-displace', 'to-step', 'climb', 'circuit', 'flare', 'ldg-step', 'ldg-displace', 'ldg-afloat'] : ['stand', 'taxi', 'takeoff', 'air'];
   for (const k of ORDER) if (phases[k]) { const p = phases[k];
-    console.log(`  ${k.padEnd(HYDRO ? 12 : 8)} ${String(p.fpsMedian).padStart(5)} fps (dt med ${p.dtMedian} p90 ${p.dtP90} max ${p.dtMax}) · loop JS ${p.workMed} · solver ${p.physMed} (p90 ${p.physP90}; ${p.msPerStep} a step) · world ${p.worldMed} (p90 ${p.worldP90}) · render ${p.renderMed} (p90 ${p.renderP90}, shadow ${p.shadowMed}) · prem ${p.premStepMs}/fr · ${p.steps} steps/frame · at 30-cap ${Math.round(p.cap30 * 100)} % · ${p.frames} fr / ${p.secs} s`
+    console.log(`  ${k.padEnd(HYDRO ? 12 : 8)} ${String(p.fpsDelivered).padStart(5)} fps delivered, ${Math.round(p.doubled * 100)} % doubled (median ${p.fpsMedian}; dt med ${p.dtMedian} p90 ${p.dtP90} p99 ${p.dtP99} max ${p.dtMax}) · loop JS ${p.workMed} · solver ${p.physMed} (p90 ${p.physP90}; ${p.msPerStep} a step) · world ${p.worldMed} (p90 ${p.worldP90}) · render ${p.renderMed} (p90 ${p.renderP90}, shadow ${p.shadowMed}) · prem ${p.premStepMs}/fr · ${p.steps} steps/frame · at 30-cap ${Math.round(p.cap30 * 100)} % · ${p.frames} fr / ${p.secs} s`
       + (HYDRO ? ` · V ${p.vMed} · mirror ${p.mirrorMs}/fr (${p.mirrorPerS} captures/s) · field ${p.fieldMs}/fr` + (p.waterGpu != null ? ` · water GPU ${p.waterGpu}` : '') : '')); }
   if (HYDRO) { const seq = []; for (const r of fr) if (!seq.length || seq[seq.length - 1][0] !== r.ph) seq.push([r.ph, +((r[0] - revealAt) / 1000).toFixed(1), r[16]]);
     console.log('  water phases (label @ s after the reveal, the pilot phase): ' + seq.map(x => x[0] + '@' + x[1] + '(' + x[2] + ')').join(' '));
