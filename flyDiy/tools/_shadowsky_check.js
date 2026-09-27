@@ -69,6 +69,7 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
   // the atlas: two viewports side by side, viewport 0 the near casters (three's camera), viewport 1 the craft + the near casters
   const sh = L.shadow;
   ok(sh.getViewportCount() === 2 && sh.getFrameExtents().x === 2 && sh.getFrameExtents().y === 1 && sh.getViewport(1).x === 1, '2 G1005: the near map is a 2 x 1 atlas of two viewports');
+  craft.position.set(0, 15, 0); craft.updateMatrixWorld(true); SN.follow(L, [0, 15, 0], sun, 5, null, null);   // back at the stand (the loop ended 1500 m up)
   sh.updateMatrices(L);
   { const other = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial()); other.castShadow = true; other.position.set(500, 0, 0); scene.add(other);
     SN.setNear([]); const c0 = sh.getCamera(0), hid = !other.visible && craft.visible && L.visible; const c1 = sh.getCamera(1), back = other.visible;
@@ -76,6 +77,12 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
     ok(hid && back, '2 G1005: the craft cascade walks the craft alone - the rest of the scene hidden for viewport 0, back for viewport 1', `hidden ${hid} restored ${back}`);
     const cg = SN.C1.tgt; SN.setNear([[cg.x, cg.y, cg.z, 2]]); sh.getCamera(0); const kept = other.visible; sh.getCamera(1);
     ok(kept, '2 G1005: a near caster in the craft box (a hangar over the aeroplane) - the cascade walks everything');
+    { const far = SN.C1.tgt.clone().addScaledVector(sun, -150);   // 150 m down-sun of the craft, past its ground shadow: out of the window
+      SN.setNear([[far.x, far.y, far.z, 2]]); sh.getCamera(0); const hidFar = !other.visible; sh.getCamera(1);
+      ok(hidFar, '2 G1005: a near caster past the craft ground shadow (150 m down-sun) does not stop the pruning - the window, not the frustum'); }
+    { const U = THREE.ShaderLib.standard.uniforms, Q = U.uNearQ.value, M = U.uNearM1.value, z = v => new THREE.Vector3().copy(v).applyMatrix4(M).z;
+      const cgz = z(SN.C1.tgt), deep = z(SN.C1.tgt.clone().addScaledVector(sun, -200));
+      ok(Q[0] < Q[1] && cgz > Q[0] && cgz < Q[1] && !(deep > Q[0] && deep < Q[1]), '2 G1005: the window holds the craft and stops past its ground shadow', `window ${Q[0].toFixed(3)}..${Q[1].toFixed(3)}, CG ${cgz.toFixed(3)}, 200 m down-sun ${deep.toFixed(3)}`); }
     SN.setNear(null); sh.getCamera(0); SN.follow(L, [0, 10, 0], sun, 5, null, null);
     ok(other.visible, '2 G1005: follow() restores a walk that never reached viewport 1'); scene.remove(other); }
   { const p = new THREE.Vector3(0, 10, 0), a = p.clone().applyMatrix4(sh.matrix), b = p.clone().applyMatrix4(SN.C1.cam && sh.getCamera(1) ? new THREE.Matrix4().copy(THREE.ShaderLib.standard.uniforms.uNearM1.value) : sh.matrix);
