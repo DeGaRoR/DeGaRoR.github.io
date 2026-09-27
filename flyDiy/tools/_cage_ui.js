@@ -446,7 +446,22 @@ function aeroSavePrefs() {
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
-aeroLoadPrefs();
+// THE PREF IS A BENCH'S, NEVER THE GAME'S (G775, the user: "tests were
+// loading the cessna, then the default plane came back, but with the cessna
+// livery, the metallic paint, but still the original plane's color"). Every
+// load writes its finish here (finishFromSpec -> aeroSavePrefs), and reading
+// it back at script eval made the LAST aeroplane loaded in this browser the
+// finish of the NEXT page's aeroplane — whenever that aeroplane's own finish
+// never reached the editor, which is exactly the default plane: its spec has
+// no cage, so the game's seed skips applySpec (app.js seedEditor). Measured
+// in headless Chrome: the default plane booted with its own paint (the
+// colour is `spec.paint`, not the finish) under the Cessna's metal flake on
+// twelve sections and its two metallic markings — and the join then exported
+// that state INTO the spec, so the next save kept it. In the game the spec is
+// the finish's only owner (G105); the pref stays the bench pages' memory.
+const aeroPrefsOwn = () => !(typeof window !== 'undefined' && window.CAGE_IN_GAME);
+function aeroBootPrefs() { if (aeroPrefsOwn()) aeroLoadPrefs(); }
+aeroBootPrefs();
 
 // ---------------------------------------------------------------------------
 // RECENT COLOURS (G156)
@@ -3658,7 +3673,7 @@ function buildDecPanel() {
   const A = AK();
   if (!A || decPanel) return;
   decKitDefaults();
-  decLoadPrefs();
+  if (aeroPrefsOwn()) decLoadPrefs();      // G775: the marking too — see aeroBootPrefs
   decPanel = document.createElement('details');
   decPanel.dataset.g = 'decals';
   decPanel.innerHTML = '<summary>decals</summary>';

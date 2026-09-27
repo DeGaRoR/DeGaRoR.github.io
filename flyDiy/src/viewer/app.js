@@ -6952,7 +6952,18 @@
     const E = window.CAGE_UI;
     if (edSeeded || !E || !E.applySpec || !genSpec) return;
     edSeeded = true;
-    if (!genSpec.cage || !Object.keys(genSpec.cage).length) return;
+    // ...BUT THE FINISH IS SEEDED ANYWAY (G775). Skipping the cage is right;
+    // skipping the paint with it left the editor on whatever finish it booted
+    // with, and the join exports the editor's finish INTO the spec — so a
+    // cage-less aeroplane (the default one) took any stale finish as its own
+    // and saved it. finishFromSpec is the load's own reset (G105: null is the
+    // factory finish, a complete instruction), and the build repaints.
+    if (!genSpec.cage || !Object.keys(genSpec.cage).length) {
+      if (E.finishFromSpec)
+        try { E.finishFromSpec(genSpec.finish || null); if (E.build) E.build(); }
+        catch (err) { console.error('cage editor seed (finish):', err); }
+      return;
+    }
     try { E.applySpec(genSpec); }
     catch (err) { console.error('cage editor seed:', err); }
     // G190: the autosave's image pages come back before the editor exists;
