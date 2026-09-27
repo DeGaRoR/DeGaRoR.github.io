@@ -1584,7 +1584,9 @@ function editorInit(api) {
     // out there and not in here? — is about the pair, not either one.
     // `label` is the resting fallback only: syncNightLabel writes the current
     // mood's own name over it (G136).
-    { k: 'night', label: 'night', title: 'The day, and the light in here and out there',
+    // G760 (the rails regrouped): the CLOUDS item folded into this one - the flight rail's SKY & WORLD in the
+    // shed's words: the day and its weather, the clouds, the light in the shed, the map, each a fold
+    { k: 'night', label: 'night', head: 'The sky, and the light', title: 'The sky: the day, the weather, the clouds, and the light in here and out there',
       icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z',
       // THE RAIL BORROWS, THE TREE OWNS. These three rows live in the shed's
       // hangar group (the world root retired at G136), and this flyout shows
@@ -1623,8 +1625,7 @@ function editorInit(api) {
     // 2026-09-20: THE CLOUDS - the same panel the flight rail opens (clouds_ui.js: the decks,
     // the veil, the look, the cost; the user: "let's have the garage and the flight menu converge").
     // LITERAL FIELDS ONLY (GATE VIEW reads this table in a vm); openFly builds it by name.
-    { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look',
-      icon: 'M5.4 13.6h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z' },
+    // G760: `clouds` is a fold of `night` now (the flight rail's SKY & WORLD, mirrored).
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
     { k: 'legend', label: 'legend', title: 'What the marks in the room mean',
@@ -2014,19 +2015,36 @@ function editorInit(api) {
     for (const b of $('edRail').children)
       b.classList.toggle('on', b.dataset.f === k);
     if (!k) { fly.hidden = true; return; }
+    // G760: an old item's name (the day panel's door to `clouds`) opens the item that holds it, unfolded
+    if (!RAIL.some(x => x.k === k) && ED_HOME[k]) { edSecSet(k, true); k = ED_HOME[k]; flyOpen = k; }
     const t = RAIL.filter(x => x.k === k)[0];
+    if (!t) { fly.hidden = true; flyOpen = null; return; }
+    for (const b of $('edRail').children)
+      b.classList.toggle('on', b.dataset.f === k);
     fly.hidden = false;
-    head.textContent = t.title;
+    head.textContent = t.head || t.title;   // G760: a short head where the tooltip says more
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
-    if (t.k === 'graphics') buildGraphics(body);   // GFX
-    if (t.k === 'clouds') buildClouds(body);       // the clouds panel (2026-09-20)
-    if (t.k === 'night') buildDay(body);           // the day panel (2026-09-20), the light rows borrowed under it
+    if (t.k === 'graphics') buildGraphics(body);   // GFX, in its seven folds (G760)
+    // THE SKY (G760): the day panel with the weather (2026-09-20), the clouds panel, the shed's light rows
+    // borrowed into their own fold, the map - each a fold, remembered with the flight rail's
+    let rowsHost = body;
+    if (t.k === 'night') {
+      const d = edSection(body, 'night', 'time & weather', 'the day, the hour, the wind, the air');
+      if (d) buildDay(d);
+      const c = edSection(body, 'clouds', 'clouds', 'the decks, the veil, the look');
+      if (c) buildClouds(c);
+      rowsHost = edSection(body, 'shed.light', 'the light in the shed', 'the lamps, the world\u2019s lights, the bounce');
+      const m = edSection(body, 'ground', 'map', 'the map the game boots on');
+      if (m && window.GFX && window.GFX.mountWorld && !window.GFX.mountWorld(m, railRows())) {
+        const n = document.createElement('div'); n.className = 'note'; n.textContent = 'One map in this build.'; m.appendChild(n);
+      }
+    }
     if (t.k === 'legend') buildLegend(body);
     const idx = labelIndex();
-    for (const label of (t.rows || [])) {
+    if (rowsHost) for (const label of (t.rows || [])) {
       const r = idx.get(label);
-      if (r) borrow(r, body);
+      if (r) borrow(r, rowsHost);
     }
     if (t.k === 'measure') {
       const m = $('dims');
@@ -2081,7 +2099,36 @@ function editorInit(api) {
       const n = document.createElement('div'); n.className = 'note'; n.textContent = txt;
       host.appendChild(n); return n;
     };
-    window.GFX.mount(body, { row, pills, note, refresh: () => openFly('graphics') });
+    window.GFX.mount(body, { row, pills, note, refresh: () => openFly('graphics'),
+                             section: (h, key, title, sub) => edSection(h, key, title, sub) });
+  }
+  // G760: THE FOLDS, the flight rail's (app.js flSection) in this rail's words: a head that is a button, the
+  // body built only when unfolded, the state in the SAME pref (flydiy.flSec: fold the post-fx here and it is
+  // folded in flight), read through on every open because both rails write it. A fold reopens the flyout in
+  // place, its scroll kept.
+  const ED_SEC_FIRST = { night: 1, 'shed.light': 1, 'gfx.perf': 1 };
+  const ED_HOME = { clouds: 'night' };
+  const edSecLive = {};   // this page's own copy under the stored one: a browser that keeps nothing still folds
+  const edSecAll = () => { let v = null; try { v = JSON.parse(localStorage.getItem('flydiy.flSec') || 'null'); } catch (e) {} return Object.assign({}, edSecLive, v && typeof v === 'object' ? v : {}); };
+  const edSecOpen = key => { const o = edSecAll(); return (key in o) ? !!o[key] : !!ED_SEC_FIRST[key]; };
+  const edSecSet = (key, on) => { const o = edSecAll(); o[key] = edSecLive[key] = !!on; try { localStorage.setItem('flydiy.flSec', JSON.stringify(o)); } catch (e) {} };
+  function edSection(host, key, title, sub) {
+    const open = edSecOpen(key);
+    const box = document.createElement('div'); box.className = 'rsec' + (open ? ' open' : '');
+    const h = document.createElement('button'); h.type = 'button'; h.className = 'rsecHead'; h.dataset.sec = key;
+    h.title = (open ? 'Fold ' : 'Unfold ') + title;
+    const tt = document.createElement('span'); tt.className = 'rsecT'; tt.textContent = title; h.appendChild(tt);
+    if (sub) { const u = document.createElement('span'); u.className = 'rsecS'; u.textContent = sub; h.appendChild(u); }
+    h.onclick = () => {
+      edSecSet(key, !open);
+      const fly = $('edFly'), top = fly ? fly.scrollTop : 0;
+      openFly(flyOpen);
+      if (fly) fly.scrollTop = top;
+    };
+    box.appendChild(h); host.appendChild(box);
+    if (!open) return null;
+    const b = document.createElement('div'); b.className = 'rsecBody'; box.appendChild(b);
+    return b;
   }
   // 2026-09-20: THE SHARED PANELS' ROW VOCABULARY - the clouds panel (clouds_ui.js) and the day
   // panel (day_ui.js) draw in this rail's own rows: a range input on the flyout's own .r row
@@ -2141,7 +2188,7 @@ function editorInit(api) {
     const H = railRows();
     window.DAY_UI.mount(body, H, dayCtx());
     if (window.WEATHER_UI) window.WEATHER_UI.mount(body, H, dayCtx());
-    H.row(body, 'in the shed').classList.add('fsec');
+    // (G760: the shed's light rows have their own fold, `the light in the shed`, so no head here)
   }
   function buildControls(body) {
     const inp = (typeof window !== 'undefined' && window.FLYDIY_INPUT) || null;
