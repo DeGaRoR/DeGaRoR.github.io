@@ -637,6 +637,22 @@ try {
   }
   console.log(`garage -> roll out -> ${els['phName'].textContent}, mode: flight`);
 
+  // ---- SKIP TO LINE-UP (G771): offered while taxiing, lands on the hold, then stands down --------
+  {
+    const P = sandbox.window.FLIGHT_PROBE, b = els['bSkip'];
+    if (!b || b.hidden) throw new Error('#bSkip is not offered on a taxi start (G771)');
+    if (b.disabled) throw new Error('#bSkip is disabled while the aeroplane taxis (phase ' + P.ap().phase + ')');
+    const c0 = P.sim().cgPos();
+    handlers['bSkip']();
+    frames(6);
+    const ph = P.ap().phase, cg = P.sim().cgPos();
+    if (!['STOP', 'HOLD', 'ROLL'].includes(ph)) throw new Error('the skip handed the pilot ' + ph + ', not the hold');
+    if (Math.abs(cg[2]) > 1.5 || cg[0] > -40) throw new Error('the skip did not land on the HOME hold (cg ' + cg.map(v => v.toFixed(1)).join(', ') + ')');
+    if (P.sim().wheelsOnGround() < 2) throw new Error('the skip left the aeroplane off its wheels');
+    if (!b.disabled) throw new Error('#bSkip still offered at the hold');
+    console.log('skip to line-up: ' + Math.hypot(cg[0] - c0[0], cg[2] - c0[2]).toFixed(0) + ' m from the taxi to the hold, pilot in ' + ph + ', the button stands down');
+  }
+
   // ---- THE SEAM (G86), asserted on the built artifact's own markup --------
   // The two interfaces are two CONTAINERS, and the value of that is entirely
   // in nothing straddling them. Checked here rather than in a gate of its own

@@ -328,9 +328,14 @@ function makePilot(sim, def, world, opts) {
   };
   ap.setRoute(world ? world.aerodromes[0] : HOMEISH, world ? world.aerodromes[0] : HOMEISH);
   let holdN = 0, planN = 0;
-  ap.departFrom = (from, to, siteOrTaxiOut) => {
+  // G771: `opts.atHold` = the pose ap.lineupPose() gave, the aeroplane placed on it (placeAtLineup): DEPART
+  // takes THAT direction and goes to STOP / HOLD with no route - the state the taxi ends in - instead of
+  // planning afresh (planDeparture's own run test is the uncapped need, which a short strip's hold fails and
+  // would send the aeroplane round a U-turn it has already been spared)
+  ap.departFrom = (from, to, siteOrTaxiOut, opts) => {
     const site = (siteOrTaxiOut && !Array.isArray(siteOrTaxiOut)) ? siteOrTaxiOut : null;
     ap.site = site;
+    ap.atHold = (opts && opts.atHold) || null;
     ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0; planN = 0;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
@@ -844,6 +849,11 @@ function makePilot(sim, def, world, opts) {
   // From the pose it is given: the take-off direction, then the route. Every
   // route ends on a hold; every route the follower is handed begins AHEAD of
   // the nose (a U-turn is inserted at the pose when it would not).
+  const setTakeoffDir = (t) => {
+    ap.frame = mkFrame(ap.route.from, -t[0], -t[1]);
+    ap.dirX = -1;
+    ap.takeoffDir = t;
+  };
   const planDeparture = (cg, nose) => {
     const from = ap.route.from;
     const PAT = ap.patOf(from);
@@ -877,9 +887,7 @@ function makePilot(sim, def, world, opts) {
     else if (enough) t = [d0[0] * sgN, d0[1] * sgN];
     else t = [-d0[0] * sgN, -d0[1] * sgN];
     const T = (t[0] * d0[0] + t[1] * d0[1]) >= 0 ? 0 : 1;
-    ap.frame = mkFrame(from, -t[0], -t[1]);
-    ap.dirX = -1;
-    ap.takeoffDir = t;
+    setTakeoffDir(t);
     const sPos = rx * t[0] + rz * t[1];
     const runAhead = from.len / 2 - sPos;
     const lined = Math.abs(cross) <= 8 && (nose[0] * t[0] + nose[1] * t[1]) > 0.9;
@@ -933,6 +941,49 @@ function makePilot(sim, def, world, opts) {
     ap.taxiTgt = [from.x + t[0] * sStart, from.z + t[1] * sStart];
     ap.taxiPath = null; ap.path = null;
     return 'TAXI';
+  };
+
+  // G771: WHERE THE TAXI WOULD END. planDeparture run from the live pose (the stand, where the taxi
+  // begins) exactly as DEPART runs it - the same take-off direction (the wind, the slope, the climb-out,
+  // the nose as the tie-break) and the same route - and the route's END read off it: the hold the path
+  // stops on, the centreline under the last taxi point (the legacy point list's rolling line-up), the
+  // computed backtrack target, or the centreline under the aeroplane when it is already lined up. The
+  // heading is the take-off direction, which is where HOLD hands the aeroplane to ROLL. The pilot's plan
+  // is put back as it was: this asks, it does not fly. Needs ap.route (setRoute / departFrom first).
+  ap.lineupPose = () => {
+    const [xA] = sim.axes(), cg = sim.cgPos();
+    const nl = Math.hypot(xA[0], xA[2]) || 1e-9, nose = [-xA[0] / nl, -xA[2] / nl];
+    const keep = { frame: ap.frame, dirX: ap.dirX, takeoffDir: ap.takeoffDir, path: ap.path, pathI: ap.pathI,
+                   stopAfterLineup: ap.stopAfterLineup, taxiTgt: ap.taxiTgt, taxiPath: ap.taxiPath };
+    try {
+      const from = ap.route.from;
+      const ux = Math.cos(from.hdg), uz = Math.sin(from.hdg);
+      const onC = (x, z) => { const s = (x - from.x) * ux + (z - from.z) * uz; return [from.x + ux * s, from.z + uz * s]; };
+      // ALREADY ON THE LINE: a start on the spawn identity (a strip with no stand - the game rolls from it
+      // with no taxi at all) is lined up along the nose with HOLD's own run ahead (the need, capped at 0.7
+      // of the strip). planDeparture's uncapped need would send a 340 m strip's spawn round to the far
+      // hold, which leaves less than HOLD accepts - the skip must never be a longer way than no skip
+      {
+        const sg = (nose[0] * ux + nose[1] * uz) >= 0 ? 1 : -1;
+        const al = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz, cr = -(cg[0] - from.x) * uz + (cg[2] - from.z) * ux;
+        const ahead = (from.len || 0) / 2 - sg * al;
+        if (Math.abs(cr) <= Math.min(8, (from.wid || 30) / 2 - 1) && Math.abs(al) <= (from.len || 0) / 2
+            && sg * (nose[0] * ux + nose[1] * uz) > 0.9 && ahead >= Math.min(runNeeded(), 0.7 * (from.len || 1100))) {
+          const q = onC(cg[0], cg[2]);
+          return { x: q[0], z: q[1], hdg: Math.atan2(sg * uz, sg * ux), from: from.id || 'HOME', how: 'lined' };
+        }
+      }
+      const next = planDeparture(cg, nose);
+      const t = ap.takeoffDir;
+      let q, how;
+      if (next === 'STOP') { q = onC(cg[0], cg[2]); how = 'lined'; }
+      else if (ap.path && ap.path.pts && ap.path.pts.length) { const e = ap.path.pts[ap.path.pts.length - 1]; q = [e.x, e.z]; how = 'hold'; }
+      else {
+        const tg = (ap.taxiPath && ap.taxiPath.length) ? ap.taxiPath[ap.taxiPath.length - 1] : ap.taxiTgt;
+        q = onC(tg[0], tg[1]); how = ap.taxiPath ? 'taxiOut' : 'backtrack';
+      }
+      return { x: q[0], z: q[1], hdg: Math.atan2(t[1], t[0]), from: from.id || 'HOME', how };
+    } finally { Object.assign(ap, keep); }
   };
 
   // ---- the status line ----------------------------------------------------------
@@ -1804,7 +1855,12 @@ function makePilot(sim, def, world, opts) {
         // the hand turned off comes back on when the pilot takes over
         if (sim.setEngine && sim.eng)
           for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
-        const next = planDeparture(cg, nose);
+        let next;
+        if (ap.atHold) {
+          const H = ap.atHold; ap.atHold = null;
+          setTakeoffDir([snap(Math.cos(H.hdg)), snap(Math.sin(H.hdg))]);
+          ap.path = null; ap.stopAfterLineup = true; next = 'STOP';
+        } else next = planDeparture(cg, nose);
         engage('NONE', 'DE', 'SET', { de: A.taxiDe ?? 0.30, thr: 0 });
         go(next === 'STOP' ? (Vg < 0.3 ? 'HOLD' : 'STOP') : 'TAXI');
         setStatus('planning the departure', []);

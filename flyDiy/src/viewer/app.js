@@ -3811,6 +3811,11 @@
     const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
     const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
     patternVisFor(from, stSite);
+    // G771: how this flight began - the skip reads it (the stand it would taxi from, the site it plans on)
+    const walked = (st && typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : (st && st.stand);
+    lastStart = { from, to, stSite: (st && walked && walked !== st.stand) ? Object.assign({}, st, { stand: walked }) : st,
+                  stand: walked || null, taxi: !!stand, skipped: false };
+    skipAir = false;
     if (stand) {
       placeAtStand(sim, from, stand);
       if (stGround && typeof seatOnGround === 'function') seatOnGround(sim, stGround, def.refs);   // G700: the wheels on the ground under them
@@ -3818,11 +3823,85 @@
       // G193: the whole SITE, not its taxiOut list — the pilot builds the
       // pattern (the taxi graph, the hold, the two touchdown targets) from it
       ap.departFrom(from, to, stSite);   // then plan from the live pose (the walked stand in it)
+    } else if (lastStart.stand && placeLinedUp()) {
+      // G771: 'lined up' on a strip with a stand is THE LINE-UP THE TAXI WOULD END ON - the site's
+      // spawn is its stand (27_premises: a premises strip's spawn IS the stand), so the old spawn start
+      // put the aeroplane on the apron with the pilot already in ROLL: it took off across the grass
     } else {
       placeAtAerodrome(sim, from);   // HOME is a bit-exact no-op
       ap.setRoute(from, to);
     }
   }
+  // ---- G771: SKIP TO LINE-UP (the user, 2026-09-27: "button to skip the taxi phase and straight to
+  // starting line"). The pilot is asked where its own taxi would end - planDeparture from the stand, as
+  // DEPART plans it (43_pilot ap.lineupPose): the hold, the take-off direction - and the aeroplane is put
+  // there from a fresh reset like any start: the one transform onto the pose, then onto the ground the
+  // tyres meet (40_autopilot placeAtLineup), engine running, and the pilot handed the HOLD (departFrom
+  // { atHold }) - STOP / HOLD / ROLL, the state the taxi ends in, not a mid-air teleport. Only from a
+  // taxi start, on the wheels, before the hold; never once the aeroplane has flown. GATE LINEUP.
+  let lastStart = null, skipAir = false;
+  function placeLinedUp() {
+    const S = lastStart;
+    // the classic and test pilots cannot say where their taxi ends: no line-up for them
+    if (!S || !S.stand || sim.hydro || typeof placeAtLineup !== 'function' || typeof placeAtStand !== 'function'
+        || !ap || typeof ap.lineupPose !== 'function') return false;
+    // the question is asked on the stand, of a pilot planning from there (the taxi's own start)
+    sim.reset(0); if (typeof sim.stance === 'function') sim.stance();
+    placeAtStand(sim, S.from, S.stand);
+    if (typeof seatOnGround === 'function' && world && typeof world.terrainH === 'function') seatOnGround(sim, (x, z) => world.terrainH(x, z), def.refs);
+    const q = mkPilot(curKey);
+    q.setRoute(S.from, S.to); q.departFrom(S.from, S.to, S.stSite);
+    let pose = null;
+    try { pose = q.lineupPose(); } catch (e) { console.error('line-up:', e); }
+    // back to the reset pose either way: a failed ask leaves the caller the aeroplane as it found it
+    sim.reset(0); if (typeof sim.stance === 'function') sim.stance();
+    if (!pose) return false;
+    placeAtLineup(sim, S.from, pose, world, def.refs);
+    if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
+    ap = mkPilot(curKey);
+    ap.setRoute(S.from, S.to);
+    ap.departFrom(S.from, S.to, S.stSite, { atHold: pose });
+    S.skipped = true; S.pose = pose;
+    return true;
+  }
+  const SKIP_PHASES = ['DEPART', 'TAXI', 'LINEUP', 'STOP'];
+  function skipAble() {
+    const S = lastStart;
+    if (inGarage || rollHold || flightOver || !S || !S.taxi || S.skipped || skipAir) return false;
+    if (!sim || sim.hydro || !ap || typeof ap.lineupPose !== 'function') return false;
+    // on the pilot, before the hold (at HOLD it is lined up already; past it, rolling); by hand, on the wheels
+    if (started && !manual && !SKIP_PHASES.includes(ap.phase)) return false;
+    return sim.wheelsOnGround() > 0;
+  }
+  function syncSkip() {
+    const b = $('bSkip');
+    if (!b) return;
+    // once airborne, never again this flight (Restart and the shed clear it)
+    if (!skipAir && started && sim && sim.wheelsOnGround() === 0) {
+      const cg = sim.cgPos();
+      if (cg[1] - groundH(cg[0], cg[2]) > 1.0) skipAir = true;
+    }
+    b.hidden = inGarage || !lastStart || !lastStart.taxi || !!(sim && sim.hydro) || !ap || typeof ap.lineupPose !== 'function';
+    b.disabled = !skipAble();
+    b.title = b.disabled
+      ? (skipAir ? 'airborne: there is no taxi left to skip' : 'lined up already, or rolling')
+      : 'the aeroplane goes to the runway hold, lined up, engine running - where the taxi would end';
+  }
+  function skipToLineup() {
+    if (!skipAble()) return;
+    const cam0 = sim.cgPos();
+    if (!placeLinedUp()) { fullReset(); return; }   // the ask threw: the aeroplane was reset under it - start again, whole
+    if (INP) INP.seed(sim.ctl);
+    airborneSeen = wasAir = false; stillT = 0;
+    lastPhase = ap.phase; railPhase = ''; setRail(null);
+    // a kilometre from the stand: the town and the forest there are grown under the roll-out screen when
+    // they are not standing yet (the same steps, the same hold on the flight), else the camera turns now
+    const far = Math.hypot(sim.cgPos()[0] - cam0[0], sim.cgPos()[2] - cam0[2]);
+    if (far > 200 && needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); flRender(); });
+    else flRevealStart();
+    syncSkip(); flRender();
+  }
+  if ($('bSkip')) $('bSkip').onclick = skipToLineup;
   // G107: YOUR builds fly the TEST PILOT (41_test_pilot.js) — bounded
   // attempts, structured verdicts; the classic autopilot (40_) is what the
   // generator's own gates are calibrated on.
@@ -7356,6 +7435,7 @@
     RD[d0.dataset.i] = d0;
   function hud() {
     const o = sim.out, cg = sim.cgPos(), c = sim.ctl, d = flDbg();
+    syncSkip();                 // G771: disabled at the hold, rolling, and for good once airborne
     // THE LABEL SAYS IAS, so the number is now an indicated one (G72). It read
     // o.V, which is TRUE airspeed — identical at sea level and a lie everywhere
     // else, on the one instrument a pilot would use to decide not to stall.
@@ -9367,6 +9447,7 @@
     }
     $('bPause').hidden = !flying;
     $('bReset').hidden = !flying;
+    syncSkip();                 // G771: the skip, from the stand (at roll-out) until the hold
     // THE NOTICE, which is where #bGo.warn's meaning went: the bench's verdict
     // said out loud, once, in a plate with one job — instead of encoded in the
     // colour of a button you were about to press anyway.

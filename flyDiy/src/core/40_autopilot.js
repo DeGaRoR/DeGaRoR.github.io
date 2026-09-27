@@ -92,6 +92,20 @@ function seatOnGround(sim, groundH, refs) {
   return dy;
 }
 
+// G771: THE LINE-UP, WITHOUT THE TAXI (the user: "button to skip the taxi phase and straight to starting
+// line"). The pose is the hold the pilot's own taxi would have ended on (43_pilot ap.lineupPose), and the
+// aeroplane goes onto it the way it goes onto the stand - the one transform - then onto the strip's TRUE
+// surface with G700's seatOnGround: the third wheel pitched onto its own ground, the lowest contact 1 cm over
+// the solver's own ground (world.terrainH, what the tyres roll on). No record's elev, no premises' declared
+// height: a sloped or crowned strip, a hold off the aerodrome's datum, all get the ground the tyres will meet.
+// `refs` = def.refs (the wheels); without them the airframe is only lifted as one. Call after sim.reset (and
+// stance), like placeAtStand.
+function placeAtLineup(sim, a, pose, world, refs) {
+  placeAtAerodrome(sim, { hdg: pose.hdg, spawn: [pose.x, pose.z], elev: (a && a.elev) || 0 });
+  const gH = (world && typeof world.terrainH === 'function') ? world.terrainH : (() => (a && a.elev) || 0);
+  return seatOnGround(sim, gH, refs);
+}
+
 function makeAutopilot(sim, def, world) {
   const A = def.params.ap;
   // TAXI BREAKAWAY (G4.9). The taxi governor below is a proportional speed

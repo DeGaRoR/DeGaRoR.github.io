@@ -105,6 +105,13 @@ const GATES = [
   // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
   // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
   { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },
+  // G771: SKIP TO LINE-UP - the pose the taxi would end on, placed on the true ground, the pilot straight
+  // onto the hold, at every land aerodrome of both worlds; the take-off roll completes (the Cub default and
+  // the user's aluminium C172 at Jolene HOME); the skip's roll begins where the taxi's did (~4.5 min)
+  { id: 'LINEUP', file: '_lineup_check.js', tier: 'core', wall: 270 },
+  // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
+  // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
+  { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },
   // THE SIM DOES NOT LIE (G115): gear/strut drag as a delta from the
   // calibration's reference gear, the ground's surface table, the fin's own
   // polar + the measured weathervane, and the plaque agreeing with itself.
