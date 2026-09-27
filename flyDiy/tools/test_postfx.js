@@ -102,6 +102,16 @@ const checks = {
     build.indexOf("'post_fx.js'") > 0 && build.indexOf("'post_fx.js'") < build.indexOf("'gfx_settings.js'") && build.indexOf("'post_fx.js'") < build.indexOf("'app.js'"),
   'the exposure contract carries the eye as a third factor (base x step x eye)': /v \* \(S\.exposure \|\| 1\) \* eyeK/.test(gfx) && /setEye/.test(gfx),
   'the F8 panel reads the passes out': /POST_FX/.test(dev),
+  // --- G960 (A2-GLINT): the glints do not explode ------------------------------
+  // the threshold pass takes each of its four pixels through a NaN / Inf guard and a luminance clamp, then Karis's
+  // 1 / (1 + luma) average; every tier's gain is a third of what it was (soft linear 0.35, strong 0.6, display 0.32 / 0.7)
+  'the bloom threshold pass guards NaN / Inf, clamps its input, and averages by Karis (G960)':
+    (() => { const m = /const BLOOM_THR = `([\s\S]*?)`;/.exec(code); const t = m ? m[1] : '';
+             return /isnan\(c\)/.test(t) && /isinf\(c\)/.test(t) && /uClamp \/ l/.test(t) && (t.match(/1\.0 \/ \(1\.0 \+ luma\(s\d\)\)/g) || []).length === 4 && /uClamp\.value = P\.clamp/.test(code); })(),
+  'every bloom tier carries a clamp and a third of its old gain (G960)':
+    !!API && !!API.BLOOM && ['display', 'linear'].every(c => ['soft', 'strong'].every(t => { const P = API.BLOOM[c][t]; return P && P.clamp > 0 && P.gain > 0; }))
+    && API.BLOOM.linear.soft.gain <= 0.35 / 3 + 0.01 && API.BLOOM.linear.strong.gain <= 0.6 / 3 + 0.01
+    && API.BLOOM.display.soft.gain <= 0.32 / 3 + 0.01 && API.BLOOM.display.strong.gain <= 0.7 / 3 + 0.01,
   'the contract is written where it will be looked for': /NOTHING HERE DRAWS INTO THE RESOLVE TARGET/.test(src) && /DISPLAY SPACE/.test(src),
 };
 

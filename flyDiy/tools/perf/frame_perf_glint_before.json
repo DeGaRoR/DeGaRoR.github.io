@@ -1,0 +1,325 @@
+{
+ "date": "2026-09-27T10:10:58.097Z",
+ "url": "http://localhost:8561/flyDiy/index.html?world=jolene",
+ "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "label": "before",
+ "frames": 150,
+ "rows": [
+  {
+   "place": "stand",
+   "probe": "soft",
+   "tier": "msaa",
+   "where": {
+    "at": [
+     -152,
+     31,
+     710
+    ]
+   },
+   "frame": {
+    "median": 20.8,
+    "p90": 22.4,
+    "timed": 21
+   },
+   "gpuSum": 21.72,
+   "cpuWorld": 1.59,
+   "calls": 1633,
+   "tris": 24595052,
+   "gpuUtilBefore": 99,
+   "tags": {
+    "clouds:march*": {
+     "median": 0.67,
+     "p90": 0.69,
+     "calls": 1
+    },
+    "atmo:sky": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "atmo:ap": {
+     "median": 0.02,
+     "p90": 0.02,
+     "calls": 1
+    },
+    "scene": {
+     "median": 20.85,
+     "p90": 21.51,
+     "calls": 1
+    },
+    "resolve": {
+     "median": 0.06,
+     "p90": 0.06,
+     "calls": 1
+    },
+    "postfx:554x255": {
+     "median": 0.01,
+     "p90": 0.02,
+     "calls": 2
+    },
+    "postfx:277x127": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "postfx:138x63": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "postfx:69x31": {
+     "median": 0,
+     "p90": 0,
+     "calls": 1
+    },
+    "postfx:1108x511": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "canvas:postfx": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "shadow:far": {
+     "median": 0,
+     "p90": 0.22,
+     "calls": 0.2
+    },
+    "shadow:maps": {
+     "median": 1.18,
+     "p90": 1.43,
+     "calls": 15.5
+    }
+   },
+   "post": {
+    "bloomMs": 0.09296052683978642,
+    "lookMs": 0,
+    "raysMs": 0,
+    "aoMs": 0,
+    "eyeMs": 0,
+    "eyeK": 1,
+    "eyeLum": 0,
+    "passes": 1
+   }
+  },
+  {
+   "place": "stand",
+   "probe": "off",
+   "tier": "msaa",
+   "where": {
+    "at": [
+     -152,
+     31,
+     710
+    ]
+   },
+   "frame": {
+    "median": 21.1,
+    "p90": 22.3,
+    "timed": 20.6
+   },
+   "gpuSum": 21.37,
+   "cpuWorld": 1.59,
+   "calls": 1622,
+   "tris": 23750733,
+   "gpuUtilBefore": 99,
+   "tags": {
+    "clouds:march*": {
+     "median": 0.67,
+     "p90": 0.69,
+     "calls": 1
+    },
+    "atmo:sky": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "atmo:ap": {
+     "median": 0.02,
+     "p90": 0.02,
+     "calls": 1
+    },
+    "scene": {
+     "median": 20.59,
+     "p90": 21.42,
+     "calls": 1
+    },
+    "resolve": {
+     "median": 0.05,
+     "p90": 0.06,
+     "calls": 1
+    },
+    "shadow:far": {
+     "median": 0,
+     "p90": 0.21,
+     "calls": 0.3
+    },
+    "shadow:maps": {
+     "median": 0.85,
+     "p90": 1.46,
+     "calls": 5.3
+    }
+   },
+   "post": {
+    "bloomMs": 0.09259562147182913,
+    "lookMs": 0,
+    "raysMs": 0,
+    "aoMs": 0,
+    "eyeMs": 0,
+    "eyeK": 1,
+    "eyeLum": 0,
+    "passes": 1
+   }
+  },
+  {
+   "place": "at:-3150:690:300",
+   "probe": "soft",
+   "tier": "msaa",
+   "where": {
+    "at": [
+     -3150,
+     294,
+     690
+    ]
+   },
+   "frame": {
+    "median": 17.2,
+    "p90": 20.5,
+    "timed": 19.6
+   },
+   "gpuSum": 19.53,
+   "cpuWorld": 1.57,
+   "calls": 935,
+   "tris": 7794932,
+   "gpuUtilBefore": 99,
+   "tags": {
+    "clouds:march*": {
+     "median": 0.74,
+     "p90": 0.76,
+     "calls": 1
+    },
+    "atmo:sky": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "atmo:ap": {
+     "median": 0.02,
+     "p90": 0.02,
+     "calls": 1
+    },
+    "scene": {
+     "median": 18.68,
+     "p90": 19.48,
+     "calls": 1
+    },
+    "resolve": {
+     "median": 0.05,
+     "p90": 0.05,
+     "calls": 1
+    },
+    "shadow:far": {
+     "median": 0,
+     "p90": 0.15,
+     "calls": 0.2
+    },
+    "1385x639": {
+     "median": 0,
+     "p90": 0,
+     "calls": 0
+    },
+    "shadow:maps": {
+     "median": 0.74,
+     "p90": 0.95,
+     "calls": 5.4
+    }
+   },
+   "post": {
+    "bloomMs": 0.09259562147182913,
+    "lookMs": 0,
+    "raysMs": 0,
+    "aoMs": 0,
+    "eyeMs": 0,
+    "eyeK": 1,
+    "eyeLum": 0,
+    "passes": 1
+   }
+  },
+  {
+   "place": "at:-3150:690:300",
+   "probe": "off",
+   "tier": "msaa",
+   "where": {
+    "at": [
+     -3150,
+     294,
+     690
+    ]
+   },
+   "frame": {
+    "median": 18.2,
+    "p90": 20.8,
+    "timed": 16.8
+   },
+   "gpuSum": 16.3,
+   "cpuWorld": 1.64,
+   "calls": 935,
+   "tris": 7794932,
+   "gpuUtilBefore": 99,
+   "tags": {
+    "clouds:march*": {
+     "median": 0.71,
+     "p90": 0.75,
+     "calls": 1
+    },
+    "atmo:sky": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "atmo:ap": {
+     "median": 0.02,
+     "p90": 0.02,
+     "calls": 1
+    },
+    "scene": {
+     "median": 15.48,
+     "p90": 19.15,
+     "calls": 1
+    },
+    "resolve": {
+     "median": 0.05,
+     "p90": 0.05,
+     "calls": 1
+    },
+    "shadow:far": {
+     "median": 0,
+     "p90": 0.15,
+     "calls": 0.2
+    },
+    "1385x639": {
+     "median": 0,
+     "p90": 0,
+     "calls": 0
+    },
+    "shadow:maps": {
+     "median": 0.75,
+     "p90": 1,
+     "calls": 5.4
+    }
+   },
+   "post": {
+    "bloomMs": 0.09259562147182913,
+    "lookMs": 0,
+    "raysMs": 0,
+    "aoMs": 0,
+    "eyeMs": 0,
+    "eyeK": 1,
+    "eyeLum": 0,
+    "passes": 1
+   }
+  }
+ ]
+}

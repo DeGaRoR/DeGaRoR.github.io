@@ -99,10 +99,27 @@ const POST_FX = (() => {
 
   // BLOOM: threshold (soft knee) at half resolution, a 13-tap downsample chain, a 9-tap tent
   // upsample chain, additive onto the canvas (the CoD:AW pyramid, Jimenez 2014)
-  const BLOOM_THR = `${LUMA} uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uThr, uKnee; varying vec2 vUv;
+  // G960 THE GLINTS DO NOT EXPLODE (A2-GLINT, the user: "all landmarks, houses and little towns emit crazy flashes,
+  // and I think the bloom effect has them explode"): the first pass is where one hot pixel becomes a flare, so it
+  // takes the frame's four pixels (the taps sit on the source's pixel centres: each IS one pixel) through
+  //   - a GUARD: a NaN or an Inf (a half-float overflow, a 0/0 in some hook) is black - one of them spread through the
+  //     pyramid was a black or white square;
+  //   - a CLAMP on the input's luminance (uClamp, the hue kept): what is far over the threshold blooms as a lot, not
+  //     as a thousand times the threshold;
+  //   - KARIS'S AVERAGE (Karis 2013, the CoD:AW talk's firefly fix): each pixel weighted by 1 / (1 + luma), so a lone
+  //     hot pixel among dark ones counts about as much as a pixel of 1 and stays under the threshold, while an area
+  //     that is bright as a whole (the sun, a lamp, a lit window up close) averages as itself.
+  const BLOOM_THR = `${LUMA} uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uThr, uKnee, uClamp; varying vec2 vUv;
+    vec3 bSafe(vec3 c) {
+      if (any(isnan(c)) || any(isinf(c))) return vec3(0.0);
+      c = max(c, vec3(0.0));
+      float l = luma(c);
+      return l > uClamp ? c * (uClamp / l) : c; }
     void main() {
-      vec3 c = 0.25 * (texture2D(tSrc, vUv + uTexel * vec2(-0.5, -0.5)).rgb + texture2D(tSrc, vUv + uTexel * vec2(0.5, -0.5)).rgb
-                     + texture2D(tSrc, vUv + uTexel * vec2(-0.5, 0.5)).rgb + texture2D(tSrc, vUv + uTexel * vec2(0.5, 0.5)).rgb);
+      vec3 s0 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(-0.5, -0.5)).rgb), s1 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(0.5, -0.5)).rgb);
+      vec3 s2 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(-0.5, 0.5)).rgb), s3 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(0.5, 0.5)).rgb);
+      float w0 = 1.0 / (1.0 + luma(s0)), w1 = 1.0 / (1.0 + luma(s1)), w2 = 1.0 / (1.0 + luma(s2)), w3 = 1.0 / (1.0 + luma(s3));
+      vec3 c = (s0 * w0 + s1 * w1 + s2 * w2 + s3 * w3) / (w0 + w1 + w2 + w3);
       float l = luma(c);
       float soft = clamp(l - uThr + uKnee, 0.0, 2.0 * uKnee); soft = soft * soft / (4.0 * uKnee + 1e-4);
       float w = max(soft, l - uThr) / max(l, 1e-4);
@@ -235,8 +252,12 @@ const POST_FX = (() => {
   // ---- presets ------------------------------------------------------------------------------
   // the bloom's numbers per compositing: display thresholds sit on the curve (0..1), linear ones are
   // radiances (white is ~1 / exposure; the sun's disc and a lamp's filament are far above it)
-  const BLOOM = { display: { soft: { thr: 0.82, knee: 0.15, gain: 0.32 }, strong: { thr: 0.66, knee: 0.25, gain: 0.7 } },
-                  linear:  { soft: { thr: 1.6, knee: 0.6, gain: 0.35 }, strong: { thr: 0.9, knee: 0.6, gain: 0.6 } } };
+  // G960: the glow a third of what it was (the user: "Even the soft bloom is far too bloomy. One fifth or one third
+  // of the intensity would feel better"). Measured as the mean display increment over bloom off, the same paused
+  // frame, 2216 x 1023, into the sun from 300 m: soft (0.35 -> 0.12) x0.31 at golden hour, x0.36 at noon; strong at
+  // 0.2 was x0.45 / x0.40, so 0.16. clamp: the luminance the threshold pass lets in (display values stop at 1).
+  const BLOOM = { display: { soft: { thr: 0.82, knee: 0.15, gain: 0.11, clamp: 4 }, strong: { thr: 0.66, knee: 0.25, gain: 0.2, clamp: 4 } },
+                  linear:  { soft: { thr: 1.6, knee: 0.6, gain: 0.12, clamp: 16 }, strong: { thr: 0.9, knee: 0.6, gain: 0.16, clamp: 16 } } };
   const LOOKS = {
     punchy: { lift: [0, 0, 0], gain: [1, 1, 1], contrast: 1.14, sat: 1.15 },
     soft:   { lift: [0.015, 0.012, 0.01], gain: [0.985, 0.985, 0.985], contrast: 0.93, sat: 0.96 },
@@ -279,7 +300,7 @@ const POST_FX = (() => {
     quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); quad.frustumCulled = false;
     fsScene.add(quad);
     const V2 = () => new THREE.Vector2(1, 1);
-    M.thr = mat(BLOOM_THR, { tSrc: { value: null }, uTexel: { value: V2() }, uThr: { value: 0.8 }, uKnee: { value: 0.2 } });
+    M.thr = mat(BLOOM_THR, { tSrc: { value: null }, uTexel: { value: V2() }, uThr: { value: 0.8 }, uKnee: { value: 0.2 }, uClamp: { value: 16 } });
     M.down = mat(BLOOM_DOWN, { tSrc: { value: null }, uTexel: { value: V2() } });
     M.up = mat(BLOOM_UP, { tSrc: { value: null }, uTexel: { value: V2() }, uGain: { value: 1 }, uFinal: { value: 0 } }, { blending: THREE.AdditiveBlending, transparent: true });
     // the glow onto the canvas: SCREEN, the add that cannot clip (the canopy's lesson, G448.2)
@@ -318,7 +339,7 @@ const POST_FX = (() => {
     const P = BLOOM[linear ? 'linear' : 'display'][S.bloom]; if (!P) return;
     const h = tBegin('bloom');
     M.thr.uniforms.tSrc.value = rt.texture; M.thr.uniforms.uTexel.value.set(1 / rt.width, 1 / rt.height);
-    M.thr.uniforms.uThr.value = P.thr; M.thr.uniforms.uKnee.value = P.knee;
+    M.thr.uniforms.uThr.value = P.thr; M.thr.uniforms.uKnee.value = P.knee; M.thr.uniforms.uClamp.value = P.clamp;
     draw(M.thr, T.b0);
     for (let i = 1; i < 5; i++) { M.down.uniforms.tSrc.value = T['b' + (i - 1)].texture; M.down.uniforms.uTexel.value.set(1 / T['b' + (i - 1)].width, 1 / T['b' + (i - 1)].height); draw(M.down, T['b' + i]); }
     // up: the smallest level into the next, additively, each with the tent
@@ -464,7 +485,7 @@ const POST_FX = (() => {
     for (const k in M) { M[k].dispose(); delete M[k]; }
     installed = false; sized = { w: 0, h: 0 };
   }
-  const API = { S, KEYS, stats, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, BLOOM, stats, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();

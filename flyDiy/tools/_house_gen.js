@@ -978,6 +978,20 @@ function shadeGlass(m, GU0, SU0) {
       'varying vec3 vWin;\nvarying vec2 vWinUV;\n' +
       'uniform float uGlassWave, uGlassRough, uGlassFres, uLitK;\n' +
       'uniform float uGlassEnvK;\n' +
+      // G960 THE PANE AT A DISTANCE (A2-GLINT, the user: "all landmarks, houses and
+      // little towns emit crazy flashes" - measured, those were the lots' alpha,
+      // lot_tex.js; this is the other way to make one): a smooth, part-metal pane,
+      // its Fresnel lift (x3.6 at a grazing angle) and its 2.3 environment can put
+      // a sun glint or a sky edge on ONE of a pixel's eight samples, and the
+      // resolve averages it into a pixel that twinkles as the camera moves - a
+      // highlight on geometry thinner than the pixel. gFarK is
+      // how few pixels the pane covers, from the world metres a pixel spans on
+      // it (fwidth of the position; grazing counts as far, which is where the
+      // Fresnel lives): 0 up close, 1 by ~0.4 m a pixel (~300 m head-on at
+      // 1080p). Toward 1 the pane is rougher (the highlight spread over the
+      // lobe a pixel really integrates: specular AA), its Fresnel lift and its
+      // own environment gain go - the far glass reads as glass, not as sparks.
+      'float gFarK = 0.0;\n' +
       // WHAT HANGS BEHIND THE GLASS (G273): from the pane's own width and
       // height (vWin.xy) and its dressing code (vWin.z), how much fabric is
       // behind this fragment and what colour it is. A curtain hangs from the
@@ -1049,18 +1063,21 @@ function shadeGlass(m, GU0, SU0) {
           '    float gv = (gField(vGlassP * 0.9) - 0.5) * 0.75 + (gs - 0.5);\n' +
           '    roughnessFactor = clamp(roughnessFactor + gv * uGlassRough,\n' +
           '                            0.015, 0.45);\n' +
+          '    gFarK = smoothstep(0.06, 0.4, length(fwidth(vGlassP)));\n' +
+          '    roughnessFactor = mix(roughnessFactor, max(roughnessFactor, 0.5), gFarK);\n' +
           '  }')
         // radiance and iblIrradiance hold only what the environment gave
         // (lights_fragment_begin zeroes both; lights_fragment_maps adds the env)
         .replace('#include <lights_fragment_maps>',
           '#include <lights_fragment_maps>\n' +
-          '  radiance *= uGlassEnvK; iblIrradiance *= uGlassEnvK;')
+          '  float gEnvK = mix(uGlassEnvK, 1.0, gFarK);\n' +
+          '  radiance *= gEnvK; iblIrradiance *= gEnvK;')
         .replace('#include <lights_fragment_end>',
           '#include <lights_fragment_end>\n' +
           '  {\n' +
           '    float gf = pow(clamp(1.0 - abs(dot(geometryNormal,\n' +
           '                     geometryViewDir)), 0.0, 1.0), 5.0);\n' +
-          '    float gk = 1.0 + uGlassFres * gf;\n' +
+          '    float gk = 1.0 + uGlassFres * gf * (1.0 - gFarK);\n' +
           // a lit pane is a light, not a mirror: the room behind it drowns
           // most of what the glass was reflecting
           '    float glit = step(0.5, vHouseLit);\n' +
@@ -1247,13 +1264,15 @@ function shadeSmoke(m, MU0) {
       sh.fragmentShader.replace('#include <color_fragment>',
         '#include <color_fragment>\n' +
         '  {\n' +
-        '    float r = ' + SMOKE_R0.toFixed(3) + ' + vAge * ' + SMOKE_R1.toFixed(3) + ';\n' +
+        // G960: vAge clamped - an MSAA edge sample extrapolates it past 1, and pow(1 - vAge) was a NaN
+        '    float sAge = clamp(vAge, 0.0, 1.0);\n' +
+        '    float r = ' + SMOKE_R0.toFixed(3) + ' + sAge * ' + SMOKE_R1.toFixed(3) + ';\n' +
         '    float d = length(vSm) / r;\n' +
-        '    vec2 q = vSm / r * 2.2 + vec2(0.0, -uTime * 0.35) + vAge * 3.1;\n' +
+        '    vec2 q = vSm / r * 2.2 + vec2(0.0, -uTime * 0.35) + sAge * 3.1;\n' +
         '    float n = sNoise(q) * 0.6 + sNoise(q * 2.3 + 7.0) * 0.4;\n' +
         '    float a = smoothstep(1.0, 0.25, d) * (0.35 + 0.65 * n) *\n' +
-        '              pow(1.0 - vAge, 1.4) * uSmokeK;\n' +
-        '    a *= smoothstep(0.0, 0.08, vAge + 0.02);\n' +
+        '              pow(1.0 - sAge, 1.4) * uSmokeK;\n' +
+        '    a *= smoothstep(0.0, 0.08, sAge + 0.02);\n' +
         '    diffuseColor.a *= a;\n' +
         '    diffuseColor.rgb *= (0.85 + 0.25 * n) * uSmokeLit;\n' +
         '  }');
@@ -1287,7 +1306,7 @@ function shadeSkirt(m) {
     sh.vertexShader = 'attribute float aHouseLit;\nvarying float vSkA;\n' + sh.vertexShader
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vSkA = aHouseLit;');
     sh.fragmentShader = 'varying float vSkA;\n' + sh.fragmentShader
-      .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.a *= vSkA;');
+      .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.a *= clamp(vSkA, 0.0, 1.0);');   // G960: an MSAA edge sample extrapolates the varying
   };
   m.needsUpdate = true;
 }

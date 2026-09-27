@@ -88,9 +88,13 @@ const rawHook = TARR.rawHook;
   check(!/uniform float uGlassWave|uniform float uLitK/.test(gs.fragmentShader) && /uLitK = c\.x \* tLit/.test(gs.fragmentShader), '1p the glass dials are the slot\'s, the lit pane x the lamps\' factor');
   { const g = gs.fragmentShader, iL = g.indexOf('void tLoad()'), bad = ['uGlassWave', 'uGlassRough', 'uGlassFres', 'uLitK'].filter(n => { const d = g.search(new RegExp('^float[^;(]*\\b' + n + '\\b[^;(]*;', 'm')); return !(d >= 0 && d < iL); });
     check(iL > 0 && !bad.length, '1s the glass tLoad follows its globals', bad.join(' ')); }
-  check(/uGlassEnvK = c\.y;/.test(gs.fragmentShader) && !/uniform float uGlassEnvK/.test(gs.fragmentShader) && /radiance \*= uGlassEnvK; iblIrradiance \*= uGlassEnvK;/.test(gs.fragmentShader),
+  check(/uGlassEnvK = c\.y;/.test(gs.fragmentShader) && !/uniform float uGlassEnvK/.test(gs.fragmentShader) && /gEnvK = mix\(uGlassEnvK, 1\.0, gFarK\);\s*radiance \*= gEnvK; iblIrradiance \*= gEnvK;/.test(gs.fragmentShader),
         '1v the glass\'s own envMapIntensity scales what the environment adds (G581), from its slot in the town');
   check(gs.fragmentShader.includes('gLitCol(vHouseLit)') && gs.fragmentShader.includes('gDress('), '1q the lit windows and the curtains are the generator\'s own GLSL');
+  // G960 (A2-GLINT): the pane a few pixels wide is rough, without its Fresnel lift or its own environment gain - in the
+  // town's program as in the house's; gFarK is set (in the roughness block) before the lights read it
+  { const g = gs.fragmentShader, iK = g.indexOf('gFarK = smoothstep(0.06, 0.4, length(fwidth(vGlassP)))'), iE = g.indexOf('gEnvK = mix(uGlassEnvK, 1.0, gFarK)'), iF = g.indexOf('uGlassFres * gf * (1.0 - gFarK)');
+    check(/^float gFarK = 0\.0;/m.test(g) && iK > 0 && iE > iK && iF > iK && /max\(roughnessFactor, 0\.5\), gFarK\)/.test(g), '1y the far pane fades its glint: rough, no Fresnel lift, no env gain (G960)', [iK, iE, iF].join(' ')); }
 }
 
 // G581: THE WANDER DRAWS. r186 runs onBeforeCompile before it resolves the #includes, so the hook's text holds no

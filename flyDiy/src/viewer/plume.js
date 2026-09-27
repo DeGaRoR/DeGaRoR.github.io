@@ -84,11 +84,13 @@ const FRAG_HEAD = `
 // and the thinning is vFade
 const FRAG_BODY = `
   {
-    float r = uR0 + vAge * uSpread;
+    // G960: the varyings clamped - an MSAA edge sample extrapolates them
+    float sAge = clamp(vAge, 0.0, 1.0), sFade = clamp(vFade, 0.0, 1.0);
+    float r = uR0 + sAge * uSpread;
     float d = length(vSm) / max(r, 1e-4);
-    vec2 q = vSm / max(r, 1e-4) * 2.2 + vec2(0.0, -uTime * 0.35) + vAge * 3.1;
+    vec2 q = vSm / max(r, 1e-4) * 2.2 + vec2(0.0, -uTime * 0.35) + sAge * 3.1;
     float n = sNoise(q) * 0.6 + sNoise(q * 2.3 + 7.0) * 0.4;
-    float a = smoothstep(1.0, 0.25, d) * (0.35 + 0.65 * n) * vFade * uK;
+    float a = smoothstep(1.0, 0.25, d) * (0.35 + 0.65 * n) * sFade * uK;
     diffuseColor.a *= a;
     diffuseColor.rgb *= (0.85 + 0.25 * n) * uSmokeLit;
   }`;

@@ -129,6 +129,13 @@ const LOT_GROUND = (() => {
       sh.fragmentShader.replace('#include <map_fragment>',
         '  {\n' +
         '    vec2 w = vLotP.xz;\n' +
+        // G960 THE LOT'S WEIGHTS, CLAMPED (A2-GLINT): under MSAA a pixel on a sliver's edge is shaded at its centre,
+        // OUTSIDE the triangle, and the varyings are EXTRAPOLATED - 5 km out a lot's alpha came back at +/-hundreds,
+        // the blend (src x a + dst x (1 - a)) wrote +65 000 or a negative radiance into one sample, and the resolve
+        // made it a white, magenta or blue pixel that the bloom blew into a flare (measured: every firefly over the
+        // village from 300 m was this patch). Every weight the plan carries is a fraction: clamped, the edge pixel
+        // is the lot's edge colour.
+        '    vec4 lSp = clamp(vSplat, 0.0, 1.0); vec2 lTn = clamp(vTone, 0.0, 1.0);\n' +
         '    vec4 cGrass = texture2D(map, vMapUv);\n' +
         '    vec4 cLush = texture2D(uLush, w / uTiles.x);\n' +
         '    vec4 cDry = texture2D(uDry, w / uTiles.y);\n' +
@@ -137,14 +144,14 @@ const LOT_GROUND = (() => {
         '    float n1 = lFbm(w * 0.35), n2 = lFbm(w * 1.7 + 5.0);\n' +
         // THE TWO GRASSES on a noise: the plan's slow mask, a finer one here,
         // and the fences pulling the dense grass in
-        '    float gm = smoothstep(0.35, 0.65, vSplat.x * 0.6 + n1 * 0.4);\n' +
-        '    gm = max(gm, vTone.y * (0.7 + 0.3 * n2));\n' +
+        '    float gm = smoothstep(0.35, 0.65, lSp.x * 0.6 + n1 * 0.4);\n' +
+        '    gm = max(gm, lTn.y * (0.7 + 0.3 * n2));\n' +
         '    vec3 col = mix(cGrass.rgb, cLush.rgb, gm);\n' +
         // the tint: a slow drift of hue and value over the lawn
         '    float t1 = lFbm(w * 0.06 + 20.0), t2 = lFbm(w * 0.11 + 40.0);\n' +
         '    col *= mix(vec3(1.06, 0.98, 0.86), vec3(0.88, 1.0, 0.92), t1) * (0.82 + 0.36 * t2);\n' +
         // dense grass by the fence is also a shade darker and greener
-        '    col *= mix(vec3(1.0), vec3(0.86, 0.94, 0.84), vTone.y);\n' +
+        '    col *= mix(vec3(1.0), vec3(0.86, 0.94, 0.84), lTn.y);\n' +
         // THE LAWN'S GRADE: the grass only (the dry, the pebbles and the dirt are mixed in below)
         '    {\n' +
         '      float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));\n' +
@@ -153,16 +160,16 @@ const LOT_GROUND = (() => {
         '    }\n' +
         // dry under the buildings, pebbles at the seafront, dirt on the paths -
         // each edge broken by the finer noise
-        '    float wd = smoothstep(0.25, 0.75, vSplat.y + (n2 - 0.5) * 0.35);\n' +
+        '    float wd = smoothstep(0.25, 0.75, lSp.y + (n2 - 0.5) * 0.35);\n' +
         '    col = mix(col, cDry.rgb, wd);\n' +
-        '    float wp = smoothstep(0.3, 0.7, vSplat.w + (n2 - 0.5) * 0.3);\n' +
+        '    float wp = smoothstep(0.3, 0.7, lSp.w + (n2 - 0.5) * 0.3);\n' +
         '    col = mix(col, cPeb.rgb, wp);\n' +
-        '    float wt = smoothstep(0.3, 0.75, vSplat.z + (n2 - 0.5) * 0.3);\n' +
+        '    float wt = smoothstep(0.3, 0.75, lSp.z + (n2 - 0.5) * 0.3);\n' +
         '    col = mix(col, cDirt.rgb, wt);\n' +
         '    lwGm = gm; lwDry = wd; lwPeb = wp; lwDirt = wt;\n' +
         // the skirt's darkening, folded in
-        '    col *= 1.0 - vTone.x;\n' +
-        '    diffuseColor = vec4(col, vAlpha);\n' +
+        '    col *= 1.0 - lTn.x;\n' +
+        '    diffuseColor = vec4(col, clamp(vAlpha, 0.0, 1.0));\n' +
         '  }')
       // EACH SET ITS OWN NORMAL (G293, the user: "I feel like there is still
       // a single normal map for all materials"): the five normal maps

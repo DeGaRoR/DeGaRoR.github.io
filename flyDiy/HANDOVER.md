@@ -61435,3 +61435,51 @@ stop, powered (cub A3's 4 m/s); (2) the trike flare cap (c172); (3) the approach
 PASS: every core gate but PAVEMENT; SOAR, HOTHIGH; PILOT, PILOTACT. FAIL: ARCHETYPES (the five above - the five G620 read on 3da1c82a), PILOTMATRIX
 (the ten above: 3da1c82a's nine + the stearman's, G630's), SEAPLANE (the three above, 3da1c82a's); PAVEMENT's "100 000 coverAt
 calls in 2050 ms" (a wall-clock bound under the load) - `--only=PAVEMENT` alone: PASS.
+## G960 - THE GLINTS WERE THE LOTS' ALPHA, EXTRAPOLATED; THE BLOOM A THIRD, AND FIREFLY-PROOF (A2-GLINT, 2026-09-27)
+
+The user, flying at 200-330 m toward the AFB: "all landmarks, houses and little towns emit crazy flashes, and I
+think the bloom effect has them explode"; earlier: "Even the soft bloom is far too bloomy. One fifth or one third of
+the intensity would feel better." Numbers and pictures: futureDesigns/PLAYTEST-2026-09-26.md §0.10,
+tools/perf/glint_evidence/.
+- THE SOURCE WAS NOT SPECULAR (measured first, as the ritual says - the brief suspected the far town's glass at
+  envMapIntensity 2.3). The glints were single pixels on the horizon 4.7-6.5 km out, at 8 188 in radiance (= 65 504 / 8:
+  ONE of eight MSAA samples at the half-float ceiling) or with NEGATIVE channels (magenta / blue / cyan after the
+  tone map), on surfaces a centre raycast named as matte. Bisecting the scene named the premises' LOT PATCHES
+  (lot_tex.js: transparent, alpha and splat weights as per-vertex varyings) in every view; live debug variants of
+  that material showed vAlpha / vSplat / vTone outside [0, 1] and the normal and specular clean. MSAA shades an edge
+  pixel at its CENTRE, outside a sliver triangle, so the varyings EXTRAPOLATE; the blend src x a + dst x (1 - a) then
+  writes +65 000 or a negative radiance into that sample, the resolve averages it into a coloured pixel, and the bloom
+  makes it a flare. Which pixels do it changes with every camera move: the flicker.
+  TRAP (general, for any shader): a varying used as a WEIGHT (an alpha, a splat mix, a darkening) must be clamped in
+  the fragment shader - an interpolated varying is only bounded by its vertices inside the triangle, and an 8x MSAA
+  target shades outside it on every edge pixel. `centroid` would do it too; the clamp is one line and gateable.
+- G960 THE CLAMPS: lot_tex.js (alpha, splat, tone), the house ground skirt (_house_gen.js shadeSkirt vSkA), the chimney
+  smoke (vAge: pow(1 - vAge, 1.4) was a NaN past 1) and plume.js (vAge, vFade). Measured over the eight bearings round
+  the AFB (3 km, 300 m AGL): max radiance 8 188 / 7 561 / 124 / 36 -> 0.8-2.1, negative pixels up to 77 -> 0 in every
+  view, fireflies up to 18 -> 0; what remains over the threshold is the Cub's own highlights and the propeller disc.
+- G960 THE BLOOM (post_fx.js): the threshold pass (the first downsample) takes its four pixels - its taps sit on the
+  source's pixel centres, so each IS one pixel - through a NaN / Inf guard, a luminance clamp (`clamp` per tier: 16
+  linear, 4 display) and KARIS'S AVERAGE (weights 1 / (1 + luma): a lone hot pixel counts as about 1 and stays under the
+  threshold, an area bright as a whole averages as itself). The gains to a third of the VISUAL strength (the mean
+  display increment over bloom off, same paused frame, into the sun from 300 m): soft 0.35 -> 0.12 (x0.31 golden hour,
+  x0.36 noon), strong 0.6 -> 0.16, display 0.32 / 0.7 -> 0.11 / 0.2. POST_FX.BLOOM is exported for the gate.
+  An Inf / NaN quad injected on purpose drew no flare before either (D3D writes the NaN as 1, the old pyramid's NaN
+  never reached the screen): the guard is defensive, not the fix.
+- G960 THE FAR GLASS (_house_gen.js shadeGlass; the town's glass is that hook, house_tarr.js edits it): gFarK =
+  smoothstep(0.06, 0.4, length(fwidth(vGlassP))), the pane's metres a pixel (grazing counts as far, where the Fresnel
+  lives): toward 1 the roughness rises to 0.5 (specular AA: the lobe a pixel integrates), the Fresnel lift (x3.6) and
+  the glass's own environment gain (G581's 2.3 / 1.9) go. It is not what the user saw: past HLOD.near (150 m) a cell
+  draws the far mesh or the boxes - ONE material, roughness 1, metalness 0, NO glass (hlodSet hides every bag) - and
+  the probe found no glint on either. It is for the glass that still draws small: detail-cut houses outside the cells,
+  the near town from a low pass.
+- TOOLS: tools/glint_probe.js (the frame as radiance: NaN / Inf / negative / over-threshold counts, fireflies, the
+  hottest pixels raycast - skipping the clouds' fullscreen composite, which a raycast hits first at d 0) and
+  tools/glint_bisect.js (hide a subtree, draw, count, descend). Both are PAGE expressions: a shadowsky_shots.js view's
+  `report`, or the F8 console. FLIGHT_PROBE.camera is a FUNCTION (the later key wins in the object literal).
+  TRAP: a raycast ignores a parent's visibility - a hidden cell's `houses:near` group still answers.
+- GATES: POSTFX +2 (the threshold pass's guard / clamp / four Karis weights; every tier's clamp and a third of its
+  old gain), TARR 1v re-cut + 1y (the far pane's fade, in the town's program, gFarK set before the lights read it).
+- COST (frame_perf, 2216x1023, gamer): the bloom pyramid 0.01 ms a level and 0.04 onto the canvas, the resolve
+  0.05-0.06 - the same before and after to the hundredth. FLICKER over an 8-frame 0.0015 rad/frame sweep (horizon
+  strip, pixels changing > 60 a step): 524-5 434 -> 192-216. The tramway seen from the SW has the same village behind it and was
+  the same fault (22 max, 31 negative -> 2.0, 0); the native village, the mine, the tramway from the NE were clean.
