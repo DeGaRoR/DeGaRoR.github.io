@@ -1182,6 +1182,10 @@ window.CAGE_PAGE = {
       wgPos: 0, wgCentre: 2, wgCentreW: 1.05, wgBrace: 0, wgCrankAt: 0.45,
       wgDihedralOut: 1.7, wgPanels: 3, wgDx: 0.13, wgDy: -0.1, wgParaH: 0.45,
       wgStrutZ: 0.2, wgStrutX: -0.06, wgFlapType: 2, wgFlapSpan: 0.55,
+      // G776: ONE STRUT A SIDE, as a 172 has (the V pair was the page's
+      // default, never the aeroplane's). Drawing only: T2.3 (83) keeps the
+      // rear member as a hidden fan member, so the truss that flies is the same
+      wgStruts: 1,
       wgFlapChord: 0.2, wgAilOn: 1, wgAilSpan: 0.35, wgAilChord: 0.22,
       wgCons: 0, w2On: 0, w2Pos: 2, w2ParaH: 0.45, w2Stagger: 0.35, w2Dy: 0,
       w2Span: 10, w2Chord: 1.6, w2ChordTip: 1.6, w2TipX: 0, w2CrankAt: 0,
@@ -1989,7 +1993,7 @@ window.CAGE_PAGE = {
           place: { dx: 0, dy: 0 },
           centreW: 1.05,
           yRoot: 1.4203374513171196 }],
-      bracing: { type: "strut", interplane: "none", interplaneAt: 0.62, wires: "both", cabane: "N" },
+      bracing: { type: "strut", struts: 1, interplane: "none", interplaneAt: 0.62, wires: "both", cabane: "N" },   // G776: the cage row's wgStruts 1
       controls: {
         flap: { type: "slotted", span: 0.55, chord: 0.2 },
         aileron: { span: 0.35, chord: 0.22 },

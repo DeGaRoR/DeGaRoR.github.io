@@ -215,16 +215,28 @@ const RULES = [
   ['the eye stands clear of the plate',
    F => F.standoff > F.lugR + F.padT],
   ['the end fitting is a NARROWING of the strut',
-   F => F.bladeC < F.chordK * F.strutR],
+   F => F.bladeC < Math.min(F.frontC, F.rearC, F.oneC)],
   ['...and a FLATTENING of it',
-   F => F.bladeT < 2 * 0.118 * F.chordK * F.strutR],
+   F => F.bladeT < Math.min(F.frontT, F.rearT, F.oneT)],
+  // G776: THE MEMBERS ARE REAL STREAMLINE TUBES — Piper's front and rear, a
+  // Cessna's single one (the sources are on the table). Fineness between a
+  // formed round tube's 2.3:1 and 3.6:1; the rear of a V the lighter member;
+  // a lone strut carries the side on its own, so it is the fullest; and no
+  // member is the old 19.5 mm rule's thickness again.
+  ['every lift-strut section is a streamline tube (2.2 to 3.6 : 1)',
+   F => [[F.frontC, F.frontT], [F.rearC, F.rearT], [F.oneC, F.oneT]]
+          .every(([c, t]) => c / t >= 2.2 && c / t <= 3.6)],
+  ['the rear strut of a V is the lighter member, a lone strut the fullest',
+   F => F.rearC < F.frontC && F.rearT < F.frontT && F.oneT > F.frontT],
+  ['no lift strut is thinner than a real one (21 mm, the PA-18 rear)',
+   F => Math.min(F.frontT, F.rearT, F.oneT) >= 0.020],
   ['the transition is a tenth of the member, not half of it',
    F => F.endFrac > 0.02 && F.endFrac < 0.5],
   ['a screw is smaller than a bolt eye',
    F => F.screwR < F.lugR && F.screwR < F.pinR],
   ['the doubler is a sheet, not a slab',
    F => F.padT > 0.002 && F.padT < 0.02],
-  ['the strut is 63_gen_skin\'s own external wing member',
+  ['the brace layer\'s truss member is 63_gen_skin\'s own external wing member',
    F => Math.abs(F.strutR - 0.020 * 1.15) < 1e-9 && F.chordK === 3.6],
   // the WING end (G87): the same object, spreading into a spar cap instead
   // of into a 0.6 mm skin, and living in a band a few tenths of a chord wide
@@ -359,6 +371,7 @@ const RULES = [
     padL: 0.06, padW: 0.02, pinShank: 0.004, standoff: 0.004,
     bladeC: 0.40, bladeT: 0.40, endFrac: 0.90, screwR: 0.40,
     padT: 0.30, strutR: 0.10,
+    frontC: 0.04, rearT: 0.005, oneT: 0.02,
     wingPadL: 0.01, wingPadW: 0.01, wingPadT: 0.30, wingStandoff: 0.004,
   };
   for (const [label, rule] of RULES) {
