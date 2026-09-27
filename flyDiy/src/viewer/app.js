@@ -6678,7 +6678,7 @@
     holdRender = true;
     const steps = [
       { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compileSliced(sc, aa && aa.target ? aa.target() : null)
-          .then(() => garage ? null : compileDepthVariants()).catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
+          .then(() => garage ? null : compileDepthVariants(scene, true)).catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
       { id: 'frames', label: 'first light', w: 2, fn: () => { holdRender = false; return framesRendered(2); } },
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
@@ -9838,6 +9838,13 @@
   // reading (the rendered-frame readout still shows it); the drop needs three slow readings running (3 s at
   // 60, where it was two); a trial of 60 needs the one-step work under 60's own budget (16.7 ms - the trial
   // itself is the measurement: its median frame decides); a missed trial holds the next 5 s, doubling to 30 s.
+  // THE TRIAL IS THE ONLY JUDGE (G990, A-END: the Cub's taxi dropped to 30 once and never came back - its one-step
+  // loop read 18-23 ms at 30, never under 16.7, while the same frame pinned at 60 held a 16.7 ms median. The loop's
+  // JavaScript is not the frame: at 60 three's submit stalls on the GPU's back-pressure (render 15 ms at 60, 12 at 30)
+  // and Chrome's rAF runs late on the vsync it owes, so a 21 ms loop still lands ~65 % of its frames on time):
+  // at 30 two readings (4 s) and the hold past earn a trial whatever the work reads, and the trial's own median frame
+  // decides, as before. The backoff stays - and is what keeps a scene on the edge from flapping: a drop within 20 s of
+  // an up is a trial that missed (the hold doubles), and the doubling forgets only once 60 has held 20 s.
   // A RIG (a headless or driven browser: the gates, frame_perf.js, the shot tools) and a harness that calls
   // the loop with no timestamp (GATE UISMOKE's vm) keep the old clock exactly: one 1/60 step a call,
   // uncapped - every measurement and every gate reads the frame it always read (?pace=1 forces the clock on).
@@ -9860,7 +9867,7 @@
     const P = {
       mode: 'auto', cap: 60, legacy: RIG && !FORCE,
       acc: 0, lastT: 0, due: 0, dt: 1 / 60, steps: 1, t0: 0,
-      iv: [], work: [], hist: [], strikes: 0, goods: 0, trial: null, holdUp: 0, trials: 0,
+      iv: [], work: [], hist: [], strikes: 0, goods: 0, trial: null, holdUp: 0, trials: 0, upT: -1e9, lastWork: 0,
       stats: { down: 0, up: 0, trialsFailed: 0, guarded: 0 },
       hiddenT: -1, frz: { n: 0, maxMs: 0, lastT: 0, away: 0 },   // G620: the freezes the readout keeps; the page's last hidden moment
       // the guard's readings (G612): a solver step (ms), the frame less its solver (ms), the last frame's solver;
@@ -9927,26 +9934,30 @@
       const f = med(P.iv), w = med(P.work);
       P.iv = []; P.work = [];
       if (now - P.t0 < 1500) return;                      // the first readings after a change are the change's
+      P.lastWork = w;
+      const failed = () => { P.stats.trialsFailed++; P.trials++; P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); };   // G615: 5 s, doubling, 30 s at most
       if (P.cap === 60) {
         if (P.trial) {                                    // a trial of 60 from 30: did it hold?
           const ok = f <= 18.5; P.trial = null;
-          if (ok) { P.trials = 0; return; }
-          P.stats.trialsFailed++; P.trials++;
-          P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1));   // G615: 5 s, doubling, 30 s at most
-          P.stats.down++; setCap(30, now); return;
+          if (ok) return;                                 // G990: the backoff forgets only once 60 has HELD (below)
+          failed(); P.stats.down++; setCap(30, now); return;
         }
+        if (P.trials && now - P.upT > 20000) P.trials = 0;   // G990: 60 held 20 s past its trial - the backoff starts over
         P.strikes = f > 18.5 ? P.strikes + 1 : 0;
         const AA = W.FLYDIY_AA, A = AA && AA.autoState ? AA.autoState() : null;
-        if (P.strikes >= 3 && !(A && A.on && A.probing)) { P.stats.down++; setCap(30, now); }   // G615: three readings running
+        if (P.strikes >= 3 && !(A && A.on && A.probing)) {   // G615: three readings running
+          if (now - P.upT < 20000) failed();              // G990: a drop within 20 s of an up is a trial that missed - no flapping
+          P.stats.down++; setCap(30, now);
+        }
       } else {
-        P.goods = w < 1000 / 60 ? P.goods + 1 : 0;       // G615: the one-step work inside 60's own budget
-        if (P.goods >= 2 && now > P.holdUp) { P.stats.up++; P.trial = { t: now }; setCap(60, now); }
+        P.goods++;                                        // G990: a reading at 30 (the first after the change skipped, above)
+        if (P.goods >= 2 && now > P.holdUp) { P.stats.up++; P.trial = { t: now }; P.upT = now; setCap(60, now); }
       }
     }
     function set(mode) {
       P.mode = (mode === 'auto' || mode === 'off') ? mode : (+mode === 30 ? 30 : 60);
       P.cap = P.mode === 'auto' ? 60 : (P.mode === 'off' ? 60 : P.mode);
-      P.iv = []; P.work = []; P.strikes = P.goods = 0; P.trial = null; P.holdUp = 0; P.trials = 0; P.due = 0;
+      P.iv = []; P.work = []; P.strikes = P.goods = 0; P.trial = null; P.holdUp = 0; P.trials = 0; P.upT = -1e9; P.due = 0;
       tellScale();
       return P.mode;
     }
@@ -9957,7 +9968,7 @@
       get dilation() { return P.wallW > 0.2 ? P.simW / P.wallW : 1; },   // the sim's seconds over the wall's, the last second (G612)
       budgetMs: () => 1000 / (capOf() || 60),
       state: () => ({ mode: P.mode, cap: capOf(), legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0,
-                      dilation: api.dilation, stepMs: P.stepMs, otherMs: P.otherMs, droppedS: P.droppedS }) };
+                      dilation: api.dilation, stepMs: P.stepMs, otherMs: P.otherMs, droppedS: P.droppedS, workMs: P.lastWork, trials: P.trials }) };
     W.FLYDIY_PACE = api;
     return api;
   })();
@@ -10365,14 +10376,18 @@
   const PLAIN_RT = () => PLAIN_RT.rt || (PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4));
   // G680: `sc` - the shed too (its boot's compile warmed the room for its two targets, not its shadow pass nor the
   // passes outside the scene: the garage's first frame linked them, 1.8 s cold); the far cascade is the world's alone
-  function compileDepthVariants(sc) {
+  // G991: `sliced` - the settings screen's: every pass through compileSliced (a task at a time). A shadows change re-keys
+  // the whole depth set (the lit scene's light state is its key), and compileAsync builds every NEW program's source in
+  // its first, synchronous task
+  function compileDepthVariants(sc, sliced) {
     sc = sc || scene;
+    const pass = sliced ? compileSliced : compilePass;
     const inWorld = sc === scene;
     if (typeof renderer.compileAsync !== 'function' || (inWorld && !WF)) return Promise.resolve();
     const jobs = [];
     if (typeof PROG_WARM !== 'undefined') {
       const { helper } = PROG_WARM.depthVariants(THREE, renderer, [sc]);
-      jobs.push(PROG_WARM.fogless(sc, () => compilePass(helper, PLAIN_RT(), sc)).catch(e => console.warn('depth compile:', e && e.message)));
+      jobs.push((sliced ? compileSliced(helper, PLAIN_RT(), sc, true) : PROG_WARM.fogless(sc, () => compilePass(helper, PLAIN_RT(), sc))).catch(e => console.warn('depth compile:', e && e.message)));
     }
     // the far cascade's proxies (their far depth) and the canopy cover's swap: drawn by their own
     // renders into their own targets, keyed without the world's lights, as before
@@ -10381,7 +10396,7 @@
       const add = (o, mat) => { if (!mat) return; const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m'); if (seen.has(key)) return; seen.add(key);
         far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
       if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
-      if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
+      if (far.children.length) jobs.push(pass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
     }
     // G584: THE PASSES OUTSIDE THE SCENE - the resolve's blit, the post chain, the clouds' bake / march / shadow:
     // full-screen quads in scenes of their own that compileAsync(scene) never meets; each module lists its own
@@ -10390,7 +10405,7 @@
       try { if (aa && aa.warmList) lists.push(aa.warmList()); } catch (e) {}
       try { if (typeof POST_FX !== 'undefined' && POST_FX.warmList) lists.push(POST_FX.warmList()); } catch (e) {}
       try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmList) lists.push(CLOUDS.warmList()); } catch (e) {}
-      for (const g of PROG_WARM.passes(THREE, lists)) jobs.push(compilePass(g.helper, g.target === null ? null : PLAIN_RT()).catch(e => console.warn('pass compile:', e && e.message)));
+      for (const g of PROG_WARM.passes(THREE, lists)) jobs.push(pass(g.helper, g.target === null ? null : PLAIN_RT()).catch(e => console.warn('pass compile:', e && e.message)));
     }
     return Promise.all(jobs);
   }
@@ -10452,8 +10467,11 @@
   // prototype, so everything the key reads of it - instancing, skinning, morphs, the geometry's attributes - is its
   // own) per distinct (material, object kind, attribute layout), compiled a group per task (the group sized to
   // ~30 ms, adaptively), then the programs polled until ready - compileAsync's promise, without its long first task.
-  function compileSliced(sc, target, lit) {
-    if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return compilePass(sc, target, lit);
+  // `fogless` (G991): each task's compile with the lit scene's fog lifted - PROG_WARM.fogless, a task at a time (the
+  // depth variants' key, compileDepthVariants below)
+  function compileSliced(sc, target, lit, fogless) {
+    if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn)
+      return fogless && PROG_WARM ? PROG_WARM.fogless(lit || sc, () => compilePass(sc, target, lit)) : compilePass(sc, target, lit);
     const reps = [], seen = new Set(), mats = new Set();
     sc.traverse(o => {
       if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.material) return;
@@ -10473,8 +10491,9 @@
     return new Promise(res => {
       const tick = () => {
         const t0 = performance.now();
-        const prev = renderer.getRenderTarget();
+        const prev = renderer.getRenderTarget(), fog = litScene.fog;
         try {
+          if (fogless) litScene.fog = null;
           renderer.setRenderTarget(target, 0);
           while (i < reps.length && performance.now() - t0 < 30) {
             const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
@@ -10485,7 +10504,7 @@
             const dt = performance.now() - t1;
             G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
           }
-        } finally { renderer.setRenderTarget(prev); }
+        } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
         if (i < reps.length) { setTimeout(tick, 0); return; }
         // the link: compileAsync's own poll (a program three made for a material is its currentProgram)
         const poll = () => {

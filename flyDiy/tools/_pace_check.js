@@ -18,6 +18,10 @@
 //   - G620: A FREEZE IS KEPT: a stall of 250 ms or more stays in the readout's history (recent()) and is counted and
 //     timed (freezes()) - it was dropped, so a real freeze never showed in the menu's note - while auto's readings
 //     still skip it; a gap the page spent hidden (a tab away) is neither a frame nor a freeze.
+//   - G990: THE AUTO CAP LATCH: on a 60 Hz vsync with the main thread bound by a 21 ms loop (the A-END Cub's taxi: rAF
+//     runs late on the vsync it owes, 60's median holds), a drop to 30 comes back to 60 - the trial is the judge, not the
+//     one-step work (G615 waited for it under 16.7 ms: never); a frame that cannot hold 60 keeps backing off; a load
+//     swinging across the edge does not flap (a drop within 20 s of an up is a missed trial).
 //   node tools/_pace_check.js          -> "GATE PACE: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -209,6 +213,51 @@ function driveCpu(PACE, other, step, secs) {
   hide(t + 5); t += 4000; PACE.frame(t); t += 1000 / 60; PACE.frame(t);
   const fz2 = PACE.freezes();
   verdict(fz2.n === n0 && fz2.away === 1 && !PACE.recent().some(x => x > 3000), `  a 4 s gap with the page hidden (a tab away): not a freeze (${fz2.n}), counted away (${fz2.away}), not in the history`);
+}
+// 10. G990: THE AUTO CAP LATCH. A 60 Hz screen and a main thread bound by the loop, as the roll-out rows read it: each
+// rAF runs when the thread frees, stamped with the vsync that last passed (Chrome runs late on the vsync it owes), so a
+// 21 ms loop lands ~3 frames in 4 on a 16.7 ms interval and doubles the 4th. `base(t)` ms of loop + `step` ms a solver step.
+function driveVsync(PACE, secs, base, step, seed) {
+  const R = 1000 / 60; let busy = PACE.__t || 1000, last = -1, rnd = seed || 0;
+  const end = busy + secs * 1000, dts = [], caps = [];
+  while (busy < end) {
+    let ts = Math.floor(busy / R) * R; if (ts <= last) ts = last + R;
+    const start = Math.max(busy, ts); last = ts;
+    const f = PACE.frame(ts);
+    if (!f) { busy = start + 0.05; continue; }
+    rnd = (rnd * 16807) % 2147483647;
+    const jit = seed ? ((rnd / 2147483647) - 0.5) * 6 : 0;
+    const n = f.steps, work = Math.max(1, base(ts) + jit) + n * step;
+    PACE.end(work, n * step, n, ts, n);
+    dts.push(f.dt * 1000); caps.push(PACE.state().cap);
+    busy = start + work;
+  }
+  PACE.__t = busy;
+  return { dts, caps, med: med0(dts), at60: caps.filter(c => c === 60).length / caps.length };
+}
+function med0(a) { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; }
+{
+  // the A-END taxi: dropped once (8 s of 30 ms frames), then the Cub's frame - 18.5 ms of loop + 2.5 ms a step, the
+  // one-step work 21 ms (never under 60's 16.7: the G615 latch held it at 30 for good)
+  const { PACE } = make({});
+  driveVsync(PACE, 8, () => 30, 2.5);
+  const s0 = PACE.state();
+  const r = driveVsync(PACE, 60, () => 18.5, 2.5), st = PACE.state();
+  const tail = driveVsync(PACE, 30, () => 18.5, 2.5);
+  verdict(s0.cap === 30 && st.cap === 60 && tail.at60 === 1 && tail.med < 17,
+    `the latch: dropped to 30, then a 21 ms one-step loop that lands 60's median - back to 60 (cap ${s0.cap} -> ${st.cap}, ${st.stats.up} up), the next 30 s all at 60, median frame ${tail.med.toFixed(1)} ms (work read ${(st.workMs || 0).toFixed(1)} ms)`);
+  // a frame that cannot hold 60 (26 ms of one-step loop - the metal Cessna's): the trials back off, it stays at 30
+  const { PACE: P2 } = make({});
+  const r2 = driveVsync(P2, 120, () => 23.5, 2.5), s2 = P2.state();
+  verdict(s2.cap === 30 && s2.stats.up <= 6 && r2.at60 < 0.15 && r2.med > 33,
+    `  a frame that cannot hold 60 (26 ms): ${s2.stats.up} trials in 120 s (<= 6, the hold doubling to 30 s), ${(100 * r2.at60).toFixed(0)} % of the frames at 60, median ${r2.med.toFixed(1)} ms`);
+  // the edge that swings (the loop 23 +-2 ms over 12 s - a taxi turning through the town's view): each light half
+  // holds 60's median, each heavy half does not. A drop within 20 s of an up is a trial that missed - the hold doubles:
+  // 10 ups in 5 min where the unguarded rule made 24 (a cap change every 6 s)
+  const { PACE: P3 } = make({});
+  driveVsync(P3, 300, t => 20.5 + 2 * Math.sin(2 * Math.PI * t / 12000), 2.5, 1); const s3 = P3.state();
+  verdict(s3.stats.up <= 12 && s3.stats.trialsFailed >= s3.stats.up - 2,
+    `  the edge swinging over 12 s: ${s3.stats.up} ups in 300 s (<= 12; 24 without G990's 20 s rule), ${s3.stats.trialsFailed} counted as missed trials`);
 }
 console.log('GATE PACE: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

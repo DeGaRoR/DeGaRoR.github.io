@@ -118,6 +118,9 @@ const SHOT_EVAL = opt('shot-eval', null);
 const PROFILE_LIVE = opt('profile-live', null);
 const EVAL = (e => e && e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e)(opt('eval', null));   // '@tools/rollout_census.js': from a file
 const SETTINGS = flag('settings') ? (() => { const v = opt('settings', null); return (v && !v.startsWith('--') ? v : 'shadows=off,shadows=full,preset=potato,preset=gamer').split(',').map(x => x.split('=')); })() : null;
+// --profile-settings (G991): a CPU profile of each settings change (<label>_set_<k>_<v>.cpuprofile), its longest task
+// summarised by self time and by the calling chain - where a change's long task goes
+const PROFILE_SET = flag('profile-settings');
 const CHROME_FLAGS = argv.reduce((a, x, i) => (x === '--chrome-flag' && argv[i + 1] ? a.concat([argv[i + 1]]) : a), []);
 if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
 
@@ -134,6 +137,9 @@ function preScript() {
     lines.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(txt) + ')}catch(e){}');
   } else lines.push(require('./_stock_pin.js').pinScript());
   lines.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
+  // G991: and the route (G710 remembers it, flydiy.route): a peer's run left a departure elsewhere in the shared warm
+  // profile and the "taxi" was a take-off roll from another strip, a different frame to measure
+  lines.push('try{localStorage.removeItem("flydiy.route")}catch(e){}');
   // G790: the route and who flies, stated every run (a warm profile keeps both from the last one)
   lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ from: FROM, dest: DEST })) + ');localStorage.setItem("flydiy.flManual","' + (AFLOAT > 0 ? '1' : '0') + '")}catch(e){}');
   if (VARIANT === 'nomet') {
@@ -215,6 +221,36 @@ const INSTALL = `(() => {
   return 'installed';
 })()`;
 
+// G991: the change's WORST task (the page's own long-task entry, [start ms, duration ms] on its clock) in its CPU profile:
+// the samples inside it (the profile's start taken as the page's clock at Profiler.start, within a few ms) - self time by
+// function and the heaviest calling chains (the leaf's four callers), printed; the profile saved to `file`
+function profileTask(prof, file, pageT0, win) {
+  try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(prof)); } catch (e) {}
+  if (!win) return null;
+  const byId = new Map(); for (const n of prof.nodes) byId.set(n.id, n);
+  const parent = new Map(); for (const n of prof.nodes) for (const c of (n.children || [])) parent.set(c, n.id);
+  let t = prof.startTime; const best = { start: win[0], end: win[0] + win[1], idx: [] };
+  for (let i = 0; i < prof.samples.length; i++) {
+    t += prof.timeDeltas[i];
+    const at = pageT0 + (t - prof.startTime) / 1000;
+    if (at >= best.start && at <= best.end && byId.get(prof.samples[i]).callFrame.functionName !== '(idle)') best.idx.push(i);
+  }
+  if (!best.idx.length) return null;
+  const dt = (prof.endTime - prof.startTime) / Math.max(1, prof.samples.length) / 1000;
+  const self = new Map(), chain = new Map();
+  const name = id => { const cf = byId.get(id).callFrame; return (cf.functionName || '(anon)') + ' ' + ((cf.url || '').split('/').pop().split('?')[0]) + ':' + (cf.lineNumber + 1); };
+  for (const i of best.idx) {
+    const id = prof.samples[i]; self.set(name(id), (self.get(name(id)) || 0) + 1);
+    const ch = []; let p = id; for (let k = 0; k < 5 && p != null; k++) { ch.push(name(p)); p = parent.get(p); }
+    const key = ch.join(' < '); chain.set(key, (chain.get(key) || 0) + 1);
+  }
+  const top = m => [...m].sort((a, b) => b[1] - a[1]).slice(0, 15).map(([k, n]) => [+(n * dt).toFixed(1), k]);
+  const out = { ms: win[1], sampledMs: +(best.idx.length * dt).toFixed(0), self: top(self), chains: top(chain) };
+  const NL = String.fromCharCode(10);
+  console.log('    worst task ' + out.ms + ' ms (' + out.sampledMs + ' ms sampled), self time:' + NL + out.self.map(x => '      ' + x[0] + ' ms  ' + x[1]).join(NL)
+    + NL + '    chains:' + NL + out.chains.slice(0, 8).map(x => '      ' + x[0] + ' ms  ' + x[1]).join(NL));
+  return out;
+}
 const med = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[f.length >> 1]; };
 const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[Math.min(f.length - 1, Math.floor(f.length * p))]; };
 
@@ -367,7 +403,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (SETTINGS) {
     settingsT0 = await ev('performance.now()');
     for (const [k, v] of SETTINGS) {
-      const t0 = await ev('performance.now()');
+      if (PROFILE_SET) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 500 }); await cmd('Profiler.start'); }
+      const t0 = await ev('performance.now()'), pT0 = t0;
       const vv = /^-?[0-9.]+$/.test(v) ? v : JSON.stringify(v);
       // one task, as the pill's click: set (apply inside), then the settle screen
       await ev('(() => { const r = GFX.set(' + JSON.stringify(k) + ', ' + vv + '); if (' + JSON.stringify(k) + " !== 'fps' && typeof FLYDIY_SETTLE === 'function') FLYDIY_SETTLE(" + JSON.stringify(k) + '); return 1; })()', 60000);
@@ -384,6 +421,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
       const lt = JSON.parse(await ev('JSON.stringify(__RP.lt)', 30000)).filter(x => x[0] >= t0 - 5 && x[0] <= t1);
       const worst = lt.reduce((m, x) => Math.max(m, x[1]), 0);
       const run = { change: k + '=' + v, clickMs: Math.round(tClick - t0), screen: shown, spanMs: Math.round(t1 - t0 - 2000), worst, over1s: lt.filter(x => x[1] > 1000).length, over200: lt.filter(x => x[1] > 200).map(x => x[1]) };
+      if (PROFILE_SET) { const pr = (await cmd('Profiler.stop')).result.profile; run.profile = profileTask(pr, OUT.replace(/\.json$/, '_set_' + k + '_' + v + '.cpuprofile'), pT0, lt.reduce((m, x) => (!m || x[1] > m[1] ? x : m), null)); }
       settingsRuns.push(run);
       console.log('  SETTINGS ' + run.change.padEnd(16) + ' click task ' + run.clickMs + ' ms · ' + (shown ? 'screen' : 'no screen') + ' · settled in ' + (run.spanMs / 1000).toFixed(1) + ' s · worst task ' + worst + ' ms · >1 s: ' + run.over1s + (run.over200.length ? ' · >200 ms: ' + run.over200.join(' ') : ''));
     }
