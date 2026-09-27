@@ -35,6 +35,7 @@ for (const [sub, f] of payloadFiles)
 const modelsBlock = payloadFiles.map(([sub, f]) =>
   fs.readFileSync(path.join(__dirname, '..', sub, f), 'utf8')).join('\n');
 const appBlock = pick('function setAircraft', 'app');
+const worldBootBlock = pick('FLYDIY_WORLD_COMPOSE = function', 'world boot');   // G999: the world's composition, ahead of app.js (which calls it when the promote did not)
 // THE LOADING SCREEN (LOADING S1): boot.js is its own inline block, ahead of
 // the vendor. It is executed here so the boot's step chain runs the way the
 // browser runs it minus the waiting - this harness's setTimeout fires at
@@ -339,6 +340,7 @@ try {
   // render_world is not executed; the app only needs its factory's return shape
   sandbox.buildWorldScene = () => ({ worldUpdate() {} });
   vm.runInContext(bootBlock, sandbox, { filename: 'boot.js' });      // the loading screen's brain
+  vm.runInContext(worldBootBlock, sandbox, { filename: 'world_boot.js' });   // G999: FLYDIY_WORLD_COMPOSE (app.js runs it)
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
   if (!handlers['bSkin']) throw new Error('bSkin not wired');
   // drive the loop: HOLDING frames, then press Fly and run 2 s of circuit

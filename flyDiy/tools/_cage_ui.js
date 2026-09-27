@@ -4829,7 +4829,10 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders, reg: () => decReg()
 // one frame of every row at once.
 if (window.CAGE_ON_ROWS) try { window.CAGE_ON_ROWS(); } catch (e) {
   console.error('editor panel:', e); }
-build();
+// G999 (A5-LOAD): the game's boot seeds the editor with the player's aeroplane right after this (app.js 'seed' step:
+// applySpec builds it) and says so with CAGE_UI_DEFER_BUILD - this build of the page's own template was 1.3 s of the
+// garage boot, thrown away a task later. Consumed here: every later boot builds as before.
+if (window.CAGE_UI_DEFER_BUILD) window.CAGE_UI_DEFER_BUILD = false; else build();
 }
 window.CAGE_UI_BOOT = CAGE_UI_BOOT;
 if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();

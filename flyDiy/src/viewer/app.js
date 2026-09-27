@@ -13,61 +13,12 @@
       whenReady: () => Promise.resolve([]), pending: () => [] };
   })();
   BOOT.phase('world', 'composing the world');
-  // THE PREMISES (G386): the world editor's saved record composes into the world at boot -
-  // localStorage flydiy.premises.game (what the WORLD rail saves), or ?premises=<name> for a
-  // fixture from tools/fixtures (a test's door; read synchronously because the world is made
-  // here, during the script's own evaluation)
-  // THE WIP KEY IS THE MAP'S (G434): an island's saved premises must never compose onto the analytic
-  // world (nor Skarvik's edits onto the island) now that the GRAPHICS menu swaps maps
-  const WIP_KEY = 'flydiy.premises.game' + ((typeof window !== 'undefined' && window.ISLAND_BOOT) ? '.' + window.ISLAND_BOOT.id : '');
-  const premisesAtBoot = (() => {
-    try {
-      const q = new URLSearchParams(location.search).get('premises');
-      if (q) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_' + q + '.json', false); x.send(); if (x.status === 200) return x.responseText; }
-      if (q === 'none') return null;
-      const saved = localStorage.getItem(WIP_KEY);
-      // an island brings its own premises: tools/fixtures/island_<island>.json (its own prefix: GATE
-      // PREMISES composes every premises_v1_* fixture on the ANALYTIC world). G401: Jolene's old field.
-      // A saved copy (the WORLD rail's WIP) wins unless it is the SAME premises at an older `rev`
-      // (G404: a stale first version had shadowed the field)
-      let fixture = null;
-      if (window.ISLAND_BOOT) {
-        if (typeof window.ISLAND_BOOT.premFixture === 'string') fixture = window.ISLAND_BOOT.premFixture;   // G998: the loader fetched it with the island
-        else { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/island_' + window.ISLAND_BOOT.id + '.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
-      }
-      // THE OFFICIAL PREMISES OF THE ANALYTIC WORLD (G398.3, the user: "a new airport somewhere, with
-      // scenery ... that should impact the real game, and become a new official airport"): Skarvik,
-      // authored in the editor, shipped as a fixture and composed at every boot; its strip is an
-      // aerodrome of the world, so it is a destination like any other
-      else { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_official.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
-      if (saved && fixture) {
-        try { const S = JSON.parse(saved), F = JSON.parse(fixture); const sp = S.premises || S, fp = F.premises || F;
-          if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem(WIP_KEY); return fixture; } } catch (e) {}
-      }
-      return saved || fixture;
-    } catch (e) { return null; }
-  })();
-  // THE TOWN SWITCH (G590, the 2026-09-26 playtest): Metlakatla (every `mk_` entry of the record) held the Jolene
-  // taxi at 12-15 fps, so it is OFF unless the GRAPHICS 'town' row says 'all' or the URL ?town=1 - dropped at load,
-  // code and data kept; the editor's autosave puts the cut back (below), so a save made with it off keeps it
-  const TOWN = (() => {
-    const T = { all: false, off: ['mk_'], cut: null, n: 0 };
-    try { const q = new URLSearchParams(location.search).get('town'); const g = window.GFX && window.GFX.get ? window.GFX.get() : null;
-      T.all = q !== null ? (q === '1' || q === 'all') : !!(g && g.town === 'all'); } catch (e) {}
-    return T;
-  })();
-  const premisesPlaced = (() => {
-    if (TOWN.all || !premisesAtBoot || typeof PREMISES_GEN === 'undefined') return premisesAtBoot;
-    try { const U = PREMISES_GEN.unwrap(premisesAtBoot), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off);
-      if (!D.n) return premisesAtBoot;
-      TOWN.cut = D.cut; TOWN.n = D.n;
-      return PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log); } catch (e) { return premisesAtBoot; }
-  })();
-  if (typeof window !== 'undefined') window.FLYDIY_TOWN = TOWN;
-  // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
-  const islandAtBoot = (typeof window !== 'undefined' && window.ISLAND_BOOT && typeof ISLAND_GEN !== 'undefined')
-    ? ISLAND_GEN.makeIsland(window.ISLAND_BOOT) : null;
-  const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot });
+  // G999 (A5-LOAD): THE WORLD IS COMPOSED IN WORLD_BOOT.JS (the premises record, the town switch, the island,
+  // makeWorld - moved verbatim): the promote runs it in its own task right before this script (FLYDIY_WORLD_MADE);
+  // anywhere nothing did (dev.html, a harness), it runs here, where it always ran
+  const WB = (typeof window !== 'undefined' && window.FLYDIY_WORLD_MADE) || window.FLYDIY_WORLD_COMPOSE();
+  if (typeof window !== 'undefined') window.FLYDIY_WORLD_MADE = null;
+  const { WIP_KEY, premisesAtBoot, TOWN, world } = WB;
   // THE CLOCK (SKY S1): the day boots fixed (07_day.js), then the pref or ?day= moves it
   if (typeof DAY_CLOCK !== 'undefined') DAY_CLOCK.bind(world);
   // `gen` is the GARAGE: not a fiche but a generator, rebuilt from a live spec
@@ -941,6 +892,8 @@
       hangar = null;
       if (window.console) console.error('hangar unavailable, the garage will be empty:', e.message);
     }
+    // G999: the editor rail's mood label reads the room's moods; it no longer builds the room to read them (below)
+    if (hangar && typeof window.EDITOR_SYNC_NIGHT === 'function') try { window.EDITOR_SYNC_NIGHT(); } catch (e) {}
     return hangar;
   }
 
@@ -1286,7 +1239,10 @@
       if (getHangar()) bakeHangarEnv();
       return craftInProbe;
     },
-    moods: () => (getHangar() ? hangar.moods : []),
+    // G999 (A5-LOAD): the moods of a room that STANDS - the editor rail's label asked during app.js's evaluation
+    // (editorInit -> buildRail -> syncNightLabel) and built the whole room there, 0.3 s of the boot's longest task;
+    // the 'garage' step builds it in its own task, and getHangar re-syncs the label then
+    moods: () => (hangar ? hangar.moods : (hangarTried ? [] : null)),
     mood: () => hangarMood,
     setMood: i => setMood(i),
     library: () => (getHangar() && hangar.library) ? hangar.library : [],
@@ -6622,7 +6578,7 @@
     $('bGo').textContent = 'Fly the circuit';
     fullReset();
   }
-  let frameWait = null, worldCompiled = false, holdRender = false;
+  let frameWait = null, worldCompiled = false, holdRender = false, worldPrelink = null;
   // G690: THE STAND WAITS FOR THE PLAYER. `holdRender` only skips the DRAW; the solver, the pilot, the director
   // and the panel kept running under the roll-out screen (30-44 s on the user's box), so a start pressed under it
   // (the rig's second "roll out" click; bGo's fall-through) had the aeroplane taxiing at 4.5 m/s when the screen
@@ -6688,6 +6644,28 @@
       done: () => { holdRender = false; if (held && !inGarage) running = true; }, idle: 20000, hard: 90000, quietFrames: 1 });
   }
   if (typeof window !== 'undefined') window.FLYDIY_SETTLE = settleScreen;
+  // every texture a material of the scene holds (its uniforms' too), the environment and the background, sent to the
+  // GPU ~30 ms a task (initTexture) - the roll-out's 'upload' step, and since G999 the garage boot's compile step too
+  // (its first frame spent ~0.3 s in texSubImage2D)
+  function uploadSliced(sc, id, label) {
+    const texs = new Set();
+    const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (v && v.isTexture) texs.add(v); }
+      if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) texs.add(v); } };
+    sc.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(grab); });
+    if (sc.environment) texs.add(sc.environment);
+    if (sc.background && sc.background.isTexture) texs.add(sc.background);
+    const list = [...texs].filter(t => t.image || t.isDataTexture || t.isCanvasTexture);
+    let i = 0;
+    return new Promise(res => {
+      const tick = () => {
+        const t0 = performance.now();
+        while (i < list.length && performance.now() - t0 < 30) { try { renderer.initTexture(list[i]); } catch (e) {} i++; }
+        BOOT.phase(id, label + ' ' + i + ' / ' + list.length, list.length ? i / list.length : 1);
+        if (i >= list.length) res(); else setTimeout(tick, 0);
+      };
+      tick();
+    });
+  }
   function rollOutScreen(done, sync) {
     const steps = [];
     // G680: from the shed, the build's sync and the stand are the screen's first steps (rollOut(after, true))
@@ -6705,6 +6683,13 @@
     // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
     // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
     steps.push({ id: 'town', label: 'building the field', w: 8, fn: () => {
+      // G999 (A5-LOAD): THE WORLD'S PROGRAMS START LINKING NOW. The link is the driver's, on its own threads
+      // (KHR_parallel_shader_compile) - and it waited for the 'compile' step, 20-30 s later, while this step built the
+      // town on the main thread: the near ring's splat program alone links ~13 s on EVERY run (Chrome never keeps its
+      // binary). Its sources are made here, a group a task (compileSliced), not awaited; the compile step then finds
+      // them known (their key) and mostly linked, and compiles what the town added.
+      if (!worldCompiled && WF && typeof renderer.compileAsync === 'function' && !worldPrelink)
+        worldPrelink = compileSliced(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world prelink:', e && e.message));
       if (!WF || !WF.premisesPrewarm || typeof renderer.compileAsync !== 'function') return;
       const cg = sim.cgPos();
       let built = 0;
@@ -6777,23 +6762,7 @@
     // first frame (measured: 5.6 s of the first world frame was the upload)
     steps.push({ id: 'upload', label: 'uploading the textures', w: 12, fn: () => {
       if (typeof renderer.initTexture !== 'function' || typeof renderer.compileAsync !== 'function' || !WF) return;
-      const texs = new Set();
-      const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (v && v.isTexture) texs.add(v); }
-        if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) texs.add(v); } };
-      scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(grab); });
-      if (scene.environment) texs.add(scene.environment);
-      if (scene.background && scene.background.isTexture) texs.add(scene.background);
-      const list = [...texs].filter(t => t.image || t.isDataTexture || t.isCanvasTexture);
-      let i = 0;
-      return new Promise(res => {
-        const tick = () => {
-          const t0 = performance.now();
-          while (i < list.length && performance.now() - t0 < 30) { try { renderer.initTexture(list[i]); } catch (e) {} i++; }
-          BOOT.phase('upload', 'uploading the textures ' + i + ' / ' + list.length, list.length ? i / list.length : 1);
-          if (i >= list.length) res(); else setTimeout(tick, 0);
-        };
-        tick();
-      });
+      return uploadSliced(scene, 'upload', 'uploading the textures');
     } });
     if (!worldCompiled) steps.push({ id: 'compile', label: 'compiling the world', w: 20, fn: () => {
       worldCompiled = true;
@@ -7265,7 +7234,11 @@
     try {
       if (!window.CAGE_UI) {
         window.CAGE_UI_SCENE = edSitP;      // the mount, read at boot
+        // G999: the seed that follows builds the player's aeroplane (seedEditor builds in both of its branches):
+        // the page's own template is not built first
+        window.CAGE_UI_DEFER_BUILD = noSeed === true && !edSeeded && !!genSpec;
         CAGE_UI_BOOT();
+        window.CAGE_UI_DEFER_BUILD = false;
         if (typeof CAGE_PAGE_SETUP === 'function') CAGE_PAGE_SETUP();
         // ...and the panel takes the two rows that just appeared. The page's
         // DERIVED SELECTORS (nose configuration, seating starter) are injected
@@ -10679,6 +10652,7 @@
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
     return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
       .then(() => compileDepthVariants(hangarScene)), 'garage'))   // G680: its shadow pass and the full-screen passes too
+      .then(() => (typeof renderer.initTexture === 'function') ? uploadSliced(hangarScene, 'compile', 'uploading the textures') : null)   // G999: not in the first frame
       .catch(e => { console.warn('boot compile:', e && e.message); done(); });
   });
   // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed

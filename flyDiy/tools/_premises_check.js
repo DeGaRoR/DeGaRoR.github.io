@@ -1003,7 +1003,7 @@ if (SELFTEST) {
       const same = Object.keys(rec.layers).every(k => !Array.isArray(rec.layers[k]) || rec.layers[k].every(e => (back.layers[k] || []).some(b => b.id === e.id)));
       check(same && back.layers.objects.some(e => e.id === 'o_g590') && (!mv || back.layers.sites.find(s => s.id === mv.id).at.x === mv.at.x),
             '14q restorePlaces puts every cut entry back and keeps the edit');
-      const AP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
+      const AP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8') + fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'world_boot.js'), 'utf8');   // G999: the load's composition is world_boot.js's
       check(/off: \['mk_'\]/.test(AP) && /PREMISES_GEN\.dropPlaces\(U\.rec, TOWN\.off\)/.test(AP) && /makeWorld\(0, \{ premises: premisesPlaced/.test(AP) && /restorePlaces\(U\.rec, TOWN\.cut\)/.test(AP),
             '14q app.js drops the town at load by default and restores it in every editor save');
     }

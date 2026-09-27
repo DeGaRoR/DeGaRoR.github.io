@@ -411,7 +411,9 @@ const MANIFEST = {
               'input.js', 'input_panel.js', 'gfx_settings.js', 'editor.js',
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
-              'cockpit.js', 'app.js',
+              'cockpit.js',
+              // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
+              'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
@@ -905,15 +907,39 @@ self.addEventListener('fetch', e => {
     const head = art.slice(0, cut), tail = art.slice(cut)
       .replace(/<script>/g, '<script type="text/x-flydiy">')
       .replace(/<script src=/g, '<script type="text/x-flydiy" src=');
+    // G999 (A5-LOAD): THE PROMOTE IN TASKS. It was one: every inline script (the core, the editor, the viewer,
+    // app.js - whose evaluation made the world) inside one appendChild loop, the garage boot's longest task (1.8-2.2 s).
+    // (1) the inline scripts ahead of the first external one (the core, its phase line, its sha); (2) the island's
+    // decode (ISLAND_GEN.makeIsland, 0.25 s: window.ISLAND_MADE); (3) the scripts up to world_boot.js; (4) the world's
+    // composition (FLYDIY_WORLD_COMPOSE, 0.6-0.8 s: window.FLYDIY_WORLD_MADE); (5) app.js and the rest. An external
+    // script executes after every inline one, as it always did (then: appended in the one loop, run after it): each
+    // is PRELOADED at once and appended, in order, in the last task.
     const promote = `<script>
 window.FLYDIY_BOOT.then(function () {
-  var tags = document.querySelectorAll('script[type="text/x-flydiy"]');
-  for (var i = 0; i < tags.length; i++) {
-    var s = document.createElement('script');
-    if (tags[i].getAttribute('src')) s.src = tags[i].getAttribute('src'); else s.textContent = tags[i].textContent;
-    s.async = false;
-    document.body.appendChild(s);
-  }
+  var tags = document.querySelectorAll('script[type="text/x-flydiy"]'), i = 0, ext = [];
+  for (var k = 0; k < tags.length; k++) { var src0 = tags[k].getAttribute('src'); if (src0) { var l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = src0; document.head.appendChild(l); } }
+  var one = function () {
+    var t = tags[i++], src = t.getAttribute('src');
+    if (src) { ext.push(src); return; }
+    var s = document.createElement('script'); s.textContent = t.textContent; document.body.appendChild(s);
+  };
+  var later = function (f) { setTimeout(function () { try { f(); } catch (e) { console.error('flyDiy: the boot', e); } }, 0); };
+  while (i < tags.length && !tags[i].getAttribute('src')) one();
+  later(function () {
+    try { if (window.ISLAND_BOOT && typeof ISLAND_GEN !== 'undefined') window.ISLAND_MADE = { boot: window.ISLAND_BOOT, island: ISLAND_GEN.makeIsland(window.ISLAND_BOOT) }; }
+    catch (e) { console.warn('flyDiy: the island decode (app.js decodes it again)', e); }
+    later(function () {
+      while (i < tags.length && typeof window.FLYDIY_WORLD_COMPOSE !== 'function') one();
+      later(function () {
+        try { if (typeof window.FLYDIY_WORLD_COMPOSE === 'function') window.FLYDIY_WORLD_MADE = window.FLYDIY_WORLD_COMPOSE(); }
+        catch (e) { console.warn('flyDiy: the world composition (app.js composes it again)', e); window.FLYDIY_WORLD_MADE = null; }
+        later(function () {
+          while (i < tags.length) one();
+          for (var j = 0; j < ext.length; j++) { var e = document.createElement('script'); e.src = ext[j]; e.async = false; document.body.appendChild(e); }
+        });
+      });
+    });
+  });
 }, function (e) { console.error('flyDiy: the boot did not initialise', e); });
 </script>`;
     art = head + '<script>window.FLYDIY_BOOT = Promise.resolve();</script>\n' + ISLAND_LOADER + '\n' + tail + '\n' + promote;
