@@ -318,9 +318,9 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
         const P = JSON.parse(await ev('__FP.run(' + FRAMES + ', "passes")'));
         const Sh = JSON.parse(await ev('__FP.run(' + Math.max(40, FRAMES >> 1) + ', "shadows")'));
         const tags = {};
-        const names = new Set(); for (const a of P.acc) for (const k in a) names.add(k);
-        for (const k of names) { const v = P.acc.map(a => a[k] || 0); tags[k] = { median: +med(v).toFixed(2), p90: +p90(v).toFixed(2), calls: +(P.calls[k] / P.frames.length).toFixed(1) }; }
-        const shv = Sh.acc.map(a => a['shadow:maps'] || 0);
+        const names = new Set(); for (const a of P.acc) if (a) for (const k in a) names.add(k);
+        for (const k of names) { const v = P.acc.map(a => (a && a[k]) || 0); tags[k] = { median: +med(v).toFixed(2), p90: +p90(v).toFixed(2), calls: +(P.calls[k] / P.frames.length).toFixed(1) }; }
+        const shv = Sh.acc.map(a => (a && a['shadow:maps']) || 0);   // (a frame the shadow maps skipped - SHADOW_RATE, every 2nd - is a hole: null)
         tags['shadow:maps'] = { median: +med(shv).toFixed(2), p90: +p90(shv).toFixed(2), calls: +((Sh.calls['shadow:maps'] || 0) / Sh.frames.length).toFixed(1) };
         const sum = Object.keys(tags).filter(k => k !== 'shadow:maps').reduce((s, k) => s + tags[k].median, 0);
         const row = { place, probe: probe.name, tier, where: JSON.parse(where === 'garage' ? '{"at":"garage"}' : where), frame: { median: +med(Raw.frames).toFixed(1), p90: +p90(Raw.frames).toFixed(1), timed: +med(P.frames).toFixed(1) },
