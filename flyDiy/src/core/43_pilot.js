@@ -412,6 +412,8 @@ function makePilot(sim, def, world, opts) {
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
+  // G975: the landing flap the ELEVATOR can hold (FINAL, below) - a cap that only comes down, kept for the flight
+  let fLandCap = 1, fCapT = 0, deF = 0;
   let abortV0 = null, abortS0 = null, committedTO = false;
   ap.reEngage = (o) => {
     pendReEng = true;
@@ -1714,7 +1716,7 @@ function makePilot(sim, def, world, opts) {
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
-      go('GOAROUND'); gaT = 0; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
+      go('GOAROUND'); gaT = 0; IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
       thrC = A.thrCruise; thLift0 = th;
     };
     // the arrival at the destination, planned from where the aeroplane is now
@@ -1804,7 +1806,7 @@ function makePilot(sim, def, world, opts) {
       c.flap = clamp(c.flap + clamp(tgt - c.flap, -rr, rr), 0, 1);
     };
     let flapTgt = 0;
-    const fTO = FS ? (FS.to ?? 0) : 0, fLDG = FS ? (FS.ldg ?? 1) : 0;
+    const fTO = FS ? (FS.to ?? 0) : 0, fLDG = FS ? Math.min(FS.ldg ?? 1, fLandCap) : 0;
 
     // THE AP BOX flies instead of the phases while it is on; a disengage
     // resumes the pilot at a phase that fits where the aeroplane is
@@ -2503,7 +2505,7 @@ function makePilot(sim, def, world, opts) {
           const N = ap.legs[ap.legI];
           if (!N || N.name === 'FINAL') {
             ap.trackHold = true; ap.dirX = 1;
-            slopeCaptured = false; finalT0 = ap.t; thrC = A.thrAppr;
+            slopeCaptured = false; finalT0 = ap.t; thrC = A.thrAppr; deF = aDe;
             finalLevel = null;                    // G381: latched on entry
             go('FINAL');
           } else go(N.name);
@@ -2555,6 +2557,31 @@ function makePilot(sim, def, world, opts) {
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
         flapTgt = fLDG;
+        // G975: THE LANDING FLAP COMES OUT AS FAR AS THE ELEVATOR HOLDS IT. genTrim sizes the landing
+        // flap in the tunnel, prop OFF (deAppr inside the 0.18 budget); under approach power the
+        // propwash over the flaps is another airframe. The twin bush hauler (two wing engines 0.26 m
+        // over the CG) on full flap at 0.25 throttle: the elevator reached its stop and the nose
+        // went -2 -> -70 deg in 2 s, into the ground 2.2 km out ("terrain under the approach", twice,
+        // gave up) - the freeze test: flap frozen at 0 or 0.5 flies the slope on 0.2 of elevator,
+        // full flap at IDLE flies, full flap at 0.25 throttle tucks. So the flap comes out in the
+        // pilot's stages: past the take-off setting it stops where it is while the elevator (0.5 s
+        // filter) is past the trim budget the build was sized to, and it comes back a stage (0.25,
+        // never below the take-off setting) when the elevator sits on its stop; the cap holds for
+        // the flight (the flare, the next circuit). No flap, or an elevator inside its budget: as before
+        deF += (aDe - deF) * Math.min(1, dt / 0.5);
+        if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > 0.18) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
+        if (FS && c.flap > fTO + 0.01 && aDe > 0.30) {
+          fCapT += dt;
+          if (fCapT > 0.3) { fLandCap = Math.max(fTO, c.flap - 0.25); fCapT = 0; flapTgt = Math.min(flapTgt, fLandCap); say('flap-limited', 'the elevator cannot hold flap ' + c.flap.toFixed(2) + ' — landing on ' + fLandCap.toFixed(2)); }
+        } else fCapT = 0;
+        // G975: THE APPROACH'S TRIM IS THE SERVO'S TO FIND. holdPitch's integrator is capped at 0.15 in
+        // the air, and a drawn tail's approach trim is more than that: the Tiger Moth-alike on final
+        // held 5 deg against the 12.5 TECS asked (elevator 0.24 of its 0.35, the pitch error standing),
+        // so the speed stayed 3 m/s over Vref, the energy loop read "too fast" and took the power off,
+        // and the aeroplane rode 13 m under the slope to the terrain go-around (the Beaver-alike: 7 m/s
+        // over, 14 m under). On final the cap opens to the rotation's authority (rotateIMax, as the
+        // flare's does); a go-around closes it again. An aeroplane that trims inside 0.15 flies as before
+        IthMaxT = A.rotateIMax ?? 0.30;
         const canGA = (ap.gaN || 0) < 2 && !committed;
         setStatus(slopeCaptured ? 'down the slope to the aim point' : 'level, waiting for the slope', [
           cond('to the aim', Math.round(d), 0, d <= 0, 'm'),
@@ -2568,7 +2595,13 @@ function makePilot(sim, def, world, opts) {
           if (canGA) { goAround('off the centreline by ' + Math.round(Math.abs(sCr)) + ' m on short final'); break; }
           else if (!committed) { committed = true; say('committed-landing', 'off centre but committed'); }
         }
-        if (world && d > 400 && canGA && aglT < 15) { goAround('terrain under the approach'); break; }
+        // G975: THE TERRAIN GO-AROUND IS FOR AN AEROPLANE UNDER ITS PLAN. The slope from the aim at
+        // the motorglider's 2.1 deg (gs 0.037) is itself 15 m over the ground 400 m out: flown to the
+        // metre it passed 407 m out at 16 m, and a metre's sag was a go-around that the next circuit
+        // flies again, the same slope over the same ground. The clearance on the slope is the runway
+        // model's to plan (its cone, the canopy included); the pilot goes around when it is under 15 m
+        // AND more than a third below what the slope leaves over the ground here
+        if (world && d > 400 && canGA && aglT < Math.min(15, 0.67 * (hGS - terrainNow))) { goAround('terrain under the approach'); break; }
         if (d <= -150 && agl > A.flareAgl * 3) {
           if (canGA) { goAround('past the aim at ' + Math.round(agl) + ' m'); break; }
           if (!committed) { committed = true; say('committed-landing', 'past the aim at ' + Math.round(agl) + ' m agl — landing it'); }
