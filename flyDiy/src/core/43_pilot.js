@@ -368,6 +368,7 @@ function makePilot(sim, def, world, opts) {
   // 1/60 s step, a 377 rad/s spike the 2 s washout then holds for seconds
   // — the downwind's rudder square wave on its +-0.25 stop, measured
   let tgtHP = null;                          // G630: the target heading one step ago
+  let tgtMovedT = -1e9;                      // G780: when the target heading last moved
   let flatRoll = null;                       // G630.1: the level stretch of a sloped strip the rollout rolls on to
   let taxiHdgF = null, taxiHdgT = -1e9;      // G630: the taxi target heading, filtered, and when it was last flown
   let pG = 0;                                // G630: the ground roll rate, slow (the contact springs' jitter filtered out)
@@ -935,9 +936,24 @@ function makePilot(sim, def, world, opts) {
     // change, a taxi point shifted, a look-ahead index stepping past a
     // corner) moves e in one step; no aeroplane's target turns 3 rad/s, so
     // a step past 0.05 rad is carried into the rate filters' memory (eP,
-    // eAP) and they see only the continuous part — a bumpless transfer
+    // eAP) and they see only the continuous part — a bumpless transfer.
+    // G780: ...UNLESS THE STEP IS A TURN SAMPLED. A target commanded a few
+    // times a second (GATE SOAR's orbit law re-selects HDG every 0.25 s,
+    // 0.11 rad a time at the circle's 0.45 rad/s) moves in steps that are
+    // its RATE: carried into the memory, the rate filters saw the nose turn
+    // and never the target, hdgD x eAR became -0.9 x 0.45 rad of bank against
+    // the 0.72 asked, and the glider circled off the core (climb 0.59 ->
+    // 0.21 m/s). A step is a jump only if no aeroplane could have turned it
+    // since the target last moved (1 rad/s, over 0.5 s at most): a target
+    // that moved one step ago (PATH's tangent, the look-ahead, the CROSSWIND
+    // entry's -pi and its 0.3 rad/step sweep, FINAL's one-step 0.6 rad
+    // glitch) is judged on 0.05 rad exactly as G630 wrote it
     const tgtH = Math.atan2(tz, tx);
-    if (tgtHP != null) { const dT = wrapPi(tgtH - tgtHP); if (Math.abs(dT) > 0.05) { eP = wrapPi(eP + dT); eAP = wrapPi(eAP + dT); } }
+    if (tgtHP != null) {
+      const dT = wrapPi(tgtH - tgtHP);
+      if (Math.abs(dT) > Math.max(0.05, 1.0 * Math.min(0.5, ap.t - tgtMovedT))) { eP = wrapPi(eP + dT); eAP = wrapPi(eAP + dT); }
+      if (dT !== 0) tgtMovedT = ap.t;
+    } else tgtMovedT = ap.t;                   // the first target is new: the next step off it is judged as G630's
     tgtHP = tgtH;
     let eA = e;
     const tl2 = Math.hypot(vcg[0], vcg[2]);
