@@ -60326,3 +60326,55 @@ image.data kept, ASSET_FETCH never releasing bytes, four tree species and two gr
 plants (fetched in the garage, built at roll-out), 3 of 19 splat sets unused on Jolene.
 Gates: none run - nothing under src/ changed; tools/asset_census.js is a standalone measurement no gate or build
 reads (node --check clean; GATE MEDIA re-run: PASS, the store untouched).
+## G850-G851 - THE TOWN KIT: THE ARCHETYPES AND THE PACK (2026-09-27, QUEUE-C C3a, node only, nothing in the game changes)
+
+ARCH-2026-09-27 §4.4 steps 1-2. Metlakatla stays off (G590); C3b is the renderer, after the user's look review of
+futureDesigns/TOWNKIT-2026-09-27.png (the contact sheet) and .md (the note: formats, table, decisions).
+- tools/town_kit.js SOWS Jolene's zones as the game does (PG.compose, then render_premises.js buildHouse's recipe up
+  to the P: VILLAGE_GEN.placeHouse, same seeds / rules / picks; the outbuildings from finishPlot on a lod-1 build):
+  459 plots (Metlakatla 375, the village 84) + 63 outbuildings. CLUSTERS by k-medoids inside the splits nothing can
+  fake (land 437 / water 22 / storefront 11) on a "how different it looks" distance (roof family, hip its own >
+  storeys > stance > footprint / pitch / storey height > fittings): 30 house archetypes, EACH A REAL SAMPLED HOUSE
+  (a medoid), + the 3 outbuilding presets. BUILDS each canonical (flat ground, the cluster's median floor clearance
+  over the high corner, the per-lot dressing off: pier, yard, people, woodpile, barrel, lamps, smoke, ground skirt)
+  at lod 0, lod 1 (the generator's own) and the G594 box. Every vertex: its ROLE (the HOUSE_GEN.BAGS index - the
+  TARR slot becomes role x the instance's finish set), a STANCE weight (1 on the ground, 0 from the floor
+  structure's underside up - floorY - 0.10 - beamH, buildStance's own numbers - linear between: the vertex-shader
+  stretch to the instance's 4 ground offsets), its glow. The library's NUMBERS (not images) go on the headless
+  context: the ridge cap is drawn only on a metal roof (setMetal), and a no-payload build loses every cap.
+- THE PACK: 16 B a vertex (u16 position in the LOD's box, oct i8x2 normal, u16 metre UVs in the LOD's range, u8 AO,
+  role, stance, glow; + 4 B pane dressing on glass), u16 indices (no LOD past 65535 vertices), gzip (mtime 0),
+  sha256-named. 30 + 3: lod 0 295 158 tris, lod 1 33 612, box 330; 11.2 MB GPU, 4.52 MB gz (ARCH est. ~26 / ~7);
+  --k 20 / 40: 2.95 / 5.88 MB gz. THE INSTANCE TABLE: 32 B a house (x z y, yaw u16, archetype + mirror bit, finish
+  set, paint x3, weather, dirt, lights, stretch i8, flags, 4 ground offsets i16 cm) - 522 rows, 30.6 KB. The roof
+  kind (seams, cap) is geometry: an instance only wears a finish set of its archetype's roof kind (48 sets).
+  Fit: the whole plan in the plot (nudged up to 2 m if the spot will not take it: 1 garage), water on water, no
+  slab past 0.55 m of fall (houses only - an outbuilding keeps its slab, planOutbuilding), the stretch +-10 %, the
+  fall under the footprint <= 6 m on land / 20 m over the water (Jolene's shores: 6-15 m of pile) / 12 m for an
+  outbuilding. Metlakatla: all 30 used, max 24 a shape (median 12); 269 of 522 mirrored; 341 distinct looks
+  (archetype x mirror x finish x wall / roof paint) before dirt and weather.
+- NOT COMMITTED: the pack. `node tools/town_kit.js --media` writes media/townkit/townkit_<sha12>.bin + the Jolene
+  table + src/core/townkit_pack.json (prunes its own old files; GATE MEDIA now lists that manifest, GATE TOWNKIT
+  checks it decodes and is its hash, and REPORTS a pack older than the generator without failing - a re-bake is
+  ~4.5 MB of history per _house_gen.js change). Tested end to end here (MEDIA + TOWNKIT PASS), then removed: the
+  user decides (the note proposes: bake when C3b's renderer needs it).
+- GATE TOWNKIT (core, new, ~22 s): A the set (20-40, every split, medoids, the outbuildings); B GATE HOUSE's own
+  battery on every archetype as built (tools/_house_check.js required as a module now hands over battery() and
+  stops - as a script it is unchanged) and its lod 0 / lod 1 the pack's triangle for triangle; C the roles, the
+  shell at every LOD, the stance line, the rigid floor, something that stretches on a posts / piles / cripple
+  stance, the box inside lod 0; D the round trip of every channel inside its step, the same bytes twice, the budget
+  (10 MB gz); E every sown plot and outbuilding exactly one instance, the fit re-verified from the DECODED record
+  alone (plan in plot, water, slab, stretch, the terrain under the corners to 2 cm, the plane on the high corner,
+  the finish's roof kind). --selftest: 14 doctored cases, all red (not run by the battery, like the others).
+- FOUND, NOT FIXED (C3c's): render_premises.js buildHouse's tide is world.waterH(0, 0), which on Jolene is the world
+  origin - dry land, -Infinity: every waterfront house the game sows walks to its plot's depth limit with an
+  infinite tide and no landing / jetty / pier (node, four z_harbour plots). The sea is 0 (GATE PREMISES 14); the
+  kit sows with 0. And the game's outbuildings depend on its streaming order (one fence set for the premises: which
+  edges are fenced moves the rnd the outbuilding draws next); the kit plans in plot order - C2b's cook should fix one.
+- GATES (`node tools/run_gates.js --all`, this container, 4 cores, 5 633 s): 104 PASS incl. TOWNKIT (24.5 s), HOUSE,
+  MEDIA, PREMISES; red: SEAPLANE (3), PILOTMATRIX (10 regressed), SOAR (2) - the known 2026-09-27 reds, counts as
+  listed - and ARCHETYPES 10 checks over three shards (2 + 4 + 4: Caravan-, Tiger Moth-, Beaver-alike, Motorglider,
+  Twin bush hauler give up their circuits), where the queue listed 4. NOT this branch's: the built
+  tools/flight_core.js, index.html and dev.html are byte-identical to 4f68545's (built in a clean worktree and
+  compared), and _arch_check.js requires none of the files this session touched; circuit give-ups under load are
+  the flake G600 already recorded. Built outputs restored, not committed.
