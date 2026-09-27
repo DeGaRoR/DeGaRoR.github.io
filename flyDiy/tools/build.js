@@ -697,6 +697,10 @@ function buildViewer(coreBody) {
     if (!isl) { window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; return; }
     var keys = Object.keys(isl.files), done = 0, fetched = 0;
     for (var k2 = 0; k2 < keys.length; k2++) if (!('json' in isl.files[keys[k2]])) fetched++;
+    // G998 (A5-LOAD): THE PREMISES FIXTURE, ALONGSIDE. app.js read it with a SYNCHRONOUS XHR inside its own evaluation
+    // (the boot's longest task: its network wait counted in it); it is fetched here with the island, and app.js takes
+    // boot.premFixture when it is there (a miss is the XHR, as before)
+    var fixP = fetch('tools/fixtures/island_' + name + '.json').then(function (r) { return r.ok ? r.text() : null; }, function () { return null; });
     return Promise.all(keys.map(function (k) {
       var r = isl.files[k];
       // PRESENCE IS THE CONTRACT: a key that is named must arrive. The old
@@ -729,7 +733,8 @@ function buildViewer(coreBody) {
             .then(gz).then(function (u) { got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u }); });
         })).then(function () { boot.premCook = { raster: got }; });
       }).catch(function (e) { console.warn('flyDiy: the cooked ground raster did not load (' + (e && e.message) + '); it bakes lazily'); });
-    }).then(function () {
+    }).then(function () { return fixP; }).then(function (t) {
+      if (typeof t === 'string') boot.premFixture = t;
       window.ISLAND_BOOT = boot;
     });
     })

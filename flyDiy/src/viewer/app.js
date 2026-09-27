@@ -31,7 +31,10 @@
       // A saved copy (the WORLD rail's WIP) wins unless it is the SAME premises at an older `rev`
       // (G404: a stale first version had shadowed the field)
       let fixture = null;
-      if (window.ISLAND_BOOT) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/island_' + window.ISLAND_BOOT.id + '.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
+      if (window.ISLAND_BOOT) {
+        if (typeof window.ISLAND_BOOT.premFixture === 'string') fixture = window.ISLAND_BOOT.premFixture;   // G998: the loader fetched it with the island
+        else { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/island_' + window.ISLAND_BOOT.id + '.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
+      }
       // THE OFFICIAL PREMISES OF THE ANALYTIC WORLD (G398.3, the user: "a new airport somewhere, with
       // scenery ... that should impact the real game, and become a new official airport"): Skarvik,
       // authored in the editor, shipped as a fixture and composed at every boot; its strip is an
