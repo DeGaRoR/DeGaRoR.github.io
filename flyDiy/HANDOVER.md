@@ -62383,3 +62383,89 @@ FOR THE COORDINATOR:
 - Any session that adds per-frame work now sees FRAMECOST red with the counter named; the table says which view.
 GATES (targeted): FRAMECOST PASS (against its own first baseline), PROGRAMS PASS, BUILD PASS, BOOT PASS, COVER PASS, FADES
 PASS (the three sharing tools/_fake_gl.js). The full tier was not run.
+
+## G750-G754 - B4a-LOOKS: THE WHITE PATCHES WERE HOLES, THE SQUARE WAS A SEAM, THE SEAMS WERE A TRENCH, THE POND WAS FILLED (2026-09-27, the Jolene playtest, batch B)
+
+The playtest (futureDesigns/PLAYTEST-2026-09-26.md §1.3, §5.4 B4): the flickering square ahead of the plane approaching West
+Point; East Point's white patch (153018/153114/153245); the DEM seams / terraforming artefacts (145815, 152402); the pond by
+02/20 with debris floating on it; the road with no texture (150403). Every item was IDENTIFIED IN THE PAGE (raycasts, A/B
+toggles, a clean detached worktree of master 5666f3ad as the before; the playtest's own build 3da1c82a booted for the white
+patch) before a line changed. Pictures and numbers: PLAYTEST §0.11 and tools/perf/b4a_*.jpg. The user's own reading of the
+seams ("the ground flattening around runways and premises") was right: it is the premises patch's border.
+- G750 THE SEA. (a) THE SQUARE was not the displaced patch standing over the beach (A2-SHADOW-SKY's reading): the far plane
+  was ONE 400 km quad of two triangles, and a varying interpolated across a 400 km triangle drifts by pixels - its cut round
+  the near patch (uWNear, tested on vWP0) no longer met the patch's own edge: a dashed dark line tracing the 360 m square
+  round the aeroplane whenever the sea has a state (measured: gone with the plane subdivided, nothing else changed). The far
+  plane is now a graded grid (1 km cells within 40 km of the middle, x1.5 to the 200 km rim, 7 921 vertices, one draw; the
+  old plane where a stub THREE lacks BufferAttribute). The patch no longer laps 4 m over the far plane either (two
+  transparent layers): the two cut each other by ONE test on the still plane (water.js `vWBody.y < 0.5 ? wIn : !wIn`). The
+  patch's waves fade over the last 40 m of sea to the coast field (flat from 6 m out; the vertex reads uWSdf), so its 3.8 m
+  grid no longer saws the waterline across a beach. NB the floats still ride the full waterH(x, z, t) there - a hull within
+  40 m of the line bobs a few cm the flat drawn water does not (a physics ruling, left alone). (b) THE DARK RECTANGLE A2's
+  raycast hit at y 3.0 over West Point's beach (1005, 2425) is a RIVER RIBBON: the hydrology's level at a mouth stays metres
+  over the beach (waterH 3.30 over ground 0.21) and the ribbon was a sheet in the air down to the sea. A ribbon segment with
+  an end within 20 m of the coast line is not drawn (22 of 846 cross-sections on Jolene, all mouths). The physics' waterH
+  there is unchanged (a floatplane would float 3 m over that beach: a hydrology item, not fixed here).
+- G751 THE WHITE PATCH WAS A HOLE THROUGH THE ISLAND. The island ground shader DISCARDS every fragment a metre inside the
+  lake field (the lake's quad covers it; "no ground inside the water"). A lake on the coast under 3 m was "left to the sea"
+  (render_world isSea: level < 3 and within 30 m of the line) and got no quad - but the sea plane draws only where the coast
+  field says sea, and inside all 29 of those lakes it says land (0 sea texels in each): the eye looked through the ground to
+  the haze, a flat beige-white lens. The user's lens is the biggest: 350 x 330 m at (9830..10180, -9220..-8890), level
+  2.67 m, 2.7 km short of East Point on the route - NOT nv_meadow, which the PLAYTEST guessed (its footprint, painted in
+  the page, is a quadrilateral round the strip). Reproduced to the pixel on master and on the playtest build; the small
+  white patches on the far shores of 153245 are more of the 29. NOW a lake is left to the sea only if the coast field puts
+  sea under half of its field texels: the 29 get their quads.
+  FOUND ON THE WAY (a latent bug, not the patch): PAVEMENT.library waited for a load/error event on an image that had
+  ALREADY FAILED (complete, no width - its event long gone). One failed fetch and that library - and every library grown
+  from it - never became ready; every pavement made afterwards kept the old arrays under the new layer indices (a grass
+  polygon sampling a gravel layer). Measured in the page: a library with one failed map never called back. A failed map now
+  counts as done, its layer the set's mean colour (sRGB), with a console warning. splat_ground.js had the same wait (and
+  `img.onload = r` overwrote another waiter's handler): listeners now, done on failure.
+- G752 THE SEAMS WERE A TRENCH ALONG THE PATCH'S BORDER (render_premises PATCH_TUCK / patchDepth / ringSink; render_world
+  groundSink). The premises' ground patch is built in 64 m chunks wherever the record touches (a runway, a road, a flatten);
+  its border tucked 2.2 m under the ground over 40 m, and the rings sank EVERY vertex of a built chunk 4 m (G434.1) - so a
+  ring triangle straddling the border (17.6 m) was dragged down on both sides. Raycast transects on master: the drawn ground
+  1.3 / 1.7 / 2.4 / 2.7 m under the true ground in a 20-30 m band along each border tried, a staircase along a diagonal
+  road - 152402's zig-zag lines beside 13/31 and 145815's rectangles (152402's own viewpoint: gone, pictured). NOW both laws
+  read the DEPTH inside the patch (patchDepth: metres to the nearest unbuilt chunk or the extent; exported with ringSink and
+  the dials): the patch tucks 0.8 m over 12 m; the rings sink 0 within 4 m of the border, rising (smoothstep) to 4 m by
+  28 m. GATE LOOKS walks every phase of the ring's grid across a border: worst dip 0.51 m (the old laws 3.85 m by the same
+  walk); on the page, the same four border transects: worst 0.06 / 0.12 / 0.27 / 0.36 m (master 1.32 / 1.69 / 2.38 / 2.66), and a border by r_airport 0.13 m (master 2.66). Every feature that paints the patch lies >= 12 m in (activeChunks' margins), where the ring is >= 1.04 m under -
+  G434.1's rule (no ring chord through a road or a pad) holds. Also fixed: the patch's inline edge walk took
+  floor((x - 0.01) / 64) and skipped the chunk itself, so a vertex on a chunk's low-x / low-z edge never measured the unbuilt
+  chunk it lay on and stood at the ground - a thin wall along two of every border's four sides.
+- G753 THE 02/20 POND WAS FILLED BY THE RUNWAY. The pond at (241, 599) beside 02/20 is a DEM lake at 28.65 m; the runway's
+  grade raised every one of its 1 013 field points by 0.04-1.95 m (composed 28.86 against the quad's 28.67 at the probe),
+  so the solver is dry there. The quad was UNDER the ground and showed only through the ground's discard - the "pond" - and
+  the cover ring's flecks lay on the true ground, 17 cm over the drawn water. THE GROUND IS RIGHT (the airfield's authored
+  grade, the physics), THE WATER WAS WRONG. The renderer's lake field is now a COPY (render_world lakeR; the ground and the
+  water read it through uGPackA): a texel whose composed ground stands 5 cm over the highest lake level whose box covers it
+  AND over the base world's ground (world.premises.base) is set outside - no discard, no bed paint - and a lake left with
+  no texel draws no quad. 78 texels on Jolene, the pond whole; natural lakes untouched (46 of them have raw DEM 0.8-3 m over
+  their level in 4 282 field texels - drawn as before, measured; a first cut that judged those too, and one that judged a
+  higher neighbour's water against a lower lake's level, were caught by the gate's numbers). The physics' field
+  (world.island.lake) is not touched. The cover ring's okAt also refuses the DRAWN water (drawnWet: the drawn field and
+  waterDrawY), as G667's strip stones do. A live editor edit does not re-cut the copy (made at the scene's build, 51 ms).
+- G754 GATE LOOKS (core, new; tools/_looks_check.js, ~4 s): the border laws lifted and walked; the drawn lakes on Jolene with
+  its premises (the pond filled, no quad-less lake without sea under it, the lens a lake, a natural lake whole, the physics'
+  field another array); the sea's single cut, the coast fade, the far grid (1 km near, 200 km reach, under 20 k vertices,
+  every triangle up), the mouths; the pavement library completing with a pre-failed map and its mean colour; the cover
+  ring's drawn-water test.
+- THE ROAD WITH NO TEXTURE (150403): NOT LOCATED with certainty. Ruled out in the page: every premises road (drawn and
+  textured), the tram line, the hydrology's dry creeks (under 12 m, carved, undrawn - a contact sheet of the longest). The
+  picture - a flat blue-grey-green strip ~30 m wide, ~100 m inland along a shore, bare of trees - is what a THIN lake of the
+  29 above looked like (the lagoon at (-5074, -23076), before/after pictured: a flat textureless strip, now water). If that is
+  it, G751 fixed it; re-check on the next flight.
+- MEASURED (rollout_perf, warm, stock, 120 s; the box shared with two peers): taxi 30 fps both (35-36 % at the auto cap),
+  loop 22.6 -> 22.3 ms, render 11.5 -> 11.1 ms (shadow 1.8 both), world 1.3 both, roll-out screen 72.8 -> 71.8 s, long
+  tasks the same (worst 3.95 / 4.10 s, the known world step). Nothing costs frame time.
+- TRAP (cost a set of pictures): a CDP helper that wraps camera.updateMatrixWorld must be idempotent - loading it twice
+  stacked two wrappers and the older one's stale view won every later shot. And TaskStop on a driver script leaves its
+  Chrome: close it through CDP (Browser.close) first.
+- GATES (targeted, --no-build on the built tree, the box shared): LOOKS (new), PREMISES, PREMCOOK, PREMRASTER, WORLDRENDER, WATER,
+  PAVEMENT, SPLAT, WORLD, HYDRO, SITE, GFX, PROGRAMS, SHADOWSKY, FADES, COVER, BOOT, MEDIA, STAND, LIGHT, ATMO, CLOUD, BUILD, HOUSE,
+  VILLAGE, TREES, TREE, SURF, SETTLE, PARKED, ANIMALS, LIFE, PLAN, UISMOKE - all PASS (WORLDRENDER failed once: its stub THREE has no
+  BufferAttribute - the far grid falls back to the old plane there, as RINGLOD does). Not run: the full tier (the integrator's train).
+- FILES: src/viewer/render_world.js, src/viewer/render_premises.js, src/viewer/water.js, src/viewer/pavement.js,
+  src/viewer/splat_ground.js, tools/_looks_check.js, tools/run_gates.js (the LOOKS row), futureDesigns/PLAYTEST-2026-09-26.md
+  (§0.11), tools/perf/b4a_*.jpg.
