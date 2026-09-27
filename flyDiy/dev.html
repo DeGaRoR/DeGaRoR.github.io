@@ -7,7 +7,7 @@
 <title>Garage Flight Sim</title>
 <link rel="stylesheet" href="src/viewer/style.css?v=42d5a8f9">
 <link rel="stylesheet" href="src/viewer/editor.css?v=800daa6f">
-<link rel="stylesheet" href="src/viewer/flight.css?v=fe2459b9">
+<link rel="stylesheet" href="src/viewer/flight.css?v=fe040db4">
 <link rel="stylesheet" href="src/viewer/controls.css?v=c73aba83">
 <link rel="stylesheet" href="src/viewer/bench.css?v=76bc8537">
 <link rel="stylesheet" href="src/viewer/blueprint.css?v=e9920f89">
@@ -268,6 +268,9 @@
   <div id="flActs">
     <button id="bPause" class="verb" hidden>Pause</button>
     <button id="bReset" class="verb" hidden>Restart</button>
+    <!-- G771: SKIP TO LINE-UP - from the stand (at roll-out, or taxiing) straight to the runway hold, lined
+         up, engine running: the state the taxi ends in. Disabled at the hold, rolling, and once airborne. -->
+    <button id="bSkip" class="verb" hidden>Skip to line-up</button>
     <button id="bGo" class="verb pri">Fly the circuit</button>
     <button id="bHangar2" class="verb">The shed</button>
   </div>
@@ -735,9 +738,9 @@
 <script type="text/x-flydiy" src="src/core/22_world_biomes.js?v=da7fb9a6"></script>
 <script type="text/x-flydiy" src="src/core/23_world_settle.js?v=f21f1179"></script>
 <script type="text/x-flydiy" src="src/core/24_world_aero.js?v=45484fdb"></script>
-<script type="text/x-flydiy" src="src/core/25_airfield.js?v=ca2bda30"></script>
+<script type="text/x-flydiy" src="src/core/25_airfield.js?v=0ffcbef9"></script>
 <script type="text/x-flydiy" src="src/core/26_hangar_fit.js?v=ac99bed4"></script>
-<script type="text/x-flydiy" src="src/core/27_premises.js?v=7cbf9fea"></script>
+<script type="text/x-flydiy" src="src/core/27_premises.js?v=0655e69e"></script>
 <script type="text/x-flydiy" src="src/core/28_island.js?v=83d3b89b"></script>
 <script type="text/x-flydiy" src="src/core/28b_ground_fields.js?v=c329f0d0"></script>
 <script type="text/x-flydiy" src="src/core/28c_biomes.js?v=f63c96b3"></script>
@@ -747,10 +750,10 @@
 <script type="text/x-flydiy" src="src/core/32_hydro.js?v=49438844"></script>
 <script type="text/x-flydiy" src="src/core/38_nav.js?v=9e55ea9b"></script>
 <script type="text/x-flydiy" src="src/core/39_ground_path.js?v=75576da1"></script>
-<script type="text/x-flydiy" src="src/core/40_autopilot.js?v=056c5991"></script>
+<script type="text/x-flydiy" src="src/core/40_autopilot.js?v=d0dda3b8"></script>
 <script type="text/x-flydiy" src="src/core/41_test_pilot.js?v=a602c62c"></script>
 <script type="text/x-flydiy" src="src/core/42_crosswind.js?v=8e572b8d"></script>
-<script type="text/x-flydiy" src="src/core/43_pilot.js?v=a153b737"></script>
+<script type="text/x-flydiy" src="src/core/43_pilot.js?v=ce0b1b25"></script>
 <script type="text/x-flydiy" src="src/core/44_machine_sheet.js?v=4b9dfd1e"></script>
 <script type="text/x-flydiy" src="src/core/50_model_codec.js?v=bd572561"></script>
 <script type="text/x-flydiy" src="src/core/51_prop_codec.js?v=2a556ad5"></script>
@@ -767,8 +770,8 @@
 <script type="text/x-flydiy" src="src/core/64_gen_build.js?v=d6b53d19"></script>
 <script type="text/x-flydiy" src="src/core/65_gen_loadtest.js?v=3b1e454e"></script>
 <script type="text/x-flydiy" src="src/core/70_player.js?v=492b9918"></script>
-<script type="text/x-flydiy" src="src/core/90_node_exports.js?v=b837b8b7"></script>
-<script>window.FLYDIY_CORE_SHA='84165fe8a9ff';window.FLYDIY_BUILD='dbbf17f1c83d'</script>
+<script type="text/x-flydiy" src="src/core/90_node_exports.js?v=d236c33c"></script>
+<script>window.FLYDIY_CORE_SHA='56b5ae9bc138';window.FLYDIY_BUILD='7d5e946f9fc4'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -854,7 +857,7 @@
 <script type="text/x-flydiy" src="tools/_cage_energy.js?v=8d052027"></script>
 <script type="text/x-flydiy" src="tools/_cage_hinge.js?v=e72e2c3c"></script>
 <script type="text/x-flydiy" src="tools/_cage_join.js?v=fccf74f3"></script>
-<script type="text/x-flydiy" src="tools/_cage_ui.js?v=917446ec"></script>
+<script type="text/x-flydiy" src="tools/_cage_ui.js?v=cb7cd396"></script>
 <script type="text/x-flydiy" src="src/viewer/storage.js?v=8db5ea93"></script>
 <script type="text/x-flydiy" src="src/viewer/flight_recorder.js?v=58abec04"></script>
 <script type="text/x-flydiy" src="src/viewer/assets.js?v=5ae00b40"></script>
@@ -952,11 +955,11 @@
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=1a9cffb9"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=a2698c61"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=db4052c4"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=85cf5b0e"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=9d104101"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=09f00685"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=b6af9ad0"></script>
 <script type="text/x-flydiy" src="src/viewer/world_rail.js?v=b6a49b7b"></script>
-<script type="text/x-flydiy" src="src/viewer/app.js?v=ec193b8a"></script>
+<script type="text/x-flydiy" src="src/viewer/app.js?v=81e5e73a"></script>
 <script type="text/x-flydiy" src="src/viewer/dev_panel.js?v=68400775"></script>
 <script>
 window.FLYDIY_BOOT.then(function () {

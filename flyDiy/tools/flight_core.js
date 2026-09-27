@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 84165fe8a9ffb111
+// body-sha256: 56b5ae9bc1389eed
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -5510,7 +5510,7 @@ function gpParkedWorst(pts, parked, need) {
 // of that sample moves, else a new corner ('k<n>', kind 'taxi', the site's fillet) is put in at the
 // sample, pushed out by the shortfall and half a metre. The stand and the entry never move. At most 24
 // rounds; what is left is reported (pattern.clearance), never hidden - GATE TAXICLEAR fails on it.
-function gpClearWay(nodes, ids, parked, need) {
+function gpClearWay(nodes, ids, parked, need, pre) {   // pre (G772): the new corners' id prefix, 'k' by default
   const byId = {}; for (const n of nodes) byId[n.id] = n;
   let added = 0, moved = 0;
   const sample = () => {
@@ -5543,7 +5543,7 @@ function gpClearWay(nodes, ids, parked, need) {
     }
     if (j >= 0) { const n = byId[ids[j]]; n.x = +(n.x + dir[0] * push).toFixed(3); n.z = +(n.z + dir[1] * push).toFixed(3); n.clear = w.p.id || true; moved++; }
     else {
-      const id = 'k' + added++;
+      const id = (pre || 'k') + added++;
       const n = { id, x: +(w.x + dir[0] * push).toFixed(3), z: +(w.z + dir[1] * push).toFixed(3), kind: 'taxi', r: GP_FILLET, clear: w.p.id || true };
       nodes.push(n); byId[id] = n; ids.splice(kB + 1, 0, id);
     }
@@ -5648,9 +5648,35 @@ function sitePattern(aero, site, opts) {
     } else {
       routes.out[0] = [st].concat(ids, [c0, holds[0]]);
     }
-    const c1 = add('c1', at(ex, ez, n, laneSg * lane), 'taxi', { r: GP_FILLET });
-    link(prev, c1); link(c1, 'l1a');
-    routes.out[1] = [st].concat(ids, [c1]).concat(routes.back[1]);
+    // G772: A SECOND WAY OUT, TOWARD END1. Jolene's apron has two taxiways (the painted V): the one toward
+    // the strip's middle (taxiOut) and the one toward the south-east end (taxiOut1) - a departure along -hdg
+    // leaves by the second and backtracks 387 m less of the runway (750 -> 363 m). Direction 1 then walks taxiOut1 to its
+    // own entry and steps onto the lane there; without one, the single way out serves both, as before
+    let prev1 = prev, e1 = [ex, ez], ids1 = ids;
+    if (site.taxiOut1 && site.taxiOut1.length) {
+      const ty = site.taxiOut1;
+      ids1 = []; prev1 = st;
+      for (let i = 0; i + 1 < ty.length; i++) { const id = add('ty' + i, ty[i], 'taxi', { r: GP_FILLET }); link(prev1, id); ids1.push(id); prev1 = id; }
+      const l1 = ty[ty.length - 1], al1 = (l1[0] - R.cx) * d[0] + (l1[1] - R.cz) * d[1];
+      e1 = [R.cx + d[0] * al1, R.cz + d[1] * al1];
+    }
+    const c1 = add('c1', at(e1[0], e1[1], n, laneSg * lane), 'taxi', { r: GP_FILLET });
+    // ...round the parked aeroplanes too (G710's bend, on this way: the stand and the lane point never move);
+    // the pattern reports the worse of the two ways
+    if (site.taxiOut1 && site.taxiOut1.length && site.parked && site.parked.length) {
+      const half = (opts && opts.half > 0) ? opts.half : GP_HALF_DEFAULT;
+      const way1 = [st].concat(ids1, [c1]);
+      const c1r = gpClearWay(nodes, way1, site.parked, half + GP_CLEAR, 'j');
+      const fresh = way1.slice(1, -1).filter(id => ids1.indexOf(id) < 0);
+      ids1 = way1.slice(1, -1);
+      prev1 = ids1.length ? ids1[ids1.length - 1] : st;
+      for (const id of fresh) { const k = ids1.indexOf(id); link(k > 0 ? ids1[k - 1] : st, id); }
+      if (!clearance || (clearance.ok && !c1r.ok) || (!c1r.ok && c1r.worst && clearance.worst && c1r.worst.d < clearance.worst.d))
+        clearance = Object.assign({}, c1r, { added: c1r.added + (clearance ? clearance.added : 0), moved: c1r.moved + (clearance ? clearance.moved : 0) });
+      else clearance = Object.assign({}, clearance, { added: clearance.added + c1r.added, moved: clearance.moved + c1r.moved });
+    }
+    link(prev1, c1); link(c1, 'l1a');
+    routes.out[1] = [st].concat(ids1, [c1]).concat(routes.back[1]);
   } else if (aero.spawn) {
     // a generated strip: the spawn identity is 35 m in from end0
     const sp = add('spawn', [aero.spawn[0], aero.spawn[1]], 'stand',
@@ -7333,7 +7359,7 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -7415,7 +7441,7 @@ function runwayBox(r, margin) {
 }
 // the record in W.aerodromes' shape, in WORLD coordinates (24_world_aero's push)
 // THE STAND AND ITS WAY OUT, in the world (v6): the record's `stand` {x, z, hdg|null} and `taxiOut`
-// [[x, z], ...] are in the premises frame; the site the pattern reads gets them in the world, the
+// [[x, z], ...] (and `taxiOut1`, G772: the way out toward end1) are in the premises frame; the site the pattern reads gets them in the world, the
 // stand's heading DERIVED toward its first taxi point when the record gives none (an aeroplane is
 // parked pointing the way it will leave - the core's own ruling at HOME), merged over the record's
 // `site` (an authored pattern rides there untouched)
@@ -7433,7 +7459,12 @@ function runwaySite(r, F) {
   let hdg;
   if (r.stand.hdg !== null && r.stand.hdg !== undefined) hdg = +r.stand.hdg - F.yaw;
   else hdg = Math.atan2(tx[0][1] - st[1], tx[0][0] - st[0]);
-  return Object.assign(base, { stand: { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) }, taxiOut: tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]) });
+  const out = Object.assign(base, { stand: { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) }, taxiOut: tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]) });
+  // G772: THE OTHER WAY OUT - `taxiOut1` is the way to the centreline for a departure ALONG -hdg (off end1: the
+  // pattern's direction 1), where the strip's apron has a second taxiway toward that end; absent, taxiOut
+  // serves both directions as before. Same frame, same last-point-on-the-centreline rule
+  if (Array.isArray(r.taxiOut1) && r.taxiOut1.length) out.taxiOut1 = r.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
+  return out;
 }
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
@@ -13186,6 +13217,20 @@ function seatOnGround(sim, groundH, refs) {
   return dy;
 }
 
+// G771: THE LINE-UP, WITHOUT THE TAXI (the user: "button to skip the taxi phase and straight to starting
+// line"). The pose is the hold the pilot's own taxi would have ended on (43_pilot ap.lineupPose), and the
+// aeroplane goes onto it the way it goes onto the stand - the one transform - then onto the strip's TRUE
+// surface with G700's seatOnGround: the third wheel pitched onto its own ground, the lowest contact 1 cm over
+// the solver's own ground (world.terrainH, what the tyres roll on). No record's elev, no premises' declared
+// height: a sloped or crowned strip, a hold off the aerodrome's datum, all get the ground the tyres will meet.
+// `refs` = def.refs (the wheels); without them the airframe is only lifted as one. Call after sim.reset (and
+// stance), like placeAtStand.
+function placeAtLineup(sim, a, pose, world, refs) {
+  placeAtAerodrome(sim, { hdg: pose.hdg, spawn: [pose.x, pose.z], elev: (a && a.elev) || 0 });
+  const gH = (world && typeof world.terrainH === 'function') ? world.terrainH : (() => (a && a.elev) || 0);
+  return seatOnGround(sim, gH, refs);
+}
+
 function makeAutopilot(sim, def, world) {
   const A = def.params.ap;
   // TAXI BREAKAWAY (G4.9). The taxi governor below is a proportional speed
@@ -15541,9 +15586,14 @@ function makePilot(sim, def, world, opts) {
   };
   ap.setRoute(world ? world.aerodromes[0] : HOMEISH, world ? world.aerodromes[0] : HOMEISH);
   let holdN = 0, planN = 0;
-  ap.departFrom = (from, to, siteOrTaxiOut) => {
+  // G771: `opts.atHold` = the pose ap.lineupPose() gave, the aeroplane placed on it (placeAtLineup): DEPART
+  // takes THAT direction and goes to STOP / HOLD with no route - the state the taxi ends in - instead of
+  // planning afresh (planDeparture's own run test is the uncapped need, which a short strip's hold fails and
+  // would send the aeroplane round a U-turn it has already been spared)
+  ap.departFrom = (from, to, siteOrTaxiOut, opts) => {
     const site = (siteOrTaxiOut && !Array.isArray(siteOrTaxiOut)) ? siteOrTaxiOut : null;
     ap.site = site;
+    ap.atHold = (opts && opts.atHold) || null;
     ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0; planN = 0;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
@@ -15726,7 +15776,13 @@ function makePilot(sim, def, world, opts) {
   // one, else the runway direction nearest the preference (a unit vector).
   // `mode` 'land' (default) or 'takeoff' — a strip in a valley is landed
   // toward the hill and left away from it
-  const dirAt = (a, px, pz, mode) => {
+  // G772: `taxiLen` [T0, T1] - the metres each take-off direction's way out is from where the aeroplane
+  // stands (planDeparture, off the strip): a kilometre of taxiing weighs 1 point (a third of a metre per
+  // second of headwind, 0.6 km of a 1 % uphill run). The wind still decides; in calm air the way out does,
+  // not the nose - Jolene's calm day was settled by the stand's heading alone (0.12 points: a 0.4 % grade
+  // against the nose), which sent the aeroplane on a 1.7 km taxi when 0.9 km went to the other end
+  const TAXI_K = 1.0 / 1000;
+  const dirAt = (a, px, pz, mode, taxiLen) => {
     const axx = snap(Math.cos(a.hdg)), axz = snap(Math.sin(a.hdg));
     const w = windAt(a, 30);
     const M = siteModelOf(a);
@@ -15740,6 +15796,14 @@ function makePilot(sim, def, world, opts) {
       const tko = mode === 'takeoff' && typeof a.takeoffHdg === 'number';
       if (tko) pref = [Math.cos(a.takeoffHdg), Math.sin(a.takeoffHdg)];
       const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number' || tko);
+      if (taxiLen && mode === 'takeoff') {
+        const s2 = M.dir.map((D, i) => {
+          const L = taxiLen[(D.u[0] * axx + D.u[1] * axz) >= 0 ? 0 : 1];
+          return isFinite(L) ? sc.score[i] - TAXI_K * L : sc.score[i];
+        });
+        sc.k = s2[0] >= s2[1] ? 0 : 1;
+        sc.why = sc.why.map((y, i) => { const L = taxiLen[(M.dir[i].u[0] * axx + M.dir[i].u[1] * axz) >= 0 ? 0 : 1]; return isFinite(L) ? (y ? y + ', ' : '') + 'taxi ' + Math.round(L) + ' m' : y; });
+      }
       ap.dirWhy = sc.why[sc.k];
       return M.dir[sc.k].u.slice();
     }
@@ -16043,6 +16107,11 @@ function makePilot(sim, def, world, opts) {
   // From the pose it is given: the take-off direction, then the route. Every
   // route ends on a hold; every route the follower is handed begins AHEAD of
   // the nose (a U-turn is inserted at the pose when it would not).
+  const setTakeoffDir = (t) => {
+    ap.frame = mkFrame(ap.route.from, -t[0], -t[1]);
+    ap.dirX = -1;
+    ap.takeoffDir = t;
+  };
   const planDeparture = (cg, nose) => {
     const from = ap.route.from;
     const PAT = ap.patOf(from);
@@ -16062,14 +16131,21 @@ function makePilot(sim, def, world, opts) {
     const ahead = from.len / 2 - sgN * along;
     const enough = !onStrip || ahead >= need;                     // the run ahead of the nose suffices
     if (from.altiport && typeof from.landHdg === 'number') t = [-snap(Math.cos(from.landHdg)), -snap(Math.sin(from.landHdg))];   // GTRAM: an altiport is left downhill, whatever the wind
-    else if (siteModelOf(from)) t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff');
+    else if (siteModelOf(from)) {
+      // G772: off the strip, each direction's way out is measured (its route from here, as it would be flown)
+      let tl = null;
+      if (!onStrip && PAT && PAT.routes && typeof patternPath === 'function') {
+        tl = [0, 1].map(T => { const ids = PAT.routes.out[T] || PAT.routes.back[T];
+          if (!ids || !ids.length) return NaN;
+          try { return patternPath(PAT, ids, 2.0, [cg[0], cg[2]]).len; } catch (e) { return NaN; } });
+      }
+      t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff', tl);
+    }
     else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1]);
     else if (enough) t = [d0[0] * sgN, d0[1] * sgN];
     else t = [-d0[0] * sgN, -d0[1] * sgN];
     const T = (t[0] * d0[0] + t[1] * d0[1]) >= 0 ? 0 : 1;
-    ap.frame = mkFrame(from, -t[0], -t[1]);
-    ap.dirX = -1;
-    ap.takeoffDir = t;
+    setTakeoffDir(t);
     const sPos = rx * t[0] + rz * t[1];
     const runAhead = from.len / 2 - sPos;
     const lined = Math.abs(cross) <= 8 && (nose[0] * t[0] + nose[1] * t[1]) > 0.9;
@@ -16123,6 +16199,49 @@ function makePilot(sim, def, world, opts) {
     ap.taxiTgt = [from.x + t[0] * sStart, from.z + t[1] * sStart];
     ap.taxiPath = null; ap.path = null;
     return 'TAXI';
+  };
+
+  // G771: WHERE THE TAXI WOULD END. planDeparture run from the live pose (the stand, where the taxi
+  // begins) exactly as DEPART runs it - the same take-off direction (the wind, the slope, the climb-out,
+  // the nose as the tie-break) and the same route - and the route's END read off it: the hold the path
+  // stops on, the centreline under the last taxi point (the legacy point list's rolling line-up), the
+  // computed backtrack target, or the centreline under the aeroplane when it is already lined up. The
+  // heading is the take-off direction, which is where HOLD hands the aeroplane to ROLL. The pilot's plan
+  // is put back as it was: this asks, it does not fly. Needs ap.route (setRoute / departFrom first).
+  ap.lineupPose = () => {
+    const [xA] = sim.axes(), cg = sim.cgPos();
+    const nl = Math.hypot(xA[0], xA[2]) || 1e-9, nose = [-xA[0] / nl, -xA[2] / nl];
+    const keep = { frame: ap.frame, dirX: ap.dirX, takeoffDir: ap.takeoffDir, path: ap.path, pathI: ap.pathI,
+                   stopAfterLineup: ap.stopAfterLineup, taxiTgt: ap.taxiTgt, taxiPath: ap.taxiPath };
+    try {
+      const from = ap.route.from;
+      const ux = Math.cos(from.hdg), uz = Math.sin(from.hdg);
+      const onC = (x, z) => { const s = (x - from.x) * ux + (z - from.z) * uz; return [from.x + ux * s, from.z + uz * s]; };
+      // ALREADY ON THE LINE: a start on the spawn identity (a strip with no stand - the game rolls from it
+      // with no taxi at all) is lined up along the nose with HOLD's own run ahead (the need, capped at 0.7
+      // of the strip). planDeparture's uncapped need would send a 340 m strip's spawn round to the far
+      // hold, which leaves less than HOLD accepts - the skip must never be a longer way than no skip
+      {
+        const sg = (nose[0] * ux + nose[1] * uz) >= 0 ? 1 : -1;
+        const al = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz, cr = -(cg[0] - from.x) * uz + (cg[2] - from.z) * ux;
+        const ahead = (from.len || 0) / 2 - sg * al;
+        if (Math.abs(cr) <= Math.min(8, (from.wid || 30) / 2 - 1) && Math.abs(al) <= (from.len || 0) / 2
+            && sg * (nose[0] * ux + nose[1] * uz) > 0.9 && ahead >= Math.min(runNeeded(), 0.7 * (from.len || 1100))) {
+          const q = onC(cg[0], cg[2]);
+          return { x: q[0], z: q[1], hdg: Math.atan2(sg * uz, sg * ux), from: from.id || 'HOME', how: 'lined' };
+        }
+      }
+      const next = planDeparture(cg, nose);
+      const t = ap.takeoffDir;
+      let q, how;
+      if (next === 'STOP') { q = onC(cg[0], cg[2]); how = 'lined'; }
+      else if (ap.path && ap.path.pts && ap.path.pts.length) { const e = ap.path.pts[ap.path.pts.length - 1]; q = [e.x, e.z]; how = 'hold'; }
+      else {
+        const tg = (ap.taxiPath && ap.taxiPath.length) ? ap.taxiPath[ap.taxiPath.length - 1] : ap.taxiTgt;
+        q = onC(tg[0], tg[1]); how = ap.taxiPath ? 'taxiOut' : 'backtrack';
+      }
+      return { x: q[0], z: q[1], hdg: Math.atan2(t[1], t[0]), from: from.id || 'HOME', how };
+    } finally { Object.assign(ap, keep); }
   };
 
   // ---- the status line ----------------------------------------------------------
@@ -16994,7 +17113,12 @@ function makePilot(sim, def, world, opts) {
         // the hand turned off comes back on when the pilot takes over
         if (sim.setEngine && sim.eng)
           for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
-        const next = planDeparture(cg, nose);
+        let next;
+        if (ap.atHold) {
+          const H = ap.atHold; ap.atHold = null;
+          setTakeoffDir([snap(Math.cos(H.hdg)), snap(Math.sin(H.hdg))]);
+          ap.path = null; ap.stopAfterLineup = true; next = 'STOP';
+        } else next = planDeparture(cg, nose);
         engage('NONE', 'DE', 'SET', { de: A.taxiDe ?? 0.30, thr: 0 });
         go(next === 'STOP' ? (Vg < 0.3 ? 'HOLD' : 'STOP') : 'TAXI');
         setStatus('planning the departure', []);
@@ -31872,4 +31996,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
