@@ -1490,7 +1490,7 @@ function editorInit(api) {
     CU.build();
   }
 
-  function setExpert(on) {
+  function setExpert(on, noBuild) {
     if (!CU || !CU.EXPERT) return;
     CU.EXPERT.on = !!on;
     // the same key the bench's own switch has always written, so the two
@@ -1501,7 +1501,9 @@ function editorInit(api) {
     CU.applyRowVis();
     // TAIL CHANTIER 2 P2: the fin's control cage follows this switch (it is
     // what the expert rows move), and the cage is drawn at build time
-    if (CU.P && +CU.P.finOn && typeof CU.build === 'function') CU.build();
+    // (G995: not from ON_ROWS - _cage_ui's first build() is the very next line after it, and this one was a whole
+    // second build of the aeroplane inside the boot's 'editor' task, ~0.6-1.2 s)
+    if (!noBuild && CU.P && +CU.P.finOn && typeof CU.build === 'function') CU.build();
   }
 
   // ONE PLACE MEASURES THE RIGHT PANEL. It is two columns that fold
@@ -3640,7 +3642,7 @@ function editorInit(api) {
   // rules all follow a slider drag without anything polling.
   window.CAGE_ON_ROWS = () => {
     adopt();
-    setExpert(pref('cageExpert') === '1');
+    setExpert(pref('cageExpert') === '1', true);   // the first build follows this hook (G995)
     // WHATEVER WAS STANDING THERE LAST TIME COMES BACK, and it comes back
     // whether or not the reference row is the selection — you park a Cub next
     // to your build in order to look at it while you work on the wing, not in

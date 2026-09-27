@@ -7238,7 +7238,22 @@
       if (E.decalImagesFrom && G && G.images) E.decalImagesFrom(G.images() || {});
     } catch (err) { console.error('cage editor seed (images):', err); }
   }
-  function openEditor() {
+  // G995 (A5-LOAD): THE SEED IN ITS OWN TASKS. The garage boot's 'editor' step was CAGE_UI_BOOT (the rows, the page's
+  // own first build) AND the seed (applySpec: the player's aeroplane, a second build) in one 2.5 s task. The boot
+  // passes noSeed: the seed is owed (edSeedOwed) and its own step runs it through applySpecSteps, a slice a task.
+  let edSeedOwed = false;
+  function* seedEditorSteps() {
+    const E = window.CAGE_UI;
+    if (edSeeded || !E || !E.applySpecSteps || !genSpec || !genSpec.cage || !Object.keys(genSpec.cage).length) { seedEditor(); return; }
+    edSeeded = true;
+    try { yield* E.applySpecSteps(genSpec); }
+    catch (err) { console.error('cage editor seed:', err); }
+    try {
+      const G = window.GARAGE_SPEC;
+      if (E.decalImagesFrom && G && G.images) E.decalImagesFrom(G.images() || {});
+    } catch (err) { console.error('cage editor seed (images):', err); }
+  }
+  function openEditor(noSeed) {
     parkedFlush();
     const w = $('edWrap');
     if (!w || typeof CAGE_UI_BOOT !== 'function') return;
@@ -7264,7 +7279,7 @@
     placeEditor();
     // after the mount is parented and the floor is under it, so the seed's
     // own rebuild lands in a room that already exists
-    if (booted) { seedEditor(); placeEditor(); }
+    if (booted) { if (noSeed === true) edSeedOwed = true; else { seedEditor(); placeEditor(); } }
     syncGoLabel();
   }
   // THE PANEL IS 640 PX WIDE NOW (G77), and it is opaque. The game's own HUD
@@ -10328,7 +10343,49 @@
     setAircraft('gen');
   });
   bootStep('garage', 'raising the shed', 15, enterGarage);
-  bootStep('editor', 'opening the workshop', 20, openEditor);
+  // THE EDITOR IS HELD FROM ITS BOOT TO THE END OF THE SEED (G995; parked.js holdEditor's lesson, A4-FREEZE). The
+  // page's own first build (CAGE_UI_BOOT) arms the editor's timers - the autosave's touch, BENCH_DIRTY's fingerprint,
+  // the energy layer's 120 ms commitLater -> GARAGE_SPEC.update - and those used to fire after the seed, in the same
+  // task, reading the PLAYER'S aeroplane. Across the seed's tasks they would fire on the page's template (the energy
+  // layer would write its tanks into the player's build). So while held: CAGE_ON_BUILD is a no-op (run once at the
+  // release: it is a resync - the mount, the clip, the fingerprint, the touch), GARAGE_SPEC.update is refused, and a
+  // timer armed inside is fired only after the release, in its order.
+  function bootEditorHold() {
+    const W = window, G = W.GARAGE_SPEC, onBuild = W.CAGE_ON_BUILD, upd = G && G.update, realST = W.setTimeout;
+    const later = []; let open = true;
+    W.CAGE_ON_BUILD = () => {};
+    if (upd) G.update = () => (G.get ? G.get() : null);
+    return {
+      run: fn => {
+        W.setTimeout = function (cb, ms) { const a = Array.prototype.slice.call(arguments, 2);
+          return realST.call(W, function () { if (open) later.push(() => cb.apply(null, a)); else cb.apply(null, a); }, ms); };
+        try { return fn(); } finally { W.setTimeout = realST; }
+      },
+      release: () => {
+        if (!open) return;
+        open = false;
+        W.CAGE_ON_BUILD = onBuild; if (upd) G.update = upd;
+        try { if (onBuild) onBuild(); } catch (e) { console.error('editor seed (on build):', e); }
+        for (const f of later.splice(0)) realST.call(W, f, 0);
+      },
+    };
+  }
+  let edHold = null;
+  bootStep('editor', 'opening the workshop', 12, () => {
+    if (!screenCan()) { openEditor(); return; }   // the harness: the seed inside, as ever
+    edHold = bootEditorHold();
+    try { edHold.run(() => openEditor(true)); } catch (e) { console.error('editor:', e); }
+    if (!edSeedOwed) { edHold.release(); edHold = null; }
+  });
+  bootStep('seed', 'your aeroplane on the stand', 8, () => {   // G995: the seed openEditor left owed, a slice a task
+    const H = edHold; edHold = null;
+    if (!edSeedOwed || !H) { if (H) H.release(); return; }
+    edSeedOwed = false;
+    const g = seedEditorSteps();
+    function* held() { for (;;) { const r = H.run(() => g.next()); if (r.done) return r.value; yield r.value; } }
+    return sliced(held(), 'seed', 'your aeroplane on the stand')
+      .then(() => { H.release(); placeEditor(); syncGoLabel(); }, e => { console.error('seed:', e); H.release(); });
+  });
   // ...AND THE AEROPLANE BEHIND THE CAGE IS THE CAGE. Until now the first
   // build of a session had no snapshot, so `buildModel('gen')` fell back to
   // genSkin (G46's declared "absent a snapshot ... the generated skin flies
