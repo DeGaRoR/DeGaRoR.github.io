@@ -493,6 +493,13 @@
   text-overflow:ellipsis; font-style:normal; }
 #rail.held #phNext { display:none; }
 #ui #pfd.small #phNext { display:none; }
+/* G710: THE PLAN LINE - under the rail, the point flown to, the height asked there and the vertical
+   speed against its limit; the ink, not the faint (it is the answer to "what is it doing"), one line,
+   clipped; gone when empty and on the small PFD */
+#phPlan { display:block; margin-top:6px; font:500 8.5px/1.2 'IBM Plex Mono', monospace; letter-spacing:.02em;
+  color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-style:normal; }
+#phPlan:empty { display:none; }
+#ui #pfd.small #phPlan { display:none; }
 
 #track { display:flex; gap:3px; align-items:center; margin-left:auto;
   margin-block:-7px; }
