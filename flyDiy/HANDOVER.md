@@ -61747,3 +61747,80 @@ PICTURES: tools/perf/a2r2_{before,after}_{B,B_s0,B_s4,A_s1,A}.jpg (island_shot, 
 GATES (targeted): PAVEMENT, PREMISES, PREMRASTER, SITE, WORLDRENDER, GFX, PROGRAMS, COVER, SPLAT, UISMOKE, BOOT, MEDIA,
 WORLD, SETTLE, SURF, GE, TAKEOFF, TAXICLEAR, PILOTACT, STAND, PARKED, OBSTACLE - all PASS. (PREMISES 14o caught a first
 taxiway rule that took Metlakatla's narrow worn-concrete streets; the 10 m + joins-a-strip-or-apron rule fixed it.)
+
+## G790-G793 - W-CHECK: THE WATER, CHECKED IN THE BROWSER: the float Cessna flies (the hump is the hull's resistance peak), the water circuit keeps to the water, the rigid float hull out of the box's network (200 -> 120 substeps) (2026-09-27, local GPU)
+
+The user: "I have not tested the water physics recently, but I think they're worth a new check, functional and
+performance, using the new browser-based bench." Numbers, pictures and the before/after tables:
+futureDesigns/PLAYTEST-2026-09-26.md §0.9; the runs, the shots and a contact sheet in tools/perf/water_check/.
+
+**G790 THE RIG (tools/rollout_perf.js).** `--from <aerodrome> [--dest <id>|CIRCUIT]` sets the page's own `flydiy.route`
+pref (what #edRoute / #bootRoute / #selFrom write - no placement of ours; a float build goes to the SEA lane by the
+game's applyRoute whatever the pick). The rig now STATES the route (HOME / CIRCUIT by default) and `flydiy.flManual`
+on every run: a warm profile kept both. `--afloat <s>` flies the first s seconds in the page's manual mode at idle
+(the pref, then FLIGHT_PROBE.setManual(false)): the aeroplane afloat at rest - the pilot has no water taxi, it runs
+from the lane's spawn. On floats every frame carries the pilot's phase, V, the wet floats, the honest AGL and a
+WATER PHASE read in the page (to-afloat / to-displace / to-step, climb / circuit / flare, ldg-step / ldg-displace /
+ldg-afloat - the first lift-off splits the run from the landing); `--shot-phase all` captures each phase 1.5 s in.
+Every build: the mirror's capture (WATER.mirrorRender - CPU ms, captures) and the field's step timed per frame;
+`--water-gpu` switches the water module's own GPU timer on (WATER.set({timer}): the sea's and the near sea's draws).
+The summary adds ms a step, seconds per phase, the start (route, substeps, hydro rate, the aerodrome under the CG).
+TRAP: rollout_perf reads the FIRST `--gfx` - a variant must not pass it twice.
+
+**G791 THE HUMP IS THE HULL'S RESISTANCE PEAK (43_pilot.js ROLL).** The user's `cessnaFloats` (IO-360, 6.3 m hulls)
+was condemned at 9.9 s on every calm day, analytic Sound and Annette Dock alike ("will not reach Vr: 0.23 m/s^2 needs
+1 201 m more"): its ventilated step dries the afterbody at 6.9 m/s (wetA < 0.2: "on the step", onG 2) while it
+ploughs the hump another 25 s at 12-15 deg, R/W 0.19-0.24, 0.15-0.3 m/s^2; past the hump it planes and unsticks at
+54 s in 690 m of the 1 500 (the sheet: 1 160). Measured with the reject bypassed on a scratch core before any edit.
+The planner now also waits while the floats' hydro force against the motion over the weight (1 s filter) has not
+fallen under `A.humpOff` (0.6) of the run's peak, latched once past. A hull that never gets over it still meets the
+user's fraction-of-the-run rule. Land: bit-identical (the code runs only on sim.hydro; stock hash b1507ba1, the metal
+Cessna's circuit summary md5 6d140840 on both cores).
+
+**G792 A WATER LANE'S CIRCUIT KEEPS TO THE WATER (43_pilot.js planArrival).** siteRunwayModel scores a 30 deg
+climb-out turn against 1.5 km of ground and its sense FORCED the pattern's side (`side = -climbTurn`). At Annette
+Dock it turned right past a 90 m point and put the Cessnas' circuit over the island: 359-436 m of ground under the
+downwind and base against 39 m over the Sound, circuits planned at 482-562 m and flown on a 0.4 m/s climb - the
+180 hp build 1.9 m over a ridge at 160 s (a 34 deg zoom, then a dive), the O-540 build never round (leg time-outs,
+a go-around, gave up; in the browser under the 8 kt breeze it DITCHED on its downwind at 98 s, 40 m/s, ~13 m/s
+sink). On a water lane the turn no longer forces a side lower by a quarter of the circuit height than the other
+(the old no-turn rule then picks the water). Land strips as before (valley strips rely on it). Every float build
+now completes Jolene's lane and the analytic Sound at 125-192 m, calm and in the breeze.
+
+**G793 THE FLOAT IS A RIGID BODY (62_gen_aero genFlightBox + GATE SUBSTEP).** PHYSICS-PERF's "the float keel's step,
+a chantier of its own": G610's box refused the float Cessna (network 3.61 at 200, 5.67 at 120) and it flew 200. The
+network's damper term was 2.93 of that 3.61 - the 90 members INSIDE the two hulls (61_gen_frame: kMul 8, zeta ~1.9).
+But each hull is a shape-matched cluster with no omega: the solver projects its 15 nodes onto the rigid fit every
+substep and takes the deformation out of the velocities (30_solver shapeMatch, al = 1), so those members start every
+substep unstretched and carry no force, whatever their k and c. Proved: the float Cessna's take-off run with them at
+k = c = 0 - the CG 0.5 mm apart after 1 s, under 1 m after 700 m of hump and porpoise, V to 0.1 m/s, the same
+lift-off second; GATE SUBSTEP flies it (full power from rest, 11-13 m, 0.1 um). genRigidFloatOf (exported) names
+them; genFlightBox leaves them out of its network and out of the non-wing springs' need, and never softens or cuts
+them (the hull's members and every strain readout keep their k and c). Only 'float' clusters - the fin / rod / boom
+rigid groups are the same physics, not asked. Moved: the floatplane archetype 142 -> 120 (true 142), the Wipline
+C172 fixture and both of the user's float Cessnas 200 -> 120 (true 200, the wing box softened as the metal Cessna's);
+the other 42 builds unchanged. The take-offs agree with the 200-substep runs to the second (689 m / 54.3 s vs
+688 m / 54.3 s; 485 m / 31.4 s both). GATE SUBSTEP adds: every float hull rigid, its members out of the re-measured
+network and untouched by the box, the inertness flown. FLOATS 140 -> 30 s, SEAPLANE 480 -> 122 s of gate time.
+
+**MEASURED (browser, warm, 3080, 2216x1023, gamer, cap 60, the default 8 kt breeze; before = master b78f8d0c):**
+the O-540 float Cessna, ms a step before -> after: displacing 9.5 -> 6.7, on the step 8.4 -> 5.7, climb 6.9 -> 4.3,
+circuit 7.0 -> 4.2; loop JS on the water 27-31 -> 18-20 ms, the water phases 30 -> 59.9 fps (R3 30 -> 59.9).
+Afloat at rest 7.3 ms a step against 4.2 in the air and 4.4 on the metal Cessna's land taxi: the hydro pass is ~+3
+ms a step and an afloat frame (19-20 ms of loop at the 60 cap) sits on the edge - after the landing it tipped to
+the step-debt 30 for 90 s (9.0 ms a step; headless the two afloat states cost the same). The water's render is
+cheap: its own draws 0.58 ms GPU (0.30 simple), the mirror 0.1 ms CPU afloat and 0.4-0.6 climbing (2-4 captures a
+second), off it changes the afloat loop by 0.5 ms; the field 0.06-0.11 ms. R1/R4 fail on every run, land included,
+on the same tasks (2.7 s at +4 s, 1.5-2.1 s in flight - `ob:o3`'s parked capture and the town's items): not water.
+
+**OWED:** (1) the hydro compute: HYDRO_HZ 360 = six hull clips a step at 120, ~300 wet panels - the next lever for
+the afloat frame; (2) the Cessnas on floats touch at 2.0-2.6 m/s (the flare from 10 m on the fiche's VAppr - G970's
+open item; the Wipline fixture 1.0-1.7, the floatplane 1.4-1.5); (3) the other rigid clusters (fin, rod, boom with no
+omega) could leave the network the same way - not measured; (4) a water lane with no declared circuit reads its side
+from the terrain alone - Annette Dock could carry `circuit: { hand }` in the fixture.
+
+GATES (targeted, the final tree on b78f8d0c, jobs 8): SUBSTEP, FLOATS, HYDRODYN, WIPLINE, SEAPLANE, WATER, TAKEOFF,
+SIMWORKER, BENCH, DRAG, WEIGHT, PILOTACT - all PASS. The same set plus PILOT (3 shards) PASS on the pre-rebase tree
+(1683e64d), and ARCHETYPES --only=floatplane PASS. DEFERRED to the merge train's --all (the coordinator's call, the
+GPU critical path): ARCHETYPES (all cards), PILOTMATRIX, PILOT. Land flights are bit-identical by construction and
+by hash (above); the float cards are the ones that move.
