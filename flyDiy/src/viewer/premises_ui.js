@@ -453,15 +453,15 @@ function mount(host, ctx) {
         if (it) { const a = e.at, c = Math.cos(a.yaw || 0), sn = Math.sin(a.yaw || 0), dx = L[0] - a.x, dz = L[1] - a.z; it.x = +(dx * c - dz * sn).toFixed(2); it.z = +(dx * sn + dz * c).toFixed(2); }
       }
     }
-    else if (drag.runway === 'stand' || drag.runway === 'hangar' || drag.runway.indexOf('tx') === 0) {
+    else if (drag.runway === 'stand' || drag.runway === 'hangar' || drag.runway.indexOf('tx') === 0 || drag.runway.indexOf('ty') === 0) {
       // the stand or a taxi point moves; the LAST taxi point stays on the centreline (it is the entry)
       const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
       if (drag.runway === 'stand') { e.stand.x = +L[0].toFixed(2); e.stand.z = +L[1].toFixed(2); }
       else if (drag.runway === 'hangar') { e.hangar.x = +L[0].toFixed(2); e.hangar.z = +L[1].toFixed(2); }
       else {
-        const i = +drag.runway.slice(2);
-        if (i === e.taxiOut.length - 1) { const along = (L[0] - e.c[0]) * E.d[0] + (L[1] - e.c[1]) * E.d[1]; e.taxiOut[i] = [+(e.c[0] + E.d[0] * along).toFixed(2), +(e.c[1] + E.d[1] * along).toFixed(2)]; }
-        else e.taxiOut[i] = [+L[0].toFixed(2), +L[1].toFixed(2)];
+        const i = +drag.runway.slice(2), T = drag.runway[1] === 'y' ? e.taxiOut1 : e.taxiOut;   // G772: 'ty' = taxiOut1
+        if (i === T.length - 1) { const along = (L[0] - e.c[0]) * E.d[0] + (L[1] - e.c[1]) * E.d[1]; T[i] = [+(e.c[0] + E.d[0] * along).toFixed(2), +(e.c[1] + E.d[1] * along).toFixed(2)]; }
+        else T[i] = [+L[0].toFixed(2), +L[1].toFixed(2)];
       }
     }
     else if (drag.runway) {
@@ -825,7 +825,7 @@ function mount(host, ctx) {
         rows.note(insp, 'THE STAND: the aeroplane starts here, parked toward its first taxi point; the way out runs through ' + e.taxiOut.length + ' point' + (e.taxiOut.length > 1 ? 's' : '') + ' to the centreline');
         rows.button(insp, 'add a taxi point', () => ed(x => { const t = x.taxiOut, n = t.length, a = n > 1 ? t[n - 2] : [x.stand.x, x.stand.z], b = t[n - 1]; t.splice(n - 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'taxi point of ' + id));
         if (e.taxiOut.length > 1) rows.button(insp, 'drop the last taxi point before the entry', () => ed(x => { x.taxiOut.splice(x.taxiOut.length - 2, 1); }, 'taxi point of ' + id));
-        rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; }, 'stand of ' + id));
+        rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; }, 'stand of ' + id));
       } else rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
       // THE CLUB HANGAR (G434): the garage's own shell stood at the field - the building the aeroplane rolls
       // out of (the reveal shot keeps out of it); placed behind the stand facing it, then dragged by its disc

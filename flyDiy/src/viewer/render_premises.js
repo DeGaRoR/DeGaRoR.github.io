@@ -1568,7 +1568,8 @@ function make(THREE, scene, world, rec0, opts) {
       const put = (lp, key, mid) => { const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatMid : discMat); m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, mid: !!mid }; G.handles.add(m); HANDLES.push(m); };
       put(E.end0, 'e0'); put(E.end1, 'e1'); put(f.entry.c, 'c', true);
       // THE STAND and its way out: the stand's disc and one per taxi point (the last stays on the centreline)
-      if (f.entry.stand && f.entry.taxiOut) { put([f.entry.stand.x, f.entry.stand.z], 'stand'); f.entry.taxiOut.forEach((q, i) => put(q, 'tx' + i, true)); }
+      if (f.entry.stand && f.entry.taxiOut) { put([f.entry.stand.x, f.entry.stand.z], 'stand'); f.entry.taxiOut.forEach((q, i) => put(q, 'tx' + i, true));
+        (f.entry.taxiOut1 || []).forEach((q, i) => put(q, 'ty' + i, true)); }   // G772: the way out toward end1
       // THE CLUB HANGAR (G434): its disc moves the garage's shell; the inspector turns it
       if (f.entry.hangar) put([f.entry.hangar.x, f.entry.hangar.z], 'hangar');
       // THE HOLDS: the pattern's two stop bars, draggable along the centreline (the pattern's hand)

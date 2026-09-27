@@ -20,7 +20,7 @@ WHAT IS WRITTEN (contract v1.14, G434):
             HOME Jolene AFB 13/31 - the long one, worn concrete, VASI both ends,
                  the club HANGAR (the garage's shell) on the pad west of the
                  junction, the stand on the apron, the way out up the NE arm of
-                 the taxiway V to the centreline
+                 the taxiway V to the centreline for 13, the E arm for 31 (G772)
             w3  Tamgas Hill Strip - 520 x 18 m gravel on a 2.3 % rise 2.5 km NW,
                  a PROFILE (the touchdown fifths eased), landed uphill (approach
                  over end 0), a PAPI at the downhill end, a field shed and a hut
@@ -556,6 +556,19 @@ STAND = club_world(-22, 36)
 TAXI_NE = [(-135.0, 655.0), (-133.0, 590.0), (-120.0, 500.0), (-92.0, 442.0)]
 TAXI_E = [(-115.0, 655.0), (0.0, 655.0), (130.0, 672.0), (205.0, 690.0)]
 TAXI_W = 24.0
+# G772: THE WAY OUT BY THE PAINT, AND THE RIGHT ARM FOR 31 (the user, 2026-09-27: "in the 'V' shape out of the
+# hangar, it should take right and it takes left"). The V is two painted taxiways: the NE (left) arm meets
+# 13/31 in its middle, 1465 m from the NW end; the E (right) arm meets it 473 m from the SE end, at the
+# junction with 02/20. A departure on 31 (off the SE end) went up the left arm and backtracked 750 m of the
+# runway; it goes by the right arm now (taxiOut1) and backtracks 363 m (taxi 1220 -> 948 m). 13 keeps the left
+# arm (its hold is 110 m from the NW end: the right arm would be 387 m longer). Both leave the apron through
+# the gap between the parked Cub o1's nose and the fence's end at (-128, 670) - the old first leg passed o1
+# at 9.5 m (an 11 m wing 1.1 m from it: G630's owed stretch (b)) - each with its own corner out of it: 31
+# turns east north of the fence's end post, 13 bears east of the parked C172 o2's nose before it joins the
+# NE arm's paint. FLOWN (the pilot, the Cub and the aluminium C172, calm and in wind): the wing 3.6 m or more
+# from every parked aircraft and fence run on the apron (GATE LINEUP C; tools/apron_map.js draws it).
+APRON_13 = [(-138.0, 690.0), (-137.5, 664.0), (-132.0, 648.0)]
+APRON_31 = [(-138.0, 690.0), (-137.5, 657.0)]
 
 # ---- THE HILL STRIP'S SHED: 'airport xs' beside the downhill end, its +z toward the strip ----------
 # ...on the strip's LOWER side (the ground there is within a metre of the strip's own; the uphill side
@@ -655,7 +668,8 @@ def main():
                  'disp': [0, 0], 'papi': [False, False], 'falloff': 60, 'site': None, 'pattern': None, 'profile': W2_PROFILE, 'approach': None},
                 {'id': 'HOME', 'name': 'Jolene AFB 13/31', 'c': pt(*HOME_C), 'hdg': HOME_HDG, 'len': HOME_LEN, 'wid': HOME_WID, 'surface': 5, 'look': 'worn', 'band': 40, 'pav': {'rubberK': 0, 'laneW': 6.1}, 'crossfall': 0,
                  'disp': [0, 0], 'papi': ['vasi', 'vasi'], 'falloff': 60, 'site': None, 'pattern': None, 'profile': [[0, 5.2], [0.5, 0.0], [1, -5.1]], 'approach': None,
-                 'stand': {'x': R(STAND[0]), 'z': R(STAND[1]), 'hdg': None}, 'taxiOut': [pt(*p) for p in TAXI_NE],
+                 'stand': {'x': R(STAND[0]), 'z': R(STAND[1]), 'hdg': None}, 'taxiOut': [pt(*p) for p in APRON_13 + TAXI_NE[1:]],
+                 'taxiOut1': [pt(*p) for p in APRON_31 + TAXI_E],
                  'hangar': {'x': R(HANGAR_W[0]), 'z': R(HANGAR_W[1]), 'hdg': 0.0}},
                 {'id': 'w3', 'name': 'Tamgas Hill Strip', 'c': pt(*W3_C), 'hdg': R(W3_HDG, 4), 'len': W3_LEN, 'wid': W3_WID, 'surface': 6, 'look': 'gravel', 'band': 4, 'crossfall': 0,
                  'disp': [0, 0], 'papi': [True, False], 'falloff': None, 'site': None, 'pattern': None, 'profile': W3_PROFILE, 'approach': 0,
@@ -683,7 +697,7 @@ def main():
             ] + ANIMALS,
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 21,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json); 12 Jumbo Mine moved to the wooded knoll; 13 the mine's school, clinic and chapel on posts; 14 East Point quiet (no mast, cars, rubbish); 15 the tramway's top on the plateau + its square; 16 East Point's trees cut back to the user's lines; 17 East Point's footpaths lie on the ground; 18 the altiport's head one platform, the tram's terminal on it; 19 METLAKATLA, the island's one real town (jolene_parts/metlakatla.py); 21 the tramway road a smooth T off Walden Point Road (2026-09-23); 20 the puddles retired from the pavement, so `puddleCover` leaves the record (2026-09-23)
+        'rev': 22,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json); 12 Jumbo Mine moved to the wooded knoll; 13 the mine's school, clinic and chapel on posts; 14 East Point quiet (no mast, cars, rubbish); 15 the tramway's top on the plateau + its square; 16 East Point's trees cut back to the user's lines; 17 East Point's footpaths lie on the ground; 18 the altiport's head one platform, the tram's terminal on it; 19 METLAKATLA, the island's one real town (jolene_parts/metlakatla.py); 21 the tramway road a smooth T off Walden Point Road (2026-09-23); 20 the puddles retired from the pavement, so `puddleCover` leaves the record (2026-09-23); 22 HOME's way out by the paint: the apron gap, the NE arm for 13 and the E arm for 31 (taxiOut1, G772, 2026-09-27)
     }
     if '--absorb' in sys.argv:
         k = sys.argv.index('--absorb')

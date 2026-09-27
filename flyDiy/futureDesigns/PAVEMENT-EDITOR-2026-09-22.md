@@ -11,7 +11,7 @@ changes, what the gates hold, and the order of work. Nothing here is implemented
 | entry | fields (27_premises.js) | the editor's rows (premises_ui.js) |
 |---|---|---|
 | ROAD | `id, pts, w, cls (gravel / paved / track / path → ROAD_CLS surface), graded, falloff, grade, ribbon, traffic` | width · class · graded · **"shoulder (m)" = `falloff`** (the TERRAFORMING feather) · steepest % · drawn as a ribbon · traffic |
-| RUNWAY | `RUNWAY_DEF`: `len, wid, hdg, surface, look (RUNWAY_LOOKS: grass / none / asphalt / concrete / worn / gravel → a SET key), slope, crossfall, disp, papi, falloff, site, pattern, stand, taxiOut, profile, approach, hangar, circuit` | name · length · width · heading · **look** pills (propose the class) · wheels feel · approach · profile graph · **"shoulder (m)" = `runwayShoulder(e)`** (the terraforming feather, 40 + 6 % of the length) · lights · stand / taxi / hangar |
+| RUNWAY | `RUNWAY_DEF`: `len, wid, hdg, surface, look (RUNWAY_LOOKS: grass / none / asphalt / concrete / worn / gravel → a SET key), slope, crossfall, disp, papi, falloff, site, pattern, stand, taxiOut, taxiOut1 (G772), profile, approach, hangar, circuit` | name · length · width · heading · **look** pills (propose the class) · wheels feel · approach · profile graph · **"shoulder (m)" = `runwayShoulder(e)`** (the terraforming feather, 40 + 6 % of the length) · lights · stand / taxi / hangar |
 | MATERIAL polygon | `poly, set, tile, fade, z` (four slots, albedo only, mixed ahead of color_fragment) | set · tile · fade · priority |
 | SURFACE polygon | `poly, surface, z` (what the wheels feel — physics) | surface · priority |
 

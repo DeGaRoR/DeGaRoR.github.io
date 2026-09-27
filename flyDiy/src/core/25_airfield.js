@@ -743,9 +743,21 @@ function sitePattern(aero, site, opts) {
     } else {
       routes.out[0] = [st].concat(ids, [c0, holds[0]]);
     }
-    const c1 = add('c1', at(ex, ez, n, laneSg * lane), 'taxi', { r: GP_FILLET });
-    link(prev, c1); link(c1, 'l1a');
-    routes.out[1] = [st].concat(ids, [c1]).concat(routes.back[1]);
+    // G772: A SECOND WAY OUT, TOWARD END1. Jolene's apron has two taxiways (the painted V): the one toward
+    // the strip's middle (taxiOut) and the one toward the south-east end (taxiOut1) - a departure along -hdg
+    // leaves by the second and backtracks 387 m less of the runway (750 -> 363 m). Direction 1 then walks taxiOut1 to its
+    // own entry and steps onto the lane there; without one, the single way out serves both, as before
+    let prev1 = prev, e1 = [ex, ez], ids1 = ids;
+    if (site.taxiOut1 && site.taxiOut1.length) {
+      const ty = site.taxiOut1;
+      ids1 = []; prev1 = st;
+      for (let i = 0; i + 1 < ty.length; i++) { const id = add('ty' + i, ty[i], 'taxi', { r: GP_FILLET }); link(prev1, id); ids1.push(id); prev1 = id; }
+      const l1 = ty[ty.length - 1], al1 = (l1[0] - R.cx) * d[0] + (l1[1] - R.cz) * d[1];
+      e1 = [R.cx + d[0] * al1, R.cz + d[1] * al1];
+    }
+    const c1 = add('c1', at(e1[0], e1[1], n, laneSg * lane), 'taxi', { r: GP_FILLET });
+    link(prev1, c1); link(c1, 'l1a');
+    routes.out[1] = [st].concat(ids1, [c1]).concat(routes.back[1]);
   } else if (aero.spawn) {
     // a generated strip: the spawn identity is 35 m in from end0
     const sp = add('spawn', [aero.spawn[0], aero.spawn[1]], 'stand',

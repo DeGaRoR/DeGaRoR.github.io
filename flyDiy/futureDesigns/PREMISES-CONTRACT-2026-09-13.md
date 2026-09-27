@@ -525,7 +525,10 @@ after the freeze, against this document.
   AT it. The composer hands them to the pattern in the world frame on the runway's `site` (merged over an
   authored pattern), the stand's heading derived toward its first taxi point when the record gives none;
   the CORE's `sitePattern` gained its third branch for a declared stand with a way out and no apron row
-  (`stand -> tx0.. -> c0 -> hold0`, out[1] onto the lane), so the pilot flies it untouched; the aerodrome
+  (`stand -> tx0.. -> c0 -> hold0`, out[1] onto the lane), so the pilot flies it untouched (G772,
+  2026-09-27: an optional `taxiOut1` in the same shape is the way out for a departure ALONG -hdg, off end1 -
+  out[1] walks it to its own entry, then the lane; absent, `taxiOut` serves both; Jolene's HOME carries
+  one, the E arm of its taxiway V); the aerodrome
   record's `spawn` is the stand; its `flat` is the graded box OR any authored flatten (an apron cut beside
   the strip is flat ground). (b) A HARBOUR zone sows only the plots whose ground reaches the water (the
   village's water house with its pier on each); a harbour whose road never nears the water sows nothing

@@ -894,7 +894,7 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -976,7 +976,7 @@ function runwayBox(r, margin) {
 }
 // the record in W.aerodromes' shape, in WORLD coordinates (24_world_aero's push)
 // THE STAND AND ITS WAY OUT, in the world (v6): the record's `stand` {x, z, hdg|null} and `taxiOut`
-// [[x, z], ...] are in the premises frame; the site the pattern reads gets them in the world, the
+// [[x, z], ...] (and `taxiOut1`, G772: the way out toward end1) are in the premises frame; the site the pattern reads gets them in the world, the
 // stand's heading DERIVED toward its first taxi point when the record gives none (an aeroplane is
 // parked pointing the way it will leave - the core's own ruling at HOME), merged over the record's
 // `site` (an authored pattern rides there untouched)
@@ -994,7 +994,12 @@ function runwaySite(r, F) {
   let hdg;
   if (r.stand.hdg !== null && r.stand.hdg !== undefined) hdg = +r.stand.hdg - F.yaw;
   else hdg = Math.atan2(tx[0][1] - st[1], tx[0][0] - st[0]);
-  return Object.assign(base, { stand: { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) }, taxiOut: tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]) });
+  const out = Object.assign(base, { stand: { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) }, taxiOut: tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]) });
+  // G772: THE OTHER WAY OUT - `taxiOut1` is the way to the centreline for a departure ALONG -hdg (off end1: the
+  // pattern's direction 1), where the strip's apron has a second taxiway toward that end; absent, taxiOut
+  // serves both directions as before. Same frame, same last-point-on-the-centreline rule
+  if (Array.isArray(r.taxiOut1) && r.taxiOut1.length) out.taxiOut1 = r.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
+  return out;
 }
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);

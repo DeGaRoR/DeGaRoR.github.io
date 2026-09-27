@@ -513,7 +513,13 @@ function makePilot(sim, def, world, opts) {
   // one, else the runway direction nearest the preference (a unit vector).
   // `mode` 'land' (default) or 'takeoff' — a strip in a valley is landed
   // toward the hill and left away from it
-  const dirAt = (a, px, pz, mode) => {
+  // G772: `taxiLen` [T0, T1] - the metres each take-off direction's way out is from where the aeroplane
+  // stands (planDeparture, off the strip): a kilometre of taxiing weighs 1 point (a third of a metre per
+  // second of headwind, 0.6 km of a 1 % uphill run). The wind still decides; in calm air the way out does,
+  // not the nose - Jolene's calm day was settled by the stand's heading alone (0.12 points: a 0.4 % grade
+  // against the nose), which sent the aeroplane on a 1.7 km taxi when 0.9 km went to the other end
+  const TAXI_K = 1.0 / 1000;
+  const dirAt = (a, px, pz, mode, taxiLen) => {
     const axx = snap(Math.cos(a.hdg)), axz = snap(Math.sin(a.hdg));
     const w = windAt(a, 30);
     const M = siteModelOf(a);
@@ -527,6 +533,14 @@ function makePilot(sim, def, world, opts) {
       const tko = mode === 'takeoff' && typeof a.takeoffHdg === 'number';
       if (tko) pref = [Math.cos(a.takeoffHdg), Math.sin(a.takeoffHdg)];
       const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number' || tko);
+      if (taxiLen && mode === 'takeoff') {
+        const s2 = M.dir.map((D, i) => {
+          const L = taxiLen[(D.u[0] * axx + D.u[1] * axz) >= 0 ? 0 : 1];
+          return isFinite(L) ? sc.score[i] - TAXI_K * L : sc.score[i];
+        });
+        sc.k = s2[0] >= s2[1] ? 0 : 1;
+        sc.why = sc.why.map((y, i) => { const L = taxiLen[(M.dir[i].u[0] * axx + M.dir[i].u[1] * axz) >= 0 ? 0 : 1]; return isFinite(L) ? (y ? y + ', ' : '') + 'taxi ' + Math.round(L) + ' m' : y; });
+      }
       ap.dirWhy = sc.why[sc.k];
       return M.dir[sc.k].u.slice();
     }
@@ -849,7 +863,16 @@ function makePilot(sim, def, world, opts) {
     const ahead = from.len / 2 - sgN * along;
     const enough = !onStrip || ahead >= need;                     // the run ahead of the nose suffices
     if (from.altiport && typeof from.landHdg === 'number') t = [-snap(Math.cos(from.landHdg)), -snap(Math.sin(from.landHdg))];   // GTRAM: an altiport is left downhill, whatever the wind
-    else if (siteModelOf(from)) t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff');
+    else if (siteModelOf(from)) {
+      // G772: off the strip, each direction's way out is measured (its route from here, as it would be flown)
+      let tl = null;
+      if (!onStrip && PAT && PAT.routes && typeof patternPath === 'function') {
+        tl = [0, 1].map(T => { const ids = PAT.routes.out[T] || PAT.routes.back[T];
+          if (!ids || !ids.length) return NaN;
+          try { return patternPath(PAT, ids, 2.0, [cg[0], cg[2]]).len; } catch (e) { return NaN; } });
+      }
+      t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff', tl);
+    }
     else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1]);
     else if (enough) t = [d0[0] * sgN, d0[1] * sgN];
     else t = [-d0[0] * sgN, -d0[1] * sgN];
