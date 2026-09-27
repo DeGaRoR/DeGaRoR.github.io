@@ -60326,3 +60326,82 @@ image.data kept, ASSET_FETCH never releasing bytes, four tree species and two gr
 plants (fetched in the garage, built at roll-out), 3 of 19 splat sets unused on Jolene.
 Gates: none run - nothing under src/ changed; tools/asset_census.js is a standalone measurement no gate or build
 reads (node --check clean; GATE MEDIA re-run: PASS, the store untouched).
+## G700 - B3a HONESTY: the readings, the stand, "fly on", the first flight, the garage's bar, the breeze (2026-09-26)
+
+Batch B's honesty items pulled forward (futureDesigns/PLAYTEST-2026-09-26.md §1.5; the user's words in quotes).
+One block, G700; new gate GATE HONESTY (tools/_honesty_check.js, core, ~25 s); checks added to UISMOKE and BENCH.
+- AGL ("completely faulty": -2..-4 m on the runway, -235 m on the altiport trip). The PFD and the trace's HEIGHT
+  AGL lane read `ap.dbg.agl = cg - ap.refAlt`: the pilot's FLAT datum, latched at the stand and shifted by
+  `to.elev - from.elev` in planArrival. It stays the pilot's (43_pilot.js untouched: it flies on it). app.js
+  `hudAgl()` is what a pilot reads: the lowest gear contact (refs.mains + the third wheel, node minus radius) over
+  the SURFACE under it (terrain or water, the higher), clamped at 0 - the same number under the AP (flDbg now
+  returns ap.dbg with `agl` replaced) and under the hand (which read the CG over the terrain: 1-2 m standing,
+  the sea floor under a floatplane). FLIGHT_PROBE.agl() publishes it. UISMOKE: 0.00 m standing (the pilot's datum
+  read -0.07 on the same frame), 39.98 m with the airframe lifted 40 m.
+- IAS / TAS. The HUD's IAS and the cockpit ASI needle (cockpit.js raw.ias) have the instrument's floor: 0 below
+  35 km/h (the HUD's floor held under 0.6 Vs, so a very slow build still reads its stall). TAS (instruments
+  flyout) stays the solver's number; measured 0.00 km/h at rest on Jolene's HOME stand in calm air, stock and
+  cessnaMetal, after 3 s of settle (GATE HONESTY) - the playtest's "20 standing" was a pause mid-taxi.
+  UISMOKE: the IAS cell reads "0" at 12.9 km/h of taxi.
+- THE STAND ON ITS OWN GROUND ("the plane is dropped from very high on reload"). standFor() returned no `elev` for
+  a WALKED stand (a shed deeper than the site's: the works), so placeAtStand fell back to the RUNWAY's elevation:
+  on Jolene HOME's apron is 30.60 m and 13/31's centre 31.68 - a 1.08 m drop at every roll-out. standFor(site,
+  dims, groundAt) now carries the ground under the walked point (the world's terrainH; the declared stand's elev
+  without one), and a new core step `seatOnGround(sim, groundH, refs)` (40_autopilot.js, the GAME's placement
+  only - no gate datum moves) pitches the airframe about the mains until the third wheel meets its own ground,
+  then puts the lowest contact 1 cm clear (sim.reset's clearance). Measured before (stock): East Point's stand is
+  a 15 % grade - tailwheel 84 cm up, the airframe fell 19 cm at 0.93 m/s; Skyline's lowest tyre 2.7 cm in the
+  ground. After, every Jolene stand (HOME declared + walked HD 20 / 26, w3, mn_strip, nv_strip, tw_ski) x (stock,
+  cessnaMetal): lowest contact 1.0 cm clear, the settle <= 9.0 cm at <= 0.7 m/s (the gear's own sag - sim.reset
+  leaves the tyres unloaded; that sag is every placement's, flat pad included, and is not this fix). The pre-G700
+  walked placement is replayed as the negative (caught 4/4).
+- "FLY ON" CONTINUES IN PLACE. #bGo after an arrival called fullReset (back onto the departure stand). It now
+  calls the selects' nextLeg (W14's chain, published as flNextLeg): a fresh pilot departs from where the aeroplane
+  stands to the destination select - the same field (a circuit, "land and take off from the same place") or the
+  next hop. A flight that ENDED (endFlight: crash, give-up) or landed OUT still resets. nextLeg also re-arms the
+  logbook row and the hand's ending (a chained leg never logged before). UISMOKE: STOPPED 100 m off the stand ->
+  a new pilot, TAXI, the aeroplane not moved.
+- THE FIRST FLIGHT IS KEPT, AND AWARDED ONCE ("every time it tells me it's my first flight"). An UNARMED arrival
+  (you rolled out and flew) was fingerprinted by fpNow() AT THE ARRIVAL - out in the world, where the join's export
+  reads a closed editor (CAGE_UI.P, measure()) and answers null: the certificate settled UNSTAMPED, and the next
+  restore (a reload) withdrew it as "certified before fingerprints"; and every arrival re-settled it and replayed
+  the award card. bench.js: window.BENCH_ROLLOUT (called first thing in app.js rollOut, with the editor still up)
+  fingerprints the aeroplane that rolls out - the arrival reads that - and an unarmed arrival whose flight
+  certificate already stands on the same fingerprint changes nothing. GATE BENCH runs benchInit for real (stub
+  DOM, two sessions over one stored envelope): settled on the roll-out's fp, the card shown 1 then 0 times, the
+  reload restores it valid with its first day; the NEGATIVE (no roll-out fp, the old path) loses it on the reload
+  with exactly the user's symptom ("certified before fingerprints").
+- THE GARAGE'S ORPHAN BAR (154024). #edOpts hid only when #cgUi had NO `.r` row; it always holds 493 - the FINISH
+  view's pools (materials 392, decals 101: editor.css hides both groups there) - and ONE shown row, the `dims box`
+  toggle G439 retired (its pane was parked, its toggle was not). Measured on the page (headless Chromium, world=none,
+  2000 x 975): before, the bar at 935-975 over that one row; after, `opts-empty`, the inspector to the bottom.
+  editor.js: RETIRED_ROWS (parked with the rail's rows) and optsLoose() (rows outside OPTS_POOLS). GATE HONESTY
+  holds the pools against the CSS. THE OVERFLOW BELOW THE COLUMNS: not reproduced - the document is exactly the
+  viewport (scrollHeight 975 = innerHeight, scrollY 0) in the garage, after a roll-out and back, and after a reload;
+  in 154024 the canvas and the fixed (top 0, bottom 0) columns end on the same line with the black band under
+  both, i.e. outside the page's layout viewport (the browser's or the OS's, not the page's). THE EMPTY GARAGE
+  (153936): not reproduced on three paths - boot (1578 meshes, 53 tree rows, 1034 inspector rows); roll out ->
+  Restart -> the shed (1574 meshes, editor up); a reload after the flight (1578). 153936 itself shows a full
+  garage with the parts column folded. Needs the user's steps.
+- THE DEFAULT DAY: A LIGHT BREEZE ("so the sea is not fully calm"). day_clock.js GAME_WIND = the weather card's
+  `light breeze` (8 kt from 250, gust 0.15, the sea breeze on) on GAME_DAY; #selCond opens on it. The pref moved
+  to `flydiy.day.v3`: a v2 pref comes across once with its date, hour and weather, except the still air every v2
+  day was saved with by default, which takes the breeze. pilot_trace --day-wind and the matrix's `breeze` weather
+  fly the same spec (GATE HONESTY holds the three equal).
+  THE PILOT MATRIX ON THE DEFAULT DAY DOES NOT PASS (measured, pilot_matrix --cells, not a gate cell): every
+  breeze cell COMPLETES (cub, c172, stearman at HOME; cub HOME-A3; cub and c172 from the stand), but 5 of 6 are
+  judged bad on the landing - c172 sink 2.59 / 2.60 m/s (bad > 2.5), cub touchdown 0.99 Vs (bad < 1.0), cub HOME-A3
+  0.96 Vs and a 15.8 deg swing - against 0 bad on the same machines calm (3 warn). A 5 kt breeze is no better
+  (stearman take-off rudder 90 reversals/min, cub A3 sink 2.72): the pilot's landing in a gusting sea breeze is
+  the defect, not the strength. The breeze stays the default as the user asked; the landing is batch B pilot work.
+VERDICTS (node tools/run_gates.js --all, this container, the branch over claude/batch-a-base 48a3fe5): 117 jobs, 103
+rows PASS - HONESTY (new), UISMOKE, BENCH, SITE, VIEW, PANEL, BOOT, PACE, PILOT, TAKEOFF, PILOTACT, HOTHIGH, FLEX,
+LOAD among them. ARCHETYPES (Caravan / Tiger Moth / Beaver / Motorglider / Twin bush hauler gave up), PILOTMATRIX
+(10 regressed against pilot_baseline.json), SEAPLANE (3) and SOAR (in the thermal it climbs 0.21 m/s; -6 m in 200 s)
+are RED and PRE-EXISTING: all four fail on 48a3fe5 itself, in a clean worktree, with the IDENTICAL FAIL lines; the
+core diff is standFor's optional third argument and the new seatOnGround, on none of their paths. (SOAR passed on
+master 3da1c82 per G690 - it went red inside batch A, not here.)
+FOR THE INTEGRATOR: app.js edits are local (applyRoute's stand, flDbg/hudAgl, rollOut's first line, bGo's fly-on
+branch, nextLeg, hud's IAS line, FLIGHT_PROBE.agl). The pref key moved to flydiy.day.v3.
+REBASED onto claude/batch-a-base bd234d3 (A1-STAND G600-G604, G720, G890): CORE BATTERY PASS 103/103 (its new STAND
+gate among them); bd234d3 changes no file under src/core, so the full tier's four red rows stand exactly as above.
