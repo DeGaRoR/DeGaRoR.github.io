@@ -328,6 +328,10 @@ const GATES = [
   // generator's real hooks, the classify by hook identity, the merge (world, the sag baked, one slot a finish), the
   // host's wiring (~2 s)
   { id: 'TARR', file: '_tarr_check.js', tier: 'core' },
+  // THE TOWN KIT (G850, QUEUE-C C3a): the archetypes tools/town_kit.js clusters out of Jolene's sown zones - each
+  // through GATE HOUSE's own battery, its roles and its stance stretch, the quantized pack round-tripping, and a
+  // fitting archetype on every plot of Metlakatla and the village from the 32 B records alone (~25 s)
+  { id: 'TOWNKIT', file: '_townkit_check.js', tier: 'core' },
   // THE PARKED AEROPLANES (G411): builds as props, headless on a synthetic
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs

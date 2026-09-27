@@ -254,7 +254,11 @@ function manifestFiles() {
   // map and until this landed none of its data was in git at all.
   const worlds = fs.existsSync(path.join(ROOT, 'src', 'core', 'world_packs.json'))
     ? [path.join(ROOT, 'src', 'core', 'world_packs.json')] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds);
+  // the town kit (G850): the archetype pack and the instance tables, baked by tools/town_kit.js --media (not
+  // shipped yet - the manifest appears with the first bake the user approves)
+  const townkit = fs.existsSync(path.join(ROOT, 'src', 'core', 'townkit_pack.json'))
+    ? [path.join(ROOT, 'src', 'core', 'townkit_pack.json')] : [];
+  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds, townkit);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin)/g;   // webp: LOADING S4's texture prep

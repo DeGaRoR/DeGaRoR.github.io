@@ -657,6 +657,13 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
 // ---------------------------------------------------------------------------
 // THE BATTERY
 // ---------------------------------------------------------------------------
+// REQUIRED AS A MODULE (G850): GATE TOWNKIT holds every archetype of the town kit to THIS battery, so it is handed
+// over here - the library, the pier kit and the context loaded as above - and nothing below runs. As a script the
+// gate is unchanged.
+if (require.main !== module) {
+  module.exports = { battery, measure, RULES, fail, HG, HK, VMCTX, LIB };
+  return;
+}
 const rows = [];
 // ONE BATTERY, EVERY HOUSE (G253). Rules 16-29 — the jetty, the doors, the
 // roof rims, the pier, the lights — lived inline in the preset loop, so the
