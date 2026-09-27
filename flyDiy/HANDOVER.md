@@ -61852,9 +61852,11 @@ A-END failed R3 (stand + taxi >= 50 fps) and R4 (the settings probe's shadows=of
   judged on the DELIVERED rate (standTaxiDeliveredFps: frames over wall time, the doubled share, p90/p99): the median
   interval read "59.9 fps" for a 45 fps frame alternating 16.7 / 33.3 ms (it says only that more than half the frames
   were on time) - every "59.9" in PLAYTEST §0.6-0.8 was 43-53 fps delivered.
-- G994 (branch claude/a5-cap-g994-clean30, on top of this one - THE USER PICKS): auto judges a reading on its
+- G994 THE POLICY THE USER PICKED (a clean 30 unless 60 truly holds; G990's median rule set aside): auto judges a reading on its
   delivered rate; a trial holds at 55 fps, 60 is kept over 52. 60 where it is even, else a clean 30. GATE PACE 10 re-cast:
-  the latch is a 17.5 ms loop (even at 60), the Cub's 21 ms loop stays at 30 (6 trials in 120 s). Not measured on the GPU.
+  the latch is a 17.5 ms loop (even at 60), the Cub's 21 ms loop stays at 30 (6 trials in 120 s). MEASURED (§0.11): Cub warm / cold / metal warm 31.3-31.9 fps
+  delivered, 12-13 % uneven (a clean 30; trials read 45 fps, the hold at 30 s); the analytic world (a 13.6 ms loop) back to
+  60 after the reveal's hitch and held: 55-60 fps delivered, 4 % uneven. Shadows=off 468 ms.
 - MEASURED (futureDesigns/PLAYTEST-2026-09-26.md §0.11; RTX 3080, 2216x1023, gamer, prefs cleared): delivered fps /
   uneven frames (interval changed > 8 ms from the last) - Cub warm 34.5 / 34 % -> 39.4 / 56 %; Cub cold 31.1 / 14 % ->
   39.4 / 54 %; metal warm 29.8 / 4 % -> 39.2 / 56 %; metal cold 30.7 (its trials miss, the hold at 30 s). G990 buys rate
