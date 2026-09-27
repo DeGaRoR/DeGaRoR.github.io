@@ -96,6 +96,9 @@ function vec(x = 0, y = 0, z = 0) {
   return { x, y, z,
     set(a, b, c) { this.x = a; this.y = b; this.z = c; return this; },
     copy(v) { this.x = v.x; this.y = v.y; this.z = v.z; return this; },
+    // the free camera (DEVCAM, the test mode's eye - G760 walks it) moves by these
+    add(v) { this.x += v.x; this.y += v.y; this.z += v.z; return this; },
+    addScaledVector(v, k) { this.x += v.x * k; this.y += v.y * k; this.z += v.z * k; return this; },
     crossVectors(a, b) {
       this.x = a.y*b.z - a.z*b.y; this.y = a.z*b.x - a.x*b.z; this.z = a.x*b.y - a.y*b.x;
       return this; } };
@@ -129,7 +132,8 @@ const THREE = {
   // flight rebaseline gave the flight a camera: `level horizon`, off, rolls
   // the eye with the aeroplane, and that is written onto camera.up.
   PerspectiveCamera: class { constructor(){ this.position = vec(); this.up = vec(0, 1, 0);
-    this.fov = 46; } lookAt(){} updateProjectionMatrix(){} },
+    this.fov = 46; } lookAt(){} updateProjectionMatrix(){}
+    getWorldDirection(v) { return v.set(0, 0, -1); } },   // the free camera seeds its pose from it (G760's test mode)
   Vector3: function(...a) { return vec(...a); },
   // A QUATERNION, because the cockpit's controls turn about two axes at once
   // (G240) and app.js composes them at module scope. As honest as the rest of
@@ -339,6 +343,20 @@ try {
                     sandbox, { filename: f });
   // render_world is not executed; the app only needs its factory's return shape
   sandbox.buildWorldScene = () => ({ worldUpdate() {} });
+  // THE GRAPHICS MENU (G760): gfx_settings.js rides the RENDER block too; it runs from its own source so the
+  // rail walk below reaches the real menu in its folds. Its frame readout asks the window for a frame and an
+  // interval, which this sandbox answers with nothing (the loop's own rAF is the global one, untouched). The
+  // flight recorder is not executed (its hooks would ride the loop); its two rows stand in for it, no attach.
+  sandbox.window.requestAnimationFrame = () => 0;
+  sandbox.setInterval = () => 0; sandbox.clearInterval = () => {};
+  sandbox.window.FLYDIY_WORLDS = [{ id: 'none', name: 'the analytic world' }, { id: 'jolene', name: 'Jolene' }];
+  sandbox.window.FLYDIY_WORLD = 'none';
+  sandbox.window.FLIGHT_REC = {
+    mount(b, H) { this.mountMeter(b, H); this.mountLog(b, H); },
+    mountMeter(b, H) { H.row(b, 'fps meter'); H.pills(b, [{ label: 'off' }, { label: 'on' }], () => false, () => {}); },
+    mountLog(b, H) { H.row(b, 'flight log'); H.note(b, ''); H.pills(b, [{ label: 'save log' }, { label: 'previous session' }], () => false, () => {}); } };
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'),
+                  sandbox, { filename: 'gfx_settings.js' });
   vm.runInContext(bootBlock, sandbox, { filename: 'boot.js' });      // the loading screen's brain
   vm.runInContext(worldBootBlock, sandbox, { filename: 'world_boot.js' });   // G999: FLYDIY_WORLD_COMPOSE (app.js runs it)
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
@@ -655,6 +673,113 @@ try {
     if (P.sim().wheelsOnGround() < 2) throw new Error('the skip left the aeroplane off its wheels');
     if (!b.disabled) throw new Error('#bSkip still offered at the hold');
     console.log('skip to line-up: ' + Math.hypot(cg[0] - c0[0], cg[2] - c0[2]).toFixed(0) + ' m from the taxi to the hold, pilot in ' + ph + ', the button stands down');
+  }
+
+  // ---- THE RAILS (G760, the Jolene playtest §3): five items, folds, DEV behind a toggle, nothing lost --------
+  // Walked through the rail's own census (FLYDIY_RAIL.census: the item built with every fold open, nothing saved):
+  // every item builds without a section throwing, holds the sections it declares, and reaches the controls the
+  // fourteen old items reached; every old item's name still opens its new home; every row the graphics menu
+  // mounted as one flat list is reached through the rail; the test mode without physics holds the solver.
+  {
+    const R = sandbox.window.FLYDIY_RAIL, G = sandbox.window.GFX;
+    if (!R) throw new Error('FLYDIY_RAIL is not published (G760)');
+    if (!G || !G.GROUPS) throw new Error('the graphics menu did not run, or has no GROUPS');
+    const items = R.items();
+    const main = items.filter(i => !i.dev);
+    if (items.map(i => i.k).join() !== 'fly,view,sky,graphics,dev') throw new Error('the rail is ' + items.map(i => i.k).join() + ', not FLY / VIEW / SKY & WORLD / GRAPHICS / DEV');
+    if (main.length < 4 || main.length > 6) throw new Error(main.length + ' main rail items (the user: "not much more than 4-6")');
+    if (R.dev() !== false) throw new Error('DEV is on the rail by default (it is behind its toggle)');
+    // every old item (the fourteen of FL_RAIL before G760, the WORLD flyout) and every new section has a home
+    const OLD = ['camera', 'instruments', 'map', 'trace', 'air', 'start', 'patterns', 'engines', 'controls',
+                 'night', 'clouds', 'weather', 'graphics', 'ground', 'world'];
+    const NEW = ['route', 'screen', 'scenery', 'log', 'overlays'];
+    for (const k of OLD.concat(NEW))
+      if (!R.home(k) && !items.some(i => i.k === k)) throw new Error('the old rail item / section `' + k + '` has no home');
+    // what each item must reach (a row or a pill each) - one or more per old item, and the moved rows
+    const WANT = {
+      fly: ['from', 'to', 'taxi out', 'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…'],
+      view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
+      sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
+      graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),
+      dev: ['physics', 'enter the test mode', 'the WORLD rail', 'flight log', 'save log', 'previous session', 'the F8 panel'],
+    };
+    // the covering's pills show while #bSkin does (applySkinVis hides it with no model on the stand - this stub's case)
+    const skinShown = els['bSkin'] && els['bSkin'].style.display !== 'none';
+    if (skinShown) WANT.dev.push('the covering', 'covered', 'frame', 'overlay');
+    const reached = { rows: [], pills: [] };
+    for (const it of items) {
+      const c = R.census(it.k);
+      if (c.errors.length) throw new Error('the ' + it.k + ' rail: a section threw: ' + c.errors.join('; '));
+      const secs = it.k === 'graphics' ? G.GROUPS.map(g => 'gfx.' + g.k) : it.secs;
+      if (c.sections.join() !== secs.join()) throw new Error('the ' + it.k + ' rail built sections ' + c.sections.join() + ', declared ' + secs.join());
+      const have = new Set(c.rows.concat(c.pills));
+      const miss = WANT[it.k].filter(x => !have.has(x));
+      if (miss.length) throw new Error('the ' + it.k + ' rail does not reach: ' + miss.join(', '));
+      reached.rows.push(...c.rows); reached.pills.push(...c.pills);
+      console.log('rail ' + it.k + (it.dev ? ' (behind the dev toggle)' : '') + ': ' + c.sections.join(' / ') + ' - ' + c.rows.length + ' rows, ' + c.pills.length + ' pills' +
+                  (it.k === 'dev' && !skinShown ? ' (the covering hidden with #bSkin: no model on the stand here)' : ''));
+    }
+    if (R.current() !== null) throw new Error('the census left a flyout open (' + R.current() + ')');
+    // NO GRAPHICS ROW LOST: the menu as the one flat list it was, counted, against the rows the rail reaches
+    {
+      const flat = { rows: [], pills: [] };
+      const stubEl = () => ({ appendChild() {}, classList: { add() {} }, textContent: '', isConnected: false });
+      G.mount(stubEl(), { row: (h, l) => { flat.rows.push(l); return stubEl(); },
+                          pills: (h, list) => { for (const o of list) flat.pills.push(o.label); return stubEl(); }, note: () => stubEl() });
+      const lostR = flat.rows.filter(r => !reached.rows.includes(r)), lostP = flat.pills.filter(p => !reached.pills.includes(p));
+      if (lostR.length || lostP.length) throw new Error('graphics rows lost on the way to the rail: ' + lostR.concat(lostP).join(', '));
+      console.log('graphics: ' + flat.rows.length + ' rows and ' + flat.pills.length + ' pills flat, every one reached through the rail (' + G.GROUPS.length + ' folds + the map, the meter, the log)');
+    }
+    // AN OLD NAME OPENS ITS NEW HOME, its fold open (the day panel's door to the clouds, the refreshes)
+    for (const [old, home] of [['clouds', 'sky'], ['camera', 'view'], ['engines', 'fly'], ['air', 'sky'], ['world', 'dev']]) {
+      R.open(old);
+      const sec = old === 'air' ? 'weather' : old;
+      if (R.current() !== home || !R.shown().includes(sec)) throw new Error('open(' + old + ') opened ' + R.current() + ' with ' + R.shown().join(',') + ', not ' + home + ' > ' + sec);
+      R.open(null);
+    }
+    if (R.dev() !== true) throw new Error('opening a DEV section by name did not show DEV');
+    R.dev(false);
+    // THE TEST MODE WITHOUT PHYSICS: held, the aeroplane still, DEV on the rail; left, the flight back
+    {
+      const P = sandbox.window.FLIGHT_PROBE, SC = sandbox.window.SCENERY;
+      if (!SC) throw new Error('window.SCENERY is gone');
+      R.open('scenery');
+      if (R.current() !== 'dev' || !R.shown().includes('scenery')) throw new Error('the test mode section did not open');
+      // the free camera keeps its own clock (performance.now), which this sandbox never had: lent for the test mode
+      // only, so no other path of this gate starts timing itself
+      const hadPerf = 'performance' in sandbox;
+      if (!hadPerf) sandbox.performance = { now: () => Date.now() };
+      SC.enter();
+      if (!SC.on) throw new Error('SCENERY.enter() did not take');
+      const c0 = P.sim().cgPos().slice();
+      frames(60);
+      const c1 = P.sim().cgPos();
+      if (Math.hypot(c1[0] - c0[0], c1[1] - c0[1], c1[2] - c0[2]) > 1e-9) throw new Error('the solver stepped in the test mode');
+      const c = R.census('dev');
+      if (!c.pills.includes('leave the test mode')) throw new Error('the test mode offers no way out on DEV');
+      SC.leave();
+      if (SC.on) throw new Error('SCENERY.leave() did not take');
+      frames(10);
+      if (!hadPerf) delete sandbox.performance;
+      R.open(null); R.dev(false);
+      console.log('the test mode: entered from DEV, the solver held 60 frames, its way out offered, left');
+    }
+    // THE SHED'S RAIL mirrors it where it mounts the same panels: the clouds a fold of `night`, the graphics
+    // in the same folds (editor.js is not executed here - its table is read, as GATE VIEW reads it)
+    {
+      const ed = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'editor.js'), 'utf8');
+      const at = ed.indexOf('const RAIL = ['), st = ed.indexOf('[', at);
+      let d = 0, en = -1; for (let i = st; i < ed.length; i++) { if (ed[i] === '[') d++; else if (ed[i] === ']' && !--d) { en = i + 1; break; } }
+      const ER = vm.runInNewContext('(' + ed.slice(st, en) + ')');
+      if (ER.some(t => t.k === 'clouds')) throw new Error('the shed rail still has a clouds item (a fold of night since G760)');
+      if (!/ED_HOME = \{ clouds: 'night' \}/.test(ed) || !/section: \(h, key, title, sub\) => edSection\(h, key, title, sub\)/.test(ed))
+        throw new Error('the shed rail does not route clouds to night, or mounts the graphics without its folds');
+      console.log('the shed rail: ' + ER.length + ' items (' + ER.map(t => t.k).join(' ') + '), the clouds a fold of night, the graphics in folds');
+    }
+    // THE KEYS ARE WHERE THEY WERE: F8 the developer panel, F9 the WORLD rail
+    for (const [f, key] of [['dev_panel.js', 'F8'], ['world_rail.js', 'F9']])
+      if (fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8').indexOf("e.code !== '" + key + "'") < 0)
+        throw new Error(f + ' lost its ' + key + ' key');
   }
 
   // ---- THE SEAM (G86), asserted on the built artifact's own markup --------

@@ -149,7 +149,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   await sleep(1500);
   await ev('(()=>{const b=document.getElementById("bPause");if(b&&/pause/i.test(b.textContent))b.click();return 1;})()');
   if (CAM) {
-    await ev('(()=>{const r=document.querySelector("#flRail [data-f=camera]");if(r)r.click();return 1;})()');
+    await ev('(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById("flFly");if(R)R.open(f&&!f.hidden?null:"camera");return 1;})()');
     await sleep(500);
     const got = await ev('(()=>{const p=[...document.querySelectorAll("#flFlyBody .pill")].find(b=>b.textContent.trim()==="' + CAM + '");if(!p)return 0;p.click();return 1;})()');
     if (!got) console.error('panel_shot: no ' + CAM + ' pill on the camera flyout');
@@ -160,7 +160,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       await sleep(1000);
       await ev('(()=>{if(window.HEAD_CAM)HEAD_CAM.pitch = ' + (-LOOK * Math.PI / 180) + ';return 1;})()');
     }
-    await ev('(()=>{const r=document.querySelector("#flRail [data-f=camera]");if(r)r.click();return 1;})()');
+    await ev('(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById("flFly");if(R)R.open(f&&!f.hidden?null:"camera");return 1;})()');
   }
   await sleep(WAIT);
   let shot = await cmd('Page.captureScreenshot', { format: 'png' });
