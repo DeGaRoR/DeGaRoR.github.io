@@ -9845,6 +9845,11 @@
   // at 30 two readings (4 s) and the hold past earn a trial whatever the work reads, and the trial's own median frame
   // decides, as before. The backoff stays - and is what keeps a scene on the edge from flapping: a drop within 20 s of
   // an up is a trial that missed (the hold doubles), and the doubling forgets only once 60 has held 20 s.
+  // 60 WHERE IT IS EVEN, ELSE A CLEAN 30 (G994, the policy the user picks against G990's): a reading is judged on its
+  // DELIVERED rate (frames over their wall time), not its median. The median holds 16.7 ms while fewer than half the
+  // intervals double: the Cub's taxi at 60 delivered 39-45 fps, over half its frames changing interval from the last
+  // (1 then 2 solver steps - the judder G586 capped at 30 to avoid), against a mostly even 30 at 31 fps. A trial holds
+  // at 55 fps delivered or more, 60 is kept while three readings running do not fall under 52 (the hysteresis).
   // A RIG (a headless or driven browser: the gates, frame_perf.js, the shot tools) and a harness that calls
   // the loop with no timestamp (GATE UISMOKE's vm) keep the old clock exactly: one 1/60 step a call,
   // uncapped - every measurement and every gate reads the frame it always read (?pace=1 forces the clock on).
@@ -9931,19 +9936,19 @@
       if (P.mode !== 'auto') return;
       P.work.push(workMs - (steps > 1 ? physMs * (steps - 1) / steps : 0));   // the frame's work with ONE step
       if (P.iv.length < 60) return;
-      const f = med(P.iv), w = med(P.work);
+      const w = med(P.work), r = 1000 * P.iv.length / P.iv.reduce((a, b) => a + b, 0);   // G994: the reading's DELIVERED rate (fps)
       P.iv = []; P.work = [];
       if (now - P.t0 < 1500) return;                      // the first readings after a change are the change's
-      P.lastWork = w;
+      P.lastWork = w; P.lastRate = r;
       const failed = () => { P.stats.trialsFailed++; P.trials++; P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); };   // G615: 5 s, doubling, 30 s at most
       if (P.cap === 60) {
         if (P.trial) {                                    // a trial of 60 from 30: did it hold?
-          const ok = f <= 18.5; P.trial = null;
+          const ok = r >= 55; P.trial = null;                 // G994: 60 kept only where it is (nearly) even
           if (ok) return;                                 // G990: the backoff forgets only once 60 has HELD (below)
           failed(); P.stats.down++; setCap(30, now); return;
         }
         if (P.trials && now - P.upT > 20000) P.trials = 0;   // G990: 60 held 20 s past its trial - the backoff starts over
-        P.strikes = f > 18.5 ? P.strikes + 1 : 0;
+        P.strikes = r < 52 ? P.strikes + 1 : 0;           // G994: under 52 fps delivered - a 60 that judders
         const AA = W.FLYDIY_AA, A = AA && AA.autoState ? AA.autoState() : null;
         if (P.strikes >= 3 && !(A && A.on && A.probing)) {   // G615: three readings running
           if (now - P.upT < 20000) failed();              // G990: a drop within 20 s of an up is a trial that missed - no flapping
@@ -9968,7 +9973,7 @@
       get dilation() { return P.wallW > 0.2 ? P.simW / P.wallW : 1; },   // the sim's seconds over the wall's, the last second (G612)
       budgetMs: () => 1000 / (capOf() || 60),
       state: () => ({ mode: P.mode, cap: capOf(), legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0,
-                      dilation: api.dilation, stepMs: P.stepMs, otherMs: P.otherMs, droppedS: P.droppedS, workMs: P.lastWork, trials: P.trials }) };
+                      dilation: api.dilation, stepMs: P.stepMs, otherMs: P.otherMs, droppedS: P.droppedS, workMs: P.lastWork, rateFps: P.lastRate || 0, trials: P.trials }) };
     W.FLYDIY_PACE = api;
     return api;
   })();
