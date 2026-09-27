@@ -1640,20 +1640,31 @@ function compose(rec0, world, opts) {
   const GR_V = 1, GR_CELL = 16, GR_COOK_EPS = 1e-4;   // GR_V: bump with any change to grBake's arithmetic or its constants
   let grCook = null, grModH = null;
   const grCellKey = (ci, cj) => ci * 131072 + cj;
-  const num = v => (typeof v === 'number' ? (Object.is(v, -0) ? '-0' : String(v)) : JSON.stringify(v === undefined ? null : v));
+  // G995 (A5-LOAD): A SIGNATURE HASHES NUMBERS TO 10 MICRONS, not their last bit. The cook runs in node, the page in
+  // Chrome: two V8s whose Math (the frame's cos/sin, hypot) can differ in the last ulp - a runway's centreline read
+  // -1038.14518562303 in one and -1038.1451856230306 in the other, and every cell under HOME, the airport road and
+  // the east taxiway (33 of 92) refused a cook it matched to 1e-13 m. The quantum is far below anything the lattice
+  // resolves (the cooked tiles are the lazy ones to 0.04 mm) and far above an engine's rounding.
+  const Q5 = v => { const r = Math.round(v * 1e5) / 1e5; return Object.is(r, -0) ? 0 : r; };
+  const num = v => (typeof v === 'number' ? (isFinite(v) ? String(Q5(v)) : String(v)) : JSON.stringify(v === undefined ? null : v, (k, x) => (typeof x === 'number' && isFinite(x)) ? Q5(x) : x));
   const h64 = t => { let a = 0x811c9dc5, b = 0x6c62272e; for (let i = 0; i < t.length; i++) { const c = t.charCodeAt(i); a = Math.imul(a ^ c, 0x01000193); b = Math.imul(b ^ c, 0x5bd1e995); b ^= b >>> 15; } return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0'); };
+  function modParts(M) {
+    const b = M.bbox, parts = [M.kind, M.id, num(M.feather), num(M.y0), num(M.def || null), num(b.x0), num(b.z0), num(b.x1), num(b.z1)];
+    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
+    for (const [x, z] of [[cx, cz], [b.x0, b.z0], [b.x1, b.z1], [(cx + b.x0) / 2, (cz + b.z1) / 2], [(cx + b.x1) / 2, (cz + b.z0) / 2]])
+      parts.push(num(M.apply(x, z, 0)), num(M.apply(x, z, 1)));
+    return parts;
+  }
   function modHash(M) {
     if (!grModH) grModH = new Map();
     let h = grModH.get(M);
     if (h) return h;
-    const b = M.bbox, parts = [M.kind, M.id, num(M.feather), num(M.y0), JSON.stringify(M.def || null), num(b.x0), num(b.z0), num(b.x1), num(b.z1)];
-    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
-    for (const [x, z] of [[cx, cz], [b.x0, b.z0], [b.x1, b.z1], [(cx + b.x0) / 2, (cz + b.z1) / 2], [(cx + b.x1) / 2, (cz + b.z0) / 2]])
-      parts.push(num(M.apply(x, z, 0)), num(M.apply(x, z, 1)));
-    h = h64(parts.join('|'));
+    h = h64(modParts(M).join('|'));
     grModH.set(M, h);
     return h;
   }
+  // (G995) a modifier's signature parts by id, readable: what a page and a node composition that disagree on it differ in
+  const rasterModParts = id => { const M = mods.find(m => m.id === id); return M ? modParts(M) : null; };
   // the modifiers that can reach a cell's tiles, in the order they are listed (the order grBake applies them in)
   function cellMods(ci, cj) {
     const S = GR_TS * GR_CELL, x0 = ci * S, z0 = cj * S, x1 = x0 + S, z1 = z0 + S, seen = new Set();
@@ -1666,12 +1677,17 @@ function compose(rec0, world, opts) {
     });
     return mods.filter(M => seen.has(M));
   }
-  function rasterCellSig(ci, cj) {
+  // (G995) rasterCellParts: what a cell's signature hashes, readable - the modifiers' ids beside their hashes - so a page
+  // and a node composition that disagree on a cell can be diffed (a rig's --eval against the cook's own)
+  function rasterCellParts(ci, cj) {
     const S = GR_TS * GR_CELL, x0 = ci * S, z0 = cj * S;
     const parts = ['GR', GR_V, GR_TS, GR_TOL, GR_RELIEF, GR_CELL, F.anchor.x, F.anchor.z, F.yaw, F.c, F.s, F.y0, ci, cj].map(num);
-    for (const M of cellMods(ci, cj)) parts.push(modHash(M));
+    for (const M of cellMods(ci, cj)) parts.push(modHash(M) + '=' + M.kind + ':' + M.id);
     for (const [x, z] of [[x0, z0], [x0 + S, z0], [x0, z0 + S], [x0 + S, z0 + S], [x0 + S / 2, z0 + S / 2]]) { const w = F.toWorld(x, z); parts.push(num(world.terrainH(w[0], w[1]))); }
-    return 'g' + GR_V + '-' + h64(parts.join('|'));
+    return parts;
+  }
+  function rasterCellSig(ci, cj) {
+    return 'g' + GR_V + '-' + h64(rasterCellParts(ci, cj).map(p => String(p).replace(/=.*$/, '')).join('|'));
   }
   // every tile a modifier touches, in (i, j) order, baked fresh (not cached): fn(i, j, tile) - the cook's walk;
   // keep(i, j), when given, says before the bake which tiles are wanted
@@ -1856,7 +1872,7 @@ function compose(rec0, world, opts) {
     },
     get raster() { return grOn ? { on: true, tile: GR_TS, cap: GR_CAP, tiles: grTiles.size, ...grStats, rMaxBaked: grRmax, cookedCells: grCook ? grCook.size : 0 } : { on: false }; },
     // (G835) the cooked raster: a cell's signature, the cook's walk, the load
-    rasterCellSig, rasterEach, rasterLoad, rasterCell: GR_TS * GR_CELL, rasterTile: GR_TS,
+    rasterCellSig, rasterCellParts, rasterModParts, rasterEach, rasterLoad, rasterCell: GR_TS * GR_CELL, rasterTile: GR_TS,
     rasterCached: () => Array.from(grTiles, ([k, T]) => { const i = Math.round(k / 131072); return [i, k - i * 131072, T ? T.n : 0]; }),   // [i, j, n (0: the ground)] - what the cache holds (a probe's)
     // THE CEILING OVER A WORLD RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH(x, z, h)
     // for every point of it, given B >= h there. Each modifier blends h toward its target with a
