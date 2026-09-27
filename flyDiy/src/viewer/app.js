@@ -3790,11 +3790,14 @@
     // THE STAND FOLLOWS THE DOOR (2026-09-20): the site's stand is authored for the declared shell; the
     // player's (the works is 7.5 m deeper) walks it out of the doorway - 25_airfield.js standFor
     const shedD = (st && typeof playerShedDims === 'function') ? playerShedDims(playerLoad(), 'HOME', st) : null;
-    const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD) : st.stand) : null;
+    // G700: ...on ITS OWN GROUND - the walked stand reads the terrain under it (it fell back to the runway's elevation)
+    const stGround = (world && typeof world.terrainH === 'function') ? ((x, z) => world.terrainH(x, z)) : null;
+    const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
     const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
     patternVisFor(from, stSite);
     if (stand) {
       placeAtStand(sim, from, stand);
+      if (stGround && typeof seatOnGround === 'function') seatOnGround(sim, stGround, def.refs);   // G700: the wheels on the ground under them
       ap.setRoute(from, to);      // frame + altRef, so the HUD has them at once
       // G193: the whole SITE, not its taxiOut list — the pilot builds the
       // pattern (the taxi graph, the hold, the two touchdown targets) from it
@@ -4861,6 +4864,7 @@
   // hopeless build keep trying; Restart and the hangar door stay the real
   // exits. fullReset clears the latch.
   let flightOver = false;
+  let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
   function endFlight(outcome) {
     if (flightOver || inGarage) return;
     flightOver = true;
@@ -4881,6 +4885,7 @@
                           world: () => world,                                   // W2: the world that booted (an island, or the analytic one)
                           setManual, manual: () => manual, input: () => INP,     // G200
                           nav: () => flNav,                                         // G202.1
+                          agl: () => hudAgl(),                                      // G700: the height the PFD and the trace read
                           // 2026-09-11: the orbit's state, and a jump to where it
                           // is easing to — the roll-out shot takes 360 frames,
                           // which a swiftshader capture rig cannot wait out
@@ -4965,10 +4970,32 @@
   // ap.dbg, which the AP writes on every update — and under your hand it is
   // not updating. The same numbers, from the same solver facts the AP reads
   // (40_autopilot.js:309-310 for the attitude), computed here instead.
-  // AGL is against the terrain, not ap.refAlt: a flight that STARTS by hand
-  // never latched one.
+  // AGL is against the ground, not ap.refAlt: a flight that STARTS by hand
+  // never latched one (G700: and under the AP the same hudAgl replaces it).
+  // G700: THE HEIGHT A PILOT READS IS THE WHEELS' OVER THE GROUND UNDER THEM ("AGL completely faulty":
+  // the runway read -2 to -4 m and the altiport trip -235 m). The AP's ap.dbg.agl is cg - ap.refAlt, a FLAT
+  // reference latched at the stand and shifted by the destination's elevation (43_pilot planArrival) - the
+  // pilot's own datum, kept internal; and the hand's read the CG over the terrain (1-2 m standing still, and
+  // the sea floor under a floatplane). This is the lowest of the gear's contacts (refs.mains + the third
+  // wheel; node minus its radius) over the surface at its own x, z - terrain or water, whichever is higher -
+  // 0 standing, 0 at touchdown, the same number under the AP and under your hand. Without gear refs, the
+  // CG over the surface.
+  function surfH(x, z) {
+    const t = groundH(x, z);
+    const w = (world && typeof world.waterH === 'function') ? world.waterH(x, z) : -Infinity;
+    return w > t ? w : t;
+  }
+  function hudAgl() {
+    if (!sim || !def) return 0;
+    const R = def.refs, P = sim.p, r = sim.r;
+    const G = R && R.mains && R.mains.length ? R.mains.concat(R.tw != null && R.tw >= 0 ? [R.tw] : []) : null;
+    if (!G || !P || !r) { const cg = sim.cgPos(); return cg[1] - surfH(cg[0], cg[2]); }
+    let h = Infinity;
+    for (const i of G) h = Math.min(h, P[i * 3 + 1] - (r[i] || 0) - surfH(P[i * 3], P[i * 3 + 2]));
+    return Math.max(0, h);   // a tyre pressed into the ground reads 0, as the instrument would
+  }
   function flDbg() {
-    if (!manual || !INP || !ap) return ap ? ap.dbg : {};
+    if (!manual || !INP || !ap) return ap ? Object.assign({}, ap.dbg, { agl: hudAgl() }) : {};
     const [xA, yU, zR] = sim.axes(), cg = sim.cgPos(), v = sim.cgVel(), o = sim.out || {};
     const th = Math.asin(Math.max(-1, Math.min(1, -xA[1])));
     const ph = Math.atan2(-zR[1], yU[1]);
@@ -4977,7 +5004,7 @@
     const beta = Math.asin(Math.max(-1, Math.min(1, (ax * zR[0] + ay * zR[1] + az * zR[2]) / Vt)));
     const F = ap.frame || { ox: 0, oz: 0, ux: 1, uz: 0 };
     const rx = cg[0] - F.ox, rz = cg[2] - F.oz;
-    return { th, ph, beta, V: Vt * (o.easK || 1), alt: cg[1], agl: cg[1] - groundH(cg[0], cg[2]),
+    return { th, ph, beta, V: Vt * (o.easK || 1), alt: cg[1], agl: hudAgl(),
              s: rx * F.ux + rz * F.uz, z: -rx * F.uz + rz * F.ux, q: 0, e: 0 };
   }
   // the view key walks the camera flyout's own list, skipping a cockpit the
@@ -6358,6 +6385,9 @@
     drawPlaque();
   }
   function rollOut(after) {            // `after` runs when the aeroplane is on the stand and on screen (S3)
+    // G700: the bench fingerprints the aeroplane that rolls out HERE, with the editor still up (an arrival
+    // fingerprinted out in the world read a closed editor, and the first flight never stayed certified)
+    if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
     closeEditor();       // flying with the craft hidden is not a thing (G36)
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
     killLoadRun(); killLoadFix();
@@ -6594,6 +6624,18 @@
     // G690: a press under the roll-out screen is not a start (it fell through to `started = true`): the screen's
     // own done callback starts the flight when it lifts
     if (rollHold) return;
+    // G700: ...AND AFTER A LANDING IT FLIES ON FROM WHERE THE AEROPLANE STANDS (the playtest: "Fly on" reloaded -
+    // fullReset put it back on the departure stand). An arrival at the destination chains the next leg in place,
+    // exactly as picking a new destination after landing always did (W14's nextLeg): the same sim, a fresh pilot
+    // departing from here to the destination select - the same place (a circuit, or a leg back onto the strip it
+    // just left: "the autopilot capability to land and take off from the same place") or another hop. A flight
+    // that ENDED (a crash, a give-up, frozen by endFlight) or landed OUT (not where it said) still resets.
+    if (!inGarage && !flightOver && started && ap.phase === 'STOPPED' && flNextLeg
+        && !(ap.report && ap.report.outcome === 'landed-out')) {
+      $('arrCard').hidden = true; arrivalShown = false;
+      flNextLeg();
+      return;
+    }
     if (!inGarage && (flightOver || (started && ap.phase === 'STOPPED'))) {
       $('arrCard').hidden = true;
       fullReset();
@@ -7105,7 +7147,10 @@
       telBase += ap.t;                 // new AP restarts its clock at 0
       ap = mkPilot(curKey);
       ap.departFrom(cur, destId === 'CIRCUIT' ? cur : aeroById(destId));
+      // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
+      flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
     }
+    flNextLeg = nextLeg;
   }
   // ---- W13 wind, G72 conditions: presets drive world.setWeather live — no
   // reset needed, the AP flies EAS and takes changes mid-flight. FRESH is
@@ -7206,7 +7251,13 @@
     // o.V, which is TRUE airspeed — identical at sea level and a lie everywhere
     // else, on the one instrument a pilot would use to decide not to stall.
     const ias = (o.Veas ?? o.V) * 3.6;
-    R.ias.textContent = ias.toFixed(0);
+    // G700: ...AND IT HAS THE REAL INSTRUMENT'S FLOOR. An airspeed indicator's pitot pressure at a walking
+    // pace moves nothing: the needle sits on its stop below 30-40 km/h (the dial is not even marked
+    // there), so a taxi or a breeze on the stand reads 0 (the playtest: "IAS 20 standing still"). The floor
+    // is 35 km/h, held under 0.6 Vs so a slow-flying build's dial still reads its own stall; TAS (the
+    // instruments flyout) stays the solver's number - honest, and 0 at rest in calm air.
+    const iasFloor = Math.min(35, flVs > 0 ? flVs * 3.6 * 0.6 : 35);
+    R.ias.textContent = (ias < iasFloor ? 0 : ias).toFixed(0);
     R.alt.textContent = cg[1].toFixed(0);
     R.vs.textContent = (o.vs >= 0 ? '+' : '') + o.vs.toFixed(1);
     // THE NETTO VARIOMETER (CLIMATE K3). `vs` is what the AEROPLANE is doing;

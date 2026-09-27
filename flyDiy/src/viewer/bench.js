@@ -1011,12 +1011,25 @@ function benchInit(api) {
     render();
     if (F.after) F.after();
   };
+  // G700: THE FIRST FLIGHT IS KEPT, AND AWARDED ONCE (the Jolene playtest: "the inaugural flight is detected,
+  // but not kept - every time it tells me it's my first flight"). An UNARMED arrival (you rolled out and
+  // flew) was fingerprinted by fpNow() at the arrival, out in the world - where the join's export reads an
+  // editor that is closed (CAGE_UI.P, measure()) and answers null or not the garage's number. A null fp
+  // settled an unstamped certificate, which the next restore (a reload) or dirty hook WITHDREW as
+  // "certified before fingerprints"; a different one, as "the build changed". So the aeroplane is
+  // fingerprinted where the bench fingerprints everything, IN THE GARAGE, as it rolls out (BENCH_ROLLOUT,
+  // app.js rollOut) - the same moment an armed test flight takes its own - and the arrival reads that.
+  // And an arrival of an aeroplane whose flight certificate already stands (settled, awarded, the same
+  // fingerprint) changes nothing: the certificate keeps its first day and its card is not shown again.
+  let outFp = null;
+  window.BENCH_ROLLOUT = () => { outFp = fpNow(); };
   window.BENCH_FLIGHT_LOGGED = f => {
     const t = BENCH_TESTS.filter(x => x.id === 'flight')[0];
     if (!t || !f) return;
     const F = flown; flown = null;
-    const fp = (f.armed && f.armed.fp) || (F && F.fp) || fpNow();
+    const fp = (f.armed && f.armed.fp) || (F && F.fp) || outFp || fpNow();
     if (!F && !f.armed && !f.arrived) return;
+    if (!F && !f.armed && awarded('flight') && results.flight.fp && results.flight.fp === fp) return;   // held: once
     if (results.flight && results.flight.running) delete results.flight;
     const r = t.judge(f);
     settle(t, r, fp, F ? F.after : null);

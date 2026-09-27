@@ -477,7 +477,12 @@ function siteHangarBox(H) {
 // the apron when the site declares one (HOME's z0 30 - the fence stands at z 26): a deck deeper
 // than the apron allows is the sliders' extreme, not a preset, and noted. The heading is kept:
 // the aeroplane still points at taxiOut[0] within a degree at these shifts.
-function standFor(site, dims) {
+// G700: ...AND IT STANDS ON ITS OWN GROUND. The walked stand carried no `elev`, so placeAtStand fell
+// back to the RUNWAY's elevation (40_autopilot.js) - on Jolene HOME's stand ground is 30.60 m and the
+// strip's centre 31.68, and every roll-out from a deeper shell dropped the aeroplane 1.08 m onto the
+// apron. `groundAt(x, z)` (the world's terrainH, when the caller has one) reads the ground under the
+// walked point; without it the declared stand's own elev is kept (the apron is graded flat).
+function standFor(site, dims, groundAt) {
   if (!site || !site.stand) return site ? site.stand : null;
   const h = site.hangar, st = site.stand;
   if (!h || !dims || !(dims.HD > h.HD)) return st;
@@ -489,7 +494,10 @@ function standFor(site, dims) {
     const limz = dz < -1e-6 ? (st.z - (ap.z0 + EDGE)) / -dz : dz > 1e-6 ? ((ap.z1 - EDGE) - st.z) / dz : Infinity;
     d = Math.max(0, Math.min(d, lim, limz));
   }
-  return { x: +(st.x + dx * d).toFixed(3), z: +(st.z + dz * d).toFixed(3), hdg: st.hdg, walked: +d.toFixed(3) };
+  const x = +(st.x + dx * d).toFixed(3), z = +(st.z + dz * d).toFixed(3);
+  const g = typeof groundAt === 'function' ? +groundAt(x, z) : NaN;
+  const elev = Number.isFinite(g) ? +g.toFixed(2) : st.elev;
+  return elev !== undefined ? { x, z, hdg: st.hdg, walked: +d.toFixed(3), elev } : { x, z, hdg: st.hdg, walked: +d.toFixed(3) };
 }
 
 // ---- THE PATTERN (G193): the ground graph and the two approaches ---------

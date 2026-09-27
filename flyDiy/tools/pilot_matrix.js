@@ -33,6 +33,7 @@ const WEATHERS = {
   head6: { wind: [-6, 0] },           // 6 m/s down the strip, into the landing
   tail3: { wind: [3, 0] },            // a tailwind on the landing direction the pilot picks against
   hot:   { oat: 35, qnh: 100800, wind: [-2.2, 2.6], gust: 0.7 },   // GATE HOTHIGH's day
+  breeze: { dayWind: [8, 250, 0.15, 1] },  // G700: the GAME's default day (day_clock.js GAME_WIND, the weather card's `light breeze`)
 };
 // THE FIXTURES (pilot_trace --slope): HOME tilted along its axis, zero at the
 // spawn, a hillside — `up4`: the landing runs UPHILL 4 % (the flat datum meets
@@ -140,6 +141,7 @@ function runCell(c, extra) {
     if (c.to && c.to !== c.from) args.push('--to', c.to);
     if (w.wind) args.push('--wind', w.wind.join(','));
     if (w.gust) args.push('--gust', String(w.gust));
+    if (w.dayWind) args.push('--day-wind', w.dayWind.join(','));
     if (w.oat != null) args.push('--oat', String(w.oat));
     if (w.qnh != null) args.push('--qnh', String(w.qnh));
     if (c.drawnTail) args.push('--drawn-tail');

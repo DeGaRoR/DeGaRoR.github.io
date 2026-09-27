@@ -366,6 +366,78 @@ console.log('THE FLIGHT');
   }
 }
 
+// ---- THE FIRST FLIGHT IS KEPT (G700) -----------------------------------------
+// The Jolene playtest: "the inaugural flight is detected, but not kept - every time it tells me it's my first
+// flight". The bench runs here for real (benchInit on a stub DOM, two sessions over one stored envelope): the
+// player rolls out (the join answers in the garage), flies, arrives (the join does NOT answer out in the
+// world: the editor is closed), arrives again, reloads. The certificate must be settled on the garage's
+// fingerprint, shown once, and restored valid; the pre-G700 arrival (no roll-out fingerprint) is the
+// negative and must lose it on the reload, as the user saw.
+console.log('THE FIRST FLIGHT');
+function benchSession(store, join, opts) {
+  const made = [], awards = { n: 0 };
+  const el = tag => {
+    const ds = new Proxy({}, { set: (o, k, v) => { o[k] = v; if (k === 'test' && v === 'flight') awards.n++; return true; } });
+    const e = { tag, children: [], style: {}, dataset: ds, hidden: false, innerHTML: '', textContent: '', className: '',
+      classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+      appendChild(c) { this.children.push(c); return c; }, insertBefore(c) { this.children.push(c); return c; },
+      removeChild() {}, remove() {}, addEventListener() {}, setAttribute() {}, getAttribute: () => null,
+      querySelector: () => el('q'), querySelectorAll: () => [], closest: () => null,
+      getContext: () => new Proxy({}, { get: (_, k) => (k === 'measureText' ? () => ({ width: 8 }) : () => {}), set: () => true }),
+      get firstChild() { return this.children[0] || null; } };
+    made.push(e); return e;
+  };
+  const byId = {};
+  const document = { getElementById: id => (byId[id] = byId[id] || el(id)), createElement: el, body: el('body'),
+                     querySelector: () => null, querySelectorAll: () => [], addEventListener() {} };
+  const window = {
+    GARAGE_SPEC: { plaque: v => (v === undefined ? store.pq : (store.pq = v ? JSON.parse(JSON.stringify(v)) : null, store.pq)),
+                   note() {}, get: () => ({ meta: { reg: 'F-TEST' } }), cageDefaults: () => null },
+    CAGE_JOIN: { export: () => { if (!join.up) throw new Error('the editor is closed'); return JSON.parse(JSON.stringify(join.spec)); } },
+    addEventListener() {},
+  };
+  const timers = [];
+  const ctx = { module: { exports: {} }, window, document, console, Math, JSON, parseFloat, parseInt, isFinite, Number, String,
+    Array, Object, Uint8ClampedArray, Infinity, NaN, Date, Symbol, Promise, Error, performance: { now: () => 0 },
+    setTimeout: (f) => { timers.push(f); return timers.length; }, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
+    requestAnimationFrame() {}, Event: function () {} };
+  ctx.exports = ctx.module.exports;
+  vm.runInNewContext(rd('src/viewer/bench.js'), ctx);
+  const api = { plaque() {}, sheets: () => null, restoreSheets() {}, testFlight: () => true };
+  ctx.benchInit(api);
+  if (opts && opts.preG700) window.BENCH_ROLLOUT = null;          // the negative: no roll-out fingerprint
+  // the award card is shown by stamping its dataset.test with the row's id - counted as it happens
+  const shown = () => { const n = awards.n; awards.n = 0; return n; };
+  return { window, shown, flush: () => { while (timers.length) timers.shift()(); } };
+}
+{
+  const arrival = { report: { verdicts: [], outcome: 'completed', landing: { run: 180, sink: 0.5, pastAim: 8 } }, arrived: true, t: 240, manual: false, td: null, armed: null };
+  const run = pre => {
+    const store = { pq: null }, join = { up: true, spec: JSON.parse(rd('tools/_bench_fixture_build.json')).spec };
+    const S1 = benchSession(store, join, { preG700: pre });
+    // roll out from the garage (app.js rollOut calls BENCH_ROLLOUT first), then fly: the editor is closed
+    if (typeof S1.window.BENCH_ROLLOUT === 'function') S1.window.BENCH_ROLLOUT();
+    join.up = false;
+    S1.window.BENCH_FLIGHT_LOGGED(JSON.parse(JSON.stringify(arrival))); S1.flush();
+    const first = S1.shown();
+    const f1 = S1.window.BENCH_STATE().results.flight;
+    S1.window.BENCH_FLIGHT_LOGGED(JSON.parse(JSON.stringify(arrival))); S1.flush();   // "fly on", land again
+    const second = S1.shown();
+    // THE RELOAD: a new session, the same stored envelope, the editor up (the boot opens it before the restore)
+    join.up = true;
+    const S2 = benchSession(store, join, { preG700: pre });
+    S2.window.BENCH_RESTORE(store.pq); S2.flush();
+    const f2 = S2.window.BENCH_STATE().results.flight;
+    return { first, second, f1, f2, kept: !!(f2 && f2.ok && !f2.stale) };
+  };
+  const A = run(false), B = run(true);
+  ok(A.f1 && A.f1.ok && /^[0-9a-f]{8}$/.test(A.f1.fp || ''), 'an unarmed arrival settles the flight certificate on the roll-out\'s fingerprint (' + (A.f1 && A.f1.fp) + ')');
+  ok(A.first === 1 && A.second === 0, `the award card shows on the first arrival and not again (${A.first}, then ${A.second})`);
+  ok(A.kept && A.f2.when === A.f1.when, 'the reload restores it valid, with its first day' + (A.f2 && A.f2.stale ? ' - withdrawn: ' + A.f2.why : ''));
+  ok(!B.kept, 'NEGATIVE: the pre-G700 arrival (fingerprinted out in the world) is lost on the reload' + (B.f2 ? ' (' + (B.f2.why || 'kept') + ')' : ''));
+  ok(/window\.BENCH_ROLLOUT\(\)/.test(APP.slice(APP.indexOf('function rollOut('), APP.indexOf('function rollOut(') + 800)), 'app.js rollOut fingerprints the aeroplane before it closes the editor');
+}
+
 // ---- NEGATIVE VERIFICATION ------------------------------------------------
 if (SELF) {
   console.log('SELFTEST');

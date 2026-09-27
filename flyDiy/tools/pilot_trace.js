@@ -18,6 +18,7 @@
 //
 // Options: --from ID --to ID (aerodrome ids, HOME default; --to alone flies a
 // cross-country from HOME) · --wind x,z (m/s, the air's velocity) · --gust g ·
+// --day-wind kts,deg[,gust[,breeze]] (G700: a day's wind spec, as the page's weather card sets it) ·
 // --oat C · --qnh Pa · --style cautious|normal|brisk · --drawn-tail (the
 // headless tail build, as GATE ARCHETYPES flies it) · --max S (the clock) ·
 // --csv [file] (the 0.1 s trace: t, phase, agl, aglT, V, vs, pitch, bank, e,
@@ -119,6 +120,9 @@ function runTrace(o) {
   if (Object.keys(weather).length) world0.setWeather(weather);
   // THE DAY (SKY chantier): a fixture pins its date and hour (--date YYYY-MM-DD --utc HH:MM);
   // absent, the core's fixed default (2026-06-21 10:00 AKDT) - never the wall clock
+  // G700: --day-wind kts,dirDeg[,gust[,breeze]] - the wind as the GAME's day declares it (the climate resolves it:
+  // the direction, the 10 m reference, the sea breeze), the page's `light breeze` default day
+  if (o.dayWind && world0.setDay) world0.setDay({ wind: o.dayWind });
   if (world0.setDay && (o.date || o.utc)) { const d = {}; if (o.date) d.date = o.date; if (o.utc) { const [h, m] = o.utc.split(':').map(Number); d.utc = h * 3600 + (m || 0) * 60; } world0.setDay(d); }
   // A FIXTURE'S HOOK: `worldMod(world)` returns a replacement world (HOTHIGH's
   // `Object.assign({}, W, { terrainH })` trick — the solver's wheels and the
@@ -317,6 +321,7 @@ function parseArgs(argv) {
     else if (a === '--to') o.to = nx();
     else if (a === '--wind') o.wind = nx().split(',').map(Number);
     else if (a === '--gust') o.gust = +nx();
+    else if (a === '--day-wind') { const q = nx().split(',').map(Number); o.dayWind = { kts: q[0], dirDeg: q[1] || 0, gust: q[2] || 0, refH: 10 }; if (q[3]) o.dayWind.breeze = q[3]; }   // G700: a DAY's wind spec (kts,dirDeg,gust,breeze) - the game's own
     else if (a === '--oat') o.oat = +nx();
     else if (a === '--qnh') o.qnh = +nx();
     else if (a === '--style') o.style = nx();
