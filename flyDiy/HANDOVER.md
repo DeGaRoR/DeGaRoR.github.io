@@ -62004,3 +62004,150 @@ lines, 47.2 m and 180 deg, on the baseline worktree; G780's aa8b8a59). Before (G
 ARCHETYPES FAIL (5 cards), PILOTMATRIX FAIL (10), SEAPLANE FAIL (3), SOAR / HOTHIGH PASS.
 OWED: genTrim's flap choice read powered and over an alpha band (the tuck is an airframe fact the pilot now
 flies around, not a sheet number); a crash on the approach still reads as a terrain go-around and a give-up.
+## G1000-G1004 - A6-GROUND: THE WHEELS ON THE GROUND - THE PAVEMENT DRAWN WHERE THE WHEEL STANDS, A CONTACT SHADOW UNDER EACH TYRE, NOTHING LOOSE ON A PAVEMENT (2026-09-28, the Jolene playtest, batch A final fix pass, local GPU)
+
+The user: "It's important that the planes feel on the ground when they are, and now they feel floaty when taxiing. I had
+someone look over my shoulder and ask whether the plane was taking off while it was taxiing"; on master b78f8d0c "the
+tailwheel seems to hover a few centimeters over the ground. Depending on where they are, they either sunk a little, or
+float a little"; rocks and debris on the taxiway and the runway. Measured and tabled: futureDesigns/PLAYTEST-2026-09-26.md
+§0.13.
+
+G1000 THE DRAWN AIRCRAFT AGAINST THE PHYSICS: NOTHING TO FIX (tools/ground_gap.js, node).
+- The rig: the editor's layers headless (_bake_joined.js, which now returns its scene context W) and the join's own
+  snapshot (CAGE_JOIN.snapshot on the flown spec, as app.js syncBuildSteps freezes it). The flown def settles 6 s on
+  flat ground, and every wheel part is posed by poseModel's arithmetic verbatim (drawn place + physics delta; the
+  tailwheel inside its castor).
+- Drawn tyre bottom over the ground at rest: Cub +0.1 / +0.1 / tail -0.3 mm; old stock +0.4 / +0.4 / tail -5.1; metal
+  Cessna 0.0 / 0.0 / nose +1.3. Every drawn axle is on its node within 4 mm. G661's contact radius had already made the
+  construction honest.
+- The "wiggle room": the tyre spring unloads as the wing lifts. The mains ride 1-3 mm up at taxi (p95 6), the Cessna's
+  nosewheel 7 mm at p95, ~15 mm at 15 m/s in the roll.
+- The ride: the CG bobs 1.5 mm rms, the pitch 0.05 deg rms (tools/ground_surface.js's ride line).
+- Not a float, so left as it is. If the user still reads it as floating, the next step is a drawn tyre that squashes
+  with its load.
+
+G1001 THE PAVEMENT WAS DRAWN 7-8 cm OVER THE WHEELS' SURFACE (pavement.js SINK.liftIn / SINK.pre / liftK / sinkAt,
+rowsAcross's inPin).
+- The cause: G660's lift went to 0 only pad + fall past the full sink. That is 8 m inside a concrete edge, and NEVER on
+  a 10 m taxiway, a gravel strip (opaque depth 6.6 m) or a grass one (Infinity). The wheels stand on terrainH.
+- Master, the drawn surface over terrainH on Jolene's 1 m grid:
+  - roads +67 mm mean, aprons +38;
+  - concrete strips +21 (p95 70), gravel and grass strips +70;
+  - the ground patch -20 (G434.2's 2 cm).
+  Live on master, the Cub's and the Cessna's tyres sat 8 cm into the turnaround m_turn_se.
+- The fix:
+  - The lift is the SIDE's now (dE <= 0: the ground shows through, and the roads' band is drawn). It falls to 0 over
+    liftIn 1.5 m inside the edge, on every class.
+  - A row is pinned at liftIn on strips and roads. A 24 m taxiway's rows are 4 m apart, and without the pin the edge's
+    lift reached 45 mm at 1.7 m in.
+  - The ground patch drops SINK.pre 7 cm by the same law before G660's sink, so the pavement stands over the ground by
+    what it always did.
+- After, past liftIn:
+  - roads 0.0 mm mean (p5..p95 -3.9..3.9), aprons 0.2 (-3.6..5.3);
+  - concrete strips 0/0/0, gravel 0.2 (+-0.3), the grass strip 0.0 (-2.2..0.3);
+  - along the pilot's taxi, every wheel +-2 mm;
+  - live, every pavement mesh's interior lift is 0 (master: 70 on the gravel/grass strips and mn_main, 80 on three
+    aprons, 7.3 on the taxiways).
+- The pavement over the ground (points within 5 mm of the drawn patch, 0.5 m grid, master -> now):
+  - strips 0 -> 0;
+  - road edge 257 -> 220, side 2862 -> 2625;
+  - road band 19 -> 75, apron edge 6 -> 18. The roads' grade blends bend the ground inside a 2-3 m triangle.
+- LEFT: the plain ground stays 2 cm under terrainH (the lots' offset), so a tyre parked on grass reads 2 cm afloat. The
+  analytic world's strips (no sinkD0) keep their constant lift.
+- For A6-SHADOW: the pavement's interior is at terrainH everywhere now. Its "flicker" is aliasing in the albedo, not
+  acne, as A6-SHADOW measured; it does not depend on the lift.
+
+G1002 THE CONTACT SHADOWS (contact_shadow.js, new; app.js contactShadows after poseModel; build.js).
+- One InstancedMesh of a unit quad, one blob per wheel (refs.mains + refs.tw):
+  - placed at its node on terrainH, on the ground's plane (from terrainH's own differences), along the aeroplane's axis;
+  - 3.2 x 2.4 tyre radii (at least 0.3 m wide), a flat core to 35 % then a soft rim;
+  - strength 0.6 x (1 - h / 0.5 m)^2, with h the tyre bottom's height over the ground.
+- One blob under the body: at the wheels' mean, wheelbase x 1.5 by track x 1.25, strength 0.24, gone by 3 m.
+- Drawing: black under normal blending, no depth write, polygonOffset, renderOrder 4 (after the pavement's 1.99-3), no
+  shadow. None in the hangar, on floats or over drawn water.
+- Cost: 3.4 us of CPU a frame (node, 4 blobs) and one draw.
+- The first cut (2.1 x 1.4 radii, squared falloff) was invisible in the live shots: a spat hides a blob the size of its
+  tyre, and a wheel-height eye sees the quad edge-on with the tyre over its middle.
+- Dials: CONTACT_SHADOW.S (on, a, reach, len, wid, minWid, lift, body, bodyReach, bodyLen, bodyWid).
+
+G1003 NOTHING LOOSE ON A PAVEMENT (27_premises pavedNear; render_world standRocks; scenery_life clear / litter / roadLife
+/ apronLife; render_premises hands the life its pavedNear).
+- The cause: the strips' band stones read only their own strip's field. So a crossing strip, a taxiway, a turnaround or
+  an apron inside the 4 m band got stones. Live on master: 509 of 7 389 on a pavement (91 strips, 148 roads,
+  270 aprons).
+- The query: premises.pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }.
+  - It walks coverAt's index (every strip, grass ones included, every road and look polygon, which now carry their ids)
+    by dEdge > -margin, skipping `skip`.
+  - Then the surface layer's PAVED polygons. Not the GRAVEL / SAND ones: Jolene's y_sh13_* / y_sh02_* are the runways'
+    own shoulders, where the stones belong.
+- The dressers:
+  - A band stone is refused on, or within its size + 0.5 m of, another pavement (its own strip skipped):
+    509 -> 0 (7 179 stones).
+  - scenery_life litter never lands on any pavement (0.2 m margin).
+  - A road's signs, cars and people stay off every pavement but their own road (PAVE_SKIP = the road's id while
+    roadLife runs).
+  - The apron's clutter now stands 1.6 m OUTSIDE the edge, facing it; the cones 1.2 m outside the corner (they stood
+    1.6 / 3.5 m inside).
+  - The cover ring's rocks / debris / shrubs were already clean: 0 on a pavement, live.
+
+G1004 THE RIGS (tools).
+- ground_gap.js: G1000.
+- ground_surface.js:
+  - --grid: the drawn surface vs terrainH per kind; --worst: the meshes ranked; --probe <mesh>: its worst points;
+  - --sep: the pavement over the patch, by zone;
+  - no flag: THE PILOT out of a Jolene stand, with the drawn surface, the tyre and the ride per wheel;
+  - GS_LIFT=k scales the builders' lift for a trial.
+- wheel_gap_eval.js + debris_eval.js (rollout_perf --eval), live:
+  - per wheel, the tyre's lowest vertex, the SEEN surface under it and terrainH;
+  - every pavement mesh's interior lift and the contact mesh's state;
+  - every loose instance lying on a pavement.
+- TRAPS MET:
+  1. A ray's first hit, and its highest-renderOrder hit, is often an INVISIBLE mesh: a side or shoulder at alpha 0, cut
+     over another strip. A turnaround's shoulder 25 m over 13/31's end read "+80 mm". Accept a pavement hit only inside
+     its own edge (aPav dE > 0, by the face's barycentrics).
+  2. BatchedMesh.getVisibleAt throws on a deleted id, and one throw lost the whole combined eval.
+  3. The GPU box's lock runs BOTH ways: a CPU battery only when no GPU_BENCH.lock exists. The coordinator stopped mine
+     twice. The second time the cause was the check itself: `! ls GPU_BENCH.lock CPU_BATTERY_*.lock` is true whenever
+     EITHER file is missing, because ls exits non-zero on any missing argument. Test each lock on its own
+     (`[ ! -e GPU_BENCH.lock ] && ! compgen -G "CPU_BATTERY_*.lock"`), immediately before the noclobber create. With
+     four sessions polling, a 15 s retry loses every handover; poll at 5 s.
+  4. The rollout pre-script must clear flydiy.fl* / route / world on the shared warm profile. A5-CAP's G991/G993 carry
+     that fix, so it is kept out of this branch.
+
+MEASURED (PLAYTEST §0.13; 2216x1023, pinned 60, warm, before = master served from the main tree):
+- taxi 59.9 fps on every run;
+- render: Cub 10.4 / 10.8 -> 10.6 / 11.0 ms, stock 9.4 -> 9.8, metal 10.0 / 10.0 -> 10.0 / 9.7;
+- loop JS within 0.5 ms.
+All inside the 0.4 ms by which two master boots differ.
+
+GATE CONTACT (core, new, ~25 s). It holds:
+- The lift law: liftK 1 at the edge and 0 from liftIn on every class; the ground sinks what the pavement lost; the pinned
+  row; every strip vertex past liftIn AT heightAt; no sinkD0 keeps the constant lift.
+- Jolene's surfaces past liftIn within 10 mm of terrainH (ground_surface --grid), and the pavement-over-ground misses
+  held to master's counts (a ratchet, --sep).
+- With --drawn: the stock build's drawn tyres on the ground (ground_gap).
+- The contact shadows: a blob per wheel plus the body at full strength at rest, fainter lifted, none past reach, none on
+  floats or over water; the instance on the sloped ground's plane; the attribute; the wiring after poseModel; build.js
+  ships the module.
+- pavedNear's semantics on Jolene: 13/31 is 13/31 and is skipped by its own id; 0.3 m off the edge is near, not on;
+  02/20's band points on another pavement are few and refused; the gravel shoulder is not a pavement; the pad is. And
+  the three dressers ask it.
+
+GATES (targeted, branch on master b78f8d0c, boxlock CPU battery 01:19-01:22, jobs 4):
+- all PASS: CONTACT (new), PAVEMENT, PREMISES, PREMRASTER, COVER, LIFE, UISMOKE, BOOT, BUILD, FADES, STAND,
+  WORLDRENDER, SPLAT, SUBSTEP, TAKEOFF, PILOT, SHADOWSKY, PARKED, TAXICLEAR, OBSTACLE, SITE, WORLD.
+- ARCHETYPES not run: no physics file changed (30_solver, terrainH and the contact law untouched; 27_premises gained a
+  query and ids on its index items), so no card's flight can move.
+- The land-flight gates are unchanged by construction and passed.
+
+PICTURES (master above, the branch below, wheel height):
+- tools/perf/a6g_cub_taxi_40s.jpg: the Cub rolling on 13/31.
+- tools/perf/a6g_metal_wheels.jpg: the metal Cessna's spats.
+Both carry an EARLIER blob (the first cut, and 3.2 x 2.0 radii with a squared falloff).
+
+OWED (batch B):
+- The shipped blob (3.2 x 2.4 radii, flat core) seen live, and its strength tuned by eye (CONTACT_SHADOW.S.a).
+- A drawn tyre that squashes with its load, only if the user still reads the 1-8 mm unloading as a float.
+- The plain ground's 2 cm under terrainH (G434.2's lots), if a tyre on grass reads afloat.
+- tools/wheel_gap_eval.js's fixed probe (a pavement hit only inside its own edge) has not run live yet. The live
+  numbers above are the per-mesh lifts and the runs' 13/31 samples, which it does not change.
