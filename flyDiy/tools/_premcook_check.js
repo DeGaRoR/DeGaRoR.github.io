@@ -167,8 +167,8 @@ console.log('5. the flag');
     ok(!W0.premises.overlay.raster.on && !W0.premises.overlay.rasterCooked, 'off by default: no option, no environment - the analytic ground (the same bits as before)');
   }
   const B = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
-  const i = B.indexOf('window.FLYDIY_GROUND_RASTER = rq === \'1\''), j = B.indexOf('if (!window.FLYDIY_GROUND_RASTER) return;'), k = B.indexOf("fetch('src/core/premises_packs.json')");
-  ok(i > 0 && j > i && k > j, 'the page\'s island loader reads ?raster / flydiy.raster and fetches the cook only under the flag');
+  const i = B.indexOf('window.FLYDIY_GROUND_RASTER = rq !== \'0\''), j = B.indexOf('if (!window.FLYDIY_GROUND_RASTER) return;'), k = B.indexOf("fetch('src/core/premises_packs.json')");
+  ok(i > 0 && j > i && k > j, 'the page\'s island loader reads ?raster / flydiy.raster and fetches the cook only under the flag (ON unless 0 since 2026-09-27)');
 }
 console.log('GATE PREMCOOK: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

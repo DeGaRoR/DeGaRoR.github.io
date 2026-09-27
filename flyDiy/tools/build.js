@@ -669,7 +669,11 @@ function buildViewer(coreBody) {
   // (G835) the ground raster's flag, for any world: read by makeWorld (20_world.js groundRasterFlag)
   var rq = new URLSearchParams(location.search).get('raster');
   if (rq === null) { try { rq = localStorage.getItem('flydiy.raster'); } catch (e) {} }
-  window.FLYDIY_GROUND_RASTER = rq === '1';
+  // ON BY DEFAULT IN THE PAGE (2026-09-27, the batch-A integration): the analytic composed terrain made the solver's
+  // step climb 2.6 -> 8.1 ms along Jolene's taxi and the auto cap fell to 30; the cooked raster held it at ~3.3 ms and
+  // 60 fps all the way (rollout_perf A/B). ?raster=0 or localStorage flydiy.raster = '0' turns it off; node (the gates)
+  // keeps the analytic path unless FLYDIY_GROUND_RASTER=1 (GATE PREMRASTER holds the two within tolerance)
+  window.FLYDIY_GROUND_RASTER = rq !== '0';
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either
