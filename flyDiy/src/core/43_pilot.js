@@ -359,6 +359,7 @@ function makePilot(sim, def, world, opts) {
   // flight on THIS pilot now, so the reading has to come from here
   let trimAcc = { n: 0, de: 0 };
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
+  let dcI = 0, dcT = -1;   // G970: the decrab's integral and the last time it was flown
   let thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
   // ROTATION AUTHORITY (2026-09-11). holdPitch's integrator is capped at
   // 0.15 for the air; on the ground a high thrust line (a pusher pod 0.6 m
@@ -1150,7 +1151,12 @@ function makePilot(sim, def, world, opts) {
       // its stop from 20 m/s to a 145 km/h lift-off (Vs 66) — a seaplane
       // pilot holds full back stick until the hull lets go, then eases.
       // Measured on the card: 0.7 lifts at 102 km/h, the fixture at 86.
-      const deTop = (sim.hydro && onG > 0) ? (A.deWater ?? 0.70) : 0.35;
+      // G970: ...AND UNTIL CLIMB. The float ULM's thrust line sits 0.55 m over
+      // its CG; the moment the floats let go the top fell back to 0.35 and at
+      // full power the nose went to -15 deg with the stick on it, into the
+      // water again (a second skip). G396.2's own reading: this lift-off asks
+      // ~0.5 of stick. The water's top holds through LIFTOFF
+      const deTop = (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : 0.35;
       c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, deTop);
       if (deFloor > 0 && deFloor > c.de) c.de = deFloor;   // (a zero floor is no floor: it clamped every nose-down command on every aeroplane for one build)
     };
@@ -1314,7 +1320,15 @@ function makePilot(sim, def, world, opts) {
       // raised (0.5 m/s per second, at most a quarter of Vref) — the
       // approach the MACHINE can fly, said once on the record. The planner
       // will read this off the sheet (elevIdle) when the bench measures it.
-      const eSat = aDe > 0.30 && V > (o.ias || A.VAppr) + 0.5;
+      // G970: THE SERVO'S LIMIT IS THE ELEVATOR'S TOO. holdPitch's authority
+      // is P + an integrator clamped at IthMax: with 5 deg of attitude to go
+      // it tops out near 0.26 and never reaches the 0.30 this read. The
+      // Caravan-alike (drawn tail, half tanks) flew a 5 km final 12 m under
+      // the slope, 2 m/s fast, thC on thMax (11.2 deg) and the nose at 6.1 on
+      // 0.24 of elevator, the throttle on its floor - and went around twice
+      // for the terrain. The integrator on its clamp with the attitude short
+      // of the command is the same "cannot hold this speed"
+      const eSat = (aDe > 0.30 || (Ith >= IthMax - 1e-3 && thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
@@ -1606,7 +1620,16 @@ function makePilot(sim, def, world, opts) {
           // and the rollout opened with the rudder on its stop. The same
           // law as the ground's now, on the same error (which also carries
           // the centreline correction trackHold folds into e).
-          c.dr = clamp(-(A.decrabK ?? 2.2) * e - 0.6 * eR, -0.35, 0.35);
+          // G970: ...AND IT IS FLOWN TO ZERO. P alone left the weathercock a
+          // standing crab: the Cub-alike touched in 2 m/s across with the nose
+          // 2.1 deg off the runway and the roll-out swing grew from there (6.6
+          // deg); with a slow integral (1/s, reset whenever the decrab is not
+          // flown) it touches aligned - cub x2 swing 5.9, x4 12.7 -> 10.4, the
+          // Stearman-alike x2 5.3 -> 3.7 deg and 1.11 -> 0.95 m/s
+          if (ap.t - dcT > 0.1) dcI = 0;
+          dcT = ap.t;
+          dcI = clamp(dcI + (A.decrabI ?? 1.0) * e * dt, -0.2, 0.2);
+          c.dr = clamp(-(A.decrabK ?? 2.2) * e - 0.6 * eR - dcI, -0.35, 0.35);
           break;
         }
         case 'RWY': groundSteer(); break;
@@ -1627,17 +1650,32 @@ function makePilot(sim, def, world, opts) {
       // the speed hold's floor, the flare's idle. It never fires when the
       // elevator has room, so every aeroplane that flies its approach at
       // idle is unchanged.
+      // G970: ...AND THE FLOOR IS A SPEED. Past 0.30 of elevator the assist
+      // came in the last half-second: the stick winds back over the whole
+      // hold-off while the wing bleeds, and in ground effect (the ground's
+      // image takes the tail's downwash away) the attitude falls short of what
+      // the servo asks long before the stop - the C172-alike held 6.9 deg on
+      // 0.25-0.29 of elevator from 3.5 m, bled 24 -> 22 m/s (1.07 Vs0) and
+      // arrived at 2.0 m/s; the Stearman-alike held 11 deg from 2.2 m and
+      // arrived at 1.5 at its tunnel's ground-effect limit, 1.14 Vs. Under
+      // 1.15 Vs0 with the stick back the power comes in (0.5 a second), as a
+      // pilot cushions a flare the elevator cannot finish, up to the assist's
+      // own 0.40 (0.30 held the C172 in x2 to 1.04 Vs0); the hold-off asks a
+      // firmer sink there (below). C172 2.10 -> 1.14 m/s at 1.09 Vs0 (x2:
+      // 2.34 -> 1.21 at 1.07), Stearman 1.57 -> 1.17. The fast arrival's
+      // trickle cap and the unwind are unchanged
       if (ap.phase === 'FLARE' && AF.thr === 'IDLE') {   // G399.7: FINAL's half retired — TECS carries its own saturation (the raised Vref)
-        const sat = aDe > 0.30, free = aDe < 0.22;
+        const slow = V < (A.flareFloorK ?? 1.15) * (SH0 && SH0.Vs0 ? SH0.Vs0 : (A.VRot || 18) / 0.99);
+        const sat = aDe > 0.30 || (slow && aDe > 0), free = aDe < 0.22 && !slow;
         // in the flare the assist depends on the SPEED: a slow arrival (the
         // C172-alike at 1.13 VRot, full flap) needs the power to finish its
         // hold-off (1.9 -> 1.0 m/s); a fast one (the Caravan-alike at 1.6
         // VRot, no flap, the tail out of authority) only floats on it — 836 m
         // of run, stopped 8 m from the end — so it gets a trickle (0.12: 0.59 m/s, 669 m; at 0.05 it arrived at 2.3 m/s)
         const fast = V > 1.35 * (A.VRot || 18);
-        const cap = ap.phase === 'FLARE' ? (fast ? (A.apAssistFlareFast ?? 0.12) : (A.apAssistFlare ?? 0.30))
+        const cap = ap.phase === 'FLARE' ? (fast ? (A.apAssistFlareFast ?? 0.12) : slow ? (A.apAssistMax ?? 0.40) : (A.apAssistFlare ?? 0.30))
                   : (A.apAssistMax ?? 0.40);
-        pAsst = clamp(pAsst + (sat ? (A.apAssistRate ?? 0.20) : free ? -0.25 : 0) * dt, 0, cap);
+        pAsst = clamp(pAsst + (sat ? (A.apAssistRate ?? 0.50) : free ? -0.25 : 0) * dt, 0, cap);
         if (pAsst > 0) c.thr = clamp(c.thr + pAsst, 0, 1);
       } else pAsst = 0;
       AF.fd = { pitch: thCA, bank: phCA };
@@ -2162,6 +2200,17 @@ function makePilot(sim, def, world, opts) {
                 : (A.thTailUp ?? 0.02);
         } else if (V > vrT) { vert = 'PITCH'; pitch = A.thRotate ?? A.liftoffTh; }
         else if (softTO) deRoll = 0.20;                        // P1.C soft, a trike: the nosewheel light through the roll
+        // G970: ON THE WATER THE RUN ATTITUDE IS NOT A WHEEL'S. G431's tail-up
+        // attitude (liftoffTh - 0.05, the J-3's run a few degrees under its
+        // fly-off one) reached the float card too, and G431 measured it there
+        // (the crosswind run 35.8 deg); through the hump the attitude servo
+        // pulled 0.47-0.66 of stick at 3-4 m/s, the hull porpoised -9 <-> +13
+        // deg on a 1.5 s cycle, skipped off at 14.6 m/s, came back bow-down
+        // and water-looped (78 deg, capsized - GATE SEAPLANE's crosswind,
+        // first bad aa8b8a59). The water keeps the 0.02 it ran on before
+        // (G396.4's stick law on top of it, unchanged): lift-off 7.8 s, 27.8
+        // deg - G426's 27.7, the last good
+        if (sim.hydro && vert === 'PITCH' && V <= vrT) pitch = 0.02;
         const rotating = vert === 'PITCH' && V > vrT && onG > 0;
         IthMaxT = rotating ? (A.rotateIMax ?? 0.30) : 0.15;
         IthGain = rotating ? (A.rotateI ?? 0.8) : null;
@@ -2593,7 +2642,11 @@ function makePilot(sim, def, world, opts) {
           // 1.5 m/s with the elevator on its stop; a firm arrival at 1.1 Vs
           // beats a stall from a metre
           const vr = A.VRot || 18;
-          const sinkF = (A.flareSink ?? 0.35) + 0.35 * clamp((1.15 * vr - V) / (0.10 * vr), 0, 1);
+          // G970: ...AND UNDER THE FLOOR (1.15 Vs0, the power's) THE ARRIVAL IS
+          // FIRM: 1.0 m/s. Held to 0.7 on power the C172-alike floated 7 s from
+          // 10 m and touched at 1.04 Vs0; asked 1.0 there it arrives at 1.07-1.09
+          const sinkF = Math.max((A.flareSink ?? 0.35) + 0.35 * clamp((1.15 * vr - V) / (0.10 * vr), 0, 1),
+                                 V < (A.flareFloorK ?? 1.15) * (SH0 && SH0.Vs0 ? SH0.Vs0 : vr / 0.99) ? 1.0 : 0);
           // GTRAM: onto an altiport the sink is asked RELATIVE TO THE SLOPE - the ground rises at grade x
           // the ground speed under the aeroplane, so the path must climb that much, and on power (below)
           const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
