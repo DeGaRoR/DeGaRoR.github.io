@@ -428,7 +428,9 @@ const SPLAT_GROUND = (() => {
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
     const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
-    const dec = img => (img.complete && img.naturalWidth ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
+    // (G751: a FAILED map is complete with no width and its error has fired - waiting on it stalled the library forever,
+    // as pavement.js's did; and onload = r overwrote another waiter's handler. Listeners, and a failure counts as done)
+    const dec = img => (img.complete ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }));
     Promise.all(sets.map(async (m, i) => {
       const [d, n, h, r] = [m.diff, m.nor, m.height, m.rough || null];
       await Promise.all([dec(d), dec(n), dec(h), r ? dec(r) : Promise.resolve()]);

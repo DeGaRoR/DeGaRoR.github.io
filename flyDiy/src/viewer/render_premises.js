@@ -494,6 +494,39 @@ function make(THREE, scene, world, rec0, opts) {
   // screen, and never nearer than 25 of its quads; a chunk's four edges hang a skirt (its own heights 0.5-3 m down,
   // its surface's normals) so two neighbours at different levels never open a crack onto the sunk ring below.
   const PL = { res: [2, 4, 8, 16], block: 8, focal: 1160, tolPx: 1, minQuads: 25, skirt: [0.5, 1, 2, 3] };
+  // HOW DEEP INSIDE THE PATCH (x, z) LIES: metres to the extent's edge or to the nearest UNBUILT neighbour chunk, 0
+  // outside the patch. The patch's border tucks under the ring over its last 40 m by it, and (G752) the rings sink
+  // under the patch by it (ringSink) - not within PATCH_TUCK.ring0 of the edge, so a ring triangle crossing the border keeps
+  // both its vertices at the ground (a vertex sunk 4 m at the border dragged the triangles on both sides of it down:
+  // a 2-4 m trench along every chunk edge, the playtest's "DEM seams" - 145815, 152402)
+  // THE BORDER'S TWO LAWS, SIDE BY SIDE (G752). The patch tucks `tuck` m under the ground at its edge, back to the ground
+  // `tuckW` m in; the rings sink 0 within `ring0` m of the edge, rising (smoothstep) to `sink` by `ring1` m. Where the ring
+  // is at the ground the patch is under it, where the patch is at the ground the ring is 4 m under, and the one crossing
+  // between is the only dip the eye can see: measured on Jolene's field borders 1.3-2.4 m before (the patch's 2.2 m over
+  // 40 m and a ring vertex sunk 4 m wherever its chunk was built), a few decimetres after. Every feature that paints the
+  // patch lies >= 12 m inside it (activeChunks' margins: a road's falloff + 6, a runway's shoulder + 30, a zone's 40),
+  // where the ring is already a metre or more under - the G434.1 rule (no ring chord through a road or a pad) holds.
+  const PATCH_TUCK = { tuck: 0.8, tuckW: 12, ring0: 4, ring1: 28, sink: 4 };   // (GATE LOOKS walks every phase of the ring's grid: worst dip 0.51 m, the old laws 3.85; the ring 1.04 m under a road 12 m in)
+  const ringSink = (x, z) => { const d = patchDepth(x, z), P = PATCH_TUCK; if (d <= P.ring0) return 0; const t = Math.min(1, (d - P.ring0) / (P.ring1 - P.ring0)); return P.sink * t * t * (3 - 2 * t); };
+  let patchB = null;
+  function patchDepth(x, z) {
+    const A = patchAct, b = patchB; if (!A || !b) return 0;
+    // (the chunk the point is IN, a shared edge the upper chunk's: a point on an unbuilt chunk's edge is 0 deep. The
+    // patch's inline walk took floor((x - 0.01) / 64) and skipped that chunk itself, so a vertex on a chunk's low x or
+    // low z edge never measured the unbuilt chunk it lay on: it stood at the ground, a column 2 m over its tucked
+    // neighbour 2 m in - a thin wall along two of every border's four sides)
+    const ei = Math.floor(x / PCH), ej = Math.floor(z / PCH);
+    if (!A.act.has(A.key(ei, ej))) return 0;
+    let edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z);
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+      if (!di && !dj) continue;
+      if (A.act.has(A.key(ei + di, ej + dj))) continue;
+      const nx0 = (ei + di) * PCH, nz0 = (ej + dj) * PCH;
+      const dx = Math.max(nx0 - x, x - nx0 - PCH, 0), dz = Math.max(nz0 - z, z - nz0 - PCH, 0);
+      edge = Math.min(edge, Math.hypot(dx, dz));
+    }
+    return Math.max(0, edge);
+  }
   // G680: the patch in slices (a chunk batch of the ground sampling, a block of the LODs, a yield each) - the
   // roll-out's world step drives it through rebuildSteps; an edit's rebuild runs it to the end at once
   function buildPatch() { const g = buildPatchSteps(); while (!g.next().done); }
@@ -503,7 +536,7 @@ function make(THREE, scene, world, rec0, opts) {
     const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
     const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
     if (patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
-    patchAct = A;   // the world's rings read it (patchCovers): the ring sinks under the patch (G434.1)
+    patchAct = A; patchB = b;   // the world's rings read it (patchCovers, patchDepth): the ring sinks under the patch (G434.1)
     // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
     // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
     const matOwn = k => {
@@ -540,20 +573,11 @@ function make(THREE, scene, world, rec0, opts) {
       const kc = KIND[c] = kindOf(cx0, cz0), uvOf = (kc && o.patchUV2) || o.patchUV;
       for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
         const v = c * per + j * (n + 1) + i, x = cx0 + i * RES, z = cz0 + j * RES;
-        // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge
-        let edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z);
-        const ei = Math.floor((x - 0.01) / PCH), ej = Math.floor((z - 0.01) / PCH);
-        for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
-          if (!di && !dj) continue;
-          if (act.has(ck(ei + di, ej + dj))) continue;
-          const nx0 = (ei + di) * PCH, nz0 = (ej + dj) * PCH;
-          const dx = Math.max(nx0 - x, x - nx0 - PCH, 0), dz = Math.max(nz0 - z, z - nz0 - PCH, 0);
-          edge = Math.min(edge, Math.hypot(dx, dz));
-        }
-        const r = Math.min(1, Math.max(0, edge) / 40);
+        // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge (patchDepth, G752)
+        const r = Math.min(1, patchDepth(x, z) / PATCH_TUCK.tuckW);
         // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the
-        // ring sinks 4 m under the patch now, so no fight there (G434: the border tucks 2.2 m under the ring)
-        Y0[v] = world.terrainH(x, z) - 0.02 * r - 2.2 * (1 - r) * (1 - r);
+        // ring sinks 4 m under the patch now, so no fight there (G434: the border tucks under the ring - G752's PATCH_TUCK)
+        Y0[v] = world.terrainH(x, z) - 0.02 * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);
         if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; }
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
@@ -2485,6 +2509,7 @@ function make(THREE, scene, world, rec0, opts) {
     // house patches"); `world` here so the rings can ask
     pavedAt: (x, z) => (O.pavedAt ? O.pavedAt(x, z) : null),       // G660: the patch is sunk under a pavement's opaque interior by it
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
+    patchDepth, ringSink, tuck: PATCH_TUCK,   // G752: metres inside the patch (0 outside); the rings' sink by it (0 at the border); the two laws' dials
     patchBounds: () => (patch ? extentWorld() : null),
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
     drainNear, stream, prewarm, streamState: STREAM, cellLive,   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued

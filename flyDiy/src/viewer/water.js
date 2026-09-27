@@ -225,11 +225,17 @@ const WATER = (() => {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec2 aWater; varying vec3 vWP; varying vec3 vWP0; varying vec2 vWBody;\nuniform vec4 uWTrA[32]; uniform vec4 uWTrD[32]; uniform int uWTrN; uniform vec4 uWWave; uniform vec4 uWNear;' + GLSL_GERSTNER)
+      .replace('#include <common>', '#include <common>\nattribute vec2 aWater; varying vec3 vWP; varying vec3 vWP0; varying vec2 vWBody;\nuniform vec4 uWTrA[32]; uniform vec4 uWTrD[32]; uniform int uWTrN; uniform vec4 uWWave; uniform vec4 uWNear;\nuniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;' + GLSL_GERSTNER)
       .replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
         vec3 wp0 = (modelMatrix * vec4(position, 1.0)).xyz;
         float wh = 0.0;
-        if (aWater.y > 0.5 && uWWave.x > 0.5) wh = wGerstnerH(wp0.x, wp0.z) * (1.0 - smoothstep(uWWave.z - 44.0, uWWave.z - 8.0, max(abs(wp0.x - uWNear.x), abs(wp0.z - uWNear.y))));   // flat 8 m before the box's edge: the last rows lap the far plane's cut at the level (G460.7 - the dashes)
+        if (aWater.y > 0.5 && uWWave.x > 0.5) {
+          wh = wGerstnerH(wp0.x, wp0.z) * (1.0 - smoothstep(uWWave.z - 44.0, uWWave.z - 8.0, max(abs(wp0.x - uWNear.x), abs(wp0.z - uWNear.y))));   // flat 8 m before the box's edge: the last rows lap the far plane's cut at the level (G460.7 - the dashes)
+          // G750 THE PATCH IS DRAWN OVER WATER ONLY: its waves flatten over the last 40 m of the sea to the coast field's line
+          // (flat from 6 m out), so on a shore the displaced 3.8 m grid no longer saws the waterline across the beach - the
+          // line is the far plane's own there, whatever the patch does further out
+          if (uWSdfOn > 0.5) { float sd = (texture2D(uWSdf, (wp0.xz - uWGrid.xy) / uWGrid.zw).b * 255.0 - 128.0) * 4.0; wh *= smoothstep(-6.0, -40.0, sd); }
+        }
         transformed.y += wh;
         vWP = vec3(wp0.x, wp0.y + wh, wp0.z); vWP0 = wp0; vWBody = aWater;`);
     sh.fragmentShader = sh.fragmentShader
@@ -237,7 +243,13 @@ const WATER = (() => {
       // the body colour: the column's own colour rising with depth, times what the surface lets in
       .replace('#include <map_fragment>', `
         int wB = int(vWBody.x + 0.5);
-        if (wB == 0 && vWBody.y < 0.5 && uWNear.w > 0.5 && abs(vWP.x - uWNear.x) < uWNear.z && abs(vWP.z - uWNear.y) < uWNear.z) discard;
+        // the far plane cut out of the near patch's box, and (G750) the near patch cut to it: its 4 m lap past the box
+        // drew OVER the far plane, two transparent layers - a dark dashed line tracing the square round the aeroplane (the
+        // playtest's "flickering square ahead of the plane", West Point). The two tests are exact complements on the still plane.
+        if (wB == 0 && uWNear.w > 0.5) {
+          bool wIn = abs(vWP0.x - uWNear.x) < uWNear.z && abs(vWP0.z - uWNear.y) < uWNear.z;
+          if (vWBody.y < 0.5 ? wIn : !wIn) discard;
+        }
         vec2 wF = wField(vWP.xz);
         float wD = wDepth(wF, wB);
         // THE FOOTPRINT (G460.7): the GEOMETRIC MEAN of the pixel's two axes on the water, not the longer one.

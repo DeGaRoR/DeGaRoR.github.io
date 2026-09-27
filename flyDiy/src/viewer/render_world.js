@@ -1138,6 +1138,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
 
+  let drawnLakeSD = () => -1e9;   // G753: the drawn lakes' field (the terrain block's lakeRsd), for the cover ring's test
   yield 'terrain';
   { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
     // home ±4500 so river carves resolve, coarse ~100 m strips out to
@@ -1348,6 +1349,46 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // forest mask and the minimap; its colours are not drawn on an island.
     yield 'ground';
     const ISLA = world.island && world.island.albedo && world.island.grid ? world.island : null;
+    // THE DRAWN LAKES' FIELD (G751/G753). The ground shader DISCARDS every fragment more than a metre inside the lake
+    // field (the lake's quad covers it), so wherever no quad is drawn over a field lake the eye sees through the island
+    // to the haze - a flat beige-white lens:
+    //   - a lake the PREMISES FILLED: the runway's grade raised 02/20's pond by up to 1.95 m over its level (the solver
+    //     is dry there, and the quad at the level was under the ground, shown only through the hole - with the cover
+    //     ring's flecks lying on the true ground 17 cm above it);
+    //   - the 29 lakes on the coast left "to the sea" whose interior the coast field calls land (the sea plane is never
+    //     drawn there): the playtest's East Point white patch (153018/153114/153245) is the biggest, 350 x 330 m at
+    //     (9830..10180, -9220..-8890), level 2.67 m, on the route from the field.
+    // This copy of the field is the one the RENDERER reads: a texel inside a lake whose composed ground stands 5 cm over
+    // the lake's level is set outside (-16 m). The physics' field (world.island.lake, the hydrology's) is not touched.
+    const lakeR = (() => {
+      if (!ISLA || !ISLA.lake || !ISLA.lakes) return ISLA ? ISLA.lake : null;
+      // (a texel's lake is not recorded: it is judged against the HIGHEST level of every lake whose box covers it - a
+      // higher neighbour's water inside a lower lake's box is its own, not a fill)
+      const G = ISLA.grid, L8 = ISLA.lake.slice(), top = new Map(); let n = 0;
+      const boxOf = L => [Math.max(0, Math.floor((L.x0 - G.x0) / G.cell) - 2), Math.min(G.w - 1, Math.ceil((L.x1 - G.x0) / G.cell) + 2),
+                          Math.max(0, Math.floor((L.z0 - G.z0) / G.cell) - 2), Math.min(G.h - 1, Math.ceil((L.z1 - G.z0) / G.cell) + 2)];
+      for (const L of ISLA.lakes) { const [i0, i1, j0, j1] = boxOf(L);
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * G.w + i; if (L8[k] <= 128) continue; const t = top.get(k); if (t === undefined || L.level > t) top.set(k, L.level); } }
+      // ONLY WHERE THE PREMISES RAISED IT: the composed ground over the level AND over the island's own ground (the base
+      // world's). 46 natural lakes have field texels whose raw DEM stands 0.8-3 m over their level (4 282 texels on
+      // Jolene) - drawn as they always were; this is the premises' fill, not a re-judgement of the island's lakes
+      const B = world.premises && world.premises.base && world.premises.base.terrainH ? world.premises.base : null;
+      if (B) for (const [k, lv] of top) {
+        const i = k % G.w, j = (k - i) / G.w, x = G.x0 + (i + 0.5) * G.cell, z = G.z0 + (j + 0.5) * G.cell, h = world.terrainH(x, z);
+        if (h >= lv + 0.05 && h > B.terrainH(x, z) + 0.02) { L8[k] = 124; n++; }
+      }
+      if (n) console.log('lakes: ' + n + ' field texels the composed ground fills, not drawn as water');
+      return L8;
+    })();
+    // the drawn lakes' signed field at (x, z), bilinear as the shader reads it (+ inside, metres); -1e9 without one
+    const lakeRsd = (x, z) => {
+      if (!lakeR) return -1e9;
+      const G = ISLA.grid, u = (x - G.x0) / G.cell - 0.5, v = (z - G.z0) / G.cell - 0.5;
+      const i = Math.max(0, Math.min(G.w - 2, Math.floor(u))), j = Math.max(0, Math.min(G.h - 2, Math.floor(v)));
+      const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j)), q = j * G.w + i;
+      return (((lakeR[q] * (1 - fu) + lakeR[q + 1] * fu) * (1 - fv) + (lakeR[q + G.w] * (1 - fu) + lakeR[q + G.w + 1] * fu) * fv) - 128) * 4;
+    };
+    drawnLakeSD = lakeRsd;
     let islandTex = null, islandUV = null;
     if (ISLA) {
       const G = ISLA.grid, n = G.w * G.h, rgba = new Uint8Array(n * 4), src = ISLA.albedo;
@@ -1411,7 +1452,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
       Object.assign(gU, {
         uGTint: { value: tintTex },
-        uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, ISLA.lake) },   // a missing coast is 255 (all land), the rest 0
+        uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) },   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
         uGPackB: { value: pk4(ISLA.ndvi, ISLA.ttype, new Uint8Array(n), null) },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
@@ -2019,14 +2060,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the fine surface shows that flattening as a 10 m STAIRCASE round every lake (the ring's 17.6 m
       // chords had smoothed it away; seen 2026-09-22 at -564,-1336). Until the prep feathers its lakes,
       // a fine vertex within 30 m of a lake's edge blends back to the ring's height and normal.
-      const LK = ISLA && ISLA.lake ? ISLA.lake : null, LG = ISLA && ISLA.grid;
-      const lakeSD = (x, z) => {
-        if (!LK) return -1e9;
-        const u = (x - LG.x0) / LG.cell - 0.5, v = (z - LG.z0) / LG.cell - 0.5;
-        const i = Math.max(0, Math.min(LG.w - 2, Math.floor(u))), j = Math.max(0, Math.min(LG.h - 2, Math.floor(v)));
-        const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j)), q = j * LG.w + i;
-        return (((LK[q] * (1 - fu) + LK[q + 1] * fu) * (1 - fv) + (LK[q + LG.w] * (1 - fu) + LK[q + LG.w + 1] * fu) * fv) - 128) * 4;
-      };
+      const lakeSD = lakeRsd;   // (G751: the drawn lakes' field)
       const sm = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo))); return t * t * (3 - 2 * t); };
       FINE.build = (tx, tz) => {
         const T = FINE.T, st = FINE.step, n = T / st + 1, x0 = tx * T, z0 = tz * T;
@@ -2324,7 +2358,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // where the displaced patch dips into its troughs. The geometry is turned,
     // not the mesh: the displacement is along the model's y, which must be up.
     const WSZ = world.island ? 400000 : SIZE;
-    const farGeo = new THREE.PlaneGeometry(WSZ, WSZ); farGeo.rotateX(-Math.PI / 2);
+    // G750 A GRID, NOT TWO TRIANGLES: the plane was one 400 km quad, and a varying interpolated across a 400 km triangle
+    // drifts by pixels - the far plane's cut round the near patch (uWNear, tested on vWP0) no longer met the patch's own
+    // edge, a dashed dark line tracing the square ahead of the aeroplane (West Point; measured: gone with the plane
+    // subdivided). 1 km cells within 40 km of the middle, then coarser to the rim (~8 k vertices, one draw).
+    const farGeo = (() => {
+      if (!(THREE.BufferAttribute && THREE.BufferGeometry)) { const g = new THREE.PlaneGeometry(WSZ, WSZ); g.rotateX(-Math.PI / 2); return g; }   // (a stub THREE: the old plane)
+      const H = WSZ / 2, xs = [0];
+      for (let x = 0; x < H;) { x = Math.min(H, x < 40000 ? x + 1000 : x * 1.5); xs.push(x); }
+      const ax = xs.slice(1).reverse().map(v => -v).concat(xs), n = ax.length, pos = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2), idx = [];
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; pos[k * 3] = ax[i]; pos[k * 3 + 2] = ax[j]; nor[k * 3 + 1] = 1; uv[k * 2] = ax[i] / WSZ + 0.5; uv[k * 2 + 1] = 0.5 - ax[j] / WSZ; }
+      for (let j = 0; j + 1 < n; j++) for (let i = 0; i + 1 < n; i++) { const a = j * n + i, b = a + n, c = a + 1, d = b + 1; idx.push(a, b, c, c, b, d); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(new THREE.BufferAttribute(n * n > 65535 ? new Uint32Array(idx) : new Uint16Array(idx), 1)); g.computeBoundingSphere();
+      g.parameters = { width: WSZ, height: WSZ };   // (the probes find the far plane by its size)
+      return g;
+    })();
     const water = new THREE.Mesh(wtag(farGeo, 0, false), waterMat);
     seaPlaneY = WSH ? 0.0 : -0.4;   // the DRAWN sea level, for waterDrawY (WSH is this block's own: reading it from the API below threw every frame, G460.11.5)
     water.position.set((BX0 + BX1) / 2, seaPlaneY, (BZ0 + BZ1) / 2);
@@ -2448,6 +2497,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // reach's head to the nearest upstream tail (lakes sit between, so
       // the match is loose) and taper the width along the reach.
       const RV = world.hydro.rivers;
+      const coastOf = (world.island && world.island.coastAt) ? world.island.coastAt : null;   // G750: the mouths (below)
       const wHead = new Map();
       for (const b of RV) {
         let bestW = b.w, bestD = 160;
@@ -2481,6 +2531,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // walls — skip those segments; the terrain carve reads as rapids
           const segL = Math.hypot(spts[i + 1][0] - spts[i][0], spts[i + 1][1] - spts[i][1]) || 1;
           if ((sws[i] - sws[i + 1]) / segL > 0.3) continue;
+          // THE MOUTH IS THE SEA'S (G750): a segment with an end within 20 m of the coast line or past it is not drawn.
+          // The hydrology's level at a mouth stays metres over the beach (3.3 m over ground at 0.2 at West Point,
+          // 1005, 2425 - the dark rectangle A2-SHADOW-SKY's raycast hit at y 3.0); its ribbon was a sheet in the air
+          // down to the sea. The sea's own surface takes the mouth; the carved bed shows on the beach. 22 of 846
+          // cross-sections on Jolene, every one at a mouth.
+          if (coastOf && (coastOf(spts[i][0], spts[i][1]) < 20 || coastOf(spts[i + 1][0], spts[i + 1][1]) < 20)) continue;
           const a = base + i * 2;
           idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
         }
@@ -2521,15 +2577,33 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // coast it takes the tidal flats and the sea's own cells as lakes at the DEM's 1 m - their
         // quads lay over the sea plane as pale jagged sheets. A lake whose box reaches the coast field's
         // waterline within 30 m and whose level is under 3 m is the sea: no quad
+        // THE LAKE'S DRAWN TEXELS (G751): the render field's inside texels over the lake's box - how many the composed
+        // ground left (0: the premises filled it, no quad), and how many the coast field puts in the sea
+        const lakeTexels = L => {
+          const G = ISLA.grid; let inside = 0, sea = 0;
+          const i0 = Math.max(0, Math.floor((L.x0 - G.x0) / G.cell) - 2), i1 = Math.min(G.w - 1, Math.ceil((L.x1 - G.x0) / G.cell) + 2);
+          const j0 = Math.max(0, Math.floor((L.z0 - G.z0) / G.cell) - 2), j1 = Math.min(G.h - 1, Math.ceil((L.z1 - G.z0) / G.cell) + 2);
+          for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { if (lakeR[j * G.w + i] <= 128) continue; inside++;
+            if (world.island.coastAt && world.island.coastAt(G.x0 + (i + 0.5) * G.cell, G.z0 + (j + 0.5) * G.cell) < 0) sea++; }
+          return { inside, sea };
+        };
+        // LEFT TO THE SEA only where the SEA IS DRAWN over it (G751): the sea plane's alpha comes from the coast field, and
+        // over a lake the coast field calls land it is nothing - every one of the 29 lakes this rule used to skip (under 3 m,
+        // within 30 m of the coast) had no sea texel inside it, and the ground's discard left a hole to the haze
         const isSea = L => {
           if (!world.island.coastAt || L.level >= 3) return false;
+          let near = false;
           for (let t = 0; t <= 1.0001; t += 0.1) for (const q of [[L.x0 + (L.x1 - L.x0) * t, L.z0], [L.x0 + (L.x1 - L.x0) * t, L.z1], [L.x0, L.z0 + (L.z1 - L.z0) * t], [L.x1, L.z0 + (L.z1 - L.z0) * t]])
-            if (world.island.coastAt(q[0], q[1]) < 30) return true;
-          return false;
+            if (world.island.coastAt(q[0], q[1]) < 30) { near = true; break; }
+          if (!near) return false;
+          const T = lakeTexels(L);
+          return T.inside > 0 && T.sea * 2 >= T.inside;
         };
+        let filled = 0;
         for (const L of world.island.lakes) {
           if (L.level <= 0.2 || L.cells < 3) continue;
           if (isSea(L)) { seaSkipped++; continue; }
+          if (lakeR && !lakeTexels(L).inside) { filled++; continue; }   // G753: the premises filled it (02/20's pond): no water drawn
           const g = new THREE.PlaneGeometry(L.x1 - L.x0 + 8, L.z1 - L.z0 + 8); g.rotateX(-Math.PI / 2);
           // THE DRAWN SURFACE IS THE PHYSICS' (ruling ap: ONE surface; G460.11.7, the user: "the lake quads at
           // waterH, let's fix that hovering plane"). The island's DEM lake level and the hydrology's waterH are
@@ -2570,7 +2644,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           mg.setIndex(new THREE.BufferAttribute(idx, 1)); mg.computeBoundingSphere();
           const m = new THREE.Mesh(mg, lakeMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.name = 'lakes'; scene.add(m);
         }
-        console.log('island lakes: ' + n + ' surfaces, one quad each in one mesh, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea');
+        console.log('island lakes: ' + n + ' surfaces, one quad each in one mesh, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea, ' + filled + ' filled by the premises');
       }
       const riverVerts = pos.length / 3;   // G460: the ribbons before this count are rivers (body 2), the cells after are lakes (body 1)
       const hc = world.hydro.cellW / 2, skirt = world.hydro.cellW * 0.6;
@@ -4601,7 +4675,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             }
             return m;
           };
-          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
+          // G753: nor where WATER IS DRAWN - the drawn lakes' field (the ground is discarded a metre inside it) with its quad over
+          // the ground; the physics' waterH alone let the flecks stand on a pond the runway's grade had filled, over the quad
+          const drawnWet = (x, z, h) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - 0.3; };
+          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3 || drawnWet(x, z, h)) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
@@ -5742,7 +5819,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return out;
     } catch (e) { return []; }
   }
-  function groundSink(x, z) { return (premisesR && premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0; }   // hoisted: the boot calls refreshGround before this line
+  // hoisted: the boot calls refreshGround before this line. G752: by the depth inside the patch (render_premises ringSink:
+  // 0 within 4 m of its edge, 4 m by 28 m in) - a flat 4 m wherever a chunk was built dragged every ring triangle crossing a border
+  // down with it, the 1.3-2.4 m trench along the chunks' edges the playtest saw as "DEM seams" (145815, 152402)
+  function groundSink(x, z) {
+    if (!premisesR) return 0;
+    if (premisesR.ringSink) return premisesR.ringSink(x, z);
+    return (premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0;
+  }
   function refreshGround(bb) { const g = refreshGroundSteps(bb); while (!g.next().done); }
   // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
   // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested

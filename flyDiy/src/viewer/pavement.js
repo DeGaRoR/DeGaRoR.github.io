@@ -510,13 +510,19 @@ const PAVEMENT = (() => {
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
     const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
-    const dec = img => (img.complete && img.naturalWidth ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }));
+    // (G751: an image that has already FAILED is `complete` with no width, and its error fired long ago - waiting for
+    // an event there never resolved, so one failed fetch stalled this library and every later one grown from it: every
+    // pavement made afterwards kept the old arrays with the new layer indices. Measured in the page: a library with one
+    // failed map never called back. A failed map now counts as done; its layer takes the set's mean colour.)
+    const dec = img => (img.complete ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }));
     Promise.all(keys.map(async (k, i) => {
       const m = SETS[k]; if (!m) { console.warn('pavement: no set ' + k); return; }
       const [d, n, g, h] = [m.diff, m.nor, m.rough, m.height];
       await Promise.all([dec(d), dec(n), dec(g), dec(h)]);
       const o = i * S;
       if (d.naturalWidth) { ctx.drawImage(d, 0, 0, px, px); data.set(ctx.getImageData(0, 0, px, px).data, o); }
+      else { const c = (m.mean || [0.2, 0.2, 0.2]).map(v => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055)));   // the mean, sRGB-encoded (the array is sRGB-typed)
+        console.warn('pavement: ' + k + ' colour map failed - its mean colour stands in'); for (let q = 0; q < px * px; q++) { data[o + q * 4] = c[0]; data[o + q * 4 + 1] = c[1]; data[o + q * 4 + 2] = c[2]; } }
       if (h.naturalWidth) { ctx.drawImage(h, 0, 0, px, px); const hd = ctx.getImageData(0, 0, px, px).data; for (let q = 0; q < px * px; q++) data[o + q * 4 + 3] = hd[q * 4]; }
       else for (let q = 0; q < px * px; q++) data[o + q * 4 + 3] = 128;
       if (n.naturalWidth) { ctx.drawImage(n, 0, 0, px, px); dataN.set(ctx.getImageData(0, 0, px, px).data, o); }
