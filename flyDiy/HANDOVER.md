@@ -61593,3 +61593,114 @@ Built outputs restored, not committed.
 against an 11.2 deg deck - G457's forward mass; a J-3 three-points); cub x2's 5.9 deg margin; the Stearman-alike's
 take-off control activity (PILOTMATRIX `ctl rev` 120-130/min); the flare entry height is the fiche's VAppr's
 (3.2 s of the FICHE's sink) while the pilot flies the sheet's Vref - a heavy trike flares from 10 m.
+
+## G680-G689 - A4-FREEZE: NO MAIN-THREAD TASK OVER A SECOND ON THE ROLL-OUT OR A SETTINGS CHANGE; THE BOOT'S TWO LEFT (2026-09-27, the Jolene playtest, batch A4, local GPU)
+
+The user: "no freezing ever, no browser pop-up saying the page does not respond. This includes possible setting changes."
+Target R4 (futureDesigns/PLAYTEST-2026-09-26.md §4): no main-thread task over 1 s during the boot, the roll-out or a
+settings change. MEASURED FIRST (rollout_perf, clean base, CPU profiles split into tasks), the roll-out's tasks over 1 s
+were: the click of "roll out" (syncBuild, 1.9 s), the world step (4.6 s, one task), three parked-aeroplane captures
+(2.3 / 2.3 / 3.5 s), the impostor bake's readPixels (1.4 s), the first world frame (0.5-2.1 s of program links); the
+garage boot's: the scripts (1.2-1.9 s), the editor (1.9 s), the sync step (1.7 s), the first frame (1.5-1.8 s cold), the
+see-through variants after the lift (1.4 s); a shadows toggle's click (1.3 s on the base).
+- G680 THE WORLD BUILD IS A GENERATOR (render_world.js buildWorldSceneSteps; buildWorldScene runs it to the end for the
+  harness, the rigs, GATE WORLDRENDER). 30 top-level yields between its stages (sky, probes, terrain's bakes, rings, far
+  terrain, water, woodland, fill, cover, airfield, settlements, premises, strips); the premises' first rebuild yields
+  between its own (render_premises rebuildSteps, buildPatchSteps: 8 chunks of the ground sampling / a block of the LODs).
+  app.js buildWorldSliced runs it ~40 ms a task: 232 yields, the longest slice ~0.45 s (0.87 s the alu Cessna's run).
+  THE TRAP A SLICE OPENS, closed: a promise settled before the build (the tree payload) resolves its .then at the first
+  yield, while the declarations below are in their TDZ (G570's). The four tree-settle callbacks that read the rest of the
+  build (the replant, setShapes/evictAll, the cover ring's make, a rock job) go through afterBuild(): held until the
+  generator returns, then a task each. `treeMapsLanded` now reads true mid-build when the payload is in, so the replant
+  after the build is skipped (its intent: "registered FIRST: every replant below reads it true").
+- G681 is the media worker's registration (a separate commit, landed by the integrator, storage.js).
+- G682 THE PARKED AEROPLANES, BATCHED AND SLICED (parked.js batchSteps). The view is held neutral ONCE for the batch
+  (CAGE_JOIN.viewHold/viewRelease: the rows, no build) and the player's aeroplane restored ONCE: a capture was four
+  editor builds, now one (+1 for the batch). Under the roll-out screen (PARKED.async, set by rollOutScreen, cleared by
+  its 'parked' step and its done) a capture is queued and pumped a step a task: the applySpec's sheet | its layers
+  (CAGE_UI.applySpecSteps, _cage_ui buildSteps: one yield before PAGE.post) | the snapshot and the block | the restore.
+  BETWEEN THOSE TASKS THE EDITOR HOLDS A FOREIGN AEROPLANE, so while a batch is open (holdEditor): CAGE_ON_BUILD is a
+  no-op (touch's 400 ms WIP commit; BENCH_DIRTY's 150 ms fingerprint would WITHDRAW the player's plaque on the foreign
+  build), GARAGE_SPEC.update is refused (the energy layer's 120 ms commitLater writes the tanks of the aeroplane the editor
+  holds into the PLAYER'S build), timers the capture's own calls arm are held until the restore (the synchronous
+  capture's order), and nothing is drawn (holdRender). Elsewhere (in flight, the world editor) a capture is synchronous as
+  before - the shared block and decal atlas are the foreign aeroplane's in between, which only a held frame may see.
+  Doors that need the player's editor (enterGarage, openEditor, syncBuild) flush() a batch in flight. A new screen step
+  'parked' waits for the queue, with its count.
+- G683 THE CLICK DOES NOTHING HEAVY. rollOut(after, true) (the bar's button, the bench's test flight) shows the roll-out
+  screen FIRST and runs the build's sync inside it: syncBuildSteps (CAGE_JOIN.snapshotSteps: the view neutralised | the
+  snapshot | the view back, a task each), then 'stand' (rollOutStand: what rollOut did before its screen decision), then
+  the screen's steps. A second roll-out at a resident stand now shows a short screen (the sync, 1-3 s) instead of a 1.9 s
+  freeze. The garage boot's 'sync' step is the same generator, sliced. syncBuild() runs it to the end (the API, a page
+  without the screen).
+- G684 THE IMPOSTOR SHEET'S CHECK READS BACK WITHOUT WAITING (render_world sheetCheckAsync: readRenderTargetPixelsAsync,
+  a pixel buffer and a fence queued at the same point of the command stream): the verdict (atlas.check, the EMPTY/BLACK
+  shout, tools/imp_audit.js) lands frames later; the synchronous readPixels waited 1.1 s for the queued uploads and links.
+- G685 THE COMPILE IN SLICES (app.js compileSliced): compileAsync's first half, three's compile(), is synchronous - every
+  NEW program's source (AEROSKIN's and ATMO's hooks are long) in one task. One stand-in (PROG_WARM.standIn) per distinct
+  (material, object kind, attribute layout), compiled a group per task (from 1, sized to ~20 ms), then compileAsync's own
+  readiness poll. The settings screen compiles through it; so does the see-through warm-up.
+- G686 THE SEE-THROUGH TWINS COPY WITHOUT THE JSON (app.js compileXrayVariants twin, shader_warm.js twin): Material.copy
+  deep-clones userData through JSON.stringify, and AEROSKIN's holds textures - every twin encoded canvases to data URLs,
+  1.4 s in one task 1.5 s after the shed's boot. The twin takes userData by reference (as it always did, after the copy).
+- G687 WHAT THE FIRST FRAMES LINKED. (1) The roll-out's 'frames' step first runs a sliced catch-up pass over the scene and
+  the depth variants: what joined the scene while the 35 s compile ran (the premises streaming, the cover blocks) linked on
+  the first frame (G584's owed). (2) CLOUDS.warmList lists its passes whenever the layer exists (ready, not 'off') - it
+  returned [] until the day's cover was measured, and the march program linked on the first world frame (found by the
+  program census: the key "20,32", uniforms uInvProj uCamMat uCamPos...). (3) compileDepthVariants(sc): the shed's boot
+  compile now warms its own shadow pass and the full-screen passes (the garage's first frame linked them, 1.8 s cold).
+  (4) render_premises hitPendingStep registers ONE obstacle a tick: a parked aeroplane's full level at 0.5 m is ~0.8 s
+  of rasterising, and the batch's captures landing together registered three in one tick (2.5-2.7 s).
+- G688 THE RIG (tools/rollout_perf.js): --settings ['k=v,...'] (default shadows off/full, preset potato/gamer: the menu's
+  own path, GFX.set then FLYDIY_SETTLE, one at a time, each waited out; a line per change and ROLLOUT settingsLongTask1s;
+  the roll-out's frame targets exclude its window); --profile-boot (the garage boot, to 5 s after the lift); --chrome-flag
+  (an extra Chrome switch); the world step's slices printed. Gates re-pointed (LIGHT, BENCH: the door's body is
+  rollOutStand; PROGRAMS: compileDepthVariants(sc), + a check that the shed's boot compile warms its passes).
+- MEASURED (rollout_perf, RTX 3080, 2216x1023, gamer; base = a clean detached worktree of the same master, the same rig):
+  (tasks over 1 s from the first byte: garage boot + roll-out screen + 40 s of taxi; settings = the --settings probe's
+  four changes, one line of its own; "world" = the roll-out's world step)
+  On 5666f3ad (the raster off):
+  | run | tasks > 1 s | worst | world step | parked captures | roll-out screen | settings worst task |
+  |---|---|---|---|---|---|---|
+  | base warm | 11 | 3 978 ms | 1 task, 4.6 s | 2.3 / 2.3 / 3.5 s | 72.3 s | 1 309 ms (FAIL: the shadows click) |
+  | after warm | 4 | 1 921 ms (garage boot) | 232 slices, the longest 0.45 s | 0.73 / 1.0 / 0.95 s (before the build split) | 68.4 s | 752 ms (PASS) |
+  | base cold | 11 | 4 425 ms | 1 task | | 74.8 s | 495 ms |
+  | after cold | 4 | 2 115 ms (reveal frame: the clouds' march, fixed after) | 232 slices | | 70.8 s | 501 ms |
+  On c116c322 (RASTER-ON; its lazy tile bakes made the base's world step one 13.4 s task):
+  | run | tasks > 1 s | worst | world step | roll-out screen | settings worst task |
+  |---|---|---|---|---|---|
+  | base warm | 13 | 13 463 ms (the world step) | 1 task, 13.4 s | 90.5 s (the hard cap) | 1 002 ms (FAIL) |
+  | base cold | 12 | 14 115 ms | 1 task | 82.3 s | 493 ms |
+  | after warm | 9 | 2 874 ms | 14.8 s in 232 slices, the longest 2.9 s (grBake) | 85.3 s | 499 ms (PASS) |
+  | after cold | 9 | 2 840 ms | 14.9 s, longest 2.8 s | 78.7 s | 918 ms (PASS) |
+  | after, alu Cessna | 8 | 2 832 ms | 15.3 s, longest 2.8 s | 77.5 s | - |
+  | after + aa412fd9 (the raster cooked everywhere), warm | 4 | 2 054 ms | 11.4 s, longest 2.05 s | 71.8 s | 868 ms (PASS) |
+  With both, the roll-out's tasks over 1 s are the world step's two raster-sampling slices (1.6, 2.05 s); the garage
+  boot's two (script promotion 1.7-1.9 s, the editor 1.9 s) are the rest. The parked captures left the premises' slow
+  builds (base: ob:af_park2 3 276 ms, ob:o1 2 234, ob:o3 2 181). Taxi unchanged (59.9 fps median, loop 20 ms).
+  NOT MEASURED ON THE GPU: the last three cuts (the clouds' warm list, the twins' copy, one obstacle a tick) went in
+  after the c116c322 batch - measured before them in profiles (the reveal's march link 0.5-2.1 s; the twins 1.4 s; the
+  obstacle registrations 2.5-2.7 s in the after warm run's loop), gated after them.
+- LEFT, OWED: (1) the garage boot's script promotion (build.js's promote inserts every inline script in one task: ~1.2-1.4
+  s, of which bench.js's benchInit -> genShakedown ~0.5 s and makeWorld ~0.2 s) - one script a task, the externals after
+  (today's execution order) is the cut; not done here (a timer an early script arms would run before later scripts exist).
+  (2) the editor's boot (openEditor -> CAGE_UI_BOOT: its first build's PAGE.post chain -> CAGE_ON_ROWS -> setExpert, ~2.0
+  s) - the editor's own internals. (3) THE ROLL-OUT'S COMPILE STEP IS ~35 s ON EVERY RUN, warm or cold, base or after:
+  the warm profile holds the shed's programs (its compile 1.9 s warm, 3.4-4.6 s cold) but not the world's. G584's
+  cache-size test (--chrome-flag --gpu-program-cache-size-kb=262144, now in the rig) was run ONCE (35.0 s): inconclusive,
+  it needs a write run and a read run under the flag - owed.
+  A settings change that re-keys the lit programs (shadows off) waits ~34 s on the same driver links - under a screen, the
+  page responsive (worst task 0.5-0.75 s). (4) A parked aeroplane that streams in IN FLIGHT is captured synchronously, as
+  before (two editor builds + the snapshot now, four before; not measured): an async batch there would show the foreign
+  shared block for a frame. (5) RASTER-ON's cost in the world step: even cooked everywhere (aa412fd9) the step is 11.4 s
+  (5 s before RASTER-ON) with two slices over 1 s - statements that sample terrainH en masse: the inner ring's 512^2
+  vertex loop (render_world ~:1648, top level: a yield every 16k vertices is possible), the premises' buildRoads
+  (heightAt), refreshGround (FARLOD.resink). The raster's read cost is the raster owner's; a slice can only cut between
+  statements.
+- GATES (targeted core list, the tree rebased on c116c322): 57 core gates (BOOT, UISMOKE, LOAD, PACE, GFX, PROGRAMS, PREMISES, PREMCOOK,
+  PREMRASTER, PARKED, VIEW, JOIN, WORLDRENDER, MEDIA, BUILD, FLIGHTREC, STAND, FADES, LIFE, ASSETS, TARR, DESIGN, ENERGY,
+  FRAMES, PANEL, SIMWORKER, WEATHER, INPUT, SKINMAT, FIN, BENCH, DEFAULT, SAVE, PLAYER, HONESTY, LINEUP, LIVERY, PARTS,
+  HINGE, LIGHT, CLOUD, FIT, STARTER, SPLAT, WATER, ATMO, CLIMATE, FOG, ANIMALS, ENGID, REF, AA, POSTFX, SKIN, SHADOWSKY,
+  SITE, PAVEMENT) on the commit rebased on f0bd9eaf: BATTERY PASS. Red on the way, mine and fixed: LIGHT and BENCH (source
+  scans of `function rollOut`), STARTER and LIVERY (scans of `function applySpec`'s body - it stayed there), UISMOKE (the
+  frames step returned a promise in the synchronous harness). The full tier was not run (merge train: the integrator's).
