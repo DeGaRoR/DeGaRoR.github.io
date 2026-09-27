@@ -60761,3 +60761,62 @@ SETTLE, SURF); UISMOKE and LOAD crashed natively (0xC0000005 / 0x80000003) with 
 alone. The full tier's known reds identical in verdict: PILOTMATRIX every cell the same X/~/ok (sink +-0.04 m/s, aim
 +-1 m, swing +-0.5 deg), SEAPLANE the same 3 (the lane 44.3 -> 47.2 m, bound 30), ARCHETYPES FAIL 2/4/4 + PASS per
 shard on the same lines, SOAR identical. The integrator's train runs --all on top of 03a62e4a.
+## G670-G673 - A2-FADES: THE GRASS GROWS, THE RING IS THERE BEFORE THE FADE OPENS, THE PROPELLER IS A DISC, THE STREAM RISES (2026-09-27)
+
+Playtest 2026-09-26 batch A, session A2-FADES (futureDesigns/PLAYTEST-2026-09-26.md §0.8 has the tables). The user:
+"transitions (fading or growing) for everything that appears or disappears", "the spinning prop contributes to the
+feeling of lag - replace with a textured disc, slightly animated, MSFS style".
+- G670 THE GROW (trees.js FADE_VS, cover_ring.js). The cover's distance/height threshold was a SWITCH (`aRand > _fk`
+  threw the instance off screen): every tuft, rock and shrub popped at the reach, and the whole field popped in and
+  out with the height term. It is now a SHRINK through a band: `_fg = clamp((_fk (1 + band) - aRand) / band)`, the
+  instance scaled about its own origin (its foot) BEFORE <project_vertex> (after the sway: the shear before the
+  shrink), whole at _fk 1 and gone at 0 as before. A cell planted in view GROWS in over `grow` (0.8 s) from its
+  birth: `aBorn`, an instanced attribute per block instance (the cell's birth, the moment a block first holds it);
+  a BatchedMesh has no per-instance attribute, so a near cell's (< growNear 140 m) batched rocks / debris / shrubs
+  are scaled on the CPU (setMatrixAt) for the same 0.8 s and end on exactly the planted matrices. TREE_LEAF.grow(now,
+  band, secs) carries the clock (s, performance.now). A cell planted while the ring is hidden is born -1e9 (no grow).
+  Dials: COVER_RING set({ grow, growNear }), TREE_LEAF.grow(null, band, secs).
+- G671 THE PRE-GROW AND THE LEAD (cover_ring.js update). Over aglOff (150 m) the ring was DROPPED and re-planted from
+  nothing on the way down, at 4 ms a frame nearest first. Below `aglPre` (260 m) it now keeps planting while hidden
+  (on `preBudgetMs` 2 ms: nothing is drawn, the fade holds every instance at 0); over aglPre it is dropped as before.
+  And the queue is ordered by the distance to where the eye will be in `lead` (4 s, at most 60 % of the reach ahead:
+  the eye's ground velocity, smoothed over 0.5 s; a jump resets it) - what the aeroplane flies toward first.
+- G672 THE PROPELLER'S DISC (prop_disc.js, new; app.js). Measured off the blades, never drawn by hand: the prop part's
+  meshes that reach past half its reach (the spinner stays) are rasterised down the shaft into a polar texture (256
+  angles x 64 radii): rgb the blades' colour per radius (a painted tip is its own ring), alpha gain x (swept coverage
+  x (1 - ghost) + the silhouette blurred +-22 deg x ghost) with a faint concentric streak - the mean round the circle
+  is the coverage, so the ghost blades never brighten the disc. An annulus child of the prop part (it rides the engine
+  node and G357's conjugation), MeshStandard, transparent, no depth write, no shadow; its texture counter-turns the
+  part's angle and drifts `drift` turns a second the engine's way (the ghosts turn slowly instead of strobing).
+  Crossover by the shaft's rpm: under rpmLo (150) the blades alone, over rpmHi (420) the disc alone (the blades
+  hidden), between them the disc's opacity grows with the blades still drawn. Its program is linked at the build
+  (compileAsync), not on the first frame of a start. Dials: PROP_DISC.S (on, rpmLo, rpmHi, ghost, blurDeg, gain,
+  maxA, drift, streak; gain 2.2 chosen on three frontal shots, PROP_DISC.rebake() re-bakes the live discs). The payload fleet's per-mesh props (not a group) keep their blades.
+- G673 THE RISE (render_premises.js). An item the STREAM builds after the roll-out (a house, a site item, a parked
+  aeroplane, a fence and its lot) rises out of the ground over 0.6 s (out-cubic). Only its DRAW is scaled: each mesh's
+  onBeforeRender multiplies its matrixWorld by the rise (y about the item's foot) and onAfterRender puts it back, so
+  the hit raster, the obstacle shapes, the merges, the far-town bake, the near registry's frozen spheres and the
+  shadow pass (three calls onBeforeShadow there, not onBeforeRender) all see the item as built; the hooks go when it
+  ends. The prewarm (under the roll-out screen) does not rise. NB: by construction the stream builds 4-6 km out, so
+  the rise matters when the stream lags the aeroplane; the LOD rungs (a house's props at 200 m, the far town's bake,
+  the parked aeroplanes' baked rungs) still switch - no per-object channel exists for a shared-material fade
+  without a program variant (a dither needs one); left for B.
+- TOOLS: tools/approach_eval.js (rollout_perf --eval: a 45 s descent onto the stand, 320 -> 12 m AGL at 50 m/s, the
+  ring's fill and the frames per height band); rollout_perf --shot-eval '<js>' (run before each shot: an orbit for
+  the propeller). (frame_perf's roll-out wait is A2-SHADOW-SKY's fix, on its branch.)
+- GATE FADES (core, new): the disc's analysis on two- and three-blade props with a painted tip, the crossover on the
+  vendor three, the app.js / build.js wiring; the shader's shrink order; the REAL ring on fake GL with a fake clock
+  (aBorn, the batched grow ends on the planted matrices, the pre-grow hidden, dropped over aglPre, the lead); the
+  premises' RISE lifted and run (the draw scaled, the matrix restored bit for bit, the hooks gone, the bench and the
+  prewarm untouched). GATE COVER holds the planted picture with grow 0.
+- MEASURED (PLAYTEST §0.8; cap pinned 60, warm, "before" = the built master from a clean detached worktree): the
+  approach (tools/approach_eval.js) - when the height term opens at 148 m the ring held 6 cells with 188 queued,
+  now 214 with 0 (planted 260 -> 246 m while hidden, 2.1 s at 1.5 ms a frame); frames per band equal within the
+  noise (260-150 m p90 21.8 -> 21.4 ms, 150-60 m 27.2 -> 26.6). Rollout taxi: stock loop 19.8 -> 19.5, render
+  11.4 -> 10.8 ms; alu 22.0 -> 21.5, 11.0 -> 11.0; 59.9 / 59.5 fps both. frame_perf: see §0.8.
+- TRAPS MET: three's Matrix4.elements is a plain Array (no .set; GATE FADES caught it). A "before" page made by
+  `git show HEAD:index.html` runs your NEW externally-loaded viewer files (render_premises.js is one): serve a clean
+  detached worktree. The shared GPU_BENCH.lock must be taken with noclobber (`set -C`), never `echo >`.
+- GATES (targeted, the merge train runs --all): FADES COVER STAND TREES TREE PROGRAMS GFX LIGHT UISMOKE BOOT BUILD
+  MEDIA WORLDRENDER PREMISES PREMRASTER TARR PARKED LIFE OBSTACLE SKIN SKINMAT RPM PROPS PACE FLIGHTREC SPLAT
+  PAVEMENT SITE HOUSE VILLAGE ANIMALS: PASS.
