@@ -678,6 +678,10 @@
   if (name === null) { try { name = localStorage.getItem('flydiy.world'); } catch (e) {} }
   if (!name) name = 'jolene';
   window.FLYDIY_WORLD = name;
+  // (G835) the ground raster's flag, for any world: read by makeWorld (20_world.js groundRasterFlag)
+  var rq = new URLSearchParams(location.search).get('raster');
+  if (rq === null) { try { rq = localStorage.getItem('flydiy.raster'); } catch (e) {} }
+  window.FLYDIY_GROUND_RASTER = rq === '1';
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either
@@ -718,6 +722,22 @@
         });
     })).then(function () {
       if (!(boot.far && boot.far.header && boot.far.topo && boot.far.payload)) boot.far = null;
+      // THE GROUND RASTER (G835, OFF BY DEFAULT): ?raster=1 (or localStorage flydiy.raster = '1') turns on the
+      // premises' composed-ground raster, and brings its COOKED cells (tools/premises_cook.js, named by
+      // src/core/premises_packs.json) onto the boot object; makeWorld loads those whose signature its own
+      // composition gives, the rest bake lazily. Off, nothing here is fetched. A cook that does not arrive is
+      // a lazy raster, never a failed boot.
+      if (!window.FLYDIY_GROUND_RASTER) return;
+      return fetch('src/core/premises_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }).then(function (PP) {
+        var pi = null; for (var q = 0; q < (PP.islands || []).length; q++) if (PP.islands[q].id === name) pi = PP.islands[q];
+        if (!pi || !pi.raster) return;
+        var cells = pi.raster.cells, got = [];
+        return Promise.all(cells.map(function (c) {
+          return fetch(c.src).then(function (res) { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
+            .then(gz).then(function (u) { got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u }); });
+        })).then(function () { boot.premCook = { raster: got }; });
+      }).catch(function (e) { console.warn('flyDiy: the cooked ground raster did not load (' + (e && e.message) + '); it bakes lazily'); });
+    }).then(function () {
       window.ISLAND_BOOT = boot;
     });
     })
@@ -733,15 +753,15 @@
 <script type="text/x-flydiy" src="src/core/08_cloud_field.js?v=1bac30f3"></script>
 <script type="text/x-flydiy" src="src/core/09_climate.js?v=3cbcc214"></script>
 <script type="text/x-flydiy" src="src/core/19_terrain_codec.js?v=5623ef46"></script>
-<script type="text/x-flydiy" src="src/core/20_world.js?v=87c2bd63"></script>
+<script type="text/x-flydiy" src="src/core/20_world.js?v=ee2b46dd"></script>
 <script type="text/x-flydiy" src="src/core/21_world_hydro.js?v=c5fff9b6"></script>
 <script type="text/x-flydiy" src="src/core/22_world_biomes.js?v=da7fb9a6"></script>
 <script type="text/x-flydiy" src="src/core/23_world_settle.js?v=f21f1179"></script>
 <script type="text/x-flydiy" src="src/core/24_world_aero.js?v=45484fdb"></script>
 <script type="text/x-flydiy" src="src/core/25_airfield.js?v=0ffcbef9"></script>
 <script type="text/x-flydiy" src="src/core/26_hangar_fit.js?v=ac99bed4"></script>
-<script type="text/x-flydiy" src="src/core/27_premises.js?v=0655e69e"></script>
-<script type="text/x-flydiy" src="src/core/28_island.js?v=83d3b89b"></script>
+<script type="text/x-flydiy" src="src/core/27_premises.js?v=eed84c2b"></script>
+<script type="text/x-flydiy" src="src/core/28_island.js?v=7f01dcbb"></script>
 <script type="text/x-flydiy" src="src/core/28b_ground_fields.js?v=c329f0d0"></script>
 <script type="text/x-flydiy" src="src/core/28c_biomes.js?v=f63c96b3"></script>
 <script type="text/x-flydiy" src="src/core/29_obstacles.js?v=16e49fcf"></script>
@@ -771,7 +791,7 @@
 <script type="text/x-flydiy" src="src/core/65_gen_loadtest.js?v=3b1e454e"></script>
 <script type="text/x-flydiy" src="src/core/70_player.js?v=492b9918"></script>
 <script type="text/x-flydiy" src="src/core/90_node_exports.js?v=d236c33c"></script>
-<script>window.FLYDIY_CORE_SHA='56b5ae9bc138';window.FLYDIY_BUILD='7d5e946f9fc4'</script>
+<script>window.FLYDIY_CORE_SHA='b6a71fe8e83e';window.FLYDIY_BUILD='bfa4b77f0adb'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>

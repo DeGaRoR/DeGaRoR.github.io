@@ -8972,6 +8972,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
   if (name === null) { try { name = localStorage.getItem('flydiy.world'); } catch (e) {} }
   if (!name) name = 'jolene';
   window.FLYDIY_WORLD = name;
+  // (G835) the ground raster's flag, for any world: read by makeWorld (20_world.js groundRasterFlag)
+  var rq = new URLSearchParams(location.search).get('raster');
+  if (rq === null) { try { rq = localStorage.getItem('flydiy.raster'); } catch (e) {} }
+  window.FLYDIY_GROUND_RASTER = rq === '1';
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either
@@ -9012,6 +9016,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
         });
     })).then(function () {
       if (!(boot.far && boot.far.header && boot.far.topo && boot.far.payload)) boot.far = null;
+      // THE GROUND RASTER (G835, OFF BY DEFAULT): ?raster=1 (or localStorage flydiy.raster = '1') turns on the
+      // premises' composed-ground raster, and brings its COOKED cells (tools/premises_cook.js, named by
+      // src/core/premises_packs.json) onto the boot object; makeWorld loads those whose signature its own
+      // composition gives, the rest bake lazily. Off, nothing here is fetched. A cook that does not arrive is
+      // a lazy raster, never a failed boot.
+      if (!window.FLYDIY_GROUND_RASTER) return;
+      return fetch('src/core/premises_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }).then(function (PP) {
+        var pi = null; for (var q = 0; q < (PP.islands || []).length; q++) if (PP.islands[q].id === name) pi = PP.islands[q];
+        if (!pi || !pi.raster) return;
+        var cells = pi.raster.cells, got = [];
+        return Promise.all(cells.map(function (c) {
+          return fetch(c.src).then(function (res) { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
+            .then(gz).then(function (u) { got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u }); });
+        })).then(function () { boot.premCook = { raster: got }; });
+      }).catch(function (e) { console.warn('flyDiy: the cooked ground raster did not load (' + (e && e.message) + '); it bakes lazily'); });
+    }).then(function () {
       window.ISLAND_BOOT = boot;
     });
     })
@@ -12279,6 +12299,10 @@ function makeWorld(seed, opts) {
     return { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null };
   }
   let ttypeUndo = null;
+  function groundRasterFlag() {
+    if (typeof window !== 'undefined' && window.FLYDIY_GROUND_RASTER !== undefined) return !!window.FLYDIY_GROUND_RASTER;
+    return typeof process !== 'undefined' && !!process.env && process.env.FLYDIY_GROUND_RASTER === '1';
+  }
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
@@ -12287,7 +12311,15 @@ function makeWorld(seed, opts) {
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
     const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
-    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: !!(opts && opts.groundRaster) }, extra || {}));   // G614: the height raster, opt-in (below)   // the renderer hands its builder (the cable's phase B) and the tree pool
+    // G614: the height raster, opt-in. G835 (the architecture queue's C2b): the flag also reads the environment -
+    // FLYDIY_GROUND_RASTER=1 in node, window.FLYDIY_GROUND_RASTER in the page (the island loader sets it from
+    // ?raster=1 or localStorage flydiy.raster) - and, when on, the island's COOKED raster cells (tools/
+    // premises_cook.js; the loader fetched them onto the boot object) are loaded: a cell whose signature is this
+    // composition's is read off the cook, the rest bake lazily as before. OFF BY DEFAULT: it moves flight
+    // numbers (the ground within 0.04 mm of the lattice, the lattice within G614's tolerance of the analytic)
+    const rasterOn = !!(opts && opts.groundRaster) || groundRasterFlag();
+    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: rasterOn }, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
+    if (PM.rasterLoad && ISL && ISL.premCook && ISL.premCook.raster && PM.raster.on) PM.rasterCooked = PM.rasterLoad(ISL.premCook.raster);
     PMrec = rec;
     // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
     // code into the island's own ttype grid, which the ground's packed texture, the
@@ -15843,7 +15875,10 @@ function bankFalloff(poly, T, level, least) {
 // the modifiers — each { bbox (with its falloff), apply(x, z, h) -> h }, in
 // the PREMISES frame, heights relative to y0 added back here
 // ---------------------------------------------------------------------------
-function makeModifier(m, y0) {
+// (G835) every modifier keeps the definition it was made from: the cooked raster's signature (compose, rasterSig)
+// hashes them, so a cook made from another record, another island or another composer never loads
+function makeModifier(m, y0) { const M = makeModifier0(m, y0); if (M) { M.def = m; M.y0 = y0; } return M; }
+function makeModifier0(m, y0) {
   const fall = Math.max(0.5, +m.falloff || 8);
   const weight = d => (d <= 0 ? 1 : d >= fall ? 0 : 1 - smf01(d / fall));
   if (m.kind === 'flatten' || m.kind === 'raise' || m.kind === 'ramp') {
@@ -16038,6 +16073,43 @@ function SpatialIndex(cell) {
     },
     size: () => cells.size,
   };
+}
+
+// THE COOKED RASTER'S BYTES (G835): one 256 m cell of G614's A / B tiles as tools/premises_cook.js writes it (the
+// file is one gzip stream; this is what is inside):
+//   'FDGR' | u8 version 1 | u8 0 x 3 | u32 tiles | u32 nodes
+//   | per tile 24 B: i32 i, i32 j, u8 n, u8 flags, u16 0, u32 first node, f64 b0
+//   | 8 byte planes of `nodes` bytes each: the u residuals' bytes 0-3, then the k residuals' bytes 0-3
+// A tile's (n + 1)^2 nodes, from its first: u = round((1 - A) 2^24) and k = round((B - b0) 2^15), each stored as its
+// residual off the 2-D predictor (left + up - up-left), zigzagged (byte planes: the high bytes are all but empty,
+// which is what the gzip is for). Decoded: A = 1 - u 2^-24 (0 and 1 exact), B = b0 + k 2^-15 (b0 exact: the tile's
+// commonest level under A = 0, its pad), and B = 0 exactly where A = 1 when flags bit 0 says every such node had it
+// (the ground itself).
+const GRQ_A = 16777216, GRQ_B = 32768;
+function rasterCellIndex(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  if (!(u8.length >= 16 && u8[0] === 70 && u8[1] === 68 && u8[2] === 71 && u8[3] === 82 && u8[4] === 1)) throw new Error('premises: not a cooked raster cell (FDGR v1)');
+  const n = dv.getUint32(8, true), nodes = dv.getUint32(12, true), base = 16 + 24 * n, at = new Map();
+  if (u8.length !== base + 8 * nodes) throw new Error('premises: a cooked raster cell of the wrong length');
+  for (let t = 0; t < n; t++) {
+    const o = 16 + t * 24, i = dv.getInt32(o, true), j = dv.getInt32(o + 4, true);
+    at.set(i * 131072 + j, { i, j, n: u8[o + 8], flags: u8[o + 9], first: dv.getUint32(o + 12, true), b0: dv.getFloat64(o + 16, true) });
+  }
+  return { u8, at, tiles: n, nodes, base };
+}
+function rasterTileDecode(C, e) {
+  const u8 = C.u8, n = e.n, N = n + 1, NN = N * N, A = new Float64Array(NN), B = new Float64Array(NN), qu = new Int32Array(NN), qk = new Int32Array(NN);
+  const plane = (q, p0) => {
+    const b0 = C.base + p0 * C.nodes + e.first, b1 = b0 + C.nodes, b2 = b1 + C.nodes, b3 = b2 + C.nodes;
+    for (let j = 0, k = 0; j < N; j++) for (let i = 0; i < N; i++, k++) {
+      const v = (u8[b0 + k] | (u8[b1 + k] << 8) | (u8[b2 + k] << 16) | (u8[b3 + k] << 24)) >>> 0;
+      q[k] = ((v & 1) ? -(v + 1) / 2 : v / 2) + (i && j ? q[k - 1] + q[k - N] - q[k - N - 1] : i ? q[k - 1] : j ? q[k - N] : 0);
+    }
+  };
+  plane(qu, 0); plane(qk, 4);
+  const a1b0 = e.flags & 1;
+  for (let k = 0; k < NN; k++) { A[k] = 1 - qu[k] / GRQ_A; B[k] = (a1b0 && qu[k] === 0) ? 0 : (qk[k] === 0 ? e.b0 : e.b0 + qk[k] / GRQ_B); }
+  return { x0: e.i * 16, z0: e.j * 16, r: 16 / n, n, N, A, B };
 }
 
 // ---------------------------------------------------------------------------
@@ -16946,11 +17018,11 @@ function compose(rec0, world, opts) {
   // keeps the analytic path. GATE PREMRASTER holds the agreement.
   const GR_TS = 16, GR_CAP = 48 * 1024 * 1024, GR_TOL = 0.01, GR_RELIEF = 2;
   const grOn = o.raster !== false && mods.length > 0;
-  const grTiles = new Map(), grStats = { baked: 0, empty: 0, evicted: 0, bytes: 0, bakeMs: 0, rMin: Infinity, rMax: 0 };
+  const grTiles = new Map(), grStats = { baked: 0, empty: 0, evicted: 0, bytes: 0, bakeMs: 0, rMin: Infinity, rMax: 0, decoded: 0, decodeMs: 0 };
   let grRmax = 0;
   const grKey = (i, j) => i * 131072 + j;
   const grNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
-  function grBake(ti, tj) {
+  function grBake(ti, tj, quiet) {
     const x0 = ti * GR_TS, z0 = tj * GR_TS, x1 = x0 + GR_TS, z1 = z0 + GR_TS;
     const hit = [], seen = new Set();
     index.rect(x0, z0, x1, z1, M => {
@@ -16960,7 +17032,7 @@ function compose(rec0, world, opts) {
       if (M.touches && !M.touches(x0, z0, x1, z1)) return;
       hit.push(M);
     });
-    if (!hit.length) { grStats.empty++; return null; }
+    if (!hit.length) { if (!quiet) grStats.empty++; return null; }
     const t0 = grNow();
     hit.sort((a, b) => a.ord - b.ord);
     let fe = Infinity; for (const M of hit) fe = Math.min(fe, M.feather > 0 ? M.feather : 1);
@@ -16990,6 +17062,7 @@ function compose(rec0, world, opts) {
       if (!bad) break;
       n *= 2;
     }
+    if (quiet) return { x0, z0, r, n, N, A, B };                      // (G835) the cook's walk: no stats, no cache
     if (r > grRmax) grRmax = r;
     grStats.baked++; grStats.bytes += 16 * N * N; grStats.bakeMs += grNow() - t0;
     grStats.rMin = Math.min(grStats.rMin, r); grStats.rMax = Math.max(grStats.rMax, r); grStats['n' + n] = (grStats['n' + n] || 0) + 1;
@@ -17004,7 +17077,7 @@ function compose(rec0, world, opts) {
   function grHeight(lx, lz, h) {
     const ti = Math.floor(lx / GR_TS), tj = Math.floor(lz / GR_TS), k = grKey(ti, tj);
     let T = grTiles.get(k);
-    if (T === undefined) { T = grBake(ti, tj); grTiles.set(k, T); }
+    if (T === undefined) { T = grCooked(ti, tj); if (T === undefined) T = grBake(ti, tj); grTiles.set(k, T); }
     if (T === null) return h;
     const u = (lx - T.x0) / T.r, v = (lz - T.z0) / T.r;
     let i = Math.floor(u), j = Math.floor(v);
@@ -17014,6 +17087,101 @@ function compose(rec0, world, opts) {
     const a0 = A[q] + (A[q + 1] - A[q]) * fu, a1 = A[q + N] + (A[q + N + 1] - A[q + N]) * fu;
     const b0 = B[q] + (B[q + 1] - B[q]) * fu, b1 = B[q + N] + (B[q + N + 1] - B[q + N]) * fu;
     return (a0 + (a1 - a0) * fv) * h + (b0 + (b1 - b0) * fv);
+  }
+  // THE COOKED RASTER (G835, the architecture queue's C2b): the same tiles, baked OFFLINE by tools/premises_cook.js
+  // per 256 m cell of the premises frame (GR_CELL: 16 x 16 tiles) and handed back by rasterLoad. A cell carries a
+  // SIGNATURE of what its tiles were baked from (rasterCellSig: the frame, the definition of every modifier that
+  // reaches the cell, in the order they apply, what each answers at five points - the composer's code, not only
+  // its inputs - and the base ground at the cell's corners - the island) and loads only onto a composition that
+  // gives the same one: an edit, a dropped town or a changed composer re-bakes lazily the cells it moved and no
+  // others. The bytes are quantized (rasterCellDecode: 1 - A in 2^-24, B in 2^-15 m from the tile's own level;
+  // the ground itself and the tile's pad exact) - a cooked tile is the lazy tile to 0.04 mm at 600 m, and the
+  // ceiling (hMaxRect) is widened by GR_COOK_EPS while a cook is loaded. A cooked tile is decoded the first time
+  // it is asked for, into the same capped cache as a baked one (a decode is ~0.05 ms, a bake 1-1.6); a tile a
+  // loaded cell does not list is the ground itself.
+  const GR_V = 1, GR_CELL = 16, GR_COOK_EPS = 1e-4;   // GR_V: bump with any change to grBake's arithmetic or its constants
+  let grCook = null, grModH = null;
+  const grCellKey = (ci, cj) => ci * 131072 + cj;
+  const num = v => (typeof v === 'number' ? (Object.is(v, -0) ? '-0' : String(v)) : JSON.stringify(v === undefined ? null : v));
+  const h64 = t => { let a = 0x811c9dc5, b = 0x6c62272e; for (let i = 0; i < t.length; i++) { const c = t.charCodeAt(i); a = Math.imul(a ^ c, 0x01000193); b = Math.imul(b ^ c, 0x5bd1e995); b ^= b >>> 15; } return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0'); };
+  function modHash(M) {
+    if (!grModH) grModH = new Map();
+    let h = grModH.get(M);
+    if (h) return h;
+    const b = M.bbox, parts = [M.kind, M.id, num(M.feather), num(M.y0), JSON.stringify(M.def || null), num(b.x0), num(b.z0), num(b.x1), num(b.z1)];
+    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
+    for (const [x, z] of [[cx, cz], [b.x0, b.z0], [b.x1, b.z1], [(cx + b.x0) / 2, (cz + b.z1) / 2], [(cx + b.x1) / 2, (cz + b.z0) / 2]])
+      parts.push(num(M.apply(x, z, 0)), num(M.apply(x, z, 1)));
+    h = h64(parts.join('|'));
+    grModH.set(M, h);
+    return h;
+  }
+  // the modifiers that can reach a cell's tiles, in the order they are listed (the order grBake applies them in)
+  function cellMods(ci, cj) {
+    const S = GR_TS * GR_CELL, x0 = ci * S, z0 = cj * S, x1 = x0 + S, z1 = z0 + S, seen = new Set();
+    index.rect(x0, z0, x1, z1, M => {
+      if (seen.has(M)) return;
+      const b = M.bbox;
+      if (x1 < b.x0 || x0 > b.x1 || z1 < b.z0 || z0 > b.z1) return;
+      if (M.touches && !M.touches(x0, z0, x1, z1)) return;
+      seen.add(M);
+    });
+    return mods.filter(M => seen.has(M));
+  }
+  function rasterCellSig(ci, cj) {
+    const S = GR_TS * GR_CELL, x0 = ci * S, z0 = cj * S;
+    const parts = ['GR', GR_V, GR_TS, GR_TOL, GR_RELIEF, GR_CELL, F.anchor.x, F.anchor.z, F.yaw, F.c, F.s, F.y0, ci, cj].map(num);
+    for (const M of cellMods(ci, cj)) parts.push(modHash(M));
+    for (const [x, z] of [[x0, z0], [x0 + S, z0], [x0, z0 + S], [x0 + S, z0 + S], [x0 + S / 2, z0 + S / 2]]) { const w = F.toWorld(x, z); parts.push(num(world.terrainH(w[0], w[1]))); }
+    return 'g' + GR_V + '-' + h64(parts.join('|'));
+  }
+  // every tile a modifier touches, in (i, j) order, baked fresh (not cached): fn(i, j, tile) - the cook's walk;
+  // keep(i, j), when given, says before the bake which tiles are wanted
+  function rasterEach(fn, keep) {
+    const keys = new Set();
+    for (const M of mods) {
+      const b = M.bbox;
+      for (let i = Math.floor(b.x0 / GR_TS) - 1, i1 = Math.floor(b.x1 / GR_TS); i <= i1; i++)
+        for (let j = Math.floor(b.z0 / GR_TS) - 1, j1 = Math.floor(b.z1 / GR_TS); j <= j1; j++) {
+          if (M.touches && !M.touches(i * GR_TS, j * GR_TS, i * GR_TS + GR_TS, j * GR_TS + GR_TS)) continue;
+          keys.add(grKey(i, j));
+        }
+    }
+    const list = Array.from(keys, k => { const i = Math.round(k / 131072); return [i, k - i * 131072]; }).sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
+    let n = 0;
+    for (const [i, j] of list) { if (keep && !keep(i, j)) continue; const T = grBake(i, j, true); if (T) { fn(i, j, T); n++; } }
+    return n;
+  }
+  // cells: [{ ci, cj, sig, bytes }] (bytes: one cell after the gunzip, any number of variants' cells) ->
+  // { taken, stale }: a cell whose signature is this composition's is taken, the others are left to the lazy bake
+  function rasterLoad(cells) {
+    if (!grOn || !cells) return { taken: 0, stale: 0 };
+    const M = new Map(), have = new Map();
+    let stale = 0;
+    for (const c of cells) {
+      const k = grCellKey(c.ci, c.cj);
+      if (M.has(k)) continue;
+      let sig = have.get(k);
+      if (sig === undefined) { sig = rasterCellSig(c.ci, c.cj); have.set(k, sig); }
+      if (c.sig !== sig) { stale++; continue; }
+      M.set(k, rasterCellIndex(c.bytes));
+    }
+    // a loaded cell's cached tiles were the lazy bake's: they go, so every read under it is the cook's
+    for (const [k, T] of grTiles) { const i = Math.round(k / 131072), j = k - i * 131072; if (M.has(grCellKey(Math.floor(i / GR_CELL), Math.floor(j / GR_CELL)))) { grTiles.delete(k); if (T) grStats.bytes -= 16 * T.N * T.N; } }
+    grCook = M.size ? M : null;
+    return { taken: M.size, stale };
+  }
+  function grCooked(ti, tj) {
+    if (!grCook) return undefined;
+    const C = grCook.get(grCellKey(Math.floor(ti / GR_CELL), Math.floor(tj / GR_CELL)));
+    if (!C) return undefined;
+    const e = C.at.get(grKey(ti, tj));
+    if (!e) return null;                                                // the cell lists every tile a modifier touches
+    const t0 = grNow(), T = rasterTileDecode(C, e);
+    grStats.decoded++; grStats.decodeMs += grNow() - t0; grStats.bytes += 16 * T.N * T.N;
+    if (T.r > grRmax) grRmax = T.r;
+    while (grStats.bytes > GR_CAP) { let gone = false; for (const [k2, T2] of grTiles) { if (T2) { grTiles.delete(k2); grStats.bytes -= 16 * T2.N * T2.N; grStats.evicted++; gone = true; break; } } if (!gone) break; }
+    return T;
   }
   // THE SURFACE, INDEXED (G614, exact - the A0 ring: every forest lattice point asks world.surface, and this scan
   // of every surface polygon and every road was a third of it): 64 m cells, each holding the surface polygons
@@ -17119,7 +17287,10 @@ function compose(rec0, world, opts) {
       if (!index.query(lx, lz)) return h;
       return grHeight(lx, lz, h);
     },
-    get raster() { return grOn ? { on: true, tile: GR_TS, cap: GR_CAP, tiles: grTiles.size, ...grStats, rMaxBaked: grRmax } : { on: false }; },
+    get raster() { return grOn ? { on: true, tile: GR_TS, cap: GR_CAP, tiles: grTiles.size, ...grStats, rMaxBaked: grRmax, cookedCells: grCook ? grCook.size : 0 } : { on: false }; },
+    // (G835) the cooked raster: a cell's signature, the cook's walk, the load
+    rasterCellSig, rasterEach, rasterLoad, rasterCell: GR_TS * GR_CELL, rasterTile: GR_TS,
+    rasterCached: () => Array.from(grTiles, ([k, T]) => { const i = Math.round(k / 131072); return [i, k - i * 131072, T ? T.n : 0]; }),   // [i, j, n (0: the ground)] - what the cache holds (a probe's)
     // THE CEILING OVER A WORLD RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH(x, z, h)
     // for every point of it, given B >= h there. Each modifier blends h toward its target with a
     // weight in [0, 1] (a raise adds at most dh), whatever the order: max(B, every target) + the
@@ -17151,7 +17322,7 @@ function compose(rec0, world, opts) {
         if (r.t > T) T = r.t;
         add += r.add;
       }
-      return T + add + (grOn ? 1e-7 : 0);                  // (G614: the lattice's bilinear rounding, 100 nm)
+      return T + add + (grOn ? 1e-7 : 0) + (grCook ? GR_COOK_EPS : 0);   // (G614: the lattice's bilinear rounding, 100 nm; G835: a cook's quantization)
     },
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),
     // the composed ground in the PREMISES frame
@@ -17764,7 +17935,7 @@ const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, 
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
-  frameOf, compose, issues, checks, bake, curvTol, collect };
+  frameOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself
@@ -17888,6 +18059,9 @@ var ISLAND_GEN = (function () {
       canopyP90: (g.layers && g.layers.canopy && g.layers.canopy.p90OverTreeCover) || 15,
       grid: { w: W, h: Hn, cell, x0: gx0, z0: gz0 },
       header: H, root,
+      // (G835) the premises' cooked data the loader fetched for this island (tools/premises_cook.js), or null:
+      // today its raster cells, read by makeWorld's setPremises when the ground raster is on
+      premCook: src.premCook || null,
     };
   }
 
@@ -41020,7 +41194,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='56b5ae9bc138';window.FLYDIY_BUILD='7d5e946f9fc4'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b6a71fe8e83e';window.FLYDIY_BUILD='bfa4b77f0adb'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
