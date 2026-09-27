@@ -7,7 +7,7 @@ const MODEL_PA18 = (() => {
   const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
   return { v:5, bb:[-3.4959,-1.3516,-5.3566,3.4291,1.3478,5.3566], hub:[-3.371,-0.0705,0],
   surfaces:[{name:"aileronG",drive:"da",sgn:-1,k:1,p:[-0.718,0.62,0],ax:[0,0,1],ramp:null},{name:"aileronD",drive:"da",sgn:1,k:1,p:[-0.718,0.62,0],ax:[0,0,1],ramp:null},{name:"profondeur",drive:"de",sgn:1,k:1,p:[2.834,0.292,0],ax:[0,0,1],ramp:null},{name:"direction",drive:"dr",sgn:-1,k:1,p:[2.905,0,0],ax:[0,1,0],ramp:[2.85,2.95]},{name:"roueA",drive:"dr",sgn:-1,k:0.5,p:[3.14,-0.1,0],ax:[0,1,0],ramp:null},{name:"voletG",drive:"flap",sgn:-1,k:0.87,p:[-0.824,0.592,0],ax:[0,0,1],ramp:null},{name:"voletD",drive:"flap",sgn:-1,k:0.87,p:[-0.824,0.592,0],ax:[0,0,1],ramp:null}],
-  bin:B+"media/geo/models/pa18.5cd30285.bin",
+  bin:B+"media/geo/models/pa18.5cd30285.gz.bin",
   mats:{skin:{tex:"skin"},glass:{opacity:0.28,color:0xaad4ea},cabin:{tex:"cabin"},seat:{tex:"seat"},panel:{tex:"panel"},ai:{tex:"ai"},asi:{tex:"asi"},alt:{tex:"alt"},turn:{tex:"turn"},hdg:{tex:"hdg"},vsi:{tex:"vsi"},covers:{opacity:0.15}},
   texs:{skin:B+"media/tex/models/pa18/skin.cd0eab0d.jpg",
     cabin:B+"media/tex/models/pa18/cabin.4aeaa281.jpg",
