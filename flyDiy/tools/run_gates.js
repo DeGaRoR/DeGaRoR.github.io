@@ -182,6 +182,10 @@ const GATES = [
   // fold by content. The flat check needs python + Pillow and is skipped (never failed) without.
   // ~2 s + ~13 s of PIL decode. Carries --selftest.
   { id: 'ASSETS', file: '_asset_check.js', tier: 'core', wall: 20 },
+  // the geometry transport (G930, AS5a): every media/geo bin ONE gzip stream,
+  // decoded, re-hashed against its name, its layout against every manifest
+  // that names it. ~2 s. Negative-verified (its selftest runs every time).
+  { id: 'GEO', file: '_geo_check.js', tier: 'core' },
   // THE SPLAT (TERRAIN FOLLOW-UP 3, 2026-09-21): RECIPE's shape, the manifest against the
   // store, the shader's ANGLE rules in node; --gpu (by hand) adds the sampler census and the fxc probe
   { id: 'SPLAT', file: '_splat_check.js', tier: 'core' },
