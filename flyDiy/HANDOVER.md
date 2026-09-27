@@ -61435,3 +61435,149 @@ stop, powered (cub A3's 4 m/s); (2) the trike flare cap (c172); (3) the approach
 PASS: every core gate but PAVEMENT; SOAR, HOTHIGH; PILOT, PILOTACT. FAIL: ARCHETYPES (the five above - the five G620 read on 3da1c82a), PILOTMATRIX
 (the ten above: 3da1c82a's nine + the stearman's, G630's), SEAPLANE (the three above, 3da1c82a's); PAVEMENT's "100 000 coverAt
 calls in 2050 ms" (a wall-clock bound under the load) - `--only=PAVEMENT` alone: PASS.
+
+## G760 - THE RAILS, CLEANED UP AND GROUPED: five items, folding sections, DEV behind a toggle, the test mode without physics (2026-09-27, B5 of the Jolene playtest plan, cloud)
+
+The user: "The rails are overdue a cleanup and grouping phase. The graphics option is too long and lacks structure,
+engine options have nothing to do there anymore, weather and clouds should probably fit under a same umbrella, UI
+options should be grouped under an umbrella as well, we should have collapsable sections for the options
+sub-categories, and not much more than 4-6 rail items. The world editor does not belong there, and we need UI for the
+test mode without physics ... These are mostly developer tools, but they should be properly accessible still."
+Implemented as futureDesigns/PLAYTEST-2026-09-26.md §3 proposed. Built on claude/batch-a-base 5d55dbf, rebased on
+5666f3a (G780-G930 landed meanwhile; only test_ui_smoke.js overlapped - G930's readGeo - and merged clean).
+
+**THE FLIGHT RAIL** (app.js FL_RAIL): fourteen items became FIVE - FLY, VIEW, SKY & WORLD, GRAPHICS, and DEV, which is
+OFF the rail until the small `dev ›` toggle at the rail's foot is pressed (pref `flydiy.flDev`; it reads `hide dev`
+while on) and SHOWS ITSELF in the test mode (its way out). Every flyout is a list of FOLDS (`flSection`): a head that
+is a button (the name, a line under it, a caret), the body built only when unfolded. The folds are REMEMBERED in
+`flydiy.flSec` - one pref for both rails, read through on every build (the shed writes it too) with a page-local copy
+under it so a browser that keeps nothing still folds; the first fold of each item starts open (route, camera, time &
+night, performance, test mode). A pick or a fold rebuilds the flyout IN PLACE (its scroll kept).
+- A SECTION IS ONE OF THE OLD ITEMS: its row in `FL_SECS` (k / label / title as they were, + `head` / `sub`) and its
+  builder in `FL_BUILD`, unchanged - so each control is reached the same way, one fold deeper. `FL_SEC_BUILD` is the
+  two sections that are more than one builder (route = slot_route; weather = air + weather).
+- AN OLD ITEM'S NAME STILL OPENS IT: `flyOpenSet('clouds')` opens SKY & WORLD with the clouds unfolded and scrolled to.
+  That keeps the shared panels' doors (day_ui / weather_ui's "the clouds..." pill calls `open('clouds')`) and every
+  state refresh (the camera after a click on the world, the controls after A, the instruments after the PFD's fold,
+  the head-look pills) working without knowing the rail moved - those refreshes now test `flShown.has('camera')`
+  etc. (`flShown`: the sections BUILT in the open flyout), and so do the live rows (the air, the weather, the ground,
+  the engines' thrust, the frame rate).
+- `window.FLYDIY_RAIL`: `items()`, `home(k)`, `open(k)` (an item, a section or an old name; null closes),
+  `current()`, `shown()`, `dev(on?)`, `census(k)` (the item built with every fold open, nothing saved, its rows / pills
+  / sections / errors listed - GATE UISMOKE's walk). The shot rigs (cloud_shot, panel_shot, postfx_shot, water_shot)
+  open the camera by name through it; cloud_shot's `--ui <name>` takes an item, a section or an old name.
+
+**EVERY CONTROL, OLD PLACE -> NEW PLACE** (flight rail unless said):
+
+    camera                         -> VIEW > camera (framing pills, head look, field of view, level horizon, lead the
+                                      turn, smoothing); its COVERING pills -> DEV > overlays; its `screenshot` -> VIEW > screen
+    instruments                    -> VIEW > instruments
+    map                            -> VIEW > map
+    trace                          -> VIEW > trace
+    air (live: OAT, density alt,   -> SKY & WORLD > weather, at its head ("the air now")
+      wind, gusts, time of day)
+    start                          -> FLY > start
+    patterns                       -> FLY > patterns
+    engines                        -> FLY > engines
+    controls                       -> FLY > controls
+    night (the day panel, the      -> SKY & WORLD > time & night
+      aeroplane's lights, the world's)
+    weather                        -> SKY & WORLD > weather
+    clouds                         -> SKY & WORLD > clouds
+    ground (live readout)          -> SKY & WORLD > ground & map
+    graphics                       -> GRAPHICS, in seven folds (below); from it:
+      `frame rate` (live)          -> VIEW > screen
+      `fps meter` (G620)           -> VIEW > screen
+      `flight log` (save log,      -> DEV > flight log
+        previous session)
+      `world` (the map, reloads)   -> SKY & WORLD > ground & map (GFX.mountWorld)
+      storage / refresh caches     -> GRAPHICS > performance (at its foot, with the notes and the frame readout)
+    FL_BUILD.world (the premises   -> DEV > world editor (open / close the scenery editor, clear the saved premises),
+      editor; reached by name)        + the WORLD rail's switch (F9); its duplicate map row dropped (SKY & WORLD has it)
+    top bar slots (aeroplane,      -> unchanged; the route's two selects also in FLY > route & circuit (borrowed, as
+      pilot, route, day)              the slot borrows them - #selFrom / #selDest stay the one state)
+    WORLD rail > SCENERY: the      -> DEV > world editor
+      scenery editor
+    WORLD rail > SCENERY: the      -> DEV > test mode (enter / leave, the free camera's speed)
+      scenery mode
+    WORLD rail > SCENERY: the air  -> stay, the section renamed `air & map` (a card points to DEV, with a button)
+      while you work, the maps
+    SHED rail `clouds`             -> SHED `night` > clouds (the item's button still wears the mood's name, G136)
+    SHED `night`                   -> SHED `night` > time & weather (the day panel + the weather), the light in the
+                                      shed (the borrowed lights / world lights / ground bounce), map (new there)
+    SHED `graphics`                -> the same seven folds; its map row -> SHED `night` > map
+
+KEYS UNCHANGED: F8 (the developer panel - also DEV > overlays), F9 (the WORLD rail - also DEV > world editor), Esc,
+C, A, L and the flight keys; nothing new is bound. `?scenery=1` still starts in the test mode.
+
+**GRAPHICS - the seven groups** (gfx_settings.js `GROUPS`; the host's folds when it passes `H.section`, keyed
+`gfx.<k>`; without it the menu is the one flat list it was, byte for byte in its rows):
+
+    performance           the preset, frame rate, render scale, anti-aliasing, draw distance (+ the frame readout,
+                          the notes, storage)
+    light & shadows       shadows, forest floor, lighting, exposure, tone curve, compositing, colour management
+    terrain & vegetation  terrain detail, ground blend, forest density, forest detail, wind sway, ground cover
+    water                 water, reflections
+    sky                   clouds, mist, sun glare
+    post-fx               bloom, look, lens, sun rays, ambient occlusion, auto exposure
+    town                  towns, town detail, guardrails, power lines
+
+"ENGINE OPTIONS HAVE NOTHING TO DO THERE ANYMORE": the GRAPHICS menu carried no engine row in the source (OPTIONS has
+none); read with §3 ("Engines leave this panel") as the ENGINES item standing on the same flat rail as the graphics -
+it is FLY > engines now, next to the controls. If the user meant something else in the menu, it is still to find.
+"UNITS": the proposal's VIEW > UI options named units; there is no units switch anywhere (km/h, m, m/s throughout) -
+VIEW > screen says so in its note; a units option is not built.
+
+**THE TEST MODE WITHOUT PHYSICS** is the G582 scenery mode (`SCENERY.enter()` / `leave()`, unchanged but for telling
+the rail): DEV > test mode shows `physics: running / held`, one pill `enter the test mode` / `leave the test mode`,
+and, while on, the free camera's speed. DEV shows itself while the mode is on; body.sceneryMode hides the flight chrome
+but not the rail.
+
+**THE SHED'S RAIL** (editor.js RAIL / openFly, where it mounts the same panels): `clouds` folded into `night` (7 items:
+camera, display, night, explode, controls, graphics, legend - the three that are the shed's own and GATE VIEW's
+display / explode rows stay as they were); `edSection` is flSection in the shed's words, same pref; ED_HOME routes
+`clouds` to `night`; the flyout head is short (`head`) where the tooltip says more. The flyout's `.note` had no rule
+in the shed and came out at the page's 16 px (the graphics readout, the day / clouds notes): it has the flight
+flyout's note style now.
+
+GATES
+- UISMOKE (extended): gfx_settings.js runs in the sandbox (a no-op window rAF / setInterval; the loop's own rAF
+  untouched), the recorder's two rows stubbed without `attach` (so the loop's hooks stay off). THE RAILS: the items are
+  fly, view, sky, graphics, dev (4 main, DEV off by default); every old item and new section has a home; each item's
+  census builds with no section throwing, exactly its declared folds, and reaches a named list of its controls (the
+  fourteen old items' rows and pills, the moved ones); EVERY ROW AND PILL THE FLAT GRAPHICS MENU MOUNTS (36 rows, 107
+  pills here) IS REACHED THROUGH THE RAIL; clouds / camera / engines / air / world open their new homes unfolded;
+  opening a DEV section by name shows DEV; the TEST MODE entered from DEV holds the solver (the CG moves 0 over 60
+  frames) and offers `leave the test mode`; the shed's table has no clouds item, routes it to night and mounts the
+  graphics in folds; F8 / F9 still in dev_panel.js / world_rail.js; the census itself saves nothing (DEV is still off
+  after it - the first cut's census of DEV put DEV on through flyOpenSet's "asked for by name", caught on a re-read). The THREE stub's camera and vector grew what the
+  free camera uses (getWorldDirection, add, addScaledVector); `performance` is lent for the test mode only.
+- GFX 7 (new): the 32 options of the base (5d55dbf) are all still options; each in exactly one group; the groups are
+  §3's seven in its order; NO ROW LOST - the rows (37) and pills (108) the menu mounts flat equal the rows and pills it
+  mounts grouped + the map, the meter and the log the hosts now place. Mutation-checked: `mist` dropped from `sky`
+  fails all three (in none; 37 -> 36 rows; 108 -> 104 pills).
+- CLOUD, CLIMATE: their text pins follow the new wiring (the shed's night folds; the weather's live rows on
+  `flShown.has('weather')`).
+- THE BATTERY (`node tools/run_gates.js --all`, this container, 4 cores, jobs 4, the tree of c20e85f, wall 3 587 s):
+  127 PASS - every core gate (UISMOKE 137 s, GFX, VIEW, CLOUD, CLIMATE, FLIGHTREC, BOOT, WORLDRENDER, MEDIA, ASSETS, GEO,
+  PREMISES ...) and HOTHIGH, SOAR; FULL TIER RED, the three G780 bisected and left to the flight sessions (FLIGHT-1 /
+  FLIGHT-2), count for count: ARCHETYPES (Caravan-, Tiger Moth-, Beaver-alike, Motorglider, Twin bush hauler give up
+  their circuits: 2 + 4 + 4 checks over the shards), PILOTMATRIX (10 regressed against pilot_baseline.json), SEAPLANE
+  (3: not off the water in 25 s, 47.2 m off the lane, 180 deg swing). NOT THIS BRANCH'S: tools/flight_core.js built from
+  it is byte-identical to the base's, and none of the three gates reads a file G760 touched (they require
+  flight_core.js, _cage_design.js, _cage_join.js, _tail_headless.js, _shard.js). Built outputs restored, not committed.
+
+SEEN IN A BROWSER (headless Chromium 141 on this box through Playwright, index.html?world=none, a fresh profile, the
+G585 rig: draws stubbed; on 872dd60's tree - c20e85f's census fix and the shed's short head came after, gated only): the shed's rail `camera display night explode controls graphics legend`, night's folds
+time & weather (open) / clouds / the light in the shed (open) / map, graphics' seven with performance open; rolled
+out: the flight rail `fly view sky graphics` + DEV hidden + the toggle; each flyout's folds with the first open;
+unfolding post-fx and light & shadows kept the scroll (200) and wrote `{"gfx.post":true,"gfx.light":true}`; the
+toggle showed DEV (test mode open, world editor / flight log / overlays folded); `enter the test mode` -> SCENERY.on,
+body.sceneryMode, the CG moved 0.0000 m over 3 s, the WORLD rail opened, `leave the test mode` -> back; `open('clouds')`
+-> SKY & WORLD, the clouds fold unfolded and scrolled to its head. No page error (the impostor bake's "sheet EMPTY"
+lines are the stubbed draws). NOT SEEN: a real GPU frame, Jolene's island rows (the ground readout, the WORLD rail's
+sections) - the analytic world has none; the phone layout (<760 px: the rail's buttons are 44 px wide and the two-word
+label wraps).
+
+OWED / NOT DONE: a units option (none exists); the shed rail is 7 items (its own four - camera, display, explode,
+legend - were not the ask); a look on the user's screen at the fold density (the heads' `sub` lines may want to go).
