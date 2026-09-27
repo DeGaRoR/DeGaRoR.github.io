@@ -312,14 +312,17 @@ var SHADOW_NEAR = (function () {
     _c1.set(cg[0], cg[1], cg[2]);
     if (snap) snap(_c1, Hh, S.size);
     C1.tgt.copy(_c1); C1.pos.set(_c1.x + sun.x * reach, _c1.y + sun.y * reach, _c1.z + sun.z * reach);
-    const far = Math.max(reach + 2 * Hh + 10, reach + slant + S.relief / sy);
+    // the window: from the light to just past the craft's own ground shadow (the CG's slant + the craft's sphere and a
+    // 10 m relief + half the height, along the sun) - the cascade's FAR PLANE too, so its draw culls to what can matter
+    // (the 330 m column drew every near caster along the sun: +1.2 ms at the stand with the walk unpruned); the lookup's
+    // z window (uNearQ) is the same range, in the cascade's shadow-coordinate z - three's ortho z, biased as its matrix does
+    C1.dir.set(sun.x, sun.y, sun.z);
+    const dB = reach + slant + (S.craftR + S.windowRelief + 0.5 * Math.max(0, slant * sy)) / sy;
+    const far = Math.max(reach + 2 * Hh + 10, dB);
     if (cam.right !== Hh || Math.abs(cam.far - far) > 0.05 * far) {
       cam.left = -Hh; cam.right = Hh; cam.top = Hh; cam.bottom = -Hh; cam.near = 1; cam.far = far; cam.updateProjectionMatrix();
     }
-    // the window: from the light to just past the craft's own ground shadow (the CG's slant + the craft's sphere and a
-    // 10 m relief, both along the sun), in the cascade's shadow-coordinate z - three's ortho z, biased as its matrix does
-    C1.dir.set(sun.x, sun.y, sun.z);
-    C1.dB = Math.min(cam.far, reach + slant + (S.craftR + S.windowRelief + 0.5 * Math.max(0, slant * sy)) / sy);
+    C1.dB = Math.min(cam.far, dB);
     const e = cam.projectionMatrix.elements, zOf = d => { const z = -e[10] * d + e[14]; return cam._reversedDepth ? z : z * 0.5 + 0.5; };
     const zA = zOf(cam.near), zB = zOf(C1.dB);
     nearWindow[0] = Math.min(zA, zB) - 1e-4; nearWindow[1] = Math.max(zA, zB) + 1e-4;
