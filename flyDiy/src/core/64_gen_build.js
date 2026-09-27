@@ -215,23 +215,55 @@ function genTrim(def) {
     // change a builder would make — LAND IT FLAPLESS, at the clean-stall
     // approach speed — and if that does not fit either, say so in the shakedown
     // rather than ship an aeroplane that cannot be landed.
+    // the elevator that balances the pitch at speed Vx and alpha ax, in the
+    // flap setting the sim holds (differenced over [0, 0.20], as above)
+    const deAt = (Vx, ax) => {
+      const r = genProbeAt(sim, Vx, ax);
+      sim.ctl.de = 0.20;
+      const m2 = genProbeAt(sim, Vx, ax).pitchUp;
+      sim.ctl.de = 0;
+      const d = (m2 - r.pitchUp) / 0.20;
+      return Math.abs(d) < 1e-9 ? 0 : -r.pitchUp / d;
+    };
+    const rat = g.Vs / Math.max(1e-6, g.VsFlap);          // back onto the clean stall
+    const landFlapless = () => {
+      def.params.flaps.ldg = 0;          // the AP's flap schedule reads this
+      A.VAppr *= rat; A.VApprShort *= rat;
+      g.VsFlap = g.Vs; g.landsFlapless = true;
+      return genTrim(def);               // re-measure the lot at the new config
+    };
     if (Math.abs(g.deAppr) > 0.18 && ldg > 0) {
       sim.ctl.flap = 0;
-      const rat = g.Vs / Math.max(1e-6, g.VsFlap);        // back onto the clean stall
       const Va0 = A.VAppr * rat;
-      const a0 = genAlphaForLift(sim, Va0, W, aMax);
-      const r0 = genProbeAt(sim, Va0, a0);
-      sim.ctl.de = 0.20;
-      const n1 = genProbeAt(sim, Va0, a0).pitchUp;
-      sim.ctl.de = 0;
-      const dM0 = (n1 - r0.pitchUp) / 0.20;
-      const de0 = Math.abs(dM0) < 1e-9 ? 0 : -r0.pitchUp / dM0;
-      if (Math.abs(de0) < Math.abs(g.deAppr)) {
-        def.params.flaps.ldg = 0;        // the AP's flap schedule reads this
-        A.VAppr *= rat; A.VApprShort *= rat;
-        g.VsFlap = g.Vs; g.landsFlapless = true;
-        return genTrim(def);             // re-measure the lot at the new config
+      const de0 = deAt(Va0, genAlphaForLift(sim, Va0, W, aMax));
+      if (Math.abs(de0) < Math.abs(g.deAppr)) return landFlapless();
+    }
+    // G970: THE FLARE HAS A BUDGET TOO. The trim budget asks the approach;
+    // nothing asked whether the hold-off's end fits under the stop. The
+    // touchdown attitude (alpha at 1.10 Vs of the landing configuration,
+    // the flare ceiling's own reading below) measured the same way - free
+    // air, prop off: the flare begins out of ground effect and at idle.
+    // Past the elevator's 0.35 stop the flare cannot be flown, and a builder
+    // lands on the setting that needs less. Measured (2026-09-27, every live
+    // card): the Cub-alike's Fowler flap (dCl0 2.43, dCm0 -0.61) needs 0.491
+    // at its touchdown attitude and flapless 0.412 - flapped, the flare sat on
+    // the stop from its first second, the nose rose to +0.7 deg, and it
+    // mushed on at 1.00-1.04 Vs0 (1.3-1.4 m/s); flapless it lands at 1.15-1.18
+    // Vs, 0.5-0.8 m/s. Every other flapped card fits (Caravan 0.313, C172
+    // 0.191, floatplane 0.240, Chinook 0.142, DA62 0.114, P-38 0.058), and the
+    // user's C172 builds (0.494 / 0.499) need MORE flapless - they keep the flap
+    if (ldg > 0) {
+      const flapWas = sim.ctl.flap;
+      sim.ctl.flap = ldg;
+      const Vtd = 1.10 * g.VsFlap;
+      g.deFlare = deAt(Vtd, genAlphaForLift(sim, Vtd, W, aMax));
+      if (g.deFlare > 0.35) {
+        sim.ctl.flap = 0;
+        const V0 = 1.10 * g.Vs;
+        const deF0 = deAt(V0, genAlphaForLift(sim, V0, W, aMax));
+        if (deF0 < g.deFlare) { g.flareFlapless = g.deFlare; return landFlapless(); }
       }
+      sim.ctl.flap = flapWas;
     }
     if (Math.abs(g.deAppr) > 0.18) g.apprTrimFail = g.deAppr;
     g.W = W;
