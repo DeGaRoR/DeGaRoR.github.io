@@ -98,10 +98,10 @@ if (process.argv.includes('--drawn')) {
   const lifted = h => { const p = Float64Array.from(sim.p); for (let i = 1; i < p.length; i += 3) p[i] += h; return CS.blobsFor({ p, hydro: null }, def, flat, { axis: ax }); };
   const b1 = lifted(0.2), b2 = lifted(CS.S.reach + 0.01);
   ok(b1.length && b1[0].a < b0[0].a && b1[0].a > 0, '20 cm up the blobs are fainter', b1[0] && b1[0].a.toFixed(3));
-  ok(b2.filter(b => b.len < 1).length === 0, 'past `reach` the wheels cast no blob', b2.length + ' left (the body\'s fades by bodyReach)');
+  ok(b2.filter(b => b.kind === 'wheel').length === 0, 'past `reach` the wheels cast no blob', b2.length + ' left (the body\'s fades by bodyReach)');
   ok(CS.blobsFor({ p: sim.p, hydro: {} }, def, flat, { axis: ax }).length === 0, 'on floats (sim.hydro) no blob');
   const wet = { terrainH: () => 0, waterH: () => 0.5 };
-  ok(CS.blobsFor(sim, def, wet, { axis: ax }).filter(b => b.len < 1).length === 0, 'over drawn water no wheel blob');
+  ok(CS.blobsFor(sim, def, wet, { axis: ax }).filter(b => b.kind === 'wheel').length === 0, 'over drawn water no wheel blob');
   // update(): the instances on the ground's plane
   const mesh = CS.make(THREE);
   ok(mesh.isInstancedMesh && mesh.material.depthWrite === false && mesh.material.transparent && mesh.renderOrder > 3 && !mesh.castShadow, 'one InstancedMesh, transparent, no depth write, after the pavement (renderOrder ' + mesh.renderOrder + '), casting nothing');

@@ -15,13 +15,15 @@
 // stands on, which is the drawn pavement's since G1001 (tools/ground_surface.js). No shadow-map work.
 //
 //   CONTACT_SHADOW.make(THREE)                     -> the mesh (the caller adds it to the world's scene)
-//   CONTACT_SHADOW.update(THREE, mesh, blobs)      blobs: [{ x, z, gy, n: [nx, ny, nz], ax: [x, z], len, wid, a }]
+//   CONTACT_SHADOW.update(THREE, mesh, blobs)      blobs: [{ kind, x, z, gy, n: [nx, ny, nz], ax: [x, z], len, wid, a }]
 //   CONTACT_SHADOW.blobsFor(sim, def, world, o)    the blobs of one aeroplane (the wheels + the body), or []
 //   CONTACT_SHADOW.S                               the dials: on, a, reach, len, wid, lift, body, bodyReach
 // Loads in node (module.exports) for GATE CONTACT.
 // ============================================================
 (function () {
-  const S = { on: true, a: 0.6, reach: 0.5, len: 2.1, wid: 1.4, minWid: 0.14, lift: 0.006, body: 0.24, bodyReach: 3.0, bodyLen: 1.5, bodyWid: 1.25 };
+  // len / wid x the tyre's radius: the blob reaches past the tyre's own footprint (a spat hides one no bigger than
+  // the tyre: the first live shot, 2026-09-28, showed nothing under the metal Cessna's spatted mains)
+  const S = { on: true, a: 0.6, reach: 0.5, len: 3.2, wid: 2.4, minWid: 0.3, lift: 0.006, body: 0.24, bodyReach: 3.0, bodyLen: 1.5, bodyWid: 1.25 };
   const MAX = 8;
   const VS = [
     'attribute float aA;',
@@ -43,8 +45,10 @@
     'void main() {',
     '  #include <logdepthbuf_fragment>',
     '  float d = length(vUv * 2.0 - 1.0);',
-    '  float f = 1.0 - smoothstep(0.0, 1.0, d);',
-    '  gl_FragColor = vec4(0.0, 0.0, 0.0, vA * f * f);',   // a soft core, no rim
+    // a broad core and a soft rim: seen from a wheel-height eye the quad is nearly edge-on and the tyre hides its
+    // middle, so what reads is the dark that runs past the tyre's silhouette (a squared falloff left ~7 % there)
+    '  float f = 1.0 - smoothstep(0.35, 1.0, d);',
+    '  gl_FragColor = vec4(0.0, 0.0, 0.0, vA * f);',
     '}'].join('\n');
 
   function make(THREE) {
@@ -122,7 +126,7 @@
       sx += x; sz += z; sh += Math.max(0, h); cnt++; xs.push([x, z]);
       const a = S.a * fall(h, S.reach);
       if (a <= 0) continue;
-      out.push({ x, z, gy, n: normalAt(H, x, z), ax: axN, len: S.len * r, wid: Math.max(S.minWid, S.wid * r), a });
+      out.push({ kind: 'wheel', x, z, gy, n: normalAt(H, x, z), ax: axN, len: S.len * r, wid: Math.max(S.minWid, S.wid * r), a });
     }
     if (cnt >= 2 && S.body > 0) {
       const cx = sx / cnt, cz = sz / cnt, hm = sh / cnt;
@@ -132,7 +136,7 @@
         wb = Math.max(wb, Math.abs(dx * axN[0] + dz * axN[1])); tr = Math.max(tr, Math.abs(-dx * axN[1] + dz * axN[0]));
       }
       const a = S.body * fall(hm, S.bodyReach);
-      if (a > 0 && wb > 0.3) out.push({ x: cx, z: cz, gy: H(cx, cz), n: normalAt(H, cx, cz), ax: axN, len: S.bodyLen * wb, wid: S.bodyWid * Math.max(tr, 0.8), a });
+      if (a > 0 && wb > 0.3) out.push({ kind: 'body', x: cx, z: cz, gy: H(cx, cz), n: normalAt(H, cx, cz), ax: axN, len: S.bodyLen * wb, wid: S.bodyWid * Math.max(tr, 0.8), a });
     }
     return out;
   }

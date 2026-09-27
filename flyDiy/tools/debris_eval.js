@@ -20,7 +20,7 @@
     if (!count) return;
     o.updateWorldMatrix(true, false);
     for (let i = 0; i < count; i++) {
-      if (o.isBatchedMesh && o.getVisibleAt && !o.getVisibleAt(i)) continue;
+      if (o.isBatchedMesh) { try { if (o.getVisibleAt && !o.getVisibleAt(i)) continue; } catch (e) { continue; } }   // a deleted id throws
       try { o.getMatrixAt(i, M); } catch (e) { continue; }
       V.setFromMatrixPosition(M).applyMatrix4(o.matrixWorld);
       total++;
