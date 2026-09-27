@@ -191,10 +191,13 @@ function warmThenFrame(useOld) {
 // ---- 4. the passes outside the scene are listed and compiled -------------------------------------------
 {
   const rd = f => fs.readFileSync(path.join(ROOT, 'src', 'viewer', f), 'utf8');
-  const app = rd('app.js'), cdv = app.slice(app.indexOf('function compileDepthVariants()'), app.indexOf('function compileDepthVariants()') + 4000);
+  const app = rd('app.js'), cdvAt = app.indexOf('function compileDepthVariants('), cdv = app.slice(cdvAt, cdvAt + 4000);
   ok(/warmList:/.test(rd('aa_resolve.js')) && /function warmList\(\)/.test(rd('post_fx.js')) && /function warmList\(\)/.test(rd('clouds.js')), '4 aa_resolve, post_fx and clouds publish warmList()');
-  ok(/aa\.warmList\(\)/.test(cdv) && /POST_FX\.warmList\(\)/.test(cdv) && /CLOUDS\.warmList\(\)/.test(cdv) && /PROG_WARM\.passes/.test(cdv) && /PROG_WARM\.depthVariants\(THREE, renderer, \[scene\]\)/.test(cdv) && /PROG_WARM\.fogless\(scene, \(\) => compilePass\(helper, PLAIN_RT\(\), scene\)\)/.test(cdv),
+  ok(/aa\.warmList\(\)/.test(cdv) && /POST_FX\.warmList\(\)/.test(cdv) && /CLOUDS\.warmList\(\)/.test(cdv) && /PROG_WARM\.passes/.test(cdv) && /PROG_WARM\.depthVariants\(THREE, renderer, \[(scene|sc)\]\)/.test(cdv) && /PROG_WARM\.fogless\((scene|sc), \(\) => compilePass\(helper, PLAIN_RT\(\), (scene|sc)\)\)/.test(cdv),
      '4 the roll-out\'s compile step warms the depth variants in the lit scene and every listed pass');
+  // G680: the shed's boot compile warms its own shadow pass and the passes too (the garage's first frame linked them)
+  const gc = app.slice(app.indexOf("bootStep('compile'"), app.indexOf("bootStep('compile'") + 3000);
+  ok(/sc = sc \|\| scene/.test(cdv) && /compileDepthVariants\(hangarScene\)/.test(gc), '4 the shed\'s boot compile warms its depth variants and the passes (compileDepthVariants(hangarScene))');
   // the global's name is its own: app.js already had a `const SHADER_WARM` (the warm-launch localStorage key), which
   // shadowed the module inside app.js's scope - the step threw and warmed nothing (the first census after the change)
   const clash = fs.readdirSync(path.join(ROOT, 'src', 'viewer')).filter(f => f.endsWith('.js') && f !== 'shader_warm.js')

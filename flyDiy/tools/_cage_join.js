@@ -1646,6 +1646,24 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     VIEW_STATE.forEach((r, i) => { if (was[i] !== null) r.set(was[i]); });
     window.CAGE_UI.build();
   };
+  // G680: THE VIEW HELD FOR A BATCH (parked.js's captures). The same rows set to the capture's values, WITHOUT a
+  // build: the caller's next applySpec builds in them, every snapshot inside finds nothing bent (no build of its
+  // own), and viewRelease puts the rows back for the caller's restoring applySpec to build. Its own memory, not
+  // viewWas: a snapshot inside the hold clears viewWas on its way in.
+  let heldWas = null;
+  const viewHold = () => {
+    if (heldWas) return false;
+    heldWas = VIEW_STATE.map(r => r.get());
+    let bent = false;
+    VIEW_STATE.forEach((r, i) => { if (heldWas[i] === null || heldWas[i] === r.to) return; r.set(r.to); bent = true; });
+    if (!bent) heldWas = null;
+    return bent;
+  };
+  const viewRelease = () => {
+    if (!heldWas) return;
+    const was = heldWas; heldWas = null;
+    VIEW_STATE.forEach((r, i) => { if (was[i] !== null) r.set(was[i]); });
+  };
 
   // WHICH OBJECT IS THE AEROPLANE (G216). The bake is in this frame, so the
   // payload's origin IS this object's origin — which makes it the only
@@ -2753,6 +2771,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     try { return snapshotAt(spec); }
     finally { viewRestore(); }
   };
+  // G680: THE SAME CAPTURE IN THREE TASKS (app.js syncBuildSteps, under the roll-out screen): the view neutralised
+  // (a build), the snapshot, the view back (a build) - 1.2-1.9 s in one task on the click of "roll out". Its
+  // caller drives it to the end (the finally is the view's way back, as above).
+  function* snapshotSteps(spec) {
+    try { if (viewNeutral()) yield 'view'; const r = snapshotAt(spec); yield 'snapshot'; return r; }
+    finally { viewRestore(); }
+  }
   // THE FIT REPORT (G52, user: "the visual fit remains very approximate").
   // Frame vs visual, in numbers, in the model frame the pose shares (the
   // snapshot's `off` applied to the visual). Printed at every build & fly
@@ -2927,7 +2952,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // read AFTER export: measure() is what fills it
     errors: () => ERRS.slice(),
     notes: () => NOTES.slice(),
-    snapshot, fitReport,
+    snapshot, snapshotSteps, fitReport, viewHold, viewRelease,   // G680: the capture in tasks; the view held for parked.js's batch
     mount: joinMount,                // G216: the craft root, for the editor
   };
   // THE BUTTON IS GONE (G65, user: "there's an intermediate step to build...

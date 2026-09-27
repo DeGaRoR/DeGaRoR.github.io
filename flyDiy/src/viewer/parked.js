@@ -172,14 +172,51 @@
 
   // ---- the capture ---------------------------------------------------------------
   const canCapture = () => !!(W.CAGE_UI && W.CAGE_UI.applySpec && W.CAGE_JOIN && W.CAGE_JOIN.snapshot && W.GARAGE_SPEC && W.GARAGE_SPEC.get && W.THREE);
-  function capture(key, spec0) {
-    if (REC[key]) return REC[key];
-    if (!canCapture()) return null;
+  // G680 (A4-FREEZE): THE CAPTURE AS A GENERATOR, AND A BATCH OF THEM. A capture was ONE task of 2.3-3.5 s on the
+  // reference box (the Jolene roll-out's three parked aeroplanes: its longest tasks after the world step), and most of
+  // it was the editor building the aeroplane four times: applySpec in the player's VIEW (explode, section colours,
+  // the alphas), snapshot neutralising that view (a build), the snapshot's own restore (a build), the player's spec
+  // re-applied (a build). Now the view is held neutral ONCE for the batch (CAGE_JOIN.viewHold: the rows set, no build)
+  // and the player's spec comes back ONCE at the end: one build per aeroplane, plus one. Drained at once it is the
+  // synchronous capture of old (capture(), captureAll); under the roll-out screen (PARKED.async) it runs a step a
+  // task - the aeroplane applied | its snapshot and block - on a pump (setTimeout), and the screen's 'parked' step
+  // waits for it. BETWEEN THOSE TASKS THE EDITOR HOLDS A FOREIGN AEROPLANE, so while a batch is open: CAGE_ON_BUILD
+  // (the autosave's touch, the bench's fingerprint - BENCH_DIRTY would withdraw the player's plaque on the foreign
+  // fingerprint) is a no-op; GARAGE_SPEC.update is refused (the energy layer's 120 ms commitLater writes the tanks
+  // of the aeroplane the editor holds INTO THE PLAYER'S BUILD); a timer the capture's own calls arm is held until
+  // the player's aeroplane is back (the order the synchronous capture had); and nothing is drawn (the roll-out
+  // screen's holdRender) - the shared block and the decal atlas are the foreign aeroplane's in between.
+  function holdEditor() {
+    const J = W.CAGE_JOIN, G = W.GARAGE_SPEC;
+    const onBuild = W.CAGE_ON_BUILD, upd = G && G.update;
+    W.CAGE_ON_BUILD = () => {};
+    let refused = 0;
+    if (upd) G.update = () => { refused++; return G.get ? G.get() : null; };
+    const viewHeld = !!(J && J.viewHold && J.viewHold());
+    const later = []; let open = true;
+    const realST = W.setTimeout;
+    const run = fn => {
+      W.setTimeout = function (cb, ms) { const a = Array.prototype.slice.call(arguments, 2);
+        return realST.call(W, function () { if (open) later.push(() => cb.apply(null, a)); else cb.apply(null, a); }, ms); };
+      try { return fn(); } finally { W.setTimeout = realST; }
+    };
+    const release = fn => {
+      W.CAGE_ON_BUILD = onBuild; if (upd) G.update = upd;
+      if (viewHeld && J.viewRelease) J.viewRelease();
+      open = false;
+      try { fn(); } finally {
+        for (const f of later.splice(0)) realST.call(W, f, 0);
+        if (refused) log('held', refused, 'spec write(s) made while the editor held a parked aeroplane');
+      }
+    };
+    return { run, release };
+  }
+  // keys: the list the batch takes from (the async queue, live: a key queued while the batch runs joins it; or one
+  // key); specs: key -> a spec handed in (capture(key, spec0), the world editor's new aeroplane)
+  function* batchSteps(keys, specs) {
+    if (!canCapture()) return 0;
     const THREE = W.THREE, A = W.AEROSKIN, WX = (typeof W.AEROWX !== 'undefined') ? W.AEROWX : null;
-    const spec = spec0 || specOf(key);
-    if (!spec) { console.warn('parked: no spec for', key); return null; }
     const E = W.CAGE_UI, J = W.CAGE_JOIN, G = W.GARAGE_SPEC;
-    const t0 = performance.now();
     // THE USER'S AEROPLANE AS THE EDITOR HOLDS IT: the join's export merged over
     // the shelf (what a roll-out would fly), not the shelf alone — a fresh
     // session's shelf has no cage, and applySpec of a cage-less spec loads the
@@ -190,46 +227,118 @@
     const saved = U ? cloneBlock(U) : null;
     const macro0 = (WX && WX.aeroWxSetMacro) ? Object.assign({}, WX.aeroWxSetMacro(THREE, null)) : null;
     const extra = W.AERO_EXTRA_DECALS;         // the bench's stickers are the player's, not this one's
-    let vis = null, block = null, atlas = null, panel = {};
+    const H = holdEditor();
+    let n = 0;
     try {
       W.AERO_EXTRA_DECALS = null;
-      E.applySpec(spec);
-      const flown = G.preview ? G.preview(spec) : spec;
-      vis = J.snapshot(flown);
-      if (vis && U) {
-        // the block as the editor left it for THIS aeroplane, made explicit with
-        // the payload's own numbers (the flight side's calls, on the same door)
-        const hasGlass = Object.keys(vis.mats).some(k => vis.mats[k] && vis.mats[k].fin === 'glass');
-        if (A.aeroSetCabin) A.aeroSetCabin(THREE, { coverage: hasGlass ? 1 : 0.4 });
-        if (A.aeroSetFootwell) A.aeroSetFootwell(THREE, vis.footwell || null);
-        if (A.aeroSetHoles) A.aeroSetHoles(THREE, vis.holes || null);
-        if (A.aeroApplySpecDecals) A.aeroApplySpecDecals(THREE, flown);
-        if (WX && WX.aeroWxSetSources) WX.aeroWxSetSources(THREE, Object.assign({ pivot: 1 }, vis.weather || {}));
-        if (WX && WX.aeroWxSetSpiral && A.aeroDecalMerge) WX.aeroWxSetSpiral(THREE, A.aeroDecalMerge(flown));
-        if (WX && WX.aeroWxSetMacro) WX.aeroWxSetMacro(THREE, WEAR);
-        block = cloneBlock(U);
-        atlas = copyAtlas(THREE, A);
-        block.tAtlas = { value: atlas };
-        // the instrument faces: the atlas the editor painted for THIS panel, copied
-        panel = capturePanel(THREE, vis);
+      while (keys.length) {
+        const key = keys.shift();
+        if (REC[key]) continue;
+        const spec = (specs && specs[key]) || specOf(key);
+        if (!spec) { console.warn('parked: no spec for', key); continue; }
+        const t0 = performance.now();
+        // the editor's build in two tasks where it can (CAGE_UI.applySpecSteps: the sheet | the layers), each inside the hold
+        let tA = 0;
+        try {
+          if (E.applySpecSteps) { const g = H.run(() => E.applySpecSteps(spec)); for (;;) { const t1 = performance.now(); const r = H.run(() => g.next()); tA += performance.now() - t1; if (r.done) break; yield key; } }
+          else { H.run(() => E.applySpec(spec)); tA = performance.now() - t0; }
+        } catch (e) { console.error('parked: capture', key, e); continue; }
+        yield key;
+        const t1 = performance.now();
+        let vis = null, block = null, atlas = null, panel = {};
+        try {
+          H.run(() => {
+            const flown = G.preview ? G.preview(spec) : spec;
+            vis = J.snapshot(flown);
+            if (vis && U) {
+              // the block as the editor left it for THIS aeroplane, made explicit with
+              // the payload's own numbers (the flight side's calls, on the same door)
+              const hasGlass = Object.keys(vis.mats).some(k => vis.mats[k] && vis.mats[k].fin === 'glass');
+              if (A.aeroSetCabin) A.aeroSetCabin(THREE, { coverage: hasGlass ? 1 : 0.4 });
+              if (A.aeroSetFootwell) A.aeroSetFootwell(THREE, vis.footwell || null);
+              if (A.aeroSetHoles) A.aeroSetHoles(THREE, vis.holes || null);
+              if (A.aeroApplySpecDecals) A.aeroApplySpecDecals(THREE, flown);
+              if (WX && WX.aeroWxSetSources) WX.aeroWxSetSources(THREE, Object.assign({ pivot: 1 }, vis.weather || {}));
+              if (WX && WX.aeroWxSetSpiral && A.aeroDecalMerge) WX.aeroWxSetSpiral(THREE, A.aeroDecalMerge(flown));
+              if (WX && WX.aeroWxSetMacro) WX.aeroWxSetMacro(THREE, WEAR);
+              block = cloneBlock(U);
+              atlas = copyAtlas(THREE, A);
+              block.tAtlas = { value: atlas };
+              // the instrument faces: the atlas the editor painted for THIS panel, copied
+              panel = capturePanel(THREE, vis);
+            }
+          });
+        } catch (e) { console.error('parked: capture', key, e); vis = null; }
+        if (vis) {
+          const rec = { key, spec, vis, block, atlas, panel, t: Math.round(tA + performance.now() - t1), far: null };
+          let tris = 0; for (const k in vis.groups) tris += vis.groups[k].idx.length / 3;
+          for (const p of vis.parts) for (const k in p.groups) tris += p.groups[k].idx.length / 3;
+          rec.tris = tris;
+          REC[key] = rec; n++;
+          log(key, 'captured:', tris, 'tris,', Object.keys(vis.mats).length, 'buckets, in', rec.t, 'ms');
+          fillPending(key);
+        }
+        yield key;                             // the next aeroplane, or the player's restore, in a task of its own
       }
-    } catch (e) { console.error('parked: capture', key, e); vis = null; }
-    finally {
+    } finally {
       W.AERO_EXTRA_DECALS = extra;
-      try { E.applySpec(mine); } catch (e) { console.error('parked: restore', e); }
-      try { if (E.decalImagesFrom && G.images) E.decalImagesFrom(G.images() || {}); } catch (e) {}
-      if (U && saved) copyBlock(U, saved);
-      if (WX && macro0) WX.aeroWxSetMacro(THREE, macro0);
+      H.release(() => {
+        const t0 = performance.now();
+        try { E.applySpec(mine); } catch (e) { console.error('parked: restore', e); }
+        try { if (E.decalImagesFrom && G.images) E.decalImagesFrom(G.images() || {}); } catch (e) {}
+        if (U && saved) copyBlock(U, saved);
+        if (WX && macro0) WX.aeroWxSetMacro(THREE, macro0);
+        if (n) log("restored the player's aeroplane in", Math.round(performance.now() - t0), 'ms');
+      });
     }
-    if (!vis) return null;
-    const rec = { key, spec, vis, block, atlas, panel, t: Math.round(performance.now() - t0), far: null };
-    let tris = 0; for (const k in vis.groups) tris += vis.groups[k].idx.length / 3;
-    for (const p of vis.parts) for (const k in p.groups) tris += p.groups[k].idx.length / 3;
-    rec.tris = tris;
-    REC[key] = rec;
-    log(key, 'captured:', tris, 'tris,', Object.keys(vis.mats).length, 'buckets, in', rec.t, 'ms');
-    fillPending(key);
-    return rec;
+    return n;
+  }
+  function capture(key, spec0) {
+    if (REC[key]) return REC[key];
+    if (!canCapture()) return null;
+    flush();                                   // a batch in flight holds the editor: finish it first
+    if (REC[key]) return REC[key];
+    const g = batchSteps([key], spec0 ? { [key]: spec0 } : null);
+    while (!g.next().done);
+    return REC[key] || null;
+  }
+  // ---- the async door (G680): the roll-out screen's captures, a step a task -------------------------
+  const ASYNC = { queue: [], run: null, asked: 0 };
+  function pump() {
+    if (!ASYNC.run) return;
+    let r;
+    try { r = ASYNC.run.next(); } catch (e) { console.error('parked: batch', e); r = { done: true }; }
+    if (r.done) { ASYNC.run = null; if (ASYNC.queue.length) startBatch(); return; }
+    setTimeout(pump, 0);
+  }
+  function startBatch() {
+    if (ASYNC.run || !ASYNC.queue.length) return;
+    ASYNC.run = batchSteps(ASYNC.queue, null);
+    setTimeout(pump, 0);
+  }
+  function enqueue(key) {
+    if (REC[key] || ASYNC.queue.includes(key)) return;
+    ASYNC.queue.push(key); ASYNC.asked++;
+    startBatch();
+  }
+  // a door that needs the editor as the player left it (the shed, a sync, a test): the batch in flight ends now,
+  // with whatever is queued behind it
+  function flush() {
+    if (!ASYNC.run) return;
+    const g = ASYNC.run; ASYNC.run = null;
+    try { while (!g.next().done); } catch (e) { console.error('parked: flush', e); }
+  }
+  // the screen's wait: resolves when nothing is queued or in flight; onStep(done, asked) for its bar
+  function whenIdle(onStep) {
+    return new Promise(res => {
+      const tick = () => {
+        const left = ASYNC.queue.length + (ASYNC.run ? 1 : 0);
+        if (onStep) try { onStep(Math.max(0, ASYNC.asked - left), ASYNC.asked); } catch (e) {}
+        if (!left) { res(); return; }
+        setTimeout(tick, 100);
+      };
+      tick();
+    });
   }
   function copyAtlas(THREE, A) {
     try {
@@ -1307,9 +1416,10 @@ self.onmessage = function (e) {
     grp.name = 'parkedAt:' + key;
     grp.position.set(x, y, z); grp.rotation.y = yaw || 0;
     grp.userData.parkedKey = key;
-    const rec = REC[key] || (W.PARKED.ready ? capture(key) : null);
+    // G680: under the roll-out screen (PARKED.async) a capture is queued and runs a step a task; elsewhere on the spot
+    const rec = REC[key] || (W.PARKED.ready && !W.PARKED.async ? capture(key) : null);
     if (rec) build(THREE, rec, grp);
-    else PENDING.push({ key, grp, THREE });
+    else { PENDING.push({ key, grp, THREE }); if (W.PARKED.ready && W.PARKED.async) enqueue(key); }
     return grp;
   }
   function fillPending(key) {
@@ -1323,9 +1433,10 @@ self.onmessage = function (e) {
   // the boot step: capture what the world asked for (every pending key), then
   // the module is `ready` and later placements capture on the spot
   function captureAll() {
-    const want = new Set(PENDING.map(p => p.key));
+    const want = [...new Set(PENDING.map(p => p.key))].filter(k => !REC[k]);
     let n = 0;
-    for (const key of want) { if (!REC[key] && capture(key)) n++; }
+    // one batch (G680): the view held and the player's aeroplane restored once for them all
+    if (want.length && canCapture()) { flush(); const g = batchSteps(want, null); let r; while (!(r = g.next()).done); n = r.value || 0; }
     W.PARKED.ready = true;
     // a key with no spec (a slot deleted since) leaves an empty holder, and says so
     for (const p of PENDING.slice()) if (!REC[p.key]) console.warn('parked: nothing to stand for', p.key);
@@ -1334,6 +1445,7 @@ self.onmessage = function (e) {
   const trisOf = grp => { let n = 0; grp.traverse(o => { if (o.isMesh && o.geometry && o.visible) { const g = o.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3; } }); return n; };
 
   W.PARKED = { keys, specOf, capture, captureAll, place, build, stance, hitboxOf, records: REC, pending: PENDING,
+               async: false, flush, whenIdle, queued: () => ASYNC.queue.length + (ASYNC.run ? 1 : 0),   // G680: the roll-out screen's door
                LEVELS, CUT, WEAR, ready: false, boxes: false, L0: false /* the interior rung, shelved: G571 */, quiet: false, trisOf, drawBoxes, exteriorMesh, cloneBlock, copyBlock,
                dupe, levelMeshes, farLevel, cutFar, isInterior, PART_L1,   // GATE PARKED drives these headless
                // G569, the baked far rungs: the dials, the unwrap, the assembly, the bake's own hook, and

@@ -493,7 +493,10 @@ function make(THREE, scene, world, rec0, opts) {
   // screen, and never nearer than 25 of its quads; a chunk's four edges hang a skirt (its own heights 0.5-3 m down,
   // its surface's normals) so two neighbours at different levels never open a crack onto the sunk ring below.
   const PL = { res: [2, 4, 8, 16], block: 8, focal: 1160, tolPx: 1, minQuads: 25, skirt: [0.5, 1, 2, 3] };
-  function buildPatch() {
+  // G680: the patch in slices (a chunk batch of the ground sampling, a block of the LODs, a yield each) - the
+  // roll-out's world step drives it through rebuildSteps; an edit's rebuild runs it to the end at once
+  function buildPatch() { const g = buildPatchSteps(); while (!g.next().done); }
+  function* buildPatchSteps() {
     const b = extentWorld();
     const A = activeChunks(b), list = [...A.act].sort();
     const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
@@ -553,6 +556,7 @@ function make(THREE, scene, world, rec0, opts) {
         if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; }
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
+      if ((c & 7) === 7) yield 'patch ground';
     }
     // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
     const NRM = new Float32Array(list.length * per * 3);
@@ -573,6 +577,7 @@ function make(THREE, scene, world, rec0, opts) {
     const group = new THREE.Group(); group.name = 'premises:patch';
     let tris0 = 0, trisAll = 0;
     for (const B of blocks.values()) {
+      yield 'patch block';
       const cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2, half = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2;
       const lod = new THREE.LOD(); lod.position.set(cx, 0, cz); lod.name = 'premises:patch';
       let yLo = Infinity, yHi = -Infinity;
@@ -1695,6 +1700,9 @@ function make(THREE, scene, world, rec0, opts) {
       if (!hitReady(q.grp)) continue;
       PENDING_HIT.splice(i, 1);
       hitAdd(q.grp, q.tag, q.cell, q.then);
+      // G680: ONE A TICK. A parked aeroplane's full level at 0.5 m is ~0.8 s of rasterising, and the three Jolene
+      // captures landing together (G682's batch) registered in one tick: a 2.5 s task. The next waits for the next tick.
+      return;
     }
   }
   function hitDrop(grp) {
@@ -2325,7 +2333,10 @@ function make(THREE, scene, world, rec0, opts) {
   }
 
   // ---- rebuild ---------------------------------------------------------------------------------
-  function rebuild(dirty) {
+  // G680: rebuildSteps is the rebuild as a generator - the game's first rebuild runs under the roll-out screen a
+  // slice per task (render_world's buildWorldSceneSteps: yield*); rebuild() runs it to the end (an edit, the bench)
+  function rebuild(dirty) { const g = rebuildSteps(dirty); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* rebuildSteps(dirty) {
     const t0 = performance.now();
     if (!(composedFresh && dirty === undefined)) O = composeNow();
     composedFresh = false;
@@ -2333,14 +2344,20 @@ function make(THREE, scene, world, rec0, opts) {
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
     if (o.game) {
-      if (groundDirty) { buildPatch(); n = 1; }
+      if (groundDirty) { yield* buildPatchSteps(); n = 1; }
+      yield 'materials';
       paintMaterials();
+      yield 'lots';
       placeLots();
+      yield 'roads';
       buildRoads();
+      yield 'runways';
       buildRunways();
+      yield 'trams';
       syncTrams();   // the trams run in the game whether or not the editor is open (G398.3)
       syncTraffic();
       syncAnimals();
+      yield 'houses';
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
@@ -2350,8 +2367,10 @@ function make(THREE, scene, world, rec0, opts) {
       // `planForest` composed its trees into the record, the gate counted them, the
       // panel reported them, and the renderer walked past the list. Nobody had noticed
       // because until this week no record carried one.
+      yield 'trees';
       buildTrees();
       if (LIFE) { LIFE.set(rec.life); LIFE.dirty(); stats.life = 1; }
+      yield 'freeze';
       freezeStatic(true);
       stats.tris = patch ? patch.userData.tris : 0; stats.chunks = patch ? patch.userData.chunks.length : 0; stats.patchBlocks = patch ? patch.userData.blocks : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
       return stats;
@@ -2431,7 +2450,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   const R = {
     root, groups: G, stats,
-    rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    rebuild, rebuildSteps, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),

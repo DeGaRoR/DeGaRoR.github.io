@@ -1325,7 +1325,12 @@ function updateDims(box, FS) {
 }
 
 // ---- build ----------------------------------------------------------------
-function build() {
+// G680 (A4-FREEZE): buildSteps is the build as a generator with ONE yield, between the sheet (the mesh, the decals)
+// and the page's post chain (the layers): ~0.5 + ~0.45 s for a larger aeroplane, which as one task was the longest
+// of parked.js's captures under the roll-out screen (applySpecSteps). build() runs it to the end - every slider,
+// every door, exactly as before.
+function build() { const g = buildSteps(); while (!g.next().done); }
+function* buildSteps() {
   // T2.1: a retired row (a preset written against the ring editor, a class
   // seed's taperW) is lifted into the frames' rows the moment it lands in P
   if (G.cageHasLegacy && G.cageHasLegacy(P)) {
@@ -1555,6 +1560,7 @@ function build() {
   // below. Cheap by construction: buildMatPanel's signature check makes the
   // second call a no-op on every build where no layer appeared or vanished.
   SEC_EPOCH++;
+  yield 'post';                          // G680: the layers in a task of their own when a caller slices the build
   if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat') }); }
   catch (e) { console.error('page post hook:', e); }
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
@@ -1967,7 +1973,9 @@ const anchorSize = () => {
 // through here: a tile writing `engPreset` IS a row change and must fire.
 const loaded = () => { if (PAGE.load) try { PAGE.load(); } catch (e) {} };
 
-function applySpec(spec, what) {
+// G680: `steps` - the load is done now and the build comes back as a generator (buildSteps: the sheet | the layers),
+// for parked.js's capture a step a task (applySpecSteps); without it, as always, the build runs here
+function applySpec(spec, what, steps) {
   Object.assign(P, G.cageFromSpec(spec));
   loaded();
   // THE PAINT COMES WITH THE AEROPLANE (G105). Unconditional, INCLUDING when
@@ -1992,7 +2000,9 @@ function applySpec(spec, what) {
     try { window.CAGE_PANEL.fromSpec(spec && spec.systems); }
     catch (e) { console.error('instruments from spec:', e); }
   anchorSize();                            // the loaded design is now x1.000
-  syncSliders(); build();
+  syncSliders();
+  if (steps) return (function* () { yield* buildSteps(); if (what && $('stat')) $('stat').textContent = what; })();
+  build();
   if (what && $('stat')) $('stat').textContent = what;
 }
 
@@ -4777,7 +4787,7 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders, reg: () => decReg()
   // every import and the game's own openEditor go through these, so there is
   // one route in and one route out instead of a preset menu standing in for
   // the load path that never existed.
-  applySpec, toSpec: () => G.cageToSpec(P),
+  applySpec, applySpecSteps: (spec, what) => applySpec(spec, what, true), toSpec: () => G.cageToSpec(P),
   setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z;
     centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; },
   get M0() { return M0; }, get MS() { return MS; },

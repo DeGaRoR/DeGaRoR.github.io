@@ -253,7 +253,11 @@
       frames: 'First light in the shed.',
       _landing: 'The last textures landing: the shed opens when everything is in place, never half-dressed.' },
     rollout: {
+      sync: 'Committing your build: the shape you drew becomes the aeroplane the physics fly.',
+      stand: 'Wheeling the aeroplane out of the shed onto its stand.',
       world: 'Laying out the island: the ground, the water, the fields, the roads and the villages. Only the first roll-out of a visit.',
+      town: 'Building the field around the stand: the hangars, the houses and the aeroplanes parked on it.',
+      parked: "Parking the other aeroplanes on the field - each one is built by the same workshop as yours.",
       trees: 'Waiting for the tree models.',
       ring: 'Planting the forest around the stand, nearest first. Farther out it keeps growing while you fly.',
       images: "Fetching the pictures the world's buildings and signs wear.",

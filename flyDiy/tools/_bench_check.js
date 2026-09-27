@@ -435,7 +435,10 @@ function benchSession(store, join, opts) {
   ok(A.first === 1 && A.second === 0, `the award card shows on the first arrival and not again (${A.first}, then ${A.second})`);
   ok(A.kept && A.f2.when === A.f1.when, 'the reload restores it valid, with its first day' + (A.f2 && A.f2.stale ? ' - withdrawn: ' + A.f2.why : ''));
   ok(!B.kept, 'NEGATIVE: the pre-G700 arrival (fingerprinted out in the world) is lost on the reload' + (B.f2 ? ' (' + (B.f2.why || 'kept') + ')' : ''));
-  ok(/window\.BENCH_ROLLOUT\(\)/.test(APP.slice(APP.indexOf('function rollOut('), APP.indexOf('function rollOut(') + 800)), 'app.js rollOut fingerprints the aeroplane before it closes the editor');
+  // G680: the door's body is rollOutStand (rollOut decides the screen; from the shed the build's sync runs under it first)
+  const rollAt = APP.indexOf('function rollOutStand(') >= 0 ? APP.indexOf('function rollOutStand(') : APP.indexOf('function rollOut(');
+  const rollS = APP.slice(rollAt, rollAt + 800), fpAt = rollS.search(/window\.BENCH_ROLLOUT\(\)/), ceAt = rollS.indexOf('closeEditor()');
+  ok(fpAt >= 0 && (ceAt < 0 || fpAt < ceAt), 'app.js rollOut fingerprints the aeroplane before it closes the editor');
 }
 
 // ---- NEGATIVE VERIFICATION ------------------------------------------------

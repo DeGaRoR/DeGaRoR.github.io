@@ -60,7 +60,9 @@ var PROG_WARM = (() => {
   // app.js compileXrayVariants learnt that first)
   function twin(m) {
     const t = new m.constructor();
-    t.copy(m);
+    // G680: copy() deep-clones userData through JSON, and AEROSKIN's holds textures - every twin encoded canvases
+    // to data URLs (1.4 s in one task after the shed's boot); the twin takes m.userData by reference below anyway
+    { const ud = m.userData; m.userData = {}; try { t.copy(m); } finally { m.userData = ud; } }
     if (m.defines) t.defines = Object.assign({}, m.defines);
     t.userData = m.userData;
     const hook = own(m, '_atmoHook') ? m._atmoHook : own(m, 'onBeforeCompile') ? m.onBeforeCompile : undefined;

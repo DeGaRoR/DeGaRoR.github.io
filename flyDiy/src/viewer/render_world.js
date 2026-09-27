@@ -4,7 +4,24 @@
 // returns { worldUpdate(cg) } — per-frame sun-frustum follow + cloud drift.
 // Airfield decals are scaled to the CURRENT 1100 m runway (centre x=-520,
 // thresholds +20/-1060); the physics flat pad is x in [-1180, 130].
+//
+// G680 (A4-FREEZE, the 2026-09-26 playtest: "no freezing ever"): THE BUILD IS A GENERATOR. The world step was ONE
+// main-thread task (4.6 s warm with Jolene's premises; 15-18 s before G591), long enough for Chrome's "page
+// unresponsive". buildWorldSceneSteps yields between its stages, the premises' rebuild yields between its own
+// (render_premises rebuildSteps), and the roll-out screen's 'world' step (app.js) runs it a slice per task;
+// every `yield` is at the function's top level, so the closure is the same one the synchronous build made.
+// buildWorldScene runs it to the end in one call - the harness, the rigs and a page without the screen.
+// THE TRAP A SLICE OPENS: a promise settled before the build (the tree payload, loaded since the garage boot)
+// resolves its .then at the first yield, when the declarations below it are still in their TDZ (G570's
+// PREM_NEAR). Such callbacks go through afterBuild(), which holds them until the generator has returned (after the
+// build, where the synchronous build ran them) and runs each in a task of its own.
 function buildWorldScene(scene, world, renderer, camera, shedDims) {
+  const g = buildWorldSceneSteps(scene, world, renderer, camera, shedDims);
+  for (;;) { const r = g.next(); if (r.done) return r.value; }
+}
+function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+  const BUILT = { done: false, q: [] };
+  const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
   const C = h => new THREE.Color(h).convertSRGBToLinear();
   const HAZE = 0xe8bd8d, SUNC = 0xffd39a;
   const SUN = new THREE.Vector3(0.80, 0.185, 0.57).normalize();
@@ -274,7 +291,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       scene.add(keep(obj));
     }
   };
-  const rocksWhenReady = job => { ROCK_JOBS.push(job); if (treeSettleOf) treeSettleOf().then(() => { const i = ROCK_JOBS.indexOf(job); if (i >= 0) { ROCK_JOBS.splice(i, 1); job(); } }).catch(() => {}); };
+  const rocksWhenReady = job => { ROCK_JOBS.push(job); if (treeSettleOf) treeSettleOf().then(() => afterBuild(() => { const i = ROCK_JOBS.indexOf(job); if (i >= 0) { ROCK_JOBS.splice(i, 1); job(); } })).catch(() => {}); };
   // THE RENDERER FLAG (W0.5b): the module picks a variant per material on it
   const TSL_ON = !!(renderer && renderer.isWebGPURenderer);
   // THE ATMOSPHERE (SKY S3): Hillaire's model in atmo.js draws the sky and
@@ -502,6 +519,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const groundUnder = () => ({ cls: GU.pin ? 'PIN' : GU.cls, alb: capOf().slice(), target: GU.target.slice(), r: GU.r, mix: Object.assign({}, GU.mix), table: GROUND_ALBEDO });
   let envMap = null, probe = null;
   let envIn = null, probeIn = null, interiorView = false;   // A6: the cabin's own probe (a neutral cap), swapped in for the cockpit view
+  yield 'sky';
   if (ATMO_ON && THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     // THE PROBE FOLLOWS THE SUN (S5). The sky-view LUT for the boot hour and
     // the dome's scale (K_SUN x the world's light unit - LIGHT_UNIT below is
@@ -531,6 +549,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
     if (probeIn) probeIn.bake(world.day);
   } else {
+  yield 'probe';
   if (THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     const es = new THREE.Scene();
     const domeG = new THREE.SphereGeometry(20, 32, 20);
@@ -858,6 +877,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     FAR.on.value = 1;
     coverRender(eye);
   };
+  yield 'light';
   const hemiLight = () => {
     const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi * LIGHT_UNIT);
     h.groundColor.multiplyScalar(gb);      // occluded, like every bounce here
@@ -1110,6 +1130,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
 
+  yield 'terrain';
   { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
     // home ±4500 so river carves resolve, coarse ~100 m strips out to
     // ±12000 (fog caps visibility ~5 km: the far ring only needs
@@ -1310,6 +1331,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // baked by island_prep (unlit), one texture over the whole grid, mapped by
     // world position on both rings. The analytic bake still runs for the
     // forest mask and the minimap; its colours are not drawn on an island.
+    yield 'ground';
     const ISLA = world.island && world.island.albedo && world.island.grid ? world.island : null;
     let islandTex = null, islandUV = null;
     if (ISLA) {
@@ -1355,6 +1377,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {}; groundU = gU;
     let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookOuterDry = null, islandGroundHookFine = null, SPL = null;
+    yield 'island ground';
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
       // THE LAYERS PACKED (G424): the six single-channel fields ride two RGBA textures - A = (ori, canopy,
@@ -1611,11 +1634,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                     classBlur: 'uGBlur', edgeWobble: 'uGWobble', waterMap: 'uGWaterMap' }[k];
         if (u && gU[u]) gU[u].value = GROUND[k]; } return groundApi.get(); },
     };
+    yield 'ground bake';
     const tex = islandTex || bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
+    yield 'outer bake';
     const outerBake = bakeGround(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
     const outerTex = islandTex || outerBake;
     outerTexShared = outerTex;
 
+    yield 'ring';
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
     geo.rotateX(-Math.PI / 2);
     const posA = geo.attributes.position;
@@ -1785,6 +1811,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // PATCH: it clones the ring's material and adds five of its own (15 of 16 as a Lambert; a
     // Standard clone would ask 17 and fail to link, drawing nothing - G424) - innerPatchShared
     // hands it a Lambert TWIN under the same hook. The analytic world's ring is untouched.
+    yield 'ground material';
     const gMat = islandGroundHook ? new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 }) : worldLambert({ map: tex });
     const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
@@ -1835,6 +1862,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the fine disc's reach it is the full grid (the tiles' rim is the ring's own triangles), and on the rim
     // of the ring (the far terrain dips 1.5 m under it) only a level within `rimE` of the grid. Skirts under
     // every chunk edge close the cracks between two levels. ?ringlod=0: the ring whole (the A/B).
+    yield 'ring lod';
     const RINGLOD = { on: !!(THREE.Sphere && THREE.BufferAttribute) && !(typeof location !== 'undefined' && /[?&]ringlod=0/.test(location.search)),
                       C: 16, strides: [1, 2, 4, 8], tolPx: 1, minQuads: 25, rimE: 0.5, hyst: 0.1, chunks: [], group: null,
                       stats: { draws: 0, tris: 0, levels: [0, 0, 0, 0] } };
@@ -1945,6 +1973,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // nothing tears. The tiles stream with the eye (a budget a frame; the ring's discard radius is
     // held to the radius the tiles have reached). Off when the eye is within reach of the ring's rim
     // (the outer ring's surface is another) - INNER - R - band from the origin.
+    yield 'fine ring';
     const FINE = { on: !!islandGroundHook, R: 700, band: 120, T: 160, step: 5, tiles: new Map(), mat: null, budget: 6, off: (typeof location !== 'undefined' && /[?&]fine=0/.test(location.search)) };   // ?fine=0: the ring alone (the A/B)
     if (FINE.on) {
       FINE.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
@@ -2028,6 +2057,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
     fineRing = FINE;
 
+    yield 'far terrain';
     if (world.island && world.island.farRoot) {
       // THE FAR TERRAIN IS THE ASSET (G400, the user: "don't hide terrain
       // geometry in a flight game ... some trees are not on the ground"): the
@@ -2258,6 +2288,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // WORLDRENDER stub, an old page) the stock material stands as it did.
     // ?water=0: the stock material, for an A/B (the perf rig's, the eye's)
     const WSH = (typeof WATER !== 'undefined' && THREE.MeshPhysicalMaterial && !(typeof location !== 'undefined' && /[?&]water=0/.test(location.search))) ? WATER : null;
+    yield 'water';
     const waterMat = WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
     const wtag = (g, body, wavy) => WSH ? WSH.tag(THREE, g, body, wavy) : g;
@@ -2356,6 +2387,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       seaNear.visible = true;
     }
 
+    yield 'rivers';
     { // stage-1 water: river ribbons + per-cell lake quads at their baked
       // surface heights, one merged mesh, same material as the sea.
       // Edges are trimmed by terrain intersection — ribbons overshoot into
@@ -2539,6 +2571,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
   }
 
+  yield 'woodland';
   { // woodland: every physics tree seeds a clump of non-colliding neighbours
     const hsh = (a, b) => { let h = (a * 374761393 + b * 668265263 + 1013904223) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -2784,6 +2817,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     function sheetCheck(rt, N) {
       const px = new Uint8Array(N * N * 4);
       renderer.readRenderTargetPixels(rt, 0, 0, N, N, px);
+      return sheetStat(px, N);
+    }
+    function sheetCheckAsync(rt, N) {
+      const px = new Uint8Array(N * N * 4);
+      return Promise.resolve(renderer.readRenderTargetPixelsAsync(rt, 0, 0, N, N, px)).then(() => sheetStat(px, N));
+    }
+    function sheetStat(px, N) {
       let n = 0, sum = 0;
       for (let i = 0; i < N * N; i++) if (px[i * 4 + 3] >= 128) { n++; sum += px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2]; }
       return { cover: n / (N * N), mean: n ? sum / n / 3 : 0 };
@@ -2986,10 +3026,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // fraction and the mean byte of the drawn texels, kept on the atlas
       // (`check`, WORLD.treeAtlases / tools/imp_audit.js) and shouted when
       // the sheet is empty (< 0.5 % drawn) or black (mean byte < 8).
-      atlas.check = (typeof renderer.readRenderTargetPixels === 'function') ? sheetCheck(rt, N) : null;   // the headless stub (GATE WORLDRENDER) has no readback
-      if (atlas.check && (atlas.check.cover < 0.005 || atlas.check.mean < 8))
+      // G680: READ BACK WITHOUT WAITING. The synchronous readPixels waited for the GPU to finish everything queued
+      // before it - 1.1 s of the Jolene roll-out's 1.4 s bake task (the uploads and links in flight). The async
+      // readback (a pixel buffer and a fence, three r186) is queued at the same point in the command stream, so it
+      // reads this sheet whatever is drawn into the shared target after it; the verdict lands a few frames later
+      const shout = c => { atlas.check = c; if (c && (c.cover < 0.005 || c.mean < 8))
         console.error('impostor bake: ' + (tag ? tag.key + ' ' + tag.series : 'cone') + ' sheet ' +
-          (atlas.check.cover < 0.005 ? 'EMPTY' : 'BLACK') + ' (drawn ' + (atlas.check.cover * 100).toFixed(2) + ' %, mean byte ' + atlas.check.mean.toFixed(1) + ')');
+          (c.cover < 0.005 ? 'EMPTY' : 'BLACK') + ' (drawn ' + (c.cover * 100).toFixed(2) + ' %, mean byte ' + c.mean.toFixed(1) + ')'); };
+      atlas.check = null;
+      if (typeof renderer.readRenderTargetPixelsAsync === 'function' && renderer.capabilities && renderer.capabilities.isWebGL2 !== false) sheetCheckAsync(rt, N).then(shout, () => {});
+      else if (typeof renderer.readRenderTargetPixels === 'function') shout(sheetCheck(rt, N));   // the headless stub (GATE WORLDRENDER) has no readback
       const swap = [];                       // pass 2: the tree's own normals
       for (const mm of meshes) { swap.push([mm, mm.material]); mm.material = normalMatFor(mm.material); }
       drawAll(rtN);
@@ -3677,6 +3723,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // THE BIOMES (G454.12, BIOMES-IN-GAME-2026-09-20.md): the terrain-type code names a bench
     // mix; the fill draws its species from THAT mix's pool. BIO.map / BIO.mixes are the
     // payload's (tree_prep.py bakes the bench's tuning); F8 edits BIO.map and exports it.
+    yield 'biomes';
     const BIO = (typeof BIOMES !== 'undefined' && typeof TREE_PACK !== 'undefined') ? BIOMES.make(TREE_PACK) : null;
     const treePool = () => {
       const pool = [];
@@ -4101,6 +4148,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
       }
     };
+    yield 'trees';
     plantWoodland();
     // ONE CALL, AND IT WAS THE WHOLE OF W0c'S LAST MILE. Everything else was
     // written and gated: the payload, the codec, the loader, the switch above.
@@ -4108,7 +4156,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // world drew the 14-triangle cone it has drawn since W17. A rejection is
     // the asset-absent path and already handled — the cone stays.
     if (!treesSettled())
-      treeSettle().then(() => { plantWoodland(); }).catch(() => {});
+      treeSettle().then(() => afterBuild(plantWoodland)).catch(() => {});
 
     // ---- W13 dense fill: the collidable set is a 64 m stage-2 grid, so
     // stands render sparse even with the clump layer. This plants
@@ -4126,6 +4174,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the spacing at a constant chunk size would have quadrupled the per-chunk
     // hitch (~3 -> 12 ms); at 2x it lands near 6 ms, which the burst budget
     // below still hides.
+    yield 'fill';
     {
       // DENSITY IS A DIAL. NG is the fill grid per 1024 m chunk: 112 is the
       // W17 number (9.1 m spacing, ~11 000/km² before dropout), and a closed
@@ -4245,7 +4294,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
         return !!real;
       }
+      yield 'fill shapes';
       setShapes();
+      yield 'fill ring';
       // THE STREAMER'S OWN CLOCK (W0c.30): what a chunk costs to generate,
       // split between the grid walk (classify, place, draw the species) and
       // the build (the matrices, the meshes) - TREE_FILL.stat() reads it
@@ -4499,7 +4550,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         queue.length = 0;
       };
       if (!treesSettled())
-        treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
+        treeSettle().then(() => afterBuild(() => { if (setShapes()) evictAll(); })).catch(() => {});
       FILL.budgetMs = 4;
       // THE TREE STATE (S3): the roll-out screen asks whether the payload is in
       // before it grows the ring, or it would grow cones and evict them
@@ -4507,8 +4558,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       treeSettle().then(() => { TREE_STATE.v = 'ready'; }).catch(() => { TREE_STATE.v = 'fallback'; });
       // THE COVER RING (G454.13): the grass, flowers, rocks and bushes of the biome around the
       // eye, once the payload is in (its materials are the trees' loader's)
+      yield 'cover';
       if (ISLC && BIO && typeof COVER_RING !== 'undefined' && !/[?&]cover=0/.test(location.search))   // ?cover=0: the ring off (an A/B, and the rigs' control)
-        treeSettle().then(() => {
+        treeSettle().then(() => afterBuild(() => {   // G680: held until the build is whole (its body reads the rest)
           // THE POOLS ARE THE SHADER'S (2026-09-22, the user: "are we sure vegetation does not render on top of
           // water bodies?"): a puddle is a colour the ground shader paints from GF.poolAt on codes 3 and 7 - no water
           // height, so the lakes' test never saw one. The same function, in JS, with the splat's live knobs.
@@ -4547,7 +4599,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
-        }).catch(e => { console.error('cover ring: ' + (e && e.message)); });
+        })).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
@@ -4712,6 +4764,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // composed ground, the building the aeroplane rolls out of; the apron, the fence, the windsock,
   // the paving and the strip's paint are the premises record's own (materials, surfaces, sites,
   // the strip's look), drawn by render_premises and standStrip below. Nothing analytic is invented.
+  yield 'airfield';
   const ISLAND_SITE = !!world.island;
   if (!(world.island && !(siteOf('HOME') && siteOf('HOME').hangar))) { // THE BASE AERODROME, from the ONE declaration (G123)
     // Every number in this block used to be a literal: a 1100 x 30 strip at
@@ -5198,6 +5251,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }   // !ISLAND_SITE
   }
 
+  yield 'settlements';
   { // stage-3 settlements: instanced houses/barns + bridge decks
     const BL = world.roadNet.buildings;
     if (BL.length) {
@@ -5313,6 +5367,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // painted with every other below. The build queue drains here at the boot, whole (36 houses,
   // 3 s on an RTX 3080 - a worker or a ladder is owed); after a live edit worldUpdate drains it.
   // the props that come by the hundred (poles, fence stretches) drawn instanced from here on (props.js G515)
+  yield 'props';
   if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
   // THE PATCH'S TWO GROUNDS (G527): a chunk inside the inner ring wears the ring's material and uv law, a chunk
@@ -5343,6 +5398,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     try {
       // the patch wears the ring it lies in, chunk by chunk (patchGrounds, G527): the inner ring's material (its
       // baked map, its detail grain) and uv law inside ±INNER, the outer ring's beyond
+      yield 'premises';
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
         game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)
@@ -5354,9 +5410,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
         renderer: premRenderer, camera: premCamera,
       });
-      premisesR.rebuild();
+      yield 'premises made';
+      if (premisesR.rebuildSteps) yield* premisesR.rebuildSteps(); else premisesR.rebuild();   // G680: the rebuild in its own slices
       if (typeof renderer.compileAsync !== 'function' || !premisesR.prewarm) { if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4); }   // G562 / G591: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
+      yield 'premises ground';
       if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) refreshGround(pb); }   // refreshGround re-sinks the far tier itself (G527)
     } catch (e) { console.warn('premises: the record did not render', e); }
   } else if (world.premises && world.premises.rec) {
@@ -5370,6 +5428,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // actually is. It says so now.
     console.warn('premises: the record is here and RENDER_PREMISES is not loaded - nothing of the place will draw');
   }
+  yield 'strips';
   { // stage-4 aerodromes: strip decals + windsocks at every field/strip
     const mkTex = kind => {
       const cv2 = document.createElement('canvas'); cv2.width = 512; cv2.height = 64;
@@ -5560,6 +5619,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     };
   }
 
+  yield 'meadows';
   { // landing meadows: marker ring + beacon
     const beaconGeo = new THREE.CylinderGeometry(0.16, 0.22, 7);
     const flagGeo = new THREE.PlaneGeometry(2.4, 1.4);
@@ -5840,6 +5900,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
     if (!ATMO_ON && scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);   // the painted haze, when the atmosphere is off
   }
+  yield 'rig';
   const rigRows = {};
   const hexOf = (c, d) => (c && c.getHex) ? c.getHex() : d;   // the gate's stub has no Color
   const rigSnapshot = () => ({
@@ -6025,6 +6086,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (Number.isFinite(h) && Math.abs(h) < 3) return seaPlaneY;   // the sea's plane
     return null;
   }
+  // G680: the callbacks held while the build was in slices (only a sliced build holds any: a synchronous one runs no
+  // .then before it returns), each in a task of its own after the last slice - the cover ring's make, a rock job
+  BUILT.done = true;
+  if (BUILT.q.length) { const q = BUILT.q.splice(0); const next = () => { const f = q.shift(); if (!f) return; try { f(); } catch (e) { console.warn('world: after the build', e); } if (q.length) setTimeout(next, 0); }; setTimeout(next, 0); }
   return { worldUpdate, vis: VIS,
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier

@@ -502,17 +502,50 @@
   // loading screen as its own task, with the phase line on it, and every
   // reader below guards `WF &&` (S3 moves it under the roll-out screen).
   let WF = null;
-  function buildWorld() {
-    if (WF) return WF;
-    WF = buildWorldScene(scene, world, renderer, camera,
-      Object.assign({ shell: shedHome().shell },
-        playerShedDims(playerLoad(), 'HOME',
-          (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+  const worldShed = () => Object.assign({ shell: shedHome().shell },
+    playerShedDims(playerLoad(), 'HOME', (typeof siteOf === 'function') ? siteOf('HOME') : null));
+  function worldBuilt(wf) {
+    WF = wf;
     if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
     if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
     return WF;
+  }
+  function buildWorld() {
+    if (WF) return WF;
+    return worldBuilt(buildWorldScene(scene, world, renderer, camera, worldShed()));
+  }
+  // G680 (A4-FREEZE): THE WORLD IN SLICES. The roll-out screen's 'world' step was buildWorld() in one task - 4.6 s warm
+  // on Jolene (15-18 s before G591), Chrome's "page unresponsive" window. render_world's buildWorldSceneSteps is the same
+  // build as a generator; this runs it a ~40 ms slice per task, the screen's bar on its yields (WORLD_YIELDS: the count a
+  // Jolene build yields, measured - a guess only shapes the bar, which never passes 0.95 before the end). The harness
+  // (no compileAsync) and a page without the generator build in one call, as before.
+  const WORLD_YIELDS = 150;
+  function buildWorldSliced() {
+    if (WF) return;
+    if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
+    const g = buildWorldSceneSteps(scene, world, renderer, camera, worldShed());
+    let n = 0, worst = 0;
+    const t00 = performance.now();
+    return new Promise(res => {
+      const tick = () => {
+        if (WF) { res(); return; }   // built meanwhile by a synchronous door (none today: the screen owns the first build)
+        const t0 = performance.now(); let r = null, lab = '';
+        try { do { r = g.next(); n++; if (!r.done) lab = r.value; } while (!r.done && performance.now() - t0 < 40); }
+        catch (e) { console.error('world build:', e); res(); return; }
+        worst = Math.max(worst, performance.now() - t0);
+        if (r.done) {
+          worldBuilt(r.value);
+          if (window.FLYDIY_LOG_COMPILE || window.FLYDIY_LOG_WORLD) console.log('world: ' + n + ' yields, ' + Math.round(performance.now() - t00) + ' ms, the longest slice ' + Math.round(worst) + ' ms');
+          window.__WORLD_SLICES = { n, worst: Math.round(worst), ms: Math.round(performance.now() - t00) };
+          res(); return;
+        }
+        BOOT.phase('world', 'laying out the world' + (lab ? ': ' + lab : ''), Math.min(0.95, n / WORLD_YIELDS));
+        setTimeout(tick, 0);
+      };
+      tick();
+    });
   }
 
   // ================= THE GARAGE'S OWN SCENE =================
@@ -5300,7 +5333,6 @@
   let testFlight = null;
   function startTestFlight(card) {
     if (!inGarage) return false;
-    if (window.CAGE_UI) syncBuild();
     const fp = card && card.fp;
     rollOut(() => {
       started = true;
@@ -5310,7 +5342,7 @@
       testFlight = { fp: fp || null, when: new Date().toISOString().slice(0, 10) };
       director.start();
       flRender();
-    });
+    }, true);   // G680: the build's sync under the roll-out screen
     return true;
   }
   // the real flight's sheet for the plaque (what tfIfRun used to memoise
@@ -6442,7 +6474,11 @@
     flReveal = 0;
     camera.fov = garageFov; camera.updateProjectionMatrix();
   }
+  // G680: a parked aeroplane's capture in flight holds the editor between its tasks - the doors that need the
+  // player's own aeroplane in it (the shed, the editor, the sync) finish it first (parked.js flush)
+  function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
   function enterGarage() {
+    parkedFlush();
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
     if (!inGarage) garageCamera();
@@ -6510,7 +6546,31 @@
     // previous build's (shakeOf caches per def, so this is one settle).
     drawPlaque();
   }
-  function rollOut(after) {            // `after` runs when the aeroplane is on the stand and on screen (S3)
+  // G680 (A4-FREEZE): THE CLICK OF "ROLL OUT" DOES NOTHING HEAVY. Both doors out of the shed (the bar's button, the
+  // bench's test flight) ran syncBuild in the click - the join's export, the snapshot with the view neutralised and
+  // put back (two editor builds), the spec's update: 1.9 s in one task before the screen could even paint. With the
+  // screen machinery, rollOut(after, true) shows the roll-out screen first and runs the sync inside it a step a task
+  // (syncBuildSteps; CAGE_JOIN.snapshotSteps), then the stand ('stand': rollOutStand, what rollOut did before its
+  // screen decision), then the screen's own steps. A page without it syncs and rolls out inline, as before.
+  const screenCan = () => typeof BOOT.show === 'function' && !!BOOT.log && typeof renderer.compileAsync === 'function';
+  function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
+    if (sync) {
+      if (screenCan() && window.CAGE_UI) { rollHold = false; rollOutScreen(() => { flRevealStart(); if (after) after(); }, true); return; }
+      if (window.CAGE_UI) syncBuild();
+    }
+    rollOutStand();
+    // THE ROLL-OUT SCREEN (LOADING S3). The first roll-out builds the world
+    // scene (3-5 s), grows the tree ring around the stand (it used to fill
+    // in front of you for 16 s), settles the atlases and compiles the
+    // world's programs (100-150 of them, the freeze at the first frame) -
+    // all under the overlay with the world pictures. A second roll-out at
+    // the same stand finds everything resident and reveals at once; a spawn
+    // elsewhere grows its ring again.
+    rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
+    if (needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); if (after) after(); });
+    else { if (!WF) buildWorld(); flRevealStart(); if (after) after(); }   // the aeroplane is on the stand now
+  }
+  function rollOutStand() {
     // G700: the bench fingerprints the aeroplane that rolls out HERE, with the editor still up (an arrival
     // fingerprinted out in the world read a closed editor, and the first flight never stayed certified)
     if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
@@ -6558,16 +6618,6 @@
     buildIndicators();                 // clears them
     $('bGo').textContent = 'Fly the circuit';
     fullReset();
-    // THE ROLL-OUT SCREEN (LOADING S3). The first roll-out builds the world
-    // scene (3-5 s), grows the tree ring around the stand (it used to fill
-    // in front of you for 16 s), settles the atlases and compiles the
-    // world's programs (100-150 of them, the freeze at the first frame) -
-    // all under the overlay with the world pictures. A second roll-out at
-    // the same stand finds everything resident and reveals at once; a spawn
-    // elsewhere grows its ring again.
-    rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
-    if (needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); if (after) after(); });
-    else { if (!WF) buildWorld(); flRevealStart(); if (after) after(); }   // the aeroplane is on the stand now
   }
   let frameWait = null, worldCompiled = false, holdRender = false;
   // G690: THE STAND WAITS FOR THE PLAYER. `holdRender` only skips the DRAW; the solver, the pilot, the director
@@ -6627,7 +6677,7 @@
     if (held) running = false;
     holdRender = true;
     const steps = [
-      { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compilePass(sc, aa && aa.target ? aa.target() : null)
+      { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compileSliced(sc, aa && aa.target ? aa.target() : null)
           .then(() => garage ? null : compileDepthVariants()).catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
       { id: 'frames', label: 'first light', w: 2, fn: () => { holdRender = false; return framesRendered(2); } },
     ];
@@ -6635,11 +6685,20 @@
       done: () => { holdRender = false; if (held && !inGarage) running = true; }, idle: 20000, hard: 90000, quietFrames: 1 });
   }
   if (typeof window !== 'undefined') window.FLYDIY_SETTLE = settleScreen;
-  function rollOutScreen(done) {
+  function rollOutScreen(done, sync) {
     const steps = [];
+    // G680: from the shed, the build's sync and the stand are the screen's first steps (rollOut(after, true))
+    if (sync) {
+      steps.push({ id: 'sync', label: 'committing your build', w: 8, fn: () => sliced(syncBuildSteps(), 'sync', 'committing your build') });
+      steps.push({ id: 'stand', label: 'onto the strip', w: 3, fn: () => { rollOutStand(); } });
+    }
     holdRender = typeof renderer.compileAsync === 'function';   // the harness renders nothing anyway
     rollHold = true;                   // G690: no step, no pilot, no director until the screen lifts
-    if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => { buildWorld(); } });
+    // G680: the parked aeroplanes the world stands under this screen are captured a step a task (parked.js), not
+    // in the 2.3-3.5 s task each they were; nothing is drawn meanwhile (holdRender), which that door needs
+    const PK = (typeof window !== 'undefined' && window.PARKED && typeof renderer.compileAsync === 'function') ? window.PARKED : null;
+    if (PK) PK.async = true;
+    if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => buildWorldSliced() });   // G680: a slice a task
     // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
     // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
     steps.push({ id: 'town', label: 'building the field', w: 8, fn: () => {
@@ -6655,6 +6714,12 @@
         };
         tick();
       });
+    } });
+    // G680: the parked aeroplanes the town placed, captured a step a task; the door closes behind them (a capture in
+    // flight is on the spot again, as before - the screen is gone)
+    steps.push({ id: 'parked', label: 'parking the other aeroplanes', w: 6, fn: () => {
+      if (!PK || !PK.whenIdle) return;
+      return PK.whenIdle((d, n) => { if (n) BOOT.phase('parked', 'parking the other aeroplanes ' + d + ' / ' + n, d / n); }).then(() => { PK.async = false; });
     } });
     // the payload: wait for it (15 s at most - a failed fetch leaves cones)
     steps.push({ id: 'trees', label: 'the tree models', w: 4, fn: () => {
@@ -6738,11 +6803,20 @@
     } });
     // two frames of the world rendered under the overlay: the passes, the
     // residue of programs the compile does not reach (the shadow variants)
-    steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => { holdRender = false; return framesRendered(2); } });
+    // G680: ...AND WHAT JOINED THE SCENE WHILE IT COMPILED. The game streams under this screen (the premises within
+    // reach, the cover ring's blocks, the parked aeroplanes' holders filling), so a material or an object kind first
+    // seen after the compile pass linked synchronously on the first frame: 1.2 s in getProgramInfoLog at the Jolene
+    // reveal (G584's owed "premises that stream in"). A second, sliced pass right before the frames: the programs it
+    // already knows cost their key, the new ones link on the driver's threads.
+    steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => {
+      if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
+      return shaderProgress(compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants()).catch(e => console.warn('catch-up compile:', e && e.message)), 'world', 60000)
+        .then(() => { holdRender = false; return framesRendered(2); });
+    } });
     // G710: the route, on the screen while nothing flies (the selects' block below builds it)
     const bR = $('bootRoute');
     if (bR) { bR.hidden = false; if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); }
-    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; rollHold = false; if (bR) bR.hidden = true; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
+    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; rollHold = false; if (PK) { PK.async = false; parkedFlush(); } if (bR) bR.hidden = true; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
       probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
   }
 
@@ -6778,8 +6852,7 @@
       // second button's job: the export through the join is a STEP inside
       // rolling out, and it runs whether or not the panel happens to be open,
       // because the panel is a view and the design is not.
-      if (window.CAGE_UI) syncBuild();
-      rollOut(() => { started = true; });   // the sim starts when the screen has lifted, not under it
+      rollOut(() => { started = true; }, true);   // the sim starts when the screen has lifted, not under it (G680: the sync inside it)
       return;
     }
     started = true;
@@ -7030,8 +7103,28 @@
   // it belongs inside the two things that need it: running a test, and rolling
   // out. Returns the list of measurements that could not be taken (G64), so a
   // caller can refuse rather than fly a build the join could not read.
-  function syncBuild() {
+  // G680: syncBuildSteps is the sync as a generator (the snapshot's view builds and the snapshot in tasks of their
+  // own: CAGE_JOIN.snapshotSteps); syncBuild runs it to the end at once - the bench's test, the API, a page
+  // without the roll-out screen
+  function syncBuild() { const g = syncBuildSteps(); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // one generator a slice per task: next() until ~40 ms have gone, then the next task; the phase line on its yields
+  function sliced(g, id, label) {
+    return new Promise(res => {
+      let n = 0;
+      const tick = () => {
+        const t0 = performance.now(); let r = null;
+        try { do { r = g.next(); n++; } while (!r.done && performance.now() - t0 < 40); }
+        catch (e) { console.error(id + ':', e); res(); return; }
+        if (r.done) { res(r.value); return; }
+        BOOT.phase(id, label, Math.min(0.9, n / 6));
+        setTimeout(tick, 0);
+      };
+      tick();
+    });
+  }
+  function* syncBuildSteps() {
     if (!window.CAGE_UI || !window.CAGE_JOIN || !window.GARAGE_SPEC) return null;
+    parkedFlush();
     try {
       const spec = window.CAGE_JOIN.export();
       // the visual freezes BEFORE the spec applies: setAircraft('gen')
@@ -7042,7 +7135,7 @@
       // (see GARAGE_SPEC.preview for the 8.6 deg this cost)
       if (window.CAGE_JOIN.snapshot) {
         const flown = window.GARAGE_SPEC.preview ? window.GARAGE_SPEC.preview(spec) : spec;
-        window.CAGE_VISUAL = window.CAGE_JOIN.snapshot(flown);
+        window.CAGE_VISUAL = window.CAGE_JOIN.snapshotSteps ? yield* window.CAGE_JOIN.snapshotSteps(flown) : window.CAGE_JOIN.snapshot(flown);
       }
       (window.GARAGE_SPEC.update || window.GARAGE_SPEC.set)(spec);
       return (window.CAGE_JOIN.errors && window.CAGE_JOIN.errors()) || [];
@@ -7146,6 +7239,7 @@
     } catch (err) { console.error('cage editor seed (images):', err); }
   }
   function openEditor() {
+    parkedFlush();
     const w = $('edWrap');
     if (!w || typeof CAGE_UI_BOOT !== 'function') return;
     w.hidden = false;
@@ -10227,7 +10321,7 @@
   // agreed. Committing at boot is the same step roll-out takes, taken once
   // more, and it is what lets the old generated skin stop being a thing the
   // game can fall back into.
-  bootStep('sync', 'committing the build', 10, syncBuild);
+  bootStep('sync', 'committing the build', 10, () => screenCan() ? sliced(syncBuildSteps(), 'sync', 'committing the build') : syncBuild());   // G680: the snapshot's builds a task each
   // THE PARKED AEROPLANES (G411): the world's aircraft objects were stood as
   // empty holders at the world step (the editor did not exist yet); each is
   // captured now through the editor - a round trip, the user's build put back
@@ -10269,20 +10363,26 @@
   // the ~12 it does draw with linked on the first frame. PROG_WARM.depthVariants mirrors three's rule (GATE
   // PROGRAMS holds it to the real shadow pass) and the helper is compiled with the world scene as its lit scene.
   const PLAIN_RT = () => PLAIN_RT.rt || (PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4));
-  function compileDepthVariants() {
-    if (typeof renderer.compileAsync !== 'function' || !WF) return Promise.resolve();
+  // G680: `sc` - the shed too (its boot's compile warmed the room for its two targets, not its shadow pass nor the
+  // passes outside the scene: the garage's first frame linked them, 1.8 s cold); the far cascade is the world's alone
+  function compileDepthVariants(sc) {
+    sc = sc || scene;
+    const inWorld = sc === scene;
+    if (typeof renderer.compileAsync !== 'function' || (inWorld && !WF)) return Promise.resolve();
     const jobs = [];
     if (typeof PROG_WARM !== 'undefined') {
-      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [scene]);
-      jobs.push(PROG_WARM.fogless(scene, () => compilePass(helper, PLAIN_RT(), scene)).catch(e => console.warn('depth compile:', e && e.message)));
+      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [sc]);
+      jobs.push(PROG_WARM.fogless(sc, () => compilePass(helper, PLAIN_RT(), sc)).catch(e => console.warn('depth compile:', e && e.message)));
     }
     // the far cascade's proxies (their far depth) and the canopy cover's swap: drawn by their own
     // renders into their own targets, keyed without the world's lights, as before
     const far = new THREE.Scene(), seen = new Set();
-    const add = (o, mat) => { if (!mat) return; const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m'); if (seen.has(key)) return; seen.add(key);
-      far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
-    if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
-    if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
+    if (inWorld) {
+      const add = (o, mat) => { if (!mat) return; const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m'); if (seen.has(key)) return; seen.add(key);
+        far.add(typeof PROG_WARM !== 'undefined' ? PROG_WARM.standIn(o, mat) : Object.assign(o.clone(false), { material: mat, visible: true })); };
+      if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
+      if (far.children.length) jobs.push(compilePass(far, (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || PLAIN_RT()).catch(e => console.warn('far compile:', e && e.message)));
+    }
     // G584: THE PASSES OUTSIDE THE SCENE - the resolve's blit, the post chain, the clouds' bake / march / shadow:
     // full-screen quads in scenes of their own that compileAsync(scene) never meets; each module lists its own
     if (typeof PROG_WARM !== 'undefined') {
@@ -10344,6 +10444,59 @@
     try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(sc, camera, lit || null); }
     finally { renderer.setRenderTarget(prev); }
   }
+  // G680 (A4-FREEZE): THE COMPILE IN SLICES. compileAsync's link is the driver's, in parallel - but its first half,
+  // three's compile(), is synchronous: every material's parameters and key, and for every NEW program its whole
+  // source (the includes, the hooks - AEROSKIN's and ATMO's are long): 1.4 s in one task for the ~30 see-through
+  // twins after the shed's boot, and a settings change that re-keys every lit program (the shadows) builds them all
+  // in the click. This is compilePass cut into tasks: ONE stand-in (PROG_WARM.standIn: the object itself by
+  // prototype, so everything the key reads of it - instancing, skinning, morphs, the geometry's attributes - is its
+  // own) per distinct (material, object kind, attribute layout), compiled a group per task (the group sized to
+  // ~30 ms, adaptively), then the programs polled until ready - compileAsync's promise, without its long first task.
+  function compileSliced(sc, target, lit) {
+    if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return compilePass(sc, target, lit);
+    const reps = [], seen = new Set(), mats = new Set();
+    sc.traverse(o => {
+      if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.material) return;
+      const g = o.geometry;
+      const gk = g && g.attributes ? Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.morphTargetsRelative ? 'r' : '') : '';
+      const ok = (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '')
+        + (o.isPoints ? 'P' : o.isLine ? 'L' + (o.isLineSegments ? 's' : '') : o.isSprite ? 'p' : 'M');
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        if (!m) continue;
+        const k = m.uuid + '|' + ok + '|' + gk;
+        if (seen.has(k)) continue;
+        seen.add(k); reps.push([o, m]); mats.add(m);
+      }
+    });
+    const litScene = lit || sc;
+    let i = 0, G = 1;                     // a NEW AEROSKIN program's source alone is ~0.1-0.3 s: start at one, grow on the cheap ones
+    return new Promise(res => {
+      const tick = () => {
+        const t0 = performance.now();
+        const prev = renderer.getRenderTarget();
+        try {
+          renderer.setRenderTarget(target, 0);
+          while (i < reps.length && performance.now() - t0 < 30) {
+            const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
+            for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
+            i += n;
+            try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
+            grp.clear();
+            const dt = performance.now() - t1;
+            G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
+          }
+        } finally { renderer.setRenderTarget(prev); }
+        if (i < reps.length) { setTimeout(tick, 0); return; }
+        // the link: compileAsync's own poll (a program three made for a material is its currentProgram)
+        const poll = () => {
+          for (const m of mats) { const p = renderer.properties.get(m).currentProgram; if (!p || !p.isReady || p.isReady()) mats.delete(m); }
+          if (!mats.size) res(sc); else setTimeout(poll, 10);
+        };
+        poll();
+      };
+      tick();
+    });
+  }
   // THE SEE-THROUGH VARIANTS (G441, A4 - the user: "show interior takes
   // seconds and freezes the UI; it was fast before"). Measured on the Cessna:
   // the `see inside` flip spent 15.8 s inside getProgramInfoLog on its first
@@ -10369,7 +10522,9 @@
     let n = 0;
     const twin = (m, side) => {
       const t = new m.constructor();
-      t.copy(m);
+      // G680: copy() deep-clones userData through JSON, and AEROSKIN's holds textures - every twin encoded canvases
+      // to data URLs (1.4 s in one task after the shed's boot); the twin takes m.userData by reference below anyway
+      { const ud = m.userData; m.userData = {}; try { t.copy(m); } finally { m.userData = ud; } }
       // Standard's and Physical's copy() put the constructor's defines back
       // ({STANDARD}, {STANDARD, PHYSICAL}) over AEROSKIN's own ({AEROSKIN_SURF},
       // PHYSICAL by hand - G206); the key lists them in insertion order
@@ -10410,7 +10565,7 @@
     });
     if (!n) return Promise.resolve();
     const t0 = performance.now();
-    return compilePass(helper, aa && aa.target ? aa.target() : null, hangarScene)
+    return compileSliced(helper, aa && aa.target ? aa.target() : null, hangarScene)   // G680: a few twins a task (it was 1.4 s in one)
       .then(() => { if (window.FLYDIY_LOG_COMPILE) console.log('xray variants: ' + n + ' programs, ' + Math.round(performance.now() - t0) + ' ms'); })
       .catch(e => console.warn('xray compile:', e && e.message));
   }
@@ -10433,7 +10588,8 @@
     const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
     const t0 = performance.now();
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
-    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); }), 'garage'))
+    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+      .then(() => compileDepthVariants(hangarScene)), 'garage'))   // G680: its shadow pass and the full-screen passes too
       .catch(e => { console.warn('boot compile:', e && e.message); done(); });
   });
   // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed

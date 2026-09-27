@@ -185,8 +185,9 @@ check(/bakeHangarEnv\(\)/.test(setLightBody(app)),
 // aeroSetEnv(WORLD_ENV) that stood at the door reached nothing for a week
 // (found by the post-FX study, 2026-09-21). The door writes the scene's number.
 {
-  const roll = app.slice(app.indexOf('function rollOut'),
-                         app.indexOf('function rollOut') + 3400);
+  // G680: the door's body is rollOutStand now (rollOut decides the screen; the sync can run under it first)
+  const rollAt = app.indexOf('function rollOutStand') >= 0 ? app.indexOf('function rollOutStand') : app.indexOf('function rollOut');
+  const roll = app.slice(rollAt, rollAt + 3400);
   check(/scene\.environmentIntensity\s*=\s*WORLD_ENV/.test(roll),
         'rollOut no longer writes the world scene\'s environmentIntensity (WORLD_ENV) at the door');
   const we = /const\s+WORLD_ENV\s*=\s*([\d.]+)/.exec(app);
@@ -501,8 +502,8 @@ if (process.argv.includes('--selftest')) {
       s => !/bakeHangarEnv\(\)/.test(setLightBody(s))],
     ['craft flies out with the shed\'s env', app,
       s => s.replace(/scene\.environmentIntensity = WORLD_ENV;(\s*syncEnvBtn)/, 'void 0;$1'),
-      s => { const r = s.slice(s.indexOf('function rollOut'),
-                               s.indexOf('function rollOut') + 3400);
+      s => { const at = s.indexOf('function rollOutStand') >= 0 ? s.indexOf('function rollOutStand') : s.indexOf('function rollOut');
+             const r = s.slice(at, at + 3400);
              return !/scene\.environmentIntensity\s*=\s*WORLD_ENV/.test(r); }],
     ['shed mood forgets the scene\'s number', shed,
       s => s.replace(/if \(sc\) sc\.environmentIntensity = muted\.env \? 0 : m\.env \/ 0\.55;/, ''),
