@@ -3642,6 +3642,17 @@
       }
     }
   }
+  // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
+  // the ground straight under each tyre (and a faint one under the fuselage), fading with the tyre's height over
+  // the ground it stands on - contact_shadow.js says why and how. In the world only: the hangar has its own floor.
+  let contactMesh = null;
+  function contactShadows() {
+    const CS = CONTACT_SHADOW;
+    if (inGarage || !CS.S.on || !sim || !def || !world || !world.terrainH) { if (contactMesh) contactMesh.visible = false; return; }
+    if (!contactMesh) { contactMesh = CS.make(THREE); scene.add(contactMesh); }
+    const xA = sim.axes()[0];
+    CS.update(THREE, contactMesh, CS.blobsFor(sim, def, world, { axis: [xA[0], xA[2]] }));
+  }
   function applySkinVis() {
     const b = $('bSkin'), has = !!model;
     // `ready` gates on texture decode: the wireframe holds the frame rather
@@ -10131,6 +10142,8 @@
     // the climb on the Cessna - "the eye drifts to the back seat as speed
     // rises"). The sim has already stepped; the pose is this frame's.
     poseModel();
+    // G1002 (A6-GROUND): the tyres' contact shadows, on this frame's pose (contact_shadow.js)
+    if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
     // distT the mouse writes, every frame, so a chase eases exactly the way a
     // drag eases and `orbit` is simply the mode that writes nothing. Cockpit

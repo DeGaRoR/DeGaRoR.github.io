@@ -217,6 +217,7 @@ function make(THREE, scene, world, rec0, opts) {
     sites: () => (rec.layers.sites || []).filter(st => st.at && O.runways.some(r => r.c && Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) < (r.len || 1000) / 2 + 900)).map(st => { let rw = null, rd = Infinity; for (const r of O.runways) if (r.c) { const d = Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) - (r.len || 1000) / 2; if (d < rd) { rd = d; rw = r.id; } } return { x: st.at.x, z: st.at.z, id: st.id, runway: rw }; }),
     items: () => O.records.items,   // the site items' feet (a site's own life covers them, v1.22.1)
     cover: (x, z) => (world.coverAt ? world.coverAt(x, z, 1) : null),   // the pavement law (v1.17.1): nothing stands on a road
+    pavedNear: O.pavedNear ? (x, z, m, skip) => O.pavedNear(x, z, m, skip) : null,   // G1003: any pavement here or within m, but `skip`
     eye: () => (o.eye ? o.eye() : null), lampsOn: () => LAMPS.on, queued: () => (o.game && !(o.editing && o.editing()) ? STREAM.near : queue.length), obstacles: () => OBS(), onTraffic: () => { syncTraffic(); },
   }) : null;
   // THE LAMP POOL (G449 - G417's account, whose code never reached the tree: the commit carried the

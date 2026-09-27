@@ -168,8 +168,11 @@ const PAVEMENT = (() => {
   // side looking along +u, the polyRoad's `n`), dEdge = the box SDF of the pavement (+ inside, - on
   // the shoulder). Row lines are PINNED at the edge, the band and the fade so the laws land on a
   // vertex; the rest is a grid at resU x resV. Draped: y = heightAt(x, z) + lift.
-  function rowsAcross(halfW, shW, band, fadeW, resV) {
+  // G1001: `inPin` pins a row that far INSIDE the edge too - where the lift ends (SINK.liftIn), so the edge's lift is
+  // not interpolated across the whole next row (a 24 m taxiway's rows are 4 m apart: 45 mm at 1.7 m in, measured)
+  function rowsAcross(halfW, shW, band, fadeW, resV, inPin) {
     const pins = [0, halfW, halfW + Math.max(0.3, band), halfW + Math.max(band + 0.6, shW - fadeW), halfW + shW];
+    if (inPin > 0 && inPin < halfW) pins.push(halfW - inPin);
     const out = new Set();
     for (const p of pins) out.add(+Math.min(p, halfW + shW).toFixed(3));
     const n = Math.max(2, Math.ceil(halfW / resV));
@@ -200,10 +203,22 @@ const PAVEMENT = (() => {
   //     edge's chipping (edgeChip), the soft edge's three octaves of noise (2.45 x edgeSoft); a grass
   //     pavement is translucent over its whole width and never sinks (Infinity)
   //   sinkAt(dE, d0): the ground's drop, S over `ramp` metres from d0 inward
-  //   liftK(dE, d0): the pavement's lift factor, 1 -> 0 only `pad` metres past the full sink - a pavement
-  //     triangle spans 3 m and a patch triangle's corner 1.4 m, so no point of a lowered triangle stands
-  //     over ground that is not already sunk by more than the lift it lost
-  const SINK = { S: 0.8, ramp: 3, pad: 3, fall: 1.5 };
+  //   liftK(dE, d0): the pavement's lift factor, 1 at the edge -> 0 at `liftIn` inside it (G1001, below; it
+  //     was 1 -> 0 only `pad` metres past the full sink)
+  // G1001 (A6-GROUND, the playtest's "floaty" taxi): THE LIFT STAYS AT THE EDGE, NOT ACROSS THE PAVEMENT. The lift
+  // went to 0 only pad + fall (4.5 m) past the full sink: 8 m inside a concrete edge, never on a 10 m taxiway, a
+  // gravel strip (d0 6.6 m) or a grass one (d0 Infinity) - the wheels, which stand on terrainH, sat 7-8 cm into
+  // every one of them (tools/ground_surface.js: roads +67 mm on average, aprons +38, gravel and grass strips +70).
+  // Now the lift is the SIDE's (dE <= 0, where the ground shows through and the roads' band is drawn) and falls to 0
+  // over `liftIn` inside the edge, on every class: past it the pavement is drawn at terrainH, the wheels' surface.
+  // THE LIFT MOVES TO THE GROUND: over the same `liftIn`, by the same law, the patch drops `pre` (the builders' 7 cm)
+  // before the deep sink takes over from d0 - so the pavement stands over the ground by what it always did at every
+  // depth (the patch's own 2 cm + 7), and nothing is seen to sink through a torn soft edge but those 7 cm.
+  // Measured on Jolene (tools/ground_surface.js --sep, the 0.5 m grid, points of pavement within 5 mm of the drawn
+  // ground, master -> now): runways and strips 0 -> 0; road edge 257 -> 220, side 2862 -> 2625, band 19 -> 75; apron
+  // edge 6 -> 18 (terrain curvature on the roads' grade blends). --grid, past liftIn: the drawn surface over terrainH
+  // on the roads 67 -> 0 mm mean, p5..p95 -4..4 (HANDOVER G1001; GATE CONTACT holds both).
+  const SINK = { S: 0.8, ramp: 3, pad: 3, fall: 1.5, liftIn: 1.5, pre: 0.07 };   // pad, fall: G660's, unused since G1001
   const ss01 = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   function opaqueDepth(cls, halfW, recipe) {
     const r = recipe || R;
@@ -212,8 +227,8 @@ const PAVEMENT = (() => {
     const soft = Math.max(0.3, Math.min(6, Math.min(r.edgeSoft || 2.6, (halfW || 3) * 0.6)));
     return soft * 2.45 + 0.2;
   }
-  const sinkAt = (dE, d0) => (isFinite(d0) ? SINK.S * ss01(d0, d0 + SINK.ramp, dE) : 0);
-  const liftK = (dE, d0) => (isFinite(d0) ? 1 - ss01(d0 + SINK.ramp + SINK.pad, d0 + SINK.ramp + SINK.pad + SINK.fall, dE) : 1);
+  const sinkAt = (dE, d0) => Math.max(SINK.pre * ss01(0, SINK.liftIn, dE), isFinite(d0) ? SINK.S * ss01(d0, d0 + SINK.ramp, dE) : 0);   // G1001: pre first
+  const liftK = (dE, d0) => 1 - ss01(0, SINK.liftIn, dE);   // G1001: d0 no longer delays it (kept in the signature)
   // a builder's lift at a vertex: o.sinkD0 (the caller's opaqueDepth) says the ground under it is sunk
   const liftOf = (o, lift, dE) => (o.sinkD0 !== undefined && o.sinkD0 !== null ? lift * liftK(dE, o.sinkD0) : lift);
   function stripGeometry(THREE, o) {
@@ -221,7 +236,7 @@ const PAVEMENT = (() => {
     const lift = o.lift !== undefined ? o.lift : 0.07, resU = o.resU || 6, resV = o.resV || 3;
     const band = o.band !== undefined ? o.band : CLASS_DEF[CLASSES[cls]].band, fadeW = o.fadeW !== undefined ? o.fadeW : R.fadeW;
     const F = stripFrame(o), halfL = F.halfL, halfW = F.halfW, len = o.len;
-    const V = rowsAcross(halfW, shW, band, fadeW, resV);
+    const V = rowsAcross(halfW, shW, band, fadeW, resV, o.sinkD0 !== undefined && o.sinkD0 !== null ? SINK.liftIn : 0);
     const nu = Math.max(2, Math.ceil((len + 2 * shW) / resU));
     const U = []; for (let i = 0; i <= nu; i++) U.push(-shW + (len + 2 * shW) * i / nu);
     // the pavement's own ends pinned too (u = 0 and u = len rows)
@@ -267,7 +282,7 @@ const PAVEMENT = (() => {
     const road = o.road, w = o.w !== undefined ? o.w : road.w, cls = CLASSES.indexOf(o.cls || 'gravel'), seed = o.seed || 0;
     const shW = o.shoulderW !== undefined ? o.shoulderW : 3, lift = o.lift !== undefined ? o.lift : 0.06, step = o.step || 3, resV = o.resV || 1.5;
     const band = o.band !== undefined ? o.band : CLASS_DEF[CLASSES[cls]].band, fadeW = o.fadeW !== undefined ? o.fadeW : Math.min(R.fadeW, shW * 0.6);
-    const halfW = w / 2, V = rowsAcross(halfW, shW, band, fadeW, resV);
+    const halfW = w / 2, V = rowsAcross(halfW, shW, band, fadeW, resV, o.sinkD0 !== undefined && o.sinkD0 !== null ? SINK.liftIn : 0);
     const L = road.length, nu = Math.max(1, Math.ceil(L / step));
     const S = []; for (let i = 0; i <= nu; i++) S.push(L * i / nu);
     for (const s of road.s) if (!S.some(x => Math.abs(x - s) < 1e-6)) S.push(s);   // the polyline's own nodes

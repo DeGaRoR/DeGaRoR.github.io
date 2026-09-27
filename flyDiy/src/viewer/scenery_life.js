@@ -320,9 +320,16 @@ function make(THREE, host) {
   const entryOf = (layer, id) => { const L = ((host.record() || {}).layers || {})[layer] || []; return id == null ? null : L.find(e => e.id === id) || null; };
   // the free-ground test: not in water, not steep, not on a pavement (the world's coverAt, v1.17.1 - the law the trees
   // and the rocks keep; an apron's edge asks with `paved` true), not on another item
+  // G1003 (A6-GROUND, the playtest: "rocks and debris lie on the taxiway and runway"): a road's or an apron's own things
+  // (`paved` true) keep off every OTHER pavement too - a runway, a taxiway, an apron they come to - by the core's
+  // pavedNear (27_premises.js), within their own radius. PAVE_SKIP is the pavement they belong to while roadLife runs
+  // (its id), null while apronLife runs (their apron is a surface polygon: they are stood outside it, below);
+  // undefined elsewhere (a person by a parked aeroplane: no test)
+  let PAVE_SKIP;
   function clear(x, z, r, paved) {
     const gy = host.heightAt(x, z);
     if (!isFinite(gy) || gy < wet(x, z) + 0.15) return false;
+    if (paved && PAVE_SKIP !== undefined && host.pavedNear && host.pavedNear(x, z, Math.max(0.1, r), PAVE_SKIP)) return false;
     // (coverAt's kill is the vegetation's fade - 0.5 four metres past a gravel road - so ON the pavement is kill ~1: the
     // carriageway and its gravel band; a road's own things - the parked car, the sign, the litter, someone walking - ask
     // with `paved` true and keep off the carriageway by their offset)
@@ -412,6 +419,7 @@ function make(THREE, host) {
     for (let i = 0; i < n; i++) {
       const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * R, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
       if (!clear(px, pz, 0.12, paved) || (keep && !keep(px, pz))) continue;
+      if (host.pavedNear && host.pavedNear(px, pz, 0.2, null)) continue;   // G1003: litter never lies on a pavement, its own road's included
       const id = pickW(rnd, rubbishKinds());
       put(procKind(id, 'rubbish', id === 'tyre' ? CUT.clutter : CUT.rubbish, { shadowTo: 0 }), px, pz, rnd() * 6.283, { tilt: true, tint: pickTint(rnd, id), lift: 0.005 });
     }
@@ -605,6 +613,10 @@ function make(THREE, host) {
 
   // THE ROADS: the shoulder's rubbish, the signs, the parked cars in a zone, someone walking
   function roadLife(rd, seed, zones, plots) {
+    const was = PAVE_SKIP; PAVE_SKIP = rd.id;          // G1003: its things keep off every pavement but this road
+    try { roadLife0(rd, seed, zones, plots); } finally { PAVE_SKIP = was; }
+  }
+  function roadLife0(rd, seed, zones, plots) {
     const S = streams(seed);
     let rnd = S('litter');
     const F = host.frame(), pr = PG.polyRoad(rd.pts, rd.w), L = pr.length, w = rd.w || 4;
@@ -662,6 +674,10 @@ function make(THREE, host) {
 
   // THE APRONS: the edge's clutter (drums, jerrycans, tyres, cones), people round the parked aeroplanes
   function apronLife(poly, rnd, craft) {
+    const was = PAVE_SKIP; PAVE_SKIP = null;           // G1003: nothing loose on any pavement, the apron's own included
+    try { apronLife0(poly, rnd, craft); } finally { PAVE_SKIP = was; }
+  }
+  function apronLife0(poly, rnd, craft) {
     const F = host.frame();
     const A = Math.abs(PG.polyArea(poly));
     if (A < 200) return;
@@ -672,11 +688,12 @@ function make(THREE, host) {
       const tg = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], inn = ccw ? [-tg[1], tg[0]] : [tg[1], -tg[0]];
       for (let s = 3 + rnd() * 10; s < L - 3; s += 14 + rnd() * 18) {
         if (rnd() > 0.35 * cfg.clutter) continue;
-        const lx = a[0] + tg[0] * s + inn[0] * 1.6, lz = a[1] + tg[1] * s + inn[1] * 1.6;
-        if (!PG.inPoly(poly, lx, lz) || !offRoad(lx, lz, 1)) continue;
+        // G1003: stood 1.6 m OUTSIDE the apron's edge, facing it (they stood 1.6 m inside, on the pavement)
+        const lx = a[0] + tg[0] * s - inn[0] * 1.6, lz = a[1] + tg[1] * s - inn[1] * 1.6;
+        if (PG.inPoly(poly, lx, lz) || !offRoad(lx, lz, 1)) continue;
         const wp = F.toWorld(lx, lz); if (nearCraft(wp[0], wp[1], 12)) continue;
         const set = recipe(pickW(rnd, RECIPES.hangar), rnd).filter(q => q[0]);
-        const ry = Math.atan2(-inn[0], -inn[1]) + F.yaw;
+        const ry = Math.atan2(inn[0], inn[1]) + F.yaw;
         let t = 0;
         for (const [k, wid, dep] of set) {
           const x2 = lx + tg[0] * t, z2 = lz + tg[1] * t, w2 = F.toWorld(x2, z2);
@@ -687,8 +704,9 @@ function make(THREE, host) {
       // a line of cones at a corner
       if (cfg.small > 0 && rnd() < 0.3 * Math.min(1.5, cfg.small)) {
         const n = 3 + Math.floor(rnd() * 3);
-        for (let j = 0; j < n; j++) { const lx = a[0] + tg[0] * (4 + j * 2.2) + inn[0] * 3.5, lz = a[1] + tg[1] * (4 + j * 2.2) + inn[1] * 3.5, wp = F.toWorld(lx, lz);
-          if (PG.inPoly(poly, lx, lz) && clear(wp[0], wp[1], 0.25, true) && !nearCraft(wp[0], wp[1], 8)) { put(procKind('cone', 'small', CUT.small - 80), wp[0], wp[1], rnd() * 6.283); occupy(wp[0], wp[1], 0.25); } }
+        // G1003: the cones mark the corner from 1.2 m outside it (they stood 3.5 m in, on the pavement)
+        for (let j = 0; j < n; j++) { const lx = a[0] + tg[0] * (4 + j * 2.2) - inn[0] * 1.2, lz = a[1] + tg[1] * (4 + j * 2.2) - inn[1] * 1.2, wp = F.toWorld(lx, lz);
+          if (!PG.inPoly(poly, lx, lz) && clear(wp[0], wp[1], 0.25, true) && !nearCraft(wp[0], wp[1], 8)) { put(procKind('cone', 'small', CUT.small - 80), wp[0], wp[1], rnd() * 6.283); occupy(wp[0], wp[1], 0.25); } }
       }
     }
     if (cfg.rubbish > 0) { const n = Math.round(A / 900 * cfg.rubbish * rnd()); for (let i = 0; i < n; i++) { const e = poly[Math.floor(rnd() * poly.length)], lx = e[0] * 0.85 + PG.polyCentroid(poly)[0] * 0.15, lz = e[1] * 0.85 + PG.polyCentroid(poly)[1] * 0.15, wp = F.toWorld(lx, lz); litter(rnd, wp[0], wp[1], 3, 1, true); } }

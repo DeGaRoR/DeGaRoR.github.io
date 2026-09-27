@@ -1929,6 +1929,9 @@ function compose(rec0, world, opts) {
     // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
     // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
     pavedAt: (x, z) => pavedAt(x, z),
+    // pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }: any pavement here or within `margin`, other than
+    // `skip` - what a loose thing (a stone, litter, a parked car) asks before it is put down (G1003)
+    pavedNear: (x, z, margin, skip) => pavedNear(x, z, margin, skip),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -1979,17 +1982,17 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) continue;
     const L = RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass, cls = L.cls || 'grass', band = paveBand(r, cls, false), reach = band + PAVE_FADE + 6;
     const E = runwayEnds(r);
-    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt' });
+    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', id: r.id, cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt' });
   }
   for (const rd of roadObjs) {
     if (rd.runway || rd.ribbon === false) continue;
     const L = RUNWAY_LOOKS[rd.look] || RUNWAY_LOOKS.gravel, cls = L.cls || 'gravel', band = paveBand(rd, cls, true), reach = rd.w / 2 + band + PAVE_FADE + 6;
     const bb = polyBBox(rd.pts);
-    addCov({ x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, { kind: 'road', cls, band, halfW: rd.w / 2, road: rd, soft: cls !== 'concrete' && cls !== 'asphalt' });
+    addCov({ x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, { kind: 'road', id: rd.id, cls, band, halfW: rd.w / 2, road: rd, soft: cls !== 'concrete' && cls !== 'asphalt' });
   }
   for (const pp of pavePolys) {
     const cls = RUNWAY_LOOKS[pp.look].cls, band = paveBand(pp, cls, true), reach = band + PAVE_FADE + 6;
-    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', cls, band, poly: pp.poly, soft: false });
+    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', id: pp.id, cls, band, poly: pp.poly, soft: false });
   }
   const zoneOf = id => rec.layers.zones.find(z => z.id === id) || null;
   // the strip's dEdge (its box's SDF: + inside), the road's (w/2 - the distance), the polygon's
@@ -1999,6 +2002,30 @@ function compose(rec0, world, opts) {
     if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
     return -sdPoly(it.poly, lx, lz);
   };
+  // G1003 (A6-GROUND, the Jolene playtest: "rocks and debris lie on the taxiway and runway"): IS ANY PAVEMENT HERE, OR
+  // WITHIN `margin` OF HERE - other than `skip` (an id: a strip's band stones ask whether they lie on ANOTHER strip, a
+  // road's parked car whether it stands on anything but its own road). Every strip (grass ones too), road and paved
+  // polygon of coverAt's index by its own dEdge (> -margin), then the surface layer's PAVED polygons (the aprons the
+  // editor draws as surface, which that index does not hold) at the point and `margin` round it. The GRAVEL / SAND
+  // polygons are not asked: on Jolene they are the runways' own shoulders (y_sh13_*, y_sh02_*), where the stones lie.
+  // -> null | { d, id, kind, cls } (d: metres inside that pavement's edge, > -margin; kind 'surface' for a polygon).
+  function pavedNear(x, z, margin, skip) {
+    const m = margin > 0 ? margin : 0, L = F.toLocal(x, z), lx = L[0], lz = L[1];
+    const cell = CIDX.query(lx, lz);
+    if (cell) for (const it of cell) {
+      if (skip != null && it.id === skip) continue;
+      const d = dEdgeOf(it, lx, lz);
+      if (d > -m) return { d, id: it.id, kind: it.kind, cls: it.cls };
+    }
+    const offs = m > 0 ? [[0, 0], [m, 0], [-m, 0], [0, m], [0, -m]] : [[0, 0]];
+    for (const o2 of offs) {
+      const px = lx + o2[0], pz = lz + o2[1];
+      const G = gsCells.get(gsKey(Math.floor(px / GS_C), Math.floor(pz / GS_C)));
+      if (!G) continue;
+      for (let n = G.S.length - 1; n >= 0; n--) { const sf = surf[G.S[n]]; if (inBB(sf.bbox, px, pz) && inPoly(sf.poly, px, pz)) { if (sf.surface === SURFACE.PAVED) return { d: 0, id: null, kind: 'surface', cls: null }; break; } }
+    }
+    return null;
+  }
   // `pave` (2026-09-22): the PAVEMENT half only - the caller wants to know whether it may stand
   // something here, not which plot's lawn it is. It skips the plot walk, which is the query's cost
   // (36 polygons in a village), and the tree fill calls this on every lattice point of every chunk.

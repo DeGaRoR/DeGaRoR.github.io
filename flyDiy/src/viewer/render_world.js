@@ -237,6 +237,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   };
   const standRocks = (field, o, keep) => {
     const parts = rockPartsOf(); if (!parts.length) return;
+    const PO = world.premises && world.premises.overlay, pavedNear = PO && PO.pavedNear ? PO.pavedNear : null;   // G1003
     let seed = (o.seed * 7919 + 17) >>> 0; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     const rr = (a, b) => a + (b - a) * rnd();
     const band = Math.max(o.band, 0.6), N = Math.min(3000, Math.round(o.len * 1.4));
@@ -250,7 +251,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the ground under the DEM lake's plane
       { const wy = waterDrawY(w[0], w[1]); if (wy !== null && Number.isFinite(wy) && wy > world.terrainH(w[0], w[1]) - 0.05) continue; }
       if (rnd() > 0.35 + 0.65 * Math.min(1, d / band)) continue;
-      rows.push([w[0], w[1], rr(0, 6.3), rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1), Math.floor(rnd() * parts.length)]);
+      const size = rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1);
+      // G1003 (A6-GROUND, the playtest: "rocks and debris lie on the taxiway and runway"): not on ANOTHER pavement, nor
+      // within its own size + 0.5 m of one - a crossing strip, a taxiway, an apron butting on this band (Jolene's 24 m
+      // taxiways meet the 45 m strips inside their 4 m band). The strip's own box is skipped by its id.
+      if (pavedNear && pavedNear(w[0], w[1], size + 0.5, o.id)) continue;
+      rows.push([w[0], w[1], rr(0, 6.3), size, Math.floor(rnd() * parts.length)]);
     }
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sv = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
     // IN CELLS, CULLED, AND GONE UNDER A PIXEL (PERF 2026-09-23). The strip's stones were one

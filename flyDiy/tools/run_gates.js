@@ -173,6 +173,7 @@ const GATES = [
   { id: 'COVER', file: '_cover_check.js', tier: 'core' },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
+  { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
   { id: 'SHADOWSKY', file: '_shadowsky_check.js', tier: 'core' },   // A2-SHADOW-SKY G650-G655: the PCF bias under the reversed buffer + a still kernel, the craft's shadow at any height, the mirror's clip, cloud sync, the cover pass, the pause
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last

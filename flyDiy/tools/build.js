@@ -349,6 +349,7 @@ const MANIFEST = {
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',
               'prop_disc.js',   // G672: the propeller's disc, measured off its blades (app.js makes one per prop part)
+              'contact_shadow.js',   // G1002: the tyres' contact shadows (app.js contactShadows, after poseModel)
               'shader_warm.js',   // G584: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
               'site_tex.js', 'site_ground.js',
               'splat_tex.js', 'splat_ground.js',   // the island's ground library (17 sets, lazily-made Images) + the splat: the arrays, the GLSL, F8's handle
