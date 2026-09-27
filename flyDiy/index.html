@@ -17134,6 +17134,10 @@ function compose(rec0, world, opts) {
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
     coverAt: (x, z, pave) => coverAt(x, z, pave),
+    // pavedAt(x, z) -> null | { d, cls, halfW, kind }: the pavement whose surface the point lies deepest
+    // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
+    // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
+    pavedAt: (x, z) => pavedAt(x, z),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -17217,7 +17221,9 @@ function compose(rec0, world, opts) {
       if (out > it.band + PAVE_FADE + 6) continue;
       // the pavement and its band: nothing; the fade: 1 -> 0 over PAVE_FADE; the border bump past the band
       let k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
-      if (it.cls === 'grass') k *= 0.6;              // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare
+      // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare - except a STRIP's
+      // surface, where no grass grows at all (G665, the user: "the runways should be able excluding the grass")
+      if (it.cls === 'grass' && !(it.kind === 'strip' && d >= 0)) k *= 0.6;
       const bump = out <= it.band ? 0 : (out < it.band + PAVE_FADE + 6 ? Math.sin(Math.PI * Math.min(1, (out - it.band) / (PAVE_FADE + 6))) : 0);
       // a soft road's own edge is where the grass creeps in: the bump reaches into its last metre
       const soft = it.soft && d > 0 && d < 1 ? 0.5 * (1 - d) : 0;
@@ -17233,6 +17239,17 @@ function compose(rec0, world, opts) {
     if (kind === 'lawn' && kill < 1) kill = 0;
     if (!kill && !boost && !kind) return null;
     return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+  }
+
+  function pavedAt(x, z) {
+    const L = F.toLocal(x, z), lx = L[0], lz = L[1];
+    const cell = CIDX.query(lx, lz);
+    let best = null;
+    if (cell) for (const it of cell) {
+      const d = dEdgeOf(it, lx, lz);
+      if (d > 0 && (!best || d > best.d)) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind };
+    }
+    return best;
   }
 
   // PLACEMENT (stage 5): the zones sown in array order — a later zone's plots
@@ -18540,7 +18557,7 @@ function makeSim(def, world) {
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
-        r = new Float64Array(n);
+        r = new Float64Array(n), rC = new Float64Array(n);   // rC: the contact radius (G661, reset below)
   // THE FLIGHT BOX (G610, 62_gen_aero genFlightBox): a softened wing spring (kTrue on the beam) reports
   // its strain against the TRUE k - the force it carries over the actual wing's stiffness, which is the
   // real wing's strain under the same load (sK = k / kTrue; 1, exactly, on every other beam)
@@ -19208,6 +19225,27 @@ function makeSim(def, world) {
       totalM += nd.m;
       rigGround(i, nd.m);          // hoisted; reset only ever runs post-build
     }
+    // G661 (A2-RUNWAYS, a small local edit in A1-PHYS's solver): THE WHEEL STANDS ON THE GROUND, NOT IN
+    // IT. The ground spring holds a wheel's share of the weight by penetrating: 2.0 cm under each main of
+    // the stock build, 2.8 under the aluminium Cessna's nosewheel (measured) - a rigid drawn tyre sunk
+    // that far into the runway, the playtest's 142532 ("that's not acceptable anymore"). The drawn tyre IS
+    // the loaded tyre, so each wheel's contact radius carries its own static deflection: the share of
+    // the weight the level stance gives it (the lever of the CG between the mains and the third wheel)
+    // over its own ground stiffness. K, C and every force law are unchanged - the spring meets the
+    // ground that much earlier, so at rest the wheel's rim is on the surface. Every other node: rC = r.
+    for (let i = 0; i < n; i++) rC[i] = r[i];
+    {
+      const M = (def.refs && def.refs.mains) || [], tw = def.refs ? def.refs.tw : null, W = totalM * 9.81;
+      if (M.length) {
+        let cx = 0; for (let i = 0; i < n; i++) cx += def.nodes[i].p[0] * def.nodes[i].m; cx /= totalM;
+        let xm = 0; for (const i of M) xm += def.nodes[i].p[0]; xm /= M.length;
+        const hasTw = tw != null && tw >= 0, xt = hasTw ? def.nodes[tw].p[0] : xm;
+        const sT = hasTw && Math.abs(xt - xm) > 1e-3 ? Math.max(0, Math.min(1, (cx - xm) / (xt - xm))) : 0;
+        const def0 = (i, share) => Math.max(0, Math.min(0.05, share * W / KGn[i]));
+        for (const i of M) rC[i] = r[i] + def0(i, (1 - sT) / M.length);
+        if (hasTw) rC[tw] = r[tw] + def0(tw, sT);
+      }
+    }
     for (const b of beams) {
       b.L0 = hyp3(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
       // G185: RIGGING. A wire's rest length is a hair short of the drawn
@@ -19235,7 +19273,7 @@ function makeSim(def, world) {
     // sink) landed on the other side of their thresholds — the battery's
     // datum is the level drop + 600-frame settle, and it stays so.
     let minC = Infinity;
-    for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
+    for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
     ctl.eng = null;                                  // G194: every lever back to full
@@ -19257,7 +19295,7 @@ function makeSim(def, world) {
     let ax = 0, ay = 0;
     for (const i of M) { ax += p[i*3]; ay += p[i*3+1]; }
     ax /= M.length; ay /= M.length;
-    const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = r[tw] - r[M[0]];
+    const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = rC[tw] - rC[M[0]];
     const R = hyp2(A, B);
     if (R < 1e-6 || Math.abs(C) > R) return 0;
     const th = Math.asin(C / R) - Math.atan2(B, A);
@@ -19776,13 +19814,13 @@ function makeSim(def, world) {
       let gy;
       if (coneLive) {
         const dx = p[i3] - gcx[i], dz = p[i3+2] - gcz[i];
-        const c = p[i3+1] - r[i] - gcy[i] - GROUND_CONE_EPS;
+        const c = p[i3+1] - rC[i] - gcy[i] - GROUND_CONE_EPS;
         if (c > 0 && c * c > coneS2 * (dx * dx + dz * dz)) { out.gndSkipped++; continue; }
         gy = gH(p[i3], p[i3+2]); gcx[i] = p[i3]; gcz[i] = p[i3+2]; gcy[i] = gy; out.gndSampled++;
-      } else if (hbLive && p[i3+1] - r[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
+      } else if (hbLive && p[i3+1] - rC[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
         out.gndSkipped++; continue;
       } else { gy = gH ? gH(p[i3], p[i3+2]) : 0; if (hbLive) out.gndSampled++; }
-      const pen = gy + r[i] - p[i3+1];
+      const pen = gy + rC[i] - p[i3+1];
       if (pen <= 0) continue;
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
       if (out.gndDump) out.gndPitch -= (p[i3] - out.gndCgx) * Fn;
@@ -20023,7 +20061,7 @@ function makeSim(def, world) {
     }
     for (const i of [...def.refs.mains, def.refs.tw]) {
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
-      if (p[i*3+1] - r[i] - gh < 0.03) c++;
+      if (p[i*3+1] - rC[i] - gh < 0.03) c++;
     }
     return c;
   }
@@ -20031,7 +20069,7 @@ function makeSim(def, world) {
   // ground law can tell one main down (a wing-low touchdown) from the tail
   // still flying; on the water the floats, as above
   function wheelContacts() {
-    const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - r[i] - gh < 0.03; };
+    const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - rC[i] - gh < 0.03; };
     if (HY) return { mains: HY.floats.map(fx => fx.wet > 0.05), tw: HY.floats.length === 2 && HY.floats.every(fx => fx.out.wetA > 0.2), water: true };
     return { mains: def.refs.mains.map(on), tw: def.refs.tw != null && def.refs.tw >= 0 ? on(def.refs.tw) : false, water: false };
   }
@@ -40852,7 +40890,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='7c5e34dd0ae6';window.FLYDIY_BUILD='2e57a5624181'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='84165fe8a9ff';window.FLYDIY_BUILD='dbbf17f1c83d'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -47059,6 +47097,10 @@ window.CAGE_PAGE = {
       wgPos: 0, wgCentre: 2, wgCentreW: 1.05, wgBrace: 0, wgCrankAt: 0.45,
       wgDihedralOut: 1.7, wgPanels: 3, wgDx: 0.13, wgDy: -0.1, wgParaH: 0.45,
       wgStrutZ: 0.2, wgStrutX: -0.06, wgFlapType: 2, wgFlapSpan: 0.55,
+      // G776: ONE STRUT A SIDE, as a 172 has (the V pair was the page's
+      // default, never the aeroplane's). Drawing only: T2.3 (83) keeps the
+      // rear member as a hidden fan member, so the truss that flies is the same
+      wgStruts: 1,
       wgFlapChord: 0.2, wgAilOn: 1, wgAilSpan: 0.35, wgAilChord: 0.22,
       wgCons: 0, w2On: 0, w2Pos: 2, w2ParaH: 0.45, w2Stagger: 0.35, w2Dy: 0,
       w2Span: 10, w2Chord: 1.6, w2ChordTip: 1.6, w2TipX: 0, w2CrankAt: 0,
@@ -47866,7 +47908,7 @@ window.CAGE_PAGE = {
           place: { dx: 0, dy: 0 },
           centreW: 1.05,
           yRoot: 1.4203374513171196 }],
-      bracing: { type: "strut", interplane: "none", interplaneAt: 0.62, wires: "both", cabane: "N" },
+      bracing: { type: "strut", struts: 1, interplane: "none", interplaneAt: 0.62, wires: "both", cabane: "N" },   // G776: the cage row's wgStruts 1
       controls: {
         flap: { type: "slotted", span: 0.55, chord: 0.2 },
         aileron: { span: 0.35, chord: 0.22 },
@@ -79562,7 +79604,33 @@ const STRUT_FIT = {
   pinR: 0.009, pinShank: 0.040,
   screwR: 0.0055, screwL: 0.007,
   strutR: 0.023,        // 63_gen_skin's own: GEN_TUBE_R.wing * 1.15 (ext)
-  chordK: 3.6,          // ...and its chord rule, cw = 3.6 r
+  chordK: 3.6,          // ...and its chord rule, cw = 3.6 r — the BRACE layer's
+                        // truss members (_cage_brace.js) still draw at this
+  // THE LIFT STRUT'S OWN SECTION IS A REAL ONE (G776, the user: "The section
+  // of the struts seems little, can we compare with reality?"). It was the
+  // rule above — 82.8 x 19.5 mm, 4.2:1, one size for every member of every
+  // aeroplane — MEASURED off the drawn mesh in the page (world scale 1: this
+  // hardware is metric and never scales). Real lift struts are fuller and
+  // are not all one size:
+  //   Piper PA-18 front strut   3.825 x 1.25 in  = 97 x 32 mm, 3.1:1
+  //   Piper PA-18 rear strut    2.45  x 0.81 in  = 62 x 21 mm, 3.0:1
+  //     (4130 / mild-steel streamline, .035 wall; supercub.org's strut
+  //     dimension thread, matched within 3 % by a measured 3.938 / 2.438 in
+  //     on shortwingpipers.org — the J-3's are drawn on the same Univair dies)
+  //   Cessna 172 (one strut a side)  ~120 x 50 mm, ~2.4:1 — ESTIMATED: the
+  //     strut is a 3.5 in x .083 round aluminium tube formed to a streamline
+  //     on a die (cessna170.org), taken at constant perimeter to the standard
+  //     streamline proportions (major 1.349 D, minor 0.571 D); no published
+  //     chord exists, Cessna's included
+  // So a V pair draws the Piper front and rear members, and a single strut
+  // (bracing.struts 1) the Cessna's. Physics is NOT moved by this: the strut's
+  // drag is priced at 60 mm frontal a side (62_gen_aero genGearCdA, a delta
+  // against a strut-braced reference) — against 32 + 21 = 53 mm for the
+  // Piper pair and ~50 mm for the Cessna — and its mass and stiffness are the
+  // wing class's (61_gen_frame), neither of which reads the drawn section.
+  frontC: 0.097, frontT: 0.032,
+  rearC: 0.062, rearT: 0.021,
+  oneC: 0.120, oneT: 0.050,
   bladeC: 0.052,        // the machined end, flattened into the clevis
   bladeT: 0.011,
   endFrac: 0.11,        // how much of each end is that transition
@@ -79942,19 +80010,23 @@ function strutBuild(bags, AF, site, ends, opt) {
     }
   }
 
-  const cw = FIT.chordK * FIT.strutR;
   const SECT = (typeof GEN_STRUT_SECT !== 'undefined') ? GEN_STRUT_SECT : null;
   const mix = (a, b, t) => a + (b - a) * t;
   // the member's own section: streamline over its length, flattened into a
-  // blade at BOTH ends so it can enter a clevis at each.
-  const sect = t => {
+  // blade at BOTH ends so it can enter a clevis at each. C x T is the real
+  // strut's chord and thickness (G776); GEN_STRUT_SECT's contour is 0.236
+  // thick for its chord, so the thickness is scaled apart from the chord.
+  const sectOf = (C, T) => t => {
     const e = FIT.endFrac;
     const k = Math.min(1, Math.min(t, 1 - t) / e);
-    const us = mix(FIT.bladeC, cw, k);
-    const vs = mix(FIT.bladeT / (2 * 0.118), cw, k);
+    const us = mix(FIT.bladeC, C, k);
+    const vs = mix(FIT.bladeT, T, k) / (2 * 0.118);
     return SECT ? SECT.map(c => [(c[0] - 0.40) * us, c[1] * vs])
                 : K.secBlade(us, vs * 0.236, 4);
   };
+  // which member is which: a single strut, or the front / rear of a V
+  const memberSec = i => ends.length === 1 ? [FIT.oneC, FIT.oneT]
+    : i === 0 ? [FIT.frontC, FIT.frontT] : [FIT.rearC, FIT.rearT];
 
   // A CLEVIS, wherever a strut end lands: two ears across a pin, the pin
   // FORE-AND-AFT. A lift strut works in the lateral/vertical plane — it hinges
@@ -80043,7 +80115,8 @@ function strutBuild(bags, AF, site, ends, opt) {
     // upHint [0,0,1] pins the section's chord FORE-AND-AFT — the whole point
     // of a streamline strut, and the thing a transported frame loses if you
     // let it pick its own start.
-    K.sweep(bags.strut, K.resample([foot, tip], 16), sect, true, [0, 0, 1]);
+    const [sC, sT] = memberSec(i);
+    K.sweep(bags.strut, K.resample([foot, tip], 16), sectOf(sC, sT), true, [0, 0, 1]);
     // HOW FAR THE DRAWN END IS FROM THE BEAM IT STANDS FOR, IN PLAN. The
     // caller reports and gates on this: the visuals are constrained to the
     // physics, never the other way round.
@@ -96835,7 +96908,22 @@ function aeroSavePrefs() {
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
-aeroLoadPrefs();
+// THE PREF IS A BENCH'S, NEVER THE GAME'S (G775, the user: "tests were
+// loading the cessna, then the default plane came back, but with the cessna
+// livery, the metallic paint, but still the original plane's color"). Every
+// load writes its finish here (finishFromSpec -> aeroSavePrefs), and reading
+// it back at script eval made the LAST aeroplane loaded in this browser the
+// finish of the NEXT page's aeroplane — whenever that aeroplane's own finish
+// never reached the editor, which is exactly the default plane: its spec has
+// no cage, so the game's seed skips applySpec (app.js seedEditor). Measured
+// in headless Chrome: the default plane booted with its own paint (the
+// colour is `spec.paint`, not the finish) under the Cessna's metal flake on
+// twelve sections and its two metallic markings — and the join then exported
+// that state INTO the spec, so the next save kept it. In the game the spec is
+// the finish's only owner (G105); the pref stays the bench pages' memory.
+const aeroPrefsOwn = () => !(typeof window !== 'undefined' && window.CAGE_IN_GAME);
+function aeroBootPrefs() { if (aeroPrefsOwn()) aeroLoadPrefs(); }
+aeroBootPrefs();
 
 // ---------------------------------------------------------------------------
 // RECENT COLOURS (G156)
@@ -100047,7 +100135,7 @@ function buildDecPanel() {
   const A = AK();
   if (!A || decPanel) return;
   decKitDefaults();
-  decLoadPrefs();
+  if (aeroPrefsOwn()) decLoadPrefs();      // G775: the marking too — see aeroBootPrefs
   decPanel = document.createElement('details');
   decPanel.dataset.g = 'decals';
   decPanel.innerHTML = '<summary>decals</summary>';
@@ -102526,7 +102614,13 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
       // THE PRE HOOK (A6): the clouds march BEFORE the scene, off the previous frame's resolved depth
       // (their integration's end - a frame stale at a ridge, invisible), and composite INSIDE the pass
       // as a quad at their own depth (the silhouettes per MSAA sample) - see clouds.js COMP_FRAG
-      if (S.pre) S.pre(renderer, camera, S.rt);
+      // G650 THE CLOUDS KEEP UP WITH AN ORBIT (A2-SHADOW-SKY; the user: "Synchronizing the movement of the clouds and
+      // the rest of the world on camera orbiting is really important"): the march reads camera.matrixWorld, and at this
+      // point the frame's lookAt has only set the quaternion - Object3D.lookAt refreshes the world matrix BEFORE it
+      // turns, not after, and renderer.render (which would) comes next. So the clouds were marched with this frame's
+      // eye position and LAST frame's rotation: they slid against the world while orbiting, more as the fps fell, and
+      // snapped back on a mirror-capture frame (the mirror refreshes the camera). The matrix is made current first.
+      if (S.pre) { if (camera.updateWorldMatrix) camera.updateWorldMatrix(true, false); S.pre(renderer, camera, S.rt); }
       renderer.setRenderTarget(S.rt);
       // the auto scale's GPU reading: the scene pass alone (the clouds' and the post passes' own timers are outside it)
       let aq = null;
@@ -104724,6 +104818,18 @@ var CLOUDS = (function () {
     // SEVERAL DECKS (A6): each live deck's slab is cut by the ray into a segment [t0, t1]; the segments are
     // walked in the order of their entry (the decks never overlap in height, so along a ray they never
     // interleave), the transmittance carried from one to the next, the step budget shared.
+    // deckEntry(o, d): how far along the ray the first live deck begins (0 inside one, 1e9 if none is met)
+    float deckEntry(vec3 o, vec3 d) {
+      float tIn = 1e9;
+      for (int li = 0; li < MAXL; li++) {
+        if (uLayerA[li].z < 0.5) continue;
+        float yb = uLayerA[li].x, yt = yb + uLayerA[li].y;
+        if (abs(d.y) < 1e-5) { if (o.y >= yb && o.y <= yt) tIn = 0.0; continue; }
+        float ta = (yb - o.y) / d.y, tb = (yt - o.y) / d.y;
+        if (max(ta, tb) > 0.0) tIn = min(tIn, max(0.0, min(ta, tb)));
+      }
+      return tIn;
+    }
     vec4 march(vec3 o, vec3 d, float tScene, float jitterK) {
       float tMax = min(tScene, uDials.w * 1000.0);
       float s0[MAXL], s1[MAXL]; int ord[MAXL]; int n = 0;
@@ -104814,9 +104920,17 @@ var CLOUDS = (function () {
       vec3 d = normalize(mat3(uCamMat) * dv), o = uCamPos;
       // the scene's depth (logarithmic: w = (far + 1)^depth - 1, the clip w = the view depth)
       float dz = texture(uDepth, vUv).r;
-      outK = vec4(dzW1(dz) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
       float tScene = dzSky(dz) ? 1e9 : (dzW1(dz) - 1.0) / max(1e-4, -dv.z);
-      gl_FragColor = march(o, d, tScene, uDials2.x);
+      // G650 THE STALE DEPTH NEARER THAN THE CLOUDS IS SKY: this depth is the PREVIOUS frame's (the march runs before the
+      // scene), and while the camera orbits a near silhouette (the aeroplane 15 m away) stood a frame behind - the march
+      // stopped at it where there is sky now, a hole in the clouds in the aeroplane's last pose, trailing it. What stands
+      // nearer than the first deck can hide a cloud but never sit in front of one inside the march, so such a texel is
+      // marched to the end and its key (the composite's depth, below) is the FAR plane: the composite's depth test against
+      // THIS frame's scene hides whatever is really there (a key at the object's own distance passed the equal test and
+      // painted clouds over the treetops - the first cut).
+      bool thru = tScene < deckEntry(o, d);
+      outK = vec4((thru ? dzW1(uDZ.x > 0.5 ? 0.0 : 1.0) : dzW1(dz)) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
+      gl_FragColor = march(o, d, thru ? 1e9 : tScene, uDials2.x);
     }`;
   // THE DOME MARCH (C3): the same layer on a sphere round the eye - for the reflection probe (the
   // water and the skin reflect the clouds) and the shed's backdrop (one sky) - no scene depth, the
@@ -106670,14 +106784,12 @@ const POST_FX = (() => {
 // scene has no near light; the rule must not misread its lights).
 //
 // THE CRAFT AND THE FAR MAP: the far map's camera sees FAR_LAYER (2), which
-// render_world puts on every caster but the craft (a traversal every 30
-// frames; the near casters are tagged in the same pass). While the craft's
-// ground shadow lies inside the box (under 40 m AGL and a sun high enough
-// not to throw it past the box's edge) the craft is off FAR_LAYER - the far
-// map's coarse copy of the same shadow would bloat the crisp edges (min is a
-// union). Once the shadow leaves the box the craft joins FAR_LAYER too, so
-// its shadow on the ground far away exists, coarse, where coarse is all one
-// can see. Layer 0 is never touched: the main camera, the cockpit's pick and
+// render_world puts on every caster but the craft (G601: as objects join the
+// scene). The craft is never on FAR_LAYER while the near map is live (G650:
+// the near box's depth follows the sun down to the craft's ground shadow at
+// any height - see follow()); the far map's coarse, every-other-frame copy
+// was the trailing ghost. With the near map off the craft casts into the far
+// map, as it did before A6. Layer 0 is never touched: the main camera, the cockpit's pick and
 // the flare's occlusion rays all live there (the first cut moved the craft
 // off layer 0 and the flare shone through the roof - a Raycaster tests layer
 // 0 by default). The instanced trees stay out of the near map: a stand of
@@ -106686,7 +106798,7 @@ const POST_FX = (() => {
 var SHADOW_NEAR = (function () {
   'use strict';
   const NEAR_LAYER = 3, FAR_LAYER = 2;   // the near map's camera sees 3; the far map's sees 2 (everything but the craft, unless it is high)
-  const S = { on: true, half: 30, size: 1024, aglFar: 40, bias: -0.0004, normalBias: 0.02 };   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra)
+  const S = { on: true, half: 30, size: 1024, bias: -0.0004, biasM: 0.05, normalBias: 0.02, normalBiasTx: 0.9, relief: 150, slantMax: 3000, penumbra: 0.0093, radiusMax: 2.5, self: true, slant: 0 };   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra)
   const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0)
   const nearUniforms = { uNearP: { value: nearScalars } };
   let installed = false;
@@ -106714,10 +106826,43 @@ var SHADOW_NEAR = (function () {
 		#else
 		${KEY}
 		#endif`;
+  // ---- THE PCF LOOKUP FOR A REVERSED DEPTH BUFFER, AND A KERNEL THAT STANDS STILL (G650, A2-SHADOW-SKY) ------------
+  // THE STRIPES (playtest 2026-09-26, screens 140339 / 145145): the depth buffer went REVERSED at 90a0eae5 (app.js), and
+  // three r186 renders the shadow maps reversed too (1 at the light's near plane, a GREATER-EQUAL compare) - but its PCF
+  // getShadow still does `shadowCoord.z += shadowBias` with no reversed case (only VSM and BASIC have one). A negative
+  // bias, meant to pull a receiver TOWARD the light, pushed every receiver AWAY from it, behind its own depth: acne on
+  // every lit surface, the chordwise hachures on the double-sided wing skin. Measured: ?depth=log (the old buffer) was
+  // clean. The fix is three's own VSM rule in the PCF path: under the reversed buffer the bias is subtracted.
+  // THE CRAWL: r186's PCF is five taps of a Vogel disc turned per pixel by interleaved-gradient noise - a kernel built
+  // for a TAA that averages the noise away over frames. The game has none, so every shadow edge dithered and crawled as
+  // the camera moved. Four hardware-compared (bilinear) taps half a texel off the point: a stable ~3-texel penumbra, no
+  // noise. `?pcf=noise` keeps three's kernel for the A/B.
+  const PCF_BIAS = 'shadowCoord.z += shadowBias;';   // its first occurrence is the PCF getShadow's (#if SHADOWMAP_TYPE_PCF comes first)
+  const PCF_NOISE_A = 'float phi = interleavedGradientNoise( gl_FragCoord.xy ) * PI2;';
+  // FOUR taps, not nine: each is a hardware-compared BILINEAR fetch, so four at (+-0.5, +-0.5) texel cover the 3x3 texels
+  // round the point with a tent - the same footprint as a 3x3 grid of nearest compares, smoother. The first cut had nine
+  // (written out: fxc inlines loops of fetches badly - G567), inlined three times in every lit program by the near rule:
+  // the roll-out's compile step went 13.8 -> 36 s on every warm run (rollout_perf, G650). Four is fewer than three's five.
+  const PCF_GRID = 'shadow = (\n' + [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]
+    .map(([x, y]) => `texture( shadowMap, vec3( shadowCoord.xy + vec2( ${x.toFixed(1)}, ${y.toFixed(1)} ) * radius, shadowCoord.z ) )`).join(' +\n') + '\n) * 0.25;';
+  const pcf = { bias: false, grid: false };
+  function patchPCF(SC) {
+    let f = SC.shadowmap_pars_fragment || '';
+    const i = f.indexOf(PCF_BIAS), pv = f.indexOf('SHADOWMAP_TYPE_VSM');
+    if (i >= 0 && (pv < 0 || i < pv)) {
+      f = f.slice(0, i) + '\n#ifdef USE_REVERSED_DEPTH_BUFFER\nshadowCoord.z -= shadowBias;\n#else\nshadowCoord.z += shadowBias;\n#endif\n' + f.slice(i + PCF_BIAS.length);
+      pcf.bias = true;
+    }
+    const noise = typeof location !== 'undefined' && /[?&]pcf=noise/.test(location.search || '');
+    const a = f.indexOf(PCF_NOISE_A), b = a >= 0 ? f.indexOf(') * 0.2;', a) : -1;
+    if (!noise && a >= 0 && b > a) { f = f.slice(0, a) + PCF_GRID + f.slice(b + ') * 0.2;'.length); pcf.grid = true; }
+    SC.shadowmap_pars_fragment = f;
+  }
   function install() {
     if (installed || typeof THREE === 'undefined' || !THREE.ShaderChunk) return false;
     const SC = THREE.ShaderChunk;
     if (!SC.lights_fragment_begin || SC.lights_fragment_begin.indexOf(KEY) < 0) return false;
+    patchPCF(SC);
     SC.lights_fragment_begin = SC.lights_fragment_begin.replace(KEY, RULE);
     // the black light's own iteration: no BRDF for it when the near map is live
     const RE = 'RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );';
@@ -106767,33 +106912,293 @@ var SHADOW_NEAR = (function () {
       const mats = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
       // the craft RECEIVES its own shadow now (a wing on the fuselage, a strut on the wing): it never did - three's
       // default is off and the far map's half-metre texels would have been acne; the opaque casters only
-      if (m.isMesh && m.castShadow && mats.length && !mats.some(x => x.transparent || x.opacity < 1)) m.receiveShadow = true;
+      if (m.isMesh && m.castShadow && mats.length && !mats.some(x => x.transparent || x.opacity < 1)) m.receiveShadow = !!S.self;
       if (m.isMesh && mats.length && !mats.some(x => x.transparent || x.opacity < 1)) m.renderOrder = -1;   // an occluder before the ground (render_world.js ORDER_NOTE)
       for (const mat of mats) { if (!mat.defines) mat.defines = {}; if (!mat.defines.CRAFT_NEAR_ONLY) { mat.defines.CRAFT_NEAR_ONLY = 1; mat.needsUpdate = true; } }
     });
   }
   // follow(L, cg, sun, agl, snap, camera): the box round the CG each frame, snapped to its own texels (render_world's
-  // snapToTexels); the craft on FAR_LAYER (the far map) only once its ground shadow leaves the box
+  // snapToTexels), its DEPTH reaching the craft's ground shadow at any height (G650 below)
+  //
+  // G650 THE TRAILING GHOST (A2-SHADOW-SKY; playtest 2026-09-26: the aircraft's shadow "blurred, crawling, trailing").
+  // The box's depth used to stop 70 m down-sun of the CG, so above ~40 m AGL the craft's ground shadow fell out of it
+  // and the craft joined the FAR map - which redraws every 2nd frame (render_world SHADOW_RATE) at 0.2-1 m texels -
+  // while the ground inside the box took min(near, far): a coarse, stale copy of the shadow, a frame behind, blinking
+  // at 15 Hz under the 30 cap. But an orthographic light sees the craft and its ground shadow on the SAME ray: the
+  // box never had to move sideways, only to see deeper. So the near camera's far plane now reaches the ground along
+  // the sun (the height over the ground divided by the sun's elevation, plus a relief margin), the craft never joins
+  // the far map while the near map is live, and there is no hand-over left to fade. The bias is held in METRES
+  // (S.biasM) as the depth range grows, and the kernel widens a little with the slant - the sun's half-degree disc
+  // blurs a shadow cast from high up (S.penumbra, capped at S.radiusMax texels; the grid kernel bands past that).
   const _t = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
   function follow(L, cg, sun, agl, snap, camera) {
     if (!L) return;
     const live = S.on ? 1 : 0;
     nearScalars[0] = live; L.visible = !!live; L.castShadow = !!live;
-    if (!live) { if (craftGroup && craftFar !== true) { craftFar = true; craftGroup.traverse(m => m.layers.enable(FAR_LAYER)); } return; }   // off: the craft back on the far map
+    const far = !live;   // the craft is on the far map only while the near map is off
+    if (craftGroup && far !== craftFar) { craftFar = far; craftGroup.traverse(m => { if (far) m.layers.enable(FAR_LAYER); else m.layers.disable(FAR_LAYER); }); }
+    if (!live) return;
     _t.set(cg[0], cg[1], cg[2]);
     if (snap) snap(_t, S.half, S.size);
     L.target.position.copy(_t);
     L.position.set(_t.x + sun.x * 2 * S.half, _t.y + sun.y * 2 * S.half, _t.z + sun.z * 2 * S.half);
     if (camera && !camera.layers.isEnabled(NEAR_LAYER)) camera.layers.enable(NEAR_LAYER);
-    // the craft joins the far map once its ground shadow leaves the box (high, or a low sun throwing it sideways)
-    const sy = Math.max(0.05, sun.y), throwM = agl * Math.sqrt(Math.max(0, 1 - sy * sy)) / sy;
-    const far = agl > S.aglFar || throwM > S.half * 0.7;
-    if (craftGroup && far !== craftFar) { craftFar = far; craftGroup.traverse(m => { if (far) m.layers.enable(FAR_LAYER); else m.layers.disable(FAR_LAYER); }); }
+    // the depth: the box's own 2 x half above the target, down to the ground shadow (plus S.relief of terrain) below it
+    const sy = Math.max(0.05, sun.y), slant = Math.min(S.slantMax, Math.max(0, agl) / sy);
+    const c = L.shadow.camera, want = Math.max(4 * S.half + 10, 2 * S.half + slant + S.relief / sy);
+    if (Math.abs(c.far - want) > 0.05 * want) { c.far = want; c.updateProjectionMatrix(); }
+    L.shadow.bias = -S.biasM / (c.far - c.near);
+    const texel = 2 * S.half / S.size;
+    // the normal offset in TEXELS (0.02 m was a third of the 1024 map's 6 cm texel: a faint diamond acne on a wing lit at
+    // a grazing sun, measured G650 - 0.9 of a texel clears it and moves a receiver 5 cm, invisible on an aeroplane)
+    L.shadow.normalBias = S.normalBiasTx * texel;
+    L.shadow.radius = Math.max(1, Math.min(S.radiusMax, (slant * S.penumbra / texel - 1) / 2));
+    S.slant = slant;
   }
-  const API = { S, NEAR_LAYER, FAR_LAYER, install, inject, make, tag, tagCraft, follow, get installed() { return installed; } };
+  const API = { S, pcf, NEAR_LAYER, FAR_LAYER, install, inject, make, tag, tagCraft, follow, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
   return API;
 })();
+</script>
+<script type="text/x-flydiy">
+// ============================================================================
+// prop_disc.js — THE PROPELLER AS A DISC (G672, A2-FADES of the 2026-09-26 Jolene playtest)
+//
+// The user: "the spinning prop contributes to the feeling of lag - replace with a textured disc,
+// slightly animated, MSFS style". The blades were turned by spinRate x frameDt (app.js), which at
+// 2 400 rpm and 30 fps is ~480 degrees a frame: a strobe that reads as a stutter. A camera does not
+// see a blade at that speed either; it sees the disc the blades sweep.
+//
+// THE DISC IS MEASURED OFF THE BLADES, never drawn by hand: the blade meshes of the spinning part are
+// rasterised down the shaft into a polar grid, so the radius, the root, the plane the disc lies in,
+// the number of blades, the chord at every station and the colour at every station (a painted tip is
+// a ring of its colour) are the build's own. The texture (angle x radius) carries
+//   rgb   the blades' colour at that radius
+//   a     the SWEPT coverage at that radius (the fraction of the circle the blades fill: a
+//         two-blade tip is a faint ring, a wide root a dense one), times (1 - ghost), plus the
+//         silhouette itself blurred round the circle, times ghost - the "ghost" blades MSFS shows,
+//         which drift slowly (`drift`) instead of strobing. The mean over the circle is the
+//         coverage either way, so the ghost never brightens or darkens the disc.
+// The mesh is a child of the spinning part, so it rides the engine node, the conjugation (G357) and
+// the pose exactly as the blades do; it counter-rotates its texture by the part's own angle.
+//
+// THE CROSSOVER is by rpm: under rpmLo the blades alone (a turning-over, a slow windmill: nothing
+// strobes), over rpmHi the disc alone (the blades hidden), between them the disc's opacity grows
+// with the blades still drawn, and the blades go when it is whole. A start passes through it in
+// under a second.
+//
+//   PROP_DISC.analyse(blades, axis, opt) -> { R, r0, h, NT, NR, cov, rgba, n }     (pure: node-testable)
+//     blades: [{ pos: Float32Array (xyz in the spinning frame), idx: index array | null, col: [r,g,b] 0..1 }]
+//   PROP_DISC.make(THREE, part, bladeMeshes, axis, opt) -> ctl | null
+//     ctl.update(rpm, spinAng, sense, dt) -> the disc's weight 0..1; ctl.mesh; ctl.dispose()
+//   PROP_DISC.S   the dials (live: PROP_DISC.S.rpmLo = 100 moves the next frame)
+// ============================================================================
+const PROP_DISC = (() => {
+  'use strict';
+  const S = { on: true, rpmLo: 150, rpmHi: 420, ghost: 0.35, blurDeg: 22, gain: 2.2, maxA: 0.82, drift: 0.11, streak: 0.14 };
+
+  // an orthonormal pair (u, v) with u x v = axis, so a turn of +a about the axis takes angle t to t + a
+  function basis(ax) {
+    const a = norm(ax), t = Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const u = norm(cross(t, a)), v = cross(a, u);
+    return { a, u, v };
+  }
+  const cross = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+  const norm = p => { const l = Math.hypot(p[0], p[1], p[2]) || 1; return [p[0] / l, p[1] / l, p[2] / l]; };
+  const hash = i => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+
+  function analyse(blades, axis, opt) {
+    const o = Object.assign({ NT: 256, NR: 64, NX: 256 }, opt || {});
+    const { a, u, v } = basis(axis || [1, 0, 0]);
+    // pass 1: the reach, the root and the plane (the blades' mean station along the shaft)
+    let R = 0, r0 = Infinity, hs = 0, hn = 0;
+    for (const b of blades) {
+      const P = b.pos;
+      for (let i = 0; i < P.length; i += 3) {
+        const x = P[i], y = P[i + 1], z = P[i + 2];
+        const h = x * a[0] + y * a[1] + z * a[2], px = x * u[0] + y * u[1] + z * u[2], py = x * v[0] + y * v[1] + z * v[2];
+        const r = Math.hypot(px, py);
+        if (r > R) R = r; if (r < r0) r0 = r; hs += h; hn++;
+      }
+    }
+    if (!(R > 0.05) || !hn) return null;
+    r0 = Math.max(0.02, Math.min(r0, R * 0.5));
+    const h = hs / hn;
+    // pass 2: every triangle, projected down the shaft, into an NX^2 grid over [-R, R]^2 (the colour of the last
+    // mesh to cover a cell wins: a painted tip drawn over its blade)
+    const NX = o.NX, cell = new Int16Array(NX * NX).fill(-1), k = NX / (2 * R);
+    const cols = blades.map(b => b.col || [0.2, 0.2, 0.2]);
+    blades.forEach((b, bi) => {
+      const P = b.pos, n = P.length / 3, X = new Float32Array(n), Y = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
+        X[i] = (x * u[0] + y * u[1] + z * u[2] + R) * k; Y[i] = (x * v[0] + y * v[1] + z * v[2] + R) * k;
+      }
+      const I = b.idx, nt = I ? I.length / 3 : n / 3;
+      for (let t = 0; t < nt; t++) {
+        const i0 = I ? I[t * 3] : t * 3, i1 = I ? I[t * 3 + 1] : t * 3 + 1, i2 = I ? I[t * 3 + 2] : t * 3 + 2;
+        const x0 = X[i0], y0 = Y[i0], x1 = X[i1], y1 = Y[i1], x2 = X[i2], y2 = Y[i2];
+        const d = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+        if (Math.abs(d) < 1e-9) continue;
+        const gx0 = Math.max(0, Math.floor(Math.min(x0, x1, x2))), gx1 = Math.min(NX - 1, Math.ceil(Math.max(x0, x1, x2)));
+        const gy0 = Math.max(0, Math.floor(Math.min(y0, y1, y2))), gy1 = Math.min(NX - 1, Math.ceil(Math.max(y0, y1, y2)));
+        for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
+          const px = gx + 0.5, py = gy + 0.5;
+          const w0 = ((x1 - px) * (y2 - py) - (x2 - px) * (y1 - py)) / d;
+          const w1 = ((x2 - px) * (y0 - py) - (x0 - px) * (y2 - py)) / d;
+          if (w0 < -1e-6 || w1 < -1e-6 || w0 + w1 > 1 + 1e-6) continue;
+          cell[gy * NX + gx] = bi;
+        }
+      }
+    });
+    // pass 3: the polar grid, 2 x 2 samples a texel
+    const NT = o.NT, NR = o.NR, sil = new Float32Array(NT * NR), rc = new Float32Array(NR * 3), rn = new Float32Array(NR);
+    for (let ir = 0; ir < NR; ir++) for (let it = 0; it < NT; it++) {
+      let c = 0;
+      for (let s = 0; s < 4; s++) {
+        const r = r0 + (ir + 0.25 + 0.5 * (s & 1)) / NR * (R - r0), th = (it + 0.25 + 0.5 * (s >> 1)) / NT * 2 * Math.PI;
+        const gx = Math.floor(r * Math.cos(th) * k + NX / 2), gy = Math.floor(r * Math.sin(th) * k + NX / 2);
+        const bi = gx >= 0 && gy >= 0 && gx < NX && gy < NX ? cell[gy * NX + gx] : -1;
+        if (bi >= 0) { c++; const q = cols[bi]; rc[ir * 3] += q[0]; rc[ir * 3 + 1] += q[1]; rc[ir * 3 + 2] += q[2]; rn[ir]++; }
+      }
+      sil[ir * NT + it] = c / 4;
+    }
+    // the blade count: runs of cover round the circle at 70 % of the reach
+    let n = 0; { const ir = Math.min(NR - 1, Math.round(((0.7 * R - r0) / (R - r0)) * NR));
+      for (let it = 0; it < NT; it++) if (sil[ir * NT + it] >= 0.5 && sil[ir * NT + (it + NT - 1) % NT] < 0.5) n++; }
+    // the swept coverage and the colour, per radius (an empty row borrows its neighbour's colour)
+    const cov = new Float32Array(NR);
+    for (let ir = 0; ir < NR; ir++) { let s = 0; for (let it = 0; it < NT; it++) s += sil[ir * NT + it]; cov[ir] = s / NT; }
+    const col = new Float32Array(NR * 3);
+    for (let ir = 0; ir < NR; ir++) {
+      let j = ir; for (let d = 0; d < NR && !rn[j]; d++) { j = ir + (d % 2 ? -1 : 1) * Math.ceil(d / 2); if (j < 0 || j >= NR) j = ir; }
+      const m = rn[j] || 1;
+      for (let c = 0; c < 3; c++) col[ir * 3 + c] = rn[j] ? rc[j * 3 + c] / m : 0.2;
+    }
+    // the ghost: the silhouette blurred round the circle (two box passes, a triangle of +-blurDeg)
+    const hw = Math.max(1, Math.round(S.blurDeg / 360 * NT / 2)), tmp = new Float32Array(NT), gh = new Float32Array(NT * NR);
+    for (let ir = 0; ir < NR; ir++) {
+      const row = sil.subarray(ir * NT, ir * NT + NT), out = gh.subarray(ir * NT, ir * NT + NT);
+      for (let pass = 0; pass < 2; pass++) {
+        const src = pass ? tmp : row, dst = pass ? out : tmp;
+        let s = 0; for (let d = -hw; d <= hw; d++) s += src[(d + NT) % NT];
+        for (let it = 0; it < NT; it++) { dst[it] = s / (2 * hw + 1); s += src[(it + hw + 1) % NT] - src[(it - hw + NT) % NT]; }
+      }
+    }
+    // the texel: rgb the station's colour (sRGB bytes), a = gain x (swept x (1 - ghost) + ghost x blurred), with a
+    // faint concentric streak (the rings a real disc shows) and the last 4 % of the reach feathered
+    const rgba = new Uint8Array(NT * NR * 4), toS = x => x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+    for (let ir = 0; ir < NR; ir++) {
+      const f = (ir + 0.5) / NR, streak = 1 + S.streak * (2 * hash(ir) - 1), edge = Math.min(1, (1 - f) / 0.04);
+      const cr = Math.round(255 * toS(col[ir * 3])), cg = Math.round(255 * toS(col[ir * 3 + 1])), cb = Math.round(255 * toS(col[ir * 3 + 2]));
+      for (let it = 0; it < NT; it++) {
+        const A = S.gain * ((1 - S.ghost) * cov[ir] + S.ghost * gh[ir * NT + it]) * streak * edge;
+        const q = (ir * NT + it) * 4;
+        rgba[q] = cr; rgba[q + 1] = cg; rgba[q + 2] = cb; rgba[q + 3] = Math.round(255 * Math.max(0, Math.min(S.maxA, A)));
+      }
+    }
+    return { R, r0, h, NT, NR, cov, rgba, n, basis: { a, u, v } };
+  }
+
+  // the blade meshes' positions in the spinning part's frame: a child's own matrix applied (the cage's
+  // blade meshes stand at identity); a SIBLING (the payload's proptip, positioned at the hub like the
+  // part itself and turned by the same angle) is taken as already in it
+  function bladeData(THREE, part, meshes) {
+    const out = [], lin = new THREE.Color();
+    for (const m of meshes) {
+      const g = m.geometry, pa = g && g.attributes && g.attributes.position;
+      if (!pa) continue;
+      let pos = pa.array;
+      if (m.parent === part) { m.updateMatrix(); if (!isIdentity(m.matrix)) { pos = Float32Array.from(pos); const e = m.matrix.elements;
+        for (let i = 0; i < pos.length; i += 3) { const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+          pos[i] = e[0] * x + e[4] * y + e[8] * z + e[12]; pos[i + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; pos[i + 2] = e[2] * x + e[6] * y + e[10] * z + e[14]; } } }
+      const mat = Array.isArray(m.material) ? m.material[0] : m.material;
+      if (mat && mat.color) lin.copy(mat.color); else lin.setRGB(0.2, 0.2, 0.2);
+      out.push({ pos, idx: g.index ? g.index.array : null, col: [lin.r, lin.g, lin.b] });
+    }
+    return out;
+  }
+  const isIdentity = M => { const e = M.elements; for (let i = 0; i < 16; i++) if (Math.abs(e[i] - (i % 5 === 0 ? 1 : 0)) > 1e-9) return false; return true; };
+  // the blades of a spinning part: its meshes that reach past half the part's own reach (the spinner and a hub
+  // stay near the shaft; a blade runs out to the tip)
+  function bladesOf(part, axis) {
+    const { a } = basis(axis || [1, 0, 0]), list = [];
+    part.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes.position) {
+      const P = o.geometry.attributes.position.array; let r = 0;
+      for (let i = 0; i < P.length; i += 3) { const d = P[i] * a[0] + P[i + 1] * a[1] + P[i + 2] * a[2];
+        const r2 = P[i] * P[i] + P[i + 1] * P[i + 1] + P[i + 2] * P[i + 2] - d * d; if (r2 > r) r = r2; }
+      list.push({ o, r: Math.sqrt(r) }); } });
+    const R = list.reduce((m, q) => Math.max(m, q.r), 0);
+    return list.filter(q => q.r > 0.5 * R).map(q => q.o);
+  }
+
+  function make(THREE, part, bladeMeshes, axis, opt) {
+    if (!S.on || !THREE.DataTexture) return null;
+    const blades = bladeMeshes && bladeMeshes.length ? bladeMeshes : bladesOf(part, axis);
+    if (!blades.length) return null;
+    const data = bladeData(THREE, part, blades), D = analyse(data, axis, opt);
+    if (!D) return null;
+    const tex = new THREE.DataTexture(D.rgba, D.NT, D.NR, THREE.RGBAFormat);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true;
+    if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    // the annulus: 96 segments round, 6 rings out, uv = (angle / 2 pi, radius from the root to the reach)
+    const NA = 96, NRg = 6, pos = [], uv = [], nrm = [], idx = [], { a, u, v } = D.basis;
+    for (let j = 0; j <= NRg; j++) {
+      const r = D.r0 + (D.R - D.r0) * j / NRg;
+      for (let i = 0; i <= NA; i++) {
+        const th = i / NA * 2 * Math.PI, c = Math.cos(th) * r, s = Math.sin(th) * r;
+        pos.push(a[0] * D.h + u[0] * c + v[0] * s, a[1] * D.h + u[1] * c + v[1] * s, a[2] * D.h + u[2] * c + v[2] * s);
+        uv.push(i / NA, j / NRg); nrm.push(a[0], a[1], a[2]);
+      }
+    }
+    for (let j = 0; j < NRg; j++) for (let i = 0; i < NA; i++) {
+      const p0 = j * (NA + 1) + i, p1 = p0 + 1, p2 = p0 + NA + 1, p3 = p2 + 1;
+      idx.push(p0, p1, p3, p0, p3, p2);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(idx);
+    const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+                                                 roughness: 0.75, metalness: 0, opacity: 0 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = 'propDisc'; mesh.castShadow = false; mesh.receiveShadow = false; mesh.frustumCulled = false;
+    mesh.visible = false; mesh.userData.propDisc = true;
+    part.add(mesh);
+    let phase = 0, w = -1;
+    const ctl = {
+      mesh, blades, D,
+      // rpm: the shaft's (the prop's spinRate in rpm); spinAng: the part's own angle about `axis`; sense: +1 / -1
+      update(rpm, spinAng, sense, dt) {
+        const r = Math.abs(rpm || 0), lo = S.rpmLo, hi = Math.max(lo + 1, S.rpmHi);
+        const t = Math.max(0, Math.min(1, (r - lo) / (hi - lo))), k = S.on ? t * t * (3 - 2 * t) : 0;
+        // the ghosts turn slowly with the engine's hand, faster as it winds up (never the true rate: that is the strobe)
+        phase += (sense || 1) * S.drift * 2 * Math.PI * Math.min(1, r / 2000) * (dt || 0);
+        if (phase > 1e4 || phase < -1e4) phase %= 2 * Math.PI;
+        const off = ((spinAng || 0) - phase) / (2 * Math.PI);
+        tex.offset.x = off - Math.floor(off);
+        if (k !== w) {
+          w = k; mat.opacity = k; mesh.visible = k > 0.002;
+          const show = k < 0.999; for (const b of blades) if (b.visible !== show) b.visible = show;
+        }
+        return k;
+      },
+      // the texture again from the same blades, under the dials as they are now (PROP_DISC.rebake())
+      rebake() { const D2 = analyse(data, axis, opt); if (D2) { tex.image.data.set(D2.rgba); tex.needsUpdate = true; } },
+      dispose() { if (mesh.parent) mesh.parent.remove(mesh); geo.dispose(); mat.dispose(); tex.dispose(); for (const b of blades) b.visible = true; const i = LIVE.indexOf(ctl); if (i >= 0) LIVE.splice(i, 1); },
+    };
+    LIVE.push(ctl); if (LIVE.length > 16) LIVE.shift();   // the dials' reach: the discs made last (an aeroplane has one to four)
+    return ctl;
+  }
+  const LIVE = [];
+  const rebake = () => { for (const c of LIVE) c.rebake(); return LIVE.length; };
+  return { S, analyse, make, bladesOf, basis, rebake };
+})();
+if (typeof window !== 'undefined') window.PROP_DISC = PROP_DISC;
+if (typeof module !== 'undefined') module.exports = PROP_DISC;
 </script>
 <script type="text/x-flydiy">
 // ============================================================================
@@ -107387,7 +107792,8 @@ const SPLAT_GROUND = (() => {
   // carries them - the mip bias (+ blurs), the anisotropy, the specular anti-alias, the normal's fade and the detail's
   // contrast near and far. The fades' defaults are the answer to "how noisy detailed textures appear": the relief and
   // the grain give way where a texel is under a pixel and can only alias.
-  const FILTER_DEFAULTS = { lodBias: 0, aniso: 8, specAA: 0.35, nrmFadeFrom: 250, nrmFadeTo: 1400, conNear: 1, conFar: 0.7, conFrom: 60, conTo: 700 };
+  // aniso 16 (G662): three clamps it to the GPU's own maximum; 8 blurred the grain at grazing angles (the playtest's 142931)
+  const FILTER_DEFAULTS = { lodBias: 0, aniso: 16, specAA: 0.35, nrmFadeFrom: 250, nrmFadeTo: 1400, conNear: 1, conFar: 0.7, conFrom: 60, conTo: 700 };
   const load = () => {
     const R = JSON.parse(JSON.stringify(G.RECIPE));
     R.knobs = Object.assign({}, FILTER_DEFAULTS, R.knobs);
@@ -107780,7 +108186,7 @@ const SPLAT_GROUND = (() => {
         t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
         t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
         // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes
-        t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 8; t.needsUpdate = true; return t; };
+        t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 16; t.needsUpdate = true; return t; };
       U.uSplat.value = mk(data, true); U.uSplatN.value = mk(dataN, false);
       done();
     });
@@ -108323,6 +108729,12 @@ const PAVEMENT = (() => {
     // Two levers, both here: the grass reaches FURTHER in over the band and its edge is raggeder
     // (below), and the `dry` set's own grade is pulled down and turned toward the ground (in `grade`).
     edgeChip: 0.6, band: -1, grassReach: 13, fadeW: 6, bandNoise: 0.85,
+    // THE SIDES FADE TO THE GROUND (G660, the user after the 2026-09-26 playtest: "do not touch the runways
+    // (their surface looks good), just their sides ... maybe transparent for now"). A strip's and a paved
+    // polygon's band - the gravel, the grass creeping in, the shoulder's vehicle paths - is no longer drawn:
+    // past the edge the surface's own colour goes to alpha over sideW metres (from sideA), and the island's
+    // ground shows. The band still EXCLUDES the vegetation (coverAt's PAVE_BAND is untouched). 0 = the band.
+    sideFade: 1, sideW: 2, sideA: 0.5,
     detailFrom: 250, detailTo: 900, normalFrom: 120, normalTo: 500,
     specK: 1.0, nrmK: 1.0,
     softMix: 0.8, coarseK: 0.7, wheelBand: 0.85, treadK: 0.8, paintRelief: 1.0, mow: 0.6, edgeSoft: 2.6, grassRough: 0.82,
@@ -108359,6 +108771,7 @@ const PAVEMENT = (() => {
     ['softMix', 'second ground in patches', 0, 1, 0.02], ['coarseK', 'coarse stony patches', 0, 1, 0.02], ['wheelBand', 'compacted wheel band', 0, 1, 0.02], ['treadK', 'tyre tread in the tracks', 0, 1, 0.02],
     ['edgeSoft', 'soft edge spread (m)', 0.3, 5, 0.1], ['mow', 'mowing stripes (grass)', 0, 1, 0.05], ['grassRough', 'soft roughness floor', 0.5, 1, 0.02],
     ['— edge zone —'],
+    ['sideFade', 'strip sides fade to the ground (0/1)', 0, 1, 1], ['sideW', 'side fade width (m)', 0.5, 10, 0.5], ['sideA', 'side fade from alpha', 0, 1, 0.05],
     ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
     ['— distance —'],
     ['detailFrom', 'detail fades from (m)', 20, 1500, 10], ['detailTo', 'detail gone by (m)', 50, 3000, 10], ['normalFrom', 'normal fades from (m)', 10, 1000, 10], ['normalTo', 'normal gone by (m)', 30, 2000, 10],
@@ -108411,6 +108824,34 @@ const PAVEMENT = (() => {
       toLocal: (x, z) => { const dx = x - cx, dz = z - cz; return [dx * T[0] + dz * T[1] + halfL, dx * N[0] + dz * N[1]]; } };
   }
   const sdBox = (u, v, halfL, halfW, len) => { const du = Math.max(-u, u - len), dv = Math.abs(v) - halfW; return -(Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0)); };
+  // ---- THE GROUND UNDER THE PAVEMENT (G660) ------------------------------------
+  // The pavement is transparent (its sides fade), writes no depth, and was lifted 5-8 cm over a ground
+  // patch whose LOD levels stray up to ~40 cm from the fine grid: at a distance, and at a grazing angle
+  // anywhere, the ground's triangles pierced it and which ones did moved with the camera (the playtest's
+  // 141608 / 144959 / 145145) - and the wheels, which roll on terrainH, sat those 5-8 cm into it (142532).
+  // Now the ground is SUNK under the pavement's opaque interior (render_premises' patch, by sinkAt) and
+  // the pavement comes DOWN to terrainH there (liftK), so no camera distance can pierce it and the drawn
+  // surface is the solver's. Near the edge, where the pavement is not yet opaque, both keep the old lift.
+  //   opaqueDepth(cls, halfW, recipe): how far inside the edge the shader's alpha is 1 for sure - the paved
+  //     edge's chipping (edgeChip), the soft edge's three octaves of noise (2.45 x edgeSoft); a grass
+  //     pavement is translucent over its whole width and never sinks (Infinity)
+  //   sinkAt(dE, d0): the ground's drop, S over `ramp` metres from d0 inward
+  //   liftK(dE, d0): the pavement's lift factor, 1 -> 0 only `pad` metres past the full sink - a pavement
+  //     triangle spans 3 m and a patch triangle's corner 1.4 m, so no point of a lowered triangle stands
+  //     over ground that is not already sunk by more than the lift it lost
+  const SINK = { S: 0.8, ramp: 3, pad: 3, fall: 1.5 };
+  const ss01 = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  function opaqueDepth(cls, halfW, recipe) {
+    const r = recipe || R;
+    if (cls === 'grass') return Infinity;
+    if (cls === 'concrete' || cls === 'asphalt') return (r.edgeChip || 0) + 0.2;
+    const soft = Math.max(0.3, Math.min(6, Math.min(r.edgeSoft || 2.6, (halfW || 3) * 0.6)));
+    return soft * 2.45 + 0.2;
+  }
+  const sinkAt = (dE, d0) => (isFinite(d0) ? SINK.S * ss01(d0, d0 + SINK.ramp, dE) : 0);
+  const liftK = (dE, d0) => (isFinite(d0) ? 1 - ss01(d0 + SINK.ramp + SINK.pad, d0 + SINK.ramp + SINK.pad + SINK.fall, dE) : 1);
+  // a builder's lift at a vertex: o.sinkD0 (the caller's opaqueDepth) says the ground under it is sunk
+  const liftOf = (o, lift, dE) => (o.sinkD0 !== undefined && o.sinkD0 !== null ? lift * liftK(dE, o.sinkD0) : lift);
   function stripGeometry(THREE, o) {
     const cls = CLASSES.indexOf(o.cls || 'concrete'), seed = o.seed || 0, shW = o.shoulderW !== undefined ? o.shoulderW : 12;
     const lift = o.lift !== undefined ? o.lift : 0.07, resU = o.resU || 6, resV = o.resV || 3;
@@ -108427,7 +108868,7 @@ const PAVEMENT = (() => {
     let k = 0;
     for (let i = 0; i < nU; i++) for (let j = 0; j < nV; j++, k++) {
       const u = U[i], v = V[j], w = F.toWorld(u, v);
-      const y = (o.heightAt ? o.heightAt(w[0], w[1]) : 0) + lift;
+      const y = (o.heightAt ? o.heightAt(w[0], w[1]) : 0) + liftOf(o, lift, sdBox(u, v, halfL, halfW, len));
       pos[k * 3] = w[0]; pos[k * 3 + 1] = y; pos[k * 3 + 2] = w[1];
       pav[k * 4] = u; pav[k * 4 + 1] = v; pav[k * 4 + 2] = sdBox(u, v, halfL, halfW, len); pav[k * 4 + 3] = shW;
       pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = halfL;
@@ -108447,7 +108888,7 @@ const PAVEMENT = (() => {
     g.setAttribute('aPavT', new THREE.BufferAttribute(pt, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeVertexNormals();
+    g.computeVertexNormals(); g.computeBoundingSphere();   // world-space vertices: an honest sphere, frustum-culled (G663)
     // a winding check: the first triangle must face +y once draped (the drape never flips it)
     g.userData.pav = { kind: 'strip', len, wid: o.wid, shoulderW: shW, cls: CLASSES[cls], seed, frame: F, rows: V.length, cols: U.length };
     return g;
@@ -108478,7 +108919,7 @@ const PAVEMENT = (() => {
       const tx = p1[0] - p0[0], tz = p1[1] - p0[1], tl = Math.hypot(tx, tz) || 1;
       for (let j = 0; j < nV; j++, k++) {
         const v = V[j], lp = [A.p[0] + A.n[0] * v, A.p[1] + A.n[1] * v], wp = tw(lp[0], lp[1]);
-        const y = (o.heightAt ? o.heightAt(wp[0], wp[1]) : 0) + lift;
+        const y = (o.heightAt ? o.heightAt(wp[0], wp[1]) : 0) + liftOf(o, lift, halfW - Math.abs(v));
         pos[k * 3] = wp[0]; pos[k * 3 + 1] = y; pos[k * 3 + 2] = wp[1];
         pav[k * 4] = S[i]; pav[k * 4 + 1] = v; pav[k * 4 + 2] = halfW - Math.abs(v); pav[k * 4 + 3] = shW;
         pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = L / 2;
@@ -108499,7 +108940,7 @@ const PAVEMENT = (() => {
     g.setAttribute('aPavT', new THREE.BufferAttribute(pt, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeVertexNormals();
+    g.computeVertexNormals(); g.computeBoundingSphere();
     g.userData.pav = { kind: 'road', len: L, wid: w, shoulderW: shW, cls: CLASSES[cls], seed, rows: V.length, cols: S.length };
     return g;
   }
@@ -108525,11 +108966,11 @@ const PAVEMENT = (() => {
     const sd = (x, z) => { let d = Infinity; for (let i = 0; i < poly.length; i++) d = Math.min(d, dSeg(x, z, poly[i], poly[(i + 1) % poly.length])); return inP(x, z) ? d : -d; };
     let k = 0;
     for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++, k++) {
-      const x = x0 + (x1 - x0) * i / nx, z = z0 + (z1 - z0) * j / nz;
-      const y = (o.heightAt ? o.heightAt(x, z) : 0) + lift;
+      const x = x0 + (x1 - x0) * i / nx, z = z0 + (z1 - z0) * j / nz, dE = sd(x, z);
+      const y = (o.heightAt ? o.heightAt(x, z) : 0) + liftOf(o, lift, dE);
       const dx = x - cx, dz = z - cz, u = dx * c + dz * sn, v = -dx * sn + dz * c;
       pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
-      pav[k * 4] = u + halfW; pav[k * 4 + 1] = v; pav[k * 4 + 2] = sd(x, z); pav[k * 4 + 3] = shW;
+      pav[k * 4] = u + halfW; pav[k * 4 + 1] = v; pav[k * 4 + 2] = dE; pav[k * 4 + 3] = shW;
       pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = halfW;
       pt[k * 3] = c; pt[k * 3 + 1] = 1; pt[k * 3 + 2] = sn;
       uv[k * 2] = u; uv[k * 2 + 1] = v;
@@ -108545,7 +108986,7 @@ const PAVEMENT = (() => {
     g.setAttribute('aPavT', new THREE.BufferAttribute(pt, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeVertexNormals();
+    g.computeVertexNormals(); g.computeBoundingSphere();
     g.userData.pav = { kind: 'poly', shoulderW: shW, cls: CLASSES[cls], seed, rows: nz + 1, cols: nx + 1, halfW, cx, cz };
     return g;
   }
@@ -108712,7 +109153,7 @@ const PAVEMENT = (() => {
         // texel came out 17-29 % darker than the near ones on the dark, contrasty sets (Jensen). The
         // height in alpha rides along untouched (alpha is never transferred)
         if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-        t.anisotropy = 8; t.needsUpdate = true; return t; };
+        t.anisotropy = 16; t.needsUpdate = true; return t; };   // G662: three clamps to the GPU's maximum; 8 blurred the grain at grazing angles (142931)
       lib.texA = mk(data, true); lib.texN = mk(dataN, false); lib.ready = true;
       for (const m of MATS) if (m.userData.pavLib === lib) { m.uniforms.uPavA.value = lib.texA; m.uniforms.uPavN.value = lib.texN; m.uniforms.uPavOn.value = 1; applyOne(THREE, m); }
       if (done) done(lib);
@@ -108751,7 +109192,7 @@ const PAVEMENT = (() => {
   }
 
   // ---- the shader ------------------------------------------------------------
-  const NMARK = 40, NSEG = 8;
+  const NMARK = 40, NSEG = 8, NKEEP = 4;
   const GLSL = {};
   GLSL.vertex = `
 attribute vec4 aPav; attribute vec4 aPavK; attribute vec3 aPavT;
@@ -108770,6 +109211,7 @@ uniform vec4 uGrade[8], uTint[8];
 uniform vec4 uMean;
 uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
+uniform vec4 uSide; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
 float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
 struct Smp { vec4 c; vec4 n; };
@@ -108801,7 +109243,7 @@ Smp pvFetch(float layer, vec2 uv, vec2 cs, int slot) {
   return o;
 }
 Smp pvTile(float layer, vec2 st, int slot) {
-  if (uHex.y < 0.5 || gPlain > 0.5) return pvFetch(layer, st, vec2(1.0, 0.0), slot);
+  if (uHex.y < 0.5 || gPlain > 0.999) return pvFetch(layer, st, vec2(1.0, 0.0), slot);
   vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * uHex.z);
   vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
   float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
@@ -108819,7 +109261,24 @@ Smp pvTile(float layer, vec2 st, int slot) {
   // own mean (what the far tier is); the ramp has no such bias, and no cell border becomes a seam
   vec3 hw = pow(w, vec3(3.0)) / max(dot(pow(w, vec3(3.0)), vec3(1.0)), 1e-5);
   Smp o; o.c = s1.c * hw.x + s2v.c * hw.y + s3.c * hw.z; o.n = s1.n * hw.x + s2v.n * hw.y + s3.n * hw.z;
+  // the far tier's plain fetch comes in over a band, not at one distance (G662: a hard step at 900 m swept
+  // down the runway as the camera moved)
+  if (gPlain > 0.001) { Smp pl = pvFetch(layer, st, vec2(1.0, 0.0), slot); o.c = mix(o.c, pl.c, gPlain); o.n = mix(o.n, pl.n, gPlain); }
   return o;
+}
+// THE OTHER PAVEMENTS' BOXES (G664): a strip's side does not lie over another strip's surface - exact per
+// pixel (the per-vertex shoulder keep was 3 x 6 m coarse, and the game's strips never had it). A box is
+// (centre x, z, the axis cos, sin) + (half length, half width); 0 inside, 1 two metres out
+float pvKeep(vec2 p) {
+  float k = 1.0;
+  for (int i = 0; i < ${NKEEP}; i++) {
+    if (i >= uKeepN) break;
+    vec4 A = uKeepA[i], B = uKeepB[i]; vec2 d = p - A.xy;
+    vec2 q = vec2(abs(d.x * A.z + d.y * A.w) - B.x, abs(-d.x * A.w + d.y * A.z) - B.y);
+    float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+    k = min(k, smoothstep(0.3, 2.0, sd));
+  }
+  return k;
 }
 // a slot's set at the pavement's (u, v): the paved slots turn a little (a brushed finish has a grain), the loose ones any way
 Smp pvSet(int slot, vec2 uv) {
@@ -108919,7 +109378,8 @@ float pvTread(float u, float x, float w, float seed) {
     float dist = distance(vPavW, cameraPosition);
     float detail = 1.0 - smoothstep(uDist.x, uDist.y, dist);
     float nrmK = uSpec.y * (1.0 - smoothstep(uDist.z, uDist.w, dist));
-    gPlain = step(uDist.y, dist);
+    gPlain = smoothstep(uDist.y * 0.8, uDist.y * 1.1, dist);
+    bool sideFade = uSide.x > 0.5;
     bool paved = cls < 1.5, concrete = cls < 0.5, grassy = cls > 4.5, road = uClass.w > 0.5, isPoly = uClass.w > 1.5;
     // THE FOOTPRINT RULE: a thin feature (a joint, a crack, a paint edge) is anti-aliased by fwidth,
     // and once the pixel's footprint exceeds the feature's width its coverage must SHRINK to the
@@ -109170,7 +109630,7 @@ float pvTread(float u, float x, float w, float seed) {
       col *= 1.0 - rubber * 0.8; rough = mix(rough, 0.45, rubber); nT.xy *= 1.0 - rubber * 0.5;
     }
     // ---- 9 the shoulder's vehicle paths (any class with a band wide enough to drive on)
-    if (dE < -0.5 && uRut2.w > 0.5 && uEdge.y > 4.0) {
+    if (dE < -0.5 && uRut2.w > 0.5 && uEdge.y > 4.0 && !sideFade) {
       float room = smoothstep(4.0, 9.0, uEdge.y);
       for (int k = 0; k < 4; k++) {
         if (float(k) >= uRut2.w) break;
@@ -109204,6 +109664,7 @@ float pvTread(float u, float x, float w, float seed) {
     // a soft strip's border: the loose stuff and the grass mingle over the band, the coarse set among them
     if (!paved) { wBand *= 0.6; coarse = max(coarse, (1.0 - wPav) * wBand * 0.5); }
     wGrass = max(wGrass, grassStripe);
+    if (sideFade) { wBand = 0.0; wGrass = 0.0; coarse = 0.0; }        // no band sets: the side is the surface fading out
     vec3 nS = nT; float rS = rough; vec3 cS = col; float hS = hgt;
     float outside = 1.0 - wPav;
     float wb = outside * wBand * (1.0 - wGrass), wg = wGrass, wp = 1.0 - wb - wg;
@@ -109234,6 +109695,13 @@ float pvTread(float u, float x, float w, float seed) {
     float fade1 = shW, fade0 = clamp(min(bandW + 0.3, shW - max(uEdge.w, 0.6)), 0.0, shW - 0.3);
     gPavA = 1.0 - smoothstep(fade0, fade1, -dE);
     gPavA = mix(wPav, gPavA, clamp(vPavSh, 0.0, 1.0));
+    if (sideFade) {
+      // THE SIDE (G660): the surface's own colour going to alpha past the (chipped) edge; a soft edge is
+      // already a torn fade and keeps it
+      float sideA = paved ? uSide.z * (1.0 - smoothstep(0.0, uSide.y, -eEdge)) : 0.0;
+      gPavA = max(wPav, sideA * clamp(vPavSh, 0.0, 1.0));
+    }
+    if (dE < 0.0 && uKeepN > 0) gPavA *= pvKeep(vPavW.xz);
     // A GRASS ROAD IS THE WORLD'S GRASS WITH TRACKS IN IT: the mesh shows only where the wheels wore
     // it (the ruts, the compacted band, the tread); a grass STRIP keeps a share of its own lawn (it
     // is mown, and that reads) - the rest is the ground under it
@@ -109312,6 +109780,14 @@ float pvTread(float u, float x, float w, float seed) {
     const sk = cls.soft || [1, 1, 1, 1];                                       // the class's own share of each soft layer
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);
+    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, r.sideW || 2, r.sideA === undefined ? 0.5 : r.sideA, 0);
+  }
+  // setKeep(m, boxes): the pavements this one's side must not lie over (G664) - [{ cx, cz, hdg, halfL, halfW }],
+  // the strip frame's own convention (T = [cos hdg, sin hdg]); at most NKEEP, the nearest first
+  function setKeep(m, boxes) {
+    const U = m.uniforms, B = (boxes || []).slice(0, NKEEP);
+    B.forEach((b, i) => { U.uKeepA.value[i].set(b.cx, b.cz, Math.cos(b.hdg || 0), Math.sin(b.hdg || 0)); U.uKeepB.value[i].set(b.halfL, b.halfW, 0, 0); });
+    U.uKeepN.value = B.length;
   }
   // the hook: ONE function, its source the program's key; the uniforms ride in on sh._pavU
   const hook = sh => {
@@ -109341,13 +109817,16 @@ float pvTread(float u, float x, float w, float seed) {
       uRubber: v4(), uRubber2: v4(), uRut: v4(), uRut2: v4(), uRoad: v4(), uEdge: v4(), uEdge2: v4(), uDist: v4(), uSpec: v4(), uSoft: v4(), uSoft2: v4(),
       uMean: { value: new THREE.Vector4(0.2, 0.2, 0.2, 0.9) }, uGrade: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 0, 0)) }, uTint: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 1, 0)) },
       uMarkN: { value: Math.min(NMARK, marks.rects.length) }, uSegN: { value: Math.min(NSEG, marks.segs.length) },
-      uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk } };
-    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0 }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
+      uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk },
+      uSide: v4(), uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
+    // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, never a road's
+    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); };
     m.customProgramCacheKey = () => 'pavement:' + hook.toString().length;
     MATS.push(m);
     applyOne(THREE, m);
+    if (o.keep) setKeep(m, o.keep);
     return m;
   }
   // the mesh's shoulder for a band: the band, the fade past it, a metre of grass creep
@@ -109358,7 +109837,7 @@ float pvTread(float u, float x, float w, float seed) {
   function exportRecipe() { return JSON.parse(JSON.stringify(R)); }
   function dispose(m) { const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose(); }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
+    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;
@@ -110538,7 +111017,7 @@ const WATER = (() => {
   // captures at once whatever the gap. THE CLOCK IS REAL SECONDS: a fake 1/60-a-call clock ran at a fifth of the
   // wall clock under the rig, so a '3 s' refresh was 20 s and the water drew a capture taken 1500 m away - the
   // reflection stretched and smeared (the user: "reflections seem stretched, everything is twice as long")
-  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, res: 0.5, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
+  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, guard: 1.25, res: 0.5, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
   const mirrorTmp = {};
   function mirrorRender(THREE, renderer, scene, camera, waterY, opts) {
     opts = opts || {};
@@ -110570,11 +111049,19 @@ const WATER = (() => {
       // raising the ceiling would fire a capture almost every frame at cruise; with it, 500 m over the water
       // re-captures every 25 m. The TURN threshold does not scale: turning re-frames everything at any height.
       const moveLim = Math.max(MIR.moveM, eyeAgl * MIR.moveAgl);
-      due = jump || ((MIR.t - MIR.lastT > MIR.minGap) && (moved > moveLim || turned > MIR.turnDeg * Math.PI / 180 || MIR.t - MIR.lastT > MIR.every || Math.abs(waterY - L.wy) > 0.05));
+      // G650 A TURN IS FREE INSIDE THE GUARD BAND: a planar reflection depends on the eye's POSITION only - the capture is
+      // projected onto the water through its own view-projection, so it stays exact while the camera turns, as long as
+      // the view stays inside what was captured. The capture is taken MIR.guard wider than the view (L.margin: the
+      // smaller of its vertical and horizontal spare angle), and a turn re-captures only when it nears that edge - at
+      // once, like a jump (a turn past the band would show the probe's sky at the frame's edge). An orbit used to fire a
+      // capture every 3 deg, each one a visible step; now it is the eye's MOVE that paces them (3 m, or h x 5 % high).
+      const turnLim = Math.max(MIR.turnDeg * Math.PI / 180, 0.8 * (L.margin || 0));
+      due = jump || turned > turnLim || ((MIR.t - MIR.lastT > MIR.minGap) && (moved > moveLim || MIR.t - MIR.lastT > MIR.every || Math.abs(waterY - L.wy) > 0.05));
     }
     if (!due) return false;
     const size = renderer.getDrawingBufferSize ? renderer.getDrawingBufferSize(mirrorTmp.v2 || (mirrorTmp.v2 = new THREE.Vector2())) : { x: 1920, y: 1080 };
-    const w = Math.max(64, Math.round(size.x * MIR.res)), h = Math.max(64, Math.round(size.y * MIR.res));
+    const G = Math.max(1, MIR.guard || 1);   // (the guard band keeps the capture's texel density: the target grows with it)
+    const w = Math.max(64, Math.round(size.x * MIR.res * G)), h = Math.max(64, Math.round(size.y * MIR.res * G));
     if (!MIR.rt || MIR.rt.width !== w || MIR.rt.height !== h) {
       if (MIR.rt) MIR.rt.dispose();
       // (a depth texture: the clouds' march reads the capture's depth, as it reads the frame's - and the capture is
@@ -110589,13 +111076,21 @@ const WATER = (() => {
     }
     if (!MIR.cam) MIR.cam = new THREE.PerspectiveCamera();
     const mc = MIR.cam;
+    // G650: THE MIRROR CAMERA IS REVERSED FROM ITS FIRST FRAME. Under the reversed depth buffer (app.js, PERF 2026-09-23)
+    // three r186 turns a camera reversed the first time it draws (Camera._reversedDepth, then updateProjectionMatrix()
+    // in the renderer) - which WIPED the oblique clip below on the first capture, and from then on every
+    // updateProjectionMatrix here built a reversed [0,1] matrix that the OpenGL-form clip then bent the wrong way.
+    const RZ = !!(renderer.capabilities && renderer.capabilities.reversedDepthBuffer);
+    if (RZ) mc._reversedDepth = true;
     // the eye mirrored about the plane: position, look direction and up reflected in y about waterY
     const fwd = mirrorTmp.fwd || (mirrorTmp.fwd = new THREE.Vector3()), up = mirrorTmp.up || (mirrorTmp.up = new THREE.Vector3()), tgt = mirrorTmp.tgt || (mirrorTmp.tgt = new THREE.Vector3());
     camera.getWorldDirection(fwd); up.set(0, 1, 0).applyQuaternion(q);
     mc.position.set(pos.x, 2 * waterY - pos.y, pos.z);
     fwd.y = -fwd.y; up.y = -up.y;
     tgt.copy(mc.position).add(fwd); mc.up.copy(up); mc.lookAt(tgt);
-    mc.fov = camera.fov; mc.aspect = camera.aspect; mc.near = camera.near; mc.far = camera.far;
+    const tv = Math.tan(Math.PI / 360 * camera.fov), th = tv * camera.aspect;
+    mc.fov = 360 / Math.PI * Math.atan(tv * G); mc.aspect = camera.aspect; mc.near = camera.near; mc.far = camera.far;
+    const margin = Math.min(Math.atan(tv * G) - Math.atan(tv), Math.atan(th * G) - Math.atan(th));
     mc.updateProjectionMatrix(); mc.updateMatrixWorld(true);
     // the capture: the water's own material, the spray's and the sky dome hidden; the shadow maps reused
     const hidden = [];
@@ -110640,15 +111135,7 @@ const WATER = (() => {
     // the scene's own far CAPPED (the capture's cost is its draw calls; the decor past it is the sky's in the reflection)
     mc.far = Math.min(camera.far, MIR.far); mc.updateProjectionMatrix();
     // the oblique near plane (Lengyel; three's Reflector): the clip plane y = waterY in the mirror camera's view
-    { const P = mc.projectionMatrix, n = mirrorTmp.n || (mirrorTmp.n = new THREE.Vector4()), pl = mirrorTmp.pl || (mirrorTmp.pl = new THREE.Plane()), qv = mirrorTmp.qv || (mirrorTmp.qv = new THREE.Vector4());
-      mirrorTmp.pn = mirrorTmp.pn || new THREE.Vector3(0, 1, 0); mirrorTmp.pp = mirrorTmp.pp || new THREE.Vector3(); mirrorTmp.pp.set(0, waterY, 0);
-      pl.setFromNormalAndCoplanarPoint(mirrorTmp.pn, mirrorTmp.pp);
-      pl.applyMatrix4(mc.matrixWorldInverse);
-      n.set(pl.normal.x, pl.normal.y, pl.normal.z, pl.constant);
-      const e = P.elements;
-      qv.x = (Math.sign(n.x) + e[8]) / e[0]; qv.y = (Math.sign(n.y) + e[9]) / e[5]; qv.z = -1.0; qv.w = (1.0 + e[10]) / e[14];
-      n.multiplyScalar(2.0 / n.dot(qv));
-      e[2] = n.x; e[6] = n.y; e[10] = n.z + 1.0; e[14] = n.w; }
+    obliqueClip(THREE, mc, waterY, RZ);
     const bg = scene.background; scene.background = null;
     renderer.render(scene, mc);
     scene.background = bg;
@@ -110656,12 +111143,37 @@ const WATER = (() => {
     for (const m of hidden) m.visible = true;
     for (const o of hiddenObj) o.visible = true;
     MIR.ms = performance.now() - t0;
-    MIR.last = { x: pos.x, y: pos.y, z: pos.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w, wy: waterY }; MIR.lastT = MIR.t; MIR.on = true;
+    MIR.last = { x: pos.x, y: pos.y, z: pos.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w, wy: waterY, margin }; MIR.lastT = MIR.t; MIR.on = true;
     U.uWMirror.value = MIR.rt.texture;
     U.uWMirrorVP.value.multiplyMatrices(mc.projectionMatrix, mc.matrixWorldInverse);
     U.uWMirror4.value.set(mirW, MIR.perturb, MIR.lod, waterY);   // x: the mirror's WEIGHT (G522, the altitude fade); w: the mirror's plane, which the slope's walk needs (G460.11.9)
     U.uWRes.value.set(size.x, size.y);
     return true;
+  }
+  // obliqueClip(THREE, mc, waterY, RZ): mc's near plane made the water plane y = waterY (Lengyel; three's Reflector), so
+  // nothing under the water is captured. (G650) Lengyel's form is for OpenGL's [-1, 1] clip: under the reversed buffer the
+  // matrix is first made the OpenGL one (the same frustum, reversedDepth false), bent, then taken to reversed [0, 1]
+  // exactly as three does it - the depth row becomes (w - z) / 2: the clip plane lands at depth 1 (the reversed near) and
+  // the far corner at 0. GATE SHADOWSKY projects points through it.
+  function obliqueClip(THREE, mc, waterY, RZ) {
+    const P = mc.projectionMatrix, n = mirrorTmp.n || (mirrorTmp.n = new THREE.Vector4()), pl = mirrorTmp.pl || (mirrorTmp.pl = new THREE.Plane()), qv = mirrorTmp.qv || (mirrorTmp.qv = new THREE.Vector4());
+    mirrorTmp.pn = mirrorTmp.pn || new THREE.Vector3(0, 1, 0); mirrorTmp.pp = mirrorTmp.pp || new THREE.Vector3(); mirrorTmp.pp.set(0, waterY, 0);
+    pl.setFromNormalAndCoplanarPoint(mirrorTmp.pn, mirrorTmp.pp);
+    pl.applyMatrix4(mc.matrixWorldInverse);
+    n.set(pl.normal.x, pl.normal.y, pl.normal.z, pl.constant);
+    if (RZ) P.makePerspective(...perspBounds(mc), mc.near, mc.far, THREE.WebGLCoordinateSystem, false);
+    const e = P.elements;
+    qv.x = (Math.sign(n.x) + e[8]) / e[0]; qv.y = (Math.sign(n.y) + e[9]) / e[5]; qv.z = -1.0; qv.w = (1.0 + e[10]) / e[14];
+    n.multiplyScalar(2.0 / n.dot(qv));
+    e[2] = n.x; e[6] = n.y; e[10] = n.z + 1.0; e[14] = n.w;
+    if (RZ) for (const c of [0, 4, 8, 12]) e[c + 2] = 0.5 * e[c + 3] - 0.5 * e[c + 2];
+    mc.projectionMatrixInverse.copy(P).invert();
+    return P;
+  }
+  // perspBounds(cam): the frustum's left, right, top, bottom at its near plane, as PerspectiveCamera.updateProjectionMatrix makes them (no view offset, no film offset - the mirror camera has neither)
+  function perspBounds(cam) {
+    const top = cam.near * Math.tan(Math.PI / 180 * 0.5 * cam.fov) / cam.zoom, h = 2 * top, w = cam.aspect * h;
+    return [-0.5 * w, 0.5 * w, top, top - h];
   }
   function mirrorOff() { MIR.on = false; MIR.last = null; if (U) U.uWMirror4.value.x = 0; }
 
@@ -110844,7 +111356,7 @@ const WATER = (() => {
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
-    mirrorRender, mirrorOff, mirror: MIR,
+    mirrorRender, mirrorOff, mirror: MIR, obliqueClip,
     stamp, fieldStep, fieldOn, fieldProbe, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;
@@ -111462,6 +111974,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   // instance's own aRand is its threshold, so the ring is planted once at full density and
   // thins in the vertex shader as the eye moves (the trees' uThin, the bench's taper)
   const U_FADE_NEAR = { value: 1e9 }, U_FADE_REACH = { value: 2e9 }, U_FADE_TAPER = { value: 0.5 }, U_FADE_AGL = { value: 1 };
+  // THE GROW (G670, A2-FADES; the user: "transitions (fading or growing) for everything that appears or
+  // disappears"). The threshold used to be a switch: an instance was whole while aRand < _fk and gone the frame
+  // it was not, so every tuft popped at the reach, on the way up and on the way down. Now it SHRINKS through a
+  // band of the threshold - whole while _fk (1 + band) >= aRand + band, nothing once _fk (1 + band) <= aRand -
+  // toward its own origin (its foot), after the sway (the rule below: the shear before the shrink). At _fk = 1
+  // every instance is still whole; at 0 every one is still gone. And a cell the ring has just planted GROWS in
+  // over uFadeGrow s from its birth (aBorn, the ring's per-instance time; a mesh without one reads 0, i.e. born
+  // long ago): the late cell at the eye's feet rises instead of appearing. Vertex work only - no blend, no sort.
+  const U_FADE_BAND = { value: 0.25 }, U_FADE_NOW = { value: 0 }, U_FADE_GROW = { value: 0.8 };
   const FADE_VS = [
     '#ifdef USE_INSTANCING',
     '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
@@ -111473,8 +111994,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     'float _fd = distance(_fp, cameraPosition);',
     'float _ft = clamp((_fd - uFadeNear) / max(1.0, uFadeReach - uFadeNear), 0.0, 1.0);',
     'float _fk = pow(1.0 - _ft, 1.0 + 2.0 * uFadeTaper) * uFadeAgl;',
-    'if (aRand > _fk) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);',
+    'float _fg = clamp((_fk * (1.0 + uFadeBand) - aRand) / max(1e-3, uFadeBand), 0.0, 1.0);',
+    '#ifdef USE_INSTANCING',
+    '_fg *= clamp((uFadeNow - aBorn) / max(1e-3, uFadeGrow), 0.0, 1.0);',
+    '#endif',
+    'transformed *= _fg;',
   ].join('\n');
+  // ...before <project_vertex>; after it, a nought instance is thrown off screen (no triangle set-up for it)
+  const FADE_CUT_VS = 'if (_fg <= 0.0) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);';
   // THE GRASS SHADES AS THE GROUND (2026-09-22, the user: "its shading looks real harsh"): a tuft is
   // two or three crossed cards, and lit by their own normals half of every tuft faces away from
   // the sun - a field of light and dark halves, the harshness. The fix every grass renderer uses:
@@ -111542,17 +112069,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   const BATCH_RAND_VS = '#ifdef USE_BATCHING\n  float _bRand = 0.5;\n  #ifdef USE_BATCHING_COLOR\n  _bRand = vColor.a; vColor.a = 1.0;\n  #endif\n#endif';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
+    sh.uniforms.uFadeBand = U_FADE_BAND; sh.uniforms.uFadeNow = U_FADE_NOW; sh.uniforms.uFadeGrow = U_FADE_GROW;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
       .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
-      .replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
+      .replace('#include <project_vertex>', FADE_VS + '\n#include <project_vertex>\n' + FADE_CUT_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
     // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already
     // carries, and its NORMAL is not touched (see UP_VS)
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
-    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;');
+    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp, uFadeBand, uFadeNow, uFadeGrow;');
+    vs = declOnce(vs, '#ifdef USE_INSTANCING\nattribute float aBorn;\n#endif');
     // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read
     vs = declOnce(vs, '#ifdef USE_BATCHING\n#define aRand _bRand\n#endif');
     sh.vertexShader = declOnce(vs, 'attribute float aRand;');
@@ -111666,6 +112195,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
       for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },
     fade: (near, reach, taper, agl) => { if (near !== undefined) U_FADE_NEAR.value = near; if (reach !== undefined) U_FADE_REACH.value = reach;
       if (taper !== undefined) U_FADE_TAPER.value = taper; if (agl !== undefined) U_FADE_AGL.value = agl; return [U_FADE_NEAR.value, U_FADE_REACH.value, U_FADE_TAPER.value, U_FADE_AGL.value]; },
+    // G670: the grow's clock (s; the ring's aBorn are on it), its band and its time; null leaves a term as it is
+    grow: (now, band, secs) => { if (now != null) U_FADE_NOW.value = now; if (band != null) U_FADE_BAND.value = band; if (secs != null) U_FADE_GROW.value = secs;
+      return [U_FADE_NOW.value, U_FADE_BAND.value, U_FADE_GROW.value]; },
     // a collection's own row, live on every material that wears it (the
     // rows are shared by reference with the payload's `tint`) and on its
     // impostors through tintGlsl; TREE_LEAF.collections() lists them
@@ -111893,7 +112425,8 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.5, batch: true };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.5, batch: true,
+                aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // cellKey(cx, cz) -> { n, parts, inst, by, cx, cz, box }
     // G603 (A1-STAND): a cell's key is a NUMBER - update() asked the map for ~290 cells a frame by a fresh 'cx,cz'
@@ -112383,7 +112916,7 @@ var COVER_RING = (() => {
               cell.inst.push(bm, id);
             }
           }
-        } else for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind });
+        } else for (const part of it.p.parts) cell.parts.set(part, { n, mats, col, rand, cast, kind: it.p.kind, cell });
         cell.n += n;
       }
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
@@ -112395,6 +112928,7 @@ var COVER_RING = (() => {
       for (let k = 0; k < cell.inst.length; k += 2) { batchVis(cell.inst[k], cell.inst[k + 1], false); cell.inst[k].deleteInstance(cell.inst[k + 1]); }   // the batched ones go now (past Rdrop: out of reach)
       cell.inst.length = 0;
       for (const k in cell.by) { STAT.by[k] -= cell.by[k]; if (STAT.by[k] <= 0) delete STAT.by[k]; }   // the tally is LIVE (it ran up for the page's life before L4)
+      cell.dead = true;   // (a grow in flight lets go of it)
       cells.delete(key);
     }
 
@@ -112408,6 +112942,23 @@ var COVER_RING = (() => {
     // sphere (the frustum) and the fade's reach (below); the instances and the shader are the
     // cells' own, so the picture is the same.
     const B = 4, blocks = new Map();
+    const now = () => performance.now() / 1000;   // the grow's clock (trees.js uFadeNow / aBorn)
+    // THE BATCHES GROW ON THE CPU (G670): a BatchedMesh instance has a matrix and a colour and no attribute of its own
+    // (the fade's threshold already rides the colour's alpha), so a near cell's rocks, debris and shrubs are scaled
+    // about their own origins, frame by frame, for S.grow s - [cell, t0, [bm, id, matrix x16, ...]]
+    const growing = [], GM = new THREE.Matrix4();
+    function growTick(t) {
+      for (let g = growing.length - 1; g >= 0; g--) {
+        const G = growing[g], cell = G[0], k = Math.min(1, (t - G[1]) / Math.max(1e-3, S.grow)), L = G[2];
+        if (cell.dead) { growing.splice(g, 1); continue; }
+        for (let i = 0; i < L.length; i += 3) {
+          GM.fromArray(L[i + 2]); const e = GM.elements;
+          if (k < 1) for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) e[j] *= Math.max(1e-3, k);
+          L[i].setMatrixAt(L[i + 1], GM);
+        }
+        if (k >= 1) growing.splice(g, 1);
+      }
+    }
     const blockOf = (cx, cz) => Math.floor(cx / B) + ',' + Math.floor(cz / B);
     function markBlock(cx, cz) {
       const k = blockOf(cx, cz); let b = blocks.get(k);
@@ -112420,9 +112971,21 @@ var COVER_RING = (() => {
       const parts = new Map(); let box = null, live = 0;
       b.instCells = []; b.instVis = null;   // the cells whose batched instances this block switches with its reach (update) - cells, not
                                             // ids: a dropped cell's ids are handed to the next instances made
+      const t = now(), ex = camera.position.x, ez = camera.position.z;
       for (let dz = 0; dz < B; dz++) for (let dx = 0; dx < B; dx++) {
         const cell = cells.get(cellKey(b.bx * B + dx, b.bz * B + dz)); if (!cell) continue;
         live++;
+        // the first block that holds a cell is the moment it can be seen: its birth for the grow (a cell planted
+        // while the ring is hidden - the pre-grow - is old by the time the fade lets it show, and does not grow)
+        if (cell.born === undefined) {
+          cell.born = root.visible ? t : -1e9;
+          const mx = (cell.cx + 0.5) * S.cell - ex, mz = (cell.cz + 0.5) * S.cell - ez;
+          if (cell.born > 0 && cell.inst.length && S.grow > 0 && mx * mx + mz * mz < S.growNear * S.growNear) {
+            const L = [];
+            for (let k = 0; k < cell.inst.length; k += 2) { const bm = cell.inst[k], id = cell.inst[k + 1]; bm.getMatrixAt(id, GM); L.push(bm, id, Float32Array.from(GM.elements)); }
+            growing.push([cell, t, L]); growTick(t);
+          }
+        }
         if (cell.inst.length) b.instCells.push(cell);
         if (cell.box) { const c = cell.box; box = box ? [Math.min(box[0], c[0]), Math.min(box[1], c[1]), Math.min(box[2], c[2]), Math.max(box[3], c[3]), Math.max(box[4], c[4]), Math.max(box[5], c[5])] : c.slice(); }
         for (const [part, d] of cell.parts) { let a = parts.get(part); if (!a) parts.set(part, a = []); a.push(d); }
@@ -112438,13 +113001,14 @@ var COVER_RING = (() => {
         // them overwritten on the next line - most of a rebuilt block's cost at the stand's 66 000 tufts; G603)
         const m = new THREE.InstancedMesh(part.geo, part.mat, 0);
         m.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(n * 16), 16); m.count = n;
-        const hasCol = list.some(d => d.col), col = hasCol ? new Float32Array(n * 3).fill(1) : null, rand = new Float32Array(n);
+        const hasCol = list.some(d => d.col), col = hasCol ? new Float32Array(n * 3).fill(1) : null, rand = new Float32Array(n), born = new Float32Array(n);
         let o = 0;
-        for (const d of list) { m.instanceMatrix.array.set(d.mats, o * 16); if (d.col) col.set(d.col, o * 3); rand.set(d.rand, o); o += d.n; }
+        for (const d of list) { m.instanceMatrix.array.set(d.mats, o * 16); if (d.col) col.set(d.col, o * 3); rand.set(d.rand, o); born.fill(d.cell.born, o, o + d.n); o += d.n; }
         if (col) m.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
         // the prototype's buffers shared, the instanced aRand per mesh: a thin geometry wrapper
         const geo = part.geo, g2 = new THREE.BufferGeometry(); g2.index = geo.index; for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]);
         g2.setAttribute('aRand', new THREE.InstancedBufferAttribute(rand, 1));
+        g2.setAttribute('aBorn', new THREE.InstancedBufferAttribute(born, 1));   // G670: each instance its cell's birth (trees.js FADE_VS)
         // the block's own sphere (the instances hold world positions, the mesh stands at the origin),
         // on the geometry AND the object: r186 culls an InstancedMesh on its own, and would union the
         // geometry's at every instance otherwise
@@ -112460,26 +113024,45 @@ var COVER_RING = (() => {
 
     // ---- per frame ------------------------------------------------------------------
     let queue = [];
+    const EYE = { x: NaN, z: NaN, t: 0, vx: 0, vz: 0 };   // the eye's ground velocity, smoothed (the lead)
     function update() {
       if (!S.on || !pack || !BIO) { if (root.visible) root.visible = false; return; }
       const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
       const agl = Math.max(0, camera.position.y - gy); STAT.agl = agl;
       const aglK = 1 - smooth(S.aglFull, S.aglOff, agl); STAT.aglK = aglK;   // (the rock map reads the fade's height term)
+      const t = now();
       LEAF.fade(S.near, S.reach, S.taper, aglK);
+      if (LEAF.grow) LEAF.grow(t, null, S.grow);
+      { const dt = t - EYE.t;
+        if (dt > 0 && dt < 0.5 && isFinite(EYE.x)) { const a = Math.min(1, dt / 0.5); EYE.vx += ((ex - EYE.x) / dt - EYE.vx) * a; EYE.vz += ((ez - EYE.z) / dt - EYE.vz) * a; }
+        else if (!(dt > 0 && dt < 0.5)) { EYE.vx = 0; EYE.vz = 0; }   // a jump (a teleport, a pause): no lead from it
+        EYE.x = ex; EYE.z = ez; EYE.t = t; }
       root.visible = aglK > 0.001;
-      if (aglK <= 0.001) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); queue.length = 0; STAT.live = 0; return; }
+      if (growing.length) growTick(t);
+      // THE PRE-GROW (G671, A2-FADES; the playtest: "grass too late on approach"). The ring used to be dropped whole
+      // above aglOff (150 m) and planted again from nothing on the way down - at budgetMs a frame, nearest first -
+      // so the field was still filling while the fade was already letting it show. Below aglPre it now keeps
+      // PLANTING while hidden (on preBudgetMs: it draws nothing, the fade holds every instance at 0), so on a
+      // descent the ring is there when the height term opens; over aglPre it is dropped, as before.
+      const hidden = aglK <= 0.001; STAT.hidden = hidden;
+      if (hidden && agl > S.aglPre) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); queue.length = 0; STAT.live = 0; return; }
       const C = S.cell, R2 = (S.reach + C) * (S.reach + C), Rdrop = (S.reach + 2 * C) * (S.reach + 2 * C);
       const cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C), nr = Math.ceil((S.reach + C) / C);
+      // THE LEAD (G671): what the aeroplane is flying toward is planted first - the queue is ordered by the distance
+      // to where the eye will be in S.lead s (at most 60 % of the reach ahead), still only the cells within the reach
+      let lx = EYE.vx * S.lead, lz = EYE.vz * S.lead; { const l = Math.hypot(lx, lz), m = 0.6 * S.reach; if (l > m) { lx *= m / l; lz *= m / l; } }
+      STAT.lead = Math.round(Math.hypot(lx, lz));
       queue.length = 0;
       for (let dz = -nr; dz <= nr; dz++) for (let dx = -nr; dx <= nr; dx++) {
         const cx = cx0 + dx, cz = cz0 + dz;
         const mx = (cx + 0.5) * C - ex, mz = (cz + 0.5) * C - ez, d2 = mx * mx + mz * mz;
         if (d2 > R2) continue;
-        if (!cells.has(cellKey(cx, cz))) queue.push([d2, cx, cz]);
+        if (!cells.has(cellKey(cx, cz))) { const ax = mx - lx, az = mz - lz; queue.push([Math.min(d2, ax * ax + az * az), cx, cz]); }
       }
       queue.sort((a, b) => a[0] - b[0]);
-      const t0 = performance.now();
-      while (queue.length && performance.now() - t0 < S.budgetMs && cells.size < S.maxCells) { const [, cx, cz] = queue.shift(); buildCell(cx, cz); }
+      const t0 = performance.now(), budget = hidden ? S.preBudgetMs : S.budgetMs;
+      while (queue.length && performance.now() - t0 < budget && cells.size < S.maxCells) { const [, cx, cz] = queue.shift(); buildCell(cx, cz); }
+      STAT.plantMs = performance.now() - t0;
       for (const [k, cell] of cells) { const mx = (cell.cx + 0.5) * C - ex, mz = (cell.cz + 0.5) * C - ez; if (mx * mx + mz * mz > Rdrop) dropCell(k); }
       // A CELL PAST THE REACH DRAWS NOTHING (PERF 2026-09-23): the fade collapses every instance whose
       // 3D distance to the eye is past `reach` (trees.js FADE_VS), so a cell whose NEAREST point is past
@@ -112503,7 +113086,7 @@ var COVER_RING = (() => {
       get: () => Object.assign({}, S),
       set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks, batch: S.batch, castMinH: S.castMinH }; Object.assign(S, o || {});
         if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks || S.batch !== was.batch || S.castMinH !== was.castMinH) api.replant(); return api.get(); },
-      replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); },
+      replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
       rockPlan,                                                           // the rock map's read (above)
       // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
       // the mix, the pavement's kill and class, the land test - so a "why is there a log on the runway"
@@ -113300,6 +113883,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const u = rr(-2, o.len + 2), v = (rnd() < 0.5 ? -1 : 1) * rr(o.wid / 2 + 0.2, o.wid / 2 + band + 1.5);
       const w = o.toWorld(u, v), f = field.at(w[0], w[1]); const d = -f.dEdge;
       if (d < 0.2 || d > band + 1.5) continue;
+      // not in a pond (G667: with the band no longer drawn over it, a pool beside 02/20 showed its stones afloat) - the
+      // DRAWN water (waterDrawY: a lake's quad), not the physics' waterH, which there is dry: the runway's flatten dug
+      // the ground under the DEM lake's plane
+      { const wy = waterDrawY(w[0], w[1]); if (wy !== null && Number.isFinite(wy) && wy > world.terrainH(w[0], w[1]) - 0.05) continue; }
       if (rnd() > 0.35 + 0.65 * Math.min(1, d / band)) continue;
       rows.push([w[0], w[1], rr(0, 6.3), rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1), Math.floor(rnd() * parts.length)]);
     }
@@ -113319,16 +113906,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const ys = cellRows.map(r => { const y = yOf(r); x0 = Math.min(x0, r[0]); x1 = Math.max(x1, r[0]); z0 = Math.min(z0, r[1]); z1 = Math.max(z1, r[1]); y0 = Math.min(y0, y); y1 = Math.max(y1, y); big = Math.max(big, r[3]); return y; });
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2, reach = Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2;
       const grp = new THREE.Group();
+      // NO SHADOW UNDER HALF A METRE (G667, the playtest's cut list): a 7-30 cm stone's shadow is a few texels
+      // of either map, and every stone was a caster in both - the ones of 0.5 m and more (the 5 % drawn 2.5x,
+      // about 2 % of them) keep theirs, in a mesh of their own
       parts.forEach((P, pi) => {
-        const idx = []; cellRows.forEach((r, i) => { if (r[4] === pi) idx.push(i); }); if (!idx.length) return;
         const h0 = Math.max(0.05, P.bb[4] - P.bb[1]);
+        for (const bigSet of [false, true]) {
+        const idx = []; cellRows.forEach((r, i) => { if (r[4] === pi && (r[3] >= 0.5) === bigSet) idx.push(i); }); if (!idx.length) continue;
         for (const part of P.parts) {
           const im = new THREE.InstancedMesh(part.geo, part.mat, idx.length);
           idx.forEach((ri, i) => { const r = cellRows[ri], sc = r[3] / h0; q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); sv.set(sc, sc, sc); im.setMatrixAt(i, mtx.compose(p, q, sv)); });
-          im.instanceMatrix.needsUpdate = true; im.castShadow = true; im.receiveShadow = true; im.name = 'rocks:' + o.id;
+          im.instanceMatrix.needsUpdate = true; im.castShadow = bigSet; im.receiveShadow = true; im.name = 'rocks:' + o.id;
           if (THREE.Sphere) im.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), reach + 3 * Math.max(0.5, big));
           else im.frustumCulled = false;
           grp.add(im);
+        }
         }
       });
       let obj = grp;
@@ -113691,7 +114283,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // chunk lands, and the terrain darkens by the blurred coverage. Nothing
   // classified, nothing guessed: a texel is dark because a crown is over it.
   const COVER = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
-                  rt: null, cam: null, at: null, dirty: true, half: 1400, size: 2048 };
+                  rt: null, cam: null, at: null, dirty: true, half: 1400, size: 2048, island: 'off' };
   const U_UP = { value: new THREE.Vector3(0, 1, 0) }, U_NONEAR = { value: -1e6 };
   // THE FAR CASCADE (W0c.19). The sun's shadow map reaches ±105-540 m around
   // the aircraft, and the impostor band starts at 450 m: whatever the
@@ -113820,8 +114412,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // a registered mesh's chunk centre against a pass's reach (the sun's slant
   // adds a margin: a low sun throws a crown's shadow a few hundred metres)
   const proxyNear = (mi, eye, half) => { const r = half + 724 + 600, dx = mi.position.x - eye.x, dz = mi.position.z - eye.z; return dx * dx + dz * dz < r * r; };
+  // G650 THE FOREST-FLOOR SQUARE (A2-SHADOW-SKY; playtest 2026-09-26, screen 150251): on an ISLAND this pass is OFF.
+  // The canopy hook that reads it sits only on the OUTER ring (the island's near ring and fine tiles are the ground
+  // stack's), so away from home the ring showed the map's own edge - a dark 2.8 km square about the eye, re-rendered
+  // on every 20 m of movement and read at mip 5.5 (~62 m texels), so each regeneration shifted the coarse mip grid:
+  // the flicker. And it was a second darkening: the island's outer ring already wears the stack's static 'shade'
+  // layer (ISLA.canopy, multiply 0.7), which is where the floor comes from there - deterministic, no pass, no edge.
+  // The analytic world (no stack) keeps the pass. COVER.island: 'off' (default) | 'on' - WORLD_RIG.set({ coverIsland }).
+  const coverWanted = () => !(world && world.island) || COVER.island === 'on';
   const coverRender = eye => {
     if (!FAR.scene || !renderer || !renderer.setRenderTarget) return;
+    if (!coverWanted()) { COVER.on.value = 0; COVER.at = null; return; }
     const moved = !COVER.at || Math.hypot(eye.x - COVER.at[0], eye.z - COVER.at[1]) > 20;
     if (!moved && !COVER.dirty) return;
     COVER.dirty = false;
@@ -118546,12 +119147,22 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // the band beside it, the markings recorded off sitePaintStrip, the rocks along the band
         const RS = PAV.resolve(a.premises ? a : null, a.premises ? pavRec() : null, LKp);
         const shW = PAV.shoulderFor(RS.band, RS.recipe);
-        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3 };
+        // G660: on the premises' patch the ground is sunk under the strip's opaque interior, and the strip is
+        // drawn at terrainH there (the wheels' surface); elsewhere (the analytic world's ground) it keeps its lift
+        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3,
+          sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe) : null };
         const pgeo = PAV.stripGeometry(THREE, sd);
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
-        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band });
-        const pm = new THREE.Mesh(pgeo, pmat); pm.renderOrder = 2; pm.receiveShadow = true; pm.frustumCulled = false; pm.name = 'pavement:' + a.id; pm.userData.pavMat = true;
+        // G664: the side is cut per pixel over every other strip's surface (the game's strips never had the
+        // bench's shoulder keep), and the strips draw in a FIXED order - the longest last, on top - where they
+        // shared renderOrder 2 and the stream's creation order decided which crossing won
+        const others = world.aerodromes.filter(b => b !== a && b.len && b.wid && b.kind !== 'meadow' && b.kind !== 'water')
+          .map(b => ({ b, d: Math.hypot(b.x - a.x, b.z - a.z) - (b.len + a.len) / 2 })).filter(q => q.d < 30).sort((p, q) => p.d - q.d)
+          .map(q => ({ cx: q.b.x, cz: q.b.z, hdg: q.b.hdg, halfL: q.b.len / 2, halfW: q.b.wid / 2 }));
+        const rank = world.aerodromes.filter(b => b.len && b.kind !== 'meadow' && b.kind !== 'water' && (b.len < a.len || (b.len === a.len && String(b.id) < String(a.id)))).length;
+        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others });
+        const pm = new THREE.Mesh(pgeo, pmat); pm.renderOrder = 1.99 + Math.min(19, rank) * 0.0005; pm.receiveShadow = true; pm.name = 'pavement:' + a.id; pm.userData.pavMat = true;
         scene.add(keep(pm));
         geo.dispose();
         const F = PAV.field(sd);
@@ -118729,9 +119340,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       if (FRw) { FRw.pop(); const built = q0 - premisesR.stats.queued; if (built > 0) FRw.event('prem', performance.now() - tP, built + ' built, ' + premisesR.stats.queued + ' queued'); }
     }
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
-    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
+    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
-    const fdt = (typeof window !== 'undefined' && window.FLYDIY_PACE) ? window.FLYDIY_PACE.dt : 1 / 60;
+    // G650: paused in flight (app.js FLYDIY_HELD) the frame lasts nothing for the sea and the sway
+    const fdt = (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : (typeof window !== 'undefined' && window.FLYDIY_PACE) ? window.FLYDIY_PACE.dt : 1 / 60;
     if (cg) seaUpdate(cg[0], cg[2], fdt);                          // H4: the near sea, in the aeroplane's wave
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
@@ -118796,7 +119408,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // drawn, so a map and its lookup never disagree. SHADOW_RATE.every = 1 is the old behaviour.
     if (sun.shadow) {
       sun.shadow.autoUpdate = false;
-      if (resized || !sun.shadow.map || (++SHADOW_RATE.n % Math.max(1, SHADOW_RATE.every | 0)) === 0) sun.shadow.needsUpdate = true;
+      if (resized || !sun.shadow.map || SUNW.dirty || (SUNW.on && (++SHADOW_RATE.n % Math.max(1, SHADOW_RATE.every | 0)) === 0)) sun.shadow.needsUpdate = true;
+      SUNW.dirty = false;   // G655: an empty world map ('near' tier) is drawn once
     }
     if (sunNear && sunNear.shadow) { sunNear.shadow.autoUpdate = false; sunNear.shadow.needsUpdate = true; }
   }
@@ -118821,6 +119434,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // colour is the transmittance along the sun's own path. Clouds sit at the
   // day's cloud base, by its cover.
   const SUN_MIN_Y = Math.sin(2 * Math.PI / 180);
+  const SUNW = { on: true, dirty: false, EMPTY: 31 };   // G655: the world's sun map on (the tiers full / ultra) or empty ('near': the craft's map alone)
   const SHADOW_RATE = { every: 2, n: 0 };   // the big sun map's cadence (worldUpdate, PERF 2026-09-23)
   if (typeof window !== 'undefined') window.SHADOW_RATE = SHADOW_RATE;
   const WARM_SUN = C(0xffa652);
@@ -118889,8 +119503,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     hemiSky: hexOf(hemi.color, RIG.skyCol), hemiGnd: RIG.gndCol,
     exposure: (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null)
       ? window.GFX.exposureBase() : ((renderer && renderer.toneMappingExposure) || 1),   // the BASE, never the menu's step over it
-    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, floorBlur: uFloorLod.value, floorEdge: uFloorEdge.value,
-    farShadow: true, snap: true, manual: false, gndGain: GND_GAIN, gndDerive: true,
+    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, floorBlur: uFloorLod.value, floorEdge: uFloorEdge.value, coverIsland: 0,
+    farShadow: true, worldShadow: true, snap: true, manual: false, gndGain: GND_GAIN, gndDerive: true,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
     // the painted dome's palette; the physical dome (S3) has none, and the row keeps the legacy numbers for the fallback
     dome: (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uTop) ? {
@@ -118974,12 +119588,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (renderer) { if (typeof window !== 'undefined' && window.GFX && window.GFX.setExposure) window.GFX.setExposure(renderer, R.exposure); else renderer.toneMappingExposure = R.exposure; }
     RIG.shadowMin = R.shadowMin;
     if (R.floor !== undefined) uFloor.value = R.floor;
+    if (R.coverIsland !== undefined) { COVER.island = R.coverIsland ? 'on' : 'off'; COVER.dirty = true; }   // G650: the canopy pass on an island (off by default)
     if (R.floorBlur !== undefined) uFloorLod.value = R.floorBlur;
     if (R.floorEdge !== undefined) uFloorEdge.value = R.floorEdge;
     if (R.farShadow !== undefined) FAR.enabled = !!R.farShadow;
     if (R.snap !== undefined) SNAP.on = !!R.snap;
-    if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== R.shadowMap) {
-      sun.shadow.mapSize.set(R.shadowMap, R.shadowMap);
+    // G655 THE 'near' TIER IS THE AEROPLANE AND WHAT STANDS NEAR IT (A2-SHADOW-SKY; the user: "shadows are FIXED first, then
+    // the default is chosen by measurement (fallback: aircraft + near objects only)"). The row said 'a 1024 map around the
+    // aeroplane' and drew the world's whole sun map all the same (frame_perf: near = full to 0.3 ms). worldShadow false keeps
+    // the sun CASTING - the shadow count, and so every lit program, stays as it is (no relink when the row moves) - but its
+    // camera sees an empty layer and its map shrinks to 256: drawn once, empty, never again. The craft's near map (the craft
+    // and the casters within 90 m of it, shadow_near.js) is then the only shadow in the world.
+    if (R.worldShadow !== undefined && R.worldShadow !== SUNW.on) {
+      SUNW.on = !!R.worldShadow; SUNW.dirty = true;
+      if (sunNear) sun.shadow.camera.layers.set(SUNW.on ? SHADOW_NEAR.FAR_LAYER : SUNW.EMPTY);
+    }
+    const sunSize = SUNW.on ? R.shadowMap : 256;
+    if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== sunSize) {
+      sun.shadow.mapSize.set(sunSize, sunSize);
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
     }
     // the craft's near map follows the tier (A6): half the far map's side - 512 under `near`, 1024 under
@@ -139910,7 +140536,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
         { v: 'far',  label: 'real trees', why: 'real trees to 270 m (the bands before 2026-09-21); the frame is 1.3-2x dearer in a dense stand' } ] },
     { k: 'shadows', label: 'shadows', steps: [
         { v: 'off',   label: 'off', why: 'no shadow at all' },
-        { v: 'near',  label: 'near', why: 'a 1024 map around the aeroplane' },
+        { v: 'near',  label: 'near', why: 'the aeroplane and what stands near it (its own map); the world beyond casts none' },
         { v: 'full',  label: 'full', why: 'a 2048 map, and the far stands shade the ground' },
         { v: 'ultra', label: 'ultra', why: 'a 4096 map, and the far stands shade the ground' } ] },
     { k: 'canopy', label: 'forest floor', steps: [
@@ -140057,7 +140683,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   const TONE = { aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping', neutral: 'NeutralToneMapping',
                  reinhard: 'ReinhardToneMapping', cineon: 'CineonToneMapping', linear: 'LinearToneMapping' };
   const BANDS = { near: [10, 30, 30], far: [60, 270, 270] };   // 2026-09-21 impostor-first: L0 to 10 m, L1 to 30 m, pictures beyond; 'far' is W0c.32's near (L1 to 270)
-  const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 1024, far: false },
+  const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 2048, far: false, world: false },   // near: map 2048 = the craft's 1024 (G655)
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 
   // ---- the presets: FIVE TIERS (PERF 2026-09-23, the user: "5 levels in the end: potato computer, was good
@@ -140169,7 +140795,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       // ...and the NEAR map (G570): the craft's own shadow light kept casting with the row 'off' - at the stand it drew
       // every caster within 90 m, ~5 ms of a potato frame
       if (W.SHADOW_NEAR && W.SHADOW_NEAR.S) W.SHADOW_NEAR.S.on = !!sh.on;   // shadow_near's own dial (follow() re-asserts castShadow from it)
-      rig.set({ shadowMap: sh.map, farShadow: sh.on && sh.far });
+      rig.set({ shadowMap: sh.map, farShadow: sh.on && sh.far, worldShadow: sh.world !== false });
       applied.shadows = S.shadows;
     }
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }
@@ -144635,7 +145261,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
 <script type="text/x-flydiy" src="tools/_house_kit.js?v=5d5c479e"></script>
 <script type="text/x-flydiy" src="tools/_house_gen.js?v=d9999195"></script>
-<script type="text/x-flydiy" src="tools/_big_gen.js?v=8670619d"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=2e8ec6cb"></script>
 <script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
 <script type="text/x-flydiy" src="tools/_marine_gen.js?v=7e5624cd"></script>
 <script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
@@ -144652,7 +145278,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=1a9cffb9"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=a2698c61"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=db4052c4"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=37ba662d"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=85cf5b0e"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=09f00685"></script>
 <script type="text/x-flydiy" src="src/viewer/world_rail.js?v=b6a49b7b"></script>
@@ -146907,6 +147533,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           // pitch calibration and the mount offsets have tilted
           if (pt.axis) pg.userData.spinAxis = pt.axis;
           grp.add(pg); props.push(pg);
+          // G672: THE DISC, measured off these blades (prop_disc.js); its program linked now, off the
+          // first frame that shows it (a start is at full weight within a second)
+          if (typeof PROP_DISC !== 'undefined') try {
+            const dc = pg.userData.disc = PROP_DISC.make(THREE, pg, null, pt.axis);
+            if (dc && typeof renderer.compileAsync === 'function') {
+              dc.mesh.visible = true;
+              renderer.compileAsync(dc.mesh, camera, scene).catch(() => {});
+              dc.mesh.visible = false;
+            }
+          } catch (e) { console.warn('prop disc', e && e.message); }
           // ...and it rides the same node as its engine (G179.2)
           { const idxs = engNodesFor(pt.pivot[2]);
             if (idxs.length) engRigs.push({ obj: pg, idxs, pivot: pt.pivot,
@@ -147902,6 +148538,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           vSpin.set(ax2[0], ax2[1], ax2[2]);
           p.quaternion.setFromAxisAngle(vSpin, ud.spinAng);
         } else p.rotation.x += d;
+        // G672: past ~150 rpm the blades strobe (480 degrees a frame at 2 400 rpm and 30 fps): the disc takes over
+        if (ud.disc) ud.disc.update(ud.spinRate * 60 / (2 * Math.PI), ax2 ? ud.spinAng : p.rotation.x, sense, frameDt());
         poseRigid(p);                                 // G357: in the true frame
       }
     // once per frame: it is stateful - and on the frame's own dt (G613; G586's clock): at 30 fps a fixed
@@ -149558,6 +150196,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // exits. fullReset clears the latch.
   let flightOver = false;
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
+  let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
   function endFlight(outcome) {
     if (flightOver || inGarage) return;
     flightOver = true;
@@ -151691,7 +152330,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     const E = window.CAGE_UI;
     if (edSeeded || !E || !E.applySpec || !genSpec) return;
     edSeeded = true;
-    if (!genSpec.cage || !Object.keys(genSpec.cage).length) return;
+    // ...BUT THE FINISH IS SEEDED ANYWAY (G775). Skipping the cage is right;
+    // skipping the paint with it left the editor on whatever finish it booted
+    // with, and the join exports the editor's finish INTO the spec — so a
+    // cage-less aeroplane (the default one) took any stale finish as its own
+    // and saved it. finishFromSpec is the load's own reset (G105: null is the
+    // factory finish, a complete instruction), and the build repaints.
+    if (!genSpec.cage || !Object.keys(genSpec.cage).length) {
+      if (E.finishFromSpec)
+        try { E.finishFromSpec(genSpec.finish || null); if (E.build) E.build(); }
+        catch (err) { console.error('cage editor seed (finish):', err); }
+      return;
+    }
     try { E.applySpec(genSpec); }
     catch (err) { console.error('cage editor seed:', err); }
     // G190: the autosave's image pages come back before the editor exists;
@@ -151935,6 +152585,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   };
   $('bPause').onclick = e => {
     running = !running;
+    userPaused = !running;   // G650: the player's pause (FLYDIY_HELD, the world's clocks)
     e.target.textContent = running ? 'Pause' : 'Run';
     e.target.classList.toggle('on', !running);
   };
@@ -154517,6 +155168,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // camera, not the aeroplane - otherwise the inspector flies out to a stand
     // and finds impostors, because the near tier is measured from a CG that is
     // still on the strip.
+    // G650 PAUSE HOLDS THE WORLD'S CLOCKS (A2-SHADOW-SKY; playtest 2026-09-26: "the sea ignores pause"): the sea
+    // takes the solver's time only while it steps (WATER.setTime above) and free-ran on the wall clock otherwise; the
+    // trees' sway integrates the frame's dt, the premises' trams, traffic and animals the wall clock (G398.3). On the
+    // PAUSE BUTTON alone (not the roll-out hold, the settle screen, the editor or the scenery mode, which own their
+    // clocks) the world is told the frame lasted nothing - everything visual stands still; render_world reads FLYDIY_HELD.
+    if (running) userPaused = false;
+    if (typeof window !== 'undefined') window.FLYDIY_HELD = !inGarage && !running && userPaused;
     if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);

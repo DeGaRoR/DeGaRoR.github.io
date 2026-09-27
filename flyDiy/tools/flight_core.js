@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7c5e34dd0ae65237
+// body-sha256: 84165fe8a9ffb111
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8119,6 +8119,10 @@ function compose(rec0, world, opts) {
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
     coverAt: (x, z, pave) => coverAt(x, z, pave),
+    // pavedAt(x, z) -> null | { d, cls, halfW, kind }: the pavement whose surface the point lies deepest
+    // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
+    // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
+    pavedAt: (x, z) => pavedAt(x, z),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -8202,7 +8206,9 @@ function compose(rec0, world, opts) {
       if (out > it.band + PAVE_FADE + 6) continue;
       // the pavement and its band: nothing; the fade: 1 -> 0 over PAVE_FADE; the border bump past the band
       let k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
-      if (it.cls === 'grass') k *= 0.6;              // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare
+      // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare - except a STRIP's
+      // surface, where no grass grows at all (G665, the user: "the runways should be able excluding the grass")
+      if (it.cls === 'grass' && !(it.kind === 'strip' && d >= 0)) k *= 0.6;
       const bump = out <= it.band ? 0 : (out < it.band + PAVE_FADE + 6 ? Math.sin(Math.PI * Math.min(1, (out - it.band) / (PAVE_FADE + 6))) : 0);
       // a soft road's own edge is where the grass creeps in: the bump reaches into its last metre
       const soft = it.soft && d > 0 && d < 1 ? 0.5 * (1 - d) : 0;
@@ -8218,6 +8224,17 @@ function compose(rec0, world, opts) {
     if (kind === 'lawn' && kill < 1) kill = 0;
     if (!kill && !boost && !kind) return null;
     return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+  }
+
+  function pavedAt(x, z) {
+    const L = F.toLocal(x, z), lx = L[0], lz = L[1];
+    const cell = CIDX.query(lx, lz);
+    let best = null;
+    if (cell) for (const it of cell) {
+      const d = dEdgeOf(it, lx, lz);
+      if (d > 0 && (!best || d > best.d)) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind };
+    }
+    return best;
   }
 
   // PLACEMENT (stage 5): the zones sown in array order — a later zone's plots
@@ -9525,7 +9542,7 @@ function makeSim(def, world) {
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
-        r = new Float64Array(n);
+        r = new Float64Array(n), rC = new Float64Array(n);   // rC: the contact radius (G661, reset below)
   // THE FLIGHT BOX (G610, 62_gen_aero genFlightBox): a softened wing spring (kTrue on the beam) reports
   // its strain against the TRUE k - the force it carries over the actual wing's stiffness, which is the
   // real wing's strain under the same load (sK = k / kTrue; 1, exactly, on every other beam)
@@ -10193,6 +10210,27 @@ function makeSim(def, world) {
       totalM += nd.m;
       rigGround(i, nd.m);          // hoisted; reset only ever runs post-build
     }
+    // G661 (A2-RUNWAYS, a small local edit in A1-PHYS's solver): THE WHEEL STANDS ON THE GROUND, NOT IN
+    // IT. The ground spring holds a wheel's share of the weight by penetrating: 2.0 cm under each main of
+    // the stock build, 2.8 under the aluminium Cessna's nosewheel (measured) - a rigid drawn tyre sunk
+    // that far into the runway, the playtest's 142532 ("that's not acceptable anymore"). The drawn tyre IS
+    // the loaded tyre, so each wheel's contact radius carries its own static deflection: the share of
+    // the weight the level stance gives it (the lever of the CG between the mains and the third wheel)
+    // over its own ground stiffness. K, C and every force law are unchanged - the spring meets the
+    // ground that much earlier, so at rest the wheel's rim is on the surface. Every other node: rC = r.
+    for (let i = 0; i < n; i++) rC[i] = r[i];
+    {
+      const M = (def.refs && def.refs.mains) || [], tw = def.refs ? def.refs.tw : null, W = totalM * 9.81;
+      if (M.length) {
+        let cx = 0; for (let i = 0; i < n; i++) cx += def.nodes[i].p[0] * def.nodes[i].m; cx /= totalM;
+        let xm = 0; for (const i of M) xm += def.nodes[i].p[0]; xm /= M.length;
+        const hasTw = tw != null && tw >= 0, xt = hasTw ? def.nodes[tw].p[0] : xm;
+        const sT = hasTw && Math.abs(xt - xm) > 1e-3 ? Math.max(0, Math.min(1, (cx - xm) / (xt - xm))) : 0;
+        const def0 = (i, share) => Math.max(0, Math.min(0.05, share * W / KGn[i]));
+        for (const i of M) rC[i] = r[i] + def0(i, (1 - sT) / M.length);
+        if (hasTw) rC[tw] = r[tw] + def0(tw, sT);
+      }
+    }
     for (const b of beams) {
       b.L0 = hyp3(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
       // G185: RIGGING. A wire's rest length is a hair short of the drawn
@@ -10220,7 +10258,7 @@ function makeSim(def, world) {
     // sink) landed on the other side of their thresholds — the battery's
     // datum is the level drop + 600-frame settle, and it stays so.
     let minC = Infinity;
-    for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
+    for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
     ctl.eng = null;                                  // G194: every lever back to full
@@ -10242,7 +10280,7 @@ function makeSim(def, world) {
     let ax = 0, ay = 0;
     for (const i of M) { ax += p[i*3]; ay += p[i*3+1]; }
     ax /= M.length; ay /= M.length;
-    const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = r[tw] - r[M[0]];
+    const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = rC[tw] - rC[M[0]];
     const R = hyp2(A, B);
     if (R < 1e-6 || Math.abs(C) > R) return 0;
     const th = Math.asin(C / R) - Math.atan2(B, A);
@@ -10761,13 +10799,13 @@ function makeSim(def, world) {
       let gy;
       if (coneLive) {
         const dx = p[i3] - gcx[i], dz = p[i3+2] - gcz[i];
-        const c = p[i3+1] - r[i] - gcy[i] - GROUND_CONE_EPS;
+        const c = p[i3+1] - rC[i] - gcy[i] - GROUND_CONE_EPS;
         if (c > 0 && c * c > coneS2 * (dx * dx + dz * dz)) { out.gndSkipped++; continue; }
         gy = gH(p[i3], p[i3+2]); gcx[i] = p[i3]; gcz[i] = p[i3+2]; gcy[i] = gy; out.gndSampled++;
-      } else if (hbLive && p[i3+1] - r[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
+      } else if (hbLive && p[i3+1] - rC[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
         out.gndSkipped++; continue;
       } else { gy = gH ? gH(p[i3], p[i3+2]) : 0; if (hbLive) out.gndSampled++; }
-      const pen = gy + r[i] - p[i3+1];
+      const pen = gy + rC[i] - p[i3+1];
       if (pen <= 0) continue;
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
       if (out.gndDump) out.gndPitch -= (p[i3] - out.gndCgx) * Fn;
@@ -11008,7 +11046,7 @@ function makeSim(def, world) {
     }
     for (const i of [...def.refs.mains, def.refs.tw]) {
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
-      if (p[i*3+1] - r[i] - gh < 0.03) c++;
+      if (p[i*3+1] - rC[i] - gh < 0.03) c++;
     }
     return c;
   }
@@ -11016,7 +11054,7 @@ function makeSim(def, world) {
   // ground law can tell one main down (a wing-low touchdown) from the tail
   // still flying; on the water the floats, as above
   function wheelContacts() {
-    const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - r[i] - gh < 0.03; };
+    const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - rC[i] - gh < 0.03; };
     if (HY) return { mains: HY.floats.map(fx => fx.wet > 0.05), tw: HY.floats.length === 2 && HY.floats.every(fx => fx.out.wetA > 0.2), water: true };
     return { mains: def.refs.mains.map(on), tw: def.refs.tw != null && def.refs.tw >= 0 ? on(def.refs.tw) : false, water: false };
   }
