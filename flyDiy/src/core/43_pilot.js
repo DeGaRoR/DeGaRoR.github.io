@@ -393,6 +393,7 @@ function makePilot(sim, def, world, opts) {
   let eTrim = 0;
   let pendReEng = false;
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
+  let humpR = 0, humpPk = 0, humpPast = false;   // G790: the hull's resistance / weight on the water run, filtered; its peak; past it
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
   let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
@@ -722,7 +723,17 @@ function makePilot(sim, def, world, opts) {
         return g;
       };
       const tL = gOf(1, M.floor), tR = gOf(-1, M.floor), gStrip = M.hAt(0.5 * M.R.len);
-      if (D && D.climbTurn) { side = -D.climbTurn; sideForced = true; }
+      // G790: ON THE WATER THE CLIMB-OUT'S TURN DOES NOT CARRY THE PATTERN ONTO THE HILLS. The runway model scores a
+      // 30 deg turn from 300 m past the end against 1.5 km of ground (25_airfield siteRunwayModel) - Jolene's lane
+      // (Annette Dock) turns right past a 90 m point, and its sense forced the whole circuit onto the island's side:
+      // 359-436 m of ground under the Cessna on floats' downwind and base against 39 m over the Sound, a circuit
+      // planned at 482-562 m, flown by a 0.4 m/s climb (ceiling-accepted), the 180 hp build 1.9 m over the ridge at
+      // 160 s (a 34 deg zoom, then a dive), the O-540 build never round (leg time-outs, a go-around, gave up). A water
+      // lane's circuit is flown over the water when that side's ground under the pattern is lower by a quarter of the
+      // circuit height (the rule below, as on land without a turn); the climb-out keeps its own turn. Land strips as before.
+      const onWater = to.surface === 4 || !!to.water;
+      const turnSide = D && D.climbTurn ? -D.climbTurn : 0;
+      if (turnSide && !(onWater && (turnSide > 0 ? tL - tR : tR - tL) > 0.25 * hC)) { side = turnSide; sideForced = true; }
       else side = tR < tL - 0.25 * hC ? -1 : 1;
       if (Math.max(tL, tR) - gStrip > 0.5 * hC) sideForced = true;
       const gL = gOf(1, M.ground), gR = gOf(-1, M.ground);
@@ -2058,7 +2069,7 @@ function makePilot(sim, def, world, opts) {
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
-          rollS0 = sAl; committedTO = false;
+          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false;
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
           // take-off run (an accelerate-stop wants about two runs) — the
@@ -2108,7 +2119,24 @@ function makePilot(sim, def, world, opts) {
         // 8.5 m/s from t 10 to 22, on the step at 24, unstuck at 35); the
         // accelerate-stop planner condemned it at 13 s. In the displacement
         // regime (the afterbody wet) the planner waits; on the step it judges.
-        const atHump = !!(sim.hydro && sim.hydro.floats.some(fx => fx.out && fx.out.wetA > 0.2));
+        // G790: ...AND THE HUMP IS THE PEAK OF THE HULL'S RESISTANCE, not a wet afterbody alone. The user's
+        // Cessna on floats (IO-360, 6.3 m hulls) ventilates its step at 6.9 m/s - the afterbody dry, the planing
+        // lift over the buoyancy - and then ploughs on at 12-15 deg of trim, R/W 0.19-0.24, 0.15-0.3 m/s^2, for
+        // 25 s until the resistance falls away at 11-13 m/s; it unsticks at 54 s in 690 m of the 1 500 m lane
+        // (the sheet says 1 160). Judged at 9.9 s on the hump's acceleration it was condemned ("0.23 m/s^2 needs
+        // 1 201 m more") on the game's SEA lane, every flight. The hull is past the hump once its resistance
+        // (the floats' hydro force against the motion, over the weight, a 1 s filter) has fallen under
+        // `humpOff` of the run's peak, and stays past it; until then the planner waits, as G396.4 wanted. A
+        // hull that never gets over it still meets the user's rule below (the fraction of the run used).
+        if (sim.hydro) {
+          const vn = Math.max(0.5, Math.hypot(vcg[0], vcg[2]));
+          let R = 0;
+          for (const fx of sim.hydro.floats) if (fx.out && fx.out.F) R -= (fx.out.F[0] * vcg[0] + fx.out.F[2] * vcg[2]) / vn;
+          humpR += Math.min(1, dt / 1.0) * (R / (sim.totalM * 9.81) - humpR);
+          humpPk = Math.max(humpPk, humpR);
+          if (humpPk > 0.05 && humpR < (A.humpOff ?? 0.6) * humpPk) humpPast = true;
+        }
+        const atHump = !!(sim.hydro && (sim.hydro.floats.some(fx => fx.out && fx.out.wetA > 0.2) || !humpPast));
         if (canStopHere) {
           // the prediction waits for the 2 s acceleration filter to settle
           // (three time constants after the throttle opens): at 3 s a slow
