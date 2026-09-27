@@ -266,6 +266,9 @@
 #ui .verb:hover { border-color:rgba(255,255,255,.3); }
 
 #ui .verb[hidden] { display:none; }
+/* G771: a verb that cannot act now (Skip to line-up at the hold, rolling, or once airborne) says so */
+#ui .verb:disabled { opacity:.38; cursor:default; border-color:rgba(255,255,255,.08); }
+#ui .verb:disabled:hover { border-color:rgba(255,255,255,.08); }
 
 /* THE PRIMARY IS NEVER DISABLED, exactly as ROLL OUT is not: flying something
    uncertified and finding out why is content, not error. It changes its
