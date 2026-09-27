@@ -17,6 +17,13 @@
 //                after a full bake: a file this run did not emit is deleted,
 //                so orphans cannot accumulate and GATE MEDIA can hold
 //                referenced == present as an equality.
+//   ONE COPY     (G901, the asset census's P2) bytes already in the subdir
+//                under ANOTHER stem are returned, not written twice: the
+//                census found 32 byte-identical groups (5.8 MiB), the same
+//                map shipped under two or three names (ashbark = hollybark =
+//                raspberrybark). The existing file is the one returned, so
+//                it is in the baker's emitted list and its prune keeps it
+//                for as long as the bake still asks for those bytes.
 //
 // Paths returned are PAGE-RELATIVE ('media/...'): index.html and dev.html
 // both live at flyDiy/, and any page elsewhere (the tools/ benches) sets
@@ -34,12 +41,32 @@ const MEDIA = path.join(ROOT, 'media');
 //   -> 'media/tex/wood/maple_aero_512.<h8>.jpg'  (page-relative, forward /)
 function writeMedia(subdir, stem, ext, buf) {
   const h8 = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);
+  const same = sameBytes(subdir, h8, ext, buf);
+  if (same) return `media/${subdir}/${same}`;
   const rel = `media/${subdir}/${stem}.${h8}.${ext}`;
   const abs = path.join(ROOT, ...rel.split('/'));
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   // content-addressed: an existing file with this name IS these bytes
   if (!fs.existsSync(abs)) fs.writeFileSync(abs, buf);
   return rel;
+}
+
+// the file already in media/<subdir> (that directory only, not below it) that
+// holds exactly these bytes, whatever its stem, or null. Only names ending in
+// .<h8>.<ext> can (writeMedia put the hash there), and each candidate is
+// compared byte for byte, so an 8-hex collision cannot alias two maps. The
+// first name in sort order wins, so the choice never depends on which alias a
+// bake happens to write first: the fold is the same on every run, and the
+// prune then removes the other copies.
+function sameBytes(subdir, h8, ext, buf) {
+  const dir = path.join(MEDIA, ...subdir.split('/'));
+  if (!fs.existsSync(dir)) return null;
+  const tail = `.${h8}.${ext}`;
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith(tail)).sort()) {
+    const p = path.join(dir, f), st = fs.statSync(p);
+    if (st.isFile() && st.size === buf.length && fs.readFileSync(p).equals(buf)) return f;
+  }
+  return null;
 }
 
 // pruneMedia('tex/wood', [rel, rel, ...]) — delete everything in the owned
