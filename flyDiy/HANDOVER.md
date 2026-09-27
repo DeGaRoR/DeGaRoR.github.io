@@ -398,6 +398,12 @@ gate and the game fly one condition and not two.
   in tunnel-only makeSim calls — null-guard anything new that touches it).
 - Latent debug hooks on `sim.out` (trq/trqAero/trqTotal, dump, gndDump,
   trqDebugOnce) are used by ad-hoc tuning scripts — don't prune.
+- **G970: the induction kernel's span coordinate is the BODY's** — each wing
+  strip's bound endpoints from the nose frame along the body's lateral axis
+  (zRt), never a world coordinate. World z was the span only on z = 0 flying
+  along x (HOME's final, the tunnel's rest pose): at A3 the template broke, the
+  tail's downwash flipped 0.35 -> 0.18 rad, the trim elevator jumped 0.35 at
+  100 m. Prove a kernel term OFF the origin (a far strip, a leg along z).
 
 ## STRUCTURAL RULES (each one paid for in blood)
 1. **Spar box always.** Planar wing + shallow fan = snap-through fold (drone).
@@ -533,6 +539,13 @@ gate and the game fly one condition and not two.
   with `departFrom(.., { atHold })` - STOP / HOLD, never a fresh plan (the uncapped need U-turns a short strip's
   hold). The take-off direction score carries each way out's taxi length off the strip (1 point a km): a calm-air
   choice settled by the nose tie-break alone moved with the stand's heading (Jolene: 13 vs 31 on 0.12 points).
+- **G970: the flare runs out of elevator in ground effect; the answers are power, a firm arrival and the
+  flap it can fly.** Under 1.15 Vs0 with the stick back the assist winds in (0.5/s, up to apAssistMax) and the
+  hold-off asks 1.0 m/s; genTrim lands flapless when the landing flap's touchdown attitude needs more than the
+  0.35 stop (free air, prop off - the trim budget's conditions) and flapless needs less. holdPitch's authority
+  limit (the integrator on IthMax, the attitude short of the ask) is "the elevator cannot hold this speed" as
+  much as 0.30 of elevator is - TECS raises Vref on either. The decrab carries a slow integral (P alone left the
+  weathercock a standing crab at touchdown).
 - Trim-heavy stable aircraft need pitchI authority (DC-3: 0.05 → 0.25).
 - **W10 runway frames (contract rule 6 DONE)**: all along/cross geometry
   runs in a runway frame {origin, unit axis} from a W.aerodromes record;
@@ -61483,3 +61496,100 @@ tools/perf/glint_evidence/.
   0.05-0.06 - the same before and after to the hundredth. FLICKER over an 8-frame 0.0015 rad/frame sweep (horizon
   strip, pixels changing > 60 a step): 524-5 434 -> 192-216. The tramway seen from the SW has the same village behind it and was
   the same fault (22 max, 31 negative -> 2.0, 0); the native village, the mine, the tramway from the NE were clean.
+
+## G970 - THE TOUCHDOWNS: the tail's downwash read the world's z, the Cub-alike's flare had no budget, the flare's power came last; the Caravan's servo limit, the float's run (2026-09-27, batch A of the Jolene playtest, FLIGHT-1, a cloud session, node only)
+
+The user: "fix all reds now" / "no re-baseline, fix it instead". FLIGHT-1 took G780's touchdown reds (PILOTMATRIX
+c172 / stearman / cub, SEAPLANE, the Caravan-alike's ARCHETYPES give-up); FLIGHT-2 (G975) the other ARCHETYPES
+give-ups. Three source commits, one per file, each naming the law it touched. tools/pilot_baseline.json UNCHANGED.
+
+**THE INSTRUMENT FIRST (scratch, not committed).** pilot_trace --csv per cell; a driver wrapping makePilot to log
+ap.dbg + sim.out + sim.induction() at chosen seconds; a tunnel sweep (the probe with `setGroundRef(0)` for ground
+effect, the ground image genTORunAt already uses) of the elevator that trims each alpha, per flap, free / GE; an
+experiment knob read from the environment (XP=..., deleted before any commit) so four cells flew each variant in
+parallel (~4 min a set). Every number below is off those, on this tree.
+
+**1. THE SOLVER (30_solver.js): THE INDUCTION TEMPLATE'S SPAN WAS THE WORLD'S Z.** G197's elliptic source template
+(buildAIC) weighed each wing strip by `sqrt(1 - (z/b)^2)` with z the bound endpoints' WORLD z and b = max |z|. That
+is the span only on z = 0 flying along x - HOME's final and the tunnel's rest pose, which is why no gate saw it. At
+A3 (z = -11 613 m) every strip read u = -1, the weighted sources came out lopsided (side +1 -13..-16, side -1
++2.8..-8.6 on a symmetric wing), and on the flapped Cub's final the tail's downwash `tailEps` flipped 0.35 -> 0.18
+rad in half a second as alpha crossed -1 deg: the trim elevator jumped -0.16 -> +0.19 at 100 m (twice), and at the
+flare's power chop the nose went to -17 deg with the stick on the stop - cub:HOME-A3's 4.03 m/s was THIS, not the
+flap (G780 read the flap). Every downwind (z +-500), the SEA lane (z 2000, along z) and the whole island flew it.
+The span coordinate is now each endpoint's offset from the nose frame along the body's lateral axis (zRt, fresh
+from bodyAxes). At the rest pose that is |z| exactly: every generated fiche bit-identical (md5 of def.params on
+stock, c172, stearman, caravan, jodel, tigermoth). Alone: cub A3 4.03 -> 1.26, SEAPLANE 3 -> 2 fails.
+
+**2. THE GENERATOR (64_gen_build.js genTrim): THE FLARE HAS A BUDGET TOO.** G115's trim budget asks the APPROACH
+(free air, prop off, |deAppr| > 0.18 -> try flapless). Nothing asked whether the hold-off's END fits under the
+stop. Measured on every live card: the elevator to hold the touchdown attitude (`alphaTD`, 1.10 Vs of the landing
+configuration, the same probe) - the Cub-alike's FOWLER flap (the card's; dCl0 2.43, dCm0 -0.61) needs 0.491,
+flapless 0.412. Flapped, its flare sat on the stop from the first second, the nose rose to +0.7 deg and it mushed
+on at 1.00-1.04 Vs0 (1.3-1.4 m/s; V/Vs warn on every cub cell, A5 0.99). Every other flapped card fits: Caravan
+0.313, C172 0.191, floatplane 0.240, Chinook 0.142, DA62 0.114, P-38 0.058 (fiches bit-identical but the new
+published `gen.deFlare`); the user's C172 builds need MORE flapless (cessnaMetal 0.499 / 0.544, wipline 0.494 /
+0.562) and keep the flap. Rule: past 0.35 at the touchdown attitude and flapless needs less -> land flapless
+(`gen.flareFlapless` = the flapped reading). NB a GE-probe version of the same rule would have flipped the Caravan
+and both C172 builds; free air is the flare's start and the trim budget's own conditions. The Cub-alike, flapless:
+HOME calm 0.64 m/s at 1.15 Vs, x2 0.81 / 1.13, A3 0.69 / 1.17, A5 0.58 / 1.15, up4 0.40, dn4 0.37.
+Half flap measured too (1.05-1.19, 1.08-1.16 Vs): between the two, not taken.
+
+**3. THE PILOT (43_pilot.js), four laws:**
+- G381.1 FLARE POWER ASSIST - THE FLOOR IS A SPEED. In ground effect (the ground's image takes the tail's downwash)
+  the attitude falls short of the servo's ask long before the 0.35 stop, so the 0.30 trigger came in the last
+  half-second: the C172-alike held 6.9 deg on 0.25-0.29 of elevator from 3.5 m and bled to 1.07 Vs0 (2.04 m/s);
+  the Stearman-alike held 11 deg from 2.2 m and touched at its tunnel's GE elevator limit, 1.14 Vs (1.48). Under
+  `flareFloorK` 1.15 x Vs0 (the sheet's landing stall) with the stick back: the assist winds in at 0.5/s (was 0.2)
+  up to `apAssistMax` 0.40, and the hold-off asks a firm 1.0 m/s ("a firm arrival at 1.1 Vs beats a stall"). Tried
+  and rejected: freezing the attitude under the floor (sinks 1.8-2.6), the floor without the firm ask (C172 x2 at
+  1.04 Vs0, a 7 s float). The fast arrival's trickle cap and the unwind are unchanged.
+- DECRAB FLOWN TO ZERO: a 1/s integral on the decrab rudder (reset when the decrab is not flown, +-0.2). P alone
+  left the weathercock a standing crab (the cub touched 2.1 deg off the runway in 2 m/s across and the roll-out swing
+  grew from there to 6.6 deg - the ratchet's line is 6). Now aligned: cub x2 5.9 (THIN: 0.1 under the line; the
+  flapless Cub-alike touches two-point at 3 deg - it cannot three-point in GE, flapless reaches alpha 3.6 at the stop
+  against an 11.2 deg deck - and the tail takes 3.6 s to come down), cub x4 12.7 -> 10.4, Stearman x2 5.3 -> 4.5,
+  sink 1.11 -> 0.95. Tried and rejected on the roll-out: a rudder integral on the ground (cub x4 48 deg), holding the
+  arrival attitude to VRot (6.8 / 16.9), forward stick to VRot (6.8 / 16-21), easing the power (no change).
+- TECS G399.7 "A SPEED THE ELEVATOR CANNOT HOLD IS RAISED" also fires on the SERVO's limit: holdPitch's authority is
+  P + an integrator clamped at IthMax 0.15 - with 5 deg to go it tops out near 0.26 and never reached the 0.30 the
+  rule read. The drawn-tail half-tank Caravan-alike flew a 5 km final 12 m under the slope, 2 m/s over Vref, thC on
+  thMax (11.2 deg) and the nose at 6.1 on 0.24 of elevator, the throttle on its floor (the speed excess cancelling
+  the height deficit in the energy demand) - two terrain go-arounds, then out of patience. Now: `vref-raised` at 213.8
+  s, lands (sink 0.38 at 1.47 Vs, 859 m roll - fast, as the raised Vref says), ARCHETYPES --only=caravan PASS.
+- THE WATER'S RUN (GATE SEAPLANE, first bad aa8b8a59): G431's tail-up attitude (liftoffTh - 0.05) reached the float
+  card; through the hump the servo pulled 0.47-0.66 at 3-4 m/s, the hull porpoised -9 <-> +13 deg on a 1.5 s cycle,
+  skipped off at 14.6 m/s, came back bow-down and water-looped 78 deg into a capsize. On the water the run attitude is
+  the 0.02 it ran on before (G396.4's stick law on top, unchanged); neutral stick instead failed (137 deg). And the
+  water's servo top (0.70) holds through LIFTOFF: the float ULM's thrust line 0.55 m over the CG put the nose to -15
+  deg at full power with the stick on 0.35 the instant the floats let go (G396.2's own "~0.5 of stick"). Crosswind:
+  lift-off 7.8 s, 27.8 deg (bound 30; G426, the last good, 27.7), 5.5 m off the lane, 2 skips (bound 2 - the
+  ventilated-step hop, as before); the run attitude -0.02 / 0 / 0.02 all read 27.0-27.8.
+
+**MEASURED - GATE PILOTMATRIX (quick, against pilot_baseline.json UNCHANGED): PASS, "no cell worse".** before (this
+base) -> after: c172 calm 2.04 -> 1.14 m/s (1.07 -> 1.09 Vs), x2 2.34 -> 1.21 (1.05 -> 1.07), rh 2.04 -> 1.14;
+stearman calm 1.48 -> 1.17, x2 1.65 -> 0.95, x4 1.56 -> 1.33; cub calm 1.30 -> 0.64 (1.02 -> 1.15 Vs), x2 1.45 ->
+0.81 (1.01 -> 1.13), A3 4.03 -> 0.69 (1.33 -> 1.17), A5 1.21 -> 0.58 (1.02 -> 1.15), up4 1.05 -> 0.40, dn4 1.34 ->
+0.37, sand 1.29 -> 0.65, x4 1.47 -> 0.65 (swing 22 -> 10.4). 11 good, 1 warn (cub x4 swing, not ratcheted), 2 bad:
+stearman x2 / x4 on the `ctl rev` column (takeoff 120 / 130 reversals a minute - their baselines predate the column,
+so the ratchet does not judge it; G780's side finding, the Stearman-alike's take-off control activity, OWED).
+GATE PILOTACT PASS (stock 0.71, C172 1.14, cessnaMetal 1.11 m/s). GATE SEAPLANE PASS (3 -> 0).
+ARCHETYPES --only=caravan PASS, --only=cub PASS.
+
+**GATES** (`node tools/run_gates.js --all`, this tree rebased on c116c32): 130 jobs, wall 5 800 s (jobs 4).
+128 PASS - every core gate (GEN, PILOT, FLEX, STRESS, LOAD, UISMOKE, PILOTACT, TAXICLEAR, LINEUP, PLAN, HONESTY, ...)
+and full-tier PILOTMATRIX, SEAPLANE, SOAR, HOTHIGH, PAVEMENT. FAIL: ARCHETYPES (2 checks, ONE card: the Twin bush
+hauler - terrain go-around, gave-up; red on the base too: c116c32 built from its own source, --only=twinBush, the same
+verdicts; FLIGHT-2's card, G975) and BIOME ("surface perf 5.6 us/call" against 5 under the pool's load;
+`--only=BIOME` alone: 4.4, PASS - G455's contention reading). BEFORE (G780's battery, the last full tier): FAIL
+PILOTMATRIX (10 regressed), SEAPLANE (3), ARCHETYPES (5 cards: Caravan-, Beaver-, Tiger Moth-alike, Motorglider,
+Twin bush hauler), SOAR (fixed by G780 itself). AFTER: PILOTMATRIX PASS (baseline unchanged), SEAPLANE PASS,
+ARCHETYPES 5 cards -> 1 - the Beaver-, Tiger Moth-alike and the Motorglider complete on this tree too; which of the
+three laws above did it for those three is NOT isolated (the solver's downwind legs at z +-500 flew the broken
+template; the Vref raise acts on any approach the servo cannot hold) - FLIGHT-2 (G975), re-read them here.
+Built outputs restored, not committed.
+
+**OWED:** the Cub-alike's elevator (the card cannot three-point: flapless at the stop in GE it reaches alpha 3.6
+against an 11.2 deg deck - G457's forward mass; a J-3 three-points); cub x2's 5.9 deg margin; the Stearman-alike's
+take-off control activity (PILOTMATRIX `ctl rev` 120-130/min); the flare entry height is the fiche's VAppr's
+(3.2 s of the FICHE's sink) while the pilot flies the sheet's Vref - a heavy trike flares from 10 m.
