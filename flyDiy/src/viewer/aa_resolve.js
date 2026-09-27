@@ -490,7 +490,13 @@
       // THE PRE HOOK (A6): the clouds march BEFORE the scene, off the previous frame's resolved depth
       // (their integration's end - a frame stale at a ridge, invisible), and composite INSIDE the pass
       // as a quad at their own depth (the silhouettes per MSAA sample) - see clouds.js COMP_FRAG
-      if (S.pre) S.pre(renderer, camera, S.rt);
+      // G650 THE CLOUDS KEEP UP WITH AN ORBIT (A2-SHADOW-SKY; the user: "Synchronizing the movement of the clouds and
+      // the rest of the world on camera orbiting is really important"): the march reads camera.matrixWorld, and at this
+      // point the frame's lookAt has only set the quaternion - Object3D.lookAt refreshes the world matrix BEFORE it
+      // turns, not after, and renderer.render (which would) comes next. So the clouds were marched with this frame's
+      // eye position and LAST frame's rotation: they slid against the world while orbiting, more as the fps fell, and
+      // snapped back on a mirror-capture frame (the mirror refreshes the camera). The matrix is made current first.
+      if (S.pre) { if (camera.updateWorldMatrix) camera.updateWorldMatrix(true, false); S.pre(renderer, camera, S.rt); }
       renderer.setRenderTarget(S.rt);
       // the auto scale's GPU reading: the scene pass alone (the clouds' and the post passes' own timers are outside it)
       let aq = null;

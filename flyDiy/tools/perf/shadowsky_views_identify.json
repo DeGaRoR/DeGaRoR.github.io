@@ -1,0 +1,9 @@
+[
+  { "name": "mine355", "at": [7265, -14750, 355], "hour": "afternoon", "cam": [1.57, 0.85, 45], "settle": 420 },
+  { "name": "mine355_noworldshadow", "at": [7265, -14750, 355], "hour": "afternoon", "cam": [1.57, 0.85, 45], "settle": 90, "js": "WORLD_RIG.set({ worldShadow: false })" },
+  { "name": "mine355_back", "at": [7265, -14750, 355], "hour": "afternoon", "cam": [1.57, 0.85, 45], "settle": 90, "js": "WORLD_RIG.set({ worldShadow: true })" },
+  { "name": "shore250a", "at": { "shore": 250 }, "hour": "afternoon", "cam": [0.8, 0.55, 40], "settle": 360 },
+  { "name": "shore250a_norock", "at": { "shore": 250 }, "hour": "afternoon", "cam": [0.8, 0.55, 40], "settle": 90, "js": "WORLD.ground.rockMap() && WORLD.ground.rockMap().set({ on: false })" },
+  { "name": "shore250b", "at": { "shore": 250 }, "hour": "afternoon", "cam": [3.9, 0.55, 40], "settle": 240, "js": "WORLD.ground.rockMap() && WORLD.ground.rockMap().set({ on: true })" },
+  { "name": "shore250b_norock", "at": { "shore": 250 }, "hour": "afternoon", "cam": [3.9, 0.55, 40], "settle": 90, "js": "WORLD.ground.rockMap() && WORLD.ground.rockMap().set({ on: false })" }
+]

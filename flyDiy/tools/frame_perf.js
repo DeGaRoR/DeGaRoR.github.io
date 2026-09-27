@@ -271,16 +271,16 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
   if (!GARAGE) {
     let flying = false;
     for (let attempt = 0; attempt < 8 && !flying; attempt++) {
-      await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
+      await ev("(()=>{const g=document.getElementById('bGo'); if (g) { g.click(); return; } [...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");   // (G690: #bGo alone - the editor's twin button was a second click)
       await sleep(6000);
-      flying = await ev("/TAXI|DOWNWIND|FINAL/.test(document.body.innerText)");
+      flying = await ev("!!window.FLIGHT_PROBE && (/TAXI|DOWNWIND|FINAL|DEPART/.test(document.body.innerText) || (window.BOOT && BOOT.state === 'loading'))");   // (G650: the roll-out screen up counts - a cold compile outlasts the tries)
     }
-    if (!flying) throw new Error('the roll-out never happened (no TAXI/DOWNWIND/FINAL on the page after 8 tries)');
+    if (!flying) throw new Error('the roll-out never happened (no TAXI/DOWNWIND/FINAL/DEPART on the page after 8 tries; G690: the pilot reads DEPART under the roll-out screen)');
     for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
     // the roll-out screen (LOADING S3) holds the render until its steps land; headless, the
     // parallel compile can idle out - wait for the overlay to go, and say how it went
     const t0 = Date.now(); let bs = '';
-    for (let i = 0; i < 100; i++) { bs = await ev("window.BOOT ? BOOT.state : 'none'"); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
+    for (let i = 0; i < 300; i++) { bs = await ev("window.BOOT ? BOOT.state : 'none'"); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
     console.log('  roll-out screen: ' + bs + ' after ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s' + (await ev("!!(window.BOOT && BOOT.log && BOOT.log.some(e => e.k === 'fail'))") ? ' (a step timed out)' : ''));
     await sleep(2000);
   } else {

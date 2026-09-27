@@ -209,6 +209,18 @@ var CLOUDS = (function () {
     // SEVERAL DECKS (A6): each live deck's slab is cut by the ray into a segment [t0, t1]; the segments are
     // walked in the order of their entry (the decks never overlap in height, so along a ray they never
     // interleave), the transmittance carried from one to the next, the step budget shared.
+    // deckEntry(o, d): how far along the ray the first live deck begins (0 inside one, 1e9 if none is met)
+    float deckEntry(vec3 o, vec3 d) {
+      float tIn = 1e9;
+      for (int li = 0; li < MAXL; li++) {
+        if (uLayerA[li].z < 0.5) continue;
+        float yb = uLayerA[li].x, yt = yb + uLayerA[li].y;
+        if (abs(d.y) < 1e-5) { if (o.y >= yb && o.y <= yt) tIn = 0.0; continue; }
+        float ta = (yb - o.y) / d.y, tb = (yt - o.y) / d.y;
+        if (max(ta, tb) > 0.0) tIn = min(tIn, max(0.0, min(ta, tb)));
+      }
+      return tIn;
+    }
     vec4 march(vec3 o, vec3 d, float tScene, float jitterK) {
       float tMax = min(tScene, uDials.w * 1000.0);
       float s0[MAXL], s1[MAXL]; int ord[MAXL]; int n = 0;
@@ -299,9 +311,17 @@ var CLOUDS = (function () {
       vec3 d = normalize(mat3(uCamMat) * dv), o = uCamPos;
       // the scene's depth (logarithmic: w = (far + 1)^depth - 1, the clip w = the view depth)
       float dz = texture(uDepth, vUv).r;
-      outK = vec4(dzW1(dz) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
       float tScene = dzSky(dz) ? 1e9 : (dzW1(dz) - 1.0) / max(1e-4, -dv.z);
-      gl_FragColor = march(o, d, tScene, uDials2.x);
+      // G650 THE STALE DEPTH NEARER THAN THE CLOUDS IS SKY: this depth is the PREVIOUS frame's (the march runs before the
+      // scene), and while the camera orbits a near silhouette (the aeroplane 15 m away) stood a frame behind - the march
+      // stopped at it where there is sky now, a hole in the clouds in the aeroplane's last pose, trailing it. What stands
+      // nearer than the first deck can hide a cloud but never sit in front of one inside the march, so such a texel is
+      // marched to the end and its key (the composite's depth, below) is the FAR plane: the composite's depth test against
+      // THIS frame's scene hides whatever is really there (a key at the object's own distance passed the equal test and
+      // painted clouds over the treetops - the first cut).
+      bool thru = tScene < deckEntry(o, d);
+      outK = vec4((thru ? dzW1(uDZ.x > 0.5 ? 0.0 : 1.0) : dzW1(dz)) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
+      gl_FragColor = march(o, d, thru ? 1e9 : tScene, uDials2.x);
     }`;
   // THE DOME MARCH (C3): the same layer on a sphere round the eye - for the reflection probe (the
   // water and the skin reflect the clouds) and the shed's backdrop (one sky) - no scene depth, the

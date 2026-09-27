@@ -1,0 +1,14 @@
+[
+  { "name": "stand", "at": "stand", "cam": [-2.5, 0.22, 14], "settle": 300 },
+  { "name": "wing", "at": "stand", "cam": [-1.2, 0.55, 9], "settle": 120 },
+  { "name": "circuit60", "at": [300, 300, 60], "hour": "noon", "cam": [-2.2, 1.45, 130], "settle": 300,
+    "report": "JSON.stringify({ slant: window.SHADOW_NEAR && SHADOW_NEAR.S.slant | 0 })" },
+  { "name": "mountain212", "at": [5200, -9400, 212], "hour": "afternoon", "cam": [2.4, 0.3, 26], "settle": 420, "js": "WORLD_RIG.set({ coverIsland: 0 })" },
+  { "name": "mountain212_coverOn", "at": [5200, -9400, 212], "hour": "afternoon", "cam": [2.4, 0.3, 26], "settle": 240, "js": "WORLD_RIG.set({ coverIsland: 1 })" },
+  { "name": "outer355", "at": [7300, -14200, 355], "hour": "afternoon", "cam": [-1.6, 0.9, 60], "settle": 300, "js": "WORLD_RIG.set({ coverIsland: 0 })" },
+  { "name": "shore20", "at": { "shore": 25 }, "cam": [0.8, 0.12, 30], "settle": 300,
+    "report": "JSON.stringify({ mirror: window.WATER && WATER.mirror ? { on: WATER.mirror.on, ms: +WATER.mirror.ms.toFixed(1), w: WATER.mirror.w } : null })" },
+  { "name": "orbit", "at": "stand", "cam": [-2.5, 0.18, 16], "settle": 60, "orbit": [0.6, 30],
+    "js": "(() => { window.__cs = { n: 0, max: 0, sum: 0 }; if (!CLOUDS.__cs) { const d0 = CLOUDS.draw; CLOUDS.draw = function (r, cam) { if (cam === FLIGHT_PROBE.camera()) { const q = new THREE.Quaternion(); cam.matrixWorld.decompose(new THREE.Vector3(), q, new THREE.Vector3()); const a = 2 * Math.acos(Math.min(1, Math.abs(q.dot(cam.quaternion)))) * 180 / Math.PI; __cs.n++; __cs.max = Math.max(__cs.max, a); __cs.sum += a; } return d0.apply(this, arguments); }; CLOUDS.__cs = 1; } return 1; })()",
+    "report": "JSON.stringify({ cloudCamLagDeg: { frames: __cs.n, max: +__cs.max.toFixed(3), mean: +(__cs.sum / Math.max(1, __cs.n)).toFixed(3) } })" }
+]

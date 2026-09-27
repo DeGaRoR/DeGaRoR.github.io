@@ -68,7 +68,7 @@
         { v: 'far',  label: 'real trees', why: 'real trees to 270 m (the bands before 2026-09-21); the frame is 1.3-2x dearer in a dense stand' } ] },
     { k: 'shadows', label: 'shadows', steps: [
         { v: 'off',   label: 'off', why: 'no shadow at all' },
-        { v: 'near',  label: 'near', why: 'a 1024 map around the aeroplane' },
+        { v: 'near',  label: 'near', why: 'the aeroplane and what stands near it (its own map); the world beyond casts none' },
         { v: 'full',  label: 'full', why: 'a 2048 map, and the far stands shade the ground' },
         { v: 'ultra', label: 'ultra', why: 'a 4096 map, and the far stands shade the ground' } ] },
     { k: 'canopy', label: 'forest floor', steps: [
@@ -215,7 +215,7 @@
   const TONE = { aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping', neutral: 'NeutralToneMapping',
                  reinhard: 'ReinhardToneMapping', cineon: 'CineonToneMapping', linear: 'LinearToneMapping' };
   const BANDS = { near: [10, 30, 30], far: [60, 270, 270] };   // 2026-09-21 impostor-first: L0 to 10 m, L1 to 30 m, pictures beyond; 'far' is W0c.32's near (L1 to 270)
-  const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 1024, far: false },
+  const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 2048, far: false, world: false },   // near: map 2048 = the craft's 1024 (G655)
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 
   // ---- the presets: FIVE TIERS (PERF 2026-09-23, the user: "5 levels in the end: potato computer, was good
@@ -327,7 +327,7 @@
       // ...and the NEAR map (G570): the craft's own shadow light kept casting with the row 'off' - at the stand it drew
       // every caster within 90 m, ~5 ms of a potato frame
       if (W.SHADOW_NEAR && W.SHADOW_NEAR.S) W.SHADOW_NEAR.S.on = !!sh.on;   // shadow_near's own dial (follow() re-asserts castShadow from it)
-      rig.set({ shadowMap: sh.map, farShadow: sh.on && sh.far });
+      rig.set({ shadowMap: sh.map, farShadow: sh.on && sh.far, worldShadow: sh.world !== false });
       applied.shadows = S.shadows;
     }
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }

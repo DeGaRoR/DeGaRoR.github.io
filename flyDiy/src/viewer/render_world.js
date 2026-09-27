@@ -628,7 +628,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // chunk lands, and the terrain darkens by the blurred coverage. Nothing
   // classified, nothing guessed: a texel is dark because a crown is over it.
   const COVER = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
-                  rt: null, cam: null, at: null, dirty: true, half: 1400, size: 2048 };
+                  rt: null, cam: null, at: null, dirty: true, half: 1400, size: 2048, island: 'off' };
   const U_UP = { value: new THREE.Vector3(0, 1, 0) }, U_NONEAR = { value: -1e6 };
   // THE FAR CASCADE (W0c.19). The sun's shadow map reaches ±105-540 m around
   // the aircraft, and the impostor band starts at 450 m: whatever the
@@ -757,8 +757,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // a registered mesh's chunk centre against a pass's reach (the sun's slant
   // adds a margin: a low sun throws a crown's shadow a few hundred metres)
   const proxyNear = (mi, eye, half) => { const r = half + 724 + 600, dx = mi.position.x - eye.x, dz = mi.position.z - eye.z; return dx * dx + dz * dz < r * r; };
+  // G650 THE FOREST-FLOOR SQUARE (A2-SHADOW-SKY; playtest 2026-09-26, screen 150251): on an ISLAND this pass is OFF.
+  // The canopy hook that reads it sits only on the OUTER ring (the island's near ring and fine tiles are the ground
+  // stack's), so away from home the ring showed the map's own edge - a dark 2.8 km square about the eye, re-rendered
+  // on every 20 m of movement and read at mip 5.5 (~62 m texels), so each regeneration shifted the coarse mip grid:
+  // the flicker. And it was a second darkening: the island's outer ring already wears the stack's static 'shade'
+  // layer (ISLA.canopy, multiply 0.7), which is where the floor comes from there - deterministic, no pass, no edge.
+  // The analytic world (no stack) keeps the pass. COVER.island: 'off' (default) | 'on' - WORLD_RIG.set({ coverIsland }).
+  const coverWanted = () => !(world && world.island) || COVER.island === 'on';
   const coverRender = eye => {
     if (!FAR.scene || !renderer || !renderer.setRenderTarget) return;
+    if (!coverWanted()) { COVER.on.value = 0; COVER.at = null; return; }
     const moved = !COVER.at || Math.hypot(eye.x - COVER.at[0], eye.z - COVER.at[1]) > 20;
     if (!moved && !COVER.dirty) return;
     COVER.dirty = false;
@@ -5676,9 +5685,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       if (FRw) { FRw.pop(); const built = q0 - premisesR.stats.queued; if (built > 0) FRw.event('prem', performance.now() - tP, built + ' built, ' + premisesR.stats.queued + ' queued'); }
     }
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
-    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
+    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
-    const fdt = (typeof window !== 'undefined' && window.FLYDIY_PACE) ? window.FLYDIY_PACE.dt : 1 / 60;
+    // G650: paused in flight (app.js FLYDIY_HELD) the frame lasts nothing for the sea and the sway
+    const fdt = (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : (typeof window !== 'undefined' && window.FLYDIY_PACE) ? window.FLYDIY_PACE.dt : 1 / 60;
     if (cg) seaUpdate(cg[0], cg[2], fdt);                          // H4: the near sea, in the aeroplane's wave
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
@@ -5743,7 +5753,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // drawn, so a map and its lookup never disagree. SHADOW_RATE.every = 1 is the old behaviour.
     if (sun.shadow) {
       sun.shadow.autoUpdate = false;
-      if (resized || !sun.shadow.map || (++SHADOW_RATE.n % Math.max(1, SHADOW_RATE.every | 0)) === 0) sun.shadow.needsUpdate = true;
+      if (resized || !sun.shadow.map || SUNW.dirty || (SUNW.on && (++SHADOW_RATE.n % Math.max(1, SHADOW_RATE.every | 0)) === 0)) sun.shadow.needsUpdate = true;
+      SUNW.dirty = false;   // G655: an empty world map ('near' tier) is drawn once
     }
     if (sunNear && sunNear.shadow) { sunNear.shadow.autoUpdate = false; sunNear.shadow.needsUpdate = true; }
   }
@@ -5768,6 +5779,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // colour is the transmittance along the sun's own path. Clouds sit at the
   // day's cloud base, by its cover.
   const SUN_MIN_Y = Math.sin(2 * Math.PI / 180);
+  const SUNW = { on: true, dirty: false, EMPTY: 31 };   // G655: the world's sun map on (the tiers full / ultra) or empty ('near': the craft's map alone)
   const SHADOW_RATE = { every: 2, n: 0 };   // the big sun map's cadence (worldUpdate, PERF 2026-09-23)
   if (typeof window !== 'undefined') window.SHADOW_RATE = SHADOW_RATE;
   const WARM_SUN = C(0xffa652);
@@ -5836,8 +5848,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     hemiSky: hexOf(hemi.color, RIG.skyCol), hemiGnd: RIG.gndCol,
     exposure: (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null)
       ? window.GFX.exposureBase() : ((renderer && renderer.toneMappingExposure) || 1),   // the BASE, never the menu's step over it
-    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, floorBlur: uFloorLod.value, floorEdge: uFloorEdge.value,
-    farShadow: true, snap: true, manual: false, gndGain: GND_GAIN, gndDerive: true,
+    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, floorBlur: uFloorLod.value, floorEdge: uFloorEdge.value, coverIsland: 0,
+    farShadow: true, worldShadow: true, snap: true, manual: false, gndGain: GND_GAIN, gndDerive: true,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
     // the painted dome's palette; the physical dome (S3) has none, and the row keeps the legacy numbers for the fallback
     dome: (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uTop) ? {
@@ -5921,12 +5933,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (renderer) { if (typeof window !== 'undefined' && window.GFX && window.GFX.setExposure) window.GFX.setExposure(renderer, R.exposure); else renderer.toneMappingExposure = R.exposure; }
     RIG.shadowMin = R.shadowMin;
     if (R.floor !== undefined) uFloor.value = R.floor;
+    if (R.coverIsland !== undefined) { COVER.island = R.coverIsland ? 'on' : 'off'; COVER.dirty = true; }   // G650: the canopy pass on an island (off by default)
     if (R.floorBlur !== undefined) uFloorLod.value = R.floorBlur;
     if (R.floorEdge !== undefined) uFloorEdge.value = R.floorEdge;
     if (R.farShadow !== undefined) FAR.enabled = !!R.farShadow;
     if (R.snap !== undefined) SNAP.on = !!R.snap;
-    if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== R.shadowMap) {
-      sun.shadow.mapSize.set(R.shadowMap, R.shadowMap);
+    // G655 THE 'near' TIER IS THE AEROPLANE AND WHAT STANDS NEAR IT (A2-SHADOW-SKY; the user: "shadows are FIXED first, then
+    // the default is chosen by measurement (fallback: aircraft + near objects only)"). The row said 'a 1024 map around the
+    // aeroplane' and drew the world's whole sun map all the same (frame_perf: near = full to 0.3 ms). worldShadow false keeps
+    // the sun CASTING - the shadow count, and so every lit program, stays as it is (no relink when the row moves) - but its
+    // camera sees an empty layer and its map shrinks to 256: drawn once, empty, never again. The craft's near map (the craft
+    // and the casters within 90 m of it, shadow_near.js) is then the only shadow in the world.
+    if (R.worldShadow !== undefined && R.worldShadow !== SUNW.on) {
+      SUNW.on = !!R.worldShadow; SUNW.dirty = true;
+      if (sunNear) sun.shadow.camera.layers.set(SUNW.on ? SHADOW_NEAR.FAR_LAYER : SUNW.EMPTY);
+    }
+    const sunSize = SUNW.on ? R.shadowMap : 256;
+    if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== sunSize) {
+      sun.shadow.mapSize.set(sunSize, sunSize);
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
     }
     // the craft's near map follows the tier (A6): half the far map's side - 512 under `near`, 1024 under

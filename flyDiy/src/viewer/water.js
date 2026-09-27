@@ -824,7 +824,7 @@ const WATER = (() => {
   // captures at once whatever the gap. THE CLOCK IS REAL SECONDS: a fake 1/60-a-call clock ran at a fifth of the
   // wall clock under the rig, so a '3 s' refresh was 20 s and the water drew a capture taken 1500 m away - the
   // reflection stretched and smeared (the user: "reflections seem stretched, everything is twice as long")
-  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, res: 0.5, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
+  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, guard: 1.25, res: 0.5, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
   const mirrorTmp = {};
   function mirrorRender(THREE, renderer, scene, camera, waterY, opts) {
     opts = opts || {};
@@ -856,11 +856,19 @@ const WATER = (() => {
       // raising the ceiling would fire a capture almost every frame at cruise; with it, 500 m over the water
       // re-captures every 25 m. The TURN threshold does not scale: turning re-frames everything at any height.
       const moveLim = Math.max(MIR.moveM, eyeAgl * MIR.moveAgl);
-      due = jump || ((MIR.t - MIR.lastT > MIR.minGap) && (moved > moveLim || turned > MIR.turnDeg * Math.PI / 180 || MIR.t - MIR.lastT > MIR.every || Math.abs(waterY - L.wy) > 0.05));
+      // G650 A TURN IS FREE INSIDE THE GUARD BAND: a planar reflection depends on the eye's POSITION only - the capture is
+      // projected onto the water through its own view-projection, so it stays exact while the camera turns, as long as
+      // the view stays inside what was captured. The capture is taken MIR.guard wider than the view (L.margin: the
+      // smaller of its vertical and horizontal spare angle), and a turn re-captures only when it nears that edge - at
+      // once, like a jump (a turn past the band would show the probe's sky at the frame's edge). An orbit used to fire a
+      // capture every 3 deg, each one a visible step; now it is the eye's MOVE that paces them (3 m, or h x 5 % high).
+      const turnLim = Math.max(MIR.turnDeg * Math.PI / 180, 0.8 * (L.margin || 0));
+      due = jump || turned > turnLim || ((MIR.t - MIR.lastT > MIR.minGap) && (moved > moveLim || MIR.t - MIR.lastT > MIR.every || Math.abs(waterY - L.wy) > 0.05));
     }
     if (!due) return false;
     const size = renderer.getDrawingBufferSize ? renderer.getDrawingBufferSize(mirrorTmp.v2 || (mirrorTmp.v2 = new THREE.Vector2())) : { x: 1920, y: 1080 };
-    const w = Math.max(64, Math.round(size.x * MIR.res)), h = Math.max(64, Math.round(size.y * MIR.res));
+    const G = Math.max(1, MIR.guard || 1);   // (the guard band keeps the capture's texel density: the target grows with it)
+    const w = Math.max(64, Math.round(size.x * MIR.res * G)), h = Math.max(64, Math.round(size.y * MIR.res * G));
     if (!MIR.rt || MIR.rt.width !== w || MIR.rt.height !== h) {
       if (MIR.rt) MIR.rt.dispose();
       // (a depth texture: the clouds' march reads the capture's depth, as it reads the frame's - and the capture is
@@ -875,13 +883,21 @@ const WATER = (() => {
     }
     if (!MIR.cam) MIR.cam = new THREE.PerspectiveCamera();
     const mc = MIR.cam;
+    // G650: THE MIRROR CAMERA IS REVERSED FROM ITS FIRST FRAME. Under the reversed depth buffer (app.js, PERF 2026-09-23)
+    // three r186 turns a camera reversed the first time it draws (Camera._reversedDepth, then updateProjectionMatrix()
+    // in the renderer) - which WIPED the oblique clip below on the first capture, and from then on every
+    // updateProjectionMatrix here built a reversed [0,1] matrix that the OpenGL-form clip then bent the wrong way.
+    const RZ = !!(renderer.capabilities && renderer.capabilities.reversedDepthBuffer);
+    if (RZ) mc._reversedDepth = true;
     // the eye mirrored about the plane: position, look direction and up reflected in y about waterY
     const fwd = mirrorTmp.fwd || (mirrorTmp.fwd = new THREE.Vector3()), up = mirrorTmp.up || (mirrorTmp.up = new THREE.Vector3()), tgt = mirrorTmp.tgt || (mirrorTmp.tgt = new THREE.Vector3());
     camera.getWorldDirection(fwd); up.set(0, 1, 0).applyQuaternion(q);
     mc.position.set(pos.x, 2 * waterY - pos.y, pos.z);
     fwd.y = -fwd.y; up.y = -up.y;
     tgt.copy(mc.position).add(fwd); mc.up.copy(up); mc.lookAt(tgt);
-    mc.fov = camera.fov; mc.aspect = camera.aspect; mc.near = camera.near; mc.far = camera.far;
+    const tv = Math.tan(Math.PI / 360 * camera.fov), th = tv * camera.aspect;
+    mc.fov = 360 / Math.PI * Math.atan(tv * G); mc.aspect = camera.aspect; mc.near = camera.near; mc.far = camera.far;
+    const margin = Math.min(Math.atan(tv * G) - Math.atan(tv), Math.atan(th * G) - Math.atan(th));
     mc.updateProjectionMatrix(); mc.updateMatrixWorld(true);
     // the capture: the water's own material, the spray's and the sky dome hidden; the shadow maps reused
     const hidden = [];
@@ -926,15 +942,7 @@ const WATER = (() => {
     // the scene's own far CAPPED (the capture's cost is its draw calls; the decor past it is the sky's in the reflection)
     mc.far = Math.min(camera.far, MIR.far); mc.updateProjectionMatrix();
     // the oblique near plane (Lengyel; three's Reflector): the clip plane y = waterY in the mirror camera's view
-    { const P = mc.projectionMatrix, n = mirrorTmp.n || (mirrorTmp.n = new THREE.Vector4()), pl = mirrorTmp.pl || (mirrorTmp.pl = new THREE.Plane()), qv = mirrorTmp.qv || (mirrorTmp.qv = new THREE.Vector4());
-      mirrorTmp.pn = mirrorTmp.pn || new THREE.Vector3(0, 1, 0); mirrorTmp.pp = mirrorTmp.pp || new THREE.Vector3(); mirrorTmp.pp.set(0, waterY, 0);
-      pl.setFromNormalAndCoplanarPoint(mirrorTmp.pn, mirrorTmp.pp);
-      pl.applyMatrix4(mc.matrixWorldInverse);
-      n.set(pl.normal.x, pl.normal.y, pl.normal.z, pl.constant);
-      const e = P.elements;
-      qv.x = (Math.sign(n.x) + e[8]) / e[0]; qv.y = (Math.sign(n.y) + e[9]) / e[5]; qv.z = -1.0; qv.w = (1.0 + e[10]) / e[14];
-      n.multiplyScalar(2.0 / n.dot(qv));
-      e[2] = n.x; e[6] = n.y; e[10] = n.z + 1.0; e[14] = n.w; }
+    obliqueClip(THREE, mc, waterY, RZ);
     const bg = scene.background; scene.background = null;
     renderer.render(scene, mc);
     scene.background = bg;
@@ -942,12 +950,37 @@ const WATER = (() => {
     for (const m of hidden) m.visible = true;
     for (const o of hiddenObj) o.visible = true;
     MIR.ms = performance.now() - t0;
-    MIR.last = { x: pos.x, y: pos.y, z: pos.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w, wy: waterY }; MIR.lastT = MIR.t; MIR.on = true;
+    MIR.last = { x: pos.x, y: pos.y, z: pos.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w, wy: waterY, margin }; MIR.lastT = MIR.t; MIR.on = true;
     U.uWMirror.value = MIR.rt.texture;
     U.uWMirrorVP.value.multiplyMatrices(mc.projectionMatrix, mc.matrixWorldInverse);
     U.uWMirror4.value.set(mirW, MIR.perturb, MIR.lod, waterY);   // x: the mirror's WEIGHT (G522, the altitude fade); w: the mirror's plane, which the slope's walk needs (G460.11.9)
     U.uWRes.value.set(size.x, size.y);
     return true;
+  }
+  // obliqueClip(THREE, mc, waterY, RZ): mc's near plane made the water plane y = waterY (Lengyel; three's Reflector), so
+  // nothing under the water is captured. (G650) Lengyel's form is for OpenGL's [-1, 1] clip: under the reversed buffer the
+  // matrix is first made the OpenGL one (the same frustum, reversedDepth false), bent, then taken to reversed [0, 1]
+  // exactly as three does it - the depth row becomes (w - z) / 2: the clip plane lands at depth 1 (the reversed near) and
+  // the far corner at 0. GATE SHADOWSKY projects points through it.
+  function obliqueClip(THREE, mc, waterY, RZ) {
+    const P = mc.projectionMatrix, n = mirrorTmp.n || (mirrorTmp.n = new THREE.Vector4()), pl = mirrorTmp.pl || (mirrorTmp.pl = new THREE.Plane()), qv = mirrorTmp.qv || (mirrorTmp.qv = new THREE.Vector4());
+    mirrorTmp.pn = mirrorTmp.pn || new THREE.Vector3(0, 1, 0); mirrorTmp.pp = mirrorTmp.pp || new THREE.Vector3(); mirrorTmp.pp.set(0, waterY, 0);
+    pl.setFromNormalAndCoplanarPoint(mirrorTmp.pn, mirrorTmp.pp);
+    pl.applyMatrix4(mc.matrixWorldInverse);
+    n.set(pl.normal.x, pl.normal.y, pl.normal.z, pl.constant);
+    if (RZ) P.makePerspective(...perspBounds(mc), mc.near, mc.far, THREE.WebGLCoordinateSystem, false);
+    const e = P.elements;
+    qv.x = (Math.sign(n.x) + e[8]) / e[0]; qv.y = (Math.sign(n.y) + e[9]) / e[5]; qv.z = -1.0; qv.w = (1.0 + e[10]) / e[14];
+    n.multiplyScalar(2.0 / n.dot(qv));
+    e[2] = n.x; e[6] = n.y; e[10] = n.z + 1.0; e[14] = n.w;
+    if (RZ) for (const c of [0, 4, 8, 12]) e[c + 2] = 0.5 * e[c + 3] - 0.5 * e[c + 2];
+    mc.projectionMatrixInverse.copy(P).invert();
+    return P;
+  }
+  // perspBounds(cam): the frustum's left, right, top, bottom at its near plane, as PerspectiveCamera.updateProjectionMatrix makes them (no view offset, no film offset - the mirror camera has neither)
+  function perspBounds(cam) {
+    const top = cam.near * Math.tan(Math.PI / 180 * 0.5 * cam.fov) / cam.zoom, h = 2 * top, w = cam.aspect * h;
+    return [-0.5 * w, 0.5 * w, top, top - h];
   }
   function mirrorOff() { MIR.on = false; MIR.last = null; if (U) U.uWMirror4.value.x = 0; }
 
@@ -1130,7 +1163,7 @@ const WATER = (() => {
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
-    mirrorRender, mirrorOff, mirror: MIR,
+    mirrorRender, mirrorOff, mirror: MIR, obliqueClip,
     stamp, fieldStep, fieldOn, fieldProbe, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;

@@ -4911,6 +4911,7 @@
   // exits. fullReset clears the latch.
   let flightOver = false;
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
+  let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
   function endFlight(outcome) {
     if (flightOver || inGarage) return;
     flightOver = true;
@@ -7299,6 +7300,7 @@
   };
   $('bPause').onclick = e => {
     running = !running;
+    userPaused = !running;   // G650: the player's pause (FLYDIY_HELD, the world's clocks)
     e.target.textContent = running ? 'Pause' : 'Run';
     e.target.classList.toggle('on', !running);
   };
@@ -9881,6 +9883,13 @@
     // camera, not the aeroplane - otherwise the inspector flies out to a stand
     // and finds impostors, because the near tier is measured from a CG that is
     // still on the strip.
+    // G650 PAUSE HOLDS THE WORLD'S CLOCKS (A2-SHADOW-SKY; playtest 2026-09-26: "the sea ignores pause"): the sea
+    // takes the solver's time only while it steps (WATER.setTime above) and free-ran on the wall clock otherwise; the
+    // trees' sway integrates the frame's dt, the premises' trams, traffic and animals the wall clock (G398.3). On the
+    // PAUSE BUTTON alone (not the roll-out hold, the settle screen, the editor or the scenery mode, which own their
+    // clocks) the world is told the frame lasted nothing - everything visual stands still; render_world reads FLYDIY_HELD.
+    if (running) userPaused = false;
+    if (typeof window !== 'undefined') window.FLYDIY_HELD = !inGarage && !running && userPaused;
     if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
