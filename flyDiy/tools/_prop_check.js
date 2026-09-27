@@ -18,6 +18,7 @@
 // Run: node tools/_prop_check.js        (contract: one final `GATE PROPS: ...`)
 const fs = require('fs');
 const path = require('path');
+const { readGeo } = require('./_media_lib.js');   // G930: the geo bins are gzip on disk
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
@@ -68,7 +69,7 @@ function binOf(p) {
       fail(`${p.key}: names ${p.bin}, which is not on disk — bake and pack disagree`);
       return undefined;
     }
-    binCache[p.bin] = new Uint8Array(fs.readFileSync(f));
+    binCache[p.bin] = readGeo(f);
   }
   return binCache[p.bin];
 }

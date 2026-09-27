@@ -6,7 +6,7 @@ Usage: python tools/model_prep.py <key> [<out.js>]
   <out.js> defaults to src/models/<key>_model.js. Requires Pillow.
 
 Payload v5 (externalized 2026-09-01): const <ID> = { v:5, bb, hub, surfaces,
-                           bin: 'media/geo/models/<key>.<h8>.bin',
+                           bin: 'media/geo/models/<key>.<h8>.gz.bin',
                            texs: {name: 'media/tex/models/<key>/...'},
                            mats: {name: {tex|opacity,color}},
                            groups: {name: {nv, nt, sid, mat, off, len}} }

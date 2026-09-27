@@ -18,6 +18,7 @@ writes an external media file. Same rules as the JS half, one addition:
 Paths returned are PAGE-RELATIVE ('media/...'), forward slashes. The emitted
 payload prefixes them with FLYDIY_ASSET_BASE at its own eval — see BASE_DECL.
 """
+import gzip
 import hashlib
 import os
 
@@ -41,14 +42,35 @@ def write_media_named(subdir, name, raw):
     return rel
 
 
+def _is_geo(subdir):
+    return subdir == 'geo' or subdir.startswith('geo/')
+
+
+def media_rel(subdir, stem, ext, raw):
+    """The name write_media would give `raw`, without writing it (report runs).
+    GEOMETRY (G930): a bin under geo/ is named `<stem>.<h8>.gz.bin`, h8 the
+    hash of the AS-IS bytes - see write_media."""
+    if _is_geo(subdir) and ext == 'bin':
+        ext = 'gz.bin'
+    return 'media/%s/%s.%s.%s' % (subdir, stem, hashlib.sha256(raw).hexdigest()[:8], ext)
+
+
 def write_media(subdir, stem, ext, raw):
-    h8 = hashlib.sha256(raw).hexdigest()[:8]
-    rel = 'media/%s/%s.%s.%s' % (subdir, stem, h8, ext)
+    """GEOMETRY TRAVELS AS ONE GZIP STREAM (G930, AS5a; the JS half's header
+    says why at length). Under geo/ the file written is gzip(raw) - one stream,
+    mtime 0 - named by the hash of `raw` itself, so the name proves the decoded
+    bytes (GATE GEO re-hashes them), a re-bake of unchanged geometry writes
+    nothing whatever zlib this machine has, and `.gz.bin` can never collide
+    with a raw pre-G930 body in sw.js's permanent cache. The page gunzips in
+    ASSET_FETCH, node in _media_lib.js readGeo; the manifest's off/len index
+    the as-is bytes exactly as before. Transport only: never a re-encode."""
+    rel = media_rel(subdir, stem, ext, raw)
     ap = os.path.join(ROOT, *rel.split('/'))
     os.makedirs(os.path.dirname(ap), exist_ok=True)
     if not os.path.exists(ap):                 # content-addressed: name IS bytes
         with open(ap, 'wb') as f:
-            f.write(raw)
+            f.write(gzip.compress(raw, compresslevel=9, mtime=0)
+                    if rel.endswith('.gz.bin') else raw)
     return rel
 
 

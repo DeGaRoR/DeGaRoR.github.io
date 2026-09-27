@@ -33,6 +33,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { readGeo } = require('./_media_lib.js');   // G930: the geo bins are gzip on disk
 const vm = require('vm');
 
 const TOOLS = __dirname;
@@ -517,7 +518,7 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
         let thr = null;
         try {
           const CORE = require('./flight_core.js');
-          const d = CORE.decodeProp(p, new Uint8Array(fs.readFileSync(bin)));
+          const d = CORE.decodeProp(p, readGeo(bin));
           const nt = d.parts.reduce((a, q) => a + q.idx.length / 3, 0);
           check(nt === p.nt, 'pier: ' + k + ' decodes to a different triangle count');
         } catch (e) { thr = e; }

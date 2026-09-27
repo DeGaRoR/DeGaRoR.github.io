@@ -18,6 +18,7 @@
 // Run: node tools/_obstacle_check.js   (contract: one final `GATE OBSTACLE: ...`)
 'use strict';
 const fs = require('fs'), path = require('path');
+const { readGeo } = require('./_media_lib.js');   // G930: the geo bins are gzip on disk
 const C = require('./flight_core.js');
 const OB = C.OBSTACLES;
 let fails = 0, checks = 0;
@@ -68,8 +69,7 @@ console.log('3. the discrepancy against the baked meshes');
   for (const k of keys) {
     const prop = REG.props[k];
     if (!prop.bin) continue;
-    const raw = fs.readFileSync(path.join(__dirname, '..', prop.bin));
-    const bin = new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);   // the codec wants a view with a buffer (a DataView is taken over it)
+    const bin = readGeo(prop.bin);   // the codec wants a view with a buffer (a DataView is taken over it)
     const dec = C.decodeProp(prop, bin);    // the viewer's own decode: metres in the prop's frame
     let nvT = 0, ntT = 0; for (const pt of dec.parts) { nvT += pt.nv; ntT += pt.nt; }
     const pos = new Float32Array(nvT * 3), idx = new Uint32Array(ntT * 3); let vo = 0, to = 0;

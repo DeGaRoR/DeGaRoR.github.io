@@ -908,7 +908,7 @@ def main(argv, cfg=None):
     if report:
         return
 
-    # ONE bin per prop (media/geo/props/<key>.<h8>.bin): the parts' bytes back
+    # ONE bin per prop (media/geo/props/<key>.<h8>.gz.bin, one gzip stream - G930): the parts' bytes back
     # to back, each named by off/len in the pack. The pack .js is a slim
     # manifest — no base64 anywhere in it. jodel_prep.py writes its airframe
     # bins to media/geo/airframe/, so this directory is wholly ours to prune.

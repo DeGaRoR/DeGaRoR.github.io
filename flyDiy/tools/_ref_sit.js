@@ -34,6 +34,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { readGeo } = require('./_media_lib.js');   // G930: the geo bins are gzip on disk
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -122,8 +123,7 @@ for (const key of want) {
   // geometry bytes external since G149: the payload names its bin, fs reads it
   try {
     const p = loadPayload(key);
-    const bin = p.bin ? new Uint8Array(fs.readFileSync(
-      path.join(__dirname, '..', ...p.bin.split('/')))) : undefined;
+    const bin = p.bin ? readGeo(p.bin) : undefined;
     dec = decodeModel(p, bin);
   }
   catch (e) { console.log(`${key}: cannot load — ${e.message}`); continue; }

@@ -19,21 +19,42 @@
 // what reaches here is fetchable as-is from the page's own location.
 //
 // Node note: the gates never load this file — they read the same .bin files
-// with fs and hand the bytes to the codecs directly. If this ever runs where
+// through tools/_media_lib.js readGeo (fs + the same gunzip) and hand the
+// bytes to the codecs directly. If this ever runs where
 // fetch is missing, every call rejects and every consumer takes its
 // asset-absent path, which is the honest degradation.
+//
+// GEOMETRY ARRIVES GZIPPED (G930, AS5a). GitHub Pages sends a .bin raw, so
+// every file under media/geo/ is ONE gzip stream named `<stem>.<h8>.gz.bin`
+// (tools/_media_lib.js says why the name carries the transport). The suffix
+// decides, never a sniff of the bytes: a `.gz.bin` body goes through the
+// platform's DecompressionStream (the world pack's decoder, build.js
+// ISLAND_LOADER) and callers get the AS-IS bytes the baker hashed - the same
+// Uint8Array, off/len and all, the codecs read before. A browser without
+// DecompressionStream rejects, which is the asset-absent path every caller
+// already has (such a browser cannot boot the island either).
+//
+// ASSET_FETCH_FRESH(url) is the same fetch and decode with no cache, for the
+// one caller that retries past a cached rejection (tools/_cage_char.js).
 (() => {
   'use strict';
   const BUFS = new Map();   // url -> Promise<Uint8Array>
+  const GZ_BIN = /\.gz\.bin$/;
+  function load(url) {
+    if (typeof fetch !== 'function')
+      return Promise.reject(new Error('asset fetch: no fetch() here for ' + url));
+    return fetch(url).then(r => {
+      if (!r.ok) throw new Error('asset fetch: ' + url + ' -> ' + r.status);
+      if (!GZ_BIN.test(url)) return r.arrayBuffer();
+      if (typeof DecompressionStream !== 'function' || !r.body)
+        throw new Error('asset fetch: no DecompressionStream here for ' + url);
+      return new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    }).then(b => new Uint8Array(b));
+  }
   function assetFetch(url) {
     let p = BUFS.get(url);
     if (p) return p;
-    p = (typeof fetch === 'function'
-      ? fetch(url).then(r => {
-          if (!r.ok) throw new Error('asset fetch: ' + url + ' -> ' + r.status);
-          return r.arrayBuffer();
-        }).then(b => new Uint8Array(b))
-      : Promise.reject(new Error('asset fetch: no fetch() here for ' + url)));
+    p = load(url);
     // a rejected promise with no local catch would print an unhandled-
     // rejection per consumer; one silent tap keeps the console readable while
     // every real caller still sees (and reports) the rejection itself
@@ -41,5 +62,5 @@
     BUFS.set(url, p);
     return p;
   }
-  if (typeof window !== 'undefined') window.ASSET_FETCH = assetFetch;
+  if (typeof window !== 'undefined') { window.ASSET_FETCH = assetFetch; window.ASSET_FETCH_FRESH = load; }
 })();

@@ -36,7 +36,7 @@ triangles in source order and starts a new group when the next one would not
 fit.
 """
 import hashlib, io, importlib, json, os, struct, sys
-from media_lib import write_media, prune_media, prune_media_stems, BASE_DECL
+from media_lib import write_media, media_rel, prune_media, prune_media_stems, BASE_DECL
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -311,7 +311,7 @@ def bake(row, dry=False):
     if nt_tot != nt_src:
         sys.exit(f'{key}: chunker lost triangles ({nt_src} in, {nt_tot} out)')
 
-    # ONE binary file per model (media/geo/models/<key>.<h8>.bin): the groups'
+    # ONE binary file per model (media/geo/models/<key>.<h8>.gz.bin): the groups'
     # encoded bytes back to back, each named by off/len in the payload. The
     # payload .js is a slim manifest now — no base64 anywhere in it.
     bin_buf = bytearray()
@@ -320,8 +320,7 @@ def bake(row, dry=False):
         offs.append(len(bin_buf))
         bin_buf += raw
     if dry:
-        h8 = hashlib.sha256(bytes(bin_buf)).hexdigest()[:8]
-        bin_rel = f'media/geo/models/{key}.{h8}.bin'
+        bin_rel = media_rel('geo/models', key, 'bin', bytes(bin_buf))
     else:
         bin_rel = write_media('geo/models', key, 'bin', bytes(bin_buf))
 

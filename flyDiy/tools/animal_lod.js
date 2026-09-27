@@ -42,7 +42,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const { writeMedia, pruneMedia, BASE_DECL, readGeo } = require('./_media_lib.js');
 const { decimate, mergeParts, packParts } = require('./prop_lod.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -239,9 +239,8 @@ function main(argv) {
   const props = {}, order = [], texs = {}, usedTex = new Set();
   let base = 0, lv = 0;
   for (const a of animals) {
-    const bin = fs.readFileSync(path.join(ROOT, a.bin));
-    const dec = decodeAnimal(a, new Uint8Array(bin.buffer, bin.byteOffset, bin.byteLength));
-    const cb = fs.readFileSync(path.join(ROOT, a.clipBin));
+    const dec = decodeAnimal(a, readGeo(a.bin));
+    const cb = readGeo(a.clipBin);
     const clips = decodeAnimalClips(a, new Uint8Array(cb.buffer, cb.byteOffset, cb.byteLength));
     const P = posed(a, dec, clips);
     const bb = boxOf(P);

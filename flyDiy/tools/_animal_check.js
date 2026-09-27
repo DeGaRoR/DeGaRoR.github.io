@@ -39,6 +39,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { readGeo } = require('./_media_lib.js');   // G930: the geo bins are gzip on disk
 const vm = require('vm');
 
 const TOOLS = __dirname;
@@ -127,7 +128,7 @@ if (check(!!SRCBLK, '1 the table has no SOURCES block')) {
 }
 
 // ---- 2: every skin decodes, and measures its declared length ---------------
-const bytes = rel => fs.readFileSync(path.join(ROOT, rel));
+const bytes = rel => readGeo(rel);
 const DEC = {}, CLIPS = {};
 for (const key of REG.order) {
   const a = REG.animals[key];
@@ -308,7 +309,7 @@ function viewerContext() {
   const ctx = vm.createContext(g);
   vm.runInContext('var window = globalThis; window.window = window;', ctx);
   // ASSET_FETCH off the disk: the same bytes the page would fetch
-  g.ASSET_FETCH = rel => Promise.resolve(new Uint8Array(fs.readFileSync(path.join(ROOT, rel))));
+  g.ASSET_FETCH = rel => Promise.resolve(readGeo(rel));
   // props.js FIRST: the animals land on the prop library's one material factory
   for (const f of ['props.js', 'plume.js', 'animals.js', 'animal_run.js'])
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', f), 'utf8'), ctx, { filename: f });

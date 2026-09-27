@@ -10,7 +10,7 @@ Reads  tools/_trees_index.json    the inspector's grouping: which nodes are whic
        tools/_trees_tuning.json   the bench's curation: what is in the mix, and
                                   the per-collection corrections
        assets/treesRaw/*.glb      the DELIVERED asset, never edited
-Writes media/geo/trees/<collection>.<h8>.bin    one binary per collection
+Writes media/geo/trees/<collection>.<h8>.gz.bin    one binary per collection
        src/core/trees_pack.json                 the manifest the codec reads
 Verify node tools/_tree_check.js   (round-trip; GATE TREES when it lands)
 
@@ -62,7 +62,7 @@ draw and one it cannot.
 """
 import hashlib, io as _io, json, math, os, struct, sys
 
-from media_lib import write_media, prune_media_stems, BASE_DECL
+from media_lib import write_media, media_rel, prune_media_stems, BASE_DECL
 
 from PIL import Image
 
@@ -926,7 +926,7 @@ def main():
             subjects = bake_species(sp, g, bin_, view_crown_w, view_crown_h, blob, used)
             if not subjects:
                 continue
-            entry['bin'] = 'media/geo/trees/%s.bin' % stem if report else write_media('geo/trees', stem, 'bin', bytes(blob))
+            entry['bin'] = media_rel('geo/trees', stem, 'bin', bytes(blob)) if report else write_media('geo/trees', stem, 'bin', bytes(blob))
             entry['bytes'] = len(blob)
             entry['subjects'] = subjects
             stems.append(stem); total += len(blob)
