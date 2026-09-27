@@ -276,6 +276,16 @@ function makePilot(sim, def, world, opts) {
     // never was - the panel came (the netto variometer reads its polar), so it
     // is published now, lazily, through the same memo the pilot uses.
     get sheet() { return sheetOf(); },
+    // G710: THE PLAN, PUBLISHED (the Jolene playtest: "it's unclear to what altitude the autopilot
+    // intends to go ... no waypoints on the map"). Written at the end of every update, one object
+    // mutated in place (no garbage at 60 Hz): the phase, the legs and the active one, the point flown
+    // to and the height asked there (MSL; `hField` over the field's datum altRef, `hGround` over the
+    // ground under that point), the vertical speed asked and the TECS limits it is clamped to (the
+    // ones the law used this step; the sheet's climbMax / idle sink otherwise), and the filleted air
+    // path L1 follows (null on the ground and in the climb-out). The map, the HUD's plan line and
+    // the 3-D legs read THIS - nothing re-derives the plan.
+    intent: { phase: 'ROLL', legs: null, legI: 0, to: null, x: null, z: null, h: null, hField: null, hGround: null, vs: 0, vsCmd: null,
+              vsUp: null, vsDn: null, climbMax: null, sinkIdle: null, path: null, pathI: 0, taxi: null },
   };
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
@@ -286,6 +296,7 @@ function makePilot(sim, def, world, opts) {
     ap.phase = ph; phaseT = 0;
   };
   const PATS = {};
+  const patOpts = { half: (def.params.gen && def.params.gen.span > 0) ? def.params.gen.span / 2 : null };
   ap.patOf = a => {
     if (!a) return null;
     const key = a.id || 'HOME';
@@ -293,7 +304,7 @@ function makePilot(sim, def, world, opts) {
     let P = null;
     try {
       if (typeof sitePattern === 'function')
-        P = sitePattern(a, typeof siteOf === 'function' ? siteOf(a.id) : null);
+        P = sitePattern(a, typeof siteOf === 'function' ? siteOf(a.id) : null, patOpts);   // G710: the way out round the parked aeroplanes, for THIS span
     } catch (e) { P = null; }
     PATS[key] = P;
     return P;
@@ -736,7 +747,45 @@ function makePilot(sim, def, world, opts) {
       { name: 'FINAL', A: wp(F, P.sIaf, 0), B: wp(F, P.sAim, 0) },
     ];
   };
-  const startLegs = (legs) => { ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null; };
+  // G710: EACH LEG'S HEIGHT AS IT WILL BE FLOWN, planned when the legs are: legAlt's rule (the leg's
+  // height over the datum, raised to 2 hSafe (40 m at least) over the ground a 1.5 km look-ahead sees
+  // anywhere along the leg - the union of every look-ahead from A to B), the enroute leg's cruise and
+  // hClear; the FINAL from the slope's height at its start (never above the leg before it) down to
+  // the ground at the aim. `hPlan` (MSL) at B, `hPlanA` at A, `gB` the ground under B. The live
+  // target of the active leg (ap.intent.h) is the pilot's own, read every step.
+  const planLegH = (legs) => {
+    const hasT = !!(world && typeof world.terrainH === 'function');
+    let prev = null;
+    for (const L of legs) {
+      if (!L.A || !L.B) continue;
+      const dx = L.B[0] - L.A[0], dz = L.B[1] - L.A[1], len = Math.hypot(dx, dz) || 1e-9, ux = dx / len, uz = dz / len;
+      L.gB = hasT ? Math.round(groundH(L.B[0], L.B[1])) : ap.altRef;
+      if (L.name === 'FINAL') {
+        L.hPlan = L.gB;
+        L.hPlanA = Math.round(Math.min(prev != null ? prev : Infinity, L.gB + len * (ap.gs || 0.06)));
+        continue;
+      }
+      // the highest ground from A to B + 1.5 km (every 150 m), and over B's own 1.5 km look-ahead
+      let top = -1e9, topB = -1e9;
+      if (hasT) {
+        const reach = len + 1500, n = Math.max(6, Math.ceil(reach / 150));
+        for (let k = 0; k <= n; k++) { const d = reach * k / n, h = groundH(L.A[0] + ux * d, L.A[1] + uz * d); top = Math.max(top, h); if (d >= len) topB = Math.max(topB, h); }
+      }
+      const base = ap.altRef + (L.h != null ? L.h : ap.hCruise);
+      if (L.enroute) {
+        // the enroute leg cruises (the departure's cruise height or the terrain's hClear) and arrives at
+        // the circuit height at its end (ENROUTE's own descent, 800 m before the entry)
+        L.hCruiseLeg = Math.round(Math.max(Math.max(ap.route.from.elev + A.hCruise, base), top + (A.hClear ?? 130)));
+        L.hPlan = Math.round(Math.max(base, topB + (A.hClear ?? 130)));
+        L.hPlanA = L.hCruiseLeg;
+      } else {
+        L.hPlan = Math.round(Math.max(base, top + Math.max(2 * A.hSafe, 40)));
+        L.hPlanA = prev != null ? prev : L.hPlan;
+      }
+      prev = L.hPlan;
+    }
+  };
+  const startLegs = (legs) => { ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null; planLegH(legs); };
   // P0.6: THE CIRCUIT AS ONE PATH. The legs' corners become patternPath's
   // nodes with the fillet radius the aeroplane turns at each corner's speed
   // (the leg's own: cruise / turn / the approach speed on the last corner)
@@ -879,6 +928,7 @@ function makePilot(sim, def, world, opts) {
 
   ap.update = (dt) => {
     ap.t += dt; phaseT += dt;
+    let pubH = null, pubN = null, pubX = null, pubZ = null;   // G710: the height asked and the point flown to, this step (ap.intent)
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
     if (ap.restAlt === null) {
@@ -1233,7 +1283,7 @@ function makePilot(sim, def, world, opts) {
       const gammaC = (tWk < 1.99 ? hdotC / Math.max(V, 8) : 0);
       const thC = clamp(tAlphaAt(V) + gammaC + 0.8 * eB + tIpit, A.vsFloor ?? -0.08, o.thMax ?? A.thMax);
       holdPitch(thC);
-      tecsDbg = { hdotC, Vc, STEr, STErC, ff, thr: c.thr, wK: tWk, thC, eB };
+      tecsDbg = { hdotC, Vc, STEr, STErC, ff, thr: c.thr, wK: tWk, thC, eB, vsUp, vsDn };
     };
     // THE STEER GAINS (groundSteer's, factored out G630 so the taxi flies
     // them too — the taxi ran the fixed 3.2 / 1.2 at any mass, the fault
@@ -1697,6 +1747,7 @@ function makePilot(sim, def, world, opts) {
       ap.report.outcome = ap.report.outcome || 'in-the-water';
       go('STOPPED');
     }
+    const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
     if (BX.on) boxFly(); else
     switch (ap.phase) {
       case 'GLIDE': {
@@ -1752,6 +1803,7 @@ function makePilot(sim, def, world, opts) {
           else taxiHdgF = wrapPi(taxiHdgF + wrapPi(hT - taxiHdgF) * Math.min(1, dt / 0.4));
           taxiHdgT = ap.t;
           ap.targetDir = [Math.cos(taxiHdgF), 0, Math.sin(taxiHdgF)];
+          { const pe = ap.path.pts[ap.path.pts.length - 1]; if (pe) { pubN = 'HOLD'; pubX = pe.x; pubZ = pe.z; } }
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
           // a long straight (a backtrack) is taxied faster; the bend ahead
@@ -1775,6 +1827,7 @@ function makePilot(sim, def, world, opts) {
         }
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
+        pubN = 'TAXI POINT'; pubX = ap.taxiTgt[0]; pubZ = ap.taxiTgt[1];
         ap.targetDir = [ddx / dist, 0, ddz / dist];
         const [kPt] = steerK(false);
         engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e, -0.45, 0.45), de: A.taxiDe ?? 0.30,
@@ -2161,6 +2214,7 @@ function makePilot(sim, def, world, opts) {
         // 45 m on the cub, "it turns really low"), never above hCruise - 15
         const hTurn = ap.xc ? ap.hCruise - 8
                     : Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
+        pubH = ap.refAlt + hTurn; pubN = ap.xc ? 'CRUISE HEIGHT' : 'CROSSWIND TURN'; pubX = null; pubZ = null;
         const stalled = phaseT > 60 && vsSlow < 0.15, marginal = phaseT > 75 && vsSlow < 0.4;
         setStatus(ap.xc ? 'climbing to cruise height on the runway heading' : 'climbing straight ahead to the crosswind turn', [
           cond('height', Math.round(agl), Math.round(hTurn), agl >= hTurn, 'm'),
@@ -2217,6 +2271,7 @@ function makePilot(sim, def, world, opts) {
           const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, dRem))) + (A.hClear ?? 130);
           hTgt = Math.max(cruise, floor);
         } else hTgt = legAlt(L);
+        pubH = hTgt; pubN = L.name; pubX = L.B[0]; pubZ = L.B[1];
         // P1: THE HOLD IS THE OBSTACLE-CLEARANCE CLIMB (PILOT-ROADMAP C.3):
         // while the ground along the leg asks a gradient the aeroplane
         // cannot make from here (0.8 of its measured climb, 30 m clear) the
@@ -2263,7 +2318,7 @@ function makePilot(sim, def, world, opts) {
         // turn-back); the path starts at the aeroplane
         if (heldOut && !holdOut && L.enroute && ap.legI === 0) {
           const tl = Math.hypot(vcg[0], vcg[2]) || 1, Rc2 = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
-          L.A = [cg[0] + vcg[0] / tl * Rc2, cg[2] + vcg[2] / tl * Rc2]; airPath = null; pathFrom = [cg[0], cg[2]];
+          L.A = [cg[0] + vcg[0] / tl * Rc2, cg[2] + vcg[2] / tl * Rc2]; airPath = null; pathFrom = [cg[0], cg[2]]; planLegH(ap.legs);
         }
         heldOut = !!holdOut;
         // P0.6: the path is built once per leg list and followed by L1; the
@@ -2329,6 +2384,7 @@ function makePilot(sim, def, world, opts) {
         // then the tracking bank of 0.18 — the 10 deg cap alone could not
         // finish a turn planned at 23 and crossed the centreline by 147 m.
         if (finalLevel == null) finalLevel = Math.min(cg[1], hGS + 10);
+        { const aim = wp(F, ap.xAim, 0); pubH = (slopeCaptured || above < 0 || above > 4) ? hGS : finalLevel; pubN = 'AIM'; pubX = aim[0]; pubZ = aim[1]; }
         // P0.6: the last fillet (base -> final) is the path's; LOC takes over
         // once the nose is within 11 deg of the runway and 60 m of the line
         const nS = nose[0] * F.ux + nose[1] * F.uz;
@@ -2402,6 +2458,7 @@ function makePilot(sim, def, world, opts) {
         engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: ap.VClimb, bank: 0.20 });
         flapTgt = fTO;
         const hTurn = Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
+        pubH = ap.refAlt + hTurn; pubN = 'CROSSWIND TURN'; pubX = null; pubZ = null;
         setStatus('going around: climbing on the runway heading', [
           cond('height', Math.round(agl), Math.round(hTurn), agl >= hTurn, 'm')]);
         if (agl >= hTurn || (phaseT > 60 && vsSlow < 0.15)) {
@@ -2585,6 +2642,17 @@ function makePilot(sim, def, world, opts) {
               hdg: PILOT_UNITS.deg(Math.atan2(nose[1], nose[0])),
               trk: tl2 > 0.5 ? PILOT_UNITS.deg(Math.atan2(vcg[2], vcg[0])) : null,
               beta, x: cg[0], z: cg[2], onGround: onG, t: ap.t };
+    // G710: THE PLAN, published (see ap.intent above)
+    const IN_ = ap.intent, TD = AF.vert === 'TECS' ? tecsDbg : null;
+    IN_.phase = phRun; IN_.legs = ap.legs; IN_.legI = legRun;
+    IN_.to = pubN; IN_.x = pubX; IN_.z = pubZ;
+    IN_.h = pubH; IN_.hField = pubH != null ? pubH - ap.altRef : null;
+    IN_.hGround = (pubH != null && pubX != null && world && typeof world.terrainH === 'function') ? pubH - groundH(pubX, pubZ) : IN_.hField;
+    IN_.vs = vcg[1]; IN_.vsCmd = TD ? TD.hdotC : null;
+    IN_.vsUp = TD ? TD.vsUp : tClimbMax; IN_.vsDn = TD ? TD.vsDn : -Math.max(3.0, 1.5 * tSinkIdle);
+    IN_.climbMax = tClimbMax; IN_.sinkIdle = tSinkIdle;
+    IN_.path = (onG === 0 && ap.legs) ? airPath : null; IN_.pathI = airPathI;
+    IN_.taxi = ap.path || null;
   };
   return ap;
 }

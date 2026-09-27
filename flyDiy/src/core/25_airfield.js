@@ -526,7 +526,121 @@ function standFor(site, dims) {
 // null = the aircraft's own slope; a number is the editor's future
 // declaration, flown if shallower than the aircraft's.
 const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
-function sitePattern(aero, site) {
+
+// ---- THE PARKED AEROPLANES, AND THE WAY OUT ROUND THEM (G710) ----------------
+// The Jolene playtest: "the autopilot gets a collision with the wing of the cub when getting out of the
+// hangar". HOME's stand is at (-154, 712), its first taxi point at (-135, 655), and the Cub o1 is parked
+// at (-150, 670) nose to the hangar: the straight line between the two passes 9.5 m from the Cub's
+// centre, and a 10 m span over a 10.7 m one overlapped by 0.76 m (flown, the stock build). The pilot's
+// TAXI never read an obstacle, and should not: the way round a parked aeroplane is the PLACE's, like
+// every other obstacle on the ground (the ruling above), so the site's declared way out is BENT here,
+// when the pattern is built, until the path the pilot follows keeps the taxiing wingtip GP_CLEAR clear
+// of every parked footprint.
+// A FOOTPRINT is the parked aeroplane's plan-view box in its own frame (parked.js: nose +x, right +z,
+// the record's yaw is rotation.y; origin the engine mount): half the span across, the nose (and the
+// propeller) ahead of the origin, the tail behind it, per archetype key - the numbers are designBake's
+// own nodes, rounded UP (GATE TAXICLEAR holds this table against them, so it cannot drift); any other
+// key ('stock:', 'mine:') gets the default, an 12 m-span single. The world's obstacle registry holds
+// the real meshes in the browser only; the core plans from these.
+const GP_CLEAR = 1.5, GP_HALF_DEFAULT = 6.0;
+const GP_PARKED_FOOT = {   // [half-span, nose + prop ahead of the mount, tail behind it], metres
+  cub: [5.4, 1.3, 5.5], pietenpol: [4.4, 0.9, 5.6], tigermoth: [4.5, 0.9, 5.6], stearman: [4.9, 1.0, 5.4], pittsAlike: [3.3, 0.9, 4.4],
+  sesqui: [5.0, 0.9, 5.6], jodel: [4.2, 1.4, 4.5], c172: [5.5, 1.5, 6.1], chinook: [4.9, 0.4, 5.2], caravan: [7.0, 2.1, 6.6],
+  rv: [4.9, 0.9, 5.7], savannah: [4.6, 0.9, 5.4], ul1: [4.7, 0.9, 5.4], floatplane: [5.9, 1.2, 5.8], pusherPod: [4.6, 0.6, 5.7],
+  motorglider: [6.5, 0.9, 5.0], radial: [5.5, 0.9, 5.8], etrainer: [4.5, 0.9, 5.6], ttail: [5.5, 0.9, 5.8], vtail: [5.5, 0.9, 5.9],
+  mw5: [4.7, 0.6, 5.6], archaeopteryx: [5.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 5.7],
+  p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9],
+};
+const GP_PARKED_DEFAULT = [6.0, 1.6, 6.6];
+function parkedFoot(p) {
+  const m = /^arch:(.+)$/.exec((p && p.key) || '');
+  const d = (m && GP_PARKED_FOOT[m[1]]) || GP_PARKED_DEFAULT;
+  return { half: d[0], fwd: d[1], aft: d[2] };
+}
+// the signed distance from (x, z) to a parked record's footprint (negative inside), and the way out of it
+function gpParkedDist(p, x, z) {
+  const f = p.foot || (p.foot = parkedFoot(p));
+  const c = Math.cos(p.ry || 0), s = Math.sin(p.ry || 0), dx = x - p.x, dz = z - p.z;
+  const ox = dx * c - dz * s, oz = dx * s + dz * c;          // along the nose, along the right wing
+  const ex = Math.max(-f.aft - ox, ox - f.fwd, 0), ez = Math.max(Math.abs(oz) - f.half, 0);
+  if (ex || ez) return Math.hypot(ex, ez);
+  return -Math.min(f.fwd - ox, ox + f.aft, f.half - Math.abs(oz));
+}
+function gpParkedOut(p, x, z) {
+  const f = p.foot || (p.foot = parkedFoot(p));
+  const c = Math.cos(p.ry || 0), s = Math.sin(p.ry || 0), dx = x - p.x, dz = z - p.z;
+  const ox = dx * c - dz * s, oz = dx * s + dz * c;
+  // the nearest point of the box (inside: the nearest face), then the local offset back to the world
+  let qx = Math.max(-f.aft, Math.min(f.fwd, ox)), qz = Math.max(-f.half, Math.min(f.half, oz));
+  let lx = ox - qx, lz = oz - qz;
+  if (!lx && !lz) { const m = [f.fwd - ox, ox + f.aft, f.half - oz, oz + f.half], k = m.indexOf(Math.min(...m)); lx = [1, -1, 0, 0][k]; lz = [0, 0, 1, -1][k]; }
+  const L = Math.hypot(lx, lz) || 1;
+  lx /= L; lz /= L;
+  return [lx * c + lz * s, -lx * s + lz * c];                 // local (nose, right) back to world (x, z)
+}
+// the samples of a route closer to a parked footprint than `need` (the worst first), or null
+function gpParkedWorst(pts, parked, need) {
+  let w = null;
+  for (let i = 0; i < pts.length; i++) {
+    const q = pts[i];
+    for (const p of parked) {
+      if (Math.abs(q.x - p.x) > need + 20 || Math.abs(q.z - p.z) > need + 20) continue;
+      const d = gpParkedDist(p, q.x, q.z) - need;
+      if (d < 0 && (!w || d < w.d)) w = { d, i, x: q.x, z: q.z, p };
+    }
+  }
+  return w;
+}
+// THE BEND. The way out (stand, the declared points, the entry) is sampled the way the pilot's path is
+// (patternPath, fillets and all, when the core is whole; the straight legs otherwise) and while a sample
+// comes within `need` of a footprint the route is pushed away from it there: a declared point within 6 m
+// of that sample moves, else a new corner ('k<n>', kind 'taxi', the site's fillet) is put in at the
+// sample, pushed out by the shortfall and half a metre. The stand and the entry never move. At most 24
+// rounds; what is left is reported (pattern.clearance), never hidden - GATE TAXICLEAR fails on it.
+function gpClearWay(nodes, ids, parked, need) {
+  const byId = {}; for (const n of nodes) byId[n.id] = n;
+  let added = 0, moved = 0;
+  const sample = () => {
+    if (typeof patternPath === 'function') return patternPath({ nodes, fillet: GP_FILLET }, ids, 1.0).pts;
+    const pts = [];
+    for (let k = 0; k + 1 < ids.length; k++) {
+      const A = byId[ids[k]], B = byId[ids[k + 1]], n = Math.max(1, Math.ceil(Math.hypot(B.x - A.x, B.z - A.z)));
+      for (let i = 0; i <= n; i++) pts.push({ x: A.x + (B.x - A.x) * i / n, z: A.z + (B.z - A.z) * i / n });
+    }
+    return pts;
+  };
+  let w = null;
+  for (let it = 0; it < 24; it++) {
+    w = gpParkedWorst(sample(), parked, need);
+    if (!w) break;
+    const dir = gpParkedOut(w.p, w.x, w.z), push = -w.d + 0.5;
+    // the leg of the declared polyline the sample lies on
+    let kB = 0, dB = Infinity;
+    for (let k = 0; k + 1 < ids.length; k++) {
+      const A = byId[ids[k]], B = byId[ids[k + 1]], vx = B.x - A.x, vz = B.z - A.z, l2 = vx * vx + vz * vz || 1e-9;
+      const t = Math.max(0, Math.min(1, ((w.x - A.x) * vx + (w.z - A.z) * vz) / l2));
+      const d = Math.hypot(A.x + vx * t - w.x, A.z + vz * t - w.z);
+      if (d < dB) { dB = d; kB = k; }
+    }
+    let j = -1, dj = 6;
+    for (const k of [kB, kB + 1]) {
+      if (k <= 0 || k >= ids.length - 1) continue;
+      const n = byId[ids[k]], d = Math.hypot(n.x - w.x, n.z - w.z);
+      if (d < dj) { dj = d; j = k; }
+    }
+    if (j >= 0) { const n = byId[ids[j]]; n.x = +(n.x + dir[0] * push).toFixed(3); n.z = +(n.z + dir[1] * push).toFixed(3); n.clear = w.p.id || true; moved++; }
+    else {
+      const id = 'k' + added++;
+      const n = { id, x: +(w.x + dir[0] * push).toFixed(3), z: +(w.z + dir[1] * push).toFixed(3), kind: 'taxi', r: GP_FILLET, clear: w.p.id || true };
+      nodes.push(n); byId[id] = n; ids.splice(kB + 1, 0, id);
+    }
+  }
+  return { ok: !w, added, moved, need, worst: w ? { d: +w.d.toFixed(2), x: +w.x.toFixed(1), z: +w.z.toFixed(1), id: w.p.id || null } : null };
+}
+
+// opts (G710): { half } - the taxiing aeroplane's half-span, for the way round the site's parked
+// aeroplanes (GP_HALF_DEFAULT when absent); a pattern of a site with none is the same whatever it says
+function sitePattern(aero, site, opts) {
   if (site && site.pattern) return site.pattern;
   const R = siteRunway(aero);
   const d = [R.dx, R.dz], n = [R.nx, R.nz];
@@ -537,6 +651,7 @@ function sitePattern(aero, site) {
     return id;
   };
   const link = (a, b) => arcs.push([a, b]);
+  let clearance = null;                      // G710: the way out round the parked aeroplanes, as built
   // the taxiway side, so the backtrack lane keeps AWAY from it
   let laneSg = 1;
   if (site && site.taxiway) {
@@ -592,12 +707,20 @@ function sitePattern(aero, site) {
     // U-turn. Nothing else is invented: no gate, no fence, no apron.
     const st = add('stand', [site.stand.x, site.stand.z], 'stand', { hdg: site.stand.hdg });
     const tx = site.taxiOut, ids = [];
-    let prev = st;
-    for (let i = 0; i + 1 < tx.length; i++) { const id = add('tx' + i, tx[i], 'taxi', { r: GP_FILLET }); link(prev, id); ids.push(id); prev = id; }
+    for (let i = 0; i + 1 < tx.length; i++) ids.push(add('tx' + i, tx[i], 'taxi', { r: GP_FILLET }));
     const last = tx[tx.length - 1];
     const along = (last[0] - R.cx) * d[0] + (last[1] - R.cz) * d[1];
     const ex = R.cx + d[0] * along, ez = R.cz + d[1] * along;
     const c0 = add('c0', [ex, ez], 'taxi', { r: GP_FILLET });
+    // G710: round the parked aeroplanes (the declared points bend; new corners go into `ids`)
+    if (site.parked && site.parked.length) {
+      const half = (opts && opts.half > 0) ? opts.half : GP_HALF_DEFAULT;
+      const way = [st].concat(ids, [c0]);
+      clearance = gpClearWay(nodes, way, site.parked, half + GP_CLEAR);
+      ids.length = 0; for (let k = 1; k < way.length - 1; k++) ids.push(way[k]);
+    }
+    let prev = st;
+    for (const id of ids) { link(prev, id); prev = id; }
     link(prev, c0); link(c0, holds[0]);
     // A SHORT STRIP'S WAY OUT HOLDS WHERE IT JOINS (G527.2, the pilot session's G531 measure: the cub off
     // East Point lifted at 104 m of the 112 ahead - the declared way out met the centreline 8 m from the
@@ -645,7 +768,7 @@ function sitePattern(aero, site) {
     mk(1, [d[0], d[1]], R.thr0, [R.td1.x, R.td1.z]),
   ];
   return { id: aero.id || 'HOME', elev: aero.elev || 0, fillet: GP_FILLET,
-           nodes, arcs, routes, stops: holds,
+           nodes, arcs, routes, stops: holds, clearance,
            runway: { c0: { x: R.end0.x, z: R.end0.z }, c1: { x: R.end1.x, z: R.end1.z },
                      hdg: R.hdg, wid: R.wid, len: R.len },
            approaches };
@@ -715,6 +838,9 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
     }
   };
   for (const T of [0, 1]) { walk(pat.routes.out[T], 'route out[' + T + ']'); walk(pat.routes.back[T], 'route back[' + T + ']'); }
+  // G710: a way out that could not be bent clear of a parked aeroplane
+  if (pat.clearance && !pat.clearance.ok && pat.clearance.worst)
+    out.push('the way out passes ' + (-pat.clearance.worst.d).toFixed(1) + ' m inside the clearance of the parked ' + (pat.clearance.worst.id || 'aeroplane') + ' at (' + pat.clearance.worst.x + ', ' + pat.clearance.worst.z + ')');
   const A = pat.approaches || [];
   if (A.length !== 2) out.push('a pattern has two approaches, one per direction');
   for (const ap of A) {
