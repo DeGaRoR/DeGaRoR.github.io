@@ -63185,8 +63185,8 @@ with no tolerance. The taxi is FRAMECOST's pinned pose (263.5, 727.6), paused; c
 | commit | session | what moved at the taxi (per frame) | at the stand |
 |---|---|---|---|
 | 359a389b G791-G792, 7b6c9b94 G793 | W-CHECK | nothing | nothing |
-| d1ec8589 G990-G991 .. 4edb8372 G994 | A5-CAP | nothing (endpoints) | nothing |
-| e59ca70f G995 .. 5cd04811 G999.1 | A5-LOAD | nothing (endpoints; boot rows only - the step list re-cut) | nothing |
+| d1ec8589 G990-G991, 857ac2dc G992, 4edb8372 G994 | A5-CAP | nothing, each | nothing |
+| e59ca70f G995, 92f27093 G996, c8c0e110 G997, 1b20c1cd G998, e6c952c0 G995.1, d578125a G999, 5cd04811 G999.1 | A5-LOAD | nothing, each (boot rows only - the step list re-cut) | nothing |
 | 83bce6dd G1000-G1003 | A6-GROUND | +4 main draws (the contact blobs), +24 GL calls, +7 uniformMatrix4fv, bufferSubData +2 calls / +544 B, +1 program, +20 terrainH | -2 main draws, +6 GL calls |
 | 7ed39c7f G1002/G1004 | A6-GROUND | nothing | nothing |
 | b147f4e5 G1016 | (HUD) | nothing | nothing |
@@ -63195,8 +63195,8 @@ with no tolerance. The taxi is FRAMECOST's pinned pose (263.5, 727.6), paused; c
 | 34b2224e, 7cc6dd15 G1005 | A6-SHADOW | nothing | nothing |
 | acefa926 G1005 | A6-SHADOW | nothing | -65 shadow draws, -534 GL, -745 frustum tests |
 | TRAIN 11 NET | | +126 shadow draws (402 -> 528), +4 main, +351.5 GL calls, +53.5 uniformMatrix4fv, +10 uniformMatrix3fv | +127 shadow draws, +346 GL |
-(Intermediate A5-CAP / A5-LOAD commits are still being censused at the time of writing where the table says "endpoints";
-their endpoints are equal at both views to the last digit, so nothing inside them can have moved a view but by cancelling.)
+Every source commit censused (20 trees + the base). What a count cannot see is per-call cost: e6c952c0 (the page takes the cook)
+and RASTER-ON change what each terrainH costs, not how many there are - B1-LAG's live profile already put that past the JS.
 - WHERE THE +126 ARE (FRAMECOST_WHAT=shadow, new: what the shadow pass drew, by light and viewport, one frame at the stand):
   the player's aeroplane - 114 draws (91 Standard + 23 Physical, the craft layer) - is drawn THREE times a frame: into the
   sun's far map, into the near map's 60 m box AND into the new craft cascade (shadow_near.js atlas: viewport 0 is the cascade,
