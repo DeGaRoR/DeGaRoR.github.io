@@ -9444,12 +9444,12 @@
    },
    "HollyBark": {
     "mode": "OPAQUE",
-    "base": "media/tex/trees/various_forest_assets_pack_hollybark_base.b4bd9b0d.jpg",
+    "base": "media/tex/trees/various_forest_assets_pack_ashbark_base.b4bd9b0d.jpg",
     "baseSize": [
      1024,
      1024
     ],
-    "nor": "media/tex/trees/various_forest_assets_pack_hollybark_nor.64340522.jpg"
+    "nor": "media/tex/trees/various_forest_assets_pack_ashbark_nor.64340522.jpg"
    },
    "HollyBranchAtlas": {
     "mode": "BLEND",
@@ -9464,12 +9464,12 @@
    },
    "RaspberryBark": {
     "mode": "OPAQUE",
-    "base": "media/tex/trees/various_forest_assets_pack_raspberrybark_base.b4bd9b0d.jpg",
+    "base": "media/tex/trees/various_forest_assets_pack_ashbark_base.b4bd9b0d.jpg",
     "baseSize": [
      1024,
      1024
     ],
-    "nor": "media/tex/trees/various_forest_assets_pack_raspberrybark_nor.64340522.jpg"
+    "nor": "media/tex/trees/various_forest_assets_pack_ashbark_nor.64340522.jpg"
    },
    "RaspberryBranchAtlas": {
     "mode": "BLEND",
@@ -9518,7 +9518,7 @@
      1024,
      1024
     ],
-    "nor": "media/tex/trees/various_forest_assets_pack_birchbranchatlasalt_nor.163f2c93.jpg"
+    "nor": "media/tex/trees/various_forest_assets_pack_birchbranchatlas_nor.163f2c93.jpg"
    },
    "MapleBark": {
     "mode": "OPAQUE",
@@ -9527,7 +9527,7 @@
      1024,
      1024
     ],
-    "nor": "media/tex/trees/various_forest_assets_pack_maplebark_nor.f9305fcc.jpg"
+    "nor": "media/tex/trees/various_forest_assets_pack_commonbark_001_nor.f9305fcc.jpg"
    },
    "MapleBranchAtlas": {
     "mode": "BLEND",
@@ -9571,12 +9571,12 @@
    },
    "CommonBark": {
     "mode": "OPAQUE",
-    "base": "media/tex/trees/various_forest_assets_pack_commonbark_base.a216d4a0.jpg",
+    "base": "media/tex/trees/various_forest_assets_pack_commonbark_001_base.a216d4a0.jpg",
     "baseSize": [
      1024,
      1024
     ],
-    "nor": "media/tex/trees/various_forest_assets_pack_commonbark_nor.f9305fcc.jpg"
+    "nor": "media/tex/trees/various_forest_assets_pack_commonbark_001_nor.f9305fcc.jpg"
    }
   },
   "dry_grass.glb": {
