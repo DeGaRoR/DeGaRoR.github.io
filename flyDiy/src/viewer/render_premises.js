@@ -1720,10 +1720,34 @@ function make(THREE, scene, world, rec0, opts) {
     walk(grp);
     return !pending && meshes > 0;
   }
+  // A PARKED AEROPLANE'S HITBOX FROM ITS SPEC (G1060, the user: "the hitbox of the wing of the cub is a few
+  // centimeters too long compared to the wing mesh ... you have literal parameters like wingspan, chord and incidence
+  // ... and you also have the original cage, for the fuselage at least"): the 0.5 m raster let a wingtip's cell
+  // overhang the tip by up to a cell (15 cm on the Cub, 50 on the 172). OBSTACLES.aircraftShape cuts convex pieces
+  // from the physics frame of the build's own spec (the wing's loft rows, the tail's stations, the cage, the struts,
+  // the wheels, the engines) and carries them into this object's frame the way the capture was carried; ~30 ms, once
+  // per key (every placement of a key shares it). Anything it cannot stand (no capture record, no mains: a float
+  // plane) keeps the raster below.
+  const AIR_SHAPES = new Map();
+  function aircraftOf(grp) {
+    const PK = window.PARKED, key = grp.userData && grp.userData.parkedKey;
+    const rec = PK && PK.records && key ? PK.records[key] : null;
+    if (!rec || !rec.spec || !rec.vis || !OBSTACLES.aircraftShape) return null;
+    let lod = null; grp.traverse(o => { if (!lod && o.userData && o.userData.stance) lod = o; });
+    if (!lod) return null;
+    let shape = AIR_SHAPES.get(key);
+    if (shape === undefined) { shape = OBSTACLES.aircraftShape(rec.spec, OBSTACLES.parkedDrawn(rec.vis, lod.userData.stance)) || null; AIR_SHAPES.set(key, shape); }
+    if (!shape) return null;
+    grp.updateMatrixWorld(true);
+    const e = grp.matrixWorld.elements;
+    return { x: e[12], z: e[14], yaw: Math.atan2(e[8], e[0]), y0: e[13], shape };
+  }
   function hitAdd(grp, tag, cell, then) {
     const R = OBS(); if (!R || !grp) return 0;
     if (!hitReady(grp)) { PENDING_HIT.push({ grp, tag, cell: cell || 0.5, then }); return 0; }
-    try { const s = shapeOf(grp, cell || 0.5); if (!s) return 0; s.tag = tag; const id = R.add(s); (grp.userData.obst = grp.userData.obst || []).push(id); OBST_IDS.add(id); if (then) then(id); return id; }
+    let air = null;
+    if (tag === 'aircraft') try { air = aircraftOf(grp); } catch (e) { console.warn('obstacle: the spec hitbox of', grp.userData && grp.userData.parkedKey, e && e.message); }
+    try { const s = air || shapeOf(grp, cell || 0.5); if (!s) return 0; s.tag = tag; const id = R.add(s); (grp.userData.obst = grp.userData.obst || []).push(id); OBST_IDS.add(id); if (then) then(id); return id; }
     catch (e) { console.warn('obstacle', tag, e && e.message); return 0; }
   }
   function hitPendingStep() {

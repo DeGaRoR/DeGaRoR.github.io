@@ -14,6 +14,10 @@
 // so the discrepancy is bounded by the cell: an L-shaped house, a semi with
 // its trailer, a boat's bow are all followed to the cell. A plain box is the
 // same shape with one column height (`box`).
+// A PARKED AEROPLANE IS THE EXCEPTION (G1060): a cell round a wingtip overhung the drawn tip by up to the cell (the
+// Cub's 15 cm, the 172's 50), and a taxi past it touched nothing the eye saw. Its shape is a list of CONVEX PIECES
+// cut from its own spec's physics frame (`aircraftShape`: the wing's loft rows, the tail's stations, the cage for
+// the fuselage, the struts, the wheels, the engines), exact to the geometry, no grid; `penetration` takes either.
 //
 // The REGISTRY is the world's (W.obstacles, 20_world.js): bins of 64 m like
 // the trees', near(x, z) for the solver, add/move/remove for the viewer that
@@ -100,6 +104,310 @@ const OBSTACLES = (() => {
     return rasterise(pos, idx, c);
   }
 
+  // ---- CONVEX PIECES (G1060, the user: "the hitbox of the wing of the cub is a few centimeters too long compared
+  // to the wing mesh ... can't the editor tell you the exact dimensions of the wing box? And the fuselage?") ----------
+  // The second shape: a list of convex pieces, each the hull of a handful of points (a wing bay's two sections, a
+  // cage frustum's two stations, a wheel's drum), kept as its face planes n.p <= d. A point is inside the shape when
+  // it is inside one piece; the way out is the nearest face of a piece it is in whose exit lands in no other piece
+  // (a bay's root face is the next bay's: never an exit). No grid, so no cell: the discrepancy is the geometry's own.
+  // THE HULL: brute force over the point triples (a piece has <= ~30 points: 4k triples) - every plane with all the
+  // points on one side is a face; coplanar triples of one face dedupe. Fewer than 4 faces is a flat set: no piece.
+  function hull(pts) {
+    const n = pts.length;
+    let sc = 1; for (const p of pts) sc = Math.max(sc, Math.abs(p[0]), Math.abs(p[1]), Math.abs(p[2]));
+    const eps = 1e-7 * sc, P = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) {
+      const a = pts[i], b = pts[j], c = pts[k];
+      const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const L = Math.hypot(nx, ny, nz);
+      if (L < 1e-10 * sc * sc) continue;
+      nx /= L; ny /= L; nz /= L;
+      const d = nx * a[0] + ny * a[1] + nz * a[2];
+      let mn = Infinity, mx = -Infinity;
+      for (const p of pts) { const s = nx * p[0] + ny * p[1] + nz * p[2] - d; if (s < mn) mn = s; if (s > mx) mx = s; }
+      if (mx - mn < eps) continue;
+      let q = null;
+      if (mx <= eps) q = [nx, ny, nz, d]; else if (mn >= -eps) q = [-nx, -ny, -nz, -d];
+      if (!q) continue;
+      let dup = false;
+      for (let m = 0; m < P.length && !dup; m += 4) dup = P[m] * q[0] + P[m + 1] * q[1] + P[m + 2] * q[2] > 1 - 1e-9 && Math.abs(P[m + 3] - q[3]) < eps;
+      if (!dup) P.push(q[0], q[1], q[2], q[3]);
+    }
+    return P.length >= 16 ? Float64Array.from(P) : null;
+  }
+  // the most-outside face's signed distance (<= 0: inside)
+  function sdist(pc, x, y, z) {
+    const P = pc.planes; let m = -Infinity;
+    for (let i = 0; i < P.length; i += 4) { const s = P[i] * x + P[i + 1] * y + P[i + 2] * z - P[i + 3]; if (s > m) m = s; }
+    return m;
+  }
+  const inBox = (b, x, y, z) => x >= b[0] && x <= b[3] && y >= b[1] && y <= b[4] && z >= b[2] && z <= b[5];
+  // list: [{ tag, pts: [[x, y, z], ...] }] in the object's frame -> the shape (null when no piece stands)
+  function pieces(list) {
+    const out = [];
+    for (const q of list) {
+      const planes = hull(q.pts); if (!planes) continue;
+      const bb = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+      for (const p of q.pts) for (let a = 0; a < 3; a++) { if (p[a] < bb[a]) bb[a] = p[a]; if (p[a] > bb[a + 3]) bb[a + 3] = p[a]; }
+      out.push({ tag: q.tag, planes, bb });
+    }
+    if (!out.length) return null;
+    let top = -Infinity, xr = 0;
+    for (const pc of out) { const b = pc.bb; top = Math.max(top, b[4]); for (const x of [b[0], b[3]]) for (const z of [b[2], b[5]]) xr = Math.max(xr, Math.hypot(x, z)); }
+    return { pieces: out, top, xr, cells: out.length, cell: 0 };
+  }
+  function penPieces(S, lx, y, lz) {
+    const L = S.pieces;
+    let best = Infinity, bx = 0, by = 0, bz = 0, any = false;
+    for (let i = 0; i < L.length; i++) {
+      const pc = L[i];
+      if (!inBox(pc.bb, lx, y, lz) || sdist(pc, lx, y, lz) > 0) continue;
+      any = true;
+      const P = pc.planes, grounded = pc.bb[1] < 0.25;
+      for (let m = 0; m < P.length; m += 4) {
+        const depth = P[m + 3] - (P[m] * lx + P[m + 1] * y + P[m + 2] * lz);
+        if (depth >= best) continue;
+        if (grounded && P[m + 1] < -0.5) continue;              // a thing on the ground never pushes a node into it
+        const e = depth + 0.01, qx = lx + P[m] * e, qy = y + P[m + 1] * e, qz = lz + P[m + 2] * e;
+        let inner = false;
+        for (let j = 0; j < L.length && !inner; j++) if (j !== i && inBox(L[j].bb, qx, qy, qz) && sdist(L[j], qx, qy, qz) < 0) inner = true;
+        if (inner) continue;                                      // a face shared with the next piece is no way out
+        best = depth; bx = P[m]; by = P[m + 1]; bz = P[m + 2];
+      }
+    }
+    if (!any) return null;
+    if (best === Infinity) { best = S.top - y; bx = 0; by = 1; bz = 0; }   // deep in a knot of pieces: over the top
+    return [bx, by, bz, best];
+  }
+
+  // ---- A PARKED AEROPLANE FROM ITS OWN SPEC (G1060) -------------------------------------------------------------
+  // The frame the physics flies (genFrame of the resolved spec: the same nodes buildGen makes, 6 ms not 100) holds
+  // every dimension: the wing's spar stations (its chord, taper, dihedral, incidence, the tip's bow as the loft rows
+  // it), the tail's stations and chords, THE CAGE (the fuselage's stations, BL BR TL TR), the external struts, legs
+  // and wires, every wheel's axle and radius, the engines' mounts, the propeller's diameter. The pieces are cut from
+  // those, in the frame's own coordinates (x aft, y up, z right), then carried into the parked object's frame by the
+  // map the drawn aeroplane went through (aircraftShape below).
+  const AF = new Map();     // naca -> the aerofoil's hull, reduced to <= ~10 points outward (2 mm), chord units
+  function hull2(pts) {
+    const P = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [], up = [];
+    for (const p of P) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+    for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+    lo.pop(); up.pop();
+    return lo.concat(up);
+  }
+  // an edge dropped by extending its two neighbours to their meeting point, while that point stays within tol of it:
+  // the polygon only grows, so the reduced section still holds the aerofoil
+  function reduce2(poly, tol, kMin) {
+    let P = poly.slice();
+    for (;;) {
+      const n = P.length; if (n <= kMin) return P;
+      let best = null;
+      for (let i = 0; i < n; i++) {
+        const a = P[(i - 1 + n) % n], b = P[i], c = P[(i + 1) % n], d = P[(i + 2) % n];
+        const r0 = b[0] - a[0], r1 = b[1] - a[1], s0 = c[0] - d[0], s1 = c[1] - d[1], den = r0 * s1 - r1 * s0;
+        if (Math.abs(den) < 1e-12) continue;
+        const t = ((d[0] - a[0]) * s1 - (d[1] - a[1]) * s0) / den, u = ((d[0] - a[0]) * r1 - (d[1] - a[1]) * r0) / den;
+        if (t < 1 || u < 1) continue;
+        const X = [a[0] + r0 * t, a[1] + r1 * t], ex = c[0] - b[0], ey = c[1] - b[1], el = Math.hypot(ex, ey) || 1e-12;
+        const h = Math.abs((X[0] - b[0]) * ey - (X[1] - b[1]) * ex) / el;
+        if (h <= tol && (!best || h < best.h)) best = { i, X, h };
+      }
+      if (!best) return P;
+      const Q = []; for (let j = 0; j < n; j++) { if (j === best.i) Q.push(best.X); else if (j !== (best.i + 1) % n) Q.push(P[j]); }
+      P = Q;
+    }
+  }
+  function aerofoil(naca) {
+    let a = AF.get(naca);
+    if (!a) { a = reduce2(hull2(genAirfoil(naca)), 0.002, 8); AF.set(naca, a); }
+    return a;
+  }
+  function aircraftPieces(fr, S, hubs) {
+    const N = fr.nodes, P = fr.parts, out = [];
+    const add = (tag, pts) => out.push({ tag, pts });
+    const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    // THE WING, per plane and side: a section at every row the loft has (the spar stations, and past tipZ the bow's
+    // rows, stepped in angle as 63_gen_wing lofts them), the spars linear between their stations; the section the
+    // aerofoil's hull on the chord the planform gives there (chordAt: the bow shortens it to nothing at the tip),
+    // hung on the spars as the loft hangs it (front spar at sparFront of the chord, thickness normal to it, up)
+    const planes = P.planes && P.planes.length ? P.planes : [P];
+    planes.forEach((PP, k) => {
+      const W = S.wings[k] || S.wings[0], wf = PP.wf;
+      if (!W || !wf || !wf.L || !wf.R) return;
+      const af = aerofoil(W.naca), chordAt = PP.chordAt || P.chordAt, sF = PP.sparFront != null ? PP.sparFront : P.sparFront;
+      const TIP = (typeof GEN_TIPS !== 'undefined' && (GEN_TIPS[W.tip] || GEN_TIPS.rounded)) || { arc: 4 };
+      const sec = (pF, pR) => {
+        const d = [pR[0] - pF[0], pR[1] - pF[1], pR[2] - pF[2]], L = Math.hypot(d[0], d[1], d[2]) || 1, ch = [d[0] / L, d[1] / L, d[2] / L];
+        let nr = [ch[1], -ch[0], 0]; const nl = Math.hypot(nr[0], nr[1]) || 1; nr = [nr[0] / nl, nr[1] / nl, 0]; if (nr[1] < 0) nr = [-nr[0], -nr[1], 0];
+        const c = Math.max(0.01, chordAt(Math.abs(pF[2])));
+        return af.map(([xc, yc]) => [0, 1, 2].map(a => pF[a] + ch[a] * (xc - sF) * c + nr[a] * yc * c));
+      };
+      const side = (F, R) => {
+        const zz = F.map(i => Math.abs(N[i].p[2]));
+        let rows = zz.slice();
+        if (W.tipR > 1e-6) {
+          rows = rows.filter(v => v < W.tipZ - 1e-3).concat([W.tipZ]);
+          const nA = Math.max(2, TIP.arc | 0), th = Math.PI / 2 * 0.965;
+          for (let i = 1; i <= nA; i++) rows.push(W.tipZ + W.tipR * Math.sin(th * i / nA));
+        }
+        return rows.map(z => {
+          let j = 0; while (j + 2 < zz.length && z > zz[j + 1]) j++;
+          const j1 = Math.min(j + 1, zz.length - 1), t = j1 > j ? Math.max(0, Math.min(1, (z - zz[j]) / ((zz[j1] - zz[j]) || 1))) : 0;
+          return sec(lerp3(N[F[j]].p, N[F[j1]].p, t), lerp3(N[R[j]].p, N[R[j1]].p, t));
+        });
+      };
+      const L = side(wf.L.F, wf.L.R), R = side(wf.R.F, wf.R.R);
+      for (let i = 0; i + 1 < L.length; i++) add('wing' + k, L[i].concat(L[i + 1]));
+      for (let i = 0; i + 1 < R.length; i++) add('wing' + k, R[i].concat(R[i + 1]));
+      if (L.length && R.length) add('wing' + k, L[0].concat(R[0]));            // the centre, root to root
+    });
+    // THE FUSELAGE: the cage - a frustum between each two stations, the tail post closing it; twin booms their chains
+    const st = (P.F || []).map(f => [f.BL, f.BR, f.TL, f.TR].map(i => N[i].p));
+    for (let i = 0; i + 1 < st.length; i++) add('fuselage', st[i].concat(st[i + 1]));
+    if (st.length && P.TPB != null && P.TPT != null) {
+      const b = N[P.TPB].p, t = N[P.TPT].p, w = Math.max(0.03, (S.fuse && S.fuse.tailW) || 0.04);
+      add('fuselage', st[st.length - 1].concat([[b[0], b[1], -w], [b[0], b[1], w], [t[0], t[1], -w], [t[0], t[1], w]]));
+    }
+    if (P.BOOMS) for (const sd of ['L', 'R']) {
+      const ch = P.BOOMS[sd] || [], ring = q => Object.keys(q).filter(k => typeof q[k] === 'number' && N[q[k]]).map(k => N[q[k]].p);
+      for (let i = 0; i + 1 < ch.length; i++) add('boom', ring(ch[i]).concat(ring(ch[i + 1])));
+    }
+    // THE TAIL: the stab's and the fins' stations, leading to trailing edge along their spars (the front spar at
+    // sparFront of the chord), a skin either side (2 cm + 6 % of the chord: the drawn sheet's thickness and camber)
+    const TA = P.TAIL, TH = c => 0.02 + 0.06 * c;
+    const surf = (pF, pR, chord, nrm, sF) => {
+      const d = [pR[0] - pF[0], pR[1] - pF[1], pR[2] - pF[2]], L = Math.hypot(d[0], d[1], d[2]) || 1, u = [d[0] / L, d[1] / L, d[2] / L], th = TH(chord);
+      const le = [0, 1, 2].map(a => pF[a] - u[a] * sF * chord), te = [0, 1, 2].map(a => le[a] + u[a] * chord);
+      return [le, te].flatMap(p => [[p[0] + nrm[0] * th, p[1] + nrm[1] * th, p[2] + nrm[2] * th], [p[0] - nrm[0] * th, p[1] - nrm[1] * th, p[2] - nrm[2] * th]]);
+    };
+    if (TA) {
+      const sF = TA.sparFront != null ? TA.sparFront : 0.15;
+      if (TA.HF && TA.HF.L && TA.zsH) {
+        const secs = {};
+        for (const sd of ['L', 'R']) {
+          secs[sd] = TA.HF[sd].map((f, i) => surf(N[f].p, N[TA.HR[sd][i]].p, TA.chordH(TA.zsH[i]), [0, 1, 0], sF));
+          for (let i = 0; i + 1 < secs[sd].length; i++) add('stab', secs[sd][i].concat(secs[sd][i + 1]));
+        }
+        if (secs.L.length && secs.R.length) add('stab', secs.L[0].concat(secs.R[0]));
+      }
+      const fins = TA.fins || (TA.VF ? [{ VF: TA.VF, VR: TA.VR, nV: TA.nV, chordV: TA.chordV }] : []);
+      for (const F of fins) {
+        const nV = F.nV || (F.VF.length - 1), cv = F.chordV || TA.chordV;
+        const secs = F.VF.map((f, i) => surf(N[f].p, N[F.VR[i]].p, cv(i / nV), [0, 0, 1], sF));
+        for (let i = 0; i + 1 < secs.length; i++) add('fin', secs[i].concat(secs[i + 1]));
+      }
+    } else if (P.HTL != null && P.HTR != null && P.TPT != null && S.tail) {
+      // a V: each panel from the post's top to its tip node, the tail's chord and taper
+      const t = S.tail, root = N[P.TPT].p, c0 = t.hChord || 0.8, c1 = c0 * (t.hTaper == null ? 1 : t.hTaper);
+      for (const H of [P.HTL, P.HTR]) {
+        const tip = N[H].p, u = [tip[0] - root[0], tip[1] - root[1], tip[2] - root[2]], ul = Math.hypot(u[0], u[1], u[2]) || 1;
+        let nr = [0, u[2] / ul, -u[1] / ul]; const nl = Math.hypot(nr[1], nr[2]) || 1; nr = [0, nr[1] / nl, nr[2] / nl];
+        const sec = (p, c) => { const th = TH(c); return [-0.5, 0.5].flatMap(f => [1, -1].map(s => [p[0] + f * c, p[1] + nr[1] * th * s, p[2] + nr[2] * th * s])); };
+        add('stab', sec([t.hX != null ? t.hX : root[0], root[1], root[2]], c0).concat(sec(tip, c1)));
+      }
+    }
+    // THE TRUSS OUTSIDE THE SKIN: every external member a square tube round its two nodes (a strut 5 cm, a leg 3.5,
+    // a wire 6 mm)
+    for (const b of fr.beams || []) {
+      if (!b.ext || !N[b.a] || !N[b.b]) continue;
+      const A = N[b.a].p, B = N[b.b].p, r = b.vis === 'wire' ? 0.006 : (b.cls === 'gear' ? 0.035 : 0.05);
+      const d = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], L = Math.hypot(d[0], d[1], d[2]); if (L < 1e-6) continue;
+      const u = [d[0] / L, d[1] / L, d[2] / L], up = Math.abs(u[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+      let e1 = [u[1] * up[2] - u[2] * up[1], u[2] * up[0] - u[0] * up[2], u[0] * up[1] - u[1] * up[0]]; const l1 = Math.hypot(e1[0], e1[1], e1[2]); e1 = e1.map(v => v / l1);
+      const e2 = [u[1] * e1[2] - u[2] * e1[1], u[2] * e1[0] - u[0] * e1[2], u[0] * e1[1] - u[1] * e1[0]];
+      const ring = p => [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([a, c]) => [0, 1, 2].map(q => p[q] + (e1[q] * a + e2[q] * c) * r));
+      add('truss', ring(A).concat(ring(B)));
+    }
+    // THE WHEELS: every node with a radius, a drum of that radius across its axle (the tyre's width 0.45 r, 5 cm least)
+    for (const nd of N) {
+      if (!(nd.r > 0)) continue;
+      const w = Math.max(0.05, 0.45 * nd.r), R = nd.r / Math.cos(Math.PI / 12), ring = [];
+      for (let i = 0; i < 12; i++) { const a = 2 * Math.PI * i / 12; for (const s of [-1, 1]) ring.push([nd.p[0] + R * Math.cos(a), nd.p[1] + R * Math.sin(a), nd.p[2] + s * w]); }
+      add('wheel', ring);
+    }
+    // THE ENGINES: each mount's nodes. On the nose (ahead of the first station, within its width) the cowl from the
+    // first station to 12 cm ahead of the mount, as wide as the cylinders (the mount's half-width + 21 cm); elsewhere
+    // a nacelle 30 cm round the mount, 80 cm aft of it. The propeller a slab of its diameter, blades upright as the
+    // parked capture stands them, 20 cm ahead of the mount (a pusher's behind its nacelle)
+    const groups = [];
+    const eo = fr.refs && fr.refs.engineOf, en = fr.refs && fr.refs.engine;
+    if (Array.isArray(en) && en.length) en.forEach((i, j) => { const k = (Array.isArray(eo) && eo[j] != null) ? eo[j] : 0; (groups[k] = groups[k] || []).push(i); });   // refs.engineOf: each mount node's engine
+    else if (P.EL != null && P.ER != null) groups.push([P.EL, P.ER]);
+    const D = (S.prop && S.prop.D) || 1.8;
+    groups.forEach((g, k) => {
+      const ps = g.map(i => N[i] && N[i].p).filter(Boolean); if (!ps.length) return;
+      let x0 = Infinity, x1 = -Infinity, y = 0, z = 0, zw = 0;
+      for (const p of ps) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y += p[1] / ps.length; z += p[2] / ps.length; }
+      for (const p of ps) zw = Math.max(zw, Math.abs(p[2] - z));
+      const e = S.engines && S.engines[k], push = !!(e && /push|aft|rear/.test(String(e.mount || '')));
+      const s0 = st[0], onNose = s0 && x0 < s0[0][0] && Math.abs(z) < 0.2;
+      if (onNose && !push) {
+        const yb = Math.min(s0[0][1], s0[1][1]), yt = Math.max(s0[2][1], s0[3][1]), cw = Math.max(Math.abs(s0[0][2]), zw + 0.21), xf = x0 - 0.12;
+        add('engine', s0.concat([[xf, yb + 0.1, z - cw], [xf, yb + 0.1, z + cw], [xf, yt, z - cw], [xf, yt, z + cw]]));
+      } else {
+        const r = 0.3, xa = push ? x0 - 0.8 : x0 - 0.12, xb = push ? x1 + 0.12 : x1 + 0.8, pts = [];
+        for (const x of [xa, xb]) for (const dy of [-r, r]) for (const dz of [-r, r]) pts.push([x, y + dy, z + dz]);
+        add('engine', pts);
+      }
+      if (hubs) return;                            // the capture's own hubs stand the blades (aircraftShape)
+      const xp = push ? x1 + 0.2 : x0 - 0.2, pts = [];
+      for (const x of [xp - 0.08, xp + 0.08]) for (const dy of [-D / 2, D / 2]) for (const dz of [-0.1, 0.1]) pts.push([x, y + dy, z + dz]);
+      add('prop', pts);
+    });
+    return out;
+  }
+  // THE MAP INTO THE PARKED OBJECT'S FRAME. The drawn aeroplane (CAGE_JOIN.snapshot) is in the model frame through
+  // the flight pose's INVERSE: xy' = B^-1 xy + T, with B the pose's basis off the frame's own nodes (the body axis
+  // noseFrame -> tailMid, the up pair upLo -> upHi: G337's oblique pair - on the Cub a 3.4 deg shear), z' = -z. T is
+  // what lands the frame's mains on the drawn ones (the calibration's own contract), read off the capture:
+  // drawn.mains = the mean of its mainsL / mainsR pivots. Then the parked stance (drawn.stance: pitch about z, the
+  // lift) and the turn nose to +x (x, z negated) - parked.js hitboxOf's own chain. Returns the shape, or null (no
+  // spec door, no mains: the caller keeps the mesh raster).
+  function aircraftShape(spec, drawn) {
+    if (!spec || !drawn || !drawn.mains || !drawn.stance || typeof resolveSpec !== 'function' || typeof genFrame !== 'function') return null;
+    const RS = resolveSpec(JSON.parse(JSON.stringify(spec))), S = RS.spec || RS, fr = genFrame(S);
+    const refs = fr.refs || {};
+    if (!refs.mains || refs.mains.length < 2) return null;
+    const mean = ids => { const a = Array.isArray(ids) ? ids : [ids]; let x = 0, y = 0; for (const i of a) { x += fr.nodes[i].p[0]; y += fr.nodes[i].p[1]; } return [x / a.length, y / a.length]; };
+    const nF = mean(refs.noseFrame), tM = mean(refs.tailMid), uH = mean(refs.upHi), uL = mean(refs.upLo);
+    const ax = [tM[0] - nF[0], tM[1] - nF[1]], la = Math.hypot(ax[0], ax[1]) || 1e-9, uy = [uH[0] - uL[0], uH[1] - uL[1]], lu = Math.hypot(uy[0], uy[1]) || 1e-9;
+    const xA = [ax[0] / la, ax[1] / la], yU = [uy[0] / lu, uy[1] / lu], det = xA[0] * yU[1] - yU[0] * xA[1];
+    const BK = Math.abs(det) > 0.2 ? [yU[1] / det, -yU[0] / det, -xA[1] / det, xA[0] / det] : [1, 0, 0, 1];
+    const lin = (x, y) => [BK[0] * x + BK[1] * y, BK[2] * x + BK[3] * y];
+    const m = mean(refs.mains), lm = lin(m[0], m[1]), T = [drawn.mains[0] - lm[0], drawn.mains[1] - lm[1]];
+    const c = Math.cos(drawn.stance.pitch), s = Math.sin(drawn.stance.pitch), lift = drawn.stance.lift || 0;
+    const map = p => { const l = lin(p[0], p[1]), vx = l[0] + T[0], vy = l[1] + T[1]; return [-(vx * c - vy * s), vx * s + vy * c + lift, p[2]]; };
+    const list = aircraftPieces(fr, S, !!(drawn.props && drawn.props.length)).map(q => ({ tag: q.tag, pts: q.pts.map(map) }));
+    // THE BLADES where the capture hung them (its prop parts' hubs, in the model frame, x aft: the stance and the turn
+    // only), upright in that frame as the parked capture stands them, the spec's diameter, the blade root's chord (12 cm
+    // either side) and its pitch (20 cm fore and aft of the disc); the spinner ahead of the hub (its radius spinner.dia of the prop's, its length
+    // spinner.len of its own radius)
+    const D = (S.prop && S.prop.D) || 1.8, sp = S.prop && S.prop.spinner, rs = (sp && sp.shape !== 'none') ? 1.05 * (sp.dia || 0.17) * D / 2 : 0;
+    const mdl = (x, y, z) => [-(x * c - y * s), x * s + y * c + lift, -z];
+    for (const h of drawn.props || []) {
+      const pts = [];
+      for (const dx of [-0.2, 0.2]) for (const dy of [-D / 2, D / 2]) for (const dz of [-0.12, 0.12]) pts.push(mdl(h[0] + dx, h[1] + dy, (h[2] || 0) + dz));
+      list.push({ tag: 'prop', pts });
+      if (rs > 0) { const q = []; for (const dx of [0.25, -(sp.len || 2.2) * rs / 1.05]) for (const dy of [-rs, rs]) for (const dz of [-rs, rs]) q.push(mdl(h[0] + dx, h[1] + dy, (h[2] || 0) + dz)); list.push({ tag: 'prop', pts: q }); }
+    }
+    const shape = pieces(list);
+    if (shape) shape.aircraft = true;
+    return shape;
+  }
+
+  // what aircraftShape needs of a parked capture (parked.js's record, its LOD's stance): the drawn mains' mean and
+  // the propellers' hubs, both off the capture's own parts (model frame)
+  function parkedDrawn(vis, stance) {
+    if (!vis || !vis.parts || !stance) return null;
+    const m = vis.parts.filter(p => p.kind === 'mainsL' || p.kind === 'mainsR');
+    if (!m.length) return null;
+    return { mains: [m.reduce((a, p) => a + p.pivot[0], 0) / m.length, m.reduce((a, p) => a + p.pivot[1], 0) / m.length],
+             props: vis.parts.filter(p => p.kind === 'prop').map(p => p.pivot), stance };
+  }
+
   // ---- a point against a placed shape --------------------------------------------------------
   // rec: { x, z, yaw, y0, c, s, shape }. out: [dx, dy, dz] world displacement to be out of it, or null.
   const MARGIN = 0.05;
@@ -108,6 +416,13 @@ const OBSTACLES = (() => {
     const dx = px - rec.x, dz = pz - rec.z;
     if (dx * dx + dz * dz > S.xr * S.xr) return null;
     const lx = dx * rec.c - dz * rec.s, lz = dx * rec.s + dz * rec.c;
+    if (S.pieces) {
+      if (py - rec.y0 > S.top) return null;
+      const q = penPieces(S, lx, py - rec.y0, lz); if (!q) return null;
+      const o = out || [0, 0, 0], e = q[3] + MARGIN;
+      o[0] = (q[0] * rec.c + q[2] * rec.s) * e; o[1] = q[1] * e; o[2] = (-q[0] * rec.s + q[2] * rec.c) * e;
+      return o;
+    }
     const i = Math.floor((lx - S.ox) / S.cell), j = Math.floor((lz - S.oz) / S.cell);
     if (i < 0 || j < 0 || i >= S.nx || j >= S.nz) return null;
     const k = j * S.nx + i;
@@ -181,6 +496,6 @@ const OBSTACLES = (() => {
     };
     return api;
   }
-  return { rasterise, box, penetration, make, BIN, MARGIN };
+  return { rasterise, box, penetration, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLES };

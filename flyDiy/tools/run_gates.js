@@ -395,6 +395,10 @@ const GATES = [
   // prop's shape against its own mesh (a cell, 0.5 m), an aeroplane rolled at
   // a wall stops against it, the analytic world's settlements registered (~40 s)
   { id: 'OBSTACLE', file: '_obstacle_check.js', tier: 'core' },
+  // G1060-G1062: a parked aeroplane's hitbox from its own spec (convex pieces off the physics frame, no grid) - the
+  // pieces' push, every archetype stands one, then the page in node (one page, ~3 GB): the Jolene captures' wing
+  // covered to 5 mm and overhung by <= 5 cm (the old raster's tip printed), a taxi past at 10 cm / into the wing, the cost
+  { id: 'HITBOX', file: '_hitbox_check.js', tier: 'core', wall: 180 },
   // THE FLOAT IN WATER (G370): the H0 spike, headless — Archimedes against
   // the analytic sections and a Monte-Carlo volume, omega*dt / c*dt of the
   // water terms against the fleet's envelope, the hump on three tows, the
