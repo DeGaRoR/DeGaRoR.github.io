@@ -63174,3 +63174,21 @@ GATES: FLOWNBAKE (66 checks), PARKED, PROGRAMS, LIVERY, LIGHT, SHADOWSKY, SKIN, 
 UISMOKE, STAND, WEATHER - all PASS (run_gates --only, 2026-09-28 18:5x); FRAMECOST with ALLOW rows G875/G878 (the bake
 in the census, the folds' three links, their buffers, their bone textures - one small texSubImage2D per skinned fold
 a frame - and the Cub's taxi fill; on train 13 no town row), 107 counters down (the train's --update takes them); not run: --all.
+## G1047 THE PAVEMENT'S SPECULAR ANTI-ALIAS + THE JOINTS ANTI-ALIASED PER AXIS (2026-09-28, B11-EYES)
+The user, after G1046: "add a specular anti-alias to the pavement like the ground, and ... the normals defining the
+lanes/slabs [must] not get wider at low viewing angles". Seen live, taxiing on Jolene (same rig as G1045): the fix alone
+"same as 11, no flicker"; then "test B fixes the blurry normals, well done, and the spec AA gave more realistic far view".
+- RECIPE.specAA 0.35 (uSpec.z; the ground's FILTER_DEFAULTS.specAA): gPavR = max(gPavR, min(1, specAA sqrt(|fw|))) -
+  the roughness floor grows with the metres a pixel covers, so relief finer than a pixel cannot fling the sun's lobe.
+- RECIPE.jointAniso 1 (uEdge2.y): each joint anti-aliased by the footprint ACROSS it - the length of that coordinate's
+  screen gradient (fwA = sqrt(dx^2 + dy^2) per axis) - where it took max(fwidth.u, fwidth.v): looking down a runway u's
+  footprint is metres and v's centimetres, so every longitudinal joint (and its bevel normal, its dirt) was smeared by
+  u's. 0 = the old isotropic rule, bit for bit. The transverse joints still thin with distance: along the view they
+  really do span metres a pixel (sharper there IS the shimmer). The edge line (wPav) and the cracks keep fwm.
+- One derivative pair (pdx, pdy = dFdx/dFdy(P)) feeds both fwidth (abs + abs) and fwA: no extra derivative ops.
+COST, MEASURED (EXT_disjoint_timer_query_webgl2, RTX 3080, 1594x890, paused on Jolene's apron with the apron filling the
+view; the pavement meshes alone on a camera layer, shadows frozen; 4 x 80 renders alternating the G1046 program and this
+one): medians old/new 2.47/2.09 (first, warming), 1.81/1.83, 1.82/1.81, 1.81/1.82 ms - no difference above noise
+(< 0.02 ms). References: an empty render 0.59 ms, the pavement layer 1.61 ms (so the pavement ~1.0 ms here), the full
+main pass 8.76 ms. The in-page rig: capture the main pass's scene/camera off WORLD.renderer.render, time
+renderer.render with a TIME_ELAPSED query, swap programs by wrapping each pavement material's onBeforeCompile + key.
