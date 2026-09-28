@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 45ed03b979bb9687
+// body-sha256: 29e445ad05706d49
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8117,20 +8117,31 @@ function compose(rec0, world, opts) {
   const GR_V = 1, GR_CELL = 16, GR_COOK_EPS = 1e-4;   // GR_V: bump with any change to grBake's arithmetic or its constants
   let grCook = null, grModH = null;
   const grCellKey = (ci, cj) => ci * 131072 + cj;
-  const num = v => (typeof v === 'number' ? (Object.is(v, -0) ? '-0' : String(v)) : JSON.stringify(v === undefined ? null : v));
+  // G995 (A5-LOAD): A SIGNATURE HASHES NUMBERS TO 10 MICRONS, not their last bit. The cook runs in node, the page in
+  // Chrome: two V8s whose Math (the frame's cos/sin, hypot) can differ in the last ulp - a runway's centreline read
+  // -1038.14518562303 in one and -1038.1451856230306 in the other, and every cell under HOME, the airport road and
+  // the east taxiway (33 of 92) refused a cook it matched to 1e-13 m. The quantum is far below anything the lattice
+  // resolves (the cooked tiles are the lazy ones to 0.04 mm) and far above an engine's rounding.
+  const Q5 = v => { const r = Math.round(v * 1e5) / 1e5; return Object.is(r, -0) ? 0 : r; };
+  const num = v => (typeof v === 'number' ? (isFinite(v) ? String(Q5(v)) : String(v)) : JSON.stringify(v === undefined ? null : v, (k, x) => (typeof x === 'number' && isFinite(x)) ? Q5(x) : x));
   const h64 = t => { let a = 0x811c9dc5, b = 0x6c62272e; for (let i = 0; i < t.length; i++) { const c = t.charCodeAt(i); a = Math.imul(a ^ c, 0x01000193); b = Math.imul(b ^ c, 0x5bd1e995); b ^= b >>> 15; } return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0'); };
+  function modParts(M) {
+    const b = M.bbox, parts = [M.kind, M.id, num(M.feather), num(M.y0), num(M.def || null), num(b.x0), num(b.z0), num(b.x1), num(b.z1)];
+    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
+    for (const [x, z] of [[cx, cz], [b.x0, b.z0], [b.x1, b.z1], [(cx + b.x0) / 2, (cz + b.z1) / 2], [(cx + b.x1) / 2, (cz + b.z0) / 2]])
+      parts.push(num(M.apply(x, z, 0)), num(M.apply(x, z, 1)));
+    return parts;
+  }
   function modHash(M) {
     if (!grModH) grModH = new Map();
     let h = grModH.get(M);
     if (h) return h;
-    const b = M.bbox, parts = [M.kind, M.id, num(M.feather), num(M.y0), JSON.stringify(M.def || null), num(b.x0), num(b.z0), num(b.x1), num(b.z1)];
-    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
-    for (const [x, z] of [[cx, cz], [b.x0, b.z0], [b.x1, b.z1], [(cx + b.x0) / 2, (cz + b.z1) / 2], [(cx + b.x1) / 2, (cz + b.z0) / 2]])
-      parts.push(num(M.apply(x, z, 0)), num(M.apply(x, z, 1)));
-    h = h64(parts.join('|'));
+    h = h64(modParts(M).join('|'));
     grModH.set(M, h);
     return h;
   }
+  // (G995) a modifier's signature parts by id, readable: what a page and a node composition that disagree on it differ in
+  const rasterModParts = id => { const M = mods.find(m => m.id === id); return M ? modParts(M) : null; };
   // the modifiers that can reach a cell's tiles, in the order they are listed (the order grBake applies them in)
   function cellMods(ci, cj) {
     const S = GR_TS * GR_CELL, x0 = ci * S, z0 = cj * S, x1 = x0 + S, z1 = z0 + S, seen = new Set();
@@ -8143,12 +8154,17 @@ function compose(rec0, world, opts) {
     });
     return mods.filter(M => seen.has(M));
   }
-  function rasterCellSig(ci, cj) {
+  // (G995) rasterCellParts: what a cell's signature hashes, readable - the modifiers' ids beside their hashes - so a page
+  // and a node composition that disagree on a cell can be diffed (a rig's --eval against the cook's own)
+  function rasterCellParts(ci, cj) {
     const S = GR_TS * GR_CELL, x0 = ci * S, z0 = cj * S;
     const parts = ['GR', GR_V, GR_TS, GR_TOL, GR_RELIEF, GR_CELL, F.anchor.x, F.anchor.z, F.yaw, F.c, F.s, F.y0, ci, cj].map(num);
-    for (const M of cellMods(ci, cj)) parts.push(modHash(M));
+    for (const M of cellMods(ci, cj)) parts.push(modHash(M) + '=' + M.kind + ':' + M.id);
     for (const [x, z] of [[x0, z0], [x0 + S, z0], [x0, z0 + S], [x0 + S, z0 + S], [x0 + S / 2, z0 + S / 2]]) { const w = F.toWorld(x, z); parts.push(num(world.terrainH(w[0], w[1]))); }
-    return 'g' + GR_V + '-' + h64(parts.join('|'));
+    return parts;
+  }
+  function rasterCellSig(ci, cj) {
+    return 'g' + GR_V + '-' + h64(rasterCellParts(ci, cj).map(p => String(p).replace(/=.*$/, '')).join('|'));
   }
   // every tile a modifier touches, in (i, j) order, baked fresh (not cached): fn(i, j, tile) - the cook's walk;
   // keep(i, j), when given, says before the bake which tiles are wanted
@@ -8333,7 +8349,7 @@ function compose(rec0, world, opts) {
     },
     get raster() { return grOn ? { on: true, tile: GR_TS, cap: GR_CAP, tiles: grTiles.size, ...grStats, rMaxBaked: grRmax, cookedCells: grCook ? grCook.size : 0 } : { on: false }; },
     // (G835) the cooked raster: a cell's signature, the cook's walk, the load
-    rasterCellSig, rasterEach, rasterLoad, rasterCell: GR_TS * GR_CELL, rasterTile: GR_TS,
+    rasterCellSig, rasterCellParts, rasterModParts, rasterEach, rasterLoad, rasterCell: GR_TS * GR_CELL, rasterTile: GR_TS,
     rasterCached: () => Array.from(grTiles, ([k, T]) => { const i = Math.round(k / 131072); return [i, k - i * 131072, T ? T.n : 0]; }),   // [i, j, n (0: the ground)] - what the cache holds (a probe's)
     // THE CEILING OVER A WORLD RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH(x, z, h)
     // for every point of it, given B >= h there. Each modifier blends h toward its target with a
@@ -8390,6 +8406,9 @@ function compose(rec0, world, opts) {
     // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
     // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
     pavedAt: (x, z) => pavedAt(x, z),
+    // pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }: any pavement here or within `margin`, other than
+    // `skip` - what a loose thing (a stone, litter, a parked car) asks before it is put down (G1003)
+    pavedNear: (x, z, margin, skip) => pavedNear(x, z, margin, skip),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -8440,17 +8459,17 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) continue;
     const L = RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass, cls = L.cls || 'grass', band = paveBand(r, cls, false), reach = band + PAVE_FADE + 6;
     const E = runwayEnds(r);
-    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt' });
+    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', id: r.id, cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt' });
   }
   for (const rd of roadObjs) {
     if (rd.runway || rd.ribbon === false) continue;
     const L = RUNWAY_LOOKS[rd.look] || RUNWAY_LOOKS.gravel, cls = L.cls || 'gravel', band = paveBand(rd, cls, true), reach = rd.w / 2 + band + PAVE_FADE + 6;
     const bb = polyBBox(rd.pts);
-    addCov({ x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, { kind: 'road', cls, band, halfW: rd.w / 2, road: rd, soft: cls !== 'concrete' && cls !== 'asphalt' });
+    addCov({ x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, { kind: 'road', id: rd.id, cls, band, halfW: rd.w / 2, road: rd, soft: cls !== 'concrete' && cls !== 'asphalt' });
   }
   for (const pp of pavePolys) {
     const cls = RUNWAY_LOOKS[pp.look].cls, band = paveBand(pp, cls, true), reach = band + PAVE_FADE + 6;
-    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', cls, band, poly: pp.poly, soft: false });
+    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', id: pp.id, cls, band, poly: pp.poly, soft: false });
   }
   const zoneOf = id => rec.layers.zones.find(z => z.id === id) || null;
   // the strip's dEdge (its box's SDF: + inside), the road's (w/2 - the distance), the polygon's
@@ -8460,6 +8479,30 @@ function compose(rec0, world, opts) {
     if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
     return -sdPoly(it.poly, lx, lz);
   };
+  // G1003 (A6-GROUND, the Jolene playtest: "rocks and debris lie on the taxiway and runway"): IS ANY PAVEMENT HERE, OR
+  // WITHIN `margin` OF HERE - other than `skip` (an id: a strip's band stones ask whether they lie on ANOTHER strip, a
+  // road's parked car whether it stands on anything but its own road). Every strip (grass ones too), road and paved
+  // polygon of coverAt's index by its own dEdge (> -margin), then the surface layer's PAVED polygons (the aprons the
+  // editor draws as surface, which that index does not hold) at the point and `margin` round it. The GRAVEL / SAND
+  // polygons are not asked: on Jolene they are the runways' own shoulders (y_sh13_*, y_sh02_*), where the stones lie.
+  // -> null | { d, id, kind, cls } (d: metres inside that pavement's edge, > -margin; kind 'surface' for a polygon).
+  function pavedNear(x, z, margin, skip) {
+    const m = margin > 0 ? margin : 0, L = F.toLocal(x, z), lx = L[0], lz = L[1];
+    const cell = CIDX.query(lx, lz);
+    if (cell) for (const it of cell) {
+      if (skip != null && it.id === skip) continue;
+      const d = dEdgeOf(it, lx, lz);
+      if (d > -m) return { d, id: it.id, kind: it.kind, cls: it.cls };
+    }
+    const offs = m > 0 ? [[0, 0], [m, 0], [-m, 0], [0, m], [0, -m]] : [[0, 0]];
+    for (const o2 of offs) {
+      const px = lx + o2[0], pz = lz + o2[1];
+      const G = gsCells.get(gsKey(Math.floor(px / GS_C), Math.floor(pz / GS_C)));
+      if (!G) continue;
+      for (let n = G.S.length - 1; n >= 0; n--) { const sf = surf[G.S[n]]; if (inBB(sf.bbox, px, pz) && inPoly(sf.poly, px, pz)) { if (sf.surface === SURFACE.PAVED) return { d: 0, id: null, kind: 'surface', cls: null }; break; } }
+    }
+    return null;
+  }
   // `pave` (2026-09-22): the PAVEMENT half only - the caller wants to know whether it may stand
   // something here, not which plot's lawn it is. It skips the plot walk, which is the query's cost
   // (36 polygons in a village), and the tree fill calls this on every lattice point of every chunk.
@@ -15904,6 +15947,7 @@ function makePilot(sim, def, world, opts) {
   let eTrim = 0;
   let pendReEng = false;
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
+  let humpR = 0, humpPk = 0, humpPast = false;   // G790: the hull's resistance / weight on the water run, filtered; its peak; past it
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
   let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
@@ -16233,7 +16277,17 @@ function makePilot(sim, def, world, opts) {
         return g;
       };
       const tL = gOf(1, M.floor), tR = gOf(-1, M.floor), gStrip = M.hAt(0.5 * M.R.len);
-      if (D && D.climbTurn) { side = -D.climbTurn; sideForced = true; }
+      // G790: ON THE WATER THE CLIMB-OUT'S TURN DOES NOT CARRY THE PATTERN ONTO THE HILLS. The runway model scores a
+      // 30 deg turn from 300 m past the end against 1.5 km of ground (25_airfield siteRunwayModel) - Jolene's lane
+      // (Annette Dock) turns right past a 90 m point, and its sense forced the whole circuit onto the island's side:
+      // 359-436 m of ground under the Cessna on floats' downwind and base against 39 m over the Sound, a circuit
+      // planned at 482-562 m, flown by a 0.4 m/s climb (ceiling-accepted), the 180 hp build 1.9 m over the ridge at
+      // 160 s (a 34 deg zoom, then a dive), the O-540 build never round (leg time-outs, a go-around, gave up). A water
+      // lane's circuit is flown over the water when that side's ground under the pattern is lower by a quarter of the
+      // circuit height (the rule below, as on land without a turn); the climb-out keeps its own turn. Land strips as before.
+      const onWater = to.surface === 4 || !!to.water;
+      const turnSide = D && D.climbTurn ? -D.climbTurn : 0;
+      if (turnSide && !(onWater && (turnSide > 0 ? tL - tR : tR - tL) > 0.25 * hC)) { side = turnSide; sideForced = true; }
       else side = tR < tL - 0.25 * hC ? -1 : 1;
       if (Math.max(tL, tR) - gStrip > 0.5 * hC) sideForced = true;
       const gL = gOf(1, M.ground), gR = gOf(-1, M.ground);
@@ -17569,7 +17623,7 @@ function makePilot(sim, def, world, opts) {
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
-          rollS0 = sAl; committedTO = false;
+          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false;
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
           // take-off run (an accelerate-stop wants about two runs) — the
@@ -17619,7 +17673,24 @@ function makePilot(sim, def, world, opts) {
         // 8.5 m/s from t 10 to 22, on the step at 24, unstuck at 35); the
         // accelerate-stop planner condemned it at 13 s. In the displacement
         // regime (the afterbody wet) the planner waits; on the step it judges.
-        const atHump = !!(sim.hydro && sim.hydro.floats.some(fx => fx.out && fx.out.wetA > 0.2));
+        // G790: ...AND THE HUMP IS THE PEAK OF THE HULL'S RESISTANCE, not a wet afterbody alone. The user's
+        // Cessna on floats (IO-360, 6.3 m hulls) ventilates its step at 6.9 m/s - the afterbody dry, the planing
+        // lift over the buoyancy - and then ploughs on at 12-15 deg of trim, R/W 0.19-0.24, 0.15-0.3 m/s^2, for
+        // 25 s until the resistance falls away at 11-13 m/s; it unsticks at 54 s in 690 m of the 1 500 m lane
+        // (the sheet says 1 160). Judged at 9.9 s on the hump's acceleration it was condemned ("0.23 m/s^2 needs
+        // 1 201 m more") on the game's SEA lane, every flight. The hull is past the hump once its resistance
+        // (the floats' hydro force against the motion, over the weight, a 1 s filter) has fallen under
+        // `humpOff` of the run's peak, and stays past it; until then the planner waits, as G396.4 wanted. A
+        // hull that never gets over it still meets the user's rule below (the fraction of the run used).
+        if (sim.hydro) {
+          const vn = Math.max(0.5, Math.hypot(vcg[0], vcg[2]));
+          let R = 0;
+          for (const fx of sim.hydro.floats) if (fx.out && fx.out.F) R -= (fx.out.F[0] * vcg[0] + fx.out.F[2] * vcg[2]) / vn;
+          humpR += Math.min(1, dt / 1.0) * (R / (sim.totalM * 9.81) - humpR);
+          humpPk = Math.max(humpPk, humpR);
+          if (humpPk > 0.05 && humpR < (A.humpOff ?? 0.6) * humpPk) humpPast = true;
+        }
+        const atHump = !!(sim.hydro && (sim.hydro.floats.some(fx => fx.out && fx.out.wetA > 0.2) || !humpPast));
         if (canStopHere) {
           // the prediction waits for the 2 s acceleration filter to settle
           // (three time constants after the throttle opens): at 3 s a slow
@@ -28949,9 +29020,9 @@ const GEN_CDT_MAX = 0.65;      // damping rate * dt
 // then THE FLIGHT BOX (genFlightBox) where the wing's springs ask for more than GEN_BOX_N. The params
 // carry both: `substeps` is what flies, `substepsTrue` (only when they differ) what the actual wing
 // needs - the load test flies that one (sim.trueBox(), 30_solver.js).
-function genSubsteps(nodes, beams) {
+function genSubsteps(nodes, beams, clusters) {
   const N0 = genSubstepsTrue(nodes, beams);
-  const N = genFlightBox(nodes, beams, N0);
+  const N = genFlightBox(nodes, beams, N0, clusters);
   return N < N0 ? { substeps: N, substepsTrue: N0 } : { substeps: N0 };
 }
 function genSubstepsTrue(nodes, beams) {
@@ -29030,22 +29101,43 @@ function genSubstepsTrue(nodes, beams) {
 // cruise (HANDOVER G610).
 const GEN_BOX_N = 120;
 const GEN_BOX_KMIN = 0.25;
-function genFlightBox(nodes, beams, N0) {
+// THE FLOAT IS A RIGID BODY (G790, W-CHECK - the float keel's step, PHYSICS PERF's own chantier). A float's hull is
+// 15 nodes held by 45 members (61_gen_frame, kMul 8, damped at zeta ~1.9) AND one shape-matched cluster with no
+// omega: the solver projects every node onto the hull's rigid fit every substep and takes the deformation out of
+// the velocities with it (30_solver shapeMatch, al = 1). So each substep starts with no stretch and no stretch
+// rate in any member inside the hull: their forces are zero there, whatever their k and c - no frequency, nothing
+// for the integrator to carry. Measured on the user's Cessna on floats: the 90 members with k = c = 0 fly the
+// same 56 s take-off run (the CG 0.5 mm apart after 1 s, under 1 m after 700 m of hump and porpoise, V to 0.1 m/s,
+// the lift-off in the same second). Yet the network's power iteration counted them: their dampers summed on each
+// hull node were 2.93 of the float Cessna's 3.61 at 200 (5.67 at 120), which is the whole reason G610's box
+// refused it and it flew 200. The box's network is the aeroplane AS IT FLIES: the members inside one rigid float
+// cluster are left out of it (and out of the non-wing springs' need), and nothing of theirs is softened or cut -
+// the hull's members, the struts and every strain readout keep what the builder gave them. Only 'float' clusters
+// (the other rigid groups - the fin, a rod, a boom with omega 0 - are the same physics, not asked here).
+function genRigidFloatOf(nodes, clusters) {
+  const tag = new Int32Array(nodes.length);
+  let t = 0;
+  for (const C of clusters || []) if (C && C.cls === 'float' && !(C.omega > 0) && C.nodes) { t++; for (const i of C.nodes) tag[i] = t; }
+  return t ? b => tag[b.a] !== 0 && tag[b.a] === tag[b.b] : null;
+}
+function genFlightBox(nodes, beams, N0, clusters) {
   if (!(N0 > GEN_BOX_N)) return N0;
   const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
   const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
+  const hull = genRigidFloatOf(nodes, clusters);
+  const net = hull ? beams.filter(b => !hull(b)) : beams;   // G790: the network the integrator carries
   let wOther = 0, anyWing = false;
-  for (const b of beams) { if (b.cls === 'wing') anyWing = true; else wOther = Math.max(wOther, Math.sqrt(b.k * invOf(b))); }
+  for (const b of net) { if (b.cls === 'wing') anyWing = true; else wOther = Math.max(wOther, Math.sqrt(b.k * invOf(b))); }
   if (!anyWing) return N0;
   const lo = Math.max(GEN_BOX_N, Math.ceil(wOther / (60 * GEN_WDT_MAX)));
   if (lo >= N0) return N0;
   const kAt = N => { const w = GEN_WDT_MAX * 60 * N; return b => (b.cls === 'wing' ? Math.min(b.k, w * w / invOf(b)) : b.k); };
-  const cAt = N => { const kf = kAt(N); return b => Math.min(b.c * Math.sqrt(kf(b) / b.k), GEN_CDT_MAX * 60 * N / invOf(b)); };
+  const cAt = N => { const kf = kAt(N); return b => (hull && hull(b) ? b.c : Math.min(b.c * Math.sqrt(kf(b) / b.k), GEN_CDT_MAX * 60 * N / invOf(b))); };
   const holds = N => {
     const kf = kAt(N);
     for (const b of beams) if (kf(b) < GEN_BOX_KMIN * b.k) return false;
     const dt = 1 / (60 * N);
-    return genNetEig(nodes, beams, kf, dry) * dt * dt + 2 * genNetEig(nodes, beams, cAt(N), dry) * dt <= GEN_NET_MAX;
+    return genNetEig(nodes, net, kf, dry) * dt * dt + 2 * genNetEig(nodes, net, cAt(N), dry) * dt <= GEN_NET_MAX;
   };
   let N = lo;
   if (!holds(N)) {
@@ -29385,7 +29477,7 @@ function genParams(S, fr, strips) {
           // per tank, in spec order, what the frame billed (the fuel gauges)
           vessels: ((S.energy && S.energy.vessels) || []).map(v => ({
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
-    ...genSubsteps(fr.nodes, fr.beams),        // substeps (+ substepsTrue where the flight box is softened, G610)
+    ...genSubsteps(fr.nodes, fr.beams, fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
     polarWing, polarTail, polarFin,
     // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
     // GATE GEN's G9 and every reader of the flat name keep working)
@@ -32383,4 +32475,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
