@@ -116,19 +116,17 @@ const ALLOW = {
     "media/tex/trees": 80,
     "media/tex/vessel": 4,
   },
-  // 'new THREE.*Material' sites per file: 176 in 39 files
+  // 'new THREE.*Material' sites per file: 176 in 39 files; 169 in 34 after AS4a (G920: props, animals, trees, cliffs, the
+  // cover ring, the strip stones, the prop disc and the contact blobs make theirs in src/viewer/matlib.js)
   mats: {
     "src/viewer/aa_resolve.js": 1,
     "src/viewer/aeroskin.js": 3,
-    "src/viewer/animals.js": 1,
     "src/viewer/app.js": 12,
     "src/viewer/atmo.js": 5,
     "src/viewer/blueprint.js": 1,
     "src/viewer/cabin.js": 4,
-    "src/viewer/cliffs.js": 1,
     "src/viewer/clouds.js": 7,
     "src/viewer/cockpit.js": 1,
-    "src/viewer/cover_ring.js": 2,
     "src/viewer/editor.js": 5,
     "src/viewer/guardrail.js": 1,
     "src/viewer/hangar.js": 43,
@@ -140,18 +138,14 @@ const ALLOW = {
     "src/viewer/plume.js": 1,
     "src/viewer/post_fx.js": 1,
     "src/viewer/powerline.js": 1,
-    "src/viewer/props.js": 1,
-    "src/viewer/prop_disc.js": 1,   // G672 (A2-FADES): the prop disc, admitted by the train-2 integration until MATLIB (AS4a) exists
-    "src/viewer/contact_shadow.js": 1,   // G1002 (A6-GROUND): the tyres' contact blob, admitted by the train-11 integration until MATLIB (AS4a) exists
     "src/viewer/flown_bake.js": 2,   // G870 (C4a): the baked exterior material and its bake-pass material, admitted by the train-13 integration until MATLIB (AS4a, train 14) takes them
     "src/viewer/refplane.js": 1,
     "src/viewer/render_premises.js": 23,
-    "src/viewer/render_world.js": 19,
+    "src/viewer/render_world.js": 18,
     "src/viewer/rock_map.js": 2,
     "src/viewer/shader_warm.js": 2,
     "src/viewer/sky_glare.js": 1,
     "src/viewer/spray.js": 2,
-    "src/viewer/trees.js": 1,
     "src/viewer/water.js": 3,
     "src/viewer/workshop.js": 2,
     "tools/_big_gen.js": 1,

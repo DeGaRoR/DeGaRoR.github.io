@@ -211,7 +211,9 @@ function siteEdgeFade(THREE, mat, soft, w, d) {
                '    diffuseColor.a *= 1.0 - smoothstep(1.0 - uFadeK, 1.0, d); }');
   };
   // r128 caches programs on the hook's SOURCE, so the key has to say what this
-  // injection is or two differently-faded patches share one program
-  mat.customProgramCacheKey = () => 'site-fade-' + (soft == null ? 0.34 : soft);
+  // injection is. Not its softness (AS4a M6, G922): uFadeK is a uniform each
+  // material hands its program, so two differently-faded patches share ONE
+  // program, each with its own value.
+  mat.customProgramCacheKey = () => 'site-fade';
   return mat;
 }

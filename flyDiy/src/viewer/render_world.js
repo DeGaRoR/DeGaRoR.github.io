@@ -219,8 +219,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const pavRec = () => (world.premises && world.premises.rec) || null;
   let pavLibShared = null;
   const pavLib = keys => (pavLibShared = PAV.sharedLib(THREE, keys));
-  // THE STONES: the rock pack's subjects, their coarsest rung, one InstancedMesh a part; the scatter
-  // reads the strip's field (the band's outer half is where the roller pushed them)
+  // THE STONES: the rock pack's subjects, their coarsest rung; the scatter reads the strip's field (the band's
+  // outer half is where the roller pushed them). ONE MATERIAL PER MAP (AS4a M3, G923; the cover ring's G585 rule):
+  // a stone's material was a plain copy per part - the same map, roughness 1, metalness 0 - and the pack's 19 parts
+  // wear 7 maps. MATLIB's one record per map (shared with the cliffs, which ask for the same record)
   const ROCK_JOBS = [];
   let rockParts = null;
   const rockPartsOf = () => {
@@ -231,7 +233,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       let b = null; try { const ladder = e.sub.rungs || []; b = treeBuild(THREE, e.key, Math.max(0, ladder.length - 1), 'rungs'); } catch (err) { continue; }
       if (!b || !b.parts.length) continue;
       const bb = e.sub.bb || [-0.5, 0, -0.5, 0.5, 1, 0.5];
-      out.push({ key: e.key, bb, parts: b.parts.map(q => ({ geo: q.geo, mat: new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 }) })) });
+      out.push({ key: e.key, bb, parts: b.parts.map(q => ({ geo: q.geo, mat: MATLIB.shared(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }) })) });
     }
     return (rockParts = out);
   };
@@ -266,6 +268,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // cells, each part of each cell its own mesh at the cell's centre with an honest sphere
     // (frustum-culled in every pass), and a cell is a LOD whose second level is nothing: gone where
     // its largest stone is under ~1.5 px at 1080p (730 x its size, past the cell's own reach).
+    // A CELL'S STONES ARE BATCHES (AS4a M3, G923; G585's pattern): one THREE.BatchedMesh per (map, casts or not)
+    // in a cell, holding every part that wears the map, where each part x size class was an InstancedMesh of its
+    // own - 148 main draws at the taxi. three culls each stone against each camera and shadow camera (the cell's
+    // honest sphere was the instanced mesh's whole test); the same geometry, material values and matrices, in the
+    // same cells, gone at the same distance. `?rockbatch=0` stands them the instanced way (the A/B).
+    const ROCK_BATCH = !(typeof location !== 'undefined' && /[?&]rockbatch=0/.test(location.search || '')) && !!THREE.BatchedMesh;
     const ROCK_CELL = 400, cellsOf = new Map();
     for (const r of rows) { const k = Math.floor(r[0] / ROCK_CELL) + ',' + Math.floor(r[1] / ROCK_CELL); let a = cellsOf.get(k); if (!a) cellsOf.set(k, a = []); a.push(r); }
     for (const cellRows of cellsOf.values()) {
@@ -277,6 +285,31 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // NO SHADOW UNDER HALF A METRE (G667, the playtest's cut list): a 7-30 cm stone's shadow is a few texels
       // of either map, and every stone was a caster in both - the ones of 0.5 m and more (the 5 % drawn 2.5x,
       // about 2 % of them) keep theirs, in a mesh of their own
+      if (ROCK_BATCH) {
+        const bat = new Map();   // (material, casts) -> { mat, cast, geos: Set, list: [[geo, matrix]] }
+        cellRows.forEach((r, ri) => {
+          const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0, cast = r[3] >= 0.5;
+          q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); sv.set(sc, sc, sc); mtx.compose(p, q, sv);
+          for (const part of P.parts) {
+            const k = part.mat.uuid + (cast ? '|c' : '|n');
+            let B = bat.get(k); if (!B) bat.set(k, B = { mat: part.mat, cast, geos: [], list: [] });
+            if (!B.geos.includes(part.geo)) B.geos.push(part.geo);
+            B.list.push([part.geo, mtx.clone()]);
+          }
+        });
+        const made = [];
+        for (const B of bat.values()) {
+          let nv = 0, ni = 0; for (const g of B.geos) { nv += g.attributes.position.count; ni += g.index ? g.index.count : 0; }
+          const bm = new THREE.BatchedMesh(B.list.length, nv, ni, MATLIB.variant(THREE, B.mat, 'batch'));
+          const ids = new Map(B.geos.map(g => [g, bm.addGeometry(g)]));
+          for (const [g, m4] of B.list) bm.setMatrixAt(bm.addInstance(ids.get(g)), m4);
+          bm.perObjectFrustumCulled = true; bm.sortObjects = false;   // three's per-stone culling, each camera; opaque, no sort
+          bm.castShadow = B.cast; bm.receiveShadow = true; bm.name = 'rocks:' + o.id;
+          bm.userData.geos = B.geos;   // geometry id -> geometry (GATE MATLIB reads the stones back)
+          grp.add(bm); made.push(bm);
+        }
+        grp.userData.rockBatches = made;
+      } else
       parts.forEach((P, pi) => {
         const h0 = Math.max(0.05, P.bb[4] - P.bb[1]);
         for (const bigSet of [false, true]) {
@@ -294,6 +327,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       let obj = grp;
       if (THREE.LOD) { obj = new THREE.LOD(); obj.addLevel(grp, 0); obj.addLevel(new THREE.Group(), reach + 730 * Math.max(0.3, big)); }
       obj.name = 'rocks:' + o.id; obj.position.set(cx, cy, cz);
+      obj.userData.rockBatches = grp.userData.rockBatches;   // the repaint disposes them (a batch owns its buffers)
       scene.add(keep(obj));
     }
   };
@@ -3790,15 +3824,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // pack), each dressed with its band, and the L0 parts kept for the
     // series' own impostor bake - a snag seen from 500 m is a snag, not a
     // fir. The snag has one rung and it spans the whole near tier.
-    const ladderFor = (key, ser) => {
+    // ONE BAND CLONE PER (MATERIAL, RUNG) IN A PLANTING (AS4a M2, G921): treeBuild hands out one material per
+    // record (a collection's map), so every subject of a species wears the same one on a rung, and its clone - the
+    // same material, the same band edges, the same program - is made once per planting (`memo`), not once per
+    // subject and series. A planting disposes what it made (plantedKit / SHAPE.kit), so the two plantings keep
+    // their own memo: neither disposes a clone the other still draws.
+    const ladderFor = (key, ser, memo) => {
       const S = treeList().find(e => e.key === key).sub;
       const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
       const n = Math.min(list.length, LOD_R.length);
       const ladder = [];
+      const once = (k, mk) => { if (!memo) return mk(); let v = memo.get(k); if (v === undefined) memo.set(k, v = mk()); return v; };
       for (let r = 0; r < n; r++) {
         const B = treeBuild(THREE, key, r, ser);
         ladder.push({ r, n, parts: B.parts.map(q => ({
-          geo: q.geo, mat: bandMat(q.mat, r, n), depth: bandDepth(q.mat, r, n) })) });
+          geo: q.geo, mat: once('m' + q.mat.uuid + '|' + r + '|' + n, () => bandMat(q.mat, r, n)),
+          depth: once('d' + q.mat.uuid + '|' + r + '|' + n, () => bandDepth(q.mat, r, n)) })) });
       }
       const B0 = treeBuild(THREE, key, 0, ser);
       return { name: ser, ladder, parts: B0.parts, scaleY: B0.scaleY || 1 };
@@ -4027,9 +4068,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         try {
           // `parts` is L0 (what the impostor bakes from); `ladder` is every
           // rung of the series, dressed with its band - see ladderFor
+          const memo = new Map();   // the band clones of this planting (ladderFor)
           const withLadder = key => {
             const col = treeList().find(e => e.key === key).col;
-            const out = { series: SERIES.map(ser => ladderFor(key, ser)),
+            const out = { series: SERIES.map(ser => ladderFor(key, ser, memo)),
                           dead: (col.place && col.place.dead) || 0,
                           sink: (col.place && col.place.sink) || 0,
                           size: (col.place && col.place.size) || 1 };
@@ -4382,6 +4424,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // 450 m near tier, and for a pack whose chain ended in a crossed
             // billboard that card was the fill, by the ten thousand, at any
             // distance. Three bands, the generated rungs, one rule.
+            const memo = new Map();   // the band clones of this fill (ladderFor)
             const forKey = key => {
               const col = treeList().find(e => e.key === key).col;
               const sub = treeList().find(e => e.key === key).sub;
@@ -4389,7 +4432,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
                        sink: (col.place && col.place.sink) || 0,
                        size: (col.place && col.place.size) || 1,
                        h: (sub && sub.h) || 15,                    // the model's height, metres (W2: the canopy sizes it)
-                       series: SERIES.map(ser => Object.assign(ladderFor(key, ser), { imp: null })) };
+                       series: SERIES.map(ser => Object.assign(ladderFor(key, ser, memo), { imp: null })) };
             };
             const pool = treePool();
             real = pool.length ? pool.map(p => Object.assign(forKey(p.key), { w: p.w, key: p.key })) : null;
@@ -5789,7 +5832,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
         if (a0 && !a0.premises) continue;
-        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); } }
+        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.userData && o.userData.rockBatches) for (const b of o.userData.rockBatches) b.dispose(); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); } }
         stripStood.delete(id);
       }
       for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);

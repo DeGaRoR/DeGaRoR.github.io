@@ -57,7 +57,7 @@
     const A = new THREE.InstancedBufferAttribute(new Float32Array(MAX), 1);
     if (A.setUsage && THREE.DynamicDrawUsage) A.setUsage(THREE.DynamicDrawUsage);
     g.setAttribute('aA', A);
-    const m = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false,
+    const m = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, fog: false, toneMapped: false });
     const mesh = new THREE.InstancedMesh(g, m, MAX);
     mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;

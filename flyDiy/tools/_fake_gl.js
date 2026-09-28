@@ -190,6 +190,8 @@ function boot() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   ctx.window.THREE = THREE;
   const load = rel => { vm.runInContext(fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/^'use strict';/m, ''), ctx); };
+  // THE MATERIAL LIBRARY (AS4a, G920) comes with the three: the viewer's families make their materials through it
+  load(path.join('src', 'viewer', 'matlib.js')); ctx.MATLIB = vm.runInContext('MATLIB', ctx);
   return { THREE, renderer, links, ctx, load };
 }
 module.exports = { boot, ROOT, makeGL, makeRecorder, reflectProgram, preprocess, THREE_SRC };
