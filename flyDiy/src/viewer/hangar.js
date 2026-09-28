@@ -1717,8 +1717,12 @@ if (!EXT) {
                  '    diffuseColor.rgb *= mix(1.0, m * 2.0, uMacroA); }');
     };
     // r128 caches programs on the hook SOURCE, so two materials with the same
-    // injection share a program — but only if the key says so.
-    mat.customProgramCacheKey = () => 'site-macro-' + metres + '-' + amount;
+    // injection share a program — but only if the key says so. The key names
+    // the INJECTION, never its values (AS4a M6, G922): metres and amount are
+    // uniforms each material hands its program (onBeforeCompile runs per
+    // material; the program is shared), so the grass and the strip are one
+    // program, not two.
+    mat.customProgramCacheKey = () => 'site-macro';
   };
   macroise(M.grass, 180, 0.55);
   macroise(M.strip, 90, 0.30);

@@ -60,7 +60,13 @@ function propTexture(THREE, id, srgb) {
 
 // The factory. `rec` is the flat material record the baker wrote; nothing here
 // branches on which asset it came from.
-function propMaterial(THREE, rec) {
+// ONE MATERIAL PER RECORD (AS4a, G920): the material is MATLIB's, shared by every
+// part, prop, level of detail and animal whose record is the same (the same maps,
+// the same values) - the registry's 832 part materials are 275 records (GATE
+// MATLIB), mostly because a prop's cut levels wear the full prop's records. `scope` keeps a record's material to itself where a
+// caller changes it on its own: a glowing record (the day's hand dims a fixture's
+// glass per key, propSetGlowOf) is shared only by the key and its levels.
+function propMaterial(THREE, rec, scope) {
   const o = {
     color: new THREE.Color(rec.col[0], rec.col[1], rec.col[2]),
     roughness: rec.rough,
@@ -90,8 +96,8 @@ function propMaterial(THREE, rec) {
     if (rec.emisMap) o.emissiveMap = propTexture(THREE, rec.emisMap, true);
   }
   if (rec.blend) { o.transparent = true; o.opacity = rec.opacity; }
-  const m = new THREE.MeshStandardMaterial(o);
-  m.userData.env0 = m.envMapIntensity;
+  const m = MATLIB.shared(THREE, rec.blend ? 'glass' : rec.emis ? 'glow' : 'std', o, scope);
+  m.userData.env0 = 1.0;
   return m;
 }
 
@@ -124,9 +130,11 @@ function propWarm(key) {
 // Build the geometry + materials for one prop, ONCE. Later calls for the same
 // key hand out fresh Meshes over the same buffers: a hangar with six crates
 // uploads one crate.
+let PROP_THREE = null;                  // the three the props were built with (propDust's late copies)
 function propBuild(THREE, key) {
   let built = PROP_BUILT.get(key);
   if (built) return built;
+  PROP_THREE = THREE;
   const prop = PROP_REG.props[key];
   if (!prop) throw new Error('unknown prop: ' + key);
   const dec = decodeProp(prop, PROP_BINS.get(key));
@@ -142,15 +150,58 @@ function propBuild(THREE, key) {
     g.setIndex(new THREE.BufferAttribute(part.idx, 1));
     g.computeBoundingSphere();
     geos.push(g);
-    mats.push(propMaterial(THREE, prop.mats[part.mat]));
+    const rec = prop.mats[part.mat];
+    // a glowing record belongs to its fixture (the key and its cuts glow together); a dusted key keeps its own
+    mats.push(propMaterial(THREE, rec, PROP_DUST.has(key) ? 'dust:' + key : rec.emis ? 'glow:' + (prop.lodOf || key) : ''));
   }
   built = { prop, geos, mats };
+  propDraws(THREE, built);
   PROP_BUILT.set(key, built);
   const dust = PROP_DUST.get(key);
   if (dust) for (const m of mats) dustMaterial(m, dust);
   const glow = PROP_GLOW.get(key);
   if (glow != null) glowMaterials(mats, glow);
   return built;
+}
+
+// THE DRAW LIST (AS4a M1, G920): the parts of a prop that wear ONE record's material (MATLIB: the same maps and
+// values) are one geometry and one draw - a prop's cut levels carry the full prop's records on fewer, coarser parts,
+// and a scanned kit piece repeats a record over several (car_junk_l3: 5 parts, 2 records). Only the opaque, unlit
+// ones: a transparent part keeps its own draw (fillPropMesh sorts them last) and a glowing one its own mesh (the
+// shed's emitter books claim a fixture by its meshes). The parts themselves stay as they were - `geos` / `mats`
+// by part, which the cage's baked pieces (app.js, parked.js) and the cabin read by index - and the placements draw
+// `dgeos` / `dmats`. The same triangles in the same frame under the same material: the picture is the parts'.
+function propDraws(THREE, b) {
+  const groups = new Map(), order = [];
+  b.geos.forEach((g, i) => {
+    const m = b.mats[i], lit = m.emissive && (m.emissive.r || m.emissive.g || m.emissive.b);
+    const k = (m.transparent || lit || !MATLIB.share) ? 'solo#' + i : m.uuid;
+    let G = groups.get(k); if (!G) { groups.set(k, G = { m, list: [] }); order.push(G); }
+    G.list.push(g);
+  });
+  b.dgeos = []; b.dmats = [];
+  for (const G of order) {
+    b.dmats.push(G.m);
+    if (G.list.length === 1) { b.dgeos.push(G.list[0]); continue; }
+    let nv = 0, ni = 0; for (const g of G.list) { nv += g.attributes.position.count; ni += g.index.count; }
+    const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+    let v = 0, t = 0;
+    for (const g of G.list) {
+      const A = g.attributes, n = A.position.count, I = g.index.array;
+      pos.set(A.position.array, v * 3); nrm.set(A.normal.array, v * 3); uvs.set(A.uv.array, v * 2);
+      for (let j = 0; j < I.length; j++) idx[t + j] = I[j] + v;
+      v += n; t += I.length;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+    const uv = new THREE.BufferAttribute(uvs, 2);
+    g.setAttribute('uv', uv); g.setAttribute('uv1', uv);
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.computeBoundingSphere();
+    g.userData.parts = G.list.map(x => b.geos.indexOf(x));   // which parts it draws (GATE MATLIB)
+    b.dgeos.push(g);
+  }
 }
 
 // THE FIXTURE'S OWN GLOW (G456; G417's account named a propSetGlowOf that never existed). A lit
@@ -161,11 +212,11 @@ function propBuild(THREE, key) {
 // the dust, so every placement of the fixture glows together (one material a part, shared).
 const PROP_GLOW = new Map();             // prop key -> k
 function glowMaterials(mats, k) {
-  for (const m of mats) {
-    if (!m.emissive || (m.emissive.r === 0 && m.emissive.g === 0 && m.emissive.b === 0)) continue;
+  for (const m0 of mats) MATLIB.each(m0, m => {
+    if (!m.emissive || (m.emissive.r === 0 && m.emissive.g === 0 && m.emissive.b === 0)) return;
     if (m.userData.emis0 == null) m.userData.emis0 = m.emissiveIntensity;
     m.emissiveIntensity = m.userData.emis0 * k;
-  }
+  });
 }
 function propSetGlowOf(key, k) {
   PROP_GLOW.set(key, k);
@@ -207,17 +258,24 @@ function propDust(key, h, k) {
   const d = { h: h || 0.4, k: k === undefined ? 0.85 : k };
   PROP_DUST.set(key, d);
   const b = PROP_BUILT.get(key);
-  if (b) for (const m of b.mats) dustMaterial(m, d);
+  if (!b) return;
+  // a record's material is shared with other keys (MATLIB): a key dusted after its build takes its own copies first
+  // (the placements made from now on wear them; its meshes already standing keep the plain ones)
+  b.mats = b.mats.map((m, i) => { if (m.userData.dusted || MATLIB.users(m) <= 1) return m;
+    MATLIB.release(m); const p = b.prop.mats[b.prop.parts[i].mat]; const c = propMaterial(PROP_THREE, p, 'dust:' + key);
+    c.envMapIntensity = c.userData.env0 * PROP_ENV; return c; });
+  for (const m of b.mats) dustMaterial(m, d);
+  propDraws(PROP_THREE, b);
 }
 
 // A placeable instance. Transparent parts go last in the group so a gauge glass
 // does not sort in front of the dial behind it.
 function fillPropMesh(THREE, key, g) {
   const b = propBuild(THREE, key);
-  const order = b.geos.map((_, i) => i)
-    .sort((a, c) => (b.mats[a].transparent ? 1 : 0) - (b.mats[c].transparent ? 1 : 0));
+  const order = b.dgeos.map((_, i) => i)
+    .sort((a, c) => (b.dmats[a].transparent ? 1 : 0) - (b.dmats[c].transparent ? 1 : 0));
   for (const i of order) {
-    const m = new THREE.Mesh(b.geos[i], b.mats[i]);
+    const m = new THREE.Mesh(b.dgeos[i], b.dmats[i]);
     m.castShadow = true;
     m.receiveShadow = true;
     // SHARED, AND SAID SO. propBuild caches one geometry and one material per
@@ -373,8 +431,10 @@ function propInstBatch(levelKey, part) {
   if (b) return b;
   if (!propReady(levelKey)) return null;
   const built = propBuild(PROP_INST.THREE, levelKey);
-  if (part >= built.geos.length) return null;
-  b = { id, geo: built.geos[part], mat: built.mats[part], mesh: null, cap: 0, list: [] };
+  if (part >= built.dgeos.length) return null;
+  // the instanced draw wears the record's INSTANCED sibling (MATLIB.variant): a material drawn by plain meshes and
+  // instanced ones re-derives its program at every switch between them in the sorted list
+  b = { id, geo: built.dgeos[part], mat: MATLIB.variant(PROP_INST.THREE, built.dmats[part], 'inst'), mesh: null, cap: 0, list: [] };
   PROP_INST.batches.set(id, b);
   return b;
 }
@@ -445,15 +505,15 @@ let PROP_ENV = 1.0;
 function propSetEnv(f) {
   PROP_ENV = f;
   for (const b of PROP_BUILT.values())
-    for (const m of b.mats) m.envMapIntensity = m.userData.env0 * f;
+    for (const m0 of b.mats) MATLIB.each(m0, m => { m.envMapIntensity = m.userData.env0 * f; });
 }
 function propEnv() { return PROP_ENV; }
 
 function propDispose(key) {
   const b = PROP_BUILT.get(key);
   if (!b) return;
-  for (const g of b.geos) g.dispose();
-  for (const m of b.mats) m.dispose();
+  for (const g of new Set(b.geos.concat(b.dgeos || []))) g.dispose();
+  for (const m of b.mats) MATLIB.release(m);   // shared by record: the last user disposes it
   PROP_BUILT.delete(key);
 }
 

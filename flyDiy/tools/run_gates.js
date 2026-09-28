@@ -189,6 +189,10 @@ const GATES = [
   // fold by content. The flat check needs python + Pillow and is skipped (never failed) without.
   // ~2 s + ~13 s of PIL decode. Carries --selftest.
   { id: 'ASSETS', file: '_asset_check.js', tier: 'core', wall: 20 },
+  // THE MATERIAL LIBRARY (AS4a, G920-G924): the props / pier / animals, the trees and the strip stones drawn with
+  // and without the library's sharing (and the stones' batches) on the recording GL - every part the same uniforms,
+  // textures and program key, fewer materials and draws; the program keys carry no uniform value
+  { id: 'MATLIB', file: '_matlib_check.js', tier: 'core', wall: 40 },
   // the geometry transport (G930, AS5a): every media/geo bin ONE gzip stream,
   // decoded, re-hashed against its name, its layout against every manifest
   // that names it. ~2 s. Negative-verified (its selftest runs every time).

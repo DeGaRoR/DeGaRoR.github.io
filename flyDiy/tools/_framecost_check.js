@@ -66,7 +66,18 @@ const TOL = { rel: 0.01, abs: 2 };
 // e.g. { key: 'stand/draws.shadow', build: '*', upTo: 760, why: 'the craft-only cascade: the aeroplane drawn into its own map', g: 'G1100' }
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
-const ALLOW = [];
+const ALLOW = [
+  // G923 (AS4a M3): the strip stones are BatchedMeshes per (map, casts) in a cell - taxi main draws 1097 -> 982, shadow
+  // 533 -> 495 (Cub) - and a batch binds its matrix and index textures and re-uploads its visible-instance list
+  // (three's per-instance culling) at each of its draws: a small texSubImage2D and two binds where a stone part was a
+  // whole draw
+  { key: 'stand/gl.bindTexture', build: '*', upTo: 1390, why: 'the strip stones\' batches bind their matrix / index textures', g: 'G923' },
+  { key: 'taxi/gl.bindTexture', build: '*', upTo: 1080, why: 'the strip stones\' batches bind their matrix / index textures', g: 'G923' },
+  { key: 'stand/gl.texSubImage2D', build: '*', upTo: 130, why: 'a strip-stone batch uploads its visible-instance list at each draw', g: 'G923' },
+  { key: 'taxi/gl.texSubImage2D', build: '*', upTo: 165, why: 'a strip-stone batch uploads its visible-instance list at each draw', g: 'G923' },
+  { key: 'stand/bytes.texSubImage2D', build: '*', upTo: 500000, why: 'the strip-stone batches\' instance lists (~3 KB a frame)', g: 'G923' },
+  { key: 'taxi/bytes.texSubImage2D', build: '*', upTo: 470000, why: 'the strip-stone batches\' instance lists (~3 KB a frame)', g: 'G923' },
+];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
 async function census(build) {
@@ -101,8 +112,8 @@ async function census(build) {
   let cur = null, rows = null;
   const landing = () => { const B = W.BOOT; if (bootMark.cur && B && B.state === 'landing' && !/:landing$/.test(bootMark.cur)) bootMark.open(bootMark.cur.split(':')[0] + ':landing'); };
   P.onFrame((ph) => {
-    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; cur = snap(); }
-    else if (ph === 'end' && rows && cur) { const r = diff(cur, snap()); r.programs = P.rec.progUsed.size; rows.push(r); if (C.drawn) C.lastDrawn = C.drawn; }
+    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; cur = snap(); }
+    else if (ph === 'end' && rows && cur) { const r = diff(cur, snap()); r.programs = P.rec.progUsed.size; rows.push(r); if (C.drawn) { C.lastDrawn = C.drawn; C.lastShadow = C.drawnShadow; } }
   });
   let FP = null;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
@@ -122,6 +133,7 @@ async function census(build) {
   C.phase = () => P.rec.phase;
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
   views.stand = await measure();
+  const detail = { stand: drawnDetail(C) };
   if (C.who) { for (const [k, m] of Object.entries(C.who)) { process.stderr.write('WHO ' + k + '\n'); const w = e => e[1] * (+((/\[(\d+) B\]$/.exec(e[0]) || [0, 1])[1]) || 1); for (const [st, n] of Object.entries(m).sort((a, b) => w(b) - w(a)).slice(0, 8)) process.stderr.write('   ' + n + '  ' + st + '\n'); } C.who = null; P.rec.onCall = null; }
   // THE PROOF (on the Cub's stand, where the baseline view is fresh): three regressions injected, each measured
   const selftest = build === 'cub' ? await injections(W, FP, C, views.stand, measure) : null;
@@ -133,12 +145,15 @@ async function census(build) {
   const pose = Object.assign({}, TAXI_PIN, { off: route ? +Math.hypot(route.x - TAXI_PIN.x, route.z - TAXI_PIN.z).toFixed(1) : null });
   placeAt(W, FP, pose);
   views.taxi = await measure();
+  detail.taxi = drawnDetail(C);
   views.taxi.pose = [pose.x, pose.z, pose.hdg, pose.off === null ? 'no route' : 'route ' + pose.off + ' m off'];
   const wd = FP.world();
   const health = { premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5) };
-  return { build, health, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  detail.scene = matCensus(W.WORLD && W.WORLD.scene);
+  if (process.env.FRAMECOST_WHAT) process.stderr.write('DETAIL ' + JSON.stringify(detail, null, 1) + '\n');
+  return { build, health, frames: FRAMES, warm: WARM, views, detail, boot: bootMark.rows, selftest, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
 }
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
@@ -176,6 +191,53 @@ async function debugAids(W, P, FP, C, getRows, setRows) {
     process.stderr.write('WHAT ' + (C.lastDrawn || []).length + '\n' + Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => '  ' + v + ' ' + k).join('\n') + '\n');
   }
 }
+// ---- WHAT A VIEW DREW, AND THE MATERIALS BY UUID AND BY SIGNATURE (AS4a, G920) --------------------------------------
+// Read off the last measured frame's own draw list (the hooks above record the drawn meshes; nothing is drawn for it): the
+// draws by FAMILY (the nearest named ancestor's name, cut at its first ':' '#' or digit) in the main and shadow passes, and
+// the distinct materials drawn, by object (uuid) and by SIGNATURE (the type and every value three uploads or keys a program
+// on: maps by texture, colours, scalars, the program key, and the uniforms a hook hands in). Reported in the census
+// (`detail`), never ratcheted: the gap uuid - sig is what a signature dedupe can still take.
+const famOf = o => { for (let n = o; n; n = n.parent) if (n.name) return n.name.split(/[:#]/)[0].replace(/[0-9_.-]+$/, '') || n.name; return o.type; };
+const MAT_KEYS = ['side', 'transparent', 'opacity', 'alphaTest', 'alphaToCoverage', 'depthWrite', 'depthTest', 'blending', 'vertexColors', 'flatShading', 'wireframe', 'fog', 'toneMapped',
+  'roughness', 'metalness', 'emissiveIntensity', 'envMapIntensity', 'aoMapIntensity', 'lightMapIntensity', 'bumpScale', 'displacementScale', 'clearcoat', 'transmission', 'sheen', 'ior', 'reflectivity', 'dithering', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'colorWrite', 'visible'];
+function matSig(m) {
+  if (!m) return 'none';
+  const t = [m.type];
+  for (const k of MAT_KEYS) if (m[k] !== undefined) t.push(k + '=' + (typeof m[k] === 'number' ? +m[k].toFixed(5) : m[k]));
+  for (const k of Object.keys(m)) { const v = m[k]; if (v && v.isTexture) t.push(k + '@' + v.uuid); else if (v && v.isColor) t.push(k + '#' + v.getHexString()); else if (v && v.isVector2) t.push(k + '<' + v.x + ',' + v.y); }
+  try { t.push('key:' + (m.customProgramCacheKey ? m.customProgramCacheKey() : '')); } catch (e) {}
+  if (m.defines) t.push('def:' + JSON.stringify(m.defines));
+  // a hook's own uniforms (a material's userData holds the objects its onBeforeCompile hands to the program)
+  const ud = m.userData || {};
+  for (const k of Object.keys(ud).sort()) { const v = ud[k]; if (v && typeof v === 'object' && 'value' in v) t.push('u.' + k + '=' + (typeof v.value === 'number' ? +v.value.toFixed(5) : v.value && v.value.uuid ? v.value.uuid : JSON.stringify(v.value))); }
+  if (m.uniforms) for (const k of Object.keys(m.uniforms).sort()) { const v = m.uniforms[k] && m.uniforms[k].value; t.push('U.' + k + '=' + (v && v.uuid ? v.uuid : v && v.isColor ? v.getHexString() : typeof v === 'number' ? +v.toFixed(5) : v && v.toArray ? v.toArray().map(x => +(+x).toFixed(5)).join(',') : typeof v)); }
+  return t.join('|');
+}
+function matTally(objs) {
+  const uu = new Set(), sg = new Set(), fam = {};
+  for (const o of objs) for (const m of [].concat(o.material)) { if (!m) continue; uu.add(m.uuid); const s = matSig(m); sg.add(s);
+    const f = famOf(o), F = fam[f] || (fam[f] = { uu: new Set(), sg: new Set() }); F.uu.add(m.uuid); F.sg.add(s); }
+  const byFam = {}; for (const [f, F] of Object.entries(fam)) byFam[f] = [F.uu.size, F.sg.size];
+  // the trees' materials (trees.js hookLeaf: userData.uLeaf) by uuid, by signature, and by MAP alone - the last is
+  // what a tint carried per instance (not per material) would leave
+  const leaf = { uu: new Set(), sg: new Set(), map: new Set() };
+  for (const o of objs) for (const m of [].concat(o.material)) if (m && m.userData && m.userData.uLeaf) { leaf.uu.add(m.uuid); leaf.sg.add(matSig(m)); leaf.map.add((m.map ? m.map.uuid : '-') + '|' + m.userData.uLeaf.value + '|' + (m.userData.uCut ? m.userData.uCut.value : 0) + '|' + (m.customProgramCacheKey ? m.customProgramCacheKey() : '')); }
+  return { uuid: uu.size, sig: sg.size, byFam, leaf: [leaf.uu.size, leaf.sg.size, leaf.map.size] };
+}
+function drawnDetail(C) {
+  const count = list => { const r = {}; for (const o of list || []) { const f = famOf(o); r[f] = (r[f] || 0) + 1; } return r; };
+  // FRAMECOST_WHAT: the main pass's draws by the nearest name and the material (the families' members), stderr only
+  let names = null;
+  if (process.env.FRAMECOST_WHAT) { names = {}; for (const o of C.lastDrawn || []) { let n = o; while (n && !n.name) n = n.parent; const m = [].concat(o.material)[0];
+    const k = (o.isInstancedMesh ? 'I:' : o.isBatchedMesh ? 'B:' : o.isSkinnedMesh ? 'S:' : '') + (n ? n.name : '-') + ' | ' + (m ? (m.name || m.type) + (m.map ? ' map' : '') : '-'); names[k] = (names[k] || 0) + 1; }
+    names = Object.fromEntries(Object.entries(names).sort((a, b) => b[1] - a[1]).slice(0, 80)); }
+  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names };
+}
+function matCensus(scene) {
+  if (!scene) return null;
+  const objs = []; scene.traverse(o => { if (o.material && (o.isMesh || o.isPoints || o.isLine || o.isSprite)) objs.push(o); });
+  return matTally(objs);
+}
 // ---- the counters inside three -------------------------------------------------------------------------------
 function installThree(T, C) {
   const O = T.Object3D.prototype, M = T.Material.prototype;
@@ -187,10 +249,10 @@ function installThree(T, C) {
   const hook = (proto, k, ctr, pick) => {
     const DEF = proto[k], slot = '__fc_' + k;
     Object.defineProperty(proto, k, { configurable: true,
-      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === 'main')) C.drawn.push(this); if (f) { C[ctr]++; return f; } return DEF; },
+      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this); if (f) { C[ctr]++; return f; } return DEF; },
       set(f) { Object.defineProperty(this, slot, { value: f === DEF ? undefined : f, writable: true, configurable: true, enumerable: false }); } });
   };
-  hook(O, 'onBeforeRender', 'obr', true); hook(O, 'onAfterRender', 'oar'); hook(O, 'onBeforeShadow', 'obs'); hook(O, 'onAfterShadow', 'obs');
+  hook(O, 'onBeforeRender', 'obr', 'main'); hook(O, 'onAfterRender', 'oar'); hook(O, 'onBeforeShadow', 'obs', 'shadow'); hook(O, 'onAfterShadow', 'obs');
   hook(M, 'onBeforeRender', 'mobr');
   const F = T.Frustum.prototype;
   for (const k of ['intersectsObject', 'intersectsSprite']) { const f = F[k]; F[k] = function (o) { C.frustum++; return f.call(this, o); }; }

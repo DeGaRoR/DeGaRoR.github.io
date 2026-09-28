@@ -72,7 +72,8 @@ var CLIFFS = (() => {
           let b = null; try { b = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
           if (!b || !b.parts.length) continue;
           const bb = e.sub.bb || [-1, 0, -1, 1, 1, 1];
-          const parts = b.parts.map(q => { const m = new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 }); return { geo: q.geo, mat: m }; });
+          // ONE MATERIAL PER MAP (AS4a M3, G923): MATLIB's record, the strip stones' own where they share a picture
+          const parts = b.parts.map(q => ({ geo: q.geo, mat: MATLIB.shared(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }) }));
           out.push({ key: e.key, parts, len: Math.max(bb[3] - bb[0], bb[5] - bb[2]), h: bb[4] - bb[1], wide: (bb[3] - bb[0]) >= (bb[5] - bb[2]) });
         }
       }

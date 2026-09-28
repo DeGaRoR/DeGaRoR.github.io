@@ -585,7 +585,14 @@
       // collection's `alpha` dial can only raise it
       const T = found.col.tint || {};
       const cut = cutout ? (Math.max(M.cutoff || 0, T.alpha || 0) || 0.5) : 0;
-      const mat = hookLeaf(new THREE.MeshStandardMaterial({
+      // ONE MATERIAL PER RECORD (AS4a M2, G921). A part's material is its map, its cutout and its collection's tint
+      // row - nothing of the subject, the series or the rung - so every subject and rung of a collection that wears
+      // one map wears ONE material (MATLIB's, scoped to the collection: the tint and the cutoff are the collection's,
+      // uniforms of the material). The kinds the cover ring dresses in place (its fade, its master, its contrast: a
+      // cover, a shrub, debris, a rock) keep a material per series and rung as well, so the ring's rung never
+      // dresses a rung a premises garden draws.
+      const scope = 'tree:' + found.col.name + '|' + (cutout ? 'leaf' : 'bark') + '|' + cut + (isTree(found.col) ? '' : '|' + ser + '|' + (lod || 0));
+      const params = {
         map: M.base ? texture(THREE, M.base, true,
           cutout && M.coverageMips ? Math.round(255 * cut) : null) : null,
         side: cutout ? THREE.DoubleSide : THREE.FrontSide,
@@ -593,8 +600,9 @@
         // empty texels, and the eight-sample buffer resolves the edge
         alphaTest: cutout ? 0.01 : 0, alphaToCoverage: !!cutout,
         transparent: false, roughness: 1, metalness: 0,
-      }), !!cutout, T, cut);
-      mat.name = d.mat;
+      };
+      let mat = MATLIB.shared(THREE, cutout ? 'cut' : 'std', params, scope);
+      if (!mat.userData.uLeaf) { hookLeaf(mat, !!cutout, T, cut); mat.name = d.mat; }
       parts.push({ geo: g, mat: mat, cutout: !!cutout });
     }
     built = { parts: parts, bb: found.sub.bb, h: found.sub.h,
