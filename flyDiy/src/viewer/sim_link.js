@@ -113,6 +113,7 @@ const SIM_LINK = (() => {
     let running = false, rateSent = 1;
     let wvPend = [];                       // lockstep: [k, version after] of the stamped world commands, in send order
     let opsQ = [];                         // the world's ops since the last flush
+    const wvQ = [];                        // real time: [frame, version sent by it] not yet seen in a snapshot
     const baseIds = new Set();
 
     // ---- THE WORLD'S OPS: the page world's registry and day calls, wrapped once ----------------------
@@ -410,7 +411,11 @@ const SIM_LINK = (() => {
         if (simRate !== rateSent) { post({ cmd: 'rate', x: simRate }); rateSent = simRate; }
         V.flush();
         if (!running) { post({ cmd: 'run' }); running = true; }
-        if (st.wvSeen < st.wvSent) { st.wvLagFrames++; if (st.wvLagFrames > st.wvMaxLag) st.wvMaxLag = st.wvLagFrames; } else st.wvLagFrames = 0;
+        // the lag: frames since the oldest world version the worker has not shown yet was sent
+        wvQ.push([F.frames, st.wvSent]);
+        while (wvQ.length && wvQ[0][1] <= st.wvSeen) wvQ.shift();
+        st.wvLagFrames = wvQ.length ? F.frames - wvQ[0][0] : 0;
+        if (st.wvLagFrames > st.wvMaxLag) st.wvMaxLag = st.wvLagFrames;
       }
       st.batches++;
       const ran = mirror(performance.timeOrigin + performance.now());

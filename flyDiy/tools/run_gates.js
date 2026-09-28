@@ -289,9 +289,9 @@ const GATES = [
   { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 60 },
   // G816 (C1b): the PAGE flown through the worker - dev.html?simw=1 against dev.html in the page-in-node harness (its
   // Worker shim: node worker_threads, the same Blob source and messages), the Cub and the metal Cessna, the roll-out,
-  // the hold and 40 s of taxi: every step's p / v / CG / phase and every frame's page reads bit-identical, no solver
-  // step on the page's thread. Four page runs ONE AT A TIME (~3.6 GB each, ~12 min each on a 4-core cloud box): full tier
-  { id: 'SIMWORKER-PAGE', file: '_simworker_page_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 3000 },
+  // 40 s of the departure taxi at 2x: every step's p / v / CG / phase and every frame's page reads bit-identical, no
+  // solver step on the page's thread. Four page runs ONE AT A TIME (~3.7-4.1 GB, ~4-5 min each on a 4-core cloud box)
+  { id: 'SIMWORKER-PAGE', file: '_simworker_page_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 1100 },
   // THE UNDERCARRIAGE (G67.3), and it closes the one gap G67.2 declared: the
   // three leg families as three different drawings — the check GATE GEN lost
   // when the old skin's leg drawer went — plus the wheel turning on its own,

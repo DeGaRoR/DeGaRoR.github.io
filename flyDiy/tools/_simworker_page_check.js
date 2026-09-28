@@ -30,6 +30,16 @@
 //     world-version assertion never tripped (wvBad 0) and the obstacles the page registered reached the worker
 //     (its world version > 0);
 //   5 no page error, no worker error.
+// WHAT HAD TO BE MADE EQUAL (found by this gate, G815; each a last-bits difference in the wind or the ground that the
+// flight carried from step 1): (a) the island's COOKED ground-raster cells (the page's loader brings them with the
+// raster on - the worker fetches them the same way); (b) the premises CATALOGUE (the page composes with its
+// generators on window: a park's lawn is a modifier, and without it 7 cooked cells went stale and baked lazily - the
+// worker imports the same generator scripts); (c) the climate's CONVECTION cache (09_climate.js convNow keeps the exact
+// inputs of the first moment its rounded key was met - the page's day met it in the garage: carried with
+// convState / convSeed); (d) the viewers' wind queries at t = 0 (they hold the climate sampler's reference when the
+// flight's first substep runs at simT = 0 - replayed, windq); (e) the day ticked once per frame's batch (dayBatch).
+// FLYDIY_SIMW.probe(pts, t, tag, { grid: N, values }) compares the two worlds (the ground, the surface, the relief
+// raster, the wind at points, the cooked cells) - the triage of the next difference.
 // NEGATIVE-VERIFIED (--selftest, the cub, a short flight): the start STAMPED two steps late under simw (1), a stray
 //   `sim.step()` on the page under simw (3), and the worker's world denied the page's obstacles (the harness strips
 //   every `obst` command on its way to the thread: 4's world version and its assertion).
