@@ -1,0 +1,344 @@
+{
+ "note": "C0b G805-G809: tools/parked_ab.js at the stand (A live capture+bake in the page, B the cook), then tools/fbake_ab.py; bytes = texel/vertex comparisons in the page",
+ "date": "2026-09-28T21:07:29.835Z",
+ "keys": {
+  "arch:jodel": {
+   "liveMs": 4312,
+   "cookMs": 2695,
+   "atlas": [
+    {
+     "differ": 0,
+     "share": 0,
+     "meanAbs": 0,
+     "max": 0
+    },
+    {
+     "differ": 0,
+     "share": 0,
+     "meanAbs": 0,
+     "max": 0
+    },
+    {
+     "differ": 0,
+     "share": 0,
+     "meanAbs": 0,
+     "max": 0
+    }
+   ],
+   "geo": [
+    {
+     "verts": 139710,
+     "maxPosM": 6.341934204101562e-05,
+     "maxUv": 7.62939453125e-06,
+     "maxNrm": 0,
+     "idxDiffer": 0
+    },
+    {
+     "verts": 26513,
+     "maxPosM": 0,
+     "maxUv": 7.62939453125e-06,
+     "maxNrm": 0,
+     "idxDiffer": 0
+    },
+    {
+     "verts": 6556,
+     "maxPosM": 0,
+     "maxUv": 7.62939453125e-06,
+     "maxNrm": 0,
+     "idxDiffer": 0
+    }
+   ],
+   "hitboxSame": true,
+   "tris": [
+    [
+     162902,
+     19547,
+     4073
+    ],
+    [
+     162902,
+     19547,
+     4073
+    ]
+   ],
+   "stance": {
+    "dPitch": 0,
+    "dLift": 0
+   }
+  },
+  "arch:cub": {
+   "liveMs": 3662,
+   "cookMs": 681,
+   "atlas": [
+    {
+     "differ": 0,
+     "share": 0,
+     "meanAbs": 0,
+     "max": 0
+    },
+    {
+     "differ": 0,
+     "share": 0,
+     "meanAbs": 0,
+     "max": 0
+    },
+    {
+     "differ": 0,
+     "share": 0,
+     "meanAbs": 0,
+     "max": 0
+    }
+   ],
+   "geo": [
+    {
+     "verts": 152404,
+     "maxPosM": 8.162856101989746e-05,
+     "maxUv": 7.62939453125e-06,
+     "maxNrm": 0,
+     "idxDiffer": 0
+    },
+    {
+     "verts": 29193,
+     "maxPosM": 0,
+     "maxUv": 7.62939453125e-06,
+     "maxNrm": 0,
+     "idxDiffer": 0
+    },
+    {
+     "verts": 7288,
+     "maxPosM": 0,
+     "maxUv": 7.62939453125e-06,
+     "maxNrm": 0,
+     "idxDiffer": 0
+    }
+   ],
+   "hitboxSame": true,
+   "tris": [
+    [
+     178392,
+     21406,
+     4458
+    ],
+    [
+     178392,
+     21406,
+     4458
+    ]
+   ],
+   "stance": {
+    "dPitch": 0,
+    "dLift": 0
+   }
+  },
+  "arch:c172": {
+   "liveMs": 4804,
+   "cookMs": 629,
+   "atlas": [
+    {
+     "differ": 0,
+     "share": 0,
+     "meanAbs": 0,
+     "max": 0
+    },
+    {
+     "differ": 0,
+     "share": 0,
+     "meanAbs": 0,
+     "max": 0
+    },
+    {
+     "differ": 0,
+     "share": 0,
+     "meanAbs": 0,
+     "max": 0
+    }
+   ],
+   "geo": [
+    {
+     "verts": 166676,
+     "maxPosM": 8.398294448852539e-05,
+     "maxUv": 7.62939453125e-06,
+     "maxNrm": 0,
+     "idxDiffer": 0
+    },
+    {
+     "verts": 30345,
+     "maxPosM": 0,
+     "maxUv": 7.62939453125e-06,
+     "maxNrm": 0,
+     "idxDiffer": 0
+    },
+    {
+     "verts": 7764,
+     "maxPosM": 0,
+     "maxUv": 7.62939453125e-06,
+     "maxNrm": 0,
+     "idxDiffer": 0
+    }
+   ],
+   "hitboxSame": true,
+   "tris": [
+    [
+     198654,
+     23838,
+     4966
+    ],
+    [
+     198654,
+     23838,
+     4966
+    ]
+   ],
+   "stance": {
+    "dPitch": 0,
+    "dLift": 0
+   }
+  }
+ },
+ "views": {
+  "arch_jodel_near": {
+   "box": [
+    31,
+    322,
+    1274,
+    900
+   ],
+   "rung": 0,
+   "d": 12,
+   "maskPx": 77099,
+   "diffAB": 0.015129712410271168,
+   "shimmerA": 1.983500361442566,
+   "shimmerB": 1.9838687181472778,
+   "tstdA": 5.238061428070068,
+   "tstdB": 5.237547874450684
+  },
+  "arch_jodel_mid": {
+   "box": [
+    635,
+    409,
+    932,
+    520
+   ],
+   "rung": 0,
+   "d": 45,
+   "maskPx": 841,
+   "diffAB": 0.027950745075941086,
+   "shimmerA": 4.185385704040527,
+   "shimmerB": 4.185245037078857,
+   "tstdA": 13.416603088378906,
+   "tstdB": 13.41759967803955
+  },
+  "arch_jodel_far": {
+   "box": [
+    759,
+    439,
+    843,
+    466
+   ],
+   "rung": 1,
+   "d": 170,
+   "maskPx": 0,
+   "diffAB": null,
+   "shimmerA": NaN,
+   "shimmerB": NaN,
+   "tstdA": NaN,
+   "tstdB": NaN
+  },
+  "arch_cub_near": {
+   "box": [
+    271,
+    327,
+    1436,
+    900
+   ],
+   "rung": 0,
+   "d": 12,
+   "maskPx": 72107,
+   "diffAB": 0.021184809505939484,
+   "shimmerA": 1.6804920434951782,
+   "shimmerB": 1.6789970397949219,
+   "tstdA": 4.555164337158203,
+   "tstdB": 4.5541815757751465
+  },
+  "arch_cub_mid": {
+   "box": [
+    647,
+    409,
+    962,
+    519
+   ],
+   "rung": 0,
+   "d": 45,
+   "maskPx": 615,
+   "diffAB": 0.02925988845527172,
+   "shimmerA": 5.117812633514404,
+   "shimmerB": 5.124306678771973,
+   "tstdA": 10.395256996154785,
+   "tstdB": 10.398591995239258
+  },
+  "arch_cub_far": {
+   "box": [
+    759,
+    439,
+    850,
+    466
+   ],
+   "rung": 1,
+   "d": 170,
+   "maskPx": 0,
+   "diffAB": null,
+   "shimmerA": NaN,
+   "shimmerB": NaN,
+   "tstdA": NaN,
+   "tstdB": NaN
+  },
+  "arch_c172_near": {
+   "box": [
+    218,
+    325,
+    1495,
+    876
+   ],
+   "rung": 0,
+   "d": 12,
+   "maskPx": 93575,
+   "diffAB": 0.01846349611878395,
+   "shimmerA": 1.6588298082351685,
+   "shimmerB": 1.6589405536651611,
+   "tstdA": 4.695267677307129,
+   "tstdB": 4.695287704467773
+  },
+  "arch_c172_mid": {
+   "box": [
+    632,
+    407,
+    977,
+    504
+   ],
+   "rung": 0,
+   "d": 45,
+   "maskPx": 885,
+   "diffAB": 0.06494355201721191,
+   "shimmerA": 3.401136875152588,
+   "shimmerB": 3.4035656452178955,
+   "tstdA": 9.511567115783691,
+   "tstdB": 9.514366149902344
+  },
+  "arch_c172_far": {
+   "box": [
+    755,
+    438,
+    854,
+    462
+   ],
+   "rung": 1,
+   "d": 170,
+   "maskPx": 0,
+   "diffAB": null,
+   "shimmerA": NaN,
+   "shimmerB": NaN,
+   "tstdA": NaN,
+   "tstdB": NaN
+  }
+ }
+}
