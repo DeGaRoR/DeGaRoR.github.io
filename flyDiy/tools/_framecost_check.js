@@ -66,7 +66,16 @@ const TOL = { rel: 0.01, abs: 2 };
 // e.g. { key: 'stand/draws.shadow', build: '*', upTo: 760, why: 'the craft-only cascade: the aeroplane drawn into its own map', g: 'G1100' }
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
-const ALLOW = [];
+const ALLOW = [
+  // B1-LAG (2026-09-28): the parked tree rungs' stand-ins compiled lit and through their depth variants under the roll-out
+  // screen - two tree materials and their two depth programs no warm-up had met (R1's +32 s link in the taxi, 567 ms)
+  { key: 'boot/rollout:images/links', build: '*', upTo: 6, why: 'the parked rungs\' programs linked under the screen (rungPrelink), not in the taxi', g: 'G730' },
+  { key: 'boot/rollout:images/gl.calls', build: '*', upTo: 80, why: 'the rung prelink\'s compile slices (render targets bound per slice)', g: 'G730' },
+  // ...their maps and the textures an onBeforeCompile hook hands the shaders, uploaded a slice a task before first light,
+  // not by the first world frame (the 'frames' task's texSubImage: 325 MB of 2D, 80 MB of array data in this census)
+  { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 4700, why: 'the stand-ins\' maps and the compiled uniforms\' textures uploaded in the upload step', g: 'G730/G732' },
+  { key: 'boot/rollout:frames/gl.calls', build: '*', upTo: 51500, why: 'the catch-up upload of the hooks\' textures and the sliced depth variants before first light', g: 'G732' },
+];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
 async function census(build) {
