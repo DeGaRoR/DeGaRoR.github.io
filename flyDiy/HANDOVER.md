@@ -63079,3 +63079,29 @@ fetches, mip selection, the macro/detail layers) or the specular on that roughne
 THE ONE NEXT TEST (the user decides): the pavement shader as shipped with NO TEXTURE - the base set replaced by its graded
 mean colour, everything else kept (B11b's `tex:flat`, commit d5c5830a on claude/epic-robinson-cc1b60). Calm -> the
 texture sampling (then hex0 / gpath split it); still flickering -> the procedural layers or the specular.
+
+## G1046 THE RUNWAY FLICKER FOUND AND FIXED: THE SEED INTO THE SLAB HASHES (2026-09-28, B11-EYES)
+MORE TESTS, SAME RIG (the user watching, the pilot taxiing on Jolene's apron), verdicts verbatim:
+  t6  TARMAC (the concrete pavements on the asphalt class): "Tarmac is OK for the record"
+  t7  a fresh Poly Haven concrete (concrete_floor_02, imported for the test, NOT shipped) as the concrete base: "Test 7
+      flickers, not good" - the texture is out (and its JPEG encode: t10 drew the very concrete JPEGs calm)
+  t8  the band's path at full alpha: no verdict given
+  t9  concrete as shipped, the procedural SLABS off (uLane.x 0: lanes, joints, spalls, per-slab tone) and
+  t10 the asphalt class and shader with the CONCRETE textures (concreteA/B/D, their grades): "9 and 10 work, no
+      flickering. But the mapping size feels off" - the missing slab joints (0 vs 10 on one paused frame: the joint grid
+      and the slab tones are the difference)
+  t11 as shipped, slabs ON, the seed snapped in the fragment shader: "11 works, great. Let's use it as of now"
+THE CAUSE: the slabs are placed and toned by pvHash(vec2(lane, seed + k)) = fract(sin(dot(p, (127.1, 311.7))) * 43758.5),
+seed from vPavK.y - a per-mesh CONSTANT reaching the fragment through a perspective-correct varying. The GPU returns it
+interpolated (a / w per vertex, weighted, times w), not bit-exact: an ulp or two off, the error depending on the pixel's
+barycentrics and depth. The hash's dot scales it by 311.7 (and the dot, ~1e4, sits on a 1e-3 float grid), sin's
+argument moves by ~1e-3, x 43758 = tens of units: fract() is a NEW random number. Per pixel the slab length
+(0.8 + 0.5 hash) jumped by +-4.5 m, so the transverse joints appeared and vanished pixel by pixel, and the lane and slab
+tones (+-13 %, +-6.5 %) flipped - patches darker / brighter, re-dealt every frame the camera moved: the crawl. The side
+band ran the same code at <= 0.35 alpha (t2 calm); asphalt has no slabs (t6, t10 calm); the markings, the normals and the
+texture never mattered (t1, t5, t7 flickered).
+THE FIX (pavement.js GLSL.map, the chain's first lines): `cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5)
+/ 37.0` - pavSeed is k / 37 in both renderers, so every pixel of a mesh gets the SAME float. Cost: a floor, a mul-add, a
+mul per fragment. (A `flat` varying is the other way to it - the provoking vertex's value, never interpolated - not taken:
+the user validated the snap.) Every other hash of seed (the wet lanes, the shoulder paths) is fixed with it.
+THE SWITCH stays (t0 t1 t2 t2b t3 t3u t4 t5 t6 t8, PAVTEST / ?pavetest=) for the tweaking to come; t7 and t11 retired.

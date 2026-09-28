@@ -767,7 +767,12 @@ float pvTread(float u, float x, float w, float seed) {
   GLSL.map = `
   {
     float u = vPav.x, v = vPav.y, dE = vPav.z, shW = vPav.w;
-    float cls = vPavK.x, seed = vPavK.y, halfW = vPavK.z, halfL = vPavK.w;
+    // THE SEED IS SNAPPED (G1046, the user's TEST 11): vPavK is constant per mesh, but a perspective-correct
+    // varying is NOT returned bit-exact (a / w interpolated, then times w: an ulp or two off, varying with the view).
+    // The slab hashes (pvHash = fract(sin(dot(p, (127.1, 311.7))) * 43758.5)) turn that ulp into a new random
+    // number PER PIXEL: slab lengths, joints and slab tones flipped from pixel to pixel and crawled as the camera
+    // moved - the runway's flicker. pavSeed is k / 37 (render_world, render_premises), so the snap is exact.
+    float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;
     vec2 P = vec2(u, v);
     vec2 uvS = P + vec2(seed * 37.0, seed * 91.0);
     vec2 fw = fwidth(P) + 1e-5;
@@ -1217,6 +1222,8 @@ float pvTread(float u, float x, float w, float seed) {
   //   t2b  the island ground's own material on the pavement: the premises patch's (the band's ground), cloned
   //   t3   plain white MeshStandardMaterial, no maps;  t3u  plain white MeshBasicMaterial (unlit)
   //   t5   the per-pixel NORMAL off: the pavement shader as shipped, gPavN = the mesh's normal (the user's extra test)
+  //   t6   TARMAC: the concrete pavements switched to the asphalt class (its sets, no slabs)
+  //   t8   the band's PATH at full alpha: every pixel shaded as a band pixel 0.3 m outside the edge, opaque
   //   t4   the island's GRASS round the field: the patch material with the splat's terrain type forced to the most
   //        common open-ground code 40-120 m round the camera (PAVTEST('t4', code) to name one), no polygons over it
   // An on-screen box (top centre) names what is on. Default off: with no query and no call nothing here runs.
@@ -1229,7 +1236,20 @@ float pvTread(float u, float x, float w, float seed) {
     t3: 'TEST 3 - plain white MeshStandardMaterial, no maps',
     t3u: 'TEST 3u - plain white unlit (MeshBasicMaterial)',
     t4: 'TEST 4 - grass: the island ground\'s grass (splat type forced to the field\'s grass code) on the pavement mesh',
-    t5: 'TEST 5 - NORMALS OFF: the pavement shader as shipped, its per-pixel normal replaced by the mesh\'s own normal' };
+    t5: 'TEST 5 - NORMALS OFF: the pavement shader as shipped, its per-pixel normal replaced by the mesh\'s own normal',
+    t6: 'TEST 6 - TARMAC: every concrete pavement switched to the asphalt class (its sets: worn asphalt + cracked asphalt)',
+    t8: 'TEST 8 - THE BAND PATH at full alpha: every pixel shaded as a band pixel 0.3 m outside the edge, drawn opaque',
+  };
+  // t6: the concrete pavements re-pointed at the asphalt class, the shared library grown to hold its sets
+  function ptSets(mode) {
+    const T3 = (typeof THREE !== 'undefined' && THREE) || null;
+    for (const m of MATS) if (m.userData.pavClsOrig) { m.userData.pav.cls = m.userData.pavClsOrig; delete m.userData.pavClsOrig; }
+    if (mode === 't6') {
+      for (const m of MATS) if (m.userData.pav.cls === 'concrete') { m.userData.pavClsOrig = 'concrete'; m.userData.pav.cls = 'asphalt'; }
+      if (T3) sharedLib(T3, keysFor(['asphalt']));
+    }
+    for (const m of MATS) applyOne(T3, m);
+  }
   PT.cut = src => {
     let s = src;
     if (PT.mode === 't1') {
@@ -1241,6 +1261,12 @@ float pvTread(float u, float x, float w, float seed) {
       const k = 'diffuseColor.rgb = col; diffuseColor.a = gPavA;';
       if (s.indexOf(k) < 0) { console.error('PAVTEST t2: the alpha line was not found - NOT applied'); return src; }
       s = s.replace(k, 'gPavA = min(gPavA, uSide.z);   // PAVTEST t2: the interior at the side band\'s alpha\n    ' + k);
+    }
+    if (PT.mode === 't8') {
+      const a = '    float u = vPav.x, v = vPav.y, dE = vPav.z, shW = vPav.w;', k = 'diffuseColor.rgb = col; diffuseColor.a = gPavA;';
+      if (s.indexOf(a) < 0 || s.indexOf(k) < 0) { console.error('PAVTEST t8: the dE / alpha lines were not found - NOT applied'); return src; }
+      s = s.replace(a, '    float u = vPav.x, v = vPav.y, dE = min(vPav.z, -0.3), shW = vPav.w;   // PAVTEST t8: every pixel a band pixel')
+           .replace(k, 'gPavA = 1.0;   // PAVTEST t8: full alpha\n    ' + k);
     }
     if (PT.mode === 't5') {
       const k = '    gPavN = normalize(T * nTn.x + Bv * nTn.y + Ng * nTn.z);';
@@ -1319,7 +1345,7 @@ float pvTread(float u, float x, float w, float seed) {
     if (PT.swapped.size) { const was = PT.mode; PT.mode = 't0'; ptSwap(); PT.mode = was; }
     clearInterval(PT.timer); PT.timer = 0;
     PT.mode = mode;
-    const shaderMode = mode === 't1' || mode === 't2' || mode === 't5';
+    const shaderMode = mode === 't1' || mode === 't2' || mode === 't5' || mode === 't8';
     PT.key = shaderMode ? ':pavtest-' + mode : ''; PT.frag = shaderMode ? PT.cut : null;
     for (const m of MATS) {
       const U = m.uniforms, nm = m.userData.pavNM || (m.userData.pavNM = [U.uMarkN.value, U.uSegN.value]);
@@ -1327,6 +1353,7 @@ float pvTread(float u, float x, float w, float seed) {
       m.needsUpdate = true;
     }
     if (mode === 't4') PT.code = code !== undefined ? +code : ptGrassCode();
+    ptSets(mode);
     let n = 0;
     if (!shaderMode && mode !== 't0') {
       n = ptSwap();
