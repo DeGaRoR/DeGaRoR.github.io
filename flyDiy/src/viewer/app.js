@@ -6529,7 +6529,60 @@
   // (syncBuildSteps; CAGE_JOIN.snapshotSteps), then the stand ('stand': rollOutStand, what rollOut did before its
   // screen decision), then the screen's own steps. A page without it syncs and rolls out inline, as before.
   const screenCan = () => typeof BOOT.show === 'function' && !!BOOT.log && typeof renderer.compileAsync === 'function';
-  function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
+  // ---- B10 (G1035-G1039): THE ROLL-OUT SHOT (rollanim.js) - AN OPTIONAL CALL SITE -------------------------
+  // The aeroplane rolls out of the open door and the camera dollies onto the stand's first frame, then the cut.
+  // OFF by default and behind a flag: ?rollanim=1 (or localStorage flydiy.rollanim = '1') plays it in front
+  // of every roll-out from the shed; ?rollanim=solo plays it alone once the shed is up (the aeroplane put back
+  // after, nothing rolls out), ?rollanim=loop again and again; window.FLYDIY_ROLLANIM() plays it alone from the
+  // console. B8B9 (the restructured roll-out) owns the real call site and may move or drop this one; the frame
+  // loop's two ROLLANIM lines (before poseModel, after placeCamera) are the host hooks the shot needs anywhere.
+  const RA_Q = (() => { try { const m = /[?&]rollanim=([a-z0-9]+)/.exec(location.search); return m ? m[1] : (prefGet('flydiy.rollanim', '') === '1' ? '1' : ''); } catch (e) { return ''; } })();
+  let raBusy = false, raSide = 0;
+  function rollAnimCan() {
+    return typeof ROLLANIM !== 'undefined' && inGarage && !raBusy && !!model && !rig && !rigLift && garageIsHangar() && !!hangar;
+  }
+  // the shed dressed for the shot (the mesh, not the editor's cage; no editor, no plaque), then the shot
+  function rollAnimPlay(done) {
+    raBusy = true;
+    // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the shot (SCENERY's rule)
+    for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
+    closeEditor();
+    const pq = $('plaque'); if (pq) pq.classList.remove('on');
+    const cage = showCage; showCage = false; applySkinVis();
+    let h = null;
+    try {
+      h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
+        camMode: cam.mode, fov: cam.fov,
+        onDone: hh => { raBusy = false; done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
+    } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
+    return h;
+  }
+  function rollAnimSolo() {
+    if (!rollAnimCan()) return null;
+    return rollAnimPlay(cage => {
+      if (!inGarage) return;
+      showCage = cage; applySkinVis(); garageCamera(); openEditor();
+      if (RA_Q === 'loop') setTimeout(() => { if (inGarage) rollAnimSolo(); }, 2500);
+    });
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_ROLLANIM = rollAnimSolo;
+  if (RA_Q === 'solo' || RA_Q === 'loop') {
+    const iv = setInterval(() => {
+      if (typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') return;
+      if (!rollAnimCan()) return;
+      clearInterval(iv); setTimeout(rollAnimSolo, 1500);
+    }, 500);
+  }
+  function rollOut(after, sync, shot) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
+    // B10: the optional call site (see above) - the build is committed BEFORE the shot (the shot does no work),
+    // and the stand's first frame takes the shot's side (raSide, read once by flRevealStart)
+    if (RA_Q === '1' && !shot && rollAnimCan()) {
+      if (sync && window.CAGE_UI) syncBuild();
+      if (rollAnimCan()) {
+        rollAnimPlay((cage, h) => { raSide = h && h.plan ? h.plan.side : 0; rollOut(after, false, true); });
+        return;
+      }
+    }
     if (sync) {
       if (screenCan() && window.CAGE_UI) { rollHold = false; rollOutScreen(() => { flRevealStart(); if (after) after(); }, true); return; }
       if (window.CAGE_UI) syncBuild();
@@ -9497,7 +9550,9 @@
       return Math.hypot(ex - (flShedBox.x0 + flShedBox.x1) / 2,
                         ez - (flShedBox.z0 + flShedBox.z1) / 2);
     };
-    const s = far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    // B10: after the roll-out shot the side is the shot's (it ended on this very frame), read once
+    const s = raSide ? raSide : far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    raSide = 0;
     const tgt = cam.mode === 'wing' ? hdg - Math.PI / 2
               : astern + (cam.mode === 'orbit' ? s * 0.55 : 0);
     if (cam.mode === 'orbit') { azT = tgt; elT = 0.09; distT = D * 1.05; }
@@ -10323,6 +10378,12 @@
     // speed, 0.58 m at 35 m/s (measured: headLocal.x -1.87 parked, -1.29 in
     // the climb on the Cessna - "the eye drifts to the back seat as speed
     // rises"). The sim has already stepped; the pose is this frame's.
+    // B10 (G1035): THE ROLL-OUT SHOT moves the aeroplane, its wheels and its props' rpm before the pose reads
+    // them (rollanim.js; a no-op when nothing plays)
+    if (typeof ROLLANIM !== 'undefined') {
+      if (!inGarage && ROLLANIM.busy()) { ROLLANIM.cancel(); raBusy = false; }   // left the shed under it: put back
+      ROLLANIM.frame(fdt);
+    }
     poseModel();
     // G1002 (A6-GROUND): the tyres' contact shadows, on this frame's pose (contact_shadow.js)
     if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();
@@ -10341,6 +10402,7 @@
     dist += (distT - dist) * kE;
     if (Math.abs(distT - dist) < 1e-3) dist = distT;
     placeCamera();
+    if (typeof ROLLANIM !== 'undefined') ROLLANIM.camera();   // B10: the shot's eye over the orbit's
     // (The part callout used to be re-projected here every other frame. It is
     // gone — it sat on the one thing it was naming — and the frame loop got
     // its projection back.)
