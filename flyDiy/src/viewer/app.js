@@ -3326,6 +3326,7 @@
                       r.hb && r.hb.hinged);
       r.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
     }
+    }
     // G55: each wheel rides its AXLE NODE — its position is the node's
     // live coordinates in the SAME basis the pose maps the group into
     // (minus the pose's own x/y offset), so suspension travel is exact by
@@ -6660,7 +6661,8 @@
     holdRender = true;
     const steps = [
       { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compileSliced(sc, aa && aa.target ? aa.target() : null)
-          .then(() => garage ? null : compileDepthVariants(scene, true)).catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
+          .then(() => garage ? null : compileDepthVariants(scene, true)).then(() => garage ? null : rungPrelink())   // G730: the parked rungs re-key too
+          .catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
       { id: 'frames', label: 'first light', w: 2, fn: () => { holdRender = false; return framesRendered(2); } },
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
@@ -6702,6 +6704,7 @@
     // in the 2.3-3.5 s task each they were; nothing is drawn meanwhile (holdRender), which that door needs
     const PK = (typeof window !== 'undefined' && window.PARKED && typeof renderer.compileAsync === 'function') ? window.PARKED : null;
     if (PK) PK.async = true;
+    let rungs = null, rungLinks = null;   // G730: the parked tree rungs' stand-ins and their links (the 'images' step starts them)
     if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => buildWorldSliced() });   // G680: a slice a task
     // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
     // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
@@ -6764,6 +6767,9 @@
     // flat material, not a stuck screen.
     steps.push({ id: 'images', label: "the world's pictures", w: 8, fn: () => {
       if (!WF || typeof renderer.compileAsync !== 'function') return;
+      // G730: the parked rungs' programs start linking now, under the pictures and the upload (the fill's shapes are
+      // the payload's since the ring grew on them); the 'frames' step waits for them
+      if (!rungLinks) { rungs = rungStandIns(); rungLinks = rungPrelink(rungs); }
       const imgs = new Set();
       const isImg = v => v && v.isTexture && v.image && typeof v.image.complete === 'boolean' && !v.image.complete;
       const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (isImg(v)) imgs.add(v.image); }
@@ -6785,7 +6791,8 @@
     // first frame (measured: 5.6 s of the first world frame was the upload)
     steps.push({ id: 'upload', label: 'uploading the textures', w: 12, fn: () => {
       if (typeof renderer.initTexture !== 'function' || typeof renderer.compileAsync !== 'function' || !WF) return;
-      return uploadSliced(scene, 'upload', 'uploading the textures');
+      return uploadSliced(scene, 'upload', 'uploading the textures')
+        .then(() => rungs ? uploadSliced(rungs, 'upload', 'uploading the textures') : null);   // G730: a parked rung's maps too
     } });
     if (!worldCompiled) steps.push({ id: 'compile', label: 'compiling the world', w: 20, fn: () => {
       worldCompiled = true;
@@ -6805,7 +6812,8 @@
     // already knows cost their key, the new ones link on the driver's threads.
     steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => {
       if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
-      return shaderProgress(compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants()).catch(e => console.warn('catch-up compile:', e && e.message)), 'world', 60000)
+      return shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants()).catch(e => console.warn('catch-up compile:', e && e.message)),
+        rungLinks]), 'world', 60000)   // G730: and the parked rungs' links (never draw ahead of the links)
         .then(() => { holdRender = false; return framesRendered(2); });
     } });
     // G710: the route, on the screen while nothing flies (the selects' block below builds it)
@@ -10764,6 +10772,33 @@
       };
       tick();
     });
+  }
+  // G730 (B1-LAG): THE PARKED TREE RUNGS' PROGRAMS. A rung no tree stands on is out of the scene graph (render_world
+  // RUNGS), so neither the roll-out's compile nor a settings screen's ever meets it, and the taxi's first rung of a
+  // species linked on its frame (the fill's M_Branch.003 / M_Bark.003 and two depth programs: 567 ms at +32 s, R1's
+  // one miss). WF.rungWarm() hands a stand-in per ladder material, on the object kind the chunks draw (an InstancedMesh
+  // with an instanceColor, casting through the rung's depth material); compiled here against the world's lights, then
+  // through the shadow pass's depth variants (fog lifted, a plain target: compileDepthVariants' rule), a slice a task.
+  // A program already known costs its key. (G999.2's cut, reverted, made stand-ins WITHOUT an instanceColor and gave
+  // compileDepthVariants a helper with no lights: neither was the program the frame asked for.)
+  function rungStandIns() {
+    if (!WF || typeof WF.rungWarm !== 'function') return null;
+    let g = null; try { g = WF.rungWarm(); } catch (e) { console.warn('rung stand-ins:', e && e.message); }
+    return g && g.children.length ? g : null;
+  }
+  function rungPrelink(g) {
+    g = g || rungStandIns();
+    if (!g || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined') return Promise.resolve();
+    const kinds = { depth: false, distance: false };
+    scene.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
+    return compileSliced(g, aa && aa.target ? aa.target() : null, scene)
+      .then(() => {
+        if (!renderer.shadowMap || !renderer.shadowMap.enabled) return;
+        const { helper } = PROG_WARM.depthVariants(THREE, renderer, [g], { kinds });
+        return helper.children.length ? compileSliced(helper, PLAIN_RT(), scene, true) : null;
+      })
+      .then(() => { if (window.FLYDIY_LOG_COMPILE) console.log('rung prelink: ' + g.children.length + ' materials'); })
+      .catch(e => console.warn('rung prelink:', e && e.message));
   }
   // THE SEE-THROUGH VARIANTS (G441, A4 - the user: "show interior takes
   // seconds and freezes the UI; it was fast before"). Measured on the Cessna:
