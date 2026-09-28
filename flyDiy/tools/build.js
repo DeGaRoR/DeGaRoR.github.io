@@ -393,12 +393,13 @@ const MANIFEST = {
     // Blob worker next to tools/flight_core.js, like bench_worker.js - so it
     // must stay a file the page can fetch; inlined here it only publishes
     // window.SIM_HOST (the starter, the Blob's source) and window.SIM_VIEW.
-    // Nothing calls either yet: app.js takes them behind ?simw=1 (C1b).
+    // sim_link.js (G815, C1b) after them and before app.js: the page's glue -
+    // app.js flies through it behind ?simw=1 (window.SIM_LINK), default off.
     // blueprint.js after refplane.js (G573): the reference plane's second
     // source. It builds its half of the panel from REFPLANE.ui, lazily, and
     // stands its planes in app.js's REF_MOUNT.bpGroup.
               'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint.js',
-              'sim_host.js', 'sim_view.js',
+              'sim_host.js', 'sim_view.js', 'sim_link.js',
     // balance.js before editor.js (G101): the energy layer's panel draws the
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,

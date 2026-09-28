@@ -51,9 +51,18 @@
 // actually took ({cmd:'log'}), so a flight replays to the bit from its log in
 // node (GATE SIMWORKER proves it) - ARCH §2.4's clean replay point.
 //
-// NOT HERE YET (C1b/C1c): app.js does not use this (behind ?simw=1 next), the
-// viewer's obstacles (render_premises hitAdd, the club hangar, the parked
-// aircraft), manualEnding's touchdown, the telemetry record(), editor edits.
+// C1b (G815): app.js flies this behind ?simw=1 (sim_link.js is the page's
+// glue). THE WORLD'S OPS: the viewer's obstacles (render_premises hitAdd, the
+// club hangar, the parked aircraft - every add / move / remove / clear on the
+// page world's registry) and its day / weather calls come as `obst` / `world`
+// commands, stamped like any other; before the world exists they wait and
+// are applied right after makeWorld, BEFORE the flight is placed. Each one
+// bumps the WORLD's version (world.__simV, kept across flights on a kept
+// world), which every snapshot carries (SIM_SNAP.WV) and the page asserts.
+// The page's placement is the host's: the stand the page walked (standFor),
+// seated on the ground under it (G700 seatOnGround, `place.seat`).
+// NOT HERE YET (C1c): manualEnding's touchdown, the telemetry record(), the
+// skip to line-up, editor edits.
 //
 // sim_view.js is the page's side: the read API the page already uses on
 // `sim`, over these snapshots. GATE SIMWORKER (tools/_simworker_check.js)
@@ -65,9 +74,46 @@
 // physics half reads. 28_island.js makeIsland takes the rest as optional.
 const SIM_HOST_KEYS = ['header', 'topo', 'payload', 'grid.meta', 'grid.cover', 'grid.canopy',
                        'grid.coast', 'grid.lake', 'grid.ttype', 'grid.lakes'];
+// the world's facts at points, the same on the page's world and the worker's (G815: sim_link / GATE SIMWORKER-PAGE)
+function simHostProbe(world, pts, t, H, opts) {
+  if (!world) return null;
+  const P = o => simHostPlain(o, 3);
+  const near = [];
+  // island-wide FNVs of what the climate's relief raster is built from (the world's bounds, grid x grid): the
+  // ground, the surface class, and the raster itself (climate.reliefAt, which builds it if it was not)
+  let grid = null;
+  const B = world.bounds, N = opts && opts.grid;
+  if (B && N) {
+    const f = new Float64Array(1), u = new Uint8Array(f.buffer), hs = { h: 2166136261, s: 2166136261, r: 2166136261 };
+    const add = (k, x) => { f[0] = x; let h = hs[k]; for (let i = 0; i < 8; i++) h = Math.imul(h ^ u[i], 16777619) >>> 0; hs[k] = h; };
+    const R = world.climate && world.climate.reliefAt ? new Float32Array(16) : null;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = B.x0 + (i + 0.5) * (B.x1 - B.x0) / N, z = B.z0 + (j + 0.5) * (B.z1 - B.z0) / N;
+      const hh = world.terrainH(x, z); add('h', hh); if (opts.values) (grid = grid || { hv: new Float64Array(N * N) }).hv[j * N + i] = hh;
+      if (world.surface) add('s', +world.surface(x, z));
+      if (R) { const o = world.climate.reliefAt(x, z, R); for (let c = 0; c < o.length; c++) add('r', o[c]); }
+    }
+    grid = Object.assign(grid || {}, hs);
+  }
+  return {
+    grid, premises: world.premises && world.premises.overlay ? { n: world.premises.overlay.n, cooked: P(world.premises.overlay.rasterCooked),
+                                                                  raster: !!(world.premises.overlay.raster && world.premises.overlay.raster.on) } : null,
+    climate: world.climate ? { mode: world.climate.mode, rich: P(world.climate.rich), spec: P(world.climate.spec), version: world.climate.version } : null,
+    day: world.day && world.day.spec ? world.day.spec() : null, atmos: P(world.atmos),
+    obst: world.obstacles ? { n: world.obstacles.count, top: world.obstacles.maxTop } : null, v: world.__simV || 0,
+    ctl: H ? P(H.sim.ctl) : null, started: H ? H.started : null, steps: H ? H.steps : null,
+    pts: pts.map(q => ({ h: world.terrainH(q[0], q[2]), w: world.wind ? Array.from(world.wind(q[0], q[1], q[2], t)) : null,
+      ws: world.climate && world.climate.sample ? world.climate.sample(q[0], q[1], q[2], t) : null,
+      pm: world.premises && world.premises.overlay ? (O => { const h0 = world.premises.base.terrainH(q[0], q[2]);
+        return { d: O.terrainH(q[0], q[2], h0), f: O.terrainFast ? O.terrainFast(q[0], q[2], h0) : null }; })(world.premises.overlay) : null,
+      s: world.surface ? P(world.surface(q[0], q[2])) : null, wh: world.waterH ? world.waterH(q[0], q[2]) : null,
+      tr: world.treesNear ? world.treesNear(q[0], q[2], near).length : null,
+      ob: world.obstacles ? world.obstacles.near(q[0], q[2], near).slice() : null })),
+  };
+}
 // the core names the worker's Blob picks out of the imported bundle
 const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'makeAutopilot',
-                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome'];
+                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
 const SIM_HOST_POOL = 3;           // snapshot buffers: the page holds two (interpolation), the host writes the third
@@ -99,7 +145,12 @@ function simHostBootBytes(boot) {
 // the trimmed boot fetched the way the page's loader fetches the whole one
 // (tools/build.js, the island block): the manifest, then each named payload,
 // ONE gzip stream each - through the same URLs, so the page's cache serves the
-// worker. opts: { fetch, hydro }.
+// worker. opts: { fetch, hydro, raster }. G815: `raster` (the page's
+// FLYDIY_GROUND_RASTER) brings the island's COOKED ground-raster cells as the
+// loader does (src/core/premises_packs.json -> boot.premCook): makeWorld reads
+// the cooked tiles where the page does, and a tile baked here instead differs
+// from the cook in the last bits - the climate's relief raster carries that
+// island-wide into the rich wind.
 function simHostFetchBoot(base, name, opts) {
   opts = opts || {};
   const F = opts.fetch || fetch;
@@ -114,7 +165,16 @@ function simHostFetchBoot(base, name, opts) {
       if ('json' in r) { simHostSet(boot, k, r.json); return null; }
       return F(base + r.src).then(res => { if (!res.ok) throw new Error(r.src + ' ' + res.status); return res.arrayBuffer(); })
         .then(gz).then(u => simHostSet(boot, k, r.kind === 'json' ? JSON.parse(new TextDecoder().decode(u)) : u));
-    })).then(() => boot);
+    })).then(() => {
+      if (!opts.raster) return boot;
+      return F(base + 'src/core/premises_packs.json').then(r => (r.ok ? r.json() : { islands: [] })).then(PP => {
+        const pi = (PP.islands || []).find(w => w.id === name);
+        if (!pi || !pi.raster) return boot;
+        const got = [];
+        return Promise.all(pi.raster.cells.map(c => F(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
+          .then(gz).then(u => got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u })))).then(() => { boot.premCook = { raster: got }; return boot; });
+      }).catch(() => boot);   // a cook that does not arrive is a lazy raster (the page's rule)
+    });
   });
 }
 
@@ -142,6 +202,30 @@ function simHostPlain(o, depth, skip) {
 const SIM_HOST_AP_RARE = ['legs', 'path', 'plan', 'taxiOut', 'site'];
 const SIM_HOST_AP_SKIP = ['nav', 'sheet'];
 
+// ---- THE WORLD'S OPS (G815): the page world's registry and day calls, replayed on this one. The page's
+// obstacle ids map to this registry's own (a record the page's makeWorld made - the settle buildings - has
+// the same id here: the same record, the same order). Returns true when the world changed (the version).
+const SIM_HOST_WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setSea'];
+function simHostWorldOp(world, c) {
+  if (!world) return false;
+  if (c.cmd === 'world') {
+    if (SIM_HOST_WORLD_FNS.indexOf(c.fn) < 0 || typeof world[c.fn] !== 'function') return false;
+    world[c.fn].apply(world, c.args || []);
+  } else if (c.cmd === 'obst') {
+    const R = world.obstacles; if (!R) return false;
+    const ids = world.__simIds || (world.__simIds = new Map());
+    const idOf = id => (ids.has(id) ? ids.get(id) : id);
+    for (const o of c.ops || []) {
+      if (o.op === 'add') { const id = R.add({ x: o.x, z: o.z, yaw: o.yaw, y0: o.y0, shape: o.shape, tag: o.tag }); ids.set(o.id, id); }
+      else if (o.op === 'move') R.move(idOf(o.id), o.x, o.z, o.yaw, o.y0);
+      else if (o.op === 'remove') { R.remove(idOf(o.id)); ids.delete(o.id); }
+      else if (o.op === 'clear') { R.clear(); ids.clear(); }
+    }
+  } else return false;
+  world.__simV = (world.__simV || 0) + 1;
+  return true;
+}
+
 // ---- THE HOST: world, sim, pilot, the step and the snapshot; thread-agnostic
 // init: { world: { boot, premises, seed, opts, day } | a world to keep,
 //         spec (as buildGen takes it), place: { from, to, stand }, pilot: { kind, shakedown, nav },
@@ -156,14 +240,16 @@ function makeSimHost(CORE, init, keptWorld) {
     if (W.premises != null) wo.premises = W.premises;
     world = CORE.makeWorld(W.seed || 0, wo);
     if (W.day) world.setDay(W.day);
-  }
+    world.__simV = 0;
+    if (init.onWorld) init.onWorld(world);   // G815: the ops that came before the world (the page's registry so far)
+  } else if (init.day) world.setDay(init.day);   // G815: a kept world takes the page's day at each new flight
   const def = CORE.buildGen(init.spec);
   const sim = CORE.makeSim(def, world);
   const n = sim.n, withV = !!init.withV, dayOn = init.day !== false;
   const fuelIdx = [];
   for (let i = 0; i < n; i++) if (def.nodes[i].mFuel > 0) fuelIdx.push(i);
   const S = SIM_SNAP, LEN = S.HEAD + 3 * n * (withV ? 2 : 1) + fuelIdx.length;
-  const H = { world, def, sim, ap: null, steps: 0, epoch: 0, worldV: 0, late: 0, started: false, manual: false, hand: null,
+  const H = { world, def, sim, ap: null, steps: 0, epoch: 0, late: 0, started: false, manual: false, hand: null,
               queue: [], log: [], logDropped: 0, n, withV, fuelIdx, len: LEN };
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
   // app.js mkPilot
@@ -175,7 +261,9 @@ function makeSimHost(CORE, init, keptWorld) {
       const sd = PK.shakedown || null;
       const p = CORE.makePilot(sim, def, world, { style: kind === 'auto' ? 'normal' : kind, shakedown: () => sd });
       if (PK.nav !== false && typeof CORE.navMake === 'function') {
-        if (!H.nav) H.nav = CORE.navMake({ waypoints: world.aerodromes });
+        // one nav for the page's life (app.js flNav, made once, kept across flights): one per world here (G815)
+        if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes });
+        H.nav = world.__simNav;
         p.setNav(H.nav);
       }
       return p;
@@ -199,6 +287,8 @@ function makeSimHost(CORE, init, keptWorld) {
     const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
     if (stand) {
       CORE.placeAtStand(sim, from, stand);
+      // app.js applyRoute (G700): the wheels on the ground under the walked stand
+      if (PL.seat && typeof CORE.seatOnGround === 'function') CORE.seatOnGround(sim, (x, z) => world.terrainH(x, z), def.refs);
       ap.setRoute(from, to);
       ap.departFrom(from, to, stSite);
     } else {
@@ -243,7 +333,11 @@ function makeSimHost(CORE, init, keptWorld) {
   function apply(c) {
     const ap = H.ap;
     switch (c.cmd) {
-      case 'ctl': writeCtl(c.set || {}); break;
+      case 'ctl':
+        writeCtl(c.set || {});
+        // G815: a lever of one engine (the page's ctl.eng[i].k = v), after any whole-array write
+        if (c.eng) for (const e of c.eng) if (Array.isArray(sim.ctl.eng) && sim.ctl.eng[e[0]]) sim.ctl.eng[e[0]][e[1]] = e[2];
+        break;
       case 'hand': H.hand = c.ctl || null; break;
       case 'start': H.started = true; break;
       case 'hold': H.started = false; break;
@@ -265,7 +359,11 @@ function makeSimHost(CORE, init, keptWorld) {
       }
       case 'impulse': sim.impulse(c.i, c.ix || 0, c.iy || 0, c.iz || 0); break;
       case 'setCard': if (ap.setCard) ap.setCard(c.card || {}); break;
-      case 'setDay': world.setDay(c.day || {}); H.worldV++; break;
+      case 'setDay': world.setDay(c.day || {}); world.__simV = (world.__simV || 0) + 1; break;
+      case 'obst': case 'world': simHostWorldOp(world, c); break;
+      // G815: the page's viewers' wind queries, replayed where they sat between the page's steps (sim_link.js): they
+      // move the climate sampler's reference (09_climate.js wind), which a first substep at the same t reuses
+      case 'windq': if (world.wind) for (const q of c.q || []) world.wind(q[0], q[1], q[2], q[3]); break;
       case 'reset': fresh(); break;   // app.js fullReset: a fresh pilot on the same route, held until a 'start'
     }
   }
@@ -287,7 +385,9 @@ function makeSimHost(CORE, init, keptWorld) {
     }
   }
   // ONE STEP: app.js loop()'s `script(1/60); sim.step(1/60)`, the commands before it, the day after it
-  H.step = () => {
+  // (`noDay`: the caller ticks the day itself, after a batch - H.dayTick)
+  H.dayTick = dt => { if (dayOn && world.dayTick) { const cg = sim.cgPos(); world.dayTick(dt, sim.t, cg[0], cg[2]); } };
+  H.step = noDay => {
     applyDue();
     const ap = H.ap, dt = SIM_HOST_DT;
     if (!H.started) sim.ctl.brake = 0.6;
@@ -296,7 +396,7 @@ function makeSimHost(CORE, init, keptWorld) {
       if (ap.box && ap.box.on) ap.update(dt); else ap.t += dt;
     } else ap.update(dt);
     sim.step(dt);
-    if (dayOn && world.dayTick) { const cg = sim.cgPos(); world.dayTick(dt, sim.t, cg[0], cg[2]); }
+    if (!noDay) H.dayTick(dt);
     H.steps++;
   };
   H.diverged = () => !Number.isFinite(sim.p[1]);
@@ -304,7 +404,7 @@ function makeSimHost(CORE, init, keptWorld) {
   // THE SNAPSHOT: the head, p, v, the fuel masses into `f` (a Float64Array of H.len)
   H.write = (f, x) => {
     const cg = sim.cgPos(), cv = sim.cgVel();
-    f[S.STEP] = H.steps; f[S.T] = sim.t; f[S.WV] = H.worldV; f[S.N] = n;
+    f[S.STEP] = H.steps; f[S.T] = sim.t; f[S.WV] = world.__simV || 0; f[S.N] = n;
     f[S.FLAGS] = (H.diverged() ? S.F_DIVERGED : 0) | (withV ? S.F_V : 0) | (x.running ? S.F_RUNNING : 0) |
                  (H.manual ? S.F_MANUAL : 0) | (H.started ? S.F_STARTED : 0);
     f[S.CG] = cg[0]; f[S.CG + 1] = cg[1]; f[S.CG + 2] = cg[2];
@@ -376,6 +476,7 @@ function simHostBody(CORE, SH, port) {
   const S = SH.SIM_SNAP;
   const wallNow = () => performance.timeOrigin + performance.now();
   let H = null, world = null, bootInfo = null;
+  let preWorld = [], dropped = 0;   // G815: world ops before the world exists; commands that found no flight
   let pool = [], allocs = 0, seq = 0;
   let running = false, wall0 = 0, step0 = 0, rate = 1, timer = null;
   // G612's readings: a step's cost (ms, eased), the dilation's window (sim s at the set rate over wall s,
@@ -391,9 +492,9 @@ function simHostBody(CORE, SH, port) {
                                      maxMs, ran, allocs, rate, running });
     post({ kind: 'snap', buf, meta: H.meta() }, [buf]);
   }
-  function stepTimed() {
+  function stepTimed(noDay) {
     const s0 = performance.now();
-    H.step();
+    H.step(noDay);
     const ms = performance.now() - s0;
     P.stepMs = P.stepMs ? P.stepMs + 0.1 * (ms - P.stepMs) : ms;
     return ms;
@@ -429,8 +530,11 @@ function simHostBody(CORE, SH, port) {
   function initHost(m) {
     stopClock();
     const keep = m.world === 'keep' ? world : null;
+    // G815: the world's ops the last flight had queued and never reached (sent between flights) are the world's now
+    if (H && keep) for (const e of H.queue) if (e.c.cmd === 'obst' || e.c.cmd === 'world') SH.simHostWorldOp(world, e.c);
     const t0 = performance.now();
-    H = SH.makeSimHost(CORE, m, keep);
+    const onWorld = w => { for (const c of preWorld) SH.simHostWorldOp(w, c); preWorld = []; };
+    H = SH.makeSimHost(CORE, Object.assign({}, m, { onWorld }), keep);
     world = H.world;
     pool = []; seq = 0;
     for (let i = 0; i < SIM_HOST_POOL; i++) pool.push(new ArrayBuffer(H.len * 8));
@@ -440,6 +544,11 @@ function simHostBody(CORE, SH, port) {
     post(r);
     publish(0, 0);
   }
+  // a command with no flight to take it: a world op waits for (or goes straight to) the world; the rest is dropped
+  function orphan(c) {
+    if (c.cmd !== 'obst' && c.cmd !== 'world') { dropped++; return; }
+    if (world) SH.simHostWorldOp(world, c); else preWorld.push(c);
+  }
   function onMsg(m) {
     if (!m) return;
     try {
@@ -447,8 +556,9 @@ function simHostBody(CORE, SH, port) {
         case 'init':
           if (m.world && m.world.fetch) {
             const F = m.world.fetch, t0 = performance.now();
-            SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro }).then(boot => {
-              bootInfo = { fetchMs: performance.now() - t0, bytes: boot ? SH.simHostBootBytes(boot) : 0 };
+            SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro, raster: F.raster }).then(boot => {
+              bootInfo = { fetchMs: performance.now() - t0, bytes: boot ? SH.simHostBootBytes(boot) : 0,
+                           cooked: boot && boot.premCook ? boot.premCook.raster.length : 0 };
               initHost(Object.assign({}, m, { world: Object.assign({}, m.world, { boot, fetch: null }) }));
             }).catch(err => post({ kind: 'error', error: String(err && err.stack || err) }));
             return;
@@ -461,29 +571,36 @@ function simHostBody(CORE, SH, port) {
         case 'pause': stopClock(); if (H) publish(0, 0); return;
         case 'rate': rate = m.x > 0 ? m.x : 1; if (running) anchor(); return;
         case 'steps': {
-          // LOCKSTEP: exactly n steps now, a snapshot after each (`every`) or after the last
+          // LOCKSTEP: exactly n steps now, a snapshot after each (`every`) or after the last. `dayBatch` (G815, the
+          // page's rig clock): the day ticks ONCE after the n steps, n/60 s - app.js loop() ticks DAY_CLOCK once a
+          // frame after the frame's steps, and a day ticked twice by 1/60 is not the day ticked once by 2/60 to the bit
           if (!H) return;
           stopClock();
-          const n = m.n | 0, each = !!m.every;
+          const n = m.n | 0, each = !!m.every, batch = !!m.dayBatch;
           let maxMs = 0, ran = 0;
           while (ran < n) {
-            const ms = stepTimed(); ran++;
+            const ms = stepTimed(batch); ran++;
             if (ms > maxMs) maxMs = ms;
-            if (each) publish(1, ms);
+            if (each && !batch) publish(1, ms);
             if (H.diverged()) break;
           }
-          if (!each) publish(ran, maxMs);
+          if (batch && ran) H.dayTick(ran / 60);   // app.js: DAY_CLOCK.tick(nStep / 60)
+          if (!each || batch) publish(ran, maxMs);
           return;
         }
         case 'snap': if (H) publish(0, 0); return;
+        // G815: THE WORLD'S FACTS at the page's points (the page asks its own world the same - a divergence's triage):
+        // the day, the air, and per point the ground, the wind at sim time t, the surface, the trees and obstacles near
+        case 'probe': post({ kind: 'probe', tag: m.tag, facts: SH.simHostProbe(world, m.pts || [], m.t || 0, H, m.opts) }); return;
         case 'resend': if (H) { H.forgetRare(); publish(0, 0); } return;   // a new view: the pilot's rare fields again
         case 'log': if (H) { post({ kind: 'log', list: H.log.slice(), dropped: H.logDropped, late: H.late }); if (m.clear) H.log.length = 0; } return;
         case 'ping': post({ kind: 'pong', t: m.t, tw: wallNow(), buf: m.buf }, m.buf ? [m.buf] : []); return;
         case 'state': post({ kind: 'state', running, rate, stepMs: P.stepMs, dilation: dil(), droppedS: P.droppedS, guarded: P.guarded,
-                             allocs, steps: H ? H.steps : 0, late: H ? H.late : 0, queued: H ? H.queue.length : 0 }); return;
+                             allocs, steps: H ? H.steps : 0, late: H ? H.late : 0, queued: H ? H.queue.length : 0,
+                             worldV: world ? world.__simV || 0 : 0, preWorld: preWorld.length, dropped }); return;
         case 'stop': stopClock(); H = null; world = null; if (port.close) port.close(); return;
-        case 'batch': if (H) for (const c of m.list || []) H.queueCmd(c); return;
-        default: if (H) H.queueCmd(m);
+        case 'batch': for (const c of m.list || []) { if (H) H.queueCmd(c); else orphan(c); } return;
+        default: if (H) H.queueCmd(m); else orphan(m);
       }
     } catch (err) {
       post({ kind: 'error', error: String(err && err.stack || err) });
@@ -494,10 +611,16 @@ function simHostBody(CORE, SH, port) {
 
 // the Blob's source: this file and the built core bundle, by URL next to the
 // page, then the body. `ver` busts a stale cache: FLYDIY_BUILD for this file,
-// FLYDIY_CORE_SHA for the core (the inlined core's own hash).
-function simHostSource(base, ver, coreVer) {
+// FLYDIY_CORE_SHA for the core (the inlined core's own hash). `pre` (G815): the
+// scripts the page's premises catalogue comes from (vendor three, the
+// generators - PREMISES_GEN.collect reads them off `window`), imported first
+// with `self.window = self`, so the worker composes the premises with the
+// page's catalogue: without it a park's lawn and the like are not modifiers
+// here, and the cooked raster cells they sign go stale.
+function simHostSource(base, ver, coreVer, pre) {
   const q = v => (v ? '?v=' + encodeURIComponent(v) : '');
-  return 'self.module = { exports: {} };\n' +
+  const imp = (pre || []).map(f => 'importScripts(' + JSON.stringify(base + f + q(ver)) + ');\n').join('');
+  return (imp ? 'self.window = self;\n' + imp : '') + 'self.module = { exports: {} };\n' +
     'importScripts(' + JSON.stringify(base + 'src/viewer/sim_host.js' + q(ver)) + ');\n' +
     'const SH = self.module.exports; self.module = { exports: {} };\n' +
     'importScripts(' + JSON.stringify(base + 'tools/flight_core.js' + q(coreVer)) + ');\n' +
@@ -509,13 +632,13 @@ function simHostSource(base, ver, coreVer) {
 // ---- the page's side --------------------------------------------------------
 // One worker per flight. Null when there is no worker to be had (file://, no
 // Worker) - the caller keeps the inline loop, byte for byte (ARCH §2.3).
-function simHostStart(onMessage, onError) {
+function simHostStart(onMessage, onError, opts) {
   try {
     if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' ||
         typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return null;
     const base = new URL('.', location.href).href;
     const W = typeof window !== 'undefined' ? window : {};
-    const url = URL.createObjectURL(new Blob([simHostSource(base, W.FLYDIY_BUILD, W.FLYDIY_CORE_SHA)], { type: 'text/javascript' }));
+    const url = URL.createObjectURL(new Blob([simHostSource(base, W.FLYDIY_BUILD, W.FLYDIY_CORE_SHA, opts && opts.pre)], { type: 'text/javascript' }));
     const w = new Worker(url);
     const kill = () => { try { w.terminate(); } catch (e) {} try { URL.revokeObjectURL(url); } catch (e) {} };
     w.onmessage = e => { try { onMessage(e.data); } catch (err) { console.warn('sim worker message:', err); } };
@@ -528,9 +651,9 @@ function simHostStart(onMessage, onError) {
 }
 
 if (typeof window !== 'undefined') {
-  window.SIM_HOST = { start: simHostStart, source: simHostSource, trimBoot: simHostTrimBoot, fetchBoot: simHostFetchBoot,
+  window.SIM_HOST = { start: simHostStart, source: simHostSource, trimBoot: simHostTrimBoot, fetchBoot: simHostFetchBoot, probe: simHostProbe,
                       KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP };
 }
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes,
+  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostProbe,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart };

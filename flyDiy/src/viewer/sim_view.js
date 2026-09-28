@@ -90,7 +90,7 @@ function makeSimView(def, opts) {
     n, p, ctl, def, mismatch,
     v: R.withV ? new Float64Array(N3) : null,
     beams: def.beams,                      // the topology (a, b); the strains stay the host's (stats().smax)
-    out: {}, eng: [], fuel: {}, hydro: null, wheels: null, ap: {},
+    out: {}, eng: [], fuel: {}, hydro: null, wheels: null, ap: {}, snapCtl: null,
     starterOk: null,                       // the cockpit's (the bus) - read when a key turns, sent with it
     get t() { return B ? B.f[S.T] : 0; },
     get totalM() { return B ? B.f[S.TOTALM] : def.nodes.reduce((a, nd) => a + nd.m, 0); },
@@ -126,6 +126,7 @@ function makeSimView(def, opts) {
       if (A) release(A);
       A = B; B = s; takes++;
       const M = msg.meta || {};
+      if (M.ctl) view.snapCtl = M.ctl;       // G815: the host's ctl as published (sim_link.js mirrors it whole)
       if (M.out) { view.out = M.out; view.out.hydro = M.hydro || null; }
       if (M.eng) view.eng = M.eng;
       if (M.fuel) view.fuel = M.fuel;
