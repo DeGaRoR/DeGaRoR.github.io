@@ -6636,6 +6636,20 @@
   let rollHold = false;
   const framesRendered = n => (typeof renderer.compileAsync !== 'function') ? null   // the harness: no frames to wait for
     : new Promise(res => { frameWait = { n, res }; });
+  // G732 (B1-LAG): NEVER DRAW AHEAD OF THE LINKS. A screen's first frame waited synchronously (getProgramInfoLog under
+  // getUniforms: 0.5-1.9 s of the roll-out's 'frames' task, run to run) on programs a catch-up compile had started and
+  // not yet linked - two depth programs of the shadow pass, measured. This polls every program the renderer holds
+  // (KHR_parallel_shader_compile: isReady never blocks) until all are linked, `capMs` at most, before the frame is drawn.
+  const programsReady = capMs => (typeof renderer.compileAsync !== 'function' || !renderer.info || !renderer.info.programs) ? null
+    : new Promise(res => {
+      const t0 = performance.now();
+      const poll = () => {
+        let ok = true;
+        for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) { ok = false; break; }
+        if (ok || performance.now() - t0 > capMs) res(); else setTimeout(poll, 10);
+      };
+      poll();
+    });
   function needsRollOutScreen() {
     if (typeof BOOT.show !== 'function' || !BOOT.log) return false;   // the shim: build inline
     if (!WF) return true;
@@ -6688,7 +6702,7 @@
       { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compileSliced(sc, aa && aa.target ? aa.target() : null)
           .then(() => garage ? null : compileDepthVariants(scene, true)).then(() => garage ? null : rungPrelink())   // G730: the parked rungs re-key too
           .catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
-      { id: 'frames', label: 'first light', w: 2, fn: () => { holdRender = false; return framesRendered(2); } },
+      { id: 'frames', label: 'first light', w: 2, fn: () => Promise.resolve(programsReady(20000)).then(() => { holdRender = false; return framesRendered(2); }) },   // G732
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
       done: () => { holdRender = false; if (held && !inGarage) running = true; }, idle: 20000, hard: 90000, quietFrames: 1 });
@@ -6697,10 +6711,19 @@
   // every texture a material of the scene holds (its uniforms' too), the environment and the background, sent to the
   // GPU ~30 ms a task (initTexture) - the roll-out's 'upload' step, and since G999 the garage boot's compile step too
   // (its first frame spent ~0.3 s in texSubImage2D)
+  // G732 (B1-LAG): ...AND THE UNIFORMS A HOOK ADDED. Most of the world's textures (the splat and pavement arrays, the
+  // impostor atlases, the aerial-perspective sampler) are handed to the shader in an onBeforeCompile hook, never on the
+  // material: this walk missed them, and the first world frame uploaded them itself (the node census: 325 MB of
+  // texSubImage2D and 80 MB of texSubImage3D in the roll-out's 'frames' step; ~0.4 s of its long task in Chrome). Once a
+  // material is compiled three keeps the shader's uniforms, the hook's included, in its properties: read them there too.
   function uploadSliced(sc, id, label) {
     const texs = new Set();
+    const uni = U => { if (U) for (const k in U) { const v = U[k] && U[k].value; if (v && v.isTexture) texs.add(v);
+      else if (Array.isArray(v)) for (const x of v) if (x && x.isTexture) texs.add(x); } };
     const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (v && v.isTexture) texs.add(v); }
-      if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) texs.add(v); } };
+      uni(m.uniforms);
+      const pr = renderer.properties && renderer.properties.has && renderer.properties.has(m) ? renderer.properties.get(m) : null;
+      if (pr && pr.uniforms && pr.uniforms !== m.uniforms) uni(pr.uniforms); };
     sc.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(grab); });
     if (sc.environment) texs.add(sc.environment);
     if (sc.background && sc.background.isTexture) texs.add(sc.background);
@@ -6839,6 +6862,10 @@
       if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
       return shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants()).catch(e => console.warn('catch-up compile:', e && e.message)),
         rungLinks]), 'world', 60000)   // G730: and the parked rungs' links (never draw ahead of the links)
+        // G732: what the catch-up compile's programs hand the shaders (the hooks' textures), uploaded a slice a task, and
+        // every program linked, before the first frame draws them
+        .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
+        .then(() => shaderProgress(programsReady(30000), 'world', 60000))
         .then(() => { holdRender = false; return framesRendered(2); });
     } });
     // G710: the route, on the screen while nothing flies (the selects' block below builds it)
