@@ -644,6 +644,7 @@
   B.busy = () => B.stepI < B.steps.length;   // a chain still has steps to run (a lifted screen's, too)
   B.shaders = shaders; B.phase = phase; B.run = run; B.expect = expect; B.landed = landed; B.img = img; B.note = note; B.frame = frame;
   B.hold = hold; B.go = go;
+  B.rec = rec;   // G805: a line of the log from outside a step (parked.js: each parked aeroplane, cooked or captured, and its ms)
   B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.settled = settled; B.hasUI = HAS_UI;
   if (typeof window !== 'undefined') window.BOOT = B;
   if (typeof module !== 'undefined') module.exports = B;

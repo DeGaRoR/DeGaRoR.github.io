@@ -63765,3 +63765,86 @@ were never bound: _cage_char.js reads map + nrm only; the pavement's flats were 
 GATES: targeted (not --all), under boxlock cpu AS0B: MEDIA ASSETS GEO PROPS HOUSE PAVEMENT FRAMECOST BUILD BOOT ANIMALS TREES
 TARR TOWNKIT LOOKS SITE HANGAR ENERGY REF VILLAGE WORLDRENDER PARKED UISMOKE - 22 PASS (111 s wall); _asset_check --selftest
 PASS. There is no CHAR gate: GEO holds the chars. Built outputs not committed.
+## G805-G809 - C0b: THE STOCK PARKED AEROPLANES COOKED OFFLINE - one upfront load, no capture, no bake at the roll-out (2026-09-29, queue C, local GPU)
+
+QUEUE-C-2026-09-27 C0 item 3. The G569 bake captured every parked aeroplane at the roll-out: a round trip through the
+editor, 0.5-1.9 s of main thread per key inside the `town` step, then its far rungs baked on the GPU (5-7 s per key cold,
+an IndexedDB read warm). The `arch:` / `stock:` keys are the same aeroplane on every machine, so they are now baked
+OFFLINE and shipped; only `mine:` builds are captured live. Numbers: PLAYTEST-2026-09-26 §0.22b.
+
+G805 parked.js, THE COOK (page side):
+- `COOK` / `cookSig` / `cookEncode` / `cookDecode` / `cookRecord` / `cookLoad` / `cookAll`.
+- **The manifest** src/core/parked_packs.json ({ keys: { key: { src, sig } } }) is fetched once. For every key it names, the file is fetched once through ASSET_FETCH (a `.gz.bin` is gunzipped by the platform).
+- **Refused when stale.** A key is taken only when the page's own `cookSig(key)` equals the file's. The signature covers:
+  - the key's spec (specOf: nobody aboard);
+  - FLYDIY_BUILD (the core, the inlined viewer: aeroskin's shaders and the decals; the editor);
+  - THIS FILE's own source. The world pack parked.js rides in is NOT in FLYDIY_BUILD, so the module's IIFE is named `parkedJs` and hashed, line endings normalised;
+  - the bake's and the cook's versions and dials, CUT and WEAR.
+
+  A refused key is captured live as before, and says why (BOOT.log `why`: stale | no cook | cook failed).
+- **The container**, as-is bytes (the file is them gzipped): 'PKC1', a u32 header length, an ASCII JSON header, then 4-aligned blobs.
+  - T0-T2: the three atlases as RGB. The bake's alpha is 255 everywhere after the dilation; that is checked at encode and restored at decode.
+  - L<i>p / L<i>u / L<i>i: positions u16 over ONE box (cutBaked's), uv u16, the index as zigzag deltas. All three are delta-coded and byte-planar (V2): 2.36 -> 0.93 MB gzipped on the C172's rungs, lossless.
+  - L<i>n: normals, i8.
+
+  The cut rungs' positions ARE that lattice, so L2 / L3 come back bit-identical; L1 comes back within half a step (< 0.1 mm).
+- **The record** is `{ cooked, baked, stance, hitbox, tris }`. build() stands it at once: L1 from 0 m, L2, L3, cull; one draw a rung on one material. That is exactly where the live bake ends, with no L1 per-material stand-in first.
+- **At the roll-out:**
+  - enqueue(key) of a cookable key waits for the cook's answer before the editor is touched;
+  - whenIdle (the `parked` step) runs cookAll: EVERY key the manifest names, once, so a later placement (the stream, the world editor) finds its record and never captures or fetches in flight;
+  - the step waits for it all.
+- `?parkcook=0` turns the cook off. `PARKED.L0 = true` also takes the live path (a cook has no interior).
+- **BOOT.log** has a `parked` line per key (boot.js exports B.rec): how = cook | capture | bake, ms, decode, KB, hit.
+- bakeNow is split: bakeData (the bake as data: the IDB value and the cook's) + bakePut + bakedFrom. There is no second bake path.
+- `cookPack(key)` is the offline tool's door (capture + bakeData + cookEncode, in a page with the cook off). `abLive(key)` is the A/B's live twin (captured and baked beside the cooked record).
+
+G806 tools/parked_cook.js:
+- Headless Chrome on the GPU (a software renderer is refused) opens the built page with `?parkcook=0&world=none`, waits for the garage boot, calls PARKED.cookPack per key, and carries the bytes back over CDP in 3 MB chunks.
+- It writes them with _media_lib.writeMedia('parked', ..., 'gz.bin'): one gzip stream, the name the hash of the as-is bytes. It then writes the manifest and prunes media/parked (a full run only).
+- **Keys:** by default the aircraft objects of every shipped fixture (tools/fixtures/*.json: arch:c172, arch:cub, arch:jodel). `--keys a,b [--only]` or `--keys all` for more, `--report` to write nothing.
+- **It refuses** a page older than a source (the page must be the build it signs) and a page whose FLYDIY_BUILD is not version.json's.
+- `--check` (no browser) compares the manifest's build with version.json.
+- Cooked: C172 3.63 MB, Cub 3.67 MB, Jodel 3.39 MB (10.7 MB; the V1 container was 14.4). 5-9 s per key including its capture.
+
+**WHEN TO COOK: after every build that ships.** FLYDIY_BUILD changes with any core / viewer / editor edit, and parked.js is in the signature too. A stale cook is never WRONG (the page refuses it key by key and captures live), but the roll-out is then as slow as before. The train's integrator runs:
+
+    node tools/build.js && node tools/parked_cook.js --port <free>
+
+under the gpu lock (~1 min), on the tree that ships, and commits media/parked + src/core/parked_packs.json with the train. GATE PARKED prints the manifest's build against this tree's (it does not fail on a stale cook).
+
+**THE PRICE:** every cooked byte is in git history for ever (world_prep's rule). A re-cook of an unchanged aeroplane writes the same bytes (the A/B below: the bake is deterministic across pages), but any change to the aeroplane pipeline re-writes ~10.7 MB. Cook the shipped worlds' keys, not every archetype.
+
+G807 GATES:
+- **PARKED §10** (123 checks headless, 130 with the shipped manifest's):
+  - the container both ways, on a synthetic bake cut by the page's own cutBaked: atlases lossless, the cut rungs bit-identical, L1 within half a step, uv within half of 1/65535, normals and index exact;
+  - a misaligned buffer decodes; a short file, a wrong magic and an atlas with alpha < 255 are refused;
+  - the cooked record's ladder = the live bake's at the same placement (rungs, distances, one draw on one material, each rung at the live placement's matrix, the hitbox);
+  - the signature moves with the build, the spec and the key, and hashes parked.js; headless the cook stands aside;
+  - the shipped manifest's files decode to its keys and signatures, and a v1 cook is named as such.
+- **MEDIA** reads src/core/parked_packs.json (referenced == present covers media/parked).
+
+G808 RIGS:
+- **tools/parked_ab.js** (on tools/live_driver.js):
+  - rolls out, pauses, and for each cooked key switches the placement nearest the stand between A = a live capture + bake made in that page and B = the cook, at one frozen camera (scene.onBeforeRender);
+  - views near 12 m / mid 45 m (L1) and far 170 m (L2); a still pair, the frame without the aeroplane, and a 16-step slow pan about the camera's up;
+  - plus the BYTES: atlas texels, each rung's positions / uv / normals / index, the stance, the hitbox.
+- **tools/fbake_ab.py** takes its side labels from ab.json (default: the flown bake's).
+
+G809 MEASURED (RTX 3080; PLAYTEST §0.22b has the tables):
+- **The parked work on the main thread:** 2.8-3.9 s of captures (+ the restore, + 5-7 s GPU bakes per key cold) -> 62-85 ms of decode.
+- **The town step:** 1.3-10 s shorter. **The reveal:** 1.7-9.6 s sooner (warm Cub 38.6 -> 29.0 s and 36.5 -> 33.5 s; metal 36.4 -> 34.4 s; cold 51.5 -> 49.9 s). The `parked` step is 107-139 ms.
+- **Taxi and stand unchanged.**
+- **THE LOOK:**
+  - all 9 atlases are byte-identical live vs cooked (the Jolene page after roll-out vs the cook's world=none page);
+  - L2 / L3, normals and index are bit-identical; L1 within 0.084 mm;
+  - mean |A-B| on the aeroplane is 0.03-0.10 (0-255) still and in the slow pan, near / mid / far;
+  - the few > 2 are single silhouette pixels (MSAA coverage of the sub-0.1 mm move).
+- **TWO FINDINGS, filed as tasks:**
+  1. **The long tasks > 1 s in some AFTER runs are the GARAGE shed's reflection probe.** app.js bakeHangarEnv is re-baked under the roll-out on every late prop or texture landing (17-19 times a run, before and after alike), and stalls 0.4-1.3 s in uniformMatrix4fv 2-4 times a run. The ~5 s of captures no longer sit between those bakes. Profiled: tools/perf/rollout_c0b_prof_*_metal.cpuprofile. Fix: defer the probe while the world is up.
+  2. **The LIVE capture depends on the player's build.** Under the metal Cessna the same archetypes captured 241 066 / 261 722 / 315 378 tris vs 249 952 / 269 456 / 325 544 under the Cub (editor state leaks into the capture). The cooked keys no longer show it; `mine:` keys and stale cooks do.
+
+TRAPS:
+- **The page must not change under a cook or a measurement.** parked.js is served loose (the world pack), so editing it while a rollout_perf series runs makes the next run's signature differ from the cooked one: every key captured live, a silently invalid AFTER. Stage the edit elsewhere and apply it after the series.
+- rollout_perf's BEFORE needs its own worktree: `node tools/build.js` in the working tree rewrites index.html, and a queued BEFORE series would measure your build.
+- A `//` comment spliced into a one-line template-string eval comments out the rest of the line (the rig's placements filter: "p is not defined").
+- The roll-out's `parked` step read 0 ms in BOOT.log before this: the captures ran INSIDE `town` (enqueue -> the pump). Read the per-key lines or PARKED.records[k].t, not the step.
