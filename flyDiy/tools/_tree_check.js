@@ -195,7 +195,52 @@ function check() {
        (bytes / 1e6).toFixed(2) + ' MB');
 }
 
+// THE REACHABLE CATALOGUE (AS1, G908): src/viewer/trees.js treeReachOf on the composed Jolene - the map's codes after
+// the premises' stamps (the town filter applied), the three derived codes, the kinds no mix gates, the premises' own
+// trees. With Metlakatla cut (the page's default) the six the asset census found unplantable are out, and ONLY
+// those; with the town on, `borders` (code 15, Metlakatla's stamps) brings maple back; every species a reached mix
+// names is reached; the analytic world (no ttype) is the whole pack. treeReach narrows treeList / the warm and grows.
+function reach() {
+  const vm = require('vm');
+  const C = require('./flight_core.js'), IN = require('./island_node.js');
+  const ctx = { console, BIOMES: require(path.join(ROOT, 'src', 'core', '28c_biomes.js')), TREE_PACK: require(path.join(ROOT, 'src', 'viewer', 'trees_pack.js')), Image: function () {} };
+  ctx.window = ctx; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'trees.js'), 'utf8'), ctx, { filename: 'trees.js' });
+  const TP = ctx.TREE_PACK, all = TP.collections.map(c => c.name);
+  const fx = fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8'), U = C.PREMISES_GEN.unwrap(fx);
+  const cut = C.PREMISES_GEN.envelope(U.name, C.PREMISES_GEN.dropPlaces(U.rec, ['mk_']).rec, U.plaque, U.log);
+  const out = {};
+  for (const [nm, rec] of [['cut', cut], ['town', fx]]) {
+    const W = IN.islandWorld('jolene', { premises: rec });
+    const got = ctx.treeReachOf(W);
+    if (!got) { fail.push('reach: treeReachOf answered null on Jolene (' + nm + ')'); continue; }
+    out[nm] = all.filter(n => !got.includes(n));
+    // every species of every mix a code on this map names
+    const B = ctx.BIOMES.make(TP), T = W.island.ttype, seen = new Set(); for (let k = 0; k < T.length; k++) seen.add(T[k]);
+    for (const [a, d] of [[6, 12], [8, 13], [7, 14]]) if (seen.has(a)) seen.add(d);
+    const miss = [];
+    for (const c of seen) { const m = B.mixAt(c); if (m) for (const sp of Object.keys(B.mixOf(m).species || {})) if (all.includes(sp) && !got.includes(sp)) miss.push(c + ':' + sp); }
+    for (const c of TP.collections) if (['rock', 'debris', 'cliff'].includes(c.kind) && !got.includes(c.name)) miss.push(c.kind + ':' + c.name);
+    if (!got.includes('grass_dry')) miss.push('grass_dry');
+    if (miss.length) fail.push('reach (' + nm + '): a reachable species is not reached: ' + miss.join(', '));
+  }
+  const six = ['ash', 'birch_autumn', 'grass_plates', 'grass_scan', 'maple', 'pine_lampi.glb'];
+  const outCut = (out.cut || []).slice().sort();
+  if (JSON.stringify(outCut) !== JSON.stringify(six)) fail.push('reach: with Metlakatla cut the unreached should be exactly ' + six.join(', ') + ' - got ' + outCut.join(', '));
+  if (!out.town || out.town.includes('maple')) fail.push('reach: with the town on, `borders` (code 15) should reach maple');
+  if (ctx.treeReachOf({ island: null }) !== null) fail.push('reach: the analytic world should answer null (the whole pack)');
+  // the narrowing and the growth
+  const n0 = ctx.treeList('all').length;
+  ctx.treeReach(TP.collections.map(c => c.name).filter(n => !six.includes(n)));
+  const n1 = ctx.treeList('all').length, has = n => ctx.treeList('all').some(e => e.col.name === n);
+  if (!(n1 < n0) || has('maple')) fail.push('reach: treeReach did not narrow treeList (' + n0 + ' -> ' + n1 + ')');
+  const grew = ctx.treeReach(['maple']);
+  if (grew.length !== 1 || grew[0] !== 'maple' || !has('maple') || !has('spruce_tree.glb')) fail.push('reach: a grown catalogue should add maple and keep the rest (' + grew.join(',') + ')');
+  note('reach: Metlakatla cut, ' + outCut.length + ' of ' + all.length + ' collections unreached (' + outCut.join(', ') + '); the town on, ' + (out.town || []).length + ' (' + (out.town || []).join(', ') + ')');
+}
+
 try { check(); } catch (e) { fail.push('threw: ' + e.message); }
+try { reach(); } catch (e) { fail.push('reach threw: ' + e.message); }
 for (const f of fail) process.stdout.write('  FAIL ' + f + '\n');
 process.stdout.write('GATE TREES: ' + (fail.length ? 'FAIL' : 'PASS') + '\n');
 process.exit(fail.length ? 1 : 0);

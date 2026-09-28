@@ -228,7 +228,7 @@ const MANIFEST = {
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'totems', 'totems_packs.json'), 'utf8')).map(f => ['src/totems', f]); } catch (e) { return []; } })(),
-    ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_tower_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
+    ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_tower_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'cabin', 'cabin_packs.json'), 'utf8')).map(f => ['src/cabin', f]); } catch (e) { return []; } })(),
     ['src/viewer', 'cabin_livery.js'], ['src/viewer', 'cabin.js'], ['src/viewer', 'tram_run.js'],
     // powerline.js after tram_run.js (it takes its sag from the tram's rope) and before the renderer
@@ -240,12 +240,17 @@ const MANIFEST = {
     ['src/viewer', 'scenery_life.js'],
     // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with
     ['src/viewer', 'house_tarr.js'],
-    ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
-    // THE WORLD RAIL (G582): 90 KB of editing UI no flight needs at boot - fetched once and cached here rather than
-    // inlined (index.html's budget, GATE MEDIA). It only publishes window.WORLD_RAIL at eval and polls for the world,
-    // so landing before app.js is soon enough; app.js's SCENERY and F8 reach it at call time.
-    ['src/viewer', 'world_rail.js'],
+    ['src/viewer', 'render_premises.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+  // LOADED ON DEMAND (AS1, G909): ~290 KB of the world pack that a flight on the default map never runs - the scenery
+  // editor (premises_host.js, premises_ui.js), the WORLD rail (world_rail.js: 90 KB of editing UI; G582 kept it out of
+  // index.html's budget) and the two generators only Metlakatla's places name (_sport_gen.js, _marine_gen.js). No
+  // static tag: the page's FLYDIY_LAZY(name) (LAZY_LOADER below) appends one when something asks - world_boot.js the
+  // generators when the placed record names a sport/ or marine/ key (the town on), app.js the editor when it opens,
+  // the loader itself the rail at boot when this browser saved a look or a shown rail (the rail applies the look), or
+  // on F9. The name is the file's stem.
+  lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
+         ['src/viewer', 'world_rail.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
     shell: 'shell.html',
     // TWO STYLESHEETS, IN ORDER (G77). style.css is the GAME's — the flight
@@ -795,6 +800,40 @@ window.FLYDIY_BOOT.then(function () {
   // appends real copies in order (async = false) once the vendor is in and,
   // under the renderer flag, once the node renderer has initialised
   const dref = (dir, sub, f) => `<script type="text/x-flydiy" src="${sub}/${f}${ver(path.join(dir, f))}"></script>`;
+  // THE ON-DEMAND LOADER (AS1, G909): MANIFEST.lazy's files by stem, each appended once (async = false: in the order
+  // asked), a promise per name that settles on load or error (a missing file is the feature's absent path, never a
+  // hung page); .pending() counts those in flight (render_world's premises step waits on the generators)
+  const LAZY_SRC = {};
+  for (const [d, f] of MANIFEST.lazy) LAZY_SRC[f.replace(/\.js$/, '')] = d + '/' + f + ver(path.join(ROOT, d, f));
+  const LAZY_LOADER = `<script>
+(function () {
+  var SRC = ${JSON.stringify(LAZY_SRC)}, got = {}, busy = 0;
+  window.FLYDIY_LAZY_SRC = SRC;
+  var lazy = window.FLYDIY_LAZY = function (names) {
+    return Promise.all([].concat(names).map(function (n) {
+      if (got[n]) return got[n];
+      var u = SRC[n]; if (!u) return Promise.resolve(false);
+      busy++;
+      return (got[n] = new Promise(function (res) {
+        var s = document.createElement('script'); s.async = false; s.setAttribute('data-lazy', n);
+        s.onload = function () { busy--; res(true); };
+        s.onerror = function () { busy--; console.warn('flyDiy: ' + u + ' did not load'); res(false); };
+        s.src = u; s.setAttribute('src', u);
+        (document.body || document.head).appendChild(s);
+      }));
+    }));
+  };
+  lazy.pending = function () { return busy; };
+  lazy.has = function (n) { return !!got[n]; };
+  // the WORLD rail applies this browser's saved look at boot: loaded now when there is one (or a shown rail, or
+  // ?scenery=1); otherwise F9 fetches it (its own F9 handler takes over once it is in)
+  try { if (localStorage.getItem('flydiy.worldlook.v1') || /"shown":true/.test(localStorage.getItem('flydiy.worldrail.ui') || '') || /[?&]scenery=1/.test(location.search)) lazy('world_rail'); } catch (e) {}
+  window.addEventListener('keydown', function (e) {
+    if (e.code !== 'F9' || window.WORLD_RAIL) return;
+    e.preventDefault(); lazy('world_rail').then(function () { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); });
+  }, true);
+})();
+</script>`;
   // the payload refs are the SAME tags in both pages: model and prop payloads
   // stopped being inlined on 2026-09-01 (the multi-file artifact) and the
   // committed .js files under src/models/ and src/props/ are served directly.
@@ -894,7 +933,7 @@ self.addEventListener('fetch', e => {
   const worldRefs = MANIFEST.world.map(([d, f]) => ref(path.join(ROOT, d), d, f)).join('\n');
   const renderTags = scripts.slice(0, -1).map(s => `<script>\n${s}</script>`);
   renderTags.splice(APP_AT, 0, worldRefs);
-  art = fill(art, 'RENDER', [LAZY]
+  art = fill(art, 'RENDER', [LAZY, LAZY_LOADER]
     .concat(editor.map(s => `<script>\n${s}</script>`))
     .concat(renderTags).join('\n'));
   art = fill(art, 'APP', `<script>\n${scripts[scripts.length - 1]}</script>`);
@@ -987,6 +1026,11 @@ window.FLYDIY_BOOT.then(function () {
       console.error(`POST-BUILD ASSERTION FAILED: artifact lost the world pack ref ${f}`);
       process.exit(1);
     }
+  for (const [d, f] of MANIFEST.lazy)
+    if (!art.includes(`"${d}/${f}?v=`) || art.includes(`src="${d}/${f}?v=`)) {
+      console.error(`POST-BUILD ASSERTION FAILED: the on-demand ${f} is not in the loader's map, or it has a static tag (G909)`);
+      process.exit(1);
+    }
   const artFile = path.join(ROOT, 'index.html');
   fs.writeFileSync(artFile, art);
 
@@ -1001,7 +1045,7 @@ window.FLYDIY_BOOT.then(function () {
   dev = fill(dev, 'MODELS', payloadRefs.replace(/<script src=/g, '<script type="text/x-flydiy" src='));
   const devRender = V.scripts.slice(0, -1).map(f => dref(VIEW_DIR, 'src/viewer', f));
   devRender.splice(APP_AT, 0, MANIFEST.world.map(([d, f]) => dref(path.join(ROOT, d), d, f)).join('\n'));
-  dev = fill(dev, 'RENDER', [LAZY]
+  dev = fill(dev, 'RENDER', [LAZY, LAZY_LOADER]
     .concat(MANIFEST.editor.map(f => dref(__dirname, 'tools', f)))
     .concat(devRender)
     .join('\n'));

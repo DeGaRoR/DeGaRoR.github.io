@@ -394,6 +394,18 @@ function checkMineral(quiet) {
   for (const k of ['uSMatA', 'uSMatS', 'uSMatM', 'uSMatF', 'uSMatFS', 'uSVary', 'uSLum', 'uSplat', 'uSplatN', 'uSDist', 'uSDist2',
                    'uSSeam', 'uSHex', 'uSPud', 'uSSplit', 'uSSplit2', 'uSNrm', 'uSNCode', 'uSNCand', 'uSNearN', 'uSFarN', 'uSplatOn', 'uSGrade', 'uSLib']) gU[k] = { value: new V4c() };
   const SP = ctx.SPLAT_GROUND.make(gU, W.island);
+  // THE ARRAYS HOLD WHAT THE MAP CAN REACH (AS1, G908): the codes on Jolene's grid (sea -> 4, lake -> 3, the three
+  // derived) name their near and far sets; the rest of the library is not fetched, drawn or uploaded
+  if (SP && SP.api && SP.api.layers) {
+    const L = SP.api.layers(), lib = ctx.SPLAT_TEX_SETS.map(q => q.key), T = W.island.ttype, seen = new Set();
+    for (let k = 0; k < T.length; k++) seen.add(T[k]);
+    if (seen.has(0)) seen.add(4); if (seen.has(1)) seen.add(3); seen.delete(0); seen.delete(1);
+    for (const [a, d] of [[6, 12], [8, 13], [7, 14]]) if (seen.has(a)) seen.add(d);
+    const need = new Set(); for (const c of seen) { const r = SP.api.code(c); if (r) for (const k of (r.tex || []).concat(r.far || [])) if (k) need.add(k); }
+    const lost = [...need].filter(k => !L.includes(k)), extra = L.filter(k => !need.has(k));
+    say(!lost.length && !extra.length && L.length < lib.length && L.every((k, i) => i === 0 || lib.indexOf(L[i - 1]) < lib.indexOf(k)),
+        `the arrays hold the ${L.length} of ${lib.length} sets Jolene's codes name, in the library's order (not built: ${lib.filter(k => !L.includes(k)).join(', ')})` + (lost.length ? '; MISSING ' + lost.join(', ') : '') + (extra.length ? '; EXTRA ' + extra.join(', ') : ''));
+  }
   const norm = (SP && SP.api) ? SP.api.norm() : {};
   say(Object.keys(norm).length > 8, `${Object.keys(norm).length} sets carry a gain from the imagery`);
   // THE LIST IS THE RULE: every surface here is rock, dirt, sand or snow and may
