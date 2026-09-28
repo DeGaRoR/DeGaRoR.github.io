@@ -33,6 +33,12 @@
 //   sub(frac)                G640: the current step's own progress (0..1, only ever
 //                            raises it) - the shader compile's linked/seen count
 //   card(dir)                G640: the carousel one card on (+1) or back (-1)
+//   hold() / go(lift)        B8 (G1025): THE SETUP SCREEN'S HOLD. hold() - the player
+//                            touched an option on the loading screen: the load
+//                            finishes and the overlay WAITS (state 'waiting', the
+//                            bar full, onWait() called) instead of lifting;
+//                            go() lifts it (go(false): released, the caller runs
+//                            another chain first). show() and hide() clear it.
 //
 // G640 - THE BAR IS THE CLOCK'S, AND THE WAIT HAS SOMETHING TO READ (the 2026-09-26
 // playtest: "progress bars for every loading screen ... tell them what happens,
@@ -163,7 +169,7 @@
   }
   // the whole bar at time t, if nothing reports before then
   function estimate(t) {
-    if (B.state === 'ready' || B.state === 'gone') return 1;
+    if (B.state === 'ready' || B.state === 'gone' || B.state === 'waiting') return 1;
     if (!B._runT) {   // before run(): the scripts' share of the garage boot
       const h = hist(), S = h._scripts > 0 ? h._scripts : SCRIPTS_MS, R = h._boot > 0 ? h._boot : BOOT_MS;
       // the island's own read (the page's loader: phase('world', 'reading the island', done / fetched)) is most of it
@@ -243,17 +249,40 @@
       garage: 'Raising the shed around it: the room, its light, the props and the crew.',
       editor: 'Opening the workshop: the drawing board and every part you can change.',
       sync: 'Committing the build: the shape you drew becomes the aeroplane the physics fly.',
+      snapshot: 'Committing the build: the shape you drew becomes the aeroplane the physics fly.',
+      bake: 'Baking the flown aeroplane: its skin, as the camera will see it outside.',
+      spec: 'Your aeroplane, built from the committed design.',
       parked: "Parking the other aeroplanes you will meet on the island's fields.",
+      // B9 (G1020): the world, in the one loading - every round trip after it costs only the aeroplane
+      world: 'Laying out the island now, once: the ground, the water, the fields, the roads and the villages. Every roll-out after this one is instant.',
+      town: 'Building the field around the stand: the hangars, the houses and the aeroplanes parked on it.',
+      parking: "Parking the other aeroplanes on the field - each one is built by the same workshop as yours.",
+      trees: 'Waiting for the tree models.',
+      ring: 'Planting the forest around the stand, nearest first. Farther out it keeps growing while you fly.',
+      images: "Fetching the pictures the world's buildings and signs wear.",
+      upload: 'Sending the textures to the graphics card in small slices, so the first frame does not stall.',
+      worldCompile: ["Compiling the island's shaders - first visit only, cached next time.",
+                     "Linking the island's shaders from your browser's cache."],
+      craft: "Your aeroplane's shaders in the island's light, so the first frame outside compiles nothing.",
+      shedCompile: 'Compiling what your new settings change in the shed.',
+      _waiting: 'Everything is loaded. Your options are on the left: press Fly when you are ready.',
       restore: "Reading back your aeroplane's plaque from the last session.",
       compile: ["Compiling the shed's shaders for your graphics card - first visit only, cached next time.",
                 "Handing the shed's shaders to your graphics card - they were compiled on an earlier visit."],
       firstFrame: 'The first frames, drawn behind this screen: the shed only shows when it is finished.',
       shed: 'Back into the shed: the room rebuilt around your aeroplane, the plaque settled.',
       board: 'Reopening the workshop where you left it.',
-      frames: 'First light in the shed.',
+      frames: 'First light: the shed, and the island drawn once from the stand behind this screen.',
       _landing: 'The last textures landing: the shed opens when everything is in place, never half-dressed.' },
     rollout: {
       sync: 'Committing your build: the shape you drew becomes the aeroplane the physics fly.',
+      snapshot: 'Committing your build: the shape you drew becomes the aeroplane the physics fly.',
+      bake: 'Baking the flown aeroplane: its skin, as the camera will see it outside.',
+      spec: 'Your aeroplane, built from the committed design.',
+      craft: "Your aeroplane's shaders in the island's light - only what the new build changed.",
+      parking: "Parking the other aeroplanes on the field - each one is built by the same workshop as yours.",
+      worldCompile: ["Compiling what the new settings or the new stand changed - cached next time.",
+                     "Linking the island's shaders from your browser's cache."],
       stand: 'Wheeling the aeroplane out of the shed onto its stand.',
       world: 'Laying out the island: the ground, the water, the fields, the roads and the villages. Only the first roll-out of a visit.',
       town: 'Building the field around the stand: the hangars, the houses and the aeroplanes parked on it.',
@@ -398,7 +427,7 @@
 
   // ---- the watchdogs: check elapsed, never re-arm themselves ------------
   function watch() {
-    if (B.state === 'gone' || B.state === 'ready') return;
+    if (B.state === 'gone' || B.state === 'ready' || B.state === 'waiting') return;   // (B8: waiting on the player is not a stuck boot)
     const t = now();
     // fired early (the harness's immediate stub): no verdict and NO re-arm -
     // an immediate timer that re-armed itself would recurse without end
@@ -548,7 +577,16 @@
     if (B.state !== 'landing') return false;
     if (!balanced()) return false;
     if (B.quiet < (B.opt.quietFrames === undefined ? 3 : B.opt.quietFrames)) return false;
+    // B8: the player touched the setup: the load is done, the screen waits for Fly (the bar's history is this load's)
+    if (B._hold) { B.state = 'waiting'; rec('waiting'); histRecord(); B._key = ''; setPhase('ready'); why('_waiting'); paint();
+      if (typeof B.onWait === 'function') { try { B.onWait(); } catch (e) {} } return false; }
     B.state = 'ready'; rec('ready'); histRecord(); hide(); return true;
+  }
+  function hold() { if (B.state === 'gone' || B.state === 'ready') return false; B._hold = true; rec('hold'); return true; }
+  function go(lift) {
+    B._hold = false; rec('go');
+    if (lift === false || B.state !== 'waiting') return;
+    B.state = 'landing'; B.quiet = 1e9; ready();
   }
   function fail(reason) {
     if (B.state === 'gone' || B.state === 'ready') return;
@@ -558,7 +596,7 @@
     B.state = 'ready'; hide();
   }
   function hide() {
-    rec('gone'); const b = $('boot'); B.state = 'gone'; shaders(null);
+    rec('gone'); const b = $('boot'); B.state = 'gone'; B._hold = false; shaders(null);
     if (HAS_UI) { const t = now(); setBar(shown(t), 1, 250, t); text('bootPct', '100 %'); }
     // the roll-out's first picture, fetched now that the page is idle: its world step holds the main thread
     // for seconds, and a picture asked for under it would land after it - an empty background meanwhile
@@ -569,7 +607,7 @@
   }
   function show(set, opt) {
     const b = $('boot'); if (b) { b.hidden = false; b.classList.remove('gone'); if (b.setAttribute) b.setAttribute('data-set', set || 'garage'); }
-    B.set = set || 'garage'; B.keys = {}; B.failed = []; B.state = 'loading'; B._frame1 = false;
+    B.set = set || 'garage'; B.keys = {}; B.failed = []; B.state = 'loading'; B._frame1 = false; B._hold = false;
     // G640: the pictures of the scene being left for a settings change ('settings' has none of its own)
     B._shotSet = B.set === 'settings' ? ((opt && opt.shots) || 'garage') : B.set;
     B._key = ''; B._stepE = 0; B._landT = 0; B.doneW = 0; B.weights = 0; B._preW = 0; B.current = null; B.frac = 0;
@@ -603,6 +641,7 @@
   B.sub = sub; B.card = card;
   B.busy = () => B.stepI < B.steps.length;   // a chain still has steps to run (a lifted screen's, too)
   B.shaders = shaders; B.phase = phase; B.run = run; B.expect = expect; B.landed = landed; B.img = img; B.note = note; B.frame = frame;
+  B.hold = hold; B.go = go;
   B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.settled = settled; B.hasUI = HAS_UI;
   if (typeof window !== 'undefined') window.BOOT = B;
   if (typeof module !== 'undefined') module.exports = B;

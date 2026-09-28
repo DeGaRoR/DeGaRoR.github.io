@@ -183,6 +183,10 @@ var ROCK_MAP = (() => {
       gU.uRockFade.value.set(cs.near || 50, cs.reach || 220, cs.taper === undefined ? 0.5 : cs.taper, (cs.rocks === 0 ? 0 : aglK));
     }
     const api = { get: () => Object.assign({}, S), stat: () => Object.assign({ plans: plans.size }, STAT), set: o => { Object.assign(S, o || {}); complete = false; return api.get(); },
+      // B9 (G1020): the map's programs, to compile before its first render (the one loading): its sprites are
+      // instanced, with and without an instance colour - two programs that linked on the first flight frames
+      warm: () => { const g = new THREE.Scene(), a = new THREE.InstancedMesh(quad, mapMat, 1), b = new THREE.InstancedMesh(quad, mapMat, 1);
+        b.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(3), 3); a.frustumCulled = b.frustumCulled = false; g.add(a); g.add(b); return { scene: g, target: MAP }; },
                   replan: () => { plans.clear(); dirty = true; complete = false; }, atlas: () => ATLAS.texture, map: () => MAP.texture, rt: () => MAP, atlasRT: () => ATLAS,
                   // the instrument: the map's coverage over a box in WORLD metres (the rigs read it; trace before hypothesis)
                   probe: (x0, z0, side) => { const n = Math.max(1, Math.round(side)); const buf = new Uint8Array(n * n * 4);

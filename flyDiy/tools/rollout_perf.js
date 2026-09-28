@@ -34,6 +34,7 @@
 //          [--settings ['shadows=off,shadows=full,preset=potato,preset=gamer']] (G680: the settings-change probe, below)
 //          [--chrome-flag '--gpu-program-cache-size-kb=262144'] (G680: an extra Chrome switch, e.g. G584's cache-size test)
 //          [--profile-boot] (G680: a CPU profile of the garage boot, <label>_boot.cpuprofile)
+//          [--trips] (B9 G1023: the round trips timed - the garage's fps fresh and after, a slider's latency, each trip)
 // THE SETTINGS PROBE (G680, A4-FREEZE: "no freezing ever ... This includes possible setting changes"): after the
 // recording window, each change of the list is made the way a pick in the GRAPHICS menu makes it (gfx_settings.js
 // pick: GFX.set, then FLYDIY_SETTLE - the settings screen), one at a time, each waited out (the screen gone, its
@@ -98,6 +99,12 @@ const getJSON = url => new Promise((res, rej) => {
 const gpuUtil = () => { try { return +execSync('nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits', { stdio: ['ignore', 'pipe', 'ignore'], timeout: 4000 }).toString().trim(); } catch (e) { return -1; } };
 const cpuLoad = () => { try { return +execSync('powershell -NoProfile -Command "(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average"', { stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 }).toString().trim(); } catch (e) { return -1; } };
 
+// --trips: a stretch of frame intervals (ms), summarised
+function tripStat(dts) {
+  const a = (dts || []).filter(x => x > 0).sort((p, q) => p - q); if (!a.length) return null;
+  const sum = a.reduce((t, x) => t + x, 0);
+  return { frames: a.length, fps: +(1000 * a.length / sum).toFixed(1), med: +a[a.length >> 1].toFixed(1), p90: +a[Math.floor(a.length * 0.9)].toFixed(1), max: +a[a.length - 1].toFixed(1), over33: a.filter(x => x > 33.4).length };
+}
 // ---- the static server -----------------------------------------------------
 let server = null, serverExit = null;
 if (!URL) {
@@ -140,6 +147,11 @@ const SHOT_EVAL = opt('shot-eval', null);
 const PROFILE_LIVE = opt('profile-live', null);
 const EVAL = (e => e && e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e)(opt('eval', null));   // '@tools/rollout_census.js': from a file
 const SETTINGS = flag('settings') ? (() => { const v = opt('settings', null); return (v && !v.startsWith('--') ? v : 'shadows=off,shadows=full,preset=potato,preset=gamer').split(',').map(x => x.split('=')); })() : null;
+// --trips (B9, G1023): THE ROUND TRIPS, timed - the garage's frame rate fresh (5 s before the first roll-out) and after a
+// round trip, back to the shed, a slider of the editor moved (the input's task and the time to the next frame), roll out,
+// back, roll out with no change: each trip's own ms (window.FLYDIY_TRIPS), the steps it ran, its frames (fps, p90, max,
+// frames over 33.4 ms) and long tasks; and the load's long tasks (a task of 50 ms or more is a frame under 20 fps).
+const TRIPS = flag('trips');
 // --profile-settings (G991): a CPU profile of each settings change (<label>_set_<k>_<v>.cpuprofile), its longest task
 // summarised by self time and by the calling chain - where a change's long task goes
 const PROFILE_SET = flag('profile-settings');
@@ -345,6 +357,13 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // by self and inclusive time per function (G591: where the roll-out's long tasks go)
   const PROFILE = flag('profile');
   if (PROFILE) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 1000 }); await cmd('Profiler.start'); }
+  // --trips: the garage's frames, fresh (the world exists since the one loading: the recorder can go in now)
+  let garageFresh = null;
+  if (TRIPS) { await ev(INSTALL); await sleep(1000); const a0 = await ev('performance.now()'); await sleep(5000); const a1 = await ev('performance.now()');
+    garageFresh = tripStat(JSON.parse(await ev('JSON.stringify(__RP.fr.filter(r => r[0] >= ' + a0 + ' && r[0] <= ' + a1 + ').map(r => r[1]))')));
+    const loadLt = JSON.parse(await ev('JSON.stringify(__RP.lt)')).filter(x => x[0] <= a0);
+    console.log('  LOAD ' + tGarage.toFixed(1) + ' s to the shed · long tasks >= 50 ms (a frame under 20 fps each): ' + loadLt.length + ', over 100 ms: ' + loadLt.filter(x => x[1] > 100).length + ', worst ' + loadLt.reduce((m, x) => Math.max(m, x[1]), 0) + ' ms');
+    console.log('  GARAGE fresh ' + JSON.stringify(garageFresh)); }
   // ROLL OUT
   const tRoll = Date.now();
   await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent).forEach(x=>x.click());return 1;})()");
@@ -466,6 +485,50 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
       console.log('  SETTINGS ' + run.change.padEnd(16) + ' click task ' + run.clickMs + ' ms · ' + (shown ? 'screen' : 'no screen') + ' · settled in ' + (run.spanMs / 1000).toFixed(1) + ' s · worst task ' + worst + ' ms · >1 s: ' + run.over1s + (run.over200.length ? ' · >200 ms: ' + run.over200.join(' ') : ''));
     }
   }
+  // ---- the round trips (B9, G1023) ----
+  let tripRuns = null;
+  if (TRIPS) {
+    tripRuns = [];
+    if (garageFresh) tripRuns.push({ label: 'garage, fresh', garage: garageFresh });
+    const now = () => ev('performance.now()');
+    const waitTrip = async (kind, n0) => { const tEnd = Date.now() + 240000; while (Date.now() < tEnd) {
+      const d = JSON.parse(await ev("JSON.stringify((() => { const L = window.FLYDIY_TRIPS || []; const t = L[L.length - 1]; return { n: L.length, kind: t && t.kind, done: !!(t && t.done), ms: t && t.ms, anim: t && t.anim, ran: t ? t.steps.filter(s => s.ran).map(s => s.id) : [], boot: window.BOOT ? BOOT.state : '' }; })())", 30000));
+      if (d.n > n0 && d.kind === kind && d.done && d.boot === 'gone') return d; await sleep(100); } return null; };
+    const framesIn = async (t0, t1) => JSON.parse(await ev('JSON.stringify(__RP.fr.filter(r => r[0] >= ' + t0 + ' && r[0] <= ' + t1 + ').map(r => r[1]))'));
+    const longIn = async (t0, t1) => JSON.parse(await ev('JSON.stringify(__RP.lt)')).filter(x => x[0] >= t0 - 5 && x[0] <= t1).map(x => x[1]);
+    const trip = async (label, kind, click) => {
+      const n0 = await ev('(window.FLYDIY_TRIPS || []).length'), t0 = await now();
+      await ev('(() => { ' + click + '; return 1; })()');
+      const d = await waitTrip(kind, n0), t1 = await now();
+      await sleep(2000);   // the reveal's first frames
+      const t2 = await now();
+      const run = { label, kind, tripMs: d ? d.ms : null, wallMs: Math.round(t1 - t0), ran: d ? d.ran : null, anim: d ? d.anim : null, frames: tripStat(await framesIn(t0, t2)), long: await longIn(t0, t2) };
+      tripRuns.push(run);
+      console.log('  TRIP ' + label.padEnd(30) + ' ' + (run.tripMs == null ? 'NOT DONE' : run.tripMs + ' ms') + ' (wall ' + run.wallMs + ' ms) · ran [' + (run.ran || []).join(' ') + '] · frames ' + JSON.stringify(run.frames) + ' · long tasks ' + (run.long.join(' ') || 'none'));
+      return run;
+    };
+    const garage = async label => { await sleep(1500); const a0 = await now(); await sleep(5000); const a1 = await now();
+      const g = tripStat(await framesIn(a0, a1)); tripRuns.push({ label, garage: g }); console.log('  GARAGE ' + label + ' ' + JSON.stringify(g)); return g; };
+    const HANG = "document.getElementById('bHangar2').click()", GO = "document.getElementById('bGo').click()";
+    await trip('back to the shed 1', 'rollin', HANG);
+    await garage('after a round trip');
+    // A SLIDER: the editor's first range of these keys moved a step, as a drag does; the input's own task and the time
+    // to the next rendered frame (two rAFs: the frame after the rebuild is on screen)
+    const sl = JSON.parse(await ev("(async () => { const keys = ['noseLen', 'span', 'wingSpan', 'chord', 'fuseLen'].concat(window.CAGE_UI && CAGE_UI.P ? Object.keys(CAGE_UI.P) : []);"
+      + " for (const k of keys) { const r = document.getElementById('p_' + k); if (!r || r.type !== 'range' || r.disabled || typeof r.oninput !== 'function') continue;"
+      + " const st = +r.step || 0.01, v = +r.value, nv = v + st <= +r.max ? v + st : v - st; const t0 = performance.now(); r.value = String(nv); r.oninput({ target: r }); const t1 = performance.now();"
+      + " await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res))); return JSON.stringify({ key: k, from: v, to: nv, inputMs: Math.round(t1 - t0), toFrameMs: Math.round(performance.now() - t0) }); }"
+      + " return JSON.stringify(null); })()", 60000));
+    tripRuns.push({ label: 'slider', slider: sl });
+    console.log('  SLIDER ' + JSON.stringify(sl));
+    await sleep(2000);
+    await trip('roll out 2 (the slider moved)', 'rollout', GO);
+    await sleep(5000);
+    await trip('back to the shed 2', 'rollin', HANG);
+    await garage('after two round trips');
+    await trip('roll out 3 (no change)', 'rollout', GO);
+    await sleep(3000);
+  }
   let progSrc = null;
   if (PROGSRC) {
     progSrc = JSON.parse(await ev("(() => { const R = WORLD.renderer, gl = R.getContext(); const fnv = c => { let h = 2166136261; for (let i = 0; i < c.length; i++) h = Math.imul(h ^ c.charCodeAt(i), 16777619) >>> 0; return h.toString(16); }; const who = new Map(); try { WORLD.scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) { const p = R.properties.get(m).currentProgram; if (p && !who.has(p)) who.set(p, (o.name || o.type) + '/' + (m.name || m.type)); } }); } catch (e) {} return JSON.stringify(R.info.programs.map(pr => { let src = ''; try { for (const sh of gl.getAttachedShaders(pr.program) || []) src += gl.getShaderSource(sh) + '//--'; } catch (e) {} const w = window.__PW && window.__PW.get(pr); return [pr.name, fnv(src), src.length, fnv(String(pr.cacheKey))].concat(w ? [Math.round(w.t0), w.t1 == null ? -1 : Math.round(w.t1 - w.t0)] : [null, null], [who.get(pr) || '']); })); })()", 60000));
@@ -574,7 +637,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, phases, gates, settings: settingsRuns, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    tGarage, tReveal, premEmptyAt, phases, gates, settings: settingsRuns, trips: tripRuns, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));
