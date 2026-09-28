@@ -16,7 +16,7 @@ const SITE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
     brushed: { name: 'brushed concrete', tile: 2, px: 512,
       get diff() { return mk('media/tex/site/brushed_diff_512.09ed18c5.jpg'); },
       get nor() { return mk('media/tex/site/brushed_nor_gl_512.ffe58c0f.jpg'); },
-      get rough() { return mk('media/tex/site/brushed_rough_512.006fd4cf.jpg'); } },
+      rough: [248, 248, 248] },
     cracked: { name: 'cracked concrete', tile: 4, px: 512,
       get diff() { return mk('media/tex/site/cracked_diff_512.53ca6cb6.jpg'); },
       get nor() { return mk('media/tex/site/cracked_nor_gl_512.25eb1586.jpg'); },
@@ -24,7 +24,7 @@ const SITE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
     antislip: { name: 'anti-slip concrete', tile: 2, px: 512,
       get diff() { return mk('media/tex/site/antislip_diff_512.4a3ec588.jpg'); },
       get nor() { return mk('media/tex/site/antislip_nor_gl_512.47d37001.jpg'); },
-      get rough() { return mk('media/tex/site/antislip_rough_512.773b9db1.jpg'); } },
+      rough: [240, 240, 240] },
     asphalt: { name: 'asphalt', tile: 4, px: 512,
       get diff() { return mk('media/tex/site/asphalt_diff_512.97b52f47.jpg'); },
       get nor() { return mk('media/tex/site/asphalt_nor_gl_512.8cab2f84.jpg'); },
@@ -52,6 +52,6 @@ const SITE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
     dirt: { name: 'dirt floor', tile: 2, px: 512,
       get diff() { return mk('media/tex/site/dirt_diff_512.d29ff9e3.jpg'); },
       get nor() { return mk('media/tex/site/dirt_nor_gl_512.51163e34.jpg'); },
-      get rough() { return mk('media/tex/site/dirt_rough_512.29ee3f04.jpg'); } },
+      rough: [235, 235, 235] },
   };
 })() : null;

@@ -16,15 +16,15 @@ const VESSEL_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
   return {
     paint: { px: 512, tile: 0.5, norScl: 1, ao: 0,
       label: "painted metal",
-      get diff() { return mk('media/tex/vessel/paint_diff_512.5b8ea38f.jpg'); }, get arm() { return mk('media/tex/vessel/paint_arm_512.4a3844a6.jpg'); }, get nor() { return mk('media/tex/vessel/paint_nor_gl_512.f384c90f.jpg'); } },
+      get diff() { return mk('media/tex/vessel/paint_diff_512.5b8ea38f.jpg'); }, get arm() { return mk('media/tex/vessel/paint_arm_512.4a3844a6.jpg'); }, nor: [128, 128, 255] },
     alu: { px: 512, tile: 0.6, norScl: 0.85, ao: 0,
       label: "bare alloy",
-      get diff() { return mk('media/tex/vessel/alu_diff_512.f796b8b9.jpg'); }, get arm() { return mk('media/tex/vessel/alu_arm_512.6dacf452.jpg'); }, get nor() { return mk('media/tex/vessel/alu_nor_gl_512.f6dd0ae7.jpg'); } },
+      get diff() { return mk('media/tex/vessel/alu_diff_512.f796b8b9.jpg'); }, get arm() { return mk('media/tex/vessel/alu_arm_512.6dacf452.jpg'); }, nor: [128, 127, 255] },
     plastic: { px: 512, tile: 0.35, norScl: 1, ao: 0,
       label: "moulded plastic",
       get diff() { return mk('media/tex/vessel/plastic_diff_512.7750ccc0.jpg'); }, get arm() { return mk('media/tex/vessel/plastic_arm_512.bc5b7120.jpg'); }, get nor() { return mk('media/tex/vessel/plastic_nor_gl_512.fd96d905.jpg'); } },
     steel: { px: 512, tile: 0.22, norScl: 1, ao: 0,
       label: "steel hardware",
-      get diff() { return mk('media/tex/vessel/steel_diff_512.b68271e2.jpg'); }, get arm() { return mk('media/tex/vessel/steel_arm_512.d8772b6a.jpg'); }, get nor() { return mk('media/tex/vessel/steel_nor_gl_512.b6ea0af0.jpg'); } },
+      get diff() { return mk('media/tex/vessel/steel_diff_512.b68271e2.jpg'); }, get arm() { return mk('media/tex/vessel/steel_arm_512.d8772b6a.jpg'); }, nor: [128, 128, 253] },
   };
 })() : null;

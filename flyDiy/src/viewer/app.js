@@ -1817,6 +1817,12 @@
       applySkinVis();
     };
     for (const t in texSrcs) {
+      // G903: a FLAT map ships as its constant [r, g, b] (the c172's front / pedal / metal) - the shared 1x1
+      // (assets.js TEX_FLAT), in the colour space the file would have had; nothing to wait for
+      if (Array.isArray(texSrcs[t])) {
+        texs[t] = TEX_FLAT(texSrcs[t], data.generated && !(data.linTex || []).includes(t) ? THREE.SRGBColorSpace : '');
+        continue;
+      }
       entry.pending++;
       BOOT.expect('skin');
       texs[t] = new THREE.TextureLoader().load(texSrcs[t], () => { BOOT.landed('skin'); landed(); }, undefined,

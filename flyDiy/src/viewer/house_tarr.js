@@ -144,8 +144,12 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
     let ALB = new Map(), NR = new Map();
     let wantA = new Map(), wantN = new Map();
     let building = false;
-    const ready = img => !!img && ((img.complete && img.naturalWidth > 0) || (!('complete' in img) && img.width > 0));
-    const imgOf = t => (t && t.image) || null;
+    // G903: a FLAT map (assets.js TEX_FLAT, a shared 1x1 DataTexture) stands in the stack as its constant: its
+    // userData.flat [r, g, b] is the "image" (one array per colour, so one layer per colour), ready at once, and
+    // its layer is that colour - the texel the material samples; its uv transform is moot (a constant)
+    const flatOf = t => (t && t.userData && t.userData.flat) || null;
+    const ready = img => !!img && (Array.isArray(img) || (img.complete && img.naturalWidth > 0) || (!('complete' in img) && img.width > 0));
+    const imgOf = t => flatOf(t) || (t && t.image) || null;
     const nrKey = (n, r) => n + '|' + r;
     const ids = new WeakMap(); let nid = 0;
     const idOf = x => { if (!x) return 0; let i = ids.get(x); if (!i) ids.set(x, i = ++nid); return i; };
@@ -173,8 +177,9 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       if (hook !== (ud.clouded ? ud.hookCloud : ud.hookHouse)) return null;
       if (!GEO_OK(mesh.geometry, ['position', 'normal', 'uv', 'aHouseAO'])) return null;
       const ts = [m.map, m.normalMap, m.roughnessMap].filter(Boolean);
-      for (const t of ts) if (t.channel || !ready(imgOf(t)) || t.isDataTexture || t.isCompressedTexture) return null;
-      if (ts.length > 1) { const x0 = xform(ts[0]); if (ts.some(t => xform(t).some((v, i) => Math.abs(v - x0[i]) > 1e-7))) return null; }
+      for (const t of ts) if (t.channel || (!flatOf(t) && (!ready(imgOf(t)) || t.isDataTexture || t.isCompressedTexture))) return null;
+      const tx = ts.filter(t => !flatOf(t));
+      if (tx.length > 1) { const x0 = xform(tx[0]); if (tx.some(t => xform(t).some((v, i) => Math.abs(v - x0[i]) > 1e-7))) return null; }
       return { kind: 'plain', side, key: 'plain:' + side + ':' + dith };
     }
 
@@ -186,7 +191,7 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       const ud = m.userData, S = ud.houseU, P = ud.paint, D = ud.dirt;
       // the scale and the wander are wanderUV's: they apply where the material has a map (hUv exists only then)
       const uk = m.map ? D.uUvK.value : 1, wd = m.map ? D.uWander.value : 0;
-      const t0 = m.map || m.normalMap || m.roughnessMap, X = (t0 ? xform(t0) : [1, 0, 0, 0, 1, 0]).map(x => x * uk);
+      const t0 = [m.map, m.normalMap, m.roughnessMap].find(t => t && !flatOf(t)), X = (t0 ? xform(t0) : [1, 0, 0, 0, 1, 0]).map(x => x * uk);
       const la = layerA(imgOf(m.map)), ln = layerN(imgOf(m.normalMap), imgOf(m.roughnessMap));
       const ns = m.normalMap ? m.normalScale : { x: 0, y: 0 };
       const v = [m.color.r, m.color.g, m.color.b, m.roughness,
@@ -284,7 +289,8 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
         const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
         const ctx = cnv.getContext('2d', { willReadFrequently: true });
         ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-        const draw = img => { ctx.setTransform(1, 0, 0, -1, 0, px); ctx.clearRect(0, 0, px, px); ctx.drawImage(img, 0, 0, px, px); return ctx.getImageData(0, 0, px, px).data; };
+        const draw = img => { if (Array.isArray(img)) { const d = new Uint8ClampedArray(S); for (let j = 0; j < S; j += 4) { d[j] = img[0]; d[j + 1] = img[1]; d[j + 2] = img[2]; d[j + 3] = 255; } return d; }
+          ctx.setTransform(1, 0, 0, -1, 0, px); ctx.clearRect(0, 0, px, px); ctx.drawImage(img, 0, 0, px, px); return ctx.getImageData(0, 0, px, px).data; };
         const okA = imgsA.filter(ready), dA = new Uint8Array(S * Math.max(1, okA.length)), mA = new Map();
         okA.forEach((img, i) => { dA.set(draw(img), i * S); for (let k = 3; k < S; k += 4) dA[i * S + k] = 255; mA.set(img, i); });
         const okN = [...pairs.entries()].filter(([, p]) => p.every(x => !x || ready(x))), dN = new Uint8Array(S * Math.max(1, okN.length)), mN = new Map(), src = new Map();

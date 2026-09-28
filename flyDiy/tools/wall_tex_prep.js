@@ -17,10 +17,10 @@
 // The output is committed, like the model payloads.
 const fs = require('fs');
 const path = require('path');
-const { writeMedia, pruneMedia, encodeTex, BASE_DECL } = require('./_media_lib.js');
+const { writeMedia, pruneMedia, encodeTex, assetSrc, BASE_DECL } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
-const SRC = path.join(ROOT, 'assets', 'hangar_walls');
+const SRC = assetSrc('hangar_walls');
 const OUT = path.join(ROOT, 'src', 'viewer', 'hangar_walls.js');
 const SUB = 'tex/walls';
 
@@ -45,6 +45,7 @@ const SETS = [
 // 18 MB of the boot) become WebP q92 (~250 KB); the sources stay as-is
 const bake = (k, f, role) => {
   const enc = encodeTex(fs.readFileSync(path.join(SRC, k, f)), role, 1024);
+  if (enc.flat) return enc.flat;   // G903: a FLAT map is its constant [r, g, b] - no file (hangar.js binds TEX_FLAT)
   return writeMedia(SUB, `${k}_${f.replace(/\.(jpg|png)$/, '')}`, enc.ext, enc.data);
 };
 
@@ -59,19 +60,20 @@ const HANGAR_WALL_TILE_M = 2;
 const HANGAR_WALL_SETS = (typeof Image !== 'undefined') ? (() => {
   ${BASE_DECL}
   const lazy = (name, p) => { const o = { name }, im = {};
-    for (const k in p) Object.defineProperty(o, k, { enumerable: true, get() { if (!im[k]) { im[k] = new Image(); im[k].src = B + p[k]; } return im[k]; } });
+    for (const k in p) if (Array.isArray(p[k])) o[k] = p[k]; else Object.defineProperty(o, k, { enumerable: true, get() { if (!im[k]) { im[k] = new Image(); im[k].src = B + p[k]; } return im[k]; } });
     return o; };
   return {
 `;
 let report = [];
 const emitted = [];
-const sz = rel => fs.statSync(path.join(ROOT, rel)).size;
+const sz = rel => typeof rel === 'string' ? fs.statSync(path.join(ROOT, rel)).size : 0;
+const lit = v => Array.isArray(v) ? `[${v.join(', ')}]` : `'${v}'`;
 for (const [k, name] of SETS) {
   const d = bake(k, 'diff_1k.jpg', 'color');
   const n = bake(k, 'nor_gl_1k.png', 'normal');
   const r = bake(k, 'rough_1k.jpg', 'data');
-  emitted.push(d, n, r);
-  body += `    ${k}: lazy('${name}', { diff: '${d}', nor: '${n}', rough: '${r}' }),\n`;
+  emitted.push(...[d, n, r].filter(x => typeof x === 'string'));
+  body += `    ${k}: lazy('${name}', { diff: ${lit(d)}, nor: ${lit(n)}, rough: ${lit(r)} }),\n`;
   report.push(`${k} ${((sz(d) + sz(n) + sz(r)) / 1048576).toFixed(1)} MB`);
 }
 body += `  };

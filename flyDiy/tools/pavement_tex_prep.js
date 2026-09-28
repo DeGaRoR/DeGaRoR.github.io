@@ -23,7 +23,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const { writeMedia, writeMap, pruneMedia, BASE_DECL } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
 const ROOTS = [path.join(ROOT, 'assets'), 'D:/Dev/DeGaRoR.github.io/flyDiy/assets'];
@@ -66,7 +66,9 @@ for (const e of index) rows.push({ key: e.key, dir: 'pavement', metres: e.metres
 for (const [key, dir, metres, role, label, source, slug] of LEGACY) rows.push({ key, dir, metres, role, label, mean: lotMeans[key] || null, source, slug, authors: '' });
 
 const emitted = [], report = [];
-const sz = rel => fs.statSync(path.join(ROOT, rel)).size;
+const sz = rel => typeof rel === 'string' ? fs.statSync(path.join(ROOT, rel)).size : 0;
+// G903: a FLAT map is its constant [r, g, b] - no file; PAVEMENT.library fills the layer with it
+const prop = (name, v) => Array.isArray(v) ? `${name}: [${v.join(', ')}]` : `get ${name}() { return mk('${v}'); }`;
 let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/pavement_tex_prep.js from
 // assets/pavement/ (fetched off Poly Haven by tools/pavement_tex_import.py),
 // assets/airfield/ and assets/lot/ (CC0: Poly Haven, ambientCG; see CREDITS.md).
@@ -86,13 +88,13 @@ const PAVEMENT_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
   return {
 `;
 for (const r of rows) {
-  const d = writeMedia(SUB, `${r.key}_diff_${PX}`, 'jpg', fs.readFileSync(find(r.dir, r.key, 'diff')));
-  const n = writeMedia(SUB, `${r.key}_nor_gl_${PX}`, 'jpg', fs.readFileSync(find(r.dir, r.key, 'nor_gl')));
-  const g = writeMedia(SUB, `${r.key}_rough_${PX}`, 'jpg', fs.readFileSync(find(r.dir, r.key, 'rough')));
-  const h = writeMedia(SUB, `${r.key}_height_${PX}`, 'jpg', fs.readFileSync(find(r.dir, r.key, 'height')));
-  emitted.push(d, n, g, h);
+  const d = writeMap(SUB, `${r.key}_diff_${PX}`, 'jpg', fs.readFileSync(find(r.dir, r.key, 'diff')));
+  const n = writeMap(SUB, `${r.key}_nor_gl_${PX}`, 'jpg', fs.readFileSync(find(r.dir, r.key, 'nor_gl')));
+  const g = writeMap(SUB, `${r.key}_rough_${PX}`, 'jpg', fs.readFileSync(find(r.dir, r.key, 'rough')));
+  const h = writeMap(SUB, `${r.key}_height_${PX}`, 'jpg', fs.readFileSync(find(r.dir, r.key, 'height')));
+  emitted.push(...[d, n, g, h].filter(x => typeof x === 'string'));
   body += `    ${r.key}: { name: ${JSON.stringify(r.label)}, metres: ${r.metres}, px: ${PX}, role: '${r.role}', mean: ${JSON.stringify(r.mean)},\n` +
-    `      get diff() { return mk('${d}'); },\n      get nor() { return mk('${n}'); },\n      get rough() { return mk('${g}'); },\n      get height() { return mk('${h}'); } },\n`;
+    `      ${prop('diff', d)},\n      ${prop('nor', n)},\n      ${prop('rough', g)},\n      ${prop('height', h)} },\n`;
   report.push(`${r.key} ${((sz(d) + sz(n) + sz(g) + sz(h)) / 1048576).toFixed(2)} MB`);
 }
 body += `  };

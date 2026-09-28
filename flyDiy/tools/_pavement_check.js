@@ -195,9 +195,12 @@ console.log('5. THE RECIPE - the classes name baked sets');
   for (const c of P.CLASSES) for (const s of P.SLOTS) if (!keys.has(P.CLASS_DEF[c][s])) missing.push(c + '.' + s + '=' + P.CLASS_DEF[c][s]);
   verdict(missing.length === 0, `every class slot names a set the prep baked (${P.CLASSES.length} classes x ${P.SLOTS.length} slots)` + (missing.length ? ': ' + missing.join(', ') : ''));
   verdict(TEX.PAVEMENT_TEX_CREDITS.every(r => r.metres > 0 && r.licence === 'CC0'), `every set has a size in metres and is CC0 (${TEX.PAVEMENT_TEX_CREDITS.length} sets)`);
-  const media = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'pavement_tex.js'), 'utf8').match(/media\/tex\/pavement\/[^']+.jpg/g) || [];
+  const man = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'pavement_tex.js'), 'utf8');
+  const media = man.match(/media\/tex\/pavement\/[^']+.jpg/g) || [];
+  // G903: a FLAT map is its constant in the manifest (`rough: [r, g, b]`), no file - it still counts as the set's map
+  const flats = man.match(/(diff|nor|rough|height): \[\d+, \d+, \d+\]/g) || [];
   const absent = media.filter(m => !fs.existsSync(path.join(__dirname, '..', m)));
-  verdict(media.length === TEX.PAVEMENT_TEX_CREDITS.length * 4 && absent.length === 0, `the manifest's ${media.length} files are on disk` + (absent.length ? ' (missing ' + absent.length + ')' : ''));
+  verdict(media.length + flats.length === TEX.PAVEMENT_TEX_CREDITS.length * 4 && absent.length === 0, `the manifest's ${media.length} files are on disk, ${flats.length} flat maps are constants` + (absent.length ? ' (missing ' + absent.length + ')' : ''));
   verdict(P.CLASSES.every(c => (c === 'concrete' || c === 'asphalt') ? P.CLASS_DEF[c].hexRot <= 10 : P.CLASS_DEF[c].hexRot >= 45), 'a paved class turns its hex tiles by 10 deg at most, a loose one freely');
   const e1 = P.exportRecipe(); P.set(THREE, e1); const e2 = P.exportRecipe();
   verdict(JSON.stringify(e1) === JSON.stringify(e2), 'export -> set -> export is bit-identical');

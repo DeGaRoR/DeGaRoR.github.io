@@ -658,6 +658,8 @@ function vTex(setKey, map, srgb) {
   const S = (VTEX() || {})[setKey];
   const img = S && S[map];
   if (!img) { vTexCache.set(id, null); return null; }
+  // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (src/viewer/assets.js TEX_FLAT)
+  if (Array.isArray(img)) { const f = TEX_FLAT(img, srgb ? THREE.SRGBColorSpace : ''); vTexCache.set(id, f); return f; }
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;

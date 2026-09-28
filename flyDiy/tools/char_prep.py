@@ -29,7 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 from glb_inspect import load, accessor, view_bytes  # noqa: E402
-from media_lib import write_media, prune_media, encode_tex, BASE_DECL  # noqa: E402
+from media_lib import write_media, prune_media, encode_tex, asset_src, BASE_DECL  # noqa: E402
 CHAR_TEX_MAX = 2048   # the delivered size of a character's maps (LOADING S4)
 import chars_table as TABLE  # noqa: E402
 
@@ -48,7 +48,7 @@ def tex_of(j, tref):
 
 
 def bake(row, report):
-    j, bin_ = load(os.path.join(ROOT, row['glb']))
+    j, bin_ = load(asset_src(row['glb']))
     nodes = j['nodes']
     # ---- the node tree: parent index per node (the whole scene, joints and
     # mesh nodes alike — the codec rebuilds it verbatim so bind poses match)
@@ -78,6 +78,12 @@ def bake(row, report):
         low = name.lower()
         role = 'normal' if 'normal' in low else ('data' if any(k in low for k in ('gloss', 'spec', 'rough', 'metal', 'occl', 'ao')) else 'color')
         data, ext = encode_tex(raw, role, CHAR_TEX_MAX)
+        if ext == 'flat':
+            # G903: a FLAT map is its constant [r, g, b] - no file (the seven
+            # white 2048^2 Specular maps, Ch02's flat hair normal); the codec
+            # binds TEX_FLAT for it (tools/_cage_char.js texture)
+            texs['t%d' % ti] = data
+            continue
         if not report:
             texs['t%d' % ti] = write_media('tex/chars/' + row['key'], name, ext, data)
         tex_bytes += len(data)
@@ -147,7 +153,7 @@ def bake(row, report):
             'registerChar((c => {\n'
             '  %s\n'
             '  c.bin = B + c.bin;\n'
-            '  for (const k in c.texs) c.texs[k] = B + c.texs[k];\n'
+            "  for (const k in c.texs) if (typeof c.texs[k] === 'string') c.texs[k] = B + c.texs[k];\n"
             '  return c;\n'
             '})(%s));\n'
             % (row['glb'], row['credit'], BASE_DECL,
@@ -155,7 +161,7 @@ def bake(row, report):
     name = '%s_char.js' % row['key']
     with open(os.path.join(OUT_DIR, name), 'w', encoding='utf8', newline='\n') as f:
         f.write(body)
-    return name, [rel] + list(texs.values())
+    return name, [rel] + [v for v in texs.values() if isinstance(v, str)]
 
 
 def slerp(a, b, t):
@@ -172,7 +178,7 @@ def bake_anim(row, report):
     """One clip -> f32 quats [frames][joints][4] on a uniform grid at row.fps.
     Rotation channels only: the ATD owns the root and the legs, the clip
     lends its upper body — translations would fight the seat."""
-    j, bin_ = load(os.path.join(ROOT, row['glb']))
+    j, bin_ = load(asset_src(row['glb']))
     anims = j.get('animations', [])
     assert anims, row['key'] + ': the GLB carries no animation'
     a = anims[0]

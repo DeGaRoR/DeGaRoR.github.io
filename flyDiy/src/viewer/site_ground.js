@@ -24,6 +24,8 @@
 // material follows the albedo's repeat — which is why tile is per material and
 // not per map.
 function siteGroundTex(THREE, img, srgb, tile, aniso) {
+  // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (assets.js TEX_FLAT)
+  if (Array.isArray(img)) return TEX_FLAT(img, srgb ? THREE.SRGBColorSpace : '');
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = aniso || 8;

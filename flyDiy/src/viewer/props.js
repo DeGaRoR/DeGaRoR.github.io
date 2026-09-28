@@ -43,6 +43,8 @@ function propTexture(THREE, id, srgb) {
   if (t) return t;
   const uri = PROP_REG.texs[id];
   if (!uri) return null;
+  // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (src/viewer/assets.js TEX_FLAT)
+  if (Array.isArray(uri)) { t = TEX_FLAT(uri, srgb ? THREE.SRGBColorSpace : ''); cache.set(id, t); return t; }
   const img = new Image();
   t = new THREE.Texture(img);
   t.anisotropy = PROP_ANISO();

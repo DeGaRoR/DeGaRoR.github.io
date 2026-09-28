@@ -18,6 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import prop_prep                                     # noqa: E402
+from media_lib import asset_src                      # noqa: E402
 
 _spec = importlib.util.spec_from_file_location('pier_table',
                                                os.path.join(HERE, 'pier_table.py'))
@@ -26,7 +27,7 @@ _spec.loader.exec_module(TABLE)
 
 CFG = dict(
     table=TABLE,
-    src_dir=os.path.join(ROOT, 'assets', 'woodenPierBoats'),
+    src_dir=asset_src('assets/woodenPierBoats'),
     out_dir=os.path.join(ROOT, 'src', 'pier'),
     geo='geo/pier', tex='tex/pier', prefix='pier_', packs='pier_packs.json',
     origin='assets/woodenPierBoats/, per the declared table in tools/pier_table.py',

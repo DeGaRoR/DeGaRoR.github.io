@@ -24,10 +24,10 @@
 // The output is committed, like the other payloads.
 const fs = require('fs');
 const path = require('path');
-const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const { writeMap, assetSrc, pruneMedia, BASE_DECL } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
-const SRC = path.join(ROOT, 'assets', 'airfield');
+const SRC = assetSrc('airfield');
 const OUT = path.join(ROOT, 'src', 'viewer', 'site_tex.js');
 const SUB = 'tex/site';
 
@@ -56,8 +56,10 @@ const bake = (k, stem, tex) => {
       'run `python tools/site_tex_import.py` first');
     process.exit(1);
   }
-  return writeMedia(SUB, `${k}_${stem}_${sfx(tex)}`, 'jpg', fs.readFileSync(f));
+  // G903: a FLAT map is its constant [r, g, b] - no file (the consumer binds TEX_FLAT)
+  return writeMap(SUB, `${k}_${stem}_${sfx(tex)}`, 'jpg', fs.readFileSync(f));
 };
+const prop = (name, v) => Array.isArray(v) ? `${name}: [${v.join(', ')}]` : `get ${name}() { return mk('${v}'); }`;
 
 let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/site_tex_prep.js from
 // assets/airfield/ (CC0: Poly Haven + ambientCG; see CREDITS.md). The files
@@ -77,13 +79,13 @@ const SITE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
 `;
 const report = [];
 const emitted = [];
-const sz = rel => fs.statSync(path.join(ROOT, rel)).size;
+const sz = rel => typeof rel === 'string' ? fs.statSync(path.join(ROOT, rel)).size : 0;
 for (const [k, name, tile, tex] of SETS) {
   const d = bake(k, 'diff', tex), n = bake(k, 'nor_gl', tex), r = bake(k, 'rough', tex);
-  emitted.push(d, n, r);
+  emitted.push(...[d, n, r].filter(x => typeof x === 'string'));
   body += `    ${k}: { name: '${name}', tile: ${tile}, px: ${tex},\n` +
-    `      get diff() { return mk('${d}'); },\n      get nor() { return mk('${n}'); },\n` +
-    `      get rough() { return mk('${r}'); } },\n`;
+    `      ${prop('diff', d)},\n      ${prop('nor', n)},\n` +
+    `      ${prop('rough', r)} },\n`;
   report.push(`${k} ${sfx(tex)} ${((sz(d) + sz(n) + sz(r)) / 1048576).toFixed(2)} MB`);
 }
 body += `  };

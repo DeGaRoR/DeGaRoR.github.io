@@ -3421,6 +3421,9 @@ for (const k in PARTS) {
   p.cache = {};
 }
 const partTex = (img, srgb) => {
+  // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (assets.js TEX_FLAT);
+  // setPart's repeat.copy on it is harmless (a constant under any repeat)
+  if (Array.isArray(img)) return TEX_FLAT(img, srgb ? THREE.SRGBColorSpace : '');
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
