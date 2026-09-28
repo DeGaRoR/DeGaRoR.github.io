@@ -6860,7 +6860,9 @@
     // already knows cost their key, the new ones link on the driver's threads.
     steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => {
       if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
-      return shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants()).catch(e => console.warn('catch-up compile:', e && e.message)),
+      // G732: the catch-up's depth variants a slice a task (compileDepthVariants' `sliced`, the settings screen's since G991):
+      // unsliced, compileAsync built every new depth program's source in one task - 21 of them here, a 983 ms task
+      return shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants(scene, true)).catch(e => console.warn('catch-up compile:', e && e.message)),
         rungLinks]), 'world', 60000)   // G730: and the parked rungs' links (never draw ahead of the links)
         // G732: what the catch-up compile's programs hand the shaders (the hooks' textures), uploaded a slice a task, and
         // every program linked, before the first frame draws them
