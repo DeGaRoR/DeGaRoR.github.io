@@ -364,6 +364,9 @@ function makeSimHost(CORE, init, keptWorld) {
       // G815: the page's viewers' wind queries, replayed where they sat between the page's steps (sim_link.js): they
       // move the climate sampler's reference (09_climate.js wind), which a first substep at the same t reuses
       case 'windq': if (world.wind) for (const q of c.q || []) world.wind(q[0], q[1], q[2], q[3]); break;
+      // G815: the page climate's convection cache, carried (09_climate.js convState / convSeed) - its exact inputs
+      // are the first moment the page's day met the key, which this world's day never lived
+      case 'conv': if (world.climate && world.climate.convSeed) H.convSeeded = world.climate.convSeed(c.s); break;
       case 'reset': fresh(); break;   // app.js fullReset: a fresh pilot on the same route, held until a 'start'
     }
   }

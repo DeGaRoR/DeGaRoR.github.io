@@ -463,10 +463,27 @@ var CLIMATE = (function () {
       if (k === convKey) return conv;
       convKey = k;
       if (!(sinEl > 0) || !(zi > 0)) { conv = null; return null; }   // night: no convection at all
-      const alb = day.groundAlbedo != null ? day.groundAlbedo : 0.15;
       const T = (day.oatC != null ? day.oatC : 15) + 273.15;
       const atm = env.atmos ? env.atmos() : null;
       const rho = atm ? atm.rho(0) : 1.225;
+      conv = convBuild(day, zi, cover, sinEl, T, rho, b);
+      return conv;
+    }
+    // THE CONVECTION'S CACHE, CARRIED (G815, the physics worker). conv is kept per a key of ROUNDED inputs, holding
+    // the EXACT inputs of the moment the key was first met: a world whose day came to the same key another way (the
+    // page's, ticked since the garage) holds other last bits than a world made at that moment (the worker's). The
+    // state is those inputs; seeding rebuilds the cache from them, only when this world's own key is the same -
+    // nothing here computes a number differently.
+    function convState() { convNow(); return { key: convKey, c: conv ? { zi: conv.zi, cover: conv.cover, sinEl: conv.sinEl, T: conv.T, rho: conv.rho } : null }; }
+    function convSeed(st) {
+      if (!st || st.key == null) return false;
+      convNow();
+      if (convKey !== st.key) return false;
+      conv = st.c ? convBuild(env.day, st.c.zi, st.c.cover, st.c.sinEl, st.c.T, st.c.rho, windSpec.base) : null;
+      return true;
+    }
+    function convBuild(day, zi, cover, sinEl, T, rho, b) {
+      const alb = day.groundAlbedo != null ? day.groundAlbedo : 0.15;
       const beam = S0 * TAU_ATM * sinEl * (1 - alb) * (1 - 0.7 * clamp(cover, 0, 1));
       const wstarOf = heat => {
         const H = Math.max(0, heat) * beam;
@@ -477,13 +494,12 @@ var CLIMATE = (function () {
       // That one wind is the boundary layer's mean - the declared base lifted
       // to half the layer's depth by the same power law the column shears on.
       const kBL = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, 0.5 * zi)) / windSpec.refH, windSpec.alpha) : 1;
-      conv = { zi, cover, sinEl, T, rho, beam, wstarOf,
+      return { zi, cover, sinEl, T, rho, beam, wstarOf,
                spacing: Math.max(400, TH_SPACE * zi),
                ux: b[0] * kBL, uz: b[2] * kBL, bx: b[0], bz: b[2],
                wRef: Math.max(0.5, wstarOf(0.35)),                   // for the tilt's lag, one number per day
                map: CLOUD_FIELD.weatherMap({ seed: day.cloudSeed, cover,
                                              type: day.cloudTypeEff || day.cloudType, cache: mapCache }) };
-      return conv;
     }
     // THE LATTICE. A square lattice of spacing 1.5 z_i (Lenschow's thermal
     // spacing) in a frame advected by that one wind, so every thermal drifts
@@ -864,7 +880,7 @@ var CLIMATE = (function () {
     return {
       setWind, wind, sample, reliefAt, ensureRelief, surfaceWind,
       profile, mixTop, haze, refresh, thermals, get water() { return waterNow(); },
-      get conv() { return convNow(); },
+      get conv() { return convNow(); }, convState, convSeed,
       get mode() { return mode; }, get spec() { return windSpec; }, get rich() { return rich; },
       get relief() { return relief; }, get version() { return version; }, stats,
     };

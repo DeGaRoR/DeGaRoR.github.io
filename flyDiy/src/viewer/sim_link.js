@@ -334,6 +334,8 @@ const SIM_LINK = (() => {
       for (const k of Object.keys(realCtl)) set[k] = k === 'eng' ? copyEng(realCtl.eng) : realCtl[k];
       V.send({ cmd: 'ctl', set, k: 0 });
       if (windFirst) V.send({ cmd: 'windq', q: [windFirst], k: 0 });   // the reference the inline solver's step 1 would find
+      // the convection the page's climate holds (its cache's exact inputs: the page's day met that key before the worker lived)
+      if (world.climate && world.climate.convState) V.send({ cmd: 'conv', s: world.climate.convState(), k: 0 });
       windFrame = [];
     }
     function detach() {
