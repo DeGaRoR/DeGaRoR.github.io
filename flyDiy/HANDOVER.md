@@ -63105,3 +63105,122 @@ THE FIX (pavement.js GLSL.map, the chain's first lines): `cls = floor(vPavK.x + 
 mul per fragment. (A `flat` varying is the other way to it - the provoking vertex's value, never interpolated - not taken:
 the user validated the snap.) Every other hash of seed (the wet lanes, the shoulder paths) is fixed with it.
 THE SWITCH stays (t0 t1 t2 t2b t3 t3u t4 t5 t6 t8, PAVTEST / ?pavetest=) for the tweaking to come; t7 and t11 retired.
+
+## G910-G914 - AS2: ONE GROUND LIBRARY - ONE SET TABLE, THE LAYERS COOKED OFFLINE, NO CANVAS AT THE ROLL-OUT, THE SAME TEXELS (2026-09-28, AS2, a cloud session, node + headless Chromium)
+
+WHY: futureDesigns/ASSETS-2026-09-27.md §5.3 M7. lot, splat, pavement and site each had a baker, a media directory, a
+manifest and copies of the same maps (32 byte-identical groups, 5.8 MB), and the splat and the pavement packed their
+texture arrays IN THE PAGE at the roll-out (Image -> canvas drawImage -> getImageData -> a channel shuffle, ~200 canvas
+reads). Base origin/claude/batch-a-base (b3bf0431). Branch claude/magical-ritchie-izoyg4. The rule: LOOKS MUST NOT CHANGE.
+
+G910 THE ONE TABLE. tools/ground_sets.json is the set list (each map's source candidates under assets/, the old bakers'
+rules) and each library's keys in its order with its own numbers (tile / metres / role / mean / name) naming a SET.
+tools/ground_tex_prep.js (the ONE baker; lot_tex_prep, site_tex_prep, splat_tex_prep, pavement_tex_prep deleted) writes
+media/tex/ground/ (each map once: writeMedia folds equal bytes) and src/viewer/ground_tex.js: GROUND_TEX { px, sets, libs }
+and the four old globals as VIEWS of it - SPLAT_TEX_SETS (RECIPE.library's order and metres, as before), PAVEMENT_TEX_SETS,
+LOT_TEX_SETS, SITE_TEX_SETS - same keys, same order, same fields, getters for the maps each old manifest had, ONE Image
+per url whichever view reads it; `set` and `layers` added. src/viewer/site_tex.js, splat_tex.js, pavement_tex.js deleted;
+lot_tex.js keeps its hand-written LOT_GROUND (its table is the view). build.js: ground_tex.js + ground_lib.js where
+site_tex / splat_tex / pavement_tex were (before every consumer, the world pack's lot_tex.js too). THE KEYS: 69 library
+keys -> 63 sets. lot's five ARE the splat's five byte for byte (one set each); site grass004 IS grass; the pavement's
+flattened copies of the lot's and the airfield's sets (tools/pavement_tex_import.py's _legacy) are other texels, so they
+are their own sets `<key>Pv` (lushPv ... asphaltaerialPv); the site's dirt is not the lot's: `siteDirt`. A map is read
+from assets/ (this checkout's, then D:/...'s), else the file the current ground_tex.js names (a box without assets/
+re-bakes the shipped bytes: done here, idempotent - the second bake reproduced ground_tex.js byte for byte), else the
+migration's `legacy` (stripped). `keep` skips assets/ for a map: forestAir's colour carries tools/splat_tex_tone.py's
+hand tone, which assets/ does not (the old splat prep lost it on every re-bake; the tone tool now patches ground_tex.js +
+ground_sets.json and re-bakes so the layers re-cook). The importers' "Then:" lines name ground_tex_prep.js. The benches
+(_house, _premises, _tarr, _village, _totems, _pavement) load ground_tex.js (the pavement bench + assets.js + ground_lib.js).
+G911 THE COOK AND THE COPY. tools/array_cook.js (GENERIC - C2c's TARR arrays are meant to be its second user):
+cookLayers({ sub, px, entries: [{ stem, planes: [[4 channel sources] x N] }] }), a channel = { img, ch } or { or: byte };
+each entry one file of raw RGBA8 planes as ONE gzip stream named `<stem>.<h8 of the RAW bytes>.gz.bin` (tools/_media_lib.js
+writeMedia now takes ext 'gz.bin' in any subdir: AS5a's geometry rule). The decode is tools/media_lib.py decode_rgba
+(`python media_lib.py rgba <list>`, _media_lib.js decodeRGBA): Pillow's libjpeg-turbo, no colour management (an ICC
+profile is refused), sizes must be px x px (a canvas resample is not reproducible offline, so the cook refuses). THE
+DECODER IS THE BROWSER'S: all 261 ground JPEGs decoded by Pillow and by headless Chromium 141's canvas, 0 bytes differ.
+The ground's packing is pavement.js library()'s (= splat buildArrays'): A = diff rgb + height R (128 without), N = nor rgb +
+rough R (230 without). 54 sets cooked (every set an array consumer can name: the splat's 19, the pavement's 35); 87.3 MB
+gz, 108 MiB raw. src/viewer/ground_lib.js GROUND_LIB.pack(items, done, prev): fetch each set's file (ASSET_FETCH gunzips
+.gz.bin), COPY its planes into two Uint8Arrays in layer order; `prev` = the arrays a grow replaces LEND their layers (a
+grown library fetches only the new sets); a failed file -> the set's mean colour (sRGB-encoded) + height 128 over a flat
+normal + rough 230, and the library calls back (G751's rule). pavement.js library() and splat_ground.js buildArrays call
+it and keep their OWN textures exactly as before (format, colour space - the pavement's colour sRGB-typed, the splat's
+not, decoded in its shader -, filters, mips, anisotropy 16 / the splat's knob): what reaches the GPU is the same object
+with the same bytes. BEHAVIOUR NOTE: a splat set whose file fails was BLACK (a zero layer), it is its mean colour now.
+G912 THE PROOF, IN NODE. tools/ground_layers_chrome.js runs the OLD library() and buildArrays VERBATIM (cut out of the
+base's sources) in headless Chrome over the base's manifests and media (git show b3bf0431) and writes the SHA-256 of every
+layer each packed + every map file's -> tools/perf/ground_layers_before.json. GATE GROUNDLIB (tools/_groundlib_check.js,
+core, ~6 s, registered): (1) every file on disk, every cooked file two px^2 planes named by the raw hash; (2) per library
+and key: splat 19 x 2 planes and pavement 35 x 2 planes SHA-equal to what the old code packed in Chrome; lot 15 + site 30
++ splat 76 + pavement 140 map files byte-equal to the old manifests'; (3) every library's keys in their old order, the
+splat's rows RECIPE.library's, every key a recipe names cooked; (4) python + Pillow present: every cooked file re-cooked in
+memory from the table's maps = the shipped bytes; (5) no canvas in pavement.js's library, splat_ground.js, ground_lib.js.
+--selftest: a bit flipped in a splat A plane / a pavement N plane, a cooked file missing, the lot's dirt pointed at the
+site's dirt, a pavement key dropped, two splat rows swapped, a getImageData planted - all red. A DELIBERATE set change (a
+re-import, a tone) re-takes the fingerprints: `node tools/_groundlib_check.js --update` (names what moved).
+THE HARNESS COUNTS THE READS (tools/_page_node.js P.io, tools/_framecost_check.js): fetch / XHR / Image loads and their
+on-disk bytes, the 2D canvas's drawImage / getImageData (+ bytes) / putImageData, per boot step as `io.*` in the census's
+boot rows and a "reads (reported)" line per build - REPORTED, never ratcheted (not in BOOT_KEYS, not in the view rows).
+tools/asset_census.js counts the cooked layers (a "COOKED ARRAY LAYERS" section: files, gz, raw, GPU if resident).
+Gates updated for the move: PAVEMENT (the credits from ground_tex.js; the library's files incl. the layers on disk),
+SPLAT (section 2 reads GROUND_TEX.libs.splat, maps + layer file per set; selftests re-aimed), LOOKS (check 4: the failed-
+layer rule through GROUND_LIB, no canvas), MEDIA (ground_tex.js the one ground manifest), ASSETS (ALLOW flat / dupes /
+jpgNormal re-measured: the four dirs -> media/tex/ground; flat 48 -> 47, dupe groups 29 -> 8, JPEG normals 186 -> 180; mats
+untouched).
+G913 THE BOX A/B (the coordinator's; the user judges by eye). Nothing here changes how a texel is sampled, so the ground is
+expected PIXEL-IDENTICAL; these say whether it is.
+  (1) THE GPU'S OWN TEXELS: tools/ground_ab.js, a frame_perf --eval snippet: every layer of the LIVE arrays (splat uSplat /
+      uSplatN, the pavement's shared uPavA / uPavN) read back off the GPU (framebufferTextureLayer + readPixels) and hashed
+      against tools/perf/ground_layers_before.json. On the branch, and on the base (copy tools/ground_ab.js and
+      tools/perf/ground_layers_before.json into a base worktree): both must print "verdict":"SAME TEXELS".
+        node tools/_serve.js 8477   (the branch)   /   node tools/_serve.js 8478 <base worktree root>
+        node tools/frame_perf.js --url http://localhost:8477/flyDiy/index.html?world=jolene --places stand --tiers gfx --frames 10 --eval @tools/ground_ab.js
+  (2) THE PICTURES: FRAME_PERF_DEBUG=1 makes frame_perf save %TEMP%/frame_perf_<place>.png at each place - run base then
+      branch (copy the PNGs aside between runs), same --size, places:
+        --places stand,at:-120:500:12,at:-620:-40:25,at:900:-2700:60,forest,at:0:-5000:600
+      = the stand; the NE taxiway (paved, r_taxi_ne); the airport road (gravel, r_airport); the harbour village (lots,
+      z_harbour / r_village); the densest forest at 110 m (the splat under the trees); far terrain from 600 m. Then with
+      ?town=1 (Metlakatla on: the lots' LOT_GROUND, the residential zones) at:-3400:-8700:80.
+  (3) THE EYE, SLOW PANS: both builds side by side in two Chrome windows (8477 / 8478), dev.html?world=jolene, gamer,
+      shadows full, same window size; roll out, pause (#bPause), drag the chase camera through a slow full circle at the
+      stand (the apron's concrete, the side band, the grass), then the same at each place above (FLIGHT_PROBE teleport as
+      frame_perf's PLACE_AT, pause, pan). Look for: a set tone, a tiling scale, a normal's grain, a far mip's brightness,
+      the runway slabs (G1046's snap is untouched), a pavement set missing (mean-coloured) after a road loads.
+G914 THE NUMBERS. futureDesigns/ASSETS-2026-09-27.md §5.7 has the table. GATE FRAMECOST's page in node, base b3bf0431 (a
+worktree with this session's harness counters copied in) -> this branch, the Cub (the Cessna the same shape):
+- the roll-out's world step: canvas drawImage 206 -> 10, getImageData 205 -> 9, bytes read back 232.0 -> 36.0 MiB (the
+  9 left: trees.js's coverage mips of 1024^2 tree maps); Images 256 (35.9 MiB) -> 100 (20.0 MiB); fetches 55 (3.4 MiB) ->
+  94 (66.0 MiB: the 39 cooked sets Jolene asks - 16 splat + 23 pavement). The whole roll-out: getImageData 475 -> 279,
+  drawImage 512 -> 316, reads 98.4 -> 144.6 MiB (+46.2: the wire cost below).
+- texture bytes uploaded 1551.7 -> 1551.7 MiB (Cessna 1600.6 -> 1600.6); EVERY VIEW COUNTER (stand, taxi, both builds)
+  and every ratcheted boot row UNCHANGED (--compare prints nothing else). arrayBuffers after the roll-out 1793.3 -> 1776.9
+  MiB, rss 2969 -> 2908. GATE FRAMECOST PASS (the 27 "ratchet down" and 20 ALLOW lines are the base's own).
+- census: ground maps 261 files / 28.4 MB -> 232 / 24.8 MB; exact duplicates, all media, 32 groups 5.76 MB -> 11 groups
+  2.19 MB (none in the ground); + 54 cooked layer files, 87.3 MB gz (108 MiB raw, 144 MB GPU if all resident).
+THE COST: "raw layer blobs now" is +46.2 MiB on a Jolene first visit (the SW caches them after) and +87 MB in the repo /
+Pages: a decoded 512^2 photo is ~3.4x its JPEG gzipped (six sets: JPEG 3.18 MB, raw 12.6, gzip 10.9, planar + delta +
+gzip 9.6, PNG 9.1 - none closes the gap). AS3's KTX2 arrays are the answer; the cook's raw planes are the encoder's input.
+NOT DONE, AND WHY - ONE ARRAY PAIR. The library is one (table, store, cook, copy path); the arrays are two pairs, each
+built from the union of ITS consumers' keys: the pavement's colour array is sRGB-typed (hardware decode before filtering,
+the 2026-09-22 fix), the splat's is not (its shader decodes after filtering). One GL texture cannot be sampled both ways;
+moving either consumer changes its filtering, i.e. its far look (17-29 % on the dark contrasty sets when the pavement
+moved) - against this session's rule. A union pair on Jolene would also hold ~39 layers, over the splat's NLIB 24 per-layer
+uniform arrays. The lot and the site keep plain textures from the one table (they never packed a canvas; an array would
+move them from anisotropy 8 to 16). The fold is AS3's moment: an sRGB KTX2 array means the splat's in-shader decode goes,
+the user A/Bs that once, and the two pairs become one (NLIB widened with it).
+THE REAL BROWSER (here): headless Chromium 141 (SwiftShader WebGL2) on this branch's dev.html?world=jolene, the Cub,
+rolled out (its screen's watchdog lifts before a software GL finishes the world; the world and both arrays were ready at
+147 s), then tools/ground_ab.js: {"splat":{"keys":16,"same":16},"pavement":{"keys":23,"same":23},"verdict":"SAME TEXELS"},
+0 page errors - the real fetch + DecompressionStream + DataArrayTexture upload, read back off the GL context, is the old
+canvas code's packing, layer for layer. The splat api gained `arrays()` (read-only: the live pair) for it.
+NOT SEEN: a GPU. The frames' pixels and timings are the box's (G913). _dev_pump.html (a generated page, not touched)
+still names site_tex.js.
+FOR THE COORDINATOR: generated outputs NOT committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json);
+the FRAMECOST baseline NOT re-taken. MERGE NOTES vs AS4a-EARLY (claude/nice-shannon-l1szkd): no overlap in site_ground.js
+(not touched here); hangar.js / render_world.js / cover_ring.js here are one comment line each; tools/_asset_check.js:
+this branch changes the flat / dupes / jpgNormal blocks, AS4a the mats block - take both; tools/_framecost_check.js: this
+branch touches bootMark.open/close, wrapBoot's snap line (+1 line after it), the diff helpers (IO_NAMES, ioSum/ioLine
+above flatBoot), the --compare filter and one report line - AS4a's frame-handler and detail changes do not overlap.
+GATES (this container, 4 cores): GROUNDLIB (+ --selftest), PAVEMENT, SPLAT (+ --selftest), SITE, MEDIA, ASSETS, LOOKS,
+FRAMECOST, BUILD, BOOT, UISMOKE, CONTACT, LIGHT, ATMO, WORLDRENDER, PROGRAMS, COVER, FADES, HOUSE, VILLAGE, TARR, PREMISES,
+PREMCOOK, PREMRASTER, HANGAR, STAND, TREES, LIFE, PROPS: PASS. MATLIB: not on this base (AS4a's). No --all.
