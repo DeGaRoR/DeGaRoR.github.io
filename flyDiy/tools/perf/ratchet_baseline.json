@@ -1,0 +1,52 @@
+{
+ "date": "2026-09-28T01:19:25.052Z",
+ "note": "rollout_ratchet baseline (G1015): medians per group; re-take after every landed train with --update",
+ "groups": {
+  "default | warm | jolene | 2216x1023 | ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)": {
+   "fps": 31.15,
+   "uneven": 0.11,
+   "p99": 33.5,
+   "loop": 22,
+   "render": 12.7,
+   "solver": 6,
+   "over100": 2,
+   "tasks1s": 0.5,
+   "tasks200": 50,
+   "taskWorst": 1002.5,
+   "slice": 712,
+   "screen": 36.52,
+   "compile": 9234.5,
+   "settings": 603,
+   "below30s": 0.65,
+   "cap": 30,
+   "runs": 2,
+   "files": [
+    "rollout_ratchet_cub_1.json",
+    "rollout_ratchet_cub_2.json"
+   ]
+  },
+  "cessnaMetal (1).json | warm | jolene | 2216x1023 | ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)": {
+   "fps": 30.75,
+   "uneven": 0.1,
+   "p99": 33.5,
+   "loop": 25.6,
+   "render": 13,
+   "solver": 9.05,
+   "over100": 1.5,
+   "tasks1s": 0.5,
+   "tasks200": 56,
+   "taskWorst": 996,
+   "slice": 666.5,
+   "screen": 36.48,
+   "compile": 7556.5,
+   "settings": null,
+   "below30s": 0.71,
+   "cap": 30,
+   "runs": 2,
+   "files": [
+    "rollout_ratchet_metal_1.json",
+    "rollout_ratchet_metal_2.json"
+   ]
+  }
+ }
+}

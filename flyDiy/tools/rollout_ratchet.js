@@ -37,7 +37,11 @@ const r2 = x => x == null ? null : Math.round(x * 100) / 100;
 // one run -> its metrics
 function metrics(j) {
   const taxi = (j.phases && j.phases.taxi) || {};
-  const fr = (j.frames || []).filter(r => r[16] === 'taxi');
+  // the frame's phase label: its position moved when rigs appended fields (16 before G790, 26 after), so it is FOUND -
+  // the last element holding one of the phase names
+  const PH = new Set(['stand', 'taxi', 'takeoff', 'air']), f0 = (j.frames || []).find(r => r.some(v => PH.has(v)));
+  let li = -1; if (f0) for (let i = f0.length - 1; i >= 0; i--) if (PH.has(f0[i])) { li = i; break; }
+  const fr = li < 0 ? [] : (j.frames || []).filter(r => r[li] === 'taxi');
   let uneven = null;
   if (fr.length > 10) {   // the refresh count of each interval; uneven = it changed from the previous one
     let n = 0, ch = 0, prev = null;
