@@ -63654,3 +63654,56 @@ step and link 0, roll-out 2 runs snapshot / bake / spec / craft - 12 links under
 the first 40 frames of every flight link 0; the setup screen), FRAMECOST PASS (with the ALLOW rows above), BOOT, UISMOKE,
 PROGRAMS, FLOWNBAKE, TREES, STAND, GFX, SETTLE, SHADOWSKY, ASSETS, MATLIB, ROLLANIM, BUILD PASS. Generated outputs not
 committed (the coordinator's build commit).
+## G1060-G1062 B12: A PARKED AEROPLANE'S HITBOX IS ITS OWN SPEC (2026-09-28)
+THE USER: "the hitbox of the wing of the cub is a few centimeters too long compared to the wing mesh, and the plane
+rolling out hits it, while there is no mesh contact" ... "can't the editor tell you the exact dimensions of the wing
+box? And the fuselage?" ... "you have literal parameters like wingspan, chord and incidence ... and you also have the
+original cage, for the fuselage at least".
+THE CAUSE (confirmed, measured): render_premises shapeOf rasterised every obstacle, parked aeroplanes included, into
+0.5 m columns, a cell any triangle touched solid - the wingtip's cell overhung the drawn tip by up to a cell: the Cub
+15.1 cm, the C172 50.0, the Jodel 35.0. THE OTHER SIDE is clean: the rolling aeroplane probes with its nodes as POINTS
+(30_solver.js, OBSTACLES.penetration per node, no radius), so nothing overstated there. (It under-probes instead: its
+wing between the spar-tip nodes is not tested - a follow-up, not this bug.)
+THE FIX - the hitbox from the spec, no grid (G1060):
+  - 29_obstacles.js: a second shape, CONVEX PIECES (hull() of a handful of points by brute force, kept as face planes;
+    pieces(); penetration() takes either - the nearest face of a piece the point is in whose exit lands in no other
+    piece; a piece on the ground never pushes down). aircraftShape(spec, drawn): resolveSpec + genFrame (the physics
+    frame, 6 ms, the same nodes buildGen makes) and the pieces cut from it - the WING per plane and side at every loft
+    row (spar stations + the bowed tip's rows, the aerofoil's hull reduced outward to 2 mm, chordAt's chord, hung on the
+    spars as 63_gen_wing lofts it), the centre root to root; THE CAGE for the fuselage (a frustum between each two
+    stations, the tail post closing it; twin booms' chains); the stab and fins at their stations (LE-TE off the spars,
+    2 cm + 6 % chord thick), a V's panels; every external strut/leg/wire a square tube; every node with a radius a drum;
+    the engines (the nose cowl from the first station, a nacelle elsewhere); the blades and spinner at the capture's own
+    prop hubs. THE MAP into the parked object's frame is the capture's own: xy' = B^-1 xy + T (B the flight pose's
+    oblique basis off noseFrame/tailMid/upLo/upHi - a 3.4 deg shear on the Cub, G337), T landing the frame's mains on the
+    drawn mains, z' = -z, then the parked stance and the nose-to-+x turn (hitboxOf's chain). Verified: the frame's
+    tailwheel lands on the drawn one to 1e-15 m. parkedDrawn(vis, stance) reads the capture's mains/props.
+  - render_premises.js hitAdd: tag 'aircraft' tries aircraftOf(grp) first (PARKED.records[key].spec + .vis, the LOD's
+    stance; cached per KEY - every placement shares it), falls back to the raster on anything missing (no record, no
+    mains: the float plane) or thrown.
+MERGE NOTE (C0b is cooking the stock parked aircraft in parked.js): I did not touch parked.js. My lines:
+  src/core/29_obstacles.js: the header paragraph (17-20), the new block from "CONVEX PIECES (G1060" (107) through
+    parkedDrawn (~403-411), the `if (S.pieces)` branch at the top of penetration (~419-425), the return line (499).
+  src/viewer/render_premises.js: AIR_SHAPES + aircraftOf just above hitAdd (1723-1744) and hitAdd's first lines (1745-1750).
+  What aircraftOf reads of parked.js: grp.userData.parkedKey, PARKED.records[key].spec / .vis.parts (kinds mainsL,
+  mainsR, prop: pivot) and the LOD's userData.stance. If the cooked records drop `vis` or `spec`, aircraftOf returns
+  null and the raster stands (no crash, the old overhang back) - keep those three fields or hand aircraftShape the
+  cooked equivalents.
+GATE HITBOX (G1061, tools/_hitbox_check.js, run_gates 'HITBOX', ~2.5 min, ONE page in node ~3 GB): the pieces' push
+  semantics; all 26 active archetypes stand a shape from the spec alone (half-span to 2 mm, <= 120 ms; the float plane
+  keeps the raster); then the Jolene captures (arch:cub first, c172, jodel), the shape exactly as registered:
+    wing vertices inside to 0.1 cm (all three); ailerons'/flaps' parts to 1.8 / 4.9 / 4.2 cm (horns off the skin);
+    the outboard wing surface within 1.8 / 1.1 / 1.1 cm of the wing mesh; THE TIP 0.0 cm past the drawn tip on all
+    three (the old raster 15.1 / 50.0 / 35.0); TAXI PAST (each settled by its own solver, rolled rigid 1 cm a step):
+    the Cub past the Cub and the stock build past the 172 (its tips ride over the Cub's wing) - 10 cm clear: 0
+    contacts (old raster: 150 / 100), 1 cm into the drawn wing: contact.
+  THE REST is the def's approximation, printed and bounded as a regression guard (worst of the three): tail 40 cm (the
+  Jodel's fin fillet/dorsal), fuselage 17 cm (crown, windscreen: the cage is the cage), hardware 26 cm (the Cub's
+  turtledeck trim), legs 25 cm and struts 42 cm (the editor draws its own struts and legs, not the def's beams),
+  wheels 4 cm, engine 8 cm (the 172's spinner tip). All of it below/inboard of the wing; the old raster covered it
+  (at +-50 cm). Tightening those is the follow-up if the user wants it (the dorsal and the crown are in the spec).
+COST (G1062): the shape per key 28-88 ms in node (first call pays the JIT) against 138-165 ms for the L1 walk + 0.5 m
+  raster it replaces in the same process (the browser's was ~0.8 s a placement, G680); it is built once per key, not
+  per placement. Memory: 21-25 KB of planes per key against 4-7 KB of grid per placement.
+GATES RUN (targeted, on this tree): HITBOX PASS 84/84, OBSTACLE, PARKED, PREMISES, TAXICLEAR, BUILD, FRAMECOST (no
+  counted boot or frame row grew; its counts are GL work, the obstacle step is CPU), STAND, BOOT - all PASS.
