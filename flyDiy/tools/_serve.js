@@ -29,8 +29,12 @@ const MIME = {
   '.woff2': 'font/woff2', '.bin': 'application/octet-stream',
 };
 
-http.createServer((req, res) => {
+// G733 (B1-LAG): every answer names the root it serves (X-Serve-Root), and a port already taken is a LOUD exit: a server
+// left over from another run kept :8531, the next rig's own server could not bind and died quietly, and that rig measured
+// the OTHER tree's page (2026-09-28, two sessions' runs). tools/rollout_perf.js checks the header against its own root.
+const srv = http.createServer((req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
+  res.setHeader('X-Serve-Root', encodeURIComponent(ROOT));
   let fp = path.join(ROOT, url);
   if (!fp.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
   if (!fs.existsSync(fp)) for (const F of FALLBACKS) {
@@ -50,4 +54,6 @@ http.createServer((req, res) => {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('not found: ' + url);
   }
-}).listen(PORT, () => console.log(`_serve.js on http://localhost:${PORT}/ root=${ROOT}` + (FALLBACKS.length ? ` fallback=${FALLBACKS.join(';')}` : '')));
+});
+srv.on('error', e => { console.error(`_serve.js: CANNOT SERVE ${ROOT} on port ${PORT}: ${e.code || e.message}` + (e.code === 'EADDRINUSE' ? ' - another server holds it (a leftover rig server?)' : '')); process.exit(3); });
+srv.listen(PORT, () => console.log(`_serve.js on http://localhost:${PORT}/ root=${ROOT}` + (FALLBACKS.length ? ` fallback=${FALLBACKS.join(';')}` : '')));
