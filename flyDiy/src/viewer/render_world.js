@@ -4851,7 +4851,31 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const done = ringReady(cg, o && o.reach);
         return Object.assign({ phase: done ? 'done' : 'ring', done, trees: TREE_STATE.v }, ringStat());
       };
-      fillApi = { prewarm, ringReady, ringStat, treeState: () => TREE_STATE.v };   // after the consts: no dead zone
+      // G730 (B1-LAG): EVERY RUNG THE PARTITION CAN SHOW, AS THE DRAW WILL MEET IT. A parked rung is out of the graph
+      // (RUNGS, above), so the roll-out's compile never met a rung no tree stood on at the reveal, and the first one the
+      // taxi reached linked on its frame: the fill's M_Branch.003 / M_Bark.003 in the chunk at (-512, 512) and their
+      // depth, 567 ms at +32 s, every run, every build. One stand-in per ladder material of the woodland (PROTO) and the
+      // fill (SHAPE.list: every species a mix can plant, every series, every rung) on the kind the chunks draw it on -
+      // an InstancedMesh WITH an instanceColor (both planters set one: instancingColor is in the program key) - casting
+      // through the rung's own depth material. app.js compiles it lit and through the depth variants (rungPrelink).
+      const rungWarm = () => {
+        const g = new THREE.Group(), seen = new Set();
+        const col = new THREE.InstancedBufferAttribute(new Float32Array(3).fill(1), 3);
+        const add = q => {
+          if (!q || !q.geo || !q.mat || seen.has(q.mat)) return;
+          seen.add(q.mat);
+          const m = new THREE.InstancedMesh(q.geo, q.mat, 1);
+          m.instanceColor = col; m.renderOrder = -1; m.frustumCulled = false;
+          m.castShadow = true; m.receiveShadow = true;
+          if (q.depth) m.customDepthMaterial = q.depth;
+          m.userData.rungWarm = true;
+          g.add(m);
+        };
+        for (const list of [PROTO || [], SHAPE.real ? SHAPE.list : []])
+          for (const H of list) for (const S of H.series || []) for (const R of S.ladder || []) for (const q of R.parts || []) add(q);
+        return g;
+      };
+      fillApi = { prewarm, ringReady, ringStat, rungWarm, treeState: () => TREE_STATE.v };   // after the consts: no dead zone
     }
   }
 
@@ -6213,6 +6237,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     ringReady: cg => fillApi ? fillApi.ringReady(cg) : true,
     ringStat: () => fillApi ? fillApi.ringStat() : null,
     treeState: () => fillApi ? fillApi.treeState() : 'fallback',
+    rungWarm: () => fillApi && fillApi.rungWarm ? fillApi.rungWarm() : null,   // G730: the parked rungs' stand-ins (app.js rungPrelink)
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
