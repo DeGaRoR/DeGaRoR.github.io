@@ -6737,12 +6737,18 @@
   }
   // THE WORLD FROM THE STAND, ONCE, UNDER THE BOOT'S OVERLAY: its buffers go up and the residue of its programs links
   // here, not on the first frame of the first roll-out (the programs are linked by then: never draw ahead of the links)
+  // ...ROUND THE STAND: six headings at the chase's distance (the reveal's eye is on one of them, the pilot's turn onto
+  // the taxiway sweeps the rest) - a view draws only what its frustum holds, and a buffer first drawn in flight is
+  // uploaded there (GATE ROUNDTRIP: 206 MB of bufferData in the first 40 frames with one view)
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
-    const cam = camera.clone();
-    cam.position.set(a[0] + 16, a[1] + 6, a[2] + 16); cam.lookAt(a[0], a[1] + 1.5, a[2]);
-    cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
-    for (let i = 0; i < 2; i++) { worldSettle(); if (aa) aa.render(scene, cam); else renderer.render(scene, cam); }
+    const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
+    for (let i = 0; i < 6; i++) {
+      const h = i * Math.PI / 3;
+      cam.position.set(a[0] + 1.3 * D * Math.cos(h), a[1] + 0.35 * D, a[2] + 1.3 * D * Math.sin(h)); cam.lookAt(a[0], a[1] + 1.5, a[2]);
+      cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
+      worldSettle(); if (aa) aa.render(scene, cam); else renderer.render(scene, cam);
+    }
   }
   // THE WORLD AS THE FLIGHT WILL FIND IT AT THE STAND, in the one loading: its per-frame update run once there (the sun's
   // cascades aimed, the near-shadow light live or not, the village lamps lit or not for the hour) - the lights' count and
@@ -6751,6 +6757,36 @@
   // `life`: and what the first flight frames CREATE there - the scenery's life (its walkers and props, instanced: a program
   // of their own) a few ticks on, the tyres' contact-shadow mesh (made on the first flight frame) - so their programs are
   // keyed by the catch-up compile and linked under the screen (GATE ROUNDTRIP: 10 links left in the first 40 frames)
+  // the world's update, over and over at the stand until its streamers rest (the 'settle' step above); in the shed the
+  // eye stands beside the stand for it (worldSettle's), in the world it is the flight's own
+  function worldAtRest() {
+    if (!WF || !WF.worldUpdate || typeof renderer.compileAsync !== 'function') return;
+    const a = inGarage ? standAnchor() : sim.cgPos(); if (!a) return;
+    const cg = inGarage ? [a[0], a[1] + 1.5, a[2]] : a;
+    const ST = WF.premises && WF.premises.streamState;
+    const count = () => { let c = 0; WF.scene.traverse(() => { c++; }); return c; };
+    let n = 0, last = -1, still = 0; const t00 = performance.now();
+    // the parked aeroplanes the stream places meanwhile are captured a step a task, as under the roll-out screen
+    const PK = PK_ASYNC() ? window.PARKED : null; if (PK) PK.async = true;
+    const idle = () => (!ST || !(ST.near > 0)) && !(WF.ringStat && WF.ringStat() && WF.ringStat().busy);
+    return new Promise(res => {
+      const tick = () => {
+        const t0 = performance.now();
+        const keep = inGarage ? camera.position.clone() : null;
+        if (keep) camera.position.set(a[0] + 16, a[1] + 6, a[2] + 16);
+        try { while (performance.now() - t0 < 40 && n < 1500) { WF.worldUpdate(cg); n++; } }
+        catch (e) { console.warn('world settle:', e && e.message); n = 1500; }
+        finally { if (keep) camera.position.copy(keep); }
+        if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; } } else still = 0;
+        const done = still >= 3 || n >= 1500 || performance.now() - t00 > 45000;
+        BOOT.phase('settle', 'the world settling round the stand' + (ST ? ' · ' + (ST.near || 0) + ' to build' : ''), done ? 1 : Math.min(0.95, n / 600));
+        if (done) { if (typeof window !== 'undefined') window.FLYDIY_WORLD_SETTLE = { n, ms: Math.round(performance.now() - t00), rest: still >= 3, near: ST ? ST.near : null, fill: WF.ringStat ? WF.ringStat() : null };
+          if (PK && PK.whenIdle) PK.whenIdle().then(() => { if (inGarage) PK.async = false; res(); }); else res(); }
+        else setTimeout(tick, 0);
+      };
+      tick();
+    });
+  }
   function worldSettle(life) {
     if (!WF || !WF.worldUpdate || !inGarage) return;
     const a = standAnchor(); if (!a) return;
@@ -6835,13 +6871,22 @@
         tick();
       });
     } },
+    // THE WORLD AT REST ROUND THE STAND (B9, the user: "NO background loading in the garage or in flight"). The base's
+    // roll-out screen stood 70-90 s over a world whose loop kept updating under it: the premises' stream (to its 6 km
+    // reach, past the town step's), the forest's fill past the ring, the cover ring round the eye, the rock map, all
+    // streamed there. The one loading has no such minute: GATE FRAMECOST's stand view, right after the roll-out, drew
+    // +150 and uploaded twice the bytes a frame - the world still arriving in flight. So the world's own update runs
+    // here, at the stand, ~40 ms a task, until its streamers are idle (the stream's near queue empty, the fill not busy,
+    // the scene's object count still over three looks) - or 1 500 updates / 45 s, whichever first.
+    { id: 'settle', part: 'world', label: 'the world settling round the stand', w: 12, key: () => WF ? 'at ' + anchorStr() : null, deps: ['world', 'town', 'ring'],
+      fn: () => worldAtRest() },
     // THE WORLD'S PICTURES (LOADING S4.1): the house, sign, site and lot sets
     // load when the world first READS them - here, under this screen - so
     // wait for every Image a material of the scene holds before the upload
     // below (an image that lands after the reveal is a pop: a bare wall for a
     // second, then the planks). Bounded: a picture that never lands is a
     // flat material, not a stuck screen.
-    { id: 'images', part: 'world', label: "the world's pictures", w: 8, key: () => 'in', deps: ['world', 'town', 'ring', 'parking'], fn: () => {
+    { id: 'images', part: 'world', label: "the world's pictures", w: 8, key: () => 'in', deps: ['world', 'town', 'ring', 'parking', 'settle'], fn: () => {
       if (!WF || typeof renderer.compileAsync !== 'function') return;
       const imgs = new Set();
       const isImg = v => v && v.isTexture && v.image && typeof v.image.complete === 'boolean' && !v.image.complete;
@@ -6862,7 +6907,7 @@
     } },
     // the textures go to the GPU here, in slices, with a count - not in the
     // first frame (measured: 5.6 s of the first world frame was the upload)
-    { id: 'upload', part: 'world', label: 'uploading the textures', w: 12, key: () => 'up', deps: ['world', 'town', 'ring', 'parking', 'images'], fn: () => {
+    { id: 'upload', part: 'world', label: 'uploading the textures', w: 12, key: () => 'up', deps: ['world', 'town', 'ring', 'parking', 'settle', 'images'], fn: () => {
       if (typeof renderer.initTexture !== 'function' || typeof renderer.compileAsync !== 'function' || !WF) return;
       return uploadSliced(scene, 'upload', 'uploading the textures');
     } },
@@ -6870,7 +6915,7 @@
     // G567: the cap is a STALL - 4 min without a program becoming ready (the ground's cold link was ~3.5 min before G568, ~30 s now)
     // - and the wait is explained and counted on the screen (shaderProgress). B9: keyed on the graphics that key programs
     // (a shadows row picked in the shed re-keys the world's lit programs: they link here, not on the first frame)
-    { id: 'worldCompile', part: 'world', label: 'compiling the world', w: 20, key: () => WF ? gfxKey() : null, deps: ['world', 'town', 'ring', 'parking'], fn: () => {
+    { id: 'worldCompile', part: 'world', label: 'compiling the world', w: 20, key: () => WF ? gfxKey() : null, deps: ['world', 'town', 'ring', 'parking', 'settle'], fn: () => {
       if (typeof renderer.compileAsync !== 'function' || !WF) return;
       return craftInWorld(() => {
         worldSettle();   // (in the one loading: the lights as the stand will have them, before their programs are keyed)
@@ -6886,7 +6931,7 @@
     // reveal (G584's owed "premises that stream in"). A second, sliced pass right before the frames: the programs it
     // already knows cost their key, the new ones link on the driver's threads.
     // B9: in the boot (the shed on screen) the frames are ONE warm draw of the world from the stand (worldWarmDraw)
-    { id: 'frames', part: 'world', label: 'first light', w: 4, key: () => 'lit', deps: ['world', 'town', 'ring', 'parking', 'worldCompile'], fn: () => {
+    { id: 'frames', part: 'world', label: 'first light', w: 4, key: () => 'lit', deps: ['world', 'town', 'ring', 'parking', 'settle', 'worldCompile'], fn: () => {
       if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
       return craftInWorld(() => (worldSettle(true), shaderProgress(compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants()).catch(e => console.warn('catch-up compile:', e && e.message)), 'world', 60000))
         .then(() => { if (inGarage) { worldWarmDraw(); return; } holdRender = false; return framesRendered(2); }));
@@ -10930,8 +10975,10 @@
   // boot commits the aeroplane exactly as a roll-out does, and records the build it committed (the first roll-out skips them)
   const bootTrip = tripOpen('boot');
   const bootTripStep = id => { const s = TRIP_BY[id]; bootStep(s.id, s.label, s.w, () => tripRun(s, bootTrip)); };
-  bootStep('snapshot', 'committing the build', 10, () => { tripSync = null; return tripRun(TRIP_BY.snapshot, bootTrip); });
-  bootTripStep('bake'); bootTripStep('spec');
+  // B9 (G1020): THE WORLD, IN THE ONE LOADING - its build, the town and its parked aeroplanes, the forest ring, the world
+  // at rest round the stand - BEFORE the build is committed: the parked aeroplanes' captures put the player's build back
+  // through the editor, and the build's export moves after them; committed first, the first roll-out found it changed
+  for (const id of ['world', 'town', 'parking', 'trees', 'ring', 'settle']) bootTripStep(id);
   // THE PARKED AEROPLANES (G411): the world's aircraft objects were stood as
   // empty holders at the world step (the editor did not exist yet); each is
   // captured now through the editor - a round trip, the user's build put back
@@ -10940,6 +10987,9 @@
   bootStep('parked', 'parking the other aeroplanes', 8, () => {
     if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
   });
+  // (B9: before the commit too - a capture puts the player's build back through the editor, as the batch does)
+  bootStep('snapshot', 'committing the build', 10, () => { tripSync = null; return tripRun(TRIP_BY.snapshot, bootTrip); });
+  bootTripStep('bake'); bootTripStep('spec');
   // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
   // a dirty storm like any load — and the bench's rule (an empty bench
   // never nulls the store) is what let the WIP's stored plaque live
@@ -10953,7 +11003,7 @@
   // boot's screen round the stand the route names (standAnchor: the aeroplane is still in the shed), then the
   // aeroplane's programs in the world's lights; the shed compiles and lights up after them, and the world is drawn
   // once from the stand at the end. The first roll-out finds every key unchanged.
-  for (const id of ['world', 'town', 'parking', 'trees', 'ring', 'images', 'upload', 'worldCompile']) bootTripStep(id);
+  for (const id of ['images', 'upload', 'worldCompile']) bootTripStep(id);   // (B9: the rest of the world's steps: see 'settle' above the commit)
   // THE SHADERS COMPILE IN PARALLEL (LOADING S2, G407). Every program used
   // to be compiled synchronously on its first draw: measured 25 s of a cold
   // boot inside three's link-status query. renderer.compileAsync issues every
@@ -11239,6 +11289,18 @@
   // rebuilt once more, ~0.5 s after the batch let go - seen in GATE ROUNDTRIP's trace at 'firstFrame'); compiled
   // before that, the first roll-out compiled the rebuilt model again
   bootTripStep('craft');
+  // THE AEROPLANE, AS IT SETTLED (B9): a commit feeds back into the editor - the flown spec's CG re-derives the tail's
+  // sizing, the energy layer re-places the tanks - and the export moves a hair after it (the metal Cessna's tail stabH
+  // 0.04729 -> 0.04720, converged after one more sync). The loading re-plans the aircraft's keyed steps once at its end
+  // and runs what moved, under the same screen: the first roll-out then finds nothing to do.
+  bootStep('recheck', 'your aeroplane, as it settled', 2, () => {
+    tripSync = null;
+    const plan = tripPlan('craft'); if (!plan.length) return;
+    const t = tripOpen('recheck');
+    let p = null;
+    for (const s of plan) p = p ? p.then(() => tripRun(s, t)) : Promise.resolve(tripRun(s, t));
+    return screenCan() ? p.then(() => tripClose(t)) : (tripClose(t), undefined);
+  });
   // THE SCENERY MODE (the world rail, 2026-09-24; the user: "launch only the graphics parts of the game, at least not
   // the flight simulation ... so we don't need lots of benches anymore"): ?scenery=1 rolls out the moment the boot
   // lifts, then HOLDS the solver (running = false: no step, no pilot, no director), takes the aeroplane off the

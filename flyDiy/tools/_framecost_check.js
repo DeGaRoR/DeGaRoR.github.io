@@ -118,6 +118,7 @@ async function census(build) {
   const route = taxiPose(W, FP);
   const pose = Object.assign({}, TAXI_PIN, { off: route ? +Math.hypot(route.x - TAXI_PIN.x, route.z - TAXI_PIN.z).toFixed(1) : null });
   placeAt(W, FP, pose);
+  if (process.env.FRAMECOST_WHAT === 'taxi') { FP.camSettle(); await P.frames(WARM); await debugAids(W, P, FP, C, () => rows, v => { rows = v; }, 'taxi'); }
   views.taxi = await measure();
   views.taxi.pose = [pose.x, pose.z, pose.hdg, pose.off === null ? 'no route' : 'route ' + pose.off + ' m off'];
   const wd = FP.world();
@@ -152,9 +153,9 @@ function pageHooks(C, getCam) {
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
 //   FRAMECOST_WHO=1     the callers of terrainH and of the buffer / texture / matrix uploads, sampled, over the stand's
 //                       frames; the premises overlay's state
-//   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material
+//   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material (=taxi: at the taxi pose)
 //   FRAMECOST_PROBE=N   N frames at the stand, a line every 10 (draws, GL calls, terrainH, ...): how the world settles
-async function debugAids(W, P, FP, C, getRows, setRows) {
+async function debugAids(W, P, FP, C, getRows, setRows, at) {
   const E = process.env;
   if (E.FRAMECOST_WHO) {
     Error.stackTraceLimit = 60;
@@ -176,7 +177,7 @@ async function debugAids(W, P, FP, C, getRows, setRows) {
     }
     setRows(null);
   }
-  if (E.FRAMECOST_WHAT) {
+  if (E.FRAMECOST_WHAT && (E.FRAMECOST_WHAT === 'taxi') === !!at) {
     setRows([]); await P.frames(1); setRows(null);
     const by = {};
     for (const o of C.lastDrawn || []) { let n = o; const pth = []; while (n && pth.length < 3) { if (n.name) pth.push(n.name); n = n.parent; }

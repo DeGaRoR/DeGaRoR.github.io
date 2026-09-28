@@ -176,7 +176,7 @@ const GATES = [
   // terrainH at the stand and the taxi (the Cub, the metal Cessna) and per boot step; tools/perf/framecost_baseline.json.
   // Two page runs in parallel child processes (weight 2; ~3 min and ~3.6 GB each on a 4-core cloud box)
   { id: 'FRAMECOST', file: '_framecost_check.js', tier: 'core', weight: 2, wall: 180 },
-  { id: 'ROUNDTRIP', file: '_roundtrip_check.js', tier: 'core', wall: 600 },   // B8/B9 G1020-G1026: the one loading, the round trips keyed on their inputs, the setup screen from the rail's registry
+  { id: 'ROUNDTRIP', file: '_roundtrip_check.js', tier: 'core', wall: 800 },   // B8/B9 G1020-G1026: the one loading, the round trips keyed on their inputs, the setup screen from the rail's registry
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
