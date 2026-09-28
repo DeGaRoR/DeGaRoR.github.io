@@ -63302,3 +63302,290 @@ FOR THE COORDINATOR:
 GATES (targeted): FRAMECOST (red only on the stale baseline, as on the base; ALLOW-ed rises named), MATLIB PASS (new),
 ASSETS PASS (ALLOW.mats tightened), PROGRAMS, TREES, COVER, FADES, PROPS, ANIMALS, CONTACT, STAND, LIFE, SITE, ATMO,
 PREMISES, HANGAR, CLOUD, WORLDRENDER, LOOKS, LIGHT, MEDIA, GFX, BUILD, BOOT PASS. The full tier was not run.
+
+## G1020-G1026 - B8/B9: ONE LOADING FOR THE WHOLE GAME, THEN INSTANT ROUND TRIPS; THE LOADING SCREEN IS A SETUP SCREEN (2026-09-28, B8B9, a cloud session, node only)
+
+The user (2026-09-28), fixed decisions: "ONE LOADING FOR THE WHOLE GAME, THEN INSTANT ROUND TRIPS" - the first boot builds the
+shed AND the world under one screen, "no impact on performance below 30 fps. Maybe a slightly longer loading upfront is the
+way to go"; no background loading in the shed or in flight; a later shed -> world trip costs only the aircraft (its sync
+plus its new programs), every step keyed on its inputs; world -> shed stays instant; nothing ticks the world in the shed.
+And "THE LOADING SCREEN IS A SETUP SCREEN": the options (FLY route/circuit/start/engines/controls, VIEW, SKY & WORLD
+time/weather, GRAPHICS) and a Fly button on it, from the SAME option keepers as the rails; untouched it starts on its own,
+touched it waits for Fly; the options that reload the page left out; graphics picked during the load applied before the
+compile. Built on origin/claude/train-12-base (962fa03).
+
+**G1020 THE ONE LOADING, AND A STEP LIST KEYED ON ITS INPUTS** (app.js, the roll-out's region, ~6530-6980).
+- THE STEP TABLE, `TRIP_STEPS`: one row per step - `id`, `part` ('craft' | 'world'), `label`, `w`, `key()` (a string; null
+  = must run), `deps` (steps it reads), `when()` (a step that exists only with its module: C4a's bake), `fn`. It replaces
+  rollOutScreen's hard-wired list. `tripNeed(s, ran)`: a step runs when it never ran, when its key differs from the one
+  it last ran on (`tripKeys`), or when a step in its `deps` ran in this trip. `tripRun` runs it (or logs it skipped) and
+  records the key after; `tripPlan(part)` is a phase's steps to run; `tripPhase(trip, part, done)` shows the roll-out
+  screen with exactly those - or NO SCREEN AT ALL when none has new inputs. Every trip is logged:
+  `window.FLYDIY_TRIPS` [{ kind: boot | rollout | rollin | lineup | settle, steps: [{ id, ran, key, was, why }], anim,
+  done, ms }], `window.FLYDIY_TRIP_KEYS`.
+- THE KEYS. snapshot / bake / spec: the build's export as CANONICAL JSON (`specKey`: keys sorted, numbers to 10
+  significant digits - the same aeroplane put back into the editor re-orders its keys). craft: the flight model's
+  identity (a new `model` object = a rebuild) + the world's presence + the graphics that key programs (`gfxKey`: GFX.get()
+  without fps and the preset's name). world: built (WF). town / parking: the STAND, off the route's inputs (`standAnchor`:
+  applyRoute's own reading - the field, taxi or lined up, the player's shed - without touching the sim). ring: the stand
+  AND the forest standing within 1.5 km there (`WF.ringReady(cg, RING_REACH, true)` - a flight far away evicts it, a new
+  density re-streams it). trees: once. images / upload / frames: their deps (a world step ran). worldCompile: `gfxKey` +
+  deps (a shadows row picked in the shed re-keys the world's lit programs: they link under the next roll-out's screen, not
+  on its first frame).
+- THE BOOT (`bootSteps`), 24 steps: treeBins, aircraft, garage, editor, seed, WORLD, TOWN, PARKING, TREES, RING, SETTLE,
+  parked, SNAPSHOT, BAKE, SPEC, restore, IMAGES, UPLOAD, WORLDCOMPILE, compile, firstFrame, FRAMES, CRAFT, RECHECK (capitals:
+  TRIP_STEPS rows / new). The world's steps run BEFORE the build is committed (and the shed's 'parked' captureAll with
+  them): a parked aeroplane's capture puts the player's build back through the editor, and the build's export moved
+  after it - committed first, the metal Cessna's first roll-out found it changed and committed it again. Then 'frames' - the
+  world drawn from the stand under the overlay, SIX headings round it at the chase's distance (`worldWarmDraw`: a view
+  draws only its frustum, and a buffer first drawn in flight is uploaded there - one view left 206 MB of bufferData to the
+  first 40 flight frames, six leave 7 MB; after every link is done - G999's "never draw ahead of the links" holds), then
+  'craft' - the aeroplane's programs in the world's light (`compileCraft`: compileSliced(craft, target, scene) + its depth
+  variants). 'craft' comes late because the flight model is rebuilt once more after the parked batch lets go (G1021).
+  'RECHECK', the last: a commit feeds back into the editor (the flown CG re-derives the tail's sizing: the metal Cessna's
+  tail stabH 0.04729 -> 0.04720, converged after one more sync) - the aircraft's keyed steps are re-planned once and what
+  moved runs, under the same screen, so the first roll-out finds nothing to do.
+- 'SETTLE' - THE WORLD AT REST ROUND THE STAND (`worldAtRest`; the user: "NO background loading in the garage or in
+  flight"). The base's roll-out screen stood 70-90 s over a world whose loop kept updating under it; the one loading has
+  no such minute, and GATE FRAMECOST's stand view, right after the roll-out, drew +150 and uploaded twice the bytes a frame:
+  the world still arriving in flight (the premises' stream reaches 6 km, the town step 4; the fill past the ring; the cover
+  ring round the eye; the rock map). The world's own update runs at the stand, ~40 ms a task, until its streamers rest
+  (the stream's near queue empty, the fill not busy, the scene's object count unchanged over three looks) or 1 500
+  updates / 45 s; the parked aeroplanes it places are captured a step a task. In node: ~1 140 updates to rest.
+  `window.FLYDIY_WORLD_SETTLE` says how it ended. Keyed on the stand like the town.
+- THE WORLD AS THE FLIGHT WILL FIND IT, IN THE LOADING. A world compiled before the aeroplane is out re-keys on the first
+  flight frame unless its program keys see what the flight will: GATE ROUNDTRIP's "first 40 frames" check found 118 links
+  there and named them by diffing a material's old and new program keys. (1) THE CRAFT'S OWN LIGHTS: its nav, landing and
+  taxi lights (cockpit.js setupLights: a spot and two points in model.grp) are counted in every lit program's key (0 -> 2
+  point, 0 -> 1 spot) - and model.grp is HIDDEN in the shed behind the editor's cage, so three (traverseVisible) did not
+  count them even with the craft in the world. `craftInWorld(fn)`: for as long as the world's or the craft's programs are
+  keyed from the shed (the town's prelink, worldCompile, frames, craft; a roll-out's craft step; Fly's settle) the craft
+  stands in the world scene, model.grp shown, and goes home after (counted: the prelink overlaps later steps). (2) THE
+  WORLD'S PER-FRAME STATE: `worldSettle()` runs the world's update once at the stand (the cascades, the near-shadow light,
+  the lamps for the hour) before worldCompile and each warm draw. (3) WHAT THE FIRST FLIGHT FRAMES CREATE: the scenery's
+  life (instanced walkers and props: a program layer of their own) a few premises ticks on, and the tyres' contact-shadow
+  mesh (app.js made it on the first flight frame) - `worldSettle(true)` in the boot's 'frames' step, before its catch-up
+  compile. (4) THE PASSES OUTSIDE THE SCENE the first flight frames met: the rock map's instanced sprites (rock_map.js api.warm:
+  with and without an instance colour) and the clouds' tile probe (clouds.js warmList + probeMat), in compileDepthVariants.
+  118 -> 112 (the lights hidden) -> 10 -> 3 -> 0 links in the first 40 frames of every flight.
+- A ROLL-OUT (`rollOut`) is three phases: (1) THE AIRCRAFT, from the shed (`sync`): snapshot -> bake -> spec -> craft, under
+  the roll-out screen only when one has new inputs; (2) THE ANIMATION: B10's `ROLLANIM.play({ craft, scene: garageScene(),
+  camera, onDone })` when the module is there (a missing module is a no-op; a throw, 30 s without onDone, Esc or the bar's
+  button - `rollAnimSkip` - go on); (3) THE STAND AND THE WORLD: rollOutStand (the cut), then the world's steps whose keys
+  changed (none on a round trip). The skip to line-up's far start runs phase 3 alone (`rollOutScreen(done)`, trip 'lineup').
+  The harness path (no compileAsync) is inline, as before. The way back (`rollInScreen`) is unchanged, and logged.
+- NOTHING TICKS THE WORLD IN THE SHED: the loop's `WF.worldUpdate` was already gated on `!inGarage`; GATE ROUNDTRIP now
+  counts it (and the premises' tick, and the world scene's updateMatrixWorld) over every stretch in the shed: 0.
+- render_world.js: `WF.ringReady` DROPPED its reach (`ringReady: cg => fillApi.ringReady(cg)`): every roll-out's
+  needsRollOutScreen asked for the whole R_ACT the prewarm never grows - the ring step ran again on EVERY roll-out
+  (GATE ROUNDTRIP's first run: 'ring' re-ran on trip 3 with no change). The reach passes through now, and `loose`
+  (the ring within reach stands, whatever chunk the streamer is half-way through elsewhere).
+- B8's shed: flCamMode / flApplyFov store the flight's framing and field of view in the shed without touching its camera
+  (a pick on the setup screen moved the shed's eye).
+
+**G1021 THE SYNC IN ITS THREE; THE BUILD KEPT AS IT WAS** (app.js syncBuildSteps ~7280, parked.js, _cage_energy.js).
+- `syncBuildSteps` = `tripExport` (the key) + `syncSnapshotSteps(x)` + `syncApply(x)`; syncBuild / BUILD_SYNC / the bench
+  unchanged for their callers. C4a: the 'bake' row sits between snapshot and spec: `FLOWN_BAKE.step(payload =
+  window.CAGE_VISUAL, spec = the flown spec (GARAGE_SPEC.preview of the export), onPhase(label, frac))`, a Promise; the
+  spec applied after it builds the model ONCE (no rebuild after the bake). A sync outside the steps (the bench's test, a
+  load) forgets the bake's key: the next roll-out bakes.
+- parked.js: applySpec ASSIGNS a build's rows (`Object.assign(P, cageFromSpec(spec))`), so a row a FOREIGN parked
+  aeroplane brought (a six-seat cabin's paxOcc5 / paxOcc6) stayed in the player's editor after the batch's restore: the
+  player's export changed under them, and the first roll-out re-committed an aeroplane nobody had touched. The rows the
+  batch added are dropped before the restore (`dropForeign`).
+- _cage_energy.js commit: the energy layer re-commits its tanks after EVERY editor build (GARAGE_SPEC.update = a full
+  aircraft rebuild: model, sim, the room re-entered). When the numbers are the ones stored it no longer updates.
+  STILL THERE (found, not fixed - the editor's): after the parked batch's restore, garage.js's autosave commit merges the
+  editor's raw vessels (along null, capacity 45) over the energy layer's placed ones (along -0.117, capacity 29), and the
+  energy layer then re-places them and re-commits: one more model rebuild ~0.5 s after the batch lets go. In the boot it
+  falls under the loading screen, which is why 'craft' comes late in the boot and 'recheck' closes it. The two writers of
+  `spec.energy` (the join's export, the energy layer's placement) want to agree in the editor (tools/_cage_energy.js
+  writing the placement back into its rows), owed to whoever owns the editor.
+
+**G1022 GATE ROUNDTRIP** (tools/_roundtrip_check.js, new, core; three page children in sequence, ~3.6-4.4 GB each, ~14 min).
+The page in node (FRAMECOST's harness; `pageHooks` / `bootMark` / `diff` now exported by _framecost_check.js). CHILD
+`trips`, twice - the Cub (a first boot) and the metal Cessna (a saved build in the working slot) - untouched: boot -> roll out -> back -> a slider of the editor moved (p_noseLen's
+oninput, as a drag) -> roll out -> back -> roll out with no change. Per trip: the steps run / skipped (FLYDIY_TRIPS, the
+key that moved), the cost (links, gl.calls, draws, buffer / texture bytes, terrainH, updateMatrixWorld) in all and per
+step, and the first 40 frames of each flight (what they link). CHILD `setup`: G1026. Verdict lines listed below.
+FRAMECOST's census waits for the roll-out on FLYDIY_TRIPS (a roll-out with nothing to do shows no screen); a tree
+before B9 still lifts its screen. The checks: the one loading ran the world's steps and the craft's; untouched, it lifted
+by itself; roll-outs 1 and 3 run NO step and link nothing; roll-out 2 runs only the aircraft's (snapshot, spec, craft) and
+no world step; the way back runs the shed's three; NOTHING TICKS THE WORLD IN THE SHED (the world's update, the premises'
+tick, the world scene's updateMatrixWorld over three stretches: 0 - and > 0 in flight, so the counters can see); the first
+40 frames of every flight link NOTHING; no background loading in flight (the first 40 frames after roll-outs 1 and 3
+upload under 16 MB); the world came to rest at the stand. Diagnosis on a failure (how every fix above was found): the
+key that moved (`was` -> `key`), the export's first difference, the old and new program key of a re-keyed material, the
+objects and the call stack behind a new program, and (ROUNDTRIP_WHO=1) every GARAGE_SPEC.update with its caller.
+
+**G1023 THE TIMING, FOR THE GPU BOX: rollout_perf.js --trips** (untested here: no GPU, no headed Chrome in this
+container). After the recording window: the garage's frames fresh (5 s before the first roll-out; the recorder goes in
+at the shed now that the world exists), the load (seconds to the shed, its long tasks >= 50 ms - each a frame under
+20 fps), back to the shed, the garage after a round trip, a slider moved (the input's task, the time to the next frame),
+roll out, back, the garage after two, roll out with no change - each trip's own ms (FLYDIY_TRIPS), its steps, its
+frames (fps, p90, max, frames over 33.4 ms) and long tasks. In the JSON as `trips`.
+
+**G1024 THE LOADING SCREEN IS A SETUP SCREEN - ONE REGISTRY** (app.js the rail ~8210-8640, body.html, style.css,
+gfx_settings.js).
+- THE REGISTRY IS THE RAIL. B5's rails were already one registry in the sense that matters (every control reads and writes
+  its keeper - the pref, the select, DAY_CLOCK, GFX - and a pick re-reads it), but a flyout could only be built into the
+  flyout. `flyOpenSet(k)` is now `flyOpenSet1(k)` (the flyout, as it was) + `flSetupBuild()` (the setup screen, when it is
+  up): EVERY refresh rebuilds both views from the same items (FL_RAIL), sections (FL_SECS), builders (FL_BUILD) and folds.
+  A switch, a slider's release or a select changed in one view while the other is up rebuilds the other (`flOther`).
+  No state is copied and there is no sync code.
+- WHAT IS ON IT: FL_RAIL minus DEV; a section unless its FL_SECS row says `setup: false` (patterns, clouds, ground) or
+  `reload: true` (ground: its map row reloads the page) - so FLY route & circuit / start / engines / controls, VIEW camera /
+  instruments / map / trace / screen (without the screenshot pill), SKY & WORLD time & night / weather, GRAPHICS (its seven
+  folds). gfx_settings.js: the OPTIONS that reload the page carry `reload: true` (towns, colour management); GFX.mount
+  with `H.noReload` leaves them out, and the storage line (its refresh reloads). The clouds are off it because the user's
+  list says "SKY & WORLD time/weather" - one flag (`setup: false` on FL_SECS.clouds) to change.
+- WHERE: `#bootSetup` in #boot (body.html), top left above the bar, 340 px (full width under 900 px), scrolling; its own
+  look in style.css (the rail's row vocabulary in the loading screen's colours). Mounted by the boot's 'garage' step
+  (`setupOpen`: the shed and the aeroplane exist, so every builder has its keeper), closed at the lift (`setupClose`: the
+  borrowed route selects go home).
+
+**G1025 THE AUTO-START AND FLY** (boot.js hold / go, app.js setupOpen / bootSettle).
+- boot.js: `BOOT.hold()` (the player touched the setup); `ready()` with the hold set goes to state 'waiting' (the bar full,
+  the phase 'ready', the words say press Fly, `BOOT.onWait()`) instead of lifting; the watchdogs stand down in 'waiting';
+  `BOOT.go()` lifts it, `go(false)` releases it for another chain first. show() and hide() clear the hold.
+- UNTOUCHED, it lifts on its own when the load is done, as it always did. TOUCHED (a capturing listener on the panel: a
+  click, an input or a change on a button, an input or a select - a fold counts: someone reading the options is not
+  yanked away), the load finishes and the Fly button lights up.
+- FLY (`bootSettle`): the keyed steps re-planned - a new stand picked (its town, parking, ring, the world's upload and
+  compile, the warm draw), graphics picked after a compile (worldCompile, craft, and the shed's own compile - both its
+  targets, its depth variants, its see-through twins) - run under the same screen (trip 'settle'), then it lifts. A
+  graphics row picked during the load but before the compiles is simply in them. settleScreen (G640) stands down while
+  the boot's screen is up, as before.
+
+**G1026 GATE SETUP** (the `setup` child of GATE ROUNDTRIP): the setup screen's census (every fold open, nothing saved:
+`FLYDIY_SETUP.census()`) against the rail's census of each item: every section, row and pill of the screen is the rail's;
+every graphics option that does not reload is on it, the ones that do (towns, colour management, the map, storage) are
+not and the rail keeps them; the screen's sections are exactly the user's list; a pick on the screen shows in the rail's
+flyout and a switch flipped in the flyout shows on the screen; a touch holds the auto-start, the load finishes and the
+screen WAITS with Fly lit (60 frames on); shadows picked while it waits are compiled before the lift (the settle ran
+craft, worldCompile, frames, shedCompile) and the 30 frames after the lift link NOTHING; the panel goes with the screen.
+
+**THE COUNTS** (GATE ROUNDTRIP on the page in node - exact and repeatable, NOT browser milliseconds):
+| build | trip | steps run | links | GL calls | draws | buffer MB | terrainH |
+|---|---|---|---|---|---|---|---|
+| cub | the one loading (every step) | 13 keyed rows + the shed's own | 319 | 842965 | 104719 | 855.6 | 13316264 |
+| cub | roll-out 1 (after the boot) | none (no screen) | 0 | 50 | 0 | 0.0 | 3108 |
+| cub | back 1 | shed, board, frames | 5 | 128753 | 22420 | 0.0 | 0 |
+| cub | roll-out 2 (a slider moved) | snapshot, spec, craft | 1 | 1230 | 298 | 0.0 | 6216 |
+| cub | back 2 | shed, board, frames | 1 | 121972 | 22420 | 0.0 | 3 |
+| cub | roll-out 3 (no change) | none (no screen) | 0 | 47 | 0 | 0.0 | 3108 |
+| cub | first 40 flight frames after roll-out 1 | - | 0 | 773326 | 88148 | 6.9 | 739677 |
+| cub | first 40 flight frames after roll-out 2 | - | 0 | 770431 | 87128 | 41.6 | 743337 |
+| cub | first 40 flight frames after roll-out 3 | - | 0 | 762365 | 87161 | 3.9 | 747139 |
+| cub | in the shed (30 + 40 + 40 frames) | worldUpdate 0/0/0, premises tick 0/0/0, world updateMatrixWorld 0/0/0 | | | | | |
+| cub | the settle at the stand | 1133 updates, at rest true, near queue 0 | | | | | |
+| cessna | the one loading (every step) | 13 keyed rows + the shed's own | 319 | 882075 | 110004 | 858.8 | 13313191 |
+| cessna | roll-out 1 (after the boot) | none (no screen) | 0 | 50 | 0 | 0.0 | 3124 |
+| cessna | back 1 | shed, board, frames | 5 | 151647 | 26392 | 0.0 | 0 |
+| cessna | roll-out 2 (a slider moved) | snapshot, spec, craft | 1 | 1230 | 298 | 0.0 | 6248 |
+| cessna | back 2 | shed, board, frames | 1 | 146556 | 26392 | 0.0 | 3 |
+| cessna | roll-out 3 (no change) | none (no screen) | 0 | 47 | 0 | 0.0 | 3124 |
+| cessna | first 40 flight frames after roll-out 1 | - | 0 | 781048 | 89190 | 6.6 | 958234 |
+| cessna | first 40 flight frames after roll-out 2 | - | 0 | 778540 | 88171 | 50.4 | 963972 |
+| cessna | first 40 flight frames after roll-out 3 | - | 0 | 770503 | 88212 | 3.6 | 967774 |
+| cessna | in the shed (30 + 40 + 40 frames) | worldUpdate 0/0/0, premises tick 0/0/0, world updateMatrixWorld 0/0/0 | | | | | |
+| cessna | the settle at the stand | 1133 updates, at rest true, near queue 0 | | | | | |
+| cub | setup: Fly after shadows picked while it waited | craft, worldCompile, frames, shedCompile | 164 | 207124 | 26690 | 5.7 | |
+| cub | setup: 30 frames after the lift | - | 0 | 1050635 | 216120 | 0.0 | |
+
+**GATE FRAMECOST, BEFORE / AFTER** (base = origin/claude/train-12-base 962fa03 in a worktree, `--census cub|cessna`;
+after = this branch, `--json`; `node tools/_framecost_check.js --compare base.json after.json`). tools/perf/framecost_baseline.json
+is STALE (pre train 11) and NOT committed: against it the gate is red on counters that moved with train 11 and with this
+branch alike - the coordinator re-takes it when this train lands (`--update` on the merged tree).
+Per frame, median of 12 (FRAMECOST's views), base -> after:
+
+| view | draws main / shadow | GL calls | useProgram | uniformMatrix4fv | bytes.uniforms | bufferData B | updateMatrix / MatrixWorld | terrainH / grHeight |
+|---|---|---|---|---|---|---|---|---|
+| Cub stand | 1246.5 / 798 -> 1409 / 808 | 18 269 -> 18 340 | 345.5 -> 338.5 | 2446 -> 2665.5 | 707 226 -> 722 096 | 227 702 -> 107 490 | 8 323 / 18 000 -> 4 357 / 9 609 | 100 130 / 105 155 -> 73 / 17 |
+| Cub taxi | 1097 / 533 -> 1356 / 523.5 | 12 490 -> 16 458 | 234 -> 292 | 2061.5 -> 2511 | 445 764 -> 662 146 | 247 112 -> 81 660 | 4 102 / 9 270 -> 4 375 / 9 691 | 27 623 / 42 027 -> 73.5 / 36.5 |
+| Cessna stand | 1265.5 / 803.5 -> 1428 / 814.5 | 18 544 -> 18 546.5 | 355.5 -> 343.5 | 2502 -> 2720.5 | 717 374 -> 731 902 | 227 702 -> 107 490 | 9 682 / 18 558 -> 5 718 / 10 170 | 100 130 / 105 153 -> 73 / 15 |
+| Cessna taxi | 1084 / 584.5 -> 1374 / 531 | 12 761.5 -> 16 668.5 | 244 -> 295.5 | 2054.5 -> 2567 | 451 330 -> 670 540 | 362 758 -> 106 576 | 9 621 / 18 551 -> 5 740 / 10 254 | 62 478 / 69 955 -> 73.5 / 37.5 |
+
+READ WITH CARE: FRAMECOST measures right after the roll-out. Base's world was still ARRIVING there (100 000 terrainH a
+frame at the stand: the forest's fill streaming - G1012's own note), after's is at rest (73). Compared LIKE FOR LIKE
+(`FRAMECOST_PROBE=600`: both worlds given 600 frames at the stand first), the stand is level (main draws 1403 vs 1410 at
+rest, GL calls +3 %) and the taxi pose keeps +141 main draws / +26 % GL calls: `FRAMECOST_WHAT=taxi` (new: the draw list
+at the taxi pose) names them - three parked aeroplanes (a C172, a Jodel, a Cub: 125 draws with their skins' uniforms)
+that the settle's stream placed and the one loading CAPTURED, where base leaves them empty holders until a synchronous
+capture in flight (G680's owed (4): two editor builds and a snapshot in one task, when the aeroplane nears them). So the
+rise is world content that now arrives in the loading instead of as a mid-flight hitch, not per-frame overhead. The
+aircraft's per-frame vertex re-upload (bufferSubData 3.67 MB Cub / 2.99 MB Cessna) is unchanged (B1-LAG's).
+
+Boot and first roll-out (the census's rows summed; links / GL calls / buffer MB / terrainH):
+
+| | base: garage boot | base: first roll-out (its screen) | after: the one loading | after: first roll-out |
+|---|---|---|---|---|
+| Cub | 101 / 657 600 / 48 / 12 427 | 169 / 304 365 / 586 / 5 450 133 | 319 / 842 965 / 856 / 13 316 264 | 0 / 53 / 0 / 3 108 (no screen) |
+| Cessna | 97 / 712 163 / 53 / 9 354 | 171 / 306 372 / 584 / 5 450 165 | 319 / 882 075 / 859 / 13 313 191 | 0 / 53 / 0 / 3 124 (no screen) |
+
+Programs at the end: 289 both (base 265 Cub / 250 Cessna: the world's lit programs now carry the craft's lights, the
+life's instanced variants, the rock map's and the cloud probe's passes, warmed in the loading). Harness wall (node, NOT a
+browser's): garage 44 s + roll-out 135 s (base Cub) -> 268 s + 0.2 s.
+
+FOR THE COORDINATOR (the timing is yours, on the GPU box, with this branch in a train):
+- `node tools/rollout_perf.js --trips --label b9_warm` (and `--cold --label b9_cold`; add `--build "bugReports/cessnaMetal (1).json"`
+  for a saved metal build): prints LOAD (seconds to the shed = the one loading, now including the world; its long tasks
+  >= 50 ms), GARAGE fresh, the TRIP lines (back 1, roll out 2 after a slider, back 2, roll out 3 with no change: each
+  trip's own ms, its steps, its frames' fps / p90 / max / frames over 33.4 ms, its long tasks), GARAGE after one and two
+  round trips, SLIDER (the input's task, the time to the next frame). The targets the user set: no frame under 30 fps while
+  loading (LOAD's long tasks: each >= 50 ms task is one), a round trip's roll-out with no change ~0 (no screen at all), a
+  slider's roll-out = the aircraft's steps only, the garage's fps after round trips = fresh. The first roll-out's own line
+  is the rig's usual "roll-out screen: gone after X s" (expect no screen).
+- Things to look at in a browser (never seen here): the setup screen's look (#bootSetup, top left, 340 px; full width
+  under 900 px), the Fly button's states, the settle step's words and bar, the six-view warm draw under the overlay.
+- ROLLANIM (B10) and FLOWN_BAKE (C4a) slot in by their globals; neither is on this branch - their rows are no-ops here.
+
+REGIONS MOVED IN app.js (for B1-LAG, AS1, C4a working in parallel):
+- `rollOut` (~6539) rewritten (the three phases); `rollAnim` new after it; `rollOutStand` unchanged.
+- The block from `let frameWait` to `needsRollOutScreen` (~6620-6990) REPLACED by the step table: tripKeys / TRIPS /
+  tripExport / specKey / standAnchor / gfxKey / modelId / runGen / compileCraft / craftInWorld / worldWarmDraw /
+  worldAtRest / worldSettle / TRIP_STEPS (the old rollOutScreen steps are its 'world' rows, their bodies kept) /
+  tripNeed / tripRun / tripPlan / tripPhase / needsRollOutScreen. `rollOutScreen(done)` is now the world phase alone.
+  B1-LAG: the 'frames' step (its wait for links) is TRIP_STEPS' 'frames' row - one row for the boot and the trips.
+- `syncBuildSteps` (~7390) split into tripExport + syncSnapshotSteps + syncApply (C4a's bake between the last two).
+- The rail (~8210-8700): `flyOpenSet` -> `flyOpenSet1` + `flSetupBuild`; `flOther` after flToggle; the setup screen's
+  block (flSetupBuild, setupOpen / setupClose / setupState, bootSettle, window.FLYDIY_SETUP) before `flPlaceFly`;
+  FL_SECS rows gain `setup` / `reload`; FL_BUILD.screen / .graphics small hunks; `let flSetupHost...` after `let flyOpen`.
+- flCamMode / flApplyFov: a guard line each (the shed stores, the flight applies).
+- The boot list (~10975-11300): 'sync' -> snapshot / bake / spec (bootTripStep), the world's rows before it, 'parked'
+  moved before the commit, images / upload / worldCompile after 'restore', 'frames', 'craft' and 'recheck' after
+  'firstFrame'; the 'garage' step also opens the setup screen; the garage compile records tripKeys.shedCompile;
+  `BOOT.run(bootSteps, {...})` -> `const bootOpts = {...}; BOOT.run(bootSteps, bootOpts)` (its done closes the trip and
+  the setup screen).
+- compileDepthVariants: the rock map's warm scene added (inWorld).
+- Outside app.js: boot.js (hold / go / 'waiting', the words), body.html (#bootSetup), style.css (#bootSetup rules),
+  gfx_settings.js (`reload`, `H.noReload`), render_world.js (ringReady's reach and `loose`), parked.js (dropForeign),
+  rock_map.js (api.warm), clouds.js (warmList + the probe), tools/_cage_energy.js (the same numbers: no update).
+
+OWED / NOT DONE:
+- THE TIMING (above): none measured here.
+- In flight the world still streams as the aeroplane TRAVELS (the premises' stream by the aircraft, the forest's fill
+  round the eye, the cover ring) - the one loading brings the world to rest at the STAND (the settle step) and a trip
+  back to the same stand costs nothing; a flight elsewhere streams there, as it always did. "NO background loading ...
+  in flight", taken literally, would mean the whole island resident - not attempted.
+- The editor's two writers of `spec.energy` (G1021): the autosave's raw vessels vs the energy layer's placement - one
+  more rebuild of the flying aeroplane after a parked batch; and the commit's feedback into the tail's sizing (converges
+  in one more sync; the boot's recheck absorbs it). The editor's owner's.
+- A roll-out after a slider uploads the new aeroplane's buffers on the first flight frames (~40-50 MB in node: the model
+  is hidden behind the cage in the shed, so it is first drawn outside); its programs are compiled under the screen.
+- The engines' levers on the setup screen write sim.ctl.eng, which the roll-out's reset re-inits (as a restart always
+  did): a lever set on the setup screen does not survive the roll-out. The rest of the setup's rows are prefs / keepers
+  that do.
+- The setup screen's clouds section is left out per the user's list (FL_SECS.clouds `setup: false`: one flag).
+- rollout_perf --trips is written blind (no GPU, no headed Chrome here): syntax-checked only.
+
+GATES (targeted, this container, one page process at a time; the full tier and `--all` not run - the train's):
+ROUNDTRIP (new) PASS - 3 children, 840 s: the Cub's and the metal Cessna's five trips (every check above on both) and the
+setup screen. UISMOKE PASS (the boot's 24 steps in order; the rails' walk unchanged), GFX PASS, PROGRAMS PASS, BOOT PASS,
+SETTLE PASS, STAND PASS, PANEL PASS, LIGHT PASS, BENCH PASS, LINEUP PASS, PARKED PASS, ENERGY PASS, SAVE PASS, JOIN PASS,
+CLOUD PASS, WORLDRENDER PASS, COVER PASS, FADES PASS, ASSETS PASS, CLIMATE PASS, SHADOWSKY PASS. FRAMECOST: its harness,
+both builds and its three self-tests pass; its ratchet is RED against the committed baseline, which is stale (pre train 11)
+and was NOT re-taken or committed (the brief) - the before / after above is `--compare` against a census of the base.
+Gates touched: UISMOKE (the boot's step list), FRAMECOST (the roll-out waits on FLYDIY_TRIPS; `pageHooks` / `bootMark` /
+`diff` exported; `FRAMECOST_WHAT=taxi`), run_gates (ROUNDTRIP, core, wall 800).
+

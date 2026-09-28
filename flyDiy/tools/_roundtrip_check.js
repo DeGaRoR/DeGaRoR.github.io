@@ -6,7 +6,8 @@
 // THE USER (2026-09-28): "ONE LOADING FOR THE WHOLE GAME, THEN INSTANT ROUND TRIPS ... no impact on performance below
 // 30 fps. Maybe a slightly longer loading upfront is the way to go." and "THE LOADING SCREEN IS A SETUP SCREEN".
 //
-// CHILD `trips` (the default Cub, a first boot, the loading untouched):
+// CHILD `trips`, TWICE - the default Cub (a first boot) and the metal Cessna (bugReports/cessnaMetal (1).json in the
+// working slot: a saved build, the player's usual case), the loading untouched:
 //   boot -> roll out -> back to the shed -> change the build (a slider of the editor) -> roll out -> back -> roll out
 //   with no change. For every trip: which steps RAN and which were SKIPPED (the page's own log, window.FLYDIY_TRIPS,
 //   each step with its key), and what the trip cost (program links, GL calls, draws, buffer / texture bytes, the
@@ -27,8 +28,10 @@
 //     WAITS (BOOT 'waiting', Fly lit) for frames on end; a graphics row picked while it waits is compiled BEFORE the
 //     lift (the settle chain: the world's, the aeroplane's and the shed's programs), and after the lift nothing links.
 //
-//   node tools/_roundtrip_check.js                  the gate (the two children, one after the other: ~3.6 GB each)
-//   node tools/_roundtrip_check.js --child trips|setup   one child, its JSON on stdout's last line
+//   node tools/_roundtrip_check.js                  the gate (three children, one after the other: ~3.6-4.4 GB each, ~13 min)
+//   node tools/_roundtrip_check.js --only trips|trips:cub|trips:cessna|setup   a part of it
+//   node tools/_roundtrip_check.js --child trips|setup   one child, its JSON on stdout's last line (ROUNDTRIP_BUILD=<file>)
+//   ROUNDTRIP_WHO=1   (trips) every GARAGE_SPEC.update - a rebuild of the flying aeroplane - with its caller and what it changed
 //   node tools/_roundtrip_check.js --json out.json  also write both children's reports
 // The counts are this harness's (exact, repeatable), not a browser's; the TIMING of the same trips (the first load, a
 // round trip, the garage's fps fresh and after a round trip, a slider's latency, no frame under 30 fps while loading)
@@ -42,7 +45,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 
 const newC = () => ({ who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, pick: null });
 const AIRCRAFT = ['snapshot', 'bake', 'spec', 'craft'];
-const WORLD = ['world', 'town', 'parking', 'trees', 'ring', 'images', 'upload', 'worldCompile', 'frames'];
+const WORLD = ['world', 'town', 'parking', 'trees', 'ring', 'settle', 'images', 'upload', 'worldCompile', 'frames'];
 const COST = ['links', 'gl.calls', 'draws.total', 'bytes.bufferData', 'bytes.bufferSubData', 'bytes.texImage2D', 'bytes.texImage3D', 'world.terrainH', 'three.updateMatrixWorld'];
 const pick = r => { const o = {}; for (const k of COST) if (r && r[k]) o[k] = r[k]; return o; };
 
@@ -64,7 +67,9 @@ async function openCounted(extraHooks) {
       if (extraHooks && extraHooks.afterScript) extraHooks.afterScript(name, P);
     },
   };
-  const P = await openPage({ quiet: true, storage: {}, hooks, query: process.env.ROUNDTRIP_QUERY || '' });
+  // ROUNDTRIP_BUILD=<file.json>: a saved build in the working slot (the page's WIP), as FRAMECOST's metal Cessna
+  const storage = {}; if (process.env.ROUNDTRIP_BUILD) storage['flydiy.wip'] = fs.readFileSync(path.resolve(process.env.ROUNDTRIP_BUILD), 'utf8');
+  const P = await openPage({ quiet: true, storage, hooks, query: process.env.ROUNDTRIP_QUERY || '' });
   const W = P.win;
   // the world's doors, wrapped as the world comes to exist (the boot builds it now): its update, the premises' tick
   const wrapWorld = () => {
@@ -141,6 +146,7 @@ async function childTrips() {
   ctx.wrapWorld();
   const boot = lastTrip(W) && W.FLYDIY_TRIPS.find(t => t.kind === 'boot');
   const bootRows = {}; for (const [k, v] of Object.entries(FC.bootMark.rows)) bootRows[k] = pick(v);
+  out.settle = W.FLYDIY_WORLD_SETTLE || null;
   out.boot = { ran: boot ? boot.steps.filter(s => s.ran).map(s => s.id) : [], skipped: boot ? boot.steps.filter(s => !s.ran).map(s => s.id) : [],
     log: W.BOOT.log.filter(e => /^(hold|waiting|go|ready|fail)$/.test(e.k)).map(e => e.k), rows: bootRows, programs: W.FLYDIY_RENDERER.info.programs.length };
   out.shed.push(Object.assign({ at: 'after the boot' }, await shedStretch(ctx, 30)));
@@ -257,9 +263,11 @@ async function childSetup() {
 }
 
 // ---- the parent -----------------------------------------------------------------------------------------------------
-function child(kind) {
+const BUILDS = { cub: null, cessna: 'bugReports/cessnaMetal (1).json' };   // FRAMECOST's two: the first boot, a saved metal build
+function child(kind, build) {
   return new Promise(res => {
-    const p = spawn(process.execPath, ['--max-old-space-size=6144', __filename, '--child', kind], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const env = Object.assign({}, process.env); if (build && BUILDS[build]) env.ROUNDTRIP_BUILD = path.join(__dirname, '..', BUILDS[build]); else delete env.ROUNDTRIP_BUILD;
+    const p = spawn(process.execPath, ['--max-old-space-size=6144', __filename, '--child', kind], { stdio: ['ignore', 'pipe', 'pipe'], env });
     let o = '', e = '';
     p.stdout.on('data', d => o += d); p.stderr.on('data', d => e += d);
     p.on('close', code => { const line = o.trim().split('\n').pop(); try { res(JSON.parse(line)); } catch (x) { res({ failed: 'exit ' + code + ': ' + (e || o).slice(-1200) }); } });
@@ -276,14 +284,17 @@ async function main() {
   let fails = 0;
   const ok = (c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; };
   const only = opt('only', '');
-  const R = !only || only === 'trips' ? await child('trips') : null;
-  const S = !only || only === 'setup' ? await child('setup') : null;
   const fmt = o => Object.entries(o || {}).map(([k, v]) => k + ' ' + v).join(', ') || 'nothing';
-  if (R) {
-    ok(!R.failed, 'trips: the page booted and made its five trips', R.failed);
+  const RS = {};
+  for (const b of Object.keys(BUILDS)) if (!only || only === 'trips' || only === 'trips:' + b) RS[b] = await child('trips', b);
+  const S = !only || only === 'setup' ? await child('setup') : null;
+  for (const [bn, R] of Object.entries(RS)) {
+    console.log('  ---- the trips, ' + bn + (BUILDS[bn] ? ' (' + BUILDS[bn] + ')' : ' (the first boot)'));
+    ok(!R.failed, bn + ': the page booted and made its five trips', R.failed);
     if (!R.failed) {
       ok(WORLD.every(id => R.boot.ran.includes(id)) && R.boot.ran.includes('craft'), 'the ONE LOADING ran the world\'s steps and the aeroplane\'s programs in its light', 'ran ' + R.boot.ran.join(' '));
       ok(!R.boot.log.includes('hold') && !R.boot.log.includes('waiting'), 'untouched, the loading screen lifted by itself (no hold, no wait)', R.boot.log.join(' '));
+      console.log('  the world settled at the stand: ' + JSON.stringify(R.settle));
       console.log('  boot rows (the world\'s, now in the one loading):');
       for (const id of WORLD.concat(['craft', 'compile', 'firstFrame'])) { const r = R.boot.rows['garage:' + id]; if (r) console.log('    ' + id.padEnd(14) + fmt(r)); }
       const [t1, i1, t2, i2, t3] = R.trips;
@@ -310,6 +321,11 @@ async function main() {
         for (const d of (r.made || [])) console.log('      made by: ' + d); }
       const rv = (R.reveal || []).map(r => r.cost.links || 0);
       ok(rv.length === 3 && rv.every(n => n === 0), 'the first 40 frames of each flight link nothing (the one loading drew the world once, the craft compiled in its light)', 'links ' + rv.join(' / '));
+      // NO BACKGROUND LOADING IN FLIGHT: the world resident and at rest, the first frames of a flight upload no world
+      // (roll-out 2's are its new aeroplane's own buffers, first drawn outside: the aircraft's cost)
+      const up = (R.reveal || []).map(r => Math.round((r.cost['bytes.bufferData'] || 0) / 1e6));
+      ok(up.length === 3 && up[0] < 16 && up[2] < 16, 'no background loading in flight: the first 40 frames after roll-outs 1 and 3 upload under 16 MB of buffers', 'MB ' + up.join(' / ') + ' (roll-out 2: the new aeroplane\'s own)');
+      ok(R.settle && R.settle.rest, 'the one loading let the world come to rest at the stand (the stream\'s near queue empty, the fill idle)', JSON.stringify(R.settle));
       ok(R.flight && R.flight.worldUpdate > 0, 'the counters can see: in flight the world ticks', R.flight && ('worldUpdate ' + R.flight.worldUpdate + ', world updateMatrixWorld ' + R.flight.worldUmw + ' over ' + R.flight.frames + ' frames'));
       ok(!R.errors.length, 'trips: no script, timer or frame of the page threw', R.errors.join(' | ') || undefined);
     }
@@ -333,7 +349,7 @@ async function main() {
       ok(!S.errors.length, 'setup: no script, timer or frame of the page threw', S.errors.join(' | ') || undefined);
     }
   }
-  if (opt('json')) { fs.writeFileSync(opt('json'), JSON.stringify({ trips: R, setup: S }, null, 1)); console.log('  report -> ' + opt('json')); }
+  if (opt('json')) { fs.writeFileSync(opt('json'), JSON.stringify({ trips: RS, setup: S }, null, 1)); console.log('  report -> ' + opt('json')); }
   console.log('  wall ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
   console.log('GATE ROUNDTRIP: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
   process.exit(fails ? 1 : 0);
