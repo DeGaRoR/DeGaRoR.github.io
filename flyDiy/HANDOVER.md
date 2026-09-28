@@ -63105,3 +63105,72 @@ THE FIX (pavement.js GLSL.map, the chain's first lines): `cls = floor(vPavK.x + 
 mul per fragment. (A `flat` varying is the other way to it - the provoking vertex's value, never interpolated - not taken:
 the user validated the snap.) Every other hash of seed (the wet lanes, the shoulder paths) is fixed with it.
 THE SWITCH stays (t0 t1 t2 t2b t3 t3u t4 t5 t6 t8, PAVTEST / ?pavetest=) for the tweaking to come; t7 and t11 retired.
+
+## G875-G878 - C4b: THE FLOWN AEROPLANE IN A HANDFUL OF DRAWS - THE FOLD (A BONE PER MOVING PART), THE CABIN'S ATLAS, THE BAKE'S CPU IN A WORKER (2026-09-28, queue C, local GPU)
+
+The user's verdict on C4a (2026-09-28): keep the bake, on by default, go on to C4b. ARCH-2026-09-27 §7.2's draw
+target on C4a's bake. Numbers: PLAYTEST-2026-09-26 §0.21. The roll-out screen's step list is unchanged (the `bake`
+step bakes two atlases inside itself; B8B9's snapshot -> bake -> apply order still applies).
+
+G875 THE FOLD (flown_bake.js mergeModel, called in buildModel before G576's still merge). Every mesh on a baked
+material folds: the model group's own into a plain Mesh; a moving part's (a wheel, the castor, an engine unit, a
+surface's pivot group, a control, a gauge) into ONE SkinnedMesh, the part its bone (a stand-in Bone outside the graph
+whose matrixWorld is the part's transform in the model group's frame - poseRigid's hand-set matrix where it wrote one,
+else position / quaternion / scale - composed on the CPU each frame; the bind the identity, bindMode 'detached';
+three's own skinning, so every depth pass and the raycast skin it). The folds split by motion (still / bone) and by
+G564's crumb class as the roll-out reads it (a crumb fold carries crumbR and casts nothing out there; a wheel's part
+over 4 cm casts, G1005) - the shadows C4a cast. THE RIGS ARE UNTOUCHED: the flex, the hinges, the struts, the legs,
+the links, the anchors, the floats keep writing the attribute objects they hold; those attributes' arrays are now
+VIEWS into the fold, so a write lands in what is drawn. Each frame (the fold's updateMatrixWorld: the scene's matrix
+pass precedes every render's projection) the ranges whose attribute's version moved are flagged on the fold's buffer
+(the written buckets first: one range); a fold not drawn (the model in the shed, the cabin's in the cockpit) flags
+nothing and owes one whole upload when it shows. The raycast goes member by member (the ray into the member's frame,
+its own sphere, its triangles at their rig-written positions) and names the part it hit (`hit.part`: cockpit.js's
+pick walks from it); a hidden fold answers no ray. The bone fold's sphere is its members' at their parts (the craft's
+cascade fits the spheres). Not folded, each for its reason: children, own callbacks or userData, a pose of its own,
+other attributes, a hidden ancestor. Dial: window.FLYDIY_FLOWN_MERGE = 0.
+G876 THE CABIN'S ATLAS + WHAT BAKES. bakedSets: 'ext' (2048², C4a's) and 'in' (the inside buckets, 2048², a 2-texel
+gutter for its thousands of small charts: 0.70 cm a texel on the Cessna). The inside flag rides T0.A at three levels
+(64 / 128 / 255 = none / the back face / both faces; FB_HOOK reads both faces at 1, the back at 0.5). The cabin's live
+meshes keep their live material and attributes (+ uv1) and fold onto the cabin's baked material with `keep` (the
+members stay, hidden, on the same arrays); the frame swaps them in the COCKPIT view (model.fold.view(cam.mode ===
+'cockpit')): at arm's length no atlas matches the live shader's procedural grain. C4a's exclusion of the buckets on a
+control, a gauge or a link is gone (nothing writes their materials; the fold makes the part a bone). The pick pads
+(cockpit.js padSwitches, app.js ctlMove) are no longer DRAWN: three's Raycaster tests every layer-0 object shown or not
+(~16 empty draws a frame). FB.V 2 (the flag's encoding moved); the cache keeps the last 4 builds (a record per atlas).
+G877 THE WORKER. The unwrap, the gutters and the mips run in a Blob worker made from these functions' own text
+(workerSource: LUTS, PARKED.unwrap, toksvig, dilate, mipSteps, wkMain; G569's decimator precedent); the page runs the
+same code inline when there is no worker (file://, a sandbox, the node census). The GL passes stay on the page - they
+ARE the flown programs (three, AEROSKIN, AEROWX, ATMO's hook, the decal atlas live on the page's context) - and read
+back asynchronously (readRenderTargetPixelsAsync: a PBO and a fence), the three passes back to back, awaited
+together. NOT an OffscreenCanvas context: that would carry the whole flown shader stack into the worker for draws the
+page issues in ~220 ms (the exterior's three passes, cold) - said here so the next session can judge it.
+G878 PROOF. GATE FLOWNBAKE 8 (the fold: three draws from five meshes, the views, a write flags exactly its range, no
+range piles up while hidden, a part's vertex lands where the part puts it at rest and moved, the bone fold bounded
+where its parts stand, the raycast names the part, a hidden fold answers nothing, the cabin's keep and swap, the dial)
+and 9 (the worker's text runs alone; its unwrap and its gutters + mips are the page's to the bit). GATE FRAMECOST's
+census: the recording GL's read-back is zeros, so the bake used to bow out (0 % written) and the census measured an
+aeroplane no player sees - during the step the read-back now returns a written mid-grey texel; and the census reports
+the aeroplane's own draws per pass, materials and programs (`craft`, FRAMECOST_CRAFT=1 lists them by bucket). RIGS:
+tools/fold_ab.js + .py (`?fbake=foldab`: FLOWN_BAKE.showFold flips C4a's draws against the folds in one held frame;
+states stand / deflected + FLEX x4 / taxi / air; the cockpit's eye frozen; `fbake=foldab,ext` keeps the cabin live
+on both sides, the fold alone under test).
+MEASURED (the metal Cessna): the aeroplane 261 -> 90 draws in the main pass, 226 -> 40 in the shadow passes (stand;
+taxi 339 -> 60), 17 -> 13 programs; the whole frame's GL calls -12 % (stand) / -18 % (taxi); render CPU at the taxi
+-0.9 ms (12.2 / 12.1 / 12.0 -> 11.3 / 11.1 / 11.2), in the air -0.5..-1.0; frame_perf's stand 1 696 -> 1 327 calls, the GPU
+flat within its spread; the look: |A-B| on the aeroplane <= 0.01 of 255 in
+every state and view, the only moving pixels the crew's idle heads and the clouds; the bake 4.7 s cold for both
+atlases, 0.72-0.76 s a cache hit; +128 MB GPU (C4a +64). Evidence: tools/perf/c4b_fold_evidence/cessna_fold_ab.jpg.
+TRAPS: rollout_perf serves index.html by default - in a worktree it is whatever build.js last made (mine predated my
+code: the first "after" measured C4a); pass --page dev.html and an --eval that proves the code (FLOWN_BAKE.FB.merge).
+Never edit a bash script while it runs (bash reads it by offset: an edit above the current line re-executes a tail of
+it) - copy it. An app restart leaves the GPU lock of a killed batch behind: drop it. The pause holds the linkage (its
+dt is the frame's, 0 held): the rig patches link.step to 1/60 to deflect the surfaces. The cockpit eye sways even
+held (C4a's): freeze it in scene.onBeforeRender.
+NOT DONE: the tanks and the flat-colour buckets (8 draws; the bake draws only AEROSKIN's factory - they need the
+live factory's material, app.js matLive), the lamps (29 draws, a material each: the cockpit dims them per lamp; lamps
+of one switch could share one), KTX2 / an RG normal map (the 128 MB), the back face's own albedo.
+GATES: FLOWNBAKE (66 checks), PARKED, PROGRAMS, LIVERY, LIGHT, SHADOWSKY, SKIN, SKINMAT, HINGE, FLEX (3 shards), BOOT,
+UISMOKE, STAND, WEATHER - all PASS (run_gates --only, 2026-09-28 18:5x); FRAMECOST with ALLOW rows G875/G878 (the bake
+in the census, the folds' three links, their buffers, their bone textures - one small texSubImage2D per skinned fold
+a frame - and the Cub's taxi fill), 89 counters down (the train's --update takes them); not run: --all.
