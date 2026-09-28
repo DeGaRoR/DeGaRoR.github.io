@@ -122,6 +122,11 @@ async function census(build) {
   await P.until(() => W.BOOT.state === 'gone' && W.BOOT.set === 'rollout', 900000);
   bootMark.close();
   const tRoll = Date.now() - t0 - tGarage;
+  // THE PAGE'S MEMORY after the roll-out (G905, reported, never ratcheted): a full gc first when the child has one
+  // (--expose-gc); heapUsed is the JS heap, arrayBuffers the typed arrays' backing stores (the grids, the bins, the
+  // textures' image.data) - the harness's own (the recording GL keeps no data) is a constant beside them
+  const mem = () => { if (global.gc) { global.gc(); global.gc(); } const m = process.memoryUsage(); const MB = x => +(x / 1048576).toFixed(1); return { heapUsed: MB(m.heapUsed), arrayBuffers: MB(m.arrayBuffers), external: MB(m.external), rss: MB(m.rss) }; };
+  const memRoll = mem();
   FP = W.FLIGHT_PROBE;
   mainCam = typeof FP.camera === 'function' ? FP.camera() : FP.camera;
   // THE FLIGHT HELD: the pause button, the world's clocks with it
@@ -147,7 +152,7 @@ async function census(build) {
   const health = { premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5) };
-  return { build, health, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  return { build, health, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
 }
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
@@ -384,7 +389,7 @@ function printTable(rows, title) {
 function child(build) {
   return new Promise((res) => {
     const args = [__filename, '--census', build, '--frames', String(FRAMES), '--warm', String(WARM)];
-    const p = spawn(process.execPath, ['--max-old-space-size=6144'].concat(args), { stdio: ['ignore', 'pipe', 'pipe'] });
+    const p = spawn(process.execPath, ['--max-old-space-size=6144', '--expose-gc'].concat(args), { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
     p.stdout.on('data', d => out += d); p.stderr.on('data', d => err += d);
     p.on('close', code => { const line = out.trim().split('\n').pop(); try { res(JSON.parse(line)); } catch (e) { res({ build, failed: 'exit ' + code + ': ' + (err || out).slice(-800) }); } });
@@ -403,6 +408,7 @@ async function main() {
       const A = a.builds[build], B = b.builds[build]; if (!A) continue;
       for (const v of Object.keys(B.views)) printTable(compare(A.views[v], B.views[v], v + '/', build, true).filter(r => r.state !== 'ok'), build + ' ' + v + ' (a -> b, what moved)');
       printTable(compare(flatBoot(A.boot), flatBoot(B.boot), 'boot/', build, true).filter(r => r.state !== 'ok' && BOOT_KEYS.test(r.key)), build + ' boot (a -> b, what moved)');
+      if (A.mem && B.mem) for (const at of Object.keys(B.mem)) console.log('  ' + build + ' memory after ' + at + ' (MiB, a -> b): ' + Object.keys(B.mem[at]).map(k => k + ' ' + A.mem[at][k] + ' -> ' + B.mem[at][k]).join(', '));
     }
     return;
   }
@@ -414,6 +420,7 @@ async function main() {
   const ok = (c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; };
   for (const r of res) {
     ok(!r.failed, r.build + ': the page booted, rolled out and rendered its views', r.failed || ('garage ' + (r.wall.garage / 1000).toFixed(1) + ' s, roll-out ' + (r.wall.rollout / 1000).toFixed(1) + ' s, total ' + (r.wall.total / 1000).toFixed(1) + ' s wall; ' + r.programsTotal + ' programs; page errors ' + r.errorsN));
+    if (!r.failed && r.mem) console.log('       memory after the roll-out (MiB, reported): ' + JSON.stringify(r.mem.rollout) + '; at the end ' + JSON.stringify(r.mem.end));
     if (r.failed) continue;
     ok(!!(r.views.stand && r.views.taxi), r.build + ': both views measured (stand, taxi)', r.views.taxi ? 'taxi at ' + r.views.taxi.pose.join(' ') : 'no taxi pose');
     const H = r.health || {};
