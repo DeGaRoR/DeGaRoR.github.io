@@ -62744,3 +62744,73 @@ GFX, LIGHT, SHADOWSKY, LOAD, BUILD - all PASS. Not run: the battery (the train's
 RIGS / TRAPS: tReveal vs the long-task clock (above); a queue withdrawn by TaskStop orphans its boxlock take, and killing
 the orphan let the script fall through `take || exit 1` into its runs WITHOUT the lock (10:37-10:50, on top of C4A's
 bench; disclosed) - a runner must check the lock file NAMES it, after the take and before each run.
+
+## G870-G874 - C4a: THE FLOWN AEROPLANE, TEXTURE-BAKED - ONE ATLAS, TANGENT-SPACE NORMALS, TOKSVIG MIPS, UNDER THE ROLL-OUT SCREEN (2026-09-28, queue C, local GPU)
+
+The user: "texture bake our planes before getting in game for the better texture averaging of colors blending, less
+pixel harshness, lower need for anti-aliasing". ARCH-2026-09-27 §7 on G569's machinery; WHEN per the user's
+2026-09-28 ruling ("no impact on performance below 30 fps"): only as a step of the roll-out screen, sliced, a cached
+build skipping the bake - never in the garage's idle time, never in flight. Numbers: PLAYTEST-2026-09-26 §0.18.
+
+G870 src/viewer/flown_bake.js (NEW, manifest after parked.js). The step `FLOWN_BAKE.step({payload, spec, phase,
+rebuild})` -> a Promise; the roll-out screen's `bake` step sits between `sync` and `stand` (the coordinator's
+placement). What bakes: an exterior AEROSKIN bucket (a finish, not glass / inside / a turning blade or spinner / see-
+through / the facia), never a name that also rides a gauge, a control or a link (one material per name in buildModel).
+The rest stays live: glass, interior, lamps, crew, panel, tanks, blades.
+- THE VERTICES STAY. The snapshot's buckets are true soups (_cage_join.js pushV: every corner its own vertex), so a
+  vertex is one triangle, one chart, one texel: the atlas uv is a per-vertex attribute (`uv1`, Uint16 normalised) on
+  the very arrays the rigs bind and the flex writes. A vertex two charts claim is split with every per-vertex array
+  (splitGroup; 0 on the Cessna). The unwrap is PARKED.unwrap (G569) over the baked groups' rest positions (noted at
+  the snapshot: FLOWN_BAKE.note in syncBuildSteps, before any pose writes them); parts at their pivots.
+- THE BAKE: the flown factory's own material per bucket (AEROSKIN.aeroMaterial with app.js's argument list, GATE
+  FLOWNBAKE compares the three copies), duplicated onto the shared block with the bake's craft frame, its hook wrapped
+  (bakeHook: vertex at its atlas texel; the fragment writes, per pass, T0 albedo sRGB + A = uInside.y, T1 the
+  TANGENT-SPACE normal = inverse(getTangentFrame(-vViewPosition, vNormal, atlasUv)) x the flown normal - the frame three
+  rebuilds at runtime, intrinsic to the uv, so it rides the flex and the hinges; T2 clear coat / roughness / metalness
+  / clear-coat roughness). The shared block is set as the flown aeroplane wears it (the calls buildModel / setAircraft
+  make) and restored after. Cavity (AEROWX) computed on the bake's own geometry - it welds by position, so it is
+  split-invariant. Three passes into a 2048² RT, read back, dilated (all four channels, nearest written texel).
+- THE MIPS on the CPU (mipSteps, sliced): the albedo in linear light, the normals averaged as level-0 UNIT vectors
+  (8-bit rounding re-normalised first: its ~0.5 % shortening read as ~0.3 of roughness on glossy paint), roughness and
+  clear-coat roughness widened by the variance (Karis/UE4: a = r², v = (1 - |n|) / |n|, B = 2v(a² - 1), a2' = (B - a²) /
+  (B - 1)).
+- THE MATERIAL: ONE MeshPhysicalMaterial (Standard when nothing is varnished), maps on texture.channel 1, FB_HOOK:
+  the clear coat on the perturbed normal (G206), its roughness from T2.A (three's clamps + geometryRoughness), the
+  cabin's darkness + footwell on the back faces the albedo's A flags (AERO_CABIN_FS's arithmetic). A baked mesh
+  carries position / normal / uv1 only (no field, no cavity). G576's still merge folds the baked buckets together.
+- THE CACHE: IndexedDB `flydiy.flown` (the spec's hash + FLYDIY_BUILD + the dials + the groups' sizes), level 0 gzip'd
+  + the uvs, the last 4 builds; a hit reads, unzips, makes the mips, uploads. The round trip (a new snapshot of the same
+  build) reuses the material and the uv arrays in memory. The CPU copies are dropped once uploaded (texture.onUpdate).
+- THE REBUILD: `sync` already built the model live (GARAGE_SPEC.update -> apply -> setAircraft); the step calls
+  setAircraft('gen') once more when that model came from this payload (~125 ms). B8B9's restructure is asked for the
+  order snapshot -> bake -> apply, which removes it.
+- DIALS: `?fbake=0` the live shader; `?fbake=ab` the A/B build (each baked mesh keeps its live twin + cavity,
+  FLOWN_BAKE.show(false|true) flips in place, FLYDIY_CRAFT_MERGE = 0 with it); `?fbake=nocache` the rig's warm miss.
+G871 app.js: buildModel's door (FBK = FLOWN_BAKE.forPayload(data): mkGeo's `uv1`, matFor -> the baked material or
+matLive), the note at the snapshot, the `bake` step, FLIGHT_PROBE.camMode (the rig's views).
+G872 GATE FLOWNBAKE (core, ~1 s): what bakes; the uv per vertex and the split; the key; TANGENT SPACE rides the flex (a
+normal encoded on a rest triangle decodes on the same triangle turned 25 deg to the turned normal, and is independent
+of the screen that drew it); the mips (linear-light albedo, flat maps keep roughness, bumpy maps widen it); the
+dilation; the wiring (the three argument lists, the note, buildModel's door, the step's place, the splices).
+G873 RIGS: tools/fbake_ab.js (drives tools/live_driver.js - which now takes SPORT / DPORT / UDD from the env): at the
+stand, the world held, per view A and B at ONE frame, the frame without the aeroplane (the mask), and a 16-step
+sub-pixel orbit, A and B interleaved; tools/fbake_ab.py reads it (side-by-sides, shimmer on the aeroplane's eroded
+interior, GIFs). THE COCKPIT EYE SWAYS every frame even held: the rig freezes its matrix in scene.onBeforeRender and
+turns it itself, or A and B are never the same frame.
+MEASURED (metal Cessna, 161 570 tris, 10 580 charts, 0.79 cm a texel): the bake 1.98 s cold / 1.58 s warm miss / 0.43 s
+hit, no task in the step over 400 ms; the taxi's render CPU -0.6 ms, loop JS -0.9 ms (the delivered 30 cap unchanged);
+the stand's GPU passes -0.28 ms, -25 calls (stock); +64 MB GPU. The look: 2-7 % less flicker, 6-23 % less
+high-frequency energy, growing with distance; at the stand the two are hard to tell apart. Evidence:
+tools/perf/c4a_flownbake_evidence/ (cessna_ab_stills.jpg: stand, 25 m, 60 m, cockpit - A | B | |A-B| x6;
+cessna_stand_live_vs_baked.jpg).
+TRAPS: rollout_perf's default port 8531 was held by a peer's stale _serve (another worktree) - the bind fails silently
+and the run measures THEIR page (no `bake` step in BOOT.log gave it away): pass --port and --udd, prove your code ran
+(an --eval of your own module). A peer's run can also start under your GPU lock (an orphaned boxlock take). The
+FLIGHT_PROBE object carries `camera` twice (the value, then a function: the later key wins - call P.camera()). The
+pilot taxis after the reveal: pause (#bPause) before any same-frame A/B.
+NOT DONE (C4b): one material for the whole flown model (+ glass, lamps, crew, the disc), the skinned merge, the bake in
+an OffscreenCanvas worker, compressed textures (KTX2 / an RG normal map: -5.6 MB), the back face's own albedo (it shows
+the front's; the live back face had no weathering). GATES: FLOWNBAKE (new), PARKED, PROGRAMS, LIVERY, LIGHT,
+SHADOWSKY, BOOT, UISMOKE, STAND, WEATHER - all PASS (run_gates --only, 2026-09-28 11:4x); not run: --all (the train's).
+THE A/B PAGE for the user (private artifact): https://claude.ai/artifact/NhZmmoGeKcbEYgPZsiUwBX - the stills, the motion
+crops (animated, not in the repo), the cost table.
