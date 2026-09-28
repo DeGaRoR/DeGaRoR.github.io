@@ -62814,3 +62814,102 @@ the front's; the live back face had no weathering). GATES: FLOWNBAKE (new), PARK
 SHADOWSKY, BOOT, UISMOKE, STAND, WEATHER - all PASS (run_gates --only, 2026-09-28 11:4x); not run: --all (the train's).
 THE A/B PAGE for the user (private artifact): https://claude.ai/artifact/NhZmmoGeKcbEYgPZsiUwBX - the stills, the motion
 crops (animated, not in the repo), the cost table.
+
+## G905-G909 - AS1-EARLY: RELEASE AND LAZY, THE NODE-PROVABLE HALF - THE QUADTREE AS INT32, THE ISLAND TEXTURES GPU-ONLY, W1/W2 ON DEMAND, THE FETCH CACHE RELEASES, TREES AND SPLAT BY REACH, THE EDITOR ON DEMAND (2026-09-28, AS1-EARLY, a cloud session, node only)
+
+WHY NOW: the user pulled AS1 forward (futureDesigns/ASSETS-2026-09-27.md §3.3, §5.2 P5-P10) to use the cloud while
+the GPU box is queued. Base origin/claude/train-12-base (962fa03). Branch claude/peaceful-volta-0f5307. Left for the
+box: (1) the albedo drop (needs a pixel A/B), (7) the shed kit's residency, and all timing. DROPPED: "the tree bins at
+the roll-out, not the garage boot" - B8B9 owns where the bins load (one upfront load); what they load is now the
+reachable set whoever calls treeWarm.
+
+G905 THE QUADTREE AS INT32 (src/core/19_terrain_codec.js). decodeRaw keeps { q: Int32Array, sc, h0 } per node; a
+height is h0 + q[k] * sc - the expression the Float64Array held - so every reader gets the same double. sampler /
+maxRect read it inline, render_world's far terrain through TERRAIN_CODEC.heights(n) (a transient Float64 patch);
+hAt(n, k) for one sample; a baker's tree (n.h) still reads. Near 165.0 -> 82.5 MiB, far 73.0 -> 36.5 MiB. THE PROOF
+(GATE WORLD, new checks): the 962fa03 Float64 decode copied into the gate as the reference; on both trees every sample
+of every node (internal ones too) Object.is-equal through hAt and heights() - 21 628 629 + 9 562 509 samples, 0
+differ; the sampler on 200 000 seeded probes and maxRect on 2 000 rects per tree, 0 differ. Negative-checked: a
+1e-15 relative change to the step turns both red (15 007 003 / 6 285 770 samples differ). The sampler is faster, not
+slower (0.34 vs 0.40 us a call, same sums, one process). asset_census reads q. GATE FRAMECOST reports the page's
+memory (heapUsed, arrayBuffers, rss after a gc: --expose-gc in its children; --compare prints it).
+G906 THE ISLAND TEXTURES ARE THE GPU'S (render_world 'ground' / 'island ground'). albedo, tint, packA, packB (and
+W1/W2 when made) drop image.data in onUpdate (house_tarr's way) and keep their DERIVATION: the canvas's
+webglcontextrestored calls gpuRestore, which remakes each one's bytes from the grids (which stay: the core and the
+CPU readers use them) before three's re-upload. W1/W2 are a 1x1 zero texel until the class layer is drawn
+(stackStart() === 0 with it on) or mode 4 is set: classWeights() builds them then (setLayer, set, a saved stack at
+build). packB's zero channel is a flag, not a 12 MB array. groundApi.gpuTex() / classWeights() for the gate.
+world_boot.js: after the decode ISLAND_BOOT drops topo / payload / far.topo / far.payload (22.2 + 9.8 MB) and the
+fixture text; the grids stay (they ARE world.island's; the physics worker fetches its own boot).
+G907 ASSET_FETCH RELEASES (assets.js). A settled fetch leaves the map (in-flight requests still shared, rejections
+still cached). Each of the 436 bin URLs has ONE consumer and each keeps its own answer for the page (PROP_WARMS /
+PROP_BUILT, the animals' WARMS / BUILT, MODEL_LOAD's loadCache, the trees' WARM + BINS), so nothing is fetched twice
+and their BINS.delete after a decode now frees the bytes.
+G908 TREES AND SPLAT BY REACH. trees.js treeReach(names) narrows the catalogue (treeList, withBin, treeReady, the
+warm) to what treeReachOf(world, bio) says the COMPOSED map can reach: the ttype grid's codes after the premises'
+stamps (the town filter applied), 12/13/14 derived from 6/8/7, every species of the mixes those name; every rock,
+debris and cliff (strip stones, the rock map's sprites, cliffs.js); grass_dry (the cover ring's lawn); the premises'
+forest-zone palettes (the whole tree pool without one) and placed tree objects. null (the analytic world, a harness)
+= the whole pack, as before. world_boot.js sets it right after makeWorld, so every later treeWarm (the garage's, the
+roll-out's, B8B9's) fetches the reachable set. It only GROWS: an F8 biome / mix edit (setBiome, setMix) or
+TREE_FILL.reach() (after a premises re-stamp) runs render_world reachRefresh - the new bins fetched, the settle
+rebuilt, then the woodland, the fill and the cover ring replant. Jolene, Metlakatla cut: 36 of 42 collections, not
+birch_autumn, maple, ash, pine_lampi, grass_plates, grass_scan (the census's six, exactly); the town on: 37 (maple
+back through borders, code 15). BEHAVIOUR NOTE: the woodland's fallback where a stand's (wobbled) code names no mix
+drew the WHOLE pool; it now draws the reachable pool (on Jolene no woodland tree stands on a no-mix code unwobbled:
+19 217 on 8, 3 on 6). cover_ring keeps no EMPTY prototype set (a species whose bins come later). splat_ground: the
+arrays hold the sets the codes on the grid name (0 -> 4, 1 -> 3 as sSplat moves them, 12-14 derived), in library
+order - 16 of 19 on Jolene (not leaves, lush, pebble); api.layers(); api.reach() / setCode / load / reset GROW the
+arrays (rebuilt with the union, swapped whole, a superseded build disposed).
+G909 THE EDITOR AND THE mk_ GENERATORS ON DEMAND (tools/build.js MANIFEST.lazy + LAZY_LOADER). premises_host.js,
+premises_ui.js, world_rail.js, _sport_gen.js, _marine_gen.js have no static tag in either page; window.FLYDIY_LAZY(
+stem) appends one (async = false, once, a promise that settles on load OR error; .pending(), .has()). Who asks:
+world_boot.js the two generators when the placed record names a sport/ or marine/ key (the town on; the cut record
+names none, and the theme's plotGens is HOUSE_GEN, so the catalogue's absence changes no zoned pick); render_world's
+premises step waits while one is pending; app.js PREM.openEditor loads the editor + both generators then opens;
+the WORLD flyout and DEV's test mode (SCENERY.enter) and dev_panel's button load the rail. THE RAIL AT BOOT: it
+applies this browser's saved look, so the loader loads it at boot when localStorage has flydiy.worldlook.v1 or a
+shown rail (or ?scenery=1); otherwise F9 fetches it (a stub listener until the rail's own takes over). A post-build
+assertion: each lazy file is in the loader's map and has no static tag. _page_node.js runs a data-lazy script the
+page appends (off the disk, the next timer, then onload) - any other appended script stays inert as before.
+BOOT HUNKS (for B8B9): app.js - PREM.openEditor's first lines, the WORLD flyout's rail / editor availability, SCENERY
+.enter's rail open, one comment near MODEL_LOAD. No boot-step change: the reach is set in world_boot.js.
+
+THE NUMBERS (GATE FRAMECOST's page in node, Jolene, Metlakatla cut, gamer; --json before (962fa03 + the memory
+report) / after, --compare; the Cub - the Cessna within 1 %; futureDesigns/ASSETS-2026-09-27.md §5.6 has the table):
+- after the roll-out, after a gc: arrayBuffers 2305.4 -> 1789.1 MiB (-516), rss 3530.7 -> 2950.1, heapUsed 723.5 ->
+  720.8 (the savings are backing stores). [est] -119 quadtree, -185 four textures' copies, -93 W1/W2, -32 boot
+  payloads, ~-87 the fetch cache's bins and the unreached vegetation.
+- EVERY VIEW COUNTER UNCHANGED (stand and taxi, both builds). Boot rows only fall: rollout:world gl.calls 153 724 ->
+  115 177, draws 13 779 -> 10 195, bufferData 293.1 -> 227.7 MB, uniforms 2.36 -> 1.80 MB, updateMatrixWorld 35 201 ->
+  27 777; rollout:town gl.calls 1 082 -> 992. Texture upload bytes 1684.6 -> 1551.7 MiB (first light -98.6: W1/W2;
+  the world step -34.3). Programs 265 / 250, unchanged. Page errors 68 -> 53: all the harness's "impostor bake ...
+  sheet EMPTY" lines (the recording GL draws nothing), fewer because fewer species bake.
+- GATE FRAMECOST's verdict is FAIL (65) on the base and here: the committed baseline is STALE (train 11 on the built
+  page); the 65 red keys are the same keys with the same values before and after. The baseline NOT re-taken here (the
+  coordinator's, with the train). New check, green on both builds: the island textures keep no CPU copy after
+  upload, W1/W2 unbuilt, the re-derive refills all 4 and the next frames' uploads drop them again.
+BIT-IDENTITY OF TERRAIN AND FLIGHT: GATE WORLD's new checks (above); flight_core.js differs from the base only in
+19_terrain_codec.js. The outputs of 30 gates (WORLD, GE, CONTACT, HONESTY, LINEUP, PLAN, TAXICLEAR, PREMCOOK,
+PREMISES, PREMRASTER, SPLAT, TREES, TREE, COVER, MEDIA, BOOT, UISMOKE, SIMWORKER, WORLDRENDER, LOOKS, WATER,
+HYDRODYN, FADES, STAND, PROGRAMS, ASSETS, BIOME, SETTLE, HYDRO, + BUILD) diffed against the base's with times masked:
+the same but for timing lines (SIMWORKER's worker timings, the perf lines; WORLD's terrainH checksum 30165946.716 both),
+WORLDRENDER's streamed tree counts (wall-clock budgeted: the base alone gives 601 / 604 / 607 / 610 chunks run to run,
+and this tree the same values), FADES' character offsets into app.js (+579), MEDIA's index.html +50.0 KB over HEAD
+(budget 307.2), and the new TREES / SPLAT / WORLD lines. GEN and PILOT: byte-identical to the base's (all 7 shards' output, only the battery's wall total differs).
+
+GATES (this container, 4 cores, the tree of the READY commit's parent): BUILD, MEDIA, ASSETS, WORLD, GE, CONTACT,
+HONESTY, LINEUP, PLAN, TAXICLEAR, PREMCOOK, PREMISES, PREMRASTER, SPLAT, TREES, TREE, COVER, BOOT, UISMOKE, SIMWORKER,
+WORLDRENDER, LOOKS, WATER, HYDRODYN, FADES, STAND, PROGRAMS, BIOME, SETTLE, HYDRO: PASS. FRAMECOST: every check of
+this session's green, the stale-baseline reds as on the base (above). GEN (4 shards) and PILOT (3 shards): PASS, output
+byte-identical to 962fa03's. Not run: --all (the targeted list only, as asked).
+
+NOT SEEN: a browser. Nothing here ran on a GPU or in Chrome: the context-restore path is exercised by calling the
+handler (three's own restore is not run on the recording GL); the lazy loader by the harness's data-lazy runner and
+the build assertion; F9 before the rail loads, the editor's first open and ?town=1's generators are code-read, not
+driven. OWED ON THE BOX: (1) the albedo A/B then its drop; (7) the shed kit after the roll-out; rollout_perf warm /
+cold; the runtime census (VRAM by owner - W1/W2's 93 MiB should be gone); a real webglcontextlost / restored
+(WEBGL_lose_context) with the ground looked at after; F9 and the scenery editor's first open on a fresh profile.
+FOR THE COORDINATOR: generated outputs not committed (index.html, dev.html, tools/flight_core.js, sw.js,
+version.json); the FRAMECOST baseline not re-taken. tint and ori1 (47 MB of grids) are kept only for the
+context-restore re-derive; a re-fetch on restore would drop them too (not done).
