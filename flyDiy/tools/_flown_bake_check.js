@@ -283,9 +283,15 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   check(/model\.fold\.view\(cam\.mode === 'cockpit'\)/.test(app), '7 the frame swaps the cabin live in the cockpit view');
   const ck = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'cockpit.js'), 'utf8');
   check(/let a = h\.part \|\| h\.object;/.test(ck) && /pad\.visible = false;/.test(ck), '7 the cockpit\'s pick reads the part through a fold; its pads answer unshown');
-  const scr = app.slice(app.indexOf('function rollOutScreen('), app.indexOf('function rollOutScreen(') + 3000);
-  const iS = scr.indexOf("id: 'sync'"), iB = scr.indexOf("id: 'bake'"), iT = scr.indexOf("id: 'stand'");
-  check(iS > 0 && iB > iS && iT > iB && /FLOWN_BAKE\.step\(/.test(scr), "7 the roll-out's 'bake' step sits between 'sync' and 'stand'");
+  // G1027 (B8B9 on train 14): the roll-out is a keyed step table (app.js TRIP_STEPS) - the aircraft's rows snapshot -> bake ->
+  // spec (the model built once, on the bake), the landed interface; the stand (rollOutStand) after the aircraft's phase
+  const iTb = app.indexOf('const TRIP_STEPS = ['), tbl = iTb > 0 ? app.slice(iTb, iTb + 8000) : '';
+  const iS = tbl.indexOf("id: 'snapshot'"), iB = tbl.indexOf("id: 'bake'"), iA = tbl.indexOf("id: 'spec'");
+  const bakeRow = iB > 0 && iA > iB ? tbl.slice(iB, iA) : '';
+  const ro = app.slice(app.indexOf('function rollOut(after'), app.indexOf('function rollOut(after') + 3000);
+  check(iS > 0 && iB > iS && iA > iB && /FLOWN_BAKE\.step\(\{ payload: window\.CAGE_VISUAL, spec:/.test(bakeRow) && /phase:/.test(bakeRow) && /rebuild:/.test(bakeRow)
+        && /tripPhase\(trip, 'craft', anim\)/.test(ro) && /const toWorld = \(\) => \{ rollOutStand\(\);/.test(ro),
+        "7 the roll-out's 'bake' row sits between 'snapshot' and 'spec' (TRIP_STEPS: step({ payload, spec, phase, rebuild })), the stand after them");
   const hs = { vertexShader: 'void main() {\n  gl_Position = vec4(0.0);\n}\n', fragmentShader: 'void main() {\n  gl_FragColor = vec4(1.0);\n}\n', uniforms: {} };
   const src = function (sh) { sh.uniforms.x = 1; };
   const hk = FB.bakeHook(src);

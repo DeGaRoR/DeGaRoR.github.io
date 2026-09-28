@@ -63589,3 +63589,68 @@ and was NOT re-taken or committed (the brief) - the before / after above is `--c
 Gates touched: UISMOKE (the boot's step list), FRAMECOST (the roll-out waits on FLYDIY_TRIPS; `pageHooks` / `bootMark` /
 `diff` exported; `FRAMECOST_WHAT=taxi`), run_gates (ROUNDTRIP, core, wall 800).
 
+## G1027 - B8B9 ON TRAIN 14: THE STEP TABLE CARRIES B1-LAG, C4a/C4b AND B10; THE ROLL-OUT SHOT LINKS NOTHING (2026-09-28, the merge session, node only)
+
+B8B9 (G1020-G1026, written on 962fa03) cherry-picked onto train 14 (cc7a8939: B1-LAG G730-G733, C4a G870-G874, C4b G875-G878,
+B10 G1035-G1039, AS1-EARLY G905-G909, G874, AS4a G920-G924). Its two commits carry the conflict resolutions; this entry is
+what the integration had to add. The page in node only (no GPU, no browser tool).
+
+**PORTED INTO THE STEP TABLE (app.js TRIP_STEPS).**
+- G730 THE PARKED RUNGS: `tripRungs(t)` - once a trip whose world steps run, the rung stand-ins (WF.rungWarm) prelinked
+  lit and through their depth variants (rungPrelink), INSIDE craftInWorld after worldSettle (keyed as the flight finds them:
+  the craft's lights, the stand's). Started by 'images' (else by 'frames': new graphics, Fly's settle), their maps uploaded
+  by 'upload', awaited by 'frames'. tripRun now hands the trip to its step (`s.fn(t)`). The settings screen's G730/G732
+  lines are train 14's, untouched.
+- G732 / G732.1: 'frames' = the catch-up compile with SLICED depth variants (compileDepthVariants(scene, true)) + the
+  rungs' links, then the hooks' textures (uploadSliced 'frames'), then programsReady(30 s), then (in the shed) B9's
+  six-view warm draw or (in the world) the two frames. programsReady kept as train 14 wrote it.
+- C4a/C4b: the 'bake' row calls the LANDED interface `FLOWN_BAKE.step({ payload, spec, phase, rebuild })` (B8B9 had
+  `step(payload, spec, onPhase)`); the spec is the snapshot's flown one. GATE FLOWNBAKE's source check 7 now reads the
+  table (snapshot < bake < spec, the call's four fields, the stand after the aircraft's phase).
+- B10: `rollAnim` is THE call site (B9's phase 2). It dresses the shed through B10's `rollAnimPlay` (the mesh, no editor, no
+  plaque) and passes ROLLANIM.play its full options (hangar, model, def, sim, camMode, fov); the handle's `skip()` (there is
+  no ROLLANIM.skip), ROLLANIM.cancel on the 30 s timeout, `raSide` from the plan to flRevealStart. ON BY DEFAULT;
+  `?rollanim=0` (or flydiy.rollanim = '0') turns it off. B10's `?rollanim=1` site in rollOut is gone; `?rollanim=solo|loop`,
+  FLYDIY_ROLLANIM() and the two frame-loop hooks stay. The bench's fingerprint (BENCH_ROLLOUT, G700: with the editor up) is
+  taken BEFORE the shot (the shot closes the editor), and the click whose pointerdown skipped the shot is swallowed by bGo.
+- _framecost_check.js: B9's `pageHooks` with C4b's flown-bake read-back hook moved into it. run_gates: ROUNDTRIP, STAND,
+  ROLLANIM all kept.
+
+**THE ROLL-OUT SHOT LINKED 60-78 PROGRAMS (found by GATE ROUNDTRIP: "roll-out 1 links 75"), now 0:**
+- THE SHED AS THE SHOT DRAWS IT (`compileCraftShed`, run by the 'craft' step after compileCraft): the shot shows model.grp
+  - and with it the aeroplane's nav / landing / taxi lights, which three counts in every lit program's key - so the whole
+  room re-keyed on its first frames. The room is compiled with the mesh up and its depth variants, then put back.
+- G441's see-through variants ran on a 1.5 s timer after first light - into the shot when Roll out came quickly (22 links).
+  They now run under the boot's screen (the 'firstFrame' step returns them): B9's "no background loading in the garage".
+- The CG / NP label sprites: buildIndicators disposed the old labels at once, releasing the sprite program the new ones
+  linked again on the next frame (2 links in the shot; a sync link on every balance refresh in the shed). The old
+  generation's materials are disposed one build later.
+
+**EVIDENCE (the page in node).** A probe (dev.html in _page_node with FRAMECOST's hooks, the Cub): WF.rungWarm is first
+called in the boot's 'images' step (140 stand-in materials, every one with its program by the time the boot lifts);
+GATE FRAMECOST's census: `boot/garage:images` 4 links (2 lit + 2 depth rung programs), before `garage:frames` (1 link:
+first light draws nothing ahead of its links); `rollout:click` 0 links (the shot's 361 frames and the reveal); the stand
+and taxi views 0 links a frame. Probe: roll-out 1 links 0, the first 40 flight frames 0, and the rungs' stand-ins compiled
+AGAIN in flight (the flight's lights, the resolve target) link 0 - their programs were the flight's.
+GATE ROUNDTRIP PASS (the Cub's and the metal Cessna's five trips, the setup screen; the shot plays in roll-outs 1-3).
+
+**GATE FRAMECOST: ALLOW rows G1020-G1027** (tools/_framecost_check.js, with reasons): every garage boot row B8B9 added (the
+world's steps, the settle, the split commit, craft, recheck - 0 in the baseline; the base's boot/rollout:* rows fall to
+nothing), 'garage:firstFrame' links (the see-through variants), 'rollout:click' (the shot's shed frames: no step, no link),
+the stand (bufferData calls 7 -> 31 with bytes 227 -> 117 KB, programs +6, frustum tests +2 %) and the taxi (three parked
+aeroplanes the settle placed and the loading captured - B8B9's FRAMECOST_WHAT=taxi). The baseline is NOT re-taken here:
+`--update` on the landed train (the coordinator's).
+
+OWED / UNSURE:
+- The shot is ON by default because B8B9's phase 2 plays it whenever the module is there; B10 shipped it OFF behind a flag.
+  One line (RA_Q) if the user wants it opt-in. Its time on screen (4-6 s a roll-out) is not a round trip's "instant".
+- A roll-out now draws ~360 shed frames (FRAMECOST rollout:click: ~7 M GL calls, 1.3 M draws in the node census) - the
+  shed's own frames with the eye outside; the fps there is for the GPU box.
+- The stand's 24 extra bufferData calls a frame are not traced to an object (inside three's render; FRAMECOST_WHO).
+- rollout_perf --trips (B8B9's G1023) still unrun on a GPU.
+
+GATES (node, the merged tree, one CPU lock at a time): ROUNDTRIP PASS (both builds' five trips: roll-outs 1 and 3 run no
+step and link 0, roll-out 2 runs snapshot / bake / spec / craft - 12 links under its screen: the bake's 6, the craft's 6 -,
+the first 40 frames of every flight link 0; the setup screen), FRAMECOST PASS (with the ALLOW rows above), BOOT, UISMOKE,
+PROGRAMS, FLOWNBAKE, TREES, STAND, GFX, SETTLE, SHADOWSKY, ASSETS, MATLIB, ROLLANIM, BUILD PASS. Generated outputs not
+committed (the coordinator's build commit).

@@ -96,6 +96,46 @@ const ALLOW = [
   { key: 'taxi/gl.texSubImage2D', build: '*', upTo: 165, why: 'a strip-stone batch uploads its visible-instance list at each draw', g: 'G923' },
   { key: 'stand/bytes.texSubImage2D', build: '*', upTo: 500000, why: 'the strip-stone batches\' instance lists (~3 KB a frame)', g: 'G923' },
   { key: 'taxi/bytes.texSubImage2D', build: '*', upTo: 470000, why: 'the strip-stone batches\' instance lists (~3 KB a frame)', g: 'G923' },
+  // B8/B9 (G1020-G1026) ON TRAIN 14 (G1027): ONE LOADING FOR THE WHOLE GAME. The world's steps left the roll-out screen for
+  // the garage boot (world, town, parking, trees, ring, the new settle, images, upload, worldCompile, frames), the build's
+  // commit split in three (snapshot / bake / spec) after them, the aeroplane's programs in the world's light ('craft') and a
+  // final 'recheck'; the base's boot had none of these rows (0), and its 'boot/rollout:*' rows fall to nothing (ratchet
+  // down): the work moved under the one loading, the roll-out itself runs no step.
+  { key: 'boot/garage:world/', build: '*', why: 'the world scene built in the one loading (was the roll-out screen\'s \'world\')', g: 'G1020' },
+  { key: 'boot/garage:town/', build: '*', why: 'the town round the stand and the world\'s prelink in the one loading (keyed with the craft\'s lights)', g: 'G1020' },
+  { key: 'boot/garage:parking/', build: '*', why: 'the parked aeroplanes the town placed, captured in the one loading', g: 'G1020' },
+  { key: 'boot/garage:ring/', build: '*', why: 'the forest ring round the stand, grown in the one loading', g: 'G1020' },
+  { key: 'boot/garage:settle/', build: '*', why: 'B9\'s settle: the world\'s own update at the stand until its streamers rest (~1 130 updates) - no background loading in flight', g: 'G1020' },
+  { key: 'boot/garage:parked/', build: '*', why: 'the shed\'s parked captureAll also takes the aeroplanes the settle\'s stream placed', g: 'G1020' },
+  { key: 'boot/garage:snapshot/', build: '*', why: 'the build\'s commit cut in three (snapshot / bake / spec), after the world\'s steps (was one \'sync\')', g: 'G1021' },
+  { key: 'boot/garage:bake/', build: '*', why: 'C4a/C4b\'s flown bake in the one loading, between the snapshot and the spec (was the roll-out\'s \'bake\')', g: 'G1021' },
+  { key: 'boot/garage:spec/', build: '*', why: 'the flown spec applied once, on the bake', g: 'G1021' },
+  { key: 'boot/garage:images/', build: '*', why: 'the world\'s pictures, and G730\'s parked rungs prelinked there (2 lit + 2 depth programs), in the one loading', g: 'G1020/G730' },
+  { key: 'boot/garage:upload/', build: '*', why: 'the world\'s textures and the rungs\' maps uploaded in the one loading', g: 'G1020/G730' },
+  { key: 'boot/garage:worldCompile/', build: '*', why: 'the world\'s programs compiled in the one loading, the craft\'s lights counted', g: 'G1020' },
+  { key: 'boot/garage:frames/', build: '*', why: 'first light under the boot\'s overlay: G732.1\'s sliced catch-up, G732\'s hook textures and programsReady, the six-view warm draw', g: 'G1020/G732' },
+  { key: 'boot/garage:craft/', build: '*', why: 'the aeroplane\'s programs in the world\'s light, and the shed dressed as the roll-out shot draws it (the mesh and its own lights: every room program re-keyed)', g: 'G1020/G1027' },
+  { key: 'boot/garage:recheck/', build: '*', why: 'the aircraft\'s keyed steps re-planned once after the commit settled', g: 'G1020' },
+  { key: 'boot/garage:firstFrame/links', build: '*', upTo: 26, why: 'G441\'s see-through variants under the boot\'s screen (their 1.5 s timer fired into the first roll-out\'s shot)', g: 'G1027' },
+  // THE ROLL-OUT: no step runs (every key unchanged) and nothing links; the row now spans B10's shot (rollanim.js, B9's
+  // phase 2): ~360 frames of the shed, the eye going out through the door, 4-6 s - the shed's own frames
+  { key: 'boot/rollout:click/', build: '*', why: 'the roll-out shot\'s ~360 shed frames (B10 via B9\'s phase 2); no step, no link', g: 'G1027/G1035' },
+  // THE STAND AND THE TAXI: the world as the flight finds it, now arrived in the loading - the settle's stream placed three
+  // parked aeroplanes by the taxi route (a C172, a Jodel, a Cub: captured in the loading, not in flight - FRAMECOST_WHAT=taxi),
+  // the scenery's life standing, the craft's lights counted; B9's HANDOVER has the like-for-like (FRAMECOST_PROBE=600)
+  { key: 'stand/gl.bufferData', build: '*', upTo: 32, why: 'the world at rest at the stand: ~24 small buffers (13-14 KB) re-sent inside three\'s render a frame (FRAMECOST_WHO; not traced to an object) - the bytes fell 227 -> 117 KB', g: 'G1020' },
+  { key: 'stand/programs', build: '*', upTo: 115, why: 'the programs the settled world uses at the stand (the life, the parked captures, the craft\'s lights keyed in)', g: 'G1020' },
+  { key: 'stand/three.frustumTests', build: '*', upTo: 2650, why: 'the objects the settled world stands at the stand', g: 'G1020' },
+  { key: 'taxi/bytes.texSubImage2D', build: '*', upTo: 505000, why: 'the parked aeroplanes the settle placed and the loading captured (their folds\' bone textures)', g: 'G1020' },
+  { key: 'taxi/bytes.uniforms', build: '*', upTo: 487000, why: 'three parked aeroplanes by the taxi route, captured in the loading - their skins\' uniforms', g: 'G1020' },
+  { key: 'taxi/gl.bindTexture', build: '*', upTo: 1190, why: 'the same parked aeroplanes\' maps', g: 'G1020' },
+  { key: 'taxi/gl.calls', build: '*', upTo: 13150, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/gl.uniform1f', build: '*', upTo: 590, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/gl.uniform3f', build: '*', upTo: 177, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/gl.uniform4f', build: '*', upTo: 402, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/gl.uniform4fv', build: '*', upTo: 2840, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/programs', build: '*', upTo: 99.5, why: 'the same parked aeroplanes\' programs', g: 'G1020' },
+  { key: 'taxi/three.frustumTests', build: '*', upTo: 2410, why: 'the same parked aeroplanes and the life', g: 'G1020' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------

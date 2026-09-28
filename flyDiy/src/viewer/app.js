@@ -5947,7 +5947,7 @@
       ' — measured on this build, not estimated.';
   }
 
-  let gInd = null, gLabels = [];
+  let gInd = null, gLabels = [], gLabelsOld = [];
   // a word floated above each marker. Canvas -> sprite, because a line drawing
   // cannot say which post is which and the two are only 0.3 m apart on a stable
   // aeroplane. sizeAttenuation off keeps them legible at any zoom.
@@ -6052,7 +6052,12 @@
   }
   function buildIndicators() {
     if (gInd) { gGrp.remove(gInd); gInd.geometry.dispose(); gInd = null; }
-    for (const l of gLabels) { gGrp.remove(l); l.material.map.dispose(); l.material.dispose(); }
+    // G1027: THE LABELS' OLD MATERIALS GO ONE BUILD LATE. Disposed at once, the last label sprite released the sprite
+    // program and the new labels linked it again on the next frame - a synchronous link on every refresh (a slider's
+    // balance answer; seen as 2 links in the first roll-out's shot). The previous generation holds it until the next.
+    for (const m of gLabelsOld) { if (m.map) m.map.dispose(); m.dispose(); }
+    gLabelsOld = [];
+    for (const l of gLabels) { gGrp.remove(l); gLabelsOld.push(l.material); }
     gLabels = [];
     if (!inGarage || curKey !== 'gen') return;
     const P = def.parts;
@@ -6690,16 +6695,22 @@
   // bar's button, Esc) or 30 s without its onDone go on to the stand. G1027: the landed rollanim.js's call - the
   // shed dressed for it (rollAnimPlay: the mesh, not the cage; no editor, no plaque), the room, the model, the sim,
   // the flight's framing and fov; the side the eye ended on handed to flRevealStart (raSide)
-  let rollAnimSkip = null;
+  // G1027: THE BENCH FINGERPRINTS BEFORE THE SHOT (G700: with the editor still up - the shot closes it, and a
+  // fingerprint taken after read a closed editor: the first flight never stayed certified); rollOutStand then skips it.
+  // A click that skipped the shot (its pointerdown taken by the shot) still clicks: the bar's button swallows it.
+  let rollAnimSkip = null, benchFp = false, rollAnimSwallow = 0;
   function rollAnim(trip, next) {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || typeof ROLLANIM.play !== 'function') { trip.anim = 'none'; next(); return; }
     if (!rollAnimCan()) { trip.anim = 'cannot'; next(); return; }
+    if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
+    benchFp = true;
     let over = false, h = null;
     const fin = how => { if (over) return; over = true; rollAnimSkip = null; trip.anim = how; next(); };
     rollAnimSkip = () => { try { if (h && !h.done) h.skip(); } catch (e) {} fin('skipped'); };
     setTimeout(() => { if (over) return; try { ROLLANIM.cancel(); } catch (e) {} raBusy = false; fin('timeout'); }, 30000);
     h = rollAnimPlay((cage, hh) => {    // (a skip or a clean refusal calls this before play returns)
       raSide = hh && hh.plan ? hh.plan.side : 0;
+      if (hh && hh.skipped === 'skipped by the player') rollAnimSwallow = perfNow() + 500;
       fin(!hh ? 'threw' : hh.skipped ? (hh.plan ? 'skipped' : 'refused: ' + hh.skipped) : 'played');
     });
   }
@@ -6707,7 +6718,8 @@
   function rollOutStand() {
     // G700: the bench fingerprints the aeroplane that rolls out HERE, with the editor still up (an arrival
     // fingerprinted out in the world read a closed editor, and the first flight never stayed certified)
-    if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
+    if (!benchFp && typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
+    benchFp = false;     // (G1027: taken before the roll-out shot, when one played)
     closeEditor();       // flying with the craft hidden is not a thing (G36)
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
     killLoadRun(); killLoadFix();
@@ -6863,7 +6875,24 @@
         catch (e) { console.warn('craft depth compile:', e && e.message); }
       }
       return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000);
-    });
+    }).then(() => compileCraftShed());
+  }
+  // G1027 (B8B9 + B10 on train 14): ...AND THE SHED AS THE ROLL-OUT SHOT DRAWS IT. The shed shows the editor's cage with
+  // the flown model hidden; the shot (rollAnimPlay) shows the flown MESH - model.grp, and with it the aeroplane's own
+  // nav / landing / taxi lights, which three counts in EVERY lit program's key: the whole room re-keyed on the shot's
+  // first frames (the page in node: 60 links in roll-out 1, 36 on its first frames, 22 as the eye swings out through the
+  // door; the fold's skinned depth program in the room's shadow pass). So the room is compiled here dressed as the shot
+  // dresses it - the mesh up, its lights counted - with its depth variants, then put back. Keyed with the craft (a new
+  // model, new graphics). A page without the shot (or ?rollanim=0) skips it.
+  function compileCraftShed() {
+    if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || !inGarage || !model || typeof renderer.compileAsync !== 'function') return;
+    const gs = garageScene(); if (!gs || craft.parent !== gs) return;
+    const cage = showCage;
+    showCage = false; applySkinVis(); if (model.grp) model.grp.visible = true;
+    const back = () => { showCage = cage; applySkinVis(); };
+    return shaderProgress(compileSliced(gs, aa && aa.target ? aa.target() : null)
+      .then(() => compileDepthVariants(gs, true))
+      .then(back, e => { back(); console.warn('craft shed compile:', e && e.message); }), 'garage', 60000);
   }
   // THE CRAFT'S OWN LIGHTS ARE THE WORLD'S. Its nav, landing and taxi lights are point and spot lights in the craft group,
   // and every lit program's key counts the scene's lights: compiled while the aeroplane stood in the shed, the whole world
@@ -7274,6 +7303,7 @@
     // G690: a press under the roll-out screen is not a start (it fell through to `started = true`): the screen's
     // own done callback starts the flight when it lifts
     if (rollAnimSkip) { rollAnimSkip(); return; }   // B9: a press over the roll-out animation skips it
+    if (perfNow() < rollAnimSwallow) return;        // G1027: ...and the click of the press that skipped it is not a start
     if (rollHold) return;
     // G700: ...AND AFTER A LANDING IT FLIES ON FROM WHERE THE AEROPLANE STANDS (the playtest: "Fly on" reloaded -
     // fullReset put it back on the departure stand). An arrival at the destination chains the next leg in place,
@@ -11514,7 +11544,11 @@
   // compile, and the frames after it are where the late landings re-bake
   bootStep('firstFrame', 'first light', 10, () => {
     hud(); loop();
-    setTimeout(() => { compileXrayVariants(); }, 1500);   // G441: the see-through programs, after the room is up
+    // G441: the see-through programs, after the room is up. G1027 (B8B9 on train 14): UNDER THE SCREEN, a task after first
+    // light, not on a 1.5 s timer - "no background loading in the garage" (B9), and the timer fired into the first
+    // roll-out's shot when Roll out came quickly (22 links counted in roll-out 1 by the page in node)
+    if (typeof renderer.compileAsync !== 'function' || !hangar) return;   // (the harness: nothing to warm, the boot stays synchronous)
+    return new Promise(res => setTimeout(res, 0)).then(() => compileXrayVariants());
   });
   bootTripStep('frames');   // B9: the world from the stand, drawn once under the overlay
   // ...and the aeroplane's programs in the world's light LAST: the parked batch's restore is followed by the editor's
