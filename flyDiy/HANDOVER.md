@@ -62615,3 +62615,132 @@ label wraps).
 
 OWED / NOT DONE: a units option (none exists); the shed rail is 7 items (its own four - camera, display, explode,
 legend - were not the ask); a look on the user's screen at the fold density (the heads' `sub` lines may want to go).
+## G730-G733 - B1-LAG: THE PARKED TREE RUNGS LINK UNDER THE SCREEN (R1's +32 s); THE IMPORTED SKIN UPLOADS WHEN IT MOVED; FIRST LIGHT DRAWS NOTHING AHEAD OF ITS LINKS (the 'frames' task, R4); THE TAXI'S RENDER CPU SINCE THE MORNING, PER MS (2026-09-28, batch B, local GPU)
+
+G730 THE +32 s TAXI HITCH (R1: 567-617 ms, every run, every build). MEASURED FIRST (rollout_perf --progwatch --progsrc on
+master c0ca7daf): M_Branch.003 / M_Bark.003 and two unnamed (depth) programs first seen 33 s after the reveal, linked
+inside the frame. WHY EVERY WARM-UP MISSED THEM: the parked rungs are OUT of the scene graph (render_world RUNGS, PERF
+2026-09-23: a rung with no tree hangs under nothing), so neither the roll-out's compile (compilePass / compileSliced of
+the scene) nor a settings screen's ever met a rung no tree stood on at the reveal. G999.2's cut (reverted) made its
+stand-ins without an instanceColor (instancingColor is in the program key - both planters set one) and handed
+compileDepthVariants a helper group with no lights (depthVariants reads the light kinds off the scenes it walks: none -
+no depth variant at all; and the helper as the lit scene keys the programs lightless).
+- render_world WF.rungWarm(): one stand-in per ladder material of the woodland (PROTO) and the fill (SHAPE.list: every
+  species a mix can plant, every series, every rung) on the object kind the chunks draw - an InstancedMesh with an
+  instanceColor, castShadow + the rung's own customDepthMaterial.
+- app.js rungPrelink(): compileSliced against the world's lights (lit = scene), then PROG_WARM.depthVariants with the
+  scene's light kinds, compiled fogless into a plain target (compileDepthVariants' rule), a slice a task. The roll-out
+  starts it at the 'images' step, uploads the stand-ins' maps with the textures, and 'frames' waits for it; the
+  settings screen runs it after its depth variants (a shadows change re-keys them).
+- FRAMECOST census: rollout:images +4 links (the two materials + their two depth programs), rollout:upload +56 gl calls.
+- CHROME: ROLLOUT over100ms on the branch PASS (0 frames over 100 ms after the reveal, 50 s window; master: 1, 617 ms at
+  +32.2 s).
+
+G731 THE AIRCRAFT'S VERTEX RE-UPLOAD. FRAMECOST_WHO named the rows: poseModel's NON-generated path (the Cub's and the
+metal Cessna's: app.js the spar-bound skin 3327, stretch 3438, surfaces 3478, rods 3580) set posAttr.needsUpdate on
+every row every frame - the generated path has skipped since PERF 2026-09-23, this one never got the rule. Now the same
+rule: the rows run when a node has moved more than 0.3 mm in the BODY frame (genNodeBody, no offset) or a control more
+than 1e-4 since the pose last APPLIED; the signature also holds the gain, the rows' identity (seven arrays) and the
+floats' water rudder (pedals, wrDown, its easing landed). Wheels, engine units, cockpit controls and the castor are
+object transforms, posed every frame as before. Census, per frame (paused, stand and taxi alike):
+| build | bufferSubData before | after |
+|---|---|---|
+| Cub | 65 calls, 3 670 600 B | 2 calls, 544 B |
+| metal Cessna | 64 calls, 2 991 280 B | 2 calls, 544 B |
+
+G732 THE ~1.1 s TASK "14-16 s AFTER THE REVEAL" IS FIRST LIGHT. rollout_perf's tReveal and the long-task entries have
+different origins (the rig's clock vs the page's navigation): aligned by the frame at +32 s (the tree link, 600 ms, whose
+long task is at nav 95-100 s), the ratchet's 1.1 s tasks sit ~1 s BEFORE the reveal, inside the roll-out screen's
+'frames' step (cub_2: frames started 62 592, 1 262 ms; the task 62 716 + 1 162) - the first world frames drawn once
+holdRender lifts. 0.5-1.9 s run to run (master 1 849 ms in this session's profile, train 12 578 ms): one mechanism.
+PROFILED (master, --profile, the step's task): getProgramInfoLog 959 + getShaderInfoLog 365 ms under getUniforms (the
+frame drawing programs whose link had not finished: the progwatch shows ~21 depth programs first seen at the step's
+start), texSubImage2D 256 + texSubImage3D 141 ms (the node census: 325 MB of 2D and 80 MB of array texture data in that
+step - the textures an onBeforeCompile hook hands the shader, which uploadSliced's walk of material.* and
+material.uniforms never met), bufferData 34 ms.
+- uploadSliced reads the compiled shader's uniforms too (renderer.properties.get(m).uniforms: the hooks' included).
+- 'frames': the catch-up compile, then uploadSliced(scene), then programsReady (every program the renderer holds,
+  isReady polled - never blocks; capped 30 s) before holdRender lifts. The settings screen's first light waits for its
+  links too.
+- G732.1: the catch-up's depth variants a slice a task (compileDepthVariants(scene, true), A5-CAP's settings path): the
+  21 new depth programs' sources were one 983 ms task.
+- MEASURED, the roll-out's 'frames' task (the ratchet runs below, warm): before 1 355 / 1 108 (Cub), 1 227 / 1 226 ms
+  (metal); after 1 131 / under 700 (Cub), 984 / 1 011 ms (metal); profiled Cub 1 849 -> 974 ms, texSubImage2D in it
+  256 -> 3 ms. BETTER, NOT DONE: R4 still misses by up to 0.13 s in 2 of 4 runs.
+- LEFT (owed, with the evidence): the world's depth programs are still MADE at first light. A dump of every depth
+  program's key (--eval) shows ~21 keyed with the world's light state (2 directional lights, 2 shadowed: the sun and the
+  near map) and none before the 'frames' step - the compile step's compileDepthVariants() produces no world-state depth
+  variant, the step's catch-up (now sliced) and the first frame do. Find why the compile step's depth warm-up keys
+  differently (the light state at that step? the helper's kinds?), and the frame's own two late programs (a
+  MeshStandardMaterial at +1.2 s after the reveal, one more at +2.3 s).
+
+G733 THE RIG MEASURES ITS OWN TREE OR STOPS (tools/_serve.js, tools/rollout_perf.js). A rig server left over from
+another run held :8531 (its taskkill at exit failed), the next rig's own server could not bind and died quietly, and
+that rig measured the OTHER tree's page (C4A's runs served D:/Dev/b1bis, 2026-09-28). _serve.js sets X-Serve-Root on
+every answer and exits (3) with the reason when it cannot listen; rollout_perf waits for its server and refuses (exit
+4, before Chrome, its server stopped) when that server died or the answer names another root. Tested with the browser
+stubbed: a port held by another root refuses, a free port passes.
+
+ITEM 3 - THE TAXI'S RENDER CPU SINCE THE MORNING (the old stock, pinned 60, warm, 60 s; same hold unless noted):
+The A5-CAP comparison (11.0 -> 14.7 ms, "draws unchanged") mixed two taxis: G772 (aa1adae9) sent the pilot EAST out of
+HOME's stand (the V's right arm) where the morning went SOUTH - every run since sees other scenery. Timed per built
+commit on the same rig (rollout_perf --gfx '{"pv":4,"fps":60}', no --build, 60 s; a worktree per commit, the current
+rigs copied in; frames binned by x along the route):
+| built commit | delivered fps | loop JS | render (shadow) | solver | render x < -90 | render x > -40 |
+|---|---|---|---|---|---|---|
+| 01c1ba47 (the morning) | 45.3 | 20.1 | 11.4 (1.9) | 5.1 | 11.4 | - (south route) |
+| aa1adae9 G770-G772 | 44.7 | 21.1 | 13.3 (1.8) | 4.5 | 14.3 | 11.8 |
+| f5ef9735 / 5d55dbf4 / 5666f3ad | 44.5-44.8 | 21.0 | 13.2-13.3 | 4.6 | 14.2-14.4 | 11.6-11.7 |
+| c116c322 G960 + RASTER-ON | 45.0 | 21.0 | 14.3 (1.8) | 3.1 | 14.3 | 14.4 |
+| c116c322, raster=0 | 44.6 | 21.2 | 13.3 (1.9) | 4.6 | 14.3 | 11.8 |
+| f0bd9eaf G970 | 44.9 | 21.0 | 14.4 (1.8) | 3.2 | 14.3 | 14.5 |
+| 1683e64d G680-G982 | 43.7 | 21.7 | 15.0 (2.1) | 3.2 | 14.7 | 15.3 |
+| b78f8d0c G975 | 44.4 | 21.2 | 14.3 (2.2) | 3.1 | 14.1 | 14.7 |
+| 22793109 train 11 (G790-G1016) | 41.1 | 22.9 | 14.6 (2.4) | 3.2 | 13.4 | 15.7 |
+| c0ca7daf master (x2) | 41.9 / 42.2 | 22.4 / 22.1 | 13.8 / 14.0 (2.4) | 3.2 | 12.9 / 12.7 | 15.1 / 15.4 |
+| c0ca7daf master, raster=0 | 42.4 | 21.8 | 12.8 (2.4) | 4.8 | 12.9 | 12.5 |
+THE CAUSE, PER MS (render CPU at the taxi, 11.4 -> 14.0):
+- +1.9 THE ROUTE (G772): not a cost - another scene. Over the stretch every build shares (the first 20 s, x < -120)
+  master is CHEAPER than the morning (12.3-12.8 vs 13.1 ms; A5-CAP/A5-LOAD/A6 made the stand cheaper).
+- +1.0 (+1.8..3.1 east of x = -40) RASTER-ON (c116c322): NOT CPU WORK. A live profile of the eastern taxi (+32 s, 12 s,
+  --profile-live), master raster on / off: renderer.render 614 / 550 ms a second, the difference is uniformMatrix4fv's
+  self time (70 / 27 ms a second, the same call counts), GC flat (6 / 7 ms a second), the solver 1.4 ms FASTER with the
+  raster, the loop JS the same (22.4 / 22.4), delivered fps the same (41.3 / 41.6). The frame is bound past the JS (the
+  GPU process's command stream): the time the raster saves in the solver is spent waiting in the first GL calls that
+  block. The render timer is not a CPU-work metric on this frame - read the loop and delivered fps.
+- +0.2..0.5 the shadow pass (1.8 -> 2.4): 1683e64d (+0.3) and train 11 (+0.2: G1005's cascade, G1006's wheels).
+- THE LOOP'S REAL RISE, 21.0-21.2 -> 22.1-22.9 ms, delivered 44.4-45 -> 41-42 fps, IS TRAIN 11 (22793109; 1683e64d's
+  +0.7 fell back at b78f8d0c - one run's noise is ~0.3-0.5): east of x = -40 render +1.0, the shadow pass +0.2, the stand
+  area -0.7. OWED: split train 11 (A5-CAP, A5-LOAD, A6-GROUND's contact blob, A6-SHADOW's cascade) by its source commits.
+- RASTER TILE CACHE, found on the way (27_premises): grTiles keeps every EMPTY tile as a null entry and evicts by
+  scanning from the front - past up to 18 596 nulls per eviction (10 143 evictions in the census boot) - and the cache is
+  insertion-ordered, not LRU (a tile the solver reads every frame goes when it is oldest). Not changed here (the solver's
+  own time fell with the raster; bit-identity is GATE PREMRASTER's); a cheap follow-up: empties in a Set, eviction O(1).
+
+MEASURED - THE RATCHET'S SCENARIO (PLAYTEST §4; RTX 3080, 2216x1023, gamer, the shared warm profile at :8531; before =
+master 53247054 in a clean worktree, after = this branch built; interleaved, one GPU lock; medians of 2 warm runs by
+tools/rollout_ratchet.js, the cold run single):
+| run | delivered fps | uneven | loop JS | render | frames > 100 ms after the reveal | tasks > 1 s (worst) | settings probe |
+|---|---|---|---|---|---|---|---|
+| Cub warm, before | 31.05 | 10 % | 22.1 | 12.7 | 2 (the reveal 350; +32.2 s 600) | 1 (1 232) | 539 ms |
+| Cub warm, after | 31.3 | 10 % | 21.7 | 12.55 | 1 (the reveal 333-367) | 1 (1 081) | 931 ms (533 / 1 328) |
+| metal warm, before | 30.85 | 10 % | 25.55 | 12.9 | 3 (+33 s 584) | 1 (1 227) | - |
+| metal warm, after | 31.15 | 10 % | 25.15 | 12.8 | 1 | 0.5 (998) | - |
+| Cub cold, before | 31.1 | - | 23.8 | 14.5 | 3 (383; +1.2 s 517; +32.5 s 600) | 4 (1 451) | - |
+| Cub cold, after | 31.2 | - | 23.7 | 14.5 | 2 (350; +1.1 s 550) | 3 (1 085) | - |
+- R1: the +32 s tree link is gone on every run (0 frames over 100 ms past +2 s); what is left is the reveal and, cold, a
+  +1.1 s frame - the first-light residual above.
+- THE SETTINGS PROBE READ RED (931 vs 603 ms) ON ONE RUN OF TWO. Its worst task is the shadows=off screen's first frame
+  waiting on programs it links itself - on EVERY run, both sides: 106 links before, 108 after (+2: the rungs' programs
+  under the new key), 10-32 waits in that task. Three more runs at --secs 60 (the probe lands while the world still
+  streams: 116 links, 7 made inside the task): before 4 016 ms, after 3 679 / 3 742. Not this branch's cost - the same
+  mechanism as first light's residual, with the same spread; owed with it (the draw that makes programs no compile keyed).
+- The loop falls 0.4 ms on both builds (G731: 3.67 MB / 2.99 MB of bufferSubData a frame no longer uploaded).
+GATES (targeted, the rebased branch on 53247054, run_gates --only, jobs 4, wall 214 s): FRAMECOST (with the four ALLOW
+rows above: boot/rollout:images links +4 and gl.calls +52, rollout:upload gl.calls +300, rollout:frames gl.calls +820;
+13 counters RATCHET DOWN - the skin's bufferSubData 65 -> 2 a frame, 3.67 MB -> 544 B: the coordinator's --update keeps
+them), PROGRAMS, TREES, COVER, FADES, STAND, BOOT, UISMOKE, WORLDRENDER, FLEX (3 shards), SKIN, FLOATS, HINGE, SETTLE,
+GFX, LIGHT, SHADOWSKY, LOAD, BUILD - all PASS. Not run: the battery (the train's).
+RIGS / TRAPS: tReveal vs the long-task clock (above); a queue withdrawn by TaskStop orphans its boxlock take, and killing
+the orphan let the script fall through `take || exit 1` into its runs WITHOUT the lock (10:37-10:50, on top of C4A's
+bench; disclosed) - a runner must check the lock file NAMES it, after the take and before each run.
