@@ -239,10 +239,10 @@
    "d": 170,
    "maskPx": 0,
    "diffAB": null,
-   "shimmerA": NaN,
-   "shimmerB": NaN,
-   "tstdA": NaN,
-   "tstdB": NaN
+   "shimmerA": null,
+   "shimmerB": null,
+   "tstdA": null,
+   "tstdB": null
   },
   "arch_cub_near": {
    "box": [
@@ -287,10 +287,10 @@
    "d": 170,
    "maskPx": 0,
    "diffAB": null,
-   "shimmerA": NaN,
-   "shimmerB": NaN,
-   "tstdA": NaN,
-   "tstdB": NaN
+   "shimmerA": null,
+   "shimmerB": null,
+   "tstdA": null,
+   "tstdB": null
   },
   "arch_c172_near": {
    "box": [
@@ -335,10 +335,10 @@
    "d": 170,
    "maskPx": 0,
    "diffAB": null,
-   "shimmerA": NaN,
-   "shimmerB": NaN,
-   "tstdA": NaN,
-   "tstdB": NaN
+   "shimmerA": null,
+   "shimmerB": null,
+   "tstdA": null,
+   "tstdB": null
   }
  }
 }
