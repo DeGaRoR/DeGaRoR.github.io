@@ -63707,3 +63707,61 @@ COST (G1062): the shape per key 28-88 ms in node (first call pays the JIT) again
   per placement. Memory: 21-25 KB of planes per key against 4-7 KB of grid per placement.
 GATES RUN (targeted, on this tree): HITBOX PASS 84/84, OBSTACLE, PARKED, PREMISES, TAXICLEAR, BUILD, FRAMECOST (no
   counted boot or frame row grew; its counts are GL work, the obstacle step is CPU), STAND, BOOT - all PASS.
+## G903-G904 - AS0b: A FLAT MAP IS A NUMBER - 48 CONSTANTS SHIPPED AS TEXTURES NOW RIDE IN THE RECORDS; THE BARK ALIASES FOLDED; P3/P4 ANSWERED (2026-09-28, AS0b, local, no GPU)
+
+AS0b of futureDesigns/ASSETS-2026-09-27.md (§2.1, §5.2 P1-P4; numbers in its §5.7). Base: claude/batch-a-base b3bf043.
+G903 THE FLAT MAPS (P1). The census counted 48 maps whose every channel's std is under 2 at 256 px - seven white
+2048² character Specular maps (21.3 MiB GPU each), Ch02's flat hair normal, the c172's front / pedal / metal, and flat
+normal / rough / height maps in house, pavement, site, vessel, walls, pier, props. ONE TEST, ONE REPRESENTATION:
+- tools/media_lib.py flat_const(im|bytes, alpha=True) -> [r, g, b] (the rounded 256 px BOX mean) or None, measured
+  exactly as asset_census.js measures (its FLAT_STD 2, its resample) so the bakers and GATE ASSETS never disagree; a
+  cutout's alpha makes a map real, unless the encode drops it (`alpha=False`: encode_tex's normal / data roles - the
+  Mixamo Specular PNGs carry a stray alpha of 56-68 that never shipped, which kept them "real" on the first pass).
+  encode_tex(..., flat=True) returns (const, 'flat') and writes nothing; the CLI door prints `flat r,g,b`; `media_lib.py
+  flat <files>` tests files. tools/_media_lib.js: encodeTex returns { ext: 'flat', flat }, flatConst(buf), and
+  writeMap(subdir, stem, ext, buf) = the byte-exact bakers' write-or-constant.
+- The record holds the triple WHERE THE PATH WAS: `nor: [128, 128, 252]` in place of a getter (house / pavement / site /
+  vessel), `nor: [..]` in the walls' lazy() (which passes arrays through), `texs.t0 = [255, 255, 255]` (chars),
+  `texs.metal = [150, 152, 156]` (c172), `texs["flat8081ff"] = [128, 129, 255]` (props / pier / pier LODs: TexBank
+  names a flat map by its colour, so one per colour per pack). The generated wrappers' `B +` skips non-strings.
+- The consumer binds TEX_FLAT(rgb, colorSpace) (src/viewer/assets.js, beside ASSET_FETCH): ONE 1x1 RGBA DataTexture
+  per (colour, colour space), shared, marked userData.flat; a consumer tells a constant from a path with a LOCAL
+  Array.isArray (a global TEX_IS_FLAT was the first cut: GATE HOUSE / TOWNKIT / ANIMALS' stub contexts had no such
+  global and threw on every map; with the local test a context that never meets a flat map needs nothing). In the SAME
+  slot and colour space the file had, so the shader, the program key and the look are unchanged (the GPU averaged
+  that mean before; now it samples it). Consumers: tools/_house_gen.js tex, _big_gen / _hangar_gen / _tower_gen texOf,
+  src/viewer/site_ground.js siteGroundTex, hangar.js partTex, tools/_cage_energy.js vTex, tools/_cage_char.js texture,
+  src/viewer/props.js propTexture, app.js MODEL texs, refplane.js loadTexs. pavement.js library() fills the layer
+  with the constant (flat -> rgb for diff / nor, [0] into alpha for height / rough; `Array.isArray`, so
+  _looks_check's text-lift runs it without the global). GATE PAVEMENT's "4 files a set" counts a constant as a map.
+- THE TRAP FOUND ON THE WAY: house_tarr.js (the house texture-array merge) refused any mesh whose map is a
+  DataTexture, and compared every map's uv transform - a house wearing a TEX_FLAT (repeat 1, the set's maps 1/tile)
+  would have dropped out of the merge silently: the same look, more draws. It now reads userData.flat as the
+  "image" (one per colour -> one layer per colour, filled with it) and leaves flat maps out of the transform check.
+- Bake sources: a worktree has no assets/ (gitignored) and must never junction it in; assetSrc(...) /
+  asset_src('assets/..') resolve this checkout's, FLYDIY_ASSETS, then the main checkout's (pavement_tex_prep's ROOTS,
+  for every baker touched). prop_prep writes its packs and packs.json with LF (it wrote CRLF on Windows).
+RE-BAKED (under boxlock cpu AS0B): house_tex_prep, site_tex_prep, vessel_tex_prep, wall_tex_prep, pavement_tex_prep,
+model_prep c172, char_prep, prop_prep, pier_prep + prop_lod, tree_prep (TREE_ASSETS = the main checkout). The churn,
+checked file by file: the 48 flat maps and 9 folded aliases gone, NOTHING else in media/ - except vice_bench's
+geometry bin, which a re-bake on this box writes 3 bytes different (45 571 bytes, from offset 10 542: quantisation of
+the same source; not this session's change) - the committed bin was kept and props_machine.js points at it.
+THE PROOF THAT THE LOOKS DID NOT CHANGE: tools/flat_proof.js [--base ref] evaluates every changed src/ record at the
+base (from git) and on disk in a stub context and walks the two together (prop packs through each material slot), so
+each replaced path pairs with its constant with no per-family table; it decodes the OLD file at full resolution and
+compares its mean to the constant. 48 maps, 76 record slots, worst |mean - constant| 1.00 code (Ch02's hair normal:
+the 4096 source's BOX mean rounds G to 128, the shipped 2048 WebP averages 127.00), the other 47 under 1: PASS.
+GATE ASSETS re-baselined (--baseline pasted): flat 48 -> 0, dupes 29/45 -> 20/28, JPEG normals 186 -> 172.
+G904 THE BARK ALIASES FOLD (P2). tree_prep re-run over AS0a's content fold: ashbark = hollybark = raspberrybark (base
+and nor), commonbark_001 = commonbark (base) = maplebark (nor), birchbranchatlas = ...alt (nor) now ship once each (the
+first in sort order is kept, trees_pack names it for every alias); char_prep folded Remy_Body_Diffuse into
+Remy_Body_Diffuse-Remy_Body_Opacity1 (same bytes). −2.13 MiB of wire.
+P3 / P4 (the user, 2026-09-28): the four unread Jodel OBJ variants stay ("they are used as props in the hangar if I'm
+right, don't delete them then"); and "only planes from garage will be allowed as props. The other planes you may find
+are only used as references" - draco is a reference payload waiting on its spec. Nothing touched.
+CENSUS, before -> after (asset_census --decode, media/ only): 1 206 -> 1 149 texture files; wire 157.34 -> 154.53 MiB
+(−2.81); GPU if all resident 3 160.8 -> 2 878.1 MiB (−282.7; flat −238.7 of which 169 MiB - the chars' Specular maps -
+were never bound: _cage_char.js reads map + nrm only; the pavement's flats were array layers and stay so).
+GATES: targeted (not --all), under boxlock cpu AS0B: MEDIA ASSETS GEO PROPS HOUSE PAVEMENT FRAMECOST BUILD BOOT ANIMALS TREES
+TARR TOWNKIT LOOKS SITE HANGAR ENERGY REF VILLAGE WORLDRENDER PARKED UISMOKE - 22 PASS (111 s wall); _asset_check --selftest
+PASS. There is no CHAR gate: GEO holds the chars. Built outputs not committed.
