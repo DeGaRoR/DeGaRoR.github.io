@@ -1615,6 +1615,26 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   text-transform:uppercase; color:var(--ed-faint); }
 #edFlyBody .r.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
 
+/* G760: THE FOLDS - the flight rail's (flight.css), in this flyout: a head that is a button, a caret that turns */
+#edFlyBody .rsec { border-top:1px solid var(--ed-hair); }
+#edFlyBody .rsec:first-child { border-top:0; }
+#edFlyBody .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+  width:100%; padding:9px 0 8px 16px; position:relative; border:0; background:transparent;
+  cursor:pointer; text-align:left; color:var(--ed-dim); }
+#edFlyBody .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
+  border:4px solid transparent; border-left:5px solid currentColor; border-right:0;
+  transition:transform .12s ease; }
+#edFlyBody .rsec.open > .rsecHead::before { transform:rotate(90deg); }
+#edFlyBody .rsecHead:hover { color:var(--ed-ink); }
+#edFlyBody .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
+#edFlyBody .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
+#edFlyBody .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
+#edFlyBody .rsecBody { padding:0 0 10px; }
+/* the notes the shared panels write here (the graphics menu's readout and explanation, the clouds' and the
+   day's) had no rule in this flyout and came out at the page's 16 px; the flight flyout's .fnote, in this one */
+#edFlyBody .note { margin-top:10px; padding-top:9px; border-top:1px solid var(--ed-hair);
+  font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint); }
+
 #edFlyBody input[type=range] { flex:1; min-width:30px; }
 
 #edFlyBody select { flex:1; min-width:0; }
@@ -2293,6 +2313,15 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 #ui .flRailBtn span { font:500 8px/1.2 'IBM Plex Sans'; letter-spacing:.06em;
   text-transform:uppercase; }
 
+/* G760: FIVE ITEMS, and DEV behind the small toggle at the foot. A two-word label (`sky & world`) wraps
+   rather than widening the rail; the toggle is a quiet text button until it is on. */
+#ui .flRailBtn span { text-align:center; max-width:46px; }
+#ui .flRailBtn[hidden] { display:none; }
+#ui .flRailBtn.flRailDev { padding:4px 0; margin-top:2px; border-top:1px solid var(--ed-hair);
+  border-radius:0 0 6px 6px; font:500 7.5px/1.2 'IBM Plex Sans'; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ed-faint); }
+#ui .flRailBtn.flRailDev.on { background:transparent; color:var(--ed-acc); }
+
 /* ---- THE FLYOUT. One at a time, and it opens FROM ITS OWN BUTTON —
    openFly's one stated rule, kept: an answer that always appears in the same
    place does not say which question it answers. With the ribbon standing up
@@ -2344,6 +2373,23 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 #flFlyBody .fr.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
   text-transform:uppercase; color:var(--ed-faint); }
 #flFlyBody .fr.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
+
+/* G760: THE FOLDS - a section per old item (the flight rail) or per graphics group. The head is a
+   button: the name, the line under it, a caret that turns; folded, only the head is drawn. */
+#flFlyBody .rsec { border-top:1px solid var(--ed-hair); }
+#flFlyBody .rsec:first-child { border-top:0; }
+#ui #flFlyBody .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+  width:100%; padding:9px 0 8px 16px; position:relative; border:0; background:transparent;
+  cursor:pointer; text-align:left; color:var(--ed-dim); }
+#ui #flFlyBody .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
+  border:4px solid transparent; border-left:5px solid currentColor; border-right:0;
+  transition:transform .12s ease; }
+#ui #flFlyBody .rsec.open > .rsecHead::before { transform:rotate(90deg); }
+#ui #flFlyBody .rsecHead:hover { color:var(--ed-ink); }
+#flFlyBody .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
+#flFlyBody .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
+#flFlyBody .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
+#flFlyBody .rsecBody { padding:0 0 10px; }
 
 #flFlyBody .fnote { margin-top:10px; padding-top:9px;
   border-top:1px solid var(--ed-hair);
@@ -41532,7 +41578,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='29e445ad0570';window.FLYDIY_BUILD='d828b95bb859'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='29e445ad0570';window.FLYDIY_BUILD='615950fdb842'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=36d97ef0"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -102493,6 +102539,7 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
     save: () => save(null), savePrevious: () => save('previous'), mark: note => mark(note),
     hud: on => hudSet(on), hudOn: () => pref.hud,
     mount: (body, H) => mount(body, H),
+    mountMeter: (body, H) => mountMeter(body, H), mountLog: (body, H) => mountLog(body, H),   // G760
   };
   if (OFF) { API.begin = API.end = API.lap = API.push = API.pop = NOOP; }
 
@@ -102730,13 +102777,18 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
   }
 
   // ---- the graphics flyout's rows (both rails: GFX.mount calls this with its own helpers) --------------------------
+  // G760 (the rails regrouped): the meter's switch and the log's row are two rows with two homes - the flight rail's
+  // VIEW (the screen) and DEV (the flight log); mount() is both, for a host that keeps one list
   let lastSave = '';
-  function mount(body, H) {
+  function mount(body, H) { mountMeter(body, H); mountLog(body, H); }
+  function mountMeter(body, H) {
     H.row(body, 'fps meter');
     const refresh = () => { if (H.refresh) H.refresh(); };
     H.pills(body, [{ label: 'off', value: false, title: 'no meter' },
                    { label: 'on', value: true, title: 'the rendered frames per second, the frame time (median / p90 / max over 2 s), the frame cap, the solver steps, the CPU and GPU time, and the last 120 frames. Its yellow dot marks a moment in the flight log.' }],
       o => o.value === pref.hud, o => { hudSet(o.value); refresh(); });
+  }
+  function mountLog(body, H) {
     H.row(body, 'flight log');
     const st = H.note(body, '');
     const line = () => {
@@ -109197,7 +109249,9 @@ const SPLAT_GROUND = (() => {
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
     const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
-    const dec = img => (img.complete && img.naturalWidth ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
+    // (G751: a FAILED map is complete with no width and its error has fired - waiting on it stalled the library forever,
+    // as pavement.js's did; and onload = r overwrote another waiter's handler. Listeners, and a failure counts as done)
+    const dec = img => (img.complete ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }));
     Promise.all(sets.map(async (m, i) => {
       const [d, n, h, r] = [m.diff, m.nor, m.height, m.rough || null];
       await Promise.all([dec(d), dec(n), dec(h), r ? dec(r) : Promise.resolve()]);
@@ -110176,13 +110230,19 @@ const PAVEMENT = (() => {
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
     const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
-    const dec = img => (img.complete && img.naturalWidth ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }));
+    // (G751: an image that has already FAILED is `complete` with no width, and its error fired long ago - waiting for
+    // an event there never resolved, so one failed fetch stalled this library and every later one grown from it: every
+    // pavement made afterwards kept the old arrays with the new layer indices. Measured in the page: a library with one
+    // failed map never called back. A failed map now counts as done; its layer takes the set's mean colour.)
+    const dec = img => (img.complete ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }));
     Promise.all(keys.map(async (k, i) => {
       const m = SETS[k]; if (!m) { console.warn('pavement: no set ' + k); return; }
       const [d, n, g, h] = [m.diff, m.nor, m.rough, m.height];
       await Promise.all([dec(d), dec(n), dec(g), dec(h)]);
       const o = i * S;
       if (d.naturalWidth) { ctx.drawImage(d, 0, 0, px, px); data.set(ctx.getImageData(0, 0, px, px).data, o); }
+      else { const c = (m.mean || [0.2, 0.2, 0.2]).map(v => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055)));   // the mean, sRGB-encoded (the array is sRGB-typed)
+        console.warn('pavement: ' + k + ' colour map failed - its mean colour stands in'); for (let q = 0; q < px * px; q++) { data[o + q * 4] = c[0]; data[o + q * 4 + 1] = c[1]; data[o + q * 4 + 2] = c[2]; } }
       if (h.naturalWidth) { ctx.drawImage(h, 0, 0, px, px); const hd = ctx.getImageData(0, 0, px, px).data; for (let q = 0; q < px * px; q++) data[o + q * 4 + 3] = hd[q * 4]; }
       else for (let q = 0; q < px * px; q++) data[o + q * 4 + 3] = 128;
       if (n.naturalWidth) { ctx.drawImage(n, 0, 0, px, px); dataN.set(ctx.getImageData(0, 0, px, px).data, o); }
@@ -111482,11 +111542,17 @@ const WATER = (() => {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec2 aWater; varying vec3 vWP; varying vec3 vWP0; varying vec2 vWBody;\nuniform vec4 uWTrA[32]; uniform vec4 uWTrD[32]; uniform int uWTrN; uniform vec4 uWWave; uniform vec4 uWNear;' + GLSL_GERSTNER)
+      .replace('#include <common>', '#include <common>\nattribute vec2 aWater; varying vec3 vWP; varying vec3 vWP0; varying vec2 vWBody;\nuniform vec4 uWTrA[32]; uniform vec4 uWTrD[32]; uniform int uWTrN; uniform vec4 uWWave; uniform vec4 uWNear;\nuniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;' + GLSL_GERSTNER)
       .replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
         vec3 wp0 = (modelMatrix * vec4(position, 1.0)).xyz;
         float wh = 0.0;
-        if (aWater.y > 0.5 && uWWave.x > 0.5) wh = wGerstnerH(wp0.x, wp0.z) * (1.0 - smoothstep(uWWave.z - 44.0, uWWave.z - 8.0, max(abs(wp0.x - uWNear.x), abs(wp0.z - uWNear.y))));   // flat 8 m before the box's edge: the last rows lap the far plane's cut at the level (G460.7 - the dashes)
+        if (aWater.y > 0.5 && uWWave.x > 0.5) {
+          wh = wGerstnerH(wp0.x, wp0.z) * (1.0 - smoothstep(uWWave.z - 44.0, uWWave.z - 8.0, max(abs(wp0.x - uWNear.x), abs(wp0.z - uWNear.y))));   // flat 8 m before the box's edge: the last rows lap the far plane's cut at the level (G460.7 - the dashes)
+          // G750 THE PATCH IS DRAWN OVER WATER ONLY: its waves flatten over the last 40 m of the sea to the coast field's line
+          // (flat from 6 m out), so on a shore the displaced 3.8 m grid no longer saws the waterline across the beach - the
+          // line is the far plane's own there, whatever the patch does further out
+          if (uWSdfOn > 0.5) { float sd = (texture2D(uWSdf, (wp0.xz - uWGrid.xy) / uWGrid.zw).b * 255.0 - 128.0) * 4.0; wh *= smoothstep(-6.0, -40.0, sd); }
+        }
         transformed.y += wh;
         vWP = vec3(wp0.x, wp0.y + wh, wp0.z); vWP0 = wp0; vWBody = aWater;`);
     sh.fragmentShader = sh.fragmentShader
@@ -111494,7 +111560,13 @@ const WATER = (() => {
       // the body colour: the column's own colour rising with depth, times what the surface lets in
       .replace('#include <map_fragment>', `
         int wB = int(vWBody.x + 0.5);
-        if (wB == 0 && vWBody.y < 0.5 && uWNear.w > 0.5 && abs(vWP.x - uWNear.x) < uWNear.z && abs(vWP.z - uWNear.y) < uWNear.z) discard;
+        // the far plane cut out of the near patch's box, and (G750) the near patch cut to it: its 4 m lap past the box
+        // drew OVER the far plane, two transparent layers - a dark dashed line tracing the square round the aeroplane (the
+        // playtest's "flickering square ahead of the plane", West Point). The two tests are exact complements on the still plane.
+        if (wB == 0 && uWNear.w > 0.5) {
+          bool wIn = abs(vWP0.x - uWNear.x) < uWNear.z && abs(vWP0.z - uWNear.y) < uWNear.z;
+          if (vWBody.y < 0.5 ? wIn : !wIn) discard;
+        }
         vec2 wF = wField(vWP.xz);
         float wD = wDepth(wF, wB);
         // THE FOOTPRINT (G460.7): the GEOMETRIC MEAN of the pixel's two axes on the water, not the longer one.
@@ -115857,6 +115929,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
 
+  let drawnLakeSD = () => -1e9;   // G753: the drawn lakes' field (the terrain block's lakeRsd), for the cover ring's test
   yield 'terrain';
   { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
     // home ±4500 so river carves resolve, coarse ~100 m strips out to
@@ -116067,6 +116140,46 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // forest mask and the minimap; its colours are not drawn on an island.
     yield 'ground';
     const ISLA = world.island && world.island.albedo && world.island.grid ? world.island : null;
+    // THE DRAWN LAKES' FIELD (G751/G753). The ground shader DISCARDS every fragment more than a metre inside the lake
+    // field (the lake's quad covers it), so wherever no quad is drawn over a field lake the eye sees through the island
+    // to the haze - a flat beige-white lens:
+    //   - a lake the PREMISES FILLED: the runway's grade raised 02/20's pond by up to 1.95 m over its level (the solver
+    //     is dry there, and the quad at the level was under the ground, shown only through the hole - with the cover
+    //     ring's flecks lying on the true ground 17 cm above it);
+    //   - the 29 lakes on the coast left "to the sea" whose interior the coast field calls land (the sea plane is never
+    //     drawn there): the playtest's East Point white patch (153018/153114/153245) is the biggest, 350 x 330 m at
+    //     (9830..10180, -9220..-8890), level 2.67 m, on the route from the field.
+    // This copy of the field is the one the RENDERER reads: a texel inside a lake whose composed ground stands 5 cm over
+    // the lake's level is set outside (-16 m). The physics' field (world.island.lake, the hydrology's) is not touched.
+    const lakeR = (() => {
+      if (!ISLA || !ISLA.lake || !ISLA.lakes) return ISLA ? ISLA.lake : null;
+      // (a texel's lake is not recorded: it is judged against the HIGHEST level of every lake whose box covers it - a
+      // higher neighbour's water inside a lower lake's box is its own, not a fill)
+      const G = ISLA.grid, L8 = ISLA.lake.slice(), top = new Map(); let n = 0;
+      const boxOf = L => [Math.max(0, Math.floor((L.x0 - G.x0) / G.cell) - 2), Math.min(G.w - 1, Math.ceil((L.x1 - G.x0) / G.cell) + 2),
+                          Math.max(0, Math.floor((L.z0 - G.z0) / G.cell) - 2), Math.min(G.h - 1, Math.ceil((L.z1 - G.z0) / G.cell) + 2)];
+      for (const L of ISLA.lakes) { const [i0, i1, j0, j1] = boxOf(L);
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * G.w + i; if (L8[k] <= 128) continue; const t = top.get(k); if (t === undefined || L.level > t) top.set(k, L.level); } }
+      // ONLY WHERE THE PREMISES RAISED IT: the composed ground over the level AND over the island's own ground (the base
+      // world's). 46 natural lakes have field texels whose raw DEM stands 0.8-3 m over their level (4 282 texels on
+      // Jolene) - drawn as they always were; this is the premises' fill, not a re-judgement of the island's lakes
+      const B = world.premises && world.premises.base && world.premises.base.terrainH ? world.premises.base : null;
+      if (B) for (const [k, lv] of top) {
+        const i = k % G.w, j = (k - i) / G.w, x = G.x0 + (i + 0.5) * G.cell, z = G.z0 + (j + 0.5) * G.cell, h = world.terrainH(x, z);
+        if (h >= lv + 0.05 && h > B.terrainH(x, z) + 0.02) { L8[k] = 124; n++; }
+      }
+      if (n) console.log('lakes: ' + n + ' field texels the composed ground fills, not drawn as water');
+      return L8;
+    })();
+    // the drawn lakes' signed field at (x, z), bilinear as the shader reads it (+ inside, metres); -1e9 without one
+    const lakeRsd = (x, z) => {
+      if (!lakeR) return -1e9;
+      const G = ISLA.grid, u = (x - G.x0) / G.cell - 0.5, v = (z - G.z0) / G.cell - 0.5;
+      const i = Math.max(0, Math.min(G.w - 2, Math.floor(u))), j = Math.max(0, Math.min(G.h - 2, Math.floor(v)));
+      const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j)), q = j * G.w + i;
+      return (((lakeR[q] * (1 - fu) + lakeR[q + 1] * fu) * (1 - fv) + (lakeR[q + G.w] * (1 - fu) + lakeR[q + G.w + 1] * fu) * fv) - 128) * 4;
+    };
+    drawnLakeSD = lakeRsd;
     let islandTex = null, islandUV = null;
     if (ISLA) {
       const G = ISLA.grid, n = G.w * G.h, rgba = new Uint8Array(n * 4), src = ISLA.albedo;
@@ -116130,7 +116243,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
       Object.assign(gU, {
         uGTint: { value: tintTex },
-        uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, ISLA.lake) },   // a missing coast is 255 (all land), the rest 0
+        uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) },   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
         uGPackB: { value: pk4(ISLA.ndvi, ISLA.ttype, new Uint8Array(n), null) },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
@@ -116738,14 +116851,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the fine surface shows that flattening as a 10 m STAIRCASE round every lake (the ring's 17.6 m
       // chords had smoothed it away; seen 2026-09-22 at -564,-1336). Until the prep feathers its lakes,
       // a fine vertex within 30 m of a lake's edge blends back to the ring's height and normal.
-      const LK = ISLA && ISLA.lake ? ISLA.lake : null, LG = ISLA && ISLA.grid;
-      const lakeSD = (x, z) => {
-        if (!LK) return -1e9;
-        const u = (x - LG.x0) / LG.cell - 0.5, v = (z - LG.z0) / LG.cell - 0.5;
-        const i = Math.max(0, Math.min(LG.w - 2, Math.floor(u))), j = Math.max(0, Math.min(LG.h - 2, Math.floor(v)));
-        const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j)), q = j * LG.w + i;
-        return (((LK[q] * (1 - fu) + LK[q + 1] * fu) * (1 - fv) + (LK[q + LG.w] * (1 - fu) + LK[q + LG.w + 1] * fu) * fv) - 128) * 4;
-      };
+      const lakeSD = lakeRsd;   // (G751: the drawn lakes' field)
       const sm = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo))); return t * t * (3 - 2 * t); };
       FINE.build = (tx, tz) => {
         const T = FINE.T, st = FINE.step, n = T / st + 1, x0 = tx * T, z0 = tz * T;
@@ -117043,7 +117149,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // where the displaced patch dips into its troughs. The geometry is turned,
     // not the mesh: the displacement is along the model's y, which must be up.
     const WSZ = world.island ? 400000 : SIZE;
-    const farGeo = new THREE.PlaneGeometry(WSZ, WSZ); farGeo.rotateX(-Math.PI / 2);
+    // G750 A GRID, NOT TWO TRIANGLES: the plane was one 400 km quad, and a varying interpolated across a 400 km triangle
+    // drifts by pixels - the far plane's cut round the near patch (uWNear, tested on vWP0) no longer met the patch's own
+    // edge, a dashed dark line tracing the square ahead of the aeroplane (West Point; measured: gone with the plane
+    // subdivided). 1 km cells within 40 km of the middle, then coarser to the rim (~8 k vertices, one draw).
+    const farGeo = (() => {
+      if (!(THREE.BufferAttribute && THREE.BufferGeometry)) { const g = new THREE.PlaneGeometry(WSZ, WSZ); g.rotateX(-Math.PI / 2); return g; }   // (a stub THREE: the old plane)
+      const H = WSZ / 2, xs = [0];
+      for (let x = 0; x < H;) { x = Math.min(H, x < 40000 ? x + 1000 : x * 1.5); xs.push(x); }
+      const ax = xs.slice(1).reverse().map(v => -v).concat(xs), n = ax.length, pos = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2), idx = [];
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; pos[k * 3] = ax[i]; pos[k * 3 + 2] = ax[j]; nor[k * 3 + 1] = 1; uv[k * 2] = ax[i] / WSZ + 0.5; uv[k * 2 + 1] = 0.5 - ax[j] / WSZ; }
+      for (let j = 0; j + 1 < n; j++) for (let i = 0; i + 1 < n; i++) { const a = j * n + i, b = a + n, c = a + 1, d = b + 1; idx.push(a, b, c, c, b, d); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(new THREE.BufferAttribute(n * n > 65535 ? new Uint32Array(idx) : new Uint16Array(idx), 1)); g.computeBoundingSphere();
+      g.parameters = { width: WSZ, height: WSZ };   // (the probes find the far plane by its size)
+      return g;
+    })();
     const water = new THREE.Mesh(wtag(farGeo, 0, false), waterMat);
     seaPlaneY = WSH ? 0.0 : -0.4;   // the DRAWN sea level, for waterDrawY (WSH is this block's own: reading it from the API below threw every frame, G460.11.5)
     water.position.set((BX0 + BX1) / 2, seaPlaneY, (BZ0 + BZ1) / 2);
@@ -117167,6 +117288,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // reach's head to the nearest upstream tail (lakes sit between, so
       // the match is loose) and taper the width along the reach.
       const RV = world.hydro.rivers;
+      const coastOf = (world.island && world.island.coastAt) ? world.island.coastAt : null;   // G750: the mouths (below)
       const wHead = new Map();
       for (const b of RV) {
         let bestW = b.w, bestD = 160;
@@ -117200,6 +117322,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // walls — skip those segments; the terrain carve reads as rapids
           const segL = Math.hypot(spts[i + 1][0] - spts[i][0], spts[i + 1][1] - spts[i][1]) || 1;
           if ((sws[i] - sws[i + 1]) / segL > 0.3) continue;
+          // THE MOUTH IS THE SEA'S (G750): a segment with an end within 20 m of the coast line or past it is not drawn.
+          // The hydrology's level at a mouth stays metres over the beach (3.3 m over ground at 0.2 at West Point,
+          // 1005, 2425 - the dark rectangle A2-SHADOW-SKY's raycast hit at y 3.0); its ribbon was a sheet in the air
+          // down to the sea. The sea's own surface takes the mouth; the carved bed shows on the beach. 22 of 846
+          // cross-sections on Jolene, every one at a mouth.
+          if (coastOf && (coastOf(spts[i][0], spts[i][1]) < 20 || coastOf(spts[i + 1][0], spts[i + 1][1]) < 20)) continue;
           const a = base + i * 2;
           idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
         }
@@ -117240,15 +117368,33 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // coast it takes the tidal flats and the sea's own cells as lakes at the DEM's 1 m - their
         // quads lay over the sea plane as pale jagged sheets. A lake whose box reaches the coast field's
         // waterline within 30 m and whose level is under 3 m is the sea: no quad
+        // THE LAKE'S DRAWN TEXELS (G751): the render field's inside texels over the lake's box - how many the composed
+        // ground left (0: the premises filled it, no quad), and how many the coast field puts in the sea
+        const lakeTexels = L => {
+          const G = ISLA.grid; let inside = 0, sea = 0;
+          const i0 = Math.max(0, Math.floor((L.x0 - G.x0) / G.cell) - 2), i1 = Math.min(G.w - 1, Math.ceil((L.x1 - G.x0) / G.cell) + 2);
+          const j0 = Math.max(0, Math.floor((L.z0 - G.z0) / G.cell) - 2), j1 = Math.min(G.h - 1, Math.ceil((L.z1 - G.z0) / G.cell) + 2);
+          for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { if (lakeR[j * G.w + i] <= 128) continue; inside++;
+            if (world.island.coastAt && world.island.coastAt(G.x0 + (i + 0.5) * G.cell, G.z0 + (j + 0.5) * G.cell) < 0) sea++; }
+          return { inside, sea };
+        };
+        // LEFT TO THE SEA only where the SEA IS DRAWN over it (G751): the sea plane's alpha comes from the coast field, and
+        // over a lake the coast field calls land it is nothing - every one of the 29 lakes this rule used to skip (under 3 m,
+        // within 30 m of the coast) had no sea texel inside it, and the ground's discard left a hole to the haze
         const isSea = L => {
           if (!world.island.coastAt || L.level >= 3) return false;
+          let near = false;
           for (let t = 0; t <= 1.0001; t += 0.1) for (const q of [[L.x0 + (L.x1 - L.x0) * t, L.z0], [L.x0 + (L.x1 - L.x0) * t, L.z1], [L.x0, L.z0 + (L.z1 - L.z0) * t], [L.x1, L.z0 + (L.z1 - L.z0) * t]])
-            if (world.island.coastAt(q[0], q[1]) < 30) return true;
-          return false;
+            if (world.island.coastAt(q[0], q[1]) < 30) { near = true; break; }
+          if (!near) return false;
+          const T = lakeTexels(L);
+          return T.inside > 0 && T.sea * 2 >= T.inside;
         };
+        let filled = 0;
         for (const L of world.island.lakes) {
           if (L.level <= 0.2 || L.cells < 3) continue;
           if (isSea(L)) { seaSkipped++; continue; }
+          if (lakeR && !lakeTexels(L).inside) { filled++; continue; }   // G753: the premises filled it (02/20's pond): no water drawn
           const g = new THREE.PlaneGeometry(L.x1 - L.x0 + 8, L.z1 - L.z0 + 8); g.rotateX(-Math.PI / 2);
           // THE DRAWN SURFACE IS THE PHYSICS' (ruling ap: ONE surface; G460.11.7, the user: "the lake quads at
           // waterH, let's fix that hovering plane"). The island's DEM lake level and the hydrology's waterH are
@@ -117289,7 +117435,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           mg.setIndex(new THREE.BufferAttribute(idx, 1)); mg.computeBoundingSphere();
           const m = new THREE.Mesh(mg, lakeMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.name = 'lakes'; scene.add(m);
         }
-        console.log('island lakes: ' + n + ' surfaces, one quad each in one mesh, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea');
+        console.log('island lakes: ' + n + ' surfaces, one quad each in one mesh, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea, ' + filled + ' filled by the premises');
       }
       const riverVerts = pos.length / 3;   // G460: the ribbons before this count are rivers (body 2), the cells after are lakes (body 1)
       const hc = world.hydro.cellW / 2, skirt = world.hydro.cellW * 0.6;
@@ -119320,7 +119466,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             }
             return m;
           };
-          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
+          // G753: nor where WATER IS DRAWN - the drawn lakes' field (the ground is discarded a metre inside it) with its quad over
+          // the ground; the physics' waterH alone let the flecks stand on a pond the runway's grade had filled, over the quad
+          const drawnWet = (x, z, h) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - 0.3; };
+          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3 || drawnWet(x, z, h)) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
@@ -120461,7 +120610,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return out;
     } catch (e) { return []; }
   }
-  function groundSink(x, z) { return (premisesR && premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0; }   // hoisted: the boot calls refreshGround before this line
+  // hoisted: the boot calls refreshGround before this line. G752: by the depth inside the patch (render_premises ringSink:
+  // 0 within 4 m of its edge, 4 m by 28 m in) - a flat 4 m wherever a chunk was built dragged every ring triangle crossing a border
+  // down with it, the 1.3-2.4 m trench along the chunks' edges the playtest saw as "DEM seams" (145815, 152402)
+  function groundSink(x, z) {
+    if (!premisesR) return 0;
+    if (premisesR.ringSink) return premisesR.ringSink(x, z);
+    return (premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0;
+  }
   function refreshGround(bb) { const g = refreshGroundSteps(bb); while (!g.next().done); }
   // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
   // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested
@@ -142060,35 +142216,72 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     return 'last ' + f.length + ' frames: ' + med.toFixed(0) + ' ms median (' + (1000 / med).toFixed(0) + ' fps) · ' + p90.toFixed(0) + ' ms p90 · ' + f[f.length - 1].toFixed(0) + ' ms max' + pace + frz;
   };
 
+  // ---- G760: THE GROUPS (the Jolene playtest's §3, the user: "The graphics option is too long and lacks structure
+  // ... we should have collapsable sections for the options sub-categories") ------------------------------------------
+  // Every option in exactly ONE group (GATE GFX holds it: none twice, none left out; GATE UISMOKE counts the rows the
+  // menu mounts before and after the grouping). The groups are the host's collapsible sections when it gives
+  // H.section, and are ordered by what a player reaches for: the cost first, the picture's parts after it.
+  const GROUPS = [
+    { k: 'perf', label: 'performance', sub: 'the preset, the frame rate, the scale, the smoothing', rows: ['fps', 'scale', 'aa', 'drawDist'] },
+    { k: 'light', label: 'light & shadows', sub: 'the shadows, the light rig, the exposure, the tone curve', rows: ['shadows', 'canopy', 'lighting', 'exposure', 'tone', 'compositing', 'colour'] },
+    { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover'] },
+    { k: 'water', label: 'water', sub: 'the sea and its reflections', rows: ['water', 'mirror'] },
+    { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'glare'] },
+    { k: 'post', label: 'post-fx', sub: 'the passes over the finished frame', rows: ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'] },
+    { k: 'town', label: 'town', sub: 'which towns, their detail, the road furniture', rows: ['town', 'scenery', 'rails', 'poles'] },
+  ];
+  const OPT = {}; for (const o of OPTIONS) OPT[o.k] = o;
+
   // ---- the menu, in the host's own words ---------------------------------
-  // helpers: { row(host, label) -> element, pills(host, list, isOn, pick), note(host, text) }
+  // helpers: { row(host, label) -> element, pills(host, list, isOn, pick), note(host, text) [, section(host, key, title, sub)
+  // -> the section's body, or null while it is folded] [, refresh()] }. WITH H.section (G760, both rails) the menu is the
+  // seven GROUPS above and the preset heads `performance`; the map row (mountWorld), the fps meter and the flight log
+  // (FLIGHT_REC.mountMeter / mountLog) are the hosts' to place - the flight rail puts them in SKY & WORLD, VIEW and DEV.
+  // WITHOUT it the menu is the one flat list it was (every row, the map and the recorder's rows included).
+  const pickFor = H => (k, v) => { set(k, v); if (H.refresh) H.refresh(); if (k !== 'fps' && typeof W.FLYDIY_SETTLE === 'function') W.FLYDIY_SETTLE(k); };
+  const optionRow = (host, H, o, pick) => {
+    H.row(host, o.label);
+    H.pills(host, o.steps.map(s => ({ label: s.label, value: s.v, title: s.why })),
+      x => x.value === S[o.k], x => pick(o.k, x.value));
+  };
+  // THE WORLD (G434): the map the game boots on - the page's loader published the list and its
+  // choice (build.js: ?world=, else this pref, else Jolene); picking another stores it and reloads
+  const mountWorld = (body, H) => {
+    if (!(Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length)) return false;
+    const cur = W.FLYDIY_WORLD || 'none';
+    H.row(body, 'world');
+    H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : 'the island from the data: its own field, dock and village' })),
+      o => o.value === cur, o => { if (o.value === cur) return; try { W.localStorage.setItem('flydiy.world', o.value); } catch (e) {} W.location.reload(); });
+    H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the world editor’s record).');
+    return true;
+  };
   const mount = (body, H) => {
     // G640: a picked row that re-keys programs gets the loading screen (app.js FLYDIY_SETTLE: the compile
     // counted under the overlay, never a frozen frame); the frame rate row is not a picture's
-    const pick = (k, v) => { set(k, v); if (H.refresh) H.refresh(); if (k !== 'fps' && typeof W.FLYDIY_SETTLE === 'function') W.FLYDIY_SETTLE(k); };
-    // THE WORLD (G434): the map the game boots on - the page's loader published the list and its
-    // choice (build.js: ?world=, else this pref, else Jolene); picking another stores it and reloads
-    if (Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length) {
-      const cur = W.FLYDIY_WORLD || 'none';
-      H.row(body, 'world');
-      H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : 'the island from the data: its own field, dock and village' })),
-        o => o.value === cur, o => { if (o.value === cur) return; try { W.localStorage.setItem('flydiy.world', o.value); } catch (e) {} W.location.reload(); });
-      H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the world editor’s record).');
+    const pick = pickFor(H);
+    const grouped = typeof H.section === 'function';
+    if (!grouped) mountWorld(body, H);
+    // the performance group carries the preset, the options, the frame's readout and the storage line
+    const perf = grouped ? H.section(body, 'gfx.perf', GROUPS[0].label, GROUPS[0].sub) : body;
+    let readout = null;
+    if (perf) {
+      H.row(perf, 'preset');
+      H.pills(perf, Object.keys(PRESETS).concat(['custom']).map(p => ({
+          label: PRESET_LABEL[p] || p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
+          why: p === 'custom' && S.preset !== 'custom' ? 'change any option below' : undefined })),
+        o => o.value === S.preset, o => pick('preset', o.value));
+      if (grouped) { for (const k of GROUPS[0].rows) optionRow(perf, H, OPT[k], pick); }
+      else for (const o of OPTIONS) optionRow(perf, H, o, pick);
+      readout = H.note(perf, frameText());
     }
-    H.row(body, 'preset');
-    H.pills(body, Object.keys(PRESETS).concat(['custom']).map(p => ({
-        label: PRESET_LABEL[p] || p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
-        why: p === 'custom' && S.preset !== 'custom' ? 'change any option below' : undefined })),
-      o => o.value === S.preset, o => pick('preset', o.value));
-    for (const o of OPTIONS) {
-      H.row(body, o.label);
-      H.pills(body, o.steps.map(s => ({ label: s.label, value: s.v, title: s.why })),
-        x => x.value === S[o.k], x => pick(o.k, x.value));
+    if (grouped) for (const g of GROUPS.slice(1)) {
+      const b = H.section(body, 'gfx.' + g.k, g.label, g.sub);
+      if (b) for (const k of g.rows) optionRow(b, H, OPT[k], pick);
     }
-    const readout = H.note(body, frameText());
     // G620: THE FPS METER and THE FLIGHT LOG (flight_recorder.js): the meter's switch, the log's download
-    if (W.FLIGHT_REC && W.FLIGHT_REC.mount) W.FLIGHT_REC.mount(body, H);
-    H.note(body, 'Everything takes effect at once; nothing needs a restart. Changing the ' +
+    if (!grouped && W.FLIGHT_REC && W.FLIGHT_REC.mount) W.FLIGHT_REC.mount(body, H);
+    const tail = perf || (grouped ? null : body);
+    if (tail) H.note(tail, 'Everything takes effect at once; nothing needs a restart. Changing the ' +
                  'anti-aliasing reallocates the frame (a blink), a new density re-streams the ' +
                  'forest around you (about ten seconds), and shadows off or on recompiles the ' +
                  'lit surfaces (a short hitch). The tone curve and the exposure are live; ' +
@@ -142098,14 +142291,15 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     // to refresh caches manually, and show the version numbers local and server
     // side"): the build this page runs, the server's (version.json, no-store),
     // the media cache's size, the worker's state - and the button
-    if (W.STORAGE) {
-      H.row(body, 'storage');
-      const st = H.note(body, W.STORAGE.line());
-      const upd = () => { if (st && body.isConnected) st.textContent = W.STORAGE.line(); };
+    if (W.STORAGE && tail) {
+      H.row(tail, 'storage');
+      const st = H.note(tail, W.STORAGE.line());
+      const upd = () => { if (st && tail.isConnected) st.textContent = W.STORAGE.line(); };
       W.STORAGE.checkServer().then(upd); W.STORAGE.measure().then(upd);
-      H.pills(body, [{ label: 'refresh caches', value: 'refresh', title: 'drop the media cache, update the worker and reload the page' }],
+      H.pills(tail, [{ label: 'refresh caches', value: 'refresh', title: 'drop the media cache, update the worker and reload the page' }],
         () => false, () => { if (st) st.textContent = 'refreshing…'; W.STORAGE.refresh(); });
     }
+    if (!readout) return;
     hosts++;
     if (!rafId) { last = 0; rafId = W.requestAnimationFrame(tick); }
     const iv = setInterval(() => {
@@ -142119,9 +142313,9 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // this script, from the same stored key, so read the truth back
   if (W.THREE && W.THREE.ColorManagement) S.colour = W.THREE.ColorManagement.enabled ? 'managed' : 'linear';
   W.GFX = {
-    OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS,
+    OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS, GROUPS,
     get: () => Object.assign({}, S),
-    set, apply, mount, presetOf, frameText,
+    set, apply, mount, mountWorld, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
     // the world calls this once it exists (render_world.js, end of build)
     onWorld: () => { applied = {}; apply(); },
@@ -143721,7 +143915,9 @@ function editorInit(api) {
     // out there and not in here? — is about the pair, not either one.
     // `label` is the resting fallback only: syncNightLabel writes the current
     // mood's own name over it (G136).
-    { k: 'night', label: 'night', title: 'The day, and the light in here and out there',
+    // G760 (the rails regrouped): the CLOUDS item folded into this one - the flight rail's SKY & WORLD in the
+    // shed's words: the day and its weather, the clouds, the light in the shed, the map, each a fold
+    { k: 'night', label: 'night', head: 'The sky, and the light', title: 'The sky: the day, the weather, the clouds, and the light in here and out there',
       icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z',
       // THE RAIL BORROWS, THE TREE OWNS. These three rows live in the shed's
       // hangar group (the world root retired at G136), and this flyout shows
@@ -143760,8 +143956,7 @@ function editorInit(api) {
     // 2026-09-20: THE CLOUDS - the same panel the flight rail opens (clouds_ui.js: the decks,
     // the veil, the look, the cost; the user: "let's have the garage and the flight menu converge").
     // LITERAL FIELDS ONLY (GATE VIEW reads this table in a vm); openFly builds it by name.
-    { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look',
-      icon: 'M5.4 13.6h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z' },
+    // G760: `clouds` is a fold of `night` now (the flight rail's SKY & WORLD, mirrored).
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
     { k: 'legend', label: 'legend', title: 'What the marks in the room mean',
@@ -144151,19 +144346,36 @@ function editorInit(api) {
     for (const b of $('edRail').children)
       b.classList.toggle('on', b.dataset.f === k);
     if (!k) { fly.hidden = true; return; }
+    // G760: an old item's name (the day panel's door to `clouds`) opens the item that holds it, unfolded
+    if (!RAIL.some(x => x.k === k) && ED_HOME[k]) { edSecSet(k, true); k = ED_HOME[k]; flyOpen = k; }
     const t = RAIL.filter(x => x.k === k)[0];
+    if (!t) { fly.hidden = true; flyOpen = null; return; }
+    for (const b of $('edRail').children)
+      b.classList.toggle('on', b.dataset.f === k);
     fly.hidden = false;
-    head.textContent = t.title;
+    head.textContent = t.head || t.title;   // G760: a short head where the tooltip says more
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
-    if (t.k === 'graphics') buildGraphics(body);   // GFX
-    if (t.k === 'clouds') buildClouds(body);       // the clouds panel (2026-09-20)
-    if (t.k === 'night') buildDay(body);           // the day panel (2026-09-20), the light rows borrowed under it
+    if (t.k === 'graphics') buildGraphics(body);   // GFX, in its seven folds (G760)
+    // THE SKY (G760): the day panel with the weather (2026-09-20), the clouds panel, the shed's light rows
+    // borrowed into their own fold, the map - each a fold, remembered with the flight rail's
+    let rowsHost = body;
+    if (t.k === 'night') {
+      const d = edSection(body, 'night', 'time & weather', 'the day, the hour, the wind, the air');
+      if (d) buildDay(d);
+      const c = edSection(body, 'clouds', 'clouds', 'the decks, the veil, the look');
+      if (c) buildClouds(c);
+      rowsHost = edSection(body, 'shed.light', 'the light in the shed', 'the lamps, the world\u2019s lights, the bounce');
+      const m = edSection(body, 'ground', 'map', 'the map the game boots on');
+      if (m && window.GFX && window.GFX.mountWorld && !window.GFX.mountWorld(m, railRows())) {
+        const n = document.createElement('div'); n.className = 'note'; n.textContent = 'One map in this build.'; m.appendChild(n);
+      }
+    }
     if (t.k === 'legend') buildLegend(body);
     const idx = labelIndex();
-    for (const label of (t.rows || [])) {
+    if (rowsHost) for (const label of (t.rows || [])) {
       const r = idx.get(label);
-      if (r) borrow(r, body);
+      if (r) borrow(r, rowsHost);
     }
     if (t.k === 'measure') {
       const m = $('dims');
@@ -144218,7 +144430,36 @@ function editorInit(api) {
       const n = document.createElement('div'); n.className = 'note'; n.textContent = txt;
       host.appendChild(n); return n;
     };
-    window.GFX.mount(body, { row, pills, note, refresh: () => openFly('graphics') });
+    window.GFX.mount(body, { row, pills, note, refresh: () => openFly('graphics'),
+                             section: (h, key, title, sub) => edSection(h, key, title, sub) });
+  }
+  // G760: THE FOLDS, the flight rail's (app.js flSection) in this rail's words: a head that is a button, the
+  // body built only when unfolded, the state in the SAME pref (flydiy.flSec: fold the post-fx here and it is
+  // folded in flight), read through on every open because both rails write it. A fold reopens the flyout in
+  // place, its scroll kept.
+  const ED_SEC_FIRST = { night: 1, 'shed.light': 1, 'gfx.perf': 1 };
+  const ED_HOME = { clouds: 'night' };
+  const edSecLive = {};   // this page's own copy under the stored one: a browser that keeps nothing still folds
+  const edSecAll = () => { let v = null; try { v = JSON.parse(localStorage.getItem('flydiy.flSec') || 'null'); } catch (e) {} return Object.assign({}, edSecLive, v && typeof v === 'object' ? v : {}); };
+  const edSecOpen = key => { const o = edSecAll(); return (key in o) ? !!o[key] : !!ED_SEC_FIRST[key]; };
+  const edSecSet = (key, on) => { const o = edSecAll(); o[key] = edSecLive[key] = !!on; try { localStorage.setItem('flydiy.flSec', JSON.stringify(o)); } catch (e) {} };
+  function edSection(host, key, title, sub) {
+    const open = edSecOpen(key);
+    const box = document.createElement('div'); box.className = 'rsec' + (open ? ' open' : '');
+    const h = document.createElement('button'); h.type = 'button'; h.className = 'rsecHead'; h.dataset.sec = key;
+    h.title = (open ? 'Fold ' : 'Unfold ') + title;
+    const tt = document.createElement('span'); tt.className = 'rsecT'; tt.textContent = title; h.appendChild(tt);
+    if (sub) { const u = document.createElement('span'); u.className = 'rsecS'; u.textContent = sub; h.appendChild(u); }
+    h.onclick = () => {
+      edSecSet(key, !open);
+      const fly = $('edFly'), top = fly ? fly.scrollTop : 0;
+      openFly(flyOpen);
+      if (fly) fly.scrollTop = top;
+    };
+    box.appendChild(h); host.appendChild(box);
+    if (!open) return null;
+    const b = document.createElement('div'); b.className = 'rsecBody'; box.appendChild(b);
+    return b;
   }
   // 2026-09-20: THE SHARED PANELS' ROW VOCABULARY - the clouds panel (clouds_ui.js) and the day
   // panel (day_ui.js) draw in this rail's own rows: a range input on the flyout's own .r row
@@ -144278,7 +144519,7 @@ function editorInit(api) {
     const H = railRows();
     window.DAY_UI.mount(body, H, dayCtx());
     if (window.WEATHER_UI) window.WEATHER_UI.mount(body, H, dayCtx());
-    H.row(body, 'in the shed').classList.add('fsec');
+    // (G760: the shed's light rows have their own fold, `the light in the shed`, so no head here)
   }
   function buildControls(body) {
     const inp = (typeof window !== 'undefined' && window.FLYDIY_INPUT) || null;
@@ -146509,10 +146750,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=25920b6c"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=480fb2e0"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=db4052c4"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=8e34f6af"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=05b93218"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=b6af9ad0"></script>
-<script type="text/x-flydiy" src="src/viewer/world_rail.js?v=b6a49b7b"></script>
+<script type="text/x-flydiy" src="src/viewer/world_rail.js?v=cbe9bc95"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -151559,7 +151800,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
     }
     flRender();
-    if (flyOpen === 'controls') flyOpenSet('controls');
+    if (flShown.has('controls')) flyOpenSet(flyOpen);
   }
   const GROUND_PHASES = ['DEPART', 'TAXI', 'LINEUP', 'HOLD', 'STOP', 'ROLL',
                          'LIFTOFF', 'ROLLOUT', 'STOPPED', 'ABORT', 'PUTDOWN'];
@@ -151658,7 +151899,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     if (inGarage || !FL.ready) return;
     const ks = FL_CAM.map(c => c.k).filter(k => k !== 'cockpit' || !flEyeWhy());
     flCamMode(ks[(ks.indexOf(cam.mode) + 1) % ks.length]);
-    if (flyOpen === 'camera') flyOpenSet('camera');
+    if (flShown.has('camera')) flyOpenSet(flyOpen);
   }
 
   // THE ARRIVAL CARD (G107.2). The flight's ending, said to the player's
@@ -154127,15 +154368,15 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     if (instOn.dr && R.dr) R.dr.textContent = sgn(-c.dr);   // shown as the pedal
     // the air's own numbers, in the flyout that is about the air (G72's OAT
     // and density altitude, which were two of the twelve cells)
-    if (flyOpen === 'air') flAirLive(o);
-    if (flyOpen === 'weather') flWeatherLive();       // CLIMATE K2: the front walks the clock, these walk with it
-    if (flyOpen === 'ground') flGroundLive(o);
+    // G760: on the SECTIONS built in the open flyout (flShown), not on the flyout's name - the air heads the weather
+    if (flShown.has('weather')) { flAirLive(o); flWeatherLive(); }   // CLIMATE K2: the front walks the clock, these walk with it
+    if (flShown.has('ground')) flGroundLive(o);
     // G441 (A4): the frame rate, on the GRAPHICS flyout while it is open (the user:
     // "we need a framerate indicator, optional") - twice a second.
     // G620: THE RENDERED FRAMES, NOT THE READOUTS. It counted hud() calls, and hud() runs every 0.1 s (the
     // loop's hudAcc), so it read 10 fps at best whatever the frame did. Now: the flight recorder's last 2 s of
     // rendered frames (a freeze counts), else the frame clock's own intervals.
-    if (flyOpen === 'graphics') {
+    if (flShown.has('screen')) {   // G760: the row rides VIEW > screen now
       const now = performance.now();
       if (!flFps.t0) flFps.t0 = now - 500;
       if (now - flFps.t0 >= 500) {
@@ -154144,7 +154385,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         if (el) el.textContent = flFpsText();
       }
     } else flFps.t0 = 0;
-    if (flyOpen === 'engines' && o.thrustPer)
+    if (flShown.has('engines') && o.thrustPer)
       for (let i = 0; i < o.thrustPer.length; i++) {
         const el = $('flEngT' + i);
         if (el) el.textContent = (o.thrustPer[i] || 0).toFixed(0) + ' N';
@@ -154512,67 +154753,73 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   if (cam.mode === 'free') cam.mode = 'chase';
   mapBig = !!panels.big; mapNoseUp = !!panels.noseUp;
 
-  // ---- the rail: five questions about looking -----------------------------
-  // `camera` is editor.js's own glyph, verbatim. The other four are new, drawn
-  // to the same 18-box and the same 1.35 stroke, because a rail that is half
-  // one hand and half another is not a rail.
+  // ---- THE RAIL: FIVE ITEMS, EACH A FLYOUT OF FOLDING SECTIONS (G760) ------------------------------
+  // The user (the Jolene playtest, 2026-09-26): "The rails are overdue a cleanup and grouping phase ... not
+  // much more than 4-6 rail items ... collapsable sections for the options sub-categories ... The world editor
+  // does not belong there, and we need UI for the test mode without physics." Fourteen items became five
+  // (futureDesigns/PLAYTEST-2026-09-26.md §3): FLY, VIEW, SKY & WORLD, GRAPHICS, and DEV behind a visible
+  // toggle at the foot of the rail (off by default, on by itself in the test mode). A SECTION IS ONE OF THE
+  // OLD ITEMS: its row in FL_SECS below and its builder in FL_BUILD, unchanged, so every control that was
+  // reachable is still reached the same way, one fold deeper; GRAPHICS's sections are gfx_settings.js's own
+  // GROUPS. The folds are remembered (flydiy.flSec, shared with the shed's rail), and the first section of
+  // each item starts open. An OLD ITEM'S NAME still opens it - flyOpenSet('clouds') opens SKY & WORLD with
+  // the clouds unfolded - so the shared panels' doors (the day panel's "the clouds") and the state refreshes
+  // (the camera after a click on the world, the controls after A) keep working without knowing the rail moved.
+  // The glyphs: `fly` a plan-view aeroplane, `view` the shed's display eye, `sky & world` the clouds glyph
+  // over a horizon, `graphics` the sliders it always had, `dev` a pair of brackets.
   const FL_RAIL = [
-    { k: 'camera', label: 'camera', title: 'How the flight is framed',
-      icon: 'M4 5.5h2.2l1-1.5h3.6l1 1.5H14a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z|M9 11.6a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z' },
-    { k: 'instruments', label: 'instruments', title: 'What the PFD carries',
-      icon: 'M9 15.4A6.4 6.4 0 1 0 9 2.6a6.4 6.4 0 0 0 0 12.8Z|M9 9l3.1-2.6|M9 4.6v1.1|M13.4 9h-1.1|M4.6 9h1.1' },
-    { k: 'map', label: 'map', title: 'Where the aeroplane is',
-      icon: 'M6.6 3.2 2.8 4.8v10l3.8-1.6 4.8 1.6 3.8-1.6v-10l-3.8 1.6-4.8-1.6Z|M6.6 3.2v10.6|M11.4 4.8v10.6' },
-    { k: 'trace', label: 'trace', title: 'What the flight has done so far',
-      icon: 'M2.6 12.4l3.4-4.2 2.8 2.2 3-4.4 3.6 3.2|M2.6 15.2h12.8' },
-    { k: 'air', label: 'air', title: 'The air it is flying in',
-      icon: 'M2.4 6.6h8.2a2.1 2.1 0 1 0-2-2.6|M2.4 9.8h11.2a2.1 2.1 0 1 1-2 2.6|M2.4 13h6' },
-    // 2026-09-04: WHERE THE FLIGHT STARTS — the stand and a taxi out (G151),
-    // or lined up on the strip. A runway in perspective, centreline dashed.
-    { k: 'start', label: 'start', title: 'Where the flight starts',
-      icon: 'M5.6 15.4 7.6 2.6|M12.4 15.4 10.4 2.6|M9 3.6v1.6|M9 7.4v1.8|M9 11.4v2.2' },
-    // G193: THE PATTERNS — the taxi graph, the glide slopes and the two
-    // touchdown targets, drawn on the ground and on the map. A dot-and-arc
-    // glyph: three dots joined by a bent path.
-    { k: 'patterns', label: 'patterns', title: 'The taxi and approach patterns',
-      icon: 'M3.2 14.2h5.4a3 3 0 0 0 3-3V6.4a2.6 2.6 0 0 1 2.6-2.6H15|M3.2 14.2a1 1 0 1 0 0-.1|M8.6 14.2a1 1 0 1 0 0-.1|M15 3.8a1 1 0 1 0 0-.1' },
-    // G194: THE ENGINES — a lever and a switch per engine over the pilot's one
-    // throttle. A two-blade prop glyph.
-    { k: 'engines', label: 'engines', title: 'What each engine is doing',
-      icon: 'M9 9.2a1.4 1.4 0 1 0 0-2.8 1.4 1.4 0 0 0 0 2.8Z|M9 6.4C9 3.6 10.6 2.4 12.2 2.4c1.8 0 2 1.4 1 2.6L9 7.8|M9 9.2c0 2.8-1.6 4-3.2 4-1.8 0-2-1.4-1-2.6L9 7.8' },
-    // G200: THE CONTROLS — who is flying, and with what. A stick on its box.
-    { k: 'controls', label: 'controls', title: 'Who is flying, and with what',
-      icon: 'M9 10.6V4.2|M9 4.2a1.3 1.3 0 1 0 0-.1|M5 15.4h8a1.4 1.4 0 0 0 1.4-1.4V12a1.4 1.4 0 0 0-1.4-1.4H5A1.4 1.4 0 0 0 3.6 12v2a1.4 1.4 0 0 0 1.4 1.4Z' },
-    // G286: GRAPHICS - the menu a PC game has: a preset and six named
-    // options over handles the world publishes, saved and applied at boot.
-    // The panel is gfx_settings.js's; both rails host it. A sliders glyph. (GFX)
-    // 2026-09-20: THE CLOUDS - the decks, the veil, the look and the cost, in one flyout (clouds_ui.js).
-    // A cloud glyph.
-    // 2026-09-20 (G436.12): THE NIGHT on this rail too - the same item the shed has (the day
-    // panel over the lights), so the two rails converge: the day, the aeroplane's own switches
-    // from the rail (a hand on the panel without the seat), the world's light sources.
-    { k: 'night', label: 'night', title: 'The day, and the lights',
-      icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z' },
-    { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look',
-      icon: 'M5.4 13.6h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z' },
-    // CLIMATE K2: THE WEATHER - the wind and its direction, the air, the shape
-    // of the column, a front on the clock (weather_ui.js, on both rails). A
-    // windsock glyph: a mast and a cone streaming off it.
-    { k: 'weather', label: 'weather', title: 'The wind, the air, the front',
-      icon: 'M4 3v12|M4 5.2h9l-1.6 2.2 1.6 2.2H4' },
+    { k: 'fly', label: 'fly', head: 'The flight', title: 'The flight: the route, the start, the patterns, the engines, who flies',
+      icon: 'M9 2.4v13.2|M2.4 9.6 9 7.4l6.6 2.2|M6.2 15.4 9 14.4l2.8 1', secs: ['route', 'start', 'patterns', 'engines', 'controls'] },
+    { k: 'view', label: 'view', head: 'Looking', title: 'Looking: the camera, the instruments, the map, the trace, the screen',
+      icon: 'M1.6 9S4.4 4.2 9 4.2 16.4 9 16.4 9 13.6 13.8 9 13.8 1.6 9 1.6 9Z|M9 11.1a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z', secs: ['camera', 'instruments', 'map', 'trace', 'screen'] },
+    { k: 'sky', label: 'sky & world', head: 'The sky and the world', title: 'The day and the night, the weather and the clouds, the ground',
+      icon: 'M5.4 12.2h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z|M2.6 15.2h12.8', secs: ['night', 'weather', 'clouds', 'ground'] },
+    // G286: GRAPHICS - the menu a PC game has (gfx_settings.js's, both rails host it); G760: in its seven groups
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
-      icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
-    // G387: WORLD - the premises editor (PREMISES-EDITOR-2026-09-13.md), the bench's own module
-    // over the flight scene: the sim paused, the host's camera, every edit recomposed live. A
-    // developer's tool designed to become the player's (ISLAND-ADMIRALTY §9). A map pin glyph.
-    // 2026-09-21 (L6, BIOMES-IN-GAME-2026-09-20.md): THE GROUND - what is under you, live: the
-    // terrain type and the biome it names, the canopy, the slope, the cover ring's count. The
-    // in-game readout of the biomes, not a dial (F8 has the dials). A tuft glyph.
-    { k: 'ground', label: 'ground', title: 'What is under you: the ground, the biome, the canopy',
-      icon: 'M9 15.4V8.2|M9 8.2C9 5.6 7 4.2 5 4.6c.4 2.6 2 4 4 3.6Z|M9 10.4c0-2.6 2-4 4-3.6-.4 2.6-2 4-4 3.6Z|M3.6 15.4h10.8' },
-    // (2026-09-24) the WORLD button moved to the right-hand WORLD rail (world_rail.js > scenery): the left rail
-    // flies, the right one edits the world. Its flyout (FL_SLOTS.world) stays for the rail's callers.
+      icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1', secs: [] },
+    { k: 'dev', label: 'dev', dev: true, head: 'The developer’s tools', title: 'The developer’s tools: the world editor, the test mode without physics, the flight log, the overlays',
+      icon: 'M6.4 5 2.8 9l3.6 4|M11.6 5l3.6 4-3.6 4|M10.2 3.6 7.8 14.4', secs: ['scenery', 'world', 'log', 'overlays'] },
   ];
+  // THE SECTIONS - the old rail's items (their k / label / title kept as they were) and the four G760 added.
+  // `head` is the fold's own name where the item's one word no longer says it; `sub` the line under it.
+  const FL_SECS = [
+    { k: 'route', label: 'route', title: 'Where it goes', head: 'route & circuit', sub: 'the departure, the destination or the circuit' },
+    // 2026-09-04: WHERE THE FLIGHT STARTS - the stand and a taxi out (G151), or lined up on the strip
+    { k: 'start', label: 'start', title: 'Where the flight starts', sub: 'from the stand, or lined up' },
+    // G193: THE PATTERNS - the taxi graph, the glide slopes and the two touchdown targets
+    { k: 'patterns', label: 'patterns', title: 'The taxi and approach patterns', sub: 'the taxi graph, the slopes, the targets' },
+    // G194: THE ENGINES - a lever and a switch per engine over the pilot's one throttle
+    { k: 'engines', label: 'engines', title: 'What each engine is doing', sub: 'a lever per engine over the pilot’s throttle' },
+    // G200: THE CONTROLS - who is flying, and with what
+    { k: 'controls', label: 'controls', title: 'Who is flying, and with what', sub: 'the pilot, the clock, the mapping' },
+    { k: 'camera', label: 'camera', title: 'How the flight is framed', sub: 'the framing, the field of view, the smoothing' },
+    { k: 'instruments', label: 'instruments', title: 'What the PFD carries', sub: 'the readouts on the PFD' },
+    { k: 'map', label: 'map', title: 'Where the aeroplane is', sub: 'the minimap' },
+    { k: 'trace', label: 'trace', title: 'What the flight has done so far', sub: 'the lanes over one clock' },
+    // G760: THE SCREEN - the interface's own options: the frame rate, the G620 fps meter, the interface off
+    { k: 'screen', label: 'screen', title: 'The interface: the frame rate, the fps meter, the screenshot', sub: 'the frame rate, the fps meter, the interface off' },
+    // 2026-09-20 (G436.12): THE NIGHT - the day panel over the lights, as the shed's `night`
+    { k: 'night', label: 'night', title: 'The day, and the lights', head: 'time & night', sub: 'the day, the hour, the lights' },
+    // CLIMATE K2: THE WEATHER - the wind and its direction, the air, the front (weather_ui.js, both rails);
+    // G760: the air's live readouts (the old `air` item) head it: what that weather does to the aeroplane now
+    { k: 'weather', label: 'weather', title: 'The wind, the air, the front', sub: 'the air now, the wind, the front' },
+    { k: 'air', label: 'air', title: 'The air it is flying in', in: 'weather' },
+    // 2026-09-20: THE CLOUDS - the decks, the veil, the look and the cost (clouds_ui.js)
+    { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look', sub: 'the decks, the veil, the look' },
+    // L6: THE GROUND - what is under you, live; G760: and the map the game boots on (GFX.mountWorld)
+    { k: 'ground', label: 'ground', title: 'What is under you: the ground, the biome, the canopy', head: 'ground & map', sub: 'what is under you, the map' },
+    // G760: THE TEST MODE WITHOUT PHYSICS - the scenery mode (SCENERY below, ?scenery=1), entered and left here
+    { k: 'scenery', label: 'test mode', title: 'The world without the physics', head: 'test mode · no physics', sub: 'the flight held, the free camera' },
+    // G387: WORLD - the premises editor; G760: moved here from the WORLD rail's SCENERY (the user: "the world
+    // editor does not belong there"), with the WORLD rail's own switch (F9)
+    { k: 'world', label: 'world', title: 'The world editor', head: 'world editor', sub: 'the scenery editor, the WORLD rail (F9)' },
+    // G620: THE FLIGHT LOG - the recording's state, save log, the previous session
+    { k: 'log', label: 'flight log', title: 'The flight recorder', head: 'flight log', sub: 'save this session, or the one before' },
+    { k: 'overlays', label: 'overlays', title: 'What is drawn over the aeroplane and the screen for a developer', sub: 'the covering, the F8 panel' },
+  ];
+  const FL_RAIL_BY = {}, FL_SEC_BY = {}, FL_HOME = {};
+  for (const r of FL_RAIL) { FL_RAIL_BY[r.k] = r; for (const s of r.secs) FL_HOME[s] = r.k; }
+  for (const s of FL_SECS) { FL_SEC_BY[s.k] = s; if (s.in) FL_HOME[s.k] = FL_HOME[s.in]; }
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
     pilot: { title: 'Who flies it' },
@@ -154591,7 +154838,38 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     let sum = 0; for (const x of h) sum += x;
     return (h.length * 1000 / sum).toFixed(0) + ' fps';
   }
-  window.flRefreshLook = () => { if (flyOpen === 'camera') flyOpenSet('camera'); };   // G441: the head-look pills follow the lock
+  // G760: THE FOLDS. flydiy.flSec is what the player folded and unfolded (a key absent = the default: the
+  // first section of each item open), READ THROUGH on every build because the shed's rail writes the same
+  // pref (the graphics groups, the day, the clouds: one fold, both rails); flShown the sections BUILT in the
+  // open flyout - the live rows tick on it (a folded section has no rows to write); flCensus, set only by
+  // FLYDIY_RAIL.census (GATE UISMOKE), opens every fold without saving and records each row, pill and section.
+  const FL_SEC_FIRST = { route: 1, camera: 1, night: 1, 'gfx.perf': 1, scenery: 1 };
+  // (flSecLive: this page's own copy under the stored one - a browser that keeps nothing still folds)
+  const flSecLive = {};
+  const flSecAll = () => Object.assign({}, flSecLive, flPref('Sec', {}));
+  const flSecIsOpen = key => { const o = flSecAll(); return (key in o) ? !!o[key] : !!FL_SEC_FIRST[key]; };
+  const flSecSet = (key, on) => { const o = flSecAll(); o[key] = flSecLive[key] = !!on; flSave('Sec', o); };
+  const flShown = new Set();
+  let flCensus = null;
+  window.flRefreshLook = () => { if (flShown.has('camera')) flyOpenSet(flyOpen); };   // G441: the head-look pills follow the lock
+  // G760: DEV, behind a visible toggle - the rail's last button, a small one, says so; remembered (flydiy.flDev)
+  let flDevOn = prefGet('flydiy.flDev', '') === '1';
+  function flRailSync() {
+    const scen = !!(window.SCENERY && window.SCENERY.on);
+    for (const b of $('flRail').children) {
+      if (b.dataset.f === 'dev') b.hidden = !(flDevOn || scen);
+      if (b.dataset.dev === 'toggle') {
+        b.classList.toggle('on', flDevOn);
+        b.textContent = flDevOn ? 'hide dev' : 'dev ›';
+        b.title = flDevOn ? 'Hide the developer’s tools from the rail' : 'Show the developer’s tools on the rail: the world editor, the test mode without physics, the flight log';
+      }
+    }
+    if (flyOpen === 'dev' && !(flDevOn || scen)) flyOpenSet(null);
+  }
+  function flDevSet(on) {
+    flDevOn = !!on; prefSet('flydiy.flDev', flDevOn ? '1' : '0');
+    flRailSync();
+  }
   { const r = $('flRail');
     for (const t of FL_RAIL) {
       const b = document.createElement('button');
@@ -154606,6 +154884,13 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       b.onclick = () => flyOpenSet(flyOpen === t.k ? null : t.k);
       r.appendChild(b);
     }
+    const d = document.createElement('button');
+    d.className = 'flRailBtn flRailDev';
+    d.dataset.dev = 'toggle';
+    d.type = 'button';
+    d.onclick = () => { flDevSet(!flDevOn); if (flDevOn) flyOpenSet('dev'); };
+    r.appendChild(d);
+    flRailSync();
   }
   for (const b of document.querySelectorAll('#flSlots .flSlot'))
     b.onclick = () => flyOpenSet(flyOpen === b.dataset.s ? null : b.dataset.s);
@@ -154642,6 +154927,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const k = document.createElement('span');
     k.className = 'k'; k.textContent = label; k.title = label;
     r.appendChild(k); host.appendChild(r);
+    if (flCensus) flCensus.rows.push(label);   // G760
     return r;
   };
   const flToggle = (host, label, get, set, offTxt, onTxt) => {
@@ -154678,6 +154964,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   const flPills = (host, list, isOn, pick) => {
     const w = document.createElement('div');
     w.className = 'fpills';
+    if (flCensus) for (const o of list) flCensus.pills.push(o.label);   // G760
     for (const o of list) {
       const b = document.createElement('button');
       b.className = 'pill' + (isOn(o) ? ' on' : '');
@@ -154705,6 +154992,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const n = document.createElement('div');
     n.className = 'fnote'; n.textContent = txt;
     host.appendChild(n);
+    return n;
   };
   // a select's options, as the pill list they describe
   const flOpts = sel => Array.from(sel.options).map(o => ({
@@ -154723,8 +155011,21 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   function flyOpenSet(k) {
     const fly = $('flFly'), body = $('flFlyBody'), head = $('flFlyHead');
     if (!fly) return;
+    // G760: an OLD ITEM'S NAME opens the item that holds it now, with its section unfolded (and kept so)
+    // and scrolled to (the day panel's door to the clouds lands ON the clouds, not three folds above them)
+    let focus = null;
+    if (k && !FL_RAIL_BY[k] && !FL_SLOTS[k] && FL_HOME[k]) {
+      focus = FL_SEC_BY[k] && FL_SEC_BY[k].in ? FL_SEC_BY[k].in : k;
+      if (!flSecIsOpen(focus)) flSecSet(focus, true);
+      k = FL_HOME[k];
+    }
+    if (k === 'dev' && !flDevOn && !flCensus && !(window.SCENERY && window.SCENERY.on)) flDevSet(true);   // asked for by name: shown (a census asks nothing)
+    // a rebuild of the same flyout (a pick, a fold) keeps its scroll: a fold near the bottom of GRAPHICS
+    // must not throw the player back to the top
+    const keep = (k && k === flyOpen && fly.scrollTop) || 0;
     flReturn();
     while (body.firstChild) body.removeChild(body.firstChild);
+    flShown.clear();
     flyOpen = k;
     for (const b of $('flRail').children)
       b.classList.toggle('on', b.dataset.f === k);
@@ -154732,11 +155033,71 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       b.classList.toggle('on', b.dataset.s === k);
     if (!k) { fly.hidden = true; return; }
     fly.hidden = false;
-    const rail = FL_RAIL.filter(x => x.k === k)[0];
-    head.textContent = (rail || FL_SLOTS[k] || {}).title || k;
-    (rail ? FL_BUILD[k] : FL_BUILD['slot_' + k])(body);
+    const rail = FL_RAIL_BY[k];
+    head.textContent = rail ? (rail.head || rail.title) : (FL_SLOTS[k] || {}).title || k;
+    if (rail) flBuildRail(rail, body); else FL_BUILD['slot_' + k](body);
     flPlaceFly(k);
+    const fh = focus && body.querySelector ? body.querySelector('.rsecHead[data-sec="' + focus + '"]') : null;
+    if (fh && fh.offsetTop > 0) fly.scrollTop = Math.max(0, fh.offsetTop - 44);
+    else if (keep) fly.scrollTop = keep;
   }
+  // G760: A FOLD. The head is a button (the title, the line under it, a caret the sheet turns); a click flips
+  // it, remembers it and rebuilds the flyout in place. Folded, the section's builder never runs.
+  function flSection(host, key, title, sub) {
+    const open = flCensus ? true : flSecIsOpen(key);
+    const box = document.createElement('div');
+    box.className = 'rsec' + (open ? ' open' : '');
+    const h = document.createElement('button');
+    h.type = 'button'; h.className = 'rsecHead'; h.dataset.sec = key;
+    h.title = open ? 'Fold ' + title : 'Unfold ' + title;
+    const t = document.createElement('span'); t.className = 'rsecT'; t.textContent = title; h.appendChild(t);
+    if (sub) { const u = document.createElement('span'); u.className = 'rsecS'; u.textContent = sub; h.appendChild(u); }
+    h.onclick = () => { flSecSet(key, !open); flyOpenSet(flyOpen); };
+    box.appendChild(h); host.appendChild(box);
+    if (flCensus) flCensus.sections.push(key);
+    if (!open) return null;
+    const b = document.createElement('div');
+    b.className = 'rsecBody';
+    box.appendChild(b);
+    flShown.add(key);
+    return b;
+  }
+  function flBuildRail(rail, body) {
+    if (rail.k === 'graphics') { FL_BUILD.graphics(body); return; }
+    for (const s of rail.secs) {
+      const d = FL_SEC_BY[s];
+      const b = flSection(body, s, d.head || d.label, d.sub);
+      if (!b) continue;
+      try { (FL_SEC_BUILD[s] || FL_BUILD[s])(b); }
+      catch (e) {
+        flNote(b, 'This section failed to build: ' + (e && e.message));
+        if (flCensus) flCensus.errors.push(s + ': ' + (e && e.message)); else console.error(e);
+      }
+    }
+  }
+  // what a section mounts when it is more than its old item's builder
+  const FL_SEC_BUILD = {
+    route: b => FL_BUILD.slot_route(b),
+    weather: b => { FL_BUILD.air(b); FL_BUILD.weather(b); },
+  };
+  // THE RAIL, for the gates and the rigs: the items and their sections, where an old item lives, open(k) (an
+  // item, a section or an old item's name), and census(k) - the item built with every fold open, its rows,
+  // pills and sections listed, nothing saved (GATE UISMOKE walks every item with it)
+  window.FLYDIY_RAIL = {
+    items: () => FL_RAIL.map(r => ({ k: r.k, label: r.label, dev: !!r.dev, secs: r.secs.slice() })),
+    home: k => FL_HOME[k] || null,
+    open: k => flyOpenSet(k),
+    current: () => flyOpen,
+    shown: () => [...flShown],
+    dev: on => { if (on !== undefined) flDevSet(on); return flDevOn; },
+    census(k) {
+      const was = flyOpen;
+      flCensus = { rows: [], pills: [], sections: [], errors: [] };
+      const c = flCensus;
+      try { flyOpenSet(k); } finally { flCensus = null; flyOpenSet(was); }
+      return c;
+    },
+  };
   // ...and then it is measured and clamped to the free estate, exactly as
   // the editor's is. The anchor is the button's own box; the layer is the
   // whole window, because the flight view has no panels insetting it.
@@ -154872,14 +155233,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       flRange(body, 'lead the turn', 0, 1, 0.05, () => cam.lead,
               v => { cam.lead = v; flSave('Cam', cam); },
               v => v.toFixed(2));
-      // THE COVERING. #bSkin left the HUD and landed here: what the aeroplane
-      // is DRAWN AS is a looking question, and this is where looking lives.
-      // The button still owns the cycle and the label — these press it.
-      const sk = $('bSkin');
-      if (sk && sk.style.display !== 'none') {
-        flPills(body, SKIN_NAMES.map((n, i) => ({ label: n, value: i })),
-                o => o.value === skinMode, o => setSkinMode(o.value));
-      }
+      // THE COVERING (#bSkin's cycle) moved to DEV > overlays (G760): flex, frame and overlay are a
+      // developer's views of the structure, and `covered` is what every flight draws
       // THE SMOOTHING (G144.2, the user: "does it also apply to the flight
       // screen? If so, we should have the option there too"). It does — the
       // resolve pass wraps the game's single default-framebuffer render, so
@@ -154898,9 +155253,19 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       }
       flNote(body, 'Cockpit is the pilot eye the editor already flies — one ' +
                    'control, both screens.');
+    },
+    // G760: THE SCREEN - the interface's own options: the frame rate (G441, live while the section is open;
+    // it rode GRAPHICS), the fps meter (G620, flight_recorder.js) and the render alone (G255: it rode `camera`)
+    screen(body) {
+      flLive(body, 'frame rate', 'flFps');
+      if (window.FLIGHT_REC && window.FLIGHT_REC.mountMeter)
+        window.FLIGHT_REC.mountMeter(body, { row: flRow, pills: flPills, note: flNote, refresh: () => flyOpenSet(flyOpen) });
+      flRow(body, 'the interface');
       // G255: the render alone — see shotSet
       flPills(body, [{ label: 'screenshot', value: 'shot' }], () => false,
               () => shotSet(true));
+      flNote(body, 'Screenshot hides every panel (Esc brings them back). The meter sits top right and takes no ' +
+                   'clicks but its yellow dot, a mark in the flight log. The units are the metric ones throughout.');
     },
     instruments(body) {
       flToggle(body, 'small', () => panels.pfdSmall, v => flPfdSmall(v));
@@ -154967,14 +155332,14 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     },
     // G387: WORLD - the premises editor over the flight scene
     world(body) {
-      // THE MAP (G434.3): the same pills as the GRAPHICS menu's, here on the WORLD flyout where a player looks for them
-      if (Array.isArray(window.FLYDIY_WORLDS) && window.FLYDIY_WORLDS.length) {
-        const cur = window.FLYDIY_WORLD || 'none';
-        flRow(body, 'map');
-        flPills(body, window.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id })), o => o.value === cur,
-          o => { if (o.value === cur) return; try { localStorage.setItem('flydiy.world', o.value); } catch (e) {} location.reload(); });
-        flNote(body, 'Picking a map reloads the page; each map keeps its own saved premises.');
-      }
+      // THE MAP (G434.3) is SKY & WORLD > ground & map's since G760 (GFX.mountWorld), where the player looks for it
+      // THE WORLD RAIL (G582, F9): the world's art - layers, ground sets, recolours, filtering, biomes, cliffs
+      const WR = window.WORLD_RAIL, wrEl = document.getElementById('wrRail');
+      const wrOn = !!(wrEl && wrEl.style.display !== 'none');
+      flRow(body, 'the WORLD rail');
+      if (WR) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
+                      () => wrOn, () => WR.show(!wrOn));
+      else flNote(body, 'This build has no WORLD rail (the world pack did not load).');
       if (!window.PREMISES_UI || !window.PREMISES_HOST || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
       const rec = world.premises.rec;
       flNote(body, rec ? 'A premises is composed into this world: ' + (rec.name || rec.id || 'unnamed') + '.' : 'No premises in this world yet.');
@@ -155020,8 +155385,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     },
     // L6: THE GROUND - live rows, filled by flGroundLive on the tick
     ground(body) {
+      // G760: THE MAP the game boots on (the GRAPHICS menu's world row until now) closes this section
+      const map = () => { if (window.GFX && window.GFX.mountWorld) window.GFX.mountWorld(body, { row: flRow, pills: flPills, note: flNote }); };
       const TF = window.TREE_FILL;
-      if (!TF || !TF.at || !TF.onIsland || !TF.onIsland()) { flNote(body, 'No island under this world: the analytic ground has no terrain types.'); return; }
+      if (!TF || !TF.at || !TF.onIsland || !TF.onIsland()) { flNote(body, 'No island under this world: the analytic ground has no terrain types.'); map(); return; }
       flLive(body, 'ground', 'flGndCode');
       flLive(body, 'biome', 'flGndMix');
       flLive(body, 'canopy', 'flGndCanopy');
@@ -155031,6 +155398,48 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       flLive(body, 'cover', 'flGndRing');
       flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. The WORLD rail (F9, the right edge) holds the dials.');
       flGroundLive(sim ? sim.out : null);
+      map();
+    },
+    // G760: THE TEST MODE WITHOUT PHYSICS - the scenery mode (SCENERY, ?scenery=1): the solver held (no step,
+    // no pilot, no director), the aeroplane off the stage, the free camera over the stand, the WORLD rail open
+    scenery(body) {
+      const SC = window.SCENERY;
+      if (!SC) { flNote(body, 'This build has no test mode.'); return; }
+      flRow(body, 'physics').appendChild(Object.assign(document.createElement('span'),
+        { className: 'v', textContent: SC.on ? 'held: the test mode is on' : 'running: the flight' }));
+      flPills(body, [{ label: SC.on ? 'leave the test mode' : 'enter the test mode', value: 1,
+                       title: SC.on ? 'back to the flight: the aeroplane on the stage, the chase camera' : 'hold the physics and look at the world with the free camera' }],
+              () => SC.on, () => { if (SC.on) SC.leave(); else SC.enter(); });
+      const D = window.DEV_CAM;
+      if (SC.on && D) flRange(body, 'camera speed', 1, 400, 1, () => D.speed, v => { D.speed = v; }, v => v.toFixed(0) + ' m/s');
+      flNote(body, 'The world without the flight: the solver held, the aeroplane off the stage, the free camera ' +
+                   '(WASD/ZQSD, R/F up and down, Shift x5, the wheel for speed, drag to look) and the WORLD rail ' +
+                   'open. Leaving it puts the aeroplane back where it stood. ?scenery=1 in the address starts the ' +
+                   'game in it.');
+    },
+    // G760: THE FLIGHT LOG (G620) - the recording's state, `save log`, `previous session`
+    log(body) {
+      if (!window.FLIGHT_REC || !window.FLIGHT_REC.mountLog) { flNote(body, 'This build has no flight recorder.'); return; }
+      window.FLIGHT_REC.mountLog(body, { row: flRow, pills: flPills, note: flNote, refresh: () => flyOpenSet(flyOpen) });
+      flNote(body, 'Always recording. After a freeze you had to kill, reload and take the previous session. ' +
+                   'node tools/analyze_log.js reads the file.');
+    },
+    // G760: THE OVERLAYS - the covering (#bSkin's cycle, from `camera`) and the F8 developer panel
+    overlays(body) {
+      // THE COVERING. #bSkin left the HUD and landed on the rail: the button still owns the cycle and the
+      // label - these press it
+      const sk = $('bSkin');
+      if (sk && sk.style.display !== 'none') {
+        flRow(body, 'the covering');
+        flPills(body, SKIN_NAMES.map((n, i) => ({ label: n, value: i })),
+                o => o.value === skinMode, o => setSkinMode(o.value));
+      }
+      flRow(body, 'the F8 panel');
+      if (window.DEV_PANEL) flPills(body, [{ label: 'open / close (F8)', value: 1, title: 'every dial the world publishes, nothing saved' }],
+                                    () => false, () => window.DEV_PANEL.toggle());
+      else flNote(body, 'The F8 panel comes with the world pack.');
+      flNote(body, 'Covered is what every flight draws; flex x4, the frame and the overlay show the structure ' +
+                   'under it. The patterns on the ground are FLY\u2019s; the fps meter is VIEW\u2019s.');
     },
     clouds(body) {
       if (!window.CLOUDS_UI) { flNote(body, 'This build has no cloud panel.'); return; }
@@ -155044,11 +155453,12 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // G286: GRAPHICS - the settings menu, in this rail's own rows and pills (GFX)
     graphics(body) {
       if (!window.GFX) { flNote(body, 'This build has no graphics settings.'); return; }
-      flLive(body, 'frame rate', 'flFps');   // G441: live while this flyout is open
+      // G760: the frame rate row went to VIEW > screen; the menu is its seven folds (GFX.GROUPS)
       window.GFX.mount(body, {
         row: (h, label) => flRow(h, label),
         pills: (h, list, isOn, pick) => flPills(h, list, isOn, pick),
-        note: (h, txt) => { flNote(h, txt); return h.lastChild; },
+        note: (h, txt) => flNote(h, txt),
+        section: (h, key, title, sub) => flSection(h, key, title, sub),
       });
     },
     engines(body) {
@@ -155127,7 +155537,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       // THE TIME OF DAY is a live readout here (the control is the brief's `day` slot):
       // which day it is, is the brief's; this is what it does to the aeroplane
       flLive(body, 'time of day', 'flAirTime');
-      flAirLive(sim.out);
+      if (sim) flAirLive(sim.out);
       flNote(body, 'Which day it is, is the brief’s. This is what that ' +
                    'day is doing to the aeroplane right now.');
     },
@@ -155165,7 +155575,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   if ($('pfdFold')) $('pfdFold').onclick = e => {
     e.stopPropagation();
     flPfdSmall(!panels.pfdSmall);
-    if (flyOpen === 'instruments') flyOpenSet('instruments');
+    if (flShown.has('instruments')) flyOpenSet(flyOpen);
   };
   // WHAT STILL HAS TO BE MEASURED (the flight rebaseline, re-cut when the PFD
   // moved to the top row). The design's fixed numbers are drawn against one
@@ -156009,7 +156419,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   $('c').addEventListener('pointerdown', () => {
     if (!inGarage && cam.mode !== 'orbit' && cam.mode !== 'cockpit' && cam.mode !== 'free') {  // DEVCAM
       flCamMode('orbit');
-      if (flyOpen === 'camera') flyOpenSet('camera');
+      if (flShown.has('camera')) flyOpenSet(flyOpen);
     }
   });
 
@@ -157236,6 +157646,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         const cg = sim.cgPos();
         devCam.pos.set(cg[0], cg[1] + 60, cg[2] + 40); devCam.pitch = -0.45; devCam.yaw = Math.PI; devCam.speed = 40;
         if (window.WORLD_RAIL) window.WORLD_RAIL.open();
+        flRailSync(); if (flyOpen) flyOpenSet(flyOpen);   // G760: DEV shows itself (its way out), the open flyout says so
       };
       if (inGarage) rollOut(go); else go();
     },
@@ -157245,6 +157656,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       if (craft && !craft.parent) scene.add(craft);
       document.body.classList.remove('sceneryMode');
       flCamMode('chase');
+      flRailSync(); if (flyOpen) flyOpenSet(flyOpen);
     } };
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   BOOT.run(bootSteps, { set: 'garage', landingLabel: 'the last pieces landing',
