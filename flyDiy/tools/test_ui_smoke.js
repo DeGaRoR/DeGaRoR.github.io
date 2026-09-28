@@ -382,7 +382,7 @@ try {
   }
   // ---- THE HONEST READINGS (G700, the Jolene playtest) ----
   // AGL: the wheels over the ground under them, 0 standing (the PFD read cg - ap.refAlt: -2..-4 m on the
-  // runway, -235 m at the altiport); lifted 40 m it reads 40. IAS: an ASI's floor - 0 below ~35 km/h.
+  // runway, -235 m at the altiport); lifted 40 m it reads 40. IAS: an ASI's floor - below ~35 km/h the readout is the ground speed (G1016).
   // FLY ON: after a stop at the destination the next leg flies from where the aeroplane stands (it was a
   // fullReset back onto the departure stand).
   {
@@ -397,7 +397,9 @@ try {
     if (!(Math.abs(a1 - 40 - a0) < 0.05)) throw new Error(`AGL 40 m up reads ${a1.toFixed(2)} m`);
     const raw = ((sim.out.Veas ?? sim.out.V) || 0) * 3.6;
     const shown = els['r-ias'].textContent;
-    if (raw < 25 && shown !== '0') throw new Error(`the IAS reads ${shown} at ${raw.toFixed(1)} km/h (the ASI's floor is 35)`);
+    // G1016: under the ASI's floor the readout is the GROUND speed (labelled gs): the taxi read 0 while it rolled
+    const gsK = ((sim.out.Vg) || 0) * 3.6;
+    if (raw < 25 && Math.abs(+shown - gsK) > 1) throw new Error(`under the ASI's floor the readout shows ${shown}, not the ground speed ${gsK.toFixed(1)} km/h (G1016)`);
     // FLY ON: an arrival (the pilot STOPPED where it said), the aeroplane 100 m from the stand
     const apOld = P.ap();
     for (let i = 0; i < n; i++) sim.p[i * 3] -= 100;
