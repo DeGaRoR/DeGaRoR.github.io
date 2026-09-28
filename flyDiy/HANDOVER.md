@@ -63192,3 +63192,113 @@ one): medians old/new 2.47/2.09 (first, warming), 1.81/1.83, 1.82/1.81, 1.81/1.8
 (< 0.02 ms). References: an empty render 0.59 ms, the pavement layer 1.61 ms (so the pavement ~1.0 ms here), the full
 main pass 8.76 ms. The in-page rig: capture the main pass's scene/camera off WORLD.renderer.render, time
 renderer.render with a TIME_ELAPSED query, swap programs by wrapping each pavement material's onBeforeCompile + key.
+
+## G920-G924 - AS4a-EARLY: MATLIB, ONE MATERIAL PER RECORD; THE STRIP STONES AS BATCHES; TAXI MAIN DRAWS 1097 -> 982 (2026-09-28, AS4a's array-free part, a cloud session, node only)
+
+WHY NOW (the user, 2026-09-28): the Jolene taxi's main thread is ~22 ms a frame, ~12.6 of it three's per-draw path
+(~1 100 main draws, ~400 shadow, the uniform uploads) - a steady 30 fps where 50+ was wanted. Fewer materials, programs
+and draws are the lever; GATE FRAMECOST counts them. The ARRAY-FREE part of AS4a (futureDesigns/ASSETS-2026-09-27.md
+§5.1, §5.3 M1-M3, M6): texture arrays arrive with AS3. The aeroplane (C4a) and the pavement (AS4b) untouched.
+
+G920 THE LIBRARY - src/viewer/matlib.js (new, window.MATLIB, loaded right after assets.js). The ONLY constructor site
+for the migrated families: `make(THREE, shape, params)` over the shapes std / cut / glass / glow / basic / shader / depth;
+`shared(THREE, shape, params, scope)` - ONE material per distinct (shape, params, scope), the signature exact (numbers
+at full precision, colours by their float channels, textures by identity), so a shared material is by construction what
+each asker would have made; `variant(THREE, m, 'inst'|'skin'|'batch')` - the same record's sibling for another draw
+kind (three re-derives a material's program parameters at every switch between a plain and an instanced / skinned /
+batched object in the sorted list - the siblings keep each kind on its own object); `each(m, fn)` (a value set on a
+record reaches its siblings); `users` / `release` (the last user disposes); THE PARAMS TABLE: every distinct record a
+ROW (`row`, `rowOf`), `table()` the rows as 16 floats (colour, opacity, roughness, metalness, normal scale, cutoff,
+emissive, intensities, flags) - house_tarr.js's slot table generalised, for AS3's array shapes to index (no consumer
+yet: today it is the census, `stats()`); `MATLIB.share = false` / `?matlib=0` the A/B (every ask fresh, as before).
+GATE ASSETS' ALLOW.mats: 176 sites in 39 files -> 169 in 34 (props, animals, trees, cliffs, the cover ring, the prop
+disc and the contact blobs - the two admitted exceptions - moved in; render_world 19 -> 18).
+M1 PROPS / PIER / TOTEMS / ANIMALS (props.js propMaterial -> MATLIB.shared): the registry's 832 part materials are 275
+records (a prop's cut levels wear the full prop's records). Scoped where a caller changes a record on its own: a
+GLOWING record is shared only by its key and its levels (propSetGlowOf dims a fixture per key), a DUSTED key keeps its
+own (propDust after the build takes private copies first). THE DRAW LIST (propDraws): a prop's opaque unlit parts that
+wear one record are ONE geometry (35 merges over the registry; `geos`/`mats` stay per part for the cage's baked pieces,
+parked.js and the cabin, which read them by index; placements, PROP_INST and scenery_life's batches draw
+`dgeos`/`dmats`). The instancers (PROP_INST, scenery_life) wear the record's 'inst' sibling, the animals' skinned meshes
+its 'skin' one. MERGE PER CELL / INSTANCE, MEASURED FIRST: at the taxi the props are ~170 main draws of ONE placement
+each (car_buick_l3 alone 58: 29 parts, 24 distinct records even without the colour) - nothing repeats in view to
+instance, and a cross-record merge needs the params table read per vertex (the array shapes): AS3/AS4a-late.
+G921 M2 THE TREES (trees.js treeBuild): a part's material is its map, its cutout and its collection's tint row -
+nothing of the subject, series or rung - so it is MATLIB's record scoped to the collection (the tint and the cutoff are
+the collection's uniforms); the cover ring's kinds (cover, shrub, debris, rock), which the ring dresses in place, keep
+one per series and rung as well. The pack: 316 part materials -> 92. The fill's band clones (render_world ladderFor)
+are made once per (material, rung) per planting (`memo`), not per subject and series; each planting keeps its own memo
+(each disposes what it made). NOT DONE - THE TINT AS AN INSTANCE ATTRIBUTE, BECAUSE IT HAS NOTHING TO TAKE HERE: the census counts the world scene's
+tree materials (userData.uLeaf) by uuid, by signature and by MAP alone (what a per-instance tint would leave) - base
+11 / 5 / 5, this branch 6 / 5 / 5 (Cub; drawn at the taxi 3 -> 1); the signature count already equals the map count.
+It would let two species of
+one file (various_forest_assets_pack.glb: 11 species; simple_grass_chunks.glb: 4) share a material, but the fill's
+InstancedMeshes share their rung's GEOMETRY (the attribute needs a per-mesh geometry wrapper over the same buffers) and
+its program is what B1-LAG's prelink stand-ins mirror (instanceColor included). PROGRAM KEYS UNCHANGED: hookLeaf and
+bandMat are the same hooks, no customProgramCacheKey moved, the fill's instanceColor untouched - B1-LAG's stand-ins
+stay valid.
+G922 M6 THE KEYS: hangar.js macroise -> 'site-macro', site_ground.js siteEdgeFade -> 'site-fade' (uniform values out of
+the program keys; onBeforeCompile runs per material and hands each its own uMacroK / uMacroA / uFadeK, the program is
+shared). GATE MATLIB check 4: two fades of different softness link ONE program, each drawn with its own uFadeK. In the
+FRAMECOST boot the programs total is unchanged (265 / 250): the garage's outdoor field is not built there and the site
+fade has one caller at one softness - the saving is for the configurations that do build both.
+G923 M3 THE STRIP STONES AND THE CLIFFS (render_world standRocks / rockPartsOf, cliffs.js): one MATLIB record per MAP
+(19 part materials -> 7; the cliffs ask the same record), and a cell's stones are THREE.BatchedMesh per (map, casts)
+(G585's pattern: per-stone culling each camera, sortObjects off) where each part x size class was an InstancedMesh -
+the same cells, LOD distances, matrices and caster flags. `?rockbatch=0` the instanced path. The repaint disposes the
+batches. On GATE MATLIB's synthetic strip: 186 meshes -> 74, 330 draws -> 53.
+G924 THE PROOF. GATE MATLIB (tools/_matlib_check.js, new, core, ~23 s): the real three over the RECORDING GL, each family
+drawn both ways (MATLIB.share false / true; the stones instanced / batched) with a tracker of every uniform value the
+program holds at each draw and the texture on each unit: (1) every one of 834 prop / pier / totem / animal parts (352
+props, 16 animal meshes) drawn with the same uniforms, textures (by the registry's id) and program key; a merged
+geometry is its parts vertex for vertex; materials 832 -> 275, draws 892 -> 810; SELF-TEST: a record's colour nudged
+1/256 turns it red; (2) every one of 316 tree parts (subject x series x rung) the same uniforms (tint, cutoff, leaf),
+map and program key, materials 316 -> 92; (3) 1 820 strip stones: every stone of the instanced path in a batch with its
+geometry, matrix (1e-5), material values and caster flag, the draws' uniforms the same bar the batching's own; (4) the
+keys; (5) the library's semantics. tools/_fake_gl.js boot() loads matlib.js with the three (GATE COVER / FADES /
+PROGRAMS build through it); _animal_check loads it before props.js.
+GATE FRAMECOST (tools/_framecost_check.js): the census now carries `detail` - per view, the last measured frame's draws
+by family (main, shadow) and the distinct materials drawn by uuid and by SIGNATURE (matSig: the type, every value three
+uploads or keys on, maps by texture, the hook uniforms in userData), and the whole world scene's; FRAMECOST_WHAT=1 adds
+the draws by name (stderr). Read off the draw list the hooks already record - no extra frame, the counts unmoved.
+ALLOW entries G923: the stone batches' texture binds and instance-list uploads (below).
+
+MEASURED - GATE FRAMECOST's census, the untouched base (origin/claude/train-12-base 962fa03) -> this branch, per frame
+(median of 12), `node tools/_framecost_check.js --json` both, `--compare tools/perf/framecost_census_as4a_before.json
+tools/perf/framecost_census_as4a_after.json`:
+| counter | Cub stand | Cub taxi | Cessna stand | Cessna taxi |
+|---|---|---|---|---|
+| draws.main | 1246.5 → 1151.5 | **1097 → 982** | 1265.5 → 1170.5 | **1084 → 969** |
+| draws.shadow | 798 → 767 | 533 → 495 | 803.5 → 772.5 | 584.5 → 546.5 |
+| programs used | 107 → 107 | 89.5 → 89.5 | 108 → 108 | 90 → 90 |
+| gl.useProgram | 345.5 → 313.5 | 234 → 203 | 355.5 → 323.5 | 244 → 213 |
+| gl.bindTexture | 1309 → 1352 | 980 → 1047.5 | 1328 → 1371 | 994.5 → 1062 |
+| gl.bindVertexArray | 2008 → 1889 | 1520.5 → 1388.5 | 2032.5 → 1913.5 | 1559.5 → 1427.5 |
+| uniform calls (all kinds) | 9690.5 → 9396.5 | 6165.5 → 5861.5 | 9850.5 → 9556.5 | 6221 → 5916.5 |
+| gl.uniformMatrix4fv | 2446 → 2266 | 2061.5 → 1867.5 | 2502 → 2322 | 2054.5 → 1860.5 |
+| gl.uniform4fv | 4564 → 4466 | 2355 → 2267 | 4624 → 4526 | 2414 → 2326 |
+| bytes.uniforms | 707 226 → 684 650 | 445 764 → 423 172 | 717 374 → 694 798 | 451 330 → 428 720 |
+| gl.texSubImage2D | 95 → 120.5 | 92.5 → 157.5 | 96 → 121.5 | 93.5 → 158.5 |
+| gl.calls | 18 269 → 17 902 | 12 490 → 12 324.5 | 18 544 → 18 177 | 12 761.5 → 12 595.5 |
+| three.frustumTests | 2543 → 2368.5 | 2197.5 → 1971 | 2544 → 2369.5 | 2413.5 → 2169 |
+| three.updateMatrix | 8323.5 → 7253.5 | 4102.5 → 3735.5 | 9682.5 → 8612.5 | 9621 → 8554 |
+Programs linked at the end 265 / 250 both; no boot step's links moved. The rises: texSubImage2D (+65 at the taxi, ~3 KB)
+and bindTexture (+67): a stone batch binds its matrix / index textures and re-uploads its visible-instance list at each
+of its draws - ALLOW-ed (G923) against the stale committed baseline. THE MATERIALS (the census's `detail`, Cub): the
+world scene 2 408 materials by uuid -> 1 998, by signature 608 -> 608 (the looks' signature unchanged); props 535 -> 138
+(= their 138 signatures), strip stones 19 -> 7; drawn at the taxi 377 -> 329 (props 89 -> 66). What is left of the gap:
+the premises (1 168 by uuid / 203 by signature: the house finishes, C3b's) and the parked aircraft (358 / 89: M5, AS4b).
+
+FOR THE COORDINATOR:
+- Do NOT take framecost_baseline.json from this branch alone (the committed one predates train 11: the gate is red on the
+  base itself - shadow draws, bindVertexArray, the garage boot rows). Re-take it on the merged train.
+- The GPU timing and the screenshots are yours on the box: the stones (batches, the same cells and distances), the props
+  (merged parts), the trees; GATE MATLIB holds the uniforms equal, not the pixels.
+- B1-LAG: the tree program keys are unchanged (hookLeaf, bandMat, the fill's instanceColor as it was); the strip stones'
+  program is now the plain rock material's BATCHED one (USE_BATCHING, no instance colour) instead of its instanced one -
+  if a prelink stand-in mirrors the strip stones, it wants the batch kind.
+- C3b: the house material is to be MATLIB's `house` shape (a shape of src/viewer/matlib.js, its rows in the params table),
+  not a second library.
+GATES (targeted): FRAMECOST (red only on the stale baseline, as on the base; ALLOW-ed rises named), MATLIB PASS (new),
+ASSETS PASS (ALLOW.mats tightened), PROGRAMS, TREES, COVER, FADES, PROPS, ANIMALS, CONTACT, STAND, LIFE, SITE, ATMO,
+PREMISES, HANGAR, CLOUD, WORLDRENDER, LOOKS, LIGHT, MEDIA, GFX, BUILD, BOOT PASS. The full tier was not run.
