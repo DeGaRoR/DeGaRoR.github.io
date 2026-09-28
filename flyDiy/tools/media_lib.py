@@ -31,6 +31,7 @@ payload prefixes them with FLYDIY_ASSET_BASE at its own eval — see BASE_DECL.
 """
 import gzip
 import hashlib
+import io
 import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # flyDiy/
@@ -195,9 +196,35 @@ def _ext_of(raw):
     return 'bin'
 
 
+def decode_rgba(raw):
+    """THE CANVAS-EXACT DECODE (G910, AS2): an image's pixels as a browser 2D canvas hands them to
+    getImageData after drawImage at its own size - RGBA8, straight alpha, no colour management (the
+    ground's maps carry no ICC profile; a grey JPEG reads R = G = B = Y, alpha 255). Pillow's decoder is
+    libjpeg-turbo with the same defaults Chromium's is built with (ISLOW IDCT, fancy upsampling): the 261
+    ground maps were decoded both ways on 2026-09-28 and 0 of 261 differ by one byte (HANDOVER G910).
+    tools/array_cook.js packs texture-array layers from these bytes OFFLINE, so the page never runs a
+    canvas pass. -> (width, height, bytes)"""
+    from PIL import Image
+    im = Image.open(io.BytesIO(raw))
+    if im.info.get('icc_profile'):
+        raise ValueError('decode_rgba: an ICC profile - a browser would colour-manage this image; strip it first')
+    im = im.convert('RGBA')
+    return im.width, im.height, im.tobytes()
+
+
 if __name__ == '__main__':
     # the node bakers' door: media_lib.py encode <role> <max_px> <in> <out> -> prints the ext
     import sys
+    # media_lib.py rgba <list> : each line "<in>\t<out>" -> <out> holds the raw RGBA; prints "<w> <h>" a line
+    if len(sys.argv) >= 3 and sys.argv[1] == 'rgba':
+        for line in open(sys.argv[2], encoding='utf-8').read().splitlines():
+            if not line.strip():
+                continue
+            src, dst = line.split('\t')
+            w, h, px = decode_rgba(open(src, 'rb').read())
+            open(dst, 'wb').write(px)
+            print(w, h)
+        sys.exit(0)
     if len(sys.argv) >= 6 and sys.argv[1] == 'encode':
         raw = open(sys.argv[4], 'rb').read()
         data, ext = encode_tex(raw, sys.argv[2], int(sys.argv[3]))

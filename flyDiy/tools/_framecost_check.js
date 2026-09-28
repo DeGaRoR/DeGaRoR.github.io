@@ -253,8 +253,10 @@ function wrapRenderer(R, P, C, cam) {
 // ---- the boot's steps: BOOT.run's list, each step from its start to the next one's --------------------------
 const bootMark = {
   rows: {}, cur: null, at: null, snap: null, C: null,
-  open(label) { this.close(); this.cur = label; this.at = this.snap(); this.w0 = Date.now(); },
-  close() { if (!this.cur) return; const d = diff(this.at, this.snap()); d.wallMs = Date.now() - this.w0; const k = this.cur; this.rows[k] = this.rows[k] ? add(this.rows[k], d) : d; this.cur = null; },
+  open(label) { this.close(); this.cur = label; this.at = this.snap(); this.io0 = this.io ? this.io() : null; this.w0 = Date.now(); },
+  close() { if (!this.cur) return; const d = diff(this.at, this.snap()); d.wallMs = Date.now() - this.w0;
+    if (this.io0) { const b = this.io(); for (const k of Object.keys(IO_NAMES)) { const v = (b[k] || 0) - (this.io0[k] || 0); if (v) d[IO_NAMES[k]] = v; } }   // G912: reported, never ratcheted (not in BOOT_KEYS)
+    const k = this.cur; this.rows[k] = this.rows[k] ? add(this.rows[k], d) : d; this.cur = null; },
 };
 function wrapBoot(W, P) {
   const mark = (steps, set) => { for (const s of steps || []) { if (s.__fc) continue; const fn = s.fn; s.__fc = true;
@@ -265,6 +267,7 @@ function wrapBoot(W, P) {
   if (typeof show === 'function') W.BOOT.show = function (set, o) { if (o && o.steps) mark(o.steps, o.set || set); return show.apply(this, arguments); };
   // the scripts' own evaluation (the world made inside app.js's, the core, the editor) is the boot's first row
   bootMark.snap = () => ({ rec: P.rec.snapshot(), c: Object.assign({}, bootMark.C, { pick: null, drawn: null, lastDrawn: null }) });
+  bootMark.io = () => Object.assign({}, P.io || {});   // G912: the page's reads, for the boot rows only
   bootMark.open('garage:scripts');
 }
 // ---- one row of counts: a snapshot's difference ----------------------------------------------------------------
@@ -284,6 +287,7 @@ function diff(a, b) {
   for (const k of ['umw', 'um', 'obr', 'oar', 'obs', 'mobr', 'frustum', 'terrainH', 'grHeight', 'renders']) d(NAMES[k], a.c[k], b.c[k]);
   return r;
 }
+const IO_NAMES = { fetches: 'io.fetches', fetchBytes: 'io.fetchBytes', imgLoads: 'io.imgLoads', imgBytes: 'io.imgBytes', c2dDraw: 'io.c2d.drawImage', c2dRead: 'io.c2d.getImageData', c2dReadBytes: 'io.c2d.readBytes', c2dPut: 'io.c2d.putImageData' };
 const NAMES = { umw: 'three.updateMatrixWorld', um: 'three.updateMatrix', obr: 'cb.onBeforeRender', oar: 'cb.onAfterRender', obs: 'cb.onShadow', mobr: 'cb.material.onBeforeRender', frustum: 'three.frustumTests', terrainH: 'world.terrainH', grHeight: 'world.grHeight', renders: 'three.renders' };
 const add = (a, b) => { const r = Object.assign({}, a); for (const k of Object.keys(b)) if (typeof b[k] === 'number') r[k] = (r[k] || 0) + b[k]; return r; };
 // the MEDIAN of the frames, counter by counter: a frame's burst (a chunk the streamer finishes, a probe re-shot) is not
@@ -408,6 +412,15 @@ function child(build) {
     p.on('close', code => { const line = out.trim().split('\n').pop(); try { res(JSON.parse(line)); } catch (e) { res({ build, failed: 'exit ' + code + ': ' + (err || out).slice(-800) }); } });
   });
 }
+// G912: the boot's reads by set of steps (garage:*, rollout:*): fetches + bytes, Images + bytes, 2D-canvas draws / reads
+function ioSum(boot) {
+  const o = {};
+  for (const [step, row] of Object.entries(boot || {})) { const set = step.split(':')[0]; const t = o[set] || (o[set] = {});
+    for (const k of Object.keys(row)) if (k.startsWith('io.')) t[k] = (t[k] || 0) + row[k]; }
+  return o;
+}
+const ioLine = t => { t = t || {}; const M = b => ((b || 0) / 1048576).toFixed(1) + ' MiB';
+  return (t['io.fetches'] || 0) + ' fetches ' + M(t['io.fetchBytes']) + ', ' + (t['io.imgLoads'] || 0) + ' images ' + M(t['io.imgBytes']) + ', canvas drawImage ' + (t['io.c2d.drawImage'] || 0) + ' / getImageData ' + (t['io.c2d.getImageData'] || 0) + ' (' + M(t['io.c2d.readBytes']) + ')'; };
 function flatBoot(boot) { const r = {}; for (const [step, row] of Object.entries(boot || {})) for (const [k, v] of Object.entries(row)) r[step + '/' + k] = v; return r; }
 const BOOT_KEYS = /\/(gl\.calls|draws\.total|links|bytes\.bufferData|bytes\.texImage2D|bytes\.uniforms|three\.updateMatrixWorld|three\.frustumTests|world\.terrainH|world\.grHeight)$/;
 
@@ -420,7 +433,7 @@ async function main() {
     for (const build of Object.keys(b.builds || {})) {
       const A = a.builds[build], B = b.builds[build]; if (!A) continue;
       for (const v of Object.keys(B.views)) printTable(compare(A.views[v], B.views[v], v + '/', build, true).filter(r => r.state !== 'ok'), build + ' ' + v + ' (a -> b, what moved)');
-      printTable(compare(flatBoot(A.boot), flatBoot(B.boot), 'boot/', build, true).filter(r => r.state !== 'ok' && BOOT_KEYS.test(r.key)), build + ' boot (a -> b, what moved)');
+      printTable(compare(flatBoot(A.boot), flatBoot(B.boot), 'boot/', build, true).filter(r => r.state !== 'ok' && (BOOT_KEYS.test(r.key) || /\/io\./.test(r.key) || /\/bytes\.texSubImage3D$|\/gl\.texSubImage3D$|\/gl\.texImage2D$/.test(r.key))), build + ' boot (a -> b, what moved)');
       // the texture upload bytes by boot step (reported: the ratchet's boot keys carry no texture bytes)
       const texB = boot => { const o = {}; let t = 0; for (const [k, r] of Object.entries(boot || {})) { const v = (r['bytes.texImage2D'] || 0) + (r['bytes.texSubImage2D'] || 0) + (r['bytes.texImage3D'] || 0) + (r['bytes.texSubImage3D'] || 0); if (v) { o[k] = v; t += v; } } o.total = t; return o; };
       { const ta = texB(A.boot), tb = texB(B.boot), M = x => ((x || 0) / 1048576).toFixed(1);
@@ -438,6 +451,8 @@ async function main() {
   for (const r of res) {
     ok(!r.failed, r.build + ': the page booted, rolled out and rendered its views', r.failed || ('garage ' + (r.wall.garage / 1000).toFixed(1) + ' s, roll-out ' + (r.wall.rollout / 1000).toFixed(1) + ' s, total ' + (r.wall.total / 1000).toFixed(1) + ' s wall; ' + r.programsTotal + ' programs; page errors ' + r.errorsN));
     if (!r.failed && r.mem) console.log('       memory after the roll-out (MiB, reported): ' + JSON.stringify(r.mem.rollout) + '; at the end ' + JSON.stringify(r.mem.end));
+    if (!r.failed && r.boot) { const io = ioSum(r.boot);   // G912: reported, never ratcheted
+      console.log('       reads (reported): garage ' + ioLine(io.garage) + '; roll-out ' + ioLine(io.rollout)); }
     if (r.failed) continue;
     ok(!!(r.views.stand && r.views.taxi), r.build + ': both views measured (stand, taxi)', r.views.taxi ? 'taxi at ' + r.views.taxi.pose.join(' ') : 'no taxi pose');
     const H = r.health || {};

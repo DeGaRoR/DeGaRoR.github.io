@@ -21,7 +21,7 @@ where the pack has one; otherwise integrated from the normal map the way
 splat_tex_import.py does (Frankot-Chellappa, high-passed at an eighth of the tile).
 
 Usage:  py -3.11 tools/pavement_tex_import.py --fetch [--out DIR] [--only key,key]
-Then:   node tools/pavement_tex_prep.js
+Then:   node tools/ground_tex_prep.js   (the ground library, G910: every ground set, once)
 The archive goes to the MAIN checkout's gitignored assets/ by default (a worktree
 carries no link to it - never junction, G434.1); --out overrides.
 """

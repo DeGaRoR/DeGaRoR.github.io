@@ -176,11 +176,12 @@ Modifications made:
   the format puts it; R is ambient occlusion and B is metalness, and both are
   discarded. Nothing is recoloured, sharpened or tiled.
 - **Resampled, and reversibly.** Each set is written twice: a 1k archive and a
-  512 working copy. The game serves 512 (~3.2 MB of files under
-  `media/tex/site/` for all ten against ~15 MB at 1k), because ground read at
-  grazing angles across hundreds of metres does not resolve 1k. Raising a
-  row's `tex` in `tools/site_tex_prep.js` and re-running it restores the full
-  resolution with no re-import — the same budget rule the prop baker uses.
+  512 working copy. The game serves 512 (~3.2 MB of files, under
+  `media/tex/site/` until G910 and in the one ground library's `media/tex/ground/`
+  since, for all ten against ~15 MB at 1k), because ground read at
+  grazing angles across hundreds of metres does not resolve 1k. Pointing a
+  set at its 1k copy in `tools/ground_sets.json` and re-running
+  `tools/ground_tex_prep.js` restores the full resolution with no re-import — the same budget rule the prop baker uses.
 - **Normals stay JPEG**, unlike `assets/hangar_walls/`, which keeps PNG. These
   are ground planes, and PNG would cost about half a megabyte a set for a
   difference nothing in this scene can show.
@@ -194,8 +195,9 @@ roads and runways with: concrete, asphalt, gravel, dirt, sand, the shoulders'
 tracks and the moss. Fourteen fetched STRAIGHT OFF Poly Haven by
 `tools/pavement_tex_import.py --fetch` (the API names each map's 1k jpg and the
 texture's real size in millimetres, which is what the shader tiles it by), plus
-four of the airfield's and the lot's five baked again under this baker's own
-directory (`media/tex/pavement/`).
+six of the airfield's and the lot's five as the importer's flattened copies (their
+own sets in the one ground library, `<key>Pv`: `media/tex/ground/`, G910; under
+`media/tex/pavement/` before).
 
 **Poly Haven, CC0** (https://polyhaven.com) — `damaged_concrete_floor`,
 `damaged_concrete_floor_02`, `concrete_moss`, `dirty_concrete`, `worn_asphalt`,
@@ -341,8 +343,9 @@ The five ground scans the village's lots are splatted with (G290): all
 grass by the fences), `Grass004` (`grass`), `Gravel022` (`pebble`, the
 seafront), `Ground081` (`dry`, under the buildings), `Ground110` (`dirt`, the
 paths). Normalised by `tools/lot_tex_import.py` to diff / nor_gl / rough (1k
-archive + 512 working copy), baked by `tools/lot_tex_prep.js` into
-`src/viewer/lot_tex.js` + `media/tex/lot/`.
+archive + 512 working copy), baked by `tools/ground_tex_prep.js` (the one
+ground library, G910; `tools/lot_tex_prep.js` before) into `src/viewer/ground_tex.js` +
+`media/tex/ground/` - the same files the splat's sets of those names are.
 
 The village bench also carries the hangar's own panorama (`alps`, from
 `assets/hangar_sky/alps_field_8k.hdr`, credited under the hangar skies) baked

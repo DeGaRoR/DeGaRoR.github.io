@@ -117,10 +117,15 @@ async function openPage(opts) {
     get body() { return { _blob: new Blob([this._bytes]), pipeThrough: ds => ({ _blob: new Blob([this._bytes]), _ds: ds }), getReader: () => { let done = false; return { read: () => CP.resolve(done ? { done: true } : (done = true, { done: false, value: new Uint8Array(this._bytes) })), cancel() {}, releaseLock() {} }; } }; }
   }
   const fetched = [];
+  // G912 (AS2): WHAT THE PAGE READ AND DECODED, counted (GATE FRAMECOST reports them per boot step, never ratchets
+  // them): fetch / XHR / Image loads and their on-disk bytes (the wire), and the 2D canvas's drawImage / getImageData /
+  // putImageData - the CPU packing the ground library moved offline
+  const io = { fetches: 0, fetchBytes: 0, imgLoads: 0, imgBytes: 0, c2dDraw: 0, c2dRead: 0, c2dReadBytes: 0, c2dPut: 0 };
   const fetchFn = (url, o) => {
     const u = typeof url === 'string' ? url : (url && url.url) || String(url);
     fetched.push(u);
     const b = readFile(u);
+    io.fetches++; if (b) io.fetchBytes += b.length;
     if (!b) return CP.resolve(new Response('', { status: 404 }));
     return CP.resolve(new Response(b, { status: 200 }));
   };
@@ -135,6 +140,7 @@ async function openPage(opts) {
       const done = () => {
         fetched.push(this._url);
         const b = readFile(this._url);
+        io.fetches++; if (b) io.fetchBytes += b.length;
         this.readyState = 4; this.status = b ? 200 : 404;
         if (b) { this.responseText = this.responseType === '' || this.responseType === 'text' ? b.toString('utf8') : '';
           this.response = this.responseType === 'arraybuffer' ? b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) : this.responseType === 'json' ? JSON.parse(b.toString('utf8')) : this.responseText; }
@@ -149,6 +155,7 @@ async function openPage(opts) {
   const loadImage = (img, url) => {
     img.complete = false;
     const b = readFile(url);
+    io.imgLoads++; if (b) io.imgBytes += b.length;
     addTimer(() => {
       const s = b && imageSize(b);
       if (!s) { img.complete = true; img.dispatchEvent(new D.Event('error')); return; }
@@ -163,7 +170,8 @@ async function openPage(opts) {
     const state = { fillStyle: '#000', strokeStyle: '#000', font: '10px sans-serif', globalAlpha: 1, lineWidth: 1, textAlign: 'start', textBaseline: 'alphabetic', globalCompositeOperation: 'source-over', imageSmoothingEnabled: true, filter: 'none' };
     const imgData = (w, h) => ({ width: w | 0, height: h | 0, data: new Uint8ClampedArray(Math.max(0, (w | 0) * (h | 0) * 4)), colorSpace: 'srgb' });
     const fns = {
-      getImageData: (x, y, w, h) => imgData(w, h), createImageData: (w, h) => (typeof w === 'object' ? imgData(w.width, w.height) : imgData(w, h)),
+      getImageData: (x, y, w, h) => { io.c2dRead++; io.c2dReadBytes += Math.max(0, (w | 0) * (h | 0) * 4); return imgData(w, h); },
+      drawImage: () => { io.c2dDraw++; }, putImageData: () => { io.c2dPut++; }, createImageData: (w, h) => (typeof w === 'object' ? imgData(w.width, w.height) : imgData(w, h)),
       measureText: s => ({ width: String(s).length * 6, actualBoundingBoxAscent: 7, actualBoundingBoxDescent: 2, actualBoundingBoxLeft: 0, actualBoundingBoxRight: String(s).length * 6, fontBoundingBoxAscent: 8, fontBoundingBoxDescent: 2 }),
       createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }), createConicGradient: () => ({ addColorStop() {} }), createPattern: () => ({ setTransform() {} }),
       getTransform: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0, invertSelf() { return this; }, multiplySelf() { return this; } }), isPointInPath: () => false, isPointInStroke: () => false, getLineDash: () => [],
@@ -262,7 +270,7 @@ async function openPage(opts) {
   const flush = () => new Promise(r => setImmediate(r));
   let frameHook = null;
   const P = {
-    win, ctx, rec, errors, logs, fetched, clock, glLinks, document, ran, scriptMs,
+    win, ctx, rec, errors, logs, fetched, clock, glLinks, document, ran, scriptMs, io,
     get frameNo() { return frameNo; },
     onFrame(f) { frameHook = f; },
     // one event: the earliest due timer, or the next vsync if a frame was asked for and comes first

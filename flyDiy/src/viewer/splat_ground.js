@@ -2,7 +2,7 @@
 // THE ISLAND'S SPLAT, IN THE GAME (alpha splatting, 2026-09-20) — the bench's
 // tools/_island.html `splat` source ported into the island ground hook of
 // render_world.js: the ground drawn by terrain type from the library
-// (media/tex/splat, seventeen sets in two texture arrays), height-blended,
+// (the ground library, src/viewer/ground_tex.js: its sets in two texture arrays), height-blended,
 // hex-tiled, triplanar, with the shared micro-fields (28b_ground_fields.js)
 // and the macro tiers - the detail gives way to the aerial packs, then to the
 // stack the game already ships (the lit Landsat albedo IS the macro here).
@@ -19,8 +19,9 @@
 //                 muskeg pools 0.03, wet mud, bare rock catch the sun and the
 //                 probe; a Lambert ring has no such include and ignores it)
 //     api         F8's handle: get/set knobs, code rows, grades, the library
-//   The arrays are assembled from SPLAT_TEX_SETS (lazily-made Images) once the
-//   maps have decoded; the ground draws the stack alone until then (uSplatOn).
+//   The arrays are assembled from the sets' COOKED layers (SPLAT_TEX_SETS[i].layers,
+//   G911: GROUND_LIB fetches and copies them - no canvas) once they have landed; the
+//   ground draws the stack alone until then (uSplatOn).
 //
 // SAMPLERS (measured, tools/sampler_census.js, 2026-09-20): the near ring
 // spent 8 units, the outer ring 12, the premises patch 13, of 16; the two
@@ -421,39 +422,27 @@ const SPLAT_GROUND = (() => {
   if (uSplatOn > 0.5) roughnessFactor = 1.0 - (1.0 - gSRough) * uSNrm.y;
 `;
 
-  // ---- the arrays: seventeen sets, assembled once the Images have decoded -----
-  // colour + height (rgb + a) and normal + rough (rgb + a): four maps per set
-  // -> done(colour array, normal array); the caller puts them on the uniforms (G908: a grown library swaps them whole)
-  function buildArrays(sets, U, R, done) {
+  // ---- the arrays: the sets the map reaches, from the COOKED layers ----------
+  // colour + height (rgb + a) and normal + rough (rgb + a): four maps per set, packed OFFLINE (G911, AS2:
+  // tools/ground_tex_prep.js, byte for byte what this function's canvas loop packed in the page - GATE GROUNDLIB)
+  // -> done(colour array, normal array); the caller puts them on the uniforms (G908: a grown library swaps them whole).
+  // `prev` { keys, A, N }: the arrays a grow replaces lend the layers they hold (only the new sets are fetched).
+  // A set whose file fails takes its mean colour over a flat normal (was: black), and never stalls the ground.
+  function buildArrays(sets, U, R, done, prev) {
     if (!sets.length) { done(null, null); return; }
-    const N = sets.length, px = sets[0].px, S = px * px * 4;
-    const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
-    const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
-    const ctx = cnv.getContext('2d', { willReadFrequently: true });
-    // (G751: a FAILED map is complete with no width and its error has fired - waiting on it stalled the library forever,
-    // as pavement.js's did; and onload = r overwrote another waiter's handler. Listeners, and a failure counts as done)
-    const dec = img => (img.complete ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }));
-    Promise.all(sets.map(async (m, i) => {
-      const [d, n, h, r] = [m.diff, m.nor, m.height, m.rough || null];
-      await Promise.all([dec(d), dec(n), dec(h), r ? dec(r) : Promise.resolve()]);
-      const o = i * S;
-      if (d.naturalWidth) { ctx.drawImage(d, 0, 0, px, px); data.set(ctx.getImageData(0, 0, px, px).data, o); }
-      if (h.naturalWidth) { ctx.drawImage(h, 0, 0, px, px); const hd = ctx.getImageData(0, 0, px, px).data; for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = hd[k * 4]; }
-      else for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = 128;
-      if (n.naturalWidth) { ctx.drawImage(n, 0, 0, px, px); dataN.set(ctx.getImageData(0, 0, px, px).data, o); }
-      else for (let k = 0; k < px * px; k++) { dataN[o + k * 4] = 128; dataN[o + k * 4 + 1] = 128; dataN[o + k * 4 + 2] = 255; }
-      // the ROUGH map in the normal array's alpha (2026-09-21: the near ring is a Standard material and
-      // reads it at roughnessmap_fragment); a manifest without one - or a map that failed - is 0.9 flat
-      if (r && r.naturalWidth) { ctx.drawImage(r, 0, 0, px, px); const rd = ctx.getImageData(0, 0, px, px).data; for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = rd[k * 4]; }
-      else for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = 230;
-    })).then(() => {
+    if (typeof GROUND_LIB === 'undefined') { done(null, null); return; }
+    const N = sets.length, px = sets[0].px;
+    const lend = prev && prev.A && prev.N ? { urls: prev.keys.map(k => { const s = SPLAT_TEX_SETS.find(x => x.key === k); return s && s.layers; }), A: prev.A, N: prev.N } : null;
+    GROUND_LIB.pack(sets.map(m => ({ layers: m.layers, mean: m.mean, label: m.key })), (data, dataN, failed) => {
+      if (!data) { done(null, null); return; }
+      for (const k of failed) console.warn('splat: ' + k + ' layers failed - its mean colour stands in');
       const mk = (dd, srgb) => { const t = new THREE.DataArrayTexture(dd, px, px, N);
         t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
         t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
         // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes
         t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 16; t.needsUpdate = true; return t; };
       done(mk(data, true), mk(dataN, false));
-    });
+    }, lend);
   }
 
   // THE MACRO'S EXPOSURE, MEASURED (2026-09-21, the user: "the far colour does not match our close
@@ -600,11 +589,13 @@ const SPLAT_GROUND = (() => {
       const keys = setsFor(want).map(s => s.key);
       if (keys.length === LIB.length && (!building || keys.length === building.length)) return false;
       building = keys;
+      const cur = U.uSplat.value, curN = U.uSplatN.value;   // G911: the arrays standing lend their layers to the grown ones
+      const prev = cur && curN && cur.image && cur.image.depth > 1 && curN.image ? { keys: LIB.slice(), A: cur.image.data, N: curN.image.data } : null;
       buildArrays(setsFor(new Set(keys)), U, R, (a, n) => {
         if (building !== keys) { for (const t of [a, n]) if (t) t.dispose(); return; }   // a later grow superseded this one
         const old = [U.uSplat.value, U.uSplatN.value];
         if (a) { U.uSplat.value = a; U.uSplatN.value = n; for (const t of old) if (t && t.image && t.image.depth > 1) t.dispose(); }
-        LIB = keys; building = null; ready = true; push(); });
+        LIB = keys; building = null; ready = true; push(); }, prev);
       return true;
     };
     const V4 = () => new THREE.Vector4();
@@ -700,6 +691,7 @@ const SPLAT_GROUND = (() => {
       ready: () => ready,
       library: () => SPLAT_TEX_SETS.map(s => ({ key: s.key, metres: s.metres })),
       layers: () => LIB.slice(),   // the sets the arrays hold, in layer order (AS1, G908: what the map can reach)
+      arrays: () => [U.uSplat.value, U.uSplatN.value],   // the live colour / normal arrays (G913: tools/ground_ab.js reads them back off the GPU)
       reach: () => grow(),         // re-read the grid's codes (a premises re-stamp); true when the arrays grow
       names: () => Object.assign({}, G.RECIPE.names),
       knobs: () => Object.assign({}, R.knobs),

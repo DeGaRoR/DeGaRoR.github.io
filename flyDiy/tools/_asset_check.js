@@ -52,7 +52,7 @@ const MATLIB = 'src/viewer/matlib.js';            // the one place a shared mate
 // ---- ALLOW: what the store and the code carry on 2026-09-27 (bd234d3), measured, not chosen ----
 const ALLOW = {
   // BEGIN ALLOW (node tools/_asset_check.js --baseline)
-  // flat maps per directory: 48 files
+  // flat maps per directory: 47 files
   flat: {
     "media/tex/chars/ch01": 1,
     "media/tex/chars/ch02": 2,
@@ -60,59 +60,34 @@ const ALLOW = {
     "media/tex/chars/ch22": 1,
     "media/tex/chars/ch42": 1,
     "media/tex/chars/remy": 5,
+    "media/tex/ground": 10,
     "media/tex/house": 8,
     "media/tex/models/c172": 3,
-    "media/tex/pavement": 8,
     "media/tex/pier": 7,
     "media/tex/props": 1,
-    "media/tex/site": 3,
     "media/tex/vessel": 3,
     "media/tex/walls": 4,
   },
-  // byte-identical copies under media/ per content hash (sha256, first 16 hex): 29 groups, 45 redundant files
+  // byte-identical copies under media/ per content hash (sha256, first 16 hex): 8 groups, 16 redundant files
   dupes: {
-    "006fd4cff967b139": 2,
-    "00fbe38ae0bd6a55": 2,
-    "0187dd5d5ed9b19f": 2,
-    "151550a548f632ea": 3,
     "163f2c935ebf43cf": 2,
-    "27f8e9b233e4e657": 2,
-    "379ad06bc9779087": 2,
     "52cf6e73de736cc6": 3,
-    "5497193f6719b116": 2,
     "64340522045c874f": 3,
-    "7cc9f4c2bcb54355": 3,
-    "8360b7526f1ad009": 3,
-    "89d1ffc2587306c8": 2,
-    "8f65b07bd1bbf72c": 3,
-    "90a67ae0284152b1": 2,
-    "9f177ab80feed01c": 2,
     "a216d4a09884578c": 2,
-    "a5c0e5246711aa4e": 2,
-    "a924c5600f6ae93e": 3,
-    "ac02fc18c4565f48": 2,
-    "b29a459b265d42f8": 2,
     "b4bd9b0df04e6d21": 3,
-    "c5983cf7f78a6b19": 2,
     "d56347aafd3212ca": 6,
-    "d985d705b8d049e4": 3,
-    "e6529d7511a233de": 2,
     "ee25ee7e0cc8e722": 2,
-    "f5626b4f31e93a02": 4,
     "f9305fcc80c8999d": 3,
   },
   // images over 4096 px per directory: 2 files
   huge: {
     "media/tex/sky": 2,
   },
-  // JPEG normal maps per directory: 186 files
+  // JPEG normal maps per directory: 180 files
   jpgNormal: {
+    "media/tex/ground": 63,
     "media/tex/house": 31,
-    "media/tex/lot": 5,
     "media/tex/models/c172": 2,
-    "media/tex/pavement": 35,
-    "media/tex/site": 10,
-    "media/tex/splat": 19,
     "media/tex/trees": 80,
     "media/tex/vessel": 4,
   },

@@ -51,11 +51,11 @@
 //      rock IS its tone. rocks*/rocky*/cliff/pebble take 1/1/1 and this rule holds
 //      that exactly; sand, shingle, dirt, peat and snow do vary with the place and
 //      keep their single gain.
-//   2. THE MANIFEST vs THE STORE (src/viewer/splat_tex.js, media/tex/splat/):
-//      the manifest's order IS RECIPE.library (a set's index is its layer in
-//      the arrays), its metres the library's, four files per set on disk at
-//      512 (colour, normal, height, rough), a mean in 0..1 - GATE MEDIA's
-//      reverse direction.
+//   2. THE MANIFEST vs THE STORE (the ground library's splat rows, src/viewer/
+//      ground_tex.js, media/tex/ground/ - G910): the rows' order IS RECIPE.library
+//      (a set's index is its layer in the arrays), their metres the library's,
+//      four maps per set on disk at 512 (colour, normal, height, rough) and its
+//      cooked layer file, a mean in 0..1 - GATE MEDIA's reverse direction.
 //   3. THE SHADER'S RULES, STATIC (the GLSL splat_ground.js actually splices,
 //      obtained by running the module against a stub THREE): no textureGrad /
 //      textureLod on the arrays (an fxc INTERNAL ERROR under ANGLE/D3D - the
@@ -185,11 +185,12 @@ function checkRecipe(G, splatSrc, quiet) {
 }
 
 // ---- 2. THE MANIFEST vs THE STORE ---------------------------------------------
+// G910: the splat's sets are the ground library's (src/viewer/ground_tex.js): its libs.splat rows, each naming a set
 function parseManifest(text) {
-  const re = /\{ key: '(\w+)', metres: ([\d.]+), px: (\d+), mean: \[([^\]]*)\],\s*get diff\(\) \{ return mk\('([^']+)'\); \},\s*get nor\(\) \{ return mk\('([^']+)'\); \},\s*get height\(\) \{ return mk\('([^']+)'\); \},\s*get rough\(\) \{ return mk\('([^']+)'\); \} \}/g;
-  const rows = []; let m;
-  while ((m = re.exec(text))) rows.push({ key: m[1], metres: +m[2], px: +m[3], mean: m[4].split(',').map(Number), files: [m[5], m[6], m[7], m[8]] });
-  return rows;
+  const c = {}; try { vm.runInNewContext(text + String.fromCharCode(10) + 'this.T = GROUND_TEX;', c); } catch (e) { return []; }
+  const T = c.T; if (!T || !T.libs || !T.libs.splat) return [];
+  return T.libs.splat.map(a => { const s = T.sets[a.set] || {};
+    return { key: a.key, metres: +a.metres, px: T.px, mean: a.mean || [], files: [s.diff, s.nor, s.height, s.rough].map(f => f || '(none)'), layers: s.layers || '(none)' }; });
 }
 function checkManifest(G, text, rootDir, quiet) {
   const out = []; const say = (ok, line) => { out.push([ok, line]); return ok; };
@@ -199,8 +200,9 @@ function checkManifest(G, text, rootDir, quiet) {
   say(rows.every(r => r.px === 512), 'every set at 512');
   say(rows.every(r => r.mean.length === 3 && r.mean.every(v => num(v) && v >= 0 && v <= 1)), 'a mean colour per set, linear 0..1');
   const missing = [];
-  for (const r of rows) for (const f of r.files) { if (!/^media\/tex\/splat\/\w+_(diff|nor_gl|height|rough)_512\.[0-9a-f]{8}\.jpg$/.test(f)) missing.push(f + ' (not a store path)'); else if (!fs.existsSync(path.join(rootDir, f))) missing.push(f); }
-  say(!missing.length, `four files per set (colour, normal, height, rough) present under media/tex/splat/ (${rows.length * 4})${missing.length ? ' - missing ' + missing.slice(0, 4).join(', ') + (missing.length > 4 ? ' ...' : '') : ''}`);
+  for (const r of rows) for (const f of r.files) { if (!/^media\/tex\/ground\/\w+_(diff|nor_gl|height|rough)_512\.[0-9a-f]{8}\.jpg$/.test(f)) missing.push(f + ' (not a store path)'); else if (!fs.existsSync(path.join(rootDir, f))) missing.push(f); }
+  for (const r of rows) { const f = r.layers; if (!/^media\/tex\/ground\/\w+_layers_512\.[0-9a-f]{8}\.gz\.bin$/.test(f)) missing.push(f + ' (not a cooked layer file)'); else if (!fs.existsSync(path.join(rootDir, f))) missing.push(f); }
+  say(!missing.length, `four maps + the cooked layers per set present under media/tex/ground/ (${rows.length * 5})${missing.length ? ' - missing ' + missing.slice(0, 4).join(', ') + (missing.length > 4 ? ' ...' : '') : ''}`);
   say(!/data:/.test(text), 'no data: URI in the manifest');
   if (!quiet) for (const [ok, line] of out) verdict(ok, line);
   return out.every(x => x[0]);
@@ -387,7 +389,7 @@ function checkMineral(quiet) {
   ctx.Image = class { constructor() { this.complete = true; this.naturalWidth = 0; } set src(v) {} get src() { return ''; } addEventListener() {} };
   ctx.window = ctx;
   const EOL = String.fromCharCode(10);
-  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/splat_tex.js'), 'utf8') + EOL + 'this.SPLAT_TEX_SETS = SPLAT_TEX_SETS;', ctx, { filename: 'splat_tex.js' });
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/ground_tex.js'), 'utf8') + EOL + 'this.SPLAT_TEX_SETS = SPLAT_TEX_SETS;', ctx, { filename: 'ground_tex.js' });
   if (!ctx.SPLAT_TEX_SETS) { say(false, 'the manifest did not build in the harness'); if (!quiet) for (const [ok, l] of out) verdict(ok, l); return false; }
   vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/splat_ground.js'), 'utf8'), ctx, { filename: 'splat_ground.js' });
   const gU = {};
@@ -512,7 +514,7 @@ async function checkGPU() {
 (async () => {
   const G = loadRecipe();
   const splatSrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'splat_ground.js'), 'utf8');
-  const manifest = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'splat_tex.js'), 'utf8');
+  const manifest = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'ground_tex.js'), 'utf8');
   if (process.argv.includes('--selftest')) {
     console.log('  --selftest: breaking each rule in turn');
     const clone = () => { const g = loadRecipe(); g.RECIPE = JSON.parse(JSON.stringify(g.RECIPE)); return g; };
@@ -525,9 +527,9 @@ async function checkGPU() {
     g = clone(); g.RECIPE.library.push(['extra', 3]); for (let i = 0; i < 8; i++) g.RECIPE.library.push(['x' + i, 1]);
                                                                               verdict(!checkRecipe(g, splatSrc, true), 'a library past NLIB is caught');
     g = clone(); delete g.RECIPE.codes[9];                                    verdict(!checkRecipe(g, splatSrc, true), 'a missing code row is caught');
-    verdict(!checkManifest(G, manifest.replace("key: 'rocksA'", "key: 'rocksZ'"), ROOT, true), 'a manifest out of the library\'s order is caught');
+    verdict(!checkManifest(G, manifest.replace('{"key":"rocksA"', '{"key":"rocksZ"'), ROOT, true), 'a manifest out of the library\'s order is caught');
     verdict(!checkManifest(G, manifest.replace(/beach_diff_512\.[0-9a-f]{8}/, 'beach_diff_512.deadbeef'), ROOT, true), 'a manifest naming a file the store lacks is caught');
-    verdict(!checkManifest(G, manifest.replace('metres: 1.25', 'metres: 2.5'), ROOT, true), 'a manifest metres off the library is caught');
+    verdict(!checkManifest(G, manifest.replace('"metres":1.25', '"metres":2.5'), ROOT, true), 'a manifest metres off the library is caught');
     const sp = spliceOf(G, splatSrc, G.RECIPE.library);
     const brk = (a, b) => { const s2 = Object.assign({}, sp); s2.glslCommon = sp.glslCommon.replace(a, b); return s2; };
     verdict(!checkShader(G, brk('o.c = texture(uSplat, vec3(uv, layer), uSFilt.x);', 'o.c = textureGrad(uSplat, vec3(uv, layer), dFdx(uv), dFdy(uv));'), true), 'a textureGrad on the array is caught');
@@ -564,7 +566,7 @@ async function checkGPU() {
   checkRecipe(G, splatSrc, false);
   console.log('1c. A MINERAL SET KEEPS ITS HUE (the gains normGains computes on the island)');
   checkMineral(false);
-  console.log('2. THE MANIFEST vs THE STORE (splat_tex.js, media/tex/splat/)');
+  console.log('2. THE MANIFEST vs THE STORE (ground_tex.js libs.splat, media/tex/ground/)');
   checkManifest(G, manifest, ROOT, false);
   console.log('3. THE SHADER\'S RULES (the GLSL splat_ground.js splices)');
   let sp = null; try { sp = spliceOf(G, splatSrc, G.RECIPE.library); } catch (e) { verdict(false, 'splat_ground.js runs against the stub: ' + e.message); }
