@@ -174,8 +174,10 @@ var SHADOW_NEAR = (function () {
     atlas(L.shadow); C1.scene = scene;
     scene.add(L); scene.add(L.target);
     L.name = 'sunNear';
+    madeL = L;
     return L;
   }
+  let madeL = null;   // the light make() made: apply()'s default
   // atlas(shadow): the 2 x 1 map - viewport 0 the 60 m box (three's own camera, matrix and frustum), viewport 1 the
   // craft's cascade (C1.cam, uNearM1). three's shadow pass calls updateMatrices once, then draws each viewport with
   // getCamera(i) and getFrustum(i); _updateMatrix(camera, matrix, frustum, viewport) folds the atlas offset in.
@@ -276,13 +278,25 @@ var SHADOW_NEAR = (function () {
   // (S.biasM) as the depth range grows, and the kernel widens a little with the slant - the sun's half-degree disc
   // blurs a shadow cast from high up (S.penumbra, capped at S.radiusMax texels; the grid kernel bands past that).
   const _t = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
-  function follow(L, cg, sun, agl, snap, camera) {
-    if (!L) return;
-    unprune();   // (a pass that threw between getCamera(0) and getCamera(1) must not leave the world hidden)
+  // G874 (C4a, the train-13 settings freeze): APPLY THE DIAL NOW. The light's visibility and cast were asserted by
+  // follow() alone, i.e. at the next world update - but the settings screen (app.js settleScreen) compiles every lit
+  // program BEFORE the next frame, so a `shadows` change keyed them all with the OLD light set (off: two directional
+  // lights, one casting, the shadow map on) and the first frame after the screen asked for the new one (one light, none
+  // casting, the map off): every lit program linked twice, the craft's AEROSKIN ~1.1 s of a 2.8 s frame. gfx_settings
+  // calls this where it sets S.on; follow() keeps asserting it every frame.
+  function apply(L) {
+    L = L || madeL;
+    if (!L) return 0;
     const live = S.on ? 1 : 0;
     nearScalars[0] = live; L.visible = !!live; L.castShadow = !!live;
     const far = !live;   // the craft is on the far map only while the near map is off
     if (craftGroup && far !== craftFar) { craftFar = far; craftGroup.traverse(m => { if (far) m.layers.enable(FAR_LAYER); else m.layers.disable(FAR_LAYER); }); }
+    return live;
+  }
+  function follow(L, cg, sun, agl, snap, camera) {
+    if (!L) return;
+    unprune();   // (a pass that threw between getCamera(0) and getCamera(1) must not leave the world hidden)
+    const live = apply(L);
     if (!live) return;
     _t.set(cg[0], cg[1], cg[2]);
     if (snap) snap(_t, S.half, S.size);
@@ -341,7 +355,7 @@ var SHADOW_NEAR = (function () {
     nearScalars[3] = S.normalBiasTx * tx;
     S.craftHalf = Hh;
   }
-  const API = { S, pcf, C1, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, setNear, unprune, get installed() { return installed; } };
+  const API = { S, pcf, C1, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, apply, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
   return API;
 })();

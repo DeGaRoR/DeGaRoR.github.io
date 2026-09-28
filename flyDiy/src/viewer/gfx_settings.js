@@ -327,6 +327,9 @@
       // ...and the NEAR map (G570): the craft's own shadow light kept casting with the row 'off' - at the stand it drew
       // every caster within 90 m, ~5 ms of a potato frame
       if (W.SHADOW_NEAR && W.SHADOW_NEAR.S) W.SHADOW_NEAR.S.on = !!sh.on;   // shadow_near's own dial (follow() re-asserts castShadow from it)
+      // G874: ...and the light itself NOW, not at the next world update: the settings screen compiles before that
+      // frame, and keyed every lit program with the old light set (the first frame after it relinked them all)
+      if (W.SHADOW_NEAR && W.SHADOW_NEAR.apply) W.SHADOW_NEAR.apply();
       rig.set({ shadowMap: sh.map, farShadow: sh.on && sh.far, worldShadow: sh.world !== false });
       applied.shadows = S.shadows;
     }

@@ -99,6 +99,15 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
   ok(m.layers.isEnabled(SN.FAR_LAYER) && !L.castShadow, '2 near map off: the craft casts into the far map');
   SN.S.on = true; SN.follow(L, [0, 10, 0], sun, 5, null, null);
   ok(!m.layers.isEnabled(SN.FAR_LAYER), '2 near map on again: the craft leaves the far map');
+  // G874 (the train-13 settings freeze): the dial applies AT ONCE, not at the next follow(): the settings screen
+  // compiles before that frame, and a light left visible keyed every lit program with the old light set
+  SN.S.on = false; const r0 = SN.apply();
+  ok(typeof SN.apply === 'function' && r0 === 0 && !L.visible && !L.castShadow && m.layers.isEnabled(SN.FAR_LAYER),
+    '2 G874: apply() - the near light hidden and not casting, the craft on the far map, before any follow()');
+  SN.S.on = true; SN.apply();
+  ok(L.visible && L.castShadow && !m.layers.isEnabled(SN.FAR_LAYER), '2 G874: ...and back on at once');
+  { const G = src('src/viewer/gfx_settings.js'), i = G.indexOf('W.SHADOW_NEAR.S.on = !!sh.on'), j = G.indexOf('W.SHADOW_NEAR.apply()');
+    ok(i > 0 && j > i && j - i < 600, '2 G874: gfx_settings applies the near light where the shadows row sets its dial'); }
 }
 
 // ---- 3: water.js obliqueClip ---------------------------------------------------------------------------
