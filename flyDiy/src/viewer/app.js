@@ -3314,6 +3314,31 @@
       }
       return;
     }
+    // G731 (B1-LAG): ...AND SO IS THE IMPORTED SKIN'S. Every vertex row below - the spar-bound skin, the struts, the
+    // legs' stretch, the control surfaces, the floats, the tail's anchors, the rods - is a function of the nodes in the
+    // BODY frame, the linkage, the gain and (floats) the water rudder's state, and every one re-uploaded its buffer on
+    // every frame whether or not any of those had moved: 63 bufferSubData, 3.67 MB a frame on the Cub (GATE FRAMECOST,
+    // the stand and the taxi alike, paused or not). The rows run now when a node has moved more than 0.3 mm or a
+    // control more than 1e-4 since the pose last APPLIED (the generated skin's rule, above); the wheels, the engine
+    // units, the cockpit's controls and the castor (object transforms) are posed every frame as before.
+    let still = false;
+    { const n3 = sim.n * 3, P = model._poseNG;
+      const nb = (P && P.nb.length === n3) ? P.cur : new Float64Array(n3);
+      genNodeBody(sim, nb);
+      const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
+      // the floats' water rudder: the pedals and the retraction, and its easing must have landed
+      const wr = [];
+      if (model.floatRigs) for (const r of model.floatRigs) if (r.rud) {
+        const fx = sim.hydro && sim.hydro.floats[r.fx];
+        wr.push(sim.ctl ? (sim.ctl.dr || 0) : 0, fx ? (fx.wrDown ? 1 : 0) : 1, Math.abs((fx ? (fx.wrDown ? 0 : 1) : 0) - r.ret) > 1e-3 ? NaN : 0);
+      }
+      const rows = [model.rigs, model.strutRigs, model.stretchRigs, model.surfParts, model.floatRigs, model.anchorRigs, model.linkRigs];
+      still = !!P && P.nb.length === n3 && P.gain === gain && P.wr.length === wr.length && rows.every((a, i) => a === P.rows[i]);
+      if (still) for (let i = 0; i < wr.length; i++) if (!(wr[i] === P.wr[i])) { still = false; break; }
+      if (still) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - P.nb[i]) > 3e-4) { still = false; break; }
+      if (still) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { still = false; break; }
+      if (!still) model._poseNG = { nb, cur: P && P.nb.length === n3 ? P.nb : new Float64Array(n3), gain, rows, wr, link: Object.assign({}, link) }; }
+    if (!still) {
     sparDeltas(model.rigs[0].bind, sim, model.deltas);
     for (const r of model.rigs) {
       // a rig with no bound vertices and no hinges (the lift strut) rides the
@@ -3396,7 +3421,7 @@
       }
       return [g * dx, g * dy, g * dz];
     };
-    if (model.strutRigs) for (const s of model.strutRigs) {
+    if (model.strutRigs && !still) for (const s of model.strutRigs) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
       const g = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       // a boom's tip end rides the tail's anchor set (its mean), not one node
@@ -3424,7 +3449,7 @@
       }
       s.posAttr.needsUpdate = true;
     }
-    if (model.stretchRigs) for (const s of model.stretchRigs) {
+    if (model.stretchRigs && !still) for (const s of model.stretchRigs) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
       const L = nodeLocal(s.idx);
       if (!s.rest0) s.rest0 = L;            // fallback only — see nodeRest
@@ -3441,7 +3466,7 @@
     // G59: the CONTROL SURFACES deflect about their own hinges, driven by
     // the same linkage the generated skin uses (so they lag identically).
     // `link` carries da/de/dr/flap as sim.ctl units; `k` scales a 0..1 flap to its travel (0.70 rad, the generated table's own) of surface deflection.
-    if (model.surfParts) for (const s of model.surfParts) {
+    if (model.surfParts && !still) for (const s of model.surfParts) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
       const ang = s.sgn * (s.k || 1) * (link[s.drive] || 0)
         + (s.drive2 ? (s.sgn2 || 1) * (link[s.drive2] || 0) : 0);   // G209
@@ -3480,7 +3505,7 @@
     }
     // G267.2: THE TAIL ASSEMBLY — rigid on its anchor's mean travel
     // H2 (G389): the floats, rebuilt from their four nodes by barycentrics
-    if (model.floatRigs) for (const r of model.floatRigs) {
+    if (model.floatRigs && !still) for (const r of model.floatRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
       // the live tetra in the PART's frame: its rest plus each node's travel
       const N4 = r.idxs.map((i, k) => { const L = nodeLocal(i), R0 = r.rest0[k], T = r.R4[k];
@@ -3525,7 +3550,7 @@
       }
       r.posAttr.needsUpdate = true;
     }
-    if (model.anchorRigs) for (const r of model.anchorRigs) {
+    if (model.anchorRigs && !still) for (const r of model.anchorRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
       const d = anchorDelta(r), p2 = r.posAttr.array, b = r.base;
       for (let i = 0; i < b.length; i += 3) { p2[i] = b[i] + d[0]; p2[i + 1] = b[i + 1] + d[1]; p2[i + 2] = b[i + 2] + d[2]; }
@@ -3534,7 +3559,7 @@
     // G239: ...AND THE RODS AND CABLES FOLLOW THE HORNS THEY ARE BOLTED TO.
     // The same angle the surface turned by, applied to the member's far end,
     // and every vertex moves by its own share of that travel.
-    if (model.linkRigs) for (const r of model.linkRigs) {
+    if (model.linkRigs && !still) for (const r of model.linkRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
       const h = r.hinge;
       const ang = h.sgn * (h.k || 1) * (link[h.drive] || 0)
