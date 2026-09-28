@@ -62151,3 +62151,104 @@ OWED (batch B):
 - The plain ground's 2 cm under terrainH (G434.2's lots), if a tyre on grass reads afloat.
 - tools/wheel_gap_eval.js's fixed probe (a pavement hit only inside its own edge) has not run live yet. The live
   numbers above are the per-mesh lifts and the runs' 13/31 samples, which it does not change.
+## G1005-G1006 - THE AEROPLANE'S OWN SHADOW CASCADE, THE WHEELS CAST, THE RUNWAY "ACNE" WAS THE PAVEMENT'S GRAIN (A6-SHADOW, 2026-09-27/28, batch A final pass, local GPU)
+
+The user, headed trials of master b78f8d0c (Jolene, taxiing): the aircraft feels FLOATY on the ground ("someone asked
+whether the plane was taking off while it was taxiing"); the runway flickers - fine hatching in patches that follow
+triangles and go darker and brighter in motion (a6_evidence/user_2026-09-27_pavement_acne.webp); a blurred shadow
+trails the crisp one; and then (user_2026-09-27_cub_shadow_lowres.webp, a Cub parked on the pavement): "The current
+aircraft shadow is too low resolution. The pixelating of the straight wingspan is also moving with frames, this is so
+blurred that the tailwheel seems to have no shadow." PLAYTEST-2026-09-26.md §0.14. (A6-GROUND owns the physical side:
+the drawn wheels against the contact, the contact AO.)
+
+THE RUNWAY "ACNE" IS NOT A SHADOW (measured; the coordinator's reading was to verify, not trust):
+- No ground mesh casts: castShadow is never set on the ring chunks, the fine tiles, premises:patch (render_world ~1919
+  copies ground.castShadow, which is false). Nothing coplanar with the pavement is in either map.
+- Pavement receiveShadow OFF on all 34 pavement meshes: the hatching stays, pixel-identical outside the aircraft's own
+  shadow (a diff of on/off shows the aircraft's shadow and nothing else). PAVEMENT.debug(12), the UNLIT albedo, shows it.
+  Specular off (uSpec.x) and normal detail off (uSpec.y) leave its near-Nyquist energy unchanged; hex tiling off
+  lowers it a little. A raycast through a hatched pixel hits pavement:HOME alone.
+- It is the photographic sets' grain at ~2 px under 16x anisotropy (G662), the darker repair patches (pch,
+  pavement.js:936) and rubber bands showing it most - G982's "sub-pixel aliasing of the finest pavement detail".
+  A texture() mip bias (the splat's FILTER_DEFAULTS lever) was measured at +0.3 / +0.6 / +1.0 against a sub-pixel
+  shimmer metric (the frame's mean |difference| under a 0.5 px orbit turn): 3.85 / 3.85 / 3.85 / 3.83 - nothing, so
+  nothing ships; the look is the pavement chantier's. textureGrad (hex-cell derivatives) is RULED OUT: HANDOVER
+  records textureGrad/textureLod on a sampler2DArray as an fxc INTERNAL ERROR under ANGLE, GATE PAVEMENT forbids it.
+- What moves in the aircraft's neighbourhood is its own shadow's edge: 5.9 cm texels and a ~3-texel penumbra
+  re-quantising as it moves (G1005 below). A first before/after pair read master's shadow as mottled and faint: that
+  was the CLOUDS' shadow on the ground, minutes apart - with the clouds row off both are equally dense.
+
+G1005 THE CRAFT'S OWN CASCADE (shadow_near.js). The near map's 60 m box is sized for the near casters (a hangar over
+a parked aeroplane), not for the aeroplane: 5.9 cm a texel at 1024, a 3-texel penumbra. The near light's map is now a
+2 x 1 ATLAS through three's own multi-viewport shadow path (a point light's, on a DirectionalLight: _frameExtents 2 x 1,
+getCamera(i) / getFrustum(i), LightShadow._updateMatrix(camera, matrix, frustum, viewport)) - NO new sampler (the
+island ground programs stand at 15 of 16):
+- viewport 0 (left): THE CRAFT'S CASCADE, fitted to model.grp's bounding sphere round the CG (tagCraft(craft, pose)
+  takes the sphere in the pose's frame once; fitCraft carries it each frame): Cub r 5.9 m -> half 8.0 m, 1.6 cm a
+  texel at 1024 (ultra 0.8); metal Cessna 9.5 m, 1.9 cm. It grows with the slant so the sun's penumbra never needs more
+  than radiusMax texels (at a few hundred metres AGL it is the 60 m box again); re-fitted on a 20 % change only (a new
+  half re-snaps the grid). Same up-sun reach (60 m) and depth law as G650's box. The craft is on CRAFT_LAYER (5).
+- viewport 1 (right): the 60 m box as before, the NEAR casters only (the craft no longer drawn into it).
+- ONE near lookup a pixel: a receiver inside the craft's box reads the cascade (coordinate = uNearM1 x the world
+  position, cameraPosition + viewMatrix^T x (geometryPosition + geometryNormal x offset) - right under any camera, the
+  mirror's included), its bias / radius / normal offset in uNearP.yzw scaled by the cascade's texel (biasTx 0.85 =
+  G650's 5 cm at 5.9 cm); else the box through three's varying. The PCF taps are square in texels on the atlas
+  (pcfR = radius x (1, texelSize.y / texelSize.x)).
+- THE COST, three rounds (rollout_perf cold + an in-page timer round renderer.shadowMap.render, 180 frames):
+  (1) the second viewport as first cut: +1.3 / +1.4 ms render CPU at the taxi (Cub / Cessna).
+  (2) THE WALK: three's shadow pass walks the scene graph for EVERY viewport. The cascade is drawn FIRST and walks the
+  craft alone: three's loop calls getCamera(0) then getCamera(1), so getCamera(0) hides every top-level child of the
+  scene but the craft's, getCamera(1) restores them (follow() restores too, should a pass throw) - unless a near caster
+  stands where it can matter (render_world's nearTag hands its spheres over: setNear). The rollout_perf eval said it
+  never pruned (0 of 2 498 frames): the cascade's frustum ran 330 m down the sun (G650's relief), a near caster was
+  always in it. So (3) THE WINDOW: a receiver reads the cascade only between the light and just past the craft's own
+  ground shadow (the CG's slant + the craft's sphere, 10 m of relief and half the height, along the sun: uNearQ), and
+  that is the cascade camera's far plane too - deeper receivers read the 60 m box. (4) THE PATHS: Jolene's merged
+  casters (the taxiway's poles as ONE mesh, 136 m round; the town's houses batch, 91 m) stood in every window, and an
+  unpruned walk of the ~4 000 visible objects was +1.1 ms; the walk now keeps the craft's subtree and the ancestor
+  chain of each caster in the window (nearTag hands the object with its sphere), every other child along those chains
+  hidden - the merged casters still draw into the cascade.
+- Snapping checked: snapToTexels snaps the target in the lookAt light basis (right x up, the map's two axes), each
+  cascade on its own grid. What crawled on a parked Cub was the craft moving over the 6 cm grid (idle shake), not the grid.
+
+G1006 THE WHEELS CAST (app.js rollOut). G564's crumb cull (bounding radius < 15 cm: castShadow off) took the Cub's
+tailwheel (r 0.083 / 0.053), the Cessna's nose tyre (0.141) and every hub - measured in the page: on master only the
+main tyres cast. A wheel part's meshes (model.wheelParts) over 4 cm keep casting: Cub +8 draws, Cessna +9, into the
+craft's cascade only.
+
+THE TRAILING SHADOW (item 2): no second copy found on master or the branch - Cessna, old stock, Cub; afternoon and
+golden; overhead in motion against paused; the world map on / off / every frame; sun-only lighting (hemi and env
+muted). No craft mesh is on the far layer (census), nothing that follows the craft casts (a 1.5 s mover census: the
+sky dome, cars, birds). The frame order is right: worldUpdate (the box follows this frame's CG) -> poseModel -> render
+(both maps drawn with this frame's pose). What moved behind the crisp edge on master was the 3-texel penumbra and the
+mottled interior of a 6 cm map re-quantising as the craft moved; the cascade takes both away.
+
+THE CONTACT (item 3): the ground and the pavement never cast, so no receiver bias can detach a shadow from a tyre;
+the tyre's shadow starts at its contact up to the kernel - 3 texels was 18 cm, now 5 cm. Wheel-height shots in the
+evidence folder.
+
+MEASURED (RTX 3080, 2216 x 1023, 'full'; before = a clean worktree of b78f8d0c; both served as dev.html):
+- rollout_perf --cold --secs 60, the taxi (render ms, of which shadow): the Cub 15.1 (3.1) and 14.8 (3.0) before ->
+  15.4 (3.4) after; the metal Cessna 15.3 (3.3) and 15.3 (3.2) -> 15.4 (3.6). On the way: the first cut +1.0 / +1.4,
+  the first prune (never fired) +0.8 / +1.6 - the rounds above.
+- In-page, renderer.shadowMap.render timed over 180 frames (ms a frame, before -> after): the Cub at the stand 3.04 ->
+  3.19, taxiing by the stand 2.92 -> 3.20, 300 m on 2.79 -> 2.87 (pruned); the Cessna 2.95 -> 3.24, 2.82 -> 3.16.
+  The timer's own noise is ~0.3 ms (the same code read 1.69 and 2.79 at one spot, two runs).
+- frame_perf headless at the stand (GPU): the Cub 27.0 -> 27.3 ms a frame (passes 28.04 -> 27.99), shadow maps 1.30 ->
+  1.44; the Cessna 26.3 -> 27.5 (passes 27.18 -> 27.18), 1.27 -> 1.43. (That run was the walk-everything cut: 1 658 ->
+  1 851 calls at the stand; the path prune draws only the window's casters again.)
+EVIDENCE (tools/perf/a6shadow_evidence/, the clouds row OFF for both sides): cub_side_afternoon_before_after.jpg (the
+Cub at the stand, 9 m, wheel height), cub_wheel_height_before_after.jpg (the main gear, afternoon and golden hour),
+pavement_grain_not_shadow.jpg (the grain as drawn / with the pavement's receiveShadow off / the unlit albedo).
+GATES (targeted, direct): SHADOWSKY (+G1005: the atlas, the layers, the fit at the stand / high, the window, the walk's
+bracket, its paths and restore, the lookup, the PCF square), LIGHT (the tagCraft signature; its rollOut window now runs
+to the function's end - the WORLD_ENV write sat 121 chars from the old fixed 3400-char edge, "source-scan gates go
+quiet"), STAND, PROGRAMS, GFX, PAVEMENT, WORLDRENDER, KNIFE, WEATHER - all PASS. Not run: the battery (the train's).
+RIG: tools/live_driver.js (NEW) - a headed Chrome kept alive on its own short profile (C:/a6s), answering /eval /run
+/shot on 127.0.0.1:8562: boot, keep, roll out, pause, DAY_CLOCK.preset, FLIGHT_PROBE.camSet, and in-page toggles
+(the pavement's receiveShadow, the far map's layers, SHADOW_NEAR.S.on, PAVEMENT.debug, uSpec / uHex, a program
+variant through onBeforeCompile + customProgramCacheKey). Before = a clean worktree of b78f8d0c served the same way.
+TRAPS: textureGrad on the pavement's arrays is an fxc internal error (stopped before it ran twice); frame_perf pins the
+stock build (--pre runs after the pin); a merged caster's bounding sphere (the poles, the town batch) is 90-140 m round;
+the pavement's variant in a live page needs onBeforeCompile + a new customProgramCacheKey + needsUpdate; clouds cast
+on the ground - a before/after pair minutes apart differs by cloud shadows unless the clouds row is off.
