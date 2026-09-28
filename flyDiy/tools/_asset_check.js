@@ -141,8 +141,9 @@ const ALLOW = {
     "src/viewer/post_fx.js": 1,
     "src/viewer/powerline.js": 1,
     "src/viewer/props.js": 1,
-    "src/viewer/prop_disc.js": 1,
-    "src/viewer/contact_shadow.js": 1,   // G1002 (A6-GROUND): the tyres' contact blob, admitted by the train-11 integration until MATLIB (AS4a) exists   // G672 (A2-FADES): the prop disc, admitted by the train-2 integration until MATLIB (AS4a) exists
+    "src/viewer/prop_disc.js": 1,   // G672 (A2-FADES): the prop disc, admitted by the train-2 integration until MATLIB (AS4a) exists
+    "src/viewer/contact_shadow.js": 1,   // G1002 (A6-GROUND): the tyres' contact blob, admitted by the train-11 integration until MATLIB (AS4a) exists
+    "src/viewer/flown_bake.js": 2,   // G870 (C4a): the baked exterior material and its bake-pass material, admitted by the train-13 integration until MATLIB (AS4a, train 14) takes them
     "src/viewer/refplane.js": 1,
     "src/viewer/render_premises.js": 23,
     "src/viewer/render_world.js": 19,

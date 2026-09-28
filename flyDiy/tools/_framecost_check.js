@@ -75,6 +75,7 @@ const ALLOW = [
   // not by the first world frame (the 'frames' task's texSubImage: 325 MB of 2D, 80 MB of array data in this census)
   { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 4700, why: 'the stand-ins\' maps and the compiled uniforms\' textures uploaded in the upload step', g: 'G730/G732' },
   { key: 'boot/rollout:frames/gl.calls', build: '*', upTo: 51500, why: 'the catch-up upload of the hooks\' textures and the sliced depth variants before first light', g: 'G732' },
+  { key: 'boot/rollout:bake/', build: '*', why: 'the flown aeroplane texture bake, a roll-out step under the screen (cached: an IndexedDB hit reads and uploads only)', g: 'G870' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
