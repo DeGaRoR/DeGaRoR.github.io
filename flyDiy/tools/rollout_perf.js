@@ -99,12 +99,32 @@ const gpuUtil = () => { try { return +execSync('nvidia-smi --query-gpu=utilizati
 const cpuLoad = () => { try { return +execSync('powershell -NoProfile -Command "(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average"', { stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 }).toString().trim(); } catch (e) { return -1; } };
 
 // ---- the static server -----------------------------------------------------
-let server = null;
+let server = null, serverExit = null;
 if (!URL) {
   const a = [path.join(__dirname, '_serve.js'), String(SPORT), REPO];
   if (FALLBACK) a.push('--fallback', FALLBACK);
   server = spawn(process.execPath, a, { stdio: 'ignore' });
+  server.on('exit', c => { serverExit = c; });
   URL = 'http://localhost:' + SPORT + '/flyDiy/' + PAGE;
+}
+// G733 (B1-LAG): THE PAGE MEASURED IS THIS TREE'S, OR THE RIG STOPS. A server left over from another run held :8531, this
+// rig's own server could not bind (and died quietly), and the run measured the other tree's page (2026-09-28). The port
+// must be free before our server starts, and the server that answers must be ours: _serve.js names its root.
+const portAnswer = () => new Promise(res => { const rq = http.get('http://127.0.0.1:' + SPORT + '/flyDiy/version.json', r => { r.resume(); res(r.headers['x-serve-root'] ? decodeURIComponent(r.headers['x-serve-root']) : '(unnamed)'); });
+  rq.on('error', () => res(null)); rq.setTimeout(2000, () => { rq.destroy(); res(null); }); });
+async function serverCheck() {
+  if (!server) return;
+  const want = path.resolve(REPO).toLowerCase();
+  for (let i = 0; i < 40; i++) {
+    if (serverExit !== null) throw new Error('rollout_perf: the static server exited (code ' + serverExit + ') - port ' + SPORT + ' is held by another process; stop it or pass --port');
+    const root = await portAnswer();
+    if (root !== null) {
+      if (path.resolve(root).toLowerCase() !== want) throw new Error('rollout_perf: port ' + SPORT + ' is served by ANOTHER server (root ' + root + '), not ' + REPO + ' - stop it or pass --port');
+      return;
+    }
+    await sleep(250);
+  }
+  throw new Error('rollout_perf: the static server never answered on port ' + SPORT);
 }
 const q = [];
 if (WORLDN) q.push('world=' + WORLDN);
@@ -270,6 +290,9 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     while (u >= 0 && Date.now() - t0 < 20 * 60000) { if (u < 15) { if (++calm >= 3) break; } else calm = 0; await sleep(4000); u = gpuUtil(); }
     console.log('rollout_perf: GPU ' + u + ' % after ' + ((Date.now() - t0) / 1000 | 0) + ' s of waiting');
   }
+  try { await serverCheck(); }
+  catch (e) { if (server && serverExit === null) try { if (process.platform === 'win32') execSync('taskkill /PID ' + server.pid + ' /T /F', { stdio: 'ignore' }); else server.kill(); } catch (e2) {}
+    console.error('*** ' + e.message + ' ***'); process.exit(4); }
   const box = { gpuUtil: gpuUtil(), cpuLoad: cpuLoad() };
   const DPORT = 9300 + (process.pid % 500);
   const UDD = UDD_OPT ? path.resolve(UDD_OPT) : COLD ? path.join(os.tmpdir(), 'rollout_cold_' + DPORT + '_' + Date.now()) : path.join(os.tmpdir(), 'flydiy_rollout_warm_profile');
