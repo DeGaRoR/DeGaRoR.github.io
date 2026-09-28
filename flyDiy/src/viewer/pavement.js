@@ -1206,6 +1206,138 @@ float pvTread(float u, float x, float w, float seed) {
       .replace('#include <dithering_fragment>', '#include <dithering_fragment>' + GLSL.debug);
   };
   const DBG = { value: 0 };   // one debug switch for every pavement
+  // ---- THE EYES TEST (B11-EYES, G1045): the user's four material swaps, one at a time, the user LOOKING ----------
+  // ?pavetest=t1|t2|t2b|t3|t3u|t4 at load, or PAVTEST('t3') live (PAVTEST('t0') = as shipped). ONLY the material of
+  // every pavement mesh changes (strips, taxiways, roads, aprons): geometry, position and renderOrder are untouched,
+  // and a swapped-in material draws in the pavement's own pass and blend (transparent, no depth write).
+  //   t1   the markings MECHANISM off: section 7 (the paint layer, pvMarks' rects/segs) cut out of the shader, the
+  //        rect/seg counts zeroed
+  //   t2   the side band's recipe on the interior: the pavement shader at the side's alpha (uSide.z, 0.35) all over,
+  //        over the ground - what the calm band IS on a strip (sideFade: the same colour chain at <= 0.35)
+  //   t2b  the island ground's own material on the pavement: the premises patch's (the band's ground), cloned
+  //   t3   plain white MeshStandardMaterial, no maps;  t3u  plain white MeshBasicMaterial (unlit)
+  //   t5   the per-pixel NORMAL off: the pavement shader as shipped, gPavN = the mesh's normal (the user's extra test)
+  //   t4   the island's GRASS round the field: the patch material with the splat's terrain type forced to the most
+  //        common open-ground code 40-120 m round the camera (PAVTEST('t4', code) to name one), no polygons over it
+  // An on-screen box (top centre) names what is on. Default off: with no query and no call nothing here runs.
+  const PT = { mode: 't0', key: '', frag: null, want: null, scene: null, camera: null, swapped: new Map(), timer: 0, code: -1, box: null };
+  const PT_TEXT = {
+    t0: 'TEST 0 - baseline: the pavement as shipped',
+    t1: 'TEST 1 - markings MECHANISM off (paint layer + marks rects/segs + their shader code removed)',
+    t2: 'TEST 2 - border recipe: the pavement shader drawn like the side band (alpha 0.35 over the island ground)',
+    t2b: 'TEST 2b - border material: the island ground\'s own material (premises patch) on the pavement mesh',
+    t3: 'TEST 3 - plain white MeshStandardMaterial, no maps',
+    t3u: 'TEST 3u - plain white unlit (MeshBasicMaterial)',
+    t4: 'TEST 4 - grass: the island ground\'s grass (splat type forced to the field\'s grass code) on the pavement mesh',
+    t5: 'TEST 5 - NORMALS OFF: the pavement shader as shipped, its per-pixel normal replaced by the mesh\'s own normal' };
+  PT.cut = src => {
+    let s = src;
+    if (PT.mode === 't1') {
+      const a = s.indexOf('    // ---- 7 the markings'), b = s.indexOf('    // ---- 8 the rubber');
+      if (a < 0 || b < a) { console.error('PAVTEST t1: the markings section was not found - NOT cut'); return src; }
+      s = s.slice(0, a) + '    vec3 mk = vec3(0.0); float paint = 0.0;   // PAVTEST t1: the markings mechanism cut\n' + s.slice(b);
+    }
+    if (PT.mode === 't2') {
+      const k = 'diffuseColor.rgb = col; diffuseColor.a = gPavA;';
+      if (s.indexOf(k) < 0) { console.error('PAVTEST t2: the alpha line was not found - NOT applied'); return src; }
+      s = s.replace(k, 'gPavA = min(gPavA, uSide.z);   // PAVTEST t2: the interior at the side band\'s alpha\n    ' + k);
+    }
+    if (PT.mode === 't5') {
+      const k = '    gPavN = normalize(T * nTn.x + Bv * nTn.y + Ng * nTn.z);';
+      if (s.indexOf(k) < 0) { console.error('PAVTEST t5: the normal line was not found - NOT applied'); return src; }
+      s = s.replace(k, '    gPavN = Ng;   // PAVTEST t5: the per-pixel normal off, the mesh normal');
+    }
+    return s;
+  };
+  PT.catch = function (renderer, scene, camera) { if (!PT.scene) { PT.scene = scene; PT.camera = camera; for (const m of MATS) if (m.onBeforeRender === PT.catch) delete m.onBeforeRender; if (PT.want) { const w = PT.want; PT.want = null; pavtest(w[0], w[1]); } } };
+  function ptBox() {
+    if (typeof document === 'undefined') return;
+    if (!PT.box) {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:118px;left:50%;transform:translateX(-50%);z-index:99999;pointer-events:none;max-width:70vw;text-align:center;' +
+        'background:rgba(0,0,0,0.78);color:#fff;font:600 15px/1.35 system-ui,sans-serif;padding:7px 14px;border-radius:6px;border:1px solid #ffd54a';
+      document.body.appendChild(d); PT.box = d;
+    }
+    PT.box.textContent = (PT_TEXT[PT.mode] || PT.mode) + (PT.mode === 't4' && PT.code >= 0 ? ' [code ' + PT.code + ']' : '');
+  }
+  // the band's ground: a premises patch mesh on the INNER ring's material (the '-2' key is the far terrain's)
+  function ptGround() {
+    let best = null;
+    PT.scene.traverse(o => { if (best || !o.isMesh || o.name !== 'premises:patch') return; const k = o.material.customProgramCacheKey ? o.material.customProgramCacheKey() : ''; if (k.indexOf('-2') < 0) best = o.material; });
+    return best;
+  }
+  // the open ground's commonest terrain code 40-120 m round the camera (the codes the band stamp never copies skipped)
+  function ptGrassCode() {
+    const W = typeof window !== 'undefined' && window.WORLD, isl = W && W.island, g = isl && isl.grid, T = isl && isl.ttype, c = PT.camera;
+    if (!g || !T || !c) return 15;
+    const skip = [0, 1, 8, 10, 12, 13, 16], n = {};
+    for (let r = 40; r <= 120; r += 10) for (let q = 0; q < 16; q++) {
+      const x = c.position.x + Math.cos(q * Math.PI / 8) * r, z = c.position.z + Math.sin(q * Math.PI / 8) * r;
+      const i = Math.floor((x - g.x0) / g.cell), j = Math.floor((z - g.z0) / g.cell); if (i < 0 || j < 0 || i >= g.w || j >= g.h) continue;
+      const v = T[j * g.w + i]; if (skip.indexOf(v) < 0) n[v] = (n[v] || 0) + 1;
+    }
+    let best = 15, bn = 0; for (const k in n) if (n[k] > bn) { bn = n[k]; best = +k; }
+    return best;
+  }
+  function ptMaterial(THREE) {
+    const mode = PT.mode;
+    if (mode === 't3') return new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false });
+    if (mode === 't3u') return new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false });
+    const G = ptGround(); if (!G) return null;
+    const M = G.clone(), inner = G.onBeforeCompile, key = G.customProgramCacheKey;
+    M.transparent = true; M.depthWrite = false;
+    if (mode === 't2b') { M.onBeforeCompile = inner; M.customProgramCacheKey = () => key.call(G) + '-pavtest'; }
+    else {   // t4: the splat's type read pinned to one code, the material polygons' mix off
+      const code = PT.code;
+      M.onBeforeCompile = sh => {
+        inner(sh);
+        const a = sh.fragmentShader.indexOf('return min(int(texture2D(uGPackB');
+        if (a < 0) console.error('PAVTEST t4: the splat type read was not found - NOT forced');
+        else { const b = sh.fragmentShader.indexOf(';', a); sh.fragmentShader = sh.fragmentShader.slice(0, a) + 'return ' + code + ';   /* PAVTEST t4 */' + sh.fragmentShader.slice(b + 1); }
+        sh.fragmentShader = sh.fragmentShader.replace('if (uMatOn > 0.5) {', 'if (false) {');
+      };
+      M.customProgramCacheKey = () => key.call(G) + '-pavtest-grass' + code;
+    }
+    return M;
+  }
+  function ptSwap() {
+    if (!PT.scene) return;
+    const T3 = (typeof THREE !== 'undefined' && THREE) || (typeof window !== 'undefined' && window.THREE) || null;
+    const swapping = PT.mode === 't2b' || PT.mode === 't3' || PT.mode === 't3u' || PT.mode === 't4';
+    if (!swapping) { for (const [o, m] of PT.swapped) { if (o.material !== m) { const t = o.material; o.material = m; t.dispose(); } } PT.swapped.clear(); return; }
+    if (!T3) { console.error('PAVTEST: no THREE'); return; }
+    let mat = null; const miss = [];
+    PT.scene.traverse(o => { if (o.isMesh && MATS.indexOf(o.material) >= 0) miss.push(o); });
+    for (const o of miss) { if (!mat) mat = ptMaterial(T3); if (!mat) break; PT.swapped.set(o, o.material); o.material = mat; }
+    return miss.length;
+  }
+  function pavtest(mode, code) {
+    mode = String(mode || 't0').toLowerCase();
+    if (!PT_TEXT[mode]) return 'modes: ' + Object.keys(PT_TEXT).join(' ');
+    if (!PT.scene) { PT.want = [mode, code]; for (const m of MATS) m.onBeforeRender = PT.catch; return 'armed: ' + mode + ' (on the next pavement draw)'; }
+    // back to the pavement's own materials first, then the new mode
+    if (PT.swapped.size) { const was = PT.mode; PT.mode = 't0'; ptSwap(); PT.mode = was; }
+    clearInterval(PT.timer); PT.timer = 0;
+    PT.mode = mode;
+    const shaderMode = mode === 't1' || mode === 't2' || mode === 't5';
+    PT.key = shaderMode ? ':pavtest-' + mode : ''; PT.frag = shaderMode ? PT.cut : null;
+    for (const m of MATS) {
+      const U = m.uniforms, nm = m.userData.pavNM || (m.userData.pavNM = [U.uMarkN.value, U.uSegN.value]);
+      U.uMarkN.value = mode === 't1' ? 0 : nm[0]; U.uSegN.value = mode === 't1' ? 0 : nm[1];
+      m.needsUpdate = true;
+    }
+    if (mode === 't4') PT.code = code !== undefined ? +code : ptGrassCode();
+    let n = 0;
+    if (!shaderMode && mode !== 't0') {
+      n = ptSwap();
+      // a mesh streamed in later (or a patch not built yet) is taken up on the next sweep
+      PT.timer = setInterval(ptSwap, 1500);
+    }
+    ptBox();
+    return PT_TEXT[mode] + (n ? ' (' + n + ' meshes)' : '');
+  }
+  try { const q = typeof location !== 'undefined' && /[?&]pavetest=([^&]*)/.exec(location.search); if (q) { PT.want = [decodeURIComponent(q[1])]; } } catch (e) {}
+  if (typeof window !== 'undefined') window.PAVTEST = pavtest;
   function make(THREE, o) {
     const lib = o.lib, cls = o.cls || 'concrete';
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false, side: THREE.FrontSide });
@@ -1226,8 +1358,10 @@ float pvTread(float u, float x, float w, float seed) {
     // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
     m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
-    m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); };
-    m.customProgramCacheKey = () => 'pavement:' + hook.toString().length;
+    m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); if (PT.frag) sh.fragmentShader = PT.frag(sh.fragmentShader); };
+    m.customProgramCacheKey = () => 'pavement:' + hook.toString().length + PT.key;
+    if (PT.want && !PT.scene) m.onBeforeRender = PT.catch;
+    if (PT.mode === 't1') { m.userData.pavNM = [m.uniforms.uMarkN.value, m.uniforms.uSegN.value]; m.uniforms.uMarkN.value = 0; m.uniforms.uSegN.value = 0; }
     MATS.push(m);
     applyOne(THREE, m);
     if (o.keep) setKeep(m, o.keep);
@@ -1241,7 +1375,7 @@ float pvTread(float u, float x, float w, float seed) {
   function exportRecipe() { return JSON.parse(JSON.stringify(R)); }
   function dispose(m) { const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose(); }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
+    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;

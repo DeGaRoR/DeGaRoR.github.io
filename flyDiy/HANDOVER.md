@@ -63046,3 +63046,36 @@ NOT DONE / OWED
   on the box (the baked print follows the aeroplane regardless).
 - The mobile kit's baked floor print stays where a hidden prop stood (the kit's own bake; not re-baked mid-shot).
 - The shot itself is OFF for players until B8B9 / the coordinator switches the call site on.
+
+## G1045 B11-EYES: THE RUNWAY FLICKER, SPLIT BY THE USER'S EYES (2026-09-28)
+THE PROBLEM: taxiing on Jolene, the runway/apron pavement flickers (patches darker/brighter, a crawl); the side band beside
+it is calm. Earlier evidence was filmed wrong (paused sim, static camera, lossy clips), so this session ran the USER's four
+tests live in the desktop app's browser pane (Jolene, default roll-out, the pilot taxiing, chase camera, gamer preset,
+RTX 3080 / ANGLE D3D11) and the user LOOKED.
+THE SWITCH (src/viewer/pavement.js, "THE EYES TEST"): `?pavetest=<mode>` at load or `PAVTEST('<mode>')` live
+(PAVEMENT.pavtest too); `t0` = as shipped. Default off: with neither, the shader source and program key are the shipped
+ones. ONLY the material of every pavement mesh (strips, taxiways, roads, aprons - 30 meshes at the stand) changes;
+geometry, position and renderOrder untouched; a swapped-in material is transparent + depthWrite false, the pavement's
+own pass and blend. A fixed box under the HUD names the mode on screen.
+  t1  the markings MECHANISM off: section 7 (the paint layer, pvMarks' rects/segs) cut out of the shader text, uMarkN/uSegN 0
+  t2  the side band's recipe on the interior: the SAME shader, gPavA = min(gPavA, uSide.z) (0.35) - the calm band IS
+      the pavement shader at <= 0.35 over the island ground (sideFade), not the ground's shader (B11b's reading, confirmed)
+  t2b the island ground's own material: the premises patch's inner-ring material (islandGroundHook0 + the polygons),
+      cloned onto the pavement mesh (world-position driven: needs no extra attribute; the strip geometry has normals)
+  t3  plain white MeshStandardMaterial, no maps (t3u: MeshBasicMaterial, unlit)
+  t4  grass: t2b with the splat's terrain read (sCodeAt) pinned to the commonest open-ground code 40-120 m round the
+      camera (15 on the apron) and the material polygons' mix off
+  t5  (the user's extra) the per-pixel NORMAL off: the shipped shader with gPavN = the mesh normal Ng
+  Seen with t2b/t3/t4 on: the whole mesh is opaque, so it covers the first metres of the side band too.
+THE USER'S VERDICTS (verbatim; a 10 s-each cycle t0 t1 t2 t2b t3 t4, then t0/t5 alternating):
+  "0 very bad flicker / 1 exactly the same / 2 OK, 2b OK / 3 OK / 4 OK"
+  "normals off change nothing"
+WHAT IT SAYS: geometry, depth and draw order are OUT (t2b, t3, t4 draw the same meshes, same pass and order, calm; a
+z-fight or ground poke-through would show worst on white). The markings are OUT (t1). The flicker lives in the pavement
+material's own shader, and the per-pixel normal is OUT (t5). t2 changes nothing in the shader but its opacity: the same
+signal at 35 % over the calm ground drops below what the eye catches - the side band's calm is AMPLITUDE, not a better
+sampling path. Left: the surface's colour/roughness as the pavement samples its sets (hex tiling with per-triangle corner
+fetches, mip selection, the macro/detail layers) or the specular on that roughness.
+THE ONE NEXT TEST (the user decides): the pavement shader as shipped with NO TEXTURE - the base set replaced by its graded
+mean colour, everything else kept (B11b's `tex:flat`, commit d5c5830a on claude/epic-robinson-cc1b60). Calm -> the
+texture sampling (then hex0 / gpath split it); still flickering -> the procedural layers or the specular.
