@@ -76,6 +76,17 @@ const ALLOW = [
   { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 4700, why: 'the stand-ins\' maps and the compiled uniforms\' textures uploaded in the upload step', g: 'G730/G732' },
   { key: 'boot/rollout:frames/gl.calls', build: '*', upTo: 51500, why: 'the catch-up upload of the hooks\' textures and the sliced depth variants before first light', g: 'G732' },
   { key: 'boot/rollout:bake/', build: '*', why: 'the flown aeroplane texture bake, a roll-out step under the screen (cached: an IndexedDB hit reads and uploads only)', g: 'G870' },
+  // C4b (G875-G878): the census now sees the flown bake as the game runs it (the step's read-back returns written texels
+  // here: before, it bowed out at 0 % and the census measured an aeroplane no player sees); the bake step's row is G870's above
+  { key: 'boot/rollout:compile/links', build: '*', upTo: 72, why: 'the folds\' programs linked under the screen: the skinned variant of the baked material, the cabin\'s baked material and its skinned variant', g: 'G875' },
+  { key: 'boot/rollout:compile/gl.calls', build: '*', upTo: 800, why: 'the same three links', g: 'G875' },
+  { key: 'boot/rollout:town/gl.calls', build: '*', upTo: 1110, why: '+11 calls in the town step once the bake runs before it in the census (not traced further)', g: 'G878' },
+  { key: 'stand/gl.texSubImage2D', build: '*', upTo: 102, why: 'the folds\' bone textures: one small upload per skinned fold a frame (four on a Cessna)', g: 'G875' },
+  { key: 'taxi/gl.texSubImage2D', build: '*', upTo: 100, why: 'the folds\' bone textures (above)', g: 'G875' },
+  { key: 'stand/bytes.texSubImage2D', build: '*', upTo: 496000, why: 'the folds\' bone textures (~1.5 KB each a frame)', g: 'G875' },
+  { key: 'taxi/bytes.texSubImage2D', build: '*', upTo: 490000, why: 'the folds\' bone textures (above)', g: 'G875' },
+  { key: 'taxi/world.terrainH', build: 'cub', upTo: 42000, why: 'the Cub\'s taxi view only (the Cessna\'s did not move): the terrain fill\'s calls rose once the bake runs in the census - not traced further', g: 'G878' },
+  { key: 'taxi/world.grHeight', build: 'cub', upTo: 56000, why: 'the raster behind that terrainH (above)', g: 'G878' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------

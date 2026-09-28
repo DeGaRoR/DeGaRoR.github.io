@@ -9,7 +9,7 @@
 // aeroplane (the reader's mask), and for the orbit views a sub-pixel orbit sequence, A and B interleaved (the shimmer).
 // Where a fold could go wrong - a part's bone (the wheels, the castor, the engine unit), a rig's write range (the flex,
 // the hinged surfaces, the legs, the struts), the crumb classes - A and B differ; everywhere else they are the same
-// pixels. The cost at each camera, A B A B, from the flight recorder (the loop's JS work, the GPU, the draw calls).
+// pixels (the crew's idle animation runs on the page's clock even held: their heads differ by a few pixels). The cost at each camera, A B A B, from the flight recorder (the loop's JS work, the GPU, the draw calls).
 //   states: stand (as rolled out), deflect (ailerons, elevator, rudder and flaps at full travel, FLEX x4, held),
 //           taxi (paused 14 s into the pilot's taxi: the wheels turned, the legs loaded), air (paused ~12 s after
 //           the wheels leave: the wing flexed by the load, x4, the surfaces where the pilot has them)
@@ -21,7 +21,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const PORT = +(process.argv[2] || 8572), OUT = path.resolve(process.argv[3] || 'fold_ab'), STEPS = +(process.argv[4] || 8), STEP = +(process.argv[5] || 0.0006);
-const ONLY = process.env.STATES ? process.env.STATES.split(',') : null;
+const ONLY = process.env.STATES ? process.env.STATES.split(',') : null, ONLYV = process.env.VIEWS ? process.env.VIEWS.split(',') : null;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const post = async (p, body) => { const r = await fetch('http://127.0.0.1:' + PORT + p, { method: 'POST', body }); return r.text(); };
 const run = async body => { const t = await post('/run', body); try { return JSON.parse(t); } catch (e) { return t; } };
@@ -65,12 +65,15 @@ const pause = async on => { if ((await paused()) !== on) { await run(`document.g
   const STATES = [
     { k: 'stand', views: ['stand', 'rear', 'wheel', 'chase', 'mid', 'cockpit'], cost: true },
     { k: 'deflect', views: ['stand', 'rear', 'wheel'], prep: async () => {
-        // full travel on every surface, held: the linkage steps on the frame's own dt while the world is paused
-        await run(`const s = FLIGHT_PROBE.sim(); Object.assign(s.ctl, { da: 1, de: -0.8, dr: 0.9, flap: 1 }); return 1;`);
+        // full travel on every surface, held: the linkage steps on the frame's dt, which the pause holds at 0 - so for this
+        // state it steps at 1/60 whatever the pause (the rig's own patch, undone after)
+        await run(`const s = FLIGHT_PROBE.sim(), L = FLIGHT_PROBE.model().link; Object.assign(s.ctl, { da: 1, de: -0.8, dr: 0.9, flap: 1 });
+          if (!L.__st) { L.__st = L.step; L.step = (c, dt) => L.__st(c, 1 / 60); } return 1;`);
         await run(`document.getElementById('bSkin').click(); return 1;`);   // FLEX x4 (skinMode 1)
         await frames(120);
       }, done: async () => { await run(`document.getElementById('bSkin').click(); document.getElementById('bSkin').click(); document.getElementById('bSkin').click();
-        const s = FLIGHT_PROBE.sim(); Object.assign(s.ctl, { da: 0, de: 0, dr: 0, flap: 0 }); return 1;`); await frames(60); } },
+        const s = FLIGHT_PROBE.sim(), L = FLIGHT_PROBE.model().link; Object.assign(s.ctl, { da: 0, de: 0, dr: 0, flap: 0 }); return 1;`); await frames(90);
+        await run(`const L = FLIGHT_PROBE.model().link; if (L.__st) { L.step = L.__st; delete L.__st; } return 1;`); } },
     { k: 'taxi', views: ['chase', 'wheel', 'stand'], prep: async () => {
         await pause(false);
         await run(`document.getElementById('bGo').click(); return 1;`);
@@ -94,10 +97,16 @@ const pause = async on => { if ((await paused()) !== on) { await run(`document.g
     if (St.prep) await St.prep();
     const S = info.states[St.k] = { views: {}, pose: await run(`const s = FLIGHT_PROBE.sim(), c = s.cgPos(), v = s.cgVel(); return { cg: c.map(x => +x.toFixed(2)), v: +Math.hypot(v[0], v[1], v[2]).toFixed(2), agl: +(FLIGHT_PROBE.agl() || 0).toFixed(1), ctl: { da: s.ctl.da, de: s.ctl.de, dr: s.ctl.dr, flap: s.ctl.flap } };`) };
     console.log('state ' + St.k + ' ' + JSON.stringify(S.pose));
-    for (const vk of St.views) {
+    for (const vk of St.views.filter(v => !ONLYV || ONLYV.includes(v))) {
       const V = VIEWS[vk], tag = St.k + '_' + vk;
       await run('const P = FLIGHT_PROBE; ' + V.set + ' return 1;');
       await frames(40); await sleep(300);
+      // THE COCKPIT'S EYE SWAYS every frame, the world held or not (C4a's trap): its matrix frozen as it stands, in the
+      // scene's onBeforeRender (after three's camera update, before the frustum and the draws), so A and B are one frame
+      if (vk === 'cockpit') await run(`const S = WORLD.scene, cam = FLIGHT_PROBE.camera();
+        window.__FBF = { M0: cam.matrixWorld.clone(), prev: S.onBeforeRender };
+        S.onBeforeRender = (r, s, c) => { if (c !== cam) return; c.matrixWorld.copy(__FBF.M0); c.matrixWorldInverse.copy(__FBF.M0).invert(); };
+        return 1;`);
       const box = await run(BOX);
       const cam0 = await run('return FLIGHT_PROBE.cam();');
       // B as played: in the cockpit the cabin flies its live shader (the fold's swap), so only the exterior's folds flip
@@ -127,6 +136,7 @@ const pause = async on => { if ((await paused()) !== on) { await run(`document.g
         }
         v.seq = STEPS;
       }
+      if (vk === 'cockpit') await run('WORLD.scene.onBeforeRender = __FBF.prev; return 1;');
       console.log('  ' + tag + ' box ' + JSON.stringify(box) + (v.cost ? ' cost ' + JSON.stringify(v.cost) : ''));
     }
     if (St.done) await St.done();
