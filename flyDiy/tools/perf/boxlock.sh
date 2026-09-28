@@ -7,6 +7,8 @@
 #   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh take cpu <who> [note]  # waits: no GPU lock (CPU locks share)
 #   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh drop gpu|cpu <who>
 #   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh show
+#   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh reserve <who> [note]   # PRIORITY: every OTHER take waits
+#   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh unreserve <who>         # (the coordinator's call, e.g. the user watching)
 #
 # The lock files live in the MAIN checkout's tools/perf/ whatever worktree you run from - always call this by the
 # absolute path above. Creation is noclobber, and the conflict is re-checked AFTER creating (a gpu and a cpu taken in
@@ -16,14 +18,20 @@ D="D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf"
 cmd="$1"; kind="$2"; who="$3"; shift 3 2>/dev/null; note="$*"
 gpu="$D/GPU_BENCH.lock"
 cpu_any() { ls "$D"/CPU_BATTERY_*.lock >/dev/null 2>&1; }
+res="$D/RESERVED"
+# a reservation blocks every take but its holder's (and is ignored when older than 180 min: a forgotten one must not stop the box)
+reserved_other() { [ -e "$res" ] || return 1; local a=$(( ($(date +%s) - $(stat -c %Y "$res")) / 60 )); [ $a -gt 180 ] && return 1; ! grep -q "^$who " "$res"; }
 stale() { for f in "$D"/*.lock; do [ -e "$f" ] || continue; a=$(( ($(date +%s) - $(stat -c %Y "$f")) / 60 )); [ $a -gt 90 ] && echo "boxlock: STALE ($a min) $(basename "$f"): $(cat "$f") - tell the coordinator" >&2; done; }
 case "$cmd" in
-  show) for f in "$D"/*.lock; do [ -e "$f" ] && echo "$(basename "$f"): $(cat "$f")"; done; exit 0 ;;
+  show) for f in "$D"/*.lock "$res"; do [ -e "$f" ] && echo "$(basename "$f"): $(cat "$f")"; done; exit 0 ;;
+  reserve) [ -n "$kind" ] || { echo "usage: boxlock.sh reserve <who> [note]" >&2; exit 2; }; echo "$kind $(date +%H:%M) $who $note" > "$res"; echo "boxlock: box RESERVED for $kind"; exit 0 ;;
+  unreserve) if grep -q "^$kind " "$res" 2>/dev/null; then rm -f "$res"; echo "boxlock: reservation by $kind released"; else echo "boxlock: no reservation by $kind" >&2; fi; exit 0 ;;
   take)
     [ -n "$who" ] || { echo "usage: boxlock.sh take gpu|cpu <who> [note]" >&2; exit 2; }
     n=0
     while true; do
-      if [ "$kind" = gpu ]; then
+      if reserved_other; then :
+      elif [ "$kind" = gpu ]; then
         if [ ! -e "$gpu" ] && ! cpu_any && ( set -C; echo "$who $(date +%H:%M) $note" > "$gpu" ) 2>/dev/null; then
           if cpu_any; then rm -f "$gpu"; else echo "boxlock: GPU taken by $who"; exit 0; fi
         fi
