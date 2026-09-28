@@ -384,6 +384,9 @@ const GATES = [
   // the ladder's membership, the cut (one bucket per triangle), the far rungs
   // on the same ground, the material dupe, the island's parked objects (~2 s)
   { id: 'PARKED', file: '_parked_check.js', tier: 'core' },
+  // C4a (G870): the flown aeroplane's texture bake - what bakes, the atlas uv per vertex (and the split), the key,
+  // the tangent frame riding the flex, the Toksvig mips, the dilation, the wiring (~1 s)
+  { id: 'FLOWNBAKE', file: '_flown_bake_check.js', tier: 'core' },
   // THE OBSTACLES (G433): the column grids the solver pushes out of - the
   // shape and the push, the registry's bins, the discrepancy of every baked
   // prop's shape against its own mesh (a cell, 0.5 m), an aeroplane rolled at

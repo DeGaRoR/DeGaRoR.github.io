@@ -236,6 +236,8 @@ const MANIFEST = {
     ['tools', '_village_gen.js'],
     // THE PARKED AEROPLANES (G411): builds as props, before the renderer that stands them
     ['src/viewer', 'parked.js'],
+    // THE FLOWN BAKE (C4a, G870): the flown aeroplane's exterior baked on parked.js's unwrap, under the roll-out screen
+    ['src/viewer', 'flown_bake.js'],
     // THE SCENERY'S LIFE (2026-09-23): people, clutter, rubbish, cars, small structures, antennas - made by the renderer below
     ['src/viewer', 'scenery_life.js'],
     // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with

@@ -18,7 +18,8 @@
 const { spawn, execSync } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http');
 const ROOT = process.argv[2], BUILD = process.argv[3] || 'stock', PAGE = process.argv[4] || 'dev.html', CPORT = +(process.argv[5] || 8562);
-const SPORT = 8561, DPORT = 9461, UDD = 'C:/a6s';
+// (C4a: env SPORT / DPORT / UDD override the ports and the profile, so two sessions' drivers never meet)
+const SPORT = +(process.env.SPORT || 8561), DPORT = +(process.env.DPORT || 9461), UDD = process.env.UDD || 'C:/a6s';
 const SIZE = [1600, 900];
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const sleep = ms => new Promise(r => setTimeout(r, ms));

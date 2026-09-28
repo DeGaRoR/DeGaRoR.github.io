@@ -1829,8 +1829,22 @@
         texs[t].colorSpace = THREE.SRGBColorSpace;
     }
     if (!entry.pending) entry.ready = true;
+    // C4a (G870): THE FLOWN BAKE, when the roll-out's 'bake' step made one for THIS payload (flown_bake.js): the
+    // exterior AEROSKIN buckets wear ONE baked material through an atlas uv per vertex (`uv1`); null = the live shader
+    const FBK = (data.cage && window.FLOWN_BAKE) ? window.FLOWN_BAKE.forPayload(data) : null;
     const mkGeo = (g, ownPos) => {
+      const fbUv = FBK ? FBK.uv(g) : null;
+      if (fbUv && !FBK.ab) {
+        // a baked bucket reads position, normal and its atlas uv, nothing else (no field, no cavity: the bake holds them)
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(ownPos ? g.pos.slice() : g.pos, 3));
+        geo.setAttribute('normal', new THREE.BufferAttribute(g.nrm, 3));
+        geo.setAttribute('uv1', new THREE.BufferAttribute(fbUv, 2, true));
+        geo.setIndex(new THREE.BufferAttribute(g.idx, 1));
+        return geo;
+      }
       const geo = new THREE.BufferGeometry();
+      if (fbUv) geo.setAttribute('uv1', new THREE.BufferAttribute(fbUv, 2, true));   // the A/B build: both, side by side
       // `ownPos` hands the geometry ITS OWN copy of the positions. The
       // default wraps the payload's array — which is what every rigged
       // group wants (poseSkinGen writes through it) — but anything the
@@ -1858,7 +1872,9 @@
       return geo;
     };
     const matCache = {};
-    const matFor = name => {
+    // a baked bucket's material is the bake's one (FBK); the A/B build keeps its live twin beside it (FBK.made)
+    const matFor = name => (FBK && FBK.has(grpMat(name))) ? FBK.mat : matLive(name);
+    const matLive = name => {
       const mn = grpMat(name);
       if (matCache[mn]) return matCache[mn];
       const m = mats[mn], op = m.opacity !== undefined ? m.opacity : 1;
@@ -2052,6 +2068,7 @@
       const isProp = name === 'prop' || name === 'proptip' || name === 'spinner';
       if (isProp) geo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
       const mesh = new THREE.Mesh(geo, matFor(name));
+      if (FBK && FBK.ab && mesh.material === FBK.mat) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
       // the payload's own declaration of what is see-through is `opacity < 1`
       // — the same fact `castShadow` below already reads
       const clear = !!(mats[name] && mats[name].opacity < 1);
@@ -2210,6 +2227,7 @@
         const pg = new THREE.Group();
         for (const name in pt.groups) {
           const mesh = new THREE.Mesh(mkGeo(pt.groups[name]), matFor(name));
+          if (FBK && FBK.ab && mesh.material === FBK.mat) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
           mesh.castShadow = !(mats[name] && mats[name].opacity < 1);
           if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroGlassCompanion)
             AEROSKIN.aeroGlassCompanion(THREE, mesh, mesh.material,
@@ -5049,6 +5067,7 @@
                           camModeNow: () => cam.mode,                                   // A9: the director's cut, read by bench_shot.js
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
+                          camMode: m => flCamMode(m),                                   // C4a (G870): the A/B rig's chase / cockpit views
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
@@ -6744,6 +6763,15 @@
     // G680: from the shed, the build's sync and the stand are the screen's first steps (rollOut(after, true))
     if (sync) {
       steps.push({ id: 'sync', label: 'committing your build', w: 8, fn: () => sliced(syncBuildSteps(), 'sync', 'committing your build') });
+      // C4a (G870): THE FLOWN BAKE (flown_bake.js) - the snapshot's exterior baked into one atlas, or read from the
+      // IndexedDB cache; the model 'sync' built live is rebuilt once on it (B8B9: snapshot -> bake -> apply removes that)
+      steps.push({ id: 'bake', label: 'baking your aeroplane', w: 6, fn: () => {
+        if (!window.FLOWN_BAKE) return;
+        return window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: genSpec,
+          phase: (l, f) => BOOT.phase('bake', l, f),
+          rebuild: () => { if (curKey === 'gen' && model && model.data === window.CAGE_VISUAL) setAircraft('gen'); } })
+          .catch(e => console.warn('flown bake:', e && e.message || e));
+      } });
       steps.push({ id: 'stand', label: 'onto the strip', w: 3, fn: () => { rollOutStand(); } });
     }
     holdRender = typeof renderer.compileAsync === 'function';   // the harness renders nothing anyway
@@ -7193,6 +7221,8 @@
       if (window.CAGE_JOIN.snapshot) {
         const flown = window.GARAGE_SPEC.preview ? window.GARAGE_SPEC.preview(spec) : spec;
         window.CAGE_VISUAL = window.CAGE_JOIN.snapshotSteps ? yield* window.CAGE_JOIN.snapshotSteps(flown) : window.CAGE_JOIN.snapshot(flown);
+        // C4a (G870): the baked buckets' rest positions, before any pose writes them (flown_bake.js)
+        if (window.FLOWN_BAKE) window.FLOWN_BAKE.note(window.CAGE_VISUAL);
       }
       (window.GARAGE_SPEC.update || window.GARAGE_SPEC.set)(spec);
       return (window.CAGE_JOIN.errors && window.CAGE_JOIN.errors()) || [];
