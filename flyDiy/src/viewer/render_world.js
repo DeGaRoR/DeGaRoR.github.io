@@ -2148,9 +2148,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the error and the height range, bottom-up: a node's patch read bilinearly at each child's
       // samples, plus that child's own error (conservative: the worst it can be off the leaves)
       let farIds = 0;
+      // a node keeps its quantised samples (AS1, G905: 19_terrain_codec decodeRaw); its heights as doubles, the same numbers
+      const hts = n => TERRAIN_CODEC.heights(n);
       (function measure(n) {
         n.fid = farIds++;
-        let lo = Infinity, hi = -Infinity; for (let k = 0; k < NN; k++) { const y = n.h[k]; if (y < lo) lo = y; if (y > hi) hi = y; }
+        const nh = hts(n);
+        let lo = Infinity, hi = -Infinity; for (let k = 0; k < NN; k++) { const y = nh[k]; if (y < lo) lo = y; if (y > hi) hi = y; }
         n.lo = lo; n.hi = hi; n.e = 0;
         if (!n.kids) {   // does a lake (its box, +30 m) reach this leaf? the lake-free leaves draw without the lake cut
           const s = FH.side / (1 << n.d), x0 = FH.bounds.x0 + n.ix * s, z0 = FH.bounds.z0 + n.iz * s;
@@ -2160,12 +2163,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         let e = 0;
         for (const c of n.kids) {
           measure(c);
-          const qx = c.ix - n.ix * 2, qz = c.iz - n.iz * 2;
+          const qx = c.ix - n.ix * 2, qz = c.iz - n.iz * 2, ch = hts(c);
           let ec = 0;
           for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
             const u = (qx * Pn + i) / 2, v = (qz * Pn + j) / 2, i0 = Math.min(Pn - 1, u | 0), j0 = Math.min(Pn - 1, v | 0), fu = u - i0, fv = v - j0, b = j0 * N + i0;
-            const p = (n.h[b] * (1 - fu) + n.h[b + 1] * fu) * (1 - fv) + (n.h[b + N] * (1 - fu) + n.h[b + N + 1] * fu) * fv;
-            const d = Math.abs(p - c.h[j * N + i]); if (d > ec) ec = d;
+            const p = (nh[b] * (1 - fu) + nh[b + 1] * fu) * (1 - fv) + (nh[b + N] * (1 - fu) + nh[b + N + 1] * fu) * fv;
+            const d = Math.abs(p - ch[j * N + i]); if (d > ec) ec = d;
           }
           if (ec + c.e > e) e = ec + c.e;
         }
@@ -2190,10 +2193,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       })();
       const patchOf = n => {
         let P = FARLOD.cache.get(n.fid); if (P) { P.used = FARLOD.stamp; return P; }
-        const [ox, oz, s] = boxOf(n), step = s / Pn;
+        const [ox, oz, s] = boxOf(n), step = s / Pn, nh = hts(n);
         const pos = new Float32Array(NV * 3), uv = new Float32Array(NV * 2), nor = new Float32Array(NV * 3);
         for (let j = 0, k = 0; j < N; j++) for (let i = 0; i < N; i++, k++) {
-          const x = ox + i * step, z = oz + j * step; let y = n.h[k];
+          const x = ox + i * step, z = oz + j * step; let y = nh[k];
           // the asset's sea is the DEM's 0, ABOVE the water plane: the far
           // mesh takes the island's shelf like the sampler does (G402 - the
           // painted floor had shown over the plane as "a different tile")
