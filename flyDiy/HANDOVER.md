@@ -62002,6 +62002,12 @@ PASS: every core gate (PILOT x3, PILOTACT, HONESTY, LINEUP, TAXICLEAR, ...), ARC
 SOAR, HOTHIGH. FAIL: PILOTMATRIX (9, above - FLIGHT-1's), SEAPLANE (3: the crosswind water run - the same three
 lines, 47.2 m and 180 deg, on the baseline worktree; G780's aa8b8a59). Before (G780 + the baseline worktree):
 ARCHETYPES FAIL (5 cards), PILOTMATRIX FAIL (10), SEAPLANE FAIL (3), SOAR / HOTHIGH PASS.
+ON THE INTEGRATION (rebased onto claude/batch-a-base b78f8d0c: G780 + G970's touchdowns + these laws, which it had
+already taken as e092808a): `run_gates.js --all --jobs=3`, 129 jobs, wall 4 676 s - BATTERY: PASS. PILOTMATRIX PASS
+("no cell worse than pilot_baseline.json; 2 known bad, 1 warn" - G970's flare with these laws, the baseline
+untouched), SEAPLANE PASS (G970's water run), ARCHETYPES PASS (4 shards), SOAR, HOTHIGH, PILOT x3, PILOTACT, HONESTY,
+LINEUP, TAXICLEAR and every core gate PASS. The numbers above (9 regressed, SEAPLANE 3) are this law set on the
+pre-G970 base, kept for the before/after.
 OWED: genTrim's flap choice read powered and over an alpha band (the tuck is an airframe fact the pilot now
 flies around, not a sheet number); a crash on the approach still reads as a terrain go-around and a give-up.
 ## G1000-G1004 - A6-GROUND: THE WHEELS ON THE GROUND - THE PAVEMENT DRAWN WHERE THE WHEEL STANDS, A CONTACT SHADOW UNDER EACH TYRE, NOTHING LOOSE ON A PAVEMENT (2026-09-28, the Jolene playtest, batch A final fix pass, local GPU)
