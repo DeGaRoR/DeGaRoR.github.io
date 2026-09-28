@@ -91,6 +91,11 @@ async function census(build) {
       if (name === 'vendor/three.min.js') installThree(W.THREE, C);
       if (name === 'src/viewer/boot.js' && W.BOOT) wrapBoot(W, P);
       if (name === 'src/viewer/gfx_settings.js' && W.GFX) { W.GFX.set('preset', 'gamer'); W.GFX.set('shadows', 'full'); }
+      // C4b (G875): THE FLOWN BAKE ENGAGES HERE AS IT DOES IN THE GAME. The recording GL draws nothing, so the bake's
+      // read-back is all zeros and the step bows out (0 % of the atlas written: the live shader flies) - the census
+      // then measured an aeroplane no player sees. During the step only, its read-back returns a written mid-grey texel.
+      if (name === 'src/viewer/flown_bake.js' && W.FLOWN_BAKE) { const FBk = W.FLOWN_BAKE, st = FBk.step;
+        FBk.step = async function () { C.fbFill = true; try { return await st.apply(this, arguments); } finally { C.fbFill = false; } }; }
     },
     beforeScript(name, P) {
       const W = P.win;
@@ -137,6 +142,7 @@ async function census(build) {
   C.phase = () => P.rec.phase;
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
   views.stand = await measure();
+  const craft = { stand: await craftCensus(W, P, FP, C) };
   if (C.who) { for (const [k, m] of Object.entries(C.who)) { process.stderr.write('WHO ' + k + '\n'); const w = e => e[1] * (+((/\[(\d+) B\]$/.exec(e[0]) || [0, 1])[1]) || 1); for (const [st, n] of Object.entries(m).sort((a, b) => w(b) - w(a)).slice(0, 8)) process.stderr.write('   ' + n + '  ' + st + '\n'); } C.who = null; P.rec.onCall = null; }
   // THE PROOF (on the Cub's stand, where the baseline view is fresh): three regressions injected, each measured
   const selftest = build === 'cub' ? await injections(W, FP, C, views.stand, measure) : null;
@@ -161,11 +167,13 @@ async function census(build) {
     await P.frames(2); r.heldAfterReupload = held();
     return r;
   })();
+  craft.taxi = await craftCensus(W, P, FP, C);
   const wd = FP.world();
   const health = { premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5) };
-  return { build, health, release, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  craft.bake = W.FLOWN_BAKE ? (W.FLOWN_BAKE.FB.last || null) : undefined;
+  return { build, health, release, frames: FRAMES, warm: WARM, views, craft, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
 }
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
@@ -214,13 +222,51 @@ function installThree(T, C) {
   const hook = (proto, k, ctr, pick) => {
     const DEF = proto[k], slot = '__fc_' + k;
     Object.defineProperty(proto, k, { configurable: true,
-      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === 'main')) C.drawn.push(this); if (f) { C[ctr]++; return f; } return DEF; },
+      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === 'main')) C.drawn.push(this);
+        if (C.craft && (pick || k === 'onBeforeShadow') && C.craft.set.has(this)) craftDraw(C, this, k === 'onBeforeShadow' ? 'shadow' : C.phase ? C.phase() : 'main');
+        if (f) { C[ctr]++; return f; } return DEF; },
       set(f) { Object.defineProperty(this, slot, { value: f === DEF ? undefined : f, writable: true, configurable: true, enumerable: false }); } });
   };
   hook(O, 'onBeforeRender', 'obr', true); hook(O, 'onAfterRender', 'oar'); hook(O, 'onBeforeShadow', 'obs'); hook(O, 'onAfterShadow', 'obs');
   hook(M, 'onBeforeRender', 'mobr');
   const F = T.Frustum.prototype;
   for (const k of ['intersectsObject', 'intersectsSprite']) { const f = F[k]; F[k] = function (o) { C.frustum++; return f.call(this, o); }; }
+}
+// C4b (G875): THE AEROPLANE'S OWN SHARE - its draws by pass, the materials and programs its main-pass draws use
+// (a census field beside the views, never in the ratchet's rows: the whole frame's counts already carry it)
+function craftDraw(C, o, ph) {
+  const K = C.craft; K[ph] = (K[ph] || 0) + 1;
+  if (ph !== 'main') return;
+  for (const m of [].concat(o.material)) if (m) K.mats.add(m);
+  if (o.isSkinnedMesh) K.skinned++;
+}
+async function craftCensus(W, P, FP, C, n) {
+  const m = FP.model && FP.model(), set = new Set();
+  if (m && m.grp) m.grp.traverse(o => { if (o.isMesh || o.isLine || o.isPoints) set.add(o); });
+  let r = null;
+  for (let i = 0; i < (n || 3); i++) {
+    C.craft = { set, main: 0, shadow: 0, other: 0, skinned: 0, mats: new Set() };
+    await P.frames(1);
+    r = C.craft;
+  }
+  C.craft = null;
+  // FRAMECOST_CRAFT=1: every mesh the aeroplane drew, by the payload bucket it came from (stderr, a debugging aid)
+  if (process.env.FRAMECOST_CRAFT && m && m.data) {
+    const who = new Map(), D = m.data, mats = D.mats || {};
+    for (const k in D.groups || {}) who.set(D.groups[k].pos, { k, part: '' });
+    for (const pt of D.parts || []) for (const k in pt.groups) who.set(pt.groups[k].pos, { k, part: pt.kind });
+    const rows = {};
+    for (const o of set) { const g = o.geometry, pa = g && g.attributes && g.attributes.position; const w = pa && who.get(pa.array);
+      const mt = [].concat(o.material)[0] || {}, rec = w ? (mats[w.k] || {}) : {};
+      const cls = w ? [w.part || 'grp', rec.fin || '-', rec.inside ? 'in' : '', rec.spin ? 'spin' + rec.spin : '', rec.char ? 'char' : '', rec.lamp || rec.lampCup ? 'lamp' : '', rec.panel ? 'panel' : '', rec.ves ? 'ves' : '', rec.propMat ? 'kit' : '', rec.opacity < 1 ? 'clear' : '', rec.sec === 'dashFace' ? 'facia' : ''].filter(Boolean).join(' ') : (o.name || o.type) + ' ' + (o.userData.still ? 'still' : '');
+      const key = cls + ' | ' + (mt.name || mt.type); rows[key] = (rows[key] || 0) + 1; }
+    process.stderr.write('CRAFT ' + set.size + '\n' + Object.entries(rows).sort((a, b) => b[1] - a[1]).map(([k, v]) => '  ' + v + ' ' + k).join('\n') + '\n');
+  }
+  const R = W.FLYDIY_RENDERER, progs = new Set(), names = {};
+  for (const mt of r.mats) { const pr = R.properties.get(mt), cp = pr && pr.currentProgram; if (cp) progs.add(cp.id);
+    const k = mt.name || mt.type; names[k] = (names[k] || 0) + 1; }
+  return { meshes: set.size, draws: { main: r.main, shadow: r.shadow, other: r.other }, skinnedDraws: r.skinned, materials: r.mats.size, programs: progs.size,
+           byMaterial: Object.entries(names).sort((a, b) => b[1] - a[1]).slice(0, 40) };
 }
 function wrapWorld(w, C) {
   if (!w || w.__fc) return; w.__fc = true;
@@ -247,6 +293,9 @@ function wrapRenderer(R, P, C, cam) {
       P.rec.phase = main && camera === cam() ? 'main' : 'other'; }
     try { return rr.apply(this, arguments); } finally { P.rec.phase = prev; }
   };
+  for (const k of ['readRenderTargetPixels', 'readRenderTargetPixelsAsync']) { const f = R[k]; if (typeof f !== 'function') continue;
+    R[k] = function (rt, x, y, w, h, buf) { const r = f.apply(this, arguments); const fill = () => { if (C.fbFill && buf && buf.fill) buf.fill(128); return buf; };
+      return r && typeof r.then === 'function' ? r.then(v => { fill(); return v; }) : (fill(), r); }; }
   const SM = R.shadowMap, sr = SM.render;
   SM.render = function () { const prev = P.rec.phase; P.rec.phase = 'shadow'; try { return sr.apply(this, arguments); } finally { P.rec.phase = prev; } };
 }
@@ -426,6 +475,9 @@ async function main() {
       { const ta = texB(A.boot), tb = texB(B.boot), M = x => ((x || 0) / 1048576).toFixed(1);
         console.log('  ' + build + ' texture upload MiB by step (a -> b): ' + Object.keys(Object.assign({}, ta, tb)).filter(k => ta[k] !== tb[k] || k === 'total').map(k => k + ' ' + M(ta[k]) + ' -> ' + M(tb[k])).join(', ')); }
       if (A.mem && B.mem) for (const at of Object.keys(B.mem)) console.log('  ' + build + ' memory after ' + at + ' (MiB, a -> b): ' + Object.keys(B.mem[at]).map(k => k + ' ' + A.mem[at][k] + ' -> ' + B.mem[at][k]).join(', '));
+      for (const v of ['stand', 'taxi']) { if (!(B.craft || {})[v]) continue; const a2 = (A.craft || {})[v] || {}, b2 = B.craft[v];
+        const row = k => ({ 'draws.main': k.draws && k.draws.main, 'draws.shadow': k.draws && k.draws.shadow, 'draws.other': k.draws && k.draws.other, skinnedDraws: k.skinnedDraws, materials: k.materials, programs: k.programs, meshes: k.meshes });
+        printTable(compare(row(a2), row(b2), 'craft.' + v + '/', build, true), build + ' the aeroplane at ' + v + ' (a -> b)'); }
     }
     return;
   }
@@ -440,6 +492,7 @@ async function main() {
     if (!r.failed && r.mem) console.log('       memory after the roll-out (MiB, reported): ' + JSON.stringify(r.mem.rollout) + '; at the end ' + JSON.stringify(r.mem.end));
     if (r.failed) continue;
     ok(!!(r.views.stand && r.views.taxi), r.build + ': both views measured (stand, taxi)', r.views.taxi ? 'taxi at ' + r.views.taxi.pose.join(' ') : 'no taxi pose');
+    if (r.craft) for (const v of ['stand', 'taxi']) { const k = r.craft[v]; if (!k) continue; console.log('  info ' + r.build + ' ' + v + ': the aeroplane draws ' + k.draws.main + ' main + ' + k.draws.shadow + ' shadow + ' + k.draws.other + ' other (' + k.skinnedDraws + ' skinned), ' + k.materials + ' materials, ' + k.programs + ' programs, ' + k.meshes + ' meshes'); }
     const H = r.health || {};
     ok(H.world === 'jolene' && H.premises && H.townCut > 0 && H.raster, r.build + ': the scene is the page\'s - Jolene, its premises composed with Metlakatla cut, the ground raster on', 'world ' + H.world + ', premises ' + H.premises + ', ' + H.townCut + ' mk_ entries cut, raster ' + H.raster + ', depth ' + H.depth);
     ok(H.gfx && H.gfx.preset === 'gamer' && H.gfx.shadows === 'full', r.build + ': graphics gamer, shadows full', JSON.stringify(H.gfx));

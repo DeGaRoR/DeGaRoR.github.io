@@ -1841,7 +1841,8 @@
     const FBK = (data.cage && window.FLOWN_BAKE) ? window.FLOWN_BAKE.forPayload(data) : null;
     const mkGeo = (g, ownPos) => {
       const fbUv = FBK ? FBK.uv(g) : null;
-      if (fbUv && !FBK.ab) {
+      // (C4b: a cabin bucket keeps its live geometry - the cockpit view draws it - and carries its atlas uv beside)
+      if (fbUv && !FBK.ab && !FBK.innerGroup(g)) {
         // a baked bucket reads position, normal and its atlas uv, nothing else (no field, no cavity: the bake holds them)
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(ownPos ? g.pos.slice() : g.pos, 3));
@@ -1879,8 +1880,10 @@
       return geo;
     };
     const matCache = {};
-    // a baked bucket's material is the bake's one (FBK); the A/B build keeps its live twin beside it (FBK.made)
-    const matFor = name => (FBK && FBK.has(grpMat(name))) ? FBK.mat : matLive(name);
+    // a baked bucket's material is the bake's one (FBK); the A/B build keeps its live twin beside it (FBK.made). C4b:
+    // the cabin's buckets ('in') keep their live material here and fold onto the cabin's baked one (mergeModel's keep)
+    const matFor = name => (FBK && FBK.has(grpMat(name)) && !FBK.inner(grpMat(name))) ? FBK.matOf(grpMat(name)) : matLive(name);
+    const inMeshes = [];                  // C4b: the cabin's live meshes, for its fold
     const matLive = name => {
       const mn = grpMat(name);
       if (matCache[mn]) return matCache[mn];
@@ -2075,7 +2078,8 @@
       const isProp = name === 'prop' || name === 'proptip' || name === 'spinner';
       if (isProp) geo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
       const mesh = new THREE.Mesh(geo, matFor(name));
-      if (FBK && FBK.ab && mesh.material === FBK.mat) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
+      if (FBK && FBK.ab && FBK.baked(mesh.material)) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
+      if (FBK && !FBK.ab && FBK.inner(grpMat(name)) && FBK.uv(dec[name])) inMeshes.push(mesh);
       // the payload's own declaration of what is see-through is `opacity < 1`
       // — the same fact `castShadow` below already reads
       const clear = !!(mats[name] && mats[name].opacity < 1);
@@ -2234,7 +2238,8 @@
         const pg = new THREE.Group();
         for (const name in pt.groups) {
           const mesh = new THREE.Mesh(mkGeo(pt.groups[name]), matFor(name));
-          if (FBK && FBK.ab && mesh.material === FBK.mat) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
+          if (FBK && FBK.ab && FBK.baked(mesh.material)) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
+          if (FBK && !FBK.ab && FBK.inner(grpMat(name)) && FBK.uv(pt.groups[name])) inMeshes.push(mesh);
           mesh.castShadow = !(mats[name] && mats[name].opacity < 1);
           if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroGlassCompanion)
             AEROSKIN.aeroGlassCompanion(THREE, mesh, mesh.material,
@@ -2643,6 +2648,7 @@
               const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
                 new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
               pad.userData.pickPad = 1;
+              pad.visible = false;     // C4b (G875): the ray answers it unshown (cockpit.js padSwitches says why)
               if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
               pg.add(pad);
             }
@@ -2996,8 +3002,36 @@
     // station structure is a property of the fiche, so one delta buffer serves all
     const nz = rigs[0].bind.zs.length;
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
+    // C4b (G875): THE BAKED MODEL, A HANDFUL OF DRAWS - every mesh on the bake's material folded (flown_bake.js
+    // mergeModel): the rigs keep writing their own attribute objects (now views into the fold), a part that moves as a
+    // whole is a bone. Told which buffers a rig writes (they go first: one upload range) and which meshes are a wheel's
+    // (G1005: they cast under the crumb line)
+    let fold = null, foldIn = null;
+    if (FBK && !FBK.ab && window.FLOWN_BAKE.mergeModel) {
+      const written = new Set();
+      for (const r of rigs) if (r.hb || (r.bind && r.bind.bound.length)) written.add(r.posAttr);
+      for (const L of [strutRigs, stretchRigs, surfParts, floatRigs, anchorRigs, linkRigs]) for (const r of L) if (r.posAttr) written.add(r.posAttr);
+      const wheel = new Set();
+      for (const w of wheelParts) if (w.obj && w.obj.traverse) w.obj.traverse(o => { if (o.isMesh) wheel.add(o); });
+      try { fold = FBK.mat ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel }) : null; } catch (e) { console.warn('flown bake: the fold failed', e); fold = null; }
+      if (fold) for (const n in meshes) { const f = fold.of.get(meshes[n]); if (f) meshes[n] = f; }
+      // the cabin: its live meshes stay (hidden), its fold draws them on the cabin's baked material but in the cockpit
+      try { foldIn = (FBK.mats.in && inMeshes.length) ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mats.in, { written, wheel, members: inMeshes, keep: true }) : null; }
+      catch (e) { console.warn('flown bake: the cabin fold failed', e); foldIn = null; }
+    }
     // G576: THE STILL AIRFRAME, ONE DRAW PER MATERIAL - see mergeStill
     const still = data.cage ? mergeStill(grp, meshes, mats, rigs, lamps) : null;
+    // ...which may have folded a kept fold's members (the cabin's hidden live buckets; the A/B build's baked ones) per
+    // material: the swap shows what stands now
+    const relive = (F, pick) => {
+      if (!F || !F.view) return;
+      const live = new Set();
+      for (const o of F.kept) if (o.parent) live.add(o);
+      for (const n in meshes) { const o = meshes[n]; if (o && o.parent && o.userData.still && o.userData.still.some(k => pick(grpMat(k)))) live.add(o); }
+      F.live = [...live];
+    };
+    relive(foldIn, k => FBK.inner(k));
+    relive(fold, k => FBK.has(k) && !FBK.inner(k));
     const people = buildPeople(data, grp, ctlMoves);   // live crew
     // G357: THE CAPTURE'S MAP, AND ITS INVERSE. The snapshot stores every
     // vertex through B⁻¹ (G337) so the oblique pose lands it exactly; a part
@@ -3018,6 +3052,7 @@
     // a merged bucket's rig moved nothing (the merge takes only those); the
     // first rig stays whatever it is - sparDeltas reads its station table
     const m = Object.assign(entry, { grp, props, deltas, people, still,
+                        fold: foldIn,                                  // C4b: the cabin's swap (view(cockpit))
                         rigs: still ? rigs.filter((r, i) => i === 0 || !still.names.has(r.name)) : rigs,
                         poseK, K4, Ki4,                                 // G357
                         // the panel arc (session 4): the hands, the lamps and
@@ -6675,7 +6710,11 @@
     // no shadow". A wheel part's meshes over 4 cm cast (the Cub +8 draws, the Cessna +9, into the craft's cascade only)
     const wheelMesh = new Set();
     if (model && model.wheelParts) for (const w of model.wheelParts) if (w.obj && w.obj.traverse) w.obj.traverse(o => { if (o.isMesh) wheelMesh.add(o); });
-    craft.traverse(m => { if (!m.isMesh || !m.castShadow || !m.geometry) return; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+    // (C4b, G875: a fold of the baked model was sorted at the build - its crumb folds carry crumbR, the rest cast, a
+    // wheel's meshes among them; its merged sphere, in its members' own part frames, is no size)
+    craft.traverse(m => { if (!m.isMesh || !m.castShadow || !m.geometry) return;
+      if (m.userData.flownMerge) { if (m.userData.crumbR != null) m.castShadow = false; return; }
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       const r = m.userData.crumbR != null ? m.userData.crumbR : m.geometry.boundingSphere.radius;
       const s = m.getWorldScale(new THREE.Vector3()), rw = r * Math.max(s.x, s.y, s.z);
       if (rw < 0.15 && !(wheelMesh.has(m) && rw >= 0.04)) m.castShadow = false; });
@@ -9709,6 +9748,7 @@
     else camera.up.copy(flUp.set(yU[0], yU[1], yU[2]));
     const D = def.params.viewDist || 12;
     if (CK && model) CK.cockpitView(cam.mode === 'cockpit', model);   // the panel arc: no pilot in the way
+    if (model && model.fold && model.fold.view) model.fold.view(cam.mode === 'cockpit');   // C4b: the cabin live at arm's length
     HEADCAM_ACTIVE = false;
     if (cam.mode === 'cockpit') {
       const e = flyEyeAt();
