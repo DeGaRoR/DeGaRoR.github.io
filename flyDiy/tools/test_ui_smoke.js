@@ -369,7 +369,10 @@ try {
     const B = sandbox.window.BOOT;
     if (!B || B.state !== 'gone') throw new Error('the loading screen never lifted (state ' + (B && B.state) + ', pending ' + (B && B.pending().join(', ')) + ')');
     const steps = B.log.filter(e => e.k === 'step').map(e => e.id);
-    const want = ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'sync', 'parked', 'restore', 'compile', 'firstFrame'];   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync); parked: G411 (a no-op without the world pack); treeBins: S3 (the world scene builds under the roll-out screen); seed: G995 (the editor's seed in its own tasks - a no-op here, openEditor seeds inline without the screen)
+    // B9 (G1020): the sync in its three (snapshot, C4a's bake - a no-op without the module -, spec) and THE WORLD in the
+    // one loading (the roll-out screen's steps, then the aeroplane's programs in its light, the world drawn once)
+    const want = ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'snapshot', 'bake', 'spec', 'parked', 'restore',
+      'world', 'town', 'parking', 'trees', 'ring', 'images', 'upload', 'worldCompile', 'compile', 'firstFrame', 'frames', 'craft'];   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync); parked: G411 (a no-op without the world pack); treeBins: S3 (the world scene builds under the roll-out screen); seed: G995 (the editor's seed in its own tasks - a no-op here, openEditor seeds inline without the screen)
     if (steps.join(',') !== want.join(',')) throw new Error('boot steps ran as ' + steps.join(',') + ', expected ' + want.join(','));
     if (B.log.some(e => e.k === 'error')) throw new Error('a boot step threw: ' + JSON.stringify(B.log.filter(e => e.k === 'error')));
     if (B.log.some(e => e.k === 'fail')) throw new Error('the loading screen gave up: ' + JSON.stringify(B.log.filter(e => e.k === 'fail')));

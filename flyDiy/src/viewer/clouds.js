@@ -974,7 +974,8 @@ var CLOUDS = (function () {
   // G680: listed whenever the layer exists (ready, not 'off') - not only while active(): under the roll-out screen the
   // day's cover was not measured yet (lastCover 0), the list came back empty, and the march linked on the first world
   // frame (0.5-1.4 s at the Jolene reveal, found by rollout_perf's program census). Its key reads no map and no cover.
-  function warmList() { if (!ready || S.mode === 'off') return []; skyMats(); return [bakeMat, skyMat, shadowMat, marchMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
+  // B9 (G1020): and the probe's (tileStat / tileMean read the shadow tile through it: it linked on the first flight frames)
+  function warmList() { if (!ready || S.mode === 'off') return []; skyMats(); probeMats(); return [bakeMat, skyMat, shadowMat, marchMat, probeMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
   const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;

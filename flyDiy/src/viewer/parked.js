@@ -226,6 +226,12 @@
     // TEMPLATE over the page's own aeroplane. Measured: applySpec(preview(export))
     // leaves the export byte-identical.
     const mine = (G.preview && J.export) ? G.preview(J.export()) : G.get();
+    // B9 (G1021): THE EDITOR'S ROWS AS THEY WERE. applySpec ASSIGNS a build's rows into the editor's parameters
+    // (Object.assign(P, ...)), so a row a foreign aeroplane brought (a six-seat cabin's paxOcc5 / paxOcc6) stayed in the
+    // player's editor after the restore - the player's export changed under them, and a roll-out keyed on it (app.js
+    // TRIP_STEPS) re-committed an aeroplane nobody had touched. The rows the batch added go before the restore.
+    const P0 = (E && E.P) ? new Set(Object.keys(E.P)) : null;
+    const dropForeign = () => { if (P0 && E.P) for (const k of Object.keys(E.P)) if (!P0.has(k)) delete E.P[k]; };
     const U = A ? A.aeroSharedU(THREE) : null;
     const saved = U ? cloneBlock(U) : null;
     const macro0 = (WX && WX.aeroWxSetMacro) ? Object.assign({}, WX.aeroWxSetMacro(THREE, null)) : null;
@@ -291,6 +297,7 @@
         W.AERO_EXTRA_DECALS = extra;
         H.releaseView(); H.unrefuse();
         const tR = performance.now();
+        dropForeign();
         const g = H.run(() => E.applySpecSteps(mine));
         for (;;) { const r = H.run(() => g.next()); if (r.done) break; yield 'restore'; }
         restored = Math.max(1, performance.now() - tR);
@@ -299,7 +306,7 @@
       W.AERO_EXTRA_DECALS = extra;
       H.release(() => {
         const t0 = performance.now() - restored;
-        if (!restored) try { E.applySpec(mine); } catch (e) { console.error('parked: restore', e); }
+        if (!restored) try { dropForeign(); E.applySpec(mine); } catch (e) { console.error('parked: restore', e); }
         else if (typeof W.CAGE_ON_BUILD === 'function') try { W.CAGE_ON_BUILD(); } catch (e) { console.error('parked: restore (on build)', e); }
         try { if (E.decalImagesFrom && G.images) E.decalImagesFrom(G.images() || {}); } catch (e) {}
         if (U && saved) copyBlock(U, saved);

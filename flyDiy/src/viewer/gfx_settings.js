@@ -157,7 +157,7 @@
     // (375 houses) held the Jolene taxi at 12-15 fps on the reference 3080 (30 without it): off by default, its record
     // kept. `free`: no preset sets it. Decided when the world is composed, so a change RELOADS the page (app.js TOWN;
     // ?town=1 in the URL wins over the row)
-    { k: 'town', label: 'towns', free: true, steps: [
+    { k: 'town', label: 'towns', free: true, reload: true, steps: [
         { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the native village and the tramway - Metlakatla off (the default) - RELOADS the page' },
         { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too: 375 houses 9 km east of the field, built as you come near - the taxi falls to ~15 fps on an RTX 3080 - RELOADS the page' } ] },
     { k: 'rails', label: 'guardrails', steps: [
@@ -208,7 +208,7 @@
         { v: 1,   label: '×1', why: 'the mood’s own exposure' },
         { v: 1.2, label: '×1.2', why: 'a little brighter' }, { v: 1.4, label: '×1.4', why: 'brighter' },
         { v: 1.7, label: '×1.7', why: 'much brighter' } ] },
-    { k: 'colour', label: 'colour management', steps: [
+    { k: 'colour', label: 'colour management', reload: true, steps: [
         { v: 'managed', label: 'managed', why: 'every hex decoded as sRGB (three’s default): the honest reading, the ruling - RELOADS the page' },
         { v: 'linear',  label: 'as authored', why: 'a hex colour is the value the shader sees (the r128 reading every colour was first tuned in) - RELOADS the page' } ] },
   ];
@@ -458,7 +458,10 @@
   // (FLIGHT_REC.mountMeter / mountLog) are the hosts' to place - the flight rail puts them in SKY & WORLD, VIEW and DEV.
   // WITHOUT it the menu is the one flat list it was (every row, the map and the recorder's rows included).
   const pickFor = H => (k, v) => { set(k, v); if (H.refresh) H.refresh(); if (k !== 'fps' && typeof W.FLYDIY_SETTLE === 'function') W.FLYDIY_SETTLE(k); };
+  // B8 (G1024): `reload` - the options a change of which RELOADS the page (town, colour management); a host that asks
+  // H.noReload (the loading screen's setup: a reload there would throw the load away) mounts the menu without them
   const optionRow = (host, H, o, pick) => {
+    if (o.reload && H.noReload) return;
     H.row(host, o.label);
     H.pills(host, o.steps.map(s => ({ label: s.label, value: s.v, title: s.why })),
       x => x.value === S[o.k], x => pick(o.k, x.value));
@@ -510,7 +513,7 @@
     // to refresh caches manually, and show the version numbers local and server
     // side"): the build this page runs, the server's (version.json, no-store),
     // the media cache's size, the worker's state - and the button
-    if (W.STORAGE && tail) {
+    if (W.STORAGE && tail && !H.noReload) {   // (B8: its button reloads the page)
       H.row(tail, 'storage');
       const st = H.note(tail, W.STORAGE.line());
       const upd = () => { if (st && tail.isConnected) st.textContent = W.STORAGE.line(); };

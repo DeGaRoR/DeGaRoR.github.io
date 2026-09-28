@@ -75,24 +75,7 @@ async function census(build) {
   const storage = {};
   if (BUILDS[build]) storage['flydiy.wip'] = fs.readFileSync(path.join(ROOT, BUILDS[build]), 'utf8');
   let mainCam = null;
-  const hooks = {
-    afterScript(name, P) {
-      const W = P.win;
-      if (name === 'vendor/three.min.js') installThree(W.THREE, C);
-      if (name === 'src/viewer/boot.js' && W.BOOT) wrapBoot(W, P);
-      if (name === 'src/viewer/gfx_settings.js' && W.GFX) { W.GFX.set('preset', 'gamer'); W.GFX.set('shadows', 'full'); }
-    },
-    beforeScript(name, P) {
-      const W = P.win;
-      if (name === 'src/viewer/app.js') {
-        // the world's terrainH, counted where every caller reads it (the world object's own property)
-        if (typeof W.makeWorld === 'function') { const mk = W.makeWorld; W.makeWorld = function () { const w = mk.apply(this, arguments); wrapWorld(w, C); return w; }; }
-        // the renderer: its render (the pass it draws) and its shadow pass, once app.js makes it
-        let R = null;
-        Object.defineProperty(W, 'FLYDIY_RENDERER', { configurable: true, get: () => R, set: v => { R = v; if (v && !v.__fc) wrapRenderer(v, P, C, () => mainCam); } });
-      }
-    },
-  };
+  const hooks = pageHooks(C, () => mainCam);
   const t0 = Date.now();
   const P = await openPage({ quiet: true, storage, hooks, query: process.env.FRAMECOST_QUERY || '' });
   const W = P.win;
@@ -110,7 +93,10 @@ async function census(build) {
   const tGarage = Date.now() - t0;
   const bGo = W.document.getElementById('bGo');
   bootMark.open('rollout:click'); bGo.click();
-  await P.until(() => W.BOOT.state === 'gone' && W.BOOT.set === 'rollout', 900000);
+  // B9 (G1020): a roll-out that changes nothing shows no screen at all - the trip's own log says when it is done
+  // (window.FLYDIY_TRIPS); a tree before B9 has none and lifts its roll-out screen
+  const tripDone = () => { const T = W.FLYDIY_TRIPS; const t = T && T[T.length - 1]; return !!(t && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'); };
+  await P.until(() => W.FLYDIY_TRIPS ? tripDone() : (W.BOOT.state === 'gone' && W.BOOT.set === 'rollout'), 900000);
   bootMark.close();
   const tRoll = Date.now() - t0 - tGarage;
   FP = W.FLIGHT_PROBE;
@@ -140,6 +126,28 @@ async function census(build) {
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5) };
   return { build, health, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
+}
+// the page's hooks for a census (B9: shared with GATE ROUNDTRIP): the three counters, the boot's step marks, the
+// graphics the census holds (gamer, shadows full), the world's terrainH and the renderer's passes
+function pageHooks(C, getCam) {
+  return {
+    afterScript(name, P) {
+      const W = P.win;
+      if (name === 'vendor/three.min.js') installThree(W.THREE, C);
+      if (name === 'src/viewer/boot.js' && W.BOOT) wrapBoot(W, P);
+      if (name === 'src/viewer/gfx_settings.js' && W.GFX) { W.GFX.set('preset', 'gamer'); W.GFX.set('shadows', 'full'); }
+    },
+    beforeScript(name, P) {
+      const W = P.win;
+      if (name === 'src/viewer/app.js') {
+        // the world's terrainH, counted where every caller reads it (the world object's own property)
+        if (typeof W.makeWorld === 'function') { const mk = W.makeWorld; W.makeWorld = function () { const w = mk.apply(this, arguments); wrapWorld(w, C); return w; }; }
+        // the renderer: its render (the pass it draws) and its shadow pass, once app.js makes it
+        let R = null;
+        Object.defineProperty(W, 'FLYDIY_RENDERER', { configurable: true, get: () => R, set: v => { R = v; if (v && !v.__fc) wrapRenderer(v, P, C, getCam); } });
+      }
+    },
+  };
 }
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
 //   FRAMECOST_WHO=1     the callers of terrainH and of the buffer / texture / matrix uploads, sampled, over the stand's
@@ -453,4 +461,4 @@ async function main() {
   console.log('GATE FRAMECOST: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
   process.exit(fails ? 1 : 0);
 }
-if (require.main !== module) module.exports = { census, compare, diff, mean }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });
+if (require.main !== module) module.exports = { census, compare, diff, mean, median, pageHooks, bootMark, NAMES }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });

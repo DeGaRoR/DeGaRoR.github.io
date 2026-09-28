@@ -4737,7 +4737,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
           thin: (d0, d1) => { if (d0 !== undefined) uThin.value.set(+d0, Math.max(+d0 + 1, +d1)); return [uThin.value.x, uThin.value.y]; },
           budget: ms => { if (ms !== undefined) FILL.budgetMs = Math.max(0.5, +ms); return FILL.budgetMs; },
-          prewarm: (cg, o) => prewarm(cg, o), ringReady: cg => ringReady(cg), ringStat: () => ringStat(),
+          prewarm: (cg, o) => prewarm(cg, o), ringReady: (cg, reach, loose) => ringReady(cg, reach, loose), ringStat: () => ringStat(),
           treeState: () => TREE_STATE.v };
       let tick = 0;
       // the streamer's worst FRAME - a slice, or the build's - is the hitch
@@ -4825,7 +4825,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // trees land); a failed payload is 'fallback' and the cones are the ring.
       // reach (G562): the roll-out waits for the ring within `reach` only - the streamer grows the rest in the game,
       // nearest first (the user: "keep loading assets as we go ... that's how MSFS does it")
-      const ringReady = (cg, reach) => {
+      // B9 (G1020): `loose` - the ring within `reach` stands, whatever chunk the streamer is half-way through elsewhere
+      // (app.js keys its 'ring' step on it: a chunk left in progress by the flight is not a missing ring)
+      const ringReady = (cg, reach, loose) => {
         const RA = Math.min(R_ACT, reach || R_ACT), R = Math.ceil(RA / CH);
         const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
         for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
@@ -4839,7 +4841,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (!c2 || !c2.base) return false;
           if (dd < FILL_ACT * FILL_ACT && !c2.fill) return false;
         }
-        return !cur;
+        return !!loose || !cur;
       };
       const ringStat = () => { let base = 0, fill = 0; for (const [, c2] of chunks) { if (c2.base) base++; if (c2.fill) fill++; }
         return { live: chunks.size, base, fill, queued: queue.length, busy: !!cur || queue.length > 0, budgetMs: FILL.budgetMs, trees: STAT.trees, gens: STAT.gens }; };
@@ -6210,7 +6212,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
-    ringReady: cg => fillApi ? fillApi.ringReady(cg) : true,
+    ringReady: (cg, reach, loose) => fillApi ? fillApi.ringReady(cg, reach, loose) : true,   // (B9: the reach passed through - it was dropped here)
     ringStat: () => fillApi ? fillApi.ringStat() : null,
     treeState: () => fillApi ? fillApi.treeState() : 'fallback',
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
