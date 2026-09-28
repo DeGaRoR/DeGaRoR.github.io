@@ -163,26 +163,31 @@ function decode(header, topology, payloadGz) {
 
 // THE FORMAT ITSELF. Takes already-decompressed bytes, so it is identical in
 // both environments and is what GATE TERRAIN exercises.
+// A NODE KEEPS ITS QUANTISED SAMPLES (AS1, G905): { q: Int32Array, sc, h0 }, a
+// height being h0 + q[k] * sc - the very expression the Float64Array held
+// (hMin + q * step(d)), so every reader gets the SAME double, bit for bit, at
+// half the bytes (238 -> 119 MiB for Jolene's two trees, internal nodes
+// included). Read a node with hAt(n, k), or heights(n) for a transient
+// Float64Array of the patch (the far terrain's mesher).
 function decodeRaw(header, topology, raw) {
   const N = header.patch + 1;
   const inp = new ByteIn(raw);
   const bit = i => (topology[i >> 3] >> (7 - (i & 7))) & 1;
   const stepAt = d => header.step0 / (1 << d);
+  const h0 = header.hMin;
 
   let idx = 0;
-  const q = new Int32Array(N * N);
-  const read = d => {
+  const read = () => {
+    const q = new Int32Array(N * N);        // the predictor reads only this patch's earlier samples
     for (let j = 0; j < N; j++)
       for (let i = 0; i < N; i++)
         q[j * N + i] = unzig(inp.varint()) + predict(q, N, i, j);
-    const sc = stepAt(d), h = new Float64Array(N * N);
-    for (let k = 0; k < N * N; k++) h[k] = header.hMin + q[k] * sc;
-    return h;
+    return q;
   };
   const build = (d, ix, iz) => {
     const internal = bit(idx++);
-    const h = read(d);                      // payload order is the walk order
-    const n = { d, ix, iz, h, kids: null };
+    const q = read();                       // payload order is the walk order
+    const n = { d, ix, iz, q, sc: stepAt(d), h0, kids: null };
     if (internal) n.kids = [
       build(d + 1, ix * 2,     iz * 2),
       build(d + 1, ix * 2 + 1, iz * 2),
@@ -192,6 +197,15 @@ function decodeRaw(header, topology, raw) {
     return n;
   };
   return build(0, 0, 0);
+}
+// a node's height at sample k (row-major, (patch+1)^2), and the whole patch as
+// doubles; a node from the baker (n.h, no q) reads as it is
+const hAt = (n, k) => (n.q ? n.h0 + n.q[k] * n.sc : n.h[k]);
+function heights(n) {
+  if (!n.q) return n.h;
+  const q = n.q, sc = n.sc, h0 = n.h0, h = new Float64Array(q.length);
+  for (let k = 0; k < q.length; k++) h[k] = h0 + q[k] * sc;
+  return h;
 }
 
 // ===========================================================================
@@ -215,9 +229,11 @@ function sampler(root, header) {
     const v = ((z - z0) - n.iz * s) / s * P;
     const i = Math.max(0, Math.min(P - 1, Math.floor(u)));
     const j = Math.max(0, Math.min(P - 1, Math.floor(v)));
-    const fu = u - i, fv = v - j, h = n.h;
-    const a = h[j * N + i],       b = h[j * N + i + 1];
-    const c = h[(j + 1) * N + i], d = h[(j + 1) * N + i + 1];
+    const fu = u - i, fv = v - j, k = j * N + i;
+    let a, b, c, d;
+    if (n.q) { const q = n.q, sc = n.sc, h0 = n.h0;
+      a = h0 + q[k] * sc; b = h0 + q[k + 1] * sc; c = h0 + q[k + N] * sc; d = h0 + q[k + N + 1] * sc; }
+    else { const h = n.h; a = h[k]; b = h[k + 1]; c = h[k + N]; d = h[k + N + 1]; }
     return (a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv;
   };
 }
@@ -239,10 +255,10 @@ function maxRect(root, header, ax, az, bx, bz) {
     const s = S / (1 << n.d), nx = x0 + n.ix * s, nz = z0 + n.iz * s;
     if (bx < nx || ax > nx + s || bz < nz || az > nz + s) return;
     if (n.kids) { for (let k = 0; k < 4; k++) walk(n.kids[k]); return; }
-    const c = s / P, h = n.h;
+    const c = s / P;
     const i0 = cl(Math.floor((ax - nx) / c) - 1), i1 = cl(Math.floor((bx - nx) / c) + 1) + 1;
     const j0 = cl(Math.floor((az - nz) / c) - 1), j1 = cl(Math.floor((bz - nz) / c) + 1) + 1;
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const v = h[j * N + i]; if (v > m) m = v; }
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const v = hAt(n, j * N + i); if (v > m) m = v; }
   })(root);
   return m;
 }
@@ -274,6 +290,6 @@ function roundTrip(root, meta, probes = 4096) {
   return { worst, step, ok: worst <= step * 1.5, enc };
 }
 
-return { encode, decode, decodeRaw, sampler, maxRect, roundTrip, MAGIC };
+return { encode, decode, decodeRaw, hAt, heights, sampler, maxRect, roundTrip, MAGIC };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = TERRAIN_CODEC;

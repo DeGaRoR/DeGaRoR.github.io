@@ -241,6 +241,43 @@ checks['waterH sea/land'] = W.waterH(0, 4000) === 0 && W.terrainH(0, 4000) < 0 &
     const cred = fs.readFileSync(path.join(__dirname, '..', 'CREDITS.md'), 'utf8');
     checks['island: every data source is credited in CREDITS.md'] = (isl.sources || []).length > 0 && (isl.sources || []).every(s => cred.indexOf(s) >= 0);
   }
+
+  // --- THE QUADTREE KEPT AS Int32 (AS1, G905). decodeRaw keeps each node's quantised samples (q, sc, h0) instead
+  // of a Float64Array: the SAME numbers are owed, bit for bit. The Float64 decode as it stood (962fa03) is copied
+  // here as the reference; on BOTH trees every sample of every node (internal ones too - the far terrain's cut reads
+  // them) must be Object.is-equal through hAt and heights(), and the sampler and maxRect equal on seeded probes.
+  if (boot) {
+    const TC = require('./flight_core.js').TERRAIN_CODEC;
+    const zz = n => (n >>> 1) ^ -(n & 1);
+    const oldDecode = (header, topology, raw) => {   // 19_terrain_codec.js decodeRaw at 962fa03, verbatim in effect
+      const N = header.patch + 1; let pos = 0;
+      const vint = () => { let v = 0, sh = 0, c; do { c = raw[pos++]; v |= (c & 0x7f) << sh; sh += 7; } while (c & 0x80); return v >>> 0; };
+      const bit = i => (topology[i >> 3] >> (7 - (i & 7))) & 1;
+      const pred = (q, i, j) => { const at = (a, b) => q[b * N + a]; if (i > 0 && j > 0) return at(i - 1, j) + at(i, j - 1) - at(i - 1, j - 1); if (i > 0) return at(i - 1, j); if (j > 0) return at(i, j - 1); return 0; };
+      let idx = 0; const q = new Int32Array(N * N);
+      const read = d => { for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) q[j * N + i] = zz(vint()) + pred(q, i, j);
+        const sc = header.step0 / (1 << d), h = new Float64Array(N * N); for (let k = 0; k < N * N; k++) h[k] = header.hMin + q[k] * sc; return h; };
+      const build = (d, ix, iz) => { const internal = bit(idx++); const n = { d, ix, iz, h: read(d), kids: null };
+        if (internal) n.kids = [build(d + 1, ix * 2, iz * 2), build(d + 1, ix * 2 + 1, iz * 2), build(d + 1, ix * 2, iz * 2 + 1), build(d + 1, ix * 2 + 1, iz * 2 + 1)]; return n; };
+      return build(0, 0, 0);
+    };
+    for (const [nm, src] of [['near (e2)', boot], ['far (e4)', boot.far]]) {
+      if (!src) { checks['island: the ' + nm + ' quadtree ships'] = false; continue; }
+      const H = src.header, A = oldDecode(H, src.topo, src.payload), B = TC.decodeRaw(H, src.topo, src.payload);
+      let nodes = 0, samples = 0, diff = 0, shape = 0, qBytes = 0, fBytes = 0;
+      (function walk(a, b) { nodes++; if (!b.q || !(b.q instanceof Int32Array) || !!a.kids !== !!b.kids || a.d !== b.d || a.ix !== b.ix || a.iz !== b.iz) { shape++; return; }
+        qBytes += b.q.byteLength; fBytes += a.h.byteLength; const hb = TC.heights(b);
+        for (let k = 0; k < a.h.length; k++) { samples++; if (!Object.is(a.h[k], TC.hAt(b, k)) || !Object.is(a.h[k], hb[k])) diff++; }
+        if (a.kids) for (let c = 0; c < 4; c++) walk(a.kids[c], b.kids[c]); })(A, B);
+      checks['island: the ' + nm + ' quadtree decodes to the same numbers as Int32 (' + nodes + ' nodes, ' + samples + ' samples, ' + diff + ' differ, ' + shape + ' shape; ' + (fBytes / 1048576).toFixed(1) + ' -> ' + (qBytes / 1048576).toFixed(1) + ' MiB)'] = diff === 0 && shape === 0 && samples > 0 && qBytes * 2 === fBytes;
+      const fa = TC.sampler(A, H), fb = TC.sampler(B, H), b0 = H.bounds, S = H.side;
+      let sd = 905, sDiff = 0, rDiff = 0; const rnd = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296;
+      for (let k = 0; k < 200000; k++) { const x = b0.x0 + rnd() * S, z = b0.z0 + rnd() * S; if (!Object.is(fa(x, z), fb(x, z))) sDiff++; }
+      for (let k = 0; k < 2000; k++) { const x = b0.x0 + rnd() * S * 0.98, z = b0.z0 + rnd() * S * 0.98, w = 5 + rnd() * 400;
+        if (!Object.is(TC.maxRect(A, H, x, z, x + w, z + w), TC.maxRect(B, H, x, z, x + w, z + w))) rDiff++; }
+      checks['island: the ' + nm + ' sampler and maxRect read the same doubles (200000 / 2000 probes: ' + sDiff + ' / ' + rDiff + ' differ)'] = sDiff === 0 && rDiff === 0;
+    }
+  }
 }
 
 const failed = Object.keys(checks).filter(k => !checks[k]);

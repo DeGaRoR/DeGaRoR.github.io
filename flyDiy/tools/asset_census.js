@@ -409,8 +409,8 @@ function worldLoad() {
       const t0 = process.hrtime.bigint(); const u = zlib.gunzipSync(buf); const ms = Number(process.hrtime.bigint() - t0) / 1e6;
       rows.push({ island: isl.id, key: k, src: r.src, ship: buf.length, raw: u.length, ms: +ms.toFixed(1), fetched: 'boot' });
     }
-    // what the boot DECODES the terrain into: 19_terrain_codec.js decodeRaw builds a Float64Array of
-    // (patch+1)^2 heights at EVERY node, internal ones included - measured, not estimated
+    // what the boot DECODES the terrain into: 19_terrain_codec.js decodeRaw keeps (patch+1)^2 quantised samples at
+    // EVERY node, internal ones included - an Int32Array since AS1 (G905; a Float64Array before) - measured, not estimated
     try {
       const codec = require(path.join(ROOT, 'src', 'core', '19_terrain_codec.js'));
       const F = isl.files;
@@ -418,8 +418,8 @@ function worldLoad() {
         if (!F[h] || !F[t] || !F[pl]) continue;
         const topo = zlib.gunzipSync(fs.readFileSync(path.join(ROOT, F[t].src))), raw = zlib.gunzipSync(fs.readFileSync(path.join(ROOT, F[pl].src)));
         const t0 = process.hrtime.bigint(); const tree = codec.decodeRaw(F[h].json, topo, raw); const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-        let nodes = 0, bytes = 0; const w = n => { nodes++; bytes += n.h.byteLength; if (n.kids) n.kids.forEach(w); }; w(tree);
-        rows.push({ island: isl.id, key: 'decoded quadtree ' + (h === 'header' ? 'e2 (near)' : 'e4 (far)'), ship: 0, raw: bytes, ms: +ms.toFixed(0), fetched: nodes + ' nodes x Float64 ' + (F[h].json.patch + 1) + '^2 (19_terrain_codec.js decodeRaw)' });
+        let nodes = 0, bytes = 0; const w = n => { nodes++; bytes += (n.q || n.h).byteLength; if (n.kids) n.kids.forEach(w); }; w(tree);
+        rows.push({ island: isl.id, key: 'decoded quadtree ' + (h === 'header' ? 'e2 (near)' : 'e4 (far)'), ship: 0, raw: bytes, ms: +ms.toFixed(0), fetched: nodes + ' nodes x ' + (tree.q ? 'Int32 ' : 'Float64 ') + (F[h].json.patch + 1) + '^2 (19_terrain_codec.js decodeRaw)' });
       }
     } catch (e) { rows.push({ island: isl.id, key: 'decoded quadtree', err: e.message }); }
     // the terrain types the GRID holds (the biomes a Jolene flight can meet without the premises' stamps)
