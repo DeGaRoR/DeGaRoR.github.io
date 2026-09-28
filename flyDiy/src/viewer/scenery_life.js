@@ -958,6 +958,49 @@ function make(THREE, host) {
     }
     stats.visible = vis; stats.procVisible = pv; stats.draws = draws; stats.batches = BATCH.size; stats.updMs = performance.now() - t0;
   }
+  // G734 (B1b): THE LIFE'S PROGRAMS, BEFORE IT STANDS. The life stands once the premises' stream round the eye is empty -
+  // after the roll-out screen, in the game - and its draw then makes the first BatchedMesh of the kit (vertex colours +
+  // per-instance colours: batching and batchingColor are in the program key) and the first InstancedMesh (with an
+  // instanceColor) of each scan level: new programs, lit and depth, linked on the frames after the reveal (GATE
+  // FRAMECOST's rollout:reveal row: the kit's two, the people's four). warm() hands a stand-in of every kind the draw can
+  // make, on the object kind it makes it on, casting (the depth variant): the kit in both shadow classes, and every scan
+  // level any of the life's laws can pick (the people, the wall clutter, the parked cars) whose bytes have landed - a
+  // level not landed yet is not drawn either (app.js runs this twice under the screen: at the pictures and at first light)
+  const scanKeys = () => {
+    const PR = propReg(); if (!PR) return [];
+    const HG = window.HOUSE_GEN, out = [];
+    for (const k of people()) out.push([k, CUT.people, 60000, { proc: 'figure', at: 90 }]);
+    for (const k of Object.keys(SCANS).concat(['pallets_three', 'pallets_stack', 'pallet_one', 'cinder_pallet', 'cement_bags'])) if (PR.props[k]) out.push([k, CUT.clutter]);
+    const cars = HG && HG.AUTO_KEYS ? HG.AUTO_KEYS(['car', 'pickup', 'suv', 'van']).filter(k => PR.props[k]) : [];
+    for (const k of cars) out.push([k, CUT.cars, 0, { proc: 'carBody', at: 120 }]);
+    return out;
+  };
+  function warm() {
+    const g = new T.Group(); g.name = 'life:warm';
+    if (!KIT) KIT = buildKit(T);
+    const k0 = Object.keys(KIT)[0];
+    for (const cast of [true, false]) {
+      const M = new T.BatchedMesh(1, KIT[k0].attributes.position.count, 0, procMat());
+      M.addInstance(M.addGeometry(KIT[k0])); M.setColorAt(0, colTmp.setRGB(1, 1, 1));
+      M.castShadow = cast; M.receiveShadow = true; M.frustumCulled = false; M.userData.lifeWarm = true;
+      g.add(M);
+    }
+    const col = new T.InstancedBufferAttribute(new Float32Array(3).fill(1), 3), seen = new Set();
+    for (const [key, cut, skip0, far] of scanKeys()) {
+      const L = levelsOf(key, cut, skip0, far) || [];
+      for (const l of L) {
+        if (!l.prop || seen.has(l.prop) || typeof propReady !== 'function' || !propReady(l.prop)) continue;
+        seen.add(l.prop);
+        let built = null; try { built = propBuild(T, l.prop); } catch (e) { continue; }
+        built.geos.forEach((geo, part) => {
+          const m = new T.InstancedMesh(geo, built.mats[part], 1);
+          m.instanceColor = col; m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; m.userData.lifeWarm = true;
+          g.add(m);
+        });
+      }
+    }
+    return g;
+  }
   // the mast's red light: lit at dusk (the lamps' own hand), a glow by day
   let beacon = null;
   function beaconSync() {
@@ -1024,7 +1067,7 @@ function make(THREE, host) {
   }
   // the stand NOW (the gate, a script): what tick does once the build queue is empty
   function standNow() { owed = false; place(); beaconSync(); return stats.items; }
-  return { root, stats, set, dirty, tick, standNow, draw: e => draw(e), trafficOf, dispose, items, get cfg() { return Object.assign({}, cfg); }, masts: () => MASTS.slice(), kinds: () => KINDS.map(k => ({ id: k.id, cat: k.cat, levels: k.levels.map(l => (l.prop || l.proc) + '<' + l.to) })), redraw: () => { dirtyDraw = true; } };
+  return { root, stats, set, dirty, tick, standNow, warm, draw: e => draw(e), trafficOf, dispose, items, get cfg() { return Object.assign({}, cfg); }, masts: () => MASTS.slice(), kinds: () => KINDS.map(k => ({ id: k.id, cat: k.cat, levels: k.levels.map(l => (l.prop || l.proc) + '<' + l.to) })), redraw: () => { dirtyDraw = true; } };
 }
 
 window.SCENERY_LIFE = { make, DEF, CATS, CUT, TIER_DIST, buildKit, QUIET, mergeLife };

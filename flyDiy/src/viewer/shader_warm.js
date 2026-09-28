@@ -36,8 +36,9 @@
 //             lifted (fogless: the pass draws with none), and a plain render
 //             target bound (a shadow map is one: linear, no tone map)
 //   PROG_WARM.passes(THREE, lists) -> [{ helper, target }]
-//     lists: [{ m, to }] from the modules' warmList(); `to` null = the canvas,
-//            'rt' = any plain render target; one helper scene per kind
+//     lists: [{ m, to, inst }] from the modules' warmList(); `to` null = the canvas,
+//            'rt' = any plain render target; one helper scene per kind; `inst` (G734):
+//            drawn on an InstancedMesh ('' plain, 'c' with an instanceColor - both in the key)
 // ============================================================================
 'use strict';
 var PROG_WARM = (() => {
@@ -130,8 +131,12 @@ var PROG_WARM = (() => {
       if (!e || !e.m) continue;
       const k = e.to === null ? 'canvas' : 'rt';
       let g = by.get(k); if (!g) by.set(k, g = { helper: new THREE.Scene(), target: k === 'canvas' ? null : 'rt', mats: new Set() });
-      if (g.mats.has(e.m)) continue; g.mats.add(e.m);
-      const q = new THREE.Mesh(passes.quad || (passes.quad = new THREE.PlaneGeometry(2, 2)), e.m); q.frustumCulled = false;
+      const mk = e.inst === undefined ? e.m : e.m.uuid + ':i' + e.inst;
+      if (g.mats.has(mk)) continue; g.mats.add(mk);
+      const geo = passes.quad || (passes.quad = new THREE.PlaneGeometry(2, 2));
+      const q = e.inst === undefined ? new THREE.Mesh(geo, e.m) : new THREE.InstancedMesh(geo, e.m, 1);
+      if (e.inst === 'c') q.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(3).fill(1), 3);
+      q.frustumCulled = false;
       g.helper.add(q);
     }
     return [...by.values()];

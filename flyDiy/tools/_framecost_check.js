@@ -23,7 +23,9 @@
 // renderer.render calls, Object3D.updateMatrixWorld and updateMatrix calls, custom onBeforeRender / onAfterRender /
 // onBeforeShadow callbacks (object and material), frustum tests, the world's terrainH and the raster's grHeight
 // (premises terrainFast) calls. PER BOOT STEP (BOOT.run's own list: the garage boot and the roll-out screen, plus the
-// scripts' evaluation) the same GL units and the program links.
+// scripts' evaluation) the same GL units and the program links; and (G734) `rollout:reveal`, the first frames after the
+// roll-out screen lifts (the stand's warm-up frames) - a program linked there is one no warm-up under the screen keyed:
+// the gate checks it is ZERO (R1's node half).
 //
 // THE RATCHET: tools/perf/framecost_baseline.json. A count above its baseline by more than the tolerance (TOL: 1 %
 // and a small absolute slack) is RED; a fall is reported ("ratchet down: run --update"). A rise is admitted only by an
@@ -39,6 +41,10 @@
 //   node tools/_framecost_check.js --census cub|cessna [--frames N]   one build's census as JSON (the child)
 //   node tools/_framecost_check.js --compare a.json b.json   which counts differ between two censuses (the bisect's)
 //   FRAMECOST_QUERY='raster=1'  a URL query for the page (hold a default equal across commits in a bisect)
+//   FRAMECOST_LINKS=1           every program made, by boot row, its key read back (shader, lights, shadows, kind); the
+//                               late ones against the nearest earlier key, with the page's stack and the owners (G734)
+//   FRAMECOST_HOLD=N            N more frames at the end of the roll-out's compile step (Chrome's link time, emulated)
+//   FRAMECOST_RASTER_TRACE=f    every premises raster read to f (tools/_rastercache_bench.js --trace, G735)
 // READING THE COUNTS. They are the page's work on THIS harness: exact and repeatable, not a browser's. What the page
 // budgets in milliseconds (the forest fill, the premises stream, the prewarms) runs on the virtual clock, where
 // performance.now() moves 10 us a call - so a streamer does its work in fewer, fuller frames than in Chrome, and the
@@ -76,6 +82,14 @@ const ALLOW = [
   { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 4700, why: 'the stand-ins\' maps and the compiled uniforms\' textures uploaded in the upload step', g: 'G730/G732' },
   { key: 'boot/rollout:frames/gl.calls', build: '*', upTo: 51500, why: 'the catch-up upload of the hooks\' textures and the sliced depth variants before first light', g: 'G732' },
   { key: 'boot/rollout:bake/', build: '*', why: 'the flown aeroplane texture bake, a roll-out step under the screen (cached: an IndexedDB hit reads and uploads only)', g: 'G870' },
+  // B1b (2026-09-28): the scenery life's kinds keyed under the screen with the rungs (the kit on a coloured BatchedMesh, every
+  // landed scan level on an instanced mesh with an instanceColor, lit and depth) - they linked in the first frames after
+  // the reveal (rollout:reveal 7 -> 0); and the reveal's own row, new with G734 (the first frames after the lift)
+  { key: 'boot/rollout:images/links', build: '*', upTo: 24, why: 'the scenery life\'s stand-ins linked under the screen (lifeStandIns), not after the reveal', g: 'G734' },
+  { key: 'boot/rollout:images/gl.calls', build: '*', upTo: 300, why: 'the life stand-ins\' compile slices', g: 'G734' },
+  { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 5200, why: 'the life stand-ins\' maps uploaded with the rungs\'', g: 'G734' },
+  { key: 'boot/rollout:reveal/', build: '*', why: 'a new row: the first frames after the reveal (the stand\'s warm-up frames), measured apart from here on', g: 'G734' },
+  { key: 'boot/rollout:compile/gl.calls', build: '*', upTo: 800, why: 'the rock map\'s two instanced kinds and the clouds\' probe keyed with the full-screen passes (they linked in flight)', g: 'G734' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
@@ -85,6 +99,7 @@ async function census(build) {
   const storage = {};
   if (BUILDS[build]) storage['flydiy.wip'] = fs.readFileSync(path.join(ROOT, BUILDS[build]), 'utf8');
   let mainCam = null;
+  const linkLog = process.env.FRAMECOST_LINKS ? linkWatch() : null;
   const hooks = {
     afterScript(name, P) {
       const W = P.win;
@@ -99,7 +114,7 @@ async function census(build) {
         if (typeof W.makeWorld === 'function') { const mk = W.makeWorld; W.makeWorld = function () { const w = mk.apply(this, arguments); wrapWorld(w, C); return w; }; }
         // the renderer: its render (the pass it draws) and its shadow pass, once app.js makes it
         let R = null;
-        Object.defineProperty(W, 'FLYDIY_RENDERER', { configurable: true, get: () => R, set: v => { R = v; if (v && !v.__fc) wrapRenderer(v, P, C, () => mainCam); } });
+        Object.defineProperty(W, 'FLYDIY_RENDERER', { configurable: true, get: () => R, set: v => { R = v; if (v && !v.__fc) wrapRenderer(v, P, C, () => mainCam); if (v && linkLog) linkLog.attach(v); } });
       }
     },
   };
@@ -123,6 +138,9 @@ async function census(build) {
   await P.until(() => W.BOOT.state === 'gone' && W.BOOT.set === 'rollout', 900000);
   bootMark.close();
   const tRoll = Date.now() - t0 - tGarage;
+  // G734: THE FIRST FRAMES AFTER THE REVEAL are their own row (the stand's warm-up frames, below): a program linked
+  // there is one the roll-out screen's warm-ups never keyed - R1's node half, checked to be zero
+  bootMark.open('rollout:reveal');
   // THE PAGE'S MEMORY after the roll-out (G905, reported, never ratcheted): a full gc first when the child has one
   // (--expose-gc); heapUsed is the JS heap, arrayBuffers the typed arrays' backing stores (the grids, the bins, the
   // textures' image.data) - the harness's own (the recording GL keeps no data) is a constant beside them
@@ -132,7 +150,7 @@ async function census(build) {
   mainCam = typeof FP.camera === 'function' ? FP.camera() : FP.camera;
   // THE FLIGHT HELD: the pause button, the world's clocks with it
   const bP = W.document.getElementById('bPause'); if (bP) bP.click();
-  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm); rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; return r; };
+  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm); if (bootMark.cur === 'rollout:reveal') bootMark.close(); rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; return r; };
   const views = {};
   C.phase = () => P.rec.phase;
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
@@ -161,6 +179,8 @@ async function census(build) {
     await P.frames(2); r.heldAfterReupload = held();
     return r;
   })();
+  if (linkLog) linkLog.print(W);
+  rtraceWrite();
   const wd = FP.world();
   const health = { premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
@@ -171,7 +191,7 @@ async function census(build) {
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
 //   FRAMECOST_WHO=1     the callers of terrainH and of the buffer / texture / matrix uploads, sampled, over the stand's
 //                       frames; the premises overlay's state
-//   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material
+//   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material (=shadow: the shadow pass)
 //   FRAMECOST_PROBE=N   N frames at the stand, a line every 10 (draws, GL calls, terrainH, ...): how the world settles
 async function debugAids(W, P, FP, C, getRows, setRows) {
   const E = process.env;
@@ -196,12 +216,66 @@ async function debugAids(W, P, FP, C, getRows, setRows) {
     setRows(null);
   }
   if (E.FRAMECOST_WHAT) {
-    setRows([]); await P.frames(1); setRows(null);
+    C.whatShadow = E.FRAMECOST_WHAT === 'shadow';   // FRAMECOST_WHAT=shadow: what the shadow pass drew (every viewport of every light)
+    setRows([]); await P.frames(1); setRows(null); C.whatShadow = false;
     const by = {};
     for (const o of C.lastDrawn || []) { let n = o; const pth = []; while (n && pth.length < 3) { if (n.name) pth.push(n.name); n = n.parent; }
       const m = [].concat(o.material)[0]; const k = (o.isInstancedMesh ? 'I:' : o.isBatchedMesh ? 'B:' : '') + (pth.reverse().join('/') || o.type) + ' | ' + (m && (m.name || m.type)); by[k] = (by[k] || 0) + 1; }
     process.stderr.write('WHAT ' + (C.lastDrawn || []).length + '\n' + Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => '  ' + v + ' ' + k).join('\n') + '\n');
   }
+}
+//   FRAMECOST_LINKS=1   every program three makes, by the boot row it was made in (its name, its depth packing), and
+//                       for each one made at first light or after, how its cache key differs from the nearest earlier
+//                       program of that name: which warm-up keyed it, or what the warm-up keyed instead (stderr)
+function linkWatch() {
+  const log = [];
+  // a program key read back (three r186, this build: WebGLPrograms getProgramCacheKeyParameters from `precision` on,
+  // then the two boolean masks): its shader, its light / shadow state and the flags that split a warm-up's key
+  const label = key => {
+    const t = key.split(','), p = t.indexOf('highp') >= 0 ? t.indexOf('highp') : t.indexOf('mediump');
+    if (p < 0) return t[0].slice(0, 24) + ' (raw)';
+    const m1 = +t[p + 50], m2 = +t[p + 51], b = (m, i) => (m >>> i) & 1;
+    return (t[0].length > 24 ? '#' + t[0].slice(0, 8) : t[0]) + ' dir ' + t[p + 33] + '+' + t[p + 32] + ' sun, shadows ' + t[p + 40] + '+' + t[p + 39] + (+t[p + 34] || +t[p + 35] ? ', point ' + t[p + 34] + '/' + t[p + 41] + ' spot ' + t[p + 35] + '/' + t[p + 42] : '') + ' type ' + t[p + 45] + ' pack ' + t[p + 49]
+      + (b(m2, 10) ? ' SM' : '') + (b(m1, 0) ? ' I' + (b(m1, 1) ? 'c' : '') : '') + (b(m1, 18) ? ' B' + (b(m1, 20) ? 'c' : '') : '') + (b(m2, 5) ? ' skin' : '') + (b(m2, 0) ? ' fog' : '')
+      + (b(m2, 11) ? ' 2side' : b(m2, 12) ? ' back' : '') + (b(m2, 17) ? ' opaque' : '');
+  };
+  return {
+    log,
+    attach(R) {
+      const A = R.info && R.info.programs; if (!A || A.__fc) return; A.__fc = true;
+      A.push = function (pr) {
+        const lim = Error.stackTraceLimit; Error.stackTraceLimit = 60; const err = new Error(); Error.stackTraceLimit = lim;
+        const at = (err.stack || '').split('\n').slice(2).map(l => l.trim()).filter(l => !/three\.min\.js|_fake_gl\.js|_framecost_check\.js|_page_node\.js|node:/.test(l)).slice(0, 4).map(l => l.replace(/^at /, '').replace(/\(.*[\/\\]/, '(')).join(' < ');
+        log.push({ row: bootMark.cur || '(after)', name: pr.name, key: String(pr.cacheKey), at }); return Array.prototype.push.apply(this, arguments); };
+    },
+    print(W) {
+      // who owns a late program: the scene's materials whose program map holds its key (a lit program), and for a depth
+      // program the casters whose own material three's shadow pass would copy onto it (their kind and side)
+      const owners = new Map();
+      try {
+        const R = W.FLYDIY_RENDERER, sc = W.WORLD && W.WORLD.scene;
+        if (R && sc) sc.traverse(o => { if (!o.material) return; for (const m of [].concat(o.material)) { if (!m) continue; const pr = R.properties.get(m); if (!pr || !pr.programs) continue;
+          for (const k of pr.programs.keys()) { const l = owners.get(k) || (owners.set(k, []), owners.get(k)); if (l.length < 4) { let n = o, path = []; while (n && path.length < 3) { if (n.name) path.push(n.name); n = n.parent; } l.push((o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') : o.isBatchedMesh ? 'B' : o.type) + ':' + (path.reverse().join('/') || '?') + ' | ' + (m.name || m.type)); } } } });
+        // the depth programs three's own depth material draws (no owner of their own): the casters of that kind and side
+        if (R && sc) sc.traverse(o => { if (!o.castShadow || !o.material || !(o.isMesh)) return; const m = [].concat(o.material)[0]; if (!m) return;
+          const k = 'depth ' + (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') : o.isBatchedMesh ? 'B' + (o._colorsTexture ? 'c' : '') : '-') + ' ' + (m.shadowSide !== null && m.shadowSide !== undefined ? m.shadowSide : m.side === 2 ? 2 : 1 - m.side);
+          const l = owners.get(k) || (owners.set(k, []), owners.get(k)); if (l.length < 6) { let n = o, path = []; while (n && path.length < 3) { if (n.name) path.push(n.name); n = n.parent; } l.push((path.reverse().join('/') || o.type) + ' | ' + (m.name || m.type) + (o.customDepthMaterial ? ' +custom' : '')); } });
+      } catch (e) {}
+      const dkey = e => { const L = label(e.key); if (!/^depth/.test(L)) return null; const k = / I(c?)\b/.exec(L), b = / B(c?)\b/.exec(L);
+        return 'depth ' + (k ? 'I' + k[1] : b ? 'B' + b[1] : '-') + ' ' + (/ 2side/.test(L) ? 2 : / back/.test(L) ? 1 : 0); };
+      const by = {};
+      for (const e of log) { const k = e.row + ' | ' + label(e.key); by[k] = (by[k] || 0) + 1; }
+      process.stderr.write('LINKS ' + log.length + '\n' + Object.entries(by).map(([k, n]) => '  ' + String(n).padStart(4) + '  ' + k).join('\n') + '\n');
+      log.forEach((e, i) => {
+        if (!/rollout:(frames|landing|reveal)|\(after\)/.test(e.row)) return;
+        const t = e.key.split(','); let best = null, bd = 1e9;
+        for (let j = 0; j < i; j++) { const f = log[j]; if (f.name !== e.name) continue; const u = f.key.split(','); if (u.length !== t.length) continue;
+          const d = t.reduce((s, v, q) => s + (v !== u[q] ? 1 : 0), 0); if (d < bd) { bd = d; best = f; } }
+        const dif = best ? t.map((v, q) => v !== best.key.split(',')[q] ? q + ':' + best.key.split(',')[q] + '->' + v : null).filter(Boolean).join(' ') : '(no earlier ' + e.name + ' of this length)';
+        process.stderr.write('  LATE ' + e.row + ' ' + (e.name || '-') + ' [' + label(e.key) + '] vs ' + (best ? best.row : '-') + ': ' + dif + '\n       at ' + e.at + (owners.has(e.key) ? '  <- ' + owners.get(e.key).join(' ; ') : dkey(e) && owners.has(dkey(e)) ? '  <- casters (' + dkey(e) + '): ' + owners.get(dkey(e)).join(' ; ') : '') + '\n');
+      });
+    },
+  };
 }
 // ---- the counters inside three -------------------------------------------------------------------------------
 function installThree(T, C) {
@@ -214,10 +288,10 @@ function installThree(T, C) {
   const hook = (proto, k, ctr, pick) => {
     const DEF = proto[k], slot = '__fc_' + k;
     Object.defineProperty(proto, k, { configurable: true,
-      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === 'main')) C.drawn.push(this); if (f) { C[ctr]++; return f; } return DEF; },
+      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (pick === 'shadow') === !!C.whatShadow && (!C.phase || C.phase() === (pick === 'shadow' ? 'shadow' : 'main'))) C.drawn.push(this); if (f) { C[ctr]++; return f; } return DEF; },
       set(f) { Object.defineProperty(this, slot, { value: f === DEF ? undefined : f, writable: true, configurable: true, enumerable: false }); } });
   };
-  hook(O, 'onBeforeRender', 'obr', true); hook(O, 'onAfterRender', 'oar'); hook(O, 'onBeforeShadow', 'obs'); hook(O, 'onAfterShadow', 'obs');
+  hook(O, 'onBeforeRender', 'obr', true); hook(O, 'onAfterRender', 'oar'); hook(O, 'onBeforeShadow', 'obs', 'shadow'); hook(O, 'onAfterShadow', 'obs');
   hook(M, 'onBeforeRender', 'mobr');
   const F = T.Frustum.prototype;
   for (const k of ['intersectsObject', 'intersectsSprite']) { const f = F[k]; F[k] = function (o) { C.frustum++; return f.call(this, o); }; }
@@ -229,13 +303,22 @@ function wrapWorld(w, C) {
   wrapPremises(w, C);
   if (w.premises && typeof w.premises.set === 'function') { const set = w.premises.set; w.premises.set = function () { const r = set.apply(this, arguments); wrapPremises(w, C); return r; }; }
 }
+// FRAMECOST_RASTER_TRACE=<file>: every read of the premises raster (x, z, h: Float64 triples, in the page's order) written
+// to <file> at the end of the census - the page's own reads, for tools/_rastercache_bench.js --trace (G735)
+const RTRACE = process.env.FRAMECOST_RASTER_TRACE || null;
+let rtBuf = RTRACE ? new Float64Array(3 << 20) : null, rtN = 0;
+function rtrace(x, z, h) {
+  if (rtN + 3 > rtBuf.length) { const b = new Float64Array(rtBuf.length * 2); b.set(rtBuf); rtBuf = b; }
+  rtBuf[rtN++] = x; rtBuf[rtN++] = z; rtBuf[rtN++] = h;
+}
+function rtraceWrite() { if (RTRACE) fs.writeFileSync(RTRACE, Buffer.from(rtBuf.buffer, 0, rtN * 8)); }
 // FRAMECOST_WHO=1: the callers of a counter, sampled (a debugging aid, never in the verdict)
 function who(C, k) { const st = (new Error().stack || '').split('\n').slice(3, 6).map(l => l.trim().replace(/^at /, '').replace(/\(.*[\/\\]/, '(')).join(' < '); const m = C.who[k] || (C.who[k] = {}); m[st] = (m[st] || 0) + 1; }
 // the raster's reads (G614): every world terrainH that misses its cache reaches PM.terrainFast -> grHeight
 function wrapPremises(w, C) {
   const PM = w && w.premises && w.premises.overlay;
   if (!PM || PM.__fc) return; PM.__fc = true;
-  if (typeof PM.terrainFast === 'function') { const f = PM.terrainFast; PM.terrainFast = function (x, z, h) { C.grHeight++; return f.call(this, x, z, h); }; }
+  if (typeof PM.terrainFast === 'function') { const f = PM.terrainFast; PM.terrainFast = function (x, z, h) { C.grHeight++; if (RTRACE) rtrace(x, z, h); return f.call(this, x, z, h); }; }
 }
 function wrapRenderer(R, P, C, cam) {
   R.__fc = true;
@@ -257,8 +340,13 @@ const bootMark = {
   close() { if (!this.cur) return; const d = diff(this.at, this.snap()); d.wallMs = Date.now() - this.w0; const k = this.cur; this.rows[k] = this.rows[k] ? add(this.rows[k], d) : d; this.cur = null; },
 };
 function wrapBoot(W, P) {
+  // FRAMECOST_HOLD=N (G734, a probe, never the gate's): N more frames at the end of the roll-out's compile step, the
+  // world ticking under the screen as it does in Chrome while the driver links (1-30 s of frames there, a handful on the
+  // virtual clock) - what streams in meanwhile is what the 'frames' step's catch-up meets
+  const HOLD = +(process.env.FRAMECOST_HOLD || 0);
   const mark = (steps, set) => { for (const s of steps || []) { if (s.__fc) continue; const fn = s.fn; s.__fc = true;
-    s.fn = function () { bootMark.open(set + ':' + s.id); return typeof fn === 'function' ? fn.apply(this, arguments) : undefined; }; } };
+    s.fn = function () { bootMark.open(set + ':' + s.id); const r = typeof fn === 'function' ? fn.apply(this, arguments) : undefined;
+      return HOLD && set === 'rollout' && s.id === 'compile' ? Promise.resolve(r).then(v => P.frames(HOLD).then(() => v)) : r; }; } };
   // run() takes the garage boot's list; show() (the roll-out screen, the way back, a settings screen) calls the inner run
   const run = W.BOOT.run, show = W.BOOT.show;
   W.BOOT.run = function (steps, o) { mark(steps, (o && o.set) || 'boot'); return run.apply(this, arguments); };
@@ -447,6 +535,9 @@ async function main() {
     ok(RL && RL.n >= 4 && RL.heldAfterRollout === 0 && RL.classWeights === false && RL.rederived === RL.n && RL.heldAfterRestore === RL.n && RL.heldAfterReupload === 0,
        r.build + ': the island textures keep no CPU copy after upload, the class weights are unbuilt, a lost context re-derives every one (G906)', JSON.stringify(RL));
     ok(!(H.thrown || []).length, r.build + ': no script, timer or frame of the page threw', (H.thrown || []).join(' | ') || undefined);
+    // G734: R1's node half - every program the first world frames draw with was linked under the roll-out screen
+    { const RV = (r.boot || {})['rollout:reveal'] || {}, FR = (r.boot || {})['rollout:frames'] || {};
+      ok(RV['gl.calls'] > 0 && !RV.links, r.build + ': no program linked in the first frames after the reveal (G734)', 'rollout:reveal ' + (RV.links || 0) + ' links over ' + (RV['gl.calls'] || 0) + ' GL calls; first light (rollout:frames) ' + (FR.links || 0)); }
     CEN.builds[r.build] = r;
   }
   const base = fs.existsSync(BASE_FILE) ? JSON.parse(fs.readFileSync(BASE_FILE, 'utf8')) : null;

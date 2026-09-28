@@ -182,7 +182,10 @@ var ROCK_MAP = (() => {
       const aglK = st.aglK === undefined ? 1 : st.aglK;
       gU.uRockFade.value.set(cs.near || 50, cs.reach || 220, cs.taper === undefined ? 0.5 : cs.taper, (cs.rocks === 0 ? 0 : aglK));
     }
-    const api = { get: () => Object.assign({}, S), stat: () => Object.assign({ plans: plans.size }, STAT), set: o => { Object.assign(S, o || {}); complete = false; return api.get(); },
+    // warmList() (G734): the map's program, on both kinds rebuild() draws it on (an InstancedMesh with and without an
+    // instanceColor), into a plain target - the first map render linked them in flight (FRAMECOST_LINKS: two programs)
+    const api = { warmList: () => [{ m: mapMat, to: 'rt', inst: '' }, { m: mapMat, to: 'rt', inst: 'c' }],
+                  get: () => Object.assign({}, S), stat: () => Object.assign({ plans: plans.size }, STAT), set: o => { Object.assign(S, o || {}); complete = false; return api.get(); },
                   replan: () => { plans.clear(); dirty = true; complete = false; }, atlas: () => ATLAS.texture, map: () => MAP.texture, rt: () => MAP, atlasRT: () => ATLAS,
                   // the instrument: the map's coverage over a box in WORLD metres (the rigs read it; trace before hypothesis)
                   probe: (x0, z0, side) => { const n = Math.max(1, Math.round(side)); const buf = new Uint8Array(n * n * 4);

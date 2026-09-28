@@ -874,7 +874,11 @@
       // a swapped-in equirect decodes asynchronously, and the room bake sees
       // it through the open door just as the sky bake reads it directly — so
       // either way, the environment is worth having again once it lands
-      if (hangar.onSkyReady) hangar.onSkyReady(() => bakeHangarEnv());
+      // G734 (B1b): NOT WHILE THE AEROPLANE IS OUT. A room map or the sky's decode landing after the roll-out re-baked the
+      // shed's probe inside a world frame - six cube faces of a hidden room and their shadow pass (a depth program the
+      // shed's light state keys apart: FRAMECOST's one link after the reveal) and the PMREM. It is baked when the shed
+      // is entered again (enterGarage)
+      if (hangar.onSkyReady) hangar.onSkyReady(() => { if (rolledOut) { envDirty = true; return; } bakeHangarEnv(); });
       bakeHangarEnv();
       if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
       // the part system (G41, rehomed by HANGARS S1): the shell's default
@@ -6573,6 +6577,8 @@
     // a rebuilt aeroplane always posts ITS OWN numbers and never the
     // previous build's (shakeOf caches per def, so this is one settle).
     drawPlaque();
+    // G734: a room map or the sky that landed while the aeroplane was out (onSkyReady below) is baked now
+    if (envDirty && !envDeferred) { envDirty = false; bakeHangarEnv(); }
   }
   // G680 (A4-FREEZE): THE CLICK OF "ROLL OUT" DOES NOTHING HEAVY. Both doors out of the shed (the bar's button, the
   // bench's test flight) ran syncBuild in the click - the join's export, the snapshot with the view neutralised and
@@ -6950,8 +6956,9 @@
       if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
       // G732: the catch-up's depth variants a slice a task (compileDepthVariants' `sliced`, the settings screen's since G991):
       // unsliced, compileAsync built every new depth program's source in one task - 21 of them here, a 983 ms task
+      const late = lifeStandIns();   // G734: the life's kinds once more (a scan level landed since the pictures)
       return shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants(scene, true)).catch(e => console.warn('catch-up compile:', e && e.message)),
-        rungLinks]), 'world', 60000)   // G730: and the parked rungs' links (never draw ahead of the links)
+        rungLinks, late ? rungPrelink(late) : null]), 'world', 60000)   // G730: and the parked rungs' links (never draw ahead of the links)
         // G732: what the catch-up compile's programs hand the shaders (the hooks' textures), uploaded a slice a task, and
         // every program linked, before the first frame draws them
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
@@ -10811,6 +10818,7 @@
       try { if (aa && aa.warmList) lists.push(aa.warmList()); } catch (e) {}
       try { if (typeof POST_FX !== 'undefined' && POST_FX.warmList) lists.push(POST_FX.warmList()); } catch (e) {}
       try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmList) lists.push(CLOUDS.warmList()); } catch (e) {}
+      try { const rm = inWorld && WF && WF.ground && WF.ground.rockMap && WF.ground.rockMap(); if (rm && rm.warmList) lists.push(rm.warmList()); } catch (e) {}   // G734: the rocks' far tier
       for (const g of PROG_WARM.passes(THREE, lists)) jobs.push(pass(g.helper, g.target === null ? null : PLAIN_RT()).catch(e => console.warn('pass compile:', e && e.message)));
     }
     return Promise.all(jobs);
@@ -10936,8 +10944,22 @@
   // A program already known costs its key. (G999.2's cut, reverted, made stand-ins WITHOUT an instanceColor and gave
   // compileDepthVariants a helper with no lights: neither was the program the frame asked for.)
   function rungStandIns() {
-    if (!WF || typeof WF.rungWarm !== 'function') return null;
+    if (!WF || typeof WF.rungWarm !== 'function') return lifeStandIns();
     let g = null; try { g = WF.rungWarm(); } catch (e) { console.warn('rung stand-ins:', e && e.message); }
+    const life = lifeStandIns();   // G734: the scenery life's kinds with them
+    if (life) { if (!g) g = life; else for (const c of [...life.children]) g.add(c); }
+    return g && g.children.length ? g : null;
+  }
+  // G734 (B1b): THE SCENERY LIFE'S PROGRAMS. The life stands once the premises' stream round the eye is empty - after the
+  // roll-out screen - and its first draw made the kit's BatchedMesh (per-instance colours) and each scan level's
+  // InstancedMesh (an instanceColor): lit and depth programs no warm-up had keyed, linked on the frames after the reveal
+  // (GATE FRAMECOST's rollout:reveal row, 7 links). SCENERY_LIFE warm() hands a stand-in of every kind its draw can make;
+  // they go through rungPrelink with the rungs (lit against the world's lights, then the depth variants), at the
+  // pictures step and once more at first light (a scan level whose bytes landed since)
+  function lifeStandIns() {
+    const L = WF && WF.premises && WF.premises.life;
+    if (!L || typeof L.warm !== 'function') return null;
+    let g = null; try { g = L.warm(); } catch (e) { console.warn('life stand-ins:', e && e.message); }
     return g && g.children.length ? g : null;
   }
   function rungPrelink(g) {

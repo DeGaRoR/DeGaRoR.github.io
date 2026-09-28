@@ -345,6 +345,13 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // by self and inclusive time per function (G591: where the roll-out's long tasks go)
   const PROFILE = flag('profile');
   if (PROFILE) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 1000 }); await cmd('Profiler.start'); }
+  // --progwatch, G734 (B1b): EVERY PROGRAM AT ITS CREATION - renderer.info.programs.push hooked before the click, each program
+  // with the boot step it was made in (BOOT.set:current step; 'after' once the screen is gone) and its key read back (the
+  // shader, the light / shadow state, the object kind: GATE FRAMECOST's FRAMECOST_LINKS label) - the 100 ms poll below
+  // dates a program made at the END of a step at the START of the next
+  if (flag('progwatch')) await ev("(() => { const R = window.FLYDIY_RENDERER || (window.WORLD && WORLD.renderer); const A = R && R.info && R.info.programs; if (!A || A.__pwl) return 0; A.__pwl = true; window.__PWL = [];"
+    + " const B = () => { const b = window.BOOT; return !b || b.state === 'gone' ? 'after' : (b.set || '?') + ':' + (b.current ? b.current.id : b.state); };"
+    + " A.push = function (pr) { window.__PWL.push({ t: Math.round(performance.now()), step: B(), n: pr.name, k: String(pr.cacheKey) }); return Array.prototype.push.apply(this, arguments); }; return 1; })()", 20000);
   // ROLL OUT
   const tRoll = Date.now();
   await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent).forEach(x=>x.click());return 1;})()");
@@ -429,7 +436,18 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     await sleep(SHOT_PHASE.length ? 250 : 500);
   }
   let premStream = null;
-  if (flag('progwatch')) { const pw = JSON.parse(await ev("(() => { const who = new Map(); try { WORLD.scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) { const p = WORLD.renderer.properties.get(m).currentProgram; if (p && !who.has(p)) who.set(p, (o.name || o.type) + '/' + (m.name || m.type) + (m.userData && Object.keys(m.userData).length ? '{' + Object.keys(m.userData).slice(0, 4).join(',') + '}' : '')); } }); } catch (e) {} for (const [pr, e] of (window.__PW || new Map())) e.who = who.get(pr) || ''; return 1; })() && JSON.stringify([...(window.__PW || new Map()).values()].map(e => [e.n, e.k, Math.round(e.t0), e.t1 == null ? -1 : Math.round(e.t1 - e.t0), e.who || '']))", 20000)); pw.sort((a, b) => b[3] - a[3]); console.log('  programs: ' + pw.length + ', slowest links (name, key length, seen at ms, ms to ready):\n' + pw.slice(0, 30).map(x => '    ' + x.join('  ')).join('\n')); }
+  if (flag('progwatch')) { const pw = JSON.parse(await ev("(() => { const who = new Map(); try { WORLD.scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) { const p = WORLD.renderer.properties.get(m).currentProgram; if (p && !who.has(p)) who.set(p, (o.name || o.type) + '/' + (m.name || m.type) + (m.userData && Object.keys(m.userData).length ? '{' + Object.keys(m.userData).slice(0, 4).join(',') + '}' : '')); } }); } catch (e) {} for (const [pr, e] of (window.__PW || new Map())) e.who = who.get(pr) || ''; return 1; })() && JSON.stringify([...(window.__PW || new Map()).values()].map(e => [e.n, e.k, Math.round(e.t0), e.t1 == null ? -1 : Math.round(e.t1 - e.t0), e.who || '']))", 20000)); pw.sort((a, b) => b[3] - a[3]); console.log('  programs: ' + pw.length + ', slowest links (name, key length, seen at ms, ms to ready):\n' + pw.slice(0, 30).map(x => '    ' + x.join('  ')).join('\n'));
+    // G734: made where (the push hook above): per step and key label, then every one made at first light or after
+    const made = JSON.parse(await ev('JSON.stringify(window.__PWL || [])', 20000));
+    const label = key => { const t = key.split(','), p = t.indexOf('highp') >= 0 ? t.indexOf('highp') : t.indexOf('mediump'); if (p < 0) return t[0].slice(0, 24) + ' (raw)';
+      const m1 = +t[p + 50], m2 = +t[p + 51], b = (m, i) => (m >>> i) & 1;
+      return (t[0].length > 24 ? '#' + t[0].slice(0, 8) : t[0]) + ' dir ' + t[p + 33] + ' point ' + t[p + 34] + ' spot ' + t[p + 35] + ' | shadows dir ' + t[p + 40] + ' point ' + t[p + 41] + ' spot ' + t[p + 42] + ' | type ' + t[p + 45] + ' pack ' + t[p + 49]
+        + (b(m2, 10) ? ' SM' : '') + (b(m1, 0) ? ' I' + (b(m1, 1) ? 'c' : '') : '') + (b(m1, 18) ? ' B' + (b(m1, 20) ? 'c' : '') : '') + (b(m2, 5) ? ' skin' : '') + (b(m2, 0) ? ' fog' : '') + (b(m2, 11) ? ' 2side' : b(m2, 12) ? ' back' : '') + (b(m2, 17) ? ' opaque' : ''); };
+    const by = {}; for (const e of made) { const k = e.step + ' | ' + label(e.k); by[k] = (by[k] || 0) + 1; }
+    console.log('  programs made, by step and key (' + made.length + '):\n' + Object.entries(by).map(([k, n]) => '    ' + String(n).padStart(4) + '  ' + k).join('\n'));
+    const late = made.filter(e => /:(frames|landing)$|^after$/.test(e.step));
+    if (late.length) console.log('  made at first light or after (' + late.length + '):\n' + late.map(e => '    ' + e.t + ' ms  ' + e.step + '  ' + (e.n || '-') + '  ' + label(e.k)).join('\n'));
+  }
   // ---- the settings probe (G680) ----
   const settingsRuns = [];
   let settingsT0 = null;   // the frame targets are the roll-out's: a settings screen holds the render, its frames are its own
