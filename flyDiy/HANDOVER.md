@@ -63173,4 +63173,4 @@ of one switch could share one), KTX2 / an RG normal map (the 128 MB), the back f
 GATES: FLOWNBAKE (66 checks), PARKED, PROGRAMS, LIVERY, LIGHT, SHADOWSKY, SKIN, SKINMAT, HINGE, FLEX (3 shards), BOOT,
 UISMOKE, STAND, WEATHER - all PASS (run_gates --only, 2026-09-28 18:5x); FRAMECOST with ALLOW rows G875/G878 (the bake
 in the census, the folds' three links, their buffers, their bone textures - one small texSubImage2D per skinned fold
-a frame - and the Cub's taxi fill), 89 counters down (the train's --update takes them); not run: --all.
+a frame - and the Cub's taxi fill; on train 13 no town row), 107 counters down (the train's --update takes them); not run: --all.

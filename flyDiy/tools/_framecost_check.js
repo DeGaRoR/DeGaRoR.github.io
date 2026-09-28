@@ -80,7 +80,6 @@ const ALLOW = [
   // here: before, it bowed out at 0 % and the census measured an aeroplane no player sees); the bake step's row is G870's above
   { key: 'boot/rollout:compile/links', build: '*', upTo: 72, why: 'the folds\' programs linked under the screen: the skinned variant of the baked material, the cabin\'s baked material and its skinned variant', g: 'G875' },
   { key: 'boot/rollout:compile/gl.calls', build: '*', upTo: 800, why: 'the same three links', g: 'G875' },
-  { key: 'boot/rollout:town/gl.calls', build: '*', upTo: 1110, why: '+11 calls in the town step once the bake runs before it in the census (not traced further)', g: 'G878' },
   { key: 'stand/gl.texSubImage2D', build: '*', upTo: 102, why: 'the folds\' bone textures: one small upload per skinned fold a frame (four on a Cessna)', g: 'G875' },
   { key: 'taxi/gl.texSubImage2D', build: '*', upTo: 100, why: 'the folds\' bone textures (above)', g: 'G875' },
   { key: 'stand/bytes.texSubImage2D', build: '*', upTo: 496000, why: 'the folds\' bone textures (~1.5 KB each a frame)', g: 'G875' },
