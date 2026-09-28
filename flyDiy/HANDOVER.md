@@ -63105,3 +63105,129 @@ THE FIX (pavement.js GLSL.map, the chain's first lines): `cls = floor(vPavK.x + 
 mul per fragment. (A `flat` varying is the other way to it - the provoking vertex's value, never interpolated - not taken:
 the user validated the snap.) Every other hash of seed (the wet lanes, the shoulder paths) is fixed with it.
 THE SWITCH stays (t0 t1 t2 t2b t3 t3u t4 t5 t6 t8, PAVTEST / ?pavetest=) for the tweaking to come; t7 and t11 retired.
+
+## G734-G737 - B1b: FIRST LIGHT'S LAST LINKS GO UNDER THE SCREEN (the scenery life, the shed's probe, two stray passes); THE RASTER TILE CACHE IS AN LRU; TRAIN 11'S LOOP RISE SPLIT BY SOURCE COMMIT (2026-09-28, batch B, a cloud session, node only)
+
+B1-LAG's owed list (G730-G733). Base origin/claude/batch-a-base b3bf0431. Numbers: PLAYTEST-2026-09-26 §0.24. Nothing here ran
+in Chrome or on a GPU: every number is GATE FRAMECOST's page in node (counts, the virtual clock) or a node benchmark.
+
+G734 FIRST LIGHT (item 1). MEASURED FIRST, on the base, with a new aid (FRAMECOST_LINKS=1: every program three makes, by the
+boot row it was made in, its cache key read back - shader, lights, shadows, object kind - and each late one diffed against the
+nearest earlier key of its name, with the page's stack and the objects that own it):
+- NODE DOES NOT SHOW B1-LAG'S "DEPTH PROGRAMS ONLY AT FIRST LIGHT". On the base the compile step makes every world-state depth
+  program (the world's light state: 2 directional lights, both shadowed - the sun and the near map - plus 2 point and 1 spot
+  light unshadowed; 13 depth programs keyed with it in rollout:compile, 4 more at the pictures step) and rollout:frames makes NONE (0 links, both builds).
+  FRAMECOST_HOLD=600 (600 more frames under the screen at the end of the compile step: Chrome's seconds of linking, the world
+  ticking and streaming meanwhile, emulated) still makes none at first light. So the Chrome observation is out of node's reach.
+  Two readings remain, and one box run separates them: (a) rollout_perf's progwatch polled every 100 ms and dated a program at
+  the first poll that saw it - the compile step's depth warm-up runs at its very END (after compilePass resolves), so its
+  programs would read as "first seen at the frames step's start"; (b) a caster kind that exists only in Chrome (the paths node
+  lacks: a Worker's parked captures, IndexedDB caches) joins between the steps. G737's progwatch now records each program AT
+  ITS CREATION with the boot step and the decoded key: `rollout_perf --progwatch` prints "programs made, by step and key" and
+  "made at first light or after". If (a), nothing is owed; if (b), the key names the kind.
+- WHAT NODE DID SHOW: 7 LINKS IN THE FIRST FRAMES AFTER THE REVEAL (the new rollout:reveal row, below), and 3 more later in
+  flight. All seven are programs no warm-up under the screen ever keyed; now all are:
+  - THE SCENERY LIFE (6 of 7). It stands once the premises' stream round the eye is empty - after the screen - and its first
+    draw made the kit's BatchedMesh (vertex colours + per-instance colours: batching and batchingColor are in the key: `life:kit`
+    lit and its depth) and each scan level's InstancedMesh with an instanceColor (the people: three lit programs, one depth).
+    scenery_life.js warm(): a stand-in of every kind its draw can make, on the object kind it makes it on, casting - the kit in
+    both shadow classes, and every scan level any of its laws can pick (the people, the wall clutter, the parked cars) whose
+    bytes have landed. app.js lifeStandIns(): they ride rungPrelink with the rungs (lit against the world's lights, then the
+    depth variants, a slice a task) at the pictures step, and once more at first light (a level landed since). The settings
+    screen's rungPrelink() re-keys them too.
+  - THE SHED'S PROBE (1). A room map or the sky's decode that lands after the roll-out called bakeHangarEnv through
+    hangar.onSkyReady INSIDE A WORLD FRAME: six cube faces of the hidden shed and their shadow pass (a depth program in the
+    shed's light state), then the PMREM. Now the callback only marks envDirty while rolled out; enterGarage bakes it. The
+    reveal's frames: 249 005 -> 167 869 GL calls, 29 373 -> 14 057 draws.
+  - LATER IN FLIGHT (the "(after)" rows): rock_map's two programs (its map material on an InstancedMesh, with and without an
+    instanceColor, into its own target) and the clouds' probe (tileStat's read) linked on flight frames. rock_map warmList()
+    and CLOUDS.warmList() (+ the probe) join the full-screen passes compileDepthVariants compiles; PROG_WARM.passes takes an
+    `inst` ('' / 'c') and stands the quad on an InstancedMesh for it. On the final tree NO program of the world's is made
+    after the screen, over the whole census (views, self-test, taxi); what is left there is the shed's (below).
+- THE COST: 14 more links under the screen at the pictures step (the life's stand-ins; 7 of them are kinds this census's life
+  never drew: 269 -> 276 programs at the end), 2 more in the compile step (rock map + probe), memory unchanged (arrayBuffers
+  1 793.3 -> 1 794.0 MiB after the roll-out).
+- GATE FRAMECOST: the boot's new row `rollout:reveal` (the first frames after the lift - the stand's warm-up frames) and a
+  CHECK: no program linked there (R1's node half): Cub 0 links over 167 869 GL calls, Cessna 0 over 169 467; first light 0.
+  ALLOW rows (G734): the new row, images links / gl.calls, upload gl.calls (the stand-ins' maps), compile gl.calls.
+- LEFT (seen, not mine): the shed's see-through twins (compileXrayVariants, G441) key 13 programs with ATMO's hook wrapped
+  TWICE ('atmo.inject+atmo.inject' in the key, FRAMECOST_LINKS' "(after)" rows) - apparently materials whose onBeforeCompile
+  is already the wrapper with no _atmoHook to unwrap (twin() falls back to m.onBeforeCompile) - so G441's warm likely keys
+  programs the see-through flip never asks for. Not verified against a flip. Sliced,
+  in the shed's state - no world frame pays for it.
+
+G735 THE RASTER TILE CACHE (item 2; 27_premises.js). The map still answers every lookup (an empty tile stays a null entry: it
+holds no bytes, it is never evicted); the baked and decoded tiles are ALSO threaded on a doubly linked list through their own
+fields (k, lp, ln - the bake's and rasterTileDecode's literals carry them, one shape): a read moves its tile to the head (four
+pointer writes, none when it is already the head - the common case), an eviction takes the tail. O(1) both; the scan past
+~19 000 nulls is gone. `o.rasterCap` (bytes) sets the cap for a proof (W.premises.set(rec, { rasterCap })).
+- BIT-IDENTICAL: the bake and the decode are pure, so what the cache evicted cannot change a bit. GATE PREMRASTER (new checks):
+  a 2 MB cache against the 48 MB one on 28 776 reads, 0 differ (12 532 evicted); THE LRU - a sweep past the 2 MB cap alone
+  and with HOME's stand tile read between every two reads (3 533 evictions): the stand's tile is made 2 times (the sweep alone
+  3 612 tiles, with the stand's reads 3 614). Mutation-checked: the same cache without the move-to-front (oldest-in first, the
+  old policy) makes it 70 times -> RED. GATE WORLD's terrainH checksum 30165946.716 unchanged; PREMCOOK PASS.
+- tools/_rastercache_bench.js (new): the base's committed core against this one, each in its own child, interleaved, 3 runs,
+  every answer compared bit for bit. THE PAGE'S OWN READS (FRAMECOST_RASTER_TRACE: 11 707 773 terrainFast reads of one
+  census, in the page's order, replayed on the page's composition): 11 699 -> 4 026 ms (999 -> 344 ns a read), the same 1 874
+  bakes, decodes 21 718 -> 21 398, evictions 20 803 -> 20 277, answers IDENTICAL. A SYNTHETIC SWEEP (4.7 M reads over every
+  modifier's box, LRU's bad case - a scan bigger than the cache revisited out of order): 30 176 -> 28 329 ms, the LRU re-bakes
+  1 643 more tiles (+5 s) and saves ~7 s of eviction scans; answers identical.
+- FRAMECOST: the Cub's taxi world.grHeight 42 027.5 -> 43 021 a frame (+2.4 %). Not a new read: the build with every change
+  of this branch BUT the LRU reads 42 027.5 exactly, the LRU alone moves it. The page's time stamps in grBake / grCooked are
+  performance.now() calls, and on the harness's virtual clock (10 us a call) fewer decodes move where the budgeted streamers
+  cut - the pinned taxi's frames carry another share of the fill's walk (terrainH at the taxi falls 27 623 -> 27 436). ALLOW
+  (G735, the Cub).
+
+G736 TRAIN 11's LOOP RISE, SPLIT (item 3: 21.2 -> 22.9 ms loop JS at the taxi, 44.4 -> 41.1 fps, stock pinned 60). A worktree,
+a census (the Cub, FRAMECOST_LINKS) per source commit from the train's base e092808a (the source of b78f8d0c) to acefa926 (the
+last src commit before c73886d3), the current four harness files copied in and each tree built; the views' counters compared
+with no tolerance. The taxi is FRAMECOST's pinned pose (263.5, 727.6), paused; counts, not milliseconds.
+| commit | session | what moved at the taxi (per frame) | at the stand |
+|---|---|---|---|
+| 359a389b G791-G792, 7b6c9b94 G793 | W-CHECK | nothing | nothing |
+| d1ec8589 G990-G991 .. 4edb8372 G994 | A5-CAP | nothing (endpoints) | nothing |
+| e59ca70f G995 .. 5cd04811 G999.1 | A5-LOAD | nothing (endpoints; boot rows only - the step list re-cut) | nothing |
+| 83bce6dd G1000-G1003 | A6-GROUND | +4 main draws (the contact blobs), +24 GL calls, +7 uniformMatrix4fv, bufferSubData +2 calls / +544 B, +1 program, +20 terrainH | -2 main draws, +6 GL calls |
+| 7ed39c7f G1002/G1004 | A6-GROUND | nothing | nothing |
+| b147f4e5 G1016 | (HUD) | nothing | nothing |
+| b96dfe1a G1005-G1006 | A6-SHADOW | +185 shadow draws, +846 GL calls, +125.5 uniformMatrix4fv, +82 bindTexture, +499 frustum tests, +16 useProgram | +192 shadow draws, +874 GL |
+| 4e6d3d37 G1005 | A6-SHADOW | -59 shadow draws, -518.5 GL calls, -499 frustum tests | nothing |
+| 34b2224e, 7cc6dd15 G1005 | A6-SHADOW | nothing | nothing |
+| acefa926 G1005 | A6-SHADOW | nothing | -65 shadow draws, -534 GL, -745 frustum tests |
+| TRAIN 11 NET | | +126 shadow draws (402 -> 528), +4 main, +351.5 GL calls, +53.5 uniformMatrix4fv, +10 uniformMatrix3fv | +127 shadow draws, +346 GL |
+(Intermediate A5-CAP / A5-LOAD commits are still being censused at the time of writing where the table says "endpoints";
+their endpoints are equal at both views to the last digit, so nothing inside them can have moved a view but by cancelling.)
+- WHERE THE +126 ARE (FRAMECOST_WHAT=shadow, new: what the shadow pass drew, by light and viewport, one frame at the stand):
+  the player's aeroplane - 114 draws (91 Standard + 23 Physical, the craft layer) - is drawn THREE times a frame: into the
+  sun's far map, into the near map's 60 m box AND into the new craft cascade (shadow_near.js atlas: viewport 0 is the cascade,
+  viewport 1 the 60 m box - the file's header says the reverse). The cascade's 114 are most of A6-SHADOW's +126 (the rest: casters
+  standing in the cascade's window, and the median of a far map drawn every second frame). WHY THREE: this three
+  (r186, vendor) culls shadow casters by the MAIN camera's layers (WebGLShadowMap renderObject: object.layers.test(camera.layers),
+  the viewer's camera), not the shadow camera's - proved on the vendor three in node (a layer-0 box casts into a map whose
+  camera is set to layer 3; a layer-3-only box does not). So the layer masks shadow_near.js sets on its shadow cameras
+  (FAR_LAYER on the sun's, NEAR_LAYER on the 60 m box, NEAR + CRAFT on the cascade's) cull NOTHING: the far map and the 60 m
+  box draw every caster in their frusta, the craft included; the cascade is kept to the craft only by its prune walk. The
+  parked Cub / Jodel / C172 by the stand (~130 draws) are in the far map and the 60 m box the same way.
+- SUSPECTS FOR THE BOX (the coordinator times them; nothing changed here, as asked): (1) b96dfe1a/4e6d3d37's craft cascade -
+  the 114 craft draws of a third pass (~0.8 ms at PERF 2026-09-23's ~7 us a draw) plus its prune / unprune walk and nearTag
+  (JS the counts cannot see); (2) the layer masks that do not cull (older than train 11: the craft into the far map and the
+  60 m box every frame - a fix would be a camera-layer swap round each light's pass, or the prune idiom for the far map, and
+  would take ~114 x 1.5 draws a frame off - the far map redraws every second frame); (3) A6-GROUND's contact blobs, +4 draws and +24 GL calls - small. W-CHECK, A5-CAP,
+  A5-LOAD and G1016 add no counted work at the views: what they cost (if anything) is per call, not per count.
+
+G737 THE TOOLS (tools/_framecost_check.js, tools/rollout_perf.js, tools/_rastercache_bench.js). FRAMECOST: the rollout:reveal
+row + check (above); debugging aids, stderr only, never in the verdict - FRAMECOST_LINKS=1 (every program, by row, its key read
+back, the late ones diffed, their stacks and owners), FRAMECOST_HOLD=N (N frames held at the end of the compile step),
+FRAMECOST_RASTER_TRACE=<file> (every raster read, for the bench's --trace), FRAMECOST_WHAT=shadow (the shadow pass's draws by
+light and viewport). rollout_perf --progwatch: renderer.info.programs.push hooked before the click - every program at its
+creation, with the boot step and the decoded key (the old 100 ms poll kept beside it).
+RIGS / TRAPS: a runner that re-checks out a worktree while a census still reads it taints that census (the page fetches its
+fixtures, cooks and bins off the disk all along the roll-out) - one worktree per queue, never a checkout under a running census;
+d1ec8589's first census was discarded for that and re-run. `pkill -f <pattern>` matched the invoking shell's own command line.
+GATES (targeted, this container, run_gates --only, jobs 2): FRAMECOST (both builds; the new check green; see the ALLOW rows),
+PREMRASTER (the new LRU checks), PROGRAMS, BOOT, UISMOKE, WORLD, PREMCOOK, LIFE, HANGAR, CLOUD, COVER, FADES - PASS. Not run:
+--all (the train's). THE BASELINE: not re-taken (the coordinator's --update with the train; 32 counters already read "down"
+against it - G731's re-upload among them).
+FOR THE COORDINATOR: generated outputs not committed. On the box: (1) `rollout_perf --progwatch` once on this branch, cold and
+warm - the "made at first light or after" list settles G734's reading (a) or (b); (2) time A6-SHADOW's cascade (suspect 1)
+and the non-culling layer masks (suspect 2) against the loop's +1.7 ms; (3) the ratchet as usual.

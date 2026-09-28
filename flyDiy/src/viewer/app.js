@@ -6577,7 +6577,7 @@
     // a rebuilt aeroplane always posts ITS OWN numbers and never the
     // previous build's (shakeOf caches per def, so this is one settle).
     drawPlaque();
-    // G734: a room map or the sky that landed while the aeroplane was out (onSkyReady below) is baked now
+    // G734: a room map or the sky that landed while the aeroplane was out (the onSkyReady callback, above) is baked now
     if (envDirty && !envDeferred) { envDirty = false; bakeHangarEnv(); }
   }
   // G680 (A4-FREEZE): THE CLICK OF "ROLL OUT" DOES NOTHING HEAVY. Both doors out of the shed (the bar's button, the

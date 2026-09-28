@@ -89,6 +89,10 @@ const ALLOW = [
   { key: 'boot/rollout:images/gl.calls', build: '*', upTo: 300, why: 'the life stand-ins\' compile slices', g: 'G734' },
   { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 5200, why: 'the life stand-ins\' maps uploaded with the rungs\'', g: 'G734' },
   { key: 'boot/rollout:reveal/', build: '*', why: 'a new row: the first frames after the reveal (the stand\'s warm-up frames), measured apart from here on', g: 'G734' },
+  // the LRU tile cache (G735) decodes fewer tiles, so the page calls performance.now() fewer times - on the harness's virtual
+  // clock the budgeted streamers then cut at other points and the pinned taxi's frames carry another share of the fill's
+  // walk (the build with every change but the LRU reads the base's 42 027.5 exactly: tools checked, 2026-09-28)
+  { key: 'taxi/world.grHeight', build: 'cub', upTo: 43500, why: 'the virtual clock\'s streaming share at the taxi, moved by the LRU\'s fewer decode timestamps (no new reads)', g: 'G735' },
   { key: 'boot/rollout:compile/gl.calls', build: '*', upTo: 800, why: 'the rock map\'s two instanced kinds and the clouds\' probe keyed with the full-screen passes (they linked in flight)', g: 'G734' },
 ];
 
@@ -216,17 +220,23 @@ async function debugAids(W, P, FP, C, getRows, setRows) {
     setRows(null);
   }
   if (E.FRAMECOST_WHAT) {
-    C.whatShadow = E.FRAMECOST_WHAT === 'shadow';   // FRAMECOST_WHAT=shadow: what the shadow pass drew (every viewport of every light)
-    setRows([]); await P.frames(1); setRows(null); C.whatShadow = false;
+    C.whatShadow = E.FRAMECOST_WHAT === 'shadow';   // FRAMECOST_WHAT=shadow: what the shadow pass drew, by light and viewport
+    const undo = [];
+    if (C.whatShadow) W.WORLD.scene.traverse(o => { const sh = o.isLight && o.castShadow && o.shadow; if (!sh || typeof sh.getCamera !== 'function') return;
+      const own = Object.prototype.hasOwnProperty.call(sh, 'getCamera'), g = sh.getCamera;
+      sh.getCamera = function (i) { C.shadowView = (o.name || o.type) + ':' + (i | 0); return g.apply(this, arguments); };
+      undo.push(() => { if (own) sh.getCamera = g; else delete sh.getCamera; }); });
+    setRows([]); await P.frames(C.whatShadow ? 2 : 1); setRows(null); C.whatShadow = false; for (const u of undo) u();
     const by = {};
-    for (const o of C.lastDrawn || []) { let n = o; const pth = []; while (n && pth.length < 3) { if (n.name) pth.push(n.name); n = n.parent; }
-      const m = [].concat(o.material)[0]; const k = (o.isInstancedMesh ? 'I:' : o.isBatchedMesh ? 'B:' : '') + (pth.reverse().join('/') || o.type) + ' | ' + (m && (m.name || m.type)); by[k] = (by[k] || 0) + 1; }
+    for (const d of C.lastDrawn || []) { const o = Array.isArray(d) ? d[0] : d, view = Array.isArray(d) ? '[' + d[1] + '] ' : ''; let n = o; const pth = []; while (n && pth.length < 3) { if (n.name) pth.push(n.name); n = n.parent; }
+      const m = [].concat(o.material)[0]; const k = view + (view && o.layers && (o.layers.mask & 32) ? '(craft layer) ' : '') + (o.isInstancedMesh ? 'I:' : o.isBatchedMesh ? 'B:' : '') + (pth.reverse().join('/') || o.type) + ' | ' + (m && (m.name || m.type)); by[k] = (by[k] || 0) + 1; }
     process.stderr.write('WHAT ' + (C.lastDrawn || []).length + '\n' + Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => '  ' + v + ' ' + k).join('\n') + '\n');
   }
 }
-//   FRAMECOST_LINKS=1   every program three makes, by the boot row it was made in (its name, its depth packing), and
-//                       for each one made at first light or after, how its cache key differs from the nearest earlier
-//                       program of that name: which warm-up keyed it, or what the warm-up keyed instead (stderr)
+//   FRAMECOST_LINKS=1   every program three makes, by the boot row it was made in, its key read back (the shader, the
+//                       lights and shadows, the object kind, fog, side), and for each one made at first light or after:
+//                       how its key differs from the nearest earlier program of that name, the page's stack that made
+//                       it and the scene objects that own it - which warm-up missed it, and why (stderr)
 function linkWatch() {
   const log = [];
   // a program key read back (three r186, this build: WebGLPrograms getProgramCacheKeyParameters from `precision` on,
@@ -288,7 +298,7 @@ function installThree(T, C) {
   const hook = (proto, k, ctr, pick) => {
     const DEF = proto[k], slot = '__fc_' + k;
     Object.defineProperty(proto, k, { configurable: true,
-      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (pick === 'shadow') === !!C.whatShadow && (!C.phase || C.phase() === (pick === 'shadow' ? 'shadow' : 'main'))) C.drawn.push(this); if (f) { C[ctr]++; return f; } return DEF; },
+      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (pick === 'shadow') === !!C.whatShadow && (!C.phase || C.phase() === (pick === 'shadow' ? 'shadow' : 'main'))) C.drawn.push(pick === 'shadow' ? [this, C.shadowView] : this); if (f) { C[ctr]++; return f; } return DEF; },
       set(f) { Object.defineProperty(this, slot, { value: f === DEF ? undefined : f, writable: true, configurable: true, enumerable: false }); } });
   };
   hook(O, 'onBeforeRender', 'obr', true); hook(O, 'onAfterRender', 'oar'); hook(O, 'onBeforeShadow', 'obs', 'shadow'); hook(O, 'onAfterShadow', 'obs');
