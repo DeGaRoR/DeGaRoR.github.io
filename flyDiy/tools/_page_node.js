@@ -182,8 +182,11 @@ async function openPage(opts) {
     if (kind === 'bitmaprenderer') return { transferFromImageBitmap() {} };
     return null;
   };
-  let onWrite = null;
-  const D = makeDocument({ html, win, makeCanvasContext, loadImage, onWrite: s => onWrite && onWrite(s) });
+  let onWrite = null, onLazy = null;
+  // a script the page loads ON DEMAND (build.js MANIFEST.lazy, the page's FLYDIY_LAZY - G909: marked data-lazy) runs
+  // off the disk on the next timer, then its onload; any other appended script stays inert, as it always was here
+  const onScript = el => { const src = el.getAttribute && el.getAttribute('src'); if (src && el.getAttribute('data-lazy') && onLazy) onLazy(el, src); };
+  const D = makeDocument({ html, win, makeCanvasContext, loadImage, onWrite: s => onWrite && onWrite(s), onScript });
   const document = D.document;
   const location = { search: opts.query ? '?' + opts.query.replace(/^\?/, '') : '', hash: '', pathname: '/flyDiy/dev.html', hostname: 'localhost', host: 'localhost', port: '', protocol: 'http:',
     origin: 'http://localhost', reload() {}, assign() {}, replace() {} };
@@ -251,6 +254,7 @@ async function openPage(opts) {
     if (hooks.afterScript) hooks.afterScript(name, P);
   };
   const runFile = rel => { const b = readFile(rel); if (!b) { errors.push('script ' + rel + ': 404'); return; } run(rel === 'vendor/three.min.js' ? THREE_SRC : b.toString('utf8'), rel); };
+  onLazy = (el, src) => addTimer(() => { const rel = src.split('?')[0]; const ok = !!readFile(rel); if (ok) runFile(rel); const f = ok ? el.onload : el.onerror; if (typeof f === 'function') f.call(el, { type: ok ? 'load' : 'error', target: el }); }, 1);
   const writes = [];
   onWrite = s => { const m = /<script[^>]*src="([^"]+)"/.exec(s); if (m) writes.push(m[1].split('?')[0]); };
 

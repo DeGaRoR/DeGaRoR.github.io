@@ -148,11 +148,23 @@ async function census(build) {
   placeAt(W, FP, pose);
   views.taxi = await measure();
   views.taxi.pose = [pose.x, pose.z, pose.hdg, pose.off === null ? 'no route' : 'route ' + pose.off + ' m off'];
+  // THE ISLAND TEXTURES ARE THE GPU'S (G906): after the roll-out not one keeps its image.data; the class weights were
+  // never built (the default stack starts past the class layer); a lost context's re-derive (the canvas's
+  // webglcontextrestored handler, called here directly - three's own restore is not run on the recording GL) gives
+  // every one its bytes back, and the next frames' uploads drop them again
+  const release = await (async () => {
+    const GA = W.WORLD && W.WORLD.ground; const G = GA && GA.gpuTex ? GA.gpuTex() : null; if (!G) return null;
+    const held = () => G.list.filter(t => t.image && t.image.data).length;
+    const r = { n: G.list.length, big: G.list.filter(t => t.image && t.image.width > 1).length, heldAfterRollout: held(), classWeights: GA.classWeights ? GA.classWeights() : null };
+    r.rederived = G.restore(); r.heldAfterRestore = held();
+    await P.frames(2); r.heldAfterReupload = held();
+    return r;
+  })();
   const wd = FP.world();
   const health = { premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5) };
-  return { build, health, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  return { build, health, release, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
 }
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
@@ -408,6 +420,10 @@ async function main() {
       const A = a.builds[build], B = b.builds[build]; if (!A) continue;
       for (const v of Object.keys(B.views)) printTable(compare(A.views[v], B.views[v], v + '/', build, true).filter(r => r.state !== 'ok'), build + ' ' + v + ' (a -> b, what moved)');
       printTable(compare(flatBoot(A.boot), flatBoot(B.boot), 'boot/', build, true).filter(r => r.state !== 'ok' && BOOT_KEYS.test(r.key)), build + ' boot (a -> b, what moved)');
+      // the texture upload bytes by boot step (reported: the ratchet's boot keys carry no texture bytes)
+      const texB = boot => { const o = {}; let t = 0; for (const [k, r] of Object.entries(boot || {})) { const v = (r['bytes.texImage2D'] || 0) + (r['bytes.texSubImage2D'] || 0) + (r['bytes.texImage3D'] || 0) + (r['bytes.texSubImage3D'] || 0); if (v) { o[k] = v; t += v; } } o.total = t; return o; };
+      { const ta = texB(A.boot), tb = texB(B.boot), M = x => ((x || 0) / 1048576).toFixed(1);
+        console.log('  ' + build + ' texture upload MiB by step (a -> b): ' + Object.keys(Object.assign({}, ta, tb)).filter(k => ta[k] !== tb[k] || k === 'total').map(k => k + ' ' + M(ta[k]) + ' -> ' + M(tb[k])).join(', ')); }
       if (A.mem && B.mem) for (const at of Object.keys(B.mem)) console.log('  ' + build + ' memory after ' + at + ' (MiB, a -> b): ' + Object.keys(B.mem[at]).map(k => k + ' ' + A.mem[at][k] + ' -> ' + B.mem[at][k]).join(', '));
     }
     return;
@@ -426,6 +442,9 @@ async function main() {
     const H = r.health || {};
     ok(H.world === 'jolene' && H.premises && H.townCut > 0 && H.raster, r.build + ': the scene is the page\'s - Jolene, its premises composed with Metlakatla cut, the ground raster on', 'world ' + H.world + ', premises ' + H.premises + ', ' + H.townCut + ' mk_ entries cut, raster ' + H.raster + ', depth ' + H.depth);
     ok(H.gfx && H.gfx.preset === 'gamer' && H.gfx.shadows === 'full', r.build + ': graphics gamer, shadows full', JSON.stringify(H.gfx));
+    const RL = r.release;
+    ok(RL && RL.n >= 4 && RL.heldAfterRollout === 0 && RL.classWeights === false && RL.rederived === RL.n && RL.heldAfterRestore === RL.n && RL.heldAfterReupload === 0,
+       r.build + ': the island textures keep no CPU copy after upload, the class weights are unbuilt, a lost context re-derives every one (G906)', JSON.stringify(RL));
     ok(!(H.thrown || []).length, r.build + ': no script, timer or frame of the page threw', (H.thrown || []).join(' | ') || undefined);
     CEN.builds[r.build] = r;
   }
