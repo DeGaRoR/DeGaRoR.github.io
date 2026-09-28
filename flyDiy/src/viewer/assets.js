@@ -7,12 +7,21 @@
 // next) calls ASSET_FETCH and nothing else touches the network.
 //
 // The contract:
-//   ASSET_FETCH(url) -> Promise<Uint8Array>, cached BY URL for the life of
-//   the page — the same asset is never fetched twice, and two callers racing
-//   for one URL share one request. A failed fetch REJECTS and stays cached as
-//   the rejection: hammering a missing file with retries would just turn one
-//   404 into thirty. Callers degrade the way this project already degrades a
+//   ASSET_FETCH(url) -> Promise<Uint8Array>. Two callers racing for one URL
+//   share one request. A failed fetch REJECTS and stays cached as the
+//   rejection: hammering a missing file with retries would just turn one 404
+//   into thirty. Callers degrade the way this project already degrades a
 //   missing payload — the thing is absent, not the page broken.
+//   THE BYTES ARE THE CALLER'S ONCE DELIVERED (AS1, G907). The map held every
+//   fetched Uint8Array for the life of the page, so the consumers' own
+//   `BINS.delete` after a decode (props.js, animals.js, app.js MODEL_DECODE)
+//   freed nothing: every bin stayed in the heap next to its decoded arrays.
+//   A settled fetch now leaves the map. Each bin URL has ONE consumer (436
+//   files, 436 keys), and each consumer keeps its own answer for the page's
+//   life (PROP_WARMS / PROP_BUILT, the animals' WARMS / BUILT, MODEL_LOAD's
+//   loadCache, the trees' WARM + BINS), so no asset is fetched twice; a
+//   second ask of a released URL would fetch again (the service worker's
+//   media cache answers it), never fail.
 //
 // URLs arrive ALREADY prefixed: the baked manifests resolve
 // FLYDIY_ASSET_BASE at their own eval (tools/_media_lib.js BASE_DECL), so
@@ -60,6 +69,7 @@
     // every real caller still sees (and reports) the rejection itself
     p.catch(() => {});
     BUFS.set(url, p);
+    p.then(() => { if (BUFS.get(url) === p) BUFS.delete(url); }, () => {});   // delivered: the caller keeps it (G907)
     return p;
   }
   if (typeof window !== 'undefined') { window.ASSET_FETCH = assetFetch; window.ASSET_FETCH_FRESH = load; }

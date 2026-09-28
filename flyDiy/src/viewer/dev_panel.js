@@ -100,7 +100,8 @@
     // environment albedo are the WORLD rail's now (world_rail.js, F9, the right edge) - one place for the
     // art, with previews and an export. F8 keeps the renderer's and the sky's dials.
     root.appendChild(note('the world’s art - layers, ground sets, recolours, filtering, biomes, species, the ring, the cliffs - is on the WORLD rail: F9 (the right edge), or ?scenery=1 for the world without the flight'));
-    if (W.WORLD_RAIL) root.appendChild(button('open the world rail', () => W.WORLD_RAIL.open()));
+    if (W.WORLD_RAIL || (W.FLYDIY_LAZY_SRC && W.FLYDIY_LAZY_SRC.world_rail))   // G909: the rail loads on demand
+      root.appendChild(button('open the world rail', () => (W.WORLD_RAIL ? Promise.resolve() : W.FLYDIY_LAZY('world_rail')).then(() => { if (W.WORLD_RAIL) W.WORLD_RAIL.open(); })));
     // ---- TREES: everything about the forest, folded by concern ----------------
     const T = fold(root, 'trees', true);
     genEl = note('');

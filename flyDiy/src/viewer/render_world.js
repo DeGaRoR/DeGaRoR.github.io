@@ -1390,10 +1390,26 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     drawnLakeSD = lakeRsd;
     let islandTex = null, islandUV = null;
+    // THE ISLAND'S TEXTURES ARE THE GPU'S ONCE UPLOADED (AS1, G906). Each is a 3095 x 3920 RGBA DataTexture (46 MiB)
+    // derived from the grids, and three keeps image.data for the life of the page only so that a lost context can
+    // upload it again: ~277 MiB of CPU copies nobody reads. gpuOnly() drops the bytes in onUpdate (house_tarr.js's
+    // way) and keeps the DERIVATION instead - on webglcontextrestored each texture's bytes are made again from the
+    // grids (which the core and the CPU readers keep) before three's next upload of it.
+    const gpuTex = [];
+    const gpuOnly = (t, derive) => { t.onUpdate = () => { t.image.data = null; }; gpuTex.push([t, derive]); return t; };
+    const gpuRestore = () => { let n = 0; for (const [t, derive] of gpuTex) if (!t.image.data) { t.image.data = derive(); t.needsUpdate = true; n++; } return n; };
+    { const cv = renderer && renderer.domElement;
+      if (cv && cv.addEventListener) {
+        if (cv.__islandTexRestore) cv.removeEventListener('webglcontextrestored', cv.__islandTexRestore);   // a rebuilt world's list replaces the old one
+        cv.__islandTexRestore = gpuRestore;
+        cv.addEventListener('webglcontextrestored', gpuRestore);
+      } }
     if (ISLA) {
-      const G = ISLA.grid, n = G.w * G.h, rgba = new Uint8Array(n * 4), src = ISLA.albedo;
-      for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = src[i * 3]; rgba[j + 1] = src[i * 3 + 1]; rgba[j + 2] = src[i * 3 + 2]; rgba[j + 3] = 255; }
-      islandTex = new THREE.DataTexture(rgba, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+      const G = ISLA.grid, n = G.w * G.h, src = ISLA.albedo;
+      const albedoRGBA = () => { const rgba = new Uint8Array(n * 4);
+        for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = src[i * 3]; rgba[j + 1] = src[i * 3 + 1]; rgba[j + 2] = src[i * 3 + 2]; rgba[j + 3] = 255; }
+        return rgba; };
+      islandTex = gpuOnly(new THREE.DataTexture(albedoRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), albedoRGBA);
       islandTex.colorSpace = THREE.SRGBColorSpace; islandTex.magFilter = islandTex.minFilter = THREE.LinearFilter;
       islandTex.generateMipmaps = false; islandTex.anisotropy = MAX_ANISO; islandTex.flipY = false; islandTex.needsUpdate = true;
       // row 0 of the grid is its north edge (z0): v runs with z, no flip
@@ -1432,6 +1448,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // the class smoothing (the bench's, G405): blur in metres over the weight fields, a smooth wobble of the sample point
     Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {}; groundU = gU;
+    let classWeights = () => false;   // the class weight textures on demand (AS1, G906; set below on an island)
     let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookOuterDry = null, islandGroundHookFine = null, SPL = null;
     yield 'island ground';
     if (ISLA && ISLA.tint && ISLA.ori1) {
@@ -1442,29 +1459,43 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // (the material map + four sets): with nine it FAILED TO LINK on Jolene (17 > MAX_TEXTURE_IMAGE_UNITS
       // 16) and drew nothing; the outer ring's program (the canopy hook's four on top) stood at 16 exactly.
       // The type field was NearestFilter: it is read at the texel centre now (gTT), the same texel exactly.
-      const pk4 = (r, g, b, a) => { const d = new Uint8Array(n * 4); for (let k = 0, j = 0; k < n; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; }
-        const t = new THREE.DataTexture(d, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+      const dataTex = (d) => { const t = new THREE.DataTexture(d, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
         t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; };
-      const rgba = new Uint8Array(n * 4);
-      for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
-      const tintTex = new THREE.DataTexture(rgba, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+      // (a null b channel is 255; the packB's b is zeros, as it was: new Uint8Array(n) then, a flag now - no 12 MB array)
+      const pk4 = (r, g, b, a) => { const make = () => { const d = new Uint8Array(n * 4); for (let k = 0, j = 0; k < n; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b === 0 ? 0 : b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; } return d; };
+        return gpuOnly(dataTex(make()), make); };
+      const tintRGBA = () => { const rgba = new Uint8Array(n * 4);
+        for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
+        return rgba; };
+      const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
+      function dataTex1() { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; }
+      // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
+      const W_SLOTS = [{ 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }, { 60: 0, 80: 1, 90: 2, 100: 3 }];
+      const classW = slot => () => { const w = new Uint8Array(n * 4); if (ISLA.cover) for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w[k * 4 + i] = 255; } return w; };
+      classWeights = () => {
+        if (gU.uGW1.value.image.width > 1 || !((stackStart() === 0 && STACK[0].on) || (GROUND.mode | 0) === 4)) return false;
+        const w1 = classW(W_SLOTS[0]), w2 = classW(W_SLOTS[1]);
+        gU.uGW1.value = gpuOnly(dataTex(w1()), w1); gU.uGW2.value = gpuOnly(dataTex(w2()), w2);
+        return true;
+      };
       Object.assign(gU, {
         uGTint: { value: tintTex },
         uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) },   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
-        uGPackB: { value: pk4(ISLA.ndvi, ISLA.ttype, new Uint8Array(n), null) },
+        uGPackB: { value: pk4(ISLA.ndvi, ISLA.ttype, 0, null) },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
         uGP90: { value: Math.max(4, (ISLA.canopyP90 || 15)) },
         uGMode: { value: 0 }, uGHMax: { value: Math.max(100, ISLA.hMax || 1.1e3) },   // (1.1e3: GATE SITE reads a bare 1100 as the old runway length - red since G400)
         uGBlur: { value: GROUND.classBlur }, uGWobble: { value: GROUND.edgeWobble }, uGWaterMap: { value: GROUND.waterMap }, uGCell: { value: G.cell },
-        // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
-        uGW1: { value: (() => { const w1 = new Uint8Array(n * 4); if (ISLA.cover) { const slot = { 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }; for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w1[k * 4 + i] = 255; } }
-          const t = new THREE.DataTexture(w1, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; })() },
-        uGW2: { value: (() => { const w2 = new Uint8Array(n * 4); if (ISLA.cover) { const slot = { 60: 0, 80: 1, 90: 2, 100: 3 }; for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w2[k * 4 + i] = 255; } }
-          const t = new THREE.DataTexture(w2, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; })() },
+        // THE CLASS WEIGHTS, BUILT ON DEMAND (AS1, G906): read only by gClassSmooth - the stack's class layer (drawn
+        // only when the stack starts at it: stackStart(), PERF 2026-09-23) and debug mode 4. Until one of those is
+        // selected both are a 1x1 zero texel (the same program; nothing samples them): 2 x 46 MiB of CPU and GPU not
+        // made. classWeights() (above) makes the pair the first time either is asked for
+        uGW1: { value: dataTex1() },
+        uGW2: { value: dataTex1() },
         uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
         uLStart: { value: stackStart() },
         uFine: { value: new THREE.Vector4(0, 0, 0, 120) },   // the fine disc (TERRAIN FOLLOW-UP 2): centre, radius (0 = off), the geomorph band
@@ -1473,6 +1504,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uRockRect: { value: new THREE.Vector4(0, 0, 1, 0) }, uRockFade: { value: new THREE.Vector4(50, 220, 0.5, 1) },
       });
       GROUND.on = true;
+      classWeights();   // a saved stack that starts at the class layer asks for them now
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
       // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
       // type from the library (src/viewer/splat_ground.js owns it): two
@@ -1682,13 +1714,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       blends: () => BLENDS.slice(),
       stack: () => STACK.map(l => Object.assign({}, l)),
       setLayer: (i, o) => { const l = STACK[i]; if (!l) return null; Object.assign(l, o);
-        if (gU.uLOn) { gU.uLOn.value[i] = l.on ? 1 : 0; gU.uLMode.value[i] = l.mode | 0; gU.uLOp.value[i] = +l.op; if (gU.uLStart) gU.uLStart.value = stackStart(); }
+        if (gU.uLOn) { gU.uLOn.value[i] = l.on ? 1 : 0; gU.uLMode.value[i] = l.mode | 0; gU.uLOp.value[i] = +l.op; if (gU.uLStart) gU.uLStart.value = stackStart(); classWeights(); }
         try { localStorage.setItem('flydiy.ground.stack', JSON.stringify(STACK)); } catch (e) {}
         return Object.assign({}, l); },
       set: o => { for (const k in o) if (k in GROUND && k !== 'on') { GROUND[k] = +o[k];
         const u = { overlay: 'uGOverlay', shade: 'uGShade', light: 'uGLight', sat: 'uGSat', snow: 'uGSnow', shore: 'uGShore', mode: 'uGMode',
                     classBlur: 'uGBlur', edgeWobble: 'uGWobble', waterMap: 'uGWaterMap' }[k];
-        if (u && gU[u]) gU[u].value = GROUND[k]; } return groundApi.get(); },
+        if (u && gU[u]) gU[u].value = GROUND[k]; } classWeights(); return groundApi.get(); },
+      classWeights: () => !!(gU.uGW1 && gU.uGW1.value.image.width > 1),   // built yet? (AS1, G906: on demand)
+      gpuTex: () => ({ list: gpuTex.map(([t]) => t), restore: gpuRestore }),   // the GPU-only island textures and their re-derive (GATE FRAMECOST reads it)
     };
     yield 'ground bake';
     const tex = islandTex || (yield* bakeGroundSteps(-INNER, -INNER, INNER, INNER, 512, { grain: true }));
@@ -4702,6 +4736,20 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
         })).catch(e => { console.error('cover ring: ' + (e && e.message)); });
+      // THE REACHABLE CATALOGUE, AGAIN (AS1, G908: trees.js treeReach). An F8 biome or mix edit (or a premises
+      // re-stamp, then TREE_FILL.reach()) can name a species the map could not reach at boot and so never fetched:
+      // the catalogue grows, its bins come in, the settle builds its rungs and waits its maps, and the woodland,
+      // the fill and the cover ring replant with it. Nothing new, nothing done.
+      const reachRefresh = () => {
+        const splatGrew = !!(SPL && SPL.api.reach && SPL.api.reach());   // the splat's sets too (a stamped code's)
+        if (typeof treeReach !== 'function' || typeof treeReachOf !== 'function') return splatGrew;
+        const grew = treeReach(treeReachOf(world, BIO));
+        if (!grew.length) return splatGrew;
+        treeSettled = null;
+        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); }))
+          .catch(e => console.warn('trees: the grown catalogue did not settle (' + (e && e.message) + ')'));
+        return true;
+      };
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
@@ -4725,13 +4773,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixAt(code), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
-          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); return r; },
+          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); reachRefresh(); return r; },
+          reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; evictAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
@@ -5525,6 +5574,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the patch wears the ring it lies in, chunk by chunk (patchGrounds, G527): the inner ring's material (its
       // baked map, its detail grain) and uv law inside ±INNER, the outer ring's beyond
       yield 'premises';
+      // G909: a generator the record names may still be loading (build.js MANIFEST.lazy, asked for by world_boot.js)
+      for (let n = 0; window.FLYDIY_LAZY && window.FLYDIY_LAZY.pending && window.FLYDIY_LAZY.pending() && n < 2000; n++) yield 'premises: the generators';
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
         game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)

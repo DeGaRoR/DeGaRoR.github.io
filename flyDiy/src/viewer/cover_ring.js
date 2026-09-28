@@ -270,7 +270,7 @@ var COVER_RING = (() => {
                    r0: e.sub.bb ? Math.max(e.sub.bb[3] - e.sub.bb[0], e.sub.bb[5] - e.sub.bb[2]) / 2 : 1 });   // half its footprint: a slab's tilt is read over its own extent
         }
       }
-      protos.set(c.name, P);
+      if (P.length) protos.set(c.name, P);   // G908: an empty set is not kept - its bins may come later (a grown tree catalogue)
       P.species = c.name;
       for (const p of P) p.all = P;   // a prototype knows its species' set (the batches are sized from it)
       return P;

@@ -423,7 +423,9 @@ const SPLAT_GROUND = (() => {
 
   // ---- the arrays: seventeen sets, assembled once the Images have decoded -----
   // colour + height (rgb + a) and normal + rough (rgb + a): four maps per set
+  // -> done(colour array, normal array); the caller puts them on the uniforms (G908: a grown library swaps them whole)
   function buildArrays(sets, U, R, done) {
+    if (!sets.length) { done(null, null); return; }
     const N = sets.length, px = sets[0].px, S = px * px * 4;
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
     const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
@@ -450,8 +452,7 @@ const SPLAT_GROUND = (() => {
         t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
         // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes
         t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 16; t.needsUpdate = true; return t; };
-      U.uSplat.value = mk(data, true); U.uSplatN.value = mk(dataN, false);
-      done();
+      done(mk(data, true), mk(dataN, false));
     });
   }
 
@@ -570,7 +571,42 @@ const SPLAT_GROUND = (() => {
     R.norm = isla ? normGains(isla, R) : {};
     if (!R.macroExpSaved && isla) { const auto = autoExposure(isla, R); R.knobs.macroExp = +(auto + (1 - auto) * R.knobs.albedoNorm).toFixed(2); }
     if (Object.keys(R.norm).length) console.log('splat: the sets normalised to the imagery (gain r/g/b): ' + Object.keys(R.norm).map(k => k + ' ' + R.norm[k].map(v => v.toFixed(2)).join('/')).join(', '));
-    const LIB = SPLAT_TEX_SETS.map(s => s.key);
+    // THE SETS THE MAP CAN REACH (AS1, G908). The arrays held every set of the library (19 x 4 maps, fetched,
+    // decoded, drawn into two CPU arrays and uploaded); on Jolene three are named by no code the ground can show
+    // (leaves, pebble, lush - 15 is a premises stamp, Metlakatla's). The codes a pixel can wear are the grid's
+    // (the premises' stamps in: the world is composed before the ring is built), less the two the shader hands
+    // on (sea votes as 4, a lake as 3 - sSplat), plus the three it derives (6 -> 12 cliff, 8 -> 13 forest old,
+    // 7 -> 14 scrub dense); their near and far sets are the arrays' layers, in the library's order. LIB is the
+    // layers' keys: an index into it is a layer (li below). An edit that gives a code on the map a set not in the
+    // arrays (setCode, load, a premises re-stamp then api.reach()) GROWS them: rebuilt with the union, swapped in
+    // whole when the new arrays are ready (the old layers keep drawing until then). A code the map lacks draws
+    // nothing, edited or not (the rail's previews read the set's own images). No island (a harness): every set.
+    const reachKeys = () => {
+      const T = isla && isla.ttype; if (!T) return null;
+      const seen = new Uint8Array(256); for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
+      if (seen[0]) seen[4] = 1; if (seen[1]) seen[3] = 1; seen[0] = seen[1] = 0;
+      if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
+      const keys = new Set();
+      for (let c = 0; c < NCODE; c++) { const m = seen[c] && R.codes[c]; if (!m) continue;
+        for (const k of (m.tex || []).concat(m.far || [])) if (k) keys.add(k); }
+      return keys;
+    };
+    const setsFor = keys => SPLAT_TEX_SETS.filter(s => !keys || keys.has(s.key));
+    let LIB = setsFor(reachKeys()).map(s => s.key);
+    let building = null;   // the keys an array build in flight carries
+    const grow = () => {
+      const want = new Set(LIB.concat(building || []));
+      const need = reachKeys(); if (need) for (const k of need) want.add(k);
+      const keys = setsFor(want).map(s => s.key);
+      if (keys.length === LIB.length && (!building || keys.length === building.length)) return false;
+      building = keys;
+      buildArrays(setsFor(new Set(keys)), U, R, (a, n) => {
+        if (building !== keys) { for (const t of [a, n]) if (t) t.dispose(); return; }   // a later grow superseded this one
+        const old = [U.uSplat.value, U.uSplatN.value];
+        if (a) { U.uSplat.value = a; U.uSplatN.value = n; for (const t of old) if (t && t.image && t.image.depth > 1) t.dispose(); }
+        LIB = keys; building = null; ready = true; push(); });
+      return true;
+    };
     const V4 = () => new THREE.Vector4();
     const blank = new THREE.DataArrayTexture(new Uint8Array([128, 128, 128, 255]), 1, 1, 1); blank.needsUpdate = true;
     const blankN = new THREE.DataArrayTexture(new Uint8Array([128, 128, 255, 230]), 1, 1, 1); blankN.needsUpdate = true;
@@ -658,11 +694,13 @@ const SPLAT_GROUND = (() => {
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
     };
     push();
-    buildArrays(SPLAT_TEX_SETS, U, R, () => { ready = true; push(); });
+    buildArrays(setsFor(new Set(LIB)), U, R, (a, n) => { if (a && !building) { U.uSplat.value = a; U.uSplatN.value = n; } else if (a) { a.dispose(); n.dispose(); return; } ready = true; push(); });
     const api = {
       on: () => !!R.on,
       ready: () => ready,
       library: () => SPLAT_TEX_SETS.map(s => ({ key: s.key, metres: s.metres })),
+      layers: () => LIB.slice(),   // the sets the arrays hold, in layer order (AS1, G908: what the map can reach)
+      reach: () => grow(),         // re-read the grid's codes (a premises re-stamp); true when the arrays grow
       names: () => Object.assign({}, G.RECIPE.names),
       knobs: () => Object.assign({}, R.knobs),
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
@@ -675,7 +713,7 @@ const SPLAT_GROUND = (() => {
         const K = R.knobs; U.uSDist.value.x = BLEND.from || K.detailFrom; U.uSDist.value.y = BLEND.to || K.detailTo; return [near, far, U.uSDist.value.x, U.uSDist.value.y]; },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
-        for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },
+        for (const k in o) c[k] = o[k]; grow(); push(); save(R); return api.code(i); },
       grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R.grade[k] || {}),
       // the recolour's selection shown in magenta on one set (its key), or off (null)
       showMask: k => { U.uSMaskL.value = k ? LIB.indexOf(k) : -1; push(); return U.uSMaskL.value; },
@@ -685,9 +723,9 @@ const SPLAT_GROUND = (() => {
       // replace the whole state at once (an imported world look): codes, knobs, grade, on
       load: o => { if (!o) return; if (o.codes) for (const k in o.codes) R.codes[k] = JSON.parse(JSON.stringify(o.codes[k]));
         if (o.knobs) for (const k in o.knobs) R.knobs[k] = +o.knobs[k]; if (o.grade) R.grade = JSON.parse(JSON.stringify(o.grade));
-        if (o.on !== undefined) R.on = o.on ? 1 : 0; push(); save(R); },
+        if (o.on !== undefined) R.on = o.on ? 1 : 0; grow(); push(); save(R); },
       setGrade: (k, o) => { R.grade[k] = Object.assign(api.grade(k), o); push(); save(R); return api.grade(k); },
-      reset: () => { try { localStorage.removeItem('flydiy.ground.splat.v1'); } catch (e) {} Object.assign(R, load()); push(); },
+      reset: () => { try { localStorage.removeItem('flydiy.ground.splat.v1'); } catch (e) {} Object.assign(R, load()); grow(); push(); },
       export: () => JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade }),
       state: () => JSON.parse(JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })),
     };

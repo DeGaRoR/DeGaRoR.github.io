@@ -43,6 +43,13 @@
   const PREM = { open: false, host: null, ed: null, panel: null, view: null, R: null,
     openEditor() {
       if (PREM.open) return;
+      // G909: the editor's scripts (and every generator its palette lists) load on demand the first time
+      if ((!window.PREMISES_HOST || !window.PREMISES_UI || !window.MARINE_GEN) && window.FLYDIY_LAZY && !PREM.loading) {
+        PREM.loading = true;
+        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', 'premises_host', 'premises_ui']).then(() => { PREM.loading = false; if (window.PREMISES_HOST && window.PREMISES_UI) PREM.openEditor(); });
+        return;
+      }
+      if (PREM.loading || !window.PREMISES_HOST || !window.PREMISES_UI) return;
       const WF0 = window.WORLD; if (!WF0 || !WF0.premisesStart) return;
       PREM.R = WF0.premisesStart(); if (!PREM.R) return;
       window.PREMISES_HOST_OPEN = true;
@@ -1431,7 +1438,7 @@
     return (decCache[key] = out);
   };
   // MODEL_LOAD(key) -> Promise<decoded groups | null>. Warms the bin through
-  // ASSET_FETCH (one request per file, page-lifetime cache there too), then
+  // ASSET_FETCH (one request per file; loadCache below keeps the answer for the page - G907), then
   // decodes through the ONE decode above. Null means what it means at
   // MODEL_DECODE: no such payload, or nothing to fetch it with (the node
   // gates' sandbox has no ASSET_FETCH, and their answer is fs, not this).
@@ -8671,11 +8678,12 @@
       // THE WORLD RAIL (G582, F9): the world's art - layers, ground sets, recolours, filtering, biomes, cliffs
       const WR = window.WORLD_RAIL, wrEl = document.getElementById('wrRail');
       const wrOn = !!(wrEl && wrEl.style.display !== 'none');
+      const LZ = window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC ? window.FLYDIY_LAZY_SRC : {};   // G909: the rail and the editor load on demand
       flRow(body, 'the WORLD rail');
-      if (WR) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
-                      () => wrOn, () => WR.show(!wrOn));
+      if (WR || LZ.world_rail) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
+                      () => wrOn, () => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(!wrOn); else window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); }); });
       else flNote(body, 'This build has no WORLD rail (the world pack did not load).');
-      if (!window.PREMISES_UI || !window.PREMISES_HOST || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
+      if (!((window.PREMISES_UI && window.PREMISES_HOST) || (LZ.premises_ui && LZ.premises_host)) || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
       const rec = world.premises.rec;
       flNote(body, rec ? 'A premises is composed into this world: ' + (rec.name || rec.id || 'unnamed') + '.' : 'No premises in this world yet.');
       flNote(body, 'The editor opens over the flight scene with the sim paused: the map and orbit cameras of the bench, the same sections and tools. Every edit recomposes the world live; the record autosaves and is the world at the next boot.');
@@ -11008,6 +11016,7 @@
         const cg = sim.cgPos();
         devCam.pos.set(cg[0], cg[1] + 60, cg[2] + 40); devCam.pitch = -0.45; devCam.yaw = Math.PI; devCam.speed = 40;
         if (window.WORLD_RAIL) window.WORLD_RAIL.open();
+        else if (window.FLYDIY_LAZY) window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL && SCENERY.on) window.WORLD_RAIL.open(); });   // G909: on demand
         flRailSync(); if (flyOpen) flyOpenSet(flyOpen);   // G760: DEV shows itself (its way out), the open flyout says so
       };
       if (inGarage) rollOut(go); else go();
