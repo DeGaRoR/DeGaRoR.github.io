@@ -11784,26 +11784,31 @@ function decode(header, topology, payloadGz) {
 
 // THE FORMAT ITSELF. Takes already-decompressed bytes, so it is identical in
 // both environments and is what GATE TERRAIN exercises.
+// A NODE KEEPS ITS QUANTISED SAMPLES (AS1, G905): { q: Int32Array, sc, h0 }, a
+// height being h0 + q[k] * sc - the very expression the Float64Array held
+// (hMin + q * step(d)), so every reader gets the SAME double, bit for bit, at
+// half the bytes (238 -> 119 MiB for Jolene's two trees, internal nodes
+// included). Read a node with hAt(n, k), or heights(n) for a transient
+// Float64Array of the patch (the far terrain's mesher).
 function decodeRaw(header, topology, raw) {
   const N = header.patch + 1;
   const inp = new ByteIn(raw);
   const bit = i => (topology[i >> 3] >> (7 - (i & 7))) & 1;
   const stepAt = d => header.step0 / (1 << d);
+  const h0 = header.hMin;
 
   let idx = 0;
-  const q = new Int32Array(N * N);
-  const read = d => {
+  const read = () => {
+    const q = new Int32Array(N * N);        // the predictor reads only this patch's earlier samples
     for (let j = 0; j < N; j++)
       for (let i = 0; i < N; i++)
         q[j * N + i] = unzig(inp.varint()) + predict(q, N, i, j);
-    const sc = stepAt(d), h = new Float64Array(N * N);
-    for (let k = 0; k < N * N; k++) h[k] = header.hMin + q[k] * sc;
-    return h;
+    return q;
   };
   const build = (d, ix, iz) => {
     const internal = bit(idx++);
-    const h = read(d);                      // payload order is the walk order
-    const n = { d, ix, iz, h, kids: null };
+    const q = read();                       // payload order is the walk order
+    const n = { d, ix, iz, q, sc: stepAt(d), h0, kids: null };
     if (internal) n.kids = [
       build(d + 1, ix * 2,     iz * 2),
       build(d + 1, ix * 2 + 1, iz * 2),
@@ -11813,6 +11818,15 @@ function decodeRaw(header, topology, raw) {
     return n;
   };
   return build(0, 0, 0);
+}
+// a node's height at sample k (row-major, (patch+1)^2), and the whole patch as
+// doubles; a node from the baker (n.h, no q) reads as it is
+const hAt = (n, k) => (n.q ? n.h0 + n.q[k] * n.sc : n.h[k]);
+function heights(n) {
+  if (!n.q) return n.h;
+  const q = n.q, sc = n.sc, h0 = n.h0, h = new Float64Array(q.length);
+  for (let k = 0; k < q.length; k++) h[k] = h0 + q[k] * sc;
+  return h;
 }
 
 // ===========================================================================
@@ -11836,9 +11850,11 @@ function sampler(root, header) {
     const v = ((z - z0) - n.iz * s) / s * P;
     const i = Math.max(0, Math.min(P - 1, Math.floor(u)));
     const j = Math.max(0, Math.min(P - 1, Math.floor(v)));
-    const fu = u - i, fv = v - j, h = n.h;
-    const a = h[j * N + i],       b = h[j * N + i + 1];
-    const c = h[(j + 1) * N + i], d = h[(j + 1) * N + i + 1];
+    const fu = u - i, fv = v - j, k = j * N + i;
+    let a, b, c, d;
+    if (n.q) { const q = n.q, sc = n.sc, h0 = n.h0;
+      a = h0 + q[k] * sc; b = h0 + q[k + 1] * sc; c = h0 + q[k + N] * sc; d = h0 + q[k + N + 1] * sc; }
+    else { const h = n.h; a = h[k]; b = h[k + 1]; c = h[k + N]; d = h[k + N + 1]; }
     return (a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv;
   };
 }
@@ -11860,10 +11876,10 @@ function maxRect(root, header, ax, az, bx, bz) {
     const s = S / (1 << n.d), nx = x0 + n.ix * s, nz = z0 + n.iz * s;
     if (bx < nx || ax > nx + s || bz < nz || az > nz + s) return;
     if (n.kids) { for (let k = 0; k < 4; k++) walk(n.kids[k]); return; }
-    const c = s / P, h = n.h;
+    const c = s / P;
     const i0 = cl(Math.floor((ax - nx) / c) - 1), i1 = cl(Math.floor((bx - nx) / c) + 1) + 1;
     const j0 = cl(Math.floor((az - nz) / c) - 1), j1 = cl(Math.floor((bz - nz) / c) + 1) + 1;
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const v = h[j * N + i]; if (v > m) m = v; }
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const v = hAt(n, j * N + i); if (v > m) m = v; }
   })(root);
   return m;
 }
@@ -11895,7 +11911,7 @@ function roundTrip(root, meta, probes = 4096) {
   return { worst, step, ok: worst <= step * 1.5, enc };
 }
 
-return { encode, decode, decodeRaw, sampler, maxRect, roundTrip, MAGIC };
+return { encode, decode, decodeRaw, hAt, heights, sampler, maxRect, roundTrip, MAGIC };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = TERRAIN_CODEC;
 // ============================================================
@@ -41578,7 +41594,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='29e445ad0570';window.FLYDIY_BUILD='615950fdb842'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='94ac56588a99';window.FLYDIY_BUILD='87f352a15f66'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=36d97ef0"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -41621,6 +41637,35 @@ if (typeof module !== 'undefined')
 <script type="text/x-flydiy" src="src/animals/bird_animal.js?v=40c4fad1"></script>
 <script type="text/x-flydiy" src="src/animals/animals_lods.js?v=378aeebc"></script>
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
+<script type="text/x-flydiy">
+(function () {
+  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=7e5624cd","premises_host":"src/viewer/premises_host.js?v=a05bd741","premises_ui":"src/viewer/premises_ui.js?v=b6af9ad0","world_rail":"src/viewer/world_rail.js?v=cbe9bc95"}, got = {}, busy = 0;
+  window.FLYDIY_LAZY_SRC = SRC;
+  var lazy = window.FLYDIY_LAZY = function (names) {
+    return Promise.all([].concat(names).map(function (n) {
+      if (got[n]) return got[n];
+      var u = SRC[n]; if (!u) return Promise.resolve(false);
+      busy++;
+      return (got[n] = new Promise(function (res) {
+        var s = document.createElement('script'); s.async = false; s.setAttribute('data-lazy', n);
+        s.onload = function () { busy--; res(true); };
+        s.onerror = function () { busy--; console.warn('flyDiy: ' + u + ' did not load'); res(false); };
+        s.src = u; s.setAttribute('src', u);
+        (document.body || document.head).appendChild(s);
+      }));
+    }));
+  };
+  lazy.pending = function () { return busy; };
+  lazy.has = function (n) { return !!got[n]; };
+  // the WORLD rail applies this browser's saved look at boot: loaded now when there is one (or a shown rail, or
+  // ?scenery=1); otherwise F9 fetches it (its own F9 handler takes over once it is in)
+  try { if (localStorage.getItem('flydiy.worldlook.v1') || /"shown":true/.test(localStorage.getItem('flydiy.worldrail.ui') || '') || /[?&]scenery=1/.test(location.search)) lazy('world_rail'); } catch (e) {}
+  window.addEventListener('keydown', function (e) {
+    if (e.code !== 'F9' || window.WORLD_RAIL) return;
+    e.preventDefault(); lazy('world_rail').then(function () { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); });
+  }, true);
+})();
+</script>
 <script type="text/x-flydiy">
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
 //
@@ -102824,12 +102869,21 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
 // next) calls ASSET_FETCH and nothing else touches the network.
 //
 // The contract:
-//   ASSET_FETCH(url) -> Promise<Uint8Array>, cached BY URL for the life of
-//   the page — the same asset is never fetched twice, and two callers racing
-//   for one URL share one request. A failed fetch REJECTS and stays cached as
-//   the rejection: hammering a missing file with retries would just turn one
-//   404 into thirty. Callers degrade the way this project already degrades a
+//   ASSET_FETCH(url) -> Promise<Uint8Array>. Two callers racing for one URL
+//   share one request. A failed fetch REJECTS and stays cached as the
+//   rejection: hammering a missing file with retries would just turn one 404
+//   into thirty. Callers degrade the way this project already degrades a
 //   missing payload — the thing is absent, not the page broken.
+//   THE BYTES ARE THE CALLER'S ONCE DELIVERED (AS1, G907). The map held every
+//   fetched Uint8Array for the life of the page, so the consumers' own
+//   `BINS.delete` after a decode (props.js, animals.js, app.js MODEL_DECODE)
+//   freed nothing: every bin stayed in the heap next to its decoded arrays.
+//   A settled fetch now leaves the map. Each bin URL has ONE consumer (436
+//   files, 436 keys), and each consumer keeps its own answer for the page's
+//   life (PROP_WARMS / PROP_BUILT, the animals' WARMS / BUILT, MODEL_LOAD's
+//   loadCache, the trees' WARM + BINS), so no asset is fetched twice; a
+//   second ask of a released URL would fetch again (the service worker's
+//   media cache answers it), never fail.
 //
 // URLs arrive ALREADY prefixed: the baked manifests resolve
 // FLYDIY_ASSET_BASE at their own eval (tools/_media_lib.js BASE_DECL), so
@@ -102877,6 +102931,7 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
     // every real caller still sees (and reports) the rejection itself
     p.catch(() => {});
     BUFS.set(url, p);
+    p.then(() => { if (BUFS.get(url) === p) BUFS.delete(url); }, () => {});   // delivered: the caller keeps it (G907)
     return p;
   }
   if (typeof window !== 'undefined') { window.ASSET_FETCH = assetFetch; window.ASSET_FETCH_FRESH = load; }
@@ -107719,8 +107774,10 @@ var SHADOW_NEAR = (function () {
     atlas(L.shadow); C1.scene = scene;
     scene.add(L); scene.add(L.target);
     L.name = 'sunNear';
+    madeL = L;
     return L;
   }
+  let madeL = null;   // the light make() made: apply()'s default
   // atlas(shadow): the 2 x 1 map - viewport 0 the 60 m box (three's own camera, matrix and frustum), viewport 1 the
   // craft's cascade (C1.cam, uNearM1). three's shadow pass calls updateMatrices once, then draws each viewport with
   // getCamera(i) and getFrustum(i); _updateMatrix(camera, matrix, frustum, viewport) folds the atlas offset in.
@@ -107821,13 +107878,25 @@ var SHADOW_NEAR = (function () {
   // (S.biasM) as the depth range grows, and the kernel widens a little with the slant - the sun's half-degree disc
   // blurs a shadow cast from high up (S.penumbra, capped at S.radiusMax texels; the grid kernel bands past that).
   const _t = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
-  function follow(L, cg, sun, agl, snap, camera) {
-    if (!L) return;
-    unprune();   // (a pass that threw between getCamera(0) and getCamera(1) must not leave the world hidden)
+  // G874 (C4a, the train-13 settings freeze): APPLY THE DIAL NOW. The light's visibility and cast were asserted by
+  // follow() alone, i.e. at the next world update - but the settings screen (app.js settleScreen) compiles every lit
+  // program BEFORE the next frame, so a `shadows` change keyed them all with the OLD light set (off: two directional
+  // lights, one casting, the shadow map on) and the first frame after the screen asked for the new one (one light, none
+  // casting, the map off): every lit program linked twice, the craft's AEROSKIN ~1.1 s of a 2.8 s frame. gfx_settings
+  // calls this where it sets S.on; follow() keeps asserting it every frame.
+  function apply(L) {
+    L = L || madeL;
+    if (!L) return 0;
     const live = S.on ? 1 : 0;
     nearScalars[0] = live; L.visible = !!live; L.castShadow = !!live;
     const far = !live;   // the craft is on the far map only while the near map is off
     if (craftGroup && far !== craftFar) { craftFar = far; craftGroup.traverse(m => { if (far) m.layers.enable(FAR_LAYER); else m.layers.disable(FAR_LAYER); }); }
+    return live;
+  }
+  function follow(L, cg, sun, agl, snap, camera) {
+    if (!L) return;
+    unprune();   // (a pass that threw between getCamera(0) and getCamera(1) must not leave the world hidden)
+    const live = apply(L);
     if (!live) return;
     _t.set(cg[0], cg[1], cg[2]);
     if (snap) snap(_t, S.half, S.size);
@@ -107886,7 +107955,7 @@ var SHADOW_NEAR = (function () {
     nearScalars[3] = S.normalBiasTx * tx;
     S.craftHalf = Hh;
   }
-  const API = { S, pcf, C1, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, setNear, unprune, get installed() { return installed; } };
+  const API = { S, pcf, C1, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, apply, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
   return API;
 })();
@@ -109244,7 +109313,9 @@ const SPLAT_GROUND = (() => {
 
   // ---- the arrays: seventeen sets, assembled once the Images have decoded -----
   // colour + height (rgb + a) and normal + rough (rgb + a): four maps per set
+  // -> done(colour array, normal array); the caller puts them on the uniforms (G908: a grown library swaps them whole)
   function buildArrays(sets, U, R, done) {
+    if (!sets.length) { done(null, null); return; }
     const N = sets.length, px = sets[0].px, S = px * px * 4;
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
     const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
@@ -109271,8 +109342,7 @@ const SPLAT_GROUND = (() => {
         t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
         // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes
         t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 16; t.needsUpdate = true; return t; };
-      U.uSplat.value = mk(data, true); U.uSplatN.value = mk(dataN, false);
-      done();
+      done(mk(data, true), mk(dataN, false));
     });
   }
 
@@ -109391,7 +109461,42 @@ const SPLAT_GROUND = (() => {
     R.norm = isla ? normGains(isla, R) : {};
     if (!R.macroExpSaved && isla) { const auto = autoExposure(isla, R); R.knobs.macroExp = +(auto + (1 - auto) * R.knobs.albedoNorm).toFixed(2); }
     if (Object.keys(R.norm).length) console.log('splat: the sets normalised to the imagery (gain r/g/b): ' + Object.keys(R.norm).map(k => k + ' ' + R.norm[k].map(v => v.toFixed(2)).join('/')).join(', '));
-    const LIB = SPLAT_TEX_SETS.map(s => s.key);
+    // THE SETS THE MAP CAN REACH (AS1, G908). The arrays held every set of the library (19 x 4 maps, fetched,
+    // decoded, drawn into two CPU arrays and uploaded); on Jolene three are named by no code the ground can show
+    // (leaves, pebble, lush - 15 is a premises stamp, Metlakatla's). The codes a pixel can wear are the grid's
+    // (the premises' stamps in: the world is composed before the ring is built), less the two the shader hands
+    // on (sea votes as 4, a lake as 3 - sSplat), plus the three it derives (6 -> 12 cliff, 8 -> 13 forest old,
+    // 7 -> 14 scrub dense); their near and far sets are the arrays' layers, in the library's order. LIB is the
+    // layers' keys: an index into it is a layer (li below). An edit that gives a code on the map a set not in the
+    // arrays (setCode, load, a premises re-stamp then api.reach()) GROWS them: rebuilt with the union, swapped in
+    // whole when the new arrays are ready (the old layers keep drawing until then). A code the map lacks draws
+    // nothing, edited or not (the rail's previews read the set's own images). No island (a harness): every set.
+    const reachKeys = () => {
+      const T = isla && isla.ttype; if (!T) return null;
+      const seen = new Uint8Array(256); for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
+      if (seen[0]) seen[4] = 1; if (seen[1]) seen[3] = 1; seen[0] = seen[1] = 0;
+      if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
+      const keys = new Set();
+      for (let c = 0; c < NCODE; c++) { const m = seen[c] && R.codes[c]; if (!m) continue;
+        for (const k of (m.tex || []).concat(m.far || [])) if (k) keys.add(k); }
+      return keys;
+    };
+    const setsFor = keys => SPLAT_TEX_SETS.filter(s => !keys || keys.has(s.key));
+    let LIB = setsFor(reachKeys()).map(s => s.key);
+    let building = null;   // the keys an array build in flight carries
+    const grow = () => {
+      const want = new Set(LIB.concat(building || []));
+      const need = reachKeys(); if (need) for (const k of need) want.add(k);
+      const keys = setsFor(want).map(s => s.key);
+      if (keys.length === LIB.length && (!building || keys.length === building.length)) return false;
+      building = keys;
+      buildArrays(setsFor(new Set(keys)), U, R, (a, n) => {
+        if (building !== keys) { for (const t of [a, n]) if (t) t.dispose(); return; }   // a later grow superseded this one
+        const old = [U.uSplat.value, U.uSplatN.value];
+        if (a) { U.uSplat.value = a; U.uSplatN.value = n; for (const t of old) if (t && t.image && t.image.depth > 1) t.dispose(); }
+        LIB = keys; building = null; ready = true; push(); });
+      return true;
+    };
     const V4 = () => new THREE.Vector4();
     const blank = new THREE.DataArrayTexture(new Uint8Array([128, 128, 128, 255]), 1, 1, 1); blank.needsUpdate = true;
     const blankN = new THREE.DataArrayTexture(new Uint8Array([128, 128, 255, 230]), 1, 1, 1); blankN.needsUpdate = true;
@@ -109479,11 +109584,13 @@ const SPLAT_GROUND = (() => {
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
     };
     push();
-    buildArrays(SPLAT_TEX_SETS, U, R, () => { ready = true; push(); });
+    buildArrays(setsFor(new Set(LIB)), U, R, (a, n) => { if (a && !building) { U.uSplat.value = a; U.uSplatN.value = n; } else if (a) { a.dispose(); n.dispose(); return; } ready = true; push(); });
     const api = {
       on: () => !!R.on,
       ready: () => ready,
       library: () => SPLAT_TEX_SETS.map(s => ({ key: s.key, metres: s.metres })),
+      layers: () => LIB.slice(),   // the sets the arrays hold, in layer order (AS1, G908: what the map can reach)
+      reach: () => grow(),         // re-read the grid's codes (a premises re-stamp); true when the arrays grow
       names: () => Object.assign({}, G.RECIPE.names),
       knobs: () => Object.assign({}, R.knobs),
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
@@ -109496,7 +109603,7 @@ const SPLAT_GROUND = (() => {
         const K = R.knobs; U.uSDist.value.x = BLEND.from || K.detailFrom; U.uSDist.value.y = BLEND.to || K.detailTo; return [near, far, U.uSDist.value.x, U.uSDist.value.y]; },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
-        for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },
+        for (const k in o) c[k] = o[k]; grow(); push(); save(R); return api.code(i); },
       grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R.grade[k] || {}),
       // the recolour's selection shown in magenta on one set (its key), or off (null)
       showMask: k => { U.uSMaskL.value = k ? LIB.indexOf(k) : -1; push(); return U.uSMaskL.value; },
@@ -109506,9 +109613,9 @@ const SPLAT_GROUND = (() => {
       // replace the whole state at once (an imported world look): codes, knobs, grade, on
       load: o => { if (!o) return; if (o.codes) for (const k in o.codes) R.codes[k] = JSON.parse(JSON.stringify(o.codes[k]));
         if (o.knobs) for (const k in o.knobs) R.knobs[k] = +o.knobs[k]; if (o.grade) R.grade = JSON.parse(JSON.stringify(o.grade));
-        if (o.on !== undefined) R.on = o.on ? 1 : 0; push(); save(R); },
+        if (o.on !== undefined) R.on = o.on ? 1 : 0; grow(); push(); save(R); },
       setGrade: (k, o) => { R.grade[k] = Object.assign(api.grade(k), o); push(); save(R); return api.grade(k); },
-      reset: () => { try { localStorage.removeItem('flydiy.ground.splat.v1'); } catch (e) {} Object.assign(R, load()); push(); },
+      reset: () => { try { localStorage.removeItem('flydiy.ground.splat.v1'); } catch (e) {} Object.assign(R, load()); grow(); push(); },
       export: () => JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade }),
       state: () => JSON.parse(JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })),
     };
@@ -110487,7 +110594,12 @@ float pvTread(float u, float x, float w, float seed) {
   GLSL.map = `
   {
     float u = vPav.x, v = vPav.y, dE = vPav.z, shW = vPav.w;
-    float cls = vPavK.x, seed = vPavK.y, halfW = vPavK.z, halfL = vPavK.w;
+    // THE SEED IS SNAPPED (G1046, the user's TEST 11): vPavK is constant per mesh, but a perspective-correct
+    // varying is NOT returned bit-exact (a / w interpolated, then times w: an ulp or two off, varying with the view).
+    // The slab hashes (pvHash = fract(sin(dot(p, (127.1, 311.7))) * 43758.5)) turn that ulp into a new random
+    // number PER PIXEL: slab lengths, joints and slab tones flipped from pixel to pixel and crawled as the camera
+    // moved - the runway's flicker. pavSeed is k / 37 (render_world, render_premises), so the snap is exact.
+    float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;
     vec2 P = vec2(u, v);
     vec2 uvS = P + vec2(seed * 37.0, seed * 91.0);
     vec2 fw = fwidth(P) + 1e-5;
@@ -110926,6 +111038,160 @@ float pvTread(float u, float x, float w, float seed) {
       .replace('#include <dithering_fragment>', '#include <dithering_fragment>' + GLSL.debug);
   };
   const DBG = { value: 0 };   // one debug switch for every pavement
+  // ---- THE EYES TEST (B11-EYES, G1045): the user's four material swaps, one at a time, the user LOOKING ----------
+  // ?pavetest=t1|t2|t2b|t3|t3u|t4 at load, or PAVTEST('t3') live (PAVTEST('t0') = as shipped). ONLY the material of
+  // every pavement mesh changes (strips, taxiways, roads, aprons): geometry, position and renderOrder are untouched,
+  // and a swapped-in material draws in the pavement's own pass and blend (transparent, no depth write).
+  //   t1   the markings MECHANISM off: section 7 (the paint layer, pvMarks' rects/segs) cut out of the shader, the
+  //        rect/seg counts zeroed
+  //   t2   the side band's recipe on the interior: the pavement shader at the side's alpha (uSide.z, 0.35) all over,
+  //        over the ground - what the calm band IS on a strip (sideFade: the same colour chain at <= 0.35)
+  //   t2b  the island ground's own material on the pavement: the premises patch's (the band's ground), cloned
+  //   t3   plain white MeshStandardMaterial, no maps;  t3u  plain white MeshBasicMaterial (unlit)
+  //   t5   the per-pixel NORMAL off: the pavement shader as shipped, gPavN = the mesh's normal (the user's extra test)
+  //   t6   TARMAC: the concrete pavements switched to the asphalt class (its sets, no slabs)
+  //   t8   the band's PATH at full alpha: every pixel shaded as a band pixel 0.3 m outside the edge, opaque
+  //   t4   the island's GRASS round the field: the patch material with the splat's terrain type forced to the most
+  //        common open-ground code 40-120 m round the camera (PAVTEST('t4', code) to name one), no polygons over it
+  // An on-screen box (top centre) names what is on. Default off: with no query and no call nothing here runs.
+  const PT = { mode: 't0', key: '', frag: null, want: null, scene: null, camera: null, swapped: new Map(), timer: 0, code: -1, box: null };
+  const PT_TEXT = {
+    t0: 'TEST 0 - baseline: the pavement as shipped',
+    t1: 'TEST 1 - markings MECHANISM off (paint layer + marks rects/segs + their shader code removed)',
+    t2: 'TEST 2 - border recipe: the pavement shader drawn like the side band (alpha 0.35 over the island ground)',
+    t2b: 'TEST 2b - border material: the island ground\'s own material (premises patch) on the pavement mesh',
+    t3: 'TEST 3 - plain white MeshStandardMaterial, no maps',
+    t3u: 'TEST 3u - plain white unlit (MeshBasicMaterial)',
+    t4: 'TEST 4 - grass: the island ground\'s grass (splat type forced to the field\'s grass code) on the pavement mesh',
+    t5: 'TEST 5 - NORMALS OFF: the pavement shader as shipped, its per-pixel normal replaced by the mesh\'s own normal',
+    t6: 'TEST 6 - TARMAC: every concrete pavement switched to the asphalt class (its sets: worn asphalt + cracked asphalt)',
+    t8: 'TEST 8 - THE BAND PATH at full alpha: every pixel shaded as a band pixel 0.3 m outside the edge, drawn opaque',
+  };
+  // t6: the concrete pavements re-pointed at the asphalt class, the shared library grown to hold its sets
+  function ptSets(mode) {
+    const T3 = (typeof THREE !== 'undefined' && THREE) || null;
+    for (const m of MATS) if (m.userData.pavClsOrig) { m.userData.pav.cls = m.userData.pavClsOrig; delete m.userData.pavClsOrig; }
+    if (mode === 't6') {
+      for (const m of MATS) if (m.userData.pav.cls === 'concrete') { m.userData.pavClsOrig = 'concrete'; m.userData.pav.cls = 'asphalt'; }
+      if (T3) sharedLib(T3, keysFor(['asphalt']));
+    }
+    for (const m of MATS) applyOne(T3, m);
+  }
+  PT.cut = src => {
+    let s = src;
+    if (PT.mode === 't1') {
+      const a = s.indexOf('    // ---- 7 the markings'), b = s.indexOf('    // ---- 8 the rubber');
+      if (a < 0 || b < a) { console.error('PAVTEST t1: the markings section was not found - NOT cut'); return src; }
+      s = s.slice(0, a) + '    vec3 mk = vec3(0.0); float paint = 0.0;   // PAVTEST t1: the markings mechanism cut\n' + s.slice(b);
+    }
+    if (PT.mode === 't2') {
+      const k = 'diffuseColor.rgb = col; diffuseColor.a = gPavA;';
+      if (s.indexOf(k) < 0) { console.error('PAVTEST t2: the alpha line was not found - NOT applied'); return src; }
+      s = s.replace(k, 'gPavA = min(gPavA, uSide.z);   // PAVTEST t2: the interior at the side band\'s alpha\n    ' + k);
+    }
+    if (PT.mode === 't8') {
+      const a = '    float u = vPav.x, v = vPav.y, dE = vPav.z, shW = vPav.w;', k = 'diffuseColor.rgb = col; diffuseColor.a = gPavA;';
+      if (s.indexOf(a) < 0 || s.indexOf(k) < 0) { console.error('PAVTEST t8: the dE / alpha lines were not found - NOT applied'); return src; }
+      s = s.replace(a, '    float u = vPav.x, v = vPav.y, dE = min(vPav.z, -0.3), shW = vPav.w;   // PAVTEST t8: every pixel a band pixel')
+           .replace(k, 'gPavA = 1.0;   // PAVTEST t8: full alpha\n    ' + k);
+    }
+    if (PT.mode === 't5') {
+      const k = '    gPavN = normalize(T * nTn.x + Bv * nTn.y + Ng * nTn.z);';
+      if (s.indexOf(k) < 0) { console.error('PAVTEST t5: the normal line was not found - NOT applied'); return src; }
+      s = s.replace(k, '    gPavN = Ng;   // PAVTEST t5: the per-pixel normal off, the mesh normal');
+    }
+    return s;
+  };
+  PT.catch = function (renderer, scene, camera) { if (!PT.scene) { PT.scene = scene; PT.camera = camera; for (const m of MATS) if (m.onBeforeRender === PT.catch) delete m.onBeforeRender; if (PT.want) { const w = PT.want; PT.want = null; pavtest(w[0], w[1]); } } };
+  function ptBox() {
+    if (typeof document === 'undefined') return;
+    if (!PT.box) {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:118px;left:50%;transform:translateX(-50%);z-index:99999;pointer-events:none;max-width:70vw;text-align:center;' +
+        'background:rgba(0,0,0,0.78);color:#fff;font:600 15px/1.35 system-ui,sans-serif;padding:7px 14px;border-radius:6px;border:1px solid #ffd54a';
+      document.body.appendChild(d); PT.box = d;
+    }
+    PT.box.textContent = (PT_TEXT[PT.mode] || PT.mode) + (PT.mode === 't4' && PT.code >= 0 ? ' [code ' + PT.code + ']' : '');
+  }
+  // the band's ground: a premises patch mesh on the INNER ring's material (the '-2' key is the far terrain's)
+  function ptGround() {
+    let best = null;
+    PT.scene.traverse(o => { if (best || !o.isMesh || o.name !== 'premises:patch') return; const k = o.material.customProgramCacheKey ? o.material.customProgramCacheKey() : ''; if (k.indexOf('-2') < 0) best = o.material; });
+    return best;
+  }
+  // the open ground's commonest terrain code 40-120 m round the camera (the codes the band stamp never copies skipped)
+  function ptGrassCode() {
+    const W = typeof window !== 'undefined' && window.WORLD, isl = W && W.island, g = isl && isl.grid, T = isl && isl.ttype, c = PT.camera;
+    if (!g || !T || !c) return 15;
+    const skip = [0, 1, 8, 10, 12, 13, 16], n = {};
+    for (let r = 40; r <= 120; r += 10) for (let q = 0; q < 16; q++) {
+      const x = c.position.x + Math.cos(q * Math.PI / 8) * r, z = c.position.z + Math.sin(q * Math.PI / 8) * r;
+      const i = Math.floor((x - g.x0) / g.cell), j = Math.floor((z - g.z0) / g.cell); if (i < 0 || j < 0 || i >= g.w || j >= g.h) continue;
+      const v = T[j * g.w + i]; if (skip.indexOf(v) < 0) n[v] = (n[v] || 0) + 1;
+    }
+    let best = 15, bn = 0; for (const k in n) if (n[k] > bn) { bn = n[k]; best = +k; }
+    return best;
+  }
+  function ptMaterial(THREE) {
+    const mode = PT.mode;
+    if (mode === 't3') return new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false });
+    if (mode === 't3u') return new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false });
+    const G = ptGround(); if (!G) return null;
+    const M = G.clone(), inner = G.onBeforeCompile, key = G.customProgramCacheKey;
+    M.transparent = true; M.depthWrite = false;
+    if (mode === 't2b') { M.onBeforeCompile = inner; M.customProgramCacheKey = () => key.call(G) + '-pavtest'; }
+    else {   // t4: the splat's type read pinned to one code, the material polygons' mix off
+      const code = PT.code;
+      M.onBeforeCompile = sh => {
+        inner(sh);
+        const a = sh.fragmentShader.indexOf('return min(int(texture2D(uGPackB');
+        if (a < 0) console.error('PAVTEST t4: the splat type read was not found - NOT forced');
+        else { const b = sh.fragmentShader.indexOf(';', a); sh.fragmentShader = sh.fragmentShader.slice(0, a) + 'return ' + code + ';   /* PAVTEST t4 */' + sh.fragmentShader.slice(b + 1); }
+        sh.fragmentShader = sh.fragmentShader.replace('if (uMatOn > 0.5) {', 'if (false) {');
+      };
+      M.customProgramCacheKey = () => key.call(G) + '-pavtest-grass' + code;
+    }
+    return M;
+  }
+  function ptSwap() {
+    if (!PT.scene) return;
+    const T3 = (typeof THREE !== 'undefined' && THREE) || (typeof window !== 'undefined' && window.THREE) || null;
+    const swapping = PT.mode === 't2b' || PT.mode === 't3' || PT.mode === 't3u' || PT.mode === 't4';
+    if (!swapping) { for (const [o, m] of PT.swapped) { if (o.material !== m) { const t = o.material; o.material = m; t.dispose(); } } PT.swapped.clear(); return; }
+    if (!T3) { console.error('PAVTEST: no THREE'); return; }
+    let mat = null; const miss = [];
+    PT.scene.traverse(o => { if (o.isMesh && MATS.indexOf(o.material) >= 0) miss.push(o); });
+    for (const o of miss) { if (!mat) mat = ptMaterial(T3); if (!mat) break; PT.swapped.set(o, o.material); o.material = mat; }
+    return miss.length;
+  }
+  function pavtest(mode, code) {
+    mode = String(mode || 't0').toLowerCase();
+    if (!PT_TEXT[mode]) return 'modes: ' + Object.keys(PT_TEXT).join(' ');
+    if (!PT.scene) { PT.want = [mode, code]; for (const m of MATS) m.onBeforeRender = PT.catch; return 'armed: ' + mode + ' (on the next pavement draw)'; }
+    // back to the pavement's own materials first, then the new mode
+    if (PT.swapped.size) { const was = PT.mode; PT.mode = 't0'; ptSwap(); PT.mode = was; }
+    clearInterval(PT.timer); PT.timer = 0;
+    PT.mode = mode;
+    const shaderMode = mode === 't1' || mode === 't2' || mode === 't5' || mode === 't8';
+    PT.key = shaderMode ? ':pavtest-' + mode : ''; PT.frag = shaderMode ? PT.cut : null;
+    for (const m of MATS) {
+      const U = m.uniforms, nm = m.userData.pavNM || (m.userData.pavNM = [U.uMarkN.value, U.uSegN.value]);
+      U.uMarkN.value = mode === 't1' ? 0 : nm[0]; U.uSegN.value = mode === 't1' ? 0 : nm[1];
+      m.needsUpdate = true;
+    }
+    if (mode === 't4') PT.code = code !== undefined ? +code : ptGrassCode();
+    ptSets(mode);
+    let n = 0;
+    if (!shaderMode && mode !== 't0') {
+      n = ptSwap();
+      // a mesh streamed in later (or a patch not built yet) is taken up on the next sweep
+      PT.timer = setInterval(ptSwap, 1500);
+    }
+    ptBox();
+    return PT_TEXT[mode] + (n ? ' (' + n + ' meshes)' : '');
+  }
+  try { const q = typeof location !== 'undefined' && /[?&]pavetest=([^&]*)/.exec(location.search); if (q) { PT.want = [decodeURIComponent(q[1])]; } } catch (e) {}
+  if (typeof window !== 'undefined') window.PAVTEST = pavtest;
   function make(THREE, o) {
     const lib = o.lib, cls = o.cls || 'concrete';
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false, side: THREE.FrontSide });
@@ -110946,8 +111212,10 @@ float pvTread(float u, float x, float w, float seed) {
     // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
     m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
-    m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); };
-    m.customProgramCacheKey = () => 'pavement:' + hook.toString().length;
+    m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); if (PT.frag) sh.fragmentShader = PT.frag(sh.fragmentShader); };
+    m.customProgramCacheKey = () => 'pavement:' + hook.toString().length + PT.key;
+    if (PT.want && !PT.scene) m.onBeforeRender = PT.catch;
+    if (PT.mode === 't1') { m.userData.pavNM = [m.uniforms.uMarkN.value, m.uniforms.uSegN.value]; m.uniforms.uMarkN.value = 0; m.uniforms.uSegN.value = 0; }
     MATS.push(m);
     applyOne(THREE, m);
     if (o.keep) setKeep(m, o.keep);
@@ -110961,7 +111229,7 @@ float pvTread(float u, float x, float w, float seed) {
   function exportRecipe() { return JSON.parse(JSON.stringify(R)); }
   function dispose(m) { const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose(); }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
+    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;
@@ -112839,9 +113107,63 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   const BINS = new Map();          // collection name -> Uint8Array
   const TEX = new Map();           // url -> THREE.Texture
   const BUILT = new Map();         // subject key -> { parts, bb, h }
+  const FETCHING = new Map();      // collection name -> in-flight Promise (G908: a bin fetched once, whoever asks)
   let WARM = null;
 
   const key = (c, s) => c.name + '|' + s.name;
+
+  // THE REACHABLE CATALOGUE (AS1, G908). Every species the pack ships was fetched (39 bins), built rung by rung and
+  // mapped at the roll-out, whether or not the map could ever plant it: on Jolene with Metlakatla off birch_autumn,
+  // maple, ash and pine_lampi (trees) and grass_plates, grass_scan (cover) are named by no reachable mix - 1.55 MiB of
+  // bins, ~8.5 MiB of maps, up to 62 MiB of GPU. treeReach(names) narrows the catalogue to the collections a map can
+  // reach (treeReachOf below says which); treeList, treeWarm and treeReady then see those alone, so every consumer -
+  // the woodland's pool, the fill's shapes, the settle's rungs, the cover ring, the cliffs - builds what can stand.
+  // null (the analytic world, a bench, a harness that never asks) is the whole pack, as before. A later ask that
+  // GROWS the set (an F8 biome or mix edit, a premises re-stamp: render_world reachRefresh) fetches the new bins.
+  let WANT = null;
+  const wanted = c => !WANT || WANT.has(c.name);
+  // -> the names this call ADDED to a narrowed set (empty when nothing new: nothing to fetch)
+  function treeReach(names) {
+    if (!names) { const grew = WANT ? (PACK ? PACK.collections.filter(c => !WANT.has(c.name)).map(c => c.name) : []) : []; WANT = null; if (grew.length) WARM = null; return grew; }
+    const next = new Set(names), grew = [];
+    for (const n of next) if (!WANT || !WANT.has(n)) grew.push(n);
+    const first = !WANT;
+    if (WANT) for (const n of WANT) next.add(n);   // it only grows: what was reachable stays built
+    WANT = next;
+    if (grew.length && !first) WARM = null;
+    return first ? [] : grew;
+  }
+  const treeWanted = name => !WANT || WANT.has(name);
+  // WHAT A MAP CAN REACH: the mixes the terrain types name (the grid's codes AFTER the premises' stamps - the world
+  // is composed, the town filter applied - and the three 28c_biomes derives: 6 -> 12 cliff, 8 -> 13 forest old,
+  // 7 -> 14 scrub dense), every species those mixes list; the kinds no mix gates (every rock and debris - the strip
+  // stones and the rock map's sprites take them all -, the cliffs cliffs.js stands by slope, grass_dry the cover
+  // ring's lawn); and the premises' own trees (a forest zone's palette - the whole tree pool without one - and the
+  // placed tree objects). null where no biome map applies (no island ttype): the whole pack plants there.
+  // `bio` is the live BIOMES handle when there is one (F8 edits its map; the pack's is the shipped one).
+  function treeReachOf(world, bio) {
+    if (!PACK || !PACK.biomes || typeof BIOMES === 'undefined') return null;
+    const I = world && world.island;
+    if (!I || !I.ttype) return null;
+    const B = bio || BIOMES.make(PACK);
+    const seen = new Uint8Array(256), T = I.ttype;
+    for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
+    if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
+    const names = new Set(['grass_dry']);
+    for (let c = 0; c < 256; c++) { if (!seen[c]) continue;
+      const m = B.mixAt(c), M = m && B.mixOf(m); if (M && M.species) for (const sp of Object.keys(M.species)) names.add(sp); }
+    for (const c of PACK.collections) if (c.kind === 'rock' || c.kind === 'debris' || c.kind === 'cliff') names.add(c.name);
+    const L = world.premises && world.premises.rec && world.premises.rec.layers;
+    if (L) {
+      const treeCols = PACK.collections.filter(c => c.kind === 'tree' || c.kind === 'shrub').map(c => c.name);
+      for (const z of L.zones || []) if (z.kind === 'forest') {
+        if (z.palette && z.palette.length) for (const k of z.palette) names.add(String(k).split('|')[0]);
+        else for (const n of treeCols) names.add(n);
+      }
+      for (const ob of L.objects || []) if (ob.kind === 'tree' && ob.key) names.add(String(ob.key).split('|')[0]);
+    }
+    return [...names];
+  }
 
   // THE KINDS (G454.12): the payload is per SPECIES since the biomes - tree, dead (a standing
   // dead tree, L0 alone), shrub, cover, rock, and a flower (`maps`, no geometry). treeList()
@@ -112852,13 +113174,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     if (!PACK) return [];
     const out = [];
     for (const c of PACK.collections) {
-      if (!c.subjects || !c.subjects.length) continue;
+      if (!c.subjects || !c.subjects.length || !wanted(c)) continue;
       if (kind === 'all' ? false : kind ? c.kind !== kind : !isTree(c)) continue;
       for (const s of c.subjects) out.push({ key: key(c, s), col: c, sub: s });
     }
     return out;
   }
-  const withBin = () => PACK ? PACK.collections.filter(c => c.bin) : [];
+  const withBin = () => PACK ? PACK.collections.filter(c => c.bin && wanted(c)) : [];
 
   function treeReady() {
     return !!PACK && withBin().every(c => BINS.has(c.name));
@@ -112872,10 +113194,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     if (WARM) return WARM;
     if (typeof window === 'undefined' || typeof window.ASSET_FETCH !== 'function')
       return Promise.reject(new Error('trees: no ASSET_FETCH here'));
-    WARM = Promise.all(withBin().map(c =>
-      (window.BOOT && window.BOOT.expect('treeBin'),
-       window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); if (window.BOOT) window.BOOT.landed('treeBin'); },
-                                      e => { if (window.BOOT) window.BOOT.landed('treeBin', false, c.name); throw e; }))));
+    WARM = Promise.all(withBin().filter(c => !BINS.has(c.name)).map(c => {
+      let f = FETCHING.get(c.name);
+      if (!f) {
+        if (window.BOOT) window.BOOT.expect('treeBin');
+        f = window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); FETCHING.delete(c.name); if (window.BOOT) window.BOOT.landed('treeBin'); },
+                                           e => { if (window.BOOT) window.BOOT.landed('treeBin', false, c.name); throw e; });
+        FETCHING.set(c.name, f);
+      }
+      return f;
+    }));
     return WARM;
   }
 
@@ -113417,6 +113745,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     window.TREE_PACK_REG = PACK;
     window.treeWarm = treeWarm;
     window.treeReady = treeReady;
+    window.treeReach = treeReach;
+    window.treeReachOf = treeReachOf;
+    window.treeWanted = treeWanted;
     window.treeList = treeList;
     window.treeBuild = treeBuild;
     window.treeMapsReady = treeMapsReady;
@@ -113697,7 +114028,7 @@ var COVER_RING = (() => {
                    r0: e.sub.bb ? Math.max(e.sub.bb[3] - e.sub.bb[0], e.sub.bb[5] - e.sub.bb[2]) / 2 : 1 });   // half its footprint: a slab's tilt is read over its own extent
         }
       }
-      protos.set(c.name, P);
+      if (P.length) protos.set(c.name, P);   // G908: an empty set is not kept - its bins may come later (a grown tree catalogue)
       P.species = c.name;
       for (const p of P) p.all = P;   // a prototype knows its species' set (the batches are sized from it)
       return P;
@@ -116181,10 +116512,26 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     drawnLakeSD = lakeRsd;
     let islandTex = null, islandUV = null;
+    // THE ISLAND'S TEXTURES ARE THE GPU'S ONCE UPLOADED (AS1, G906). Each is a 3095 x 3920 RGBA DataTexture (46 MiB)
+    // derived from the grids, and three keeps image.data for the life of the page only so that a lost context can
+    // upload it again: ~277 MiB of CPU copies nobody reads. gpuOnly() drops the bytes in onUpdate (house_tarr.js's
+    // way) and keeps the DERIVATION instead - on webglcontextrestored each texture's bytes are made again from the
+    // grids (which the core and the CPU readers keep) before three's next upload of it.
+    const gpuTex = [];
+    const gpuOnly = (t, derive) => { t.onUpdate = () => { t.image.data = null; }; gpuTex.push([t, derive]); return t; };
+    const gpuRestore = () => { let n = 0; for (const [t, derive] of gpuTex) if (!t.image.data) { t.image.data = derive(); t.needsUpdate = true; n++; } return n; };
+    { const cv = renderer && renderer.domElement;
+      if (cv && cv.addEventListener) {
+        if (cv.__islandTexRestore) cv.removeEventListener('webglcontextrestored', cv.__islandTexRestore);   // a rebuilt world's list replaces the old one
+        cv.__islandTexRestore = gpuRestore;
+        cv.addEventListener('webglcontextrestored', gpuRestore);
+      } }
     if (ISLA) {
-      const G = ISLA.grid, n = G.w * G.h, rgba = new Uint8Array(n * 4), src = ISLA.albedo;
-      for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = src[i * 3]; rgba[j + 1] = src[i * 3 + 1]; rgba[j + 2] = src[i * 3 + 2]; rgba[j + 3] = 255; }
-      islandTex = new THREE.DataTexture(rgba, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+      const G = ISLA.grid, n = G.w * G.h, src = ISLA.albedo;
+      const albedoRGBA = () => { const rgba = new Uint8Array(n * 4);
+        for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = src[i * 3]; rgba[j + 1] = src[i * 3 + 1]; rgba[j + 2] = src[i * 3 + 2]; rgba[j + 3] = 255; }
+        return rgba; };
+      islandTex = gpuOnly(new THREE.DataTexture(albedoRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), albedoRGBA);
       islandTex.colorSpace = THREE.SRGBColorSpace; islandTex.magFilter = islandTex.minFilter = THREE.LinearFilter;
       islandTex.generateMipmaps = false; islandTex.anisotropy = MAX_ANISO; islandTex.flipY = false; islandTex.needsUpdate = true;
       // row 0 of the grid is its north edge (z0): v runs with z, no flip
@@ -116223,6 +116570,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // the class smoothing (the bench's, G405): blur in metres over the weight fields, a smooth wobble of the sample point
     Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {}; groundU = gU;
+    let classWeights = () => false;   // the class weight textures on demand (AS1, G906; set below on an island)
     let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookOuterDry = null, islandGroundHookFine = null, SPL = null;
     yield 'island ground';
     if (ISLA && ISLA.tint && ISLA.ori1) {
@@ -116233,29 +116581,43 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // (the material map + four sets): with nine it FAILED TO LINK on Jolene (17 > MAX_TEXTURE_IMAGE_UNITS
       // 16) and drew nothing; the outer ring's program (the canopy hook's four on top) stood at 16 exactly.
       // The type field was NearestFilter: it is read at the texel centre now (gTT), the same texel exactly.
-      const pk4 = (r, g, b, a) => { const d = new Uint8Array(n * 4); for (let k = 0, j = 0; k < n; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; }
-        const t = new THREE.DataTexture(d, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+      const dataTex = (d) => { const t = new THREE.DataTexture(d, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
         t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; };
-      const rgba = new Uint8Array(n * 4);
-      for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
-      const tintTex = new THREE.DataTexture(rgba, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+      // (a null b channel is 255; the packB's b is zeros, as it was: new Uint8Array(n) then, a flag now - no 12 MB array)
+      const pk4 = (r, g, b, a) => { const make = () => { const d = new Uint8Array(n * 4); for (let k = 0, j = 0; k < n; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b === 0 ? 0 : b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; } return d; };
+        return gpuOnly(dataTex(make()), make); };
+      const tintRGBA = () => { const rgba = new Uint8Array(n * 4);
+        for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
+        return rgba; };
+      const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
+      function dataTex1() { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; }
+      // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
+      const W_SLOTS = [{ 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }, { 60: 0, 80: 1, 90: 2, 100: 3 }];
+      const classW = slot => () => { const w = new Uint8Array(n * 4); if (ISLA.cover) for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w[k * 4 + i] = 255; } return w; };
+      classWeights = () => {
+        if (gU.uGW1.value.image.width > 1 || !((stackStart() === 0 && STACK[0].on) || (GROUND.mode | 0) === 4)) return false;
+        const w1 = classW(W_SLOTS[0]), w2 = classW(W_SLOTS[1]);
+        gU.uGW1.value = gpuOnly(dataTex(w1()), w1); gU.uGW2.value = gpuOnly(dataTex(w2()), w2);
+        return true;
+      };
       Object.assign(gU, {
         uGTint: { value: tintTex },
         uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) },   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
-        uGPackB: { value: pk4(ISLA.ndvi, ISLA.ttype, new Uint8Array(n), null) },
+        uGPackB: { value: pk4(ISLA.ndvi, ISLA.ttype, 0, null) },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
         uGP90: { value: Math.max(4, (ISLA.canopyP90 || 15)) },
         uGMode: { value: 0 }, uGHMax: { value: Math.max(100, ISLA.hMax || 1.1e3) },   // (1.1e3: GATE SITE reads a bare 1100 as the old runway length - red since G400)
         uGBlur: { value: GROUND.classBlur }, uGWobble: { value: GROUND.edgeWobble }, uGWaterMap: { value: GROUND.waterMap }, uGCell: { value: G.cell },
-        // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
-        uGW1: { value: (() => { const w1 = new Uint8Array(n * 4); if (ISLA.cover) { const slot = { 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }; for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w1[k * 4 + i] = 255; } }
-          const t = new THREE.DataTexture(w1, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; })() },
-        uGW2: { value: (() => { const w2 = new Uint8Array(n * 4); if (ISLA.cover) { const slot = { 60: 0, 80: 1, 90: 2, 100: 3 }; for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w2[k * 4 + i] = 255; } }
-          const t = new THREE.DataTexture(w2, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; })() },
+        // THE CLASS WEIGHTS, BUILT ON DEMAND (AS1, G906): read only by gClassSmooth - the stack's class layer (drawn
+        // only when the stack starts at it: stackStart(), PERF 2026-09-23) and debug mode 4. Until one of those is
+        // selected both are a 1x1 zero texel (the same program; nothing samples them): 2 x 46 MiB of CPU and GPU not
+        // made. classWeights() (above) makes the pair the first time either is asked for
+        uGW1: { value: dataTex1() },
+        uGW2: { value: dataTex1() },
         uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
         uLStart: { value: stackStart() },
         uFine: { value: new THREE.Vector4(0, 0, 0, 120) },   // the fine disc (TERRAIN FOLLOW-UP 2): centre, radius (0 = off), the geomorph band
@@ -116264,6 +116626,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uRockRect: { value: new THREE.Vector4(0, 0, 1, 0) }, uRockFade: { value: new THREE.Vector4(50, 220, 0.5, 1) },
       });
       GROUND.on = true;
+      classWeights();   // a saved stack that starts at the class layer asks for them now
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
       // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
       // type from the library (src/viewer/splat_ground.js owns it): two
@@ -116473,13 +116836,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       blends: () => BLENDS.slice(),
       stack: () => STACK.map(l => Object.assign({}, l)),
       setLayer: (i, o) => { const l = STACK[i]; if (!l) return null; Object.assign(l, o);
-        if (gU.uLOn) { gU.uLOn.value[i] = l.on ? 1 : 0; gU.uLMode.value[i] = l.mode | 0; gU.uLOp.value[i] = +l.op; if (gU.uLStart) gU.uLStart.value = stackStart(); }
+        if (gU.uLOn) { gU.uLOn.value[i] = l.on ? 1 : 0; gU.uLMode.value[i] = l.mode | 0; gU.uLOp.value[i] = +l.op; if (gU.uLStart) gU.uLStart.value = stackStart(); classWeights(); }
         try { localStorage.setItem('flydiy.ground.stack', JSON.stringify(STACK)); } catch (e) {}
         return Object.assign({}, l); },
       set: o => { for (const k in o) if (k in GROUND && k !== 'on') { GROUND[k] = +o[k];
         const u = { overlay: 'uGOverlay', shade: 'uGShade', light: 'uGLight', sat: 'uGSat', snow: 'uGSnow', shore: 'uGShore', mode: 'uGMode',
                     classBlur: 'uGBlur', edgeWobble: 'uGWobble', waterMap: 'uGWaterMap' }[k];
-        if (u && gU[u]) gU[u].value = GROUND[k]; } return groundApi.get(); },
+        if (u && gU[u]) gU[u].value = GROUND[k]; } classWeights(); return groundApi.get(); },
+      classWeights: () => !!(gU.uGW1 && gU.uGW1.value.image.width > 1),   // built yet? (AS1, G906: on demand)
+      gpuTex: () => ({ list: gpuTex.map(([t]) => t), restore: gpuRestore }),   // the GPU-only island textures and their re-derive (GATE FRAMECOST reads it)
     };
     yield 'ground bake';
     const tex = islandTex || (yield* bakeGroundSteps(-INNER, -INNER, INNER, INNER, 512, { grain: true }));
@@ -116939,9 +117304,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the error and the height range, bottom-up: a node's patch read bilinearly at each child's
       // samples, plus that child's own error (conservative: the worst it can be off the leaves)
       let farIds = 0;
+      // a node keeps its quantised samples (AS1, G905: 19_terrain_codec decodeRaw); its heights as doubles, the same numbers
+      const hts = n => TERRAIN_CODEC.heights(n);
       (function measure(n) {
         n.fid = farIds++;
-        let lo = Infinity, hi = -Infinity; for (let k = 0; k < NN; k++) { const y = n.h[k]; if (y < lo) lo = y; if (y > hi) hi = y; }
+        const nh = hts(n);
+        let lo = Infinity, hi = -Infinity; for (let k = 0; k < NN; k++) { const y = nh[k]; if (y < lo) lo = y; if (y > hi) hi = y; }
         n.lo = lo; n.hi = hi; n.e = 0;
         if (!n.kids) {   // does a lake (its box, +30 m) reach this leaf? the lake-free leaves draw without the lake cut
           const s = FH.side / (1 << n.d), x0 = FH.bounds.x0 + n.ix * s, z0 = FH.bounds.z0 + n.iz * s;
@@ -116951,12 +117319,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         let e = 0;
         for (const c of n.kids) {
           measure(c);
-          const qx = c.ix - n.ix * 2, qz = c.iz - n.iz * 2;
+          const qx = c.ix - n.ix * 2, qz = c.iz - n.iz * 2, ch = hts(c);
           let ec = 0;
           for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
             const u = (qx * Pn + i) / 2, v = (qz * Pn + j) / 2, i0 = Math.min(Pn - 1, u | 0), j0 = Math.min(Pn - 1, v | 0), fu = u - i0, fv = v - j0, b = j0 * N + i0;
-            const p = (n.h[b] * (1 - fu) + n.h[b + 1] * fu) * (1 - fv) + (n.h[b + N] * (1 - fu) + n.h[b + N + 1] * fu) * fv;
-            const d = Math.abs(p - c.h[j * N + i]); if (d > ec) ec = d;
+            const p = (nh[b] * (1 - fu) + nh[b + 1] * fu) * (1 - fv) + (nh[b + N] * (1 - fu) + nh[b + N + 1] * fu) * fv;
+            const d = Math.abs(p - ch[j * N + i]); if (d > ec) ec = d;
           }
           if (ec + c.e > e) e = ec + c.e;
         }
@@ -116981,10 +117349,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       })();
       const patchOf = n => {
         let P = FARLOD.cache.get(n.fid); if (P) { P.used = FARLOD.stamp; return P; }
-        const [ox, oz, s] = boxOf(n), step = s / Pn;
+        const [ox, oz, s] = boxOf(n), step = s / Pn, nh = hts(n);
         const pos = new Float32Array(NV * 3), uv = new Float32Array(NV * 2), nor = new Float32Array(NV * 3);
         for (let j = 0, k = 0; j < N; j++) for (let i = 0; i < N; i++, k++) {
-          const x = ox + i * step, z = oz + j * step; let y = n.h[k];
+          const x = ox + i * step, z = oz + j * step; let y = nh[k];
           // the asset's sea is the DEM's 0, ABOVE the water plane: the far
           // mesh takes the island's shelf like the sampler does (G402 - the
           // painted floor had shown over the plane as "a different tile")
@@ -119490,6 +119858,20 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
         })).catch(e => { console.error('cover ring: ' + (e && e.message)); });
+      // THE REACHABLE CATALOGUE, AGAIN (AS1, G908: trees.js treeReach). An F8 biome or mix edit (or a premises
+      // re-stamp, then TREE_FILL.reach()) can name a species the map could not reach at boot and so never fetched:
+      // the catalogue grows, its bins come in, the settle builds its rungs and waits its maps, and the woodland,
+      // the fill and the cover ring replant with it. Nothing new, nothing done.
+      const reachRefresh = () => {
+        const splatGrew = !!(SPL && SPL.api.reach && SPL.api.reach());   // the splat's sets too (a stamped code's)
+        if (typeof treeReach !== 'function' || typeof treeReachOf !== 'function') return splatGrew;
+        const grew = treeReach(treeReachOf(world, BIO));
+        if (!grew.length) return splatGrew;
+        treeSettled = null;
+        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); }))
+          .catch(e => console.warn('trees: the grown catalogue did not settle (' + (e && e.message) + ')'));
+        return true;
+      };
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
@@ -119513,13 +119895,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixAt(code), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
-          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); return r; },
+          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); reachRefresh(); return r; },
+          reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; evictAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
@@ -119642,7 +120025,31 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const done = ringReady(cg, o && o.reach);
         return Object.assign({ phase: done ? 'done' : 'ring', done, trees: TREE_STATE.v }, ringStat());
       };
-      fillApi = { prewarm, ringReady, ringStat, treeState: () => TREE_STATE.v };   // after the consts: no dead zone
+      // G730 (B1-LAG): EVERY RUNG THE PARTITION CAN SHOW, AS THE DRAW WILL MEET IT. A parked rung is out of the graph
+      // (RUNGS, above), so the roll-out's compile never met a rung no tree stood on at the reveal, and the first one the
+      // taxi reached linked on its frame: the fill's M_Branch.003 / M_Bark.003 in the chunk at (-512, 512) and their
+      // depth, 567 ms at +32 s, every run, every build. One stand-in per ladder material of the woodland (PROTO) and the
+      // fill (SHAPE.list: every species a mix can plant, every series, every rung) on the kind the chunks draw it on -
+      // an InstancedMesh WITH an instanceColor (both planters set one: instancingColor is in the program key) - casting
+      // through the rung's own depth material. app.js compiles it lit and through the depth variants (rungPrelink).
+      const rungWarm = () => {
+        const g = new THREE.Group(), seen = new Set();
+        const col = new THREE.InstancedBufferAttribute(new Float32Array(3).fill(1), 3);
+        const add = q => {
+          if (!q || !q.geo || !q.mat || seen.has(q.mat)) return;
+          seen.add(q.mat);
+          const m = new THREE.InstancedMesh(q.geo, q.mat, 1);
+          m.instanceColor = col; m.renderOrder = -1; m.frustumCulled = false;
+          m.castShadow = true; m.receiveShadow = true;
+          if (q.depth) m.customDepthMaterial = q.depth;
+          m.userData.rungWarm = true;
+          g.add(m);
+        };
+        for (const list of [PROTO || [], SHAPE.real ? SHAPE.list : []])
+          for (const H of list) for (const S of H.series || []) for (const R of S.ladder || []) for (const q of R.parts || []) add(q);
+        return g;
+      };
+      fillApi = { prewarm, ringReady, ringStat, rungWarm, treeState: () => TREE_STATE.v };   // after the consts: no dead zone
     }
   }
 
@@ -120289,6 +120696,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the patch wears the ring it lies in, chunk by chunk (patchGrounds, G527): the inner ring's material (its
       // baked map, its detail grain) and uv law inside ±INNER, the outer ring's beyond
       yield 'premises';
+      // G909: a generator the record names may still be loading (build.js MANIFEST.lazy, asked for by world_boot.js)
+      for (let n = 0; window.FLYDIY_LAZY && window.FLYDIY_LAZY.pending && window.FLYDIY_LAZY.pending() && n < 2000; n++) yield 'premises: the generators';
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
         game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)
@@ -121004,6 +121413,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     ringReady: cg => fillApi ? fillApi.ringReady(cg) : true,
     ringStat: () => fillApi ? fillApi.ringStat() : null,
     treeState: () => fillApi ? fillApi.treeState() : 'fallback',
+    rungWarm: () => fillApi && fillApi.rungWarm ? fillApi.rungWarm() : null,   // G730: the parked rungs' stand-ins (app.js rungPrelink)
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
@@ -131348,6 +131758,10 @@ return {
   // toward the door at -x. The caller lines the room up with the aeroplane
   // rather than moving the aeroplane, so the sim keeps its own coordinates.
   doorAxis: -1, floorY: 0,
+  // B10 (G1035): the roll-out shot (rollanim.js) reads the opening, moves the
+  // aeroplane's print with the aeroplane and hides a mobile prop in its way
+  door: { w: DOOR_W, h: DOOR_H },
+  craftPrint: () => CS.quad || null, mobileGroup: MOBILE,
   dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
   shell: SHELL,
   // the fit-out this room was built with, and what would not fit (HANGARS
@@ -142108,6 +142522,9 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       // ...and the NEAR map (G570): the craft's own shadow light kept casting with the row 'off' - at the stand it drew
       // every caster within 90 m, ~5 ms of a potato frame
       if (W.SHADOW_NEAR && W.SHADOW_NEAR.S) W.SHADOW_NEAR.S.on = !!sh.on;   // shadow_near's own dial (follow() re-asserts castShadow from it)
+      // G874: ...and the light itself NOW, not at the next world update: the settings screen compiles before that
+      // frame, and keyed every lit program with the old light set (the first frame after it relinked them all)
+      if (W.SHADOW_NEAR && W.SHADOW_NEAR.apply) W.SHADOW_NEAR.apply();
       rig.set({ shadowMap: sh.map, farShadow: sh.on && sh.far, worldShadow: sh.world !== false });
       applied.shadows = S.shadows;
     }
@@ -146645,6 +147062,575 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
 <script type="text/x-flydiy">
+// ============================================================================
+// rollanim.js — THE ROLL-OUT SHOT (B10, G1035-G1039)
+//
+// The user, 2026-09-28: "a roll out animation... have the plane roll out of the hangar and a camera
+// movement, then cut and reinitialize on the aircraft in the world, like now" - and "the door is already
+// open, so the aircraft just rolls out, and the camera tracks it". No door animation.
+//
+// WHAT IT IS. In the GARAGE scene only: the aeroplane rolls KINEMATICALLY (no solver) straight out of the
+// open door (hangar.js: the door wall is at local -x, `doorAxis: -1`, the floor at the room group's y) along
+// the floor, its wheels turning at distance / radius, its propeller at idle, a slight settle where the
+// wheels cross the door's sill and a nod when it pulls up. The camera dollies from wherever the shed's
+// orbit left it to THE STAND'S FIRST FRAME: the pose app.js flRevealStart() puts the eye in after the cut
+// (az = the tail's direction + side x 0.45 for chase, + side x 1.0 for orbit, - PI/2 + side x 0.45 for
+// wing; el 0.16; dist 1.7 x viewDist; aimed at the CG), so the cut reads as the same shot going on.
+// 4-6 s; a click or a key skips it (onDone at once). It loads nothing, builds nothing and allocates next
+// to nothing a frame (~16 bytes, GATE ROLLANIM G1037): the plan (the roll's length, the camera's path,
+// checked against the shed's walls) is made once, at play().
+//
+//   ROLLANIM.play(opts) -> handle { cancel(), skip(), tick(dt), done, skipped, plan }
+//     opts.craft      the aeroplane's root Object3D (app.js `craft`); moved, then PUT BACK (identity)
+//                     before onDone - the caller re-homes it in the world as it does today
+//     opts.scene      the garage scene (hangarScene); only read
+//     opts.camera     the PerspectiveCamera; left on the stand's first-frame pose (and fov) at the end
+//     opts.renderer   optional: given, the shot runs its OWN requestAnimationFrame loop and renders
+//                     scene + camera itself. Absent (the page), the HOST drives it: ROLLANIM.frame(dt)
+//                     each frame before the model is posed, ROLLANIM.camera() after the host placed its
+//                     camera (app.js's two marked lines in the frame loop)
+//     opts.onDone     onDone(handle), called once: at the end (in a microtask after the last frame, so that frame still
+//                     draws the end pose), or at once on a skip. Never after cancel()
+//     opts.skip       true: no shot, onDone at once (synchronously)
+//     opts.hangar     the room (app.js `hangar`): dims, the door (w, h), the floor y, the craft's print
+//                     quad, the mobile kit and the day card (moved / hidden while they are in the way)
+//     opts.model, opts.def, opts.sim   the app's model entry, sim def and sim: the wheels are
+//                     model.wheelParts (obj, R) at their axle nodes' place (sim.p), the radius falling back
+//                     to the node's own r; the props spin through the host's own pose (sim.out.rpm held at
+//                     idle for the shot, put back after). No wheel anywhere (a floatplane) -> SKIPPED,
+//                     cleanly: onDone at once, handle.skipped says why
+//     opts.wheels     instead of model/def/sim: [{ obj?, R, x, z, y? }] (x, z: the axle in the craft frame)
+//     opts.props      [{ obj, axis?, sense? }] spun by the shot itself (no host pose)
+//     opts.propRpm    fn(rpm | null): the host spins them (null = put back)
+//     opts.cg         [x, y, z] the point the stand's camera aims at (sim.cgPos()); default the box centre
+//     opts.viewDist   def.params.viewDist (default max(9, 1.4 x span off the box))
+//     opts.camMode    'chase' | 'orbit' | 'wing' (app.js cam.mode; cockpit / tower / free frame as chase)
+//     opts.side       +1 | -1: which side of the tail the stand's eye stands (flRevealStart's `s`);
+//                     default: the side the shed camera is already on (the shortest swing)
+//     opts.fov        the flight's fov at the cut (cam.fov); default the camera's own
+//   ROLLANIM.frame(dt) / ROLLANIM.camera()   the host's two hooks (no-ops when nothing plays)
+//   ROLLANIM.busy()                          a shot is playing
+//   ROLLANIM.cancel()                        the playing shot stopped and put back (no onDone)
+//   ROLLANIM.standFraming(mode, viewDist, side) -> { az, el, dist }   (az off the tail's direction)
+//   ROLLANIM.plan(opts)                      the plan alone, nothing moved (the gate reads it)
+//   ROLLANIM.appRig(model, def, sim)         the wheels / props / cg / viewDist off the app's objects
+// ============================================================================
+const ROLLANIM = (() => {
+  'use strict';
+  // the shot's dials (live, like PROP_DISC.S)
+  const S = {
+    Tmin: 4.0, Tmax: 6.0,          // the whole shot, seconds
+    hold0: 0.35, hold1: 0.30,      // still at the start (the prop spools) and at the end (the settle)
+    ramp: 0.30,                    // the fraction of the roll spent speeding up, and again slowing down
+    vCruise: 5.0,                  // m/s the roll aims at; a long roll (a big eye distance) goes faster
+    clear: 1.5,                    // the tail this far past the door plane at the stop, metres
+    idleRpm: 650,                  // the propeller at idle
+    sillHeave: 0.018, sillPitch: 0.0045, sillHz: 1.7, sillTau: 0.28,   // the settle at the sill
+    brakePitch: 0.0022,            // rad per m/s^2 of the roll's own acceleration (a nod as it stops)
+    margin: 0.6,                   // the eye this far off a wall, metres (CAM_NEAR is 0.5)
+    head: 0.35,                    // ...and under the door's head: it passes over the eye, not in front of it
+    Lmax: 80,                      // the longest roll the plan considers, metres
+  };
+  const TWO_PI = Math.PI * 2;
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const smooth = u => { u = clamp(u, 0, 1); return u * u * u * (u * (u * 6 - 15) + 10); };   // smootherstep
+  const wrap = a => { while (a > Math.PI) a -= TWO_PI; while (a < -Math.PI) a += TWO_PI; return a; };
+
+  // THE STAND'S FIRST FRAME, as flRevealStart writes it (app.js): az off the tail's direction
+  function standFraming(mode, D, side) {
+    const s = side < 0 ? -1 : 1, d = D > 0 ? D : 12;
+    const az = mode === 'orbit' ? s * 1.0 : mode === 'wing' ? -Math.PI / 2 + s * 0.45 : s * 0.45;
+    return { az, el: 0.16, dist: d * 1.7, side: s };
+  }
+
+  // THE APP'S OBJECTS -> a rig. The wheels are the drawn ones (model.wheelParts, their own R, the one
+  // poseModel spins them by) at the axle nodes the sim stood them on; a wheel without a drawn part still
+  // rolls (its node's r). The props are left to the host's pose: sim.out.rpm is what poseModel spins
+  // them by (G442.1), so the shot holds it at idle and puts the old values back.
+  function appRig(model, def, sim) {
+    const rig = { wheels: [], propRpm: null, cg: null, viewDist: null };
+    const nodes = def && def.nodes, P = sim && sim.p;
+    if (def && def.params && def.params.viewDist > 0) rig.viewDist = def.params.viewDist;
+    try { if (sim && sim.cgPos) { const c = sim.cgPos(); rig.cg = [c[0], c[1], c[2]]; } } catch (e) {}
+    const seen = new Set();
+    if (model && model.wheelParts) for (const w of model.wheelParts) {
+      if (w.idx == null || !P) continue;
+      const r = w.R > 0 ? w.R : (nodes && nodes[w.idx] && nodes[w.idx].r) || 0;
+      if (!(r > 0)) continue;
+      seen.add(w.idx);
+      rig.wheels.push({ obj: w.obj || null, R: r, x: P[w.idx * 3], y: P[w.idx * 3 + 1], z: P[w.idx * 3 + 2] });
+    }
+    if (nodes && P) for (let i = 0; i < nodes.length; i++)
+      if (nodes[i] && nodes[i].r > 0 && !seen.has(i))
+        rig.wheels.push({ obj: null, R: nodes[i].r, x: P[i * 3], y: P[i * 3 + 1], z: P[i * 3 + 2] });
+    const out = sim && sim.out;
+    if (out && model && model.props && model.props.length) {
+      const eng = [];                                  // (an array: a Set's iterator is an allocation a frame)
+      for (const p of model.props) { const e = (p.userData && p.userData.engIdx) || 0; if (eng.indexOf(e) < 0) eng.push(e); }
+      let saved = null;
+      rig.propRpm = rpm => {
+        if (!out.rpm) out.rpm = [];
+        if (rpm == null) {
+          if (saved) { out.rpm.length = 0; for (let i = 0; i < saved.length; i++) out.rpm[i] = saved[i]; saved = null; }
+          return;
+        }
+        if (!saved) saved = Array.prototype.slice.call(out.rpm);
+        for (let k = 0; k < eng.length; k++) out.rpm[eng[k]] = rpm;
+      };
+    }
+    return rig;
+  }
+
+  // THE ROOM, as the shot needs it: the door plane, the opening, the walls (in the scene's frame)
+  function roomOf(h) {
+    if (!h || !h.dims) return null;
+    const d = h.dims, gp = h.group && h.group.position ? h.group.position : { x: 0, y: 0, z: 0 };
+    const door = h.door || {};
+    const HW = d.HW, HD = d.HD, EAVE = d.EAVE;
+    return {
+      x0: gp.x + (h.doorAxis || -1) * HD,          // the door plane
+      x1: gp.x - (h.doorAxis || -1) * HD,          // the back wall
+      zc: gp.z, HW, EAVE, floorY: gp.y + (h.floorY || 0),
+      doorW: door.w > 0 ? door.w : Math.max(6, 2 * HW - 5),
+      doorH: door.h > 0 ? door.h : Math.min(6.4, EAVE - 1.4),
+      axis: h.doorAxis || -1,
+    };
+  }
+
+  // the aeroplane's box off what is DRAWN: a hidden truss, proxy or cage part reached 1.2 m under the floor
+  // (Chromium, the Cub) and would have measured the roll from nothing on screen
+  function drawnBoxes(root, out) {
+    root.updateMatrixWorld(true);
+    const walk = o => {
+      if (!o.visible) return;
+      const g = o.geometry;
+      if ((o.isMesh || o.isLine || o.isPoints) && g && g.attributes && g.attributes.position) {
+        if (!g.boundingBox) g.computeBoundingBox();
+        const b = g.boundingBox.clone().applyMatrix4(o.matrixWorld);
+        if (isFinite(b.min.x)) out.push(b);
+      }
+      for (const k of o.children) walk(k);
+    };
+    walk(root);
+    return out;
+  }
+  function visibleBox(root) {
+    const box = new THREE.Box3();
+    for (const b of drawnBoxes(root, [])) box.union(b);
+    return box;
+  }
+  // ---- THE PLAN (once, at play) -----------------------------------------------------------------------
+  // The roll's length L is the SHORTEST that leaves the whole aeroplane S.clear past the door plane AND puts
+  // the stand's eye somewhere legal - in the room clear of its walls, in the door's opening, or outside -
+  // with the aeroplane in sight (no wall between) all the way. The eye's path is the framing (az, el, dist
+  // round the moving CG) eased from the shed camera's to the stand's, straight or through a waypoint (see
+  // the candidates below), on the start's own side or the other when the side was not asked for; the
+  // cheapest legal candidate wins, and a plan with a wall left in it (none met in the club or works sheds;
+  // the field shed's 3.1 m door can leave some) is clamped per frame. ~1.5 ms warm, ~25 ms cold (node).
+  function makePlan(o) {
+    const craft = o.craft, cam = o.camera;
+    if (!craft || !cam) return { skip: 'no craft or camera' };
+    const rig = (o.wheels || o.props || o.propRpm) ? { wheels: o.wheels || [], props: o.props || null, propRpm: o.propRpm || null }
+      : appRig(o.model, o.def, o.sim);
+    const wheels = rig.wheels || [];
+    if (!wheels.length) return { skip: 'no wheels to roll on (floats)' };
+    const room = roomOf(o.hangar);
+    craft.updateMatrixWorld(true);
+    const box = visibleBox(craft);
+    if (!isFinite(box.min.x) || !isFinite(box.max.x)) return { skip: 'the aeroplane has no extent' };
+    const ax = room ? room.axis : -1;                    // the roll's direction along x (-1: toward -x)
+    const cg = o.cg || rig.cg || [(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2];
+    const span = box.max.z - box.min.z;
+    const D = o.viewDist || rig.viewDist || Math.max(9, 1.4 * span);
+    // the door plane: the room's, or (no room) just ahead of the nose
+    const xDoor = room ? room.x0 : (ax < 0 ? box.min.x - 0.5 : box.max.x + 0.5);
+    const trail = ax < 0 ? box.max.x : box.min.x;        // the last of the aeroplane through the door
+    const Lmin = Math.max(1, (trail - xDoor) * -ax + S.clear);
+    // the tail's direction in the garage frame is -ax along x (the nose points at the door): hdg
+    const hdg = ax < 0 ? 0 : Math.PI;
+    // the start: the eye's framing round the CG. An eye INSIDE the aeroplane or on top of it (a fresh
+    // profile's chooser leaves the camera at the origin, seen in Chromium) starts instead from the shed's
+    // boot framing (app.js garageCamera: az -2.5, el 0.22, 14 m), pulled in until it stands legal - a cut at
+    // the first frame, from a pose that was not a picture anyway
+    const p0 = cam.position;
+    let dx0 = p0.x - cg[0], dy0 = p0.y - cg[1], dz0 = p0.z - cg[2];
+    let d0 = Math.hypot(dx0, dy0, dz0), az0, el0, look0, fresh = false;
+    if (d0 < 2.5 || box.containsPoint(p0)) {
+      fresh = true;
+      az0 = hdg - 2.5 * -ax; el0 = 0.22; d0 = 14;
+      while (d0 > 3 && room && !eyeOk(room, cg[0] + d0 * Math.cos(el0) * Math.cos(az0), cg[1] + d0 * Math.sin(el0), cg[2] + d0 * Math.cos(el0) * Math.sin(az0))) d0 *= 0.9;
+      look0 = [cg[0], cg[1], cg[2]];
+    } else {
+      az0 = Math.atan2(dz0, dx0); el0 = Math.asin(clamp(dy0 / d0, -1, 1));
+      const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
+      look0 = [p0.x + dir.x * d0, p0.y + dir.y * d0, p0.z + dir.z * d0];
+    }
+    const mode = o.camMode === 'orbit' || o.camMode === 'wing' ? o.camMode : 'chase';
+    const sides = o.side ? [o.side < 0 ? -1 : 1] : (() => { const s = Math.sin(az0 - hdg) < 0 ? -1 : 1; return [s, -s]; })();
+    const fov0 = cam.fov, fov1 = o.fov > 0 ? o.fov : cam.fov;
+    const cands = [];
+    // THE CANDIDATE PATHS: the framing eased straight from the shed's to the stand's (the swing held back
+    // by 0, 0.35 or 0.6 of the shot, el with it or not), then - for a start the straight ease cannot get out
+    // of the door from (behind the aeroplane, against a flank, under the roof) - through a WAYPOINT: a low
+    // chase framing close behind the tail that follows the aeroplane out through the opening, reached at
+    // 35 or 50 % of the shot, then eased back to the stand's frame
+    const Dw = [Math.min(0.62 * D, 8), 6];
+    let bestCost = Infinity;
+    for (const side of sides) {
+      const F = standFraming(mode, D, side);
+      const az1 = az0 + wrap(hdg + F.az - az0);           // the short way round
+      const waz = az0 + wrap(hdg + side * 0.45 - az0);
+      const kinds = LAGS.map(l => ({ lag: l[0], lagE: l[1], wtw: 0, waz: 0, wel: 0, wd: 0, az1 }));
+      for (const tw of [0.35, 0.5]) for (const dw of Dw)
+        kinds.push({ lag: 0, lagE: 0, wtw: tw, waz, wel: 0.12, wd: dw, az1: waz + wrap(hdg + F.az - waz) });
+      for (const k of kinds) {
+        // the roll's cost: its length, +3 m off the start's own side, +1 m through a waypoint - a legal
+        // candidate only has to beat the best so far, so the search stops there
+        const extra = (side === sides[0] ? 0 : 3) + (k.wtw > 0 ? 1 : 0);
+        let best = null;
+        for (let L = Lmin; L <= S.Lmax + 1e-9 && L + extra < bestCost; L += 1) {
+          const c = { side, lag: k.lag, lagE: k.lagE, L, az0, el0, d0, az1: k.az1, el1: F.el, d1: F.dist,
+                      wtw: k.wtw, waz: k.waz, wel: k.wel, wd: k.wd, T: timing(L), bad: 0, cost: L + extra };
+          c.bad = judge(c, room, cg, ax);
+          if (!best || c.bad < best.bad) best = c;
+          if (c.bad === 0) { bestCost = c.cost; break; }
+        }
+        if (best) cands.push(best);
+      }
+    }
+    // the fewest violations, then the cheapest roll
+    cands.sort((a, b) => a.bad - b.bad || a.cost - b.cost);
+    const c = cands[0];
+    // the wheel groups: the sill events (the main pair's heave, the third wheel's pitch)
+    const xs = wheels.map(w => w.x), xMid = xs.reduce((a, b) => a + b, 0) / xs.length;
+    let xMainSum = 0, nMain = 0, xThird = null;
+    for (const w of wheels) if (Math.abs(w.z - cg[2]) > 0.2) { xMainSum += w.x; nMain++; }
+    const xMain = nMain ? xMainSum / nMain : xMid;
+    for (const w of wheels) if (Math.abs(w.z - cg[2]) <= 0.2) { xThird = w.x; break; }
+    const floorY = room ? room.floorY : box.min.y;
+    return {
+      skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin,
+      L: c.L, T: c.T, side: c.side, lag: c.lag, lagE: c.lagE, bad: c.bad, cands: cands.length,
+      az0, el0, d0, fresh, az1: c.az1, el1: c.el1, d1: c.d1, wtw: c.wtw, waz: c.waz, wel: c.wel, wd: c.wd, look0, fov0, fov1,
+      pivot: [xMain, floorY], xThird,
+      thirdSign: xThird != null && (xThird - xMain) * ax > 0 ? -1 : 1,
+      // the roll distance at which each group reaches the sill (null: it never does)
+      sMain: room ? (xMain - xDoor) * -ax : null,
+      sThird: room && xThird != null ? (xThird - xDoor) * -ax : null,
+      // the stand's pose relative to the CG at the end - for the host's continuity check
+      end: { side: c.side, az: wrap(c.az1 - hdg), el: c.el1, dist: c.d1 },
+    };
+  }
+  // the shot's length for a roll of L metres, and the profile's cruise speed
+  function timing(L) {
+    const Tr = clamp(L / S.vCruise / (1 - S.ramp), S.Tmin - S.hold0 - S.hold1, S.Tmax - S.hold0 - S.hold1);
+    return { T: Tr + S.hold0 + S.hold1, Tr, ta: S.ramp * Tr, v: L / (Tr * (1 - S.ramp)) };
+  }
+  // the distance rolled at time t (the hold, the cosine ramp up, the cruise, the ramp down, the hold)
+  function rollS(tm, L, t) {
+    const tau = t - S.hold0, Tr = tm.Tr, ta = tm.ta, v = tm.v;
+    if (tau <= 0) return 0;
+    if (tau >= Tr) return L;
+    if (tau < ta) return rampS(v, ta, tau);
+    if (tau <= Tr - ta) return v * ta / 2 + v * (tau - ta);
+    return L - rampS(v, ta, Tr - tau);
+  }
+  // the distance covered x seconds into a cosine ramp up to v over ta (the plan's; advance() writes it out)
+  function rampS(v, ta, x) { return v * (x / 2 - (ta / TWO_PI) * Math.sin(Math.PI * x / ta)); }
+
+  // the straight paths' lags [az, el]: the swing may wait a part of the shot (the eye leaves by the door
+  // first, then swings round); el may come down with the dolly (a tall aeroplane's eye under the door's
+  // head) or wait with the swing
+  const LAGS = [[0, 0], [0.35, 0], [0.35, 0.35], [0.6, 0], [0.6, 0.6]];
+
+  // THE FRAMING at the time TT[0] (a typed array: this runs in the frame, and a double handed to a call
+  // that is not inlined is boxed - G1037): az, el, dist round the CG into out[0..2]. Dist leads (a dolly
+  // scales: its log is eased), az and el may wait their lag; with a waypoint (wtw > 0) the framing goes
+  // shed -> waypoint over [0, wtw] and waypoint -> stand over [wtw, 1], each leg eased whole
+  function framingInto(c, TT, out) {
+    const u = TT[0] / c.T.T;
+    let a0 = c.az0, e0 = c.el0, d0 = c.d0, a1 = c.az1, e1 = c.el1, d1 = c.d1, v = u, lag = c.lag, lagE = c.lagE;
+    if (c.wtw > 0) {
+      lag = 0; lagE = 0;
+      if (u < c.wtw) { a1 = c.waz; e1 = c.wel; d1 = c.wd; v = u / c.wtw; }
+      else { a0 = c.waz; e0 = c.wel; d0 = c.wd; v = (u - c.wtw) / (1 - c.wtw); }
+    }
+    let xa = lag > 0 ? (v - lag) / (1 - lag) : v, xe = lagE > 0 ? (v - lagE) / (1 - lagE) : v, xd = v;
+    xa = xa < 0 ? 0 : xa > 1 ? 1 : xa; xe = xe < 0 ? 0 : xe > 1 ? 1 : xe; xd = xd < 0 ? 0 : xd > 1 ? 1 : xd;
+    out[0] = a0 + (a1 - a0) * (xa * xa * xa * (xa * (xa * 6 - 15) + 10));
+    out[1] = e0 + (e1 - e0) * (xe * xe * xe * (xe * (xe * 6 - 15) + 10));
+    out[2] = d0 * Math.pow(d1 / d0, xd * xd * xd * (xd * (xd * 6 - 15) + 10));
+  }
+  const JT = new Float64Array(1), JF = new Float64Array(3);
+  // the eye at time t (into out[0..3]: x, y, z and the CG's x at its roll) - the plan's, not the frame's
+  function eyeAt(c, cg, ax, t, out) {
+    const s = rollS(c.T, c.L, t);
+    JT[0] = t; framingInto(c, JT, JF);
+    const az = JF[0], el = JF[1], d = JF[2], cx = cg[0] + ax * s;
+    out[0] = cx + d * Math.cos(el) * Math.cos(az);
+    out[1] = cg[1] + d * Math.sin(el);
+    out[2] = cg[2] + d * Math.cos(el) * Math.sin(az);
+    out[3] = cx;
+    return out;
+  }
+  // WHERE AN EYE MAY STAND: in the room clear of its walls, in the door's opening, or outside (the door's side)
+  function eyeOk(room, x, y, z) {
+    if (!room) return y > -1e9;
+    const m = S.margin, ax = room.axis, zr = Math.abs(z - room.zc);
+    const u = (x - room.x0) * -ax;                      // metres INTO the shed from the door plane
+    if (y < room.floorY + 0.3) return false;
+    if (u < -m) return true;                            // outside, in front of the door
+    if (u <= m) return zr < room.doorW / 2 - m && y < room.floorY + room.doorH - S.head;   // in the opening
+    return u < Math.abs(room.x1 - room.x0) - m && zr < room.HW - m && y < room.floorY + room.EAVE - 0.5;
+  }
+  // a point inside a wall's solid (the door wall round its opening, the flanks, the back, the roof)
+  function inWall(room, x, y, z) {
+    const ax = room.axis, u = (x - room.x0) * -ax, zr = Math.abs(z - room.zc), yy = y - room.floorY;
+    const len = Math.abs(room.x1 - room.x0);
+    if (u < -0.3 || u > len + 0.3 || zr > room.HW + 0.3 || yy < 0) return false;
+    if (Math.abs(u) < 0.3) return zr > room.doorW / 2 || yy > room.doorH;
+    if (Math.abs(zr - room.HW) < 0.3 || Math.abs(u - len) < 0.3) return yy < room.EAVE + 0.5;
+    return yy > room.EAVE && yy < room.EAVE + 2.5;
+  }
+  const JE = [0, 0, 0, 0];
+  function judge(c, room, cg, ax) {
+    if (!room) return 0;
+    // the stop first (cheap): an eye left in a wall at the cut rules the roll out before its path is walked
+    eyeAt(c, cg, ax, c.T.T, JE);
+    if (!eyeOk(room, JE[0], JE[1], JE[2])) return 1000;
+    let bad = 0;
+    const N = 48;
+    for (let k = 0; k <= N; k++) {
+      const t = c.T.T * k / N;
+      eyeAt(c, cg, ax, t, JE);
+      const ex = JE[0], ey = JE[1], ez = JE[2], cx = JE[3];
+      if (!eyeOk(room, ex, ey, ez)) bad++;
+      // the aeroplane in sight: nothing of a wall on the way to the CG (the last 3 m are the aeroplane's);
+      // an eye and a CG both out in front of the door have the shed behind them
+      if ((ex - room.x0) * -ax < -0.3 && (cx - room.x0) * -ax < -0.3) continue;
+      const dl = Math.hypot(cx - ex, cg[1] - ey, cg[2] - ez), n = Math.max(2, Math.ceil(dl / 0.5));
+      for (let i = 1; i < n; i++) {
+        const f = i / n;
+        if (dl * (1 - f) < 3) break;
+        if (inWall(room, ex + (cx - ex) * f, ey + (cg[1] - ey) * f, ez + (cg[2] - ez) * f)) { bad++; break; }
+      }
+    }
+    return bad;
+  }
+  // the last resort for a plan that could not avoid a wall: pull the eye into the nearest legal box
+  function legalize(room, p) {
+    if (!room) return;
+    const m = S.margin, ax = room.axis, u = (p.x - room.x0) * -ax;
+    if (p.y < room.floorY + 0.35) p.y = room.floorY + 0.35;
+    if (u < -m) return;
+    if (u <= m) {
+      const zl = room.doorW / 2 - m - 0.01;
+      p.z = room.zc + clamp(p.z - room.zc, -zl, zl);
+      p.y = Math.min(p.y, room.floorY + room.doorH - S.head - 0.01);
+      return;
+    }
+    const len = Math.abs(room.x1 - room.x0), zl = room.HW - m - 0.01;
+    if (u > len - m) p.x = room.x0 - ax * (len - m - 0.01);
+    p.z = room.zc + clamp(p.z - room.zc, -zl, zl);
+    p.y = Math.min(p.y, room.floorY + room.EAVE - 0.51);
+  }
+
+  // THE SHOT'S KINEMATICS, a frame: the clock, the roll, the prop's rpm, the settle. Its state is a typed
+  // array (a double held in a closure variable is a fresh heap number at every write - V8 boxes context
+  // slots - and one handed to a call that is not inlined is boxed too: G1037 measured 100-300 bytes a
+  // frame before). st: [0] t, [1] rolled, [2] rpm, [3] / [4] the time the main pair / the third wheel met
+  // the sill (NaN: not yet), [5] rolled this frame, [6] heave, [7] pitch (+ nose down in the roll's sense
+  // times -ax: a turn about z), [8] the rpm changed
+  function advance(P, st, dt) {
+    // (the ramp's distance and acceleration, the bounce and the easing written out: no call here takes a double - see above)
+    const T = P.T, d = dt > 0 ? (dt < 1 / 15 ? dt : 1 / 15) : 0;
+    const t = st[0] = st[0] + d < T.T ? st[0] + d : T.T;
+    const tau = t - S.hold0, Tr = T.Tr, ta = T.ta, v = T.v, k = Math.PI / ta;
+    let s = 0, acc = 0;
+    if (tau >= Tr) s = P.L;
+    else if (tau > 0 && tau < ta) { s = v * (tau / 2 - Math.sin(k * tau) / (2 * k)); acc = v * k / 2 * Math.sin(k * tau); }
+    else if (tau > 0 && tau <= Tr - ta) s = v * ta / 2 + v * (tau - ta);
+    else if (tau > 0) { const r = Tr - tau; s = P.L - v * (r / 2 - Math.sin(k * r) / (2 * k)); acc = -v * k / 2 * Math.sin(k * r); }
+    st[5] = s - st[1]; st[1] = s;
+    const u = t / 0.6 < 1 ? t / 0.6 : 1, rpm = S.idleRpm * u * u * u * (u * (u * 6 - 15) + 10);
+    st[8] = rpm !== st[2] ? 1 : 0; st[2] = rpm;
+    // a heave where the main pair crosses the sill, a pitch where the third wheel does, and the roll's own
+    // acceleration as a nod (speeding up lifts the nose, slowing dips it)
+    if (P.sMain != null && isNaN(st[3]) && s >= P.sMain) st[3] = t;
+    if (P.sThird != null && isNaN(st[4]) && s >= P.sThird) st[4] = t;
+    const w = TWO_PI * S.sillHz;
+    let heave = 0, third = 0;
+    if (st[3] === st[3]) { const q = t - st[3]; heave = S.sillHeave * Math.exp(-q / S.sillTau) * Math.sin(w * q); }
+    // the third wheel ahead of the mains (a nosewheel) lifts the nose, behind them (a tailwheel) the tail
+    if (P.xThird != null && st[4] === st[4]) { const q = t - st[4]; third = P.thirdSign * S.sillPitch * Math.exp(-q / S.sillTau) * Math.sin(w * q); }
+    st[6] = heave;
+    st[7] = (third - S.brakePitch * acc) * -P.ax;
+  }
+
+  // ---- THE PLAYER -------------------------------------------------------------------------------------
+  let active = null;
+  const FR = new Float64Array(3);
+  function play(o) {
+    o = o || {};
+    const onDone = typeof o.onDone === 'function' ? o.onDone : () => {};
+    if (active) active.cancel();
+    const dead = (why) => { const h = { done: true, skipped: why, plan: null, cancel() {}, skip() {}, tick() { return false; } };
+      try { onDone(h); } catch (e) { if (typeof console !== 'undefined') console.error('ROLLANIM onDone:', e); } return h; };
+    if (o.skip === true) return dead('asked to skip');
+    let P;
+    try { P = makePlan(o); } catch (e) { if (typeof console !== 'undefined') console.warn('ROLLANIM plan:', e && e.message); return dead('no plan: ' + (e && e.message)); }
+    if (P.skip) return dead(P.skip);
+    const craft = o.craft, cam = o.camera, room = P.room, cg = P.cg, ax = P.ax;
+    // what is put back: the craft's transform, the print, the kit and the card we hid, the props' rpm
+    const pos0 = craft.position.clone(), quat0 = craft.quaternion.clone();
+    const print = o.hangar && typeof o.hangar.craftPrint === 'function' ? o.hangar.craftPrint() : null;
+    const printX0 = print ? print.position.x : 0;
+    const hidden = [];
+    // THE KIT IN THE WAY: a mobile prop (the nose station's hand truck, a jerrycan) or the day card that
+    // the aeroplane's own meshes would sweep through is hidden for the shot - tested mesh by mesh (a wing
+    // passes over a jerrycan; the aeroplane's whole box would say it hits it)
+    const obst = [];
+    if (o.hangar && o.hangar.mobileGroup && o.hangar.mobileGroup.visible) for (const k of o.hangar.mobileGroup.children) obst.push(k);
+    if (o.hangar && o.hangar.dayCard && o.hangar.dayCard.visible) obst.push(o.hangar.dayCard);
+    if (o.obstacles) for (const k of o.obstacles) obst.push(k);
+    if (obst.length) {
+      const boxes = [];
+      drawnBoxes(craft, boxes);
+      for (const k of obst) {
+        if (!k.visible) continue;
+        const b = new THREE.Box3().setFromObject(k);
+        if (!isFinite(b.min.x)) continue;
+        const ahead = bb => ax < 0 ? b.min.x < bb.max.x && b.max.x > bb.min.x - P.L : b.max.x > bb.min.x && b.min.x < bb.max.x + P.L;
+        for (const bb of boxes)
+          if (ahead(bb) && b.min.z < bb.max.z && b.max.z > bb.min.z && b.min.y < bb.max.y && b.max.y > bb.min.y) { hidden.push(k); k.visible = false; break; }
+      }
+    }
+    // the wheels and props, flat (no closure, no array made a frame)
+    const W = P.wheels.filter(w => w.obj && w.obj.rotation);
+    const wObj = W.map(w => w.obj), wR = W.map(w => Math.max(0.05, w.R));
+    const wSpun = new Float64Array(W.length);           // radians turned by the shot (the gate reads it)
+    const props = (P.rig.props || []).filter(p => p && p.obj);
+    const pAx = props.map(p => p.axis ? new THREE.Vector3(p.axis[0], p.axis[1], p.axis[2]).normalize() : null);
+    const pAng = new Float64Array(props.length);
+    const propRpm = P.rig.propRpm;
+    const lookV = new THREE.Vector3(), eyeV = new THREE.Vector3();
+    // THE SHOT'S CLOCK IN A TYPED ARRAY: a double held in a closure's variable is a fresh heap number at
+    // every write (V8 boxes context slots) - 100+ bytes a frame measured, where these slots cost none.
+    // (the slots: see advance)
+    const st = new Float64Array(9); st[3] = st[4] = NaN;
+    let raf = 0, lastT = 0, fin = false;
+    // sill events: the time each group reached the sill (NaN: not yet)
+    const h = {
+      done: false, skipped: null, plan: P, spun: wSpun, hidden,
+      get t() { return st[0]; }, get rolled() { return st[1]; },
+      tick, cancel, skip, _cam: applyCam,
+    };
+    function frameCam() {                                // the eye and the aim at the shot's time
+      // the framing through typed arrays, and eyeAt's last lines written out (G1037); the roll is the tick's
+      const t = st[0], cx = cg[0] + ax * st[1];
+      framingInto(P, st, FR);
+      const az = FR[0], el = FR[1], d = FR[2], ce = Math.cos(el);
+      eyeV.set(cx + d * ce * Math.cos(az), cg[1] + d * Math.sin(el), cg[2] + d * ce * Math.sin(az));
+      if (P.bad) legalize(room, eyeV);
+      // the aim leaves the shed camera's point for the CG over the first third
+      let xl = t / (0.33 * P.T.T); xl = xl > 1 ? 1 : xl;
+      const wl = xl * xl * xl * (xl * (xl * 6 - 15) + 10);
+      lookV.set(P.look0[0] + (cx - P.look0[0]) * wl, P.look0[1] + (cg[1] - P.look0[1]) * wl, P.look0[2] + (cg[2] - P.look0[2]) * wl);
+      if (P.fov1 !== P.fov0) { cam.fov = P.fov0 + (P.fov1 - P.fov0) * smooth(t / P.T.T); cam.updateProjectionMatrix(); }
+    }
+    function applyCam() {
+      if (h.done) return false;
+      cam.up.set(0, 1, 0);
+      cam.position.copy(eyeV);
+      cam.lookAt(lookV);
+      return true;
+    }
+    function tick(dt) {
+      if (h.done || fin) return false;
+      advance(P, st, dt);
+      const s = st[1], ds = st[5], th = st[7];
+      // the wheels: distance over radius, the sense poseModel spins them by (forward, rotation.z grows)
+      for (let i = 0; i < wObj.length; i++) { const a = ds / wR[i]; wObj[i].rotation.z += a; wSpun[i] += a; }
+      // the propeller: idle, spooled up over the first half second (the host's: only while it spools - a
+      // call a frame boxes its double)
+      if (propRpm && st[8]) propRpm(st[2]);
+      const w = st[2] * TWO_PI / 60 * (dt > 0 ? (dt < 1 / 15 ? dt : 1 / 15) : 0);
+      for (let i = 0; i < props.length; i++) {
+        const p = props[i], sense = p.sense || 1;
+        pAng[i] += sense * w;
+        if (pAx[i]) p.obj.quaternion.setFromAxisAngle(pAx[i], pAng[i]); else p.obj.rotation.x += sense * w;
+      }
+      // the settle (advance's heave and pitch) about the main wheels' contact line
+      const c = Math.cos(th), sn = Math.sin(th), px = P.pivot[0] - pos0.x, py = P.pivot[1] - pos0.y;
+      // quat0 x a turn th about z, written out (rotateZ hands its angle to a call: G1037)
+      const hs = Math.sin(th / 2), hc = Math.cos(th / 2);
+      craft.quaternion.set(quat0.x * hc + quat0.y * hs, quat0.y * hc - quat0.x * hs, quat0.z * hc + quat0.w * hs, quat0.w * hc - quat0.z * hs);
+      craft.position.set(pos0.x + ax * s + px - (px * c - py * sn), pos0.y + st[6] + py - (px * sn + py * c), pos0.z);
+      if (print) print.position.x = printX0 + ax * s;
+      frameCam();
+      applyCam();
+      if (st[0] >= P.T.T) { fin = true; Promise.resolve().then(finish); }
+      return true;
+    }
+    function putBack() {
+      craft.position.copy(pos0); craft.quaternion.copy(quat0);
+      craft.updateMatrixWorld(true);
+      if (print) print.position.x = printX0;
+      for (const k of hidden) k.visible = true;
+      if (propRpm) propRpm(null);
+      stopInput();
+      if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
+      raf = 0;
+      if (active === h) active = null;
+    }
+    function finish() {
+      if (h.done) return;
+      putBack(); h.done = true;
+      try { onDone(h); } catch (e) { if (typeof console !== 'undefined') console.error('ROLLANIM onDone:', e); }
+    }
+    function skip() {                                    // a click or a key: the end pose, then onDone at once
+      if (h.done) return;
+      h.skipped = 'skipped by the player';
+      st[0] = P.T.T; st[1] = P.L; frameCam(); applyCam();
+      finish();
+    }
+    function cancel() { if (h.done) return; h.skipped = 'cancelled'; putBack(); h.done = true; }
+    // THE SKIP: the first click or key, taken in the capture phase so it does nothing else
+    const onInput = e => { if (h.done) return; if (e.type === 'keydown' && (e.repeat || /^(Shift|Control|Alt|Meta)/.test(e.key || ''))) return;
+      try { e.preventDefault(); e.stopImmediatePropagation(); } catch (x) {} skip(); };
+    const win = typeof window !== 'undefined' && window.addEventListener ? window : null;
+    if (win) { win.addEventListener('pointerdown', onInput, true); win.addEventListener('keydown', onInput, true); }
+    function stopInput() { if (win) { win.removeEventListener('pointerdown', onInput, true); win.removeEventListener('keydown', onInput, true); } }
+    active = h;
+    // the first frame's pose now (a host that renders before its next ROLLANIM.frame sees the shot's start)
+    frameCam();
+    if (o.renderer && typeof requestAnimationFrame === 'function') {
+      const loop = now => {
+        if (h.done) return;
+        const dt = lastT ? (now - lastT) / 1000 : 1 / 60; lastT = now;
+        tick(dt);
+        o.renderer.render(o.scene, cam);
+        if (!h.done && !fin) raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+    }
+    return h;
+  }
+  // THE HOST'S HOOKS (app.js frame loop): before the model is posed, and after the camera is placed
+  function frame(dt) { return active ? active.tick(dt) : false; }
+  function camera() {
+    const h = active;
+    return h && !h.done ? h._cam() : false;          // the same pose again, over the host's own placement
+  }
+  function plan(o) { return makePlan(o || {}); }
+  const api = { S, play, frame, camera, busy: () => !!(active && !active.done), cancel: () => { if (active) active.cancel(); }, standFraming, appRig, plan,
+                _rollS: rollS, _timing: timing, _eyeOk: eyeOk, _inWall: inWall, _roomOf: roomOf };
+  if (typeof window !== 'undefined') window.ROLLANIM = api;
+  return api;
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = ROLLANIM;
+</script>
+<script type="text/x-flydiy">
 // world_boot.js - THE WORLD THE BOOT COMPOSES, IN A TASK OF ITS OWN (G999, A5-LOAD, the Jolene playtest's R4)
 //
 // app.js made the world during its own evaluation: the premises record (the saved copy or the island's fixture),
@@ -146706,13 +147692,26 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       return PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log); } catch (e) { return premisesAtBoot; }
   })();
   if (typeof window !== 'undefined') window.FLYDIY_TOWN = TOWN;
+  // THE GENERATORS ONLY SOME PLACES NAME (AS1, G909): _sport_gen.js and _marine_gen.js load on demand (build.js
+  // MANIFEST.lazy) - asked for here when the placed record names a sport/ or marine/ key (Metlakatla's: the town on),
+  // long before the roll-out composes the places (render_world's premises step waits for them)
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine)\//.test(premisesPlaced)) window.FLYDIY_LAZY(['_sport_gen', '_marine_gen']); } catch (e) {}
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
   // G999: the island loader's promote decoded it in a task of its own (window.ISLAND_MADE, build.js) - taken when it is
   // this boot's island, decoded here otherwise (dev.html, a harness)
   const islandAtBoot = (typeof window !== 'undefined' && window.ISLAND_BOOT && typeof ISLAND_GEN !== 'undefined')
     ? ((window.ISLAND_MADE && window.ISLAND_MADE.boot === window.ISLAND_BOOT && window.ISLAND_MADE.island) || ISLAND_GEN.makeIsland(window.ISLAND_BOOT)) : null;
   if (typeof window !== 'undefined') window.ISLAND_MADE = null;   // the decode's arrays are the world's from here
+  // THE BOOT OBJECT KEEPS ONLY WHAT IS READ AFTER THE DECODE (AS1, G906): the two quadtrees' varint payloads and
+  // topologies (22.2 + 9.8 MB gunzipped) are the decoded trees now (world.island.root / farRoot), and the premises
+  // fixture's text is the record composed below. The grids stay: they ARE the island's (the same arrays), read by
+  // the core and the viewer for the session. The physics worker fetches its own boot (sim_host.js simHostFetchBoot).
+  if (islandAtBoot) { const B = window.ISLAND_BOOT; B.topo = B.payload = null; if (B.far) B.far.topo = B.far.payload = null; B.premFixture = null; }
   const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot });
+  // THE TREES THIS MAP CAN REACH (AS1, G908: trees.js treeReachOf): the composed world (the premises' ttype stamps
+  // in, the town filter applied) says which species can stand; every tree fetch after this line (the garage's, the
+  // roll-out's) asks for those alone. The analytic world answers null: the whole pack, as before
+  try { if (typeof treeReach === 'function' && typeof treeReachOf === 'function') treeReach(treeReachOf(world)); } catch (e) { console.warn('trees: the reach', e); }
   return { WIP_KEY, premisesAtBoot, TOWN, premisesPlaced, islandAtBoot, world };
 };
 </script>
@@ -146734,8 +147733,6 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="tools/_house_kit.js?v=5d5c479e"></script>
 <script type="text/x-flydiy" src="tools/_house_gen.js?v=181c5df0"></script>
 <script type="text/x-flydiy" src="tools/_big_gen.js?v=2e8ec6cb"></script>
-<script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
-<script type="text/x-flydiy" src="tools/_marine_gen.js?v=7e5624cd"></script>
 <script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
 <script type="text/x-flydiy" src="tools/_hangar_gen.js?v=a711b43f"></script>
 <script type="text/x-flydiy" src="tools/_tower_gen.js?v=962e54a2"></script>
@@ -146748,12 +147745,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/powerline.js?v=5f386c32"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=f80b94dd"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=25920b6c"></script>
+<script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=3ebb187f"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=480fb2e0"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=db4052c4"></script>
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=05b93218"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=b6af9ad0"></script>
-<script type="text/x-flydiy" src="src/viewer/world_rail.js?v=cbe9bc95"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -146800,6 +147795,13 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   const PREM = { open: false, host: null, ed: null, panel: null, view: null, R: null,
     openEditor() {
       if (PREM.open) return;
+      // G909: the editor's scripts (and every generator its palette lists) load on demand the first time
+      if ((!window.PREMISES_HOST || !window.PREMISES_UI || !window.MARINE_GEN) && window.FLYDIY_LAZY && !PREM.loading) {
+        PREM.loading = true;
+        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', 'premises_host', 'premises_ui']).then(() => { PREM.loading = false; if (window.PREMISES_HOST && window.PREMISES_UI) PREM.openEditor(); });
+        return;
+      }
+      if (PREM.loading || !window.PREMISES_HOST || !window.PREMISES_UI) return;
       const WF0 = window.WORLD; if (!WF0 || !WF0.premisesStart) return;
       PREM.R = WF0.premisesStart(); if (!PREM.R) return;
       window.PREMISES_HOST_OPEN = true;
@@ -148188,7 +149190,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     return (decCache[key] = out);
   };
   // MODEL_LOAD(key) -> Promise<decoded groups | null>. Warms the bin through
-  // ASSET_FETCH (one request per file, page-lifetime cache there too), then
+  // ASSET_FETCH (one request per file; loadCache below keeps the answer for the page - G907), then
   // decodes through the ONE decode above. Null means what it means at
   // MODEL_DECODE: no such payload, or nothing to fetch it with (the node
   // gates' sandbox has no ASSET_FETCH, and their answer is fs, not this).
@@ -148586,8 +149588,22 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         texs[t].colorSpace = THREE.SRGBColorSpace;
     }
     if (!entry.pending) entry.ready = true;
+    // C4a (G870): THE FLOWN BAKE, when the roll-out's 'bake' step made one for THIS payload (flown_bake.js): the
+    // exterior AEROSKIN buckets wear ONE baked material through an atlas uv per vertex (`uv1`); null = the live shader
+    const FBK = (data.cage && window.FLOWN_BAKE) ? window.FLOWN_BAKE.forPayload(data) : null;
     const mkGeo = (g, ownPos) => {
+      const fbUv = FBK ? FBK.uv(g) : null;
+      if (fbUv && !FBK.ab) {
+        // a baked bucket reads position, normal and its atlas uv, nothing else (no field, no cavity: the bake holds them)
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(ownPos ? g.pos.slice() : g.pos, 3));
+        geo.setAttribute('normal', new THREE.BufferAttribute(g.nrm, 3));
+        geo.setAttribute('uv1', new THREE.BufferAttribute(fbUv, 2, true));
+        geo.setIndex(new THREE.BufferAttribute(g.idx, 1));
+        return geo;
+      }
       const geo = new THREE.BufferGeometry();
+      if (fbUv) geo.setAttribute('uv1', new THREE.BufferAttribute(fbUv, 2, true));   // the A/B build: both, side by side
       // `ownPos` hands the geometry ITS OWN copy of the positions. The
       // default wraps the payload's array — which is what every rigged
       // group wants (poseSkinGen writes through it) — but anything the
@@ -148615,7 +149631,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       return geo;
     };
     const matCache = {};
-    const matFor = name => {
+    // a baked bucket's material is the bake's one (FBK); the A/B build keeps its live twin beside it (FBK.made)
+    const matFor = name => (FBK && FBK.has(grpMat(name))) ? FBK.mat : matLive(name);
+    const matLive = name => {
       const mn = grpMat(name);
       if (matCache[mn]) return matCache[mn];
       const m = mats[mn], op = m.opacity !== undefined ? m.opacity : 1;
@@ -148809,6 +149827,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const isProp = name === 'prop' || name === 'proptip' || name === 'spinner';
       if (isProp) geo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
       const mesh = new THREE.Mesh(geo, matFor(name));
+      if (FBK && FBK.ab && mesh.material === FBK.mat) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
       // the payload's own declaration of what is see-through is `opacity < 1`
       // — the same fact `castShadow` below already reads
       const clear = !!(mats[name] && mats[name].opacity < 1);
@@ -148967,6 +149986,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         const pg = new THREE.Group();
         for (const name in pt.groups) {
           const mesh = new THREE.Mesh(mkGeo(pt.groups[name]), matFor(name));
+          if (FBK && FBK.ab && mesh.material === FBK.mat) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
           mesh.castShadow = !(mats[name] && mats[name].opacity < 1);
           if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroGlassCompanion)
             AEROSKIN.aeroGlassCompanion(THREE, mesh, mesh.material,
@@ -150071,6 +151091,31 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       }
       return;
     }
+    // G731 (B1-LAG): ...AND SO IS THE IMPORTED SKIN'S. Every vertex row below - the spar-bound skin, the struts, the
+    // legs' stretch, the control surfaces, the floats, the tail's anchors, the rods - is a function of the nodes in the
+    // BODY frame, the linkage, the gain and (floats) the water rudder's state, and every one re-uploaded its buffer on
+    // every frame whether or not any of those had moved: 63 bufferSubData, 3.67 MB a frame on the Cub (GATE FRAMECOST,
+    // the stand and the taxi alike, paused or not). The rows run now when a node has moved more than 0.3 mm or a
+    // control more than 1e-4 since the pose last APPLIED (the generated skin's rule, above); the wheels, the engine
+    // units, the cockpit's controls and the castor (object transforms) are posed every frame as before.
+    let still = false;
+    { const n3 = sim.n * 3, P = model._poseNG;
+      const nb = (P && P.nb.length === n3) ? P.cur : new Float64Array(n3);
+      genNodeBody(sim, nb);
+      const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
+      // the floats' water rudder: the pedals and the retraction, and its easing must have landed
+      const wr = [];
+      if (model.floatRigs) for (const r of model.floatRigs) if (r.rud) {
+        const fx = sim.hydro && sim.hydro.floats[r.fx];
+        wr.push(sim.ctl ? (sim.ctl.dr || 0) : 0, fx ? (fx.wrDown ? 1 : 0) : 1, Math.abs((fx ? (fx.wrDown ? 0 : 1) : 0) - r.ret) > 1e-3 ? NaN : 0);
+      }
+      const rows = [model.rigs, model.strutRigs, model.stretchRigs, model.surfParts, model.floatRigs, model.anchorRigs, model.linkRigs];
+      still = !!P && P.nb.length === n3 && P.gain === gain && P.wr.length === wr.length && rows.every((a, i) => a === P.rows[i]);
+      if (still) for (let i = 0; i < wr.length; i++) if (!(wr[i] === P.wr[i])) { still = false; break; }
+      if (still) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - P.nb[i]) > 3e-4) { still = false; break; }
+      if (still) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { still = false; break; }
+      if (!still) model._poseNG = { nb, cur: P && P.nb.length === n3 ? P.nb : new Float64Array(n3), gain, rows, wr, link: Object.assign({}, link) }; }
+    if (!still) {
     sparDeltas(model.rigs[0].bind, sim, model.deltas);
     for (const r of model.rigs) {
       // a rig with no bound vertices and no hinges (the lift strut) rides the
@@ -150082,6 +151127,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
                       skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0],
                       r.hb && r.hb.hinged);
       r.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
+    }
     }
     // G55: each wheel rides its AXLE NODE — its position is the node's
     // live coordinates in the SAME basis the pose maps the group into
@@ -150152,7 +151198,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       }
       return [g * dx, g * dy, g * dz];
     };
-    if (model.strutRigs) for (const s of model.strutRigs) {
+    if (model.strutRigs && !still) for (const s of model.strutRigs) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
       const g = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       // a boom's tip end rides the tail's anchor set (its mean), not one node
@@ -150180,7 +151226,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       }
       s.posAttr.needsUpdate = true;
     }
-    if (model.stretchRigs) for (const s of model.stretchRigs) {
+    if (model.stretchRigs && !still) for (const s of model.stretchRigs) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
       const L = nodeLocal(s.idx);
       if (!s.rest0) s.rest0 = L;            // fallback only — see nodeRest
@@ -150197,7 +151243,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // G59: the CONTROL SURFACES deflect about their own hinges, driven by
     // the same linkage the generated skin uses (so they lag identically).
     // `link` carries da/de/dr/flap as sim.ctl units; `k` scales a 0..1 flap to its travel (0.70 rad, the generated table's own) of surface deflection.
-    if (model.surfParts) for (const s of model.surfParts) {
+    if (model.surfParts && !still) for (const s of model.surfParts) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
       const ang = s.sgn * (s.k || 1) * (link[s.drive] || 0)
         + (s.drive2 ? (s.sgn2 || 1) * (link[s.drive2] || 0) : 0);   // G209
@@ -150236,7 +151282,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     }
     // G267.2: THE TAIL ASSEMBLY — rigid on its anchor's mean travel
     // H2 (G389): the floats, rebuilt from their four nodes by barycentrics
-    if (model.floatRigs) for (const r of model.floatRigs) {
+    if (model.floatRigs && !still) for (const r of model.floatRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
       // the live tetra in the PART's frame: its rest plus each node's travel
       const N4 = r.idxs.map((i, k) => { const L = nodeLocal(i), R0 = r.rest0[k], T = r.R4[k];
@@ -150281,7 +151327,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       }
       r.posAttr.needsUpdate = true;
     }
-    if (model.anchorRigs) for (const r of model.anchorRigs) {
+    if (model.anchorRigs && !still) for (const r of model.anchorRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
       const d = anchorDelta(r), p2 = r.posAttr.array, b = r.base;
       for (let i = 0; i < b.length; i += 3) { p2[i] = b[i] + d[0]; p2[i + 1] = b[i + 1] + d[1]; p2[i + 2] = b[i + 2] + d[2]; }
@@ -150290,7 +151336,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // G239: ...AND THE RODS AND CABLES FOLLOW THE HORNS THEY ARE BOLTED TO.
     // The same angle the surface turned by, applied to the member's far end,
     // and every vertex moves by its own share of that travel.
-    if (model.linkRigs) for (const r of model.linkRigs) {
+    if (model.linkRigs && !still) for (const r of model.linkRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
       const h = r.hinge;
       const ang = h.sgn * (h.k || 1) * (link[h.drive] || 0)
@@ -151780,6 +152826,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
                           camModeNow: () => cam.mode,                                   // A9: the director's cut, read by bench_shot.js
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
+                          camMode: m => flCamMode(m),                                   // C4a (G870): the A/B rig's chase / cockpit views
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
@@ -153286,7 +154333,60 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // (syncBuildSteps; CAGE_JOIN.snapshotSteps), then the stand ('stand': rollOutStand, what rollOut did before its
   // screen decision), then the screen's own steps. A page without it syncs and rolls out inline, as before.
   const screenCan = () => typeof BOOT.show === 'function' && !!BOOT.log && typeof renderer.compileAsync === 'function';
-  function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
+  // ---- B10 (G1035-G1039): THE ROLL-OUT SHOT (rollanim.js) - AN OPTIONAL CALL SITE -------------------------
+  // The aeroplane rolls out of the open door and the camera dollies onto the stand's first frame, then the cut.
+  // OFF by default and behind a flag: ?rollanim=1 (or localStorage flydiy.rollanim = '1') plays it in front
+  // of every roll-out from the shed; ?rollanim=solo plays it alone once the shed is up (the aeroplane put back
+  // after, nothing rolls out), ?rollanim=loop again and again; window.FLYDIY_ROLLANIM() plays it alone from the
+  // console. B8B9 (the restructured roll-out) owns the real call site and may move or drop this one; the frame
+  // loop's two ROLLANIM lines (before poseModel, after placeCamera) are the host hooks the shot needs anywhere.
+  const RA_Q = (() => { try { const m = /[?&]rollanim=([a-z0-9]+)/.exec(location.search); return m ? m[1] : (prefGet('flydiy.rollanim', '') === '1' ? '1' : ''); } catch (e) { return ''; } })();
+  let raBusy = false, raSide = 0;
+  function rollAnimCan() {
+    return typeof ROLLANIM !== 'undefined' && inGarage && !raBusy && !!model && !rig && !rigLift && garageIsHangar() && !!hangar;
+  }
+  // the shed dressed for the shot (the mesh, not the editor's cage; no editor, no plaque), then the shot
+  function rollAnimPlay(done) {
+    raBusy = true;
+    // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the shot (SCENERY's rule)
+    for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
+    closeEditor();
+    const pq = $('plaque'); if (pq) pq.classList.remove('on');
+    const cage = showCage; showCage = false; applySkinVis();
+    let h = null;
+    try {
+      h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
+        camMode: cam.mode, fov: cam.fov,
+        onDone: hh => { raBusy = false; done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
+    } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
+    return h;
+  }
+  function rollAnimSolo() {
+    if (!rollAnimCan()) return null;
+    return rollAnimPlay(cage => {
+      if (!inGarage) return;
+      showCage = cage; applySkinVis(); garageCamera(); openEditor();
+      if (RA_Q === 'loop') setTimeout(() => { if (inGarage) rollAnimSolo(); }, 2500);
+    });
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_ROLLANIM = rollAnimSolo;
+  if (RA_Q === 'solo' || RA_Q === 'loop') {
+    const iv = setInterval(() => {
+      if (typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') return;
+      if (!rollAnimCan()) return;
+      clearInterval(iv); setTimeout(rollAnimSolo, 1500);
+    }, 500);
+  }
+  function rollOut(after, sync, shot) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
+    // B10: the optional call site (see above) - the build is committed BEFORE the shot (the shot does no work),
+    // and the stand's first frame takes the shot's side (raSide, read once by flRevealStart)
+    if (RA_Q === '1' && !shot && rollAnimCan()) {
+      if (sync && window.CAGE_UI) syncBuild();
+      if (rollAnimCan()) {
+        rollAnimPlay((cage, h) => { raSide = h && h.plan ? h.plan.side : 0; rollOut(after, false, true); });
+        return;
+      }
+    }
     if (sync) {
       if (screenCan() && window.CAGE_UI) { rollHold = false; rollOutScreen(() => { flRevealStart(); if (after) after(); }, true); return; }
       if (window.CAGE_UI) syncBuild();
@@ -153367,6 +154467,20 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   let rollHold = false;
   const framesRendered = n => (typeof renderer.compileAsync !== 'function') ? null   // the harness: no frames to wait for
     : new Promise(res => { frameWait = { n, res }; });
+  // G732 (B1-LAG): NEVER DRAW AHEAD OF THE LINKS. A screen's first frame waited synchronously (getProgramInfoLog under
+  // getUniforms: 0.5-1.9 s of the roll-out's 'frames' task, run to run) on programs a catch-up compile had started and
+  // not yet linked - two depth programs of the shadow pass, measured. This polls every program the renderer holds
+  // (KHR_parallel_shader_compile: isReady never blocks) until all are linked, `capMs` at most, before the frame is drawn.
+  const programsReady = capMs => (typeof renderer.compileAsync !== 'function' || !renderer.info || !renderer.info.programs) ? null
+    : new Promise(res => {
+      const t0 = performance.now();
+      const poll = () => {
+        let ok = true;
+        for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) { ok = false; break; }
+        if (ok || performance.now() - t0 > capMs) res(); else setTimeout(poll, 10);
+      };
+      poll();
+    });
   function needsRollOutScreen() {
     if (typeof BOOT.show !== 'function' || !BOOT.log) return false;   // the shim: build inline
     if (!WF) return true;
@@ -153417,8 +154531,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     holdRender = true;
     const steps = [
       { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compileSliced(sc, aa && aa.target ? aa.target() : null)
-          .then(() => garage ? null : compileDepthVariants(scene, true)).catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
-      { id: 'frames', label: 'first light', w: 2, fn: () => { holdRender = false; return framesRendered(2); } },
+          .then(() => garage ? null : compileDepthVariants(scene, true)).then(() => garage ? null : rungPrelink())   // G730: the parked rungs re-key too
+          .catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
+      { id: 'frames', label: 'first light', w: 2, fn: () => Promise.resolve(programsReady(20000)).then(() => { holdRender = false; return framesRendered(2); }) },   // G732
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
       done: () => { holdRender = false; if (held && !inGarage) running = true; }, idle: 20000, hard: 90000, quietFrames: 1 });
@@ -153427,10 +154542,19 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // every texture a material of the scene holds (its uniforms' too), the environment and the background, sent to the
   // GPU ~30 ms a task (initTexture) - the roll-out's 'upload' step, and since G999 the garage boot's compile step too
   // (its first frame spent ~0.3 s in texSubImage2D)
+  // G732 (B1-LAG): ...AND THE UNIFORMS A HOOK ADDED. Most of the world's textures (the splat and pavement arrays, the
+  // impostor atlases, the aerial-perspective sampler) are handed to the shader in an onBeforeCompile hook, never on the
+  // material: this walk missed them, and the first world frame uploaded them itself (the node census: 325 MB of
+  // texSubImage2D and 80 MB of texSubImage3D in the roll-out's 'frames' step; ~0.4 s of its long task in Chrome). Once a
+  // material is compiled three keeps the shader's uniforms, the hook's included, in its properties: read them there too.
   function uploadSliced(sc, id, label) {
     const texs = new Set();
+    const uni = U => { if (U) for (const k in U) { const v = U[k] && U[k].value; if (v && v.isTexture) texs.add(v);
+      else if (Array.isArray(v)) for (const x of v) if (x && x.isTexture) texs.add(x); } };
     const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (v && v.isTexture) texs.add(v); }
-      if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) texs.add(v); } };
+      uni(m.uniforms);
+      const pr = renderer.properties && renderer.properties.has && renderer.properties.has(m) ? renderer.properties.get(m) : null;
+      if (pr && pr.uniforms && pr.uniforms !== m.uniforms) uni(pr.uniforms); };
     sc.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(grab); });
     if (sc.environment) texs.add(sc.environment);
     if (sc.background && sc.background.isTexture) texs.add(sc.background);
@@ -153451,6 +154575,15 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // G680: from the shed, the build's sync and the stand are the screen's first steps (rollOut(after, true))
     if (sync) {
       steps.push({ id: 'sync', label: 'committing your build', w: 8, fn: () => sliced(syncBuildSteps(), 'sync', 'committing your build') });
+      // C4a (G870): THE FLOWN BAKE (flown_bake.js) - the snapshot's exterior baked into one atlas, or read from the
+      // IndexedDB cache; the model 'sync' built live is rebuilt once on it (B8B9: snapshot -> bake -> apply removes that)
+      steps.push({ id: 'bake', label: 'baking your aeroplane', w: 6, fn: () => {
+        if (!window.FLOWN_BAKE) return;
+        return window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: genSpec,
+          phase: (l, f) => BOOT.phase('bake', l, f),
+          rebuild: () => { if (curKey === 'gen' && model && model.data === window.CAGE_VISUAL) setAircraft('gen'); } })
+          .catch(e => console.warn('flown bake:', e && e.message || e));
+      } });
       steps.push({ id: 'stand', label: 'onto the strip', w: 3, fn: () => { rollOutStand(); } });
     }
     holdRender = typeof renderer.compileAsync === 'function';   // the harness renders nothing anyway
@@ -153459,6 +154592,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // in the 2.3-3.5 s task each they were; nothing is drawn meanwhile (holdRender), which that door needs
     const PK = (typeof window !== 'undefined' && window.PARKED && typeof renderer.compileAsync === 'function') ? window.PARKED : null;
     if (PK) PK.async = true;
+    let rungs = null, rungLinks = null;   // G730: the parked tree rungs' stand-ins and their links (the 'images' step starts them)
     if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => buildWorldSliced() });   // G680: a slice a task
     // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
     // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
@@ -153521,6 +154655,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // flat material, not a stuck screen.
     steps.push({ id: 'images', label: "the world's pictures", w: 8, fn: () => {
       if (!WF || typeof renderer.compileAsync !== 'function') return;
+      // G730: the parked rungs' programs start linking now, under the pictures and the upload (the fill's shapes are
+      // the payload's since the ring grew on them); the 'frames' step waits for them
+      if (!rungLinks) { rungs = rungStandIns(); rungLinks = rungPrelink(rungs); }
       const imgs = new Set();
       const isImg = v => v && v.isTexture && v.image && typeof v.image.complete === 'boolean' && !v.image.complete;
       const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (isImg(v)) imgs.add(v.image); }
@@ -153542,7 +154679,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // first frame (measured: 5.6 s of the first world frame was the upload)
     steps.push({ id: 'upload', label: 'uploading the textures', w: 12, fn: () => {
       if (typeof renderer.initTexture !== 'function' || typeof renderer.compileAsync !== 'function' || !WF) return;
-      return uploadSliced(scene, 'upload', 'uploading the textures');
+      return uploadSliced(scene, 'upload', 'uploading the textures')
+        .then(() => rungs ? uploadSliced(rungs, 'upload', 'uploading the textures') : null);   // G730: a parked rung's maps too
     } });
     if (!worldCompiled) steps.push({ id: 'compile', label: 'compiling the world', w: 20, fn: () => {
       worldCompiled = true;
@@ -153562,7 +154700,14 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // already knows cost their key, the new ones link on the driver's threads.
     steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => {
       if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
-      return shaderProgress(compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants()).catch(e => console.warn('catch-up compile:', e && e.message)), 'world', 60000)
+      // G732: the catch-up's depth variants a slice a task (compileDepthVariants' `sliced`, the settings screen's since G991):
+      // unsliced, compileAsync built every new depth program's source in one task - 21 of them here, a 983 ms task
+      return shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants(scene, true)).catch(e => console.warn('catch-up compile:', e && e.message)),
+        rungLinks]), 'world', 60000)   // G730: and the parked rungs' links (never draw ahead of the links)
+        // G732: what the catch-up compile's programs hand the shaders (the hooks' textures), uploaded a slice a task, and
+        // every program linked, before the first frame draws them
+        .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
+        .then(() => shaderProgress(programsReady(30000), 'world', 60000))
         .then(() => { holdRender = false; return framesRendered(2); });
     } });
     // G710: the route, on the screen while nothing flies (the selects' block below builds it)
@@ -153888,6 +155033,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       if (window.CAGE_JOIN.snapshot) {
         const flown = window.GARAGE_SPEC.preview ? window.GARAGE_SPEC.preview(spec) : spec;
         window.CAGE_VISUAL = window.CAGE_JOIN.snapshotSteps ? yield* window.CAGE_JOIN.snapshotSteps(flown) : window.CAGE_JOIN.snapshot(flown);
+        // C4a (G870): the baked buckets' rest positions, before any pose writes them (flown_bake.js)
+        if (window.FLOWN_BAKE) window.FLOWN_BAKE.note(window.CAGE_VISUAL);
       }
       (window.GARAGE_SPEC.update || window.GARAGE_SPEC.set)(spec);
       return (window.CAGE_JOIN.errors && window.CAGE_JOIN.errors()) || [];
@@ -155336,11 +156483,12 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       // THE WORLD RAIL (G582, F9): the world's art - layers, ground sets, recolours, filtering, biomes, cliffs
       const WR = window.WORLD_RAIL, wrEl = document.getElementById('wrRail');
       const wrOn = !!(wrEl && wrEl.style.display !== 'none');
+      const LZ = window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC ? window.FLYDIY_LAZY_SRC : {};   // G909: the rail and the editor load on demand
       flRow(body, 'the WORLD rail');
-      if (WR) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
-                      () => wrOn, () => WR.show(!wrOn));
+      if (WR || LZ.world_rail) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
+                      () => wrOn, () => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(!wrOn); else window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); }); });
       else flNote(body, 'This build has no WORLD rail (the world pack did not load).');
-      if (!window.PREMISES_UI || !window.PREMISES_HOST || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
+      if (!((window.PREMISES_UI && window.PREMISES_HOST) || (LZ.premises_ui && LZ.premises_host)) || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
       const rec = world.premises.rec;
       flNote(body, rec ? 'A premises is composed into this world: ' + (rec.name || rec.id || 'unnamed') + '.' : 'No premises in this world yet.');
       flNote(body, 'The editor opens over the flight scene with the sim paused: the map and orbit cameras of the bench, the same sections and tools. Every edit recomposes the world live; the record autosaves and is the world at the next boot.');
@@ -156254,7 +157402,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       return Math.hypot(ex - (flShedBox.x0 + flShedBox.x1) / 2,
                         ez - (flShedBox.z0 + flShedBox.z1) / 2);
     };
-    const s = far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    // B10: after the roll-out shot the side is the shot's (it ended on this very frame), read once
+    const s = raSide ? raSide : far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    raSide = 0;
     const tgt = cam.mode === 'wing' ? hdg - Math.PI / 2
               : astern + (cam.mode === 'orbit' ? s * 0.55 : 0);
     if (cam.mode === 'orbit') { azT = tgt; elT = 0.09; distT = D * 1.05; }
@@ -157080,6 +158230,12 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // speed, 0.58 m at 35 m/s (measured: headLocal.x -1.87 parked, -1.29 in
     // the climb on the Cessna - "the eye drifts to the back seat as speed
     // rises"). The sim has already stepped; the pose is this frame's.
+    // B10 (G1035): THE ROLL-OUT SHOT moves the aeroplane, its wheels and its props' rpm before the pose reads
+    // them (rollanim.js; a no-op when nothing plays)
+    if (typeof ROLLANIM !== 'undefined') {
+      if (!inGarage && ROLLANIM.busy()) { ROLLANIM.cancel(); raBusy = false; }   // left the shed under it: put back
+      ROLLANIM.frame(fdt);
+    }
     poseModel();
     // G1002 (A6-GROUND): the tyres' contact shadows, on this frame's pose (contact_shadow.js)
     if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();
@@ -157098,6 +158254,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     dist += (distT - dist) * kE;
     if (Math.abs(distT - dist) < 1e-3) dist = distT;
     placeCamera();
+    if (typeof ROLLANIM !== 'undefined') ROLLANIM.camera();   // B10: the shot's eye over the orbit's
     // (The part callout used to be re-projected here every other frame. It is
     // gone — it sat on the one thing it was naming — and the frame loop got
     // its projection back.)
@@ -157522,6 +158679,33 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       tick();
     });
   }
+  // G730 (B1-LAG): THE PARKED TREE RUNGS' PROGRAMS. A rung no tree stands on is out of the scene graph (render_world
+  // RUNGS), so neither the roll-out's compile nor a settings screen's ever meets it, and the taxi's first rung of a
+  // species linked on its frame (the fill's M_Branch.003 / M_Bark.003 and two depth programs: 567 ms at +32 s, R1's
+  // one miss). WF.rungWarm() hands a stand-in per ladder material, on the object kind the chunks draw (an InstancedMesh
+  // with an instanceColor, casting through the rung's depth material); compiled here against the world's lights, then
+  // through the shadow pass's depth variants (fog lifted, a plain target: compileDepthVariants' rule), a slice a task.
+  // A program already known costs its key. (G999.2's cut, reverted, made stand-ins WITHOUT an instanceColor and gave
+  // compileDepthVariants a helper with no lights: neither was the program the frame asked for.)
+  function rungStandIns() {
+    if (!WF || typeof WF.rungWarm !== 'function') return null;
+    let g = null; try { g = WF.rungWarm(); } catch (e) { console.warn('rung stand-ins:', e && e.message); }
+    return g && g.children.length ? g : null;
+  }
+  function rungPrelink(g) {
+    g = g || rungStandIns();
+    if (!g || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined') return Promise.resolve();
+    const kinds = { depth: false, distance: false };
+    scene.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
+    return compileSliced(g, aa && aa.target ? aa.target() : null, scene)
+      .then(() => {
+        if (!renderer.shadowMap || !renderer.shadowMap.enabled) return;
+        const { helper } = PROG_WARM.depthVariants(THREE, renderer, [g], { kinds });
+        return helper.children.length ? compileSliced(helper, PLAIN_RT(), scene, true) : null;
+      })
+      .then(() => { if (window.FLYDIY_LOG_COMPILE) console.log('rung prelink: ' + g.children.length + ' materials'); })
+      .catch(e => console.warn('rung prelink:', e && e.message));
+  }
   // THE SEE-THROUGH VARIANTS (G441, A4 - the user: "show interior takes
   // seconds and freezes the UI; it was fast before"). Measured on the Cessna:
   // the `see inside` flip spent 15.8 s inside getProgramInfoLog on its first
@@ -157646,6 +158830,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         const cg = sim.cgPos();
         devCam.pos.set(cg[0], cg[1] + 60, cg[2] + 40); devCam.pitch = -0.45; devCam.yaw = Math.PI; devCam.speed = 40;
         if (window.WORLD_RAIL) window.WORLD_RAIL.open();
+        else if (window.FLYDIY_LAZY) window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL && SCENERY.on) window.WORLD_RAIL.open(); });   // G909: on demand
         flRailSync(); if (flyOpen) flyOpenSet(flyOpen);   // G760: DEV shows itself (its way out), the open flyout says so
       };
       if (inGarage) rollOut(go); else go();
@@ -157769,7 +158954,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // environment albedo are the WORLD rail's now (world_rail.js, F9, the right edge) - one place for the
     // art, with previews and an export. F8 keeps the renderer's and the sky's dials.
     root.appendChild(note('the world’s art - layers, ground sets, recolours, filtering, biomes, species, the ring, the cliffs - is on the WORLD rail: F9 (the right edge), or ?scenery=1 for the world without the flight'));
-    if (W.WORLD_RAIL) root.appendChild(button('open the world rail', () => W.WORLD_RAIL.open()));
+    if (W.WORLD_RAIL || (W.FLYDIY_LAZY_SRC && W.FLYDIY_LAZY_SRC.world_rail))   // G909: the rail loads on demand
+      root.appendChild(button('open the world rail', () => (W.WORLD_RAIL ? Promise.resolve() : W.FLYDIY_LAZY('world_rail')).then(() => { if (W.WORLD_RAIL) W.WORLD_RAIL.open(); })));
     // ---- TREES: everything about the forest, folded by concern ----------------
     const T = fold(root, 'trees', true);
     genEl = note('');
