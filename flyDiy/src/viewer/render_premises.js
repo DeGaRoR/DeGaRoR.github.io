@@ -1267,7 +1267,97 @@ function make(THREE, scene, world, rec0, opts) {
   // kept bags (walls, roof: what the second cut leaves) merged in world space with a vertex colour = the bag's
   // material colour x its map's mean (linear), one shared plain material; their plain bags hide. Glass and lit bags
   // stay the house's own. Built per cell once the cell is live (G592: it waited for the whole queue), rebuilt when its houses change.
-  const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, far2: 1200, dirt: 0.35, gain: 0.2, sig: '', cells: [], cellMap: new Map(), todo: [], warm: [], group: null };
+  const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, far2: 1200, dirt: 0.35, gain: 0.2, sig: '', cells: [], cellMap: new Map(), todo: [], warm: [], group: null,
+                 lod1: true, outLod: 1, fadeW: 40 };
+  // LOD 1 PAST HLOD.near (G800, C0 of QUEUE-C; ARCH-2026-09-27 §1.2 / §5 interim 1 / §9 rows 2-3). The far town merged
+  // each house's lod-0 kept bags (its three largest: 10x the generator's own far mesh). Now every house is ALSO built at
+  // lod 1 - the generator's "TWO MESHES, ONE CONSTRUCTION" far mesh, 10 % of the triangles at 15 % of the build, in the
+  // same build call under the loading screen (buildHouse), never in the scene - and the far town is merged from it: its
+  // opaque bags whole (the windows are panes proud of an unpierced wall), the box rung's extent from its walls and roof.
+  // Lod 0 stays near (the house and its TARR bake). The outbuilding is built at lod 1 only (outLod). Dials:
+  // WORLD.premises.hlod.{lod1, outLod, near, fadeW} (lod1 / outLod are read at the build: set before the roll-out).
+  // THE SWAP IS A DITHERED BAND (G801), the trees' (render_world DITHER_GLSL, A2's fade family): screen-space
+  // interleaved-gradient noise against a weight that runs 0 -> 1 across fadeW metres of fragment distance centred on
+  // the rung's edge; the rung leaving keeps n < 1 - t, the rung arriving n >= 1 - t - complementary, a pixel draws one
+  // rung. The near rung (lod 0: the TARR bake and G566's merges of a house) leaves at `near`, the far town (lod 1)
+  // arrives there. The far town's vertices carry their house's centre and radius (aHC), so a house wholly inside the
+  // band's near side is dropped in the vertex stage (no fragment work under the lod-0 house at the stand). Visibility is
+  // then only a superset (a rung is drawn wherever the band can want it); fadeW 0 is the hard switch of before, per
+  // cell with hysteresis. The boxes (G594, past far2 = 1.2 km) keep G559's plain program and their hard switch: a band
+  // there was a program more in every pass that draws the town from the stand (the mirror's and the probes' too) for
+  // houses a few pixels tall.
+  //   ?houselod=0   the lod-0 far town and the lod-0 outbuildings of before (the A/B's "before")
+  //   ?houselod=1   the lod-1 far town from 0 m (what the far rung looks like, up close)
+  //   ?houselod=N   (N > 1) the near/far edge at N metres
+  //   ?lodfade=0    the hard per-cell switch (no band)
+  //   ?outlod=0|1   the outbuildings at lod 0 / lod 1, whatever houselod says
+  if (typeof location !== 'undefined' && location.search) {
+    const q = /[?&]houselod=([\d.]+)/.exec(location.search);
+    if (q) { const v = +q[1]; if (v === 0) { HLOD.lod1 = false; HLOD.outLod = 0; } else if (v === 1) HLOD.near = -100; else if (v > 1) HLOD.near = v; }   // 1: the edge behind the eye
+    if (/[?&]lodfade=0/.test(location.search)) HLOD.fadeW = 0;
+    const qo = /[?&]outlod=([01])\b/.exec(location.search); if (qo) HLOD.outLod = +qo[1];   // the outbuildings alone (after houselod)
+  }
+  let IN_STREAM = false;   // a build the in-flight stream makes (stream(): no lod 1 there); declared up here, no TDZ (G570)
+  const LOD_U = { uLodA: { value: HLOD.near }, uLodB: { value: HLOD.far2 }, uLodW: { value: HLOD.fadeW }, uLodOn: { value: HLOD.fadeW > 0 ? 1 : 0 } };
+  const LOD_DECL = 'uniform float uLodA, uLodB, uLodW, uLodOn;';
+  // the fragment half: `edges` 'in:A' / 'out:A' (at near; 'in:B' / 'out:B' at far2, unused) - where this rung arrives or leaves
+  const lodDither = edges => ['if (uLodOn > 0.5) {',
+    '  float _ln = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
+    '  float _ld = length(vViewPosition), _lw = max(uLodW, 1e-3), _lh = 0.5 * uLodW;']
+    .concat(edges.map(e => { const [how, at] = e.split(':'), E = at === 'A' ? 'uLodA' : 'uLodB', t = 'clamp((_ld - (' + E + ' - _lh)) / _lw, 0.0, 1.0)';
+      return how === 'in' ? '  if (_ln < 1.0 - ' + t + ') discard;' : '  if (_ln >= 1.0 - ' + t + ') discard;'; }))
+    .concat(['}']).join('\n');
+  // the far rungs' material: the plain vertex colour of G559, plus the band ('mid' = the lod-1 town; 'hard' = G559's
+  // own, no band: the boxes, the items' far town)
+  function lodMat(rung) {
+    const k = rung === 'hard' ? 'matHard' : 'mat';
+    if (HLOD[k]) return HLOD[k];
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+    if (rung === 'hard') return (HLOD[k] = m);
+    m.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, LOD_U);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + LOD_DECL + '\nattribute vec4 aHC;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\n' +
+          '{ float _hd = distance(cameraPosition, aHC.xyz); if (uLodOn > 0.5 && _hd + aHC.w < uLodA - 0.5 * uLodW) gl_Position = vec4(0.0, 0.0, 2.0, 1.0); }');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + LOD_DECL)
+        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + lodDither(['in:A']));
+    };
+    m.customProgramCacheKey = () => 'hlod:' + rung;
+    return (HLOD[k] = m);
+  }
+  // THE NEAR RUNG'S OTHER BAGS (G801): what G566 merges per distinct material (a site item's finishes, a bag the arrays
+  // could not take yet) leaves at the same edge as the TARR bake - a clone of the canonical material with the band after
+  // its own hook (its userData shared, as the trees' bandMat does), one program variant per distinct program. A material
+  // whose fragment has no view position (a basic one) or no clipping chunk keeps its program and switches per cell.
+  function bandOf(cm) {
+    if (!cm || cm.isShaderMaterial || typeof cm.clone !== 'function') return cm;
+    const B = HLOD.band || (HLOD.band = new Map()); let c = B.get(cm); if (c) return c;
+    const h = Object.prototype.hasOwnProperty.call(cm, 'onBeforeCompile') ? cm.onBeforeCompile : (cm._atmoHook || null);
+    c = cm.clone(); c.userData = cm.userData;
+    c.onBeforeCompile = function (sh, r) {
+      if (h) h.call(this, sh, r);
+      if (sh.fragmentShader.indexOf('vViewPosition') < 0 || sh.fragmentShader.indexOf('#include <clipping_planes_fragment>') < 0) return;
+      Object.assign(sh.uniforms, LOD_U);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + LOD_DECL)
+        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + lodDither(['out:A']));
+    };
+    c.customProgramCacheKey = () => cm.customProgramCacheKey() + '|hlod:out';
+    B.set(cm, c); return c;
+  }
+  // the generator's lod 1 of a house, as meshes that never join the scene (the far town's source): its opaque bags, the
+  // channels the merge does not read dropped; `box` marks the walls and roof (the G594 box's extent)
+  function lod1Bags(HG, P, F) {
+    const b = HG.build(P, 1, F), tmp = new THREE.Group(), out = [];
+    for (const k of (b.BAGS || HG.BAGS)) {
+      const bg = b.bags[k], mt = F.MAT[k];
+      if (!bg || !mt || !mt.isMeshStandardMaterial || mt.transparent) continue;
+      const m = bg.mesh(tmp, mt); if (!m) continue;
+      for (const a of ['uv', 'aHouseAO', 'aHouseLit', 'aHouseWin']) if (m.geometry.attributes[a]) m.geometry.deleteAttribute(a);
+      m.name = k; m.userData.box = /^(siding|roof)/.test(k); out.push(m);
+    }
+    out.tris = b.stats ? b.stats.tris : 0;
+    return out;
+  }
   const texMean = new Map(); let texCv = null;
   function meanOf(tex) {
     const img = tex && tex.image; if (!img || !img.width) return null;
@@ -1296,7 +1386,8 @@ function make(THREE, scene, world, rec0, opts) {
   // signature and the WHOLE town rebaked twice in a row at the end of the queue). TARR is declared by LAMPS.
   function tarr() {
     if (TARR || typeof window === 'undefined' || !window.HOUSE_TARR || !THREE.DataArrayTexture) return TARR;
-    TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { for (const cl of HLOD.cellMap.values()) if (cl.tarrShort) cl.sig = ''; hlodHouses = -1; } });
+    TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { for (const cl of HLOD.cellMap.values()) if (cl.tarrShort) cl.sig = ''; hlodHouses = -1; },
+                                           lod: { U: LOD_U, decl: LOD_DECL, glsl: lodDither(['out:A']) } });   // G801: the near rung leaves at near
     TARR.lit.value = LAMPS.kLit === undefined ? 1 : LAMPS.kLit;
     TARR.begin();   // the slot table lives as long as the stack: a cell's rebake re-uses the rows it had (same values, same slot)
     return TARR;
@@ -1306,8 +1397,8 @@ function make(THREE, scene, world, rec0, opts) {
   // one hlodBuild of every cell, run when the WHOLE build queue was empty, and redone whole for any change.
   function hlodCellDrop(cl) {
     for (const g of cl.houses) { for (const m of g.children) if (m.userData.merged) { m.userData.merged = false; m.visible = true; } if (g.userData.far) { g.userData.far = false; const D = detailOf(g); D.on = true; D.on2 = true; } }
-    for (const x of [cl.mesh, cl.box, cl.near]) if (x) { if (x.parent) x.parent.remove(x); x.traverse(m => { if (m.geometry) m.geometry.dispose(); }); }
-    cl.mesh = cl.box = cl.near = null; cl.casters = []; cl.far = false; cl.far2 = false;
+    for (const x of [cl.mesh, cl.box, cl.near, cl.meshH, cl.boxH, cl.nearH]) if (x) { if (x.parent) x.parent.remove(x); x.traverse(m => { if (m.geometry) m.geometry.dispose(); }); }
+    cl.mesh = cl.box = cl.near = cl.meshH = cl.boxH = cl.nearH = null; cl.casters = []; cl.far = false; cl.far2 = false;
   }
   function hlodDropAll() {
     for (const cl of HLOD.cellMap.values()) hlodCellDrop(cl);
@@ -1324,22 +1415,42 @@ function make(THREE, scene, world, rec0, opts) {
     }
     return byCell;
   }
+  // a house takes the band when it has its lod 1 (G801); a site item, a park, an object (no lod 1: their far version
+  // is their lod-0 kept bags) keeps the hard per-cell switch of before, every rung of it, in meshes of its own
+  const banded = g => !!(HLOD.lod1 && g.userData.lod1 && g.userData.lod1.length);
   function hlodCell(key, houses) {
-    const cl = { key, sig: houses.map(g => g.id).join(','), houses, x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, y: 0, far: false, far2: false, mesh: null, box: null, near: null, casters: [], castOn: true, tarrShort: false, bake: null };
+    const cl = { key, sig: houses.map(g => g.id).join(','), houses, x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, y: 0, far: false, far2: false, mesh: null, box: null, near: null,
+                 meshH: null, boxH: null, nearH: null, farTris: 0, casters: [], castOn: true, tarrShort: false, bake: null };
     for (const g of houses) { const D = detailOf(g); cl.y += D.c.y / houses.length; cl.x0 = Math.min(cl.x0, D.c.x - D.R); cl.x1 = Math.max(cl.x1, D.c.x + D.R); cl.z0 = Math.min(cl.z0, D.c.z - D.R); cl.z1 = Math.max(cl.z1, D.c.z + D.R); }
-    const mat = HLOD.mat || (HLOD.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }));
+    // G800: a house's lod 1 (its walls and roof make its box) into the banded far town; the rest's lod-0 kept bags (G559)
+    // into the hard one
+    const bagsB = [], bagsH = [];
+    for (const g of houses) {
+      const D = detailOf(g);
+      if (banded(g)) { for (const m of g.userData.lod1) if (m.geometry.index) bagsB.push({ m, M: g.matrixWorld, h: g, box: m.userData.box, D }); }
+      else for (const m of D.keep) if (m.geometry.index) bagsH.push({ m, M: m.matrixWorld, h: m.parent, box: true, D });
+    }
+    const B = hlodMerge(bagsB, lodMat('mid'), true), H = hlodMerge(bagsH, lodMat('hard'), false);
+    if (B) { cl.mesh = B.mesh; cl.box = hlodBoxes(B.HB, lodMat('hard')); cl.farTris += B.tris; }
+    if (H) { cl.meshH = H.mesh; cl.boxH = hlodBoxes(H.HB, lodMat('hard')); cl.farTris += H.tris; }
+    if (HLOD.bake) hlodBake(cl);
+    return cl;
+  }
+  // bags -> one world-space mesh (vertex colour = the bag's material colour x its map's mean), and each house's box
+  // (HB); `hc`: each vertex carries its house's centre and radius (aHC, the banded far town's vertex cull)
+  function hlodMerge(bags, mat, hc) {
+    if (!bags.length) return null;
     const col = new THREE.Color(), paintC = new THREE.Color(), nm = new THREE.Matrix3();
-    const bags = []; for (const g of houses) for (const m of detailOf(g).keep) if (m.geometry.index) bags.push(m);
-    if (bags.length) {
-      let nV = 0, nI = 0; for (const m of bags) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
-      const P = new Float32Array(nV * 3), N = new Float32Array(nV * 3), C = new Float32Array(nV * 3), I = new Uint32Array(nI);
+    {
+      let nV = 0, nI = 0; for (const { m } of bags) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
+      const P = new Float32Array(nV * 3), N = new Float32Array(nV * 3), C = new Float32Array(nV * 3), I = new Uint32Array(nI), HC = hc ? new Float32Array(nV * 4) : null;
       // THE COARSEST RUNG (G594, screens 150029/150123: the far town was flickering coloured pixels): past HLOD.far2 a
       // house is a BOX - its kept bags' extent in its own frame, the walls the mean colour of what faces sideways,
       // the top the mean of what faces up, the top at 85 % of the ridge. Ten triangles a house, no sub-pixel trims.
       const HB = new Map();   // house -> { b: Box3 (house frame), wall: [r, g, b, n], roof: [r, g, b, n] }
       const inv = new THREE.Matrix4(), rel = new THREE.Matrix4(), bx = new THREE.Box3();
       let vo = 0, io = 0;
-      for (const m of bags) {
+      for (const { m, M, h, box, D } of bags) {
         const g = m.geometry, A = g.attributes.position.array, AN = g.attributes.normal ? g.attributes.normal.array : null, n = g.attributes.position.count;
         const vc = m.material.vertexColors && g.attributes.color ? g.attributes.color : null;
         col.copy(m.material.color || col.setRGB(1, 1, 1)); const mm = meanOf(m.material.map);
@@ -1352,7 +1463,7 @@ function make(THREE, scene, world, rec0, opts) {
         const dt = m.material.userData && m.material.userData.dirt;
         if (dt && dt.uDirtOwn) col.lerp(paintC.set(dt.uDirtOwn.value), HLOD.dirt);
         col.multiplyScalar(HLOD.gain);
-        const e = m.matrixWorld.elements; nm.getNormalMatrix(m.matrixWorld); const q = nm.elements;
+        const e = M.elements; nm.getNormalMatrix(M); const q = nm.elements;
         let up = 0, side = 0;
         for (let i = 0; i < n; i++) {
           const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2], o3 = (vo + i) * 3;
@@ -1360,27 +1471,27 @@ function make(THREE, scene, world, rec0, opts) {
           if (AN) { const a = AN[i * 3], b = AN[i * 3 + 1], c = AN[i * 3 + 2]; const X = q[0] * a + q[3] * b + q[6] * c, Y = q[1] * a + q[4] * b + q[7] * c, Z = q[2] * a + q[5] * b + q[8] * c, l = Math.hypot(X, Y, Z) || 1; N[o3] = X / l; N[o3 + 1] = Y / l; N[o3 + 2] = Z / l; if (Y / l > 0.45) up++; else side++; } else N[o3 + 1] = 1;
           const f = vc ? [vc.getX(i), vc.getY(i), vc.getZ(i)] : null;
           C[o3] = col.r * (f ? f[0] : 1); C[o3 + 1] = col.g * (f ? f[1] : 1); C[o3 + 2] = col.b * (f ? f[2] : 1);
+          if (HC) { const o4 = (vo + i) * 4; HC[o4] = D.c.x; HC[o4 + 1] = D.c.y; HC[o4 + 2] = D.c.z; HC[o4 + 3] = D.R; }
         }
         const ix = g.index.array; for (let i = 0; i < g.index.count; i++) I[io + i] = ix[i] + vo;
         vo += n; io += g.index.count;
         // the box: the bag's extent in its house's frame, its colour to the walls or the roof by where its vertices face
-        const h = m.parent; if (!h) continue;
+        if (!h || !box) continue;
         let hb = HB.get(h); if (!hb) HB.set(h, hb = { b: new THREE.Box3(), wall: [0, 0, 0, 0], roof: [0, 0, 0, 0] });
         if (!g.boundingBox) g.computeBoundingBox();
-        inv.copy(h.matrixWorld).invert(); rel.multiplyMatrices(inv, m.matrixWorld);
+        inv.copy(h.matrixWorld).invert(); rel.multiplyMatrices(inv, M);
         hb.b.union(bx.copy(g.boundingBox).applyMatrix4(rel));
         hb.wall[0] += col.r * side; hb.wall[1] += col.g * side; hb.wall[2] += col.b * side; hb.wall[3] += side;
         hb.roof[0] += col.r * up; hb.roof[1] += col.g * up; hb.roof[2] += col.b * up; hb.roof[3] += up;
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3)); geo.setAttribute('color', new THREE.BufferAttribute(C, 3));
+      if (HC) geo.setAttribute('aHC', new THREE.BufferAttribute(HC, 4));
       geo.setIndex(new THREE.BufferAttribute(I, 1)); geo.computeBoundingSphere();
       const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = false; mesh.receiveShadow = true; mesh.visible = false; mesh.matrixAutoUpdate = false; mesh.userData.batch = true; mesh.name = 'houses:far';
-      HLOD.group.add(mesh); cl.mesh = mesh;
-      cl.box = hlodBoxes(HB, mat);
+      HLOD.group.add(mesh);
+      return { mesh, HB, tris: nI / 3 };
     }
-    if (HLOD.bake) hlodBake(cl);
-    return cl;
   }
   // five faces a house (no floor), world space, flat normals, the walls' and the roof's colours
   const BOX_F = [[[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1], [1, 0, 0]], [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0], [-1, 0, 0]],
@@ -1427,34 +1538,36 @@ function make(THREE, scene, world, rec0, opts) {
     const litBase = u => (LAMPS.glass.has(u) ? LAMPS.glass.get(u) : u.value);
     const buckets = new Map(), tb = new Map();
     for (const g of cl.houses) {
-      const cast = new Set(g.userData.casters || []);
+      const cast = new Set(g.userData.casters || []), bd = banded(g) ? '|b' : '';   // G801: a banded house's bags merge apart
       for (const m of g.children) {
         if (!m.isMesh || !m.geometry || !m.geometry.index || Array.isArray(m.material)) continue;
         const mt = m.material, ud = mt.userData || {};
         const c = TA && TA.classify(m);
         if (c) {
-          const k = c.key + '|' + m.renderOrder + '|' + m.receiveShadow + '|' + cast.has(m);
-          let b = tb.get(k); if (!b) tb.set(k, b = { c, cast: cast.has(m), list: [] }); b.list.push(m);
+          const k = c.key + '|' + m.renderOrder + '|' + m.receiveShadow + '|' + cast.has(m) + bd;
+          let b = tb.get(k); if (!b) tb.set(k, b = { c, cast: cast.has(m), band: !!bd, list: [] }); b.list.push(m);
           continue;
         }
         if (mt.transparent || ud.lampKey || ud.lampCol || ud.emis0 || ud.glassShaded || ud.smokeShaded || ud.parked || ud.aeroskin) continue;
         const ga = m.geometry.attributes, an = Object.keys(ga).sort();
         if (an.some(k => ga[k].isInterleavedBufferAttribute)) continue;
         const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
-        const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
-        let b = buckets.get(k); if (!b) buckets.set(k, b = { mat: cm, list: [] }); b.list.push(m);
+        const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',') + bd;
+        let b = buckets.get(k); if (!b) buckets.set(k, b = { mat: cm, band: !!bd, list: [] }); b.list.push(m);
       }
     }
+    // the near rung: the banded houses' merges (ng, leaving at near) and the rest's (ngH, the hard switch)
     const ng = new THREE.Group(); ng.name = 'houses:near'; ng.userData.batch = true;
+    const ngH = new THREE.Group(); ngH.name = 'houses:near'; ngH.userData.batch = true;
     for (const b of tb.values()) {
-      const r = TA.merge(b.list, b.c.kind, litBase), m0 = b.list[0], mat = r.geo && TA.material(b.c.kind, b.c.side, m0.material.dithering);
+      const r = TA.merge(b.list, b.c.kind, litBase), m0 = b.list[0], mat = r.geo && TA.material(b.c.kind, b.c.side, m0.material.dithering, !b.band);
       const usedS = new Set(r.used), left = b.list.filter(m => !usedS.has(m));
       if (left.length) cl.tarrShort = true;
       if (r.geo && mat) {
         const mesh = new THREE.Mesh(r.geo, mat);
         mesh.castShadow = b.cast; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true; mesh.name = 'houses:town';
         if (b.cast) cl.casters.push(mesh);
-        ng.add(mesh); td++;
+        (b.band ? ng : ngH).add(mesh); td++;
         for (const m of r.used) { m.userData.merged = true; m.visible = false; tm++; }
       } else if (r.geo) r.geo.dispose();
       // not (yet) on the stack: G566's way, the glass as the house's own
@@ -1462,20 +1575,21 @@ function make(THREE, scene, world, rec0, opts) {
         const mt = m.material; if (mt.userData.glassShaded) continue;
         const ga = m.geometry.attributes, an = Object.keys(ga).sort();
         const sg = matSig(mt); let cm = canon.get(sg); if (!cm) canon.set(sg, cm = mt);
-        const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',');
-        let bb = buckets.get(k); if (!bb) buckets.set(k, bb = { mat: cm, list: [] }); bb.list.push(m);
+        const k = sg + '|' + m.renderOrder + m.castShadow + m.receiveShadow + '|' + an.map(k => k + ga[k].itemSize + ga[k].array.constructor.name + ga[k].normalized).join(',') + (b.band ? '|b' : '');
+        let bb = buckets.get(k); if (!bb) buckets.set(k, bb = { mat: cm, band: b.band, list: [] }); bb.list.push(m);
       }
     }
     for (const b of buckets.values()) {
-      const m0 = b.list[0], mesh = new THREE.Mesh(mergeInto(b.list), b.mat);
+      const m0 = b.list[0], mesh = new THREE.Mesh(mergeInto(b.list), b.band ? bandOf(b.mat) : b.mat);
       mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true;
-      ng.add(mesh); nd++;
+      (b.band ? ng : ngH).add(mesh); nd++;
       for (const m of b.list) { m.userData.merged = true; m.visible = false; nm++; }
     }
     if (TA && tb.size && !TA.end()) cl.tarrShort = true;
-    cl.near = ng; cl.castOn = true; HLOD.group.add(ng);
+    cl.castOn = true;
+    if (ng.children.length) { cl.near = ng; HLOD.group.add(ng); HLOD.warm.push(ng); }     // its programs linked off the frame (hlodWarm)
+    if (ngH.children.length) { cl.nearH = ngH; HLOD.group.add(ngH); HLOD.warm.push(ngH); }
     cl.bake = { nd, nm, td, tm };
-    if (ng.children.length) HLOD.warm.push(ng);   // its programs linked off the frame (hlodWarm)
   }
   // THE BAKE'S PROGRAMS OFF THE FRAME (G593): a town material's first variant, or a canonical finish no house had
   // drawn with, linked synchronously on the first frame that drew the cell. compileAsync (KHR_parallel_shader_compile)
@@ -1489,6 +1603,8 @@ function make(THREE, scene, world, rec0, opts) {
     let nd = 0, nm = 0, td = 0, tm = 0;
     for (const cl of HLOD.cellMap.values()) if (cl.bake) { nd += cl.bake.nd; nm += cl.bake.nm; td += cl.bake.td; tm += cl.bake.tm; }
     stats.bakeDraws = nd; stats.bakeMerged = nm; stats.bakeMats = HLOD.canon ? HLOD.canon.size : 0; stats.hlodCells = HLOD.cellMap.size;
+    let ft = 0, l1 = 0; for (const cl of HLOD.cellMap.values()) { ft += cl.farTris || 0; for (const g of cl.houses) if (HLOD.lod1 && g.userData.lod1) l1++; }
+    stats.farTris = ft; stats.lod1Houses = l1;   // G800: the far town's triangles, the houses it took at lod 1
     if (TARR) Object.assign(stats, { tarrDraws: td, tarrMerged: tm, tarrSlots: TARR.stats.slots, tarrLayers: TARR.stats.layers + '+' + TARR.stats.nrLayers, tarrMB: TARR.stats.mb });
   }
   let hlodFrame = 0, hlodHouses = -1;
@@ -1498,8 +1614,11 @@ function make(THREE, scene, world, rec0, opts) {
       return;
     }
     if (!HLOD.group || HLOD.group.parent !== G.houses) { HLOD.group = new THREE.Group(); HLOD.group.name = 'houses:hlod'; HLOD.group.userData.batch = true; G.houses.add(HLOD.group); }
-    const sig = HLOD.bake + '|' + HLOD.tarr;   // a dial flipped (F8 / WORLD.premises.hlod) rebakes every cell
+    const sig = HLOD.bake + '|' + HLOD.tarr + '|' + HLOD.lod1;   // a dial flipped (F8 / WORLD.premises.hlod) rebakes every cell
     if (sig !== HLOD.sig) { HLOD.sig = sig; hlodDropAll(); hlodHouses = -1; }
+    // the band's edges follow the dials (G801)
+    const hw = HLOD.fadeW > 0 ? HLOD.fadeW / 2 : 0;
+    LOD_U.uLodA.value = HLOD.near; LOD_U.uLodB.value = HLOD.far2; LOD_U.uLodW.value = HLOD.fadeW; LOD_U.uLodOn.value = hw > 0 ? 1 : 0;
     // the cells whose houses changed - re-read when a house came or went, and every 30 frames: ONE live cell a frame
     if (HOUSES.size !== hlodHouses || ++hlodFrame % 30 === 0) {
       hlodHouses = HOUSES.size;
@@ -1521,19 +1640,35 @@ function make(THREE, scene, world, rec0, opts) {
       break;
     }
     for (const cl of HLOD.cells) {
-      if (!cl.mesh) continue;
+      if (!cl.mesh && !cl.meshH) continue;
       const dx = Math.max(cl.x0 - e.x, 0, e.x - cl.x1), dz = Math.max(cl.z0 - e.z, 0, e.z - cl.z1), d = Math.hypot(dx, dz, e.y - cl.y);   // 3D (G563): from 300 m up the houses below are far
-      const far = d > HLOD.near * (cl.far ? 0.9 : 1.1);
+      // the houses' own bags (glass, lamps, smoke: what no bake took) and their per-house cuts switch per cell with
+      // hysteresis, at the band's far side when there is a band (G801)
+      const far = d > (HLOD.near + hw) * (cl.far ? 0.9 : 1.1);
       if (far !== cl.far) hlodSet(cl, far);
-      // the coarsest rung (G594): the boxes past far2
-      const far2 = far && !!cl.box && d > HLOD.far2 * (cl.far2 ? 0.9 : 1.1);
-      if (far2 !== cl.far2) { cl.far2 = far2; cl.mesh.visible = far && !far2; cl.box.visible = far2; }
+      // the coarsest rung (G594): the boxes past far2, a hard switch for every house (G801)
+      const far2 = far && !!(cl.box || cl.boxH) && d > HLOD.far2 * (cl.far2 ? 0.9 : 1.1);
+      if (far2 !== cl.far2) cl.far2 = far2;
+      // the items' rungs (no lod 1): the hard switch of before
+      if (cl.nearH && cl.nearH.visible !== !far) cl.nearH.visible = !far;
+      if (cl.meshH && cl.meshH.visible !== (far && !(far2 && cl.boxH))) cl.meshH.visible = far && !(far2 && cl.boxH);
+      if (cl.boxH && cl.boxH.visible !== far2) cl.boxH.visible = far2;
+      // THE RUNGS DRAWN (G801): with a band, each wherever a fragment of the cell can want it (the shader dithers the
+      // rest; df the cell's farthest reach, its houses' heights allowed for); without, the hard switch of before
+      let vNear = !far, vMid = far && !(far2 && cl.box), vBox = far2;
+      if (hw > 0) {
+        const df = Math.hypot(Math.max(Math.abs(e.x - cl.x0), Math.abs(e.x - cl.x1)), Math.max(Math.abs(e.z - cl.z0), Math.abs(e.z - cl.z1)), Math.abs(e.y - cl.y) + 40);
+        vNear = d < HLOD.near + hw; vMid = df > HLOD.near - hw && !(far2 && cl.box);   // (the boxes: the hard switch at far2)
+      }
+      if (cl.near && cl.near.visible !== vNear) cl.near.visible = vNear;
+      if (cl.mesh && cl.mesh.visible !== vMid) cl.mesh.visible = vMid;
+      if (cl.box && cl.box.visible !== vBox) cl.box.visible = vBox;
       // the town meshes that cast (G574): a house's own casters go at HOUSE_CAST_FAR (detailTick), the cell's at its box's
       if (cl.casters && cl.casters.length) { const on = d < HOUSE_CAST_FAR * (cl.castOn ? 1.1 : 0.9); if (on !== cl.castOn) { cl.castOn = on; for (const m of cl.casters) m.castShadow = on; } }
     }
   }
   function hlodSet(cl, far) {
-    cl.far = far; cl.far2 = false; cl.mesh.visible = far; if (cl.box) cl.box.visible = false; if (cl.near) cl.near.visible = !far;
+    cl.far = far; cl.far2 = false;   // (the rungs' own visibility: hlodTick, G801)
     for (const g of cl.houses) {
       const D = detailOf(g); g.userData.far = far;
       // every bag goes, glass and lit too (G560): from the airfield, 9 km off, the town's 641 houses still drew
@@ -1824,6 +1959,10 @@ function make(THREE, scene, world, rec0, opts) {
     const built = HG.build(house.P, 0, F);
     built.BAGS = HG.BAGS;
     const grp = placeBuilt(G.houses, house, built, F, HG);
+    // G800: its lod 1 in the same build (under the loading screen with it), for the far town; the bench builds none, nor
+    // does the in-flight stream (G591's items past the roll-out's reach): no work added to a frame in flight - such a
+    // house keeps G559's lod-0 far town and the hard switch
+    if (HLOD.lod1 && o.game && !IN_STREAM) { try { grp.userData.lod1 = lod1Bags(HG, house.P, F); } catch (e) { console.warn('premises lod 1', plot.id, e && e.message); } }
     hitAdd(grp, 'house', 1.0);
     const D = dressPlot(plot, house, built, V, Tv);
     return { grp, tris: built.stats.tris + D.tris, house, built, extra: D.groups, lights: litOf(built) + D.lights };
@@ -1891,11 +2030,12 @@ function make(THREE, scene, world, rec0, opts) {
     const posts = [];
     const fg = fenceGroup(plot.fences, T, (PG.fnv(String(plot.id)) % 1000) * 7 + 1, posts);
     if (fg) out.groups.push(fg);
-    // the outbuilding: the same generator, its own finish, a house of its own in the world
+    // the outbuilding: the same generator, its own finish, a house of its own in the world - at lod 1 in the game
+    // (G800: it was a second full lod-0 house; a shed seen across a yard is the generator's far mesh); the bench keeps lod 0
     if (plot.out) {
       try {
         const F2 = HG.makeFinish(); HG.applyFinish(plot.out.P, F2);
-        const b2 = HG.build(plot.out.P, 0, F2); b2.BAGS = HG.BAGS; plot.out.built = b2;
+        const b2 = HG.build(plot.out.P, (HLOD.outLod && o.game) ? 1 : 0, F2); b2.BAGS = HG.BAGS; plot.out.built = b2;
         const og = placeBuilt(G.houses, plot.out, b2, F2, HG); hitAdd(og, 'outbuilding', 1.0);
         out.groups.push(og); out.tris += b2.stats.tris; out.lights += litOf(b2);
       } catch (e) { console.warn('premises outbuilding', plot.id, e && e.message); plot.out = null; }
@@ -2239,7 +2379,7 @@ function make(THREE, scene, world, rec0, opts) {
     const t0 = performance.now();
     let n = 0;
     while (queue.length && S.bank > 0 && queue[0]._d <= S.reach) {
-      const t = performance.now(), p = queue.shift(); buildOne(p); n++; S.near = Math.max(0, S.near - 1);
+      const t = performance.now(), p = queue.shift(); IN_STREAM = true; try { buildOne(p); } finally { IN_STREAM = false; } n++; S.near = Math.max(0, S.near - 1);
       const h = HOUSES.get(p.id); if (h && !h.failed) { riseAdd(h.grp); for (const g of h.extra || []) riseAdd(g); }   // G673
       S.bank -= performance.now() - t;
     }

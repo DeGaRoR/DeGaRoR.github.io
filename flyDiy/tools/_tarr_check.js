@@ -17,6 +17,12 @@
 //   4  THE HOST: render_premises declares TARR above LAMPS (G570's TDZ), the lamps drive the lit factor, the
 //      bake's sig carries the dials, G566's material signature leaves G574's handles out; build.js ships the
 //      module before render_premises.js
+//   5  LOD 1 PAST 150 M (G800-G802): render_premises' HLOD block lifted and run - a house's lod 1 as the far town's source
+//      (opaque bags, position + normal, walls and roof its box, a fraction of lod 0); the dithered band's GLSL
+//      TRANSPILED to JS and swept 0-1400 m (the lod-0 rung leaving and the lod-1 rung arriving draw exactly one of them
+//      per pixel; whole outside the band; the vertex cull never drops a fragment the band would draw); the programs (the
+//      far town's, the TARR material with and without the band, a G566 clone = the house's own program + the band, a
+//      basic material untouched, the boxes' and the items' G559 plain one); the URL flags; the host's wiring
 //
 // Usage: node tools/_tarr_check.js          (prints GATE TARR: PASS|FAIL)
 'use strict';
@@ -195,12 +201,89 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
   const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   check(RP.indexOf('let TARR = null;') > 0 && RP.indexOf('let TARR = null;') < RP.indexOf('const LAMPS = {'), '4a TARR is declared above LAMPS (G570: no TDZ)');
   check(/LAMPS\.kLit = on \* kGlass/.test(RP) && /TARR\.lit\.value = LAMPS\.kLit/.test(RP) && /TARR\.lit\.value = 0/.test(RP), '4b the lamps drive the town\'s lit panes, the mute too');
-  check(/const sig = HLOD\.bake \+ '\|' \+ HLOD\.tarr;/.test(RP) && /if \(sig !== HLOD\.sig\) \{ HLOD\.sig = sig; hlodDropAll\(\);/.test(RP), '4c the bake\'s sig carries the dials (a flip rebakes every cell, per cell since G592)');
+  check(/const sig = HLOD\.bake \+ '\|' \+ HLOD\.tarr \+ '\|' \+ HLOD\.lod1;/.test(RP) && /if \(sig !== HLOD\.sig\) \{ HLOD\.sig = sig; hlodDropAll\(\);/.test(RP), '4c the bake\'s sig carries the dials (a flip rebakes every cell, per cell since G592; the lod-1 far town since G800)');
   check(/filter\(k => !TARR_UD\.has\(k\)\)/.test(RP) && /TARR_UD = new Set\(\['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud'\]\)/.test(RP), '4d G566\'s signature leaves G574\'s handles out');
   check(/const HLOD = \{ on: true, bake: true, tarr: true,/.test(RP), '4e the dial: WORLD.premises.hlod.tarr');
   check(/F\.SHADE_U\.uDirtY0\.value = grp\.matrixWorld\.elements\[13\]/.test(RP), '4g placeBuilt stands the dirt line where it stands the house (G581)');
   const BJ = fs.readFileSync(path.join(TOOLS, 'build.js'), 'utf8');
   check(BJ.indexOf("'house_tarr.js'") > 0 && BJ.indexOf("'house_tarr.js'") < BJ.indexOf("['src/viewer', 'render_premises.js']"), '4f build.js ships house_tarr.js before render_premises.js');
+}
+
+// ---- 5 LOD 1 PAST 150 M AND THE DITHERED BAND (G800-G802, C0 of QUEUE-C) ----------------------------------------------
+// render_premises.js's HLOD block LIFTED (the dials, the URL flags, the band's uniforms and GLSL, lodMat, bandOf,
+// lod1Bags) and run here on the vendor three and the real generator; the band's GLSL TRANSPILED to JS and swept
+{
+  const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  const i0 = RP.indexOf('  const HLOD = { on: true,'), i1 = RP.indexOf('  const texMean = new Map();');
+  check(i0 > 0 && i1 > i0, '5 the HLOD block found (HLOD .. texMean)');
+  const block = RP.slice(i0, i1);
+  const run = search => { const c = vm.createContext({ THREE, Math, Object, Map, console, location: search === undefined ? undefined : { search } });
+    vm.runInContext((search === undefined ? 'var location = undefined;\n' : '') + block + '\nthis.X = { HLOD, LOD_U, LOD_DECL, lodDither, lodMat, bandOf, lod1Bags };', c); return c.X; };
+  const X = run();
+  // 5a lod 1 as the far town's source: opaque standard bags, the merge's channels only, walls and roof the box
+  { const P = HG.randomHouse(4321), F = HG.makeFinish(); HG.applyFinish(P, F);
+    const b0 = HG.build(P, 0, F), L = X.lod1Bags(HG, P, F);
+    const tris = L.reduce((t, m) => t + m.geometry.index.count / 3, 0);
+    check(L.length > 0 && L.every(m => m.material.isMeshStandardMaterial && !m.material.transparent && !m.parent.parent), '5a lod 1: opaque standard bags, never in a scene', L.map(m => m.name).join(' '));
+    check(L.every(m => Object.keys(m.geometry.attributes).sort().join() === 'normal,position'), '5b ... carrying only what the merge reads (position, normal)');
+    check(L.filter(m => m.userData.box).map(m => m.name).every(k => /^(siding|roof)/.test(k)) && L.some(m => m.userData.box), '5c ... the walls and the roof make the box');
+    check(tris > 0 && tris < 0.25 * b0.stats.tris, '5d ... a fraction of lod 0\'s triangles', tris + ' vs ' + b0.stats.tris); }
+  // 5e the band, transpiled: three rungs, one draws each pixel at every distance
+  const fns = 'const fract = x => x - Math.floor(x), dot = (a, b) => a[0] * b[0] + a[1] * b[1], length = v => Math.hypot(v[0], v[1], v[2]), max = Math.max, clamp = (x, a, b) => Math.min(b, Math.max(a, x));';
+  const toJs = g => new Function('FC', 'vViewPosition', 'uLodA', 'uLodB', 'uLodW', 'uLodOn', fns + '\n' + g.replace(/\bfloat\s+/g, 'let ').replace(/vec2\(([^)]*)\)/g, '[$1]').replace(/gl_FragCoord\.xy/g, 'FC').replace(/discard;/g, 'return false;') + '\nreturn true;');
+  const near = toJs(X.lodDither(['out:A'])), mid = toJs(X.lodDither(['in:A']));
+  { const A = 150, B = 1200, Wd = 40; let bad = 0, onlyNear = true, onlyMid = true, mono = true, prev = -1, part = 0;
+    for (let d = 0; d <= 1400; d += 0.5) {
+      let nm = 0;
+      for (let px = 0; px < 64; px++) {
+        const FC = [px * 7.3 + 0.5, px * 3.1 + 0.5], v = [0, 0, d], a = near(FC, v, A, B, Wd, 1), b = mid(FC, v, A, B, Wd, 1);
+        if (a + b !== 1) bad++;
+        if (d < A - Wd / 2 && !a) onlyNear = false; if (d > A + Wd / 2 && !b) onlyMid = false;
+        if (b) nm++;
+      }
+      if (d > A - Wd / 2 && d < A + Wd / 2) { if (nm < prev) mono = false; prev = nm; if (nm > 0 && nm < 64) part++; }
+    }
+    check(!bad, '5e the band is complementary: exactly one rung draws each pixel, 0-1400 m', bad + ' pixel-distances with 0 or 2 rungs');
+    check(onlyNear && onlyMid && part > 50, '5f outside the band the rung is whole (lod 0 < 130 m, lod 1 > 170 m); inside it both share the pixels', part);
+    check(mono, '5g across the edge the arriving rung takes the pixels monotonically');
+    const off = [near, mid].every(f => f([10.5, 3.5], [0, 0, 150], 150, 1200, 40, 0));
+    check(off, '5h the band off (uLodOn 0): no discard, the per-cell hard switch decides'); }
+  // 5i the far rung's program: lod 1 culls a house wholly on the band's near side in the vertex stage (its fragments would
+  // all be discarded) and arrives at near; the boxes and the items' far town keep G559's plain program
+  { const SHs = () => ({ uniforms: {}, vertexShader: THREE.ShaderLib.standard.vertexShader, fragmentShader: THREE.ShaderLib.standard.fragmentShader });
+    const mM = X.lodMat('mid'), sM = SHs(); mM.onBeforeCompile(sM);
+    const cull = /\{ float _hd = distance\(cameraPosition, aHC\.xyz\); if \(uLodOn > 0\.5 && _hd \+ aHC\.w < uLodA - 0\.5 \* uLodW\) gl_Position = vec4\(0\.0, 0\.0, 2\.0, 1\.0\); \}/;
+    check(/attribute vec4 aHC;/.test(sM.vertexShader) && cull.test(sM.vertexShader) && sM.vertexShader.indexOf('_hd') > sM.vertexShader.indexOf('#include <project_vertex>'), '5i lod 1: the house centre per vertex, a house inside the band\'s near side culled after project_vertex');
+    // the cull is safe: a culled house's farthest fragment (centre + radius) is where lod 1 draws nothing anyway
+    { let ok = true; for (let hd = 0; hd < 400; hd += 1) for (const R of [3, 8, 20]) if (hd + R < 150 - 20) for (let f = hd - R; f <= hd + R; f += 0.5) if (mid([3.5, 9.5], [0, 0, Math.max(0, f)], 150, 1200, 40, 1)) ok = false;
+      check(ok, '5i2 ... a culled house has no fragment the band would draw'); }
+    check(sM.fragmentShader.includes(X.lodDither(['in:A'])) && sM.uniforms.uLodA === X.LOD_U.uLodA && sM.uniforms.uLodW === X.LOD_U.uLodW, '5j ... its fragment arrives at near, on the host\'s shared uniforms');
+    const mH = X.lodMat('hard');
+    check(!Object.prototype.hasOwnProperty.call(mH, 'onBeforeCompile') && mH.vertexColors && mH !== mM && X.lodMat('hard') === mH, '5k the boxes and the items\' far town: G559\'s plain material, no band (their program as before)'); }
+  // 5l the near rung: the town material and G566's clones leave at near, after their own hooks
+  { const TL = TARR.make(THREE, { HG, lod: { U: X.LOD_U, decl: X.LOD_DECL, glsl: X.lodDither(['out:A']) } }), m = TL.material('plain', 0, 0), sh = SH(); m.onBeforeCompile(sh);
+    const f = sh.fragmentShader, i = f.indexOf(X.lodDither(['out:A']));
+    const mb = TL.material('plain', 0, 0, true), shb = SH(); mb.onBeforeCompile(shb);
+    check(i > f.indexOf('#include <clipping_planes_fragment>') && f.includes(X.LOD_DECL) && sh.uniforms.uLodA === X.LOD_U.uLodA && /:lod$/.test(m.customProgramCacheKey()) && T.material('plain', 0, 0).customProgramCacheKey() === 'house_tarr:plain:0:0',
+          '5l the town material (TARR) leaves at near, a program of its own (a TARR made without the band keeps its key)');
+    check(mb !== m && mb.customProgramCacheKey() === 'house_tarr:plain:0:0' && !shb.fragmentShader.includes('uLodA'), '5l2 ... an item\'s bags (bare) ride the town material of before');
+    const Hm = house(99, 0, 0, 0), cm = Hm.bags.siding.material, c = X.bandOf(cm), s2 = SH(); c.onBeforeCompile(s2);
+    const s0 = SH(); rawHook(cm)(s0);
+    check(c !== cm && c.userData === cm.userData && X.bandOf(cm) === c && c.customProgramCacheKey() === cm.customProgramCacheKey() + '|hlod:out', '5m a G566 bucket\'s material: one banded clone per canonical, its userData shared, its own key');
+    check(s2.fragmentShader.includes(X.lodDither(['out:A'])) && s2.fragmentShader.replace('#include <common>\n' + X.LOD_DECL, '#include <common>').replace('\n' + X.lodDither(['out:A']), '') === s0.fragmentShader,
+          '5n ... its program is the house\'s own plus the band, nothing else');
+    const bm = X.bandOf(new THREE.MeshBasicMaterial()), s3 = { uniforms: {}, vertexShader: THREE.ShaderLib.basic.vertexShader, fragmentShader: THREE.ShaderLib.basic.fragmentShader }; bm.onBeforeCompile(s3);
+    check(!s3.fragmentShader.includes('uLodA'), '5o (negative) a basic material (no view position) keeps its program'); }
+  // 5p the URL flags
+  { const a = run('?houselod=0'), b = run('?x=1&houselod=1'), c = run('?houselod=300&lodfade=0'), d = run(''), e = run('?houselod=0&outlod=1'), f = run('?outlod=0');
+    check(!a.HLOD.lod1 && a.HLOD.outLod === 0 && b.HLOD.near < 0 && b.HLOD.lod1 && c.HLOD.near === 300 && c.HLOD.fadeW === 0 && c.LOD_U.uLodOn.value === 0 &&
+          d.HLOD.lod1 && d.HLOD.outLod === 1 && d.HLOD.near === 150 && d.HLOD.fadeW === 40 && d.LOD_U.uLodOn.value === 1 && !e.HLOD.lod1 && e.HLOD.outLod === 1 && f.HLOD.lod1 && f.HLOD.outLod === 0,
+          '5p ?houselod=0 (lod 0 far and outbuildings: before), =1 (lod 1 from 0 m), =N (the edge at N m), ?lodfade=0 (hard), ?outlod=0|1; the defaults'); }
+  // 5q the host
+  check(/if \(HLOD\.lod1 && o\.game && !IN_STREAM\) \{ try \{ grp\.userData\.lod1 = lod1Bags\(HG, house\.P, F\)/.test(RP) && /IN_STREAM = true; try \{ buildOne\(p\); \} finally \{ IN_STREAM = false; \}/.test(RP) && /HG\.build\(plot\.out\.P, \(HLOD\.outLod && o\.game\) \? 1 : 0, F2\)/.test(RP) && /const banded = g => !!\(HLOD\.lod1 && g\.userData\.lod1 && g\.userData\.lod1\.length\)/.test(RP) &&
+        /const B = hlodMerge\(bagsB, lodMat\('mid'\), true\), H = hlodMerge\(bagsH, lodMat\('hard'\), false\);/.test(RP) && /cl\.box = hlodBoxes\(B\.HB, lodMat\('hard'\)\)/.test(RP) && /cl\.boxH = hlodBoxes\(H\.HB, lodMat\('hard'\)\)/.test(RP) &&
+        /lod: \{ U: LOD_U, decl: LOD_DECL, glsl: lodDither\(\['out:A'\]\) \}/.test(RP) && /TA\.material\(b\.c\.kind, b\.c\.side, m0\.material\.dithering, !b\.band\)/.test(RP) && /b\.band \? bandOf\(b\.mat\) : b\.mat/.test(RP),
+        '5q the host: a house builds its lod 1 with its lod 0 (not in the in-flight stream), the outbuilding at outLod; the banded far town merges lod 1, its near rung (TARR, G566) and boxes wear the band; an item keeps G559\'s rungs');
 }
 
 console.log(`${checks - fail.length}/${checks} checks`);
