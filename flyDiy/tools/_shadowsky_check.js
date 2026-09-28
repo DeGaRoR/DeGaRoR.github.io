@@ -76,7 +76,12 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
     ok(c0.layers.isEnabled(SN.CRAFT_LAYER) && c0.layers.isEnabled(SN.NEAR_LAYER) && c1.layers.isEnabled(SN.NEAR_LAYER) && !c1.layers.isEnabled(SN.CRAFT_LAYER), '2 G1005: viewport 0 draws the craft (and the near casters in its box), viewport 1 the near casters');
     ok(hid && back, '2 G1005: the craft cascade walks the craft alone - the rest of the scene hidden for viewport 0, back for viewport 1', `hidden ${hid} restored ${back}`);
     const cg = SN.C1.tgt; SN.setNear([[cg.x, cg.y, cg.z, 2]]); sh.getCamera(0); const kept = other.visible; sh.getCamera(1);
-    ok(kept, '2 G1005: a near caster in the craft box (a hangar over the aeroplane) - the cascade walks everything');
+    ok(kept, '2 G1005: a near caster in the craft box given without its object - the cascade walks everything');
+    { const town = new THREE.Group(), hangar = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshStandardMaterial()), shed = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+      hangar.castShadow = shed.castShadow = true; town.add(hangar, shed); scene.add(town);
+      SN.setNear([[cg.x, cg.y, cg.z, 2, hangar]]); sh.getCamera(0); const path = hangar.visible && town.visible && !shed.visible && !other.visible && craft.visible; sh.getCamera(1);
+      ok(path && shed.visible && other.visible, '2 G1005: a caster in the window keeps its chain alone - its siblings and the rest of the scene hidden for the cascade, all back after', `path ${path}`);
+      scene.remove(town); }
     { const far = SN.C1.tgt.clone().addScaledVector(sun, -150);   // 150 m down-sun of the craft, past its ground shadow: out of the window
       SN.setNear([[far.x, far.y, far.z, 2]]); sh.getCamera(0); const hidFar = !other.visible; sh.getCamera(1);
       ok(hidFar, '2 G1005: a near caster past the craft ground shadow (150 m down-sun) does not stop the pruning - the window, not the frustum'); }

@@ -184,21 +184,30 @@ var SHADOW_NEAR = (function () {
   let nearSpheres = null;   // render_world's nearTag: [x, y, z, r] of the casters on NEAR_LAYER now (setNear)
   function setNear(list) { nearSpheres = list; }
   // prune(): the craft's cascade walks the craft's subtree alone - unless a near caster reaches into its frustum
+  // (PATHS, not all or nothing: Jolene's merged casters - the taxiway's poles as one mesh, 136 m round; the town's houses
+  // batch, 91 m - stood in every window, and an unpruned walk of the ~4 000 visible objects was +1.1 ms. Kept now: the
+  // craft's subtree and the ancestor chain of each caster in the window; every other child along those chains is hidden.)
+  const keep = (typeof Set !== 'undefined') ? new Set() : null;
   function prune() {
     const sc = C1.scene; if (!sc || !craftGroup || C1.hidden.length) return;
+    let top = craftGroup; while (top.parent && top.parent !== sc) top = top.parent;
+    if (top.parent !== sc) return;
+    keep.clear(); keep.add(sc); keep.add(top);
+    let n = 0;
     if (nearSpheres) {
       const P = C1.pos, L = C1.dir, lat = C1.H * 1.415;
       for (const q of nearSpheres) {
         const dx = q[0] - P.x, dy = q[1] - P.y, dz = q[2] - P.z, d = -(dx * L.x + dy * L.y + dz * L.z);   // along the view (the camera looks down-sun)
         if (d < -q[3] || d > C1.dB + q[3]) continue;
         const l2 = dx * dx + dy * dy + dz * dz - d * d, r = lat + q[3];
-        if (l2 < r * r) { C1.full++; return; }
+        if (l2 >= r * r) continue;
+        if (!q[4]) { C1.full++; return; }                          // a sphere without its object: walk everything
+        for (let o = q[4]; o && o !== sc; o = o.parent) keep.add(o);
+        n++;
       }
     }
-    let top = craftGroup; while (top.parent && top.parent !== sc) top = top.parent;
-    if (top.parent !== sc) return;
-    for (const o of sc.children) if (o !== top && o.visible && !o.isLight) { o.visible = false; C1.hidden.push(o); }
-    C1.pruned++;
+    for (const k of keep) { if (k === top) continue; const ch = k.children; for (let i = 0; i < ch.length; i++) { const c = ch[i]; if (!keep.has(c) && c.visible && !c.isLight) { c.visible = false; C1.hidden.push(c); } } }
+    if (n) C1.full++; else C1.pruned++;
   }
   function unprune() { const h = C1.hidden; for (let i = 0; i < h.length; i++) h[i].visible = true; h.length = 0; }
   function atlas(sh) {

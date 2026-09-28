@@ -977,7 +977,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const dx = s[0] - cg[0], dy = s[1] - cg[1], dz = s[2] - cg[2];
       const near = o.castShadow && s[3] >= NEAR_MIN_R && Math.sqrt(dx * dx + dy * dy + dz * dz) - s[3] < R;
       if (near !== o.layers.isEnabled(NL)) { if (near) o.layers.enable(NL); else o.layers.disable(NL); }
-      if (near) nearNow.push(s);
+      if (near) { s[4] = o; nearNow.push(s); }   // (the object rides along: the cascade keeps its chain)
     }
     if (SHADOW_NEAR.setNear) SHADOW_NEAR.setNear(nearNow);
   };
