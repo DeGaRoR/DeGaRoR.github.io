@@ -318,6 +318,7 @@ const tick = () => new Promise(r => setImmediate(r));
     const pageDef = buildGen(spec);
     const view = SV.makeSimView(pageDef, { ready, post: (m, tr) => host.post(m, tr) });
     ok(!view.mismatch && ready.defSig === SV.simViewDefSig(pageDef), name + ': the host\'s aeroplane is the page\'s (' + ready.defSig + ', ' + ready.n + ' nodes, ' + ready.substeps + ' substeps)');
+    const wv0 = new Float64Array(snap0.buf)[ready.slots.WV];   // the world's version at this flight's step 0 (G815)
     view.take(snap0);
     // the scripted inputs through the view, stamped
     for (const [k, f] of EVENTS(pageDef)) { view.at(k); f(viewActs(view)); view.flush(); }
@@ -357,8 +358,9 @@ const tick = () => new Promise(r => setImmediate(r));
        name + ': fuel, eng and the levers are the solver\'s (fuel ' + f3(view.fuel.kg) + ' kg, engine ' + (view.eng[0] && view.eng[0].running ? 'running' : 'stopped') + ')');
     ok(view.ap.phase === ap.phase && view.ap.t === ap.t && JSON.stringify(view.ap.status) === JSON.stringify(SH.simHostPlain(ap.status, 4)),
        name + ': the pilot\'s snapshot is the pilot\'s (' + ap.phase + ', t ' + f3(ap.t) + ' s)');
-    ok(fB[S.WV] === 1 && fB[S.LATE] === 0 && fB[S.STEP] === N && view.state().strays === 0,
-       name + ': the world-version counter moved with the day (' + fB[S.WV] + '), no command late, step index ' + fB[S.STEP]);
+    // (G815: the version is the WORLD's, kept across flights on a kept world - this flight's one setDay moved it by one)
+    ok(fB[S.WV] === wv0 + 1 && fB[S.LATE] === 0 && fB[S.STEP] === N && view.state().strays === 0,
+       name + ': the world-version counter moved with the day (' + wv0 + ' -> ' + fB[S.WV] + '), no command late, step index ' + fB[S.STEP]);
     // the interpolation: halfway between the two newest, clamped at both ends
     if (b === 0) {
       const fBw = fB[S.WALL], dt = 1000 / 60;

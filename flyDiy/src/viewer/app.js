@@ -5026,6 +5026,13 @@
       if (ap.box && ap.box.on) ap.update(dt); else ap.t += dt;
       manualEnding(dt);
     } else ap.update(dt);
+    scriptView(dt);
+  }
+  // G815 (C1b): THE SCRIPT'S UI HALF - the pattern, the trace, the rail, the watchdogs, the card. Inline it runs
+  // inside script(), every step, as it always did; under ?simw=1 the pilot flies in the worker and this runs once
+  // a frame on the page, reading the pilot's snapshot (sim_link.js mirrors it into `ap`)
+  function scriptView(dt) {
+    if (!started) { setRail(null); return; }
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
@@ -10872,6 +10879,12 @@
       return out;
     },
   }) : null;
+  // G815 (C1b): ?simw=1 - THE SOLVER ON ITS OWN THREAD (sim_link.js over sim_host.js / sim_view.js), default off.
+  // Null without the flag, and the loop's step block below is the inline loop it always was.
+  const SIMW = (typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined' && /[?&]simw=1(&|$)/.test(location.search || '')) ? SIM_LINK.make({
+    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, lastStart, fromId, destId, shake: shakeOf }),
+    rig: () => PACE.state().legacy, premises: () => WB.premisesPlaced }) : null;
+  if (SIMW) window.FLYDIY_SIMW = SIMW;
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
   function loop(ts) {
     requestAnimationFrame(loop);
@@ -10936,19 +10949,23 @@
     // held at ultimate: the bags stay on and the wing stays bent, so the result
     // is still there to look at rather than snapping back the frame it finishes
     else if (inGarage && rig) updateLoadViz(rig);
-    if (inGarage) { fixTick(); PACE.hold(); }   // A9: the advisor's page slice, when it has no thread
-    else if (rollHold) PACE.hold();    // G690: the roll-out screen is up - the flight starts on the stand when it lifts
+    if (inGarage) { fixTick(); PACE.hold(); if (SIMW) SIMW.idle(); }   // A9: the advisor's page slice, when it has no thread
+    else if (rollHold) { PACE.hold(); if (SIMW) SIMW.warm(); }    // G690: the roll-out screen is up - the flight starts on the stand when it lifts
     else if (running && !inGarage) {
       // A9: 2× steps twice a frame on the test flight; a doubled step that
       // costs more than a frame for half a second drops itself back to 1×
       // G586: THE STEPS THE REAL TIME OWES (PACE.frame), each the solver's own 1/60 s - one at a steady 60,
       // two at 30; 2x flies twice as many, and "a frame" is the cap's budget
       const t2 = perfNow(), nStep = pc.steps * simRate;
-      for (let k = 0; k < nStep; k++) {
+      // G815 (C1b, ?simw=1): the worker steps - the page posts its inputs and takes the newest snapshot (sim_link.js;
+      // `hold` while the worker makes the flight). null = this frame flies inline, the loop as it always was
+      const sw = SIMW ? SIMW.frame(nStep, simRate) : null;
+      if (sw) { if (sw.hold) PACE.hold(); if (FR) FR.push(0); scriptView(sw.simDt); if (FR) FR.pop(); }
+      else for (let k = 0; k < nStep; k++) {
         if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
         if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
       }
-      physMs = perfNow() - t2; simDt = nStep / 60; ran = nStep;
+      physMs = perfNow() - t2; simDt = sw ? sw.simDt : nStep / 60; ran = sw ? sw.ran : nStep;
       if (simRate > 1) {
         if (physMs > 0.6 * PACE.budgetMs()) { if (++slowFrames >= 30) simRateSet(1); } else slowFrames = 0;
       }
@@ -10962,7 +10979,7 @@
         endFlight('broke-up');
         $('phName').textContent = 'SIM DIVERGED — RESET';
       }
-    }
+    } else if (SIMW) SIMW.idle();       // G815: nothing flies this frame (a pause, the card) - the worker's clock stops
     if (FR) FR.lap(FR.S.other);        // G620: the hand, the shed, the day, the director, the panel
     const cg = sim.cgPos();
     // The world does not exist while you are in the garage, so it is not
