@@ -136,7 +136,7 @@ const ALLOW = {
     "src/viewer/lot_tex.js": 1,
     "src/viewer/parked.js": 6,
     "src/viewer/pattern_vis.js": 3,
-    "src/viewer/pavement.js": 1,
+    "src/viewer/pavement.js": 3,   // +2 G1045 (B11-EYES): the ?pavetest= swap materials (white, grass), made only when the test switch is used
     "src/viewer/plume.js": 1,
     "src/viewer/post_fx.js": 1,
     "src/viewer/powerline.js": 1,
