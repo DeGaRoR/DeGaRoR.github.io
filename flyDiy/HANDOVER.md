@@ -62615,3 +62615,130 @@ label wraps).
 
 OWED / NOT DONE: a units option (none exists); the shed rail is 7 items (its own four - camera, display, explode,
 legend - were not the ask); a look on the user's screen at the fold density (the heads' `sub` lines may want to go).
+
+## G1035-G1039 - B10: THE ROLL-OUT SHOT - the aeroplane rolls out of the open door, the camera tracks it onto the stand's first frame, then the cut (2026-09-28, a cloud session, node + headless Chromium)
+
+The user (2026-09-28): "a roll out animation... have the plane roll out of the hangar and a camera movement, then cut
+and reinitialize on the aircraft in the world, like now" - "the door is already open, so the aircraft just rolls out,
+and the camera tracks it". No door animation.
+
+WHAT. `src/viewer/rollanim.js` (new, MANIFEST.viewer.scripts before world_boot.js / app.js; publishes window.ROLLANIM):
+- GARAGE SCENE ONLY. The aeroplane (app.js `craft`) is moved KINEMATICALLY (no solver) straight out through the door
+  (hangar.js: the door wall at local -x, `doorAxis: -1`, the floor at the room group's y) to 1.5 m past the door
+  plane or further (below). The drawn wheels (model.wheelParts, their own R - the radius poseModel spins them by,
+  the axle node's r when no drawn part) turn exactly rolled / R; the props turn at idle (650 rpm, spooled over 0.6 s)
+  through the host's own pose: sim.out.rpm is held at idle for the shot (poseModel's G442.1 source, so the disc of
+  G672 takes over as it does in flight) and put back. A heave where the main pair crosses the sill, a pitch where
+  the third wheel does (nose up for a nosewheel, down for a tailwheel), a nod with the roll's own acceleration.
+  Cosine ramp up, cruise, ramp down to a stop; 0.35 s held at the start, 0.3 s at the end; 4-6 s in all.
+- THE CAMERA ends on THE STAND'S FIRST FRAME: the pose app.js flRevealStart() starts the eye in after the cut -
+  az = the tail's direction + side x 0.45 (chase), + side x 1.0 (orbit: tgt + 0.55, then + 0.45), -PI/2 + side x 0.45
+  (wing); el 0.16; dist 1.7 x viewDist; aimed at the CG; the flight's fov - so the reveal's slow ease simply goes on
+  after the cut. It starts from wherever the shed's orbit left the eye, the framing (az, el, log dist round the
+  moving CG) eased to the stand's; the aim leaves the shed's look point for the CG over the first third.
+- THE PLAN (once, at play(): ~1.5 ms warm, ~25 ms cold in node) picks the SHORTEST roll that leaves the aeroplane out
+  and the eye legal ALL THE WAY - in the room clear of its walls (0.6 m: CAM_NEAR is 0.5), in the door's opening
+  (0.35 m under its head), or outside - with no wall between the eye and the aeroplane. Candidates: the straight ease
+  with the swing held 0 / 0.35 / 0.6 of the shot (el with it or not), and through a WAYPOINT (a low chase framing
+  6-8 m behind the tail that follows the aeroplane out through the opening, at 35 or 50 % of the shot); the start's
+  own side first, the other at +3 m. An eye starting INSIDE the aeroplane (a fresh profile's aeroplane chooser leaves
+  the camera at the origin - seen in Chromium) starts from the shed's boot framing instead. A plan with a wall left
+  in it is clamped per frame (none in the club or works shed; the FIELD shed's 3.1 m x 9 m door leaves some - no
+  wing this generator builds fits through it anyway).
+- THE ROLL'S LENGTH follows the framing: the stand's eye is 1.7 x viewDist out, so orbit (the default cam.mode) rolls
+  24-35 m in the club shed (peak 6-9 m/s over 6 s); chase 20 m for the small ones, up to ~49 m for the Caravan and the
+  twin bush hauler (their chase eye cannot stand inside or beside the shed, only out in front of it).
+- IN THE WAY: a mobile-kit prop (hangar.js MOBILE: the nose station's hand truck, a jerrycan) or the day card the
+  aeroplane's own drawn meshes would sweep through is hidden for the shot (mesh by mesh: a high wing passes over a
+  jerrycan) and shown again; the aeroplane's baked print (CS.quad) rides with it. hangar.js returns three new
+  handles for this: `door: { w, h }`, `craftPrint()`, `mobileGroup`.
+- SKIP: the first click (pointerdown) or key (not a bare modifier, not a repeat), taken in the capture phase and
+  stopped there, puts the camera on the end pose, puts the aeroplane back and calls onDone AT ONCE. `skip: true` ->
+  onDone synchronously, no shot. A floatplane (no wheel anywhere) is SKIPPED cleanly (onDone at once, handle.skipped
+  says why) - no trolley.
+- NOTHING HEAVY: no load, no build, no world; the frame's work is a few dozen flops and THREE setters, ~1-2 us, ~16
+  bytes of heap a frame (the doubles live in a Float64Array and are handed to no call - a closure variable or a
+  non-inlined call boxes every double in V8; this was 100-300 B/frame before).
+
+THE HOOK FOR B8B9 (what it expects):
+
+    ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
+                    camMode: cam.mode, fov: cam.fov, side?,  onDone: h => { ...the cut... } })  -> handle
+
+  - CALL IT with inGarage, the room built (garageIsHangar()), the MESH showing (showCage false + applySkinVis();
+    closeEditor(); the plaque off; no load-test rig, rigLift 0) and the build ALREADY COMMITTED (syncBuild before,
+    never during). It moves `craft` (position / quaternion) and PUTS IT BACK AT IDENTITY BEFORE onDone - so onDone
+    does the cut exactly as rollOutStand does today (scene.add(craft), fullReset, flRevealStart).
+  - THE HOST DRIVES IT (no renderer passed): app.js's frame loop now has the two lines it needs - ROLLANIM.frame(fdt)
+    just before poseModel() (the craft, the wheels, the rpm - the pose then reads them) and ROLLANIM.camera() just
+    after placeCamera() (the shot's eye over the orbit's). Both are no-ops when nothing plays; the first also cancels
+    a shot left running when inGarage went false. Pass `renderer` only for a page without that loop (the shot then
+    runs its own rAF and renders scene + camera itself).
+  - onDone(h) runs in a microtask AFTER the last frame (which drew the end pose), or at once on a skip; never after
+    cancel() / ROLLANIM.cancel(). h.plan.side is the side the eye ended on: hand it to flRevealStart (the optional
+    call site sets `raSide`, which flRevealStart now reads once) or the first world frame may mirror the shot.
+  - it does NOT wait for or hide anything: if the world is not ready at onDone, whatever screen the host shows comes
+    after the shot (the user's rule: the shot never hides load time).
+  - THE OPTIONAL CALL SITE (app.js, just above rollOut, marked B10): behind `?rollanim=1` (or localStorage
+    flydiy.rollanim = '1') rollOut(after, sync) commits the build (syncBuild, inline, BEFORE the shot), plays the shot
+    (rollAnimPlay: closes the chooser / editor / plaque, the mesh up), and on onDone calls rollOut(after, false,
+    true) with raSide set. OFF by default: nothing changes for a player until B8B9 (or the coordinator) turns it on.
+    B8B9 may move it into its upfront-load roll-out or drop it; keep the two frame-loop lines and the raSide read.
+
+GATES
+- ROLLANIM (new, core, ~30 s; tools/_rollanim_check.js; re-runs itself under --expose-gc): the real vendor three,
+  every archetype of _cage_design.js built (buildGen) and stood on its wheels as enterGarage does (sim.reset +
+  standOnWheels, copied), rigged as app.js's model (wheelParts at the axle nodes, a prop per engine with engIdx), the
+  club shed; driven through the host's two hooks with the host's placeCamera spoiling the eye between them.
+  G1035 the whole aeroplane past the door plane at the last frame, the eye's path legal (club and works sheds), the
+  craft and the print put back after; G1036 each wheel turned rolled / R to 1e-9, the roll = the plan's length, 4-6 s,
+  sim.out.rpm at idle mid-shot and put back; G1037 < 64 B / frame over 3000 warm hooked frames (17.5 measured), a
+  hooked frame < 200 us (1-2 measured); G1038 a key and a click mid-shot -> onDone once, at once, the aeroplane
+  already put back, the event taken (a later listener never sees it), a second input does nothing, skip:true is
+  synchronous, cancel() never calls onDone, a play() over a running shot cancels it; G1039 all 26 wheeled archetypes
+  play without throwing, the floatplane is skipped cleanly, the last frame's eye IS standFraming round the CG (orbit
+  for all; chase / orbit / wing x both sides for the Cub, C172, DA62, Tiger Moth) and aimed at it, 40 random shed eyes
+  plan legal paths (rolls <= 35 m), an eye inside the aeroplane starts from the boot framing, and flRevealStart's own
+  source still frames the stand as standFraming assumes (a regex on app.js - change one, change the other).
+  Mutation-checked: wheels at ds / 2R (26 red), onDone twice on a skip (4 red), the roll stopping at L / 2 (154 red).
+- `node tools/_rollanim_check.js --page` (BY HAND, ~2 min, ~3.6 GB: FRAMECOST's _page_node.js harness): dev.html
+  itself with ?rollanim=solo - the Cub boots in the shed and the shot plays through app.js's own hooks: 360 hooked
+  frames (6.00 s), the Cub past the door, the eye legal, the three DRAWN wheels turned rolled / R, the prop spun by
+  poseModel at idle (464 rpm at t = 2 s, poseModel's own 1.5 s ease toward 650), the last frame's eye the stand's
+  (orbit), onDone once with the aeroplane put back, no page error. PASS.
+- BUILD, BOOT, UISMOKE, HANGAR, STAND, MEDIA: PASS (targeted; the page grows by ~39 KB of code - rollanim.js 35 KB and the app.js call site; MEDIA reads +67 KB over the committed index.html, the rest being the base tree's own unbuilt drift). Not --all.
+
+HOW TO EYEBALL IT ON THE BOX (the coordinator, a real GPU):
+  1. `node flyDiy/tools/_serve.js 8450` from the repo root, open http://localhost:8450/flyDiy/dev.html?rollanim=solo
+     (index.html takes the same flag). The shed boots; 1.5 s after the loading screen lifts the editor closes and the
+     shot plays ALONE: the aeroplane rolls out, the camera follows; at the end the aeroplane is put back in the shed,
+     the camera and the editor come back. Nothing rolls out, no world. `?rollanim=loop` replays it every 2.5 s;
+     `FLYDIY_ROLLANIM()` in the console plays it once (from any shed camera: orbit somewhere odd first).
+  2. `?rollanim=1`: the real sequence - press ROLL OUT: the build commits (a short freeze before the shot, the old
+     sync), the shot plays, then the cut to the stand (and, on a first roll-out, today's loading screen AFTER it -
+     B8B9's upfront load removes that).
+  3. LOOK FOR: the wheels turning with the ground (no skid), the prop disc at idle, the settle at the sill (subtle:
+     1.8 cm, 0.26 deg), no wall or door header in front of the lens, the cut: the first world frame should look like
+     the shot's last frame continued (same side, same distance and height, the aeroplane in the same place on
+     screen). Try a Cessna-alike (trike) and a twin, a click and a key mid-shot (immediate), the frame rate in the
+     F8 overlay (the shot adds nothing: if it dips under 30 it is the shed's own render with the eye outside).
+  4. Dials, live: ROLLANIM.S (Tmin / Tmax, vCruise, idleRpm, sillHeave, sillPitch, brakePitch, margin, head).
+
+SEEN IN A BROWSER: headless Chromium 141 on this box (SwiftShader, no GPU), dev.html?world=none&rollanim=solo:
+the page booted with the shed and a fresh profile's aeroplane chooser up; ?rollanim=solo started
+the shot 1.5 s after the loading screen lifted, through app.js's own hooks. It FOUND A BUG the node runs could not:
+the chooser leaves the camera at the origin, inside the Cub (d0 1.4 m), and no path from there was legal (33 clamped
+samples of 49) - hence the "eye inside the aeroplane starts from the boot framing" rule and its gate check. After the
+fix the same page planned L 27.8 m, orbit, side -1, 0 bad samples, the start marked fresh. NOT SEEN: a single rendered frame
+of the shot - SwiftShader takes 30 s and more per frame of the shed with the eye outside (one frame in 30 s; a
+Playwright screenshot timed out at 120 s), so the run was stopped after the first frame. Pictures, motion, the cut
+and the frame rate are for the coordinator's eye on a real GPU (above); the full 360-frame run is the node --page
+check.
+
+NOT DONE / OWED
+- No trolley for floats (skipped cleanly, as allowed).
+- The field shed: its door is narrower than every wing; the eye's plan leaves up to 10 of 49 samples clamped there.
+- The key light's real-time shadow is the room's: whether its shadow camera covers the apron 30 m out is for the eye
+  on the box (the baked print follows the aeroplane regardless).
+- The mobile kit's baked floor print stays where a hidden prop stood (the kit's own bake; not re-baked mid-shot).
+- The shot itself is OFF for players until B8B9 / the coordinator switches the call site on.
