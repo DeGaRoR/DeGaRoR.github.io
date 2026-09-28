@@ -1,0 +1,108 @@
+{
+ "date": "2026-09-28T09:07:14.251Z",
+ "url": "http://localhost:8595/flyDiy/dev.html?world=jolene",
+ "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "label": "c4a_baked",
+ "frames": 180,
+ "rows": [
+  {
+   "place": "stand",
+   "probe": "base",
+   "tier": "full",
+   "where": {
+    "at": [
+     -153,
+     31,
+     711
+    ]
+   },
+   "frame": {
+    "median": 24.5,
+    "p90": 25.8,
+    "timed": 24.2
+   },
+   "gpuSum": 24.44,
+   "cpuWorld": 1.6,
+   "calls": 1693,
+   "tris": 24417297,
+   "gpuUtilBefore": 99,
+   "tags": {
+    "clouds:march*": {
+     "median": 0.88,
+     "p90": 0.93,
+     "calls": 1
+    },
+    "atmo:sky": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "atmo:ap": {
+     "median": 0.02,
+     "p90": 0.02,
+     "calls": 1
+    },
+    "scene": {
+     "median": 23.28,
+     "p90": 24.63,
+     "calls": 1
+    },
+    "resolve": {
+     "median": 0.13,
+     "p90": 0.13,
+     "calls": 1
+    },
+    "postfx:600x337": {
+     "median": 0.01,
+     "p90": 0.02,
+     "calls": 2
+    },
+    "postfx:300x168": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "postfx:150x84": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "postfx:75x42": {
+     "median": 0,
+     "p90": 0,
+     "calls": 1
+    },
+    "postfx:1200x675": {
+     "median": 0.02,
+     "p90": 0.02,
+     "calls": 2
+    },
+    "canvas:postfx": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "shadow:far": {
+     "median": 0,
+     "p90": 0.21,
+     "calls": 0.3
+    },
+    "shadow:maps": {
+     "median": 1.27,
+     "p90": 1.58,
+     "calls": 15.4
+    }
+   },
+   "post": {
+    "bloomMs": 0.10362464866176671,
+    "lookMs": 0,
+    "raysMs": 0,
+    "aoMs": 0,
+    "eyeMs": 0,
+    "eyeK": 1,
+    "eyeLum": 0,
+    "passes": 1
+   }
+  }
+ ]
+}
