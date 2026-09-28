@@ -63848,3 +63848,83 @@ TRAPS:
 - rollout_perf's BEFORE needs its own worktree: `node tools/build.js` in the working tree rewrites index.html, and a queued BEFORE series would measure your build.
 - A `//` comment spliced into a one-line template-string eval comments out the rest of the line (the rig's placements filter: "p is not defined").
 - The roll-out's `parked` step read 0 ms in BOOT.log before this: the captures ran INSIDE `town` (enqueue -> the pump). Read the per-key lines or PARKED.records[k].t, not the step.
+## G800-G802 - C0: THE HOUSES' LOD 1 PAST 150 M, THE OUTBUILDINGS AT LOD 1, THE SWAP ON A DITHERED BAND (2026-09-28, C0 items 1-2 of QUEUE-C, a cloud session, node only)
+
+WHY: ARCH-2026-09-27 §1.2 / §5 interim 1 / §9 rows 2-3. The game built only lod 0. Its far town (G559 `hlodCell`) merged each house's three largest lod-0 bags, and the outbuilding was a second full lod-0 house. The generator's own lod 1 ("TWO MESHES, ONE CONSTRUCTION", tools/_house_gen.js:26-33) was never asked for: 10 % of the triangles at 15 % of the build time. Item 3 (the parked cook) is a separate local session.
+
+G800 LOD 1 (src/viewer/render_premises.js)
+- **The build.** `buildHouse` builds each house's lod 1 in the same call as its lod 0, with the same finish, so it happens where the house is built: under the roll-out screen. The helper is `lod1Bags`: opaque standard bags only, position + normal kept, and `userData.box` on the walls and roof. The meshes are kept on `grp.userData.lod1` and never join the scene or the GPU.
+- **Where no lod 1 is built:**
+  - the in-flight stream (G591's items past the roll-out's 4 km: `IN_STREAM`, set in `stream()` only), so no work is added to a frame in flight;
+  - the bench (`o.game` false).
+  - Such a house keeps G559's lod-0 far town.
+- **The merge.** `hlodCell` is split into `hlodMerge` (the old merge loop, unchanged colour recipe) run on two sets:
+  - houses with a lod 1 go into `cl.mesh`, the lod-1 far town, banded (G801), each vertex carrying its house's centre and radius (`aHC`);
+  - everything else (site items, parks, objects, streamed houses) goes into `cl.meshH`: its lod-0 kept bags, G559's plain material, the hard switch of before.
+- **The boxes** (G594, past 1.2 km) are built per set. Both keep G559's plain program and the hard switch. A banded house's box extent and colour come from its lod-1 walls and roof.
+- **The outbuilding** is built at `HLOD.outLod` (1) in the game.
+- **Dials:** `WORLD.premises.hlod.{lod1, outLod}` are read at build time; set them before the roll-out, or use the flags below.
+
+G801 THE BAND
+- **The GLSL.** `lodDither` is the trees' interleaved-gradient noise (render_world DITHER_GLSL) against t = clamp((d - (near - W/2)) / W) of the fragment's view distance. The rung leaving keeps n < 1 - t; the rung arriving keeps n >= 1 - t. That is complementary: one rung per pixel.
+- **The edge.** `HLOD.near` 150 m, `HLOD.fadeW` 40 m, so the band is 130-170 m.
+- **The leaving rung.** The near rung leaves: house_tarr's town material (`make(..., { lod })`, a `:lod` program key; `material(kind, side, dith, bare)` gives the unbanded one to items), and G566's per-material merges of a banded house (`bandOf`: a clone of the canonical material, its userData shared, the house's own hook then the band, key + `|hlod:out`; a material with no vViewPosition keeps its program).
+- **The arriving rung.** The lod-1 far town (`lodMat('mid')`) arrives. Its vertex stage drops a house whose centre + radius lies inside 130 m. GATE TARR 5i2 proves that cull never drops a fragment the band would draw.
+- **Visibility is a superset of the band** (`hlodTick`): the near rung while the cell's nearest point is under 170 m; lod 1 while its farthest (+40 m for heights) is over 130 m and the boxes are not up.
+- **Unbanded, as before:** the items' rungs, each house's own leftover bags (lamps, smoke, glass the arrays did not take) and the boxes switch per cell with hysteresis. The per-cell `far` flag is now at near + W/2 (170 m, ±10 %).
+- **Why no band at 1.2 km.** A first cut banded the boxes too. That was a program more in every pass that draws the village from the stand (the mirror's and the probes' too), for houses a few pixels tall, so it went.
+- **Why items stay hard.** Banding them in the aerodrome's cells would have cloned ~7 item programs.
+- **Flags** (render_premises, read at load):
+  - `?houselod=0`: the lod-0 far town, lod-0 outbuildings, no band (= the base: a FRAMECOST census with it equals the baseline to the last count);
+  - `?houselod=1`: the lod-1 far town from 0 m (near = -100);
+  - `?houselod=N` (N > 1): the edge at N m;
+  - `?lodfade=0`: the hard switch;
+  - `?outlod=0|1`: the outbuildings alone.
+  - Live: `WORLD.premises.hlod.near` / `.fadeW` (the next frame; `fadeW = 0` is the hard switch).
+
+G802 THE PROOF IN NODE
+- **FRAMECOST's recording GL counts triangles.** tools/_fake_gl.js `drawTris`: TRIANGLES only, count / 3, times the instances, the multi-draws summed. They are counted by pass (`tris.main` / `.shadow` / `.other`).
+- **The census counts the house generator's builds by lod.** These are `house.build0/1` and `house.tris0/1`, ratcheted on the boot rows, plus `house.ms0/1` (wall ms, reported only).
+- **New counters** (`NEW_KEYS`) read `new`, not RED, against a baseline older than them.
+- **ALLOW rows G800/G801** carry the reasons, measured apart. The baseline was re-taken (`--update`: 0 rises, 55 falls, the new counters).
+- **GATE TARR §5** (19 checks, tools/_tarr_check.js): the HLOD block lifted and run; lod 1 as the source; the band's GLSL transpiled to JS and swept over 0-1400 m (one rung per pixel, whole outside the band, monotone across it, off when uLodOn 0); the programs; the flags; the wiring.
+- **MEASURED** (PLAYTEST §0.22 has every table):
+  - **At the stand and the taxi,** triangles fall 10-12 k (the outbuildings). Draws and programs are flat. There are +12 program switches (the outbuildings' lod-1 bag set; gone with `?outlod=0`). Buffer uploads fall 25 % at the taxi.
+  - **The town step:** lod-0 builds 98 -> 86, lod-1 builds 0 -> 96 (100 540 triangles). Build time +18 % on the houses: 1.1 s of 6.4 s in node on this box. GL calls 992 = 992. Vertex uploads -2.4 MB. +4 links in the landing frames, under the screen.
+  - **Over the village,** the far town's triangles fall 350 088 -> 96 484 (-72 %) at 400 and 900 m. That is -0.7 % of the frame (36 M: the terrain, forest and ring). Honest: on today's 84 houses the gain is small. It is sized for the town's return.
+- **NOT MEASURED:** the browser (no GPU here). Owed: rollout_perf warm stock + cessnaMetal + one --cold, and frame_perf at:900:-2250:20 with ?houselod=0 vs default.
+
+THE LOOK CHECK (for the coordinator / the user, on the box; dev.html or index.html, Jolene):
+- **Where the switch is.**
+  - Houses go lod 0 -> lod 1 at 150 m from the eye, 3D distance (from 300 m up the whole village is lod 1): dithered per pixel over 130-170 m.
+  - Lod 1 -> boxes at 1.2 km (±10 %), a hard switch per 256 m cell, as before.
+  - The site items (the aerodrome's club, sheds, fuel, objects) are NOT on the band. They switch per cell at 170 m, as before (G559's lod-0 far version).
+  - At HOME's stand and along the taxi, nothing of the band is in view: the stand's cell holds only items, and the village is 3.5 km out, as boxes.
+- **Where to look.** Jolene's village: 84 houses, x 256..1536, z -3072..-2304 (256 m cells 1..5 x -12..-10), ~3.5 km from HOME's stand.
+  - To hold the aeroplane there, paste in the console, then pause:
+    `((X, Z, agl) => { const w = FLIGHT_PROBE.world(), s = FLIGHT_PROBE.sim(), cg = s.cgPos(), dy = w.terrainH(X, Z) + agl - cg[1]; for (let i = 0; i < s.n; i++) { s.p[i*3] += X - cg[0]; s.p[i*3+1] += dy; s.p[i*3+2] += Z - cg[2]; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; } })(900, -2250, 20)`
+    (frame_perf's `at:900:-2250:20` is the same place.)
+  - The poses the node numbers use:
+    - (899, -2234) 400 m north of the village, facing it: all lod 1;
+    - (899, -1734) at 900 m;
+    - (799, -2544) at the village's edge: the nearest houses lod 0, the band in the middle distance.
+- **In motion.**
+  - (1) Fly or taxi from (900, -2000) toward (900, -2600) at taxi-to-approach speed: each house crosses the band in 1-4 s.
+  - (2) Hold still and sweep the band through the village:
+    `let n = 60, t = setInterval(() => { WORLD.premises.hlod.near = n; n += 2; if (n > 700) clearInterval(t); }, 50)`
+    (then `WORLD.premises.hlod.near = 150`).
+  - (3) Climb over the village to 300 m AGL and back down: the whole village goes lod 1 and returns.
+- **What to judge.**
+  - The dissolve should read as a short cross-fade: no pop, no see-through hole, no double wall. Exactly one rung draws a pixel. What lod 0 has and lod 1 lacks (a porch's balusters, the window reveals) dissolves away.
+  - A still camera at exactly 150 m keeps a stipple on those houses, as the trees' bands do.
+  - The far colour is G559's recipe on lod 1. The trims and the dark panes are now their own colours, where the old far town had only the three largest bags, so the far houses may read slightly more detailed or darker. Judge `?houselod=1` (lod 1 up close) against the default and `?houselod=0`.
+  - The outbuildings near the yards are now lod 1 at every distance (panes instead of glass, no ribs or casings). A shed seen from 20 m is the thing to judge; `?outlod=0` gives the old lod-0 shed with the rest unchanged. If the look review asks for "lod 0 near", it is a dial away (outLod) plus a near/far pair per outbuilding (not built).
+- **A/B:** `?houselod=0` (before) | default | `?houselod=1` (lod 1 from 0 m) | `?houselod=300` (the band at 300 m, easier to see) | `?lodfade=0` (the hard switch at 150 m, to see what the band hides).
+- **GATES** (targeted; the merge train runs --all): HOUSE, PREMISES, TARR (71/71), FADES, FRAMECOST (PASS against the old baseline with the ALLOW rows, then re-taken), BUILD, BOOT, UISMOKE: PASS. The full tier was not run.
+- **TRAPS MET:**
+  - A page-in-node process reads src/ at open time: edit nothing under src/ while a census or a probe runs.
+  - FRAMECOST's `draws.total` is the median of the per-frame totals, not the sum of the per-pass medians: a period-2 shadow cascade moves it by ~50 while each pass is flat.
+  - With 6 warm-up frames any added boot time moves the streamers' state into the views: separate "work" from "timing" with a `FRAMECOST_QUERY` control (here `houselod=0`, `outlod=0`) and `--warm 40`.
+- **FOR THE COORDINATOR:**
+  - tools/perf/framecost_baseline.json was re-taken on this branch (on b3bf043). If a train lands first, re-take it on the merged tree; the ALLOW rows G800 / G801 admit this change's rises against the older baseline until then.
+  - The in-flight stream (G591) still builds houses past 4 km in flight, as before this change (this change adds nothing to it). The user's "no background loading in flight" rule is C2a's to close.
