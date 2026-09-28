@@ -32,9 +32,63 @@
   const BINS = new Map();          // collection name -> Uint8Array
   const TEX = new Map();           // url -> THREE.Texture
   const BUILT = new Map();         // subject key -> { parts, bb, h }
+  const FETCHING = new Map();      // collection name -> in-flight Promise (G908: a bin fetched once, whoever asks)
   let WARM = null;
 
   const key = (c, s) => c.name + '|' + s.name;
+
+  // THE REACHABLE CATALOGUE (AS1, G908). Every species the pack ships was fetched (39 bins), built rung by rung and
+  // mapped at the roll-out, whether or not the map could ever plant it: on Jolene with Metlakatla off birch_autumn,
+  // maple, ash and pine_lampi (trees) and grass_plates, grass_scan (cover) are named by no reachable mix - 1.55 MiB of
+  // bins, ~8.5 MiB of maps, up to 62 MiB of GPU. treeReach(names) narrows the catalogue to the collections a map can
+  // reach (treeReachOf below says which); treeList, treeWarm and treeReady then see those alone, so every consumer -
+  // the woodland's pool, the fill's shapes, the settle's rungs, the cover ring, the cliffs - builds what can stand.
+  // null (the analytic world, a bench, a harness that never asks) is the whole pack, as before. A later ask that
+  // GROWS the set (an F8 biome or mix edit, a premises re-stamp: render_world reachRefresh) fetches the new bins.
+  let WANT = null;
+  const wanted = c => !WANT || WANT.has(c.name);
+  // -> the names this call ADDED to a narrowed set (empty when nothing new: nothing to fetch)
+  function treeReach(names) {
+    if (!names) { const grew = WANT ? (PACK ? PACK.collections.filter(c => !WANT.has(c.name)).map(c => c.name) : []) : []; WANT = null; if (grew.length) WARM = null; return grew; }
+    const next = new Set(names), grew = [];
+    for (const n of next) if (!WANT || !WANT.has(n)) grew.push(n);
+    const first = !WANT;
+    if (WANT) for (const n of WANT) next.add(n);   // it only grows: what was reachable stays built
+    WANT = next;
+    if (grew.length && !first) WARM = null;
+    return first ? [] : grew;
+  }
+  const treeWanted = name => !WANT || WANT.has(name);
+  // WHAT A MAP CAN REACH: the mixes the terrain types name (the grid's codes AFTER the premises' stamps - the world
+  // is composed, the town filter applied - and the three 28c_biomes derives: 6 -> 12 cliff, 8 -> 13 forest old,
+  // 7 -> 14 scrub dense), every species those mixes list; the kinds no mix gates (every rock and debris - the strip
+  // stones and the rock map's sprites take them all -, the cliffs cliffs.js stands by slope, grass_dry the cover
+  // ring's lawn); and the premises' own trees (a forest zone's palette - the whole tree pool without one - and the
+  // placed tree objects). null where no biome map applies (no island ttype): the whole pack plants there.
+  // `bio` is the live BIOMES handle when there is one (F8 edits its map; the pack's is the shipped one).
+  function treeReachOf(world, bio) {
+    if (!PACK || !PACK.biomes || typeof BIOMES === 'undefined') return null;
+    const I = world && world.island;
+    if (!I || !I.ttype) return null;
+    const B = bio || BIOMES.make(PACK);
+    const seen = new Uint8Array(256), T = I.ttype;
+    for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
+    if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
+    const names = new Set(['grass_dry']);
+    for (let c = 0; c < 256; c++) { if (!seen[c]) continue;
+      const m = B.mixAt(c), M = m && B.mixOf(m); if (M && M.species) for (const sp of Object.keys(M.species)) names.add(sp); }
+    for (const c of PACK.collections) if (c.kind === 'rock' || c.kind === 'debris' || c.kind === 'cliff') names.add(c.name);
+    const L = world.premises && world.premises.rec && world.premises.rec.layers;
+    if (L) {
+      const treeCols = PACK.collections.filter(c => c.kind === 'tree' || c.kind === 'shrub').map(c => c.name);
+      for (const z of L.zones || []) if (z.kind === 'forest') {
+        if (z.palette && z.palette.length) for (const k of z.palette) names.add(String(k).split('|')[0]);
+        else for (const n of treeCols) names.add(n);
+      }
+      for (const ob of L.objects || []) if (ob.kind === 'tree' && ob.key) names.add(String(ob.key).split('|')[0]);
+    }
+    return [...names];
+  }
 
   // THE KINDS (G454.12): the payload is per SPECIES since the biomes - tree, dead (a standing
   // dead tree, L0 alone), shrub, cover, rock, and a flower (`maps`, no geometry). treeList()
@@ -45,13 +99,13 @@
     if (!PACK) return [];
     const out = [];
     for (const c of PACK.collections) {
-      if (!c.subjects || !c.subjects.length) continue;
+      if (!c.subjects || !c.subjects.length || !wanted(c)) continue;
       if (kind === 'all' ? false : kind ? c.kind !== kind : !isTree(c)) continue;
       for (const s of c.subjects) out.push({ key: key(c, s), col: c, sub: s });
     }
     return out;
   }
-  const withBin = () => PACK ? PACK.collections.filter(c => c.bin) : [];
+  const withBin = () => PACK ? PACK.collections.filter(c => c.bin && wanted(c)) : [];
 
   function treeReady() {
     return !!PACK && withBin().every(c => BINS.has(c.name));
@@ -65,10 +119,16 @@
     if (WARM) return WARM;
     if (typeof window === 'undefined' || typeof window.ASSET_FETCH !== 'function')
       return Promise.reject(new Error('trees: no ASSET_FETCH here'));
-    WARM = Promise.all(withBin().map(c =>
-      (window.BOOT && window.BOOT.expect('treeBin'),
-       window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); if (window.BOOT) window.BOOT.landed('treeBin'); },
-                                      e => { if (window.BOOT) window.BOOT.landed('treeBin', false, c.name); throw e; }))));
+    WARM = Promise.all(withBin().filter(c => !BINS.has(c.name)).map(c => {
+      let f = FETCHING.get(c.name);
+      if (!f) {
+        if (window.BOOT) window.BOOT.expect('treeBin');
+        f = window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); FETCHING.delete(c.name); if (window.BOOT) window.BOOT.landed('treeBin'); },
+                                           e => { if (window.BOOT) window.BOOT.landed('treeBin', false, c.name); throw e; });
+        FETCHING.set(c.name, f);
+      }
+      return f;
+    }));
     return WARM;
   }
 
@@ -610,6 +670,9 @@
     window.TREE_PACK_REG = PACK;
     window.treeWarm = treeWarm;
     window.treeReady = treeReady;
+    window.treeReach = treeReach;
+    window.treeReachOf = treeReachOf;
+    window.treeWanted = treeWanted;
     window.treeList = treeList;
     window.treeBuild = treeBuild;
     window.treeMapsReady = treeMapsReady;
