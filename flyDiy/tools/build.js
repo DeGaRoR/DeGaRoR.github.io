@@ -420,6 +420,9 @@ const MANIFEST = {
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
               'cockpit.js',
+              // B10 (G1035): the roll-out shot - publishes window.ROLLANIM at eval; app.js's frame loop calls
+              // its two hooks and the optional call site (?rollanim=) plays it
+              'rollanim.js',
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)

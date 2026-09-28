@@ -3703,6 +3703,10 @@ return {
   // toward the door at -x. The caller lines the room up with the aeroplane
   // rather than moving the aeroplane, so the sim keeps its own coordinates.
   doorAxis: -1, floorY: 0,
+  // B10 (G1035): the roll-out shot (rollanim.js) reads the opening, moves the
+  // aeroplane's print with the aeroplane and hides a mobile prop in its way
+  door: { w: DOOR_W, h: DOOR_H },
+  craftPrint: () => CS.quad || null, mobileGroup: MOBILE,
   dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
   shell: SHELL,
   // the fit-out this room was built with, and what would not fit (HANGARS
