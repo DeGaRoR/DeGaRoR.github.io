@@ -76,12 +76,30 @@ const ALLOW = [
   { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 4700, why: 'the stand-ins\' maps and the compiled uniforms\' textures uploaded in the upload step', g: 'G730/G732' },
   { key: 'boot/rollout:frames/gl.calls', build: '*', upTo: 51500, why: 'the catch-up upload of the hooks\' textures and the sliced depth variants before first light', g: 'G732' },
   { key: 'boot/rollout:bake/', build: '*', why: 'the flown aeroplane texture bake, a roll-out step under the screen (cached: an IndexedDB hit reads and uploads only)', g: 'G870' },
+  // C0 (2026-09-28, G800-G802): the houses' lod 1 past 150 m, the outbuildings at lod 1, the dithered band. Measured apart
+  // (FRAMECOST_QUERY=outlod=0 and houselod=0 censuses, and 40 warm-up frames instead of 6):
+  //  - THE OUTBUILDINGS AT LOD 1 draw another set of bags (the pane for the glass; the per-house size cut keeps others),
+  //    whose programs interleave in the sort: +12 program switches at the stand and the taxi, and the camera uniforms
+  //    each switch re-uploads (gone with ?outlod=0; triangles -12 k at the stand);
+  ...['stand/gl.useProgram:372', 'stand/gl.uniform3f:300', 'taxi/gl.useProgram:260', 'taxi/gl.uniform3f:168', 'taxi/gl.uniformMatrix4fv:2105']
+    .map(e => ({ key: e.split(':')[0], build: '*', upTo: +e.split(':')[1], why: 'the outbuildings at lod 1: another bag set, their programs interleave (+12 switches)', g: 'G800' })),
+  //  - the band's three programs (the lod-1 town arriving at 150 m, the town material's plain and glass leaving there) and
+  //    the lod-1 houses' G566 clone, linked by hlodWarm as the village's cells bake, in the frames before the lift;
+  { key: 'boot/rollout:landing/links', build: '*', upTo: 4, why: 'the band\'s programs linked as the cells bake, under the screen', g: 'G801' },
+  //  - THE VIRTUAL CLOCK: the town step's 84 lod-1 house builds take harness time, and what the page budgets in milliseconds
+  //    (the ring's planting, the forest fill, the cover's grow) lands in other frames: the rest. With 40 warm-up frames the
+  //    stand's draws are equal (1268 / 726 both); a ?houselod=0 census reproduces the baseline to the last count.
+  ...['stand/draws.total:2215', 'stand/gl.bindVertexArray:2090', 'stand/gl.uniform1f:985', 'stand/gl.uniform2f:295', 'stand/gl.uniformMatrix3fv:590', 'stand/three.frustumTests:2595',
+      'stand/bytes.texSubImage2D:515000', 'taxi/draws.total:1705', 'taxi/gl.bindVertexArray:1585', 'taxi/world.grHeight:54000', 'taxi/world.terrainH:41000',
+      'boot/rollout:frames/world.grHeight:336000', 'boot/rollout:frames/world.terrainH:345000', 'boot/rollout:landing/world.grHeight:146000', 'boot/rollout:landing/world.terrainH:150000',
+      'boot/rollout:ring/world.grHeight:210000', 'boot/rollout:ring/world.terrainH:210000']
+    .map(e => ({ key: e.split(':').slice(0, -1).join(':'), build: '*', upTo: +e.split(':').pop(), why: 'the streaming moved by the lod-1 builds\' harness time (the virtual clock), not per-frame work', g: 'G800' })),
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
 async function census(build) {
   const { openPage } = require('./_page_node.js');
-  const C = bootMark.C = { who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, pick: null };
+  const C = bootMark.C = { who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, hb0: 0, hb1: 0, ht0: 0, ht1: 0, hms0: 0, hms1: 0, pick: null };
   const storage = {};
   if (BUILDS[build]) storage['flydiy.wip'] = fs.readFileSync(path.join(ROOT, BUILDS[build]), 'utf8');
   let mainCam = null;
@@ -91,6 +109,9 @@ async function census(build) {
       if (name === 'vendor/three.min.js') installThree(W.THREE, C);
       if (name === 'src/viewer/boot.js' && W.BOOT) wrapBoot(W, P);
       if (name === 'src/viewer/gfx_settings.js' && W.GFX) { W.GFX.set('preset', 'gamer'); W.GFX.set('shadows', 'full'); }
+      // G800: the house generator's builds by level of detail (calls, triangles built) - the town step's build work
+      if (name === 'tools/_house_gen.js' && W.HOUSE_GEN && !W.HOUSE_GEN.__fc) { const HG = W.HOUSE_GEN, b = HG.build; HG.__fc = true;
+        HG.build = function (P, lod) { const t0 = process.hrtime.bigint(), r = b.apply(this, arguments), l = lod ? 1 : 0; C['hms' + l] += Number(process.hrtime.bigint() - t0) / 1e6; C['hb' + l]++; C['ht' + l] += (r && r.stats && r.stats.tris) || 0; return r; }; }
     },
     beforeScript(name, P) {
       const W = P.win;
@@ -132,7 +153,7 @@ async function census(build) {
   mainCam = typeof FP.camera === 'function' ? FP.camera() : FP.camera;
   // THE FLIGHT HELD: the pause button, the world's clocks with it
   const bP = W.document.getElementById('bPause'); if (bP) bP.click();
-  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm); rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; return r; };
+  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm); rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
   const views = {};
   C.phase = () => P.rec.phase;
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
@@ -280,11 +301,16 @@ function diff(a, b) {
   if (ub) r['bytes.uniforms'] = ub;
   let draws = 0; for (const k of Object.keys(b.rec.draws)) { const v = b.rec.draws[k] - (a.rec.draws[k] || 0); if (v) { r['draws.' + k] = v; draws += v; } }
   r['draws.total'] = draws;
+  // G800: the triangles handed to the GPU, by pass (the house LOD's measure; a count, not a cost)
+  if (b.rec.tris) for (const k of Object.keys(b.rec.tris)) { const v = b.rec.tris[k] - ((a.rec.tris || {})[k] || 0); if (v) r['tris.' + k] = v; }
   d('links', a.rec.links, b.rec.links);
-  for (const k of ['umw', 'um', 'obr', 'oar', 'obs', 'mobr', 'frustum', 'terrainH', 'grHeight', 'renders']) d(NAMES[k], a.c[k], b.c[k]);
+  // the house builds' own wall time (ms, this machine; reported beside wallMs, never ratcheted)
+  for (const l of [0, 1]) { const v = (b.c['hms' + l] || 0) - (a.c['hms' + l] || 0); if (v > 0.05) r['house.ms' + l] = Math.round(v); }
+  for (const k of ['umw', 'um', 'obr', 'oar', 'obs', 'mobr', 'frustum', 'terrainH', 'grHeight', 'renders', 'hb0', 'hb1', 'ht0', 'ht1']) d(NAMES[k], a.c[k], b.c[k]);
   return r;
 }
-const NAMES = { umw: 'three.updateMatrixWorld', um: 'three.updateMatrix', obr: 'cb.onBeforeRender', oar: 'cb.onAfterRender', obs: 'cb.onShadow', mobr: 'cb.material.onBeforeRender', frustum: 'three.frustumTests', terrainH: 'world.terrainH', grHeight: 'world.grHeight', renders: 'three.renders' };
+const NAMES = { umw: 'three.updateMatrixWorld', um: 'three.updateMatrix', obr: 'cb.onBeforeRender', oar: 'cb.onAfterRender', obs: 'cb.onShadow', mobr: 'cb.material.onBeforeRender', frustum: 'three.frustumTests', terrainH: 'world.terrainH', grHeight: 'world.grHeight', renders: 'three.renders',
+  hb0: 'house.build0', hb1: 'house.build1', ht0: 'house.tris0', ht1: 'house.tris1' };
 const add = (a, b) => { const r = Object.assign({}, a); for (const k of Object.keys(b)) if (typeof b[k] === 'number') r[k] = (r[k] || 0) + b[k]; return r; };
 // the MEDIAN of the frames, counter by counter: a frame's burst (a chunk the streamer finishes, a probe re-shot) is not
 // the frame; a period-2 alternation (a cascade every other frame) reads as its midpoint
@@ -368,6 +394,9 @@ async function injections(W, FP, C, base, measure) {
   return out;
 }
 // ---- the comparison: baseline vs now, with the tolerance and the ALLOW list ---------------------------------------
+// counters a baseline older than them does not carry (G800: the triangles by pass, the house builds by lod): 'new' until
+// the next --update takes them in, never RED for being absent from it
+const NEW_KEYS = /(^|\/)(tris\.[a-z]+|house\.(build|tris)[01])$/;
 function allowed(key, build, now) {
   return ALLOW.find(a => (a.key === key || (a.key.endsWith('/') && key.startsWith(a.key))) && (a.build === '*' || a.build === build) && now <= (a.upTo === undefined ? Infinity : a.upTo));
 }
@@ -380,7 +409,8 @@ function compare(base, now, prefix, build, noAllow) {
     if (typeof (base || {})[k] === 'object' || typeof (now || {})[k] === 'object') continue;
     const slack = Math.max(TOL.abs, Math.abs(b) * TOL.rel);
     let state = 'ok';
-    if (n > b + slack) { const a = !noAllow && allowed(prefix + k, build, n); state = a ? 'ALLOW' : 'RED'; }
+    if (!(base && k in base) && NEW_KEYS.test(k)) state = 'new';
+    else if (n > b + slack) { const a = !noAllow && allowed(prefix + k, build, n); state = a ? 'ALLOW' : 'RED'; }
     else if (n < b - slack) state = 'down';
     out.push({ key: prefix + k, base: b, now: n, state });
   }
@@ -388,7 +418,7 @@ function compare(base, now, prefix, build, noAllow) {
 }
 
 // ---- the table ---------------------------------------------------------------------------------------------------
-const VIEW_ROWS = ['draws.main', 'draws.shadow', 'draws.other', 'draws.total', 'gl.calls', 'programs', 'gl.useProgram', 'gl.bindTexture', 'gl.bindVertexArray',
+const VIEW_ROWS = ['draws.main', 'draws.shadow', 'draws.other', 'draws.total', 'tris.main', 'tris.shadow', 'gl.calls', 'programs', 'gl.useProgram', 'gl.bindTexture', 'gl.bindVertexArray',
   'gl.uniformMatrix4fv', 'gl.uniformMatrix3fv', 'gl.uniform4fv', 'gl.uniform3fv', 'gl.uniform2fv', 'gl.uniform1f', 'gl.uniform1fv', 'gl.uniform1i', 'bytes.uniforms',
   'gl.bufferData', 'gl.bufferSubData', 'bytes.bufferData', 'bytes.bufferSubData', 'gl.texImage2D', 'gl.texSubImage2D', 'three.renders', 'three.updateMatrixWorld', 'three.updateMatrix',
   'cb.onBeforeRender', 'cb.onAfterRender', 'cb.onShadow', 'cb.material.onBeforeRender', 'three.frustumTests', 'world.terrainH', 'world.grHeight'];
@@ -409,7 +439,7 @@ function child(build) {
   });
 }
 function flatBoot(boot) { const r = {}; for (const [step, row] of Object.entries(boot || {})) for (const [k, v] of Object.entries(row)) r[step + '/' + k] = v; return r; }
-const BOOT_KEYS = /\/(gl\.calls|draws\.total|links|bytes\.bufferData|bytes\.texImage2D|bytes\.uniforms|three\.updateMatrixWorld|three\.frustumTests|world\.terrainH|world\.grHeight)$/;
+const BOOT_KEYS = /\/(gl\.calls|draws\.total|links|bytes\.bufferData|bytes\.texImage2D|bytes\.uniforms|three\.updateMatrixWorld|three\.frustumTests|world\.terrainH|world\.grHeight|house\.build[01]|house\.tris[01])$/;
 
 async function main() {
   if (flag('census')) { const r = await census(opt('census', 'cub')); process.stdout.write('\n' + JSON.stringify(r) + '\n'); process.exit(0); }

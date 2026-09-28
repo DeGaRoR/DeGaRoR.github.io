@@ -13,7 +13,10 @@
 //     T.merge(list, kind, side) -> BufferGeometry                      world space, the sag baked, aSlot per vertex
 //     T.end()            the table uploaded; returns false (and builds the arrays, then calls onReady) when a layer
 //                        the bake asked for is not in the stack yet - the caller keeps its G566 bake until then
-//     T.material(kind, side)   the shared town materials
+//     T.material(kind, side, dith, bare)   the shared town materials
+//                        opts.lod = { U, decl, glsl } (G801, render_premises' LOD band): the host's uniforms, their
+//                        declaration and a fragment block run first in main - the near rung's dithered exit at the lod-1
+//                        edge; a program of its own (the cache key says so)
 //     T.lit              { value }: the lamps' factor for the lit panes (render_premises' LAMPS drives it)
 //     T.stats            { layers, nrLayers, slots, mb, builds }
 //
@@ -320,8 +323,8 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       baseHooks = { plain: rawHook(dp), glass: rawHook(F.MAT.glass) };
       return baseHooks;
     }
-    function material(kind, side, dith) {
-      const k = kind + ':' + side + ':' + (dith ? 1 : 0);
+    function material(kind, side, dith, bare) {   // bare: without the band even when made with one (G801: an item's bags)
+      const band = !!o.lod && !bare, k = kind + ':' + side + ':' + (dith ? 1 : 0) + (band ? ':lod' : '');
       if (MATS.has(k)) return MATS.get(k);
       const B = hooks(); if (!B) return null;
       const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, side: side === 2 ? THREE.DoubleSide : THREE.FrontSide, dithering: !!dith });
@@ -333,6 +336,11 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
         if (miss.length) { stats.missing = miss; console.warn('house_tarr: the', kind, 'edits missed', miss); }
         sh.uniforms.tTab = U.tTab;
         if (kind === 'glass') sh.uniforms.tLit = U.tLit; else { sh.uniforms.tAlb = U.tAlb; sh.uniforms.tNR = U.tNR; }
+        if (band) {
+          Object.assign(sh.uniforms, o.lod.U);
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + o.lod.decl)
+            .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + o.lod.glsl);
+        }
       };
       m.customProgramCacheKey = () => 'house_tarr:' + k;
       m.userData.tarr = kind;
