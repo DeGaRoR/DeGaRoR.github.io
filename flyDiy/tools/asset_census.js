@@ -263,7 +263,7 @@ function meshPayloads() {
     }
   };
   const packs = (dir, json) => { const f = path.join(ROOT, 'src', dir, json); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).map(x => path.join(ROOT, 'src', dir, x)) : []; };
-  for (const f of packs('props', 'props_packs.json')) load(f, path.basename(f) === 'props_airframe.js' ? 'airframe' : 'props');
+  for (const f of packs('props', 'props_packs.json')) load(f, path.basename(f) === 'props_airframe.js' ? 'airframe' : path.basename(f) === 'props_lods.js' ? 'props_lod' : 'props');
   for (const f of packs('pier', 'pier_packs.json')) load(f, path.basename(f) === 'pier_lods.js' ? 'pier_lod' : 'pier');
   for (const f of packs('totems', 'totems_packs.json')) load(f, 'totems');
   for (const f of packs('cabin', 'cabin_packs.json')) load(f, 'cabin');

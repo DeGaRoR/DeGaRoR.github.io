@@ -54,6 +54,10 @@ vm.createContext(sandbox);
 for (const f of packs)
   vm.runInContext(fs.readFileSync(path.join(PROPS_DIR, f), 'utf8'), sandbox, { filename: f });
 const REG = CORE.PROP_REG;
+// THE LEVELS OF DETAIL (AS5b, G933) ride in the same registry (src/props/props_lods.js, tools/prop_lod.js --kit
+// props): they are not in the declared table - they are checked against the props they stand in for (section 4)
+const FULL = REG.order.filter(k => !REG.props[k].lodOf);
+const LODS = REG.order.filter(k => REG.props[k].lodOf);
 
 // THE BYTES ARE EXTERNAL (2026-09-01): a prop names its bin under media/geo/
 // and the decoders take those bytes as their last argument. The viewer
@@ -75,15 +79,15 @@ function binOf(p) {
 }
 
 // ---- 1. the bake carries the whole table, in order --------------------------
-if (REG.order.length !== declared.length)
-  fail(`registry holds ${REG.order.length} props, the table declares ${declared.length}`);
-else ok(`${REG.order.length} props registered`);
+if (FULL.length !== declared.length)
+  fail(`registry holds ${FULL.length} props (and ${LODS.length} levels), the table declares ${declared.length}`);
+else ok(`${FULL.length} props registered (and ${LODS.length} levels of detail)`);
 {
   // The registry is grouped, the table is written in group order, so the two
   // sequences must agree once the table is sorted by the declared group order.
   const want = declaredGroups
     .flatMap(g => declared.filter(d => d.group === g).map(d => d.key));
-  const got = REG.order.join(',');
+  const got = FULL.join(',');
   if (want.join(',') !== got) fail(`order mismatch\n    want ${want.join(',')}\n    got  ${got}`);
   else ok('order matches the table, grouped');
 }
@@ -187,6 +191,46 @@ for (const key of REG.order) {
   const gone = declaredGroups.filter(g => !REG.groups.some(x => x[0] === g)
     && declared.some(d => d.group === g));
   if (gone.length) fail(`groups declared with props but not baked: ${gone.join(', ')}`);
+}
+
+// ---- 4. THE LEVELS (G933): beside the as-is, never instead of it -----------
+// Every level stands in for a DECLARED prop of media/geo/props/ (the hangar's; the airframes are not cut), is
+// named <key>_l<n> in ladder order, lives in media/geo/props_lod/ (the as-is bins are never rewritten), wears the
+// full prop's own material records and textures, keeps its box and origin rule, and is what tools/prop_lod.js's
+// ladder asks for that prop: the levels' distances equal levelsFor(prop, 'shed'), each level under 0.7 of the
+// triangles above it. A full prop the ladder gives levels to and that has none is a stale bake.
+{
+  const LT = require('./prop_lod.js');
+  const by = new Map();
+  for (const k of LODS) {
+    const L = REG.props[k], P = REG.props[L.lodOf];
+    if (!P || P.lodOf) { fail(`${k}: lodOf ${L.lodOf} is not a declared prop`); continue; }
+    if (!P.bin || P.bin.indexOf('media/geo/props/') < 0) fail(`${k}: stands in for ${L.lodOf}, which is not a hangar prop (${P.bin})`);
+    if (!L.bin || L.bin.indexOf('media/geo/props_lod/') < 0) fail(`${k}: its bin ${L.bin} is not under media/geo/props_lod/`);
+    if (L.group !== 'lod') fail(`${k}: group ${L.group}, not lod`);
+    if (JSON.stringify(L.mats) !== JSON.stringify(P.mats)) fail(`${k}: its material records are not ${L.lodOf}'s`);
+    if (JSON.stringify(L.bb) !== JSON.stringify(P.bb) || JSON.stringify(L.dim) !== JSON.stringify(P.dim) || L.place !== P.place)
+      fail(`${k}: box / dim / place differ from ${L.lodOf}'s`);
+    (by.get(L.lodOf) || by.set(L.lodOf, []).get(L.lodOf)).push(k);
+  }
+  let cut = 0, none = 0;
+  for (const key of FULL) {
+    const P = REG.props[key];
+    if (!P.bin || P.bin.indexOf('media/geo/props/') < 0) { if (by.has(key)) fail(`${key}: has levels but is not a hangar prop`); continue; }
+    const want = LT.levelsFor(P, 'shed'), have = by.get(key) || [];
+    if (!want.length) { none++; if (have.length) fail(`${key}: ${have.length} levels, the ladder asks for none`); continue; }
+    cut++;
+    if (have.length !== want.length) { fail(`${key}: ${have.length} levels, the ladder asks for ${want.length} (run node tools/prop_lod.js --kit props)`); continue; }
+    let prevNt = P.nt;
+    have.forEach((k, i) => {
+      const L = REG.props[k];
+      if (k !== key + '_l' + (i + 1)) fail(`${k}: level ${i + 1} of ${key} out of order`);
+      if (L.lodDist !== want[i][1]) fail(`${k}: past ${L.lodDist} m, the ladder says ${want[i][1]} m`);
+      if (!(L.nt < 0.7 * prevNt)) fail(`${k}: ${L.nt} triangles, not under 0.7 of the ${prevNt} above it`);
+      prevNt = L.nt;
+    });
+  }
+  if (!fails) ok(`levels: ${LODS.length} for ${cut} hangar props (${none} under the ladder's floor), each under 0.7 of the one above, the full prop's records, in media/geo/props_lod/`);
 }
 
 console.log(`props ${REG.order.length}, parts ${parts}, ${verts} verts, ${tris} tris, ` +
