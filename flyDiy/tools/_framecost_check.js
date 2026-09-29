@@ -39,6 +39,7 @@
 //   node tools/_framecost_check.js --census cub|cessna [--frames N]   one build's census as JSON (the child)
 //   node tools/_framecost_check.js --compare a.json b.json   which counts differ between two censuses (the bisect's)
 //   FRAMECOST_QUERY='raster=1'  a URL query for the page (hold a default equal across commits in a bisect)
+//   FRAMECOST_RASTER_TRACE=f    every premises raster read to f (tools/_rastercache_bench.js --trace, G735)
 // READING THE COUNTS. They are the page's work on THIS harness: exact and repeatable, not a browser's. What the page
 // budgets in milliseconds (the forest fill, the premises stream, the prewarms) runs on the virtual clock, where
 // performance.now() moves 10 us a call - so a streamer does its work in fewer, fuller frames than in Chrome, and the
@@ -155,6 +156,12 @@ const ALLOW = [
       'boot/rollout:frames/world.grHeight:336000', 'boot/rollout:frames/world.terrainH:345000', 'boot/rollout:landing/world.grHeight:146000', 'boot/rollout:landing/world.terrainH:150000',
       'boot/rollout:ring/world.grHeight:210000', 'boot/rollout:ring/world.terrainH:210000']
     .map(e => ({ key: e.split(':').slice(0, -1).join(':'), build: '*', upTo: +e.split(':').pop(), why: 'the streaming moved by the lod-1 builds\' harness time (the virtual clock), not per-frame work', g: 'G800' })),
+  // B1b-rest (2026-09-29, G738): THE RASTER TILE CACHE AN LRU. It evicts other tiles, so the page bakes / decodes a different
+  // number of them, and each one's two grNow() stamps are performance.now() calls - 10 us each on the virtual clock - so the
+  // settle's 40 ms slices and the budgeted streamers cut at other points (settle n 1147 -> 1074). With grNow() taken off the
+  // clock in BOTH trees the two censuses are equal to the last count (1333 values, 0 differ): no new work. The Cessna's taxi
+  // then shows another share of strip-stone instance lists / bone textures (495 712 -> 506 560 B; the Cub's 500 160)
+  { key: 'taxi/bytes.texSubImage2D', build: 'cessna', upTo: 508000, why: 'the LRU\'s fewer decode stamps move where the settle and the streamers cut (the virtual clock), not per-frame work', g: 'G738' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
@@ -231,6 +238,7 @@ async function census(build) {
     return r;
   })();
   craft.taxi = await craftCensus(W, P, FP, C);
+  rtraceWrite();
   const wd = FP.world();
   const health = { premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
@@ -417,13 +425,22 @@ function wrapWorld(w, C) {
   wrapPremises(w, C);
   if (w.premises && typeof w.premises.set === 'function') { const set = w.premises.set; w.premises.set = function () { const r = set.apply(this, arguments); wrapPremises(w, C); return r; }; }
 }
+// FRAMECOST_RASTER_TRACE=<file>: every read of the premises raster (x, z, h: Float64 triples, in the page's order) written
+// to <file> at the end of the census - the page's own reads, for tools/_rastercache_bench.js --trace (G735)
+const RTRACE = process.env.FRAMECOST_RASTER_TRACE || null;
+let rtBuf = RTRACE ? new Float64Array(3 << 20) : null, rtN = 0;
+function rtrace(x, z, h) {
+  if (rtN + 3 > rtBuf.length) { const b = new Float64Array(rtBuf.length * 2); b.set(rtBuf); rtBuf = b; }
+  rtBuf[rtN++] = x; rtBuf[rtN++] = z; rtBuf[rtN++] = h;
+}
+function rtraceWrite() { if (RTRACE) fs.writeFileSync(RTRACE, Buffer.from(rtBuf.buffer, 0, rtN * 8)); }
 // FRAMECOST_WHO=1: the callers of a counter, sampled (a debugging aid, never in the verdict)
 function who(C, k) { const st = (new Error().stack || '').split('\n').slice(3, 6).map(l => l.trim().replace(/^at /, '').replace(/\(.*[\/\\]/, '(')).join(' < '); const m = C.who[k] || (C.who[k] = {}); m[st] = (m[st] || 0) + 1; }
 // the raster's reads (G614): every world terrainH that misses its cache reaches PM.terrainFast -> grHeight
 function wrapPremises(w, C) {
   const PM = w && w.premises && w.premises.overlay;
   if (!PM || PM.__fc) return; PM.__fc = true;
-  if (typeof PM.terrainFast === 'function') { const f = PM.terrainFast; PM.terrainFast = function (x, z, h) { C.grHeight++; return f.call(this, x, z, h); }; }
+  if (typeof PM.terrainFast === 'function') { const f = PM.terrainFast; PM.terrainFast = function (x, z, h) { C.grHeight++; if (RTRACE) rtrace(x, z, h); return f.call(this, x, z, h); }; }
 }
 function wrapRenderer(R, P, C, cam) {
   R.__fc = true;

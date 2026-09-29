@@ -57,6 +57,35 @@ let s = 20260926; const rnd = () => { s = (Math.imul(s, 1103515245) + 12345) >>>
   }
   verdict(bad === 0 && n > 20000, `the ceiling bounds the raster's ground: ${rects.length} rectangles, ${n} points, ${bad} above it${bad ? ' (by ' + worst.toExponential(2) + ' m)' : ''}`);
 }
+// ---- 2b. THE TILE CACHE IS AN LRU (G735) and which tiles it evicted never changes a bit
+{
+  const CAP = 2 * 1024 * 1024;
+  const W2 = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PREM, groundRaster: true });
+  W2.premises.set(PREM, { rasterCap: CAP });
+  const O2 = W2.premises.overlay, O1 = W.premises.overlay;
+  verdict(O2.raster.on && O2.raster.cap === CAP, `a composition takes its own cap (rasterCap ${CAP} B)`);
+  // the same reads through both caches: the default cap (G614's 48 MB, section 1 filled it) and a 2 MB one that evicts
+  let n = 0, differ = 0; s = 20260928;
+  const mods = new Set(); O1.index.rect(-1e6, -1e6, 1e6, 1e6, M => mods.add(M));
+  const st = C.siteOf('HOME').stand;
+  const read = (x, z) => { const h = base.terrainH(x, z), a = O1.terrainFast(x, z, h), b = O2.terrainFast(x, z, h); n++; if (!Object.is(a, b)) differ++; };
+  for (let pass = 0; pass < 2; pass++) for (const M of mods) { const b = M.bbox; for (let k = 0; k < 120; k++) { const w = F.toWorld(b.x0 + rnd() * (b.x1 - b.x0), b.z0 + rnd() * (b.z1 - b.z0)); read(w[0], w[1]); if (k % 10 === 0) read(st.x + rnd() * 4, st.z + rnd() * 4); } }
+  const R2 = O2.raster;
+  verdict(differ === 0 && R2.evicted > 500 && R2.bytes <= CAP, `the 2 MB cache answers as the 48 MB one, bit for bit: ${n} reads, ${differ} differ (${R2.evicted} evicted, ${(R2.bytes / 1e6).toFixed(2)} MB held)`);
+  // the LRU: the same sweep (60 reads in every modifier's box: past the 2 MB cap many times), alone and with the stand's
+  // tile read between every two reads. An LRU makes the stand's tile ONCE (it is never the least recently read); the old
+  // cache, oldest-in first, evicted it whenever it came round to the front and made it again, tens of times
+  const sweep = hot => {
+    const Wx = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PREM, groundRaster: true });
+    Wx.premises.set(PREM, { rasterCap: CAP });
+    const Ox = Wx.premises.overlay; let q = 20260929; const r = () => { q = (Math.imul(q, 1103515245) + 12345) >>> 0; return q / 4294967296; };
+    for (const M of mods) { const b = M.bbox; for (let k = 0; k < 60; k++) { const w = F.toWorld(b.x0 + r() * (b.x1 - b.x0), b.z0 + r() * (b.z1 - b.z0)); Ox.terrainFast(w[0], w[1], base.terrainH(w[0], w[1])); if (hot) Ox.terrainFast(st.x, st.z, base.terrainH(st.x, st.z)); } }
+    const R = Ox.raster; return { made: R.baked + R.decoded, evicted: R.evicted };
+  };
+  const cold = sweep(false), warm = sweep(true), extra = warm.made - cold.made;
+  verdict(cold.evicted > 500 && extra >= 1 && extra <= 3,
+    `the cache is an LRU: the stand's tile, read between every two of a sweep's reads (${cold.evicted} evictions), is made ${extra} time(s) - the sweep alone makes ${cold.made} tiles, with the stand's reads ${warm.made}`);
+}
 // ---- 3. the indexes answer as the scans
 {
   const O0 = W0.premises.overlay;
