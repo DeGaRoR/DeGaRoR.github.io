@@ -108,6 +108,27 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
   ok(L.visible && L.castShadow && !m.layers.isEnabled(SN.FAR_LAYER), '2 G874: ...and back on at once');
   { const G = src('src/viewer/gfx_settings.js'), i = G.indexOf('W.SHADOW_NEAR.S.on = !!sh.on'), j = G.indexOf('W.SHADOW_NEAR.apply()');
     ok(i > 0 && j > i && j - i < 600, '2 G874: gfx_settings applies the near light where the shadows row sets its dial'); }
+  // G1080 (SHADOW-EYES; the user: after a pause "the aircraft will roll shadowless for a few meters, then the blurry
+  // shadow will come first, then the clear crisp shadow"): the maps were aimed at the point worldUpdate was given - the
+  // CAMERA under the free camera / the editor - and the cascade grew (blurry) to reach an aeroplane away from it, up to
+  // the 30 m cap (shadowless past it). Now they are aimed at the drawn aeroplane, and aim() re-reads this frame's pose.
+  { const hAt = () => 10, eye = [80, 30, 40], C1 = SN.C1, lat = p => { const d = new THREE.Vector3().subVectors(p, C1.tgt), a = d.dot(sun); return Math.sqrt(Math.max(0, d.lengthSq() - a * a)); };
+    craft.position.set(0, 15, 0); craft.updateMatrixWorld(true);
+    SN.S.aimDrawn = false; C1.H = 0; SN.follow(L, eye, sun, 20, null, null, hAt);
+    const oldH = C1.H, oldMiss = lat(craft.position) > C1.H;
+    ok(oldH === SN.S.half && oldMiss, '2 G1080 (as it was): aimed at the eye 90 m off, the cascade grew to its 30 m cap and still missed the aeroplane', `half ${oldH.toFixed(1)} m, the craft ${lat(craft.position).toFixed(1)} m across the light`);
+    SN.S.aimDrawn = true; C1.H = 0; SN.follow(L, eye, sun, 20, null, null, hAt);
+    ok(C1.tgt.distanceTo(craft.position) < 1e-6 && C1.H < 0.3 * SN.S.half && SN.AIM.drawn === 1, '2 G1080: aimed at the drawn aeroplane whatever the eye - the cascade fitted to the craft', `half ${C1.H.toFixed(2)} m`);
+    ok(Math.abs(L.target.position.x) < 1e-6 && Math.abs(L.target.position.z) < 1e-6, '2 G1080: the 60 m box round the aeroplane too');
+    const H0 = C1.H; craft.position.set(500, 15, 0);   // a teleport (Restart, the line-up skip): the pose written, its matrixWorld not yet
+    ok(SN.aim() === true && C1.tgt.distanceTo(craft.position) < 1e-6 && C1.H === H0, '2 G1080: aim() after the pose - the cascade on this frame\'s aeroplane at once, not grown by the jump', `half ${C1.H.toFixed(2)} m`);
+    const ap = SN.aimPoint([0, 0, 0]);
+    ok(Math.abs(ap[0] - 500) < 1e-6, '2 G1080: the near casters are tagged round the drawn aeroplane (aimPoint)');
+    scene.remove(craft); SN.follow(L, eye, sun, 20, null, null, hAt);
+    ok(C1.tgt.distanceTo(new THREE.Vector3(80, 30, 40)) < 1e-6 && SN.AIM.drawn === 0 && SN.aim() === false, '2 G1080: an aeroplane off the stage (the scenery mode) leaves the aim with the given point');
+    scene.add(craft); craft.position.set(0, 15, 0); craft.updateMatrixWorld(true); SN.follow(L, [0, 15, 0], sun, 5, null, null); }
+  ok(/if \(!inGarage && window\.SHADOW_NEAR && SHADOW_NEAR\.aim\) SHADOW_NEAR\.aim\(\);/.test(src('src/viewer/app.js')) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera, groundAt\)/.test(src('src/viewer/render_world.js')),
+    '2 G1080: app.js re-aims right after poseModel; render_world hands follow() the ground under the aeroplane');
 }
 
 // ---- 3: water.js obliqueClip ---------------------------------------------------------------------------

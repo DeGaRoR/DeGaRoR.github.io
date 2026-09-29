@@ -11074,6 +11074,9 @@
       ROLLANIM.frame(fdt);
     }
     poseModel();
+    // G1080 (SHADOW-EYES): the craft's shadow maps aimed at THIS frame's pose (worldUpdate ran before it, on the
+    // frame before's - and on the camera under the free camera / the editor): shadow_near.js aim()
+    if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();
     // G1002 (A6-GROUND): the tyres' contact shadows, on this frame's pose (contact_shadow.js)
     if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/

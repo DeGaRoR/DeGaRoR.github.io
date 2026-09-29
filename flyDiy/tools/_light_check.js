@@ -593,7 +593,11 @@ if (process.argv.includes('--selftest')) {
   check(/sun\.shadow\.camera\.layers\.set\(SHADOW_NEAR\.FAR_LAYER\)/.test(world) && /if \(!o\.layers\.isEnabled\(FL\)\) o\.layers\.enable\(FL\);/.test(world), 'world: the far map camera sees FAR_LAYER and every caster is put there');
   const glare = read('sky_glare.js');
   check(/_ray\.o\.set\(_o2, _d2\); _ray\.o\.far = 60 - 0\.3;/.test(glare) && /const solidHit = h =>/.test(glare), 'glare: a second ray back toward the eye (the skin back faces from the cockpit), glass lets the light through');
-  check(/SHADOW_NEAR\.make\(scene\)/.test(world) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera\)/.test(world), 'world: the near light made and followed each frame, snapped to its own texels');
+  check(/SHADOW_NEAR\.make\(scene\)/.test(world) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera, groundAt\)/.test(world), 'world: the near light made and followed each frame, snapped to its own texels');
+  // G1080 (SHADOW-EYES): the craft's maps are aimed at the DRAWN aeroplane - the pose model.grp carries, re-read right
+  // after poseModel - never at the point worldUpdate is given (the camera under the free camera / the world editor)
+  check(/S\.aimDrawn && AIM\.hAt && drawnCentre\(\)/.test(near) && /aimDrawn: true/.test(near) && /nearTag\(SHADOW_NEAR\.aimPoint \? SHADOW_NEAR\.aimPoint\(cg\) : cg\)/.test(world)
+    && /poseModel\(\);\s*\n(\s*\/\/.*\n)*\s*if \(!inGarage && window\.SHADOW_NEAR && SHADOW_NEAR\.aim\) SHADOW_NEAR\.aim\(\);/.test(app), 'G1080: the near maps follow the drawn aeroplane (aim() after poseModel; the near casters tagged round it)');
   // (G601: the registry's pass - a caster over NEAR_MIN_R within reach; GATE STAND runs it)
   check(/nearTag = cg =>/.test(world) && /s\[3\] >= NEAR_MIN_R && Math\.sqrt\(dx \* dx \+ dy \* dy \+ dz \* dz\) - s\[3\] < R/.test(world) &&/Math\.max\(512, Math\.min\(2048, R\.shadowMap \/ 2\)\)/.test(world), 'world: the near casters are the plain meshes (over NEAR_MIN_R) within reach of the CG; the map is half the tier\'s far map');
   check(/SHADOW_NEAR\.tagCraft\(craft(, model\.grp)?\)/.test(app), 'app: the craft is tagged when the model joins the world');

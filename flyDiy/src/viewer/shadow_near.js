@@ -67,7 +67,8 @@ var SHADOW_NEAR = (function () {
   'use strict';
   const NEAR_LAYER = 3, FAR_LAYER = 2, CRAFT_LAYER = 5;   // the near map's viewport 0 sees 3, its viewport 1 (the craft's cascade) 3 + 5; the far map sees 2 (everything but the craft, unless it is high)
   const S = { on: true, half: 30, size: 1024, bias: -0.0004, biasM: 0.05, normalBias: 0.02, normalBiasTx: 0.9, relief: 150, slantMax: 3000, penumbra: 0.0093, radiusMax: 2.5, self: true, slant: 0,   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra), per viewport
-    craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0 };   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
+    craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0,
+    aimDrawn: true };   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
   const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0); yzw: the craft cascade's bias (depth), PCF radius (texels), normal offset (m)
   const nearWindow = new Float32Array(4);           // xy: the craft cascade's depth window (its shadow coordinate z, min / max) - past it, the 60 m box
   const nearUniforms = { uNearP: { value: nearScalars }, uNearQ: { value: nearWindow }, uNearM1: { value: (typeof THREE !== 'undefined' && THREE.Matrix4) ? new THREE.Matrix4() : null } };
@@ -293,11 +294,53 @@ var SHADOW_NEAR = (function () {
     if (craftGroup && far !== craftFar) { craftFar = far; craftGroup.traverse(m => { if (far) m.layers.enable(FAR_LAYER); else m.layers.disable(FAR_LAYER); }); }
     return live;
   }
-  function follow(L, cg, sun, agl, snap, camera) {
+  //
+  // G1080 THE SHADOW FOLLOWS THE DRAWN AEROPLANE (SHADOW-EYES; the user, 2026-09-29: "there are a few situations where
+  // pausing the simulation will simply leave the aircraft shadow in place, the aircraft will roll shadowless for a few
+  // meters, then the blurry shadow will come first, then the clear crisp shadow"). Both viewports were aimed at the `cg`
+  // render_world's worldUpdate receives - app.js passes the CAMERA there under the free camera and the world editor - and
+  // the craft's cascade was sized from the drawn aeroplane's sphere as it stood a frame BEFORE (worldUpdate runs before
+  // poseModel), measured from that point: whenever the two parted, the cascade stood where the aim was, and the aeroplane
+  // left it: SHADOWLESS once it was past the 30 m cap, BLURRY while inside (the box grown to reach it, up to 60 m wide,
+  // 6 cm texels), CRISP once they met again. Now (S.aimDrawn) the aim is the drawn aeroplane's own sphere centre - the
+  // pose model.grp carries - in follow() (last frame's pose) and again in aim(), which app.js calls right after
+  // poseModel() (this frame's pose, before the render): the box is fitted to the craft alone, whatever the camera does,
+  // and a teleport (Restart, the line-up skip, Fly on) moves it with the aeroplane on the same frame. Only a craft that
+  // is off the stage (the scenery mode lifts it out of the scene) leaves the aim with the point worldUpdate was given.
+  const AIM = { L: null, sun: null, snap: null, camera: null, hAt: null, agl: 0, cg: [0, 0, 0], live: 0, n: 0, drawn: 0 };
+  const _aimP = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
+  // the drawn aeroplane's sphere centre (world), into _aimP - false when there is no pose or it is off the stage
+  function drawnCentre() {
+    if (!craftPose || !(S.craftR > 0) || !_aimP || !C1.scene) return false;
+    let top = craftPose; while (top.parent) top = top.parent;
+    if (top !== C1.scene) return false;
+    _aimP.copy(craftC).applyMatrix4(craftPose.matrixWorld);
+    return Number.isFinite(_aimP.x + _aimP.y + _aimP.z);
+  }
+  const _aimA = [0, 0, 0];
+  function follow(L, cg, sun, agl, snap, camera, hAt) {
     if (!L) return;
     unprune();   // (a pass that threw between getCamera(0) and getCamera(1) must not leave the world hidden)
     const live = apply(L);
+    AIM.L = L; AIM.sun = sun; AIM.snap = snap; AIM.camera = camera; AIM.hAt = typeof hAt === 'function' ? hAt : null; AIM.agl = agl; AIM.live = live;
+    AIM.cg[0] = cg[0]; AIM.cg[1] = cg[1]; AIM.cg[2] = cg[2];
     if (!live) return;
+    if (S.aimDrawn && AIM.hAt && drawnCentre()) { _aimA[0] = _aimP.x; _aimA[1] = _aimP.y; _aimA[2] = _aimP.z; place(L, _aimA, Math.max(0, _aimP.y - AIM.hAt(_aimP.x, _aimP.z)), sun, snap, camera); AIM.drawn = 1; }
+    else { place(L, cg, agl, sun, snap, camera); AIM.drawn = 0; }
+  }
+  // aim(): the craft's pose of THIS frame (app.js, right after poseModel) - both viewports re-aimed at it
+  function aim() {
+    if (!S.aimDrawn || !AIM.L || !AIM.live || !AIM.hAt || !craftPose) return false;
+    craftPose.updateWorldMatrix(true, false);
+    if (!drawnCentre()) return false;
+    _aimA[0] = _aimP.x; _aimA[1] = _aimP.y; _aimA[2] = _aimP.z;
+    place(AIM.L, _aimA, Math.max(0, _aimP.y - AIM.hAt(_aimP.x, _aimP.z)), AIM.sun, AIM.snap, AIM.camera);
+    AIM.n++; AIM.drawn = 1;
+    return true;
+  }
+  // the aim point the near casters are tagged round (render_world nearTag): the drawn aeroplane, else the given point
+  function aimPoint(cg) { return (S.aimDrawn && AIM.drawn && drawnCentre()) ? [_aimP.x, _aimP.y, _aimP.z] : cg; }
+  function place(L, cg, agl, sun, snap, camera) {
     _t.set(cg[0], cg[1], cg[2]);
     if (snap) snap(_t, S.half, S.size);
     L.target.position.copy(_t);
@@ -355,7 +398,80 @@ var SHADOW_NEAR = (function () {
     nearScalars[3] = S.normalBiasTx * tx;
     S.craftHalf = Hh;
   }
-  const API = { S, pcf, C1, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, apply, setNear, unprune, get installed() { return installed; } };
-  if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
+  // the drawn aeroplane's sphere centre as [x, y, z] (render_world's far strip, the A/B), or null
+  function drawnPoint() { return drawnCentre() ? [_aimP.x, _aimP.y, _aimP.z] : null; }
+  // ---- G1080 SHADOW-EYES: THE LIVE A/B (?shadoweyes=1) ------------------------------------------------------------------
+  // The user's eye decides (B11-EYES' method: one thing switched at a time, live, while taxiing - a still frame or a lossy
+  // video cannot show a flicker). A label names the configuration; the top-row digits switch it (window.SHEYES(n) too).
+  // Every configuration is the shipped state with ONE change; 1 is the state before G1080.
+  const EYES_TEXT = {
+    0: 'SHIPPED - this branch as it would land (the cascade aimed at the drawn aeroplane; everything else as before)',
+    1: 'AS TODAY - before G1080: both craft shadow maps aimed at the sim CG, or at the CAMERA under the free camera / editor',
+    2: 'FAR MAP WITHOUT ANY AIRCRAFT MESH - every mesh inside the aeroplane\'s sphere taken out of the world\'s 1 km sun map',
+    3: 'CONTACT SHADOW OFF - the soft blobs under the tyres and the large body blob (A6-GROUND G1002) gone',
+    4: 'FAR MAP EVERY FRAME - the world\'s sun map redrawn each frame instead of every 2nd (SHADOW_RATE.every = 1; costs render time)',
+    5: 'CASCADE FOLLOWS THE DRAWN AEROPLANE - the G1080 fix alone (= 0)',
+    6: 'FAR MAP OFF (diagnostic) - no world shadow at all: trees, houses gone; the craft\'s own maps alone',
+    7: 'CRAFT CASCADE OFF (diagnostic) - the craft in the 60 m box (6 cm texels): what "blurry" looks like',
+    8: 'CONTACT OFF + FAR EVERY FRAME - 3 and 4 together',
+  };
+  const EYES = { on: false, cfg: 0, box: null, base: null, info: '' };
+  function eyesBase() {
+    const W = window, CS = W.CONTACT_SHADOW, SR = W.SHADOW_RATE;
+    return { aim: true, craft: S.craft, contact: CS ? CS.S.on : true, every: SR ? SR.every : 2, far: true, strip: false };
+  }
+  function eyes(n) {
+    if (typeof window === 'undefined') return '';
+    n = n | 0; if (!EYES_TEXT[n]) return 'configurations: ' + Object.keys(EYES_TEXT).join(' ');
+    const W = window, CS = W.CONTACT_SHADOW, SR = W.SHADOW_RATE, WF = W.WORLD;
+    if (!EYES.base) EYES.base = eyesBase();
+    const B = EYES.base, c = Object.assign({}, B);
+    if (n === 1) c.aim = false;
+    if (n === 2) c.strip = true;
+    if (n === 3 || n === 8) c.contact = false;
+    if (n === 4 || n === 8) c.every = 1;
+    if (n === 6) c.far = false;
+    if (n === 7) c.craft = false;
+    S.aimDrawn = c.aim; S.craft = c.craft;
+    if (!c.craft) C1.H = 0;   // (refit now)
+    if (CS) CS.S.on = c.contact;
+    if (SR) { SR.every = c.every; SR.n = 0; }
+    if (WF && WF.farStrip) WF.farStrip.on = c.strip;
+    if (WF && WF.sun && WF.sunw) {
+      const want = c.far && WF.sunw.on;
+      WF.sun.shadow.camera.layers.set(want ? FAR_LAYER : (WF.sunw.EMPTY || 31));
+      WF.sun.shadow.needsUpdate = true;
+    }
+    EYES.cfg = n;
+    eyesBox();
+    return n + ': ' + EYES_TEXT[n];
+  }
+  function eyesBox() {
+    if (typeof document === 'undefined' || !document.body) return;
+    let d = EYES.box;
+    if (!d) {
+      d = EYES.box = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99999;pointer-events:none;max-width:80vw;text-align:center;' +
+        'font:600 15px/1.35 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.72);padding:8px 14px;border-radius:6px;white-space:normal';
+      document.body.appendChild(d);
+    }
+    d.textContent = 'SHADOW-EYES  ' + EYES.cfg + '  -  ' + EYES_TEXT[EYES.cfg] + '     [keys 0-8]' + (EYES.info ? '   ' + EYES.info : '');
+  }
+  function eyesInit() {
+    if (typeof window === 'undefined' || typeof location === 'undefined' || !/[?&]shadoweyes=1/.test(location.search || '')) return;
+    EYES.on = true;
+    window.SHEYES = eyes;
+    window.addEventListener('keydown', e => {
+      const m = /^Digit(\d)$/.exec(e.code || '');
+      if (!m || e.ctrlKey || e.altKey || e.metaKey || !EYES_TEXT[+m[1]]) return;
+      const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      e.preventDefault(); e.stopPropagation();
+      eyes(+m[1]);
+    }, true);
+    const up = () => { if (document.body) eyesBox(); else setTimeout(up, 500); };
+    up();
+  }
+  const API = { S, pcf, C1, AIM, EYES, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, eyes, apply, setNear, unprune, get installed() { return installed; } };
+  if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); eyesInit(); }
   return API;
 })();

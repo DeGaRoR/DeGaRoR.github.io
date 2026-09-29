@@ -1067,6 +1067,34 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (SHADOW_NEAR.setNear) SHADOW_NEAR.setNear(nearNow);
   };
 
+  // G1080 SHADOW-EYES, the live A/B's config 2 (shadow_near.js EYES, ?shadoweyes=1): THE FAR MAP WITHOUT ANY MESH ON THE
+  // FLYING AEROPLANE. The craft group's own meshes are off FAR_LAYER while the near map is live (shadow_near apply); this
+  // takes off it every OTHER registered mesh whose sphere stands inside the drawn aeroplane's (+0.5 m) - a mesh that rides
+  // with the aeroplane outside the craft group - and puts them back when the switch is off. The candidates (the registry's
+  // meshes within 80 m) are re-listed every 30 frames, their spheres re-posed every frame.
+  const FARSTRIP = { on: false, off: new Set(), cand: [], tick: 0, hits: [] };
+  function farStrip() {
+    const FL = SHADOW_NEAR.FAR_LAYER;
+    if (!FARSTRIP.on || !nearReg || !_nS) { if (FARSTRIP.off.size) { for (const o of FARSTRIP.off) o.layers.enable(FL); FARSTRIP.off.clear(); } return; }
+    const P = SHADOW_NEAR.drawnPoint ? SHADOW_NEAR.drawnPoint() : null, R = SHADOW_NEAR.S.craftR;
+    if (!P || !(R > 0)) return;
+    if (FARSTRIP.tick++ % 30 === 0) {
+      FARSTRIP.cand.length = 0;
+      for (const [o, q] of nearReg) if (q && Math.hypot(q[0] - P[0], q[1] - P[1], q[2] - P[2]) - q[3] < 80) FARSTRIP.cand.push(o);
+      for (const o of FARSTRIP.off) if (FARSTRIP.cand.indexOf(o) < 0) FARSTRIP.cand.push(o);
+    }
+    FARSTRIP.hits.length = 0;
+    for (const o of FARSTRIP.cand) {
+      const g = o.geometry; if (!g) continue;
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      if (!g.boundingSphere) continue;
+      _nS.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);
+      const inside = o.castShadow && _nS.radius < 2 * R && Math.hypot(_nS.center.x - P[0], _nS.center.y - P[1], _nS.center.z - P[2]) < R + 0.5;
+      if (inside) { FARSTRIP.hits.push(o.name || o.type); if (o.layers.isEnabled(FL)) { o.layers.disable(FL); FARSTRIP.off.add(o); } }
+      else if (FARSTRIP.off.has(o)) { o.layers.enable(FL); FARSTRIP.off.delete(o); }
+    }
+  }
+
   // ---- THE WORLD'S SWITCHBOARD -------------------------------------------
   // The shed has had one since G62.3 and the world has never had anything: no
   // way to ask which source is doing what, and no way to turn any of it off.
@@ -6121,7 +6149,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     sun.target.position.copy(_sT);
     sun.position.set(_sT.x + SUN.x * 700, _sT.y + SUN.y * 700, _sT.z + SUN.z * 700);
     uShadowR.value = half;
-    if (sunNear) { SHADOW_NEAR.follow(sunNear, cg, SUN, agl, snapToTexels, camera); nearTag(cg); }
+    if (sunNear) { SHADOW_NEAR.follow(sunNear, cg, SUN, agl, snapToTexels, camera, groundAt); nearTag(SHADOW_NEAR.aimPoint ? SHADOW_NEAR.aimPoint(cg) : cg); if (FARSTRIP.on || FARSTRIP.off.size) farStrip(); }   // G1080: aimed at the drawn aeroplane (shadow_near.js aim)
     farRender(uCam.value);
     let resized = false;
     if (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) {
@@ -6167,6 +6195,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const SUN_MIN_Y = Math.sin(2 * Math.PI / 180);
   const SUNW = { on: true, dirty: false, EMPTY: 31 };   // G655: the world's sun map on (the tiers full / ultra) or empty ('near': the craft's map alone)
   const SHADOW_RATE = { every: 2, n: 0 };   // the big sun map's cadence (worldUpdate, PERF 2026-09-23)
+  const groundAt = (x, z) => world.terrainH(x, z);   // G1080: the ground under the drawn aeroplane (shadow_near.js follow)
   if (typeof window !== 'undefined') window.SHADOW_RATE = SHADOW_RATE;
   const WARM_SUN = C(0xffa652);
   let dayVer = -1, dayEl = NaN, dayAz = NaN;
@@ -6416,7 +6445,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // .then before it returns), each in a task of its own after the last slice - the cover ring's make, a rock job
   BUILT.done = true;
   if (BUILT.q.length) { const q = BUILT.q.splice(0); const next = () => { const f = q.shift(); if (!f) return; try { f(); } catch (e) { console.warn('world: after the build', e); } if (q.length) setTimeout(next, 0); }; setTimeout(next, 0); }
-  return { worldUpdate, vis: VIS,
+  return { worldUpdate, vis: VIS, farStrip: FARSTRIP, sunw: SUNW,   // (G1080: the SHADOW-EYES A/B's handles)
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
