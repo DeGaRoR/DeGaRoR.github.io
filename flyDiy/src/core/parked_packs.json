@@ -6,10 +6,10 @@
  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
  "keys": {
   "arch:c172": {
-   "src": "media/parked/arch_c172.fd483f49.gz.bin",
-   "sig": "cbbde3c034d75aa8",
-   "kb": 3709,
-   "rawKb": 14483,
+   "src": "media/parked/arch_c172.89d4af0a.gz.bin",
+   "sig": "d3ccbdc1caf50c8b",
+   "kb": 3717,
+   "rawKb": 14504,
    "tris": [
     198654,
     23838,
@@ -17,10 +17,10 @@
    ]
   },
   "arch:cub": {
-   "src": "media/parked/arch_cub.a190e452.gz.bin",
-   "sig": "7c1143c01b276048",
-   "kb": 3759,
-   "rawKb": 14009,
+   "src": "media/parked/arch_cub.bbef54d5.gz.bin",
+   "sig": "18761f431316055c",
+   "kb": 3769,
+   "rawKb": 14030,
    "tris": [
     178392,
     21406,
@@ -28,10 +28,10 @@
    ]
   },
   "arch:jodel": {
-   "src": "media/parked/arch_jodel.76bd4700.gz.bin",
-   "sig": "da4db9c09a9c5d31",
-   "kb": 3468,
-   "rawKb": 13597,
+   "src": "media/parked/arch_jodel.29c0e282.gz.bin",
+   "sig": "e40096ab34238726",
+   "kb": 3477,
+   "rawKb": 13618,
    "tris": [
     162902,
     19547,
