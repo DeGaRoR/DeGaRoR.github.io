@@ -592,7 +592,7 @@
 
   const sk = $('bootSkip'); if (sk && sk.addEventListener) sk.addEventListener('click', () => fail('skipped by the user'));
   // bytes per landed URL, zero-touch: the ticker's MB come from here
-  try { new PerformanceObserver(l => { for (const en of l.getEntries()) { const u = en.name; const k = /media\/tex\/chars\//.test(u) ? 'crewTex' : /media\/tex\/sky\//.test(u) ? 'sky' : /media\/tex\/trees\//.test(u) ? 'trees' : /media\/geo\/trees\//.test(u) ? 'treeBin' : /media\/geo\/props\//.test(u) ? 'props' : /media\/tex\/props\//.test(u) ? 'propTex' : /media\/geo\/chars\//.test(u) ? 'crew' : null;
+  try { new PerformanceObserver(l => { for (const en of l.getEntries()) { const u = en.name; const k = /media\/tex\/(?:ktx2\/)?chars\//.test(u) ? 'crewTex' : /media\/tex\/sky\//.test(u) ? 'sky' : /media\/tex\/trees\//.test(u) ? 'trees' : /media\/geo\/trees\//.test(u) ? 'treeBin' : /media\/geo\/props\//.test(u) ? 'props' : /media\/tex\/props\//.test(u) ? 'propTex' : /media\/geo\/chars\//.test(u) ? 'crew' : null;
     if (k) key(k).bytes += en.transferSize || en.encodedBodySize || 0; } paint(); }).observe({ type: 'resource', buffered: true }); } catch (e) {}
 
   // G640: the carousel's hand controls; the pointer over the card holds it

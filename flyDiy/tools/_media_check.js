@@ -230,7 +230,7 @@ function manifestFiles() {
   // catalogue-not-publish-list reasoning as the models above
   const chars = fs.existsSync(path.join(ROOT, 'src', 'chars'))
     ? fs.readdirSync(path.join(ROOT, 'src', 'chars'))
-      .filter(f => /_(?:char|anim)\.js$/.test(f))
+      .filter(f => /_(?:char|anim)\.js$|^chars_ktx2\.js$/.test(f))   // + AS6's budget table (G935)
       .map(f => path.join(ROOT, 'src', 'chars', f))
     : [];
   // the animals (2026-09-22): the baked skins and their clip libraries, plus

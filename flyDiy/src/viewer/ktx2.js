@@ -21,7 +21,7 @@
 //
 // PER FAMILY, FOR THE EYE: ?ktx2=ground,pier takes the KTX2 path for those families only (the rest load their old
 // images) - the look-check's A/B one family at a time (HANDOVER G919). The families: ground (the splat's and the
-// pavement's arrays), pier, props (the shed kit).
+// pavement's arrays), pier, props (the shed kit), chars (AS6, G936: the characters' budget set - tools/_cage_char.js).
 //
 //   KTX2.off(family)      -> null, or the reason (a string); without a family: the page-wide reasons only
 //   KTX2.parse(bytes, family) -> Promise<{ mipmaps: [{ data, width, height }], width, height, format, type }> (one

@@ -82,6 +82,12 @@ const ALLOW = [
   // props in the roll-out's upload step 892 -> 705 MiB, Cub). The views are unchanged. ?ktx2=0 gives the old calls back.
   { key: 'boot/garage:compile/gl.calls', build: '*', upTo: 105400, why: 'the shed props\' KTX2 twins upload their mips level by level (103.2 k -> 104.9 k calls; 118 MiB fewer bytes)', g: 'G918' },
   { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 6300, why: 'the ground\'s compressed arrays and the placed props\' KTX2 twins upload their mips level by level (4.5 k -> 6.1 k calls; 187 MiB fewer bytes)', g: 'G918' },
+  // AS6 (G937): the crew's maps are the characters' KTX2 budget set - transcoded in the workers, they land in the garage's
+  // COMPILE step where their images landed in SYNC, and the editor's redraw on a landing (CHAR_TEX_LANDED -> CAGE_UI.draw)
+  // moves with them: garage:sync falls by exactly the count compile gains (Cub 3108, Cessna 7952). The same work, one
+  // step later; the views and every other boot row unchanged, the crew's GPU bytes 85.3 -> 5.3 MiB (Cub).
+  { key: 'boot/garage:compile/three.updateMatrixWorld', build: 'cub', upTo: 63900, why: 'the crew\'s landing redraw moved from sync (-3108) to compile (+3108): its KTX2 maps land from the workers', g: 'G937' },
+  { key: 'boot/garage:compile/three.updateMatrixWorld', build: 'cessna', upTo: 97100, why: 'the crew\'s landing redraw moved from sync (-7952) to compile (+7952): its KTX2 maps land from the workers', g: 'G937' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
@@ -173,7 +179,27 @@ async function census(build) {
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5) };
   // AS3 (G918): the KTX2 path (reported): the ground library's packs (KTX2 or raw, why not), the transcodes, the worker ms
   const ktx2 = { ground: W.GROUND_LIB && W.GROUND_LIB.stats ? W.GROUND_LIB.stats() : null, loader: W.KTX2 && W.KTX2.stats ? W.KTX2.stats() : null, workerMsgs: P.io.workerMsgs };
-  return { build, health, release, ktx2, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  // AS6 (G937): THE CREW at the stand (reported, never ratcheted): the characters seated in the flown aeroplane, the
+  // textures their materials hold and what those cost on the GPU (= what they uploaded, once each): an image as RGBA8 +
+  // the GPU's mips, a KTX2 its transcoded levels (BC7 here: the recording GL answers as a desktop)
+  const crew = (() => {
+    let root = FP.model && FP.model() && FP.model().grp; if (!root) return null;
+    while (root.parent) root = root.parent;
+    const people = new Set(), mats = new Set(), texs = new Map();
+    root.traverse(o => { const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms) if (m.userData && m.userData.charKey) {
+      people.add(m.userData.charKey); mats.add(m);
+      for (const slot of ['map', 'normalMap', 'roughnessMap', 'metalnessMap']) { const t = m[slot]; if (t && !texs.has(t)) texs.set(t, { key: m.userData.charKey, slot }); } } });
+    const r = { people: [...people].sort(), materials: mats.size, budget: [...mats].filter(m => m.userData.charBudget).length, textures: texs.size, ktx2: 0, images: 0, pending: 0, gpuBytes: 0, byChar: {} };
+    for (const [t, w] of texs) {
+      let b = 0;
+      if (t.isCompressedTexture && t.mipmaps) { r.ktx2++; for (const mp of t.mipmaps) b += mp.data ? mp.data.byteLength : 0; }
+      else if (t.image && t.image.width) { r.images++; b = Math.round(t.image.width * t.image.height * 4 * 4 / 3); }
+      else r.pending++;
+      r.gpuBytes += b; r.byChar[w.key] = (r.byChar[w.key] || 0) + b;
+    }
+    return r;
+  })();
+  return { build, health, release, ktx2, crew, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
 }
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
@@ -430,6 +456,9 @@ function ioSum(boot) {
 }
 const ioLine = t => { t = t || {}; const M = b => ((b || 0) / 1048576).toFixed(1) + ' MiB';
   return (t['io.fetches'] || 0) + ' fetches ' + M(t['io.fetchBytes']) + ', ' + (t['io.imgLoads'] || 0) + ' images ' + M(t['io.imgBytes']) + ', canvas drawImage ' + (t['io.c2d.drawImage'] || 0) + ' / getImageData ' + (t['io.c2d.getImageData'] || 0) + ' (' + M(t['io.c2d.readBytes']) + ')'; };
+// AS6 (G937): the crew's textures at the stand, one line (the census's `crew`)
+const crewLine = c => !c ? 'not measured' : c.people.length + ' character(s) (' + c.people.join(', ') + '), ' + c.materials + ' materials (' + c.budget + ' on the budget set), ' + c.textures + ' textures (' + c.ktx2 + ' KTX2, ' + c.images + ' images, ' + c.pending + ' pending): '
+  + (c.gpuBytes / 1048576).toFixed(1) + ' MiB on the GPU (' + Object.entries(c.byChar).map(([k, b]) => k + ' ' + (b / 1048576).toFixed(1)).join(', ') + ')';
 function flatBoot(boot) { const r = {}; for (const [step, row] of Object.entries(boot || {})) for (const [k, v] of Object.entries(row)) r[step + '/' + k] = v; return r; }
 const BOOT_KEYS = /\/(gl\.calls|draws\.total|links|bytes\.bufferData|bytes\.texImage2D|bytes\.uniforms|three\.updateMatrixWorld|three\.frustumTests|world\.terrainH|world\.grHeight)$/;
 
@@ -450,6 +479,7 @@ async function main() {
       const texB = boot => { const o = {}; let t = 0; for (const [k, r] of Object.entries(boot || {})) { const v = TEXK.reduce((a, n) => a + (r['bytes.' + n] || 0), 0); if (v) { o[k] = v; t += v; } } o.total = t; return o; };
       { const ta = texB(A.boot), tb = texB(B.boot), M = x => ((x || 0) / 1048576).toFixed(1);
         console.log('  ' + build + ' texture upload MiB by step (a -> b): ' + Object.keys(Object.assign({}, ta, tb)).filter(k => ta[k] !== tb[k] || k === 'total').map(k => k + ' ' + M(ta[k]) + ' -> ' + M(tb[k])).join(', ')); }
+      if (A.crew || B.crew) console.log('  ' + build + ' crew at the stand (a -> b): ' + crewLine(A.crew) + '  ->  ' + crewLine(B.crew));   // AS6 (G937)
       if (A.mem && B.mem) for (const at of Object.keys(B.mem)) console.log('  ' + build + ' memory after ' + at + ' (MiB, a -> b): ' + Object.keys(B.mem[at]).map(k => k + ' ' + A.mem[at][k] + ' -> ' + B.mem[at][k]).join(', '));
     }
     return;
@@ -467,6 +497,7 @@ async function main() {
       console.log('       reads (reported): garage ' + ioLine(io.garage) + '; roll-out ' + ioLine(io.rollout));
       if (r.ktx2 && r.ktx2.ground) { const g = r.ktx2.ground;   // AS3 (G918): reported
         console.log('       KTX2 (reported): ground packs ' + g.ktx2Packs + ' KTX2 (' + g.ktx2Layers + ' planes transcoded, ' + g.ktx2Lent + ' lent, ' + (g.ktx2Bytes / 1048576).toFixed(1) + ' MiB) / ' + g.packs + ' raw' + (g.ktx2Why ? ' (' + g.ktx2Why + ')' : '') + '; fallbacks ' + g.ktx2Fallbacks + '; target format ' + (r.ktx2.loader && r.ktx2.loader.target) + ', ' + r.ktx2.workerMsgs + ' worker messages'); } }
+    if (!r.failed && r.crew) console.log('       crew (reported, AS6): ' + crewLine(r.crew));
     if (r.failed) continue;
     ok(!!(r.views.stand && r.views.taxi), r.build + ': both views measured (stand, taxi)', r.views.taxi ? 'taxi at ' + r.views.taxi.pose.join(' ') : 'no taxi pose');
     const H = r.health || {};

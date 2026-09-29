@@ -27,6 +27,11 @@
 //                     props): every map a material record reads has its twin, named by the map's decoded texels +
 //                     role, decoding to its size with every mip, within the same bar (5-6's) - ETC1S where it meets it,
 //                     UASTC where it does not - and the table's mean colour is the map's
+//  10. THE CHARACTERS (AS6, G937) the characters' texture budget (tools/char_tex_budget.js, src/chars/chars_ktx2.js):
+//                     every character's materials have their rows, cut from the maps their manifests name, each file its
+//                     plane's texels + role (re-cut here from the 2048 maps), UASTC, within the bar (the skin's 32 px tiles
+//                     too); tools/_cage_char.js on stubs: the set by default, ?ktx2=0 the 2048 maps (the old path), a
+//                     stale row or a failed transcode the 2048 map, the gloss (N.a) read only with ?chargloss=1
 //   8. THE ENCODER    (basisu v1.16.4 present) N files re-encoded in memory from their raw planes = the shipped bytes
 //                     (--full: all of them); reported when absent, never failed (a box without the encoder can gate)
 // --selftest breaks 2-7 in turn (a byte flipped in a file, two sets' colour swapped, the splat pointed at the sRGB-mip
@@ -297,6 +302,160 @@ async function checkTwins(over) {
   return { rows: rows.length };
 }
 
+// ---- 10: the characters' texture budget (AS6, G937; tools/char_tex_budget.js, src/chars/chars_ktx2.js) -------------
+// (a) THE TABLE: every character the manifests declare has its row, one per material, cut from the maps that manifest
+// names today (src), and the plan re-derived from those maps (tools/char_tex_budget.js plan(): which planes, which
+// constants, which normal carries which gloss) is the table's; (b) THE FILES: each file's name is its plane's texels +
+// role (the plane re-cut here from the 2048 maps: the 2x2 box to TEX_BUDGET.size, the gloss's G into N.a), it decodes
+// to the plane's size with a full chain, UASTC, the DFD's transfer sRGB for the diffuse and linear for the normal, and
+// meets the bar (level 0 25 dB rgb and alpha - the alpha being the gloss on a normal -, the mean, every mip to 16 px,
+// the diffuse's 32 px tiles); the flat specular is flat. (a)-(b) need python + Pillow: SKIP said when absent.
+// (c) THE PAGE (always): tools/_cage_char.js run on stubs - the budget set taken by default (the textures upgraded in
+// place to the KTX2 files), ?ktx2=0 = the 2048 maps through the old texture() (every map, no KTX2 load), a stale row
+// = the old path, a failed transcode = the 2048 map into the same texture, a flat normal = no normal map, and the gloss
+// read only with ?chargloss=1.
+function loadCharTable(over) {
+  const c = { FLYDIY_ASSET_BASE: '' };
+  vm.runInNewContext(fs.readFileSync(abs('src/chars/chars_ktx2.js'), 'utf8') + '\nthis.T = CHAR_KTX2_TABLE;', c);
+  const T = JSON.parse(JSON.stringify(c.T));
+  if (over && over.chars) over.chars(T);
+  return T;
+}
+async function checkCharFiles(T, over) {
+  const CB = require('./char_tex_budget.js');
+  const TB = CB.budget(), chars = CB.manifests();
+  const rels = [...new Set(chars.flatMap(c => Object.values(c.texs)))].sort();
+  let D;
+  try { D = require('./_media_lib.js').decodeRGBA(rels.map(abs)); }
+  catch (e) { out.push('SKIP 10a-b the characters\' files: the maps need python + Pillow to decode (' + String(e.message).slice(0, 80) + ')'); return; }
+  const byRel = new Map(rels.map((r, i) => [r, D[i]]));
+  const dec = rel => byRel.get(rel);
+  const bad = [], seen = new Map();
+  let worst = [99, ''], worstA = [99, ''], worstTile = [0, ''], files = 0, gOld = 0, gNew = 0, nMats = 0;
+  for (const c of chars) {
+    const row = T[c.key];
+    if (!row) { bad.push(c.key + ': no row (node tools/char_tex_budget.js)'); continue; }
+    if (row.mats.length !== c.mats.length) { bad.push(c.key + ': ' + row.mats.length + ' rows for ' + c.mats.length + ' materials'); continue; }
+    const P = CB.plan(c, TB, dec);
+    gOld += CB.gpuOld(c, dec).bound;
+    const urls = new Set();
+    for (let mi = 0; mi < c.mats.length; mi++) {
+      const m = c.mats[mi], r = row.mats[mi], p = P.mats[mi], tag = c.key + '/' + (m.name || mi);
+      nMats++;
+      for (const k of ['map', 'nrm', 'mr', 'spec']) if ((m[k] ? c.texs[m[k]] : undefined) !== r.src[k]) bad.push(tag + ': stale (' + k + ' ' + r.src[k] + ' is not the manifest\'s ' + (m[k] ? c.texs[m[k]] : 'none') + ')');
+      if (!!r.gloss !== !!p.gloss) bad.push(tag + ': gloss ' + !!r.gloss + ', the plan ' + !!p.gloss);
+      if (JSON.stringify(r.nrmConst || null) !== JSON.stringify(p.nrmConst || null) || !!r.nrm === !!p.nrmConst) bad.push(tag + ': the normal is ' + (r.nrm ? 'a file' : 'a constant') + ', the plan ' + (p.nrmConst ? 'a constant' : 'a file'));
+      if (p.spec && (JSON.stringify(r.spec) !== JSON.stringify(p.spec) || !(p.specStd < TB.flat))) bad.push(tag + ': the specular constant ' + JSON.stringify(r.spec) + ' is not the flat map\'s ' + JSON.stringify(p.spec) + ' (std ' + p.specStd + ')');
+      for (const [slot, kind] of [['map', 'color'], ['nrm', 'normal']]) {
+        if (!p[slot]) { if (r[slot]) bad.push(tag + ': a ' + slot + ' file the plan has no plane for'); continue; }
+        const url = r[slot], f = url && row.files[url];
+        if (!f) { bad.push(tag + ': no ' + slot + ' file'); continue; }
+        urls.add(url);
+        if (!fs.existsSync(abs(url))) { bad.push(url + ' not on disk'); continue; }
+        const pl = P.planes.get(p[slot]);
+        if (seen.has(url + '|' + p[slot])) continue;
+        if (!seen.has(url)) files++;
+        seen.set(url + '|' + p[slot], 1); seen.set(url, 1);
+        const im = pl.build();
+        if (!path.basename(url).endsWith('.' + K.ktx2Hash(im.data, im.w, im.h, f.role, f.opts) + '.ktx2')) { bad.push(tag + ': ' + slot + ' ' + path.basename(url) + ' is not its plane\'s texels + role'); continue; }
+        let bytes = fs.readFileSync(abs(url));
+        if (over && over.charBytes) bytes = over.charBytes(url, bytes) || bytes;
+        let q;
+        try { q = await CB.measure(bytes, im, kind === 'color'); } catch (e) { bad.push(url + ': ' + e.message); continue; }
+        const full = Math.floor(Math.log2(Math.max(im.w, im.h))) + 1;
+        if (q.w !== im.w || q.h !== im.h || q.levels !== full || q.codec !== 'UASTC' || q.srgb !== (kind === 'color')) bad.push(`${url}: ${q.w}x${q.h}, ${q.levels} levels, ${q.codec}, sRGB ${q.srgb}`);
+        if (!q.ok) bad.push(`${url}: rgb ${q.rgb} a ${q.a} dB, mean ${q.mean0}, mips ${q.meanM}, tile ${q.tile}`);
+        if (Math.max(im.w, im.h) > TB.size) bad.push(url + ': ' + im.w + 'x' + im.h + ' over the budget\'s ' + TB.size);
+        if (q.rgb < worst[0]) worst = [q.rgb, path.basename(url)];
+        if (kind === 'normal' && p.gloss && q.a < worstA[0]) worstA = [q.a, path.basename(url)];
+        if (kind === 'color' && q.tile > worstTile[0]) worstTile = [q.tile, path.basename(url)];
+      }
+    }
+    for (const u of urls) gNew += K.gpuBytesOf(fs.readFileSync(abs(u)));
+  }
+  const on = new Set(Object.values(T).flatMap(r => Object.keys(r.files)));
+  const disk = fs.existsSync(abs('media/tex/ktx2/chars')) ? fs.readdirSync(abs('media/tex/ktx2/chars')).map(f => 'media/tex/ktx2/chars/' + f) : [];
+  for (const f of disk) if (!on.has(f)) bad.push(f + ': on disk, in no row (an orphan)');
+  const MB = x => (x / 1048576).toFixed(1);
+  verdict(!bad.length, `10 the characters' budget: ${chars.length} characters, ${nMats} materials, ${files} files (every plane re-cut from its 2048 maps: ${TB.size}^2, gloss in N.a, the flat specular a constant) = their names, UASTC, within the bar (worst rgb ${worst[0]} dB [${worst[1]}], worst gloss ${worstA[0]} dB [${worstA[1]}], worst skin tile ${worstTile[0]} codes [${worstTile[1]}]); GPU ${MB(gOld)} -> ${MB(gNew)} MiB for the six`, bad.slice(0, 5).join('; '));
+}
+async function checkCharPage(T, over) {
+  const THREE = require('../vendor/three.min.js');
+  let src = fs.readFileSync(abs('tools/_cage_char.js'), 'utf8');
+  if (over && over.cagechar) src = over.cagechar(src);
+  const codec = fs.readFileSync(abs('src/core/52_char_codec.js'), 'utf8').replace(/\nif \(typeof module[\s\S]*$/, '\n');
+  const tableOf = TT => fs.readFileSync(abs('src/chars/chars_ktx2.js'), 'utf8').replace(/const CHAR_KTX2_TABLE = \{[\s\S]*?\n\};\n/, () => 'const CHAR_KTX2_TABLE = ' + JSON.stringify(TT) + ';\n');
+  const idx = JSON.parse(fs.readFileSync(abs('src/chars/chars_index.json'), 'utf8')).filter(f => /_char\.js$/.test(f));
+  const tick = () => new Promise(r => setImmediate(r));
+  const page = async (search, opts) => {
+    opts = opts || {};
+    const loads = [];
+    class Image { set src(v) { this._src = v; } get src() { return this._src; } }
+    const KTX2 = { off: fam => (/ktx2=0/.test(search) ? 'ktx2=0' : null), _stats: { fallbacks: 0 },
+      load: (url, fam) => { loads.push([url, fam]); return opts.fail ? Promise.reject(new Error('transcode failed')) : Promise.resolve({ width: 1024, height: 1024, format: THREE.RGBA_BPTC_Format, type: THREE.UnsignedByteType, mipmaps: [{ data: new Uint8Array(16), width: 4, height: 4 }] }); } };
+    const ctx = { console: { log() {}, warn() {} }, THREE, Image, KTX2, ASSET_FETCH: () => Promise.reject(new Error('no bin here')), location: { search }, localStorage: { getItem: () => null },
+      BOOT: { img() {}, expect() {}, landed() {} }, FLYDIY_ASSET_BASE: '', Promise, setTimeout, clearTimeout, Math, JSON, Object, Array, Set, Map };
+    ctx.window = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(codec, ctx);
+    for (const f of idx) vm.runInContext(fs.readFileSync(abs('src/chars/' + f), 'utf8'), ctx);
+    vm.runInContext(tableOf(opts.T || T), ctx);
+    vm.runInContext(src, ctx);
+    const REG = vm.runInContext('CHAR_REG', ctx), mats = [];
+    for (const key of REG.order) REG.chars[key].mats.forEach((m, mi) => mats.push({ key, mi, m, c: REG.chars[key], mat: ctx.CAGE_CHAR.flatMaterial(key, mi) }));
+    for (let i = 0; i < 4; i++) await tick();
+    return { mats, loads, KTX2 };
+  };
+  const bad = [];
+  try {
+    // the budget set, by default
+    const A = await page('');
+    let n = 0;
+    for (const { key, mi, m, c, mat } of A.mats) {
+      const r = T[key].mats[mi];
+      if (m.map && (!mat.map || mat.map.userData.ktx2 !== r.map || !mat.map.isCompressedTexture || mat.map.colorSpace !== THREE.SRGBColorSpace || mat.map.flipY !== false)) bad.push(key + '/' + mi + ': the diffuse is not the budget file, compressed, sRGB, flipY off');
+      if (r.nrm && (!mat.normalMap || mat.normalMap.userData.ktx2 !== r.nrm || mat.normalMap.colorSpace === THREE.SRGBColorSpace)) bad.push(key + '/' + mi + ': the normal is not the budget file, linear');
+      if (r.nrmConst && mat.normalMap) bad.push(key + '/' + mi + ': a flat normal still bound as a map');
+      if (mat.roughness !== 0.62 || Object.prototype.hasOwnProperty.call(mat, 'onBeforeCompile')) bad.push(key + '/' + mi + ': the look moved (roughness ' + mat.roughness + ', a shader hook) without ?chargloss=1');
+      n++;
+    }
+    if (A.loads.some(([u, f]) => f !== 'chars') || !A.loads.length) bad.push('the budget files are not loaded as the chars family');
+    // ?ktx2=0: the old path, every map the 2048 map through texture(), nothing loaded as KTX2
+    const B = await page('?ktx2=0');
+    if (B.loads.length) bad.push('?ktx2=0 still loads ' + B.loads.length + ' KTX2 files');
+    for (const { key, mi, m, c, mat } of B.mats) {
+      if (m.map && (!mat.map || mat.map.image.src !== c.texs[m.map] || mat.map.isCompressedTexture)) bad.push(key + '/' + mi + ': ?ktx2=0 does not bind the 2048 diffuse');
+      if (m.nrm && (!mat.normalMap || mat.normalMap.image.src !== c.texs[m.nrm])) bad.push(key + '/' + mi + ': ?ktx2=0 does not bind the 2048 normal');
+    }
+    // a stale row (a character re-baked from its GLB): the old path
+    const T2 = JSON.parse(JSON.stringify(T)); const k0 = Object.keys(T2)[0]; T2[k0].mats[0].src.map += '.stale';
+    const Cst = await page('', { T: T2 });
+    const st = Cst.mats.find(x => x.key === k0 && x.mi === 0);
+    if (!st || !st.mat.map || st.mat.map.image.src !== st.c.texs[st.m.map] || st.mat.map.userData.ktx2) bad.push('a stale row is taken (' + k0 + '/0)');
+    // a failed transcode: the 2048 map into the same texture
+    const F = await page('', { fail: true });
+    const f0 = F.mats.find(x => x.m.map);
+    if (!f0 || f0.mat.map.image.src !== f0.c.texs[f0.m.map] || f0.mat.map.isCompressedTexture || !F.KTX2._stats.fallbacks) bad.push('a failed transcode does not fall back to the 2048 map');
+    // the gloss read: ?chargloss=1 only, 1 - N.a into roughness, the uniform on once the plane lands
+    const G = await page('?chargloss=1');
+    const g = G.mats.find(x => T[x.key].mats[x.mi].gloss);
+    if (!g) bad.push('no material carries a gloss');
+    else {
+      const sh = { uniforms: {}, fragmentShader: '#include <roughnessmap_fragment>', vertexShader: '' };
+      if (typeof g.mat.onBeforeCompile !== 'function') bad.push('?chargloss=1: no hook'); else g.mat.onBeforeCompile(sh, null);
+      if (!/1\.0 - texture2D\(normalMap, vNormalMapUv\)\.a/.test(sh.fragmentShader) || !sh.uniforms.uGloss || sh.uniforms.uGloss.value !== 1) bad.push('?chargloss=1: roughness is not 1 - N.a with uGloss on (' + JSON.stringify(sh.uniforms.uGloss) + ')');
+    }
+    out.push('     10c the page: ' + n + ' materials on the budget set; ' + A.loads.length + ' KTX2 loads (chars); ?ktx2=0 ' + B.loads.length + ' loads, every map the 2048 one');
+  } catch (e) { bad.push('_cage_char.js on stubs threw: ' + (e && e.stack || e).toString().slice(0, 300)); }
+  verdict(!bad.length, '10 the characters\' page: the budget set by default, upgraded in place; ?ktx2=0 = the 2048 maps (the old texture(), no KTX2); a stale row or a failed transcode = the 2048 map; a flat normal = no map; the gloss read only with ?chargloss=1', bad.slice(0, 4).join('; '));
+}
+async function checkChars(over) {
+  if (!fs.existsSync(abs('src/chars/chars_ktx2.js'))) { verdict(false, '10 the characters: no src/chars/chars_ktx2.js (node tools/char_tex_budget.js)'); return; }
+  const T = loadCharTable(over);
+  await checkCharFiles(T, over);
+  await checkCharPage(T, over);
+}
+
 // ---- 8 ------------------------------------------------------------------------------------------------------------
 function checkEncoder(T) {
   if (!K.hasEncoder()) { out.push('SKIP 8 the encoder: no basisu v' + K.BASISU_VERSION + ' here (cd flyDiy && npm install) - the files are held by 3-6'); return; }
@@ -317,6 +476,7 @@ async function run(T, over) {
   const r = await checkFiles(T, over);
   checkPageTail(await checkPageAll(over));
   if (!over || over.twins || over.twinBytes) await checkTwins(over);
+  if (!over || over.chars || over.charBytes || over.cagechar) await checkChars(over);
   return r;
 }
 
@@ -335,6 +495,10 @@ async function main() {
       ['a map without its twin', () => ({ over: { twins: T => { delete T[Object.keys(T)[3]]; } } }), /^FAIL 9 /],
       ['GROUND_LIB keeps a half-compressed pack', () => ({ over: { groundlib: s => s.replace('packKtx(items, prev, F).then(r => done(r.A, r.N, []), e => {', 'packKtx(items, prev, F).then(r => done(r.A, r.N, []), e => { done(null, null, []); return;') } }), /^FAIL 7 /],
     ];
+    // AS6 (G937): the characters' budget
+    cases.push(['a character\'s file swapped for another\'s', () => ({ over: { charBytes: (u, b) => { const T0 = loadCharTable(); const fs0 = Object.keys(T0[Object.keys(T0)[0]].files); return u === fs0[0] ? fs.readFileSync(abs(fs0[1])) : null; } } }), /^FAIL 10 /]);
+    cases.push(['the characters\' ?ktx2=0 ignored', () => ({ over: { cagechar: s => s.replace("if (KTX2.off('chars')) return null;", '') } }), /^FAIL 10 /]);
+    cases.push(['a stale character row taken', () => ({ over: { cagechar: s => s.replace("if ((m[k] ? c.texs[m[k]] : undefined) !== b.src[k]) return null;", '') } }), /^FAIL 10 /]);
     let bad = 0;
     for (const [name, mut, re, needsEnc] of cases) {
       if (needsEnc && !K.hasEncoder()) { console.log('  skip  ' + name + ' (no encoder)'); continue; }
