@@ -43,9 +43,86 @@
 // rows are flipped on the canvas (three uploads a plain texture with flipY; an array cannot), so uv means what it
 // meant. Colour: diff / paint. Normal + rough: the normal map's rgb, the rough map's green in alpha (what three
 // reads). ~1.3 MB a layer at 512 with its mips.
+//
+// THE LAYERS COOKED OFFLINE (G840, C2c of QUEUE-C; ARCH-2026-09-27 §3.2 (a), §3.4 step 4). That canvas pass - every
+// map drawn, read back with getImageData and shuffled on the main thread, ~84 MB with the mips over Jolene - is now
+// done ONCE by tools/tarr_cook.js, which runs THIS file's `packer` (the page's own code) in headless Chrome over every
+// house texture set and ships each layer as the bytes it made (media/tex/house_tarr/, one gzip stream a layer, named
+// in src/viewer/house_tarr_pack.js). The stack FETCHES a layer the pack names (ASSET_FETCH: gunzipped off the thread)
+// and copies it into place; a map the pack does not name (a baked canvas sheet, a set added after the cook) and a
+// fetch that fails take the canvas pass as before. A cooked map rides the stack before its image has decoded.
+//   ?tarrfmt=canvas   the canvas pass for every layer (the A/B's "before", byte for byte)
+//   ?tarrfmt=raw      the cooked raw layers (the default when the pack exists)
+//   ?tarrfmt=ktx2     reserved for AS3's compressed layers (KTX2 / Basis): the pack's `fmt` and FMTS below are the one
+//                     switch - a format is { fetch(src) -> bytes, mk(layers) -> the array texture }; until its loader
+//                     lands, ktx2 reads raw
+//   ?tarrcheck=1      every cooked layer ALSO drawn by the canvas and compared (stats.check: same / differ / worst)
 'use strict';
 const HOUSE_TARR = (() => {
   const NS = 9, TW = 1024;   // texels a slot; the table's width
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+  // ---- THE LAYER PACKING (G840): one function for the page's canvas fallback AND the offline cook ----------------
+  // (tools/tarr_cook.js runs it in headless Chrome and ships its bytes, so a cooked layer IS what the page would draw).
+  // albedo(img): a colour map's layer - drawn at px x px, the rows flipped (three uploads a plain texture with flipY,
+  // an array cannot), alpha 255; a FLAT map ([r, g, b]) filled with its constant. nr(n, r): the normal map's rgb
+  // ((128, 128, 255) without one) and the rough map's green in alpha (255 without one).
+  function packer(px, doc) {
+    const S = px * px * 4;
+    const cnv = doc.createElement('canvas'); cnv.width = cnv.height = px;
+    const ctx = cnv.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    const draw = img => { if (Array.isArray(img)) { const d = new Uint8ClampedArray(S); for (let j = 0; j < S; j += 4) { d[j] = img[0]; d[j + 1] = img[1]; d[j + 2] = img[2]; d[j + 3] = 255; } return d; }
+      ctx.setTransform(1, 0, 0, -1, 0, px); ctx.clearRect(0, 0, px, px); ctx.drawImage(img, 0, 0, px, px); return ctx.getImageData(0, 0, px, px).data; };
+    return {
+      albedo(img) { const d = new Uint8Array(S); d.set(draw(img)); for (let k = 3; k < S; k += 4) d[k] = 255; return d; },
+      nr(n, r) {
+        const d = new Uint8Array(S);
+        if (n) d.set(draw(n)); else for (let j = 0; j < S; j += 4) { d[j] = 128; d[j + 1] = 128; d[j + 2] = 255; }
+        if (r) { const rd = draw(r); for (let j = 0; j < S; j += 4) d[j + 3] = rd[j + 1]; } else for (let j = 3; j < S; j += 4) d[j] = 255;
+        return d;
+      },
+    };
+  }
+  // the far town's mean colour of a map (render_premises meanOf, G559): the channel sums of a 4 x 4 draw, the page's
+  // canvas settings - cooked too (the pack's `sums`), so the far-town merge reads no pixels either
+  let S16 = null;
+  function sums16(img, doc) {
+    if (!S16) { S16 = doc.createElement('canvas'); S16.width = S16.height = 4; }
+    const x = S16.getContext('2d', { willReadFrequently: true }); x.clearRect(0, 0, 4, 4); x.drawImage(img, 0, 0, 4, 4);
+    const d = x.getImageData(0, 0, 4, 4).data; let r = 0, g = 0, b = 0;
+    for (let i = 0; i < 64; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+    return [r, g, b];
+  }
+  // a map's name in the pack: its media path ('media/tex/house/<file>'), a flat constant 'flat:r,g,b', no map 'none';
+  // null for what the cook cannot know (a canvas sheet, a data URL)
+  function keyOf(img) {
+    if (!img) return 'none';
+    if (Array.isArray(img)) return 'flat:' + img.slice(0, 3).join(',');
+    const s = typeof img.src === 'string' ? img.src : null, m = s && /media\/tex\/[^?#]+/.exec(s);
+    return m ? m[0] : null;
+  }
+  const keyA = img => { const k = keyOf(img); return k && k !== 'none' ? 'a|' + k : null; };
+  const keyN = (n, r) => { const a = keyOf(n), b = keyOf(r); return a && b ? 'nr|' + a + '|' + b : null; };
+  // the cooked pack as this page reads it (null: the canvas pass everywhere) - the format switch
+  function fmtAsked() {
+    try { const q = typeof location !== 'undefined' && location.search ? /[?&]tarrfmt=(\w+)/.exec(location.search) : null; if (q) return q[1]; } catch (e) {}
+    try { const v = typeof localStorage !== 'undefined' && localStorage.getItem('flydiy.tarrfmt'); if (v) return v; } catch (e) {}
+    return null;
+  }
+  const FMTS = {
+    // the raw layers: the page's own bytes, one gzip stream each (ASSET_FETCH gunzips by the .gz.bin suffix)
+    raw: { fetch: (url, G) => G.ASSET_FETCH(url) },
+  };
+  function cookOf(o) {
+    const G = typeof window !== 'undefined' ? window : {};
+    const pack = o.pack !== undefined ? o.pack : (G.HOUSE_TARR_PACK || null);
+    const want = o.fmt || fmtAsked() || (pack && pack.fmt) || 'raw';
+    if (!pack || want === 'canvas' || pack.px !== o.px || !(o.fetch || typeof G.ASSET_FETCH === 'function')) return null;
+    const F = FMTS[want] || FMTS.raw, base = typeof FLYDIY_ASSET_BASE !== 'undefined' ? FLYDIY_ASSET_BASE : '';
+    return { fmt: FMTS[want] ? want : 'raw', has: k => !!(k && pack.layers[k]), src: k => (k && pack.layers[k]) || null,
+             fetch: src => (o.fetch ? o.fetch(base + src) : F.fetch(base + src, G)), sums: k => (pack.sums && pack.sums[k]) || null };   // (o.fetch: GATE TARR's disk)
+  }
 
   // the house generator's hooks, raw: the game's ATMO serves every hook wrapped (atmo.js: the prototype accessor keeps
   // the material's own in _atmoHook); a bench without ATMO has it as an own property
@@ -141,7 +218,8 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
   function make(THREE, opts) {
     const o = Object.assign({ px: 512, onReady: null, HG: null }, opts || {});
     const HG = () => o.HG || (typeof window !== 'undefined' && window.HOUSE_GEN) || null;
-    const stats = { layers: 0, nrLayers: 0, slots: 0, mb: 0, builds: 0, missing: [] };
+    const stats = { layers: 0, nrLayers: 0, slots: 0, mb: 0, builds: 0, missing: [], cooked: 0, canvas: 0, fmt: 'canvas', fillMs: 0, fetchMs: 0, check: null };
+    const COOK = cookOf(o);   // G840: the cooked layers (null: the canvas pass)
     const U = { tAlb: { value: null }, tNR: { value: null }, tTab: { value: null }, tLit: { value: 1 } };
     // the stack: what is IN it (image -> layer) and what the bake wished for
     let ALB = new Map(), NR = new Map();
@@ -180,7 +258,9 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       if (hook !== (ud.clouded ? ud.hookCloud : ud.hookHouse)) return null;
       if (!GEO_OK(mesh.geometry, ['position', 'normal', 'uv', 'aHouseAO'])) return null;
       const ts = [m.map, m.normalMap, m.roughnessMap].filter(Boolean);
-      for (const t of ts) if (t.channel || (!flatOf(t) && (!ready(imgOf(t)) || t.isDataTexture || t.isCompressedTexture))) return null;
+      // (G840: a map the pack cooked rides before its image has decoded - the stack fetches its layer, not its pixels)
+      const cookedT = t => !!COOK && (t === m.map ? COOK.has(keyA(imgOf(t))) : COOK.has(keyN(imgOf(m.normalMap), imgOf(m.roughnessMap))));
+      for (const t of ts) if (t.channel || (!flatOf(t) && ((!ready(imgOf(t)) && !cookedT(t)) || t.isDataTexture || t.isCompressedTexture))) return null;
       const tx = ts.filter(t => !flatOf(t));
       if (tx.length > 1) { const x0 = xform(tx[0]); if (tx.some(t => xform(t).some((v, i) => Math.abs(v - x0[i]) > 1e-7))) return null; }
       return { kind: 'plain', side, key: 'plain:' + side + ':' + dith };
@@ -287,22 +367,33 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       const px = o.px, S = px * px * 4;
       // decoded or broken (complete either way), or a canvas (a baked sheet: no load to wait for), is settled: a broken map is left out of the stack, its bags stay G566's
       const dec = img => (ready(img) || !('complete' in img) || img.complete) ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); });
-      const all = imgsA.concat([...pairs.values()].flat().filter(Boolean));
-      Promise.all(all.map(dec)).then(() => {
-        const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
-        const ctx = cnv.getContext('2d', { willReadFrequently: true });
-        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-        const draw = img => { if (Array.isArray(img)) { const d = new Uint8ClampedArray(S); for (let j = 0; j < S; j += 4) { d[j] = img[0]; d[j + 1] = img[1]; d[j + 2] = img[2]; d[j + 3] = 255; } return d; }
-          ctx.setTransform(1, 0, 0, -1, 0, px); ctx.clearRect(0, 0, px, px); ctx.drawImage(img, 0, 0, px, px); return ctx.getImageData(0, 0, px, px).data; };
-        const okA = imgsA.filter(ready), dA = new Uint8Array(S * Math.max(1, okA.length)), mA = new Map();
-        okA.forEach((img, i) => { dA.set(draw(img), i * S); for (let k = 3; k < S; k += 4) dA[i * S + k] = 255; mA.set(img, i); });
-        const okN = [...pairs.entries()].filter(([, p]) => p.every(x => !x || ready(x))), dN = new Uint8Array(S * Math.max(1, okN.length)), mN = new Map(), src = new Map();
-        okN.forEach(([k, [n, r]], i) => {
-          const o0 = i * S;
-          if (n) dN.set(draw(n), o0); else for (let j = 0; j < S; j += 4) { dN[o0 + j] = 128; dN[o0 + j + 1] = 128; dN[o0 + j + 2] = 255; }
-          if (r) { const rd = draw(r); for (let j = 0; j < S; j += 4) dN[o0 + j + 3] = rd[j + 1]; } else for (let j = 3; j < S; j += 4) dN[o0 + j] = 255;
-          mN.set(k, i); src.set(k, [n, r]);
+      // G840: every layer the pack cooked is FETCHED (its bytes are the packer's); the rest - and a cooked layer whose
+      // fetch fails - waits for its images and takes the canvas pass. ?tarrcheck=1 draws the cooked ones too, to compare.
+      const CHECK = typeof location !== 'undefined' && /[?&]tarrcheck=1/.test(location.search || '');
+      const t0 = now();
+      const LA = imgsA.map(img => ({ img, imgs: [img], src: COOK ? COOK.src(keyA(img)) : null, bytes: null }));
+      const LN = [...pairs.entries()].map(([k, p]) => ({ k, p, imgs: p.filter(Boolean), src: COOK ? COOK.src(keyN(p[0], p[1])) : null, bytes: null }));
+      let failed = 0;
+      const get = e => COOK.fetch(e.src).then(b => {
+        if (!b || b.length !== S) throw new Error(e.src + ': ' + (b ? b.length : 0) + ' bytes, not ' + S);
+        e.bytes = b; return CHECK ? Promise.all(e.imgs.map(dec)) : null;
+      }).catch(err => { if (!failed++) console.warn('house_tarr: a cooked layer did not arrive (' + (err && err.message) + ') - the canvas draws it'); e.src = null; e.bytes = null; return Promise.all(e.imgs.map(dec)); });
+      Promise.all(LA.concat(LN).map(e => (e.src ? get(e) : Promise.all(e.imgs.map(dec))))).then(() => {
+        const t1 = now();
+        let P = null; const pk = () => P || (P = packer(px, document));
+        const chk = CHECK ? { same: 0, differ: 0, worst: 0, list: [] } : null;
+        const cmp = (e, d) => { if (!chk || !e.bytes) return; let n = 0, w = 0; for (let j = 0; j < S; j++) { const x = Math.abs(d[j] - e.bytes[j]); if (x) { n++; if (x > w) w = x; } } if (n) { chk.differ++; chk.worst = Math.max(chk.worst, w); chk.list.push([e.src, n, w]); } else chk.same++; };
+        let cooked = 0, drawn = 0;
+        const okA = LA.filter(e => e.bytes || ready(e.img)), dA = new Uint8Array(S * Math.max(1, okA.length)), mA = new Map();
+        okA.forEach((e, i) => { if (e.bytes) { dA.set(e.bytes, i * S); cooked++; if (chk && ready(e.img)) cmp(e, pk().albedo(e.img)); } else { dA.set(pk().albedo(e.img), i * S); drawn++; } mA.set(e.img, i); });
+        const okN = LN.filter(e => e.bytes || e.p.every(x => !x || ready(x))), dN = new Uint8Array(S * Math.max(1, okN.length)), mN = new Map(), src = new Map();
+        okN.forEach((e, i) => {
+          const [n, r] = e.p;
+          if (e.bytes) { dN.set(e.bytes, i * S); cooked++; if (chk && e.p.every(x => !x || ready(x))) cmp(e, pk().nr(n, r)); } else { dN.set(pk().nr(n, r), i * S); drawn++; }
+          mN.set(e.k, i); src.set(e.k, [n, r]);
         });
+        for (const e of LA.concat(LN)) e.bytes = null;
+        stats.cooked = cooked; stats.canvas = drawn; stats.fmt = COOK ? COOK.fmt : 'canvas'; stats.fetchMs = Math.round(t1 - t0); stats.fillMs = Math.round(now() - t1); stats.check = chk;
         const mk = (d, n) => { const t = new THREE.DataArrayTexture(d, px, px, Math.max(1, n));
           t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
           t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true; t.anisotropy = 8;
@@ -357,7 +448,13 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
     return { classify, begin, merge, end, material, lit: U.tLit, U, stats, get ready() { return !!U.tAlb.value && !building; } };
   }
 
-  const api = { make, editPlain, editGlass, rawHook, NS, TW };
+  // the far town's mean of a map (render_premises meanOf): the pack's cooked sums, else the 4 x 4 draw (G840)
+  function cookedSums(img) {
+    const k = keyOf(img), pack = typeof window !== 'undefined' ? window.HOUSE_TARR_PACK : null;
+    return (k && pack && pack.sums && pack.sums[k] && fmtAsked() !== 'canvas') ? pack.sums[k] : null;
+  }
+  const meanSums = img => cookedSums(img) || sums16(img, document);
+  const api = { make, editPlain, editGlass, rawHook, NS, TW, packer, sums16, meanSums, cookedSums, keyOf, keyA, keyN };
   if (typeof window !== 'undefined') window.HOUSE_TARR = api;
   return api;
 })();

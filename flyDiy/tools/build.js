@@ -244,6 +244,8 @@ const MANIFEST = {
     // (src/viewer/house_worker.js) imports it RAW by its URL, so it stays a file the page can fetch
     ['src/viewer', 'premises_build.js'],
     // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with
+    // G840 (C2c): its layers cooked offline (tools/tarr_cook.js) - the pack the stack fetches them by
+    ['src/viewer', 'house_tarr_pack.js'],
     ['src/viewer', 'house_tarr.js'],
     ['src/viewer', 'render_premises.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),

@@ -1364,16 +1364,14 @@ function make(THREE, scene, world, rec0, opts) {
     out.tris = b.stats ? b.stats.tris : 0;
     return out;
   }
-  const texMean = new Map(); let texCv = null;
+  // (G840: the 4 x 4 draw's sums are house_tarr.js's, cooked in its pack for the house sets - no pixel read here)
+  const texMean = new Map();
   function meanOf(tex) {
-    const img = tex && tex.image; if (!img || !img.width) return null;
+    const HT = window.HOUSE_TARR, img = tex && tex.image; if (!img || (!img.width && !(HT && HT.cookedSums(img)))) return null;
     if (texMean.has(img)) return texMean.get(img);
     let c = null;
     try {
-      if (!texCv) { texCv = document.createElement('canvas'); texCv.width = texCv.height = 4; }
-      const x = texCv.getContext('2d', { willReadFrequently: true }); x.clearRect(0, 0, 4, 4); x.drawImage(img, 0, 0, 4, 4);
-      const d = x.getImageData(0, 0, 4, 4).data; let r = 0, g = 0, b = 0;
-      for (let i = 0; i < 64; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+      const [r, g, b] = HT.meanSums(img);
       c = new THREE.Color().setRGB(r / 4080, g / 4080, b / 4080, THREE.SRGBColorSpace);
     } catch (err) { c = null; }
     texMean.set(img, c); return c;
@@ -1611,7 +1609,8 @@ function make(THREE, scene, world, rec0, opts) {
     stats.bakeDraws = nd; stats.bakeMerged = nm; stats.bakeMats = HLOD.canon ? HLOD.canon.size : 0; stats.hlodCells = HLOD.cellMap.size;
     let ft = 0, l1 = 0; for (const cl of HLOD.cellMap.values()) { ft += cl.farTris || 0; for (const g of cl.houses) if (HLOD.lod1 && g.userData.lod1) l1++; }
     stats.farTris = ft; stats.lod1Houses = l1;   // G800: the far town's triangles, the houses it took at lod 1
-    if (TARR) Object.assign(stats, { tarrDraws: td, tarrMerged: tm, tarrSlots: TARR.stats.slots, tarrLayers: TARR.stats.layers + '+' + TARR.stats.nrLayers, tarrMB: TARR.stats.mb });
+    if (TARR) Object.assign(stats, { tarrDraws: td, tarrMerged: tm, tarrSlots: TARR.stats.slots, tarrLayers: TARR.stats.layers + '+' + TARR.stats.nrLayers, tarrMB: TARR.stats.mb,
+      tarrFmt: TARR.stats.fmt, tarrCooked: TARR.stats.cooked, tarrCanvas: TARR.stats.canvas, tarrFetchMs: TARR.stats.fetchMs, tarrFillMs: TARR.stats.fillMs, tarrCheck: TARR.stats.check });   // G840
   }
   let hlodFrame = 0, hlodHouses = -1;
   function hlodTick(e) {

@@ -290,7 +290,61 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
         '5q the host: a house builds its lod 1 with its lod 0 (not in the in-flight stream), the outbuilding at outLod; the banded far town merges lod 1, its near rung (TARR, G566) and boxes wear the band; an item keeps G559\'s rungs');
 }
 
-console.log(`${checks - fail.length}/${checks} checks`);
-for (const f of fail) console.log('  FAIL ' + f);
-console.log('GATE TARR: ' + (fail.length ? 'FAIL' : 'PASS'));
-process.exit(fail.length ? 1 : 0);
+// ---- 6 THE LAYERS COOKED OFFLINE (G840, C2c of QUEUE-C: tools/tarr_cook.js, src/viewer/house_tarr_pack.js) ------------
+// 6a the pack covers the library (every set's colour maps and its normal + rough pair, by the page's own keys; a sum per
+// photographed colour map); 6b every layer file is on disk, one gzip stream of px x px x 4 bytes named by their hash;
+// 6c the cook is not stale (the packer's source and the library it read); 6d/6e the stack FETCHES a cooked layer - a map
+// whose image has not decoded rides it, the array holds the file's bytes, no canvas draws it - and without the pack
+// (or ?tarrfmt=canvas) the same map waits for its image, as before
+async function cooked() {
+  const TC = require('./tarr_cook.js'), zlib = require('zlib'), crypto = require('crypto');
+  let PACK = null; try { PACK = require(path.join(ROOT, 'src', 'viewer', 'house_tarr_pack.js')); } catch (e) {}
+  if (!check(!!PACK && PACK.v === 1 && PACK.fmt === 'raw' && PACK.px === 512, '6 the pack loads (src/viewer/house_tarr_pack.js: raw, 512)')) return;
+  const Img = function () { this.complete = false; this.naturalWidth = 0; this.src = ''; this.addEventListener = () => {}; };
+  const LIB = new Function('Image', 'FLYDIY_ASSET_BASE', fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'house_tex.js'), 'utf8') + '\nreturn HOUSE_TEX_SETS;')(Img, 'http://host/base/');
+  const miss = [], nosum = []; let nA = 0, nN = 0;
+  for (const set of Object.keys(LIB)) {
+    const s = LIB[set];
+    for (const m of ['diff', 'paint']) { const img = s[m]; if (!img) continue; nA++; const k = TARR.keyA(img); if (!PACK.layers[k]) miss.push(k || set + '.' + m); if (!Array.isArray(img) && !PACK.sums[TARR.keyOf(img)]) nosum.push(set + '.' + m); }
+    nN++; const k = TARR.keyN(s.nor || null, s.rough || null); if (!PACK.layers[k]) miss.push(k || set + '.nr');
+  }
+  check(!miss.length && !nosum.length && Object.keys(PACK.layers).length <= nA + nN, '6a the pack covers the library: ' + Object.keys(LIB).length + ' sets, ' + nA + ' colour maps + ' + nN + ' normal/rough pairs, a sum per colour map', miss.concat(nosum).slice(0, 4).join(', '));
+  const S = PACK.px * PACK.px * 4, bad = [];
+  for (const [, rel] of Object.entries(PACK.layers)) {
+    const abs = path.join(ROOT, ...rel.split('/'));
+    if (!fs.existsSync(abs)) { bad.push(rel + ' missing'); continue; }
+    const raw = zlib.gunzipSync(fs.readFileSync(abs)), h8 = crypto.createHash('sha256').update(raw).digest('hex').slice(0, 8);
+    if (raw.length !== S || !rel.endsWith('.' + h8 + '.gz.bin')) bad.push(rel + ' (' + raw.length + ' bytes, ' + h8 + ')');
+  }
+  check(!bad.length, '6b every layer file on disk: one gzip stream of ' + PACK.px + '^2 x 4 bytes, named by their hash (' + Object.keys(PACK.layers).length + ' files)', bad.slice(0, 3).join('; '));
+  check(PACK.packer === TC.packerHash() && PACK.library === TC.libraryHash(), '6c the cook is not stale: the packer (house_tarr.js) and the library (house_tex.js) it read are these (re-cook: node tools/tarr_cook.js)',
+        PACK.packer + '/' + TC.packerHash() + ' ' + PACK.library + '/' + TC.libraryHash());
+  // 6d the stack, on a real house's wall with a map whose image has not decoded
+  const key = Object.keys(PACK.layers).find(k => k.startsWith('a|')), url = key.slice(2);
+  let draws = 0;
+  const ctx2 = { imageSmoothingEnabled: true, imageSmoothingQuality: 'high', setTransform() {}, clearRect() {}, drawImage() { draws++; }, getImageData: (x, y, w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }) };
+  const docStub = { createElement: () => ({ width: 0, height: 0, getContext: () => ctx2 }) };
+  const fromDisk = u => Promise.resolve(new Uint8Array(zlib.gunzipSync(fs.readFileSync(path.join(ROOT, ...u.split('/'))))));
+  const D = house(4321, 10, 10, 0.1);
+  const img = new Img(); img.src = 'http://host/base/' + url;
+  const mesh = D.bags.siding; mesh.material.map = new THREE.Texture(img);
+  const Tn = TARR.make(THREE, { HG, pack: null }), Tc = TARR.make(THREE, { HG, pack: PACK, fmt: 'canvas', fetch: fromDisk }), Tk = TARR.make(THREE, { HG, pack: PACK, fetch: fromDisk });
+  check(Tn.classify(mesh) === null && Tc.classify(mesh) === null && (Tk.classify(mesh) || {}).kind === 'plain', '6d a map whose image has not decoded rides the stack only when the pack cooked it (no pack / ?tarrfmt=canvas: it waits, as before)');
+  const had = global.document; global.document = docStub;
+  try {
+    Tk.begin(); Tk.merge([mesh], 'plain'); const complete = Tk.end();
+    for (let i = 0; i < 300 && !Tk.ready; i++) await new Promise(res => setTimeout(res, 10));
+    const A = Tk.U.tAlb.value, want = zlib.gunzipSync(fs.readFileSync(path.join(ROOT, ...PACK.layers[key].split('/'))));
+    const got = A && A.image && A.image.data ? Buffer.from(A.image.data.buffer, A.image.data.byteOffset, S) : null;
+    check(complete === false && Tk.ready && Tk.stats.fmt === 'raw' && Tk.stats.cooked >= 1 && Tk.stats.canvas === 0 && draws === 0 && !!got && got.equals(want),
+          '6e the stack fetched the cooked layer: the array holds the file\'s bytes, no canvas drew (fmt ' + Tk.stats.fmt + ', ' + Tk.stats.cooked + ' cooked, ' + Tk.stats.canvas + ' drawn, ' + draws + ' draws)');
+  } finally { global.document = had; }
+}
+
+(async () => {
+  try { await cooked(); } catch (e) { check(false, '6 the cooked layers threw', e && e.stack); }
+  console.log(`${checks - fail.length}/${checks} checks`);
+  for (const f of fail) console.log('  FAIL ' + f);
+  console.log('GATE TARR: ' + (fail.length ? 'FAIL' : 'PASS'));
+  process.exit(fail.length ? 1 : 0);
+})();
