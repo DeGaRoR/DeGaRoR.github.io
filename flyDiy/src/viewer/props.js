@@ -202,34 +202,102 @@ function propBuild(THREE, key) {
 // shed's emitter books claim a fixture by its meshes). The parts themselves stay as they were - `geos` / `mats`
 // by part, which the cage's baked pieces (app.js, parked.js) and the cabin read by index - and the placements draw
 // `dgeos` / `dmats`. The same triangles in the same frame under the same material: the picture is the parts'.
+//
+// THE ARRAY DRAW LIST (AS4a-rest, G941; MATLIB's array shapes). Where the page can take a record's maps as texture-array
+// layers (every map a KTX2 twin, or a flat constant, or none: MATLIB.arr.twin), the record is a ROW and its parts join
+// the prop's ARRAY draws: one geometry per (side, flat shading, pages) - in practice one for the whole opaque prop -
+// carrying each vertex's row (`mlRow`), drawn once by the shape's material (MATLIB.arr.material). car_buick's 21
+// opaque records are one draw where they were 13. Glass and glow keep their own draws (above); a DUSTED key keeps its
+// records (the dust is a hook on the record's material); a map with no twin (raw, or KTX2 off: ?ktx2=0) keeps its
+// record, as before AS3. `?matarr=0` is the A/B: the records, as AS4a-EARLY drew them.
+function propArrSpec(THREE, rec) {
+  if (rec.blend || rec.emis) return null;
+  const r = { col: rec.col, opacity: 1, rough: rec.rough, metal: rec.metal, norScl: rec.nor ? rec.norScl : 1, ao: !!(rec.arm && rec.ao), map: null, nor: null, arm: null };
+  for (const [slot, kind] of [['map', 'color'], ['nor', 'normal'], ['arm', 'data']]) {
+    const id = rec[slot]; if (!id) continue;
+    const uri = PROP_REG.texs[id]; if (!uri) continue;   // propTexture's null: the record has no such map
+    if (Array.isArray(uri)) { r[slot] = uri; continue; } // G903: a flat map is its constant - the row carries it
+    const tw = MATLIB.arr.twin(uri, kind); if (!tw) return null;
+    r[slot] = MATLIB.arr.layer(THREE, tw);
+  }
+  return r;
+}
+function propMerge(THREE, list, rows) {
+  let nv = 0, ni = 0; for (const g of list) { nv += g.attributes.position.count; ni += g.index.count; }
+  const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+  const row = rows ? new Uint16Array(nv) : null;   // the row per vertex: 2 bytes (the shader reads it as a float)
+  let v = 0, t = 0;
+  list.forEach((g, p) => {
+    const A = g.attributes, n = A.position.count, I = g.index.array;
+    pos.set(A.position.array, v * 3); nrm.set(A.normal.array, v * 3); uvs.set(A.uv.array, v * 2);
+    if (row) row.fill(rows[p], v, v + n);
+    for (let j = 0; j < I.length; j++) idx[t + j] = I[j] + v;
+    v += n; t += I.length;
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  const uv = new THREE.BufferAttribute(uvs, 2);
+  g.setAttribute('uv', uv); g.setAttribute('uv1', uv);
+  if (row) g.setAttribute('mlRow', new THREE.BufferAttribute(row, 1));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  // ONE COPY OF THE VERTICES: each part's position / normal / uv become VIEWS of the merged arrays (its own slice, the
+  // same numbers) - the parts stay whole for their readers (`geos`, the cage's pieces), and the prop's vertices live
+  // once in memory. Nothing has uploaded a part yet (propBuild runs before any draw).
+  v = 0;
+  for (const q of list) {
+    const A = q.attributes, n = A.position.count;
+    A.position.array = pos.subarray(v * 3, (v + n) * 3); A.normal.array = nrm.subarray(v * 3, (v + n) * 3);
+    A.uv.array = uvs.subarray(v * 2, (v + n) * 2); if (A.uv1 && A.uv1 !== A.uv) A.uv1.array = A.uv.array;
+    v += n;
+  }
+  return g;
+}
 function propDraws(THREE, b) {
   const groups = new Map(), order = [];
+  for (const m of b.arrMats || []) MATLIB.release(m);   // a re-draw (propDust after the build) gives its shapes back
+  b.arrMats = [];
+  const arrOk = MATLIB.arr && MATLIB.arr.on && !PROP_DUST.has(b.prop.key);
+  const KINDS = ['map', 'nor', 'arm'];
   b.geos.forEach((g, i) => {
     const m = b.mats[i], lit = m.emissive && (m.emissive.r || m.emissive.g || m.emissive.b);
+    const rec = b.prop.mats[b.prop.parts[i].mat];
+    const spec = (arrOk && !m.transparent && !lit && rec) ? propArrSpec(THREE, rec) : null;
+    if (spec) {
+      const side = rec.dbl ? 2 : 0, flat = !!rec.flat, need = {};
+      for (const k of KINDS) need[k] = spec[k] && spec[k].page ? spec[k].page : null;
+      // (two draws of 16-bit indices are not joined into one of 32 - but the parts of ONE record always are, as
+      // AS4a-EARLY joined them: a scanned person the baker cut into 65 535-vertex parts is one draw; and where a part
+      // or the draw is past 65 535 already, it is 32-bit anyway)
+      const nv = g.attributes.position.count;
+      const fits = G => G.nv + nv <= 65535 || G.nv > 65535 || nv > 65535 || G.recs.has(m);
+      let G = order.find(G => G.arr && G.side === side && G.flat === flat && KINDS.every(k => !need[k] || !G.pages[k] || G.pages[k] === need[k]) && fits(G));
+      if (!G) { G = { arr: true, side, flat, pages: {}, list: [], rows: [], nv: 0, recs: new Set() }; order.push(G); }
+      G.nv += nv; G.recs.add(m);
+      for (const k of KINDS) if (need[k]) G.pages[k] = need[k];
+      G.list.push(g); G.rows.push(MATLIB.arr.row(THREE, spec));
+      return;
+    }
     const k = (m.transparent || lit || !MATLIB.share) ? 'solo#' + i : m.uuid;
     let G = groups.get(k); if (!G) { groups.set(k, G = { m, list: [] }); order.push(G); }
     G.list.push(g);
   });
   b.dgeos = []; b.dmats = [];
   for (const G of order) {
+    if (G.arr) {
+      const m = MATLIB.arr.material(THREE, { side: G.side, flat: G.flat, pages: G.pages });
+      m.envMapIntensity = m.userData.env0 * PROP_ENV;
+      b.arrMats.push(m); b.dmats.push(m);
+      const g = propMerge(THREE, G.list, G.rows);
+      g.userData.parts = G.list.map(x => b.geos.indexOf(x));   // which parts it draws, and each one's row (GATE MATLIB)
+      g.userData.rows = G.rows.slice();
+      b.dgeos.push(g);
+      continue;
+    }
     b.dmats.push(G.m);
     if (G.list.length === 1) { b.dgeos.push(G.list[0]); continue; }
-    let nv = 0, ni = 0; for (const g of G.list) { nv += g.attributes.position.count; ni += g.index.count; }
-    const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
-    let v = 0, t = 0;
-    for (const g of G.list) {
-      const A = g.attributes, n = A.position.count, I = g.index.array;
-      pos.set(A.position.array, v * 3); nrm.set(A.normal.array, v * 3); uvs.set(A.uv.array, v * 2);
-      for (let j = 0; j < I.length; j++) idx[t + j] = I[j] + v;
-      v += n; t += I.length;
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
-    const uv = new THREE.BufferAttribute(uvs, 2);
-    g.setAttribute('uv', uv); g.setAttribute('uv1', uv);
-    g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeBoundingSphere();
+    const g = propMerge(THREE, G.list, null);
     g.userData.parts = G.list.map(x => b.geos.indexOf(x));   // which parts it draws (GATE MATLIB)
     b.dgeos.push(g);
   }
@@ -536,7 +604,7 @@ let PROP_ENV = 1.0;
 function propSetEnv(f) {
   PROP_ENV = f;
   for (const b of PROP_BUILT.values())
-    for (const m0 of b.mats) MATLIB.each(m0, m => { m.envMapIntensity = m.userData.env0 * f; });
+    for (const m0 of b.mats.concat(b.arrMats || [])) MATLIB.each(m0, m => { m.envMapIntensity = m.userData.env0 * f; });   // the records and the array shapes
 }
 function propEnv() { return PROP_ENV; }
 
@@ -544,7 +612,7 @@ function propDispose(key) {
   const b = PROP_BUILT.get(key);
   if (!b) return;
   for (const g of new Set(b.geos.concat(b.dgeos || []))) g.dispose();
-  for (const m of b.mats) MATLIB.release(m);   // shared by record: the last user disposes it
+  for (const m of b.mats.concat(b.arrMats || [])) MATLIB.release(m);   // shared by record / by shape: the last user disposes it
   PROP_BUILT.delete(key);
 }
 
