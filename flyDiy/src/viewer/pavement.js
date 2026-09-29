@@ -1138,7 +1138,8 @@ float pvTread(float u, float x, float w, float seed) {
   //   PV.MR / PV.MK the markings' rects and rules - THE MARKINGS ATLAS: a strip's paint is its row's last 80 texels
   // The row is picked by `aPavId`, a vertex attribute constant over a part, read through a FLAT varying (the provoking
   // vertex's value, never interpolated: G1046's lesson - a hash must never see an interpolated input) and rounded.
-  // Because the material is one, the pavements MERGE (merge() below: per 1 km cell, the draw order kept inside each).
+  // Because the material is one, the pavements MERGE (merge() below: whole parts, the overlapping ones together, grouped
+  // within 1.5 km; the draw order kept inside each mesh).
   // The shader text is the shipped one: tableGLSL() derives it by anchored replacements (the uniform declarations
   // become globals, pvLoad() fills them from the row at the top of the chain, the array reads become texel reads), so
   // `?pave=old` draws exactly the pre-G925 program and the two cannot drift apart silently (GATE PAVEMENT 12).
@@ -1568,7 +1569,7 @@ float pvTread(float u, float x, float w, float seed) {
       document.body.appendChild(d); AB.box = d;
     }
     const c = census(sceneOf());
-    AB.box.textContent = 'PAVEMENT ' + (MODE.table ? 'NEW (G925: one material, a row each, merged per cell)' : 'OLD (a material and a mesh per strip, as shipped)') +
+    AB.box.textContent = 'PAVEMENT ' + (MODE.table ? 'NEW (G925: one material, a row each, merged)' : 'OLD (a material and a mesh per strip, as shipped)') +
       (c.meshes ? ' - ' + c.visible + ' meshes, ' + c.materials + ' material' + (c.materials === 1 ? '' : 's') : '') + '   [click to switch]';
     return true;
   }
@@ -1600,18 +1601,20 @@ float pvTread(float u, float x, float w, float seed) {
   }
   // ---- THE MERGE (G926): the table's parts as a few meshes -----------------------------------------------------
   // mergeSteps(THREE, parts, o, out) - parts [{ geo, order }] (world-space geometries tagged by make(), their draw
-  // order = the renderOrder each would have had), a generator yielding after each cell; `out` receives
-  // [{ geo, order, parts }] - one geometry per CELL (o.cell, BATCH.cell metres) with every triangle whose centroid is
-  // in the cell, the parts' triangles in DRAW ORDER (order, then the order given): inside one draw the GPU blends in
-  // primitive order, so the per-runway order of G664 (the longest strip last) holds exactly where two strips cross.
-  // Across meshes three sorts by renderOrder (the cell's lowest - the caller keeps a bucket per order CLASS: strips,
-  // aprons, roads) and then by distance - so two triangles of different parts that overlap must never end in two
-  // meshes. THE CONTESTED ZONES: where two parts' boxes intersect, grown by the largest triangle's extent, every
-  // triangle whose centroid is inside goes to the zone's cell (zones that touch are one zone): two triangles that
-  // overlap both reach into that intersection, so both centroids lie in the grown zone. Rows move to the merged
-  // geometries (each part's row owned by exactly one: dispose() frees it with that one); the sources are the caller's
-  // to drop. A2-RUNWAYS' culling holds per cell (each merged mesh has its own sphere).
-  const BATCH = { cell: 1024, zoneGrid: 64 };
+  // order = the renderOrder each would have had), a generator yielding after each merged mesh; `out` receives
+  // [{ geo, order, parts }], the parts' triangles in DRAW ORDER inside each (order, then the order given): inside one
+  // draw the GPU blends in primitive order, so the per-runway order of G664 (the longest strip last) holds exactly
+  // where two strips cross. Across meshes three sorts by renderOrder (the mesh's lowest - the caller keeps a bucket
+  // per order CLASS: strips, aprons, roads) and then by distance - so two triangles of different parts that overlap
+  // must never end in two meshes. Two ways to cut:
+  //   WHOLE PARTS (default): parts whose boxes meet are one component, and components are GROUPED while the group
+  //     stays within BATCH.reach (below) - a part is never cut;
+  //   o.split: per cell (o.cell) by triangle centroid, with CONTESTED ZONES - where two parts' boxes intersect, grown by
+  //     the largest triangle's extent, every triangle whose centroid is inside goes to the zone's cell (zones that touch
+  //     are one zone): two triangles that overlap both reach into that intersection, so both centroids lie in the zone.
+  // Rows move to the merged geometries (each part's row owned by exactly one: dispose() frees it with that one); the
+  // sources are the caller's to drop. A2-RUNWAYS' culling holds per merged mesh (each has its own sphere).
+  const BATCH = { cell: 1024, zoneGrid: 64, split: false, reach: 1500 };
   function* mergeSteps(THREE, parts, o, out) {
     o = o || {};
     const C = o.cell || BATCH.cell, ZG = BATCH.zoneGrid;
@@ -1635,7 +1638,38 @@ float pvTread(float u, float x, float w, float seed) {
       p.box = [x0, z0, x1, z1];
     }
     margin += 0.5;
-    // the contested zones, and the zones that touch joined
+    const cellKey = (x, z) => (Math.floor(x / C) + 32768) * 65536 + (Math.floor(z / C) + 32768);
+    const cells = new Map();
+    if (!(o.split !== undefined ? o.split : BATCH.split)) {
+      // WHOLE PARTS (the default, G926): a part is never cut. Parts whose boxes (grown by the largest triangle) meet are
+      // one COMPONENT - the only parts that can overlap on screen - and a component goes whole to the cell of its box's
+      // centre; the components of a cell share its mesh. (Cutting parts per cell made more meshes, not fewer: Jolene's
+      // strips are 1.2-2.4 km long - 6 strips became 13 cell pieces at 1 km.)
+      const par = list.map((_, i) => i), find = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
+      for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+        const A = list[i].box, B = list[j].box;
+        if (A[0] - margin <= B[2] && B[0] - margin <= A[2] && A[1] - margin <= B[3] && B[1] - margin <= A[3]) par[find(i)] = find(j);
+      }
+      const uni = (a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+      const rad = b => Math.hypot(b[2] - b[0], b[3] - b[1]) / 2;
+      const comps = new Map();
+      list.forEach((p, i) => { const r = find(i), c = comps.get(r); if (!c) comps.set(r, { box: p.box.slice(), idx: [i] }); else { c.box = uni(c.box, p.box); c.idx.push(i); } });
+      // THE GROUPS: a component joins the group it grows least, while the group's box stays within `reach` of a sphere
+      // (BATCH.reach, 1.5 km half-diagonal) or within 5 % of its own when it is already bigger (a turnaround at the end
+      // of a 2.4 km runway joins the runway's group); what lies further off keeps a mesh of its own - A2-RUNWAYS'
+      // culling, per group. (Grid cells did not do it: the airfield straddles the cell lines.)
+      const groups = [], REACH = o.reach || BATCH.reach, gOf = new Int32Array(list.length);
+      for (const c of Array.from(comps.values()).sort((a, b) => rad(b.box) - rad(a.box))) {
+        let best = -1, br = Infinity;
+        groups.forEach((g, gi) => { const r = rad(uni(g.box, c.box)); if (r <= Math.max(REACH, rad(g.box) * 1.05) && r < br) { best = gi; br = r; } });
+        if (best < 0) { groups.push({ box: c.box.slice() }); best = groups.length - 1; } else groups[best].box = uni(groups[best].box, c.box);
+        for (const i of c.idx) gOf[i] = best;
+      }
+      list.forEach((p, i) => { const k = gOf[i], tris = [];
+        for (let t = 0; t < p.g.index.count; t += 3) tris.push(t);
+        let cl = cells.get(k); if (!cl) cells.set(k, cl = []); cl.push({ p, tris }); });
+    } else {
+    // THE SPLIT (o.split): per cell by triangle; the contested zones, and the zones that touch joined
     const zones = [];
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
       const A = list[i].box, B = list[j].box, x0 = Math.max(A[0], B[0]), z0 = Math.max(A[1], B[1]), x1 = Math.min(A[2], B[2]), z1 = Math.min(A[3], B[3]);
@@ -1648,7 +1682,6 @@ float pvTread(float u, float x, float w, float seed) {
     }
     const gbox = new Map();
     zones.forEach((z, i) => { const r = find(i), b = gbox.get(r); if (!b) gbox.set(r, z.slice()); else { b[0] = Math.min(b[0], z[0]); b[1] = Math.min(b[1], z[1]); b[2] = Math.max(b[2], z[2]); b[3] = Math.max(b[3], z[3]); } });
-    const cellKey = (x, z) => (Math.floor(x / C) + 32768) * 65536 + (Math.floor(z / C) + 32768);
     const zoneCell = zones.map((z, i) => { const b = gbox.get(find(i)); return cellKey((b[0] + b[2]) / 2, (b[1] + b[3]) / 2); });
     const zgrid = new Map(), gk = (i, j) => (i + 32768) * 65536 + (j + 32768);
     zones.forEach((z, i) => { for (let a = Math.floor(z[0] / ZG); a <= Math.floor(z[2] / ZG); a++) for (let b = Math.floor(z[1] / ZG); b <= Math.floor(z[3] / ZG); b++) { const k = gk(a, b); let l = zgrid.get(k); if (!l) zgrid.set(k, l = []); l.push(i); } });
@@ -1658,7 +1691,6 @@ float pvTread(float u, float x, float w, float seed) {
       return cellKey(x, z);
     };
     // every triangle to its cell, per part (the part's triangles keep their own order)
-    const cells = new Map();
     for (const p of list) {
       const P = p.g.attributes.position.array, I = p.g.index.array, by = new Map();
       for (let t = 0; t < I.length; t += 3) {
@@ -1667,6 +1699,7 @@ float pvTread(float u, float x, float w, float seed) {
         let l = by.get(k); if (!l) by.set(k, l = []); l.push(t);
       }
       for (const [k, tris] of by) { let cl = cells.get(k); if (!cl) cells.set(k, cl = []); cl.push({ p, tris }); }
+    }
     }
     yield 'pavement:cells';
     // each cell: the vertices its triangles use, compacted, part after part in draw order
