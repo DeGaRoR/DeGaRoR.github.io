@@ -64379,3 +64379,99 @@ FOR THE COORDINATOR - THE LOOK-CHECK (a real GPU; `node flyDiy/tools/_serve.js 8
 - Re-take tools/perf/framecost_baseline.json on the merged train (the G933 / G934 ALLOW rows die with it).
 - FRAMECOST_VILLAGE=1 (new, a debugging aid): a third view by the thickest cluster of repeated dressing, found from the
   placements (LOD or proxy, both named prop:<key>) so two trees are measured at one pose (Jolene: 1128.3, -2760.4).
+## G830-G834 - C2a: THE HOUSES GENERATED IN A WORKER, CACHED IN INDEXEDDB; THE PAGE ONLY STANDS THE ARRAYS UP (2026-09-29, C2a of QUEUE-C, a cloud session, node only)
+
+WHY: ARCH-2026-09-27 §3.2 (b), §3.4 step 1. The town step generated every house on the main thread (placeHouse, the finish, HOUSE_GEN.build at lod 0 and lod 1 - the voxel AO bake: 100-200 ms a house - and the plot's dressing), and a site streaming in cost a 100-200 ms frame. The user's rule holds: ONE upfront load, no background loading in the shed or in flight; the worker only takes the work off the main thread, and every build still finishes under the loading screen (the town step and the settle wait for it).
+
+G830 THE SPLIT (src/viewer/premises_build.js, new; src/viewer/render_premises.js)
+- **The generation half** of buildHouse / dressPlot / fenceGroup / buildItem / buildSiteFences is one thread-agnostic module: `PREMISES_BUILD.makeBuilder(C)` with `genHouse`, `genItem`, `genFences`, `genFence`, `genDress`. It reads the composed record (C.O), the generators on its globals (the page's window or the worker's self) and nothing of the scene.
+- **The placement half stays in render_premises**: `buildHouse(plot, R)`, `buildItem(it, R)`, `buildSiteFences(st, R)` take R, the generation (inline when absent), and do the materials (makeFinish + applyFinish), the meshes, the props, the obstacle, the lamps. `placeDress` / `placeFence` are dressPlot / fenceGroup's placement halves. Objects (props, parked aeroplanes, billboards) and parks are unchanged.
+- **THE VILLAGE HAS AN ORDER-DEPENDENT MEMORY** (found here; premises_build.js header). Two tallies are shared by every plot a premises dresses: SPREAD (HOUSE_GEN.makeSpread: the least-used prop key per pick - boats, the pier's people, the drive's car; made lazily by the first house) and FENCED (the edges already fenced: a skipped edge also skips a draw of the plot's rnd, so everything finishPlot plans after it moves). A house's output is a pure function of (the record, the plot, the tallies before it, the dials). So:
+  - the builder owns the tallies; every generation returns its DELTA (the counts added, whether SPREAD was made, the edges fenced);
+  - the page applies each delta in the order it places, so its copy equals the worker's at every batch boundary;
+  - a batch carries the page's copy (`state`) whenever the worker's may differ (the first; after a miss or a torn-down plot).
+  - Today's page already depends on the order: the same house dresses differently from another stand (the queue is sorted from the aircraft). Not changed here.
+- **The finish a build writes to**: HOUSE_GEN.build writes the sag uniforms into F.SHADE_U. A remote build returns the uniforms its builds changed (`uniSnap` before / `uniDiff` after, every *_U set and every material's userData set); the page makes its own finish and applies them (`uniApply`).
+- **PROOF (the page in node, Jolene, 137 queue entries):** the refactored inline build is bit-identical to the base (origin/claude/train-16) for every entry - geometry bytes, materials, the finish's uniforms - with the same generation calls. And with C0's lod-1 dials off, the refactor reproduces the committed data cook's placements hash exactly (ebbe60527390cfa8, 215 things; tools/premises_cook.js now lifts the new layout).
+
+G831 THE WORKER (src/viewer/house_worker.js, new; world_boot.js, render_world.js, app.js)
+- **A Blob worker**, sim_host.js's pattern: the Blob imports house_worker.js by URL; the body imports vendor three, the built core, sim_host.js (its `simHostFetchBoot`), house_tex / lot_tex / sign_tex (metadata only: an Image stub; assets.js's TEX_FLAT stubbed), the generators the page has, and premises_build.js - each by the URL the page's own script tag used (its ?v=, so the HTTP cache serves it), else next to the page with ?v=FLYDIY_BUILD.
+- **Its own world.** A house stands on the COMPOSED ground (P.ground reads the premises' terrain), so the worker fetches the island's trimmed boot the physics worker's way. Under the page's raster flag it also fetches the island's cooked raster cells (src/core/premises_packs.json; C1b's fetchBoot does the same once it lands, and then this code does nothing). It runs `makeWorld(0, { premises: <the page's premises text>, island })`, and at the renderer's make the page's own recompose: `world.premises.set(rec, { build, pool })` with the page's record and tree pool.
+- **When.** Started by world_boot.js right after the page's makeWorld, beside the garage boot (node: init 2.6-2.9 s, recompose 1.2-1.6 s).
+- **THE QUEUE, THE WORKER'S WAY** (render_premises `HWQ`, hwDispatch / hwPump / hwPlace / prewarmW / streamW).
+  - The queue keeps its order (the prewarm's from the stand, the stream's from the aircraft) and the page PLACES in that order. Only who generates changes.
+  - Taken entries become jobs `{ seq, kind, id, seed }` in batches. The worker finds each one in ITS composition by id and re-derives the seed: a stale record answers "not found", and the page builds it.
+  - A result is placed with `buildOne(p, R)` when it and every entry before it are in.
+  - **Misses:** a miss (not found, an error, a cache entry gone) is built by the page, and everything after it is sent again (`gen` bumped: late answers are dropped). Three errors let the worker go, and the rest builds inline in the same order. A dead worker's queue goes back to the inline path.
+- **THE PREFETCH (G831).** The town step's own dispatch is made at the world step's rebuild. It uses the same point (app.js `FLYDIY_TOWN_AT` = the stand, the one loading's `tripCg`) and the same reach (render_world PREM_BOOT), so it is the same sort of the same queue: the same order, the same bits. The worker generates while the page lays out the rest of the world, and on a cold visit the town step is placement.
+  - Edge case: a route changed on the setup screen between the world step and the town step leaves the prefetched order. The build is still consistent and complete, but it is the old stand's order, and so, like today's stand-dependence, a different dressing than an inline build from the new stand.
+- **THE PAGE STILL BUILDS ITSELF:**
+  - HANGAR_GEN items (3 on Jolene). Their lod-0 shell is hangar.js's THREE build: canvas sheets and materials of its own. The worker generates them too, but only for the tallies (`tally`: its delta, no arrays), so nothing waits on them. The page holds its own delta against the worker's; had they differed, it would re-send the rest (`tallyMiss`: 0 on Jolene).
+  - Objects: props, parked aeroplanes, and 2 billboards (BIG_GEN.billboard, a few boxes).
+  - Parks (TOTEM_GEN.totemBuild is THREE-side; 0 on Jolene).
+  - The editor: while PREMISES_HOST_OPEN, inline.
+  - The cable solver's station builds inside the world step's compose (buildFor: 6 HOUSE_GEN.build + 33 bakeAO in `garage:world`, not the town step).
+- **Waiting, not spinning.** The town step and the settle wait on the worker's next answer: `prewarm(...).wait` (a promise) and `WORLD.premises.hwWait()`. The settle burns no updates while the stream waits (it would have run out its 1 500).
+- **In flight** (G591's stream past the loading's 6 km: on Jolene, 42 site items and 36 objects at the other fields): dispatched in the stream's order, generated in the worker, placed on the stream's bank. The page's frame pays an upload, not a generation. It still loads in flight, as before.
+- `?housew=0` (or localStorage flydiy.housew = '0') turns the worker off: the inline build, bit-identical. file:// or no Worker: off. The cache has no flag of its own: no IndexedDB is a miss.
+
+G832 THE CACHE (IndexedDB 'flydiy-houses': 'r' the packed result, 'd' its delta)
+- **The key** is `FLYDIY_BUILD | HW_V | PREMISES_BUILD.V | the record's hash | the dials (lod1, outLod, lotGround, pp) | kind:id:seed | the hash of the tallies BEFORE it`. A house is a pure function of exactly that. The tallies' hash is what makes a second visit hit whatever order it arrives in (and miss when an order change moved the dressing).
+- **A hit** applies the stored delta, so what follows is keyed and generated as if the house had been built. It reads the arrays back and transfers them.
+- **The deltas are preloaded** (one getAll per record at the first batch), so the worker's walk stays synchronous. Only the arrays are read per hit.
+- **Eviction:** another FLYDIY_BUILD's entries are dropped at the first batch (a deploy re-builds once), and a cache past 6 000 entries starts again.
+- **THE SIZE (the honest number):** Jolene's village is 220.8 MB of float32 / uint arrays for 92 entries (12 577 buffers, 2.4 MB an entry: lod 0 with every channel, lod 1 as position + normal, the lot patches, the outbuildings, the fences). That is the IndexedDB footprint, and it is also what the page holds after the upload, as before. Quantizing (int16 positions / normals) or CompressionStream is the obvious next cut; not done here.
+
+G833 GATE HOUSEWORKER (tools/_houseworker_check.js, new, core, ~8 min, four page processes in sequence)
+- **The harness.** The page in node (tools/_page_node.js) with C1b's Worker shim (G815), ported verbatim from origin/claude/upbeat-heisenberg-n9qprl, plus three G830 additions:
+  - `idb: <dir>`, a FAKE IndexedDB in the worker threads: one directory a store, one file a key, v8's serializer at the call. A second page process finds what the first stored.
+  - a worker handler that returns a promise is acked when it settles: the harness's turn waits for the worker's whole answer;
+  - `toRealm`: a message from the port is built in node's realm, not the page's vm context. Its typed arrays are re-viewed through the page's own constructors on the same buffer. Without it three.js refused them at the first draw ("Unsupported buffer data format"). The first worker census found this: the gate now fails on any thrown script, timer or frame, and draws 3 frames after the loading.
+- **Children:**
+  - `local` (?housew=0, the reference);
+  - `cold` (an empty cache);
+  - `warm` (the cold child's cache);
+  - `partial` (every third cached entry deleted).
+- **Per entry, a digest of what stands in the scene:** every object under its groups (the house, its extras: the fence, the outbuilding, the yard; its lod-1 meshes). It covers type, name, transform, renderOrder, receiveShadow, every geometry attribute's and index's bytes and array type, every material's values and its finish's uniforms. A prop and a LOD ladder are their key and pose: their rungs arrive on the asset loader's clock. Left out: `visible` and `castShadow`, which the detail cull and the shadow thrift switch from the eye on the page's clock (a worker boot lands the town at another virtual time; the first run's 5 "differences" were exactly that). HOUSEWORKER_DETAIL=1 gives every object's own digest.
+- **CHECKS:**
+  - nothing thrown;
+  - cold, warm and partial bit-identical to local for every entry;
+  - no house generation call on the page's thread in the town step (HOUSE_GEN.build by lod, placeHouse, finishPlot, lotGround, buildFence, bakeAO, the other generators' build). What the page builds itself (the hangars) is counted apart, as '@here';
+  - every array the worker posted was transferred (its buffer detached), none copied;
+  - cold generates every worker entry, warm 0, partial exactly the deleted ones.
+
+G834 THE TOOLS
+- **rollout_perf.js** prints, after the one loading, the TOWN and SETTLE steps' own time (BOOT.log), the long tasks inside each (count, ms, worst), and the HOUSE WORKER's account (init, recompose, built / from the cache / tallies, MB, the page's dispatched / placed / here / prefetch). It is also in the JSON as `town`.
+- **FRAMECOST_WORKERS=1** runs FRAMECOST's census with the worker on (a cold cache). The gate's own census stays the inline path: this harness has no Worker unless asked, and its counts are unchanged to the last counter (the refactor is bit-identical).
+- **Source checks** that follow the moved code: TARR 5q, PREMISES 14n and FADES 5 (+ streamW / prewarmW).
+- **premises_cook.js** lifts the new layout (`buildHouse(plot, R)`, the tallies block) and loads premises_build.js. pageHash covers that file, and PREMCOOK's page edit now edits genHouse.
+- **lot_tex.js** (hand-written tail): `LOT_GROUND.geometry(THREE, L)` is split out of mesh(), and mesh() takes a packed geometry (`L.geo`).
+
+MEASURED (node, this box, the page in node - NOT a browser's milliseconds; PLAYTEST §0.25 has the tables):
+- **The town step's generation on the page's thread:**
+  - inline: 84 placeHouse, 86 + 96 HOUSE_GEN builds, 94 finishPlot, 94 lotGround, 271 buildFence, 275 bakeAO, plus 1 BIG, 3 HANGAR and 4 SHED builds;
+  - worker: 0, plus the 3 hangars built here.
+- **The worker's own time (cold):** init 2.6-2.8 s, recompose 1.2-1.3 s, generation 8.6-8.9 s for 92 entries (~95 ms an entry).
+- **The town step's wall in this harness:** inline 11.6 s; worker cold 2.0 s (the prefetch: the generation ran during the world step); warm 2.1 s; partial 2.0 s. In this harness the page BLOCKS on the worker at each turn, so the world step's wall absorbs the generation: 28.3 s inline, 37.6 s cold with 8.5 s of it waiting. In a browser the two run side by side: that parallel is the claim, and the browser measures it.
+- **GATE FRAMECOST's census, the Cub,** inline vs FRAMECOST_WORKERS=1:
+  - the stand and taxi views IDENTICAL, every counter;
+  - boot/garage:town house.build0 / build1 86 / 96 -> 0 / 0, GL calls, draws and links unchanged, harness wall 11.2 -> 2.1 s;
+  - garage:world harness wall 26.8 -> 39.2 s (the harness's wait on the worker);
+  - nothing thrown.
+
+FOR THE COORDINATOR:
+- **THE TIMING RECIPE (the GPU box, this branch in a train; one GPU benchmark at a time):**
+  - `node tools/rollout_perf.js --cold --label c2a_cold` (an empty profile: the worker generates, the cache fills), then `node tools/rollout_perf.js --label c2a_warm` twice (the second on the warm profile: `HOUSE WORKER {... built 0, hits N}`).
+  - The A/B: `node tools/rollout_perf.js --q housew=0 --label c2a_inline` (and `--cold`).
+  - Add `--build "bugReports/cessnaMetal (1).json"` for the metal build.
+  - Read the TOWN line (the step's seconds, its long tasks: the target is none over 50 ms from generation, the placement's own share is what remains), the SETTLE line, the HOUSE WORKER line, and the rig's LOAD line (with --trips).
+  - The user's rule: no frame under 30 fps while loading means long tasks only from what is not generation. What is left in the town step is the placement: the meshes, the obstacle rasters (hitAdd's vertex walk per house: the next main-thread cost, C2c's cook carries the shapes), and the lot patches' materials.
+- **Not seen here:** a browser. Specifically the Blob's importScripts of the dev files next to the page, the service worker in between (a failed import is the inline path, with a warning), IndexedDB's quota with ~220 MB for Jolene, and the worker's memory (a second trimmed world: ~80 MB of grids + the core's world).
+- **FRAMECOST** is RED on train-16 itself, with the same 13 reds counter for counter on the base (origin/claude/train-16, a worktree) and on this branch. The views, the boot rows, all 526 lines are identical. The reds are the aircraft's per-frame vertex re-upload: stand / taxi bufferSubData 544 B -> 3.67 MB (Cub) / 2.99 MB (Cessna), bufferSubData 2 -> 20, bindBuffer +42, Cessna taxi uniform3f +13.5. The baseline (C0's, on b3bf043) predates that; re-take it on the train or find the re-upload's return. Not this change's.
+- **PREMCOOK** was RED on train-16 before this change. C0's `HLOD` reference in buildHouse broke the cook's lift: 84 houses "FAILED to build". The harness builds again here. What remains red is the committed cook's staleness: the page's placement code moved (C0's lod-1 builds changed the placements - with lod 1 off the refactor gives the committed hash back). Re-cook on the train: `node tools/premises_cook.js --island jolene` (media/world, per-cell content-addressed).
+- **The G594 box as a placeholder** (the brief) was NOT built. The loading waits for every result within its reach, so nothing is pending in view when the screen lifts. In flight, a pending entry lies 4-6 km out, the worker answers in ~0.1 s an entry, and its cell's far town / boxes wait for the cell's queue as before (CELLQ counts a dispatched entry until it is placed). A box per pending plot would need the plot's footprint before placeHouse (in the worker); say if wanted.
+- **C1b** (upbeat-heisenberg) touches tools/_page_node.js with the same shim: the port is verbatim, so the merge takes C1b's hunks once and this branch's three additions (the idb block, the promise-aware ack, toRealm).
+
+GATES (targeted; one page process at a time; the full tier is the CI session's):
+- PASS: HOUSEWORKER (new), HOUSE, PREMISES, TARR (71/71), TOWNKIT, VILLAGE, BUILD, BOOT, UISMOKE, ROUNDTRIP, FADES, ASSETS, SIMWORKER, PROGRAMS.
+- FRAMECOST RED, identical to the base (above). PREMCOOK RED since C0: its harness is fixed here, the re-cook is owed.
