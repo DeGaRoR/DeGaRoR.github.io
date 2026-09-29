@@ -5804,8 +5804,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // ONE STRIP'S FURNITURE, re-runnable (v8): the premises' strips are painted again after a live edit
     // (repaintStrips below); everything a strip stands is kept under its id so it can be taken away
     const stripStood = new Map();
-    // THE STRIPS MERGED (AS4b G926): with the one material (the table, G925) the premises' strips are ONE mesh per 1 km
-    // cell (PAVEMENT.merge) - HOME and w2, which cross, always in the same one - their triangles in the rank order
+    // THE STRIPS MERGED (AS4b G926): with the one material (the table, G925) the premises' strips are merged (PAVEMENT.merge:
+    // whole strips, the crossing ones together - HOME and w2 - the rest grouped within 1.5 km), their triangles in the rank order
     // G664 gave each strip's renderOrder (the longest last, on top), the mesh at the lowest of them (1.990: no other
     // transparent object sorts between 1.990 and 1.9995). The sources leave the scene and their stood lists (the rows
     // are the merged geometries' now); repaintStrips takes the merged meshes away first and merges again after.

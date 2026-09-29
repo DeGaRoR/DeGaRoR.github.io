@@ -846,8 +846,8 @@ function make(THREE, scene, world, rec0, opts) {
   };
   // THE ROADS AND THE APRONS MERGED (AS4b G926): with the one material (G925) the paved polygons and the roads are
   // each ONE bucket - their draw-order classes (aprons 2.0 + z / 100 under the roads' 3, and so under G664's strips'
-  // 1.99x too) never share a mesh - merged per 1 km cell by PAVEMENT.merge, the triangles in draw order (an apron's z,
-  // then the build order), a contested zone's triangles in one mesh. The sources leave G.roads (the merged geometries
+  // 1.99x too) never share a mesh - merged by PAVEMENT.merge (the overlapping ones always together, the rest grouped
+  // within 1.5 km), the triangles in draw order (an apron's z, then the build order). The sources leave G.roads (the merged geometries
   // own their rows); the next buildRoads takes the merged meshes away with every other child.
   function* mergePavSteps() {
     if (!PAV || !PAV.mergeSteps) return;

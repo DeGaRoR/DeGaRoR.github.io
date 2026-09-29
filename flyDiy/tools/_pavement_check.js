@@ -535,35 +535,41 @@ console.log('12. THE TABLE - one material, a row a part; THE MERGE - per cell, i
   // a live edit reaches the row: setKeep packs again
   { const part = made[0].gNew.userData.pavRow; P.setKeep(part, [keep[0]]); const d = P.TAB.data, o = part.row * P.PV.W * 4;
     verdict(d[o + P.PV.N * 4 + 2] === 1 && d[o + P.PV.KA * 4] === f32(10), 'setKeep re-packs the row (1 keep box)'); P.setKeep(part, keep); }
-  // THE MERGE: two strips that CROSS (the longer drawn later) and one far away
+  // THE MERGE, both ways: WHOLE PARTS grouped by reach (the default: the crossing pair one mesh, the far strip its own)
+  // and SPLIT per 256 m cell by triangle (the contested zones). Two strips that CROSS (the longer drawn later), one far away
   const cross = Object.assign({}, sd, { hdg: 2.2, len: 600, cx: 140, cz: -30, seed: 4 }), far = Object.assign({}, sd, { cx: 5200, cz: 3100, len: 300, seed: 5 });
-  const parts = [[sd, 1.9905], [cross, 1.9900], [far, 1.9900]].map(([o, order]) => { const g = P.stripGeometry(THREE, o); P.make(THREE, { lib: SL, cls: 'concrete', geo: g }); return { geo: g, order }; });
-  const rowsBefore = parts.map(p => p.geo.userData.pavRow);
-  const tri = (g, t) => { const I = g.index.array, A = g.attributes.position.array, q = [];
-    for (let s = 0; s < 3; s++) { const v = I[t + s] * 3; q.push(A[v], A[v + 1], A[v + 2]); } return q; };
-  const keyOf = q => q.map(x => x.toFixed(4)).join(',');
-  const src = new Map(); parts.forEach((p, pi) => { const g = p.geo; for (let t = 0; t < g.index.count; t += 3) src.set(keyOf(tri(g, t)), pi); });
-  const nSrc = parts.reduce((n, p) => n + p.geo.index.count / 3, 0);
-  const rank = [1, 0, 0];   // the draw order: the crossing strip (1.9900) and the far one before the long strip (1.9905)
-  const out = P.merge(THREE, parts, { cell: 256 });
-  let seen = 0, dup = 0, lost = 0, orderBad = 0; const where = new Map(), got = new Set();
-  out.forEach((c, ci) => { const g = c.geo, id = g.attributes.aPavId; let last = -1;
-    for (let t = 0; t < g.index.count; t += 3) { const k = keyOf(tri(g, t)); if (!src.has(k)) lost++; else if (got.has(k)) dup++; got.add(k); seen++;
-      const pi = src.get(k); if (rank[pi] < last) orderBad++; last = rank[pi]; where.set(k, ci);
-      if (id.getX(g.index.array[t]) !== rowsBefore[pi].row) lost++; } });
-  verdict(seen === nSrc && dup === 0 && lost === 0, `the merge keeps every triangle once, with its row: ${seen} of ${nSrc} in ${out.length} cells of 256 m (${dup} twice, ${lost} strange)`);
-  verdict(orderBad === 0, 'inside every merged mesh the parts\' triangles run in DRAW ORDER (the crossing strip first, then the longer)');
-  // any two triangles of the two crossing strips that overlap lie in the same merged mesh
-  { const box = q => [Math.min(q[0], q[3], q[6]), Math.min(q[2], q[5], q[8]), Math.max(q[0], q[3], q[6]), Math.max(q[2], q[5], q[8])];
-    const A = [], B = []; for (let t = 0; t < parts[0].geo.index.count; t += 3) A.push(tri(parts[0].geo, t)); for (let t = 0; t < parts[1].geo.index.count; t += 3) B.push(tri(parts[1].geo, t));
-    let pairs = 0, split = 0;
-    for (const a of A) { const ba = box(a); for (const b of B) { const bb = box(b); if (ba[0] <= bb[2] && bb[0] <= ba[2] && ba[1] <= bb[3] && bb[1] <= ba[3]) { pairs++; if (where.get(keyOf(a)) !== where.get(keyOf(b))) split++; } } }
-    verdict(pairs > 100 && split === 0, `every pair of overlapping triangles of the two crossing strips is in ONE mesh (${pairs} pairs, ${split} split)`); }
-  verdict(out.length >= 3 && out.every(c => c.geo.boundingSphere && c.geo.boundingSphere.radius < 2000), `cells are culled on their own: ${out.length} meshes, the largest sphere ${f(Math.max(...out.map(c => c.geo.boundingSphere.radius)), 0)} m`);
-  const owners = [].concat(...out.map(c => c.geo.userData.pavRows));
-  verdict(owners.length === 3 && new Set(owners).size === 3 && rowsBefore.every(P2 => owners.indexOf(P2) >= 0) && parts.every(p => !p.geo.userData.pavRow), 'each part\'s row is owned by exactly one merged geometry (the sources hold none)');
-  const free0 = P.TAB.free.length; for (const c of out) P.dispose(made[0].mNew, c.geo);
-  verdict(P.TAB.free.length === free0 + 3, 'disposing the merged geometries gives the three rows back');
+  for (const [mode, mo] of [['whole parts, grouped by reach', {}], ['split per 256 m cell', { split: true, cell: 256 }]]) {
+    const parts = [[sd, 1.9905], [cross, 1.9900], [far, 1.9900]].map(([o, order]) => { const g = P.stripGeometry(THREE, o); P.make(THREE, { lib: SL, cls: 'concrete', geo: g }); return { geo: g, order }; });
+    const rowsBefore = parts.map(p => p.geo.userData.pavRow);
+    const tri = (g, t) => { const I = g.index.array, A = g.attributes.position.array, q = [];
+      for (let s = 0; s < 3; s++) { const v = I[t + s] * 3; q.push(A[v], A[v + 1], A[v + 2]); } return q; };
+    const keyOf = q => q.map(x => x.toFixed(4)).join(',');
+    const src = new Map(); parts.forEach((p, pi) => { const g = p.geo; for (let t = 0; t < g.index.count; t += 3) src.set(keyOf(tri(g, t)), pi); });
+    const nSrc = parts.reduce((n, p) => n + p.geo.index.count / 3, 0);
+    const rank = [1, 0, 0];   // the draw order: the crossing strip (1.9900) and the far one before the long strip (1.9905)
+    const out = P.merge(THREE, parts, mo);
+    let seen = 0, dup = 0, lost = 0, orderBad = 0; const where = new Map(), got = new Set();
+    out.forEach((c, ci) => { const g = c.geo, id = g.attributes.aPavId; let last = -1;
+      for (let t = 0; t < g.index.count; t += 3) { const k = keyOf(tri(g, t)); if (!src.has(k)) lost++; else if (got.has(k)) dup++; got.add(k); seen++;
+        const pi = src.get(k); if (rank[pi] < last) orderBad++; last = rank[pi]; where.set(k, ci);
+        if (id.getX(g.index.array[t]) !== rowsBefore[pi].row) lost++; } });
+    verdict(seen === nSrc && dup === 0 && lost === 0, `${mode}: the merge keeps every triangle once, with its row: ${seen} of ${nSrc} in ${out.length} meshes (${dup} twice, ${lost} strange)`);
+    verdict(orderBad === 0, `${mode}: inside every merged mesh the parts' triangles run in DRAW ORDER (the crossing strip first, then the longer)`);
+    // any two triangles of the two crossing strips that overlap lie in the same merged mesh
+    { const box = q => [Math.min(q[0], q[3], q[6]), Math.min(q[2], q[5], q[8]), Math.max(q[0], q[3], q[6]), Math.max(q[2], q[5], q[8])];
+      const A = [], B = []; for (let t = 0; t < parts[0].geo.index.count; t += 3) A.push(tri(parts[0].geo, t)); for (let t = 0; t < parts[1].geo.index.count; t += 3) B.push(tri(parts[1].geo, t));
+      let pairs = 0, split = 0;
+      for (const a of A) { const ba = box(a); for (const b of B) { const bb = box(b); if (ba[0] <= bb[2] && bb[0] <= ba[2] && ba[1] <= bb[3] && bb[1] <= ba[3]) { pairs++; if (where.get(keyOf(a)) !== where.get(keyOf(b))) split++; } } }
+      verdict(pairs > 100 && split === 0, `${mode}: every pair of overlapping triangles of the two crossing strips is in ONE mesh (${pairs} pairs, ${split} split)`); }
+    const farMesh = new Set(); { const g = parts[2].geo; for (let t = 0; t < g.index.count; t += 3) farMesh.add(where.get(keyOf(tri(g, t)))); }
+    const alone = [...farMesh].every(ci => { const g = out[ci].geo, id = g.attributes.aPavId; for (let v = 0; v < id.count; v++) if (id.getX(v) !== rowsBefore[2].row) return false; return true; });
+    verdict(alone && (mo.split ? out.length >= 3 : out.length === 2) && out.every(c => c.geo.boundingSphere && c.geo.boundingSphere.radius < 2000),
+      `${mode}: culled on their own - ${out.length} meshes, the far strip in none of the others', the largest sphere ${f(Math.max(...out.map(c => c.geo.boundingSphere.radius)), 0)} m`);
+    const owners = [].concat(...out.map(c => c.geo.userData.pavRows));
+    verdict(owners.length === 3 && new Set(owners).size === 3 && rowsBefore.every(P2 => owners.indexOf(P2) >= 0) && parts.every(p => !p.geo.userData.pavRow), `${mode}: each part's row is owned by exactly one merged geometry (the sources hold none)`);
+    const free0 = P.TAB.free.length; for (const c of out) P.dispose(made[0].mNew, c.geo);
+    verdict(P.TAB.free.length === free0 + 3, `${mode}: disposing the merged geometries gives the three rows back`);
+  }
   for (const q of made) { P.dispose(q.mNew, q.gNew); P.dispose(q.mOld); }
   verdict(P.TAB.parts.size === 0 && P.mats.length === 0, `every row and every own material given back (${P.TAB.parts.size} rows, ${P.mats.length} materials left)`);
 }
