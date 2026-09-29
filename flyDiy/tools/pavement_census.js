@@ -34,5 +34,5 @@
   R.render = function () { const t = performance.now(); const x = rr.apply(this, arguments); ms += performance.now() - t; n++; return x; };
   await new Promise(res => { let f = 0; const tick = () => (++f >= 30 ? res() : requestAnimationFrame(tick)); requestAnimationFrame(tick); });
   R.render = rr;
-  return { pavement: pav, table: window.PAVEMENT && window.PAVEMENT.census ? window.PAVEMENT.census(sc) : null, rocks, patchSunk: sunk, renderCallsIn30: n, renderMsPerCall: n ? +(ms / n).toFixed(2) : null };
+  return { pavement: pav, table: (P => P && P.census ? P.census(sc) : null)(window.PAVEMENT || (typeof PAVEMENT !== 'undefined' ? PAVEMENT : null)), rocks, patchSunk: sunk, renderCallsIn30: n, renderMsPerCall: n ? +(ms / n).toFixed(2) : null };
 })()

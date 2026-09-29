@@ -12,7 +12,7 @@
 //            G1047's method (the depth buffer empty: every pavement pixel shaded, an upper bound)
 // Read-only apart from the switch it makes; it leaves the page in the mode it found.
 (async () => {
-  const W = window.WORLD, R = W.renderer, gl = R.getContext(), P = window.PAVEMENT;
+  const W = window.WORLD, R = W.renderer, gl = R.getContext(), P = window.PAVEMENT || (typeof PAVEMENT !== 'undefined' ? PAVEMENT : null);
   if (!P || !P.ab) return { err: 'no PAVEMENT.ab on this page (a pre-G928 build)' };
   const ROUNDS = 3, FRAMES = 60, GPU_N = 40, SETTLE = 90;
   const raf = () => new Promise(r => requestAnimationFrame(() => r()));

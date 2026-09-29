@@ -1745,3 +1745,4 @@ float pvTread(float u, float x, float w, float seed) {
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;
+if (typeof window !== 'undefined') window.PAVEMENT = PAVEMENT;   // (a top-level const is no window property: the rigs read it here)
