@@ -416,8 +416,9 @@ const SIM_LINK = (() => {
     const stamp = c => { if (st.mode === 'lockstep' && flight) c.k = flight.posted; return c; };
     function mirror(T) {
       const F = flight, V = F.view, sim = F.sim;
-      V.frame(st.mode === 'lockstep' ? Infinity : T);
+      const fr = V.frame(st.mode === 'lockstep' ? Infinity : T);
       const f = V.snapshot(); if (!f) return 0;
+      F.drawnT = fr && Number.isFinite(fr.t) ? fr.t : V.t;   // G1100: the sim time the mirrored (drawn) positions stand at
       const S = F.ready.slots;
       sim.p.set(V.p);
       if (V.v && sim.v) sim.v.set(V.v);
@@ -500,9 +501,10 @@ const SIM_LINK = (() => {
       // frame's end, and the next flight's init hands the worker that day (G820: the second flight of a page, after a
       // reset, the skip or the shed, was a frame's day behind); real time ticks what the picture moved on
       out.ran = ran; out.simDt = (st.mode === 'lockstep' ? nStep : ran) / 60; out.hold = false; out.diverged = st.diverged;
+      out.drawnT = F.drawnT != null ? F.drawnT : null;   // G1100: the drawn positions' sim time (app.js draws the sea at it)
       return out;
     }
-    const out = { ran: 0, simDt: 0, hold: false, diverged: false };
+    const out = { ran: 0, simDt: 0, hold: false, diverged: false, drawnT: null };
     // a frame that flies nothing (the shed, the roll-out screen, a pause, the card): the worker's clock stops
     function idle() {
       if (dead) return;

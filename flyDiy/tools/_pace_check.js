@@ -295,5 +295,95 @@ function med0(a) { const s = a.slice().sort((x, y) => x - y); return s[s.length 
     verdict(Math.abs(hi - 0.9 * 11) < 0.3, '  a tenth of the way to level: ' + hi.toFixed(2) + ' deg on an aeroplane at 11 (~9.9)');
   }
 }
+// G1100 (POSE-SMOOTH): THE DRAWN POSE BETWEEN TWO STEPS. POSE_LERP's block lifted from app.js as written, driven by the
+// PACE block above through the loop's step block (app.js: the positions marked before the frame's last 60th of steps,
+// taken after them, drawn at PACE.alpha, restored after the render). An aeroplane at 30 m/s along x, 1/60 s a step:
+// the drawn x against the frame's wall time must be a straight line (0.75 of a step behind) whatever steps the frames owe;
+// the newest step's x (the old draw) is not.
+{
+  const P0 = '  const POSE_LERP = (() => {', P1 = '    window.FLYDIY_POSE = api;\n    return api;\n  })();';
+  const q0 = src.indexOf(P0), q1 = src.indexOf(P1, q0);
+  verdict(q0 > 0 && q1 > q0, 'the POSE_LERP block found in app.js');
+  if (q0 > 0 && q1 > q0) {
+    const plBlock = src.slice(q0, q1 + P1.length);
+    const mkLerp = () => new Function('window', plBlock + '\nreturn POSE_LERP;')({});
+    const V = 30, STEP = 1 / 60;
+    const mkSim = () => { const s = { p: new Float64Array([0, 100, 0, 1, 100, 0]) }; s.step = () => { for (let i = 0; i < s.p.length; i += 3) s.p[i] += V * STEP; }; return s; };
+    // one run: `ivs(i)` the i-th frame's interval (ms); returns per frame [wall s, drawn x, newest x] and the restores' check
+    function run(pref, ivs, frames, simRate, rig) {
+      const { PACE } = make({ pref, rig });
+      const POSE = mkLerp(), sim = mkSim();
+      let t = 1000, restored = true;
+      const rows = [], steps = [];
+      for (let i = 0; i < frames; i++) {
+        t += ivs(i);
+        const pc = PACE.frame(t);
+        if (!pc) continue;
+        POSE.back();
+        const nStep = pc.steps * simRate, kPair = pc.legacy ? -1 : nStep - simRate;
+        for (let k = 0; k < nStep; k++) { if (k === kPair) POSE.mark(sim); sim.step(); }
+        if (kPair >= 0) POSE.took(sim);
+        const newest = sim.p[0], keep = Float64Array.from(sim.p);
+        const drawn = POSE.draw(sim, PACE.alpha) ? sim.p[0] : newest;
+        POSE.back();
+        for (let j = 0; j < keep.length; j++) if (!Object.is(keep[j], sim.p[j])) restored = false;
+        rows.push([t / 1000, drawn, newest]); steps.push(pc.steps);
+        PACE.end(5, 1, pc.steps, t);
+      }
+      return { rows: rows.slice(4), steps: steps.slice(4), restored, sim, POSE };
+    }
+    // the worst departure (mm) of x from a straight line in wall time (least squares)
+    function wobble(rows, col) {
+      const n = rows.length; let st = 0, sx = 0, stt = 0, stx = 0;
+      for (const r of rows) { st += r[0]; sx += r[col]; stt += r[0] * r[0]; stx += r[0] * r[col]; }
+      const b = (n * stx - st * sx) / (n * stt - st * st), a = (sx - b * st) / n;
+      let w = 0; for (const r of rows) w = Math.max(w, Math.abs(r[col] - (a + b * r[0])));
+      return { mm: w * 1000, speed: b };
+    }
+    const hist = s => { const h = {}; for (const k of s) h[k] = (h[k] || 0) + 1; return Object.keys(h).map(k => k + ':' + h[k]).join(' '); };
+    const cases = [
+      ['60 Hz, frames alternating 16.7 / 33.3 ms (1 and 2 steps)', { fps: 'off' }, i => (i % 2 ? 2000 / 60 : 1000 / 60), 1],
+      ['1 then 3 steps (16.7 / 50 ms)', { fps: 'off' }, i => (i % 2 ? 50 : 1000 / 60), 1],
+      ['1 / 2 / 3 steps in turn', { fps: 'off' }, i => [1000 / 60, 2000 / 60, 50][i % 3], 1],
+      ['an uneven 45 fps (22.2 ms +- 3 ms)', { fps: 'off' }, i => 1000 / 45 + 3 * Math.sin(i * 1.7), 1],
+      ['a 60 Hz screen capped at 30 (2 steps each)', { fps: 30 }, () => 1000 / 60, 1],
+      ['2x, 1 and 2 frames of steps (2 and 4 steps)', { fps: 'off' }, i => (i % 2 ? 2000 / 60 : 1000 / 60), 2],
+    ];
+    for (const [name, pref, ivs, rate] of cases) {
+      const r = run(pref, ivs, 400, rate);
+      const d = wobble(r.rows, 1), o = wobble(r.rows, 2);
+      const want = V * rate;
+      verdict(d.mm < 0.5 && Math.abs(d.speed - want) < 0.01 * want && r.restored,
+        `${name} [steps ${hist(r.steps)}]: the drawn x ${d.mm.toFixed(3)} mm off a straight line at ${d.speed.toFixed(2)} m/s (< 0.5; the newest step's ${o.mm.toFixed(0)} mm), restored bit for bit`);
+    }
+    // the drawn pose lies between the last two steps on every frame
+    {
+      const r = run({ fps: 'off' }, i => (i % 2 ? 2000 / 60 : 1000 / 60), 200, 1);
+      const lags = r.rows.map(x => (x[2] - x[1]) / V * 60);   // steps behind the newest
+      verdict(lags.every(x => x >= -1e-9 && x <= 1 + 1e-9), `  the drawn pose between the last two steps on every frame (${Math.min(...lags).toFixed(2)} .. ${Math.max(...lags).toFixed(2)} of a step behind the newest)`);
+    }
+    // the solver's trajectory with the draws and without them: the same bits (nothing drawn is fed back)
+    {
+      const a = run({ fps: 'off' }, i => [1000 / 60, 2000 / 60, 50][i % 3], 300, 1);
+      const { PACE } = make({ pref: { fps: 'off' } }); const s = mkSim(); let t = 1000;
+      for (let i = 0; i < 300; i++) { t += [1000 / 60, 2000 / 60, 50][i % 3]; const pc = PACE.frame(t); if (!pc) continue; for (let k = 0; k < pc.steps; k++) s.step(); PACE.end(5, 1, pc.steps, t); }
+      verdict(a.sim.p.every((x, j) => Object.is(x, s.p[j])), `  the sim stepped with the draws and without them: the same positions to the bit (x ${a.sim.p[0]} m)`);
+    }
+    // a rig (the old clock): alpha 1, nothing swapped
+    {
+      const r = run({ fps: 30 }, () => 1000 / 60, 100, 1, true);
+      verdict(r.rows.every(x => Object.is(x[1], x[2])) && r.POSE.state().drawn === 0, `  a rig: nothing drawn between steps (${r.POSE.state().drawn} swaps), the newest step as before`);
+    }
+    // positions moved outside the step block (a reset, a re-placement): the pair is dropped, the newest drawn
+    {
+      const { PACE } = make({ pref: { fps: 'off' } }); const POSE = mkLerp(), sim = mkSim(); let t = 1000;
+      for (let i = 0; i < 10; i++) { t += 2000 / 60; const pc = PACE.frame(t); POSE.back(); for (let k = 0; k < pc.steps; k++) { if (k === pc.steps - 1) POSE.mark(sim); sim.step(); } POSE.took(sim); POSE.draw(sim, PACE.alpha); POSE.back(); PACE.end(5, 1, pc.steps, t); }
+      sim.p[0] = -500; sim.p[3] = -499;   // the reset, between frames
+      t += 1000 / 60; PACE.frame(t); POSE.back();
+      const drew = POSE.draw(sim, 0.5);
+      verdict(!drew && sim.p[0] === -500 && POSE.state().dropped === 1, `  the positions moved outside the steps (a reset): the pair dropped, the aeroplane drawn where it now is (x ${sim.p[0]})`);
+    }
+  }
+}
 console.log('GATE PACE: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);
