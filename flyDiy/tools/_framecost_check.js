@@ -124,6 +124,7 @@ const ALLOW = [
   // parked aeroplanes by the taxi route (a C172, a Jodel, a Cub: captured in the loading, not in flight - FRAMECOST_WHAT=taxi),
   // the scenery's life standing, the craft's lights counted; B9's HANDOVER has the like-for-like (FRAMECOST_PROBE=600)
   { key: 'stand/gl.bufferData', build: '*', upTo: 32, why: 'the world at rest at the stand: ~24 small buffers (13-14 KB) re-sent inside three\'s render a frame (FRAMECOST_WHO; not traced to an object) - the bytes fell 227 -> 117 KB', g: 'G1020' },
+  { key: 'stand/gl.bindBuffer', build: '*', upTo: 56, why: 'the same ~24 buffers re-sent at the stand, each bound (31 -> 55; hidden behind the aircraft\'s per-frame re-upload until G1028 took that out)', g: 'G1020/G1028' },
   { key: 'stand/programs', build: '*', upTo: 115, why: 'the programs the settled world uses at the stand (the life, the parked captures, the craft\'s lights keyed in)', g: 'G1020' },
   { key: 'stand/three.frustumTests', build: '*', upTo: 2650, why: 'the objects the settled world stands at the stand', g: 'G1020' },
   { key: 'taxi/bytes.texSubImage2D', build: '*', upTo: 505000, why: 'the parked aeroplanes the settle placed and the loading captured (their folds\' bone textures)', g: 'G1020' },
@@ -131,7 +132,7 @@ const ALLOW = [
   { key: 'taxi/gl.bindTexture', build: '*', upTo: 1190, why: 'the same parked aeroplanes\' maps', g: 'G1020' },
   { key: 'taxi/gl.calls', build: '*', upTo: 13150, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
   { key: 'taxi/gl.uniform1f', build: '*', upTo: 590, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
-  { key: 'taxi/gl.uniform3f', build: '*', upTo: 177, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/gl.uniform3f', build: '*', upTo: 180, why: 'the same parked aeroplanes\' draws (G1028: 178.5 on the Cessna against the train 16 baseline)', g: 'G1020' },
   { key: 'taxi/gl.uniform4f', build: '*', upTo: 402, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
   { key: 'taxi/gl.uniform4fv', build: '*', upTo: 2840, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
   { key: 'taxi/programs', build: '*', upTo: 99.5, why: 'the same parked aeroplanes\' programs', g: 'G1020' },

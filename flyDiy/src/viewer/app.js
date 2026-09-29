@@ -6780,6 +6780,12 @@
     buildIndicators();                 // clears them
     $('bGo').textContent = 'Fly the circuit';
     fullReset();
+    // G1028: THE CUT PUTS THE SURFACES ON THE CONTROLS. The visual linkage (makeLinkage, two poles of 0.15 s) kept the
+    // shed's deflections and eased them out over the first ~2 s of the flight - the flap, the elevator and the ailerons
+    // visibly moving on the stand, and every frame of it re-posing and re-uploading the skin (G731's rule sees a control
+    // moving): 3.67 MB a frame on the Cub in GATE FRAMECOST once B9's roll-out stopped holding a screen over the stand
+    // (the transient ran out under the old screen) and B10's shot left the shed's pose in the linkage (flap 0.67)
+    if (model && model.link && typeof model.link.snap === 'function') model.link.snap(sim.ctl);
   }
   let frameWait = null, holdRender = false, worldPrelink = null;
   // G690: THE STAND WAITS FOR THE PLAYER. `holdRender` only skips the DRAW; the solver, the pilot, the director
