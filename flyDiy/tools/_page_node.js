@@ -143,7 +143,22 @@ parentPort.on('message', d => {
 try { vm.runInThisContext(src, { filename: name }); } catch (e) { send({ __error: String(e && e.stack || e) }); }
 `;
 // The page's side: the Worker class the page constructs. `live` collects every shim so the harness can drain them.
-function makeWorkerClass({ readBlob, allow, live, root, onEvent, postFilter, idb }) {
+// G830: A MESSAGE LANDS IN THE PAGE'S REALM. receiveMessageOnPort builds it in this process's own realm, and the page is
+// a vm context with intrinsics of its own: a Float32Array from the port is not `instanceof` the page's Float32Array,
+// and three.js (WebGLAttributes) refuses it at the first draw ("Unsupported buffer data format") - in a browser the
+// message is born in the page's realm. Every typed array in the message is re-viewed through the page's own
+// constructor, on the SAME buffer (no copy, the transfer kept).
+function toRealm(v, W, seen) {
+  if (!v || typeof v !== 'object') return v;
+  if (ArrayBuffer.isView(v)) { const C = W[v.constructor.name]; return (C && !(v instanceof C) && !(v instanceof DataView)) ? new C(v.buffer, v.byteOffset, v.length) : v; }
+  seen = seen || new Set(); if (seen.has(v)) return v; seen.add(v);
+  if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = toRealm(v[i], W, seen); return v; }
+  if (v instanceof Map) { for (const [k, x] of v) v.set(k, toRealm(x, W, seen)); return v; }
+  if (v instanceof Set) return v;
+  for (const k of Object.keys(v)) v[k] = toRealm(v[k], W, seen);
+  return v;
+}
+function makeWorkerClass({ readBlob, allow, live, root, onEvent, postFilter, idb, realm }) {
   const WT = require('worker_threads');
   let nth = 0;
   return class Worker {
@@ -201,6 +216,7 @@ function makeWorkerClass({ readBlob, allow, live, root, onEvent, postFilter, idb
           continue;
         }
         this._stats.received++;
+        if (realm) toRealm(d.m, realm);   // G830
         const ev = { type: 'message', data: d.m, target: this };
         if (onEvent) onEvent(this, d.m);
         if (typeof this.onmessage === 'function') this.onmessage(ev);
@@ -389,7 +405,7 @@ async function openPage(opts) {
   // G815: the Worker shim, only where asked (opts.workers: a RegExp the Blob source must match, or true)
   const workersLive = new Set();
   if (opts.workers) {
-    win.Worker = makeWorkerClass({ root: ROOT, allow: opts.workers, live: workersLive, onEvent: opts.onWorkerMessage || null, postFilter: opts.workerPostFilter || null, idb: opts.idb || null,
+    win.Worker = makeWorkerClass({ root: ROOT, allow: opts.workers, live: workersLive, onEvent: opts.onWorkerMessage || null, postFilter: opts.workerPostFilter || null, idb: opts.idb || null, realm: win,
       readBlob: url => { const b = readFile(url); return b ? b.toString('utf8') : null; } });
   }
   // the one WebGL2 class every context of the page is an instance of

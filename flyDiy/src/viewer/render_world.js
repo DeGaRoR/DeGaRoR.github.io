@@ -5623,6 +5623,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       for (let n = 0; window.FLYDIY_LAZY && window.FLYDIY_LAZY.pending && window.FLYDIY_LAZY.pending() && n < 2000; n++) yield 'premises: the generators';
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
         game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
+        // G831: where the town step will build from (app.js's stand, the one loading's) and how far: the house worker is
+        // given that same dispatch at the rebuild, to generate while the rest of the world is laid out
+        anchor: () => (window.FLYDIY_TOWN_AT ? window.FLYDIY_TOWN_AT() : null), prefetchReach: PREM_BOOT,
         // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)
         ...patchGrounds(),
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath },

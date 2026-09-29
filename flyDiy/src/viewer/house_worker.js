@@ -162,6 +162,13 @@ function houseWorkerBody(G, port) {
     for (const j of m.jobs) {
       const x = B.find(j);
       if (!x) { port.post({ cmd: 'result', epoch: m.epoch, gen: m.gen, seq: j.seq, miss: 'not found' }); st.misses++; continue; }
+      // an entry the page builds itself (a hangar's shell): generated here for the TALLIES alone - its delta, no arrays,
+      // no cache - so the batch goes on past it
+      if (j.tally) {
+        try { const m0 = B.mark(); B.gen(j, x); port.post({ cmd: 'result', epoch: m.epoch, gen: m.gen, seq: j.seq, d: B.delta(m0), tally: true }); st.tallies = (st.tallies || 0) + 1; }
+        catch (e) { port.post({ cmd: 'result', epoch: m.epoch, gen: m.gen, seq: j.seq, miss: 'error: ' + (e && e.message) }); st.misses++; }
+        continue;
+      }
       const key = prefix + j.kind + ':' + j.id + ':' + j.seed + ':' + B.stateHash();
       if (st.deltas.has(key)) {
         // A HIT: the tallies move as the build would have moved them; the arrays come back off the disk
@@ -192,7 +199,7 @@ function houseWorkerBody(G, port) {
     }
     await Promise.all(pending);
     port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
-      mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept } });
+      mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0 } });
   }
   // every array a packed result holds (the page takes them: nothing is copied back)
   function transfers(r) {

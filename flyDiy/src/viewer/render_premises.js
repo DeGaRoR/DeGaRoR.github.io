@@ -2417,10 +2417,12 @@ function make(THREE, scene, world, rec0, opts) {
   // parked aeroplane, a billboard) or a park is placed here at its turn as before.
   // THE TALLIES (premises_build.js): the page applies each result's delta as it places it, so its copy is the worker's
   // at every batch boundary; a batch carries the page's copy (`state`) whenever the worker's may differ - the first,
-  // and after anything generated HERE that moves them: a HANGAR_GEN item (its lod-0 shell is hangar.js's THREE build,
-  // canvas sheets and materials of its own: MAIN_ONLY) is a BARRIER - nothing past it is sent until it is built; a
-  // result the worker could not give (not found, an error, a cache entry gone) is built here and everything after it
-  // is sent again (`gen` bumped: the late answers are dropped).
+  // and after anything generated HERE moved them otherwise. A HANGAR_GEN item is built HERE (its lod-0 shell is
+  // hangar.js's THREE build, canvas sheets and materials of its own: hwMainOnly) - but the worker generates it too, for
+  // the tallies alone (`tally`: its delta, no arrays), so nothing waits on it; the page compares its own build's delta
+  // with the worker's and, should they differ, everything after it is sent again with the page's tallies. A result the
+  // worker could not give (not found, an error, a cache entry gone) is built here and everything after it is sent
+  // again (`gen` bumped: the late answers are dropped).
   const HWK = (o.game && window.HOUSE_WORKER && window.HOUSE_WORKER.ok()) ? window.HOUSE_WORKER : null;
   const HWQ = { order: [], jobs: new Map(), arrived: new Map(), seq: 0, gen: 0, epoch: -1, needState: true, dead: false,
                 dispatched: 0, placed: 0, local: 0, errors: 0 };
@@ -2448,10 +2450,11 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function hwDispatch(list) {
     for (const p of list) {
-      const seq = ++HWQ.seq, kind = hwKind(p), barrier = kind === 'item' && hwMainOnly(p);
-      HWQ.jobs.set(seq, { seq, p, kind, barrier, remote: !!kind && !barrier && !HWQ.dead, sent: false });
+      const seq = ++HWQ.seq, kind = hwKind(p), here = kind === 'item' && hwMainOnly(p);
+      HWQ.jobs.set(seq, { seq, p, kind, here, remote: !!kind && !HWQ.dead, sent: false });
       HWQ.order.push(seq);
     }
+    stats.queued = queue.length + HWQ.order.length;
     hwPump();
   }
   function hwPump() {
@@ -2459,9 +2462,8 @@ function make(THREE, scene, world, rec0, opts) {
     const jobs = [];
     for (const seq of HWQ.order) {
       const j = HWQ.jobs.get(seq);
-      if (j.barrier) break;                      // nothing past a page-built entry that moves the tallies
       if (!j.remote || j.sent) continue;
-      j.sent = true; jobs.push({ seq, kind: j.kind, id: j.p.id, seed: j.p.seed });
+      j.sent = true; jobs.push(j.here ? { seq, kind: j.kind, id: j.p.id, seed: j.p.seed, tally: true } : { seq, kind: j.kind, id: j.p.id, seed: j.p.seed });
     }
     if (!jobs.length) return;
     const PR = propReg();
@@ -2470,6 +2472,8 @@ function make(THREE, scene, world, rec0, opts) {
                props: PR ? Object.keys(PR.props) : [] });
     HWQ.needState = false; HWQ.dispatched += jobs.length;
   }
+  // a delta, canonical (the counts by key, the edges as a set)
+  const hwCanon = d => (d ? JSON.stringify([d.made ? 1 : 0, Object.keys(d.used || {}).sort().map(k => k + '=' + d.used[k]), (d.fenced || []).slice().sort()]) : '[0,[],[]]');
   // everything after `seq` is asked again (the page's tallies are the truth; the worker's answers past it are dropped)
   function hwResend(seq) {
     HWQ.gen++; HWQ.needState = true;
@@ -2481,11 +2485,12 @@ function make(THREE, scene, world, rec0, opts) {
     while (HWQ.order.length) {
       if (n > 0 && performance.now() - t0 >= budgetMs) break;
       const seq = HWQ.order[0], j = HWQ.jobs.get(seq);
-      let R, miss = false;
+      let R, miss = false, tally = null;
       if (j.remote && !HWQ.dead) {
         const m = HWQ.arrived.get(seq);
         if (!m) break;
-        if (m.miss || !m.r) {
+        if (j.here && !m.miss) tally = m.d || null;   // built here below; the worker's delta to hold ours against
+        else if (m.miss || !m.r) {
           miss = true; if (m.miss) console.warn('house worker: ' + j.p.id + ' (' + m.miss + ') - built here');
           // a worker that keeps failing is let go: the rest builds here, in the same order
           if (/^error/.test(m.miss || '') && ++HWQ.errors >= 3) { HWQ.dead = true; for (const [, jj] of HWQ.jobs) jj.remote = false; console.warn('house worker: three errors - the page builds the rest itself'); }
@@ -2493,19 +2498,35 @@ function make(THREE, scene, world, rec0, opts) {
         else { BLD.applyDelta(m.d); R = BLD.unpack(m.r, THREE, j.kind === 'item' ? j.p.rec : j.kind === 'house' ? j.p : null); }
       }
       HWQ.order.shift(); HWQ.jobs.delete(seq); HWQ.arrived.delete(seq);
-      const here = !R && !!j.kind;   // generated on this thread (a barrier, a miss, the worker gone)
+      const here = !R && !!j.kind;   // generated on this thread (a hangar, a miss, the worker gone)
+      const m0 = here ? BLD.mark() : null;
       if (here) { HWQ.local++; window.FLYDIY_HW_HERE = (window.FLYDIY_HW_HERE || 0) + 1; }
       try { buildOne(j.p, R); }
       finally { if (here) window.FLYDIY_HW_HERE--; }
+      // a hangar: its tallies as the worker moved them, or everything after it again
+      if (j.here && j.remote && !miss && !HWQ.dead && hwCanon(BLD.delta(m0)) !== hwCanon(tally)) { miss = true; HWQ.tallyMiss = (HWQ.tallyMiss || 0) + 1; }
       n++; HWQ.placed++;
       if (each) each(j.p);
-      if (miss) hwResend(seq);
-      if (j.barrier || miss) hwPump();
+      if (miss) { hwResend(seq); hwPump(); }
     }
     return n;
   }
   // a promise that settles when the worker next answers (the town step waits on it rather than spinning)
   const hwWait = () => (HWQ.order.length && !HWQ.arrived.has(HWQ.order[0]) && hwOn() ? HWK.next() : null);
+  // THE PREFETCH (G831): the town step's dispatch made as soon as the queue exists (the world step's rebuild), from the
+  // point and reach the town step will use (o.anchor: app.js's stand, o.prefetchReach: render_world's PREM_BOOT) - the
+  // same sort of the same queue, so the same order, the same tallies, the same bits; the worker generates while the page
+  // lays out the rest of the world, and the town step finds its entries dispatched (a cold visit's town is placement)
+  function hwPrefetch() {
+    if (!hwOn() || !o.anchor || !(o.prefetchReach > 0)) { HWQ.prefetch = 'off'; return 0; }
+    let a = null; try { a = o.anchor(); } catch (e) { a = null; }
+    if (!a || !isFinite(a[0]) || !isFinite(a[2])) { HWQ.prefetch = 'no anchor'; return 0; }
+    sortFrom(a[0], a[2]); STREAM.cx = a[0]; STREAM.cz = a[2];
+    const take = []; while (queue.length && queue[0]._d <= o.prefetchReach) take.push(queue.shift());
+    if (take.length) hwDispatch(take);
+    HWQ.prefetch = take.length;
+    return take.length;
+  }
   // THE ROLL-OUT'S SHARE, the worker's way: everything within reach dispatched at once (in the order the page builds),
   // then placed as it arrives, a budget a slice
   function prewarmW(cx, cz, reach, budgetMs) {
@@ -2683,6 +2704,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
+      hwPrefetch();   // G831: the town step's own dispatch, now - the worker generates while the page lays out the rest
       // THE GAME HAD NEVER DRAWN A RECORD TREE (2026-09-23, the user: "I can see no
       // trees in no garden nor empty lots"). This early return is the game's whole
       // rebuild, and `buildTrees()` sat below it in the BENCH path only - so
