@@ -39,7 +39,8 @@ process.on('exit', kill); process.on('SIGINT', () => process.exit(0)); process.o
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
   const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); const d = r.result;
     if (!d || d.exceptionDetails) return 'ERR ' + (d && d.exceptionDetails ? (d.exceptionDetails.exception && d.exceptionDetails.exception.description || d.exceptionDetails.text) : JSON.stringify(r)); return d.result.value; };
-  const pre = ['try{for(const k of Object.keys(localStorage)) if(/^flydiy\\.(fl([A-Z]|$)|route$|world$|gfx$|premises\\.game)/.test(k)) localStorage.removeItem(k);}catch(e){}'];
+  // (C2c, G842: env KEEP_PREM=1 keeps the editor's saved premises across /reload - the save -> reload proof; clear it by hand)
+  const pre = ['try{for(const k of Object.keys(localStorage)) if(/^flydiy\\.(fl([A-Z]|$)|route$|world$|gfx$' + (process.env.KEEP_PREM ? '' : '|premises\\.game') + ')/.test(k)) localStorage.removeItem(k);}catch(e){}'];
   if (BUILD === 'stock') pre.push(require(path.join(ROOT, 'flyDiy/tools/_stock_pin.js')).pinScript());
   else if (BUILD === 'default') pre.push('try{localStorage.removeItem("flydiy.wip")}catch(e){}');
   else pre.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(fs.readFileSync(path.resolve(ROOT, 'flyDiy', BUILD), 'utf8')) + ')}catch(e){}');

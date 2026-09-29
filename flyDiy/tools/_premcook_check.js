@@ -16,7 +16,12 @@
 //      cell's signature at load - the rest still load - and the refused cell reads the lazy bake of the edited
 //      record, exactly; a fixture edit (the record's seed), a generator edit (HOUSE_GEN.randomHouse's length
 //      +1 cm) and a page edit (buildHouse's seed) each change the places' hash.
-//   5  THE FLAG: off by default (no option, no environment), and the page's loader fetches the cook only under it.
+//   5  THE FLAG: off by default (no option, no environment), and the page's loader fetches the raster cells only under
+//      it (G841: the places' tallies whatever the flag).
+//   6  THE COOK'S TALLIES (G841, C2c): each variant ships its entries' deltas in the record's order; the page generates an
+//      entry on the tallies of its rank (premises_build.js makeTallies). PROVED HERE: the queue built BACKWARDS on the
+//      committed tallies gives the committed placements, thing for thing - the order the page builds in no longer
+//      matters; and the tallies at every rank are the forward cook's running sum.
 //
 //   node tools/_premcook_check.js   -> "GATE PREMCOOK: PASS|FAIL", exit 1 on FAIL
 'use strict';
@@ -40,7 +45,8 @@ console.log('1. the manifest');
 if (!ok(!!ISL, 'src/core/premises_packs.json names ' + ID + ' (tools/premises_cook.js --island ' + ID + ')')) { console.log('GATE PREMCOOK: FAIL'); process.exit(1); }
 ok(fs.existsSync(path.join(ROOT, ISL.fixture)), 'its fixture ' + ISL.fixture + ' is on disk');
 ok(K.VARIANTS.every(V => ISL.variants.some(v => v.name === V.name)), 'both variants cooked (' + ISL.variants.map(v => v.name).join(', ') + ')');
-const files = ISL.raster.cells.map(c => c.src).concat(...Object.values(ISL.places.variants).map(v => v.cells.map(c => c.src)));
+const files = ISL.raster.cells.map(c => c.src).concat(...Object.values(ISL.places.variants).map(v => v.cells.map(c => c.src).concat(v.tallies ? [v.tallies.src] : [])));
+ok(Object.values(ISL.places.variants).every(v => v.tallies && v.tallies.src && v.tallies.n > 0), 'G841: every variant ships its tallies (' + Object.entries(ISL.places.variants).map(([k, v]) => k + ' ' + (v.tallies ? v.tallies.n : 0)).join(', ') + ' entries)');
 ok(files.every(f => fs.existsSync(path.join(ROOT, ...f.split('/')))), files.length + ' cell files named, all on disk');
 const shipKB = (ISL.raster.bytes.ship + Object.values(ISL.places.variants).reduce((s, v) => s + v.bytes.ship, 0)) / 1024;
 console.log('     raster ' + ISL.raster.cells.length + ' cells ' + (ISL.raster.bytes.ship / 1048576).toFixed(2) + ' MB; places ' + Object.entries(ISL.places.variants).map(([k, v]) => k + ' ' + v.cells.length + ' cells ' + (v.bytes.ship / 1024).toFixed(1) + ' KB').join(', ') + ' (total ' + shipKB.toFixed(0) + ' KB)');
@@ -60,6 +66,8 @@ for (const v of F.variants) {
   let bad = 0;
   for (const c of S.cells) { const mc = MC.find(x => (x.c === null ? c.i === null : x.c[0] === c.i && x.c[1] === c.j)); if (!mc || mc.sig !== c.sig || !gunz(mc.src).equals(c.buf)) bad++; }
   ok(bad === 0 && S.cells.length === MC.length, v.name + ': every place cell as cooked, byte for byte (' + S.cells.length + ' cells, ' + bad + ' differ)');
+  const MT = ISL.places.variants[v.name].tallies;
+  ok(!!MT && !!S.tallies && gunz(MT.src).equals(S.tallies.buf) && MT.hash === S.tallies.hash, v.name + ': the tallies as cooked, byte for byte (' + (S.tallies ? S.tallies.n : 0) + ' entries, ' + (MT ? MT.hash : '-') + ')');
 }
 {
   let bad = 0;
@@ -170,8 +178,31 @@ console.log('5. the flag');
     ok(!W0.premises.overlay.raster.on && !W0.premises.overlay.rasterCooked, 'off by default: no option, no environment - the analytic ground (the same bits as before)');
   }
   const B = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
-  const i = B.indexOf('window.FLYDIY_GROUND_RASTER = rq !== \'0\''), j = B.indexOf('if (!window.FLYDIY_GROUND_RASTER) return;'), k = B.indexOf("fetch('src/core/premises_packs.json')");
-  ok(i > 0 && j > i && k > j, 'the page\'s island loader reads ?raster / flydiy.raster and fetches the cook only under the flag (ON unless 0 since 2026-09-27)');
+  const i = B.indexOf('window.FLYDIY_GROUND_RASTER = rq !== \'0\''), k = B.indexOf("fetch('src/core/premises_packs.json')"), j = B.indexOf('if (window.FLYDIY_GROUND_RASTER && pi.raster)', k);
+  ok(i > 0 && k > i && j > k, 'the page\'s island loader reads ?raster / flydiy.raster and fetches the raster cells only under the flag (ON unless 0 since 2026-09-27); the places\' tallies whatever it says (G841)');
+}
+
+// ---- 6. the cook's tallies: the order does not matter (G841) -------------------------------------------------------
+console.log('6. the cook\'s tallies (G841)');
+{
+  const V = K.VARIANTS[0], MT = ISL.places.variants[V.name].tallies, list = MT ? JSON.parse(gunz(MT.src).toString('utf8')).list : null;
+  if (ok(!!list, V.name + ': the tallies read back (' + (list ? list.length : 0) + ' entries)')) {
+    const t1 = Date.now();
+    const R = K.cook(ID, { variants: [V], verify: false, noRaster: true, tallies: list, reverse: true });
+    const S = R.places[0].P, want = ISL.places.variants[V.name];
+    let bad = 0; for (const c of S.cells) { const mc = want.cells.find(x => (x.c === null ? c.i === null : x.c[0] === c.i && x.c[1] === c.j)); if (!mc || !gunz(mc.src).equals(c.buf)) bad++; }
+    ok(S.hash === want.hash && bad === 0 && S.cells.length === want.cells.length, V.name + ': the queue built BACKWARDS on the cooked tallies gives the cooked placements (' + S.things + ' things, hash ' + S.hash + ' / ' + want.hash + ', ' + bad + ' cells differ; ' + ((Date.now() - t1) / 1000).toFixed(1) + ' s)');
+    const PB = require(path.join(ROOT, 'src', 'viewer', 'premises_build.js')), T = PB.makeTallies(list);
+    // the forward cook's own state before each entry - the deltas summed in order - against at(rank)
+    let made = false; const used = {}, fenced = []; let badR = 0;
+    const cu = u => Object.keys(u || {}).filter(k => u[k]).sort().map(k => k + '=' + u[k]).join(',');
+    list.forEach((e, r) => {
+      const st = T.at(r);
+      if (st.made !== made || cu(used) !== cu(st.used) || st.fenced.join('|') !== fenced.join('|')) badR++;
+      const d = e[2]; if (d) { if (d.made) made = true; if (d.used) for (const k of Object.keys(d.used)) used[k] = (used[k] || 0) + d.used[k]; if (d.fenced) fenced.push(...d.fenced); }
+    });
+    ok(badR === 0, V.name + ': makeTallies.at(rank) is the running sum at every rank (' + list.length + ' ranks, ' + badR + ' differ)');
+  }
 }
 console.log('GATE PREMCOOK: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

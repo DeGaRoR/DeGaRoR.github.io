@@ -762,16 +762,29 @@ function buildViewer(coreBody) {
       // src/core/premises_packs.json) onto the boot object; makeWorld loads those whose signature its own
       // composition gives, the rest bake lazily. Off, nothing here is fetched. A cook that does not arrive is
       // a lazy raster, never a failed boot.
-      if (!window.FLYDIY_GROUND_RASTER) return;
+      // G841 (C2c): THE COOK'S PLACES, whatever the raster flag - each variant's record-order TALLIES (a few KB: the page
+      // and the house worker dress every entry on the tallies the cook gave it) and its per-cell manifest (the cells
+      // themselves are fetched by the renderer, by the aircraft's distance). A cook that does not arrive is the live
+      // tallies, never a failed boot.
       return fetch('src/core/premises_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }).then(function (PP) {
         var pi = null; for (var q = 0; q < (PP.islands || []).length; q++) if (PP.islands[q].id === name) pi = PP.islands[q];
-        if (!pi || !pi.raster) return;
-        var cells = pi.raster.cells, got = [];
-        return Promise.all(cells.map(function (c) {
+        if (!pi) return;
+        var got = [], places = null, jobs = [];
+        if (pi.places && pi.places.variants) {
+          places = { v: pi.places.v, cell: pi.places.cell, page: pi.places.page, variants: {} };
+          Object.keys(pi.places.variants).forEach(function (vn) {
+            var V = pi.places.variants[vn], out = places.variants[vn] = { name: vn, hash: V.hash, cells: V.cells, tallies: null };
+            if (V.tallies && V.tallies.src) jobs.push(fetch(V.tallies.src).then(function (res) { if (!res.ok) throw new Error(V.tallies.src + ' ' + res.status); return res.arrayBuffer(); })
+              .then(gz).then(function (u) { out.tallies = JSON.parse(new TextDecoder().decode(u)).list; })
+              .catch(function (e) { console.warn('flyDiy: the cooked tallies (' + vn + ') did not load (' + (e && e.message) + '); the live ones dress'); }));
+          });
+        }
+        if (window.FLYDIY_GROUND_RASTER && pi.raster) jobs = jobs.concat(pi.raster.cells.map(function (c) {
           return fetch(c.src).then(function (res) { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
             .then(gz).then(function (u) { got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u }); });
-        })).then(function () { boot.premCook = { raster: got }; });
-      }).catch(function (e) { console.warn('flyDiy: the cooked ground raster did not load (' + (e && e.message) + '); it bakes lazily'); });
+        }));
+        return Promise.all(jobs).then(function () { boot.premCook = { raster: window.FLYDIY_GROUND_RASTER && got.length ? got : null, places: places }; });
+      }).catch(function (e) { console.warn('flyDiy: the premises cook did not load (' + (e && e.message) + '); the ground raster bakes lazily'); });
     }).then(function () { return fixP; }).then(function (t) {
       if (typeof t === 'string') boot.premFixture = t;
       window.ISLAND_BOOT = boot;

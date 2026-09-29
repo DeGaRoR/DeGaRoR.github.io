@@ -131,6 +131,15 @@ async function child(mode, idbDir, outFile) {
   const DET = !!process.env.HOUSEWORKER_DETAIL;
   for (const [id, h] of R.houses) out.entries[id] = { d: DET ? digestEntry(W, h, true).d : digestEntry(W, h), parts: DET ? digestEntry(W, h, true).parts : undefined, kind: h.plot && h.plot.isItem ? 'item' : h.plot && h.plot.isFence ? 'fence' : h.plot && h.plot.isObject ? 'object' : h.plot && h.plot.isPark ? 'park' : 'house', failed: !!h.failed };
   out.queued = R.stats.queued;
+  // G844: each entry's OBSTACLES as registered (the worker's children stand theirs over the worker's raster of the bags,
+  // shape0; the local child walks the whole group): tag, pose and the column grid's bytes
+  const OBR = { get: id => R.obstacle(id) };
+  out.obst = {};
+  const obstOf = h => { const H = crypto.createHash('sha256'); let n = 0; for (const g of [h.grp].concat(h.extra || []).filter(Boolean)) g.traverse(o => { for (const id of (o.userData && o.userData.obst) || []) { const r = OBR && OBR.get ? OBR.get(id) : null; if (!r) continue; n++; const S = r.shape;
+    H.update([r.tag, r.x, r.z, r.yaw, r.y0].join(',') + '|' + (S.cells !== undefined ? [S.cell, S.ox, S.oz, S.nx, S.nz, S.top].join(',') : 'pieces'));
+    if (S.lo) { H.update(Buffer.from(S.lo.buffer, S.lo.byteOffset, S.lo.byteLength)); H.update(Buffer.from(S.hi.buffer, S.hi.byteOffset, S.hi.byteLength)); } } }); return n + ':' + H.digest('hex').slice(0, 16); };
+  for (const [id, h] of R.houses) out.obst[id] = obstOf(h);
+  out.hit = { base: R.stats.hitBase, walk: R.stats.hitWalk, tallies: R.stats.tallies };
   out.thrown = P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 10);
   // and the scene DRAWN after the loading: a few frames of the page's own loop in the shed (the world's buffers, the
   // worker's arrays among them, uploaded by then: the loading's warm draw) - a refused array would throw here
@@ -195,6 +204,11 @@ function verdict(res, ok) {
       const ids = Object.keys(L.entries).sort(), bad = ids.filter(id => !C.entries[id] || C.entries[id].d !== L.entries[id].d);
       const extra = Object.keys(C.entries).filter(id => !L.entries[id]);
       ok(!bad.length && !extra.length, m + ': every entry bit-identical to the page\'s own build (' + (ids.length - bad.length) + ' / ' + ids.length + (bad.length ? '; differ: ' + bad.slice(0, 8).join(', ') : '') + (extra.length ? '; extra: ' + extra.slice(0, 5).join(', ') : '') + ')');
+    }
+    if (L && L.obst && C.obst) {
+      const ids = Object.keys(L.obst).sort(), bad = ids.filter(id => C.obst[id] !== L.obst[id]);
+      ok(!bad.length, m + ': G844 every entry has the obstacles of the page own build (' + (ids.length - bad.length) + ' / ' + ids.length + '; ' + JSON.stringify(C.hit) + ' vs local ' + JSON.stringify(L.hit) + (bad.length ? '; differ: ' + bad.slice(0, 6).join(', ') : '') + ')');
+      if (m === 'cold') ok(C.hit && C.hit.base > 0, 'cold: G844 the worker rasterised the bags, the page only its props (' + (C.hit ? C.hit.base : 0) + ' over the worker raster, ' + (C.hit ? C.hit.walk : 0) + ' whole walks)');
     }
     const town = sumCalls(C.calls, /:town$/), all = sumCalls(C.calls);
     for (const k of ['garage:town', 'garage:settle']) if (C.stepWall && C.stepWall[k]) console.log('  ' + m + ': ' + k + ' ' + C.stepWall[k].ms + ' ms wall here, ' + C.stepWall[k].waited + ' ms of it waiting on the worker' + (L && L.stepWall && L.stepWall[k] ? ' (local: ' + L.stepWall[k].ms + ' ms)' : ''));

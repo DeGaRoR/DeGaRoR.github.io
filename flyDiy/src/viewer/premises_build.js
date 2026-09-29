@@ -147,6 +147,46 @@ function packLot(L, THREE, tr) {
   return { geo: { a, i }, verts: L.verts, idx: { length: i.length } };
 }
 
+// ---- THE OBSTACLE OF A BUILD'S OWN BAGS (G844, C2c) -----------------------------------------------------------------
+// render_premises hitAdd rasterised every house on the main thread (shapeOf: a vertex walk of the group, then
+// OBSTACLES.rasterise - ~2-3 ms a house, the town step's next cost after C2a). The worker holds the bags: it rasterises
+// them here, with the page's own arithmetic - the group's matrix as placeBuilt stands it (under an identity chain), the
+// inverse of its yaw and position times that matrix per vertex, w divide and all, shapeOf's filters (a ghost material,
+// a flat bag) - and the page marks only what it adds (the props) over this base (29_obstacles rasterise opts.base).
+// shape0: { cell, ox, oz, nx, nz, lo, hi } in the group's frame, lo / hi transferred.
+function frameMatrix(THREE, O, h) {
+  const w = O.frame.toWorld(h.x, h.z), g = new THREE.Object3D();
+  g.position.set(w[0], h.y, w[1]); g.rotation.y = h.yaw + O.frame.yaw; g.updateMatrixWorld(true);
+  return g.matrixWorld;
+}
+function packedShape(THREE, pb, F, BAGS, Mw, cell) {
+  const OB = typeof OBSTACLES !== 'undefined' ? OBSTACLES : (ROOT.OBSTACLES || null);
+  if (!OB || !pb || !F || !Mw) return null;
+  const e = Mw.elements, yaw = Math.atan2(e[8], e[0]);
+  const inv = new THREE.Matrix4().makeRotationY(yaw).setPosition(e[12], e[13], e[14]).invert();
+  const M = new THREE.Matrix4().multiplyMatrices(inv, Mw), m = M.elements;
+  const pos = [], idx = [];
+  const add = (p, mt) => {
+    if (!p || p.e || !p.i || !p.i.length || !mt) return;
+    if (mt.transparent && (mt.opacity < 0.5 || mt.depthWrite === false)) return;   // smoke, skirts, glows (shapeOf's ghost)
+    let A = null; for (const [n, s, arr] of p.a) if (n === 'position' && s === 3) A = arr;
+    if (!A) return;
+    const base = pos.length / 3, n = A.length / 3; let y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2], w = 1 / (m[3] * x + m[7] * y + m[11] * z + m[15]);
+      const X = (m[0] * x + m[4] * y + m[8] * z + m[12]) * w, Y = (m[1] * x + m[5] * y + m[9] * z + m[13]) * w, Z = (m[2] * x + m[6] * y + m[10] * z + m[14]) * w;
+      pos.push(X, Y, Z); if (Y < y0) y0 = Y; if (Y > y1) y1 = Y;
+    }
+    if (y1 - y0 < 0.15) { pos.length = base * 3; return; }                              // a flat thing is the ground's
+    for (let i = 0; i < p.i.length; i++) idx.push(base + p.i[i]);
+  };
+  for (const k of (pb.BAGS || BAGS)) add(pb.bags[k], F.MAT[k]);
+  if (pb.bags.smoke) add(pb.bags.smoke, F.MAT.smoke);
+  if (!idx.length) return null;
+  const S = OB.rasterise(pos, idx, cell);
+  return S ? { cell: S.cell, ox: S.ox, oz: S.oz, nx: S.nx, nz: S.nz, lo: S.lo, hi: S.hi } : null;
+}
+
 // ---- a frame from its numbers: placeHouse / planOutbuilding's toWorld and ground, re-made on the page --------------
 // (the same expressions on the same numbers: the functions do not cross a thread, their inputs do)
 function frameFns(h, Th) {
@@ -155,6 +195,47 @@ function frameFns(h, Th) {
   h.ground = (lx, lz) => { const w = h.toWorld(lx, lz); return Th(w[0], w[1]) - oy; };
   if (h.P) h.P.ground = h.ground;
   return h;
+}
+
+// ---- THE COOK'S TALLIES (G841, C2c of QUEUE-C) ------------------------------------------------------------------
+// The tallies above are order-dependent, and the page built by distance from the aircraft: the same house dressed
+// differently from another stand (another boat, the neighbour's fence), and the house cache (house_worker.js) keyed each
+// entry on whatever had been built before it - a second visit from another stand, or a reload after an edit, missed.
+// tools/premises_cook.js builds the queue in the RECORD's order (syncHouses') and ships each entry's delta; with them
+// an entry's tallies are the ones the cook gave it - the deltas of every entry before it in that order - whatever
+// order the page or the worker builds in, and the page dresses exactly as the cook placed. A live entry the cook did
+// not know (the editor's) takes the rank after the cooked entry the live record lists before it (render_premises
+// ranks its queue); an edited entry keeps its own rank; its new delta moves nobody else's tallies (the town round an
+// edit stays as it was, down to its boats).
+//   list: [[id, seed, delta | 0], ...] in the cook's order -> { n, rank(id) -> index | -1, at(rank) -> getState()'s shape }
+function makeTallies(list) {
+  const rank = new Map(); list.forEach((e, i) => { if (!rank.has(String(e[0]))) rank.set(String(e[0]), i); });
+  const K = 32, snaps = [], edges = [], cnt = [];   // the spread's counts every K entries; the fenced edges in order, and how many precede each entry
+  let made = false; const used = {};
+  const add = (d, u) => { if (d.made) made = true; if (d.used) for (const k of Object.keys(d.used)) u[k] = (u[k] || 0) + d.used[k]; };
+  for (let i = 0; i <= list.length; i++) {
+    if (i % K === 0) snaps.push({ made, used: Object.assign({}, used) });
+    cnt.push(edges.length);
+    if (i === list.length) break;
+    const d = list[i][2]; if (!d) continue;
+    add(d, used); if (d.fenced) for (const e of d.fenced) edges.push(e);
+  }
+  function at(r) {
+    r = Math.max(0, Math.min(list.length, r | 0));
+    const b = Math.floor(r / K), s = snaps[b], u = Object.assign({}, s.used); let m = s.made;
+    for (let i = b * K; i < r; i++) { const d = list[i][2]; if (d) { if (d.made) m = true; if (d.used) for (const k of Object.keys(d.used)) u[k] = (u[k] || 0) + d.used[k]; } }
+    return { made: m, used: m ? u : null, fenced: edges.slice(0, cnt[r]) };
+  }
+  return { n: list.length, rank: id => (rank.has(String(id)) ? rank.get(String(id)) : -1), at };
+}
+// the ranks of a live queue (the want order of render_premises syncHouses - the cook's own order): each entry's rank in
+// the cook, or the rank after the last cooked entry listed before it; null when the cook knows too little of this record
+// (another premises on the same island: under half its entries) - then the tallies are the live ones, as before G841
+function rankQueue(T, ids) {
+  if (!T) return null;
+  const out = new Array(ids.length); let last = -1, hit = 0;
+  for (let i = 0; i < ids.length; i++) { const r = T.rank(ids[i]); if (r >= 0) { out[i] = r; last = r; hit++; } else out[i] = last + 1; }
+  return hit * 2 >= ids.length ? out : null;
 }
 
 // ---- THE BUILDER -----------------------------------------------------------------------------------------------
@@ -196,6 +277,49 @@ function makeBuilder(C) {
     if (S.spread) { const u = S.spread.used; for (const k of Object.keys(u).sort()) if (u[k]) s += '|' + k + '=' + u[k]; }
     s += '#'; for (const k of Array.from(S.fenced).sort()) s += k + ';';
     return PG.fnv(s);
+  }
+
+  // ---- THE COOK'S TALLIES, applied (G841): an entry of rank r generates on the tallies the cook gave it ----
+  let TL = null;
+  function useTallies(T) { TL = T || null; }
+  function atRank(r) { if (TL && r !== undefined && r !== null && r >= 0) { setState(TL.at(r)); return true; } return false; }
+
+  // ---- THE ENTRY'S INPUTS (G841): what its generation reads besides the tallies and the dials - the house cache's key
+  // (house_worker.js) in place of the whole record's hash, so an edit re-generates the entries it touched and no others:
+  // the entry as COMPOSED (taken at the composition, before a dressing writes into it: sownAll), the record's seed, the
+  // premises' size and the water; a house's zone rules and road; and the GROUND under its reach - the raster cells'
+  // signatures (27_premises rasterCellSig: every modifier that reaches the cell, what each answers, and the island
+  // under it), so a ground edit next door re-keys it too. A cell signature is cached per composition.
+  const SOWN = new Map(), CSIG = new Map();
+  const DRESSED = new Set(['cat', 'path', 'fences', 'out', 'outPath', 'car', 'boat', 'drive', 'lot', 'house', 'built', 'plot', 'entry', 'grp']);
+  const sownJSON = x => JSON.stringify(plain(x, new Set([...SKIP, ...DRESSED])), (k, v) => (k && k[0] === '_' ? undefined : v));
+  function sownAll() {
+    const O = C.O, rec = C.rec; SOWN.clear(); CSIG.clear();
+    for (const p of O.records.plots) SOWN.set('house:' + p.id, sownJSON(p));
+    for (const it of O.records.items) SOWN.set('item:' + it.id, sownJSON(it));
+    for (const st of rec.layers.sites || []) if (st.fences && st.fences.length) SOWN.set('fence:sf:' + st.id, JSON.stringify(st.fences));
+  }
+  const h64 = t => { let a = 0x811c9dc5, b = 0x6c62272e; for (let i = 0; i < t.length; i++) { const c = t.charCodeAt(i); a = Math.imul(a ^ c, 0x01000193); b = Math.imul(b ^ c, 0x5bd1e995); b ^= b >>> 15; } return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0'); };
+  function groundSig(pts, margin) {
+    const O = C.O; if (!O || !O.rasterCellSig || !pts || !pts.length) return 'g?';
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const q of pts) { const x = Array.isArray(q) ? q[0] : q.x, z = Array.isArray(q) ? q[1] : q.z; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+    if (!isFinite(x0)) return 'g?';
+    const S = O.rasterCell || 256, out = [];
+    for (let i = Math.floor((x0 - margin) / S); i <= Math.floor((x1 + margin) / S); i++)
+      for (let j = Math.floor((z0 - margin) / S); j <= Math.floor((z1 + margin) / S); j++) {
+        const k = i + ',' + j; let s = CSIG.get(k); if (s === undefined) CSIG.set(k, s = O.rasterCellSig(i, j)); out.push(k + '=' + s);
+      }
+    return out.join(';');
+  }
+  function inputSig(j, x) {
+    const O = C.O, rec = C.rec, parts = [PB_V, j.kind, rec.seed, C.size(), C.waterY(), SOWN.get(j.kind + ':' + j.id) || '?'];
+    if (j.kind === 'house') {
+      const z = (rec.layers.zones || []).find(q => q.id === x.zone), rd = O.roads.find(r => r.id === x.road) || O.roads[0];
+      parts.push(JSON.stringify(z ? z.rules || null : null), JSON.stringify(rd ? [rd.id, rd.pts, rd.w] : null), groundSig(x.poly, 40));
+    } else if (j.kind === 'item') parts.push(groundSig(x.foot && x.foot.length ? x.foot : [[x.x, x.z]], 40));
+    else if (j.kind === 'fence') { const pts = []; for (const s of x.fences || []) { if (s.a) pts.push(s.a); if (s.b) pts.push(s.b); } parts.push(groundSig(pts, 10)); }
+    return h64(parts.join('\u0001'));
   }
 
   // ---- the fence: the village's own rails and pickets into two bags, the scanned stretches as prop placements ----
@@ -361,8 +485,11 @@ function makeBuilder(C) {
   function pack(R, THREE, x) {
     const tr = [];
     if (!R) return { r: null, tr };
-    const packDress = D => (D ? { ok: D.ok, fence: D.fence ? { bags: { post: packBag(D.fence.bags.post, THREE, null, tr), deck: packBag(D.fence.bags.deck, THREE, null, tr) }, props: D.fence.props, n: D.fence.n } : null,
-      out: D.out ? { built: packBuilt(D.out.built, THREE, tr), fin: D.out.fin } : null, lot: packLot(D.lot, THREE, tr) } : null);
+    const HG = G().HOUSE_GEN, O = C.O;
+    // G844: the obstacle of a build's own bags, rasterised here (the page adds its props over it)
+    const shaped = (pb, F, BAGS, h) => { let s = null; try { s = h && isFinite(h.x) && isFinite(h.y) ? packedShape(THREE, pb, F, BAGS, frameMatrix(THREE, O, h), 1.0) : null; } catch (e) { s = null; } if (s) tr.push(s.lo.buffer, s.hi.buffer); return s; };
+    const packDress = (D, plot) => (D ? { ok: D.ok, fence: D.fence ? { bags: { post: packBag(D.fence.bags.post, THREE, null, tr), deck: packBag(D.fence.bags.deck, THREE, null, tr) }, props: D.fence.props, n: D.fence.n } : null,
+      out: D.out ? (pb => ({ built: pb, fin: D.out.fin, shape0: shaped(pb, D.out.F, HG.BAGS, plot && plot.out) }))(packBuilt(D.out.built, THREE, tr)) : null, lot: packLot(D.lot, THREE, tr) } : null);
     const r = { kind: R.kind };
     if (R.kind === 'house') {
       const F = R.F;
@@ -371,12 +498,14 @@ function makeBuilder(C) {
       r.lod1 = R.lod1 ? packBuilt(R.lod1, THREE, tr, k => { const mt = F.MAT[k]; return !!(mt && mt.isMeshStandardMaterial && !mt.transparent); }, LITE) : null;
       if (r.lod1) r.lod1.tris = R.lod1.stats ? R.lod1.stats.tris : 0;
       r.fin = R.fin;
-      r.dress = packDress(R.dress);
+      r.shape0 = shaped(r.built, F, HG.BAGS, R.house);
+      r.dress = packDress(R.dress, x);
       r.plot = plain(x, SKIP);
     } else if (R.kind === 'item') {
       r.built = packBuilt(R.built, THREE, tr);
       r.fin = R.fin;
-      r.dress = packDress(R.dress);
+      r.shape0 = shaped(r.built, R.F, (G()[x.gen] || {}).BAGS || [], x);
+      r.dress = packDress(R.dress, R.plot);
       r.plot = R.plot ? plain(R.plot, SKIP) : null;
     } else if (R.kind === 'fence') {
       r.fence = R.fence ? { bags: { post: packBag(R.fence.bags.post, THREE, null, tr), deck: packBag(R.fence.bags.deck, THREE, null, tr) }, props: R.fence.props, n: R.fence.n } : null;
@@ -395,7 +524,7 @@ function makeBuilder(C) {
         const b2 = unpackBuilt(THREE, D.out.built);
         frameFns(plot.out, Th);
         b2.stats.ground = G().HOUSE_GEN.groundFn(plot.out.P);
-        out.out = { built: b2, F: null, fin: D.out.fin };
+        out.out = { built: b2, F: null, fin: D.out.fin, shape0: D.out.shape0 || null };
       }
       return out;
     };
@@ -410,12 +539,12 @@ function makeBuilder(C) {
       built.stats.ground = G().HOUSE_GEN.groundFn(house.P);
       const lod1 = r.lod1 ? unpackBuilt(THREE, r.lod1) : null;
       if (lod1) { lod1.stats = { tris: r.lod1.tris }; }
-      return { kind: 'house', house, built, lod1, F: null, fin: r.fin, dress: unDress(r.dress, plot), Tv, remote: true };
+      return { kind: 'house', house, built, lod1, F: null, fin: r.fin, dress: unDress(r.dress, plot), Tv, remote: true, shape0: r.shape0 || null };
     }
     if (r.kind === 'item') {
       const built = unpackBuilt(THREE, r.built);
       if (target && target.P) built.stats.ground = G().HOUSE_GEN.groundFn(target.P);
-      return { kind: 'item', built, F: null, fin: r.fin, plot: r.plot, dress: unDress(r.dress, r.plot), Tv: r.plot ? Tv : null, remote: true };
+      return { kind: 'item', built, F: null, fin: r.fin, plot: r.plot, dress: unDress(r.dress, r.plot), Tv: r.plot ? Tv : null, remote: true, shape0: r.shape0 || null };
     }
     if (r.kind === 'fence') {
       return { kind: 'fence', fence: r.fence ? { bags: { post: RemoteBag(THREE, 'post', r.fence.bags.post), deck: RemoteBag(THREE, 'deck', r.fence.bags.deck) }, props: r.fence.props, n: r.fence.n } : null, Tv, remote: true };
@@ -423,10 +552,11 @@ function makeBuilder(C) {
     return null;
   }
 
-  return { C, S, genHouse, genItem, genFences, genFence, genDress, find, gen, pack, unpack, mark, delta, applyDelta, getState, setState, stateHash, itemSeed };
+  return { C, S, genHouse, genItem, genFences, genFence, genDress, find, gen, pack, unpack, mark, delta, applyDelta, getState, setState, stateHash, itemSeed,
+           useTallies, atRank, get tallies() { return TL; }, sownAll, inputSig };
 }
 
-const API = { V: PB_V, makeBuilder, plain, uniSnap, uniDiff, uniApply, packBag, packBuilt, unpackBuilt, RemoteBag, frameFns, SKIP };
+const API = { V: PB_V, makeBuilder, makeTallies, rankQueue, packedShape, frameMatrix, plain, uniSnap, uniDiff, uniApply, packBag, packBuilt, unpackBuilt, RemoteBag, frameFns, SKIP };
 ROOT.PREMISES_BUILD = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

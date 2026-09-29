@@ -365,7 +365,7 @@ function cookPlaces(W, O, opt) {
   const body = '"use strict";\n' + code + '\n' +
     'const placeDress0 = placeDress; placeDress = function (plot) { const r = placeDress0.apply(this, arguments); __dressed(plot); return r; };\n' +
     'placeFence = function () { return null; }; BLD.C.fences = false;\n' +
-    'return { buildHouse, buildItem, syncHouses, posOf, cellKey, LIVE_CELL, W, H, litOf };';
+    'return { buildHouse, buildItem, syncHouses, posOf, cellKey, LIVE_CELL, W, H, litOf, BLD };';
   // (G830: the page's generation half is premises_build.js - its fences' bags are not made here: `fences: false`; the
   // host's lod-1 dials as the page's defaults, its lod-1 meshes not kept)
   const HLOD = { lod1: true, outLod: 1 };
@@ -380,11 +380,21 @@ function cookPlaces(W, O, opt) {
   let n = 0, failed = [];
   const sown = new Map();                 // what the composition queued, per cell, before anything was built: the cell's inputs
   const only = opt && opt.only ? opt.only : Infinity;
-  for (const p of queue.slice(0, only)) {
+  // G841 (C2c): THE TALLIES, in the record's order - each entry's delta to the village's two tallies (premises_build.js):
+  // the page generates every entry on the tallies the cook gave it (makeTallies), whatever order it builds in
+  const tallies = [];
+  // (GATE PREMCOOK's order proof: opt.tallies - a cooked list - and opt.reverse build the queue BACKWARDS, each entry on
+  // the tallies of its rank: the page's way, which must give the same things)
+  const TL = opt && opt.tallies ? win.PREMISES_BUILD.makeTallies(opt.tallies) : null;
+  if (TL) P.BLD.useTallies(TL);
+  const todo = queue.slice(0, only); if (opt && opt.reverse) todo.reverse();
+  for (const p of todo) {
     const w = P.posOf(p), key = w ? P.cellKey(w[0], w[1]) : '*';
     const rec = p.rec || p, input = clean(rec);
     let thing;
     hits.length = 0; dressed = null;
+    if (TL) P.BLD.atRank(TL.rank(p.id));
+    const m0 = P.BLD.mark();
     try {
       if (p.isPark) thing = { kind: 'park', park: clean({ key: rec.key, gen: rec.gen, plan: rec.plan, level: rec.level, seed: rec.seed, fences: rec.fences, items: (rec.items || []).map(it => it.id) }) };
       else if (p.isObject) { const ow = O.frame.toWorld(rec.x, rec.z); thing = { kind: 'object', ob: input, at: [ow[0], typeof rec.y === 'number' ? rec.y : O.terrainAt(ow[0], ow[1]) + (+rec.dy || 0), ow[1], rec.yaw + O.frame.yaw] }; }
@@ -407,6 +417,7 @@ function cookPlaces(W, O, opt) {
       }
     } catch (e) { failed.push(p.id + ': ' + (e && e.message)); thing = { kind: 'failed', error: String(e && e.message) }; }
     thing.id = p.id; thing.seed = p.seed;
+    tallies.push([p.id, p.seed, P.BLD.delta(m0) || 0]);
     cellOf(key).things.push(thing); n++;
     (sown.get(key) || sown.set(key, []).get(key)).push([p.id, p.seed, input]);
   }
@@ -424,7 +435,9 @@ function cookPlaces(W, O, opt) {
   }
   out.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const hash = crypto.createHash('sha256'); for (const c of out) hash.update(c.key + ':').update(c.buf);
-  return { cells: out, things: n, failed, ms: Date.now() - t0, hash: hash.digest('hex').slice(0, 16), lots, page: pageHash() };
+  const tbuf = Buffer.from(JSON.stringify({ v: 1, list: tallies }), 'utf8');
+  return { cells: out, things: n, failed, ms: Date.now() - t0, hash: hash.digest('hex').slice(0, 16), lots, page: pageHash(),
+           tallies: { buf: tbuf, n: tallies.length, hash: crypto.createHash('sha256').update(tbuf).digest('hex').slice(0, 16) } };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -443,7 +456,7 @@ function cook(id, opt) {
     const tc = Date.now() - t0;
     const R = opt.noRaster ? { cells: [], tiles: 0, nodes: 0, raw: 0, bakeMs: 0, worst: 0, anchors: [] } : cookRaster(O, PG, EVERYWHERE.has(V.name) ? Object.assign({}, opt, { everywhere: true }) : opt);
     const Pl = opt.places === false ? null : cookPlaces(W, O, opt);
-    if (Pl) for (const c of Pl.cells) c.gz = zlib.gzipSync(c.buf, { level: LEVEL });
+    if (Pl) { for (const c of Pl.cells) c.gz = zlib.gzipSync(c.buf, { level: LEVEL }); Pl.tallies.gz = zlib.gzipSync(Pl.tallies.buf, { level: LEVEL }); }
     for (const c of R.cells) {
       const key = c.ci + ',' + c.cj + ',' + c.sig;
       const had = rasterCells.get(key);
@@ -467,7 +480,7 @@ function cook(id, opt) {
   return { id, fixture: 'tools/fixtures/island_' + id + '.json', variants, raster: cells, places: placeSets, page: pageHash() };
 }
 
-function manifestIsland(K, srcOf, placeSrcOf) {
+function manifestIsland(K, srcOf, placeSrcOf, tallySrcOf) {
   let raw = 0, ship = 0;
   const cells = K.raster.map(c => { raw += c.buf.length; ship += c.gz.length; return { c: [c.ci, c.cj], sig: c.sig, src: srcOf(c), raw: c.buf.length, tiles: c.tiles, in: c.in }; });
   const places = { v: 1, cell: CELL, page: K.page, variants: {} };
@@ -475,6 +488,8 @@ function manifestIsland(K, srcOf, placeSrcOf) {
     let r = 0, g = 0;
     places.variants[S.name] = { hash: S.P.hash, things: S.P.things, cells: S.P.cells.map(c => { r += c.buf.length; g += c.gz.length; return { c: c.i === null ? null : [c.i, c.j], sig: c.sig, src: placeSrcOf(c), raw: c.buf.length, n: c.n }; }) };
     places.variants[S.name].bytes = { raw: r, ship: g };
+    // G841: the record-order tallies (render_premises / the house worker generate every entry on them)
+    if (S.P.tallies && tallySrcOf) places.variants[S.name].tallies = { src: tallySrcOf(S.name, S.P.tallies), n: S.P.tallies.n, hash: S.P.tallies.hash };
   }
   return {
     id: K.id, fixture: K.fixture, cooked: new Date().toISOString().slice(0, 10),
@@ -514,7 +529,12 @@ function main() {
     if (report) return 'media/' + sub + '/' + stem + '.' + h8(c.gz) + '.bin';
     const rel = writeMedia(sub, stem, 'bin', c.gz); keep.push(rel); return rel;
   };
-  const isl = manifestIsland(K, srcOf, placeSrcOf);
+  const tallySrcOf = (name, T) => {
+    const stem = 't_' + name;
+    if (report) return 'media/' + sub + '/' + stem + '.' + h8(T.gz) + '.bin';
+    const rel = writeMedia(sub, stem, 'bin', T.gz); keep.push(rel); return rel;
+  };
+  const isl = manifestIsland(K, srcOf, placeSrcOf, tallySrcOf);
   console.log('  ---');
   for (const v in isl.places.variants) { const P = isl.places.variants[v]; console.log('  places ' + v + ': ' + P.cells.length + ' cells, ' + (P.bytes.raw / 1e3).toFixed(1) + ' KB raw -> ' + (P.bytes.ship / 1e3).toFixed(1) + ' KB'); }
   console.log('  raster: ' + isl.raster.cells.length + ' cells (' + K.variants.map(v => v.name + ' ' + v.raster.cells).join(', ') + '), raw ' + (isl.raster.bytes.raw / 1e6).toFixed(2) + ' MB -> ship ' + (isl.raster.bytes.ship / 1e6).toFixed(2) + ' MB');

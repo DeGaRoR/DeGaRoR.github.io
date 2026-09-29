@@ -2116,13 +2116,17 @@ function make(THREE, scene, world, rec0, opts) {
   const OBS = () => (o.game && world && world.obstacles && typeof OBSTACLES !== 'undefined') ? world.obstacles : null;
   const HIT_SKIP = /^(hitbox:|smoke|aoskirt)/;
   const OBST_IDS = new Set();
+  const STATS_HIT = { base: 0, walk: 0 };   // G844: registrations over a worker's shape0 / whole walks
+  // (G844: a group the house worker rasterised - userData.shape0, its own bags - walks only what the page added: its props)
   function shapeOf(grp, cell) {
+    const base = grp.userData.shape0 && grp.userData.shape0.cell === cell ? grp.userData.shape0 : null, skip = base ? grp.userData.bagMeshes : null;
     grp.updateMatrixWorld(true);
     const e = grp.matrixWorld.elements, yaw = Math.atan2(e[8], e[0]), px = e[12], py = e[13], pz = e[14];
     const inv = new THREE.Matrix4().makeRotationY(yaw).setPosition(px, py, pz).invert();
     const pos = [], idx = [], M = new THREE.Matrix4(), v = new THREE.Vector3();
     const walk = obj => {
       if (obj.isLOD) { const l0 = obj.levels.length ? obj.levels[0].object : null; if (l0) walk(l0); return; }   // the full level only
+      if (skip && skip.has(obj)) return;   // (G844: the build's own bags, in the worker's shape0 already)
       // an INSTANCED prop (props.js proxy, G934) has no meshes: its full level's geometry at the proxy's matrix, as the
       // LOD's level 0 would have been
       const full = typeof propInstFull === 'function' ? propInstFull(obj) : undefined;
@@ -2153,8 +2157,9 @@ function make(THREE, scene, world, rec0, opts) {
       }
     }
     walk(grp);
-    if (!idx.length) return null;
-    const shape = OBSTACLES.rasterise(pos, idx, cell);
+    if (!idx.length && !base) return null;
+    const shape = OBSTACLES.rasterise(pos, idx, cell, base ? { base } : undefined);
+    if (base) STATS_HIT.base++; else STATS_HIT.walk++;
     return shape ? { x: px, z: pz, yaw, y0: py, shape } : null;
   }
   // a prop's bytes may still be on the wire (props.js propPending) and a parked aeroplane's holder
@@ -2235,6 +2240,7 @@ function make(THREE, scene, world, rec0, opts) {
     grp.rotation.y = house.yaw + O.frame.yaw;
     for (const k of (built.BAGS || HG.BAGS)) if (built.bags[k] && F.MAT[k]) built.bags[k].mesh(grp, F.MAT[k]);
     if (built.bags.smoke && F.MAT.smoke) { const sm = built.bags.smoke.mesh(grp, F.MAT.smoke); if (sm) { sm.renderOrder = 10; sm.castShadow = false; sm.receiveShadow = false; } }
+    grp.userData.bagMeshes = new Set(grp.children);   // G844: the build's own bags (a worker's shape0 has them already)
     const st = built.stats, g = st.ground;
     // a sports ground's grass (G393): the lot patch's record in the item's frame, over its flat turf
     if (st.turf && typeof LOT_GROUND !== 'undefined' && LOT_GROUND) LOT_GROUND.mesh(THREE, grp, st.turf, null);
@@ -2269,6 +2275,7 @@ function make(THREE, scene, world, rec0, opts) {
     let F = R.F;
     if (!F) { F = HG.makeFinish(); HG.applyFinish(house.P, F); PB.uniApply(F, R.fin); }
     const grp = placeBuilt(G.houses, house, built, F, HG);
+    if (R.shape0) grp.userData.shape0 = R.shape0;   // G844: the worker rasterised its bags
     // G800: its lod 1 (generated with it, under the loading screen), for the far town; the bench keeps none, nor does
     // the in-flight stream (G591's items past the roll-out's reach): no merge added to a frame in flight - such a
     // house keeps G559's lod-0 far town and the hard switch
@@ -2290,6 +2297,22 @@ function make(THREE, scene, world, rec0, opts) {
     props: { has: k => { const PR = propReg(); return !!(PR && PR.props[k]); } },
     get pp() { return typeof propPlace === 'function'; }, get lotGround() { return !!window.LOT_GROUND; } });
   const FENCED = BLD.S.fenced;
+  // THE COOK'S TALLIES (G841, C2c; premises_build.js makeTallies): the island's cook (tools/premises_cook.js, the loader's
+  // boot.premCook.places, carried on world.island) ships, for the variant this page composed (the town switch: 'town' when
+  // Metlakatla stands, 'default' when it is cut), every entry's delta to the village's two tallies in the record's order.
+  // An entry then generates on the tallies the cook gave it (its RANK: syncHouses), inline or in the house worker, whatever
+  // order the stream asks in - the page dresses as the cook placed, and the house cache's keys hold across stands and
+  // across an edit. No cook (another world, a record the cook barely knows: rankQueue) - the live tallies, as before.
+  //   ?premtally=0   the live tallies (the A/B's "before")
+  const TALLY = (() => {
+    try {
+      if (typeof location !== 'undefined' && /[?&]premtally=0/.test(location.search || '')) return null;
+      const pc = world && world.island && world.island.premCook, pl = pc && pc.places;
+      const v = pl && pl.variants && pl.variants[(typeof window !== 'undefined' && window.FLYDIY_TOWN && window.FLYDIY_TOWN.all) ? 'town' : 'default'];
+      return v && v.tallies ? { list: v.tallies, T: PB.makeTallies(v.tallies), variant: v.name || null } : null;
+    } catch (e) { console.warn('premises: the cooked tallies', e && e.message); return null; }
+  })();
+  let TALLY_ON = false;   // (syncHouses: the ranks took)
   const FENCE_HAND = 0.6;
   let FENCE_F = null;
   function fenceFinish() {
@@ -2331,7 +2354,7 @@ function make(THREE, scene, world, rec0, opts) {
         let F2 = D.out.F;
         if (!F2) { F2 = HG.makeFinish(); HG.applyFinish(plot.out.P, F2); PB.uniApply(F2, D.out.fin); }
         const b2 = D.out.built; plot.out.built = b2;
-        const og = placeBuilt(G.houses, plot.out, b2, F2, HG); hitAdd(og, 'outbuilding', 1.0);
+        const og = placeBuilt(G.houses, plot.out, b2, F2, HG); if (D.out.shape0) og.userData.shape0 = D.out.shape0; hitAdd(og, 'outbuilding', 1.0);
         out.groups.push(og); out.tris += b2.stats.tris; out.lights += litOf(b2);
       } catch (e) { console.warn('premises outbuilding', plot.id, e && e.message); plot.out = null; }
     }
@@ -2454,6 +2477,7 @@ function make(THREE, scene, world, rec0, opts) {
     let F = R.F;
     if (!F) { F = GEN.makeFinish(); GEN.applyFinish(it.P, F); PB.uniApply(F, R.fin); }
     const grp = placeBuilt(G.houses, it, built, F, GEN);
+    if (R.shape0) grp.userData.shape0 = R.shape0;   // G844
     hitAdd(grp, 'item', 1.0);
     if (built.bags.aoskirt && GEN.MAT && GEN.MAT.aoskirt) { const sk = built.bags.aoskirt.mesh(grp, GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
     // A HAND-PLACED SITE ITEM DRESSES LIKE A PLOT (G401, the user: "the ground textures of all lots"): a
@@ -2489,6 +2513,19 @@ function make(THREE, scene, world, rec0, opts) {
     return { grp: fg || new THREE.Group(), tris: 0, house: st, extra: [] };
   }
   const parkSeed = pk => PG.hash32(pk.seed, PG.fnv(JSON.stringify([pk.plan.centre, pk.plan.yaw, pk.level, pk.key])));
+  // THE EDIT'S CELLS (G842): a ground edit (a road, a zone, a runway, a modifier: the editor's `dirty` with a bbox and the
+  // ground on) marks the LIVE_CELL squares its box touches; what stands in them is rebuilt - the worker's cache answers
+  // at once for an entry whose inputs (its ground's raster cells among them) the edit did not move
+  const DIRTY = new Set();
+  function markDirty(d) {
+    if (!d || !d.bbox || d.ground === false) return;
+    const F = O.frame, b = d.bbox, pad = (d.pad || 0) + 8;
+    const c = [F.toWorld(b.x0 - pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z1 + pad), F.toWorld(b.x0 - pad, b.z1 + pad)];
+    const i0 = Math.floor(Math.min(...c.map(q => q[0])) / LIVE_CELL), i1 = Math.floor(Math.max(...c.map(q => q[0])) / LIVE_CELL);
+    const j0 = Math.floor(Math.min(...c.map(q => q[1])) / LIVE_CELL), j1 = Math.floor(Math.max(...c.map(q => q[1])) / LIVE_CELL);
+    for (const [id, h] of HOUSES) { if (h.isObject || !h.plot) continue; const w = qPos(h.plot); if (!w) continue; const i = Math.floor(w[0] / LIVE_CELL), j = Math.floor(w[1] / LIVE_CELL); if (i >= i0 && i <= i1 && j >= j0 && j <= j1) DIRTY.add(id); }
+    stats.dirtyCells = (i1 - i0 + 1) * (j1 - j0 + 1); stats.dirtyIds = DIRTY.size;
+  }
   function syncHouses() {
     const want = new Map();
     for (const p of O.records.plots) if (p.kind !== 'park' && p.kind !== 'airfield') want.set(p.id, p);
@@ -2498,11 +2535,17 @@ function make(THREE, scene, world, rec0, opts) {
     // a site's own fences (G393.3): the theme's segments in premises coordinates, the village's fence
     for (const st of rec.layers.sites || []) if (st.fences && st.fences.length) want.set('sf:' + st.id, { id: 'sf:' + st.id, seed: PG.fnv(JSON.stringify(st.fences)), isFence: true, rec: st });
     const VGe = window.VILLAGE_GEN;
-    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed) {
+    // (G842: an entry in a cell a ground edit marked dirty is taken down too - its seed is its own, the ground under it is not)
+    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed || DIRTY.has(id)) {
       for (const g of [h.grp].concat(h.extra || [])) if (g) { hitDrop(g); if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); }
       if (VGe && VGe.edgeKey && h.plot && h.plot.fences) for (const sg of h.plot.fences) { FENCED.delete(VGe.edgeKey(sg.a, sg.b)); HWQ.needState = true; }
       HOUSES.delete(id);
     } }
+    // G841: each entry's rank in the cook (the want order IS the cook's queue order)
+    const ranks = TALLY ? PB.rankQueue(TALLY.T, Array.from(want.keys())) : null;
+    TALLY_ON = !!ranks; BLD.useTallies(ranks ? TALLY.T : null); stats.tallies = ranks ? (TALLY.variant || 'cook') : 'live';
+    if (ranks) { let i = 0; for (const [, p] of want) p._tr = ranks[i++]; }
+    DIRTY.clear();
     hwCancel();   // G830: what the worker still owes is re-queued below with the rest
     queue.length = 0;
     for (const [id, p] of want) if (!HOUSES.has(id)) { p._w = undefined; p._d = undefined; queue.push(p); }
@@ -2702,6 +2745,7 @@ function make(THREE, scene, world, rec0, opts) {
     try { buildOne0(p, R); } finally { const ms = performance.now() - tb; if (ms > 60) { const L = STREAM.slow; L.push([p.id, Math.round(ms)]); if (L.length > 60) L.shift(); } }
   }
   function buildOne0(p, R) {
+    if (!R && TALLY_ON && !(p.isPark || p.isObject)) BLD.atRank(p._tr);   // G841: generated here, on the cook's tallies for its rank
     try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec, R) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec, R) : kitOf(p) >= 0 ? buildKitLot(p, R) : buildHouse(p, R); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
     catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
   }
@@ -2710,7 +2754,7 @@ function make(THREE, scene, world, rec0, opts) {
     stats.queued = queue.length + HWQ.order.length; stats.houses = 0; stats.objects = 0; stats.houseTris = 0; stats.lights = 0;
     for (const [, h] of HOUSES) { stats.houseTris += h.tris || 0; stats.lights += h.lights || 0; if (h.isObject) stats.objects++; else stats.houses++; }
     if (!noHit) hitPendingStep();   // (G999: the prewarm gives it its own slice)
-    stats.obstacles = OBST_IDS.size;
+    stats.obstacles = OBST_IDS.size; stats.hitBase = STATS_HIT.base; stats.hitWalk = STATS_HIT.walk;   // (G844)
     // the garden paths are the built houses' (planPath reads the door) - on the BENCH's ground: the game draws no
     // premises chunk (its patch is the ring's material), so its 1024^2 repaint an item was work nobody read (G591)
     if (built && !o.game) paintWear();
@@ -2720,7 +2764,14 @@ function make(THREE, scene, world, rec0, opts) {
     return built;
   }
   function step(n) {
-    // G830: what the worker owes goes first, in its order; the editor (step's caller while it is open) builds inline
+    // G842: THE EDITOR OPEN (step's caller then), the worker alive: its composition a beat after the last edit, then
+    // every queued entry dispatched and placed as it arrives, a few ms a frame - nothing generated here
+    if (HWK && !HWQ.dead && HWK.ok() && o.editing && o.editing() && HWQ.epoch >= 0) {
+      if (HWQ.composeDue) { if (performance.now() < HWQ.composeDue) return 0; hwComposeNow(); }
+      if (queue.length) hwDispatch(queue.splice(0));
+      return HWQ.order.length ? afterBuilt(hwPlace(HW_EDIT_MS, performance.now())) : 0;
+    }
+    // G830: what the worker owes goes first, in its order
     if (HWQ.order.length) { if (hwOn()) return afterBuilt(hwPlace(0, performance.now())); hwCancel(true); }
     let built = 0;
     while (queue.length && built < (n || 2)) { buildOne(queue.shift()); built++; }
@@ -2744,14 +2795,27 @@ function make(THREE, scene, world, rec0, opts) {
   const HWK = (o.game && window.HOUSE_WORKER && window.HOUSE_WORKER.ok()) ? window.HOUSE_WORKER : null;
   const HWQ = { order: [], jobs: new Map(), arrived: new Map(), seq: 0, gen: 0, epoch: -1, needState: true, dead: false,
                 dispatched: 0, placed: 0, local: 0, errors: 0 };
-  const hwOn = () => !!(HWK && !HWQ.dead && HWQ.epoch >= 0 && HWK.ok() && !o.editing());
+  // (G842: the editor's edits are the worker's too - step() below; not while an edit's composition is still due)
+  const hwOn = () => !!(HWK && !HWQ.dead && HWQ.epoch >= 0 && HWK.ok() && !HWQ.composeDue);
   const hwKind = p => (p.isPark || p.isObject ? null : p.isFence ? 'fence' : p.isItem ? 'item' : kitOf(p) >= 0 ? 'kit' : 'house');   // (C3c: 'kit', a kit plot's lot)
   const hwMainOnly = p => !!(p.isItem && p.rec.gen === 'HANGAR_GEN' && !(p.rec.P && p.rec.P.restated) && typeof document !== 'undefined' && typeof genHangarBuild === 'function');
+  // THE EDITOR'S LIVE PATH (G842, C2c; ARCH-2026-09-27 §3.3): an edit recomposes the page at once (the outlines, the
+  // ground, the queue: syncHouses) and the worker a beat after the LAST edit - its composition is ~1.2 s, and a drag
+  // rebuilds at every move; until it has, the edit's entries wait (step) rather than build here. Then they are the
+  // worker's like any other: generated off the page's thread, placed as they arrive, cached - on keys an edit elsewhere
+  // does not move (premises_build.js inputSig) and tallies it does not move (the cook's), so a save, a reload, and the
+  // editor's houses come back from the cache (the save needs no cook of its own: the cache IS the client-side cook).
+  const HW_EDIT_DEBOUNCE = 350, HW_EDIT_MS = 4;
   function hwCompose() {
     if (!HWK || !HWK.ok()) return;
     hwCancel(true);
+    if (o.editing && o.editing()) { HWQ.composeDue = performance.now() + HW_EDIT_DEBOUNCE; return; }
+    hwComposeNow();
+  }
+  function hwComposeNow() {
+    HWQ.composeDue = 0;
     const lazy = ['SPORT_GEN', 'MARINE_GEN'].filter(g => !!window[g]);
-    HWQ.epoch = HWK.compose(rec, composedPool || [], lazy);
+    HWQ.epoch = HWK.compose(rec, composedPool || [], lazy, TALLY ? TALLY.list : null);   // G841: the cook's tallies ride with the composition
     HWQ.needState = true;
   }
   if (HWK) {
@@ -2781,7 +2845,8 @@ function make(THREE, scene, world, rec0, opts) {
     for (const seq of HWQ.order) {
       const j = HWQ.jobs.get(seq);
       if (!j.remote || j.sent) continue;
-      j.sent = true; jobs.push(j.here ? { seq, kind: j.kind, id: j.p.id, seed: j.p.seed, tally: true } : { seq, kind: j.kind, id: j.p.id, seed: j.p.seed });
+      j.sent = true; const tr = TALLY_ON ? j.p._tr : undefined;   // G841: the entry's rank in the cook's tallies
+      jobs.push(j.here ? { seq, kind: j.kind, id: j.p.id, seed: j.p.seed, tr, tally: true } : { seq, kind: j.kind, id: j.p.id, seed: j.p.seed, tr });
     }
     if (!jobs.length) return;
     const PR = propReg();
@@ -2822,7 +2887,8 @@ function make(THREE, scene, world, rec0, opts) {
       try { buildOne(j.p, R); }
       finally { if (here) window.FLYDIY_HW_HERE--; }
       // a hangar: its tallies as the worker moved them, or everything after it again
-      if (j.here && j.remote && !miss && !HWQ.dead && hwCanon(BLD.delta(m0)) !== hwCanon(tally)) { miss = true; HWQ.tallyMiss = (HWQ.tallyMiss || 0) + 1; }
+      // (G841: on the cook's tallies both sides built it from the same state - nothing to hold against)
+      if (j.here && j.remote && !miss && !HWQ.dead && !TALLY_ON && hwCanon(BLD.delta(m0)) !== hwCanon(tally)) { miss = true; HWQ.tallyMiss = (HWQ.tallyMiss || 0) + 1; }
       n++; HWQ.placed++;
       if (each) each(j.p);
       if (miss) { hwResend(seq); hwPump(); }
@@ -3021,7 +3087,7 @@ function make(THREE, scene, world, rec0, opts) {
       syncTraffic();
       syncAnimals();
       yield 'houses';
-      if (o.editing()) { buildOutlines(); buildHandles(); }
+      if (o.editing()) { buildOutlines(); buildHandles(); markDirty(dirty); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
       hwPrefetch();   // G831: the town step's own dispatch, now - the worker generates while the page lays out the rest
@@ -3120,6 +3186,7 @@ function make(THREE, scene, world, rec0, opts) {
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
+    obstacle: id => { const R = OBS(); return R ? R.get(id) : null; },   // (G844: one record, its shape - GATE HOUSEWORKER's digest)
     obstacles: () => { const R = OBS(); return R ? R.list().filter(r => OBST_IDS.has(r.id)).map(r => ({ id: r.id, tag: r.tag, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, top: r.shape.top, cells: r.shape.cells, cell: r.shape.cell })) : []; },
     setRecord: r => { rec = PG.normalise(r); composedFresh = false; },
     lamps: LAMPS,                                                    // G449: the pool (update / mute / gain / litNow)
