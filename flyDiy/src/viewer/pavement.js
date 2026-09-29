@@ -1163,15 +1163,22 @@ float pvTread(float u, float x, float w, float seed) {
     c = rep(c, '\nuniform vec4 uMean;', '\nvec4 uMean;');
     c = rep(c, '\nuniform int uMarkN, uSegN;', '\nint uMarkN, uSegN;');
     c = rep(c, `\nuniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];`,
-      '\nuniform highp sampler2D uPavT;\nint gPavRow;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)');
+      '\nuniform highp sampler2D uPavT;\nint gPavRow; float gSegHW;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)');
     c = rep(c, `\nuniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];`, '\nvec4 uSide, uRoadEnd; int uKeepN;');
     c = rep(c, 'varying vec4 vPav; varying vec4 vPavK;', 'varying vec4 vPav; flat varying float vPavId;');
     c = rep(c, 'vec4 A = uKeepA[i], B = uKeepB[i];', `vec4 A = PVT(${PV.KA} + i), B = PVT(${PV.KB} + i);`);
-    c = rep(c, 'vec4 Rr = uMarkR[i]; vec4 K = uMarkK[i];', `vec4 Rr = PVT(${PV.MR} + i); vec4 K = PVT(${PV.MK} + i);`);
-    c = rep(c, 'vec4 S = uSeg[i]; vec4 K = uSegK[i];', `vec4 S = PVT(${PV.S} + i); vec4 K = PVT(${PV.SK} + i);`);
+    // THE MARKS' EARLY OUT (the same coverage, bit for bit): a mark is bounded by its rect (a rule's too: [u0, uEnd] x
+    // [v0, v1]) and pvBox is exactly 0 a footprint outside it, so a pixel outside skips the mark's second texel and its
+    // box (the max() that gathers the marks does not care which are skipped); a segment is exactly 0 once its distance
+    // passes the row's widest half-width (PV.N .w) plus the footprint. Without it the table's texel reads in the paint
+    // loops cost the pavement +0.6 ms of GPU at the stand (tools/pave_ab.js, G928)
+    c = rep(c, 'vec4 Rr = uMarkR[i]; vec4 K = uMarkK[i];', `vec4 Rr = PVT(${PV.MR} + i);\n    if (p.x < Rr.x - fw.x || p.x > Rr.y + fw.x || p.y < Rr.z - fw.y || p.y > Rr.w + fw.y) continue;\n    vec4 K = PVT(${PV.MK} + i);`);
+    c = rep(c, 'vec4 S = uSeg[i]; vec4 K = uSegK[i];', `vec4 S = PVT(${PV.S} + i);`);
+    c = rep(c, '    float d = distance(p, a + ab * t), hw = K.x * 0.5, f = max(fw.x, fw.y);',
+      `    float d = distance(p, a + ab * t), f = max(fw.x, fw.y);\n    if (d >= gSegHW + f) continue;\n    vec4 K = PVT(${PV.SK} + i); float hw = K.x * 0.5;`);
     // the row, read once at the top of the chain into the globals the shipped text names
     c += '\nvoid pvLoad() {\n  gPavRow = int(vPavId + 0.5);\n  ' + PV_VEC.map((n, i) => n + ' = PVT(' + i + ');').join(' ') +
-      `\n  vec4 pvN = PVT(${PV.N}); uMarkN = int(pvN.x + 0.5); uSegN = int(pvN.y + 0.5); uKeepN = int(pvN.z + 0.5);` +
+      `\n  vec4 pvN = PVT(${PV.N}); uMarkN = int(pvN.x + 0.5); uSegN = int(pvN.y + 0.5); uKeepN = int(pvN.z + 0.5); gSegHW = pvN.w;` +
       `\n  for (int i = 0; i < 8; i++) { uGrade[i] = PVT(${PV.G} + i); uTint[i] = PVT(${PV.T} + i); }\n}`;
     T.common = c;
     T.map = rep(GLSL.map, 'float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;',
@@ -1299,7 +1306,8 @@ float pvTread(float u, float x, float w, float seed) {
     const put = (i, v) => { const k = o + i * 4; d[k] = v.x; d[k + 1] = v.y; d[k + 2] = v.z; d[k + 3] = v.w; };
     for (let i = 0; i < PV_VEC.length; i++) put(i, U[PV_VEC[i]].value);
     d.set(P.pk, o + PV.K * 4);
-    const n = o + PV.N * 4; d[n] = U.uMarkN.value; d[n + 1] = U.uSegN.value; d[n + 2] = U.uKeepN.value; d[n + 3] = 0;
+    const n = o + PV.N * 4; d[n] = U.uMarkN.value; d[n + 1] = U.uSegN.value; d[n + 2] = U.uKeepN.value;
+    { let hw = 0; for (let i = 0; i < U.uSegN.value; i++) hw = Math.max(hw, Math.fround(U.uSegK.value[i].x) * 0.5); d[n + 3] = hw; }   // the widest segment's half-width (the segments' early out)
     for (let i = 0; i < 8; i++) { put(PV.G + i, U.uGrade.value[i]); put(PV.T + i, U.uTint.value[i]); }
     for (let i = 0; i < NKEEP; i++) { put(PV.KA + i, U.uKeepA.value[i]); put(PV.KB + i, U.uKeepB.value[i]); }
     for (let i = 0; i < NSEG; i++) { put(PV.S + i, U.uSeg.value[i]); put(PV.SK + i, U.uSegK.value[i]); }
