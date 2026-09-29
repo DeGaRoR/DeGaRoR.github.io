@@ -294,7 +294,7 @@ function makeBuilder(C) {
   const DRESSED = new Set(['cat', 'path', 'fences', 'out', 'outPath', 'car', 'boat', 'drive', 'lot', 'house', 'built', 'plot', 'entry', 'grp']);
   const sownJSON = x => JSON.stringify(plain(x, new Set([...SKIP, ...DRESSED])), (k, v) => (k && k[0] === '_' ? undefined : v));
   function sownAll() {
-    const O = C.O, rec = C.rec; SOWN.clear(); CSIG.clear();
+    const O = C.O, rec = C.rec; SOWN.clear(); CSIG.clear(); ZW.clear();
     for (const p of O.records.plots) SOWN.set('house:' + p.id, sownJSON(p));
     for (const it of O.records.items) SOWN.set('item:' + it.id, sownJSON(it));
     for (const st of rec.layers.sites || []) if (st.fences && st.fences.length) SOWN.set('fence:sf:' + st.id, JSON.stringify(st.fences));
@@ -315,6 +315,7 @@ function makeBuilder(C) {
   function inputSig(j, x) {
     const O = C.O, rec = C.rec, parts = [PB_V, j.kind, rec.seed, C.size(), C.waterY(), SOWN.get(j.kind + ':' + j.id) || '?'];
     if (j.kind === 'house') {
+      parts.push(zoneWaterY(x));   // G843
       const z = (rec.layers.zones || []).find(q => q.id === x.zone), rd = O.roads.find(r => r.id === x.road) || O.roads[0];
       parts.push(JSON.stringify(z ? z.rules || null : null), JSON.stringify(rd ? [rd.id, rd.pts, rd.w] : null), groundSig(x.poly, 40));
     } else if (j.kind === 'item') parts.push(groundSig(x.foot && x.foot.length ? x.foot : [[x.x, x.z]], 40));
@@ -390,11 +391,33 @@ function makeBuilder(C) {
     return D;
   }
 
+  // ---- THE WATER A HOUSE SEES (G843, C2c): its ZONE's, as the sower read it (27_premises.js zoneWaterY, G434: the lowest
+  // finite water over the zone's box +-60 m). It was the water at the premises' ANCHOR (C.waterY) - on an island an
+  // inland field, -Infinity - so a water plot's house never reached the waterline and no pier was ever built on Jolene:
+  // the harbour zones sowed their water plots (G434) and stood houses with no piers and no boats at them. On the
+  // analytic world (water 0 everywhere) the two are the same number. C.pierWater false: the anchor's (?pierwater=0).
+  const ZW = new Map();
+  function zoneWaterY(plot) {
+    const O = C.O, rec = C.rec, w0 = C.waterY();
+    if (C.pierWater === false || !C.waterH || !plot || !plot.zone) return w0;
+    const z = (rec.layers.zones || []).find(q => q.id === plot.zone);
+    if (!z || !z.poly || z.poly.length < 3) return w0;
+    const key = z.id + '|' + JSON.stringify(z.poly);
+    if (ZW.has(key)) return ZW.get(key);
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const q of z.poly) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; }
+    let best = Infinity;
+    for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = O.frame.toWorld(x0 - 60 + (x1 - x0 + 120) * i / 12, z0 - 60 + (z1 - z0 + 120) * j / 12); const v = C.waterH(w[0], w[1]); if (isFinite(v) && v < best) best = v; }
+    const out = isFinite(best) ? best : w0;
+    ZW.set(key, out);
+    return out;
+  }
+
   // ---- a house on its plot ----
   function genHouse(plot) {
     const g = G(), VG = g.VILLAGE_GEN, HG = g.HOUSE_GEN, O = C.O, rec = C.rec;
     if (!VG || !HG) return null;
-    const waterY = C.waterY();
+    const waterY = zoneWaterY(plot);
     const Tv = { h: (lx, lz) => O.localH(lx, lz), waterY, size: C.size() };
     const rules = Object.assign({}, PG.ZONE_RULES, (rec.layers.zones.find(z => z.id === plot.zone) || {}).rules || {});
     const V = Object.assign({}, VG.VDEF, { plotDepth: rules.plotDepth, riparian: rules.riparian, seed: rec.seed });

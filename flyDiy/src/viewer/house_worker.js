@@ -60,6 +60,7 @@ function houseWorkerBody(G, port) {
   const sizeOf = tr => tr.reduce((a, b) => a + b.byteLength, 0);
   const C = { G, get PG() { return G.PREMISES_GEN; }, get O() { return st.O; }, get rec() { return st.rec; },
               waterY: () => (st.world && st.world.waterH ? st.world.waterH(0, 0) : -1e9), size: () => st.size,
+              waterH: (x, z) => (st.world && st.world.waterH ? st.world.waterH(x, z) : -Infinity), pierWater: true,   // G843
               game: true, lod1: true, outLod: 1, props: new Set(), pp: true, lotGround: true };
   const now = () => (G.performance ? G.performance.now() : Date.now());
   // ---- the cache ----
@@ -162,7 +163,7 @@ function houseWorkerBody(G, port) {
   async function jobs(m) {
     if (m.epoch !== st.epoch || !st.B) { for (const j of m.jobs) port.post({ cmd: 'result', epoch: m.epoch, gen: m.gen, seq: j.seq, miss: 'stale' }); return; }
     const B = st.B, PB = G.PREMISES_BUILD;
-    st.size = m.size; C.lod1 = !!m.lod1; C.outLod = m.outLod; C.pp = !!m.pp; C.lotGround = !!m.lotGround;
+    st.size = m.size; C.lod1 = !!m.lod1; C.outLod = m.outLod; C.pp = !!m.pp; C.lotGround = !!m.lotGround; C.pierWater = m.pierWater !== false;
     if (m.props) C.props = new Set(m.props);
     if (m.state) B.setState(m.state);
     const prefix = [st.build, HW_V, PB.V, (C.lod1 ? 1 : 0) + '.' + C.outLod + '.' + (C.lotGround ? 1 : 0) + '.' + (C.pp ? 1 : 0)].join('|') + '|';

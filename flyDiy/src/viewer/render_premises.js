@@ -1990,8 +1990,11 @@ function make(THREE, scene, world, rec0, opts) {
   // G830: THE TWO TALLIES (SPREAD, FENCED) ARE THE BUILDER'S (src/viewer/premises_build.js makeBuilder - its header says
   // why they travel with the work); the page reads them here, and syncHouses takes a torn-down plot's edges back
   const PB = window.PREMISES_BUILD;
+  // G843: ?pierwater=0 - a house reads the water at the premises' anchor, as before (the A/B's "before")
+  const PIER_WATER = !(typeof location !== 'undefined' && /[?&]pierwater=0/.test(location.search || ''));
   const BLD = PB.makeBuilder({ G: window, PG, get O() { return O; }, get rec() { return rec; },
     waterY: () => (world.waterH ? world.waterH(0, 0) : -1e9), size: () => Math.max(W, H), game: !!o.game,
+    waterH: (x, z) => (world.waterH ? world.waterH(x, z) : -Infinity), pierWater: PIER_WATER,   // G843: a house reads its zone's water
     get lod1() { return HLOD.lod1; }, get outLod() { return HLOD.outLod; },
     props: { has: k => { const PR = propReg(); return !!(PR && PR.props[k]); } },
     get pp() { return typeof propPlace === 'function'; }, get lotGround() { return !!window.LOT_GROUND; } });
@@ -2545,7 +2548,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!jobs.length) return;
     const PR = propReg();
     HWK.post({ cmd: 'jobs', epoch: HWQ.epoch, gen: HWQ.gen, state: HWQ.needState ? BLD.getState() : null, jobs,
-               size: Math.max(W, H), lod1: HLOD.lod1, outLod: HLOD.outLod, pp: typeof propPlace === 'function', lotGround: !!window.LOT_GROUND,
+               size: Math.max(W, H), lod1: HLOD.lod1, outLod: HLOD.outLod, pp: typeof propPlace === 'function', lotGround: !!window.LOT_GROUND, pierWater: PIER_WATER,
                props: PR ? Object.keys(PR.props) : [] });
     HWQ.needState = false; HWQ.dispatched += jobs.length;
   }
