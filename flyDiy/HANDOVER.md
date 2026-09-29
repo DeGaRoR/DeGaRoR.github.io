@@ -63396,3 +63396,155 @@ tools/_framecost_check.js: ALLOW rows (append), IO_NAMES (+1 key), the diff key 
 report line; tools/_page_node.js: the Worker shim and DESKTOP_TC.
 GATES (this container, 4 cores): KTX2 (+ --selftest, 9 breaks red), GROUNDLIB, MEDIA, ASSETS, PAVEMENT, SPLAT, LOOKS,
 TREES, PROPS, ANIMALS, LIFE, HANGAR, FRAMECOST, BUILD, BOOT, UISMOKE: PASS. MATLIB: not on this base (AS4a's). No --all.
+
+## G935-G939 - AS6: THE CHARACTERS' TEXTURE BUDGET - 1024^2 DIFFUSE + NORMAL AS KTX2 (UASTC), THE GLOSS IN N.a, THE FLAT SPECULAR A CONSTANT; A SEATED CHARACTER ÷8 TO ÷21 ON THE GPU, EVERY VIEW UNCHANGED, ?ktx2=0 THE OLD PATH BYTE FOR BYTE (2026-09-29, AS6, a cloud session, node + headless Chromium)
+
+WHY: futureDesigns/ASSETS-2026-09-27.md §5.3 M12. A seated Mixamo character bound 2048^2 RGBA8 maps (diffuse + normal per
+material, the GPU's mips on top: 21.3 MiB each - Ch22, the Cub's default pilot, 85.3 MiB) for a body the chase and cockpit
+views hold a metre or ten from the eye, and its manifest named two more 2048^2 maps per material the page never bound (the
+Glossiness map; a Specular map flat white on all six). THE USER'S YES (2026-09-29): "what we can't do is harsh decimation
+without a proper asset prep pipeline, but modifying texture sizes and formats is perfectly OK ... provided that a dedicated
+asset prep session is used". This is that session, for the TEXTURES; the Mixamo geometry is untouched (no decimation, no
+weld: GATE GEO's 434 bins as before). Base: origin/claude/brave-cannon-jsip8s (AS3, 3f93415f). Branch
+claude/wonderful-shannon-bf9g80 (the session's designated branch; the brief's claude/as6-<suffix> is the same work).
+
+G935 THE BUDGET, DECLARED. tools/chars_table.py TEX_BUDGET = { size 1024, color ktx2-color (colorCodec 'auto': ETC1S where
+it meets the bar on that map, else UASTC), normal ktx2-normal, gloss 'N.a', spec 'const', flat 2 }. tools/char_tex_budget.js
+(new; tools/char_prep.py runs it last, `--budget` alone, `--no-budget` to skip) cuts, per character, per material:
+- the diffuse -> ONE plane, 1024^2, alpha kept where the map has any (the hair cards, Ch01's BLEND body);
+- the normal + the material's Glossiness map -> ONE plane: RGB = the normal, A = the gloss map's G channel (the only
+  channel that varies: R 255, B 128 / 10 constant - Blender's metallicRoughness packing). A gloss-less material sharing
+  that normal (Ch42's and Ch01's hair) reads the same plane's RGB; a normal paired with two gloss maps is an error.
+- the flat specular -> its mean as a constant in the table (every one [1, 1, 1], std 0); a flat normal with no gloss
+  (Ch02's hair, (128, 127, 255) everywhere) -> no map at all (nrmConst).
+THE CUT IS THE OLD PATH'S MIP 1. A plane is the 2048 map the page loads today (media/tex/chars/<key>/, decoded as the
+browser decodes it: media_lib.py decode_rgba), halved by the GPU's 2x2 box - in linear light for the sRGB diffuse, on the
+stored values for the normal and the gloss: exactly the texels of that map's generateMipmap level 1. A map already at or
+under 1024 (Remy's cloth / hair / shoes, 1024 and 512) is taken as it is. Why from the 2048 maps and not the GLBs: the
+GLBs (assets/chars/, gitignored) are not in a cloud box, and the 2048 maps ARE what the page shows - the gate measures the
+new set against exactly that. The author's GLBs and the 2048 maps stay (the fallback, ?ktx2=0).
+THE ROLE THAT HOLDS SKIN TONES, MEASURED (the bar: GATE KTX2's 25 dB / 1.5 codes / every mip to 16 px within 2.5 codes,
+PLUS no 32 px tile's mean moved more than 2.0 codes - a face is a local tone the whole-map mean hides): ETC1S failed it on
+all 14 diffuse maps, every time on the tile (2.6-5.8 codes: Ch20's skin 5.77, Ch22's hair 5.19, Ch02's 4.48; level 0
+33.9-40.8 dB - the shared luminance modifier again, AS3's far-ground lesson at close range). UASTC (lambda 1): level 0
+36.9-48.9 dB, tiles within 1.14 codes, every mip within 1.1. RDO lambda 2-3 saved 10-12 % of the wire for -3 to -4 dB and
+4x the encode: not taken. Normals UASTC lambda 1 (lambda 3 + 32 KB dictionary: -16 % wire, -3.5 dB).
+THE FILES: media/tex/ktx2/chars/ (the tool owns and prunes it; char_prep prunes media/tex/chars/<key>/ and never sees
+them), 24 files, 19.6 MiB, named by the plane's texels + role + basisu 1.16.4 (_ktx2_lib ktx2Name; Remy's eyelashes read
+his body's diffuse under a second name - one file). src/chars/chars_ktx2.js (generated; the last line of
+chars_index.json, the MODELS slot): CHAR_KTX2_TABLE per character, per material { src: the 2048 maps it was cut from,
+map, nrm, gloss, nrmConst, spec }, files { role, codec, size, bytes, gpu, q: the bar as measured }, gpu { old, new, wire };
+CHAR_KTX2(key) roots the urls. A re-bake from the GLBs names new 2048 maps: the rows no longer match and the page takes
+the 2048 maps until `python tools/char_prep.py --budget` (or node tools/char_tex_budget.js) runs.
+
+G936 THE PAGE. tools/_cage_char.js material(): budget(c, mi) -> the row when CHAR_KTX2 has one whose src is this manifest's
+maps (map, nrm, mr, spec; else stale) and KTX2.off('chars') is null; then the diffuse and the normal are budgetTexture()s -
+props.js's twin pattern: a THREE.Texture handed out now (Repeat, flipY false, anisotropy 4, sRGB for the diffuse, as
+before), KTX2.load(url, 'chars') in the workers, upgraded IN PLACE when it lands (isCompressedTexture, the file's mips,
+generateMipmaps off), BOOT 'crewTex' expected / landed, CHAR_TEX_LANDED called as the image's onload did; a failed file
+loads its 2048 map into the same texture (the old path, late; KTX2 fallbacks++). nrmConst: no normalMap. Roughness stays
+0.62, metalness 0, the cutout, the cabin hook - unchanged. OTHERWISE (?ktx2=0, flydiy.ktx2 = '0', no Worker / WebAssembly /
+compressed format, a stale row, a page without ktx2.js) texture() runs exactly as before. `userData.charBudget` marks a
+material on the set. src/viewer/ktx2.js: 'chars' is a family (?ktx2=chars = the characters only, for the A/B).
+src/viewer/boot.js: the loading bar's byte counter counts media/tex/ktx2/chars/ as crewTex.
+THE GLOSS, READ - THE USER'S CALL, OFF BY DEFAULT. The page has never read the Glossiness map (G204: roughness is a
+scalar); reading it is a LOOK CHANGE, not a re-encode, so the budget carries it (N.a) and the material reads it only with
+?chargloss=1 (or localStorage flydiy.chargloss = '1'): roughness = 1 - N.a (Mixamo's glossiness), through a chained
+onBeforeCompile after the cabin hook (its own program key), uGloss 1 once the plane lands (0 on a fallback's opaque alpha);
+flatMaterial re-hooks the clone. What it would change (the gloss maps' G, measured over each atlas at 256 px): MOST OF
+EVERY BODY DULLER - the median gloss is 0.07-0.32 (Ch42 0.07, Ch01 0.16, Ch22 0.23, Ch20 0.24, Ch02 0.32, Remy 0.06-0.49)
+-> roughness 0.68-0.93 against today's 0.62 - and a few percent of texels much glossier (p99 0.82-1.0 -> roughness
+0-0.18: the painted details, prints, eyes). A real change of look, hence off until the user has seen it.
+
+G937 THE PROOF.
+- GATE KTX2 check 10 (tools/_ktx2_check.js; + 3 --selftest breaks): (a) every character's materials have their rows, cut
+  from the maps the manifest names, the plan re-derived (planes, constants, which normal carries which gloss); (b) every
+  plane re-cut from its 2048 maps = its file's name, UASTC, the full chain, the DFD sRGB / linear, within the bar: worst
+  rgb 36.08 dB (Remy_Shoes_Normal), worst gloss (N.a) 38.5 dB (Remy_Bottom), worst skin tile 1.14 codes (Ch22's hair
+  diffuse); no orphan in media/tex/ktx2/chars; (c) tools/_cage_char.js on stubs: the set by default (15 materials, 24
+  loads, all 'chars'), ?ktx2=0 = every map the 2048 one and 0 KTX2 loads, a stale row = the old path, a failed transcode =
+  the 2048 map into the same texture, the gloss hook only with ?chargloss=1 (roughness 1 - N.a, uGloss on). ~95 s.
+- GATE FRAMECOST (tools/_framecost_check.js): a `crew` line per build (reported, never ratcheted): the characters in the
+  flown aeroplane at the stand, their textures (KTX2 / image / pending) and GPU bytes; --compare prints it a -> b. ONE
+  ALLOW row per build (G937): boot/garage:compile/three.updateMatrixWorld - the crew's maps land from the workers in the
+  compile step where their images landed in sync, and the editor's redraw on a landing moved with them: sync falls by
+  exactly what compile gains (Cub 3108, Cessna 7952). The baseline NOT re-taken.
+- tools/chars_chrome.js (new, AS3's ktx2_chrome.js pattern): headless Chromium on dev.html, the garage booted, every
+  character material's diffuse and normal drawn texel for texel off the GL context and scored against the cut (the page's
+  own canvas decode of the 2048 map, halved in linear light / stored values): default = compressed, level 0 within the bar;
+  ?ktx2=0 = the 2048 image, and its level 1 - the GPU's own generateMipmap - against the same cut. RESULT (Chromium 141,
+  SwiftShader, BC7 exposed): default - all 24 textures COMPRESSED (format 36492, BC7), level 0 vs the cut: diffuse 36.5-48.5
+  dB, normals 35.9-47.4 dB, the gloss alpha 38.4-46.9 dB, every mean within 0.55 codes -> PASS (19 files transcoded in 3
+  workers for the six, 0 failed, 0 fallbacks); ?ktx2=0 - all 26 the 2048 / 1024 images, 0 KTX2 loads, and THE OLD PATH'S
+  OWN MIP 1 = THE CUT: diffuse 65.5-90.3 dB, normals 57.3-59.5 dB (the maps already at 1024: 99) -> PASS. That is the
+  claim of G935 measured on a real GL: the budget's level 0 is what the old path drew wherever it sampled mip 1. The rig
+  scores a diffuse's rgb only where the cut is opaque (a 2D canvas premultiplies alpha: its getImageData is not the
+  straight colour under a hair card's transparent texels; GATE KTX2 check 10 scores every texel from Pillow's decode).
+  Run: `node tools/_serve.js 8125 &` then `node tools/chars_chrome.js [--query ktx2=0]` (~4 min each on SwiftShader).
+
+G938 THE MEASUREMENTS. [node] = GATE FRAMECOST's page in node (Jolene, Metlakatla cut, gamer, shadows full; the base
+3f93415f in a worktree with this session's harness copied in, then this branch; the Cub seats Ch22, the metal Cessna Ch22 +
+Ch42 - the mixed crew's registration hash); [table] = src/chars/chars_ktx2.js / GATE KTX2 check 10.
+- GPU PER SEATED CHARACTER [table] (the maps its materials bind; RGBA8 + mips -> BC7 + the file's mips):
+  ch42 64.0 -> 4.0 MiB (÷16), ch02 85.3 -> 4.0 (÷21: the flat hair normal is no map), remy 102.7 -> 12.3 (÷8: his cloth maps
+  were 1024 already, and his eyelashes' second copy of the body diffuse folds), ch22 85.3 -> 5.3 (÷16), ch01 42.7 -> 2.7,
+  ch20 42.7 -> 2.7. All six: 422.7 -> 31.0 MiB (713.3 if every map a manifest names were bound: ASSETS §2.1's "85 MiB per
+  seated character" counted the gloss and specular maps the page never bound).
+- AT THE STAND [node], the crew's textures, live: Cub (Ch22) 4 images 85.3 MiB -> 4 KTX2 5.3 MiB; Cessna (Ch22 + Ch42) 7
+  images 149.3 -> 7 KTX2 9.3 MiB. TEXTURE UPLOAD, boot + roll-out: Cub 1246.3 -> 1187.6 MiB, Cessna 1295.2 -> 1192.5 (all in
+  the garage's compile step: 292.8 -> 234.2, 340.8 -> 238.2; an image uploaded its 2048^2 level 0 and the GPU made the
+  mips, a KTX2 uploads every level, compressed). EVERY VIEW COUNTER (stand, taxi; both builds): UNCHANGED; every other boot
+  row unchanged but the one step shift above. 4 (Cub) / 7 (Cessna) more KTX2 transcodes, 0 failed, 0 fallbacks.
+- WIRE [table]: 14.7 -> 19.6 MiB for all six characters' bound maps (ch42 3.0 -> 2.7, ch02 2.5 -> 2.3, ch22 3.7 -> 3.3,
+  ch01 1.5 -> 1.9, ch20 1.4 -> 1.9, remy 2.6 -> 7.4: UASTC is ~1 B/texel before zstd, his 1024 JPEGs ~0.15). A first
+  visit's garage reads [node]: Cub 95.9 -> 95.5 MiB (fetches 86.9 -> 90.2, images 9.0 -> 5.3), Cessna 100.0 -> 99.3; the
+  roll-out's unchanged.
+- ?ktx2=0 [node], both builds, base vs this branch: 1195 census values, 0 differ (every view, every boot row, every byte
+  uploaded and read, the crew line) - the old path, byte for byte.
+- THE REPO: +19.6 MiB (media/tex/ktx2/chars); the 2048 maps stay (the fallback); index.html +5 KB (the table).
+
+G939 THE LOOK CHECK - WHAT MIGHT DIFFER, FOR THE USER'S EYE (the coordinator's box, after the merge). THE SWITCH:
+`?ktx2=0` = every family old (the characters their 2048 images); `?ktx2=chars` = the characters on their budget set, every
+other family old - so `?ktx2=chars` against `?ktx2=0` is this change's A/B and nothing else moves; no flag = all KTX2.
+WHERE A DIFFERENCE CAN BE AT ALL. The budget's level 0 is the old path's own mip 1 (to the codec's 37-49 dB): wherever the
+GPU sampled level 1 or coarser, the texels are the same. It sampled level 0 only where a texel was bigger than a pixel:
+the skin and clothes carry 1000-1340 texels per metre at 2048 (measured off the meshes' uv / world areas; hair cards
+7000-8000, eyelashes ~30000), which at the default 46 deg fov and 1080 px of height is within ~1.0-1.1 m of the eye
+(~2.2 m at 2160 px; anisotropic filtering at grazing angles a little further). So:
+  (1) CHASE VIEW (the aeroplane metres away): no difference expected - the same texels to 37-49 dB. Look at the pilot's
+      face and shirt through the canopy; a difference there is a bug, not the budget.
+  (2) COCKPIT VIEW: the pilot's own body is hidden there (G204), but the CO-PILOT / passenger beside you is 0.5-1 m away:
+      the one place the 2048 detail showed. Expect it SOFTER at half the resolution: skin pores, the shirt prints (Ch42's
+      logo), sneaker laces, the face's fine lines; the colours and tones the same (tiles within 1.1 codes).
+  (3) THE GARAGE with the orbit pulled onto a person: the same as (2) when closer than ~1 m.
+  (4) THE HAIR CARDS' EDGES: the alpha (the cutout at 0.5) is 34-37 dB after UASTC - a strand's edge may sit a sub-texel
+      elsewhere; look for flicker or a thinner fringe on Ch02 / Ch22 / Ch42's hair.
+  (5) Ch02's hair has no normal map now (it was flat (128, 127, 255): a 0.3 deg tilt, gone) - nothing to see.
+  (6) The gloss: nothing, unless ?chargloss=1 (G936: that one IS a look change - the user's call).
+THE RECIPE: two Chrome windows side by side, dev.html?world=jolene&ktx2=chars and &ktx2=0, the same size; in the garage
+orbit close on the crew; roll out, chase view (look at the pilot through the canopy), then the cockpit view on a two-seat
+build (the co-pilot); pause (#bPause) and pan slowly. tools/chars_chrome.js [--gl gpu] [--query ktx2=0] scores the live
+textures on the GL context (G937). A GPU box can also read the VRAM: `node tools/asset_census.js --runtime --cold`.
+THE USER'S CALLS: (a) the look, (1)-(4); (b) the gloss (?chargloss=1); (c) THE WIRE: +4.9 MiB over the six characters,
++4.8 of it Remy's (UASTC over his 1024 JPEGs) - a first visit seats one or two; ETC1S failed the skin-tile bar on every map
+and is not offered.
+NOT DONE, AND WHY: the flat specular and gloss maps stay in media/tex/chars (the manifests name them; the page never loads
+them) - dropping them from the 2048 bake is AS0b's P1 through encode_tex, and needs the GLBs. No re-encode of the GLBs, no
+geometry change. GATE ASSETS' FLAT ratchet is unchanged (the 2048 set is untouched).
+FOR THE COORDINATOR: generated outputs NOT committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json); the
+FRAMECOST baseline NOT re-taken (the two G937 ALLOW rows fold in at the next --update). MERGE NOTES vs train 16: AS4a's
+MATLIB (not on this base) moves materials into matlib.js - tools/_cage_char.js material() is not among them in AS4a's list,
+but if it moves, budget() / budgetTexture() / glossHook() go with it (the branch at the two texture lines). AS0b re-bakes
+the characters' 2048 maps through encode_tex (new names): run `python tools/char_prep.py --budget` after the merge (GATE
+KTX2 check 10 names every stale row). tools/_framecost_check.js: ALLOW rows (append), the census's `crew`, crewLine;
+tools/_ktx2_check.js: check 10 + 3 selftest cases; tools/_media_check.js: chars_ktx2.js in manifestFiles.
+NOTE (not fixed, AS3's): the loading bar's byte counter (boot.js) does not count media/tex/ktx2/props/ or /pier/ either
+- the characters' are counted now; the same one-token regex fix would cover AS3's families.
+GATES (this container, 4 cores): `node tools/run_gates.js --all` (FULL tier, 137 jobs, wall 6336 s): 127 gates, 125 PASS,
+2 FAIL - BIOME ("surface perf < 5us": 5.1 us a call) and SETTLE ("bake budget") - both wall-clock budgets in the world
+generator (src/core, which this branch does not touch), measured while four heavy jobs shared the four cores; re-run alone
+(`--only=BIOME,SETTLE --no-build`): BOTH PASS (4.6 us a call). Among the 125: KTX2 (check 10), ASSETS, MEDIA, GEO,
+FRAMECOST (the G937 ALLOW rows; crew line Cub 5.3 MiB, Cessna 9.3), PARTS, JOIN, BUILD, BOOT, UISMOKE, PROPS, GROUNDLIB,
+GEN, PILOT, ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH. GATE KTX2 --selftest: PASS (12 breaks red, 3 of them the
+characters'). FRAMECOST --compare against the base (above): every view unchanged; ?ktx2=0 0 of 1195 values differ.
+tools/chars_chrome.js: PASS both ways.
