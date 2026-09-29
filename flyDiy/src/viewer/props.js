@@ -206,8 +206,8 @@ function propBuild(THREE, key) {
 // THE ARRAY DRAW LIST (AS4a-rest, G941; MATLIB's array shapes). Where the page can take a record's maps as texture-array
 // layers (every map a KTX2 twin, or a flat constant, or none: MATLIB.arr.twin), the record is a ROW and its parts join
 // the prop's ARRAY draws: one geometry per (side, flat shading, pages) - in practice one for the whole opaque prop -
-// carrying each vertex's row (`mlRow`), drawn once by the shape's material (MATLIB.arr.material). car_buick's 21
-// opaque records are one draw where they were 13. Glass and glow keep their own draws (above); a DUSTED key keeps its
+// carrying each vertex's row (`mlRow`), drawn once by the shape's material (MATLIB.arr.material). car_buick draws
+// 34 -> 18 (tools/matlib_chrome.js; its glass keeps its own). Glass and glow keep their own draws (above); a DUSTED key keeps its
 // records (the dust is a hook on the record's material); a map with no twin (raw, or KTX2 off: ?ktx2=0) keeps its
 // record, as before AS3. `?matarr=0` is the A/B: the records, as AS4a-EARLY drew them.
 function propArrSpec(THREE, rec) {

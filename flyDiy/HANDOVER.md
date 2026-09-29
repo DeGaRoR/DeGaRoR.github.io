@@ -64293,3 +64293,96 @@ only while the cook was stale (every key captured live).
 - FRAMECOST: stand/gl.bindBuffer ALLOW 56 -> 60 (59 on train 16: ~2 more of G1020's untraced small re-sends, while
   bytes, draws and uniforms all fell).
 - Re-cooked: `node tools/parked_cook.js` on the built train (GPU lock).
+
+## G940-G944 - AS4a-REST: MATLIB'S ARRAY SHAPES - A RECORD A ROW, ITS MAPS ARRAY LAYERS, A PROP ONE DRAW; TAXI MAIN DRAWS 1071.5 -> 982.5 (2026-09-29, AS4a's array half, a cloud session, node + headless Chromium)
+
+WHY: AS4a-EARLY (G920-G924) made one material per RECORD; the array half makes one per SHAPE, so the parts of a prop
+that wore a dozen records are one draw (futureDesigns/ASSETS-2026-09-27.md §5.1, §5.3 M1-M3; the frame is CPU-bound on
+three's per-draw path). Base: AS3 (claude/brave-cannon-jsip8s 3f93415f) + claude/train-16-base (a3aa44c) merged.
+
+G940 THE MERGE (its own commit, large: 29 train-16 commits, 21 conflicts). AS3's one ground library x AS0b's flat maps
+(G903): tools/ground_tex_prep.js applies G903 itself (flatConst) - a flat map is its [r, g, b] in GROUND_TEX (no file),
+the views hand the constant to site_ground.js's TEX_FLAT, and the COOK fills the channel with it as train 16's pavement.js
+filled the layer. Six cooked sets re-cooked + their KTX2 planes (concreteB/M, gravelS, sandC, grassG, brushedPv); every
+one of the 54 cooked layers is byte for byte what train 16's code packed in Chromium (tools/ground_layers_chrome.js
+--base a3aa44c: now GATE GROUNDLIB's fingerprints; the tool records a flat map as 'flat:r,g,b'). GATE KTX2:
+brushedPv.kN's constant roughness 248 comes out of UASTC +1.87 codes on average at every setting tried (level 2/3/4, RDO
+off/1/2: 1.59-1.90; its other channels within 0.1): a named allowance of 2.0 for that plane (MEAN0_ALLOW), the bar unchanged
+for the rest - a decision, written here. tools/ktx2_twins.js skips a flat map's entry (8 twins of now-flat maps pruned).
+GATE ASSETS re-baselined (flat 0, dupes 0, jpgNormal 166, mats 173). Both sides' FRAMECOST ALLOW rows and report fields.
+
+G941 THE ARRAY SHAPES (src/viewer/matlib.js `MATLIB.arr`):
+- PAGES: a CompressedArrayTexture per (kind: color sRGB / normal / data, size, KTX2 codec + alpha - the transcoder's
+  target is a function of those, so a page is one GPU format by construction; on a desktop BC7 for all). A layer is a
+  map's KTX2 twin as KTX2.load transcoded it - the ONE transcode per url the record's own 2D texture also takes. A page
+  is OPEN until three first uploads it, then SEALED at its layers: never re-allocated nor re-sent whole; a layer that
+  lands after the seal goes alone (three's layerUpdates; the page hands three that layer's own bytes, no full-depth
+  copy). The page keeps NO copy: its `mipmaps` are assembled from the transcodes when three reads them, dropped after
+  (onUpdate). A layer that fails: its rows fall back (colour -> the twin's mean, normal / arm -> none), logged.
+  In the game every prop the loading builds asks for its layers before the 'upload' step, which seals the pages.
+- ROWS: 8 RGBA32F texels a record (colour + opacity; roughness, metalness, normal scale, ao; the layers - >= 0 a layer
+  of the material's page, -1 none, -2 flat; the flat maps' constants, G903), 1024 texels wide (house_tarr.js's packing).
+- THE `std` SHAPE: three's MeshStandardMaterial with its map / roughness / metalness / normal / ao chunks reading the
+  row and the arrays - three's order and arithmetic (color x map, roughness x arm.g, metalness x arm.b, the same
+  derivative tangent frame with DOUBLE_SIDED's flip, the ao on the indirect diffuse and the envmap's specular
+  occlusion). Every array sampled OUTSIDE any branch (house_tarr.js's rule: the row changes at a triangle's edge) and
+  used by the row's say-so. ONE program for every page set (the hook's text is the key); one material per (side, flat
+  shading, pages). variant() carries an array shape's hook to its 'inst' / 'skin' siblings (the game's ATMO keeps a
+  hook in _atmoHook, not as an own property). `?matarr=0` is the A/B (AS4a-EARLY's records).
+- ktx2_twins.js's lookup returns the twin's size, codec and alpha (the page key).
+G942 THE FAMILIES: props.js propDraws - a record whose maps are all KTX2 twins, flat constants or none is a ROW; its
+parts join the prop's array draw (one geometry per side / flat / pages, each vertex carrying its row in 2 bytes).
+Glass and glow keep their own draws (sorted last / dimmed per key), a dusted key its records, a map with no twin (raw,
+or ?ktx2=0) its record. The parts of ONE record always join (person_koky: the baker's four 65 534-vertex parts stay one
+draw); two 16-bit draws are not joined into a 32-bit one. ONE COPY OF THE VERTICES: the parts' position / normal / uv
+become views of the merged arrays (the cage's baked pieces still read `geos` / `mats` by index). propSetEnv and
+propDispose reach the shapes; propDust after a build gives them back. animals.js: an animal's skinned meshes bind one
+skeleton with the identity, so where their records are rows they are ONE skinned draw (the bird).
+G943 THE PROOF: GATE MATLIB check 6 (the registries both ways on the recording GL, the twins transcoded to BC7 by the
+vendored transcoder): 834 parts - same matrices / lights / environment, the geometry its parts (decoded afresh) with its
+row per vertex, the row its record, each layer the map's twin uploaded byte for byte (23 pages, 422 layers); draws
+810 -> 570, materials 275 -> 85, programs linked 33 -> 26; self-tests (a row's roughness +1/256, a layer moved) red.
+tools/matlib_chrome.js: Chromium (SwiftShader) draws the 358 keys alone, both ways: the shader compiles, nothing blank,
+mean |A-B| 0.0000 codes; jointer and thicknesser move a handful of isolated pixels (coplanar parts' depth ties now inside
+one draw) - tools/perf/as4a_rest_evidence/ (the worst keys side by side, the summary).
+G944 THE CENSUS: FRAMECOST, per frame (median of 12), merged base -> this branch (tools/perf/framecost_census_as4a_rest_
+before.json / _after.json; the parked cook is stale on both - any build change makes it so - so both capture live):
+| counter | Cub stand | Cub taxi | Cessna stand | Cessna taxi |
+|---|---|---|---|---|
+| draws main | 1144 -> 1056 | 1071.5 -> 982.5 | 1155 -> 1067 | 1081.5 -> 992.5 |
+| draws shadow | 524 -> 491.5 | 232.5 -> 202.5 | 529.5 -> 497 | 240 -> 210 |
+| programs used / useProgram | 114 / 299 -> 105 / 254 | 97.5 / 241.5 -> 90.5 / 210.5 | 113 / 301 -> 104 / 256 | 97.5 / 244.5 -> 90.5 / 213.5 |
+| bindTexture | 1283 -> 1060 | 1160 -> 1009 | 1287 -> 1064 | 1165.5 -> 1014.5 |
+| uniform calls / bytes | 7370 / 539 764 -> 6838 / 506 380 | 6472 / 477 690 -> 5992 / 447 890 | 7440 / 543 324 -> 6908 / 509 940 | 6510.5 / 479 788 -> 6030.5 / 449 988 |
+| gl.calls | 14 643 -> 13 445 | 12 713 -> 11 730 | 14 762 -> 13 564 | 12 836 -> 11 853 |
+Materials (Cub): world scene 1 943 by uuid -> 1 837, by signature 612 -> 512; props 138 -> 40 (drawn at the stand 174 ->
+105 main, 56 -> 49 shadow; taxi 158 -> 87); animals 30 -> 15 main, 60 -> 30 shadow. PROGRAMS: 407 -> 399 at the end of the
+boot; linked across it 444 -> 435 (worldCompile 145 -> 139, the roll-out click's link gone). Memory after the roll-out:
+arrayBuffers 2249.4 -> 2228.4 MiB, rss 3660.8 -> 3636.3. THE RISES, NAMED: texture bytes uploaded in the loading
+1235.7 -> 1240.8 MiB (+0.4 %: a page uploads every layer its props asked for, where a twin landing after the upload step
+waited for its first draw); the garage's editor step uploads +1.8 MB of vertex data once (the row, 2 bytes a vertex:
+ALLOW G944). The prop layers go up as 23 array pages (145 MB of compressedTexSubImage3D in the upload step) where they
+went as 2D twins; gl.calls in that step 6 912 -> 3 017.
+THE A/B SWITCH IS CLEAN: the same census with ?matarr=0 (FRAMECOST_QUERY) reproduces the merged base - every draw,
+material, program, boot row and texture byte the same (only the base's own run-to-run wobble: shadow triangles, stand
+bindBuffer) - and its arrayBuffers are -35 MiB too (the one-copy vertices serve AS4a-EARLY's record merges as well).
+NOT DONE, WITH THE MEASUREMENT: the strip stones / cliffs stay one batch per map (their 7 maps are the tree pack's 1024²
+JPEGs, no KTX2 twin, also bound by the cover ring's rock kinds: a raw array = +39 MiB of GPU and a canvas pass, twins =
+~2.0 MB more wire for 8 maps while the JPEGs still load; 0 stone draws in the census's views) - they take a page when the
+trees get their twins (AS3's list). The trees' per-instance tint: nothing to take (leaf materials 5 / 4 / 4 by uuid /
+signature / map, unchanged) and the fill's programs are B1-LAG's stand-ins' mirror. Per-instance rows: none needed (rows
+ride per vertex; no key's instances differ by record).
+FOR THE COORDINATOR:
+- Never committed: index.html, dev.html, tools/flight_core.js, sw.js, version.json. Re-take framecost_baseline.json on
+  the merged train (the parked cook is stale on any build: re-cook, tools/parked_cook.js, GPU lock).
+- The look on the GPU box: `node tools/matlib_chrome.js --gl gpu` (every key both ways), and the game with ?matarr=0 for
+  the A/B. NOT MEASURED HERE (no GPU): the GPU time. The shape samples its three arrays and fetches 3-6 row texels per
+  fragment of a prop (an untextured record sampled nothing; the arrays are sampled outside any branch for the derivatives) -
+  the CPU side above falls, the fragment cost of the props' pixels rises a little; rollout_perf's taxi render ms both ways
+  (?matarr=0) is the check. C3b: the house material is MATLIB's next shape - `MATLIB.arr`'s rows / pages / hook are the pattern (an
+  arrEdit-like hook per shape; TARR's arrays as pages).
+- B1-LAG: the props' opaque parts now draw the array shape's program ('matlib.arr.std' in the key; its 'inst' sibling for
+  PROP_INST / scenery_life, 'skin' for the birds): a prelink stand-in that mirrors a prop record's program should mirror it.
+GATES (this container, 4 cores): `node tools/run_gates.js --all` (FULL tier) - BATTERY: PASS, 130 gates, 4 462 s wall
+(FRAMECOST, MATLIB, KTX2, ASSETS, MEDIA, GROUNDLIB, PROPS, ANIMALS, TOTEM, PARKED, HANGAR, LIFE, STAND, PROGRAMS,
+COVER, FADES, ARCHETYPES x4, PILOTMATRIX, SEAPLANE, HOTHIGH ... all PASS). tools/matlib_chrome.js: PASS (358 keys).
