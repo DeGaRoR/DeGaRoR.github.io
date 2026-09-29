@@ -1,0 +1,56 @@
+train: claude/train-16
+sha: 30b8989b6dee5a9b34e95e2467167f53c394ffd6
+command: node tools/build.js && node tools/run_gates.js --all --jobs=4
+node: v22.22.2
+host: 4 cores, 15 GB
+wall: 5617 s (2026-09-29T18:24:02Z -> 2026-09-29T19:57:39Z)
+exit: 1
+
+== non-PASS summary lines ==
+──────── summary ────────
+FRAMECOST FAIL   324.7 s
+MATLIB    FAIL     0.9 s
+PREMCOOK  FAIL   226.0 s
+HITBOX    FAIL   516.6 s
+total           11148.8 s
+wall            5615.3 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+
+== FRAMECOST: FAIL detail ==
+  FAIL cub stand/bytes.bufferSubData rose 544 -> 3670600 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.bindBuffer rose 31 -> 73 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.bufferSubData rose 2 -> 20 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/bytes.bufferSubData rose 544 -> 3670600 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/gl.bindBuffer rose 29 -> 38.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/gl.bufferSubData rose 2 -> 20 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/bytes.bufferSubData rose 544 -> 2991280 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.bindBuffer rose 31 -> 73 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.bufferSubData rose 2 -> 20 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/bytes.bufferSubData rose 544 -> 2991280 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.bindBuffer rose 33 -> 44 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.bufferSubData rose 2 -> 20 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.uniform3f rose 165 -> 178.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+GATE FRAMECOST: FAIL (13)
+(exit code 1)
+
+== MATLIB: FAIL detail ==
+  FAIL ReferenceError: TEX_FLAT is not defined
+GATE MATLIB: FAIL
+(exit code 1)
+
+== PREMCOOK: FAIL detail ==
+  FAIL the page's placement code (lifted from render_premises.js) is the one cooked (54f8d23e7c98f648 / 8aa628f057c85472)
+  FAIL default: the placements hash as cooked - 215 things, 39fe3c3a274b1e07 / ebbe60527390cfa8, 84 FAILED to build
+  FAIL default: every place cell as cooked, byte for byte (23 cells, 9 differ)
+  FAIL town: the placements hash as cooked - 695 things, 98d5f51c5e6bd37d / 8cf98614073fbf16, 459 FAILED to build
+  FAIL town: every place cell as cooked, byte for byte (56 cells, 33 differ)
+  FAIL a generator edit (HOUSE_GEN.randomHouse, +1 cm) changes the places' hash
+  FAIL a page edit (buildHouse's seed) changes the places' hash
+GATE PREMCOOK: FAIL
+(exit code 1)
+
+== HITBOX: FAIL detail ==
+(exit code 0)
+
+== BATTERY:: FAIL detail ==
