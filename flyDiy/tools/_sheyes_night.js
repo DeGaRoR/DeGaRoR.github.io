@@ -68,6 +68,16 @@ function diff(f1, f2) {
       return JSON.stringify({ cfg:${c}, n:h.length, meanMs:+(h.reduce((a,b)=>a+b,0)/h.length).toFixed(2), uneven:+(100*odd/Math.max(1,h.length-1)).toFixed(1), shadowCpuMean:+(ms.reduce((a,b)=>a+b,0)/Math.max(1,ms.length)).toFixed(2), shadowCpuP90:+(s[Math.floor(0.9*s.length)]||0).toFixed(2), V:+(FLIGHT_PROBE.sim().out.V||0).toFixed(1), phase:FLIGHT_PROBE.ap().phase }); })()`));
     pace.push(r); log('C pace ' + JSON.stringify(r));
   }
+  // ---- D: THE LATE SHADOW, live (G1080): the free camera left behind while the aeroplane taxis on, config 1 (as it was)
+  // then 5 (the fix): the craft cascade's aim to the drawn aeroplane (m) and its half-width (m), sampled every 100 ms
+  for (const c of [1, 5]) {
+    await E(`(SHEYES(${c}), FLIGHT_PROBE.camMode('free'), 1)`);
+    const r = await E(`(async()=>{ const SN=SHADOW_NEAR, out=[]; for(let i=0;i<60;i++){ await new Promise(z=>setTimeout(z,100)); const P=SN.drawnPoint(), t=SN.C1.tgt; if(P) out.push([Math.hypot(P[0]-t.x,P[2]-t.z), SN.C1.H]); }
+      const off=out.map(q=>q[0]), H=out.map(q=>q[1]); return JSON.stringify({ cfg:${c}, aimOffMax:+Math.max(...off).toFixed(1), aimOffLast:+off[off.length-1].toFixed(1), Hmax:+Math.max(...H).toFixed(2), Hmin:+Math.min(...H).toFixed(2), missed:out.filter(q=>q[0]>q[1]).length, n:out.length }); })()`);
+    log('D late shadow ' + r);
+    await E("(FLIGHT_PROBE.camMode('chase'), 1)");
+    await sleep(3000);
+  }
   // ---- B (paused) ----
   await E("(SHEYES(0), document.getElementById('bPause').click(), 1)");
   await sleep(1500);
