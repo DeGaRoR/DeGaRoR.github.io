@@ -224,6 +224,7 @@ var SHADOW_NEAR = (function () {
     sh.getCamera = function (i) { if (i === 0) { if (S.prune) prune(); return cam1; } unprune(); return this.camera; };
     sh.getFrustum = function (i) { return i ? this._frustum : C1.frustum; };
     sh.updateMatrices = function (light) {
+      eyesUnhide();   // (G1080 A/B config 9: the craft hidden from the far map's pass only)
       const c0 = this.camera;
       c0.position.setFromMatrixPosition(light.matrixWorld); t0.setFromMatrixPosition(light.target.matrixWorld);
       c0.lookAt(t0); c0.updateMatrixWorld();
@@ -321,6 +322,7 @@ var SHADOW_NEAR = (function () {
   function follow(L, cg, sun, agl, snap, camera, hAt) {
     if (!L) return;
     unprune();   // (a pass that threw between getCamera(0) and getCamera(1) must not leave the world hidden)
+    eyesUnhide();
     const live = apply(L);
     AIM.L = L; AIM.sun = sun; AIM.snap = snap; AIM.camera = camera; AIM.hAt = typeof hAt === 'function' ? hAt : null; AIM.agl = agl; AIM.live = live;
     AIM.cg[0] = cg[0]; AIM.cg[1] = cg[1]; AIM.cg[2] = cg[2];
@@ -414,8 +416,21 @@ var SHADOW_NEAR = (function () {
     6: 'FAR MAP OFF (diagnostic) - no world shadow at all: trees, houses gone; the craft\'s own maps alone',
     7: 'CRAFT CASCADE OFF (diagnostic) - the craft in the 60 m box (6 cm texels): what "blurry" looks like',
     8: 'CONTACT OFF + FAR EVERY FRAME - 3 and 4 together',
+    9: 'AEROPLANE HIDDEN FROM THE PASS OF THE FAR MAP - the whole craft group, whatever its layers say (the far map drawn every 2nd frame as today)',
   };
-  const EYES = { on: false, cfg: 0, box: null, base: null, info: '' };
+  const EYES = { on: false, cfg: 0, box: null, base: null, info: '', hideFar: false, hid: null, wrapped: false };
+  // config 9: the craft's top group hidden while the FAR light's map draws (its updateMatrices runs only on a frame that
+  // draws it, and before the near light's - scene order), shown again when the near light's pass starts (atlas below)
+  function eyesWrapFar(WF) {
+    if (EYES.wrapped || !WF || !WF.sun || !WF.sun.shadow) return;
+    EYES.wrapped = true;
+    const sh = WF.sun.shadow, um = sh.updateMatrices;
+    sh.updateMatrices = function () {
+      if (EYES.hideFar && craftGroup && C1.scene) { let top = craftGroup; while (top.parent && top.parent !== C1.scene) top = top.parent; if (top.visible) { top.visible = false; EYES.hid = top; } }
+      return um.apply(this, arguments);
+    };
+  }
+  function eyesUnhide() { if (EYES.hid) { EYES.hid.visible = true; EYES.hid = null; } }
   function eyesBase() {
     const W = window, CS = W.CONTACT_SHADOW, SR = W.SHADOW_RATE;
     return { aim: true, craft: S.craft, contact: CS ? CS.S.on : true, every: SR ? SR.every : 2, far: true, strip: false };
@@ -432,6 +447,7 @@ var SHADOW_NEAR = (function () {
     if (n === 4 || n === 8) c.every = 1;
     if (n === 6) c.far = false;
     if (n === 7) c.craft = false;
+    eyesWrapFar(WF); EYES.hideFar = n === 9; eyesUnhide();
     S.aimDrawn = c.aim; S.craft = c.craft;
     if (!c.craft) C1.H = 0;   // (refit now)
     if (CS) CS.S.on = c.contact;
@@ -455,7 +471,7 @@ var SHADOW_NEAR = (function () {
         'font:600 15px/1.35 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.72);padding:8px 14px;border-radius:6px;white-space:normal';
       document.body.appendChild(d);
     }
-    d.textContent = 'SHADOW-EYES  ' + EYES.cfg + '  -  ' + EYES_TEXT[EYES.cfg] + '     [keys 0-8]' + (EYES.info ? '   ' + EYES.info : '');
+    d.textContent = 'SHADOW-EYES  ' + EYES.cfg + '  -  ' + EYES_TEXT[EYES.cfg] + '     [keys 0-9]' + (EYES.info ? '   ' + EYES.info : '');
   }
   function eyesInit() {
     if (typeof window === 'undefined' || typeof location === 'undefined' || !/[?&]shadoweyes=1/.test(location.search || '')) return;
@@ -470,6 +486,15 @@ var SHADOW_NEAR = (function () {
     }, true);
     const up = () => { if (document.body) eyesBox(); else setTimeout(up, 500); };
     up();
+    // the frame pacing beside the label (the last 60 rendered intervals): the mean, and the share of intervals that differ
+    // from the one before by a refresh or more - the judder an uneven every-2nd-frame far map could cause
+    setInterval(() => {
+      const P = window.FLYDIY_PACE, h = P && P.recent ? P.recent() : null;
+      if (!h || h.length < 10) return;
+      const a = h.slice(-60); let odd = 0; for (let i = 1; i < a.length; i++) if (Math.abs(a[i] - a[i - 1]) > 8) odd++;
+      EYES.info = '| frames ' + (a.reduce((x, y) => x + y, 0) / a.length).toFixed(1) + ' ms, uneven ' + Math.round(100 * odd / (a.length - 1)) + ' %';
+      eyesBox();
+    }, 500);
   }
   const API = { S, pcf, C1, AIM, EYES, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, eyes, apply, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); eyesInit(); }
