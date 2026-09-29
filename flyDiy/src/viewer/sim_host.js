@@ -113,7 +113,7 @@ function simHostProbe(world, pts, t, H, opts) {
 }
 // the core names the worker's Blob picks out of the imported bundle
 const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'makeAutopilot',
-                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround'];
+                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
 const SIM_HOST_POOL = 3;           // snapshot buffers: the page holds two (interpolation), the host writes the third
@@ -206,11 +206,20 @@ const SIM_HOST_AP_SKIP = ['nav', 'sheet'];
 // obstacle ids map to this registry's own (a record the page's makeWorld made - the settle buildings - has
 // the same id here: the same record, the same order). Returns true when the world changed (the version).
 const SIM_HOST_WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setSea'];
+const simHostIsWorldOp = c => !!c && (c.cmd === 'obst' || c.cmd === 'world' || c.cmd === 'premises');
 function simHostWorldOp(world, c) {
   if (!world) return false;
   if (c.cmd === 'world') {
     if (SIM_HOST_WORLD_FNS.indexOf(c.fn) < 0 || typeof world[c.fn] !== 'function') return false;
     world[c.fn].apply(world, c.args || []);
+  } else if (c.cmd === 'premises') {
+    // G820 (C1c): THE WORLD EDITOR'S EDIT - the page recomposed its world (world.premises.set, render_premises'
+    // composeNow on every edit and rebuild); this world recomposes on the same record, with the generators' builder
+    // (the cable stations' hooks) as the page hands its own - the scripts are this worker's too (sim_link GEN_FILES)
+    if (!world.premises || typeof world.premises.set !== 'function') return false;
+    const G = typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : {});
+    const build = r => { const GEN = G[r.gen]; return GEN && GEN.build ? GEN.build(r.P, 0) : null; };
+    world.premises.set(c.rec, c.extra ? { build } : undefined);
   } else if (c.cmd === 'obst') {
     const R = world.obstacles; if (!R) return false;
     const ids = world.__simIds || (world.__simIds = new Map());
@@ -230,21 +239,31 @@ function simHostWorldOp(world, c) {
 // init: { world: { boot, premises, seed, opts, day } | a world to keep,
 //         spec (as buildGen takes it), place: { from, to, stand }, pilot: { kind, shakedown, nav },
 //         withV, day (tick the day, default true) }
+// the world alone (G820, C1c: the page's boot makes it before any flight - {cmd:'mkworld'}); `onWorld` applies the
+// ops that came before it (the page's registry so far)
+function simHostMakeWorld(CORE, W, onWorld) {
+  const island = W.boot ? CORE.ISLAND_GEN.makeIsland(W.boot) : null;
+  const wo = Object.assign({}, W.opts || {});
+  if (island) wo.island = island;
+  if (W.premises != null) wo.premises = W.premises;
+  const world = CORE.makeWorld(W.seed || 0, wo);
+  if (W.day) world.setDay(W.day);
+  world.__simV = 0;
+  if (onWorld) onWorld(world);   // G815: the ops that came before the world (the page's registry so far)
+  return world;
+}
 function makeSimHost(CORE, init, keptWorld) {
   const W = init.world || {};
   let world = keptWorld || null;
-  if (!world) {
-    const island = W.boot ? CORE.ISLAND_GEN.makeIsland(W.boot) : null;
-    const wo = Object.assign({}, W.opts || {});
-    if (island) wo.island = island;
-    if (W.premises != null) wo.premises = W.premises;
-    world = CORE.makeWorld(W.seed || 0, wo);
-    if (W.day) world.setDay(W.day);
-    world.__simV = 0;
-    if (init.onWorld) init.onWorld(world);   // G815: the ops that came before the world (the page's registry so far)
-  } else if (init.day) world.setDay(init.day);   // G815: a kept world takes the page's day at each new flight
-  const def = CORE.buildGen(init.spec);
-  const sim = CORE.makeSim(def, world);
+  if (!world) world = simHostMakeWorld(CORE, W, init.onWorld);
+  else if (init.day) world.setDay(init.day);   // G815: a kept world takes the page's day at each new flight
+  // G820 (C1c): THE SAME SIM ACROSS FLIGHTS OF ONE BUILD, as the page keeps its own (fullReset, the skip, the shed's
+  // round trip reset and re-place ONE sim object; a new build makes a new one). A reset is not a new sim: sim.out (the
+  // airspeed, the wind, easK - read by the pilot's first update before the first step, when a flight starts `started`,
+  // as the skip's does), the aerodynamics' circulation memory and the like carry over on the page, and must here
+  const kept = init.keepSim || null;
+  const def = kept ? kept.def : CORE.buildGen(init.spec);
+  const sim = kept ? kept.sim : CORE.makeSim(def, world);
   const n = sim.n, withV = !!init.withV, dayOn = init.day !== false;
   const fuelIdx = [];
   for (let i = 0; i < n; i++) if (def.nodes[i].mFuel > 0) fuelIdx.push(i);
@@ -285,6 +304,7 @@ function makeSimHost(CORE, init, keptWorld) {
     const st = typeof CORE.siteOf === 'function' ? CORE.siteOf(from.id) : null;
     const stand = (st && PL.stand !== false) ? (PL.stand && typeof PL.stand === 'object' ? PL.stand : st.stand) : null;
     const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
+    if (PL.lineup && PL.stand && typeof PL.stand === 'object' && lineup(from, to, PL.stand, PL.site || stSite)) return;   // (G820: the page's site, as its skip read it)
     if (stand) {
       CORE.placeAtStand(sim, from, stand);
       // app.js applyRoute (G700): the wheels on the ground under the walked stand
@@ -296,14 +316,43 @@ function makeSimHost(CORE, init, keptWorld) {
       ap.setRoute(from, to);
     }
   }
+  // G820 (C1c): THE SKIP TO LINE-UP - app.js placeLinedUp, statement for statement: the question asked on the stand of a
+  // pilot planning from there (its own taxi's end, ap.lineupPose), the aeroplane back to its reset pose, then onto the
+  // pose (placeAtLineup), every engine running, and the flight's pilot handed the HOLD (departFrom { atHold })
+  function lineup(from, to, stand, stSite) {
+    if (sim.hydro || typeof CORE.placeAtLineup !== 'function') return false;
+    sim.reset(0); if (typeof sim.stance === 'function') sim.stance();
+    CORE.placeAtStand(sim, from, stand);
+    if (typeof CORE.seatOnGround === 'function') CORE.seatOnGround(sim, (x, z) => world.terrainH(x, z), def.refs);
+    const q = mkPilot();
+    if (typeof q.lineupPose !== 'function') return false;
+    q.setRoute(from, to); q.departFrom(from, to, stSite);
+    let pose = null;
+    try { pose = q.lineupPose(); } catch (e) { pose = null; }
+    sim.reset(0); if (typeof sim.stance === 'function') sim.stance();
+    if (!pose) return false;
+    CORE.placeAtLineup(sim, from, pose, world, def.refs);
+    if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
+    H.ap = mkPilot();
+    H.ap.setRoute(from, to);
+    H.ap.departFrom(from, to, stSite, { atHold: pose });
+    H.lineup = pose;
+    return true;
+  }
   // the step index runs on across a reset (a command stamped before it keeps its place); the epoch counts them
   function fresh() {
     sim.reset(0);
     H.ap = mkPilot();
     place();
-    H.started = false; H.epoch++;
+    // G820 (C1c): the bench's test card (app.js startTestFlight: ap.setCard after the placement, before the start)
+    if (init.pilot && init.pilot.card && H.ap.setCard) H.ap.setCard(init.pilot.card);
+    H.started = false; H.epoch++; H.apGen = (H.apGen || 0) + 1;
+    H.end = { air: false, wasAir: false, still: 0, over: false };
   }
   fresh();
+  // ...and a sim made HERE for a page whose own had lived before (the shed's load test, an earlier flight flown inline)
+  // takes the page's sim.out as it stands: what the pilot's first update reads before the first step (G820)
+  if (!kept && init.out && sim.out) for (const k of Object.keys(init.out)) if (k !== 'hydro') sim.out[k] = init.out[k];
 
   // app.js resyncPhase (the hand given back to the pilot)
   const GROUND = ['DEPART', 'TAXI', 'LINEUP', 'HOLD', 'STOP', 'ROLL', 'LIFTOFF', 'ROLLOUT', 'STOPPED', 'ABORT', 'PUTDOWN'];
@@ -315,6 +364,37 @@ function makeSimHost(CORE, init, keptWorld) {
     if (onG === 0 && agl > 10 && wasGround) return 'CLIMB';
     if (onG >= 2 && Vg < 15 && !wasGround) return 'ROLLOUT';
     return ap.phase;
+  }
+  // G820 (C1c): app.js manualEnding - THE ENDING WHEN IT IS YOU, in the step it ends on (the page's copy runs
+  // inside its script(), every step, inline; its state - airborneSeen / wasAir / stillT - lives here as H.end, reset
+  // where the page resets it: a new flight, a new leg, the hand taken; `over` is the page's flightOver, sent)
+  function manualEnding(dt) {
+    const ap = H.ap, E = H.end;
+    if (E.over || ap.phase === 'STOPPED') return;
+    const cg = sim.cgPos(), v = sim.cgVel(), onG = sim.wheelsOnGround();
+    const agl = cg[1] - world.terrainH(cg[0], cg[2]);
+    if (agl > 15) E.air = true;
+    if (!E.air) return;
+    if (onG > 0 && E.wasAir) {
+      E.wasAir = false;
+      const F = ap.frame, o = sim.out || {};
+      if (F) {
+        const rx = cg[0] - F.ox, rz = cg[2] - F.oz;
+        const Vt = Math.hypot(v[0] - (o.windX || 0), v[1] - (o.windY || 0), v[2] - (o.windZ || 0));
+        ap.tdInfo = { sink: -v[1], z: -rx * F.uz + rz * F.ux, x: rx * F.ux + rz * F.uz,
+                      V: Vt * (o.easK || 1), drift: -v[0] * F.uz + v[2] * F.ux };
+      }
+    } else if (onG === 0 && agl > 2) E.wasAir = true;
+    const Vg = Math.hypot(v[0], v[2]);
+    E.still = (onG >= 2 && Vg < 1.0) ? E.still + dt : 0;
+    if (E.still < 3) return;
+    const PL = init.place || {};
+    const to = (PL.to == null || PL.to === 'CIRCUIT') ? aeroById(H.legFrom || PL.from || 'HOME') : aeroById(PL.to);
+    const near = !!to && Math.hypot(cg[0] - to.x, cg[2] - to.z) < 1000;
+    if (!ap.report) ap.report = { verdicts: [], outcome: null, landing: null };
+    if (!ap.report.outcome) ap.report.outcome = near ? 'completed' : 'landed-out';
+    if (!near) ap.tdInfo = null;
+    ap.phase = 'STOPPED';
   }
   function writeCtl(set) {
     const c = sim.ctl;
@@ -344,6 +424,7 @@ function makeSimHost(CORE, init, keptWorld) {
       case 'manual':
         if (!!c.on === H.manual) break;
         H.manual = !!c.on;
+        if (H.manual) H.end.still = 0;           // app.js setManual(true): stillT = 0
         if (!H.manual) {
           if (ap.reEngage) ap.reEngage({ phase: resyncPhase() });
           if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
@@ -360,14 +441,29 @@ function makeSimHost(CORE, init, keptWorld) {
       case 'impulse': sim.impulse(c.i, c.ix || 0, c.iy || 0, c.iz || 0); break;
       case 'setCard': if (ap.setCard) ap.setCard(c.card || {}); break;
       case 'setDay': world.setDay(c.day || {}); world.__simV = (world.__simV || 0) + 1; break;
-      case 'obst': case 'world': simHostWorldOp(world, c); break;
+      case 'obst': case 'world': case 'premises': simHostWorldOp(world, c); break;
       // G815: the page's viewers' wind queries, replayed where they sat between the page's steps (sim_link.js): they
       // move the climate sampler's reference (09_climate.js wind), which a first substep at the same t reuses
       case 'windq': if (world.wind) for (const q of c.q || []) world.wind(q[0], q[1], q[2], q[3]); break;
       // G815: the page climate's convection cache, carried (09_climate.js convState / convSeed) - its exact inputs
       // are the first moment the page's day met the key, which this world's day never lived
       case 'conv': if (world.climate && world.climate.convSeed) H.convSeeded = world.climate.convSeed(c.s); break;
-      case 'reset': fresh(); break;   // app.js fullReset: a fresh pilot on the same route, held until a 'start'
+      case 'reset': fresh(); break;
+      // G820 (C1c): FLY ON - app.js nextLeg: a fresh pilot departing from where the last leg ended, NO reset (the
+      // aeroplane, its engines and the clock carry on); the destination as the page's select has it
+      case 'leg': {
+        const cur = aeroById(c.from), to = (c.to == null || c.to === 'CIRCUIT') ? cur : aeroById(c.to);
+        H.ap = mkPilot();
+        H.ap.departFrom(cur, to);
+        H.legFrom = c.from; if (init.place) init.place = Object.assign({}, init.place, { to: c.to });
+        H.apGen++;
+        H.end = { air: false, wasAir: false, still: 0, over: H.end.over };
+        break;
+      }
+      case 'over':   // the page's flightOver (the card up): the hand's ending stands down; endFlight's outcome (G130) written as the page writes it
+        H.end.over = !!c.on;
+        if (c.on && c.outcome) { if (!ap.report) ap.report = { verdicts: [], outcome: c.outcome, landing: null }; else if (!ap.report.outcome) ap.report.outcome = c.outcome; }
+        break;   // app.js fullReset: a fresh pilot on the same route, held until a 'start'
     }
   }
   // a command queued for step k (the next boundary when absent or past)
@@ -397,6 +493,7 @@ function makeSimHost(CORE, init, keptWorld) {
     else if (H.manual) {
       if (H.hand) writeHand(H.hand);
       if (ap.box && ap.box.on) ap.update(dt); else ap.t += dt;
+      manualEnding(dt);
     } else ap.update(dt);
     sim.step(dt);
     if (!noDay) H.dayTick(dt);
@@ -424,8 +521,12 @@ function makeSimHost(CORE, init, keptWorld) {
     for (let j = 0; j < fuelIdx.length; j++) f[o + j] = sim.m[fuelIdx[j]];
   };
   const rare = {};
+  let genSent = 0;
   H.meta = () => {
     const ap = H.ap, A = {};
+    // G820 (C1c): a NEW PILOT (Fly on's leg, the skip's) - every field again, and the view starts its copy afresh
+    const apNew = H.apGen !== genSent;
+    if (apNew) { genSent = H.apGen; for (const k of Object.keys(rare)) delete rare[k]; }
     for (const k of Object.keys(ap)) {
       if (SIM_HOST_AP_SKIP.indexOf(k) >= 0) continue;
       const d = Object.getOwnPropertyDescriptor(ap, k);
@@ -450,7 +551,7 @@ function makeSimHost(CORE, init, keptWorld) {
       hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2), lam: fx.lam.slice() })) } : null,
       wheels: sim.wheelContacts ? sim.wheelContacts() : null,
       ctl: simHostPlain(sim.ctl, 3),
-      ap: A,
+      ap: A, apNew,
     };
   };
   // the pilot's rare fields go again after a re-init of the view (a new epoch)
@@ -480,6 +581,7 @@ function simHostBody(CORE, SH, port) {
   const wallNow = () => performance.timeOrigin + performance.now();
   let H = null, world = null, bootInfo = null;
   let preWorld = [], dropped = 0;   // G815: world ops before the world exists; commands that found no flight
+  let making = false, held = [];    // G820: a boot being fetched - what arrives meanwhile waits for it, in order
   let pool = [], allocs = 0, seq = 0;
   let running = false, wall0 = 0, step0 = 0, rate = 1, timer = null;
   // G612's readings: a step's cost (ms, eased), the dilation's window (sim s at the set rate over wall s,
@@ -534,36 +636,61 @@ function simHostBody(CORE, SH, port) {
     stopClock();
     const keep = m.world === 'keep' ? world : null;
     // G815: the world's ops the last flight had queued and never reached (sent between flights) are the world's now
-    if (H && keep) for (const e of H.queue) if (e.c.cmd === 'obst' || e.c.cmd === 'world') SH.simHostWorldOp(world, e.c);
+    if (H && keep) for (const e of H.queue) if (SH.simHostIsWorldOp(e.c)) SH.simHostWorldOp(world, e.c);
     const t0 = performance.now();
     const onWorld = w => { for (const c of preWorld) SH.simHostWorldOp(w, c); preWorld = []; };
-    H = SH.makeSimHost(CORE, Object.assign({}, m, { onWorld }), keep);
+    // G820 (C1c): the page's sim is the one it flew last (`keepSim`) and the build is the same: this one too
+    const specStr = JSON.stringify(m.spec);
+    const keepSim = m.keepSim && H && keep && H.world === keep && H.specStr === specStr ? { def: H.def, sim: H.sim } : null;
+    H = SH.makeSimHost(CORE, Object.assign({}, m, { onWorld, keepSim }), keep);
+    H.specStr = specStr; H.keptSim = !!keepSim;
     world = H.world;
     pool = []; seq = 0;
     for (let i = 0; i < SIM_HOST_POOL; i++) pool.push(new ArrayBuffer(H.len * 8));
     allocs = 0;
     const r = H.ready();
-    r.initMs = performance.now() - t0; r.boot = bootInfo;
+    r.initMs = performance.now() - t0; r.boot = bootInfo; r.keptSim = H.keptSim;
     post(r);
     publish(0, 0);
   }
   // a command with no flight to take it: a world op waits for (or goes straight to) the world; the rest is dropped
   function orphan(c) {
-    if (c.cmd !== 'obst' && c.cmd !== 'world') { dropped++; return; }
+    if (!SH.simHostIsWorldOp(c)) { dropped++; return; }
     if (world) SH.simHostWorldOp(world, c); else preWorld.push(c);
+  }
+  // the trimmed boot through the page's URLs, then `then(boot)`; everything else that arrives waits (held)
+  function fetchThen(F, then) {
+    const t0 = performance.now();
+    making = true;
+    SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro, raster: F.raster }).then(boot => {
+      bootInfo = { fetchMs: performance.now() - t0, bytes: boot ? SH.simHostBootBytes(boot) : 0,
+                   cooked: boot && boot.premCook ? boot.premCook.raster.length : 0 };
+      try { then(boot); } catch (err) { post({ kind: 'error', error: String(err && err.stack || err) }); }
+    }).catch(err => post({ kind: 'error', error: String(err && err.stack || err) })).then(() => {
+      making = false;
+      const q = held; held = [];
+      for (const x of q) onMsg(x);
+    });
   }
   function onMsg(m) {
     if (!m) return;
+    if (making && m.cmd !== 'release' && m.cmd !== 'state' && m.cmd !== 'ping') { held.push(m); return; }
     try {
       switch (m.cmd) {
+        case 'mkworld': {
+          // G820 (C1c): the world before any flight (the page's boot); the next init keeps it
+          const mk = boot => {
+            const t0 = performance.now();
+            world = SH.simHostMakeWorld(CORE, Object.assign({}, m.world, { boot, fetch: null }), w => { for (const c of preWorld) SH.simHostWorldOp(w, c); preWorld = []; });
+            post({ kind: 'world', ms: performance.now() - t0, boot: bootInfo, v: world.__simV });
+          };
+          if (m.world && m.world.fetch) fetchThen(m.world.fetch, mk); else mk(m.world && m.world.boot || null);
+          return;
+        }
         case 'init':
+          if (m.world === 'keep' && !world) { post({ kind: 'error', error: 'init: keep, but no world here' }); return; }
           if (m.world && m.world.fetch) {
-            const F = m.world.fetch, t0 = performance.now();
-            SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro, raster: F.raster }).then(boot => {
-              bootInfo = { fetchMs: performance.now() - t0, bytes: boot ? SH.simHostBootBytes(boot) : 0,
-                           cooked: boot && boot.premCook ? boot.premCook.raster.length : 0 };
-              initHost(Object.assign({}, m, { world: Object.assign({}, m.world, { boot, fetch: null }) }));
-            }).catch(err => post({ kind: 'error', error: String(err && err.stack || err) }));
+            fetchThen(m.world.fetch, boot => initHost(Object.assign({}, m, { world: Object.assign({}, m.world, { boot, fetch: null }) })));
             return;
           }
           if (m.world && m.world.boot) bootInfo = { bytes: SH.simHostBootBytes(m.world.boot) };
@@ -594,7 +721,11 @@ function simHostBody(CORE, SH, port) {
         case 'snap': if (H) publish(0, 0); return;
         // G815: THE WORLD'S FACTS at the page's points (the page asks its own world the same - a divergence's triage):
         // the day, the air, and per point the ground, the wind at sim time t, the surface, the trees and obstacles near
-        case 'probe': post({ kind: 'probe', tag: m.tag, facts: SH.simHostProbe(world, m.pts || [], m.t || 0, H, m.opts) }); return;
+        case 'probe':
+          // (G820: real time - the world's ops sent unstamped while the clock stood are the world's before the next step;
+          // a probe answers for the world that step will meet. Lockstep's stamped ones keep their step)
+          if (H && world) H.queue = H.queue.filter(e => { if (e.c.k == null && SH.simHostIsWorldOp(e.c)) { SH.simHostWorldOp(world, e.c); return false; } return true; });
+          post({ kind: 'probe', tag: m.tag, facts: SH.simHostProbe(world, m.pts || [], m.t || 0, H, m.opts) }); return;
         case 'resend': if (H) { H.forgetRare(); publish(0, 0); } return;   // a new view: the pilot's rare fields again
         case 'log': if (H) { post({ kind: 'log', list: H.log.slice(), dropped: H.logDropped, late: H.late }); if (m.clear) H.log.length = 0; } return;
         case 'ping': post({ kind: 'pong', t: m.t, tw: wallNow(), buf: m.buf }, m.buf ? [m.buf] : []); return;
@@ -658,5 +789,5 @@ if (typeof window !== 'undefined') {
                       KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP };
 }
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostProbe,
+  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart };

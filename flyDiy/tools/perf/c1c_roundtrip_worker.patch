@@ -1,0 +1,36 @@
+diff --git a/flyDiy/tools/_roundtrip_check.js b/flyDiy/tools/_roundtrip_check.js
+index e5db2296..a2395850 100644
+--- a/flyDiy/tools/_roundtrip_check.js
++++ b/flyDiy/tools/_roundtrip_check.js
+@@ -69,7 +69,9 @@ async function openCounted(extraHooks) {
+   };
+   // ROUNDTRIP_BUILD=<file.json>: a saved build in the working slot (the page's WIP), as FRAMECOST's metal Cessna
+   const storage = {}; if (process.env.ROUNDTRIP_BUILD) storage['flydiy.wip'] = fs.readFileSync(path.resolve(process.env.ROUNDTRIP_BUILD), 'utf8');
+-  const P = await openPage({ quiet: true, storage, hooks, query: process.env.ROUNDTRIP_QUERY || '' });
++  // G820 (C1c): THE PHYSICS WORKER IS THE PAGE'S OWN DEFAULT (app.js SIMW_DEFAULT): the harness gives the page its Worker
++  // (the G815 shim, a real thread) so the round trips run what ships; ROUNDTRIP_QUERY=simw=0 flies them inline
++  const P = await openPage({ quiet: true, storage, hooks, query: process.env.ROUNDTRIP_QUERY || '', workers: /sim_host\.js/ });
+   const W = P.win;
+   // the world's doors, wrapped as the world comes to exist (the boot builds it now): its update, the premises' tick
+   const wrapWorld = () => {
+@@ -180,6 +182,10 @@ async function childTrips() {
+   out.shed.push(Object.assign({ at: 'the shed, untouched' }, await shedStretch(ctx, 40)));
+   out.trips.push(await trip(ctx, 'rollout', bGo)); await fly('after roll-out 3');
+   out.programs = W.FLYDIY_RENDERER.info.programs.length;
++  // G820 (C1c): the physics worker's word on the three flights (null: the page flew inline - ?simw=0 or no worker)
++  const SWs = W.FLYDIY_SIMW && !W.FLYDIY_SIMW.dead() ? W.FLYDIY_SIMW.state() : null;
++  out.simw = SWs ? { flights: SWs.flights, inline: SWs.inline, reason: SWs.reason, phase: SWs.phase, placeOk: SWs.placeOk, wvBad: SWs.wvBad, strays: SWs.strays,
++                     errors: SWs.errors, prewarmed: SWs.prewarmed, worldMs: SWs.worldMs, readyWaitFrames: SWs.readyWaitFrames } : null;
+   if (WHO) process.stderr.write('GARAGE_SPEC.update calls:\n' + WHO.map(x => '  ' + x).join('\n') + '\n');
+   out.errors = P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 8);
+   return out;
+@@ -328,6 +334,9 @@ async function main() {
+       ok(R.settle && R.settle.rest, 'the one loading let the world come to rest at the stand (the stream\'s near queue empty, the fill idle)', JSON.stringify(R.settle));
+       ok(R.flight && R.flight.worldUpdate > 0, 'the counters can see: in flight the world ticks', R.flight && ('worldUpdate ' + R.flight.worldUpdate + ', world updateMatrixWorld ' + R.flight.worldUmw + ' over ' + R.flight.frames + ' frames'));
+       ok(!R.errors.length, 'trips: no script, timer or frame of the page threw', R.errors.join(' | ') || undefined);
++      if (R.simw) ok(R.simw.inline === 0 && R.simw.phase === 'live' && R.simw.placeOk === true && !R.simw.wvBad && !R.simw.strays && !(R.simw.errors || []).length,
++        'the physics worker (the default candidate) flew every flight: placed, live, the world version held', JSON.stringify(R.simw));
++      else console.log('  (the flights flew inline: ?simw=0, or no worker for the page)');
+     }
+   }
+   if (S) {

@@ -5112,6 +5112,8 @@
                           pickAt, camera,                                       // S1 (G451.1): the garage picker, for the headless rig
                           world: () => world,                                   // W2: the world that booted (an island, or the analytic one)
                           setManual, manual: () => manual, input: () => INP,     // G200
+                          nextLeg: () => (flNextLeg ? (flNextLeg(), true) : false),   // G820 (C1c): Fly on's own chain, for a rig that cannot fly a circuit first
+                          over: () => flightOver,                               // G820: the card's latch (an ending, G130)
                           nav: () => flNav,                                         // G202.1
                           agl: () => hudAgl(),                                      // G700: the height the PFD and the trace read
                           // 2026-09-11: the orbit's state, and a jump to where it
@@ -5407,8 +5409,10 @@
     rollOut(() => {
       started = true;
       setManual(false);
-      if (ap && ap.setCard && card && (card.alt || card.V))
+      if (ap && ap.setCard && card && (card.alt || card.V)) {
         ap.setCard({ alt: card.alt || NaN, V: card.V || NaN });
+        if (SIMW) SIMW.card({ alt: card.alt || NaN, V: card.V || NaN });   // G820 (C1c): the worker's pilot flies the card too
+      }
       testFlight = { fp: fp || null, when: new Date().toISOString().slice(0, 10) };
       director.start();
       flRender();
@@ -7995,6 +7999,7 @@
       telBase += ap.t;                 // new AP restarts its clock at 0
       ap = mkPilot(curKey);
       ap.departFrom(cur, destId === 'CIRCUIT' ? cur : aeroById(destId));
+      if (SIMW) SIMW.leg(cur.id, destId);   // G820 (C1c): the worker's pilot made anew at the same step boundary
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
     }
@@ -10846,14 +10851,18 @@
       tellScale();
       return P.mode;
     }
-    const api = { frame, hold, end, set, tellScale,
+    // G820 (C1c): under the physics worker (app.js PACE.worker = SIMW.perf) the clock's readings are the WORKER'S: it
+    // owns the sim's time, its step's cost and its dilation (ARCH §2.3) - the page's own are what its frames owed
+    const wk = () => { const f = api.worker; const w = f ? f() : null; return w && w.live ? w : null; };
+    const api = { frame, hold, end, set, tellScale, worker: null,
       recent: () => (P.legacy ? null : P.hist.slice()),   // the RENDERED frames' intervals (ms), for the menu's readout - freezes included (G620)
       freezes: () => ({ n: P.frz.n, maxMs: P.frz.maxMs, agoS: P.frz.n ? (performance.now() - P.frz.lastT) / 1000 : null, away: P.frz.away }),   // G620: the stalls of 250 ms or more, kept
       get dt() { return P.dt; }, get steps() { return P.steps; },
-      get dilation() { return P.wallW > 0.2 ? P.simW / P.wallW : 1; },   // the sim's seconds over the wall's, the last second (G612)
+      get dilation() { const w = wk(); if (w) return w.dil; return P.wallW > 0.2 ? P.simW / P.wallW : 1; },   // the sim's seconds over the wall's, the last second (G612)
       budgetMs: () => 1000 / (capOf() || 60),
       state: () => ({ mode: P.mode, cap: capOf(), legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0,
-                      dilation: api.dilation, stepMs: P.stepMs, otherMs: P.otherMs, droppedS: P.droppedS, workMs: P.lastWork, rateFps: P.lastRate || 0, trials: P.trials }) };
+                      dilation: api.dilation, stepMs: wk() ? wk().stepMs : P.stepMs, otherMs: P.otherMs, droppedS: wk() ? wk().droppedS : P.droppedS, workMs: P.lastWork, rateFps: P.lastRate || 0, trials: P.trials,
+                      simw: !!wk() }) };
     W.FLYDIY_PACE = api;
     return api;
   })();
@@ -10871,6 +10880,9 @@
       const o = sim && sim.out;
       R.spd = o ? (o.Vg != null ? o.Vg : o.V) : NaN; R.vs = o ? o.vs : NaN;   // the GROUND speed: a parked aeroplane in a wind has an airspeed
       R.agl = (!inGarage && cg) ? cg[1] - groundH(cg[0], cg[2]) : NaN;
+      // G820 (C1c): the physics worker's step ms, dilation and the steps this frame showed (NaN: the page flies it)
+      const wp = SIMW ? SIMW.perf() : null;
+      if (wp && wp.live && simwRan >= 0) { R.wms = wp.stepMs; R.wdil = wp.dil; R.wran = simwRan; } else { R.wms = NaN; R.wdil = NaN; R.wran = NaN; }
     },
     info: () => {   // the aeroplane, for the log's header: the build's own scalar parameters
       const p = (def && def.params) || {}, out = { key: curKey || null, name: p.name || null, nodes: sim ? sim.n : null, massKg: sim ? Math.round(sim.totalM) : null };
@@ -10879,12 +10891,20 @@
       return out;
     },
   }) : null;
-  // G815 (C1b): ?simw=1 - THE SOLVER ON ITS OWN THREAD (sim_link.js over sim_host.js / sim_view.js), default off.
-  // Null without the flag, and the loop's step block below is the inline loop it always was.
-  const SIMW = (typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined' && /[?&]simw=1(&|$)/.test(location.search || '')) ? SIM_LINK.make({
-    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, lastStart, fromId, destId, shake: shakeOf }),
+  // G815 (C1b): ?simw=1 - THE SOLVER ON ITS OWN THREAD (sim_link.js over sim_host.js / sim_view.js).
+  // G820 (C1c): THE DEFAULT CANDIDATE. SIMW_DEFAULT is the one line that decides what a page without a word gets
+  // (the coordinator's box measurement - HANDOVER G820-G829 - decides it); `?simw=0` / `?simw=1` or localStorage
+  // flydiy.simw ('0' / '1') say otherwise. Null = the loop's step block below is the inline loop it always was; so is
+  // a page whose worker cannot be had (no Worker, file://, the page in node without the harness's shim): SIM_LINK wraps
+  // nothing until its worker is up, and every flight of a dead link flies inline (FLYDIY_SIMW.state().dead says why).
+  const SIMW_DEFAULT = true;
+  const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
+    const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
+  const SIMW = (SIMW_ON && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
+    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
     rig: () => PACE.state().legacy, premises: () => WB.premisesPlaced }) : null;
-  if (SIMW) window.FLYDIY_SIMW = SIMW;
+  if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
+  let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
   function loop(ts) {
     requestAnimationFrame(loop);
@@ -10893,6 +10913,7 @@
     if (FR) FR.begin(ts, pc);          // G620: the flight recorder's row for this frame
     const fdt = pc.dt, tLoop0 = perfNow();
     let physMs = 0, simDt = 0, ran = 0;
+    simwRan = -1;                      // G820: -1 = no worker frame this frame (the page's own, or nothing flies)
     // MANUAL CONTROLS (G200): the hand is read FIRST, every frame, in the shed
     // and in the air — the toggle and the view keys work under the AP, and
     // a stand with a real hand on it shows THAT instead of the sweep below.
@@ -10949,7 +10970,7 @@
     // held at ultimate: the bags stay on and the wing stays bent, so the result
     // is still there to look at rather than snapping back the frame it finishes
     else if (inGarage && rig) updateLoadViz(rig);
-    if (inGarage) { fixTick(); PACE.hold(); if (SIMW) SIMW.idle(); }   // A9: the advisor's page slice, when it has no thread
+    if (inGarage) { fixTick(); PACE.hold(); if (SIMW) SIMW.shed(); }   // A9: the advisor's page slice, when it has no thread (G820: no worker flight in the shed)
     else if (rollHold) { PACE.hold(); if (SIMW) SIMW.warm(); }    // G690: the roll-out screen is up - the flight starts on the stand when it lifts
     else if (running && !inGarage) {
       // A9: 2× steps twice a frame on the test flight; a doubled step that
@@ -10960,20 +10981,23 @@
       // G815 (C1b, ?simw=1): the worker steps - the page posts its inputs and takes the newest snapshot (sim_link.js;
       // `hold` while the worker makes the flight). null = this frame flies inline, the loop as it always was
       const sw = SIMW ? SIMW.frame(nStep, simRate) : null;
-      if (sw) { if (sw.hold) PACE.hold(); if (FR) FR.push(0); scriptView(sw.simDt); if (FR) FR.pop(); }
+      if (sw) { if (sw.hold) PACE.hold(); if (FR) FR.push(0); scriptView(sw.simDt); if (FR) FR.pop(); simwRan = sw.ran; }
       else for (let k = 0; k < nStep; k++) {
         if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
         if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
       }
       physMs = perfNow() - t2; simDt = sw ? sw.simDt : nStep / 60; ran = sw ? sw.ran : nStep;
       if (simRate > 1) {
-        if (physMs > 0.6 * PACE.budgetMs()) { if (++slowFrames >= 30) simRateSet(1); } else slowFrames = 0;
+        // (G820: under the worker the page's physMs is its post-and-mirror, not the solver: 2x drops when the WORKER cannot
+        // hold it - its dilation under 0.9 of the set rate, 30 frames running)
+        if (sw ? SIMW.perf().dil < 0.9 : physMs > 0.6 * PACE.budgetMs()) { if (++slowFrames >= 30) simRateSet(1); } else slowFrames = 0;
       }
       if (typeof DAY_CLOCK !== 'undefined') DAY_CLOCK.tick(simDt);
       director.frame();
       if (window.WATER && WATER.setTime) WATER.setTime(sim.t);   // G460: the water is drawn at the solver's own time
       if (CK) CK.frame(simDt, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
-      if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
+      // (G820: under the worker, its snapshot's flag too - read every frame)
+      if ((++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) || (sw && sw.diverged)) {
         // G130: a divergence is an ENDING, not a caption — the card comes up
         // with the door home on it, and the logbook gets its broke-up row
         endFlight('broke-up');
@@ -11139,7 +11163,7 @@
       }
     }
     if (FR) FR.end(true, cg);          // G620: the glare and the rest to `other`; the row written
-    PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), ran);   // G586: auto's reading (G612: and the guard's)
+    PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran);   // (G820: the worker's steps are not the page's: their cost is not a page step's)   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
     if (frameWait && --frameWait.n <= 0) { const r = frameWait.res; frameWait = null; r(); }
   }
@@ -11783,7 +11807,8 @@
     } };
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
-    done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0); },
+    done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
+      if (SIMW) SIMW.prewarm(); },   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) };

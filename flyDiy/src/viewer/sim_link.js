@@ -106,10 +106,12 @@ const SIM_LINK = (() => {
       wvSent: 0, wvSeen: 0, wvBad: 0, wvLagFrames: 0, wvMaxLag: 0, placeOk: null, placeDiff: null,
       initMs: null, bootFetchMs: null, bootBytes: null, readyWaitFrames: 0, errors: [], lastError: null,
       physMs: 0, host: null,
+      premEdits: 0, prewarmed: false, worldMs: null, legs: 0, diverged: false,
     };
     let host = null, dead = null;          // the worker's handle; why there is none
     let worldSent = false;                 // the worker's world is made (kept across flights)
     let flight = null;                     // { ap, sim, def, epoch, view, ready, live, ... }
+    let lastSim = null;                    // G820: the page's sim the worker's last flight flew (null: it flew inline since)
     let running = false, rateSent = 1;
     let wvPend = [];                       // lockstep: [k, version after] of the stamped world commands, in send order
     let opsQ = [];                         // the world's ops since the last flush
@@ -117,9 +119,16 @@ const SIM_LINK = (() => {
     const baseIds = new Set();
 
     // ---- THE WORLD'S OPS: the page world's registry and day calls, wrapped once ----------------------
+    // G820 (C1c): wrapped when the worker is UP (start), not at make: a page whose worker cannot be had (no Worker,
+    // file://, the page in node without the shim) keeps its world untouched and its loop the inline one, byte for byte
     const R = world && world.obstacles;
+    if (R) for (const r of R.list()) baseIds.add(r.id);   // makeWorld's own (the settle buildings): the worker's world makes them too
+    let wrapped = false;
+    let windT = NaN, windFirst = null, windFrame = [];
+    function wrapWorld() {
+    if (wrapped) return;
+    wrapped = true;
     if (R) {
-      for (const r of R.list()) baseIds.add(r.id);   // makeWorld's own (the settle buildings): the worker's world makes them too
       const add = R.add, move = R.move, remove = R.remove, clear = R.clear;
       R.add = function (x) {
         const id = add.apply(this, arguments);
@@ -139,6 +148,18 @@ const SIM_LINK = (() => {
         return r;
       };
     }
+    // G820 (C1c): THE WORLD EDITOR'S EDITS. Every edit (and every later rebuild) recomposes the page's world through
+    // world.premises.set (render_premises composeNow); the worker's world recomposes on the same record at the same
+    // step boundary - its obstacles follow through the registry's own ops (hitAdd / remove), and the version counts it
+    const PMS = world && world.premises;
+    if (PMS && typeof PMS.set === 'function') {
+      const set0 = PMS.set;
+      PMS.set = function (rec, extra) {
+        const r = set0.apply(this, arguments);
+        if (host) { flushOps(); worldCmd({ cmd: 'premises', rec: rec == null ? null : JSON.parse(JSON.stringify(rec)), extra: !!extra }); st.premEdits++; }
+        return r;
+      };
+    }
     // a world command: stamped at the next step while a lockstep flight is live, else applied as it comes
     // THE VIEWERS' WIND QUERIES (atmo.js MIST, clouds.js, render_premises' animals: world.wind(0, y, 0, 0)). The
     // climate's sampler (09_climate.js wind) keeps a linearisation reference keyed on t: the FIRST call at a new t
@@ -148,7 +169,6 @@ const SIM_LINK = (() => {
     // So the page's world.wind is watched: the first call of each run of one t, per frame (the calls that can move
     // the reference), replayed on the worker's world at the same step boundary ({cmd:'windq'}); at a flight's
     // start, the first call of the page's current run (the reference the inline solver would have found).
-    let windT = NaN, windFirst = null, windFrame = [];
     if (world && typeof world.wind === 'function') {
       const w0 = world.wind;
       world.wind = function (x, y, z, t) {
@@ -158,6 +178,7 @@ const SIM_LINK = (() => {
         return w0.call(this, x, y, z, t);
       };
     }
+    }   // wrapWorld
     function worldCmd(c) {
       st.wvSent++;
       const lock = flight && flight.live && st.mode === 'lockstep';
@@ -184,13 +205,34 @@ const SIM_LINK = (() => {
       if (typeof SIM_HOST === 'undefined' || typeof SIM_VIEW === 'undefined') { dead = 'no sim_host.js / sim_view.js'; return false; }
       st.pre = catalogueScripts(W);
       host = SIM_HOST.start(onMsg, err => { fail('the worker died', err); dead = 'the worker died'; host = null; dropFlight('the worker died'); }, { pre: st.pre });
-      if (!host) { dead = 'no Worker here (file://, a sandbox)'; return false; }
+      if (!host) { dead = 'no Worker here (file://, a sandbox)'; st.phase = 'dead'; return false; }
+      wrapWorld();
+      return true;
+    }
+    // G820 (C1c): THE WORKER'S WORLD MADE BEFORE THE FIRST FLIGHT (app.js: the boot's end, in the shed) - the trimmed
+    // boot fetched and the world made on the worker's thread while the player is in the shed, so the first roll-out
+    // (which B8B9 made instant: no screen) does not hold the stand for it. The registry so far goes first.
+    function worldMsg() {
+      const isl = W.ISLAND_BOOT;
+      return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null,
+               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER },
+               fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER } : null, boot: null };
+    }
+    function prewarm() {
+      if (worldSent || dead) return !dead;
+      if (!start()) return false;
+      const ops = liveOps();
+      opsQ = [];
+      if (ops.length) worldCmd({ cmd: 'obst', ops });
+      post({ cmd: 'mkworld', world: worldMsg() });
+      worldSent = true; st.prewarmed = true;
       return true;
     }
     function onMsg(m) {
       if (!m) return;
       if (m.kind === 'error') { fail('host', m.error); if (flight && !flight.view) dropFlight('the host threw while making the flight'); return; }
       if (m.kind === 'state') { st.host = m; return; }
+      if (m.kind === 'world') { st.worldMs = m.ms; if (m.boot) { st.bootFetchMs = m.boot.fetchMs != null ? m.boot.fetchMs : null; st.bootBytes = m.boot.bytes; st.cookedCells = m.boot.cooked || 0; } return; }
       if (m.kind === 'probe') { st.probe = m; return; }
       if (!flight) { if (m.kind === 'snap' && host) post({ cmd: 'release', buf: m.buf }, [m.buf]); return; }
       if (m.kind === 'ready') { onReady(m); return; }
@@ -201,6 +243,11 @@ const SIM_LINK = (() => {
         flight.view.take(m); st.snaps++;
         if (flight.live && f[S.STEP] > 0) checkWV(f[S.STEP], f[S.WV]);
         if (!flight.checked) placeCheck(f);
+        // G820 (C1c): LOCKSTEP MIRRORS ON ARRIVAL. The rig's answer lands between two frames (the harness delivers it
+        // at the turn's end), and whatever the page does THERE - a click on Fly on, the hand taken (INP.seed reads the
+        // levers), the skip's pose asked of the aeroplane - must read the state the inline loop would have: this
+        // one. The picture's frame still shows it (one frame behind, as C1b drew it).
+        else if (flight.live && st.mode === 'lockstep') mirror(Infinity);
       }
     }
     function checkWV(step, wv) {
@@ -217,38 +264,50 @@ const SIM_LINK = (() => {
     // ---- A FLIGHT: asked for, checked, then live ---------------------------------------------------
     function eligible(S) {
       if (S.curKey !== 'gen') return 'not the garage aeroplane (' + S.curKey + ')';
-      const ls = S.lastStart;
-      if (!S.sim.hydro && (!ls || ls.skipped)) return 'a lined-up start (the skip): C1c';
+      if (!S.sim.hydro && !S.lastStart) return 'no start recorded (applyRoute never ran)';
       return null;
     }
     function dropFlight(why) {
       if (!flight) return;
       detach();
-      if (why) { flight.inline = why; st.reason = why; st.inline++; }
+      if (why) { flight.inline = why; st.reason = why; st.inline++; lastSim = null; }   // (the page's sim flies it: the worker's is not that one any more)
       if (host && running) { post({ cmd: 'pause' }); running = false; }
       st.phase = flight.inline ? 'inline' : 'idle';
     }
     function begin(S) {
       if (flight) detach();
       flight = { ap: S.ap, sim: S.sim, def: S.def, epoch: 0, view: null, ready: null, live: false, checked: false, posted: 0,
-                 inline: null, frames: 0, wv0: 0, sent: { started: null, manual: null }, lastStep: 0 };
+                 inline: null, frames: 0, wv0: 0, sent: { started: null, manual: null, over: false }, lastStep: 0, shown: 0 };
       st.flights++; st.placeOk = null; st.placeDiff = null; st.reason = null; st.stepsPosted = 0; st.lastStep = 0;
       const why = eligible(S) || (start() ? null : dead);
-      if (why) { flight.inline = why; st.reason = why; st.inline++; st.phase = 'inline'; return; }
-      const ls = S.lastStart, isl = W.ISLAND_BOOT;
-      const place = { from: S.fromId, to: S.destId, stand: (ls && ls.taxi && ls.stand) ? JSON.parse(JSON.stringify(ls.stand)) : false, seat: true };
+      if (why) { flight.inline = why; st.reason = why; st.inline++; st.phase = 'inline'; lastSim = null; return; }
+      const ls = S.lastStart;
+      // G820 (C1c): the skip to line-up (placeLinedUp - from the button, or the 'lined up' start) is the host's too:
+      // the stand the taxi would start from, the pose asked of a pilot planning from it
+      const lined = !!(ls && ls.skipped && ls.stand);
+      const place = { from: S.fromId, to: S.destId, stand: (ls && (ls.taxi || lined) && ls.stand) ? JSON.parse(JSON.stringify(ls.stand)) : false, seat: true, lineup: lined };
+      // ...and the SITE the page's skip plans on: lastStart's, taken when the flight began - an editor's edit since
+      // (a parked aeroplane moved: the site's way out round them) is not in it, and the page's pilot plans on it
+      if (lined && ls.stSite) { try { place.site = typeof structuredClone === 'function' ? structuredClone(ls.stSite) : JSON.parse(JSON.stringify(ls.stSite)); } catch (e) { place.site = null; } }
       let shake = null;
       try { shake = S.shake ? S.shake() : null; } catch (e) { shake = null; }
       const m = { cmd: 'init', spec: S.genSpec ? JSON.parse(JSON.stringify(S.genSpec)) : null, place,
                   pilot: { kind: S.pilotChoice || 'auto', shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null };
+      if (cardNext && cardNext.ap === S.ap) m.pilot.card = cardNext.card;
+      cardNext = null;
+      // G820 (C1c): ONE SIM PER BUILD, as the page's: the worker keeps the sim it flew last when the page flies the same
+      // sim object again (a reset, the skip, the shed's round trip), and a sim it makes anew takes the page's sim.out
+      // (a reset does not clear it; the pilot's first update reads it when the flight starts `started`)
+      m.keepSim = !!(lastSim && lastSim === S.sim);
+      try { const o0 = {}; for (const k of Object.keys(S.sim.out || {})) if (k !== 'hydro') o0[k] = S.sim.out[k];
+            m.out = typeof structuredClone === 'function' ? structuredClone(o0) : JSON.parse(JSON.stringify(o0)); } catch (e) { m.out = null; }
+      lastSim = S.sim;
       if (!worldSent) {
         // the registry so far (the premises stream, the hangar, the parked aeroplanes): before the world is placed on
         const ops = liveOps();
         opsQ = [];
         if (ops.length) worldCmd({ cmd: 'obst', ops });
-        m.world = { premises: o.premises ? o.premises() : null, seed: 0, day: m.day,
-                    opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER },
-                    fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER } : null, boot: null };
+        m.world = worldMsg();
         m.day = null;
       } else { flushOps(); m.world = 'keep'; }
       worldSent = true;
@@ -328,7 +387,7 @@ const SIM_LINK = (() => {
       def('reset', { writable: true, value: function () { dropFlight(null); flight = null; st.phase = 'idle'; return orig.reset.apply(sim, arguments); } });
       def('ctl', { writable: true, value: ctlP });
       patch.set = null; patch.eng = [];
-      F.live = true;
+      F.live = true; F.shown = F.lastStep = 0; st.diverged = false;
       st.phase = 'live';
       // step 0: the page's levers as they stand (the cockpit wrote under the hold), then who is flying
       const set = {};
@@ -375,15 +434,17 @@ const SIM_LINK = (() => {
       }
       merge(F.ap, V.ap, 3, AP_SKIP.concat(AP_WHOLE));
       for (const k of AP_WHOLE) if (k in V.ap && F.ap[k] !== V.ap[k]) F.ap[k] = V.ap[k];
-      const step = f[S.STEP], d = step - F.lastStep;
+      const step = f[S.STEP];
       F.lastStep = step; st.lastStep = step;
-      return d > 0 ? d : 0;
+      if (f[S.FLAGS] & S.F_DIVERGED) st.diverged = true;
+      return step;
     }
 
     // ---- THE LOOP'S DOORS -------------------------------------------------------------------------------
     // the step block: null = fly this frame inline (no worker, not this flight); else the frame's result
     // { ran: the steps the picture moved on, simDt: their sim seconds, hold: nothing flies yet (the frame owes nothing) }
     function frame(nStep, simRate) {
+      if (dead && (!flight || flight.inline)) return null;   // no worker to be had: the page's loop, as it always was
       const S = o.get();
       if (!flight || S.ap !== flight.ap || S.sim !== flight.sim) begin(S);
       const F = flight;
@@ -395,6 +456,9 @@ const SIM_LINK = (() => {
       const cmd = c => { stamp(c); V.send(c); };
       if (S.started !== F.sent.started) { cmd({ cmd: S.started ? 'start' : 'hold' }); F.sent.started = S.started; }
       if (S.manual !== F.sent.manual) { cmd({ cmd: 'manual', on: !!S.manual }); F.sent.manual = S.manual; }
+      if (!!S.over !== F.sent.over) {   // G820: the card's latch (the hand's ending stands down), endFlight's outcome with it
+        cmd({ cmd: 'over', on: !!S.over, outcome: S.over && F.ap.report ? F.ap.report.outcome || null : null }); F.sent.over = !!S.over;
+      }
       if (S.manual && S.INP) {
         const h = { de: null, da: null, dr: null, thr: null, brake: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
         S.INP.write(h);
@@ -418,31 +482,90 @@ const SIM_LINK = (() => {
         if (st.wvLagFrames > st.wvMaxLag) st.wvMaxLag = st.wvLagFrames;
       }
       st.batches++;
-      const ran = mirror(performance.timeOrigin + performance.now());
+      mirror(performance.timeOrigin + performance.now());
+      const ran = Math.max(0, F.lastStep - F.shown);
+      F.shown = F.lastStep;
       st.physMs = performance.now() - t0;
-      return { ran, simDt: ran / 60, hold: false };
+      // G820 (C1c): G130's check from the worker - the snapshot's flag, read every frame (the page's own reads the
+      // mirrored p every 30th frame, as inline does)
+      // simDt (the page's day - DAY_CLOCK - and its script's clock): LOCKSTEP ticks what the frame POSTED, as the inline
+      // loop ticks what it stepped, in the same batches - the page's day then stands where the worker's does at every
+      // frame's end, and the next flight's init hands the worker that day (G820: the second flight of a page, after a
+      // reset, the skip or the shed, was a frame's day behind); real time ticks what the picture moved on
+      out.ran = ran; out.simDt = (st.mode === 'lockstep' ? nStep : ran) / 60; out.hold = false; out.diverged = st.diverged;
+      return out;
     }
+    const out = { ran: 0, simDt: 0, hold: false, diverged: false };
     // a frame that flies nothing (the shed, the roll-out screen, a pause, the card): the worker's clock stops
     function idle() {
+      if (dead) return;
       if (running && host) { post({ cmd: 'pause' }); running = false; }
+      // G820 (C1c): the world's changes made while nothing flies (the editor's rebuild under its pause, the scenery
+      // mode's streaming) go now - stamped at this boundary in lockstep, as they apply before the next step inline
+      if (host && opsQ.length) { flushOps(); if (flight && flight.live && flight.view) flight.view.flush(); }
+    }
+    // G820 (C1c): THE SHED - no flight is the worker's there. Every way in resets the page's sim, which takes the
+    // mirror down (above); but a build committed on the way in (enterGarage's setAircraft for a pending spec) resets a
+    // NEW sim and left the old flight's mirror standing on the old one: the flight is let go here, whatever sim it was on
+    function shed() {
+      idle();
+      if (!flight) return;
+      dropFlight(null); flight = null;
+      st.phase = dead ? 'dead' : 'idle';
     }
     // the roll-out screen: the flight is placed already (fullReset ran before the screen) - the worker makes its world
     // and the same flight under the screen, so the stand does not wait for it when the screen lifts
     function warm() {
+      if (dead) return;
       const S = o.get();
       if (!flight || S.ap !== flight.ap || S.sim !== flight.sim) begin(S);
       idle();
     }
+    // G820 (C1c): FLY ON (app.js nextLeg, after it made the page's new pilot): the worker's pilot is made anew at the
+    // same step boundary, departing from where the last leg ended - no reset, no new flight; the page's new `ap` is
+    // this flight's from now on (the mirror writes the worker's pilot into it)
+    function leg(from, to) {
+      const F = flight; if (!F) return;
+      const S = o.get();
+      F.ap = S.ap;
+      if (F.inline) return;
+      if (!F.live) { dropFlight('Fly on before the worker took the flight'); return; }
+      const c = { cmd: 'leg', from, to }; stamp(c); F.view.send(c);
+      st.legs++;
+    }
+    // G820 (C1c): THE BENCH'S TEST CARD (app.js startTestFlight: ap.setCard in the roll-out's callback, before this
+    // flight is asked of the worker) - kept for the next init of that pilot, or sent at the step when the flight is live
+    let cardNext = null;
+    function card(c) {
+      const F = flight, S = o.get();
+      if (F && F.live && F.ap === S.ap) { const x = { cmd: 'setCard', card: Object.assign({}, c) }; stamp(x); F.view.send(x); return; }
+      cardNext = { ap: S.ap, card: Object.assign({}, c) };
+    }
+    // the worker's readings for the recorder and rollout_perf (one object, rewritten: nothing allocated a frame)
+    const P = { live: false, stepMs: NaN, dil: NaN, droppedS: NaN, late: NaN, step: 0, maxMs: NaN };
+    function perf() {
+      const F = flight, f = F && F.live && F.view ? F.view.snapshot() : null;
+      P.live = !!f;
+      if (f) { const S = F.ready.slots; P.stepMs = f[S.STEPMS]; P.dil = f[S.DIL]; P.droppedS = f[S.DROPPED]; P.late = f[S.LATE]; P.step = f[S.STEP]; P.maxMs = f[S.MAXMS]; }
+      else { P.stepMs = P.dil = P.droppedS = P.late = P.maxMs = NaN; P.step = 0; }
+      return P;
+    }
     const api = {
-      frame, idle, warm,
+      frame, idle, warm, shed, prewarm, leg, perf, card,
       state: () => Object.assign({}, st, { dead, flight: flight ? { live: flight.live, inline: flight.inline, posted: flight.posted, frames: flight.frames, epoch: flight.epoch } : null,
                                            view: flight && flight.view ? flight.view.state() : null }),
       live: () => !!(flight && flight.live),
+      dead: () => dead,
       record: () => (o.premises ? o.premises() : null),   // the premises the worker's world is made on (the page's WB.premisesPlaced)
       ask: () => { if (host) post({ cmd: 'state' }); },
       // the world's facts at points, the worker's (state().probe when it lands) and the page's (returned) - the triage
       // of a divergence (sim_host.js simHostProbe)
-      probe: (pts, t, tag, opts) => { st.probe = null; if (host) post({ cmd: 'probe', pts, t, tag, opts }); return SIM_HOST.probe(world, pts, t, null, opts); },
+      // (G820: real time - the registry's ops so far go first, so both answers are of the same world; lockstep keeps its stamps)
+      probe: (pts, t, tag, opts) => {
+        st.probe = null;
+        if (host) { if (st.mode !== 'lockstep' && opsQ.length) { flushOps(); if (flight && flight.live && flight.view) flight.view.flush(); } post({ cmd: 'probe', pts, t, tag, opts }); }
+        return SIM_HOST.probe(world, pts, t, null, opts);
+      },
       // the harness's door: the host's applied-command log (sim_host.js {cmd:'log'})
       log: () => { if (host) post({ cmd: 'log' }); },
     };
