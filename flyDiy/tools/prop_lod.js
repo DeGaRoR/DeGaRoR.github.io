@@ -31,7 +31,21 @@
 //
 // Usage: node tools/prop_lod.js            (bake the levels)
 //        node tools/prop_lod.js --report   (decimate, print, write nothing)
-// Run after tools/pier_prep.py (the levels are cut from its bins).
+//        node tools/prop_lod.js --kit props   (the HANGAR's props, AS5b below)
+// Run after tools/pier_prep.py (the levels are cut from its bins) - or, for
+// --kit props, after tools/prop_prep.py.
+//
+// THE HANGAR'S PROPS (AS5b, G933; futureDesigns/ASSETS-2026-09-27.md §5.3
+// M11). The 45 props of media/geo/props/ - a 137k bandsaw, a 120k thicknesser,
+// ~1 M triangles in all - had no level at all. `--kit props` cuts them the pier
+// kit's way, BESIDE the as-is: the bins prop_prep.py wrote are read, never
+// rewritten ([[import-models-as-is]]); the levels are props of their own in
+// src/props/props_lods.js (listed in props_packs.json, which prop_prep.py keeps
+// as a foreign pack), bins under media/geo/props_lod/. One ladder for all of
+// them, the pier kit's YARD ladder - its ratios and its distances (a quarter
+// past 20 m, 6 % past 60 m, never under 1 200 / 400 triangles) - so a 414-
+// triangle crate gets nothing and the bandsaw 34k / 8k. The Jodel airframes
+// (media/geo/airframe/, flat-shaded structures) are not in the kit.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -39,10 +53,22 @@ const vm = require('vm');
 const { writeMedia, pruneMedia, BASE_DECL, readGeo } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
-const PIER = path.join(ROOT, 'src', 'pier');
-const SUB = 'geo/pier_lod';
-const OUT = path.join(PIER, 'pier_lods.js');
-const MANIFEST = path.join(PIER, 'pier_packs.json');
+// THE KITS: where the packs are read, where the levels go. `ladder` names the
+// LEVELS row every prop of the kit takes (the pier kit's props take their own
+// group's row); `only` keeps the kit to the props whose bin is in that folder.
+const KITS = {
+  pier:  { dir: 'pier', manifest: 'pier_packs.json', out: 'pier_lods.js', sub: 'geo/pier_lod',
+           from: 'baked pier packs', tex: 'media/tex/pier/' },
+  props: { dir: 'props', manifest: 'props_packs.json', out: 'props_lods.js', sub: 'geo/props_lod',
+           from: 'baked hangar prop packs', tex: 'media/tex/props/', ladder: 'shed', only: 'media/geo/props/' },
+};
+let KIT = KITS.pier, PIER = path.join(ROOT, 'src', KIT.dir), SUB = KIT.sub,
+    OUT = path.join(PIER, KIT.out), MANIFEST = path.join(PIER, KIT.manifest);
+function useKit(name) {
+  KIT = KITS[name];
+  if (!KIT) throw new Error('prop_lod: no kit ' + name + ' (' + Object.keys(KITS).join(', ') + ')');
+  PIER = path.join(ROOT, 'src', KIT.dir); SUB = KIT.sub; OUT = path.join(PIER, KIT.out); MANIFEST = path.join(PIER, KIT.manifest);
+}
 
 // THE LEVELS, per group: [target, floor, metres] - the target a triangle
 // count (>= 1) or a share of the prop's own (< 1), never cut below `floor`
@@ -63,11 +89,14 @@ const LEVELS = {
   auto:   [[0.25, 2500, 15], [0.06, 700, 45], [0.015, 200, 120]],   // the everyday vehicles (G432): 0.4-9k-triangle game assets, cut like the cars - the 2k bodies get a 700 and a 200, the semis a 2.5k first
   pier:   [[0.3, 2000, 20], [0.08, 600, 60]],
   yard:   [[0.25, 1200, 20], [0.06, 400, 60]],
+  // the hangar's props (AS5b, G933): the yard's ladder, as is - the same kind of
+  // thing (a workshop's furniture, drums, carts) seen from the same distances
+  shed:   [[0.25, 1200, 20], [0.06, 400, 60]],
 };
 // the levels a prop actually gets: [target tris, metres]
-function levelsFor(prop) {
+function levelsFor(prop, ladder) {
   const out = [];
-  for (const [t, floor, d] of LEVELS[prop.group] || []) {
+  for (const [t, floor, d] of LEVELS[ladder || prop.group] || []) {
     const want = Math.max(floor, t < 1 ? Math.round(t * prop.nt) : t);
     if (want < 0.7 * prop.nt) out.push([want, d]);
   }
@@ -228,7 +257,9 @@ function packParts(name, M, idx) {
 // ---------------------------------------------------------------------------
 function main(argv) {
   const report = argv.includes('--report');
-  const only = argv.filter(a => !a.startsWith('--'));
+  const ki = argv.indexOf('--kit');
+  if (ki >= 0) useKit(argv[ki + 1]);
+  const only = argv.filter((a, i) => !a.startsWith('--') && !(ki >= 0 && i === ki + 1));
   const packs = readPacks();
   const texs = {};
   for (const p of packs) Object.assign(texs, p.texs);
@@ -236,7 +267,8 @@ function main(argv) {
   let tris0 = 0, tris1 = 0;
   for (const pack of packs) for (const key of pack.order) {
     const prop = pack.props[key];
-    const levels = levelsFor(prop);
+    if (KIT.only && !(prop.bin && prop.bin.startsWith(KIT.only))) continue;
+    const levels = levelsFor(prop, KIT.ladder);
     if (!levels.length || (only.length && !only.includes(key))) continue;
     const bin = readGeo(prop.bin);
     // the material meshes, welded across the baker's 65k cuts
@@ -291,11 +323,11 @@ function main(argv) {
   const pack = { v: 2, groups: [['lod', 'levels of detail']], order,
                  texs: Object.fromEntries([...usedTex].map(id => [id, texs[id]])), props };
   const body = '// GENERATED FILE - DO NOT EDIT. Built by tools/prop_lod.js from the\n' +
-    '// baked pier packs. Group: levels of detail - every prop here\n' +
+    '// ' + KIT.from + '. Group: levels of detail - every prop here\n' +
     '// is a decimated stand-in for the prop named by its `lodOf`, used past\n' +
     '// `lodDist` metres (src/viewer/props.js places a THREE.LOD). Decoded by\n' +
     '// src/core/51_prop_codec.js; geometry in media/' + SUB + '/, textures the\n' +
-    '// full props\' own in media/tex/pier/.\n' +
+    '// full props\' own in ' + KIT.tex + '.\n' +
     'registerPropPack((p => {\n  ' + BASE_DECL + '\n' +
     "  for (const k in p.texs) if (typeof p.texs[k] === 'string') p.texs[k] = B + p.texs[k];\n" +
     '  for (const k in p.props) if (p.props[k].bin) p.props[k].bin = B + p.props[k].bin;\n' +
@@ -312,4 +344,4 @@ function main(argv) {
 }
 
 if (require.main === module) main(process.argv.slice(2));
-module.exports = { decimate, mergeParts, packParts, readPart, LEVELS, levelsFor };
+module.exports = { decimate, mergeParts, packParts, readPart, LEVELS, levelsFor, KITS };
