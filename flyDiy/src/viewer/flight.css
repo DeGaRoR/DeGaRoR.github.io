@@ -518,8 +518,10 @@
 
 /* the rail is one fixed line: the phase name clips (the longest, "SIM DIVERGED — RESET", fits), the steps
    and the fold never move */
+/* `contain:inline-size` too: a plate the player has DRAGGED on a phone is absolutely placed at width:auto, i.e. as
+   wide as its content - the rail's phase name must not be part of that (the readouts' fixed cells are) */
 #rail { display:flex; flex-wrap:nowrap; align-items:center; gap:10px; margin-top:11px;
-  height:25px; box-sizing:border-box;
+  height:25px; box-sizing:border-box; contain:inline-size;
   padding-top:10px; border-top:1px solid var(--ed-hair); }
 
 /* the fold sits at the end of the steps, where it is out of the numbers'
