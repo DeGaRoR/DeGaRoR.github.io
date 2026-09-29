@@ -213,6 +213,8 @@ console.log('6. COVERAT - what the cover ring may plant');
   const bad = P.CLASSES.filter(c => PG.PAVE_BAND[c] !== P.CLASS_DEF[c].band);
   verdict(bad.length === 0, 'PAVE_BAND (the core) equals CLASS_DEF.band (the viewer) for every class' + (bad.length ? ': ' + bad.join(', ') : ''));
   verdict(Math.abs(PG.PAVE_FADE - P.RECIPE.fadeW) < 1e-9, `PAVE_FADE ${PG.PAVE_FADE} = the recipe's fadeW ${P.RECIPE.fadeW}`);
+  // G1091: the trees' reach past a side-faded pavement ('map' / 'mapx', 27_premises.js treePaveAt) is what the pavement DRAWS there
+  verdict(Math.abs(PG.PAVE_SIDE - (P.RECIPE.sideW + P.RECIPE.edgeChip)) < 1e-9 && P.RECIPE.sideFade === 1, `PAVE_SIDE ${PG.PAVE_SIDE} = the recipe's drawn side: sideW ${P.RECIPE.sideW} + edgeChip ${P.RECIPE.edgeChip} (sideFade ${P.RECIPE.sideFade})`);
   // the record's validator must know exactly the knobs a `pav` may carry, or a misspelt key is read,
   // ignored and never reported (the Metlakatla session, 2026-09-23: "a typo in the key would not be caught")
   { const want = P.ENTRY_KNOBS.concat(['marks']).sort(), got = PG.PAV_KEYS.slice().sort();

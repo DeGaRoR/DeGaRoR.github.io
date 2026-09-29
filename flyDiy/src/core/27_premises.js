@@ -905,6 +905,29 @@ const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'pat
 const STAND_KEYS = ['n', 'pitch', 'lead', 'bar', 'u0', 'vOff'];
 const PAV_MARKS = ['auto', 'none', 'edges', 'centre'];
 const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
+// THE TREES BY THE RUNWAYS (G1091, POLISH-2; the user: "just follow the map first ... You can do both, only the map,
+// and the map + the gravel and approach fans, and I'll judge"). On Jolene's 13/31 the tree map (WorldCover's TREE
+// cells, canopy >= 2.5 m) stands 2-14 m past the paved edge, and the game drew its first tree ~60 m out: five
+// clearances stacked - the pavement's 40 m band + 6 m fade (coverAt's kill), the strip's box + 30 m (a derived
+// exclude), the gravel shoulders (y_sh13_*, a derived exclude and a GRAVEL surface), the renderer's aerodrome box
+// (wid/2 + 60, len/2 + 150) and the approach fans (x_fan*). THREE WAYS, one switch, the user picks:
+//   'today' - as it was;
+//   'map'   - the map everywhere but the paving itself: no tree on a pavement or its DRAWN side (a strip's, an
+//             apron's and a taxiway's side fades over PAVE_SIDE; an ordinary road draws its band and fade, which is
+//             what 'today' kills too), no strip box, no shoulders, no aerodrome box, no fans;
+//   'mapx'  - 'map' with the gravel shoulders and the approach fans kept as explicit excludes.
+// Only on a DATA ISLAND (the analytic world's premises keep 'today'). The page: ?rwytrees= or localStorage
+// flydiy.rwytrees (the island loader sets window.FLYDIY_RWYTREES); node: FLYDIY_RWYTREES=; a compose may pass
+// opts.rwyTrees. Default 'today' until the user has judged.
+const RWY_TREES = ['today', 'map', 'mapx'];
+const PAVE_SIDE = 1.8;    // a side-faded pavement's DRAWN side: the recipe's sideW 1.2 + edgeChip 0.6 (GATE PAVEMENT holds it)
+function rwyTreesMode(o) {
+  let v = o && o.rwyTrees;
+  if (v == null && typeof window !== 'undefined' && window.FLYDIY_RWYTREES != null) v = window.FLYDIY_RWYTREES;
+  if (v == null && typeof process !== 'undefined' && process.env && process.env.FLYDIY_RWYTREES) v = process.env.FLYDIY_RWYTREES;
+  v = String(v == null ? '' : v).toLowerCase();
+  return RWY_TREES.indexOf(v) >= 0 ? v : 'today';
+}
 function paveBand(entry, cls, isRoad) {
   const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
   return Math.max(0, b);
@@ -1437,10 +1460,51 @@ function compose(rec0, world, opts) {
   const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set && !m.look).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
   const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
-  const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), what: s.what || ['trees'] }));
-  for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id }); }
+  // G1091: the trees' variant (rwyTreesMode) - a data island's only; and each exclude says which of the runway
+  // clearances it is: `rwy` the strip's box + 30 m (b), `shoulder` a runway's gravel shoulder (c), `fan` an
+  // approach fan (e) - so excludeAt(.., 'trees') can drop them by the variant and the gates can name them
+  const RWT = /^ISLAND-/.test(String(world.id || '')) ? rwyTreesMode(o) : 'today';
+  const landRwy = runways.filter(r => !runwayIsWater(r));
+  // an approach fan: an authored exclude of trees and nothing else that opens off a strip's end - a corner within
+  // 100 m of the end, its centre beyond the end along the axis (x_fan13_*, x_fan02_*, x_fan3_*, mn_x_fan_n, nv_fan_*)
+  const fanOf = (poly, what) => {
+    if (!(what.length === 1 && what[0] === 'trees')) return null;
+    let cx = 0, cz = 0; for (const q of poly) { cx += q[0] / poly.length; cz += q[1] / poly.length; }
+    for (const r of landRwy) {
+      const E = runwayEnds(r);
+      for (const [k, e] of [[0, E.end0], [1, E.end1]]) {
+        const near = poly.some(q => Math.hypot(q[0] - e[0], q[1] - e[1]) < 100);
+        const u = (cx - r.c[0]) * E.d[0] + (cz - r.c[1]) * E.d[1];
+        if (near && (k ? u : -u) > r.len / 2) return r.id + (k ? '/1' : '/0');
+      }
+    }
+    return null;
+  };
+  // a runway's shoulder: a GRAVEL / SAND surface polygon lying inside the strip's reach (its band + the fade + 6 m, the
+  // coverAt index's) and running along it for at least half its length (y_sh13_*, y_sh02_*; not a yard or a stand)
+  const shoulderOf = poly => {
+    for (const r of landRwy) {
+      const E = runwayEnds(r), reach = r.wid / 2 + paveBand(r, (RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass).cls || 'grass', false) + PAVE_FADE + 6;
+      let u0 = Infinity, u1 = -Infinity, inside = true;
+      for (const q of poly) {
+        const dx = q[0] - r.c[0], dz = q[1] - r.c[1], u = dx * E.d[0] + dz * E.d[1], v = dx * E.n[0] + dz * E.n[1];
+        if (Math.abs(v) > reach + 0.5 || Math.abs(u) > r.len / 2 + reach) { inside = false; break; }
+        u0 = Math.min(u0, u); u1 = Math.max(u1, u);
+      }
+      if (inside && u1 - u0 >= r.len / 2) return r.id;
+    }
+    return null;
+  };
+  const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => { const what = s.what || ['trees'], fan = fanOf(s.poly, what); return Object.assign({ poly: s.poly, bbox: polyBBox(s.poly), what, id: s.id || null }, fan ? { fan } : {}); });
+  for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id, rwy: true }); }
   // a hard surface (paved / gravel / sand) grows no tree and takes no plot: an apron is an apron
-  for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) excl.push({ poly: sp.poly, bbox: polyBBox(sp.poly), what: ['trees', 'plots'], derived: true, surface: sp.id });
+  for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) {
+    const sh = +sp.surface !== SURFACE.PAVED ? shoulderOf(sp.poly) : null;
+    excl.push(Object.assign({ poly: sp.poly, bbox: polyBBox(sp.poly), what: ['trees', 'plots'], derived: true, surface: sp.id }, sh ? { shoulder: sh } : {}));
+  }
+  // G1091: which runway clearances the variant lifts, for TREES only (a strip's box still keeps plots and settlements
+  // off): 'map' all three, 'mapx' the box alone (the shoulders and the fans stay)
+  const treeOff = e => RWT !== 'today' && (e.rwy || (RWT === 'map' && (e.shoulder || e.fan)));
   // a clear zone is a derived exclude of trees
   for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) excl.push({ poly: z.poly, bbox: polyBBox(z.poly), what: ['trees'], derived: true });
   // THE TTYPE STAMPS (v1.20): each polygon with the code it stamps. 0 sea and 1 lake are
@@ -1975,7 +2039,7 @@ function compose(rec0, world, opts) {
       if (exIdxN !== excl.length) { exIdx.clear(); exIdxN = excl.length; excl.forEach(e => gsAddTo(exIdx, e.bbox, e)); }
       const list = exIdx.get(gsKey(Math.floor(L[0] / GS_C), Math.floor(L[1] / GS_C)));
       if (!list) return false;
-      for (const e of list) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && inPoly(e.poly, L[0], L[1])) return true;
+      for (const e of list) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && !(what === 'trees' && treeOff(e)) && inPoly(e.poly, L[0], L[1])) return true;
       return false;
     },
     // (G614) the linear scans the indexes replaced - the reference GATE PREMRASTER holds them to
@@ -1987,8 +2051,21 @@ function compose(rec0, world, opts) {
     },
     excludeAtScan(x, z, what) {
       const L = F.toLocal(x, z);
-      for (const e of excl) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && inPoly(e.poly, L[0], L[1])) return true;
+      for (const e of excl) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && !(what === 'trees' && treeOff(e)) && inPoly(e.poly, L[0], L[1])) return true;
       return false;
+    },
+    // G1091: THE TREES BY THE RUNWAYS - the variant this composition plants by, the excludes it knows as runway
+    // clearances (the gates print them), and the two point queries the woodland and the fill share:
+    //   treePaveAt(x, z)  a tree's trunk may not stand here for the PAVEMENT's sake ('today': coverAt's kill - the
+    //                     pavement, its band and the fade; 'map' / 'mapx': the pavement and its DRAWN side only)
+    //   shoulderAt(x, z)  the point is on a runway's gravel shoulder (the trees' ground there is the island's in 'map')
+    rwyTrees: RWT,
+    rwyClearances: () => excl.filter(e => e.rwy || e.shoulder || e.fan).map(e => ({ id: e.id || e.surface || ('box:' + e.runway), kind: e.rwy ? 'box' : e.shoulder ? 'shoulder' : 'fan', runway: e.runway || e.shoulder || e.fan, off: treeOff(e) })),
+    treePaveAt: (x, z) => treePaveAt(x, z),
+    shoulderAt(x, z) {
+      const L = F.toLocal(x, z);
+      for (const e of excl) if (e.shoulder && inBB(e.bbox, L[0], L[1]) && inPoly(e.poly, L[0], L[1])) return e.shoulder;
+      return null;
     },
     roadNear(x, z) { const L = F.toLocal(x, z); let d = Infinity; for (const r of roadObjs) d = Math.min(d, roadDist(r, L[0], L[1])); return d; },
     inExtent(x, z) { const L = F.toLocal(x, z); return inBB(ext, L[0], L[1]); },
@@ -2029,6 +2106,21 @@ function compose(rec0, world, opts) {
   // editor draws as surface, which that index does not hold) at the point and `margin` round it. The GRAVEL / SAND
   // polygons are not asked: on Jolene they are the runways' own shoulders (y_sh13_*, y_sh02_*), where the stones lie.
   // -> null | { d, id, kind, cls } (d: metres inside that pavement's edge, > -margin; kind 'surface' for a polygon).
+  // G1091: a tree's trunk and the pavement. 'today' is coverAt's kill verbatim (the pavement, its band, the fade: 46 m
+  // past 13/31's edge). 'map' / 'mapx' keep a tree off the paving and what the pavement DRAWS past its edge: a strip, a
+  // paved polygon and a taxiway fade their side out over PAVE_SIDE (G660, G980); an ordinary road still draws its
+  // gravel band and fades over PAVE_FADE past it, so its reach is 'today's (band + fade). The PAVED surface polygons
+  // are the derived excludes' (never lifted).
+  function treePaveAt(x, z) {
+    if (RWT === 'today') { const c = coverAt(x, z, 1); return !!(c && c.kill > 0); }
+    const L = F.toLocal(x, z), lx = L[0], lz = L[1];
+    const cell = CIDX.query(lx, lz);
+    if (cell) for (const it of cell) {
+      const reach = it.kind === 'road' && !(it.road && it.road.taxiway) ? it.band + PAVE_FADE : PAVE_SIDE;
+      if (dEdgeOf(it, lx, lz) > -reach) return true;
+    }
+    return false;
+  }
   function pavedNear(x, z, margin, skip) {
     const m = margin > 0 ? margin : 0, L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
@@ -2560,7 +2652,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

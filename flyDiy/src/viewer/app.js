@@ -8658,6 +8658,12 @@
   let flDevOn = prefGet('flydiy.flDev', '') === '1';
   function flRailSync() {
     const scen = !!(window.SCENERY && window.SCENERY.on);
+    // G1091 (POLISH-2): with DEV on, a small tag names the trees-by-the-runways variant this world was planted with
+    { let tg = $('rwyTreesTag');
+      if (!tg && document.createElement && $('ui') && $('ui').appendChild) { tg = document.createElement('div'); tg.id = 'rwyTreesTag'; $('ui').appendChild(tg); }
+      if (tg) { const m = world && world.rwyTrees ? world.rwyTrees() : null;
+                tg.hidden = !(flDevOn && m && world.island);
+                tg.textContent = 'trees by the runways: ' + (m === 'mapx' ? 'map + shoulders & fans (mapx)' : m === 'map' ? 'the map (map)' : 'today'); } }
     for (const b of $('flRail').children) {
       if (b.dataset.f === 'dev') b.hidden = !(flDevOn || scen);
       if (b.dataset.dev === 'toggle') {
@@ -9326,6 +9332,18 @@
       flLive(body, 'cover', 'flGndRing');
       flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. The WORLD rail (F9, the right edge) holds the dials.');
       flGroundLive(sim ? sim.out : null);
+      // G1091 (POLISH-2): THE TREES BY THE RUNWAYS - the three ways the user is judging (27_premises.js RWY_TREES):
+      // the pick is kept (flydiy.rwytrees) and the page reloads, since the woods are planted with the world
+      const rtNow = world && world.rwyTrees ? world.rwyTrees() : 'today';
+      flRow(body, 'trees by the runways').classList.add('fsec');
+      flPills(body, [{ label: 'today', value: 'today', title: 'as before: the woods held back ~60 m from 13/31' },
+                     { label: 'the map', value: 'map', title: 'the tree map everywhere but the paving and its drawn side' },
+                     { label: 'map + shoulders & fans', value: 'mapx', title: 'the map, with the gravel shoulders and the approach fans kept clear' }],
+        o => o.value === rtNow,
+        o => { if (o.value === rtNow) return; prefSet('flydiy.rwytrees', o.value);
+               try { const u = new URL(location.href); if (u.searchParams.has('rwytrees')) { u.searchParams.set('rwytrees', o.value); location.replace(u.href); return; } } catch (e) {}
+               location.reload(); });
+      flNote(body, 'Where the trees may stand by the runways - the tree map (WorldCover + the canopy) or the clearances. It reloads the page; ?rwytrees=today|map|mapx in the address says the same.');
       map();
     },
     // G760: THE TEST MODE WITHOUT PHYSICS - the scenery mode (SCENERY, ?scenery=1): the solver held (no step,
