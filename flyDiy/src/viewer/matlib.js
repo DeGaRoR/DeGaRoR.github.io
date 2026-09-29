@@ -15,6 +15,10 @@
 //     glow    PBR with an emissive the day's hand dims
 //     basic   unlit (MeshBasicMaterial): the loom, the flat cards
 //     shader  a special shader that stays its own (ShaderMaterial)
+//     house   THE TOWN'S (C3b, G855): opaque PBR whose finish is not a uniform but a SLOT into house_tarr.js's float
+//             table and its texture arrays - the TARR town material (G574) and the town kit's (townkit.js: the slot
+//             looked up by the vertex's ROLE x the instance's finish set). Its hook is house_tarr.js's; its rows
+//             (the finishes a look wears) are the slot table's, counted here as rows of this table (`row`)
 // The shapes above are the array-free step (AS4a-EARLY): the same material
 // objects three already draws, made once per distinct RECORD. THE ARRAY SHAPES
 // (AS4a-rest, G941; `MATLIB.arr`, below) go the rest of the way: the record a
@@ -60,6 +64,7 @@ var MATLIB = (() => {
     basic:  { cls: 'MeshBasicMaterial', base: {} },
     shader: { cls: 'ShaderMaterial', base: {} },
     depth:  { cls: 'MeshDepthMaterial', base: {} },
+    house:  { cls: 'MeshStandardMaterial', base: { color: 0xffffff, roughness: 1, metalness: 0 } },
   };
   const S = { share: true };
   if (typeof location !== 'undefined' && /[?&]matlib=0/.test(location.search || '')) S.share = false;

@@ -1,0 +1,172 @@
+[
+ {
+  "name": "r1_street_nw_unique",
+  "at": [
+   610,
+   -2600,
+   1.5
+  ],
+  "cam": [
+   -0.769,
+   0.02,
+   132
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('unique'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ },
+ {
+  "name": "r1_street_nw_kit",
+  "at": [
+   610,
+   -2600,
+   1.5
+  ],
+  "cam": [
+   -0.769,
+   0.02,
+   132
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('kit'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ },
+ {
+  "name": "r2_street_se_unique",
+  "at": [
+   560,
+   -2585,
+   1.5
+  ],
+  "cam": [
+   2.724,
+   0.03,
+   98
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('unique'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ },
+ {
+  "name": "r2_street_se_kit",
+  "at": [
+   560,
+   -2585,
+   1.5
+  ],
+  "cam": [
+   2.724,
+   0.03,
+   98
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('kit'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ },
+ {
+  "name": "r3_quarter_a_unique",
+  "at": [
+   620,
+   -2615,
+   1
+  ],
+  "cam": [
+   0.9,
+   0.35,
+   120
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('unique'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ },
+ {
+  "name": "r3_quarter_a_kit",
+  "at": [
+   620,
+   -2615,
+   1
+  ],
+  "cam": [
+   0.9,
+   0.35,
+   120
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('kit'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ },
+ {
+  "name": "r4_quarter_b_unique",
+  "at": [
+   600,
+   -2600,
+   1
+  ],
+  "cam": [
+   -2.2,
+   0.45,
+   150
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('unique'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ },
+ {
+  "name": "r4_quarter_b_kit",
+  "at": [
+   600,
+   -2600,
+   1
+  ],
+  "cam": [
+   -2.2,
+   0.45,
+   150
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('kit'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ },
+ {
+  "name": "r5_overview_unique",
+  "at": [
+   620,
+   -2620,
+   1
+  ],
+  "cam": [
+   -0.8,
+   1,
+   380
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('unique'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ },
+ {
+  "name": "r5_overview_kit",
+  "at": [
+   620,
+   -2620,
+   1
+  ],
+  "cam": [
+   -0.8,
+   1,
+   380
+  ],
+  "hour": "noon",
+  "settle": 120,
+  "js": "(async () => { FLIGHT_PROBE.model().grp.visible=false; await new Promise(res => { const t0 = performance.now(); const f = () => { const K = WORLD.premises && WORLD.premises.kit; if ((K && K.status === 'ready' && K.host && !K.host.waiting && K.found >= K.rows.filter(r => !r.out).length) || (K && K.status === 'error') || performance.now() - t0 > 120000) res(1); else setTimeout(f, 250); }; f(); }); WORLD.premises.kitSet('kit'); return 1; })()",
+  "report": "(() => { const K = WORLD.premises.kit, h = K.host; return JSON.stringify({ mode: K.mode, shown: h && h.visible, status: K.status, err: K.err, rows: K.rows && K.rows.length, found: K.found, hidden: K.hide.size, looks: h && h.stats.looks, waiting: h && h.waiting, slotless: h && h.stats.slotless, rungs: h && h.rungs() }); })()"
+ }
+]

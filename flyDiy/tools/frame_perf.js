@@ -25,7 +25,7 @@
 // Usage:  node tools/frame_perf.js [--url http://localhost:8477/flyDiy/dev.html?world=jolene]
 //              [--tiers full,msaa,off] [--places stand,forest,sea] [--frames 120]
 //              [--probes "base=1;;bloom=GFX.set('bloom','soft')"]   (named configurations, each measured at each place)
-//              [--size 2560x1440] [--garage] [--pre "<js>"] [--out tools/perf/frame_perf.json] [--compare <json>] [--label <name>] [--headed] [--quiet [--quiet-max 20]] [--eval "<js>"]
+//              [--size 2560x1440] [--garage] [--pre "<js>"] [--out tools/perf/frame_perf.json] [--compare <json>] [--label <name>] [--headed] [--quiet [--quiet-max 20]] [--eval "<js>"] [--after "<js>"]
 // Needs the dev server up (tools/_serve.js) and Chrome. Prints a table per
 // place x tier x probe; writes the JSON. This is a MEASUREMENT, not a gate:
 // it needs a GPU and a browser, which the gate battery does not assume.
@@ -327,10 +327,13 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
         const row = { place, probe: probe.name, tier, where: JSON.parse(where === 'garage' ? '{"at":"garage"}' : where), frame: { median: +med(Raw.frames).toFixed(1), p90: +p90(Raw.frames).toFixed(1), timed: +med(P.frames).toFixed(1) },
                       gpuSum: +sum.toFixed(2), cpuWorld: +P.cpuWorld.toFixed(2), calls: P.calls1, tris: P.tris, gpuUtilBefore: util, tags };
         try { row.post = JSON.parse(await ev('JSON.stringify(window.POST_FX && POST_FX.stats ? POST_FX.stats : null)')); } catch (e) { row.post = null; }
+        // --after '<js>' (C3b, G857): an expression read after each row (a module's own counters over the row's frames), in the JSON
+        if (opt('after', null)) { try { row.after = JSON.parse(await ev('(async () => JSON.stringify(await (' + opt('after') + '\n)))()')); } catch (e) { row.after = String(e.message || e); } }
         rows.push(row);
         const order = Object.keys(tags).sort((a, b) => tags[b].median - tags[a].median);
         console.log(`  ${place.padEnd(7)} ${probe.name.padEnd(10)} ${tier.padEnd(5)} frame ${String(row.frame.median).padStart(6)} ms (p90 ${row.frame.p90}; ${row.frame.timed} under the timer) · gpu passes ${row.gpuSum} ms · cpu world ${row.cpuWorld} ms · ${row.calls} calls · ${(row.tris / 1e6).toFixed(1)} Mtris` + (util > 15 ? ` · GPU WAS ${util} % BUSY BEFORE` : ''));
         console.log('      ' + order.map(k => `${k} ${tags[k].median}` + (tags[k].calls !== 1 ? `×${tags[k].calls}` : '')).join(' · '));
+        if (row.after !== undefined) console.log('      after -> ' + JSON.stringify(row.after));
       }
     }
     if (!TIERS.includes('gfx')) await ev("FLYDIY_AA.setTier('full')");

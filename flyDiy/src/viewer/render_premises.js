@@ -1387,12 +1387,32 @@ function make(THREE, scene, world, rec0, opts) {
   const matSig = m => [m.type, m.map && m.map.uuid, m.normalMap && m.normalMap.uuid, m.roughnessMap && m.roughnessMap.uuid, m.aoMap && m.aoMap.uuid, m.color && m.color.getHexString(), m.roughness, m.metalness, m.side, m.alphaTest, m.vertexColors, m.flatShading, m.customProgramCacheKey ? m.customProgramCacheKey() : '', Object.keys(m.userData || {}).filter(k => !TARR_UD.has(k)).sort().map(k => k + ':' + uval(m.userData[k])).join('|')].join('#');
   const TARR_UD = new Set(['houseU', 'glassU', 'hookHouse', 'hookGlass', 'hookCloud']);   // G574's handles: G566's signature is as it was
 
+  // THE TOWN KIT'S LOOK REVIEW (C3b, G855-G859; ARCH-2026-09-27 §4.5: "the user will judge repetition by eye"). One
+  // street drawn twice - its unique houses as the game builds them, and the kit's instances of the same plots
+  // (townkit.js: tools/town_kit.js's archetypes on MATLIB's `house` shape, one BatchedMesh a material) - switched live
+  // (F7, or the label) under the same camera. NOTHING CHANGES WITHOUT THE FLAG: no town is converted here (C3c's).
+  //   ?kitab=1 | <road id>[,<road id>] | village | all   the street(s): 1 = r_village (the village road); `village`
+  //                  every village street; `all` every record of the table (Metlakatla's plots too: a perf probe -
+  //                  with the town off they stand on Metlakatla's bare ground)
+  //   ?kitmode=kit|unique   what shows first (kit)      ?kithost=batch|inst   the host (the measurement's two arms)
+  //   ?kitfade=0            the hard LOD switch (no band)
+  // Needs the pack built locally: `node tools/town_kit.js --media` (media/townkit/ + src/core/townkit_pack.json, not
+  // committed - G850's decision 1). Declared at make's top level, outside the spans GATE TARR and the premises cook lift
+  // (GATE TARR: HLOD .. texMean; the cook: HLOD .. LOD_U, its page hash), read only by ticks (no TDZ, G570).
+  const KIT = { on: false, sel: null, mode: 'kit', hostMode: 'batch', fade: true, host: null, status: 'off', err: null, rows: null, hide: new Set(), shown: null, frame: 0, label: null, t0: 0 };
+  if (typeof location !== 'undefined' && location.search && o.game) {
+    const q = /[?&]kitab=([\w,-]+)/.exec(location.search);
+    if (q) { KIT.on = true; KIT.sel = q[1] === '1' ? 'r_village' : q[1]; }
+    const qh = /[?&]kithost=(inst|batch)\b/.exec(location.search); if (qh) KIT.hostMode = qh[1];
+    const qm = /[?&]kitmode=(kit|unique)\b/.exec(location.search); if (qm) KIT.mode = qm[1];
+    if (/[?&]kitfade=0\b/.test(location.search)) KIT.fade = false;
+  }
   // the stack (G574): made on first use. Its ready signal (a layer the bake asked for is in the stack now) marks the
   // cells that baked without it (cl.tarrShort) for a rebake - one cell a frame, like every bake (G593: it cleared the
   // signature and the WHOLE town rebaked twice in a row at the end of the queue). TARR is declared by LAMPS.
   function tarr() {
     if (TARR || typeof window === 'undefined' || !window.HOUSE_TARR || !THREE.DataArrayTexture) return TARR;
-    TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { for (const cl of HLOD.cellMap.values()) if (cl.tarrShort) cl.sig = ''; hlodHouses = -1; },
+    TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { for (const cl of HLOD.cellMap.values()) if (cl.tarrShort) cl.sig = ''; hlodHouses = -1; if (KIT.host) KIT.host.relook(); },
                                            lod: { U: LOD_U, decl: LOD_DECL, glsl: lodDither(['out:A']) } });   // G801: the near rung leaves at near
     TARR.lit.value = LAMPS.kLit === undefined ? 1 : LAMPS.kLit;
     TARR.begin();   // the slot table lives as long as the stack: a cell's rebake re-uses the rows it had (same values, same slot)
@@ -1414,7 +1434,7 @@ function make(THREE, scene, world, rec0, opts) {
   function hlodScan() {
     const byCell = new Map();
     for (const g of G.houses.children) {
-      if (!g.userData.thrift || !g.userData.frozen || g.userData.batch) continue;
+      if (!g.userData.thrift || !g.userData.frozen || g.userData.batch || g.userData.kitAB) continue;   // (C3b: the look review's houses stay whole)
       const D = detailOf(g); if (!D.keep.length) continue;
       const k = Math.floor(D.c.x / HLOD.cell) + ',' + Math.floor(D.c.z / HLOD.cell);
       let L = byCell.get(k); if (!L) byCell.set(k, L = []); L.push(g);
@@ -1702,10 +1722,110 @@ function make(THREE, scene, world, rec0, opts) {
       g.updateMatrixWorld = SKIP_UMW; g.userData.skipWalk = true;
     }
   }
+  // ---- THE TOWN KIT'S LOOK REVIEW (C3b; the flags and the notes at KIT's declaration) ------------------------------
+  const kitBase = () => (typeof FLYDIY_ASSET_BASE !== 'undefined' ? FLYDIY_ASSET_BASE : '');
+  function kitLoad() {
+    KIT.status = 'loading'; KIT.t0 = performance.now(); kitLabel();
+    const gunz = r => { if (!r.ok) throw new Error(r.url + ' ' + r.status); return new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer(); };
+    fetch(kitBase() + 'src/core/townkit_pack.json')
+      .then(r => { if (!r.ok) throw new Error('no src/core/townkit_pack.json: build the pack with `node tools/town_kit.js --media`'); return r.json(); })
+      .then(man => { const it = (man.instances || []).find(i => i.id === 'jolene') || (man.instances || [])[0];
+        return Promise.all([fetch(kitBase() + man.pack.src).then(gunz), fetch(kitBase() + it.src).then(gunz)]); })
+      .then(([pk, it]) => { KIT.pack = window.TOWNKIT.decodePack(pk); KIT.inst = window.TOWNKIT.decodeInstances(it); KIT.status = 'decoded'; KIT.loadMs = Math.round(performance.now() - KIT.t0); })
+      .catch(e => { KIT.status = 'error'; KIT.err = String((e && e.message) || e); console.warn('townkit:', KIT.err); kitLabel(); });
+  }
+  // the street's records: its plots in THIS record (the table was sown from tools/fixtures/island_jolene.json), placed
+  // in the world through the premises frame as placeBuilt places a house
+  function kitRows() {
+    const plots = new Map(O.records.plots.map(p => [p.id, p]));
+    const sel = KIT.sel, roads = new Set(String(sel).split(','));
+    const want = r => { if (sel === 'all') return true; const p = plots.get(r.plot); if (!p) return false; return sel === 'village' ? !/^mk_/.test(String(p.zone)) : roads.has(p.road); };
+    return KIT.inst.rows.filter(want).map(r => { const w = O.frame.toWorld(r.x, r.z); return Object.assign({}, r, { x: w[0], z: w[1], yaw: r.yaw + (O.frame.yaw || 0) }); });
+  }
+  function kitBuild() {
+    const T = tarr(), HG = window.HOUSE_GEN;
+    if (!T || !HG || !window.TOWNKIT) { KIT.status = 'error'; KIT.err = 'house_tarr / HOUSE_GEN / TOWNKIT missing'; kitLabel(); return; }
+    KIT.rows = kitRows();
+    if (!KIT.rows.length) { KIT.status = 'error'; KIT.err = 'no record of the table on ' + KIT.sel; kitLabel(); return; }
+    const W1 = KIT.fade ? 120 : 0, W0 = KIT.fade ? (HLOD.fadeW || 40) : 0;
+    try { KIT.host = window.TOWNKIT.host(THREE, { pack: KIT.pack, rows: KIT.rows, tarr: T, HG, mode: KIT.hostMode, band: { E0: HLOD.near > 0 ? HLOD.near : 150, W0, E1: HLOD.far2, W1 } }); }
+    catch (e) { KIT.status = 'error'; KIT.err = String((e && e.message) || e); console.warn('townkit:', e); kitLabel(); return; }
+    root.add(KIT.host.group);
+    KIT.status = 'ready'; KIT.readyMs = Math.round(performance.now() - KIT.t0);
+    KIT.shown = null; kitApply();
+  }
+  // the unique side of the A/B: the street's houses (and outbuildings), kept whole (out of the far town's bakes, which
+  // would draw them whatever this says) and hidden bag by bag in kit mode - the smoke, the yard, the pier, the people
+  // and the lamps' props stay (they stay with the lot in the kit too)
+  // (every outbuilding of those plots: the game plans them in streaming order and the kit in plot order - G850 - so
+  // which plots have one can differ; the kit's side shows the kit's)
+  function kitHides() {
+    let found = 0;
+    for (const r of KIT.rows) {
+      if (r.out) continue;
+      const h = HOUSES.get(r.plot); if (!h || !h.grp) continue;
+      found++;
+      for (const g of [h.grp].concat((h.extra || []).filter(x => x && x.parent === G.houses))) {
+        if (KIT.hide.has(g)) continue;
+        g.userData.kitAB = true; KIT.hide.add(g); KIT.shown = null;
+      }
+    }
+    KIT.found = found;
+  }
+  function kitApply() {
+    const kit = KIT.mode === 'kit' && KIT.status === 'ready' && !!KIT.host && !KIT.host.waiting;
+    const key = kit + '|' + KIT.hide.size;
+    if (KIT.shown === key) return;
+    KIT.shown = key;
+    if (KIT.host) KIT.host.visible = kit;
+    for (const g of KIT.hide) {
+      g.userData.kitHide = kit;
+      for (const m of g.children) if (m.isMesh && !(m.material && m.material.userData && m.material.userData.smokeShaded)) m.visible = !kit && !m.userData.merged;
+      if (!kit) { const D = detailOf(g); D.on = true; D.on2 = true; }
+    }
+    kitLabel();
+  }
+  function kitSet(mode) { KIT.mode = mode === 'unique' || mode === 'kit' ? mode : (KIT.mode === 'kit' ? 'unique' : 'kit'); KIT.shown = null; kitApply(); return KIT.mode; }
+  function kitLabel() {
+    if (!KIT.on || typeof document === 'undefined') return;
+    if (!KIT.label) {
+      const d = KIT.label = document.createElement('div');
+      d.id = 'townkitAB';
+      d.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:9999;font:600 14px/1.3 system-ui,sans-serif;padding:6px 14px;border-radius:6px;background:rgba(10,12,16,0.78);color:#f3e9c6;cursor:pointer;user-select:none;pointer-events:auto;box-shadow:0 1px 6px rgba(0,0,0,0.4)';
+      d.title = 'the town kit look review (C3b): click or F7 to switch';
+      d.addEventListener('click', () => kitSet());
+      document.body.appendChild(d);
+      window.addEventListener('keydown', ev => { if (ev.code === 'F7' && !ev.repeat) { kitSet(); ev.preventDefault(); } });
+    }
+    const n = KIT.rows ? KIT.rows.length : 0, outs = KIT.rows ? KIT.rows.filter(r => r.out).length : 0;
+    const kit = KIT.host && KIT.host.visible;
+    const what = KIT.status === 'ready' ? (kit ? 'KIT' : 'UNIQUE') + (KIT.mode === 'kit' && !kit ? ' (the kit\'s finishes still loading)' : '') : KIT.status === 'error' ? 'KIT UNAVAILABLE: ' + KIT.err : 'loading the kit...';
+    KIT.label.style.background = kit ? 'rgba(120,40,20,0.85)' : 'rgba(10,12,16,0.78)';
+    KIT.label.textContent = 'TOWN KIT A/B · ' + KIT.sel + (n ? ' · ' + (n - outs) + ' houses + ' + outs + ' outbuildings' : '') + ' · showing: ' + what + ' · F7 / click to switch';
+  }
+  function kitTick(e) {
+    if (!KIT.on) return;
+    if (KIT.status === 'off') {
+      // townkit.js is on the page's lazy list (build.js): fetched only when the review asks
+      if (typeof DecompressionStream === 'undefined') { KIT.status = 'error'; KIT.err = 'no DecompressionStream'; kitLabel(); return; }
+      if (window.TOWNKIT) { kitLoad(); return; }
+      if (!window.FLYDIY_LAZY) { KIT.status = 'error'; KIT.err = 'townkit.js not loaded'; kitLabel(); return; }
+      KIT.status = 'script'; kitLabel();
+      window.FLYDIY_LAZY('townkit').then(() => { if (window.TOWNKIT) { KIT.status = 'off'; } else { KIT.status = 'error'; KIT.err = 'townkit.js did not load'; kitLabel(); } });
+      return;
+    }
+    if (KIT.status === 'decoded') { kitBuild(); return; }
+    if (KIT.status !== 'ready') return;
+    // (a far-town cell that held one of these houses gives its bags back when it rebakes without it: re-applied)
+    if (++KIT.frame % 60 === 1) { kitHides(); KIT.shown = null; }
+    KIT.host.tick(e);
+    kitApply();
+  }
   function detailTick() {
     const e = o.eye && o.eye(); if (!e || !o.focalPx) return;
     const K = o.focalPx();
     hlodTick(e);
+    kitTick(e);
     if (HLOD.skip !== false) settleTick();
     for (const g of G.houses.children) {
       if (!g.userData.frozen || g.userData.batch) continue;   // posed (its matrixWorld is final) before its centre is read
@@ -1716,7 +1836,7 @@ function make(THREE, scene, world, rec0, opts) {
         const pOn = !DETAIL.props || d < HOUSE_PROP_GONE * (g.userData.propsOn ? 1.35 : 1.15);
         if (pOn !== g.userData.propsOn) { g.userData.propsOn = pOn; for (const x of g.userData.props) x.visible = pOn; if (typeof propInstTouch === 'function') propInstTouch(); }
       }
-      if (g.userData.far || (!D.list.length && !D.list2.length)) continue;
+      if (g.userData.far || g.userData.kitHide || (!D.list.length && !D.list2.length)) continue;
       const px = 2 * D.R * K / Math.max(1, e.distanceTo(D.c)), on = px >= DETAIL.px * (D.on ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
       if (on !== D.on) { D.on = on; for (const m of D.list) if (!m.userData.merged) m.visible = on; }
       const on2 = !(DETAIL.px2 > 0) || px >= DETAIL.px2 * (D.on2 ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
@@ -2827,6 +2947,7 @@ function make(THREE, scene, world, rec0, opts) {
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
     drainNear, stream, prewarm, streamState: STREAM, cellLive, hwWait, hw: HWQ,   // G830: the house worker's pending answer (a promise, or null); its queue's state   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued
     detail: DETAIL, hlod: HLOD,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
+    kit: KIT, kitSet,             // C3b: the town kit's look review (?kitab=...): .host (.stats, .rungs(), .setBand), kitSet('kit' | 'unique' | toggle)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },
