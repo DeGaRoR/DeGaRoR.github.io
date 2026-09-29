@@ -44,22 +44,34 @@
     return { mainDraws: med(per.main), glDraws: med(per.draws), uniformCalls: med(per.calls), uniformBytes: med(per.bytes), renderMs: +med(per.ms).toFixed(2) };
   }
   const ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
-  async function gpuOf(layer) {
-    if (!ext) return null;
-    const moved = []; if (layer === 30) cap.s.traverse(o => { if (isPav(o)) { moved.push([o, o.layers.mask]); o.layers.set(30); } });
-    const cm = cap.c.layers.mask; cap.c.layers.set(layer);
-    const out = [];
+  // THE GPU: paused, the shadow maps frozen (a shadow update inside a timed render drew every caster: the first cut's
+  // "empty" floor read 2.6 ms), K renders of the pavement alone and K of nothing in ONE frame, each bracketed by its own
+  // query, GPU_N frames; the pavement's cost = median(pavement) - median(empty)
+  async function gpuPair() {
+    if (!ext) return { pav: null, empty: null };
+    const K = 4, moved = [];
+    cap.s.traverse(o => { if (isPav(o)) { moved.push([o, o.layers.mask]); o.layers.set(30); } });
+    const cm = cap.c.layers.mask, SM = R.shadowMap, su = SM.autoUpdate, sn = SM.needsUpdate;
+    const pav = [], emp = [];
+    const timed = (layer, qs) => { cap.c.layers.set(layer); SM.autoUpdate = false; SM.needsUpdate = false;
+      const q = gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, q); for (let k = 0; k < K; k++) rr.call(R, cap.s, cap.c); gl.endQuery(ext.TIME_ELAPSED_EXT); qs.push(q); };
+    const pend = [];
     for (let i = 0; i < GPU_N; i++) {
-      const q = gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, q); rr.call(R, cap.s, cap.c); gl.endQuery(ext.TIME_ELAPSED_EXT);
+      const a = [], b = [];
+      if (i % 2) { timed(30, a); timed(31, b); } else { timed(31, b); timed(30, a); }
+      pend.push([a[0], b[0]]);
+      cap.c.layers.mask = cm; SM.autoUpdate = su; SM.needsUpdate = sn;
       await raf();
-      for (let w = 0; w < 20 && !gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE); w++) await raf();
-      if (!gl.getParameter(ext.GPU_DISJOINT_EXT) && gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) out.push(gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6);
-      gl.deleteQuery(q);
     }
+    for (let w = 0; w < 30 && !pend.every(([a, b]) => gl.getQueryParameter(a, gl.QUERY_RESULT_AVAILABLE) && gl.getQueryParameter(b, gl.QUERY_RESULT_AVAILABLE)); w++) await raf();
+    const dis = gl.getParameter(ext.GPU_DISJOINT_EXT);
+    for (const [a, b] of pend) { if (!dis && gl.getQueryParameter(a, gl.QUERY_RESULT_AVAILABLE) && gl.getQueryParameter(b, gl.QUERY_RESULT_AVAILABLE)) { pav.push(gl.getQueryParameter(a, gl.QUERY_RESULT) / 1e6 / K); emp.push(gl.getQueryParameter(b, gl.QUERY_RESULT) / 1e6 / K); } gl.deleteQuery(a); gl.deleteQuery(b); }
     cap.c.layers.mask = cm; for (const [o, m] of moved) o.layers.mask = m;
-    return out.length ? +med(out).toFixed(3) : null;
+    const mp = med(pav), me = med(emp);
+    return { pav: mp == null ? null : +mp.toFixed(3), empty: me == null ? null : +me.toFixed(3), net: mp == null ? null : +(mp - me).toFixed(3), n: pav.length };
   }
   const start = P.MODE.table ? 'new' : 'old', out = {};
+  { const bP = document.getElementById('bPause'); if (bP && !window.FLYDIY_HELD) bP.click(); await frames(30); }   // paused: every mode drawn from one still view
   // THE VIEWS: where the recording ended (the stand or the taxi, by --secs), then OVER THE VILLAGE - HANDOVER C0's pose
   // (900, -2250) 20 m over the ground, the flight paused (frame_perf's at:900:-2250:20)
   const views = (window.PAVE_AB_VIEWS || 'here,village').split(',');
@@ -84,7 +96,7 @@
       const c = P.census(W.scene);
       const row = { rebuildMs, meshes: c.meshes, visible: c.visible, merged: c.merged, materials: c.materials, rows: c.rows, tableKB: c.tableKB, verts: c.verts, inFrustum: inFrustum() };
       Object.assign(row, await frameStats());
-      row.gpuPavement = await gpuOf(30); row.gpuEmpty = await gpuOf(31);
+      const g = await gpuPair(); row.gpuPavement = g.pav; row.gpuEmpty = g.empty; row.gpuNet = g.net; row.gpuN = g.n;
       res[mode].push(row);
     }
   }
