@@ -10858,12 +10858,76 @@
       recent: () => (P.legacy ? null : P.hist.slice()),   // the RENDERED frames' intervals (ms), for the menu's readout - freezes included (G620)
       freezes: () => ({ n: P.frz.n, maxMs: P.frz.maxMs, agoS: P.frz.n ? (performance.now() - P.frz.lastT) / 1000 : null, away: P.frz.away }),   // G620: the stalls of 250 ms or more, kept
       get dt() { return P.dt; }, get steps() { return P.steps; },
+      // G1100 (POSE-SMOOTH): where between the last two solver steps this frame's real time falls. The frame owes
+      // floor(acc x 60 + 0.25) steps, so the leftover acc x 60 sits in [-0.25, 0.75): the drawn pose is the newest step's
+      // less (0.75 - acc x 60) of a step - 0.75 of a step behind the wall clock, every frame alike. 1 (the newest step,
+      // nothing drawn between) under the old clock: a rig, the harness
+      get alpha() { return P.legacy ? 1 : Math.max(0, Math.min(1, P.acc * 60 + 0.25)); },
       get dilation() { const w = wk(); if (w) return w.dil; return P.wallW > 0.2 ? P.simW / P.wallW : 1; },   // the sim's seconds over the wall's, the last second (G612)
       budgetMs: () => 1000 / (capOf() || 60),
       state: () => ({ mode: P.mode, cap: capOf(), legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0,
                       dilation: api.dilation, stepMs: wk() ? wk().stepMs : P.stepMs, otherMs: P.otherMs, droppedS: wk() ? wk().droppedS : P.droppedS, workMs: P.lastWork, rateFps: P.lastRate || 0, trials: P.trials,
                       simw: !!wk() }) };
     W.FLYDIY_PACE = api;
+    return api;
+  })();
+  // ---- THE DRAWN POSE, BETWEEN TWO STEPS (G1100, POSE-SMOOTH; C4b's finding at G879.1) ---------------------------
+  // The frame clock (above) owes each frame 1-4 solver steps of 1/60 s, and the aeroplane was DRAWN at the newest one:
+  // where frames alternate 1 and 2 steps (a 45-60 fps) or 1 and 3, the drawn aeroplane - and the eye riding it, the
+  // chase camera's target, the tyres' contact shadows, the craft's shadow maps (G1080 aims them at the pose) - moved a
+  // step, then two, then one: in a climb at 60 fps the eye's height juddered up to 57 mm, one 1-then-3 frame 107 mm.
+  // Now the classic fixed-step accumulator: the step block keeps the node positions from before the frame's last step
+  // (p0; under 2x the last two - one 60th of real time) and after it (p1); for the draw the positions become
+  // p0 + (p1 - p0) x PACE.alpha, and p1 goes back, bit for bit, before anything else can read or step them. So the pose
+  // is drawn 0.75 of a step behind the wall clock on every frame whatever it owes, and the motion is even.
+  // - Everything drawn from the sim reads the drawn positions: poseModel (the body, the flex skin, the surfaces' hinge
+  //   lines, the gear, the wheels' spin), the head camera (model.grp), the chase target, contactShadows, sync()'s
+  //   truss, the floats. The HUD and the panel read the solver's newest step (CK.frame runs before; hud() reads out).
+  // - NOTHING INTERPOLATED IS FED BACK: the solver, the pilot's script, the director and the panel run before the swap;
+  //   WF.worldUpdate is given the newest step's CG (the world is the solver's world: its streaming and the climate's
+  //   samples see what they always saw); the positions are restored before the frame ends (and at the next frame's
+  //   top should a frame have thrown). The solver's own caches are recomputed from p at every substep (30_solver.js
+  //   aeroPass -> bodyAxes), so a read of the drawn positions leaves nothing behind.
+  // - A RIG (the old clock) has alpha 1: no swap at all - every gate, every hash, every shot reads what it always read.
+  // - A pair that no longer holds is dropped: another sim, another size, or positions moved outside the step block
+  //   (a reset, a re-placement, the line-up skip) - the newest positions are then drawn as they are.
+  // - Paused, the pose holds where it was last drawn (the alpha kept), rather than jumping to the newest step.
+  // - Under the physics worker (?simw=1) the page's positions ARE the view's, interpolated already (sim_view.js frame:
+  //   T - 1 step between the two newest snapshots) - this stands aside.
+  const POSE_LERP = (() => {
+    const L = { sim: null, p0: null, p1: null, have: false, on: false, alpha: 1, marked: false,
+                stats: { drawn: 0, dropped: 0 } };
+    const fits = sim => !!(sim && sim.p && sim.p.length > 0 && typeof sim.p.set === 'function');
+    function arrays(sim) {
+      if (L.sim !== sim || !L.p0 || L.p0.length !== sim.p.length) {
+        L.sim = sim; L.p0 = new Float64Array(sim.p.length); L.p1 = new Float64Array(sim.p.length); L.have = false;
+      }
+    }
+    // the step block, right before the step that closes the pair (the frame's last; under 2x its last two)
+    function mark(sim) { if (!fits(sim)) return; arrays(sim); L.p0.set(sim.p); L.marked = true; }
+    // the step block, after its last step: the pair is whole
+    function took(sim) {
+      if (!fits(sim) || !L.marked || L.sim !== sim) { L.have = false; L.marked = false; return; }
+      L.p1.set(sim.p); L.have = true; L.marked = false;
+    }
+    // the draw: the drawn positions into sim.p (true), or nothing (false). alpha null = held (a pause): the last one
+    function draw(sim, alpha) {
+      if (L.on) back();
+      if (alpha != null) L.alpha = alpha;
+      const a = L.alpha;
+      if (!L.have || L.sim !== sim || !fits(sim) || sim.p.length !== L.p1.length || !(a < 1)) return false;
+      const p = sim.p, p0 = L.p0, p1 = L.p1, N = p.length;
+      for (let i = 0; i < N; i++) if (p[i] !== p1[i]) { L.have = false; L.stats.dropped++; return false; }   // moved outside the steps
+      for (let i = 0; i < N; i++) p[i] = p0[i] + (p1[i] - p0[i]) * a;
+      L.on = true; L.stats.drawn++;
+      return true;
+    }
+    // the newest step's positions back, bit for bit
+    function back() { if (!L.on) return; L.on = false; if (L.sim && L.sim.p && L.sim.p.length === L.p1.length) L.sim.p.set(L.p1); }
+    function drop() { back(); L.have = false; L.marked = false; }
+    const api = { mark, took, draw, back, drop, get on() { return L.on; }, get alpha() { return L.alpha; },
+                  state: () => ({ have: L.have, on: L.on, alpha: L.alpha, drawn: L.stats.drawn, dropped: L.stats.dropped }) };
+    window.FLYDIY_POSE = api;
     return api;
   })();
   // an ease written per 60 Hz frame (k of the gap each 1/60 s), taken over dt seconds
@@ -10908,6 +10972,7 @@
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
   function loop(ts) {
     requestAnimationFrame(loop);
+    POSE_LERP.back();                  // G1100: a frame that threw between the swap and its restore leaves nothing drawn behind
     const pc = PACE.frame(ts);
     if (!pc) return;                   // the cap: this refresh is not ours
     if (FR) FR.begin(ts, pc);          // G620: the flight recorder's row for this frame
@@ -10981,10 +11046,15 @@
       // G815 (C1b, ?simw=1): the worker steps - the page posts its inputs and takes the newest snapshot (sim_link.js;
       // `hold` while the worker makes the flight). null = this frame flies inline, the loop as it always was
       const sw = SIMW ? SIMW.frame(nStep, simRate) : null;
-      if (sw) { if (sw.hold) PACE.hold(); if (FR) FR.push(0); scriptView(sw.simDt); if (FR) FR.pop(); simwRan = sw.ran; }
-      else for (let k = 0; k < nStep; k++) {
-        if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
-        if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
+      if (sw) { if (sw.hold) PACE.hold(); if (FR) FR.push(0); scriptView(sw.simDt); if (FR) FR.pop(); simwRan = sw.ran; POSE_LERP.drop(); }
+      else {
+        const kPair = pc.legacy ? -1 : nStep - simRate;     // G1100: the step that opens the drawn pair (none under the old clock)
+        for (let k = 0; k < nStep; k++) {
+          if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
+          if (k === kPair) POSE_LERP.mark(sim);                          // G1100: the positions before the frame's last 60th
+          if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
+        }
+        if (kPair >= 0) POSE_LERP.took(sim);                             // G1100: ...and after it
       }
       physMs = perfNow() - t2; simDt = sw ? sw.simDt : nStep / 60; ran = sw ? sw.ran : nStep;
       if (simRate > 1) {
@@ -10994,7 +11064,9 @@
       }
       if (typeof DAY_CLOCK !== 'undefined') DAY_CLOCK.tick(simDt);
       director.frame();
-      if (window.WATER && WATER.setTime) WATER.setTime(sim.t);   // G460: the water is drawn at the solver's own time
+      // G460: the water is drawn at the solver's own time - G1100: at the DRAWN pose's (the worker's view says it; inline,
+      // the swap below says it again), so the hull and the wave under it move together and evenly
+      if (window.WATER && WATER.setTime) WATER.setTime(sw && sw.drawnT != null ? sw.drawnT : sim.t);
       if (CK) CK.frame(simDt, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       // (G820: under the worker, its snapshot's flag too - read every frame)
       if ((++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) || (sw && sw.diverged)) {
@@ -11026,11 +11098,17 @@
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
+    // G1100 (POSE-SMOOTH): FROM HERE TO THE RENDER THE SIM'S POSITIONS ARE THE DRAWN ONES - between the last two steps,
+    // at the frame clock's alpha (POSE_LERP above; restored below the render). In the world only, the page's own flight
+    // (the worker's view interpolates itself), and a pause holds the alpha it had
+    const drawnPose = !inGarage && simwRan < 0 && POSE_LERP.draw(sim, running ? PACE.alpha : null);
+    const cgD = drawnPose ? sim.cgPos() : cg;
+    if (drawnPose && running && window.WATER && WATER.setTime) WATER.setTime(sim.t - (1 - POSE_LERP.alpha) * simRate / 60);   // the sea at the drawn pose's time
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
     // per-frame cg overwrite silently un-centred it), the craft otherwise;
     // the editor's pan offset rides on top (G41)
     if (edSit.visible) target.copy(edTarget).add(edPan);
-    else target.set(cg[0], cg[1], cg[2]);
+    else target.set(cgD[0], cgD[1], cgD[2]);
     if (edEye) {
       if (!edSit.visible) exitInterior();
       else {
@@ -11115,7 +11193,7 @@
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender) { if (FR) FR.end(false, cg); BOOT.frame(); return; }
+    if (holdRender) { POSE_LERP.back(); if (FR) FR.end(false, cg); BOOT.frame(); return; }   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
@@ -11162,6 +11240,7 @@
         SKY_GLARE.render(renderer);
       }
     }
+    POSE_LERP.back();                  // G1100: the newest step's positions back, bit for bit, before anything else reads them
     if (FR) FR.end(true, cg);          // G620: the glare and the rest to `other`; the row written
     PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran);   // (G820: the worker's steps are not the page's: their cost is not a page step's)   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing

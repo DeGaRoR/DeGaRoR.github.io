@@ -116,7 +116,9 @@ function makeSimView(def, opts) {
       massesOf(B);
       // the pose's age: now, less the wall moment the host held the drawn state (between A's and B's publishing)
       const wShown = A && alpha < 1 ? A.f[S.WALL] + (fB[S.WALL] - A.f[S.WALL]) * alpha : fB[S.WALL];
-      return { alpha, ageMs: T - wShown };
+      // G1100: the drawn pose's own sim time (the sea is drawn at it: app.js WATER.setTime)
+      const tShown = A && alpha < 1 ? A.f[S.T] + (fB[S.T] - A.f[S.T]) * alpha : fB[S.T];
+      return { alpha, ageMs: T - wShown, t: tShown };
     },
 
     // ---- a message from the host; true when it was a snapshot
