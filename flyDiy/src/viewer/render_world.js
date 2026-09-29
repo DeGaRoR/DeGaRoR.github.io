@@ -91,6 +91,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     parts.push([st, C(0xb4b1a8), 0.25]);
     const bs = new THREE.CylinderGeometry(0.045, 0.06, 0.14, 8, 1, false); bs.translate(0, -H + 0.02, 0);
     parts.push([bs, C(0x505256), 0.25]);
+    // (the headless stub's geometries carry no attributes - GATE WORLDRENDER: the lens stands in for the whole light)
+    if (!parts.every(([g]) => g.attributes && g.attributes.position && g.attributes.normal)) return lens;
     let nv = 0, ni = 0;
     for (const [g] of parts) { nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
     const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 3), uv = new Float32Array(nv * 2);
@@ -1120,7 +1122,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // G1066: the body's day colour (the pale glass, the stem's grey) darkens as the lights come on: at night the lens is
     // the old near-black ball round its glow, however far it has grown
     const body = 1 - 0.985 * on;
-    for (const h in RWY.mats) { RWY.mats[h].emissiveIntensity = lit ? on * 1.2 * k : 0; RWY.mats[h].color.setScalar(body); }
+    for (const h in RWY.mats) { RWY.mats[h].emissiveIntensity = lit ? on * 1.2 * k : 0; const c = RWY.mats[h].color; c.r = c.g = c.b = body; }
   }
   function applyWorldLights() {
     if (!worldSwitch) return;

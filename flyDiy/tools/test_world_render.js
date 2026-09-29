@@ -272,7 +272,8 @@ try {
   // headless gate can cover.
   const SITE_ARGS = ['AIRFIELD_SITE', 'AIRFIELD_SITES', 'siteOf',
                    'siteRunway', 'siteMarkers', 'sitePaintStrip',
-                   'sitePattern', 'sitePatternIssues', 'patternPath'];   // the premises' site (G570)
+                   'sitePattern', 'sitePatternIssues', 'patternPath',
+                   'runwayLightPoints'];   // the premises' site (G570); the runway lights' places (G1066)
   const factory = new Function('THREE', 'document', 'window', ...SITE_ARGS,
                                src + '\nreturn buildWorldScene;');
   const world = makeWorld();
