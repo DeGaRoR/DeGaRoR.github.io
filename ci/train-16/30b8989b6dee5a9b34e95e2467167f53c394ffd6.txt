@@ -51,6 +51,8 @@ GATE PREMCOOK: FAIL
 (exit code 1)
 
 == HITBOX: FAIL detail ==
+(no FAIL line in the gate's output; the runner requires the exact last line 'GATE HITBOX: PASS' and exit 0 - the section's last lines:)
+  ok   Cub d: 1 cm into arch:cub's drawn wing - contact  (7 node-steps)
+GATE HITBOX: PASS (84/84)
 (exit code 0)
-
-== BATTERY:: FAIL detail ==
+(i.e. every HITBOX check passed and it exited 0; the runner reds it because its verdict line carries ' (84/84)' after PASS - run_gates.js matches /^GATE HITBOX: PASS$/m)
