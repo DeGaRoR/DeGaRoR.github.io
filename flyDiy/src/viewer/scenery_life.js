@@ -375,6 +375,10 @@ function make(THREE, host) {
           for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; bb += d[i + 2]; }
           const lin = v => { v /= 64 * 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
           out = [lin(r) * m.color.r, lin(gg) * m.color.g, lin(bb) * m.color.b];
+        } else if (m && m.map && m.map.userData && m.map.userData.mean) {
+          // AS3 (G917): a KTX2 map has no image to draw - its mean colour came with it (tools/ktx2_twins.js, the same sRGB mean)
+          const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }, mu = m.map.userData.mean;
+          out = [lin(mu[0]) * m.color.r, lin(mu[1]) * m.color.g, lin(mu[2]) * m.color.b];
         } else if (m) out = [m.color.r * 0.35, m.color.g * 0.35, m.color.b * 0.35];
       }
     } catch (e) { out = null; }

@@ -118,7 +118,7 @@ function loomMats(THREE, b) {
     const o = { color: new THREE.Color(rec.col[0], rec.col[1], rec.col[2]),
                 transparent: true, opacity: 0, depthTest: false, depthWrite: false,
                 side: rec.dbl ? THREE.DoubleSide : THREE.FrontSide, toneMapped: true, fog: false };
-    if (rec.map && typeof propTexture === 'function') o.map = propTexture(THREE, rec.map, true);
+    if (rec.map && typeof propTexture === 'function') o.map = propTexture(THREE, rec.map, true, 'color');
     const m = new THREE.MeshBasicMaterial(o);
     m.name = 'animalLoom:' + b.a.key;
     return m;

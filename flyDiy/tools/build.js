@@ -251,8 +251,11 @@ const MANIFEST = {
   // generators when the placed record names a sport/ or marine/ key (the town on), app.js the editor when it opens,
   // the loader itself the rail at boot when this browser saved a look or a shown rail (the rail applies the look), or
   // on F9. The name is the file's stem.
+  // AS3 (G917): vendor/ktx2/ktx2_loader.js (three's KTX2Loader, tools/vendor_three.js) - appended by src/viewer/ktx2.js
+  // when the first KTX2 file is asked for (the ground library, under the roll-out's screen); its workers fetch
+  // vendor/ktx2/basis_transcoder.js + .wasm themselves.
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
-         ['src/viewer', 'world_rail.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
     shell: 'shell.html',
     // TWO STYLESHEETS, IN ORDER (G77). style.css is the GAME's — the flight
@@ -361,7 +364,7 @@ const MANIFEST = {
               // THE GROUND LIBRARY (G910-G911, AS2): ONE table for the site, the splat, the pavement and the lot (their old
               // four manifests are its views: SITE_TEX_SETS, SPLAT_TEX_SETS, PAVEMENT_TEX_SETS, LOT_TEX_SETS) + the cooked
               // layers' copy into the arrays (ground_lib.js: no canvas); before every consumer, the world pack's lot_tex.js too
-              'ground_tex.js', 'ground_lib.js',
+              'ground_tex.js', 'ktx2.js', 'ktx2_twins.js', 'ground_lib.js',   // ktx2.js (AS3, G917): the KTX2 path GROUND_LIB and propTexture take first (the loader itself is lazy, below); ktx2_twins.js the plain maps' twins (tools/ktx2_twins.js)
               'site_ground.js',
               'splat_ground.js',   // the splat: the arrays, the GLSL, F8's handle
               // THE PAVEMENT (v1.16, 2026-09-22): the one material every strip, road and apron wears

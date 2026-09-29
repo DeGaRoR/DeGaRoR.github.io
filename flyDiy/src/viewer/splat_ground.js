@@ -433,15 +433,14 @@ const SPLAT_GROUND = (() => {
     if (typeof GROUND_LIB === 'undefined') { done(null, null); return; }
     const N = sets.length, px = sets[0].px;
     const lend = prev && prev.A && prev.N ? { urls: prev.keys.map(k => { const s = SPLAT_TEX_SETS.find(x => x.key === k); return s && s.layers; }), A: prev.A, N: prev.N } : null;
-    GROUND_LIB.pack(sets.map(m => ({ layers: m.layers, mean: m.mean, label: m.key })), (data, dataN, failed) => {
+    GROUND_LIB.pack(sets.map(m => ({ layers: m.layers, ktx: m.ktx, mean: m.mean, label: m.key })), (data, dataN, failed) => {
       if (!data) { done(null, null); return; }
       for (const k of failed) console.warn('splat: ' + k + ' layers failed - its mean colour stands in');
-      const mk = (dd, srgb) => { const t = new THREE.DataArrayTexture(dd, px, px, N);
-        t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
-        t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
-        // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes
-        t.anisotropy = Math.max(1, R.knobs.aniso | 0) || 16; t.needsUpdate = true; return t; };
-      done(mk(data, true), mk(dataN, false));
+      // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes.
+      // AS3 (G917): the planes may arrive as KTX2 (a compressed array; the colour's mips averaged on the stored values,
+      // as the GPU's own generateMipmap on this non-sRGB texture averaged them); GROUND_LIB.arrayTexture makes either kind
+      const mk = dd => GROUND_LIB.arrayTexture(THREE, dd, N, { srgb: false, aniso: Math.max(1, R.knobs.aniso | 0) || 16 });
+      done(mk(data), mk(dataN));
     }, lend);
   }
 
@@ -590,7 +589,7 @@ const SPLAT_GROUND = (() => {
       if (keys.length === LIB.length && (!building || keys.length === building.length)) return false;
       building = keys;
       const cur = U.uSplat.value, curN = U.uSplatN.value;   // G911: the arrays standing lend their layers to the grown ones
-      const prev = cur && curN && cur.image && cur.image.depth > 1 && curN.image ? { keys: LIB.slice(), A: cur.image.data, N: curN.image.data } : null;
+      const prev = cur && curN && cur.image && cur.image.depth > 1 && curN.image ? { keys: LIB.slice(), A: GROUND_LIB.planeOf(cur), N: GROUND_LIB.planeOf(curN) } : null;
       buildArrays(setsFor(new Set(keys)), U, R, (a, n) => {
         if (building !== keys) { for (const t of [a, n]) if (t) t.dispose(); return; }   // a later grow superseded this one
         const old = [U.uSplat.value, U.uSplatN.value];

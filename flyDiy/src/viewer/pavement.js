@@ -513,19 +513,18 @@ const PAVEMENT = (() => {
     const px = (typeof GROUND_TEX !== 'undefined' && GROUND_TEX) ? GROUND_TEX.px : 512, N = keys.length;
     for (const k of keys) if (!SETS[k]) console.warn('pavement: no set ' + k);
     const lend = prev && prev.texA && prev.texN && prev.texA.image && prev.texN.image
-      ? { urls: prev.keys.map(k => SETS[k] && SETS[k].layers), A: prev.texA.image.data, N: prev.texN.image.data } : null;
-    GROUND_LIB.pack(keys.map(k => SETS[k] ? { layers: SETS[k].layers, mean: lib.mean[k], label: k } : null), (data, dataN, failed) => {
+      ? { urls: prev.keys.map(k => SETS[k] && SETS[k].layers), A: GROUND_LIB.planeOf(prev.texA), N: GROUND_LIB.planeOf(prev.texN) } : null;
+    GROUND_LIB.pack(keys.map(k => SETS[k] ? { layers: SETS[k].layers, ktx: SETS[k].ktx, mean: lib.mean[k], label: k } : null), (data, dataN, failed) => {
       if (!data) { if (done) done(lib); return; }
       for (const k of failed) console.warn('pavement: ' + k + ' layers failed - its mean colour stands in');
-      const mk = (dd, srgb) => { const t = new THREE.DataArrayTexture(dd, px, px, N);
-        t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
-        t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
-        // THE COLOUR ARRAY IS sRGB-TYPED (2026-09-22): the GPU decodes before it filters, so a mip is the
-        // mean of linear texels. Decoding in the shader after the fetch filtered in sRGB space, and a far
-        // texel came out 17-29 % darker than the near ones on the dark, contrasty sets (Jensen). The
-        // height in alpha rides along untouched (alpha is never transferred)
-        if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-        t.anisotropy = 16; t.needsUpdate = true; return t; };   // G662: three clamps to the GPU's maximum; 8 blurred the grain at grazing angles (142931)
+      // THE COLOUR ARRAY IS sRGB-TYPED (2026-09-22): the GPU decodes before it filters, so a mip is the
+      // mean of linear texels. Decoding in the shader after the fetch filtered in sRGB space, and a far
+      // texel came out 17-29 % darker than the near ones on the dark, contrasty sets (Jensen). The
+      // height in alpha rides along untouched (alpha is never transferred). AS3 (G917): the planes may arrive
+      // as KTX2 (a compressed array, the file's mips averaged in linear light as this sRGB texture's own were);
+      // GROUND_LIB.arrayTexture makes either kind with these same settings.
+      // G662: anisotropy 16 - three clamps to the GPU's maximum; 8 blurred the grain at grazing angles (142931)
+      const mk = (dd, srgb) => GROUND_LIB.arrayTexture(THREE, dd, N, { srgb, aniso: 16 });
       lib.texA = mk(data, true); lib.texN = mk(dataN, false); lib.ready = true;
       for (const m of MATS) if (m.userData.pavLib === lib) { m.uniforms.uPavA.value = lib.texA; m.uniforms.uPavN.value = lib.texN; m.uniforms.uPavOn.value = 1; applyOne(THREE, m); }
       if (done) done(lib);

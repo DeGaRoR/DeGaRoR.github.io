@@ -37,24 +37,53 @@ const PROP_TEX_CACHE = new Map();       // tex id -> THREE.Texture (srgb variant
 const PROP_TEX_CACHE_LIN = new Map();   // tex id -> THREE.Texture (linear)
 const PROP_BUILT = new Map();           // prop key -> { group, geos, mats }
 
-function propTexture(THREE, id, srgb) {
+// THE KTX2 TWIN (AS3, G917). `kind` is the slot's (color: map / emissiveMap, data: the arm map, normal): where
+// src/viewer/ktx2_twins.js has a twin for (this map, this kind) and the page can take it (KTX2.off(family) is null),
+// the twin is fetched and TRANSCODED in the workers (src/viewer/ktx2.js) - no Image, no decode, no RGBA upload, no
+// mips made on the main thread, a quarter of the GPU memory - and the texture handed out now is UPGRADED IN PLACE when
+// it lands: the same object every material already holds becomes a compressed texture (isCompressedTexture, its
+// mipmaps, the target format; flipY is moot - the twin's rows are the map's rows, top first, as flipY = false reads
+// them). Until then it has no image and three binds nothing for it, as before an Image decodes. A twin that fails
+// (the fetch, the transcode) loads the map itself into the same texture: the old path, late. The loading screen waits
+// for either (BOOT's 'propTex'). userData.mean: the map's mean colour from the table (scenery_life's far boxes read
+// it where they drew the image into a canvas).
+function propTexture(THREE, id, srgb, kind) {
   const cache = srgb ? PROP_TEX_CACHE : PROP_TEX_CACHE_LIN;
-  let t = cache.get(id);
+  const ck = kind ? id + '|' + kind : id;
+  let t = cache.get(ck);
   if (t) return t;
   const uri = PROP_REG.texs[id];
   if (!uri) return null;
-  const img = new Image();
-  t = new THREE.Texture(img);
+  t = new THREE.Texture();
   t.anisotropy = PROP_ANISO();
   t.wrapS = t.wrapT = THREE.RepeatWrapping;   // industrial_storage_cart wraps u to 2
   t.flipY = false;                            // glTF uv origin is top-left
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  const ok = () => { t.needsUpdate = true; };
-  if (typeof window !== 'undefined' && window.BOOT) window.BOOT.img(img, 'propTex');   // the loading screen waits for it
-  if (img.complete && img.naturalWidth) ok();
-  else img.addEventListener('load', ok, { once: true });
-  img.src = uri;
-  cache.set(id, t);
+  cache.set(ck, t);
+  const B = typeof window !== 'undefined' ? window.BOOT : null;
+  const image = () => {
+    const img = new Image();
+    t.image = img;
+    const ok = () => { t.needsUpdate = true; };
+    if (B) B.img(img, 'propTex');   // the loading screen waits for it
+    if (img.complete && img.naturalWidth) ok();
+    else img.addEventListener('load', ok, { once: true });
+    img.src = uri;
+  };
+  const twin = (typeof KTX2_TWINS === 'function' && typeof KTX2 !== 'undefined' && typeof ASSET_FETCH === 'function') ? KTX2_TWINS(uri, kind || (srgb ? 'color' : 'data')) : null;
+  if (!twin || KTX2.off(twin.fam)) { image(); return t; }
+  if (twin.mean) t.userData.mean = twin.mean;
+  if (B && B.expect) B.expect('propTex', 1);
+  ASSET_FETCH(twin.url).then(b => KTX2.parse(b, twin.fam)).then(r => {
+    t.isCompressedTexture = true;
+    t.mipmaps = r.mipmaps; t.image = { width: r.width, height: r.height };
+    t.format = r.format; t.type = r.type;
+    t.generateMipmaps = false;
+    t.minFilter = r.mipmaps.length > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+    t.userData.ktx2 = twin.url;
+    t.needsUpdate = true;
+    if (B && B.landed) B.landed('propTex', true);
+  }, () => { if (typeof KTX2 !== 'undefined' && KTX2._stats) KTX2._stats.fallbacks++; image(); if (B && B.landed) B.landed('propTex', true); });
   return t;
 }
 
@@ -74,20 +103,20 @@ function propMaterial(THREE, rec) {
   // being smoothed into something upholstered. Only the airframes use it; the
   // furniture is smooth-shaded and stays that way.
   if (rec.flat) o.flatShading = true;
-  if (rec.map) o.map = propTexture(THREE, rec.map, true);
+  if (rec.map) o.map = propTexture(THREE, rec.map, true, 'color');
   if (rec.arm) {
-    const arm = propTexture(THREE, rec.arm, false);
+    const arm = propTexture(THREE, rec.arm, false, 'data');
     o.roughnessMap = arm;
     o.metalnessMap = arm;
     if (rec.ao) { o.aoMap = arm; o.aoMapIntensity = 1.0; }
   }
   if (rec.nor) {
-    o.normalMap = propTexture(THREE, rec.nor, false);
+    o.normalMap = propTexture(THREE, rec.nor, false, 'normal');
     o.normalScale = new THREE.Vector2(rec.norScl, rec.norScl);
   }
   if (rec.emis) {
     o.emissive = new THREE.Color(rec.emis[0], rec.emis[1], rec.emis[2]);
-    if (rec.emisMap) o.emissiveMap = propTexture(THREE, rec.emisMap, true);
+    if (rec.emisMap) o.emissiveMap = propTexture(THREE, rec.emisMap, true, 'color');
   }
   if (rec.blend) { o.transparent = true; o.opacity = rec.opacity; }
   const m = new THREE.MeshStandardMaterial(o);
