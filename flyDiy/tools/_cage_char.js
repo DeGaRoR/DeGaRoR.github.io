@@ -201,11 +201,84 @@ function texture(c, id, srgb) {
   img.src = uri;
   return (TEX[k] = t);
 }
+// THE TEXTURE BUDGET (AS6, G936; tools/char_tex_budget.js, src/chars/chars_ktx2.js). Where the table has a row for this
+// material cut from the very maps this manifest names (a character re-baked from its GLB has other names: the old path)
+// and the page can take KTX2 (KTX2.off('chars') is null - ?ktx2=0 and the rest of ktx2.js's reasons), the material reads
+// the BUDGET SET: a 1024^2 diffuse and a 1024^2 normal, each transcoded in the workers (src/viewer/ktx2.js) into the
+// GPU's own compressed format - BC7 on a desktop, a sixteenth of the 2048 RGBA8 map with its mips - and the texture
+// handed out now upgraded IN PLACE when it lands (props.js's twins' way). The Glossiness map rides in the normal's
+// alpha (gloss: 1), the flat specular is a constant (spec), a flat normal is no map at all (nrmConst). A file that fails
+// loads its 2048 map into the same texture: the old path, late. Otherwise - and always with ?ktx2=0 - texture() below
+// runs as it did before, byte for byte.
+function budget(c, mi) {
+  if (typeof CHAR_KTX2 !== 'function' || typeof KTX2 === 'undefined' || typeof ASSET_FETCH !== 'function') return null;
+  const r = CHAR_KTX2(c.key), m = c.mats[mi], b = r && r.mats[mi];
+  if (!b || !m) return null;
+  for (const k of ['map', 'nrm', 'mr', 'spec']) if ((m[k] ? c.texs[m[k]] : undefined) !== b.src[k]) return null;   // stale
+  if (KTX2.off('chars')) return null;
+  return b;
+}
+function budgetTexture(c, url, srgb, fallbackId, onLand) {
+  const k = url + (srgb ? '/s' : '/l');
+  // a second material on a file already asked for: its onLand now if the file has landed, else with the first's
+  if (TEX[k]) { const u = TEX[k].userData; if (onLand) { if (u.landed !== undefined) onLand(u.landed); else u.onLand.push(onLand); } return TEX[k]; }
+  const t = new THREE.Texture();
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.flipY = false;                            // the planes' rows are the maps' rows, top first (glTF uv)
+  t.anisotropy = 4;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.userData.onLand = onLand ? [onLand] : [];
+  const B = window.BOOT;
+  if (B && B.expect) B.expect('crewTex', 1);       // the loading screen waits for it, as for an image
+  const land = ktx => { t.userData.landed = ktx; for (const f of t.userData.onLand) f(ktx); if (window.CHAR_TEX_LANDED) window.CHAR_TEX_LANDED(c.key); };
+  KTX2.load(url, 'chars').then(r => {
+    t.isCompressedTexture = true;
+    t.mipmaps = r.mipmaps; t.image = { width: r.width, height: r.height };
+    t.format = r.format; t.type = r.type;
+    t.generateMipmaps = false;
+    t.minFilter = r.mipmaps.length > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+    t.userData.ktx2 = url;
+    t.needsUpdate = true;
+    if (B && B.landed) B.landed('crewTex', true);
+    land(true);
+  }, () => {
+    if (KTX2._stats) KTX2._stats.fallbacks++;
+    const img = new Image();
+    t.image = img;
+    img.onload = () => { t.needsUpdate = true; land(false); };
+    if (B) B.img(img, 'crewTex');
+    img.src = c.texs[fallbackId];
+    if (B && B.landed) B.landed('crewTex', true);
+  });
+  return (TEX[k] = t);
+}
+// THE GLOSS IN N.a, READ (the user's A/B, off by default - HANDOVER G936): the page has never read the Glossiness map
+// (G204: roughness is the scalar 0.62), so reading it is a LOOK CHANGE, not a re-encode. ?chargloss=1 (or localStorage
+// flydiy.chargloss = '1') makes a material whose normal carries its gloss take roughness = 1 - N.a, once that plane has
+// landed (a fallback 2048 normal has an opaque alpha: uGloss stays 0 there).
+const CHAR_GLOSS = (() => {
+  try {
+    if (/[?&]chargloss=1(?:&|$)/.test((typeof location !== 'undefined' && location.search) || '')) return true;
+    return localStorage.getItem('flydiy.chargloss') === '1';
+  } catch (e) { return false; }
+})();
+function glossHook(mat, u) {
+  const prev = mat.onBeforeCompile;
+  mat.userData.charGloss = u;
+  mat.onBeforeCompile = function (sh, r) {
+    if (prev) prev.call(this, sh, r);
+    sh.uniforms.uGloss = this.userData.charGloss;
+    sh.fragmentShader = 'uniform float uGloss;\n' + sh.fragmentShader.replace('#include <roughnessmap_fragment>',
+      '#include <roughnessmap_fragment>\n#ifdef USE_NORMALMAP_TANGENTSPACE\n  roughnessFactor = mix(roughnessFactor, 1.0 - texture2D(normalMap, vNormalMapUv).a, uGloss);\n#endif');
+  };
+  mat.needsUpdate = true;
+}
 const MATS = {};
 function material(c, mi) {
   const k = c.key + '/' + mi;
   if (MATS[k]) return MATS[k];
   const m = c.mats[mi] || {};
+  const bud = budget(c, mi);
   // Mixamo's "nonPBR" set is diffuse + normal + spec/gloss; the gloss map is
   // NOT a roughness map (it is its inverse), so roughness stays a scalar.
   const o = {
@@ -213,8 +286,14 @@ function material(c, mi) {
     roughness: 0.62, metalness: 0,
     side: m.ds ? THREE.DoubleSide : THREE.FrontSide,
   };
-  if (m.map) o.map = texture(c, m.map, true);
-  if (m.nrm) o.normalMap = texture(c, m.nrm, false);
+  const gu = { value: 0 };                    // uGloss: 1 once the normal carrying this material's gloss has landed
+  if (bud) {
+    if (bud.map) o.map = budgetTexture(c, bud.map, true, m.map);
+    if (bud.nrm) o.normalMap = budgetTexture(c, bud.nrm, false, m.nrm, ktx => { if (bud.gloss) gu.value = ktx ? 1 : 0; });
+  } else {
+    if (m.map) o.map = texture(c, m.map, true);
+    if (m.nrm) o.normalMap = texture(c, m.nrm, false);
+  }
   // BLEND IS A CUTOUT, NOT A TRANSPARENT (G205.1, the user: 'sometimes it is
   // drawn behind the glass, sometimes in front depending on the angle').
   // three sorts transparents by OBJECT position, and a skinned mesh's
@@ -241,6 +320,10 @@ function material(c, mi) {
   if (typeof window !== 'undefined' && window.AEROSKIN &&
       window.AEROSKIN.aeroCabinHook)
     window.AEROSKIN.aeroCabinHook(THREE, mat, 1);
+  if (bud) {
+    mat.userData.charBudget = 1;               // the census's and the gate's mark (tools/_framecost_check.js crew line)
+    if (bud.gloss && CHAR_GLOSS) glossHook(mat, gu);
+  }
   return (MATS[k] = mat);
 }
 
@@ -612,6 +695,9 @@ function flatMaterial(key, mi) {
   if (!c || !c.mats || !c.mats[mi]) return null;
   const m = material(c, mi).clone();
   m.userData = Object.assign({}, m.userData);
+  // clone() leaves onBeforeCompile behind and deep-copies userData: the gloss hook again, on the ORIGINAL's live uniform
+  const g0 = material(c, mi).userData.charGloss;
+  if (CHAR_GLOSS && g0) glossHook(m, g0);
   m.needsUpdate = true;
   return (FLAT[k] = m);
 }

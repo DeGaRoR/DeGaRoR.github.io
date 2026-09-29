@@ -17,12 +17,24 @@ Bin layout, little-endian, each section 4-byte aligned:
     f32 pos[3n]  f32 nrm[3n]  f32 uv[2n]  u8 jt[4n]  f32 wt[4n]  u16 idx[3t]
   (nVerts asserted <= 65536; a character mesh over that would need u32)
 
-Usage (from flyDiy/):  python tools/char_prep.py            # whole table
+THE TEXTURE BUDGET (AS6, G935): the 2048 maps written here are the author's
+maps, prepped (LOADING S4) - and the page's FALLBACK since AS6. What the game
+draws is the budget set chars_table.TEX_BUDGET declares (1024 diffuse + normal,
+the gloss in the normal's alpha, the flat specular a constant, KTX2), cut FROM
+these maps by tools/char_tex_budget.js, which a full bake runs last (it needs
+node, python + Pillow and basisu v1.16.4: `npm install` in flyDiy/). It reads
+only the manifests and the maps, so `--budget` re-cuts the set on a box without
+the GLBs (assets/chars/ is gitignored).
+
+Usage (from flyDiy/):  python tools/char_prep.py            # whole table + the budget
                        python tools/char_prep.py --report   # inventory only
+                       python tools/char_prep.py --budget   # the budget set only
+                       python tools/char_prep.py --no-budget
 """
 import json
 import os
 import struct
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -239,8 +251,19 @@ def bake_anim(row, report):
     return name, [rel]
 
 
+def budget():
+    """THE TEXTURE BUDGET (AS6, G935): tools/char_tex_budget.js over the manifests
+    and maps on disk -> media/tex/ktx2/chars/ + src/chars/chars_ktx2.js (and its
+    line in chars_index.json)."""
+    r = subprocess.run(['node', os.path.join(HERE, 'char_tex_budget.js')], cwd=ROOT)
+    if r.returncode:
+        sys.exit(r.returncode)
+
+
 def main(argv):
     report = '--report' in argv
+    if '--budget' in argv:
+        return budget()
     os.makedirs(OUT_DIR, exist_ok=True)
     files, keep = [], []
     for row in TABLE.CHARS:
@@ -266,6 +289,8 @@ def main(argv):
             os.remove(os.path.join(OUT_DIR, name))
             gone.append(name)
     print('wrote %d manifest(s); pruned %d stale file(s)' % (len(files), len(gone)))
+    if '--no-budget' not in argv:
+        budget()
 
 
 if __name__ == '__main__':
