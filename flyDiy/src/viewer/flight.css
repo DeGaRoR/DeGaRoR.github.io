@@ -467,16 +467,32 @@
    SEMI-TRANSPARENT, unlike the plates that carry a decision: this one is read
    THROUGH, at the aeroplane behind it, which is what the old glass HUD had
    right and what `--ed-plate` at .94 took away. */
+/* G1090: THE PLATE HAS ONE SIZE (the user, 2026-09-29: "the top bar with the readings keeps resizing
+   because of the explanation text of what the pilot is doing. It shouldn't resize. Size the box, and have
+   the text flow in its own dedicated area"). It was as wide as its longest line - 344 px held, 2434 px on a
+   long status line, measured (tools/hud_fit_shot.js) - because every text in it was `nowrap` in a box sized
+   to its content. Now the WIDTH is the plate's own, a number per breakpoint and per size; every row inside
+   has a fixed height (the readings, the rail, the pilot's area), every readout a fixed width with tabular
+   figures, and every text clips inside its own box. What the plate SAYS can never move its edges; only
+   what you ask it to CARRY can (the instruments flyout's extra readouts wrap onto a second row).
+   GATE UISMOKE holds this contract; tools/hud_fit_shot.js measures it in Chromium. */
 #ui #pfd { grid-column:2; justify-self:center; padding:11px 14px 10px;
+  width:440px; box-sizing:border-box; overflow:hidden;
   background:var(--fl-glass); }
 
-#pfdRow { display:flex; gap:22px; align-items:flex-start; }
+#pfdRow { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:flex-start; }
 
-#ui .rd { text-align:right; min-width:62px; }
+/* a readout is a fixed cell: 80 px holds "+12.3" and "9999" at 30 px in tabular figures; the energy and the
+   netto carry a unit line that grows ("kWh charge · 1.2 h", "m/s air · +1.2 avg") and a word ("EMPTY"), the
+   throttle a twin's "100/100" - they get 112 / 120 */
+#ui .rd { flex:none; width:80px; min-width:0; overflow:hidden; text-align:right; }
+#ui .rd[data-i="nrg"], #ui .rd[data-i="netto"] { width:112px; }
+#ui .rd[data-i="thr"] { width:120px; }
 
 #ui .rd[hidden] { display:none; }
 
-#ui .rd b { display:block; font:600 30px/1.02 'IBM Plex Sans';
+#ui .rd b { display:block; height:31px; font:600 30px/31px 'IBM Plex Sans';
+  font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden;
   letter-spacing:-.01em; color:var(--ed-ink); }
 
 /* NO GREEN: ok is simply the ink. A readout goes warn when it is outside a
@@ -484,20 +500,26 @@
    the stall alone and says why the other two are owed. */
 #ui .rd.warn b { color:var(--ed-warn); }
 
-#ui .rd i { font-style:normal; font:500 8.5px/1 'IBM Plex Sans';
+#ui .rd i { display:block; height:11px; font-style:normal; font:500 8.5px/11px 'IBM Plex Sans';
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   letter-spacing:.15em; text-transform:uppercase; color:var(--ed-faint); }
 
 /* THE SMALL PFD (the user: "allow a minimized version of the top bar with
    smaller characters and only IAS, alt, Vs and power, plus the steps"). Two
    thirds of the type, four numbers, the steps unchanged. */
-#ui #pfd.small { padding:8px 11px 7px; }
-#ui #pfd.small #pfdRow { gap:14px; }
-#ui #pfd.small .rd { min-width:46px; }
-#ui #pfd.small .rd b { font-size:19px; line-height:1.05; }
-#ui #pfd.small .rd i { font-size:7px; letter-spacing:.12em; }
-#ui #pfd.small #rail { margin-top:8px; padding-top:7px; }
+#ui #pfd.small { padding:8px 11px 7px; width:372px; }
+#ui #pfd.small #pfdRow { gap:4px 12px; }
+#ui #pfd.small .rd { width:52px; }
+#ui #pfd.small .rd[data-i="nrg"], #ui #pfd.small .rd[data-i="netto"] { width:86px; }
+#ui #pfd.small .rd[data-i="thr"] { width:76px; }
+#ui #pfd.small .rd b { font-size:19px; height:20px; line-height:20px; }
+#ui #pfd.small .rd i { font-size:7px; height:9px; line-height:9px; letter-spacing:.12em; }
+#ui #pfd.small #rail { margin-top:8px; padding-top:7px; height:22px; }
 
-#rail { display:flex; align-items:center; gap:10px; margin-top:11px;
+/* the rail is one fixed line: the phase name clips (the longest, "SIM DIVERGED — RESET", fits), the steps
+   and the fold never move */
+#rail { display:flex; flex-wrap:nowrap; align-items:center; gap:10px; margin-top:11px;
+  height:25px; box-sizing:border-box;
   padding-top:10px; border-top:1px solid var(--ed-hair); }
 
 /* the fold sits at the end of the steps, where it is out of the numbers'
@@ -508,27 +530,30 @@
 
 #ui #pfdFold:hover { color:var(--ed-ink); }
 
-#phName { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+#phName { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
   text-transform:uppercase; color:var(--ed-acc); white-space:nowrap; }
 
 #rail.held #phName { color:var(--ed-faint); }
 
-/* G202: THE STATUS LINE — the pilot's goal, the conditions it is waiting
-   for (have / want, a tick when met) and the AFCS modes engaged, in the
-   rail beside the phase name. Mono, faint, one line, clipped; hidden while
-   the rail is held (nothing is being flown). */
-#phNext { flex:1 1 auto; min-width:0; font:400 8.5px/1.2 'IBM Plex Mono', monospace;
-  letter-spacing:.02em; color:var(--ed-faint); white-space:nowrap; overflow:hidden;
-  text-overflow:ellipsis; font-style:normal; }
-#rail.held #phNext { display:none; }
-#ui #pfd.small #phNext { display:none; }
-/* G710: THE PLAN LINE - under the rail, the point flown to, the height asked there and the vertical
-   speed against its limit; the ink, not the faint (it is the answer to "what is it doing"), one line,
-   clipped; gone when empty and on the small PFD */
-#phPlan { display:block; margin-top:6px; font:500 8.5px/1.2 'IBM Plex Mono', monospace; letter-spacing:.02em;
+/* G1090: THE PILOT'S AREA - its own box under the rail, three fixed lines, there whether or not anything
+   is said in it (an empty or a held line is INVISIBLE, never gone: `display:none` on a text-driven state
+   was a resize). `contain:inline-size` keeps its text out of the plate's width for good.
+   G202: THE STATUS LINE - the pilot's goal, the conditions it is waiting for (have / want, a tick when
+   met) and the AFCS modes engaged. Mono, faint, wraps to TWO lines and clips there with an ellipsis;
+   hidden while the rail is held (nothing is being flown).
+   G710: THE PLAN LINE - the point flown to, the height asked there and the vertical speed against its
+   limit; the ink, not the faint (it is the answer to "what is it doing"), one line, clipped.
+   The small PFD carries neither: its area is gone with them, which is a size the player chose. */
+#phWhy { display:block; margin-top:7px; height:35px; overflow:hidden; contain:inline-size; }
+#phNext { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2;
+  height:22px; overflow:hidden; white-space:normal; overflow-wrap:anywhere;
+  font:400 8.5px/11px 'IBM Plex Mono', monospace;
+  letter-spacing:.02em; color:var(--ed-faint); text-overflow:ellipsis; font-style:normal; }
+#rail.held + #phWhy #phNext { visibility:hidden; }
+#phPlan { display:block; margin-top:2px; height:11px; font:500 8.5px/11px 'IBM Plex Mono', monospace; letter-spacing:.02em;
   color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-style:normal; }
-#phPlan:empty { display:none; }
-#ui #pfd.small #phPlan { display:none; }
+#ui #pfd.small #phWhy { display:none; }
 
 #track { display:flex; gap:3px; align-items:center; margin-left:auto;
   margin-block:-7px; }
@@ -748,15 +773,18 @@
   /* the three columns collapse: the PFD goes under the brief rather than
      being squeezed between it and nothing */
   #flTop { left:12px; right:12px; top:12px; grid-template-columns:1fr; }
-  #ui #pfd { grid-column:1; justify-self:stretch; }
+  #ui #pfd, #ui #pfd.small { grid-column:1; justify-self:stretch; width:auto; min-width:0; }
   #flRail { left:12px; padding:5px; gap:4px; }
   #ui .flRailBtn { width:44px; }
   #ui #pfd { padding:9px 12px 9px; max-width:100%; }
   /* nine readouts do not fit across a phone: they wrap, and the plate grows
-     upward instead of off the side of the screen */
-  #pfdRow { gap:8px 14px; flex-wrap:wrap; }
-  #ui .rd { min-width:52px; }
-  #ui .rd b { font-size:21px; }
+     upward instead of off the side of the screen - when YOU add them (G1090:
+     the width is the screen's, the rows fixed; the text never moves either) */
+  #pfdRow { gap:8px 12px; flex-wrap:wrap; }
+  #ui .rd { width:58px; }
+  #ui .rd[data-i="nrg"], #ui .rd[data-i="netto"] { width:110px; }
+  #ui .rd[data-i="thr"] { width:86px; }
+  #ui .rd b { font-size:21px; height:23px; line-height:23px; }
   /* the width is `right`-anchored here so flLayout can inset the LEFT past
      the ribbon without the panel changing size */
   #ui #telp { left:12px; right:12px; width:auto; bottom:78px; }

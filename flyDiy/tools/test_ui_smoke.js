@@ -948,6 +948,134 @@ try {
       `${workshop.length} workshop ids, ${retired.length} retired`);
   }
 
+  // ---- G1090: THE TOP BAR HOLDS ONE SIZE (the user, 2026-09-29: "the top bar with the readings keeps
+  // resizing because of the explanation text of what the pilot is doing. It shouldn't resize. Size the box,
+  // and have the text flow in its own dedicated area"). A stub DOM has no layout, so the proof is the CSS
+  // CONTRACT, read off the artifact's own sheets: the plate (#pfd) has a declared width at each breakpoint and
+  // size and clips; every row in it has a declared height; every readout a declared width, tabular figures
+  // and a clip; the pilot's status line its own area (contained, two lines clamped), the plan line one clipped
+  // line; and no text-driven state (held, an empty line) takes a line out of the flow - `display:none` on
+  // one was a resize. Then the plate's box is COMPUTED from the contract for every text the pilot can put in
+  // it (every phase label of both rails, the divergence card, the hand-flown line, the longest status and
+  // plan lines, the widest numbers and unit labels) and must come out one size per layout. The rig
+  // tools/hud_fit_shot.js measures the same in Chromium (440 x 143 desktop, 376 x 132 at 400 px wide).
+  {
+    const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(m => m[1]).join('\n')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    // the rules, one level of @media: [{ media, sels: [...], decl: {prop: value} }]
+    const rules = [];
+    const eat = (txt, media) => {
+      let i = 0;
+      while (i < txt.length) {
+        const o = txt.indexOf('{', i); if (o < 0) break;
+        const head = txt.slice(i, o).trim();
+        if (head.startsWith('@')) {
+          let d = 1, j = o + 1; while (j < txt.length && d) { if (txt[j] === '{') d++; else if (txt[j] === '}') d--; j++; }
+          if (/^@media/.test(head)) eat(txt.slice(o + 1, j - 1), head);
+          i = j; continue;
+        }
+        const c = txt.indexOf('}', o);
+        const decl = {};
+        for (const d of txt.slice(o + 1, c).split(';')) { const k = d.indexOf(':'); if (k > 0) decl[d.slice(0, k).trim()] = d.slice(k + 1).trim(); }
+        rules.push({ media, sels: head.split(',').map(x => x.trim().replace(/\s+/g, ' ')), decl });
+        i = c + 1;
+      }
+    };
+    eat(css, null);
+    // the declarations a selector is written with (exactly), merged in sheet order; `media`: null = the base sheet,
+    // 'phone' = the (max-width:760px) block
+    const D = (sel, media) => {
+      const out = {};
+      for (const r of rules) if (r.sels.indexOf(sel) >= 0 && (media === 'phone' ? /max-width:\s*760px/.test(r.media || '') : !r.media)) Object.assign(out, r.decl);
+      return out;
+    };
+    const px = v => { const m = /^(-?[\d.]+)px$/.exec(String(v || '').split(/\s+/)[0]); return m ? +m[1] : NaN; };
+    const need = (what, ok) => { if (!ok) throw new Error('G1090 the top bar can resize: ' + what); };
+    const fontPx = f => { const m = /(\d+(?:\.\d+)?)px\/(\d+(?:\.\d+)?)px/.exec(f || ''); return m ? [+m[1], +m[2]] : null; };
+    // 1. the markup: the pilot's area is its own box, after the rail, holding the status and the plan lines
+    const pb = html.slice(html.indexOf('<div id="pfd"'), html.indexOf('<div id="flActs"'));
+    need('#phWhy is missing from the plate', /<div id="phWhy"><i id="phNext"><\/i><i id="phPlan"><\/i><\/div>/.test(pb));
+    const railM = /<div id="rail"[\s\S]*?<\/button>\s*<\/div>/.exec(pb);
+    need('the rail markup', !!railM);
+    need('#phNext rides the rail again (its text would widen it)', railM[0].indexOf('phNext') < 0 && railM[0].indexOf('phPlan') < 0);
+    need('#phWhy must follow #rail (the held rule is `#rail.held + #phWhy`)', pb.indexOf('id="phWhy"') > pb.indexOf('id="rail"'));
+    // 2. the plate: a declared width per layout, a clip, border-box
+    const P = D('#ui #pfd'), PS = D('#ui #pfd.small'), PP = Object.assign({}, D('#ui #pfd', 'phone'), D('#ui #pfd, #ui #pfd.small', 'phone'));
+    const PPs = rules.filter(r => /max-width:\s*760px/.test(r.media || '') && r.sels.indexOf('#ui #pfd.small') >= 0).reduce((o, r) => Object.assign(o, r.decl), {});
+    need('#ui #pfd has no declared width (' + P.width + ')', px(P.width) > 0);
+    need('#ui #pfd does not clip', P.overflow === 'hidden');
+    need('#ui #pfd is not border-box', P['box-sizing'] === 'border-box');
+    need('#ui #pfd.small has no declared width (' + PS.width + ')', px(PS.width) > 0);
+    need('on a phone the plate is not the screen\'s width', PP.width === 'auto' && PP['justify-self'] === 'stretch' && PP['min-width'] === '0');
+    need('on a phone the small plate keeps a desktop width', PPs.width === 'auto');
+    // 3. the readouts: fixed cells, tabular figures, clipped value and unit lines of fixed height
+    const RD = D('#ui .rd'), RB = D('#ui .rd b'), RI = D('#ui .rd i');
+    need('a readout has no fixed width', px(RD.width) > 0 && RD.flex === 'none' && RD.overflow === 'hidden');
+    need('the readout figures are not tabular', /tabular-nums/.test(RB['font-variant-numeric'] || ''));
+    need('a readout value can wrap or has no fixed height', RB['white-space'] === 'nowrap' && RB.overflow === 'hidden' && px(RB.height) > 0);
+    need('a unit line can wrap or has no fixed height', RI['white-space'] === 'nowrap' && RI.overflow === 'hidden' && px(RI.height) > 0 && RI.display === 'block');
+    for (const k of ['nrg', 'netto', 'thr']) need('the ' + k + ' cell has no width of its own', px(D('#ui .rd[data-i="' + k + '"]').width) > px(RD.width));
+    const RDp = D('#ui .rd', 'phone'), RBp = D('#ui .rd b', 'phone');
+    need('the phone readout has no fixed width / height', px(RDp.width) > 0 && px(RBp.height) > 0);
+    const RDs = D('#ui #pfd.small .rd'), RBs = D('#ui #pfd.small .rd b'), RIs = D('#ui #pfd.small .rd i');
+    need('the small readout has no fixed width / height', px(RDs.width) > 0 && px(RBs.height) > 0 && px(RIs.height) > 0);
+    // 4. the rail: one line of fixed height; the phase name shrinks and clips, never pushes
+    const RL = D('#rail'), PN = D('#phName');
+    need('the rail has no fixed height or can wrap', px(RL.height) > 0 && RL['flex-wrap'] === 'nowrap' && RL['box-sizing'] === 'border-box');
+    need('the phase name can push the rail', PN['min-width'] === '0' && PN.overflow === 'hidden' && PN['text-overflow'] === 'ellipsis' && PN['white-space'] === 'nowrap');
+    need('the small rail has no fixed height', px(D('#ui #pfd.small #rail').height) > 0);
+    // 5. the pilot's area: fixed, contained; the status clamps at two lines, the plan clips at one
+    const WY = D('#phWhy'), NX = D('#phNext'), PL = D('#phPlan');
+    need('#phWhy has no fixed height / clip / containment', px(WY.height) > 0 && WY.overflow === 'hidden' && /inline-size/.test(WY.contain || ''));
+    need('#phNext does not clamp at two lines', NX['-webkit-line-clamp'] === '2' && NX.overflow === 'hidden' && px(NX.height) > 0);
+    const fN = fontPx(NX.font), fP = fontPx(PL.font);
+    need('#phNext\'s two lines do not fill its height exactly', fN && Math.abs(2 * fN[1] - px(NX.height)) < 0.01);
+    need('#phPlan is not one clipped line', PL['white-space'] === 'nowrap' && PL.overflow === 'hidden' && PL['text-overflow'] === 'ellipsis' && fP && Math.abs(fP[1] - px(PL.height)) < 0.01);
+    need('#phWhy does not hold its two lines + the plan line', px(WY.height) >= px(NX.height) + px(PL.height) + (px(PL['margin-top']) || 0));
+    // 6. no text-driven state takes a line out: only the small PFD (the player's choice) may hide the area
+    for (const r of rules) for (const sl of r.sels) {
+      if (!/#phNext|#phPlan|#phWhy|#phName|#rail\b|\.rd b|\.rd i/.test(sl)) continue;
+      if (r.decl.display === 'none' && !/\.small|\[hidden\]/.test(sl)) throw new Error('G1090 the top bar can resize: `' + sl + '` sets display:none on a text-driven state (use visibility)');
+      if (/:empty/.test(sl)) throw new Error('G1090 the top bar can resize: `' + sl + '` styles a line by its emptiness');
+    }
+    need('the held status line must hide by visibility', D('#rail.held + #phWhy #phNext').visibility === 'hidden');
+    // 7. the app writes no size onto the plate (flLayout moves the map and the trace, never the PFD)
+    for (const id of ['pfd', 'pfdRow', 'rail', 'phWhy', 'phNext', 'phPlan', 'phName'])
+      if (els[id] && els[id].style && (els[id].style.width || els[id].style.height || els[id].style.getPropertyValue('width')))
+        throw new Error('G1090 the app sized #' + id + ' by hand (' + els[id].style.width + ' x ' + els[id].style.height + ')');
+    // 8. THE BOX, COMPUTED FROM THE CONTRACT for every text the pilot can produce. Each text is written to the
+    // element the app writes it to; that element's box is the contract's (a declared height, a clip, a width
+    // inside the plate's), so the plate's box is the same sum whatever the text - asserted per text rather than
+    // once, so a future rule that makes ONE of these elements content-sized fails here with the text that moved it.
+    const phaseLabels = new Set(['HOLDING', 'GARAGE', 'LOAD TEST', 'SIM DIVERGED — RESET']);
+    for (const m of coreBlock.matchAll(/^\s*(?:[A-Z]+: \['[^']*', '[^']*'\],?\s*)+$/gm)) for (const q of m[0].matchAll(/\['([^']*)'/g)) phaseLabels.add(q[1]);
+    for (const m of appBlock.matchAll(/\['([A-Z]+)','([A-Z \-]+)'\]/g)) phaseLabels.add(m[2]);
+    need('the phase labels were not found (' + phaseLabels.size + ')', phaseLabels.size >= 25);
+    const longNext = 'holding short, engine at idle, waiting for the runway to be clear and the checks to be done — run-up 1150/1200 rpm · oil 71/60 °C ✓ · mags ok/ok ✓  [HDG ALT SPD]';
+    const texts = [...[...phaseLabels].map(t => ['phName', t]), ['phNext', ''], ['phNext', 'by hand'], ['phNext', longNext], ['phNext', 'x'.repeat(400)],
+      ['phPlan', ''], ['phPlan', 'to hold 350 m'], ['phPlan', 'to downwind abeam the threshold 1.2 km · target 305 m (287 agl) · descending −12.3 m/s (limit −5.0)'],
+      ['r-ias', '999'], ['r-alt', '9999'], ['r-alt', '-12'], ['r-vs', '-12.3'], ['r-vs', '+12.3'], ['r-nrg', 'EMPTY'], ['r-nrg', '120.5'],
+      ['ias-unit', 'km/h gs'], ['ias-unit', 'km/h ias'], ['r-nrgU', 'kWh charge · 1.2 h'], ['r-nrgU', 'L fuel · 45 min']];
+    // the contract's box per layout: [width, height], every term a declared number (the text is not an input)
+    const boxOf = (lay, id, t) => {
+      const small = lay.endsWith('small'), phone = lay.startsWith('phone');
+      const pad = small ? [8, 7] : phone ? [9, 9] : [11, 10];
+      const w = phone ? 'screen' : px(small ? PS.width : P.width);
+      const bH = small ? px(RBs.height) : phone ? px(RBp.height) : px(RB.height), iH = small ? px(RIs.height) : px(RI.height);
+      const railH = small ? px(D('#ui #pfd.small #rail').height) : px(RL.height), railM = small ? 8 : px(RL['margin-top']);
+      const why = small ? 0 : px(WY.height) + px(WY['margin-top']);
+      // where the text lands, and that its box is the contract's (an id nobody styles would be content-sized)
+      const host = id === 'phName' ? PN : id === 'phNext' ? NX : id === 'phPlan' ? PL : /^r-|unit/.test(id) ? (id === 'r-nrgU' || id === 'ias-unit' ? RI : RB) : null;
+      need('#' + id + ' has no contract (' + JSON.stringify(t).slice(0, 40) + ')', !!host);
+      return w + ' x ' + (pad[0] + pad[1] + 2 + bH + iH + railM + railH + why);
+    };
+    const lays = ['desktop', 'desktop small', 'phone', 'phone small'], seen = {};
+    for (const lay of lays) { seen[lay] = new Set(); for (const [id, t] of texts) seen[lay].add(boxOf(lay, id, t)); }
+    for (const lay of lays) need(lay + ' plate takes ' + seen[lay].size + ' sizes over ' + texts.length + ' texts: ' + [...seen[lay]].join(' | '), seen[lay].size === 1);
+    console.log('G1090 the top bar holds one size over ' + texts.length + ' texts (' + phaseLabels.size + ' phase labels): ' +
+      lays.map(l => l + ' ' + [...seen[l]][0]).join(', ') + '; the pilot\'s area ' + px(WY.height) + ' px, two lines clamped + the plan line');
+  }
+
   if (rafCount < 100) throw new Error(`loop stalled (raf x${rafCount})`);
   console.log(`ran app block: raf x${rafCount}, handlers wired: ${Object.keys(handlers).sort().join(' ')}`);
   console.log('GATE UISMOKE: PASS');
