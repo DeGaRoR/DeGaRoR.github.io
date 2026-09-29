@@ -52,6 +52,9 @@ function metrics(j) {
   const steps = (j.bootLog || []).filter(b => b.k === 'step' || b.k === 'run');
   let compile = null, inRoll = false;   // the roll-out run's compile step (not the garage's, not a settings screen's)
   for (const b of steps) { if (b.k === 'run') { inRoll = b.set === 'rollout'; continue; } if (inRoll && b.id === 'compile') { compile = b.ms; break; } }
+  // G1063.4 (B8+B9's one loading): the world and the aircraft compile in the GARAGE's boot now (worldCompile, compile,
+  // craft) and the first roll-out has nothing to compile - the programs' time is the sum of those boot steps
+  if (compile == null) { let c = 0, any = false; for (const b of steps) if (b.k === 'step' && (b.id === 'worldCompile' || b.id === 'compile' || b.id === 'craft')) { c += b.ms || 0; any = true; } if (any) compile = c; }
   const settingsWorst = (j.settings || []).length ? Math.max(...j.settings.map(s => s.worst || 0)) : null;
   const g = j.gates || {};
   return {
@@ -61,7 +64,12 @@ function metrics(j) {
     over100: g.over100ms ? g.over100ms.n : null, below30s: g.below30run ? g.below30run.sec : null,
     tasks1s: lt.filter(x => x > 1000).length, tasks200: lt.filter(x => x > 200).length, taskWorst: lt.length ? Math.max(...lt) : 0,
     slice: j.worldSlices ? j.worldSlices.worst : null,
-    screen: j.tReveal != null && j.tGarage != null ? j.tReveal - j.tGarage : null,
+    // G1063.4: rollout_perf's tGarage is seconds from the navigation to the garage, its tReveal seconds from the
+    // Roll out click to the flight (the old `tReveal - tGarage` subtracted a click-relative time from a
+    // navigation-relative one). The load the player waits for is the FIRST FLIGHT: the garage, then the roll-out
+    garage: j.tGarage != null ? j.tGarage : null,
+    rollout: j.tReveal != null ? j.tReveal : null,
+    flight: j.tReveal != null && j.tGarage != null ? j.tGarage + j.tReveal : null,
     compile, settings: settingsWorst,
     cap: taxi.cap30 != null && taxi.cap30 > 0.5 ? 30 : 60,
   };
@@ -80,7 +88,9 @@ const RULES = {
   tasks200: { up: false, rel: 0.25, abs: 3,    unit: '' },
   taskWorst:{ up: false, rel: 0.15, abs: 150,  unit: 'ms' },
   slice:    { up: false, rel: 0.15, abs: 150,  unit: 'ms' },
-  screen:   { up: false, rel: 0.10, abs: 3,    unit: 's' },
+  garage:   { up: false, rel: 0.10, abs: 3,    unit: 's' },   // G1063.4: navigation -> the garage (the one loading since B8+B9)
+  rollout:  { up: false, rel: 0.10, abs: 1,    unit: 's' },   // the Roll out click -> the flight
+  flight:   { up: false, rel: 0.08, abs: 3,    unit: 's' },   // navigation -> the first flight: THE load time
   compile:  { up: false, rel: 0.15, abs: 2000, unit: 'ms' },
   settings: { up: false, rel: 0.20, abs: 150,  unit: 'ms' },
 };
