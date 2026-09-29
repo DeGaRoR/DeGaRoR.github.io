@@ -591,7 +591,7 @@ function rasterTileDecode(C, e) {
   plane(qu, 0); plane(qk, 4);
   const a1b0 = e.flags & 1;
   for (let k = 0; k < NN; k++) { A[k] = 1 - qu[k] / GRQ_A; B[k] = (a1b0 && qu[k] === 0) ? 0 : (qk[k] === 0 ? e.b0 : e.b0 + qk[k] / GRQ_B); }
-  return { x0: e.i * 16, z0: e.j * 16, r: 16 / n, n, N, A, B };
+  return { x0: e.i * 16, z0: e.j * 16, r: 16 / n, n, N, A, B, k: e.i * 131072 + e.j, lp: null, ln: null };   // (k, lp, ln: the page's tile cache, G735)
 }
 
 // ---------------------------------------------------------------------------
@@ -1552,13 +1552,35 @@ function compose(rec0, world, opts) {
   // interpolated. The lattice is a quarter of the finest feather touching the tile (0.25-1 m). A tile no modifier
   // touches (a road's reach cells, a pad's box) is the ground itself, exactly as the analytic path returns it.
   // Tiles are Float64 (a Float32 level would stand 4e-7 m over the ceiling's own bound) and capped (GR_CAP bytes;
-  // the oldest go first); `o.raster === false` (the editor, a proof)
+  // the LEAST RECENTLY READ go first); `o.raster === false` (the editor, a proof)
   // keeps the analytic path. GATE PREMRASTER holds the agreement.
-  const GR_TS = 16, GR_CAP = 48 * 1024 * 1024, GR_TOL = 0.01, GR_RELIEF = 2;
+  // G735 (B1b): THE CACHE IS AN LRU. It kept every EMPTY tile (the ground itself: null) in the one insertion-ordered
+  // map and evicted by scanning it from the front for the first baked tile - past up to 18 596 nulls an eviction,
+  // 10 143 evictions in FRAMECOST's boot - and a tile the solver read every frame went when it was the OLDEST baked.
+  // Now the map still answers every lookup (nulls included: an empty tile is never evicted, it holds no bytes), and
+  // the baked / decoded tiles are ALSO threaded on a doubly linked list through their own fields (lp / ln, k: the
+  // key): a read moves its tile to the head (four pointer writes; none when it is already there, the common case),
+  // an eviction takes the tail - O(1) both. What a tile holds is unchanged (the bake and the decode are pure), so a
+  // read answers the same bits whatever was evicted (GATE PREMRASTER: a tiny cap against the default, Object.is).
+  // `o.rasterCap` (bytes): the cap, for a proof.
+  const GR_TS = 16, GR_CAP = o.rasterCap > 0 ? o.rasterCap : 48 * 1024 * 1024, GR_TOL = 0.01, GR_RELIEF = 2;
   const grOn = o.raster !== false && mods.length > 0;
   const grTiles = new Map(), grStats = { baked: 0, empty: 0, evicted: 0, bytes: 0, bakeMs: 0, rMin: Infinity, rMax: 0, decoded: 0, decodeMs: 0 };
-  let grRmax = 0;
+  let grRmax = 0, grHead = null, grTail = null;   // the most / least recently read baked tile
   const grKey = (i, j) => i * 131072 + j;
+  function grUnlink(T) {
+    if (T.lp) T.lp.ln = T.ln; else if (grHead === T) grHead = T.ln;
+    if (T.ln) T.ln.lp = T.lp; else if (grTail === T) grTail = T.lp;
+    T.lp = null; T.ln = null;
+  }
+  function grFront(T) {                           // T read: it goes to the head
+    grUnlink(T);
+    T.ln = grHead; if (grHead) grHead.lp = T; grHead = T; if (!grTail) grTail = T;
+  }
+  function grDrop(T) { grUnlink(T); grTiles.delete(T.k); grStats.bytes -= 16 * T.N * T.N; }
+  function grTrim() {                             // the least recently read go until the cache is under its cap
+    while (grStats.bytes > GR_CAP && grTail && grTail !== grHead) { grDrop(grTail); grStats.evicted++; }
+  }
   const grNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
   function grBake(ti, tj, quiet) {
     const x0 = ti * GR_TS, z0 = tj * GR_TS, x1 = x0 + GR_TS, z1 = z0 + GR_TS;
@@ -1604,18 +1626,17 @@ function compose(rec0, world, opts) {
     if (r > grRmax) grRmax = r;
     grStats.baked++; grStats.bytes += 16 * N * N; grStats.bakeMs += grNow() - t0;
     grStats.rMin = Math.min(grStats.rMin, r); grStats.rMax = Math.max(grStats.rMax, r); grStats['n' + n] = (grStats['n' + n] || 0) + 1;
-    while (grStats.bytes > GR_CAP) {                                  // the oldest baked tile goes first
-      let gone = false;
-      for (const [k, T] of grTiles) { if (T) { grTiles.delete(k); grStats.bytes -= 16 * T.N * T.N; grStats.evicted++; gone = true; break; } }
-      if (!gone) break;
-    }
-    return { x0, z0, r, n, N, A, B };
+    return { x0, z0, r, n, N, A, B, k: grKey(ti, tj), lp: null, ln: null };   // (the cache's fields: grHeight threads it)
   }
   // the composed height at a LOCAL point over the ground h under it (the raster's answer to terrainH(x, z, h))
   function grHeight(lx, lz, h) {
     const ti = Math.floor(lx / GR_TS), tj = Math.floor(lz / GR_TS), k = grKey(ti, tj);
     let T = grTiles.get(k);
-    if (T === undefined) { T = grCooked(ti, tj); if (T === undefined) T = grBake(ti, tj); grTiles.set(k, T); }
+    if (T === undefined) {
+      T = grCooked(ti, tj); if (T === undefined) T = grBake(ti, tj);
+      grTiles.set(k, T);
+      if (T !== null) { grFront(T); grTrim(); }
+    } else if (T !== grHead && T !== null) grFront(T);
     if (T === null) return h;
     const u = (lx - T.x0) / T.r, v = (lz - T.z0) / T.r;
     let i = Math.floor(u), j = Math.floor(v);
@@ -1721,7 +1742,7 @@ function compose(rec0, world, opts) {
       M.set(k, rasterCellIndex(c.bytes));
     }
     // a loaded cell's cached tiles were the lazy bake's: they go, so every read under it is the cook's
-    for (const [k, T] of grTiles) { const i = Math.round(k / 131072), j = k - i * 131072; if (M.has(grCellKey(Math.floor(i / GR_CELL), Math.floor(j / GR_CELL)))) { grTiles.delete(k); if (T) grStats.bytes -= 16 * T.N * T.N; } }
+    for (const [k, T] of grTiles) { const i = Math.round(k / 131072), j = k - i * 131072; if (M.has(grCellKey(Math.floor(i / GR_CELL), Math.floor(j / GR_CELL)))) { if (T) grDrop(T); else grTiles.delete(k); } }
     grCook = M.size ? M : null;
     return { taken: M.size, stale };
   }
@@ -1734,7 +1755,6 @@ function compose(rec0, world, opts) {
     const t0 = grNow(), T = rasterTileDecode(C, e);
     grStats.decoded++; grStats.decodeMs += grNow() - t0; grStats.bytes += 16 * T.N * T.N;
     if (T.r > grRmax) grRmax = T.r;
-    while (grStats.bytes > GR_CAP) { let gone = false; for (const [k2, T2] of grTiles) { if (T2) { grTiles.delete(k2); grStats.bytes -= 16 * T2.N * T2.N; grStats.evicted++; gone = true; break; } } if (!gone) break; }
     return T;
   }
   // THE SURFACE, INDEXED (G614, exact - the A0 ring: every forest lattice point asks world.surface, and this scan
