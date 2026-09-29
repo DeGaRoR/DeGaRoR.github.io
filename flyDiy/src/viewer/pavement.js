@@ -1130,14 +1130,11 @@ float pvTread(float u, float x, float w, float seed) {
   // grade/tint rows and 112 vec4 of marks and keep boxes (uMarkR/uMarkK[40], uSeg/uSegK[8], uKeepA/uKeepB[4]) uploaded
   // at every one of its draws, and three cannot merge two meshes that wear different materials. Now the values a
   // material held are a ROW of one RGBA32F texture (uPavT, PV.W texels a row) and every pavement wears ONE material:
-  //   texels 0..PV.P-1  THE PARAMS (the recipe and the class, what applyOne writes), PACKED: only the components the
-  //                 shader reads (PV_USED - GATE PAVEMENT 12 checks the shipped text against it), float after float in
-  //                 PV_SLOTS' order, the grade/tint rows' five used floats a slot included. The rows are packed from the
-  //                 very uniform objects the old material held, so every number is the same float32 either way. (Packed,
-  //                 the row's head is 37 texel reads a pixel instead of 49: the GPU pays for each, tools/pave_ab.js)
+  //   texels 0..30  the recipe/class vec4s, in PV_VEC's order (what applyOne writes - the rows are packed from the very
+  //                 uniform objects the old material held, so the numbers are the same float32 either way)
   //   PV.K          cls, seed, halfW, halfL - what the geometry's aPavK carried (now exact: a texel is not interpolated)
-  //   PV.N          uMarkN, uSegN, uKeepN, the widest segment's half-width
-  //   PV.KA / PV.KB the keep boxes;  PV.S / PV.SK the segments
+  //   PV.N          uMarkN, uSegN, uKeepN
+  //   PV.G / PV.T   the 8 grade and 8 tint rows;  PV.KA / PV.KB the keep boxes;  PV.S / PV.SK the segments
   //   PV.MR / PV.MK the markings' rects and rules - THE MARKINGS ATLAS: a strip's paint is its row's last 80 texels
   // The row is picked by `aPavId`, a vertex attribute constant over a part, read through a FLAT varying (the provoking
   // vertex's value, never interpolated: G1046's lesson - a hash must never see an interpolated input) and rounded.
@@ -1148,17 +1145,8 @@ float pvTread(float u, float x, float w, float seed) {
   // `?pave=old` draws exactly the pre-G925 program and the two cannot drift apart silently (GATE PAVEMENT 12).
   const PV_VEC = ['uLayer', 'uLayer2', 'uTile', 'uTile2', 'uHex', 'uMacro', 'uLane', 'uLane2', 'uCrack', 'uPatch', 'uMoss', 'uStain', 'uWet', 'uMark',
     'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd'];
-  // the components of each the shader reads (uMean none: it is the CPU's; uClass .x and .w)
-  const PV_USED = { uLayer: 'xyzw', uLayer2: 'xyz', uTile: 'xyzw', uTile2: 'xyz', uHex: 'xyzw', uMacro: 'xyz', uLane: 'xyzw', uLane2: 'xyzw', uCrack: 'xyzw',
-    uPatch: 'xyzw', uMoss: 'xyzw', uStain: 'xyz', uWet: 'x', uMark: 'xyzw', uPaint0: 'xyz', uPaint1: 'xyz', uRubber: 'xyzw', uRubber2: 'xyz', uRut: 'xyzw',
-    uRut2: 'xyzw', uRoad: 'xyz', uEdge: 'xyzw', uEdge2: 'xy', uDist: 'xyzw', uSpec: 'xyz', uClass: 'xw', uSoft: 'xyzw', uSoft2: 'xyzw', uMean: '', uSide: 'xyzw',
-    uRoadEnd: 'xy', uGrade: 'xy', uTint: 'xyz' };
-  const NGRADE = 7;   // the slots (SLOTS: base, damage, shoulder, grass, tracks, moss, macro)
-  const PV_SLOTS = [];   // [uniform, component, array index (-1: a vec4)]
-  for (const n of PV_VEC) for (const c of PV_USED[n]) PV_SLOTS.push([n, c, -1]);
-  for (let i = 0; i < NGRADE; i++) { for (const c of PV_USED.uGrade) PV_SLOTS.push(['uGrade', c, i]); for (const c of PV_USED.uTint) PV_SLOTS.push(['uTint', c, i]); }
-  const PV = { P: Math.ceil(PV_SLOTS.length / 4) };
-  PV.K = PV.P; PV.N = PV.K + 1; PV.KA = PV.N + 1; PV.KB = PV.KA + NKEEP; PV.S = PV.KB + NKEEP; PV.SK = PV.S + NSEG; PV.MR = PV.SK + NSEG; PV.MK = PV.MR + NMARK; PV.W = PV.MK + NMARK;
+  const PV = { K: PV_VEC.length, N: PV_VEC.length + 1, G: PV_VEC.length + 2 };
+  PV.T = PV.G + 8; PV.KA = PV.T + 8; PV.KB = PV.KA + NKEEP; PV.S = PV.KB + NKEEP; PV.SK = PV.S + NSEG; PV.MR = PV.SK + NSEG; PV.MK = PV.MR + NMARK; PV.W = PV.MK + NMARK;
   // ?pave=old: every pavement its own material and mesh, as shipped before G925 (the A/B); default: the table
   const MODE = { table: true, ab: false };
   try { const q = typeof location !== 'undefined' && /[?&]pave=([^&]*)/.exec(location.search); if (q) { MODE.ab = true; MODE.table = !/^old$/i.test(decodeURIComponent(q[1])); } } catch (e) {}
@@ -1189,14 +1177,9 @@ float pvTread(float u, float x, float w, float seed) {
     c = rep(c, '    float d = distance(p, a + ab * t), hw = K.x * 0.5, f = max(fw.x, fw.y);',
       `    float d = distance(p, a + ab * t), f = max(fw.x, fw.y);\n    if (d >= gSegHW + f) continue;\n    vec4 K = PVT(${PV.SK} + i); float hw = K.x * 0.5;`);
     // the row, read once at the top of the chain into the globals the shipped text names
-    // (the packed params unpacked into the same globals: each used component from its slot, an unused one 0)
-    const slotOf = new Map(); PV_SLOTS.forEach((s, k) => slotOf.set(s[0] + (s[2] >= 0 ? '[' + s[2] + ']' : '') + '.' + s[1], k));
-    const comp = (nm, c) => { const k = slotOf.get(nm + '.' + c); return k === undefined ? '0.0' : 'q' + (k >> 2) + '.' + 'xyzw'[k & 3]; };
-    const v4 = nm => 'vec4(' + 'xyzw'.split('').map(c => comp(nm, c)).join(', ') + ')';
-    c += '\nvoid pvLoad() {\n  gPavRow = int(vPavId + 0.5);\n  ' + Array.from({ length: PV.P }, (_, i) => 'vec4 q' + i + ' = PVT(' + i + ');').join(' ') +
-      '\n  ' + PV_VEC.map(n => n + ' = ' + v4(n) + ';').join('\n  ') +
-      '\n  ' + Array.from({ length: 8 }, (_, i) => 'uGrade[' + i + '] = ' + v4('uGrade[' + i + ']') + '; uTint[' + i + '] = ' + v4('uTint[' + i + ']') + ';').join('\n  ') +
-      `\n  vec4 pvN = PVT(${PV.N}); uMarkN = int(pvN.x + 0.5); uSegN = int(pvN.y + 0.5); uKeepN = int(pvN.z + 0.5); gSegHW = pvN.w;\n}`;
+    c += '\nvoid pvLoad() {\n  gPavRow = int(vPavId + 0.5);\n  ' + PV_VEC.map((n, i) => n + ' = PVT(' + i + ');').join(' ') +
+      `\n  vec4 pvN = PVT(${PV.N}); uMarkN = int(pvN.x + 0.5); uSegN = int(pvN.y + 0.5); uKeepN = int(pvN.z + 0.5); gSegHW = pvN.w;` +
+      `\n  for (int i = 0; i < 8; i++) { uGrade[i] = PVT(${PV.G} + i); uTint[i] = PVT(${PV.T} + i); }\n}`;
     T.common = c;
     T.map = rep(GLSL.map, 'float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;',
       `pvLoad(); vec4 pvK = PVT(${PV.K});   // G925: the row (the table), cls/seed/halfW/halfL exact per part\n    float cls = floor(pvK.x + 0.5), seed = floor(pvK.y * 37.0 + 0.5) / 37.0, halfW = pvK.z, halfL = pvK.w;`);
@@ -1321,11 +1304,11 @@ float pvTread(float u, float x, float w, float seed) {
     if (!TAB.data || !(P.row >= 0)) return;
     const d = TAB.data, o = P.row * PV.W * 4, U = P.uniforms;
     const put = (i, v) => { const k = o + i * 4; d[k] = v.x; d[k + 1] = v.y; d[k + 2] = v.z; d[k + 3] = v.w; };
-    for (let k = 0; k < PV_SLOTS.length; k++) { const s = PV_SLOTS[k], v = s[2] >= 0 ? U[s[0]].value[s[2]] : U[s[0]].value; d[o + k] = v[s[1]]; }
-    for (let k = PV_SLOTS.length; k < PV.P * 4; k++) d[o + k] = 0;
+    for (let i = 0; i < PV_VEC.length; i++) put(i, U[PV_VEC[i]].value);
     d.set(P.pk, o + PV.K * 4);
     const n = o + PV.N * 4; d[n] = U.uMarkN.value; d[n + 1] = U.uSegN.value; d[n + 2] = U.uKeepN.value;
     { let hw = 0; for (let i = 0; i < U.uSegN.value; i++) hw = Math.max(hw, Math.fround(U.uSegK.value[i].x) * 0.5); d[n + 3] = hw; }   // the widest segment's half-width (the segments' early out)
+    for (let i = 0; i < 8; i++) { put(PV.G + i, U.uGrade.value[i]); put(PV.T + i, U.uTint.value[i]); }
     for (let i = 0; i < NKEEP; i++) { put(PV.KA + i, U.uKeepA.value[i]); put(PV.KB + i, U.uKeepB.value[i]); }
     for (let i = 0; i < NSEG; i++) { put(PV.S + i, U.uSeg.value[i]); put(PV.SK + i, U.uSegK.value[i]); }
     for (let i = 0; i < NMARK; i++) { put(PV.MR + i, U.uMarkR.value[i]); put(PV.MK + i, U.uMarkK.value[i]); }
@@ -1766,7 +1749,7 @@ float pvTread(float u, float x, float w, float seed) {
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
     stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
     // G925-G928: the table, the one material, the merge, the A/B
-    PV, PV_VEC, PV_USED, PV_SLOTS, MODE, TAB, BATCH, tableGLSL, hookT, tableMat, isTable, pack, merge, mergeSteps, onRebuild, ab, census, get table() { return MODE.table; } };
+    PV, PV_VEC, MODE, TAB, BATCH, tableGLSL, hookT, tableMat, isTable, pack, merge, mergeSteps, onRebuild, ab, census, get table() { return MODE.table; } };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;
