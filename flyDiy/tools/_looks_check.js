@@ -125,29 +125,35 @@ const RP = read('render_premises.js'), RW = read('render_world.js'), WA = read('
 }
 
 // ---- 4. the texture libraries ------------------------------------------------------------------------------------
+// G751 (a failed map never stalls a library), re-aimed at G911: both arrays are filled from the ground library's
+// COOKED layers through GROUND_LIB.pack - a set whose file fails takes its mean colour and the library still calls back
 {
-  const blk = lift(PV, '  function library(THREE, keys, done) {', '  // THE SHARED LIBRARY');
+  const blk = lift(PV, '  function library(THREE, keys, done, prev) {', '  // THE SHARED LIBRARY');
   ok(!!blk, '4 the pavement library found in pavement.js');
-  ok(SG.includes("const dec = img => (img.complete ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }));"),
-    '4 the splat ground\'s library counts a failed map as done (and listens, not overwrites onload)');
+  // (AS3, G917: each item also carries the set's KTX2 planes, `ktx`; GROUND_LIB falls back to `layers` on any failure)
+  ok(/GROUND_LIB\.pack\(sets\.map\(m => \(\{ layers: m\.layers, (?:ktx: m\.ktx, )?mean: m\.mean, label: m\.key \}\)\)/.test(SG) && !/getImageData|drawImage/.test(SG),
+    '4 the splat ground\'s arrays come from the cooked layers (GROUND_LIB.pack) - no canvas in splat_ground.js');
+  ok(blk && !/getImageData|drawImage/.test(blk), '4 no canvas in the pavement library either');
+  const GLsrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'ground_lib.js'), 'utf8');
   if (blk) {
-    // a set whose four maps have already FAILED (complete, no width) and one that loads late
-    const failed = () => ({ complete: true, naturalWidth: 0, addEventListener() {} });
-    const late = () => { const L = []; const im = { complete: false, naturalWidth: 0, addEventListener: (e, f) => L.push([e, f]) }; setTimeout(() => { im.complete = true; im.naturalWidth = 512; L.filter(x => x[0] === 'load').forEach(x => x[1]()); }, 20); return im; };
-    const SETS = { bad: { metres: 3, mean: [0.2, 0.1, 0.05], diff: failed(), nor: failed(), rough: failed(), height: failed() },
-                   ok: { metres: 2, mean: [0.1, 0.1, 0.1], diff: late(), nor: late(), rough: late(), height: late() } };
-    const ctx2 = { drawImage() {}, getImageData: (x, y, w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }) };
-    const document = { createElement: () => ({ width: 0, height: 0, getContext: () => ctx2 }) };
+    // a set whose layer file FAILS and one that lands late
+    const S = 512 * 512 * 4;
+    const ASSET_FETCH = url => url === 'bad' ? Promise.reject(new Error('404'))
+      : new Promise(r => setTimeout(() => { const b = new Uint8Array(2 * S); b[0] = 7; b[S] = 9; r(b); }, 20));
+    const GROUND_LIB = new Function('ASSET_FETCH', 'GROUND_TEX', GLsrc + '\nreturn GROUND_LIB;')(ASSET_FETCH, undefined);
+    const SETS = { bad: { metres: 3, mean: [0.2, 0.1, 0.05], layers: 'bad' }, ok: { metres: 2, mean: [0.1, 0.1, 0.1], layers: 'ok' } };
+    const document = {};
     const warn = []; const con = { warn: m => warn.push(m), log() {} };
-    const lib = new Function('PAVEMENT_TEX_SETS', 'document', 'console', 'MATS', 'applyOne', blk + '\nreturn library;')(SETS, document, con, [], () => {});
+    const lib = new Function('PAVEMENT_TEX_SETS', 'document', 'console', 'MATS', 'applyOne', 'GROUND_LIB', blk + '\nreturn library;')(SETS, document, con, [], () => {}, GROUND_LIB);
     let fired = false, L = null;
     lib(THREE, ['bad', 'ok'], x => { fired = true; L = x; });
     setTimeout(() => {
-      ok(fired && L && L.ready, '4 a library with a failed map calls back (it never did: every later pavement kept stale arrays)');
-      if (L && L.texA) { const d = L.texA.image.data, px = 512 * 512 * 4;
+      ok(fired && L && L.ready, '4 a library with a failed layer file calls back (it never did: every later pavement kept stale arrays)');
+      if (L && L.texA) { const d = L.texA.image.data, n = L.texN.image.data;
         const enc = v => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055));
-        ok(d[0] === enc(0.2) && d[1] === enc(0.1) && d[2] === enc(0.05) && d[px + 0] === 0, '4 the failed layer is the set\'s mean colour (sRGB); the loaded one its map', [d[0], d[1], d[2]].join(',')); }
-      ok(warn.some(m => /bad colour map failed/.test(m)), '4 the failure is said on the console');
+        ok(d[0] === enc(0.2) && d[1] === enc(0.1) && d[2] === enc(0.05) && d[3] === 128 && n[2] === 255 && n[3] === 230 && d[S] === 7 && n[S] === 9,
+          '4 the failed layer is the set\'s mean colour (sRGB) over a flat normal; the landed one its cooked planes', [d[0], d[1], d[2], d[S], n[S]].join(',')); }
+      ok(warn.some(m => /bad layers failed/.test(m)), '4 the failure is said on the console');
       // ---- 5. the cover ring ----
       ok(RW.includes('if (h < 0.3 || world.waterH(x, z) > h - 0.3 || drawnWet(x, z, h)) return false;') && RW.includes('drawnLakeSD = lakeRsd;'), '5 the cover ring refuses the drawn water (drawnWet: the drawn lakes\' field and waterDrawY)');
       console.log('GATE LOOKS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));

@@ -23,6 +23,15 @@
 // match gets the no-such-thing path it always got (`new Worker` throws; every caller in src/viewer catches it).
 // G830 (C2a): `idb: <dir>` gives the worker threads a FAKE IndexedDB on that directory (a second page process finds what
 // the first stored - GATE HOUSEWORKER's warm boot), and a worker handler that returns a PROMISE is acked when it settles.
+// AND (AS3, G918, merged in train 17 beside G815):
+// It is not a browser and draws nothing. IndexedDB, audio and the service worker are absent (the page takes its
+// no-such-thing paths - the bakes unkept). A navigator.webdriver RIG: the page's frame clock is G586's
+// one-step-a-call rig clock and the graphics auto-scale stands down.
+// WORKERS (AS3, G918): a Worker made from a BLOB holding the Basis transcoder (three's KTX2Loader builds its
+// transcoder worker that way; every other worker source still throws, as before) runs in its own vm context, its messages delivered both ways on the VIRTUAL clock's
+// next turn, WebAssembly compiled SYNCHRONOUSLY there (a real async compile would land on a real-time turn and
+// the counts would move run to run). opts.workers === false: no Worker at all (KTX2.off() then says so). The recording GL answers as a DESKTOP GPU for compressed textures (BC7 / BC1-3 / RGTC, what
+// a Windows Chrome exposes): opts.gpuFormats = 'none' takes them away (the KTX2 path then stands down).
 //
 //   const P = await openPage({ wip: 'default' | <build json text> | null, gfx: { preset: 'gamer', shadows: 'full' },
 //                              query: '', hooks: { afterScript(name, P), beforeScript(name, P) } });
@@ -36,6 +45,10 @@ const fs = require('fs'), path = require('path'), vm = require('vm'), zlib = req
 const { makeGL, makeRecorder, THREE_SRC } = require('./_fake_gl.js');
 const { makeDocument } = require('./_page_dom.js');
 const ROOT = path.join(__dirname, '..');
+// the compressed-texture extensions a Windows desktop Chrome exposes (AS3: KTX2Loader.detectSupport reads them)
+// the one worker the node page runs: three's KTX2Loader.BasisWorker over basis_transcoder.js
+const WORKER_OK = src => src.indexOf('KTX2File') >= 0 && src.indexOf('BASIS') >= 0;
+const DESKTOP_TC = ['EXT_texture_compression_bptc', 'EXT_texture_compression_rgtc', 'WEBGL_compressed_texture_s3tc', 'WEBGL_compressed_texture_s3tc_srgb'];
 
 // ---- the page's script list: dev.html, in order -------------------------------------------------------
 function pageScripts(file) {
@@ -286,10 +299,15 @@ async function openPage(opts) {
     get body() { return { _blob: new Blob([this._bytes]), pipeThrough: ds => ({ _blob: new Blob([this._bytes]), _ds: ds }), getReader: () => { let done = false; return { read: () => CP.resolve(done ? { done: true } : (done = true, { done: false, value: new Uint8Array(this._bytes) })), cancel() {}, releaseLock() {} }; } }; }
   }
   const fetched = [];
+  // G912 (AS2): WHAT THE PAGE READ AND DECODED, counted (GATE FRAMECOST reports them per boot step, never ratchets
+  // them): fetch / XHR / Image loads and their on-disk bytes (the wire), and the 2D canvas's drawImage / getImageData /
+  // putImageData - the CPU packing the ground library moved offline
+  const io = { fetches: 0, fetchBytes: 0, imgLoads: 0, imgBytes: 0, c2dDraw: 0, c2dRead: 0, c2dReadBytes: 0, c2dPut: 0, workerMsgs: 0 };
   const fetchFn = (url, o) => {
     const u = typeof url === 'string' ? url : (url && url.url) || String(url);
     fetched.push(u);
     const b = readFile(u);
+    io.fetches++; if (b) io.fetchBytes += b.length;
     if (!b) return CP.resolve(new Response('', { status: 404 }));
     return CP.resolve(new Response(b, { status: 200 }));
   };
@@ -304,6 +322,7 @@ async function openPage(opts) {
       const done = () => {
         fetched.push(this._url);
         const b = readFile(this._url);
+        io.fetches++; if (b) io.fetchBytes += b.length;
         this.readyState = 4; this.status = b ? 200 : 404;
         if (b) { this.responseText = this.responseType === '' || this.responseType === 'text' ? b.toString('utf8') : '';
           this.response = this.responseType === 'arraybuffer' ? b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) : this.responseType === 'json' ? JSON.parse(b.toString('utf8')) : this.responseText; }
@@ -318,6 +337,7 @@ async function openPage(opts) {
   const loadImage = (img, url) => {
     img.complete = false;
     const b = readFile(url);
+    io.imgLoads++; if (b) io.imgBytes += b.length;
     addTimer(() => {
       const s = b && imageSize(b);
       if (!s) { img.complete = true; img.dispatchEvent(new D.Event('error')); return; }
@@ -332,7 +352,8 @@ async function openPage(opts) {
     const state = { fillStyle: '#000', strokeStyle: '#000', font: '10px sans-serif', globalAlpha: 1, lineWidth: 1, textAlign: 'start', textBaseline: 'alphabetic', globalCompositeOperation: 'source-over', imageSmoothingEnabled: true, filter: 'none' };
     const imgData = (w, h) => ({ width: w | 0, height: h | 0, data: new Uint8ClampedArray(Math.max(0, (w | 0) * (h | 0) * 4)), colorSpace: 'srgb' });
     const fns = {
-      getImageData: (x, y, w, h) => imgData(w, h), createImageData: (w, h) => (typeof w === 'object' ? imgData(w.width, w.height) : imgData(w, h)),
+      getImageData: (x, y, w, h) => { io.c2dRead++; io.c2dReadBytes += Math.max(0, (w | 0) * (h | 0) * 4); return imgData(w, h); },
+      drawImage: () => { io.c2dDraw++; }, putImageData: () => { io.c2dPut++; }, createImageData: (w, h) => (typeof w === 'object' ? imgData(w.width, w.height) : imgData(w, h)),
       measureText: s => ({ width: String(s).length * 6, actualBoundingBoxAscent: 7, actualBoundingBoxDescent: 2, actualBoundingBoxLeft: 0, actualBoundingBoxRight: String(s).length * 6, fontBoundingBoxAscent: 8, fontBoundingBoxDescent: 2 }),
       createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }), createConicGradient: () => ({ addColorStop() {} }), createPattern: () => ({ setTransform() {} }),
       getTransform: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0, invertSelf() { return this; }, multiplySelf() { return this; } }), isPointInPath: () => false, isPointInStroke: () => false, getLineDash: () => [],
@@ -345,7 +366,7 @@ async function openPage(opts) {
     if (kind === '2d') return make2D(cv);
     if (kind === 'webgl2' || kind === 'webgl' || kind === 'experimental-webgl') {
       if (kind !== 'webgl2') return null;
-      const G = makeGL({ rec, links: glLinks, canvas: cv, WebGL2RenderingContext: GLClass });
+      const G = makeGL({ rec, links: glLinks, canvas: cv, WebGL2RenderingContext: GLClass, extraExts: opts.gpuFormats === 'none' ? [] : DESKTOP_TC });
       return G.gl;
     }
     if (kind === 'bitmaprenderer') return { transferFromImageBitmap() {} };
@@ -404,10 +425,51 @@ async function openPage(opts) {
   });
   // G815: the Worker shim, only where asked (opts.workers: a RegExp the Blob source must match, or true)
   const workersLive = new Set();
-  if (opts.workers) {
-    win.Worker = makeWorkerClass({ root: ROOT, allow: opts.workers, live: workersLive, onEvent: opts.onWorkerMessage || null, postFilter: opts.workerPostFilter || null, idb: opts.idb || null, realm: win,
-      readBlob: url => { const b = readFile(url); return b ? b.toString('utf8') : null; } });
+  // ---- WORKERS from blobs (AS3, G918): their own context, messages on the virtual clock, WebAssembly synchronous --
+  const syncWasm = Object.assign(Object.create(WebAssembly), {
+    instantiate: (b, imports) => { try { if (b instanceof WebAssembly.Module) return Promise.resolve(new WebAssembly.Instance(b, imports));
+      const module = new WebAssembly.Module(b); return Promise.resolve({ module, instance: new WebAssembly.Instance(module, imports) }); } catch (e) { return Promise.reject(e); } },
+    compile: b => { try { return Promise.resolve(new WebAssembly.Module(b)); } catch (e) { return Promise.reject(e); } },
+    instantiateStreaming: undefined, compileStreaming: undefined });
+  class BasisWorker {
+    constructor(url) {
+      const u = String(url), b = u.startsWith('blob:') ? readFile(u) : null;
+      // ONLY the Basis transcoder's worker: every other page worker (parked.js's decimation, the sim worker, the bench)
+      // throws here as the absent Worker threw before AS3, and takes its main-thread path exactly as it did
+      if (!b || opts.workers === false || !(opts.workerOk || WORKER_OK)(b.toString('utf8'))) throw new Error('Worker: ' + u + ' is not available in the node page');
+      const ls = this._ls = {}, wls = {}, self = this;
+      this.onmessage = null; this.onerror = null; this._dead = false;
+      const g = vm.createContext(vm.constants.DONT_CONTEXTIFY);
+      Object.assign(g, { console: win.console, WebAssembly: syncWasm, TextDecoder, TextEncoder, URL: win.URL, Blob, performance: win.performance,
+        setTimeout: win.setTimeout, clearTimeout: win.clearTimeout, location: { href: location.href, origin: location.origin },
+        addEventListener: (t, f) => { (wls[t] = wls[t] || []).push(f); }, removeEventListener: (t, f) => { if (wls[t]) wls[t] = wls[t].filter(x => x !== f); },
+        postMessage: (data) => { io.workerMsgs++; addTimer(() => { if (self._dead) return; const ev = { data, target: self };
+          if (typeof self.onmessage === 'function') self.onmessage(ev); for (const f of (ls.message || []).slice()) f.call(self, ev); }, 0); } });
+      g.self = g; g.globalThis = g;
+      this._deliver = data => { if (this._dead) return; const ev = { data, target: g };
+        try { if (typeof g.onmessage === 'function') g.onmessage(ev); for (const f of (wls.message || []).slice()) f.call(g, ev); }
+        catch (e) { errors.push('worker: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)); } };
+      try { vm.runInContext(b.toString('utf8'), g, { filename: 'worker:' + u }); }
+      catch (e) { errors.push('worker ' + u + ': ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)); }
+    }
+    postMessage(data) { io.workerMsgs++; addTimer(() => this._deliver(data), 0); }
+    addEventListener(t, f) { (this._ls[t] = this._ls[t] || []).push(f); }
+    removeEventListener(t, f) { if (this._ls[t]) this._ls[t] = this._ls[t].filter(x => x !== f); }
+    terminate() { this._dead = true; }
   }
+  win.WebAssembly = WebAssembly;
+  // TRAIN 17: ONE Worker for the page, two shims behind it - a Blob holding the Basis transcoder runs in AS3's vm
+  // context on the virtual clock (always, unless opts.workers === false); any other Blob runs on G815's threads only
+  // where the gate asked for it (opts.workers: a RegExp its source must match, or true); the rest throws, as before
+  const Threaded = opts.workers ? makeWorkerClass({ root: ROOT, allow: opts.workers, live: workersLive, onEvent: opts.onWorkerMessage || null, postFilter: opts.workerPostFilter || null, idb: opts.idb || null, realm: win,
+      readBlob: url => { const b = readFile(url); return b ? b.toString('utf8') : null; } }) : null;
+  function PageWorker(url) {
+    const u = String(url), b = u.startsWith('blob:') ? readFile(u) : null, src = b ? b.toString('utf8') : null;
+    if (src != null && (opts.workerOk || WORKER_OK)(src)) return new BasisWorker(url);
+    if (Threaded) return new Threaded(url);
+    throw new Error('Worker: ' + u + ' is not available in the node page');
+  }
+  if (opts.workers !== false) win.Worker = PageWorker;
   // the one WebGL2 class every context of the page is an instance of
   { const G0 = makeGL({}); GLClass = G0.WebGL2RenderingContext; win.WebGL2RenderingContext = GLClass; }
   win.window = win; win.self = win; win.top = win; win.parent = win; win.frameElement = null;
@@ -437,7 +499,7 @@ async function openPage(opts) {
   const flush = () => new Promise(r => setImmediate(r));
   let frameHook = null;
   const P = {
-    win, ctx, rec, errors, logs, fetched, clock, glLinks, document, ran, scriptMs,
+    win, ctx, rec, errors, logs, fetched, clock, glLinks, document, ran, scriptMs, io,
     get frameNo() { return frameNo; },
     onFrame(f) { frameHook = f; },
     // one event: the earliest due timer, or the next vsync if a frame was asked for and comes first

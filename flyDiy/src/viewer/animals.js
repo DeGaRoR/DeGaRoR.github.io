@@ -105,10 +105,56 @@ function build(THREE, key) {
     if (!m.name) m.name = 'animal:' + key + ':' + (rec.name || '');
     return m;
   });
-  b = { a, dec, clips, geos, mats, loom: null };
+  b = { a, dec, clips, geos, mats, loom: null, skinDraw: skinDraw(THREE, a, dec, geos) };
   BUILT.set(key, b);
   BINS.delete(key);                            // the decoded arrays are the keeper now
   return b;
+}
+
+// THE SKINNED PARTS AS ONE DRAW (AS4a-rest, G941; MATLIB's array shapes). An animal's skinned meshes all bind the ONE
+// skeleton, with the identity (their nodes' transforms are cancelled: three's 'attached' bind), so two of them are the
+// same draw but for their records - the bird is a black body and a yellow beak, 15 birds 30 draws. Where every such
+// mesh's record can be a ROW (props.js propArrSpec: no map, a flat constant or KTX2 twins; not glass, not glow), they
+// are ONE geometry carrying each vertex's row, drawn by the array shape's skinned sibling. The meshes themselves stay
+// (`geos`: the loom's copies, the cut levels' props). null: nothing to merge (fewer than two, a record that cannot).
+function skinDraw(THREE, a, dec, geos) {
+  if (typeof MATLIB === 'undefined' || !MATLIB.arr || !MATLIB.arr.on || typeof propArrSpec !== 'function') return null;
+  const parts = [];
+  dec.meshes.forEach((m, i) => { if (m.skin) parts.push(i); });
+  if (parts.length < 2) return null;
+  const specs = parts.map(i => propArrSpec(THREE, a.mats[dec.meshes[i].mat]));
+  if (specs.some(x => !x)) return null;
+  const pages = {}, side = a.mats[dec.meshes[parts[0]].mat].dbl ? 2 : 0;
+  for (const [j, i] of parts.entries()) {
+    const rec = a.mats[dec.meshes[i].mat], sp = specs[j];
+    if ((rec.dbl ? 2 : 0) !== side || !!rec.flat) return null;
+    for (const k of ['map', 'nor', 'arm']) if (sp[k] && sp[k].page) { if (pages[k] && pages[k] !== sp[k].page) return null; pages[k] = sp[k].page; }
+  }
+  const rows = specs.map(sp => MATLIB.arr.row(THREE, sp));
+  let nv = 0, ni = 0; for (const i of parts) { nv += geos[i].attributes.position.count; ni += geos[i].index.count; }
+  const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2), jt = new Uint16Array(nv * 4), wt = new Float32Array(nv * 4),
+    row = new Uint16Array(nv), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+  let v = 0, t = 0;
+  parts.forEach((i, j) => {
+    const A = geos[i].attributes, n = A.position.count, I = geos[i].index.array;
+    pos.set(A.position.array, v * 3); nrm.set(A.normal.array, v * 3); uvs.set(A.uv.array, v * 2);
+    jt.set(A.skinIndex.array, v * 4); wt.set(A.skinWeight.array, v * 4); row.fill(rows[j], v, v + n);
+    for (let q = 0; q < I.length; q++) idx[t + q] = I[q] + v;
+    v += n; t += I.length;
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  const uv = new THREE.BufferAttribute(uvs, 2);
+  g.setAttribute('uv', uv); g.setAttribute('uv1', uv);
+  g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(jt, 4));
+  g.setAttribute('skinWeight', new THREE.BufferAttribute(wt, 4));
+  g.setAttribute('mlRow', new THREE.BufferAttribute(row, 1));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  g.userData.parts = parts.slice(); g.userData.rows = rows;   // which meshes it draws, each one's row (GATE MATLIB)
+  const mat = MATLIB.arr.material(THREE, { side, flat: false, pages });
+  return { parts, geo: g, mat, name: parts.map(i => dec.meshes[i].name).join('+') };
 }
 
 // the LOOM materials, made on demand (only the sea animals ever ask): the
@@ -119,7 +165,7 @@ function loomMats(THREE, b) {
     const o = { color: new THREE.Color(rec.col[0], rec.col[1], rec.col[2]),
                 transparent: true, opacity: 0, depthTest: false, depthWrite: false,
                 side: rec.dbl ? THREE.DoubleSide : THREE.FrontSide, toneMapped: true, fog: false };
-    if (rec.map && typeof propTexture === 'function') o.map = propTexture(THREE, rec.map, true);
+    if (rec.map && typeof propTexture === 'function') o.map = propTexture(THREE, rec.map, true, 'color');
     const m = MATLIB.make(THREE, 'basic', o);
     m.name = 'animalLoom:' + b.a.key;
     return m;
@@ -152,8 +198,21 @@ function instance(THREE, key) {
   const inv = [];
   for (let i = 0; i < bones.length; i++) inv.push(new THREE.Matrix4().fromArray(b.dec.ibm, 16 * i));
   const skeleton = new THREE.Skeleton(bones, inv);
+  const SD = b.skinDraw, merged = SD ? new Set(SD.parts) : null;
   const meshes = b.dec.meshes.map((m, i) => {
     let o;
+    if (merged && merged.has(i)) {
+      if (i !== SD.parts[0]) return null;          // drawn by the first's merged mesh
+      o = new THREE.SkinnedMesh(SD.geo, MATLIB.variant(THREE, SD.mat, 'skin'));
+      objs[m.node].add(o);
+      o.bind(skeleton, new THREE.Matrix4());
+      o.frustumCulled = false;
+      o.name = 'animal:' + key + ':' + SD.name;
+      o.castShadow = true; o.receiveShadow = true;
+      o.userData.sharedGeo = true;
+      o.raycast = () => {};
+      return o;
+    }
     if (m.skin) {
       o = new THREE.SkinnedMesh(b.geos[i], MATLIB.variant(THREE, b.mats[m.mat], 'skin'));   // the record's skinned sibling (MATLIB.variant)
       // BIND WITH THE IDENTITY, NOT THE NODE'S WORLD MATRIX (the character
@@ -176,7 +235,7 @@ function instance(THREE, key) {
     o.raycast = () => {};                      // a skinned raycast is against the BIND pose
     return o;
   });
-  return { key, a, b, root, objs, bones, skeleton, meshes, clips: b.clips };
+  return { key, a, b, root, objs, bones, skeleton, meshes: meshes.filter(Boolean), clips: b.clips };
 }
 
 // ---- THE CLIP PLAYER ------------------------------------------------------

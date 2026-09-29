@@ -447,21 +447,36 @@ function staticCensus(o) {
   const refs = refScan();
   const shipped = shippedManifests();
   const media = walk(path.join(ROOT, 'media')).concat(walk(path.join(ROOT, 'assets')));
-  const tex = [], mesh = [], other = [];
+  const tex = [], mesh = [], other = [], cooked = [], ktx2 = [];
   const byHash = new Map();
   for (const p of media) {
     const r = rel(p), buf = fs.readFileSync(p), name = path.basename(p);
     const sha = crypto.createHash('sha256').update(buf).digest('hex');
-    const fam = r.startsWith('assets/') ? r.split('/').slice(0, 2).join('/') + ' (bake source)' : r.split('/').slice(0, 3).join('/');
+    const fam = r.startsWith('assets/') ? r.split('/').slice(0, 2).join('/') + ' (bake source)' : r.split('/').slice(0, r.startsWith('media/tex/ktx2/') ? 4 : 3).join('/');   // AS3: the twins by their family
     const who = refs.get(r) || [];
     const shippedBy = who.filter(m => shipped.set.has(m));
     const row = { path: r, fam, bytes: buf.length, sha: sha.slice(0, 16), refs: who, shippedRefs: shippedBy.length };
     if (!byHash.has(sha)) byHash.set(sha, []);
     byHash.get(sha).push(row);
-    const ii = /\.(jpg|jpeg|png|webp|ktx2|basis)$/i.test(name) ? imageInfo(buf) : null;
-    if (ii) {
+    const ii = /\.(jpg|jpeg|png|webp|basis)$/i.test(name) ? imageInfo(buf) : null;
+    if (/\.ktx2$/i.test(name)) {
+      // AS3 (G918): KTX2 / BASIS files (tools/_ktx2_lib.js). Their own section, not `tex`: GATE ASSETS' image ratchets
+      // (flat, duplicate, > 4096, JPEG normal) read images. Header only: size, levels, layers, the codec (the DFD's
+      // colour model: ETC1S 163, UASTC 166); GPU = what a desktop transcodes it to (BC7: 1 B/texel, every level) and,
+      // beside it, what the same texels cost as RGBA8 + mips (the image path's number)
+      const w = buf.readUInt32LE(20), h = buf.readUInt32LE(24), layers = Math.max(1, buf.readUInt32LE(32)), levels = Math.max(1, buf.readUInt32LE(40));
+      const dfd = buf.readUInt32LE(48), model = buf[dfd + 12];
+      let bc7 = 0; for (let l = 0; l < levels; l++) bc7 += Math.ceil(Math.max(1, w >> l) / 4) * Math.ceil(Math.max(1, h >> l) / 4) * 16;
+      Object.assign(row, { ktx2: true, w, h, layers, levels, codec: model === 163 ? 'ETC1S' : model === 166 ? 'UASTC' : 'model ' + model, gpu: bc7 * layers, rgba: gpuBytes(w, h) * layers });
+      ktx2.push(row);
+    } else if (ii) {
       Object.assign(row, ii, { role: roleOf(name), stem: stemOf(name), set: setOf(name), pot: isPOT(ii.w) && isPOT(ii.h), gpu: gpuBytes(ii.w, ii.h) });
       tex.push(row);
+    } else if (/\.gz\.bin$/.test(name) && r.startsWith('media/tex/')) {
+      // G910 (AS2): COOKED TEXTURE-ARRAY LAYERS (tools/array_cook.js): raw RGBA8 planes in one gzip stream - what the page
+      // copies into its arrays with no decode; GPU = the raw planes + mips, as the arrays upload them
+      let raw = 0; try { raw = require('zlib').gunzipSync(buf).length; } catch (e) {}
+      Object.assign(row, { cooked: true, raw, gpu: raw * 4 / 3 }); cooked.push(row);
     } else if (/\.bin$/.test(name) && r.startsWith('media/geo/')) { Object.assign(row, meshInfo(buf, o.gz)); mesh.push(row); }
     else if (/\.obj$/i.test(name)) {
       const t = buf.toString('utf8'); let v = 0, fcount = 0, tri = 0;
@@ -480,7 +495,7 @@ function staticCensus(o) {
   const byStem = new Map();
   for (const t of tex) { const k = path.dirname(t.path) + '/' + t.stem; if (!byStem.has(k)) byStem.set(k, []); byStem.get(k).push(t); }
   const multiSize = [...byStem.values()].filter(g => new Set(g.map(t => t.w + 'x' + t.h)).size > 1);
-  return { ms: Date.now() - t0, tex, mesh, other, exactDupes, near, multiSize, decodeErr: dec && dec.err, decodeNoPIL: !!(dec && dec.noPIL),
+  return { ms: Date.now() - t0, tex, mesh, other, cooked, ktx2, exactDupes, near, multiSize, decodeErr: dec && dec.err, decodeNoPIL: !!(dec && dec.noPIL),
     payloads: o.payloads ? meshPayloads() : null, biomes: o.biomes ? biomeReach() : null, materials: materialSites(), houses: o.houses ? houseMaterials() : null, world: o.world ? worldLoad() : [], worldTtype, shippedErr: shipped.err,
     shippedManifestCount: shipped.set.size };
 }
@@ -509,6 +524,18 @@ function report(C) {
       Math.max(...a.map(t => Math.max(t.w, t.h))), a.filter(t => !t.pot).length,
       ['color', 'normal', 'data', 'mask', 'height'].map(k => a.filter(t => t.role === k).length).join('/'),
       a.filter(t => !t.shippedRefs).length])));
+  // G910: the cooked array layers (not images: the page copies them into texture arrays as they are)
+  if (C.cooked && C.cooked.length) {
+    H(`COOKED ARRAY LAYERS (tools/array_cook.js): ${C.cooked.length} files, ${MB(sum(C.cooked, t => t.bytes))} MB shipped (gzip), ${MB(sum(C.cooked, t => t.raw))} MB raw, ${MB(sum(C.cooked, t => t.gpu))} MB GPU if all resident (RGBA8 + mips)`);
+    out.push(table(['family', 'files', 'shipped MB', 'raw MB', 'GPU MB'], [...group(C.cooked, t => t.fam).entries()].map(([f, a]) =>
+      [f, a.length, MB(sum(a, t => t.bytes)), MB(sum(a, t => t.raw)), MB(sum(a, t => t.gpu))])));
+  }
+  // AS3 (G918): the KTX2 files (GPU-ready: transcoded in the page's workers into BC7 / ASTC / ETC2)
+  if (C.ktx2 && C.ktx2.length) {
+    H(`KTX2 / BASIS (tools/_ktx2_lib.js): ${C.ktx2.length} files, ${MB(sum(C.ktx2, t => t.bytes))} MB shipped, ${MB(sum(C.ktx2, t => t.gpu))} MB GPU if all resident as BC7 (the same texels as RGBA8 + mips: ${MB(sum(C.ktx2, t => t.rgba))} MB)`);
+    out.push(table(['family', 'files', 'shipped MB', 'GPU MB (BC7)', 'as RGBA8 MB', 'ETC1S / UASTC', 'max px'], [...group(C.ktx2, t => t.fam).entries()].map(([f, a]) =>
+      [f, a.length, MB(sum(a, t => t.bytes)), MB(sum(a, t => t.gpu)), MB(sum(a, t => t.rgba)), a.filter(t => t.codec === 'ETC1S').length + ' / ' + a.filter(t => t.codec === 'UASTC').length, Math.max(...a.map(t => Math.max(t.w, t.h)))])));
+  }
   // resolution histogram
   const res = [...group(tex, t => Math.max(t.w, t.h)).entries()].sort((a, b) => b[0] - a[0]);
   H('TEXTURES BY LARGEST SIDE');
@@ -530,7 +557,7 @@ function report(C) {
     ['PNG with no alpha in use' + (C.near ? '' : ' (header only)'), pngNoAlpha.length, MB(sum(pngNoAlpha, t => t.bytes)), MB(sum(pngNoAlpha, t => t.gpu))],
     ['FLAT maps (a constant shipped as a texture; std < ' + FLAT_STD + ')' + (C.near ? '' : ' (needs --decode)'), C.near ? tex.filter(t => t.std != null && t.std < FLAT_STD).length : '-', C.near ? MB(sum(tex.filter(t => t.std != null && t.std < FLAT_STD), t => t.bytes)) : '-', C.near ? MB(sum(tex.filter(t => t.std != null && t.std < FLAT_STD), t => t.gpu)) : '-'],
     ['non-power-of-two', tex.filter(t => !t.pot).length, MB(sum(tex.filter(t => !t.pot), t => t.bytes)), MB(sum(tex.filter(t => !t.pot), t => t.gpu))],
-    ['GPU-compressed (KTX2 / Basis)', tex.filter(t => t.fmt === 'ktx2/basis').length, '-', '-']]));
+    ['GPU-compressed (KTX2 / Basis; AS3: their own section above)', (C.ktx2 || []).length, MB(sum(C.ktx2 || [], t => t.bytes)), MB(sum(C.ktx2 || [], t => t.gpu))]]));
   if (C.near) {
     const flat = tex.filter(t => t.std != null && t.std < FLAT_STD).sort((a, b) => b.gpu - a.gpu);
     out.push(table(['flat map', 'px', 'KB', 'GPU MB', 'mean rgb'], flat.slice(0, TOP).map(t => [t.path, t.w + 'x' + t.h, KB(t.bytes), MB(t.gpu), t.mean.join(',')])));

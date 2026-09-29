@@ -36,7 +36,7 @@ const f = (v, n = 3) => (typeof v === 'number' && Number.isFinite(v)) ? v.toFixe
 
 const THREE = require('../vendor/three.min.js');
 const P = require('../src/viewer/pavement.js');
-const TEX = require('../src/viewer/pavement_tex.js');
+const TEX = require('../src/viewer/ground_tex.js');   // G910: the pavement's sets are the ground library's (PAVEMENT_TEX_CREDITS, GROUND_TEX)
 const CORE = require('./flight_core.js');
 const PG = CORE.PREMISES_GEN;
 
@@ -195,12 +195,11 @@ console.log('5. THE RECIPE - the classes name baked sets');
   for (const c of P.CLASSES) for (const s of P.SLOTS) if (!keys.has(P.CLASS_DEF[c][s])) missing.push(c + '.' + s + '=' + P.CLASS_DEF[c][s]);
   verdict(missing.length === 0, `every class slot names a set the prep baked (${P.CLASSES.length} classes x ${P.SLOTS.length} slots)` + (missing.length ? ': ' + missing.join(', ') : ''));
   verdict(TEX.PAVEMENT_TEX_CREDITS.every(r => r.metres > 0 && r.licence === 'CC0'), `every set has a size in metres and is CC0 (${TEX.PAVEMENT_TEX_CREDITS.length} sets)`);
-  const man = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'pavement_tex.js'), 'utf8');
-  const media = man.match(/media\/tex\/pavement\/[^']+.jpg/g) || [];
-  // G903: a FLAT map is its constant in the manifest (`rough: [r, g, b]`), no file - it still counts as the set's map
-  const flats = man.match(/(diff|nor|rough|height): \[\d+, \d+, \d+\]/g) || [];
+  // G910: every pavement key names a ground-library set with four maps and its cooked layers, all on disk
+  // G903: a FLAT map is its constant in the table (`"rough": [r, g, b]`), no file - it still counts as the set's map
+  const media = [], flats = []; for (const a of TEX.GROUND_TEX.libs.pavement) { const s = TEX.GROUND_TEX.sets[a.set] || {}; for (const m of ['diff', 'nor', 'rough', 'height', 'layers']) (Array.isArray(s[m]) ? flats : media).push(s[m] || ('(no ' + m + ' for ' + a.key + ')')); }
   const absent = media.filter(m => !fs.existsSync(path.join(__dirname, '..', m)));
-  verdict(media.length + flats.length === TEX.PAVEMENT_TEX_CREDITS.length * 4 && absent.length === 0, `the manifest's ${media.length} files are on disk, ${flats.length} flat maps are constants` + (absent.length ? ' (missing ' + absent.length + ')' : ''));
+  verdict(TEX.GROUND_TEX.libs.pavement.length === TEX.PAVEMENT_TEX_CREDITS.length && absent.length === 0 && media.length + flats.length === TEX.PAVEMENT_TEX_CREDITS.length * 5, `the library's ${media.length} files for the pavement's ${TEX.PAVEMENT_TEX_CREDITS.length} sets (4 maps + the cooked layers each; ${flats.length} flat maps are constants) are on disk` + (absent.length ? ' (missing ' + absent.length + ': ' + absent.slice(0, 3).join(', ') + ')' : ''));
   verdict(P.CLASSES.every(c => (c === 'concrete' || c === 'asphalt') ? P.CLASS_DEF[c].hexRot <= 10 : P.CLASS_DEF[c].hexRot >= 45), 'a paved class turns its hex tiles by 10 deg at most, a loose one freely');
   const e1 = P.exportRecipe(); P.set(THREE, e1); const e2 = P.exportRecipe();
   verdict(JSON.stringify(e1) === JSON.stringify(e2), 'export -> set -> export is bit-identical');

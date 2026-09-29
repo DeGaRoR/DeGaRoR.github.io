@@ -254,8 +254,11 @@ const MANIFEST = {
   // generators when the placed record names a sport/ or marine/ key (the town on), app.js the editor when it opens,
   // the loader itself the rail at boot when this browser saved a look or a shown rail (the rail applies the look), or
   // on F9. The name is the file's stem.
+  // AS3 (G917): vendor/ktx2/ktx2_loader.js (three's KTX2Loader, tools/vendor_three.js) - appended by src/viewer/ktx2.js
+  // when the first KTX2 file is asked for (the ground library, under the roll-out's screen); its workers fetch
+  // vendor/ktx2/basis_transcoder.js + .wasm themselves.
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
-         ['src/viewer', 'world_rail.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
     shell: 'shell.html',
     // TWO STYLESHEETS, IN ORDER (G77). style.css is the GAME's — the flight
@@ -323,10 +326,10 @@ const MANIFEST = {
     // (exposure + physicallyCorrectLights), the ground-bounce term that any
     // environment probe is occluded by, and the switchboard each room
     // declares its own sources into. A room applies a rig; it decides none.
-    // site_tex.js before BOTH scenes (G123): the aerodrome's ground materials
-    // are the one library the world's apron and the garage's apron share, and
-    // like the other payloads its images start decoding at script eval.
-    // site_ground.js after site_tex.js and before BOTH scenes: it is the one
+    // ground_tex.js before BOTH scenes (G123, the site's sets; G910 the whole ground
+    // library's): the aerodrome's ground materials are the sets the world's apron and
+    // the garage's apron share, their Images made when first read.
+    // site_ground.js after ground_tex.js and before BOTH scenes: it is the one
     // factory for the aerodrome's ground materials, blade atlas and tufts, and
     // the world and the garage each ask it for the same things.
     // wood_tex.js before aeroskin.js (G125): the scanned wood detail sheets —
@@ -363,10 +366,14 @@ const MANIFEST = {
               'prop_disc.js',   // G672: the propeller's disc, measured off its blades (app.js makes one per prop part)
               'contact_shadow.js',   // G1002: the tyres' contact shadows (app.js contactShadows, after poseModel)
               'shader_warm.js',   // G584: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
-              'site_tex.js', 'site_ground.js',
-              'splat_tex.js', 'splat_ground.js',   // the island's ground library (17 sets, lazily-made Images) + the splat: the arrays, the GLSL, F8's handle
-              // THE PAVEMENT (v1.16, 2026-09-22): the library manifest + the one material every strip, road and apron wears
-              'pavement_tex.js', 'pavement.js',
+              // THE GROUND LIBRARY (G910-G911, AS2): ONE table for the site, the splat, the pavement and the lot (their old
+              // four manifests are its views: SITE_TEX_SETS, SPLAT_TEX_SETS, PAVEMENT_TEX_SETS, LOT_TEX_SETS) + the cooked
+              // layers' copy into the arrays (ground_lib.js: no canvas); before every consumer, the world pack's lot_tex.js too
+              'ground_tex.js', 'ktx2.js', 'ktx2_twins.js', 'ground_lib.js',   // ktx2.js (AS3, G917): the KTX2 path GROUND_LIB and propTexture take first (the loader itself is lazy, below); ktx2_twins.js the plain maps' twins (tools/ktx2_twins.js)
+              'site_ground.js',
+              'splat_ground.js',   // the splat: the arrays, the GLSL, F8's handle
+              // THE PAVEMENT (v1.16, 2026-09-22): the one material every strip, road and apron wears
+              'pavement.js',
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it

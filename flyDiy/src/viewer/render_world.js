@@ -507,7 +507,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // this). The ambient from below is the ground the craft is over: its albedo
   // by the world's SURFACE class (linear rgb - the grass keeps the number every
   // belly was judged with; the concrete is the apron set's measured mean,
-  // pavement_tex.js concreteD; the sand the beach set's), sampled over the
+  // the pavement's concreteD; the sand the beach set's), sampled over the
   // disc the belly sees (a ring of 16 points, its radius the height above the
   // ground, 6 m on the stand), averaged, and eased over a second so a coast or
   // an apron's edge is never a step. ONE keeper: the probe reads it at every

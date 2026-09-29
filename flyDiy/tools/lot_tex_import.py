@@ -7,7 +7,7 @@ textures for that), the seafront uses pebbles").
 
 Five ambientCG sets from assets/groundTextures/, normalised to the one
 contract every ground library in this repo uses (diff / nor_gl / rough, 1k
-archive + 512 working copy) under assets/lot/<key>/. tools/lot_tex_prep.js
+archive + 512 working copy) under assets/lot/<key>/. tools/ground_tex_prep.js
 bakes the payload from there.
 
     lush     Grass001   the dark, dense grass: by the fences

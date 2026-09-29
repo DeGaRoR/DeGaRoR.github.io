@@ -57,46 +57,23 @@ const ALLOW = {
   flat: {
 
   },
-  // byte-identical copies under media/ per content hash (sha256, first 16 hex): 20 groups, 28 redundant files
+  // byte-identical copies under media/ per content hash (sha256, first 16 hex): 0 groups, 0 redundant files
   dupes: {
-    "00fbe38ae0bd6a55": 2,
-    "0187dd5d5ed9b19f": 2,
-    "151550a548f632ea": 3,
-    "27f8e9b233e4e657": 2,
-    "379ad06bc9779087": 2,
-    "5497193f6719b116": 2,
-    "7cc9f4c2bcb54355": 3,
-    "8360b7526f1ad009": 3,
-    "89d1ffc2587306c8": 2,
-    "8f65b07bd1bbf72c": 3,
-    "90a67ae0284152b1": 2,
-    "9f177ab80feed01c": 2,
-    "a5c0e5246711aa4e": 2,
-    "a924c5600f6ae93e": 3,
-    "ac02fc18c4565f48": 2,
-    "b29a459b265d42f8": 2,
-    "c5983cf7f78a6b19": 2,
-    "d985d705b8d049e4": 3,
-    "e6529d7511a233de": 2,
-    "f5626b4f31e93a02": 4,
+
   },
   // images over 4096 px per directory: 2 files
   huge: {
     "media/tex/sky": 2,
   },
-  // JPEG normal maps per directory: 172 files
+  // JPEG normal maps per directory: 166 files
   jpgNormal: {
+    "media/tex/ground": 63,
     "media/tex/house": 25,
-    "media/tex/lot": 5,
     "media/tex/models/c172": 2,
-    "media/tex/pavement": 35,
-    "media/tex/site": 10,
-    "media/tex/splat": 19,
     "media/tex/trees": 75,
     "media/tex/vessel": 1,
   },
-  // 'new THREE.*Material' sites per file: 176 in 39 files; 169 in 34 after AS4a (G920: props, animals, trees, cliffs, the
-  // cover ring, the strip stones, the prop disc and the contact blobs make theirs in src/viewer/matlib.js)
+  // 'new THREE.*Material' sites per file: 173 in 35 files
   mats: {
     "src/viewer/aa_resolve.js": 1,
     "src/viewer/aeroskin.js": 3,
@@ -118,7 +95,6 @@ const ALLOW = {
     "src/viewer/plume.js": 1,
     "src/viewer/post_fx.js": 1,
     "src/viewer/powerline.js": 1,
-    "src/viewer/flown_bake.js": 2,   // G870 (C4a): the baked exterior material and its bake-pass material, admitted by the train-13 integration until MATLIB (AS4a, train 14) takes them
     "src/viewer/refplane.js": 1,
     "src/viewer/render_premises.js": 23,
     "src/viewer/render_world.js": 18,

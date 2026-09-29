@@ -198,7 +198,7 @@ const GATES = [
   // THE MATERIAL LIBRARY (AS4a, G920-G924): the props / pier / animals, the trees and the strip stones drawn with
   // and without the library's sharing (and the stones' batches) on the recording GL - every part the same uniforms,
   // textures and program key, fewer materials and draws; the program keys carry no uniform value
-  { id: 'MATLIB', file: '_matlib_check.js', tier: 'core', wall: 40 },
+  { id: 'MATLIB', file: '_matlib_check.js', tier: 'core', wall: 70 },   // AS4a-rest (G943): + check 6, the array shapes both ways
   // the geometry transport (G930, AS5a): every media/geo bin ONE gzip stream,
   // decoded, re-hashed against its name, its layout against every manifest
   // that names it. ~2 s. Negative-verified (its selftest runs every time).
@@ -206,6 +206,10 @@ const GATES = [
   // THE SPLAT (TERRAIN FOLLOW-UP 3, 2026-09-21): RECIPE's shape, the manifest against the
   // store, the shader's ANGLE rules in node; --gpu (by hand) adds the sampler census and the fxc probe
   { id: 'SPLAT', file: '_splat_check.js', tier: 'core' },
+  // THE ONE GROUND LIBRARY (G912, AS2): the table's files, the cooked layers = what the old canvas code packed in
+  // Chrome (per library and key), the keys and their order, the cook re-run in memory (python + Pillow), no canvas
+  { id: 'GROUNDLIB', file: '_groundlib_check.js', tier: 'core' },
+  { id: 'KTX2', file: '_ktx2_check.js', tier: 'core', wall: 120 },   // AS3 G918: every KTX2 file decodes (the page's transcoder, in node) and is its raw plane within the role's PSNR; the page's KTX2 path and its fallback
   // THE BUILD FILE (G63): save -> load -> editor -> join -> resolved spec.
   // ruling 4 promised this battery a loading gate and it never had one.
   { id: 'BUILD', file: 'test_build.js', tier: 'core' },

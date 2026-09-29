@@ -500,56 +500,35 @@ const PAVEMENT = (() => {
   // ---- the library: the sets a recipe names -> two arrays ---------------------
   // library(THREE, keys, done) builds uPavA (colour rgb + height a) and uPavN (normal xyz + rough a)
   // from PAVEMENT_TEX_SETS for exactly `keys`, in that order; returns { layerOf, metres, mean, ready }.
-  // The Images are SHARED with every other consumer: a listener, never an onload property.
-  function library(THREE, keys, done) {
+  // THE LAYERS ARE COOKED (G911, AS2): each set's two planes were packed OFFLINE by tools/ground_tex_prep.js, byte for
+  // byte what this function's canvas loop packed in the page (GATE GROUNDLIB holds every key to it); GROUND_LIB
+  // fetches and copies them. No Image, no canvas, no getImageData here any more. A set whose file FAILS takes its
+  // mean colour (sRGB-encoded, the array is sRGB-typed) over a flat normal, and never stalls the library (G751).
+  // `prev` (sharedLib's grow): the arrays being replaced lend the layers they already hold.
+  function library(THREE, keys, done, prev) {
     const SETS = (typeof PAVEMENT_TEX_SETS !== 'undefined') ? PAVEMENT_TEX_SETS : null;
     const lib = { keys: keys.slice(), layerOf: {}, metres: {}, mean: {}, texA: null, texN: null, ready: false };
     keys.forEach((k, i) => { lib.layerOf[k] = i; const s = SETS && SETS[k]; lib.metres[k] = s ? s.metres : 2; lib.mean[k] = s && s.mean ? s.mean : [0.2, 0.2, 0.2]; });
-    if (!SETS || typeof document === 'undefined') { if (done) done(lib); return lib; }
-    const px = 512, S = px * px * 4, N = keys.length;
-    const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
-    const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
-    const ctx = cnv.getContext('2d', { willReadFrequently: true });
-    // (G751: an image that has already FAILED is `complete` with no width, and its error fired long ago - waiting for
-    // an event there never resolved, so one failed fetch stalled this library and every later one grown from it: every
-    // pavement made afterwards kept the old arrays with the new layer indices. Measured in the page: a library with one
-    // failed map never called back. A failed map now counts as done; its layer takes the set's mean colour.)
-    // G903: a FLAT map ships as its constant [r, g, b] (no file): its layer is filled with it - the texels the
-    // canvas read out of the file were that mean within a code or two (std < 2)
-    const flat = v => Array.isArray(v);
-    const dec = img => (flat(img) || img.complete ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }));
-    Promise.all(keys.map(async (k, i) => {
-      const m = SETS[k]; if (!m) { console.warn('pavement: no set ' + k); return; }
-      const [d, n, g, h] = [m.diff, m.nor, m.rough, m.height];
-      await Promise.all([dec(d), dec(n), dec(g), dec(h)]);
-      const o = i * S;
-      if (flat(d)) for (let q = 0; q < px * px; q++) { data[o + q * 4] = d[0]; data[o + q * 4 + 1] = d[1]; data[o + q * 4 + 2] = d[2]; }
-      else if (d.naturalWidth) { ctx.drawImage(d, 0, 0, px, px); data.set(ctx.getImageData(0, 0, px, px).data, o); }
-      else { const c = (m.mean || [0.2, 0.2, 0.2]).map(v => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055)));   // the mean, sRGB-encoded (the array is sRGB-typed)
-        console.warn('pavement: ' + k + ' colour map failed - its mean colour stands in'); for (let q = 0; q < px * px; q++) { data[o + q * 4] = c[0]; data[o + q * 4 + 1] = c[1]; data[o + q * 4 + 2] = c[2]; } }
-      if (flat(h)) for (let q = 0; q < px * px; q++) data[o + q * 4 + 3] = h[0];
-      else if (h.naturalWidth) { ctx.drawImage(h, 0, 0, px, px); const hd = ctx.getImageData(0, 0, px, px).data; for (let q = 0; q < px * px; q++) data[o + q * 4 + 3] = hd[q * 4]; }
-      else for (let q = 0; q < px * px; q++) data[o + q * 4 + 3] = 128;
-      if (flat(n)) for (let q = 0; q < px * px; q++) { dataN[o + q * 4] = n[0]; dataN[o + q * 4 + 1] = n[1]; dataN[o + q * 4 + 2] = n[2]; }
-      else if (n.naturalWidth) { ctx.drawImage(n, 0, 0, px, px); dataN.set(ctx.getImageData(0, 0, px, px).data, o); }
-      else for (let q = 0; q < px * px; q++) { dataN[o + q * 4] = 128; dataN[o + q * 4 + 1] = 128; dataN[o + q * 4 + 2] = 255; }
-      if (flat(g)) for (let q = 0; q < px * px; q++) dataN[o + q * 4 + 3] = g[0];
-      else if (g.naturalWidth) { ctx.drawImage(g, 0, 0, px, px); const gd = ctx.getImageData(0, 0, px, px).data; for (let q = 0; q < px * px; q++) dataN[o + q * 4 + 3] = gd[q * 4]; }
-      else for (let q = 0; q < px * px; q++) dataN[o + q * 4 + 3] = 230;
-    })).then(() => {
-      const mk = (dd, srgb) => { const t = new THREE.DataArrayTexture(dd, px, px, N);
-        t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
-        t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
-        // THE COLOUR ARRAY IS sRGB-TYPED (2026-09-22): the GPU decodes before it filters, so a mip is the
-        // mean of linear texels. Decoding in the shader after the fetch filtered in sRGB space, and a far
-        // texel came out 17-29 % darker than the near ones on the dark, contrasty sets (Jensen). The
-        // height in alpha rides along untouched (alpha is never transferred)
-        if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-        t.anisotropy = 16; t.needsUpdate = true; return t; };   // G662: three clamps to the GPU's maximum; 8 blurred the grain at grazing angles (142931)
+    if (!SETS || typeof document === 'undefined' || typeof GROUND_LIB === 'undefined') { if (done) done(lib); return lib; }
+    const px = (typeof GROUND_TEX !== 'undefined' && GROUND_TEX) ? GROUND_TEX.px : 512, N = keys.length;
+    for (const k of keys) if (!SETS[k]) console.warn('pavement: no set ' + k);
+    const lend = prev && prev.texA && prev.texN && prev.texA.image && prev.texN.image
+      ? { urls: prev.keys.map(k => SETS[k] && SETS[k].layers), A: GROUND_LIB.planeOf(prev.texA), N: GROUND_LIB.planeOf(prev.texN) } : null;
+    GROUND_LIB.pack(keys.map(k => SETS[k] ? { layers: SETS[k].layers, ktx: SETS[k].ktx, mean: lib.mean[k], label: k } : null), (data, dataN, failed) => {
+      if (!data) { if (done) done(lib); return; }
+      for (const k of failed) console.warn('pavement: ' + k + ' layers failed - its mean colour stands in');
+      // THE COLOUR ARRAY IS sRGB-TYPED (2026-09-22): the GPU decodes before it filters, so a mip is the
+      // mean of linear texels. Decoding in the shader after the fetch filtered in sRGB space, and a far
+      // texel came out 17-29 % darker than the near ones on the dark, contrasty sets (Jensen). The
+      // height in alpha rides along untouched (alpha is never transferred). AS3 (G917): the planes may arrive
+      // as KTX2 (a compressed array, the file's mips averaged in linear light as this sRGB texture's own were);
+      // GROUND_LIB.arrayTexture makes either kind with these same settings.
+      // G662: anisotropy 16 - three clamps to the GPU's maximum; 8 blurred the grain at grazing angles (142931)
+      const mk = (dd, srgb) => GROUND_LIB.arrayTexture(THREE, dd, N, { srgb, aniso: 16 });
       lib.texA = mk(data, true); lib.texN = mk(dataN, false); lib.ready = true;
       for (const m of MATS) if (m.userData.pavLib === lib) { m.uniforms.uPavA.value = lib.texA; m.uniforms.uPavN.value = lib.texN; m.uniforms.uPavOn.value = 1; applyOne(THREE, m); }
       if (done) done(lib);
-    });
+    }, lend);
     return lib;
   }
   // THE SHARED LIBRARY (the game): one pair of arrays per page, built for the keys asked so far and
@@ -569,7 +548,7 @@ const PAVEMENT = (() => {
       if (old && old.texA && old !== L) { old.texA.dispose(); old.texN.dispose(); }
       for (const w of L.waiters) w(L); L.waiters.length = 0;
       if (onReady) onReady(L);
-    });
+    }, old && old.ready ? old : null);   // G911: the old arrays lend the layers they hold (a grow fetches only the new sets)
     lib.waiters = [];
     // until the new arrays decode, the materials keep the old ones (their layers still valid there)
     if (old && old.ready) { lib.texA = old.texA; lib.texN = old.texN; lib.readyOld = true; }

@@ -63106,6 +63106,297 @@ mul per fragment. (A `flat` varying is the other way to it - the provoking verte
 the user validated the snap.) Every other hash of seed (the wet lanes, the shoulder paths) is fixed with it.
 THE SWITCH stays (t0 t1 t2 t2b t3 t3u t4 t5 t6 t8, PAVTEST / ?pavetest=) for the tweaking to come; t7 and t11 retired.
 
+## G910-G914 - AS2: ONE GROUND LIBRARY - ONE SET TABLE, THE LAYERS COOKED OFFLINE, NO CANVAS AT THE ROLL-OUT, THE SAME TEXELS (2026-09-28, AS2, a cloud session, node + headless Chromium)
+
+WHY: futureDesigns/ASSETS-2026-09-27.md §5.3 M7. lot, splat, pavement and site each had a baker, a media directory, a
+manifest and copies of the same maps (32 byte-identical groups, 5.8 MB), and the splat and the pavement packed their
+texture arrays IN THE PAGE at the roll-out (Image -> canvas drawImage -> getImageData -> a channel shuffle, ~200 canvas
+reads). Base origin/claude/batch-a-base (b3bf0431). Branch claude/magical-ritchie-izoyg4. The rule: LOOKS MUST NOT CHANGE.
+
+G910 THE ONE TABLE. tools/ground_sets.json is the set list (each map's source candidates under assets/, the old bakers'
+rules) and each library's keys in its order with its own numbers (tile / metres / role / mean / name) naming a SET.
+tools/ground_tex_prep.js (the ONE baker; lot_tex_prep, site_tex_prep, splat_tex_prep, pavement_tex_prep deleted) writes
+media/tex/ground/ (each map once: writeMedia folds equal bytes) and src/viewer/ground_tex.js: GROUND_TEX { px, sets, libs }
+and the four old globals as VIEWS of it - SPLAT_TEX_SETS (RECIPE.library's order and metres, as before), PAVEMENT_TEX_SETS,
+LOT_TEX_SETS, SITE_TEX_SETS - same keys, same order, same fields, getters for the maps each old manifest had, ONE Image
+per url whichever view reads it; `set` and `layers` added. src/viewer/site_tex.js, splat_tex.js, pavement_tex.js deleted;
+lot_tex.js keeps its hand-written LOT_GROUND (its table is the view). build.js: ground_tex.js + ground_lib.js where
+site_tex / splat_tex / pavement_tex were (before every consumer, the world pack's lot_tex.js too). THE KEYS: 69 library
+keys -> 63 sets. lot's five ARE the splat's five byte for byte (one set each); site grass004 IS grass; the pavement's
+flattened copies of the lot's and the airfield's sets (tools/pavement_tex_import.py's _legacy) are other texels, so they
+are their own sets `<key>Pv` (lushPv ... asphaltaerialPv); the site's dirt is not the lot's: `siteDirt`. A map is read
+from assets/ (this checkout's, then D:/...'s), else the file the current ground_tex.js names (a box without assets/
+re-bakes the shipped bytes: done here, idempotent - the second bake reproduced ground_tex.js byte for byte), else the
+migration's `legacy` (stripped). `keep` skips assets/ for a map: forestAir's colour carries tools/splat_tex_tone.py's
+hand tone, which assets/ does not (the old splat prep lost it on every re-bake; the tone tool now patches ground_tex.js +
+ground_sets.json and re-bakes so the layers re-cook). The importers' "Then:" lines name ground_tex_prep.js. The benches
+(_house, _premises, _tarr, _village, _totems, _pavement) load ground_tex.js (the pavement bench + assets.js + ground_lib.js).
+G911 THE COOK AND THE COPY. tools/array_cook.js (GENERIC - C2c's TARR arrays are meant to be its second user):
+cookLayers({ sub, px, entries: [{ stem, planes: [[4 channel sources] x N] }] }), a channel = { img, ch } or { or: byte };
+each entry one file of raw RGBA8 planes as ONE gzip stream named `<stem>.<h8 of the RAW bytes>.gz.bin` (tools/_media_lib.js
+writeMedia now takes ext 'gz.bin' in any subdir: AS5a's geometry rule). The decode is tools/media_lib.py decode_rgba
+(`python media_lib.py rgba <list>`, _media_lib.js decodeRGBA): Pillow's libjpeg-turbo, no colour management (an ICC
+profile is refused), sizes must be px x px (a canvas resample is not reproducible offline, so the cook refuses). THE
+DECODER IS THE BROWSER'S: all 261 ground JPEGs decoded by Pillow and by headless Chromium 141's canvas, 0 bytes differ.
+The ground's packing is pavement.js library()'s (= splat buildArrays'): A = diff rgb + height R (128 without), N = nor rgb +
+rough R (230 without). 54 sets cooked (every set an array consumer can name: the splat's 19, the pavement's 35); 87.3 MB
+gz, 108 MiB raw. src/viewer/ground_lib.js GROUND_LIB.pack(items, done, prev): fetch each set's file (ASSET_FETCH gunzips
+.gz.bin), COPY its planes into two Uint8Arrays in layer order; `prev` = the arrays a grow replaces LEND their layers (a
+grown library fetches only the new sets); a failed file -> the set's mean colour (sRGB-encoded) + height 128 over a flat
+normal + rough 230, and the library calls back (G751's rule). pavement.js library() and splat_ground.js buildArrays call
+it and keep their OWN textures exactly as before (format, colour space - the pavement's colour sRGB-typed, the splat's
+not, decoded in its shader -, filters, mips, anisotropy 16 / the splat's knob): what reaches the GPU is the same object
+with the same bytes. BEHAVIOUR NOTE: a splat set whose file fails was BLACK (a zero layer), it is its mean colour now.
+G912 THE PROOF, IN NODE. tools/ground_layers_chrome.js runs the OLD library() and buildArrays VERBATIM (cut out of the
+base's sources) in headless Chrome over the base's manifests and media (git show b3bf0431) and writes the SHA-256 of every
+layer each packed + every map file's -> tools/perf/ground_layers_before.json. GATE GROUNDLIB (tools/_groundlib_check.js,
+core, ~6 s, registered): (1) every file on disk, every cooked file two px^2 planes named by the raw hash; (2) per library
+and key: splat 19 x 2 planes and pavement 35 x 2 planes SHA-equal to what the old code packed in Chrome; lot 15 + site 30
++ splat 76 + pavement 140 map files byte-equal to the old manifests'; (3) every library's keys in their old order, the
+splat's rows RECIPE.library's, every key a recipe names cooked; (4) python + Pillow present: every cooked file re-cooked in
+memory from the table's maps = the shipped bytes; (5) no canvas in pavement.js's library, splat_ground.js, ground_lib.js.
+--selftest: a bit flipped in a splat A plane / a pavement N plane, a cooked file missing, the lot's dirt pointed at the
+site's dirt, a pavement key dropped, two splat rows swapped, a getImageData planted - all red. A DELIBERATE set change (a
+re-import, a tone) re-takes the fingerprints: `node tools/_groundlib_check.js --update` (names what moved).
+THE HARNESS COUNTS THE READS (tools/_page_node.js P.io, tools/_framecost_check.js): fetch / XHR / Image loads and their
+on-disk bytes, the 2D canvas's drawImage / getImageData (+ bytes) / putImageData, per boot step as `io.*` in the census's
+boot rows and a "reads (reported)" line per build - REPORTED, never ratcheted (not in BOOT_KEYS, not in the view rows).
+tools/asset_census.js counts the cooked layers (a "COOKED ARRAY LAYERS" section: files, gz, raw, GPU if resident).
+Gates updated for the move: PAVEMENT (the credits from ground_tex.js; the library's files incl. the layers on disk),
+SPLAT (section 2 reads GROUND_TEX.libs.splat, maps + layer file per set; selftests re-aimed), LOOKS (check 4: the failed-
+layer rule through GROUND_LIB, no canvas), MEDIA (ground_tex.js the one ground manifest), ASSETS (ALLOW flat / dupes /
+jpgNormal re-measured: the four dirs -> media/tex/ground; flat 48 -> 47, dupe groups 29 -> 8, JPEG normals 186 -> 180; mats
+untouched).
+G913 THE BOX A/B (the coordinator's; the user judges by eye). Nothing here changes how a texel is sampled, so the ground is
+expected PIXEL-IDENTICAL; these say whether it is.
+  (1) THE GPU'S OWN TEXELS: tools/ground_ab.js, a frame_perf --eval snippet: every layer of the LIVE arrays (splat uSplat /
+      uSplatN, the pavement's shared uPavA / uPavN) read back off the GPU (framebufferTextureLayer + readPixels) and hashed
+      against tools/perf/ground_layers_before.json. On the branch, and on the base (copy tools/ground_ab.js and
+      tools/perf/ground_layers_before.json into a base worktree): both must print "verdict":"SAME TEXELS".
+        node tools/_serve.js 8477   (the branch)   /   node tools/_serve.js 8478 <base worktree root>
+        node tools/frame_perf.js --url http://localhost:8477/flyDiy/index.html?world=jolene --places stand --tiers gfx --frames 10 --eval @tools/ground_ab.js
+  (2) THE PICTURES: FRAME_PERF_DEBUG=1 makes frame_perf save %TEMP%/frame_perf_<place>.png at each place - run base then
+      branch (copy the PNGs aside between runs), same --size, places:
+        --places stand,at:-120:500:12,at:-620:-40:25,at:900:-2700:60,forest,at:0:-5000:600
+      = the stand; the NE taxiway (paved, r_taxi_ne); the airport road (gravel, r_airport); the harbour village (lots,
+      z_harbour / r_village); the densest forest at 110 m (the splat under the trees); far terrain from 600 m. Then with
+      ?town=1 (Metlakatla on: the lots' LOT_GROUND, the residential zones) at:-3400:-8700:80.
+  (3) THE EYE, SLOW PANS: both builds side by side in two Chrome windows (8477 / 8478), dev.html?world=jolene, gamer,
+      shadows full, same window size; roll out, pause (#bPause), drag the chase camera through a slow full circle at the
+      stand (the apron's concrete, the side band, the grass), then the same at each place above (FLIGHT_PROBE teleport as
+      frame_perf's PLACE_AT, pause, pan). Look for: a set tone, a tiling scale, a normal's grain, a far mip's brightness,
+      the runway slabs (G1046's snap is untouched), a pavement set missing (mean-coloured) after a road loads.
+G914 THE NUMBERS. futureDesigns/ASSETS-2026-09-27.md §5.7 has the table. GATE FRAMECOST's page in node, base b3bf0431 (a
+worktree with this session's harness counters copied in) -> this branch, the Cub (the Cessna the same shape):
+- the roll-out's world step: canvas drawImage 206 -> 10, getImageData 205 -> 9, bytes read back 232.0 -> 36.0 MiB (the
+  9 left: trees.js's coverage mips of 1024^2 tree maps); Images 256 (35.9 MiB) -> 100 (20.0 MiB); fetches 55 (3.4 MiB) ->
+  94 (66.0 MiB: the 39 cooked sets Jolene asks - 16 splat + 23 pavement). The whole roll-out: getImageData 475 -> 279,
+  drawImage 512 -> 316, reads 98.4 -> 144.6 MiB (+46.2: the wire cost below).
+- texture bytes uploaded 1551.7 -> 1551.7 MiB (Cessna 1600.6 -> 1600.6); EVERY VIEW COUNTER (stand, taxi, both builds)
+  and every ratcheted boot row UNCHANGED (--compare prints nothing else). arrayBuffers after the roll-out 1793.3 -> 1776.9
+  MiB, rss 2969 -> 2908. GATE FRAMECOST PASS (the 27 "ratchet down" and 20 ALLOW lines are the base's own).
+- census: ground maps 261 files / 28.4 MB -> 232 / 24.8 MB; exact duplicates, all media, 32 groups 5.76 MB -> 11 groups
+  2.19 MB (none in the ground); + 54 cooked layer files, 87.3 MB gz (108 MiB raw, 144 MB GPU if all resident).
+THE COST: "raw layer blobs now" is +46.2 MiB on a Jolene first visit (the SW caches them after) and +87 MB in the repo /
+Pages: a decoded 512^2 photo is ~3.4x its JPEG gzipped (six sets: JPEG 3.18 MB, raw 12.6, gzip 10.9, planar + delta +
+gzip 9.6, PNG 9.1 - none closes the gap). AS3's KTX2 arrays are the answer; the cook's raw planes are the encoder's input.
+NOT DONE, AND WHY - ONE ARRAY PAIR. The library is one (table, store, cook, copy path); the arrays are two pairs, each
+built from the union of ITS consumers' keys: the pavement's colour array is sRGB-typed (hardware decode before filtering,
+the 2026-09-22 fix), the splat's is not (its shader decodes after filtering). One GL texture cannot be sampled both ways;
+moving either consumer changes its filtering, i.e. its far look (17-29 % on the dark contrasty sets when the pavement
+moved) - against this session's rule. A union pair on Jolene would also hold ~39 layers, over the splat's NLIB 24 per-layer
+uniform arrays. The lot and the site keep plain textures from the one table (they never packed a canvas; an array would
+move them from anisotropy 8 to 16). The fold is AS3's moment: an sRGB KTX2 array means the splat's in-shader decode goes,
+the user A/Bs that once, and the two pairs become one (NLIB widened with it).
+THE REAL BROWSER (here): headless Chromium 141 (SwiftShader WebGL2) on this branch's dev.html?world=jolene, the Cub,
+rolled out (its screen's watchdog lifts before a software GL finishes the world; the world and both arrays were ready at
+147 s), then tools/ground_ab.js: {"splat":{"keys":16,"same":16},"pavement":{"keys":23,"same":23},"verdict":"SAME TEXELS"},
+0 page errors - the real fetch + DecompressionStream + DataArrayTexture upload, read back off the GL context, is the old
+canvas code's packing, layer for layer. The splat api gained `arrays()` (read-only: the live pair) for it.
+NOT SEEN: a GPU. The frames' pixels and timings are the box's (G913). _dev_pump.html (a generated page, not touched)
+still names site_tex.js.
+FOR THE COORDINATOR: generated outputs NOT committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json);
+the FRAMECOST baseline NOT re-taken. MERGE NOTES vs AS4a-EARLY (claude/nice-shannon-l1szkd): no overlap in site_ground.js
+(not touched here); hangar.js / render_world.js / cover_ring.js here are one comment line each; tools/_asset_check.js:
+this branch changes the flat / dupes / jpgNormal blocks, AS4a the mats block - take both; tools/_framecost_check.js: this
+branch touches bootMark.open/close, wrapBoot's snap line (+1 line after it), the diff helpers (IO_NAMES, ioSum/ioLine
+above flatBoot), the --compare filter and one report line - AS4a's frame-handler and detail changes do not overlap.
+GATES (this container, 4 cores): GROUNDLIB (+ --selftest), PAVEMENT, SPLAT (+ --selftest), SITE, MEDIA, ASSETS, LOOKS,
+FRAMECOST, BUILD, BOOT, UISMOKE, CONTACT, LIGHT, ATMO, WORLDRENDER, PROGRAMS, COVER, FADES, HOUSE, VILLAGE, TARR, PREMISES,
+PREMCOOK, PREMRASTER, HANGAR, STAND, TREES, LIFE, PROPS: PASS. MATLIB: not on this base (AS4a's). No --all.
+## G915-G919 - AS3: KTX2 / BASIS - THE GROUND'S ARRAYS AND THE PIER'S AND THE SHED'S MAPS TRANSCODED IN WORKERS UNDER THE LOADING SCREEN; GPU ÷4 ON THE CONVERTED FAMILIES, EVERY VIEW UNCHANGED, ?ktx2=0 THE OLD PATH BYTE FOR BYTE (2026-09-29, AS3, a cloud session, node + headless Chromium)
+
+WHY: futureDesigns/ASSETS-2026-09-27.md §5.3 M8-M9. Every texture shipped as JPEG / PNG / WebP or (AS2) raw RGBA layers,
+decoded on the main thread, uploaded as RGBA8 with the GPU making the mips: 4 B/texel x 4/3 on the GPU, the roll-out's
+upload step 2.4-4.1 s. Base: origin/claude/magical-ritchie-izoyg4 (AS2, af775ea1; not yet on batch-a-base). Branch
+claude/brave-cannon-jsip8s. THE USER'S RULES: one upfront load, no background loading that drops frames; transcoding in
+workers under the loading screen.
+
+G915 THE VENDOR. tools/vendor_three.js builds a third output, vendor/ktx2/: ktx2_loader.js (three@0.186's
+examples/jsm/loaders/KTX2Loader.js + WorkerPool, ktx-parse, zstddec; esbuild IIFE that ADDS THREE.KTX2Loader to the
+page's global THREE - 'three' aliased to the global, no second copy; 61 KB) and basis_transcoder.js + .wasm copied byte
+for byte (515 KB). vendor/three.min.js rebuilds byte-identical. The loader is LAZY: build.js MANIFEST.lazy
+['vendor/ktx2', 'ktx2_loader.js'] (FLYDIY_LAZY('ktx2_loader'), versioned), no static tag; its workers fetch the
+transcoder themselves.
+G916 THE ENCODER AND THE ROLES. basisu v1.16.4 EXACTLY (npm basis_universal@1.16.4-1, pinned in flyDiy/package.json
+devDependencies beside three and esbuild; its bin/ has the Linux and Windows builds; `basisu -version` is checked by
+tools/_ktx2_lib.js, another version refuses; BASISU=<path> overrides). Deterministic on this box (three encodes per role,
+byte-equal; UASTC's RDO single-threaded: -uastc_rdo_m; -max_threads does not change the bytes). tools/_ktx2_lib.js:
+- ROLES (media_lib's): ktx2-color (ETC1S q255, sRGB metrics, mips in the file; `mip: 'srgb'` = averaged in linear light
+  as an sRGB-typed texture's own generateMipmap, `'linear'` = on the stored values as a shader-decoded texture's;
+  `codec: 'uastc'` the same role in UASTC + RDO), ktx2-normal (UASTC level 2 + RDO lambda 1 + zstd, linear;
+  `twoChannel` = X -> RGB, Y -> A for a consumer that rebuilds Z), ktx2-data (ETC1S linear ONE channel, R replicated;
+  `channels: 3` = a packed ARM map in UASTC linear). Mip filter box (the GPU's 2x2; basisu's kaiser would sharpen the far
+  look). The GROUND's normal plane keeps four channels (roughness rides in A), so it is written RGBA, not two-channel.
+- A FILE IS NAMED BY ITS INPUT: `<stem>.<h8>.ktx2`, h8 = sha256(the texels + w x h + role + args + 'basisu 1.16.4') -
+  a re-bake of unchanged texels on a box whose basisu writes other bytes writes nothing; GATE KTX2 re-derives every name.
+- decode(): three@0.186's own transcoder (vendor/ktx2/) in node -> RGBA per level (the gate, the census, the twins' bar).
+THE GROUND (tools/array_cook.js `ktx2: [{ plane, stem, role, opts }]` per entry; tools/ground_tex_prep.js): each cooked
+set's planes also as KTX2 - kN (normal + roughness, ktx2-normal), kA (colour + height for the pavement's sRGB-TYPED array,
+ktx2-color UASTC, mips in linear light), kAl (the same for the splat's SHADER-DECODED array, mips on the stored values) -
+a set gets only the variants its consumers read: 54 kN + 35 kA + 19 kAl = 108 files, 32.6 MiB (the raw layers: 87.3 MB
+gz). ground_tex.js rows carry kA / kAl / kN; the views hand each library its own: `ktx` { A, N }. The raw `layers` stay:
+the fallback. Re-bake: `node tools/ground_tex_prep.js` (python + Pillow + basisu); the second bake writes nothing.
+WHY THE GROUND'S COLOUR IS UASTC, NOT ETC1S (measured, all 54 sets, against the GPU's own generateMipmap of the raw
+plane): ETC1S shares one luminance modifier across r, g and b, and a saturated colour with little blue (grass, moss, dirt)
+came back with its BLUE LIFTED 8-15 codes in every mip from 16 px down (lush 9.7 codes at 8x8, dirtP 12.1, concreteM 15
+at 1x1; level 0 only 26.7-40 dB, median 32.0): the far ground desaturated, exactly the 2026-09-22 far-look lesson. Bigger
+codebooks (max endpoints / selectors + comp_level 3) halved it on some sets and not others (dirtP still 4 codes at 32 px).
+UASTC: every mip within 2.0 codes, level 0 median 37.9 dB (worst 30.6, grassPv), 2.2x ETC1S's bytes (17.2 vs 7.8 MB of
+colour planes for all 54 sets). ETC1S stays ktx2-color's default for maps seen near (the twins below, where it meets the bar).
+THE TWINS (tools/ktx2_twins.js; the pier kit and the shed's props, "then the others as time allows"): beside each map a
+material record reads (the packs' mats: map / emisMap -> colour, nor -> normal, arm -> data) its KTX2 TWIN, the SAME
+texels (the shipped map decoded as the browser decodes it: media_lib.py decode_rgba), in media/tex/ktx2/<family>/ (the
+tool owns and prunes it; the family's baker prunes media/tex/<family>/ and never sees them), named by the map's texels +
+role, listed in src/viewer/ktx2_twins.js (KTX2_TWINS_TABLE: key = the map's own path + slot kind; a re-baked map is a new
+path with no row and loads as an image until the tool runs again). Colour: ETC1S where it meets GATE KTX2's bar on that
+map (level 0 >= 25 dB and mean within 1.5 codes; every mip DOWN TO 16 px within 2.5 codes of the GPU's own), else UASTC.
+Why 16 px: under that a level is four 4x4 blocks or fewer, where ETC1S's 5-bit endpoints move the mean 2-7 codes (measured
+on the pier: level 0 33-39 dB, every mip to 16 px within 1.5 codes); a prop's map is one object's, a few pixels on screen
+at that level, where the ground TILES and its far mips cover the view (it holds every level). Normal and data: UASTC at
+RDO lambda 3 over a 32 KB dictionary (lambda 1 costs +15-20 % of wire for +2-3 dB over a source that is a JPEG already).
+pier 250 twins (111 ETC1S colour, 139 UASTC) 33.0 MB for 17.7 MB of maps; props 218 (87 ETC1S, 131 UASTC) 24.8 MB for
+12.1 MB. `--kinds color` would twin the colour maps only (their wire ~ the JPEG's): the user's call, below.
+G917 THE PAGE. src/viewer/ktx2.js (build.js: after ground_tex.js, with ktx2_twins.js, before ground_lib.js):
+- KTX2.off(family) -> null or why not: ?ktx2=0, localStorage flydiy.ktx2 = '0', no Worker, no WebAssembly, no renderer,
+  a GPU with no compressed format (bptc / s3tc / astc / etc - then the old path, never a transcode to RGBA32);
+  ?ktx2=ground,pier = those families only (the rest their old images). Families: ground, pier, props.
+- KTX2.parse(bytes, family): one KTX2Loader for the page (setWorkerLimit(min(4, cores - 1)), detectSupport on
+  FLYDIY_RENDERER), the bytes TRANSFERRED to a worker, -> { mipmaps, width, height, format, type }. The KTX2Loader's own
+  target choice: BC7 on a desktop (both codecs), ASTC / ETC2 on a phone (on Linux three drops ASTC/ETC when BC is there).
+- GROUND_LIB.pack (ground_lib.js): when every item has `ktx` and KTX2.off('ground') is null it fetches the planes and has
+  them transcoded; one per URL for the page's life (KT: a second pack - the pavement's grow while its first pack is still
+  in the workers - shares the fetch and the transcode: 20 shared on Jolene); -> two COMPRESSED planes { ktx2, format,
+  levels, layers }. ANY failure (a fetch, a transcode, another format or mip count) drops the WHOLE pack to the raw
+  layers (packRaw, G911 + G751) - an array is never half compressed. GROUND_LIB.arrayTexture(THREE, plane, n, { srgb,
+  aniso }) makes either kind with the callers' old settings: raw -> DataArrayTexture (GPU mips), KTX2 ->
+  CompressedArrayTexture (each level the layers' blocks in layer order, the file's mips, generateMipmaps off); the
+  pavement's colour sRGB-typed, the splat's not (its shader decodes, as before). planeOf(t): what a grow lends (either kind).
+- props.js propTexture(THREE, id, srgb, kind): with a twin and KTX2.off(family) null the twin is fetched and transcoded
+  and the texture ALREADY HANDED OUT is upgraded IN PLACE when it lands (isCompressedTexture, mipmaps, format; the twin's
+  rows are the map's rows top first, as flipY = false reads them); until then it has no image and three binds nothing, as
+  before an Image decodes. A failed twin loads the map itself into the same texture. BOOT waits for either ('propTex').
+  The callers name the slot kind (props.js, animals.js). scenery_life.js meanOf: a KTX2 map has no image to draw - its
+  mean colour came in the table (the map's sRGB mean; the far boxes' colour within a fraction of a code).
+G918 THE PROOF, IN NODE.
+- THE HARNESS (tools/_page_node.js): a Worker made from a blob holding the Basis transcoder runs in its own vm context,
+  its messages both ways on the VIRTUAL clock's next turn, WebAssembly compiled synchronously there (an async compile
+  lands on a real-time turn: the counts would move run to run); every other worker source still throws, as the absent
+  Worker did (parked.js's decimation, the sim worker, the bench keep their main-thread paths). The recording GL answers
+  as a desktop (EXT_texture_compression_bptc, _rgtc, WEBGL_compressed_texture_s3tc, _s3tc_srgb; opts.gpuFormats 'none'
+  takes them away). io.worker.messages per boot step (reported). tools/_framecost_check.js: the compressed uploads and
+  texStorage in the rows, a KTX2 line per build, --compare counts compressed bytes in the upload totals.
+- GATE KTX2 (tools/_ktx2_check.js, core, ~30 s, registered; --selftest 9 breaks, all red): (1) the vendor (three@0.186's
+  transcoder byte for byte; the loader defines THREE.KTX2Loader); (2) the table (every cooked set its kN, the pavement's kA,
+  the splat's kAl, the views); (3) every ground name re-derived from its raw plane + role; (4) every file decodes, every
+  level (the page's transcoder, in node), px, a full chain, UASTC, alpha, the DFD transfer; (5) level 0 vs the raw plane:
+  floors 25 dB rgb / alpha (colour median 37.9, worst 30.6 grassPv; normal median 33.0, worst 26.5 pebble; roughness
+  worst 27.8 dirt), every channel's mean within 1.5 codes; (6) every mip vs the GPU's own generateMipmap of the raw plane
+  (linear light for kA, stored values for kAl / kN): worst 2.0 codes (limit 2.5); (7) the page: ktx2.js's off reasons
+  and ?ktx2=<families>, GROUND_LIB run on stubs (one compressed array of the layers' levels in order, sRGB, generateMipmaps
+  off; a grow lends; ONE failed transcode drops the whole pack to the raw layers; off -> raw), the loader lazy; (9) the
+  twins (python + Pillow; SKIP said when absent): every map the records read has its twin, each named by its map's texels
+  + role, decodes to its size with every mip, within the bar (worst level 0 27.1 dB), the table's mean = the map's;
+  (8) basisu present: 3 files re-encoded = the shipped bytes (--full: all 108).
+- THE CENSUS (tools/asset_census.js): a KTX2 / BASIS section (header only: size, levels, codec; GPU = BC7, beside the
+  same texels as RGBA8 + mips), families split media/tex/ktx2/<family>. See ASSETS §5.8 for the table.
+- FRAMECOST, before (base af775ea1 in a worktree with this session's harness copied in) -> after (this branch), Jolene,
+  gamer, shadows full, the Cub (the Cessna the same shape); `--compare` of the censuses:
+  * EVERY VIEW COUNTER (stand, taxi; both builds): UNCHANGED. Page errors: the same 53 (the recording GL's empty impostor
+    sheets), no script / timer / frame threw.
+  * texture bytes uploaded, boot + roll-out: 1551.7 -> 1246.3 MiB (Cessna 1600.6 -> 1295.2); the garage's compile step (the
+    shed's maps) 411.3 -> 292.8; the roll-out's upload step 891.7 -> 704.9 (the ground's arrays 122.7 MB raw -> 27.3 MB
+    compressed, every mip included).
+  * a first visit's reads: garage 83.1 -> 95.8 MiB (fetches 62.4 -> 86.9, images 20.7 -> 9.0: the props' UASTC normal /
+    ARM twins are 2-3x their JPEGs), roll-out 144.6 -> 114.3 (the world step 90.1 -> 49.4: the ground's KTX2 is 23.4 MiB
+    for Jolene's 39 sets against 78 MiB of raw layers); total 227.7 -> 210.1 MiB. Images decoded 259 / 393 -> 47 / 198.
+  * 482 KTX2 files transcoded (98 ground planes, 20 shared by the pavement's grow; the folded twins once each), 968 worker messages, 0 failed.
+  * the boot rows' gl.calls rise where compressed textures upload (texStorage + one compressedTexSubImage per mip, where
+    an image made texImage2D + generateMipmap): garage:compile 103.2 k -> 104.9 k, rollout:upload 4.5 k -> 6.1 k -
+    admitted by two ALLOW rows (G918). GATE FRAMECOST PASS (the other 20 ALLOWs and the 27 "ratchet down" are the
+    base's own; the baseline NOT re-taken).
+  * arrayBuffers after the roll-out 1776.9 -> 1856.4 MiB (+79.5: three keeps a compressed texture's mips in JS for a lost
+    context, and the ground's per-URL layers stay for a grow). rss within the noise.
+  * `?ktx2=0` (FRAMECOST_QUERY='ktx2=0'), both builds: THE BASE, every view and boot counter and every byte - the fallback
+    is the old path, untouched.
+- THE REAL BROWSER (here): headless Chromium 141 (SwiftShader, BC7 exposed) on dev.html?world=jolene, the Cub rolled out,
+  tools/ktx2_chrome.js -> tools/ktx2_ab.js: both arrays COMPRESSED (format 36492, BC7), every layer of the splat's 16 and
+  the pavement's 23 sampled texel for texel on the GL context against its raw layer: worst colour 30.6 dB (the splat's
+  grass), worst normal 27.8, every mean within 0.7 codes -> "WITHIN FLOORS"; 403 files transcoded in 3 workers, 0 failed,
+  0 fallbacks. With ?ktx2=0: raw RGBA8, 99 dB. The page's own warning "world: after the build TypeError ... setMatrixAt"
+  shows in BOTH runs (a SwiftShader roll-out's, not this change's).
+G919 THE LOOK CHECK (the coordinator's box; the user judges each family by eye). THE SWITCH: `?ktx2=0` = every family on
+its old images / raw layers; `?ktx2=ground` / `?ktx2=pier` / `?ktx2=props` = that family on KTX2, the others old (so
+`?ktx2=<family>` against `?ktx2=0` is that family's A/B and nothing else moves); no flag = all KTX2.
+  (1) THE GPU'S OWN TEXELS (ground): `node tools/_serve.js 8477` then
+        node tools/frame_perf.js --url "http://localhost:8477/flyDiy/index.html?world=jolene" --places stand --tiers gfx --frames 10 --eval @tools/ktx2_ab.js
+      must print kind "compressed (format ...)" for both libraries and "verdict":"WITHIN FLOORS"; with &ktx2=0 "raw RGBA8"
+      and 99 dB. (On a desktop the format is BC7, 36492; tools/ktx2_chrome.js --gl gpu does the same in Playwright.)
+  (2) THE PICTURES: FRAME_PERF_DEBUG=1 saves %TEMP%/frame_perf_<place>.png per place - run each flag, copy the PNGs aside:
+      GROUND (?ktx2=ground vs ?ktx2=0), AS2's G913 places:
+        --places stand,at:-120:500:12,at:-620:-40:25,at:900:-2700:60,forest,at:0:-5000:600
+        (the stand; the NE taxiway, paved; the airport road, gravel; the harbour village's lots; the densest forest's
+        splat; far terrain from 600 m - THE FAR LOOK is the one to judge: the mips are the file's now), then with &town=1
+        at:-3400:-8700:80 (Metlakatla's lots).
+      PIER (?ktx2=pier vs ?ktx2=0): the pier kit's placed props (tools/fixtures/island_jolene.json): the aerodrome's car
+        park beside the stand (the fuel truck, the box truck, four cars, the van: -226..-104, 668..737) - `stand` sees
+        them, and at:-205:705:8 close; the town street's cars at:-1505:-7975:15; the two boats at:10150:-11470:10.
+      PROPS, THE SHED KIT (?ktx2=props vs ?ktx2=0): the garage - `frame_perf.js --garage` (the shed as booted), and the
+        stand after the roll-out (the props outside the door).
+  (3) THE EYE, SLOW PANS: two Chrome windows side by side, dev.html?world=jolene&ktx2=<family> and &ktx2=0, gamer,
+      shadows full, same size; roll out, pause (#bPause), drag the chase camera through a slow circle at each place above.
+      Look for - the ground: a set's tone near and FAR (UASTC holds the mips within 2 codes; a difference there is a bug),
+      grain / blockiness in the grass at grazing angles, the normals' relief, the runway slabs; the pier and the props:
+      ETC1S's block edges and banding on smooth paint (the vehicles' bodies, signs, the shed's machines) - 198 of their
+      216 colour maps are ETC1S - and the UASTC normals' relief; the far boxes' colour (scenery_life's mean).
+  (4) THE TIMINGS AND THE VRAM (not measured here - no GPU): tools/rollout_perf.js warm and cold, with and without
+      ?ktx2=0 (the upload step and the world step; expect the upload step's RGBA copies + GPU mips gone for the converted
+      families), boot_perf for the garage, and `node tools/asset_census.js --runtime --cold` for the live texture MiB.
+THE USER'S CALLS: (a) the look, family by family, above; (b) THE WIRE of the twins' normal / ARM maps: UASTC is 2-3x
+their JPEGs (+12.7 MiB in the garage's first-visit reads) for a quarter of their GPU memory - `node tools/ktx2_twins.js
+--kinds color` keeps only the colour twins (their wire ~ the JPEG's) and the gate follows whatever kinds the table has;
+(c) the ground's colour is UASTC, not the role's ETC1S default - measured, not taste: ETC1S lifted the far ground's blue.
+NOT DONE, AND WHY: IMPA (the impostor atlases are rendered on the GPU at run time - nothing to encode offline; an offline
+impostor cook, C0b's pattern, would make them KTX2), trees (trees.js reads its maps back through a canvas for the
+coverage mips and the cover ring measures map means - a KTX2 map has no image: the tree pack must carry those numbers
+first), chars (AS6: a re-encode of an import is the user's yes), TARR (C2c's offline cook; array_cook's `ktx2` entries are
+ready for it). ONE ARRAY PAIR (AS2's note): still two pairs - the splat's shader decode stays, so its colour array stays
+a linear-typed texture of the same BC7 blocks; the fold is a look change for the user to A/B, not taken here.
+THE REPO: +90.9 MiB (ground KTX2 32.6, twins 57.7, vendor/ktx2 0.6); the JPEGs and the raw layers stay (the fallback).
+index.html +105 KB (the twins' table is inlined; MEDIA's step budget holds).
+FOR THE COORDINATOR: generated outputs NOT committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json);
+the FRAMECOST baseline NOT re-taken (--update keeps the 27 falls; the two G918 ALLOWs then fold in). `npm install` in
+flyDiy/ brings basisu (only the bakers need it: GATE KTX2's check 8 SKIPs without it; check 9 SKIPs without Pillow).
+MERGE NOTES vs train-16 (AS0b G903-G904, AS4a G920-G924 MATLIB; neither on this base): props.js - AS4a moved the props'
+materials into MATLIB; my change is propTexture's body and its `kind` argument at the four call sites (map / arm / nor /
+emisMap), take both: MATLIB's shapes must pass the slot kind to propTexture. AS0b's flat constants (TEX_FLAT) never reach
+propTexture's file path (a constant has no twin: tools/ktx2_twins.js skips non-string slots). The pier / props packs are
+re-baked by AS0b: re-run `node tools/ktx2_twins.js` after the merge (GATE KTX2 check 9 names every map without a twin).
+tools/_framecost_check.js: ALLOW rows (append), IO_NAMES (+1 key), the diff key list, --compare's texture totals and the
+report line; tools/_page_node.js: the Worker shim and DESKTOP_TC.
+GATES (this container, 4 cores): KTX2 (+ --selftest, 9 breaks red), GROUNDLIB, MEDIA, ASSETS, PAVEMENT, SPLAT, LOOKS,
+TREES, PROPS, ANIMALS, LIFE, HANGAR, FRAMECOST, BUILD, BOOT, UISMOKE: PASS. MATLIB: not on this base (AS4a's). No --all.
+
 ## G875-G878 - C4b: THE FLOWN AEROPLANE IN A HANDFUL OF DRAWS - THE FOLD (A BONE PER MOVING PART), THE CABIN'S ATLAS, THE BAKE'S CPU IN A WORKER (2026-09-28, queue C, local GPU)
 
 The user's verdict on C4a (2026-09-28): keep the bake, on by default, go on to C4b. ARCH-2026-09-27 §7.2's draw
@@ -64475,3 +64766,96 @@ FOR THE COORDINATOR:
 GATES (targeted; one page process at a time; the full tier is the CI session's):
 - PASS: HOUSEWORKER (new), HOUSE, PREMISES, TARR (71/71), TOWNKIT, VILLAGE, BUILD, BOOT, UISMOKE, ROUNDTRIP, FADES, ASSETS, SIMWORKER, PROGRAMS.
 - FRAMECOST RED, identical to the base (above). PREMCOOK RED since C0: its harness is fixed here, the re-cook is owed.
+
+## G940-G944 - AS4a-REST: MATLIB'S ARRAY SHAPES - A RECORD A ROW, ITS MAPS ARRAY LAYERS, A PROP ONE DRAW; TAXI MAIN DRAWS 1071.5 -> 982.5 (2026-09-29, AS4a's array half, a cloud session, node + headless Chromium)
+
+WHY: AS4a-EARLY (G920-G924) made one material per RECORD; the array half makes one per SHAPE, so the parts of a prop
+that wore a dozen records are one draw (futureDesigns/ASSETS-2026-09-27.md §5.1, §5.3 M1-M3; the frame is CPU-bound on
+three's per-draw path). Base: AS3 (claude/brave-cannon-jsip8s 3f93415f) + claude/train-16-base (a3aa44c) merged.
+
+G940 THE MERGE (its own commit, large: 29 train-16 commits, 21 conflicts). AS3's one ground library x AS0b's flat maps
+(G903): tools/ground_tex_prep.js applies G903 itself (flatConst) - a flat map is its [r, g, b] in GROUND_TEX (no file),
+the views hand the constant to site_ground.js's TEX_FLAT, and the COOK fills the channel with it as train 16's pavement.js
+filled the layer. Six cooked sets re-cooked + their KTX2 planes (concreteB/M, gravelS, sandC, grassG, brushedPv); every
+one of the 54 cooked layers is byte for byte what train 16's code packed in Chromium (tools/ground_layers_chrome.js
+--base a3aa44c: now GATE GROUNDLIB's fingerprints; the tool records a flat map as 'flat:r,g,b'). GATE KTX2:
+brushedPv.kN's constant roughness 248 comes out of UASTC +1.87 codes on average at every setting tried (level 2/3/4, RDO
+off/1/2: 1.59-1.90; its other channels within 0.1): a named allowance of 2.0 for that plane (MEAN0_ALLOW), the bar unchanged
+for the rest - a decision, written here. tools/ktx2_twins.js skips a flat map's entry (8 twins of now-flat maps pruned).
+GATE ASSETS re-baselined (flat 0, dupes 0, jpgNormal 166, mats 173). Both sides' FRAMECOST ALLOW rows and report fields.
+
+G941 THE ARRAY SHAPES (src/viewer/matlib.js `MATLIB.arr`):
+- PAGES: a CompressedArrayTexture per (kind: color sRGB / normal / data, size, KTX2 codec + alpha - the transcoder's
+  target is a function of those, so a page is one GPU format by construction; on a desktop BC7 for all). A layer is a
+  map's KTX2 twin as KTX2.load transcoded it - the ONE transcode per url the record's own 2D texture also takes. A page
+  is OPEN until three first uploads it, then SEALED at its layers: never re-allocated nor re-sent whole; a layer that
+  lands after the seal goes alone (three's layerUpdates; the page hands three that layer's own bytes, no full-depth
+  copy). The page keeps NO copy: its `mipmaps` are assembled from the transcodes when three reads them, dropped after
+  (onUpdate). A layer that fails: its rows fall back (colour -> the twin's mean, normal / arm -> none), logged.
+  In the game every prop the loading builds asks for its layers before the 'upload' step, which seals the pages.
+- ROWS: 8 RGBA32F texels a record (colour + opacity; roughness, metalness, normal scale, ao; the layers - >= 0 a layer
+  of the material's page, -1 none, -2 flat; the flat maps' constants, G903), 1024 texels wide (house_tarr.js's packing).
+- THE `std` SHAPE: three's MeshStandardMaterial with its map / roughness / metalness / normal / ao chunks reading the
+  row and the arrays - three's order and arithmetic (color x map, roughness x arm.g, metalness x arm.b, the same
+  derivative tangent frame with DOUBLE_SIDED's flip, the ao on the indirect diffuse and the envmap's specular
+  occlusion). Every array sampled OUTSIDE any branch (house_tarr.js's rule: the row changes at a triangle's edge) and
+  used by the row's say-so. ONE program for every page set (the hook's text is the key); one material per (side, flat
+  shading, pages). variant() carries an array shape's hook to its 'inst' / 'skin' siblings (the game's ATMO keeps a
+  hook in _atmoHook, not as an own property). `?matarr=0` is the A/B (AS4a-EARLY's records).
+- ktx2_twins.js's lookup returns the twin's size, codec and alpha (the page key).
+G942 THE FAMILIES: props.js propDraws - a record whose maps are all KTX2 twins, flat constants or none is a ROW; its
+parts join the prop's array draw (one geometry per side / flat / pages, each vertex carrying its row in 2 bytes).
+Glass and glow keep their own draws (sorted last / dimmed per key), a dusted key its records, a map with no twin (raw,
+or ?ktx2=0) its record. The parts of ONE record always join (person_koky: the baker's four 65 534-vertex parts stay one
+draw); two 16-bit draws are not joined into a 32-bit one. ONE COPY OF THE VERTICES: the parts' position / normal / uv
+become views of the merged arrays (the cage's baked pieces still read `geos` / `mats` by index). propSetEnv and
+propDispose reach the shapes; propDust after a build gives them back. animals.js: an animal's skinned meshes bind one
+skeleton with the identity, so where their records are rows they are ONE skinned draw (the bird).
+G943 THE PROOF: GATE MATLIB check 6 (the registries both ways on the recording GL, the twins transcoded to BC7 by the
+vendored transcoder): 834 parts - same matrices / lights / environment, the geometry its parts (decoded afresh) with its
+row per vertex, the row its record, each layer the map's twin uploaded byte for byte (23 pages, 422 layers); draws
+810 -> 570, materials 275 -> 85, programs linked 33 -> 26; self-tests (a row's roughness +1/256, a layer moved) red.
+tools/matlib_chrome.js: Chromium (SwiftShader) draws the 358 keys alone, both ways: the shader compiles, nothing blank,
+mean |A-B| 0.0000 codes; jointer and thicknesser move a handful of isolated pixels (coplanar parts' depth ties now inside
+one draw) - tools/perf/as4a_rest_evidence/ (the worst keys side by side, the summary).
+G944 THE CENSUS: FRAMECOST, per frame (median of 12), merged base -> this branch (tools/perf/framecost_census_as4a_rest_
+before.json / _after.json; the parked cook is stale on both - any build change makes it so - so both capture live):
+| counter | Cub stand | Cub taxi | Cessna stand | Cessna taxi |
+|---|---|---|---|---|
+| draws main | 1144 -> 1056 | 1071.5 -> 982.5 | 1155 -> 1067 | 1081.5 -> 992.5 |
+| draws shadow | 524 -> 491.5 | 232.5 -> 202.5 | 529.5 -> 497 | 240 -> 210 |
+| programs used / useProgram | 114 / 299 -> 105 / 254 | 97.5 / 241.5 -> 90.5 / 210.5 | 113 / 301 -> 104 / 256 | 97.5 / 244.5 -> 90.5 / 213.5 |
+| bindTexture | 1283 -> 1060 | 1160 -> 1009 | 1287 -> 1064 | 1165.5 -> 1014.5 |
+| uniform calls / bytes | 7370 / 539 764 -> 6838 / 506 380 | 6472 / 477 690 -> 5992 / 447 890 | 7440 / 543 324 -> 6908 / 509 940 | 6510.5 / 479 788 -> 6030.5 / 449 988 |
+| gl.calls | 14 643 -> 13 445 | 12 713 -> 11 730 | 14 762 -> 13 564 | 12 836 -> 11 853 |
+Materials (Cub): world scene 1 943 by uuid -> 1 837, by signature 612 -> 512; props 138 -> 40 (drawn at the stand 174 ->
+105 main, 56 -> 49 shadow; taxi 158 -> 87); animals 30 -> 15 main, 60 -> 30 shadow. PROGRAMS: 407 -> 399 at the end of the
+boot; linked across it 444 -> 435 (worldCompile 145 -> 139, the roll-out click's link gone). Memory after the roll-out:
+arrayBuffers 2249.4 -> 2228.4 MiB, rss 3660.8 -> 3636.3. THE RISES, NAMED: texture bytes uploaded in the loading
+1235.7 -> 1240.8 MiB (+0.4 %: a page uploads every layer its props asked for, where a twin landing after the upload step
+waited for its first draw); the garage's editor step uploads +1.8 MB of vertex data once (the row, 2 bytes a vertex:
+ALLOW G944). The prop layers go up as 23 array pages (145 MB of compressedTexSubImage3D in the upload step) where they
+went as 2D twins; gl.calls in that step 6 912 -> 3 017.
+THE A/B SWITCH IS CLEAN: the same census with ?matarr=0 (FRAMECOST_QUERY) reproduces the merged base - every draw,
+material, program, boot row and texture byte the same (only the base's own run-to-run wobble: shadow triangles, stand
+bindBuffer) - and its arrayBuffers are -35 MiB too (the one-copy vertices serve AS4a-EARLY's record merges as well).
+NOT DONE, WITH THE MEASUREMENT: the strip stones / cliffs stay one batch per map (their 7 maps are the tree pack's 1024²
+JPEGs, no KTX2 twin, also bound by the cover ring's rock kinds: a raw array = +39 MiB of GPU and a canvas pass, twins =
+~2.0 MB more wire for 8 maps while the JPEGs still load; 0 stone draws in the census's views) - they take a page when the
+trees get their twins (AS3's list). The trees' per-instance tint: nothing to take (leaf materials 5 / 4 / 4 by uuid /
+signature / map, unchanged) and the fill's programs are B1-LAG's stand-ins' mirror. Per-instance rows: none needed (rows
+ride per vertex; no key's instances differ by record).
+FOR THE COORDINATOR:
+- Never committed: index.html, dev.html, tools/flight_core.js, sw.js, version.json. Re-take framecost_baseline.json on
+  the merged train (the parked cook is stale on any build: re-cook, tools/parked_cook.js, GPU lock).
+- The look on the GPU box: `node tools/matlib_chrome.js --gl gpu` (every key both ways), and the game with ?matarr=0 for
+  the A/B. NOT MEASURED HERE (no GPU): the GPU time. The shape samples its three arrays and fetches 3-6 row texels per
+  fragment of a prop (an untextured record sampled nothing; the arrays are sampled outside any branch for the derivatives) -
+  the CPU side above falls, the fragment cost of the props' pixels rises a little; rollout_perf's taxi render ms both ways
+  (?matarr=0) is the check. C3b: the house material is MATLIB's next shape - `MATLIB.arr`'s rows / pages / hook are the pattern (an
+  arrEdit-like hook per shape; TARR's arrays as pages).
+- B1-LAG: the props' opaque parts now draw the array shape's program ('matlib.arr.std' in the key; its 'inst' sibling for
+  PROP_INST / scenery_life, 'skin' for the birds): a prelink stand-in that mirrors a prop record's program should mirror it.
+GATES (this container, 4 cores): `node tools/run_gates.js --all` (FULL tier) - BATTERY: PASS, 130 gates, 4 462 s wall
+(FRAMECOST, MATLIB, KTX2, ASSETS, MEDIA, GROUNDLIB, PROPS, ANIMALS, TOTEM, PARKED, HANGAR, LIFE, STAND, PROGRAMS,
+COVER, FADES, ARCHETYPES x4, PILOTMATRIX, SEAPLANE, HOTHIGH ... all PASS). tools/matlib_chrome.js: PASS (358 keys).

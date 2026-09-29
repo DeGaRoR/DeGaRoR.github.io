@@ -1,0 +1,1841 @@
+{
+ "px": 512,
+ "sets": {
+  "beach": {
+   "src": {
+    "diff": [
+     "assets/splat/beach/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/beach/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/beach/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/beach/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "rocksA": {
+   "src": {
+    "diff": [
+     "assets/splat/rocksA/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/rocksA/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/rocksA/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/rocksA/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "rocksB": {
+   "src": {
+    "diff": [
+     "assets/splat/rocksB/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/rocksB/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/rocksB/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/rocksB/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "mud": {
+   "src": {
+    "diff": [
+     "assets/splat/mud/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/mud/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/mud/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/mud/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "leaves": {
+   "src": {
+    "diff": [
+     "assets/splat/leaves/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/leaves/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/leaves/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/leaves/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "cliff": {
+   "src": {
+    "diff": [
+     "assets/splat/cliff/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/cliff/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/cliff/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/cliff/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "rocksG": {
+   "src": {
+    "diff": [
+     "assets/splat/rocksG/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/rocksG/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/rocksG/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/rocksG/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "rockyA": {
+   "src": {
+    "diff": [
+     "assets/splat/rockyA/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/rockyA/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/rockyA/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/rockyA/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "rockyB": {
+   "src": {
+    "diff": [
+     "assets/splat/rockyB/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/rockyB/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/rockyB/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/rockyB/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "grassRock": {
+   "src": {
+    "diff": [
+     "assets/splat/grassRock/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/grassRock/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/grassRock/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/grassRock/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "forestAir": {
+   "src": {
+    "diff": [
+     "assets/splat/forestAir/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/forestAir/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/forestAir/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/forestAir/height_512.jpg"
+    ]
+   },
+   "cook": true,
+   "keep": [
+    "diff"
+   ]
+  },
+  "snowAir": {
+   "src": {
+    "diff": [
+     "assets/splat/snowAir/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/snowAir/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/snowAir/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/snowAir/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "lush": {
+   "src": {
+    "diff": [
+     "assets/lot/lush/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/lot/lush/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/lush/rough_512.jpg"
+    ],
+    "height": [
+     "assets/lot/lush/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "grass": {
+   "src": {
+    "diff": [
+     "assets/lot/grass/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/lot/grass/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/grass/rough_512.jpg"
+    ],
+    "height": [
+     "assets/lot/grass/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "pebble": {
+   "src": {
+    "diff": [
+     "assets/lot/pebble/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/lot/pebble/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/pebble/rough_512.jpg"
+    ],
+    "height": [
+     "assets/lot/pebble/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "dry": {
+   "src": {
+    "diff": [
+     "assets/lot/dry/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/lot/dry/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/dry/rough_512.jpg"
+    ],
+    "height": [
+     "assets/lot/dry/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "dirt": {
+   "src": {
+    "diff": [
+     "assets/lot/dirt/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/lot/dirt/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/dirt/rough_512.jpg"
+    ],
+    "height": [
+     "assets/lot/dirt/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "coastA": {
+   "src": {
+    "diff": [
+     "assets/splat/coastA/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/coastA/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/coastA/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/coastA/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "coastSand": {
+   "src": {
+    "diff": [
+     "assets/splat/coastSand/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/coastSand/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/coastSand/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/coastSand/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "brushed": {
+   "src": {
+    "diff": [
+     "assets/airfield/brushed/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/airfield/brushed/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/brushed/rough_512.jpg"
+    ]
+   },
+   "cook": false
+  },
+  "cracked": {
+   "src": {
+    "diff": [
+     "assets/airfield/cracked/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/airfield/cracked/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/cracked/rough_512.jpg"
+    ]
+   },
+   "cook": false
+  },
+  "antislip": {
+   "src": {
+    "diff": [
+     "assets/airfield/antislip/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/airfield/antislip/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/antislip/rough_512.jpg"
+    ]
+   },
+   "cook": false
+  },
+  "asphalt": {
+   "src": {
+    "diff": [
+     "assets/airfield/asphalt/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/airfield/asphalt/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/asphalt/rough_512.jpg"
+    ]
+   },
+   "cook": false
+  },
+  "asphaltaerial": {
+   "src": {
+    "diff": [
+     "assets/airfield/asphaltaerial/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/airfield/asphaltaerial/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/asphaltaerial/rough_512.jpg"
+    ]
+   },
+   "cook": false
+  },
+  "grass005": {
+   "src": {
+    "diff": [
+     "assets/airfield/grass005/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/airfield/grass005/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/grass005/rough_512.jpg"
+    ]
+   },
+   "cook": false
+  },
+  "leafygrass": {
+   "src": {
+    "diff": [
+     "assets/airfield/leafygrass/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/airfield/leafygrass/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/leafygrass/rough_512.jpg"
+    ]
+   },
+   "cook": false
+  },
+  "ground003": {
+   "src": {
+    "diff": [
+     "assets/airfield/ground003/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/airfield/ground003/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/ground003/rough_512.jpg"
+    ]
+   },
+   "cook": false
+  },
+  "siteDirt": {
+   "src": {
+    "diff": [
+     "assets/airfield/dirt/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/airfield/dirt/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/dirt/rough_512.jpg"
+    ]
+   },
+   "cook": false
+  },
+  "concreteA": {
+   "src": {
+    "diff": [
+     "assets/pavement/concreteA/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/concreteA/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/concreteA/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/concreteA/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "concreteB": {
+   "src": {
+    "diff": [
+     "assets/pavement/concreteB/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/concreteB/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/concreteB/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/concreteB/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "concreteM": {
+   "src": {
+    "diff": [
+     "assets/pavement/concreteM/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/concreteM/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/concreteM/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/concreteM/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "concreteD": {
+   "src": {
+    "diff": [
+     "assets/pavement/concreteD/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/concreteD/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/concreteD/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/concreteD/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "asphaltW": {
+   "src": {
+    "diff": [
+     "assets/pavement/asphaltW/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/asphaltW/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/asphaltW/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/asphaltW/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "asphaltC": {
+   "src": {
+    "diff": [
+     "assets/pavement/asphaltC/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/asphaltC/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/asphaltC/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/asphaltC/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "gravelR": {
+   "src": {
+    "diff": [
+     "assets/pavement/gravelR/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/gravelR/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/gravelR/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/gravelR/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "gravelK": {
+   "src": {
+    "diff": [
+     "assets/pavement/gravelK/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/gravelK/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/gravelK/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/gravelK/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "gravelS": {
+   "src": {
+    "diff": [
+     "assets/pavement/gravelS/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/gravelS/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/gravelS/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/gravelS/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "dirtP": {
+   "src": {
+    "diff": [
+     "assets/pavement/dirtP/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/dirtP/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/dirtP/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/dirtP/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "tracksM": {
+   "src": {
+    "diff": [
+     "assets/pavement/tracksM/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/tracksM/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/tracksM/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/tracksM/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "mudAir": {
+   "src": {
+    "diff": [
+     "assets/pavement/mudAir/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/mudAir/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/mudAir/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/mudAir/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "dirtAir": {
+   "src": {
+    "diff": [
+     "assets/pavement/dirtAir/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/dirtAir/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/dirtAir/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/dirtAir/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "sandC": {
+   "src": {
+    "diff": [
+     "assets/pavement/sandC/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/sandC/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/sandC/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/sandC/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "gravelG": {
+   "src": {
+    "diff": [
+     "assets/pavement/gravelG/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/gravelG/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/gravelG/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/gravelG/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "gravelF": {
+   "src": {
+    "diff": [
+     "assets/pavement/gravelF/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/gravelF/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/gravelF/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/gravelF/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "gravelB": {
+   "src": {
+    "diff": [
+     "assets/pavement/gravelB/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/gravelB/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/gravelB/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/gravelB/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "rockG": {
+   "src": {
+    "diff": [
+     "assets/pavement/rockG/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/rockG/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/rockG/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/rockG/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "dirtS": {
+   "src": {
+    "diff": [
+     "assets/pavement/dirtS/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/dirtS/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/dirtS/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/dirtS/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "trailR": {
+   "src": {
+    "diff": [
+     "assets/pavement/trailR/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/trailR/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/trailR/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/trailR/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "dirtG": {
+   "src": {
+    "diff": [
+     "assets/pavement/dirtG/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/dirtG/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/dirtG/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/dirtG/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "grassG": {
+   "src": {
+    "diff": [
+     "assets/pavement/grassG/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/grassG/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/grassG/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/grassG/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "grassP": {
+   "src": {
+    "diff": [
+     "assets/pavement/grassP/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/grassP/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/grassP/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/grassP/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "grassS": {
+   "src": {
+    "diff": [
+     "assets/pavement/grassS/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/grassS/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/pavement/grassS/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/grassS/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "crackedPv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/cracked/diff_512.jpg",
+     "assets/airfield/cracked/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/cracked/nor_gl_512.jpg",
+     "assets/airfield/cracked/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/cracked/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/cracked/height_512.jpg",
+     "assets/airfield/cracked/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "brushedPv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/brushed/diff_512.jpg",
+     "assets/airfield/brushed/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/brushed/nor_gl_512.jpg",
+     "assets/airfield/brushed/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/brushed/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/brushed/height_512.jpg",
+     "assets/airfield/brushed/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "asphaltPv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/asphalt/diff_512.jpg",
+     "assets/airfield/asphalt/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/asphalt/nor_gl_512.jpg",
+     "assets/airfield/asphalt/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/asphalt/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/asphalt/height_512.jpg",
+     "assets/airfield/asphalt/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "asphaltaerialPv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/asphaltaerial/diff_512.jpg",
+     "assets/airfield/asphaltaerial/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/asphaltaerial/nor_gl_512.jpg",
+     "assets/airfield/asphaltaerial/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/asphaltaerial/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/asphaltaerial/height_512.jpg",
+     "assets/airfield/asphaltaerial/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "leafygrassPv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/leafygrass/diff_512.jpg",
+     "assets/airfield/leafygrass/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/leafygrass/nor_gl_512.jpg",
+     "assets/airfield/leafygrass/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/leafygrass/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/leafygrass/height_512.jpg",
+     "assets/airfield/leafygrass/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "fieldgrass": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/grass005/diff_512.jpg",
+     "assets/airfield/grass005/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/grass005/nor_gl_512.jpg",
+     "assets/airfield/grass005/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/airfield/grass005/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/grass005/height_512.jpg",
+     "assets/airfield/grass005/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "lushPv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/lush/diff_512.jpg",
+     "assets/lot/lush/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/lush/nor_gl_512.jpg",
+     "assets/lot/lush/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/lush/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/lush/height_512.jpg",
+     "assets/lot/lush/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "grassPv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/grass/diff_512.jpg",
+     "assets/lot/grass/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/grass/nor_gl_512.jpg",
+     "assets/lot/grass/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/grass/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/grass/height_512.jpg",
+     "assets/lot/grass/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "pebblePv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/pebble/diff_512.jpg",
+     "assets/lot/pebble/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/pebble/nor_gl_512.jpg",
+     "assets/lot/pebble/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/pebble/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/pebble/height_512.jpg",
+     "assets/lot/pebble/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "dryPv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/dry/diff_512.jpg",
+     "assets/lot/dry/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/dry/nor_gl_512.jpg",
+     "assets/lot/dry/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/dry/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/dry/height_512.jpg",
+     "assets/lot/dry/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "dirtPv": {
+   "src": {
+    "diff": [
+     "assets/pavement/_legacy/dirt/diff_512.jpg",
+     "assets/lot/dirt/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/pavement/_legacy/dirt/nor_gl_512.jpg",
+     "assets/lot/dirt/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/lot/dirt/rough_512.jpg"
+    ],
+    "height": [
+     "assets/pavement/_legacy/dirt/height_512.jpg",
+     "assets/lot/dirt/height_512.jpg"
+    ]
+   },
+   "cook": true
+  }
+ },
+ "libs": {
+  "splat": [
+   {
+    "key": "beach",
+    "set": "beach",
+    "metres": 29.98,
+    "mean": [
+     0.2826,
+     0.2371,
+     0.196
+    ]
+   },
+   {
+    "key": "rocksA",
+    "set": "rocksA",
+    "metres": 78.93,
+    "mean": [
+     0.2155,
+     0.1901,
+     0.107
+    ]
+   },
+   {
+    "key": "rocksB",
+    "set": "rocksB",
+    "metres": 50.18,
+    "mean": [
+     0.1648,
+     0.1158,
+     0.046
+    ]
+   },
+   {
+    "key": "mud",
+    "set": "mud",
+    "metres": 1.25,
+    "mean": [
+     0.0897,
+     0.0702,
+     0.0458
+    ]
+   },
+   {
+    "key": "leaves",
+    "set": "leaves",
+    "metres": 1.49,
+    "mean": [
+     0.2264,
+     0.1177,
+     0.0461
+    ]
+   },
+   {
+    "key": "cliff",
+    "set": "cliff",
+    "metres": 6.86,
+    "mean": [
+     0.3136,
+     0.1726,
+     0.11
+    ]
+   },
+   {
+    "key": "rocksG",
+    "set": "rocksG",
+    "metres": 2.03,
+    "mean": [
+     0.2521,
+     0.2134,
+     0.1638
+    ]
+   },
+   {
+    "key": "rockyA",
+    "set": "rockyA",
+    "metres": 89.94,
+    "mean": [
+     0.0807,
+     0.0773,
+     0.0122
+    ]
+   },
+   {
+    "key": "rockyB",
+    "set": "rockyB",
+    "metres": 89.79,
+    "mean": [
+     0.0855,
+     0.053,
+     0.0176
+    ]
+   },
+   {
+    "key": "grassRock",
+    "set": "grassRock",
+    "metres": 15.04,
+    "mean": [
+     0.169,
+     0.1211,
+     0.0241
+    ]
+   },
+   {
+    "key": "forestAir",
+    "set": "forestAir",
+    "metres": 80.81,
+    "mean": [
+     0.132,
+     0.1172,
+     0.0305
+    ]
+   },
+   {
+    "key": "snowAir",
+    "set": "snowAir",
+    "metres": 81.2,
+    "mean": [
+     0.2491,
+     0.2483,
+     0.3039
+    ]
+   },
+   {
+    "key": "lush",
+    "set": "lush",
+    "metres": 2.4,
+    "mean": [
+     0.0584,
+     0.1065,
+     0.0218
+    ]
+   },
+   {
+    "key": "grass",
+    "set": "grass",
+    "metres": 2.4,
+    "mean": [
+     0.119,
+     0.1528,
+     0.0305
+    ]
+   },
+   {
+    "key": "pebble",
+    "set": "pebble",
+    "metres": 4.5,
+    "mean": [
+     0.2178,
+     0.2034,
+     0.1649
+    ]
+   },
+   {
+    "key": "dry",
+    "set": "dry",
+    "metres": 2.2,
+    "mean": [
+     0.3005,
+     0.2486,
+     0.1239
+    ]
+   },
+   {
+    "key": "dirt",
+    "set": "dirt",
+    "metres": 1.8,
+    "mean": [
+     0.1326,
+     0.1085,
+     0.0826
+    ]
+   },
+   {
+    "key": "coastA",
+    "set": "coastA",
+    "metres": 19.94,
+    "mean": [
+     0.0885,
+     0.0593,
+     0.0297
+    ]
+   },
+   {
+    "key": "coastSand",
+    "set": "coastSand",
+    "metres": 15.2,
+    "mean": [
+     0.0728,
+     0.0598,
+     0.0284
+    ]
+   }
+  ],
+  "pavement": [
+   {
+    "key": "concreteA",
+    "set": "concreteA",
+    "name": "the WWII runway - damaged poured concrete",
+    "metres": 4.5,
+    "role": "base",
+    "mean": [
+     0.0662,
+     0.045,
+     0.0276
+    ],
+    "source": "Poly Haven",
+    "slug": "damaged_concrete_floor"
+   },
+   {
+    "key": "concreteB",
+    "set": "concreteB",
+    "name": "the runway broken up - the damage layer",
+    "metres": 3.5,
+    "role": "damage",
+    "mean": [
+     0.1253,
+     0.0942,
+     0.0705
+    ],
+    "source": "Poly Haven",
+    "slug": "damaged_concrete_floor_02"
+   },
+   {
+    "key": "concreteM",
+    "set": "concreteM",
+    "name": "moss on concrete - the edges and the joints",
+    "metres": 3,
+    "role": "moss",
+    "mean": [
+     0.0982,
+     0.0967,
+     0.0134
+    ],
+    "source": "Poly Haven",
+    "slug": "concrete_moss"
+   },
+   {
+    "key": "concreteD",
+    "set": "concreteD",
+    "name": "dirty concrete - taxiway / apron",
+    "metres": 3,
+    "role": "base",
+    "mean": [
+     0.2513,
+     0.2296,
+     0.1895
+    ],
+    "source": "Poly Haven",
+    "slug": "dirty_concrete"
+   },
+   {
+    "key": "asphaltW",
+    "set": "asphaltW",
+    "name": "worn asphalt - the road",
+    "metres": 2,
+    "role": "base",
+    "mean": [
+     0.0614,
+     0.0405,
+     0.0281
+    ],
+    "source": "Poly Haven",
+    "slug": "worn_asphalt"
+   },
+   {
+    "key": "asphaltC",
+    "set": "asphaltC",
+    "name": "cracked asphalt - the road damaged",
+    "metres": 2.2,
+    "role": "damage",
+    "mean": [
+     0.0673,
+     0.0404,
+     0.0266
+    ],
+    "source": "Poly Haven",
+    "slug": "road_damaged"
+   },
+   {
+    "key": "gravelR",
+    "set": "gravelR",
+    "name": "a gravel road",
+    "metres": 2,
+    "role": "base",
+    "mean": [
+     0.1923,
+     0.0986,
+     0.0508
+    ],
+    "source": "Poly Haven",
+    "slug": "gravel_road"
+   },
+   {
+    "key": "gravelK",
+    "set": "gravelK",
+    "name": "rocky gravel - the shoulder band",
+    "metres": 1.81,
+    "role": "shoulder",
+    "mean": [
+     0.1424,
+     0.058,
+     0.019
+    ],
+    "source": "Poly Haven",
+    "slug": "rocky_gravel"
+   },
+   {
+    "key": "gravelS",
+    "set": "gravelS",
+    "name": "sandy gravel - the transition to sand",
+    "metres": 2.53,
+    "role": "base",
+    "mean": [
+     0.3221,
+     0.1719,
+     0.0845
+    ],
+    "source": "Poly Haven",
+    "slug": "sandy_gravel_02"
+   },
+   {
+    "key": "dirtP",
+    "set": "dirtP",
+    "name": "park dirt - the dirt road",
+    "metres": 3,
+    "role": "base",
+    "mean": [
+     0.1926,
+     0.1292,
+     0.0467
+    ],
+    "source": "Poly Haven",
+    "slug": "park_dirt"
+   },
+   {
+    "key": "tracksM",
+    "set": "tracksM",
+    "name": "muddy tracks - the ruts",
+    "metres": 2.25,
+    "role": "tracks",
+    "mean": [
+     0.0802,
+     0.0291,
+     0.0114
+    ],
+    "source": "Poly Haven",
+    "slug": "muddy_tracks"
+   },
+   {
+    "key": "mudAir",
+    "set": "mudAir",
+    "name": "aerial mud with tyre tracks - the cleared band",
+    "metres": 8,
+    "role": "tracks",
+    "mean": [
+     0.0489,
+     0.0398,
+     0.0356
+    ],
+    "source": "Poly Haven",
+    "slug": "aerial_mud_1"
+   },
+   {
+    "key": "dirtAir",
+    "set": "dirtAir",
+    "name": "dirt from above - the macro tier",
+    "metres": 20,
+    "role": "macro",
+    "mean": [
+     0.2055,
+     0.1168,
+     0.0547
+    ],
+    "source": "Poly Haven",
+    "slug": "dirt_aerial_02"
+   },
+   {
+    "key": "sandC",
+    "set": "sandC",
+    "name": "coast sand - the sand strip",
+    "metres": 3.94,
+    "role": "base",
+    "mean": [
+     0.1133,
+     0.0891,
+     0.0517
+    ],
+    "source": "Poly Haven",
+    "slug": "coast_sand_04"
+   },
+   {
+    "key": "gravelG",
+    "set": "gravelG",
+    "name": "gravel ground - the grey gravel strip",
+    "metres": 3,
+    "role": "base",
+    "mean": [
+     0.2896,
+     0.2277,
+     0.1406
+    ],
+    "source": "Poly Haven",
+    "slug": "gravel_ground_01"
+   },
+   {
+    "key": "gravelF",
+    "set": "gravelF",
+    "name": "fine grey gravel - the compacted wheel band",
+    "metres": 2,
+    "role": "base",
+    "mean": [
+     0.4046,
+     0.3836,
+     0.3301
+    ],
+    "source": "Poly Haven",
+    "slug": "gravel_floor_02"
+   },
+   {
+    "key": "gravelB",
+    "set": "gravelB",
+    "name": "crushed dark stone - the strip edges",
+    "metres": 2,
+    "role": "shoulder",
+    "mean": [
+     0.0788,
+     0.0778,
+     0.0734
+    ],
+    "source": "Poly Haven",
+    "slug": "gravel_stones"
+   },
+   {
+    "key": "rockG",
+    "set": "rockG",
+    "name": "rocky ground - the coarse patches of a gravel strip",
+    "metres": 3,
+    "role": "damage",
+    "mean": [
+     0.1733,
+     0.1494,
+     0.1073
+    ],
+    "source": "Poly Haven",
+    "slug": "rock_ground_02"
+   },
+   {
+    "key": "dirtS",
+    "set": "dirtS",
+    "name": "stony dirt path - the dirt road",
+    "metres": 2.17,
+    "role": "base",
+    "mean": [
+     0.0658,
+     0.037,
+     0.0184
+    ],
+    "source": "Poly Haven",
+    "slug": "stony_dirt_path"
+   },
+   {
+    "key": "trailR",
+    "set": "trailR",
+    "name": "rocky trail - the dirt road coarse patches",
+    "metres": 2,
+    "role": "damage",
+    "mean": [
+     0.2922,
+     0.2182,
+     0.1468
+    ],
+    "source": "Poly Haven",
+    "slug": "rocky_trail"
+   },
+   {
+    "key": "dirtG",
+    "set": "dirtG",
+    "name": "plain dirt - the compacted wheel tracks",
+    "metres": 2,
+    "role": "tracks",
+    "mean": [
+     0.1253,
+     0.0851,
+     0.0487
+    ],
+    "source": "Poly Haven",
+    "slug": "dirt"
+   },
+   {
+    "key": "grassG",
+    "set": "grassG",
+    "name": "meadow grass - the grass strip",
+    "metres": 2.51,
+    "role": "base",
+    "mean": [
+     0.1563,
+     0.1181,
+     0.0483
+    ],
+    "source": "Poly Haven",
+    "slug": "grass_ground"
+   },
+   {
+    "key": "grassP",
+    "set": "grassP",
+    "name": "worn grass with soil - the strip wheel tracks",
+    "metres": 1,
+    "role": "tracks",
+    "mean": [
+     0.2729,
+     0.2227,
+     0.1287
+    ],
+    "source": "Poly Haven",
+    "slug": "grass_path_2"
+   },
+   {
+    "key": "grassS",
+    "set": "grassS",
+    "name": "sparse mossy grass - the strip rough patches",
+    "metres": 2,
+    "role": "damage",
+    "mean": [
+     0.0796,
+     0.0477,
+     0.0078
+    ],
+    "source": "Poly Haven",
+    "slug": "sparse_grass"
+   },
+   {
+    "key": "cracked",
+    "set": "crackedPv",
+    "name": "cracked concrete (the old runway look)",
+    "metres": 2.23,
+    "role": "base",
+    "mean": null,
+    "source": "Poly Haven",
+    "slug": "cracked_concrete_02"
+   },
+   {
+    "key": "brushed",
+    "set": "brushedPv",
+    "name": "brushed concrete (the apron)",
+    "metres": 2,
+    "role": "base",
+    "mean": null,
+    "source": "Poly Haven",
+    "slug": "brushed_concrete_04"
+   },
+   {
+    "key": "asphalt",
+    "set": "asphaltPv",
+    "name": "asphalt",
+    "metres": 3,
+    "role": "base",
+    "mean": null,
+    "source": "Poly Haven",
+    "slug": "asphalt_02"
+   },
+   {
+    "key": "asphaltaerial",
+    "set": "asphaltaerialPv",
+    "name": "asphalt from above (the macro tier)",
+    "metres": 30,
+    "role": "macro",
+    "mean": null,
+    "source": "Poly Haven",
+    "slug": "aerial_asphalt_01"
+   },
+   {
+    "key": "leafygrass",
+    "set": "leafygrassPv",
+    "name": "leafy grass (the rougher lawn)",
+    "metres": 2,
+    "role": "grass",
+    "mean": null,
+    "source": "Poly Haven",
+    "slug": "leafy_grass"
+   },
+   {
+    "key": "fieldgrass",
+    "set": "fieldgrass",
+    "name": "field grass (the strip)",
+    "metres": 2,
+    "role": "grass",
+    "mean": null,
+    "source": "ambientCG",
+    "slug": "Grass005"
+   },
+   {
+    "key": "lush",
+    "set": "lushPv",
+    "name": "dense grass",
+    "metres": 2.4,
+    "role": "grass",
+    "mean": [
+     0.0584,
+     0.1065,
+     0.0218
+    ],
+    "source": "ambientCG",
+    "slug": "Grass001"
+   },
+   {
+    "key": "grass",
+    "set": "grassPv",
+    "name": "grass",
+    "metres": 2.4,
+    "role": "grass",
+    "mean": [
+     0.119,
+     0.1528,
+     0.0305
+    ],
+    "source": "ambientCG",
+    "slug": "Grass004"
+   },
+   {
+    "key": "pebble",
+    "set": "pebblePv",
+    "name": "pebbles",
+    "metres": 4.5,
+    "role": "shoulder",
+    "mean": [
+     0.2178,
+     0.2034,
+     0.1649
+    ],
+    "source": "ambientCG",
+    "slug": "Gravel022"
+   },
+   {
+    "key": "dry",
+    "set": "dryPv",
+    "name": "dry ground (the cleared band)",
+    "metres": 2.2,
+    "role": "shoulder",
+    "mean": [
+     0.3005,
+     0.2486,
+     0.1239
+    ],
+    "source": "ambientCG",
+    "slug": "Ground081"
+   },
+   {
+    "key": "dirt",
+    "set": "dirtPv",
+    "name": "dirt path",
+    "metres": 1.8,
+    "role": "base",
+    "mean": [
+     0.1326,
+     0.1085,
+     0.0826
+    ],
+    "source": "ambientCG",
+    "slug": "Ground110"
+   }
+  ],
+  "lot": [
+   {
+    "key": "lush",
+    "set": "lush",
+    "name": "dense grass",
+    "tile": 2.4
+   },
+   {
+    "key": "grass",
+    "set": "grass",
+    "name": "grass",
+    "tile": 2.4
+   },
+   {
+    "key": "pebble",
+    "set": "pebble",
+    "name": "pebbles",
+    "tile": 4.5
+   },
+   {
+    "key": "dry",
+    "set": "dry",
+    "name": "dry ground",
+    "tile": 2.2
+   },
+   {
+    "key": "dirt",
+    "set": "dirt",
+    "name": "dirt path",
+    "tile": 1.8
+   }
+  ],
+  "site": [
+   {
+    "key": "brushed",
+    "set": "brushed",
+    "name": "brushed concrete",
+    "tile": 2
+   },
+   {
+    "key": "cracked",
+    "set": "cracked",
+    "name": "cracked concrete",
+    "tile": 4
+   },
+   {
+    "key": "antislip",
+    "set": "antislip",
+    "name": "anti-slip concrete",
+    "tile": 2
+   },
+   {
+    "key": "asphalt",
+    "set": "asphalt",
+    "name": "asphalt",
+    "tile": 4
+   },
+   {
+    "key": "asphaltaerial",
+    "set": "asphaltaerial",
+    "name": "asphalt \u00b7 aerial",
+    "tile": 16
+   },
+   {
+    "key": "grass004",
+    "set": "grass",
+    "name": "lawn grass",
+    "tile": 2
+   },
+   {
+    "key": "grass005",
+    "set": "grass005",
+    "name": "field grass",
+    "tile": 2
+   },
+   {
+    "key": "leafygrass",
+    "set": "leafygrass",
+    "name": "leafy grass",
+    "tile": 2
+   },
+   {
+    "key": "ground003",
+    "set": "ground003",
+    "name": "dry ground",
+    "tile": 2
+   },
+   {
+    "key": "dirt",
+    "set": "siteDirt",
+    "name": "dirt floor",
+    "tile": 2
+   }
+  ]
+ }
+}

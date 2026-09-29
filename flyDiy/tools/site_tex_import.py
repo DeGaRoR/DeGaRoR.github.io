@@ -24,7 +24,7 @@ Geometry is NOT imported.  Every delivered .gltf/.bin here is a texture-preview
 sphere; the library wants maps, not a ball.
 
 Usage:  python tools/site_tex_import.py [--src DIR]     (default ~/Downloads)
-Then:   node tools/site_tex_prep.js
+Then:   node tools/ground_tex_prep.js   (the ground library, G910: every ground set, once)
 """
 import argparse, io, os, sys, zipfile
 from PIL import Image, ImageFile
@@ -68,7 +68,7 @@ def member(zf, suffix):
 
 
 # TWO SIZES LEAVE HERE, and the reason is the payload.  The 1k set is the
-# ARCHIVE - raising a row's `tex` in site_tex_prep.js and re-baking restores
+# ARCHIVE - pointing the set at the 1k copy in tools/ground_sets.json and re-baking restores
 # full quality without re-importing, which is props_table.py's own `tex` budget
 # rule.  The 512 set is what the artifact normally carries: ground read at
 # grazing angles across hundreds of metres does not resolve 1k, and ten sets at
@@ -116,7 +116,7 @@ def main():
         print('%-14s %-22s %s  %dx%d  %.1f MB' %
               (key, slug, shape, diff.size[0], diff.size[1], n / 1048576))
     print('\n%d sets, %.1f MB on disk at 1k (the payload downscales - see '
-          'tools/site_tex_prep.js)' % (len(rows), sum(r[5] for r in rows) / 1048576))
+          'tools/ground_tex_prep.js)' % (len(rows), sum(r[5] for r in rows) / 1048576))
 
 
 if __name__ == '__main__':

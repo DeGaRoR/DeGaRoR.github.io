@@ -60,6 +60,9 @@ const isGeo = subdir => subdir === 'geo' || subdir.startsWith('geo/');
 const GZ_BIN = /\.gz\.bin$/;
 const sha8 = buf => crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);
 
+// THE COOKED TEXTURE LAYERS TRAVEL THE SAME WAY (G910, AS2): a baker that asks for ext 'gz.bin' in any
+// subdirectory gets geometry's rule - the file is one gzip stream, the name's hash is the AS-IS bytes' (the
+// raw RGBA layers tools/array_cook.js packs), ASSET_FETCH gunzips it by the suffix, readGeo reads it in node.
 // the name a buffer gets, without writing it (report runs, the migration)
 function mediaRel(subdir, stem, ext, buf) {
   if (isGeo(subdir) && ext === 'bin') ext = 'gz.bin';
@@ -157,6 +160,25 @@ function encodeTex(buf, role, maxPx) {
   try { fs.unlinkSync(tmp + '.in'); fs.unlinkSync(tmp + '.out'); } catch (e) {}
   return { data, ext };
 }
+// THE CANVAS-EXACT DECODE (G910): images -> raw RGBA8 as a browser's 2D canvas reads them back
+// (media_lib.py decode_rgba says why that is byte-exact for the ground's maps). One python process for the
+// whole list. -> [{ w, h, data: Buffer }] in the order asked
+function decodeRGBA(files) {
+  const os = require('os'), cp = require('child_process');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy_rgba_'));
+  const outs = files.map((f, i) => path.join(tmp, i + '.rgba'));
+  fs.writeFileSync(path.join(tmp, 'list'), files.map((f, i) => f + '\t' + outs[i]).join('\n'));
+  let r = null;
+  for (const py of ['python', 'python3', 'py']) {
+    r = cp.spawnSync(py, [path.join(__dirname, 'media_lib.py'), 'rgba', path.join(tmp, 'list')], { encoding: 'utf8', maxBuffer: 1 << 24 });
+    if (!r.error) break;
+  }
+  if (!r || r.error || r.status !== 0) throw new Error('decodeRGBA: ' + (r && (r.error ? r.error.message : r.stderr || r.stdout)));
+  const dims = r.stdout.trim().split(/\r?\n/).map(l => l.trim().split(/\s+/).map(Number));
+  const res = outs.map((o, i) => ({ w: dims[i][0], h: dims[i][1], data: fs.readFileSync(o) }));
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return res;
+}
 // flatConst(buf) -> [r, g, b] for a flat map, or null - the same test, for the node
 // bakers that write their maps byte-exact without encodeTex (G903).
 function flatConst(buf) {
@@ -186,4 +208,4 @@ function assetSrc(...parts) {
   for (const r of roots) { const f = path.join(r, ...parts); if (fs.existsSync(f)) return f; }
   return path.join(roots[0], ...parts);
 }
-module.exports = { writeMedia, pruneMedia, BASE_DECL, MEDIA, encodeTex, flatConst, writeMap, assetSrc, mediaRel, readGeo, gzipGeo, isGeo, GZ_BIN, sha8 };
+module.exports = { decodeRGBA, writeMedia, pruneMedia, BASE_DECL, MEDIA, encodeTex, flatConst, writeMap, assetSrc, mediaRel, readGeo, gzipGeo, isGeo, GZ_BIN, sha8 };

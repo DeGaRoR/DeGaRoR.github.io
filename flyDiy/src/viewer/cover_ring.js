@@ -42,7 +42,7 @@
 // ============================================================================
 'use strict';
 var COVER_RING = (() => {
-  // the library's means (linear rgb, tools/splat_tex_prep.js's measure), until the
+  // the library's means (linear rgb, the importer's measure, carried by ground_tex.js), until the
   // manifest carries them (SPLAT_TEX_SETS[i].mean)
   const MEANS = { beach: [0.2826, 0.2371, 0.196], rocksA: [0.2155, 0.1901, 0.107], rocksB: [0.1648, 0.1158, 0.046], mud: [0.0897, 0.0702, 0.0458],
     leaves: [0.2264, 0.1177, 0.0461], cliff: [0.3136, 0.1726, 0.11], rocksG: [0.2521, 0.2134, 0.1638], rockyA: [0.0807, 0.0773, 0.0122],

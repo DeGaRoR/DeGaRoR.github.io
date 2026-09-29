@@ -1620,7 +1620,7 @@ if (!EXT) {
   const SLAB_RECT = { x0: -HD - 42, x1: -HD + 0.5, z0: -HW - 12, z1: HW + 12 };
 
   // ---- THE LIBRARY MATERIALS ---------------------------------------------
-  // The ground wears scanned sets now (assets/airfield -> site_tex.js), and
+  // The ground wears scanned sets now (assets/airfield -> the ground library, ground_tex.js), and
   // wears them through the SAME LIB/PARTS wardrobe the walls use, so any of
   // these four surfaces can be re-dressed from the editor. What is built here
   // is each surface's DEFAULT; the canvas sheets stay as the fallback for a

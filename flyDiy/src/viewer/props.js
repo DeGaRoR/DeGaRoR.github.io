@@ -37,26 +37,55 @@ const PROP_TEX_CACHE = new Map();       // tex id -> THREE.Texture (srgb variant
 const PROP_TEX_CACHE_LIN = new Map();   // tex id -> THREE.Texture (linear)
 const PROP_BUILT = new Map();           // prop key -> { group, geos, mats }
 
-function propTexture(THREE, id, srgb) {
+// THE KTX2 TWIN (AS3, G917). `kind` is the slot's (color: map / emissiveMap, data: the arm map, normal): where
+// src/viewer/ktx2_twins.js has a twin for (this map, this kind) and the page can take it (KTX2.off(family) is null),
+// the twin is fetched and TRANSCODED in the workers (src/viewer/ktx2.js) - no Image, no decode, no RGBA upload, no
+// mips made on the main thread, a quarter of the GPU memory - and the texture handed out now is UPGRADED IN PLACE when
+// it lands: the same object every material already holds becomes a compressed texture (isCompressedTexture, its
+// mipmaps, the target format; flipY is moot - the twin's rows are the map's rows, top first, as flipY = false reads
+// them). Until then it has no image and three binds nothing for it, as before an Image decodes. A twin that fails
+// (the fetch, the transcode) loads the map itself into the same texture: the old path, late. The loading screen waits
+// for either (BOOT's 'propTex'). userData.mean: the map's mean colour from the table (scenery_life's far boxes read
+// it where they drew the image into a canvas).
+function propTexture(THREE, id, srgb, kind) {
   const cache = srgb ? PROP_TEX_CACHE : PROP_TEX_CACHE_LIN;
-  let t = cache.get(id);
+  const ck = kind ? id + '|' + kind : id;
+  let t = cache.get(ck);
   if (t) return t;
   const uri = PROP_REG.texs[id];
   if (!uri) return null;
-  // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (src/viewer/assets.js TEX_FLAT)
-  if (Array.isArray(uri)) { t = TEX_FLAT(uri, srgb ? THREE.SRGBColorSpace : ''); cache.set(id, t); return t; }
-  const img = new Image();
-  t = new THREE.Texture(img);
+  // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (src/viewer/assets.js TEX_FLAT); no twin
+  if (Array.isArray(uri)) { t = TEX_FLAT(uri, srgb ? THREE.SRGBColorSpace : ''); cache.set(ck, t); return t; }
+  t = new THREE.Texture();
   t.anisotropy = PROP_ANISO();
   t.wrapS = t.wrapT = THREE.RepeatWrapping;   // industrial_storage_cart wraps u to 2
   t.flipY = false;                            // glTF uv origin is top-left
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  const ok = () => { t.needsUpdate = true; };
-  if (typeof window !== 'undefined' && window.BOOT) window.BOOT.img(img, 'propTex');   // the loading screen waits for it
-  if (img.complete && img.naturalWidth) ok();
-  else img.addEventListener('load', ok, { once: true });
-  img.src = uri;
-  cache.set(id, t);
+  cache.set(ck, t);
+  const B = typeof window !== 'undefined' ? window.BOOT : null;
+  const image = () => {
+    const img = new Image();
+    t.image = img;
+    const ok = () => { t.needsUpdate = true; };
+    if (B) B.img(img, 'propTex');   // the loading screen waits for it
+    if (img.complete && img.naturalWidth) ok();
+    else img.addEventListener('load', ok, { once: true });
+    img.src = uri;
+  };
+  const twin = (typeof KTX2_TWINS === 'function' && typeof KTX2 !== 'undefined' && typeof ASSET_FETCH === 'function') ? KTX2_TWINS(uri, kind || (srgb ? 'color' : 'data')) : null;
+  if (!twin || KTX2.off(twin.fam)) { image(); return t; }
+  if (twin.mean) t.userData.mean = twin.mean;
+  if (B && B.expect) B.expect('propTex', 1);
+  KTX2.load(twin.url, twin.fam).then(r => {
+    t.isCompressedTexture = true;
+    t.mipmaps = r.mipmaps; t.image = { width: r.width, height: r.height };
+    t.format = r.format; t.type = r.type;
+    t.generateMipmaps = false;
+    t.minFilter = r.mipmaps.length > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+    t.userData.ktx2 = twin.url;
+    t.needsUpdate = true;
+    if (B && B.landed) B.landed('propTex', true);
+  }, () => { if (typeof KTX2 !== 'undefined' && KTX2._stats) KTX2._stats.fallbacks++; image(); if (B && B.landed) B.landed('propTex', true); });
   return t;
 }
 
@@ -82,20 +111,20 @@ function propMaterial(THREE, rec, scope) {
   // being smoothed into something upholstered. Only the airframes use it; the
   // furniture is smooth-shaded and stays that way.
   if (rec.flat) o.flatShading = true;
-  if (rec.map) o.map = propTexture(THREE, rec.map, true);
+  if (rec.map) o.map = propTexture(THREE, rec.map, true, 'color');
   if (rec.arm) {
-    const arm = propTexture(THREE, rec.arm, false);
+    const arm = propTexture(THREE, rec.arm, false, 'data');
     o.roughnessMap = arm;
     o.metalnessMap = arm;
     if (rec.ao) { o.aoMap = arm; o.aoMapIntensity = 1.0; }
   }
   if (rec.nor) {
-    o.normalMap = propTexture(THREE, rec.nor, false);
+    o.normalMap = propTexture(THREE, rec.nor, false, 'normal');
     o.normalScale = new THREE.Vector2(rec.norScl, rec.norScl);
   }
   if (rec.emis) {
     o.emissive = new THREE.Color(rec.emis[0], rec.emis[1], rec.emis[2]);
-    if (rec.emisMap) o.emissiveMap = propTexture(THREE, rec.emisMap, true);
+    if (rec.emisMap) o.emissiveMap = propTexture(THREE, rec.emisMap, true, 'color');
   }
   if (rec.blend) { o.transparent = true; o.opacity = rec.opacity; }
   const m = MATLIB.shared(THREE, rec.blend ? 'glass' : rec.emis ? 'glow' : 'std', o, scope);
@@ -173,34 +202,102 @@ function propBuild(THREE, key) {
 // shed's emitter books claim a fixture by its meshes). The parts themselves stay as they were - `geos` / `mats`
 // by part, which the cage's baked pieces (app.js, parked.js) and the cabin read by index - and the placements draw
 // `dgeos` / `dmats`. The same triangles in the same frame under the same material: the picture is the parts'.
+//
+// THE ARRAY DRAW LIST (AS4a-rest, G941; MATLIB's array shapes). Where the page can take a record's maps as texture-array
+// layers (every map a KTX2 twin, or a flat constant, or none: MATLIB.arr.twin), the record is a ROW and its parts join
+// the prop's ARRAY draws: one geometry per (side, flat shading, pages) - in practice one for the whole opaque prop -
+// carrying each vertex's row (`mlRow`), drawn once by the shape's material (MATLIB.arr.material). car_buick draws
+// 34 -> 18 (tools/matlib_chrome.js; its glass keeps its own). Glass and glow keep their own draws (above); a DUSTED key keeps its
+// records (the dust is a hook on the record's material); a map with no twin (raw, or KTX2 off: ?ktx2=0) keeps its
+// record, as before AS3. `?matarr=0` is the A/B: the records, as AS4a-EARLY drew them.
+function propArrSpec(THREE, rec) {
+  if (rec.blend || rec.emis) return null;
+  const r = { col: rec.col, opacity: 1, rough: rec.rough, metal: rec.metal, norScl: rec.nor ? rec.norScl : 1, ao: !!(rec.arm && rec.ao), map: null, nor: null, arm: null };
+  for (const [slot, kind] of [['map', 'color'], ['nor', 'normal'], ['arm', 'data']]) {
+    const id = rec[slot]; if (!id) continue;
+    const uri = PROP_REG.texs[id]; if (!uri) continue;   // propTexture's null: the record has no such map
+    if (Array.isArray(uri)) { r[slot] = uri; continue; } // G903: a flat map is its constant - the row carries it
+    const tw = MATLIB.arr.twin(uri, kind); if (!tw) return null;
+    r[slot] = MATLIB.arr.layer(THREE, tw);
+  }
+  return r;
+}
+function propMerge(THREE, list, rows) {
+  let nv = 0, ni = 0; for (const g of list) { nv += g.attributes.position.count; ni += g.index.count; }
+  const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+  const row = rows ? new Uint16Array(nv) : null;   // the row per vertex: 2 bytes (the shader reads it as a float)
+  let v = 0, t = 0;
+  list.forEach((g, p) => {
+    const A = g.attributes, n = A.position.count, I = g.index.array;
+    pos.set(A.position.array, v * 3); nrm.set(A.normal.array, v * 3); uvs.set(A.uv.array, v * 2);
+    if (row) row.fill(rows[p], v, v + n);
+    for (let j = 0; j < I.length; j++) idx[t + j] = I[j] + v;
+    v += n; t += I.length;
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  const uv = new THREE.BufferAttribute(uvs, 2);
+  g.setAttribute('uv', uv); g.setAttribute('uv1', uv);
+  if (row) g.setAttribute('mlRow', new THREE.BufferAttribute(row, 1));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  // ONE COPY OF THE VERTICES: each part's position / normal / uv become VIEWS of the merged arrays (its own slice, the
+  // same numbers) - the parts stay whole for their readers (`geos`, the cage's pieces), and the prop's vertices live
+  // once in memory. Nothing has uploaded a part yet (propBuild runs before any draw).
+  v = 0;
+  for (const q of list) {
+    const A = q.attributes, n = A.position.count;
+    A.position.array = pos.subarray(v * 3, (v + n) * 3); A.normal.array = nrm.subarray(v * 3, (v + n) * 3);
+    A.uv.array = uvs.subarray(v * 2, (v + n) * 2); if (A.uv1 && A.uv1 !== A.uv) A.uv1.array = A.uv.array;
+    v += n;
+  }
+  return g;
+}
 function propDraws(THREE, b) {
   const groups = new Map(), order = [];
+  for (const m of b.arrMats || []) MATLIB.release(m);   // a re-draw (propDust after the build) gives its shapes back
+  b.arrMats = [];
+  const arrOk = MATLIB.arr && MATLIB.arr.on && !PROP_DUST.has(b.prop.key);
+  const KINDS = ['map', 'nor', 'arm'];
   b.geos.forEach((g, i) => {
     const m = b.mats[i], lit = m.emissive && (m.emissive.r || m.emissive.g || m.emissive.b);
+    const rec = b.prop.mats[b.prop.parts[i].mat];
+    const spec = (arrOk && !m.transparent && !lit && rec) ? propArrSpec(THREE, rec) : null;
+    if (spec) {
+      const side = rec.dbl ? 2 : 0, flat = !!rec.flat, need = {};
+      for (const k of KINDS) need[k] = spec[k] && spec[k].page ? spec[k].page : null;
+      // (two draws of 16-bit indices are not joined into one of 32 - but the parts of ONE record always are, as
+      // AS4a-EARLY joined them: a scanned person the baker cut into 65 535-vertex parts is one draw; and where a part
+      // or the draw is past 65 535 already, it is 32-bit anyway)
+      const nv = g.attributes.position.count;
+      const fits = G => G.nv + nv <= 65535 || G.nv > 65535 || nv > 65535 || G.recs.has(m);
+      let G = order.find(G => G.arr && G.side === side && G.flat === flat && KINDS.every(k => !need[k] || !G.pages[k] || G.pages[k] === need[k]) && fits(G));
+      if (!G) { G = { arr: true, side, flat, pages: {}, list: [], rows: [], nv: 0, recs: new Set() }; order.push(G); }
+      G.nv += nv; G.recs.add(m);
+      for (const k of KINDS) if (need[k]) G.pages[k] = need[k];
+      G.list.push(g); G.rows.push(MATLIB.arr.row(THREE, spec));
+      return;
+    }
     const k = (m.transparent || lit || !MATLIB.share) ? 'solo#' + i : m.uuid;
     let G = groups.get(k); if (!G) { groups.set(k, G = { m, list: [] }); order.push(G); }
     G.list.push(g);
   });
   b.dgeos = []; b.dmats = [];
   for (const G of order) {
+    if (G.arr) {
+      const m = MATLIB.arr.material(THREE, { side: G.side, flat: G.flat, pages: G.pages });
+      m.envMapIntensity = m.userData.env0 * PROP_ENV;
+      b.arrMats.push(m); b.dmats.push(m);
+      const g = propMerge(THREE, G.list, G.rows);
+      g.userData.parts = G.list.map(x => b.geos.indexOf(x));   // which parts it draws, and each one's row (GATE MATLIB)
+      g.userData.rows = G.rows.slice();
+      b.dgeos.push(g);
+      continue;
+    }
     b.dmats.push(G.m);
     if (G.list.length === 1) { b.dgeos.push(G.list[0]); continue; }
-    let nv = 0, ni = 0; for (const g of G.list) { nv += g.attributes.position.count; ni += g.index.count; }
-    const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
-    let v = 0, t = 0;
-    for (const g of G.list) {
-      const A = g.attributes, n = A.position.count, I = g.index.array;
-      pos.set(A.position.array, v * 3); nrm.set(A.normal.array, v * 3); uvs.set(A.uv.array, v * 2);
-      for (let j = 0; j < I.length; j++) idx[t + j] = I[j] + v;
-      v += n; t += I.length;
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
-    const uv = new THREE.BufferAttribute(uvs, 2);
-    g.setAttribute('uv', uv); g.setAttribute('uv1', uv);
-    g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeBoundingSphere();
+    const g = propMerge(THREE, G.list, null);
     g.userData.parts = G.list.map(x => b.geos.indexOf(x));   // which parts it draws (GATE MATLIB)
     b.dgeos.push(g);
   }
@@ -566,7 +663,7 @@ let PROP_ENV = 1.0;
 function propSetEnv(f) {
   PROP_ENV = f;
   for (const b of PROP_BUILT.values())
-    for (const m0 of b.mats) MATLIB.each(m0, m => { m.envMapIntensity = m.userData.env0 * f; });
+    for (const m0 of b.mats.concat(b.arrMats || [])) MATLIB.each(m0, m => { m.envMapIntensity = m.userData.env0 * f; });   // the records and the array shapes
 }
 function propEnv() { return PROP_ENV; }
 
@@ -574,7 +671,7 @@ function propDispose(key) {
   const b = PROP_BUILT.get(key);
   if (!b) return;
   for (const g of new Set(b.geos.concat(b.dgeos || []))) g.dispose();
-  for (const m of b.mats) MATLIB.release(m);   // shared by record: the last user disposes it
+  for (const m of b.mats.concat(b.arrMats || [])) MATLIB.release(m);   // shared by record / by shape: the last user disposes it
   PROP_BUILT.delete(key);
 }
 
