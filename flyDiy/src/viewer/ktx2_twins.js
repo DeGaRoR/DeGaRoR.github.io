@@ -465,9 +465,10 @@ const KTX2_TWINS_TABLE = {
   "media/tex/props/ff796a1d32b5.jpg|color": {"fam":"props","twin":"media/tex/ktx2/props/ff796a1d32b5.9408bc08.ktx2","role":"ktx2-color","opts":{"mip":"srgb"},"codec":"ETC1S","w":512,"h":512,"mean":[118.5,60.9,57.8]},
   "media/tex/props/ffb3f4a82d0a.jpg|data": {"fam":"props","twin":"media/tex/ktx2/props/ffb3f4a82d0a_data.8d91639c.ktx2","role":"ktx2-data","opts":{"channels":3,"rdo":3,"dict":32768},"codec":"UASTC","w":256,"h":256,"mean":[254.1,77.8,33.3]},
 };
-// the page's lookup: (a map's url as the page holds it, the slot kind) -> the twin's url, or null
+// the page's lookup: (a map's url as the page holds it, the slot kind) -> the twin's url (+ its size, codec and alpha:
+// MATLIB's array pages, AS4a-rest G941), or null
 const KTX2_TWINS = (() => {
   const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
-  return (url, kind) => { const k = (B && url.indexOf(B) === 0 ? url.slice(B.length) : url) + '|' + kind; const r = KTX2_TWINS_TABLE[k]; return r ? { url: B + r.twin, fam: r.fam, mean: r.mean } : null; };
+  return (url, kind) => { const k = (B && url.indexOf(B) === 0 ? url.slice(B.length) : url) + '|' + kind; const r = KTX2_TWINS_TABLE[k]; return r ? { url: B + r.twin, fam: r.fam, mean: r.mean, w: r.w, h: r.h, codec: r.codec, alpha: !!(r.opts && r.opts.alpha) } : null; };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { KTX2_TWINS_TABLE };

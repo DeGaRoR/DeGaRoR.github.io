@@ -139,10 +139,11 @@ if (require.main !== module) { module.exports = { FAMILIES, KIND, BAR, wanted, m
 const KTX2_TWINS_TABLE = {
 ${keys.map(k => `  ${JSON.stringify(k)}: ${JSON.stringify(table[k])},`).join('\n')}
 };
-// the page's lookup: (a map's url as the page holds it, the slot kind) -> the twin's url, or null
+// the page's lookup: (a map's url as the page holds it, the slot kind) -> the twin's url (+ its size, codec and alpha:
+// MATLIB's array pages, AS4a-rest G941), or null
 const KTX2_TWINS = (() => {
   ${BASE_DECL}
-  return (url, kind) => { const k = (B && url.indexOf(B) === 0 ? url.slice(B.length) : url) + '|' + kind; const r = KTX2_TWINS_TABLE[k]; return r ? { url: B + r.twin, fam: r.fam, mean: r.mean } : null; };
+  return (url, kind) => { const k = (B && url.indexOf(B) === 0 ? url.slice(B.length) : url) + '|' + kind; const r = KTX2_TWINS_TABLE[k]; return r ? { url: B + r.twin, fam: r.fam, mean: r.mean, w: r.w, h: r.h, codec: r.codec, alpha: !!(r.opts && r.opts.alpha) } : null; };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { KTX2_TWINS_TABLE };
 `;
