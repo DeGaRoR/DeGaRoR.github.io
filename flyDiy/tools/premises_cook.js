@@ -284,6 +284,10 @@ const LIFTS = [
   ['  const parkSeed = pk =>', '  // A HOUSE\'S THRIFT (G557'],
   ['  function posOf(p) {', '  // THE QUEUE BY CELL (G592)'],
   ['  const LIVE_CELL = 256;', '  const qPos = p =>'],
+  // G800 (C0) reads the far town's dials in buildHouse (HLOD.lod1, HLOD.outLod) and the stream flag (IN_STREAM): the
+  // page's own defaults, lifted with them (G904.1) - the outbuilding is built at the page's lod, so its cooked bags are
+  // the page's
+  ['  const HLOD = {', '  const LOD_U = {'],
 ];
 function liftPage(src) {
   src = src || fs.readFileSync(RP_FILE, 'utf8');
@@ -360,6 +364,9 @@ function cookPlaces(W, O, opt) {
   const body = '"use strict";\n' + code + '\n' +
     'const dressPlot0 = dressPlot; dressPlot = function (plot) { const r = dressPlot0.apply(this, arguments); __dressed(plot); return r; };\n' +
     'fenceGroup = function () { return null; };\n' +
+    // the lod-1 FAR RUNG (lod1Bags -> grp.userData.lod1, never in the scene) is not a placement and the cook drops grp:
+    // not built here (15 % of a build per house); outLod stays the page's (the outbuilding's own bags are cooked)
+    'HLOD.lod1 = false;\n' +
     'return { buildHouse, buildItem, syncHouses, posOf, cellKey, LIVE_CELL, W, H, litOf };';
   const make = new Function('window', 'O', 'world', 'rec', 'PG', 'G', 'THREE', 'o', 'placeBuilt', 'hitAdd', 'hitDrop', 'propReg', 'slabMesh', 'queueCells', 'STREAM', 'stats', 'HOUSES', 'queue', '__dressed', body);
   const P = make(win, O, W, O.rec, PG, G, THREE, { game: true, onBuilt: null }, placeBuilt, hitAdd, () => {}, () => null, () => null, () => {}, STREAM, stats, HOUSES, queue, pl => { dressed = pl; });
