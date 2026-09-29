@@ -1170,8 +1170,12 @@ float pvTread(float u, float x, float w, float seed) {
     c = rep(c, `\nuniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];`,
       '\nuniform highp sampler2D uPavT;\nint gPavRow; float gSegHW;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)\n' + PV_VEC.map((n, i) => '#define ' + n + ' PVT(' + i + ')').join('\n'));
     c = rep(c, `\nuniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];`, '\nint uKeepN;');
-    c = rep(c, '  vec4 g = uGrade[slot];', `  vec4 g = PVT(${PV.G} + slot);`);
-    c = rep(c, 'uTint[slot].rgb', `PVT(${PV.T} + slot).rgb`);
+    // the slot's grade and tint: read ONCE per set in pvSet (pvFetch is reached only through pvSet -> pvTile, 3-4 samples a set)
+    c = rep(c, '\n#define PVT(i)', '\nvec4 gGr, gTn;\n#define PVT(i)');
+    c = rep(c, '  vec4 g = uGrade[slot];', '  vec4 g = gGr;');
+    c = rep(c, 'uTint[slot].rgb', 'gTn.rgb');
+    c = rep(c, '  gRot = (slot == 0 || slot == 1 || slot == 5) ? uHex.w : (slot == 4 ? 0.0 : 1.5708);',
+      `  gRot = (slot == 0 || slot == 1 || slot == 5) ? uHex.w : (slot == 4 ? 0.0 : 1.5708);\n  gGr = PVT(${PV.G} + slot); gTn = PVT(${PV.T} + slot);`);
     c = rep(c, 'varying vec4 vPav; varying vec4 vPavK;', 'varying vec4 vPav; flat varying float vPavId;');
     c = rep(c, 'vec4 A = uKeepA[i], B = uKeepB[i];', `vec4 A = PVT(${PV.KA} + i), B = PVT(${PV.KB} + i);`);
     // THE MARKS' EARLY OUT (the same coverage, bit for bit): a mark is bounded by its rect (a rule's too: [u0, uEnd] x
