@@ -561,7 +561,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const simw = JSON.parse(await ev('JSON.stringify(window.FLYDIY_SIMW ? (s => ({ phase: s.phase, reason: s.reason, dead: s.dead, placeOk: s.placeOk, flights: s.flights, inline: s.inline, wvBad: s.wvBad, wvMaxLag: s.wvMaxLag, worldMs: s.worldMs, initMs: s.initMs, bootFetchMs: s.bootFetchMs, readyWaitFrames: s.readyWaitFrames, view: s.view }))(FLYDIY_SIMW.state()) : null)', 20000).catch(() => 'null'));
   console.log('  physics: ' + (simw ? (simw.dead ? 'INLINE (no worker: ' + simw.dead + ')' : 'the WORKER - ' + simw.phase + (simw.reason ? ' (' + simw.reason + ')' : '') + ', placed ' + simw.placeOk + ', ' + simw.flights + ' flights (' + simw.inline + ' inline), world made in ' + (simw.worldMs != null ? Math.round(simw.worldMs) : '?') + ' ms, held ' + simw.readyWaitFrames + ' frames, world-version lag max ' + simw.wvMaxLag + ' frames')
     : 'INLINE (?simw=0)'));
-  const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', 60000).catch(e => 'error: ' + e.message) : null;
+  const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', +opt('eval-ms', 60000)).catch(e => 'error: ' + e.message) : null;   // --eval-ms: a longer census (tools/pave_ab.js, G928)
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
   let profTop = null;

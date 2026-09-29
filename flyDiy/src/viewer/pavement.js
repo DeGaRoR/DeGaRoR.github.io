@@ -545,14 +545,16 @@ const PAVEMENT = (() => {
     const old = SHARED;
     const lib = library(THREE, all, L => {
       for (const m of MATS) if (m.userData.pavLib === old || m.userData.pavLib === L) { m.userData.pavLib = L; m.uniforms.uPavA.value = L.texA; m.uniforms.uPavN.value = L.texN; m.uniforms.uPavOn.value = 1; applyOne(THREE, m); }
+      if (TAB.mat && SHARED === L) { const U = TAB.mat.uniforms; U.uPavA.value = L.texA; U.uPavN.value = L.texN; U.uPavOn.value = 1; }   // G925: the one material
       if (old && old.texA && old !== L) { old.texA.dispose(); old.texN.dispose(); }
-      for (const w of L.waiters) w(L); L.waiters.length = 0;
+      for (const w of L.waiters || []) w(L); if (L.waiters) L.waiters.length = 0;   // (headless the library calls back at once, before `waiters`)
       if (onReady) onReady(L);
     }, old && old.ready ? old : null);   // G911: the old arrays lend the layers they hold (a grow fetches only the new sets)
-    lib.waiters = [];
+    lib.waiters = lib.waiters || [];
     // until the new arrays decode, the materials keep the old ones (their layers still valid there)
     if (old && old.ready) { lib.texA = old.texA; lib.texN = old.texN; lib.readyOld = true; }
     SHARED = lib;
+    if (lib.ready && TAB.mat) { const U = TAB.mat.uniforms; U.uPavA.value = lib.texA; U.uPavN.value = lib.texN; U.uPavOn.value = 1; }   // (headless: ready at once)
     return lib;
   }
   // the keys a class needs, in slot order (base, damage, shoulder, grass, tracks, moss, macro), deduplicated
@@ -1123,6 +1125,75 @@ float pvTread(float u, float x, float w, float seed) {
   GLSL.debug = `
   if (uPavDbg > 0.5) gl_FragColor = vec4(gPavDbg, 1.0);`;
 
+  // ---- THE TABLE (AS4b M4, G925): ONE MATERIAL FOR EVERY PAVEMENT, EACH STRIP'S VALUES A ROW OF DATA -------------
+  // Until G925 every strip, road and apron carried a material of its own: the same program, but ~30 vec4 uniforms, the
+  // grade/tint rows and 112 vec4 of marks and keep boxes (uMarkR/uMarkK[40], uSeg/uSegK[8], uKeepA/uKeepB[4]) uploaded
+  // at every one of its draws, and three cannot merge two meshes that wear different materials. Now the values a
+  // material held are a ROW of one RGBA32F texture (uPavT, PV.W texels a row) and every pavement wears ONE material:
+  //   texels 0..30  the recipe/class vec4s, in PV_VEC's order (what applyOne writes - the rows are packed from the very
+  //                 uniform objects the old material held, so the numbers are the same float32 either way)
+  //   PV.K          cls, seed, halfW, halfL - what the geometry's aPavK carried (now exact: a texel is not interpolated)
+  //   PV.N          uMarkN, uSegN, uKeepN
+  //   PV.G / PV.T   the 8 grade and 8 tint rows;  PV.KA / PV.KB the keep boxes;  PV.S / PV.SK the segments
+  //   PV.MR / PV.MK the markings' rects and rules - THE MARKINGS ATLAS: a strip's paint is its row's last 80 texels
+  // The row is picked by `aPavId`, a vertex attribute constant over a part, read through a FLAT varying (the provoking
+  // vertex's value, never interpolated: G1046's lesson - a hash must never see an interpolated input) and rounded.
+  // Because the material is one, the pavements MERGE (merge() below: per 1 km cell, the draw order kept inside each).
+  // The shader text is the shipped one: tableGLSL() derives it by anchored replacements (the uniform declarations
+  // become globals, pvLoad() fills them from the row at the top of the chain, the array reads become texel reads), so
+  // `?pave=old` draws exactly the pre-G925 program and the two cannot drift apart silently (GATE PAVEMENT 12).
+  const PV_VEC = ['uLayer', 'uLayer2', 'uTile', 'uTile2', 'uHex', 'uMacro', 'uLane', 'uLane2', 'uCrack', 'uPatch', 'uMoss', 'uStain', 'uWet', 'uMark',
+    'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd'];
+  const PV = { K: PV_VEC.length, N: PV_VEC.length + 1, G: PV_VEC.length + 2 };
+  PV.T = PV.G + 8; PV.KA = PV.T + 8; PV.KB = PV.KA + NKEEP; PV.S = PV.KB + NKEEP; PV.SK = PV.S + NSEG; PV.MR = PV.SK + NSEG; PV.MK = PV.MR + NMARK; PV.W = PV.MK + NMARK;
+  // ?pave=old: every pavement its own material and mesh, as shipped before G925 (the A/B); default: the table
+  const MODE = { table: true, ab: false };
+  try { const q = typeof location !== 'undefined' && /[?&]pave=([^&]*)/.exec(location.search); if (q) { MODE.ab = true; MODE.table = !/^old$/i.test(decodeURIComponent(q[1])); } } catch (e) {}
+  let GLSLT = null;
+  function tableGLSL() {
+    if (GLSLT) return GLSLT;
+    const T = {}, miss = [];
+    const rep = (s, a, b) => { if (s.indexOf(a) < 0) { miss.push(a.slice(0, 80)); return s; } return s.split(a).join(b); };
+    T.vertex = rep(rep(GLSL.vertex, 'attribute vec4 aPavK;', 'attribute float aPavId;'), 'varying vec4 vPavK;', 'flat varying float vPavId;');
+    T.vertexBody = rep(GLSL.vertexBody, 'vPavK = aPavK;', 'vPavId = aPavId;');
+    let c = GLSL.common;
+    c = rep(c, '\nuniform vec4 uLayer, uLayer2,', '\nvec4 uLayer, uLayer2,');
+    c = rep(c, '\nuniform vec4 uGrade[8], uTint[8];', '\nvec4 uGrade[8], uTint[8];');
+    c = rep(c, '\nuniform vec4 uMean;', '\nvec4 uMean;');
+    c = rep(c, '\nuniform int uMarkN, uSegN;', '\nint uMarkN, uSegN;');
+    c = rep(c, `\nuniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];`,
+      '\nuniform highp sampler2D uPavT;\nint gPavRow;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)');
+    c = rep(c, `\nuniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];`, '\nvec4 uSide, uRoadEnd; int uKeepN;');
+    c = rep(c, 'varying vec4 vPav; varying vec4 vPavK;', 'varying vec4 vPav; flat varying float vPavId;');
+    c = rep(c, 'vec4 A = uKeepA[i], B = uKeepB[i];', `vec4 A = PVT(${PV.KA} + i), B = PVT(${PV.KB} + i);`);
+    c = rep(c, 'vec4 Rr = uMarkR[i]; vec4 K = uMarkK[i];', `vec4 Rr = PVT(${PV.MR} + i); vec4 K = PVT(${PV.MK} + i);`);
+    c = rep(c, 'vec4 S = uSeg[i]; vec4 K = uSegK[i];', `vec4 S = PVT(${PV.S} + i); vec4 K = PVT(${PV.SK} + i);`);
+    // the row, read once at the top of the chain into the globals the shipped text names
+    c += '\nvoid pvLoad() {\n  gPavRow = int(vPavId + 0.5);\n  ' + PV_VEC.map((n, i) => n + ' = PVT(' + i + ');').join(' ') +
+      `\n  vec4 pvN = PVT(${PV.N}); uMarkN = int(pvN.x + 0.5); uSegN = int(pvN.y + 0.5); uKeepN = int(pvN.z + 0.5);` +
+      `\n  for (int i = 0; i < 8; i++) { uGrade[i] = PVT(${PV.G} + i); uTint[i] = PVT(${PV.T} + i); }\n}`;
+    T.common = c;
+    T.map = rep(GLSL.map, 'float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;',
+      `pvLoad(); vec4 pvK = PVT(${PV.K});   // G925: the row (the table), cls/seed/halfW/halfL exact per part\n    float cls = floor(pvK.x + 0.5), seed = floor(pvK.y * 37.0 + 0.5) / 37.0, halfW = pvK.z, halfL = pvK.w;`);
+    for (const k of ['rough', 'normal', 'lights', 'debug']) T[k] = GLSL[k];
+    T.miss = miss;
+    if (miss.length) console.error('pavement: the table shader lost ' + miss.length + ' anchor(s) - ' + miss.join(' | '));
+    return (GLSLT = T);
+  }
+  // the table's hook: the same order as `hook`, the table text
+  const hookT = sh => {
+    if (typeof ATMO !== 'undefined') ATMO.inject(sh);
+    Object.assign(sh.uniforms, sh._pavU);
+    const G = tableGLSL();
+    sh.vertexShader = G.vertex + '\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>' + G.vertexBody);
+    sh.fragmentShader = G.common + '\n' + sh.fragmentShader
+      .replace('#include <map_fragment>', '#include <map_fragment>' + G.map)
+      .replace('#include <roughnessmap_fragment>', G.rough)
+      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + G.normal)
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>' + G.lights)
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>' + G.debug);
+  };
+
   // ---- the material ------------------------------------------------------------
   // Every material carries its own uniform rows (a strip's marks, a class's layers) and every knob
   // of the recipe; set() writes the recipe into all of them. A handful of materials a scene, so a
@@ -1185,6 +1256,7 @@ float pvTread(float u, float x, float w, float seed) {
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);
     U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, r.sideW || 1.2, r.sideA === undefined ? 0.35 : r.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons)
+    if (m.isPavPart) pack(m);
   }
   // setKeep(m, boxes): the pavements this one's side must not lie over (G664) - [{ cx, cz, hdg, halfL, halfW }],
   // the strip frame's own convention (T = [cos hdg, sin hdg]); at most NKEEP, the nearest first
@@ -1192,7 +1264,63 @@ float pvTread(float u, float x, float w, float seed) {
     const U = m.uniforms, B = (boxes || []).slice(0, NKEEP);
     B.forEach((b, i) => { U.uKeepA.value[i].set(b.cx, b.cz, Math.cos(b.hdg || 0), Math.sin(b.hdg || 0)); U.uKeepB.value[i].set(b.halfL, b.halfW, 0, 0); });
     U.uKeepN.value = B.length;
+    if (m.isPavPart) pack(m);
   }
+  // ---- the table's state: one RGBA32F texture, a row a part; the parts are PROXIES (isPavPart) holding the very
+  // uniform objects an old material held, so applyOne / setKeep / the library's re-point write them unchanged and
+  // pack() copies them into the row
+  const TAB = { data: null, tex: null, cap: 0, used: 0, free: [], mat: null, parts: new Set(), uploads: 0 };
+  function tabGrow(THREE, cap) {
+    const data = new Float32Array(PV.W * cap * 4);
+    if (TAB.data) data.set(TAB.data);
+    const t = new THREE.DataTexture(data, PV.W, cap, THREE.RGBAFormat, THREE.FloatType);
+    t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.flipY = false; t.name = 'pavement:rows'; t.needsUpdate = true;
+    const old = TAB.tex;
+    TAB.data = data; TAB.tex = t; TAB.cap = cap;
+    if (TAB.mat) TAB.mat.uniforms.uPavT.value = t;
+    if (old) old.dispose();
+  }
+  function rowAlloc(THREE) {
+    if (TAB.free.length) return TAB.free.pop();
+    if (TAB.used >= TAB.cap) tabGrow(THREE, Math.max(64, TAB.cap * 2));
+    return TAB.used++;
+  }
+  function rowFree(P) {
+    if (!P || P.row < 0) return;
+    const i = MATS.indexOf(P); if (i >= 0) MATS.splice(i, 1);
+    TAB.parts.delete(P);
+    if (TAB.data) { TAB.data.fill(0, P.row * PV.W * 4, (P.row + 1) * PV.W * 4); TAB.tex.needsUpdate = true; }
+    TAB.free.push(P.row); P.row = -1;
+  }
+  function pack(P) {
+    if (!TAB.data || !(P.row >= 0)) return;
+    const d = TAB.data, o = P.row * PV.W * 4, U = P.uniforms;
+    const put = (i, v) => { const k = o + i * 4; d[k] = v.x; d[k + 1] = v.y; d[k + 2] = v.z; d[k + 3] = v.w; };
+    for (let i = 0; i < PV_VEC.length; i++) put(i, U[PV_VEC[i]].value);
+    d.set(P.pk, o + PV.K * 4);
+    const n = o + PV.N * 4; d[n] = U.uMarkN.value; d[n + 1] = U.uSegN.value; d[n + 2] = U.uKeepN.value; d[n + 3] = 0;
+    for (let i = 0; i < 8; i++) { put(PV.G + i, U.uGrade.value[i]); put(PV.T + i, U.uTint.value[i]); }
+    for (let i = 0; i < NKEEP; i++) { put(PV.KA + i, U.uKeepA.value[i]); put(PV.KB + i, U.uKeepB.value[i]); }
+    for (let i = 0; i < NSEG; i++) { put(PV.S + i, U.uSeg.value[i]); put(PV.SK + i, U.uSegK.value[i]); }
+    for (let i = 0; i < NMARK; i++) { put(PV.MR + i, U.uMarkR.value[i]); put(PV.MK + i, U.uMarkK.value[i]); }
+    TAB.tex.needsUpdate = true; TAB.uploads++;
+  }
+  // the pavement's material object, the one site that makes it (the old path's per-part ones and the table's one)
+  const pavMat = THREE => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false, side: THREE.FrontSide });
+  // THE ONE MATERIAL: the shared library's arrays, the rows, the debug switch - nothing per strip
+  function tableMat(THREE) {
+    if (TAB.mat) return TAB.mat;
+    const L = SHARED;
+    const m = pavMat(THREE);
+    m.name = 'pavement';
+    m.uniforms = { uPavA: { value: L ? L.texA : null }, uPavN: { value: L ? L.texN : null }, uPavOn: { value: L && (L.ready || L.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavT: { value: TAB.tex } };
+    m.userData.pavTable = true;
+    m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hookT(sh); if (PT.frag) sh.fragmentShader = PT.frag(sh.fragmentShader); };
+    m.customProgramCacheKey = () => 'pavement:T' + hookT.toString().length + PT.key;
+    if (PT.want && !PT.scene) m.onBeforeRender = PT.catch;
+    return (TAB.mat = m);
+  }
+  const isTable = m => !!(m && m.userData && m.userData.pavTable);
   // the hook: ONE function, its source the program's key; the uniforms ride in on sh._pavU
   const hook = sh => {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
@@ -1270,7 +1398,7 @@ float pvTread(float u, float x, float w, float seed) {
     }
     return s;
   };
-  PT.catch = function (renderer, scene, camera) { if (!PT.scene) { PT.scene = scene; PT.camera = camera; for (const m of MATS) if (m.onBeforeRender === PT.catch) delete m.onBeforeRender; if (PT.want) { const w = PT.want; PT.want = null; pavtest(w[0], w[1]); } } };
+  PT.catch = function (renderer, scene, camera) { if (!PT.scene) { PT.scene = scene; PT.camera = camera; for (const m of MATS.concat(TAB.mat ? [TAB.mat] : [])) if (m.onBeforeRender === PT.catch) delete m.onBeforeRender; if (PT.want) { const w = PT.want; PT.want = null; pavtest(w[0], w[1]); } } };
   function ptBox() {
     if (typeof document === 'undefined') return;
     if (!PT.box) {
@@ -1328,14 +1456,14 @@ float pvTread(float u, float x, float w, float seed) {
     if (!swapping) { for (const [o, m] of PT.swapped) { if (o.material !== m) { const t = o.material; o.material = m; t.dispose(); } } PT.swapped.clear(); return; }
     if (!T3) { console.error('PAVTEST: no THREE'); return; }
     let mat = null; const miss = [];
-    PT.scene.traverse(o => { if (o.isMesh && MATS.indexOf(o.material) >= 0) miss.push(o); });
+    PT.scene.traverse(o => { if (o.isMesh && (MATS.indexOf(o.material) >= 0 || isTable(o.material))) miss.push(o); });
     for (const o of miss) { if (!mat) mat = ptMaterial(T3); if (!mat) break; PT.swapped.set(o, o.material); o.material = mat; }
     return miss.length;
   }
   function pavtest(mode, code) {
     mode = String(mode || 't0').toLowerCase();
     if (!PT_TEXT[mode]) return 'modes: ' + Object.keys(PT_TEXT).join(' ');
-    if (!PT.scene) { PT.want = [mode, code]; for (const m of MATS) m.onBeforeRender = PT.catch; return 'armed: ' + mode + ' (on the next pavement draw)'; }
+    if (!PT.scene) { PT.want = [mode, code]; for (const m of MATS) m.onBeforeRender = PT.catch; if (TAB.mat) TAB.mat.onBeforeRender = PT.catch; return 'armed: ' + mode + ' (on the next pavement draw)'; }
     // back to the pavement's own materials first, then the new mode
     if (PT.swapped.size) { const was = PT.mode; PT.mode = 't0'; ptSwap(); PT.mode = was; }
     clearInterval(PT.timer); PT.timer = 0;
@@ -1345,8 +1473,9 @@ float pvTread(float u, float x, float w, float seed) {
     for (const m of MATS) {
       const U = m.uniforms, nm = m.userData.pavNM || (m.userData.pavNM = [U.uMarkN.value, U.uSegN.value]);
       U.uMarkN.value = mode === 't1' ? 0 : nm[0]; U.uSegN.value = mode === 't1' ? 0 : nm[1];
-      m.needsUpdate = true;
+      if (m.isPavPart) pack(m); else m.needsUpdate = true;
     }
+    if (TAB.mat) TAB.mat.needsUpdate = true;
     if (mode === 't4') PT.code = code !== undefined ? +code : ptGrassCode();
     ptSets(mode);
     let n = 0;
@@ -1360,9 +1489,14 @@ float pvTread(float u, float x, float w, float seed) {
   }
   try { const q = typeof location !== 'undefined' && /[?&]pavetest=([^&]*)/.exec(location.search); if (q) { PT.want = [decodeURIComponent(q[1])]; } } catch (e) {}
   if (typeof window !== 'undefined') window.PAVTEST = pavtest;
+  // make(THREE, o): the material for one pavement. With `o.geo` (the part's geometry) and the page's shared library,
+  // the TABLE (G925): the part becomes a row, its geometry is tagged with the row (aPavId; aPavK and the unused uv
+  // dropped) and the ONE material is returned. Without either (the bench, a private library, ?pave=old) a material of
+  // its own, as before.
   function make(THREE, o) {
     const lib = o.lib, cls = o.cls || 'concrete';
-    const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false, side: THREE.FrontSide });
+    const table = MODE.table && o.geo && lib && lib === SHARED && o.geo.attributes && o.geo.attributes.aPavK && THREE.DataTexture && THREE.FloatType !== undefined;
+    const m = table ? { isPavPart: true, uniforms: null, userData: {}, row: -1, pk: null } : pavMat(THREE);
     const v4 = () => ({ value: new THREE.Vector4() });
     const marks = (CLASS_DEF[cls].marks ? o.marks : null) || { rects: [], segs: [] };
     const mR = [], mK = [];
@@ -1380,6 +1514,20 @@ float pvTread(float u, float x, float w, float seed) {
     // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
     m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
+    if (table) {
+      // THE ROW: cls, seed, halfW, halfL off the geometry's aPavK (constant over a part), the row id on every vertex
+      const g = o.geo, K = g.attributes.aPavK, n = g.attributes.position.count;
+      m.pk = new Float32Array([K.getX(0), K.getY(0), K.getZ(0), K.getW(0)]);
+      m.row = rowAlloc(THREE);
+      g.setAttribute('aPavId', new THREE.BufferAttribute(new Float32Array(n).fill(m.row), 1));
+      g.deleteAttribute('aPavK'); if (g.attributes.uv) g.deleteAttribute('uv');
+      g.userData.pavRow = m;
+      if (PT.mode === 't1') { m.userData.pavNM = [m.uniforms.uMarkN.value, m.uniforms.uSegN.value]; m.uniforms.uMarkN.value = 0; m.uniforms.uSegN.value = 0; }
+      MATS.push(m); TAB.parts.add(m);
+      applyOne(THREE, m);
+      if (o.keep) setKeep(m, o.keep);
+      return tableMat(THREE);
+    }
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); if (PT.frag) sh.fragmentShader = PT.frag(sh.fragmentShader); };
     m.customProgramCacheKey = () => 'pavement:' + hook.toString().length + PT.key;
     if (PT.want && !PT.scene) m.onBeforeRender = PT.catch;
@@ -1394,10 +1542,173 @@ float pvTread(float u, float x, float w, float seed) {
   function set(THREE, o) { for (const k in o) { if (k === 'grade') Object.assign(R.grade, o.grade); else R[k] = o[k]; } applyAll(THREE); }
   function reset(THREE) { R = JSON.parse(JSON.stringify(RECIPE)); applyAll(THREE); }
   function debug(v) { DBG.value = v; }
+  // ---- THE A/B (G928): `?pave=old` or `?pave=new` at load, PAVE_AB('old' | 'new') live, or a click on the box -----
+  // The box (top centre, under PAVTEST's) names what is drawn. Live, each builder that registered a rebuild
+  // (onRebuild: render_world's strips, render_premises' roads and aprons) stands every pavement again the other way -
+  // the same builders, the same recipe, a second or so of main thread - so the two can be compared taxiing, by eye.
+  const AB = { hooks: [], box: null, timer: 0 };
+  function onRebuild(fn) { if (typeof fn === 'function') AB.hooks.push(fn); }
+  const sceneOf = () => (typeof window !== 'undefined' && window.WORLD && window.WORLD.scene) || PT.scene || null;
+  function census(scene) {
+    const c = { mode: MODE.table ? 'new' : 'old', meshes: 0, visible: 0, merged: 0, materials: new Set(), verts: 0, rows: TAB.used - TAB.free.length, tableKB: TAB.data ? Math.round(TAB.data.byteLength / 1024) : 0 };
+    if (scene) scene.traverse(o => { if (!o.isMesh || !(isTable(o.material) || MATS.indexOf(o.material) >= 0)) return;
+      c.meshes++; if (o.visible) { c.visible++; c.verts += o.geometry.attributes.position.count; } if (o.geometry.userData.pavRows) c.merged++; c.materials.add(o.material.uuid); });
+    c.materials = c.materials.size;
+    return c;
+  }
+  function abBox() {
+    if (typeof document === 'undefined' || !document.body) return false;
+    if (!AB.box) {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:160px;left:50%;transform:translateX(-50%);z-index:99999;cursor:pointer;user-select:none;max-width:70vw;text-align:center;' +
+        'background:rgba(0,0,0,0.78);color:#fff;font:600 15px/1.35 system-ui,sans-serif;padding:7px 14px;border-radius:6px;border:1px solid #7fd4ff';
+      d.title = 'click: switch the pavement between OLD and NEW';
+      d.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); ab(MODE.table ? 'old' : 'new'); });
+      d.addEventListener('pointerdown', e => e.stopPropagation());
+      document.body.appendChild(d); AB.box = d;
+    }
+    const c = census(sceneOf());
+    AB.box.textContent = 'PAVEMENT ' + (MODE.table ? 'NEW (G925: one material, a row each, merged per cell)' : 'OLD (a material and a mesh per strip, as shipped)') +
+      (c.meshes ? ' - ' + c.visible + ' meshes, ' + c.materials + ' material' + (c.materials === 1 ? '' : 's') : '') + '   [click to switch]';
+    return true;
+  }
+  function ab(mode) {
+    const want = String(mode || (MODE.table ? 'old' : 'new')).toLowerCase() !== 'old';
+    MODE.ab = true;
+    if (want !== MODE.table) { MODE.table = want; for (const f of AB.hooks) { try { f(); } catch (e) { console.error('pavement A/B rebuild', e); } } }
+    abBox();
+    if (typeof setTimeout === 'function') setTimeout(abBox, 1500);   // the counts once the rebuilt meshes stand
+    return 'pavement: ' + (MODE.table ? 'new' : 'old');
+  }
+  if (typeof window !== 'undefined') {
+    window.PAVE_AB = ab;
+    // the box stays up while the page runs with ?pave= (refreshed every 5 s: the counts follow the stream)
+    if (MODE.ab && typeof setInterval === 'function') AB.timer = setInterval(abBox, 5000);
+  }
   function exportRecipe() { return JSON.parse(JSON.stringify(R)); }
-  function dispose(m) { const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose(); }
+  // dispose(material, geometry): an own material is freed; the ONE material never is - the geometry's row (a part) or
+  // rows (a merged cell that owns them, merge()) are given back
+  function dispose(m, geo) {
+    if (isTable(m)) {
+      const U = geo && geo.userData;
+      if (U && U.pavRows) for (const P of U.pavRows) rowFree(P);
+      if (U && U.pavRow) rowFree(U.pavRow);
+      if (U) { delete U.pavRows; delete U.pavRow; }
+      return;
+    }
+    const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose();
+  }
+  // ---- THE MERGE (G926): the table's parts as a few meshes -----------------------------------------------------
+  // mergeSteps(THREE, parts, o, out) - parts [{ geo, order }] (world-space geometries tagged by make(), their draw
+  // order = the renderOrder each would have had), a generator yielding after each cell; `out` receives
+  // [{ geo, order, parts }] - one geometry per CELL (o.cell, BATCH.cell metres) with every triangle whose centroid is
+  // in the cell, the parts' triangles in DRAW ORDER (order, then the order given): inside one draw the GPU blends in
+  // primitive order, so the per-runway order of G664 (the longest strip last) holds exactly where two strips cross.
+  // Across meshes three sorts by renderOrder (the cell's lowest - the caller keeps a bucket per order CLASS: strips,
+  // aprons, roads) and then by distance - so two triangles of different parts that overlap must never end in two
+  // meshes. THE CONTESTED ZONES: where two parts' boxes intersect, grown by the largest triangle's extent, every
+  // triangle whose centroid is inside goes to the zone's cell (zones that touch are one zone): two triangles that
+  // overlap both reach into that intersection, so both centroids lie in the grown zone. Rows move to the merged
+  // geometries (each part's row owned by exactly one: dispose() frees it with that one); the sources are the caller's
+  // to drop. A2-RUNWAYS' culling holds per cell (each merged mesh has its own sphere).
+  const BATCH = { cell: 1024, zoneGrid: 64 };
+  function* mergeSteps(THREE, parts, o, out) {
+    o = o || {};
+    const C = o.cell || BATCH.cell, ZG = BATCH.zoneGrid;
+    const list = parts.map((p, i) => ({ g: p.geo, order: +p.order || 0, i })).filter(p => p.g && p.g.index && p.g.attributes.position)
+      .sort((a, b) => a.order - b.order || a.i - b.i);
+    if (!list.length) return out;
+    const names = Object.keys(list[0].g.attributes).sort(), sig = g => Object.keys(g.attributes).sort().map(k => k + g.attributes[k].itemSize).join();
+    const sig0 = sig(list[0].g);
+    for (const p of list) if (sig(p.g) !== sig0) throw new Error('pavement merge: parts with different attributes (' + sig(p.g) + ' vs ' + sig0 + ')');
+    // the parts' boxes and the largest triangle
+    let margin = 0;
+    for (const p of list) {
+      const P = p.g.attributes.position.array, I = p.g.index.array;
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      for (let v = 0; v < P.length; v += 3) { const x = P[v], z = P[v + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+      for (let t = 0; t < I.length; t += 3) {
+        const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
+        const ex = Math.max(P[a], P[b], P[c]) - Math.min(P[a], P[b], P[c]), ez = Math.max(P[a + 2], P[b + 2], P[c + 2]) - Math.min(P[a + 2], P[b + 2], P[c + 2]);
+        if (ex > margin) margin = ex; if (ez > margin) margin = ez;
+      }
+      p.box = [x0, z0, x1, z1];
+    }
+    margin += 0.5;
+    // the contested zones, and the zones that touch joined
+    const zones = [];
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const A = list[i].box, B = list[j].box, x0 = Math.max(A[0], B[0]), z0 = Math.max(A[1], B[1]), x1 = Math.min(A[2], B[2]), z1 = Math.min(A[3], B[3]);
+      if (x0 <= x1 && z0 <= z1) zones.push([x0 - margin, z0 - margin, x1 + margin, z1 + margin]);
+    }
+    const par = zones.map((_, i) => i), find = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
+    for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) {
+      const A = zones[i], B = zones[j];
+      if (A[0] <= B[2] && B[0] <= A[2] && A[1] <= B[3] && B[1] <= A[3]) par[find(i)] = find(j);
+    }
+    const gbox = new Map();
+    zones.forEach((z, i) => { const r = find(i), b = gbox.get(r); if (!b) gbox.set(r, z.slice()); else { b[0] = Math.min(b[0], z[0]); b[1] = Math.min(b[1], z[1]); b[2] = Math.max(b[2], z[2]); b[3] = Math.max(b[3], z[3]); } });
+    const cellKey = (x, z) => (Math.floor(x / C) + 32768) * 65536 + (Math.floor(z / C) + 32768);
+    const zoneCell = zones.map((z, i) => { const b = gbox.get(find(i)); return cellKey((b[0] + b[2]) / 2, (b[1] + b[3]) / 2); });
+    const zgrid = new Map(), gk = (i, j) => (i + 32768) * 65536 + (j + 32768);
+    zones.forEach((z, i) => { for (let a = Math.floor(z[0] / ZG); a <= Math.floor(z[2] / ZG); a++) for (let b = Math.floor(z[1] / ZG); b <= Math.floor(z[3] / ZG); b++) { const k = gk(a, b); let l = zgrid.get(k); if (!l) zgrid.set(k, l = []); l.push(i); } });
+    const keyAt = (x, z) => {
+      const l = zgrid.get(gk(Math.floor(x / ZG), Math.floor(z / ZG)));
+      if (l) for (const i of l) { const q = zones[i]; if (x >= q[0] && x <= q[2] && z >= q[1] && z <= q[3]) return zoneCell[i]; }
+      return cellKey(x, z);
+    };
+    // every triangle to its cell, per part (the part's triangles keep their own order)
+    const cells = new Map();
+    for (const p of list) {
+      const P = p.g.attributes.position.array, I = p.g.index.array, by = new Map();
+      for (let t = 0; t < I.length; t += 3) {
+        const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
+        const k = keyAt((P[a] + P[b] + P[c]) / 3, (P[a + 2] + P[b + 2] + P[c + 2]) / 3);
+        let l = by.get(k); if (!l) by.set(k, l = []); l.push(t);
+      }
+      for (const [k, tris] of by) { let cl = cells.get(k); if (!cl) cells.set(k, cl = []); cl.push({ p, tris }); }
+    }
+    yield 'pavement:cells';
+    // each cell: the vertices its triangles use, compacted, part after part in draw order
+    const owned = new Set();
+    for (const [, cl] of cells) {
+      let nV = 0, nI = 0;
+      for (const e of cl) {
+        const I = e.p.g.index.array, nv = e.p.g.attributes.position.count, map = new Int32Array(nv).fill(-1), verts = [], idx = new Uint32Array(e.tris.length * 3);
+        let q = 0;
+        for (const t of e.tris) for (let s = 0; s < 3; s++) { const v = I[t + s]; if (map[v] < 0) { map[v] = verts.length; verts.push(v); } idx[q++] = map[v]; }
+        e.verts = verts; e.idx = idx; nV += verts.length; nI += idx.length;
+      }
+      const g = new THREE.BufferGeometry(), arrays = {};
+      for (const k of names) { const A = list[0].g.attributes[k]; arrays[k] = new A.array.constructor(nV * A.itemSize); }
+      const index = new (nV > 65535 ? Uint32Array : Uint16Array)(nI);
+      let vo = 0, io = 0, order = Infinity;
+      const rows = [];
+      for (const e of cl) {
+        const G = e.p.g;
+        for (const k of names) { const A = G.attributes[k], s = A.itemSize, src = A.array, dst = arrays[k]; let w = vo * s;
+          for (const v of e.verts) { const r = v * s; for (let c = 0; c < s; c++) dst[w++] = src[r + c]; } }
+        for (let i = 0; i < e.idx.length; i++) index[io + i] = e.idx[i] + vo;
+        vo += e.verts.length; io += e.idx.length;
+        order = Math.min(order, e.p.order);
+        const P = G.userData.pavRow; if (P && !owned.has(P)) { owned.add(P); rows.push(P); }
+      }
+      for (const k of names) { const A = list[0].g.attributes[k]; g.setAttribute(k, new THREE.BufferAttribute(arrays[k], A.itemSize, A.normalized)); }
+      g.setIndex(new THREE.BufferAttribute(index, 1));
+      g.computeBoundingSphere();
+      g.userData.pavRows = rows;
+      g.userData.pav = { kind: 'merged', parts: new Set(cl.map(e => e.p.i)).size, verts: nV, tris: nI / 3 };
+      out.push({ geo: g, order, parts: g.userData.pav.parts });
+      yield 'pavement:merge';
+    }
+    for (const p of list) delete p.g.userData.pavRow;   // the rows are the merged geometries' now
+    return out;
+  }
+  function merge(THREE, parts, o) { const out = [], it = mergeSteps(THREE, parts, o, out); while (!it.next().done); return out; }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS };
+    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
+    // G925-G928: the table, the one material, the merge, the A/B
+    PV, PV_VEC, MODE, TAB, BATCH, tableGLSL, hookT, tableMat, isTable, pack, merge, mergeSteps, onRebuild, ab, census, get table() { return MODE.table; } };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;

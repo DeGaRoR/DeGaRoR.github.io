@@ -472,5 +472,101 @@ console.log('9. THE LANES - how many by width, and what is painted between them'
     : ' (' + J.layers.roads.length + ' roads, and every corner of them rounded)'));
 }
 
+// ---- 12 THE TABLE AND THE MERGE (AS4b G925-G928) -----------------------------------------------------------
+// One material for every pavement: each part's values a ROW of one RGBA32F texture, picked by a flat aPavId; the parts
+// merged per cell in draw order. What node can hold: the row IS the old material's uniforms (the same float32, texel by
+// texel); the table's shader is the shipped text with only the declared replacements; the merge keeps every triangle
+// once, in draw order, and never splits two overlapping triangles of different parts across meshes.
+console.log('12. THE TABLE - one material, a row a part; THE MERGE - per cell, in draw order');
+{
+  const T = P.tableGLSL(), f32 = x => Math.fround(x);
+  verdict(T.miss.length === 0, 'the table shader is the shipped text with every replacement anchored (' + (T.miss.length ? 'lost: ' + T.miss.join(' | ') : 'none lost') + ')');
+  const tall = [T.vertex, T.vertexBody, T.common, T.map, T.rough, T.normal, T.lights, T.debug].join('\n');
+  verdict(!/\bvPavK\b|\baPavK\b|\buMarkR\b|\buMarkK\b|\buSegK?\b|\buKeepA\b|\buKeepB\b/.test(tall.replace(/\/\/[^\n]*/g, '')), 'no per-mesh uniform array and no aPavK / vPavK left in the table text');
+  verdict(/flat varying float vPavId;/.test(T.vertex) && /flat varying float vPavId;/.test(T.common) && /gPavRow = int\(vPavId \+ 0\.5\)/.test(T.common), 'the row id is a FLAT varying on both sides, rounded (never an interpolated input, G1046)');
+  verdict(/pvLoad\(\); vec4 pvK = PVT\(/.test(T.map) && /seed = floor\(pvK\.y \* 37\.0 \+ 0\.5\) \/ 37\.0/.test(T.map), 'the row is loaded at the top of the chain; cls/seed/halfW/halfL from it, the seed still snapped');
+  verdict(!/textureGrad|textureLod/.test(tall), 'the table text: no textureGrad / textureLod (fxc)');
+  const tloops = tall.match(/for \(int \w+ = 0; \w+ < [^;]+;/g) || [];
+  verdict(tloops.every(l => /< u[A-Z]\w*/.test(l) || /< (?:2|4|8);/.test(l) || /<= 1;/.test(l)), `every table loop bounded by a row count or a small constant (${tloops.length} loops)`);
+  for (const [k, a] of [['t1', '    // ---- 7 the markings'], ['t1', '    // ---- 8 the rubber'], ['t2', 'diffuseColor.rgb = col; diffuseColor.a = gPavA;'], ['t5', '    gPavN = normalize(T * nTn.x + Bv * nTn.y + Ng * nTn.z);'], ['t8', '    float u = vPav.x, v = vPav.y, dE = vPav.z, shW = vPav.w;']])
+    verdict(T.map.indexOf(a) >= 0, `PAVTEST ${k}'s anchor is in the table text too ("${a.trim().slice(0, 40)}")`);
+  // the shared library (headless: the layers resolve, no arrays) and the parts
+  const SL = P.sharedLib(THREE, P.keysFor(['concrete', 'gravel', 'grass']));
+  const marksS = { rects: [[0, 900, -0.3, 0.3, 0, 29, 0, 11], [3, 40, -12, 12, 0, 4, 1, 2]], segs: [[10, -5, 30, 5, 0.9, 1]] };
+  const keep = [{ cx: 10, cz: 20, hdg: 0.3, halfL: 400, halfW: 15 }, { cx: -30, cz: 5, hdg: 1.1, halfL: 300, halfW: 12 }];
+  const sd = { len: 900, wid: 30, hdg: 0.7, cx: 120, cz: -40, shoulderW: 14, cls: 'concrete', seed: 3, heightAt: hAt, lift: 0.07 };
+  const rd = PG.polyRoad([[0, 0], [300, 40], [600, 0]], 7), rdo = { road: rd, w: 7, cls: 'gravel', seed: 5, heightAt: hAt };
+  const rec = { recipe: P.resolve(null, null, PG.RUNWAY_LOOKS.asphalt).recipe };
+  const pairs = [
+    ['a concrete strip, marks + segs + two keep boxes', () => P.stripGeometry(THREE, sd), { cls: 'concrete', marks: marksS, keep, band: 4 }],
+    ['a gravel road, faded ends', () => P.roadGeometry(THREE, rdo), { cls: 'gravel', road: true, marks: P.roadMarks(rd.length, 7, 'gravel'), fadeA: 3, fadeB: 5 }],
+    ['an apron with stands, its own recipe', () => P.polyGeometry(THREE, { poly: [[0, 0], [80, 0], [80, 50], [0, 50]], cls: 'concrete', seed: 7, heightAt: hAt }), { cls: 'concrete', poly: true, marks: P.standMarks({ n: 4 }, 40), recipe: rec.recipe }],
+  ];
+  const made = [];
+  for (const [what, mk, opt] of pairs) {
+    const gOld = mk(), gNew = mk(), K = gNew.attributes.aPavK;
+    const pk = [K.getX(0), K.getY(0), K.getZ(0), K.getW(0)];
+    const mOld = P.make(THREE, Object.assign({ lib: SL }, opt));
+    const mNew = P.make(THREE, Object.assign({ lib: SL, geo: gNew }, opt));
+    const part = gNew.userData.pavRow, d = P.TAB.data, o = part ? part.row * P.PV.W * 4 : -1;
+    const tex = (i, c) => d[o + i * 4 + c];
+    let bad = [];
+    const cmpV = (i, v, nm) => { for (const [c, k] of [[0, 'x'], [1, 'y'], [2, 'z'], [3, 'w']]) if (tex(i, c) !== f32(v[k])) { bad.push(nm + '.' + k + ' ' + tex(i, c) + ' != ' + v[k]); return; } };
+    if (part) {
+      P.PV_VEC.forEach((nm, i) => cmpV(i, mOld.uniforms[nm].value, nm));
+      for (let i = 0; i < 8; i++) { cmpV(P.PV.G + i, mOld.uniforms.uGrade.value[i], 'uGrade' + i); cmpV(P.PV.T + i, mOld.uniforms.uTint.value[i], 'uTint' + i); }
+      for (let i = 0; i < P.NKEEP; i++) { cmpV(P.PV.KA + i, mOld.uniforms.uKeepA.value[i], 'uKeepA' + i); cmpV(P.PV.KB + i, mOld.uniforms.uKeepB.value[i], 'uKeepB' + i); }
+      for (let i = 0; i < P.NSEG; i++) { cmpV(P.PV.S + i, mOld.uniforms.uSeg.value[i], 'uSeg' + i); cmpV(P.PV.SK + i, mOld.uniforms.uSegK.value[i], 'uSegK' + i); }
+      for (let i = 0; i < P.NMARK; i++) { cmpV(P.PV.MR + i, mOld.uniforms.uMarkR.value[i], 'uMarkR' + i); cmpV(P.PV.MK + i, mOld.uniforms.uMarkK.value[i], 'uMarkK' + i); }
+      if ([0, 1, 2, 3].some(c => tex(P.PV.K, c) !== f32(pk[c]))) bad.push('pk');
+      if (tex(P.PV.N, 0) !== mOld.uniforms.uMarkN.value || tex(P.PV.N, 1) !== mOld.uniforms.uSegN.value || tex(P.PV.N, 2) !== mOld.uniforms.uKeepN.value) bad.push('counts');
+    }
+    verdict(!!part && P.isTable(mNew) && bad.length === 0, `${what}: the row is the old material's uniforms, texel for texel (${P.PV.W} texels)` + (bad.length ? ': ' + bad.slice(0, 4).join('; ') : ''));
+    const id = gNew.attributes.aPavId;
+    let idBad = 0; for (let i = 0; i < id.count; i++) if (id.getX(i) !== part.row) idBad++;
+    verdict(idBad === 0 && !gNew.attributes.aPavK && !gNew.attributes.uv && gOld.attributes.aPavK, `${what}: aPavId = row ${part && part.row} on all ${id.count} vertices; aPavK and uv dropped (the old path keeps them)`);
+    made.push({ mNew, gNew, mOld, gOld });
+  }
+  verdict(made.every(q => q.mNew === made[0].mNew) && made[0].mNew.customProgramCacheKey().startsWith('pavement:T') && made[0].mNew.transparent && !made[0].mNew.depthWrite,
+    'ONE material for all three (transparent, no depth write), its program key the table hook\'s');
+  const decl = new Set(); for (const mm of tall.match(/uniform [^;]+;/g) || []) for (const n of mm.replace(/uniform (?:highp )?\w+ /, '').replace(';', '').split(',')) decl.add(n.trim().replace(/\[.*\]/, ''));
+  const undecl = Array.from(decl).filter(n => !(n in made[0].mNew.uniforms));
+  verdict(undecl.length === 0 && decl.size === 5, `the table text declares ${decl.size} uniforms, all on the one material (${Array.from(decl).join(' ')})` + (undecl.length ? ' - MISSING ' + undecl.join(', ') : ''));
+  // a live edit reaches the row: setKeep packs again
+  { const part = made[0].gNew.userData.pavRow; P.setKeep(part, [keep[0]]); const d = P.TAB.data, o = part.row * P.PV.W * 4;
+    verdict(d[o + P.PV.N * 4 + 2] === 1 && d[o + P.PV.KA * 4] === f32(10), 'setKeep re-packs the row (1 keep box)'); P.setKeep(part, keep); }
+  // THE MERGE: two strips that CROSS (the longer drawn later) and one far away
+  const cross = Object.assign({}, sd, { hdg: 2.2, len: 600, cx: 140, cz: -30, seed: 4 }), far = Object.assign({}, sd, { cx: 5200, cz: 3100, len: 300, seed: 5 });
+  const parts = [[sd, 1.9905], [cross, 1.9900], [far, 1.9900]].map(([o, order]) => { const g = P.stripGeometry(THREE, o); P.make(THREE, { lib: SL, cls: 'concrete', geo: g }); return { geo: g, order }; });
+  const rowsBefore = parts.map(p => p.geo.userData.pavRow);
+  const tri = (g, t) => { const I = g.index.array, A = g.attributes.position.array, q = [];
+    for (let s = 0; s < 3; s++) { const v = I[t + s] * 3; q.push(A[v], A[v + 1], A[v + 2]); } return q; };
+  const keyOf = q => q.map(x => x.toFixed(4)).join(',');
+  const src = new Map(); parts.forEach((p, pi) => { const g = p.geo; for (let t = 0; t < g.index.count; t += 3) src.set(keyOf(tri(g, t)), pi); });
+  const nSrc = parts.reduce((n, p) => n + p.geo.index.count / 3, 0);
+  const rank = [1, 0, 0];   // the draw order: the crossing strip (1.9900) and the far one before the long strip (1.9905)
+  const out = P.merge(THREE, parts, { cell: 256 });
+  let seen = 0, dup = 0, lost = 0, orderBad = 0; const where = new Map(), got = new Set();
+  out.forEach((c, ci) => { const g = c.geo, id = g.attributes.aPavId; let last = -1;
+    for (let t = 0; t < g.index.count; t += 3) { const k = keyOf(tri(g, t)); if (!src.has(k)) lost++; else if (got.has(k)) dup++; got.add(k); seen++;
+      const pi = src.get(k); if (rank[pi] < last) orderBad++; last = rank[pi]; where.set(k, ci);
+      if (id.getX(g.index.array[t]) !== rowsBefore[pi].row) lost++; } });
+  verdict(seen === nSrc && dup === 0 && lost === 0, `the merge keeps every triangle once, with its row: ${seen} of ${nSrc} in ${out.length} cells of 256 m (${dup} twice, ${lost} strange)`);
+  verdict(orderBad === 0, 'inside every merged mesh the parts\' triangles run in DRAW ORDER (the crossing strip first, then the longer)');
+  // any two triangles of the two crossing strips that overlap lie in the same merged mesh
+  { const box = q => [Math.min(q[0], q[3], q[6]), Math.min(q[2], q[5], q[8]), Math.max(q[0], q[3], q[6]), Math.max(q[2], q[5], q[8])];
+    const A = [], B = []; for (let t = 0; t < parts[0].geo.index.count; t += 3) A.push(tri(parts[0].geo, t)); for (let t = 0; t < parts[1].geo.index.count; t += 3) B.push(tri(parts[1].geo, t));
+    let pairs = 0, split = 0;
+    for (const a of A) { const ba = box(a); for (const b of B) { const bb = box(b); if (ba[0] <= bb[2] && bb[0] <= ba[2] && ba[1] <= bb[3] && bb[1] <= ba[3]) { pairs++; if (where.get(keyOf(a)) !== where.get(keyOf(b))) split++; } } }
+    verdict(pairs > 100 && split === 0, `every pair of overlapping triangles of the two crossing strips is in ONE mesh (${pairs} pairs, ${split} split)`); }
+  verdict(out.length >= 3 && out.every(c => c.geo.boundingSphere && c.geo.boundingSphere.radius < 2000), `cells are culled on their own: ${out.length} meshes, the largest sphere ${f(Math.max(...out.map(c => c.geo.boundingSphere.radius)), 0)} m`);
+  const owners = [].concat(...out.map(c => c.geo.userData.pavRows));
+  verdict(owners.length === 3 && new Set(owners).size === 3 && rowsBefore.every(P2 => owners.indexOf(P2) >= 0) && parts.every(p => !p.geo.userData.pavRow), 'each part\'s row is owned by exactly one merged geometry (the sources hold none)');
+  const free0 = P.TAB.free.length; for (const c of out) P.dispose(made[0].mNew, c.geo);
+  verdict(P.TAB.free.length === free0 + 3, 'disposing the merged geometries gives the three rows back');
+  for (const q of made) { P.dispose(q.mNew, q.gNew); P.dispose(q.mOld); }
+  verdict(P.TAB.parts.size === 0 && P.mats.length === 0, `every row and every own material given back (${P.TAB.parts.size} rows, ${P.mats.length} materials left)`);
+}
+
 console.log('GATE PAVEMENT: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

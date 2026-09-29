@@ -5804,10 +5804,33 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // ONE STRIP'S FURNITURE, re-runnable (v8): the premises' strips are painted again after a live edit
     // (repaintStrips below); everything a strip stands is kept under its id so it can be taken away
     const stripStood = new Map();
+    // THE STRIPS MERGED (AS4b G926): with the one material (the table, G925) the premises' strips are ONE mesh per 1 km
+    // cell (PAVEMENT.merge) - HOME and w2, which cross, always in the same one - their triangles in the rank order
+    // G664 gave each strip's renderOrder (the longest last, on top), the mesh at the lowest of them (1.990: no other
+    // transparent object sorts between 1.990 and 1.9995). The sources leave the scene and their stood lists (the rows
+    // are the merged geometries' now); repaintStrips takes the merged meshes away first and merges again after.
+    let stripMerged = [];
+    const unmergeStrips = () => { for (const m of stripMerged) { scene.remove(m); PAV.dispose(m.material, m.geometry); m.geometry.dispose(); } stripMerged = []; };
+    const mergeStrips = () => {
+      if (!PAV || !PAV.merge) return;
+      const parts = [];
+      for (const [id, stood] of stripStood) {
+        const a0 = world.aerodromes.find(q => q.id === id); if (!a0 || !a0.premises) continue;
+        for (const o of stood) if (o.isMesh && o.userData.pavMat && PAV.isTable(o.material)) parts.push({ o, stood });
+      }
+      if (!parts.length) return;
+      const out = PAV.merge(THREE, parts.map(p => ({ geo: p.o.geometry, order: p.o.renderOrder })));
+      for (const c of out) {
+        const m = new THREE.Mesh(c.geo, parts[0].o.material);
+        m.renderOrder = c.order; m.receiveShadow = true; m.name = 'pavement:merged'; m.userData.pavMat = true;
+        scene.add(m); stripMerged.push(m);
+      }
+      for (const p of parts) { scene.remove(p.o); const k = p.stood.indexOf(p.o); if (k >= 0) p.stood.splice(k, 1); p.o.geometry.dispose(); }
+    };
     const standStrip = a => {
       const kind = a.surface === world.SURFACE.PAVED ? 'paved'
         : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass';
-      if (!texes[kind]) texes[kind] = mkTex(kind);
+      // (G927: the kind's 512 x 64 canvas is painted only for a strip that wears it - a PAVEMENT strip never did)
       const stood = []; stripStood.set(a.id, stood);
       const keep = o => { stood.push(o); return o; };
       // W13.2 ground patch: every strip outside the inner ring sits on the
@@ -5879,7 +5902,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .map(b => ({ b, d: Math.hypot(b.x - a.x, b.z - a.z) - (b.len + a.len) / 2 })).filter(q => q.d < 30).sort((p, q) => p.d - q.d)
           .map(q => ({ cx: q.b.x, cz: q.b.z, hdg: q.b.hdg, halfL: q.b.len / 2, halfW: q.b.wid / 2 }));
         const rank = world.aerodromes.filter(b => b.len && b.kind !== 'meadow' && b.kind !== 'water' && (b.len < a.len || (b.len === a.len && String(b.id) < String(a.id)))).length;
-        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others });
+        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others, geo: pgeo });   // G925: a row of the one material (the table)
         const pm = new THREE.Mesh(pgeo, pmat); pm.renderOrder = 1.99 + Math.min(19, rank) * 0.0005; pm.receiveShadow = true; pm.name = 'pavement:' + a.id; pm.userData.pavMat = true;
         scene.add(keep(pm));
         geo.dispose();
@@ -5898,7 +5921,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (!lookTex) geo.dispose();
       } else {
         const m = new THREE.Mesh(geo,
-          worldLambert({ map: texes[kind], depthWrite: false }));
+          worldLambert({ map: texes[kind] || (texes[kind] = mkTex(kind)), depthWrite: false }));
         m.renderOrder = 2;
         m.receiveShadow = true;
         scene.add(keep(m));
@@ -5923,14 +5946,18 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
     // every premises strip are taken away and stood again from the registry as it is now
     repaintStrips = () => {
+      unmergeStrips();
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
         if (a0 && !a0.premises) continue;
-        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.userData && o.userData.rockBatches) for (const b of o.userData.rockBatches) b.dispose(); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); o.geometry.dispose(); } }
+        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.userData && o.userData.rockBatches) for (const b of o.userData.rockBatches) b.dispose(); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material, o.geometry); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); o.geometry.dispose(); } }
         stripStood.delete(id);
       }
       for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);
+      mergeStrips();
     };
+    mergeStrips();
+    if (PAV && PAV.onRebuild) PAV.onRebuild(() => { if (typeof window === 'undefined' || !window.WORLD || window.WORLD.scene === scene) repaintStrips(); });   // G928: the A/B stands them again the other way (this world's scene only)
   }
 
   yield 'meadows';
