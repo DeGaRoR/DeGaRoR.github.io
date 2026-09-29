@@ -55,10 +55,16 @@
     const pav = [], emp = [];
     const timed = (layer, qs) => { cap.c.layers.set(layer); SM.autoUpdate = false; SM.needsUpdate = false;
       const q = gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, q); for (let k = 0; k < K; k++) rr.call(R, cap.s, cap.c); gl.endQuery(ext.TIME_ELAPSED_EXT); qs.push(q); };
-    const pend = [];
+    const pend = [], full = [];
+    // the WHOLE main pass too (every layer the camera draws, the pavement back on its own layers): the pavement's share in
+    // the real frame, depth-tested against the ground (the isolated number above is an upper bound)
+    const timedFull = () => { for (const [o, m] of moved) o.layers.mask = m; cap.c.layers.mask = cm; SM.autoUpdate = false; SM.needsUpdate = false;
+      const q = gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, q); rr.call(R, cap.s, cap.c); gl.endQuery(ext.TIME_ELAPSED_EXT);
+      for (const [o] of moved) o.layers.set(30); return q; };
     for (let i = 0; i < GPU_N; i++) {
       const a = [], b = [];
       if (i % 2) { timed(30, a); timed(31, b); } else { timed(31, b); timed(30, a); }
+      full.push(timedFull());
       pend.push([a[0], b[0]]);
       cap.c.layers.mask = cm; SM.autoUpdate = su; SM.needsUpdate = sn;
       await raf();
@@ -66,9 +72,10 @@
     for (let w = 0; w < 30 && !pend.every(([a, b]) => gl.getQueryParameter(a, gl.QUERY_RESULT_AVAILABLE) && gl.getQueryParameter(b, gl.QUERY_RESULT_AVAILABLE)); w++) await raf();
     const dis = gl.getParameter(ext.GPU_DISJOINT_EXT);
     for (const [a, b] of pend) { if (!dis && gl.getQueryParameter(a, gl.QUERY_RESULT_AVAILABLE) && gl.getQueryParameter(b, gl.QUERY_RESULT_AVAILABLE)) { pav.push(gl.getQueryParameter(a, gl.QUERY_RESULT) / 1e6 / K); emp.push(gl.getQueryParameter(b, gl.QUERY_RESULT) / 1e6 / K); } gl.deleteQuery(a); gl.deleteQuery(b); }
+    const fl = []; for (const q of full) { if (!dis && gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) fl.push(gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6); gl.deleteQuery(q); }
     cap.c.layers.mask = cm; for (const [o, m] of moved) o.layers.mask = m;
-    const mp = med(pav), me = med(emp);
-    return { pav: mp == null ? null : +mp.toFixed(3), empty: me == null ? null : +me.toFixed(3), net: mp == null ? null : +(mp - me).toFixed(3), n: pav.length };
+    const mp = med(pav), me = med(emp), mf = med(fl);
+    return { pav: mp == null ? null : +mp.toFixed(3), empty: me == null ? null : +me.toFixed(3), net: mp == null ? null : +(mp - me).toFixed(3), n: pav.length, full: mf == null ? null : +mf.toFixed(3) };
   }
   const start = P.MODE.table ? 'new' : 'old', out = {};
   { const bP = document.getElementById('bPause'); if (bP && !window.FLYDIY_HELD) bP.click(); await frames(30); }   // paused: every mode drawn from one still view
@@ -96,7 +103,7 @@
       const c = P.census(W.scene);
       const row = { rebuildMs, meshes: c.meshes, visible: c.visible, merged: c.merged, materials: c.materials, rows: c.rows, tableKB: c.tableKB, verts: c.verts, inFrustum: inFrustum() };
       Object.assign(row, await frameStats());
-      const g = await gpuPair(); row.gpuPavement = g.pav; row.gpuEmpty = g.empty; row.gpuNet = g.net; row.gpuN = g.n;
+      const g = await gpuPair(); row.gpuPavement = g.pav; row.gpuEmpty = g.empty; row.gpuNet = g.net; row.gpuN = g.n; row.gpuMainPass = g.full;
       res[mode].push(row);
     }
   }
