@@ -583,6 +583,12 @@
 
 #track i.now { width:14px; background:var(--ed-acc); }
 
+/* G1091 (POLISH-2): the trees-by-the-runways variant, named while DEV is on - small, out of the way */
+#ui #rwyTreesTag { position:absolute; left:50%; bottom:6px; transform:translateX(-50%); padding:2px 8px;
+  font:500 9px/1.3 'IBM Plex Mono', monospace; letter-spacing:.04em; color:var(--ed-faint);
+  background:var(--fl-glass); border-radius:4px; pointer-events:none; white-space:nowrap; }
+#ui #rwyTreesTag[hidden] { display:none; }
+
 /* =========================================================================
    4. THE SUMMONED PANELS, and the arrival.
    ========================================================================= */
