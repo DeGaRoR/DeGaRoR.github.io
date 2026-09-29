@@ -19,7 +19,15 @@
 // `img` is a file path (or null: the channel takes `or`, a byte). The file holds the planes one after the
 // other, raw (px * px * 4 bytes each), as ONE gzip stream named by the hash of the RAW bytes
 // (tools/_media_lib.js writeMedia 'gz.bin'): the page's ASSET_FETCH gunzips it by the suffix, and a gate
-// re-hashes the gunzipped bytes against the name. Raw now; KTX2 array files are AS3's.
+// re-hashes the gunzipped bytes against the name.
+//
+// AND KTX2 (AS3, G916): an entry may ask for KTX2 files of its planes - `ktx2: [{ plane, stem, role, opts }]` -
+// each plane encoded by tools/_ktx2_lib.js in a media_lib role (ktx2-color / ktx2-normal / ktx2-data) with its mips
+// in the file, and named by its INPUT (the plane's texels + the role's settings + the encoder's version: ktx2Name),
+// so a re-bake of unchanged texels writes nothing whatever basisu build the box has, and GATE KTX2 re-derives every
+// name from the raw planes. The page transcodes them in workers and stacks the layers into a compressed array
+// (src/viewer/ground_lib.js); the raw file stays the fallback (no workers, no WebAssembly, no compressed format,
+// ?ktx2=0). -> { stem: raw rel }, and out.ktx2[stem] = { <ktx2 stem>: rel }.
 //
 // THE DECODE IS THE BROWSER'S, BYTE FOR BYTE: tools/media_lib.py decode_rgba (Pillow's libjpeg-turbo, the
 // same ISLOW IDCT and fancy upsampling Chromium decodes with; no colour management - an ICC profile is
@@ -28,7 +36,8 @@
 // reproduced exactly offline, so the cook refuses rather than guess.
 'use strict';
 const zlib = require('zlib');
-const { writeMedia, decodeRGBA, readGeo } = require('./_media_lib.js');
+const fs = require('fs'), path = require('path');
+const { writeMedia, decodeRGBA, readGeo, MEDIA } = require('./_media_lib.js');
 
 // the planes of one entry, from decoded images (a Map path -> { w, h, data }) -> one Buffer
 function packEntry(entry, px, dec) {
@@ -67,12 +76,28 @@ function decodeAll(entries, px) {
 }
 
 // cook and write -> { stem: page-relative path }; opts.dry: name only, write nothing
-function cookLayers({ sub, px, entries, dry }) {
+function cookLayers({ sub, px, entries, dry, log }) {
   const dec = decodeAll(entries, px);
-  const out = {};
+  const out = {}, S = px * px * 4;
+  Object.defineProperty(out, 'ktx2', { value: {}, enumerable: false });
+  Object.defineProperty(out, 'encoded', { value: 0, writable: true, enumerable: false });
   for (const e of entries) {
     const raw = packEntry(e, px, dec);
     out[e.stem] = dry ? require('./_media_lib.js').mediaRel(sub, e.stem, 'gz.bin', raw) : writeMedia(sub, e.stem, 'gz.bin', raw);
+    if (!e.ktx2) continue;
+    const K = require('./_ktx2_lib.js'), got = out.ktx2[e.stem] = {};
+    for (const k of e.ktx2) {
+      const plane = raw.subarray(k.plane * S, (k.plane + 1) * S);
+      const rel = `media/${sub}/${K.ktx2Name(k.stem, plane, px, px, k.role, k.opts)}`;
+      const abs = path.join(MEDIA, '..', ...rel.split('/'));
+      if (!dry && !fs.existsSync(abs)) {
+        fs.mkdirSync(path.dirname(abs), { recursive: true });
+        fs.writeFileSync(abs, K.encodeRGBA(plane, px, px, k.role, k.opts));
+        out.encoded++;
+        if (log) log(rel);
+      }
+      got[k.stem] = rel;
+    }
   }
   return out;
 }

@@ -17,6 +17,16 @@
 // splat_ground.js's buildArrays shared. The page fetches the layers it needs and copies them into its arrays
 // (src/viewer/ground_lib.js): no Image, no canvas, no getImageData at the roll-out.
 //
+// AND AS KTX2 (AS3, G916): each cooked plane is also a KTX2 file (tools/_ktx2_lib.js, basisu v1.16.4), mips in the
+// file, named by its input texels: kN = the normal plane (ktx2-normal: UASTC + RDO, four channels - roughness rides
+// in A), kA = the colour plane for an sRGB-TYPED array (the pavement's: ktx2-color, mips averaged in linear light as
+// the GPU's sRGB generateMipmap averaged them), kAl = the colour plane for an array the SHADER decodes (the splat's:
+// its mips averaged on the stored values, as the GPU averaged them there). The colour is ktx2-color's UASTC codec,
+// not its ETC1S default: ETC1S lifted the blue of the green and brown sets by 8-15 codes in the far mips (measured,
+// HANDOVER G916) - the ground's far look is exactly what must not move. A set only
+// gets the variants its consumers read. The page transcodes them in workers under the loading screen; the raw
+// `layers` file stays the fallback (tools/_ktx2_check.js holds every KTX2 file to its raw plane).
+//
 // THE TABLE is tools/ground_sets.json (the set list, each map's source under assets/, each library's aliases in
 // that library's order); the splat's order and metres are src/core/28b_ground_fields.js RECIPE.library's, as
 // before. A map is read from, in order: assets/ (this checkout's, then the main checkout's - the old bakers'
@@ -83,15 +93,25 @@ for (const key of Object.keys(T.sets)) {
 
 // 2. THE LAYERS: every set an array consumer names (the old packers' fallbacks: height 128, rough 230)
 const cooked = Object.keys(T.sets).filter(k => T.sets[k].cook);
+// which array consumers read a set: the pavement's array is sRGB-typed, the splat's is decoded in its shader
+const readBy = { srgb: new Set(T.libs.pavement.map(a => a.set)), shader: new Set(T.libs.splat.map(a => a.set)) };
+const KTX2_PLANES = k => [].concat(
+  readBy.srgb.has(k) ? [{ plane: 0, stem: `${k}_kA_${PX}`, role: 'ktx2-color', opts: { alpha: true, mip: 'srgb', codec: 'uastc' }, field: 'kA' }] : [],
+  readBy.shader.has(k) ? [{ plane: 0, stem: `${k}_kAl_${PX}`, role: 'ktx2-color', opts: { alpha: true, mip: 'linear', codec: 'uastc' }, field: 'kAl' }] : [],
+  [{ plane: 1, stem: `${k}_kN_${PX}`, role: 'ktx2-normal', opts: {}, field: 'kN' }]);
 const entries = cooked.map(k => {
   const r = sets[k];
   if (!r._diff || !r._nor) { console.error(`ground_tex_prep: ${k} is cooked but has no colour or normal map`); process.exit(1); }
-  return { stem: `${k}_layers_${PX}`, planes: [
+  return { stem: `${k}_layers_${PX}`, ktx2: KTX2_PLANES(k), planes: [
     [{ img: r._diff, ch: 0 }, { img: r._diff, ch: 1 }, { img: r._diff, ch: 2 }, { img: r._height || null, ch: 0, or: 128 }],
     [{ img: r._nor, ch: 0 }, { img: r._nor, ch: 1 }, { img: r._nor, ch: 2 }, { img: r._rough || null, ch: 0, or: 230 }]] };
 });
-const layers = cookLayers({ sub: SUB, px: PX, entries, dry: REPORT });
-for (const k of cooked) { sets[k].layers = layers[`${k}_layers_${PX}`]; emitted.push(sets[k].layers); }
+const layers = cookLayers({ sub: SUB, px: PX, entries, dry: REPORT, log: rel => console.log('  ktx2 ' + rel) });
+for (const k of cooked) {
+  sets[k].layers = layers[`${k}_layers_${PX}`]; emitted.push(sets[k].layers);
+  const kx = layers.ktx2[`${k}_layers_${PX}`] || {};
+  for (const p of KTX2_PLANES(k)) { sets[k][p.field] = kx[p.stem]; emitted.push(kx[p.stem]); }
+}
 
 // 3. THE LIBRARIES' ALIASES (the splat's order and metres are the recipe's)
 const libs = JSON.parse(JSON.stringify(T.libs));
@@ -100,7 +120,7 @@ const libs = JSON.parse(JSON.stringify(T.libs));
 for (const L in libs) for (const a of libs[L]) if (!T.sets[a.set]) { console.error(`ground_tex_prep: ${L}.${a.key} names no set ${a.set}`); process.exit(1); }
 
 // 4. THE MANIFEST
-const clean = r => { const o = {}; for (const m of MAPS.concat(['layers'])) if (r[m]) o[m] = r[m]; return o; };
+const clean = r => { const o = {}; for (const m of MAPS.concat(['layers', 'kA', 'kAl', 'kN'])) if (r[m]) o[m] = r[m]; return o; };
 const aliasRow = (L, a) => { const o = Object.assign({}, a); if (L !== 'pavement') { delete o.source; delete o.slug; } return o; };
 let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/ground_tex_prep.js from tools/ground_sets.json and the maps under
 // assets/lot, assets/splat, assets/airfield, assets/pavement (CC0: Poly Haven, ambientCG; see CREDITS.md).
@@ -111,7 +131,9 @@ let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/ground_tex_prep.js f
 // and, for the sets an array can hold, \`layers\`: the two texture-array planes COOKED offline (tools/array_cook.js;
 // colour rgb + height a, normal rgb + roughness a; raw RGBA8, one gzip stream) - src/viewer/ground_lib.js copies
 // them into the arrays, no canvas. \`libs\` are each library's keys, in its order, with its own numbers, each
-// naming its set. Below the table: the four libraries' views, under their old names (SPLAT_TEX_SETS,
+// naming its set. kA / kAl / kN (AS3, G916): the same planes as KTX2 files (colour for an sRGB-typed array / for a
+// shader-decoded one, normal), mips in the file - the page's first choice; \`layers\` is their fallback.
+// Below the table: the four libraries' views, under their old names (SPLAT_TEX_SETS,
 // PAVEMENT_TEX_SETS, LOT_TEX_SETS, SITE_TEX_SETS), whose maps are lazily-made Images shared by every view.
 const GROUND_TEX = {
   px: ${PX},
@@ -124,7 +146,8 @@ ${Object.keys(libs).map(L => `    ${L}: [\n${libs[L].map(a => `      ${JSON.stri
 };
 // THE VIEWS: a library's key -> its numbers + getters for the maps its old manifest had (the Image made on first
 // read, ONE per url whichever library reads it - a listener, never an onload property: they are shared) +
-// \`set\` (the set's key) and \`layers\` (the cooked file, prefixed) where cooked.
+// \`set\` (the set's key) and \`layers\` (the cooked file, prefixed) where cooked, and \`ktx\` { A, N } (AS3: the
+// KTX2 planes THIS library's array reads - the pavement's sRGB-mip colour, the splat's stored-value-mip colour).
 const GROUND_VIEWS = (typeof Image !== 'undefined') ? (() => {
   ${BASE_DECL}
   const IM = {};
@@ -136,6 +159,8 @@ const GROUND_VIEWS = (typeof Image !== 'undefined') ? (() => {
     if (L !== 'splat') delete o.key;
     o.px = GROUND_TEX.px;
     if (s.layers) o.layers = B + s.layers;
+    const kA = L === 'pavement' ? s.kA : L === 'splat' ? s.kAl : null;
+    if (kA && s.kN) o.ktx = { A: B + kA, N: B + s.kN };
     for (const m of MAPS[L]) if (s[m]) Object.defineProperty(o, m, { get: () => mk(s[m]), enumerable: true });
     return o;
   };
@@ -152,14 +177,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { GROUND_T
 `;
 const sz = rel => fs.statSync(path.join(ROOT, rel)).size;
 const uniq = [...new Set(emitted)];
-const jpg = uniq.filter(r => r.endsWith('.jpg')), bin = uniq.filter(r => r.endsWith('.gz.bin'));
+const jpg = uniq.filter(r => r.endsWith('.jpg')), bin = uniq.filter(r => r.endsWith('.gz.bin')), ktx = uniq.filter(r => r.endsWith('.ktx2'));
 if (REPORT) {
-  console.log(`--report: ${Object.keys(sets).length} sets, ${jpg.length} maps (${emitted.length - bin.length} asked), ${bin.length} cooked layer files; sources ${JSON.stringify(from)}`);
+  console.log(`--report: ${Object.keys(sets).length} sets, ${jpg.length} maps (${emitted.length - bin.length - ktx.length} asked), ${bin.length} cooked layer files, ${ktx.length} KTX2 planes; sources ${JSON.stringify(from)}`);
   process.exit(0);
 }
 fs.writeFileSync(OUT, body);
 const gone = pruneMedia(SUB, uniq);
 const MB = a => (a.reduce((s, r) => s + sz(r), 0) / 1048576).toFixed(1);
 console.log(`src/viewer/ground_tex.js (${(body.length / 1024).toFixed(1)} KB) + media/${SUB}/: ${Object.keys(sets).length} sets, ` +
-  `${jpg.length} maps (${MB(jpg)} MB; ${emitted.length - bin.length - jpg.length} asked twice, folded), ${bin.length} cooked layer files (${MB(bin)} MB gz, ` +
-  `${(bin.length * PX * PX * 8 / 1048576).toFixed(0)} MiB raw); sources ${JSON.stringify(from)}` + (gone.length ? ` · pruned ${gone.length}: ${gone.slice(0, 6).join(', ')}${gone.length > 6 ? ' ...' : ''}` : ''));
+  `${jpg.length} maps (${MB(jpg)} MB; ${emitted.length - bin.length - ktx.length - jpg.length} asked twice, folded), ${bin.length} cooked layer files (${MB(bin)} MB gz, ` +
+  `${(bin.length * PX * PX * 8 / 1048576).toFixed(0)} MiB raw), ${ktx.length} KTX2 planes (${MB(ktx)} MB, ${layers.encoded} encoded this run); sources ${JSON.stringify(from)}` + (gone.length ? ` · pruned ${gone.length}: ${gone.slice(0, 6).join(', ')}${gone.length > 6 ? ' ...' : ''}` : ''));

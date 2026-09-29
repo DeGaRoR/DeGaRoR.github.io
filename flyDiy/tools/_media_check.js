@@ -180,7 +180,8 @@ function manifestFiles() {
   const v = ['hangar_walls.js', 'hangar_floor.js',
              'wood_tex.js', 'skin_tex.js', 'vessel_tex.js', 'hangar_sky.js',
              'house_tex.js', 'panel_tex.js', 'sign_tex.js',
-             'ground_tex.js',   // THE GROUND LIBRARY (G910): the site's, the splat's, the pavement's and the lot's sets, once, + the cooked layers
+             'ground_tex.js',   // THE GROUND LIBRARY (G910): the site's, the splat's, the pavement's and the lot's sets, once, + the cooked layers (+ AS3's KTX2 planes)
+             'ktx2_twins.js',   // AS3 (G916): the KTX2 twins of the plain maps (tools/ktx2_twins.js, media/tex/ktx2/<family>/)
              'cabin_livery.js']   // the tram cabin's liveries (G343)
     .map(f => path.join(ROOT, 'src', 'viewer', f));
   const packs = JSON.parse(fs.readFileSync(
@@ -264,7 +265,7 @@ function manifestFiles() {
   return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds, townkit);
 }
 
-const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin)/g;   // webp: LOADING S4's texture prep
+const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916)
 
 function collectRefs(files) {
   const refs = new Map();               // rel path -> first manifest naming it
