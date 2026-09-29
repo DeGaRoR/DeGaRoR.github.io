@@ -109,7 +109,11 @@ function sameState(a, b, skip) {
 
 // ---- 1. the props, the pier, the totems and the animals --------------------------------------------------------
 function registries(E) {
-  E.load('src/viewer/assets.js');   // G903 (AS0b): TEX_FLAT, which props.js reads for a flat map
+  // G903 (AS0b): TEX_FLAT, which props.js binds for a flat map. assets.js also installs the PAGE's ASSET_FETCH (fetch(),
+  // absent in node): the harness's disk reader (env) is put back over it (G904.2 - every prop's bin failed to load)
+  const fetchDisk = E.ctx.ASSET_FETCH;
+  E.load('src/viewer/assets.js');
+  E.ctx.ASSET_FETCH = fetchDisk; if (E.ctx.window && E.ctx.window !== E.ctx) E.ctx.window.ASSET_FETCH = fetchDisk;
   E.load('src/viewer/props.js');
   const reg = (dir, idx) => { for (const f of JSON.parse(fs.readFileSync(path.join(ROOT, dir, idx), 'utf8'))) E.load(dir + '/' + f); };
   reg('src/props', 'props_packs.json'); reg('src/pier', 'pier_packs.json'); reg('src/totems', 'totems_packs.json');
