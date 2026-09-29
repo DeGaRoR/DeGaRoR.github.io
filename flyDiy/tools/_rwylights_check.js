@@ -163,7 +163,7 @@ if (check(!!J, 'Jolene composes in node (island_node + its premises fixture)')) 
   check(/const L = runwayLightPoints\(a, world\.aerodromes, PO && PO\.pavedNear \? PO\.pavedNear : null\);/.test(src), 'standRunwayLights stands the core\'s places (the list this gate holds)');
   check(/Math\.max\(1, Math\.min\(150, d \* 0\.003 \/ RWY_LENS_R\)\)/.test(RW) && /im\.userData\.grown = on > 0;/.test(RW), 'the lenses still grow with the distance at night (by the lens\'s own radius)');
   check(/\.declare\('runway', 'runway lights', 'emissive', \(\) => \{ for \(const k in RWY\.mats\) RWY\.mats\[k\]\.emissiveIntensity = 0; \}\)/.test(RW), 'the NIGHT strip still mutes them (the switchboard\'s `runway`)');
-  check(/const body = 1 - 0\.985 \* on;/.test(RW) && /RWY\.mats\[h\]\.color\.setScalar\(body\);/.test(RW), 'the body darkens as the lights come on (the old near-black lens at night)');
+  check(/const body = 1 - 0\.985 \* on;/.test(RW) && /const c = RWY\.mats\[h\]\.color; c\.r = c\.g = c\.b = body; \}/.test(RW), 'the body darkens as the lights come on (the old near-black lens at night)');
 }
 
 if (fails) { console.log('GATE RWYLIGHTS: FAIL (' + fails + ' of ' + (fails + nOk) + ')'); process.exit(1); }
