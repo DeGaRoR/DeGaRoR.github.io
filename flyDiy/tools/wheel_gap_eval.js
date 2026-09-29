@@ -50,7 +50,8 @@
             const a = new THREE.Vector3().fromBufferAttribute(P, f.a), b = new THREE.Vector3().fromBufferAttribute(P, f.b), c = new THREE.Vector3().fromBufferAttribute(P, f.c), w = new THREE.Vector3();
             THREE.Triangle.getBarycoord(q.point, a, b, c, w); return w.x * A.getZ(f.a) + w.y * A.getZ(f.b) + w.z * A.getZ(f.c) > 0; };
           const hits = rc.intersectObjects(cand, true), pav = hits.filter(q => /^(pavement:|road:|pave:)/.test(q.object.name || '') && inside(q));
-          const hit = pav.length ? pav.reduce((a, q) => (q.object.renderOrder > a.object.renderOrder ? q : a)) : hits[0];
+          // (G926: in a MERGED pavement mesh the parts are in draw order, so of two hits in one mesh the later triangle is on top)
+          const hit = pav.length ? pav.reduce((a, q) => (q.object.renderOrder > a.object.renderOrder || (q.object === a.object && q.faceIndex > a.faceIndex) ? q : a)) : hits[0];
           const h = world.terrainH(at[0], at[2]);
           const nm = nameOf(w), sk = hit ? kindOf(hit.object.name || (hit.object.parent && hit.object.parent.name) || '') : 'none';
           const tyreS = hit ? 1000 * (at[1] - hit.point.y) : NaN, surfH = hit ? 1000 * (hit.point.y - h) : NaN, tyreH = 1000 * (at[1] - h);

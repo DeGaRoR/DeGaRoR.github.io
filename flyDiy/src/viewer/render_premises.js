@@ -155,6 +155,7 @@ function make(THREE, scene, world, rec0, opts) {
     const src = [];
     GR.traverse(o => {
       if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.userData.sharedGeo || o.userData.batch || !o.geometry || !o.geometry.index || Array.isArray(o.material)) return;
+      if (o.material && o.material.userData && (o.material.userData.pav || o.material.userData.pavTable)) return;   // the pavement merges itself (G926)
       if (Object.values(o.geometry.attributes).some(a => a.isInterleavedBufferAttribute)) return;
       for (let p = o.parent; p && p !== GR; p = p.parent) if (p.isLOD || p.userData.batch) return;
       src.push(o);
@@ -707,7 +708,7 @@ function make(THREE, scene, world, rec0, opts) {
     // G981: nor over an apron - the taxiways' bands crossed the pad
     for (const pp of O.pavePolys || []) { const d = PG.sdPoly(pp.poly, L[0], L[1]); if (d <= 0) return 0; k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4))); }
     return k; };
-  const disposePav = m => { if (m.material && m.material.userData && m.material.userData.pav && PAV) PAV.dispose(m.material); };
+  const disposePav = m => { if (m.material && m.material.userData && (m.material.userData.pav || m.material.userData.pavTable) && PAV) PAV.dispose(m.material, m.geometry); };   // G925: the table's row(s) given back
   // THE GUARDRAIL (2026-09-22): the W-beam module decides WHERE from the ground itself (the drop past
   // the shoulder, the bend's outside); this says where one may not stand - the user's "the large road
   // sections with nothing but forest": not over a plot or within 8 m of one (a frontage, a drive), not
@@ -806,13 +807,14 @@ function make(THREE, scene, world, rec0, opts) {
         const marks = RS.marks === 'none' ? { rects: [], segs: [], wid: rd.w } : PAV.roadMarks(pr.length, rd.w, RS.cls, RS.recipe);
         if (RS.marks === 'edges') marks.rects = marks.rects.filter(r => !(r[5] > 0)); else if (RS.marks === 'centre') marks.rects = marks.rects.filter(r => r[5] > 0);
         const rb = geo.boundingSphere, rKeep = rb ? stripBoxesNear(rb.center.x - rb.radius, rb.center.z - rb.radius, rb.center.x + rb.radius, rb.center.z + rb.radius, null) : [];
-        const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band, keep: rKeep, fadeA: rd.fadeA, fadeB: rd.fadeB, side: !!rd.taxiway });   // G981: the junctions; G980: a taxiway's sides
+        const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band, keep: rKeep, fadeA: rd.fadeA, fadeB: rd.fadeB, side: !!rd.taxiway, geo });   // G981: the junctions; G980: a taxiway's sides; G925: a row of the table
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.name = 'road:' + rd.id;   // culled by its own sphere (G663) m.userData.premId = rd.id;
         G.roads.add(m);
         buildLine(rd, pr, buildRail(rd, pr));
         yield 'roads';
       }
       yield* buildPolysSteps();
+      yield* mergePavSteps();
       return;
     }
     if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -842,6 +844,29 @@ function make(THREE, scene, world, rec0, opts) {
       if (d < R + 15) out.push({ d, cx: A.x, cz: A.z, hdg: A.hdg, halfL: A.len / 2, halfW: A.wid / 2 }); });
     return out.sort((a, b) => a.d - b.d);
   };
+  // THE ROADS AND THE APRONS MERGED (AS4b G926): with the one material (G925) the paved polygons and the roads are
+  // each ONE bucket - their draw-order classes (aprons 2.0 + z / 100 under the roads' 3, and so under G664's strips'
+  // 1.99x too) never share a mesh - merged per 1 km cell by PAVEMENT.merge, the triangles in draw order (an apron's z,
+  // then the build order), a contested zone's triangles in one mesh. The sources leave G.roads (the merged geometries
+  // own their rows); the next buildRoads takes the merged meshes away with every other child.
+  function* mergePavSteps() {
+    if (!PAV || !PAV.mergeSteps) return;
+    const buckets = new Map();
+    for (const c of G.roads.children) if (c.isMesh && c.geometry && PAV.isTable(c.material) && c.geometry.userData.pavRow) {
+      const k = /^pave:/.test(c.name) ? 'pave' : 'road'; let b = buckets.get(k); if (!b) buckets.set(k, b = []); b.push(c); }
+    for (const [k, list] of buckets) {
+      const out = [];
+      yield* PAV.mergeSteps(THREE, list.map(m => ({ geo: m.geometry, order: m.renderOrder })), null, out);
+      for (const c of out) {
+        const m = new THREE.Mesh(c.geo, list[0].material);
+        m.renderOrder = c.order; m.receiveShadow = true; m.name = k + ':merged'; m.userData.pavMerged = true;
+        G.roads.add(m);
+      }
+      for (const m of list) { G.roads.remove(m); m.geometry.dispose(); }
+      stats[k + 'Merged'] = out.length; stats[k + 'Parts'] = list.length;
+    }
+  }
+  if (PAV && PAV.onRebuild) PAV.onRebuild(() => { if (root.parent) buildRoads(); });   // G928: the A/B stands them again the other way
   function* buildPolysSteps() {
     if (!PAV) return;
     const lib = pavLib();
@@ -854,7 +879,7 @@ function make(THREE, scene, world, rec0, opts) {
       // an apron may be a PARKING AREA: its stands' lead-in lines and nose stops, in its own frame
       const marks = pp.stands ? PAV.standMarks(pp.stands, (geo.userData.pav || {}).halfW || 0) : { rects: [], segs: [] };
       const bs = geo.boundingSphere, keep = bs ? stripBoxesNear(bs.center.x - bs.radius, bs.center.z - bs.radius, bs.center.x + bs.radius, bs.center.z + bs.radius, null) : [];
-      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band, keep });
+      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band, keep, geo });   // G925: a row of the table
       const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
       G.roads.add(m);
       yield 'paved';
@@ -1016,7 +1041,7 @@ function make(THREE, scene, world, rec0, opts) {
         const RS = PAV.resolve(r, O.rec, LKp);
         const geo = PAV.stripGeometry(THREE, { len: A.len, wid: A.wid, hdg: A.hdg, cx: A.x, cz: A.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(r.id), heightAt, lift: 0.07, resU: 6, resV: 3, shoulderK: pavedKeep(r) });
         const keep = stripBoxesNear(A.x - A.len / 2, A.z - A.len / 2, A.x + A.len / 2, A.z + A.len / 2, r);
-        const mat = PAV.make(THREE, { lib: pavLib(), cls: RS.cls, marks: RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(R, SITE.sitePaintStrip), recipe: RS.recipe, band: RS.band, keep });
+        const mat = PAV.make(THREE, { lib: pavLib(), cls: RS.cls, marks: RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(R, SITE.sitePaintStrip), recipe: RS.recipe, band: RS.band, keep, geo });
         const pm = new THREE.Mesh(geo, mat); pm.renderOrder = 2; pm.receiveShadow = true; pm.name = 'runway:' + r.id; pm.userData.premId = r.id; pm.userData.pavMat = true;
         G.runways.add(pm);
         if (SITE.sitePattern && window.PATTERN_VIS) {
@@ -2805,6 +2830,7 @@ function make(THREE, scene, world, rec0, opts) {
     chunks.clear();
     for (const [, L] of LINES) { L.line.geometry.dispose(); L.line.material.dispose(); }
     LINES.clear();
+    for (const c of G.roads.children) if (c.isMesh) disposePav(c);   // G925: the pavement's rows (and an own material's MATS entry) given back
     scene.remove(root);
   }
 
