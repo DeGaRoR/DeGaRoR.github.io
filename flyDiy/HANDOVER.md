@@ -63975,3 +63975,15 @@ the waits (the G874 method), then to fix them on top of the train.
   - Table in PLAYTEST-2026-09-26 §0.21b.
 - **GATES:** see the ready note (BOOT, UISMOKE, PROGRAMS, FLOWNBAKE, SKIN, LIGHT, SHADOWSKY, FRAMECOST, ROUNDTRIP).
   FRAMECOST needs no ALLOW row: the settings screen is outside its census.
+## G904.1-G904.2 - AS0b ON TRAIN 16: THE PREMISES COOK BUILDS AGAIN (HLOD LIFTED); GATE MATLIB KEEPS ITS DISK FETCH (2026-09-29)
+
+G904.1 premises_cook.js failed 84 / 215 default and 459 / 695 town things on "HLOD is not defined" - not G903: G800
+(C0) reads HLOD.lod1 / HLOD.outLod / IN_STREAM in buildHouse, which the cook lifts as text. The cook now also lifts
+render_premises.js 'const HLOD = {' .. 'const LOD_U = {' (the page's defaults) and sets HLOD.lod1 = false (the lod-1
+far rung is never a placement; grp is dropped); outLod stays the page's. Re-cooked jolene: 0 failed, 33 stale cells
+pruned. G904.2 GATE MATLIB loaded assets.js for TEX_FLAT, which installed the page's fetch()-based ASSET_FETCH over
+the harness's disk reader: every prop bin failed. The reader is restored after the load. PREMCOOK PREMRASTER MATLIB
+PROPS HOUSE TARR MEDIA ASSETS PASS. FRAMECOST is RED ON TRAIN 16 ITSELF (13, the same on a clean 69a7a146 worktree,
+and with the old premises manifest): per frame +3.6 MB bufferSubData, +18 calls at the stand / taxi - the parked
+cook is stale (`parked_cook.js --check`: manifest build 87f352a15f66, the train's build 0f660f8140f2), so every parked
+key is captured live. Needs `node tools/parked_cook.js` (GPU) on the final train build, then FRAMECOST.
