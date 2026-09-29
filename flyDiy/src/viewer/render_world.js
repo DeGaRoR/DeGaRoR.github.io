@@ -1150,24 +1150,36 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // pavements kept it off, so the editor's tool drew a polygon the island's woods walked straight through.
   // The collidable woodland (20_world.js) has always obeyed it. Read at call time: the editor swaps the overlay
   const premTreeEx = (x, z) => { const o = world.premises && world.premises.overlay; return !!(o && o.excludeAt && o.excludeAt(x, z, 'trees')); };
+  // G1091 (POLISH-2): ON AN ISLAND THE RUNWAYS' CLEARANCES ARE THE CORE'S - world.treeAeroBlocked (the aerodrome
+  // box above in 'today' only, the pavement by the variant) and world.treeGround (the class a tree reads; the map's
+  // under a lifted shoulder) - the SAME calls the collidable woodland makes (20_world.js), so a tree you see stands
+  // where a tree you hit may. The analytic world's corridor is gone on an island (a leftover: the island's field
+  // is not there); the analytic world keeps its corridor, its box and its pavement kill, byte for byte.
+  const islRule = !!(world.island && world.treeAeroBlocked && world.treeGround);
   const openHere = (x, z) => {
     if (!world.island) return false;
-    if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;
-    for (const e of treeEx) if (inEx(e, x, z)) return false;
-    if (paved(x, z)) return false;
-    if (world.surface(x, z) !== world.SURFACE.GRASS) return false;
+    if (islRule) { if (world.treeAeroBlocked(x, z)) return false; }
+    else {
+      if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;
+      for (const e of treeEx) if (inEx(e, x, z)) return false;
+      if (paved(x, z)) return false;
+    }
+    if ((islRule ? world.treeGround(x, z) : world.surface(x, z)) !== world.SURFACE.GRASS) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
   const forestHere = (x, z, sc) => {
-    if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
-    for (const e of treeEx) if (inEx(e, x, z)) return false;
+    if (islRule) { if (world.treeAeroBlocked(x, z)) return false; }
+    else {
+      if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
+      for (const e of treeEx) if (inEx(e, x, z)) return false;
+    }
     // THE WOODLAND GATE IS THE ANALYTIC WORLD'S (G400): on an island the map
     // says where the forest is, and the sparse collidable woodland (52/km2)
     // would have left the fill as 90 m blobs round single trees - it did
     if (!world.island && nearTree(x, z) < 0) return false;
-    if (paved(x, z)) return false;
-    if ((sc === undefined ? world.surface(x, z) : sc) !== world.SURFACE.FOREST_FLOOR) return false;
+    if (!islRule && paved(x, z)) return false;
+    if ((sc === undefined ? (islRule ? world.treeGround(x, z) : world.surface(x, z)) : sc) !== world.SURFACE.FOREST_FLOOR) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
@@ -1239,7 +1251,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const sc = world.surface(x, z);
       // the forest floor's own colour, and the far tier's mask, only where
       // a forest IS (forestHere): the classifier alone painted the corridor
-      _for = (sc === world.SURFACE.FOREST_FLOOR && forestHere(x, z, sc)) ? 1 : 0;
+      // (G1091: by the trees' ground - the surface itself in 'today', the map's under a lifted shoulder)
+      const tg = islRule ? world.treeGround(x, z, sc) : sc;
+      _for = (tg === world.SURFACE.FOREST_FLOOR && forestHere(x, z, tg)) ? 1 : 0;
       if (_for) c.lerp(c2.setHex(0x51602f), 0.42);
       else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
       else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);
@@ -4488,6 +4502,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // prewarm() runs the same step with a big budget under the roll-out
       // screen. At 60 m/s the ring needs ~8 ms of work a second; 4 ms a
       // frame is thirty times that.
+      let PROBE = null;   // G1091: TREE_FILL.plants' list while it walks (x, z, 1 on the forest's rule / 0 the open ground's)
       function walk(cx, cz, recs, g0, g1, part) {
         const ng = NG, spc = CH / ng;
         for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < ng; gx++) {
@@ -4549,6 +4564,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); gi = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)].gi : -1; if (gi < 0) continue; }
           else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
           recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can);
+          if (PROBE) PROBE.push(x, z, forestHere(x, z) ? 1 : 0);
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
@@ -4828,6 +4844,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; evictAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
+          // G1091 (GATE RWYTREES): the trees the fill plants in a rectangle - both parts of every chunk it touches, the
+          // walk the streamer runs, nothing built or kept - as a flat [x, z, forest, ...] (forest 1: the map's TREE
+          // ground, forestHere; 0: the biome's open ground, openHere)
+          plants: (x0, z0, x1, z1) => {
+            const out = []; PROBE = out;
+            try {
+              for (let cz = Math.floor(z0 / CH); cz <= Math.floor(z1 / CH); cz++)
+                for (let cx = Math.floor(x0 / CH); cx <= Math.floor(x1 / CH); cx++) {
+                  const recs = SHAPE.list.map(() => []);
+                  walk(cx, cz, recs, 0, NG, BASE); walk(cx, cz, recs, 0, NG, FILLP);
+                }
+            } finally { PROBE = null; }
+            const r = [];
+            for (let i = 0; i < out.length; i += 3) if (out[i] >= x0 && out[i] <= x1 && out[i + 1] >= z0 && out[i + 1] <= z1) r.push(out[i], out[i + 1], out[i + 2]);
+            return r;
+          },
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
           thin: (d0, d1) => { if (d0 !== undefined) uThin.value.set(+d0, Math.max(+d0 + 1, +d1)); return [uThin.value.x, uThin.value.y]; },

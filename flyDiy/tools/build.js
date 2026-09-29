@@ -689,6 +689,11 @@ function buildViewer(coreBody) {
   // 60 fps all the way (rollout_perf A/B). ?raster=0 or localStorage flydiy.raster = '0' turns it off; node (the gates)
   // keeps the analytic path unless FLYDIY_GROUND_RASTER=1 (GATE PREMRASTER holds the two within tolerance)
   window.FLYDIY_GROUND_RASTER = rq !== '0';
+  // (G1091, POLISH-2) THE TREES BY THE RUNWAYS: ?rwytrees=today|map|mapx (or localStorage flydiy.rwytrees) - read by
+  // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'today', the default
+  var rt = new URLSearchParams(location.search).get('rwytrees');
+  if (rt === null) { try { rt = localStorage.getItem('flydiy.rwytrees'); } catch (e) {} }
+  window.FLYDIY_RWYTREES = rt === 'map' || rt === 'mapx' ? rt : 'today';
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either

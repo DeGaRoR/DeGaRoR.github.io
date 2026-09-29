@@ -465,6 +465,7 @@ function makeWorld(seed, opts) {
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
+    aeroTreeBox = null;   // G1091: the aerodromes change with the premises
     if (typeof terrainClear === 'function') terrainClear();   // the ground moved (G407: the height memo)
     if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
     const rec = PREMISES_GEN.unwrap(rec0).rec;
@@ -477,7 +478,7 @@ function makeWorld(seed, opts) {
     // composition's is read off the cook, the rest bake lazily as before. OFF BY DEFAULT: it moves flight
     // numbers (the ground within 0.04 mm of the lattice, the lattice within G614's tolerance of the analytic)
     const rasterOn = !!(opts && opts.groundRaster) || groundRasterFlag();
-    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: rasterOn }, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
+    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: rasterOn }, opts && opts.rwyTrees ? { rwyTrees: opts.rwyTrees } : {}, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
     if (PM.rasterLoad && ISL && ISL.premCook && ISL.premCook.raster && PM.raster.on) PM.rasterCooked = PM.rasterLoad(ISL.premCook.raster);
     PMrec = rec;
     // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
@@ -560,6 +561,36 @@ function makeWorld(seed, opts) {
   };
   const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: aeroSurfAll });
 
+  // G1091: THE TREES BY THE RUNWAYS - ONE RULE FOR THE TREE YOU SEE AND THE TREE YOU HIT (POLISH-2). On an island
+  // the collidable woodland below and the renderer's fill (render_world.js forestHere / openHere, the colour bake,
+  // the far stands) ask THIS, where the renderer used to carry clearances of its own: the analytic world's
+  // corridor (|z| < 90, -3400 < x < 200 - a 180 m lane through Jolene's woods west of 13/31, a leftover: the
+  // island's field is not there) and the aerodrome box (len/2 + 150, wid/2 + 60), which the woodland never had - a
+  // collidable tree stood unseen from 47.5 m and the fill began at 60. Now the corridor is gone on an island in
+  // every variant (it never belonged there), the box is 'today's alone (27_premises.js RWY_TREES), and the
+  // pavement is PM.treePaveAt's by the variant ('today': coverAt's kill, as it was). The premises' excludes stay
+  // excludeAt(.., 'trees')'s, which drops the runway clearances by the same variant.
+  // (the box: THE AERODROME'S CLEARING, 2026-09-22 - a strip along the runway, the length + 150 m each end for the
+  // approach, the width + 60 m each side; a record without a heading keeps the circle of len/2 + 70; treeBox false
+  // (G527.3, East Point) leaves the clearing to the premises' own excludes)
+  var aeroTreeBox = null;   // (`var`: setPremises clears it and runs before this line)
+  const rwyTrees = () => (ISL && PM && PM.rwyTrees) || 'today';
+  function treeAeroBlocked(x, z) {
+    if (rwyTrees() === 'today') {
+      if (!aeroTreeBox) aeroTreeBox = aerodromes.filter(a => a.treeBox !== false).map(a => (typeof a.hdg === 'number' && a.wid)
+        ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), hl: a.len / 2 + 150, hw: a.wid / 2 + 60, strip: true }
+        : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 });
+      for (const e of aeroTreeBox) {
+        const dx = x - e.x, dz = z - e.z;
+        if (!e.strip) { if (dx * dx + dz * dz < e.r2) return true; continue; }
+        const al = dx * e.cx + dz * e.sz, ac = -dx * e.sz + dz * e.cx;
+        if (Math.abs(al) < e.hl && Math.abs(ac) < e.hw) return true;
+      }
+      const c = coverAt(x, z, 1); return !!(c && c.kill > 0);
+    }
+    return !!(PM && PM.treePaveAt && PM.treePaveAt(x, z));
+  }
+
   // trees: stage-2 biome placement — deterministic jittered 64 m grid,
   // order-independent per point (replaces the v0 sequential LCG loop);
   // density + species from the biome module, clustered by stand noise.
@@ -585,7 +616,8 @@ function makeWorld(seed, opts) {
         if (ISL.effClass(x, z) !== ISL.WC.TREE) continue;
         islS = Math.max(0.65, Math.min(1.75, ISL.canopyAt(x, z) / 16));
       }
-      if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
+      if (ISL) { if (treeAeroBlocked(x, z)) continue; }   // G1091: the runways' clearances, the fill's own rule
+      else if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
       let nearMeadow = false;
       for (const m of meadows)
         if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
@@ -598,7 +630,7 @@ function makeWorld(seed, opts) {
       // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
       // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
       // collidable tree off a village street - the same law the grass obeys (contract v1.17)
-      if (PM && PM.coverAt) { const cv = PM.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
+      if (!ISL && PM && PM.coverAt) { const cv = PM.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }   // (on an island: treeAeroBlocked's)
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > (ISL ? 0.85 : tp.p)) continue;
       const idx = trees.length;
@@ -813,6 +845,10 @@ function makeWorld(seed, opts) {
   // is a lake, everything green and short is grass (the muskeg included).
   const islandSurface = (x, z) => {
     const a = aeroSurfAll(x, z); if (a >= 0) return a;
+    return islandGround(x, z);
+  };
+  // the island's own ground at a point, under whatever a strip or a premises surface says there
+  const islandGround = (x, z) => {
     const h = terrainH(x, z);
     if (h <= 0.05) return SURFACE.WATER;
     const c = ISL.effClass(x, z);
@@ -826,6 +862,19 @@ function makeWorld(seed, opts) {
     return SURFACE.GRASS;
   };
   const surface = ISL ? islandSurface : B.surface;
+  // G1091: THE TREES' GROUND - the class a tree's placement reads (the fill's FOREST_FLOOR / GRASS test). 'today': the
+  // surface, as it was (`sc` the caller's own reading of it). 'map' / 'mapx': a premises surface still answers (an
+  // apron, a road, a yard - and in 'mapx' the shoulders), but the registry's strip box past the paving (its
+  // wid/2 + 6 m margin is the wheels' ground, not the trees') and, in 'map', a runway's gravel shoulder give way
+  // to the island's own class: the map. world.surface is untouched - the wheels roll on what they rolled on.
+  function treeGround(x, z, sc) {
+    const m = rwyTrees();
+    if (m === 'today') return sc !== undefined ? sc : surface(x, z);
+    const p = PM.surfaceAt(x, z);
+    if (p >= 0 && !(m === 'map' && PM.shoulderAt(x, z))) return p;
+    const a = AERO.surfaceAt(x, z); if (a >= 0) return a;
+    return islandGround(x, z);
+  }
 
   // ---- v1 tiled features: lazy bucketing of the eager tree array plus
   // stage-1 river reaches (a reach spanning several tiles appears in each
@@ -1069,5 +1118,9 @@ function makeWorld(seed, opts) {
     // own roads (a 'road' 5 m of gravel, a 'track' 3 m of worn grass, band 1.2) and its strips (by
     // their surface class). The viewer adds `col`, the drawn ground's colour (render_world.js).
     coverAt,
+    // G1091: the trees by the runways - the variant ('today' | 'map' | 'mapx', a data island's; 'today' elsewhere),
+    // the runways' clearance at a point (the box in 'today', the pavement by the variant) and the class a tree's
+    // placement reads; the woodland above and the renderer's fill ask the same three
+    rwyTrees, treeAeroBlocked, treeGround,
   };
 }
