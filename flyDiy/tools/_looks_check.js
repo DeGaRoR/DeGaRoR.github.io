@@ -130,7 +130,8 @@ const RP = read('render_premises.js'), RW = read('render_world.js'), WA = read('
 {
   const blk = lift(PV, '  function library(THREE, keys, done, prev) {', '  // THE SHARED LIBRARY');
   ok(!!blk, '4 the pavement library found in pavement.js');
-  ok(/GROUND_LIB\.pack\(sets\.map\(m => \(\{ layers: m\.layers, mean: m\.mean, label: m\.key \}\)\)/.test(SG) && !/getImageData|drawImage/.test(SG),
+  // (AS3, G917: each item also carries the set's KTX2 planes, `ktx`; GROUND_LIB falls back to `layers` on any failure)
+  ok(/GROUND_LIB\.pack\(sets\.map\(m => \(\{ layers: m\.layers, (?:ktx: m\.ktx, )?mean: m\.mean, label: m\.key \}\)\)/.test(SG) && !/getImageData|drawImage/.test(SG),
     '4 the splat ground\'s arrays come from the cooked layers (GROUND_LIB.pack) - no canvas in splat_ground.js');
   ok(blk && !/getImageData|drawImage/.test(blk), '4 no canvas in the pavement library either');
   const GLsrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'ground_lib.js'), 'utf8');

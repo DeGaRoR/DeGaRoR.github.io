@@ -202,6 +202,7 @@ const GATES = [
   // THE ONE GROUND LIBRARY (G912, AS2): the table's files, the cooked layers = what the old canvas code packed in
   // Chrome (per library and key), the keys and their order, the cook re-run in memory (python + Pillow), no canvas
   { id: 'GROUNDLIB', file: '_groundlib_check.js', tier: 'core' },
+  { id: 'KTX2', file: '_ktx2_check.js', tier: 'core', wall: 120 },   // AS3 G918: every KTX2 file decodes (the page's transcoder, in node) and is its raw plane within the role's PSNR; the page's KTX2 path and its fallback
   // THE BUILD FILE (G63): save -> load -> editor -> join -> resolved spec.
   // ruling 4 promised this battery a loading gate and it never had one.
   { id: 'BUILD', file: 'test_build.js', tier: 'core' },

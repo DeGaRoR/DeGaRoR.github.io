@@ -76,6 +76,12 @@ const ALLOW = [
   { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 4700, why: 'the stand-ins\' maps and the compiled uniforms\' textures uploaded in the upload step', g: 'G730/G732' },
   { key: 'boot/rollout:frames/gl.calls', build: '*', upTo: 51500, why: 'the catch-up upload of the hooks\' textures and the sliced depth variants before first light', g: 'G732' },
   { key: 'boot/rollout:bake/', build: '*', why: 'the flown aeroplane texture bake, a roll-out step under the screen (cached: an IndexedDB hit reads and uploads only)', g: 'G870' },
+  // AS3 (G918): a KTX2 texture uploads EVERY mip level itself (texStorage + one compressedTexSubImage per level: 10 for a
+  // 512^2 map) where an image made two calls (texImage2D + generateMipmap) and let the GPU build the chain: more calls,
+  // far fewer bytes (the shed's maps in the garage's compile step 411 -> 293 MiB, the ground's arrays and the placed
+  // props in the roll-out's upload step 892 -> 705 MiB, Cub). The views are unchanged. ?ktx2=0 gives the old calls back.
+  { key: 'boot/garage:compile/gl.calls', build: '*', upTo: 105400, why: 'the shed props\' KTX2 twins upload their mips level by level (103.2 k -> 104.9 k calls; 118 MiB fewer bytes)', g: 'G918' },
+  { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 6300, why: 'the ground\'s compressed arrays and the placed props\' KTX2 twins upload their mips level by level (4.5 k -> 6.1 k calls; 187 MiB fewer bytes)', g: 'G918' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
@@ -165,7 +171,9 @@ async function census(build) {
   const health = { premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5) };
-  return { build, health, release, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  // AS3 (G918): the KTX2 path (reported): the ground library's packs (KTX2 or raw, why not), the transcodes, the worker ms
+  const ktx2 = { ground: W.GROUND_LIB && W.GROUND_LIB.stats ? W.GROUND_LIB.stats() : null, loader: W.KTX2 && W.KTX2.stats ? W.KTX2.stats() : null, workerMsgs: P.io.workerMsgs };
+  return { build, health, release, ktx2, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
 }
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
@@ -277,7 +285,7 @@ function diff(a, b) {
   const d = (k, x, y) => { const v = (y || 0) - (x || 0); if (v) r[k] = v; };
   let gl = 0;
   for (const k of Object.keys(b.rec.calls)) { const v = b.rec.calls[k] - (a.rec.calls[k] || 0); if (!v) continue; if (!GL_SKIP.has(k)) gl += v;
-    if (/^uniform/.test(k) || /^(bufferData|bufferSubData|bindTexture|useProgram|bindFramebuffer|bindVertexArray|bindBuffer|texImage2D|texSubImage2D|texImage3D|texSubImage3D|compressedTexImage2D|generateMipmap|readPixels|drawBuffers|blitFramebuffer|invalidateFramebuffer|renderbufferStorageMultisample)$/.test(k)) r['gl.' + k] = v; }
+    if (/^uniform/.test(k) || /^(bufferData|bufferSubData|bindTexture|useProgram|bindFramebuffer|bindVertexArray|bindBuffer|texImage2D|texSubImage2D|texImage3D|texSubImage3D|compressedTexImage2D|compressedTexSubImage2D|compressedTexImage3D|compressedTexSubImage3D|texStorage2D|texStorage3D|generateMipmap|readPixels|drawBuffers|blitFramebuffer|invalidateFramebuffer|renderbufferStorageMultisample)$/.test(k)) r['gl.' + k] = v; }
   r['gl.calls'] = gl;
   let ub = 0; for (const k of Object.keys(b.rec.bytes)) { const v = b.rec.bytes[k] - (a.rec.bytes[k] || 0); if (!v) continue; if (/^uniform/.test(k)) ub += v; else r['bytes.' + k] = v; }
   if (ub) r['bytes.uniforms'] = ub;
@@ -287,7 +295,8 @@ function diff(a, b) {
   for (const k of ['umw', 'um', 'obr', 'oar', 'obs', 'mobr', 'frustum', 'terrainH', 'grHeight', 'renders']) d(NAMES[k], a.c[k], b.c[k]);
   return r;
 }
-const IO_NAMES = { fetches: 'io.fetches', fetchBytes: 'io.fetchBytes', imgLoads: 'io.imgLoads', imgBytes: 'io.imgBytes', c2dDraw: 'io.c2d.drawImage', c2dRead: 'io.c2d.getImageData', c2dReadBytes: 'io.c2d.readBytes', c2dPut: 'io.c2d.putImageData' };
+const IO_NAMES = { fetches: 'io.fetches', fetchBytes: 'io.fetchBytes', imgLoads: 'io.imgLoads', imgBytes: 'io.imgBytes', c2dDraw: 'io.c2d.drawImage', c2dRead: 'io.c2d.getImageData', c2dReadBytes: 'io.c2d.readBytes', c2dPut: 'io.c2d.putImageData',
+  workerMsgs: 'io.worker.messages' };   // AS3 (G918): the transcoder workers' messages (the only worker the node page runs)
 const NAMES = { umw: 'three.updateMatrixWorld', um: 'three.updateMatrix', obr: 'cb.onBeforeRender', oar: 'cb.onAfterRender', obs: 'cb.onShadow', mobr: 'cb.material.onBeforeRender', frustum: 'three.frustumTests', terrainH: 'world.terrainH', grHeight: 'world.grHeight', renders: 'three.renders' };
 const add = (a, b) => { const r = Object.assign({}, a); for (const k of Object.keys(b)) if (typeof b[k] === 'number') r[k] = (r[k] || 0) + b[k]; return r; };
 // the MEDIAN of the frames, counter by counter: a frame's burst (a chunk the streamer finishes, a probe re-shot) is not
@@ -433,9 +442,12 @@ async function main() {
     for (const build of Object.keys(b.builds || {})) {
       const A = a.builds[build], B = b.builds[build]; if (!A) continue;
       for (const v of Object.keys(B.views)) printTable(compare(A.views[v], B.views[v], v + '/', build, true).filter(r => r.state !== 'ok'), build + ' ' + v + ' (a -> b, what moved)');
-      printTable(compare(flatBoot(A.boot), flatBoot(B.boot), 'boot/', build, true).filter(r => r.state !== 'ok' && (BOOT_KEYS.test(r.key) || /\/io\./.test(r.key) || /\/bytes\.texSubImage3D$|\/gl\.texSubImage3D$|\/gl\.texImage2D$/.test(r.key))), build + ' boot (a -> b, what moved)');
+      printTable(compare(flatBoot(A.boot), flatBoot(B.boot), 'boot/', build, true).filter(r => r.state !== 'ok' && (BOOT_KEYS.test(r.key) || /\/io\./.test(r.key) || /\/bytes\.(compressedT|t)exSubImage3D$|\/gl\.(compressedT|t)exSubImage3D$|\/gl\.texImage2D$|\/gl\.texStorage3D$/.test(r.key))), build + ' boot (a -> b, what moved)');
+      if (A.ktx2 || B.ktx2) console.log('  ' + build + ' KTX2 (a -> b): ' + JSON.stringify(A.ktx2 && A.ktx2.ground) + ' -> ' + JSON.stringify(B.ktx2 && B.ktx2.ground) + '; loader ' + JSON.stringify(B.ktx2 && B.ktx2.loader) + '; worker messages ' + (B.ktx2 && B.ktx2.workerMsgs));
       // the texture upload bytes by boot step (reported: the ratchet's boot keys carry no texture bytes)
-      const texB = boot => { const o = {}; let t = 0; for (const [k, r] of Object.entries(boot || {})) { const v = (r['bytes.texImage2D'] || 0) + (r['bytes.texSubImage2D'] || 0) + (r['bytes.texImage3D'] || 0) + (r['bytes.texSubImage3D'] || 0); if (v) { o[k] = v; t += v; } } o.total = t; return o; };
+      // (AS3: the compressed uploads too - compressedTex(Sub)Image2D/3D, a KTX2 texture's blocks)
+      const TEXK = ['texImage2D', 'texSubImage2D', 'texImage3D', 'texSubImage3D', 'compressedTexImage2D', 'compressedTexSubImage2D', 'compressedTexImage3D', 'compressedTexSubImage3D'];
+      const texB = boot => { const o = {}; let t = 0; for (const [k, r] of Object.entries(boot || {})) { const v = TEXK.reduce((a, n) => a + (r['bytes.' + n] || 0), 0); if (v) { o[k] = v; t += v; } } o.total = t; return o; };
       { const ta = texB(A.boot), tb = texB(B.boot), M = x => ((x || 0) / 1048576).toFixed(1);
         console.log('  ' + build + ' texture upload MiB by step (a -> b): ' + Object.keys(Object.assign({}, ta, tb)).filter(k => ta[k] !== tb[k] || k === 'total').map(k => k + ' ' + M(ta[k]) + ' -> ' + M(tb[k])).join(', ')); }
       if (A.mem && B.mem) for (const at of Object.keys(B.mem)) console.log('  ' + build + ' memory after ' + at + ' (MiB, a -> b): ' + Object.keys(B.mem[at]).map(k => k + ' ' + A.mem[at][k] + ' -> ' + B.mem[at][k]).join(', '));
@@ -452,7 +464,9 @@ async function main() {
     ok(!r.failed, r.build + ': the page booted, rolled out and rendered its views', r.failed || ('garage ' + (r.wall.garage / 1000).toFixed(1) + ' s, roll-out ' + (r.wall.rollout / 1000).toFixed(1) + ' s, total ' + (r.wall.total / 1000).toFixed(1) + ' s wall; ' + r.programsTotal + ' programs; page errors ' + r.errorsN));
     if (!r.failed && r.mem) console.log('       memory after the roll-out (MiB, reported): ' + JSON.stringify(r.mem.rollout) + '; at the end ' + JSON.stringify(r.mem.end));
     if (!r.failed && r.boot) { const io = ioSum(r.boot);   // G912: reported, never ratcheted
-      console.log('       reads (reported): garage ' + ioLine(io.garage) + '; roll-out ' + ioLine(io.rollout)); }
+      console.log('       reads (reported): garage ' + ioLine(io.garage) + '; roll-out ' + ioLine(io.rollout));
+      if (r.ktx2 && r.ktx2.ground) { const g = r.ktx2.ground;   // AS3 (G918): reported
+        console.log('       KTX2 (reported): ground packs ' + g.ktx2Packs + ' KTX2 (' + g.ktx2Layers + ' planes transcoded, ' + g.ktx2Lent + ' lent, ' + (g.ktx2Bytes / 1048576).toFixed(1) + ' MiB) / ' + g.packs + ' raw' + (g.ktx2Why ? ' (' + g.ktx2Why + ')' : '') + '; fallbacks ' + g.ktx2Fallbacks + '; target format ' + (r.ktx2.loader && r.ktx2.loader.target) + ', ' + r.ktx2.workerMsgs + ' worker messages'); } }
     if (r.failed) continue;
     ok(!!(r.views.stand && r.views.taxi), r.build + ': both views measured (stand, taxi)', r.views.taxi ? 'taxi at ' + r.views.taxi.pose.join(' ') : 'no taxi pose');
     const H = r.health || {};
