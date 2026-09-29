@@ -64121,4 +64121,20 @@ infinite animation and the reduced-motion rule's still ring. ROUNDTRIP's `setup`
 pulse after it and still 60 frames into the wait.
 
 FRAMECOST: the `boot/rollout:click/` ALLOW row's reason updated (~560 shed frames: the check's ~200 + the roll's ~360;
-the row is admitted whole, as before). See the READY commit for the battery and the compare against the base.
+the row is admitted whole, as before).
+GATE WORLDRENDER (the battery's first run, its one red): its factory hands render_world the core names it reads - now
+runwayLightPoints too; on its stub THREE (no geometry attributes, no Color.setScalar) rwyLightGeo returns the lens and
+the body's darkening writes r, g, b (identical on the real three).
+
+**VERDICTS (node, this branch, 4 cores).** `node tools/run_gates.js --all`: BATTERY PASS, 129 of 129 (ROLLANIM,
+RWYLIGHTS, UISMOKE, LIGHT, CLOUD, WORLDRENDER, FRAMECOST, ROUNDTRIP with the setup child's pulse, ARCHETYPES,
+PILOTMATRIX, SEAPLANE, HOTHIGH, SOAR ...), wall 4 252 s.
+FRAMECOST --compare against origin/claude/train-16-base: ANY source change leaves the parked cook stale (its signature
+carries FLYDIY_BUILD), so this tree captures the three parked aeroplanes live where the base draws its cook - a raw
+compare shows that (+145 main draws at the stand, +98 MB in the boot's snapshot) and nothing of this work. Like for
+like, both trees under FRAMECOST_QUERY=parkcook=0: the stand and the taxi, both builds, NO per-frame rise
+(gl.uniform3f -4, nothing else moved); boot/rollout:click +56 % (the shot's ~560 frames against ~360: per frame flat).
+Both trees PASS FRAMECOST; 53 page errors on both (the base's own). THE COORDINATOR: re-cook the parked aeroplanes
+(`node tools/parked_cook.js`, GPU) on the merged train, as every train.
+NOT SEEN: a rendered frame. The looks (the check's pace, the pulse, the lights by day and night) are the user's to
+judge live - the WHAT THE PLAYER SEES paragraphs above.
