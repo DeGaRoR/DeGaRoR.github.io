@@ -6985,6 +6985,9 @@
     const idle = () => (!ST || !(ST.near > 0)) && !(WF.ringStat && WF.ringStat() && WF.ringStat().busy);
     return new Promise(res => {
       const tick = () => {
+        // G830: the premises' stream waiting on the house worker - wait for its answer, not in updates
+        const hw = WF.premises && WF.premises.hwWait ? WF.premises.hwWait() : null;
+        if (hw) { hw.then(() => setTimeout(tick, 0)); return; }
         const t0 = performance.now();
         const keep = inGarage ? camera.position.clone() : null;
         if (keep) camera.position.set(a[0] + 16, a[1] + 6, a[2] + 16);
@@ -7067,7 +7070,7 @@
           let r; try { r = WF.premisesPrewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
           built += r.built || 0;
           BOOT.phase('town', 'building the field ' + built + ' / ' + (built + (r.near || 0)), (built + (r.near || 0)) ? built / (built + (r.near || 0)) : 1);
-          if (r.done) res(); else setTimeout(tick, 0);
+          if (r.done) res(); else if (r.wait) r.wait.then(() => setTimeout(tick, 0)); else setTimeout(tick, 0);   // G830: the house worker's next answer
         };
         tick();
       });

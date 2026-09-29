@@ -280,7 +280,11 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
           d.HLOD.lod1 && d.HLOD.outLod === 1 && d.HLOD.near === 150 && d.HLOD.fadeW === 40 && d.LOD_U.uLodOn.value === 1 && !e.HLOD.lod1 && e.HLOD.outLod === 1 && f.HLOD.lod1 && f.HLOD.outLod === 0,
           '5p ?houselod=0 (lod 0 far and outbuildings: before), =1 (lod 1 from 0 m), =N (the edge at N m), ?lodfade=0 (hard), ?outlod=0|1; the defaults'); }
   // 5q the host
-  check(/if \(HLOD\.lod1 && o\.game && !IN_STREAM\) \{ try \{ grp\.userData\.lod1 = lod1Bags\(HG, house\.P, F\)/.test(RP) && /IN_STREAM = true; try \{ buildOne\(p\); \} finally \{ IN_STREAM = false; \}/.test(RP) && /HG\.build\(plot\.out\.P, \(HLOD\.outLod && o\.game\) \? 1 : 0, F2\)/.test(RP) && /const banded = g => !!\(HLOD\.lod1 && g\.userData\.lod1 && g\.userData\.lod1\.length\)/.test(RP) &&
+  // (G830: the generation moved to src/viewer/premises_build.js - the lod 1 built with the lod 0 there, kept here unless
+  // the stream placed it, inline or from the house worker; the outbuilding's build at outLod there)
+  const PBS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_build.js'), 'utf8');
+  check(/if \(HLOD\.lod1 && o\.game && !IN_STREAM && R\.lod1\) \{ try \{ grp\.userData\.lod1 = lod1Bags\(HG, house\.P, F, R\.lod1\)/.test(RP) && /IN_STREAM = true; try \{ buildOne\(p\); \} finally \{ IN_STREAM = false; \}/.test(RP) && /IN_STREAM = true;\n\s*let k; try \{ k = hwPlace\(/.test(RP) &&
+        /if \(C\.lod1 && C\.game\) \{ try \{ lod1 = HG\.build\(house\.P, 1, F\)/.test(PBS) && /get lod1\(\) \{ return HLOD\.lod1; \}, get outLod\(\) \{ return HLOD\.outLod; \}/.test(RP) && /HG\.build\(plot\.out\.P, \(C\.outLod && C\.game\) \? 1 : 0, F2\)/.test(PBS) && /const banded = g => !!\(HLOD\.lod1 && g\.userData\.lod1 && g\.userData\.lod1\.length\)/.test(RP) &&
         /const B = hlodMerge\(bagsB, lodMat\('mid'\), true\), H = hlodMerge\(bagsH, lodMat\('hard'\), false\);/.test(RP) && /cl\.box = hlodBoxes\(B\.HB, lodMat\('hard'\)\)/.test(RP) && /cl\.boxH = hlodBoxes\(H\.HB, lodMat\('hard'\)\)/.test(RP) &&
         /lod: \{ U: LOD_U, decl: LOD_DECL, glsl: lodDither\(\['out:A'\]\) \}/.test(RP) && /TA\.material\(b\.c\.kind, b\.c\.side, m0\.material\.dithering, !b\.band\)/.test(RP) && /b\.band \? bandOf\(b\.mat\) : b\.mat/.test(RP),
         '5q the host: a house builds its lod 1 with its lod 0 (not in the in-flight stream), the outbuilding at outLod; the banded far town merges lod 1, its near rung (TARR, G566) and boxes wear the band; an item keeps G559\'s rungs');

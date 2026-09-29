@@ -64,7 +64,7 @@ function stubTHREE() {
            DoubleSide: 2, FrontSide: 0, RepeatWrapping: 1000, SRGBColorSpace: 'srgb', LinearSRGBColorSpace: 'srgb-linear' };
 }
 // the page's world pack (build.js) - the generators the premises build with
-const GEN_FILES = ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'];
+const GEN_FILES = ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js', '../src/viewer/premises_build.js'];
 let HL = null;
 function headless() {
   if (HL) return HL;
@@ -278,16 +278,12 @@ function cookRaster(O, PG, opt) {
 const RP_FILE = path.join(ROOT, 'src', 'viewer', 'render_premises.js');
 const LIFTS = [
   ['  const extentWorld = () =>', '  // ---- the ground, with the overlay and the wear'],
-  ['  function buildHouse(plot) {', '  // THE DRESSING (v5)'],
-  ['  let SPREAD = null;', '  // THE SLAB (G401)'],
+  ['  function buildHouse(plot, R) {', '  // THE DRESSING (v5)'],
+  ['  // G830: THE TWO TALLIES', '  // THE SLAB (G401)'],
   ['  const objectSeed = ob =>', '  // a park on its plot'],
   ['  const parkSeed = pk =>', '  // A HOUSE\'S THRIFT (G557'],
   ['  function posOf(p) {', '  // THE QUEUE BY CELL (G592)'],
   ['  const LIVE_CELL = 256;', '  const qPos = p =>'],
-  // G800 (C0) reads the far town's dials in buildHouse (HLOD.lod1, HLOD.outLod) and the stream flag (IN_STREAM): the
-  // page's own defaults, lifted with them (G904.1) - the outbuilding is built at the page's lod, so its cooked bags are
-  // the page's
-  ['  const HLOD = {', '  const LOD_U = {'],
 ];
 function liftPage(src) {
   src = src || fs.readFileSync(RP_FILE, 'utf8');
@@ -299,7 +295,12 @@ function liftPage(src) {
   }
   return parts.join('\n');
 }
-const pageHash = () => crypto.createHash('sha256').update(liftPage()).digest('hex').slice(0, 16);
+// G830: the page's generation half is src/viewer/premises_build.js (render_premises.js runs it inline, the house worker
+// in its thread): the page's placement code is the lifts AND that file
+const PB_FILE = path.join(ROOT, 'src', 'viewer', 'premises_build.js');
+const pageHash = () => crypto.createHash('sha256').update(liftPage()).update(fs.readFileSync(PB_FILE, 'utf8')).digest('hex').slice(0, 16);
+// an edited premises_build.js (the gate's page edit), made on its own global
+function builderOf(src) { const g = {}; g.window = g; vm.runInNewContext(src, g, { filename: 'premises_build.js' }); return g.PREMISES_BUILD; }
 // render_premises shapeOf's filters, on a build's bags in the build's own frame (placeBuilt stands the meshes at the
 // group's origin, so the group frame IS the bags' frame); cell as hitAdd's (1.0 a house, an item)
 function shapeOfBuilt(built, F, HG, cell, OB) {
@@ -354,7 +355,7 @@ function cookPlaces(W, O, opt) {
   const hits = [], lots = { n: 0, bytes: 0 };
   let dressed = null;
   // the lot patch (--report only: it is the page's own lotGround, run to be measured - C2c re-makes it from the plan)
-  const win = Object.assign({}, GENS, opt && opt.measureLots ? {
+  const win = Object.assign({}, GENS, opt && opt.buildSrc ? { PREMISES_BUILD: builderOf(opt.buildSrc) } : {}, opt && opt.measureLots ? {
     LOT_GROUND: { mesh: (T3, grp, L) => { lots.n++; for (const k of ['pos', 'uv', 'splat', 'tone', 'alpha', 'idx']) if (L && L[k]) lots.bytes += (L[k].length || 0) * 4; } },
   } : {});
   const G = { houses: new THREE.Group(), lots: new THREE.Group() };
@@ -362,14 +363,14 @@ function cookPlaces(W, O, opt) {
   const hitAdd = (grp, tag, cell) => { hits.push({ grp, tag, cell }); return 0; };
   const HOUSES = new Map(), queue = [], STREAM = {}, stats = {};
   const body = '"use strict";\n' + code + '\n' +
-    'const dressPlot0 = dressPlot; dressPlot = function (plot) { const r = dressPlot0.apply(this, arguments); __dressed(plot); return r; };\n' +
-    'fenceGroup = function () { return null; };\n' +
-    // the lod-1 FAR RUNG (lod1Bags -> grp.userData.lod1, never in the scene) is not a placement and the cook drops grp:
-    // not built here (15 % of a build per house); outLod stays the page's (the outbuilding's own bags are cooked)
-    'HLOD.lod1 = false;\n' +
+    'const placeDress0 = placeDress; placeDress = function (plot) { const r = placeDress0.apply(this, arguments); __dressed(plot); return r; };\n' +
+    'placeFence = function () { return null; }; BLD.C.fences = false;\n' +
     'return { buildHouse, buildItem, syncHouses, posOf, cellKey, LIVE_CELL, W, H, litOf };';
-  const make = new Function('window', 'O', 'world', 'rec', 'PG', 'G', 'THREE', 'o', 'placeBuilt', 'hitAdd', 'hitDrop', 'propReg', 'slabMesh', 'queueCells', 'STREAM', 'stats', 'HOUSES', 'queue', '__dressed', body);
-  const P = make(win, O, W, O.rec, PG, G, THREE, { game: true, onBuilt: null }, placeBuilt, hitAdd, () => {}, () => null, () => null, () => {}, STREAM, stats, HOUSES, queue, pl => { dressed = pl; });
+  // (G830: the page's generation half is premises_build.js - its fences' bags are not made here: `fences: false`; the
+  // host's lod-1 dials as the page's defaults, its lod-1 meshes not kept)
+  const HLOD = { lod1: true, outLod: 1 };
+  const make = new Function('window', 'O', 'world', 'rec', 'PG', 'G', 'THREE', 'o', 'placeBuilt', 'hitAdd', 'hitDrop', 'propReg', 'slabMesh', 'queueCells', 'STREAM', 'stats', 'HOUSES', 'queue', '__dressed', 'HLOD', 'IN_STREAM', 'lod1Bags', 'hwCancel', 'HWQ', body);
+  const P = make(win, O, W, O.rec, PG, G, THREE, { game: true, onBuilt: null }, placeBuilt, hitAdd, () => {}, () => null, () => null, () => {}, STREAM, stats, HOUSES, queue, pl => { dressed = pl; }, HLOD, false, () => null, () => {}, { needState: false });
   if (P.LIVE_CELL !== CELL) throw new Error('premises_cook: the page\'s LIVE_CELL is ' + P.LIVE_CELL + ', the cook\'s ' + CELL);
   P.syncHouses();
   const cells = new Map(), t0 = Date.now();

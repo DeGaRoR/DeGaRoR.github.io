@@ -50,8 +50,13 @@ function make(THREE, scene, world, rec0, opts) {
   let rec = PG.normalise(rec0 || PG.DEF());
   // the stations' builder for the cable solver: the generator's build, no finish (only the hooks are read)
   const buildFor = r => { const GEN = window[r.gen]; return GEN ? GEN.build(r.P, 0) : null; };
-  const composeNow = () => o.game && world.premises ? (world.premises.set(rec, { build: buildFor, pool: o.pool() }) || PG.compose(rec, world.premises.base, { pool: o.pool(), globals: window, build: buildFor }))
-                                                     : PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
+  // (G830: the tree pool the game's recompose took is kept - the house worker recomposes with the same, hwCompose)
+  let composedPool = null;
+  const composeNow = () => {
+    if (o.game && world.premises) { composedPool = o.pool(); return world.premises.set(rec, { build: buildFor, pool: composedPool }) || PG.compose(rec, world.premises.base, { pool: o.pool(), globals: window, build: buildFor }); }
+    composedPool = null;
+    return PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
+  };
   let O = composeNow();
   // THE BOOT COMPOSED IT TWICE (2026-09-24): render_world makes this and calls rebuild() on the next
   // line, which composed the same record over the same world again - 2.5 s of Metlakatla's roll-out,
@@ -1346,8 +1351,9 @@ function make(THREE, scene, world, rec0, opts) {
   }
   // the generator's lod 1 of a house, as meshes that never join the scene (the far town's source): its opaque bags, the
   // channels the merge does not read dropped; `box` marks the walls and roof (the G594 box's extent)
-  function lod1Bags(HG, P, F) {
-    const b = HG.build(P, 1, F), tmp = new THREE.Group(), out = [];
+  // (G830: `b0`, the lod 1 already generated - inline by premises_build.js genHouse, or by the house worker)
+  function lod1Bags(HG, P, F, b0) {
+    const b = b0 || HG.build(P, 1, F), tmp = new THREE.Group(), out = [];
     for (const k of (b.BAGS || HG.BAGS)) {
       const bg = b.bags[k], mt = F.MAT[k];
       if (!bg || !mt || !mt.isMeshStandardMaterial || mt.transparent) continue;
@@ -1950,39 +1956,40 @@ function make(THREE, scene, world, rec0, opts) {
     if (F && F.SMOKE_U) { if (!F.SMOKE_U.uSmokeLit) F.SMOKE_U.uSmokeLit = { value: 1 }; LAMPS.smoke.add(F.SMOKE_U.uSmokeLit); }
     return grp;
   }
-  function buildHouse(plot) {
-    const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN;
-    if (!VG || !HG) return null;
-    const waterY = world.waterH ? world.waterH(0, 0) : -1e9;
-    const Tv = { h: (lx, lz) => O.localH(lx, lz), waterY, size: Math.max(W, H) };
-    const rules = Object.assign({}, PG.ZONE_RULES, (rec.layers.zones.find(z => z.id === plot.zone) || {}).rules || {});
-    const V = Object.assign({}, VG.VDEF, { plotDepth: rules.plotDepth, riparian: rules.riparian, seed: rec.seed });
-    const rnd = PG.mulberry32(plot.seed);
-    // the pick: a preset of the house generator when the zone's tag found one; the sampler else
-    let preset;
-    if (plot.pick && plot.pick !== 'sampler') { const e = PG.collect(window).entries.get(plot.pick); if (e && e.gen === 'HOUSE_GEN') preset = e.preset; }
-    const house = VG.placeHouse(Tv, V, plot, plot.seed % 100000, rnd, preset);   // the village's own, exported at its landing (G369.1)
-    if (!SPREAD && HG.makeSpread) SPREAD = HG.makeSpread();
-    if (SPREAD) house.P.spread = SPREAD;
-    const F = HG.makeFinish();
-    HG.applyFinish(house.P, F);
-    const built = HG.build(house.P, 0, F);
-    built.BAGS = HG.BAGS;
+  // G830 (C2a): A HOUSE IS ITS GENERATION + ITS PLACEMENT. The generation - placeHouse, the finish, HOUSE_GEN.build
+  // (lod 0 and lod 1), the plot's dressing plan and bags - is src/viewer/premises_build.js genHouse, run inline here
+  // (R absent) or in the house worker (R its result, unpacked: RemoteBags, the finish's build-written uniforms in
+  // R.fin). What follows is the page's: the materials, the meshes, the props, the obstacle.
+  function buildHouse(plot, R) {
+    const HG = window.HOUSE_GEN;
+    if (!window.VILLAGE_GEN || !HG) return null;
+    R = R || BLD.genHouse(plot);
+    if (!R) return null;
+    const house = R.house, built = R.built;
+    let F = R.F;
+    if (!F) { F = HG.makeFinish(); HG.applyFinish(house.P, F); PB.uniApply(F, R.fin); }
     const grp = placeBuilt(G.houses, house, built, F, HG);
-    // G800: its lod 1 in the same build (under the loading screen with it), for the far town; the bench builds none, nor
-    // does the in-flight stream (G591's items past the roll-out's reach): no work added to a frame in flight - such a
+    // G800: its lod 1 (generated with it, under the loading screen), for the far town; the bench keeps none, nor does
+    // the in-flight stream (G591's items past the roll-out's reach): no merge added to a frame in flight - such a
     // house keeps G559's lod-0 far town and the hard switch
-    if (HLOD.lod1 && o.game && !IN_STREAM) { try { grp.userData.lod1 = lod1Bags(HG, house.P, F); } catch (e) { console.warn('premises lod 1', plot.id, e && e.message); } }
+    if (HLOD.lod1 && o.game && !IN_STREAM && R.lod1) { try { grp.userData.lod1 = lod1Bags(HG, house.P, F, R.lod1); } catch (e) { console.warn('premises lod 1', plot.id, e && e.message); } }
     hitAdd(grp, 'house', 1.0);
-    const D = dressPlot(plot, house, built, V, Tv);
+    const D = placeDress(plot, built, R.dress, R.Tv);
     return { grp, tris: built.stats.tris + D.tris, house, built, extra: D.groups, lights: litOf(built) + D.lights };
   }
   // THE DRESSING (v5): the village's own plan functions on the BUILT house - the garden path, the
   // fences (a neighbour's fence is this fence: one edge set for the whole premises), the outbuilding,
   // the car and the boat, and the lot's ground patch reading them all; drawn in the premises frame
   // under G.lots, the outbuilding as a house of its own
-  let SPREAD = null;
-  const FENCED = new Set();
+  // G830: THE TWO TALLIES (SPREAD, FENCED) ARE THE BUILDER'S (src/viewer/premises_build.js makeBuilder - its header says
+  // why they travel with the work); the page reads them here, and syncHouses takes a torn-down plot's edges back
+  const PB = window.PREMISES_BUILD;
+  const BLD = PB.makeBuilder({ G: window, PG, get O() { return O; }, get rec() { return rec; },
+    waterY: () => (world.waterH ? world.waterH(0, 0) : -1e9), size: () => Math.max(W, H), game: !!o.game,
+    get lod1() { return HLOD.lod1; }, get outLod() { return HLOD.outLod; },
+    props: { has: k => { const PR = propReg(); return !!(PR && PR.props[k]); } },
+    get pp() { return typeof propPlace === 'function'; }, get lotGround() { return !!window.LOT_GROUND; } });
+  const FENCED = BLD.S.fenced;
   const FENCE_HAND = 0.6;
   let FENCE_F = null;
   function fenceFinish() {
@@ -1998,77 +2005,48 @@ function make(THREE, scene, world, rec0, opts) {
     return F;
   }
   const litOf = built => (built && built.stats && built.stats.lit && built.stats.lit.lights ? built.stats.lit.lights.length : 0);
-  // the fence segments of one plot (or park) into their own baked bags under G.lots; the posts' feet out
-  function fenceGroup(segs, T, seed, posts) {
-    const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, HK = window.HOUSE_KIT, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
-    if (!VG || !HK || !segs || !segs.length) return null;
+  // the fence segments of one plot (or park): generated (premises_build.js genFence: the bags, baked; the scanned
+  // stretches as placements) and stood under G.lots; the posts' feet out
+  function fenceGroup(segs, T, seed, posts) { return placeFence(BLD.genFence(segs, T, seed, posts)); }
+  function placeFence(fr) {
+    if (!fr) return null;
+    const pp = typeof propPlace === 'function' ? propPlace : null;
     const F = fenceFinish();
-    const bags = { post: HK.Bag('post'), deck: HK.Bag('deck') };
     const grp = new THREE.Group(); grp.name = 'fence';
-    let n = 0;
-    for (const seg0 of segs) {
-      const seg = VG.clipToLand(T, seg0);
-      if (!seg) continue;
-      if (seg.style === 'old' && pp && PR && PR.props.fence_old && HG.YARD_KIT && HG.YARD_KIT.fence_old) {
-        // the scanned stretch, one prop width at a time along the edge, on the ground under its own middle, the gate's bay left out
-        const L = Math.hypot(seg.b[0] - seg.a[0], seg.b[1] - seg.a[1]), tg = [(seg.b[0] - seg.a[0]) / L, (seg.b[1] - seg.a[1]) / L];
-        const Wd = HG.YARD_KIT.fence_old.W, ry = Math.atan2(tg[0], tg[1]) - Math.PI / 2;
-        const parts = seg.gap ? [[0, Math.max(0, seg.gap[0])], [Math.min(L, seg.gap[1]), L]] : [[0, L]];
-        for (const [u0, u1] of parts) {
-          if (u1 - u0 < 0.8) continue;
-          const ns = Math.max(1, Math.round((u1 - u0) / Wd)), pw = (u1 - u0) / ns;
-          for (let i = 0; i < ns; i++) { const tm = u0 + pw * (i + 0.5), x = seg.a[0] + tg[0] * tm, z = seg.a[1] + tg[1] * tm; const o = pp(THREE, 'fence_old', x, z, ry, T.h(x, z) - 0.03); o.scale.x = pw / Wd; grp.add(o); n++; }
-        }
-        if (seg.gap) n += VG.gateLeaf(bags, T, seg.a, tg, Math.max(0.3, seg.gap[0]), Math.min(L - 0.3, seg.gap[1]), 1.15, FENCE_HAND, () => 0.3, 'old');
-      } else { seg.feet = posts || []; n += VG.buildFence(bags, T, seg, FENCE_HAND, seed); }
-    }
-    if (!n) return null;
-    HK.bakeAO([bags.post, bags.deck], { strength: 0.85, range: 0.5, ground: T.h });
-    for (const k in bags) bags[k].mesh(grp, F.MAT[k]);
+    for (const q of fr.props) { const ob = pp(THREE, 'fence_old', q.x, q.z, q.ry, q.y); ob.scale.x = q.sx; grp.add(ob); }
+    for (const k in fr.bags) fr.bags[k].mesh(grp, F.MAT[k]);
     G.lots.add(grp);
     return grp;
   }
-  function dressPlot(plot, house, built, V, Tv, roadOverride) {
-    const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
+  // a plot's dressing, placed: the plan (finishPlot's, on the plot), the fence, the outbuilding as a house of its own,
+  // the car and the boat on the ground, tilted to it, and the lot's ground patch (D: premises_build.js genDress)
+  function placeDress(plot, built, D, Tv) {
+    const HG = window.HOUSE_GEN, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
     const out = { groups: [], tris: 0, lights: 0 };
-    if (!VG || !VG.finishPlot) return out;
-    const rd = roadOverride || O.roads.find(r => r.id === plot.road) || O.roads[0];
-    if (!rd) return out;
-    const T = { h: Tv.h, size: Tv.size, waterY: Tv.waterY };
-    const vil = { rnd: PG.mulberry32(plot.seed ^ 0x5eed), V, road: { pts: rd.pts, w: rd.w }, fenced: FENCED, T, spread: SPREAD, plots: O.records.plots, houses: [] };
-    try { VG.finishPlot(vil, plot, house, built); } catch (e) { console.warn('premises dress', plot.id, e && e.message); return out; }
-    const posts = [];
-    const fg = fenceGroup(plot.fences, T, (PG.fnv(String(plot.id)) % 1000) * 7 + 1, posts);
+    if (!D || !D.ok) return out;
+    const fg = placeFence(D.fence);
     if (fg) out.groups.push(fg);
-    // the outbuilding: the same generator, its own finish, a house of its own in the world - at lod 1 in the game
-    // (G800: it was a second full lod-0 house; a shed seen across a yard is the generator's far mesh); the bench keeps lod 0
-    if (plot.out) {
+    if (D.out && plot.out) {
       try {
-        const F2 = HG.makeFinish(); HG.applyFinish(plot.out.P, F2);
-        const b2 = HG.build(plot.out.P, (HLOD.outLod && o.game) ? 1 : 0, F2); b2.BAGS = HG.BAGS; plot.out.built = b2;
+        let F2 = D.out.F;
+        if (!F2) { F2 = HG.makeFinish(); HG.applyFinish(plot.out.P, F2); PB.uniApply(F2, D.out.fin); }
+        const b2 = D.out.built; plot.out.built = b2;
         const og = placeBuilt(G.houses, plot.out, b2, F2, HG); hitAdd(og, 'outbuilding', 1.0);
         out.groups.push(og); out.tris += b2.stats.tris; out.lights += litOf(b2);
       } catch (e) { console.warn('premises outbuilding', plot.id, e && e.message); plot.out = null; }
     }
-    // the car and the boat on the ground, tilted to it; the occluders the lot patch reads
+    const h = Tv.h;
     const grp = new THREE.Group(); grp.name = 'yard:' + plot.id;
-    const occ = [];
-    const toW = (hh, o) => { const w = hh.toWorld(o.x, o.z); return Object.assign({}, o, { x: w[0], z: w[1], ry: (o.ry || 0) + hh.yaw }); };
-    for (const o of built.stats.groundAO || []) occ.push(toW(house, o));
-    if (plot.out && plot.out.built) for (const o of plot.out.built.stats.groundAO || []) occ.push(toW(plot.out, o));
     // THE LOT SLAB (G401): a commercial car park or an official forecourt in weathered concrete, its
     // bay lines, and the cars in the bays - the composer's per category (VILLAGE_GEN.planLot)
-    if (plot.lot && plot.lot.kind === 'concrete' && plot.lot.poly) { const sl = slabMesh(plot.lot, T.h); if (sl) grp.add(sl); }
+    if (plot.lot && plot.lot.kind === 'concrete' && plot.lot.poly) { const sl = slabMesh(plot.lot, h); if (sl) grp.add(sl); }
     const lotCars = plot.lot && plot.lot.cars ? plot.lot.cars : [];
     for (const c of [plot.car, plot.boat].concat(lotCars)) if (c && pp && PR && PR.props[c.key]) {
-      const o = pp(THREE, c.key, c.x, c.z, c.ry, c.y); tiltToGround(o, T.h, c.x, c.z, c.ry); grp.add(o);
-      hitAdd(o, plot.boat === c ? 'boat' : 'car', 0.5);
-      const K = plot.boat === c ? (HG.PIER_KIT || {})[c.key] : (HG.YARD_KIT || {})[c.key];
-      if (K) occ.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: plot.boat === c ? 0.6 : 0.65, soft: plot.boat === c ? 0.9 : 1.0 });
+      const ob = pp(THREE, c.key, c.x, c.z, c.ry, c.y); tiltToGround(ob, h, c.x, c.z, c.ry); grp.add(ob);
+      hitAdd(ob, plot.boat === c ? 'boat' : 'car', 0.5);
     }
-    for (const f of posts) if (Math.abs(f[0] - house.x) < 40 && Math.abs(f[1] - house.z) < 40) occ.push({ x: f[0], z: f[1], r: 0.07, k: 0.45, soft: 0.35 });
-    if (window.LOT_GROUND && VG.lotGround) {
-      try { const L = VG.lotGround(vil, plot, house, built, occ); window.LOT_GROUND.mesh(THREE, grp, L, () => { if (o.onBuilt) o.onBuilt(0, queue.length); }); }
+    if (D.lot && window.LOT_GROUND) {
+      try { window.LOT_GROUND.mesh(THREE, grp, D.lot, () => { if (o.onBuilt) o.onBuilt(0, queue.length); }); }
       catch (e) { console.warn('premises lot', plot.id, e && e.message); }
     }
     G.lots.add(grp); out.groups.push(grp);
@@ -2165,48 +2143,28 @@ function make(THREE, scene, world, rec0, opts) {
     return null;
   }
   const objectSeed = ob => PG.hash32(PG.fnv(String(ob.id)), PG.fnv(JSON.stringify([ob.kind, ob.key, ob.x, ob.z, ob.yaw, ob.y, ob.w, ob.on])));
-  function buildItem(it) {
+  // a site's item (G830: its generation - the build and the synthetic plot's dressing plan - is premises_build.js
+  // genItem, inline or the house worker's R; the placement is here)
+  function buildItem(it, R) {
     const GEN = window[it.gen];
     if (!GEN) return null;
-    const F = GEN.makeFinish();
-    GEN.applyFinish(it.P, F);
-    const built = GEN.build(it.P, 0, F);
-    built.BAGS = built.BAGS || GEN.BAGS;          // a build may carry bags of its own (the hangar shell's, G405.1)
+    R = R || BLD.genItem(it);
+    if (!R) return null;
+    const built = R.built;
+    let F = R.F;
+    if (!F) { F = GEN.makeFinish(); GEN.applyFinish(it.P, F); PB.uniApply(F, R.fin); }
     const grp = placeBuilt(G.houses, it, built, F, GEN);
     hitAdd(grp, 'item', 1.0);
     if (built.bags.aoskirt && GEN.MAT && GEN.MAT.aoskirt) { const sk = built.bags.aoskirt.mesh(grp, GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
     // A HAND-PLACED SITE ITEM DRESSES LIKE A PLOT (G401, the user: "the ground textures of all lots"): a
     // synthetic plot round its foot - the frontage on its +z side, the road a line 6 m in front - through
-    // the same dressPlot a zoned plot gets, so the category's law lays its ground (the sports ground
-    // brings its own; the tram, the mill and the parks stand as they are)
+    // the same dressing a zoned plot gets, so the category's law lays its ground (the sports ground
+    // brings its own; the tram, the mill and the parks stand as they are). The plan is genItem's.
     const extra = [];
-    try {
-      const cat = (it.entry && it.entry.cat) || (window.VILLAGE_GEN && window.VILLAGE_GEN.lotCat ? window.VILLAGE_GEN.lotCat({}, { P: it.P, gen: it.gen, preset: it.P.preset }) : null);
-      // ...unless the entry refuses one (contract v1.29 `lot: false`): a pier, a float, a
-      // breakwater or a wharf stands in the water, and a lot round it would fence the sea.
-      // ...unless the ITEM says no (G527, contract v1.24 `P.lot: false`): a clan house on a
-      // ceremonial ground stands on the ground it is given, not on a lawn with a drive and a car.
-      // ...and nothing that stands on a DECK gets one either: its lot would be laid on the
-      // composed ground, which under a wharf is the seabed (the packing plant's four sheds).
-      const wantsLot = !(it.entry && it.entry.lot === false) && it.P.lot !== false && !isFinite(it.P.floorOverWater);
-      if (wantsLot && cat && cat !== 'sports' && cat !== 'landmark' && !it.P.mill && !it.P.station && window.VILLAGE_GEN && window.VILLAGE_GEN.finishPlot) {
-        const P = it.P, L = P.L || 10, w = P.w || 8, porch = P.porch ? (P.porchD || 2.4) : (P.dock ? (P.dockD || 2.4) + 2 : 0);
-        // the lot's margins: room for a drive beside a house, for a wing, for a works' yard
-        const mx = (cat === 'industrial' ? 6 : (cat === 'residential' ? 7 : 5)) + (P.wing ? 7 : 0), front = cat === 'commercial' ? 14 : (cat === 'industrial' ? 16 : 10), back = cat === 'residential' ? 8 : 4;
-        const c = Math.cos(it.yaw), sn = Math.sin(it.yaw);
-        const W2 = (lx, lz) => [lx * c + lz * sn + it.x, -lx * sn + lz * c + it.z];        // the item's frame -> premises (house law)
-        const zF = w / 2 + porch + front, zB = -w / 2 - back;
-        const poly = [W2(-L / 2 - mx, zF), W2(L / 2 + mx, zF), W2(L / 2 + mx, zB), W2(-L / 2 - mx, zB)];   // frontage first, along +x
-        const tg = [c, -sn], n = [-sn, -c];                                                                 // along the frontage; away from the road (-z)
-        const roadPts = [W2(-L / 2 - mx - 30, zF + 6), W2(L / 2 + mx + 30, zF + 6)];
-        const plot = { id: 'site:' + it.id, side: 'land', poly, depth: zF - zB, n, tg, w: L + 2 * mx, front: W2(0, zF), cat, road: null, seed: it.seed | 0, synthetic: true };
-        const house = { x: it.x, z: it.z, yaw: it.yaw, P, gen: it.gen, preset: it.P.preset, cat, toWorld: W2, ground: it.ground, built };
-        const VG = window.VILLAGE_GEN, Vv = Object.assign({}, VG.VDEF, { seed: rec.seed });
-        const Tv = { h: (lx, lz) => O.localH(lx, lz), waterY: world.waterH ? world.waterH(0, 0) : -1e9, size: Math.max(W, H) };
-        const D = dressPlot(plot, house, built, Vv, Tv, { pts: roadPts, w: 6 });
-        for (const g2 of D.groups) extra.push(g2);
-      }
-    } catch (e) { console.warn('premises site lot', it.id, e && e.message); }
+    if (R.dress && R.plot) {
+      try { const D = placeDress(R.plot, built, R.dress, R.Tv); for (const g2 of D.groups) extra.push(g2); }
+      catch (e) { console.warn('premises site lot', it.id, e && e.message); }
+    }
     return { grp, tris: built.stats.tris, house: it, built, lights: litOf(built), extra };
   }
   const itemSeed = it => PG.hash32(it.seed, PG.fnv(JSON.stringify([it.x, it.z, it.yaw, it.key, it.P.tramTo || null, it.P.floorY])));
@@ -2225,9 +2183,9 @@ function make(THREE, scene, world, rec0, opts) {
     if (fg) extra.push(fg);
     return { grp, tris: Math.round(tris), house: pk, extra };
   }
-  function buildSiteFences(st) {
-    const Tp = { h: (lx, lz) => O.localH(lx, lz), size: Math.max(W, H), waterY: world.waterH ? world.waterH(0, 0) : -1e9 };
-    const fg = fenceGroup(st.fences, Tp, (PG.fnv(String(st.id)) % 1000) * 7 + 3, []);
+  function buildSiteFences(st, R) {
+    R = R || BLD.genFences(st.fences, (PG.fnv(String(st.id)) % 1000) * 7 + 3);
+    const fg = placeFence(R.fence);
     return { grp: fg || new THREE.Group(), tris: 0, house: st, extra: [] };
   }
   const parkSeed = pk => PG.hash32(pk.seed, PG.fnv(JSON.stringify([pk.plan.centre, pk.plan.yaw, pk.level, pk.key])));
@@ -2242,9 +2200,10 @@ function make(THREE, scene, world, rec0, opts) {
     const VGe = window.VILLAGE_GEN;
     for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed) {
       for (const g of [h.grp].concat(h.extra || [])) if (g) { hitDrop(g); if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); }
-      if (VGe && VGe.edgeKey && h.plot && h.plot.fences) for (const sg of h.plot.fences) FENCED.delete(VGe.edgeKey(sg.a, sg.b));
+      if (VGe && VGe.edgeKey && h.plot && h.plot.fences) for (const sg of h.plot.fences) { FENCED.delete(VGe.edgeKey(sg.a, sg.b)); HWQ.needState = true; }
       HOUSES.delete(id);
     } }
+    hwCancel();   // G830: what the worker still owes is re-queued below with the rest
     queue.length = 0;
     for (const [id, p] of want) if (!HOUSES.has(id)) { p._w = undefined; p._d = undefined; queue.push(p); }
     queueCells(); STREAM.cx = NaN;   // the stream re-sorts from the aircraft at its next call
@@ -2381,6 +2340,8 @@ function make(THREE, scene, world, rec0, opts) {
   }
   const STREAM = { reach: 6000, budget: 3, cap: 12, resort: 60, bank: 0, cx: NaN, cz: NaN, near: 0, ms: 0, built: 0, slow: [] };   // slow: the last builds over 60 ms [id, ms]
   function stream(cx, cz) {
+    if (hwOn()) return streamW(cx, cz);
+    if (HWQ.order.length) hwCancel(true);   // the worker gone (or the editor open): what it owed builds here, first
     const S = STREAM;
     if (!queue.length) { S.near = 0; return 0; }
     if (!(Math.abs(cx - S.cx) + Math.abs(cz - S.cz) < S.resort) || queue[0]._d === undefined) {
@@ -2410,6 +2371,8 @@ function make(THREE, scene, world, rec0, opts) {
   // obstacle registers it and builds nothing; a slice that builds leaves the registration to the next.
   const hitPendingReady = () => PENDING_HIT.some(q => q.grp.parent && hitReady(q.grp));
   function prewarm(cx, cz, reach, budgetMs) {
+    if (hwOn()) return prewarmW(cx, cz, reach, budgetMs);
+    if (HWQ.order.length) hwCancel(true);
     sortFrom(cx, cz); STREAM.cx = cx; STREAM.cz = cz;
     const t0 = performance.now();
     let n = 0;
@@ -2427,18 +2390,19 @@ function make(THREE, scene, world, rec0, opts) {
     let k = 0; while (k < queue.length && queue[k]._d <= STREAM.reach) k++; STREAM.near = k;
     return { done: !near, built: n, near, queued: queue.length, ms: performance.now() - t0 };
   }
-  function buildOne(p) {
+  // (G830: R, the entry's generation when the house worker made it - premises_build.js unpack)
+  function buildOne(p, R) {
     const k = qCell(p), c = CELLQ.get(k) || 0; if (c > 1) CELLQ.set(k, c - 1); else CELLQ.delete(k);
     const tb = performance.now();
-    try { buildOne0(p); } finally { const ms = performance.now() - tb; if (ms > 60) { const L = STREAM.slow; L.push([p.id, Math.round(ms)]); if (L.length > 60) L.shift(); } }
+    try { buildOne0(p, R); } finally { const ms = performance.now() - tb; if (ms > 60) { const L = STREAM.slow; L.push([p.id, Math.round(ms)]); if (L.length > 60) L.shift(); } }
   }
-  function buildOne0(p) {
-    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+  function buildOne0(p, R) {
+    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec, R) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec, R) : buildHouse(p, R); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
     catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
   }
   // what a batch of builds owes once (not once an item)
   function afterBuilt(built, noHit) {
-    stats.queued = queue.length; stats.houses = 0; stats.objects = 0; stats.houseTris = 0; stats.lights = 0;
+    stats.queued = queue.length + HWQ.order.length; stats.houses = 0; stats.objects = 0; stats.houseTris = 0; stats.lights = 0;
     for (const [, h] of HOUSES) { stats.houseTris += h.tris || 0; stats.lights += h.lights || 0; if (h.isObject) stats.objects++; else stats.houses++; }
     if (!noHit) hitPendingStep();   // (G999: the prewarm gives it its own slice)
     stats.obstacles = OBST_IDS.size;
@@ -2451,10 +2415,160 @@ function make(THREE, scene, world, rec0, opts) {
     return built;
   }
   function step(n) {
+    // G830: what the worker owes goes first, in its order; the editor (step's caller while it is open) builds inline
+    if (HWQ.order.length) { if (hwOn()) return afterBuilt(hwPlace(0, performance.now())); hwCancel(true); }
     let built = 0;
     while (queue.length && built < (n || 2)) { buildOne(queue.shift()); built++; }
     return afterBuilt(built);
   }
+
+  // ---- THE HOUSE WORKER (G830-G832, C2a): the queue's generation in src/viewer/house_worker.js -------------------
+  // The queue keeps its order (the prewarm's by distance from the stand, the stream's from the aircraft) and the page
+  // PLACES in that order; what changes is who generates. An entry the prewarm or the stream takes is DISPATCHED - a
+  // job { seq, kind, id, seed } in a batch to the worker - and placed when its result is in and every entry before it
+  // is placed, with buildOne(p, R). Only houses, site items and site fences are generated there; an object (a prop, a
+  // parked aeroplane, a billboard) or a park is placed here at its turn as before.
+  // THE TALLIES (premises_build.js): the page applies each result's delta as it places it, so its copy is the worker's
+  // at every batch boundary; a batch carries the page's copy (`state`) whenever the worker's may differ - the first,
+  // and after anything generated HERE that moves them: a HANGAR_GEN item (its lod-0 shell is hangar.js's THREE build,
+  // canvas sheets and materials of its own: MAIN_ONLY) is a BARRIER - nothing past it is sent until it is built; a
+  // result the worker could not give (not found, an error, a cache entry gone) is built here and everything after it
+  // is sent again (`gen` bumped: the late answers are dropped).
+  const HWK = (o.game && window.HOUSE_WORKER && window.HOUSE_WORKER.ok()) ? window.HOUSE_WORKER : null;
+  const HWQ = { order: [], jobs: new Map(), arrived: new Map(), seq: 0, gen: 0, epoch: -1, needState: true, dead: false,
+                dispatched: 0, placed: 0, local: 0, errors: 0 };
+  const hwOn = () => !!(HWK && !HWQ.dead && HWQ.epoch >= 0 && HWK.ok() && !o.editing());
+  const hwKind = p => (p.isPark || p.isObject ? null : p.isFence ? 'fence' : p.isItem ? 'item' : 'house');
+  const hwMainOnly = p => !!(p.isItem && p.rec.gen === 'HANGAR_GEN' && !(p.rec.P && p.rec.P.restated) && typeof document !== 'undefined' && typeof genHangarBuild === 'function');
+  function hwCompose() {
+    if (!HWK || !HWK.ok()) return;
+    hwCancel(true);
+    const lazy = ['SPORT_GEN', 'MARINE_GEN'].filter(g => !!window[g]);
+    HWQ.epoch = HWK.compose(rec, composedPool || [], lazy);
+    HWQ.needState = true;
+  }
+  if (HWK) {
+    HWK.onResult = m => { if (m.epoch === HWQ.epoch && m.gen === HWQ.gen && HWQ.jobs.has(m.seq)) HWQ.arrived.set(m.seq, m); };
+    HWK.onFail = () => { HWQ.dead = true; for (const [, j] of HWQ.jobs) j.remote = false; };   // the rest builds here, in the same order
+    if (o.game && world.premises) hwCompose();
+  }
+  // what the worker is still owed (the pending entries back at the head of the queue, when asked)
+  function hwCancel(requeue) {
+    if (!HWQ.order.length) return;
+    const back = HWQ.order.map(s => HWQ.jobs.get(s).p);
+    HWQ.order.length = 0; HWQ.jobs.clear(); HWQ.arrived.clear(); HWQ.gen++; HWQ.needState = true;
+    if (requeue) { queue.unshift(...back); queueCells(); }
+  }
+  function hwDispatch(list) {
+    for (const p of list) {
+      const seq = ++HWQ.seq, kind = hwKind(p), barrier = kind === 'item' && hwMainOnly(p);
+      HWQ.jobs.set(seq, { seq, p, kind, barrier, remote: !!kind && !barrier && !HWQ.dead, sent: false });
+      HWQ.order.push(seq);
+    }
+    hwPump();
+  }
+  function hwPump() {
+    if (!hwOn()) return;
+    const jobs = [];
+    for (const seq of HWQ.order) {
+      const j = HWQ.jobs.get(seq);
+      if (j.barrier) break;                      // nothing past a page-built entry that moves the tallies
+      if (!j.remote || j.sent) continue;
+      j.sent = true; jobs.push({ seq, kind: j.kind, id: j.p.id, seed: j.p.seed });
+    }
+    if (!jobs.length) return;
+    const PR = propReg();
+    HWK.post({ cmd: 'jobs', epoch: HWQ.epoch, gen: HWQ.gen, state: HWQ.needState ? BLD.getState() : null, jobs,
+               size: Math.max(W, H), lod1: HLOD.lod1, outLod: HLOD.outLod, pp: typeof propPlace === 'function', lotGround: !!window.LOT_GROUND,
+               props: PR ? Object.keys(PR.props) : [] });
+    HWQ.needState = false; HWQ.dispatched += jobs.length;
+  }
+  // everything after `seq` is asked again (the page's tallies are the truth; the worker's answers past it are dropped)
+  function hwResend(seq) {
+    HWQ.gen++; HWQ.needState = true;
+    for (const [s, j] of HWQ.jobs) if (s > seq) { j.sent = false; HWQ.arrived.delete(s); }
+  }
+  // place what has arrived, in order, within `budgetMs` (at least one when one is ready); `each(p)` after each
+  function hwPlace(budgetMs, t0, each) {
+    let n = 0;
+    while (HWQ.order.length) {
+      if (n > 0 && performance.now() - t0 >= budgetMs) break;
+      const seq = HWQ.order[0], j = HWQ.jobs.get(seq);
+      let R, miss = false;
+      if (j.remote && !HWQ.dead) {
+        const m = HWQ.arrived.get(seq);
+        if (!m) break;
+        if (m.miss || !m.r) {
+          miss = true; if (m.miss) console.warn('house worker: ' + j.p.id + ' (' + m.miss + ') - built here');
+          // a worker that keeps failing is let go: the rest builds here, in the same order
+          if (/^error/.test(m.miss || '') && ++HWQ.errors >= 3) { HWQ.dead = true; for (const [, jj] of HWQ.jobs) jj.remote = false; console.warn('house worker: three errors - the page builds the rest itself'); }
+        }
+        else { BLD.applyDelta(m.d); R = BLD.unpack(m.r, THREE, j.kind === 'item' ? j.p.rec : j.kind === 'house' ? j.p : null); }
+      }
+      HWQ.order.shift(); HWQ.jobs.delete(seq); HWQ.arrived.delete(seq);
+      const here = !R && !!j.kind;   // generated on this thread (a barrier, a miss, the worker gone)
+      if (here) { HWQ.local++; window.FLYDIY_HW_HERE = (window.FLYDIY_HW_HERE || 0) + 1; }
+      try { buildOne(j.p, R); }
+      finally { if (here) window.FLYDIY_HW_HERE--; }
+      n++; HWQ.placed++;
+      if (each) each(j.p);
+      if (miss) hwResend(seq);
+      if (j.barrier || miss) hwPump();
+    }
+    return n;
+  }
+  // a promise that settles when the worker next answers (the town step waits on it rather than spinning)
+  const hwWait = () => (HWQ.order.length && !HWQ.arrived.has(HWQ.order[0]) && hwOn() ? HWK.next() : null);
+  // THE ROLL-OUT'S SHARE, the worker's way: everything within reach dispatched at once (in the order the page builds),
+  // then placed as it arrives, a budget a slice
+  function prewarmW(cx, cz, reach, budgetMs) {
+    sortFrom(cx, cz); STREAM.cx = cx; STREAM.cz = cz;
+    const t0 = performance.now();
+    const pend = () => HWQ.order.length;
+    if (hitPendingReady()) {
+      hitPendingStep(); stats.obstacles = OBST_IDS.size;
+      let near0 = 0; while (near0 < queue.length && queue[near0]._d <= reach) near0++;
+      return { done: false, built: 0, near: near0 + pend(), queued: queue.length + pend(), ms: performance.now() - t0 };
+    }
+    const take = []; while (queue.length && queue[0]._d <= reach) take.push(queue.shift());
+    if (take.length) hwDispatch(take);
+    let n = 0;
+    STREAMING = true;
+    try { n = hwPlace(budgetMs, t0); } finally { STREAMING = false; }
+    const near = pend();
+    if (near || hitPendingReady()) { STREAMING = true; try { afterBuilt(n, true); } finally { STREAMING = false; } if (!near) return { done: false, built: n, near: 0, queued: queue.length, ms: performance.now() - t0 }; }
+    else { afterBuilt(n); freezeStatic(true); }
+    let k = 0; while (k < queue.length && queue[k]._d <= STREAM.reach) k++; STREAM.near = k + pend();
+    return { done: !near, built: n, near, queued: queue.length + near, ms: performance.now() - t0, wait: n ? null : hwWait() };
+  }
+  // THE STREAM, the worker's way: what the aircraft's reach takes is dispatched in the stream's order; what has arrived
+  // is placed on the stream's own bank (an upload's worth, not a generation's) and rises (G673)
+  function streamW(cx, cz) {
+    const S = STREAM;
+    if (!queue.length && !HWQ.order.length) { S.near = 0; return 0; }
+    if (queue.length && (!(Math.abs(cx - S.cx) + Math.abs(cz - S.cz) < S.resort) || queue[0]._d === undefined)) { sortFrom(cx, cz); S.cx = cx; S.cz = cz; }
+    const take = []; while (queue.length && queue[0]._d <= S.reach) take.push(queue.shift());
+    if (take.length) hwDispatch(take);
+    S.near = HWQ.order.length;
+    S.bank = Math.min(S.cap, S.bank + S.budget);
+    if (!HWQ.order.length || S.bank <= 0) return 0;
+    const t0 = performance.now();
+    let n = 0;
+    while (HWQ.order.length && S.bank > 0) {
+      const t = performance.now();
+      IN_STREAM = true;
+      let k; try { k = hwPlace(0, t, p => { const h = HOUSES.get(p.id); if (h && !h.failed) { riseAdd(h.grp); for (const g of h.extra || []) riseAdd(g); } }); } finally { IN_STREAM = false; }
+      if (!k) break;
+      n += k; S.bank -= performance.now() - t;
+    }
+    S.near = HWQ.order.length;
+    if (!n) return 0;
+    const t1 = performance.now(); STREAMING = true; try { afterBuilt(n); } finally { STREAMING = false; } S.bank -= performance.now() - t1;
+    const t2 = performance.now(); S.ms += t2 - t0; S.built += n;
+    if (t2 - t0 > (S.worst ? S.worst[0] : 0)) S.worst = [Math.round(t2 - t0), n, Math.round(t2 - t1), queue.length ? Math.round(queue[0]._d) : -1];
+    return n;
+  }
+
 
   // ---- the trees: the payload's rungs in a THREE.LOD, a cone until it lands -----------------
   const TREE_DEPTH = new Map();
@@ -2559,7 +2673,7 @@ function make(THREE, scene, world, rec0, opts) {
   function rebuild(dirty) { const g = rebuildSteps(dirty); for (;;) { const r = g.next(); if (r.done) return r.value; } }
   function* rebuildSteps(dirty) {
     const t0 = performance.now();
-    if (!(composedFresh && dirty === undefined)) O = composeNow();
+    if (!(composedFresh && dirty === undefined)) { O = composeNow(); hwCompose(); }
     composedFresh = false;
     refreshBounds();
     let n = 0;
@@ -2689,7 +2803,7 @@ function make(THREE, scene, world, rec0, opts) {
     patchDepth, ringSink, tuck: PATCH_TUCK,   // G752: metres inside the patch (0 outside); the rings' sink by it (0 at the border); the two laws' dials
     patchBounds: () => (patch ? extentWorld() : null),
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
-    drainNear, stream, prewarm, streamState: STREAM, cellLive,   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued
+    drainNear, stream, prewarm, streamState: STREAM, cellLive, hwWait, hw: HWQ,   // G830: the house worker's pending answer (a promise, or null); its queue's state   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued
     detail: DETAIL, hlod: HLOD,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },

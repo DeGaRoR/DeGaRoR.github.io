@@ -887,7 +887,9 @@ if (SELFTEST) {
     // lot would be laid on the seabed under it.
     const noLot = (GENS.MARINE_GEN && GENS.MARINE_GEN.CATALOGUE || []).filter(e => e.lot !== false);
     check(noLot.length === 0, '14n every marine entry refuses a lot', noLot.map(e => e.key).join(', '));
-    const RP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+    // (G830: the rule is the generation half's - src/viewer/premises_build.js genItem - which the renderer runs inline
+    // or in its house worker)
+    const RP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'premises_build.js'), 'utf8');
     check(/entry\.lot === false/.test(RP) && /isFinite\(it\.P\.floorOverWater\)/.test(RP),
           '14n the renderer honours lot:false and refuses a lot over water');
     // 14o THE ttype STAMP'S `from` FILTER, and the undo under OVERLAP. Two stamps

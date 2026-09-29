@@ -208,9 +208,11 @@ const batchMats = CR => { const out = []; CR.root.traverse(o => { if (!o.isBatch
     const Cb = mkCtx(false); const g2 = new THREE.Group(); const m3 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)); g2.add(m3); Cb.riseAdd(g2);
     ok(Cb.RISE.list.length === 0 && m3.onBeforeRender === proto, '5 the bench (o.game false) hooks nothing');
   }
-  const st = lift(RP, '  function stream(cx, cz) {', '  function prewarm('), pw = lift(RP, '  function prewarm(', '  function buildOne(p) {');
-  ok(!!st && /riseAdd\(h\.grp\)/.test(st), '5 the stream raises what it builds');
-  ok(!!pw && !/riseAdd/.test(pw), '5 the prewarm (under the roll-out screen) does not');
+  const st = lift(RP, '  function stream(cx, cz) {', '  function prewarm('), pw = lift(RP, '  function prewarm(', '  function buildOne(');
+  // (G830: and their house-worker twins - streamW places what the worker made and raises it, prewarmW does not)
+  const stW = lift(RP, '  function streamW(cx, cz) {', '\n  }\n'), pwW = lift(RP, '  function prewarmW(', '  function streamW(');
+  ok(!!st && /riseAdd\(h\.grp\)/.test(st) && !!stW && /riseAdd\(h\.grp\)/.test(stW), '5 the stream raises what it builds (inline and from the house worker)');
+  ok(!!pw && !/riseAdd/.test(pw) && !!pwW && !/riseAdd/.test(pwW), '5 the prewarm (under the roll-out screen) does not (either way)');
 }
 
 console.log('GATE FADES: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
