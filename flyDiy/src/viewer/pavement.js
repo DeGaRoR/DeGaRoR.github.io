@@ -1158,13 +1158,20 @@ float pvTread(float u, float x, float w, float seed) {
     T.vertex = rep(rep(GLSL.vertex, 'attribute vec4 aPavK;', 'attribute float aPavId;'), 'varying vec4 vPavK;', 'flat varying float vPavId;');
     T.vertexBody = rep(GLSL.vertexBody, 'vPavK = aPavK;', 'vPavId = aPavId;');
     let c = GLSL.common;
-    c = rep(c, '\nuniform vec4 uLayer, uLayer2,', '\nvec4 uLayer, uLayer2,');
-    c = rep(c, '\nuniform vec4 uGrade[8], uTint[8];', '\nvec4 uGrade[8], uTint[8];');
-    c = rep(c, '\nuniform vec4 uMean;', '\nvec4 uMean;');
+    // THE ROW'S VALUES ARE READ WHERE THEY ARE USED: each former uniform vec4 is a macro for its texel (#define uLane
+    // PVT(6)), the grade/tint rows are read inside pvFetch - nothing held in a register across the chain. (Loaded once
+    // into globals at the top, ~30 vec4 stayed live through the whole shader: measured +0.3 ms of pavement GPU at the
+    // stand, +0.5 ms once packed tighter - register pressure, not texel reads; tools/pave_ab.js, G928.) A texel read
+    // twice in a block is one cached read; the uniforms' own cost was a constant buffer, this is the texture cache.
+    c = rep(c, '\nuniform vec4 ' + PV_VEC.slice(0, 28).join(', ') + ';', '');
+    c = rep(c, '\nuniform vec4 uGrade[8], uTint[8];', '');
+    c = rep(c, '\nuniform vec4 uMean;', '');
     c = rep(c, '\nuniform int uMarkN, uSegN;', '\nint uMarkN, uSegN;');
     c = rep(c, `\nuniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];`,
-      '\nuniform highp sampler2D uPavT;\nint gPavRow; float gSegHW;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)');
-    c = rep(c, `\nuniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];`, '\nvec4 uSide, uRoadEnd; int uKeepN;');
+      '\nuniform highp sampler2D uPavT;\nint gPavRow; float gSegHW;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)\n' + PV_VEC.map((n, i) => '#define ' + n + ' PVT(' + i + ')').join('\n'));
+    c = rep(c, `\nuniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];`, '\nint uKeepN;');
+    c = rep(c, '  vec4 g = uGrade[slot];', `  vec4 g = PVT(${PV.G} + slot);`);
+    c = rep(c, 'uTint[slot].rgb', `PVT(${PV.T} + slot).rgb`);
     c = rep(c, 'varying vec4 vPav; varying vec4 vPavK;', 'varying vec4 vPav; flat varying float vPavId;');
     c = rep(c, 'vec4 A = uKeepA[i], B = uKeepB[i];', `vec4 A = PVT(${PV.KA} + i), B = PVT(${PV.KB} + i);`);
     // THE MARKS' EARLY OUT (the same coverage, bit for bit): a mark is bounded by its rect (a rule's too: [u0, uEnd] x
@@ -1176,10 +1183,9 @@ float pvTread(float u, float x, float w, float seed) {
     c = rep(c, 'vec4 S = uSeg[i]; vec4 K = uSegK[i];', `vec4 S = PVT(${PV.S} + i);`);
     c = rep(c, '    float d = distance(p, a + ab * t), hw = K.x * 0.5, f = max(fw.x, fw.y);',
       `    float d = distance(p, a + ab * t), f = max(fw.x, fw.y);\n    if (d >= gSegHW + f) continue;\n    vec4 K = PVT(${PV.SK} + i); float hw = K.x * 0.5;`);
-    // the row, read once at the top of the chain into the globals the shipped text names
-    c += '\nvoid pvLoad() {\n  gPavRow = int(vPavId + 0.5);\n  ' + PV_VEC.map((n, i) => n + ' = PVT(' + i + ');').join(' ') +
-      `\n  vec4 pvN = PVT(${PV.N}); uMarkN = int(pvN.x + 0.5); uSegN = int(pvN.y + 0.5); uKeepN = int(pvN.z + 0.5); gSegHW = pvN.w;` +
-      `\n  for (int i = 0; i < 8; i++) { uGrade[i] = PVT(${PV.G} + i); uTint[i] = PVT(${PV.T} + i); }\n}`;
+    // the row picked, and its counts (the loops' bounds) read once, at the top of the chain
+    c += '\nvoid pvLoad() {\n  gPavRow = int(vPavId + 0.5);' +
+      `\n  vec4 pvN = PVT(${PV.N}); uMarkN = int(pvN.x + 0.5); uSegN = int(pvN.y + 0.5); uKeepN = int(pvN.z + 0.5); gSegHW = pvN.w;\n}`;
     T.common = c;
     T.map = rep(GLSL.map, 'float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;',
       `pvLoad(); vec4 pvK = PVT(${PV.K});   // G925: the row (the table), cls/seed/halfW/halfL exact per part\n    float cls = floor(pvK.x + 0.5), seed = floor(pvK.y * 37.0 + 0.5) / 37.0, halfW = pvK.z, halfL = pvK.w;`);
