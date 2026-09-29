@@ -6561,7 +6561,8 @@
       // its trial backoff (up to 30 s) were the FLIGHT's; the shed is another scene - its policy starts as the first
       // shed's does (60, kept where it holds). window's handle: the boot's first call runs before PACE's const
       const PC = window.FLYDIY_PACE;
-      if (PC && PC.state && PC.state().mode === 'auto') PC.set('auto');
+      let mode = null; try { mode = PC && PC.state ? PC.state().mode : null; } catch (e) {}   // (GATE UISMOKE's vm has no performance)
+      if (mode === 'auto') PC.set('auto');
     }
     inGarage = true; started = false; running = true;
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
