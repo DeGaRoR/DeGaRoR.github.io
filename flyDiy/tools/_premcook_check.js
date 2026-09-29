@@ -154,10 +154,10 @@ console.log('4. a stale cook is detected');
   HG.randomHouse = function () { const P = rh.apply(this, arguments); P.L += 0.01; return P; };
   let h2; try { h2 = placesHash({}); } finally { HG.randomHouse = rh; }
   ok(h2 !== want, 'a generator edit (HOUSE_GEN.randomHouse, +1 cm) changes the places\' hash');
-  // a page edit: buildHouse's seed
-  const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  // a page edit: buildHouse's seed (G830: the generation half's - src/viewer/premises_build.js genHouse)
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_build.js'), 'utf8');
   const edited = src.replace('plot.seed % 100000, rnd, preset', 'plot.seed % 99991, rnd, preset');
-  ok(edited !== src && placesHash({ pageSrc: edited }) !== want, 'a page edit (buildHouse\'s seed) changes the places\' hash');
+  ok(edited !== src && placesHash({ buildSrc: edited }) !== want, 'a page edit (buildHouse\'s seed, premises_build.js genHouse) changes the places\' hash');
   ok(placesHash({}) === want, '...and the unedited cook gives it back, twice (' + want + ')');
 }
 

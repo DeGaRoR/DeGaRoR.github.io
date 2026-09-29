@@ -13,6 +13,16 @@
 // It is not a browser and draws nothing. Workers, IndexedDB, audio and the service worker are absent (the page
 // takes its no-such-thing paths - the solver on the main thread, the bakes unkept). A navigator.webdriver RIG:
 // the page's frame clock is G586's one-step-a-call rig clock and the graphics auto-scale stands down.
+// ...EXCEPT THE WORKERS ASKED FOR (G815, C1b): `workers: RegExp` (or true: every Blob worker) gives the page a Worker
+// whose Blob source matches - a node worker_threads thread running THAT source with importScripts off the disk, a fetch
+// off the disk and the page's own message protocol (transfers included). Deterministic delivery: the thread's messages
+// reach the page's onmessage only at the harness's turn boundaries (P.tick), and before each turn the harness WAITS
+// until the thread has handled everything the page posted (an ack per message) - so a handler that answers
+// synchronously (the physics host's lockstep `steps`) is answered before the next frame, run after run. What a thread
+// does on its own clock (a fetch, its own timers) lands at the first boundary after it happened. A source that does not
+// match gets the no-such-thing path it always got (`new Worker` throws; every caller in src/viewer catches it).
+// G830 (C2a): `idb: <dir>` gives the worker threads a FAKE IndexedDB on that directory (a second page process finds what
+// the first stored - GATE HOUSEWORKER's warm boot), and a worker handler that returns a PROMISE is acked when it settles.
 //
 //   const P = await openPage({ wip: 'default' | <build json text> | null, gfx: { preset: 'gamer', shadows: 'full' },
 //                              query: '', hooks: { afterScript(name, P), beforeScript(name, P) } });
@@ -58,6 +68,148 @@ function imageSize(b) {
   return null;
 }
 
+// ---- THE WORKER SHIM (G815) --------------------------------------------------------------------------
+// The thread's side: a worker-like global (self, importScripts, postMessage, onmessage, close, fetch off the disk)
+// running the page's Blob source. Every page message is acked once its handler has returned; every message to the
+// page goes through a MessageChannel the harness reads SYNCHRONOUSLY (receiveMessageOnPort), with a futex bump so the
+// harness can sleep on it instead of spinning.
+const WORKER_BOOT = `'use strict';
+const { parentPort, workerData } = require('worker_threads');
+const fs = require('fs'), path = require('path'), vm = require('vm');
+const { root, src, port, sab, name, idb } = workerData;
+// G830: THE FAKE IndexedDB (workerData.idb, a directory): one directory a store, one file a key (base64url of the key),
+// the value through v8's structured serializer AT THE CALL (a put clones then, as IDB's does); every request answers on
+// a later turn (setImmediate), a transaction completes after its last request. A second page process finds what the
+// first stored. Enough of the API for src/viewer/house_worker.js: open / upgradeneeded, objectStoreNames.contains,
+// createObjectStore, transaction(stores, mode).objectStore(n).get / put / delete / getAll / getAllKeys (a key range),
+// IDBKeyRange.bound.
+if (idb) {
+  const v8 = require('v8');
+  const fname = k => Buffer.from(String(k)).toString('base64url'), kname = f => Buffer.from(f, 'base64url').toString();
+  const inR = (r, k) => !r || ((r.lower === undefined || k > r.lower || (k === r.lower && !r.lowerOpen)) && (r.upper === undefined || k < r.upper || (k === r.upper && !r.upperOpen)));
+  const keysOf = (dir, r) => (fs.existsSync(dir) ? fs.readdirSync(dir) : []).map(kname).filter(k => inR(r, k)).sort();
+  function Tx(names) {
+    const tx = { oncomplete: null, onerror: null, onabort: null, error: null, _n: 0, _end: false };
+    const done = () => { if (--tx._n === 0) setImmediate(() => { if (tx._n === 0 && !tx._end) { tx._end = true; if (tx.oncomplete) tx.oncomplete({ target: tx }); } }); };
+    const req = fn => { const q = { result: undefined, error: null, onsuccess: null, onerror: null }; tx._n++;
+      let v, err = null; try { v = fn(); } catch (e) { err = e; }
+      setImmediate(() => { if (err) { q.error = err; if (q.onerror) q.onerror({ target: q }); } else { q.result = v; if (q.onsuccess) q.onsuccess({ target: q }); } done(); });
+      return q; };
+    tx.objectStore = n => { const dir = path.join(idb, n); return {
+      // (structuredClone: v8.deserialize's typed arrays sit on node's Buffer memory, which a postMessage cannot transfer)
+      get: k => { const f = path.join(dir, fname(k)); return req(() => (fs.existsSync(f) ? structuredClone(v8.deserialize(fs.readFileSync(f))) : undefined)); },
+      put: (v, k) => { const b = v8.serialize(v); return req(() => { fs.writeFileSync(path.join(dir, fname(k)), b); return k; }); },
+      delete: k => req(() => { fs.rmSync(path.join(dir, fname(k)), { force: true }); }),
+      getAllKeys: r => req(() => keysOf(dir, r)),
+      getAll: r => req(() => keysOf(dir, r).map(k => structuredClone(v8.deserialize(fs.readFileSync(path.join(dir, fname(k))))))),
+      count: r => req(() => keysOf(dir, r).length),
+      clear: () => req(() => { for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) fs.rmSync(path.join(dir, f), { force: true }); }),
+    }; };
+    setImmediate(() => { if (tx._n === 0 && !tx._end) { tx._end = true; if (tx.oncomplete) tx.oncomplete({ target: tx }); } });
+    return tx;
+  }
+  const db = { name: 'fake', version: 1, close() {}, objectStoreNames: { contains: n => fs.existsSync(path.join(idb, n)) },
+    createObjectStore: n => { fs.mkdirSync(path.join(idb, n), { recursive: true }); return {}; }, transaction: n => Tx(n) };
+  globalThis.indexedDB = { open: () => { const q = { result: db, error: null, onsuccess: null, onerror: null, onupgradeneeded: null, onblocked: null };
+    setImmediate(() => { fs.mkdirSync(idb, { recursive: true }); if (q.onupgradeneeded) q.onupgradeneeded({ target: q, oldVersion: 0 }); if (q.onsuccess) q.onsuccess({ target: q }); }); return q; } };
+  globalThis.IDBKeyRange = { bound: (lower, upper, lowerOpen, upperOpen) => ({ lower, upper, lowerOpen: !!lowerOpen, upperOpen: !!upperOpen }),
+    lowerBound: (lower, open) => ({ lower, lowerOpen: !!open }), upperBound: (upper, open) => ({ upper, upperOpen: !!open }), only: k => ({ lower: k, upper: k }) };
+}
+const I32 = new Int32Array(sab);
+const toFile = u => {
+  u = String(u);
+  if (/^[a-z]+:\\/\\//i.test(u)) { const x = new URL(u); u = x.pathname.replace(/^\\/flyDiy\\//, ''); }
+  return path.join(root, decodeURIComponent(u.split('#')[0].split('?')[0]).replace(/^\\.?\\//, ''));
+};
+const send = (m, tr) => { try { port.postMessage(m, tr || []); } catch (e) { port.postMessage({ __error: 'postMessage: ' + (e && e.message) }); } Atomics.add(I32, 0, 1); Atomics.notify(I32, 0); };
+globalThis.self = globalThis;
+self.importScripts = (...urls) => { for (const u of urls) { const f = toFile(u); vm.runInThisContext(fs.readFileSync(f, 'utf8'), { filename: f }); } };
+self.postMessage = (m, tr) => send({ m }, tr);
+self.close = () => { send({ __closed: 1 }); setImmediate(() => process.exit(0)); };
+self.onmessage = null;
+globalThis.fetch = u => { let b = null; try { b = fs.readFileSync(toFile(typeof u === 'string' ? u : u.url)); } catch (e) {}
+  return Promise.resolve(b ? new Response(b, { status: 200 }) : new Response('', { status: 404 })); };
+process.on('uncaughtException', e => send({ __error: String(e && e.stack || e) }));
+process.on('unhandledRejection', e => send({ __error: String(e && e.stack || e) }));
+// G830: a handler that returns a promise (the house worker's init, its cache reads) is acked when it settles - the harness's
+// turn then waits for the thread's whole answer, as it waits for a synchronous one
+parentPort.on('message', d => {
+  let r;
+  try { if (typeof self.onmessage === 'function') r = self.onmessage({ data: d.m }); }
+  catch (e) { send({ __error: String(e && e.stack || e) }); }
+  if (r && typeof r.then === 'function') r.then(() => send({ __ack: d.seq }), e => { send({ __error: String(e && e.stack || e) }); send({ __ack: d.seq }); });
+  else send({ __ack: d.seq });
+});
+try { vm.runInThisContext(src, { filename: name }); } catch (e) { send({ __error: String(e && e.stack || e) }); }
+`;
+// The page's side: the Worker class the page constructs. `live` collects every shim so the harness can drain them.
+function makeWorkerClass({ readBlob, allow, live, root, onEvent, postFilter, idb }) {
+  const WT = require('worker_threads');
+  let nth = 0;
+  return class Worker {
+    constructor(url) {
+      const src = readBlob(url);
+      if (src == null || !(allow === true || (allow instanceof RegExp && allow.test(src)))) throw new Error('no worker here (the page-in-node harness)');
+      const { port1, port2 } = new WT.MessageChannel();
+      const sab = new SharedArrayBuffer(4);
+      this._I = new Int32Array(sab); this._port = port1; this._sent = 0; this._acked = 0; this._dead = false;
+      this._q = []; this._ls = { message: [], error: [] };
+      this.onmessage = null; this.onerror = null;
+      this.name = 'worker#' + (++nth);
+      this._stats = { posted: 0, received: 0, waitedMs: 0, maxWaitMs: 0, errors: [] };
+      this._w = new WT.Worker(WORKER_BOOT, { eval: true, workerData: { root, src, port: port2, sab, name: this.name, idb: idb || null }, transferList: [port2] });
+      this._w.on('error', e => { this._q.push({ __error: String(e && e.stack || e) }); Atomics.add(this._I, 0, 1); });
+      this._w.on('exit', () => { this._dead = true; });
+      live.add(this);
+    }
+    postMessage(m, transfer) {
+      if (this._dead) return;
+      if (postFilter) { m = postFilter(this, m); if (m == null) return; }   // a gate's fault injection (G816 --selftest)
+      this._sent++; this._stats.posted++;
+      this._w.postMessage({ seq: this._sent, m }, transfer || []);
+    }
+    terminate() { if (this._dead) return; this._dead = true; live.delete(this); try { this._w.terminate(); } catch (e) {} }
+    addEventListener(t, f) { (this._ls[t] = this._ls[t] || []).push(f); }
+    removeEventListener(t, f) { if (this._ls[t]) this._ls[t] = this._ls[t].filter(x => x !== f); }
+    // pull what the thread said; with `wait`, until every page message has been handled (at most maxMs, real time)
+    _pull(wait, maxMs) {
+      const t0 = Date.now();
+      for (;;) {
+        const seen = Atomics.load(this._I, 0);
+        let r;
+        while ((r = WT.receiveMessageOnPort(this._port))) {
+          const d = r.message;
+          if (d.__ack != null) this._acked = Math.max(this._acked, d.__ack);
+          else this._q.push(d);
+        }
+        if (!wait || this._dead || this._acked >= this._sent) break;
+        if (Date.now() - t0 > maxMs) { this._stats.errors.push('drain: no ack after ' + maxMs + ' ms'); break; }
+        Atomics.wait(this._I, 0, seen, 20);
+      }
+      const w = Date.now() - t0; this._stats.waitedMs += w; if (w > this._stats.maxWaitMs) this._stats.maxWaitMs = w;
+    }
+    // deliver what was pulled, in order, to the page's handlers
+    _deliver() {
+      const q = this._q; this._q = [];
+      for (const d of q) {
+        if (d.__closed) { this._dead = true; live.delete(this); continue; }
+        if (d.__error != null) {
+          this._stats.errors.push(d.__error);
+          const ev = { type: 'error', message: d.__error, error: new Error(d.__error) };
+          if (typeof this.onerror === 'function') this.onerror(ev);
+          for (const f of this._ls.error) f(ev);
+          continue;
+        }
+        this._stats.received++;
+        const ev = { type: 'message', data: d.m, target: this };
+        if (onEvent) onEvent(this, d.m);
+        if (typeof this.onmessage === 'function') this.onmessage(ev);
+        for (const f of this._ls.message) f(ev);
+      }
+    }
+  };
+}
+
 // a seeded generator (mulberry32): the page's Math.random, the same stream every run
 function seeded(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -69,6 +221,7 @@ async function openPage(opts) {
   const { html, scripts } = pageScripts(opts.page);
   const errors = [], logs = [];
   const quiet = opts.quiet !== false;
+  const WORKER_WAIT_MS = opts.workerWaitMs || 120000;
 
   // ---- the clock -----------------------------------------------------------------------------------
   const clock = { t: 0, step: 0.01 };
@@ -233,6 +386,12 @@ async function openPage(opts) {
     alert() {}, confirm: () => true, prompt: () => null, open: () => null, close() {}, focus() {}, blur() {}, print() {}, scrollTo() {}, scrollBy() {}, postMessage() {}, getSelection: () => document.getSelection(),
     isSecureContext: true, origin: location.origin, name: '', closed: false, frames: [], length: 0, opener: null, visualViewport: null, speechSynthesis: undefined,
   });
+  // G815: the Worker shim, only where asked (opts.workers: a RegExp the Blob source must match, or true)
+  const workersLive = new Set();
+  if (opts.workers) {
+    win.Worker = makeWorkerClass({ root: ROOT, allow: opts.workers, live: workersLive, onEvent: opts.onWorkerMessage || null, postFilter: opts.workerPostFilter || null, idb: opts.idb || null,
+      readBlob: url => { const b = readFile(url); return b ? b.toString('utf8') : null; } });
+  }
   // the one WebGL2 class every context of the page is an instance of
   { const G0 = makeGL({}); GLClass = G0.WebGL2RenderingContext; win.WebGL2RenderingContext = GLClass; }
   win.window = win; win.self = win; win.top = win; win.parent = win; win.frameElement = null;
@@ -268,6 +427,7 @@ async function openPage(opts) {
     // one event: the earliest due timer, or the next vsync if a frame was asked for and comes first
     async tick() {
       await flush();
+      if (workersLive.size) { for (const w of [...workersLive]) w._pull(true, WORKER_WAIT_MS); for (const w of [...workersLive]) w._deliver(); await flush(); }
       let ti = -1;
       for (let i = 0; i < timers.length; i++) if (ti < 0 || timers[i].at < timers[ti].at || (timers[i].at === timers[ti].at && timers[i].seq < timers[ti].seq)) ti = i;
       const nextVsync = (Math.floor(clock.t / FRAME) + 1) * FRAME;
@@ -295,6 +455,9 @@ async function openPage(opts) {
     },
     async frames(n) { const f0 = frameNo; await P.until(() => frameNo >= f0 + n, n * 1000 + 60000); return frameNo - f0; },
     pending: () => ({ timers: timers.length, raf: rafQ.length }),
+    // G815: the shim's threads (their counters: posted, received, the harness's waits on them, their errors)
+    workers: () => [...workersLive].map(w => Object.assign({ name: w.name }, w._stats)),
+    close() { for (const w of [...workersLive]) w.terminate(); },
   };
 
   // ---- the page, in its order ----------------------------------------------------------------------------

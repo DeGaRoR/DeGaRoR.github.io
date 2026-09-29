@@ -357,6 +357,22 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // by self and inclusive time per function (G591: where the roll-out's long tasks go)
   const PROFILE = flag('profile');
   if (PROFILE) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 1000 }); await cmd('Profiler.start'); }
+  // G833 (C2a): THE LOADING'S TOWN STEP - its own time (BOOT.log), the long tasks inside it (the main thread's share),
+  // and the house worker's account (src/viewer/house_worker.js: its world's init, the recompose, what it generated and
+  // what came from its IndexedDB cache). Cold (--cold: an empty cache) vs warm (a second run on the same profile: the
+  // cache holds every house - `built 0`). The same for the settle (the stream's share round the stand). ?housew=0
+  // (--q housew=0) is the inline build of before, for the A/B.
+  let townLine = null;
+  try {
+    townLine = JSON.parse(await ev("JSON.stringify((() => { const B = window.BOOT || {}; const L = B.log || []; const s = L.filter(e => e.k === 'step' && (e.id === 'town' || e.id === 'settle')).map(e => ({ id: e.id, t0: e.t + (B.t0 || 0), ms: e.ms })); return { steps: s, hw: window.HOUSE_WORKER && HOUSE_WORKER.stats ? HOUSE_WORKER.stats() : null, hwq: window.WORLD && WORLD.premises && WORLD.premises.hw ? { dispatched: WORLD.premises.hw.dispatched, placed: WORLD.premises.hw.placed, here: WORLD.premises.hw.local } : null }; })())", 20000));
+    const lt = JSON.parse(await ev('JSON.stringify(__RP.lt)', 20000));
+    for (const s of townLine.steps) {
+      const inS = lt.filter(x => x[0] >= s.t0 - 5 && x[0] <= s.t0 + (s.ms || 0));
+      s.longTasks = inS.length; s.over100 = inS.filter(x => x[1] > 100).length; s.worst = inS.reduce((m, x) => Math.max(m, x[1]), 0); s.longMs = inS.reduce((a, x) => a + x[1], 0);
+      console.log('  ' + s.id.toUpperCase() + ' step ' + ((s.ms || 0) / 1000).toFixed(1) + ' s · long tasks >= 50 ms: ' + s.longTasks + ' (' + s.longMs + ' ms), over 100 ms: ' + s.over100 + ', worst ' + s.worst + ' ms');
+    }
+    if (townLine.hw) console.log('  HOUSE WORKER ' + JSON.stringify(townLine.hw) + (townLine.hwq ? ' · page: ' + JSON.stringify(townLine.hwq) : ''));
+  } catch (e) { console.log('  (town step: ' + (e && e.message) + ')'); }
   // --trips: the garage's frames, fresh (the world exists since the one loading: the recorder can go in now)
   let garageFresh = null;
   if (TRIPS) { await ev(INSTALL); await sleep(1000); const a0 = await ev('performance.now()'); await sleep(5000); const a1 = await ev('performance.now()');
@@ -637,7 +653,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, phases, gates, settings: settingsRuns, trips: tripRuns, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    tGarage, tReveal, premEmptyAt, phases, gates, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));

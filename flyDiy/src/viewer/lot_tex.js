@@ -193,8 +193,9 @@ const LOT_GROUND = (() => {
   LOT_MAT = m;
   return m;
   }
-  function mesh(THREE, parent, L, onLoad) {
-  if (!L.idx.length) return null;
+  // the patch's geometry from its plan (G830: split out of mesh() so the house worker makes it where the plan is
+  // made - src/viewer/premises_build.js packLot - and the page only stands the arrays up)
+  function geometry(THREE, L) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(L.pos), 3));
   geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(L.uv), 2));
@@ -203,6 +204,13 @@ const LOT_GROUND = (() => {
   geo.setAttribute('aAlpha', new THREE.BufferAttribute(new Float32Array(L.alpha), 1));
   geo.setIndex(L.idx);
   geo.computeVertexNormals();
+  return geo;
+  }
+  function mesh(THREE, parent, L, onLoad) {
+  if (!L.idx.length) return null;
+  let geo;
+  if (L.geo) { geo = new THREE.BufferGeometry(); for (const [n, s, arr] of L.geo.a) geo.setAttribute(n, new THREE.BufferAttribute(arr, s)); geo.setIndex(new THREE.BufferAttribute(L.geo.i, 1)); }
+  else geo = geometry(THREE, L);
   const m = new THREE.Mesh(geo, material(THREE, onLoad));
   m.renderOrder = 3;
   m.receiveShadow = true; m.castShadow = false;
@@ -219,6 +227,6 @@ const LOT_GROUND = (() => {
     if (warm !== undefined && warm !== null) v.z = +warm;
     return [v.x, v.y, v.z];
   }
-  return { material, mesh, grade };
+  return { material, geometry, mesh, grade };
 })();
 if (typeof window !== 'undefined') window.LOT_GROUND = LOT_GROUND;

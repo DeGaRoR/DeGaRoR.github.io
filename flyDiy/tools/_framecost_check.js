@@ -37,6 +37,7 @@
 //   node tools/_framecost_check.js --update     rewrite the baseline, print the diff
 //   node tools/_framecost_check.js --json out   also write the whole census
 //   node tools/_framecost_check.js --census cub|cessna [--frames N]   one build's census as JSON (the child)
+//   FRAMECOST_WORKERS=1   the census with the page's house worker on (G830; the harness's Worker shim, a cold cache)
 //   node tools/_framecost_check.js --compare a.json b.json   which counts differ between two censuses (the bisect's)
 //   FRAMECOST_QUERY='raster=1'  a URL query for the page (hold a default equal across commits in a bisect)
 // READING THE COUNTS. They are the page's work on THIS harness: exact and repeatable, not a browser's. What the page
@@ -165,7 +166,10 @@ async function census(build) {
   let mainCam = null;
   const hooks = pageHooks(C, () => mainCam);
   const t0 = Date.now();
-  const P = await openPage({ quiet: true, storage, hooks, query: process.env.FRAMECOST_QUERY || '' });
+  // FRAMECOST_WORKERS=1 (G830): the page's house worker on (the harness's Worker shim and a fake IndexedDB in a fresh
+  // directory - a cold cache), as the browser runs it; without it the page takes its no-Worker path, the inline build
+  const wk = process.env.FRAMECOST_WORKERS ? { workers: /house_worker\.js/, idb: fs.mkdtempSync(path.join(require('os').tmpdir(), 'fc-idb-')), workerWaitMs: 900000 } : {};
+  const P = await openPage(Object.assign({ quiet: true, storage, hooks, query: process.env.FRAMECOST_QUERY || '' }, wk));
   const W = P.win;
   const snap = bootMark.snap;
   // the boot's LANDING (every step ran; the frames until the overlay lifts) is its own row, not the last step's

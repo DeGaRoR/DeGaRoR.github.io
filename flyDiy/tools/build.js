@@ -240,6 +240,9 @@ const MANIFEST = {
     ['src/viewer', 'flown_bake.js'],
     // THE SCENERY'S LIFE (2026-09-23): people, clutter, rubbish, cars, small structures, antennas - made by the renderer below
     ['src/viewer', 'scenery_life.js'],
+    // G830 (C2a): the premises' GENERATION half, thread-agnostic - render_premises.js runs it inline, the house worker
+    // (src/viewer/house_worker.js) imports it RAW by its URL, so it stays a file the page can fetch
+    ['src/viewer', 'premises_build.js'],
     // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with
     ['src/viewer', 'house_tarr.js'],
     ['src/viewer', 'render_premises.js'],
@@ -401,6 +404,10 @@ const MANIFEST = {
     // stands its planes in app.js's REF_MOUNT.bpGroup.
               'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js',
+    // house_worker.js (G830, C2a): the houses' own thread - the page's client (window.HOUSE_WORKER, started by
+    // world_boot.js) and the worker's body, imported RAW by its own Blob worker (with sim_host.js, the core, three and
+    // the generators by their URLs) - so it must stay a file the page can fetch, like sim_host.js
+              'house_worker.js',
     // balance.js before editor.js (G101): the energy layer's panel draws the
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,
