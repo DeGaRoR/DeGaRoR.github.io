@@ -63928,3 +63928,114 @@ THE LOOK CHECK (for the coordinator / the user, on the box; dev.html or index.ht
 - **FOR THE COORDINATOR:**
   - tools/perf/framecost_baseline.json was re-taken on this branch (on b3bf043). If a train lands first, re-take it on the merged tree; the ALLOW rows G800 / G801 admit this change's rises against the older baseline until then.
   - The in-flight stream (G591) still builds houses past 4 km in flight, as before this change (this change adds nothing to it). The user's "no background loading in flight" rule is C2a's to close.
+
+## G933-G934 - AS5b: THE HANGAR'S 45 PROPS GET THEIR LEVELS BESIDE THE AS-IS; THE PREMISES' REPEATED DRESSING INSTANCED PER (KEY, LEVEL) (2026-09-29, AS5b of the asset plan, §5.3 M11, a cloud session, node only)
+
+WHY: futureDesigns/ASSETS-2026-09-27.md §5.3 M11 - the 45 props of media/geo/props/ (~1 M triangles; bandsaw 137 k,
+thicknesser 120 k, jointer 116 k) had no level at all while the pier kit's 92 props had theirs (tools/prop_lod.js, G301).
+[[import-models-as-is]]: the levels go BESIDE the import, never instead of it. Base origin/claude/train-16 (30b8989b; train
+16 had not landed on origin/claude/batch-a-base when this was pushed).
+
+G933 THE LEVELS.
+- tools/prop_lod.js takes a KIT: `node tools/prop_lod.js` is the pier kit exactly as before (re-run on this branch:
+  pier_lods.js and the 184 media/geo/pier_lod bins byte-identical, git clean); `--kit props` reads the hangar's packs
+  (src/props/props_packs.json), cuts every prop whose bin is under media/geo/props/ (the Jodel airframes are not in the
+  kit) on ONE ladder, `shed` = the pier kit's YARD row as is: [0.25, floor 1 200, past 20 m], [0.06, floor 400, past 60 m],
+  a level only where it is under 0.7 of the prop. Same decimator (54_decimate.js meshDecimate: half-edge, seams kept, the
+  author's atlas as is). Writes src/props/props_lods.js (group `lod`, each record `lodOf` / `lodDist`, the full prop's own
+  material records and textures) and media/geo/props_lod/ (writeMedia: hashed, gzipped `.gz.bin`); appends props_lods.js
+  to props_packs.json (prop_prep.py keeps it: a foreign pack, G62.11). Deterministic (a second run: 0 bytes differ).
+- RESULT: 74 levels of 39 props (6 are under the ladder's floor: the three crates, the trestle, the table, the plan -
+  132-414 triangles); the 39's 996 824 triangles -> 312 904 in all their levels (bandsaw 137 022 -> 34 254 / 8 222,
+  thicknesser 119 986 -> 29 995 / 7 197, jointer 116 241 -> 29 056 / 6 973, panelsaw 80 259 -> 20 064 / 4 816).
+- THE AS-IS UNTOUCHED: the 45 media/geo/props bins and the ten props_*.js packs hash the same before and after
+  (sha256 of every file compared; `git diff origin/claude/train-16 -- media/geo/props media/geo/airframe` empty; the 45
+  bins' concatenated sha256 e1f2c48d0f851306f89c7d9147a1a89140ab86d98d4968153fb5c3f186caf5d8 on both); GATE GEO re-hashes
+  every bin's gunzipped bytes against its name (508 = 434 + the 74 new).
+- props.js reads them as it reads the pier's (propLevels: a THREE.LOD per placement, the cull level after the last).
+  `?proplod=0`: the hangar props' levels are not used - every one places exactly as before (the A/B).
+- hangar.js GS.bake (the shed's ground print): its camera sees only LAYER 3 - the LOD object is not on it, so three never
+  picked a level there and printed EVERY level's meshes (garage:editor / spec draws 296 -> 644 in the first census), or
+  none of a prop the room's eye had put past 20 m. The print now shows level 0 and hides the cuts for its render, then
+  puts the flags back: the print is the full props', as before (296 draws again).
+- REPO GROWTH: media/geo/props_lod 74 files, 4.97 MiB on disk (6.33 MiB decoded); src/props/props_lods.js 97.5 KB, inlined
+  in index.html with the other props packs (GATE MEDIA: +80 KB over the committed build 74a55c1e, budget 307 KB; the page
+  builds before the garage places its props, so the pack cannot be a late ref). sw.js GEO_KEEP gains the 74 at the build.
+
+G934 THE REPEATED DRESSING, INSTANCED (props.js).
+- `propPlace(THREE, key, x, z, ry, y, inst)`: with `inst` and a key of PROP_INST_REPEAT (the yard kit the house and big
+  generators scatter - drums, barrels, crates, tyres, trestle, hand truck, boxes, compressor, jerrycans, oil tin, bottles,
+  bins, ladder, barrel stove, pallets, cinder / cement / bags, planter - the deck's seats and tables, the scanned people)
+  the placement is a PROXY and G515's instancer draws it: one InstancedMesh per (level, part, caster). ONLY where the caller
+  asks: render_premises placeBuilt (a house's people and yard) and buildObject (a placed object). The garage's shed, the
+  traffic (it moves), a lit fixture (the day's hand dims it per key) never are. `?propinst=poles` = the poles and fences
+  only (the A/B); `?propinst=0` as before (no instancer).
+- A batch is now CULLED by a sphere round its instances (written at each re-list; three's camera and shadow cameras test it
+  as they test a mesh) - it was frustumCulled = false: drawn into every view and cascade wherever its instances stood.
+- The premises' rules follow the proxies: houseThrift gives a house's dressing proxy `instGone` = HOUSE_PROP_GONE (200 m)
+  and `instCast` = false (a batch per caster state); the props walk (propsOn) switches proxies too (propInstTouch); the
+  obstacle raster (shapeOf / hitReady) reads a proxy's full level at its matrix (propInstFull), so a house's and an
+  object's hitbox is what it was; buildObject's triangle count is the full prop's.
+
+PROOF (node; tools/_framecost_check.js --census cub, one page process at a time; before = origin/claude/train-16 built
+locally, after = this branch built locally - the generated files were NOT committed; the committed dev.html on the base is
+older than matlib.js and throws `MATLIB is not defined`, so both sides were built with tools/build.js first):
+| per frame (median of 12), Cub | stand | taxi | village (FRAMECOST_VILLAGE) |
+|---|---|---|---|
+| draws.main | 1144 -> 1142 | 1071.5 -> 1070.5 | 727 -> 720 |
+| draws.shadow | 524 -> 525 | 232.5 -> 231 | 305.5 -> 312 (not props: houses / poles' cascade phase) |
+| tris.main | 16 645 005 -> 16 633 812 | 12 898 270 -> 12 895 251 | 10 709 287 -> 10 582 912 |
+| tris.shadow | 2 606 064 -> 2 628 180 | 2 208 560 -> 2 201 495 | 4 453 939 -> 4 726 664 |
+| gl.calls | 14 679 -> 14 469.5 | 12 749 -> 12 787.5 | 8 954.5 -> 8 807 |
+| programs used | 114 -> 117 | 97.5 -> 97.5 | 109 -> 115 |
+| gl.uniformMatrix4fv | 2103.5 -> 2045 | 1919.5 -> 1920.5 | 1255.5 -> 1136.5 |
+| the prop families' draws (main / shadow) | 181 / 70 -> 177 / 76 | 165 / 7 -> 165 / 7 | 125 / 11 -> 115 / 10 |
+| the roll-out shot's shed frames (rollout:click, 360 frames, sums) | draws 1 299 512 = | tris main 747.3 M -> **508.9 M (-32 %)** | tris shadow 2 624 M -> **2 064 M (-21 %)** |
+| garage:landing (the shed before the lift) | draws 21 612 = | tris main 7.96 M -> 5.14 M | tris shadow 22.9 M -> 18.7 M |
+READING IT:
+- THE SHED IS WHERE THE LEVELS PAY: the roll-out shot (the eye leaves the room, the far wall's machines past 20 and 60 m)
+  and the garage's own frames. The draws are the same (a level has the parts of its prop); the triangles fall a third.
+- THE STAND: the exterior shed there is genHangarBuild's EXTERIOR - doors shut, NO fittings - so none of the 45 stands in
+  the world at the stand, and §5.3's "near-shadow triangles at the stand" do not come from the room: what the world draws
+  of the hangar kit is the premises' scattered dressing (a jerrycan and two propane bottles in view, at full detail before:
+  they had no levels). The stand's numbers barely move either way.
+- THE INSTANCING is roughly a wash at the stand and the taxi (the repeated keys seldom stand twice in view there) and a
+  modest gain at the village pose (the prop families 125 -> 115 main draws, uniformMatrix4fv -119, gl.calls -148): a batch
+  is per (level, part, caster), and most keys show one or two instances per level. Its costs: the records' INSTANCED
+  programs (+3 at the stand, +6 at the village; linked under the loading screen: garage:worldCompile links 145 -> 148, no
+  view frame links), a VAO + instance buffer per batch, and a casting batch (a placed object's - a house's dressing casts
+  nothing) drawn into a cascade wherever one instance stands in it (stand shadow +6 draws, +22 k triangles; the world's
+  warm-up frames in the one loading +3 shadow draws a render). Worth its keep on the full town (Metlakatla on: hundreds of
+  dressing placements); `?propinst=poles` takes it out in one flag if the GPU box says otherwise.
+- OTHER BOOT MOVES: every hangar prop's LOD holds 2-3 more nodes (+~570): updateMatrixWorld rises in each step that walks
+  the scene (never a draw); a level's geometry is uploaded when first drawn (garage:firstFrame +4.3 MB, the roll-out shot
+  +0.72 MB spread over its 360 frames).
+- FRAMECOST ALLOW entries (G933 / G934, with reasons) admit exactly these rises: the gate's own compare of the two censuses
+  gives 23 ALLOW, 0 RED. Against the COMMITTED baseline both trees show the same 5 reds (stand / taxi bufferSubData 2 -> 20
+  calls, 544 B -> 3.67 MB - the aeroplane's skin re-upload of G1010's bonus item 2 - and taxi bindBuffer) - the base's own,
+  not this change's.
+
+FOR THE COORDINATOR - THE LOOK-CHECK (a real GPU; `node flyDiy/tools/_serve.js 8450` from the repo root):
+  1. THE ROLL-OUT SHOT: http://localhost:8450/flyDiy/dev.html?rollanim=loop (the shot alone, replayed every 2.5 s).
+     Watch the far wall's machines (bandsaw, jointer, thicknesser, panel saw, compressor) and the carts as the eye leaves
+     the room: level 1 past 20 m, level 2 past 60 m - no pop, no hole, no texture swim (the levels wear the full prop's
+     atlas). A/B: the same URL with `&proplod=0` (every hangar prop its full mesh, as before this change).
+  2. THE SHED: dev.html (and dev.html?proplod=0): orbit to a far corner of the club shed - a prop past 20 m of the eye is
+     at level 1; the floor's baked print under the machines must be the same in both (it is the full props').
+     PROP_LOD_FORCE = 1 (or 2) in the console, then change the shed (a size slider) - every prop pinned to that level
+     at arm's length, to judge the cut itself.
+  3. THE STAND AND THE VILLAGE: roll out, look at the houses' dressing (drums, crates, bottles, pallets, the seats, the
+     people) near and at 150-200 m (it must still vanish past 200 m) and the placed objects' shadows (stools, picnic
+     tables, people); taxi towards a village. A/B: `&propinst=poles`. `PROP_INST.stats` in the console: proxies / drawn /
+     draws. Also the obstacles: taxi into a yard's drum - the hitbox is the drum's.
+  4. THE FRAME RATE (F8) in the shot and at the stand, with and without the two flags.
+- GATES (targeted): PROPS PASS (section 4 new: every level against the ladder, its records, its folder; negative-checked -
+  a lodDist nudged 20 -> 25 turns it red), HANGAR, MEDIA, ASSETS, GEO, PREMISES, CLOUD (its propSetGlowOf regex follows the
+  export line), HOUSE, ANIMALS, ATMO, CONTACT, FADES, LIFE, LOOKS, TARR, OBSTACLE, STAND PASS. RED ON THE UNTOUCHED BASE TOO
+  (not this change): MATLIB (`ReferenceError: TEX_FLAT is not defined` - AS0b's constant maps not in its harness) and
+  PREMCOOK (the lifted placement code hashes 54f8d23e7c98f648 / 8aa628f057c85472 on both trees - the cook is stale).
+  NOT RUN: the FRAMECOST gate itself (two page children at once; the censuses above instead), the Cessna census,
+  `_rollanim_check.js --page`, the full battery (the CI session's, on the train).
+- Re-take tools/perf/framecost_baseline.json on the merged train (the G933 / G934 ALLOW rows die with it).
+- FRAMECOST_VILLAGE=1 (new, a debugging aid): a third view by the thickest cluster of repeated dressing, found from the
+  placements (LOD or proxy, both named prop:<key>) so two trees are measured at one pose (Jolene: 1128.3, -2760.4).
