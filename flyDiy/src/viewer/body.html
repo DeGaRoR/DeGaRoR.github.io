@@ -219,16 +219,21 @@
         <div class="rd" data-i="da" hidden><b id="r-da">+0</b><i>% ail</i></div>
         <div class="rd" data-i="dr" hidden><b id="r-dr">+0</b><i>% rud</i></div>
       </div>
-      <div id="rail" class="held"><b id="phName">HOLDING</b><i id="phNext"></i><div id="track"></div>
+      <div id="rail" class="held"><b id="phName">HOLDING</b><div id="track"></div>
         <!-- THE SMALL PFD. Four numbers instead of nine, two thirds of the
              type, the steps unchanged — for when the aeroplane is what you
              want to be looking at. It overrides the `instruments` flyout for
              as long as it is on, and says so there. -->
         <button id="pfdFold" type="button" title="Smaller">&#9662;</button>
       </div>
-      <!-- G710: THE PLAN LINE - where the pilot is flying to, the height it asks there, the vertical
-           speed against its limit (app.js railPlan, off ap.intent) -->
-      <i id="phPlan"></i>
+      <!-- G1090: THE PILOT'S EXPLANATION HAS ITS OWN AREA (the user, 2026-09-29: "the top bar with the
+           readings keeps resizing because of the explanation text of what the pilot is doing. It
+           shouldn't resize. Size the box, and have the text flow in its own dedicated area"). The
+           status line (G202: the goal, the conditions, the modes) wraps to two lines and clips; the
+           plan line (G710: where it flies to, the height asked, the vertical speed against its
+           limit - app.js railPlan, off ap.intent) is the third, clipped. The area is always there,
+           empty or not, so the plate never changes size with what the pilot says. -->
+      <div id="phWhy"><i id="phNext"></i><i id="phPlan"></i></div>
     </div>
   </div>
 
