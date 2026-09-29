@@ -218,6 +218,59 @@ function siteMarkers(home) {
   return out;
 }
 
+// ---- THE RUNWAY LIGHTS' PLACES (G443; G1066, POLISH-1) ---------------------
+// White edge lights every ~60 m at (half width + 1.5 m) down both sides, six green ones across each end 2 m out
+// (render_world.js standRunwayLights stands them). The user, 2026-09-29: "floating black balls at runway intersections" -
+// where two runways cross, one runway's edge row ran straight across the other's concrete, and the threshold rows stood
+// on the turn pads. A real aerodrome puts an INSET (flush) light wherever an aeroplane may roll, and an elevated one
+// only off the pavement. So a light that falls ON pavement - another land strip's box (any surface: a grass runway is
+// rolled on too) or, when the world carries premises, any of their pavement that is not grass (a taxiway's throat, a
+// turn pad, an apron, a road: `paved` = the overlay's pavedNear(x, z, margin, skipId), the strip's own id skipped) - is
+// kept FLUSH ([x, z, 1]); one that stands off the pavement but within `clear` metres of its edge is LEFT OUT (an
+// elevated light in a wingtip's way, and no inset light on grass); the rest stand elevated ([x, z]).
+// -> { edge: [[x, z(, 1)]], thr: [...], inset: [{ x, z, why }], cut: [{ x, z, why }] }
+const RWY_LIGHTS = { edgeOff: 1.5, every: 60, thrOff: 2, thrN: 6, clear: 3 };
+function runwayLightStrips(aerodromes) {
+  return (aerodromes || []).filter(b => b && b.len && b.wid && b.kind !== 'meadow' && b.kind !== 'water');
+}
+// what the ground is at (x, z) for a light of strip `a`: null (clear: it stands elevated) | { on, why } - on: on the
+// pavement (it goes flush), else within `clear` of it (it is left out)
+function runwayLightSite(x, z, a, strips, paved, clear) {
+  const m = clear != null ? clear : RWY_LIGHTS.clear;
+  const hard = q => q && (q.kind === 'strip' || q.cls !== 'grass');
+  const name = q => q.kind + ' ' + (q.id != null ? q.id : '') + (q.cls ? ' (' + q.cls + ')' : '');
+  let near = null;
+  for (const b of strips) {
+    if (b === a || (a && b.id != null && b.id === a.id)) continue;
+    const cb = Math.cos(b.hdg), sb = Math.sin(b.hdg), dx = x - b.x, dz = z - b.z;
+    const s = Math.abs(dx * cb + dz * sb) - b.len / 2, w = Math.abs(-dx * sb + dz * cb) - b.wid / 2;
+    if (s <= 0 && w <= 0) return { on: true, why: 'strip ' + b.id };
+    if (!near && s <= m && w <= m) near = { on: false, why: 'strip ' + b.id };
+  }
+  if (typeof paved === 'function') {
+    const q0 = paved(x, z, 0, a ? a.id : null);
+    if (hard(q0) && q0.d >= 0) return { on: true, why: name(q0) };
+    if (!near) { const q = paved(x, z, m, a ? a.id : null); if (hard(q)) near = { on: false, why: name(q) }; }
+  }
+  return near;
+}
+function runwayLightPoints(a, aerodromes, paved) {
+  const L = RWY_LIGHTS, strips = runwayLightStrips(aerodromes);
+  const ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);
+  const along = (s, w) => [a.x + s * ca - w * sa, a.z + s * sa + w * ca];   // the sea lane's frame (G396.2)
+  const half = a.len / 2, hw = a.wid / 2, out = { edge: [], thr: [], inset: [], cut: [] };
+  const put = (list, p) => {
+    const q = runwayLightSite(p[0], p[1], a, strips, paved);
+    if (!q) list.push(p);
+    else if (q.on) { list.push([p[0], p[1], 1]); out.inset.push({ x: p[0], z: p[1], why: q.why }); }
+    else out.cut.push({ x: p[0], z: p[1], why: q.why });
+  };
+  const nE = Math.max(2, Math.round(a.len / L.every));
+  for (let i = 0; i <= nE; i++) { const s = -half + (a.len * i) / nE; for (const w of [-(hw + L.edgeOff), hw + L.edgeOff]) put(out.edge, along(s, w)); }
+  for (const s of [-half - L.thrOff, half + L.thrOff]) for (let k = 0; k < L.thrN; k++) put(out.thr, along(s, -hw + (a.wid * (k + 0.5)) / L.thrN));
+  return out;
+}
+
 
 // ---- THE RUNWAY MODEL (P1.A, PILOT-ROADMAP-2026-09-14.md) ------------------
 // What the pilot reads a runway FROM, with the world around it: the strip's

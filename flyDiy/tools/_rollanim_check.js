@@ -18,6 +18,15 @@
 //   G1039  EVERY BUILD: every archetype plays without throwing (a floatplane is SKIPPED, cleanly: onDone
 //          once, a reason); the last frame's eye is the stand's first frame (flRevealStart's az / el / dist
 //          round the CG, for chase, orbit and wing, both sides) - the cut reads as a continuation
+//   G1064  THE CONTROL CHECK, THEN THE ROLL (POLISH-1): driven as the host drives it - the shed's sweep writing
+//          sim.ctl before ROLLANIM.frame, the model's linkage stepped after it (poseModel) - every archetype:
+//          the phases in order (every check frame before every roll frame, the aeroplane at rest through the
+//          check), the check's length (lead + 0.65 s a stick surface + 0.9 s the flaps + settle: 3.3 s, <= 4), the
+//          surfaces one at a time in the user's order (ailerons, elevator, rudder, flaps), each DRAWN to its full
+//          throw (the linkage snapped: both ways for a stick surface, down and up for the flaps), and through the
+//          whole roll the four drawn surfaces and the controls exactly 0 - neutral and still - over the sweep.
+//          Only the drives the model draws (a flapless build skips the flaps); check: false rolls at once; a skip
+//          mid-check leaves nothing deflected; no allocation a frame in the check or the roll with the linkage.
 //
 //   node tools/_rollanim_check.js            -> "GATE ROLLANIM: PASS|FAIL"
 //   node tools/_rollanim_check.js --verbose  -> a line per build (the roll, the time, the eye's plan)
@@ -113,7 +122,7 @@ function garage(arch, shellKey) {
   const props = [];
   const nE = Math.max(1, (def.params.engines || []).length);
   for (let e = 0; e < nE; e++) { const p = new THREE.Object3D(); p.position.set(xNose - 0.1, 1, (e - (nE - 1) / 2) * 3); p.userData = { engIdx: e, spinAxis: [1, 0, 0] }; grp.add(p); props.push(p); }
-  const model = { wheelParts: wheelParts.length ? wheelParts : null, props };
+  const model = { wheelParts: wheelParts.length ? wheelParts : null, props, link: CORE.makeLinkage(0.15) };   // G1064: app.js's LINK_TAU
   const dims = SHELLS[shellKey || 'club'];
   const room = new THREE.Group(); room.position.y = groundY; scene.add(room);
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial()); room.add(quad);
@@ -144,6 +153,50 @@ function drive(h, dt, n, spoil) {
   return k;
 }
 const tick = () => new Promise(r => setImmediate(r));
+// G1064: THE HOST'S FRAME AROUND THE HOOK - app.js's shed sweep writes sim.ctl at the top of the loop (in the garage),
+// ROLLANIM.frame runs just before poseModel, and poseModel steps the linkage off sim.ctl. rec(): a row a frame
+const SWEEP = (ctl, t) => { ctl.de = 0.30 * Math.sin(t * 0.90); ctl.da = 0.35 * Math.sin(t * 0.62 + 1.0); ctl.dr = 0.35 * Math.sin(t * 0.45 + 2.0); ctl.flap = 0.5 - 0.5 * Math.cos(t * 0.33); };
+const CK_KEYS = ['da', 'de', 'dr', 'flap'];
+function hostFrame(G, h, dt, clock, rows) {
+  clock.t += dt;
+  SWEEP(G.sim.ctl, clock.t);
+  const went = ROLLANIM.frame(dt);
+  const L = G.model.link.step(G.sim.ctl, dt);
+  if (rows && went) rows.push({ ph: h.phase === 'done' && went ? 'roll' : h.phase, tc: h.tCheck, t: h.t, rolled: h.rolled, x: G.craft.position.x,
+    link: CK_KEYS.map(k => L[k] || 0), ctl: CK_KEYS.map(k => G.sim.ctl[k] || 0) });
+  return went;
+}
+// the G1064 checks on one shot's rows
+function checkRows(name, h, rows, want) {
+  const P = h.plan, CK = P.check;
+  const iRoll = rows.findIndex(r => r.ph === 'roll'), lastCheck = rows.map(r => r.ph).lastIndexOf('check');
+  check(iRoll > 0 && lastCheck === iRoll - 1 && rows.slice(0, iRoll).every(r => r.ph === 'check') && rows.slice(iRoll).every(r => r.ph === 'roll'),
+    name + ': G1064 the check first, then the roll (' + iRoll + ' check frames, ' + (rows.length - iRoll) + ' roll frames)', 'roll from ' + iRoll + ', last check ' + lastCheck);
+  const segs = CK.segs.map(g => g.drive).join(',');
+  check(segs === want.join(','), name + ': G1064 the surfaces checked in the user\'s order: ' + segs, segs + ' / ' + want.join(','));
+  const S = ROLLANIM.S, Tw = S.checkLead + S.checkSeg * want.filter(k => k !== 'flap').length + (want.indexOf('flap') >= 0 ? S.checkFlap : 0) + S.checkSettle;
+  check(near(CK.T, Tw, 1e-9) && CK.T >= 1.5 && CK.T <= 4 && near(P.Ttotal, CK.T + P.T.T, 1e-9), name + ': G1064 the check lasts ' + CK.T.toFixed(2) + ' s (brisk), the shot ' + P.Ttotal.toFixed(2) + ' s', CK.T);
+  check(Math.abs(iRoll / 60 - CK.T) < 2 / 60, name + ': G1064 the roll starts when the check ends (' + (iRoll / 60).toFixed(2) + ' s)', iRoll / 60);
+  check(rows.slice(0, iRoll).every(r => r.rolled === 0 && r.x === 0), name + ': G1064 the aeroplane at rest through the check');
+  // one surface at a time, each drawn to its throw, in its own window
+  let two = 0;
+  for (const r of rows.slice(0, iRoll)) if (r.link.filter(v => Math.abs(v) > 1e-12).length > 1) two++;
+  check(two === 0, name + ': G1064 one surface moves at a time', two + ' frames with two');
+  let order = -1, ok = true, why = '';
+  for (const g of CK.segs) {
+    const j = CK_KEYS.indexOf(g.drive), xs = rows.slice(0, iRoll).map(r => r.link[j]);
+    const mx = Math.max(...xs), mn = Math.min(...xs), iPk = xs.indexOf(g.drive === 'flap' ? mx : mx);
+    const inWin = rows.slice(0, iRoll).every((r, i) => Math.abs(r.link[j]) < 1e-12 || (r.tc > g.t0 - 1e-9 && r.tc < g.t1 + 1e-9));
+    const throwOk = g.drive === 'flap' ? mx > 0.95 * g.amp && mn > -1e-12 : mx > 0.95 * g.amp && mn < -0.95 * g.amp;
+    if (!throwOk || !inWin || iPk < order) { ok = false; why += g.drive + ' [' + mn.toFixed(3) + ', ' + mx.toFixed(3) + '] in its window ' + inWin + '; '; }
+    order = iPk;
+  }
+  check(ok, name + ': G1064 each surface drawn to its full throw and back (the linkage snapped: ailerons, elevator, rudder both ways, the flaps down and up), in its turn', why);
+  // THE ROLL: neutral and still, over the host's sweep
+  let moved = 0, worst = 0;
+  for (const r of rows.slice(iRoll)) for (let j = 0; j < 4; j++) { const v = Math.max(Math.abs(r.link[j]), Math.abs(r.ctl[j])); if (v > 0) moved++; worst = Math.max(worst, v); }
+  check(moved === 0, name + ': G1064 through the roll the four surfaces are neutral and still (drawn and commanded exactly 0, over the shed\'s sweep)', moved + ' non-zero, worst ' + worst);
+}
 
 // ---- --page: THE PAGE ITSELF (by hand, ~2-4 min and ~3.6 GB: tools/_page_node.js, FRAMECOST's harness) ----
 // dev.html's own scripts on the real three and a recording GL, ?rollanim=solo: the shed boots with the
@@ -153,7 +206,7 @@ const tick = () => new Promise(r => setImmediate(r));
 // frame at the last frame over placeCamera's, onDone once, the aeroplane put back, no page error.
 async function pageCheck() {
   const { openPage } = require('./_page_node.js');
-  const cap = { calls: [], frames: 0, last: null, mid: null };
+  const cap = { calls: [], frames: 0, last: null, mid: null, phases: '', rollCtl: 0, checkMax: [0, 0, 0, 0] };
   const hooks = { afterScript(name, P) {
     if (name !== 'src/viewer/rollanim.js' || !P.win.ROLLANIM) return;
     const R = P.win.ROLLANIM, play = R.play;
@@ -176,6 +229,12 @@ async function pageCheck() {
     const bx = new W.THREE.Box3().setFromObject(o.craft);
     cap.last = { box: bx, cam: o.camera.position.clone(), t: rec.h.t, rolled: rec.h.rolled, wheels: o.model.wheelParts.map(w => w.obj.rotation.z) };
     if (!cap.mid && rec.h.t > 2) cap.mid = { spin: (o.model.props || []).map(p => (p.userData && p.userData.spinRate) || 0) };
+    // G1064: the phases as the page played them; the controls through the roll (after poseModel: the host's sweep, the
+    // shot's neutral), the largest deflection each drive reached in the check
+    const phs = rec.h.phase; if (cap.phases.slice(-5) !== phs.slice(0, 5)) cap.phases += (cap.phases ? '>' : '') + phs.slice(0, 5);
+    const c = o.sim.ctl, v = [c.da || 0, c.de || 0, c.dr || 0, c.flap || 0];
+    if (phs === 'roll') cap.rollCtl = Math.max(cap.rollCtl, ...v.map(Math.abs));
+    else if (phs === 'check') v.forEach((x, i) => { cap.checkMax[i] = Math.max(cap.checkMax[i], Math.abs(x)); });
   });
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 900000);
   await P.until(() => cap.calls.length && cap.calls[0].h.done, 120000);
@@ -184,7 +243,10 @@ async function pageCheck() {
   if (!check(!!rec, 'page: ?rollanim=solo played the shot once the shed was up')) return;
   const h = rec.h, Pl = h.plan;
   check(!h.skipped && h.done && rec.onDone === 1, 'page: the shot ran to its end, onDone once', 'skipped ' + h.skipped + ', onDone ' + rec.onDone);
-  check(cap.frames >= Pl.T.T * 55, 'page: ' + cap.frames + ' hooked frames for a ' + Pl.T.T.toFixed(2) + ' s shot (the page\'s 60 Hz clock)');
+  check(cap.frames >= Pl.Ttotal * 55, 'page: ' + cap.frames + ' hooked frames for a ' + Pl.Ttotal.toFixed(2) + ' s shot (the page\'s 60 Hz clock)');
+  check(cap.phases === 'check>roll', 'page: G1064 the control check, then the roll (' + cap.phases + ')', cap.phases);
+  check(Pl.check.segs.every(g => cap.checkMax[['da', 'de', 'dr', 'flap'].indexOf(g.drive)] > 0.9 * g.amp), 'page: G1064 every drawn surface of the Cub checked to its throw (' + Pl.check.segs.map(g => g.drive).join(', ') + ')', JSON.stringify(cap.checkMax));
+  check(cap.rollCtl === 0, 'page: G1064 the controls neutral through the roll, over the shed\'s sweep', cap.rollCtl);
   const door = Pl.xDoor;
   check(cap.last.box.max.x < door - 1.0, 'page: G1035 the Cub ends past the door plane', 'tail ' + cap.last.box.max.x.toFixed(2) + ', door ' + door.toFixed(2));
   check(Pl.bad === 0, 'page: G1035 the eye crosses no wall', Pl.bad);
@@ -230,9 +292,10 @@ async function pageCheck() {
     const P = h.plan;
     Ls.push(P.L); Ts.push(P.T.T);
     let n = 0, threw = null;
+    const rows = [], clock = { t: 0 };
     try {
       while (!h.done && n < 2000) {
-        const went = ROLLANIM.frame(1 / 60);
+        const went = hostFrame(G, h, 1 / 60, clock, rows);   // (the shed's sweep, the hook, the linkage: G1064)
         G.cam.position.set(0, 3, 0);                // the host's placeCamera, overwritten by camera() below
         ROLLANIM.camera();
         n++;
@@ -264,6 +327,7 @@ async function pageCheck() {
     check(P.T.T >= 4 - 1e-9 && P.T.T <= 6 + 1e-9, a.name + ': G1036 4-6 s', P.T.T.toFixed(2) + ' s');
     check(rpmMid && G.model.props.every(p => rpmMid[p.userData.engIdx] > 300), a.name + ': the props held at idle through sim.out.rpm', JSON.stringify(rpmMid));
     check(G.sim.out.rpm.length === 0, a.name + ': sim.out.rpm put back', JSON.stringify(G.sim.out.rpm));
+    checkRows(a.name, h, rows, CK_KEYS);
     // G1039: the last frame's eye is the stand's first frame round the CG
     const cgE = [G.cg[0] - P.L, G.cg[1], G.cg[2]], F = ROLLANIM.standFraming('orbit', G.def.params.viewDist, P.side);
     const ex = lastCam.x - cgE[0], ey = lastCam.y - cgE[1], ez = lastCam.z - cgE[2], dE = Math.hypot(ex, ey, ez);
@@ -384,6 +448,43 @@ async function pageCheck() {
     }
   }
 
+  // ---- G1064: the drives the model draws; no check; a skip mid-check ----------------------------------------
+  {
+    const a = archs.find(x => x.name === 'Cub-alike');
+    const shot = (G, extra) => {
+      let calls = 0; const rows = [], clock = { t: 0 };
+      const h = ROLLANIM.play(Object.assign({ craft: G.craft, camera: G.cam, scene: G.scene, hangar: G.hangar, model: G.model, def: G.def, sim: G.sim, onDone: () => calls++ }, extra || {}));
+      return { h, rows, clock, calls: () => calls };
+    };
+    for (const [label, moving, want] of [
+      ['a flapless V-tail build (ailerons, ruddervators)', [{ c: { drive: 'da' } }, { c: { drive: 'de', drive2: 'dr' } }, { c: { drive: 'trim' } }], ['da', 'de', 'dr']],
+      ['a flying wing (elevons)', [{ c: { drive: 'da', drive2: 'de' } }], ['da', 'de']]]) {
+      const G = garage(a, 'club'); G.model.moving = moving;
+      const R = shot(G);
+      while (!R.h.done && R.rows.length < 2000) { if (!hostFrame(G, R.h, 1 / 60, R.clock, R.rows)) break; }
+      await tick();
+      checkRows(label, R.h, R.rows, want);
+      check(R.calls() === 1, label + ': onDone once', R.calls());
+    }
+    {
+      const G = garage(a, 'club'), R = shot(G, { check: false });
+      hostFrame(G, R.h, 1 / 60, R.clock, R.rows);
+      check(R.h.plan.check.T === 0 && R.rows[0].ph === 'roll' && R.rows[0].rolled === 0 && near(R.h.plan.Ttotal, R.h.plan.T.T, 0),
+        'G1064 check: false - no check, the roll at once (the shed\'s sweep left alone)', JSON.stringify({ T: R.h.plan.check.T, ph: R.rows[0].ph }));
+      check(R.rows[0].ctl.some(v => v !== 0), 'G1064 check: false - the shot does not touch the controls', JSON.stringify(R.rows[0].ctl));
+      R.h.cancel();
+    }
+    {
+      const G = garage(a, 'club'), R = shot(G);
+      for (let i = 0; i < 70; i++) hostFrame(G, R.h, 1 / 60, R.clock, R.rows);    // 1.17 s: the elevator's turn
+      const mid = R.rows[R.rows.length - 1];
+      window.dispatchEvent(new Event('keydown', { cancelable: true }));
+      const L = G.model.link.step(G.sim.ctl, 0);
+      check(mid.ph === 'check' && mid.link[1] !== 0 && R.h.done && R.calls() === 1 && CK_KEYS.every(k => G.sim.ctl[k] === 0 && L[k] === 0) && G.craft.position.lengthSq() === 0,
+        'G1064 a skip mid-check: onDone at once, every surface neutral (the linkage snapped), the aeroplane put back', JSON.stringify({ ph: mid.ph, calls: R.calls(), ctl: CK_KEYS.map(k => G.sim.ctl[k]), link: CK_KEYS.map(k => L[k]) }));
+    }
+  }
+
   // ---- THE KIT IN THE WAY --------------------------------------------------------------------------------
   {
     const a = archs.find(x => x.name === 'C172-alike');   // a high wing: a jerrycan passes under it, a hand truck on the centreline does not
@@ -407,16 +508,38 @@ async function pageCheck() {
   // the frames after it run in the interpreter, which boxes every double). The shot's frame code keeps its
   // doubles in a typed array and hands none to a call (rollanim.js advance / frameCam): measured 16 bytes a
   // frame (one boxed double at the THREE setters' edge), from 100-300 before. The bound is 64 (four).
+  // G1064: TWO PHASES, each measured. THE ROLL: the shot's frame alone, bound 64 as before. THE CHECK: the shot also snaps
+  // the host's linkage every frame (model.link.snap, 50_model_codec.js: a keyed write of the twelve drives, each double
+  // boxed on its way - the host's own link.step does the same every frame of the game, ~385 B), so its bound is 64 +
+  // what snap alone costs, measured here on the same linkage
   {
     const a = archs.find(x => x.name === 'DA62-alike');   // two props, three wheels
     const run = () => { const G = garage(a, 'club'); const h = ROLLANIM.play({ craft: G.craft, camera: G.cam, scene: G.scene, hangar: G.hangar, model: G.model, def: G.def, sim: G.sim, onDone: () => {} }); return { G, h }; };
+    const snapCost = (() => {
+      const L = CORE.makeLinkage(0.15), c = { de: 0, da: 0, dr: 0, flap: 0 }; let t = 0;
+      const f = () => { t += 1e-4; c.da = 0.9 * Math.sin(t); L.snap(c); };
+      for (let i = 0; i < 100000; i++) f();
+      const h0 = process.memoryUsage().heapUsed; for (let i = 0; i < 3000; i++) f(); return Math.max(0, (process.memoryUsage().heapUsed - h0) / 3000);
+    })();
+    global.gc(); global.gc();
+    const N = 3000;
+    {
+      const { h } = run();
+      drive(h, 1 / 6000, Math.floor(0.85 * h.plan.check.T * 6000));   // (warm, still inside the check)
+      // (a young-generation scavenge inside the window reads negative: the snap's garbage fills it sooner - up to three
+      // windows, the first clean one)
+      let per = -1;
+      for (let k = 0; k < 3 && per < 0; k++) { const h0 = process.memoryUsage().heapUsed; drive(h, 1 / 60000, N); per = (process.memoryUsage().heapUsed - h0) / N; }
+      check(per >= 0 && per < 64 + snapCost && !h.done && h.phase === 'check', "G1037 no allocation a frame, THE CHECK: " + per.toFixed(1) + " bytes / frame over " + N + " hooked frames (bound 64 + the linkage's snap " + snapCost.toFixed(1) + ")", per.toFixed(1) + ' ' + h.phase);
+      h.cancel();
+    }
     global.gc(); global.gc();
     const { h } = run();
+    drive(h, 1 / 60, Math.ceil(h.plan.check.T * 60) + 2);   // through the check
     drive(h, 1 / 6000, 20000);
-    const N = 3000, h0 = process.memoryUsage().heapUsed;
-    drive(h, 1 / 60000, N);
-    const per = (process.memoryUsage().heapUsed - h0) / N;
-    check(per >= 0 && per < 64 && !h.done, "G1037 no allocation a frame: " + per.toFixed(1) + " bytes / frame over " + N + " hooked frames (bound 64)", per.toFixed(1));
+    let per = -1;
+    for (let k = 0; k < 3 && per < 0; k++) { const h0 = process.memoryUsage().heapUsed; drive(h, 1 / 60000, N); per = (process.memoryUsage().heapUsed - h0) / N; }
+    check(per >= 0 && per < 64 && !h.done && h.phase === 'roll', "G1037 no allocation a frame, THE ROLL: " + per.toFixed(1) + " bytes / frame over " + N + " hooked frames (bound 64)", per.toFixed(1) + ' ' + h.phase);
     h.cancel();
     // and the time: the tick is nothing next to a 33 ms frame
     const { h: h2 } = run();

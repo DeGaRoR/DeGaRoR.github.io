@@ -15,8 +15,20 @@
 // 4-6 s; a click or a key skips it (onDone at once). It loads nothing, builds nothing and allocates next
 // to nothing a frame (~16 bytes, GATE ROLLANIM G1037): the plan (the roll's length, the camera's path,
 // checked against the shed's walls) is made once, at play().
+// G1064 (POLISH-1, the user 2026-09-29: "a quick check of every surface followed by the rollout"): THE SHOT IS
+// TWO PHASES. (1) THE CHECK, the aeroplane at rest where it stands, the camera held on the shed's view: each
+// movable surface deflected and back in turn - ailerons (one way, the other, centre), elevator, rudder, then the
+// flaps down and up - brisk (0.2 s still + 0.65 s a stick surface + 0.9 s the flaps + 0.25 s settled: 3.3 s with all
+// four; S.check*), the prop spooling to idle meanwhile. The shot writes sim.ctl itself (over the shed's slow sweep, which the
+// host writes earlier in the frame) and SNAPS the visual linkage onto it (model.link.snap) so the drawn surfaces
+// follow the brisk profile exactly, not 0.3 s late at a third of the throw. Only the drives the model draws
+// (model.moving / model.surfaces: a flapless build skips the flaps). (2) THE ROLL, as before, with the surfaces
+// held NEUTRAL and still: the four drives written 0 every frame (the linkage already snapped to 0, so nothing is
+// re-posed or re-uploaded while it rolls - GATE FRAMECOST). A skip in either phase goes to the end pose at once.
 //
-//   ROLLANIM.play(opts) -> handle { cancel(), skip(), tick(dt), done, skipped, plan }
+//   ROLLANIM.play(opts) -> handle { cancel(), skip(), tick(dt), done, skipped, plan, phase, tCheck }
+//                     (phase 'check' | 'roll' | 'done'; plan.check = { T, segs: [{ drive, t0, t1, amp }] },
+//                     plan.Ttotal = plan.check.T + plan.T.T)
 //     opts.craft      the aeroplane's root Object3D (app.js `craft`); moved, then PUT BACK (identity)
 //                     before onDone - the caller re-homes it in the world as it does today
 //     opts.scene      the garage scene (hangarScene); only read
@@ -28,6 +40,7 @@
 //     opts.onDone     onDone(handle), called once: at the end (in a microtask after the last frame, so that frame still
 //                     draws the end pose), or at once on a skip. Never after cancel()
 //     opts.skip       true: no shot, onDone at once (synchronously)
+//     opts.check      false: no control check (the roll alone); opts.ctl: the controls to drive (default sim.ctl)
 //     opts.hangar     the room (app.js `hangar`): dims, the door (w, h), the floor y, the craft's print
 //                     quad, the mobile kit and the day card (moved / hidden while they are in the way)
 //     opts.model, opts.def, opts.sim   the app's model entry, sim def and sim: the wheels are
@@ -66,7 +79,13 @@ const ROLLANIM = (() => {
     margin: 0.6,                   // the eye this far off a wall, metres (CAM_NEAR is 0.5)
     head: 0.35,                    // ...and under the door's head: it passes over the eye, not in front of it
     Lmax: 80,                      // the longest roll the plan considers, metres
+    // G1064 THE CONTROL CHECK before the roll: a still lead-in, a segment per surface, a settle at neutral
+    check: true, checkLead: 0.2, checkSeg: 0.65, checkFlap: 0.9, checkSettle: 0.25,
+    checkAmp: 0.9,                 // the stick surfaces' throw (ctl units, +-), one way then the other
+    checkFlapTo: 1.0,              // the flaps: down to this and back up
   };
+  // the check's order (the user's list) and the ctl keys it drives
+  const CHECK_ORDER = ['da', 'de', 'dr', 'flap'];
   const TWO_PI = Math.PI * 2;
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const smooth = u => { u = clamp(u, 0, 1); return u * u * u * (u * (u * 6 - 15) + 10); };   // smootherstep
@@ -154,6 +173,30 @@ const ROLLANIM = (() => {
     const box = new THREE.Box3();
     for (const b of drawnBoxes(root, [])) box.union(b);
     return box;
+  }
+  // ---- G1064 THE CONTROL CHECK'S PLAN ------------------------------------------------------------------
+  // the ctl drives the model DRAWS (a generated build's model.moving, an imported one's model.surfaces: drive and
+  // drive2 - a V-tail's ruddervators answer de and dr, a flying wing's elevons da and de); null: unknown, all four
+  function drivesOf(model) {
+    if (!model) return null;
+    const out = [];
+    const add = c => { if (!c) return; for (const k of [c.drive, c.drive2]) if (k && CHECK_ORDER.indexOf(k) >= 0 && out.indexOf(k) < 0) out.push(k); };
+    if (Array.isArray(model.moving)) for (const mv of model.moving) add(mv && mv.c);
+    if (Array.isArray(model.surfaces)) for (const sf of model.surfaces) add(sf);
+    return (Array.isArray(model.moving) && model.moving.length) || (Array.isArray(model.surfaces) && model.surfaces.length) ? out : null;
+  }
+  function checkPlan(o) {
+    const ctl = o.ctl || (o.sim && o.sim.ctl) || null;
+    if (!ctl || o.check === false || !S.check) return { T: 0, segs: [], drives: [], ctl: null };
+    const have = drivesOf(o.model), segs = [];
+    let t = S.checkLead;
+    for (const k of CHECK_ORDER) {
+      if (have && have.indexOf(k) < 0) continue;
+      const d = k === 'flap' ? S.checkFlap : S.checkSeg;
+      segs.push({ drive: k, code: CHECK_ORDER.indexOf(k), t0: t, t1: t + d, amp: k === 'flap' ? S.checkFlapTo : S.checkAmp });
+      t += d;
+    }
+    return { T: segs.length ? t + S.checkSettle : 0, segs, drives: segs.map(g => g.drive), ctl };
   }
   // ---- THE PLAN (once, at play) -----------------------------------------------------------------------
   // The roll's length L is the SHORTEST that leaves the whole aeroplane S.clear past the door plane AND puts
@@ -244,8 +287,9 @@ const ROLLANIM = (() => {
     const xMain = nMain ? xMainSum / nMain : xMid;
     for (const w of wheels) if (Math.abs(w.z - cg[2]) <= 0.2) { xThird = w.x; break; }
     const floorY = room ? room.floorY : box.min.y;
+    const check = checkPlan(o);
     return {
-      skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin,
+      skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin, check, Ttotal: check.T + c.T.T,
       L: c.L, T: c.T, side: c.side, lag: c.lag, lagE: c.lagE, bad: c.bad, cands: cands.length,
       az0, el0, d0, fresh, az1: c.az1, el1: c.el1, d1: c.d1, wtw: c.wtw, waz: c.waz, wel: c.wel, wd: c.wd, look0, fov0, fov1,
       pivot: [xMain, floorY], xThird,
@@ -376,7 +420,8 @@ const ROLLANIM = (() => {
   // slots - and one handed to a call that is not inlined is boxed too: G1037 measured 100-300 bytes a
   // frame before). st: [0] t, [1] rolled, [2] rpm, [3] / [4] the time the main pair / the third wheel met
   // the sill (NaN: not yet), [5] rolled this frame, [6] heave, [7] pitch (+ nose down in the roll's sense
-  // times -ax: a turn about z), [8] the rpm changed
+  // times -ax: a turn about z), [8] the rpm changed, [9] the control check's clock (G1064: its whole length once
+  // the roll runs)
   function advance(P, st, dt) {
     // (the ramp's distance and acceleration, the bounce and the easing written out: no call here takes a double - see above)
     const T = P.T, d = dt > 0 ? (dt < 1 / 15 ? dt : 1 / 15) : 0;
@@ -388,7 +433,7 @@ const ROLLANIM = (() => {
     else if (tau > 0 && tau <= Tr - ta) s = v * ta / 2 + v * (tau - ta);
     else if (tau > 0) { const r = Tr - tau; s = P.L - v * (r / 2 - Math.sin(k * r) / (2 * k)); acc = -v * k / 2 * Math.sin(k * r); }
     st[5] = s - st[1]; st[1] = s;
-    const u = t / 0.6 < 1 ? t / 0.6 : 1, rpm = S.idleRpm * u * u * u * (u * (u * 6 - 15) + 10);
+    const tt = t + st[9], u = tt / 0.6 < 1 ? tt / 0.6 : 1, rpm = S.idleRpm * u * u * u * (u * (u * 6 - 15) + 10);   // (the prop spools from the check's start: st[9])
     st[8] = rpm !== st[2] ? 1 : 0; st[2] = rpm;
     // a heave where the main pair crosses the sill, a pitch where the third wheel does, and the roll's own
     // acceleration as a nod (speeding up lifts the nose, slowing dips it)
@@ -450,15 +495,23 @@ const ROLLANIM = (() => {
     const pAng = new Float64Array(props.length);
     const propRpm = P.rig.propRpm;
     const lookV = new THREE.Vector3(), eyeV = new THREE.Vector3();
+    // G1064 THE CONTROL CHECK: its segments flat (typed arrays - the frame hands no double to a call), the controls
+    // it drives and the linkage it snaps (the host's model.link: the drawn surfaces follow the profile exactly)
+    const CK = P.check, ctl = CK.ctl, nSeg = CK.segs.length;
+    const sT0 = new Float64Array(nSeg), sT1 = new Float64Array(nSeg), sA = new Float64Array(nSeg), sK = new Int8Array(nSeg);
+    CK.segs.forEach((g, i) => { sT0[i] = g.t0; sT1[i] = g.t1; sA[i] = g.amp; sK[i] = g.code; });
+    const link = ctl && o.model && o.model.link && typeof o.model.link.snap === 'function' ? o.model.link : null;
+    const neutral = () => { if (!ctl) return; ctl.da = 0; ctl.de = 0; ctl.dr = 0; ctl.flap = 0; if (link) link.snap(ctl); };
     // THE SHOT'S CLOCK IN A TYPED ARRAY: a double held in a closure's variable is a fresh heap number at
     // every write (V8 boxes context slots) - 100+ bytes a frame measured, where these slots cost none.
     // (the slots: see advance)
-    const st = new Float64Array(9); st[3] = st[4] = NaN;
+    const st = new Float64Array(10); st[3] = st[4] = NaN;
     let raf = 0, lastT = 0, fin = false;
     // sill events: the time each group reached the sill (NaN: not yet)
     const h = {
       done: false, skipped: null, plan: P, spun: wSpun, hidden,
       get t() { return st[0]; }, get rolled() { return st[1]; },
+      get tCheck() { return st[9]; }, get phase() { return h.done ? 'done' : st[9] < CK.T ? 'check' : 'roll'; },
       tick, cancel, skip, _cam: applyCam,
     };
     function frameCam() {                                // the eye and the aim at the shot's time
@@ -483,6 +536,9 @@ const ROLLANIM = (() => {
     }
     function tick(dt) {
       if (h.done || fin) return false;
+      if (st[9] < CK.T) return checkTick(dt);
+      // THE ROLL: the surfaces neutral and still (over the shed's sweep, which the host wrote earlier in the frame)
+      if (ctl) { ctl.da = 0; ctl.de = 0; ctl.dr = 0; ctl.flap = 0; }
       advance(P, st, dt);
       const s = st[1], ds = st[5], th = st[7];
       // the wheels: distance over radius, the sense poseModel spins them by (forward, rotation.z grows)
@@ -508,12 +564,43 @@ const ROLLANIM = (() => {
       if (st[0] >= P.T.T) { fin = true; Promise.resolve().then(finish); }
       return true;
     }
+    // THE CHECK, a frame: the aeroplane at rest, the camera held on its start, each surface in its turn - a segment's
+    // deflection on its own smootherstep clock u (it starts and ends at rest): a stick surface a whole sine (one way,
+    // the other, back), the flaps half of one (down and up); written out, no double handed to a call - the linkage
+    // snapped onto them, the prop spooling to idle
+    function checkTick(dt) {
+      const d = dt > 0 ? (dt < 1 / 15 ? dt : 1 / 15) : 0;
+      const t = st[9] = st[9] + d < CK.T ? st[9] + d : CK.T;
+      let da = 0, de = 0, dr = 0, fl = 0;
+      for (let i = 0; i < nSeg; i++) {
+        if (t <= sT0[i] || t >= sT1[i]) continue;
+        let u = (t - sT0[i]) / (sT1[i] - sT0[i]); u = u * u * u * (u * (u * 6 - 15) + 10);
+        const k = sK[i];
+        if (k === 3) fl = sA[i] * Math.sin(Math.PI * u);
+        else { const v = sA[i] * Math.sin(TWO_PI * u); if (k === 0) da = v; else if (k === 1) de = v; else dr = v; }
+      }
+      ctl.da = da; ctl.de = de; ctl.dr = dr; ctl.flap = fl;
+      if (link) link.snap(ctl);
+      const ur = t / 0.6 < 1 ? t / 0.6 : 1, rpm = S.idleRpm * ur * ur * ur * (ur * (ur * 6 - 15) + 10);
+      st[8] = rpm !== st[2] ? 1 : 0; st[2] = rpm;
+      if (propRpm && st[8]) propRpm(st[2]);
+      const w = st[2] * TWO_PI / 60 * d;
+      for (let i = 0; i < props.length; i++) {
+        const p = props[i], sense = p.sense || 1;
+        pAng[i] += sense * w;
+        if (pAx[i]) p.obj.quaternion.setFromAxisAngle(pAx[i], pAng[i]); else p.obj.rotation.x += sense * w;
+      }
+      if (st[9] >= CK.T) neutral();                      // (every drive is exactly 0 by then: the settle)
+      applyCam();
+      return true;
+    }
     function putBack() {
       craft.position.copy(pos0); craft.quaternion.copy(quat0);
       craft.updateMatrixWorld(true);
       if (print) print.position.x = printX0;
       for (const k of hidden) k.visible = true;
       if (propRpm) propRpm(null);
+      neutral();                                          // (a skip or a cancel mid-check leaves nothing deflected)
       stopInput();
       if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
       raf = 0;
@@ -527,7 +614,7 @@ const ROLLANIM = (() => {
     function skip() {                                    // a click or a key: the end pose, then onDone at once
       if (h.done) return;
       h.skipped = 'skipped by the player';
-      st[0] = P.T.T; st[1] = P.L; frameCam(); applyCam();
+      st[9] = CK.T; st[0] = P.T.T; st[1] = P.L; frameCam(); applyCam();
       finish();
     }
     function cancel() { if (h.done) return; h.skipped = 'cancelled'; putBack(); h.done = true; }
