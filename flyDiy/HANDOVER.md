@@ -64042,3 +64042,123 @@ in small increments."
 - **STILL OPEN (older, not this):** the flown pose is the solver's last step, not interpolated. A frame that owes 2 or 3
   steps after one that owed 1 moves the eye by that much more: in a climb at 60 fps (1-2 steps) the eye's height judders
   up to 57 mm; at a steady 30 (2 steps each) it does not. Interpolating the pose between steps is the fix (a bigger one).
+
+## G1064-G1069 - POLISH-1: THE ROLL-OUT SHOT CHECKS EVERY SURFACE, THEN ROLLS; FLY PULSES ONCE THE SETUP IS TOUCHED; THE RUNWAY LIGHTS STAND ON STEMS, OFF THE PAVEMENT (2026-09-29, a cloud session, node only)
+
+The user (2026-09-29), three items: (1) the roll-out shot is "a quick check of every surface followed by the rollout" - on
+by default, skippable; (2) touched during the load, the setup screen's Fly button must draw attention (a gentle pulse; a
+static highlight under prefers-reduced-motion; no pulse untouched); (3) "the floating black balls at runway
+intersections". Built on origin/claude/train-16-base (a3aa44cc).
+
+**G1064 THE ROLL-OUT SHOT IS TWO PHASES: THE CONTROL CHECK, THEN THE ROLL** (src/viewer/rollanim.js; app.js one comment).
+- Before: the shed's slow control-check sweep (app.js, the loop's CONTROL CHECK: four sines of 7-19 s periods) kept
+  playing through the shot, so the surfaces wandered while the aeroplane rolled out and the camera tracked it.
+- Now: (1) THE CHECK - the aeroplane at rest where it stands (nothing moved, the camera held on the shed's view, the
+  prop spooling to idle), each movable surface deflected and back IN TURN, the user's order: ailerons (one way, the
+  other, centre: 0.65 s), elevator (0.65 s), rudder (0.65 s), flaps down to full and up (0.9 s); 0.2 s still before,
+  0.25 s settled after: 3.3 s with all four. Each segment is a sine on a smootherstep clock (it starts and ends at
+  rest); throw 0.9 of the stick's range, the flaps to 1. Only the drives the model DRAWS: `drivesOf(model)` reads
+  model.moving[].c.drive/drive2 (a generated build) or model.surfaces[].drive/drive2 (an imported one) - a V-tail's
+  ruddervators answer de and dr, a flying wing's elevons da and de, a flapless build skips the flaps (2.6 s). (2) THE
+  ROLL, unchanged (4-6 s, the same plan, the same camera), with the four drives HELD AT 0 every frame.
+- THE HOST ORDER is what makes it work: the shed sweep writes sim.ctl at the top of the loop; ROLLANIM.frame runs
+  later, just before poseModel, and writes over it (the check's values, or 0 in the roll); poseModel steps the linkage
+  off sim.ctl. In the check the shot SNAPS the linkage onto the controls every frame (model.link.snap) - the linkage's
+  two 0.15 s poles would otherwise draw a 0.65 s full cycle at ~40 % of its throw and 0.3 s late; at the check's end
+  every drive is exactly 0 and snapped, so through the roll the linkage's output is exactly 0 and never moves: poseModel
+  re-poses nothing and uploads nothing while the aeroplane rolls (the old shot re-posed the skin every frame of it).
+  G1028's rule stands: rollOutStand still snaps the linkage after fullReset at the cut.
+- A skip (a click, a key, Esc, the bar's button) in either phase goes to the end pose at once; putBack writes the four
+  drives 0 and snaps (a skip or a cancel mid-check leaves nothing deflected). `opts.check === false` (or ROLLANIM.S.check
+  = false, live) plays the roll alone and leaves the controls alone; `opts.ctl` overrides sim.ctl.
+- The handle: `phase` ('check' | 'roll' | 'done'), `tCheck`; the plan: `check` ({ T, segs: [{ drive, t0, t1, amp }],
+  drives }) and `Ttotal` (check + roll: 9.3 s for the Cub in the club shed). Dials: ROLLANIM.S.checkLead / checkSeg /
+  checkFlap / checkSettle / checkAmp / checkFlapTo. The app's 30 s timeout covers it.
+- WHAT THE PLAYER SEES (to judge live): press ROLL OUT - the editor closes, the aeroplane stands still with the prop
+  spinning up, the ailerons flick one way, the other and back, then the elevator, then the rudder, then the flaps go
+  down and come back up (3.3 s in all, the camera still); then the aeroplane rolls out of the door with every surface
+  neutral and still, the camera tracking it onto the stand's first frame, and the cut. A click or a key at any moment
+  cuts to the stand.
+
+**G1065 FLY DRAWS THE EYE ONCE THE SETUP IS TOUCHED** (app.js setupLook / setupState / FLYDIY_SETUP, style.css).
+- `setupLook(fly, touched, ready)`: `.on` (lit, pressable) when the load is done and held, `.pulse` whenever the
+  setup screen has been touched (any control: a pick, a slider, a switch, a select, a fold - the same capturing
+  listener that holds the auto-start, G1025). Untouched: no pulse, ever (the screen lifts by itself).
+- style.css `#bootFly.pulse`: a soft amber glow breathing on a 1.8 s ease-in-out loop (a 4 px ring at 28 % and a
+  16 px blur at 45 % at the peak, nothing at the trough) - on the lit amber button once the load is done; while it still
+  loads, the outline turns amber (text and border) and breathes the same way. `@media (prefers-reduced-motion:
+  reduce)`: no animation, the same ring held still (3 px at 40 % + 12 px at 35 %).
+- The options that reload stay off the screen (unchanged: FL_SECS `reload` / GFX `noReload`, one registry - GATE
+  SETUP's census). FLYDIY_SETUP.state() carries `pulse`; FLYDIY_SETUP.look(touched, ready) drives the look (the gate).
+
+**G1066 THE RUNWAY LIGHTS: WHERE, AND WHAT THEY LOOK LIKE BY DAY** (src/core/25_airfield.js RWY_LIGHTS /
+runwayLightStrips / runwayLightSite / runwayLightPoints, exported for node; src/viewer/render_world.js standRunwayLights,
+rwyLightGeo, rwyMask, runwayLightsApply).
+- THE BALLS were G443's edge lights: a 9 cm sphere of near-black (0x1a1c20) 35 cm above terrainH, no stem, every 60 m
+  at half width + 1.5 m; by day nothing lit them, and where Jolene's HOME and w2 cross, each runway's edge row ran over
+  the other's concrete. Measured on Jolene's premises: 3 edge lights on the other runway (HOME 1, w2 2) and one more
+  within 3 m of its edge, and the GREEN THRESHOLD ROWS
+  of HOME, w2 and tw_ski standing on their turn pads' / platform's concrete, plus edge lights on the concrete taxiway
+  r_taxi_e's throat and the gravel roads r_airport (HOME) and mn_main (mn_strip).
+- (a) THE PLACES moved into the core (the same edge / threshold rule): a light ON pavement - another land strip's box
+  (any surface), or when the world carries premises any of their pavement that is not grass (pavedNear, the strip's
+  own id skipped: roads, polygons, the surface layer's paved aprons) - is kept FLUSH (an inset light, as a real
+  crossing's and turn pad's are); one OFF the pavement but within 3 m of its edge (RWY_LIGHTS.clear) is LEFT OUT; the
+  rest stand elevated. A grass polygon counts as nothing (nv_strip lies on its grass meadow polygon: all 20 kept).
+  Jolene: 260 lights on 6 strips - 224 elevated, 36 flush (w2 10, HOME 18, mn_strip 6, tw_ski 2), 8 left out (HOME 5,
+  mn_strip 2, tw_ski 1); both green rows of HOME and w2 kept (flush on the turn pads). The procedural world: 304, all
+  elevated (no crossing).
+- (b) THE LIGHT: ONE merged geometry per colour per strip (the same two InstancedMeshes, the same draws): a squat
+  dark-grey base can (12 cm across, 14 cm tall, sunk 10 cm), a slim light-grey stem (3.2-4 cm) from under the ground up
+  into the lens, and the lens a glass globe (7 cm radius, 1.25x taller than wide) - pale warm clear (0xe9e3cf) on the
+  white edge rows, pale green (0xc0e6c8) on the thresholds - on vertex colours, roughness 0.25 (it catches the sky).
+  Only the lens glows: a 2-texel emissive MASK on the uv (the lens 0.75 -> white, the stem and base 0.25 -> black;
+  RWY.mask, NearestFilter). A FLUSH light is the same geometry squashed to 0.3 in y about its centre 5 mm over the
+  surface: a 2.6 cm glass dome on the pavement, its stem and base under it.
+- THE NIGHT, as it was: the lens's centre is where the old ball's was (35 cm), the G396.x level and the NIGHT strip's
+  `runway` mute untouched, and the lenses still grow with the distance (runwayLightsApply, now by the lens's own radius;
+  a grown lens swallows its stem and sinks its base under the ground; a flush light's squash lets go as it grows: sy =
+  sc x (0.3 + 0.7 x min(1, (sc - 1) / 2)), so far away it is a round point like the rest). NEW: the material's colour
+  darkens with the lights (white by day, 1 - 0.985 x on: 0.015 at night - the old near-black lens round its glow).
+- WHAT THE PLAYER SEES (to judge live, daylight on Jolene): along the runway edges, knee-high light units on thin grey
+  stems with pale glass globes instead of black balls hanging in the air; at the HOME / w2 crossing no light stands on
+  the other runway - the two that fell on it are small glass domes in the concrete; the green threshold rows at the
+  runway ends are flush domes on the turn pads; a few edge lights beside the taxiway throat and the airport road are gone.
+  At night: the same glowing points as before.
+
+**G1067 GATE RWYLIGHTS** (tools/_rwylights_check.js, new, core, ~6 s; 92 checks). Jolene (island_node + its premises
+fixture) and the procedural world (makeWorld()): every strip's lights from runwayLightPoints held against an INDEPENDENT
+rectangle test - no ELEVATED light inside another strip's pavement rectangle nor within its 3 m clear, none on or within
+3 m of a non-grass premises pavement, every flush light inside a pavement, every flush / left-out light says why, a
+strip keeps >= 80 % of its lights, HOME's and w2's threshold rows all kept, nv_strip untouched; THE CROSSING IS SEEN (the
+old placement stood 1 of HOME's and 2 of w2's lights elevated on the other's concrete). The core's site rule on a
+synthetic crossing (on -> flush, 2 m off -> left out, 4 m off -> elevated, grass stands, concrete within the clear cuts,
+on it flushes). The light's geometry LIFTED from render_world.js and built on the vendor three (one merged geometry, no
+groups; the lens round the origin; the stem into the ground and into the lens; the mask; the flush dome 1-3.5 cm; the
+lens's day luminance > 0.3 and > 20x the old near-black), and the material / placement / growth / mute / darkening lines
+by source. Mutation-checked: the site rule off (every light elevated where it was) -> 5 red (3 elevated inside HOME / w2,
+36 on and 8 near premises pavement). GATE CLOUD's G443 source checks follow the move (the places in the core, the lens
+radius, the merged geometry, the repaint's dispose - a repainted strip now disposes its lights' own geometry).
+
+**G1068 GATE ROLLANIM: G1064** (tools/_rollanim_check.js; the model carries a real linkage, CORE.makeLinkage(0.15), as
+app.js's). Every archetype is driven AS THE HOST DRIVES IT: app.js's shed sweep writes sim.ctl, then ROLLANIM.frame,
+then the linkage steps (poseModel). Per archetype: every check frame before every roll frame; the check's segments in
+the user's order and its length (lead + 0.65 x stick surfaces + 0.9 flaps + settle = 3.3 s, <= 4); the roll starts when
+the check ends; the aeroplane at rest through the check; one surface moving at a time; each DRAWN (the linkage's output)
+to > 95 % of its throw both ways (the flaps down only), inside its own window, in order; through the whole roll the four
+drawn surfaces and the controls exactly 0 over the sweep. Then: a flapless V-tail build (da, de/dr, a trim part) checks
+da, de, dr (2.6 s); a flying wing's elevons da, de; check: false rolls at once and leaves the controls alone; a key
+mid-check ends it at once with every surface neutral (the linkage too) and the aeroplane put back. G1037 in both phases:
+the roll < 64 B a frame (17.5); the check < 64 + what model.link.snap alone costs (measured in the same run, ~80 B:
+the linkage's keyed double writes - the host's own link.step allocates ~385 B every frame of the game): ~97 B; up to
+three windows (a scavenge inside one reads negative). Mutation-checked: the roll's neutral writes removed -> 28 red; the
+check's snap removed -> 56 red. `--page` (by hand) now also holds 'check>roll', each drawn surface of the Cub checked to
+its throw and the controls neutral through the roll.
+
+**G1069 GATE UISMOKE / GATE SETUP: THE PULSE.** UISMOKE: FLYDIY_SETUP.look on the real #bootFly - untouched (loading or
+ready) no pulse; touched, pulsing, lit and pressable only when ready - and the artifact's CSS has `#bootFly.pulse`'s
+infinite animation and the reduced-motion rule's still ring. ROUNDTRIP's `setup` child: no pulse before the touch, a
+pulse after it and still 60 frames into the wait.
+
+FRAMECOST: the `boot/rollout:click/` ALLOW row's reason updated (~560 shed frames: the check's ~200 + the roll's ~360;
+the row is admitted whole, as before). See the READY commit for the battery and the compare against the base.
