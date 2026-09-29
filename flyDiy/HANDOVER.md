@@ -64007,3 +64007,14 @@ only while the cook was stale (every key captured live).
   against the raster's single cell. 29_obstacles.js pieces() now keeps a 0.5 m plan grid of piece indices (per cell, in
   the pieces' order); penPieces reads only its cell's list: 57-64 ns, and 0 differing answers of 2 000 000 random
   queries against the full scan (scratchpad penbench: grid on / off, the pushes compared bit for bit).
+- G1063.2 (the ratchet: an 11.6 s task in the one loading, `garage:craft`, and a 5 s frame in a slider's roll-out): the
+  CPU profile (rollout_perf --profile-boot; scratchpad proftask.js) puts it under loop -> renderer.render -> getUniforms
+  -> getProgramInfoLog: the 'craft' step dresses the scenes it compiles (the craft in the world; its mesh and its own
+  lights shown in the shed for compileCraftShed, G1027: 83 new programs) while the loop kept drawing the shed and met
+  them unlinked. compileCraft now holds the loop's draw (holdRender, restored after) until its compiles resolve - G732's
+  NEVER DRAW AHEAD OF THE LINKS. The step always runs under a screen.
+- G1063.3 (the round trips: the shed at 30 fps after a flight, 54 fresh): enterGarage from the world starts the auto
+  frame rate over (FLYDIY_PACE.set('auto')) - the flight's verdict and trial backoff (to 30 s) were carried into the shed.
+- OPEN (not held for): the world's settle step still has two ~1.1 s tasks (garage:settle, ~27 s into the loading): one
+  worldUpdate call builds a ground chunk (buildChunk ~0.84 s: grCooked/grHeight) and merges an HLOD cell (hlodMerge
+  ~0.52 s: meanOf) in the same task - worldAtRest's 40 ms slice cannot cut inside one call.

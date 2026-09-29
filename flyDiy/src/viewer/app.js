@@ -6555,7 +6555,14 @@
     parkedFlush();
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
-    if (!inGarage) garageCamera();
+    if (!inGarage) {
+      garageCamera();
+      // G1063.3 (train 16's round trips: the shed at 30 fps after a flight, 54 fresh): the auto frame rate's verdict and
+      // its trial backoff (up to 30 s) were the FLIGHT's; the shed is another scene - its policy starts as the first
+      // shed's does (60, kept where it holds). window's handle: the boot's first call runs before PACE's const
+      const PC = window.FLYDIY_PACE;
+      if (PC && PC.state && PC.state().mode === 'auto') PC.set('auto');
+    }
     inGarage = true; started = false; running = true;
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
     // openEditor at first, which returns early when the cage editor cannot
@@ -6878,8 +6885,18 @@
   // THE AEROPLANE'S PROGRAMS IN THE WORLD'S LIGHTS, compiled from the shed (three's targetScene: the craft is not in the
   // world scene, the lights, fog and environment are the world's) with its shadow pass - the world's first frame with a
   // new build links nothing
+  // G1063.2 (train 16's ratchet: an 11.6 s task in the one loading's 'craft' step, a 5 s frame in a slider's roll-out):
+  // this step DRESSES the scenes it compiles - the craft stood in the world, its mesh and its own lights shown in the
+  // shed (compileCraftShed): every lit program of the room re-keyed (83 new programs, the loading at 67 s) - and the
+  // loop went on drawing the shed meanwhile, meeting those programs unlinked: getUniforms waited on the link in one
+  // task (the CPU profile: 11.6 s under getProgramInfoLog, renderer.render from loop). G732's rule, NEVER DRAW AHEAD
+  // OF THE LINKS: the loop draws nothing (holdRender) until the step's programs are linked and the dress put back.
+  // The step runs under a screen (the loading, a roll-out's aircraft phase, Fly's settle), so nothing is seen held
   function compileCraft() {
     if (!WF || typeof renderer.compileAsync !== 'function') return;
+    const was = holdRender;
+    holdRender = true;
+    const release = () => { holdRender = was; };
     return craftInWorld(() => {
       const jobs = [compileSliced(craft, aa && aa.target ? aa.target() : null, scene)];
       if (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants) {
@@ -6887,7 +6904,7 @@
         catch (e) { console.warn('craft depth compile:', e && e.message); }
       }
       return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000);
-    }).then(() => compileCraftShed());
+    }).then(() => compileCraftShed()).then(release, e => { release(); throw e; });
   }
   // G1027 (B8B9 + B10 on train 14): ...AND THE SHED AS THE ROLL-OUT SHOT DRAWS IT. The shed shows the editor's cage with
   // the flown model hidden; the shot (rollAnimPlay) shows the flown MESH - model.grp, and with it the aeroplane's own
