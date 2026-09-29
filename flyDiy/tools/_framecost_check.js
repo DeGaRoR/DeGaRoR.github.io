@@ -163,6 +163,26 @@ const ALLOW = [
   // clock in BOTH trees the two censuses are equal to the last count (1333 values, 0 differ): no new work. The Cessna's taxi
   // then shows another share of strip-stone instance lists / bone textures (495 712 -> 506 560 B; the Cub's 500 160)
   { key: 'taxi/bytes.texSubImage2D', build: 'cessna', upTo: 508000, why: 'the LRU\'s fewer decode stamps move where the settle and the streamers cut (the virtual clock), not per-frame work', g: 'G738' },
+  // AS5b (2026-09-29, G933-G934): the hangar's 45 props with their cut levels (props_lods.js) and the premises' repeated
+  // dressing instanced per (key, level). Measured on the Cub, origin/claude/train-16 -> the AS5b branch (HANDOVER G933):
+  //  - every hangar prop's THREE.LOD holds two or three more level groups: more nodes for every whole-scene
+  //    updateMatrixWorld (the shed's, the world's), in every step that updates the scene - never a draw;
+  ...['garage:compile', 'garage:editor', 'garage:firstFrame', 'garage:garage', 'garage:landing', 'garage:spec', 'garage:world', 'rollout:click']
+    .map(st => ({ key: 'boot/' + st + '/three.updateMatrixWorld', build: '*', upTo: Infinity, why: 'the hangar props\' cut levels are nodes of the scene (+~570)', g: 'G933' })),
+  //  - a level's geometry is uploaded the first time it is drawn: the garage's first frame (the far wall past 20 m),
+  //    the roll-out shot's (the eye leaving the shed: +0.72 MB over 360 frames)
+  { key: 'boot/garage:firstFrame/bytes.bufferData', build: '*', upTo: Infinity, why: 'the cut levels\' geometry, uploaded when first drawn (+4.3 MB)', g: 'G933' },
+  { key: 'boot/garage:firstFrame/gl.calls', build: '*', upTo: Infinity, why: 'the same uploads (+1.7 k calls)', g: 'G933' },
+  { key: 'boot/rollout:click/bytes.bufferData', build: '*', upTo: Infinity, why: 'the roll-out shot: the far levels uploaded as the eye leaves the shed (+0.72 MB in all)', g: 'G933' },
+  //  - the instanced dressing: its records' INSTANCED programs (+3 at the stand; linked under the loading screen, in the
+  //    world compile), a VAO and an instance buffer bound per batch, and a batch drawn into a cascade wherever one of its
+  //    instances stands in it (the world's warm-up frames of the one loading: +3 shadow draws a render)
+  { key: 'stand/programs', build: '*', upTo: 119, why: 'the repeated dressing\'s instanced programs (+3)', g: 'G934' },
+  { key: 'stand/gl.bindBuffer', build: '*', upTo: 80, why: 'the dressing batches\' instance buffers (+8)', g: 'G934' },
+  { key: 'boot/garage:worldCompile/links', build: '*', upTo: 150, why: 'the dressing\'s instanced programs, linked under the screen (+3)', g: 'G934' },
+  ...['boot/garage:frames/draws.total', 'boot/garage:frames/three.frustumTests', 'boot/garage:settle/draws.total', 'boot/garage:settle/gl.calls',
+      'boot/garage:settle/bytes.uniforms', 'boot/garage:images/world.grHeight']
+    .map(k => ({ key: k, build: '*', upTo: Infinity, why: 'the world\'s warm-up frames in the one loading: the dressing batches drawn per cascade (+2-4 % draws)', g: 'G934' })),
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
@@ -226,6 +246,13 @@ async function census(build) {
   views.taxi = await measure();
   detail.taxi = drawnDetail(C);
   views.taxi.pose = [pose.x, pose.z, pose.hdg, pose.off === null ? 'no route' : 'route ' + pose.off + ' m off'];
+  // FRAMECOST_VILLAGE=1 (AS5b, G934; a third view, never in the verdict or the baseline): the aeroplane stood where the
+  // premises' repeated dressing props stand thickest - found from the placements themselves (a LOD or an instanced
+  // proxy, both named prop:<key>), so a tree with and a tree without the instancer are measured at the same place
+  if (process.env.FRAMECOST_VILLAGE) {
+    const vp = villagePose(W);
+    if (vp) { placeAt(W, FP, vp); views.village = await measure(); detail.village = drawnDetail(C); views.village.pose = [vp.x, vp.z, vp.hdg, vp.n + ' props within 120 m']; }
+  }
   // THE ISLAND TEXTURES ARE THE GPU'S (G906): after the roll-out not one keeps its image.data; the class weights were
   // never built (the default stack starts past the class layer); a lost context's re-derive (the canvas's
   // webglcontextrestored handler, called here directly - three's own restore is not run on the recording GL) gives
@@ -284,6 +311,8 @@ function pageHooks(C, getCam) {
 //   FRAMECOST_WHO=1     the callers of terrainH and of the buffer / texture / matrix uploads, sampled, over the stand's
 //                       frames; the premises overlay's state
 //   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material (=taxi: at the taxi pose)
+//   FRAMECOST_VILLAGE=1 a third view, `village`: the aeroplane by the thickest cluster of the premises' repeated
+//                       dressing props (G934's instancer) - for a --compare, never in the verdict
 //   FRAMECOST_PROBE=N   N frames at the stand, a line every 10 (draws, GL calls, terrainH, ...): how the world settles
 async function debugAids(W, P, FP, C, getRows, setRows, at) {
   const E = process.env;
@@ -543,6 +572,17 @@ function taxiPose(W, FP) {
   }
   if (hold) return { x: (cg[0] + hold.x) / 2, z: (cg[2] + hold.z) / 2, hdg: Math.atan2(hold.z - cg[2], hold.x - cg[0]), how: 'midway' };
   return null;
+}
+// the village view's pose (FRAMECOST_VILLAGE): the placement of a repeated dressing key (props.js PROP_INST_REPEAT's
+// list) with the most such placements within 120 m, the aeroplane 25 m south of it facing north across them
+const VILLAGE_KEYS = /^prop:(drum_steel|barrel_plastic|crate_wood_[abc]|tyre|work_trestle|handtruck|box_cardboard|compressor|jerrycan|jerrycan_green|oil_tin|bottle_propane|bottle_lpg|bin_metal|bin_metal_rust|stepladder|stove_barrel|pallets_stack|pallets_three|pallet_one|cinder_pallet|cement_bags|bags_stack|bags_lean|bags_flat|bags_stand|bag_compost|planter|stool_wood|stool_wood2|stool_fold|chair_wood|chair_plastic|table_wood|picnic_table|person_[a-z]+)$/;
+function villagePose(W) {
+  const pts = [], v = new W.THREE.Vector3();
+  W.WORLD.scene.traverse(o => { if (VILLAGE_KEYS.test(o.name || '')) { o.updateWorldMatrix(true, false); v.setFromMatrixPosition(o.matrixWorld); pts.push([Math.round(v.x * 10) / 10, Math.round(v.z * 10) / 10]); } });
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let best = null;
+  for (const p of pts) { let n = 0; for (const q of pts) if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 120) n++; if (!best || n > best.n) best = { x: p[0], z: p[1] + 25, hdg: -Math.PI / 2, n }; }
+  return best;
 }
 // ---- the proof: three regressions, each must be red against the view it was injected into ---------------------
 async function injections(W, FP, C, base, measure) {
