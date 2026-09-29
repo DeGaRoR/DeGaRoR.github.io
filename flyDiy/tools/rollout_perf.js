@@ -145,6 +145,9 @@ const SHOT_EVAL = opt('shot-eval', null);
 // --profile-live <at>,<secs>: a CPU profile window of the live game (below); --eval '<js>': an expression evaluated in the page at the end of the
 // recording (a census: renderer.info, a module's stats), its value printed and kept in the JSON
 const PROFILE_LIVE = opt('profile-live', null);
+// --pre <js | @file> (C4b, G879): a script the page runs before its first own script (after the rig's own pre-lines) - a
+// debugging hook, e.g. tools/perf/progwait_hook.js, which names every GL call that waited on a program link
+const PRE = (e => e && e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e)(opt('pre', null));
 const EVAL = (e => e && e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e)(opt('eval', null));   // '@tools/rollout_census.js': from a file
 const SETTINGS = flag('settings') ? (() => { const v = opt('settings', null); return (v && !v.startsWith('--') ? v : 'shadows=off,shadows=full,preset=potato,preset=gamer').split(',').map(x => x.split('=')); })() : null;
 // --trips (B9, G1023): THE ROUND TRIPS, timed - the garage's frame rate fresh (5 s before the first roll-out) and after a
@@ -205,6 +208,7 @@ function preScript() {
   lines.push(`(function(){ if (window.__RP) return; var R = window.__RP = { t0: performance.now(), lt: [], ev: [], waterGpu: ${WATER_GPU ? 'true' : 'false'} };
     try { new PerformanceObserver(function(l){ l.getEntries().forEach(function(e){ R.lt.push([Math.round(e.startTime), Math.round(e.duration)]); }); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
   })();`);
+  if (PRE) lines.push(PRE);
   return lines.join('\n');
 }
 

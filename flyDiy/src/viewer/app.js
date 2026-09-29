@@ -7259,7 +7259,16 @@
       { id: 'compile', label: 'the new settings', w: 10, fn: () => shaderProgress(compileSliced(sc, aa && aa.target ? aa.target() : null)
           .then(() => garage ? null : compileDepthVariants(scene, true)).then(() => garage ? null : rungPrelink())   // G730: the parked rungs re-key too
           .catch(e => console.warn('settings compile:', e && e.message)), garage ? 'garage' : 'world', 60000) },
-      { id: 'frames', label: 'first light', w: 2, fn: () => Promise.resolve(programsReady(20000)).then(() => { holdRender = false; return framesRendered(2); }) },   // G732
+      // G879: what joined the scene while it compiled (the settings freeze's two real links: the cover's grass1 and a plain
+      // Standard, first keyed on the first frame), linked; then every program's first draw, a slice a task, under the
+      // screen (warmDrawSliced); then the frames
+      { id: 'frames', label: 'first light', w: 2, fn: () => Promise.resolve(programsReady(20000))
+          .then(() => garage ? null : shaderProgress(compileSliced(sc, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants(scene, true))
+            .catch(e => console.warn('settings catch-up compile:', e && e.message)), 'world', 60000))
+          .then(() => programsReady(20000))
+          .then(() => warmDrawSliced(sc, aa && aa.target ? aa.target() : null, 'first light'))
+          .catch(e => console.warn('settings warm draw:', e && e.message))
+          .then(() => { holdRender = false; return framesRendered(2); }) },   // G732
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
       done: () => { holdRender = false; if (held && !inGarage) running = true; }, idle: 20000, hard: 90000, quietFrames: 1 });
@@ -11416,6 +11425,108 @@
           if (!mats.size) res(sc); else setTimeout(poll, 10);
         };
         poll();
+      };
+      tick();
+    });
+  }
+  // G879 (C4b, train 14's settings freeze named): THE FIRST USE, PAID UNDER THE SCREEN. A program linked in parallel is
+  // READY long before it is drawn, and still its first draw costs: on the reference box (ANGLE over D3D11) each program's
+  // first draw into a target waited ~16 ms in getProgramInfoLog - the executables for that vertex layout and that
+  // target, made lazily - and the first frame after a shadows change drew ~40 of them: 0.6-1.3 s of waits in ONE task,
+  // the settings screen's worst (train 14: 1.3-1.45 s; the waits named by tools/perf/progwait_hook.js, every one a
+  // program the settings compile had seen ready 30 s before). This draws each (material, object kind, attribute layout)
+  // ONCE under the screen, a slice a task: the compile's stand-ins (PROG_WARM.standIn: the object by prototype, so the
+  // key and the layout are its own), each drawing ONE triangle of its object's own geometry (the drawRange narrowed for
+  // the draw and put back; an instanced one draws one instance), in the real scene - its lights,
+  // its fog, its environment: the key the frame will ask for - through a camera that sees only the warm layer (the
+  // lights join it for the draw), into the target the frame draws into. The shadow pass does not run (its maps stand
+  // as the last frame left them). A BatchedMesh draws whole (its draw lists are its own). `sc` the scene, `target` the
+  // frame's (null = the canvas); resolves when every stand-in was drawn. THE SETTINGS SCREEN'S (settleScreen): the
+  // roll-out's frames row has its own path (B8B9's), and a warm draw there cost the taxi's render ~1 ms on train 14
+  // (three alternated pairs, both builds; the node census saw no per-frame work) - not taken until that is understood.
+  // ONLY WHAT IS SHOWN (traverseVisible): a first
+  // draw uploads the object's whole buffers, and the hidden ones (the rungs out of reach, the parked levels, the cabin's
+  // kept live meshes) were ~220 MB of vertex data sent for nothing on the Cessna (the node census), and the taxi's
+  // render paid for it (+1.2 ms, the first cut); a hidden thing's first draw stays where it was, when it shows.
+  const WARM_LAYER = 29;
+  function warmDrawSliced(sc, target, label) {
+    if (typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn || typeof renderer.render !== 'function' || !camera) return Promise.resolve(0);
+    const reps = [], seen = new Set(), lights = [];
+    // ...and only what the first frame's MAIN pass will draw: the world's visibility contract as the loop applies it
+    // (the far quadrants the air hides), the camera's frustum (an object that culls itself in the frame culls here)
+    const vis = (sc === scene && !inGarage && WF && WF.vis) ? WF.vis : null;
+    const fr = new THREE.Frustum();
+    try {
+      if (vis) vis.apply(camera);
+      camera.updateMatrixWorld();
+      fr.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse), camera.coordinateSystem, camera.reversedDepth);
+    sc.traverseVisible(o => {
+      if (o.isLight) { lights.push(o); return; }
+      if (!(o.isMesh || o.isPoints || o.isLine) || !o.material || !o.geometry || !o.geometry.attributes) return;
+      if (o.frustumCulled && !o.isBatchedMesh) { try { if (!fr.intersectsObject(o)) return; } catch (e) {} }
+      const g = o.geometry;
+      const gk = Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.index ? 'i' : '');
+      const ok = (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '')
+        + (o.isPoints ? 'P' : o.isLine ? 'L' + (o.isLineSegments ? 's' : '') : 'M');
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        if (!m || m.visible === false) continue;
+        const k = m.uuid + '|' + ok + '|' + gk;
+        if (seen.has(k)) continue;
+        seen.add(k); reps.push([o, m]);
+      }
+    });
+    } finally { if (vis) vis.release(); }
+    const cam = camera.clone(); cam.layers.set(WARM_LAYER);
+    // a stand-in draws ONE primitive of its object's own geometry (the drawRange narrowed for the draw and put back:
+    // the same geometry, so the same buffers and the same vertex array; an instanced one draws one instance)
+    const one = (o, m, narrowed) => {
+      const s = PROG_WARM.standIn(o, m), g = o.geometry;
+      if (!o.isBatchedMesh && g.drawRange && !narrowed.has(g)) { narrowed.set(g, [g.drawRange.start, g.drawRange.count]); g.drawRange.start = 0; g.drawRange.count = o.isPoints ? 1 : o.isLine ? 2 : 3; }
+      if (o.isInstancedMesh) s.count = Math.min(1, o.count);
+      s.frustumCulled = false;
+      s.layers = new THREE.Layers(); s.layers.set(WARM_LAYER);
+      // ITS OWN MATRICES: a stand-in's prototype is the object, so its matrix, matrixWorld, modelViewMatrix and
+      // normalMatrix ARE the object's - a render's matrix pass (and the draw's model-view) wrote the warm group's frame
+      // into them, and a frozen object (matrixWorldAutoUpdate off: the premises, the town) kept it (the first cut: the
+      // taxi's render +1.3 ms after the roll-out). Its place is irrelevant to the key: identity.
+      s.matrix = new THREE.Matrix4(); s.matrixWorld = new THREE.Matrix4();
+      s.modelViewMatrix = new THREE.Matrix4(); s.normalMatrix = new THREE.Matrix3();
+      s.matrixAutoUpdate = false; s.matrixWorldAutoUpdate = false; s.matrixWorldNeedsUpdate = false;
+      return s;
+    };
+    let i = 0, drawn = 0, G = 8;
+    return new Promise(res => {
+      const tick = () => {
+        const t0 = performance.now();
+        const prevRT = renderer.getRenderTarget(), SM = renderer.shadowMap, au = SM.autoUpdate, nu = SM.needsUpdate;
+        const grp = new THREE.Group();
+        for (const L of lights) L.layers.enable(WARM_LAYER);
+        try {
+          SM.autoUpdate = false; SM.needsUpdate = false;
+          renderer.setRenderTarget(target || null);
+          sc.add(grp);
+          // a group of stand-ins a draw (the render walks the whole scene once: the group grows while that is the cost),
+          // until the slice's 30 ms are spent (a first draw is ~16 ms on the box it was cut for)
+          while (i < reps.length && performance.now() - t0 < 30) {
+            const n = Math.min(G, reps.length - i), narrowed = new Map(), t1 = performance.now();
+            for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; try { grp.add(one(o, m, narrowed)); } catch (e) {} }
+            i += n;
+            try { renderer.render(sc, cam); drawn += grp.children.length; }
+            catch (e) { console.warn('warm draw:', e && e.message); }
+            finally { for (const [g, r] of narrowed) { g.drawRange.start = r[0]; g.drawRange.count = r[1]; } grp.clear(); }
+            const dt = performance.now() - t1;
+            G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));
+          }
+        } finally {
+          sc.remove(grp);
+          for (const L of lights) L.layers.disable(WARM_LAYER);
+          SM.autoUpdate = au; SM.needsUpdate = nu;
+          renderer.setRenderTarget(prevRT);
+        }
+        if (typeof BOOT !== 'undefined' && BOOT.phase && label) BOOT.phase('frames', label, reps.length ? i / reps.length : 1);
+        if (i < reps.length) { setTimeout(tick, 0); return; }
+        if (window.FLYDIY_LOG_COMPILE) console.log('warm draw: ' + drawn + ' stand-ins of ' + reps.length);
+        res(drawn);
       };
       tick();
     });
