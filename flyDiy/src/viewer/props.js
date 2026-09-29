@@ -325,10 +325,17 @@ function propMesh(THREE, key) {
 // THREE.LOD - the renderer picks the level by distance every frame, the
 // shadow pass follows the picked level's visibility, and a placement site
 // keeps doing what it did (position and rotation live on the object).
+// THE HANGAR'S PROPS HAVE LEVELS TOO (AS5b, G933): tools/prop_lod.js --kit props cut the 45 props of
+// media/geo/props/ beside their as-is bins (src/props/props_lods.js, the pier kit's yard ladder: a quarter past
+// 20 m, 6 % past 60 m) - read here like every other level. `?proplod=0` is the A/B: those levels are not used, a
+// hangar prop places exactly as before them (its full mesh, then nothing past a pixel and a half).
+const PROP_SHED_L0 = typeof location !== 'undefined' && /[?&]proplod=0(&|$)/.test(location.search || '');
 const PROP_LEVELS = new Map();          // prop key -> [{ key, dist }] ascending
 function propLevels(key) {
   let lv = PROP_LEVELS.get(key);
   if (lv) return lv;
+  const P = PROP_REG.props[key];
+  if (PROP_SHED_L0 && P && P.bin && P.bin.indexOf('media/geo/props/') >= 0) { PROP_LEVELS.set(key, lv = []); return lv; }
   lv = PROP_REG.order.map(k => PROP_REG.props[k])
     .filter(p => p.lodOf === key)
     .map(p => ({ key: p.key, dist: p.lodDist }))
@@ -358,8 +365,8 @@ function propCullDist(key) {
   const P = PROP_REG.props[key], d = P && P.dim;
   return (d && d.length === 3) ? Math.max(60, PROP_CULL_K * Math.hypot(d[0], d[1], d[2])) : 0;
 }
-function propPlace(THREE, key, x, z, ry, y) {
-  if (propInstWants(key)) { const p = propInstProxy(THREE, key); p.position.set(x, y || 0, z); p.rotation.y = ry || 0; return p; }   // G515 (below)
+function propPlace(THREE, key, x, z, ry, y, inst) {
+  if (propInstWants(key, inst)) { const p = propInstProxy(THREE, key); p.position.set(x, y || 0, z); p.rotation.y = ry || 0; return p; }   // G515 (below)
   const lv = propLevels(key);
   const force = propLodForce(), cull = force >= 0 ? 0 : propCullDist(key);
   let g;
@@ -394,6 +401,15 @@ function propPlace(THREE, key, x, z, ry, y) {
 // hidden (an ancestor's visible, the GRAPHICS power-line switch) or taken out of the scene (an edit's
 // rebuild) is not drawn. The picture is the LODs'; the draws are a handful.
 const PROP_INST_KEYS = /^(pole_a|pole_b|pole_c|fence_old)$/;
+// THE REPEATED PREMISES PROPS (AS5b, G934): the yard kit the house and big generators scatter round every plot
+// (tools/_house_gen.js YARD_KIT's ground clutter, the deck's seats, the scanned people), a key placed by the
+// dozen over a town and ONE THREE.LOD per placement - one draw per placement per part. They join the instancer
+// the way the poles did: one InstancedMesh per (level, part, caster) of the key. ONLY WHERE THE CALLER ASKS
+// (propPlace's `inst`: the premises' static dressing and objects) - the garage's shed stands its own drums, and a
+// traffic car moves every tick; neither is a proxy. Nothing lit (the day's hand dims a fixture per key) and nothing
+// that moves. `?propinst=poles` is the A/B (the poles and fences only, as before).
+const PROP_INST_REPEAT = /^(drum_steel|barrel_plastic|crate_wood_[abc]|tyre|work_trestle|handtruck|box_cardboard|compressor|jerrycan|jerrycan_green|oil_tin|bottle_propane|bottle_lpg|bin_metal|bin_metal_rust|stepladder|stove_barrel|pallets_stack|pallets_three|pallet_one|cinder_pallet|cement_bags|bags_stack|bags_lean|bags_flat|bags_stand|bag_compost|planter|stool_wood|stool_wood2|stool_fold|chair_wood|chair_plastic|table_wood|picnic_table|person_[a-z]+)$/;
+const PROP_INST_POLES_ONLY = typeof location !== 'undefined' && /[?&]propinst=poles(&|$)/.test(location.search || '');
 const PROP_INST = { THREE: null, scene: null, root: null, on: true, proxies: [], pending: [], batches: new Map(),
                     eye: null, tick: 0, dirty: true, stats: { proxies: 0, drawn: 0, draws: 0 } };
 function propInstAttach(THREE, scene) {
@@ -405,7 +421,20 @@ function propInstAttach(THREE, scene) {
   PROP_INST.eye = new THREE.Vector3(1e9, 0, 0);
   return true;
 }
-function propInstWants(key) { return !!PROP_INST.scene && PROP_INST.on && PROP_INST_KEYS.test(key) && propLodForce() < 0; }
+function propInstWants(key, inst) {
+  return !!PROP_INST.scene && PROP_INST.on && propLodForce() < 0 &&
+    (PROP_INST_KEYS.test(key) || (!!inst && !PROP_INST_POLES_ONLY && PROP_INST_REPEAT.test(key)));
+}
+// a proxy's full level, for whoever reads a placement's MESHES (the premises' hitboxes rasterise the full level
+// of a LOD): { dgeos, dmats } once its bytes are here, null while they are on the wire, undefined for a non-proxy
+function propInstFull(o) {
+  const key = o && o.userData && o.userData.propInst;
+  if (!key) return undefined;
+  if (!propReady(key) || !PROP_INST.THREE) return null;
+  return propBuild(PROP_INST.THREE, key);
+}
+// a caller that hides / shows proxies, or changes their `instCast` / `instGone`, says so: the next update re-lists
+function propInstTouch() { PROP_INST.dirty = true; }
 function propInstProxy(THREE, key) {
   const g = THREE.Object3D ? new THREE.Object3D() : new THREE.Group();
   g.name = 'prop:' + key;
@@ -427,8 +456,9 @@ function propInstLive(o) {
   for (let p = o; p; p = p.parent) { if (p === PROP_INST.scene) return shown ? 1 : 0; if (!p.visible) shown = false; }
   return -1;   // not (or no longer) in the scene
 }
-function propInstBatch(levelKey, part) {
-  const id = levelKey + '#' + part;
+// a batch per (level, part, caster): a house's dressing casts nothing (render_premises houseThrift: userData.instCast)
+function propInstBatch(levelKey, part, cast) {
+  const id = levelKey + '#' + part + (cast ? '' : '#nc');
   let b = PROP_INST.batches.get(id);
   if (b) return b;
   if (!propReady(levelKey)) return null;
@@ -436,7 +466,7 @@ function propInstBatch(levelKey, part) {
   if (part >= built.dgeos.length) return null;
   // the instanced draw wears the record's INSTANCED sibling (MATLIB.variant): a material drawn by plain meshes and
   // instanced ones re-derives its program at every switch between them in the sorted list
-  b = { id, geo: built.dgeos[part], mat: MATLIB.variant(PROP_INST.THREE, built.dmats[part], 'inst'), mesh: null, cap: 0, list: [] };
+  b = { id, geo: built.dgeos[part], mat: MATLIB.variant(PROP_INST.THREE, built.dmats[part], 'inst'), cast: cast !== false, mesh: null, cap: 0, list: [] };
   PROP_INST.batches.set(id, b);
   return b;
 }
@@ -473,9 +503,13 @@ function propInstUpdate(camera) {
     const key = g.userData.propInst, lv = propLevels(key), d = w.distanceTo(e) / zoom;
     let lk = key;
     for (const l of lv) if (d >= l.dist) lk = l.key;
-    const cull = propCullDist(key);
-    if (cull && d >= cull) continue;    // the empty last level: under a pixel and a half
-    for (let part = 0; ; part++) { const b = propInstBatch(lk, part); if (!b) break; b.list.push(g.matrixWorld); }
+    // the empty last level: under a pixel and a half - or where the caller ends the ladder sooner (a house's
+    // dressing at HOUSE_PROP_GONE, render_premises houseThrift: userData.instGone)
+    let cull = propCullDist(key); const gone = g.userData.instGone;
+    if (gone && (!cull || gone < cull)) cull = gone;
+    if (cull && d >= cull) continue;
+    const cast = g.userData.instCast !== false;
+    for (let part = 0; ; part++) { const b = propInstBatch(lk, part, cast); if (!b) break; b.list.push(g.matrixWorld); }
     drawn++;
   }
   P.proxies = keep;
@@ -486,18 +520,43 @@ function propInstUpdate(camera) {
       if (b.mesh) { P.root.remove(b.mesh); b.mesh.dispose(); }
       b.cap = Math.max(16, n * 2);
       b.mesh = new T.InstancedMesh(b.geo, b.mat, b.cap);
-      b.mesh.name = 'propInst:' + b.id; b.mesh.castShadow = true; b.mesh.receiveShadow = true;
-      b.mesh.frustumCulled = false;     // the instances span kilometres; their levels already cut them by distance
+      b.mesh.name = 'propInst:' + b.id; b.mesh.castShadow = b.cast; b.mesh.receiveShadow = true;
+      // CULLED BY THE SPHERE ROUND ITS INSTANCES (G934): the batch's own sphere is written below at each re-list
+      // (the camera and every shadow camera test it as they test a LOD's meshes); it was frustumCulled = false -
+      // a key's batch drawn into every view and cascade, wherever its instances stood
+      b.mesh.frustumCulled = !!T.Sphere;
+      if (T.Sphere) b.mesh.boundingSphere = new T.Sphere();
       b.mesh.userData.sharedGeo = true; b.mesh.matrixAutoUpdate = false;
       P.root.add(b.mesh);
     }
     if (!b.mesh) continue;
     const a = b.mesh.instanceMatrix.array;
     for (let i = 0; i < n; i++) a.set(b.list[i].elements, i * 16);
+    if (n && b.mesh.boundingSphere) propInstSphere(b, n);
     b.mesh.count = n; b.mesh.visible = n > 0; b.mesh.instanceMatrix.needsUpdate = true;
     if (n) draws++;
   }
   P.stats.proxies = P.proxies.length; P.stats.drawn = drawn; P.stats.draws = draws; P.stats.pending = P.pending.length;
+}
+
+// the sphere round a batch's instances: each instance's own (the geometry's sphere through its matrix, the radius
+// by its largest axis scale), boxed, and the box's sphere - never smaller than what three would compute
+function propInstSphere(b, n) {
+  const g = b.geo;
+  if (!g.boundingSphere) g.computeBoundingSphere();
+  const c = g.boundingSphere.center, r = g.boundingSphere.radius;
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const e = b.list[i].elements;
+    const X = e[0] * c.x + e[4] * c.y + e[8] * c.z + e[12], Y = e[1] * c.x + e[5] * c.y + e[9] * c.z + e[13], Z = e[2] * c.x + e[6] * c.y + e[10] * c.z + e[14];
+    const s = Math.sqrt(Math.max(e[0] * e[0] + e[1] * e[1] + e[2] * e[2], e[4] * e[4] + e[5] * e[5] + e[6] * e[6], e[8] * e[8] + e[9] * e[9] + e[10] * e[10])), R = r * s;
+    if (X - R < x0) x0 = X - R; if (X + R > x1) x1 = X + R;
+    if (Y - R < y0) y0 = Y - R; if (Y + R > y1) y1 = Y + R;
+    if (Z - R < z0) z0 = Z - R; if (Z + R > z1) z1 = Z + R;
+  }
+  const S = b.mesh.boundingSphere;
+  S.center.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+  S.radius = Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2;
 }
 
 // The moods scale every material's own envMapIntensity (r128 has no
@@ -522,4 +581,4 @@ function propDispose(key) {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { propMesh, propPlace, propBuild, propMaterial, propTexture,
                      propSetEnv, propEnv, propDispose, propWarm, propReady, propDust,
-                     propLevels, propSetGlowOf };
+                     propLevels, propSetGlowOf, propInstFull, propInstTouch };

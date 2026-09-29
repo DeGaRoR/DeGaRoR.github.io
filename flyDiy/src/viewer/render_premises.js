@@ -1708,7 +1708,7 @@ function make(THREE, scene, world, rec0, opts) {
         const d = e.distanceTo(D.c), on = d < HOUSE_CAST_FAR * (g.userData.castOn ? 1.1 : 0.9);
         if (on !== g.userData.castOn) { g.userData.castOn = on; for (const m of g.userData.casters) m.castShadow = on; }
         const pOn = !DETAIL.props || d < HOUSE_PROP_GONE * (g.userData.propsOn ? 1.35 : 1.15);
-        if (pOn !== g.userData.propsOn) { g.userData.propsOn = pOn; for (const x of g.userData.props) x.visible = pOn; }
+        if (pOn !== g.userData.propsOn) { g.userData.propsOn = pOn; for (const x of g.userData.props) x.visible = pOn; if (typeof propInstTouch === 'function') propInstTouch(); }
       }
       if (g.userData.far || (!D.list.length && !D.list2.length)) continue;
       const px = 2 * D.R * K / Math.max(1, e.distanceTo(D.c)), on = px >= DETAIL.px * (D.on ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
@@ -1817,12 +1817,19 @@ function make(THREE, scene, world, rec0, opts) {
     const pos = [], idx = [], M = new THREE.Matrix4(), v = new THREE.Vector3();
     const walk = obj => {
       if (obj.isLOD) { const l0 = obj.levels.length ? obj.levels[0].object : null; if (l0) walk(l0); return; }   // the full level only
-      if (obj.isMesh && obj.geometry && obj.geometry.attributes.position && !HIT_SKIP.test(obj.name || '')) {
-        const mt = obj.material;
+      // an INSTANCED prop (props.js proxy, G934) has no meshes: its full level's geometry at the proxy's matrix, as the
+      // LOD's level 0 would have been
+      const full = typeof propInstFull === 'function' ? propInstFull(obj) : undefined;
+      if (full) { for (let i = 0; i < full.dgeos.length; i++) addMesh(full.dgeos[i], full.dmats[i], obj.matrixWorld); return; }
+      if (obj.isMesh && obj.geometry && obj.geometry.attributes.position && !HIT_SKIP.test(obj.name || '')) addMesh(obj.geometry, obj.material, obj.matrixWorld);
+      for (const c of obj.children) walk(c);
+    };
+    function addMesh(geometry, mt, matrixWorld) {
+      {
         const ghost = mt && mt.transparent && (mt.opacity < 0.5 || mt.depthWrite === false);   // smoke, skirts, glows
         if (!ghost) {
-          M.multiplyMatrices(inv, obj.matrixWorld);
-          const P = obj.geometry.attributes.position, base = pos.length / 3;
+          M.multiplyMatrices(inv, matrixWorld);
+          const P = geometry.attributes.position, base = pos.length / 3;
           let y0 = Infinity, y1 = -Infinity;
           // the arrays read directly (G591: three's per-vertex accessors were 1.3 s of the roll-out's 150 items), the
           // same arithmetic as applyMatrix4 (its w divide included), so the raster is the same bits
@@ -1835,11 +1842,10 @@ function make(THREE, scene, world, rec0, opts) {
             }
           } else for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(M); pos.push(v.x, v.y, v.z); if (v.y < y0) y0 = v.y; if (v.y > y1) y1 = v.y; }
           if (y1 - y0 < 0.15) pos.length = base * 3;                                              // a flat thing (a lot patch, a slab) is the ground's
-          else { const I = obj.geometry.index; if (I && !I.isInterleavedBufferAttribute) { const IA = I.array; for (let i = 0; i < I.count; i++) idx.push(base + IA[i]); } else if (I) for (let i = 0; i < I.count; i++) idx.push(base + I.getX(i)); else for (let i = 0; i < P.count; i++) idx.push(base + i); }
+          else { const I = geometry.index; if (I && !I.isInterleavedBufferAttribute) { const IA = I.array; for (let i = 0; i < I.count; i++) idx.push(base + IA[i]); } else if (I) for (let i = 0; i < I.count; i++) idx.push(base + I.getX(i)); else for (let i = 0; i < P.count; i++) idx.push(base + i); }
         }
       }
-      for (const c of obj.children) walk(c);
-    };
+    }
     walk(grp);
     if (!idx.length) return null;
     const shape = OBSTACLES.rasterise(pos, idx, cell);
@@ -1851,7 +1857,9 @@ function make(THREE, scene, world, rec0, opts) {
   const PENDING_HIT = [];
   function hitReady(grp) {
     let meshes = 0, pending = false;
-    const walk = obj => { if (obj.userData && obj.userData.propPending) pending = true; if (obj.isLOD) { const l0 = obj.levels.length ? obj.levels[0].object : null; if (l0) walk(l0); return; } if (obj.isMesh) meshes++; for (const c of obj.children) walk(c); };
+    const walk = obj => { if (obj.userData && obj.userData.propPending) pending = true;
+      if (obj.userData && obj.userData.propInst && typeof propInstFull === 'function') { const f = propInstFull(obj); if (f) meshes += f.dgeos.length; else pending = true; return; }   // G934: a proxy is ready when its bytes are
+      if (obj.isLOD) { const l0 = obj.levels.length ? obj.levels[0].object : null; if (l0) walk(l0); return; } if (obj.isMesh) meshes++; for (const c of obj.children) walk(c); };
     walk(grp);
     return !pending && meshes > 0;
   }
@@ -1927,8 +1935,9 @@ function make(THREE, scene, world, rec0, opts) {
     const PR = propReg(), pp = (typeof propPlace === 'function') ? propPlace : null;
     if (PR && pp) {
       if (st.pier) for (const m of st.pier.modules.concat(st.pier.boats)) if (PR.props[m.key]) grp.add(pp(THREE, m.key, m.x, m.z, m.ry, m.y));
-      for (const q of st.people || []) if (PR.props[q.key]) grp.add(pp(THREE, q.key, q.x, q.z, q.ry, q.y));
-      for (const q of st.yard || []) { if (!PR.props[q.key]) continue; const ob = pp(THREE, q.key, q.x, q.z, q.ry, q.y); if (q.on === 'ground' && g) tiltToGround(ob, g, q.x, q.z, q.ry); grp.add(ob); }
+      // the people and the yard's dressing may be INSTANCED (props.js PROP_INST_REPEAT, AS5b G934: the last argument)
+      for (const q of st.people || []) if (PR.props[q.key]) grp.add(pp(THREE, q.key, q.x, q.z, q.ry, q.y, true));
+      for (const q of st.yard || []) { if (!PR.props[q.key]) continue; const ob = pp(THREE, q.key, q.x, q.z, q.ry, q.y, true); if (q.on === 'ground' && g) tiltToGround(ob, g, q.x, q.z, q.ry); grp.add(ob); }
       if (st.lit) for (const L of st.lit.lights) if (L.prop && PR.props[L.prop]) grp.add(pp(THREE, L.prop, L.mx, L.mz, L.ry, L.my));
     }
     parent.add(grp);
@@ -2119,10 +2128,11 @@ function make(THREE, scene, world, rec0, opts) {
     const obY = (typeof ob.y === 'number') ? ob.y : (O.terrainAt(w[0], w[1]) + (+ob.dy || 0));
     if (ob.kind === 'prop') {
       if (!pp || !PR || !PR.props[ob.key]) return null;
-      const g = pp(THREE, ob.key, w[0], w[1], yaw, obY);
+      const g = pp(THREE, ob.key, w[0], w[1], yaw, obY, true);   // a repeated key is instanced (G934)
       if (ob.on === 'ground') tiltToGround(g, (x, z) => O.terrainAt(x, z), w[0], w[1], yaw);
       G.houses.add(g);
       hitAdd(g, 'prop', 0.5);
+      if (g.userData.propInst) return { grp: g, tris: (PR.props[ob.key] && PR.props[ob.key].nt) || 0, house: ob };   // no meshes of its own: the full level's count
       let tris = 0; g.traverse(m => { if (m.isMesh && m.geometry) { const q = m.geometry; tris += (q.index ? q.index.count : (q.attributes.position ? q.attributes.position.count : 0)) / 3; } });
       return { grp: g, tris: Math.round(tris), house: ob };
     }
@@ -2253,6 +2263,8 @@ function make(THREE, scene, world, rec0, opts) {
   function houseThrift(grp, light) {
     grp.userData.thrift = true; if (light) grp.userData.light = true; light = grp.userData.light;
     grp.traverse(obj => {
+      // an INSTANCED dressing prop (G934): the same two rules, told to the instancer - gone at HOUSE_PROP_GONE, no shadow
+      if (obj.userData.propInst && !light) { obj.userData.instGone = HOUSE_PROP_GONE; obj.userData.instCast = false; if (typeof propInstTouch === 'function') propInstTouch(); return; }
       if (obj.isLOD && obj !== grp && !light) {
         // the ladder is cut at HOUSE_PROP_GONE: a prop's own end (a propane bottle's 533 m, a person's 1 392 m) comes
         // in, a rung past it goes, and an empty level ends it
@@ -2278,7 +2290,7 @@ function make(THREE, scene, world, rec0, opts) {
     grp.userData.castOn = true;
     // THE WALKS (G558): past the props' reach a house's whole dressing is switched off at its top, so neither the
     // view's walk nor each shadow cascade's walks through its prop ladders (3 735 over Metlakatla)
-    const props = []; grp.traverse(x => { if (x.isLOD && x !== grp) { for (let p = x.parent; p && p !== grp; p = p.parent) if (p.isLOD) return; props.push(x); } });
+    const props = []; grp.traverse(x => { if ((x.isLOD || x.userData.propInst) && x !== grp) { for (let p = x.parent; p && p !== grp; p = p.parent) if (p.isLOD) return; props.push(x); } });
     grp.userData.props = light ? [] : props; if (grp.userData.propsOn === undefined) grp.userData.propsOn = true;
   }
   // THE BOOT BUILDS WHAT IS NEAR (G562, the user: "keep loading assets as we go ... that's how MSFS does it"): the

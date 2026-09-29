@@ -3555,6 +3555,12 @@ const CS = { on: true };   // the aeroplane's own print, below
     try {
       for (const f of FURN)
         if (f) f.traverse(o => { if (o.isMesh) o.layers.enable(LAYER); });
+      // THE PRINT IS THE FULL PROP'S (AS5b, G933): a prop is a THREE.LOD with its cut levels (props_lods.js), and
+      // this camera sees only LAYER - the LOD object is not on it, so three never picks its level here and would
+      // print every level's meshes, or none where the room's own eye had put the prop past 20 m. Level 0 shown,
+      // the cuts hidden, for this render only; the room's eye picks again at its next frame.
+      const lodVis = [];
+      for (const f of FURN) if (f) f.traverse(o => { if (o.isLOD) o.levels.forEach((l, i) => { lodVis.push([l.object, l.object.visible]); l.object.visible = i === 0; }); });
       const gy = ROOT.position.y;
       GS.cam.position.set(0, gy - 0.01, 0);
       GS.cam.lookAt(0, gy + 1, 0);
@@ -3592,6 +3598,7 @@ const CS = { on: true };   // the aeroplane's own print, below
       renderer.render(GS.fsScene, GS.fsCam);
       renderer.setRenderTarget(prevT);
       renderer.setClearColor(prevC, prevA);
+      for (const [o, v] of lodVis) o.visible = v;
       GS.quad.visible = GS.on;
       return true;
     } catch (e) {
