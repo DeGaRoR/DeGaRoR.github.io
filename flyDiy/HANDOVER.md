@@ -64178,3 +64178,94 @@ Both trees PASS FRAMECOST; 53 page errors on both (the base's own). THE COORDINA
 (`node tools/parked_cook.js`, GPU) on the merged train, as every train.
 NOT SEEN: a rendered frame. The looks (the check's pace, the pulse, the lights by day and night) are the user's to
 judge live - the WHAT THE PLAYER SEES paragraphs above.
+
+## G738-G739 - B1b-REST: THE RASTER TILE CACHE AN LRU ON TRAIN 16; B1b'S FIRST-LIGHT ITEMS ARE TRAIN 16'S ALREADY (2026-09-29, B1b-rest, a cloud session, node only)
+
+B1b's READY branch (G734-G737, 8e781ee3, on origin/claude/compassionate-ptolemy-ntlgoq; its base b3bf0431 - the brief's
+28356809 is not in the repo, and origin/claude/b1-lag is B1-LAG's eec63dc) was not merged into train 16: B8+B9's step table
+(G1020-G1026) had rewritten its app.js region. This ports what train 16 still lacks. Base origin/claude/train-16-base a3aa44cc.
+Nothing here ran in Chrome or on a GPU: every number is GATE FRAMECOST's page in node or a node benchmark.
+
+**G738 THE RASTER TILE CACHE IS AN LRU** (G735 unchanged: 27_premises.js, GATE PREMRASTER's two checks, tools/_rastercache_bench.js,
+FRAMECOST_RASTER_TRACE). The baked / decoded tiles are threaded on a doubly linked list through their own fields (k, lp, ln):
+a read moves its tile to the head, an eviction takes the tail, O(1) both. Before, the page evicted by scanning the map from the
+front past ~19 000 null entries (empty tiles), oldest-in first.
+- PREMRASTER: B1b's numbers to the digit. A 2 MB cache answers as the 48 MB one on 28 776 reads, 0 differ (12 532 evicted).
+  The LRU check: the stand's tile made 2 times under a sweep (3 612 / 3 614 tiles). MUTATION: the same core without the
+  read's move-to-front (FIFO, the old policy) makes it 70 times -> RED.
+- THE PAGE'S OWN READS on train 16 (FRAMECOST_RASTER_TRACE of the Cub's census: 16 707 291 reads, replayed on both cores, 3
+  runs each, interleaved): 8 455 -> 2 820 ms, **506 -> 169 ns a read**; decodes 22 579 -> 21 819, bakes 2 051 -> 1 979,
+  evictions 21 758 -> 19 556; answers IDENTICAL bit for bit. The synthetic sweep (4 744 737 reads over every modifier's box:
+  the LRU's bad case, on a loaded box): 25 883 -> 23 609 ms, bakes 11 941 -> 13 584, answers identical.
+- THE BENCH'S BASE: a rev's COMMITTED tools/flight_core.js is only as fresh as its last build commit (train 16's is not
+  train 16's build). Build the base in a worktree and pass `--base <worktree>/flyDiy/tools/flight_core.js`.
+
+**FRAMECOST AND THE LRU - TWO TRAPS, BOTH MEASURED.**
+1. THE STALE PARKED COOK (G904.2's note, still true). Any source change gives a new build id (32ec8c90bc00 here). The
+   committed parked cook is signed 0b7d49f41c8e, so it reads STALE and the three parked aeroplanes are captured live. The
+   census then moves by hundreds of counts that are not the change's: stand draws.main 999 -> 1144, shadow 236 -> 527;
+   garage:parked 22 s of wall; garage:snapshot 64 k GL calls and 18 links.
+   - A branch-vs-base compare must hold the cook equal. PIN THE BUILD ID locally (sed the new id to the manifest's in
+     version.json, dev.html, index.html, sw.js; never committed) or re-cook.
+   - The coordinator's train re-cook (`node tools/parked_cook.js`, GPU) settles it for the landed tree.
+2. THE VIRTUAL CLOCK (B1b's G735 trap, larger on train 16). grBake / grCooked stamp performance.now() twice a tile, and
+   each call is 10 us on the harness's clock. An LRU makes a different number of tiles, so the one loading's settle
+   (40 ms slices) and the budgeted streamers cut elsewhere: settle n 1147 -> 1074.
+   - Pinned, the moves are small: stand draws.total +25, taxi +22, texSubImage2D +10-13 KB. The taxi's grHeight swaps
+     between the builds (Cub 4 140.5 -> 47, Cessna 47 -> 3 952.5).
+   - PROOF: grNow() set to 0 in BOTH trees (local), both censuses are equal to the last count: 1 333 values, 0 differ
+     (only the wall-time house.ms values move). No new work.
+   - ALLOW (G738): cessna taxi/bytes.texSubImage2D 508 000 (506 560; G1020's row admits 505 000).
+   - B1b's taxi world.grHeight ALLOW is NOT needed: it fell on the Cub, and G800's taxi/world.grHeight 54 000 row covers
+     the Cessna's swing.
+
+**G739 THE REST OF B1b, AGAINST TRAIN 16 (not ported, and why).**
+MEASURED FIRST: a probe census (local, not committed) counted every program link after the roll-out on train 16 + G738, at
+6 and 46 frames after the reveal, after the stand view, after the self-test and after the taxi view. The result is **0**
+links after the roll-out, over the whole census, for both builds (443 at the roll-out's end, 443 at the census's end).
+- G734's items, covered by train 16:
+  - The scenery life's lit and depth programs: B8B9's worldSettle(true) (G1020 (3)) stands the life in the 'frames' step,
+    before its catch-up compile.
+  - The rock map's two instanced programs: rock_map.js api.warm, compiled by compileDepthVariants (G1020 (4)). PROG_WARM's
+    `inst` is therefore not needed.
+  - The clouds' probe: already in clouds.js warmList (probeMat).
+- The rollout:reveal row and its zero check: GATE ROUNDTRIP holds the same ("the first 40 frames of each flight link
+  nothing", three flights).
+- EXCLUDED: the shed's probe (app.js bakeHangarEnv on onSkyReady). A local session owns it (claude/garage-env-defer).
+- G737's aids are not ported, except FRAMECOST_RASTER_TRACE (the bench's --trace needs it):
+  - FRAMECOST_LINKS, FRAMECOST_HOLD, FRAMECOST_WHAT=shadow, rollout_perf --progwatch's creation hook.
+  - With 0 late links in node, they have nothing to show, and rollout_perf is Chrome-only.
+  - They stay on 8e781ee3, to cherry-pick the day a late link comes back.
+- G736 (train 11's loop rise, split by source commit) was analysis, no code. Its findings are in B1b's entry on 8e781ee3
+  and were not re-measured here:
+  - The +126 shadow draws are mostly A6-SHADOW's craft cascade: the aeroplane is drawn three times a frame.
+  - three r186 culls shadow casters by the MAIN camera's layers, so shadow_near.js's shadow-camera layer masks cull
+    nothing.
+
+**GATES (this container, 4 cores / 15 GB, node only).**
+- GATE FRAMECOST (`node tools/_framecost_check.js --json`, both builds):
+  - PASS on the real build, stale cook, with the ALLOW above (in the battery).
+  - PASS on the pinned build, fresh cook.
+  - `--compare` against the base built from a3aa44cc: the moves listed under trap 2, all virtual clock by the grNow
+    proof. The G739 probe counted 0 program links after the roll-out.
+- PREMRASTER PASS; PREMCOOK, WORLD, TARR PASS (in the battery).
+- THE BATTERY, `node tools/run_gates.js --all` (FULL tier: 128 gates, 138 jobs with the shards, jobs 4):
+  - **RUN 2: BATTERY: PASS** (68 min; FRAMECOST, ROUNDTRIP, ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH, HITBOX,
+    PREMRASTER and PREMCOOK among them).
+  - RUN 1 (70 min): 127 / 128 PASS.
+  - In run 1, HITBOX FAILED ONE CHECK, a wall-clock one: "arch:cub e: the spec shape costs less than the raster it replaces",
+    143 ms against 137 ms. It is ONE hrtime sample of POB.aircraftShape (29_obstacles.js, which G738 does not touch)
+    for the first key, taken while PILOTMATRIX and three other gates held the four cores.
+  - Re-run: 5 / 5 PASS on this branch (2 alone: 42 / 44 ms against 135 / 140; 3 beside the base's HITBOX and a FRAMECOST,
+    under load: 44-49 ms against 126). The base under the same load: 3 / 3 PASS (38-52 ms against 119-130).
+  - A robust form, not done here (B12's gate): time the median of three aircraftShape calls.
+- RIG NOTES:
+  - Two FRAMECOST children and two HITBOX runs at once exceed the container's 15 GB: the cgroup OOM-killed a census
+    child ("exit null"). Run FRAMECOST alone.
+  - A census is deterministic whatever the load: two runs of one tree, one of them beside a probe census, were equal
+    to the last count.
+FOR THE COORDINATOR: source only; generated outputs not committed.
+- The parked cook needs its usual re-cook on the train's build (GPU). Until then, every source change reads the cook stale.
+- The FRAMECOST baseline was not re-taken (--update with the train).
+- On the box, if wanted: the LRU's live gain is the taxi's grHeight share of the loop JS (B1-LAG's profile put terrainH +
+  grHeight at ~27 ms a second of taxi). Node's 3x per read is an upper bound on it, not a frame-time claim.
