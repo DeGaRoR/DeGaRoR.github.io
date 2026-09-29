@@ -92,6 +92,15 @@ let bad = 0;
 const check = (ok, what, detail) => { if (!ok) bad++; console.log((ok ? '  ok   ' : '  FAIL ') + what + (detail ? '  (' + detail + ')' : '')); return ok; };
 const f1 = v => (v === Infinity || v == null ? '  -  ' : v.toFixed(1).padStart(5));
 
+// THE PAGE CHILDREN FIRST (full): each is the whole page (~3.6 GB, up to a 6 GB heap), and they run before this
+// process composes its own three Jolenes, so the two never hold their memory at once (a 15 GB cloud box, measured)
+const pageRaw = {};
+if (FULL) for (const v of VARIANTS) {
+  const t0 = Date.now();
+  const r = spawnSync(process.execPath, ['--max-old-space-size=6000', __filename, '--page', v], { encoding: 'utf8', maxBuffer: 64 << 20, timeout: 1800000 });
+  pageRaw[v] = { line: (r.stdout || '').split('\n').filter(l => l.startsWith('PAGE ')).pop() || null, status: r.status, err: String(r.stderr || '').slice(-400), secs: (Date.now() - t0) / 1000 };
+}
+
 const txt = fs.readFileSync(FX, 'utf8');
 const worlds = {};
 for (const v of VARIANTS) worlds[v] = IN.islandWorld('jolene', { premises: txt, rwyTrees: v });
@@ -212,13 +221,11 @@ const kindsCol = {};
 const page = {};
 if (FULL) {
   for (const v of VARIANTS) {
-    const t0 = Date.now();
-    const r = spawnSync(process.execPath, ['--max-old-space-size=6000', __filename, '--page', v], { encoding: 'utf8', maxBuffer: 64 << 20, timeout: 1800000 });
-    const line = (r.stdout || '').split('\n').filter(l => l.startsWith('PAGE ')).pop();
-    if (!line) { check(false, '7 ' + v + ': the page harness ran', 'exit ' + r.status + ' ' + String(r.stderr || '').slice(-400)); continue; }
+    const R0 = pageRaw[v], line = R0.line;
+    if (!line) { check(false, '7 ' + v + ': the page harness ran', 'exit ' + R0.status + ' ' + R0.err); continue; }
     page[v] = JSON.parse(line.slice(5));
     const P = page[v];
-    check(P.world === 'jolene' && P.mode === v, '7 ' + v + ': the page composed Jolene in its variant', P.world + ' / ' + P.flag + ' / ' + P.mode + ', ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
+    check(P.world === 'jolene' && P.mode === v, '7 ' + v + ': the page composed Jolene in its variant', P.world + ' / ' + P.flag + ' / ' + P.mode + ', ' + R0.secs.toFixed(0) + ' s');
     let n = 0, onPave = 0, blocked = 0; const why = [];
     for (const [id, R] of Object.entries(P.runways)) { n += R.n; onPave += R.onPave; blocked += R.blocked; why.push(...R.bad.map(b => id + ' ' + b)); for (const s of ['L', 'R']) table[id + ' ' + s].vis[v] = R.near[s]; }
     check(n > 1000 && onPave === 0, '7 ' + v + ': no visible tree on paving', n + ' fill trees near the runways; ' + onPave + ' on paving' + (why.length ? '; ' + why.slice(0, 3).join(', ') : ''));
