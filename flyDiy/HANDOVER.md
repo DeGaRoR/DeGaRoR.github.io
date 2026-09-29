@@ -63928,3 +63928,50 @@ THE LOOK CHECK (for the coordinator / the user, on the box; dev.html or index.ht
 - **FOR THE COORDINATOR:**
   - tools/perf/framecost_baseline.json was re-taken on this branch (on b3bf043). If a train lands first, re-take it on the merged tree; the ALLOW rows G800 / G801 admit this change's rises against the older baseline until then.
   - The in-flight stream (G591) still builds houses past 4 km in flight, as before this change (this change adds nothing to it). The user's "no background loading in flight" rule is C2a's to close.
+
+## G879 - THE FIRST DRAWS UNDER THE SCREEN: the settings freeze named and fixed (2026-09-29, C4b for the coordinator, local GPU)
+
+Train 14's ratchet went red on the shadows=off settings change (0.64 -> 1.30 / 1.45 s). The coordinator asked C4b to NAME
+the waits (the G874 method), then to fix them on top of the train.
+- **THE RIG.** tools/perf/progwait_hook.js with tools/perf/progwait_eval.js, run through rollout_perf
+  (`--pre @tools/perf/progwait_hook.js --eval @tools/perf/progwait_eval.js`; `--pre` is new: a script run before the
+  page's own).
+  - It times every GL call that can block on a link (> 12 ms) and names its program: three's key, the objects wearing
+    it, the render frame, the draw-call index, the target, and the program's own compile and ready times.
+  - It also keeps the page's warnings by boot step.
+- **WHAT IT SAID.** The worst task is ONE render frame, the first after the settings screen:
+  - Two real links the settings compile never keyed: `Mesh/grass1` (the cover's) and a plain `Mesh/MeshStandardMaterial`.
+    Both were first seen at 'frames', ~190 ms each, in every tree.
+  - Then 25-45 waits of ~16 ms, on programs the settings compile had linked and seen READY ~30 s before (animals, people,
+    rocks, town houses, props, water, parked:baked, the craft's). This is a FIRST-DRAW cost per program and target, not a
+    link: ANGLE over D3D11 building the executables lazily, as far as the timing says.
+  - It is not C4b's fold and not train 14's: train 13 vs +C4b gave the same spread (1235-1802 ms both). The ratchet's
+    0.64 s was a lucky run.
+  - The shared warm profile's program cache does not keep a build's programs: its compile step took 8.7-11.5 s on both
+    trees, against 0.5-0.6 s in a private profile. **Measure with a private --udd.**
+- **THE FIX (src/viewer/app.js, the settings screen's 'frames' step):**
+  1. The roll-out's catch-up compile first: what joined the scene while the settings screen compiled (the grass pair).
+  2. Its links.
+  3. Then `warmDrawSliced(sc, target, label)`: every (material, object kind, attribute layout) the first frame will
+     draw is drawn once under the screen, a slice a task (~30 ms, the group size adaptive).
+     - "The first frame will draw" means shown (`traverseVisible`), with WF.vis's visibility contract applied for the
+       eye, inside the camera's frustum.
+     - Each draw is PROG_WARM's stand-in, i.e. the object by prototype: its key and its layout, with its own matrices,
+       so the real object's matrices are never written.
+     - It draws ONE primitive of its own geometry: the drawRange is narrowed for the draw and put back, the buffers and
+       vertex array are the same, an instanced object draws one instance.
+     - It draws in the real scene (its lights, fog, environment: the key the frame asks for), through a camera that sees
+       only layer 29; the lights join layer 29 for the draw.
+     - The shadow pass is skipped (autoUpdate / needsUpdate held), and it draws into the frame's target.
+- **NOT IN THE ROLL-OUT.** The same warm draw in the roll-out's frames step cost ~1 ms of taxi render on train 14's
+  GPU runs (10.5-10.8 -> 11.6-11.7 ms).
+  - This happened even after the node census showed no per-frame or buffer change (the hidden objects out, the frustum
+    and vis contract in).
+  - It was dropped. On train 16 the roll-out's first frames belong to B8B9's 'frames' row (worldWarmDraw); a draw there
+    is theirs to weigh.
+- **MEASURED** (train 16 30b8989b vs + G879, metal Cessna, warm private profiles, a warm-up then 2 alternated pairs):
+  - settings shadows=off worst task: 1351 / 1685 / 1336 ms -> 211 / 130 / 265 ms;
+  - taxi render: 11.5 / 11.7 -> 11.5 / 11.9 ms (flat).
+  - Table in PLAYTEST-2026-09-26 §0.21b.
+- **GATES:** see the ready note (BOOT, UISMOKE, PROGRAMS, FLOWNBAKE, SKIN, LIGHT, SHADOWSKY, FRAMECOST, ROUNDTRIP).
+  FRAMECOST needs no ALLOW row: the settings screen is outside its census.
