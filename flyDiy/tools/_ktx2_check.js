@@ -276,8 +276,8 @@ async function checkTwins(over) {
   for (let i = 0; i < rows.length; i++) {
     const [k, r] = rows[i], rel = k.split('|')[0], kind = k.split('|')[1], im = dec[i];
     if (!fs.existsSync(abs(r.twin))) { bad.push(r.twin + ' not on disk'); continue; }
-    const stem = path.basename(rel).replace(/(\.[0-9a-f]{8})?\.\w+$/, '') + (kind === 'color' ? '' : '_' + kind);
-    if (path.basename(r.twin) !== K.ktx2Name(stem, im.data, im.w, im.h, r.role, r.opts)) { bad.push(k + ': the name is not its map\'s texels + role'); continue; }
+    // the name's hash is the map's texels + role (a twin two maps of the same texels share keeps the first one's stem)
+    if (!path.basename(r.twin).endsWith('.' + K.ktx2Hash(im.data, im.w, im.h, r.role, r.opts) + '.ktx2')) { bad.push(k + ': the name is not its map\'s texels + role'); continue; }
     let bytes = fs.readFileSync(abs(r.twin));
     if (over && over.twinBytes) bytes = over.twinBytes(k, bytes) || bytes;
     let m;

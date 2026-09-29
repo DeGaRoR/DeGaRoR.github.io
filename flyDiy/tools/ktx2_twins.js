@@ -95,6 +95,9 @@ if (require.main !== module) { module.exports = { FAMILIES, KIND, BAR, wanted, m
     const dec = decodeRGBA(list.map(x => path.join(ROOT, x.rel)));
     const S = stats[fam] = { maps: list.length, twins: 0, etc1s: 0, uastc: 0, skipped: [], encoded: 0, srcBytes: 0, bytes: 0 };
     const emitted = [];
+    // ONE COPY (writeMedia's fold, G901): two maps whose texels decode the same (the pier ships a few such pairs under
+    // other JPEG bytes) share one twin - the name's hash is the texels' + role's, so the first stem in list order keeps it
+    const byHash = new Map();
     let next = 0;
     const work = async () => {
       for (let i = next++; i < list.length; i = next++) {
@@ -105,8 +108,9 @@ if (require.main !== module) { module.exports = { FAMILIES, KIND, BAR, wanted, m
         let got = null;
         const cands = ROLE[kind](alpha);
         for (const cand of cands) {
-          const name = K.ktx2Name(stem, im.data, im.w, im.h, cand.role, cand.opts);
-          const trel = `media/tex/ktx2/${fam}/${name}`, abs = path.join(ROOT, trel);
+          const h8 = K.ktx2Hash(im.data, im.w, im.h, cand.role, cand.opts);
+          const trel = byHash.get(h8) || `media/tex/ktx2/${fam}/${stem}.${h8}.ktx2`, abs = path.join(ROOT, trel);
+          if (!byHash.has(h8)) byHash.set(h8, trel);
           let bytes = fs.existsSync(abs) ? fs.readFileSync(abs) : null;
           if (!bytes) { if (REPORT) { got = { trel, cand, bytes: null }; break; } bytes = await K.encodeRGBAAsync(im.data, im.w, im.h, cand.role, cand.opts, 2); S.encoded++; }
           const m = await meets(bytes, im.data, im.w, im.h, kind === 'color');

@@ -24,8 +24,9 @@
 // pavement's arrays), pier, props (the shed kit).
 //
 //   KTX2.off(family)      -> null, or the reason (a string); without a family: the page-wide reasons only
-//   KTX2.parse(bytes)     -> Promise<{ mipmaps: [{ data, width, height }], width, height, format, type }> (one
-//                            layer; rejects on any failure)
+//   KTX2.parse(bytes, family) -> Promise<{ mipmaps: [{ data, width, height }], width, height, format, type }> (one
+//                            layer; rejects on any failure; the bytes are transferred)
+//   KTX2.load(url, family) -> the same, fetched (ASSET_FETCH) and transcoded ONCE per url for the page
 //   KTX2.stats()          -> { files, bytes, failed, fallbacks, target, off, workers }
 'use strict';
 const KTX2 = (() => {
@@ -88,6 +89,18 @@ const KTX2 = (() => {
       }, e => { stats.failed++; rej(e instanceof Error ? e : new Error('ktx2: ' + e)); });
     }));
   }
-  return { off, parse, ready, stats: () => Object.assign({}, stats, { off: off() }), _stats: stats };
+  // ONE TRANSCODE PER URL for the page (two maps whose twins fold to one file - tools/ktx2_twins.js - ask for the same
+  // url; the bytes are transferred to a worker, so a second parse of the same fetch would find them gone). A failure is
+  // not kept: the next ask tries again.
+  const LOADS = new Map();
+  function load(url, family) {
+    let p = LOADS.get(url);
+    if (p) return p;
+    p = (typeof ASSET_FETCH === 'function' ? ASSET_FETCH(url) : Promise.reject(new Error('ktx2: no ASSET_FETCH'))).then(b => parse(b, family));
+    LOADS.set(url, p);
+    p.catch(() => { if (LOADS.get(url) === p) LOADS.delete(url); });
+    return p;
+  }
+  return { off, parse, load, ready, stats: () => Object.assign({}, stats, { off: off() }), _stats: stats };
 })();
 if (typeof window !== 'undefined') window.KTX2 = KTX2;

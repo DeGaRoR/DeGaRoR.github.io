@@ -74,7 +74,7 @@ function propTexture(THREE, id, srgb, kind) {
   if (!twin || KTX2.off(twin.fam)) { image(); return t; }
   if (twin.mean) t.userData.mean = twin.mean;
   if (B && B.expect) B.expect('propTex', 1);
-  ASSET_FETCH(twin.url).then(b => KTX2.parse(b, twin.fam)).then(r => {
+  KTX2.load(twin.url, twin.fam).then(r => {
     t.isCompressedTexture = true;
     t.mipmaps = r.mipmaps; t.image = { width: r.width, height: r.height };
     t.format = r.format; t.type = r.type;
