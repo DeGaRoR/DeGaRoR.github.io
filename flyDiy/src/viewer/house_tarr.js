@@ -13,7 +13,9 @@
 //     T.merge(list, kind, side) -> BufferGeometry                      world space, the sag baked, aSlot per vertex
 //     T.end()            the table uploaded; returns false (and builds the arrays, then calls onReady) when a layer
 //                        the bake asked for is not in the stack yet - the caller keeps its G566 bake until then
-//     T.material(kind, side, dith, bare)   the shared town materials
+//     T.material(kind, side, dith, bare)   the shared town materials (MATLIB's `house` shape, C3b)
+//     T.classifyMat(m) / T.slot(m, litBase) / T.hook(kind)   (C3b, G855: the town kit) a finish's kind and its slot
+//                        without a mesh; the town program's text (the generator's hook + the edits + the uniforms)
 //                        opts.lod = { U, decl, glsl } (G801, render_premises' LOD band): the host's uniforms, their
 //                        declaration and a fragment block run first in main - the near rung's dithered exit at the lod-1
 //                        edge; a program of its own (the cache key says so)
@@ -166,24 +168,29 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       Object.keys(m.defines || {}).every(k => k === 'STANDARD') && !Object.prototype.hasOwnProperty.call(m, 'customProgramCacheKey');
     const GEO_OK = (g, need) => g && g.index && !g.morphAttributes.position && need.every(k => g.attributes[k] && !g.attributes[k].isInterleavedBufferAttribute);
     function xform(t) { if (t.matrixAutoUpdate) t.updateMatrix(); const e = t.matrix.elements; return [e[0], e[3], e[6], e[1], e[4], e[7]]; }
-    function classify(mesh) {
-      if (!mesh || !mesh.isMesh || mesh.isInstancedMesh || mesh.isSkinnedMesh || mesh.isBatchedMesh || Array.isArray(mesh.material)) return null;
-      const m = mesh.material, ud = m && m.userData;
+    // the FINISH alone (C3b: the town kit reads a look's finish off materials no mesh wears), then the mesh's own
+    function classifyMat(m) {
+      const ud = m && m.userData;
       if (!ud || !STD_OK(m)) return null;
       const hook = rawHook(m), side = m.side === THREE.DoubleSide ? 2 : 0, dith = m.dithering ? 1 : 0;
       if (ud.glassShaded && hook === ud.hookGlass && ud.glassU && ud.houseU) {
         if (m.map || m.normalMap || m.roughnessMap) return null;
-        if (!GEO_OK(mesh.geometry, ['position', 'normal', 'uv', 'aHouseLit', 'aHouseWin'])) return null;
-        return { kind: 'glass', side, key: 'glass:' + side + ':' + dith };
+        return { kind: 'glass', side, dith, key: 'glass:' + side + ':' + dith };
       }
       if (!ud.houseShaded || !ud.houseU || !ud.paint || !ud.dirt) return null;
       if (hook !== (ud.clouded ? ud.hookCloud : ud.hookHouse)) return null;
-      if (!GEO_OK(mesh.geometry, ['position', 'normal', 'uv', 'aHouseAO'])) return null;
       const ts = [m.map, m.normalMap, m.roughnessMap].filter(Boolean);
       for (const t of ts) if (t.channel || (!flatOf(t) && (!ready(imgOf(t)) || t.isDataTexture || t.isCompressedTexture))) return null;
       const tx = ts.filter(t => !flatOf(t));
       if (tx.length > 1) { const x0 = xform(tx[0]); if (tx.some(t => xform(t).some((v, i) => Math.abs(v - x0[i]) > 1e-7))) return null; }
-      return { kind: 'plain', side, key: 'plain:' + side + ':' + dith };
+      return { kind: 'plain', side, dith, key: 'plain:' + side + ':' + dith };
+    }
+    function classify(mesh) {
+      if (!mesh || !mesh.isMesh || mesh.isInstancedMesh || mesh.isSkinnedMesh || mesh.isBatchedMesh || Array.isArray(mesh.material)) return null;
+      const c = classifyMat(mesh.material);
+      if (!c) return null;
+      if (!GEO_OK(mesh.geometry, c.kind === 'glass' ? ['position', 'normal', 'uv', 'aHouseLit', 'aHouseWin'] : ['position', 'normal', 'uv', 'aHouseAO'])) return null;
+      return { kind: c.kind, side: c.side, key: c.key };
     }
 
     // ---- the slots -----------------------------------------------------------------------------------------
@@ -322,29 +329,48 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
     let NRsrc = new Map();
 
     // ---- the materials -------------------------------------------------------------------------------------
+    // made by MATLIB (C3b, G855): the `house` shape - the town's material is a shape of the one library, its hook this
+    // file's, its rows the slot table's
+    const ML = () => (typeof MATLIB !== 'undefined' ? MATLIB : (typeof window !== 'undefined' && window.MATLIB) || require('./matlib.js'));
     const MATS = new Map();
     let baseHooks = null;
     function hooks() {
       if (baseHooks) return baseHooks;
       const H = HG(); if (!H || !H.shadeHouse || !H.cloudWeather) return null;
-      const dp = new THREE.MeshStandardMaterial(); H.shadeHouse(dp, H.makeShadeU()); H.cloudWeather(dp, 0, 0);
+      const dp = ML().make(THREE, 'house', {}); H.shadeHouse(dp, H.makeShadeU()); H.cloudWeather(dp, 0, 0);
       const F = H.makeFinish(); H.applyFinish(Object.assign({}, H.DEF), F);
       baseHooks = { plain: rawHook(dp), glass: rawHook(F.MAT.glass) };
       return baseHooks;
     }
-    function material(kind, side, dith, bare) {   // bare: without the band even when made with one (G801: an item's bags)
-      const band = !!o.lod && !bare, k = kind + ':' + side + ':' + (dith ? 1 : 0) + (band ? ':lod' : '');
-      if (MATS.has(k)) return MATS.get(k);
+    // the town program's text, whoever draws it: the house generator's hook, the edits, the stack's uniforms (C3b: the
+    // town kit runs this, then its own edits - the role x finish-set slot, the stance stretch, its LOD band)
+    function hook(kind) {
       const B = hooks(); if (!B) return null;
-      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, side: side === 2 ? THREE.DoubleSide : THREE.FrontSide, dithering: !!dith });
       const base = B[kind];
-      m.onBeforeCompile = sh => {
+      return sh => {
         base(sh);
         const miss = [];
         (kind === 'glass' ? editGlass : editPlain)(sh, miss, THREE.ShaderChunk);
         if (miss.length) { stats.missing = miss; console.warn('house_tarr: the', kind, 'edits missed', miss); }
         sh.uniforms.tTab = U.tTab;
         if (kind === 'glass') sh.uniforms.tLit = U.tLit; else { sh.uniforms.tAlb = U.tAlb; sh.uniforms.tNR = U.tNR; }
+        return miss;
+      };
+    }
+    // a finish's slot (C3b: a look of the town kit is a finish no mesh wears): its row in the table, -1 while a layer it
+    // needs is not in the stack yet (wished for: end() builds it), null when the finish cannot ride the stack
+    function slot(m, litBase) {
+      const c = classifyMat(m);
+      if (!c) return null;
+      return { kind: c.kind, side: c.side, dith: c.dith, slot: c.kind === 'glass' ? slotGlass(m, litBase || (u => u.value)) : slotPlain(m) };
+    }
+    function material(kind, side, dith, bare) {   // bare: without the band even when made with one (G801: an item's bags)
+      const band = !!o.lod && !bare, k = kind + ':' + side + ':' + (dith ? 1 : 0) + (band ? ':lod' : '');
+      if (MATS.has(k)) return MATS.get(k);
+      const H = hook(kind); if (!H) return null;
+      const m = ML().make(THREE, 'house', { side: side === 2 ? THREE.DoubleSide : THREE.FrontSide, dithering: !!dith });
+      m.onBeforeCompile = sh => {
+        H(sh);
         if (band) {
           Object.assign(sh.uniforms, o.lod.U);
           sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + o.lod.decl)
@@ -357,7 +383,7 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       return m;
     }
 
-    return { classify, begin, merge, end, material, lit: U.tLit, U, stats, get ready() { return !!U.tAlb.value && !building; } };
+    return { classify, classifyMat, slot, hook, begin, merge, end, material, lit: U.tLit, U, stats, get ready() { return !!U.tAlb.value && !building; } };
   }
 
   const api = { make, editPlain, editGlass, rawHook, NS, TW };

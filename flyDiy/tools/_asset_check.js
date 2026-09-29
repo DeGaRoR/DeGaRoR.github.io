@@ -73,7 +73,8 @@ const ALLOW = {
     "media/tex/trees": 75,
     "media/tex/vessel": 1,
   },
-  // 'new THREE.*Material' sites per file: 173 in 35 files
+  // 'new THREE.*Material' sites per file: 173 in 35 files; house_tarr.js 2 -> 0 (C3b, G855: the town's material is
+  // MATLIB's `house` shape; townkit.js makes none)
   mats: {
     "src/viewer/aa_resolve.js": 1,
     "src/viewer/aeroskin.js": 3,
@@ -87,7 +88,6 @@ const ALLOW = {
     "src/viewer/flown_bake.js": 2,
     "src/viewer/guardrail.js": 1,
     "src/viewer/hangar.js": 43,
-    "src/viewer/house_tarr.js": 2,
     "src/viewer/lot_tex.js": 1,
     "src/viewer/parked.js": 6,
     "src/viewer/pattern_vis.js": 3,

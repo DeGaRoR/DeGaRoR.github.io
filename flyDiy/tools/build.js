@@ -257,8 +257,10 @@ const MANIFEST = {
   // AS3 (G917): vendor/ktx2/ktx2_loader.js (three's KTX2Loader, tools/vendor_three.js) - appended by src/viewer/ktx2.js
   // when the first KTX2 file is asked for (the ground library, under the roll-out's screen); its workers fetch
   // vendor/ktx2/basis_transcoder.js + .wasm themselves.
+  // (C3b, G855) townkit.js, the town kit's host: only the look review asks for it (render_premises ?kitab=...)
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
-         ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
+         ['src/viewer', 'townkit.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
     shell: 'shell.html',
     // TWO STYLESHEETS, IN ORDER (G77). style.css is the GAME's — the flight
