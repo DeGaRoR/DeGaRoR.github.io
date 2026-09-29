@@ -430,6 +430,11 @@ const GATES = [
   // THE PAVEMENT (roads & runways, 2026-09-21): the one material every strip and road wears - the
   // builders' attributes, the markings recorded off sitePaintStrip, the hook rules, the recipe (~5 s)
   { id: 'PAVEMENT', file: '_pavement_check.js', tier: 'core' },
+  // G1091 (POLISH-2): THE TREES BY THE RUNWAYS - the three variants (?rwytrees=today|map|mapx): the map's nearest TREE cell
+  // against the nearest collidable tree per runway side, nothing on paving, the one rule the woodland and the fill share,
+  // the ground paths and a 5 % surface in 'map' (core, ~1 min); under --all the fill's own trees in the page harness per
+  // variant and the circuits flown in 'map' (~20 min, two slots: the page harness is ~3.6 GB)
+  { id: 'RWYTREES', file: '_rwytrees_check.js', tier: 'core', weight: 2, wall: 1200 },
   // THE SCENERY'S LIFE (2026-09-23): the procedural kit, the placement laws on a synthetic premises, the draw's
   // distances, the hooks (~1 s)
   { id: 'LIFE', file: '_life_check.js', tier: 'core' },
