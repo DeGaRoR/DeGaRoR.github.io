@@ -82,6 +82,11 @@ const ALLOW = [
   // props in the roll-out's upload step 892 -> 705 MiB, Cub). The views are unchanged. ?ktx2=0 gives the old calls back.
   { key: 'boot/garage:compile/gl.calls', build: '*', upTo: 105400, why: 'the shed props\' KTX2 twins upload their mips level by level (103.2 k -> 104.9 k calls; 118 MiB fewer bytes)', g: 'G918' },
   { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 6300, why: 'the ground\'s compressed arrays and the placed props\' KTX2 twins upload their mips level by level (4.5 k -> 6.1 k calls; 187 MiB fewer bytes)', g: 'G918' },
+  // AS4a-rest (G941-G944): MATLIB's ARRAY SHAPES - a prop's opaque records are ROWS and its parts ONE draw (taxi main draws
+  // 1071.5 -> 982.5, Cub). Each such draw's geometry carries its row per vertex (`mlRow`, 2 bytes): the shed's props upload
+  // that attribute with their merged vertices in the editor step, once (the vertices themselves are one copy - the parts are
+  // views of the merged arrays; arrayBuffers after the roll-out -21 MiB)
+  { key: 'boot/garage:editor/bytes.bufferData', build: '*', upTo: 37300000, why: 'the shed props\' array draws carry their row per vertex (2 bytes; 35.3 -> 37.2 MB, once)', g: 'G944' },
   // C4b (G875-G878): the census now sees the flown bake as the game runs it (the step's read-back returns written texels
   // here: before, it bowed out at 0 % and the census measured an aeroplane no player sees); the bake step's row is G870's above
   { key: 'boot/rollout:compile/links', build: '*', upTo: 72, why: 'the folds\' programs linked under the screen: the skinned variant of the baked material, the cabin\'s baked material and its skinned variant', g: 'G875' },
