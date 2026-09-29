@@ -35,6 +35,14 @@
     <div id="bootNote" hidden></div>
     <button id="bootSkip" type="button" hidden>continue anyway</button>
   </div>
+  <!-- B8 (G1024): THE SETUP SCREEN - the flight rail's own sections (app.js flSetupBuild: FLY, VIEW, SKY & WORLD,
+       GRAPHICS, from the same builders and keepers), shown from the shed's step on the first boot. Untouched, the
+       screen lifts by itself when the load is done; a touch holds it and #bootFly lights up when it is. -->
+  <aside id="bootSetup" hidden>
+    <div id="bootSetupHead">Before you fly</div>
+    <div id="bootSetupBody"></div>
+    <div id="bootSetupFoot"><span id="bootSetupNote"></span><button id="bootFly" type="button" disabled>Fly</button></div>
+  </aside>
   <!-- G640: THE CAROUSEL - what is happening, the island, flying, the shed; the
        pictures' own cards in between. boot.js deals it from window.BOOT_CARDS
        (boot_cards.js) and the pictures above; a timer on the card's length,

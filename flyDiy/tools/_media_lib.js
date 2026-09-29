@@ -142,13 +142,21 @@ const BASE_DECL =
 // encode_tex, for the node bakers - a role picks the format (color -> JPEG,
 // or WebP with alpha; normal -> WebP q92; data -> WebP, one channel when
 // grey; keep -> byte-exact), a size cap resamples. Returns { data, ext }.
+// A FLAT map (G903: every channel's std under 2 at 256 px, the census's
+// FLAT_STD) returns { data: null, ext: 'flat', flat: [r, g, b] } and writes no
+// file: the baker records the triple where the path went (media_lib.py says why).
 function encodeTex(buf, role, maxPx) {
   const os = require('os'), cp = require('child_process');
   const tmp = path.join(os.tmpdir(), 'flydiy_tex_' + process.pid + '_' + Math.random().toString(16).slice(2));
   fs.writeFileSync(tmp + '.in', buf);
   const r = cp.spawnSync('python', [path.join(__dirname, 'media_lib.py'), 'encode', role, String(maxPx || 2048), tmp + '.in', tmp + '.out'], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error('encodeTex: ' + (r.stderr || r.stdout));
-  const data = fs.readFileSync(tmp + '.out'), ext = r.stdout.trim();
+  const out = r.stdout.trim();
+  if (out.startsWith('flat ')) {
+    try { fs.unlinkSync(tmp + '.in'); } catch (e) {}
+    return { data: null, ext: 'flat', flat: out.slice(5).split(',').map(Number) };
+  }
+  const data = fs.readFileSync(tmp + '.out'), ext = out;
   try { fs.unlinkSync(tmp + '.in'); fs.unlinkSync(tmp + '.out'); } catch (e) {}
   return { data, ext };
 }
@@ -171,4 +179,33 @@ function decodeRGBA(files) {
   fs.rmSync(tmp, { recursive: true, force: true });
   return res;
 }
-module.exports = { decodeRGBA, writeMedia, pruneMedia, BASE_DECL, MEDIA, encodeTex, mediaRel, readGeo, gzipGeo, isGeo, GZ_BIN, sha8 };
+// flatConst(buf) -> [r, g, b] for a flat map, or null - the same test, for the node
+// bakers that write their maps byte-exact without encodeTex (G903).
+function flatConst(buf) {
+  const os = require('os'), cp = require('child_process');
+  const tmp = path.join(os.tmpdir(), 'flydiy_flat_' + process.pid + '_' + Math.random().toString(16).slice(2));
+  fs.writeFileSync(tmp, buf);
+  const r = cp.spawnSync('python', [path.join(__dirname, 'media_lib.py'), 'flat', tmp], { encoding: 'utf8' });
+  try { fs.unlinkSync(tmp); } catch (e) {}
+  if (r.status !== 0) throw new Error('flatConst: ' + (r.stderr || r.stdout));
+  const c = r.stdout.trim().split(' ')[0];
+  return c === '-' ? null : c.split(',').map(Number);
+}
+// writeMap(subdir, stem, ext, buf) - a baker's byte-exact map write, or its
+// constant: [r, g, b] for a flat map (nothing written), else writeMedia's path.
+// The emitter writes `k: [r, g, b]` where it wrote a getter; the consumer binds
+// TEX_FLAT (src/viewer/assets.js).
+function writeMap(subdir, stem, ext, buf) {
+  return flatConst(buf) || writeMedia(subdir, stem, ext, buf);
+}
+// assetSrc(...parts) - a bake SOURCE under assets/: this checkout's own when it
+// has it, else FLYDIY_ASSETS, else the main checkout's (the sources are gitignored
+// and a worktree has none; never junction them in - a worktree removal empties
+// the link's target). pavement_tex_prep.js's ROOTS, for every node baker (G903).
+const MAIN_ASSETS = 'D:/Dev/DeGaRoR.github.io/flyDiy/assets';
+function assetSrc(...parts) {
+  const roots = [path.join(__dirname, '..', 'assets'), process.env.FLYDIY_ASSETS, MAIN_ASSETS].filter(Boolean);
+  for (const r of roots) { const f = path.join(r, ...parts); if (fs.existsSync(f)) return f; }
+  return path.join(roots[0], ...parts);
+}
+module.exports = { decodeRGBA, writeMedia, pruneMedia, BASE_DECL, MEDIA, encodeTex, flatConst, writeMap, assetSrc, mediaRel, readGeo, gzipGeo, isGeo, GZ_BIN, sha8 };

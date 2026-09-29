@@ -41,6 +41,25 @@ BASE_DECL = ("const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') "
              "? FLYDIY_ASSET_BASE : '';")
 
 
+MAIN_ASSETS = 'D:/Dev/DeGaRoR.github.io/flyDiy/assets'
+
+
+def asset_src(rel):
+    """A bake SOURCE path under flyDiy/ ('assets/...'): this checkout's own when
+    it has it, else FLYDIY_ASSETS, else the main checkout's (the sources are
+    gitignored and a worktree has none - never junction them in: a worktree
+    removal empties the link's target). tools/_media_lib.js assetSrc (G903)."""
+    own = os.path.join(ROOT, *rel.split('/'))
+    if os.path.exists(own) or not rel.startswith('assets/'):
+        return own
+    for base in (os.environ.get('FLYDIY_ASSETS'), MAIN_ASSETS):
+        if base:
+            p = os.path.join(base, *rel.split('/')[1:])
+            if os.path.exists(p):
+                return p
+    return own
+
+
 def write_media_named(subdir, name, raw):
     """For assets whose NAME already is a content hash (the prop textures'
     sha12 ids) — writing `<stem>.<h8>.<ext>` on top would hash a hash. Same
@@ -152,8 +171,43 @@ def prune_media_stems(subdir, stems, keep_rels, sep='.'):
 #   keep    byte-exact (a leaf cutout whose alpha the coverage mips need)
 # A JPEG source that already fits max_px passes through untouched (a second
 # JPEG generation is a loss for nothing). The returned ext names the bytes.
+#
+# A FLAT MAP IS A NUMBER (G903, AS0b; the asset census's P1). A map whose
+# every channel's std is under FLAT_STD at 256 px, alpha unused, is returned
+# as its CONSTANT - (FLAT, 'flat'), FLAT the rounded mean [r, g, b] 0-255 -
+# and no file is written: the baker puts the triple in its material record
+# where the path went, and the consumer binds a 1x1 of that colour (the
+# pages' flatTex / TEX_FLAT) - the same texel the GPU averaged before, for
+# 4 bytes instead of up to 21 MiB (the seven white 2048^2 char specular maps).
+# Measured exactly as tools/asset_census.js measures it (its FLAT_STD, its
+# BOX resample to 256), so GATE ASSETS and the bakers never disagree.
 # ---------------------------------------------------------------------------
-def encode_tex(raw, role, max_px=2048, quality=None):
+FLAT_STD = 2
+
+
+def flat_const(im_or_raw, alpha=True):
+    """The constant [r, g, b] a flat map stands for, or None (a real map).
+    `alpha`: the alpha ships with the map (a cutout's alpha is the picture);
+    False where the encode drops it (encode_tex's normal / data roles - the
+    Mixamo specular PNGs carry a stray alpha of 56-68 that never shipped)."""
+    import io
+    from PIL import Image, ImageStat
+    im = im_or_raw
+    if isinstance(im_or_raw, (bytes, bytearray)):
+        im = Image.open(io.BytesIO(im_or_raw))
+        im.load()
+    if alpha and (im.mode in ('RGBA', 'LA', 'PA') or (im.mode == 'P' and 'transparency' in im.info)):
+        if im.convert('RGBA').getchannel('A').getextrema()[0] < 255:
+            return None                      # a cutout: the alpha is the picture
+    rgb = im.convert('RGB')
+    small = rgb.resize((min(256, rgb.width), min(256, rgb.height)), Image.BOX)
+    st = ImageStat.Stat(small)
+    if max(st.stddev) >= FLAT_STD:
+        return None
+    return [int(round(x)) for x in st.mean]
+
+
+def encode_tex(raw, role, max_px=2048, quality=None, flat=True):
     import io
     from PIL import Image
     if role == 'keep':
@@ -161,6 +215,11 @@ def encode_tex(raw, role, max_px=2048, quality=None):
     im = Image.open(io.BytesIO(raw))
     fmt = (im.format or '').upper()
     w, h = im.size
+    if flat:
+        im.load()
+        c = flat_const(im, alpha=(role == 'color'))
+        if c is not None:
+            return c, 'flat'
     if fmt == 'JPEG' and max(w, h) <= max_px and role == 'color':
         return raw, 'jpg'
     im.load()
@@ -228,5 +287,13 @@ if __name__ == '__main__':
     if len(sys.argv) >= 6 and sys.argv[1] == 'encode':
         raw = open(sys.argv[4], 'rb').read()
         data, ext = encode_tex(raw, sys.argv[2], int(sys.argv[3]))
-        open(sys.argv[5], 'wb').write(data)
-        print(ext)
+        if ext == 'flat':                    # no file: the constant on stdout
+            print('flat %d,%d,%d' % tuple(data))
+        else:
+            open(sys.argv[5], 'wb').write(data)
+            print(ext)
+    # media_lib.py flat <file>... -> one line each: '<r>,<g>,<b> <file>' or '- <file>'
+    elif len(sys.argv) >= 3 and sys.argv[1] == 'flat':
+        for f in sys.argv[2:]:
+            c = flat_const(open(f, 'rb').read())
+            print('%s %s' % (','.join(map(str, c)) if c else '-', f))

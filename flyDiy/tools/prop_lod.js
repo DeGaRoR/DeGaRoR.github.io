@@ -297,7 +297,7 @@ function main(argv) {
     '// src/core/51_prop_codec.js; geometry in media/' + SUB + '/, textures the\n' +
     '// full props\' own in media/tex/pier/.\n' +
     'registerPropPack((p => {\n  ' + BASE_DECL + '\n' +
-    '  for (const k in p.texs) p.texs[k] = B + p.texs[k];\n' +
+    "  for (const k in p.texs) if (typeof p.texs[k] === 'string') p.texs[k] = B + p.texs[k];\n" +
     '  for (const k in p.props) if (p.props[k].bin) p.props[k].bin = B + p.props[k].bin;\n' +
     '  return p;\n})(' + JSON.stringify(pack) + '));\n';
   fs.writeFileSync(OUT, body);

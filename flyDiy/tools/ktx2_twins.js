@@ -66,7 +66,7 @@ function wanted(fam) {
   const out = new Map();   // key 'rel|kind' -> { rel, kind }
   for (const P of packs) for (const k in P.props) for (const m of Object.values(P.props[k].mats || {})) for (const slot of Object.keys(KIND)) {
     const id = m[slot]; if (typeof id !== 'string') continue;   // a flat constant (AS0b) has no file
-    const rel = P.texs[id]; if (!rel || !rel.startsWith(F.dir + '/')) continue;
+    const rel = P.texs[id]; if (typeof rel !== 'string' || !rel.startsWith(F.dir + '/')) continue;   // (G903: a flat map's texs entry is its [r, g, b])
     out.set(rel + '|' + KIND[slot], { rel, kind: KIND[slot] });
   }
   return [...out.values()].sort((a, b) => (a.rel + a.kind).localeCompare(b.rel + b.kind));

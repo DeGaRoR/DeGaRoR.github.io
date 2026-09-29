@@ -13,6 +13,9 @@
 // in node, without a browser. Run once per such migration; needs git and a Chrome (or the container's
 // Playwright Chromium). ~20 s.
 //
+// G903 (AS0b, train 16) made a flat map a constant: the old code at such a base fills the layer with it, and a flat
+// map's fingerprint is 'flat:r,g,b' (GATE GROUNDLIB holds the table's constant to it).
+//
 //   node tools/ground_layers_chrome.js [--base <commit>] [--out <file>]
 'use strict';
 const fs = require('fs');
@@ -59,7 +62,8 @@ window.RUN = async () => {
   for (let i = 0; i < keys.length; i++) out.pavement[keys[i]] = { A: await hex(L.texA.image.data.subarray(i * S, (i + 1) * S)), N: await hex(L.texN.image.data.subarray(i * S, (i + 1) * S)) };
   const [a, n] = await new Promise(r => buildArrays(SPLAT_TEX_SETS, {}, { knobs: { aniso: 16 } }, (x, y) => r([x, y])));
   for (let i = 0; i < SPLAT_TEX_SETS.length; i++) out.splat[SPLAT_TEX_SETS[i].key] = { A: await hex(a.image.data.subarray(i * S, (i + 1) * S)), N: await hex(n.image.data.subarray(i * S, (i + 1) * S)) };
-  const url = im => im.src.replace(location.origin + '/', '');
+  // G903 (train 16): a FLAT map is its [r, g, b] in the manifest, no file - recorded as 'flat:r,g,b'
+  const url = im => Array.isArray(im) ? 'flat:' + im.join(',') : im.src.replace(location.origin + '/', '');
   for (const [lib, T] of [['lot', LOT_TEX_SETS], ['site', SITE_TEX_SETS]]) { out[lib] = {}; for (const k in T) out[lib][k] = { diff: url(T[k].diff), nor: url(T[k].nor), rough: url(T[k].rough) }; }
   out.pavementMaps = {}; for (const k of keys) out.pavementMaps[k] = { diff: url(PAVEMENT_TEX_SETS[k].diff), nor: url(PAVEMENT_TEX_SETS[k].nor), rough: url(PAVEMENT_TEX_SETS[k].rough), height: url(PAVEMENT_TEX_SETS[k].height) };
   out.splatMaps = {}; for (const s of SPLAT_TEX_SETS) out.splatMaps[s.key] = { diff: url(s.diff), nor: url(s.nor), rough: url(s.rough), height: url(s.height) };
@@ -94,7 +98,7 @@ srv.listen(0, async () => {
     const o = JSON.parse(r.result.result.value);
     // the plain-texture libraries (and every map, for the record): the files' own bytes at the base
     const files = {};
-    for (const lib of ['lot', 'site', 'pavementMaps', 'splatMaps']) for (const k in o[lib]) for (const m in o[lib][k]) { const f = o[lib][k][m]; o[lib][k][m] = files[f] || (files[f] = sha(show(f))); }
+    for (const lib of ['lot', 'site', 'pavementMaps', 'splatMaps']) for (const k in o[lib]) for (const m in o[lib][k]) { const f = o[lib][k][m]; if (f.startsWith('flat:')) continue; o[lib][k][m] = files[f] || (files[f] = sha(show(f))); }
     const res = { base: BASE, chrome: (await cmd('Browser.getVersion')).result.product, made: 'tools/ground_layers_chrome.js', layer: 'SHA-256 of the 512x512 RGBA8 layer as the old code packed it in the page',
       splat: o.splat, pavement: o.pavement, lot: o.lot, site: o.site, maps: { splat: o.splatMaps, pavement: o.pavementMaps } };
     fs.mkdirSync(path.dirname(OUT), { recursive: true });

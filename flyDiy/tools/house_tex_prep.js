@@ -44,10 +44,10 @@
 // The output is committed, like the other payloads.
 const fs = require('fs');
 const path = require('path');
-const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const { writeMedia, writeMap, assetSrc, pruneMedia, BASE_DECL } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
-const SRC = path.join(ROOT, 'assets', 'house');
+const SRC = assetSrc('house');
 const OUT = path.join(ROOT, 'src', 'viewer', 'house_tex.js');
 const SUB = 'tex/house';
 
@@ -151,8 +151,11 @@ const bake = (k, stem, px, optional) => {
       'run `python tools/house_tex_import.py` first');
     process.exit(1);
   }
-  return writeMedia(SUB, `${k}_${stem}_${sfx(px)}`, 'jpg', fs.readFileSync(f));
+  // G903: a FLAT map is its constant [r, g, b] - no file; the set carries the
+  // triple and the generators bind TEX_FLAT (src/viewer/assets.js)
+  return writeMap(SUB, `${k}_${stem}_${sfx(px)}`, 'jpg', fs.readFileSync(f));
 };
+const prop = (name, v) => Array.isArray(v) ? `${name}: [${v.join(', ')}]` : `get ${name}() { return mk('${v}'); }`;
 
 let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/house_tex_prep.js from
 // assets/house/ (CC0: Poly Haven + ambientCG; see CREDITS.md). The files live
@@ -188,13 +191,13 @@ for (const [k, kind, name, tile, pxWant, metal, paint, ribbed, opt] of SETS) {
   const d = bake(k, 'diff', px), n = bake(k, 'nor_gl', px),
         r = bake(k, 'rough', px);
   const p = paint ? bake(k, 'paint', px) : null;
-  for (const rel of [d, n, r, p]) if (rel) { emitted.push(rel); bytes += sz(rel); }
+  for (const rel of [d, n, r, p]) if (typeof rel === 'string') { emitted.push(rel); bytes += sz(rel); }
   const flags = (opt && opt.tint === false ? ', tint: false' : '') +
     (opt && opt.punch !== undefined ? `, punch: ${opt.punch}` : '');
   body += `    ${k}: { kind: '${kind}', name: '${name}', tile: ${tile}, ` +
     `px: ${px}, metal: ${metal}, ribbed: ${ribbed}${flags},\n` +
-    `      get diff() { return mk('${d}'); },\n      get nor() { return mk('${n}'); },\n      get rough() { return mk('${r}'); },\n` +
-    (p ? `      get paint() { return mk('${p}'); } },\n` : `      paint: null },\n`);
+    `      ${prop('diff', d)},\n      ${prop('nor', n)},\n      ${prop('rough', r)},\n` +
+    (p ? `      ${prop('paint', p)} },\n` : `      paint: null },\n`);
   report.push(`${k} ${kind} ${px}px/${tile}m=${Math.round(px / tile)}`);
 }
 body += `  };
@@ -217,7 +220,7 @@ fs.writeFileSync(OUT, body);
 // A repo with no assets/house_sky/ bakes no skies and the bench falls back to
 // its four painted moods, which is why this is soft-failing and the gate does
 // not require a sky.
-const SKYSRC = path.join(ROOT, 'assets', 'house_sky', 'out');
+const SKYSRC = assetSrc('house_sky', 'out');
 let skies = {};
 try {
   skies = JSON.parse(fs.readFileSync(path.join(SKYSRC, '_skies.json'), 'utf8'));

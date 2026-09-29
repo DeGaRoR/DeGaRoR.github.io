@@ -187,6 +187,8 @@ function texture(c, id, srgb) {
   if (TEX[k]) return TEX[k];
   const uri = c.texs[id];
   if (!uri) return null;
+  // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (src/viewer/assets.js TEX_FLAT)
+  if (Array.isArray(uri)) return (TEX[k] = TEX_FLAT(uri, srgb ? THREE.SRGBColorSpace : ''));
   const img = new Image();
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;

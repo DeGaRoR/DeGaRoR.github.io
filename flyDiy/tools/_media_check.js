@@ -258,6 +258,8 @@ function manifestFiles() {
   // the premises' cook (G835): tools/premises_cook.js writes media/world/<id>/premises (its own subdirectory -
   // world_prep's prune is not recursive, so neither bake prunes the other's) and names every cell here
   if (fs.existsSync(path.join(ROOT, 'src', 'core', 'premises_packs.json'))) worlds.push(path.join(ROOT, 'src', 'core', 'premises_packs.json'));
+  // the parked aeroplanes' cook (G805): tools/parked_cook.js owns media/parked (one gzip stream per arch: / stock: key)
+  if (fs.existsSync(path.join(ROOT, 'src', 'core', 'parked_packs.json'))) worlds.push(path.join(ROOT, 'src', 'core', 'parked_packs.json'));
   // the town kit (G850): the archetype pack and the instance tables, baked by tools/town_kit.js --media (not
   // shipped yet - the manifest appears with the first bake the user approves)
   const townkit = fs.existsSync(path.join(ROOT, 'src', 'core', 'townkit_pack.json'))

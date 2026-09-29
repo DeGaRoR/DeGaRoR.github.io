@@ -881,8 +881,10 @@ function make(THREE, host) {
     if (b) return b;
     if (typeof propReady !== 'function' || !propReady(levelKey)) return null;
     const built = propBuild(T, levelKey);
-    if (part >= built.geos.length) return null;
-    b = { id, geo: built.geos[part], mat: built.mats[part], mesh: null, cap: 0, idx: [], shadow: false };
+    const G = built.dgeos || built.geos, Mt = built.dmats || built.mats;   // the prop's draw list (props.js propDraws)
+    if (part >= G.length) return null;
+    // the record's INSTANCED sibling (MATLIB.variant, AS4a): the same values, its own object - the plain placements of the key keep theirs
+    b = { id, geo: G[part], mat: typeof MATLIB !== 'undefined' ? MATLIB.variant(T, Mt[part], 'inst') : Mt[part], mesh: null, cap: 0, idx: [], shadow: false };
     BATCH.set(id, b);
     return b;
   }

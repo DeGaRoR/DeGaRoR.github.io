@@ -82,33 +82,95 @@ const ALLOW = [
   // props in the roll-out's upload step 892 -> 705 MiB, Cub). The views are unchanged. ?ktx2=0 gives the old calls back.
   { key: 'boot/garage:compile/gl.calls', build: '*', upTo: 105400, why: 'the shed props\' KTX2 twins upload their mips level by level (103.2 k -> 104.9 k calls; 118 MiB fewer bytes)', g: 'G918' },
   { key: 'boot/rollout:upload/gl.calls', build: '*', upTo: 6300, why: 'the ground\'s compressed arrays and the placed props\' KTX2 twins upload their mips level by level (4.5 k -> 6.1 k calls; 187 MiB fewer bytes)', g: 'G918' },
+  // C4b (G875-G878): the census now sees the flown bake as the game runs it (the step's read-back returns written texels
+  // here: before, it bowed out at 0 % and the census measured an aeroplane no player sees); the bake step's row is G870's above
+  { key: 'boot/rollout:compile/links', build: '*', upTo: 72, why: 'the folds\' programs linked under the screen: the skinned variant of the baked material, the cabin\'s baked material and its skinned variant', g: 'G875' },
+  { key: 'boot/rollout:compile/gl.calls', build: '*', upTo: 800, why: 'the same three links', g: 'G875' },
+  { key: 'stand/gl.texSubImage2D', build: '*', upTo: 102, why: 'the folds\' bone textures: one small upload per skinned fold a frame (four on a Cessna)', g: 'G875' },
+  { key: 'taxi/gl.texSubImage2D', build: '*', upTo: 100, why: 'the folds\' bone textures (above)', g: 'G875' },
+  { key: 'stand/bytes.texSubImage2D', build: '*', upTo: 496000, why: 'the folds\' bone textures (~1.5 KB each a frame)', g: 'G875' },
+  { key: 'taxi/bytes.texSubImage2D', build: '*', upTo: 490000, why: 'the folds\' bone textures (above)', g: 'G875' },
+  { key: 'taxi/world.terrainH', build: 'cub', upTo: 42000, why: 'the Cub\'s taxi view only (the Cessna\'s did not move): the terrain fill\'s calls rose once the bake runs in the census - not traced further', g: 'G878' },
+  { key: 'taxi/world.grHeight', build: 'cub', upTo: 56000, why: 'the raster behind that terrainH (above)', g: 'G878' },
+  // G923 (AS4a M3): the strip stones are BatchedMeshes per (map, casts) in a cell - taxi main draws 1097 -> 982, shadow
+  // 533 -> 495 (Cub) - and a batch binds its matrix and index textures and re-uploads its visible-instance list
+  // (three's per-instance culling) at each of its draws: a small texSubImage2D and two binds where a stone part was a
+  // whole draw
+  { key: 'stand/gl.bindTexture', build: '*', upTo: 1390, why: 'the strip stones\' batches bind their matrix / index textures', g: 'G923' },
+  { key: 'taxi/gl.bindTexture', build: '*', upTo: 1080, why: 'the strip stones\' batches bind their matrix / index textures', g: 'G923' },
+  { key: 'stand/gl.texSubImage2D', build: '*', upTo: 130, why: 'a strip-stone batch uploads its visible-instance list at each draw', g: 'G923' },
+  { key: 'taxi/gl.texSubImage2D', build: '*', upTo: 165, why: 'a strip-stone batch uploads its visible-instance list at each draw', g: 'G923' },
+  { key: 'stand/bytes.texSubImage2D', build: '*', upTo: 500000, why: 'the strip-stone batches\' instance lists (~3 KB a frame)', g: 'G923' },
+  { key: 'taxi/bytes.texSubImage2D', build: '*', upTo: 470000, why: 'the strip-stone batches\' instance lists (~3 KB a frame)', g: 'G923' },
+  // B8/B9 (G1020-G1026) ON TRAIN 14 (G1027): ONE LOADING FOR THE WHOLE GAME. The world's steps left the roll-out screen for
+  // the garage boot (world, town, parking, trees, ring, the new settle, images, upload, worldCompile, frames), the build's
+  // commit split in three (snapshot / bake / spec) after them, the aeroplane's programs in the world's light ('craft') and a
+  // final 'recheck'; the base's boot had none of these rows (0), and its 'boot/rollout:*' rows fall to nothing (ratchet
+  // down): the work moved under the one loading, the roll-out itself runs no step.
+  { key: 'boot/garage:world/', build: '*', why: 'the world scene built in the one loading (was the roll-out screen\'s \'world\')', g: 'G1020' },
+  { key: 'boot/garage:town/', build: '*', why: 'the town round the stand and the world\'s prelink in the one loading (keyed with the craft\'s lights)', g: 'G1020' },
+  { key: 'boot/garage:parking/', build: '*', why: 'the parked aeroplanes the town placed, captured in the one loading', g: 'G1020' },
+  { key: 'boot/garage:ring/', build: '*', why: 'the forest ring round the stand, grown in the one loading', g: 'G1020' },
+  { key: 'boot/garage:settle/', build: '*', why: 'B9\'s settle: the world\'s own update at the stand until its streamers rest (~1 130 updates) - no background loading in flight', g: 'G1020' },
+  { key: 'boot/garage:parked/', build: '*', why: 'the shed\'s parked captureAll also takes the aeroplanes the settle\'s stream placed', g: 'G1020' },
+  { key: 'boot/garage:snapshot/', build: '*', why: 'the build\'s commit cut in three (snapshot / bake / spec), after the world\'s steps (was one \'sync\')', g: 'G1021' },
+  { key: 'boot/garage:bake/', build: '*', why: 'C4a/C4b\'s flown bake in the one loading, between the snapshot and the spec (was the roll-out\'s \'bake\')', g: 'G1021' },
+  { key: 'boot/garage:spec/', build: '*', why: 'the flown spec applied once, on the bake', g: 'G1021' },
+  { key: 'boot/garage:images/', build: '*', why: 'the world\'s pictures, and G730\'s parked rungs prelinked there (2 lit + 2 depth programs), in the one loading', g: 'G1020/G730' },
+  { key: 'boot/garage:upload/', build: '*', why: 'the world\'s textures and the rungs\' maps uploaded in the one loading', g: 'G1020/G730' },
+  { key: 'boot/garage:worldCompile/', build: '*', why: 'the world\'s programs compiled in the one loading, the craft\'s lights counted', g: 'G1020' },
+  { key: 'boot/garage:frames/', build: '*', why: 'first light under the boot\'s overlay: G732.1\'s sliced catch-up, G732\'s hook textures and programsReady, the six-view warm draw', g: 'G1020/G732' },
+  { key: 'boot/garage:craft/', build: '*', why: 'the aeroplane\'s programs in the world\'s light, and the shed dressed as the roll-out shot draws it (the mesh and its own lights: every room program re-keyed)', g: 'G1020/G1027' },
+  { key: 'boot/garage:recheck/', build: '*', why: 'the aircraft\'s keyed steps re-planned once after the commit settled', g: 'G1020' },
+  { key: 'boot/garage:firstFrame/links', build: '*', upTo: 26, why: 'G441\'s see-through variants under the boot\'s screen (their 1.5 s timer fired into the first roll-out\'s shot)', g: 'G1027' },
+  // THE ROLL-OUT: no step runs (every key unchanged) and nothing links; the row now spans B10's shot (rollanim.js, B9's
+  // phase 2): ~360 frames of the shed, the eye going out through the door, 4-6 s - the shed's own frames
+  { key: 'boot/rollout:click/', build: '*', why: 'the roll-out shot\'s ~360 shed frames (B10 via B9\'s phase 2); no step, no link', g: 'G1027/G1035' },
+  // THE STAND AND THE TAXI: the world as the flight finds it, now arrived in the loading - the settle's stream placed three
+  // parked aeroplanes by the taxi route (a C172, a Jodel, a Cub: captured in the loading, not in flight - FRAMECOST_WHAT=taxi),
+  // the scenery's life standing, the craft's lights counted; B9's HANDOVER has the like-for-like (FRAMECOST_PROBE=600)
+  { key: 'stand/gl.bufferData', build: '*', upTo: 32, why: 'the world at rest at the stand: ~24 small buffers (13-14 KB) re-sent inside three\'s render a frame (FRAMECOST_WHO; not traced to an object) - the bytes fell 227 -> 117 KB', g: 'G1020' },
+  { key: 'stand/gl.bindBuffer', build: '*', upTo: 60, why: 'the same ~24 buffers re-sent at the stand, each bound (31 -> 55; hidden behind the aircraft\'s per-frame re-upload until G1028 took that out; 59 on train 16: the trains 14-16 merge added ~2 more of the same untraced re-sends while bytes, draws and uniforms all fell)', g: 'G1020/G1028' },
+  { key: 'stand/programs', build: '*', upTo: 115, why: 'the programs the settled world uses at the stand (the life, the parked captures, the craft\'s lights keyed in)', g: 'G1020' },
+  { key: 'stand/three.frustumTests', build: '*', upTo: 2650, why: 'the objects the settled world stands at the stand', g: 'G1020' },
+  { key: 'taxi/bytes.texSubImage2D', build: '*', upTo: 505000, why: 'the parked aeroplanes the settle placed and the loading captured (their folds\' bone textures)', g: 'G1020' },
+  { key: 'taxi/bytes.uniforms', build: '*', upTo: 487000, why: 'three parked aeroplanes by the taxi route, captured in the loading - their skins\' uniforms', g: 'G1020' },
+  { key: 'taxi/gl.bindTexture', build: '*', upTo: 1190, why: 'the same parked aeroplanes\' maps', g: 'G1020' },
+  { key: 'taxi/gl.calls', build: '*', upTo: 13150, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/gl.uniform1f', build: '*', upTo: 590, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/gl.uniform3f', build: '*', upTo: 180, why: 'the same parked aeroplanes\' draws (G1028: 178.5 on the Cessna against the train 16 baseline)', g: 'G1020' },
+  { key: 'taxi/gl.uniform4f', build: '*', upTo: 402, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/gl.uniform4fv', build: '*', upTo: 2840, why: 'the same parked aeroplanes\' draws', g: 'G1020' },
+  { key: 'taxi/programs', build: '*', upTo: 99.5, why: 'the same parked aeroplanes\' programs', g: 'G1020' },
+  { key: 'taxi/three.frustumTests', build: '*', upTo: 2410, why: 'the same parked aeroplanes and the life', g: 'G1020' },
+  // C0 (2026-09-28, G800-G802): the houses' lod 1 past 150 m, the outbuildings at lod 1, the dithered band. Measured apart
+  // (FRAMECOST_QUERY=outlod=0 and houselod=0 censuses, and 40 warm-up frames instead of 6):
+  //  - THE OUTBUILDINGS AT LOD 1 draw another set of bags (the pane for the glass; the per-house size cut keeps others),
+  //    whose programs interleave in the sort: +12 program switches at the stand and the taxi, and the camera uniforms
+  //    each switch re-uploads (gone with ?outlod=0; triangles -12 k at the stand);
+  ...['stand/gl.useProgram:372', 'stand/gl.uniform3f:300', 'taxi/gl.useProgram:260', 'taxi/gl.uniform3f:168', 'taxi/gl.uniformMatrix4fv:2105']
+    .map(e => ({ key: e.split(':')[0], build: '*', upTo: +e.split(':')[1], why: 'the outbuildings at lod 1: another bag set, their programs interleave (+12 switches)', g: 'G800' })),
+  //  - the band's three programs (the lod-1 town arriving at 150 m, the town material's plain and glass leaving there) and
+  //    the lod-1 houses' G566 clone, linked by hlodWarm as the village's cells bake, in the frames before the lift;
+  { key: 'boot/rollout:landing/links', build: '*', upTo: 4, why: 'the band\'s programs linked as the cells bake, under the screen', g: 'G801' },
+  //  - THE VIRTUAL CLOCK: the town step's 84 lod-1 house builds take harness time, and what the page budgets in milliseconds
+  //    (the ring's planting, the forest fill, the cover's grow) lands in other frames: the rest. With 40 warm-up frames the
+  //    stand's draws are equal (1268 / 726 both); a ?houselod=0 census reproduces the baseline to the last count.
+  ...['stand/draws.total:2215', 'stand/gl.bindVertexArray:2090', 'stand/gl.uniform1f:985', 'stand/gl.uniform2f:295', 'stand/gl.uniformMatrix3fv:590', 'stand/three.frustumTests:2595',
+      'stand/bytes.texSubImage2D:515000', 'taxi/draws.total:1705', 'taxi/gl.bindVertexArray:1585', 'taxi/world.grHeight:54000', 'taxi/world.terrainH:41000',
+      'boot/rollout:frames/world.grHeight:336000', 'boot/rollout:frames/world.terrainH:345000', 'boot/rollout:landing/world.grHeight:146000', 'boot/rollout:landing/world.terrainH:150000',
+      'boot/rollout:ring/world.grHeight:210000', 'boot/rollout:ring/world.terrainH:210000']
+    .map(e => ({ key: e.split(':').slice(0, -1).join(':'), build: '*', upTo: +e.split(':').pop(), why: 'the streaming moved by the lod-1 builds\' harness time (the virtual clock), not per-frame work', g: 'G800' })),
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
 async function census(build) {
   const { openPage } = require('./_page_node.js');
-  const C = bootMark.C = { who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, pick: null };
+  const C = bootMark.C = { who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, hb0: 0, hb1: 0, ht0: 0, ht1: 0, hms0: 0, hms1: 0, pick: null };
   const storage = {};
   if (BUILDS[build]) storage['flydiy.wip'] = fs.readFileSync(path.join(ROOT, BUILDS[build]), 'utf8');
   let mainCam = null;
-  const hooks = {
-    afterScript(name, P) {
-      const W = P.win;
-      if (name === 'vendor/three.min.js') installThree(W.THREE, C);
-      if (name === 'src/viewer/boot.js' && W.BOOT) wrapBoot(W, P);
-      if (name === 'src/viewer/gfx_settings.js' && W.GFX) { W.GFX.set('preset', 'gamer'); W.GFX.set('shadows', 'full'); }
-    },
-    beforeScript(name, P) {
-      const W = P.win;
-      if (name === 'src/viewer/app.js') {
-        // the world's terrainH, counted where every caller reads it (the world object's own property)
-        if (typeof W.makeWorld === 'function') { const mk = W.makeWorld; W.makeWorld = function () { const w = mk.apply(this, arguments); wrapWorld(w, C); return w; }; }
-        // the renderer: its render (the pass it draws) and its shadow pass, once app.js makes it
-        let R = null;
-        Object.defineProperty(W, 'FLYDIY_RENDERER', { configurable: true, get: () => R, set: v => { R = v; if (v && !v.__fc) wrapRenderer(v, P, C, () => mainCam); } });
-      }
-    },
-  };
+  const hooks = pageHooks(C, () => mainCam);
   const t0 = Date.now();
   const P = await openPage({ quiet: true, storage, hooks, query: process.env.FRAMECOST_QUERY || '' });
   const W = P.win;
@@ -117,8 +179,8 @@ async function census(build) {
   let cur = null, rows = null;
   const landing = () => { const B = W.BOOT; if (bootMark.cur && B && B.state === 'landing' && !/:landing$/.test(bootMark.cur)) bootMark.open(bootMark.cur.split(':')[0] + ':landing'); };
   P.onFrame((ph) => {
-    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; cur = snap(); }
-    else if (ph === 'end' && rows && cur) { const r = diff(cur, snap()); r.programs = P.rec.progUsed.size; rows.push(r); if (C.drawn) C.lastDrawn = C.drawn; }
+    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; cur = snap(); }
+    else if (ph === 'end' && rows && cur) { const r = diff(cur, snap()); r.programs = P.rec.progUsed.size; rows.push(r); if (C.drawn) { C.lastDrawn = C.drawn; C.lastShadow = C.drawnShadow; } }
   });
   let FP = null;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
@@ -126,7 +188,10 @@ async function census(build) {
   const tGarage = Date.now() - t0;
   const bGo = W.document.getElementById('bGo');
   bootMark.open('rollout:click'); bGo.click();
-  await P.until(() => W.BOOT.state === 'gone' && W.BOOT.set === 'rollout', 900000);
+  // B9 (G1020): a roll-out that changes nothing shows no screen at all - the trip's own log says when it is done
+  // (window.FLYDIY_TRIPS); a tree before B9 has none and lifts its roll-out screen
+  const tripDone = () => { const T = W.FLYDIY_TRIPS; const t = T && T[T.length - 1]; return !!(t && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'); };
+  await P.until(() => W.FLYDIY_TRIPS ? tripDone() : (W.BOOT.state === 'gone' && W.BOOT.set === 'rollout'), 900000);
   bootMark.close();
   const tRoll = Date.now() - t0 - tGarage;
   // THE PAGE'S MEMORY after the roll-out (G905, reported, never ratcheted): a full gc first when the child has one
@@ -138,11 +203,13 @@ async function census(build) {
   mainCam = typeof FP.camera === 'function' ? FP.camera() : FP.camera;
   // THE FLIGHT HELD: the pause button, the world's clocks with it
   const bP = W.document.getElementById('bPause'); if (bP) bP.click();
-  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm); rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; return r; };
+  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm); rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
   const views = {};
   C.phase = () => P.rec.phase;
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
   views.stand = await measure();
+  const craft = { stand: await craftCensus(W, P, FP, C) };
+  const detail = { stand: drawnDetail(C) };
   if (C.who) { for (const [k, m] of Object.entries(C.who)) { process.stderr.write('WHO ' + k + '\n'); const w = e => e[1] * (+((/\[(\d+) B\]$/.exec(e[0]) || [0, 1])[1]) || 1); for (const [st, n] of Object.entries(m).sort((a, b) => w(b) - w(a)).slice(0, 8)) process.stderr.write('   ' + n + '  ' + st + '\n'); } C.who = null; P.rec.onCall = null; }
   // THE PROOF (on the Cub's stand, where the baseline view is fresh): three regressions injected, each measured
   const selftest = build === 'cub' ? await injections(W, FP, C, views.stand, measure) : null;
@@ -153,7 +220,9 @@ async function census(build) {
   const route = taxiPose(W, FP);
   const pose = Object.assign({}, TAXI_PIN, { off: route ? +Math.hypot(route.x - TAXI_PIN.x, route.z - TAXI_PIN.z).toFixed(1) : null });
   placeAt(W, FP, pose);
+  if (process.env.FRAMECOST_WHAT === 'taxi') { FP.camSettle(); await P.frames(WARM); await debugAids(W, P, FP, C, () => rows, v => { rows = v; }, 'taxi'); }
   views.taxi = await measure();
+  detail.taxi = drawnDetail(C);
   views.taxi.pose = [pose.x, pose.z, pose.hdg, pose.off === null ? 'no route' : 'route ' + pose.off + ' m off'];
   // THE ISLAND TEXTURES ARE THE GPU'S (G906): after the roll-out not one keeps its image.data; the class weights were
   // never built (the default stack starts past the class layer); a lost context's re-derive (the canvas's
@@ -167,21 +236,55 @@ async function census(build) {
     await P.frames(2); r.heldAfterReupload = held();
     return r;
   })();
+  craft.taxi = await craftCensus(W, P, FP, C);
   const wd = FP.world();
   const health = { premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5) };
+  craft.bake = W.FLOWN_BAKE ? (W.FLOWN_BAKE.FB.last || null) : undefined;
+  detail.scene = matCensus(W.WORLD && W.WORLD.scene);
+  if (process.env.FRAMECOST_WHAT) process.stderr.write('DETAIL ' + JSON.stringify(detail, null, 1) + '\n');
   // AS3 (G918): the KTX2 path (reported): the ground library's packs (KTX2 or raw, why not), the transcodes, the worker ms
   const ktx2 = { ground: W.GROUND_LIB && W.GROUND_LIB.stats ? W.GROUND_LIB.stats() : null, loader: W.KTX2 && W.KTX2.stats ? W.KTX2.stats() : null, workerMsgs: P.io.workerMsgs };
-  return { build, health, release, ktx2, frames: FRAMES, warm: WARM, views, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  return { build, health, release, ktx2, frames: FRAMES, warm: WARM, views, craft, detail, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
+}
+// the page's hooks for a census (B9: shared with GATE ROUNDTRIP): the three counters, the boot's step marks, the
+// graphics the census holds (gamer, shadows full), the world's terrainH and the renderer's passes
+function pageHooks(C, getCam) {
+  return {
+    afterScript(name, P) {
+      const W = P.win;
+      if (name === 'vendor/three.min.js') installThree(W.THREE, C);
+      if (name === 'src/viewer/boot.js' && W.BOOT) wrapBoot(W, P);
+      if (name === 'src/viewer/gfx_settings.js' && W.GFX) { W.GFX.set('preset', 'gamer'); W.GFX.set('shadows', 'full'); }
+      // G800: the house generator's builds by level of detail (calls, triangles built) - the town step's build work
+      if (name === 'tools/_house_gen.js' && W.HOUSE_GEN && !W.HOUSE_GEN.__fc) { const HG = W.HOUSE_GEN, b = HG.build; HG.__fc = true;
+        HG.build = function (P, lod) { const t0 = process.hrtime.bigint(), r = b.apply(this, arguments), l = lod ? 1 : 0; C['hms' + l] += Number(process.hrtime.bigint() - t0) / 1e6; C['hb' + l]++; C['ht' + l] += (r && r.stats && r.stats.tris) || 0; return r; }; }
+      // C4b (G875): THE FLOWN BAKE ENGAGES HERE AS IT DOES IN THE GAME. The recording GL draws nothing, so the bake's
+      // read-back is all zeros and the step bows out (0 % of the atlas written: the live shader flies) - the census
+      // then measured an aeroplane no player sees. During the step only, its read-back returns a written mid-grey texel.
+      if (name === 'src/viewer/flown_bake.js' && W.FLOWN_BAKE) { const FBk = W.FLOWN_BAKE, st = FBk.step;
+        FBk.step = async function () { C.fbFill = true; try { return await st.apply(this, arguments); } finally { C.fbFill = false; } }; }
+    },
+    beforeScript(name, P) {
+      const W = P.win;
+      if (name === 'src/viewer/app.js') {
+        // the world's terrainH, counted where every caller reads it (the world object's own property)
+        if (typeof W.makeWorld === 'function') { const mk = W.makeWorld; W.makeWorld = function () { const w = mk.apply(this, arguments); wrapWorld(w, C); return w; }; }
+        // the renderer: its render (the pass it draws) and its shadow pass, once app.js makes it
+        let R = null;
+        Object.defineProperty(W, 'FLYDIY_RENDERER', { configurable: true, get: () => R, set: v => { R = v; if (v && !v.__fc) wrapRenderer(v, P, C, getCam); } });
+      }
+    },
+  };
 }
 // ---- the debugging aids (stderr only, never in the verdict) ------------------------------------------------------
 //   FRAMECOST_WHO=1     the callers of terrainH and of the buffer / texture / matrix uploads, sampled, over the stand's
 //                       frames; the premises overlay's state
-//   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material
+//   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material (=taxi: at the taxi pose)
 //   FRAMECOST_PROBE=N   N frames at the stand, a line every 10 (draws, GL calls, terrainH, ...): how the world settles
-async function debugAids(W, P, FP, C, getRows, setRows) {
+async function debugAids(W, P, FP, C, getRows, setRows, at) {
   const E = process.env;
   if (E.FRAMECOST_WHO) {
     Error.stackTraceLimit = 60;
@@ -203,13 +306,60 @@ async function debugAids(W, P, FP, C, getRows, setRows) {
     }
     setRows(null);
   }
-  if (E.FRAMECOST_WHAT) {
+  if (E.FRAMECOST_WHAT && (E.FRAMECOST_WHAT === 'taxi') === !!at) {
     setRows([]); await P.frames(1); setRows(null);
     const by = {};
     for (const o of C.lastDrawn || []) { let n = o; const pth = []; while (n && pth.length < 3) { if (n.name) pth.push(n.name); n = n.parent; }
       const m = [].concat(o.material)[0]; const k = (o.isInstancedMesh ? 'I:' : o.isBatchedMesh ? 'B:' : '') + (pth.reverse().join('/') || o.type) + ' | ' + (m && (m.name || m.type)); by[k] = (by[k] || 0) + 1; }
     process.stderr.write('WHAT ' + (C.lastDrawn || []).length + '\n' + Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => '  ' + v + ' ' + k).join('\n') + '\n');
   }
+}
+// ---- WHAT A VIEW DREW, AND THE MATERIALS BY UUID AND BY SIGNATURE (AS4a, G920) --------------------------------------
+// Read off the last measured frame's own draw list (the hooks above record the drawn meshes; nothing is drawn for it): the
+// draws by FAMILY (the nearest named ancestor's name, cut at its first ':' '#' or digit) in the main and shadow passes, and
+// the distinct materials drawn, by object (uuid) and by SIGNATURE (the type and every value three uploads or keys a program
+// on: maps by texture, colours, scalars, the program key, and the uniforms a hook hands in). Reported in the census
+// (`detail`), never ratcheted: the gap uuid - sig is what a signature dedupe can still take.
+const famOf = o => { for (let n = o; n; n = n.parent) if (n.name) return n.name.split(/[:#]/)[0].replace(/[0-9_.-]+$/, '') || n.name; return o.type; };
+const MAT_KEYS = ['side', 'transparent', 'opacity', 'alphaTest', 'alphaToCoverage', 'depthWrite', 'depthTest', 'blending', 'vertexColors', 'flatShading', 'wireframe', 'fog', 'toneMapped',
+  'roughness', 'metalness', 'emissiveIntensity', 'envMapIntensity', 'aoMapIntensity', 'lightMapIntensity', 'bumpScale', 'displacementScale', 'clearcoat', 'transmission', 'sheen', 'ior', 'reflectivity', 'dithering', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'colorWrite', 'visible'];
+function matSig(m) {
+  if (!m) return 'none';
+  const t = [m.type];
+  for (const k of MAT_KEYS) if (m[k] !== undefined) t.push(k + '=' + (typeof m[k] === 'number' ? +m[k].toFixed(5) : m[k]));
+  for (const k of Object.keys(m)) { const v = m[k]; if (v && v.isTexture) t.push(k + '@' + v.uuid); else if (v && v.isColor) t.push(k + '#' + v.getHexString()); else if (v && v.isVector2) t.push(k + '<' + v.x + ',' + v.y); }
+  try { t.push('key:' + (m.customProgramCacheKey ? m.customProgramCacheKey() : '')); } catch (e) {}
+  if (m.defines) t.push('def:' + JSON.stringify(m.defines));
+  // a hook's own uniforms (a material's userData holds the objects its onBeforeCompile hands to the program)
+  const ud = m.userData || {};
+  for (const k of Object.keys(ud).sort()) { const v = ud[k]; if (v && typeof v === 'object' && 'value' in v) t.push('u.' + k + '=' + (typeof v.value === 'number' ? +v.value.toFixed(5) : v.value && v.value.uuid ? v.value.uuid : JSON.stringify(v.value))); }
+  if (m.uniforms) for (const k of Object.keys(m.uniforms).sort()) { const v = m.uniforms[k] && m.uniforms[k].value; t.push('U.' + k + '=' + (v && v.uuid ? v.uuid : v && v.isColor ? v.getHexString() : typeof v === 'number' ? +v.toFixed(5) : v && v.toArray ? v.toArray().map(x => +(+x).toFixed(5)).join(',') : typeof v)); }
+  return t.join('|');
+}
+function matTally(objs) {
+  const uu = new Set(), sg = new Set(), fam = {};
+  for (const o of objs) for (const m of [].concat(o.material)) { if (!m) continue; uu.add(m.uuid); const s = matSig(m); sg.add(s);
+    const f = famOf(o), F = fam[f] || (fam[f] = { uu: new Set(), sg: new Set() }); F.uu.add(m.uuid); F.sg.add(s); }
+  const byFam = {}; for (const [f, F] of Object.entries(fam)) byFam[f] = [F.uu.size, F.sg.size];
+  // the trees' materials (trees.js hookLeaf: userData.uLeaf) by uuid, by signature, and by MAP alone - the last is
+  // what a tint carried per instance (not per material) would leave
+  const leaf = { uu: new Set(), sg: new Set(), map: new Set() };
+  for (const o of objs) for (const m of [].concat(o.material)) if (m && m.userData && m.userData.uLeaf) { leaf.uu.add(m.uuid); leaf.sg.add(matSig(m)); leaf.map.add((m.map ? m.map.uuid : '-') + '|' + m.userData.uLeaf.value + '|' + (m.userData.uCut ? m.userData.uCut.value : 0) + '|' + (m.customProgramCacheKey ? m.customProgramCacheKey() : '')); }
+  return { uuid: uu.size, sig: sg.size, byFam, leaf: [leaf.uu.size, leaf.sg.size, leaf.map.size] };
+}
+function drawnDetail(C) {
+  const count = list => { const r = {}; for (const o of list || []) { const f = famOf(o); r[f] = (r[f] || 0) + 1; } return r; };
+  // FRAMECOST_WHAT: the main pass's draws by the nearest name and the material (the families' members), stderr only
+  let names = null;
+  if (process.env.FRAMECOST_WHAT) { names = {}; for (const o of C.lastDrawn || []) { let n = o; while (n && !n.name) n = n.parent; const m = [].concat(o.material)[0];
+    const k = (o.isInstancedMesh ? 'I:' : o.isBatchedMesh ? 'B:' : o.isSkinnedMesh ? 'S:' : '') + (n ? n.name : '-') + ' | ' + (m ? (m.name || m.type) + (m.map ? ' map' : '') : '-'); names[k] = (names[k] || 0) + 1; }
+    names = Object.fromEntries(Object.entries(names).sort((a, b) => b[1] - a[1]).slice(0, 80)); }
+  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names };
+}
+function matCensus(scene) {
+  if (!scene) return null;
+  const objs = []; scene.traverse(o => { if (o.material && (o.isMesh || o.isPoints || o.isLine || o.isSprite)) objs.push(o); });
+  return matTally(objs);
 }
 // ---- the counters inside three -------------------------------------------------------------------------------
 function installThree(T, C) {
@@ -222,13 +372,51 @@ function installThree(T, C) {
   const hook = (proto, k, ctr, pick) => {
     const DEF = proto[k], slot = '__fc_' + k;
     Object.defineProperty(proto, k, { configurable: true,
-      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === 'main')) C.drawn.push(this); if (f) { C[ctr]++; return f; } return DEF; },
+      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this);
+        if (C.craft && (pick || k === 'onBeforeShadow') && C.craft.set.has(this)) craftDraw(C, this, k === 'onBeforeShadow' ? 'shadow' : C.phase ? C.phase() : 'main');
+        if (f) { C[ctr]++; return f; } return DEF; },
       set(f) { Object.defineProperty(this, slot, { value: f === DEF ? undefined : f, writable: true, configurable: true, enumerable: false }); } });
   };
-  hook(O, 'onBeforeRender', 'obr', true); hook(O, 'onAfterRender', 'oar'); hook(O, 'onBeforeShadow', 'obs'); hook(O, 'onAfterShadow', 'obs');
+  hook(O, 'onBeforeRender', 'obr', 'main'); hook(O, 'onAfterRender', 'oar'); hook(O, 'onBeforeShadow', 'obs', 'shadow'); hook(O, 'onAfterShadow', 'obs');
   hook(M, 'onBeforeRender', 'mobr');
   const F = T.Frustum.prototype;
   for (const k of ['intersectsObject', 'intersectsSprite']) { const f = F[k]; F[k] = function (o) { C.frustum++; return f.call(this, o); }; }
+}
+// C4b (G875): THE AEROPLANE'S OWN SHARE - its draws by pass, the materials and programs its main-pass draws use
+// (a census field beside the views, never in the ratchet's rows: the whole frame's counts already carry it)
+function craftDraw(C, o, ph) {
+  const K = C.craft; K[ph] = (K[ph] || 0) + 1;
+  if (ph !== 'main') return;
+  for (const m of [].concat(o.material)) if (m) K.mats.add(m);
+  if (o.isSkinnedMesh) K.skinned++;
+}
+async function craftCensus(W, P, FP, C, n) {
+  const m = FP.model && FP.model(), set = new Set();
+  if (m && m.grp) m.grp.traverse(o => { if (o.isMesh || o.isLine || o.isPoints) set.add(o); });
+  let r = null;
+  for (let i = 0; i < (n || 3); i++) {
+    C.craft = { set, main: 0, shadow: 0, other: 0, skinned: 0, mats: new Set() };
+    await P.frames(1);
+    r = C.craft;
+  }
+  C.craft = null;
+  // FRAMECOST_CRAFT=1: every mesh the aeroplane drew, by the payload bucket it came from (stderr, a debugging aid)
+  if (process.env.FRAMECOST_CRAFT && m && m.data) {
+    const who = new Map(), D = m.data, mats = D.mats || {};
+    for (const k in D.groups || {}) who.set(D.groups[k].pos, { k, part: '' });
+    for (const pt of D.parts || []) for (const k in pt.groups) who.set(pt.groups[k].pos, { k, part: pt.kind });
+    const rows = {};
+    for (const o of set) { const g = o.geometry, pa = g && g.attributes && g.attributes.position; const w = pa && who.get(pa.array);
+      const mt = [].concat(o.material)[0] || {}, rec = w ? (mats[w.k] || {}) : {};
+      const cls = w ? [w.part || 'grp', rec.fin || '-', rec.inside ? 'in' : '', rec.spin ? 'spin' + rec.spin : '', rec.char ? 'char' : '', rec.lamp || rec.lampCup ? 'lamp' : '', rec.panel ? 'panel' : '', rec.ves ? 'ves' : '', rec.propMat ? 'kit' : '', rec.opacity < 1 ? 'clear' : '', rec.sec === 'dashFace' ? 'facia' : ''].filter(Boolean).join(' ') : (o.name || o.type) + ' ' + (o.userData.still ? 'still' : '');
+      const key = cls + ' | ' + (mt.name || mt.type); rows[key] = (rows[key] || 0) + 1; }
+    process.stderr.write('CRAFT ' + set.size + '\n' + Object.entries(rows).sort((a, b) => b[1] - a[1]).map(([k, v]) => '  ' + v + ' ' + k).join('\n') + '\n');
+  }
+  const R = W.FLYDIY_RENDERER, progs = new Set(), names = {};
+  for (const mt of r.mats) { const pr = R.properties.get(mt), cp = pr && pr.currentProgram; if (cp) progs.add(cp.id);
+    const k = mt.name || mt.type; names[k] = (names[k] || 0) + 1; }
+  return { meshes: set.size, draws: { main: r.main, shadow: r.shadow, other: r.other }, skinnedDraws: r.skinned, materials: r.mats.size, programs: progs.size,
+           byMaterial: Object.entries(names).sort((a, b) => b[1] - a[1]).slice(0, 40) };
 }
 function wrapWorld(w, C) {
   if (!w || w.__fc) return; w.__fc = true;
@@ -255,6 +443,9 @@ function wrapRenderer(R, P, C, cam) {
       P.rec.phase = main && camera === cam() ? 'main' : 'other'; }
     try { return rr.apply(this, arguments); } finally { P.rec.phase = prev; }
   };
+  for (const k of ['readRenderTargetPixels', 'readRenderTargetPixelsAsync']) { const f = R[k]; if (typeof f !== 'function') continue;
+    R[k] = function (rt, x, y, w, h, buf) { const r = f.apply(this, arguments); const fill = () => { if (C.fbFill && buf && buf.fill) buf.fill(128); return buf; };
+      return r && typeof r.then === 'function' ? r.then(v => { fill(); return v; }) : (fill(), r); }; }
   const SM = R.shadowMap, sr = SM.render;
   SM.render = function () { const prev = P.rec.phase; P.rec.phase = 'shadow'; try { return sr.apply(this, arguments); } finally { P.rec.phase = prev; } };
 }
@@ -291,13 +482,18 @@ function diff(a, b) {
   if (ub) r['bytes.uniforms'] = ub;
   let draws = 0; for (const k of Object.keys(b.rec.draws)) { const v = b.rec.draws[k] - (a.rec.draws[k] || 0); if (v) { r['draws.' + k] = v; draws += v; } }
   r['draws.total'] = draws;
+  // G800: the triangles handed to the GPU, by pass (the house LOD's measure; a count, not a cost)
+  if (b.rec.tris) for (const k of Object.keys(b.rec.tris)) { const v = b.rec.tris[k] - ((a.rec.tris || {})[k] || 0); if (v) r['tris.' + k] = v; }
   d('links', a.rec.links, b.rec.links);
-  for (const k of ['umw', 'um', 'obr', 'oar', 'obs', 'mobr', 'frustum', 'terrainH', 'grHeight', 'renders']) d(NAMES[k], a.c[k], b.c[k]);
+  // the house builds' own wall time (ms, this machine; reported beside wallMs, never ratcheted)
+  for (const l of [0, 1]) { const v = (b.c['hms' + l] || 0) - (a.c['hms' + l] || 0); if (v > 0.05) r['house.ms' + l] = Math.round(v); }
+  for (const k of ['umw', 'um', 'obr', 'oar', 'obs', 'mobr', 'frustum', 'terrainH', 'grHeight', 'renders', 'hb0', 'hb1', 'ht0', 'ht1']) d(NAMES[k], a.c[k], b.c[k]);
   return r;
 }
 const IO_NAMES = { fetches: 'io.fetches', fetchBytes: 'io.fetchBytes', imgLoads: 'io.imgLoads', imgBytes: 'io.imgBytes', c2dDraw: 'io.c2d.drawImage', c2dRead: 'io.c2d.getImageData', c2dReadBytes: 'io.c2d.readBytes', c2dPut: 'io.c2d.putImageData',
   workerMsgs: 'io.worker.messages' };   // AS3 (G918): the transcoder workers' messages (the only worker the node page runs)
-const NAMES = { umw: 'three.updateMatrixWorld', um: 'three.updateMatrix', obr: 'cb.onBeforeRender', oar: 'cb.onAfterRender', obs: 'cb.onShadow', mobr: 'cb.material.onBeforeRender', frustum: 'three.frustumTests', terrainH: 'world.terrainH', grHeight: 'world.grHeight', renders: 'three.renders' };
+const NAMES = { umw: 'three.updateMatrixWorld', um: 'three.updateMatrix', obr: 'cb.onBeforeRender', oar: 'cb.onAfterRender', obs: 'cb.onShadow', mobr: 'cb.material.onBeforeRender', frustum: 'three.frustumTests', terrainH: 'world.terrainH', grHeight: 'world.grHeight', renders: 'three.renders',
+  hb0: 'house.build0', hb1: 'house.build1', ht0: 'house.tris0', ht1: 'house.tris1' };
 const add = (a, b) => { const r = Object.assign({}, a); for (const k of Object.keys(b)) if (typeof b[k] === 'number') r[k] = (r[k] || 0) + b[k]; return r; };
 // the MEDIAN of the frames, counter by counter: a frame's burst (a chunk the streamer finishes, a probe re-shot) is not
 // the frame; a period-2 alternation (a cascade every other frame) reads as its midpoint
@@ -381,6 +577,9 @@ async function injections(W, FP, C, base, measure) {
   return out;
 }
 // ---- the comparison: baseline vs now, with the tolerance and the ALLOW list ---------------------------------------
+// counters a baseline older than them does not carry (G800: the triangles by pass, the house builds by lod): 'new' until
+// the next --update takes them in, never RED for being absent from it
+const NEW_KEYS = /(^|\/)(tris\.[a-z]+|house\.(build|tris)[01])$/;
 function allowed(key, build, now) {
   return ALLOW.find(a => (a.key === key || (a.key.endsWith('/') && key.startsWith(a.key))) && (a.build === '*' || a.build === build) && now <= (a.upTo === undefined ? Infinity : a.upTo));
 }
@@ -393,7 +592,8 @@ function compare(base, now, prefix, build, noAllow) {
     if (typeof (base || {})[k] === 'object' || typeof (now || {})[k] === 'object') continue;
     const slack = Math.max(TOL.abs, Math.abs(b) * TOL.rel);
     let state = 'ok';
-    if (n > b + slack) { const a = !noAllow && allowed(prefix + k, build, n); state = a ? 'ALLOW' : 'RED'; }
+    if (!(base && k in base) && NEW_KEYS.test(k)) state = 'new';
+    else if (n > b + slack) { const a = !noAllow && allowed(prefix + k, build, n); state = a ? 'ALLOW' : 'RED'; }
     else if (n < b - slack) state = 'down';
     out.push({ key: prefix + k, base: b, now: n, state });
   }
@@ -401,7 +601,7 @@ function compare(base, now, prefix, build, noAllow) {
 }
 
 // ---- the table ---------------------------------------------------------------------------------------------------
-const VIEW_ROWS = ['draws.main', 'draws.shadow', 'draws.other', 'draws.total', 'gl.calls', 'programs', 'gl.useProgram', 'gl.bindTexture', 'gl.bindVertexArray',
+const VIEW_ROWS = ['draws.main', 'draws.shadow', 'draws.other', 'draws.total', 'tris.main', 'tris.shadow', 'gl.calls', 'programs', 'gl.useProgram', 'gl.bindTexture', 'gl.bindVertexArray',
   'gl.uniformMatrix4fv', 'gl.uniformMatrix3fv', 'gl.uniform4fv', 'gl.uniform3fv', 'gl.uniform2fv', 'gl.uniform1f', 'gl.uniform1fv', 'gl.uniform1i', 'bytes.uniforms',
   'gl.bufferData', 'gl.bufferSubData', 'bytes.bufferData', 'bytes.bufferSubData', 'gl.texImage2D', 'gl.texSubImage2D', 'three.renders', 'three.updateMatrixWorld', 'three.updateMatrix',
   'cb.onBeforeRender', 'cb.onAfterRender', 'cb.onShadow', 'cb.material.onBeforeRender', 'three.frustumTests', 'world.terrainH', 'world.grHeight'];
@@ -431,7 +631,7 @@ function ioSum(boot) {
 const ioLine = t => { t = t || {}; const M = b => ((b || 0) / 1048576).toFixed(1) + ' MiB';
   return (t['io.fetches'] || 0) + ' fetches ' + M(t['io.fetchBytes']) + ', ' + (t['io.imgLoads'] || 0) + ' images ' + M(t['io.imgBytes']) + ', canvas drawImage ' + (t['io.c2d.drawImage'] || 0) + ' / getImageData ' + (t['io.c2d.getImageData'] || 0) + ' (' + M(t['io.c2d.readBytes']) + ')'; };
 function flatBoot(boot) { const r = {}; for (const [step, row] of Object.entries(boot || {})) for (const [k, v] of Object.entries(row)) r[step + '/' + k] = v; return r; }
-const BOOT_KEYS = /\/(gl\.calls|draws\.total|links|bytes\.bufferData|bytes\.texImage2D|bytes\.uniforms|three\.updateMatrixWorld|three\.frustumTests|world\.terrainH|world\.grHeight)$/;
+const BOOT_KEYS = /\/(gl\.calls|draws\.total|links|bytes\.bufferData|bytes\.texImage2D|bytes\.uniforms|three\.updateMatrixWorld|three\.frustumTests|world\.terrainH|world\.grHeight|house\.build[01]|house\.tris[01])$/;
 
 async function main() {
   if (flag('census')) { const r = await census(opt('census', 'cub')); process.stdout.write('\n' + JSON.stringify(r) + '\n'); process.exit(0); }
@@ -451,6 +651,9 @@ async function main() {
       { const ta = texB(A.boot), tb = texB(B.boot), M = x => ((x || 0) / 1048576).toFixed(1);
         console.log('  ' + build + ' texture upload MiB by step (a -> b): ' + Object.keys(Object.assign({}, ta, tb)).filter(k => ta[k] !== tb[k] || k === 'total').map(k => k + ' ' + M(ta[k]) + ' -> ' + M(tb[k])).join(', ')); }
       if (A.mem && B.mem) for (const at of Object.keys(B.mem)) console.log('  ' + build + ' memory after ' + at + ' (MiB, a -> b): ' + Object.keys(B.mem[at]).map(k => k + ' ' + A.mem[at][k] + ' -> ' + B.mem[at][k]).join(', '));
+      for (const v of ['stand', 'taxi']) { if (!(B.craft || {})[v]) continue; const a2 = (A.craft || {})[v] || {}, b2 = B.craft[v];
+        const row = k => ({ 'draws.main': k.draws && k.draws.main, 'draws.shadow': k.draws && k.draws.shadow, 'draws.other': k.draws && k.draws.other, skinnedDraws: k.skinnedDraws, materials: k.materials, programs: k.programs, meshes: k.meshes });
+        printTable(compare(row(a2), row(b2), 'craft.' + v + '/', build, true), build + ' the aeroplane at ' + v + ' (a -> b)'); }
     }
     return;
   }
@@ -469,6 +672,7 @@ async function main() {
         console.log('       KTX2 (reported): ground packs ' + g.ktx2Packs + ' KTX2 (' + g.ktx2Layers + ' planes transcoded, ' + g.ktx2Lent + ' lent, ' + (g.ktx2Bytes / 1048576).toFixed(1) + ' MiB) / ' + g.packs + ' raw' + (g.ktx2Why ? ' (' + g.ktx2Why + ')' : '') + '; fallbacks ' + g.ktx2Fallbacks + '; target format ' + (r.ktx2.loader && r.ktx2.loader.target) + ', ' + r.ktx2.workerMsgs + ' worker messages'); } }
     if (r.failed) continue;
     ok(!!(r.views.stand && r.views.taxi), r.build + ': both views measured (stand, taxi)', r.views.taxi ? 'taxi at ' + r.views.taxi.pose.join(' ') : 'no taxi pose');
+    if (r.craft) for (const v of ['stand', 'taxi']) { const k = r.craft[v]; if (!k) continue; console.log('  info ' + r.build + ' ' + v + ': the aeroplane draws ' + k.draws.main + ' main + ' + k.draws.shadow + ' shadow + ' + k.draws.other + ' other (' + k.skinnedDraws + ' skinned), ' + k.materials + ' materials, ' + k.programs + ' programs, ' + k.meshes + ' meshes'); }
     const H = r.health || {};
     ok(H.world === 'jolene' && H.premises && H.townCut > 0 && H.raster, r.build + ': the scene is the page\'s - Jolene, its premises composed with Metlakatla cut, the ground raster on', 'world ' + H.world + ', premises ' + H.premises + ', ' + H.townCut + ' mk_ entries cut, raster ' + H.raster + ', depth ' + H.depth);
     ok(H.gfx && H.gfx.preset === 'gamer' && H.gfx.shadows === 'full', r.build + ': graphics gamer, shadows full', JSON.stringify(H.gfx));
@@ -518,4 +722,4 @@ async function main() {
   console.log('GATE FRAMECOST: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
   process.exit(fails ? 1 : 0);
 }
-if (require.main !== module) module.exports = { census, compare, diff, mean }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });
+if (require.main !== module) module.exports = { census, compare, diff, mean, median, pageHooks, bootMark, NAMES }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });

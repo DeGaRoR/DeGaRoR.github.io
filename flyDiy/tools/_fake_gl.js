@@ -87,11 +87,23 @@ function reflectProgram(vsrc, fsrc) {
 const DRAWS = new Set(['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements',
   'multiDrawArraysWEBGL', 'multiDrawElementsWEBGL', 'multiDrawArraysInstancedWEBGL', 'multiDrawElementsInstancedWEBGL']);
 function makeRecorder() {
-  const R = { phase: 'other', calls: Object.create(null), bytes: Object.create(null), draws: Object.create(null), programs: new Set(), progUsed: new Set(), links: 0, contexts: 0,
+  const R = { phase: 'other', calls: Object.create(null), bytes: Object.create(null), draws: Object.create(null), tris: Object.create(null), programs: new Set(), progUsed: new Set(), links: 0, contexts: 0,
     count(name, b) { R.calls[name] = (R.calls[name] || 0) + 1; if (b) R.bytes[name] = (R.bytes[name] || 0) + b; if (R.onCall) R.onCall(name, b); },
-    snapshot() { return { calls: Object.assign({}, R.calls), bytes: Object.assign({}, R.bytes), draws: Object.assign({}, R.draws), links: R.links, progUsed: R.progUsed.size }; },
+    // G800: a draw's triangles by pass (TRIANGLES only: count / 3, times the instances) - what the GPU is handed, not a cost
+    draw(name, a) { R.count(name); R.draws[R.phase] = (R.draws[R.phase] || 0) + 1; const t = drawTris(name, a, R.TRI); if (t) R.tris[R.phase] = (R.tris[R.phase] || 0) + t; },
+    snapshot() { return { calls: Object.assign({}, R.calls), bytes: Object.assign({}, R.bytes), draws: Object.assign({}, R.draws), tris: Object.assign({}, R.tris), links: R.links, progUsed: R.progUsed.size }; },
     resetUsed() { R.progUsed = new Set(); } };
   return R;
+}
+// the triangles a draw call hands the GPU: mode TRIANGLES (0x0004) only; drawElements(mode, count, ...), drawArrays(mode,
+// first, count), the instanced forms times their instance count, drawRangeElements(mode, start, end, count, ...)
+// (the GL's own TRIANGLES code, tri), the multi-draws (BatchedMesh) as the sum of their counts
+function drawTris(name, a, tri) {
+  if (!a || a[0] !== tri) return 0;
+  const sum = (c, o, k) => { let t = 0; if (c) for (let i = 0; i < k; i++) t += c[(o || 0) + i] || 0; return t; };
+  const n = name === 'drawElements' ? a[1] : name === 'drawArrays' ? a[2] : name === 'drawElementsInstanced' ? a[1] * (a[4] || 0) : name === 'drawArraysInstanced' ? a[2] * (a[3] || 0) : name === 'drawRangeElements' ? a[3]
+    : name === 'multiDrawElementsWEBGL' ? sum(a[1], a[2], a[6]) : name === 'multiDrawArraysWEBGL' ? sum(a[3], a[4], a[5]) : 0;
+  return Math.floor((n || 0) / 3);
 }
 const viewBytes = v => v && typeof v.byteLength === 'number' ? v.byteLength : 0;
 const texBytes = args => { for (const a of args) { if (a && typeof a.byteLength === 'number') return a.byteLength; if (a && typeof a === 'object' && a.width && a.height) return a.width * a.height * 4; } return 0; };
@@ -125,7 +137,7 @@ function makeGL(opts) {
   const extProxy = name => new Proxy({}, { get: (t, p) => {
     if (typeof p !== 'string') return undefined;
     if (/^[A-Z0-9_]+$/.test(p)) return k(p);
-    if (rec && DRAWS.has(p)) return (...a) => { rec.count(p); rec.draws[rec.phase] = (rec.draws[rec.phase] || 0) + 1; };
+    if (rec && DRAWS.has(p)) return (...a) => { rec.draw(p, a); };
     return rec ? (...a) => { rec.count(name + '.' + p); return null; } : () => null;
   } });
   const EXTS = new Map();
@@ -156,7 +168,7 @@ function makeGL(opts) {
   };
   const wrapped = new Map();
   const wrap = (p, f) => { let w = wrapped.get(p); if (w) return w;
-    w = rec ? (DRAWS.has(p) ? (...a) => { rec.count(p); rec.draws[rec.phase] = (rec.draws[rec.phase] || 0) + 1; return f && f(...a); }
+    w = rec ? (DRAWS.has(p) ? (...a) => { rec.draw(p, a); return f && f(...a); }
       : p === 'useProgram' ? (prog) => { rec.count(p); if (prog) rec.progUsed.add(prog.id); }
       : (...a) => { rec.count(p, byteCount(p, a)); return f ? f(...a) : undefined; }) : (f || (() => undefined));
     wrapped.set(p, w); return w; };
@@ -171,7 +183,7 @@ function makeGL(opts) {
     if (typeof p === 'symbol') return undefined;
     return wrap(p, null);
   } });
-  if (rec) rec.contexts++;
+  if (rec) { rec.contexts++; rec.TRI = k('TRIANGLES'); }
   return { gl, WebGL2RenderingContext, canvas };
 }
 
@@ -190,6 +202,8 @@ function boot() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   ctx.window.THREE = THREE;
   const load = rel => { vm.runInContext(fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/^'use strict';/m, ''), ctx); };
+  // THE MATERIAL LIBRARY (AS4a, G920) comes with the three: the viewer's families make their materials through it
+  load(path.join('src', 'viewer', 'matlib.js')); ctx.MATLIB = vm.runInContext('MATLIB', ctx);
   return { THREE, renderer, links, ctx, load };
 }
 module.exports = { boot, ROOT, makeGL, makeRecorder, reflectProgram, preprocess, THREE_SRC };

@@ -12,6 +12,8 @@ from PIL import Image, ImageDraw, ImageFilter
 D = sys.argv[1]
 JO = sys.argv[sys.argv.index('--jpg-out') + 1] if '--jpg-out' in sys.argv else D
 info = json.load(open(os.path.join(D, 'ab.json')))
+# (G805) a rig may name its two sides in ab.json (parked_ab.js: A the live capture, B the cook); the flown bake's by default
+LA, LB = info.get('labels') or ['A live shader', 'B baked']
 res = {}
 def lum(im): a = np.asarray(im.convert('RGB'), dtype=np.float32); return 0.2126 * a[..., 0] + 0.7152 * a[..., 1] + 0.0722 * a[..., 2]
 def hp(im): return lum(im) - lum(im.filter(ImageFilter.BoxBlur(1)))
@@ -29,7 +31,7 @@ for k, v in info['views'].items():
     W = A.width // 2
     fa, fb = A.resize((W, A.height // 2), Image.LANCZOS), B.resize((W, B.height // 2), Image.LANCZOS)
     out = Image.new('RGB', (2 * max(W, ca.width), fa.height + ca.height), (20, 20, 20))
-    out.paste(label(fa, 'A live shader'), (0, 0)); out.paste(label(fb, 'B baked'), (max(W, ca.width), 0))
+    out.paste(label(fa, LA), (0, 0)); out.paste(label(fb, LB), (max(W, ca.width), 0))
     out.paste(ca, (0, fa.height)); out.paste(cb, (max(W, ca.width), fa.height))
     out.save(os.path.join(JO, k + '_ab.jpg'), quality=88)
     # THE MASK: the aeroplane's pixels (A against the frame without it), eroded 3 px - its INTERIOR, where a surface's
@@ -61,7 +63,7 @@ for k, v in info['views'].items():
         for i in range(n):
             a = seq['A'][i].crop((x0, y0, x1, y1)).resize((cw * z2, ch * z2), Image.NEAREST)
             b = seq['B'][i].crop((x0, y0, x1, y1)).resize((cw * z2, ch * z2), Image.NEAREST)
-            g = Image.new('RGB', (2 * a.width + 6, a.height), (20, 20, 20)); g.paste(label(a, 'A live'), (0, 0)); g.paste(label(b, 'B baked'), (a.width + 6, 0))
+            g = Image.new('RGB', (2 * a.width + 6, a.height), (20, 20, 20)); g.paste(label(a, ' '.join(LA.split(' ')[:2])), (0, 0)); g.paste(label(b, LB), (a.width + 6, 0))
             fr.append(g.convert('P', palette=Image.ADAPTIVE, colors=255))
         fr += fr[-2:0:-1]   # there and back
         fr[0].save(os.path.join(JO, k + '_seq.gif'), save_all=True, append_images=fr[1:], duration=90, loop=0)

@@ -35,6 +35,10 @@
 //      the bake hook, and L1 / L2 / L3 each ONE mesh on ONE material
 //   7  the fixture: every aircraft object in island_jolene.json names an
 //      archetype the design table declares and stands inside a flatten
+//  10  the cook (G805): the container both ways (atlases lossless, the cut
+//      rungs to the bit, L1 within half a step), torn files refused, the
+//      cooked record's ladder = the live bake's at the same placement, the
+//      signature's inputs; the shipped manifest's files decode to its keys
 //
 // Usage: node tools/_parked_check.js          (prints GATE PARKED: PASS|FAIL)
 'use strict';
@@ -462,6 +466,100 @@ async function shelvedL0() {
   check(!!(lod.userData.craftInv && lod.userData.craftInv.value), '9 the placement has its craft matrix');
 }
 
+// ---- 10 the cook (G805) ------------------------------------------------------------------------
+// The container both ways on a synthetic bake cut by the page's own cutBaked (the inline door headless): the atlases
+// lossless, the cut rungs' positions to the bit (they are the lattice the container quantizes on), L1 within half a
+// step, the uv within 1/65535, the normals and the index exact; a misaligned buffer decodes, a torn one refuses; the
+// cooked record stands the SAME ladder as the live bake - four rungs, one draw each on one material, every rung mesh
+// at the live placement's matrix; the signature moves with the build, this file and the spec; headless (no fetch) the
+// cook is out of the way. Then the shipped manifest, when there is one: every file there, one gzip stream, its header
+// the manifest's key and signature (a manifest cooked on another build is reported, not failed: the page captures live).
+async function cookRungs() {
+  const vis = synthVis('tail');
+  const rec = record('arch:cooktest', vis);
+  const ext = PK.exteriorMesh(rec);
+  const uw = PK.unwrap(ext, { S: 64, gutter: 1 });
+  if (!check(!!uw, '10 the synthetic exterior unwraps')) return;
+  const rungs = await new Promise((res, rej) => PK.cutBaked(uw, (r, err) => r ? res(r) : rej(new Error(err))));
+  const S = 64, n = S * S;
+  let seed = 7; const rnd = () => (seed = (seed * 1103515245 + 12345) >>> 0) >>> 24;
+  const T = () => { const t = new Uint8Array(n * 4); for (let i = 0; i < n; i++) { t[i * 4] = rnd(); t[i * 4 + 1] = rnd(); t[i * 4 + 2] = rnd(); t[i * 4 + 3] = 255; } return t; };
+  const n8 = new Int8Array(Array.from(uw.nrm, v => Math.max(-127, Math.min(127, Math.round(v * 127)))));
+  const data = { S, tex: [T(), T(), T()], cc: true, ccR: 0.2, ms: 5, stats: { charts: uw.charts },
+                 L: [{ pos: uw.pos, nrm: n8, uv: uw.uv, idx: uw.idx }].concat(rungs) };
+  const st = PK.stance(vis), hb = PK.hitboxOf(rec, st);
+  const u8 = PK.cookEncode({ key: 'arch:cooktest', sig: 'sig1', build: 'b1', stance: st, hitbox: hb, tris: 321, data });
+  check(u8[0] === 0x50 && u8[3] === 0x31 && u8.length < 8 + 4096 + n * 9 + data.L.reduce((a, l) => a + l.pos.length * 2 + l.nrm.length + l.uv.length * 2 + l.idx.length * 4 + 16, 0),
+    '10 the container: PKC1, the atlases as RGB, the geometry quantized', u8.length + ' bytes');
+  const d = PK.cookDecode(u8);
+  check(d.hdr.key === 'arch:cooktest' && d.hdr.sig === 'sig1' && d.hdr.tris === 321 && JSON.stringify(d.hdr.hitbox) === JSON.stringify(hb) && d.hdr.stance.pitch === st.pitch,
+    '10 the header round trips (key, signature, stance, hitbox)');
+  check([0, 1, 2].every(k => d.tex[k].length === n * 4 && d.tex[k].every((v, i) => v === data.tex[k][i])), '10 the three atlases come back byte for byte (alpha restored)');
+  const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+  check(d.L.length === 3 && [1, 2].every(i => same(d.L[i].pos, data.L[i].pos)), '10 the cut rungs\' positions come back to the bit',
+    [1, 2].map(i => d.L[i].pos.reduce((m, v, j) => Math.max(m, Math.abs(v - data.L[i].pos[j])), 0)).join(' / '));
+  const bb = [0, 1, 2].map(a => { let lo = Infinity, hi = -Infinity; for (let j = a; j < uw.pos.length; j += 3) { lo = Math.min(lo, uw.pos[j]); hi = Math.max(hi, uw.pos[j]); } return Math.max(hi - lo, 1e-3); });
+  const e1 = d.L[0].pos.reduce((m, v, j) => Math.max(m, Math.abs(v - data.L[0].pos[j]) / (bb[j % 3] / 65535)), 0);
+  check(e1 <= 0.5001, '10 L1 within half a quantization step', e1.toFixed(4) + ' steps');
+  const eu = Math.max(...d.L.map((l, i) => l.uv.reduce((m, v, j) => Math.max(m, Math.abs(v - data.L[i].uv[j])), 0)));
+  check(eu <= 0.5 / 65535 + 1e-7, '10 the atlas uv within half of 1/65535', String(eu));
+  check(d.L.every((l, i) => same(l.nrm, data.L[i].nrm) && same(l.idx, data.L[i].idx)), '10 the normals and the index exact');
+  const off = new Uint8Array(u8.length + 1); off.set(u8, 1);
+  let okMis = false; try { const d2 = PK.cookDecode(off.subarray(1)); okMis = same(d2.L[1].pos, d.L[1].pos) && same(d2.tex[0], d.tex[0]); } catch (e) {}
+  check(okMis, '10 a misaligned buffer decodes the same');
+  let torn = 0;
+  try { PK.cookDecode(u8.subarray(0, u8.length - 64)); } catch (e) { torn++; }
+  const bad = u8.slice(); bad[0] = 0; try { PK.cookDecode(bad); } catch (e) { torn++; }
+  const a254 = { S, tex: [T(), T(), T()], cc: false, ccR: 0.1, L: data.L }; a254.tex[1][7] = 254;
+  try { PK.cookEncode({ key: 'k', sig: 's', stance: st, hitbox: hb, tris: 1, data: a254 }); } catch (e) { torn++; }
+  check(torn === 3, '10 a short file, a wrong magic and an atlas with alpha < 255 are refused', torn + ' of 3');
+  // the cooked record against the live bake of the same data, at the same placement
+  const live = record('arch:cooktest', vis);
+  live.baked = PK.bakedFrom(THREE, data);
+  const cooked = PK.cookRecord(THREE, d);
+  check(cooked.cooked && cooked.baked && cooked.baked.tris.join() === live.baked.tris.join(), '10 the cooked record carries the baked rungs', cooked.baked.tris.join(' / '));
+  PK.renderer = { isWebGLRenderer: true, readRenderTargetPixels() {} };
+  try {
+    const place = r => { const g = new THREE.Group(); g.position.set(-7, 2, 5); g.rotation.y = 0.9; return [g, PK.build(THREE, r, g)]; };
+    const [gL, lodL] = place(live), [gC, lodC] = place(cooked);
+    gL.updateWorldMatrix(true, true); gC.updateWorldMatrix(true, true);
+    check(lodC.levels.length === 4 && lodC.levels.map(l => l.distance).join() === lodL.levels.map(l => l.distance).join(), '10 the cooked ladder: the live one\'s rungs and distances',
+      lodC.levels.map(l => l.distance).join(' / ') + ' vs ' + lodL.levels.map(l => l.distance).join(' / '));
+    const ms = (lod, L) => { const m = []; lod.levels[L].object.traverse(o => { if (o.isMesh) m.push(o); }); return m; };
+    const mc = [0, 1, 2].map(L => ms(lodC, L)), ml = [0, 1, 2].map(L => ms(lodL, L));
+    check(mc.every(m => m.length === 1) && new Set(mc.map(m => m[0].material)).size === 1, '10 ...each ONE draw on ONE material', mc.map(m => m.length).join(' / '));
+    let dm = 0; for (let L = 0; L < 3; L++) if (ml[L][0]) { const a = mc[L][0].matrixWorld.elements, b = ml[L][0].matrixWorld.elements; for (let i = 0; i < 16; i++) dm = Math.max(dm, Math.abs(a[i] - b[i])); }
+    check(ml.every(m => m.length === 1) && dm < 1e-12, '10 ...each rung at the live placement\'s matrix (the stance)', String(dm));
+    check(JSON.stringify(PK.hitbox(gC)) === JSON.stringify(PK.hitbox(gL)) && lodC.userData.cooked === 1, '10 the cooked placement\'s hitbox is the live one');
+    const m0 = mc[0][0].material;
+    check(m0.isMeshPhysicalMaterial && m0.clearcoatMap === m0.roughnessMap && m0.map.image.data === cooked.baked.mat.map.image.data, '10 the material is the bake\'s (clear coat from the gloss map)');
+  } finally { PK.renderer = null; }
+  // the signature
+  const sp = { cage: { a: 1 } };
+  const s0 = PK.cookSig('arch:x', sp);
+  W.FLYDIY_BUILD = 'other'; const s1 = PK.cookSig('arch:x', sp); delete W.FLYDIY_BUILD;
+  check(!!s0 && s0 === PK.cookSig('arch:x', sp) && s1 !== s0 && PK.cookSig('arch:x', { cage: { a: 2 } }) !== s0 && PK.cookSig('arch:y', sp) !== s0 && PK.cookSig('arch:x', null) === null,
+    '10 the signature: stable; moves with the build, the spec and the key; none without a spec');
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8');
+  check(/\(function parkedJs\(\)/.test(src) && /selfHash\(\)/.test(src.slice(src.indexOf('function cookSig'), src.indexOf('function cookSig') + 600)), '10 the signature hashes parked.js itself (the world pack is not in FLYDIY_BUILD)');
+  check(PK.cookable('arch:cub') === false && PK.COOK.pending === 0, '10 headless (no fetch) the cook stands aside: captured as before');
+  // the shipped cook
+  const MF = path.join(ROOT, 'src', 'core', 'parked_packs.json');
+  if (fs.existsSync(MF)) {
+    const man = JSON.parse(fs.readFileSync(MF, 'utf8')), zlib = require('zlib');
+    const keys = Object.keys(man.keys || {});
+    check(keys.length > 0, '10 the manifest names cooked keys', keys.join(','));
+    for (const k of keys) {
+      const e = man.keys[k], f = path.join(ROOT, ...String(e.src).split('/'));
+      if (!check(/^media\/parked\/[\w.]+\.gz\.bin$/.test(e.src) && fs.existsSync(f), '10 ' + k + ': its file is in media/parked', e.src)) continue;
+      let dk = null, why = ''; try { dk = PK.cookDecode(new Uint8Array(zlib.gunzipSync(fs.readFileSync(f)))); } catch (x) { dk = null; why = x && x.message; }
+      check(dk && dk.hdr.key === k && dk.hdr.sig === e.sig && dk.hdr.build === man.build && dk.L.length === 3, '10 ' + k + ': one gzip stream, its header the manifest\'s', dk ? dk.hdr.key + ' ' + dk.hdr.sig : 'no decode: ' + why);
+    }
+    const ver = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8')).build; } catch (x) { return null; } })();
+    console.log('  the cook: ' + keys.length + ' keys, cooked on build ' + man.build + (ver && ver !== man.build ? ' - STALE for this build (' + ver + '): the page captures live until tools/parked_cook.js runs' : ' (this build)'));
+  }
+}
+
 // ---- 7 the fixture ------------------------------------------------------------------------------
 {
   const fx = path.join(TOOLS, 'fixtures', 'island_jolene.json');
@@ -485,7 +583,8 @@ async function shelvedL0() {
 farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || String(e)))
   .then(() => paneLevels().catch(e => check(false, '6c the pane levels threw', e && e.stack || String(e))))
   .then(() => bakedRungs().catch(e => check(false, '8 the baked rungs threw', e && e.stack || String(e))))
-  .then(() => shelvedL0().catch(e => check(false, '9 the shelved L0 threw', e && e.stack || String(e)))).then(() => {
+  .then(() => shelvedL0().catch(e => check(false, '9 the shelved L0 threw', e && e.stack || String(e))))
+  .then(() => cookRungs().catch(e => check(false, '10 the cook threw', e && e.stack || String(e)))).then(() => {
   if (fail.length) {
     for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
     if (fail.length > 30) console.log('  ... ' + (fail.length - 30) + ' more');

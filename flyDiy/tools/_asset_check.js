@@ -49,84 +49,59 @@ const ROOT = path.join(__dirname, '..');
 const HUGE_PX = 4096;
 const MATLIB = 'src/viewer/matlib.js';            // the one place a shared material is made (AS4a)
 
-// ---- ALLOW: what the store and the code carry on 2026-09-27 (bd234d3), measured, not chosen ----
+// ---- ALLOW: what the store and the code carry on 2026-09-27 (bd234d3), measured, not chosen; re-taken by G903 (AS0b):
+// the 48 flat maps are constants now, the bark aliases and Remy's second diffuse folded ----
 const ALLOW = {
   // BEGIN ALLOW (node tools/_asset_check.js --baseline)
-  // flat maps per directory: 47 files
+  // flat maps per directory: 0 files
   flat: {
-    "media/tex/chars/ch01": 1,
-    "media/tex/chars/ch02": 2,
-    "media/tex/chars/ch20": 1,
-    "media/tex/chars/ch22": 1,
-    "media/tex/chars/ch42": 1,
-    "media/tex/chars/remy": 5,
-    "media/tex/ground": 10,
-    "media/tex/house": 8,
-    "media/tex/models/c172": 3,
-    "media/tex/pier": 7,
-    "media/tex/props": 1,
-    "media/tex/vessel": 3,
-    "media/tex/walls": 4,
+
   },
-  // byte-identical copies under media/ per content hash (sha256, first 16 hex): 8 groups, 16 redundant files
+  // byte-identical copies under media/ per content hash (sha256, first 16 hex): 0 groups, 0 redundant files
   dupes: {
-    "163f2c935ebf43cf": 2,
-    "52cf6e73de736cc6": 3,
-    "64340522045c874f": 3,
-    "a216d4a09884578c": 2,
-    "b4bd9b0df04e6d21": 3,
-    "d56347aafd3212ca": 6,
-    "ee25ee7e0cc8e722": 2,
-    "f9305fcc80c8999d": 3,
+
   },
   // images over 4096 px per directory: 2 files
   huge: {
     "media/tex/sky": 2,
   },
-  // JPEG normal maps per directory: 180 files
+  // JPEG normal maps per directory: 166 files
   jpgNormal: {
     "media/tex/ground": 63,
-    "media/tex/house": 31,
+    "media/tex/house": 25,
     "media/tex/models/c172": 2,
-    "media/tex/trees": 80,
-    "media/tex/vessel": 4,
+    "media/tex/trees": 75,
+    "media/tex/vessel": 1,
   },
-  // 'new THREE.*Material' sites per file: 176 in 39 files
+  // 'new THREE.*Material' sites per file: 173 in 35 files
   mats: {
     "src/viewer/aa_resolve.js": 1,
     "src/viewer/aeroskin.js": 3,
-    "src/viewer/animals.js": 1,
     "src/viewer/app.js": 12,
     "src/viewer/atmo.js": 5,
     "src/viewer/blueprint.js": 1,
     "src/viewer/cabin.js": 4,
-    "src/viewer/cliffs.js": 1,
     "src/viewer/clouds.js": 7,
     "src/viewer/cockpit.js": 1,
-    "src/viewer/cover_ring.js": 2,
     "src/viewer/editor.js": 5,
+    "src/viewer/flown_bake.js": 2,
     "src/viewer/guardrail.js": 1,
     "src/viewer/hangar.js": 43,
     "src/viewer/house_tarr.js": 2,
     "src/viewer/lot_tex.js": 1,
     "src/viewer/parked.js": 6,
     "src/viewer/pattern_vis.js": 3,
-    "src/viewer/pavement.js": 3,   // +2 G1045 (B11-EYES): the ?pavetest= swap materials (white, grass), made only when the test switch is used
+    "src/viewer/pavement.js": 3,
     "src/viewer/plume.js": 1,
     "src/viewer/post_fx.js": 1,
     "src/viewer/powerline.js": 1,
-    "src/viewer/props.js": 1,
-    "src/viewer/prop_disc.js": 1,   // G672 (A2-FADES): the prop disc, admitted by the train-2 integration until MATLIB (AS4a) exists
-    "src/viewer/contact_shadow.js": 1,   // G1002 (A6-GROUND): the tyres' contact blob, admitted by the train-11 integration until MATLIB (AS4a) exists
-    "src/viewer/flown_bake.js": 2,   // G870 (C4a): the baked exterior material and its bake-pass material, admitted by the train-13 integration until MATLIB (AS4a, train 14) takes them
     "src/viewer/refplane.js": 1,
     "src/viewer/render_premises.js": 23,
-    "src/viewer/render_world.js": 19,
+    "src/viewer/render_world.js": 18,
     "src/viewer/rock_map.js": 2,
     "src/viewer/shader_warm.js": 2,
     "src/viewer/sky_glare.js": 1,
     "src/viewer/spray.js": 2,
-    "src/viewer/trees.js": 1,
     "src/viewer/water.js": 3,
     "src/viewer/workshop.js": 2,
     "tools/_big_gen.js": 1,

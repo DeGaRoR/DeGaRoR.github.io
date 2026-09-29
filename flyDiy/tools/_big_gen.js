@@ -63,6 +63,8 @@ function texOf(lib, key, mapName) {
   if (!set) return null;
   const img = set[mapName === 'nor' && lib === 'hangar' ? 'nor' : mapName];
   if (!img) return null;
+  // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (src/viewer/assets.js TEX_FLAT)
+  if (Array.isArray(img)) return TEX_FLAT(img, (mapName === 'diff' || mapName === 'paint') ? THREE.SRGBColorSpace : '');
   const ck = lib + '|' + key + '|' + mapName;
   if (TEXC.has(ck)) return TEXC.get(ck);
   const t = new THREE.Texture(img);

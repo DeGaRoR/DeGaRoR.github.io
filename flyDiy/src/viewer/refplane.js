@@ -465,6 +465,8 @@ function loadTexs(modelKey, payload, done) {
   if (!n) return done(out);
   var landed = function () { if (--n <= 0) done(out); };
   for (t in srcs) {
+    // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (assets.js TEX_FLAT), linear as the loader's
+    if (Array.isArray(srcs[t])) { out[t] = TEX_FLAT(srcs[t], ''); landed(); continue; }
     out[t] = new THREE.TextureLoader().load(srcs[t], landed, undefined, landed);
     out[t].anisotropy = window.FLYDIY_ANISO || 4;
   }

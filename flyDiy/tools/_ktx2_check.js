@@ -50,6 +50,11 @@ const FLOOR = {
   'ktx2-normal': { rgb: 25, a: 25 },   // UASTC + RDO 1: rgb median 33.0 dB [26.5], roughness median 35.0 [27.8]
 };
 const MEAN0 = 1.5;   // codes: level 0's per-channel mean vs the raw plane's
+// A PLANE THAT MAY DRIFT FURTHER (a decision, HANDOVER G940): a set whose roughness became a CONSTANT under G903 (train 16
+// fills the layer with the flat map's mean; the cook does the same). UASTC holds a constant alpha exactly on its own,
+// but brushedPv's 248 beside the brushed concrete's normals comes out ~249.9 on average (+1.87 codes: roughness 0.973 ->
+// 0.980) at every setting tried - level 2 / 3 / 4, RDO off / 1 / 2: 1.59-1.90. Its other channels are within 0.1 code.
+const MEAN0_ALLOW = { 'brushedPv.kN': 2.0 };
 const MEANM = 2.5;   // codes: a mip's per-channel mean vs the GPU's own box mip of the raw plane
 
 const PLANES = { kA: { plane: 0, role: 'ktx2-color', opts: { alpha: true, mip: 'srgb', codec: 'uastc' }, srgbMip: true, stem: 'kA' },
@@ -150,7 +155,7 @@ async function checkFiles(T, over) {
     const L0 = d.mips[0].data, F = FLOOR[P.role];
     const prgb = K.psnr(L0, plane, [0, 1, 2]), pa = K.psnr(L0, plane, [3]), m0 = K.meanDrift(L0, plane, [0, 1, 2, 3]);
     stats[P.role].rgb.push([prgb, k]); stats[P.role].a.push([pa, k]);
-    if (prgb < F.rgb || pa < F.a || m0 > MEAN0) tex.push(`${k}.${f} rgb ${prgb.toFixed(1)} a ${pa.toFixed(1)} dB, mean ${m0.toFixed(2)}`);
+    if (prgb < F.rgb || pa < F.a || m0 > (MEAN0_ALLOW[k + '.' + f] || MEAN0)) tex.push(`${k}.${f} rgb ${prgb.toFixed(1)} a ${pa.toFixed(1)} dB, mean ${m0.toFixed(2)}`);
     // 6: the mips against the GPU's own
     let ref = { w: px, h: px, data: plane }, worst = 0, at = 0;
     for (let l = 1; l < d.levels; l++) {

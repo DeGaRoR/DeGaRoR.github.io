@@ -45,6 +45,39 @@
 //
 // ASSET_FETCH_FRESH(url) is the same fetch and decode with no cache, for the
 // one caller that retries past a cached rejection (tools/_cage_char.js).
+//
+// A FLAT MAP IS A NUMBER (G903, AS0b). A baked map whose every channel is a
+// constant (std < 2 at 256 px, the asset census's FLAT_STD) ships as that
+// constant: the material record holds [r, g, b] (0-255, the map's mean)
+// where the path was, and no file exists. TEX_FLAT(rgb, colorSpace) is the
+// texture for it: ONE 1x1 DataTexture per (colour, colour space), shared by
+// every material that binds it. The consumer binds it in the slot the file
+// went to, so the shader, the program and the look are the ones the file
+// gave (the GPU sampled that same mean everywhere) - 4 bytes instead of up
+// to 21 MiB (the seven white 2048^2 char specular maps). A consumer tells a
+// constant from a path with Array.isArray, locally - so a gate's stub context
+// that never meets a flat map needs nothing from here. Shared: a consumer may
+// set wrap / repeat / anisotropy on it (a constant does not care), never
+// write its pixel.
+(() => {
+  'use strict';
+  const FLAT = new Map();   // 'r,g,b|cs' -> THREE.DataTexture
+  function texFlat(rgb, colorSpace) {
+    const key = rgb.slice(0, 3).join(',') + '|' + (colorSpace || '');
+    let t = FLAT.get(key);
+    if (t) return t;
+    t = new THREE.DataTexture(new Uint8Array([rgb[0], rgb[1], rgb[2], 255]), 1, 1, THREE.RGBAFormat);
+    if (colorSpace) t.colorSpace = colorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.name = 'flat:' + key;
+    t.userData.flat = rgb.slice(0, 3);   // the constant, for a consumer that re-packs maps (house_tarr.js)
+    t.needsUpdate = true;
+    FLAT.set(key, t);
+    return t;
+  }
+  const G = typeof window !== 'undefined' ? window : globalThis;
+  G.TEX_FLAT = texFlat;
+})();
 (() => {
   'use strict';
   const BUFS = new Map();   // url -> Promise<Uint8Array>

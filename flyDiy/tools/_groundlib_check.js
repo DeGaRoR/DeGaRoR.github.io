@@ -41,6 +41,8 @@ const P = require('../src/viewer/pavement.js');
 const FP = JSON.parse(fs.readFileSync(FP_FILE, 'utf8'));
 const px = T.px, S = px * px * 4;
 const abs = rel => path.join(ROOT, ...rel.split('/'));
+// a map's fingerprint: its file's SHA-256, or 'flat:r,g,b' for a FLAT map (G903: the table holds the constant, no file)
+const fp = v => Array.isArray(v) ? 'flat:' + v.join(',') : sha(fs.readFileSync(abs(v)));
 
 // ---- 1. the store ---------------------------------------------------------------------------------------------
 function readCooked(rel) {
@@ -51,7 +53,7 @@ function checkStore(T, quiet) {
   let ok = true; const missing = [], bad = [];
   const layers = {};
   for (const [k, s] of Object.entries(T.sets)) {
-    for (const m of ['diff', 'nor', 'rough', 'height', 'layers']) if (s[m] && !fs.existsSync(abs(s[m]))) missing.push(s[m]);
+    for (const m of ['diff', 'nor', 'rough', 'height', 'layers']) if (typeof s[m] === 'string' && !fs.existsSync(abs(s[m]))) missing.push(s[m]);
     if (!s.layers || !fs.existsSync(abs(s.layers))) continue;
     let raw = null; try { raw = readCooked(s.layers); } catch (e) { bad.push(k + ': ' + e.message); continue; }
     const h8 = /\.([0-9a-f]{8})\.gz\.bin$/.exec(s.layers);
@@ -82,7 +84,7 @@ function checkTexels(T, layers, FP) {
   }
   const mapsOf = (L, maps) => { const d = []; let n = 0;
     for (const a of lib(L)) { const s = T.sets[a.set], w = (maps || {})[a.key]; if (!w) { d.push(a.key + ' (no fingerprint)'); continue; }
-      for (const m of Object.keys(w)) { n++; if (!s[m] || sha(fs.readFileSync(abs(s[m]))) !== w[m]) d.push(a.key + '.' + m); } }
+      for (const m of Object.keys(w)) { n++; if (!s[m] || fp(s[m]) !== w[m]) d.push(a.key + '.' + m); } }
     return { d, n }; };
   for (const [L, maps, what] of [['lot', FP.lot, 'bound as plain textures'], ['site', FP.site, 'bound as plain textures'],
                                  ['splat', FP.maps && FP.maps.splat, 'the previews'], ['pavement', FP.maps && FP.maps.pavement, 'the bench']]) {
@@ -115,8 +117,8 @@ function checkKeys(T, FP) {
 function checkCook(T, layers) {
   let AC; try { AC = require('./array_cook.js'); } catch (e) { out.push('  (4 skipped: ' + e.message + ')'); return true; }
   const entries = Object.entries(T.sets).filter(([, s]) => s.layers).map(([k, s]) => ({ key: k, stem: k, planes: [
-    [{ img: abs(s.diff), ch: 0 }, { img: abs(s.diff), ch: 1 }, { img: abs(s.diff), ch: 2 }, { img: s.height ? abs(s.height) : null, ch: 0, or: 128 }],
-    [{ img: abs(s.nor), ch: 0 }, { img: abs(s.nor), ch: 1 }, { img: abs(s.nor), ch: 2 }, { img: s.rough ? abs(s.rough) : null, ch: 0, or: 230 }]] }));
+    [{ img: abs(s.diff), ch: 0 }, { img: abs(s.diff), ch: 1 }, { img: abs(s.diff), ch: 2 }, { img: typeof s.height === 'string' ? abs(s.height) : null, ch: 0, or: Array.isArray(s.height) ? s.height[0] : 128 }],
+    [{ img: abs(s.nor), ch: 0 }, { img: abs(s.nor), ch: 1 }, { img: abs(s.nor), ch: 2 }, { img: typeof s.rough === 'string' ? abs(s.rough) : null, ch: 0, or: Array.isArray(s.rough) ? s.rough[0] : 230 }]] }));
   let dec; try { dec = AC.decodeAll(entries, px); } catch (e) {
     if (/python|PIL|Pillow|No module|ENOENT|spawn/i.test(e.message)) { out.push('  (4 skipped: no python + Pillow here - the cook cannot be re-run)'); return true; }
     return verdict(false, '4 the maps decode', e.message.slice(0, 200)); }
@@ -144,7 +146,7 @@ if (UPDATE) {
   for (const L of ['splat', 'pavement']) for (const a of T.libs[L]) { const raw = st.layers[a.set]; if (!raw) continue;
     nf[L][a.key] = { A: sha(raw.subarray(0, S)), N: sha(raw.subarray(S)) };
     if (!FP[L][a.key] || FP[L][a.key].A !== nf[L][a.key].A || FP[L][a.key].N !== nf[L][a.key].N) moved.push(L + '.' + a.key); }
-  const mapsOf = (L, list) => { const o = {}; for (const a of T.libs[L]) { o[a.key] = {}; for (const m of list) { const s = T.sets[a.set]; if (s[m]) o[a.key][m] = sha(fs.readFileSync(abs(s[m]))); } } return o; };
+  const mapsOf = (L, list) => { const o = {}; for (const a of T.libs[L]) { o[a.key] = {}; for (const m of list) { const s = T.sets[a.set]; if (s[m]) o[a.key][m] = fp(s[m]); } } return o; };
   nf.lot = mapsOf('lot', ['diff', 'nor', 'rough']); nf.site = mapsOf('site', ['diff', 'nor', 'rough']);
   nf.maps.splat = mapsOf('splat', ['diff', 'nor', 'rough', 'height']); nf.maps.pavement = mapsOf('pavement', ['diff', 'nor', 'rough', 'height']);
   fs.writeFileSync(FP_FILE, JSON.stringify(nf, null, 1) + '\n');

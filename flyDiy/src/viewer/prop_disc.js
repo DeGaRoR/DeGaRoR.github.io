@@ -199,7 +199,7 @@ const PROP_DISC = (() => {
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.setIndex(idx);
-    const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    const mat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'glass', { map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
                                                  roughness: 0.75, metalness: 0, opacity: 0 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.name = 'propDisc'; mesh.castShadow = false; mesh.receiveShadow = false; mesh.frustumCulled = false;

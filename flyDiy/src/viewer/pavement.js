@@ -100,7 +100,7 @@ const PAVEMENT = (() => {
     // ground shows. The band still EXCLUDES the vegetation (coverAt's PAVE_BAND is untouched). 0 = the band.
     sideFade: 1, sideW: 1.2, sideA: 0.35,
     detailFrom: 250, detailTo: 900, normalFrom: 120, normalTo: 500,
-    specK: 1.0, nrmK: 1.0,
+    specK: 1.0, nrmK: 1.0, specAA: 0.35, jointAniso: 1,
     softMix: 0.8, coarseK: 0.7, wheelBand: 0.85, treadK: 0.8, paintRelief: 1.0, mow: 0.6, edgeSoft: 2.6, grassRough: 0.82,
     grade: { gravelR: [1.0, 0.55], gravelK: [0.95, 0.55], gravelS: [1.0, 0.5], dry: [0.40, 0.58, 0.96, 1.0, 0.91], concreteA: [1.7, 0.45, 0.94, 0.98, 1.06], concreteB: [1.25, 0.6, 0.95, 0.98, 1.05], concreteD: [1.1, 0.7], mudAir: [1.1, 0.6], dirtP: [1.0, 0.7], grass: [0.9, 1.0], gravelG: [0.85, 0.7, 1.06, 1.0, 0.9], gravelF: [0.6, 0.6, 1.12, 1.0, 0.84], gravelB: [1.25, 0.55, 1.0, 1.0, 0.92], rockG: [0.75, 0.7, 1.02, 1.0, 0.94], dirtS: [2.9, 0.7], trailR: [0.55, 0.7], dirtG: [1.0, 0.8], tracksM: [2.6, 0.35], grassG: [0.9, 1.0, 0.9, 1.0, 0.8], grassP: [0.55, 0.9, 0.95, 1.0, 0.9], grassS: [1.6, 0.9], leafygrass: [0.8, 0.9, 0.85, 1.0, 0.75], fieldgrass: [0.85, 0.85], lush: [0.85, 1.0], sandC: [1.3, 0.8], gravelS: [0.6, 0.5] },
   };
@@ -139,7 +139,7 @@ const PAVEMENT = (() => {
     ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
     ['— distance —'],
     ['detailFrom', 'detail fades from (m)', 20, 1500, 10], ['detailTo', 'detail gone by (m)', 50, 3000, 10], ['normalFrom', 'normal fades from (m)', 10, 1000, 10], ['normalTo', 'normal gone by (m)', 30, 2000, 10],
-    ['specK', 'specular (haze fade x)', 0, 2, 0.05], ['nrmK', 'normal strength', 0, 3, 0.05],
+    ['specK', 'specular (haze fade x)', 0, 2, 0.05], ['nrmK', 'normal strength', 0, 3, 0.05], ['specAA', 'specular anti-alias (as the ground)', 0, 1, 0.05], ['jointAniso', 'joints AA per axis (1) / isotropic (0)', 0, 1, 1],
   ];
   // THE PER-ENTRY KNOBS: the handful a strip or a road may own (contract v1.16 `pav`); the rest is the
   // material's character, the premises' (rec.pavement) or the module's
@@ -761,8 +761,13 @@ float pvTread(float u, float x, float w, float seed) {
     float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;
     vec2 P = vec2(u, v);
     vec2 uvS = P + vec2(seed * 37.0, seed * 91.0);
-    vec2 fw = fwidth(P) + 1e-5;
+    vec2 pdx = dFdx(P), pdy = dFdy(P);                              // one pair of derivatives for both footprints (G1047)
+    vec2 fw = abs(pdx) + abs(pdy) + 1e-5;                              // = fwidth(P)
     float fwm = max(fw.x, fw.y);
+    // THE FOOTPRINT PER AXIS (G1047): a line of constant v (a longitudinal joint) is crossed by v alone, so its
+    // anti-alias width is v's footprint - the length of v's screen gradient - not the larger of the two: looking
+    // down a runway u's footprint is metres, v's centimetres, and max() smeared every longitudinal joint by u's
+    vec2 fwA = sqrt(pdx * pdx + pdy * pdy) + 1e-5;
     float dist = distance(vPavW, cameraPosition);
     float detail = 1.0 - smoothstep(uDist.x, uDist.y, dist);
     float nrmK = uSpec.y * (1.0 - smoothstep(uDist.z, uDist.w, dist));
@@ -813,7 +818,8 @@ float pvTread(float u, float x, float w, float seed) {
       float jw = uLane.z * (0.6 + chip);
       float sv = lv < laneW - lv ? lv : lv - laneW, su2 = lu < slabL - lu ? lu : lu - slabL;
       float dv = abs(sv), du = abs(su2);
-      float jv = (1.0 - smoothstep(jw - fwm, jw + fwm, dv)) * PV_THIN(2.0 * jw), ju = (1.0 - smoothstep(jw * 0.6 - fwm, jw * 0.6 + fwm, du)) * 0.35 * PV_THIN(1.2 * jw);
+      vec2 fj = mix(vec2(fwm), fwA, uEdge2.y);                         // G1047: each joint by the footprint across it
+      float jv = (1.0 - smoothstep(jw - fj.y, jw + fj.y, dv)) * min(1.0, 2.0 * jw / fj.y), ju = (1.0 - smoothstep(jw * 0.6 - fj.x, jw * 0.6 + fj.x, du)) * 0.35 * min(1.0, 1.2 * jw / fj.x);
       joint = max(jv, ju);
       float kd = uLane.w * 0.8;
       nT.y += -jv * kd * (sv / max(jw, 1e-3)) * nrmK; nT.x += -ju * kd * (su2 / max(jw, 1e-3)) * nrmK;
@@ -1077,6 +1083,9 @@ float pvTread(float u, float x, float w, float seed) {
     vec3 nTn = normalize(vec3(nT.xy * nrmK, max(nT.z, 0.2)));
     gPavN = normalize(T * nTn.x + Bv * nTn.y + Ng * nTn.z);
     gPavR = clamp(rough, 0.03, 1.0);
+    // THE SPECULAR ANTI-ALIAS (G1047, the ground's: splat_ground uSFilt.y): the roughness floor grows with the
+    // pixel's footprint (sqrt of metres a pixel), so a relief finer than the pixel cannot throw the sun's lobe about
+    if (uSpec.z > 0.0) gPavR = max(gPavR, min(1.0, uSpec.z * sqrt(length(fw))));
     // THE FADE TO ALPHA (the user, three times): the mesh is the pavement and its band; past the band
     // it goes to nothing over fadeW metres - the ground under it is the world's, never this mesh's
     // grass - and the fade always fits inside the shoulder (a 3 m road shoulder fades over 2 m)
@@ -1169,9 +1178,9 @@ float pvTread(float u, float x, float w, float seed) {
       U.uRoad.value.set(nL, nL > 0 ? wRoad / nL : 0, r.wheelPolish, 0); }
     const band = m.userData.pavBand !== undefined ? m.userData.pavBand : (r.band >= 0 ? r.band : (d.road ? Math.min(cls.band, 1.2) : cls.band));
     U.uEdge.value.set(r.edgeChip, band, r.grassReach, r.fadeW);
-    U.uEdge2.value.set(r.bandNoise, 0, 0, 0);
+    U.uEdge2.value.set(r.bandNoise, r.jointAniso === undefined ? 1 : r.jointAniso, 0, 0);   // .y: the joints' footprint per axis (G1047)
     U.uDist.value.set(r.detailFrom, r.detailTo, r.normalFrom, r.normalTo);
-    U.uSpec.value.set(r.specK, r.nrmK, 0, 0);
+    U.uSpec.value.set(r.specK, r.nrmK, r.specAA || 0, 0);   // .z: the specular anti-alias (G1047)
     const sk = cls.soft || [1, 1, 1, 1];                                       // the class's own share of each soft layer
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);

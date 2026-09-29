@@ -98,9 +98,26 @@
 // stock design, 'mine:<slot>' one of your own saved builds — GARAGE_SPEC's
 // stockSpec / slotSpec doors (G411). The parked spec flies nobody: the pilot
 // dummy and every seat's occupancy are switched off before the capture.
+//
+// THE COOK (G805, the architecture queue's C0b). An 'arch:' or 'stock:' key is
+// the same aeroplane on every machine, so its capture and its bake are done
+// OFFLINE (tools/parked_cook.js: this file's own capture and bake, run in a
+// headless page on the GPU) and shipped: one gzip stream per key under
+// media/parked/ (the baked rungs' three atlases and their quantized geometry,
+// the stance, the hitbox), named by src/core/parked_packs.json. At the roll-out
+// every cooked key the manifest names is fetched ONCE under the loading screen
+// (the 'parked' step waits for it) and stood from its bytes: no round trip
+// through the editor, no bake, no IndexedDB. Each file carries a SIGNATURE of
+// what it was cooked from - the key's spec, the game's build (FLYDIY_BUILD:
+// the shaders and the editor that made it), this file's own source (the world
+// pack it rides in is not in FLYDIY_BUILD), the bake's and the cook's versions
+// and dials - and the page takes it only when its own signature for
+// the key is the same: a cook is never wrong, at worst it is not used (the
+// key is then captured live, as before, and the log says 'stale'). 'mine:'
+// builds are captured live, always. ?parkcook=0 turns the cook off.
 'use strict';
-(function () {
-  const PARKED_V = 2;                       // the IndexedDB schema (2: the `bake` store)
+(function parkedJs() {   // named (G805): the cook's signature hashes this file's own source - the world pack is not in FLYDIY_BUILD
+  const PARKED_V = 2;                      // the IndexedDB schema (2: the `bake` store)
   const LEVELS = { L1: 30, L2: 120, L3: 450, cull: 2500 };
   const CUT = { L2: [0.12, 6000], L3: [0.025, 1500] };   // [share of the exterior, floor]
   const ATLAS_PX = 2048;                    // the per-craft atlas copy (the shared one is 4096)
@@ -110,6 +127,8 @@
   const REC = {};                           // key -> the captured record
   const PENDING = [];                       // groups placed before their capture
   const log = (...a) => { if (W.PARKED && W.PARKED.quiet) return; console.log('parked:', ...a); };
+  // G805: each parked aeroplane's cost on the loading screen's log (BOOT.log: how = cook | capture | bake)
+  const bootRec = o => { try { if (W.BOOT && W.BOOT.rec) W.BOOT.rec('parked', o); } catch (e) {} };
 
   // ---- the keys and their specs ----------------------------------------------
   function keys() {
@@ -226,6 +245,12 @@
     // TEMPLATE over the page's own aeroplane. Measured: applySpec(preview(export))
     // leaves the export byte-identical.
     const mine = (G.preview && J.export) ? G.preview(J.export()) : G.get();
+    // B9 (G1021): THE EDITOR'S ROWS AS THEY WERE. applySpec ASSIGNS a build's rows into the editor's parameters
+    // (Object.assign(P, ...)), so a row a foreign aeroplane brought (a six-seat cabin's paxOcc5 / paxOcc6) stayed in the
+    // player's editor after the restore - the player's export changed under them, and a roll-out keyed on it (app.js
+    // TRIP_STEPS) re-committed an aeroplane nobody had touched. The rows the batch added go before the restore.
+    const P0 = (E && E.P) ? new Set(Object.keys(E.P)) : null;
+    const dropForeign = () => { if (P0 && E.P) for (const k of Object.keys(E.P)) if (!P0.has(k)) delete E.P[k]; };
     const U = A ? A.aeroSharedU(THREE) : null;
     const saved = U ? cloneBlock(U) : null;
     const macro0 = (WX && WX.aeroWxSetMacro) ? Object.assign({}, WX.aeroWxSetMacro(THREE, null)) : null;
@@ -279,6 +304,7 @@
           rec.tris = tris;
           REC[key] = rec; n++;
           log(key, 'captured:', tris, 'tris,', Object.keys(vis.mats).length, 'buckets, in', rec.t, 'ms');
+          bootRec({ key, how: 'capture', ms: rec.t, why: COOK.why[key] || (cookable(key) ? 'no cook' : 'yours') });
           fillPending(key);
         }
         yield key;                             // the next aeroplane, or the player's restore, in a task of its own
@@ -291,6 +317,7 @@
         W.AERO_EXTRA_DECALS = extra;
         H.releaseView(); H.unrefuse();
         const tR = performance.now();
+        dropForeign();
         const g = H.run(() => E.applySpecSteps(mine));
         for (;;) { const r = H.run(() => g.next()); if (r.done) break; yield 'restore'; }
         restored = Math.max(1, performance.now() - tR);
@@ -299,7 +326,7 @@
       W.AERO_EXTRA_DECALS = extra;
       H.release(() => {
         const t0 = performance.now() - restored;
-        if (!restored) try { E.applySpec(mine); } catch (e) { console.error('parked: restore', e); }
+        if (!restored) try { dropForeign(); E.applySpec(mine); } catch (e) { console.error('parked: restore', e); }
         else if (typeof W.CAGE_ON_BUILD === 'function') try { W.CAGE_ON_BUILD(); } catch (e) { console.error('parked: restore (on build)', e); }
         try { if (E.decalImagesFrom && G.images) E.decalImagesFrom(G.images() || {}); } catch (e) {}
         if (U && saved) copyBlock(U, saved);
@@ -334,6 +361,17 @@
   }
   function enqueue(key) {
     if (REC[key] || ASYNC.queue.includes(key)) return;
+    // G805: a key the cook may hold waits for its answer (the bytes, or no) before the editor is touched
+    if (cookable(key) && !COOK.why[key]) {     // COOK.why: the cook's refusal (no cook, stale, failed) - then captured
+      if (COOK.waiting.has(key)) return;
+      COOK.waiting.add(key); ASYNC.asked++; COOK.pending++;
+      cookLoad(key).then(rec => {
+        COOK.pending--; COOK.waiting.delete(key);
+        if (rec || REC[key]) { fillPending(key); return; }
+        ASYNC.asked--; enqueue(key);
+      });
+      return;
+    }
     ASYNC.queue.push(key); ASYNC.asked++;
     startBatch();
   }
@@ -346,9 +384,10 @@
   }
   // the screen's wait: resolves when nothing is queued or in flight; onStep(done, asked) for its bar
   function whenIdle(onStep) {
+    cookAll();                                 // G805: every cooked key, once, under this screen (a later placement is then instant)
     return new Promise(res => {
       const tick = () => {
-        const left = ASYNC.queue.length + (ASYNC.run ? 1 : 0);
+        const left = ASYNC.queue.length + (ASYNC.run ? 1 : 0) + COOK.pending + (COOK.all ? 1 : 0);
         if (onStep) try { onStep(Math.max(0, ASYNC.asked - left), ASYNC.asked); } catch (e) {}
         if (!left) { res(); return; }
         setTimeout(tick, 100);
@@ -1208,11 +1247,20 @@ self.onmessage = function (e) {
       for (const f of w) { try { f(rec.baked); } catch (e) { console.error('parked: bake handoff', e); } } };
     const t0 = performance.now();
     bakeGet(rec).then(hit => {
-      if (hit) { const bk = bakedFrom(THREE, hit); log(rec.key, 'far levels baked (cache):', bk.tris.join(' / '), 'tris in', Math.round(performance.now() - t0), 'ms'); done(bk); return; }
-      setTimeout(() => bakeNow(THREE, rec).then(done, e => { console.warn('parked: bake of', rec.key, 'failed, the ladder stands:', e && e.message || e); done(null); }), 0);
+      if (hit) { const bk = bakedFrom(THREE, hit); log(rec.key, 'far levels baked (cache):', bk.tris.join(' / '), 'tris in', Math.round(performance.now() - t0), 'ms');
+        bootRec({ key: rec.key, how: 'bake', ms: Math.round(performance.now() - t0), hit: true }); done(bk); return; }
+      setTimeout(() => bakeNow(THREE, rec).then(bk => { bootRec({ key: rec.key, how: 'bake', ms: Math.round(performance.now() - t0), hit: false }); done(bk); },
+        e => { console.warn('parked: bake of', rec.key, 'failed, the ladder stands:', e && e.message || e); done(null); }), 0);
     });
   }
   async function bakeNow(THREE, rec) {
+    const data = await bakeData(THREE, rec);
+    if (!data) return null;
+    bakePut(rec, data).catch(e => console.warn('parked: bake not cached', e && e.message || e));
+    return bakedFrom(THREE, data);
+  }
+  // the bake as data (the cache's value, and the cook's: tools/parked_cook.js ships exactly this)
+  async function bakeData(THREE, rec) {
     const R = bakeRenderer();
     if (!R) return null;
     const t0 = performance.now();
@@ -1229,8 +1277,7 @@ self.onmessage = function (e) {
     data.ms = Math.round(performance.now() - t0);
     log(rec.key, 'far levels baked:', uw.charts, 'charts,', data.stats.cm, 'cm a texel,', (uw.fill * 100).toFixed(0), '% of the atlas; unwrap', Math.round(t1 - t0),
         'ms, bake', Math.round(t2 - t1), 'ms, total', data.ms, 'ms;', data.L.map(L => L.idx.length / 3).join(' / '), 'tris');
-    bakePut(rec, data).catch(e => console.warn('parked: bake not cached', e && e.message || e));
-    return bakedFrom(THREE, data);
+    return data;
   }
 
   // ---- the hitbox --------------------------------------------------------------------
@@ -1292,6 +1339,209 @@ self.onmessage = function (e) {
     }
   }
 
+  // ---- THE COOK (G805): the arch: / stock: keys stood from shipped bytes -----------------------
+  // V the container's version (a change of layout re-cooks: it is in the signature). The page reads
+  // src/core/parked_packs.json once ({ keys: { key: { src, sig } } }), then each key's file once.
+  const COOK = { V: 3, on: true, url: 'src/core/parked_packs.json', manP: null, man: null, loads: new Map(), waiting: new Set(),
+                 pending: 0, all: null, allDone: false, why: {} };
+  try { if (W.location && /[?&]parkcook=0(?:&|$)/.test(W.location.search || '')) COOK.on = false; } catch (e) {}
+  const cookable = key => !!(COOK.on && W.PARKED && !W.PARKED.L0 && typeof fetch === 'function' && typeof key === 'string' &&
+    (key.lastIndexOf('arch:', 0) === 0 || key.lastIndexOf('stock:', 0) === 0));
+  // THE SIGNATURE: what the bytes were made from. The spec (the aeroplane), the game's build (FLYDIY_BUILD: the core,
+  // the inlined viewer - aeroskin's shaders, the decals - and the editor that captures), THIS FILE (the world pack is
+  // not in FLYDIY_BUILD, and this file is the bake: the unwrap, the bake's shader splice, the cut, the container;
+  // hashed off the module's own source, line endings normalised), the bake's version and dials, the wear
+  let srcH = null;
+  const selfHash = () => srcH || (srcH = hash(String(parkedJs).replace(/\r\n?/g, '\n')));
+  function cookSig(key, spec) {
+    if (spec === undefined) spec = specOf(key);
+    if (!spec) return null;
+    return hash([COOK.V, BAKE.V, BAKE.S, BAKE.gutter, BAKE.glassK, BAKE.seam, JSON.stringify(CUT), JSON.stringify(WEAR),
+      (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0, W.FLYDIY_BUILD || 'dev', selfHash(), key, hash(JSON.stringify(spec))].join('|'));
+  }
+  const assetBase = () => (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
+  function cookManifest() {
+    if (COOK.manP) return COOK.manP;
+    COOK.manP = fetch(assetBase() + COOK.url).then(r => (r.ok ? r.json() : null), () => null)
+      .then(m => (COOK.man = (m && m.keys && typeof m.keys === 'object') ? m : { keys: {} }), () => (COOK.man = { keys: {} }));
+    return COOK.manP;
+  }
+  // the bytes: ASSET_FETCH's door (a .gz.bin is one gzip stream, decoded off the thread by the platform)
+  function cookBytes(src) {
+    const url = assetBase() + src;
+    if (typeof W.ASSET_FETCH === 'function') return W.ASSET_FETCH(url);
+    return fetch(url).then(r => { if (!r.ok) throw new Error(url + ' ' + r.status);
+      return /\.gz\.bin$/.test(url) ? new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer() : r.arrayBuffer(); })
+      .then(b => new Uint8Array(b));
+  }
+  // THE CONTAINER (as-is bytes; the file is them gzipped): 'PKC1', u32 header length, the header (ASCII JSON,
+  // space-padded to 4), then the blobs, each 4-aligned, at header.blobs[name] = [offset from the data start, bytes].
+  //   T0..T2  the three atlases (albedo sRGB, object-space normal, clear coat / roughness / metalness) as RGB:
+  //           the bake's alpha is 255 on every texel after the dilation, so it is dropped and put back - lossless
+  //   L<i>p   rung i's positions, u16 over ONE box (cutBaked's: the unwrapped mesh's); the cut rungs' positions
+  //           ARE that lattice (the decimator's), so L2 / L3 come back to the bit; L1 within half a step (< 0.1 mm)
+  //   L<i>n   its normals, i8 (the live rungs' own); L<i>u its atlas uv, u16 (0.01 texel); L<i>i its index, u16 or u32
+  // (V2) the positions, the uv and the index travel DELTA-CODED and BYTE-PLANAR (deltaPlanar): each lane as its difference
+  // from the vertex before (the index: the zigzag of its difference from the entry before), low bytes first, then high.
+  // Lossless; the C172's rungs 2.36 -> 0.93 MB gzipped (the charts' wedges are laid out in order, so neighbours are near)
+  const QMAX = 65535;
+  function deltaPlanar(a, lanes, bytes) {
+    const n = a.length, o = new Uint8Array(n * bytes);
+    for (let j = 0; j < n; j++) {
+      let d = a[j] - (j >= lanes ? a[j - lanes] : 0);
+      d = bytes === 2 ? d & 0xffff : ((d << 1) ^ (d >> 31)) >>> 0;
+      for (let b = 0; b < bytes; b++) o[b * n + j] = (d >>> (8 * b)) & 255;
+    }
+    return o;
+  }
+  function undeltaPlanar(c, n, lanes, bytes, T) {
+    if (c.length !== n * bytes) throw new Error('the cook is torn: a stream of ' + c.length + ' bytes for ' + n + ' values');
+    const a = new T(n);
+    for (let j = 0; j < n; j++) {
+      let d = 0; for (let b = 0; b < bytes; b++) d |= c[b * n + j] << (8 * b);
+      const prev = j >= lanes ? a[j - lanes] : 0;
+      if (bytes === 2) a[j] = (d + prev) & 0xffff;
+      else { d >>>= 0; a[j] = ((d >>> 1) ^ -(d & 1)) + prev; }
+    }
+    return a;
+  }
+  function cookBox(P) {
+    const bb = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < P.length; i += 3) for (let a = 0; a < 3; a++) { const v = P[i + a]; if (v < bb[a]) bb[a] = v; if (v > bb[a + 3]) bb[a + 3] = v; }
+    for (let a = 0; a < 3; a++) if (bb[a + 3] - bb[a] < 1e-3) bb[a + 3] = bb[a] + 1e-3;
+    return bb;
+  }
+  function cookEncode(o) {
+    const d = o.data, S = d.S, n = S * S, parts = [];
+    const add = (name, a) => parts.push([name, new Uint8Array(a.buffer, a.byteOffset, a.byteLength)]);
+    d.tex.forEach((t, k) => {
+      const c = new Uint8Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        if (t[i * 4 + 3] !== 255) throw new Error('atlas ' + k + ' texel ' + i + ' has alpha ' + t[i * 4 + 3]);
+        c[i * 3] = t[i * 4]; c[i * 3 + 1] = t[i * 4 + 1]; c[i * 3 + 2] = t[i * 4 + 2];
+      }
+      add('T' + k, c);
+    });
+    const bb = cookBox(d.L[0].pos), s = [0, 1, 2].map(a => (bb[a + 3] - bb[a]) / QMAX);
+    const L = d.L.map((l, i) => {
+      const nv = l.pos.length / 3, q = new Uint16Array(nv * 3), u = new Uint16Array(nv * 2);
+      for (let v = 0; v < nv * 3; v++) q[v] = Math.max(0, Math.min(QMAX, Math.round((l.pos[v] - bb[v % 3]) / s[v % 3])));
+      for (let v = 0; v < nv * 2; v++) u[v] = Math.max(0, Math.min(QMAX, Math.round(l.uv[v] * QMAX)));
+      const i32 = nv > 65535, ix = i32 ? Uint32Array.from(l.idx) : Uint16Array.from(l.idx);
+      const nr = l.nrm instanceof Int8Array ? l.nrm : n8Of(l.nrm);
+      add('L' + i + 'p', deltaPlanar(q, 3, 2)); add('L' + i + 'n', nr); add('L' + i + 'u', deltaPlanar(u, 2, 2)); add('L' + i + 'i', deltaPlanar(ix, 1, 4));
+      return { nv, nt: l.idx.length / 3, i32 };
+    });
+    const blobs = {}; let off = 0;
+    for (const [name, b] of parts) { blobs[name] = [off, b.length]; off += (b.length + 3) & ~3; }
+    const hdr = { v: COOK.V, key: o.key, sig: o.sig, build: o.build || null, bake: BAKE.V, S, cc: !!d.cc, ccR: d.ccR, bakeMs: d.ms || 0,
+                  stance: o.stance, hitbox: o.hitbox, tris: o.tris, stats: d.stats || null, shape: o.shape || null, bb, L, blobs };
+    let js = JSON.stringify(hdr);
+    if (/[^\x20-\x7e]/.test(js)) throw new Error('the cook header is not ASCII');
+    while (js.length % 4) js += ' ';
+    const out = new Uint8Array(8 + js.length + off);
+    out[0] = 0x50; out[1] = 0x4b; out[2] = 0x43; out[3] = 0x31;                      // 'PKC1'
+    new DataView(out.buffer).setUint32(4, js.length, true);
+    for (let i = 0; i < js.length; i++) out[8 + i] = js.charCodeAt(i);
+    for (const [name, b] of parts) out.set(b, 8 + js.length + blobs[name][0]);
+    return out;
+  }
+  function cookDecode(u8) {
+    if (!(u8 && u8[0] === 0x50 && u8[1] === 0x4b && u8[2] === 0x43 && u8[3] === 0x31)) throw new Error('not a parked cook');
+    const hl = new DataView(u8.buffer, u8.byteOffset, 8).getUint32(4, true);
+    let js = ''; for (let i = 0; i < hl; i += 4096) js += String.fromCharCode.apply(null, u8.subarray(8 + i, 8 + Math.min(hl, i + 4096)));
+    const hdr = JSON.parse(js), base = 8 + hl;
+    if (hdr.v !== COOK.V) throw new Error('a v' + hdr.v + ' cook; this page reads v' + COOK.V + ' (re-cook: tools/parked_cook.js)');
+    const blob = (name, T) => {
+      const [o, len] = hdr.blobs[name], at = u8.byteOffset + base + o;
+      if (base + o + len > u8.length) throw new Error('the cook is short: ' + name);
+      return at % T.BYTES_PER_ELEMENT === 0 ? new T(u8.buffer, at, len / T.BYTES_PER_ELEMENT) : new T(u8.slice(base + o, base + o + len).buffer);
+    };
+    const n = hdr.S * hdr.S;
+    const tex = [0, 1, 2].map(k => {
+      const c = blob('T' + k, Uint8Array), t = new Uint8Array(n * 4);
+      for (let i = 0; i < n; i++) { t[i * 4] = c[i * 3]; t[i * 4 + 1] = c[i * 3 + 1]; t[i * 4 + 2] = c[i * 3 + 2]; t[i * 4 + 3] = 255; }
+      return t;
+    });
+    const bb = hdr.bb, s = [0, 1, 2].map(a => (bb[a + 3] - bb[a]) / QMAX);
+    const L = hdr.L.map((l, i) => {
+      const q = undeltaPlanar(blob('L' + i + 'p', Uint8Array), l.nv * 3, 3, 2, Uint16Array), u = undeltaPlanar(blob('L' + i + 'u', Uint8Array), l.nv * 2, 2, 2, Uint16Array);
+      const pos = new Float32Array(q.length), uv = new Float32Array(u.length);
+      for (let v = 0; v < q.length; v += 3) { pos[v] = bb[0] + q[v] * s[0]; pos[v + 1] = bb[1] + q[v + 1] * s[1]; pos[v + 2] = bb[2] + q[v + 2] * s[2]; }
+      for (let v = 0; v < u.length; v++) uv[v] = u[v] / QMAX;
+      return { pos, nrm: blob('L' + i + 'n', Int8Array), uv, idx: undeltaPlanar(blob('L' + i + 'i', Uint8Array), l.nt * 3, 1, 4, l.i32 ? Uint32Array : Uint16Array) };
+    });
+    return { hdr, tex, L };
+  }
+  // the decoded cook as a record build() stands (its baked rungs, its stance and hitbox; no snapshot)
+  function cookRecord(THREE, d) {
+    const h = d.hdr;
+    const baked = bakedFrom(THREE, { S: h.S, tex: d.tex, cc: h.cc, ccR: h.ccR, L: d.L, ms: h.bakeMs });
+    // G1063: shapeSpec / shapeVis = what the spec hitbox (OBSTACLES.aircraftShape, B12) reads of a capture - the spec
+    // and the mains' / props' pivots - so a cooked aeroplane stands its exact shape, not the raster's
+    return { key: h.key, cooked: true, sig: h.sig, spec: null, vis: null, block: null, panel: {}, far: null,
+             shapeSpec: h.shape ? h.shape.spec : null, shapeVis: h.shape ? { parts: h.shape.parts } : null,
+             stance: h.stance, hitbox: h.hitbox, tris: h.tris, baked, stats: h.stats, t: 0 };
+  }
+  // one key: the manifest's answer, the signature, the bytes, the record (REC[key]); null = capture it live
+  function cookLoad(key) {
+    let p = COOK.loads.get(key);
+    if (p) return p;
+    const t0 = performance.now();
+    p = cookManifest().then(man => {
+      const e = man.keys[key];
+      if (!e) { COOK.why[key] = 'no cook'; return null; }
+      const sig = cookSig(key);
+      if (!sig || sig !== e.sig) { COOK.why[key] = 'stale'; log(key, 'the cook is stale (' + e.sig + ', this build ' + sig + '): captured live'); return null; }
+      return cookBytes(e.src).then(u8 => {
+        const t1 = performance.now(), d = cookDecode(u8);
+        if (d.hdr.key !== key || d.hdr.sig !== sig) { COOK.why[key] = 'stale'; return null; }
+        const rec = cookRecord(W.THREE, d);
+        rec.t = Math.round(performance.now() - t0);
+        if (REC[key]) return REC[key];                // captured meanwhile (a synchronous door): that one stands
+        REC[key] = rec;
+        log(key, 'cooked:', rec.baked.tris.join(' / '), 'tris,', Math.round(u8.length / 1024), 'KB, in', rec.t, 'ms (decode', Math.round(performance.now() - t1), 'ms)');
+        bootRec({ key, how: 'cook', ms: rec.t, decode: Math.round(performance.now() - t1), kb: Math.round(u8.length / 1024) });
+        return rec;
+      });
+    }).catch(e => { COOK.why[key] = 'cook failed'; console.warn('parked: the cook of', key, 'did not load, captured live:', e && e.message || e); return null; });
+    COOK.loads.set(key, p);
+    return p;
+  }
+  // THE ONE UPFRONT LOAD: every key the manifest names (not only those this world placed so far), so a placement
+  // made later - the stream, the world editor - finds its record and never captures or fetches in flight
+  function cookAll() {
+    if (COOK.all || COOK.allDone || !cookable('arch:')) return;
+    const fin = () => { COOK.all = null; COOK.allDone = true; };
+    COOK.all = cookManifest().then(man => Promise.all(Object.keys(man.keys).filter(cookable)
+      .map(k => cookLoad(k).then(rec => { if (rec) fillPending(k); })))).then(fin, fin);
+  }
+  // THE COOK'S OWN DOOR (tools/parked_cook.js, in a page with ?parkcook=0): the key captured and baked by the
+  // live code, and its container. The signature is taken on the spec the capture used
+  async function cookPack(key) {
+    if (!bakeRenderer()) throw new Error('parked cook: no WebGL renderer to bake with');
+    if (REC[key] && REC[key].cooked) throw new Error('parked cook: ' + key + ' is cooked in this page (load it with ?parkcook=0)');
+    const rec = capture(key);
+    if (!rec) throw new Error('parked cook: no capture of ' + key);
+    const data = await bakeData(W.THREE, rec);
+    if (!data) throw new Error('parked cook: the bake of ' + key + ' made nothing');
+    const st = rec.stance || (rec.stance = stance(rec.vis));
+    const shape = { spec: rec.spec, parts: rec.vis.parts.filter(p => p.kind === 'mainsL' || p.kind === 'mainsR' || p.kind === 'prop').map(p => ({ kind: p.kind, pivot: p.pivot.slice() })) };
+    return cookEncode({ key, sig: cookSig(key, rec.spec), build: W.FLYDIY_BUILD || 'dev', stance: st, hitbox: hitboxOf(rec, st), tris: rec.tris, shape, data });
+  }
+  // THE A/B's LIVE TWIN (tools/parked_ab.js): the key captured and baked live beside its cooked record (REC keeps
+  // the cooked one), as the baked rungs a placement's meshes can be switched onto, with its stance and hitbox
+  async function abLive(key) {
+    const keep = REC[key];
+    delete REC[key];
+    let rec = null;
+    try { rec = capture(key); } finally { if (keep) REC[key] = keep; else delete REC[key]; }
+    if (!rec) return null;
+    const data = await bakeData(W.THREE, rec);
+    const st = stance(rec.vis);
+    return { bk: bakedFrom(W.THREE, data), stance: st, hitbox: hitboxOf(rec, st), tris: rec.tris };
+  }
+
   // ---- the object: build, place ------------------------------------------------------
   // THE CRAFT FRAME IS PER PLACEMENT. The decals' box projections, the
   // weathering's sources and the cabin box read craft metres through
@@ -1305,8 +1555,6 @@ self.onmessage = function (e) {
   function build(THREE, rec, grp) {
     if (!rec.geos) rec.geos = new Map();
     const st = rec.stance || (rec.stance = stance(rec.vis));
-    const block = rec.block ? Object.assign({}, rec.block, { uCraftInv: { value: new THREE.Matrix4() } }) : null;
-    const matFor = makeMats(THREE, rec, block);
     const lod = new THREE.LOD();
     lod.name = 'parked:' + rec.key;
     const models = [];
@@ -1317,6 +1565,18 @@ self.onmessage = function (e) {
       models.push(level);
       return flip;
     };
+    // G805: A COOKED RECORD is its baked rungs and nothing else (no snapshot, no block, no materials of its own):
+    // the ladder the live bake ends in, stood at once - L1 from 0 m, L2, L3, then nothing
+    if (rec.cooked) {
+      [0, LEVELS.L2, LEVELS.L3].forEach((d, i) => lod.addLevel(frame(bakedLevel(THREE, rec.baked, i)), d));
+      lod.addLevel(new THREE.Group(), LEVELS.cull);
+      lod.userData.hitbox = rec.hitbox; lod.userData.parked = rec.key; lod.userData.stance = st; lod.userData.cooked = 1;
+      if (W.PARKED.boxes) drawBoxes(THREE, lod);
+      if (grp) { grp.add(lod); grp.updateWorldMatrix(true, true); lod.userData.craftInv = null; }
+      return lod;
+    }
+    const block = rec.block ? Object.assign({}, rec.block, { uCraftInv: { value: new THREE.Matrix4() } }) : null;
+    const matFor = makeMats(THREE, rec, block);
     // L0 only when the switch asks for it (G571); without it L1 is the first rung, from 0 m,
     // and every rung past it sits one index lower (`o`, L1's index)
     const full = !!W.PARKED.L0, o = full ? 1 : 0;
@@ -1467,6 +1727,9 @@ self.onmessage = function (e) {
                // G569, the baked far rungs: the dials, the unwrap, the assembly, the bake's own hook, and
                // the cache's key and door (bakeClear drops every build's bake: the next boot bakes again)
                BAKE, unwrap, dilate, bakedFrom, bakedLevel, bakeHook, farBaked, bakeKey, renderer: null,
+               // G805, the cook: its dials and state, the signature, the container both ways, the record, the loads,
+               // the offline tool's door (cookPack) and the A/B's live twin (abLive)
+               COOK, cookable, cookSig, cookEncode, cookDecode, cookRecord, cookLoad, cookAll, cookPack, abLive, bakeData, cutBaked,
                bakeClear: () => db().then(d => new Promise((res, rej) => { const tx = d.transaction('bake', 'readwrite'); tx.objectStore('bake').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })),
                // the record's far levels as the object holds them, for the gate's numbers
                hitbox: grp => { let hb = null; grp.traverse(o => { if (!hb && o.userData && o.userData.hitbox) hb = o.userData.hitbox; }); return hb; } };

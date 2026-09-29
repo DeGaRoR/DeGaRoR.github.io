@@ -1,5 +1,5 @@
 {
- "base": "b3bf0431",
+ "base": "a3aa44c",
  "chrome": "Chrome/141.0.7390.37",
  "made": "tools/ground_layers_chrome.js",
  "layer": "SHA-256 of the 512x512 RGBA8 layer as the old code packed it in the page",
@@ -87,12 +87,12 @@
    "N": "e4ef116f309d7815c51e08ec3536b334c14e7ff12594c0ad380d023536b0db8f"
   },
   "concreteB": {
-   "A": "a2361ff42573fe6d1403164e6ca74d90b9cf5341dfe219bc833820dcb494be5e",
-   "N": "e61226c950307e6cf9a64e90e04b6fe487102aff0544ad52d0a74b9ab4da0849"
+   "A": "555d812ed37e616da8184edfc422436691193097517a26eaaef7cfac5c2e7d01",
+   "N": "7e79fd2388af1f2e126312a9a25b681a3c9f36f2a20fcf72d139b48e3679a101"
   },
   "concreteM": {
-   "A": "63461a717f7045d8a417a09babca71215971878360b8b370e2abfcdf82ca4c27",
-   "N": "9c4da2fb487fd7ea369b7df2e3a426f4f501ce95e3a48b6041dab1c394bf8352"
+   "A": "53498c2a04bb80e0ae19db41a4bb2df320973113fa5ab9eb43068e55f9b566c2",
+   "N": "d56df7fafb7aa194274048c919bb348378504bf1a6c7ead96b8888f2e1ad9ed8"
   },
   "concreteD": {
    "A": "1f4773baedefc4530985697d6ef9617c68afae1af28141731951053d3d7105e4",
@@ -116,7 +116,7 @@
   },
   "gravelS": {
    "A": "3a12b344e90aa56f6de937709e53bd6a2c91efc7d4c9ddb0d1873435feb79be9",
-   "N": "5353d4951de7ff6c7b7d8c5eefa6d8b262562709875e19c8609b18de9aac8ffb"
+   "N": "82bc7d9c39ed47644d7d50a3cb430be902e87c87e44a9daa5ce2d1da88c8a2a6"
   },
   "dirtP": {
    "A": "0d11471cd0d2cc99f07af4ace4a30984f70dfb131bbf13c477ab49cdc46d4a77",
@@ -136,7 +136,7 @@
   },
   "sandC": {
    "A": "8c4047cff4238c40faadd18fd5c2966d7acfa9b76e744e5a892dd228386bcca8",
-   "N": "2fd67258a420abb53a19463b9f1e60664cc21bc02e61a1c1e09ff22cd1255b9c"
+   "N": "5f88da408cb9f1f1c4db8fe3b4d9257ea8a60be7438324ac2b3cf2df4aaeee5a"
   },
   "gravelG": {
    "A": "8385e44952a3dd49f38a494847490fd5d2e0151862b7d98bedd792c767d5b27f",
@@ -168,7 +168,7 @@
   },
   "grassG": {
    "A": "38b4beffd20fc8b1684057cae46f04474f5ea719e810daf2806127b1ac130b9d",
-   "N": "c479bb92df626ee999255b5d30d231d9531688c1160bff164fdcebb158c602a2"
+   "N": "120f1274c393fe484b1bd7174dfe395e062e497d13227fd42d2179d9faca0276"
   },
   "grassP": {
    "A": "f00ec275756f441453e527341f5733ddf4751d9ff397a2b33126b91159f08ad4",
@@ -184,7 +184,7 @@
   },
   "brushed": {
    "A": "08a7261acf33e7de555825c22228e7e56059f5ac68ed650463ab8279f54950d2",
-   "N": "c686b6bb120a60540e1ec537265d516b9cfd464acb07c6faa978ecc0894c1b2b"
+   "N": "f68600cdb889cffe58f4ece7c52ed5c2a5ab4e5fe898dfcd6ea12b6c2ebfe75c"
   },
   "asphalt": {
    "A": "a556fcc129d0c42f1059ec6360b526f927ad92066a1398143977d1de55ed1690",
@@ -254,7 +254,7 @@
   "brushed": {
    "diff": "09ed18c53716cad9591bb33f5bb93424c7378b4d369321a3269f00d7499a9df3",
    "nor": "ffe58c0fbed178fd6f0efb28ebe6b5253d9551d9a072525587957d8875fe7703",
-   "rough": "006fd4cff967b139f09a5799dd6d1aebc1ece1b61b0a0c77031d99ae68f89f18"
+   "rough": "flat:248,248,248"
   },
   "cracked": {
    "diff": "53ca6cb6ff5605cafdf1e9342b9cd745e5d130bc22efa71e39dde6e4c36b1b5e",
@@ -264,7 +264,7 @@
   "antislip": {
    "diff": "4a3ec5886eb0ec1eb2de08c1b203fdb7a9019e8a3112d2ef5c62bee32368ecbd",
    "nor": "47d37001941f3b69962b495ec0532ad1d66deae522c44394dc6cb740c93eccb6",
-   "rough": "773b9db1ab12429771559395b5abc2488c95fe65ea465f1ac3439494d47bd7ea"
+   "rough": "flat:240,240,240"
   },
   "asphalt": {
    "diff": "97b52f471353000fdb330d5f5428abe8a28c74666d7463bbec83c4720548fd57",
@@ -299,7 +299,7 @@
   "dirt": {
    "diff": "d29ff9e3ebae07145e98b5d8ad13a91040bd2b4f91d38ecb48a4095c089b9ba7",
    "nor": "51163e3446c10967c5345a8cb71fdbf2b410882643ee499c2e947ebb32035c90",
-   "rough": "29ee3f04ff9742eca82c672f57472a6f060174b2b872deb6c32f01e7daa4b837"
+   "rough": "flat:235,235,235"
   }
  },
  "maps": {
@@ -429,14 +429,14 @@
    "concreteB": {
     "diff": "acf8e8985b1843f3054a37b95eb6b10a21efe14dcdfd2f820cf8dbf62f8fd90b",
     "nor": "12e519d44bd05c7c8fbd2d6726fef5706a2885656a072aa431c345b25b5fb143",
-    "rough": "db6594c0f6b1f02e672c01f73b0ed90d702fe09dcf1e17779da05b51748b0c57",
-    "height": "013127df6c5d60cecb034f754be850d326c684d19259bd97eb40b6c6862b66cd"
+    "rough": "flat:228,228,228",
+    "height": "flat:146,146,146"
    },
    "concreteM": {
     "diff": "0fb22657efe702161d7c6623affd645038c173477e370d741d04df6c3a37fbf7",
     "nor": "c5315b1af5b7fda192c951ded2b7864506d686cce670522135eb0a17195e5ae1",
-    "rough": "fd5950bcffe24c56e35603663102ad49fe463f09d038d287e0cac36513056d08",
-    "height": "2f573683ca644fdd00162209a61be107038faafd1a0a8a82148ced4c41578120"
+    "rough": "flat:239,239,239",
+    "height": "flat:153,153,153"
    },
    "concreteD": {
     "diff": "bb617b45b251c08d85078a1e36c11664d83ae95a1c9864feaaaeea877ee2c901",
@@ -471,7 +471,7 @@
    "gravelS": {
     "diff": "aa5661e4fad8259ce19119a97e44facbef068cf0f893f51f7fd06d73306bcd9f",
     "nor": "c14d9d5d2ebcec27216afb9f5386e84509715f42f4ade7edd059812e79261ceb",
-    "rough": "1073570869e29d0e03aa4d929f42aa3d1cab98a1bc5519702921d7f0dfc29f7e",
+    "rough": "flat:201,201,201",
     "height": "c0f812ec965f92721feb00d480af584c0e1a57bce83f79ed0a66ccd83ccc55e2"
    },
    "dirtP": {
@@ -501,7 +501,7 @@
    "sandC": {
     "diff": "c491fcd1e61fed1829cb55918f78f8ce31c98508808e492362477d0bb4f96225",
     "nor": "f272fa16e0c657190b2ae2f40d54663f63563e2d1adaef60205eabe93a8c52dd",
-    "rough": "5ae4d4ca2ee97710efd649730683d81ee0bfbfd455aac89b33b7f55a52bf5387",
+    "rough": "flat:206,206,206",
     "height": "bd0a59c73a05326f922014ebcba545e49e9f285c03e6fd9d92487c5999c4eb98"
    },
    "gravelG": {
@@ -549,7 +549,7 @@
    "grassG": {
     "diff": "1188e448b877427972bd788b5df4f7ba87990e412a679a37bbbb59c71f346835",
     "nor": "aa1fb99aaf0984d35c085efa80c107e7dd749531bb38469de8b7d998c7493825",
-    "rough": "80037d2ae2c0ee565878a6ca4d02423ab3a100eb4ec611e908bf2aff958de41b",
+    "rough": "flat:239,239,239",
     "height": "2e3239558c0969b43edf6db20e7182ec887a02eaea338299e50106542df14fdb"
    },
    "grassP": {
@@ -573,7 +573,7 @@
    "brushed": {
     "diff": "25ee4dad94edd8a811d884604b89ce03dba3ba9f2a43bdce07c3ea6c3c8aee60",
     "nor": "7820a13016ad6688fe6cb257056072da0b287816cc056afca39abf1410387957",
-    "rough": "006fd4cff967b139f09a5799dd6d1aebc1ece1b61b0a0c77031d99ae68f89f18",
+    "rough": "flat:248,248,248",
     "height": "d3b19b0ee6500bd309bf1049a859dc374acf8a588bad454de7906ca357fab403"
    },
    "asphalt": {

@@ -98,10 +98,11 @@ function build(THREE, key) {
     g.computeBoundingSphere();
     return g;
   });
+  // ONE MATERIAL PER RECORD (AS4a): the animal's record and its cut levels' (the same record, props.js's factory)
+  // are one MATLIB material; named by the first to ask
   const mats = a.mats.map(rec => {
     const m = propMaterial(THREE, rec);
-    m.name = 'animal:' + key + ':' + (rec.name || '');
-    m.userData.animalKey = key;
+    if (!m.name) m.name = 'animal:' + key + ':' + (rec.name || '');
     return m;
   });
   b = { a, dec, clips, geos, mats, loom: null };
@@ -119,7 +120,7 @@ function loomMats(THREE, b) {
                 transparent: true, opacity: 0, depthTest: false, depthWrite: false,
                 side: rec.dbl ? THREE.DoubleSide : THREE.FrontSide, toneMapped: true, fog: false };
     if (rec.map && typeof propTexture === 'function') o.map = propTexture(THREE, rec.map, true, 'color');
-    const m = new THREE.MeshBasicMaterial(o);
+    const m = MATLIB.make(THREE, 'basic', o);
     m.name = 'animalLoom:' + b.a.key;
     return m;
   });
@@ -154,7 +155,7 @@ function instance(THREE, key) {
   const meshes = b.dec.meshes.map((m, i) => {
     let o;
     if (m.skin) {
-      o = new THREE.SkinnedMesh(b.geos[i], b.mats[m.mat]);
+      o = new THREE.SkinnedMesh(b.geos[i], MATLIB.variant(THREE, b.mats[m.mat], 'skin'));   // the record's skinned sibling (MATLIB.variant)
       // BIND WITH THE IDENTITY, NOT THE NODE'S WORLD MATRIX (the character
       // layer's lesson, G204): glTF says the skinned mesh node's transform is
       // ignored — the vertices are in the skin's space and the inverse bind

@@ -658,6 +658,8 @@ function vTex(setKey, map, srgb) {
   const S = (VTEX() || {})[setKey];
   const img = S && S[map];
   if (!img) { vTexCache.set(id, null); return null; }
+  // G903: a FLAT map ships as its constant [r, g, b] - the shared 1x1 (src/viewer/assets.js TEX_FLAT)
+  if (Array.isArray(img)) { const f = TEX_FLAT(img, srgb ? THREE.SRGBColorSpace : ''); vTexCache.set(id, f); return f; }
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
@@ -1168,7 +1170,15 @@ function commit() {
       if (N && N.fuel) patch.fuel = { litres: N.fuel.litres, tank: N.fuel.tank };
       if (N && N.energy && N.energy.kWh != null) patch.energy.kWh = N.energy.kWh;
     }
-    G.update(patch);
+    // B9 (G1021): NOTHING NEW, NOTHING REBUILT. `update` rebuilds the whole aeroplane (the model, the sim, the room);
+    // this write-back runs after EVERY build of the editor, and after a build that changed no tank (the boot's seed,
+    // the parked aeroplanes' batch putting the player's build back) it re-committed the same numbers and rebuilt the
+    // flying aeroplane for nothing - under the loading screen, and in the shed after it. The same numbers: no update.
+    const had = G.get ? G.get() : null;
+    const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = x[kk]; return o; }, {}) : x);
+    const same = had && canon(had.energy) === canon(patch.energy)
+      && (!patch.fuel || (had.fuel && canon({ litres: had.fuel.litres, tank: had.fuel.tank }) === canon(patch.fuel)));
+    if (!same) G.update(patch);
   } catch (e) { console.error('energy:', e); }
   scheduleReadouts(250);
   // `update` rebuilds the aeroplane rather than committing the join, so the

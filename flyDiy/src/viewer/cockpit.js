@@ -126,6 +126,9 @@ function make(THREE) {
       if (g.c.law === 'flap') pad.position.set(0, -0.012, -0.030);   // G335: on the knob, not the buried pivot
       if (g.c.slide) pad.position.set(0, 0, -0.012);                  // G371: a push-pull's knob
       pad.userData.pickPad = 1;
+      // C4b (G875): answered, never drawn - three's Raycaster tests every layer-0 object, shown or not; drawn, the
+      // pads were ~12 empty draws (colorWrite off) in the transparent pass every frame
+      pad.visible = false;
       g.obj.add(pad);
     }
   };
@@ -435,7 +438,8 @@ function make(THREE) {
     let hits;
     try { hits = ray.intersectObject(model.grp, true); } catch (e) { return null; }
     for (const h of hits) {
-      let a = h.object;
+      // C4b (G875): a hit on the baked model's fold names the part its triangle rides (flown_bake.js mergeModel)
+      let a = h.part || h.object;
       while (a && a !== model.grp) {
         const g = model.gauges.find(q => q.obj === a);
         if (g) return g.c.law === 'flap' ? Object.assign({ pick: 'flap' }, g) : g;   // G335: the dash switch is the lever's click

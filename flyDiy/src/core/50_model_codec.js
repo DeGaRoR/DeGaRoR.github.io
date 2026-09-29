@@ -284,6 +284,12 @@ function makeLinkage(tau) {
       }
       return s2;
     },
+    // G1028: the drawn surfaces put ON the controls at once (both poles) - a new flight's first frame does not ease
+    // them out of the shed's pose (a roll-out's cut, fullReset)
+    snap(ctl) {
+      for (const k of KEYS) { s1[k] = s2[k] = read(ctl, k); }
+      return s2;
+    },
   };
 }
 

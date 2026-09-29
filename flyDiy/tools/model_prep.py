@@ -23,7 +23,7 @@ it with fs). Groups still carrying b64 (older payloads) still decode.
 """
 import importlib, io, json, os, struct, sys
 from PIL import Image
-from media_lib import write_media, prune_media, prune_media_stems, BASE_DECL
+from media_lib import write_media, prune_media, prune_media_stems, flat_const, asset_src, BASE_DECL
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -174,7 +174,7 @@ def main(key, out=None):
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models'))
     CFG = importlib.import_module(key).CFG
     out = out or os.path.join(ROOT, 'src', 'models', f'{key}_model.js')
-    src = os.path.join(ROOT, CFG['src'])
+    src = asset_src(CFG['src'])
     SURFACES = CFG['surfaces']
     SID = {name: i + 1 for i, (name, _) in enumerate(SURFACES)}
 
@@ -195,6 +195,12 @@ def main(key, out=None):
         # encoded by bake_texture (budgets live there), written byte-exact as
         # a real file under media/tex/models/<key>/ (2026-09-01)
         data, ext = bake_texture(src, spec)
+        # G903: a FLAT map is its constant [r, g, b] - no file (c172 front /
+        # pedal / metal); app.js and refplane.js bind TEX_FLAT for it
+        c = flat_const(data)
+        if c is not None:
+            texs[name] = c
+            return 0
         texs[name] = write_media(f'tex/models/{mkey}', name, ext, data)
         return len(data)
 
@@ -270,7 +276,8 @@ def main(key, out=None):
                 f.append('emis:[%g,%g,%g]' % tuple(p['emis']))
         return ','.join(f)
     mats_js = ','.join('%s:{%s}' % (m, mat_fields(m, s)) for m, s in CFG['mats'].items())
-    texs_js = ',\n    '.join(f'{m}:B+{json.dumps(rel)}' for m, rel in texs.items())
+    texs_js = ',\n    '.join((f'{m}:B+{json.dumps(rel)}' if isinstance(rel, str) else f'{m}:{json.dumps(rel)}')
+                               for m, rel in texs.items())
     bbjs = '[' + ','.join(f'{v:.4f}' for v in lo + hi) + ']'
     hub = CFG['hub']
     with open(out, 'w', newline='\n') as f:
@@ -291,7 +298,7 @@ def main(key, out=None):
         f.write(f"if (typeof module !== 'undefined') module.exports = {{ {CFG['id']} }};\n")
     # this bake owns <key>.* in the shared geo dir and all of its own tex dir
     prune_media_stems('geo/models', [mkey], [bin_rel])
-    prune_media(f'tex/models/{mkey}', list(texs.values()))
+    prune_media(f'tex/models/{mkey}', [v for v in texs.values() if isinstance(v, str)])
     print(' | '.join(report))
     for n in pbrnotes:
         print('  pbr: ' + n)

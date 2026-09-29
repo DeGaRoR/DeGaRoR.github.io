@@ -176,10 +176,11 @@ const GATES = [
   // terrainH at the stand and the taxi (the Cub, the metal Cessna) and per boot step; tools/perf/framecost_baseline.json.
   // Two page runs in parallel child processes (weight 2; ~3 min and ~3.6 GB each on a 4-core cloud box)
   { id: 'FRAMECOST', file: '_framecost_check.js', tier: 'core', weight: 2, wall: 180 },
-  { id: 'STAND', file: '_stand_check.js', tier: 'core' },
+  { id: 'ROUNDTRIP', file: '_roundtrip_check.js', tier: 'core', wall: 800 },   // B8/B9 G1020-G1026: the one loading, the round trips keyed on their inputs, the setup screen from the rail's registry
+  { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
-  { id: 'ROLLANIM', file: '_rollanim_check.js', tier: 'core', wall: 45 },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
+  { id: 'ROLLANIM', file: '_rollanim_check.js', tier: 'core', wall: 45 },
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
   { id: 'SHADOWSKY', file: '_shadowsky_check.js', tier: 'core' },   // A2-SHADOW-SKY G650-G655: the PCF bias under the reversed buffer + a still kernel, the craft's shadow at any height, the mirror's clip, cloud sync, the cover pass, the pause
@@ -192,6 +193,10 @@ const GATES = [
   // fold by content. The flat check needs python + Pillow and is skipped (never failed) without.
   // ~2 s + ~13 s of PIL decode. Carries --selftest.
   { id: 'ASSETS', file: '_asset_check.js', tier: 'core', wall: 20 },
+  // THE MATERIAL LIBRARY (AS4a, G920-G924): the props / pier / animals, the trees and the strip stones drawn with
+  // and without the library's sharing (and the stones' batches) on the recording GL - every part the same uniforms,
+  // textures and program key, fewer materials and draws; the program keys carry no uniform value
+  { id: 'MATLIB', file: '_matlib_check.js', tier: 'core', wall: 40 },
   // the geometry transport (G930, AS5a): every media/geo bin ONE gzip stream,
   // decoded, re-hashed against its name, its layout against every manifest
   // that names it. ~2 s. Negative-verified (its selftest runs every time).
@@ -399,6 +404,10 @@ const GATES = [
   // prop's shape against its own mesh (a cell, 0.5 m), an aeroplane rolled at
   // a wall stops against it, the analytic world's settlements registered (~40 s)
   { id: 'OBSTACLE', file: '_obstacle_check.js', tier: 'core' },
+  // G1060-G1062: a parked aeroplane's hitbox from its own spec (convex pieces off the physics frame, no grid) - the
+  // pieces' push, every archetype stands one, then the page in node (one page, ~3 GB): the Jolene captures' wing
+  // covered to 5 mm and overhung by <= 5 cm (the old raster's tip printed), a taxi past at 10 cm / into the wing, the cost
+  { id: 'HITBOX', file: '_hitbox_check.js', tier: 'core', wall: 180 },
   // THE FLOAT IN WATER (G370): the H0 spike, headless — Archimedes against
   // the analytic sections and a Monte-Carlo volume, omega*dt / c*dt of the
   // water terms against the fleet's envelope, the hump on three tows, the

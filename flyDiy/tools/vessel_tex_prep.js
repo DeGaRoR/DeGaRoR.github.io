@@ -27,10 +27,10 @@
 // The output is committed, like the other payloads.
 const fs = require('fs');
 const path = require('path');
-const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const { writeMap, assetSrc, pruneMedia, BASE_DECL } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
-const SRC = path.join(ROOT, 'assets', 'vessel');
+const SRC = assetSrc('vessel');
 const OUT = path.join(ROOT, 'src', 'viewer', 'vessel_tex.js');
 const SUB = 'tex/vessel';
 
@@ -58,8 +58,10 @@ const bake = (k, px, stem) => {
       'run `python tools/vessel_tex_import.py` first');
     process.exit(1);
   }
-  return writeMedia(SUB, `${k}_${stem}_${sfx(px)}`, 'jpg', fs.readFileSync(f));
+  // G903: a FLAT map is its constant [r, g, b] - no file (the consumer binds TEX_FLAT)
+  return writeMap(SUB, `${k}_${stem}_${sfx(px)}`, 'jpg', fs.readFileSync(f));
 };
+const prop = (name, v) => Array.isArray(v) ? `${name}: [${v.join(', ')}]` : `get ${name}() { return mk('${v}'); }`;
 
 let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/vessel_tex_prep.js from
 // assets/vessel/ (CC0: Poly Haven, ambientCG; see CREDITS.md). Three maps per
@@ -85,13 +87,14 @@ for (const [k, px, tile, norScl, label] of SETS) {
   let bytes = 0;
   for (const stem of ['diff', 'arm', 'nor_gl']) {
     const rel = bake(k, px, stem);
-    emitted.push(rel);
     maps[stem === 'nor_gl' ? 'nor' : stem] = rel;
+    if (typeof rel !== 'string') continue;
+    emitted.push(rel);
     bytes += fs.statSync(path.join(ROOT, rel)).size;
   }
   body += `    ${k}: { px: ${px}, tile: ${tile}, norScl: ${norScl}, ao: 0,\n` +
           `      label: ${JSON.stringify(label)},\n` +
-          `      get diff() { return mk('${maps.diff}'); }, get arm() { return mk('${maps.arm}'); }, get nor() { return mk('${maps.nor}'); } },\n`;
+          `      ${prop('diff', maps.diff)}, ${prop('arm', maps.arm)}, ${prop('nor', maps.nor)} },\n`;
   report.push(`${k} ${sfx(px)} ${(bytes / 1024).toFixed(0)} KB`);
 }
 body += `  };

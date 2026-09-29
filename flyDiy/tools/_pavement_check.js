@@ -196,9 +196,10 @@ console.log('5. THE RECIPE - the classes name baked sets');
   verdict(missing.length === 0, `every class slot names a set the prep baked (${P.CLASSES.length} classes x ${P.SLOTS.length} slots)` + (missing.length ? ': ' + missing.join(', ') : ''));
   verdict(TEX.PAVEMENT_TEX_CREDITS.every(r => r.metres > 0 && r.licence === 'CC0'), `every set has a size in metres and is CC0 (${TEX.PAVEMENT_TEX_CREDITS.length} sets)`);
   // G910: every pavement key names a ground-library set with four maps and its cooked layers, all on disk
-  const media = []; for (const a of TEX.GROUND_TEX.libs.pavement) { const s = TEX.GROUND_TEX.sets[a.set] || {}; for (const m of ['diff', 'nor', 'rough', 'height', 'layers']) media.push(s[m] || ('(no ' + m + ' for ' + a.key + ')')); }
+  // G903: a FLAT map is its constant in the table (`"rough": [r, g, b]`), no file - it still counts as the set's map
+  const media = [], flats = []; for (const a of TEX.GROUND_TEX.libs.pavement) { const s = TEX.GROUND_TEX.sets[a.set] || {}; for (const m of ['diff', 'nor', 'rough', 'height', 'layers']) (Array.isArray(s[m]) ? flats : media).push(s[m] || ('(no ' + m + ' for ' + a.key + ')')); }
   const absent = media.filter(m => !fs.existsSync(path.join(__dirname, '..', m)));
-  verdict(TEX.GROUND_TEX.libs.pavement.length === TEX.PAVEMENT_TEX_CREDITS.length && absent.length === 0, `the library's ${media.length} files for the pavement's ${TEX.PAVEMENT_TEX_CREDITS.length} sets (4 maps + the cooked layers each) are on disk` + (absent.length ? ' (missing ' + absent.length + ': ' + absent.slice(0, 3).join(', ') + ')' : ''));
+  verdict(TEX.GROUND_TEX.libs.pavement.length === TEX.PAVEMENT_TEX_CREDITS.length && absent.length === 0 && media.length + flats.length === TEX.PAVEMENT_TEX_CREDITS.length * 5, `the library's ${media.length} files for the pavement's ${TEX.PAVEMENT_TEX_CREDITS.length} sets (4 maps + the cooked layers each; ${flats.length} flat maps are constants) are on disk` + (absent.length ? ' (missing ' + absent.length + ': ' + absent.slice(0, 3).join(', ') + ')' : ''));
   verdict(P.CLASSES.every(c => (c === 'concrete' || c === 'asphalt') ? P.CLASS_DEF[c].hexRot <= 10 : P.CLASS_DEF[c].hexRot >= 45), 'a paved class turns its hex tiles by 10 deg at most, a loose one freely');
   const e1 = P.exportRecipe(); P.set(THREE, e1); const e2 = P.exportRecipe();
   verdict(JSON.stringify(e1) === JSON.stringify(e2), 'export -> set -> export is bit-identical');

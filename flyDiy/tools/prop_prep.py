@@ -34,12 +34,12 @@ R — so AO is taken from R only when the author's own filename says `arm`, and
 is otherwise switched off rather than guessed at.
 """
 import base64, hashlib, importlib.util, io, json, math, os, struct, sys
-from media_lib import write_media, write_media_named, prune_media, BASE_DECL
+from media_lib import write_media, write_media_named, prune_media, flat_const, asset_src, BASE_DECL
 
 from PIL import Image, ImageChops, ImageEnhance
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC_DIR = os.path.join(ROOT, 'assets', 'props')
+SRC_DIR = asset_src('assets/props')
 OUT_DIR = os.path.join(ROOT, 'src', 'props')
 
 _spec = importlib.util.spec_from_file_location(
@@ -250,6 +250,16 @@ class TexBank:
         self.sub = sub                  # a second table prunes its own dir
 
     def add(self, raw, mime):
+        # G903: a FLAT map (every channel's std < 2 at 256 px, measured on the
+        # bytes that would ship) is its constant [r, g, b], under an id that
+        # names it - no file; props.js propTexture binds TEX_FLAT for it
+        c = flat_const(raw)
+        if c is not None:
+            h = 'flat%02x%02x%02x' % tuple(c)
+            if h not in self.by_hash:
+                self.by_hash[h] = c
+                self.order.append(h)
+            return h
         h = hashlib.sha256(raw).hexdigest()[:12]
         if h not in self.by_hash:
             name = '%s.%s' % (h, 'png' if mime == 'image/png' else 'jpg')
@@ -942,14 +952,14 @@ def main(argv, cfg=None):
                 '// do not live at flyDiy/ (see tools/_media_lib.js).\n'
                 'registerPropPack((p => {\n'
                 '  %s\n'
-                '  for (const k in p.texs) p.texs[k] = B + p.texs[k];\n'
+                "  for (const k in p.texs) if (typeof p.texs[k] === 'string') p.texs[k] = B + p.texs[k];\n"
                 '  for (const k in p.props) if (p.props[k].bin) '
                 'p.props[k].bin = B + p.props[k].bin;\n'
                 '  return p;\n'
                 '})(%s));\n'
                 % (cfg['origin'], gname, cfg['geo'], cfg['tex'], BASE_DECL,
                    json.dumps(pack, separators=(',', ':'))))
-        open(os.path.join(OUT_DIR, name), 'w', encoding='utf8').write(body)
+        open(os.path.join(OUT_DIR, name), 'w', encoding='utf8', newline='\n').write(body)
         files.append(name)
         tex_bytes += g['bank'].bytes
         print('%-22s %2d props  %7.2f MB' % (name, len(g['order']), len(body) / 1048576))
@@ -966,14 +976,15 @@ def main(argv, cfg=None):
         prev = []
     foreign = [f for f in prev if f not in files
                and os.path.exists(os.path.join(OUT_DIR, f))]
-    json.dump(files + foreign, open(mf, 'w'), indent=1)
+    json.dump(files + foreign, open(mf, 'w', newline=''), indent=1)
     if foreign:
         print('kept %d pack(s) from another baker: %s' % (len(foreign), ', '.join(foreign)))
     # a full bake is the whole texture story for media/tex/props/ — anything
     # this run did not emit is a stale map from a superseded encode
     gone = prune_media(cfg['tex'],
                        [g['bank'].by_hash[h] for g in groups.values()
-                        for h in g['bank'].order])
+                        for h in g['bank'].order
+                        if isinstance(g['bank'].by_hash[h], str)])
     if gone:
         print('pruned %d stale map(s) from media/%s/' % (len(gone), cfg['tex']))
     print('---\n%d props, %d packs — geometry %.2f MB, textures %.2f MB'

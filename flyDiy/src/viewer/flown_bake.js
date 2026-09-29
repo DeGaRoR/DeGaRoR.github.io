@@ -31,10 +31,10 @@
 // small hook: the clear coat on the perturbed normal (G206's rule), its roughness from T2.A, the cabin's darkness
 // and the footwell on the back faces (AERO_CABIN_FS's arithmetic, the flag from T0.A).
 //
-// WHAT BAKES. An exterior AEROSKIN bucket: a finish, not glass, not inside, not a turning blade or spinner (their
-// weathering reads a rotating frame), not see-through, not the facia; and never a bucket that also rides a cockpit
-// control, a gauge or a link. Glass, the interior, the lamps, the crew, the panel, the tanks, the blades stay LIVE.
-// The garage never sees a bake (the editor draws its own meshes).
+// WHAT BAKES. An AEROSKIN bucket: a finish, not glass, not a turning blade or spinner, not see-through, not the facia
+// (C4a baked the exterior only and kept the controls', the gauges' and the links' buckets live; C4b bakes those and
+// the cabin too - see bakedSets). Glass, the lamps, the crew, the panel's faces and hands, the tanks, the blades stay
+// LIVE. The garage never sees a bake (the editor draws its own meshes).
 //
 // WHEN (the user, 2026-09-28: "no impact on performance below 30 fps"): only under the roll-out screen, as its own
 // step ('bake', after 'sync'), sliced so no task passes 1 s; a cached build only reads, unzips, makes its mips and
@@ -45,29 +45,59 @@
 // THE A/B DIAL. `?fbake=0` (window.FLYDIY_FLOWN_BAKE = 0) flies the live shader. FLOWN_BAKE.ab = true before a build
 // keeps each baked mesh's live material and attributes beside the bake so FLOWN_BAKE.show(false|true) flips them in
 // place (merged still meshes carry no live twin: set FLYDIY_CRAFT_MERGE = 0 with it for a complete flip).
+//
+// C4b (G875-G878): THE ONE-MATERIAL FLOWN MODEL.
+//   THE FOLD (mergeModel): every mesh on a baked material folds into a handful of draws - the model group's own into a
+//     plain Mesh, a moving part's (a wheel, the castor, an engine unit, a control) into ONE SkinnedMesh with the part
+//     as its bone; the rigs keep writing their attribute objects, whose arrays are now views into the fold. The
+//     Cessna's flown model: 261 draws -> 90 in the main pass, 226 -> 40 in the shadow pass (GATE FRAMECOST's census).
+//   TWO ATLASES: the exterior's (2048², as C4a) and the cabin's ('in', 2048², a 2-texel gutter: its thousands of small
+//     charts) - the cabin seen through the glazing draws on its baked material; the COCKPIT VIEW flies the cabin's
+//     live shader (its meshes kept, hidden, on the same arrays: the fold's view(on)), because at arm's length no
+//     atlas is a match for the procedural grain.
+//   THE WORKER: the unwrap, the gutters and the mips run in a Blob worker made from these functions' own text (the
+//     page the fallback); the GL passes stay on the page's context (the flown programs live there) and read back
+//     asynchronously.
+//   DIALS: `?fbake=foldab` keeps every fold's members (FLOWN_BAKE.showFold(false|true|null): C4a's draws | the folds |
+//     the cockpit's rule), `?fbake=ext` the exterior's atlas only, window.FLYDIY_FLOWN_MERGE = 0 no fold.
 'use strict';
 (function () {
   const W = (typeof window !== 'undefined') ? window : globalThis;
-  const FB = { V: 1, S: 2048, gutter: 4, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40 };
+  const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true };
   const log = (...a) => { if (FB.quiet) return; console.log('flown bake:', ...a); };
   const tick = () => new Promise(r => setTimeout(r, 0));
   // the dials in the URL: ?fbake=0 the live shader; ?fbake=ab the A/B build (live twins kept, the still merge off);
   // ?fbake=nocache bakes whatever the cache holds
   try {
     const q = /[?&]fbake=([^&]*)/.exec((W.location && W.location.search) || '');
-    if (q && q[1] === '0') W.FLYDIY_FLOWN_BAKE = 0;
-    if (q && q[1] === 'ab') { FB.ab = true; W.FLYDIY_CRAFT_MERGE = 0; }
-    if (q && q[1] === 'nocache') FB.noCache = true;   // the rig's warm MISS: the cache is not read (it is written)
+    const on = new Set(q ? decodeURIComponent(q[1]).split(',') : []);   // C4b: several, comma-separated
+    if (on.has('0')) W.FLYDIY_FLOWN_BAKE = 0;
+    if (on.has('ab')) { FB.ab = true; W.FLYDIY_CRAFT_MERGE = 0; }
+    if (on.has('nocache')) FB.noCache = true;   // the rig's warm MISS: the cache is not read (it is written)
+    if (on.has('foldab')) FB.foldAB = true;     // C4b's A/B: the folds keep their members (showFold flips them)
+    if (on.has('ext')) FB.Sin = 0;              // C4b: the exterior's atlas only (the cabin flies live, as C4a)
   } catch (e) {}
 
-  // ---- which buckets bake ----------------------------------------------------------------------------------------
-  const EXCL_PART = { gauge: 1, ctlMove: 1, ctlLink: 1 };
-  const bakes = m => !!(m && m.fin && m.fin !== 'glass' && !m.inside && !m.spin && !(m.opacity < 1) && m.sec !== 'dashFace');
-  function bakedNames(vis) {
-    const out = new Set(), no = new Set();
-    for (const k in vis.groups || {}) if (bakes(vis.mats[k])) out.add(k);
-    for (const p of vis.parts || []) for (const k in p.groups) { if (EXCL_PART[p.kind]) no.add(k); else if (bakes(vis.mats[k])) out.add(k); }
-    for (const k of no) out.delete(k);
+  // ---- which buckets bake, into which atlas ------------------------------------------------------------------------
+  // An AEROSKIN bucket: a finish, not glass, not a turning blade or spinner (the disc reads their material's colour, and
+  // they hide as it takes over), not see-through, not the facia (its cut-out). C4b: TWO ATLASES - 'ext' the exterior
+  // (FB.S), 'in' the cabin (FB.Sin: the inside buckets, seen through the glazing from outside; the cockpit view flies
+  // their live shader, see mergeModel's keep). And no longer 'never a bucket that also rides a control, a gauge or a
+  // link' (C4a): nothing writes those meshes' materials (the cockpit lights its lamps and its needles, both live), the
+  // fold makes their part a bone, and the pick reads the part through the fold.
+  const bakes = m => !!(m && m.fin && m.fin !== 'glass' && !m.spin && !(m.opacity < 1) && m.sec !== 'dashFace');
+  const setOf = m => (m.inside ? 'in' : 'ext');
+  const SETS = ['ext', 'in'];
+  // name -> 'ext' | 'in'
+  function bakedSets(vis) {
+    const out = new Map();
+    for (const k in vis.groups || {}) if (bakes(vis.mats[k])) out.set(k, setOf(vis.mats[k]));
+    for (const p of vis.parts || []) for (const k in p.groups) if (bakes(vis.mats[k])) out.set(k, setOf(vis.mats[k]));
+    return out;
+  }
+  function bakedNames(vis, set) {
+    const out = new Set();
+    for (const [k, s] of bakedSets(vis)) if (!set || s === set) out.add(k);
     return out;
   }
   // the baked groups in the payload's own order (the cache stores per-group arrays in it): { k, g, at }
@@ -95,9 +125,9 @@
   }
   // the build's whole content (the spec carries the livery, the finishes and the weathering macros), the game's
   // build (the shaders the bake ran), this file's dials, and what the snapshot made of it (the groups' sizes)
-  function keyOf(list, spec) {
+  function keyOf(list, spec, set) {
     let nv = 0; for (const e of list) nv += e.g.pos.length / 3;
-    return ['fb', FB.V, FB.S, FB.gutter, W.FLYDIY_BUILD || 'dev', (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0,
+    return ['fb', FB.V, set || 'ext', set === 'in' ? FB.Sin : FB.S, set === 'in' ? FB.gutterIn : FB.gutter, W.FLYDIY_BUILD || 'dev', (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0,
             list.length, nv, hash(JSON.stringify(spec || {}))].join('|');
   }
 
@@ -223,7 +253,7 @@
   #ifdef USE_CLEARCOAT
     fbC = material.clearcoat; fbCR = material.clearcoatRoughness;
   #endif
-    gl_FragColor = uFbOut < 0.5 ? vec4(sRGBTransferOETF(vec4(fbA, 1.0)).rgb, 0.5 + 0.5 * clamp(uInside.y, 0.0, 1.0))
+    gl_FragColor = uFbOut < 0.5 ? vec4(sRGBTransferOETF(vec4(fbA, 1.0)).rgb, 0.25 + 0.25 * clamp(uInside.y, 0.0, 1.0) + 0.75 * clamp(uInside.x, 0.0, 1.0))
                  : uFbOut < 1.5 ? vec4(fbM * 0.5 + 0.5, 1.0)
                  : vec4(clamp(fbC, 0.0, 1.0), clamp(fbR, 0.0, 1.0), clamp(fbMe, 0.0, 1.0), clamp(fbCR, 0.0, 1.0));
   }
@@ -265,8 +295,8 @@
   // the flown materials drawn into the atlas: each group's soup with its own attributes, the rest positions, its
   // cavity (AEROWX's, on the same geometry the flight computes it on) and the atlas uv; the edges first (lines
   // reach charts too small for a texel centre), the faces over them; three passes read back
-  async function bakeAtlas(THREE, R, vis, list, t) {
-    const S = FB.S, A = W.AEROSKIN, WX = (typeof W.AEROWX !== 'undefined') ? W.AEROWX : null;
+  async function bakeAtlas(THREE, R, vis, list, t, S) {
+    const A = W.AEROSKIN, WX = (typeof W.AEROWX !== 'undefined') ? W.AEROWX : null;
     const U = A.aeroSharedU(THREE);
     const block = Object.assign({}, U, { uCraftInv: { value: craftP(THREE) } });
     const solid = new THREE.Scene(), wire = new THREE.Scene(), made = [];
@@ -314,8 +344,13 @@
       }
       t.compile = Math.round(performance.now() - t0);
       t0 = performance.now();
+      // C4b: THE READ-BACK IS ASYNCHRONOUS (a pixel-pack buffer and a fence: the page never stalls on the GPU); the copy
+      // is queued before the next pass draws over the target, so the three passes go back to back and are awaited together
+      const reads = [];
+      let tMain = 0;
       for (let k = 0; k < 3; k++) {
         await tick();                                       // a pass a task
+        const tk = performance.now();
         const prevRT = R.getRenderTarget(), prevAC = R.autoClear, ccol = R.getClearColor(new THREE.Color()), ca = R.getClearAlpha(), prevSM = R.shadowMap.enabled;
         try {
           R.shadowMap.enabled = false; R.autoClear = false;
@@ -325,11 +360,15 @@
           R.clear(true, false, false);
           R.render(wire, cam); R.render(solid, cam);
           const buf = new Uint8Array(S * S * 4);
-          R.readRenderTargetPixels(rt, 0, 0, S, S, buf);
-          out.push(buf);
+          let p = null;
+          if (FB.asyncRead !== false && typeof R.readRenderTargetPixelsAsync === 'function') { try { p = R.readRenderTargetPixelsAsync(rt, 0, 0, S, S, buf); } catch (e) { p = null; } }
+          if (p && typeof p.then === 'function') reads.push(p.then(() => buf, () => { R.readRenderTargetPixels(rt, 0, 0, S, S, buf); return buf; }));
+          else { R.readRenderTargetPixels(rt, 0, 0, S, S, buf); reads.push(buf); }
         } finally { R.setRenderTarget(prevRT); R.setClearColor(ccol, ca); R.autoClear = prevAC; R.shadowMap.enabled = prevSM; }
+        tMain += performance.now() - tk;
       }
-      t.render = Math.round(performance.now() - t0);
+      for (const b of await Promise.all(reads)) out.push(b);
+      t.render = Math.round(performance.now() - t0); t.renderMain = Math.round(tMain);
     } finally {
       rt.dispose();
       for (const m of made) m.dispose();
@@ -355,8 +394,9 @@
       const s = src[i];
       if (s !== i) { B[i * 4] = B[s * 4]; B[i * 4 + 1] = B[s * 4 + 1]; B[i * 4 + 2] = B[s * 4 + 2]; B[i * 4 + 3] = B[s * 4 + 3]; }
     }
-    // the inside flag back to 0 / 255 (it rode 128 / 255 so an unwritten texel read 0)
-    for (let i = 0; i < n; i++) A[i * 4 + 3] = A[i * 4 + 3] >= 192 ? 255 : 0;
+    // the inside flag back to 0 / 128 / 255 = none / the back face / both faces (it rode 64 / 128 / 255 so an unwritten
+    // texel read 0; C4b: the cabin's buckets are inside on both faces, uInside.x)
+    for (let i = 0; i < n; i++) { const a = A[i * 4 + 3]; A[i * 4 + 3] = a >= 192 ? 255 : a >= 96 ? 128 : 0; }
     return written / n;
   }
 
@@ -366,8 +406,9 @@
   // metal / ccR averaged, rough and ccR widened by the normal variance: Karis' GGX form - a = r^2, a2 = a^2,
   // var = (1 - |n|) / |n|, B = 2 var (a2 - 1), a2' = (B - a2) / (B - 1), r' = a2'^(1/4)). A generator: a task's
   // worth of rows at a time.
-  const S2L = new Float32Array(256); for (let i = 0; i < 256; i++) { const c = i / 255; S2L[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
-  const L2S = new Uint8Array(4096); for (let i = 0; i < 4096; i++) { const c = i / 4095; L2S[i] = Math.round(255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055)); }
+  const LUTS = 'const S2L = new Float32Array(256); for (let i = 0; i < 256; i++) { const c = i / 255; S2L[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }\n' +
+               'const L2S = new Uint8Array(4096); for (let i = 0; i < 4096; i++) { const c = i / 4095; L2S[i] = Math.round(255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055)); }';
+  const { S2L, L2S } = new Function(LUTS + '\nreturn { S2L, L2S };')();
   function toksvig(r, len) {
     if (len >= 0.9999) return r;
     const v = Math.max(0, (1 - len) / Math.max(len, 1e-4) - 0.00004);
@@ -427,6 +468,90 @@
     });
   }
 
+  // ---- C4b (G877): THE BAKE'S CPU STAGES IN A WORKER ------------------------------------------------------------------
+  // The unwrap (PARKED.unwrap: the weld, the charts, the packing - the bake's biggest single task), the dilation and the
+  // mip chain run in a Blob worker made from these very functions' text (G569's decimator precedent: one source, the
+  // page's own inline path the fallback - file://, a sandbox, the node census). The GL passes stay on the page: they
+  // ARE the flown programs (three, AEROSKIN, the weathering, the decal atlas and its textures live on the page's
+  // context), and with the asynchronous read-back they cost the page a few hundred draw calls and no stall. (An
+  // OffscreenCanvas context in the worker would need that whole stack carried into it - three, AEROSKIN, AEROWX, ATMO's
+  // hook, the decals' canvas textures - to issue draws the page issues in a few milliseconds.)
+  function wkMain(e) {
+    const d = e.data;
+    try {
+      if (d.op === 'unwrap') {
+        const uw = unwrap(d.ext, { S: d.S, gutter: d.gutter });
+        if (!uw) { self.postMessage({ id: d.id, uw: null }); return; }
+        const r = { uv: uw.uv, idx: uw.idx, charts: uw.charts, axis: uw.axis, fill: uw.fill, density: uw.density };
+        self.postMessage({ id: d.id, uw: r }, [r.uv.buffer, r.idx.buffer]);
+      } else if (d.op === 'finish') {
+        const t0 = Date.now(), cov = d.dilate ? dilate(d.tex, d.S) : 1, t1 = Date.now();
+        const mo = {}, g = mipSteps(d.tex, d.S, mo);
+        while (!g.next().done) { /* no slices: this thread has nothing else to do */ }
+        const bufs = new Set(); for (const lv of mo.levels) for (const L of lv) bufs.add(L.data.buffer);
+        self.postMessage({ id: d.id, cov, levels: mo.levels, ms: { dilate: t1 - t0, mips: Date.now() - t1 } }, [...bufs]);
+      }
+    } catch (err) { self.postMessage({ id: d.id, error: String(err && err.stack || err) }); }
+  }
+  // the worker's whole text: no closure crosses (GATE FLOWNBAKE runs it alone and compares it with the page's answers)
+  function workerSource() {
+    return [LUTS, 'const BAKE = { S: ' + FB.S + ', gutter: ' + FB.gutter + ' };', 'const FB = { sliceMs: 1e9 };',
+            'const unwrap = ' + W.PARKED.unwrap.toString() + ';', toksvig.toString(), dilate.toString(), mipSteps.toString(),
+            'self.onmessage = ' + wkMain.toString() + ';'].join('\n');
+  }
+  let WK = null;
+  function worker() {
+    if (WK !== null) return WK;
+    WK = false;
+    try {
+      if (!FB.worker || typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL ||
+          !W.PARKED || !W.PARKED.unwrap) return WK;
+      const url = URL.createObjectURL(new Blob([workerSource()], { type: 'text/javascript' }));
+      const w = new Worker(url), pend = new Map();
+      let id = 0;
+      const fail = why => { for (const q of pend.values()) q.rej(new Error(why)); pend.clear(); WK = false; try { w.terminate(); } catch (e) {} };
+      w.onmessage = e => { const q = pend.get(e.data.id); if (!q) return; pend.delete(e.data.id); if (e.data.error) q.rej(new Error(e.data.error)); else q.res(e.data); };
+      w.onerror = e => fail((e && e.message) || 'the worker failed');
+      WK = { call: (msg, tr) => new Promise((res, rej) => { msg.id = ++id; pend.set(msg.id, { res, rej }); w.postMessage(msg, tr || []); }), kill: () => fail('stopped') };
+    } catch (e) { WK = false; }
+    return WK;
+  }
+  // the unwrap of a set's groups: in the worker (the soup's arrays go over), else on the page in one task
+  async function unwrapOff(list, S, G, t) {
+    let ext = extOf(list);
+    const nt = ext.nt, Wk = worker();
+    if (Wk) {
+      try {
+        const r = await Wk.call({ op: 'unwrap', ext: { pos: ext.pos, nrm: ext.nrm, idx: ext.idx, nt: ext.nt, bb: ext.bb }, S, gutter: G },
+                                [ext.pos.buffer, ext.nrm.buffer, ext.idx.buffer]);
+        t.thread = 'worker';
+        return { uw: r.uw, nt };
+      } catch (e) { console.warn('flown bake: the worker could not unwrap, the page does -', e && e.message || e); ext = extOf(list); }
+    }
+    t.thread = 'page';
+    return { uw: W.PARKED.unwrap(ext, { S, gutter: G }), nt };
+  }
+  // the gutters and the mips: in the worker (the three passes go over and come back as the chains), else on the page,
+  // the mips a slice at a time. Null when the worker failed with the passes in its hands.
+  async function finishOff(tex, S, dil, t) {
+    const Wk = worker();
+    if (Wk) {
+      try {
+        const r = await Wk.call({ op: 'finish', tex, S, dilate: dil }, tex.map(b => b.buffer));
+        if (dil) t.dilate = r.ms.dilate;
+        t.mips = r.ms.mips;
+        return { cov: r.cov, levels: r.levels };
+      } catch (e) { console.warn('flown bake: the worker could not finish the maps -', e && e.message || e); return null; }
+    }
+    let t0 = performance.now();
+    const cov = dil ? dilate(tex, S) : 1;
+    if (dil) t.dilate = Math.round(performance.now() - t0);
+    t0 = performance.now();
+    const mo = {}; await drive(mipSteps(tex, S, mo));
+    t.mips = Math.round(performance.now() - t0);
+    return { cov, levels: mo.levels };
+  }
+
   // ---- THE RUNTIME MATERIAL ------------------------------------------------------------------------------------------
   // the clear coat on the perturbed normal (G206), its roughness from T2.A (three's own clamps and geometryRoughness),
   // and the cabin's darkness + the footwell on the back faces the albedo's A flags (AERO_CABIN_FS, uInside.y per texel)
@@ -444,7 +569,7 @@
       .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\n  material.clearcoatRoughness = min(max(texture2D(clearcoatMap, vClearcoatMapUv).a, 0.0525) + geometryRoughness, 1.0);\n#endif')
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
   {
-    float fbInK = fbIn * step(faceDirection, 0.0);
+    float fbInK = max(clamp(2.0 * fbIn - 1.0, 0.0, 1.0), min(1.0, 2.0 * fbIn) * step(faceDirection, 0.0));   // both faces | the back
     float fbCab = 1.0 - uCabin.x * fbInK;
     float fbFdK = clamp((uFootA.z - vFbCraft.z) / max(uFootA.z - uFootA.w, 0.05), 0.0, 1.0);
     float fbFx = 1.0 - smoothstep(uFootA.x, uFootA.x + uFootB.y, abs(vFbCraft.x));
@@ -456,7 +581,7 @@
   }`);
   };
   FB_HOOK.toString = () => 'flown.baked|' + FB.V;
-  function materialOf(THREE, d) {
+  function materialOf(THREE, d, set) {
     const mk = (lv, srgb) => {
       const t = new THREE.DataTexture(lv[0].data, d.S, d.S, THREE.RGBAFormat, THREE.UnsignedByteType);
       t.mipmaps = lv; t.generateMipmaps = false;
@@ -475,7 +600,7 @@
                 roughness: 1, metalness: 1, side: THREE.DoubleSide };
     const mat = d.cc ? new THREE.MeshPhysicalMaterial(Object.assign(o, { clearcoat: 1, clearcoatMap: orm, clearcoatRoughness: 1 }))
                      : new THREE.MeshStandardMaterial(o);
-    mat.name = 'flown:baked';
+    mat.name = set === 'in' ? 'flown:baked:in' : 'flown:baked';
     mat.userData.flownBaked = 1;
     mat.userData.aeroD = W.AEROSKIN.aeroSharedU(THREE);   // the craft frame, the cabin, the footwell: the flight's own block
     mat.onBeforeCompile = FB_HOOK;
@@ -513,45 +638,65 @@
     const v = { ck, when: Date.now(), S: rec.S, cc: rec.cc, sig: rec.sig, stats: rec.stats,
                 tex: await Promise.all(rec.tex.map(squeeze)), uv: await squeeze(new Uint8Array(rec.uv.buffer, rec.uv.byteOffset, rec.uv.byteLength)) };
     await idb('readwrite', st => st.put(v, ck));
-    // the last FB.keep builds stay
+    // the last FB.keep builds stay (a record an atlas: the outside and the cabin)
     const all = await idb('readonly', st => st.getAllKeys());
-    if (all && all.length > FB.keep) {
+    if (all && all.length > FB.keep * SETS.length) {
       const whens = await Promise.all(all.map(k => idb('readonly', st => st.get(k)).then(r => [k, r ? r.when : 0])));
       whens.sort((a, b) => a[1] - b[1]);
-      for (const [k] of whens.slice(0, whens.length - FB.keep)) await idb('readwrite', st => st.delete(k));
+      for (const [k] of whens.slice(0, whens.length - FB.keep * SETS.length)) await idb('readwrite', st => st.delete(k));
     }
   }
 
   // ---- the payload's bake: what buildModel reads -------------------------------------------------------------------------
-  const BAKED = new WeakMap();          // payload -> { key, names, mat, uv: Map(group -> Uint16Array), stats }
+  // BAKED: payload -> { key, names: Map(name -> set), mats: { ext, in }, uv: Map(group -> Uint16Array), inner: Set(group),
+  // stats }. MEMS: per set, the last bake (the round trip's reuse); OLD: the materials they replaced, freed after the
+  // rebuild.
+  const BAKED = new WeakMap();
   const BUILT_LIVE = new WeakSet();     // payloads a model was built from without their bake
-  const LIVE = [];                      // the A/B dial: [mesh, live material] of the current build
-  let MEM = null, OLD = null;           // the last bake (the round trip's reuse); the one it replaced, freed after the rebuild
-  function attach(vis, list, mat, key, stats) {
-    const uv = new Map(); for (const e of list) uv.set(e.g, e.uv);
-    BAKED.set(vis, { key, names: new Set(list.map(e => e.k)), mat, uv, stats });
-    if (MEM && MEM.mat !== mat) OLD = MEM.mat;
-    MEM = { key, mat, stats, uvs: list.map(e => e.uv), sig: list.map(e => e.g.pos.length / 3) };
+  const LIVE = [];                      // the A/B dial: [mesh, live material, baked material] of the current build
+  const MEMS = {}, OLD = [];
+  const sigOk = (sig, list) => !!sig && sig.length === list.length && sig.every((n, i) => n === list[i].g.pos.length / 3);
+  function remember(set, key, mat, stats, list) {
+    const M = MEMS[set];
+    if (M && M.mat !== mat) OLD.push(M.mat);
+    MEMS[set] = { key, mat, stats, uvs: list.map(e => e.uv), sig: list.map(e => e.g.pos.length / 3) };
+  }
+  function attach(vis, jobs, res, key) {
+    const names = new Map(), uv = new Map(), inner = new Set(), mats = {}, stats = {};
+    for (const j of jobs) {
+      const r = res[j.set];
+      if (!r) continue;                  // a set that did not bake flies its live shader
+      mats[j.set] = r.mat; stats[j.set] = r.stats;
+      for (const e of j.list) { names.set(e.k, j.set); uv.set(e.g, e.uv); if (j.set === 'in') inner.add(e.g); }
+    }
+    BAKED.set(vis, { key, names, mats, uv, inner, stats });
   }
   function freeOld() {
-    if (!OLD) return;
-    for (const k of ['map', 'normalMap', 'roughnessMap']) if (OLD[k]) OLD[k].dispose();
-    OLD.dispose(); OLD = null;
+    for (const M of OLD.splice(0)) {
+      for (const k of ['map', 'normalMap', 'roughnessMap']) if (M[k]) M[k].dispose();
+      M.dispose();
+    }
   }
   // buildModel's door: null = fly the live shader
   function forPayload(vis) {
     if (!vis || !vis.cage) return null;
     const b = BAKED.get(vis);
     if (!b || W.FLYDIY_FLOWN_BAKE === 0 || !FB.on) { BUILT_LIVE.add(vis); return null; }
-    LIVE.length = 0;
+    LIVE.length = 0; FOLDS.length = 0;
+    const baked = new Set(Object.values(b.mats));
     return {
-      mat: b.mat, ab: !!FB.ab,
+      mat: b.mats.ext || null, mats: b.mats, ab: !!FB.ab,
       has: name => b.names.has(name),
+      // the cabin's buckets keep their live material on their own meshes (the cockpit view) and fold on the 'in' one
+      inner: name => b.names.get(name) === 'in',
+      innerGroup: g => b.inner.has(g),
+      matOf: name => b.mats[b.names.get(name)] || null,
+      baked: m => baked.has(m),
       uv: g => b.uv.get(g) || null,
       // the A/B build: the live twin, and the cavity its shader reads (the flight's cavity pass skips a baked mesh)
       made: (mesh, liveMat) => {
         if (!FB.ab) return;
-        LIVE.push([mesh, liveMat]);
+        LIVE.push([mesh, liveMat, mesh.material]);
         const WX = (typeof W.AEROWX !== 'undefined') ? W.AEROWX : null;
         if (WX && WX.aeroWxBakeCavity) WX.aeroWxBakeCavity(W.THREE, mesh.geometry, (liveMat.userData || {}).aeroFieldM || 1);
       },
@@ -559,50 +704,255 @@
   }
   function show(on) {
     let n = 0;
-    for (const [mesh, live] of LIVE) { const b = BAKED.get(W.CAGE_VISUAL); if (!b) break; mesh.material = on ? b.mat : live; n++; }
+    for (const [mesh, live, bm] of LIVE) { mesh.material = on ? bm : live; n++; }
+    return n;
+  }
+  // C4b's A/B (`?fbake=foldab`: every fold keeps its members, on the same arrays): true = the folds (C4b), false = the
+  // meshes they fold (C4a's draws: the exterior's baked meshes, the cabin's live ones), null = the cockpit's rule again;
+  // `only` ('ext' | 'in') flips one atlas's folds.
+  // Returns how many members flipped.
+  const FOLDS = [];
+  function showFold(on, only) {
+    let n = 0;
+    for (const F of FOLDS) { if (only && F.set !== only) continue; F.held = on !== null; if (on !== null) F.apply(!on); n += F.live.length; }
     return n;
   }
 
-  // ---- THE STEP ---------------------------------------------------------------------------------------------------------
-  // opt: { payload, spec, phase(label, frac), rebuild() }. Resolves with the stats (null = nothing baked: the live shader
-  // flies). No task over ~1 s: the unwrap | the compile (awaited) | a pass a task | the dilation | the mips a slice at a
-  // time | the IndexedDB write (async, not awaited).
-  async function step(opt) {
-    const T0 = performance.now(), t = {};
-    const THREE = W.THREE, vis = opt && opt.payload, spec = opt && opt.spec;
-    const phase = (l, f) => { if (opt && opt.phase) try { opt.phase(l, f); } catch (e) {} };
-    if (!FB.on || W.FLYDIY_FLOWN_BAKE === 0 || !THREE || !vis || !vis.cage || !W.AEROSKIN || !W.PARKED || !W.PARKED.unwrap) return null;
-    const R = renderer();
-    if (!R) return null;
-    const names = bakedNames(vis), list = groupsOf(vis, names);
-    if (!list.length) return null;
-    const key = keyOf(list, spec);
-    const done = stats => {
-      FB.last = stats;
-      if (BUILT_LIVE.has(vis) && opt.rebuild) { const t1 = performance.now(); try { opt.rebuild(); } catch (e) { console.error('flown bake: rebuild', e); } stats.rebuild = Math.round(performance.now() - t1); }
-      freeOld();
-      stats.total = Math.round(performance.now() - T0);
-      log(stats.hit ? 'cache hit' : 'baked', JSON.stringify(stats));
-      return stats;
-    };
-    const prev = BAKED.get(vis);
-    if (prev && prev.key === key) return done(Object.assign({}, prev.stats, { hit: 'memory' }));
-    // THE ROUND TRIP: a new snapshot of the build the last bake was made for (the shed and back) - the material and
-    // the uv arrays are reused as they stand (the groups' sizes agree: the same build snapshots the same soups)
-    if (MEM && MEM.key === key && MEM.sig.length === list.length && MEM.sig.every((n, i) => n === list[i].g.pos.length / 3)) {
-      list.forEach((e, i) => { e.uv = MEM.uvs[i]; });
-      attach(vis, list, MEM.mat, key, MEM.stats);
-      return done(Object.assign({}, MEM.stats, { hit: 'memory' }));
+  // ---- C4b (G875): THE ONE-MATERIAL MODEL - every baked mesh of the build folded into a handful of draws ------------
+  // A baked mesh reads position, normal and its atlas uv, on ONE material: nothing but its motion keeps it a draw of its
+  // own. Two kinds of motion, two answers:
+  //   THE VERTICES A RIG WRITES (the flex, the hinges, the struts, the legs, the links, the anchors, the floats - all of
+  //   poseModel's per-vertex rigs, on the CPU as before): each baked mesh's position and normal arrays become VIEWS into
+  //   one merged buffer, so a rig writes straight into what is drawn (the attribute objects the rigs hold are the same
+  //   ones, only their arrays moved); each frame the ranges whose attribute's version moved are flagged on the merged
+  //   buffer (written buckets first, so they are one range) - no copy, the upload the per-bucket buffers made before.
+  //   THE PARTS THAT MOVE AS A WHOLE (a wheel, the castor, an engine unit, a surface's pivot group - anything the build
+  //   hangs under its own Object3D): a BONE each. The merged mesh is a SkinnedMesh; a vertex has one bone at weight 1;
+  //   a bone's matrix is its part's transform relative to the model group (poseRigid's hand-set matrix where it wrote
+  //   one, else position / quaternion / scale), composed on the CPU in double every frame - small numbers, so float32 on
+  //   the GPU is exact enough - with the bind matrix the identity (bindMode 'detached'). Three's own skinning is used, so
+  //   every depth pass (the sun's cascades, the craft's cascade, an override material) and the raycast skin it too.
+  // The meshes the model group itself holds need no bone: they fold into a plain Mesh (no skinning in the vertex
+  // shader for the fuselage's hundred thousand vertices). The keys that split a fold: moves (skinned) or not, G564's
+  // crumb class as the roll-out will read it (a crumb casts nothing after the roll-out; a wheel's part over 4 cm casts:
+  // G1005) - so the shadows are the ones C4a cast - and the draw state (castShadow, receiveShadow, renderOrder, layers).
+  // Not folded (each for a reason the code states): a mesh with children, its own callbacks or userData, a pose of its
+  // own (not the rest transform), other attributes, or a hidden ancestor. The A/B build folds nothing (its live twins
+  // flip per mesh). `window.FLYDIY_FLOWN_MERGE = 0` before a build is the dial.
+  // opt.keep (THE CABIN, 'in'): the members are the LIVE meshes (their own material, every live attribute, plus uv1);
+  // they stay where they are, hidden, and the fold draws them on the baked cabin material - until the cockpit view, which
+  // flies the live shader at arm's length (the fold's view(on)). Their arrays are views into the fold's as well, so
+  // whichever is drawn draws the rigs' latest.
+  const I16 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  const atRest = m => m.position.x === 0 && m.position.y === 0 && m.position.z === 0 &&
+    m.quaternion.x === 0 && m.quaternion.y === 0 && m.quaternion.z === 0 && m.quaternion.w === 1 &&
+    m.scale.x === 1 && m.scale.y === 1 && m.scale.z === 1 && (m.matrixAutoUpdate || m.matrix.elements.every((v, i) => v === I16[i]));
+  function mergeModel(THREE, grp, mat, opt) {
+    if (!mat || FB.ab || W.FLYDIY_FLOWN_MERGE === 0 || !THREE.SkinnedMesh || !THREE.BufferGeometry || !grp || !grp.traverse) return null;
+    const o = opt || {}, wheel = o.wheel || new Set(), written = o.written || new Set();
+    const CR = o.crumb != null ? o.crumb : 0.15, WR = o.wheelCrumb != null ? o.wheelCrumb : 0.04;
+    const keep = !!o.keep || !!FB.foldAB, subs = o.members ? o.members.slice() : [];
+    if (!o.members) grp.traverse(m => { if (m.isMesh && m.material === mat) subs.push(m); });
+    const skip = {}, why = k => { skip[k] = (skip[k] || 0) + 1; };
+    const folds = new Map();
+    for (const m of subs) {
+      const g = m.geometry, at = g && g.attributes;
+      if (m.isSkinnedMesh || m.isInstancedMesh || !g || !g.index || !at.position || !at.normal || !at.uv1 || (!keep && Object.keys(at).length !== 3) ||
+          g.groups.length || (g.morphAttributes && Object.keys(g.morphAttributes).length) ||
+          at.position.isInterleavedBufferAttribute || at.normal.isInterleavedBufferAttribute) { why('attributes'); continue; }
+      if (!keep && (m.children.length || Object.keys(m.userData).length || Object.prototype.hasOwnProperty.call(m, 'onBeforeRender') ||
+          m.customDepthMaterial || m.customDistanceMaterial)) { why('own'); continue; }
+      if (!atRest(m)) { why('posed'); continue; }
+      let p = m.parent, shown = m.visible;
+      while (p && p !== grp) { if (!p.visible) shown = false; p = p.parent; }
+      if (!p) { why('outside'); continue; }
+      if (!shown) { why('hidden'); continue; }
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      const r = g.boundingSphere.radius;
+      const crumb = m.castShadow && r < CR && !(wheel.has(m) && r >= WR);
+      const moves = m.parent !== grp;
+      const k = [moves ? 'bone' : 'rest', crumb ? 'crumb' : '', m.castShadow, m.receiveShadow, m.renderOrder, m.layers.mask, m.frustumCulled].join('|');
+      let F = folds.get(k);
+      if (!F) folds.set(k, F = { moves, crumb, list: [], rMax: 0, m0: m });
+      F.list.push(m); F.rMax = Math.max(F.rMax, r);
+    }
+    const out = { meshes: [], kept: [], from: 0, to: 0, bones: 0, verts: 0, skip, of: new Map() };
+    for (const F of folds.values()) {
+      if (F.moves && new Set(F.list.map(m => m.parent)).size > 256) { why('bones'); continue; }   // a Uint8 bone index
+      // the buckets a rig writes first: their ranges are one span of the merged buffer
+      const list = F.list.slice().sort((a, b) => (written.has(b.geometry.attributes.position) ? 1 : 0) - (written.has(a.geometry.attributes.position) ? 1 : 0));
+      let nV = 0, nI = 0;
+      for (const m of list) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
+      const P = new Float32Array(nV * 3), N = new Float32Array(nV * 3), U = new Uint16Array(nV * 2);
+      const IX = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
+      const bones = [], boneOf = new Map();
+      const SI = F.moves ? new Uint8Array(nV * 4) : null, SW = F.moves ? new Uint8Array(nV * 4) : null;
+      const views = [], members = [];
+      let vo = 0, io = 0;
+      for (const m of list) {
+        const g = m.geometry, n = g.attributes.position.count, pa = g.attributes.position, na = g.attributes.normal;
+        const bs = g.boundingSphere;
+        members.push({ i0: io, i1: io + g.index.count, c: bs.center.clone(), r0: bs.radius, r: bs.radius * 1.1 + 0.05, b: F.moves ? (boneOf.has(m.parent) ? boneOf.get(m.parent) : bones.length) : -1 });
+        P.set(pa.array.subarray(0, n * 3), vo * 3); N.set(na.array.subarray(0, n * 3), vo * 3);
+        U.set(g.attributes.uv1.array.subarray(0, n * 2), vo * 2);
+        const ix = g.index.array; for (let i = 0; i < g.index.count; i++) IX[io + i] = ix[i] + vo;
+        if (F.moves) {
+          let b = boneOf.get(m.parent);
+          if (b === undefined) { b = bones.length; boneOf.set(m.parent, b); bones.push(m.parent); }
+          for (let i = 0; i < n; i++) { SI[(vo + i) * 4] = b; SW[(vo + i) * 4] = 255; }
+        }
+        // THE RIGS' ARRAYS MOVE INTO THE MERGED ONE: same attribute objects, their arrays now views
+        pa.array = P.subarray(vo * 3, (vo + n) * 3); na.array = N.subarray(vo * 3, (vo + n) * 3);
+        views.push({ pa, na, o: vo * 3, n: n * 3, vp: pa.version, vn: na.version });
+        vo += n; io += g.index.count;
+      }
+      const geo = new THREE.BufferGeometry();
+      const aP = new THREE.BufferAttribute(P, 3), aN = new THREE.BufferAttribute(N, 3);
+      geo.setAttribute('position', aP); geo.setAttribute('normal', aN);
+      geo.setAttribute('uv1', new THREE.BufferAttribute(U, 2, true));
+      if (F.moves) { geo.setAttribute('skinIndex', new THREE.BufferAttribute(SI, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(SW, 4, true)); }
+      geo.setIndex(new THREE.BufferAttribute(IX, 1));
+      geo.computeBoundingSphere();
+      const mesh = F.moves ? new THREE.SkinnedMesh(geo, mat) : new THREE.Mesh(geo, mat);
+      const m0 = F.m0;
+      mesh.name = keep ? 'flownBakedIn' : 'flownBaked';
+      mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder;
+      mesh.layers.mask = m0.layers.mask; mesh.frustumCulled = m0.frustumCulled;
+      mesh.userData.flownMerge = { subs: list.length, bones: bones.length, verts: nV };
+      // the roll-out's crumb rule (G564) reads this, not the merged sphere: a crumb fold casts nothing out there
+      if (F.crumb) mesh.userData.crumbR = F.rMax;
+      // the bones: stand-ins outside the graph, their matrixWorld the part's transform in the model group's frame
+      let boneMat = null;
+      if (F.moves) {
+        const B = bones.map(() => { const b = new THREE.Bone(); b.matrixAutoUpdate = false; b.matrixWorldAutoUpdate = false; return b; });
+        const sk = new THREE.Skeleton(B, B.map(() => new THREE.Matrix4()));
+        mesh.bindMode = THREE.DetachedBindMode || 'detached';
+        mesh.bind(sk, new THREE.Matrix4());
+        const L = new THREE.Matrix4();
+        boneMat = () => {
+          for (let i = 0; i < bones.length; i++) {
+            const M = B[i].matrixWorld; M.identity();
+            for (let q = bones[i]; q && q !== grp; q = q.parent) {
+              if (q.matrixAutoUpdate) L.compose(q.position, q.quaternion, q.scale); else L.copy(q.matrix);
+              M.premultiply(L);
+            }
+          }
+        };
+        boneMat();
+        // its sphere where the parts stand, not round their pivot-local vertices (the craft's cascade is fitted to the
+        // meshes' spheres: shadow_near.js tagCraft)
+        const all = new THREE.Sphere(), sp = new THREE.Sphere();
+        members.forEach((q, i) => { sp.center.copy(q.c).applyMatrix4(B[q.b].matrixWorld); sp.radius = q.r0; if (i) all.union(sp); else all.copy(sp); });
+        geo.boundingSphere = all;
+      }
+      // THE RAYCAST (the cockpit's pick every 80 ms, the sun's glare rays): member by member as the separate meshes were
+      // - the ray into the member's frame, its own sphere first, then its triangles at their current (rig-written)
+      // positions - never the whole fold's triangles behind one sphere round the aeroplane. A hit names the part the
+      // member rides (`part`: the object a bone stands for), so the pick still finds the lever it hit.
+      const side = mat.side, R3 = new THREE.Ray(), SP = new THREE.Sphere(), MM = new THREE.Matrix4(), MI = new THREE.Matrix4();
+      const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3(), hitP = new THREE.Vector3();
+      const Bs = F.moves ? null : [];
+      mesh.raycast = function (rc, hits) {
+        if (!this.visible) return;          // a hidden fold stands for meshes that are shown (the cabin's, in the cockpit)
+        const mw = this.matrixWorld, Bn = this.skeleton ? this.skeleton.bones : Bs;
+        for (const q of members) {
+          if (q.b >= 0) MM.multiplyMatrices(mw, Bn[q.b].matrixWorld); else MM.copy(mw);
+          MI.copy(MM).invert();
+          R3.copy(rc.ray).applyMatrix4(MI);
+          SP.center.copy(q.c); SP.radius = q.r;
+          if (!R3.intersectsSphere(SP)) continue;
+          for (let t = q.i0; t < q.i1; t += 3) {
+            const a = IX[t], b = IX[t + 1], c = IX[t + 2];
+            vA.fromArray(P, a * 3); vB.fromArray(P, b * 3); vC.fromArray(P, c * 3);
+            if (!R3.intersectTriangle(vA, vB, vC, side === THREE.FrontSide, hitP)) continue;
+            hitP.applyMatrix4(MM);
+            const d = rc.ray.origin.distanceTo(hitP);
+            if (d < rc.near || d > rc.far) continue;
+            hits.push({ distance: d, point: hitP.clone(), object: this, faceIndex: t / 3, face: { a, b, c, materialIndex: 0 },
+                        part: q.b >= 0 ? bones[q.b] : null });
+          }
+        }
+      };
+      mesh.userData.flownMerge.parts = bones;
+      // EVERY FRAME, before three reads the buffers (the scene's matrix pass precedes each render's projection)
+      const upd = mesh.updateMatrixWorld;
+      const ranges = [];
+      let stale = false;
+      mesh.updateMatrixWorld = function (force) {
+        ranges.length = 0;
+        let nd = 0;
+        for (const v of views) {
+          const dp = v.pa.version !== v.vp, dn = v.na.version !== v.vn;
+          if (dp) v.vp = v.pa.version;
+          if (dn) v.vn = v.na.version;
+          if (dp || dn) { nd++; const last = ranges[ranges.length - 1];
+            if (last && last.e === v.o) { last.e = v.o + v.n; last.p = last.p || dp; last.nn = last.nn || dn; }
+            else ranges.push({ s: v.o, e: v.o + v.n, p: dp, nn: dn }); }
+        }
+        if (nd || stale) {
+          // a fold that is not drawn (the cabin's in the cockpit, the whole model in the shed) uploads nothing: three
+          // only clears its ranges on an upload, so they would pile up frame after frame - it owes ONE whole upload instead
+          let shown = this.visible;
+          for (let q = this.parent; q && shown; q = q.parent) if (!q.visible) shown = false;
+          if (!shown) stale = true;
+          else if (stale || aP.updateRanges.length > 32 || aN.updateRanges.length > 32) {
+            stale = false;
+            aP.clearUpdateRanges(); aN.clearUpdateRanges(); aP.needsUpdate = true; aN.needsUpdate = true;
+          } else for (const r of ranges) {
+            if (r.p) { aP.addUpdateRange(r.s, r.e - r.s); aP.needsUpdate = true; }
+            if (r.nn) { aN.addUpdateRange(r.s, r.e - r.s); aN.needsUpdate = true; }
+          }
+        }
+        if (boneMat) boneMat();
+        return upd.call(this, force);
+      };
+      // the fold replaces its members in the graph, where the first of them stood among the model group's children
+      const at0 = grp.children.indexOf(list.find(m => m.parent === grp) || null);
+      if (keep) for (const m of list) { m.visible = false; out.kept.push(m); }
+      else for (const m of list) { m.parent.remove(m); out.of.set(m, mesh); }
+      grp.add(mesh);
+      if (at0 >= 0) { grp.children.splice(grp.children.indexOf(mesh), 1); grp.children.splice(Math.min(at0, grp.children.length), 0, mesh); }
+      out.meshes.push(mesh); out.from += list.length; out.to++; out.bones += bones.length; out.verts += nV;
+    }
+    (FB.merge || (FB.merge = {}))[o.keep ? 'in' : 'ext'] = { from: out.from, to: out.to, bones: out.bones, verts: out.verts, skip };
+    // the cockpit's swap (keep): the folds hide and the live members show, or back - once per change
+    if (keep) {
+      let cur = false;
+      out.live = out.kept.slice();
+      out.apply = on => {
+        on = !!on;
+        if (on === cur) return;
+        cur = on;
+        for (const f of out.meshes) f.visible = !on;
+        for (const m of out.live) m.visible = on;
+      };
+      out.view = on => { if (!out.held) out.apply(on); };
+      out.set = o.keep ? 'in' : 'ext';
+      FOLDS.push(out);
+    }
+    return out;
+  }
+
+  // ---- ONE ATLAS: the cache, else the bake ----------------------------------------------------------------------------
+  // j: { set, list, key, S }. Resolves { mat, stats } (null: this set flies live). The page's own tasks: the cache read
+  // (async), the unzip (a stream), the charts' uv per vertex, the compile (awaited, parallel), a pass a task, the upload.
+  async function bakeSet(THREE, R, vis, spec, j, phase) {
+    const { set, list, key, S } = j, t = {};
+    const M = MEMS[set];
+    // THE ROUND TRIP: a new snapshot of the build the last bake was made for (the shed and back) - the material and the
+    // uv arrays are reused as they stand (the groups' sizes agree: the same build snapshots the same soups)
+    if (M && M.key === key && sigOk(M.sig, list)) {
+      list.forEach((e, i) => { e.uv = M.uvs[i]; });
+      return { mat: M.mat, stats: Object.assign({}, M.stats, { hit: 'memory' }) };
     }
     // THE CACHE
     phase('baking your aeroplane: the cache', 0.05);
     let t0 = performance.now();
     const hit = FB.noCache ? null : await cacheGet(key);
     t.read = Math.round(performance.now() - t0);
-    if (hit && hit.sig && hit.sig.length === list.length && hit.sig.every((n, i) => n === list[i].g.pos.length / 3)) {
+    if (hit && sigOk(hit.sig, list) && hit.S === S) {
       t0 = performance.now();
-      const S = hit.S, n = S * S * 4;
-      const tex = [];
+      const n = S * S * 4, tex = [];
       for (const v of hit.tex) tex.push(await unsqueeze(v, n));
       let nuv = 0; for (const e of list) nuv += e.g.pos.length / 3 * 2;
       const u8 = await unsqueeze(hit.uv, nuv * 2), uvAll = new Uint16Array(u8.buffer, u8.byteOffset, nuv);
@@ -610,25 +960,24 @@
       t.unzip = Math.round(performance.now() - t0);
       if (tex.every(x => x.length === n)) {
         phase('baking your aeroplane: the mips', 0.5);
-        t0 = performance.now();
-        const mo = {}; await drive(mipSteps(tex, S, mo));
-        t.mips = Math.round(performance.now() - t0);
-        const mat = materialOf(THREE, { S, cc: hit.cc, levels: mo.levels });
-        bytes = mo.levels.reduce((s, lv) => s + gpuBytes(lv), 0);
-        const stats = Object.assign({}, hit.stats, { hit: 'idb', t, bytes });
-        attach(vis, list, mat, key, stats);
-        return done(stats);
+        const fo = await finishOff(tex, S, false, t);
+        if (fo) {
+          const mat = materialOf(THREE, { S, cc: hit.cc, levels: fo.levels }, set);
+          const stats = Object.assign({}, hit.stats, { hit: 'idb', t, bytes: fo.levels.reduce((s2, lv) => s2 + gpuBytes(lv), 0) });
+          remember(set, key, mat, stats, list);
+          return { mat, stats };
+        }
       }
     }
     // THE BAKE
     phase('baking your aeroplane: the charts', 0.1);
     await tick();
     t0 = performance.now();
-    const ext = extOf(list);
-    const uw = W.PARKED.unwrap(ext, { S: FB.S, gutter: FB.gutter });
-    if (!uw) { console.warn('flown bake: the charts do not pack'); return null; }
+    const U0 = await unwrapOff(list, S, set === 'in' ? FB.gutterIn : FB.gutter, t), uw = U0.uw;
+    if (!uw) { console.warn('flown bake: the charts do not pack (' + set + ')'); return null; }
+    const t1 = performance.now();
     const split = uvsOf(list, uw);
-    t.unwrap = Math.round(performance.now() - t0);
+    t.unwrap = Math.round(t1 - t0); t.uvs = Math.round(performance.now() - t1);
     phase('baking your aeroplane: the programs', 0.25);
     await tick();
     // the shared block as the flown aeroplane wears it, for the bake only
@@ -638,38 +987,80 @@
     let at;
     try {
       blockFor(THREE, vis, spec);
-      at = await bakeAtlas(THREE, R, vis, list, t);
+      at = await bakeAtlas(THREE, R, vis, list, t, S);
     } catch (e) {
-      console.warn('flown bake failed, the live shader flies:', e && e.message || e);
+      console.warn('flown bake failed (' + set + '), the live shader flies:', e && e.message || e);
       return null;
     } finally {
       for (const k in saved) U[k].value = copyVal(U[k].value, saved[k].value);
       if (WX && macro0) WX.aeroWxSetMacro(THREE, macro0);
     }
-    phase('baking your aeroplane: the gutters', 0.6);
+    phase('baking your aeroplane: the gutters and the mips', 0.6);
     await tick();
-    t0 = performance.now();
-    const cov = dilate(at.tex, FB.S);
-    t.dilate = Math.round(performance.now() - t0);
-    if (cov < 0.05) { console.warn('flown bake wrote', (cov * 100).toFixed(1), '% of the atlas: the live shader flies'); return null; }
-    phase('baking your aeroplane: the mips', 0.75);
-    t0 = performance.now();
-    const mo = {}; await drive(mipSteps(at.tex, FB.S, mo));
-    t.mips = Math.round(performance.now() - t0);
-    const mat = materialOf(THREE, { S: FB.S, cc: at.cc, levels: mo.levels });
-    bytes = mo.levels.reduce((s, lv) => s + gpuBytes(lv), 0);
+    const fo = await finishOff(at.tex, S, true, t);
+    if (!fo) return null;
+    if (fo.cov < 0.05) { console.warn('flown bake wrote', (fo.cov * 100).toFixed(1), '% of the ' + set + ' atlas: the live shader flies'); return null; }
+    const mat = materialOf(THREE, { S, cc: at.cc, levels: fo.levels }, set);
     let nvt = 0; for (const e of list) nvt += e.uv.length / 2;
-    const stats = { hit: false, t, bytes, groups: list.length, verts: nvt, tris: ext.nt, split, charts: uw.charts, axis: uw.axis,
-                    fill: +uw.fill.toFixed(3), cm: +(100 / uw.density).toFixed(2), cov: +cov.toFixed(3), cc: at.cc };
-    attach(vis, list, mat, key, stats);
+    const stats = { hit: false, t, S, bytes: fo.levels.reduce((s2, lv) => s2 + gpuBytes(lv), 0), groups: list.length, verts: nvt, tris: U0.nt, split,
+                    charts: uw.charts, axis: uw.axis, fill: +uw.fill.toFixed(3), cm: +(100 / uw.density).toFixed(2), cov: +fo.cov.toFixed(3), cc: at.cc };
+    remember(set, key, mat, stats, list);
     // the cache, off the screen's clock (gzip streams run off the main thread)
     const uvAll = new Uint16Array(nvt * 2); { let o = 0; for (const e of list) { uvAll.set(e.uv, o); o += e.uv.length; } }
-    cachePut(key, { S: FB.S, cc: at.cc, tex: at.tex, uv: uvAll, sig: list.map(e => e.g.pos.length / 3), stats: Object.assign({}, stats, { t: undefined }) })
+    cachePut(key, { S, cc: at.cc, tex: fo.levels.map(lv => lv[0].data), uv: uvAll, sig: list.map(e => e.g.pos.length / 3), stats: Object.assign({}, stats, { t: undefined }) })
       .then(() => log('cached', key)).catch(e => console.warn('flown bake: not cached', e && e.message || e));
-    return done(stats);
+    return { mat, stats };
   }
 
-  W.FLOWN_BAKE = { FB, step, note, forPayload, show, bakedNames, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
+  // ---- THE STEP ---------------------------------------------------------------------------------------------------------
+  // opt: { payload, spec, phase(label, frac), rebuild() }. Resolves with the stats (null = nothing baked: the live shader
+  // flies). The exterior's atlas, then the cabin's; each a cache hit or a bake (bakeSet). No task over ~1 s.
+  async function step(opt) {
+    const T0 = performance.now();
+    const THREE = W.THREE, vis = opt && opt.payload, spec = opt && opt.spec;
+    const phase = (l, f) => { if (opt && opt.phase) try { opt.phase(l, f); } catch (e) {} };
+    if (!FB.on || W.FLYDIY_FLOWN_BAKE === 0 || !THREE || !vis || !vis.cage || !W.AEROSKIN || !W.PARKED || !W.PARKED.unwrap) return null;
+    const R = renderer();
+    if (!R) return null;
+    const sets = bakedSets(vis), jobs = [];
+    for (const set of SETS) {
+      const names = new Set(); for (const [k, s2] of sets) if (s2 === set) names.add(k);
+      const list = groupsOf(vis, names);
+      const S = set === 'in' ? FB.Sin : FB.S;
+      if (list.length && S > 0) jobs.push({ set, list, key: keyOf(list, spec, set), S });
+    }
+    if (!jobs.length) return null;
+    const key = jobs.map(j => j.key).join('#');
+    const done = stats => {
+      FB.last = stats;
+      if (BUILT_LIVE.has(vis) && opt.rebuild) { const t1 = performance.now(); try { opt.rebuild(); } catch (e) { console.error('flown bake: rebuild', e); } stats.rebuild = Math.round(performance.now() - t1); }
+      freeOld();
+      stats.total = Math.round(performance.now() - T0);
+      log(stats.hit ? 'cache hit' : 'baked', JSON.stringify(stats));
+      return stats;
+    };
+    // the stats: the exterior's at the top (C4a's shape: the rigs read it), every set's under `sets`
+    const statsOf = (per) => {
+      const first = per.ext || per.in, out = Object.assign({}, first);
+      out.sets = per; out.bytes = 0; for (const k in per) out.bytes += per[k].bytes || 0;
+      bytes = out.bytes;
+      return out;
+    };
+    const prev = BAKED.get(vis);
+    if (prev && prev.key === key) return done(Object.assign(statsOf(prev.stats), { hit: 'memory' }));
+    const res = {};
+    for (let i = 0; i < jobs.length; i++) {
+      const j = jobs[i];
+      const r = await bakeSet(THREE, R, vis, spec, j, (l, f) => phase(l + (jobs.length > 1 ? ' (' + (j.set === 'in' ? 'the cabin' : 'the outside') + ')' : ''), (i + f) / jobs.length));
+      if (r) res[j.set] = r;
+    }
+    if (!Object.keys(res).length) return null;
+    attach(vis, jobs, res, key);
+    const per = {}; for (const k in res) per[k] = res[k].stats;
+    return done(statsOf(per));
+  }
+
+  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
                    bakeHook, FB_HOOK, BAKE_FS,
                    get bytes() { return bytes; },
                    clear: () => idb('readwrite', st => st.clear()) };

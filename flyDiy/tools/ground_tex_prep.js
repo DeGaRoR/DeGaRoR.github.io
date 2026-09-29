@@ -40,7 +40,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { writeMedia, pruneMedia, BASE_DECL, mediaRel } = require('./_media_lib.js');
+const { writeMedia, flatConst, pruneMedia, BASE_DECL, mediaRel } = require('./_media_lib.js');
 const { cookLayers } = require('./array_cook.js');
 const G = require('../src/core/28b_ground_fields.js');
 
@@ -68,6 +68,7 @@ function source(key, m) {
   const s = T.sets[key], keep = (s.keep || []).includes(m);
   if (!keep) for (const rel of (s.src && s.src[m]) || []) for (const r of ROOTS) { const f = path.join(r, rel); if (fs.existsSync(f)) return { f, from: 'assets' }; }
   const cur = current[key] && current[key][m];
+  if (Array.isArray(cur)) return { c: cur, from: 'shipped' };   // G903: the shipped map is a constant already
   if (cur && fs.existsSync(path.join(ROOT, cur))) return { f: path.join(ROOT, cur), from: 'shipped' };
   const leg = s.legacy && s.legacy[m];
   if (leg && fs.existsSync(path.join(ROOT, leg))) return { f: path.join(ROOT, leg), from: 'legacy' };
@@ -83,7 +84,13 @@ for (const key of Object.keys(T.sets)) {
     const src = source(key, m);
     if (!src) { console.error(`ground_tex_prep: ${key} ${m}: no source (${(s.src[m] || []).join(' | ')}) - run the importer, or bake on a box with assets/`); process.exit(1); }
     from[src.from]++;
-    const buf = fs.readFileSync(src.f);
+    // A FLAT MAP IS A NUMBER (G903, AS0b): a map whose every channel is a constant ships as that [r, g, b] - no
+    // file; the plain-texture consumers bind TEX_FLAT (site_ground.js), and the cook fills its channel with it
+    // (as pavement.js library() filled the layer on train 16) - the cook never reads a flat map's file, so a
+    // re-bake from the constant is the bake from the file
+    const buf = src.c ? null : fs.readFileSync(src.f);
+    const c = src.c || flatConst(buf);
+    if (c) { row[m] = c; row['_' + m] = null; row['_c' + m] = c; continue; }
     row[m] = REPORT ? mediaRel(SUB, `${key}_${STEM[m]}_${PX}`, 'jpg', buf) : writeMedia(SUB, `${key}_${STEM[m]}_${PX}`, 'jpg', buf);
     row['_' + m] = src.f;
     emitted.push(row[m]);
@@ -101,10 +108,11 @@ const KTX2_PLANES = k => [].concat(
   [{ plane: 1, stem: `${k}_kN_${PX}`, role: 'ktx2-normal', opts: {}, field: 'kN' }]);
 const entries = cooked.map(k => {
   const r = sets[k];
+  // (a flat colour or normal map would need a constant plane: none is flat - the cook asks for both files)
   if (!r._diff || !r._nor) { console.error(`ground_tex_prep: ${k} is cooked but has no colour or normal map`); process.exit(1); }
   return { stem: `${k}_layers_${PX}`, ktx2: KTX2_PLANES(k), planes: [
-    [{ img: r._diff, ch: 0 }, { img: r._diff, ch: 1 }, { img: r._diff, ch: 2 }, { img: r._height || null, ch: 0, or: 128 }],
-    [{ img: r._nor, ch: 0 }, { img: r._nor, ch: 1 }, { img: r._nor, ch: 2 }, { img: r._rough || null, ch: 0, or: 230 }]] };
+    [{ img: r._diff, ch: 0 }, { img: r._diff, ch: 1 }, { img: r._diff, ch: 2 }, { img: r._height || null, ch: 0, or: r._cheight ? r._cheight[0] : 128 }],
+    [{ img: r._nor, ch: 0 }, { img: r._nor, ch: 1 }, { img: r._nor, ch: 2 }, { img: r._rough || null, ch: 0, or: r._crough ? r._crough[0] : 230 }]] };
 });
 const layers = cookLayers({ sub: SUB, px: PX, entries, dry: REPORT, log: rel => console.log('  ktx2 ' + rel) });
 for (const k of cooked) {
@@ -127,8 +135,8 @@ let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/ground_tex_prep.js f
 // The files live under media/tex/ground/ (hash-in-filename).
 //
 // THE GROUND LIBRARY (G910, AS2): ONE table for the splat, the pavement, the lot and the site. A SET is its maps,
-// once (diff / nor / rough / height JPEGs, for the consumers that bind plain textures and the editors' previews)
-// and, for the sets an array can hold, \`layers\`: the two texture-array planes COOKED offline (tools/array_cook.js;
+// once (diff / nor / rough / height JPEGs, for the consumers that bind plain textures and the editors' previews; a
+// FLAT map is its [r, g, b], no file - G903) and, for the sets an array can hold, \`layers\`: the two texture-array planes COOKED offline (tools/array_cook.js;
 // colour rgb + height a, normal rgb + roughness a; raw RGBA8, one gzip stream) - src/viewer/ground_lib.js copies
 // them into the arrays, no canvas. \`libs\` are each library's keys, in its order, with its own numbers, each
 // naming its set. kA / kAl / kN (AS3, G916): the same planes as KTX2 files (colour for an sRGB-typed array / for a
@@ -161,7 +169,8 @@ const GROUND_VIEWS = (typeof Image !== 'undefined') ? (() => {
     if (s.layers) o.layers = B + s.layers;
     const kA = L === 'pavement' ? s.kA : L === 'splat' ? s.kAl : null;
     if (kA && s.kN) o.ktx = { A: B + kA, N: B + s.kN };
-    for (const m of MAPS[L]) if (s[m]) Object.defineProperty(o, m, { get: () => mk(s[m]), enumerable: true });
+    for (const m of MAPS[L]) if (Array.isArray(s[m])) o[m] = s[m];   // G903: a flat map is its [r, g, b] (TEX_FLAT)
+      else if (s[m]) Object.defineProperty(o, m, { get: () => mk(s[m]), enumerable: true });
     return o;
   };
   const dict = L => { const d = {}; for (const a of GROUND_TEX.libs[L]) d[a.key] = view(L, a); return d; };
