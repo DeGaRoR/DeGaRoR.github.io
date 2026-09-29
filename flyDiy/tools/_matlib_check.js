@@ -109,6 +109,7 @@ function sameState(a, b, skip) {
 
 // ---- 1. the props, the pier, the totems and the animals --------------------------------------------------------
 function registries(E) {
+  E.load('src/viewer/assets.js');   // G903 (AS0b): TEX_FLAT, which props.js reads for a flat map
   E.load('src/viewer/props.js');
   const reg = (dir, idx) => { for (const f of JSON.parse(fs.readFileSync(path.join(ROOT, dir, idx), 'utf8'))) E.load(dir + '/' + f); };
   reg('src/props', 'props_packs.json'); reg('src/pier', 'pier_packs.json'); reg('src/totems', 'totems_packs.json');

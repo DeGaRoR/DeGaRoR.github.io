@@ -169,7 +169,7 @@ console.log('2. every archetype from its spec');
   check(worst <= 0.002, 'the wing\'s reach is the spec\'s half-span on every one (to 2 mm: a bowed tip\'s last loft row stands at sin(0.965 x 90 deg) of its radius, as drawn)', 'worst ' + (worst * 1000).toFixed(1) + ' mm, ' + wk);
   check(tMax < 400, 'each in a fraction of a second', 'slowest ' + tMax.toFixed(0) + ' ms (first calls pay the JIT)');
 }
-if (PURE) { console.log('GATE HITBOX: ' + (bad ? 'FAIL' : 'PASS') + ' (' + (n - bad) + '/' + n + ', --pure)'); process.exit(bad ? 1 : 0); }
+if (PURE) { console.log((n - bad) + '/' + n + ' checks (--pure)'); console.log('GATE HITBOX: ' + (bad ? 'FAIL' : 'PASS')); process.exit(bad ? 1 : 0); }
 
 // ---- 3 the captures, the page in node ------------------------------------------------------------------------------
 (async () => {
@@ -288,6 +288,6 @@ if (PURE) { console.log('GATE HITBOX: ' + (bad ? 'FAIL' : 'PASS') + ' (' + (n - 
       check(a0 > 0, B.name + ' d: 1 cm into ' + PK2.key + '\'s drawn wing - contact', a0 + ' node-steps');
     }
   }
-  console.log('GATE HITBOX: ' + (bad ? 'FAIL' : 'PASS') + ' (' + (n - bad) + '/' + n + ')');
+  console.log((n - bad) + '/' + n + ' checks'); console.log('GATE HITBOX: ' + (bad ? 'FAIL' : 'PASS'));   // (the runner reads the exact line)
   process.exit(bad ? 1 : 0);
 })().catch(e => { console.error(e); console.log('GATE HITBOX: FAIL (' + (e && e.message) + ')'); process.exit(1); });

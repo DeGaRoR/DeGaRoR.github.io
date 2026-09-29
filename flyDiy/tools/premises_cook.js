@@ -73,6 +73,9 @@ function headless() {
   const GENS = {};
   const ctx = { window: GENS, THREE: stubTHREE(), console, Math, JSON, Float32Array, Float64Array, Uint8Array, Uint16Array, Uint32Array, Int32Array, Object, Array, Set, Map, Number, String, Boolean, isFinite, isNaN, parseInt, parseFloat };
   ctx.globalThis = ctx;
+  // G903 (AS0b): a flat map is a constant the generators turn into assets.js's shared 1x1 (TEX_FLAT); the cook's stub THREE has
+  // no DataTexture and the placements never read a texel, so a stub texture carrying the constant stands in
+  ctx.TEX_FLAT = (rgb, cs) => { const t = new ctx.THREE.Texture(null); t.userData = { flat: rgb.slice(0, 3) }; t.colorSpace = cs || ''; return t; };
   vm.createContext(ctx);
   for (const f of GEN_FILES) vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
   const PG = C.PREMISES_GEN;
