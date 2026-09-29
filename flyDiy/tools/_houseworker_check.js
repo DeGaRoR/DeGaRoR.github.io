@@ -131,8 +131,14 @@ async function child(mode, idbDir, outFile) {
   const DET = !!process.env.HOUSEWORKER_DETAIL;
   for (const [id, h] of R.houses) out.entries[id] = { d: DET ? digestEntry(W, h, true).d : digestEntry(W, h), parts: DET ? digestEntry(W, h, true).parts : undefined, kind: h.plot && h.plot.isItem ? 'item' : h.plot && h.plot.isFence ? 'fence' : h.plot && h.plot.isObject ? 'object' : h.plot && h.plot.isPark ? 'park' : 'house', failed: !!h.failed };
   out.queued = R.stats.queued;
+  out.thrown = P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 10);
+  // and the scene DRAWN after the loading: a few frames of the page's own loop in the shed (the world's buffers, the
+  // worker's arrays among them, uploaded by then: the loading's warm draw) - a refused array would throw here
+  await P.frames(3);
+  out.thrown = P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 10);
   out.hwLogs = P.logs.filter(l => /house worker/.test(l)).slice(0, 40);
   out.worker = W.HOUSE_WORKER && W.HOUSE_WORKER.stats ? W.HOUSE_WORKER.stats() : null;
+  if (out.worker && R.hw) Object.assign(out.worker, { dispatched: R.hw.dispatched, placed: R.hw.placed, here: R.hw.local, prefetch: R.hw.prefetch, tallyMiss: R.hw.tallyMiss || 0 });
   out.threads = P.workers ? P.workers() : null;
   out.mem = process.memoryUsage().rss;
   fs.writeFileSync(outFile, JSON.stringify(out));
@@ -175,6 +181,8 @@ const HOUSE_CALLS = ['HOUSE_GEN.build0', 'HOUSE_GEN.build1', 'VILLAGE_GEN.placeH
 function sumCalls(calls, re) { const t = {}; for (const [s, m] of Object.entries(calls || {})) if (!re || re.test(s)) for (const [k, v] of Object.entries(m)) t[k] = (t[k] || 0) + v; return t; }
 function verdict(res, ok) {
   const L = res.local;
+  const thrown = C => (C.thrown || []);
+  for (const m of ['local', 'cold', 'warm', 'partial']) if (res[m]) ok(!thrown(res[m]).length, m + ': no script, timer or frame of the page threw' + (thrown(res[m]).length ? ' (' + thrown(res[m]).length + ': ' + String(thrown(res[m])[0]).slice(0, 160) + ')' : ''));
   if (L) {
     const t = sumCalls(L.calls, /:town$/);
     console.log('  local: the town step\'s generation on the page\'s thread ' + JSON.stringify(t));

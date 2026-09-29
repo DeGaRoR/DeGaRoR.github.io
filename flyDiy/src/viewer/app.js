@@ -6876,6 +6876,9 @@
   const anchorStr = () => { const a = standAnchor(); return a ? Math.round(a[0]) + ',' + Math.round(a[2]) : 'none'; };
   // the point the world's steps grow round: the stand's anchor in the shed (the boot), the aeroplane once it stands
   const tripCg = () => inGarage ? (standAnchor() || [0, 0, 0]) : sim.cgPos();
+  // G831: the point the town step builds from, for the premises' house worker to start on it at the world step's rebuild
+  // (render_world's make: `anchor`) - the shed's stand only (a roll-out from the shed, the one loading)
+  window.FLYDIY_TOWN_AT = () => (inGarage ? standAnchor() || null : null);
   const ringOk = () => !!(WF && WF.ringReady && WF.ringReady(tripCg(), RING_REACH, true));
   // the graphics that key programs (the frame rate and the preset's name key none)
   const gfxKey = () => { const G = window.GFX; if (!G || !G.get) return '-'; const g = G.get(); delete g.fps; delete g.preset; return JSON.stringify(g); };
