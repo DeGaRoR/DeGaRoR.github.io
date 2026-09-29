@@ -24,6 +24,10 @@
 //     runs late on the vsync it owes, 60's median holds), a drop to 30 comes back to 60 - the trial is the judge, not the
 //     one-step work (G615 waited for it under 16.7 ms: never); a frame that cannot hold 60 keeps backing off; a load
 //     swinging across the edge does not flap (a drop within 20 s of an up is a missed trial).
+//   - G879.1: THE HEAD'S LOOK IS FRAME-RATE-SAFE: the cockpit head (headCam.update, lifted as written) blends the
+//     aeroplane's frame a constant tenth toward level - a stateless blend, so no weight on the frame's dt: an aeroplane
+//     pitched 11 deg under alternating 16.7 / 50 ms frames holds the look's pitch still (G586 had made it easeK(0.1, dt):
+//     the look jumped 0.10 / 0.27 of the pitch frame to frame, the user's "camera frenetically going up and down").
 //   node tools/_pace_check.js          -> "GATE PACE: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -266,6 +270,30 @@ function med0(a) { const s = a.slice().sort((x, y) => x - y); return s[s.length 
   driveVsync(P3, 300, t => 20.5 + 2 * Math.sin(2 * Math.PI * t / 12000), 2.5, 1); const s3 = P3.state();
   verdict(s3.stats.up <= 12 && s3.stats.trialsFailed >= s3.stats.up - 2,
     `  the edge swinging over 12 s: ${s3.stats.up} ups in 300 s (<= 12; 24 without G990's 20 s rule), ${s3.stats.trialsFailed} counted as missed trials`);
+}
+// G879.1: the head's look under an uneven frame clock (headCam's block lifted from app.js as written)
+{
+  const THREE = require(path.join(__dirname, '..', 'vendor', 'three.min.js'));
+  const END = '    return headCam.p;\n  };';
+  const h0 = src.indexOf('  const headCam = { off: new THREE.Vector3()'), h1 = src.indexOf(END, h0);
+  const e0 = src.indexOf('  function easeK(k, dt) {'), e1 = src.indexOf('\n', e0);
+  verdict(h0 > 0 && h1 > h0 && e0 > 0, "the head's block (headCam .. update) and easeK found in app.js");
+  if (h0 > 0 && h1 > h0 && e0 > 0) {
+    const code = src.slice(e0, e1) + '\n' + src.slice(h0, h1 + END.length) + '\nreturn headCam;';
+    const clock = { t: 1000 };
+    const camera = new THREE.PerspectiveCamera(46, 16 / 9, 0.05, 1000);
+    const headCam = new Function('THREE', 'camera', 'performance', 'FL', 'inGarage', 'cam', 'flEyeLoc', 'edEye', 'edSit', code)(
+      THREE, camera, { now: () => clock.t }, {}, false, {}, null, null, {});
+    // the aeroplane pitched 11 deg nose up (the model frame: x aft, y up, z left; the eye looks down -x), the eye 1 m up
+    const M = new THREE.Matrix4().makeRotationZ(-11 * Math.PI / 180).setPosition(0, 2, 0);
+    const P = new THREE.Vector3(0, 1, 0), F = new THREE.Vector3(-1, 0, 0), d = new THREE.Vector3();
+    headCam.update(P, F, M);
+    const pit = [];
+    for (let i = 0; i < 40; i++) { clock.t += i % 2 ? 50 : 16.7; headCam.update(P, F, M); camera.getWorldDirection(d); pit.push(Math.asin(d.y) * 180 / Math.PI); }
+    const lo = Math.min(...pit), hi = Math.max(...pit);
+    verdict(hi - lo < 0.01, "  the look's pitch under alternating 16.7 / 50 ms frames: " + lo.toFixed(3) + ' .. ' + hi.toFixed(3) + ' deg (spread < 0.01)');
+    verdict(Math.abs(hi - 0.9 * 11) < 0.3, '  a tenth of the way to level: ' + hi.toFixed(2) + ' deg on an aeroplane at 11 (~9.9)');
+  }
 }
 console.log('GATE PACE: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

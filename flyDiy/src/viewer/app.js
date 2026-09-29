@@ -9991,7 +9991,11 @@
       headCam.tmp.normalize().add(headCam.p);
       camera.up.set(0, 1, 0);
       camera.lookAt(headCam.tmp);
-      headCam.qP.slerp(camera.quaternion, easeK(HEAD_LEVEL_K, dt));   // (G586: per 60th of a second)
+      // NOT an ease (G586 made it one): the blend is stateless - qP starts on the aeroplane's frame every frame and goes a
+      // tenth of the way to the level one - so a weight on the frame's real dt made the look's pitch jump with every
+      // change of frame time (16.7 / 33 / 50 ms: a tenth, 0.19, 0.27 of the aeroplane's pitch; the Cub on its tail
+      // at 11 deg, a climb at 8-10 deg): the user's "camera frenetically going up and down" (2026-09-30), even paused
+      headCam.qP.slerp(camera.quaternion, HEAD_LEVEL_K);
     }
     camera.quaternion.copy(headCam.qP);
     return headCam.p;

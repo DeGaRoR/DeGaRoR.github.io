@@ -64018,3 +64018,27 @@ only while the cook was stale (every key captured live).
 - OPEN (not held for): the world's settle step still has two ~1.1 s tasks (garage:settle, ~27 s into the loading): one
   worldUpdate call builds a ground chunk (buildChunk ~0.84 s: grCooked/grHeight) and merges an HLOD cell (hlodMerge
   ~0.52 s: meanOf) in the same task - worldAtRest's 40 ms slice cannot cut inside one call.
+
+## G879.1 - THE COCKPIT SHAKE: THE HEAD'S TENTH TOWARD LEVEL IS A CONSTANT, NOT AN EASE (2026-09-30, C4b for the coordinator, local GPU)
+
+The user, 2026-09-30: "I tried the cockpit view, and it was shaking like hell ... camera frenetically going up and down
+in small increments."
+- **THE CAUSE:** headCam.update. The look starts from the aeroplane's frame every frame and goes a tenth of the way
+  toward the level frame (4c's "10 % influence to tilt the head up straight"). That is a stateless blend.
+  - G586 (d7eea605, the frame clock) turned the tenth into `easeK(0.10, dt)`, weighted by the frame's real dt.
+  - Around the 30 fps cap frames run 16-55 ms. So the weight jumped 0.10 / 0.19 / 0.27 frame to frame, and the look's
+    pitch jumped with it, by up to a quarter of the aeroplane's pitch (the Cub on its tail at 11 deg, a climb at 8-10).
+  - It happens even paused. It was in train 13; nothing in train 16 caused it.
+- **THE FIX:** `headCam.qP.slerp(camera.quaternion, HEAD_LEVEL_K)`, the constant tenth.
+- **MEASURED** (tools/eye_judder.js on a live_driver page; the Cub, the cockpit head at rest, 5 s of frames at the draw
+  each). The look's pitch judder is the rms of its second difference (stand / taxi / climb):
+  - train 13 28356809: 12.4 / 9.3 / 7.5 mrad (max 44 mrad = 2.5 deg, its sign flipping on 2 frames in 3);
+  - train 16 c4b85222: 4.5 / 5.4 / 9.9 mrad;
+  - SHADOW-EYES 3c490d9b: 4.4 / 5.3 / 9.5 mrad;
+  - + this fix: 0.016 / 0.049 / 0.053 mrad, the aeroplane's own pitch judder (0.02-0.07 mrad).
+  - The eye's position was smooth throughout (0.05-0.3 mm).
+- **GATE PACE** gains the check: the head's block lifted from app.js as written; an aeroplane at 11 deg under
+  alternating 16.7 / 50 ms frames. Its look holds at 9.900 deg with the fix; unfixed it swings 8.02-9.90 deg (red).
+- **STILL OPEN (older, not this):** the flown pose is the solver's last step, not interpolated. A frame that owes 2 or 3
+  steps after one that owed 1 moves the eye by that much more: in a climb at 60 fps (1-2 steps) the eye's height judders
+  up to 57 mm; at a steady 30 (2 steps each) it does not. Interpolating the pose between steps is the fix (a bigger one).
