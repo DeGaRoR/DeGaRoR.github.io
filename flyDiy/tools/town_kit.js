@@ -89,11 +89,25 @@ function loadGens() {
 const FIXTURE = path.join(TOOLS, 'fixtures', 'island_jolene.json');
 // the tree pool the composer wants (met_measure.js's two stand-ins: the forest zones are not this file's business)
 const POOL = [{ key: 'a|tall', size: 1, sink: 0, proportion: 1, h: 16 }, { key: 'b|small', size: 1, sink: 0, proportion: 1, h: 8 }];
-// THE SEA IS AT ZERO. render_premises.js buildHouse asks world.waterH(0, 0), which on Jolene answers for the WORLD
-// ORIGIN - dry land, -Infinity - so every waterfront house in the game walks out to its plot's depth limit and gets
-// an infinite tide (G850 found it; not this chantier's to fix, HANDOVER says so). The island's sea level is 0
-// (GATE PREMISES 14's own note); the kit sows what the town was designed to be.
+// THE TIDE A HOUSE STANDS AGAINST IS ITS ZONE'S WATER (C3b, 2026-09-29: the harbour's kit matches the procedural
+// harbour side by side). render_premises.js buildHouse asked world.waterH(0, 0) - on Jolene the WORLD ORIGIN, dry land,
+// -Infinity (G850 found it) - and C2c's G843 makes the house read its zone's water exactly as the sower does
+// (27_premises compose's zoneWaterY, G434/G434.1: the LOWEST finite water over the zone's box +-60 m, 13 x 13 samples,
+// the anchor's water where none is found). zoneWater() here is that rule, line for line; PG.zoneWaterY is taken
+// instead once 27_premises exports it. SEA (0, Jolene's sea: GATE PREMISES 14) is the answer where a zone touches no
+// water at all.
 const SEA = 0;
+function zoneWater(PG, world, F, z) {
+  if (typeof PG.zoneWaterY === 'function') { try { const v = PG.zoneWaterY(world, F, z); if (Number.isFinite(v)) return v; } catch (e) { /* the page's rule below */ } }
+  const at = world.waterH ? world.waterH(F.anchor.x, F.anchor.z) : -Infinity, anchor = Number.isFinite(at) ? at : SEA;
+  if (!world.waterH || !z || !z.poly || z.poly.length < 3) return anchor;
+  const bb = PG.polyBBox(z.poly); let best = Infinity;
+  for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) {
+    const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12);
+    const v = world.waterH(w[0], w[1]); if (Number.isFinite(v) && v < best) best = v;
+  }
+  return Number.isFinite(best) ? best : anchor;
+}
 const townOf = zone => (/^mk_/.test(String(zone)) ? 'metlakatla' : 'village');
 function sow(opts) {
   const o = opts || {};
@@ -102,6 +116,8 @@ function sow(opts) {
   const IW = require(path.join(TOOLS, 'island_node.js')).islandWorld('jolene', {});
   const O = PG.compose(rec, IW, { catalogue: CAT, globals: G.win, pool: POOL });
   const Tv = { h: (lx, lz) => O.localH(lx, lz), waterY: SEA, size: 20000 };
+  const ZW = new Map();   // zone id -> its water (the tide its houses stand against)
+  const TvOf = zid => { if (!ZW.has(zid)) ZW.set(zid, zoneWater(PG, IW, O.frame, rec.layers.zones.find(z => z.id === zid))); return Object.assign({}, Tv, { waterY: ZW.get(zid) }); };
   const houses = [], outs = [];
   const FENCED = new Set();
   for (const plot of O.records.plots) {
@@ -111,8 +127,9 @@ function sow(opts) {
     const rnd = PG.mulberry32(plot.seed);
     let preset;
     if (plot.pick && plot.pick !== 'sampler') { const e = CAT.entries.get(plot.pick); if (e && e.gen === 'HOUSE_GEN') preset = e.preset; }
-    const house = VG.placeHouse(Tv, V, plot, plot.seed % 100000, rnd, preset);
-    const s = { i: houses.length, plot, town: townOf(plot.zone), zone: plot.zone, preset: preset || null, house, P: house.P, V, Tv };
+    const Tz = TvOf(plot.zone);
+    const house = VG.placeHouse(Tz, V, plot, plot.seed % 100000, rnd, preset);
+    const s = { i: houses.length, plot, town: townOf(plot.zone), zone: plot.zone, preset: preset || null, house, P: house.P, V, Tv: Tz };
     houses.push(s);
     if (o.outbuildings === false) continue;
     // THE OUTBUILDING: VILLAGE_GEN.finishPlot on a LOD-1 build of the house (what it reads of the build - the stair
@@ -122,14 +139,14 @@ function sow(opts) {
     try {
       const built = HG.build(house.P, 1);
       const rd = O.roads.find(r => r.id === plot.road) || O.roads[0];
-      const T = { h: Tv.h, size: Tv.size, waterY: Tv.waterY };
+      const T = { h: Tz.h, size: Tz.size, waterY: Tz.waterY };
       const pl = Object.assign({}, plot);
       const vil = { rnd: PG.mulberry32(plot.seed ^ 0x5eed), V, road: { pts: rd.pts, w: rd.w }, fenced: FENCED, T, spread: null, plots: O.records.plots, houses: [] };
       VG.finishPlot(vil, pl, house, built);
       if (pl.out) outs.push({ i: outs.length, plot, town: s.town, zone: plot.zone, kind: pl.out.kind, house: pl.out, P: pl.out.P, of: s.i });
     } catch (e) { /* a plot the dressing refuses keeps no outbuilding, as in the game (render_premises dressPlot) */ }
   }
-  return { rec, O, IW, houses, outs, Tv };
+  return { rec, O, IW, houses, outs, Tv, zoneWater: ZW };
 }
 
 // ---------------------------------------------------------------------------
@@ -842,4 +859,4 @@ if (require.main === module) {
 
 module.exports = { loadGens, sow, feat, dist, splitOf, kMedoids, allot, FLOOR, pickArchetypes, canonP, stanceTop, buildArchetype, buildKit, takeLod, boxLod,
   encodePack, decodePack, encodeLod, decodeLod, octEnc, octDec, finishTable, finishOf, assign, fits, groundCorners, encodeInstances, decodeInstances,
-  instanceFile, rasterSheet, run, report, MANIFEST, INST, VSTRIDE, STRETCH, LOD_DIST, DRESSING, SEA };
+  instanceFile, rasterSheet, run, report, MANIFEST, INST, VSTRIDE, STRETCH, LOD_DIST, DRESSING, SEA, zoneWater };
