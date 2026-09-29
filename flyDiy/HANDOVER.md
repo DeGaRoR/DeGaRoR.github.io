@@ -65139,3 +65139,177 @@ divergence from the worker (today the page's watchdog reads the mirrored p - it 
 GATES (targeted, as the brief asks; --only implies full): SIMWORKER-PAGE PASS (both builds), SIMWORKER PASS, PACE,
 BOOT, UISMOKE, FLIGHTREC, STAND, TAKEOFF, CLIMATE PASS, PILOT PASS (3 shards), FRAMECOST PASS (the default page unchanged). Built outputs
 rebuilt by the runner, not committed (a cloud branch).
+
+## G820-G829 - C1c: EVERY EDGE OF A FLIGHT THROUGH THE PHYSICS WORKER, AND THE WORKER AS THE DEFAULT CANDIDATE (2026-09-29, QUEUE-C C1c, cloud, node only; block G820-G829, G823-G829 unused)
+
+ARCH-2026-09-27 §2.5 steps 4-6 on C1b (G815-G816). THE BASE: origin/claude/batch-a-base b3bf0431 + C1b's four commits (origin/claude/upbeat-heisenberg-n9qprl) - the brief's
+"rebase onto the newest batch-a-base": trains 14-16 had not landed there at READY time. The work was DEVELOPED AND PROVEN
+FIRST on C1b rebased onto origin/claude/train-16 (30b8989b: B8B9's one loading and step table, C0; C1b's four app.js hunks
+applied there cleanly - only HANDOVER / PLAYTEST conflicted), then ported here: two one-line conflicts (the boot's done
+callback - bootOpts on train-16, BOOT.run's options here - and rollout_perf's result line: no `trips` here) and ONE FILE LEFT
+OUT: tools/_roundtrip_check.js (B8B9's GATE ROUNDTRIP, not on this base). Its hunk is kept as
+`tools/perf/c1c_roundtrip_worker.patch` (git apply -p1 from the repo root, on a tree with B8B9) - apply it when the train
+carries B8B9: ROUNDTRIP then runs the page's default (the worker) through the harness's Worker shim and checks it flew every
+flight. On train-16 it passed (below).
+
+**G820 THE EDGES** (`src/viewer/sim_link.js`, `sim_host.js`, `sim_view.js`; app.js: the SIMW flag, the loop's step
+block, nextLeg, startTestFlight, FLIGHT_PROBE, the boot's done, PACE's readings, the recorder's probe):
+- LOCKSTEP MIRRORS ON ARRIVAL. The rig's answer to a frame lands between two frames; whatever the page does THERE (a
+  click on Fly on, the hand taken - INP.seed reads the levers -, the skip's question to the aeroplane) must read the state
+  the inline loop would: the snapshot is written into the page's sim when it lands (sim_link onMsg), the picture still one
+  frame behind as C1b drew it. The page's DAY (DAY_CLOCK) ticks what the frame POSTED in lockstep - the inline loop ticks
+  what it stepped, in the same batches - so the next flight's init hands the worker that day (a second flight of the page
+  - after Restart, the skip, the shed - flew a frame's day behind without it). Real time: what the picture moved on.
+- ONE WORKER SIM PER BUILD, AS THE PAGE HAS ONE. fullReset, the skip and the shed's round trip RESET and re-place the page's
+  one sim object; a reset is not a new sim: `sim.out` (V, the wind, easK) is never cleared (30_solver.js reset), and the
+  pilot's first update reads it BEFORE the first step whenever a flight starts `started` (the skip: found by the gate -
+  the pilot's 2 s acceleration filter took a different first sample, invisible until TECS engaged 1 300 steps later,
+  after the hand gave the climb back). The init says `keepSim` when the page flies the same sim object as the worker's
+  last flight and the build is the same (the spec's JSON): the host keeps its def and sim. A sim it makes anew takes the
+  page's sim.out (`init.out`). A flight that went inline forgets it (the page's sim flew what the worker's did not).
+- THE SKIP TO LINE-UP is the worker's: `place.lineup` - the host runs app.js placeLinedUp statement for statement
+  (sim_host lineup: the question asked of a pilot planning from the stand, the reset pose, placeAtLineup, every engine
+  running, the pilot handed the HOLD); the page's placement check holds it to the bit. The SITE the page's skip plans on
+  is lastStart's (taken when the flight began: an editor's edit since then is not in it) - sent along (`place.site`).
+  The 'lined up' start (the rail's start pref, applyRoute -> placeLinedUp) takes the same path.
+- FLY ON (app.js nextLeg -> `SIMW.leg(from, to)`): a fresh pilot in the worker at the same step boundary, departing from
+  where the last leg ended, no reset; the page's new `ap` is the flight's from then on. `meta.apNew` (the host's pilot
+  generation): the view drops every field of the last pilot (sim_view take) - the new page pilot is not handed the old one's
+  report / tdInfo. `FLIGHT_PROBE.nextLeg()`: Fly on's chain for a rig that cannot fly a circuit first.
+- THE HAND'S ENDING (app.js manualEnding) runs in the worker's step (sim_host manualEnding; its state H.end reset where the
+  page resets it: a new flight, a new leg, the hand taken); the card's latch (`flightOver`) and endFlight's outcome go to
+  the worker ({cmd:'over', on, outcome}).
+- THE BENCH'S TEST CARD (startTestFlight: ap.setCard after the placement) - `SIMW.card()`: kept for the next init
+  (`pilot.card`, set after place()) or sent at the step when the flight is live.
+- THE WORLD EDITOR'S EDITS: the page world's `world.premises.set` wrapped (every edit and later rebuild recomposes the page's
+  world there - render_premises composeNow) and replayed on the worker's world at the same step boundary ({cmd:'premises',
+  rec}; the generators' builder is the worker's own - C1b imports the scripts there); the houses' and props' obstacles
+  follow through the registry's own ops; each bumps the world version. A MAP change reloads the page (the ground row's
+  `reload: true`): nothing to carry.
+- THE DIVERGENCE (G130): the snapshot's F_DIVERGED flag, read every frame (`sw.diverged`), beside the page's own 30th-frame
+  watchdog on the mirrored p; the worker stops stepping a diverged sim.
+- PAUSE, the scenery mode, the card: nothing flies, `SIMW.idle()` - the worker's clock stops (lockstep: no step posted).
+  The world's changes made meanwhile (the editor's rebuild under its pause, the scenery mode's streaming) are sent at once
+  (idle flushes the registry's ops): stamped at that boundary in lockstep, applied before the next step in real time (a
+  `probe` answers for that world - found by the real-time smoke on this base).
+- THE SHED: every way in resets the page's sim (enterGarage), which takes the mirror down FIRST (C1b): the shed's sim is the
+  page's own, not stepping - the control sweep writes its levers there and nothing reaches the worker. `SIMW.shed()` (the
+  loop's garage branch) lets any worker flight go: on this base enterGarage commits a pending build first (setAircraft - a
+  NEW sim) and resets that one, which left the old flight's mirror standing on the old sim (found by the gate here, not on
+  train-16).
+- THE WORKER'S WORLD IS MADE IN THE SHED (`SIMW.prewarm()` at the boot's done: {cmd:'mkworld'} - the trimmed boot fetched
+  and the world made on the worker's thread while the player is in the shed). Here the flight is asked under the roll-out
+  screen (C1b's warm()); with B8B9 a roll-out shows no screen, and the stand no longer waits ~3 s for the worker (held 1
+  frame: its init only, measured on train-16). The host holds every message that arrives while a
+  boot is fetched (`making` / `held`), so an init can follow at once.
+- A DEAD LINK IS THE INLINE LOOP: SIM_LINK wraps nothing until its worker is up (the registry, the day calls, the premises'
+  set, world.wind); a page whose worker cannot be had (no Worker, file://, the page in node without the shim) returns null
+  from every frame - the loop's step block is the inline one, byte for byte.
+- 2x: under the worker the rate drops to 1x when the WORKER cannot hold it (its dilation under 0.9, 30 frames running) -
+  the page's physMs is its post-and-mirror there.
+
+**G821 GATE SIMWORKER-EDGES** (tools/_simworker_edges_check.js, FULL tier, weight 2; one page run at a time): the page in
+node twice per build (dev.html?simw=0 / ?simw=1, lockstep, 2x), ONE SCRIPT of the player's doors each fired at the same
+STEP OF THE SESSION (the steps every flight took so far: a new worker flight waits a frame for its init): 240 frames in the
+shed (the same in both: the day and the sweep run on the shed's frames), Roll out, pause (30 frames) and run, the hand on
+and off on the taxi, THE EDITOR'S EDIT (the sim held; the premises' object nearest the aeroplane moved 4 m - a parked
+aeroplane by the stand on Jolene; R.setRecord + rebuild; the worker's world probed against the page's: the ground over the
+island on a 64 grid, the surface, the relief raster, the obstacles), Fly on, the skip to line-up, the hand on and off in
+the take-off's climb, the scenery mode (and #bGo), Restart (and #bGo after 4 held steps), the shed (60 frames of its
+sweep) and the roll-out back, the divergence (sim.impulse(0, 1e300 ...)). Asserted: every flight's steps (p, v, CG FNV,
+phase) and every frame's page reads (cgPos, axes, bodyOrigin, phase) bit-identical up to the divergence; every door at the
+same session step and doing its thing in both (the skip took, Fly on made a new pilot, the divergence ended 'broke-up'); the
+shed's sweep equal frame for frame and nothing posted from the shed; no solver step on the page under simw, no stray, no
+inline fallback, wvBad 0, the world made in the shed; no error. `--realtime`: the same script on the worker's real clock
+(?simw=1&pace=1) - the pause exact, every flight placed and live, no error. Triage: SIMWE_KEEP=<dir> keeps (and reuses) the
+inline record, SIMWE_DUMP=flight:from:to[,...] dumps the levers, out and the pilot's fields at those steps, --only=<doors>.
+tools/_page_node.js: `P.settleWorkers()` (the workers' answers delivered now: an event between frames meets the answer to
+the last frame, as a click does in a browser).
+RESULTS (node, this container, 4 cores; each build ~10 min a run):
+| tree | build | flights (steps) | steps / frames bit-identical | the shed | the edit's worlds | page solver steps (inline / worker) | RSS inline -> worker |
+|---|---|---|---|---|---|---|---|
+| this base | Cub | 1 800 / 1 900 / 300 / 610 (601) | 2 750 / 2 747 | sweep equal, 0 posted | equal (248 obstacles) | 4 610 / 0 | 3 671 -> 4 083 MB |
+| this base | metal Cessna | the same | 2 750 / 2 747 | the same | equal | 4 610 / 0 | 3 746 -> 4 058 MB |
+| train-16 | Cub | the same | 2 750 / 2 747 | the same | equal | 4 610 / 0 | 3 763 -> 4 212 MB |
+| train-16 | metal Cessna | the same | 2 750 / 2 747 | the same | equal | 4 610 / 0 | 3 590 -> 3 979 MB |
+The doors, at the same session step in both runs: pause@600 run@600 manual@900 manualOff@1200 (TAXI) edit@1500 flyon@1650
+(a new pilot, DEPART) skip@1800 (DEPART -> HOLD) manualAir@2800 manualAirOff@3100 (CLIMB) scenery@3400 restart@3700 (and
+#bGo @3704) shed@4000 (and the roll-out back) diverge@4600 -> broke-up. The flights: the roll-out's / the skip's /
+Restart's / the shed's roll-out (601 under the worker: the divergence seen at once, inline at its 30th frame).
+FOUND BY THE GATE AND FIXED (each a last-bits difference until then): the stale mirror at a click (mirror on arrival); the
+second flight's day (the posted-steps tick); the fresh worker sim's sim.out (keepSim / init.out: the skip's first update);
+the skip after an edit (lastStart's site); the shed's stale mirror on a new sim (shed(), this base only); the world's
+changes under a pause (idle flushes; the real-time smoke on this base).
+REAL TIME (`--realtime`, the Cub, this base and train-16): every door on the worker's own clock - the pause exact (the
+worker's step unchanged over 32 paused frames), 4 flights placed and live (the skip, Restart, the shed's roll-out), Fly on
+a new pilot, the editor's edit reaching the worker's world (probed equal), the divergence broke-up, no error.
+
+**G822 THE CLOCK SPLIT, THE RECORDER, rollout_perf** (ARCH §2.3, §2.5 step 5):
+- FLYDIY_PACE.state()'s dilation / stepMs / droppedS are the WORKER'S while it flies (PACE.worker = SIMW.perf; `simw: true`
+  in the state). PACE.end gets ran = 0 for a worker frame: G612's guard and auto's one-step reading see the page's work
+  only - the render and the page's post-and-mirror - so G615's cap is a graphics decision (60 trialled when the RENDER
+  fits).
+- THE RECORDER (G620): three new columns, `wms` (the worker's step ms, eased), `wdil` (its dilation), `wran` (the steps the
+  picture moved on this frame) - NaN when the page flies it. GATE FLIGHTREC passes (the log's header carries the columns).
+- rollout_perf: every fr row carries the worker's step ms, dilation and turn max; each phase line adds `WORKER step X ms
+  (p90), dilation min, loop JS p90`; a `physics:` line says who flew it (the WORKER live / placed, or INLINE and why);
+  `simw` in the JSON.
+
+**THE DEFAULT CANDIDATE.** app.js `SIMW_DEFAULT = true` - THE ONE LINE: a page without a word flies through the worker;
+`?simw=0` (or localStorage `flydiy.simw` = '0') flies inline, `?simw=1` / '1' the worker. With B8B9 in the train, apply
+tools/perf/c1c_roundtrip_worker.patch: GATE ROUNDTRIP then gives the page its Worker (the harness shim) and runs what ships -
+the worker by default (ROUNDTRIP_QUERY=simw=0 for the inline run) - plus a check that the worker flew every flight (green on
+train-16). FRAMECOST, HITBOX, ROLLANIM and the other page gates get no shim: their pages fly inline (the dead link), their
+counts unchanged. If the box says no: `SIMW_DEFAULT = false`, nothing else.
+
+**MEASURED HERE (node - NOT the box):** the worker's world made in the shed in 2.1-2.8 s (79.0 MiB trimmed boot + the cooked
+cells, fetched 1.2-1.7 s); a flight's init then 0.33-0.59 s (the kept world: buildGen + the placement), the stand held 0-1
+frame for it (C1b under B8B9's no-screen roll-out: 3 s); the page process +330 to +450 MB with the worker. GATE ROUNDTRIP
+(train-16, the worker by default): every check green, and the page's own ground queries in the first 40 flight frames after
+a roll-out fall 739 677 -> 468 496 (the solver's are the worker's now; B8B9's table read inline).
+
+**THE TIMING RECIPE (the coordinator's box, tools/perf/GPU_BENCH.lock, one GPU benchmark at a time).** `--q simw=0` is now
+the INLINE side (the default is the worker):
+  for B in default "bugReports/cessnaMetal (1).json"; do
+    for i in 1 2; do                                   # twice, alternating, so the profile's warmth is shared
+      node tools/rollout_perf.js --build "$B" --secs 150 --label c1c_off_<b>_$i --q simw=0
+      node tools/rollout_perf.js --build "$B" --secs 150 --label c1c_on_<b>_$i  --q simw=1
+    done
+    node tools/rollout_perf.js --build "$B" --cold --secs 150 --label c1c_off_<b>_cold --q simw=0
+    node tools/rollout_perf.js --build "$B" --cold --secs 150 --label c1c_on_<b>_cold  --q simw=1
+  done
+READ, on the TAXI row (and STAND): `fps delivered` and `% doubled` (the uneven share - R5: <= 15 %), `loop JS` median and
+p90 (the page's work: ARCH's expectation 18-24 -> ~12-13 ms with the worker), `solver` (the page's step block: ~0.1 ms
+under the worker), `WORKER step` ms and p90 (the physics' own cost, off the thread), `dilation min` (under 1: the worker
+could not hold real time), `at 30-cap %` (G615's auto cap). The `physics:` line must say `the WORKER - live` on every
+`simw=1` run (else it measured the page). Then the gates R1-R5 (ROLLOUT ...: PASS/FAIL lines). On a train with B8B9, also
+`--trips` once each side (its round trips: a roll-out with no screen holds the stand for the worker's init, ~0.3-0.6 s here).
+THE USER'S RULE decides the default: a clean 30 unless 60 truly holds - EVENNESS FIRST. With the worker, 60 is worth
+keeping only if the taxi row at the 60 cap is even (doubled <= 15 %) with loop JS p90 under ~14 ms; otherwise the clean 30
+(the auto cap settles it by itself - its reading is the render's now). If the worker's run is not better than inline on
+evenness at the same cap, flip SIMW_DEFAULT back and say why in PLAYTEST §0.23b.
+
+**NAMED, NOT HIDDEN (none of them positions, attitudes or phases):**
+- the divergence's card comes up the first frame the worker's flag is seen; inline's watchdog reads p every 30th frame
+  (the gate: seen at step 601 under the worker, 610 inline - both 'broke-up'; the steps after the divergence are NaN in
+  both and not compared);
+- the trace (record(), 10 Hz) samples once a frame under the worker, from the mirror, and its phase marks are a frame's;
+- the shed's load test (the rig) steps the PAGE's sim: a worker sim kept across it does not have that history (reset()
+  undoes trueBox; sim.out is carried only to a sim the worker makes anew) - not seen in any gate;
+- real time (a browser): the picture interpolates T - 1 step (C1b), the page's inputs apply at the worker's next boundary -
+  not to the bit by design; the rig (lockstep) is.
+
+**OWED:** the box's numbers (above); the user's playtest (PLAYTEST §0.23b's checklist); SharedArrayBuffer / COI stays a
+later, measured option (ARCH §2.2); the flight's telemetry trace batched back from the worker (per step) if the user misses
+the per-step trace under the worker.
+
+GATES (targeted, node, this container - the full battery is the CI session's on the train): on THIS BASE: SIMWORKER-EDGES PASS (both builds), SIMWORKER-PAGE PASS (both builds, 1 200 steps + 1 200 frames each),
+SIMWORKER PASS, PACE PASS, FLIGHTREC PASS (the three new columns), BOOT PASS, UISMOKE PASS, STAND PASS, TAKEOFF PASS,
+FRAMECOST PASS (its pages fly inline: no Worker for them), SIMWORKER-EDGES --realtime PASS - all on the final code. On TRAIN-16 (the same work before the port, plus the ROUNDTRIP hunk): SIMWORKER-EDGES PASS (both builds) and
+--realtime PASS, SIMWORKER-PAGE PASS (both), ROUNDTRIP PASS (the worker by default: both builds' five trips and the setup
+screen), SIMWORKER, PACE, FLIGHTREC, PILOT (3 shards), BOOT, UISMOKE, STAND, TAKEOFF PASS; FRAMECOST FAIL (13) - the SAME
+13 rows as train-16's own CI record (ci/train-16/30b8989b...: the aircraft's per-frame bufferSubData, B1-LAG's), not C1c's:
+FRAMECOST's page gets no Worker, flies inline, and SIM_LINK wraps nothing there (on this base it PASSES). The train-16 runs
+predate the last two fixes (shed(): a no-op there - enterGarage resets the flight's own sim; the pause flush: the same step
+boundary in lockstep).
+Built outputs rebuilt by the runner, not committed (a cloud branch).
