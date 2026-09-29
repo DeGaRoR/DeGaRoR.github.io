@@ -486,6 +486,23 @@ console.log('12. THE TABLE - one material, a row a part; THE MERGE - per cell, i
   verdict(/flat varying float vPavId;/.test(T.vertex) && /flat varying float vPavId;/.test(T.common) && /gPavRow = int\(vPavId \+ 0\.5\)/.test(T.common), 'the row id is a FLAT varying on both sides, rounded (never an interpolated input, G1046)');
   verdict(/pvLoad\(\); vec4 pvK = PVT\(/.test(T.map) && /seed = floor\(pvK\.y \* 37\.0 \+ 0\.5\) \/ 37\.0/.test(T.map), 'the row is loaded at the top of the chain; cls/seed/halfW/halfL from it, the seed still snapped');
   verdict(!/textureGrad|textureLod/.test(tall), 'the table text: no textureGrad / textureLod (fxc)');
+  // THE PACKING'S CONTRACT: the row carries only the components the shader READS (PV_USED); a new read of a component
+  // left out (uClass.y, uMean) would read 0 in the table and the true value in the old path - caught here, by reading
+  // the SHIPPED text (the old program's) component by component
+  { const G = P.GLSL, src = [G.common, G.map, G.rough, G.normal, G.lights, G.debug].join('\n').replace(/\/\/[^\n]*/g, ''), miss = [];
+    for (const n of Object.keys(P.PV_USED)) {
+      const re = new RegExp('\\b' + n + '(\\[[^\\]]*\\])?(\\.[xyzwrgba]+)?(?![\\w])', 'g'); let m, decl = 0;
+      while ((m = re.exec(src))) {
+        const sw = m[2] ? m[2].slice(1).replace(/r/g, 'x').replace(/g/g, 'y').replace(/b/g, 'z').replace(/a/g, 'w') : null;
+        if (!sw) { const ln = src.slice(src.lastIndexOf('\n', m.index) + 1, m.index); if (decl++ === 0 && /^\s*uniform\b[^;]*$/.test(ln)) continue;   // its declaration
+          // a whole read: `vec4 g = uGrade[slot];` - its own swizzles are then the variable's (checked by name below)
+          const vm = /vec4\s+(\w+)\s*=\s*$/.exec(src.slice(Math.max(0, m.index - 40), m.index));
+          if (vm) { const r2 = new RegExp('\\b' + vm[1] + '\\.([xyzw]+)', 'g'); let q; while ((q = r2.exec(src))) for (const c of q[1]) if (P.PV_USED[n].indexOf(c) < 0) miss.push(n + '(' + vm[1] + ').' + c); }
+          else miss.push(n + ' read whole'); continue; }
+        for (const c of sw) if (P.PV_USED[n].indexOf(c) < 0) miss.push(n + '.' + c);
+      }
+    }
+    verdict(miss.length === 0, `the packed row carries every component the shipped shader reads (${P.PV_SLOTS.length} floats in ${P.PV.P} texels, was ${P.PV_VEC.length + 16})` + (miss.length ? ': MISSING ' + Array.from(new Set(miss)).join(', ') : '')); }
   const tloops = tall.match(/for \(int \w+ = 0; \w+ < [^;]+;/g) || [];
   verdict(tloops.every(l => /< u[A-Z]\w*/.test(l) || /< (?:2|4|8);/.test(l) || /<= 1;/.test(l)), `every table loop bounded by a row count or a small constant (${tloops.length} loops)`);
   for (const [k, a] of [['t1', '    // ---- 7 the markings'], ['t1', '    // ---- 8 the rubber'], ['t2', 'diffuseColor.rgb = col; diffuseColor.a = gPavA;'], ['t5', '    gPavN = normalize(T * nTn.x + Bv * nTn.y + Ng * nTn.z);'], ['t8', '    float u = vPav.x, v = vPav.y, dE = vPav.z, shW = vPav.w;']])
@@ -513,8 +530,8 @@ console.log('12. THE TABLE - one material, a row a part; THE MERGE - per cell, i
     let bad = [];
     const cmpV = (i, v, nm) => { for (const [c, k] of [[0, 'x'], [1, 'y'], [2, 'z'], [3, 'w']]) if (tex(i, c) !== f32(v[k])) { bad.push(nm + '.' + k + ' ' + tex(i, c) + ' != ' + v[k]); return; } };
     if (part) {
-      P.PV_VEC.forEach((nm, i) => cmpV(i, mOld.uniforms[nm].value, nm));
-      for (let i = 0; i < 8; i++) { cmpV(P.PV.G + i, mOld.uniforms.uGrade.value[i], 'uGrade' + i); cmpV(P.PV.T + i, mOld.uniforms.uTint.value[i], 'uTint' + i); }
+      // the packed params: every slot the old uniform's component (uGrade/uTint by slot index)
+      P.PV_SLOTS.forEach(([nm, c, ai], k) => { const v = ai >= 0 ? mOld.uniforms[nm].value[ai] : mOld.uniforms[nm].value; if (d[o + k] !== f32(v[c])) bad.push(nm + (ai >= 0 ? '[' + ai + ']' : '') + '.' + c + ' ' + d[o + k] + ' != ' + v[c]); });
       for (let i = 0; i < P.NKEEP; i++) { cmpV(P.PV.KA + i, mOld.uniforms.uKeepA.value[i], 'uKeepA' + i); cmpV(P.PV.KB + i, mOld.uniforms.uKeepB.value[i], 'uKeepB' + i); }
       for (let i = 0; i < P.NSEG; i++) { cmpV(P.PV.S + i, mOld.uniforms.uSeg.value[i], 'uSeg' + i); cmpV(P.PV.SK + i, mOld.uniforms.uSegK.value[i], 'uSegK' + i); }
       for (let i = 0; i < P.NMARK; i++) { cmpV(P.PV.MR + i, mOld.uniforms.uMarkR.value[i], 'uMarkR' + i); cmpV(P.PV.MK + i, mOld.uniforms.uMarkK.value[i], 'uMarkK' + i); }
