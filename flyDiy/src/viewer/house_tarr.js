@@ -288,7 +288,10 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       // decoded or broken (complete either way), or a canvas (a baked sheet: no load to wait for), is settled: a broken map is left out of the stack, its bags stay G566's
       const dec = img => (ready(img) || !('complete' in img) || img.complete) ? Promise.resolve() : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); });
       const all = imgsA.concat([...pairs.values()].flat().filter(Boolean));
-      Promise.all(all.map(dec)).then(() => {
+      // G1075: drawn in a task of its own - with every map already decoded the promise settled in the caller's task
+      // (a microtask), and the stack's draws landed on top of the bake that asked for them (the loading's settle slice,
+      // a flight frame)
+      Promise.all(all.map(dec)).then(() => new Promise(r => setTimeout(r, 0))).then(() => {
         const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
         const ctx = cnv.getContext('2d', { willReadFrequently: true });
         ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';

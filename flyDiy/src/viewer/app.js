@@ -7115,6 +7115,13 @@
     // the parked aeroplanes the stream places meanwhile are captured a step a task, as under the roll-out screen
     const PK = PK_ASYNC() ? window.PARKED : null; if (PK) PK.async = true;
     const idle = () => (!ST || !(ST.near > 0)) && !(WF.ringStat && WF.ringStat() && WF.ringStat().busy);
+    // G1075 (LOAD-SETTLE): THE SLICE'S CLOCK, HONOURED INSIDE THE CALL. The 40 ms slice was only checked between two
+    // worldUpdate calls, and ONE call could hold ~1.1 s: a premises build, an HLOD cell's merge, a stand-card chunk and
+    // the life's stand, each alone a slice's worth or more, all in the same call. Now each of those heavy builders
+    // starts only while the slice has time left (FLYDIY_SLICE.until) - the first of a slice always does - and the
+    // stand-card chunk builds by rows against it; the work is the same, it no longer bunches. Flight has no slice: its
+    // builders keep their own per-frame budgets.
+    const SL = { until: 0 };
     return new Promise(res => {
       const tick = () => {
         // G830: the premises' stream waiting on the house worker - wait for its answer, not in updates
@@ -7123,9 +7130,10 @@
         const t0 = performance.now();
         const keep = inGarage ? camera.position.clone() : null;
         if (keep) camera.position.set(a[0] + 16, a[1] + 6, a[2] + 16);
+        SL.until = t0 + 40; window.FLYDIY_SLICE = SL;
         try { while (performance.now() - t0 < 40 && n < 1500) { WF.worldUpdate(cg); n++; } }
         catch (e) { console.warn('world settle:', e && e.message); n = 1500; }
-        finally { if (keep) camera.position.copy(keep); }
+        finally { window.FLYDIY_SLICE = null; if (keep) camera.position.copy(keep); }
         if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; } } else still = 0;
         const done = still >= 3 || n >= 1500 || performance.now() - t00 > 45000;
         BOOT.phase('settle', 'the world settling round the stand' + (ST ? ' · ' + (ST.near || 0) + ' to build' : ''), done ? 1 : Math.min(0.95, n / 600));

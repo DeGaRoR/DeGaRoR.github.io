@@ -1303,6 +1303,9 @@ function make(THREE, scene, world, rec0, opts) {
     const qo = /[?&]outlod=([01])\b/.exec(location.search); if (qo) HLOD.outLod = +qo[1];   // the outbuildings alone (after houselod)
   }
   let IN_STREAM = false;   // a build the in-flight stream makes (stream(): no lod 1 there); declared up here, no TDZ (G570)
+  // G1075: the loading's settle slice has run out of time (app.js worldAtRest's FLYDIY_SLICE): a heavy build waits for
+  // the next call. Never in flight (no slice there)
+  const sliceSpent = () => { const S = typeof window !== 'undefined' && window.FLYDIY_SLICE; return !!(S && performance.now() >= S.until); };
   const LOD_U = { uLodA: { value: HLOD.near }, uLodB: { value: HLOD.far2 }, uLodW: { value: HLOD.fadeW }, uLodOn: { value: HLOD.fadeW > 0 ? 1 : 0 } };
   const LOD_DECL = 'uniform float uLodA, uLodB, uLodW, uLodOn;';
   // the fragment half: `edges` 'in:A' / 'out:A' (at near; 'in:B' / 'out:B' at far2, unused) - where this rung arrives or leaves
@@ -1634,7 +1637,7 @@ function make(THREE, scene, world, rec0, opts) {
       for (const [k, cl] of HLOD.cellMap) if (!byCell.has(k)) { hlodCellDrop(cl); HLOD.cellMap.delete(k); }
       HLOD.cells = [...HLOD.cellMap.values()];
     }
-    for (let i = 0; i < HLOD.todo.length; i++) {
+    for (let i = 0; i < HLOD.todo.length && !sliceSpent(); i++) {   // (G1075: a cell's merge is a slice's worth)
       const [k, list] = HLOD.todo[i];
       let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
       for (const g of list) { const c = detailOf(g).c; x0 = Math.min(x0, c.x); x1 = Math.max(x1, c.x); z0 = Math.min(z0, c.z); z1 = Math.max(z1, c.z); }
@@ -1901,7 +1904,7 @@ function make(THREE, scene, world, rec0, opts) {
     catch (e) { console.warn('obstacle', tag, e && e.message); return 0; }
   }
   function hitPendingStep() {
-    if (!PENDING_HIT.length) return;
+    if (!PENDING_HIT.length || sliceSpent()) return;   // (G1075: the settle's slice spent - the next call)
     for (let i = PENDING_HIT.length - 1; i >= 0; i--) {
       const q = PENDING_HIT[i];
       if (!q.grp.parent) { PENDING_HIT.splice(i, 1); continue; }     // torn down before it landed
@@ -2352,7 +2355,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!(queue[0]._d <= S.reach) || S.bank <= 0) return 0;
     const t0 = performance.now();
     let n = 0;
-    while (queue.length && S.bank > 0 && queue[0]._d <= S.reach) {
+    while (queue.length && S.bank > 0 && queue[0]._d <= S.reach && !sliceSpent()) {
       const t = performance.now(), p = queue.shift(); IN_STREAM = true; try { buildOne(p); } finally { IN_STREAM = false; } n++; S.near = Math.max(0, S.near - 1);
       const h = HOUSES.get(p.id); if (h && !h.failed) { riseAdd(h.grp); for (const g of h.extra || []) riseAdd(g); }   // G673
       S.bank -= performance.now() - t;

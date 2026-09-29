@@ -979,7 +979,9 @@ function make(THREE, host) {
   // ---- the clock ------------------------------------------------------------------------------------------------
   function tick() {
     frame++;
-    if (owed && performance.now() >= owedAt && !(host.queued && host.queued() > 0)) {
+    // (G1075: not in a loading settle slice already spent - app.js worldAtRest's FLYDIY_SLICE; the stand waits a call)
+    const SL = typeof window !== 'undefined' && window.FLYDIY_SLICE;
+    if (owed && performance.now() >= owedAt && !(host.queued && host.queued() > 0) && !(SL && performance.now() >= SL.until)) {
       owed = false;
       try { place(); } catch (e) { console.warn('life: stand', e); }
       beaconSync();

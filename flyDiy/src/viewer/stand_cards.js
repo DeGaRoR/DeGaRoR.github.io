@@ -104,11 +104,16 @@ const STAND_CARDS = (() => {
 
     // ---- a chunk: one card per 32 m cell of treed ground ------------------------------------------
     const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3();
-    function buildChunk(cx, cz) {
-      const t0 = performance.now(), C = S.cell, sp = S.spacing, n = C / sp, x0 = cx * C, z0 = cz * C;
+    // G1075 (LOAD-SETTLE): A CHUNK BY ROWS. A chunk's cards are 64 rows of heights (terrainH through the premises'
+    // raster: 0.1-0.8 s over a town's roads) - in flight it is still one call, every row; in the loading's settle
+    // (app.js worldAtRest, FLYDIY_SLICE) the rows stop once the slice's 40 ms are spent and the next call goes on
+    // from the row it stopped at. The same rows in the same order: the same cards.
+    const sliceSpent = () => { const SL = typeof window !== 'undefined' && window.FLYDIY_SLICE; return !!(SL && performance.now() >= SL.until); };
+    const chunkJob = k => { const [cx, cz] = k.split(',').map(Number); return { k, cx, cz, iz: 0, xs: [], ms: 0 }; };
+    function chunkRows(J) {   // -> true once every row is done
+      const t0 = performance.now(), C = S.cell, sp = S.spacing, n = C / sp, cx = J.cx, cz = J.cz, x0 = cx * C, z0 = cz * C, xs = J.xs;
       const spc = sp / S.block;   // the block's tree spacing: the density the fill would plant at
-      const xs = [];
-      for (let iz = 0; iz < n; iz++) for (let ix = 0; ix < n; ix++) {
+      while (J.iz < n) { const iz = J.iz++; for (let ix = 0; ix < n; ix++) {
         const gx = cx * n + ix, gz = cz * n + iz;
         const x = x0 + (ix + 0.5) * sp + (hsh(gx + 7, gz) - 0.5) * sp * 0.8, z = z0 + (iz + 0.5) * sp + (hsh(gx, gz + 7) - 0.5) * sp * 0.8;
         if (!ISLC || !ISLC.ttype) continue;
@@ -128,9 +133,15 @@ const STAND_CARDS = (() => {
         // the card's scale: the canopy over the block's tree height, the fill's rule and clamps
         const s = Math.max(FILL.island.min, Math.min(FILL.island.max, (can * FILL.island.gain) / S.treeH));
         xs.push(x, h, z, s);
-      }
+      } if (sliceSpent()) break; }
+      J.ms += performance.now() - t0;
+      return J.iz >= n;
+    }
+    // the chunk's mesh, once its rows are done
+    function chunkMesh(J) {
+      const t0 = performance.now(), C = S.cell, x0 = J.cx * C, z0 = J.cz * C, xs = J.xs;
       const N = xs.length / 4;
-      if (!N) { STAT.lastMs = performance.now() - t0; return null; }
+      if (!N) { STAT.lastMs = J.ms + performance.now() - t0; return null; }
       const m = new THREE.InstancedMesh(quad, mat, N); m.renderOrder = -1;   // an occluder before the ground (render_world.js ORDER_NOTE)
       const ox = x0 + C / 2, oz = z0 + C / 2; m.position.set(ox, 0, oz);
       // one card is not its neighbour (2026-09-23): a lightness off the card's own position, the near
@@ -141,16 +152,17 @@ const STAND_CARDS = (() => {
       m.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
       for (let i = 0; i < N; i++) { V.set(xs[i * 4] - ox, xs[i * 4 + 1], xs[i * 4 + 2] - oz); SC.setScalar(xs[i * 4 + 3]); T.compose(V, Q, SC); m.setMatrixAt(i, T); }
       m.instanceMatrix.needsUpdate = true; m.frustumCulled = true; m.castShadow = false; m.receiveShadow = false;
-      STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);
+      STAT.lastMs = J.ms + performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);
       return m;
     }
     function drop(k) { const c = chunks.get(k); if (!c) return; if (c.mesh) { root.remove(c.mesh); c.mesh.dispose(); } chunks.delete(k); }
 
     // ---- per frame ---------------------------------------------------------------------------------
-    let tick = 0, queue = [];
+    let tick = 0, queue = [], job = null;   // job: the chunk whose rows are under way (G1075)
     function update(cg) {
       root.visible = S.on;
       if (!S.on || !ISLC || (treesSettled && !treesSettled())) return;   // the bytes AND the maps (the bake's rule)
+      if (!proto && sliceSpent()) return;   // (the stand's bake is a slice's worth: at the head of one)
       if (!ensure()) return;
       if ((tick++ % 20) === 0) {
         const C = S.cell, R = Math.ceil(S.far / C) + 1, cx0 = Math.floor(cg[0] / C), cz0 = Math.floor(cg[2] / C);
@@ -163,20 +175,22 @@ const STAND_CARDS = (() => {
           want.add(cx + ',' + cz);
         }
         for (const k of chunks.keys()) if (!want.has(k)) drop(k);
-        queue = [...want].filter(k => !chunks.has(k)).sort((a, b) => {
+        if (job && !want.has(job.k)) job = null;
+        queue = [...want].filter(k => !chunks.has(k) && !(job && job.k === k)).sort((a, b) => {
           const A = a.split(',').map(Number), B = b.split(',').map(Number);
           return Math.hypot((A[0] + 0.5) * C - cg[0], (A[1] + 0.5) * C - cg[2]) - Math.hypot((B[0] + 0.5) * C - cg[0], (B[1] + 0.5) * C - cg[2]); });
       }
-      if (queue.length) { const k = queue.shift(); const [cx, cz] = k.split(',').map(Number); const mesh = buildChunk(cx, cz); if (mesh) root.add(mesh); chunks.set(k, { mesh }); }
+      if (!job && queue.length && !sliceSpent()) job = chunkJob(queue.shift());
+      if (job && !sliceSpent() && chunkRows(job)) { const mesh = chunkMesh(job); if (mesh) root.add(mesh); chunks.set(job.k, { mesh }); job = null; }
       let ni = 0; for (const c of chunks.values()) if (c.mesh) ni += c.mesh.count; STAT.instances = ni; STAT.chunks = chunks.size;
     }
     const api = {
       update, root,
       get: () => Object.assign({}, S),
       set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing }; Object.assign(S, o || {});
-        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; }
+        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; }
         return api.get(); },
-      replant: () => { for (const k of [...chunks.keys()]) drop(k); },
+      replant: () => { for (const k of [...chunks.keys()]) drop(k); job = null; },
       stat: () => Object.assign({}, STAT),
       atlas: () => proto && proto.atlas,
     };
