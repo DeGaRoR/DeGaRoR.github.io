@@ -25,6 +25,14 @@
 //   5. THE LIBRARY: a record asked twice is one material, a scope keeps it apart, a variant is a sibling with the
 //      same values, the last release disposes it.
 //   SELF-TEST: a colour changed on one record of the shared side turns check 1 red (the comparison can see).
+//   6. THE ARRAY SHAPES (AS4a-rest, G941-G943): the same registries drawn with their records (?matarr=0) and with MATLIB's
+//      array shapes (a record a row, its maps layers of texture arrays, a prop's parts one draw), the KTX2 twins
+//      transcoded here to BC7 as a desktop page's workers transcode them: every part reads the same matrices, lights and
+//      environment; its draw's geometry is its parts (decoded afresh from the bin) with its row on every vertex; its row
+//      IS its record (the numbers, each map a layer of the draw's own page holding that map's twin, or its constant);
+//      every page's layer went to the GPU as its transcode, byte for byte; fewer draws, materials and programs.
+//      SELF-TESTS: a row's roughness nudged 1/256, a row's layer moved to its neighbour. The pixels are a browser's:
+//      tools/matlib_chrome.js (G943) draws every key both ways in Chromium.
 //
 //   node tools/_matlib_check.js   -> "GATE MATLIB: PASS|FAIL", exit 1 on FAIL
 'use strict';
@@ -38,9 +46,9 @@ const ok = (c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + 
 function env(opts) {
   opts = opts || {};
   const rec = makeRecorder();
-  const { gl: gl0, WebGL2RenderingContext, canvas } = makeGL({ rec });
+  const { gl: gl0, WebGL2RenderingContext, canvas } = makeGL({ rec, extraExts: opts.exts || [] });
   // THE TRACKER: the program in use, every uniform value it holds (per program, by name), the texture on each unit
-  const T = { prog: null, vals: new Map(), unit: 0, units: new Map(), obj: null, draws: [], on: false };
+  const T = { prog: null, vals: new Map(), unit: 0, units: new Map(), obj: null, draws: [], on: false, up: [] };
   const TEX0 = gl0.TEXTURE0;
   const flat = a => { const out = []; for (const x of a) { if (x && typeof x === 'object' && typeof x.length === 'number') for (const y of x) out.push(y); else out.push(x); } return out; };
   const gl = new Proxy(gl0, { get(t, p) {
@@ -53,6 +61,8 @@ function env(opts) {
       if (loc && loc.p !== undefined) { let m = T.vals.get(loc.p); if (!m) T.vals.set(loc.p, m = new Map());
         m.set(loc.name, /^uniformMatrix/.test(p) ? flat(a.slice(1)) : flat(a)); }
       return f(loc, ...a); };
+    // a compressed array's upload: which texture, which level and layers, the bytes (check 6)
+    if (p === 'compressedTexSubImage3D') return (...a) => { T.up.push({ tex: T.units.get(T.unit), level: a[1], z: a[4], depth: a[7], data: a[9] }); return f(...a); };
     if (/^draw/.test(p) || /^multiDraw/.test(p)) return (...a) => { if (T.on && T.obj) T.draws.push(snap()); return f(...a); };
     // a batch draws through WEBGL_multi_draw's own functions
     if (p === 'getExtension') return name => { const e = f(name); if (!e || !/multi_draw/.test(name)) return e;
@@ -124,7 +134,8 @@ function registries(E) {
   if (fs.existsSync(AP)) for (const f of JSON.parse(fs.readFileSync(AP, 'utf8'))) E.load('src/animals/' + f);
 }
 async function propsSide(share, perturb) {
-  const E = env({ share }); const { THREE, ctx } = E;
+  // the RECORDS both ways (share off / on): the array shapes are check 6's (?matarr=0 here)
+  const E = env({ share, query: '?matarr=0' }); const { THREE, ctx } = E;
   registries(E);
   const PR = vm.runInContext('PROP_REG', ctx), keys = PR.order.slice();
   await Promise.all(keys.map(k => ctx.propWarm(k).catch(() => null)));
@@ -156,19 +167,25 @@ async function propsSide(share, perturb) {
   const mats = new Set(); scene.traverse(o => { if (o.material) mats.add(o.material); });
   return { E, ctx, THREE, keys, draws, byPart, mats: mats.size, stats: ctx.MATLIB.stats() };
 }
+// a prop's parts decoded afresh from its bin (what propBuild decoded, before any merge touched them)
+function freshParts(ctx, k) {
+  const p = vm.runInContext('PROP_REG', ctx).props[k];
+  return ctx.decodeProp(p, p.bin ? readGeo(p.bin) : undefined).parts;
+}
 function mergedSlices(S) {
-  // every merged geometry is its parts, concatenated, vertex for vertex and index for index
+  // every merged geometry is its parts, concatenated, vertex for vertex and index for index - the parts as the prop's
+  // bin decodes them afresh (the built parts' vertices are views of the merged arrays since G941: one copy)
   let n = 0, bad = null;
   for (const k of S.keys) {
-    const b = S.ctx.propBuild(S.THREE, k);
+    const b = S.ctx.propBuild(S.THREE, k), dec = freshParts(S.ctx, k);
     for (const g of b.dgeos) {
       const P = g.userData.parts; if (!P) continue; n++;
       let v = 0, t = 0;
       for (const j of P) {
-        const q = b.geos[j], A = q.attributes, cnt = A.position.count;
-        for (const [name, w] of [['position', 3], ['normal', 3], ['uv', 2]]) { const src = A[name].array, dst = g.attributes[name].array;
+        const q = dec[j], cnt = q.pos.length / 3;
+        for (const [name, w, src] of [['position', 3, q.pos], ['normal', 3, q.nrm], ['uv', 2, q.uv]]) { const dst = g.attributes[name].array;
           for (let x = 0; x < cnt * w; x++) if (src[x] !== dst[v * w + x]) { bad = bad || k + ' part ' + j + ' ' + name; break; } }
-        const I = q.index.array; for (let x = 0; x < I.length; x++) if (g.index.array[t + x] !== I[x] + v) { bad = bad || k + ' part ' + j + ' index'; break; }
+        const I = q.idx; for (let x = 0; x < I.length; x++) if (g.index.array[t + x] !== I[x] + v) { bad = bad || k + ' part ' + j + ' index'; break; }
         v += cnt; t += I.length;
       }
       if (v !== g.attributes.position.count || t !== g.index.count) bad = bad || k + ' size';
@@ -279,6 +296,120 @@ function libSide() {
            release: one === 0 && disposed === 1, row: ML.rowOf(a) === ML.rowOf(b) && ML.rowOf(c) !== ML.rowOf(a), table: ML.table().rows >= 4 };
 }
 
+// ---- 6. the array shapes (AS4a-rest, G943) --------------------------------------------------------------------------
+// The props, the pier, the totems and the animals drawn with their RECORDS (?matarr=0, AS4a-EARLY's draw list) and with
+// the ARRAY SHAPES (MATLIB.arr: a record a row, its maps array layers, the parts of a prop one draw) - the maps' KTX2
+// twins transcoded here as a desktop page's workers transcode them (three's basis transcoder, to BC7), so the arrays
+// are the page's. The shader differs by design (the shape reads its row); what must not differ is everything it reads:
+const K2 = require('./_ktx2_lib.js');
+async function bc7(bytes) {
+  const M = await K2.transcoder(), k = new M.KTX2File(new Uint8Array(bytes));
+  try {
+    if (!k.isValid() || !k.startTranscoding()) throw new Error('ktx2: invalid');
+    const mipmaps = [];
+    for (let l = 0; l < k.getLevels(); l++) { const i = k.getImageLevelInfo(l, 0, 0), d = new Uint8Array(k.getImageTranscodedSizeInBytes(l, 0, 0, K2.TF.BC7_M5));
+      if (!k.transcodeImage(d, l, 0, 0, K2.TF.BC7_M5, 0, -1, -1)) throw new Error('ktx2: level ' + l); mipmaps.push({ data: d, width: i.origWidth, height: i.origHeight }); }
+    return { mipmaps, width: k.getWidth(), height: k.getHeight(), format: 36492, type: 1009 };   // RGBA_BPTC_Format, UnsignedByteType
+  } finally { k.close(); k.delete(); }
+}
+async function arraySide(arr, perturb) {
+  const E = env({ share: true, exts: ['EXT_texture_compression_bptc'], query: arr ? '' : '?matarr=0' }); const { THREE, ctx } = E;
+  const loads = [], tx = new Map();
+  ctx.KTX2 = { off: () => null, load: url => { let p = tx.get(url); if (!p) { tx.set(url, p = bc7(fs.readFileSync(path.join(ROOT, url)))); loads.push(p); } return p; } };
+  E.load('src/viewer/ktx2_twins.js');
+  registries(E);
+  const PR = vm.runInContext('PROP_REG', ctx), keys = PR.order.slice();
+  await Promise.all(keys.map(k => ctx.propWarm(k).catch(() => null)));
+  const AN = ctx.ANIMALS, akeys = vm.runInContext('typeof ANIMAL_REG !== "undefined" ? ANIMAL_REG.order.slice() : []', ctx);
+  await Promise.all(akeys.map(k => AN.warm(k).catch(() => null)));
+  const scene = new THREE.Scene(); lights(THREE, scene);
+  const owner = new Map(), rec = new Map();   // mesh -> [part labels]; label -> the record
+  keys.forEach((k, i) => {
+    const g = ctx.propMesh(THREE, k); g.position.set((i % 20) * 7, 0, Math.floor(i / 20) * 7); scene.add(g);
+    const b = ctx.propBuild(THREE, k);
+    b.geos.forEach((q, j) => rec.set(k + '#' + j, b.prop.mats[b.prop.parts[j].mat]));
+    for (const m of g.children) owner.set(m, m.geometry.userData.parts ? m.geometry.userData.parts.map(j => k + '#' + j) : [k + '#' + b.geos.indexOf(m.geometry)]);
+  });
+  akeys.forEach((k, i) => {
+    let I = null; try { I = AN.instance(THREE, k); } catch (e) { return; }
+    I.root.position.set(i * 9, 0, -30); scene.add(I.root);
+    I.b.dec.meshes.forEach((m, j) => rec.set(k + '~' + j, I.a.mats[m.mat]));
+    for (const m of I.meshes) owner.set(m, m.geometry.userData.parts ? m.geometry.userData.parts.map(j => k + '~' + j) : [k + '~' + I.b.geos.indexOf(m.geometry)]);
+  });
+  await Promise.all(loads.map(p => p.catch(() => null))); await new Promise(r => setTimeout(r, 0));
+  if (perturb) perturb(ctx);
+  noCull(scene); scene.updateMatrixWorld(true);
+  E.T.up = [];
+  const draws = E.frame(scene, cam(THREE));
+  const byPart = new Map();
+  for (const d of draws) for (const lab of owner.get(d.obj) || []) byPart.set(lab, d);
+  const mats = new Set(); scene.traverse(o => { if (o.material) mats.add(o.material); });
+  return { E, ctx, THREE, draws, byPart, owner, rec, mats: mats.size, links: E.rec.links, twin: (id, kind) => { const u = PR.texs[id]; return typeof u === 'string' ? vm.runInContext('KTX2_TWINS', ctx)(u, kind) : null; }, texs: PR.texs };
+}
+// the uniforms a draw reads that are NOT the material's (the matrices, the lights, the environment): the same both ways
+const MAT_U = /^(diffuse|emissive|roughness|metalness|opacity|normalScale|aoMapIntensity|(map|normalMap|roughnessMap|metalnessMap|aoMap|emissiveMap)(Transform)?|ml\w+)(@tex)?$|^@/;
+function arrayChecks(A, B) {
+  const R = { parts: 0, arrParts: 0, missing: null, uni: null, row: null, slice: null, bind: null, upload: null, layers: 0, pages: 0, flats: 0, nulls: 0 };
+  const ML = B.ctx.MATLIB, RD = ML.arr.rowData(), f32 = Math.fround;
+  const rowAt = i => Array.from(RD.data.subarray(i * RD.per * 4, (i + 1) * RD.per * 4));
+  const glOf = t => { const p = B.E.R.properties.get(t); return p && p.__webglTexture; };
+  for (const [lab, a] of A.byPart) {
+    const b = B.byPart.get(lab); if (!b) { R.missing = R.missing || lab; continue; }
+    R.parts++;
+    for (const k of new Set(Object.keys(a.u).concat(Object.keys(b.u)))) if (!MAT_U.test(k) && !((k + '@tex') in a.u || (k + '@tex') in b.u) && a.u[k] !== b.u[k]) { R.uni = R.uni || lab + ' ' + k + ': ' + String(a.u[k]).slice(0, 40) + ' vs ' + String(b.u[k]).slice(0, 40); break; }
+    if (!ML.arr.isArr(b.mat)) continue;
+    R.arrParts++;
+    // the part's slice of its draw's geometry, and each vertex's row (a sampler's uniform above: its texture, @tex, not its unit)
+    const g = b.geo, P = g.userData.parts, sep = lab.includes('~') ? '~' : '#', key = lab.split(sep)[0], j = +lab.split(sep)[1];
+    const at = P.indexOf(j), rowI = g.userData.rows[at];
+    let v0 = 0;
+    // the parts as their bin decodes afresh (a prop's built parts are views of the merged arrays: one copy)
+    const fresh = sep === '#' ? freshParts(B.ctx, key).map(q => ({ position: q.pos, normal: q.nrm, uv: q.uv }))
+      : B.ctx.ANIMALS.BUILT.get(key).geos.map(q => ({ position: q.attributes.position.array, normal: q.attributes.normal.array, uv: q.attributes.uv.array }));
+    for (let q = 0; q < at; q++) v0 += fresh[P[q]].position.length / 3;
+    const pg = fresh[j], n = pg.position.length / 3;
+    for (const [nm, w] of [['position', 3], ['normal', 3], ['uv', 2]]) for (let x = 0; x < n * w; x++) if (pg[nm][x] !== g.attributes[nm].array[v0 * w + x]) { R.slice = R.slice || lab + ' ' + nm; break; }
+    for (let x = 0; x < n; x++) if (g.attributes.mlRow.array[v0 + x] !== rowI) { R.slice = R.slice || lab + ' mlRow'; break; }
+    // the row IS the record: its numbers, and each map a layer of THIS draw's page holding the map's twin (or its constant)
+    const r = B.rec.get(lab), D = rowAt(rowI), bad = [];
+    const want = [r.col[0], r.col[1], r.col[2], 1, r.rough, r.metal, r.nor ? r.norScl : 1, r.arm && r.ao ? 1 : 0];
+    want.forEach((w, q) => { if (D[q] !== f32(w)) bad.push('v' + q); });
+    const O = ML.arr.rowOf(rowI), I = ML.arr.isArr(b.mat) && B.ctx.MATLIB;
+    for (const [slot, kind, q] of [['map', 'color', 12], ['nor', 'normal', 13], ['arm', 'data', 14]]) {
+      const id = r[slot], u = id ? B.texs[id] : null;
+      if (!u) { R.nulls++; if (D[q] !== -1) bad.push(slot + ' none'); continue; }
+      if (Array.isArray(u)) { R.flats++; if (D[q] !== -2 || !O[slot] || O[slot].join() !== u.join()) bad.push(slot + ' flat'); continue; }
+      const tw = B.twin(id, kind), L = O[slot];
+      if (!L || !L.page || L.url !== tw.url || D[q] !== L.index || L.page.list[L.index] !== L) { bad.push(slot + ' layer'); continue; }
+      // the draw binds that page on the sampler of that kind
+      const su = { map: 'mlMap', nor: 'mlNor', arm: 'mlArm' }[slot];
+      if (b.u[su + '@tex'] === undefined || b.mat['ml' + slot[0].toUpperCase() + slot.slice(1) + 'Page'] !== L.page.tex) bad.push(slot + ' page');
+    }
+    if (bad.length) R.row = R.row || lab + ' (row ' + rowI + ': ' + bad.join(', ') + ')';
+  }
+  // every page's every layer went to the GPU as its transcode: the bytes three uploaded, level by level
+  const tex = new Map(ML.arr.pages().map(p => [glOf(p.tex), p]));
+  const seen = new Set();
+  for (const u of B.E.T.up) {
+    const pg = tex.get(u.tex); if (!pg) continue;
+    for (let z = u.z; z < u.z + u.depth; z++) {
+      const L = pg.list[z], per = L.mips[u.level].data.byteLength, got = u.data.subarray((z - u.z) * per, (z - u.z + 1) * per);
+      if (!Buffer.from(got).equals(Buffer.from(L.mips[u.level].data))) R.upload = R.upload || pg.key + ' layer ' + z + ' level ' + u.level;
+      seen.add(pg.id + ':' + z + ':' + u.level);
+    }
+  }
+  for (const pg of ML.arr.pages()) { R.pages++; for (let z = 0; z < pg.list.length; z++) { R.layers++; for (let l = 0; l < pg.levels; l++) if (!seen.has(pg.id + ':' + z + ':' + l)) R.upload = R.upload || pg.key + ' layer ' + z + ' level ' + l + ' never uploaded'; } }
+  return R;
+}
+// the shape's edit finds every chunk it replaces in r186's own standard shaders (plain, instanced, skinned: the chunk
+// names do not move with the defines)
+function editCheck() {
+  const E = env({}); const { THREE, ctx } = E;
+  const SL = THREE.ShaderLib.standard, miss = [];
+  ctx.MATLIB.arr.edit({ vertexShader: SL.vertexShader, fragmentShader: SL.fragmentShader, uniforms: {} }, miss);
+  return miss;
+}
+
 (async () => {
   console.log('GATE MATLIB');
   const t0 = Date.now();
@@ -321,6 +452,22 @@ function libSide() {
   // 5
   const L = libSide();
   for (const [k, v] of Object.entries(L)) ok(v, '5 the library: ' + k);
+  // 6
+  const XA = await arraySide(false), XB = await arraySide(true);
+  const X = arrayChecks(XA, XB), XS = XB.ctx.MATLIB.arr.stats();
+  ok(!X.missing && X.parts === XA.byPart.size && X.parts > 500, '6 every part drawn with its record and with the array shapes', X.parts + ' parts, ' + X.arrParts + ' by an array shape' + (X.missing ? '; missing ' + X.missing : ''));
+  ok(!X.uni, '6 every part\'s draw reads the same matrices, lights and environment both ways', X.uni || X.parts + ' parts');
+  ok(!X.slice && X.arrParts > 300, '6 an array draw\'s geometry is its parts, vertex for vertex, each vertex carrying its part\'s row', X.slice || X.arrParts + ' parts');
+  ok(!X.row, '6 every row is its record: colour, roughness, metalness, normal scale, ao; each map a layer of the draw\'s own page holding the map\'s twin, or its constant', X.row || X.arrParts + ' rows checked (' + X.flats + ' flat maps, ' + X.nulls + ' none)');
+  ok(!X.upload && X.layers > 0, '6 every page\'s every layer and level went to the GPU as its transcode, byte for byte', X.upload || X.pages + ' pages, ' + X.layers + ' layers');
+  ok(XB.draws.length < XA.draws.length && XB.mats < XA.mats && XB.links <= XA.links, '6 fewer draws and materials, no more programs', 'draws ' + XA.draws.length + ' -> ' + XB.draws.length + ', materials ' + XA.mats + ' -> ' + XB.mats + ', programs linked ' + XA.links + ' -> ' + XB.links + '; ' + XS.rows + ' rows, ' + XS.mats + ' shapes, ' + XS.pages + ' pages');
+  const EM = editCheck();
+  ok(!EM.length, '6 the shape\'s edit finds every chunk it replaces in r186\'s standard shaders', EM.join(', '));
+  // SELF-TEST: one row's roughness nudged by 1/256, and one row's layer pointed at its neighbour
+  const P1 = await arraySide(true, c => { const d = c.MATLIB.arr.rowData(); d.data[4 + 8 * 4 * 3] += 1 / 256; });
+  ok(!!arrayChecks(XA, P1).row, 'SELF-TEST a row\'s roughness nudged 1/256 turns check 6 red');
+  const P2 = await arraySide(true, c => { const d = c.MATLIB.arr.rowData(); for (let i = 0; i < d.n; i++) if (d.data[i * 32 + 12] > 0) { d.data[i * 32 + 12] -= 1; break; } });
+  ok(!!arrayChecks(XA, P2).row, 'SELF-TEST a row\'s colour layer moved to its neighbour turns check 6 red');
   console.log('  materials by uuid -> the families\' records: props ' + A.mats + ' -> ' + B.mats + ', trees ' + TA.mats + ' -> ' + TB.mats + (SA.mats ? ', strip stones ' + SA.mats + ' -> ' + SB.mats : ''));
   console.log('  wall ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
   console.log('GATE MATLIB: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));

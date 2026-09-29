@@ -1,0 +1,255 @@
+{
+ "keys": 358,
+ "size": 192,
+ "draws": [
+  810,
+  570
+ ],
+ "programs": [
+  36,
+  29
+ ],
+ "meanAbs": 0.000013992748422304986,
+ "worstMax": 68,
+ "layers": {
+  "pages": 23,
+  "sealed": 23,
+  "layers": 422,
+  "landed": 422,
+  "failed": 0,
+  "rows": 217,
+  "mats": 30,
+  "uploads": 23,
+  "bytes": 153223776,
+  "partial": 0,
+  "on": true,
+  "rowsCap": 256,
+  "pools": [
+   "color|512x512|ETC1S|:132s",
+   "normal|512x512|UASTC|:74s",
+   "data|512x512|UASTC|:100s",
+   "color|256x128|ETC1S|:1s",
+   "normal|256x128|UASTC|:1s",
+   "data|256x128|UASTC|:1s",
+   "color|256x256|ETC1S|:15s",
+   "normal|256x256|UASTC|:18s",
+   "data|256x256|UASTC|:15s",
+   "color|512x512|UASTC|:10s",
+   "color|512x256|ETC1S|:16s",
+   "normal|512x256|UASTC|:1s",
+   "color|128x128|ETC1S|:4s",
+   "data|128x128|UASTC|:3s",
+   "color|256x256|UASTC|:2s",
+   "color|1024x768|ETC1S|:1s",
+   "color|256x512|UASTC|:1s",
+   "color|1024x1024|UASTC|:2s",
+   "normal|1024x1024|UASTC|:7s",
+   "data|1024x1024|UASTC|:5s",
+   "color|1024x1024|ETC1S|:10s",
+   "data|512x256|UASTC|:2s",
+   "color|128x64|ETC1S|:1s"
+  ]
+ },
+ "worst": [
+  {
+   "key": "jointer",
+   "mean": 0.0032,
+   "max": 64,
+   "diffPct": 0.008,
+   "draws": [
+    8,
+    2
+   ]
+  },
+  {
+   "key": "thicknesser",
+   "mean": 0.0018,
+   "max": 68,
+   "diffPct": 0.003,
+   "draws": [
+    8,
+    3
+   ]
+  },
+  {
+   "key": "workbench_wood",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "table_wood",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "desk_metal",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "stool_wood",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "chair_lounge",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "rack_steel",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "toolchest_metal",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "cart_tool",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "cart_storage",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "crate_wood_a",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "crate_wood_b",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "crate_wood_c",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "box_cardboard",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "cart_tool_cab",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    9,
+    2
+   ]
+  },
+  {
+   "key": "drillpress",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  },
+  {
+   "key": "compressor",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    3,
+    3
+   ]
+  },
+  {
+   "key": "weldingcart",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    3,
+    3
+   ]
+  },
+  {
+   "key": "vice_bench",
+   "mean": 0,
+   "max": 0,
+   "diffPct": 0,
+   "draws": [
+    1,
+    1
+   ]
+  }
+ ]
+}

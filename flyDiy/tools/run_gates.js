@@ -196,7 +196,7 @@ const GATES = [
   // THE MATERIAL LIBRARY (AS4a, G920-G924): the props / pier / animals, the trees and the strip stones drawn with
   // and without the library's sharing (and the stones' batches) on the recording GL - every part the same uniforms,
   // textures and program key, fewer materials and draws; the program keys carry no uniform value
-  { id: 'MATLIB', file: '_matlib_check.js', tier: 'core', wall: 40 },
+  { id: 'MATLIB', file: '_matlib_check.js', tier: 'core', wall: 70 },   // AS4a-rest (G943): + check 6, the array shapes both ways
   // the geometry transport (G930, AS5a): every media/geo bin ONE gzip stream,
   // decoded, re-hashed against its name, its layout against every manifest
   // that names it. ~2 s. Negative-verified (its selftest runs every time).
