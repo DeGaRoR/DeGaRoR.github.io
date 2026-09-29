@@ -1041,6 +1041,7 @@ try {
     // 4. the rail: one line of fixed height; the phase name shrinks and clips, never pushes
     const RL = D('#rail'), PN = D('#phName');
     need('the rail has no fixed height or can wrap', px(RL.height) > 0 && RL['flex-wrap'] === 'nowrap' && RL['box-sizing'] === 'border-box');
+    need('the rail\'s phase name can size a dragged plate (the rail needs contain:inline-size)', /inline-size/.test(RL.contain || ''));
     need('the phase name can push the rail', PN['min-width'] === '0' && PN.overflow === 'hidden' && PN['text-overflow'] === 'ellipsis' && PN['white-space'] === 'nowrap');
     need('the small rail has no fixed height', px(D('#ui #pfd.small #rail').height) > 0);
     // 5. the pilot's area: fixed, contained; the status clamps at two lines, the plan clips at one

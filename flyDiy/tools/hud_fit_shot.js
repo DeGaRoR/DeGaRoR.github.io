@@ -48,17 +48,19 @@ const LAB = { ias: ['km/h ias', 'km/h gs'], nrgU: ['L fuel', 'L fuel · 45 min',
   const b = await chromium.launch(exe ? { executablePath: exe } : {});
   let bad = 0;
   for (const [name, vw, vh] of [['desktop', 1440, 900], ['phone', 400, 860]]) {
-    for (const small of [false, true]) {
+    for (const [small, placed] of [[false, false], [true, false], [false, true]]) {
       const pg = await b.newPage({ viewport: { width: vw, height: vh } });
       await pg.goto('file://' + tmp);
       await pg.evaluate(() => document.fonts && document.fonts.ready);
       await pg.evaluate(sm => {
         const bo = document.getElementById('boot'); if (bo) bo.remove(); document.body.style.background = '#5d7a8c';
         document.body.className = ''; const ui = document.getElementById('ui'); ui.hidden = false; ui.style.display = '';
-        document.getElementById('pfd').classList.toggle('small', sm);
-        for (const d of document.querySelectorAll('#pfdRow .rd')) d.hidden = sm ? ['ias', 'alt', 'vs', 'nrg', 'pwr'].indexOf(d.dataset.i) < 0 : ['ias', 'alt', 'vs', 'nrg'].indexOf(d.dataset.i) < 0;
+        document.getElementById('pfd').classList.toggle('small', sm[0]);
+        // a plate the player dragged (app.js flPlace): re-parented to #ui, absolutely placed at left/top
+        if (sm[1]) { const p = document.getElementById('pfd'); p.classList.add('placed'); ui.appendChild(p); p.style.left = '30px'; p.style.top = '200px'; }
+        for (const d of document.querySelectorAll('#pfdRow .rd')) d.hidden = sm[0] ? ['ias', 'alt', 'vs', 'nrg', 'pwr'].indexOf(d.dataset.i) < 0 : ['ias', 'alt', 'vs', 'nrg'].indexOf(d.dataset.i) < 0;
         const tr = document.getElementById('track'); tr.innerHTML = ''; for (let i = 0; i < 14; i++) tr.appendChild(document.createElement('i'));
-      }, small);
+      }, [small, placed]);
       const sizes = new Map();
       const read = async tag => {
         const r = await pg.evaluate(() => { const b = document.getElementById('pfd').getBoundingClientRect(); return b.width.toFixed(2) + ' x ' + b.height.toFixed(2); });
@@ -78,17 +80,17 @@ const LAB = { ias: ['km/h ias', 'km/h gs'], nrgU: ['L fuel', 'L fuel · 45 min',
       await set('phName', 'SIM DIVERGED — RESET'); await set('phNext', NEXT[3]); await set('phPlan', PLAN[2]);
       await set('r-vs', '-12.3'); await set('r-alt', '9999'); await set('r-nrg', 'EMPTY'); await set('r-nrgU', 'kWh charge · 1.2 h');
       await read('all longest');
-      if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await (await pg.$('#pfd')).screenshot({ path: path.join(SHOTS, 'pfd_' + name + (small ? '_small' : '') + '.png') }); }
+      if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await (await pg.$('#pfd')).screenshot({ path: path.join(SHOTS, 'pfd_' + name + (small ? '_small' : '') + (placed ? '_placed' : '') + '.png') }); }
       await held(true); await set('phNext', ''); await set('phPlan', ''); await read('held again');
       const list = [...sizes.entries()];
       const ok = list.length === 1;
       if (!ok) bad++;
-      console.log((ok ? 'ONE SIZE ' : 'RESIZES  ') + name + (small ? ' small' : ' big  ') + ' ' + vw + 'x' + vh + ': ' + list.map(([s, t]) => s + ' (first at ' + t + ')').join(' | '));
+      console.log((ok ? 'ONE SIZE ' : 'RESIZES  ') + name + (small ? ' small' : placed ? ' dragged' : ' big  ') + ' ' + vw + 'x' + vh + ': ' + list.map(([s, t]) => s + ' (first at ' + t + ')').join(' | '));
       await pg.close();
     }
   }
   await b.close();
   fs.unlinkSync(tmp);
-  console.log(bad ? 'hud_fit_shot: THE PLATE RESIZES in ' + bad + ' of 4 layouts' : 'hud_fit_shot: the plate holds one size in every layout');
+  console.log(bad ? 'hud_fit_shot: THE PLATE RESIZES in ' + bad + ' of 6 layouts' : 'hud_fit_shot: the plate holds one size in every layout');
   process.exit(bad ? 1 : 0);
 })().catch(e => { try { fs.unlinkSync(tmp); } catch (e2) {} console.error(e); process.exit(2); });
