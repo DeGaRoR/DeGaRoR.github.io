@@ -201,13 +201,19 @@ function kMedoids(F, k) {
   }
   return { med, of: Array.from(of) };
 }
-// K split over the splits by their share of the houses (largest remainder, at least one each)
-function allot(counts, K) {
+// K split over the splits by their share of the houses (largest remainder, at least one each, at least FLOOR[split])
+// THE HARBOUR GETS THREE (the user, 2026-09-29, TOWNKIT decision 2): one water archetype stood for all 22 waterfront
+// plots, the most repeated shape of the kit where it shows most - three, the count still 30 (decision 3): what the
+// floor adds is taken from the largest split
+const FLOOR = { water: 3 };
+function allot(counts, K, floor) {
+  const fl = floor || FLOOR;
   const keys = Object.keys(counts).sort(), N = keys.reduce((a, k) => a + counts[k], 0);
   const out = {}; let used = 0;
-  for (const k of keys) { out[k] = Math.max(1, Math.floor(K * counts[k] / N)); used += out[k]; }
+  for (const k of keys) { out[k] = Math.min(counts[k], Math.max(1, fl[k] || 0, Math.floor(K * counts[k] / N))); used += out[k]; }
   const rem = keys.map(k => [k, K * counts[k] / N - Math.floor(K * counts[k] / N)]).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
   for (let i = 0; used < K && i < rem.length; i++, used++) out[rem[i][0]]++;
+  while (used > K) { const big = keys.slice().sort((a, b) => out[b] - out[a] || (a < b ? -1 : 1))[0]; out[big]--; used--; }
   return out;
 }
 const median = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
@@ -834,6 +840,6 @@ if (require.main === module) {
   if (arg('--sheet')) { fs.writeFileSync(path.resolve(arg('--sheet')), rasterSheet(R.arch, { subtitle: 'SOWN FROM JOLENE: ' + R.S.houses.length + ' PLOTS + ' + R.S.outs.length + ' OUTBUILDINGS' })); console.log('WROTE  ' + arg('--sheet')); }
 }
 
-module.exports = { loadGens, sow, feat, dist, splitOf, kMedoids, pickArchetypes, canonP, stanceTop, buildArchetype, buildKit, takeLod, boxLod,
+module.exports = { loadGens, sow, feat, dist, splitOf, kMedoids, allot, FLOOR, pickArchetypes, canonP, stanceTop, buildArchetype, buildKit, takeLod, boxLod,
   encodePack, decodePack, encodeLod, decodeLod, octEnc, octDec, finishTable, finishOf, assign, fits, groundCorners, encodeInstances, decodeInstances,
   instanceFile, rasterSheet, run, report, MANIFEST, INST, VSTRIDE, STRETCH, LOD_DIST, DRESSING, SEA };
