@@ -155,13 +155,43 @@ const OBSTACLES = (() => {
     if (!out.length) return null;
     let top = -Infinity, xr = 0;
     for (const pc of out) { const b = pc.bb; top = Math.max(top, b[4]); for (const x of [b[0], b[3]]) for (const z of [b[2], b[5]]) xr = Math.max(xr, Math.hypot(x, z)); }
-    return { pieces: out, top, xr, cells: out.length, cell: 0 };
+    return { pieces: out, top, xr, cells: out.length, cell: 0, grid: pieceGrid(out) };
+  }
+  // G1063.1 (train 16's ratchet: the solver +1.7 ms at the taxi): a node inside a parked aeroplane's reach tested all
+  // ~60 pieces' boxes (136 ns a query against the raster's one cell). A 0.5 m plan grid lists, per cell, the pieces
+  // whose box covers it, in the pieces' own order - the same candidates, the same order, the same answer
+  function pieceGrid(out) {
+    const g = 0.5;
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const pc of out) { const b = pc.bb; x0 = Math.min(x0, b[0]); z0 = Math.min(z0, b[2]); x1 = Math.max(x1, b[3]); z1 = Math.max(z1, b[5]); }
+    const nx = Math.max(1, Math.ceil((x1 - x0) / g)), nz = Math.max(1, Math.ceil((z1 - z0) / g));
+    if (nx * nz > 65536) return null;
+    const cells = new Array(nx * nz);
+    for (let i = 0; i < out.length; i++) {
+      const b = out[i].bb;
+      const i0 = Math.max(0, Math.floor((b[0] - x0) / g)), i1 = Math.min(nx - 1, Math.floor((b[3] - x0) / g));
+      const j0 = Math.max(0, Math.floor((b[2] - z0) / g)), j1 = Math.min(nz - 1, Math.floor((b[5] - z0) / g));
+      for (let j = j0; j <= j1; j++) for (let k = i0; k <= i1; k++) (cells[j * nx + k] || (cells[j * nx + k] = [])).push(i);
+    }
+    return { x0, z0, g, nx, nz, cells };
   }
   function penPieces(S, lx, y, lz) {
-    const L = S.pieces;
+    const L = S.pieces, G = S.grid;
+    let C = null;
+    if (G) {
+      const gi = Math.floor((lx - G.x0) / G.g), gj = Math.floor((lz - G.z0) / G.g);
+      if (gi < 0 || gj < 0 || gi >= G.nx || gj >= G.nz) {
+        // a point on the grid's far edge (lx == x1) still reads the last cell
+        const ei = gi === G.nx && lx - G.x0 <= G.nx * G.g ? G.nx - 1 : gi, ej = gj === G.nz && lz - G.z0 <= G.nz * G.g ? G.nz - 1 : gj;
+        if (ei < 0 || ej < 0 || ei >= G.nx || ej >= G.nz) return null;
+        C = G.cells[ej * G.nx + ei];
+      } else C = G.cells[gj * G.nx + gi];
+      if (!C) return null;
+    }
     let best = Infinity, bx = 0, by = 0, bz = 0, any = false;
-    for (let i = 0; i < L.length; i++) {
-      const pc = L[i];
+    const nC = C ? C.length : L.length;
+    for (let c = 0; c < nC; c++) {
+      const i = C ? C[c] : c, pc = L[i];
       if (!inBox(pc.bb, lx, y, lz) || sdist(pc, lx, y, lz) > 0) continue;
       any = true;
       const P = pc.planes, grounded = pc.bb[1] < 0.25;

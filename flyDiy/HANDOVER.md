@@ -64002,3 +64002,8 @@ only while the cook was stale (every key captured live).
 - FRAMECOST: stand/gl.bindBuffer ALLOW 56 -> 60 (59 on train 16: ~2 more of G1020's untraced small re-sends, while
   bytes, draws and uniforms all fell).
 - Re-cooked: `node tools/parked_cook.js` on the built train (GPU lock).
+- G1063.1 (the same train's GPU ratchet: the solver +1.7 ms at the Cub's and the metal Cessna's taxi, RED): a node inside
+  a parked aeroplane's reach (xr ~5.7 m) tested every one of the spec shape's ~60 pieces' boxes - 136 ns a query in node
+  against the raster's single cell. 29_obstacles.js pieces() now keeps a 0.5 m plan grid of piece indices (per cell, in
+  the pieces' order); penPieces reads only its cell's list: 57-64 ns, and 0 differing answers of 2 000 000 random
+  queries against the full scan (scratchpad penbench: grid on / off, the pushes compared bit for bit).
