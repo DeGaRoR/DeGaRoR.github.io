@@ -60,30 +60,79 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // divided back through the night's schedule (the cockpit's kOut: (0.92 / exposure)^0.8), so a
   // lens reads as a lamp whatever the sky does. One material per colour, declared on the world's
   // switchboard as `runway` so GATE LIGHT's census can see them and the NIGHT strip can mute them.
-  const RWY = { mats: {}, meshes: [] };
+  // G1066 (POLISH-1, the user: "floating black balls at runway intersections"): (a) WHERE - the places are the core's
+  // (25_airfield.js runwayLightPoints): a light that falls ON pavement - another strip, a taxiway's throat, a turn pad,
+  // an apron, a road (the premises' pavedNear, grass excepted) - is an INSET light: flush, its lens a 2.6 cm dome at the
+  // surface (the same geometry squashed to RWY_INSET, its stem and base under the pavement), as a real crossing's and
+  // turn pad's are; one that would stand within 3 m of a pavement's edge, off it, is left out. (b) THE DAY LOOK - an elevated light on its own frangible stem: a squat base can
+  // on the ground, a thin stem, and the lens a pale glass globe (the white row warm clear, the threshold's pale green)
+  // where it was a 9 cm near-black ball 35 cm up in the air. ONE merged geometry per colour per strip (the same two
+  // draws a strip), vertex colours for the three parts and a 2-texel emissive MASK on the uv (the lens 1, the rest 0),
+  // so only the lens glows at night. The night is as it was: the lens's centre where the ball's was, the growth about
+  // it (a grown lens swallows its stem, the base sinks under the ground), and the body darkened with `on`
+  // (runwayLightsApply: the material's colour white by day, ~0.015 at night - the old lens's near black).
+  const RWY = { mats: {}, meshes: [], mask: null };
+  const RWY_LENS_R = 0.07, RWY_LENS_Y = 0.35;          // the lens globe's radius, its centre above the ground (the old ball's)
+  const RWY_INSET = 0.3, RWY_INSET_Y = 0.005;          // an inset light: the whole light squashed to 0.3 in y, its centre at the surface
+  const RWY_GLASS = { 0xfff1cc: 0xe9e3cf, 0x37ff6a: 0xc0e6c8 };   // a lens's day colour: warm clear glass, pale green glass
+  function rwyMask() {                                  // uv.x 0.25 -> black (the stem, the base), 0.75 -> white (the lens)
+    if (RWY.mask || !THREE.DataTexture) return RWY.mask;
+    const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255]), 2, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+    t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
+    return (RWY.mask = t);
+  }
+  // the light's geometry about the LENS'S CENTRE: the globe (a little taller than wide), the stem from under the
+  // ground up into the globe, the base can on the ground; position, normal, colour, uv (the mask), one index
+  function rwyLightGeo(hex) {
+    const parts = [], H = RWY_LENS_Y;
+    const lens = new THREE.SphereGeometry(RWY_LENS_R, 8, 6); lens.scale(1, 1.25, 1);
+    parts.push([lens, C(RWY_GLASS[hex] || 0xe9e3cf), 0.75]);
+    const st = new THREE.CylinderGeometry(0.016, 0.02, H + 0.1, 6, 1, true); st.translate(0, -(H + 0.1) / 2, 0);
+    parts.push([st, C(0xb4b1a8), 0.25]);
+    const bs = new THREE.CylinderGeometry(0.045, 0.06, 0.14, 8, 1, false); bs.translate(0, -H + 0.02, 0);
+    parts.push([bs, C(0x505256), 0.25]);
+    let nv = 0, ni = 0;
+    for (const [g] of parts) { nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 3), uv = new Float32Array(nv * 2);
+    const idx = new Uint16Array(ni);
+    let v0 = 0, i0 = 0;
+    for (const [g, c, u] of parts) {
+      const P = g.attributes.position, N = g.attributes.normal, n = P.count;
+      pos.set(P.array, v0 * 3); nor.set(N.array, v0 * 3);
+      for (let k = 0; k < n; k++) { col[(v0 + k) * 3] = c.r; col[(v0 + k) * 3 + 1] = c.g; col[(v0 + k) * 3 + 2] = c.b; uv[(v0 + k) * 2] = u; uv[(v0 + k) * 2 + 1] = 0.5; }
+      if (g.index) for (let k = 0; k < g.index.count; k++) idx[i0 + k] = g.index.array[k] + v0;
+      else for (let k = 0; k < n; k++) idx[i0 + k] = v0 + k;
+      i0 += g.index ? g.index.count : n; v0 += n;
+      g.dispose();
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    return geo;
+  }
   // one strip's lights: white edge lenses every 60 m, green threshold rows; instanced per colour per
   // strip (its own small geometry, so repaintStrips' dispose takes nothing shared); `keep` is the
   // strip's own record of what it stood (standStrip's) - the analytic HOME passes the identity
   function standRunwayLights(a, keep) {
-    const rwMat = hex => RWY.mats[hex] || (RWY.mats[hex] = new THREE.MeshStandardMaterial({ color: C(0x1a1c20), emissive: C(hex), emissiveIntensity: 0, roughness: 0.3, metalness: 0 }));
-    const ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);
-    const along = (s, w) => [a.x + s * ca - w * sa, a.z + s * sa + w * ca];   // the sea lane's frame (G396.2)
-    const half = a.len / 2, hw = a.wid / 2;
-    const edge = [], thr = [];
-    const nE = Math.max(2, Math.round(a.len / 60));
-    for (let i = 0; i <= nE; i++) { const s = -half + (a.len * i) / nE; for (const w of [-(hw + 1.5), hw + 1.5]) edge.push(along(s, w)); }
-    for (const s of [-half - 2, half + 2]) for (let k = 0; k < 6; k++) thr.push(along(s, -hw + (a.wid * (k + 0.5)) / 6));
+    const rwMat = hex => RWY.mats[hex] || (RWY.mats[hex] = new THREE.MeshStandardMaterial({ color: C(0xffffff), vertexColors: true, emissive: C(hex), emissiveMap: rwyMask(), emissiveIntensity: 0, roughness: 0.25, metalness: 0 }));
+    const PO = world.premises && world.premises.overlay;
+    const L = runwayLightPoints(a, world.aerodromes, PO && PO.pavedNear ? PO.pavedNear : null);   // G1066: none on another strip or a pavement
     const stand = (pts, hex) => {
-      const im = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 8, 6), rwMat(hex), pts.length);
+      if (!pts.length) return;
+      const im = new THREE.InstancedMesh(rwyLightGeo(hex), rwMat(hex), pts.length);
       const M = new THREE.Matrix4(), pv = new THREE.Vector3(), q = new THREE.Quaternion(), sv = new THREE.Vector3(1, 1, 1);
-      const P = pts.map(([x, z]) => [x, world.terrainH(x, z) + 0.35, z]);
-      P.forEach((p3, i) => { pv.set(p3[0], p3[1], p3[2]); M.compose(pv, q, sv); im.setMatrixAt(i, M); });
+      // [x, y, z, the day's y scale]: elevated 1, inset RWY_INSET (flush with the pavement it stands in)
+      const P = pts.map(([x, z, fl]) => [x, world.terrainH(x, z) + (fl ? RWY_INSET_Y : RWY_LENS_Y), z, fl ? RWY_INSET : 1]);
+      P.forEach((p3, i) => { pv.set(p3[0], p3[1], p3[2]); sv.set(1, p3[3], 1); M.compose(pv, q, sv); im.setMatrixAt(i, M); });
       im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = false;
       im.frustumCulled = false;                       // the lenses grow with the distance (runwayLightsApply); the geometry's sphere would cull them
-      im.userData.rwyLight = 1; im.userData.pts = P; im.userData.grown = false;
+      im.userData.rwyLight = 1; im.userData.pts = P; im.userData.grown = false; im.userData.cut = L.cut.length; im.userData.inset = L.inset.length;
       scene.add(keep(im)); RWY.meshes.push(im);
     };
-    stand(edge, 0xfff1cc); stand(thr, 0x37ff6a);
+    stand(L.edge, 0xfff1cc); stand(L.thr, 0x37ff6a);
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
   const lakeQuads = [];   // the drawn lake surfaces (box + y): waterDrawY reads them
@@ -1055,8 +1104,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const P = im.userData.pts;
       for (let i = 0; i < P.length; i++) {
         const d = on > 0 ? Math.hypot(P[i][0] - eye.x, P[i][1] - eye.y, P[i][2] - eye.z) : 0;
-        const sc = on > 0 ? Math.max(1, Math.min(150, d * 0.003 / 0.09)) : 1;
-        rwyP.set(P[i][0], P[i][1], P[i][2]); rwyS.setScalar(sc); rwyM.compose(rwyP, rwyQ, rwyS); im.setMatrixAt(i, rwyM);
+        const sc = on > 0 ? Math.max(1, Math.min(150, d * 0.003 / RWY_LENS_R)) : 1;
+        // (G1066: an inset light's squash lets go as it grows - a far one is a round point like the rest)
+        const fy = P[i][3], sy = sc * (fy + (1 - fy) * Math.min(1, (sc - 1) / 2));
+        rwyP.set(P[i][0], P[i][1], P[i][2]); rwyS.set(sc, sy, sc); rwyM.compose(rwyP, rwyQ, rwyS); im.setMatrixAt(i, rwyM);
       }
       im.instanceMatrix.needsUpdate = true; im.userData.grown = on > 0;
     }
@@ -1066,7 +1117,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // threshold's green saturated to white from 300 m)
     const k = Math.pow(0.92 / Math.max(0.92, ex), 0.9);
     const lit = worldSwitch ? worldSwitch.on('runway') : true;
-    for (const h in RWY.mats) RWY.mats[h].emissiveIntensity = lit ? on * 1.2 * k : 0;
+    // G1066: the body's day colour (the pale glass, the stem's grey) darkens as the lights come on: at night the lens is
+    // the old near-black ball round its glow, however far it has grown
+    const body = 1 - 0.985 * on;
+    for (const h in RWY.mats) { RWY.mats[h].emissiveIntensity = lit ? on * 1.2 * k : 0; RWY.mats[h].color.setScalar(body); }
   }
   function applyWorldLights() {
     if (!worldSwitch) return;
@@ -5834,7 +5888,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
         if (a0 && !a0.premises) continue;
-        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.userData && o.userData.rockBatches) for (const b of o.userData.rockBatches) b.dispose(); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); } }
+        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.userData && o.userData.rockBatches) for (const b of o.userData.rockBatches) b.dispose(); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); o.geometry.dispose(); } }
         stripStood.delete(id);
       }
       for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);

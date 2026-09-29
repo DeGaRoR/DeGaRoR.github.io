@@ -226,6 +226,7 @@ async function childSetup() {
   const logN = W.BOOT.log.length;
   if (tgt) tgt.click();
   out.touched = S.touched(); out.holdLogged = W.BOOT.log.slice(logN).some(e => e.k === 'hold');
+  out.touchAfter = S.state();   // G1065: Fly pulses once touched
   R.open('graphics');
   const fly = doc.getElementById('flFlyBody');
   out.aToRail = { row: ROW, picked: tgt && tgt.textContent, was, setupNow: onOf(pillsOf(host, ROW)), railNow: onOf(pillsOf(fly, ROW)), gfx: G.get().aa };
@@ -241,7 +242,7 @@ async function childSetup() {
   await P.until(() => W.BOOT.state === 'waiting' || W.BOOT.state === 'gone', 900000);
   out.stateAtEnd = W.BOOT.state;
   await P.frames(60);
-  out.after60 = { state: W.BOOT.state, fly: S.state().fly, flyText: doc.getElementById('bootFly').textContent };
+  out.after60 = { state: W.BOOT.state, fly: S.state().fly, pulse: S.state().pulse, flyText: doc.getElementById('bootFly').textContent };
   // a graphics row picked WHILE IT WAITS (shadows: re-keys the lit programs) - compiled before the lift
   const shadowsWas = G.get().shadows;
   G.set('shadows', shadowsWas === 'full' ? 'off' : 'full');
@@ -340,6 +341,7 @@ async function main() {
       const want = { fly: ['route', 'start', 'engines', 'controls'], view: ['camera', 'instruments', 'map', 'trace', 'screen'], sky: ['night', 'weather'], graphics: ['graphics'] };
       ok(JSON.stringify(S.items) === JSON.stringify(Object.entries(want).map(([k, secs]) => ({ k, secs }))), 'the setup screen\'s sections: FLY route/start/engines/controls, VIEW, SKY & WORLD time/weather, GRAPHICS', JSON.stringify(S.items));
       ok(!S.touchBefore.touched && S.touched && S.holdLogged, 'a touch on the setup screen holds the auto-start', 'before ' + JSON.stringify(S.touchBefore) + ', hold logged ' + S.holdLogged);
+      ok(!S.touchBefore.pulse && S.touchAfter && S.touchAfter.pulse && S.after60.pulse, 'G1065 Fly pulses once the setup is touched (not before; still when the load is done and it waits)', 'before ' + JSON.stringify(S.touchBefore) + ', after ' + JSON.stringify(S.touchAfter) + ', 60 frames on ' + JSON.stringify(S.after60));
       ok(S.aToRail.picked && S.aToRail.setupNow === S.aToRail.picked && S.aToRail.railNow === S.aToRail.picked, 'LIVE: a pick on the setup screen shows in the rail', JSON.stringify(S.aToRail));
       ok(S.bToSetup.railNow !== undefined && S.bToSetup.setupNow === S.bToSetup.railNow && S.bToSetup.setupBefore !== S.bToSetup.setupNow, 'LIVE: a switch flipped in the rail shows on the setup screen', JSON.stringify(S.bToSetup));
       ok(S.stateAtEnd === 'waiting' && S.after60.state === 'waiting' && S.after60.fly, 'touched: the load finishes and the screen WAITS, Fly lit (60 frames on)', JSON.stringify(S.after60));

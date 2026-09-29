@@ -8907,12 +8907,21 @@
     } finally { flSetupOn = false; if (census) flCensus = null; }
     host.scrollTop = keep;
   }
+  // G1065 (POLISH-1, the user 2026-09-29): A TOUCHED SETUP WAITS FOR FLY, SO FLY DRAWS THE EYE. Once the player has changed
+  // (or opened) anything on the screen, the auto-start is held and nothing happens until Fly is pressed - the button
+  // pulses gently (style.css #bootFly.pulse: a soft glow breathing, 1.8 s; under prefers-reduced-motion a static ring
+  // instead); lit and pulsing once the load is done, an outline pulsing while it still loads. Untouched it never pulses
+  // (the screen lifts on its own). The look is one function of (touched, ready): setupLook, which GATE UISMOKE drives.
+  function setupLook(fly, touched, ready) {
+    fly.disabled = !ready; fly.classList.toggle('on', ready);
+    fly.classList.toggle('pulse', !!touched);
+  }
   function setupState() {
     const B = BOOT, fly = $('bootFly'), note = $('bootSetupNote');
     if (!fly) return;
     const ready = B.state === 'waiting';
-    fly.disabled = !ready; fly.classList.toggle('on', ready);
-    fly.textContent = ready ? 'Fly' : 'Fly';
+    setupLook(fly, setupTouched, ready);
+    fly.textContent = 'Fly';
     if (note) note.textContent = !setupTouched ? 'It starts on its own when it is ready. Touch an option and it waits for you.'
       : ready ? 'Ready. Your changes are in.' : 'Held for you: Fly lights up when the loading is done.';
   }
@@ -8967,7 +8976,8 @@
     BOOT.run(list, Object.assign({}, bootOpts, { set: 'garage', done: () => { if (parks) holdRender = false; tripClose(t); bootOpts.done(); } }));
   }
   if (typeof window !== 'undefined') window.FLYDIY_SETUP = {
-    open: () => setupOpen(), close: () => setupClose(), touched: () => setupTouched, state: () => ({ touched: setupTouched, boot: BOOT.state, fly: !!($('bootFly') && !$('bootFly').disabled) }),
+    open: () => setupOpen(), close: () => setupClose(), touched: () => setupTouched, state: () => ({ touched: setupTouched, boot: BOOT.state, fly: !!($('bootFly') && !$('bootFly').disabled), pulse: !!($('bootFly') && $('bootFly').classList.contains('pulse')) }),
+    look: (touched, ready) => { const f = $('bootFly'); if (f) setupLook(f, touched, ready); return f ? { on: f.classList.contains('on'), pulse: f.classList.contains('pulse'), disabled: !!f.disabled } : null; },   // G1065: GATE UISMOKE
     items: () => FL_SETUP_ITEMS().map(r => ({ k: r.k, secs: r.k === 'graphics' ? ['graphics'] : flSetupSecs(r) })),
     // the panel built with every fold open, nothing saved (GATE SETUP), as FLYDIY_RAIL.census does the rail
     census() {
@@ -10873,6 +10883,8 @@
       // ...unless a hand is on it (G200): a stick moved or a key held in the
       // last seconds is a control check the player is doing, and the stand
       // answers it — physics off, so it costs nothing either.
+      // G1064: under the ROLL-OUT SHOT the shot writes over this later in the frame (ROLLANIM.frame, before poseModel):
+      // its own brisk check of every surface, then the four held at neutral while it rolls (rollanim.js)
       shedT += fdt;
       const tS = shedT;                // (G586: the sweep on seconds, not frames)
       if (INP && INP.active()) INP.write(sim.ctl);

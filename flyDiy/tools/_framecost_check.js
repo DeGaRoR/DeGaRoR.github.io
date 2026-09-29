@@ -118,8 +118,9 @@ const ALLOW = [
   { key: 'boot/garage:recheck/', build: '*', why: 'the aircraft\'s keyed steps re-planned once after the commit settled', g: 'G1020' },
   { key: 'boot/garage:firstFrame/links', build: '*', upTo: 26, why: 'G441\'s see-through variants under the boot\'s screen (their 1.5 s timer fired into the first roll-out\'s shot)', g: 'G1027' },
   // THE ROLL-OUT: no step runs (every key unchanged) and nothing links; the row now spans B10's shot (rollanim.js, B9's
-  // phase 2): ~360 frames of the shed, the eye going out through the door, 4-6 s - the shed's own frames
-  { key: 'boot/rollout:click/', build: '*', why: 'the roll-out shot\'s ~360 shed frames (B10 via B9\'s phase 2); no step, no link', g: 'G1027/G1035' },
+  // phase 2): ~360 frames of the shed, the eye going out through the door, 4-6 s - the shed's own frames; G1064: after
+  // ~200 frames of the control check before it (3.3 s, the aeroplane at rest, its surfaces re-posed as they move)
+  { key: 'boot/rollout:click/', build: '*', why: 'the roll-out shot\'s ~560 shed frames (G1064\'s control check ~200, then B10\'s roll ~360, via B9\'s phase 2); no step, no link', g: 'G1027/G1035/G1064' },
   // THE STAND AND THE TAXI: the world as the flight finds it, now arrived in the loading - the settle's stream placed three
   // parked aeroplanes by the taxi route (a C172, a Jodel, a Cub: captured in the loading, not in flight - FRAMECOST_WHAT=taxi),
   // the scenery's life standing, the craft's lights counted; B9's HANDOVER has the like-for-like (FRAMECOST_PROBE=600)

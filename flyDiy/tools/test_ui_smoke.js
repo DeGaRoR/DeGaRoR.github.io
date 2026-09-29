@@ -379,6 +379,25 @@ try {
     if (!els['boot'].classList.contains('gone')) throw new Error('#boot did not get .gone');
     console.log('the loading screen: ' + steps.length + ' steps in order, lifted on frame ' + B.log.find(e => e.k === 'ready').t);
   }
+  // ---- G1065 (POLISH-1): THE FLY BUTTON DRAWS THE EYE ONCE THE SETUP IS TOUCHED ----
+  // The user: "when the player changes any option on the roll-out setup screen during the load, the Fly button must draw
+  // attention - a gentle pulsing animation (prefers-reduced-motion: a static highlight instead). No pulse while
+  // untouched (it auto-starts then)." The look is one function of (touched, ready) - app.js setupLook, driven here on the
+  // real #bootFly through FLYDIY_SETUP.look - and the pulse and its reduced-motion ring are the artifact's own CSS.
+  {
+    const S = sandbox.window.FLYDIY_SETUP;
+    if (!S || typeof S.look !== 'function') throw new Error('FLYDIY_SETUP.look is missing (G1065)');
+    const [u0, u1, t0, t1] = [[false, false], [false, true], [true, false], [true, true]].map(([t, r]) => S.look(t, r));
+    if (!u0 || u0.pulse || u1.pulse) throw new Error('the Fly button pulses on an untouched setup screen (it auto-starts then): ' + JSON.stringify([u0, u1]));
+    if (!t0.pulse || !t1.pulse) throw new Error('a touched setup screen: the Fly button does not pulse: ' + JSON.stringify([t0, t1]));
+    if (t0.on || !t0.disabled || !t1.on || t1.disabled) throw new Error('Fly is lit and pressable only when the load is done: ' + JSON.stringify([t0, t1]));
+    S.look(false, false);
+    if (!/#bootFly\.pulse \{ animation:bootFlyPulse [0-9.]+s ease-in-out infinite; \}/.test(html) || !/@keyframes bootFlyPulse \{/.test(html))
+      throw new Error('style.css: #bootFly.pulse has no pulse animation');
+    if (!/@media \(prefers-reduced-motion: reduce\) \{\s*#bootFly\.pulse \{ animation:none; box-shadow:[^}]+\}/.test(html))
+      throw new Error('style.css: no static highlight for #bootFly.pulse under prefers-reduced-motion');
+    console.log('the Fly button: no pulse untouched; touched, it pulses (an outline while it loads, lit when ready); reduced motion: a still ring');
+  }
   handlers['bGo'] && handlers['bGo']();
   frames(120);
   // ---- THE PILOT IS YOU (G200) ----
