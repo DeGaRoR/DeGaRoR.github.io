@@ -132,6 +132,7 @@ function makeSimView(def, opts) {
       if (M.fuel) view.fuel = M.fuel;
       view.hydro = M.hydro || null;
       view.wheels = M.wheels || null;
+      if (M.apNew) view.ap = {};             // G820 (C1c): a new pilot (Fly on, the skip) - no field of the last one kept
       if (M.ap) for (const k of Object.keys(M.ap)) view.ap[k] = M.ap[k];
       if (M.ctl) {
         for (const k of SIM_VIEW_LEVERS) if (!(ctlPatch && k in ctlPatch) && M.ctl[k] !== undefined) lever[k] = M.ctl[k];

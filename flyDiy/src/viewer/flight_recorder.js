@@ -57,7 +57,10 @@
   const NS = SLOTS.length;
   // the columns of a row (the frame's time `t`, ms on performance.now()'s clock, is its own Float64 column)
   const COLS = ['dt', 'work', 'owed', 'taken'].concat(SLOTS).concat(
-    ['gpu', 'calls', 'tris', 'x', 'y', 'z', 'agl', 'spd', 'vs', 'phase', 'cam', 'flags', 'cap', 'heap']);
+    ['gpu', 'calls', 'tris', 'x', 'y', 'z', 'agl', 'spd', 'vs', 'phase', 'cam', 'flags', 'cap', 'heap',
+     // G820 (C1c): THE PHYSICS WORKER'S (?simw): its step's cost (ms, eased), its dilation (sim s over wall s, the last
+     // second) and the steps the picture moved on this frame - NaN when the flight is the page's own (inline)
+     'wms', 'wdil', 'wran']);
   const C = {}; COLS.forEach((k, i) => { C[k] = i; });
   const NC = COLS.length, C_SLOT0 = C.script;
   // flags: what the frame was
@@ -84,7 +87,7 @@
     // wait the frame's next GL call would have paid). A frame under a loading screen is not a sample.
     let depth = 0, open = false, fi = 0, taken = 0, owed = 0, selfN = 0, samp = false, sampN = 0;
     let calls = 0, tris = 0, lastCap = -1, lastBoot = '', revealAt = -1, freezes = 0;
-    const probeOut = { garage: false, running: false, held: false, manual: false, phase: '', cam: '', spd: NaN, vs: NaN, agl: NaN };
+    const probeOut = { garage: false, running: false, held: false, manual: false, phase: '', cam: '', spd: NaN, vs: NaN, agl: NaN, wms: NaN, wdil: NaN, wran: NaN };
     const names = { phase: [''], cam: [''] }, codes = { phase: new Map([['', 0]]), cam: new Map([['', 0]]) };
     const codeOf = (k, s) => { if (typeof s !== 'string') return 0; let c = codes[k].get(s); if (c === undefined) { c = names[k].length; names[k].push(s); codes[k].set(s, c); } return c; };
     // events: [t, kind, ms, detail]; the rare path, so plain arrays (capped)
@@ -174,6 +177,7 @@
       if (rec.probe) { try { rec.probe(P, cg); } catch (e) { rec.probe = null; event('err', t, null, 'probe: ' + String(e && e.message || e)); } }
       if (P.garage) fl |= F.garage; if (P.running) fl |= F.running; if (P.held) fl |= F.held; if (P.manual) fl |= F.manual;
       ringF[j + C.agl] = P.agl; ringF[j + C.spd] = P.spd; ringF[j + C.vs] = P.vs;
+      ringF[j + C.wms] = P.wms; ringF[j + C.wdil] = P.wdil; ringF[j + C.wran] = P.wran;
       ringF[j + C.phase] = codeOf('phase', P.phase); ringF[j + C.cam] = codeOf('cam', P.cam);
       // the boot's screen: a state change is an event; the roll-out screen gone is THE REVEAL
       const B = W.BOOT;

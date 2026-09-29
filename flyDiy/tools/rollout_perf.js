@@ -243,7 +243,9 @@ const INSTALL = `(() => {
       if (s.hydro) { const v = s.cgVel(); wph = wPhase(apPh, onG, Math.hypot(v[0], v[2]), hAgl); } } } catch (e) {}
     R.fr.push([ +now.toFixed(1), lastNow ? +(now - lastNow).toFixed(2) : 0, +workMs.toFixed(2), +physMs.toFixed(2), steps, +wuMs.toFixed(2), st.cap, ph ? ph.textContent : '', prem(), agl == null ? null : +agl.toFixed(1),
       +rMs.toFixed(2), +shMs.toFixed(2), +pmMs.toFixed(2), pmN, x == null ? null : +x.toFixed(2), z == null ? null : +z.toFixed(2),
-      apPh, V == null ? null : +V.toFixed(2), onG, hAgl == null ? null : +hAgl.toFixed(2), +mirMs.toFixed(2), mirN, +fldMs.toFixed(2), WT && WT.stats && R.waterGpu ? +WT.stats.gpuMs.toFixed(3) : null, man, wph ]);
+      apPh, V == null ? null : +V.toFixed(2), onG, hAgl == null ? null : +hAgl.toFixed(2), +mirMs.toFixed(2), mirN, +fldMs.toFixed(2), WT && WT.stats && R.waterGpu ? +WT.stats.gpuMs.toFixed(3) : null, man, wph ]
+      // G820 (C1c): THE PHYSICS WORKER'S readings (?simw): its step's cost (ms, eased), its dilation, its steps a turn at most (ms)
+      .concat((() => { const SW = window.FLYDIY_SIMW; const w = SW && SW.perf ? SW.perf() : null; return w && w.live ? [+w.stepMs.toFixed(3), +w.dil.toFixed(4), +w.maxMs.toFixed(2)] : [null, null, null]; })()));
     R.wph = wph;
     lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0;
     return endW(workMs, physMs, steps, now);
@@ -472,6 +474,10 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     const bytes = progSrc.reduce((a, x) => a + x[2], 0);
     console.log('  programs (source hashed): ' + progSrc.length + ', ' + new Set(progSrc.map(x => x[1])).size + ' distinct sources, ' + (bytes / 1e6).toFixed(1) + ' MB of GLSL');
   }
+  // G820 (C1c): who flew it - the physics worker (live, placed) or the page (inline, and why)
+  const simw = JSON.parse(await ev('JSON.stringify(window.FLYDIY_SIMW ? (s => ({ phase: s.phase, reason: s.reason, dead: s.dead, placeOk: s.placeOk, flights: s.flights, inline: s.inline, wvBad: s.wvBad, wvMaxLag: s.wvMaxLag, worldMs: s.worldMs, initMs: s.initMs, bootFetchMs: s.bootFetchMs, readyWaitFrames: s.readyWaitFrames, view: s.view }))(FLYDIY_SIMW.state()) : null)', 20000).catch(() => 'null'));
+  console.log('  physics: ' + (simw ? (simw.dead ? 'INLINE (no worker: ' + simw.dead + ')' : 'the WORKER - ' + simw.phase + (simw.reason ? ' (' + simw.reason + ')' : '') + ', placed ' + simw.placeOk + ', ' + simw.flights + ' flights (' + simw.inline + ' inline), world made in ' + (simw.worldMs != null ? Math.round(simw.worldMs) : '?') + ' ms, held ' + simw.readyWaitFrames + ' frames, world-version lag max ' + simw.wvMaxLag + ' frames')
+    : 'INLINE (?simw=0)'));
   const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', 60000).catch(e => 'error: ' + e.message) : null;
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
@@ -518,7 +524,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
 
   // ---- the reading ------------------------------------------------------------
   // fr rows: [now, dt, workMs, physMs, steps, worldMs, cap, phase, premQueued, agl, renderMs, shadowMs, premStepMs, premSteps, x, z,
-  //           apPhase, V, onG, hudAgl, mirrorMs, mirrorCaptures, fieldMs, waterGpuMs, manual, waterPhase] (G790: 16..25)
+  //           apPhase, V, onG, hudAgl, mirrorMs, mirrorCaptures, fieldMs, waterGpuMs, manual, waterPhase] (G790: 16..25),
+  //           [workerStepMs, workerDilation, workerTurnMaxMs] (G820, C1c: null when the page flies it inline)
   const fr = R.fr.filter(r => r[0] >= revealAt && r[1] > 0 && (settingsT0 == null || r[0] < settingsT0));
   // ground speed from the CG track (m/s), over the frame's own dt
   for (let i = 0; i < fr.length; i++) { const a = fr[Math.max(0, i - 1)], b = fr[i]; fr[i].spd = (i && a[14] != null && b[14] != null) ? Math.hypot(b[14] - a[14], b[15] - a[15]) / Math.max(1e-3, b[1] / 1000) : 0; }
@@ -540,6 +547,10 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     steps: +(rs.reduce((s, r) => s + r[4], 0) / Math.max(1, rs.length)).toFixed(2), msPerStep: +(rs.reduce((s, r) => s + r[3], 0) / Math.max(1, rs.reduce((s, r) => s + r[4], 0))).toFixed(2),
     secs: +(rs.reduce((s, r) => s + r[1], 0) / 1000).toFixed(1), mirrorMs: +(rs.reduce((s, r) => s + (r[20] || 0), 0) / Math.max(1, rs.length)).toFixed(2), mirrorPerS: +(rs.reduce((s, r) => s + (r[21] || 0), 0) / Math.max(1e-3, rs.reduce((s, r) => s + r[1], 0) / 1000)).toFixed(2),
     fieldMs: +(rs.reduce((s, r) => s + (r[22] || 0), 0) / Math.max(1, rs.length)).toFixed(2), waterGpu: rs.some(r => r[23] != null) ? +med(rs.filter(r => r[23] != null).map(r => r[23])).toFixed(3) : null,
+    wStepMed: rs.some(r => r[26] != null) ? +med(rs.filter(r => r[26] != null).map(r => r[26])).toFixed(2) : null,
+    wStepP90: rs.some(r => r[26] != null) ? +pct(rs.filter(r => r[26] != null).map(r => r[26]), 0.9).toFixed(2) : null,
+    wDilMin: rs.some(r => r[27] != null) ? +Math.min(...rs.filter(r => r[27] != null).map(r => r[27])).toFixed(3) : null,
+    workP90: +pct(rs.map(r => r[2]), 0.9).toFixed(1),
     vMed: +med(rs.map(r => r[17] || 0)).toFixed(1), renderMed: +med(rs.map(r => r[10])).toFixed(1), renderP90: +pct(rs.map(r => r[10]), 0.9).toFixed(1), shadowMed: +med(rs.map(r => r[11])).toFixed(1), premStepMs: +(rs.reduce((s, r) => s + r[12], 0) / Math.max(1, rs.length)).toFixed(2), cap30: +(rs.filter(r => r[6] === 30).length / Math.max(1, rs.length)).toFixed(2) }; };
   const phases = {}; for (const k of Object.keys(groups)) phases[k] = row(groups[k]);
   // the gate numbers
@@ -562,6 +573,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const ORDER = HYDRO ? ['to-afloat', 'to-displace', 'to-step', 'climb', 'circuit', 'flare', 'ldg-step', 'ldg-displace', 'ldg-afloat'] : ['stand', 'taxi', 'takeoff', 'air'];
   for (const k of ORDER) if (phases[k]) { const p = phases[k];
     console.log(`  ${k.padEnd(HYDRO ? 12 : 8)} ${String(p.fpsDelivered).padStart(5)} fps delivered, ${Math.round(p.doubled * 100)} % doubled (median ${p.fpsMedian}; dt med ${p.dtMedian} p90 ${p.dtP90} p99 ${p.dtP99} max ${p.dtMax}) · loop JS ${p.workMed} · solver ${p.physMed} (p90 ${p.physP90}; ${p.msPerStep} a step) · world ${p.worldMed} (p90 ${p.worldP90}) · render ${p.renderMed} (p90 ${p.renderP90}, shadow ${p.shadowMed}) · prem ${p.premStepMs}/fr · ${p.steps} steps/frame · at 30-cap ${Math.round(p.cap30 * 100)} % · ${p.frames} fr / ${p.secs} s`
+      + (p.wStepMed != null ? ` · WORKER step ${p.wStepMed} ms (p90 ${p.wStepP90}), dilation min ${p.wDilMin} · loop JS p90 ${p.workP90}` : '')
       + (HYDRO ? ` · V ${p.vMed} · mirror ${p.mirrorMs}/fr (${p.mirrorPerS} captures/s) · field ${p.fieldMs}/fr` + (p.waterGpu != null ? ` · water GPU ${p.waterGpu}` : '') : '')); }
   if (HYDRO) { const seq = []; for (const r of fr) if (!seq.length || seq[seq.length - 1][0] !== r.ph) seq.push([r.ph, +((r[0] - revealAt) / 1000).toFixed(1), r[16]]);
     console.log('  water phases (label @ s after the reveal, the pilot phase): ' + seq.map(x => x[0] + '@' + x[1] + '(' + x[2] + ')').join(' '));
@@ -574,7 +586,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, phases, gates, settings: settingsRuns, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    tGarage, tReveal, premEmptyAt, phases, gates, simw, settings: settingsRuns, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));

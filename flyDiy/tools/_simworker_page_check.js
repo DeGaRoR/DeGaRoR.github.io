@@ -7,7 +7,7 @@
 //   --json=<file> (both runs' records)
 //
 // THE PAGE ITSELF IN NODE (tools/_page_node.js, G1010), twice per build, one process at a time (~3.6 GB each):
-//   INLINE   dev.html as it ships - the loop's `script(1/60); sim.step(1/60)` on the page's thread;
+//   INLINE   dev.html?simw=0 (G820: the worker is the default candidate) - the loop's `script(1/60); sim.step(1/60)` on the page's thread;
 //   SIMW     dev.html?simw=1 - the page's step block posts its inputs to src/viewer/sim_host.js running in a REAL
 //            thread (the harness's Worker shim: node worker_threads, the same Blob source, the same messages and
 //            transfers, the core and the trimmed boot fetched off the disk the page's way) and takes its snapshots.
@@ -114,13 +114,15 @@ async function child() {
   const strip = m => { if (!m) return m; if (m.cmd === 'obst') return null; if (m.cmd === 'batch') return Object.assign({}, m, { list: (m.list || []).filter(c => c.cmd !== 'obst') }); return m; };
   // the start stamped two steps late (selftest): the page's `started` reaching the worker at the wrong boundary
   const late = m => { if (m && m.cmd === 'batch') for (const c of m.list || []) if (c.cmd === 'start' && c.k != null) c.k += 2; return m; };
-  const P = await openPage({ quiet: true, storage, hooks, query: mode === 'simw' ? 'simw=1' : '', workers: /sim_host\.js/, onWorkerMessage: tap,
+  const P = await openPage({ quiet: true, storage, hooks, query: mode === 'simw' ? 'simw=1' : 'simw=0', workers: /sim_host\.js/, onWorkerMessage: tap,
                              workerPostFilter: fault === 'noobst' ? (w, m) => strip(m) : fault === 'late' ? (w, m) => late(m) : null });
   W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
   R.t.garage = Date.now() - t0;
   W.document.getElementById('bGo').click();
-  await P.until(() => W.BOOT.state === 'gone' && W.BOOT.set === 'rollout', 900000);
+  // (B8B9: a roll-out with nothing new to do shows no screen - its trip in window.FLYDIY_TRIPS says when it is done)
+  const tripDone = () => { const T = W.FLYDIY_TRIPS; const t = T && T[T.length - 1]; return !!(t && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'); };
+  await P.until(() => (W.FLYDIY_TRIPS ? tripDone() : (W.BOOT.state === 'gone' && W.BOOT.set === 'rollout')), 900000);
   R.t.rollout = Date.now() - t0 - R.t.garage;
   FP = W.FLIGHT_PROBE;
   const RD = FP.renderer();

@@ -292,6 +292,12 @@ const GATES = [
   // 40 s of the departure taxi at 2x: every step's p / v / CG / phase and every frame's page reads bit-identical, no
   // solver step on the page's thread. Four page runs ONE AT A TIME (~3.7-4.1 GB, ~4-5 min each on a 4-core cloud box)
   { id: 'SIMWORKER-PAGE', file: '_simworker_page_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 1100 },
+  // G821 (C1c): EVERY EDGE through the worker - one scripted session per build and mode (dev.html?simw=0 against
+  // ?simw=1, lockstep): the pause, the hand on and off (taxiing and in the air), the world editor's edit (the worker's
+  // world probed against the page's), Fly on, the skip to line-up, the scenery mode, Restart, the shed and its control
+  // sweep and the roll-out back, the divergence; every flight's steps and page reads bit-identical, every door at the
+  // same session step. Four page runs ONE AT A TIME (~3.8-4.1 GB each)
+  { id: 'SIMWORKER-EDGES', file: '_simworker_edges_check.js', tier: 'full', timeout: 4 * 3600_000, weight: 2, wall: 2400 },
   // THE UNDERCARRIAGE (G67.3), and it closes the one gap G67.2 declared: the
   // three leg families as three different drawings — the check GATE GEN lost
   // when the old skin's leg drawer went — plus the wheel turning on its own,

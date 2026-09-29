@@ -409,6 +409,10 @@ async function openPage(opts) {
       while (!cond()) { if (clock.t - t0 > (maxMs || 600000)) return false; const k = await P.tick(); if (k === 'idle') { await flush(); if (!cond() && !rafQ.length && !timers.length) return cond(); } }
       return true;
     },
+    // G821 (C1c): the workers' answers so far, delivered NOW (every page message handled, what came back handed to the
+    // page) - a gate's event between two frames then meets what the page would meet in a browser, where the worker's
+    // answer to a frame lands long before a click: the answer to the last frame, not the one before it
+    async settleWorkers() { if (!workersLive.size) return; for (const w of [...workersLive]) w._pull(true, WORKER_WAIT_MS); for (const w of [...workersLive]) w._deliver(); await flush(); },
     async frames(n) { const f0 = frameNo; await P.until(() => frameNo >= f0 + n, n * 1000 + 60000); return frameNo - f0; },
     pending: () => ({ timers: timers.length, raf: rafQ.length }),
     // G815: the shim's threads (their counters: posted, received, the harness's waits on them, their errors)
