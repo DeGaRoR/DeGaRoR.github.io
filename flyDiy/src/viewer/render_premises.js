@@ -1867,11 +1867,12 @@ function make(THREE, scene, world, rec0, opts) {
   function aircraftOf(grp) {
     const PK = window.PARKED, key = grp.userData && grp.userData.parkedKey;
     const rec = PK && PK.records && key ? PK.records[key] : null;
-    if (!rec || !rec.spec || !rec.vis || !OBSTACLES.aircraftShape) return null;
+    const spec = rec && (rec.spec || rec.shapeSpec), vis = rec && (rec.vis || rec.shapeVis);   // G1063: a cooked record carries its shape's inputs
+    if (!spec || !vis || !OBSTACLES.aircraftShape) return null;
     let lod = null; grp.traverse(o => { if (!lod && o.userData && o.userData.stance) lod = o; });
     if (!lod) return null;
     let shape = AIR_SHAPES.get(key);
-    if (shape === undefined) { shape = OBSTACLES.aircraftShape(rec.spec, OBSTACLES.parkedDrawn(rec.vis, lod.userData.stance)) || null; AIR_SHAPES.set(key, shape); }
+    if (shape === undefined) { shape = OBSTACLES.aircraftShape(spec, OBSTACLES.parkedDrawn(vis, lod.userData.stance)) || null; AIR_SHAPES.set(key, shape); }
     if (!shape) return null;
     grp.updateMatrixWorld(true);
     const e = grp.matrixWorld.elements;

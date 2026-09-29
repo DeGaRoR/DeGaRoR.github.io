@@ -183,7 +183,12 @@ if (PURE) { console.log((n - bad) + '/' + n + ' checks (--pure)'); console.log('
   const KEYS = ['arch:cub', 'arch:c172', 'arch:jodel'];
   const PARKS = [];
   for (const key of KEYS) {
-    const rec = PK.capture(key);
+    // G1063: the page may hold the key COOKED (the shipped parked cook, no mesh): the checks below need the live
+    // capture's mesh, so capture it beside the cooked record, then hold the cooked one to the same shape
+    const cooked = PK.records[key] && PK.records[key].cooked ? PK.records[key] : null;
+    if (cooked) delete PK.records[key];
+    let rec = null;
+    try { rec = PK.capture(key); } finally { if (cooked) PK.records[key] = cooked; }
     if (!check(!!rec, key + ' captured')) continue;
     const grp = new THREE.Group(), lod = PK.build(THREE, rec, grp); grp.updateMatrixWorld(true);
     const st = lod.userData.stance, cs = Math.cos(st.pitch), sn = Math.sin(st.pitch);
@@ -192,6 +197,11 @@ if (PURE) { console.log((n - bad) + '/' + n + ' checks (--pure)'); console.log('
     const S = POB.aircraftShape(rec.spec, POB.parkedDrawn(rec.vis, st));
     const tNew = ms(t0);
     if (!check(!!S, key + ' stands its spec shape', S ? S.pieces.length + ' pieces' : '')) continue;
+    if (cooked) {
+      const SC = cooked.shapeSpec && cooked.shapeVis ? POB.aircraftShape(cooked.shapeSpec, POB.parkedDrawn(cooked.shapeVis, cooked.stance || st)) : null;
+      const sig = X => X ? JSON.stringify(X.pieces.map(pc => [pc.tag, pc.bb.map(v => +v.toFixed(5))])) : 'none';
+      check(!!SC && sig(SC) === sig(S), key + ' cooked stands the same spec shape as its live capture (the game path: render_premises aircraftOf)', SC ? SC.pieces.length + ' pieces' : 'no shape: the cook carries no shapeSpec / shapeVis (re-cook: tools/parked_cook.js)');
+    } else console.log('  --   ' + key + ': not cooked in this page (a stale or missing parked cook): the cooked shape is not checked');
     // the identity, in the object frame (parked.js hitboxOf's chain)
     const cls = {}, tris = {};
     const put = (name, g, at) => {

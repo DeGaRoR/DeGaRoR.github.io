@@ -63987,3 +63987,18 @@ PROPS HOUSE TARR MEDIA ASSETS PASS. FRAMECOST is RED ON TRAIN 16 ITSELF (13, the
 and with the old premises manifest): per frame +3.6 MB bufferSubData, +18 calls at the stand / taxi - the parked
 cook is stale (`parked_cook.js --check`: manifest build 87f352a15f66, the train's build 0f660f8140f2), so every parked
 key is captured live. Needs `node tools/parked_cook.js` (GPU) on the final train build, then FRAMECOST.
+
+## G1063 - TRAIN 16: A COOKED PARKED AEROPLANE STANDS ITS SPEC HITBOX (B12 x C0b) (2026-09-29, A0 the coordinator)
+Found by GATE HITBOX on train 16 once the parked cook was FRESH (re-cooked on the train's build): cookRecord built
+records with spec: null, vis: null, so render_premises aircraftOf returned null and every cooked key (arch:cub, c172,
+jodel - the Cub whose wing the user saw hit the shed) fell back to the RASTER hitbox B12 replaced. The gate had passed
+only while the cook was stale (every key captured live).
+- parked.js: cookPack writes `shape` into the header = { spec, parts: the mainsL / mainsR / prop pivots } (what
+  OBSTACLES.aircraftShape + parkedDrawn read); cookRecord gives `shapeSpec` / `shapeVis`; COOK.V 2 -> 3 (a v2 cook has
+  no shape: refused, captured live, as a stale one). render_premises aircraftOf reads rec.spec || rec.shapeSpec and
+  rec.vis || rec.shapeVis.
+- GATE HITBOX section 3 captures each key LIVE beside the cooked record (the mesh checks need the mesh), then holds
+  the cooked record to the SAME shape (pieces' tags and bbs to 1e-5): the game's path. A page without the cook says so.
+- FRAMECOST: stand/gl.bindBuffer ALLOW 56 -> 60 (59 on train 16: ~2 more of G1020's untraced small re-sends, while
+  bytes, draws and uniforms all fell).
+- Re-cooked: `node tools/parked_cook.js` on the built train (GPU lock).

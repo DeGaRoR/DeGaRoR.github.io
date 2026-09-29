@@ -1342,7 +1342,7 @@ self.onmessage = function (e) {
   // ---- THE COOK (G805): the arch: / stock: keys stood from shipped bytes -----------------------
   // V the container's version (a change of layout re-cooks: it is in the signature). The page reads
   // src/core/parked_packs.json once ({ keys: { key: { src, sig } } }), then each key's file once.
-  const COOK = { V: 2, on: true, url: 'src/core/parked_packs.json', manP: null, man: null, loads: new Map(), waiting: new Set(),
+  const COOK = { V: 3, on: true, url: 'src/core/parked_packs.json', manP: null, man: null, loads: new Map(), waiting: new Set(),
                  pending: 0, all: null, allDone: false, why: {} };
   try { if (W.location && /[?&]parkcook=0(?:&|$)/.test(W.location.search || '')) COOK.on = false; } catch (e) {}
   const cookable = key => !!(COOK.on && W.PARKED && !W.PARKED.L0 && typeof fetch === 'function' && typeof key === 'string' &&
@@ -1435,7 +1435,7 @@ self.onmessage = function (e) {
     const blobs = {}; let off = 0;
     for (const [name, b] of parts) { blobs[name] = [off, b.length]; off += (b.length + 3) & ~3; }
     const hdr = { v: COOK.V, key: o.key, sig: o.sig, build: o.build || null, bake: BAKE.V, S, cc: !!d.cc, ccR: d.ccR, bakeMs: d.ms || 0,
-                  stance: o.stance, hitbox: o.hitbox, tris: o.tris, stats: d.stats || null, bb, L, blobs };
+                  stance: o.stance, hitbox: o.hitbox, tris: o.tris, stats: d.stats || null, shape: o.shape || null, bb, L, blobs };
     let js = JSON.stringify(hdr);
     if (/[^\x20-\x7e]/.test(js)) throw new Error('the cook header is not ASCII');
     while (js.length % 4) js += ' ';
@@ -1477,7 +1477,10 @@ self.onmessage = function (e) {
   function cookRecord(THREE, d) {
     const h = d.hdr;
     const baked = bakedFrom(THREE, { S: h.S, tex: d.tex, cc: h.cc, ccR: h.ccR, L: d.L, ms: h.bakeMs });
+    // G1063: shapeSpec / shapeVis = what the spec hitbox (OBSTACLES.aircraftShape, B12) reads of a capture - the spec
+    // and the mains' / props' pivots - so a cooked aeroplane stands its exact shape, not the raster's
     return { key: h.key, cooked: true, sig: h.sig, spec: null, vis: null, block: null, panel: {}, far: null,
+             shapeSpec: h.shape ? h.shape.spec : null, shapeVis: h.shape ? { parts: h.shape.parts } : null,
              stance: h.stance, hitbox: h.hitbox, tris: h.tris, baked, stats: h.stats, t: 0 };
   }
   // one key: the manifest's answer, the signature, the bytes, the record (REC[key]); null = capture it live
@@ -1523,7 +1526,8 @@ self.onmessage = function (e) {
     const data = await bakeData(W.THREE, rec);
     if (!data) throw new Error('parked cook: the bake of ' + key + ' made nothing');
     const st = rec.stance || (rec.stance = stance(rec.vis));
-    return cookEncode({ key, sig: cookSig(key, rec.spec), build: W.FLYDIY_BUILD || 'dev', stance: st, hitbox: hitboxOf(rec, st), tris: rec.tris, data });
+    const shape = { spec: rec.spec, parts: rec.vis.parts.filter(p => p.kind === 'mainsL' || p.kind === 'mainsR' || p.kind === 'prop').map(p => ({ kind: p.kind, pivot: p.pivot.slice() })) };
+    return cookEncode({ key, sig: cookSig(key, rec.spec), build: W.FLYDIY_BUILD || 'dev', stance: st, hitbox: hitboxOf(rec, st), tris: rec.tris, shape, data });
   }
   // THE A/B's LIVE TWIN (tools/parked_ab.js): the key captured and baked live beside its cooked record (REC keeps
   // the cooked one), as the baked rungs a placement's meshes can be switched onto, with its stance and hitbox
