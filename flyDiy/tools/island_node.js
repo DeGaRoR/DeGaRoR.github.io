@@ -67,21 +67,32 @@ function premisesPack() {
   const p = path.join(ROOT, 'src', 'core', 'premises_packs.json');
   return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : { islands: [] };
 }
-function premCook(name) {
+// G841 (C2c): AND ITS PLACES - each variant's record-order tallies (the page's loader in tools/build.js brings the same,
+// whatever the raster flag: render_premises and the house worker dress every entry on them) and its per-cell manifest
+function premCook(name, raster) {
   const isl = (premisesPack().islands || []).find(w => w.id === name);
-  if (!isl || !isl.raster) return null;
-  const raster = isl.raster.cells.map(c => {
-    const abs = path.join(ROOT, ...c.src.split('/'));
-    if (!fs.existsSync(abs)) throw new Error('island_node: premises_packs.json names ' + c.src + ' and it is not on disk - re-cook with tools/premises_cook.js');
+  if (!isl) return null;
+  const read = src => {
+    const abs = path.join(ROOT, ...src.split('/'));
+    if (!fs.existsSync(abs)) throw new Error('island_node: premises_packs.json names ' + src + ' and it is not on disk - re-cook with tools/premises_cook.js');
     const b = zlib.gunzipSync(fs.readFileSync(abs));
-    return { ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: new Uint8Array(b.buffer, b.byteOffset, b.length) };
-  });
-  return { raster };
+    return new Uint8Array(b.buffer, b.byteOffset, b.length);
+  };
+  const cells = raster !== false && isl.raster ? isl.raster.cells.map(c => ({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: read(c.src) })) : null;
+  let places = null;
+  if (isl.places && isl.places.variants) {
+    places = { v: isl.places.v, cell: isl.places.cell, page: isl.places.page, variants: {} };
+    for (const vn of Object.keys(isl.places.variants)) {
+      const V = isl.places.variants[vn];
+      places.variants[vn] = { name: vn, hash: V.hash, cells: V.cells, tallies: V.tallies && V.tallies.src ? JSON.parse(Buffer.from(read(V.tallies.src)).toString('utf8')).list : null };
+    }
+  }
+  return { raster: cells, places };
 }
 
 function islandBoot(name, o) {
   const boot = islandBoot0(name);
-  if (boot && process.env.FLYDIY_GROUND_RASTER === '1' && !(o && o.noCook)) boot.premCook = premCook(name);
+  if (boot && !(o && o.noCook)) { const on = process.env.FLYDIY_GROUND_RASTER === '1', pc = premCook(name, on); if (pc && (pc.raster || pc.places)) boot.premCook = pc; }
   return boot;
 }
 function islandBoot0(name) {

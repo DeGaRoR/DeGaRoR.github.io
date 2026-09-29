@@ -22,9 +22,13 @@
 //
 // THE CACHE (IndexedDB 'flydiy-houses', two stores: 'r' the packed result, 'd' its delta to the village's two
 // tallies - premises_build.js's header): a key is
-//   FLYDIY_BUILD | HW_V | PREMISES_BUILD.V | the record's hash | the dials (lod 1, the outbuildings' lod) |
-//   kind:id:seed | the hash of the tallies BEFORE it
-// - a house's output is a pure function of exactly that. A hit applies the stored delta (so what follows is keyed and
+//   FLYDIY_BUILD | HW_V | PREMISES_BUILD.V | the dials (lod 1, the outbuildings' lod) |
+//   kind:id:seed | the entry's INPUTS (G841, premises_build.js inputSig: the entry as composed, its zone's rules and road,
+//   the raster cells' signatures of the ground under it) | the hash of the tallies BEFORE it
+// - a house's output is a pure function of exactly that. G841: the key held the whole record's hash, so any edit (and
+// any reload after one) re-generated the whole town; now an edit re-keys only what it touched. And the tallies are the
+// COOK's (premises_build.js makeTallies: each job's rank `tr`), so the key no longer depends on the order the page asks
+// in - a second visit from another stand hits as well. A hit applies the stored delta (so what follows is keyed and
 // generated as if the house had been built) and reads the arrays back; a second visit generates nothing. Another
 // FLYDIY_BUILD's entries are dropped when the worker opens the cache (a new deploy re-builds once). A cache is a
 // cache: no IndexedDB (a private window, a refusal, eviction) is a miss, and a miss generates.
@@ -35,7 +39,7 @@
 // Jolene, no house generation on the page's thread in the town step, a warm cache builds 0.
 // ============================================================
 'use strict';
-const HW_V = 1;
+const HW_V = 2;   // G841: the key is the entry's own inputs (premises_build.js inputSig), not the record's hash
 // the page's generator files, in the page's order (build.js MANIFEST.world), by the global each publishes; the worker
 // imports those the page has (the lazy two only when the page loaded them)
 // (C2c: ground_tex.js before lot_tex.js - since AS2 (G910) the lot's sets are the ground library's view, LOT_TEX_SETS; without it
@@ -147,8 +151,11 @@ function houseWorkerBody(G, port) {
     st.O = st.world.premises.set(m.rec, { build: buildFor, pool: m.pool || [] }) || PG.compose(m.rec, st.world.premises.base, { pool: m.pool || [], globals: G, build: buildFor });
     st.epoch = m.epoch;
     st.B = G.PREMISES_BUILD.makeBuilder(C);
-    const recHash = PG.fnv(JSON.stringify(m.rec)).toString(36) + '.' + JSON.stringify(m.rec).length.toString(36);
-    st.recHash = recHash;
+    // G841: the entries as composed (the cache's key reads them before any dressing writes into them), and the cook's
+    // tallies when the page has them (m.tallies: [[id, seed, delta], ...] in the cook's order)
+    st.B.sownAll();
+    st.T = m.tallies ? G.PREMISES_BUILD.makeTallies(m.tallies) : null;
+    st.B.useTallies(st.T);
     st.composeMs = now() - t0;
     port.post({ cmd: 'composed', epoch: m.epoch, ms: st.composeMs });
   }
@@ -158,12 +165,14 @@ function houseWorkerBody(G, port) {
     st.size = m.size; C.lod1 = !!m.lod1; C.outLod = m.outLod; C.pp = !!m.pp; C.lotGround = !!m.lotGround;
     if (m.props) C.props = new Set(m.props);
     if (m.state) B.setState(m.state);
-    const prefix = [st.build, HW_V, PB.V, st.recHash, (C.lod1 ? 1 : 0) + '.' + C.outLod + '.' + (C.lotGround ? 1 : 0) + '.' + (C.pp ? 1 : 0)].join('|') + '|';
+    const prefix = [st.build, HW_V, PB.V, (C.lod1 ? 1 : 0) + '.' + C.outLod + '.' + (C.lotGround ? 1 : 0) + '.' + (C.pp ? 1 : 0)].join('|') + '|';
     if (prefix !== st.prefix) { st.prefix = prefix; await idbLoad(prefix, st.build); }
     const pending = [];
     for (const j of m.jobs) {
       const x = B.find(j);
       if (!x) { port.post({ cmd: 'result', epoch: m.epoch, gen: m.gen, seq: j.seq, miss: 'not found' }); st.misses++; continue; }
+      // G841: the cook's tallies for this entry's rank (the live ones, carried from the page's state, without a cook)
+      if (st.T) B.atRank(j.tr);
       // an entry the page builds itself (a hangar's shell): generated here for the TALLIES alone - its delta, no arrays,
       // no cache - so the batch goes on past it
       if (j.tally) {
@@ -171,7 +180,7 @@ function houseWorkerBody(G, port) {
         catch (e) { port.post({ cmd: 'result', epoch: m.epoch, gen: m.gen, seq: j.seq, miss: 'error: ' + (e && e.message) }); st.misses++; }
         continue;
       }
-      const key = prefix + j.kind + ':' + j.id + ':' + j.seed + ':' + B.stateHash();
+      const key = prefix + j.kind + ':' + j.id + ':' + j.seed + ':' + B.inputSig(j, x) + ':' + B.stateHash();
       if (st.deltas.has(key)) {
         // A HIT: the tallies move as the build would have moved them; the arrays come back off the disk
         const d = st.deltas.get(key) || null;
@@ -284,10 +293,10 @@ const HOUSE_WORKER = (() => {
     wake();
   }
   // the renderer's side: its composition (a new epoch), its batches of work, its results
-  function compose(rec, pool, lazyNames) {
+  function compose(rec, pool, lazyNames, tallies) {
     if (!S.on) return -1;
     const e = ++S.epoch;
-    S.w.postMessage({ cmd: 'compose', epoch: e, rec, pool, lazy: lazyNames || [], urls: S.urls });
+    S.w.postMessage({ cmd: 'compose', epoch: e, rec, pool, lazy: lazyNames || [], urls: S.urls, tallies: tallies || null });
     return e;
   }
   function post(m) { if (!S.on) return false; try { S.w.postMessage(m); return true; } catch (e) { fail('post: ' + (e && e.message)); return false; } }

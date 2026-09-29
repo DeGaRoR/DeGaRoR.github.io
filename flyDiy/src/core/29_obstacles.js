@@ -35,17 +35,32 @@ const OBSTACLES = (() => {
   // ---- the shape: a column grid over a triangle soup in the object's frame -----------------
   // pos: flat xyz (Float32Array or Array), idx: triangle indices or null (consecutive triples),
   // cell: metres. opts.pad: cells of free border kept round the footprint (1).
+  // opts.base (G844, C2c): a shape rasterised EARLIER from other triangles of the same object, in the same frame, cell and
+  // pad (the house worker's raster of a house's own bags): the result is the raster of both soups - the grid is the lattice
+  // both share (every grid starts on a multiple of the cell), grown to hold both, the base's columns copied in and the new
+  // triangles marked over them. The same cells, lows and highs one pass over both soups gives, up to a vertex lying
+  // exactly on a lattice line.
   function rasterise(pos, idx, cell, opts) {
+    const B = opts && opts.base && opts.base.cell === cell ? opts.base : null;
     const nTri = idx ? idx.length / 3 : pos.length / 9;
-    if (!nTri) return null;
+    if (!nTri && !B) return null;
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
-    const nv = pos.length / 3;
+    const nv = nTri ? pos.length / 3 : 0;
     for (let i = 0; i < nv; i++) { const x = pos[i * 3], z = pos[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
-    if (!isFinite(x0)) return null;
+    if (!isFinite(x0) && !B) return null;
     const pad = (opts && opts.pad !== undefined) ? opts.pad : 1;
-    const ox = Math.floor(x0 / cell) * cell - pad * cell, oz = Math.floor(z0 / cell) * cell - pad * cell;
-    const nx = Math.ceil((x1 - ox) / cell) + pad + 1, nz = Math.ceil((z1 - oz) / cell) + pad + 1;
+    let ox = isFinite(x0) ? Math.floor(x0 / cell) * cell - pad * cell : Infinity, oz = isFinite(z0) ? Math.floor(z0 / cell) * cell - pad * cell : Infinity;
+    let nx = isFinite(x0) ? Math.ceil((x1 - ox) / cell) + pad + 1 : 0, nz = isFinite(z0) ? Math.ceil((z1 - oz) / cell) + pad + 1 : 0;
+    if (B) {   // the union's grid: its origin the lower of the two (both on the lattice), its far edge the farther
+      const ex = Math.max(isFinite(ox) ? ox + nx * cell : -Infinity, B.ox + B.nx * cell), ez = Math.max(isFinite(oz) ? oz + nz * cell : -Infinity, B.oz + B.nz * cell);
+      ox = Math.min(ox, B.ox); oz = Math.min(oz, B.oz);
+      nx = Math.round((ex - ox) / cell); nz = Math.round((ez - oz) / cell);
+    }
     const lo = new Float32Array(nx * nz).fill(Infinity), hi = new Float32Array(nx * nz).fill(-Infinity);
+    if (B) {
+      const di = Math.round((B.ox - ox) / cell), dj = Math.round((B.oz - oz) / cell);
+      for (let j = 0; j < B.nz; j++) for (let i = 0; i < B.nx; i++) { const s = j * B.nx + i, k = (j + dj) * nx + i + di; lo[k] = B.lo[s]; hi[k] = B.hi[s]; }
+    }
     const mark = (x, y, z) => {
       const i = Math.floor((x - ox) / cell), j = Math.floor((z - oz) / cell);
       if (i < 0 || j < 0 || i >= nx || j >= nz) return;
