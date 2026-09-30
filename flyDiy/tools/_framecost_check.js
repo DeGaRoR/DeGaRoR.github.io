@@ -360,7 +360,9 @@ function pageHooks(C, getCam) {
       const W = P.win;
       if (name === 'vendor/three.min.js') installThree(W.THREE, C);
       if (name === 'src/viewer/boot.js' && W.BOOT) wrapBoot(W, P);
-      if (name === 'src/viewer/gfx_settings.js' && W.GFX) { W.GFX.set('preset', 'gamer'); W.GFX.set('shadows', 'full'); }
+      if (name === 'src/viewer/gfx_settings.js' && W.GFX) { W.GFX.set('preset', 'gamer'); W.GFX.set('shadows', 'full');
+        // FRAMECOST_GFX='{"bands":"mid"}' (G1110): graphics rows over the gamer pin - a census of an option, never the gate's
+        if (process.env.FRAMECOST_GFX) { const o = JSON.parse(process.env.FRAMECOST_GFX); for (const k in o) W.GFX.set(k, o[k]); } }
       // G800: the house generator's builds by level of detail (calls, triangles built) - the town step's build work
       if (name === 'tools/_house_gen.js' && W.HOUSE_GEN && !W.HOUSE_GEN.__fc) { const HG = W.HOUSE_GEN, b = HG.build; HG.__fc = true;
         HG.build = function (P, lod) { const t0 = process.hrtime.bigint(), r = b.apply(this, arguments), l = lod ? 1 : 0; C['hms' + l] += Number(process.hrtime.bigint() - t0) / 1e6; C['hb' + l]++; C['ht' + l] += (r && r.stats && r.stats.tris) || 0; return r; }; }
