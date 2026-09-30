@@ -409,6 +409,11 @@ const GATES = [
   // through GATE HOUSE's own battery, its roles and its stance stretch, the quantized pack round-tripping, and a
   // fitting archetype on every plot of Metlakatla and the village from the 32 B records alone (~25 s)
   { id: 'TOWNKIT', file: '_townkit_check.js', tier: 'core' },
+  // THE TOWN KIT, DRAWN (C3b, G855-G859): src/viewer/townkit.js against the tool's own decoder, byte for byte; the
+  // mirrored copies; the shader edits on r186's programs; the stance stretch through the host's matrices onto the
+  // TERRAIN at every footprint corner of every record; the LOD band complementary and the tick a superset; the looks;
+  // both hosts (BatchedMesh, the InstancedMesh arm); render_premises' look-review wiring (~12 s)
+  { id: 'KITHOST', file: '_kithost_check.js', tier: 'core' },
   // THE PARKED AEROPLANES (G411): builds as props, headless on a synthetic
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs
