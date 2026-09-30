@@ -65833,6 +65833,28 @@ MEASURED (RTX 3080, 2216x1023; master 6b90f96e vs this branch, the parked cooks 
 - rollout_perf warm, 2 x Cub (--settings) + 2 x metal, master and branch interleaved on one private profile: render
   10.75 -> 10.4 (Cub), 10.9 -> 10.6 (metal) ms; loop 21.7 -> 21.45 / 25.05 -> 24.7; taskWorst, garage, roll-out,
   settings within noise; the compile step +1 s (the table's link, below).
+- RE-MEASURED ON TRAIN 17 (master 220812de, after the rebase; the parked cook re-made locally, never committed):
+  metal rollout_perf x2, invoked exactly as train 17's ratchet BEFORE runs (default window, warm, own --udd after one
+  warm-up), against those runs as the baseline: RATCHET PASS - fps 32.05 -> 32.1, uneven 0.08 = 0.08, p99 33.5 = 33.5
+  (both runs; the one 49.9 ms p99 of the 6b90f96e series was noise), loop 13.5 -> 12.8 ms, render 9.95 -> 9.35 ms,
+  tasks > 1 s 1 -> 0, taskWorst 1357 -> 730 ms, garage 43.1 -> 40.5 s, compile 1.31 -> 1.48 s (rollout_perf's roll-out
+  click bug on both sides). pave_ab at the stand: in the frustum 27 -> 14, main draws 946 -> 933, uniform calls 3 115 ->
+  2 622, bytes 244 -> 181 KB, render CPU 8.3 -> 7.9 ms, the whole main pass's GPU 15.1 -> 13.8 ms (the pavement alone
+  1.08 -> 1.34). (Its village teleport moves the page's sim, not C1c's physics worker: that view repeated the stand's.)
+- THE CLOUD CI (run_gates --all, claude/ci-results ci/train-17-as4b/ecc79dcf...): every gate PASS but FRAMECOST and
+  RWYTREES (its 1800 s cap, a known container red). FRAMECOST's red there (+131 main / +286 shadow draws at the stand,
+  uniforms x1.6) is the STALE PARKED COOK - a source branch never commits one, so node captures every parked aeroplane
+  live - C0c's finding (the same shape of reds, green after a fresh cook). With a fresh local cook it PASSED on
+  6b90f96e (the counts above). On train 17 the proof is the train's battery (FRAMECOST on the re-cooked final build,
+  the coordinator's call); no separate run.
+
+THE LOOK, FOR THE USER (the live A/B, taxiing - motion flicker is not judged from stills): open the game with
+`?pave=new`; a box at the top centre names what is drawn - click it (or PAVE_AB('old') / PAVE_AB('new') in the console)
+to stand every pavement again the other way (~2 s). On Jolene: roll out, taxi onto 13/31 and roll down it, turn across
+the 02/20 crossing, pass the pad and a turnaround. Compare OLD / NEW: the markings (centre dashes, threshold bars,
+designators, the hold-short lines, the apron's stands), the concrete's slabs and joints and grain, the crossing (13/31 on
+top), the sides fading into the ground, and above all any crawl or flicker while rolling (G1046's seed stays snapped,
+and the row id is a flat varying). PAVTEST (?pavetest=t1...) still works on either.
 
 TRAPS MET:
 - THE TABLE'S PROGRAM LINKS ~5 s COLD AND IS NOT REUSED ACROSS RUNS (A5-LOAD's class: the splat ring's is another). On
