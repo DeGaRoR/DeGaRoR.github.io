@@ -1,0 +1,236 @@
+{
+ "date": "2026-09-30T12:05:21.128Z",
+ "url": "http://localhost:8643/flyDiy/index.html?world=jolene&simw=0&kitab=village&kithost=inst",
+ "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "label": "village_inst",
+ "frames": 120,
+ "rows": [
+  {
+   "place": "at:900:-2650:30",
+   "probe": "unique",
+   "tier": "gfx",
+   "where": {
+    "at": [
+     900,
+     40,
+     -2650
+    ]
+   },
+   "frame": {
+    "median": 21.7,
+    "p90": 22.4,
+    "timed": 21.8
+   },
+   "gpuSum": 22.06,
+   "cpuWorld": 1.92,
+   "calls": 1566,
+   "tris": 23795769,
+   "gpuUtilBefore": 100,
+   "tags": {
+    "clouds:march*": {
+     "median": 0.25,
+     "p90": 0.26,
+     "calls": 1
+    },
+    "atmo:sky": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "atmo:ap": {
+     "median": 0.02,
+     "p90": 0.02,
+     "calls": 1
+    },
+    "scene": {
+     "median": 21.61,
+     "p90": 22.34,
+     "calls": 1
+    },
+    "resolve": {
+     "median": 0.06,
+     "p90": 0.06,
+     "calls": 1
+    },
+    "postfx:480x270": {
+     "median": 0.01,
+     "p90": 0.02,
+     "calls": 2
+    },
+    "postfx:240x135": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "postfx:120x67": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "postfx:60x33": {
+     "median": 0,
+     "p90": 0,
+     "calls": 1
+    },
+    "postfx:960x540": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "canvas:postfx": {
+     "median": 0.04,
+     "p90": 0.05,
+     "calls": 1
+    },
+    "shadow:far": {
+     "median": 0,
+     "p90": 0.23,
+     "calls": 0.3
+    },
+    "shadow:maps": {
+     "median": 0.87,
+     "p90": 0.91,
+     "calls": 15.5
+    }
+   },
+   "post": {
+    "bloomMs": 0.09452412436748277,
+    "lookMs": 0,
+    "raysMs": 0,
+    "aoMs": 0,
+    "eyeMs": 0,
+    "eyeK": 1,
+    "eyeLum": 0,
+    "passes": 1
+   },
+   "after": {
+    "mode": "unique",
+    "shown": false,
+    "cullMsPerFrame": 0,
+    "cullsPerFrame": 0,
+    "tickMs": 0.003,
+    "rungs": {
+     "lod0": 20,
+     "lod1": 76,
+     "box": 0,
+     "partners": 16
+    },
+    "kitDraws": 110,
+    "mb": 24.4,
+    "looks": 95,
+    "host": "inst"
+   }
+  },
+  {
+   "place": "at:900:-2650:30",
+   "probe": "kit",
+   "tier": "gfx",
+   "where": {
+    "at": [
+     900,
+     40,
+     -2650
+    ]
+   },
+   "frame": {
+    "median": 11.6,
+    "p90": 51.5,
+    "timed": 11.8
+   },
+   "gpuSum": 19.79,
+   "cpuWorld": 1.79,
+   "calls": 853,
+   "tris": 23147869,
+   "gpuUtilBefore": 100,
+   "tags": {
+    "atmo:sky": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "atmo:ap": {
+     "median": 0.02,
+     "p90": 0.02,
+     "calls": 1
+    },
+    "shadow:far": {
+     "median": 0,
+     "p90": 0.22,
+     "calls": 0.3
+    },
+    "scene": {
+     "median": 19.59,
+     "p90": 20.28,
+     "calls": 1
+    },
+    "resolve": {
+     "median": 0.06,
+     "p90": 0.06,
+     "calls": 1
+    },
+    "postfx:480x270": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "postfx:240x135": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "postfx:120x67": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "postfx:60x33": {
+     "median": 0,
+     "p90": 0,
+     "calls": 1
+    },
+    "postfx:960x540": {
+     "median": 0.01,
+     "p90": 0.01,
+     "calls": 2
+    },
+    "canvas:postfx": {
+     "median": 0.04,
+     "p90": 0.04,
+     "calls": 1
+    },
+    "shadow:maps": {
+     "median": 0.87,
+     "p90": 1.14,
+     "calls": 15.5
+    }
+   },
+   "post": {
+    "bloomMs": 0.04589607229837428,
+    "lookMs": 0,
+    "raysMs": 0,
+    "aoMs": 0,
+    "eyeMs": 0,
+    "eyeK": 1,
+    "eyeLum": 0,
+    "passes": 1
+   },
+   "after": {
+    "mode": "kit",
+    "shown": true,
+    "cullMsPerFrame": 0,
+    "cullsPerFrame": 0,
+    "tickMs": 0.003,
+    "rungs": {
+     "lod0": 20,
+     "lod1": 76,
+     "box": 0,
+     "partners": 16
+    },
+    "kitDraws": 110,
+    "mb": 24.4,
+    "looks": 95,
+    "host": "inst"
+   }
+  }
+ ]
+}

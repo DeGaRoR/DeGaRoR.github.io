@@ -1,0 +1,11 @@
+  roll-out screen: gone after 0 s
+frame_perf  ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)  [all_inst]
+  installed · gpu timer true · gfx {"preset":"gamer","pv":4,"fps":"auto","ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"msaa","density":128,"bands":"near","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"land","clouds":"half","water":"full","mirror":"periodic","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear","town":"nearby"}
+  eval -> {"status":"ready","err":null,"found":84,"rows":522,"waiting":false,"stats":{"houses":522,"looks":511,"geos":312,"verts":1244860,"tris":[602176,68186,640],"mb":37.14850997924805,"tickMs":0,"tickSum":13.500000074505806,"ticks":2101,"cullMs":0,"culls":0,"changes":949,"draws":0,"missing":[],"slotless":0,"buildMs":237,"mode":"inst","missingLayers":0,"waiting":false,"tries":2}}
+  at:-3300:-8600:60 empty      gfx   frame    5.4 ms (p90 7.5; 6.3 under the timer) · gpu passes 7.49 ms · cpu world 1.73 ms · 185 calls · 4.7 Mtris · GPU WAS 100 % BUSY BEFORE
+      scene 7.3 · resolve 0.05 · atmo:sky 0.04 · canvas:postfx 0.04 · atmo:ap 0.02 · postfx:480x270 0.01×2 · postfx:240x135 0.01×2 · postfx:120x67 0.01×2 · postfx:960x540 0.01×2 · shadow:far 0×0.3 · postfx:60x33 0 · shadow:maps 0×15.6
+      after -> {"mode":"unique","shown":false,"cullMsPerFrame":0,"cullsPerFrame":0,"tickMs":0.006,"rungs":{"lod0":0,"lod1":350,"box":172,"partners":55},"kitDraws":178,"mb":37.1,"looks":511,"host":"inst"}
+  at:-3300:-8600:60 kit        gfx   frame    5.7 ms (p90 7.4; 6.5 under the timer) · gpu passes 8.24 ms · cpu world 1.79 ms · 578 calls · 5.6 Mtris · GPU WAS 100 % BUSY BEFORE
+      scene 8.05 · resolve 0.05 · atmo:sky 0.04 · canvas:postfx 0.04 · atmo:ap 0.02 · postfx:480x270 0.01×2 · postfx:240x135 0.01×2 · postfx:120x67 0.01×2 · postfx:960x540 0.01×2 · postfx:60x33 0 · shadow:far 0×0.3 · 1200x675 0×0 · shadow:maps 0×15.5
+      after -> {"mode":"kit","shown":true,"cullMsPerFrame":0,"cullsPerFrame":0,"tickMs":0.006,"rungs":{"lod0":0,"lod1":350,"box":172,"partners":55},"kitDraws":178,"mb":37.1,"looks":511,"host":"inst"}
+  -> D:/Dev/wt-c3b/flyDiy/tools/perf/c3b/fp_all_inst.json
