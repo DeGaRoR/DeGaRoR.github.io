@@ -65417,3 +65417,78 @@ and its page children run before it composes its own three worlds. On a bigger b
 READING THE USER'S VERDICT: when the user picks, set the default in rwyTreesMode (27_premises.js: 'today' is the
 fallback) and in the loader line of tools/build.js; GATE RWYTREES' "4 ..." checks are written per variant and need
 no change. If 'map' wins, look again at the 5 % surfaces the gate prints for Tamgas Hill and East Point.
+## G1080-G1080.2 - THE SOFT TRAILING SHADOW AND THE LATE SHADOW (SHADOW-EYES, 2026-09-29/30, local GPU)
+
+The user (2026-09-29): "the soft shadow that trails the clean, crisp shadow ... the soft, still flickery soft shadow"
+is "one of the last things that really bother me"; and "there are a few situations where pausing the simulation will
+simply leave the aircraft shadow in place, the aircraft will roll shadowless for a few meters, then the blurry shadow
+will come first, then the clear crisp shadow". Branch shadoweyes/g1080 (on master 6b90f96e, train 16).
+
+THE METHOD: B11-EYES' - a live A/B in the page (?shadoweyes=1: a label, keys 0-8, one change each), the user judging by
+eye while taxiing; then numbers for what the eye found. The user's verdict on the first A/B: ONLY "the far map drawn
+every frame" changed the soft shadow, most at speed; "far map without any aircraft mesh" (a FAR_LAYER toggle) and
+"contact shadow off" did nothing.
+
+G1080.2 THE SOFT TRAILING SHADOW - THE AEROPLANE WAS IN THE WORLD'S FAR MAP ALL ALONG.
+- THREE'S SHADOW WALK TESTS AN OBJECT'S LAYERS AGAINST THE MAIN CAMERA, NOT THE SHADOW CAMERA. vendor three r186
+  WebGLShadowMap.render(lights, scene, camera) -> renderObject(object, camera, shadowCamera, ...) ->
+  object.layers.test(camera.layers). Every object shares layer 0 with the main camera, so the whole layer scheme of
+  shadow_near.js (FAR_LAYER on the far map's camera, NEAR_LAYER / CRAFT_LAYER on the near map's) has NEVER filtered a
+  caster. G601's "every caster but the craft on FAR_LAYER" and G650's "the craft never joins the far map" were no-ops:
+  the aeroplane was drawn into the 1 km sun map (0.2-1 m texels, every 2nd frame, SHADOW_RATE) - a soft halo round the
+  crisp shadow, a frame behind, blinking at 15 Hz under the 30 cap. Two layer censuses (node, and live in the page) both
+  said "no aeroplane caster on FAR_LAYER" - true, and irrelevant.
+- PROOF (tools/_sheyes_night.js B; paused, the far map drawn every frame, clouds off): the aeroplane hidden from the far
+  map's pass ALONE changes 43 279 pixels round the wing and tail shadow; the control pairs 8 and 0.
+  tools/perf/shadoweyes_evidence/far_diff_strip.png: top as shipped (the grey halo), middle hidden (clean), bottom the
+  difference (the halo); far_b0.png / far_c9.png the full frames.
+- FIX: shadow_near.js farLight(sun) (render_world calls it after make): the far light's shadow.updateMatrices is wrapped -
+  three calls it just before that light's walk, and only on a frame that draws it - and hides the craft's top group; the
+  near light's updateMatrices (next in the same pass: the sun is added to the scene first) and follow() show it again.
+  Only while the near map is live (S.on): with it off the craft's only shadow is the far map's. S.farHide (A/B).
+  Cost: none measured (fewer draws in the far pass).
+- NOT FIXED, ON THE BOARD: the near map's layers are no-ops too - NEAR_LAYER on its camera filters nothing, so the 60 m
+  viewport draws whatever the main walk reaches, not "the near casters"; only G1005's visibility prune (viewport 0)
+  really filters. Filtering by visibility (as prune() does) is a render-cost lever for a later chantier.
+  TRAP for anyone: in three r186 a Layers mask on a shadow camera does nothing; hide by .visible inside the light's
+  updateMatrices / getCamera.
+
+G1080 THE LATE SHADOW - THE CRAFT'S MAPS AIMED AT THE DRAWN AEROPLANE.
+- Both near-map viewports were aimed at the point worldUpdate was given - app.js passes the CAMERA under the free camera
+  and the world editor (DEVCAM_ACTIVE || PREM.open) - and the craft cascade was sized from the drawn aeroplane's pose ONE
+  FRAME STALE (worldUpdate runs before poseModel) measured from that point, capped at S.half 30 m: when aim and
+  aeroplane parted the cascade grew to reach it (BLURRY, up to 6 cm texels), lost it past the cap (SHADOWLESS), and
+  snapped back (CRISP) when they met: the user's sequence.
+- FIX: follow() aims at model.grp's drawn sphere centre (S.aimDrawn; the ground under it from render_world's groundAt);
+  SHADOW_NEAR.aim() re-aims right after poseModel() in app.js (this frame's pose: a teleport - Restart, the line-up
+  skip, Fly on - moves it on the same frame); render_world's nearTag round the drawn aeroplane (aimPoint). A craft off
+  the stage (the scenery mode lifts it out of the scene) keeps the given point.
+- LIVE NUMBERS (_sheyes_night.js D; the free camera left behind while taxiing, 60 samples): before, the aim up to
+  56.6 m off the aeroplane, the cascade at its 30 m cap, 33 of 60 samples MISSING the aeroplane; after, 0 m, 7.26 m,
+  0 misses. Which "pause" the user met is not pinned (pause alone does not move the aim; the free camera and the
+  editor do - their morning A/B, keys 1 / 5).
+
+THE A/B (?shadoweyes=1, shadow_near.js EYES; window.SHEYES(n)): 0 shipped (both fixes), 1 before G1080, 2 the halo back
+(the aeroplane in the far map), 3 contact shadows off, 4 the halo at 30 Hz (in the far map, drawn every frame), 5 the aim
+fix alone, 6 far map off (diagnostic), 7 craft cascade off (diagnostic: the 60 m box's texels), 8 3+4. The label shows
+the frame pacing (mean interval, uneven share). SHADOW_RATE.every stays 2 (not the cause).
+
+MEASURED (rollout_perf warm, private --udd C:/sheyr, --port 8675, 2216x1023, RTX 3080; base = master 6b90f96e built in
+D:/Dev/wt-shadoweyes-base, new = this branch, alternated, 2 runs each; ratchet with base as the baseline):
+  Cub:   fps 31.8 -> 32.0, render 10.6 -> 10.35 ms, loop 21.3 -> 21.2 ms, solver 7.65 = 7.65 ms
+  metal: fps 31.8 = 31.8,  render 10.55 -> 10.65 ms, loop 24.35 -> 24.45 ms, solver 10.6 = 10.6 ms
+  RED taskWorst (~1.1 -> ~4.1 s) and the Cub's tasks200 (28 -> 35.5): the roll-out's `parked` step captured three
+  parked aeroplanes LIVE (why 'stale': jodel 835, cub 827, c172 1388 ms) - parked.js cookSig hashes FLYDIY_BUILD, so any
+  branch build finds the cooks stale until the train re-cooks on its final build (train 16 did). Not this change; it
+  goes back to 0 ms on the landing's re-cook. (Against the stored baseline both base and new read RED on garage /
+  flight / compile: my private profile's cold-ish caches, the same on both trees.)
+  First A/B pacing (_sheyes_night.js C, taxiing): config 1 vs 4 inconclusive (uneven 6.7 / 0 / 14.3 % vs 1.7 / 1.7 /
+  21 %; shadow pass CPU 0.15 vs 0.19 ms) - not the mechanism.
+
+TOOLS: tools/_sheyes_night.js (against a live_driver page: movers, the far-map pixel A/B paused, pacing, the late
+shadow live), tools/_sheyes_movers.js (the far map's casters that move with the aeroplane - found only the trams,
+traffic, birds and prop instances), tools/_sheyes_probe.js (the page in node: the aeroplane's casters and layers; its
+cascade trace is void - the Cub did not taxi in node). GATE SHADOWSKY +13 (G1080: the aim, the teleport, aimPoint, the
+scenery mode, three's walk anchor, the far-pass hide / show / near-map-off / farHide off). GATE LIGHT anchor updated.
+TRAP: train 16's committed dev.html predates matlib.js (MATLIB throws in props / animals, the ground pink / white under
+live_driver): run node tools/build.js locally first (never commit the outputs).
