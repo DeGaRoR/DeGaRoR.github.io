@@ -74,7 +74,11 @@ console.log('1. PARITY - the shipped GLSL against world.waterH');
   // the sim clock
   // the sim clock (the solver is built by app.js; the getter is held by its source)
   verdict(/get t\(\) \{ return simT; \}/.test(src('src/core/30_solver.js')), '30_solver.js publishes its clock (get t)');
-  verdict(/WATER\.setTime\(sim\.t\)/.test(src('src/viewer/app.js')), 'app.js hands sim.t to WATER.setTime after the step');
+  // G1100 (POSE-SMOOTH): the solver's clock after the step - and, where the pose is drawn between the last two steps, the
+  // drawn pose's time (the worker's view's drawnT; inline, sim.t less the drawn pose's share of the last 60th)
+  { const a = src('src/viewer/app.js');
+    verdict(/WATER\.setTime\(sw && sw\.drawnT != null \? sw\.drawnT : sim\.t\)/.test(a) && /WATER\.setTime\(sim\.t - \(1 - POSE_LERP\.alpha\) \* simRate \/ 60\)/.test(a),
+      'app.js hands the solver\'s clock to WATER.setTime after the step (sim.t, or the drawn pose\'s time: G1100)'); }
   // 0 wind: no trains, the JS mirror answers 0
   verdict(W.gerstnerJS(10, 20, 5, []) === 0, 'no trains: 0');
   // THE FELT BAND (G460.6): the floats feel the trains of L >= 0.45 L, the short wind sea is a slope only
