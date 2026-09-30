@@ -1,0 +1,1813 @@
+{
+ "note": "SIMW-BENCH G1095-G1099 (2026-09-30): rollout_perf --q simw=0 (off) vs simw=1 (on), the box (RTX 3080, 2216x1023), train 17 (9a7db2d8) + G1095/G1096; --port 8795 --udd private; one warm-up per build discarded; the taxi phase. See HANDOVER G1095-G1099.",
+ "runs": {
+  "off_cub_1": {
+   "simw": "inline",
+   "cold": false,
+   "build": "default",
+   "taxi": {
+    "frames": 4880,
+    "fpsDelivered": 31.9,
+    "doubled": 0.882,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 50,
+    "workMed": 19.6,
+    "physMed": 6,
+    "physP90": 6.6,
+    "worldMed": 1.3,
+    "worldP90": 2.8,
+    "steps": 1.88,
+    "msPerStep": 3,
+    "secs": 153.2,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": null,
+    "wStepP90": null,
+    "wDilMin": null,
+    "workP90": 21.5,
+    "vMed": 7,
+    "renderMed": 10.3,
+    "renderP90": 11.7,
+    "shadowMed": 1.9,
+    "premStepMs": 0,
+    "cap30": 0.85
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.13,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 31.9,
+     "doubled": 0.882,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 1,
+     "worst": 4509,
+     "pass": false
+    },
+    "settingsLongTask1s": {
+     "n": 0,
+     "worst": 266,
+     "pass": true
+    }
+   },
+   "tGarage": 91.519,
+   "tReveal": 3.395,
+   "settings": [
+    {
+     "change": "shadows=off",
+     "clickMs": 46,
+     "screen": true,
+     "spanMs": 33904,
+     "worst": 266,
+     "over1s": 0,
+     "over200": [
+      242,
+      266
+     ],
+     "links": {
+      "n": 106,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "shadows=full",
+     "clickMs": 55,
+     "screen": false,
+     "spanMs": 480,
+     "worst": 51,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 3,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "preset=potato",
+     "clickMs": 244,
+     "screen": false,
+     "spanMs": 699,
+     "worst": 0,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 1,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "preset=gamer",
+     "clickMs": 319,
+     "screen": false,
+     "spanMs": 753,
+     "worst": 53,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 1,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    }
+   ],
+   "longTasksOver1s": [
+    [
+     36061,
+     4509
+    ]
+   ],
+   "simwState": null
+  },
+  "on_cub_1": {
+   "simw": "live",
+   "cold": false,
+   "build": "default",
+   "taxi": {
+    "frames": 4917,
+    "fpsDelivered": 32.1,
+    "doubled": 0.866,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 50,
+    "workMed": 13.8,
+    "physMed": 0.1,
+    "physP90": 0.2,
+    "worldMed": 1.5,
+    "worldP90": 3,
+    "steps": 1.87,
+    "msPerStep": 0.05,
+    "secs": 153.1,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": 3.03,
+    "wStepP90": 3.3,
+    "wDilMin": 0.996,
+    "workP90": 18.6,
+    "vMed": 7,
+    "renderMed": 10.1,
+    "renderP90": 13.4,
+    "shadowMed": 1.9,
+    "premStepMs": 0,
+    "cap30": 0.83
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.1,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 32.1,
+     "doubled": 0.866,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 1,
+     "worst": 4310,
+     "pass": false
+    },
+    "settingsLongTask1s": {
+     "n": 0,
+     "worst": 490,
+     "pass": true
+    }
+   },
+   "tGarage": 91.585,
+   "tReveal": 3.052,
+   "settings": [
+    {
+     "change": "shadows=off",
+     "clickMs": 52,
+     "screen": true,
+     "spanMs": 39360,
+     "worst": 490,
+     "over1s": 0,
+     "over200": [
+      490,
+      254,
+      206
+     ],
+     "links": {
+      "n": 106,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "shadows=full",
+     "clickMs": 47,
+     "screen": false,
+     "spanMs": 469,
+     "worst": 50,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 3,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "preset=potato",
+     "clickMs": 335,
+     "screen": false,
+     "spanMs": 731,
+     "worst": 50,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 1,
+      "inWorst": 0,
+      "waitsInWorst": 1,
+      "waitMsInWorst": 1
+     }
+    },
+    {
+     "change": "preset=gamer",
+     "clickMs": 305,
+     "screen": false,
+     "spanMs": 703,
+     "worst": 0,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 1,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    }
+   ],
+   "longTasksOver1s": [
+    [
+     36005,
+     4310
+    ]
+   ],
+   "simwState": {
+    "phase": "live",
+    "reason": null,
+    "dead": null,
+    "placeOk": true,
+    "flights": 1,
+    "inline": 0,
+    "wvBad": 0,
+    "wvMaxLag": 1,
+    "worldMs": 856.4000000059605,
+    "initMs": 65.5,
+    "bootFetchMs": 305.59999999403954,
+    "readyWaitFrames": 1,
+    "view": {
+     "seq": 9929,
+     "step": 9928,
+     "t": 165.46666666475755,
+     "stepMs": 3.1349868627778097,
+     "dilation": 1.001718025060833,
+     "worldV": 6451,
+     "late": 0,
+     "droppedS": 0,
+     "allocs": 37,
+     "rate": 1,
+     "epoch": 1,
+     "running": true,
+     "manual": false,
+     "started": true,
+     "diverged": false,
+     "takes": 9930,
+     "strays": 0,
+     "mismatch": false
+    }
+   }
+  },
+  "off_cub_2": {
+   "simw": "inline",
+   "cold": false,
+   "build": "default",
+   "taxi": {
+    "frames": 4892,
+    "fpsDelivered": 32,
+    "doubled": 0.875,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 50,
+    "workMed": 19.4,
+    "physMed": 6.1,
+    "physP90": 6.7,
+    "worldMed": 1.4,
+    "worldP90": 2.7,
+    "steps": 1.88,
+    "msPerStep": 3.04,
+    "secs": 153,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": null,
+    "wStepP90": null,
+    "wDilMin": null,
+    "workP90": 21.8,
+    "vMed": 7,
+    "renderMed": 10.2,
+    "renderP90": 11.7,
+    "shadowMed": 1.8,
+    "premStepMs": 0,
+    "cap30": 0.84
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.13,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 32,
+     "doubled": 0.875,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 1,
+     "worst": 4111,
+     "pass": false
+    },
+    "settingsLongTask1s": {
+     "n": 0,
+     "worst": 275,
+     "pass": true
+    }
+   },
+   "tGarage": 84.174,
+   "tReveal": 3.401,
+   "settings": [
+    {
+     "change": "shadows=off",
+     "clickMs": 62,
+     "screen": true,
+     "spanMs": 33848,
+     "worst": 275,
+     "over1s": 0,
+     "over200": [
+      205,
+      275
+     ],
+     "links": {
+      "n": 106,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "shadows=full",
+     "clickMs": 56,
+     "screen": false,
+     "spanMs": 479,
+     "worst": 0,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 3,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "preset=potato",
+     "clickMs": 248,
+     "screen": false,
+     "spanMs": 720,
+     "worst": 71,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 1,
+      "inWorst": 0,
+      "waitsInWorst": 1,
+      "waitMsInWorst": 2
+     }
+    },
+    {
+     "change": "preset=gamer",
+     "clickMs": 318,
+     "screen": false,
+     "spanMs": 814,
+     "worst": 51,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 1,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    }
+   ],
+   "longTasksOver1s": [
+    [
+     35123,
+     4111
+    ]
+   ],
+   "simwState": null
+  },
+  "on_cub_2": {
+   "simw": "live",
+   "cold": false,
+   "build": "default",
+   "taxi": {
+    "frames": 4894,
+    "fpsDelivered": 32,
+    "doubled": 0.874,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 67,
+    "workMed": 13.8,
+    "physMed": 0.1,
+    "physP90": 0.2,
+    "worldMed": 1.5,
+    "worldP90": 2.9,
+    "steps": 1.88,
+    "msPerStep": 0.05,
+    "secs": 153.1,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": 2.9,
+    "wStepP90": 3.1,
+    "wDilMin": 0.996,
+    "workP90": 18.4,
+    "vMed": 6.9,
+    "renderMed": 10,
+    "renderP90": 14,
+    "shadowMed": 1.8,
+    "premStepMs": 0,
+    "cap30": 0.84
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.13,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 32,
+     "doubled": 0.874,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 2,
+     "worst": 4191,
+     "pass": false
+    },
+    "settingsLongTask1s": {
+     "n": 0,
+     "worst": 612,
+     "pass": true
+    }
+   },
+   "tGarage": 87.896,
+   "tReveal": 3.304,
+   "settings": [
+    {
+     "change": "shadows=off",
+     "clickMs": 61,
+     "screen": true,
+     "spanMs": 33295,
+     "worst": 612,
+     "over1s": 0,
+     "over200": [
+      612
+     ],
+     "links": {
+      "n": 106,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "shadows=full",
+     "clickMs": 40,
+     "screen": false,
+     "spanMs": 430,
+     "worst": 50,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 3,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "preset=potato",
+     "clickMs": 254,
+     "screen": false,
+     "spanMs": 660,
+     "worst": 52,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 1,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    },
+    {
+     "change": "preset=gamer",
+     "clickMs": 318,
+     "screen": false,
+     "spanMs": 758,
+     "worst": 51,
+     "over1s": 0,
+     "over200": [],
+     "links": {
+      "n": 1,
+      "inWorst": 0,
+      "waitsInWorst": 0,
+      "waitMsInWorst": 0
+     }
+    }
+   ],
+   "longTasksOver1s": [
+    [
+     35103,
+     4191
+    ],
+    [
+     81306,
+     2914
+    ]
+   ],
+   "simwState": {
+    "phase": "live",
+    "reason": null,
+    "dead": null,
+    "placeOk": true,
+    "flights": 1,
+    "inline": 0,
+    "wvBad": 0,
+    "wvMaxLag": 1,
+    "worldMs": 804.2999999970198,
+    "initMs": 60.20000000298023,
+    "bootFetchMs": 278.40000000596046,
+    "readyWaitFrames": 1,
+    "view": {
+     "seq": 9943,
+     "step": 9940,
+     "t": 165.66666666475464,
+     "stepMs": 3.261760485363859,
+     "dilation": 1.002770698324538,
+     "worldV": 6456,
+     "late": 0,
+     "droppedS": 0,
+     "allocs": 31,
+     "rate": 1,
+     "epoch": 1,
+     "running": true,
+     "manual": false,
+     "started": true,
+     "diverged": false,
+     "takes": 9944,
+     "strays": 0,
+     "mismatch": false
+    }
+   }
+  },
+  "off_cub_cold": {
+   "simw": "inline",
+   "cold": true,
+   "build": "default",
+   "taxi": {
+    "frames": 4912,
+    "fpsDelivered": 32,
+    "doubled": 0.87,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 50,
+    "workMed": 20.7,
+    "physMed": 6,
+    "physP90": 6.6,
+    "worldMed": 1.3,
+    "worldP90": 3.1,
+    "steps": 1.87,
+    "msPerStep": 3.01,
+    "secs": 153.4,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": null,
+    "wStepP90": null,
+    "wDilMin": null,
+    "workP90": 23.7,
+    "vMed": 7.1,
+    "renderMed": 11.6,
+    "renderP90": 12.9,
+    "shadowMed": 2.4,
+    "premStepMs": 0,
+    "cap30": 0.83
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.18,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 32,
+     "doubled": 0.87,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 2,
+     "worst": 4580,
+     "pass": false
+    }
+   },
+   "tGarage": 103.707,
+   "tReveal": 3.454,
+   "settings": [],
+   "longTasksOver1s": [
+    [
+     6434,
+     1329
+    ],
+    [
+     41944,
+     4580
+    ]
+   ],
+   "simwState": null
+  },
+  "on_cub_cold": {
+   "simw": "live",
+   "cold": true,
+   "build": "default",
+   "taxi": {
+    "frames": 4925,
+    "fpsDelivered": 32.1,
+    "doubled": 0.864,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 50,
+    "workMed": 15.2,
+    "physMed": 0.1,
+    "physP90": 0.2,
+    "worldMed": 1.4,
+    "worldP90": 3,
+    "steps": 1.87,
+    "msPerStep": 0.05,
+    "secs": 153.2,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": 2.88,
+    "wStepP90": 3.09,
+    "wDilMin": 0.996,
+    "workP90": 18.2,
+    "vMed": 7.1,
+    "renderMed": 11.5,
+    "renderP90": 13.4,
+    "shadowMed": 2.4,
+    "premStepMs": 0,
+    "cap30": 0.83
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.13,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 32.1,
+     "doubled": 0.864,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 2,
+     "worst": 4454,
+     "pass": false
+    }
+   },
+   "tGarage": 104.113,
+   "tReveal": 3.358,
+   "settings": [],
+   "longTasksOver1s": [
+    [
+     6633,
+     1331
+    ],
+    [
+     42188,
+     4454
+    ]
+   ],
+   "simwState": {
+    "phase": "live",
+    "reason": null,
+    "dead": null,
+    "placeOk": true,
+    "flights": 1,
+    "inline": 0,
+    "wvBad": 0,
+    "wvMaxLag": 1,
+    "worldMs": 806.2999999970198,
+    "initMs": 62.1000000089407,
+    "bootFetchMs": 479.09999999403954,
+    "readyWaitFrames": 1,
+    "view": {
+     "seq": 9386,
+     "step": 9389,
+     "t": 156.48333333155495,
+     "stepMs": 3.1017583789942975,
+     "dilation": 1.0024851784565187,
+     "worldV": 5009,
+     "late": 0,
+     "droppedS": 0,
+     "allocs": 29,
+     "rate": 1,
+     "epoch": 1,
+     "running": true,
+     "manual": false,
+     "started": true,
+     "diverged": false,
+     "takes": 9387,
+     "strays": 0,
+     "mismatch": false
+    }
+   }
+  },
+  "off_metal_1": {
+   "simw": "inline",
+   "cold": false,
+   "build": "bugReports/cessnaMetal (1).json",
+   "taxi": {
+    "frames": 4913,
+    "fpsDelivered": 32,
+    "doubled": 0.873,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 67,
+    "workMed": 22.5,
+    "physMed": 9.2,
+    "physP90": 10.3,
+    "worldMed": 1.4,
+    "worldP90": 2.7,
+    "steps": 1.87,
+    "msPerStep": 4.66,
+    "secs": 153.5,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": null,
+    "wStepP90": null,
+    "wDilMin": null,
+    "workP90": 25.1,
+    "vMed": 7.1,
+    "renderMed": 10.2,
+    "renderP90": 11.3,
+    "shadowMed": 1.9,
+    "premStepMs": 0,
+    "cap30": 0.83
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.12,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 32,
+     "doubled": 0.873,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 1,
+     "worst": 3986,
+     "pass": false
+    }
+   },
+   "tGarage": 81.081,
+   "tReveal": 3.466,
+   "settings": [],
+   "longTasksOver1s": [
+    [
+     34971,
+     3986
+    ]
+   ],
+   "simwState": null
+  },
+  "on_metal_1": {
+   "simw": "live",
+   "cold": false,
+   "build": "bugReports/cessnaMetal (1).json",
+   "taxi": {
+    "frames": 4918,
+    "fpsDelivered": 32.1,
+    "doubled": 0.865,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 67,
+    "workMed": 13.6,
+    "physMed": 0.1,
+    "physP90": 0.2,
+    "worldMed": 1.4,
+    "worldP90": 2.8,
+    "steps": 1.87,
+    "msPerStep": 0.05,
+    "secs": 153,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": 4.45,
+    "wStepP90": 4.75,
+    "wDilMin": 0.996,
+    "workP90": 17.9,
+    "vMed": 7.1,
+    "renderMed": 10.1,
+    "renderP90": 13.1,
+    "shadowMed": 1.9,
+    "premStepMs": 0,
+    "cap30": 0.83
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.13,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 32.1,
+     "doubled": 0.865,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 1,
+     "worst": 3977,
+     "pass": false
+    }
+   },
+   "tGarage": 81.343,
+   "tReveal": 3.468,
+   "settings": [],
+   "longTasksOver1s": [
+    [
+     34881,
+     3977
+    ]
+   ],
+   "simwState": {
+    "phase": "live",
+    "reason": null,
+    "dead": null,
+    "placeOk": true,
+    "flights": 1,
+    "inline": 0,
+    "wvBad": 0,
+    "wvMaxLag": 1,
+    "worldMs": 822.3999999910593,
+    "initMs": 79.5,
+    "bootFetchMs": 288,
+    "readyWaitFrames": 2,
+    "view": {
+     "seq": 9379,
+     "step": 9382,
+     "t": 156.36666666671567,
+     "stepMs": 4.65259384302767,
+     "dilation": 1.0028753554108465,
+     "worldV": 5003,
+     "late": 0,
+     "droppedS": 0,
+     "allocs": 32,
+     "rate": 1,
+     "epoch": 1,
+     "running": true,
+     "manual": false,
+     "started": true,
+     "diverged": false,
+     "takes": 9380,
+     "strays": 0,
+     "mismatch": false
+    }
+   }
+  },
+  "off_metal_2": {
+   "simw": "inline",
+   "cold": false,
+   "build": "bugReports/cessnaMetal (1).json",
+   "taxi": {
+    "frames": 4886,
+    "fpsDelivered": 31.9,
+    "doubled": 0.878,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 50,
+    "workMed": 22.9,
+    "physMed": 9.1,
+    "physP90": 10,
+    "worldMed": 1.4,
+    "worldP90": 2.8,
+    "steps": 1.88,
+    "msPerStep": 4.6,
+    "secs": 153.2,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": null,
+    "wStepP90": null,
+    "wDilMin": null,
+    "workP90": 25.2,
+    "vMed": 7.1,
+    "renderMed": 10.6,
+    "renderP90": 11.6,
+    "shadowMed": 2,
+    "premStepMs": 0,
+    "cap30": 0.84
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.12,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 31.9,
+     "doubled": 0.878,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 1,
+     "worst": 4001,
+     "pass": false
+    }
+   },
+   "tGarage": 82.506,
+   "tReveal": 3.04,
+   "settings": [],
+   "longTasksOver1s": [
+    [
+     34908,
+     4001
+    ]
+   ],
+   "simwState": null
+  },
+  "on_metal_2": {
+   "simw": "live",
+   "cold": false,
+   "build": "bugReports/cessnaMetal (1).json",
+   "taxi": {
+    "frames": 4916,
+    "fpsDelivered": 32.1,
+    "doubled": 0.869,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 50,
+    "workMed": 13.5,
+    "physMed": 0.1,
+    "physP90": 0.2,
+    "worldMed": 1.4,
+    "worldP90": 2.9,
+    "steps": 1.87,
+    "msPerStep": 0.05,
+    "secs": 153.3,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": 4.49,
+    "wStepP90": 4.84,
+    "wDilMin": 0.996,
+    "workP90": 18,
+    "vMed": 7.1,
+    "renderMed": 10.1,
+    "renderP90": 12.6,
+    "shadowMed": 1.9,
+    "premStepMs": 0,
+    "cap30": 0.83
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.17,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 32.1,
+     "doubled": 0.869,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 1,
+     "worst": 3955,
+     "pass": false
+    }
+   },
+   "tGarage": 80.987,
+   "tReveal": 3.418,
+   "settings": [],
+   "longTasksOver1s": [
+    [
+     34974,
+     3955
+    ]
+   ],
+   "simwState": {
+    "phase": "live",
+    "reason": null,
+    "dead": null,
+    "placeOk": true,
+    "flights": 1,
+    "inline": 0,
+    "wvBad": 0,
+    "wvMaxLag": 1,
+    "worldMs": 813.5999999940395,
+    "initMs": 78.90000000596046,
+    "bootFetchMs": 284.20000000298023,
+    "readyWaitFrames": 2,
+    "view": {
+     "seq": 9394,
+     "step": 9397,
+     "t": 156.6166666667325,
+     "stepMs": 4.576473873041845,
+     "dilation": 1.0011655007233153,
+     "worldV": 5001,
+     "late": 0,
+     "droppedS": 0,
+     "allocs": 32,
+     "rate": 1,
+     "epoch": 1,
+     "running": true,
+     "manual": false,
+     "started": true,
+     "diverged": false,
+     "takes": 9395,
+     "strays": 0,
+     "mismatch": false
+    }
+   }
+  },
+  "off_metal_cold": {
+   "simw": "inline",
+   "cold": true,
+   "build": "bugReports/cessnaMetal (1).json",
+   "taxi": {
+    "frames": 4857,
+    "fpsDelivered": 31.7,
+    "doubled": 0.891,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 67,
+    "workMed": 24.3,
+    "physMed": 9.2,
+    "physP90": 10.3,
+    "worldMed": 1.4,
+    "worldP90": 3,
+    "steps": 1.89,
+    "msPerStep": 4.69,
+    "secs": 153.3,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": null,
+    "wStepP90": null,
+    "wDilMin": null,
+    "workP90": 27.2,
+    "vMed": 7.2,
+    "renderMed": 11.8,
+    "renderP90": 13.3,
+    "shadowMed": 2.5,
+    "premStepMs": 0,
+    "cap30": 0.84
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.12,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 31.7,
+     "doubled": 0.891,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 2,
+     "worst": 4289,
+     "pass": false
+    }
+   },
+   "tGarage": 101.628,
+   "tReveal": 3.493,
+   "settings": [],
+   "longTasksOver1s": [
+    [
+     6354,
+     1323
+    ],
+    [
+     41518,
+     4289
+    ]
+   ],
+   "simwState": null
+  },
+  "on_metal_cold": {
+   "simw": "live",
+   "cold": true,
+   "build": "bugReports/cessnaMetal (1).json",
+   "taxi": {
+    "frames": 4927,
+    "fpsDelivered": 32.1,
+    "doubled": 0.865,
+    "fpsMedian": 30,
+    "dtMedian": 33.3,
+    "dtP90": 33.4,
+    "dtP99": 33.5,
+    "dtMax": 67,
+    "workMed": 15.3,
+    "physMed": 0.1,
+    "physP90": 0.2,
+    "worldMed": 1.4,
+    "worldP90": 3.1,
+    "steps": 1.87,
+    "msPerStep": 0.05,
+    "secs": 153.4,
+    "mirrorMs": 0,
+    "mirrorPerS": 0,
+    "fieldMs": 0,
+    "waterGpu": null,
+    "wStepMed": 4.45,
+    "wStepP90": 4.86,
+    "wDilMin": 0.996,
+    "workP90": 18,
+    "vMed": 7.2,
+    "renderMed": 11.6,
+    "renderP90": 13.5,
+    "shadowMed": 2.4,
+    "premStepMs": 0,
+    "cap30": 0.83
+   },
+   "gates": {
+    "over100ms": {
+     "n": 0,
+     "worst": 0,
+     "pass": true
+    },
+    "below30run": {
+     "sec": 0.13,
+     "pass": true
+    },
+    "standTaxiMedianFps": {
+     "fps": 30,
+     "pass": false
+    },
+    "standTaxiDeliveredFps": {
+     "fps": 32.1,
+     "doubled": 0.865,
+     "dtP90": 33.4,
+     "dtP99": 33.5,
+     "pass": false
+    },
+    "longTask1s": {
+     "n": 2,
+     "worst": 4172,
+     "pass": false
+    }
+   },
+   "tGarage": 103.239,
+   "tReveal": 3.428,
+   "settings": [],
+   "longTasksOver1s": [
+    [
+     6449,
+     1336
+    ],
+    [
+     41573,
+     4172
+    ]
+   ],
+   "simwState": {
+    "phase": "live",
+    "reason": null,
+    "dead": null,
+    "placeOk": true,
+    "flights": 1,
+    "inline": 0,
+    "wvBad": 0,
+    "wvMaxLag": 1,
+    "worldMs": 798.3000000119209,
+    "initMs": 92.69999998807907,
+    "bootFetchMs": 470.90000000596046,
+    "readyWaitFrames": 2,
+    "view": {
+     "seq": 9395,
+     "step": 9398,
+     "t": 156.6333333334003,
+     "stepMs": 4.700506998665974,
+     "dilation": 0.9977762876374625,
+     "worldV": 5012,
+     "late": 0,
+     "droppedS": 0,
+     "allocs": 31,
+     "rate": 1,
+     "epoch": 1,
+     "running": true,
+     "manual": false,
+     "started": true,
+     "diverged": false,
+     "takes": 9396,
+     "strays": 0,
+     "mismatch": false
+    }
+   }
+  }
+ },
+ "at60": {
+  "off_cub_1": {
+   "frames": 749,
+   "fps": 48.1,
+   "doubled": 0.246,
+   "loopMed": 18.4,
+   "renderMed": 11.6
+  },
+  "on_cub_1": {
+   "frames": 842,
+   "fps": 48.4,
+   "doubled": 0.233,
+   "loopMed": 17.6,
+   "renderMed": 13.6
+  },
+  "off_cub_2": {
+   "frames": 795,
+   "fps": 48,
+   "doubled": 0.248,
+   "loopMed": 18.5,
+   "renderMed": 11.4
+  },
+  "on_cub_2": {
+   "frames": 786,
+   "fps": 48.4,
+   "doubled": 0.237,
+   "loopMed": 18.1,
+   "renderMed": 14.4
+  },
+  "off_cub_cold": {
+   "frames": 842,
+   "fps": 47.4,
+   "doubled": 0.259,
+   "loopMed": 19.1,
+   "renderMed": 11.8
+  },
+  "on_cub_cold": {
+   "frames": 828,
+   "fps": 49.6,
+   "doubled": 0.207,
+   "loopMed": 17.3,
+   "renderMed": 13.2
+  },
+  "off_metal_1": {
+   "frames": 816,
+   "fps": 47.8,
+   "doubled": 0.248,
+   "loopMed": 18.5,
+   "renderMed": 10
+  },
+  "on_metal_1": {
+   "frames": 840,
+   "fps": 48.9,
+   "doubled": 0.224,
+   "loopMed": 17.3,
+   "renderMed": 13.5
+  },
+  "off_metal_2": {
+   "frames": 774,
+   "fps": 47.7,
+   "doubled": 0.252,
+   "loopMed": 18.6,
+   "renderMed": 10.3
+  },
+  "on_metal_2": {
+   "frames": 818,
+   "fps": 48.7,
+   "doubled": 0.23,
+   "loopMed": 17.4,
+   "renderMed": 13.4
+  },
+  "off_metal_cold": {
+   "frames": 781,
+   "fps": 44.7,
+   "doubled": 0.337,
+   "loopMed": 20.9,
+   "renderMed": 11.6
+  },
+  "on_metal_cold": {
+   "frames": 816,
+   "fps": 49.8,
+   "doubled": 0.199,
+   "loopMed": 16.9,
+   "renderMed": 13
+  }
+ },
+ "pauseProbe": {
+  "simw1": {
+   "worker": "live",
+   "pause": {
+    "phase": "TAXI",
+    "cgMovedM": 0,
+    "dtS": 0,
+    "dStep": 0,
+    "speed": 4.6789558549938794
+   },
+   "settings": [
+    {
+     "change": "shadows=off",
+     "screen": true,
+     "screenS": 23.15970000000298,
+     "dtS": 0.06666666666569654,
+     "cgMovedM": 5.141282885625257e-8
+    },
+    {
+     "change": "shadows=full",
+     "screen": true,
+     "screenS": 7.0607000000029805,
+     "dtS": 0,
+     "cgMovedM": 0
+    }
+   ],
+   "place": {
+    "asked": [
+     292.418,
+     68.946,
+     655.001
+    ],
+    "answered": [
+     292.418,
+     68.946,
+     655.001
+    ],
+    "offM": 3.8957593157651145e-11,
+    "after2sMovedM": 0,
+    "speed": 0
+   }
+  },
+  "simw0": {
+   "worker": "inline (?simw=0)",
+   "pause": {
+    "phase": "TAXI",
+    "cgMovedM": 0,
+    "dtS": 0,
+    "dStep": null,
+    "speed": 4.887225399195416
+   },
+   "settings": [
+    {
+     "change": "shadows=off",
+     "screen": true,
+     "screenS": 23.37429999999702,
+     "dtS": 0,
+     "cgMovedM": 0
+    },
+    {
+     "change": "shadows=full",
+     "screen": true,
+     "screenS": 6.5832000000029804,
+     "dtS": 0.016666666666424135,
+     "cgMovedM": 0.06584624930986395
+    }
+   ],
+   "place": {
+    "asked": [
+     290.887,
+     68.909,
+     655
+    ],
+    "answered": [
+     290.887,
+     68.909,
+     655
+    ],
+    "offM": 4.388622097246235e-11,
+    "after2sMovedM": 0,
+    "speed": 0
+   }
+  }
+ },
+ "settingsProfile": {
+  "simw1": [
+   {
+    "change": "shadows=off",
+    "clickMs": 100,
+    "screen": true,
+    "spanMs": 37601,
+    "worst": 147,
+    "over1s": 0,
+    "over200": [],
+    "links": {
+     "n": 106,
+     "inWorst": 0,
+     "waitsInWorst": 0,
+     "waitMsInWorst": 0
+    },
+    "profile": {
+     "ms": 147,
+     "sampledMs": 43,
+     "self": [
+      [
+       6.4,
+       "km index.html:9003"
+      ],
+      [
+       6.4,
+       "shaderSource :0"
+      ],
+      [
+       5.3,
+       "traverseVisible index.html:4876"
+      ],
+      [
+       3.2,
+       "(garbage collector) :0"
+      ],
+      [
+       3.2,
+       "(program) :0"
+      ],
+      [
+       2.1,
+       "_ index.html:9044"
+      ],
+      [
+       2.1,
+       "bedKeep :114"
+      ],
+      [
+       1.1,
+       "(anon) house_tarr.js:62"
+      ],
+      [
+       1.1,
+       "yl index.html:9095"
+      ],
+      [
+       1.1,
+       "createShader :0"
+      ],
+      [
+       1.1,
+       "mS index.html:9003"
+      ],
+      [
+       1.1,
+       "m.customProgramCacheKey :1385"
+      ],
+      [
+       1.1,
+       "copy index.html:4876"
+      ],
+      [
+       1.1,
+       "setGeometryIdAt index.html:4876"
+      ],
+      [
+       1.1,
+       "validateGeometryId index.html:4876"
+      ]
+     ],
+     "chains": [
+      [
+       6.4,
+       "km index.html:9003 < wS index.html:9023 < yl index.html:9095 < $d index.html:9095 < (anon) index.html:9095"
+      ],
+      [
+       6.4,
+       "shaderSource :0 < Bm index.html:8993 < wS index.html:9023 < yl index.html:9095 < $d index.html:9095"
+      ],
+      [
+       3.2,
+       "(garbage collector) :0 < (root) :0"
+      ],
+      [
+       3.2,
+       "traverseVisible index.html:4876 < traverseVisible index.html:4876 < traverseVisible index.html:4876 < traverseVisible index.html:4876 < traverseVisible index.html:4876"
+      ],
+      [
+       3.2,
+       "(program) :0 < (root) :0"
+      ],
+      [
+       2.1,
+       "traverseVisible index.html:4876 < traverseVisible index.html:4876 < traverseVisible index.html:4876 < Jd.compile index.html:9095 < tick :11493"
+      ],
+      [
+       2.1,
+       "_ index.html:9044 < yl index.html:9095 < $d index.html:9095 < (anon) index.html:9095 < traverse index.html:4876"
+      ],
+      [
+       2.1,
+       "bedKeep :114 < buildCell :503 < update :738 < worldUpdate :6030 < W.worldUpdate :8"
+      ],
+      [
+       1.1,
+       "(anon) house_tarr.js:62 < globals house_tarr.js:60 < editPlain house_tarr.js:99 < m.onBeforeCompile house_tarr.js:338 < w :633"
+      ],
+      [
+       1.1,
+       "yl index.html:9095 < $d index.html:9095 < (anon) index.html:9095 < traverse index.html:4876 < traverse index.html:4876"
+      ],
+      [
+       1.1,
+       "createShader :0 < Bm index.html:8993 < wS index.html:9023 < yl index.html:9095 < $d index.html:9095"
+      ],
+      [
+       1.1,
+       "mS index.html:9003 < Wd index.html:9003 < wS index.html:9023 < yl index.html:9095 < $d index.html:9095"
+      ],
+      [
+       1.1,
+       "m.customProgramCacheKey :1385 < _ index.html:9044 < yl index.html:9095 < $d index.html:9095 < (anon) index.html:9095"
+      ],
+      [
+       1.1,
+       "copy index.html:4876 < tick scenery_life.js:980 < tick render_premises.js:1726 < worldUpdate :6030 < W.worldUpdate :8"
+      ],
+      [
+       1.1,
+       "setGeometryIdAt index.html:4876 < draw scenery_life.js:892 < tick scenery_life.js:980 < tick render_premises.js:1726 < worldUpdate :6030"
+      ]
+     ]
+    }
+   }
+  ],
+  "simw0": [
+   {
+    "change": "shadows=off",
+    "clickMs": 87,
+    "screen": true,
+    "spanMs": 34005,
+    "worst": 172,
+    "over1s": 0,
+    "over200": [],
+    "links": {
+     "n": 106,
+     "inWorst": 0,
+     "waitsInWorst": 0,
+     "waitMsInWorst": 0
+    },
+    "profile": {
+     "ms": 172,
+     "sampledMs": 15,
+     "self": [
+      [
+       4.3,
+       "gs index.html:4876"
+      ],
+      [
+       2.1,
+       "traverseVisible index.html:4876"
+      ],
+      [
+       1.1,
+       "(garbage collector) :0"
+      ],
+      [
+       1.1,
+       "put :0"
+      ],
+      [
+       1.1,
+       "getParameter :0"
+      ],
+      [
+       1.1,
+       "dress :391"
+      ],
+      [
+       1.1,
+       "getBoundingClientRect :0"
+      ],
+      [
+       1.1,
+       "traverse index.html:4876"
+      ],
+      [
+       1.1,
+       "standIn :52"
+      ],
+      [
+       1.1,
+       "inject :642"
+      ]
+     ],
+     "chains": [
+      [
+       4.3,
+       "gs index.html:4876 < yl index.html:9095 < $d index.html:9095 < (anon) index.html:9095 < traverse index.html:4876"
+      ],
+      [
+       1.1,
+       "(garbage collector) :0 < (root) :0"
+      ],
+      [
+       1.1,
+       "put :0 < go :500 < put :499 < flush :534 < (anon) :543"
+      ],
+      [
+       1.1,
+       "getParameter :0 < header :341 < head :521 < flush :534 < (anon) :543"
+      ],
+      [
+       1.1,
+       "dress :391 < stepPeople :1607 < poseModel :3199 < loop :10915 < (root) :0"
+      ],
+      [
+       1.1,
+       "getBoundingClientRect :0 < flLayout :9534 < loop :10915 < (root) :0"
+      ],
+      [
+       1.1,
+       "traverseVisible index.html:4876 < traverseVisible index.html:4876 < traverseVisible index.html:4876 < traverseVisible index.html:4876 < Jd.compile index.html:9095"
+      ],
+      [
+       1.1,
+       "traverse index.html:4876 < Jd.compile index.html:9095 < tick :11493 < (root) :0"
+      ],
+      [
+       1.1,
+       "standIn :52 < tick :11493 < (root) :0"
+      ],
+      [
+       1.1,
+       "traverseVisible index.html:4876 < traverseVisible index.html:4876 < traverseVisible index.html:4876 < traverseVisible index.html:4876 < traverseVisible index.html:4876"
+      ],
+      [
+       1.1,
+       "inject :642 < w :633 < yl index.html:9095 < $d index.html:9095 < (anon) index.html:9095"
+      ]
+     ]
+    }
+   }
+  ]
+ }
+}

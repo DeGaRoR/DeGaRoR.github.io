@@ -10920,6 +10920,8 @@
   // flydiy.simw ('0' / '1') say otherwise. Null = the loop's step block below is the inline loop it always was; so is
   // a page whose worker cannot be had (no Worker, file://, the page in node without the harness's shim): SIM_LINK wraps
   // nothing until its worker is up, and every flight of a dead link flies inline (FLYDIY_SIMW.state().dead says why).
+  // SIMW-BENCH (G1095-G1099, the box 2026-09-30): KEPT - as even as inline at the 30 the cap settles on, the same frames,
+  // the page's loop 19.5 -> 13.8 ms (Cub) / 22.7 -> 13.6 ms (metal Cessna); 60 holds on neither path (HANDOVER G1095-G1099)
   const SIMW_DEFAULT = true;
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();

@@ -65418,3 +65418,88 @@ and its page children run before it composes its own three worlds. On a bigger b
 READING THE USER'S VERDICT: when the user picks, set the default in rwyTreesMode (27_premises.js: 'today' is the
 fallback) and in the loader line of tools/build.js; GATE RWYTREES' "4 ..." checks are written per variant and need
 no change. If 'map' wins, look again at the 5 % surfaces the gate prints for Tamgas Hill and East Point.
+
+## G1095-G1099 - SIMW-BENCH: THE PHYSICS WORKER MEASURED ON THE BOX - THE DEFAULT STAYS THE WORKER (SIMW_DEFAULT = true); A RIG'S PLACEMENT ON THE SIM THAT FLIES (2026-09-30, LOCAL-GPU, block G1095-G1099, G1097-G1099 unused)
+
+The question C1c (G820-G822) left: is the worker the default? THE USER'S RULE: "a clean 30 unless 60 truly holds -
+evenness first", "no regression unless really justified". BASE: origin/claude/train-17 (9a7db2d8 for the measurements;
+rebased onto ed6930f1 for READY - POLISH-2 and f0758c89's house-worker fix came in, nothing of the worker's).
+
+**G1095 GATE ROUNDTRIP RUNS WHAT SHIPS.** tools/perf/c1c_roundtrip_worker.patch applied (B8B9 is in the train): the
+ROUNDTRIP page gets its Worker (the G815 shim), flies the page's default - the worker - and checks it flew every flight.
+PASS.
+
+**G1096 A RIG'S PLACEMENT, ON THE SIM THAT FLIES** (found by C3b, relayed by A0). The rigs that HOLD or CARRY the
+aeroplane wrote FLIGHT_PROBE.sim().p / .v; under the worker the page's sim is a VIEW (cgPos / cgVel read the snapshot,
+the next mirror rewrites p): shadowsky_shots' every view held at the stand, the aeroplane "taxiing under pause".
+- `FLIGHT_PROBE.place({ at: [x, y, z] (the CG's place; a null axis kept) | by: [dx, dy, dz], zeroV, dv: [vx, vy, vz] })`
+  -> a promise of the CG. sim_host.js simHostPlace makes the rigs' own writes on the sim that flies: the page's own
+  inline, the worker's AT ONCE ({cmd:'place'}: after every step the page posted in lockstep, between two turns in real
+  time), which publishes and answers 'placed'; sim_link.js mirrors that snapshot before the promise resolves (a paused
+  page runs no frame to do it). Paused, the worker's clock is stopped first. NEVER write sim().p / .v from a rig again.
+- Moved to it (pause FIRST, then the placement - the await lets frames run): frame_perf's forest / sea / at:x:z:agl,
+  shadowsky_shots HOLD, tree_perf, met_perf, imp_audit, cloud / island / light / water shots, approach_eval (the CG's
+  absolute place each frame), _h7_follow's tow (dv); G800's console snippet above. Untouched: the node tests that fly
+  their own solver (test_flex, test_pilot, ...) and UISMOKE's page (no worker there - the dead link is inline).
+- **GATE SIMWORKER-PLACE** (tools/_simworker_place_check.js, full tier, weight 2, ~11 min): the page in node, ?simw=0
+  against ?simw=1 (lockstep), the Cub and the metal Cessna, every door at the same STEP (a new worker flight holds a
+  frame for its init): 120 steps of taxi, the PAUSE button, 60 frames held, a placement 300 m E / 200 m S / 60 m AGL
+  (zeroV), 30 held, run, 90 steps, a dv kick in flight, 60 steps, pause. PASS both builds: the pause holds p / CG / t
+  to the bit, the CG 4e-12 (Cub) / 1.5e-11 m (metal) from where asked, v zero, 2 placements answered by the worker, all 6
+  reads bit-identical across the two paths.
+- tools/perf/simw_pause_eval.js (rollout_perf --eval): THE PLAYER'S HOLDS IN A REAL BROWSER (the worker's real-time
+  clock - the rig clock is lockstep, headless only). Worker / inline: the pause button over 5 s - CG 0 / 0 m, sim time
+  0 / 0 s, worker steps 0 (taxiing at 4.7 / 4.9 m/s); the settings screen (shadows off, 23 s) - 4 steps (0.067 s) flown
+  before the hold took / 0 steps, then nothing; shadows back on (7 s) - 0 / 1 step; a placement under the pause -
+  3.9e-11 / 4.4e-11 m off, 0 m moved over 2 s. The roll-out hold: every worker run's step 0 = the page's placed
+  aeroplane to the bit (placeOk true, held 1-2 frames).
+
+**THE MEASUREMENT** (the box: RTX 3080, 2216x1023; rollout_perf --port 8795 --udd D:/Dev/udd_simw, one warm-up per
+build discarded; warm alternating 0,1,0,1, the Cub with --settings; one --cold each side each build; 150 s). The TAXI
+row (the stand is one frame since B8B9) - inline -> worker:
+
+| | Cub warm (2 + 2) | Cub cold | metal warm (2 + 2) | metal cold |
+|---|---|---|---|---|
+| fps delivered | 31.9 / 32.0 -> 32.1 / 32.0 | 32.0 -> 32.1 | 32.0 / 31.9 -> 32.1 / 32.1 | 31.7 -> 32.1 |
+| doubled / uneven (the ratchet's) | 88 % / 8 % -> 87 % / 8 % | 87 / 9 -> 86 / 7 | 87-88 / 8 -> 86-87 / 8 | 89 / 10 -> 86 / 7 |
+| dt p99 / max | 33.5 / 50 -> 33.5 / 50-67 | 33.5 / 50 both | 33.5 / 50-67 both | 33.5 / 67 both |
+| loop JS median (p90) | 19.6 (21.5), 19.4 (21.8) -> 13.8 (18.6), 13.8 (18.4) | 20.7 (23.7) -> 15.2 (18.2) | 22.5 (25.1), 22.9 (25.2) -> 13.6 (17.9), 13.5 (18.0) | 24.3 (27.2) -> 15.3 (18.0) |
+| the page's solver | 6.0 -> 0.1 | 6.0 -> 0.1 | 9.2 -> 0.1 | 9.2 -> 0.1 |
+| WORKER step (p90), dilation min | 3.03 (3.3), 2.90 (3.1), 1.00 | 2.88 (3.09), 1.00 | 4.45 (4.75), 4.49 (4.84), 1.00 | 4.45 (4.86), 1.00 |
+| render median (p90) | 10.3 (11.7), 10.2 (11.7) -> 10.1 (13.4), 10.0 (14.0) | 11.6 (12.9) -> 11.5 (13.4) | 10.2 (11.3), 10.6 (11.6) -> 10.1 (13.1), 10.1 (12.6) | 11.8 (13.3) -> 11.6 (13.5) |
+| at the 30 cap / 60 trials failed | 85, 84 % -> 83, 84 %; 6 of 6 each | 83 -> 83 %; 6 of 6 | 83-84 -> 83 %; 6 of 6 | 84 -> 83 %; 6 of 6 |
+| tasks > 1 s (worst) | 1 (4.5 s), 1 (4.1) -> 1 (4.3), 2 (4.2; + a 2.9 s link in the garage boot's `frames` step, before any worker) | 2 -> 2 | 1, 1 -> 1, 1 | 2 -> 2 |
+| first flight (garage + roll-out) | 94.9, 87.6 -> 94.6, 91.2 s | 107.2 -> 107.5 | 84.5, 85.5 -> 84.8, 84.4 | 105.1 -> 106.7 |
+| the settings probe's worst task | 266, 275 -> 490, 612 ms | - | - | - |
+
+THE 60 TRIALS (the taxi's frames at cap 60): 48.0-48.1 (Cub) / 47.7-47.8 (metal) fps delivered inline, 48.4 /
+48.7-48.9 under the worker, 25 % -> 22-24 % doubled; loop JS 18.4-18.6 -> 17.3-18.1 ms; RENDER CPU 11.4-11.6 (Cub) /
+10.0-10.3 (metal) -> 13.4-14.4 ms. The solver left the page's thread, and at 60 the render's CPU grew by about as much:
+60 does not hold on either path (the cap keeps 60 only above 52 delivered); the auto cap settles on the clean 30 by
+itself.
+
+**THE VERDICT: SIMW_DEFAULT = true, KEPT.** At the cap the game settles on, the worker is as even as inline (uneven
+8 % both warm; 7 against 9-10 % cold), the same frames (32 fps, p99 33.5 ms), and gives the page's thread back 5.5-6 ms
+(Cub) and 9-9.4 ms (the metal Cessna, where the solver dominates) of loop JS median, 3-9 ms at p90; the load is the
+same within noise. NAMED, NOT HIDDEN: (1) the render's CPU p90 +1.5-2 ms at 30 (medians equal) and +2.5-3 ms median in
+the 60 trials - the render slows while the worker runs (CPU-side contention: the draws are the same); worth a look
+before any 60 attempt; (2) the settings probe's worst task 490 / 612 ms under the worker against 266 / 275 inline (the
+shadows-off screen, after 150 s of taxi), NOT reproduced in a profiled pair after 20 s (--profile-settings: 147 under
+the worker, 172 inline) - all far under R4's 1 s; (3) the settings screen's hold lands up to 4 steps late under the
+worker (the next frame posts the pause); (4) the page process +300-450 MB with the worker (C1c's node figure).
+
+**THE RATCHET** (tools/rollout_ratchet.js --baseline <train 16's, 6b90f96e>, the warm runs, each side): BOTH SIDES RED
+on the same load rows - garage 58 -> 82-90 s, first flight 61 -> 85-93 s, compile 48.6 -> 73-76 s (Cub) / 7.3 -> 34-35 s
+(metal), taskWorst 1.0 -> 4.0-4.3 s - train 17's base, not the worker (inline reds as much). The per-step breakdown
+(sent to A0): `parked` 0 -> 4.1 s (THE ~4 s TASK: train 16's cooked parked aeroplanes - `how: cook`, 0.1 s each - miss
+on train 17's build, so they are captured (0.8-1.6 s) and baked (2.0-4.6 s) live; re-cook on the train) and
+`worldCompile` 5.4 -> 28-37 s (the same program count); `town` +0.7 s only (the house worker's LOT_TEX_SETS fallback,
+fixed on the train by f0758c89). The worker's own rows: loop 21.95 -> 13.8 (Cub) / 24.65 -> 13.55 (metal) and solver
+7.75 -> 0.1 / 10.7 -> 0.1 "better", uneven / fps / p99 / render ok; its one extra RED is the settings row (275 -> 551 ms,
+above - not reproduced profiled).
+
+GATES (the box, before the rebase, targeted under `take cpu SIMW`): ROUNDTRIP (the worker by default), SIMWORKER,
+SIMWORKER-PAGE (both builds), SIMWORKER-EDGES (both builds), SIMWORKER-PLACE (both builds), PACE, FLIGHTREC, UISMOKE -
+PASS. The full battery on the rebased tree: the READY commit.
+Evidence: tools/perf/simw_bench_g1095.json (every run's taxi row, gates, settings, the 60 windows, the pause probe, the
+settings profile).
