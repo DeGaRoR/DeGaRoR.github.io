@@ -608,7 +608,10 @@ function makeWorld(seed, opts) {
       const x = G0x + (gx + 0.15 + 0.70 * j1) * GS;
       const z = G0z + (gz + 0.15 + 0.70 * j2) * GS;
       const h = terrainH(x, z);
-      if (h < 2 || h > B.TREELINE) continue;
+      // THE TREELINE IS THE ANALYTIC WORLD'S (G1112, TREES-NEAR): 165 m is its biome model's number. On a data island
+      // the tree map decides (effClass TREE below, the same map the renderer's fill stands on): Jolene's woods run to
+      // ~600 m, and 48 % of its TREE ground lies above 165 m - drawn forest nothing could hit
+      if (h < 2 || (!ISL && h > B.TREELINE)) continue;
       // the island: the collidable woodland stands where the effective class
       // is tree cover, at the canopy's height (the v0 scale envelope)
       let islS = 0;

@@ -1453,7 +1453,10 @@ function makeSim(def, world) {
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
-      if (p[1] < 24) {
+      // HEIGHT OVER THE GROUND, NOT ALTITUDE (G1112, TREES-NEAR): `p[1] < 24` was the analytic world's, whose field
+      // is at y = 0. Jolene's HOME stands at 31.7 m, so no tree was ever tested there - and of the island's collidable
+      // woodland only the 23 % rooted under 24 m could be reached at all, and only from under 24 m of altitude
+      if (p[1] - world.terrainH(cgx, cgz) < 24) {
         const near = world.treesNear(cgx, cgz, _treeScratch);
         if (near.length) for (let i = 0; i < n; i++) {
           const i3 = i*3;

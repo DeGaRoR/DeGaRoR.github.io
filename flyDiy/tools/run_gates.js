@@ -164,6 +164,9 @@ const GATES = [
   // a tree: standing on y = 0, inside its own box and filling it, with an AO
   // channel that carries information and rungs that share one frame.
   { id: 'TREES', file: '_tree_check.js', tier: 'core' },
+  // G1112 (TREES-NEAR): the collidable woodland on the island (no analytic treeline, the tree map's TREE class) and the
+  // solver meeting a trunk at any elevation (it tested trees under y = 24 m only: never at Jolene's 31.7 m HOME)
+  { id: 'TREEHIT', file: '_treehit_check.js', tier: 'core' },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
