@@ -65,7 +65,8 @@
   const W = (typeof window !== 'undefined') ? window : globalThis;
   const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true,
                 hybrid: true, hyA: 1.6, hyB: 2.0,
-                eyeR: 1.5, eyeOnly: true, shadowFolds: true };   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
+                eyeR: 1.5, eyeOnly: true, shadowFolds: true,
+                cockpitLive: false };   // G1124.1: the exterior live in the cockpit (the eye's zone) - off: +2.4 ms there (the Cessna)   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
   const log = (...a) => { if (FB.quiet) return; console.log('flown bake:', ...a); };
   const tick = () => new Promise(r => setTimeout(r, 0));
   // the dials in the URL: ?fbake=0 the live shader; ?fbake=ab the A/B build (live twins kept, the still merge off);
@@ -80,6 +81,7 @@
     if (on.has('ext')) FB.Sin = 0;              // C4b: the exterior's atlas only (the cabin flies live, as C4a)
     if (on.has('nohy')) FB.hybrid = false;      // the hybrid off: the bake at every distance (C4b as it landed)
     if (on.has('alleye')) FB.eyeOnly = false;   // G1124 off: the whole exterior live in the cockpit
+    if (on.has('cockpitlive')) FB.cockpitLive = true;   // G1124.1: the eye's zone live in the cockpit (the follow-up's dial)
     if (on.has('noshadowfolds')) FB.shadowFolds = false;   // G1124 off: the live meshes cast their own shadows
     for (const x of on) { const m = /^hy([\d.]+)-([\d.]+)$/.exec(x); if (m) { FB.hyA = +m[1]; FB.hyB = Math.max(+m[1] + 0.01, +m[2]); } }   // the band
     for (const x of on) { const m = /^hy=([\d.]+)$/.exec(x); if (m) FB.hyForce = Math.min(1, Math.max(0, +m[1])); }   // t held (the A/B rigs)
@@ -712,11 +714,15 @@
     shadowFolds(false); hookShadow();         // (G1124 a: last frame's shadow swap put back before this frame's main pass)
     if (FB.hyForce != null) t = tEye = FB.hyForce;   // the rigs' hold (FB.hyForce, ?fbake=hy=0.5): a number, or null for the rule
     if (tEye == null) tEye = t;
+    // G1124.1 THE FALLBACK: where the caller gives the eye more than the rest (the cockpit: app.js hybrid(0, 1)), the CABIN
+    // takes it (live at arm's length, as C4b) and the eye's zone stays with the rest on the bake - unless FB.cockpitLive
+    let tIn = tEye;
+    if (!FB.cockpitLive && FB.hyForce == null && tEye > t) { tIn = tEye; tEye = t; }
     const q = x => x <= 0.002 ? 0 : x >= 0.998 ? 1 : x;
-    t = q(t); tEye = q(tEye);
-    FB_FADE.value = t > 0 && t < 1 ? t : tEye;
-    FB.hyT = t; FB.hyTEye = tEye;
-    for (const F of FOLDS) if (F.fade) F.fade(F.set === 'in' || F.zone === 'eye' ? tEye : t);
+    t = q(t); tEye = q(tEye); tIn = q(tIn);
+    FB_FADE.value = t > 0 && t < 1 ? t : tEye > 0 && tEye < 1 ? tEye : tIn;
+    FB.hyT = t; FB.hyTEye = tEye; FB.hyTIn = tIn;
+    for (const F of FOLDS) if (F.fade) F.fade(F.set === 'in' ? tIn : F.zone === 'eye' ? tEye : t);
     return t;
   }
   function materialOf(THREE, d, set) {

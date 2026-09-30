@@ -433,6 +433,9 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
     '8 G1124 the eye\'s zone: a kept mesh near the cabin goes to the eye\'s fold on its own live copy, a far one stays', JSON.stringify(FB.FB.eyeZoneN));
   check(hyParked && hyBand && hyNear && hyFar, '8 G1121 the hybrid: the live meshes out of the graph while the bake is drawn, both in the band, the live alone near, parked again far',
     JSON.stringify({ hyParked, hyBand, hyNear, hyFar }));
+  // G1124.1 the fallback: the cockpit's call (0, 1) - the cabin live, the eye's zone on the bake; ?fbake=cockpitlive the eye's live
+  FB.hybrid(0, 1); const fb1 = [FB.FB.hyT, FB.FB.hyTEye, FB.FB.hyTIn]; FB.FB.cockpitLive = true; FB.hybrid(0, 1); const fb2 = [FB.FB.hyT, FB.FB.hyTEye, FB.FB.hyTIn]; FB.FB.cockpitLive = false; FB.hybrid(0);
+  check(fb1.join() === '0,0,1' && fb2.join() === '0,1,1', '8 G1124.1 the fallback: in the cockpit the cabin live and the exterior on the bake (the eye\'s zone live only with ?fbake=cockpitlive)', JSON.stringify({ fb1, fb2 }));
   const t1 = FB.hybrid(0.5), f1 = FB.FB_FADE.value; FB.FB.hyForce = 1; const t2 = FB.hybrid(0.2); FB.FB.hyForce = null; FB.hybrid(0);
   check(t1 === 0.5 && f1 === 0.5 && t2 === 1 && FB.FB_FADE.value === 0, '8 G1120 one fade for both sides (FB_FADE), the rigs\' hold (FB.hyForce) wins over the rule', JSON.stringify({ t1, f1, t2 }));
   const tw = FB.liveTwin(live), bw = FB.bandOf(tw), sh = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };
