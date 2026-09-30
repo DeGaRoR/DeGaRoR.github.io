@@ -27,6 +27,11 @@
 //          whole roll the four drawn surfaces and the controls exactly 0 - neutral and still - over the sweep.
 //          Only the drives the model draws (a flapless build skips the flaps); check: false rolls at once; a skip
 //          mid-check leaves nothing deflected; no allocation a frame in the check or the roll with the linkage.
+//   G1115-G1117  THE WORLD ROLL (ROLLOUT-REAL, playWorld): out of the world's own shed (a room frame stood at a stand's
+//          geometry: Jolene HOME's and others, the club, works and field sheds) onto the stand - it ends on the stand's pose
+//          exactly (the craft at identity) and the flight's first eye; it starts in the shed, crosses the door straight,
+//          no jump a frame, the wheels rolled / R, the establishing eye clear; no allocation a frame; skip, cancel,
+//          refusals. And the check alone (roll: false), and option B (follow: false: the eye fixed in the shed).
 //
 //   node tools/_rollanim_check.js            -> "GATE ROLLANIM: PASS|FAIL"
 //   node tools/_rollanim_check.js --verbose  -> a line per build (the roll, the time, the eye's plan)
@@ -500,6 +505,164 @@ async function pageCheck() {
     check(!onLine.visible && wide.visible, 'the mobile prop in the path is hidden, the one beside it is not', onLine.visible + ' / ' + wide.visible);
     drive(h, 1 / 60, 2000); await tick();
     check(onLine.visible && wide.visible && under.visible && calls === 1, 'the hidden kit comes back at the end');
+  }
+
+  // ---- G1115-G1117 THE WORLD ROLL (ROLLOUT-REAL): playWorld out of the world's own shed onto the stand -----------------
+  // The aeroplane stood as the shed stands it is THE STAND here (its nose along -x; the sim's frame is the world's); a shed
+  // node is stood so its door faces the stand at a given angle and distance (render_world's: a room frame, door at local -x,
+  // the slab at local y 0). The host's hooks drive it as app.js does. Held:
+  //   G1115  IT ENDS ON THE FLIGHT: the last frame's craft is at identity (the stand's pose, exactly), the eye on
+  //          opts.end.eye aimed at opts.end.look; onDone once; nothing left moved (the contact mesh too)
+  //   G1116  IT STARTS IN THE SHED: the first frame's drawn aeroplane is behind the door plane and inside the opening's
+  //          width; it crosses the door plane on the straight (its heading the door's) with the wings inside the opening;
+  //          no jump a frame (the CG moves at most the profile's speed, the heading turns smoothly); the wheels turn
+  //          rolled / R; the eye's plan is clear (outside the building, off the footprint, the aeroplane in sight)
+  //   G1117  NO ALLOCATION A FRAME (bound 64, as the shed's roll); a skip goes to the stand at once; cancel() puts back
+  //          without onDone; a stand behind the door or too close is REFUSED cleanly (onDone once, a reason)
+  {
+    const S = ROLLANIM.S;
+    const standUp = (a, deg, out, lat, shellKey) => {
+      const G = garage(a, shellKey || 'club');
+      const dims = SHELLS[shellKey || 'club'];
+      // the stand: the mains' midpoint and the nose's heading (-x)
+      const rig = ROLLANIM.appRig(G.model, G.def, G.sim);
+      let mx = 0, mz = 0, n = 0; for (const w of rig.wheels) if (Math.abs(w.z - G.cg[2]) > 0.2) { mx += w.x; mz += w.z; n++; }
+      mx /= n; mz /= n;
+      // the door's outward heading psi0 = the stand's heading (pi) - deg; the door plane `out` m behind the mains, `lat` aside
+      const psi0 = Math.PI - deg * Math.PI / 180, ux = Math.cos(psi0), uz = Math.sin(psi0);
+      const dx = mx - ux * out - uz * lat, dz = mz - uz * out + ux * lat;   // (a point on the door plane)
+      const node = new THREE.Group();
+      node.position.set(dx - ux * dims.HD, G.groundY, dz - uz * dims.HD);
+      node.rotation.y = Math.atan2(uz, -ux);
+      G.scene.add(node); node.updateMatrixWorld(true);
+      const shed = { node, dims, door: { w: Math.max(6, 2 * dims.HW - 5), h: Math.min(6.4, dims.EAVE - 1.4) }, doorAxis: -1 };
+      // the flight's first frame: a chase framing behind the tail (flRevealStart's shape; placeCamera's clamps are the host's)
+      const F = ROLLANIM.standFraming('chase', G.def.params.viewDist, 1), cg = G.cg;
+      const end = { eye: [cg[0] + F.dist * Math.cos(F.el) * Math.cos(F.az), cg[1] + F.dist * Math.sin(F.el), cg[2] + F.dist * Math.cos(F.el) * Math.sin(F.az)], look: cg.slice(), fov: 52 };
+      const contact = new THREE.Object3D(); G.scene.add(contact);
+      return { G, shed, end, contact, mains: [mx, mz], ground: () => G.groundY };
+    };
+    const playW = (R, extra) => {
+      let calls = 0;
+      const h = ROLLANIM.playWorld(Object.assign({ craft: R.G.craft, camera: R.G.cam, model: R.G.model, def: R.G.def, sim: R.G.sim, shed: R.shed, end: R.end,
+        ground: R.ground, contact: R.contact, onDone: () => calls++ }, extra || {}));
+      return { h, calls: () => calls };
+    };
+    const toRoom = (R, x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(R.shed.node.matrixWorld.clone().invert());
+    let nW = 0, worstEye = 0, refused = [];
+    const Lw = [], Tw = [];
+    for (const a of archs) {
+      const G0 = garage(a, 'club');
+      if (!G0.def.nodes.some(nd => nd.r > 0)) {       // floats: refused cleanly
+        const R = standUp(a, 54, 23.5, 0); const P = playW(R);
+        check(P.h.done && P.calls() === 1 && !!P.h.skipped, a.name + ': G1117 the world roll refuses floats cleanly (' + P.h.skipped + ')');
+        continue;
+      }
+      const R = standUp(a, 54, 23.5, 0);               // Jolene HOME: the stand 23.5 m out, turned 54 deg off the door's axis
+      const P = playW(R);
+      if (!check(!P.h.done && !!P.h.plan, a.name + ': G1115 the world roll plans (Jolene HOME\'s geometry)', P.h.skipped)) continue;
+      const W = P.h.plan; nW++; Lw.push(W.L); Tw.push(W.T.T);
+      worstEye = Math.max(worstEye, W.eye0.bad);
+      check(W.eye0.bad === 0, a.name + ': G1116 the establishing eye\'s plan is clear (' + W.eye0.u + ' m out, ' + W.eye0.lat + ' m aside)', W.eye0.bad + ' faults');
+      // the first frame (play() posed it): the whole drawn aeroplane in the shed, inside the opening's width
+      R.G.craft.updateMatrixWorld(true);
+      const bx = new THREE.Box3(), c8 = new THREE.Vector3();
+      R.G.craft.traverse(o => { if (!o.isMesh) return; const b = o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox);
+        for (let i = 0; i < 8; i++) { c8.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).applyMatrix4(o.matrixWorld); bx.expandByPoint(toRoom(R, c8.x, c8.y, c8.z)); } });
+      const HD = R.shed.dims.HD, dW = R.shed.door.w;
+      check(bx.min.x > -HD + S.noseIn - 0.05 && bx.max.x < HD && Math.max(-bx.min.z, bx.max.z) < dW / 2, a.name + ': G1116 it starts in the shed, the nose ' + (bx.min.x + HD).toFixed(2) + ' m inside the door plane, within the opening',
+        JSON.stringify({ min: bx.min, max: bx.max }));
+      // the frames: the CG's steps, the heading's, the door crossing
+      const cgNow = () => new THREE.Vector3(R.G.cg[0], R.G.cg[1], R.G.cg[2]).applyMatrix4(R.G.craft.matrixWorld);
+      let prev = cgNow(), jump = 0, crossBad = 0, frames = 0, lastQ = R.G.craft.quaternion.clone(), turn = 0;
+      const vmax = W.T.v;
+      while (!P.h.done && frames < 2000) {
+        const went = ROLLANIM.frame(1 / 60);
+        R.G.cam.position.set(0, 3, 0); ROLLANIM.camera();
+        R.G.craft.updateMatrixWorld(true);
+        const c = cgNow();
+        jump = Math.max(jump, c.distanceTo(prev) / (vmax / 60));
+        turn = Math.max(turn, 2 * Math.acos(Math.min(1, Math.abs(lastQ.dot(R.G.craft.quaternion)))));
+        prev = c; lastQ.copy(R.G.craft.quaternion);
+        // while the mains are within a metre of the door plane, the heading is the door's and the wings in the opening
+        const s = P.h.rolled;
+        if (Math.abs(s - W.sMain) < 1 && W.ext.half >= dW / 2) crossBad++;
+        if (Math.abs(s - W.sMain) < 1 && s > W.Ls) crossBad++;
+        frames++;
+        if (!went) break;
+        if (P.h.t >= W.T.T) break;
+      }
+      // the last frame, before the microtask: the stand's pose exactly, the flight's eye
+      const q = R.G.craft.quaternion, pz = R.G.craft.position;
+      const lastOk = pz.x === 0 && pz.y === 0 && pz.z === 0 && q.x === 0 && q.y === 0 && q.z === 0 && q.w === 1;
+      const cam = R.G.cam.position, e = R.end.eye;
+      const dir = new THREE.Vector3(); R.G.cam.getWorldDirection(dir);
+      const toL = new THREE.Vector3(R.end.look[0] - cam.x, R.end.look[1] - cam.y, R.end.look[2] - cam.z).normalize();
+      await tick();
+      check(lastOk && R.contact.position.lengthSq() === 0 && R.contact.quaternion.w === 1, a.name + ': G1115 the last frame is the stand\'s pose exactly (the craft and the contact shadows at identity)', JSON.stringify({ p: pz, q }));
+      check(cam.x === e[0] && cam.y === e[1] && cam.z === e[2] && toL.dot(dir) > 1 - 1e-9, a.name + ': G1115 the last frame\'s eye is the flight\'s first, aimed at its CG');
+      check(P.calls() === 1 && P.h.done && !ROLLANIM.busy(), a.name + ': G1115 onDone once, nothing left playing', P.calls());
+      check(jump < 1.25 && turn < 0.05, a.name + ': G1116 no jump a frame (the CG\'s worst step ' + jump.toFixed(2) + ' x the cruise\'s; the heading ' + (turn * 180 / Math.PI).toFixed(2) + ' deg a frame at most)', jump + ' / ' + turn);
+      check(crossBad === 0, a.name + ': G1116 it crosses the door plane straight, the wings inside the opening', crossBad);
+      let wworst = 0;
+      R.G.model.wheelParts.forEach((w, i) => { wworst = Math.max(wworst, Math.abs(P.h.spun[i] - W.L / w.R)); });
+      check(wworst < 1e-9 && near(P.h.rolled, W.L, 1e-9), a.name + ': G1116 rolled the path (' + W.L.toFixed(1) + ' m), each wheel turned rolled / R', wworst);
+      check(W.T.T >= S.wTmin - 1e-9 && W.T.T <= S.wTmax + 1e-9, a.name + ': the world roll lasts ' + W.T.T.toFixed(2) + ' s (' + S.wTmin + '-' + S.wTmax + ')', W.T.T);
+      check(R.G.sim.out.rpm.length === 0, a.name + ': sim.out.rpm put back');
+      if (VERBOSE) console.log('         ' + a.name + ': world L ' + W.L.toFixed(1) + ' m (straight ' + W.Ls.toFixed(1) + '), T ' + W.T.T.toFixed(2) + ' s, v ' + W.T.v.toFixed(1) + ' m/s, eye ' + W.eye0.u + '/' + W.eye0.lat + '/' + W.eye0.side + ', ' + frames + ' frames');
+    }
+    check(nW >= 20, 'G1115 the wheeled archetypes rolled out of the world\'s shed (' + nW + ')', nW);
+    console.log('  world rolls ' + Math.min(...Lw).toFixed(1) + '-' + Math.max(...Lw).toFixed(1) + ' m, ' + Math.min(...Tw).toFixed(2) + '-' + Math.max(...Tw).toFixed(2) + ' s; the establishing eye\'s worst plan ' + worstEye + ' faults');
+    // OTHER STANDS AND SHEDS: straight out, a hard turn either way, far, the works and field sheds
+    for (const [deg, out, lat, sk] of [[0, 23.5, 0, 'club'], [-80, 18, 4, 'club'], [100, 25, -3, 'club'], [30, 60, 10, 'club'], [54, 23.5, 0, 'works'], [20, 15, 0, 'field']]) for (const name of ['Cub-alike', 'C172-alike', 'Twin bush hauler']) {
+      const a = archs.find(x => x.name === name), R = standUp(a, deg, out, lat, sk), P = playW(R);
+      if (!check(!!P.h.plan, name + ': the world roll plans (' + sk + ', ' + deg + ' deg, ' + out + ' m out)', P.h.skipped)) continue;
+      drive(P.h, 1 / 60, 3000, () => R.G.cam.position.set(0, 3, 0));
+      await tick();
+      check(P.h.plan.eye0.bad === 0 && P.calls() === 1 && R.G.craft.position.lengthSq() === 0, name + ': ' + sk + ' ' + deg + ' deg ' + out + ' m: the eye clear, it ends on the stand', JSON.stringify({ bad: P.h.plan.eye0.bad, calls: P.calls() }));
+    }
+    // REFUSED: a stand too close to the door, one behind the shed's door line
+    for (const [deg, out, why] of [[0, 3, 'too close'], [170, 20, 'facing back in']]) {
+      const a = archs.find(x => x.name === 'Cub-alike'), R = standUp(a, deg, out, 0), P = playW(R);
+      check(P.h.done && P.calls() === 1 && !!P.h.skipped && !P.h.plan, 'G1117 a stand ' + why + ' is refused cleanly (' + P.h.skipped + ')', P.h.skipped);
+    }
+    // the skip, cancel
+    {
+      const a = archs.find(x => x.name === 'Cub-alike');
+      const R = standUp(a, 54, 23.5, 0), P = playW(R);
+      drive(P.h, 1 / 60, 90);
+      const ev = new Event('keydown', { cancelable: true }); window.dispatchEvent(ev);
+      check(P.calls() === 1 && P.h.done && R.G.craft.position.lengthSq() === 0 && R.G.cam.position.x === R.end.eye[0], 'G1117 a key mid-roll: at once on the stand with the flight\'s eye, onDone once');
+      const R2 = standUp(a, 54, 23.5, 0), P2 = playW(R2);
+      drive(P2.h, 1 / 60, 90); P2.h.cancel(); drive(P2.h, 1 / 60, 50); await tick();
+      check(P2.calls() === 0 && R2.G.craft.position.lengthSq() === 0 && !ROLLANIM.busy() && !ROLLANIM.world(), 'G1117 cancel(): the stand\'s pose back, no onDone');
+    }
+    // no allocation a frame
+    {
+      const a = archs.find(x => x.name === 'DA62-alike');
+      global.gc(); global.gc();
+      const R = standUp(a, 54, 23.5, 0), P = playW(R);
+      drive(P.h, 1 / 6000, 20000);
+      let per = -1;
+      for (let k = 0; k < 3 && per < 0; k++) { const h0 = process.memoryUsage().heapUsed; drive(P.h, 1 / 60000, 3000); per = (process.memoryUsage().heapUsed - h0) / 3000; }
+      check(per >= 0 && per < 64 && !P.h.done, 'G1117 no allocation a frame, THE WORLD ROLL: ' + per.toFixed(1) + ' bytes / frame over 3000 hooked frames (bound 64)', per.toFixed(1));
+      P.h.cancel();
+    }
+    // THE CHECK ALONE (roll: false) ends when the check does, the aeroplane never moved; OPTION B (follow: false) holds its eye
+    {
+      const a = archs.find(x => x.name === 'Cub-alike');
+      const G = garage(a, 'club'); let calls = 0;
+      const h = ROLLANIM.play({ craft: G.craft, camera: G.cam, scene: G.scene, hangar: G.hangar, model: G.model, def: G.def, sim: G.sim, roll: false, onDone: () => calls++ });
+      const n = drive(h, 1 / 60, 2000); await tick();
+      check(calls === 1 && h.rolled === 0 && Math.abs(n / 60 - h.plan.check.T) < 3 / 60 && G.craft.position.lengthSq() === 0, 'G1115 roll: false - the check alone (' + (n / 60).toFixed(2) + ' s), nothing rolled, onDone once', JSON.stringify({ calls, n, T: h.plan.check.T }));
+      const G2 = garage(a, 'club'); let c2 = 0; const eyes = [];
+      const h2 = ROLLANIM.play({ craft: G2.craft, camera: G2.cam, scene: G2.scene, hangar: G2.hangar, model: G2.model, def: G2.def, sim: G2.sim, follow: false, onDone: () => c2++ });
+      while (!h2.done && eyes.length < 3000) { const w = ROLLANIM.frame(1 / 60); G2.cam.position.set(0, 3, 0); ROLLANIM.camera(); eyes.push({ p: G2.cam.position.clone(), t: h2.t + h2.tCheck }); if (!w) break; }
+      await tick();
+      const held = eyes.filter(e => e.t > S.bEase + 0.02), moved = held.length ? Math.max(...held.map(e => e.p.distanceTo(held[0].p))) : 1;
+      const P2 = h2.plan, eye = P2.fixed && P2.fixed.eye;
+      check(c2 === 1 && held.length > 200 && moved < 1e-9 && !!eye && ROLLANIM._eyeOk(P2.room, eye[0], eye[1], eye[2]), 'OPTION B follow: false - the eye fixed in the shed (' + held.length + ' held frames), the aeroplane rolled ' + P2.L.toFixed(1) + ' m out past the door', JSON.stringify({ c2, moved, eye }));
+    }
   }
 
   // ---- G1037: no allocation a frame ----------------------------------------------------------------------

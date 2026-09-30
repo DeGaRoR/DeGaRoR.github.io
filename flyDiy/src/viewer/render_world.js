@@ -145,6 +145,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
   let setShedDims = () => {};         // HANGARS S1: re-stand the shed at new dims (airfield block)
   let shellDial = () => null;         // G600: the shed's merge dial (airfield block)
+  let shedFrame = () => null;         // G1115: the shed as it stands - its node, dims and door (airfield block)
   // W17 tree LOD uniforms, shared by every tree material and refreshed once a
   // frame in worldUpdate. uCam drives the impostor view direction (so it wants
   // the CHASE CAMERA, not the CG); uCG drives the shadow-pass cull, because the
@@ -5291,7 +5292,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // nothing to merge.
     // SHELL: the dial (the A/B): merge false = the 278 meshes as built; castMin 0 = every piece casts as before.
     // WORLD.shell(o) sets it and re-stands the shed at its current dims.
-    const SHELL = { merge: true, castMin: 0.5 };
+    // G1115 (ROLLOUT-REAL): open - the doors parked open and the inside lined dim (hangar.js opts.open): the roll-out
+    // shot rolls the aeroplane out of this building; false = the doors shut, as before (the A/B)
+    const SHELL = { merge: true, castMin: 0.5, open: true };
     function mergeShell(group, castMin) {
       if (!THREE.BufferGeometry || !THREE.Box3 || !THREE.Matrix3) return null;
       group.updateMatrixWorld(true);
@@ -5385,9 +5388,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
       const shed = genHangarBuild(THREE,
         dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE },
-        { exterior: true, shell: dims && dims.shell });
+        { exterior: true, open: SHELL.open, shell: dims && dims.shell });
       shed.group.traverse(o => {
-        if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+        if (o.isMesh) { o.castShadow = !o.userData.liner; o.receiveShadow = true; }   // (G1115: the liner casts nothing)
       });
       // G600 (A1-STAND, playtest 2026-09-26): THE SHELL IS A HANDFUL OF DRAWS. The 278 meshes below were 278
       // draws in the main pass, 278 more in the near shadow map (every frame: the stand is inside its 90 m) and
@@ -5475,6 +5478,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       node.rotation.y = H.ry;
       scene.add(node);
       shedNode = node;
+      // G1115 (ROLLOUT-REAL): the roll-out shot plays out of THIS building - its frame (the room's: door at local -x, the
+      // floor at local y 0), its dims and its door, read off the node that stands (never re-derived from the site)
+      shedFrame = () => shedNode === node ? { node, dims: shed.dims, door: shed.door || null, doorAxis: shed.doorAxis || -1, open: !!SHELL.open } : null;
     }
     standShed(shedDims);
     let shedDimsNow = shedDims;
@@ -6549,6 +6555,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return premisesR; },
            setShedDims: d => setShedDims(d),
            shell: o => shellDial(o),   // G600: { merge, castMin } -> the shed re-stood, its mesh count
+           shedFrame: () => shedFrame(),   // G1115: { node, dims, door, doorAxis, open } | null - the roll-out shot's building
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            treeAtlases,   // the impostor sheets by subject, readable (tools/imp_audit.js)
            // the world's own light panel — the same shape the shed exposes, so

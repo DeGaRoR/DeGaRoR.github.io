@@ -6687,7 +6687,7 @@
     return typeof ROLLANIM !== 'undefined' && inGarage && !raBusy && !!model && !rig && !rigLift && garageIsHangar() && !!hangar;
   }
   // the shed dressed for the shot (the mesh, not the editor's cage; no editor, no plaque), then the shot
-  function rollAnimPlay(done) {
+  function rollAnimPlay(done, opts) {
     raBusy = true;
     // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the shot (SCENERY's rule)
     for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
@@ -6696,9 +6696,9 @@
     const cage = showCage; showCage = false; applySkinVis();
     let h = null;
     try {
-      h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
+      h = ROLLANIM.play(Object.assign({ craft, scene: hangarScene, camera, hangar, model, def, sim,
         camMode: cam.mode, fov: cam.fov,
-        onDone: hh => { raBusy = false; done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
+        onDone: hh => { raBusy = false; done(cage, hh); } }, opts || {}));   // (hh: the handle - a skip calls this before play returns)
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
     return h;
   }
@@ -6738,7 +6738,7 @@
     const trip = tripOpen('rollout');
     tripSync = null;                   // this trip's export, read once by the aircraft's keys
     const toWorld = () => { rollOutStand(); tripPhase(trip, 'world', () => { tripClose(trip); reveal(); }); };
-    const anim = () => { if (sync) rollAnim(trip, toWorld); else toWorld(); };
+    const anim = () => { if (sync) rollAnim(trip, toWorld, reveal); else toWorld(); };
     if (sync && window.CAGE_UI) tripPhase(trip, 'craft', anim); else anim();
   }
   // B10's ROLL-OUT ANIMATION (the aeroplane rolls out through the open door, the camera tracks it), at the garage ->
@@ -6751,20 +6751,117 @@
   // fingerprint taken after read a closed editor: the first flight never stayed certified); rollOutStand then skips it.
   // A click that skipped the shot (its pointerdown taken by the shot) still clicks: the bar's button swallows it.
   let rollAnimSkip = null, benchFp = false, rollAnimSwallow = 0;
-  function rollAnim(trip, next) {
+  // G1115 (ROLLOUT-REAL, the user 2026-09-30: "the fact it rolls out to an environment which is not the real one is super
+  // strange and confusing ... the best one is that it gets into the real environment directly"): THE SHOT IS TWO PLACES.
+  // The control check plays in the shed (G1064, ROLLANIM.play roll: false); then THE CUT INTO THE WORLD - the shed's last
+  // frame dissolved over the world's first (raDissolve), the aeroplane put on its stand as it always was (rollOutStand),
+  // the world's phase (no step: worldRollWhy holds the roll back when one would run), the flight held (rollHold) - and the
+  // ROLL plays THERE (ROLLANIM.playWorld): out of the world's own shed, stood open (render_world shedFrame), onto the real
+  // apron and the stand, the eye onto the flight's first frame (revealPose), which the reveal then takes over with no cut.
+  // The shed is never drawn with the world, nor the world from the shed: the world draws from the cut on, ~5-7 s earlier
+  // than the flight used to start drawing it. WHERE THE WORLD ROLL CANNOT PLAY (worldRollWhy: a lined-up start, another
+  // field's stand, floats, no shed stood, a world step to run) the shed plays OPTION B - the check, then the aeroplane
+  // rolled away from a FIXED three-quarter eye out through the door (ROLLANIM.play follow: false), then the cut as before.
+  // ?rollreal=0 (or localStorage flydiy.rollreal '0') plays B everywhere; the shot stays on by default (?rollanim=0 off).
+  const RR_Q = (() => { try { const m = /[?&]rollreal=([a-z0-9]+)/.exec(location.search); if (m) return m[1]; return prefGet('flydiy.rollreal', ''); } catch (e) { return ''; } })();
+  function worldRollWhy() {
+    if (RR_Q === '0') return 'off (?rollreal=0)';
+    if (typeof ROLLANIM === 'undefined' || typeof ROLLANIM.playWorld !== 'function') return 'no module';
+    if (!WF || typeof WF.shedFrame !== 'function' || !WF.shedFrame()) return 'no shed in the world';
+    if (!flStartTaxi()) return 'the flight starts lined up';
+    if (sim && sim.hydro) return 'floats';
+    try {
+      const from = aeroById(fromId), home = siteOf('HOME'), st = from && siteOf(from.id);
+      if (!st || !home || st !== home) return 'the stand is not at the field of the shed';
+    } catch (e) { return 'no stand'; }
+    if (needsRollOutScreen()) return 'the world has steps to run';
+    const a = standAnchor(), sf = WF.shedFrame();
+    if (!a || !sf.node) return 'no stand';
+    sf.node.updateMatrixWorld(true);
+    const ax = sf.doorAxis || -1, o = new THREE.Vector3(ax * sf.dims.HD, 0, 0).applyMatrix4(sf.node.matrixWorld);
+    const u = new THREE.Vector3(ax, 0, 0).transformDirection(sf.node.matrixWorld), out = (a[0] - o.x) * u.x + (a[2] - o.z) * u.z;
+    if (!(out > 6 && out < 150)) return 'the stand is not out in front of the door (' + out.toFixed(1) + ' m)';
+    return '';
+  }
+  // THE FLIGHT'S FIRST FRAME, as flRevealStart + placeCamera will draw it - worked out on the real code and every value
+  // put back (a cockpit or tower view ends the shot on the chase framing: the reveal cuts into the head from there)
+  function revealPose() {
+    const keep = [az, el, dist, azT, elT, distT, flReveal, flHdg0, flYawRate, raSide], mode = cam.mode;
+    const p = camera.position.clone(), q = camera.quaternion.clone(), up = camera.up.clone(), tg = target.clone();
+    const hc = HEADCAM_ACTIVE, dc = DEVCAM_ACTIVE;
+    let out = null;
+    try {
+      if (mode !== 'chase' && mode !== 'orbit' && mode !== 'wing') cam.mode = 'chase';
+      HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false;
+      flRevealStart();
+      const cg = sim.cgPos(); target.set(cg[0], cg[1], cg[2]);
+      placeCamera();
+      out = { eye: [camera.position.x, camera.position.y, camera.position.z], look: [cg[0], cg[1], cg[2]], fov: cam.fov };
+    } catch (e) { console.warn('reveal pose:', e && e.message); }
+    finally {
+      cam.mode = mode; HEADCAM_ACTIVE = hc; DEVCAM_ACTIVE = dc;
+      [az, el, dist, azT, elT, distT, flReveal, flHdg0, flYawRate, raSide] = keep;
+      camera.position.copy(p); camera.quaternion.copy(q); camera.up.copy(up); target.copy(tg);
+    }
+    return out;
+  }
+  // THE DISSOLVE: the frame on screen (the shed's last, drawn this task - the check's onDone runs in a microtask after the
+  // render) copied over the canvas and faded out over the world's first frames. One drawImage, no WebGL work
+  const RA_DISSOLVE_MS = 450;
+  function raDissolve() {
+    const cv = renderer.domElement;
+    if (!cv || !cv.parentNode || typeof document === 'undefined' || !(RA_DISSOLVE_MS > 0)) return;
+    try {
+      let ov = document.getElementById('raDissolve');
+      if (!ov) { ov = document.createElement('canvas'); ov.id = 'raDissolve'; cv.parentNode.insertBefore(ov, cv.nextSibling); }
+      const r = cv.getBoundingClientRect();
+      ov.style.cssText = 'position:fixed;pointer-events:none;z-index:0;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;opacity:1;transition:none';
+      if (ov.width !== cv.width || ov.height !== cv.height) { ov.width = cv.width; ov.height = cv.height; }
+      const g = ov.getContext('2d'); g.drawImage(cv, 0, 0);
+      ov.hidden = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => { ov.style.transition = 'opacity ' + RA_DISSOLVE_MS + 'ms ease-in-out'; ov.style.opacity = '0'; }));
+      setTimeout(() => { ov.hidden = true; }, RA_DISSOLVE_MS + 200);
+    } catch (e) { console.warn('roll-out dissolve:', e && e.message); }
+  }
+  function rollAnim(trip, next, reveal) {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || typeof ROLLANIM.play !== 'function') { trip.anim = 'none'; next(); return; }
     if (!rollAnimCan()) { trip.anim = 'cannot'; next(); return; }
     if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
     benchFp = true;
-    let over = false, h = null;
-    const fin = how => { if (over) return; over = true; rollAnimSkip = null; trip.anim = how; next(); };
-    rollAnimSkip = () => { try { if (h && !h.done) h.skip(); } catch (e) {} fin('skipped'); };
-    setTimeout(() => { if (over) return; try { ROLLANIM.cancel(); } catch (e) {} raBusy = false; fin('timeout'); }, 30000);
+    const why = worldRollWhy();
+    trip.animWhere = why ? 'shed: ' + why : 'world';
+    let over = false, h = null, stage = 'shed';
+    const fin = (how, then) => { if (over) return; over = true; rollAnimSkip = null; trip.anim = how; then(); };
+    const toFlight = () => { tripClose(trip); if (reveal && !inGarage) reveal(); };   // (back in the shed under it: no flight)
+    rollAnimSkip = () => { try { if (h && !h.done) h.skip(); } catch (e) {} if (stage === 'shed') fin('skipped', next); };
+    setTimeout(() => { if (over) return; try { ROLLANIM.cancel(); } catch (e) {} raBusy = false;
+      if (stage === 'world') { rollHold = false; fin('timeout', toFlight); } else fin('timeout', next); }, 30000);
+    const how = hh => !hh ? 'threw' : hh.skipped ? (hh.plan ? 'skipped' : 'refused: ' + hh.skipped) : 'played';
     h = rollAnimPlay((cage, hh) => {    // (a skip or a clean refusal calls this before play returns)
       raSide = hh && hh.plan ? hh.plan.side : 0;
       if (hh && hh.skipped === 'skipped by the player') rollAnimSwallow = perfNow() + 500;
-      fin(!hh ? 'threw' : hh.skipped ? (hh.plan ? 'skipped' : 'refused: ' + hh.skipped) : 'played');
-    });
+      if (why || !hh || hh.skipped || over) { fin(how(hh), next); return; }
+      // THE CUT INTO THE WORLD, in this microtask (the shed's last frame is still the canvas's)
+      stage = 'world'; raSide = 0;
+      raDissolve();
+      rollOutStand();
+      tripPhase(trip, 'world', () => {   // (no step to run - worldRollWhy - so this is synchronous)
+        if (over) return;
+        rollHold = true; raBusy = true;   // the flight holds on the stand while the shot rolls onto it
+        poseModel();                      // (the model on the stand now: the plan measures the aeroplane as drawn there)
+        if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();   // (the tyres' shadows made now: the shot carries them)
+        const end = revealPose();
+        try {
+          h = ROLLANIM.playWorld({ craft, camera, model, def, sim, shed: WF.shedFrame(), end,
+            ground: world && typeof world.terrainH === 'function' ? (x, z) => world.terrainH(x, z) : null,
+            contact: contactMesh || null,
+            onDone: w => { rollHold = false; raBusy = false;
+              if (w && w.skipped === 'skipped by the player') rollAnimSwallow = perfNow() + 500;
+              trip.animWorld = w && w.plan ? { L: +w.plan.L.toFixed(1), T: +w.plan.T.T.toFixed(2), eye0: w.plan.eye0 } : (w ? w.skipped : null);
+              fin(how(w), toFlight); } });
+        } catch (e) { console.warn('rollanim world:', e && e.message); rollHold = false; raBusy = false; fin('threw', toFlight); }
+      });
+    }, why ? { follow: false } : { roll: false });
   }
   window.addEventListener('keydown', e => { if (rollAnimSkip && e.key === 'Escape') { rollAnimSkip(); e.preventDefault(); } });
   function rollOutStand() {
@@ -11310,7 +11407,8 @@
     // B10 (G1035): THE ROLL-OUT SHOT moves the aeroplane, its wheels and its props' rpm before the pose reads
     // them (rollanim.js; a no-op when nothing plays)
     if (typeof ROLLANIM !== 'undefined') {
-      if (!inGarage && ROLLANIM.busy()) { ROLLANIM.cancel(); raBusy = false; }   // left the shed under it: put back
+      // left the shed under it (or went back into the shed under the world roll, G1115): put back
+      if (ROLLANIM.busy() && inGarage === ROLLANIM.world()) { if (inGarage) rollHold = false; ROLLANIM.cancel(); raBusy = false; }
       ROLLANIM.frame(fdt);
     }
     poseModel();

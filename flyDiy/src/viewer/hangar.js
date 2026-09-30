@@ -84,6 +84,14 @@ function genHangarBuild(THREE, dims, opts) {
 // every prop and every aeroplane in the app. The early return is upstream of
 // all three.
 const EXT = !!(opts && opts.exterior);
+// G1115 (ROLLOUT-REAL, the user 2026-09-30: "the fact it rolls out to an environment which is not the real one is super
+// strange and confusing"): THE WORLD'S SHED STANDS OPEN. The roll-out shot now rolls the aeroplane out of THIS building
+// in the world, so `opts.open` keeps the exterior's doors parked open as the room shows them (the same nested leaves,
+// the same rails) and lines the inside with one dim skin (THE DARK INSIDE, above the exterior's return): from the
+// sunlit apron a hangar's inside reads dark, and the shell alone would show its sheeting's backs lit by the sky.
+// SHUT is what the door arithmetic reads: the exterior closed, as it always was, unless asked open.
+const OPEN = EXT && !!(opts && opts.open);
+const SHUT = EXT && !OPEN;
 
 // THE FRAME FAMILY (HANGARS S4). A shell is a BUILD, not a material: the
 // club and the works are the same steel portal at two sizes, and `field` is
@@ -1212,7 +1220,7 @@ if (FRAME === 'timber') {
   // the leaf, its track, and the posts under the track's far end
   const LW = DOOR_W + 0.4;
   const parkZ = -(DOOR_W / 2 + LW / 2) + 1.0;   // clear, one metre on the jamb
-  const leafZ = EXT ? 0 : parkZ;
+  const leafZ = SHUT ? 0 : parkZ;
   const tz0 = DOOR_W / 2 + 0.8, tz1 = parkZ - LW / 2 - 0.3;
   put(box(0.12, 0.14, tz0 - tz1, M.steelDark, -HD - 0.24, DOOR_H + 0.42,
           (tz0 + tz1) / 2));
@@ -1295,15 +1303,15 @@ if (FRAME === 'timber') {
   // their total width never has to add up to anything; six of them closed span
   // 30.9 m against a 25 m opening, so the outer pair would hang three metres
   // past the reveal. Closed, the width IS the opening over six.
-  const LW = EXT ? DOOR_W / 6 : 5.15;
+  const LW = SHUT ? DOOR_W / 6 : 5.15;
   for (const s of [1, -1]) for (let t = 0; t < 3; t++) {
-    const x = -HD + 0.42 + (EXT ? 0 : t * 0.24);
+    const x = -HD + 0.42 + (SHUT ? 0 : t * 0.24);
     // PARKED, i.e. NESTED at the jamb: three leaves standing one behind another
     // in their own tracks, not spread across the opening. Each is 0.30 m further
     // in than the last, which is the stagger the hangers give.
     // CLOSED (EXT), they butt across the opening instead — the arithmetic the
     // back doors have used since G64, three leaves a side meeting at z = 0.
-    const leafZ = EXT ? s * LW * (t + 0.5)
+    const leafZ = SHUT ? s * LW * (t + 0.5)
                       : s * (DOOR_W / 2 - LW / 2 - t * 0.30);
     const g = new THREE.Group(); g.position.set(x, 0, leafZ);
     // the skin, on its own material so the corrugation runs vertically like a
@@ -2189,6 +2197,26 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
   }
 }
 
+// THE DARK INSIDE (G1115). The open exterior's inside, seen from the apron through the door: the back wall, the two
+// flanks and a ceiling at the eave, one plane each facing in, on one dim material (the slab is the floor above). Every
+// sheet of the shell is a thin box, so without it the door showed the backs of the outer sheeting lit by the whole sky
+// and the room read as a white tent. It receives the sun that comes in by the door and casts nothing (the shell casts);
+// render_world merges the four into one draw. No liner on the door wall: the eye that sees in is outside it.
+if (OPEN) {
+  const IN = 0.3, hh = EAVE - 0.05;
+  M.liner = new THREE.MeshStandardMaterial({ color: 0x4a4740, roughness: 1, metalness: 0, envMapIntensity: 0.4 });
+  const plane = (w, h, rx, ry, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), M.liner);
+    m.rotation.set(rx, ry, 0); m.position.set(x, y, z);
+    m.castShadow = false; m.receiveShadow = true; m.userData.liner = true;
+    return put(m);
+  };
+  plane(2 * HW - 2 * IN, hh, 0, -Math.PI / 2, HD - IN, hh / 2, 0);          // the back wall, facing -x (in)
+  for (const s of [1, -1])                                                    // the flanks, facing -s z (in)
+    plane(2 * HD - 2 * IN, hh, 0, s > 0 ? Math.PI : 0, 0, hh / 2, s * (HW - IN));
+  plane(2 * HD - 2 * IN, 2 * HW - 2 * IN, Math.PI / 2, 0, 0, hh, 0);          // the ceiling, facing down
+}
+
 // ===========================================================================
 // THE EXTERIOR BUILD STOPS HERE.
 // ===========================================================================
@@ -2213,6 +2241,7 @@ if (EXT) {
     group: G,
     dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
     doorAxis: -1, floorY: 0,
+    door: { w: DOOR_W, h: DOOR_H, open: OPEN },   // G1115: the opening the roll-out shot rolls through
     mats: M, census: census,
     // its own disposer: no props (so no sharedGeo to protect), no ground
     // shadow, no sky texture. app.js's disposeHangar is written against the

@@ -83,6 +83,16 @@ const ROLLANIM = (() => {
     check: true, checkLead: 0.2, checkSeg: 0.65, checkFlap: 0.9, checkSettle: 0.25,
     checkAmp: 0.9,                 // the stick surfaces' throw (ctl units, +-), one way then the other
     checkFlapTo: 1.0,              // the flaps: down to this and back up
+    // G1115 OPTION B (follow: false): the fixed eye eased to over the check's start, and the roll past the door
+    bEase: 0.8, bOut: 7,
+    // G1115 THE WORLD ROLL (playWorld): out of the world's own shed onto the stand
+    wTmin: 5.0, wTmax: 7.5, wV: 5.5,   // the roll's length in seconds, and the speed it aims at (m/s)
+    wHold0: 0.45, wHold1: 0.35,        // still in the doorway at the start (the dissolve), and at the stand
+    noseIn: 1.2,                       // the nose this far inside the door plane at the start, metres
+    wClear: 2.0,                       // the tail this far past the door plane before the aeroplane turns
+    wHandle: 0.42,                     // the turn's handles, a fraction of the chord (a cubic from the door's line to the stand)
+    wLag: 0.28,                        // the eye holds its establishing view this fraction of the roll, then dollies
+    wMargin: 1.6,                      // the eye this far off the aeroplane's footprint, metres
   };
   // the check's order (the user's list) and the ctl keys it drives
   const CHECK_ORDER = ['da', 'de', 'dr', 'flap'];
@@ -247,6 +257,14 @@ const ROLLANIM = (() => {
     const mode = o.camMode === 'orbit' || o.camMode === 'wing' ? o.camMode : 'chase';
     const sides = o.side ? [o.side < 0 ? -1 : 1] : (() => { const s = Math.sin(az0 - hdg) < 0 ? -1 : 1; return [s, -s]; })();
     const fov0 = cam.fov, fov1 = o.fov > 0 ? o.fov : cam.fov;
+    // G1115: THE CHECK ALONE (o.roll false: the world roll follows it, playWorld) - no roll, no eye path, the shed's view held
+    if (o.roll === false) {
+      const check = checkPlan(o);
+      return { skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin, check, Ttotal: check.T, rollOn: false,
+        L: 0, T: timing(0), side: sides[0], lag: 0, lagE: 0, bad: 0, cands: 0, az0, el0, d0, fresh, az1: az0, el1: el0, d1: d0,
+        wtw: 0, waz: 0, wel: 0, wd: 0, look0, fov0, fov1: fov0, pivot: [0, 0], xThird: null, thirdSign: 1, sMain: null, sThird: null,
+        end: { side: sides[0], az: wrap(az0 - hdg), el: el0, dist: d0 } };
+    }
     const cands = [];
     // THE CANDIDATE PATHS: the framing eased straight from the shed's to the stand's (the swing held back
     // by 0, 0.35 or 0.6 of the shot, el with it or not), then - for a start the straight ease cannot get out
@@ -280,6 +298,24 @@ const ROLLANIM = (() => {
     // the fewest violations, then the cheapest roll
     cands.sort((a, b) => a.bad - b.bad || a.cost - b.cost);
     const c = cands[0];
+    // G1115 OPTION B (o.follow false: the world roll cannot play - the flight starts lined up, on another field, or the
+    // world has no shed at the stand): THE EYE STAYS IN THE SHED. A fixed three-quarter view from behind and beside the
+    // tail, eased to over the check's first S.bEase s, and held: the aeroplane rolls away from it, out through the door
+    // and S.bOut m on - it is not followed, so the room is the picture and the door a bright opening at its end
+    let fixed = null;
+    if (o.follow === false) {
+      const sd = sides[0], look = [cg[0] + (xDoor - cg[0]) * 0.45, cg[1] + 0.3, cg[2]];
+      let best = null;
+      for (const k of [[0.62, 0.13, 0.95], [0.5, 0.16, 0.8], [0.8, 0.12, 0.75], [0.4, 0.2, 0.65], [0.62, 0.1, 0.55]]) for (const s2 of [sd, -sd]) {
+        const az = hdg + s2 * k[0], d = k[2] * D, e = [cg[0] + d * Math.cos(k[1]) * Math.cos(az), cg[1] + d * Math.sin(k[1]), cg[2] + d * Math.cos(k[1]) * Math.sin(az)];
+        const p = { x: e[0], y: e[1], z: e[2] }; legalize(room, p);
+        const bad = room && !eyeOk(room, p.x, p.y, p.z) ? 1 : 0;
+        const inBox = box.clone().expandByScalar(0.8).containsPoint(new THREE.Vector3(p.x, p.y, p.z)) ? 1 : 0;
+        const sc = bad * 10 + inBox * 10 + (s2 === sd ? 0 : 1);
+        if (!best || sc < best.sc) best = { sc, eye: [p.x, p.y, p.z] };
+      }
+      fixed = { eye: best.eye, look };
+    }
     // the wheel groups: the sill events (the main pair's heave, the third wheel's pitch)
     const xs = wheels.map(w => w.x), xMid = xs.reduce((a, b) => a + b, 0) / xs.length;
     let xMainSum = 0, nMain = 0, xThird = null;
@@ -288,9 +324,10 @@ const ROLLANIM = (() => {
     for (const w of wheels) if (Math.abs(w.z - cg[2]) <= 0.2) { xThird = w.x; break; }
     const floorY = room ? room.floorY : box.min.y;
     const check = checkPlan(o);
+    const Lb = fixed ? Math.max(c.L, Lmin + S.bOut) : c.L, Tb = fixed ? timing(Lb) : c.T;
     return {
-      skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin, check, Ttotal: check.T + c.T.T,
-      L: c.L, T: c.T, side: c.side, lag: c.lag, lagE: c.lagE, bad: c.bad, cands: cands.length,
+      skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin, check, Ttotal: check.T + Tb.T, rollOn: true, fixed,
+      L: Lb, T: Tb, side: c.side, lag: c.lag, lagE: c.lagE, bad: c.bad, cands: cands.length,
       az0, el0, d0, fresh, az1: c.az1, el1: c.el1, d1: c.d1, wtw: c.wtw, waz: c.waz, wel: c.wel, wd: c.wd, look0, fov0, fov1,
       pivot: [xMain, floorY], xThird,
       thirdSign: xThird != null && (xThird - xMain) * ax > 0 ? -1 : 1,
@@ -304,11 +341,16 @@ const ROLLANIM = (() => {
   // the shot's length for a roll of L metres, and the profile's cruise speed
   function timing(L) {
     const Tr = clamp(L / S.vCruise / (1 - S.ramp), S.Tmin - S.hold0 - S.hold1, S.Tmax - S.hold0 - S.hold1);
-    return { T: Tr + S.hold0 + S.hold1, Tr, ta: S.ramp * Tr, v: L / (Tr * (1 - S.ramp)) };
+    return { T: Tr + S.hold0 + S.hold1, Tr, ta: S.ramp * Tr, v: L / (Tr * (1 - S.ramp)), h0: S.hold0 };
+  }
+  // G1115: the world roll's (its own length, speed and holds; the same profile)
+  function worldTiming(L) {
+    const Tr = clamp(L / S.wV / (1 - S.ramp), S.wTmin - S.wHold0 - S.wHold1, S.wTmax - S.wHold0 - S.wHold1);
+    return { T: Tr + S.wHold0 + S.wHold1, Tr, ta: S.ramp * Tr, v: L / (Tr * (1 - S.ramp)), h0: S.wHold0 };
   }
   // the distance rolled at time t (the hold, the cosine ramp up, the cruise, the ramp down, the hold)
   function rollS(tm, L, t) {
-    const tau = t - S.hold0, Tr = tm.Tr, ta = tm.ta, v = tm.v;
+    const tau = t - tm.h0, Tr = tm.Tr, ta = tm.ta, v = tm.v;
     if (tau <= 0) return 0;
     if (tau >= Tr) return L;
     if (tau < ta) return rampS(v, ta, tau);
@@ -426,7 +468,7 @@ const ROLLANIM = (() => {
     // (the ramp's distance and acceleration, the bounce and the easing written out: no call here takes a double - see above)
     const T = P.T, d = dt > 0 ? (dt < 1 / 15 ? dt : 1 / 15) : 0;
     const t = st[0] = st[0] + d < T.T ? st[0] + d : T.T;
-    const tau = t - S.hold0, Tr = T.Tr, ta = T.ta, v = T.v, k = Math.PI / ta;
+    const tau = t - T.h0, Tr = T.Tr, ta = T.ta, v = T.v, k = Math.PI / ta;
     let s = 0, acc = 0;
     if (tau >= Tr) s = P.L;
     else if (tau > 0 && tau < ta) { s = v * (tau / 2 - Math.sin(k * tau) / (2 * k)); acc = v * k / 2 * Math.sin(k * tau); }
@@ -514,7 +556,16 @@ const ROLLANIM = (() => {
       get tCheck() { return st[9]; }, get phase() { return h.done ? 'done' : st[9] < CK.T ? 'check' : 'roll'; },
       tick, cancel, skip, _cam: applyCam,
     };
+    // G1115 OPTION B: the fixed eye, eased from the shed's view over S.bEase s of the shot's clock (check + roll)
+    const eyeS = new THREE.Vector3(), lookS = new THREE.Vector3(), FX = P.fixed;
+    let fxOn = false;                                    // (on once the start's view is taken)
+    function fixedCam() {
+      let u = (st[9] + st[0]) / S.bEase; u = u < 0 ? 0 : u > 1 ? 1 : u; u = u * u * u * (u * (u * 6 - 15) + 10);
+      eyeV.set(eyeS.x + (FX.eye[0] - eyeS.x) * u, eyeS.y + (FX.eye[1] - eyeS.y) * u, eyeS.z + (FX.eye[2] - eyeS.z) * u);
+      lookV.set(lookS.x + (FX.look[0] - lookS.x) * u, lookS.y + (FX.look[1] - lookS.y) * u, lookS.z + (FX.look[2] - lookS.z) * u);
+    }
     function frameCam() {                                // the eye and the aim at the shot's time
+      if (fxOn) { fixedCam(); return; }
       // the framing through typed arrays, and eyeAt's last lines written out (G1037); the roll is the tick's
       const t = st[0], cx = cg[0] + ax * st[1];
       framingInto(P, st, FR);
@@ -537,6 +588,7 @@ const ROLLANIM = (() => {
     function tick(dt) {
       if (h.done || fin) return false;
       if (st[9] < CK.T) return checkTick(dt);
+      if (!P.rollOn) { fin = true; Promise.resolve().then(finish); return true; }   // (G1115: the check alone, and none to do)
       // THE ROLL: the surfaces neutral and still (over the shed's sweep, which the host wrote earlier in the frame)
       if (ctl) { ctl.da = 0; ctl.de = 0; ctl.dr = 0; ctl.flap = 0; }
       advance(P, st, dt);
@@ -591,7 +643,10 @@ const ROLLANIM = (() => {
         if (pAx[i]) p.obj.quaternion.setFromAxisAngle(pAx[i], pAng[i]); else p.obj.rotation.x += sense * w;
       }
       if (st[9] >= CK.T) neutral();                      // (every drive is exactly 0 by then: the settle)
+      if (fxOn) fixedCam();
       applyCam();
+      // G1115: the check alone (roll: false) ends here - the host cuts to the world roll (playWorld)
+      if (!P.rollOn && st[9] >= CK.T) { fin = true; Promise.resolve().then(finish); }
       return true;
     }
     function putBack() {
@@ -614,7 +669,7 @@ const ROLLANIM = (() => {
     function skip() {                                    // a click or a key: the end pose, then onDone at once
       if (h.done) return;
       h.skipped = 'skipped by the player';
-      st[9] = CK.T; st[0] = P.T.T; st[1] = P.L; frameCam(); applyCam();
+      st[9] = CK.T; if (P.rollOn) { st[0] = P.T.T; st[1] = P.L; } frameCam(); applyCam();
       finish();
     }
     function cancel() { if (h.done) return; h.skipped = 'cancelled'; putBack(); h.done = true; }
@@ -627,6 +682,7 @@ const ROLLANIM = (() => {
     active = h;
     // the first frame's pose now (a host that renders before its next ROLLANIM.frame sees the shot's start)
     frameCam();
+    if (FX) { eyeS.copy(eyeV); lookS.copy(lookV); fxOn = true; }
     if (o.renderer && typeof requestAnimationFrame === 'function') {
       const loop = now => {
         if (h.done) return;
@@ -639,6 +695,306 @@ const ROLLANIM = (() => {
     }
     return h;
   }
+  // ---- G1115 THE WORLD ROLL (ROLLOUT-REAL) --------------------------------------------------------------
+  // The user, 2026-09-30: "The plane rolling out is very cool, but the fact it rolls out to an environment which is not the
+  // real one is super strange and confusing ... the best one is that it gets into the real environment directly". The
+  // shed's check (play, roll: false) is followed by THE CUT INTO THE WORLD (app.js: the aeroplane already on its stand,
+  // the flight held), and this plays there: the aeroplane in the doorway of the world's OWN shed (render_world's shell, the
+  // same genHangarBuild as the room, stood open - hangar.js opts.open), rolled out onto the real apron and onto the stand,
+  // and the eye from an establishing view outside the door dollied onto the flight's own first frame. IT ENDS ON THE
+  // FLIGHT: the aeroplane's last pose is the stand's (the craft at identity - the sim was placed there before the shot),
+  // the eye the host's reveal (opts.end: what flRevealStart + placeCamera draw on the flight's first frame), so there is
+  // no second cut.
+  //   ROLLANIM.playWorld(opts) -> handle (as play's: cancel, skip, tick, done, skipped, plan; world: true)
+  //     opts.craft, opts.camera, opts.model, opts.def, opts.sim   the app's; the sim STANDS on the stand (world frame) and
+  //                     is not stepped meanwhile; craft is moved as a rigid offset of that pose (identity at the end)
+  //     opts.shed       render_world's shedFrame(): { node (the room's frame: door at local doorAxis x, slab at y 0),
+  //                     dims { HW, HD, EAVE }, door { w, h }, doorAxis }
+  //     opts.end        { eye: [x,y,z], look: [x,y,z], fov } the flight's first frame (app.js revealPose)
+  //     opts.ground     fn(x, z) -> the ground's height (the world's terrainH); inside the shed its slab
+  //     opts.contact    optional Object3D moved with the aeroplane (app.js's contact shadows, drawn at the stand's wheels)
+  //     opts.onDone, opts.skip   as play's
+  //   THE PATH: the main wheels' midpoint rolls straight out of the door along its axis until the tail is S.wClear past
+  //   the door plane, then a cubic onto the stand (tangent to both: the heading follows the path), by arc length on
+  //   play's own profile (hold, ramp, cruise, ramp, hold; S.wTmin-S.wTmax s at S.wV). THE EYE: an establishing point
+  //   outside the door (candidates in the shed's frame; the one clear of the aeroplane's footprint all along, outside the
+  //   building, the aeroplane in sight past its walls, then the nearest to the flight's eye) held for S.wLag of the roll,
+  //   then eased onto opts.end.eye; the aim is the aeroplane's CG, which ends on opts.end.look.
+  function drawnExtent(root, P1, nx, nz) {             // the drawn aeroplane about P1 along the nose (n) and the lateral
+    root.updateMatrixWorld(true);
+    const e = { fwd: 0, aft: 0, half: 0, top: 0 }, v = new THREE.Vector3();
+    const lx = -nz, lz = nx;
+    const walk = o => {
+      if (!o.visible) return;
+      const g = o.geometry;
+      if ((o.isMesh || o.isLine || o.isPoints) && g && g.attributes && g.attributes.position) {
+        if (!g.boundingBox) g.computeBoundingBox();
+        const b = g.boundingBox;
+        if (isFinite(b.min.x)) for (let i = 0; i < 8; i++) {
+          v.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).applyMatrix4(o.matrixWorld);
+          const rx = v.x - P1[0], rz = v.z - P1[2], f = rx * nx + rz * nz, l = Math.abs(rx * lx + rz * lz);
+          if (f > e.fwd) e.fwd = f;
+          if (-f > e.aft) e.aft = -f;
+          if (l > e.half) e.half = l;
+          if (v.y - P1[1] > e.top) e.top = v.y - P1[1];
+        }
+      }
+      for (const k of o.children) walk(k);
+    };
+    walk(root);
+    return e;
+  }
+  function worldPlan(o) {
+    const craft = o.craft, cam = o.camera, sim = o.sim, shed = o.shed, end = o.end;
+    if (!craft || !cam || !sim || !sim.axes) return { skip: 'no craft, camera or sim' };
+    if (!shed || !shed.node || !shed.dims) return { skip: 'no shed in the world' };
+    if (!end || !end.eye || !end.look) return { skip: 'no flight frame to end on' };
+    const rig = appRig(o.model, o.def, sim);
+    const wheels = rig.wheels;
+    if (!wheels.length) return { skip: 'no wheels to roll on (floats)' };
+    const AX = sim.axes(), xA = AX[0], yU = AX[1];
+    let nx = -xA[0], nz = -xA[2];
+    const nl = Math.hypot(nx, nz);
+    if (!(nl > 1e-6)) return { skip: 'no heading' };
+    nx /= nl; nz /= nl;
+    const lx = -nz, lz = nx;
+    const vz = [xA[1] * yU[2] - xA[2] * yU[1], xA[2] * yU[0] - xA[0] * yU[2], xA[0] * yU[1] - xA[1] * yU[0]];   // poseModel's vZ
+    const cg = rig.cg || [0, 0, 0];
+    // THE STAND: the main wheels' contact midpoint (the pivot a taxiing aeroplane turns about) and the nose's heading
+    let mx = 0, my = 0, mz = 0, nm = 0;
+    for (const w of wheels) if (Math.abs((w.x - cg[0]) * lx + (w.z - cg[2]) * lz) > 0.2) { mx += w.x; my += w.y - w.R; mz += w.z; nm++; }
+    if (!nm) for (const w of wheels) { mx += w.x; my += w.y - w.R; mz += w.z; nm++; }
+    const P1 = [mx / nm, my / nm, mz / nm], psi1 = Math.atan2(nz, nx);
+    let a3 = null;                                       // the third wheel, metres ahead (+) of the mains along the nose
+    for (const w of wheels) if (Math.abs((w.x - cg[0]) * lx + (w.z - cg[2]) * lz) <= 0.2) { a3 = (w.x - P1[0]) * nx + (w.z - P1[2]) * nz; break; }
+    const ext = drawnExtent(craft, P1, nx, nz);
+    // THE SHED: its room frame in the world (door plane at local doorAxis * HD, the slab at local y 0)
+    shed.node.updateMatrixWorld(true);
+    const M = shed.node.matrixWorld.clone(), Mi = M.clone().invert();
+    const dm = shed.dims, axis = shed.doorAxis || -1, dr = shed.door || {};
+    const room = { x0: axis * dm.HD, x1: -axis * dm.HD, zc: 0, HW: dm.HW, EAVE: dm.EAVE, floorY: 0, axis,
+      doorW: dr.w > 0 ? dr.w : Math.max(6, 2 * dm.HW - 5), doorH: dr.h > 0 ? dr.h : Math.min(6.4, dm.EAVE - 1.4) };
+    const vO = new THREE.Vector3(axis, 0, 0).transformDirection(M);
+    const ol = Math.hypot(vO.x, vO.z), ux = vO.x / ol, uz = vO.z / ol;           // the door's outward heading
+    const D0 = new THREE.Vector3(axis * dm.HD, 0, 0).applyMatrix4(M);            // the door plane's centre, on the slab
+    const slabY = D0.y;
+    const out1 = (P1[0] - D0.x) * ux + (P1[2] - D0.z) * uz;
+    const psi0 = Math.atan2(uz, ux);
+    if (Math.abs(wrap(psi1 - psi0)) > 2.6) return { skip: 'the stand faces back into the shed' };
+    // THE START: the nose S.noseIn inside the door plane, on the door's axis; THE STRAIGHT: until the tail is S.wClear out
+    const out0 = -(S.noseIn + ext.fwd);
+    const P0 = [D0.x + ux * out0, D0.z + uz * out0];
+    const Ls = Math.max(0, ext.aft + S.wClear - out0);
+    const Pa = [P0[0] + ux * Ls, P0[1] + uz * Ls];
+    const cx = P1[0] - Pa[0], cz = P1[2] - Pa[1], chord = Math.hypot(cx, cz), along = cx * ux + cz * uz;
+    if (!(along > 3)) return { skip: 'the stand is not out in front of the door (' + out1.toFixed(1) + ' m out)' };
+    if (chord > 160) return { skip: 'the stand is ' + chord.toFixed(0) + ' m from the door' };
+    // THE TABLE, by arc length: the start, then the cubic's samples from the straight's end (x, z, heading, the ground
+    // under the mains less the stand's)
+    const hh = S.wHandle * chord, NC = 96, N = NC + 2;
+    const TX = new Float64Array(N), TZ = new Float64Array(N), TS = new Float64Array(N), TP = new Float64Array(N), TY = new Float64Array(N);
+    const gAt = (x, z) => {
+      const inside = (x - D0.x) * ux + (z - D0.z) * uz < 0;   // behind the door plane: the slab
+      if (inside) return slabY;
+      if (typeof o.ground !== 'function') return P1[1];
+      const g = +o.ground(x, z); return Number.isFinite(g) ? g : P1[1];
+    };
+    TX[0] = P0[0]; TZ[0] = P0[1]; TS[0] = 0; TP[0] = psi0;
+    const B = [Pa[0], Pa[1], Pa[0] + ux * hh, Pa[1] + uz * hh, P1[0] - nx * hh, P1[2] - nz * hh, P1[0], P1[2]];
+    let prevPsi = psi0;
+    for (let i = 0; i <= NC; i++) {
+      const u = i / NC, a = (1 - u) * (1 - u) * (1 - u), b = 3 * (1 - u) * (1 - u) * u, c = 3 * (1 - u) * u * u, d = u * u * u;
+      const x = a * B[0] + b * B[2] + c * B[4] + d * B[6], z = a * B[1] + b * B[3] + c * B[5] + d * B[7];
+      // the tangent (the heading), unwrapped against the last sample
+      const da = -3 * (1 - u) * (1 - u), db = 3 * (1 - u) * (1 - u) - 6 * (1 - u) * u, dc = 6 * (1 - u) * u - 3 * u * u, dd = 3 * u * u;
+      const tx = da * B[0] + db * B[2] + dc * B[4] + dd * B[6], tz = da * B[1] + db * B[3] + dc * B[5] + dd * B[7];
+      let ps = Math.hypot(tx, tz) > 1e-9 ? Math.atan2(tz, tx) : prevPsi;
+      ps = prevPsi + wrap(ps - prevPsi); prevPsi = ps;
+      const k = i + 1;
+      TX[k] = x; TZ[k] = z; TP[k] = ps;
+      TS[k] = i === 0 ? Ls : TS[k - 1] + Math.hypot(x - TX[k - 1], z - TZ[k - 1]);
+    }
+    TX[N - 1] = P1[0]; TZ[N - 1] = P1[2];
+    TP[N - 1] = prevPsi + wrap(psi1 - prevPsi);          // the stand's own heading, exactly (on the unwrapped branch)
+    const gRef = gAt(P1[0], P1[2]);
+    for (let k = 0; k < N; k++) TY[k] = gAt(TX[k], TZ[k]) - gRef;
+    TY[N - 1] = 0;
+    const L = TS[N - 1], T = worldTiming(L);
+    // the sill: the mains cross the door plane at s = -out0 (on the straight), a third wheel a3 ahead of them earlier
+    const sMain = -out0, sThird = a3 == null ? null : Math.max(0, -out0 - a3);
+    // (advance's fields: T, L, sMain, sThird, xThird, thirdSign, ax - its pitch about vz, tail up for +, as the shed's)
+    const W = { skip: null, world: true, rig, wheels, P1, psi1: TP[N - 1], psi0, vz, cg, ext, room, M, Mi, D0: [D0.x, D0.y, D0.z], ux, uz,
+      L, T, Ls, TX, TZ, TS, TP, TY, N, sMain, sThird, xThird: a3, thirdSign: a3 != null && a3 > 0 ? -1 : 1, ax: -1,
+      end, out0, out1, check: { T: 0, segs: [], drives: [], ctl: null } };
+    W.Ttotal = T.T;
+    W.eye0 = worldEye(W, o);                            // THE ESTABLISHING EYE
+    return W;
+  }
+  // the path at arc length s into out[0..3]: x, z, heading, ground; ix[0] the table's index (the roll only goes forward)
+  function pathAt(W, s, ix, out) {
+    const TS = W.TS, N = W.N;
+    let i = ix[0];
+    if (i > 0 && TS[i] > s) i = 0;
+    while (i < N - 2 && TS[i + 1] < s) i++;
+    ix[0] = i;
+    const s0 = TS[i], s1 = TS[i + 1], f = s1 > s0 ? (s - s0) / (s1 - s0) : 0, g = f < 0 ? 0 : f > 1 ? 1 : f;
+    out[0] = W.TX[i] + (W.TX[i + 1] - W.TX[i]) * g;
+    out[1] = W.TZ[i] + (W.TZ[i + 1] - W.TZ[i]) * g;
+    out[2] = W.TP[i] + (W.TP[i + 1] - W.TP[i]) * g;
+    out[3] = W.TY[i] + (W.TY[i + 1] - W.TY[i]) * g;
+    return out;
+  }
+  // the eye's blend weight at time t (held, then eased)
+  function eyeW(W, t) { let u = (t / W.T.T - S.wLag) / (1 - S.wLag); u = u < 0 ? 0 : u > 1 ? 1 : u; return u * u * u * (u * (u * 6 - 15) + 10); }
+  // THE ESTABLISHING EYE: candidates outside the door in the shed's frame, judged along the whole roll (40 steps): clear of
+  // the aeroplane's footprint, outside the building, over the ground, the aeroplane's CG in sight past the walls; the
+  // fewest faults, then the shortest dolly to the flight's eye and a view near 13 m out, 9 m aside
+  function worldEye(W, o) {
+    const e1 = W.end.eye, room = W.room, M = W.M, Mi = W.Mi, ext = W.ext, mg = S.wMargin;
+    const v = new THREE.Vector3(), ix = new Int32Array(1), pa = [0, 0, 0, 0];
+    const gnd = (x, z) => { const g = typeof o.ground === 'function' ? +o.ground(x, z) : NaN; return Number.isFinite(g) ? g : W.P1[1]; };
+    v.set(e1[0], e1[1], e1[2]).applyMatrix4(Mi);
+    const side1 = v.z < 0 ? -1 : 1;                      // the side of the door's axis the flight's eye is on
+    const len = Math.abs(room.x1 - room.x0);
+    let best = null;
+    for (const u of [10, 13, 16, 20]) for (const lat of [6, 9, 12, 15]) for (const sd of [side1, -side1]) for (const hg of [1.7, 2.6]) {
+      v.set(room.x0 + room.axis * u, 0, sd * lat).applyMatrix4(M);
+      const E0 = [v.x, gnd(v.x, v.z) + hg, v.z];
+      let bad = 0;
+      const n = 40;
+      for (let k = 0; k <= n && bad < 1000; k++) {
+        const t = W.T.T * k / n, w = eyeW(W, t), s = rollS(W.T, W.L, t);
+        const ex = E0[0] + (e1[0] - E0[0]) * w, ey = E0[1] + (e1[1] - E0[1]) * w, ez = E0[2] + (e1[2] - E0[2]) * w;
+        pathAt(W, s, ix, pa);
+        const px = pa[0], pz = pa[1], ps = pa[2], nx = Math.cos(ps), nz = Math.sin(ps);
+        // the footprint (and over it: the aeroplane's height)
+        const rx = ex - px, rz = ez - pz, f = rx * nx + rz * nz, l = Math.abs(-rx * nz + rz * nx);
+        if (f < ext.fwd + mg && f > -ext.aft - mg && l < ext.half + mg && ey < W.P1[1] + pa[3] + ext.top + mg) bad++;
+        if (ey < gnd(ex, ez) + 0.5) bad++;
+        // the building: the eye outside it; the line to the CG through no wall (the last 3 m are the aeroplane's)
+        v.set(ex, ey, ez).applyMatrix4(Mi);
+        const qx = v.x, qy = v.y, qz = v.z, uIn = (qx - room.x0) * -room.axis;
+        if (uIn > -0.6 && uIn < len + 0.6 && Math.abs(qz) < room.HW + 0.6 && qy < room.EAVE + 3) bad += 10;
+        // the CG now: the stand's CG turned by the path's heading about the mains and carried to the path's point
+        const a = ps - W.psi1, ca = Math.cos(a), sa = Math.sin(a), gx = W.cg[0] - W.P1[0], gz = W.cg[2] - W.P1[2];
+        v.set(px + gx * ca - gz * sa, W.cg[1] + pa[3], pz + gx * sa + gz * ca).applyMatrix4(Mi);
+        const dl = Math.hypot(v.x - qx, v.y - qy, v.z - qz), ns = Math.max(2, Math.ceil(dl / 0.5));
+        for (let i = 1; i < ns; i++) {
+          const fr = i / ns;
+          if (dl * (1 - fr) < 3) break;
+          if (inWall(room, qx + (v.x - qx) * fr, qy + (v.y - qy) * fr, qz + (v.z - qz) * fr)) { bad++; break; }
+        }
+      }
+      const cost = bad * 1000 + Math.hypot(e1[0] - E0[0], e1[1] - E0[1], e1[2] - E0[2]) + (sd === side1 ? 0 : 4)
+        + 0.4 * Math.abs(u - 13) + 0.4 * Math.abs(lat - 9);
+      if (!best || cost < best.cost) best = { eye: E0, bad, cost, u, lat, side: sd, h: hg };
+    }
+    return best;
+  }
+  function playWorld(o) {
+    o = o || {};
+    const onDone = typeof o.onDone === 'function' ? o.onDone : () => {};
+    if (active) active.cancel();
+    const dead = (why) => { const h = { done: true, world: true, skipped: why, plan: null, cancel() {}, skip() {}, tick() { return false; } };
+      try { onDone(h); } catch (e) { if (typeof console !== 'undefined') console.error('ROLLANIM onDone:', e); } return h; };
+    if (o.skip === true) return dead('asked to skip');
+    let W;
+    try { W = worldPlan(o); } catch (e) { if (typeof console !== 'undefined') console.warn('ROLLANIM world plan:', e && e.message); return dead('no plan: ' + (e && e.message)); }
+    if (W.skip) return dead(W.skip);
+    const craft = o.craft, cam = o.camera, contact = o.contact || null;
+    const P1 = W.P1, vz = W.vz, e0 = W.eye0.eye, e1 = W.end.eye, l1 = W.end.look, cg = W.cg;
+    const Wh = W.wheels.filter(w => w.obj && w.obj.rotation);
+    const wObj = Wh.map(w => w.obj), wR = Wh.map(w => Math.max(0.05, w.R)), wSpun = new Float64Array(Wh.length);
+    const propRpm = W.rig.propRpm;
+    const eyeV = new THREE.Vector3(), lookV = new THREE.Vector3();
+    // the clock and the roll (advance's slots; [9] the spool's clock: the check spooled the prop already)
+    const st = new Float64Array(10); st[3] = st[4] = NaN; st[9] = 10;
+    const ix = new Int32Array(1), PA = new Float64Array(4), QQ = new Float64Array(4);
+    let fin = false;
+    if (W.end.fov > 0 && cam.fov !== W.end.fov) { cam.fov = W.end.fov; cam.updateProjectionMatrix(); }
+    const h = {
+      done: false, world: true, skipped: null, plan: W, spun: wSpun,
+      get t() { return st[0]; }, get rolled() { return st[1]; }, get tCheck() { return 0; }, get phase() { return h.done ? 'done' : 'roll'; },
+      tick, cancel, skip, _cam: applyCam,
+    };
+    // the aeroplane's pose at the roll's state: the stand's pose turned about its mains (the heading about y, then the
+    // settle about the stand's lateral axis vz) and carried to the path's point - written out, no double handed to a call
+    function place(ended) {
+      if (ended) {
+        craft.position.set(0, 0, 0); craft.quaternion.set(0, 0, 0, 1); QQ[0] = QQ[1] = QQ[2] = 0; QQ[3] = 1;
+        if (contact) { contact.position.set(0, 0, 0); contact.quaternion.set(0, 0, 0, 1); }
+        return;
+      }
+      pathAt(W, st[1], ix, PA);
+      const a = W.psi1 - PA[2], th = st[7];
+      const y1 = Math.sin(a / 2), w1 = Math.cos(a / 2), sh = Math.sin(th / 2), w2 = Math.cos(th / 2);
+      const x2 = vz[0] * sh, y2 = vz[1] * sh, z2 = vz[2] * sh;
+      const qx = w1 * x2 + y1 * z2, qy = w1 * y2 + y1 * w2, qz = w1 * z2 - y1 * x2, qw = w1 * w2 - y1 * y2;
+      QQ[0] = qx; QQ[1] = qy; QQ[2] = qz; QQ[3] = qw;
+      // q . P1 (v + 2w (q x v) + 2 q x (q x v))
+      const vx = P1[0], vy = P1[1], vw = P1[2];
+      const tx = 2 * (qy * vw - qz * vy), ty = 2 * (qz * vx - qx * vw), tz = 2 * (qx * vy - qy * vx);
+      const rx = vx + qw * tx + (qy * tz - qz * ty), ry = vy + qw * ty + (qz * tx - qx * tz), rz = vw + qw * tz + (qx * ty - qy * tx);
+      const px = PA[0] - rx, py = P1[1] + PA[3] + st[6] - ry, pz = PA[1] - rz;
+      craft.quaternion.set(qx, qy, qz, qw); craft.position.set(px, py, pz);
+      if (contact) { contact.quaternion.set(qx, qy, qz, qw); contact.position.set(px, py, pz); }
+    }
+    function frameCam(ended) {
+      if (ended) { eyeV.set(e1[0], e1[1], e1[2]); lookV.set(l1[0], l1[1], l1[2]); return; }
+      const w = eyeW(W, st[0]);
+      eyeV.set(e0[0] + (e1[0] - e0[0]) * w, e0[1] + (e1[1] - e0[1]) * w, e0[2] + (e1[2] - e0[2]) * w);
+      // the aim: the CG as the aeroplane carries it (q . cg + the offset)
+      const qx = QQ[0], qy = QQ[1], qz = QQ[2], qw = QQ[3], vx = cg[0], vy = cg[1], vw = cg[2];
+      const tx = 2 * (qy * vw - qz * vy), ty = 2 * (qz * vx - qx * vw), tz = 2 * (qx * vy - qy * vx);
+      lookV.set(vx + qw * tx + (qy * tz - qz * ty) + craft.position.x, vy + qw * ty + (qz * tx - qx * tz) + craft.position.y,
+        vw + qw * tz + (qx * ty - qy * tx) + craft.position.z);
+    }
+    function applyCam() {
+      if (h.done) return false;
+      cam.up.set(0, 1, 0);
+      cam.position.copy(eyeV);
+      cam.lookAt(lookV);
+      return true;
+    }
+    function tick(dt) {
+      if (h.done || fin) return false;
+      advance(W, st, dt);
+      const ds = st[5], ended = st[0] >= W.T.T;
+      for (let i = 0; i < wObj.length; i++) { const a = ds / wR[i]; wObj[i].rotation.z += a; wSpun[i] += a; }
+      if (propRpm && st[8]) propRpm(st[2]);
+      place(ended); frameCam(ended); applyCam();
+      if (ended) { fin = true; Promise.resolve().then(finish); }
+      return true;
+    }
+    function putBack() {
+      place(true);
+      craft.updateMatrixWorld(true);
+      if (propRpm) propRpm(null);
+      stopInput();
+      if (active === h) active = null;
+    }
+    function finish() {
+      if (h.done) return;
+      putBack(); h.done = true;
+      try { onDone(h); } catch (e) { if (typeof console !== 'undefined') console.error('ROLLANIM onDone:', e); }
+    }
+    function skip() {                                    // the end pose: the stand, the flight's eye
+      if (h.done) return;
+      h.skipped = 'skipped by the player';
+      st[0] = W.T.T; st[1] = W.L; place(true); frameCam(true); applyCam();
+      finish();
+    }
+    function cancel() { if (h.done) return; h.skipped = 'cancelled'; putBack(); h.done = true; }
+    const onInput = e => { if (h.done) return; if (e.type === 'keydown' && (e.repeat || /^(Shift|Control|Alt|Meta)/.test(e.key || ''))) return;
+      try { e.preventDefault(); e.stopImmediatePropagation(); } catch (x) {} skip(); };
+    const win = typeof window !== 'undefined' && window.addEventListener ? window : null;
+    if (win) { win.addEventListener('pointerdown', onInput, true); win.addEventListener('keydown', onInput, true); }
+    function stopInput() { if (win) { win.removeEventListener('pointerdown', onInput, true); win.removeEventListener('keydown', onInput, true); } }
+    active = h;
+    place(false); frameCam(false);                      // the first frame's pose now: in the doorway, the establishing eye
+    return h;
+  }
+  function worldPlanOnly(o) { return worldPlan(o || {}); }
   // THE HOST'S HOOKS (app.js frame loop): before the model is posed, and after the camera is placed
   function frame(dt) { return active ? active.tick(dt) : false; }
   function camera() {
@@ -646,7 +1002,8 @@ const ROLLANIM = (() => {
     return h && !h.done ? h._cam() : false;          // the same pose again, over the host's own placement
   }
   function plan(o) { return makePlan(o || {}); }
-  const api = { S, play, frame, camera, busy: () => !!(active && !active.done), cancel: () => { if (active) active.cancel(); }, standFraming, appRig, plan,
+  const api = { S, play, playWorld, frame, camera, busy: () => !!(active && !active.done), cancel: () => { if (active) active.cancel(); }, standFraming, appRig, plan,
+                world: () => !!(active && !active.done && active.world), worldPlan: worldPlanOnly, _pathAt: pathAt,
                 _rollS: rollS, _timing: timing, _eyeOk: eyeOk, _inWall: inWall, _roomOf: roomOf };
   if (typeof window !== 'undefined') window.ROLLANIM = api;
   return api;

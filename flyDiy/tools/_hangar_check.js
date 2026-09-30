@@ -471,18 +471,26 @@ function runB(mutSrcH) {
     if (sh.status !== 'live') continue;      // a declared shell has no build yet
     for (const dims of [sh.dims].concat(corners(sh.lims))) {
       const tag = sk + ' at ' + dims.HW + '/' + dims.HD + '/' + dims.EAVE;
-      for (const ext of [false, true]) {
+      // G1115: the exterior shut (as it always was) and OPEN (the world's, the roll-out shot rolls out of it)
+      for (const ext of [false, true, 'open']) {
         bad.length = 0;
         let room = null, threw = null;
+        const what = !ext ? ' interior' : ext === 'open' ? ' exterior (open)' : ' exterior';
         try {
           room = api.genHangarBuild(T, dims,
-            ext ? { exterior: true, shell: sk } : { shell: sk });
+            ext ? { exterior: true, open: ext === 'open', shell: sk } : { shell: sk });
         } catch (e) { threw = e; }
-        ok(!threw, tag + (ext ? ' exterior' : ' interior') + ' builds' +
+        ok(!threw, tag + what + ' builds' +
            (threw ? ' (' + threw.message + ')' : ''));
         if (threw) continue;
-        ok(bad.length === 0, tag + (ext ? ' exterior' : ' interior') +
+        ok(bad.length === 0, tag + what +
            ' draws no negative geometry (' + bad.slice(0, 3).join('; ') + ')');
+        if (ext) {
+          let liners = 0;
+          room.group.traverse(o => { if (o.userData && o.userData.liner) liners++; });
+          ok(room.door && room.door.open === (ext === 'open') && liners === (ext === 'open' ? 4 : 0) && room.door.w > 0 && room.door.h > 0,
+             tag + what + ': the door ' + (ext === 'open' ? 'open, the inside lined (4 planes)' : 'shut, no liner') + ' (G1115)');
+        }
         near(room.dims.HW, dims.HW, 1e-9, tag + ' echoes HW');
         near(room.dims.HD, dims.HD, 1e-9, tag + ' echoes HD');
         near(room.dims.EAVE, dims.EAVE, 1e-9, tag + ' echoes EAVE');
