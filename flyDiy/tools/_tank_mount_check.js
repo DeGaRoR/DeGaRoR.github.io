@@ -49,6 +49,58 @@ const STRICT = argv.includes('--strict');
 const fail = [];
 const check = (ok, what, info) => { if (!ok) fail.push(what + (info != null ? ' (' + info + ')' : '')); };
 
+// ONE CARD, ONE PROCESS (measured 2026-09-30). The layers keep state across
+// builds in one process (caches keyed on the body, the energy layer's seed,
+// the join's), and a card's hardware reading depended on the card built
+// before it: the jodel read 12/422 vertices past the skin built first and
+// 0/422 after the sesqui; in one sweep every card after the c172 read ~300/422,
+// 250 mm out, and 0/422 alone. So the parent spawns one child per card (three
+// at a time, the battery's --jobs budget) and judges their rows together -
+// each reading is a first load, what a player opening that aeroplane sees.
+// The carry-over itself (the editor switching designs in one page) is owed.
+if (!argv.includes('--child')) {
+  const { spawn } = require('child_process');
+  const os = require('os');
+  const keys = ONLY ? ONLY.split(',') : require(path.join(TOOLS, '_bake_joined.js')).loadPanel().D.ARCHETYPES.map(a => a.key);
+  const pass = ['--tools', TOOLS].concat(opt('sizes', null) ? ['--sizes', opt('sizes')] : []);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tankmount_'));
+  const out = new Array(keys.length);
+  let next = 0;
+  const one = () => new Promise(res => {
+    const i = next++; if (i >= keys.length) return res(false);
+    const jf = path.join(tmp, keys[i] + '.json');
+    const ch = spawn(process.execPath, [__filename, '--child', '--only', keys[i], '--json', jf].concat(pass), { stdio: ['ignore', 'pipe', 'pipe'] });
+    let log = '';
+    ch.stdout.on('data', d => { log += d; }); ch.stderr.on('data', d => { log += d; });
+    ch.on('close', code => {
+      let j = null; try { j = JSON.parse(fs.readFileSync(jf, 'utf8')); } catch (e) {}
+      out[i] = { key: keys[i], code, log, j }; res(true);
+    });
+  });
+  const lane = async () => { while (await one()) {} };
+  Promise.all([lane(), lane(), lane()]).then(() => {
+    const rows = [];
+    let mountMeshes = 0, mountCross = 0, withTanks = 0;
+    for (const o of out) {
+      for (const line of o.log.split('\n')) if (/^  \S/.test(line) && !/^  FAIL /.test(line)) console.log(line);
+      if (!o.j) { check(false, o.key + ': the card\'s child reported nothing', 'exit ' + o.code + ' ' + o.log.split('\n').slice(-3).join(' | ')); continue; }
+      for (const f of o.j.fail || []) if (!/^mount: no archetype|^drawn: /.test(f)) fail.push(o.key + ': ' + f);
+      for (const r of o.j.rows) { rows.push(r); mountMeshes += r.mount; mountCross += r.mountOut; }
+      if (o.j.rows.some(r => r.vessels > 0)) withTanks++;
+    }
+    check(mountMeshes === 0, 'mount: no archetype, at any of its tank sizes, draws an edVessel_*_mount mesh (G1106: the support is gone)',
+      mountMeshes + ' meshes, ' + mountCross + ' vertices past a skin');
+    check(withTanks >= Math.min(3, keys.length), 'drawn: body tanks were drawn (the check is not vacuous)', withTanks + ' of ' + keys.length + ' cards');
+    if (STRICT) for (const r of rows) check(r.hardOut === 0, r.key + ' x' + r.cap + ': the tank hardware stays inside the skin', r.hardOut + '/' + r.hardVerts);
+    if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify({ tools: TOOLS, rows }, null, 1));
+    try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) {}
+    for (const f of fail) console.log('  FAIL ' + f);
+    console.log('GATE TANKMOUNT: ' + (fail.length ? 'FAIL (' + fail.length + ')' : 'PASS'));
+    process.exit(fail.length ? 1 : 0);
+  });
+  return;
+}
+
 const SH = require(path.join(TOOLS, '_scene_headless.js'));
 for (const f of ['_bay_site.js', '_vessel_gen.js', '_vessel_mesh.js', '_cage_energy.js']) SH.EXCLUDE.delete(f);
 const BJ = require(path.join(TOOLS, '_bake_joined.js'));
@@ -163,7 +215,7 @@ check(mountMeshes === 0, 'mount: no archetype, at any of its tank sizes, draws a
   mountMeshes + ' meshes, ' + mountCross + ' vertices past a skin');
 check(withTanks >= Math.min(3, cards.length), 'drawn: body tanks were drawn (the check is not vacuous)', withTanks + ' of ' + cards.length);
 if (STRICT) for (const r of rows) check(r.hardOut === 0, r.key + ': the tank hardware stays inside the skin', r.hardOut + '/' + r.hardVerts);
-if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify({ tools: TOOLS, rows }, null, 1));
+if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify({ tools: TOOLS, rows, fail }, null, 1));
 for (const f of fail) console.log('  FAIL ' + f);
 console.log('GATE TANKMOUNT: ' + (fail.length ? 'FAIL (' + fail.length + ')' : 'PASS'));
 process.exit(fail.length ? 1 : 0);
