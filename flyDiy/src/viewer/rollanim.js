@@ -831,9 +831,10 @@ const ROLLANIM = (() => {
     W.eye0 = worldEye(W, o);                            // THE ESTABLISHING EYE
     return W;
   }
-  // the path at arc length s into out[0..3]: x, z, heading, ground; ix[0] the table's index (the roll only goes forward)
-  function pathAt(W, s, ix, out) {
-    const TS = W.TS, N = W.N;
+  // the path at arc length SA[k] into out[0..3]: x, z, heading, ground; ix[0] the table's index (the roll only goes forward).
+  // (the length read out of a typed array, not handed in: a double handed to a call is boxed - G1037, 97 bytes a frame)
+  function pathAt(W, SA, k, ix, out) {
+    const s = SA[k], TS = W.TS, N = W.N;
     let i = ix[0];
     if (i > 0 && TS[i] > s) i = 0;
     while (i < N - 2 && TS[i + 1] < s) i++;
@@ -845,14 +846,14 @@ const ROLLANIM = (() => {
     out[3] = W.TY[i] + (W.TY[i + 1] - W.TY[i]) * g;
     return out;
   }
-  // the eye's blend weight at time t (held, then eased)
-  function eyeW(W, t) { let u = (t / W.T.T - S.wLag) / (1 - S.wLag); u = u < 0 ? 0 : u > 1 ? 1 : u; return u * u * u * (u * (u * 6 - 15) + 10); }
+  // the eye's blend weight at the time TA[k] (held, then eased), into out[0] (no double in or out of the call: G1037)
+  function eyeW(W, TA, k, out) { let u = (TA[k] / W.T.T - S.wLag) / (1 - S.wLag); u = u < 0 ? 0 : u > 1 ? 1 : u; out[0] = u * u * u * (u * (u * 6 - 15) + 10); }
   // THE ESTABLISHING EYE: candidates outside the door in the shed's frame, judged along the whole roll (40 steps): clear of
   // the aeroplane's footprint, outside the building, over the ground, the aeroplane's CG in sight past the walls; the
   // fewest faults, then the shortest dolly to the flight's eye and a view near 13 m out, 9 m aside
   function worldEye(W, o) {
     const e1 = W.end.eye, room = W.room, M = W.M, Mi = W.Mi, ext = W.ext, mg = S.wMargin;
-    const v = new THREE.Vector3(), ix = new Int32Array(1), pa = [0, 0, 0, 0];
+    const v = new THREE.Vector3(), ix = new Int32Array(1), pa = [0, 0, 0, 0], TT = new Float64Array(2), WW = new Float64Array(1);
     const gnd = (x, z) => { const g = typeof o.ground === 'function' ? +o.ground(x, z) : NaN; return Number.isFinite(g) ? g : W.P1[1]; };
     v.set(e1[0], e1[1], e1[2]).applyMatrix4(Mi);
     const side1 = v.z < 0 ? -1 : 1;                      // the side of the door's axis the flight's eye is on
@@ -864,9 +865,10 @@ const ROLLANIM = (() => {
       let bad = 0;
       const n = 40;
       for (let k = 0; k <= n && bad < 1000; k++) {
-        const t = W.T.T * k / n, w = eyeW(W, t), s = rollS(W.T, W.L, t);
+        const t = W.T.T * k / n; TT[0] = t; TT[1] = rollS(W.T, W.L, t); eyeW(W, TT, 0, WW);
+        const w = WW[0];
         const ex = E0[0] + (e1[0] - E0[0]) * w, ey = E0[1] + (e1[1] - E0[1]) * w, ez = E0[2] + (e1[2] - E0[2]) * w;
-        pathAt(W, s, ix, pa);
+        pathAt(W, TT, 1, ix, pa);
         const px = pa[0], pz = pa[1], ps = pa[2], nx = Math.cos(ps), nz = Math.sin(ps);
         // the footprint (and over it: the aeroplane's height)
         const rx = ex - px, rz = ez - pz, f = rx * nx + rz * nz, l = Math.abs(-rx * nz + rz * nx);
@@ -911,7 +913,7 @@ const ROLLANIM = (() => {
     const eyeV = new THREE.Vector3(), lookV = new THREE.Vector3();
     // the clock and the roll (advance's slots; [9] the spool's clock: the check spooled the prop already)
     const st = new Float64Array(10); st[3] = st[4] = NaN; st[9] = 10;
-    const ix = new Int32Array(1), PA = new Float64Array(4), QQ = new Float64Array(4);
+    const ix = new Int32Array(1), PA = new Float64Array(4), QQ = new Float64Array(4), WF = new Float64Array(1);
     let fin = false;
     if (W.end.fov > 0 && cam.fov !== W.end.fov) { cam.fov = W.end.fov; cam.updateProjectionMatrix(); }
     const h = {
@@ -927,7 +929,7 @@ const ROLLANIM = (() => {
         if (contact) { contact.position.set(0, 0, 0); contact.quaternion.set(0, 0, 0, 1); }
         return;
       }
-      pathAt(W, st[1], ix, PA);
+      pathAt(W, st, 1, ix, PA);
       const a = W.psi1 - PA[2], th = st[7];
       const y1 = Math.sin(a / 2), w1 = Math.cos(a / 2), sh = Math.sin(th / 2), w2 = Math.cos(th / 2);
       const x2 = vz[0] * sh, y2 = vz[1] * sh, z2 = vz[2] * sh;
@@ -943,7 +945,7 @@ const ROLLANIM = (() => {
     }
     function frameCam(ended) {
       if (ended) { eyeV.set(e1[0], e1[1], e1[2]); lookV.set(l1[0], l1[1], l1[2]); return; }
-      const w = eyeW(W, st[0]);
+      eyeW(W, st, 0, WF); const w = WF[0];
       eyeV.set(e0[0] + (e1[0] - e0[0]) * w, e0[1] + (e1[1] - e0[1]) * w, e0[2] + (e1[2] - e0[2]) * w);
       // the aim: the CG as the aeroplane carries it (q . cg + the offset)
       const qx = QQ[0], qy = QQ[1], qz = QQ[2], qw = QQ[3], vx = cg[0], vy = cg[1], vw = cg[2];
