@@ -6807,10 +6807,12 @@
   }
   // THE DISSOLVE: the frame on screen (the shed's last, drawn this task - the check's onDone runs in a microtask after the
   // render) copied over the canvas and faded out over the world's first frames. One drawImage, no WebGL work
-  const RA_DISSOLVE_MS = 450;
+  // (?rolldissolve=0: a hard cut, no copy - the A/B of the copy's cost; the time the copy took is the trip's `dissolveMs`)
+  const RA_DISSOLVE_MS = (() => { try { return /[?&]rolldissolve=0/.test(location.search) ? 0 : 450; } catch (e) { return 450; } })();
   function raDissolve() {
     const cv = renderer.domElement;
-    if (!cv || !cv.parentNode || typeof document === 'undefined' || !(RA_DISSOLVE_MS > 0)) return;
+    if (!cv || !cv.parentNode || typeof document === 'undefined' || !(RA_DISSOLVE_MS > 0)) return -1;
+    const t0 = perfNow();
     try {
       let ov = document.getElementById('raDissolve');
       if (!ov) { ov = document.createElement('canvas'); ov.id = 'raDissolve'; cv.parentNode.insertBefore(ov, cv.nextSibling); }
@@ -6822,6 +6824,7 @@
       requestAnimationFrame(() => requestAnimationFrame(() => { ov.style.transition = 'opacity ' + RA_DISSOLVE_MS + 'ms ease-in-out'; ov.style.opacity = '0'; }));
       setTimeout(() => { ov.hidden = true; }, RA_DISSOLVE_MS + 200);
     } catch (e) { console.warn('roll-out dissolve:', e && e.message); }
+    return perfNow() - t0;
   }
   function rollAnim(trip, next, reveal) {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || typeof ROLLANIM.play !== 'function') { trip.anim = 'none'; next(); return; }
@@ -6843,14 +6846,15 @@
       if (why || !hh || hh.skipped || over) { fin(how(hh), next); return; }
       // THE CUT INTO THE WORLD, in this microtask (the shed's last frame is still the canvas's)
       stage = 'world'; raSide = 0;
-      raDissolve();
+      const tCut = perfNow();                // (the cut's cost, on the trip: the copy, and the whole task to the roll's first pose)
+      trip.dissolveMs = +raDissolve().toFixed(1);
       rollOutStand();
       tripPhase(trip, 'world', () => {   // (no step to run - worldRollWhy - so this is synchronous)
         if (over) return;
         rollHold = true; raBusy = true;   // the flight holds on the stand while the shot rolls onto it
         poseModel();                      // (the model on the stand now: the plan measures the aeroplane as drawn there)
         if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();   // (the tyres' shadows made now: the shot carries them)
-        const end = revealPose();
+        const end = revealPose(), tPlan = perfNow();
         try {
           h = ROLLANIM.playWorld({ craft, camera, model, def, sim, shed: WF.shedFrame(), end,
             ground: world && typeof world.terrainH === 'function' ? (x, z) => world.terrainH(x, z) : null,
@@ -6860,6 +6864,7 @@
               trip.animWorld = w && w.plan ? { L: +w.plan.L.toFixed(1), T: +w.plan.T.T.toFixed(2), eye0: w.plan.eye0 } : (w ? w.skipped : null);
               fin(how(w), toFlight); } });
         } catch (e) { console.warn('rollanim world:', e && e.message); rollHold = false; raBusy = false; fin('threw', toFlight); }
+        trip.planMs = +(perfNow() - tPlan).toFixed(1); trip.cutMs = +(perfNow() - tCut).toFixed(1);
       });
     }, why ? { follow: false } : { roll: false });
   }
