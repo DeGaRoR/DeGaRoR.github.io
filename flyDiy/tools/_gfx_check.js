@@ -81,6 +81,7 @@ console.log('GATE GFX');
   const OLD_MEDIUM = { ground: 'far1', terrain: 1, scale: 1, drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' };
   OLD_MEDIUM.cover = 'full'; OLD_MEDIUM.scenery = 'full';   // G570's rows: gamer keeps the whole of both
   OLD_MEDIUM.bloom = 'soft';   // the default look (2026-09-23): the soft bloom from 'current' up
+  OLD_MEDIUM.bands = 'minimum';   // G1113: gamer's trees whole to 30 m, the light rung to 60 m (TREES-NEAR, timed against master)
   ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513)');
   const w2 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({ preset: 'medium' }, OLD_MEDIUM)) });
   ok(w2.GFX.get().preset === 'gamer', 'a choice saved as medium reads as gamer');
@@ -104,7 +105,7 @@ console.log('GATE GFX');
   ok(w.GFX.get().preset === 'gamer', 'no pref boots on gamer (the default tier)');
   const w2 = boot({ 'flydiy.gfx': '{not json' });
   ok(w2.GFX.get().preset === 'gamer', 'a corrupt pref boots on gamer');
-  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 4, aa: 'nope', density: 5 }) });   // a current pref (pv 2) with values no step has
+  const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 5, aa: 'nope', density: 5 }) });   // a current pref (pv 2) with values no step has
   ok(w3.GFX.get().aa === 'msaa' && w3.GFX.get().density === 128, 'unknown steps in the pref fall back to gamer’s');
 }
 // 3 + 4. applying, and custom
