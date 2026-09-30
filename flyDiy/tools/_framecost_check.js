@@ -202,6 +202,10 @@ const ALLOW = [
   // step later; the views and every other boot row unchanged, the crew's GPU bytes 85.3 -> 5.3 MiB (Cub).
   { key: 'boot/garage:compile/three.updateMatrixWorld', build: 'cub', upTo: 63900, why: 'the crew\'s landing redraw moved from sync (-3108) to compile (+3108): its KTX2 maps land from the workers', g: 'G937' },
   { key: 'boot/garage:compile/three.updateMatrixWorld', build: 'cessna', upTo: 97100, why: 'the crew\'s landing redraw moved from sync (-7952) to compile (+7952): its KTX2 maps land from the workers', g: 'G937' },
+  // G1136 (C0c): the shed's day applied in the compile step (shedDayTick before the passes), so the first frame no longer
+  // re-bakes the probe - garage:firstFrame draws 21 340 -> 7 006 (Cub) / 22 658 -> 8 324 (Cessna), gl.calls halved, links
+  // 2 -> 0; compile links 3 -> 5 are LOAD-COMPILE's two dome programs moving in, not new ones. The one rise is below.
+  { key: 'boot/garage:compile/bytes.bufferData', build: '*', upTo: 1520000, why: 'applyDay moved into the compile step: the cloud dome\'s geometry uploads here instead of at first light; firstFrame -14k draws, -2 links (1489760 -> 1519232, 1d11c6c7)', g: 'G1136' },
   // G1078 (LOAD-SETTLE, B1b's LRU G735 taken verbatim): bisected on three censuses with the parked cook stale alike -
   // master -> master + the LRU alone: the Cessna's taxi shadow +51 389.5 tris; the LRU -> the whole G1075-G1078 branch:
   // +0. The LRU makes fewer decode timestamps (fewer performance.now() calls on the harness's virtual clock), so the

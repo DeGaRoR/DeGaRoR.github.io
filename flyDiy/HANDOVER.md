@@ -65766,3 +65766,24 @@ loop JS 22.0 -> 13.4 / 24.7 -> 13.5 ms (the worker); render 11.0 -> 9.7 / 10.7 -
 33.5 both; the Cub: no frame over 100 ms, no task over 1 s. OPEN: the metal Cessna's 1.3-1.4 s task in garage:firstFrame
 (LOAD-COMPILE follows it up for train 18). The CI container's timing gates (BIOME perf, SETTLE bake budget, HITBOX e,
 RWYTREES' 30-min cap) red there, green on the box.
+
+## G1135-G1136 C0c: THE SHED'S PROBE - NOT BAKED WHILE THE WORLD IS UP, AND NOT TWICE AT FIRST LIGHT (2026-09-30, C0c for the coordinator)
+G1135 (6b467f3b, app.js): `envAway` - bakeHangarEnv only notes envDirty between rollOutStand (the one door into the
+world) and enterGarage (every way back), which bakes once if anything asked. C0b's 17-19 roll-out bakes (2-4 of them
+0.4-1.3 s) were a TRAIN 13 measurement: since B8B9's one loading the town step runs in the garage boot under
+envDeferred, and the train-16 A/B (metal Cessna, warm, 2 runs each, --profile + --profile-boot --trips) is EQUAL - 0
+roll-out bakes both sides, 1 at the compile step. A guard for what still asks while the world is up (a late map on a slow
+link, a hangar rebuilt or a mood set in flight), not a measured win.
+G1136 (1d11c6c7, app.js + the FRAMECOST ALLOW): LOAD-COMPILE's profile of the metal Cessna's 1.3-1.4 s garage:firstFrame
+task (train 17) held ~250 ms of bakeHangarEnv - the cube faces' shadow maps. hangar.applyDay was the frame loop's alone
+and skyBakedSun was set only by its markBaked, so the compile step's done() baked a shed with no day in it (no physical
+dome, the key not aimed, no sky LUT) and the first frame always re-baked it. The loop's block is shedDayTick() now, and
+the compile step calls it first (in the garage): under envDeferred its rebake / mood requests fold into done()'s one
+bake, markBaked records that sun. FRAMECOST (the page in node, re-cooked tree): garage:firstFrame draws 21 340 -> 7 006
+(Cub) / 22 658 -> 8 324 (Cessna), gl.calls 135 579 -> 68 645 / 152 777 -> 85 845, links 2 -> 0. garage:compile links
+3 -> 5 are LOAD-COMPILE's two dome programs (the sky dome and the cloud dome applyDay swaps in, one shared vertex
+shader) MOVING into the compile passes, not new programs. One ALLOW: garage:compile bytes.bufferData 1 489 760 ->
+1 519 232 (the cloud dome's geometry, upTo 1 520 000). The GPU --profile-boot pair (the firstFrame worst task): PENDING.
+TRAP (every app.js edit): FLYDIY_BUILD moves, the parked cook goes STALE, and FRAMECOST reds ~25 stand/taxi rows
+(the parked aeroplanes captured live in node) - deterministic, not clock noise. `node tools/parked_cook.js --check`
+first; re-cook in the worktree (GPU) before reading FRAMECOST.
