@@ -65812,3 +65812,148 @@ A0's follow-up on train 17: the metal Cessna's one loading had a 1.30-1.41 s tas
   still skips the shot (the known bug, fixed on ROLLOUT-REAL's 50dcd72f) - equally on both sides.
 - Gates (node, the combined tree): UISMOKE, BOOT, PROGRAMS, ROUNDTRIP PASS; FRAMECOST red only on C0c's move
   (garage:compile bytes.bufferData +29 KB, the cloud dome's geometry: its ALLOW row, ad3a1046).
+## G1105-G1109 - CUB-COCKPIT: THE A-PILLAR HINGES, THE TANK SUPPORTS (AND TANKS THAT DO NOT FIT), THE LEANING HORIZON (2026-09-30, CUB-COCKPIT for the coordinator, local GPU)
+
+The user's report, 2026-09-30: a screenshot from the Cub's cockpit, taxiing on Jolene, with three items. The branch
+is cubcockpit/g1105, rebased onto train 17 (220812de). G1109 is this entry and the READY commit.
+
+**G1105 - "there are hinges on the A pillar, which is a little strange and too visible from the inside".**
+- **WHAT THEY WERE:** G310's cabin-door butt hinges (tools/_cage_hinge.js).
+  - They hang on the edge `hgDoorEdge` names; the default is 0, forward.
+  - The door zone takes its window by design (_cage_gen.js "THE WHOLE DOOR"), so on a `bubble 0` cabin the forward
+    run IS the windscreen post.
+  - The hinges climbed it to the screen's top corner, at the pilot's eye, in the fuselage's Cub yellow. This is
+    G388's owed finding.
+- **THE FIX, in the construction:**
+  - `cageDoorEdges` records `winLo`, the door window's sill: the lowest point of its `win` (glass) faces.
+  - A standing run (forward, aft) is cut at that height, and the hinges share out the door's opaque panel below it.
+    This holds on every build, a saved one included.
+  - Two new edges: 3, the sill (a door that folds down); and 4, top AND bottom, the Cub's clamshell (the window half
+    hinged up under the wing, the lower half down).
+  - The stock 'piper cub' preset takes 4. The handle keeps the aft edge (doorHandleSite, unchanged).
+- **MEASURED** (the Cub card, headless, the layers' frame, m):
+  - before: the door hinges spanned y -0.450..0.485, against a window sill of 0.137;
+  - a saved build still on "forward": now y -0.512..0.109;
+  - the clamshell: 0.529..0.574 (the window's head) and -0.597..-0.510 (the sill).
+- **GATE HINGE 4f:**
+  - the sill is derived twice: the record, and the gate's own walk over the sheet's glass;
+  - stock and Cub, forward and aft: no hinge line above the sill;
+  - the clamshell: two lines a door, one each side of the sill;
+  - the Cub preset is 4.
+  - On master's code the rows go red: the Cub's forward hinges reach 565 mm against a 137 mm sill, the stock jodel's
+    823 against 193.
+
+**G1106 - "The support for the tank are poking through the meshes ... If you can't do something clean, get rid of it".**
+- **WHAT THEY WERE:** the energy layer's MOUNT.
+  - G189 put two 6 mm legs under each strap, from the tank to "the surface the bay stands on", with foot plates and a
+    cross tube.
+  - G317 gave each foot the airframe table's height to stand on. That table is a 96 x 72 ray grid keeping the
+    OUTERMOST hit, the windscreen and the pillars among them; where it gave none, the foot took a flat plane at the
+    section's top on the centreline.
+  - The stock Cub's 45 L box drew none: it touches the band's top. A 20-30 L tank hangs with air above it and drew the
+    two posts the user saw (the HUD read 28.9 L).
+- **REMOVED**, the user's fallback: VESSEL_MESH.mount, the layer's call, mountSurf and tankMountDy are all gone.
+- **GATE TANKMOUNT (new, core), tools/_tank_mount_check.js:**
+  - It builds every CAGE_DESIGN archetype AS THE GAME FLIES IT: BJ.bakeCard's joined spec, with the energy layer
+    handed the BUILT spec through GARAGE_SPEC.resolved. _scene_headless.sceneBuild gained `resolved` / `inGame`.
+  - The energy files are taken out of EXCLUDE, and each card runs at 1, 0.66 and 0.45 of its tank capacity.
+  - One card a process, three at a time (G1106.2). The layers carry state across builds in one process: the jodel read
+    12/422 hardware vertices past the skin when built first and 0/422 after the sesqui. Owed as a separate task (the
+    editor switching designs in one page may do the same).
+  - Isolated A/B, master's layer: 52 mount meshes on 26 of 27 archetypes x 3 sizes, 5626 leg vertices past a surface
+    (worst 37.8 mm, the Cub). This branch: 0.
+  - Instrument traps: the page draws the sheet outside PAGE.post, so the check adds it as a mesh; three's raycaster
+    skips back faces, so the skins are asked double-sided.
+
+**G1108 - A0's ruling (under the user's same rule): the tank's own hardware, and tanks that do not fit.**
+- **MEASURED FIRST, per named piece** (the hardware is now PIECES: VESSEL_MESH records each one's ranges and `omit`
+  drops pieces by name).
+  - The straps, pads and sender lie on the shell and leave the skin only where the shell does.
+  - The filler, vent (42 mm and an elbow), outlet and sump stand off it, 12-89 mm through surfaces the box cleared.
+  - On most stock designs the tank's SHELL itself crosses the skin (floatplane 212/396 sampled shell vertices, 149 mm),
+    the frame tubes, the dash (jodel, savannah, caravan) or the engine (beaver). The layer's own fit already said
+    `ok: false` for most, and the tank was drawn in flight anyway.
+- **(1) A standoff piece is drawn only where it clears.** That means the bay profile at a 4 mm wall (the fit's own
+  BAY_SITE.baySolidFits) AND no segment from the tank's centre to a piece vertex crossing the drawn sheet, engine or
+  cowl (surfTris + segCrosses: only the triangles in the tank's box, a millisecond a tank). Example: a pusher's vent
+  passed the profile and stood 69 mm through its tube frame; it is now dropped.
+- **(2) The fit's verdict learns what it could not see** - as a VERDICT only (layerHits, after the placement; settleLv
+  is not taught it, so no tank moves and no mass moves):
+  - the engine, the cowl or the dash inside the DRAWN SOLID by 5 mm. `inSolid` uses VESSEL_MESH's own section
+    functions; a box test read a dash merely touching a rounded corner as through it;
+  - any drawn vertex beyond the sheet (skin, frame tubes) seen from the centre.
+- **(3) A tank that does not fit does not fly.**
+  - Every mesh of an `ok: false` vessel is stamped `edUnfit`. The editor still draws it red; the join skips it
+    (_cage_join.js, beside edMarker).
+  - The flown, parked and stock aeroplanes carry no tank through anything.
+  - Its fuel, mass and CG stay in the ledger. `CAGE_JOIN_TAKE_UNFIT` is the gate's A/B switch only.
+- **GATE TANKMOUNT's verdicts** (81 rows):
+  - a tank that fits has no vertex past a surface, and nothing inside it (ray PARITY against the drawn shell, the point
+    and its six 5 mm neighbours; with the dash test switched off it catches the savannah's dash at 154 points);
+  - every mesh of an unfit tank is stamped, and the flown snapshot carries 0 vessel materials for it;
+  - the physics (buildGen of the joined spec) hashes identical with and without it: 81/81.
+  - Pieces dropped: vent in 30 rows, filler in 27, outlet in 5.
+- **OWED (2b), for the user:** the stock designs' default tanks do not fit their bays. Fits at 1 x capacity: 3 of 27
+  (etrainer, ttail, vtail); at 0.66: 6; at 0.45: 9.
+  - Reasons over the 81 rows: through the skin or the frame 39 + 28 (the older fit's "through the skin"), the dash 34,
+    the engine 6, past the bay 4, out of the body 3, the band 1.
+  - Worst (not flown now): floatplane / mw5 shell 149 mm; pusher 133 mm; beaver straps 132 mm into the engine; jodel
+    125 mm into the dash.
+  - Refitting them moves physics numbers (G181's rule: the fit may move a tank, the capacity numbers stay), so it is a
+    question for the user, not this branch.
+  - Until then those aeroplanes fly with their fuel but no drawn tank. The Cub's sits behind the panel and was never
+    visible from the seat.
+
+**G1107 - "the attitude indicator shows an inclination on the ground, where the plane is perfectly level".**
+- **THE CAUSE:** src/viewer/cockpit.js.
+  - A spun-down gyro read `REST = { roll: 0.20, pitch: -0.12 }`, 11.5 deg of bank. This was session 4d's choice after
+    the user's "it tends to be faulty on the ground".
+  - A venturi gyro is spun down whenever IAS < 20 m/s: every ground minute of the basic fit, which is the Cub's.
+  - The core's out.roll was right: atan2(-zRt.y, yUp.y), and zRt stays horizontal with wings level at any pitch.
+- **THE FIX:**
+  - An unpowered ball HANGS PLUMB (its rotor housing is bottom-heavy, which is how it erects): it shows the attitude,
+    slower (LAG_HANG 1.2 s against 0.15). The seed is level. The DG's dead-gyro freeze is unchanged.
+  - The report reverses 4d's lean; the reversal is flagged for the user.
+- **AND THE AXES:** the join mapped a gauge's axes through the positions map (B^-1, a shear on an oblique pose pair),
+  while the flight turns gauges in the true frame (poseRigid, G357). Gauges now take the raw direction, normalised
+  (G476's spinner rule). `ctlMove` (the cockpit controls) rides the same line with the old map: OWED.
+- **GATE PANEL:**
+  - The dead ball hangs plumb: level at 11 deg nose-up, and REST is level.
+  - AI core: GEN_DEFAULT's sim turned rigidly to headings 0/90/225, pitches -5/0/11/20 and banks 0/15/-30. out.roll is
+    0 with wings level (< 0.1 deg), out.pitch reads the pitch, and a bank reads as itself (< 0.5 deg).
+  - The cockpit and the posed ball over the same grid, gyro dead and erect: the horizon's angle in the dial's face is 0
+    with wings level and equals the bank otherwise.
+  - The join's gauge axes are true-frame and unit length.
+  - On master the ball rows go red at -11.459 deg for every level attitude.
+
+**PERF (FRAMECOST, node):**
+- A/B on train 17 (220812de vs this branch, both with parkcook=0 so the parked aeroplanes are captured live alike).
+- The aeroplane's draws fall: Cub 79 -> 74 main, Cessna 90 -> 85 main, 38 -> 32 shadow - the unfit tanks are no
+  longer flown. The Cub stand scene is 1562 -> 1530 draws, taxi 1210 -> 1191; the boot steps fall too.
+- One counter rose: Cub taxi world.grHeight 34.5 -> 38 calls a frame.
+  - Control: the same branch with the join taking the unfit tanks again (a temporary local edit, reverted) reads 34.5
+    and 983 draws, train 17's values exactly.
+  - So the rise is the tank not being drawn - the streamer's work shifting on the harness's virtual clock (G1078's
+    note), not new work. It is inside the existing ALLOW (G878).
+- The plain gate on the branch reads red (23): the parked cook's signature includes FLYDIY_BUILD, which hashes the
+  editor files, so any editor edit makes train 17's cook stale and the parked aeroplanes are captured live
+  (garage:snapshot 21 -> 1893 draws). The next train's re-cook clears it. The same was proven before the rebase.
+
+**BATTERY (core, --jobs=3, the rebased branch, under take cpu):** 135 PASS; FRAMECOST red on the stale cook only (see
+PERF).
+
+EVIDENCE (tools/perf/cubcockpit_evidence/, q82 1280 px JPEG; the lossless PNGs kept in the main checkout's
+screenshots/cubcockpit-2026-09-30/):
+- 01/02 `_stock_cub_seat`: master's stock Cub before / after, from the seat on the stand (?world=none), train 17.
+  - Before: the two posts on the deck, the door hinges on both A-pillars, the AI banked about 12 deg.
+  - After: no posts, clean pillars (a saved build still on "forward" hinges below the sill), the AI level at ~11 deg
+    nose-up.
+- 03/04 `_cub30L_seat`: the same with a 30 L tank.
+- 05 `_new_stock_cub_clamshell_seat`: the new stock Cub (edge 4).
+- 06 `_detail_posts_ai_pillar`: the deck, the AI and the left pillar, cropped from all five.
+- Rig: tools/panel_shot.js --build <file> (the builds baked from master's design rows); before = a master worktree,
+  after = this branch; the same camera.
+- **Seen there, not in the gate:** in the page the stock Cub's 45 L box is re-shaped to its bay, capped by the crew's
+  feet (_cage_energy.js bay-shaped box, 29 L: the HUD's 29.0, the user's 28.9). So the STOCK Cub drew the posts too.
+  The headless gate has no crew layer (_scene_headless EXCLUDE) and does not take that path; its 0.66 x capacity row
+  covers the size, not that shape. Owed: the crew layer headless, or the cap reproduced there.
