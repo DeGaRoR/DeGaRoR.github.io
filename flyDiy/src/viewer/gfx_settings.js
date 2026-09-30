@@ -67,6 +67,7 @@
     // sprite ... we need to see the full mesh a little further"): each step is its edges AND its dither window (BANDS)
     { k: 'bands', label: 'forest detail', steps: [
         { v: 'near', label: 'impostors', why: 'the full tree to 10 m, its light rung to 30 m, pictures of trees beyond - in flight nearly every tree is a picture (2 triangles), which is what buys the density' },
+        { v: 'minimum', label: 'close trees', why: 'the full tree to 30 m, its light rung to 60 m, pictures beyond: the trees by the aeroplane whole, the rest pictures - the cheaper step toward near trees' },
         { v: 'mid',  label: 'near trees', why: 'the full tree to 50 m, its light rung to 120 m, pictures beyond: the trees round the aeroplane and a close camera are whole trees, the stands you fly over pictures' },
         { v: 'far',  label: 'real trees', why: 'real trees to 270 m (the bands before 2026-09-21); the frame is 1.3-2x dearer in a dense stand' } ] },
     { k: 'shadows', label: 'shadows', steps: [
@@ -217,13 +218,13 @@
   ];
   const TONE = { aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping', neutral: 'NeutralToneMapping',
                  reinhard: 'ReinhardToneMapping', cineon: 'CineonToneMapping', linear: 'LinearToneMapping' };
-  const BANDS = { near: [10, 30, 30], mid: [50, 120, 120], far: [60, 270, 270] };   // 2026-09-21 impostor-first: L0 to 10 m, L1 to 30 m, pictures beyond; 'far' is W0c.32's near (L1 to 270)
+  const BANDS = { near: [10, 30, 30], minimum: [30, 60, 60], mid: [50, 120, 120], far: [60, 270, 270] };   // 2026-09-21 impostor-first: L0 to 10 m, L1 to 30 m, pictures beyond; 'far' is W0c.32's near (L1 to 270)
   // THE DITHER WINDOW PER STEP (G1110): the metres about each edge where both representations are drawn through
   // complementary screen-door stipples. 30 m about a 30 m edge (the impostor-first bands) stippled every tree from
   // 15 to 45 m - and the L0/L1 window (-5..25 m) overlapped it: the "dotted transition sprite" the user saw in almost
   // every view. 12 m keeps the seam (the partition refreshes every window/3 m, render_world lodMove) and shows it
   // only on the trees that really stand at an edge.
-  const FADE = { near: 12, mid: 12, far: 30 };
+  const FADE = { near: 12, minimum: 15, mid: 12, far: 30 };   // 'minimum' (the user's fallback, 2026-09-30): 30 / 60 m, 15 m window
   const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 2048, far: false, world: false },   // near: map 2048 = the craft's 1024 (G655)
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 
