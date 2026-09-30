@@ -346,7 +346,27 @@ async function census(build) {
   // WARM frames a view warms on until the ring's queue is empty and no block is left to rebuild, 120 frames at most
   const ringIdle = () => { try { const r = W.TREE_FILL && W.TREE_FILL.cover && W.TREE_FILL.cover(); const s = r && r.stat ? r.stat() : null;
     return !s || (!(s.queued > 0) && !(s.dirty > 0) && !s.building); } catch (e) { return true; } };
-  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm);
+  // FRAMECOST_SETTLE=<max frames> (off by default: the gate's own counts are unchanged): LIKE WITH LIKE. The census runs on
+  // a virtual clock, so a tree whose boot does more (a warm draw, a compile) reaches the view with the world's streaming
+  // elsewhere - the houses and props drawn at the counted frame differ (C4b's cockpit census: houses 4 vs 2, props 9 vs 8,
+  // and the frame's program switches with them, the aeroplane identical). This advances the view in 30-frame windows
+  // until a window builds no house and draws the same main-pass median as the one before, then counts - two trees
+  // compared at rest. Reported on stderr (SETTLE <view> ...) and in the census's settled map
+  const SETTLE = +(process.env.FRAMECOST_SETTLE || 0), settled = {};
+  const settle = async tag => {
+    if (!SETTLE) return;
+    let prev = null, n = 0;
+    while (n < SETTLE) {
+      rows = []; cur = null; await P.frames(30); const R = rows; rows = null; n += 30;
+      const builds = R.reduce((q, r) => q + (r['house.build0'] || 0) + (r['house.build1'] || 0), 0);
+      const mains = R.map(r => r['draws.main'] || 0).sort((x, y) => x - y), med = mains.length ? mains[mains.length >> 1] : 0;
+      if (!builds && prev === med) { settled[tag] = { frames: n, main: med }; process.stderr.write('SETTLE ' + tag + ' at rest after ' + n + ' frames (main ' + med + ')\n'); return; }
+      prev = med;
+    }
+    settled[tag] = { frames: n, unsettled: true }; process.stderr.write('SETTLE ' + tag + ' still moving after ' + n + ' frames\n');
+  };
+  let viewTag = 'stand';
+  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await settle(viewTag); await P.frames(warm === undefined ? WARM : warm);
     let more = 0; while (more < 120 && !ringIdle()) { await P.frames(1); more++; }
     if (more) console.error('  (framecost: ' + more + ' more warm frame' + (more > 1 ? 's' : '') + ' for the cover ring to go idle)');
     rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
@@ -370,6 +390,7 @@ async function census(build) {
   // FRAMECOST_CAM=cockpit (a debugging aid, never the gate's): the taxi view from the pilot's head (C4b's cockpit census)
   if (process.env.FRAMECOST_CAM === 'cockpit' && FP.camMode) { FP.camMode('cockpit'); if (W.HEAD_CAM) { W.HEAD_CAM.yaw = 0; W.HEAD_CAM.pitch = -0.3; } }
   if (process.env.FRAMECOST_WHAT === 'taxi') { FP.camSettle(); await P.frames(WARM); await debugAids(W, P, FP, C, () => rows, v => { rows = v; }, 'taxi'); }
+  viewTag = 'taxi';
   views.taxi = await measure();
   detail.taxi = drawnDetail(C);
   views.taxi.pose = [pose.x, pose.z, pose.hdg, pose.off === null ? 'no route' : 'route ' + pose.off + ' m off'];
@@ -460,7 +481,7 @@ async function census(build) {
     }
     return r;
   })();
-  return { build, health, release, ktx2, crew, frames: FRAMES, warm: WARM, views, craft, detail, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  return { build, health, release, ktx2, crew, frames: FRAMES, warm: WARM, views, craft, detail, settled, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
 }
 // the page's hooks for a census (B9: shared with GATE ROUNDTRIP): the three counters, the boot's step marks, the
