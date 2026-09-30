@@ -64002,3 +64002,107 @@ only while the cook was stale (every key captured live).
 - FRAMECOST: stand/gl.bindBuffer ALLOW 56 -> 60 (59 on train 16: ~2 more of G1020's untraced small re-sends, while
   bytes, draws and uniforms all fell).
 - Re-cooked: `node tools/parked_cook.js` on the built train (GPU lock).
+
+## G1090-G1092 - POLISH-2: THE TOP BAR HOLDS ONE SIZE; THE TREES BY THE RUNWAYS FOLLOW THE TREE MAP, THREE WAYS FOR THE USER TO JUDGE (2026-09-29, POLISH-2, a cloud session, node + headless Chromium)
+Base origin/claude/train-16-base (a3aa44cc). Branch claude/polish2-y7huio (= claude/inspiring-johnson-y7huio).
+
+G1090 THE TOP BAR (the user: "the top bar with the readings keeps resizing because of the explanation text of what
+the pilot is doing. It shouldn't resize. Size the box, and have the text flow in its own dedicated area"). MEASURED
+first (tools/hud_fit_shot.js: dev.html's markup and sheets, no script, headless Chromium, every text the plate can be
+given): #pfd was as wide as its longest nowrap line - 344 px held, 2434 px on a long status line - and 110 -> 126 px
+tall when the plan line appeared (display:none on :empty); 97 -> 114 px on a 400 px phone. Now:
+- body.html: #phNext left the rail for #phWhy (after #rail), which also holds #phPlan.
+- flight.css: #pfd width 440 (small 372; a phone: the screen's, width:auto + stretch), border-box, overflow hidden.
+  Readouts are fixed cells (80 px; energy / netto 112, throttle 120; phone 58 / 110 / 86; small 52 / 86 / 76) - sized
+  off Chromium's widths ("+12.3" 79.5, "9999" 70.8, "EMPTY" 96.5 at 30 px; "kWh charge · 1.2 h" 108 at 8.5 px) -
+  tabular-nums, the value and unit lines of fixed height, nowrap, clipped. The rail one nowrap line of fixed height,
+  contain:inline-size (a DRAGGED plate on a phone is absolute at width:auto: its phase name must not size it), the
+  phase name shrinks + ellipsis. #phWhy 35 px, contain:inline-size: #phNext -webkit-line-clamp 2 (22 px),
+  #phPlan one clipped line (11 px). Held / empty lines hide by visibility, never display:none.
+- RESULT (the rig, six layouts): 440 x 143 desktop, 440 x 143 dragged, 372 x 76 small; 376 x 132, 376 x 76, 346 x 132
+  (dragged) at 400 px - ONE size each over 25 phase labels, the divergence card, 'by hand', the longest status / plan
+  lines, a 400-char line, "-12.3" / "+12.3", "9999", "EMPTY", "km/h gs", "kWh charge · 1.2 h".
+- GATE UISMOKE: the CSS contract off the artifact's own sheets (declared widths / heights, clips, tabular figures, the
+  containment, the clamp, no display:none on a text-driven state, no app code sizing the plate) and the plate's box
+  COMPUTED from it for 47 texts (29 phase labels) per layout - one size each; the computed heights equal Chromium's.
+- WHAT THE USER SEES: the plate never moves or grows. The pilot's line sits under the rail in faint mono, two lines
+  at most, cut with "…"; the plan line under it in ink, one line, cut with "…"; held, the area is there and empty.
+  The unit labels ("KWH CHARGE · 1.2 H") fit their cell; a longer one would end in "…" rather than push. Adding
+  readouts in the instruments flyout (the player's choice) wraps them onto a second row.
+
+G1091 THE TREES BY THE RUNWAYS (the user: "just follow the map first ... You can do both, only the map, and the map
++ the gravel and approach fans, and I'll judge"). THREE VARIANTS, one switch: ?rwytrees=today|map|mapx, or
+localStorage flydiy.rwytrees (SKY & WORLD > ground & map: three pills, the pick kept, the page reloads); node:
+FLYDIY_RWYTREES=, or makeWorld opts.rwyTrees. A DATA ISLAND ONLY (the analytic world's premises keep 'today').
+DEFAULT 'today' until the user has judged. With DEV on, a small tag at the bottom centre names the variant.
+- THE TRACE (A0's, confirmed per metre on 13/31 and 02/20): the map's TREE cells (effClass: WorldCover TREE with
+  canopy >= 2.5 m) from 0-14 m past the paved edge (median over 10 m stations 38-42 m on 13/31); first collidable tree
+  47.5 m, first visible 60 m. Stacked: (a) coverAt's kill (band 40 + fade 6 = 46 m), (b) the strip box + 30 m, (c) the
+  gravel shoulders y_sh13_* / y_sh02_* (1.5-47.5 m; an exclude AND world.surface GRAVEL, which the fill's forest test
+  reads), (d) the renderer's aerodrome box (wid/2 + 60, len/2 + 150) which the WOODLAND NEVER HAD (14 collidable trees
+  stood unseen in 47.5-60 m), (e) the fans, (f) the analytic corridor on the island (a 180 m lane through the woods
+  west of 13/31 in the fill, 120 m in the woodland).
+- 'today' = as it was, except: (f) is gone on the island in EVERY variant (the brief: "must not apply on a data island
+  regardless of the variant") and (d) now applies to the woodland too (one rule): 14 collidable trees out of the box,
+  14 back in the corridor (19 205 both ways).
+- 'map' = the map everywhere but the paving: no tree on a pavement or its DRAWN side (PAVE_SIDE 1.8 m = the recipe's
+  sideW 1.2 + edgeChip 0.6 - strips, aprons, taxiways; an ordinary road still draws its band + fade and keeps that
+  reach, as 'today'); (b) (c) (d) (e) (f) off. The shoulders' ground is the island's for the trees (world.treeGround;
+  world.surface - the wheels' - is untouched), and so is the registry's wid/2 + 6 m strip margin.
+- 'mapx' = 'map' + the shoulders (c) and the fans (e) kept.
+- ONE RULE (a tree you see stands where a tree you hit may): 20_world.js treeAeroBlocked / treeGround + the premises'
+  excludeAt(.., 'trees') - the woodland asks them, and on an island render_world's forestHere / openHere / the colour
+  bake / the far stands ask the same (islRule); the analytic world keeps its own path byte for byte. Every collidable
+  tree is drawn (the woodland layer); the fill's trees are denser and visual only, as everywhere on the island.
+- WHAT EACH VARIANT DOES TO THE OTHER PAVEMENTS (GATE RWYTREES, nearest collidable past the edge, the whole island):
+  taxiways 61.5 m in all three (no woods near them); aprons 26.7 -> 3.6 m in map / mapx (band 3 + fade 6 -> the drawn
+  1.8 m side); roads 8.8 m in all three (unchanged rule). The PAVED surface polygons and every other GRAVEL / SAND
+  surface (yards, stands, the mine's works) stay excluded in every variant; plots and houses never move (the sower's
+  excludes are untouched).
+- FRAMECOST (--census cub per variant, --compare): stand main draws 1144 / 1144 / 1144 (today / map / mapx), shadow
+  522.5 / 527 / 527; TAXI main 1071.5 / 1083 / 1072, shadow 232.5 / 249 / 232.5, shadow triangles 2.36 M / 2.45 M /
+  2.36 M, programs 98 / 101.5 / 97.5. 'map' costs ~12 main + ~17 shadow draws at the taxi; 'mapx' nothing.
+- FOUND, NOT FIXED (island-wide, not the runways'): the woodland keeps the ANALYTIC biome's TREELINE (165 m,
+  22_world_biomes.js) on the island - no collidable tree above 165 m although the map has TREE cells to 388 m round the
+  mine strip (347 m) and the fill draws them: a visible uncollidable forest on every hill, in every variant. Lifting
+  it changes the woodland over the whole island (the flight gates' worlds): a chantier of its own.
+- NOT FLOWN: Tamgas Hill (w3) - the Cub cycles taxi / hold / line-up there without taking off in 'today' and 'map'
+  alike (pre-existing). 'map' puts a collidable tree 2.0 m through w3's 5 % surface (0.6 m under it at 02/20, 0.4 m
+  through at East Point): reported by the gate, asserted only for 13/31 (7.5 m under).
+- The sim worker (sim_host.js makeSimHost) is not wired into the page yet; when it is, pass the page's variant in
+  W.opts.rwyTrees, or the worker's world plants 'today'.
+
+G1092 GATE RWYTREES (tools/_rwytrees_check.js, core, weight 2). Core ~1 min, full (--all) ~20 min: see its header.
+THE TABLE (metres past the paved edge inside the runway's length; col = collidable, vis = visible forest / open ground):
+```
+  runway side   map near/median |  today col  vis for/open |   map col  vis for/open |  mapx col  vis for/open
+  02/20 (w2) L     28.0 / 59.5  |     71.3    60.1 / 60.0  |     56.1   30.2 /  3.6  |     56.1   47.5 / 47.6
+  02/20 (w2) R      0.0 / 22.0  |     65.8    60.1 / 60.4  |     24.5    2.3 /  3.4  |     52.0   47.8 / 48.1
+  13/31 (HOME) L   11.0 / 42.5  |     83.6    60.1 / 60.2  |     50.8   14.2 /  5.0  |     50.8   47.7 / 47.6
+  13/31 (HOME) R    0.0 / 38.5  |     62.4    60.2 / 60.2  |     33.2   14.1 /  1.8  |     47.6   47.6 / 47.7
+  Tamgas (w3) L     0.0 / 32.0  |     70.2    60.7 / 60.3  |     30.1    2.1 /  2.4  |     30.1    2.1 /  2.4
+  Tamgas (w3) R     0.0 /  0.0  |     68.5    61.1 / 61.5  |     17.9    1.8 /  2.3  |     17.9    1.8 /  2.3
+  Jumbo Mine L/R    0.0 /  0.0  |  (>1 km: the treeline)  |  vis 1.9 / 2.1 (forest) in map and mapx, 60.6 / 60.5 today
+  East Point L      0.0 /  0.0  |     50.4    33.6 /  -    |     50.4   24.9 /  -    |     50.4   24.9 /  -
+  East Point R      0.0 /  0.0  |    145.4    32.5 / 177  |     31.7   25.4 / 177   |     31.7   25.4 / 177
+  Skyline (tw_ski)  no TREE cell within 200 m; open-ground trees R 243 -> 2.2 m in map / mapx
+```
+The forest-rule visible column is the fill's trees on the map's TREE cells (thinned by the canopy ramp: 14 m on
+13/31 where the nearest cell is 0-11 m); the open-ground column is the biome's small trees on the muskeg / grass
+(openHere, never collidable - as everywhere on the island), which in 'map' come to the drawn side (1.8 m).
+Ground paths in 'map' (the widest parked footprint, twinBush 8 m half-span, against each tree cylinder): the ways out
+>= 24.0 m, the centrelines >= 18.3 m; a 5 % surface over the ends: 13/31 7.5 m clear (21.6 today), 02/20 0.6 m,
+Tamgas -2.0 m, East Point -0.4 m (mapx: as today). FLOWN in 'map': C172 and Cub round 13/31, the Cub round East
+Point - no contact; the nearest node to a tree cylinder: taxi 62.0 / 49.8 / 27.6 m, the climb 102 / 120 / 43 m.
+FRAMECOST, READ WITH CARE: a branch that changes any source has a STALE parked cook (parked.js cookSig hashes
+FLYDIY_BUILD), so its parked aeroplanes are captured live - base (fresh cook) -> this branch's 'today' reads +145 main
+/ +286 shadow draws at the stand for that reason alone (a census with the corridor re-added gives the same numbers as
+'today': 1144 / 522.5). The per-variant A/B above is on one tree (one stale cook). Re-cook on the train.
+BATTERY (on ec1bc7d + the page-first RWYTREES, 2026-09-30): the FULL tier, 129 of 129 gates PASS - run as 13
+`run_gates.js --no-build --only=...` chunks in sequence (--only implies the full tier) after the one-process `--all`
+was twice cut by this cloud container restarting (at ~12 and ~18 min, both times during a page harness: the first
+with RWYTREES' page child beside ROUNDTRIP's page and an ARCHETYPES shard). Hence RWYTREES weight 4 (the whole pool)
+and its page children run before it composes its own three worlds. On a bigger box `--all` is the one command.
+READING THE USER'S VERDICT: when the user picks, set the default in rwyTreesMode (27_premises.js: 'today' is the
+fallback) and in the loader line of tools/build.js; GATE RWYTREES' "4 ..." checks are written per variant and need
+no change. If 'map' wins, look again at the 5 % surfaces the gate prints for Tamgas Hill and East Point.
