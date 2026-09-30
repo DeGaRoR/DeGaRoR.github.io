@@ -66627,3 +66627,77 @@ FRAMECOST: four ALLOW rows (G1113) for 'minimum' trees casting at the stand, att
 (its verdict line, fixed); the CORE tier on the final tree (the hybrid dropped): all PASS, FRAMECOST PASS with the ALLOW rows.
 TRAPS this night: `run_gates.js --help` RUNS the battery (it did, lockless, for seconds); a missed coordinator ping idled
 the GPU twice (~40 min each) - the relay now uses name-gated waiters (take only when RESERVED names you).
+## G1125-G1126 - NEAR-LAYER: THE 60 m BOX DRAWS ITS NEAR CASTERS (AND THE CRAFT) ONLY; THE 'near' TIER'S FAR MAP DRAWS NOTHING (2026-09-30, NEAR-LAYER for A0, cloud, node only; block G1125-G1129, G1127-G1129 unused)
+
+THE FINDING (SHADOW-EYES G1080.2, re-proved here on three's own walk): vendor three r186 WebGLShadowMap.render ->
+renderObject(object, camera, shadowCamera, ...) tests object.layers against the MAIN camera, so every layer mask on a
+shadow camera is a no-op. GATE SHADOWSKY 5 renders a scene through the real WebGLShadowMap on tools/_fake_gl.js and
+records each caster's onBeforeShadow(renderer, object, camera, shadowCamera): as it was, the near map's viewport 1 (the
+60 m box, its camera on NEAR_LAYER) drew the craft, a crumb and the instanced trees - the whole walk. Only G1005's prune
+(viewport 0, the craft's cascade) and G1080.2's far-map hide (both by .visible) ever filtered.
+
+G1125 THE BOX PRUNED (shadow_near.js pruneBox, hook; app.js one line):
+- getCamera(1) (three calls it right before viewport 1's walk) keeps the ancestor chain of each of nearTag's casters
+  (setNear's list - exactly the objects render_world put on NEAR_LAYER) and the craft's top group whole, and hides every
+  other child along those chains (G1005's path prune, second viewport). No list yet (the first frames, before nearTag
+  runs) or a sphere without its object: the whole walk, as before. S.boxPrune (A/B).
+- hook(renderer): renderer.shadowMap.render wrapped; its finally shows everything a pass hid (the two prunes, the far
+  hides). Needed: three calls nothing after the last viewport's walk, and it projects the frame's render list BEFORE the
+  shadow pass - the next render (the mirror, a probe, the next frame) must find the world whole. A throwing pass too
+  (gate 5). The TSL renderer is not hooked: there the box walks whole, as before.
+- THE SCHEME QUESTION, boxCraft (default true = no look change): G1005 said "the craft no longer drawn into [the box]",
+  but its lookup sends a receiver DEEPER than the cascade's window (past the craft's ground shadow + craftR + 10 m + half
+  the height, along the sun) to the box - terrain falling away past a ridge under a low sun - and the far map never has
+  the craft (G1080.2). The craft was in the box all along (the layers never filtered), so it stays: 16 draws a frame
+  (Cub) / 19 (metal Cessna). boxCraft = false is G1005's letter and saves exactly those, at that corner's cost.
+G1126 THE FAR MAP MEANT EMPTY (shadow_near.js farLight): G655's 'near' tier (the RETRO preset) and SHADOW-EYES' 6 put the
+far camera on an EMPTY layer (render_world SUNW.EMPTY) to draw nothing; it drew the whole world once into a 256^2 map
+over the far box (0.8-4 m texels), which then stood where it was drawn, stale. Now a far camera without FAR_LAYER hides
+every top-level child for its walk (hooked renderer only). A LOOK CHANGE on the 'near' tier by design (the coarse, stale
+world shadows go, as G655 meant); S.farEmpty = false gives the old map back. Not in the census (it holds 'full').
+
+THE FAR MAP'S SCHEME (asked): FAR_LAYER = every object but the craft (render_world nearWatch puts it on everything that
+joins the scene), so "the walk less the craft" IS the scheme: in every census below each far draw is on FAR_LAYER and
+none is the craft (G1080.2's hide works), both builds, both views. FAR_LAYER needs no treatment for any other object;
+the empty layer (G1126) was the only other hole. Its movers (traffic, trams, birds, animals, prop instances - G1080's
+list) are in it by the scheme and drawn every 2nd frame (SHADOW_RATE): a trail on THEM would be the rate, not a layer.
+
+PROOF - THE MAPS' CONTENT. FRAMECOST_SHADOW_PASSES=1 (new, _framecost_check.js; never in the verdict) records the last
+measured frame's shadow draws BY PASS (the light and viewport getCamera was asked for), each keyed by child-index path,
+family and layers; tools/_nearlayer_compare.js (new) diffs two censuses against the scheme. CONTROL = the base
+(220812de) + ONE COMMENT (G1080's method: any branch build finds the parked cook stale and captures the parked aeroplanes
+live - the stored baseline is not a fair before). Control -> new, NEARLAYER COMPARE: every pass as the scheme says:
+- the far map (sun:0): the same draw for draw (Cub/Cessna stand 466, taxi 213); the cascade (sunNear:0) the same (Cub
+  24 / 16, Cessna 28 / 19);
+- the box (sunNear:1): Cub stand 212 -> 87, taxi 47 -> 16; Cessna 216 -> 90, 50 -> 19 = EXACTLY the control's box draws
+  on NEAR_LAYER or CRAFT_LAYER. Dropped (all on FAR_LAYER, all still in the far map): stand 84 parked-aeroplane parts
+  (the live captures' small / farther parts - a cooked train's rungs differ), 15 animal, 9 life (instanced), 8-9
+  propInst, 6 instanced meshes, 3 prop; taxi 15 animal, 12 instanced meshes, 4 propInst.
+- WHAT THE EYE CAN SEE: inside the 60 m box and outside the craft's cascade window, those casters' ground shadows are
+  now the far map's alone (0.2 m texels at the stand, every 2nd frame) where they were min(6 cm box, far) - G601's
+  NEAR_MIN_R rule and "the instanced trees stay out of the near map" made real. Static ones lose edge crispness only; the
+  animals' near-ground shadows are the far map's (a frame behind every other frame - their far copy was already there
+  under the box's). The craft's skin reads the cascade (unchanged), the craft's ground shadow the cascade (unchanged).
+  If the eye objects, the lever is nearTag's rule (what is tagged), not the walk.
+
+THE CENSUS (FRAMECOST, gamer / shadows full; median of 12 frames), control -> new, all falls, no rise:
+  Cub stand     draws.shadow 481.5 -> 323.5   tris.shadow 2 417 609 -> 1 557 726   gl.calls 13 343 -> 12 928   frustum tests 2 503.5 -> 1 876
+  Cub taxi      draws.shadow 192.5 -> 158.5   tris.shadow 2 223 651 -> 1 641 268   gl.calls 11 617 -> 11 185   frustum tests 2 255.5 -> 1 676
+  Cessna stand  draws.shadow 489   -> 330     tris.shadow 2 498 448 -> 1 652 059   gl.calls 13 366 -> 12 936   frustum tests 2 504 -> 1 876.5
+  Cessna taxi   draws.shadow 198.5 -> 164.5   tris.shadow 2 316 235 -> 1 733 852   gl.calls 11 832 -> 11 400
+(also down: useProgram, programs, bindVertexArray, bindTexture, uniformMatrix4fv / 3fv, texSubImage2D; boot garage:frames
+gl.calls 115 579 -> 112 880.) The pristine base (the cook fresh, = the stored baseline): Cub stand draws.shadow 189.5,
+tris.shadow 2 548 410.5 - the new tree's shadow triangles are under it even with the stale cook. Against the stored
+baseline: new FAIL (22), control FAIL (25), new's RED rows a strict subset of the control's (the stale cook: draws.main
+909 -> 1 054 on both) - clears with the train's re-cook on its final build (tools/parked_cook.js), as trains 16 / 17.
+No ALLOW entry wanted; the falls are the train's --update. The render ms on the box is A0's (rollout_perf, in a train).
+
+GATES: SHADOWSKY PASS (+12: section 5, three's own walk on the fake GL - the finding as it was, the box = its near
+casters + the craft, boxCraft off = the near casters alone, the cascade and the far map as they were, the main pass the
+same and nothing left hidden, no list = the whole walk, a throwing pass restored, the empty far layer draws nothing and
+farEmpty off draws everything, app.js's hook anchor); LIGHT, STAND, FLOWNBAKE PASS. BATTERY: see the READY commit.
+TRAPS:
+- A census on any branch: compare against a CONTROL (base + one comment), never the stored baseline (the parked cook).
+- dev.html runs src/ LIVE: measure the base in its own `git worktree add` (and build it there), never the tree you edit.
+- `pkill -f _framecost_check` matches the Bash tool's own shell (its command line holds the pattern): kill by pid.
+- Anything a shadow pass hides for viewport 1 is restored by the hook ALONE: three calls nothing after the last viewport.
