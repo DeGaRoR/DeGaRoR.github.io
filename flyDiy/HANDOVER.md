@@ -65783,7 +65783,12 @@ bake, markBaked records that sun. FRAMECOST (the page in node, re-cooked tree): 
 (Cub) / 22 658 -> 8 324 (Cessna), gl.calls 135 579 -> 68 645 / 152 777 -> 85 845, links 2 -> 0. garage:compile links
 3 -> 5 are LOAD-COMPILE's two dome programs (the sky dome and the cloud dome applyDay swaps in, one shared vertex
 shader) MOVING into the compile passes, not new programs. One ALLOW: garage:compile bytes.bufferData 1 489 760 ->
-1 519 232 (the cloud dome's geometry, upTo 1 520 000). The GPU --profile-boot pair (the firstFrame worst task): PENDING.
+1 519 232 (the cloud dome's geometry, upTo 1 520 000). THE BOOT PROOF (LOAD-COMPILE's slot, master 220812de vs
+1d11c6c7 + G1137 in D:/Dev/wt-lc18v; metal Cessna, one warm profile, ABBA, 2 runs a side, --profile-boot;
+D:/Dev/wt-loadcompile/flyDiy/tools/perf/lc/x_{m,v}_{1,2}.json + _boot.cpuprofile): bakeHangarEnv sample runs 2 / 3 ->
+1 / 1 (C0c's recount agrees); PMREM bakes by step: snapshot + compile + firstFrame -> snapshot + compile; garage:firstFrame
+worst task 1069 / 416 -> 346 / 369 ms; tasks >= 1 s 1 -> 0; tGarage 43.0 / 40.0 -> 40.8 / 40.7 s; first flight median
+44.9 -> 44.1 s; taxi fps / uneven / p99 unchanged; PARKED.COOK.why empty on all four.
 TRAP (every app.js edit): FLYDIY_BUILD moves, the parked cook goes STALE, and FRAMECOST reds ~25 stand/taxi rows
 (the parked aeroplanes captured live in node) - deterministic, not clock noise. `node tools/parked_cook.js --check`
 first; re-cook in the worktree (GPU) before reading FRAMECOST.
