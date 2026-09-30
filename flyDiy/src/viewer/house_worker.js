@@ -38,7 +38,9 @@
 const HW_V = 1;
 // the page's generator files, in the page's order (build.js MANIFEST.world), by the global each publishes; the worker
 // imports those the page has (the lazy two only when the page loaded them)
-const HW_FILES = [['HOUSE_TEX_SETS', 'src/viewer/house_tex.js'], ['LOT_GROUND', 'src/viewer/lot_tex.js'], ['SIGN_TEX_META', 'src/viewer/sign_tex.js'],
+// (C2c: ground_tex.js before lot_tex.js - since AS2 (G910) the lot's sets are the ground library's view, LOT_TEX_SETS; without it
+// the worker threw at its init on train 17 and every house was built on the page)
+const HW_FILES = [['HOUSE_TEX_SETS', 'src/viewer/house_tex.js'], ['GROUND_TEX', 'src/viewer/ground_tex.js'], ['LOT_GROUND', 'src/viewer/lot_tex.js'], ['SIGN_TEX_META', 'src/viewer/sign_tex.js'],
   ['HOUSE_KIT', 'tools/_house_kit.js'], ['HOUSE_GEN', 'tools/_house_gen.js'], ['BIG_GEN', 'tools/_big_gen.js'], ['SHED_GEN', 'tools/_shed_gen.js'],
   ['HANGAR_GEN', 'tools/_hangar_gen.js'], ['TOWER_GEN', 'tools/_tower_gen.js'], ['TRAM_GEN', 'tools/_tram_gen.js'], ['TOTEM_GEN', 'tools/_totem_gen.js'],
   ['VILLAGE_GEN', 'tools/_village_gen.js'], ['PREMISES_BUILD', 'src/viewer/premises_build.js']];
