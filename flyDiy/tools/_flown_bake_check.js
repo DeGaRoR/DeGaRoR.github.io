@@ -277,8 +277,8 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   check(/FLOWN_BAKE\.forPayload\(data\)/.test(bm) && /setAttribute\('uv1', new THREE\.BufferAttribute\(fbUv, 2, true\)\)/.test(bm) &&
         /const matFor = name => \(FBK && FBK\.has\(grpMat\(name\)\) && !FBK\.inner\(grpMat\(name\)\)\)\s*\? \(FBK\.hybrid \? FBK\.twin\(matLive\(name\)\) : FBK\.matOf\(grpMat\(name\)\)\) : matLive\(name\);/.test(bm) &&
         /if \(fbUv && !FBK\.ab && !\(FBK\.liveGroup \? FBK\.liveGroup\(g\) : FBK\.innerGroup\(g\)\)\)/.test(bm), '7 buildModel reads the bake: the atlas uv, the baked material per atlas (the hybrid: a live copy on the kept mesh), the kept buckets\' live geometry');
-  check(/members: extMeshes, keep: true, set: 'ext'/.test(app) && /else if \(FBK && FBK\.hybrid && FBK\.has\(grpMat\(name\)\) && FBK\.uv\(dec\[name\]\)\) extMeshes\.push\(mesh\);/.test(app) &&
-        /FLOWN_BAKE\.nearT\(camera, hyP, hyV\.y\)/.test(app) && /FLOWN_BAKE\.hybrid\(t\)/.test(app), '7 the hybrid: the exterior\'s live meshes kept on its fold, t from the camera every frame (1 in the cockpit)');
+  check(/members: Z\.far, keep: true, set: 'ext', zone: 'far'/.test(app) && /members: Z\.eye, keep: true, set: 'ext', zone: 'eye'/.test(app) && /else if \(FBK && FBK\.hybrid && FBK\.has\(grpMat\(name\)\) && FBK\.uv\(dec\[name\]\)\) extMeshes\.push\(mesh\);/.test(app) &&
+        /FLOWN_BAKE\.nearT\(camera, hyP, hyV\.y\)/.test(app) && /FLOWN_BAKE\.hybrid\(t, tEye\)/.test(app), '7 the hybrid: the exterior\'s live meshes kept on its fold, t from the camera every frame (1 in the cockpit)');
   check(/window\.FLOWN_BAKE\.mergeModel\(THREE, grp, FBK\.mat, \{ written, wheel \}\)/.test(app) && /members: inMeshes, keep: true/.test(app) &&
         app.indexOf('FLOWN_BAKE.mergeModel(') > 0 && app.indexOf('FLOWN_BAKE.mergeModel(') < app.indexOf('const still = data.cage ? mergeStill(grp, meshes'), '7 the folds are made before G576\'s still merge (the exterior\'s; the cabin\'s keeping its members)');
   check(/if \(m\.userData\.flownMerge\) \{ if \(m\.userData\.crumbR != null\) m\.castShadow = false; return; \}/.test(app), '7 the roll-out\'s crumb rule reads a fold\'s class, not its sphere');
@@ -419,6 +419,18 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   // G1121.1: a walk that must see them (the craft's tag) sees them, hidden, and they are parked again after
   let seen = 0; FB.withKept(() => { g2.traverse(o => { if (o === k1 || o === k2) seen++; }); });
   check(seen === 2 && k1.parent === null && !k1.visible, '8 G1121.1 withKept: the parked live meshes back in the graph for a walk (the craft\'s tag), parked again after', 'seen ' + seen);
+  // G1124 (a): the shadow pass's swap (the folds shown, the live hidden) and back exactly
+  o2.fade(1); const vis0 = [o2.meshes[0].visible, k1.visible]; o2.shadowSwap(true); const sw = [o2.meshes[0].visible, k1.visible]; o2.shadowSwap(false);
+  const vis1 = [o2.meshes[0].visible, k1.visible]; o2.fade(0);
+  check(!vis0[0] && vis0[1] && sw[0] && !sw[1] && vis1[0] === vis0[0] && vis1[1] === vis0[1], '8 G1124 the shadow pass casts the fold (the same arrays, C4b\'s shadow) and hides the live meshes; the main pass\'s state put back',
+    JSON.stringify({ vis0, sw, vis1 }));
+  // G1124 (b): the eye's zone - the kept meshes near the cabin, their own live copies
+  const cabM = bakedMesh(box(0, 0, 0, 1, 1, 1, 1), live, true), nearM = bakedMesh(box(1.5, 0, 0, 2, 1, 1, 1), live, true), farM = bakedMesh(box(8, 0, 0, 9, 1, 1, 1), live, true);
+  const g4 = new T.Group(); g4.add(cabM, nearM, farM);
+  const tw0 = FB.liveTwin(live); nearM.material = tw0; farM.material = tw0;
+  const ez = FB.eyeZone(T, g4, [cabM], [nearM, farM]);
+  check(ez.eye.length === 1 && ez.eye[0] === nearM && ez.far[0] === farM && nearM.material !== tw0 && nearM.material.userData.flownZone === 'eye' && farM.material === tw0,
+    '8 G1124 the eye\'s zone: a kept mesh near the cabin goes to the eye\'s fold on its own live copy, a far one stays', JSON.stringify(FB.FB.eyeZoneN));
   check(hyParked && hyBand && hyNear && hyFar, '8 G1121 the hybrid: the live meshes out of the graph while the bake is drawn, both in the band, the live alone near, parked again far',
     JSON.stringify({ hyParked, hyBand, hyNear, hyFar }));
   const t1 = FB.hybrid(0.5), f1 = FB.FB_FADE.value; FB.FB.hyForce = 1; const t2 = FB.hybrid(0.2); FB.FB.hyForce = null; FB.hybrid(0);

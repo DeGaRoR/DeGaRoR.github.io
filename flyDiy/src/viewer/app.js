@@ -3043,16 +3043,20 @@
     // mergeModel): the rigs keep writing their own attribute objects (now views into the fold), a part that moves as a
     // whole is a bone. Told which buffers a rig writes (they go first: one upload range) and which meshes are a wheel's
     // (G1005: they cast under the crumb line)
-    let fold = null, foldIn = null;
+    let fold = null, foldIn = null, foldEye = null;
     if (FBK && !FBK.ab && window.FLOWN_BAKE.mergeModel) {
       const written = new Set();
       for (const r of rigs) if (r.hb || (r.bind && r.bind.bound.length)) written.add(r.posAttr);
       for (const L of [strutRigs, stretchRigs, surfParts, floatRigs, anchorRigs, linkRigs]) for (const r of L) if (r.posAttr) written.add(r.posAttr);
       const wheel = new Set();
       for (const w of wheelParts) if (w.obj && w.obj.traverse) w.obj.traverse(o => { if (o.isMesh) wheel.add(o); });
-      try { fold = !FBK.mat ? null : FBK.hybrid ? (extMeshes.length ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel, members: extMeshes, keep: true, set: 'ext' }) : null)
+      // G1124: the exterior's kept meshes in two zones - the EYE's (near the cabin: live in the cockpit) and the FAR's
+      const Z = FBK.hybrid && FBK.mat && extMeshes.length && window.FLOWN_BAKE.eyeZone ? window.FLOWN_BAKE.eyeZone(THREE, grp, inMeshes, extMeshes) : { eye: [], far: extMeshes };
+      try { fold = !FBK.mat ? null : FBK.hybrid ? (Z.far.length ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel, members: Z.far, keep: true, set: 'ext', zone: 'far' }) : null)
                                          : window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel }); }
       catch (e) { console.warn('flown bake: the fold failed', e); fold = null; }
+      try { foldEye = FBK.hybrid && FBK.mat && Z.eye.length ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel, members: Z.eye, keep: true, set: 'ext', zone: 'eye' }) : null; }
+      catch (e) { console.warn('flown bake: the eye fold failed', e); foldEye = null; }
       if (fold) for (const n in meshes) { const f = fold.of.get(meshes[n]); if (f) meshes[n] = f; }
       // the cabin: its live meshes stay (hidden), its fold draws them on the cabin's baked material but in the cockpit
       try { foldIn = (FBK.mats.in && inMeshes.length) ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mats.in, { written, wheel, members: inMeshes, keep: true }) : null; }
@@ -3062,17 +3066,20 @@
     const still = data.cage ? mergeStill(grp, meshes, mats, rigs, lamps) : null;
     // ...which may have folded a kept fold's members (the cabin's hidden live buckets; the A/B build's baked ones) per
     // material: the swap shows what stands now
-    const relive = (F, pick) => {
+    // (G1124: a zone's still meshes are the ones on that zone's live copies)
+    const relive = (F, pick, zone) => {
       if (!F || !F.view) return;
       const live = new Set();
       for (const o of F.kept) if (o.parent) live.add(o);
-      for (const n in meshes) { const o = meshes[n]; if (o && o.parent && o.userData.still && o.userData.still.some(k => pick(grpMat(k)))) live.add(o); }
+      for (const n in meshes) { const o = meshes[n]; if (o && o.parent && o.userData.still && o.userData.still.some(k => pick(grpMat(k))) &&
+        (!zone || (((o.material && o.material.userData && o.material.userData.flownZone) || 'far') === zone))) live.add(o); }
       F.live = [...live];
     };
     relive(foldIn, k => FBK.inner(k));
-    relive(fold, k => FBK.has(k) && !FBK.inner(k));
+    relive(fold, k => FBK.has(k) && !FBK.inner(k), FBK && FBK.hybrid ? 'far' : null);
+    relive(foldEye, k => FBK.has(k) && !FBK.inner(k), 'eye');
     // G1121: the kept live meshes (the cabin's; the hybrid's exterior) out of the graph until they are drawn
-    for (const F of [fold, foldIn]) if (F && F.park) F.park();
+    for (const F of [fold, foldIn, foldEye]) if (F && F.park) F.park();
     const people = buildPeople(data, grp, ctlMoves);   // live crew
     // G357: THE CAPTURE'S MAP, AND ITS INVERSE. The snapshot stores every
     // vertex through B⁻¹ (G337) so the oblique pose lands it exactly; a part
@@ -3094,7 +3101,7 @@
     // first rig stays whatever it is - sparDeltas reads its station table
     const m = Object.assign(entry, { grp, props, deltas, people, still,
                         fold: foldIn,                                  // C4b: the cabin's swap (view(cockpit))
-                        foldExt: fold && fold.fade ? fold : null,      // the hybrid: the exterior's band
+                        foldExt: (fold && fold.fade) || foldEye || null,   // the hybrid: the exterior's band (G1124: two zones)
                         rigs: still ? rigs.filter((r, i) => i === 0 || !still.names.has(r.name)) : rigs,
                         poseK, K4, Ki4,                                 // G357
                         // the panel arc (session 4): the hands, the lamps and
@@ -10505,9 +10512,10 @@
     // C4b: the cabin live at arm's length; THE HYBRID: the whole flown model live where a texel of the bake would show
     // (FLOWN_BAKE.nearT - the close chase), dithered across the band, and always in the cockpit
     if (model && (model.foldExt || model.fold) && window.FLOWN_BAKE && FLOWN_BAKE.hybrid && FLOWN_BAKE.FB.hybrid && !FLOWN_BAKE.FB.ab) {
-      let t = 1;
-      if (cam.mode !== 'cockpit') { model.grp.getWorldPosition(hyP); renderer.getDrawingBufferSize(hyV); t = FLOWN_BAKE.nearT(camera, hyP, hyV.y); }
-      FLOWN_BAKE.hybrid(t);
+      // (G1124: in the cockpit the eye's zone and the cabin live, the far zone on the bake)
+      let t = FLOWN_BAKE.FB.eyeOnly ? 0 : 1, tEye = 1;
+      if (cam.mode !== 'cockpit') { model.grp.getWorldPosition(hyP); renderer.getDrawingBufferSize(hyV); t = tEye = FLOWN_BAKE.nearT(camera, hyP, hyV.y); }
+      FLOWN_BAKE.hybrid(t, tEye);
     } else if (model && model.fold && model.fold.view) model.fold.view(cam.mode === 'cockpit');
     HEADCAM_ACTIVE = false;
     if (cam.mode === 'cockpit') {

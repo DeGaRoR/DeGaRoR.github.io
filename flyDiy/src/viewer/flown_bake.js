@@ -64,7 +64,8 @@
 (function () {
   const W = (typeof window !== 'undefined') ? window : globalThis;
   const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true,
-                hybrid: true, hyA: 1.6, hyB: 2.0 };   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
+                hybrid: true, hyA: 1.6, hyB: 2.0,
+                eyeR: 1.5, eyeOnly: true, shadowFolds: true };   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
   const log = (...a) => { if (FB.quiet) return; console.log('flown bake:', ...a); };
   const tick = () => new Promise(r => setTimeout(r, 0));
   // the dials in the URL: ?fbake=0 the live shader; ?fbake=ab the A/B build (live twins kept, the still merge off);
@@ -78,6 +79,8 @@
     if (on.has('foldab')) FB.foldAB = true;     // C4b's A/B: the folds keep their members (showFold flips them)
     if (on.has('ext')) FB.Sin = 0;              // C4b: the exterior's atlas only (the cabin flies live, as C4a)
     if (on.has('nohy')) FB.hybrid = false;      // the hybrid off: the bake at every distance (C4b as it landed)
+    if (on.has('alleye')) FB.eyeOnly = false;   // G1124 off: the whole exterior live in the cockpit
+    if (on.has('noshadowfolds')) FB.shadowFolds = false;   // G1124 off: the live meshes cast their own shadows
     for (const x of on) { const m = /^hy([\d.]+)-([\d.]+)$/.exec(x); if (m) { FB.hyA = +m[1]; FB.hyB = Math.max(+m[1] + 0.01, +m[2]); } }   // the band
     for (const x of on) { const m = /^hy=([\d.]+)$/.exec(x); if (m) FB.hyForce = Math.min(1, Math.max(0, +m[1])); }   // t held (the A/B rigs)
   } catch (e) {}
@@ -646,13 +649,51 @@
   }
   // a pooled live material's copy for the hybrid's kept meshes (its own: the pool's is shared with what never bakes -
   // a spinner on the same finish must not dither out)
-  function liveTwin(m) {
+  // (G1124: one copy per ZONE - the eye's and the far's - so G576's still merge never folds the two zones together)
+  const POOL = new WeakMap();
+  function liveTwin(m, zone) {
     if (!m || !m.isMaterial) return m;
-    let c = TWINS.get(m);
-    if (c) return c;
-    c = copyMat(m, hookOf(m), (m.name || 'aeroskin') + ':live', { flownLive: 1 });
-    TWINS.set(m, c);
+    zone = zone || 'far';
+    let z = TWINS.get(m);
+    if (!z) TWINS.set(m, z = {});
+    if (z[zone]) return z[zone];
+    const c = copyMat(m, hookOf(m), (m.name || 'aeroskin') + ':live' + (zone === 'far' ? '' : ':' + zone), { flownLive: 1, flownZone: zone });
+    POOL.set(c, m); z[zone] = c;
     return c;
+  }
+  // G1124 (b) THE EYE'S ZONE: the exterior's kept meshes whose sphere comes within FB.eyeR of the cabin's (the cockpit's
+  // own buckets, in the model group's frame) - the cowl, the windscreen's frame, the wing's centre and its top, the
+  // doors; the rest (the rear fuselage, the tail, the outer wing, the gear) is the FAR zone. Each zone folds apart; in
+  // the cockpit only the eye's is live (the far zone is 3-8 m off, where the bake's texel is near a pixel)
+  function eyeZone(THREE, grp, cab, ext) {
+    const eye = [], far = [];
+    if (!FB.eyeOnly || !cab || !cab.length) return { eye, far: ext.slice() };
+    grp.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(grp.matrixWorld).invert(), M = new THREE.Matrix4(), s = new THREE.Sphere(), all = new THREE.Sphere();
+    const sph = m => { const g = m.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); return s.copy(g.boundingSphere).applyMatrix4(M.multiplyMatrices(inv, m.matrixWorld)); };
+    let n = 0;
+    for (const m of cab) { const q = sph(m); if (n++) all.union(q); else all.copy(q); }
+    const R = all.radius + FB.eyeR;
+    for (const m of ext) { const q = sph(m); (q.center.distanceTo(all.center) - q.radius < R ? eye : far).push(m); }
+    for (const m of eye) m.material = liveTwin(POOL.get(m.material) || m.material, 'eye');
+    FB.eyeZoneN = { eye: eye.length, far: far.length, r: +R.toFixed(2) };
+    return { eye, far };
+  }
+  // G1124 (a) THE SHADOWS FROM THE FOLDS, ALWAYS: the same arrays, so the same shadow as C4b's - and the fold's handful of
+  // casters instead of the live meshes' hundreds. three builds the main pass's lists BEFORE its shadow pass (and tests a
+  // caster's layers against the MAIN camera: SHADOW-EYES G1080.2), so the swap is visibility, made where the pass
+  // starts: the near light's updateMatrices (the craft's map; the far map never draws the craft, G1080.2) shows the folds
+  // and hides the live meshes, and the next frame's hybrid() puts them back before its main pass.
+  let casting = false, castL = null, FOLD_CASTS = false;
+  function shadowFolds(on) { if (on === casting) return; casting = on; for (const F of FOLDS) if (F.shadowSwap) F.shadowSwap(on); }
+  function hookShadow() {
+    if (!FB.shadowFolds || (castL && castL.parent)) return;
+    const SN = W.SHADOW_NEAR, sc = SN && SN.C1 && SN.C1.scene;
+    const L = sc && sc.getObjectByName ? sc.getObjectByName('sunNear') : null;
+    if (!L || !L.shadow || typeof L.shadow.updateMatrices !== 'function') return;
+    castL = L; FOLD_CASTS = true;
+    const sh = L.shadow, um = sh.updateMatrices;
+    sh.updateMatrices = function () { if (FB.shadowFolds && FB.hybrid) shadowFolds(true); return um.apply(this, arguments); };
   }
   // t for a camera looking at a point: the screen pixels one texel of the exterior's atlas covers there, through the band
   const _hyP = { x: 0, y: 0, z: 0 };
@@ -666,12 +707,16 @@
     return Math.min(1, Math.max(0, (mag - FB.hyA) / (FB.hyB - FB.hyA)));
   }
   // every frame (app.js): t (1 in the cockpit), then the folds and their live meshes shown by it - once per change
-  function hybrid(t) {
-    if (FB.hyForce != null) t = FB.hyForce;   // the rigs' hold (FB.hyForce, ?fbake=hy=0.5): a number, or null for the rule
-    t = t <= 0.002 ? 0 : t >= 0.998 ? 1 : t;
-    FB_FADE.value = t;
-    FB.hyT = t;
-    for (const F of FOLDS) if (F.fade) F.fade(t);
+  // (G1124: tEye for the cabin and the eye's zone - the cockpit gives 1 there and 0 to the far zone; the chase one t)
+  function hybrid(t, tEye) {
+    shadowFolds(false); hookShadow();         // (G1124 a: last frame's shadow swap put back before this frame's main pass)
+    if (FB.hyForce != null) t = tEye = FB.hyForce;   // the rigs' hold (FB.hyForce, ?fbake=hy=0.5): a number, or null for the rule
+    if (tEye == null) tEye = t;
+    const q = x => x <= 0.002 ? 0 : x >= 0.998 ? 1 : x;
+    t = q(t); tEye = q(tEye);
+    FB_FADE.value = t > 0 && t < 1 ? t : tEye;
+    FB.hyT = t; FB.hyTEye = tEye;
+    for (const F of FOLDS) if (F.fade) F.fade(F.set === 'in' || F.zone === 'eye' ? tEye : t);
     return t;
   }
   function materialOf(THREE, d, set) {
@@ -849,7 +894,7 @@
     if (!mat || FB.ab || W.FLYDIY_FLOWN_MERGE === 0 || !THREE.SkinnedMesh || !THREE.BufferGeometry || !grp || !grp.traverse) return null;
     const o = opt || {}, wheel = o.wheel || new Set(), written = o.written || new Set();
     const CR = o.crumb != null ? o.crumb : 0.15, WR = o.wheelCrumb != null ? o.wheelCrumb : 0.04;
-    const keep = !!o.keep || !!FB.foldAB, subs = o.members ? o.members.slice() : [], set = o.set || (o.keep ? 'in' : 'ext');
+    const keep = !!o.keep || !!FB.foldAB, subs = o.members ? o.members.slice() : [], set = o.set || (o.keep ? 'in' : 'ext'), zone = o.zone || null;
     if (!o.members) grp.traverse(m => { if (m.isMesh && m.material === mat) subs.push(m); });
     const skip = {}, why = k => { skip[k] = (skip[k] || 0) + 1; };
     const folds = new Map();
@@ -990,7 +1035,7 @@
         if (nd || stale) {
           // a fold that is not drawn (the cabin's in the cockpit, the whole model in the shed) uploads nothing: three
           // only clears its ranges on an upload, so they would pile up frame after frame - it owes ONE whole upload instead
-          let shown = this.visible;
+          let shown = this.visible || (FOLD_CASTS && this.castShadow);   // (G1124 a: a fold that casts draws in the shadow pass)
           for (let q = this.parent; q && shown; q = q.parent) if (!q.visible) shown = false;
           if (!shown) stale = true;
           else if (stale || aP.updateRanges.length > 32 || aN.updateRanges.length > 32) {
@@ -1073,7 +1118,13 @@
         if (t <= 0) { cur = false; if (was !== 0) { for (const f of out.meshes) f.visible = true; liveOn(false); } return; }
         if (was <= 0 || was >= 1) { cur = true; for (const f of out.meshes) f.visible = true; liveOn(true); }
       };
-      out.set = set;
+      // G1124 (a): the shadow pass's swap - the folds shown, the live meshes hidden - and back exactly as they stood
+      let saved = null;
+      out.shadowSwap = on => {
+        if (on) { if (saved) return; saved = [out.meshes.map(f => f.visible), out.live.map(m => m.visible)]; for (const f of out.meshes) f.visible = true; for (const m of out.live) m.visible = false; }
+        else if (saved) { out.meshes.forEach((f, i) => { f.visible = saved[0][i]; }); out.live.forEach((m, i) => { m.visible = saved[1][i]; }); saved = null; }
+      };
+      out.set = set; out.zone = zone;
       FOLDS.push(out);
     }
     return out;
@@ -1207,7 +1258,7 @@
   }
 
   W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, nearT, liveTwin, bandOf, FB_FADE, folds: () => FOLDS.slice(),
-                   warmPairs: () => FOLDS.flatMap(F => F.pairs ? F.pairs() : []),
+                   warmPairs: () => FOLDS.flatMap(F => F.pairs ? F.pairs() : []), eyeZone, shadowFolds,
                    withKept: fn => { const back = FOLDS.map(F => F.unpark ? F.unpark() : null); try { return fn(); } finally { for (const b of back) if (b) b(); } }, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
                    bakeHook, FB_HOOK, BAKE_FS,
                    get bytes() { return bytes; },
