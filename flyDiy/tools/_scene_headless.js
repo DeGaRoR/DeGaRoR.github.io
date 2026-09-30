@@ -14,7 +14,9 @@
 //     spec   a saved build ({cage:{...}} or a bare cage object) or null for
 //            the page's default aeroplane; opts.over is laid on top of P
 //     opts   { over, level (2), step ('crease'), garage (window.GARAGE_SPEC
-//              value, e.g. an IFR wing-tank spec), layers (exclusion set) }
+//              value, e.g. an IFR wing-tank spec), layers (exclusion set),
+//              resolved (() => the built spec, the game's GARAGE_SPEC.resolved),
+//              inGame (CAGE_IN_GAME for the build: the layers read the game's spec) }
 //
 // The context is built ONCE per process and reused: the layers keep their
 // own module state (group disposal, caches keyed on the airframe object)
@@ -86,7 +88,10 @@ function sceneBuild(spec, opts) {
   const W = C.ctx;
   const CG2 = W.CAGE2;
   const PAGE = W.CAGE_PAGE || (W.CAGE_PAGE = {});
-  W.GARAGE_SPEC = opts.garage ? { get: () => opts.garage } : undefined;
+  // opts.resolved: the game's GARAGE_SPEC.resolved() (the built spec the energy
+  // layer's bay rule reads in the game, G1106); opts.inGame sets CAGE_IN_GAME for the build
+  W.GARAGE_SPEC = opts.garage ? Object.assign({ get: () => opts.garage }, opts.resolved ? { resolved: opts.resolved, update() {} } : {}) : undefined;
+  W.CAGE_IN_GAME = !!opts.inGame;
   const t0 = Date.now();
   const P = CG2.cageFromSpec(spec || null);
   if (opts.over) Object.assign(P, opts.over);

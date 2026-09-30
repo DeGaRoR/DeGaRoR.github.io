@@ -894,53 +894,18 @@ function vesselSolid(r) {
   return s;
 }
 
-// WHICH SURFACE THE TANK IS MOUNTED TO (G189): the section's deck when the
-// tank sits in the upper half of its section (the nose bay's band tops out
-// at the cowl deck, so a nose tank hangs), its keel otherwise. Returns the
-// signed distance from the tank's centre to that surface, for VESSEL_MESH's
-// own mount builder (which draws it in the tank's frame), or null.
-// G317: the fuselage's own surface under (or over) a mount foot, as a
-// function of the foot's position in the solid's frame — the airframe
-// contract's `surf(z, ang)` walked to the foot's lateral x by the section's
-// half-width, refined twice, then a wall's thickness back inside. Null when
-// the contract cannot be had (the builder then lands every foot on the keel
-// line, as before).
-let MOUNT_AF = null, MOUNT_AF_MESH = null;
-function mountSurf(ctx, r, sol, yaw, dy) {
-  const GG = window.GEAR_GEN;
-  const FS = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1);
-  let AF = window.CAGE_GEAR && window.CAGE_GEAR.AF;
-  if (!AF && GG && GG.cageAirframe) {
-    if (MOUNT_AF_MESH !== ctx.mesh) { MOUNT_AF = null; MOUNT_AF_MESH = ctx.mesh; }
-    if (!MOUNT_AF) { try { MOUNT_AF = GG.cageAirframe(ctx.mesh, FS); } catch (e) { MOUNT_AF = null; } }
-    AF = MOUNT_AF;
-  }
-  if (!AF || !AF.surf || !AF.halfWAt || !r.c || dy == null) return null;
-  const c = r.c, cs = Math.cos(yaw), sn = Math.sin(yaw);
-  const hang = dy > 0, wall = 0.02;
-  return (sx, sz) => {
-    const x = c[0] + cs * sx + sn * sz, z = c[2] - sn * sx + cs * sz;
-    // the belly (or the deck) sampled round its centre, the sample whose x
-    // is the foot's own taken — a rounded section has one such point a side
-    const base = hang ? Math.PI : 0;
-    let best = null, bd = Infinity;
-    for (let k = -24; k <= 24; k++) {
-      const q = AF.surf(z, base + k * 0.05);
-      if (!q || !isFinite(q[0]) || !isFinite(q[1])) continue;
-      const d = Math.abs(q[0] - x);
-      if (d < bd) { bd = d; best = q; }
-    }
-    if (!best || bd > 0.08) return NaN;
-    return (best[1] + (hang ? -wall : wall)) - c[1];
-  };
-}
-
-function tankMountDy(r) {
-  const c = r && r.c, sec = r && r.section;
-  if (!c || !sec) return null;
-  const hang = c[1] > 0.5 * (sec.yLo + sec.yHi);
-  return (hang ? sec.yHi : sec.yLo) - c[1];
-}
+// THE MOUNT IS GONE (G1106, CUB-COCKPIT 2026-09-30). G189 hung two 6 mm legs
+// under each strap from the tank to "the surface the bay stands on", and G317
+// taught each foot the fuselage's height; the user, from the Cub's seat, saw
+// two posts standing on the cowl top in front of the windscreen: "They're
+// drawn far too recklessly, and they keep poking through everywhere, as they
+// seem to expect a flat surface to anchor on, which they'll never find. If
+// you can't do something clean, get rid of it." The surface over a nose tank
+// is the COWL's (an analytic layer of its own, never the fuselage sheet the
+// feet asked) or the windscreen's, and cross-layer clearance is a declared
+// gap - so no leg, no foot plate, no cross tube: the tank hangs in its
+// straps, as it is drawn. GATE ENERGY's 'mount:' rows hold it on every
+// archetype (no edVessel_*_mount mesh, and VESSEL_MESH exports no builder).
 
 function drawResults(group, ctx, results) {
   const VM = window.VESSEL_MESH, K = window.GEAR_KIT;
@@ -964,27 +929,6 @@ function drawResults(group, ctx, results) {
       for (const slot of ['shell', 'hard', 'seal', 'mark'])
         slotMesh(group, sol[slot], slotMat(slot, slot === 'shell' && bad, i, r.v),
                  'edVessel_' + i + '_' + slot, r.c, yaw);
-      // THE MOUNT (G189, the user: "a small mount for the fuel tank? Nothing
-      // crazy, but a small structure that links it to the surface it's
-      // attached to. Light, tubes."). Under each strap, two legs from the
-      // strap's pad to the surface the bay stands on — the keel of the
-      // section for a floor bay, the deck above for a tank HUNG in the nose
-      // bay's band — a cross tube between the two feet, and a foot plate
-      // where each leg lands. It is the strap's own station and the tank's
-      // own turn, so it follows a drag, a resize and a re-yaw, and it takes
-      // the hardware finish (the `hard` slot) like the straps it belongs to.
-      if (r.section && sol.e && VM.mount) {
-        try {
-          const dy = tankMountDy(r);
-          // G317: the skin under each foot, from the airframe contract —
-          // the surface at the foot's own lateral station, a wall inside
-          // it — handed to the builder in the solid's frame
-          const yAt = mountSurf(ctx, r, sol, yaw, dy);
-          const mb = dy != null ? VM.mount(sol, dy, undefined, yAt) : null;
-          if (mb) slotMesh(group, mb, slotMat('hard', false, i, r.v),
-                           'edVessel_' + i + '_mount', r.c, yaw);
-        } catch (e) {}
-      }
       // THE FUEL INSIDE, at the slider's fill. It is the shell's own section
       // inset by the wall and cut flat at the level — so in a round tank the
       // fuel has a round bottom and a flat top, and the level itself is placed

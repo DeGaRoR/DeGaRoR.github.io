@@ -484,6 +484,11 @@ const GATES = [
   // actually fits. Every way it can be wrong is silent and reads as a slightly
   // roomier aeroplane, so every one of them has a check
   { id: 'ENERGY', file: '_energy_check.js', tier: 'core' },
+  // G1106 (CUB-COCKPIT): no tank support through the skin - every archetype
+  // built as the game flies it, the energy layer drawn headless at three tank
+  // sizes; the mount is gone and each vessel's hardware is raycast from its
+  // centre against every other surface (the fuselage sheet included)
+  { id: 'TANKMOUNT', file: '_tank_mount_check.js', tier: 'core' },
   // THE PANEL ARC, session 1 (2026-09-11): the sources the instruments read
   // — the shaft speed against the J-3's real numbers, the burn against the
   // thermo sheet, nz at rest and in free fall, the key and the starter

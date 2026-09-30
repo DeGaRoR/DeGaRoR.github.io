@@ -702,62 +702,6 @@ function wingBox(p8, tile) {
 }
 
 // ---------------------------------------------------------------------------
-// THE MOUNT (G189, the user: "a small mount for the fuel tank? Nothing crazy,
-// but a small structure that links it to the surface it's attached to. Light,
-// tubes."). In the solid's OWN frame (the layer places the buffer with the
-// tank's centre and yaw, as it does every other slot): under each strap, two
-// legs from the strap's pad to the surface `dy` away — below (dy < 0, the
-// tank stands on the keel) or above (dy > 0, hung under the deck) — a cross
-// tube between the two feet a hand off the surface, and a foot plate where
-// each leg lands. Null when there is nothing to bridge, or the gap is not a
-// mount's. `sol` is build()'s own result; the tile is the hardware's.
-// ---------------------------------------------------------------------------
-const MOUNT_R = 0.006, MOUNT_MAX = 0.6, MOUNT_MIN = 0.015;
-// G317 (the user: "the mounting points of the batteries/fuel tanks are
-// poking through the fuselage constantly. You should stop them before they
-// poke through"): `yAt(sx, sz)`, when the layer hands one over, is the
-// surface's own height under (or over) that foot, in the solid's frame — a
-// rounded belly is higher at a strap's pad than on the keel line, and every
-// leg used to run to the keel line and out through the skin beside it. Each
-// leg takes its own length; a foot that would land on the shell or a metre
-// away is not drawn; the cross tube runs foot to foot whatever their heights.
-function mount(sol, dy, tile, yAt) {
-  const e = sol && sol.e;
-  if (!e || !isFinite(dy)) return null;
-  const hang = dy > 0;
-  const gap = Math.abs(dy) - e[1];                  // from the shell's face
-  if (!(gap > MOUNT_MIN) || gap > MOUNT_MAX) return null;
-  const out = Buf();
-  const T = tile || 0.22, r0 = MOUNT_R;
-  const yEdge = hang ? e[1] : -e[1];
-  const ax = hang ? [0, 1, 0] : [0, -1, 0];         // leg direction, off the tank
-  const upS = hang ? [0, -1, 0] : [0, 1, 0];        // the foot plate's normal
-  let drawn = 0;
-  for (const sz of [-0.48 * e[2], 0.48 * e[2]]) {   // under each strap
-    const feet = [];
-    for (const sx of [-0.62 * e[0], 0.62 * e[0]]) {
-      let ys = dy;
-      if (yAt) { const q = yAt(sx, sz); if (isFinite(q) && (q > 0) === hang) ys = q; }
-      const g = Math.abs(ys) - e[1];
-      if (!(g > MOUNT_MIN) || g > MOUNT_MAX) continue;
-      tubeBuild(out, [sx, yEdge, sz], ax, r0, r0, g, T, 8, false, false);
-      const foot = [sx, ys, sz];
-      tubeBuild(out, foot, upS, r0 * 3.2, r0 * 1.6, 0.004, T, 12, true, true);
-      feet.push(foot); drawn++;
-    }
-    if (feet.length === 2) {
-      const lift = hang ? -0.03 : 0.03;
-      const a = [feet[0][0], feet[0][1] + lift, sz], b = [feet[1][0], feet[1][1] + lift, sz];
-      const d = [b[0] - a[0], b[1] - a[1], 0], L = Math.hypot(d[0], d[1]) || 1e-9;
-      tubeBuild(out, a, [d[0] / L, d[1] / L, 0], r0 * 0.85, r0 * 0.85, L, T, 8, true, true);
-    }
-  }
-  if (!drawn) return null;
-  out.feet = { ySurf: dy, hang, gap };
-  return out;
-}
-
-// ---------------------------------------------------------------------------
 // THE WING TANK AS A LOFT (G445.2, 2026-09-20): the spar bay's own section,
 // station by station. `ribs` is what VESSEL_GEN.wingRibs returns - inboard
 // to outboard, each {x, pts: [[z, yTop, yBot], ...]} with the same sample
@@ -858,7 +802,6 @@ function wingLoftVolume(ribs, opt) {
 }
 
 const API = { build, contents, wingBox, wingLoft, wingLoftVolume, mkShape, sectRR, widthAt, heightAt, Buf,
-              mount,
               loftBuild, capBuild, bandBuild, tubeBuild };
 if (typeof window !== 'undefined') window.VESSEL_MESH = API;
 if (typeof module !== 'undefined') module.exports = API;
