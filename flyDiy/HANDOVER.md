@@ -65492,3 +65492,10 @@ cascade trace is void - the Cub did not taxi in node). GATE SHADOWSKY +13 (G1080
 scenery mode, three's walk anchor, the far-pass hide / show / near-map-off / farHide off). GATE LIGHT anchor updated.
 TRAP: train 16's committed dev.html predates matlib.js (MATLIB throws in props / animals, the ground pink / white under
 live_driver): run node tools/build.js locally first (never commit the outputs).
+BATTERY (local, --all --jobs=3, the shared window): red on FRAMECOST (21) and CONTACT (1). CONTACT: its anchor wants the
+contact shadows right after poseModel - aim() moved after them (G1080.2), PASS. FRAMECOST: the STALE PARKED COOK, proven
+by a control - master 6b90f96e with one comment added (a new FLYDIY_BUILD, the cook stale: GATE PARKED says so) fails the
+same rows the same way (Cub stand draws.shadow 236 -> 522.5, draws.main 999 -> 1144, uniforms x1.7). Against that control
+this branch is LOWER on the shadow pass - the aeroplane out of the far map: Cub stand draws.shadow 522.5 -> 511.5, taxi
+taxi 232.5 -> 224.5, taxi tris.shadow 2 354 392 -> 2 229 199; metal stand 528 -> 518, taxi 240 -> 230.5. The red
+clears with the train's re-cook on its final build (tools/parked_cook.js), as train 16's did; no ALLOW entry wanted.
