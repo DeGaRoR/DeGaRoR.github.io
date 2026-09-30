@@ -646,7 +646,9 @@ function encodeInstances(rows) {
     b.writeUInt8(r.flags & 255, o + 23);
     for (let k = 0; k < 4; k++) b.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(r.ground[k] * 100))), o + 24 + k * 2);
   });
-  return { buf: b, plots: ok.map(r => [r.s.plot.id, r.flags & 1 ? 1 : 0]) };
+  // each row's plot: [id, outbuilding 0/1, the plot's seed] (C3c, G861: the game takes a row only for the plot the table was
+  // sown from - an edited plot, a new seed, builds unique)
+  return { buf: b, plots: ok.map(r => [r.s.plot.id, r.flags & 1 ? 1 : 0, r.s.plot.seed]) };
 }
 function decodeInstances(b) {
   const out = [];
