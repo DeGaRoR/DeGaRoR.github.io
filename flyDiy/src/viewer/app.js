@@ -651,7 +651,12 @@
   // 7 s in the middle of a boot step. While the boot's compile step is
   // pending, a bake asked for (the room's textures landing, a prop) is only
   // noted; the compile step runs it once the driver has linked the programs.
-  let envDeferred = false, envDirty = false;
+  // THE PROBE IS NOT BAKED WHILE THE WORLD IS UP (C0c). The room's maps and props land over the network under the
+  // roll-out screen (roomTexLanded -> onSkyReady), and each landing re-baked the garage's cube: 17-19 bakes in the
+  // roll-out's 'town' step (C0b's profile, Jolene, the metal Cessna), 2-4 of them 0.4-1.3 s in uniformMatrix4fv /
+  // drawElements while the driver linked the world's programs - a probe of a room nobody is standing in. envAway is
+  // set on the way out (rollOutStand) and cleared on the way back (enterGarage), which bakes once if anything asked.
+  let envDeferred = false, envDirty = false, envAway = false;
   function ensureEnvRT() {
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
@@ -664,7 +669,7 @@
   const envGens = {};
   const envGen = k => envGens[k] || (envGens[k] = new THREE.PMREMGenerator(renderer));
   function bakeHangarEnv() {
-    if (envDeferred) { envDirty = true; return; }
+    if (envDeferred || envAway) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
     // (one light model everywhere since W0.5a: r186 has only the physical one)
     const pm = envGen('room');
@@ -5130,7 +5135,7 @@
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
                           camMode: m => flCamMode(m),                                   // C4a (G870): the A/B rig's chase / cockpit views
-                          renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
+                          renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envAway, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
   // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)
@@ -6632,6 +6637,8 @@
       if (Number.isFinite(lo) && lo - skin < groundY) groundY = lo - skin;
     }
     applyEnv();
+    // C0c: back in the room - the one bake the world's landings asked for (under the mood applyEnv just set)
+    if (envAway) { envAway = false; if (envDirty) { envDirty = false; bakeHangarEnv(); } }
     railPhase = ''; setRail('GARAGE');
     // the cage build comes back up if the editor has ever booted (G65), and
     // the roll-out button re-reads the certificate
@@ -6759,6 +6766,7 @@
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
+    envAway = true;                    // C0c: the room's probe waits for the way back (bakeHangarEnv)
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
