@@ -56,12 +56,12 @@ const getJSON = url => new Promise((res, rej) => {
   http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => res(JSON.parse(b))); }).on('error', rej);
 });
 
-const teleport = (x, z, alt) => `(() => {
+const teleport = (x, z, alt) => `(async () => {
   const w = FLIGHT_PROBE.world();
   const gy = w.terrainH(${x}, ${z});
   const s = FLIGHT_PROBE.sim(), cg = s.cgPos();
   const dx = ${x} - cg[0], dy = (gy + ${alt}) - cg[1], dz = ${z} - cg[2];
-  for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; }
+  await FLIGHT_PROBE.place({ by: [dx, dy, dz], zeroV: true });   // G1096: on the sim that flies
   return JSON.stringify({ at: [${x}, ${z}], ground: +gy.toFixed(1) }); })()`;
 
 // settled: no chunk generated for 60 frames (the streamer says so itself)

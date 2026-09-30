@@ -18,9 +18,9 @@
   const D = 2250, V = 50, T = D / V, A0 = 320, A1 = 12;
   const at = t => { const k = Math.min(1, t / T), x = cg0[0] - hx * D * (1 - k), z = cg0[2] - hz * D * (1 - k);
     return [x, w.terrainH(x, z) + A0 + (A1 - A0) * k, z]; };
-  const place = p => { const c = s.cgPos(), dx = p[0] - c[0], dy = p[1] - c[1], dz = p[2] - c[2];
-    for (let i = 0; i < s.n; i++) { s.p[i * 3] += dx; s.p[i * 3 + 1] += dy; s.p[i * 3 + 2] += dz; s.v[i * 3] = s.v[i * 3 + 1] = s.v[i * 3 + 2] = 0; } };
-  place(at(0));
+  // G1096: the CG put at p on the sim that flies (FLIGHT_PROBE.place: under the physics worker the page's sim is a view)
+  const place = p => P.place({ at: p, zeroV: true });
+  await place(at(0));
   await new Promise(r => setTimeout(r, 2000));   // the eye settles at the start (and the ring drops what it held at the stand)
   const rows = [], t0 = performance.now();
   let last = t0, open = null, whole = null;

@@ -100,7 +100,7 @@ function boxStats(img, box) {
 }
 
 // ---- the page-side probes ------------------------------------------------
-const TELEPORT = `(() => {
+const TELEPORT = `(async () => {
   const w = (window.FLIGHT_PROBE && FLIGHT_PROBE.world) ? FLIGHT_PROBE.world() : makeWorld();
   const AT = ${JSON.stringify(AT)};
   let best = null, bn = -1;
@@ -114,8 +114,8 @@ const TELEPORT = `(() => {
   const gy = w.terrainH(best.x, best.z);
   const s = FLIGHT_PROBE.sim(); const cg = s.cgPos();
   const dx = best.x - cg[0], dy = (gy + ${AGL}) - cg[1], dz = best.z - cg[2];
-  for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; }
   const b = document.getElementById('bPause'); if (b && /pause/i.test(b.textContent)) b.click();
+  await FLIGHT_PROBE.place({ by: [dx, dy, dz], zeroV: true });   // G1096: on the sim that flies
   return JSON.stringify({ stand: [best.x | 0, best.z | 0], neighbours: bn, agl: ${AGL} }); })()`;
 const SETTLED = `(() => new Promise(res => {
   const wu = WORLD.worldUpdate; let worst = 0, n = 0, busy = false;

@@ -5114,6 +5114,11 @@
                           setManual, manual: () => manual, input: () => INP,     // G200
                           nextLeg: () => (flNextLeg ? (flNextLeg(), true) : false),   // G820 (C1c): Fly on's own chain, for a rig that cannot fly a circuit first
                           over: () => flightOver,                               // G820: the card's latch (an ending, G130)
+                          // G1096: A RIG'S PLACEMENT, on the sim that flies - never sim().p / .v by hand: under the physics
+                          // worker the page's sim is a view the next snapshot rewrites. { at: [x, y, z] the CG's place (a
+                          // null axis kept) | by: [dx, dy, dz], zeroV, dv: [vx, vy, vz] } -> a promise of the CG
+                          place: o => { if (SIMW && !running) SIMW.idle();   // (paused: the worker's clock stops first, as the page's did)
+                                         return (SIMW && SIMW.place(o || {})) || Promise.resolve(SIM_HOST.place(sim, o || {})); },
                           nav: () => flNav,                                         // G202.1
                           agl: () => hudAgl(),                                      // G700: the height the PFD and the trace read
                           // 2026-09-11: the orbit's state, and a jump to where it

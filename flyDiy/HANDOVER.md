@@ -64192,8 +64192,9 @@ THE LOOK CHECK (for the coordinator / the user, on the box; dev.html or index.ht
   - The site items (the aerodrome's club, sheds, fuel, objects) are NOT on the band. They switch per cell at 170 m, as before (G559's lod-0 far version).
   - At HOME's stand and along the taxi, nothing of the band is in view: the stand's cell holds only items, and the village is 3.5 km out, as boxes.
 - **Where to look.** Jolene's village: 84 houses, x 256..1536, z -3072..-2304 (256 m cells 1..5 x -12..-10), ~3.5 km from HOME's stand.
-  - To hold the aeroplane there, paste in the console, then pause:
-    `((X, Z, agl) => { const w = FLIGHT_PROBE.world(), s = FLIGHT_PROBE.sim(), cg = s.cgPos(), dy = w.terrainH(X, Z) + agl - cg[1]; for (let i = 0; i < s.n; i++) { s.p[i*3] += X - cg[0]; s.p[i*3+1] += dy; s.p[i*3+2] += Z - cg[2]; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; } })(900, -2250, 20)`
+  - To hold the aeroplane there, pause, then paste in the console (G1096: through FLIGHT_PROBE.place - the old snippet wrote
+    FLIGHT_PROBE.sim().p by hand, which the physics worker's next snapshot undoes since SIMW_DEFAULT):
+    `((X, Z, agl) => FLIGHT_PROBE.place({ at: [X, FLIGHT_PROBE.world().terrainH(X, Z) + agl, Z], zeroV: true }))(900, -2250, 20)`
     (frame_perf's `at:900:-2250:20` is the same place.)
   - The poses the node numbers use:
     - (899, -2234) 400 m north of the village, facing it: all lod 1;

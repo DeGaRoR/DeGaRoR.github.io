@@ -309,6 +309,11 @@ const GATES = [
   // sweep and the roll-out back, the divergence; every flight's steps and page reads bit-identical, every door at the
   // same session step. Four page runs ONE AT A TIME (~3.8-4.1 GB each)
   { id: 'SIMWORKER-EDGES', file: '_simworker_edges_check.js', tier: 'full', timeout: 4 * 3600_000, weight: 2, wall: 2400 },
+  // G1096 (SIMW-BENCH): A RIG'S PLACEMENT AND THE PLAYER'S PAUSE under the worker - FLIGHT_PROBE.place (the rigs' hold /
+  // carry, on the sim that flies) and the pause button, ?simw=0 against ?simw=1 (lockstep), the Cub and the metal Cessna:
+  // the pause holds to the bit, the CG where it was asked, every read bit-identical across the two paths. Four page runs
+  // ONE AT A TIME (~3.6-4 GB each)
+  { id: 'SIMWORKER-PLACE', file: '_simworker_place_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 900 },
   // THE UNDERCARRIAGE (G67.3), and it closes the one gap G67.2 declared: the
   // three leg families as three different drawings — the check GATE GEN lost
   // when the old skin's leg drawer went — plus the wheel turning on its own,

@@ -56,7 +56,7 @@ const getJSON = url => new Promise((res, rej) => {
 });
 
 // ---- the probes, run in the page --------------------------------------
-const TELEPORT = `(() => {
+const TELEPORT = `(async () => {
   // the world that booted (W2: an island, or the analytic one), not a fresh analytic make
   const w = (window.FLIGHT_PROBE && FLIGHT_PROBE.world) ? FLIGHT_PROBE.world() : makeWorld();
   const T = w.trees.filter(t => Math.hypot(t.x, t.z) < 2500);
@@ -67,7 +67,7 @@ const TELEPORT = `(() => {
   const gy = w.terrainH(best.x, best.z);
   const s = FLIGHT_PROBE.sim(); const cg = s.cgPos();
   const dx = best.x - cg[0], dy = (gy + 110) - cg[1], dz = best.z - cg[2];
-  for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; }
+  await FLIGHT_PROBE.place({ by: [dx, dy, dz], zeroV: true });   // G1096: on the sim that flies
   return JSON.stringify({ stand: [best.x | 0, best.z | 0], neighbours: bn }); })()`;
 // settled = no chunk generated for 60 frames: the streamer says so itself
 // (TREE_FILL.stat().busy - W0c.30, since the sliced walk keeps every frame
