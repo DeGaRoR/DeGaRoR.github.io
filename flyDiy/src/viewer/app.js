@@ -7108,15 +7108,24 @@
   // ...ROUND THE STAND: six headings at the chase's distance (the reveal's eye is on one of them, the pilot's turn onto
   // the taxiway sweeps the rest) - a view draws only what its frustum holds, and a buffer first drawn in flight is
   // uploaded there (GATE ROUNDTRIP: 206 MB of bufferData in the first 40 frames with one view)
+  // G1137 (LOAD-COMPILE): ...A VIEW A TASK. The six in one task were the 'frames' step's 1.0-1.6 s task (train 17's metal
+  // Cessna: 1581 ms - the draws, their uniforms, ~16 ms of first-draw per program new to a view); a view per task keeps
+  // each well under the second, and every link is done before the first of them (programsReady), as before
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
     const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
-    for (let i = 0; i < 6; i++) {
+    const view = i => {
       const h = i * Math.PI / 3;
       cam.position.set(a[0] + 1.3 * D * Math.cos(h), a[1] + 0.35 * D, a[2] + 1.3 * D * Math.sin(h)); cam.lookAt(a[0], a[1] + 1.5, a[2]);
       cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
       worldSettle(); if (aa) aa.render(scene, cam); else renderer.render(scene, cam);
-    }
+    };
+    return new Promise(res => {
+      let i = 0;
+      const tick = () => { try { view(i); } catch (e) { console.warn('world warm draw:', e && e.message); }
+        if (++i < 6 && inGarage) setTimeout(tick, 0); else res(); };
+      tick();
+    });
   }
   // THE WORLD AS THE FLIGHT WILL FIND IT AT THE STAND, in the one loading: its per-frame update run once there (the sun's
   // cascades aimed, the near-shadow light live or not, the village lamps lit or not for the hour) - the lights' count and
@@ -7342,7 +7351,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) { worldWarmDraw(); return; } holdRender = false; return framesRendered(2); }));
+        .then(() => { if (inGarage) return worldWarmDraw(); holdRender = false; return framesRendered(2); }));
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
