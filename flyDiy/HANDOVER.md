@@ -65313,3 +65313,110 @@ FRAMECOST's page gets no Worker, flies inline, and SIM_LINK wraps nothing there 
 predate the last two fixes (shed(): a no-op there - enterGarage resets the flight's own sim; the pause flush: the same step
 boundary in lockstep).
 Built outputs rebuilt by the runner, not committed (a cloud branch).
+
+## G1100-G1101 - POSE-SMOOTH: THE DRAWN AEROPLANE BETWEEN PHYSICS STEPS - INLINE (PACE.alpha, POSE_LERP) AND UNDER THE PHYSICS WORKER (A RING ON THE HOST'S SCHEDULE) (2026-09-30, POSE-SMOOTH for the coordinator, local GPU; block G1100-G1104, G1102-G1104 unused)
+
+C4b's open item at G879.1: "the flown pose is the solver's last step, not interpolated". Branch posesmooth/g1100 (pushed as
+claude/train-17-pose) on train 17 9a7db2d8: e11a3286 + 746e2df7 (G1100) + ac573687 (G1101).
+
+**G1100 - INLINE (?simw=0).** The classic fixed-step accumulator (app.js, next to the frame clock):
+- `PACE.alpha` = the leftover accumulator x 60 + 0.25 (the frame owes floor(acc x 60 + 0.25) steps, so the leftover sits
+  in [-0.25, 0.75)): the drawn pose is 0.75 of a step behind the wall clock on every frame. 1 under the old clock (a rig,
+  the harness): nothing is swapped, every gate / hash / shot reads what it read.
+- `POSE_LERP`: the step block marks sim.p before the frame's last 60th of steps and takes it after; from just after
+  `WF.worldUpdate` to just after the render sim.p holds p0 + (p1 - p0) x alpha, then p1 goes back bit for bit (also on
+  the boot hold's return, and at the next frame's top should a frame throw). Everything drawn from the sim reads the drawn
+  positions: poseModel (body, flex skin, surfaces, gear, wheel spin), the head camera (model.grp), the chase target
+  (`cgD`), contactShadows, sync()'s truss, the floats - and G1080's SHADOW_NEAR.aim() (it reads model.grp after
+  poseModel: consistent with no hook). The pair is dropped when the positions moved outside the step block (a reset, a
+  re-placement, the skip) or the sim changed; a pause holds the alpha it had.
+- NOTHING DRAWN IS FED BACK: the solver, the pilot's script, the director and the panel run before the swap;
+  worldUpdate is given the NEWEST step's CG (the world is the solver's world: streaming and the climate's samples see
+  what they saw); the solver recomputes its axes from p at every substep (30_solver aeroPass -> bodyAxes).
+- The sea is drawn at the drawn pose's time (WATER.setTime: sim.t less the drawn share of the last 60th; under the worker
+  the view's drawn time) - the hull and the wave under it move together.
+- Cost (node): 2.7 us a frame at 300 nodes, 7.5 at 1 000, 25 at 3 000 (mark + take + draw + restore).
+
+**G1101 - UNDER THE PHYSICS WORKER (?simw=1, train 17's default).** Series A found it juddering far worse than inline, on
+the base and on G1100 alike: sim_view.frame mapped page time to sim time through each snapshot's PUBLISHING moment (the
+step's cost + the timer's lateness), read now() mid-frame, and kept the two newest (a late successor froze the pose, the
+next frame jumped): at an even 16.7 ms a frame the Cub moved 28-56 mm then 160-523 mm a frame in the climb.
+- sim_host.js: `SIM_SNAP.DUE` (HEAD 26 -> 27) = the moment the newest state was due on the host's own schedule (wall0 +
+  the steps since the anchor at the set rate; WALL where no clock runs); `SIM_HOST_POOL` 3 -> 7.
+- sim_view.js: a RING of the newest five snapshots of the flight; frame(T) draws the pair that holds T - delay; the delay
+  follows the newest snapshot's worst lateness over a second of frames + 2 ms, 1-4 steps, slewed (10 % of the frame's
+  time up, 2 % down: the drawn clock never jumps). delay() / ring() for the rigs; FLYDIY_SIMW.state().ring.
+- sim_link.js / app.js: T is the frame's rAF timestamp (the inline loop's clock).
+- A node simulation (scratch view_sim.js: a host on its schedule + cost + lateness, delivered between busy page frames
+  on a 60 Hz vsync), velocity jumps over the frames' timestamps rms/max mm, old -> new: light 40.5/111 -> 0/0, Cub-like
+  57.2/193 -> 0/0, metal 49.9/127 -> 0/0, heavy (14 ms steps) 95.0/255 -> 0/0 (delay 1.12 / 1.12 / 1.12 / 2.12 steps).
+
+**THE METRIC (tools/eye_judder.js).** C4b's per-frame second difference counts a 33 ms frame after a 16.7 ms one (2 steps
+after 1) as judder though the motion is right for the time it covers: rAF timestamps are vsync-quantised and the frame
+clock owes its steps against them, so `tsRefreshes` equals `stepsPerFrame` frame for frame. `judderTs` is the velocity's
+change frame to frame over the frames' own timestamps (mm over a 60th; equal to the second difference on even frames):
+it reads the aeroplane's own accelerations when the pose is right for its frame, a step when it is not. Both are
+reported. New columns: the frame's rAF ts, the steps owed, the pose's alpha / on, simw; the horizontal eye (eyeXZ); a
+chase view (argv 5); the worker view's ring.
+
+**MEASURED** (the Cub, eye_judder 5 s a phase, cockpit; D:/Dev/pose_out; rms/max mm, judderTs):
+INLINE, base -> G1100:
+| cap | phase (fps base / G1100) | eye XZ | eye Y |
+|---|---|---|---|
+| 60 | stand (58 / 57.8) | 0.45/1.41 -> 0.10/0.31 | 0.02/0.17 -> 0.02/0.20 |
+| 60 | taxi (56.5 / 58) | 0.43/1.74 -> 0.11/0.49 | 0.04/0.28 -> 0.04/0.27 |
+| 60 | climb (59.1 / 59.1) | 2.48/7.43 -> 0.33/0.84 | 0.33/1.12 -> 0.09/0.20 |
+| 30 | stand (30 / 30.2) | 0.30/0.75 -> 0.22/0.62 | 0.02/0.12 -> 0.02/0.12 |
+| 30 | taxi (30 / 30) | 0.32/1.10 -> 0.23/0.91 | 0.06/0.41 -> 0.06/0.30 |
+| 30 | climb (30.1 / 30.2) | 1.53/3.72 -> 0.96/2.07 | 0.23/0.58 -> 0.15/0.34 |
+| auto | stand (34.9 / 35.1) | 0.31/0.80 -> 0.17/0.62 | 0.03/0.23 -> 0.03/0.22 |
+| auto | taxi (32.8 / 32.1) | 0.31/0.76 -> 0.19/0.71 | 0.06/0.28 -> 0.06/0.28 |
+| auto | climb (54.4 / 57.3) | 2.80/7.75 -> 0.43/1.36 | 0.37/1.01 -> 0.08/0.26 |
+| 60 chase | taxi | 1.40/7.82 -> 1.22/6.50 | 0.04/0.22 -> 0.04/0.30 |
+| 60 chase | climb | 2.61/7.43 -> 0.95/6.56 | 0.34/1.05 -> 0.10/0.29 |
+(The chase view's stand phase starts right after the mode switch: the camera's own ease, 26-40 mm rms either way, the
+aeroplane's origin 0.02 mm - not a pose number.) The 60 cap gains most: its frames alternate 1 and 2 steps on a display
+that is not exactly 60.000 Hz (alpha drifts: a whole step slips on one frame now and then - the old draw showed it).
+WORKER (?simw=1), base (= G1100) -> G1101:
+| cap | phase (fps base / G1101) | eye XZ | eye Y |
+|---|---|---|---|
+| 60 | stand (56.7 / 58) | 20.08/57.92 -> 0.35/3.83 | 0.01/0.05 -> 0.01/0.05 |
+| 60 | taxi (55.6 / 58.1) | 19.73/55.90 -> 0.47/5.81 | 0.04/0.30 -> 0.02/0.17 |
+| 60 | climb (58.2 / 58.9) | 174.36/657.62 -> 0.42/1.38 | 22.42/83.47 -> 0.10/0.28 |
+| 30 | stand (30 / 30) | 9.40/37.99 -> 0.29/0.84 | 0.01/0.06 -> 0.01/0.04 |
+| 30 | taxi (30 / 30) | 8.95/31.56 -> 0.30/1.12 | 0.04/0.30 -> 0.04/0.27 |
+| 30 | climb (30.1 / 30.1) | 64.86/145.70 -> 0.85/2.05 | 8.48/20.06 -> 0.16/0.43 |
+| auto | stand (35.3 / 57.9) | 13.36/63.61 -> 0.13/0.45 | 0.01/0.05 -> 0.01/0.04 |
+| auto | taxi (57 / 58.1) | 17.83/54.60 -> 0.13/0.46 | 0.03/0.25 -> 0.02/0.17 |
+| auto | climb (57.8 / 57.4) | 162.15/647.63 -> 0.95/4.12 | 21.12/86.15 -> 0.13/0.59 |
+The ring's delay settled at 1.00 / 1.27 / 1.51 steps (60 / 30 / auto; the worst lateness 13.6 / 19.2 / 23.1 ms); frames
+starved of a successor 5 in 12 705, 1 in 6 424, 3 in 12 720; none before the ring. The worker path is now at or under
+inline G1100's level - SIMW_DEFAULT stays true.
+- The per-frame second difference in the climb stays ~57 mm (C4b's number): the display's doubled frames, the motion right
+  for their time - interpolation cannot remove a dropped frame; 60 where it is even (G994) is what does.
+
+**ROLLOUT_PERF** (the ratchet's scenario, private warm profile C:/pose_rp, ?simw default = 1, two runs each, the same
+session, base 9a7db2d8 vs G1100 746e2df7): RATCHET PASS every row - Cub render 9.95 -> 10.0 ms, loop 13.75 -> 13.7,
+uneven 0.07 -> 0.08, p99 33.5 -> 33.5; metal render 10.05 -> 10.15, loop 13.55 -> 13.6, uneven 0.08 -> 0.07.
+G1101 (ac573687, one run each, against the same base runs): RATCHET PASS - Cub render 9.95 -> 9.8 ms, loop 13.75 -> 13.5,
+uneven 0.07 -> 0.08, p99 33.5 -> 33.5; metal render 10.05 -> 10.2, loop 13.55 -> 13.8, uneven 0.08 -> 0.08, p99 33.5 ->
+33.5 (the ring's delay 1.09 / 1.66 steps, starved 5 / 1).
+Against the train-16 landing baseline (6b90f96e) both trees read the same 8 RED rows (taskWorst ~4 s, garage / flight
++12-20 s, compile): train 17's loading, not POSE.
+
+**GATES:** GATE PACE (new: 1/2, 1/3, 1/2/3-step and an uneven 45 fps's frames draw x 0.000 mm off a straight line in wall
+time; restored bit for bit; the trajectory with and without the draws the same bits; a rig swaps nothing; a reset drops the
+pair), GATE SIMWORKER's interpolation check on the ring (halfway between the two newest, 2.25 steps back between the 4th
+and 3rd, clamped at the ring's oldest and the newest), GATE WATER's clock check (the drawn pose's time), GATE FLIGHTREC's
+wiring regex (the restore after FR.end on the boot hold). The full battery (--all --jobs=3, e11a3286): 139 PASS, 6 FAIL -
+FLIGHTREC and WATER were these source checks (fixed in 746e2df7, re-run PASS); HOUSEWORKER (LOT_TEX_SETS is not defined),
+KTX2 (TEX_FLAT is not defined, chars media missing), MEDIA (the same media, index.html +0.37 MiB over the train's committed
+build) and PREMCOOK (the placements not as cooked) fail identically on the untouched base - train 17's own.
+G1101's gates (ac573687, under the CPU lock): SIMWORKER, SIMWORKER-PAGE, SIMWORKER-EDGES, PACE, UISMOKE - PASS (the host:
+0 buffers allocated after the first second at pool 7; the pose age in SIMWORKER's busy loop p50 26 / p90 32 ms).
+
+**TRAPS:**
+- The worker imports src/viewer/sim_host.js LIVE from the served tree (sim_host.js simHostSource): a rollout_perf of the
+  built index.html still runs the tree's loose sim_host.js - never edit it while a series measures that tree.
+- `grep -c $'\r'` in the Bash tool miscounts: count CRs with `tr -cd '\r' | wc -c`.
+- The stand phase of eye_judder under the worker is not parked (the flight has begun rolling): compare like with like.
