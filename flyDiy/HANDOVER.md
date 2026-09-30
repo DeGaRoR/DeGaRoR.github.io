@@ -66280,7 +66280,7 @@ ALSO IN THIS BRANCH
   A landing re-cooks them again; measure a branch only after re-cooking it (tools/parked_cook.js --check says whether).
 
 MEASURED (RTX 3080, rollout_perf, BEFORE = master 220812de, AFTER = this branch; the same flags: default window, warm
-profiles %TEMP%/c2cbeforew / c2cafter2w, --port 8741, --fallback; runs in tools/perf/rollout_c2c_{before,after2}_*.json)
+profiles %TEMP%/c2cbeforew / c2cafter2w, --port 8741, --fallback; runs on the box: tools/perf/rollout_c2c_{before,after2}_*.json, not committed)
 | | cold garage | warm garage | town step | settle | taxi fps delivered | p99 | render ms | tasks > 1 s (worst) |
 |---|---|---|---|---|---|---|---|---|
 | BEFORE | 68.6 s | 39.4 - 44.1 s | 7.1 - 7.2 s | 10.6 - 11.3 s | 31.8 - 32.1 | 33.5 | 9.6 - 9.8 | 1 - 2 (1.46 s) |
@@ -66307,11 +66307,11 @@ FOR THE NEXT SESSION
   misses across stands. A client-side cook of the tallies at the save (the record's order, in the worker) closes it.
 
 EVIDENCE (tools/perf/c2c_evidence/, for the user's gallery)
-- c2c_g843_before_h2_s.png / c2c_g843_after_h2_s.png: a village harbour house from the sea, day 13:00, ?pierwater=0 vs
+- c2c_g843_before_h2_s.jpg / c2c_g843_after_h2_s.jpg: a village harbour house from the sea, day 13:00, ?pierwater=0 vs
   this branch - no pier, no boat / its jetty of pier modules, three boats moored, people on the deck.
-- c2c_g843_before_h6_s.png / c2c_g843_after_h6_s.png: the same for a second house (its jetty, two boats, people).
-- c2c_editor_*.png: the editor proof's own harbour, drawn, then reloaded from the cache (the editor pass).
-- tools/perf/rollout_c2c_{before,after2}_*.json: the series above.
+- c2c_g843_before_h6_s.jpg / c2c_g843_after_h6_s.jpg: the same for a second house (its jetty, two boats, people).
+- c2c_editor_*.jpg: the editor proof's own harbour, drawn, then reloaded from the cache (the editor pass).
+- (the stills as JPEG, 1280 px q82; the PNGs and the series' JSONs, tools/perf/rollout_c2c_{before,after2}_*.json, kept on the box)
 
 THE BATTERY: `node tools/run_gates.js --all --jobs=6` on this branch (2026-09-30 16:44, rebased on 220812de): every gate
 PASS but FRAMECOST (the stale parked keys); after the parked re-cook: FRAMECOST PASS, HOUSEWORKER PASS, PREMCOOK PASS;
