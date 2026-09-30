@@ -276,7 +276,9 @@ async function openPage(opts) {
     if (/^[a-z]+:\/\//i.test(url)) { const u = new URL(url); if (u.hostname !== 'localhost') return null; url = u.pathname.replace(/^\/flyDiy\//, ''); }
     const rel = decodeURIComponent(url.split('#')[0].split('?')[0]).replace(/^\.?\//, '');
     const f = path.join(ROOT, rel);
-    try { return fs.readFileSync(f); } catch (e) { return null; }
+    // PAGE_FALLBACK=<repo root> (LOAD-COMPILE G1085): a worktree has none of the gitignored data (assets/*); a path
+    // missing here is read from that checkout's flyDiy/, as tools/_serve.js --fallback serves it to the browser
+    try { return fs.readFileSync(f); } catch (e) { if (!process.env.PAGE_FALLBACK) return null; try { return fs.readFileSync(path.join(process.env.PAGE_FALLBACK, 'flyDiy', rel)); } catch (e2) { return null; } }
   };
   class Blob {
     constructor(parts, o) { const bufs = (parts || []).map(p => typeof p === 'string' ? Buffer.from(p) : p instanceof Blob ? p._bytes : ArrayBuffer.isView(p) ? Buffer.from(p.buffer, p.byteOffset, p.byteLength) : Buffer.from(p));
