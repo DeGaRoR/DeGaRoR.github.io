@@ -348,6 +348,8 @@ const HOST = KIT.host(THREE, { pack: P, rows: I.rows, tarr: T, HG, mode: 'batch'
   check(lz.indexOf("['src/viewer', 'townkit.js']") > 0 && bj.slice(bj.indexOf('  world: ['), bj.indexOf('  lazy: [')).indexOf("'townkit.js']") < 0, 'H build.js: townkit.js on the lazy list, not the world pack');
 }
 
-console.log('GATE KITHOST: ' + (fail.length ? 'FAIL' : 'PASS') + '  (' + checks + ' checks, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
+// (C3c: the verdict line alone - run_gates.js reads /^GATE KITHOST: PASS$/m; the WIP's count on it read as a FAIL there)
+console.log('  ' + checks + ' checks, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
 for (const f of fail) console.log('  FAIL ' + f);
+console.log('GATE KITHOST: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);

@@ -414,6 +414,11 @@ const GATES = [
   // TERRAIN at every footprint corner of every record; the LOD band complementary and the tick a superset; the looks;
   // both hosts (BatchedMesh, the InstancedMesh arm); render_premises' look-review wiring (~12 s)
   { id: 'KITHOST', file: '_kithost_check.js', tier: 'core' },
+  // METLAKATLA ON THE KIT (C3c, G860-G864): with the town composed, every plot Metlakatla sows is a kit plot of the
+  // committed table (its seed) and nothing else is (the village, the landmarks); src/viewer/kit_lot.js places each lot's
+  // house exactly where the kit's sowing did, keeps no house geometry (the pier's piles and the jetty alone), plans as
+  // the lod-0 build; the zone's tide; the worker's wire; the outbuildings; the kit houses solid; the page's wiring (~55 s)
+  { id: 'METKIT', file: '_metkit_check.js', tier: 'core' },
   // THE PARKED AEROPLANES (G411): builds as props, headless on a synthetic
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs

@@ -40,6 +40,7 @@
 //   FRAMECOST_WORKERS=1   the census with the page's house worker on (G830; the harness's Worker shim, a cold cache)
 //   node tools/_framecost_check.js --compare a.json b.json   which counts differ between two censuses (the bisect's)
 //   FRAMECOST_QUERY='raster=1'  a URL query for the page (hold a default equal across commits in a bisect)
+//   FRAMECOST_METLAKATLA=1  a view in the middle of Metlakatla (with FRAMECOST_QUERY=town=1; the kit's A/B: &townkit=0), C3c
 //   FRAMECOST_RASTER_TRACE=f    every premises raster read to f (tools/_rastercache_bench.js --trace, G735)
 // READING THE COUNTS. They are the page's work on THIS harness: exact and repeatable, not a browser's. What the page
 // budgets in milliseconds (the forest fill, the premises stream, the prewarms) runs on the virtual clock, where
@@ -280,6 +281,24 @@ async function census(build) {
     const vp = villagePose(W);
     if (vp) { placeAt(W, FP, vp); views.village = await measure(); detail.village = drawnDetail(C); views.village.pose = [vp.x, vp.z, vp.hdg, vp.n + ' props within 120 m']; }
   }
+  let metlakatla = null;
+  // FRAMECOST_METLAKATLA=1 (C3c, G864; a view never in the verdict or the baseline, for FRAMECOST_QUERY=town=1 [&townkit=0]):
+  // the aeroplane stood in the middle of Metlakatla's built plots (the median of their groups - a unique house's or a kit
+  // lot's, both where the plot's house stands), so the town's unique and kit arms are counted at the same place
+  // - everything queued within FRAMECOST_METLAKATLA_R (700 m) of it built first (the renderer's drainNear), then 60
+  // frames for the far town's cell bakes and the merges before the counted window
+  if (process.env.FRAMECOST_METLAKATLA) {
+    const mp = metPose(W, FP);
+    if (mp) {
+      placeAt(W, FP, mp);
+      const R = W.WORLD.premises, t = Date.now();
+      const left = R.drainNear(mp.x, mp.z, +(process.env.FRAMECOST_METLAKATLA_R || 700));
+      await P.frames(60);
+      views.metlakatla = await measure(); detail.metlakatla = drawnDetail(C);
+      views.metlakatla.pose = [mp.x, mp.z, mp.hdg, mp.n + ' Metlakatla plots, the drain ' + ((Date.now() - t) / 1000).toFixed(0) + ' s wall, ' + left + ' left queued'];
+      metlakatla = { premises: { houses: R.stats.houses, objects: R.stats.objects, queued: R.stats.queued, houseTris: R.stats.houseTris, obstacles: R.stats.obstacles }, kitTown: R.kitTownStats ? R.kitTownStats() : null };
+    }
+  }
   // THE ISLAND TEXTURES ARE THE GPU'S (G906): after the roll-out not one keeps its image.data; the class weights were
   // never built (the default stack starts past the class layer); a lost context's re-derive (the canvas's
   // webglcontextrestored handler, called here directly - three's own restore is not run on the recording GL) gives
@@ -295,9 +314,12 @@ async function census(build) {
   craft.taxi = await craftCensus(W, P, FP, C);
   rtraceWrite();
   const wd = FP.world();
-  const health = { premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
+  const health = { metlakatla, premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
-    thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5) };
+    thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5),
+    // (C3c, G864) Metlakatla with the town on (FRAMECOST_QUERY=town=1): the premises' own count and the town kit's state
+    premisesStats: (R => (R && R.stats ? { houses: R.stats.houses, objects: R.stats.objects, queued: R.stats.queued, houseTris: R.stats.houseTris, lights: R.stats.lights, obstacles: R.stats.obstacles } : null))(W.WORLD && W.WORLD.premises),
+    kitTown: (R => (R && R.kitTownStats ? R.kitTownStats() : null))(W.WORLD && W.WORLD.premises) };
   craft.bake = W.FLOWN_BAKE ? (W.FLOWN_BAKE.FB.last || null) : undefined;
   detail.scene = matCensus(W.WORLD && W.WORLD.scene);
   if (process.env.FRAMECOST_WHAT) process.stderr.write('DETAIL ' + JSON.stringify(detail, null, 1) + '\n');
@@ -637,6 +659,16 @@ function villagePose(W) {
   let best = null;
   for (const p of pts) { let n = 0; for (const q of pts) if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 120) n++; if (!best || n > best.n) best = { x: p[0], z: p[1] + 25, hdg: -Math.PI / 2, n }; }
   return best;
+}
+function metPose(W, FP) {
+  const R = W.WORLD && W.WORLD.premises; if (!R || !R.plots || !W.PREMISES_GEN) return null;
+  const F = W.PREMISES_GEN.frameOf(R.record, FP.world()), pts = [];
+  for (const p of R.plots()) if (/^mk_/.test(String(p.zone)) && p.poly && p.poly.length) { let x = 0, z = 0; for (const q of p.poly) { x += q[0]; z += q[1]; } pts.push(F.toWorld(x / p.poly.length, z / p.poly.length)); }
+  if (!pts.length) return null;
+  const med = k => { const a = pts.map(p => p[k]).sort((x, y) => x - y); return a[a.length >> 1]; };
+  const mx = med(0), mz = med(1);
+  let best = pts[0]; for (const p of pts) if (Math.hypot(p[0] - mx, p[1] - mz) < Math.hypot(best[0] - mx, best[1] - mz)) best = p;
+  return { x: Math.round(best[0] * 10) / 10, z: Math.round(best[1] * 10) / 10 + 25, hdg: -Math.PI / 2, n: pts.length };
 }
 // ---- the proof: three regressions, each must be red against the view it was injected into ---------------------
 async function injections(W, FP, C, base, measure) {
