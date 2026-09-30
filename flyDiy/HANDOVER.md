@@ -67618,7 +67618,7 @@ the transition is seamless visually and performance wise"; after the evidence: "
 - The cockpit with the fallback: see the READY note (the verify pair).
 - The first cut (before G1123): +0.4 / +0.4 / +0.9 ms (Cessna), -0.2 / +0.6 (Cub).
 
-**EVIDENCE:** tools/perf/c4b_closeup_evidence/ - the close-ups (the old bake / the hybrid / the band, one frame, lossless), the crossing strips, the cockpit live | baked, the dials against the sim (stand / taxi / climb / dusk: every hand agrees with its reading), the look stills (master | hybrid).
+**EVIDENCE:** tools/perf/c4b_closeup_evidence/ - the close-ups (the old bake / the hybrid / the band, one frame; 1280 px JPEG q82 in the repo, kept near 2 MB - the rigs write lossless PNG), the crossing strips, the cockpit live | baked, the dials against the sim (stand / taxi / climb / dusk: every hand agrees with its reading), the look stills (master | hybrid).
 - Rigs: tools/hybrid_ab.js + .py, tools/cockpit_ab.js + .py, tools/look_shots.js.
 
 **GATES:** FLOWNBAKE 76 (the park / band / near / far round trip, one fade and the rigs' hold, the live copy's and the baked program's band twins, the shadow swap, the eye's zone, the fallback's call); FRAMECOST (the crossing census) PASS; PACE, BOOT, UISMOKE, ROUNDTRIP, PROGRAMS, SKIN PASS on 4470a2b0.
