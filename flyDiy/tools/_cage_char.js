@@ -214,7 +214,8 @@ function budget(c, mi) {
   if (typeof CHAR_KTX2 !== 'function' || typeof KTX2 === 'undefined' || typeof ASSET_FETCH !== 'function') return null;
   const r = CHAR_KTX2(c.key), m = c.mats[mi], b = r && r.mats[mi];
   if (!b || !m) return null;
-  for (const k of ['map', 'nrm', 'mr', 'spec']) if ((m[k] ? c.texs[m[k]] : undefined) !== b.src[k]) return null;   // stale
+  // G939.1: by VALUE - since AS0b (G903) an entry may be a flat map's constant [r, g, b], a new array on each side
+  for (const k of ['map', 'nrm', 'mr', 'spec']) if (JSON.stringify(m[k] ? c.texs[m[k]] : undefined) !== JSON.stringify(b.src[k])) return null;   // stale
   if (KTX2.off('chars')) return null;
   return b;
 }

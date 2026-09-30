@@ -97,23 +97,29 @@ const RGBA8 = (w, h) => Math.round(w * h * 4 * 4 / 3);          // an image text
 const BC7 = (w, h) => { let n = 0; for (let W = w, H = h; ; W = Math.max(1, W >> 1), H = Math.max(1, H >> 1)) { n += Math.ceil(W / 4) * Math.ceil(H / 4) * 16; if (W === 1 && H === 1) break; } return n; };
 
 // THE PLAN: per character, the planes its materials need (pure: the gate re-derives it) -> { planes, mats, before }
+// G939.1 (train 17, AS6 x AS0b): since AS0b (G903) a manifest's texs entry is a FILE (a string) or a flat map's CONSTANT
+// ([r, g, b], 0-255, no file on disk). A constant is never decoded, cut or listed as a src; it goes into the row as
+// the constant this budget would have made of the flat map anyway (spec -> row.spec, a flat normal -> row.nrmConst)
+const isFile = v => typeof v === 'string';
 function plan(c, TB, dec) {
   const planes = new Map();      // key -> { kind, src: [rel...], build: () => { w, h, data } }
   const flat = rel => { const s = flatStd(dec(rel)); return Math.max(...s) < TB.flat; };
   // the gloss a normal carries: the first material that pairs it with one (a gloss-less material that shares the
   // normal - Ch42's and Ch01's hair - reads the same plane's RGB and ignores its A)
   const glossFor = {};
-  if (TB.gloss === 'N.a') for (const m of c.mats) if (m.nrm && m.mr && !glossFor[c.texs[m.nrm]]) glossFor[c.texs[m.nrm]] = c.texs[m.mr];
+  if (TB.gloss === 'N.a') for (const m of c.mats) if (m.nrm && m.mr && isFile(c.texs[m.nrm]) && isFile(c.texs[m.mr]) && !glossFor[c.texs[m.nrm]]) glossFor[c.texs[m.nrm]] = c.texs[m.mr];
   const mats = c.mats.map((m, mi) => {
     const row = { src: {} };
-    for (const k of ['map', 'nrm', 'mr', 'spec']) if (m[k]) row.src[k] = c.texs[m[k]];
+    for (const k of ['map', 'nrm', 'mr', 'spec']) if (m[k]) row.src[k] = c.texs[m[k]];   // (a constant too: the page's staleness test compares the manifest's value)
+    if (m.map && !isFile(c.texs[m.map])) throw new Error(`${c.key}: ${m.name}'s diffuse is a constant - not written yet`);
     if (m.map) {
       const rel = c.texs[m.map], key = 'c|' + rel;
       if (!planes.has(key)) planes.set(key, { kind: 'color', stem: stemOf(rel), src: [rel], build: () => cut(dec(rel), TB.size, true) });
       row.map = key;
     }
-    if (m.nrm) {
-      const nrel = c.texs[m.nrm], own = TB.gloss === 'N.a' && m.mr ? c.texs[m.mr] : null, grel = own || glossFor[nrel] || null;
+    if (m.nrm && !isFile(c.texs[m.nrm])) row.nrmConst = c.texs[m.nrm].slice(0, 3);   // G939.1: AS0b's flat normal constant
+    else if (m.nrm) {
+      const nrel = c.texs[m.nrm], own = TB.gloss === 'N.a' && m.mr && isFile(c.texs[m.mr]) ? c.texs[m.mr] : null, grel = own || glossFor[nrel] || null;
       if (own && own !== glossFor[nrel]) throw new Error(`${c.key}: ${nrel} is paired with two gloss maps (${glossFor[nrel]}, ${own}) - one plane each is not written yet`);
       if (!grel && flat(nrel)) row.nrmConst = meanOf(dec(nrel)).slice(0, 3);       // a flat normal: no map at all
       else {
@@ -130,7 +136,8 @@ function plan(c, TB, dec) {
         row.nrm = key; if (own) row.gloss = 1;
       }
     }
-    if (m.spec && TB.spec === 'const') { const s = flatStd(dec(c.texs[m.spec])); row.spec = meanOf(dec(c.texs[m.spec])).slice(0, 3).map(v => +(v / 255).toFixed(3)); row.specStd = +Math.max(...s.slice(0, 3)).toFixed(2); }
+    if (m.spec && TB.spec === 'const' && !isFile(c.texs[m.spec])) { row.spec = c.texs[m.spec].slice(0, 3).map(v => +(v / 255).toFixed(3)); row.specStd = 0; }   // G939.1
+    else if (m.spec && TB.spec === 'const') { const s = flatStd(dec(c.texs[m.spec])); row.spec = meanOf(dec(c.texs[m.spec])).slice(0, 3).map(v => +(v / 255).toFixed(3)); row.specStd = +Math.max(...s.slice(0, 3)).toFixed(2); }
     return row;
   });
   return { planes, mats };
@@ -138,7 +145,7 @@ function plan(c, TB, dec) {
 // what a character costs on the GPU, the old path (image textures the material binds: map + normalMap) and the budget
 function gpuOld(c, dims) {
   const bound = new Set(), all = new Set();
-  for (const m of c.mats) { for (const k of ['map', 'nrm']) if (m[k]) bound.add(c.texs[m[k]]); for (const k of ['map', 'nrm', 'mr', 'spec']) if (m[k]) all.add(c.texs[m[k]]); }
+  for (const m of c.mats) { for (const k of ['map', 'nrm']) if (m[k] && isFile(c.texs[m[k]])) bound.add(c.texs[m[k]]); for (const k of ['map', 'nrm', 'mr', 'spec']) if (m[k] && isFile(c.texs[m[k]])) all.add(c.texs[m[k]]); }
   const sum = set => [...set].reduce((s, rel) => s + RGBA8(dims(rel).w, dims(rel).h), 0);
   return { bound: sum(bound), boundN: bound.size, all: sum(all), allN: all.size };
 }
@@ -150,7 +157,7 @@ if (require.main !== module) { module.exports = { BAR, DIR, budget, manifests, p
   if (!REPORT && !K.hasEncoder()) { console.error('char_tex_budget: no basisu v' + K.BASISU_VERSION + ' (cd flyDiy && npm install)'); process.exit(1); }
   const TB = budget(), chars = manifests(), t0 = Date.now();
   // decode every map a manifest names, once (python, one process)
-  const rels = [...new Set(chars.flatMap(c => Object.values(c.texs)))].sort();
+  const rels = [...new Set(chars.flatMap(c => Object.values(c.texs).filter(isFile)))].sort();
   const D = decodeRGBA(rels.map(r => path.join(ROOT, r)));
   const byRel = new Map(rels.map((r, i) => [r, D[i]]));
   const dec = rel => { const d = byRel.get(rel); if (!d) throw new Error('not decoded: ' + rel); return d; };
@@ -215,7 +222,7 @@ if (require.main !== module) { module.exports = { BAR, DIR, budget, manifests, p
     const files = {}; for (const f of Object.values(T.files)) files[f.url] = f;
     T.files = files;
     T.gpu = { old: o.bound, oldN: o.boundN, oldAll: o.all, oldAllN: o.allN, new: [...urls].reduce((s, u) => s + (files[u].gpu || BC7(files[u].w, files[u].h)), 0), newN: urls.size,
-      wireOld: [...new Set(c.mats.flatMap(m => [m.map, m.nrm].filter(Boolean).map(t => c.texs[t])))].reduce((s, r) => s + fs.statSync(path.join(ROOT, r)).size, 0),
+      wireOld: [...new Set(c.mats.flatMap(m => [m.map, m.nrm].filter(Boolean).map(t => c.texs[t]).filter(isFile)))].reduce((s, r) => s + fs.statSync(path.join(ROOT, r)).size, 0),
       wireNew: [...urls].reduce((s, u) => s + (files[u].bytes || 0), 0) };
     console.log(`  ${c.key.padEnd(5)} bound ${o.boundN} maps ${MiB(o.bound)} MiB (all ${o.allN} in the manifest: ${MiB(o.all)}) -> ${T.gpu.newN} files ${MiB(T.gpu.new)} MiB; wire ${MiB(T.gpu.wireOld)} -> ${MiB(T.gpu.wireNew)} MiB`);
   }
@@ -236,7 +243,7 @@ ${keys.map(k => `  ${JSON.stringify(k)}: ${JSON.stringify(table[k])},`).join('\n
 // the page's lookup: a character's key -> its budget row with the urls rooted, or null
 const CHAR_KTX2 = (() => {
   ${BASE_DECL}
-  const U = u => (u ? B + u : u);
+  const U = u => (typeof u === 'string' && u ? B + u : u);   // (G939.1: a flat map's constant [r, g, b] passes as it is)
   return key => { const r = CHAR_KTX2_TABLE[key]; if (!r) return null;
     return { mats: r.mats.map(m => Object.assign({}, m, { map: U(m.map), nrm: U(m.nrm), src: Object.fromEntries(Object.entries(m.src).map(([k, v]) => [k, U(v)])) })) }; };
 })();
