@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5535f997e5776c99
+// body-sha256: f26f8f05a8b8d000
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -3440,7 +3440,10 @@ function makeWorld(seed, opts) {
       const x = G0x + (gx + 0.15 + 0.70 * j1) * GS;
       const z = G0z + (gz + 0.15 + 0.70 * j2) * GS;
       const h = terrainH(x, z);
-      if (h < 2 || h > B.TREELINE) continue;
+      // THE TREELINE IS THE ANALYTIC WORLD'S (G1112, TREES-NEAR): 165 m is its biome model's number. On a data island
+      // the tree map decides (effClass TREE below, the same map the renderer's fill stands on): Jolene's woods run to
+      // ~600 m, and 48 % of its TREE ground lies above 165 m - drawn forest nothing could hit
+      if (h < 2 || (!ISL && h > B.TREELINE)) continue;
       // the island: the collidable woodland stands where the effective class
       // is tree cover, at the canopy's height (the v0 scale envelope)
       let islS = 0;
@@ -3909,7 +3912,8 @@ function makeWorld(seed, opts) {
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
-                    farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
+                    farHeader: ISL.farHeader, farRoot: ISL.farRoot,
+                    places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
     terrainH, waterH, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
@@ -7288,6 +7292,15 @@ function findById(rec, id) {
   return null;
 }
 
+// THE WATER A ZONE SEES (G434 / G434.1, compose's rule, exported at C3c G861): the LOWEST finite water over the zone's
+// own box +- 60 m, 13 x 13 samples; `fallback` (compose: the anchor's water) where none is found. The town kit's
+// sowing (tools/town_kit.js zoneWater) and the kit's lots (src/viewer/kit_lot.js) read the same rule
+function zoneWaterYOf(world, F, z, fallback) {
+  if (!world || !world.waterH || !z || !z.poly || z.poly.length < 3) return fallback;
+  const bb = polyBBox(z.poly); let best = Infinity;
+  for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12); const v = world.waterH(w[0], w[1]); if (isFinite(v) && v < best) best = v; }
+  return isFinite(best) ? best : fallback;
+}
 // ---------------------------------------------------------------------------
 // the frame — 'free': an anchor (x, z, yaw) per world id
 // ---------------------------------------------------------------------------
@@ -8807,12 +8820,8 @@ function compose(rec0, world, opts) {
     // level found (G434.1): a coastal zone's box also holds ponds up the hill - the highest of them
     // (4.6 m at Annette) made the whole shore band "water" and the harbour sowed nothing again; the
     // sea is the lowest water there is, and a lakeside zone with no sea reads its lake
-    const zoneWaterY = z => {
-      if (!world.waterH || !z.poly || z.poly.length < 3) return waterY;
-      const bb = polyBBox(z.poly); let best = Infinity;
-      for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12); const v = world.waterH(w[0], w[1]); if (isFinite(v) && v < best) best = v; }
-      return isFinite(best) ? best : waterY;
-    };
+    // (C3c, G861: the rule is zoneWaterYOf above the frame, exported - a Metlakatla house on the kit stands against the same water)
+    const zoneWaterY = z => zoneWaterYOf(world, F, z, waterY);
     // THE WATER THAT REACHES AN ITEM. world.waterH answers with the body that
     // TOUCHES a point and -Infinity where none does, so a mole whose middle has
     // been raised out of the sea, or a wharf standing on its own piles, reads no
@@ -9272,7 +9281,7 @@ const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, 
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
-  frameOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
+  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself
@@ -9841,17 +9850,32 @@ const OBSTACLES = (() => {
   // ---- the shape: a column grid over a triangle soup in the object's frame -----------------
   // pos: flat xyz (Float32Array or Array), idx: triangle indices or null (consecutive triples),
   // cell: metres. opts.pad: cells of free border kept round the footprint (1).
+  // opts.base (G844, C2c): a shape rasterised EARLIER from other triangles of the same object, in the same frame, cell and
+  // pad (the house worker's raster of a house's own bags): the result is the raster of both soups - the grid is the lattice
+  // both share (every grid starts on a multiple of the cell), grown to hold both, the base's columns copied in and the new
+  // triangles marked over them. The same cells, lows and highs one pass over both soups gives, up to a vertex lying
+  // exactly on a lattice line.
   function rasterise(pos, idx, cell, opts) {
+    const B = opts && opts.base && opts.base.cell === cell ? opts.base : null;
     const nTri = idx ? idx.length / 3 : pos.length / 9;
-    if (!nTri) return null;
+    if (!nTri && !B) return null;
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
-    const nv = pos.length / 3;
+    const nv = nTri ? pos.length / 3 : 0;
     for (let i = 0; i < nv; i++) { const x = pos[i * 3], z = pos[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
-    if (!isFinite(x0)) return null;
+    if (!isFinite(x0) && !B) return null;
     const pad = (opts && opts.pad !== undefined) ? opts.pad : 1;
-    const ox = Math.floor(x0 / cell) * cell - pad * cell, oz = Math.floor(z0 / cell) * cell - pad * cell;
-    const nx = Math.ceil((x1 - ox) / cell) + pad + 1, nz = Math.ceil((z1 - oz) / cell) + pad + 1;
+    let ox = isFinite(x0) ? Math.floor(x0 / cell) * cell - pad * cell : Infinity, oz = isFinite(z0) ? Math.floor(z0 / cell) * cell - pad * cell : Infinity;
+    let nx = isFinite(x0) ? Math.ceil((x1 - ox) / cell) + pad + 1 : 0, nz = isFinite(z0) ? Math.ceil((z1 - oz) / cell) + pad + 1 : 0;
+    if (B) {   // the union's grid: its origin the lower of the two (both on the lattice), its far edge the farther
+      const ex = Math.max(isFinite(ox) ? ox + nx * cell : -Infinity, B.ox + B.nx * cell), ez = Math.max(isFinite(oz) ? oz + nz * cell : -Infinity, B.oz + B.nz * cell);
+      ox = Math.min(ox, B.ox); oz = Math.min(oz, B.oz);
+      nx = Math.round((ex - ox) / cell); nz = Math.round((ez - oz) / cell);
+    }
     const lo = new Float32Array(nx * nz).fill(Infinity), hi = new Float32Array(nx * nz).fill(-Infinity);
+    if (B) {
+      const di = Math.round((B.ox - ox) / cell), dj = Math.round((B.oz - oz) / cell);
+      for (let j = 0; j < B.nz; j++) for (let i = 0; i < B.nx; i++) { const s = j * B.nx + i, k = (j + dj) * nx + i + di; lo[k] = B.lo[s]; hi[k] = B.hi[s]; }
+    }
     const mark = (x, y, z) => {
       const i = Math.floor((x - ox) / cell), j = Math.floor((z - oz) / cell);
       if (i < 0 || j < 0 || i >= nx || j >= nz) return;
@@ -11790,7 +11814,10 @@ function makeSim(def, world) {
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
-      if (p[1] < 24) {
+      // HEIGHT OVER THE GROUND, NOT ALTITUDE (G1112, TREES-NEAR): `p[1] < 24` was the analytic world's, whose field
+      // is at y = 0. Jolene's HOME stands at 31.7 m, so no tree was ever tested there - and of the island's collidable
+      // woodland only the 23 % rooted under 24 m could be reached at all, and only from under 24 m of altitude
+      if (p[1] - world.terrainH(cgx, cgz) < 24) {
         const near = world.treesNear(cgx, cgz, _treeScratch);
         if (near.length) for (let i = 0; i < n; i++) {
           const i3 = i*3;
