@@ -66164,3 +66164,155 @@ same cluster (C3b's review showed them so). Then the G590 question is the user's
 - A kit plot is decided by id AND seed against the table: re-sow a zone (the editor, a rule change) and its plots build
   unique until `node tools/town_kit.js --media` is re-run (GATE METKIT A goes red first).
 - The kit is Jolene's (the table is one island's); another island's manifest entry is what brings it elsewhere.
+## G840-G844 - C2c: THE TOWN'S TEXTURE ARRAYS COOKED OFFLINE; THE COOK'S TALLIES (THE PAGE DRESSES AS THE COOK PLACED, IN ANY ORDER); THE EDITOR'S EDITS BUILT BY THE WORKER; A HOUSE READS ITS ZONE'S WATER (PIERS ON JOLENE); THE HOUSE'S OBSTACLE RASTERISED IN THE WORKER (2026-09-29/30, C2c of QUEUE-C, local GPU)
+
+WHY: ARCH-2026-09-27 §3.2, §3.3, §3.4 steps 4-5; QUEUE-C "C2c". After C2a the page generated no house, but it still
+(a) assembled the town's texture arrays on the CPU (house_tarr.js: every map drawn into a canvas, getImageData, the
+channel shuffle - ~84 MB with the mips over Jolene), (b) dressed each house on tallies that depended on the ORDER it
+built in (the aircraft's distance) - so the same house dressed differently from another stand and the house cache's key
+(the tallies before it, and the WHOLE record's hash) missed on another stand and after any edit, (c) built every edit of
+the premises editor inline (100-200 ms a house), and (d) rasterised each house's obstacle by a vertex walk on the main
+thread. And the user's constraint (2026-09-29): the procedural houses, waterfronts and the editor's PIERS WITH BOATS
+must keep working outside Metlakatla - on Jolene no house pier had ever been built (G843).
+
+G840 THE TARR LAYERS COOKED OFFLINE (tools/tarr_cook.js, src/viewer/house_tarr_pack.js, media/tex/house_tarr/)
+- house_tarr.js's canvas pass is one exported function, `packer(px, doc)` (albedo: drawn, rows flipped, alpha 255;
+  nr: the normal's rgb + the rough map's green in alpha) - the page's fallback AND what the cook runs.
+- tools/tarr_cook.js runs THAT function in headless Chrome (--disable-gpu: a willReadFrequently canvas is the CPU path in
+  the headed page too; no GPU lock needed) over every set of house_tex.js: 72 layers (41 colour maps, 31 normal+rough
+  pairs), each written as one gzip stream of its raw 512^2 RGBA8 bytes, named by their hash; the pack keys a layer by
+  the map's media path ('a|<path>', 'nr|<nor>|<rough>', 'flat:r,g,b' for a constant) and carries each colour map's 4 x 4
+  channel sums (render_premises meanOf, the far town's colour: no pixel read there either).
+- The stack FETCHES a layer the pack names (ASSET_FETCH, gunzipped off the thread by DecompressionStream) and copies it
+  into place; a map the pack does not name, or a fetch that fails, takes the canvas pass as before. A cooked map rides
+  the stack before its image has decoded (classify), so the first bake is complete and no cell rebakes for a late image.
+- THE SWITCH (the AS3 seam): ?tarrfmt=canvas (the old pass, the A/B's before) | raw (the default with a pack) | ktx2
+  (reserved: FMTS in house_tarr.js is { fetch, mk } per format; KTX2's compressed array goes in beside raw from the same
+  raw layers - AS2/AS3's array_cook.js encodes a raw plane by role). ?tarrcheck=1 draws every cooked layer with the
+  canvas too and compares (stats.tarrCheck).
+- THE PRICE, out loud: 72 MiB raw -> 32.5 MiB gzipped in git and, on a first visit, the ~63 layers Jolene asks for over
+  the wire (they are photographs: gzip keeps most). KTX2 (UASTC) is the cure; VRAM is unchanged by this step (raw RGBA8
+  + mips, as the canvas made them).
+- GATE TARR 6a-6e: the pack covers the library by the page's own keys; every file on disk, px^2 x 4 bytes, named by its
+  hash; the cook not stale (the packer's source hash, the library's); a not-yet-decoded map rides the stack only when
+  cooked; the stack's array holds the file's bytes and no canvas draws.
+
+G841 THE COOK'S TALLIES (premises_build.js makeTallies / rankQueue / inputSig; premises_cook.js; the loaders in build.js
+and island_node.js; 20_world.js island.places)
+- THE PROBLEM (premises_build.js header, G830): the village's two tallies (SPREAD: the least-used boat / car / person
+  key; FENCED: a shared edge fenced once, and a skipped edge moves the plot's rnd) are ORDER-DEPENDENT, and the page
+  built by distance from the aircraft - another stand, another dressing, and the C2a cache keyed each entry on the
+  tallies before it AND on the whole record's hash: another stand missed, every edit re-generated the whole town.
+- THE COOK SHIPS THEM: premises_cook.js builds the queue in the RECORD's order (syncHouses' want order, the cook's
+  own) and now records each entry's delta: media/world/jolene/premises/t_<variant>.<h8>.bin (default 215 entries,
+  town 695; a few KB), named in premises_packs.json (places.variants[v].tallies). The page's island loader fetches both
+  variants' tallies WHATEVER the raster flag (the raster cells still only under it); island_node.js the same for node.
+  They ride on world.island.places (the island object makeWorld exposes is curated: premCook was not on it).
+- THE PAGE DRESSES ON THEM: render_premises ranks its queue in syncHouses (PB.rankQueue: an entry's index in the cook;
+  a live entry the cook did not have takes the rank after the cooked entry listed before it; under half the entries
+  known -> the live tallies, as before) and every generation - inline (buildOne0 atRank) or in the worker (each job's
+  `tr`, the tallies sent with the composition) - runs on the tallies of its rank (makeTallies.at: the running sum of
+  the deltas before it, snapshots every 32). The page's dressing IS the cook's placement, whatever order it builds in;
+  an edited entry keeps its rank and its new delta moves nobody else's tallies (the town round an edit stays as it was).
+  ?premtally=0: the live tallies (the A/B's before).
+- THE CACHE KEY (house_worker.js HW_V 2): FLYDIY_BUILD | versions | dials | kind:id:seed | inputSig | the tallies' hash.
+  inputSig (premises_build.js) = the entry AS COMPOSED (taken at the composition, before a dressing writes into it),
+  the record's seed, the premises' size and water, a house's zone rules, road and zone water (G843), and the GROUND:
+  the raster cells' signatures (27_premises rasterCellSig) over the entry's reach +40 m. No whole-record hash: an edit
+  re-keys what it touched, a second visit from another stand hits.
+- PROOF: GATE PREMCOOK 6 - the queue built BACKWARDS on the committed tallies gives the committed placements, thing
+  for thing (215 things, the same hash); makeTallies.at(rank) is the running sum at every rank. GATE HOUSEWORKER: local
+  (inline) vs cold / warm / partial (the worker) bit-identical, 137 / 137, all on the cooked tallies ('default').
+- THE LOOK: the dressing is now the record-order one (the cook's), the same from every stand; before it was the
+  aircraft-distance order's (a boat or a fence edge may differ from what a player saw before, never between visits).
+
+G842 THE EDITOR'S LIVE PATH (render_premises.js step / hwCompose / markDirty; tools/live_driver.js KEEP_PREM; tools/perf/c2c_proof.js)
+- An edit recomposes the PAGE at once (outlines, ground, queue) and the WORKER a beat after the last edit (350 ms: its
+  composition is ~1 s and a drag rebuilds at every move); until then the edit's entries wait instead of building
+  inline. Then step() dispatches every queued entry to the worker and places what arrives, 4 ms a frame. Nothing is
+  generated on the page (C2a built the editor's entries inline: 100-200 ms a house).
+- THE EDIT'S CELLS: a ground edit (the editor's dirty with a bbox, the ground on) marks the LIVE_CELL squares its box
+  touches; every entry standing there is rebuilt (it used to keep standing on the old ground: its seed had not moved).
+  The worker's cache answers at once for an entry whose inputs the edit did not change.
+- THE SAVE: the editor's autosave (flydiy.premises.game.<island>, G590's restorePlaces putting a cut Metlakatla back)
+  is the record the next boot composes; with G841's keys and tallies every entry the editor had the worker build is
+  in IndexedDB under the key the reload computes - the cache IS the client-side cook (ARCH §3.3), nothing else to write.
+- A GROUND EDIT'S REACH (the fix after the first live proof): the re-queue covers every entry whose cache key the edit can
+  move - the raster cells its modifier re-signs (the box widened by a falloff's margin, snapped to 256 m raster cells)
+  plus 80 m (the key's 40 m and a plot's size); it had used the edit's own LIVE_CELL squares, and an entry next door was
+  re-keyed but not rebuilt, then generated at the next boot.
+- PROOF (live, this box; tools/perf/c2c_proof.js on a tools/live_driver.js page, KEEP_PREM=1): a gravel road and a
+  harbour zone drawn on Jolene through the editor's own cmd('add'); the worker built every re-queued entry (dispatched
+  259, placed 234; 0 generated on the page); the autosave; a reload -> the house worker built 0, 96 of 96 from the cache,
+  141 houses (137 + the drawn ones). The pier of the proof's own harbour: see EVIDENCE.
+
+G843 A HOUSE READS ITS ZONE'S WATER (premises_build.js zoneWaterY) - ITS OWN COMMIT (the coordinator's condition)
+- genHouse handed placeHouse the water at the premises' ANCHOR (world.waterH(0, 0)); on an island the anchor is an
+  inland field: -Infinity. A water plot's house never reached the waterline and pierPlan built no jetty: on Jolene no
+  house pier had ever been built (the cook: 11 default / 22 town houses with P.pier = 1 and no pier_* module; only the
+  dressing's shore boat). G434's trap, fixed then for the sower (zoneWaterY) and the marine items (waterAt), left here.
+- Now a house reads its ZONE's water exactly as the sower did (the lowest finite water over the zone's box +-60 m). On
+  the analytic world (water 0 everywhere) nothing moves. ?pierwater=0: the anchor's (the A/B's before).
+- The look is the user's call: before/after stills in tools/perf/c2c_evidence/ (below). Revert = this commit + the
+  re-cook commit after it.
+
+G844 THE HOUSE'S OBSTACLE IN THE WORKER (premises_build.js packedShape / frameMatrix; 29_obstacles.js rasterise opts.base)
+- render_premises hitAdd rasterised every house on the main thread (shapeOf: a vertex walk, then rasterise: ~2-3 ms a
+  house in node, 148 calls on Jolene). The worker holds the bags: it rasterises them itself (shape0, transferred), with
+  the page's own arithmetic - the group's matrix as placeBuilt stands it, inverse yaw and position times it per vertex,
+  shapeOf's filters - and the page walks only what it added (the props) and marks them over that base
+  (rasterise opts.base: the union's grid on the shared lattice, the base's columns copied in).
+- PROOF: 200 random soup pairs, merged-over-base == one pass over both, bit for bit (lo, hi, d, top, cells, xr); GATE
+  HOUSEWORKER: every entry's registered obstacles (tag, pose, the column grid's bytes) identical between the inline
+  page and the worker children, 137 / 137 (16 registrations over the worker's raster in the harness, where most
+  houses' props are still in flight when it samples).
+- The cook (C2b) carries each thing's shape too; the page does not fetch the per-cell place files: everything they
+  carry is re-derived in the worker from the same code on the same inputs (the placement, the dressing, the shape), and
+  the one datum the page could not make - the record-order tallies - is fetched up front (2 files, a few KB). The per-
+  cell stream the brief names was not needed; said so here rather than built for its own sake.
+
+ALSO IN THIS BRANCH
+- The train 17 fix (landed as f0758c89): C2a's worker imported lot_tex.js without ground_tex.js (since AS2 LOT_TEX_SETS is
+  the ground library's view); it threw at its init and every house was built on the page. GATE HOUSEWORKER caught it.
+- The cook's places on world.island.places (makeWorld's curated island object did not carry premCook).
+- The parked aeroplanes re-cooked on this branch's build: the cook's signature carries FLYDIY_BUILD, so on any build but
+  the cooked one the three arch: keys are captured live (the `parked` step 4-5 s, FRAMECOST's stand/taxi draws doubled).
+  A landing re-cooks them again; measure a branch only after re-cooking it (tools/parked_cook.js --check says whether).
+
+MEASURED (RTX 3080, rollout_perf, BEFORE = master 220812de, AFTER = this branch; the same flags: default window, warm
+profiles %TEMP%/c2cbeforew / c2cafter2w, --port 8741, --fallback; runs in tools/perf/rollout_c2c_{before,after2}_*.json)
+| | cold garage | warm garage | town step | settle | taxi fps delivered | p99 | render ms | tasks > 1 s (worst) |
+|---|---|---|---|---|---|---|---|---|
+| BEFORE | 68.6 s | 39.4 - 44.1 s | 7.1 - 7.2 s | 10.6 - 11.3 s | 31.8 - 32.1 | 33.5 | 9.6 - 9.8 | 1 - 2 (1.46 s) |
+| AFTER | 69.7 s | 39.7 - 46.0 s | 7.3 - 7.5 s | 10.4 - 10.7 s | 31.9 - 32.2 | 33.5 | 9.7 - 9.9 | 0 - 3 (1.48 s) |
+- rollout_ratchet vs train 17's baseline: RATCHET PASS on both groups (Cub fps 31.8 -> 31.9, uneven 0.08 -> 0.07, render
+  9.7 -> 9.8, garage 41.1 -> 40.3 s; metal fps 32.05 -> 32.2, render 9.95 -> 9.8, tasks1s 1 -> 2 and worst 1357 -> 1456 ms
+  within slack, garage 43.1 -> 42.8 s).
+- The town step's +0.2-0.3 s is G843's: the piers are ~300 more props to place (a pier on/off pair of boots, cold-ish:
+  town 8.4 s with ?pierwater=0, 9.2 s without). Justified by the user's ruling on piers (the coordinator, 2026-09-29).
+- TARR in the headed page (?tarrcheck=1): 60 cooked layers, 60 byte-identical to the canvas pass, 0 differ; 6 layers
+  stay canvas (maps outside the house library); the layers' fetch 0.9 s off the thread, the fill one 40 ms task.
+- VRAM (renderer.info, and the scene walk's estimate - tools/perf/c2c_eval.js): textures 742 -> 745, their bytes 948 ->
+  972 MiB (the piers' prop textures); the town's arrays 88 MB both (raw RGBA8 + mips, as the canvas made them).
+- GATE HOUSEWORKER in node: the town step's wall 8.3 s inline -> 1.4 s with the worker; every entry bit-identical and on
+  the cooked tallies; obstacles identical (137 / 137).
+- The full battery (--all --jobs=6, 2026-09-30 16:44, before the parked re-cook): every gate PASS but FRAMECOST (the
+  stale parked keys, above); FRAMECOST and HOUSEWORKER re-run after the re-cook: see below.
+
+FOR THE NEXT SESSION
+- KTX2 for the TARR (the AS3 seam is FMTS in house_tarr.js; the encoder, basisu 1.16.4, is not installed on the box:
+  `npm install` in flyDiy/ brings it). UASTC for both stacks (colour and normal+rough: four meaningful channels), the
+  arrays as CompressedArrayTexture like ground_lib.js; ~4x less VRAM and far less wire than the raw layers.
+- A no-cook world (the analytic world's Skarvik, a user's own premises) dresses on the live tallies: its cache still
+  misses across stands. A client-side cook of the tallies at the save (the record's order, in the worker) closes it.
+
+EVIDENCE (tools/perf/c2c_evidence/, for the user's gallery)
+- c2c_g843_before_h2_s.png / c2c_g843_after_h2_s.png: a village harbour house from the sea, day 13:00, ?pierwater=0 vs
+  this branch - no pier, no boat / its jetty of pier modules, three boats moored, people on the deck.
+- c2c_g843_before_h6_s.png / c2c_g843_after_h6_s.png: the same for a second house (its jetty, two boats, people).
+- c2c_editor_*.png: the editor proof's own harbour, drawn, then reloaded from the cache (the editor pass).
+- tools/perf/rollout_c2c_{before,after2}_*.json: the series above.
+
+THE BATTERY: `node tools/run_gates.js --all --jobs=6` on this branch (2026-09-30 16:44, rebased on 220812de): every gate
+PASS but FRAMECOST (the stale parked keys); after the parked re-cook: FRAMECOST PASS, HOUSEWORKER PASS, PREMCOOK PASS;
+the gates that read render_premises.js re-run after the G842 reach fix (see the READY commit).

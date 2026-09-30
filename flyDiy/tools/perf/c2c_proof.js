@@ -22,8 +22,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const until = async (body, ms, what) => { const t0 = Date.now(); for (;;) { const v = await run(body); if (v === true) return true; if (Date.now() - t0 > ms) throw new Error('timeout: ' + what + ' (' + JSON.stringify(v).slice(0, 200) + ')'); await sleep(1000); } };
 const shot = async name => { fs.mkdirSync(DIR, { recursive: true }); const f = path.join(DIR, name + '.png'); await get('/shot?f=' + encodeURIComponent(f)); console.log('  still ' + path.relative(process.cwd(), f)); return f; };
 // the drawing (premises coordinates = world on Jolene: anchor 0, 0, yaw 0), found on the headless compose (G843's probe)
-const ROAD = { pts: [[250, -2760], [290, -2840], [310, -2920], [320, -2990]], w: 4, cls: 'gravel', graded: true, falloff: 6 };
-const ZONE = { kind: 'harbour', poly: [[170, -2730], [400, -2730], [420, -3000], [200, -3010]], density: 1 };
+const ROAD = process.env.C2C_ROAD ? JSON.parse(process.env.C2C_ROAD) : { pts: [[250, -2760], [290, -2840], [310, -2920], [320, -2990]], w: 4, cls: 'gravel', graded: true, falloff: 6 };
+const ZONE = process.env.C2C_ZONE ? JSON.parse(process.env.C2C_ZONE) : { kind: 'harbour', poly: [[170, -2730], [400, -2730], [420, -3000], [200, -3010]], density: 1 };   // (env: the sow probe's pick)
 const BOX = { x0: 200, z0: -2860, x1: 330, z1: -2740 };
 const WORKER = 'return (() => { const R = WORLD.premises, S = HOUSE_WORKER && HOUSE_WORKER.stats ? HOUSE_WORKER.stats() : {}; return { built: S.built, hits: S.hits, misses: S.misses, on: S.on, here: R.hw ? R.hw.local : null, dispatched: R.hw ? R.hw.dispatched : null, tallies: R.stats.tallies, hitBase: R.stats.hitBase, hitWalk: R.stats.hitWalk, queued: R.stats.queued, houses: R.houses.size }; })();';
 const HIDE = on => `const P = PREMISES_EDITOR, v = ${on ? "'hidden'" : "''"}; if (P.panel) P.panel.style.visibility = v; const V = document.getElementById('premView'); if (V) for (const c of V.children) c.style.visibility = v; const G = WORLD.premises.groups; G.outlines.visible = ${!on}; G.handles.visible = ${!on}; return 1;`;
@@ -102,7 +102,7 @@ async function view(name, yaw, pitch) {
     const h = at[Math.min(idx, at.length - 1)];
     await run('PREMISES_EDITOR.openEditor(); return 1;');
     await until('return !!(PREMISES_EDITOR.open && PREMISES_EDITOR.ed);', 120000, 'the editor opened');
-    await run(HIDE(true));
+    await run(HIDE(true)); if (process.env.OUTLINES) await run('WORLD.premises.groups.outlines.visible = true; return 1;');
     for (const [k, yaw] of [['n', 0], ['e', Math.PI / 2], ['s', Math.PI], ['w', -Math.PI / 2]]) {
       await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame({ x0: ${h[1] - 18}, z0: ${h[2] - 18}, x1: ${h[1] + 18}, z1: ${h[2] + 18} }); H.cameras.look(${yaw}, ${+(process.env.PITCH || 0.32)}); return 1;`);
       await sleep(3500);
