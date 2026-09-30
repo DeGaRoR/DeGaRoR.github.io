@@ -2522,16 +2522,32 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
    SEMI-TRANSPARENT, unlike the plates that carry a decision: this one is read
    THROUGH, at the aeroplane behind it, which is what the old glass HUD had
    right and what `--ed-plate` at .94 took away. */
+/* G1090: THE PLATE HAS ONE SIZE (the user, 2026-09-29: "the top bar with the readings keeps resizing
+   because of the explanation text of what the pilot is doing. It shouldn't resize. Size the box, and have
+   the text flow in its own dedicated area"). It was as wide as its longest line - 344 px held, 2434 px on a
+   long status line, measured (tools/hud_fit_shot.js) - because every text in it was `nowrap` in a box sized
+   to its content. Now the WIDTH is the plate's own, a number per breakpoint and per size; every row inside
+   has a fixed height (the readings, the rail, the pilot's area), every readout a fixed width with tabular
+   figures, and every text clips inside its own box. What the plate SAYS can never move its edges; only
+   what you ask it to CARRY can (the instruments flyout's extra readouts wrap onto a second row).
+   GATE UISMOKE holds this contract; tools/hud_fit_shot.js measures it in Chromium. */
 #ui #pfd { grid-column:2; justify-self:center; padding:11px 14px 10px;
+  width:440px; box-sizing:border-box; overflow:hidden;
   background:var(--fl-glass); }
 
-#pfdRow { display:flex; gap:22px; align-items:flex-start; }
+#pfdRow { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:flex-start; }
 
-#ui .rd { text-align:right; min-width:62px; }
+/* a readout is a fixed cell: 80 px holds "+12.3" and "9999" at 30 px in tabular figures; the energy and the
+   netto carry a unit line that grows ("kWh charge · 1.2 h", "m/s air · +1.2 avg") and a word ("EMPTY"), the
+   throttle a twin's "100/100" - they get 112 / 120 */
+#ui .rd { flex:none; width:80px; min-width:0; overflow:hidden; text-align:right; }
+#ui .rd[data-i="nrg"], #ui .rd[data-i="netto"] { width:112px; }
+#ui .rd[data-i="thr"] { width:120px; }
 
 #ui .rd[hidden] { display:none; }
 
-#ui .rd b { display:block; font:600 30px/1.02 'IBM Plex Sans';
+#ui .rd b { display:block; height:31px; font:600 30px/31px 'IBM Plex Sans';
+  font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden;
   letter-spacing:-.01em; color:var(--ed-ink); }
 
 /* NO GREEN: ok is simply the ink. A readout goes warn when it is outside a
@@ -2539,20 +2555,28 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
    the stall alone and says why the other two are owed. */
 #ui .rd.warn b { color:var(--ed-warn); }
 
-#ui .rd i { font-style:normal; font:500 8.5px/1 'IBM Plex Sans';
+#ui .rd i { display:block; height:11px; font-style:normal; font:500 8.5px/11px 'IBM Plex Sans';
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   letter-spacing:.15em; text-transform:uppercase; color:var(--ed-faint); }
 
 /* THE SMALL PFD (the user: "allow a minimized version of the top bar with
    smaller characters and only IAS, alt, Vs and power, plus the steps"). Two
    thirds of the type, four numbers, the steps unchanged. */
-#ui #pfd.small { padding:8px 11px 7px; }
-#ui #pfd.small #pfdRow { gap:14px; }
-#ui #pfd.small .rd { min-width:46px; }
-#ui #pfd.small .rd b { font-size:19px; line-height:1.05; }
-#ui #pfd.small .rd i { font-size:7px; letter-spacing:.12em; }
-#ui #pfd.small #rail { margin-top:8px; padding-top:7px; }
+#ui #pfd.small { padding:8px 11px 7px; width:372px; }
+#ui #pfd.small #pfdRow { gap:4px 12px; }
+#ui #pfd.small .rd { width:52px; }
+#ui #pfd.small .rd[data-i="nrg"], #ui #pfd.small .rd[data-i="netto"] { width:86px; }
+#ui #pfd.small .rd[data-i="thr"] { width:76px; }
+#ui #pfd.small .rd b { font-size:19px; height:20px; line-height:20px; }
+#ui #pfd.small .rd i { font-size:7px; height:9px; line-height:9px; letter-spacing:.12em; }
+#ui #pfd.small #rail { margin-top:8px; padding-top:7px; height:22px; }
 
-#rail { display:flex; align-items:center; gap:10px; margin-top:11px;
+/* the rail is one fixed line: the phase name clips (the longest, "SIM DIVERGED — RESET", fits), the steps
+   and the fold never move */
+/* `contain:inline-size` too: a plate the player has DRAGGED on a phone is absolutely placed at width:auto, i.e. as
+   wide as its content - the rail's phase name must not be part of that (the readouts' fixed cells are) */
+#rail { display:flex; flex-wrap:nowrap; align-items:center; gap:10px; margin-top:11px;
+  height:25px; box-sizing:border-box; contain:inline-size;
   padding-top:10px; border-top:1px solid var(--ed-hair); }
 
 /* the fold sits at the end of the steps, where it is out of the numbers'
@@ -2563,27 +2587,30 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #ui #pfdFold:hover { color:var(--ed-ink); }
 
-#phName { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+#phName { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
   text-transform:uppercase; color:var(--ed-acc); white-space:nowrap; }
 
 #rail.held #phName { color:var(--ed-faint); }
 
-/* G202: THE STATUS LINE — the pilot's goal, the conditions it is waiting
-   for (have / want, a tick when met) and the AFCS modes engaged, in the
-   rail beside the phase name. Mono, faint, one line, clipped; hidden while
-   the rail is held (nothing is being flown). */
-#phNext { flex:1 1 auto; min-width:0; font:400 8.5px/1.2 'IBM Plex Mono', monospace;
-  letter-spacing:.02em; color:var(--ed-faint); white-space:nowrap; overflow:hidden;
-  text-overflow:ellipsis; font-style:normal; }
-#rail.held #phNext { display:none; }
-#ui #pfd.small #phNext { display:none; }
-/* G710: THE PLAN LINE - under the rail, the point flown to, the height asked there and the vertical
-   speed against its limit; the ink, not the faint (it is the answer to "what is it doing"), one line,
-   clipped; gone when empty and on the small PFD */
-#phPlan { display:block; margin-top:6px; font:500 8.5px/1.2 'IBM Plex Mono', monospace; letter-spacing:.02em;
+/* G1090: THE PILOT'S AREA - its own box under the rail, three fixed lines, there whether or not anything
+   is said in it (an empty or a held line is INVISIBLE, never gone: `display:none` on a text-driven state
+   was a resize). `contain:inline-size` keeps its text out of the plate's width for good.
+   G202: THE STATUS LINE - the pilot's goal, the conditions it is waiting for (have / want, a tick when
+   met) and the AFCS modes engaged. Mono, faint, wraps to TWO lines and clips there with an ellipsis;
+   hidden while the rail is held (nothing is being flown).
+   G710: THE PLAN LINE - the point flown to, the height asked there and the vertical speed against its
+   limit; the ink, not the faint (it is the answer to "what is it doing"), one line, clipped.
+   The small PFD carries neither: its area is gone with them, which is a size the player chose. */
+#phWhy { display:block; margin-top:7px; height:35px; overflow:hidden; contain:inline-size; }
+#phNext { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2;
+  height:22px; overflow:hidden; white-space:normal; overflow-wrap:anywhere;
+  font:400 8.5px/11px 'IBM Plex Mono', monospace;
+  letter-spacing:.02em; color:var(--ed-faint); text-overflow:ellipsis; font-style:normal; }
+#rail.held + #phWhy #phNext { visibility:hidden; }
+#phPlan { display:block; margin-top:2px; height:11px; font:500 8.5px/11px 'IBM Plex Mono', monospace; letter-spacing:.02em;
   color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-style:normal; }
-#phPlan:empty { display:none; }
-#ui #pfd.small #phPlan { display:none; }
+#ui #pfd.small #phWhy { display:none; }
 
 #track { display:flex; gap:3px; align-items:center; margin-left:auto;
   margin-block:-7px; }
@@ -2610,6 +2637,12 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 #track i.done { background:rgba(230,219,201,.45); }
 
 #track i.now { width:14px; background:var(--ed-acc); }
+
+/* G1091 (POLISH-2): the trees-by-the-runways variant, named while DEV is on - small, out of the way */
+#ui #rwyTreesTag { position:absolute; left:50%; bottom:6px; transform:translateX(-50%); padding:2px 8px;
+  font:500 9px/1.3 'IBM Plex Mono', monospace; letter-spacing:.04em; color:var(--ed-faint);
+  background:var(--fl-glass); border-radius:4px; pointer-events:none; white-space:nowrap; }
+#ui #rwyTreesTag[hidden] { display:none; }
 
 /* =========================================================================
    4. THE SUMMONED PANELS, and the arrival.
@@ -2803,15 +2836,18 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   /* the three columns collapse: the PFD goes under the brief rather than
      being squeezed between it and nothing */
   #flTop { left:12px; right:12px; top:12px; grid-template-columns:1fr; }
-  #ui #pfd { grid-column:1; justify-self:stretch; }
+  #ui #pfd, #ui #pfd.small { grid-column:1; justify-self:stretch; width:auto; min-width:0; }
   #flRail { left:12px; padding:5px; gap:4px; }
   #ui .flRailBtn { width:44px; }
   #ui #pfd { padding:9px 12px 9px; max-width:100%; }
   /* nine readouts do not fit across a phone: they wrap, and the plate grows
-     upward instead of off the side of the screen */
-  #pfdRow { gap:8px 14px; flex-wrap:wrap; }
-  #ui .rd { min-width:52px; }
-  #ui .rd b { font-size:21px; }
+     upward instead of off the side of the screen - when YOU add them (G1090:
+     the width is the screen's, the rows fixed; the text never moves either) */
+  #pfdRow { gap:8px 12px; flex-wrap:wrap; }
+  #ui .rd { width:58px; }
+  #ui .rd[data-i="nrg"], #ui .rd[data-i="netto"] { width:110px; }
+  #ui .rd[data-i="thr"] { width:86px; }
+  #ui .rd b { font-size:21px; height:23px; line-height:23px; }
   /* the width is `right`-anchored here so flLayout can inset the LEFT past
      the ribbon without the panel changing size */
   #ui #telp { left:12px; right:12px; width:auto; bottom:78px; }
@@ -4482,16 +4518,21 @@ body.bpOpen #edView { visibility:hidden; }
         <div class="rd" data-i="da" hidden><b id="r-da">+0</b><i>% ail</i></div>
         <div class="rd" data-i="dr" hidden><b id="r-dr">+0</b><i>% rud</i></div>
       </div>
-      <div id="rail" class="held"><b id="phName">HOLDING</b><i id="phNext"></i><div id="track"></div>
+      <div id="rail" class="held"><b id="phName">HOLDING</b><div id="track"></div>
         <!-- THE SMALL PFD. Four numbers instead of nine, two thirds of the
              type, the steps unchanged — for when the aeroplane is what you
              want to be looking at. It overrides the `instruments` flyout for
              as long as it is on, and says so there. -->
         <button id="pfdFold" type="button" title="Smaller">&#9662;</button>
       </div>
-      <!-- G710: THE PLAN LINE - where the pilot is flying to, the height it asks there, the vertical
-           speed against its limit (app.js railPlan, off ap.intent) -->
-      <i id="phPlan"></i>
+      <!-- G1090: THE PILOT'S EXPLANATION HAS ITS OWN AREA (the user, 2026-09-29: "the top bar with the
+           readings keeps resizing because of the explanation text of what the pilot is doing. It
+           shouldn't resize. Size the box, and have the text flow in its own dedicated area"). The
+           status line (G202: the goal, the conditions, the modes) wraps to two lines and clips; the
+           plan line (G710: where it flies to, the height asked, the vertical speed against its
+           limit - app.js railPlan, off ap.intent) is the third, clipped. The area is always there,
+           empty or not, so the plate never changes size with what the pilot says. -->
+      <div id="phWhy"><i id="phNext"></i><i id="phPlan"></i></div>
     </div>
   </div>
 
@@ -9131,6 +9172,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
   // 60 fps all the way (rollout_perf A/B). ?raster=0 or localStorage flydiy.raster = '0' turns it off; node (the gates)
   // keeps the analytic path unless FLYDIY_GROUND_RASTER=1 (GATE PREMRASTER holds the two within tolerance)
   window.FLYDIY_GROUND_RASTER = rq !== '0';
+  // (G1091, POLISH-2) THE TREES BY THE RUNWAYS: ?rwytrees=today|map|mapx (or localStorage flydiy.rwytrees) - read by
+  // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'today', the default
+  var rt = new URLSearchParams(location.search).get('rwytrees');
+  if (rt === null) { try { rt = localStorage.getItem('flydiy.rwytrees'); } catch (e) {} }
+  window.FLYDIY_RWYTREES = rt === 'map' || rt === 'mapx' ? rt : 'today';
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either
@@ -12498,6 +12544,7 @@ function makeWorld(seed, opts) {
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
+    aeroTreeBox = null;   // G1091: the aerodromes change with the premises
     if (typeof terrainClear === 'function') terrainClear();   // the ground moved (G407: the height memo)
     if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
     const rec = PREMISES_GEN.unwrap(rec0).rec;
@@ -12510,7 +12557,7 @@ function makeWorld(seed, opts) {
     // composition's is read off the cook, the rest bake lazily as before. OFF BY DEFAULT: it moves flight
     // numbers (the ground within 0.04 mm of the lattice, the lattice within G614's tolerance of the analytic)
     const rasterOn = !!(opts && opts.groundRaster) || groundRasterFlag();
-    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: rasterOn }, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
+    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: rasterOn }, opts && opts.rwyTrees ? { rwyTrees: opts.rwyTrees } : {}, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
     if (PM.rasterLoad && ISL && ISL.premCook && ISL.premCook.raster && PM.raster.on) PM.rasterCooked = PM.rasterLoad(ISL.premCook.raster);
     PMrec = rec;
     // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
@@ -12593,6 +12640,36 @@ function makeWorld(seed, opts) {
   };
   const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: aeroSurfAll });
 
+  // G1091: THE TREES BY THE RUNWAYS - ONE RULE FOR THE TREE YOU SEE AND THE TREE YOU HIT (POLISH-2). On an island
+  // the collidable woodland below and the renderer's fill (render_world.js forestHere / openHere, the colour bake,
+  // the far stands) ask THIS, where the renderer used to carry clearances of its own: the analytic world's
+  // corridor (|z| < 90, -3400 < x < 200 - a 180 m lane through Jolene's woods west of 13/31, a leftover: the
+  // island's field is not there) and the aerodrome box (len/2 + 150, wid/2 + 60), which the woodland never had - a
+  // collidable tree stood unseen from 47.5 m and the fill began at 60. Now the corridor is gone on an island in
+  // every variant (it never belonged there), the box is 'today's alone (27_premises.js RWY_TREES), and the
+  // pavement is PM.treePaveAt's by the variant ('today': coverAt's kill, as it was). The premises' excludes stay
+  // excludeAt(.., 'trees')'s, which drops the runway clearances by the same variant.
+  // (the box: THE AERODROME'S CLEARING, 2026-09-22 - a strip along the runway, the length + 150 m each end for the
+  // approach, the width + 60 m each side; a record without a heading keeps the circle of len/2 + 70; treeBox false
+  // (G527.3, East Point) leaves the clearing to the premises' own excludes)
+  var aeroTreeBox = null;   // (`var`: setPremises clears it and runs before this line)
+  const rwyTrees = () => (ISL && PM && PM.rwyTrees) || 'today';
+  function treeAeroBlocked(x, z) {
+    if (rwyTrees() === 'today') {
+      if (!aeroTreeBox) aeroTreeBox = aerodromes.filter(a => a.treeBox !== false).map(a => (typeof a.hdg === 'number' && a.wid)
+        ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), hl: a.len / 2 + 150, hw: a.wid / 2 + 60, strip: true }
+        : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 });
+      for (const e of aeroTreeBox) {
+        const dx = x - e.x, dz = z - e.z;
+        if (!e.strip) { if (dx * dx + dz * dz < e.r2) return true; continue; }
+        const al = dx * e.cx + dz * e.sz, ac = -dx * e.sz + dz * e.cx;
+        if (Math.abs(al) < e.hl && Math.abs(ac) < e.hw) return true;
+      }
+      const c = coverAt(x, z, 1); return !!(c && c.kill > 0);
+    }
+    return !!(PM && PM.treePaveAt && PM.treePaveAt(x, z));
+  }
+
   // trees: stage-2 biome placement — deterministic jittered 64 m grid,
   // order-independent per point (replaces the v0 sequential LCG loop);
   // density + species from the biome module, clustered by stand noise.
@@ -12618,7 +12695,8 @@ function makeWorld(seed, opts) {
         if (ISL.effClass(x, z) !== ISL.WC.TREE) continue;
         islS = Math.max(0.65, Math.min(1.75, ISL.canopyAt(x, z) / 16));
       }
-      if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
+      if (ISL) { if (treeAeroBlocked(x, z)) continue; }   // G1091: the runways' clearances, the fill's own rule
+      else if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
       let nearMeadow = false;
       for (const m of meadows)
         if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
@@ -12631,7 +12709,7 @@ function makeWorld(seed, opts) {
       // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
       // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
       // collidable tree off a village street - the same law the grass obeys (contract v1.17)
-      if (PM && PM.coverAt) { const cv = PM.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
+      if (!ISL && PM && PM.coverAt) { const cv = PM.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }   // (on an island: treeAeroBlocked's)
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > (ISL ? 0.85 : tp.p)) continue;
       const idx = trees.length;
@@ -12846,6 +12924,10 @@ function makeWorld(seed, opts) {
   // is a lake, everything green and short is grass (the muskeg included).
   const islandSurface = (x, z) => {
     const a = aeroSurfAll(x, z); if (a >= 0) return a;
+    return islandGround(x, z);
+  };
+  // the island's own ground at a point, under whatever a strip or a premises surface says there
+  const islandGround = (x, z) => {
     const h = terrainH(x, z);
     if (h <= 0.05) return SURFACE.WATER;
     const c = ISL.effClass(x, z);
@@ -12859,6 +12941,19 @@ function makeWorld(seed, opts) {
     return SURFACE.GRASS;
   };
   const surface = ISL ? islandSurface : B.surface;
+  // G1091: THE TREES' GROUND - the class a tree's placement reads (the fill's FOREST_FLOOR / GRASS test). 'today': the
+  // surface, as it was (`sc` the caller's own reading of it). 'map' / 'mapx': a premises surface still answers (an
+  // apron, a road, a yard - and in 'mapx' the shoulders), but the registry's strip box past the paving (its
+  // wid/2 + 6 m margin is the wheels' ground, not the trees') and, in 'map', a runway's gravel shoulder give way
+  // to the island's own class: the map. world.surface is untouched - the wheels roll on what they rolled on.
+  function treeGround(x, z, sc) {
+    const m = rwyTrees();
+    if (m === 'today') return sc !== undefined ? sc : surface(x, z);
+    const p = PM.surfaceAt(x, z);
+    if (p >= 0 && !(m === 'map' && PM.shoulderAt(x, z))) return p;
+    const a = AERO.surfaceAt(x, z); if (a >= 0) return a;
+    return islandGround(x, z);
+  }
 
   // ---- v1 tiled features: lazy bucketing of the eager tree array plus
   // stage-1 river reaches (a reach spanning several tiles appears in each
@@ -13102,6 +13197,10 @@ function makeWorld(seed, opts) {
     // own roads (a 'road' 5 m of gravel, a 'track' 3 m of worn grass, band 1.2) and its strips (by
     // their surface class). The viewer adds `col`, the drawn ground's colour (render_world.js).
     coverAt,
+    // G1091: the trees by the runways - the variant ('today' | 'map' | 'mapx', a data island's; 'today' elsewhere),
+    // the runways' clearance at a point (the box in 'today', the pavement by the variant) and the class a tree's
+    // placement reads; the woodland above and the renderer's fill ask the same three
+    rwyTrees, treeAeroBlocked, treeGround,
   };
 }
 // ============================================================
@@ -16668,6 +16767,29 @@ const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'pat
 const STAND_KEYS = ['n', 'pitch', 'lead', 'bar', 'u0', 'vOff'];
 const PAV_MARKS = ['auto', 'none', 'edges', 'centre'];
 const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
+// THE TREES BY THE RUNWAYS (G1091, POLISH-2; the user: "just follow the map first ... You can do both, only the map,
+// and the map + the gravel and approach fans, and I'll judge"). On Jolene's 13/31 the tree map (WorldCover's TREE
+// cells, canopy >= 2.5 m) stands 2-14 m past the paved edge, and the game drew its first tree ~60 m out: five
+// clearances stacked - the pavement's 40 m band + 6 m fade (coverAt's kill), the strip's box + 30 m (a derived
+// exclude), the gravel shoulders (y_sh13_*, a derived exclude and a GRAVEL surface), the renderer's aerodrome box
+// (wid/2 + 60, len/2 + 150) and the approach fans (x_fan*). THREE WAYS, one switch, the user picks:
+//   'today' - as it was;
+//   'map'   - the map everywhere but the paving itself: no tree on a pavement or its DRAWN side (a strip's, an
+//             apron's and a taxiway's side fades over PAVE_SIDE; an ordinary road draws its band and fade, which is
+//             what 'today' kills too), no strip box, no shoulders, no aerodrome box, no fans;
+//   'mapx'  - 'map' with the gravel shoulders and the approach fans kept as explicit excludes.
+// Only on a DATA ISLAND (the analytic world's premises keep 'today'). The page: ?rwytrees= or localStorage
+// flydiy.rwytrees (the island loader sets window.FLYDIY_RWYTREES); node: FLYDIY_RWYTREES=; a compose may pass
+// opts.rwyTrees. Default 'today' until the user has judged.
+const RWY_TREES = ['today', 'map', 'mapx'];
+const PAVE_SIDE = 1.8;    // a side-faded pavement's DRAWN side: the recipe's sideW 1.2 + edgeChip 0.6 (GATE PAVEMENT holds it)
+function rwyTreesMode(o) {
+  let v = o && o.rwyTrees;
+  if (v == null && typeof window !== 'undefined' && window.FLYDIY_RWYTREES != null) v = window.FLYDIY_RWYTREES;
+  if (v == null && typeof process !== 'undefined' && process.env && process.env.FLYDIY_RWYTREES) v = process.env.FLYDIY_RWYTREES;
+  v = String(v == null ? '' : v).toLowerCase();
+  return RWY_TREES.indexOf(v) >= 0 ? v : 'today';
+}
 function paveBand(entry, cls, isRoad) {
   const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
   return Math.max(0, b);
@@ -17200,10 +17322,51 @@ function compose(rec0, world, opts) {
   const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set && !m.look).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
   const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
-  const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), what: s.what || ['trees'] }));
-  for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id }); }
+  // G1091: the trees' variant (rwyTreesMode) - a data island's only; and each exclude says which of the runway
+  // clearances it is: `rwy` the strip's box + 30 m (b), `shoulder` a runway's gravel shoulder (c), `fan` an
+  // approach fan (e) - so excludeAt(.., 'trees') can drop them by the variant and the gates can name them
+  const RWT = /^ISLAND-/.test(String(world.id || '')) ? rwyTreesMode(o) : 'today';
+  const landRwy = runways.filter(r => !runwayIsWater(r));
+  // an approach fan: an authored exclude of trees and nothing else that opens off a strip's end - a corner within
+  // 100 m of the end, its centre beyond the end along the axis (x_fan13_*, x_fan02_*, x_fan3_*, mn_x_fan_n, nv_fan_*)
+  const fanOf = (poly, what) => {
+    if (!(what.length === 1 && what[0] === 'trees')) return null;
+    let cx = 0, cz = 0; for (const q of poly) { cx += q[0] / poly.length; cz += q[1] / poly.length; }
+    for (const r of landRwy) {
+      const E = runwayEnds(r);
+      for (const [k, e] of [[0, E.end0], [1, E.end1]]) {
+        const near = poly.some(q => Math.hypot(q[0] - e[0], q[1] - e[1]) < 100);
+        const u = (cx - r.c[0]) * E.d[0] + (cz - r.c[1]) * E.d[1];
+        if (near && (k ? u : -u) > r.len / 2) return r.id + (k ? '/1' : '/0');
+      }
+    }
+    return null;
+  };
+  // a runway's shoulder: a GRAVEL / SAND surface polygon lying inside the strip's reach (its band + the fade + 6 m, the
+  // coverAt index's) and running along it for at least half its length (y_sh13_*, y_sh02_*; not a yard or a stand)
+  const shoulderOf = poly => {
+    for (const r of landRwy) {
+      const E = runwayEnds(r), reach = r.wid / 2 + paveBand(r, (RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass).cls || 'grass', false) + PAVE_FADE + 6;
+      let u0 = Infinity, u1 = -Infinity, inside = true;
+      for (const q of poly) {
+        const dx = q[0] - r.c[0], dz = q[1] - r.c[1], u = dx * E.d[0] + dz * E.d[1], v = dx * E.n[0] + dz * E.n[1];
+        if (Math.abs(v) > reach + 0.5 || Math.abs(u) > r.len / 2 + reach) { inside = false; break; }
+        u0 = Math.min(u0, u); u1 = Math.max(u1, u);
+      }
+      if (inside && u1 - u0 >= r.len / 2) return r.id;
+    }
+    return null;
+  };
+  const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => { const what = s.what || ['trees'], fan = fanOf(s.poly, what); return Object.assign({ poly: s.poly, bbox: polyBBox(s.poly), what, id: s.id || null }, fan ? { fan } : {}); });
+  for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id, rwy: true }); }
   // a hard surface (paved / gravel / sand) grows no tree and takes no plot: an apron is an apron
-  for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) excl.push({ poly: sp.poly, bbox: polyBBox(sp.poly), what: ['trees', 'plots'], derived: true, surface: sp.id });
+  for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) {
+    const sh = +sp.surface !== SURFACE.PAVED ? shoulderOf(sp.poly) : null;
+    excl.push(Object.assign({ poly: sp.poly, bbox: polyBBox(sp.poly), what: ['trees', 'plots'], derived: true, surface: sp.id }, sh ? { shoulder: sh } : {}));
+  }
+  // G1091: which runway clearances the variant lifts, for TREES only (a strip's box still keeps plots and settlements
+  // off): 'map' all three, 'mapx' the box alone (the shoulders and the fans stay)
+  const treeOff = e => RWT !== 'today' && (e.rwy || (RWT === 'map' && (e.shoulder || e.fan)));
   // a clear zone is a derived exclude of trees
   for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) excl.push({ poly: z.poly, bbox: polyBBox(z.poly), what: ['trees'], derived: true });
   // THE TTYPE STAMPS (v1.20): each polygon with the code it stamps. 0 sea and 1 lake are
@@ -17738,7 +17901,7 @@ function compose(rec0, world, opts) {
       if (exIdxN !== excl.length) { exIdx.clear(); exIdxN = excl.length; excl.forEach(e => gsAddTo(exIdx, e.bbox, e)); }
       const list = exIdx.get(gsKey(Math.floor(L[0] / GS_C), Math.floor(L[1] / GS_C)));
       if (!list) return false;
-      for (const e of list) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && inPoly(e.poly, L[0], L[1])) return true;
+      for (const e of list) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && !(what === 'trees' && treeOff(e)) && inPoly(e.poly, L[0], L[1])) return true;
       return false;
     },
     // (G614) the linear scans the indexes replaced - the reference GATE PREMRASTER holds them to
@@ -17750,8 +17913,21 @@ function compose(rec0, world, opts) {
     },
     excludeAtScan(x, z, what) {
       const L = F.toLocal(x, z);
-      for (const e of excl) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && inPoly(e.poly, L[0], L[1])) return true;
+      for (const e of excl) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && !(what === 'trees' && treeOff(e)) && inPoly(e.poly, L[0], L[1])) return true;
       return false;
+    },
+    // G1091: THE TREES BY THE RUNWAYS - the variant this composition plants by, the excludes it knows as runway
+    // clearances (the gates print them), and the two point queries the woodland and the fill share:
+    //   treePaveAt(x, z)  a tree's trunk may not stand here for the PAVEMENT's sake ('today': coverAt's kill - the
+    //                     pavement, its band and the fade; 'map' / 'mapx': the pavement and its DRAWN side only)
+    //   shoulderAt(x, z)  the point is on a runway's gravel shoulder (the trees' ground there is the island's in 'map')
+    rwyTrees: RWT,
+    rwyClearances: () => excl.filter(e => e.rwy || e.shoulder || e.fan).map(e => ({ id: e.id || e.surface || ('box:' + e.runway), kind: e.rwy ? 'box' : e.shoulder ? 'shoulder' : 'fan', runway: e.runway || e.shoulder || e.fan, off: treeOff(e) })),
+    treePaveAt: (x, z) => treePaveAt(x, z),
+    shoulderAt(x, z) {
+      const L = F.toLocal(x, z);
+      for (const e of excl) if (e.shoulder && inBB(e.bbox, L[0], L[1]) && inPoly(e.poly, L[0], L[1])) return e.shoulder;
+      return null;
     },
     roadNear(x, z) { const L = F.toLocal(x, z); let d = Infinity; for (const r of roadObjs) d = Math.min(d, roadDist(r, L[0], L[1])); return d; },
     inExtent(x, z) { const L = F.toLocal(x, z); return inBB(ext, L[0], L[1]); },
@@ -17792,6 +17968,21 @@ function compose(rec0, world, opts) {
   // editor draws as surface, which that index does not hold) at the point and `margin` round it. The GRAVEL / SAND
   // polygons are not asked: on Jolene they are the runways' own shoulders (y_sh13_*, y_sh02_*), where the stones lie.
   // -> null | { d, id, kind, cls } (d: metres inside that pavement's edge, > -margin; kind 'surface' for a polygon).
+  // G1091: a tree's trunk and the pavement. 'today' is coverAt's kill verbatim (the pavement, its band, the fade: 46 m
+  // past 13/31's edge). 'map' / 'mapx' keep a tree off the paving and what the pavement DRAWS past its edge: a strip, a
+  // paved polygon and a taxiway fade their side out over PAVE_SIDE (G660, G980); an ordinary road still draws its
+  // gravel band and fades over PAVE_FADE past it, so its reach is 'today's (band + fade). The PAVED surface polygons
+  // are the derived excludes' (never lifted).
+  function treePaveAt(x, z) {
+    if (RWT === 'today') { const c = coverAt(x, z, 1); return !!(c && c.kill > 0); }
+    const L = F.toLocal(x, z), lx = L[0], lz = L[1];
+    const cell = CIDX.query(lx, lz);
+    if (cell) for (const it of cell) {
+      const reach = it.kind === 'road' && !(it.road && it.road.taxiway) ? it.band + PAVE_FADE : PAVE_SIDE;
+      if (dEdgeOf(it, lx, lz) > -reach) return true;
+    }
+    return false;
+  }
   function pavedNear(x, z, margin, skip) {
     const m = margin > 0 ? margin : 0, L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
@@ -18323,7 +18514,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
@@ -42135,7 +42326,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='1e4fbfa95284';window.FLYDIY_BUILD='b6a5d9cfa83a'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5535f997e577';window.FLYDIY_BUILD='56b718fc8619'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -42171,7 +42362,7 @@ if (typeof module !== 'undefined')
 <script type="text/x-flydiy" src="src/chars/ch20_char.js?v=19a43786"></script>
 <script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=2c1e4f52"></script>
 <script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=a1f7150e"></script>
-<script type="text/x-flydiy" src="src/chars/chars_ktx2.js?v=e043062d"></script>
+<script type="text/x-flydiy" src="src/chars/chars_ktx2.js?v=7533a942"></script>
 <script type="text/x-flydiy" src="src/animals/bear_animal.js?v=06b6bbee"></script>
 <script type="text/x-flydiy" src="src/animals/elk_animal.js?v=4fbc60ad"></script>
 <script type="text/x-flydiy" src="src/animals/doe_animal.js?v=848103a1"></script>
@@ -61312,7 +61503,8 @@ function budget(c, mi) {
   if (typeof CHAR_KTX2 !== 'function' || typeof KTX2 === 'undefined' || typeof ASSET_FETCH !== 'function') return null;
   const r = CHAR_KTX2(c.key), m = c.mats[mi], b = r && r.mats[mi];
   if (!b || !m) return null;
-  for (const k of ['map', 'nrm', 'mr', 'spec']) if ((m[k] ? c.texs[m[k]] : undefined) !== b.src[k]) return null;   // stale
+  // G939.1: by VALUE - since AS0b (G903) an entry may be a flat map's constant [r, g, b], a new array on each side
+  for (const k of ['map', 'nrm', 'mr', 'spec']) if (JSON.stringify(m[k] ? c.texs[m[k]] : undefined) !== JSON.stringify(b.src[k])) return null;   // stale
   if (KTX2.off('chars')) return null;
   return b;
 }
@@ -108795,7 +108987,8 @@ var SHADOW_NEAR = (function () {
   'use strict';
   const NEAR_LAYER = 3, FAR_LAYER = 2, CRAFT_LAYER = 5;   // the near map's viewport 0 sees 3, its viewport 1 (the craft's cascade) 3 + 5; the far map sees 2 (everything but the craft, unless it is high)
   const S = { on: true, half: 30, size: 1024, bias: -0.0004, biasM: 0.05, normalBias: 0.02, normalBiasTx: 0.9, relief: 150, slantMax: 3000, penumbra: 0.0093, radiusMax: 2.5, self: true, slant: 0,   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra), per viewport
-    craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0 };   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
+    craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0,
+    aimDrawn: true, farHide: true };   // G1080: ... ; farHide: the aeroplane hidden while the WORLD's far map draws (three's shadow walk ignores the shadow camera's layers - see farLight)   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
   const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0); yzw: the craft cascade's bias (depth), PCF radius (texels), normal offset (m)
   const nearWindow = new Float32Array(4);           // xy: the craft cascade's depth window (its shadow coordinate z, min / max) - past it, the 60 m box
   const nearUniforms = { uNearP: { value: nearScalars }, uNearQ: { value: nearWindow }, uNearM1: { value: (typeof THREE !== 'undefined' && THREE.Matrix4) ? new THREE.Matrix4() : null } };
@@ -108951,6 +109144,7 @@ var SHADOW_NEAR = (function () {
     sh.getCamera = function (i) { if (i === 0) { if (S.prune) prune(); return cam1; } unprune(); return this.camera; };
     sh.getFrustum = function (i) { return i ? this._frustum : C1.frustum; };
     sh.updateMatrices = function (light) {
+      farUnhide();   // (G1080: the aeroplane hidden from the far map's pass only - shown again for the near map's)
       const c0 = this.camera;
       c0.position.setFromMatrixPosition(light.matrixWorld); t0.setFromMatrixPosition(light.target.matrixWorld);
       c0.lookAt(t0); c0.updateMatrixWorld();
@@ -109021,11 +109215,54 @@ var SHADOW_NEAR = (function () {
     if (craftGroup && far !== craftFar) { craftFar = far; craftGroup.traverse(m => { if (far) m.layers.enable(FAR_LAYER); else m.layers.disable(FAR_LAYER); }); }
     return live;
   }
-  function follow(L, cg, sun, agl, snap, camera) {
+  //
+  // G1080 THE SHADOW FOLLOWS THE DRAWN AEROPLANE (SHADOW-EYES; the user, 2026-09-29: "there are a few situations where
+  // pausing the simulation will simply leave the aircraft shadow in place, the aircraft will roll shadowless for a few
+  // meters, then the blurry shadow will come first, then the clear crisp shadow"). Both viewports were aimed at the `cg`
+  // render_world's worldUpdate receives - app.js passes the CAMERA there under the free camera and the world editor - and
+  // the craft's cascade was sized from the drawn aeroplane's sphere as it stood a frame BEFORE (worldUpdate runs before
+  // poseModel), measured from that point: whenever the two parted, the cascade stood where the aim was, and the aeroplane
+  // left it: SHADOWLESS once it was past the 30 m cap, BLURRY while inside (the box grown to reach it, up to 60 m wide,
+  // 6 cm texels), CRISP once they met again. Now (S.aimDrawn) the aim is the drawn aeroplane's own sphere centre - the
+  // pose model.grp carries - in follow() (last frame's pose) and again in aim(), which app.js calls right after
+  // poseModel() (this frame's pose, before the render): the box is fitted to the craft alone, whatever the camera does,
+  // and a teleport (Restart, the line-up skip, Fly on) moves it with the aeroplane on the same frame. Only a craft that
+  // is off the stage (the scenery mode lifts it out of the scene) leaves the aim with the point worldUpdate was given.
+  const AIM = { L: null, sun: null, snap: null, camera: null, hAt: null, agl: 0, cg: [0, 0, 0], live: 0, n: 0, drawn: 0 };
+  const _aimP = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
+  // the drawn aeroplane's sphere centre (world), into _aimP - false when there is no pose or it is off the stage
+  function drawnCentre() {
+    if (!craftPose || !(S.craftR > 0) || !_aimP || !C1.scene) return false;
+    let top = craftPose; while (top.parent) top = top.parent;
+    if (top !== C1.scene) return false;
+    _aimP.copy(craftC).applyMatrix4(craftPose.matrixWorld);
+    return Number.isFinite(_aimP.x + _aimP.y + _aimP.z);
+  }
+  const _aimA = [0, 0, 0];
+  function follow(L, cg, sun, agl, snap, camera, hAt) {
     if (!L) return;
     unprune();   // (a pass that threw between getCamera(0) and getCamera(1) must not leave the world hidden)
+    farUnhide();
     const live = apply(L);
+    AIM.L = L; AIM.sun = sun; AIM.snap = snap; AIM.camera = camera; AIM.hAt = typeof hAt === 'function' ? hAt : null; AIM.agl = agl; AIM.live = live;
+    AIM.cg[0] = cg[0]; AIM.cg[1] = cg[1]; AIM.cg[2] = cg[2];
     if (!live) return;
+    if (S.aimDrawn && AIM.hAt && drawnCentre()) { _aimA[0] = _aimP.x; _aimA[1] = _aimP.y; _aimA[2] = _aimP.z; place(L, _aimA, Math.max(0, _aimP.y - AIM.hAt(_aimP.x, _aimP.z)), sun, snap, camera); AIM.drawn = 1; }
+    else { place(L, cg, agl, sun, snap, camera); AIM.drawn = 0; }
+  }
+  // aim(): the craft's pose of THIS frame (app.js, right after poseModel) - both viewports re-aimed at it
+  function aim() {
+    if (!S.aimDrawn || !AIM.L || !AIM.live || !AIM.hAt || !craftPose) return false;
+    craftPose.updateWorldMatrix(true, false);
+    if (!drawnCentre()) return false;
+    _aimA[0] = _aimP.x; _aimA[1] = _aimP.y; _aimA[2] = _aimP.z;
+    place(AIM.L, _aimA, Math.max(0, _aimP.y - AIM.hAt(_aimP.x, _aimP.z)), AIM.sun, AIM.snap, AIM.camera);
+    AIM.n++; AIM.drawn = 1;
+    return true;
+  }
+  // the aim point the near casters are tagged round (render_world nearTag): the drawn aeroplane, else the given point
+  function aimPoint(cg) { return (S.aimDrawn && AIM.drawn && drawnCentre()) ? [_aimP.x, _aimP.y, _aimP.z] : cg; }
+  function place(L, cg, agl, sun, snap, camera) {
     _t.set(cg[0], cg[1], cg[2]);
     if (snap) snap(_t, S.half, S.size);
     L.target.position.copy(_t);
@@ -109083,8 +109320,119 @@ var SHADOW_NEAR = (function () {
     nearScalars[3] = S.normalBiasTx * tx;
     S.craftHalf = Hh;
   }
-  const API = { S, pcf, C1, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, apply, setNear, unprune, get installed() { return installed; } };
-  if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
+  // the drawn aeroplane's sphere centre as [x, y, z] (render_world's far strip, the A/B), or null
+  function drawnPoint() { return drawnCentre() ? [_aimP.x, _aimP.y, _aimP.z] : null; }
+  // ---- G1080 SHADOW-EYES: THE LIVE A/B (?shadoweyes=1) ------------------------------------------------------------------
+  // The user's eye decides (B11-EYES' method: one thing switched at a time, live, while taxiing - a still frame or a lossy
+  // video cannot show a flicker). A label names the configuration; the top-row digits switch it (window.SHEYES(n) too).
+  // Every configuration is the shipped state with ONE change; 1 is the state before G1080.
+  const EYES_TEXT = {
+    0: 'SHIPPED - both G1080 fixes: the aeroplane out of the world far map, its crisp shadow aimed at the drawn aeroplane',
+    1: 'AS BEFORE G1080 - the aeroplane also drawn in the far map (the soft trailing halo), the crisp shadow aimed at the sim CG / the camera',
+    2: 'THE SOFT HALO BACK - the aeroplane drawn in the far map again (0 without the soft-shadow fix)',
+    3: 'CONTACT SHADOW OFF - the soft blobs under the tyres and the body blob (A6-GROUND G1002) gone (otherwise 0)',
+    4: 'THE HALO AT 30 HZ - the aeroplane in the far map, the far map drawn every frame (key 4 of the first A/B)',
+    5: 'THE AIM FIX ALONE - the crisp shadow aimed at the drawn aeroplane, the aeroplane still in the far map',
+    6: 'FAR MAP OFF (diagnostic) - no world shadow at all: trees, houses gone; the own maps of the craft alone',
+    7: 'CRAFT CASCADE OFF (diagnostic) - the craft in the 60 m box (6 cm texels): what "blurry" looks like',
+    8: 'CONTACT OFF + FAR EVERY FRAME (otherwise 0)',
+  };
+  const EYES = { on: false, cfg: 0, box: null, base: null, info: '' };
+  function eyesBase() {
+    const W = window, CS = W.CONTACT_SHADOW, SR = W.SHADOW_RATE;
+    return { aim: true, farHide: true, craft: S.craft, contact: CS ? CS.S.on : true, every: SR ? SR.every : 2, far: true };
+  }
+  function eyes(n) {
+    if (typeof window === 'undefined') return '';
+    n = n | 0; if (!EYES_TEXT[n]) return 'configurations: ' + Object.keys(EYES_TEXT).join(' ');
+    const W = window, CS = W.CONTACT_SHADOW, SR = W.SHADOW_RATE, WF = W.WORLD;
+    if (!EYES.base) EYES.base = eyesBase();
+    const B = EYES.base, c = Object.assign({}, B);
+    if (n === 1) { c.aim = false; c.farHide = false; }
+    if (n === 2 || n === 4 || n === 9) c.farHide = false;
+    if (n === 5) c.farHide = false;
+    if (n === 3 || n === 8) c.contact = false;
+    if (n === 4 || n === 8) c.every = 1;
+    if (n === 6) c.far = false;
+    if (n === 7) c.craft = false;
+    S.farHide = c.farHide;
+    S.aimDrawn = c.aim; S.craft = c.craft;
+    if (!c.craft) C1.H = 0;   // (refit now)
+    if (CS) CS.S.on = c.contact;
+    if (SR) { SR.every = c.every; SR.n = 0; }
+    if (WF && WF.sun && WF.sunw) {
+      const want = c.far && WF.sunw.on;
+      WF.sun.shadow.camera.layers.set(want ? FAR_LAYER : (WF.sunw.EMPTY || 31));
+      WF.sun.shadow.needsUpdate = true;
+    }
+    EYES.cfg = n;
+    eyesBox();
+    return n + ': ' + EYES_TEXT[n];
+  }
+  function eyesBox() {
+    if (typeof document === 'undefined' || !document.body) return;
+    let d = EYES.box;
+    if (!d) {
+      d = EYES.box = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99999;pointer-events:none;max-width:80vw;text-align:center;' +
+        'font:600 15px/1.35 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.72);padding:8px 14px;border-radius:6px;white-space:normal';
+      document.body.appendChild(d);
+    }
+    d.textContent = 'SHADOW-EYES  ' + EYES.cfg + '  -  ' + EYES_TEXT[EYES.cfg] + '     [keys 0-8]' + (EYES.info ? '   ' + EYES.info : '');
+  }
+  function eyesInit() {
+    if (typeof window === 'undefined' || typeof location === 'undefined' || !/[?&]shadoweyes=1/.test(location.search || '')) return;
+    EYES.on = true;
+    window.SHEYES = eyes;
+    window.addEventListener('keydown', e => {
+      const m = /^Digit(\d)$/.exec(e.code || '');
+      if (!m || e.ctrlKey || e.altKey || e.metaKey || !EYES_TEXT[+m[1]]) return;
+      const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      e.preventDefault(); e.stopPropagation();
+      eyes(+m[1]);
+    }, true);
+    const up = () => { if (document.body) eyesBox(); else setTimeout(up, 500); };
+    up();
+    // the frame pacing beside the label (the last 60 rendered intervals): the mean, and the share of intervals that differ
+    // from the one before by a refresh or more - the judder an uneven every-2nd-frame far map could cause
+    setInterval(() => {
+      const P = window.FLYDIY_PACE, h = P && P.recent ? P.recent() : null;
+      if (!h || h.length < 10) return;
+      const a = h.slice(-60); let odd = 0; for (let i = 1; i < a.length; i++) if (Math.abs(a[i] - a[i - 1]) > 8) odd++;
+      EYES.info = '| frames ' + (a.reduce((x, y) => x + y, 0) / a.length).toFixed(1) + ' ms, uneven ' + Math.round(100 * odd / (a.length - 1)) + ' %';
+      eyesBox();
+    }, 500);
+  }
+  // ---- G1080 THE SOFT TRAILING SHADOW: THE AEROPLANE OUT OF THE WORLD'S FAR MAP -----------------------------------
+  // The user (2026-09-29): "the soft shadow that trails the clean, crisp shadow ... the soft, still flickery soft shadow".
+  // Their live A/B: only drawing the far map every frame changed it. The cause: THREE'S SHADOW WALK TESTS AN OBJECT'S
+  // LAYERS AGAINST THE MAIN CAMERA, not the shadow camera (r186 WebGLShadowMap: renderObject(object, camera,
+  // shadowCamera, ...) -> object.layers.test(camera.layers)), and every object shares layer 0 with the main camera - so the
+  // layer scheme above (FAR_LAYER on the far map's camera, the craft off it since G601 / G650) never filtered a single
+  // caster in any shadow pass. The aeroplane was in the world's 1 km map all along: a 0.2-1 m texel copy, drawn every 2nd
+  // frame (render_world SHADOW_RATE) - a soft halo round the crisp shadow, a frame behind, blinking at 15 Hz. Measured
+  // (tools/_sheyes_night.js B, paused, the far map drawn every frame): hiding the aeroplane from the far map's pass alone
+  // changes 43 279 pixels round the wing and tail shadow (the halo); the control pair, 8.
+  // Now the craft's top group is HIDDEN while the far map draws: the far light's updateMatrices (three calls it right
+  // before that light's walk, and only on a frame that draws it) hides it; the near light's (next in the same pass - the
+  // scene's order: render_world adds the sun first) and follow() show it again. Only while the near map is live: with it
+  // off the craft's shadow IS the far map's (apply()).
+  const FARH = { hid: null, n: 0, L: null };
+  function farUnhide() { if (FARH.hid) { FARH.hid.visible = true; FARH.hid = null; } }
+  function farLight(Lf) {
+    if (!Lf || !Lf.shadow || FARH.L === Lf) return;
+    FARH.L = Lf;
+    const sh = Lf.shadow, um = sh.updateMatrices;
+    sh.updateMatrices = function () {
+      if (S.farHide && S.on && madeL && madeL.visible && madeL.castShadow && craftGroup && C1.scene) {
+        let top = craftGroup; while (top.parent && top.parent !== C1.scene) top = top.parent;
+        if (top.parent === C1.scene && top.visible) { top.visible = false; FARH.hid = top; FARH.n++; }
+      }
+      return um.apply(this, arguments);
+    };
+  }
+  const API = { S, pcf, C1, AIM, EYES, FARH, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, eyes, apply, setNear, unprune, get installed() { return installed; } };
+  if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); eyesInit(); }
   return API;
 })();
 </script>
@@ -116362,11 +116710,16 @@ const STAND_CARDS = (() => {
 
     // ---- a chunk: one card per 32 m cell of treed ground ------------------------------------------
     const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3();
-    function buildChunk(cx, cz) {
-      const t0 = performance.now(), C = S.cell, sp = S.spacing, n = C / sp, x0 = cx * C, z0 = cz * C;
+    // G1075 (LOAD-SETTLE): A CHUNK BY ROWS. A chunk's cards are 64 rows of heights (terrainH through the premises'
+    // raster: 0.1-0.8 s over a town's roads) - in flight it is still one call, every row; in the loading's settle
+    // (app.js worldAtRest, FLYDIY_SLICE) the rows stop once the slice's 40 ms are spent and the next call goes on
+    // from the row it stopped at. The same rows in the same order: the same cards.
+    const sliceSpent = () => { const SL = typeof window !== 'undefined' && window.FLYDIY_SLICE; return !!(SL && performance.now() >= SL.until); };
+    const chunkJob = k => { const [cx, cz] = k.split(',').map(Number); return { k, cx, cz, iz: 0, xs: [], ms: 0 }; };
+    function chunkRows(J) {   // -> true once every row is done
+      const t0 = performance.now(), C = S.cell, sp = S.spacing, n = C / sp, cx = J.cx, cz = J.cz, x0 = cx * C, z0 = cz * C, xs = J.xs;
       const spc = sp / S.block;   // the block's tree spacing: the density the fill would plant at
-      const xs = [];
-      for (let iz = 0; iz < n; iz++) for (let ix = 0; ix < n; ix++) {
+      while (J.iz < n) { const iz = J.iz++; for (let ix = 0; ix < n; ix++) {
         const gx = cx * n + ix, gz = cz * n + iz;
         const x = x0 + (ix + 0.5) * sp + (hsh(gx + 7, gz) - 0.5) * sp * 0.8, z = z0 + (iz + 0.5) * sp + (hsh(gx, gz + 7) - 0.5) * sp * 0.8;
         if (!ISLC || !ISLC.ttype) continue;
@@ -116386,9 +116739,15 @@ const STAND_CARDS = (() => {
         // the card's scale: the canopy over the block's tree height, the fill's rule and clamps
         const s = Math.max(FILL.island.min, Math.min(FILL.island.max, (can * FILL.island.gain) / S.treeH));
         xs.push(x, h, z, s);
-      }
+      } if (sliceSpent()) break; }
+      J.ms += performance.now() - t0;
+      return J.iz >= n;
+    }
+    // the chunk's mesh, once its rows are done
+    function chunkMesh(J) {
+      const t0 = performance.now(), C = S.cell, x0 = J.cx * C, z0 = J.cz * C, xs = J.xs;
       const N = xs.length / 4;
-      if (!N) { STAT.lastMs = performance.now() - t0; return null; }
+      if (!N) { STAT.lastMs = J.ms + performance.now() - t0; return null; }
       const m = new THREE.InstancedMesh(quad, mat, N); m.renderOrder = -1;   // an occluder before the ground (render_world.js ORDER_NOTE)
       const ox = x0 + C / 2, oz = z0 + C / 2; m.position.set(ox, 0, oz);
       // one card is not its neighbour (2026-09-23): a lightness off the card's own position, the near
@@ -116399,16 +116758,17 @@ const STAND_CARDS = (() => {
       m.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
       for (let i = 0; i < N; i++) { V.set(xs[i * 4] - ox, xs[i * 4 + 1], xs[i * 4 + 2] - oz); SC.setScalar(xs[i * 4 + 3]); T.compose(V, Q, SC); m.setMatrixAt(i, T); }
       m.instanceMatrix.needsUpdate = true; m.frustumCulled = true; m.castShadow = false; m.receiveShadow = false;
-      STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);
+      STAT.lastMs = J.ms + performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);
       return m;
     }
     function drop(k) { const c = chunks.get(k); if (!c) return; if (c.mesh) { root.remove(c.mesh); c.mesh.dispose(); } chunks.delete(k); }
 
     // ---- per frame ---------------------------------------------------------------------------------
-    let tick = 0, queue = [];
+    let tick = 0, queue = [], job = null;   // job: the chunk whose rows are under way (G1075)
     function update(cg) {
       root.visible = S.on;
       if (!S.on || !ISLC || (treesSettled && !treesSettled())) return;   // the bytes AND the maps (the bake's rule)
+      if (!proto && sliceSpent()) return;   // (the stand's bake is a slice's worth: at the head of one)
       if (!ensure()) return;
       if ((tick++ % 20) === 0) {
         const C = S.cell, R = Math.ceil(S.far / C) + 1, cx0 = Math.floor(cg[0] / C), cz0 = Math.floor(cg[2] / C);
@@ -116421,20 +116781,22 @@ const STAND_CARDS = (() => {
           want.add(cx + ',' + cz);
         }
         for (const k of chunks.keys()) if (!want.has(k)) drop(k);
-        queue = [...want].filter(k => !chunks.has(k)).sort((a, b) => {
+        if (job && !want.has(job.k)) job = null;
+        queue = [...want].filter(k => !chunks.has(k) && !(job && job.k === k)).sort((a, b) => {
           const A = a.split(',').map(Number), B = b.split(',').map(Number);
           return Math.hypot((A[0] + 0.5) * C - cg[0], (A[1] + 0.5) * C - cg[2]) - Math.hypot((B[0] + 0.5) * C - cg[0], (B[1] + 0.5) * C - cg[2]); });
       }
-      if (queue.length) { const k = queue.shift(); const [cx, cz] = k.split(',').map(Number); const mesh = buildChunk(cx, cz); if (mesh) root.add(mesh); chunks.set(k, { mesh }); }
+      if (!job && queue.length && !sliceSpent()) job = chunkJob(queue.shift());
+      if (job && !sliceSpent() && chunkRows(job)) { const mesh = chunkMesh(job); if (mesh) root.add(mesh); chunks.set(job.k, { mesh }); job = null; }
       let ni = 0; for (const c of chunks.values()) if (c.mesh) ni += c.mesh.count; STAT.instances = ni; STAT.chunks = chunks.size;
     }
     const api = {
       update, root,
       get: () => Object.assign({}, S),
       set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing }; Object.assign(S, o || {});
-        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; }
+        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; }
         return api.get(); },
-      replant: () => { for (const k of [...chunks.keys()]) drop(k); },
+      replant: () => { for (const k of [...chunks.keys()]) drop(k); job = null; },
       stat: () => Object.assign({}, STAT),
       atlas: () => proto && proto.atlas,
     };
@@ -117819,6 +118181,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // its own. The field's plain caster meshes are tagged into it as they appear (nearTag, below).
   const sunNear = (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.make) ? SHADOW_NEAR.make(scene) : null;
   if (sunNear) sun.shadow.camera.layers.set(SHADOW_NEAR.FAR_LAYER);   // the far map sees FAR_LAYER: every caster but the craft (nearTag puts it there)
+  if (sunNear && SHADOW_NEAR.farLight) SHADOW_NEAR.farLight(sun);   // G1080: the aeroplane HIDDEN while this map draws - three's shadow walk tests the MAIN camera's layers, so the line above filters nothing (shadow_near.js farLight)
   // THE CLOUDS' COMPOSITE (A6, G436.7): a fullscreen quad drawn last in this scene at the cloud's depth
   if (typeof CLOUDS !== 'undefined' && CLOUDS.compositeMesh && CLOUDS.compositeMesh()) scene.add(CLOUDS.compositeMesh());
   // (every 30 frames: the plain caster meshes within 90 m of the CG join the near layer, the rest leave it -
@@ -118018,24 +118381,36 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // pavements kept it off, so the editor's tool drew a polygon the island's woods walked straight through.
   // The collidable woodland (20_world.js) has always obeyed it. Read at call time: the editor swaps the overlay
   const premTreeEx = (x, z) => { const o = world.premises && world.premises.overlay; return !!(o && o.excludeAt && o.excludeAt(x, z, 'trees')); };
+  // G1091 (POLISH-2): ON AN ISLAND THE RUNWAYS' CLEARANCES ARE THE CORE'S - world.treeAeroBlocked (the aerodrome
+  // box above in 'today' only, the pavement by the variant) and world.treeGround (the class a tree reads; the map's
+  // under a lifted shoulder) - the SAME calls the collidable woodland makes (20_world.js), so a tree you see stands
+  // where a tree you hit may. The analytic world's corridor is gone on an island (a leftover: the island's field
+  // is not there); the analytic world keeps its corridor, its box and its pavement kill, byte for byte.
+  const islRule = !!(world.island && world.treeAeroBlocked && world.treeGround);
   const openHere = (x, z) => {
     if (!world.island) return false;
-    if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;
-    for (const e of treeEx) if (inEx(e, x, z)) return false;
-    if (paved(x, z)) return false;
-    if (world.surface(x, z) !== world.SURFACE.GRASS) return false;
+    if (islRule) { if (world.treeAeroBlocked(x, z)) return false; }
+    else {
+      if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;
+      for (const e of treeEx) if (inEx(e, x, z)) return false;
+      if (paved(x, z)) return false;
+    }
+    if ((islRule ? world.treeGround(x, z) : world.surface(x, z)) !== world.SURFACE.GRASS) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
   const forestHere = (x, z, sc) => {
-    if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
-    for (const e of treeEx) if (inEx(e, x, z)) return false;
+    if (islRule) { if (world.treeAeroBlocked(x, z)) return false; }
+    else {
+      if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
+      for (const e of treeEx) if (inEx(e, x, z)) return false;
+    }
     // THE WOODLAND GATE IS THE ANALYTIC WORLD'S (G400): on an island the map
     // says where the forest is, and the sparse collidable woodland (52/km2)
     // would have left the fill as 90 m blobs round single trees - it did
     if (!world.island && nearTree(x, z) < 0) return false;
-    if (paved(x, z)) return false;
-    if ((sc === undefined ? world.surface(x, z) : sc) !== world.SURFACE.FOREST_FLOOR) return false;
+    if (!islRule && paved(x, z)) return false;
+    if ((sc === undefined ? (islRule ? world.treeGround(x, z) : world.surface(x, z)) : sc) !== world.SURFACE.FOREST_FLOOR) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
@@ -118107,7 +118482,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const sc = world.surface(x, z);
       // the forest floor's own colour, and the far tier's mask, only where
       // a forest IS (forestHere): the classifier alone painted the corridor
-      _for = (sc === world.SURFACE.FOREST_FLOOR && forestHere(x, z, sc)) ? 1 : 0;
+      // (G1091: by the trees' ground - the surface itself in 'today', the map's under a lifted shoulder)
+      const tg = islRule ? world.treeGround(x, z, sc) : sc;
+      _for = (tg === world.SURFACE.FOREST_FLOOR && forestHere(x, z, tg)) ? 1 : 0;
       if (_for) c.lerp(c2.setHex(0x51602f), 0.42);
       else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
       else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);
@@ -121356,6 +121733,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // prewarm() runs the same step with a big budget under the roll-out
       // screen. At 60 m/s the ring needs ~8 ms of work a second; 4 ms a
       // frame is thirty times that.
+      let PROBE = null;   // G1091: TREE_FILL.plants' list while it walks (x, z, 1 on the forest's rule / 0 the open ground's)
       function walk(cx, cz, recs, g0, g1, part) {
         const ng = NG, spc = CH / ng;
         for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < ng; gx++) {
@@ -121417,6 +121795,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); gi = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)].gi : -1; if (gi < 0) continue; }
           else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
           recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can);
+          if (PROBE) PROBE.push(x, z, forestHere(x, z) ? 1 : 0);
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
@@ -121696,6 +122075,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; evictAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
+          // G1091 (GATE RWYTREES): the trees the fill plants in a rectangle - both parts of every chunk it touches, the
+          // walk the streamer runs, nothing built or kept - as a flat [x, z, forest, ...] (forest 1: the map's TREE
+          // ground, forestHere; 0: the biome's open ground, openHere)
+          plants: (x0, z0, x1, z1) => {
+            const out = []; PROBE = out;
+            try {
+              for (let cz = Math.floor(z0 / CH); cz <= Math.floor(z1 / CH); cz++)
+                for (let cx = Math.floor(x0 / CH); cx <= Math.floor(x1 / CH); cx++) {
+                  const recs = SHAPE.list.map(() => []);
+                  walk(cx, cz, recs, 0, NG, BASE); walk(cx, cz, recs, 0, NG, FILLP);
+                }
+            } finally { PROBE = null; }
+            const r = [];
+            for (let i = 0; i < out.length; i += 3) if (out[i] >= x0 && out[i] <= x1 && out[i + 1] >= z0 && out[i + 1] <= z1) r.push(out[i], out[i + 1], out[i + 2]);
+            return r;
+          },
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
           thin: (d0, d1) => { if (d0 !== undefined) uThin.value.set(+d0, Math.max(+d0 + 1, +d1)); return [uThin.value.x, uThin.value.y]; },
@@ -122901,7 +123296,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     sun.target.position.copy(_sT);
     sun.position.set(_sT.x + SUN.x * 700, _sT.y + SUN.y * 700, _sT.z + SUN.z * 700);
     uShadowR.value = half;
-    if (sunNear) { SHADOW_NEAR.follow(sunNear, cg, SUN, agl, snapToTexels, camera); nearTag(cg); }
+    if (sunNear) { SHADOW_NEAR.follow(sunNear, cg, SUN, agl, snapToTexels, camera, groundAt); nearTag(SHADOW_NEAR.aimPoint ? SHADOW_NEAR.aimPoint(cg) : cg); }   // G1080: aimed at the drawn aeroplane (shadow_near.js aim)
     farRender(uCam.value);
     let resized = false;
     if (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) {
@@ -122947,6 +123342,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const SUN_MIN_Y = Math.sin(2 * Math.PI / 180);
   const SUNW = { on: true, dirty: false, EMPTY: 31 };   // G655: the world's sun map on (the tiers full / ultra) or empty ('near': the craft's map alone)
   const SHADOW_RATE = { every: 2, n: 0 };   // the big sun map's cadence (worldUpdate, PERF 2026-09-23)
+  const groundAt = (x, z) => world.terrainH(x, z);   // G1080: the ground under the drawn aeroplane (shadow_near.js follow)
   if (typeof window !== 'undefined') window.SHADOW_RATE = SHADOW_RATE;
   const WARM_SUN = C(0xffa652);
   let dayVer = -1, dayEl = NaN, dayAz = NaN;
@@ -123196,7 +123592,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // .then before it returns), each in a task of its own after the last slice - the cover ring's make, a rock job
   BUILT.done = true;
   if (BUILT.q.length) { const q = BUILT.q.splice(0); const next = () => { const f = q.shift(); if (!f) return; try { f(); } catch (e) { console.warn('world: after the build', e); } if (q.length) setTimeout(next, 0); }; setTimeout(next, 0); }
-  return { worldUpdate, vis: VIS,
+  return { worldUpdate, vis: VIS, sunw: SUNW,   // (G1080: the SHADOW-EYES A/B's handle)
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
@@ -141414,12 +141810,16 @@ const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePi
                        'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
-const SIM_HOST_POOL = 3;           // snapshot buffers: the page holds two (interpolation), the host writes the third
+const SIM_HOST_POOL = 7;           // snapshot buffers: the page holds up to five (sim_view.js's ring, G1100), the host writes the next, one in flight
 const SIM_HOST_LOG = 8192;         // applied commands kept for {cmd:'log'}
 // THE SNAPSHOT'S HEAD (float64 slots), then p (3n), then v (3n, when asked), then the fuel nodes' masses
+// G1100 (POSE-SMOOTH): DUE - the wall moment the newest state was DUE on the host's own clock (its schedule: wall0 + the
+// steps since the anchor, a 60th of a second each at the set rate), not when it was published (WALL: after the step's
+// cost and the timer's lateness, which moved the page's drawn time by up to half a step frame to frame); WALL where no
+// clock runs (a pause, a snap, lockstep)
 const SIM_SNAP = { SEQ: 0, STEP: 1, T: 2, WALL: 3, STEPMS: 4, DIL: 5, WV: 6, N: 7, FLAGS: 8, CG: 9, CGV: 12,
                    TOTALM: 15, WHEELS: 16, SMAX: 17, LATE: 18, DROPPED: 19, MAXMS: 20, RAN: 21, ALLOCS: 22,
-                   RATE: 23, EPOCH: 24, NF: 25, HEAD: 26,
+                   RATE: 23, EPOCH: 24, NF: 25, DUE: 26, HEAD: 27,
                    F_DIVERGED: 1, F_V: 2, F_RUNNING: 4, F_MANUAL: 8, F_STARTED: 16 };
 
 const simHostGet = (o, k) => { const p = k.split('.'); for (const s of p) { if (o == null) return undefined; o = o[s]; } return o; };
@@ -141809,7 +142209,7 @@ function makeSimHost(CORE, init, keptWorld) {
     f[S.CGV] = cv[0]; f[S.CGV + 1] = cv[1]; f[S.CGV + 2] = cv[2];
     f[S.TOTALM] = sim.totalM; f[S.WHEELS] = sim.wheelsOnGround(); f[S.SMAX] = sim.stats().smax;
     f[S.LATE] = H.late; f[S.EPOCH] = H.epoch; f[S.NF] = fuelIdx.length;
-    f[S.SEQ] = x.seq; f[S.WALL] = x.wall; f[S.STEPMS] = x.stepMs; f[S.DIL] = x.dil; f[S.DROPPED] = x.droppedS;
+    f[S.SEQ] = x.seq; f[S.WALL] = x.wall; f[S.DUE] = x.due != null ? x.due : x.wall; f[S.STEPMS] = x.stepMs; f[S.DIL] = x.dil; f[S.DROPPED] = x.droppedS;
     f[S.MAXMS] = x.maxMs; f[S.RAN] = x.ran; f[S.ALLOCS] = x.allocs; f[S.RATE] = x.rate;
     let o = S.HEAD;
     const p = sim.p, v = sim.v, N3 = 3 * n;
@@ -141871,6 +142271,21 @@ function simHostDefSig(def) {
   return def.nodes.length + ':' + h.toString(16);
 }
 
+// G1096: A RIG'S PLACEMENT (app.js FLIGHT_PROBE.place). The rigs held or carried the aeroplane by writing the page's
+// sim().p / .v; under the physics worker that sim is a VIEW of the worker's, and the next snapshot undid the write
+// (C3b, 2026-09-30: every view of a hold at the stand, the aeroplane still rolling). The same writes, made on the sim
+// that flies - the page's own inline, the worker's at once between two of its steps: every node shifted so the CG
+// stands at `at` (a null axis kept) or by `by`, the velocities zeroed (`zeroV`) and / or kicked by `dv`. -> the CG
+function simHostPlace(sim, o) {
+  const p = sim.p, v = sim.v, n = sim.n;
+  let d = o.by || null;
+  if (o.at) { const c = sim.cgPos(); d = [0, 1, 2].map(j => (o.at[j] == null ? 0 : o.at[j] - c[j])); }
+  if (d) for (let i = 0; i < n; i++) { p[i * 3] += d[0]; p[i * 3 + 1] += d[1]; p[i * 3 + 2] += d[2]; }
+  if (o.zeroV) for (let i = 0; i < n * 3; i++) v[i] = 0;
+  if (o.dv) for (let i = 0; i < n; i++) { v[i * 3] += o.dv[0]; v[i * 3 + 1] += o.dv[1]; v[i * 3 + 2] += o.dv[2]; }
+  return sim.cgPos();
+}
+
 // ---- THE THREAD: messages, the clock, the buffers --------------------------
 // port: { post(msg, transfer), on(fn(msg)), close() } - self in a browser
 // worker, parentPort under node's worker_threads (the gate)
@@ -141887,11 +142302,13 @@ function simHostBody(CORE, SH, port) {
   const P = { stepMs: 0, simW: 0, wallW: 0, lastWall: 0, droppedS: 0, guarded: 0 };
   const dil = () => (P.wallW > 0.2 ? P.simW / P.wallW : 1);
   const post = (m, tr) => { try { port.post(m, tr || []); } catch (e) { /* the page is gone */ } };
-  function publish(ran, maxMs) {
+  // (due: G1100, the newest state's moment on the clock's schedule - the pump's; none = now)
+  function publish(ran, maxMs, due) {
     let buf = null;
     while (pool.length && !buf) { const b = pool.pop(); if (b.byteLength === H.len * 8) buf = b; }
     if (!buf) { buf = new ArrayBuffer(H.len * 8); allocs++; }
-    H.write(new Float64Array(buf), { seq: seq++, wall: wallNow(), stepMs: P.stepMs, dil: dil(), droppedS: P.droppedS,
+    const wall = wallNow();
+    H.write(new Float64Array(buf), { seq: seq++, wall, due: due != null ? due : wall, stepMs: P.stepMs, dil: dil(), droppedS: P.droppedS,
                                      maxMs, ran, allocs, rate, running });
     post({ kind: 'snap', buf, meta: H.meta() }, [buf]);
   }
@@ -141924,7 +142341,7 @@ function simHostBody(CORE, SH, port) {
     }
     const k = Math.exp(-dW);
     P.simW = P.simW * k + ran / 60 / rate; P.wallW = P.wallW * k + dW;
-    if (ran) publish(ran, maxMs);   // one snapshot a turn: the newest state is the only one the page draws
+    if (ran) publish(ran, maxMs, wall0 + (H.steps - step0) / (60 * rate) * 1000);   // one snapshot a turn: the newest state (G1100: stamped with when it was due)
     if (!running) return;
     const next = wall0 + (H.steps - step0 + 1) / (60 * rate) * 1000;
     timer = setTimeout(pump, Math.max(0, next - wallNow()));
@@ -141997,6 +142414,9 @@ function simHostBody(CORE, SH, port) {
         case 'release': if (m.buf) pool.push(m.buf); return;
         case 'run': if (H && !running) { running = true; anchor(); pump(); } return;
         case 'pause': stopClock(); if (H) publish(0, 0); return;
+        // G1096: a rig's placement - at once, at this step boundary (lockstep: after every step the page posted; real
+        // time: between two turns), the snapshot published, then the word the page's promise waits for
+        case 'place': { const cg = H ? SH.simHostPlace(H.sim, m) : null; if (H) publish(0, 0); post({ kind: 'placed', id: m.id, cg }); return; }
         case 'rate': rate = m.x > 0 ? m.x : 1; if (running) anchor(); return;
         case 'steps': {
           // LOCKSTEP: exactly n steps now, a snapshot after each (`every`) or after the last. `dayBatch` (G815, the
@@ -142084,10 +142504,10 @@ function simHostStart(onMessage, onError, opts) {
 
 if (typeof window !== 'undefined') {
   window.SIM_HOST = { start: simHostStart, source: simHostSource, trimBoot: simHostTrimBoot, fetchBoot: simHostFetchBoot, probe: simHostProbe,
-                      KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP };
+                      place: simHostPlace, KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP };
 }
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe,
+  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart };
 </script>
 <script type="text/x-flydiy">
@@ -142102,10 +142522,12 @@ if (typeof module !== 'undefined' && module.exports)
 // cockpit, the director and the HUD keep their lines.
 //
 //   READS     computed from the snapshot. p is float64 and INTERPOLATED
-//             between the two newest snapshots at T - 1 step (frame(T), once
-//             a rendered frame): smooth at 30/45/60/144 Hz, one 60 Hz step
-//             behind (ARCH §2.2's latency, the prototype's 11-23 ms pose
-//             age). cgPos / axes / bodyOrigin are the solver's own formulas
+//             between the two snapshots that hold T - delay (frame(T), once
+//             a rendered frame; G1100: a ring of the newest five, T on the
+//             host's schedule - SIM_SNAP.DUE - and a delay that follows the
+//             snapshots' lateness, 1-4 steps; it was the two newest at
+//             T - 1 step on their publishing moment, ARCH §2.2's latency,
+//             the prototype's 11-23 ms pose age). cgPos / axes / bodyOrigin are the solver's own formulas
 //             (30_solver.js, the same sums in the same order, Math.hypot for
 //             hyp3 - GATE HYPOT holds them equal) on the view's p, with the
 //             fuel nodes' masses and totalM from the snapshot: at the newest
@@ -142121,8 +142543,8 @@ if (typeof module !== 'undefined' && module.exports)
 //             (INP.write's door). step() does nothing and is COUNTED
 //             (strays): a stray caller is a hidden sim writer ARCH §2.6
 //             warned of.
-//   BUFFERS   each snapshot's ArrayBuffer goes back to the host when a newer
-//             pair no longer needs it ({cmd:'release'}, transferred).
+//   BUFFERS   each snapshot's ArrayBuffer goes back to the host when it
+//             leaves the ring ({cmd:'release'}, transferred).
 //
 // Transport-agnostic: `opts.post(msg, transfer)` reaches the host and the
 // caller hands every message from it to take(msg). `opts.ready` is the host's
@@ -142143,14 +142565,38 @@ function simViewDefSig(def) {
 function makeSimView(def, opts) {
   const R = opts.ready, S = R.slots, n = def.nodes.length, N3 = n * 3;
   const post = opts.post || (() => false);
-  const delayS = opts.delayS != null ? opts.delayS : R.dt;     // T - 1 step
   const now = opts.now || (() => performance.timeOrigin + performance.now());
+  // G1100 (POSE-SMOOTH): THE RING AND ITS DELAY. The page drew T - 1 step between the TWO newest snapshots, T mapped to
+  // sim time through the moment the newest was PUBLISHED. On the box (tools/eye_judder.js, the Cub at 60 fps) the drawn
+  // aeroplane moved 28-56 mm a frame on frames of an even 16.7 ms parked, 160-523 mm in the climb (0.08-0.34 mm inline):
+  // the publishing moment carries the step's cost and the timer's lateness, and a successor that had not come by the
+  // frame froze the pose on the newest (then the next frame jumped). Now: the moment is the one the state was DUE on the
+  // host's clock (SIM_SNAP.DUE), the page's T the frame's own timestamp (sim_link.js), the view keeps the RING newest
+  // snapshots of the flight and draws the pair that holds T - delay; the delay (unless opts.delayS fixes it) follows the
+  // windowed worst lateness of the newest snapshot (how far past its moment the frame came, a second of frames) and a
+  // margin, between 1 and 4 steps, moved at most a tenth of the frame's time up and a fiftieth down - the drawn clock
+  // never jumps, it runs a little slow or fast while the delay settles.
+  const RING = opts.ring || 5, fixedDelay = opts.delayS != null;
+  let delayS = fixedDelay ? opts.delayS : 1.5 * R.dt;
+  const Q = [];                            // the ring, oldest first (B = its newest, A = the one before)
+  const DS = { frames: 0, starved: 0, early: 0, lagMax: 0, lags: new Float64Array(60), li: 0, lastT: 0 };
+  const dueOf = f => (f[S.DUE] > 0 ? f[S.DUE] : f[S.WALL]);
+  function adapt(lag, T, running) {
+    const dt = DS.lastT && T > DS.lastT ? Math.min(0.1, (T - DS.lastT) / 1000) : 0;
+    DS.lastT = T;
+    if (!running || !(lag < 0.25)) return;  // a pause, a stall: not the transport's lateness
+    DS.lags[DS.li] = lag; DS.li = (DS.li + 1) % DS.lags.length;
+    let mx = 0; for (let i = 0; i < DS.lags.length; i++) if (DS.lags[i] > mx) mx = DS.lags[i];
+    DS.lagMax = mx;
+    const want = Math.max(R.dt, Math.min(4 * R.dt, mx + 0.002));
+    delayS += Math.max(-0.02 * dt, Math.min(0.1 * dt, want - delayS));
+  }
   const mismatch = R.n !== n || (R.defSig && R.defSig !== simViewDefSig(def));
   const p = new Float64Array(N3), m = new Float64Array(n);
   for (let i = 0; i < n; i++) { const q = def.nodes[i].p; p[i * 3] = q[0]; p[i * 3 + 1] = q[1]; p[i * 3 + 2] = q[2]; m[i] = def.nodes[i].m; }
   const fuelIdx = R.fuelIdx || [];
   const oP = S.HEAD, oV = R.withV ? S.HEAD + N3 : -1, oM = S.HEAD + N3 * (R.withV ? 2 : 1);
-  let A = null, B = null;                  // the two newest snapshots: { f, buf }
+  let A = null, B = null;                  // the ring's two newest snapshots: { f, buf }
   let stamp = null, pending = [], ctlPatch = null, engSent = 'null';
   let strays = 0, takes = 0, mCur = null;
   const cv = [0, 0, 0];
@@ -142190,34 +142636,52 @@ function makeSimView(def, opts) {
     get stepIndex() { return B ? B.f[S.STEP] : 0; },
     snapshot: () => B && B.f,
 
-    // ---- the frame: the pose at T - 1 step, from the two newest snapshots
+    // ---- the frame: the pose at T less the delay, between the two snapshots that hold that moment (the ring)
     frame(T) {
       if (!B) return null;
       if (T == null) T = now();
-      const fB = B.f;
-      let alpha = 1;
-      if (A && A.f[S.EPOCH] === fB[S.EPOCH] && fB[S.T] > A.f[S.T]) {
-        // the sim time T maps to: B's, plus the wall time since B was published, at the host's rate
-        const tau = fB[S.T] + (T - fB[S.WALL]) / 1000 * (fB[S.RATE] || 1) - delayS;
-        alpha = (tau - A.f[S.T]) / (fB[S.T] - A.f[S.T]);
+      const fB = B.f, ep = fB[S.EPOCH];
+      let X = B, Y = B, alpha = 1;
+      if (T !== Infinity && Q.length > 1) {
+        // the sim time T maps to: B's, plus the wall time since B was DUE on the host's clock, at the host's rate - less
+        // the delay (fixed, or the ring's own: adapt)
+        const lag = (T - dueOf(fB)) / 1000 * (fB[S.RATE] || 1);
+        if (!fixedDelay) adapt(lag, T, !!(fB[S.FLAGS] & S.F_RUNNING));
+        const tau = fB[S.T] + lag - delayS;
+        if (tau < fB[S.T]) {
+          let j = Q.length - 1;                   // the oldest of this flight's snapshots at or after tau
+          while (j > 0 && Q[j - 1].f[S.EPOCH] === ep && Q[j - 1].f[S.T] >= tau) j--;
+          if (j > 0 && Q[j - 1].f[S.EPOCH] === ep) { X = Q[j - 1]; Y = Q[j]; alpha = (tau - X.f[S.T]) / (Y.f[S.T] - X.f[S.T]); }
+          else { X = Y = Q[j]; alpha = 0; DS.early++; }   // before the ring: its oldest
+        } else if (fB[S.FLAGS] & S.F_RUNNING) DS.starved++;   // the snapshot for this moment has not come: the newest
       }
-      if (alpha >= 1) { alpha = 1; p.set(fB.subarray(oP, oP + N3)); }
-      else if (alpha <= 0) { alpha = 0; p.set(A.f.subarray(oP, oP + N3)); }
-      else { const fA = A.f; for (let i = 0; i < N3; i++) p[i] = fA[oP + i] + (fB[oP + i] - fA[oP + i]) * alpha; }
-      for (let j = 0; j < 3; j++) cv[j] = alpha === 1 ? fB[S.CGV + j] : A.f[S.CGV + j] + (fB[S.CGV + j] - A.f[S.CGV + j]) * alpha;
+      const fX = X.f, fY = Y.f;
+      if (X === Y) p.set(fY.subarray(oP, oP + N3));
+      else for (let i = 0; i < N3; i++) p[i] = fX[oP + i] + (fY[oP + i] - fX[oP + i]) * alpha;
+      for (let j = 0; j < 3; j++) cv[j] = X === Y ? fY[S.CGV + j] : fX[S.CGV + j] + (fY[S.CGV + j] - fX[S.CGV + j]) * alpha;
       if (view.v) view.v.set(fB.subarray(oV, oV + N3));
       massesOf(B);
-      // the pose's age: now, less the wall moment the host held the drawn state (between A's and B's publishing)
-      const wShown = A && alpha < 1 ? A.f[S.WALL] + (fB[S.WALL] - A.f[S.WALL]) * alpha : fB[S.WALL];
-      return { alpha, ageMs: T - wShown };
+      DS.frames++;
+      // the pose's age: now, less the wall moment the host held the drawn state (between X's and Y's publishing)
+      const wShown = X === Y ? fY[S.WALL] : fX[S.WALL] + (fY[S.WALL] - fX[S.WALL]) * alpha;
+      // G1100: the drawn pose's own sim time (the sea is drawn at it: app.js WATER.setTime)
+      const tShown = X === Y ? fY[S.T] : fX[S.T] + (fY[S.T] - fX[S.T]) * alpha;
+      return { alpha, ageMs: T - wShown, t: tShown };
     },
+    // G1100: the ring's reading - the delay (s), the frames drawn, those the newest snapshot had to stand for (starved:
+    // its successor late) and those before the ring's oldest (early), the snapshots held
+    delay: () => ({ delayS, fixed: fixedDelay, frames: DS.frames, starved: DS.starved, early: DS.early, held: Q.length, lagMaxS: DS.lagMax }),
+    ring: () => Q.map(s => s.f),
 
     // ---- a message from the host; true when it was a snapshot
     take(msg) {
       if (!msg || msg.kind !== 'snap') return false;
       const s = { f: new Float64Array(msg.buf), buf: msg.buf };
-      if (A) release(A);
-      A = B; B = s; takes++;
+      // G1100: THE RING - the newest RING snapshots of this flight (a new flight's first one lets the last flight's go)
+      if (Q.length && Q[Q.length - 1].f[S.EPOCH] !== s.f[S.EPOCH]) { while (Q.length) release(Q.shift()); }
+      Q.push(s);
+      while (Q.length > RING) release(Q.shift());
+      A = Q.length > 1 ? Q[Q.length - 2] : null; B = s; takes++;
       const M = msg.meta || {};
       if (M.ctl) view.snapCtl = M.ctl;       // G815: the host's ctl as published (sim_link.js mirrors it whole)
       if (M.out) { view.out = M.out; view.out.hydro = M.hydro || null; }
@@ -142417,6 +142881,8 @@ const SIM_LINK = (() => {
     let opsQ = [];                         // the world's ops since the last flush
     const wvQ = [];                        // real time: [frame, version sent by it] not yet seen in a snapshot
     const baseIds = new Set();
+    const placeWait = new Map();           // G1096: a rig's placements the worker has not answered yet (place, below)
+    let placeSeq = 0;
 
     // ---- THE WORLD'S OPS: the page world's registry and day calls, wrapped once ----------------------
     // G820 (C1c): wrapped when the worker is UP (start), not at make: a page whose worker cannot be had (no Worker,
@@ -142534,6 +143000,9 @@ const SIM_LINK = (() => {
       if (m.kind === 'state') { st.host = m; return; }
       if (m.kind === 'world') { st.worldMs = m.ms; if (m.boot) { st.bootFetchMs = m.boot.fetchMs != null ? m.boot.fetchMs : null; st.bootBytes = m.boot.bytes; st.cookedCells = m.boot.cooked || 0; } return; }
       if (m.kind === 'probe') { st.probe = m; return; }
+      // G1096: a rig's placement done in the worker (its snapshot came just before): mirrored now - a paused page
+      // runs no frame to do it - and the rig's promise answered
+      if (m.kind === 'placed') { const r = placeWait.get(m.id); placeWait.delete(m.id); if (flight && flight.live && flight.view) mirror(Infinity); if (r) r(m.cg); return; }
       if (!flight) { if (m.kind === 'snap' && host) post({ cmd: 'release', buf: m.buf }, [m.buf]); return; }
       if (m.kind === 'ready') { onReady(m); return; }
       if (m.kind === 'snap') {
@@ -142568,6 +143037,8 @@ const SIM_LINK = (() => {
       return null;
     }
     function dropFlight(why) {
+      for (const r of placeWait.values()) r(null);   // G1096: a placement the worker will not answer for this flight
+      placeWait.clear();
       if (!flight) return;
       detach();
       if (why) { flight.inline = why; st.reason = why; st.inline++; lastSim = null; }   // (the page's sim flies it: the worker's is not that one any more)
@@ -142709,8 +143180,9 @@ const SIM_LINK = (() => {
     const stamp = c => { if (st.mode === 'lockstep' && flight) c.k = flight.posted; return c; };
     function mirror(T) {
       const F = flight, V = F.view, sim = F.sim;
-      V.frame(st.mode === 'lockstep' ? Infinity : T);
+      const fr = V.frame(st.mode === 'lockstep' ? Infinity : T);
       const f = V.snapshot(); if (!f) return 0;
+      F.drawnT = fr && Number.isFinite(fr.t) ? fr.t : V.t;   // G1100: the sim time the mirrored (drawn) positions stand at
       const S = F.ready.slots;
       sim.p.set(V.p);
       if (V.v && sim.v) sim.v.set(V.v);
@@ -142743,7 +143215,9 @@ const SIM_LINK = (() => {
     // ---- THE LOOP'S DOORS -------------------------------------------------------------------------------
     // the step block: null = fly this frame inline (no worker, not this flight); else the frame's result
     // { ran: the steps the picture moved on, simDt: their sim seconds, hold: nothing flies yet (the frame owes nothing) }
-    function frame(nStep, simRate) {
+    // (ts: G1100, the frame's own rAF timestamp - the moment the page draws for, on the vsync the inline loop owes its steps
+    // against; none: now)
+    function frame(nStep, simRate, ts) {
       if (dead && (!flight || flight.inline)) return null;   // no worker to be had: the page's loop, as it always was
       const S = o.get();
       if (!flight || S.ap !== flight.ap || S.sim !== flight.sim) begin(S);
@@ -142782,7 +143256,7 @@ const SIM_LINK = (() => {
         if (st.wvLagFrames > st.wvMaxLag) st.wvMaxLag = st.wvLagFrames;
       }
       st.batches++;
-      mirror(performance.timeOrigin + performance.now());
+      mirror(performance.timeOrigin + (typeof ts === 'number' ? ts : performance.now()));
       const ran = Math.max(0, F.lastStep - F.shown);
       F.shown = F.lastStep;
       st.physMs = performance.now() - t0;
@@ -142793,9 +143267,10 @@ const SIM_LINK = (() => {
       // frame's end, and the next flight's init hands the worker that day (G820: the second flight of a page, after a
       // reset, the skip or the shed, was a frame's day behind); real time ticks what the picture moved on
       out.ran = ran; out.simDt = (st.mode === 'lockstep' ? nStep : ran) / 60; out.hold = false; out.diverged = st.diverged;
+      out.drawnT = F.drawnT != null ? F.drawnT : null;   // G1100: the drawn positions' sim time (app.js draws the sea at it)
       return out;
     }
-    const out = { ran: 0, simDt: 0, hold: false, diverged: false };
+    const out = { ran: 0, simDt: 0, hold: false, diverged: false, drawnT: null };
     // a frame that flies nothing (the shed, the roll-out screen, a pause, the card): the worker's clock stops
     function idle() {
       if (dead) return;
@@ -142841,6 +143316,16 @@ const SIM_LINK = (() => {
       if (F && F.live && F.ap === S.ap) { const x = { cmd: 'setCard', card: Object.assign({}, c) }; stamp(x); F.view.send(x); return; }
       cardNext = { ap: S.ap, card: Object.assign({}, c) };
     }
+    // G1096: A RIG'S PLACEMENT (app.js FLIGHT_PROBE.place; sim_host.js simHostPlace): the worker's sim is the one that
+    // flies, so the placement is made there, at once, and the page's view takes the snapshot it publishes. A promise of
+    // the CG; null when this flight is not the worker's (the page's own sim is written by the caller)
+    function place(o) {
+      const F = flight;
+      if (!F || F.inline || !F.live || !host) return null;
+      const id = ++placeSeq;
+      st.placed = (st.placed || 0) + 1;
+      return new Promise(res => { placeWait.set(id, res); post({ cmd: 'place', id, at: o.at || null, by: o.by || null, zeroV: !!o.zeroV, dv: o.dv || null }); });
+    }
     // the worker's readings for the recorder and rollout_perf (one object, rewritten: nothing allocated a frame)
     const P = { live: false, stepMs: NaN, dil: NaN, droppedS: NaN, late: NaN, step: 0, maxMs: NaN };
     function perf() {
@@ -142851,9 +143336,10 @@ const SIM_LINK = (() => {
       return P;
     }
     const api = {
-      frame, idle, warm, shed, prewarm, leg, perf, card,
+      frame, idle, warm, shed, prewarm, leg, perf, card, place,
       state: () => Object.assign({}, st, { dead, flight: flight ? { live: flight.live, inline: flight.inline, posted: flight.posted, frames: flight.frames, epoch: flight.epoch } : null,
-                                           view: flight && flight.view ? flight.view.state() : null }),
+                                           view: flight && flight.view ? flight.view.state() : null,
+                                           ring: flight && flight.view && flight.view.delay ? flight.view.delay() : null }),   // G1100: the view's ring and delay
       live: () => !!(flight && flight.live),
       dead: () => dead,
       record: () => (o.premises ? o.premises() : null),   // the premises the worker's world is made on (the page's WB.premisesPlaced)
@@ -151017,10 +151503,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=f80b94dd"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=a0ccc317"></script>
 <script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=5f74c2fc"></script>
-<script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=5875f951"></script>
+<script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=7b78ce7e"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_build.js?v=c8c05318"></script>
-<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=6192ef9e"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=60341ba3"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=e850ac92"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=4cd57934"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -156138,6 +156624,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
                           setManual, manual: () => manual, input: () => INP,     // G200
                           nextLeg: () => (flNextLeg ? (flNextLeg(), true) : false),   // G820 (C1c): Fly on's own chain, for a rig that cannot fly a circuit first
                           over: () => flightOver,                               // G820: the card's latch (an ending, G130)
+                          // G1096: A RIG'S PLACEMENT, on the sim that flies - never sim().p / .v by hand: under the physics
+                          // worker the page's sim is a view the next snapshot rewrites. { at: [x, y, z] the CG's place (a
+                          // null axis kept) | by: [dx, dy, dz], zeroV, dv: [vx, vy, vz] } -> a promise of the CG
+                          place: o => { if (SIMW && !running) SIMW.idle();   // (paused: the worker's clock stops first, as the page's did)
+                                         return (SIMW && SIMW.place(o || {})) || Promise.resolve(SIM_HOST.place(sim, o || {})); },
                           nav: () => flNav,                                         // G202.1
                           agl: () => hudAgl(),                                      // G700: the height the PFD and the trace read
                           // 2026-09-11: the orbit's state, and a jump to where it
@@ -157931,19 +158422,44 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // task (the CPU profile: 11.6 s under getProgramInfoLog, renderer.render from loop). G732's rule, NEVER DRAW AHEAD
   // OF THE LINKS: the loop draws nothing (holdRender) until the step's programs are linked and the dress put back.
   // The step runs under a screen (the loading, a roll-out's aircraft phase, Fly's settle), so nothing is seen held
+  // G1085 (LOAD-COMPILE): ...AND ITS DRESS IS PER TASK. The craft stands in the world (craftInWorld) and in the dressed
+  // shed (craftInShed) only inside each task's compile (compileSliced's `dress`), so the two compiles no longer hold the
+  // scenes dressed across tasks, and the one loading STARTS them the moment the flown model is built ('spec': craftEarly)
+  // - their links run on the driver's threads under the world's compile, the shed's and first light, and the 'craft'
+  // step finds its programs known (the key; a rebuilt model's same key shares them) and mostly linked. Still held.
   function compileCraft() {
     if (!WF || typeof renderer.compileAsync !== 'function') return;
     const was = holdRender;
     holdRender = true;
     const release = () => { holdRender = was; };
-    return craftInWorld(() => {
-      const jobs = [compileSliced(craft, aa && aa.target ? aa.target() : null, scene)];
-      if (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants) {
-        try { const { helper } = PROG_WARM.depthVariants(THREE, renderer, [craft]); jobs.push(compileSliced(helper, PLAIN_RT(), scene, true)); }
-        catch (e) { console.warn('craft depth compile:', e && e.message); }
-      }
-      return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000);
-    }).then(() => compileCraftShed()).then(release, e => { release(); throw e; });
+    return compileCraftLinks().then(release, e => { release(); throw e; });
+  }
+  function compileCraftLinks() {
+    const inW = craftInWorldNow;
+    const jobs = [compileSliced(craft, aa && aa.target ? aa.target() : null, scene, false, inW)];
+    if (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants) {
+      try { const { helper } = inW(() => PROG_WARM.depthVariants(THREE, renderer, [craft])); jobs.push(compileSliced(helper, PLAIN_RT(), scene, true, inW)); }
+      catch (e) { console.warn('craft depth compile:', e && e.message); }
+    }
+    return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
+      .then(() => compileCraftShed());
+  }
+  // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the
+  // 'craft' step compiles again (known keys: no new source, no new link) and waits for what is still linking
+  let craftEarly = null;
+  function craftStart() {
+    craftLightsKeep();   // (the flown model's light signature: the next boot's prelink keys with it)
+    if (!WF || typeof renderer.compileAsync !== 'function' || craftEarly) return;
+    craftEarly = compileCraftLinks().catch(e => console.warn('craft early:', e && e.message));
+    // ...and as the shed's own compile step keys it, undressed (the mesh behind the cage, its lights uncounted): the
+    // model built here is new to the room (the node census: its ~25 CRAFT_NEAR_ONLY programs were that step's links)
+    if (inGarage && hangar && craft.parent === hangarScene) {
+      const shed = () => compileSliced(craft, ensureEnvRT(), hangarScene)
+        .then(() => compileSliced(craft, aa && aa.target ? aa.target() : null, hangarScene))
+        .then(() => { const { helper } = PROG_WARM.depthVariants(THREE, renderer, [craft]); return compileSliced(helper, PLAIN_RT(), hangarScene, true); })
+        .then(() => compileXrayVariants());   // (its see-through twins: first light's, G441)
+      (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants ? shed() : Promise.resolve()).catch(e => console.warn('craft early (shed):', e && e.message));
+    }
   }
   // G1027 (B8B9 + B10 on train 14): ...AND THE SHED AS THE ROLL-OUT SHOT DRAWS IT. The shed shows the editor's cage with
   // the flown model hidden; the shot (rollAnimPlay) shows the flown MESH - model.grp, and with it the aeroplane's own
@@ -157952,15 +158468,103 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // door; the fold's skinned depth program in the room's shadow pass). So the room is compiled here dressed as the shot
   // dresses it - the mesh up, its lights counted - with its depth variants, then put back. Keyed with the craft (a new
   // model, new graphics). A page without the shot (or ?rollanim=0) skips it.
+  // G1085: dressed a task at a time (craftInShed) - the craft home in the shed, its mesh and lights shown, the cage
+  // down - and with the room's key environment in place (shedEnvKey: the compile step's placeholder), so it can run
+  // before the shed's own compile step and beside the world's
   function compileCraftShed() {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || !inGarage || !model || typeof renderer.compileAsync !== 'function') return;
-    const gs = garageScene(); if (!gs || craft.parent !== gs) return;
-    const cage = showCage;
-    showCage = false; applySkinVis(); if (model.grp) model.grp.visible = true;
-    const back = () => { showCage = cage; applySkinVis(); };
-    return shaderProgress(compileSliced(gs, aa && aa.target ? aa.target() : null)
-      .then(() => compileDepthVariants(gs, true))
-      .then(back, e => { back(); console.warn('craft shed compile:', e && e.message); }), 'garage', 60000);
+    const gs = garageScene(); if (!gs) return;
+    if (gs === hangarScene) shedEnvKey();
+    const inS = f => craftInShed(gs, f);
+    return shaderProgress(compileSliced(gs, aa && aa.target ? aa.target() : null, null, false, inS)
+      .then(() => compileDepthVariants(gs, true, inS))
+      .catch(e => console.warn('craft shed compile:', e && e.message)), 'garage', 60000);
+  }
+  function worldPrelinkSettled() {
+    if (!WF || typeof renderer.compileAsync !== 'function' || tripKeys.worldCompile !== undefined) return;
+    const dress = f => craftInWorldNow(() => craftLightsGuess(f));
+    compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
+      .then(() => compileDepthVariants(scene, true, dress))
+      .catch(e => console.warn('world prelink (settled):', e && e.message));
+  }
+  // THE LOTS' GROUND, BEFORE THE FIRST LOT (G1085). LOT_GROUND's one material (lot_tex.js: the lawn splat, a ~6 KB
+  // hook) is made when the first lot's mesh is - the premises' stream, in the settle - and its program then linked
+  // ~20 s on the driver (warm: Chrome keeps no binary of it, like the ground's splats), the one link worldCompile was
+  // still waiting for once the prelinks keyed everything else (the GPU box: worldCompile 10-13 s, all of it this).
+  // The material is made here (the game's path makes it with no load callback too: render_premises' turf) and keyed
+  // through a one-triangle stand-in with the lot mesh's own layout (position, uv, normal, aSplat, aTone, aAlpha,
+  // indexed; receives shadows, casts none), in the world's lights with the craft's, beside the town's prelink
+  function lotGroundPrelink() {
+    if (typeof LOT_GROUND === 'undefined' || !LOT_GROUND || typeof LOT_GROUND.material !== 'function') return;
+    try {
+      const geo = new THREE.BufferGeometry(), f3 = n => new THREE.BufferAttribute(new Float32Array(n), n / 3);
+      geo.setAttribute('position', f3(9)); geo.setAttribute('normal', f3(9));
+      geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(6), 2));
+      geo.setAttribute('aSplat', new THREE.BufferAttribute(new Float32Array(12), 4));
+      geo.setAttribute('aTone', new THREE.BufferAttribute(new Float32Array(6), 2));
+      geo.setAttribute('aAlpha', new THREE.BufferAttribute(new Float32Array(3), 1));
+      geo.setIndex([0, 1, 2]);
+      const m = new THREE.Mesh(geo, LOT_GROUND.material(THREE, null));
+      m.renderOrder = 3; m.receiveShadow = true; m.castShadow = false;
+      const g = new THREE.Group(); g.add(m);
+      compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, f => craftInWorldNow(() => craftLightsGuess(f)))
+        .then(() => geo.dispose(), e => { geo.dispose(); console.warn('lot ground prelink:', e && e.message); });
+    } catch (e) { console.warn('lot ground prelink:', e && e.message); }
+  }
+  // THE CRAFT IN THE WORLD FOR ONE SYNCHRONOUS CALL (G1085): craftInWorld's hold spans tasks, and the steps it overlaps
+  // put the craft back as they like - the parked captures' editor round trips re-stand the build (applyStand hides
+  // model.grp behind the cage), so the town's prelink, holding the craft 'in the world' across its tasks, keyed every
+  // lit program with NO craft lights (the node census: 0 -> 2 point, 0 -> 1 spot against worldCompile's keys; ~70 of
+  // the world's programs keyed and linked twice). As a compile's dress it is re-applied in each task, and whatever it
+  // found (the parent, the mesh's visibility - a model rebuilt meanwhile included) is put back before the task ends
+  function craftInWorldNow(fn) {
+    if (!inGarage || !WF) return fn();
+    const home = craft.parent, g = model && model.grp, vis = g ? g.visible : null;
+    if (home !== scene) scene.add(craft);
+    if (g) g.visible = true;
+    try { return fn(); }
+    finally { if (g) g.visible = vis; if (home !== scene) { if (home) home.add(craft); else scene.remove(craft); } }
+  }
+  // ...AND ITS LIGHTS BEFORE IT HAS THEM (G1085). The craft's nav / landing / taxi lights are made from the flown model's
+  // lamps (cockpit.js setupLights, at setAircraft) - and the model standing at the town step is the generated skin the
+  // first boot builds before the snapshot: no lamps, no lights. The prelink keyed the world with none and worldCompile
+  // keyed it all again with the flight's 2 point + 1 spot (the node census, both builds). So while the model has no
+  // light of its own, the prelink's tasks wear STAND-INS of the flown model's light signature (point, spot: the
+  // program key counts them; intensity 0, no shadow, as setupLights makes them), remembered from the last flown model
+  // ('flydiy.craftLights', written when the one loading builds it) - a first visit takes the default build's (the Cub's
+  // 2 point + 1 spot). A wrong guess costs what the base paid: worldCompile keys and links the difference
+  const CRAFT_LIGHTS = 'flydiy.craftLights';
+  function craftLightSig() {
+    if (!model || !model.grp) return null;
+    let p = 0, sp = 0; model.grp.traverse(o => { if (o.isPointLight) p++; else if (o.isSpotLight) sp++; });
+    return p + ',' + sp;
+  }
+  function craftLightsKeep() { const sg = craftLightSig(); if (sg) try { localStorage.setItem(CRAFT_LIGHTS, sg); } catch (e) {} }
+  let lightStandIns = null;
+  function craftLightsGuess(fn) {
+    const sg = craftLightSig();
+    if (sg && sg !== '0,0') return fn();   // (no model yet at the town step: the one loading builds it at 'spec')
+    let want = '2,1'; try { want = localStorage.getItem(CRAFT_LIGHTS) || want; } catch (e) {}
+    if (!lightStandIns || lightStandIns.userData.sig !== want) {
+      const [np, ns] = want.split(',').map(Number), g = new THREE.Group();
+      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
+      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+      g.userData.sig = want; g.name = 'craftLightStandIns'; lightStandIns = g;
+    }
+    if (!lightStandIns.children.length) return fn();
+    scene.add(lightStandIns);
+    try { return fn(); } finally { scene.remove(lightStandIns); }
+  }
+  // the shed as the roll-out shot draws it, for one synchronous call: the craft in the shed (a world compile may hold it
+  // in the world scene - it goes back there), model.grp shown (its nav / landing / taxi lights: three counts only the
+  // lights it can see), the editor's cage down; everything as it was before the call returns
+  function craftInShed(gs, fn) {
+    const home = craft.parent, g = model && model.grp, vis = g ? g.visible : null, cage = edSit ? edSit.visible : null;
+    if (home !== gs) gs.add(craft);
+    if (g) g.visible = true;
+    if (edSit) edSit.visible = false;
+    try { return fn(); }
+    finally { if (g) g.visible = vis; if (edSit) edSit.visible = cage; if (home !== gs) { if (home) home.add(craft); else gs.remove(craft); } }
   }
   // THE CRAFT'S OWN LIGHTS ARE THE WORLD'S. Its nav, landing and taxi lights are point and spot lights in the craft group,
   // and every lit program's key counts the scene's lights: compiled while the aeroplane stood in the shed, the whole world
@@ -158021,6 +158625,13 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // the parked aeroplanes the stream places meanwhile are captured a step a task, as under the roll-out screen
     const PK = PK_ASYNC() ? window.PARKED : null; if (PK) PK.async = true;
     const idle = () => (!ST || !(ST.near > 0)) && !(WF.ringStat && WF.ringStat() && WF.ringStat().busy);
+    // G1075 (LOAD-SETTLE): THE SLICE'S CLOCK, HONOURED INSIDE THE CALL. The 40 ms slice was only checked between two
+    // worldUpdate calls, and ONE call could hold ~1.1 s: a premises build, an HLOD cell's merge, a stand-card chunk and
+    // the life's stand, each alone a slice's worth or more, all in the same call. Now each of those heavy builders
+    // starts only while the slice has time left (FLYDIY_SLICE.until) - the first of a slice always does - and the
+    // stand-card chunk builds by rows against it; the work is the same, it no longer bunches. Flight has no slice: its
+    // builders keep their own per-frame budgets.
+    const SL = { until: 0 };
     return new Promise(res => {
       const tick = () => {
         // G830: the premises' stream waiting on the house worker - wait for its answer, not in updates
@@ -158029,9 +158640,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         const t0 = performance.now();
         const keep = inGarage ? camera.position.clone() : null;
         if (keep) camera.position.set(a[0] + 16, a[1] + 6, a[2] + 16);
+        SL.until = t0 + 40; window.FLYDIY_SLICE = SL;
         try { while (performance.now() - t0 < 40 && n < 1500) { WF.worldUpdate(cg); n++; } }
         catch (e) { console.warn('world settle:', e && e.message); n = 1500; }
-        finally { if (keep) camera.position.copy(keep); }
+        finally { window.FLYDIY_SLICE = null; if (keep) camera.position.copy(keep); }
         if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; } } else still = 0;
         const done = still >= 3 || n >= 1500 || performance.now() - t00 > 45000;
         BOOT.phase('settle', 'the world settling round the stand' + (ST ? ' · ' + (ST.near || 0) + ' to build' : ''), done ? 1 : Math.min(0.95, n / 600));
@@ -158098,7 +158710,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       // binary). Its sources are made here, a group a task (compileSliced), not awaited; the compile step then finds
       // them known (their key) and mostly linked, and compiles what the town added.
       if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function' && !worldPrelink)
-        worldPrelink = craftInWorld(() => compileSliced(scene, aa && aa.target ? aa.target() : null)).catch(e => console.warn('world prelink:', e && e.message));   // (B9: keyed with the craft's lights)
+        worldPrelink = compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, f => craftInWorldNow(() => craftLightsGuess(f))).catch(e => console.warn('world prelink:', e && e.message));   // (B9: keyed with the craft's lights - G1085: a task at a time)
+      if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function') lotGroundPrelink();
       if (PK_ASYNC()) window.PARKED.async = true;
       if (!WF || !WF.premisesPrewarm || typeof renderer.compileAsync !== 'function') return;
       const cg = tripCg();
@@ -158211,7 +158824,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       // G732.1: the catch-up's depth variants a slice a task (compileDepthVariants' `sliced`, the settings screen's since G991):
       // unsliced, compileAsync built every new depth program's source in one task - 21 of them here, a 983 ms task
       tripRungs(t);   // (a trip that did not run 'images' - new graphics, Fly's settle - re-keys them here)
-      return craftInWorld(() => (worldSettle(true), shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants(scene, true)).catch(e => console.warn('catch-up compile:', e && e.message)),
+      return craftInWorld(() => (worldSettle(true), shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, craftInWorldNow).then(() => compileDepthVariants(scene, true, craftInWorldNow)).catch(e => console.warn('catch-up compile:', e && e.message)),
         t && t.rungLinks]), 'world', 60000))   // G730: and the parked rungs' links (never draw ahead of the links)
         // G732: what the catch-up compile's programs hand the shaders (the hooks' textures), uploaded a slice a task, and
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
@@ -159682,6 +160295,12 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   let flDevOn = prefGet('flydiy.flDev', '') === '1';
   function flRailSync() {
     const scen = !!(window.SCENERY && window.SCENERY.on);
+    // G1091 (POLISH-2): with DEV on, a small tag names the trees-by-the-runways variant this world was planted with
+    { let tg = $('rwyTreesTag');
+      if (!tg && document.createElement && $('ui') && $('ui').appendChild) { tg = document.createElement('div'); tg.id = 'rwyTreesTag'; $('ui').appendChild(tg); }
+      if (tg) { const m = world && world.rwyTrees ? world.rwyTrees() : null;
+                tg.hidden = !(flDevOn && m && world.island);
+                tg.textContent = 'trees by the runways: ' + (m === 'mapx' ? 'map + shoulders & fans (mapx)' : m === 'map' ? 'the map (map)' : 'today'); } }
     for (const b of $('flRail').children) {
       if (b.dataset.f === 'dev') b.hidden = !(flDevOn || scen);
       if (b.dataset.dev === 'toggle') {
@@ -160350,6 +160969,18 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       flLive(body, 'cover', 'flGndRing');
       flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. The WORLD rail (F9, the right edge) holds the dials.');
       flGroundLive(sim ? sim.out : null);
+      // G1091 (POLISH-2): THE TREES BY THE RUNWAYS - the three ways the user is judging (27_premises.js RWY_TREES):
+      // the pick is kept (flydiy.rwytrees) and the page reloads, since the woods are planted with the world
+      const rtNow = world && world.rwyTrees ? world.rwyTrees() : 'today';
+      flRow(body, 'trees by the runways').classList.add('fsec');
+      flPills(body, [{ label: 'today', value: 'today', title: 'as before: the woods held back ~60 m from 13/31' },
+                     { label: 'the map', value: 'map', title: 'the tree map everywhere but the paving and its drawn side' },
+                     { label: 'map + shoulders & fans', value: 'mapx', title: 'the map, with the gravel shoulders and the approach fans kept clear' }],
+        o => o.value === rtNow,
+        o => { if (o.value === rtNow) return; prefSet('flydiy.rwytrees', o.value);
+               try { const u = new URL(location.href); if (u.searchParams.has('rwytrees')) { u.searchParams.set('rwytrees', o.value); location.replace(u.href); return; } } catch (e) {}
+               location.reload(); });
+      flNote(body, 'Where the trees may stand by the runways - the tree map (WorldCover + the canopy) or the clearances. It reloads the page; ?rwytrees=today|map|mapx in the address says the same.');
       map();
     },
     // G760: THE TEST MODE WITHOUT PHYSICS - the scenery mode (SCENERY, ?scenery=1): the solver held (no step,
@@ -161882,12 +162513,76 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       recent: () => (P.legacy ? null : P.hist.slice()),   // the RENDERED frames' intervals (ms), for the menu's readout - freezes included (G620)
       freezes: () => ({ n: P.frz.n, maxMs: P.frz.maxMs, agoS: P.frz.n ? (performance.now() - P.frz.lastT) / 1000 : null, away: P.frz.away }),   // G620: the stalls of 250 ms or more, kept
       get dt() { return P.dt; }, get steps() { return P.steps; },
+      // G1100 (POSE-SMOOTH): where between the last two solver steps this frame's real time falls. The frame owes
+      // floor(acc x 60 + 0.25) steps, so the leftover acc x 60 sits in [-0.25, 0.75): the drawn pose is the newest step's
+      // less (0.75 - acc x 60) of a step - 0.75 of a step behind the wall clock, every frame alike. 1 (the newest step,
+      // nothing drawn between) under the old clock: a rig, the harness
+      get alpha() { return P.legacy ? 1 : Math.max(0, Math.min(1, P.acc * 60 + 0.25)); },
       get dilation() { const w = wk(); if (w) return w.dil; return P.wallW > 0.2 ? P.simW / P.wallW : 1; },   // the sim's seconds over the wall's, the last second (G612)
       budgetMs: () => 1000 / (capOf() || 60),
       state: () => ({ mode: P.mode, cap: capOf(), legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0,
                       dilation: api.dilation, stepMs: wk() ? wk().stepMs : P.stepMs, otherMs: P.otherMs, droppedS: wk() ? wk().droppedS : P.droppedS, workMs: P.lastWork, rateFps: P.lastRate || 0, trials: P.trials,
                       simw: !!wk() }) };
     W.FLYDIY_PACE = api;
+    return api;
+  })();
+  // ---- THE DRAWN POSE, BETWEEN TWO STEPS (G1100, POSE-SMOOTH; C4b's finding at G879.1) ---------------------------
+  // The frame clock (above) owes each frame 1-4 solver steps of 1/60 s, and the aeroplane was DRAWN at the newest one:
+  // where frames alternate 1 and 2 steps (a 45-60 fps) or 1 and 3, the drawn aeroplane - and the eye riding it, the
+  // chase camera's target, the tyres' contact shadows, the craft's shadow maps (G1080 aims them at the pose) - moved a
+  // step, then two, then one: in a climb at 60 fps the eye's height juddered up to 57 mm, one 1-then-3 frame 107 mm.
+  // Now the classic fixed-step accumulator: the step block keeps the node positions from before the frame's last step
+  // (p0; under 2x the last two - one 60th of real time) and after it (p1); for the draw the positions become
+  // p0 + (p1 - p0) x PACE.alpha, and p1 goes back, bit for bit, before anything else can read or step them. So the pose
+  // is drawn 0.75 of a step behind the wall clock on every frame whatever it owes, and the motion is even.
+  // - Everything drawn from the sim reads the drawn positions: poseModel (the body, the flex skin, the surfaces' hinge
+  //   lines, the gear, the wheels' spin), the head camera (model.grp), the chase target, contactShadows, sync()'s
+  //   truss, the floats. The HUD and the panel read the solver's newest step (CK.frame runs before; hud() reads out).
+  // - NOTHING INTERPOLATED IS FED BACK: the solver, the pilot's script, the director and the panel run before the swap;
+  //   WF.worldUpdate is given the newest step's CG (the world is the solver's world: its streaming and the climate's
+  //   samples see what they always saw); the positions are restored before the frame ends (and at the next frame's
+  //   top should a frame have thrown). The solver's own caches are recomputed from p at every substep (30_solver.js
+  //   aeroPass -> bodyAxes), so a read of the drawn positions leaves nothing behind.
+  // - A RIG (the old clock) has alpha 1: no swap at all - every gate, every hash, every shot reads what it always read.
+  // - A pair that no longer holds is dropped: another sim, another size, or positions moved outside the step block
+  //   (a reset, a re-placement, the line-up skip) - the newest positions are then drawn as they are.
+  // - Paused, the pose holds where it was last drawn (the alpha kept), rather than jumping to the newest step.
+  // - Under the physics worker (?simw=1) the page's positions ARE the view's, interpolated already (sim_view.js frame:
+  //   T - 1 step between the two newest snapshots) - this stands aside.
+  const POSE_LERP = (() => {
+    const L = { sim: null, p0: null, p1: null, have: false, on: false, alpha: 1, marked: false,
+                stats: { drawn: 0, dropped: 0 } };
+    const fits = sim => !!(sim && sim.p && sim.p.length > 0 && typeof sim.p.set === 'function');
+    function arrays(sim) {
+      if (L.sim !== sim || !L.p0 || L.p0.length !== sim.p.length) {
+        L.sim = sim; L.p0 = new Float64Array(sim.p.length); L.p1 = new Float64Array(sim.p.length); L.have = false;
+      }
+    }
+    // the step block, right before the step that closes the pair (the frame's last; under 2x its last two)
+    function mark(sim) { if (!fits(sim)) return; arrays(sim); L.p0.set(sim.p); L.marked = true; }
+    // the step block, after its last step: the pair is whole
+    function took(sim) {
+      if (!fits(sim) || !L.marked || L.sim !== sim) { L.have = false; L.marked = false; return; }
+      L.p1.set(sim.p); L.have = true; L.marked = false;
+    }
+    // the draw: the drawn positions into sim.p (true), or nothing (false). alpha null = held (a pause): the last one
+    function draw(sim, alpha) {
+      if (L.on) back();
+      if (alpha != null) L.alpha = alpha;
+      const a = L.alpha;
+      if (!L.have || L.sim !== sim || !fits(sim) || sim.p.length !== L.p1.length || !(a < 1)) return false;
+      const p = sim.p, p0 = L.p0, p1 = L.p1, N = p.length;
+      for (let i = 0; i < N; i++) if (p[i] !== p1[i]) { L.have = false; L.stats.dropped++; return false; }   // moved outside the steps
+      for (let i = 0; i < N; i++) p[i] = p0[i] + (p1[i] - p0[i]) * a;
+      L.on = true; L.stats.drawn++;
+      return true;
+    }
+    // the newest step's positions back, bit for bit
+    function back() { if (!L.on) return; L.on = false; if (L.sim && L.sim.p && L.sim.p.length === L.p1.length) L.sim.p.set(L.p1); }
+    function drop() { back(); L.have = false; L.marked = false; }
+    const api = { mark, took, draw, back, drop, get on() { return L.on; }, get alpha() { return L.alpha; },
+                  state: () => ({ have: L.have, on: L.on, alpha: L.alpha, drawn: L.stats.drawn, dropped: L.stats.dropped }) };
+    window.FLYDIY_POSE = api;
     return api;
   })();
   // an ease written per 60 Hz frame (k of the gap each 1/60 s), taken over dt seconds
@@ -161921,6 +162616,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // flydiy.simw ('0' / '1') say otherwise. Null = the loop's step block below is the inline loop it always was; so is
   // a page whose worker cannot be had (no Worker, file://, the page in node without the harness's shim): SIM_LINK wraps
   // nothing until its worker is up, and every flight of a dead link flies inline (FLYDIY_SIMW.state().dead says why).
+  // SIMW-BENCH (G1095-G1099, the box 2026-09-30): KEPT - as even as inline at the 30 the cap settles on, the same frames,
+  // the page's loop 19.5 -> 13.8 ms (Cub) / 22.7 -> 13.6 ms (metal Cessna); 60 holds on neither path (HANDOVER G1095-G1099)
   const SIMW_DEFAULT = true;
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
@@ -161932,6 +162629,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
   function loop(ts) {
     requestAnimationFrame(loop);
+    POSE_LERP.back();                  // G1100: a frame that threw between the swap and its restore leaves nothing drawn behind
     const pc = PACE.frame(ts);
     if (!pc) return;                   // the cap: this refresh is not ours
     if (FR) FR.begin(ts, pc);          // G620: the flight recorder's row for this frame
@@ -162004,11 +162702,16 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const t2 = perfNow(), nStep = pc.steps * simRate;
       // G815 (C1b, ?simw=1): the worker steps - the page posts its inputs and takes the newest snapshot (sim_link.js;
       // `hold` while the worker makes the flight). null = this frame flies inline, the loop as it always was
-      const sw = SIMW ? SIMW.frame(nStep, simRate) : null;
-      if (sw) { if (sw.hold) PACE.hold(); if (FR) FR.push(0); scriptView(sw.simDt); if (FR) FR.pop(); simwRan = sw.ran; }
-      else for (let k = 0; k < nStep; k++) {
-        if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
-        if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
+      const sw = SIMW ? SIMW.frame(nStep, simRate, ts) : null;   // (G1100: the frame's timestamp - the worker's view draws for it)
+      if (sw) { if (sw.hold) PACE.hold(); if (FR) FR.push(0); scriptView(sw.simDt); if (FR) FR.pop(); simwRan = sw.ran; POSE_LERP.drop(); }
+      else {
+        const kPair = pc.legacy ? -1 : nStep - simRate;     // G1100: the step that opens the drawn pair (none under the old clock)
+        for (let k = 0; k < nStep; k++) {
+          if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
+          if (k === kPair) POSE_LERP.mark(sim);                          // G1100: the positions before the frame's last 60th
+          if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
+        }
+        if (kPair >= 0) POSE_LERP.took(sim);                             // G1100: ...and after it
       }
       physMs = perfNow() - t2; simDt = sw ? sw.simDt : nStep / 60; ran = sw ? sw.ran : nStep;
       if (simRate > 1) {
@@ -162018,7 +162721,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       }
       if (typeof DAY_CLOCK !== 'undefined') DAY_CLOCK.tick(simDt);
       director.frame();
-      if (window.WATER && WATER.setTime) WATER.setTime(sim.t);   // G460: the water is drawn at the solver's own time
+      // G460: the water is drawn at the solver's own time - G1100: at the DRAWN pose's (the worker's view says it; inline,
+      // the swap below says it again), so the hull and the wave under it move together and evenly
+      if (window.WATER && WATER.setTime) WATER.setTime(sw && sw.drawnT != null ? sw.drawnT : sim.t);
       if (CK) CK.frame(simDt, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       // (G820: under the worker, its snapshot's flag too - read every frame)
       if ((++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) || (sw && sw.diverged)) {
@@ -162050,11 +162755,17 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
+    // G1100 (POSE-SMOOTH): FROM HERE TO THE RENDER THE SIM'S POSITIONS ARE THE DRAWN ONES - between the last two steps,
+    // at the frame clock's alpha (POSE_LERP above; restored below the render). In the world only, the page's own flight
+    // (the worker's view interpolates itself), and a pause holds the alpha it had
+    const drawnPose = !inGarage && simwRan < 0 && POSE_LERP.draw(sim, running ? PACE.alpha : null);
+    const cgD = drawnPose ? sim.cgPos() : cg;
+    if (drawnPose && running && window.WATER && WATER.setTime) WATER.setTime(sim.t - (1 - POSE_LERP.alpha) * simRate / 60);   // the sea at the drawn pose's time
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
     // per-frame cg overwrite silently un-centred it), the craft otherwise;
     // the editor's pan offset rides on top (G41)
     if (edSit.visible) target.copy(edTarget).add(edPan);
-    else target.set(cg[0], cg[1], cg[2]);
+    else target.set(cgD[0], cgD[1], cgD[2]);
     if (edEye) {
       if (!edSit.visible) exitInterior();
       else {
@@ -162082,6 +162793,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     poseModel();
     // G1002 (A6-GROUND): the tyres' contact shadows, on this frame's pose (contact_shadow.js)
     if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();
+    // G1080 (SHADOW-EYES): the craft's shadow maps aimed at THIS frame's pose (worldUpdate ran before poseModel, on the
+    // frame before's - and on the camera under the free camera / the editor): shadow_near.js aim()
+    if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
     // distT the mouse writes, every frame, so a chase eases exactly the way a
     // drag eases and `orbit` is simply the mode that writes nothing. Cockpit
@@ -162139,7 +162853,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender) { if (FR) FR.end(false, cg); BOOT.frame(); return; }
+    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); BOOT.frame(); return; }   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
@@ -162186,6 +162900,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         SKY_GLARE.render(renderer);
       }
     }
+    POSE_LERP.back();                  // G1100: the newest step's positions back, bit for bit, before anything else reads them
     if (FR) FR.end(true, cg);          // G620: the glare and the rest to `other`; the row written
     PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran);   // (G820: the worker's steps are not the page's: their cost is not a page step's)   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
@@ -162350,8 +163065,23 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
   });
   // (B9: before the commit too - a capture puts the player's build back through the editor, as the batch does)
-  bootStep('snapshot', 'committing the build', 10, () => { tripSync = null; return tripRun(TRIP_BY.snapshot, bootTrip); });
-  bootTripStep('bake'); bootTripStep('spec');
+  // G1085 (LOAD-COMPILE): THE WORLD AS IT SETTLED, PRELINKED. What the settle and the parked batch added to the world
+  // (the premises' stream to 6 km, the fill, the parked aeroplanes: ~70 programs in the node census, the depth variants
+  // with them) was first keyed by worldCompile, ~10 s later, and its links waited there. Its sources are made here, a
+  // group a task under the commit, the bake and the spec, with the town prelink's dress (the craft and its lights)
+  bootStep('snapshot', 'committing the build', 10, () => { tripSync = null;
+    // (each kick in a task of its own: the gathers walk whole scenes, and the shed's key environment is a PMREM render -
+    // one task with the commit's first slice was 1.0-1.3 s on the GPU box)
+    setTimeout(worldPrelinkSettled, 0); setTimeout(shedPrelink, 0);
+    return tripRun(TRIP_BY.snapshot, bootTrip); });
+  bootTripStep('bake');
+  // G1085 (LOAD-COMPILE): the flown model is built here - its programs (in the world's lights, and in the shed as the
+  // roll-out shot dresses it) start linking now, under the world's compile, the shed's and first light; 'craft' waits
+  const specStep = TRIP_BY.spec;
+  // (in a task of its own: a .then here ran it inside the spec's own task - the model's build - 1.36 s on the metal Cessna)
+  bootStep(specStep.id, specStep.label, specStep.w, () => { const r = tripRun(specStep, bootTrip);
+    const kick = () => setTimeout(craftStart, 0);
+    return r && typeof r.then === 'function' ? r.then(v => { kick(); return v; }) : (kick(), r); });
   // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
   // a dirty storm like any load — and the bench's rule (an empty bench
   // never nulls the store) is what let the WIP's stored plaque live
@@ -162395,15 +163125,16 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // G991: `sliced` - the settings screen's: every pass through compileSliced (a task at a time). A shadows change re-keys
   // the whole depth set (the lit scene's light state is its key), and compileAsync builds every NEW program's source in
   // its first, synchronous task
-  function compileDepthVariants(sc, sliced) {
+  function compileDepthVariants(sc, sliced, dress) {
     sc = sc || scene;
+    const D = dress || (f => f());
     const pass = sliced ? compileSliced : compilePass;
     const inWorld = sc === scene;
     if (typeof renderer.compileAsync !== 'function' || (inWorld && !WF)) return Promise.resolve();
     const jobs = [];
     if (typeof PROG_WARM !== 'undefined') {
-      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [sc]);
-      jobs.push((sliced ? compileSliced(helper, PLAIN_RT(), sc, true) : PROG_WARM.fogless(sc, () => compilePass(helper, PLAIN_RT(), sc))).catch(e => console.warn('depth compile:', e && e.message)));
+      const { helper } = D(() => PROG_WARM.depthVariants(THREE, renderer, [sc]));
+      jobs.push((sliced ? compileSliced(helper, PLAIN_RT(), sc, true, dress) : D(() => PROG_WARM.fogless(sc, () => compilePass(helper, PLAIN_RT(), sc)))).catch(e => console.warn('depth compile:', e && e.message)));
     }
     // the far cascade's proxies (their far depth) and the canopy cover's swap: drawn by their own
     // renders into their own targets, keyed without the world's lights, as before
@@ -162488,11 +163219,16 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // ~30 ms, adaptively), then the programs polled until ready - compileAsync's promise, without its long first task.
   // `fogless` (G991): each task's compile with the lit scene's fog lifted - PROG_WARM.fogless, a task at a time (the
   // depth variants' key, compileDepthVariants below)
-  function compileSliced(sc, target, lit, fogless) {
+  // G1085 (LOAD-COMPILE): `dress` - fn => fn() run with the scenes dressed as the programs will be drawn (the craft and
+  // its lights stood where the frame will find them) and put back before it returns: the stand-ins are gathered and
+  // each task's compile made INSIDE it, so the dress never outlives a task - no frame, no other step's compile ever
+  // meets it, and the step can run beside the others (its links on the driver's threads) instead of holding the draw
+  function compileSliced(sc, target, lit, fogless, dress) {
+    const D = dress || (f => f());
     if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn)
-      return fogless && PROG_WARM ? PROG_WARM.fogless(lit || sc, () => compilePass(sc, target, lit)) : compilePass(sc, target, lit);
+      return D(() => fogless && PROG_WARM ? PROG_WARM.fogless(lit || sc, () => compilePass(sc, target, lit)) : compilePass(sc, target, lit));
     const reps = [], seen = new Set(), mats = new Set();
-    sc.traverse(o => {
+    D(() => sc.traverse(o => {
       if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.material) return;
       const g = o.geometry;
       const gk = g && g.attributes ? Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.morphTargetsRelative ? 'r' : '') : '';
@@ -162504,26 +163240,32 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         if (seen.has(k)) continue;
         seen.add(k); reps.push([o, m]); mats.add(m);
       }
-    });
+    }));
     const litScene = lit || sc;
     let i = 0, G = 1;                     // a NEW AEROSKIN program's source alone is ~0.1-0.3 s: start at one, grow on the cheap ones
+    // G1085: a dressed compile runs beside the steps (the one loading's early starts) over sets that mix programs the
+    // loading already knows (cheap: the group grows) with new ones (a group of 64 new sources is seconds in one task) -
+    // it grows to 16 at most
+    const GMAX = dress ? 16 : 64;
     return new Promise(res => {
       const tick = () => {
         const t0 = performance.now();
-        const prev = renderer.getRenderTarget(), fog = litScene.fog;
-        try {
-          if (fogless) litScene.fog = null;
-          renderer.setRenderTarget(target, 0);
-          while (i < reps.length && performance.now() - t0 < 30) {
-            const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
-            for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
-            i += n;
-            try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
-            grp.clear();
-            const dt = performance.now() - t1;
-            G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
-          }
-        } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
+        D(() => {
+          const prev = renderer.getRenderTarget(), fog = litScene.fog;
+          try {
+            if (fogless) litScene.fog = null;
+            renderer.setRenderTarget(target, 0);
+            while (i < reps.length && performance.now() - t0 < 30) {
+              const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
+              for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
+              i += n;
+              try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
+              grp.clear();
+              const dt = performance.now() - t1;
+              G = Math.max(1, Math.min(GMAX, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
+            }
+          } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
+        });
         if (i < reps.length) { setTimeout(tick, 0); return; }
         // the link: compileAsync's own poll - over EVERY program of the material (G992: compileAsync reads only its
         // currentProgram, the last one keyed; a material met as two object kinds, or lit and fogless, has one program
@@ -162741,6 +163483,30 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       .then(() => { if (window.FLYDIY_LOG_COMPILE) console.log('xray variants: ' + n + ' programs, ' + Math.round(performance.now() - t0) + ' ms'); })
       .catch(e => console.warn('xray compile:', e && e.message));
   }
+  // A PLACEHOLDER ENVIRONMENT FIRST (the compile step's, below): a program's key says whether the scene has an
+  // environment map (and its size) - G1085: also for the craft's shed compile, which the one loading starts earlier
+  function shedEnvKey() {
+    if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
+      try { const rt = envGen('room').fromCubemap(envRT.texture);
+            hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
+    }
+  }
+  // G1085 (LOAD-COMPILE): ...AND THE SHED'S, STARTED UNDER THE COMMIT. The shed's compile step and first light's
+  // see-through twins (~100 programs) came after the world's compile, and waited on their links there; the room is
+  // complete long before (the parked batch has let go by the commit). Started here - the room's key environment, its
+  // two targets, its shadow pass, the twins - a group a task, not awaited: the compile step and first light compile the
+  // same keys (known: no new source, no new link) and wait for what is still linking. Only when the room's pieces
+  // have landed (a prop or the crew landing later adds programs the compile step catches, as before)
+  function shedPrelink() {
+    if (typeof renderer.compileAsync !== 'function' || !hangar || tripKeys.shedCompile !== undefined) return;
+    if (typeof BOOT.settled === 'function' && !BOOT.settled(['props', 'crew', 'crewBuild'])) return;
+    shedEnvKey();
+    new Promise(res => setTimeout(res, 0)).then(() => compileSliced(hangarScene, ensureEnvRT()))
+      .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null))
+      .then(() => compileDepthVariants(hangarScene, true))
+      .then(() => compileXrayVariants())
+      .catch(e => console.warn('shed prelink:', e && e.message));
+  }
   bootStep('compile', 'compiling the shaders', 14, () => {
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
     if (typeof renderer.compileAsync !== 'function' || !hangar) { done(); return; }
@@ -162749,10 +163515,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // and then baked would compile every material a second time on the
     // first frame. A PMREM of the still-black probe target is that map with
     // zero radiance: same key, same look, and the real bake replaces it.
-    if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
-      try { const rt = envGen('room').fromCubemap(envRT.texture);
-            hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
-    }
+    shedEnvKey();
     const pass = target => compilePass(hangarScene, target);
     // ...once the room is complete: a prop or the crew landing AFTER the
     // compile would compile its materials on their first draw, synchronously.
