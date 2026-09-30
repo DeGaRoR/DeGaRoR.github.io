@@ -65792,3 +65792,23 @@ worst task 1069 / 416 -> 346 / 369 ms; tasks >= 1 s 1 -> 0; tGarage 43.0 / 40.0 
 TRAP (every app.js edit): FLYDIY_BUILD moves, the parked cook goes STALE, and FRAMECOST reds ~25 stand/taxi rows
 (the parked aeroplanes captured live in node) - deterministic, not clock noise. `node tools/parked_cook.js --check`
 first; re-cook in the worktree (GPU) before reading FRAMECOST.
+## G1137 - LOAD-COMPILE ON TRAIN 17: THE WORLD'S WARM DRAW A VIEW A TASK (2026-09-30, LOAD-COMPILE, local GPU)
+
+A0's follow-up on train 17: the metal Cessna's one loading had a 1.30-1.41 s task in `garage:firstFrame` (the Cub none).
+- THE PROFILE (rollout_perf --profile-boot + progwait_hook, master 220812de): firstFrame 1421 ms - ~680 ms of link waits,
+  553 ms of them on two custom ShaderMaterials first made in a render at first light ('7,8' / '7,9': the shed's sky dome
+  and cloud dome, which the first applyDay swaps in) - and bakeHangarEnv re-baking the probe (~250 ms of shadow map).
+  Both are the first applyDay at first light: C0c's 1d11c6c7 (claude/garage-env-defer-t17) applies the day before the
+  compile step's passes; its node census: firstFrame links 2 -> 0, the re-bake gone. Left to C0c (it owns the probe).
+- THE 'frames' STEP had a 1.58 s task too: B9's worldWarmDraw drew its six headings in one task (the draws, their
+  uniforms, ~16 ms of first draw for each program new to a view - progwait). G1137: a view a task (six tasks); every
+  link still done before the first (programsReady, G732). FRAMECOST: every 'frames' counter identical.
+- MEASURED (RTX 3080, the metal Cessna, one shared profile, a warm-up discarded, ABBA, --secs 60, --profile-boot;
+  tools/perf/lc/x_*.json): master 220812de vs C0c 1d11c6c7 + G1137 - firstFrame worst task 1069 / 416 -> 346 / 369 ms;
+  'frames' worst 507 / 490 -> 314 / 282 ms; tasks >= 1 s 1 / 0 -> 0 / 0; bakeHangarEnv runs (C0c's bakeruns.js) 2 / 3 ->
+  1 / 1 (PMREM bakes by step, tools/perf/lc_bake_hook.js: snapshot + compile + firstFrame -> snapshot + compile);
+  tGarage 43.0 / 40.0 -> 40.8 / 40.7 s; first flight 46.4 / 43.3 -> 44.1 / 44.0 s; taxi fps, uneven, p99 unchanged;
+  PARKED.COOK.why {} on every run (FLYDIY_BUILD pinned to the landed cook's, lc_build.sh). rollout_perf's roll-out click
+  still skips the shot (the known bug, fixed on ROLLOUT-REAL's 50dcd72f) - equally on both sides.
+- Gates (node, the combined tree): UISMOKE, BOOT, PROGRAMS, ROUNDTRIP PASS; FRAMECOST red only on C0c's move
+  (garage:compile bytes.bufferData +29 KB, the cloud dome's geometry: its ALLOW row, ad3a1046).
