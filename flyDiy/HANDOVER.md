@@ -65766,3 +65766,83 @@ loop JS 22.0 -> 13.4 / 24.7 -> 13.5 ms (the worker); render 11.0 -> 9.7 / 10.7 -
 33.5 both; the Cub: no frame over 100 ms, no task over 1 s. OPEN: the metal Cessna's 1.3-1.4 s task in garage:firstFrame
 (LOAD-COMPILE follows it up for train 18). The CI container's timing gates (BIOME perf, SETTLE bake budget, HITBOX e,
 RWYTREES' 30-min cap) red there, green on the box.
+
+## G925-G929 - AS4b: THE PAVEMENT AS DATA - ONE MATERIAL, A ROW PER STRIP, THE STRIPS MERGED; THE PARKED L0 ALREADY GONE (2026-09-30, AS4b of ASSETS-2026-09-27 §5.3 M4-M5, local GPU)
+
+WHY: ASSETS §5.3 M4 - every strip, road and apron wore a material of its own (the same program, ~30 vec4 uniforms, the
+grade / tint rows and 112 vec4 of marks and keep boxes uploaded at each of its draws), and three cannot merge meshes
+that wear different materials. M5 - the parked aeroplanes' per-placement material copies at L0.
+
+G925 THE TABLE (src/viewer/pavement.js "THE TABLE"). With `o.geo` and the page's shared library, PAVEMENT.make() makes
+the part a ROW of one RGBA32F texture (uPavT, PV.W = 153 texels a row) and returns THE ONE MATERIAL (tableMat); the
+geometry gets `aPavId` (the row, constant over the part) and loses aPavK and the unused uv. A row is packed from the very
+uniform objects the old material held (the part is a proxy, isPavPart: applyOne / setKeep / the library's re-point write
+it unchanged, pack() copies it), so every number is the same float32 either way: texels 0..30 the recipe/class vec4s
+(PV_VEC), PV.K cls/seed/halfW/halfL (what aPavK carried - now exact: a texel is not interpolated), PV.N the counts and
+the widest segment's half-width, PV.G/T grade and tint, PV.KA/KB the keep boxes, PV.S/SK the segments, PV.MR/MK THE
+MARKINGS ATLAS (a strip's paint is its row's last 80 texels). The row is read through a FLAT varying, rounded (G1046's
+rule: nothing interpolated reaches a hash). THE SHADER IS THE SHIPPED TEXT: tableGLSL() derives it by anchored
+replacements (every former uniform vec4 a macro for its texel, read where it is used; grade/tint read once per set in
+pvSet; the arrays' reads texel reads; pvLoad picks the row and reads the counts) - a lost anchor is logged and GATE
+PAVEMENT 12 goes red. The marks' loops got an EARLY OUT (bit-exact: pvBox is exactly 0 a footprint outside a mark's
+rect, a segment past the widest half-width + footprint).
+
+G926 THE MERGE (PAVEMENT.merge / mergeSteps; render_world mergeStrips, render_premises mergePavSteps). Whole parts are
+never cut: parts whose boxes meet are one COMPONENT (so two parts that can overlap on screen are always one mesh), and
+components are GROUPED while the group's box stays within BATCH.reach 1.5 km (or 5 % of a bigger group's own). Inside a
+mesh the triangles run in DRAW ORDER (the renderOrder each part had, then build order): the GPU blends in primitive
+order, so G664's per-runway order (the longest strip last) holds exactly where 13/31 and 02/20 cross. Three buckets,
+never mixed: the strips (render_world, the mesh at 1.990), the aprons (2.0 + z/100) and the roads (3) (render_premises)
+- the order classes against the rest of the transparent list are the old ones. Each merged mesh is culled on its own
+sphere (A2-RUNWAYS' culling, per mesh). The rows move to the merged geometries (each owned by exactly one; dispose frees
+them); the sources leave the scene. batchGroup (G563) skips the pavement; the premises' dispose() gives the rows back.
+`o.split` keeps a per-cell cut with CONTESTED ZONES (gated; not used: cutting Jolene's 1.2-2.4 km strips per 1 km cell
+made 13 meshes of 6). On Jolene: 30 pavement meshes -> 15 (strips 6 -> 5, aprons 10 -> 4, roads 14 -> 6); 1 material.
+
+G927 THE CANVASES. ASSETS M4's "a 2048² canvas per runway (render_premises 988-999)" is the BENCH-without-PAVEMENT path:
+the game returns before it (o.game) and render_world stands every premises strip as a PAVEMENT mesh since G489.
+Measured in the page (tools/perf/canvas_hook.js: every <canvas>, its size and the file that made it): no runway canvas;
+the four >= 2048 canvases are the aeroplane atlases and the ground bake. What was left: render_world painted the strip
+KIND's 512 x 64 canvas for every strip, used only by a non-pavement strip - now lazy. 135 -> 132 canvases, 241.13 ->
+240.75 MiB of canvas pixels (-0.38).
+
+G928 THE A/B AND THE RIGS. `?pave=old` / `?pave=new` at load, PAVE_AB('old'|'new') live, or a click on the box (top
+centre, under PAVTEST's) - the builders registered with PAVEMENT.onRebuild stand every pavement again the other way
+(~2 s of main thread). PAVTEST (G1045) works on the one material. tools/pave_ab.js (rollout_perf --eval; --eval-ms is
+new): paused, per mode, the pavement census, a frame's draws / GL uniform calls and bytes / render CPU, and the GPU by
+EXT_disjoint_timer_query - the pavement alone (layer 30, empty depth: an upper bound) and the WHOLE main pass, paired
+queries, shadow maps frozen - at the stand and over the village. tools/pave_link.js: the pavement programs' cold link
+timed, and variants of the table text. tools/parked_mats.js (M5), tools/perf/canvas_hook.js (G927). pavement_census.js
+and wheel_gap_eval.js know the merged meshes; window.PAVEMENT is exported for the rigs.
+
+G929 M5 - ALREADY DONE BY C0b. Measured in the page on master's cook (6b90f96e): 5 parked placements wear 3 materials
+(one per build: arch:cub x2, arch:c172 x2, arch:jodel), 0 of their own, every one cooked, L0 off. Nothing to change.
+
+MEASURED (RTX 3080, 2216x1023; master 6b90f96e vs this branch, the parked cooks fresh on both):
+- GATE FRAMECOST (node, per frame, Cub; the Cessna the same to a few): uniform bytes 313 004 -> 247 196 at the stand,
+  281 798 -> 222 990 at the taxi (-21 %); main draws 999 -> 985 / 938.5 -> 927.5; GL calls 10 451 -> 9 800 / 9 278 ->
+  8 689; uniform4fv 1 123 -> 839, uniform4f 217 -> 6, bindTexture 1 142 -> 1 105, useProgram 254 -> 246. Pavement draws
+  (the census detail) 28 -> 14 stand, 25 -> 14 taxi; pavement materials 28 uuid / 24 signatures -> 1 / 1; the scene's
+  1 592 / 533 -> 1 563 / 510. Boot: buffer uploads -3.8 MB (aPavK, uv), arrays held -3.5 MiB. `FRAMECOST_QUERY=pave=old`
+  on this branch reproduces master's census counter for counter. PASS against master's baseline, no ALLOW row; the
+  baseline NOT re-taken here (48 counters fell: the train takes them).
+- In the page (pave_ab, paused, 3 alternating rounds, OLD -> NEW): at the stand pavement meshes in the frustum 27 -> 14,
+  render CPU 9.3 -> 8.9 ms, uniform bytes 275 -> 212 KB, the whole main pass's GPU 16.4 -> 15.6 ms (the pavement alone
+  1.18 -> 1.43 ms: the table's texel reads cost the shader ~0.25 ms, the fewer draws and constant-buffer updates pay it
+  back); over the village 16 -> 9 in the frustum, 9.4 -> 9.2 ms, 248 -> 211 KB, main pass 16.1 -> 16.2 ms.
+- rollout_perf warm, 2 x Cub (--settings) + 2 x metal, master and branch interleaved on one private profile: render
+  10.75 -> 10.4 (Cub), 10.9 -> 10.6 (metal) ms; loop 21.7 -> 21.45 / 25.05 -> 24.7; taskWorst, garage, roll-out,
+  settings within noise; the compile step +1 s (the table's link, below).
+
+TRAPS MET:
+- THE TABLE'S PROGRAM LINKS ~5 s COLD AND IS NOT REUSED ACROSS RUNS (A5-LOAD's class: the splat ring's is another). On
+  train 16 before G1063.2 the craft step drew ahead of it and the loading carried an 11-12 s task on EVERY run; with
+  G1063.2 (the draw held until the links finish) the link runs under the loading and no task is left. What makes it
+  slow is fxc on the texel reads (tools/pave_link.js: 5.0 s as is, 1.3 s with the row reads made constants; the marks'
+  and keeps' loops ~1 s). Loading the row into globals, packing it tighter, or reading it where used all cost the same
+  GPU (~+0.25-0.3 ms alone); packed was WORSE (+0.5: register pressure) and was reverted.
+- The GPU timer lies when a shadow update lands inside the timed render (the "empty" floor read 2.6 ms): freeze
+  shadowMap.autoUpdate/needsUpdate and pair the queries in one frame.
+- A top-level `const` is no window property: CDP evals must say `PAVEMENT` (or window.PAVEMENT, now exported).
+- Any src edit makes the committed parked cook stale (FLYDIY_BUILD): re-cook LOCALLY before timing (never commit it -
+  the train re-cooks), or every parked key is captured live and the roll-out comparison is void.
