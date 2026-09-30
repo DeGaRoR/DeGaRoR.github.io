@@ -19,6 +19,10 @@
 //      (render_world.js coverWanted); the pause holds the world's clocks (app.js FLYDIY_HELD from the Pause button;
 //      render_world.js fdt 0 and the trams' tick 0 while held); the mirror's guard band (water.js L.margin); the shadows row's
 //      'near' is the craft's map alone (G655: gfx_settings world false -> render_world SUNW, the sun's camera on an empty layer).
+//   5. THREE'S OWN SHADOW WALK (G1125-G1126, NEAR-LAYER): vendor three r186's WebGLShadowMap on the fake WebGL2
+//      (tools/_fake_gl.js): the 60 m box draws nearTag's casters and the craft alone (it drew the crumbs and the instanced
+//      trees too - the walk tests the main camera's layers), the cascade and the far map draw what they drew, a far camera on
+//      an empty layer draws nothing, and the world is whole after every pass, a throwing one included.
 //
 //   node tools/_shadowsky_check.js   -> "GATE SHADOWSKY: PASS|FAIL", exit 1 on FAIL
 'use strict';
@@ -56,7 +60,7 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
     const reach = 2 * SN.S.half + Math.min(SN.S.slantMax, agl / sun.y);
     ok(c.far >= reach * 0.95, `2 ${what} (${agl} m AGL): the near depth reaches the ground shadow`, `far ${c.far.toFixed(0)} m >= ${reach.toFixed(0)}`);
     ok(Math.abs(L.shadow.bias * (c.far - c.near) + SN.S.biasM) < 1e-6, `2 ${what}: the bias is ${SN.S.biasM} m of depth`);
-    ok(!m.layers.isEnabled(SN.FAR_LAYER) && m.layers.isEnabled(SN.CRAFT_LAYER) && !m.layers.isEnabled(SN.NEAR_LAYER), `2 ${what}: the craft is in the near map's craft cascade, not the far map (nor the 60 m viewport)`);
+    ok(!m.layers.isEnabled(SN.FAR_LAYER) && m.layers.isEnabled(SN.CRAFT_LAYER) && !m.layers.isEnabled(SN.NEAR_LAYER), `2 ${what}: the craft is in the near map's craft cascade (CRAFT_LAYER), not the far map (FAR_LAYER), not a near caster (NEAR_LAYER; the box keeps it whole - G1125 boxCraft)`);
     // G1005 THE CRAFT'S CASCADE: fitted to the craft at the stand, grown with the slant, never past the 60 m box; its depth reaches the ground shadow too
     const C1 = SN.C1, cam1 = C1.cam, tx = 2 * C1.H / SN.S.size;
     ok(C1.H <= SN.S.half + 1e-9 && cam1.right === C1.H && cam1.far >= reach * 0.95, `2 ${what}: the craft's cascade half ${C1.H.toFixed(2)} m (<= ${SN.S.half}), its depth ${cam1.far.toFixed(0)} m reaches the ground shadow`);
@@ -184,6 +188,70 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
   const gx = src('src/viewer/gfx_settings.js');
   ok(/near: \{ on: true, map: 2048, far: false, world: false \}/.test(gx) && /worldShadow: sh\.world !== false/.test(gx) && /sun\.shadow\.camera\.layers\.set\(SUNW\.on \? SHADOW_NEAR\.FAR_LAYER : SUNW\.EMPTY\)/.test(rw) && /SUNW\.dirty \|\| \(SUNW\.on && /.test(rw), '4 shadows near: the sun keeps casting (no relink), its camera on an empty layer, its map drawn once - the craft map alone');
   ok(/if \(RZ\) mc\._reversedDepth = true;/.test(wa), '4 water: the mirror camera is reversed before its first draw (three would recompute its projection and wipe the clip)');
+}
+
+// ---- 5: G1125 / G1126 (NEAR-LAYER) - THREE'S OWN SHADOW WALK, on the fake WebGL2 (tools/_fake_gl.js boot) -------------
+// The walk tests the MAIN camera's layers (G1080.2), so the near map's viewport 1 (the 60 m box) drew whatever the walk
+// reaches. Rendered here through vendor three r186's WebGLShadowMap: what each shadow camera draws, recorded per caster by
+// its onBeforeShadow (renderer, object, camera, shadowCamera) - with the box pruned (G1125) and without (as before).
+{
+  const FG = require(path.join(ROOT, 'tools', '_fake_gl.js'));
+  const { THREE: T3, renderer, ctx, load } = FG.boot();
+  load('src/viewer/shadow_near.js');
+  const N = require('vm').runInContext('SHADOW_NEAR', ctx);
+  ok(N.hook(renderer) === true && N.HOOK.on && N.hook(renderer) === false, '5 G1125: hook(renderer) wraps three\'s shadow pass once');
+  const scene = new T3.Scene();
+  const sunL = new T3.DirectionalLight(0xffffff, 1); sunL.castShadow = true; sunL.shadow.mapSize.set(256, 256);
+  { const c = sunL.shadow.camera; c.left = -300; c.right = 300; c.top = 300; c.bottom = -300; c.near = 1; c.far = 3000; c.updateProjectionMatrix(); }
+  scene.add(sunL); scene.add(sunL.target);
+  const L = N.make(scene);
+  sunL.shadow.camera.layers.set(N.FAR_LAYER); N.farLight(sunL);   // (render_world's order: the far light first, then the near one)
+  const mat = new T3.MeshStandardMaterial();
+  const mk = (name, x, y, z, sz, parent) => { const m = new T3.Mesh(new T3.BoxGeometry(sz, sz, sz), mat); m.name = name; m.position.set(x, y, z); m.castShadow = true; m.layers.enable(N.FAR_LAYER); (parent || scene).add(m); return m; };
+  const craft = new T3.Group(); scene.add(craft);
+  mk('craft', 0, 2, 0, 3, craft).layers.disable(N.FAR_LAYER);
+  N.tagCraft(craft, craft);
+  const town = new T3.Group(); scene.add(town);
+  const hangar = mk('hangar', 12, 4, 0, 8, town); hangar.layers.enable(N.NEAR_LAYER);   // nearTag's: a plain caster >= 0.75 m within 90 m
+  mk('shed', 150, 2, 0, 3, town);                                                        // the town's, far from the craft
+  mk('crate', 4, 0.3, 4, 0.6);                                                           // a crumb by the craft (under NEAR_MIN_R): the far map's
+  const trees = new T3.InstancedMesh(new T3.BoxGeometry(1, 6, 1), mat, 3); trees.name = 'trees'; trees.castShadow = true; trees.layers.enable(N.FAR_LAYER);
+  for (let i = 0; i < 3; i++) trees.setMatrixAt(i, new T3.Matrix4().makeTranslation(-8 + i * 2, 3, -6));
+  trees.computeBoundingSphere(); scene.add(trees);
+  const ground = new T3.Mesh(new T3.PlaneGeometry(2000, 2000), mat); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; ground.name = 'ground'; scene.add(ground);
+  const cam = new T3.PerspectiveCamera(60, 1, 0.5, 5000); cam.position.set(-30, 25, 30); cam.lookAt(0, 0, 0); cam.updateMatrixWorld(true);
+  const sd = new T3.Vector3(0.5, 0.7, 0.3).normalize();
+  sunL.position.copy(sd).multiplyScalar(700); scene.updateMatrixWorld(true);
+  N.follow(L, [0, 2, 0], sd, 1, null, cam, () => 0);
+  const hs = new T3.Sphere().copy((hangar.geometry.computeBoundingSphere(), hangar.geometry.boundingSphere)).applyMatrix4(hangar.matrixWorld);
+  const near = [[hs.center.x, hs.center.y, hs.center.z, hs.radius, hangar]];
+  const log = {}, passOf = sc => sc === sunL.shadow.camera ? 'far' : sc === N.C1.cam ? 'v0' : sc === L.shadow.camera ? 'v1' : '?';
+  let boom = false;
+  scene.traverse(o => { if (!o.isMesh) return;
+    o.onBeforeShadow = function (r, ob, c, sc) { if (boom && passOf(sc) === 'v1') throw new Error('boom'); (log[passOf(sc)] = log[passOf(sc)] || []).push(ob); };
+    o.onBeforeRender = function () { (log.main = log.main || []).push(this); }; });
+  const frame = (bp, list) => { for (const k of Object.keys(log)) delete log[k]; N.S.boxPrune = bp; N.setNear(list); sunL.shadow.needsUpdate = true; L.shadow.needsUpdate = true; renderer.render(scene, cam);
+    const r = {}; for (const k of Object.keys(log)) r[k] = log[k].map(o => o.name).sort().join(','); return r; };
+  const hidden = () => { const h = []; scene.traverse(o => { if (!o.visible) h.push(o.name || o.type); }); return h.join(',') || 'none'; };
+  const was = frame(false, near), was1 = (log.v1 || []).slice();
+  ok(/craft/.test(was.v1) && /crate/.test(was.v1) && /trees/.test(was.v1), '5 G1125 (as it was): the 60 m box drew the craft, a crumb and the instanced trees - a NEAR_LAYER camera filters nothing in three r186', 'v1 ' + was.v1);
+  const now = frame(true, near), want = was1.filter(o => o.layers.isEnabled(N.NEAR_LAYER) || o.layers.isEnabled(N.CRAFT_LAYER)).map(o => o.name).sort().join(',');
+  ok(N.S.boxCraft && now.v1 === want && want === 'craft,hangar', '5 G1125: the 60 m box draws nearTag\'s casters and the craft alone - exactly what it drew before that stands on NEAR_LAYER or CRAFT_LAYER', `v1 ${now.v1} (want ${want})`);
+  N.S.boxCraft = false; const noCraft = frame(true, near); N.S.boxCraft = true;
+  ok(noCraft.v1 === 'hangar' && hidden() === 'none', '5 G1125: boxCraft off - the box its near casters alone (G1005\'s letter: a receiver deeper than the cascade\'s window then loses the craft\'s shadow)', 'v1 ' + noCraft.v1);
+  ok(now.v0 === was.v0 && /craft/.test(now.v0) && /hangar/.test(now.v0), '5 G1125: the craft\'s cascade draws what it drew (the craft and the near caster in its window)', 'v0 ' + now.v0);
+  ok(now.far === was.far && !/craft/.test(now.far) && /shed/.test(now.far) && /trees/.test(now.far), '5 G1125: the far map draws what it drew - everything but the craft (FAR_LAYER\'s scheme)', 'far ' + now.far);
+  ok(now.main === was.main && hidden() === 'none', '5 G1125: the main pass drew the same, and nothing is left hidden after the pass', `main ${now.main}; hidden ${hidden()}`);
+  const n0 = N.C1.boxFull, none = frame(true, null);
+  ok(none.v1 === was.v1 && N.C1.boxFull === n0 + 1, '5 G1125: before nearTag has spoken (no list) the box walks whole, as before');
+  boom = true; let threw = false; try { frame(true, near); } catch (e) { threw = /boom/.test(e.message); } boom = false;
+  ok(threw && hidden() === 'none', '5 G1125: a pass that throws inside the box\'s walk leaves nothing hidden (the hook)', hidden());
+  sunL.shadow.camera.layers.set(31);   // G1126: render_world SUNW.EMPTY - the 'near' tier (and the A/B's 6): the far map meant empty
+  const empty = frame(true, near);
+  ok(!empty.far && empty.v1 === 'craft,hangar' && /craft/.test(empty.v0) && hidden() === 'none' && N.FARH.empty > 0, '5 G1126: a far camera on an empty layer draws nothing (the \'near\' tier); the near map as before; all shown again', `far ${empty.far || 'nothing'}, v1 ${empty.v1}, hidden ${hidden()}`);
+  N.S.farEmpty = false; const drew = frame(true, near); N.S.farEmpty = true;
+  ok(drew.far === was.far, '5 G1126 (as it was, farEmpty off): the empty layer filtered nothing - the whole world into the far map', 'far ' + drew.far);
+  ok(/if \(window\.SHADOW_NEAR && SHADOW_NEAR\.hook\) SHADOW_NEAR\.hook\(renderer\);/.test(src('src/viewer/app.js')), '5 G1125: app.js hooks the renderer\'s shadow pass');
 }
 
 console.log(fails ? `GATE SHADOWSKY: FAIL (${fails})` : 'GATE SHADOWSKY: PASS');

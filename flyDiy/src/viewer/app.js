@@ -152,6 +152,7 @@
   if (typeof ATMO !== 'undefined') ATMO.init(renderer);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;   // PCFSoft is gone in r186 (W0.5a): PCF, the fallback it names
+  if (window.SHADOW_NEAR && SHADOW_NEAR.hook) SHADOW_NEAR.hook(renderer);   // G1125: the shadow pass wrapped - what the near map's viewports and the far map hide for their walks is shown again as it ends (shadow_near.js)
   // THE RESOLVE PASS (G144) takes the main render off the default framebuffer
   // so it can have eight MSAA samples instead of the four `antialias: true`
   // hands out, a downsample filter that is ours rather than the compositor's,
