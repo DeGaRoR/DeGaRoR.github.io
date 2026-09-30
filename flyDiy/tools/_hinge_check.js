@@ -426,6 +426,66 @@ let STOCK_SCENE = null;   // the stock headless scene, built once for TWSTEER an
   }
 }
 
+// ---- 4f THE DOOR HINGES STAY OFF THE GLASS (G1105, CUB-COCKPIT 2026-09-30) ---
+// The user from the Cub's seat: "there are hinges on the A pillar, which is
+// a little strange and too visible from the inside". The door zone takes its
+// window, so a FORWARD run on a `bubble 0` cabin is the windscreen post and
+// the hinges climbed it (the G388 finding). A standing run now stops at the
+// window's sill (`winLo` on the door's record); the stock Cub hangs its
+// door top AND bottom, the clamshell (edge 4). Read off the layer's own
+// `placed` lines, the line each door's stations rode (cage metres).
+{
+  let SH = null;
+  try { SH = require(path.join(T, '_scene_headless.js')); }
+  catch (e) { console.log('  (harness) ' + e.message); }
+  if (SH) {
+    const W0 = SH.context().ctx;
+    const pre = W0.CAGE_PAGE && W0.CAGE_PAGE.presets && W0.CAGE_PAGE.presets['piper cub'];
+    check(!!pre && pre.hgDoorEdge === 4, 'DOOR HINGE: the stock Cub hangs its door top and bottom (its clamshell, edge 4)', pre && pre.hgDoorEdge);
+    // the Cub as the preset menu composes it: the template, then its deviations
+    const cub = edge => { const o = Object.assign({}, W0.CAGE2.CAGE_PARAMS); for (const k in (pre || {})) if (k !== '_base') o[k] = pre[k]; o.hgDoorEdge = edge; return o; };
+    const doorsAt = over => {
+      const S = SH.sceneBuild(null, { over });
+      const recs = S.W.CAGE2.cageDoorEdges(S.built.sheet);
+      const placed = ((S.W.CAGE_HINGE && S.W.CAGE_HINGE.placed) || []).filter(q => q.kind === 'door');
+      return { S, recs, placed };
+    };
+    const recOf = (recs, key) => recs.find(r => key.indexOf('door_' + r.key.replace(':', '_')) === 0);
+    // the sill measured HERE, off the sheet's own glass (a door's `win` faces,
+    // its side by x) - a second derivation of the record's `winLo`
+    const sillOf = (S, r) => { let lo = Infinity; const M = S.built.sheet;
+      for (const f of M.F) if (f.win && f.doorKey === r.doorKey && (M.V[f.v[0]][0] >= 0) === (r.sgn > 0))
+        for (const vi of f.v) lo = Math.min(lo, M.V[vi][1]);
+      return isFinite(lo) ? lo * S.FS : null; };
+    for (const [name, over] of [['stock, forward', { doorOn: 1, hgOn: 1, hgDoor: 1, hgDoorEdge: 0 }],
+                                ['stock, aft', { doorOn: 1, hgOn: 1, hgDoor: 1, hgDoorEdge: 2 }],
+                                ['cub, forward', pre ? cub(0) : null], ['cub, aft', pre ? cub(2) : null]]) {
+      if (!over) continue;
+      const { S, recs, placed } = doorsAt(over);
+      check(recs.length > 0 && recs.every(r => r.winLo != null), 'DOOR HINGE: ' + name + ': every door records its window sill', recs.map(r => r.key + ' ' + r.winLo).join());
+      check(placed.length === recs.length, 'DOOR HINGE: ' + name + ': one hinge line a door', placed.length + ' lines, ' + recs.length + ' doors');
+      for (const q of placed) {
+        const r = recOf(recs, q.key), sill = r && sillOf(S, r);
+        check(sill != null, 'DOOR HINGE: ' + name + ': ' + q.key + ' has a door with a window (the case under test)');
+        if (sill == null) continue;
+        check(r.winLo != null && Math.abs(r.winLo * S.FS - sill) < 1e-6, 'DOOR HINGE: ' + name + ': the record\'s sill is the glass\'s', r.winLo);
+        const top = Math.max(q.A[1], q.B[1]);
+        check(top <= sill + 0.005, 'DOOR HINGE: ' + name + ': ' + q.key + ' climbs past the window sill onto the glass', (top * 1000).toFixed(0) + ' mm vs sill ' + (sill * 1000).toFixed(0));
+      }
+    }
+    if (pre) {
+      const { S, recs, placed } = doorsAt(cub(4));
+      check(placed.length === 2 * recs.length, 'DOOR HINGE: cub clamshell: two hinge lines a door', placed.length + ' lines, ' + recs.length + ' doors');
+      for (const q of placed) {
+        const r = recOf(recs, q.key), sill = r && sillOf(S, r); if (sill == null) continue;
+        const lo = Math.min(q.A[1], q.B[1]), hi = Math.max(q.A[1], q.B[1]);
+        if (/_top$/.test(q.key)) check(lo > sill, 'DOOR HINGE: cub clamshell: ' + q.key + ' is the window half\'s, above the sill', (lo * 1000).toFixed(0) + ' vs ' + (sill * 1000).toFixed(0));
+        else check(hi < sill, 'DOOR HINGE: cub clamshell: ' + q.key + ' is the lower half\'s, below the sill', (hi * 1000).toFixed(0) + ' vs ' + (sill * 1000).toFixed(0));
+      }
+    }
+  }
+}
+
 // ---- 4e A HORN-BALANCED SURFACE HINGES BELOW ITS HORN (2026-09-13) --------
 // The user: "hinges should be removed from the fin on the horn part when
 // horn is selected, since this part really does not move anymore." Under

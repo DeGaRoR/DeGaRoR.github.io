@@ -1344,7 +1344,7 @@ window.CAGE_PAGE = {
       doorPanelT: 0.008, doorPanelGap: 0.008, doorPanelMargin: 0.04,
       doorPanelPocket: 1, cutParts: 1, hgOn: 1, hgFamily: 0, hgCount: 0,
       hgOut: 0.06, hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
-      hgFair: 0, hgLink: 1, hgDetail: 1, hgDoor: 1, hgDoorEdge: 0, lightOn: 1,
+      hgFair: 0, hgLink: 1, hgDetail: 1, hgDoor: 1, hgDoorEdge: 4, lightOn: 1,
       lightSw: 1, li_bayFrac: 0.24, li_bayHalf: 0.17, li_bayChord: 0.13,
       li_bayDepth: 0.06, li_lampSize: 1, li_beaconRpm: 45, li_podLen: 1,
       li_podGirth: 1, li_beaconSink: 0.04, li_navSpan: 0, li_navChord: 0,

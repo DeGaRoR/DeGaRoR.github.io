@@ -68,7 +68,7 @@ const hgDef = {
   hgOn: 1, hgFamily: 0, hgCount: 0, hgOut: 0.06,
   hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
   hgFair: 0, hgLink: 1, hgDetail: 1,
-  hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges, on the A-pillar edge
+  hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges (0 forward, 1 top, 2 aft, 3 bottom, 4 top + bottom - G1105)
   hgFinish: -1,                              // T2.3 (51): 0 as the fuselage, 1 bare steel, 2 the finish tab's own; -1 = read off the finish tab once
 };
 const FAM = ['as built', 'strap', 'piano', 'bracket'];
@@ -104,7 +104,7 @@ const GROUP = ['13 · control hardware', [
   // edge it swings on and the piano runs go there, shut.
   ['doors', [
     ['hgDoor', 'door hinges', 0, 1, 1, ['off', 'on']],
-    ['hgDoorEdge', 'hinge edge', 0, 2, 1, ['forward', 'top', 'aft'],
+    ['hgDoorEdge', 'hinge edge', 0, 4, 1, ['forward', 'top', 'aft', 'bottom', 'top + bottom'],
      { when: P => +P.hgOn && +P.hgDoor }],
   ], { when: P => +P.hgOn }],
   // T2.3 (51): THE FINISH, on the layer's own rows. The hardware's section
@@ -214,9 +214,40 @@ function surfaceList(scene, P, FS, mesh) {
   if (Math.round(P.hgDoor === undefined ? 1 : P.hgDoor) && CG2d && CG2d.cageDoorEdges && mesh) {
     const edge = Math.round(+P.hgDoorEdge || 0);
     const rBar = HCd.pinR * 2.1 * Math.max(0.4, +P.hgSize || 1);
-    for (const rec of CG2d.cageDoorEdges(mesh)) {
-      const run = edge === 1 ? rec.top : edge === 2 ? rec.aft : rec.fwd;
-      const other = edge === 1 ? rec.bot : edge === 2 ? rec.fwd : rec.aft;
+    // G1105 (CUB-COCKPIT 2026-09-30, the user from the Cub's seat: "there are
+    // hinges on the A pillar, which is a little strange and too visible from
+    // the inside" - the G388 finding, owed since). The door zone takes its
+    // window by design, so on a `bubble 0` cabin the FORWARD run is the whole
+    // windscreen post, and the butt hinges climbed it to the screen's top
+    // corner, at the pilot's eye. A hinge hangs on the door's SKIN, never on
+    // its glass: a standing run (forward, aft) stops at the window's sill,
+    // cut at that height - on every build, a saved one included - and the
+    // hinges share out the door's opaque panel below it. Two new edges: 3
+    // the sill (a door that folds down), 4 top AND bottom, the Cub's
+    // clamshell (the window half hinged up under the wing, the lower half
+    // down) - the stock 'piper cub' preset's.
+    const belowSill = (run, winLo) => {
+      const pts = (run.pts || [run.A, run.B]).slice().sort((p, q) => p[1] - q[1]);
+      if (winLo == null || pts[pts.length - 1][1] <= winLo) return run;
+      const keep = [];
+      for (let i = 0; i < pts.length; i++) {
+        if (pts[i][1] <= winLo) { keep.push(pts[i]); continue; }
+        if (i > 0) {
+          const p = pts[i - 1], q = pts[i], u = (winLo - p[1]) / ((q[1] - p[1]) || 1e-9);
+          keep.push([p[0] + (q[0] - p[0]) * u, winLo, p[2] + (q[2] - p[2]) * u]);
+        }
+        break;
+      }
+      if (keep.length < 2) return null;
+      return { A: keep[0], B: keep[keep.length - 1], pts: keep };
+    };
+    const runsOf = rec => edge === 4 ? [['_top', rec.top, rec.bot], ['_bot', rec.bot, rec.top]]
+      : edge === 3 ? [['', rec.bot, rec.top]]
+      : edge === 1 ? [['', rec.top, rec.bot]]
+      : edge === 2 ? [['', belowSill(rec.aft, rec.winLo), rec.fwd]]
+      : [['', belowSill(rec.fwd, rec.winLo), rec.aft]];
+    for (const rec of CG2d.cageDoorEdges(mesh)) for (const [sfx, run, other] of runsOf(rec)) {
+      if (!run || !other) continue;
       const n = rec.n;
       // each point of the run is lifted along the skin's LOCAL normal (the
       // body contract's, exact) — the door's mean normal put a barrel at the
@@ -245,7 +276,7 @@ function surfaceList(scene, P, FS, mesh) {
       let into = V.sub(omid, mid);
       into = V.sub(into, V.mul(n, V.dot(into, n)));
       if (V.len(into) < 1e-6) continue;
-      out.push({ key: 'door_' + rec.key.replace(':', '_'), kind: 'door', obj: null, host: null,
+      out.push({ key: 'door_' + rec.key.replace(':', '_') + sfx, kind: 'door', obj: null, host: null,
                  A, B, pts, nrms, r: rBar, aft: V.nrm(into), face: n, faces: 1, slide: null,
                  chord: V.len(V.sub(omid, mid)) * FS, flat: 1 });
     }

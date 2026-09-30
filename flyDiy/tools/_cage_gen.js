@@ -8447,7 +8447,8 @@ const CAGE_UNIT = 1.0;                    // metres per cage unit
 // in the cage), the AFT the lowest; the top and bottom lying chains by y.
 // Each run is A (its lower / forward end) to B, cage units, on the sheet's
 // own vertices, with the door's mean outward normal and the recess it was
-// cut back by. The hinge layer hangs its piano runs on one edge, the
+// cut back by, and `winLo` - the lowest point of the door's window, the
+// sill a hinge on a standing edge stops at (G1105). The hinge layer hangs its piano runs on one edge, the
 // fittings layer puts the handle on the other — and both read this, so a
 // door that moves (a slant, a deeper cut, a bay added) moves its hardware.
 function cageDoorEdges(mesh) {
@@ -8513,9 +8514,13 @@ function cageDoorEdges(mesh) {
     const top = runOf(lie[0], false), bot = runOf(lie[lie.length - 1], false);
     // the door's mean outward normal (its faces are wound outward), and the
     // recess it was cut back by
-    let nx = 0, ny = 0, nz = 0, cut = null;
+    let nx = 0, ny = 0, nz = 0, cut = null, winLo = Infinity;
     for (const fi of fis) {
       const f = F[fi], a = V[f.v[0]], b = V[f.v[1]], c = V[f.v[2]];
+      // G1105: the door's WINDOW (its glass faces carry `win`, the zone
+      // takes the window by design) - its lowest point is the sill the
+      // hardware stops at
+      if (f.win) for (const vi of f.v) if (V[vi][1] < winLo) winLo = V[vi][1];
       const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
       nx += u[1] * w[2] - u[2] * w[1]; ny += u[2] * w[0] - u[0] * w[2]; nz += u[0] * w[1] - u[1] * w[0];
       if (!cut && f.cutOff) cut = f.cutOff.slice();
@@ -8526,6 +8531,7 @@ function cageDoorEdges(mesh) {
     if (n[0] * sgn < 0) n = [-n[0], -n[1], -n[2]];
     out.push({ key: k, doorKey: k.split(':')[0], sgn, fwd, aft, top, bot, n,
                cutOff: cut || [0, 0, 0],
+               winLo: isFinite(winLo) ? winLo : null,     // G1105: the window's sill, cage units (null: no glass)
                h: 0.5 * ((fwd.B[1] - fwd.A[1]) + (aft.B[1] - aft.A[1])),
                w: 0.5 * ((top.A[2] - top.B[2]) + (bot.A[2] - bot.B[2])) });
   }
