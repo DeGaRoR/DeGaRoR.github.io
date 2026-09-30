@@ -7,8 +7,10 @@
 // They're drawn far too recklessly ... If you can't do something clean, get
 // rid of it." They were the energy layer's MOUNT (G189: legs from each strap
 // to "the surface the bay stands on", G317: each foot asked the fuselage
-// sheet its height). Over a nose tank the surface is the COWL's, another
-// layer, which the feet never asked - so the mount is gone (G1106).
+// airframe table its height, a coarse ray grid keeping the outermost hit,
+// windscreen included, or a flat plane at the section's top) - and over a
+// 20-30 L nose tank 167 of 352 leg vertices stood past the fuselage sheet,
+// 37.5 mm out. The mount is gone (G1106).
 //
 // This builds every CAGE_DESIGN archetype headless, the energy layer
 // included (tools/_scene_headless.js runs the page's own PAGE.post chain;

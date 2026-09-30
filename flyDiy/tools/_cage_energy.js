@@ -900,12 +900,15 @@ function vesselSolid(r) {
 // two posts standing on the cowl top in front of the windscreen: "They're
 // drawn far too recklessly, and they keep poking through everywhere, as they
 // seem to expect a flat surface to anchor on, which they'll never find. If
-// you can't do something clean, get rid of it." The surface over a nose tank
-// is the COWL's (an analytic layer of its own, never the fuselage sheet the
-// feet asked) or the windscreen's, and cross-layer clearance is a declared
-// gap - so no leg, no foot plate, no cross tube: the tank hangs in its
-// straps, as it is drawn. GATE ENERGY's 'mount:' rows hold it on every
-// archetype (no edVessel_*_mount mesh, and VESSEL_MESH exports no builder).
+// you can't do something clean, get rid of it." Measured (GATE TANKMOUNT
+// over master's layer): a 20-30 L nose tank hangs with air above it, its
+// feet asked the height of a deck that is not the drawn one - the airframe
+// table (a 96 x 72 ray grid keeping the OUTERMOST hit, the windscreen and
+// the pillars among them) or, where it gave none, a flat plane at the
+// section's top on the centreline - and 167 of 352 leg vertices stood past
+// the fuselage sheet, 37.5 mm out. So no leg, no foot plate, no cross tube:
+// the tank hangs in its straps, as it is drawn. GATE ENERGY's 'mount:' row
+// and GATE TANKMOUNT (every archetype, three tank sizes) hold it.
 
 function drawResults(group, ctx, results) {
   const VM = window.VESSEL_MESH, K = window.GEAR_KIT;
