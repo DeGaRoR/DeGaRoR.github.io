@@ -67568,3 +67568,66 @@ the HOME stand, the near pavement at 3x: thin straight diagonals across the conc
 cracks after (the two runs' poses differ by ~4 m of taxi, so a side-by-side, not a pixel diff). The rig's 'stand' view
 (low, toward a hangar) found no object named hangar/shed within 600 m - not taken.
 FRAMECOST: master vs this, both ?parkcook=0 (so the stale cook cannot confound): no counter moved. GATE PAVEMENT, FADES PASS.
+## G1120-G1124 - THE HYBRID: THE LIVE AEROPLANE CLOSE, THE BAKE FAR (2026-09-30, C4b for the coordinator, local GPU)
+
+The user, on C4b's bake close up: "the livery stripes and the letters stair-stepped, the skin soft - either we do higher
+res texture, or we go back"; then option b: "the hybrid, if you can do that clean and the normal performance is OK, and
+the transition is seamless visually and performance wise"; after the evidence: "the hybrid looks good".
+
+**G1120 THE RULE (src/viewer/flown_bake.js nearT / hybrid / liveTwin):**
+- The flown aeroplane keeps BOTH forms, on the same arrays:
+  - the folds on the bake (C4b's handful of draws);
+  - its live meshes, kept on copies of their live materials (liveTwin). A copy runs its pool's own program and is its own material, so a finish shared with what never bakes (a spinner) is untouched.
+- ONE number t decides: the screen pixels one texel of the exterior's atlas covers at the aeroplane, from the ext atlas's cm, the camera's distance and fov, and the drawing buffer's height.
+  - Below FB.hyA = 1.6 px a texel, t = 0: the bake.
+  - At FB.hyB = 2.0, t = 1: the live meshes.
+  - Between: a DITHERED band (A2-FADES' interleaved gradient, fixed on the screen).
+  - At 900 px and 46°, the Cub enters the band at 5.8 m and is live at 4.7 m; the Cessna 6.5 -> 5.4 m. The default chase at ~15 m is 0.56-0.61 px a texel (the bake).
+  - On a 4K screen at render scale 1 the default chase sits in the band.
+- Dials: ?fbake=nohy (the bake at every distance), hy=0.5 (t held; FB.hyForce, the rigs'), hy1.6-2.0 (the band).
+
+**G1121 THE KEPT MESHES OUT OF THE GRAPH:** a live mesh not drawn leaves its parent (park).
+- Hidden, it still cost three's matrix walk every frame (a moving parent forces its children), +100 updateMatrixWorld a frame on the Cub.
+- It goes back to the same parent for the band and the near view.
+- The craft compile takes the parked meshes by stand-in (three's compile walks the graph).
+- G1121.1: SHADOW_NEAR.tagCraft runs with them back in the graph (FLOWN_BAKE.withKept) - their craft layers, near-only define, receiveShadow.
+
+**G1122 NO COST AT THE CROSSING:** the craft step (G1085's compileCraft) warm-draws every kept mesh under the screen, a stand-in each, in the world's lights with the craft dressed per slice.
+- Their buffers are resident: 38 MB Cub, 47 MB Cessna.
+- GATE FRAMECOST's crossing census (the taxi frame forced near, into the band, back; 3 frames each): 0 bufferData, 0 texImage, 0 links on every frame, both builds.
+- ALLOW rows G1122/G1123 name the warm's boot cost.
+
+**G1123 THE DISCARD ONLY IN THE BAND:** a shader that CAN discard loses early-Z wherever it draws.
+- With the band's discard in the baked program, the default chase's taxi render rose 0.4-0.9 ms at t = 0.
+- Now the baked program is C4b's. Each fold and live copy has a BAND TWIN (bandOf) worn only while 0 < t < 1, compiled and warm-drawn with the rest (warmPairs).
+
+**G1124 THE COCKPIT, and G1124.1 THE FALLBACK:**
+- (a) THE SHADOWS FROM THE FOLDS, always (the same arrays: C4b's shadow, 38 casters instead of ~370).
+  - The near light's updateMatrices shows the folds and hides the live meshes for its pass.
+  - three builds the main lists before the shadow pass, and tests layers against the main camera (SHADOW-EYES G1080.2), so it is visibility, not layers.
+  - The swap is put back at the next frame's hybrid(). A casting fold uploads its rigs' writes as if shown.
+- (b) the eye's zone: the exterior's kept meshes near the cabin live in the cockpit, the rest on the bake.
+  - Measured on 220812de (60 s runs, alternated), the cockpit: Cessna render 8.5 -> 10.9 ms, JS 12.4 -> 15.2, 56 -> 48 fps delivered; Cub 8.0 -> 10.5, 11.8 -> 14.7, 58 -> 49 fps.
+  - The sphere test pulls most of the exterior in (the wing's and the fuselage's spheres).
+- So, by the rule A0 and the user set (within ~0.5 ms, or the fallback): **G1124.1 the cockpit is C4b's** - the cabin live, the exterior on the bake (?fbake=cockpitlive keeps the eye's zone).
+  - The hybrid flies the chase and every orbit.
+  - flown_bake.js alone: the parked cook's build is unchanged.
+
+**MEASURED (rollout_perf, master 220812de vs the hybrid on it, alternated, warm private profiles):**
+- The default chase, taxi, after G1123: render 12.4 -> 11.9 / 10.7 -> 10.9 ms, p90 15.2 -> 15.0 / 14.8 -> 14.6, JS equal, fps and p99 identical.
+- The cockpit with the fallback: see the READY note (the verify pair).
+- The first cut (before G1123): +0.4 / +0.4 / +0.9 ms (Cessna), -0.2 / +0.6 (Cub).
+
+**EVIDENCE:** tools/perf/c4b_closeup_evidence/ - the close-ups (the old bake / the hybrid / the band, one frame, lossless), the crossing strips, the cockpit live | baked, the dials against the sim (stand / taxi / climb / dusk: every hand agrees with its reading), the look stills (master | hybrid).
+- Rigs: tools/hybrid_ab.js + .py, tools/cockpit_ab.js + .py, tools/look_shots.js.
+
+**GATES:** FLOWNBAKE 76 (the park / band / near / far round trip, one fade and the rigs' hold, the live copy's and the baked program's band twins, the shadow swap, the eye's zone, the fallback's call); FRAMECOST (the crossing census) PASS; PACE, BOOT, UISMOKE, ROUNDTRIP, PROGRAMS, SKIN PASS on 4470a2b0.
+
+**TRAPS:**
+- app.js is in FLYDIY_BUILD: every edit makes the shipped parked cook stale, and the census captures them live (+145 stand draws). Re-cook before measuring (parked_cook.js; --check says whether).
+- flown_bake.js is not in it.
+- A queued take loop can win the box while you rebase (it happened at 14:13): stop it by exact PID before touching the tree.
+
+**FOLLOW-UP (for the board): SHARP EXTERIOR FROM THE SEAT.** The cockpit shows the exterior on the 2048 atlas (the top decal and the cowl livery coarse at 1-3 m).
+- The eye's zone must be the TRIANGLES near the eye, not the members' spheres: split the wing and the fuselage members at build into near and far pieces, or cut the fold's index by distance.
+- Then only the parts the pilot sees up close go live. ?fbake=cockpitlive is the dial to measure it against.
