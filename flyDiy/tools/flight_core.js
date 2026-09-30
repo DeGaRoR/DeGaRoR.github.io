@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: ba4f005e061a1b79
+// body-sha256: 1e4fbfa9528400bc
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2110,10 +2110,27 @@ var CLIMATE = (function () {
       if (k === convKey) return conv;
       convKey = k;
       if (!(sinEl > 0) || !(zi > 0)) { conv = null; return null; }   // night: no convection at all
-      const alb = day.groundAlbedo != null ? day.groundAlbedo : 0.15;
       const T = (day.oatC != null ? day.oatC : 15) + 273.15;
       const atm = env.atmos ? env.atmos() : null;
       const rho = atm ? atm.rho(0) : 1.225;
+      conv = convBuild(day, zi, cover, sinEl, T, rho, b);
+      return conv;
+    }
+    // THE CONVECTION'S CACHE, CARRIED (G815, the physics worker). conv is kept per a key of ROUNDED inputs, holding
+    // the EXACT inputs of the moment the key was first met: a world whose day came to the same key another way (the
+    // page's, ticked since the garage) holds other last bits than a world made at that moment (the worker's). The
+    // state is those inputs; seeding rebuilds the cache from them, only when this world's own key is the same -
+    // nothing here computes a number differently.
+    function convState() { convNow(); return { key: convKey, c: conv ? { zi: conv.zi, cover: conv.cover, sinEl: conv.sinEl, T: conv.T, rho: conv.rho } : null }; }
+    function convSeed(st) {
+      if (!st || st.key == null) return false;
+      convNow();
+      if (convKey !== st.key) return false;
+      conv = st.c ? convBuild(env.day, st.c.zi, st.c.cover, st.c.sinEl, st.c.T, st.c.rho, windSpec.base) : null;
+      return true;
+    }
+    function convBuild(day, zi, cover, sinEl, T, rho, b) {
+      const alb = day.groundAlbedo != null ? day.groundAlbedo : 0.15;
       const beam = S0 * TAU_ATM * sinEl * (1 - alb) * (1 - 0.7 * clamp(cover, 0, 1));
       const wstarOf = heat => {
         const H = Math.max(0, heat) * beam;
@@ -2124,13 +2141,12 @@ var CLIMATE = (function () {
       // That one wind is the boundary layer's mean - the declared base lifted
       // to half the layer's depth by the same power law the column shears on.
       const kBL = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, 0.5 * zi)) / windSpec.refH, windSpec.alpha) : 1;
-      conv = { zi, cover, sinEl, T, rho, beam, wstarOf,
+      return { zi, cover, sinEl, T, rho, beam, wstarOf,
                spacing: Math.max(400, TH_SPACE * zi),
                ux: b[0] * kBL, uz: b[2] * kBL, bx: b[0], bz: b[2],
                wRef: Math.max(0.5, wstarOf(0.35)),                   // for the tilt's lag, one number per day
                map: CLOUD_FIELD.weatherMap({ seed: day.cloudSeed, cover,
                                              type: day.cloudTypeEff || day.cloudType, cache: mapCache }) };
-      return conv;
     }
     // THE LATTICE. A square lattice of spacing 1.5 z_i (Lenschow's thermal
     // spacing) in a frame advected by that one wind, so every thermal drifts
@@ -2511,7 +2527,7 @@ var CLIMATE = (function () {
     return {
       setWind, wind, sample, reliefAt, ensureRelief, surfaceWind,
       profile, mixTop, haze, refresh, thermals, get water() { return waterNow(); },
-      get conv() { return convNow(); },
+      get conv() { return convNow(); }, convState, convSeed,
       get mode() { return mode; }, get spec() { return windSpec; }, get rich() { return rich; },
       get relief() { return relief; }, get version() { return version; }, stats,
     };
@@ -5151,6 +5167,59 @@ function siteMarkers(home) {
   return out;
 }
 
+// ---- THE RUNWAY LIGHTS' PLACES (G443; G1066, POLISH-1) ---------------------
+// White edge lights every ~60 m at (half width + 1.5 m) down both sides, six green ones across each end 2 m out
+// (render_world.js standRunwayLights stands them). The user, 2026-09-29: "floating black balls at runway intersections" -
+// where two runways cross, one runway's edge row ran straight across the other's concrete, and the threshold rows stood
+// on the turn pads. A real aerodrome puts an INSET (flush) light wherever an aeroplane may roll, and an elevated one
+// only off the pavement. So a light that falls ON pavement - another land strip's box (any surface: a grass runway is
+// rolled on too) or, when the world carries premises, any of their pavement that is not grass (a taxiway's throat, a
+// turn pad, an apron, a road: `paved` = the overlay's pavedNear(x, z, margin, skipId), the strip's own id skipped) - is
+// kept FLUSH ([x, z, 1]); one that stands off the pavement but within `clear` metres of its edge is LEFT OUT (an
+// elevated light in a wingtip's way, and no inset light on grass); the rest stand elevated ([x, z]).
+// -> { edge: [[x, z(, 1)]], thr: [...], inset: [{ x, z, why }], cut: [{ x, z, why }] }
+const RWY_LIGHTS = { edgeOff: 1.5, every: 60, thrOff: 2, thrN: 6, clear: 3 };
+function runwayLightStrips(aerodromes) {
+  return (aerodromes || []).filter(b => b && b.len && b.wid && b.kind !== 'meadow' && b.kind !== 'water');
+}
+// what the ground is at (x, z) for a light of strip `a`: null (clear: it stands elevated) | { on, why } - on: on the
+// pavement (it goes flush), else within `clear` of it (it is left out)
+function runwayLightSite(x, z, a, strips, paved, clear) {
+  const m = clear != null ? clear : RWY_LIGHTS.clear;
+  const hard = q => q && (q.kind === 'strip' || q.cls !== 'grass');
+  const name = q => q.kind + ' ' + (q.id != null ? q.id : '') + (q.cls ? ' (' + q.cls + ')' : '');
+  let near = null;
+  for (const b of strips) {
+    if (b === a || (a && b.id != null && b.id === a.id)) continue;
+    const cb = Math.cos(b.hdg), sb = Math.sin(b.hdg), dx = x - b.x, dz = z - b.z;
+    const s = Math.abs(dx * cb + dz * sb) - b.len / 2, w = Math.abs(-dx * sb + dz * cb) - b.wid / 2;
+    if (s <= 0 && w <= 0) return { on: true, why: 'strip ' + b.id };
+    if (!near && s <= m && w <= m) near = { on: false, why: 'strip ' + b.id };
+  }
+  if (typeof paved === 'function') {
+    const q0 = paved(x, z, 0, a ? a.id : null);
+    if (hard(q0) && q0.d >= 0) return { on: true, why: name(q0) };
+    if (!near) { const q = paved(x, z, m, a ? a.id : null); if (hard(q)) near = { on: false, why: name(q) }; }
+  }
+  return near;
+}
+function runwayLightPoints(a, aerodromes, paved) {
+  const L = RWY_LIGHTS, strips = runwayLightStrips(aerodromes);
+  const ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);
+  const along = (s, w) => [a.x + s * ca - w * sa, a.z + s * sa + w * ca];   // the sea lane's frame (G396.2)
+  const half = a.len / 2, hw = a.wid / 2, out = { edge: [], thr: [], inset: [], cut: [] };
+  const put = (list, p) => {
+    const q = runwayLightSite(p[0], p[1], a, strips, paved);
+    if (!q) list.push(p);
+    else if (q.on) { list.push([p[0], p[1], 1]); out.inset.push({ x: p[0], z: p[1], why: q.why }); }
+    else out.cut.push({ x: p[0], z: p[1], why: q.why });
+  };
+  const nE = Math.max(2, Math.round(a.len / L.every));
+  for (let i = 0; i <= nE; i++) { const s = -half + (a.len * i) / nE; for (const w of [-(hw + L.edgeOff), hw + L.edgeOff]) put(out.edge, along(s, w)); }
+  for (const s of [-half - L.thrOff, half + L.thrOff]) for (let k = 0; k < L.thrN; k++) put(out.thr, along(s, -hw + (a.wid * (k + 0.5)) / L.thrN));
+  return out;
+}
+
 
 // ---- THE RUNWAY MODEL (P1.A, PILOT-ROADMAP-2026-09-14.md) ------------------
 // What the pilot reads a runway FROM, with the world around it: the strip's
@@ -7084,7 +7153,7 @@ function rasterTileDecode(C, e) {
   plane(qu, 0); plane(qk, 4);
   const a1b0 = e.flags & 1;
   for (let k = 0; k < NN; k++) { A[k] = 1 - qu[k] / GRQ_A; B[k] = (a1b0 && qu[k] === 0) ? 0 : (qk[k] === 0 ? e.b0 : e.b0 + qk[k] / GRQ_B); }
-  return { x0: e.i * 16, z0: e.j * 16, r: 16 / n, n, N, A, B };
+  return { x0: e.i * 16, z0: e.j * 16, r: 16 / n, n, N, A, B, k: e.i * 131072 + e.j, lp: null, ln: null };   // (k, lp, ln: the page's tile cache, G735)
 }
 
 // ---------------------------------------------------------------------------
@@ -8045,13 +8114,35 @@ function compose(rec0, world, opts) {
   // interpolated. The lattice is a quarter of the finest feather touching the tile (0.25-1 m). A tile no modifier
   // touches (a road's reach cells, a pad's box) is the ground itself, exactly as the analytic path returns it.
   // Tiles are Float64 (a Float32 level would stand 4e-7 m over the ceiling's own bound) and capped (GR_CAP bytes;
-  // the oldest go first); `o.raster === false` (the editor, a proof)
+  // the LEAST RECENTLY READ go first); `o.raster === false` (the editor, a proof)
   // keeps the analytic path. GATE PREMRASTER holds the agreement.
-  const GR_TS = 16, GR_CAP = 48 * 1024 * 1024, GR_TOL = 0.01, GR_RELIEF = 2;
+  // G735 (B1b): THE CACHE IS AN LRU. It kept every EMPTY tile (the ground itself: null) in the one insertion-ordered
+  // map and evicted by scanning it from the front for the first baked tile - past up to 18 596 nulls an eviction,
+  // 10 143 evictions in FRAMECOST's boot - and a tile the solver read every frame went when it was the OLDEST baked.
+  // Now the map still answers every lookup (nulls included: an empty tile is never evicted, it holds no bytes), and
+  // the baked / decoded tiles are ALSO threaded on a doubly linked list through their own fields (lp / ln, k: the
+  // key): a read moves its tile to the head (four pointer writes; none when it is already there, the common case),
+  // an eviction takes the tail - O(1) both. What a tile holds is unchanged (the bake and the decode are pure), so a
+  // read answers the same bits whatever was evicted (GATE PREMRASTER: a tiny cap against the default, Object.is).
+  // `o.rasterCap` (bytes): the cap, for a proof.
+  const GR_TS = 16, GR_CAP = o.rasterCap > 0 ? o.rasterCap : 48 * 1024 * 1024, GR_TOL = 0.01, GR_RELIEF = 2;
   const grOn = o.raster !== false && mods.length > 0;
   const grTiles = new Map(), grStats = { baked: 0, empty: 0, evicted: 0, bytes: 0, bakeMs: 0, rMin: Infinity, rMax: 0, decoded: 0, decodeMs: 0 };
-  let grRmax = 0;
+  let grRmax = 0, grHead = null, grTail = null;   // the most / least recently read baked tile
   const grKey = (i, j) => i * 131072 + j;
+  function grUnlink(T) {
+    if (T.lp) T.lp.ln = T.ln; else if (grHead === T) grHead = T.ln;
+    if (T.ln) T.ln.lp = T.lp; else if (grTail === T) grTail = T.lp;
+    T.lp = null; T.ln = null;
+  }
+  function grFront(T) {                           // T read: it goes to the head
+    grUnlink(T);
+    T.ln = grHead; if (grHead) grHead.lp = T; grHead = T; if (!grTail) grTail = T;
+  }
+  function grDrop(T) { grUnlink(T); grTiles.delete(T.k); grStats.bytes -= 16 * T.N * T.N; }
+  function grTrim() {                             // the least recently read go until the cache is under its cap
+    while (grStats.bytes > GR_CAP && grTail && grTail !== grHead) { grDrop(grTail); grStats.evicted++; }
+  }
   const grNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
   function grBake(ti, tj, quiet) {
     const x0 = ti * GR_TS, z0 = tj * GR_TS, x1 = x0 + GR_TS, z1 = z0 + GR_TS;
@@ -8097,18 +8188,17 @@ function compose(rec0, world, opts) {
     if (r > grRmax) grRmax = r;
     grStats.baked++; grStats.bytes += 16 * N * N; grStats.bakeMs += grNow() - t0;
     grStats.rMin = Math.min(grStats.rMin, r); grStats.rMax = Math.max(grStats.rMax, r); grStats['n' + n] = (grStats['n' + n] || 0) + 1;
-    while (grStats.bytes > GR_CAP) {                                  // the oldest baked tile goes first
-      let gone = false;
-      for (const [k, T] of grTiles) { if (T) { grTiles.delete(k); grStats.bytes -= 16 * T.N * T.N; grStats.evicted++; gone = true; break; } }
-      if (!gone) break;
-    }
-    return { x0, z0, r, n, N, A, B };
+    return { x0, z0, r, n, N, A, B, k: grKey(ti, tj), lp: null, ln: null };   // (the cache's fields: grHeight threads it)
   }
   // the composed height at a LOCAL point over the ground h under it (the raster's answer to terrainH(x, z, h))
   function grHeight(lx, lz, h) {
     const ti = Math.floor(lx / GR_TS), tj = Math.floor(lz / GR_TS), k = grKey(ti, tj);
     let T = grTiles.get(k);
-    if (T === undefined) { T = grCooked(ti, tj); if (T === undefined) T = grBake(ti, tj); grTiles.set(k, T); }
+    if (T === undefined) {
+      T = grCooked(ti, tj); if (T === undefined) T = grBake(ti, tj);
+      grTiles.set(k, T);
+      if (T !== null) { grFront(T); grTrim(); }
+    } else if (T !== grHead && T !== null) grFront(T);
     if (T === null) return h;
     const u = (lx - T.x0) / T.r, v = (lz - T.z0) / T.r;
     let i = Math.floor(u), j = Math.floor(v);
@@ -8214,7 +8304,7 @@ function compose(rec0, world, opts) {
       M.set(k, rasterCellIndex(c.bytes));
     }
     // a loaded cell's cached tiles were the lazy bake's: they go, so every read under it is the cook's
-    for (const [k, T] of grTiles) { const i = Math.round(k / 131072), j = k - i * 131072; if (M.has(grCellKey(Math.floor(i / GR_CELL), Math.floor(j / GR_CELL)))) { grTiles.delete(k); if (T) grStats.bytes -= 16 * T.N * T.N; } }
+    for (const [k, T] of grTiles) { const i = Math.round(k / 131072), j = k - i * 131072; if (M.has(grCellKey(Math.floor(i / GR_CELL), Math.floor(j / GR_CELL)))) { if (T) grDrop(T); else grTiles.delete(k); } }
     grCook = M.size ? M : null;
     return { taken: M.size, stale };
   }
@@ -8227,7 +8317,6 @@ function compose(rec0, world, opts) {
     const t0 = grNow(), T = rasterTileDecode(C, e);
     grStats.decoded++; grStats.decodeMs += grNow() - t0; grStats.bytes += 16 * T.N * T.N;
     if (T.r > grRmax) grRmax = T.r;
-    while (grStats.bytes > GR_CAP) { let gone = false; for (const [k2, T2] of grTiles) { if (T2) { grTiles.delete(k2); grStats.bytes -= 16 * T2.N * T2.N; grStats.evicted++; gone = true; break; } } if (!gone) break; }
     return T;
   }
   // THE SURFACE, INDEXED (G614, exact - the A0 ring: every forest lattice point asks world.surface, and this scan
@@ -32842,4 +32931,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
