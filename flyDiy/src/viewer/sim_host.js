@@ -573,6 +573,21 @@ function simHostDefSig(def) {
   return def.nodes.length + ':' + h.toString(16);
 }
 
+// G1096: A RIG'S PLACEMENT (app.js FLIGHT_PROBE.place). The rigs held or carried the aeroplane by writing the page's
+// sim().p / .v; under the physics worker that sim is a VIEW of the worker's, and the next snapshot undid the write
+// (C3b, 2026-09-30: every view of a hold at the stand, the aeroplane still rolling). The same writes, made on the sim
+// that flies - the page's own inline, the worker's at once between two of its steps: every node shifted so the CG
+// stands at `at` (a null axis kept) or by `by`, the velocities zeroed (`zeroV`) and / or kicked by `dv`. -> the CG
+function simHostPlace(sim, o) {
+  const p = sim.p, v = sim.v, n = sim.n;
+  let d = o.by || null;
+  if (o.at) { const c = sim.cgPos(); d = [0, 1, 2].map(j => (o.at[j] == null ? 0 : o.at[j] - c[j])); }
+  if (d) for (let i = 0; i < n; i++) { p[i * 3] += d[0]; p[i * 3 + 1] += d[1]; p[i * 3 + 2] += d[2]; }
+  if (o.zeroV) for (let i = 0; i < n * 3; i++) v[i] = 0;
+  if (o.dv) for (let i = 0; i < n; i++) { v[i * 3] += o.dv[0]; v[i * 3 + 1] += o.dv[1]; v[i * 3 + 2] += o.dv[2]; }
+  return sim.cgPos();
+}
+
 // ---- THE THREAD: messages, the clock, the buffers --------------------------
 // port: { post(msg, transfer), on(fn(msg)), close() } - self in a browser
 // worker, parentPort under node's worker_threads (the gate)
@@ -699,6 +714,9 @@ function simHostBody(CORE, SH, port) {
         case 'release': if (m.buf) pool.push(m.buf); return;
         case 'run': if (H && !running) { running = true; anchor(); pump(); } return;
         case 'pause': stopClock(); if (H) publish(0, 0); return;
+        // G1096: a rig's placement - at once, at this step boundary (lockstep: after every step the page posted; real
+        // time: between two turns), the snapshot published, then the word the page's promise waits for
+        case 'place': { const cg = H ? SH.simHostPlace(H.sim, m) : null; if (H) publish(0, 0); post({ kind: 'placed', id: m.id, cg }); return; }
         case 'rate': rate = m.x > 0 ? m.x : 1; if (running) anchor(); return;
         case 'steps': {
           // LOCKSTEP: exactly n steps now, a snapshot after each (`every`) or after the last. `dayBatch` (G815, the
@@ -786,8 +804,8 @@ function simHostStart(onMessage, onError, opts) {
 
 if (typeof window !== 'undefined') {
   window.SIM_HOST = { start: simHostStart, source: simHostSource, trimBoot: simHostTrimBoot, fetchBoot: simHostFetchBoot, probe: simHostProbe,
-                      KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP };
+                      place: simHostPlace, KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP };
 }
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe,
+  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart };

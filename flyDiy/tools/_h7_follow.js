@@ -53,5 +53,5 @@ window.__hold = (thr) => {
 window.__tow = (vx, vz) => { window.__towV = [vx, vz]; window.__thrV = 0;
   const tick = () => { const s = FLIGHT_PROBE.sim(), t = window.__towV; if (!t) return;
     const v = s.cgVel(); const dx = (t[0] - v[0]) * 0.3, dz = (t[1] - v[2]) * 0.3;
-    for (let i = 0; i < s.n; i++) { s.v[i * 3] += dx; s.v[i * 3 + 2] += dz; }
+    FLIGHT_PROBE.place({ dv: [dx, 0, dz] });   // G1096: on the sim that flies (under the physics worker the page's sim is a view)
     requestAnimationFrame(tick); }; tick(); };

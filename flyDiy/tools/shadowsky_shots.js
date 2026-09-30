@@ -37,7 +37,7 @@ const srvArgs = [path.join(__dirname, '_serve.js'), String(SPORT), REPO]; if (FA
 const server = spawn(process.execPath, srvArgs, { stdio: 'ignore' });
 
 // the hold: the aeroplane moved to a place (or left where the roll-out put it) and paused
-const HOLD = at => `(() => {
+const HOLD = at => `(async () => {
   const b = document.getElementById('bPause'); if (b && /pause/i.test(b.textContent)) b.click();
   const s = FLIGHT_PROBE.sim(), w = FLIGHT_PROBE.world();
   let at = ${JSON.stringify(at)};
@@ -49,7 +49,7 @@ const HOLD = at => `(() => {
   }
   if (Array.isArray(at)) { const cg = s.cgPos(), gy = Math.max(w.terrainH(at[0], at[1]), w.waterH ? (w.waterH(at[0], at[1]) || -1e9) : -1e9) + at[2];
     const dx = at[0] - cg[0], dy = gy - cg[1], dz = at[1] - cg[2];
-    for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; } }
+    await FLIGHT_PROBE.place({ by: [dx, dy, dz], zeroV: true }); }   // G1096: on the sim that flies (under the worker the page's sim is a view)
   return JSON.stringify(s.cgPos().map(v => Math.round(v))); })()`;
 const FRAMES = n => `new Promise(r => { let k = 0; const f = () => { if (++k >= ${n}) r(k); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 

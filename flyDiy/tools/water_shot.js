@@ -131,10 +131,9 @@ function ramp(P) {     // along the middle rows, over the WATER's pixels (the al
   if (!flying) throw new Error('the roll-out never happened');
   const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
   for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
-  await ev(`(()=>{const s=FLIGHT_PROBE.sim(),w=FLIGHT_PROBE.world();const cg=s.cgPos();const gy=w.terrainH(${AT[0]},${AT[2]});
+  await ev(`(async()=>{const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();const s=FLIGHT_PROBE.sim(),w=FLIGHT_PROBE.world();const cg=s.cgPos();const gy=w.terrainH(${AT[0]},${AT[2]});
     const dx=${AT[0]}-cg[0],dy=(gy+${AT[1]})-cg[1],dz=${AT[2]}-cg[2];
-    for(let i=0;i<s.n;i++){s.p[i*3]+=dx;s.p[i*3+1]+=dy;s.p[i*3+2]+=dz;s.v[i*3]=s.v[i*3+1]=s.v[i*3+2]=0;}
-    const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return 1;})()`);
+    await FLIGHT_PROBE.place({by:[dx,dy,dz],zeroV:true});return 1;})()`);   // G1096: paused, then placed on the sim that flies (FLIGHT_PROBE.place)
   await ev("(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById('flFly');if(R)R.open(f&&!f.hidden?null:'camera');return 1;})()");
   await sleep(300);
   const got = await ev("(()=>{const p=[...document.querySelectorAll('#flFlyBody .pill')].find(b=>b.textContent.trim()==='free');if(!p)return 0;p.click();return 1;})()");

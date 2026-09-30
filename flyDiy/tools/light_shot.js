@@ -125,10 +125,10 @@ const STATE_JS = st => `(()=>{ const on = ${JSON.stringify(st)}; const keep = { 
   await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());})()");
   await sleep(3000);
   // held where it stands (the stand, by default), or moved to --at
-  await ev(`(()=>{const s=FLIGHT_PROBE.sim(),w=FLIGHT_PROBE.world();const cg=s.cgPos();
+  await ev(`(async()=>{const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();const s=FLIGHT_PROBE.sim(),w=FLIGHT_PROBE.world();const cg=s.cgPos();
     ${AT ? `const gy=w.terrainH(${AT[0]},${AT[2]});const dx=${AT[0]}-cg[0],dy=(gy+${AT[1]})-cg[1],dz=${AT[2]}-cg[2];
-    for(let i=0;i<s.n;i++){s.p[i*3]+=dx;s.p[i*3+1]+=dy;s.p[i*3+2]+=dz;s.v[i*3]=s.v[i*3+1]=s.v[i*3+2]=0;}` : ''}
-    const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return 1;})()`);
+    await FLIGHT_PROBE.place({by:[dx,dy,dz],zeroV:true});` : ''}
+    return 1;})()`);   // G1096: paused, then placed on the sim that flies (FLIGHT_PROBE.place)
   await ev(`FLIGHT_PROBE.camSet(${CAM[0]}, ${CAM[1]}, ${CAM[2]}), 1`);
   await sleep(2500);
   console.log('sphere: ' + await ev(SPHERE_JS));

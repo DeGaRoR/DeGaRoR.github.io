@@ -200,7 +200,7 @@ const PLACE_JS = {
   // the stand: where the roll-out put it (the shed, the field, the premises)
   stand: `(()=>{const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return JSON.stringify({at:FLIGHT_PROBE.sim().cgPos().map(v=>v|0)});})()`,
   // the densest stand within 2.5 km at 110 m AGL (tree_perf's rule)
-  forest: `(() => {
+  forest: `(async () => {
   const w = FLIGHT_PROBE.world();
   const T = w.trees.filter(t => Math.hypot(t.x, t.z) < 2500);
   let best = null, bn = -1;
@@ -210,30 +210,30 @@ const PLACE_JS = {
   const gy = w.terrainH(best.x, best.z);
   const s = FLIGHT_PROBE.sim(); const cg = s.cgPos();
   const dx = best.x - cg[0], dy = (gy + 110) - cg[1], dz = best.z - cg[2];
-  for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; }
   const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();
+  await FLIGHT_PROBE.place({ by: [dx, dy, dz], zeroV: true });   // G1096: on the sim that flies
   return JSON.stringify({ at: [best.x | 0, gy + 110 | 0, best.z | 0], neighbours: bn }); })()`,
   // over the sea: the first water 1.5-6 km out in sixteen headings, 300 m up, the island in view
-  sea: `(() => {
+  sea: `(async () => {
   const w = FLIGHT_PROBE.world(); let best = null;
   for (let r = 1500; r <= 6000 && !best; r += 250) for (let k = 0; k < 16 && !best; k++) { const a = k / 16 * Math.PI * 2, x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (w.terrainH(x, z) <= 0 && w.terrainH(x * 1.1, z * 1.1) <= 0) best = [x, z]; }
   if (!best) best = [3000, 0];
   const s = FLIGHT_PROBE.sim(); const cg = s.cgPos();
   const dx = best[0] - cg[0], dy = 300 - cg[1], dz = best[1] - cg[2];
-  for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; }
   const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();
+  await FLIGHT_PROBE.place({ by: [dx, dy, dz], zeroV: true });   // G1096: on the sim that flies
   return JSON.stringify({ at: [best[0] | 0, 300, best[1] | 0] }); })()`,
   garage: `'garage'`,
 };
 // A PLACE BY NUMBERS (SCENERY LIFE, 2026-09-23): `at:<x>:<z>:<agl>` holds the aeroplane there, <agl> m over the
 // ground, on the heading the roll-out gave it (a village street, an apron: the chase eye behind it)
-const PLACE_AT = s => { const [x, z, agl] = s.split(':').slice(1).map(Number); return `(() => {
+const PLACE_AT = s => { const [x, z, agl] = s.split(':').slice(1).map(Number); return `(async () => {
   const w = FLIGHT_PROBE.world(), X = ${x || 0}, Z = ${z || 0}, gy = w.terrainH(X, Z) + ${isFinite(agl) ? agl : 60};
   const s = FLIGHT_PROBE.sim(); const cg = s.cgPos();
   const dx = X - cg[0], dy = gy - cg[1], dz = Z - cg[2];
-  for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; }
   const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();
+  await FLIGHT_PROBE.place({ by: [dx, dy, dz], zeroV: true });   // G1096: on the sim that flies
   return JSON.stringify({ at: [X, gy | 0, Z] }); })()`; };
 
 const med = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[f.length >> 1]; };

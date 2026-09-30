@@ -117,6 +117,8 @@ const SIM_LINK = (() => {
     let opsQ = [];                         // the world's ops since the last flush
     const wvQ = [];                        // real time: [frame, version sent by it] not yet seen in a snapshot
     const baseIds = new Set();
+    const placeWait = new Map();           // G1096: a rig's placements the worker has not answered yet (place, below)
+    let placeSeq = 0;
 
     // ---- THE WORLD'S OPS: the page world's registry and day calls, wrapped once ----------------------
     // G820 (C1c): wrapped when the worker is UP (start), not at make: a page whose worker cannot be had (no Worker,
@@ -234,6 +236,9 @@ const SIM_LINK = (() => {
       if (m.kind === 'state') { st.host = m; return; }
       if (m.kind === 'world') { st.worldMs = m.ms; if (m.boot) { st.bootFetchMs = m.boot.fetchMs != null ? m.boot.fetchMs : null; st.bootBytes = m.boot.bytes; st.cookedCells = m.boot.cooked || 0; } return; }
       if (m.kind === 'probe') { st.probe = m; return; }
+      // G1096: a rig's placement done in the worker (its snapshot came just before): mirrored now - a paused page
+      // runs no frame to do it - and the rig's promise answered
+      if (m.kind === 'placed') { const r = placeWait.get(m.id); placeWait.delete(m.id); if (flight && flight.live && flight.view) mirror(Infinity); if (r) r(m.cg); return; }
       if (!flight) { if (m.kind === 'snap' && host) post({ cmd: 'release', buf: m.buf }, [m.buf]); return; }
       if (m.kind === 'ready') { onReady(m); return; }
       if (m.kind === 'snap') {
@@ -268,6 +273,8 @@ const SIM_LINK = (() => {
       return null;
     }
     function dropFlight(why) {
+      for (const r of placeWait.values()) r(null);   // G1096: a placement the worker will not answer for this flight
+      placeWait.clear();
       if (!flight) return;
       detach();
       if (why) { flight.inline = why; st.reason = why; st.inline++; lastSim = null; }   // (the page's sim flies it: the worker's is not that one any more)
@@ -541,6 +548,16 @@ const SIM_LINK = (() => {
       if (F && F.live && F.ap === S.ap) { const x = { cmd: 'setCard', card: Object.assign({}, c) }; stamp(x); F.view.send(x); return; }
       cardNext = { ap: S.ap, card: Object.assign({}, c) };
     }
+    // G1096: A RIG'S PLACEMENT (app.js FLIGHT_PROBE.place; sim_host.js simHostPlace): the worker's sim is the one that
+    // flies, so the placement is made there, at once, and the page's view takes the snapshot it publishes. A promise of
+    // the CG; null when this flight is not the worker's (the page's own sim is written by the caller)
+    function place(o) {
+      const F = flight;
+      if (!F || F.inline || !F.live || !host) return null;
+      const id = ++placeSeq;
+      st.placed = (st.placed || 0) + 1;
+      return new Promise(res => { placeWait.set(id, res); post({ cmd: 'place', id, at: o.at || null, by: o.by || null, zeroV: !!o.zeroV, dv: o.dv || null }); });
+    }
     // the worker's readings for the recorder and rollout_perf (one object, rewritten: nothing allocated a frame)
     const P = { live: false, stepMs: NaN, dil: NaN, droppedS: NaN, late: NaN, step: 0, maxMs: NaN };
     function perf() {
@@ -551,7 +568,7 @@ const SIM_LINK = (() => {
       return P;
     }
     const api = {
-      frame, idle, warm, shed, prewarm, leg, perf, card,
+      frame, idle, warm, shed, prewarm, leg, perf, card, place,
       state: () => Object.assign({}, st, { dead, flight: flight ? { live: flight.live, inline: flight.inline, posted: flight.posted, frames: flight.frames, epoch: flight.epoch } : null,
                                            view: flight && flight.view ? flight.view.state() : null }),
       live: () => !!(flight && flight.live),
