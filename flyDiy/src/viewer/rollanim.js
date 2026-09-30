@@ -874,7 +874,8 @@ const ROLLANIM = (() => {
         // the building: the eye outside it; the line to the CG through no wall (the last 3 m are the aeroplane's)
         v.set(ex, ey, ez).applyMatrix4(Mi);
         const qx = v.x, qy = v.y, qz = v.z, uIn = (qx - room.x0) * -room.axis;
-        if (uIn > -0.6 && uIn < len + 0.6 && Math.abs(qz) < room.HW + 0.6 && qy < room.EAVE + 3) bad += 10;
+        // (0.3 m: under the host's own keepOutOfShed margin, camera.near + 0.35 - the flight's eye it ends on is always legal)
+        if (uIn > -0.3 && uIn < len + 0.3 && Math.abs(qz) < room.HW + 0.3 && qy < room.EAVE + 3) bad += 10;
         // the CG now: the stand's CG turned by the path's heading about the mains and carried to the path's point
         const a = ps - W.psi1, ca = Math.cos(a), sa = Math.sin(a), gx = W.cg[0] - W.P1[0], gz = W.cg[2] - W.P1[2];
         v.set(px + gx * ca - gz * sa, W.cg[1] + pa[3], pz + gx * sa + gz * ca).applyMatrix4(Mi);

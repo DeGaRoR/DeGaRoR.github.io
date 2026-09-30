@@ -536,9 +536,27 @@ async function pageCheck() {
       node.rotation.y = Math.atan2(uz, -ux);
       G.scene.add(node); node.updateMatrixWorld(true);
       const shed = { node, dims, door: { w: Math.max(6, 2 * dims.HW - 5), h: Math.min(6.4, dims.EAVE - 1.4) }, doorAxis: -1 };
-      // the flight's first frame: a chase framing behind the tail (flRevealStart's shape; placeCamera's clamps are the host's)
-      const F = ROLLANIM.standFraming('chase', G.def.params.viewDist, 1), cg = G.cg;
-      const end = { eye: [cg[0] + F.dist * Math.cos(F.el) * Math.cos(F.az), cg[1] + F.dist * Math.sin(F.el), cg[2] + F.dist * Math.cos(F.el) * Math.sin(F.az)], look: cg.slice(), fov: 52 };
+      // the flight's first frame as the host draws it: flRevealStart's chase framing behind the tail, on the side whose eye
+      // stands further from the shed's centre, and placeCamera's keepOutOfShed - an eye in the shed's box (grown by the
+      // near plane + 0.35) pulled back along its line to the CG onto the box's face
+      const cg = G.cg, inv = node.matrixWorld.clone().invert(), m = 0.5 + 0.35;   // (app.js CAM_NEAR 0.5)
+      const eyeOf = sd => { const F = ROLLANIM.standFraming('chase', G.def.params.viewDist, sd);
+        return [cg[0] + F.dist * Math.cos(F.el) * Math.cos(F.az), cg[1] + F.dist * Math.sin(F.el), cg[2] + F.dist * Math.cos(F.el) * Math.sin(F.az)]; };
+      const cen = new THREE.Vector3(0, 0, 0).applyMatrix4(node.matrixWorld);
+      const far = e => Math.hypot(e[0] - cen.x, e[2] - cen.z);
+      let eye = far(eyeOf(1)) >= far(eyeOf(-1)) ? eyeOf(1) : eyeOf(-1);
+      {
+        const a0 = new THREE.Vector3(cg[0], cg[1], cg[2]).applyMatrix4(inv), a1 = new THREE.Vector3(eye[0], eye[1], eye[2]).applyMatrix4(inv);
+        const lo = [-dims.HD - m, -1, -dims.HW - m], hi = [dims.HD + m, dims.EAVE + 2.6 + m, dims.HW + m], d = [a1.x - a0.x, a1.y - a0.y, a1.z - a0.z], p0 = [a0.x, a0.y, a0.z];
+        let t0 = 0, t1 = 1, hit = true;
+        for (let k = 0; k < 3 && hit; k++) {
+          if (Math.abs(d[k]) < 1e-9) { if (p0[k] < lo[k] || p0[k] > hi[k]) hit = false; continue; }
+          let u = (lo[k] - p0[k]) / d[k], v = (hi[k] - p0[k]) / d[k]; if (u > v) { const w = u; u = v; v = w; }
+          t0 = Math.max(t0, u); t1 = Math.min(t1, v); if (t0 > t1) hit = false;
+        }
+        if (hit && t0 > 0.02) { const q = new THREE.Vector3(p0[0] + d[0] * t0, p0[1] + d[1] * t0, p0[2] + d[2] * t0).applyMatrix4(node.matrixWorld); eye = [q.x, q.y, q.z]; }
+      }
+      const end = { eye, look: cg.slice(), fov: 52 };
       const contact = new THREE.Object3D(); G.scene.add(contact);
       return { G, shed, end, contact, mains: [mx, mz], ground: () => G.groundY };
     };
