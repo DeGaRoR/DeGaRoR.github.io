@@ -73,5 +73,7 @@ console.log('2. the solver meets a trunk at any elevation');
   yes(high.reach < D && high.reach > D - TOUCH, 'at 300 m the trunk stops it too (' + high.reach.toFixed(1) + ' m of ' + D + ') - the altitude gate is gone');
 }
 
-console.log('GATE TREEHIT: ' + (fails ? 'FAIL' : 'PASS') + ' (' + (checks - fails) + '/' + checks + ')');
+// (train 18: the verdict on a line of its own - run_gates reads /^GATE TREEHIT: PASS$/m, so a trailing count read as a FAIL)
+console.log('  ' + (checks - fails) + '/' + checks + ' checks');
+console.log('GATE TREEHIT: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);
