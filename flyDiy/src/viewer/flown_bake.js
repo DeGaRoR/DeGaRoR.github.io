@@ -563,14 +563,12 @@
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
     const d = this.userData.aeroD;
     if (d) for (const k of ['uCraftInv', 'uCabin', 'uFootA', 'uFootB']) if (d[k]) sh.uniforms[k] = d[k];
-    sh.uniforms.uFbFade = FB_FADE;   // the hybrid's band (FB_FADE: 0 outside it)
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', 'uniform mat4 uCraftInv;\nvarying vec3 vFbCraft;\n#include <common>')
       .replace('#include <project_vertex>', 'vFbCraft = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', 'uniform mat4 uCraftInv;\nuniform vec4 uCabin;\nuniform vec4 uFootA;\nuniform vec4 uFootB;\nvarying vec3 vFbCraft;\n#include <common>')
       .replace('#include <map_fragment>', '#include <map_fragment>\n  float fbIn = sampledDiffuseColor.a;\n  diffuseColor.a = opacity;')
-      .replace(/^[\s\S]*$/, fs => fadeFs(fs, false))
       .replace('#include <clearcoat_normal_fragment_begin>', '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')
       .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\n  material.clearcoatRoughness = min(max(texture2D(clearcoatMap, vClearcoatMapUv).a, 0.0525) + geometryRoughness, 1.0);\n#endif')
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
@@ -605,7 +603,38 @@
                                                         : '\n  if (uFbFade > 0.0 && uFbFade < 1.0 && ' + FADE_N + ' < uFbFade) discard;'));
   // (each side discards only INSIDE the band: outside it the one not wanted is hidden, and a model whose fold failed
   // draws its live meshes whole)
-  // the live copies: the material as the live build made it, its own hook, then the band's discard
+  // G1123: THE DISCARD ONLY IN THE BAND'S OWN PROGRAMS. A shader that CAN discard loses the GPU's early depth test
+  // wherever it draws, discard taken or not: with the band's discard in the baked program the taxi's render rose 0.4-0.9
+  // ms at t = 0 (rollout_perf, three alternated pairs, the metal Cessna, the bake drawn alone). So the baked program is
+  // C4b's, the live copies run their pool's own program, and each has a BAND TWIN (bandOf: the same material, the
+  // discard added) that a fold's meshes wear only while 0 < t < 1 (out.fade swaps them in and back) - compiled and drawn
+  // once under the craft step's screen with the rest (warmPairs).
+  const FB_BAND_HOOK = function (sh, r) { FB_HOOK.call(this, sh, r); sh.uniforms.uFbFade = FB_FADE; sh.fragmentShader = fadeFs(sh.fragmentShader, false); };
+  FB_BAND_HOOK.toString = () => 'flown.baked.band|' + FB.V;
+  const BANDS = new WeakMap();
+  function copyMat(m, hook, name, tag) {
+    let c;
+    const ud = m.userData; m.userData = {};
+    try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
+    c.userData = Object.assign({}, ud, tag);
+    if (m.defines) c.defines = Object.assign({}, m.defines);
+    for (const k of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity']) if (m[k] !== undefined && c[k] !== undefined) c[k] = m[k];
+    if (hook) c.onBeforeCompile = hook;   // (none: the prototype's, as the material's own)
+    c.name = name;
+    c.needsUpdate = true;
+    return c;
+  }
+  function bandOf(m) {
+    if (!m || !m.isMaterial) return m;
+    let b = BANDS.get(m);
+    if (b) return b;
+    b = m.userData && m.userData.flownBaked ? copyMat(m, FB_BAND_HOOK, (m.name || 'flown:baked') + ':band', { flownBand: 1 })
+                                           : copyMat(m, liveHook(hookOf(m)), (m.name || 'aeroskin') + ':band', { flownBand: 1 });
+    BANDS.set(m, b);
+    return b;
+  }
+  // the live copies: the material as the live build made it on its own hook (its pool's program); the band's discard
+  // is its band twin's (liveHook)
   const LIVE_WRAP = new Map(), TWINS = new WeakMap();
   function liveHook(h) {
     let w = LIVE_WRAP.get(h);
@@ -621,14 +650,7 @@
     if (!m || !m.isMaterial) return m;
     let c = TWINS.get(m);
     if (c) return c;
-    const ud = m.userData; m.userData = {};
-    try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
-    c.userData = Object.assign({}, ud, { flownLive: 1 });
-    if (m.defines) c.defines = Object.assign({}, m.defines);
-    for (const k of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity']) if (m[k] !== undefined && c[k] !== undefined) c[k] = m[k];
-    c.onBeforeCompile = liveHook(hookOf(m));
-    c.name = (m.name || 'aeroskin') + ':live';
-    c.needsUpdate = true;
+    c = copyMat(m, hookOf(m), (m.name || 'aeroskin') + ':live', { flownLive: 1 });
     TWINS.set(m, c);
     return c;
   }
@@ -1011,6 +1033,13 @@
         }
       };
       out.park = () => { if (!cur) liveOn(false); };
+      // G1121.1: a walk that must see the kept meshes (SHADOW_NEAR.tagCraft: the craft's layers, its near-only define,
+      // receiveShadow, renderOrder) runs with them back in the graph, hidden as they are, and parked again after
+      out.unpark = () => {
+        const moved = [];
+        for (const m of out.live) { const h = HOME.get(m); if (!m.parent && h) { h.add(m); moved.push(m); } }
+        return () => { for (const m of moved) if (m.parent && !m.visible) m.parent.remove(m); };
+      };
       out.apply = on => {
         on = !!on;
         if (on === cur) return;
@@ -1021,9 +1050,25 @@
       out.view = on => { if (!out.held) out.apply(on); };
       // the hybrid's band (hybrid()): the folds drawn below t = 1, the live meshes above t = 0, both inside the band
       let cf = -1;
+      const ORIG = new Map(), inBand = x => x > 0 && x < 1;
+      const setBand = on => {
+        for (const o of out.meshes.concat(out.live)) {
+          if (!ORIG.has(o)) ORIG.set(o, o.material);
+          o.material = on ? bandOf(ORIG.get(o)) : ORIG.get(o);
+        }
+      };
+      // [object, material] the craft step compiles and warm-draws (by stand-in): the live meshes on their own and their
+      // band twins, the folds' band twins (the folds' own are in the graph)
+      out.pairs = () => {
+        const P = [];
+        for (const m of out.live) { const n = ORIG.get(m) || m.material; P.push([m, n], [m, bandOf(n)]); }
+        for (const f of out.meshes) P.push([f, bandOf(ORIG.get(f) || f.material)]);
+        return P;
+      };
       out.fade = t => {
         if (out.held || t === cf) return;
         const was = cf; cf = t;
+        if (inBand(t) !== inBand(was)) setBand(inBand(t));
         if (t >= 1) { cur = true; if (was < 1) { for (const f of out.meshes) f.visible = false; liveOn(true); } return; }
         if (t <= 0) { cur = false; if (was !== 0) { for (const f of out.meshes) f.visible = true; liveOn(false); } return; }
         if (was <= 0 || was >= 1) { cur = true; for (const f of out.meshes) f.visible = true; liveOn(true); }
@@ -1161,7 +1206,9 @@
     return done(statsOf(per));
   }
 
-  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, nearT, liveTwin, FB_FADE, folds: () => FOLDS.slice(), workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
+  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, nearT, liveTwin, bandOf, FB_FADE, folds: () => FOLDS.slice(),
+                   warmPairs: () => FOLDS.flatMap(F => F.pairs ? F.pairs() : []),
+                   withKept: fn => { const back = FOLDS.map(F => F.unpark ? F.unpark() : null); try { return fn(); } finally { for (const b of back) if (b) b(); } }, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
                    bakeHook, FB_HOOK, BAKE_FS,
                    get bytes() { return bytes; },
                    clear: () => idb('readwrite', st => st.clear()) };

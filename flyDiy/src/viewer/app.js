@@ -4348,7 +4348,8 @@
       for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
       if (mm > 0 && typeof window !== 'undefined') { window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; window.FLYDIY_MASS_MODEL = mm; } }   // S1 (G451.1): the all-up mass, for the float advisor
     if (model) craft.add(model.grp);
-    if (model && window.SHADOW_NEAR) SHADOW_NEAR.tagCraft(craft, model.grp);   // A6: the craft casts into its own shadow map and reads only that one (G1005: its cascade fitted to model.grp's sphere)
+    // (G1121.1: the flown bake's parked live meshes back in the graph for the walk - FLOWN_BAKE.withKept)
+    if (model && window.SHADOW_NEAR) { const tag = () => SHADOW_NEAR.tagCraft(craft, model.grp); if (window.FLOWN_BAKE && FLOWN_BAKE.withKept) FLOWN_BAKE.withKept(tag); else tag(); }   // A6: the craft casts into its own shadow map and reads only that one (G1005: its cascade fitted to model.grp's sphere)
     // THE COCKPIT (the panel arc, session 4): the readings, the switches,
     // the bus and the lamps bind to this aeroplane; the altimeter's datum
     // is the field it stands on. Absent the module (the smoke gate) nothing
@@ -7000,11 +7001,12 @@
   }
   // G1121: THE HYBRID'S KEPT LIVE MESHES are out of the graph (flown_bake.js park) and three's compile walks the graph -
   // so the craft's compile takes them by stand-in (their programs and their depth variants, in the world's lights)
+  // (G1123: the pairs are the live meshes on their own material and on its band twin, and the folds' band twins)
   function keptGroup() {
-    const KEPT = (window.FLOWN_BAKE && FLOWN_BAKE.folds) ? FLOWN_BAKE.folds().flatMap(F => F.live || []) : [];
+    const P = (window.FLOWN_BAKE && FLOWN_BAKE.warmPairs) ? FLOWN_BAKE.warmPairs() : [];
     const KG = new THREE.Group();
-    if (typeof PROG_WARM !== 'undefined' && PROG_WARM.standIn) for (const o of KEPT) { try { KG.add(PROG_WARM.standIn(o, o.material)); } catch (e) {} }
-    return { KEPT, KG };
+    if (typeof PROG_WARM !== 'undefined' && PROG_WARM.standIn) for (const [o, m] of P) { try { KG.add(PROG_WARM.standIn(o, m)); } catch (e) {} }
+    return { KEPT: KG.children.slice(), KG };
   }
   // G1122: ...and their first draws and buffers under the craft step's screen, in the world's lights (the craft dressed in
   // the world per slice, as the compiles are) - the band's first crossing in flight then draws what is already resident

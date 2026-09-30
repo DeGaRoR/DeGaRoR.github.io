@@ -416,16 +416,34 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   const hyNear = k1.parent === g2 && k1.visible && !o2.meshes[0].visible;
   o2.fade(0);
   const hyFar = k1.parent === null && !k1.visible && o2.meshes[0].visible;
+  // G1121.1: a walk that must see them (the craft's tag) sees them, hidden, and they are parked again after
+  let seen = 0; FB.withKept(() => { g2.traverse(o => { if (o === k1 || o === k2) seen++; }); });
+  check(seen === 2 && k1.parent === null && !k1.visible, '8 G1121.1 withKept: the parked live meshes back in the graph for a walk (the craft\'s tag), parked again after', 'seen ' + seen);
   check(hyParked && hyBand && hyNear && hyFar, '8 G1121 the hybrid: the live meshes out of the graph while the bake is drawn, both in the band, the live alone near, parked again far',
     JSON.stringify({ hyParked, hyBand, hyNear, hyFar }));
   const t1 = FB.hybrid(0.5), f1 = FB.FB_FADE.value; FB.FB.hyForce = 1; const t2 = FB.hybrid(0.2); FB.FB.hyForce = null; FB.hybrid(0);
   check(t1 === 0.5 && f1 === 0.5 && t2 === 1 && FB.FB_FADE.value === 0, '8 G1120 one fade for both sides (FB_FADE), the rigs\' hold (FB.hyForce) wins over the rule', JSON.stringify({ t1, f1, t2 }));
-  const tw = FB.liveTwin(live), sh = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };
-  try { tw.onBeforeCompile.call(tw, sh, null); } catch (e) {}
-  check(tw !== live && FB.liveTwin(live) === tw && String(tw.onBeforeCompile).indexOf('flown.live|') >= 0 && sh.uniforms.uFbFade === FB.FB_FADE &&
+  const tw = FB.liveTwin(live), bw = FB.bandOf(tw), sh = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };
+  const sh0 = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };
+  try { bw.onBeforeCompile.call(bw, sh, null); } catch (e) {}
+  try { if (tw.onBeforeCompile) tw.onBeforeCompile.call(tw, sh0, null); } catch (e) {}
+  check(tw !== live && FB.liveTwin(live) === tw && String(tw.onBeforeCompile) === String(live.onBeforeCompile) && !/discard/.test(sh0.fragmentShader) &&
+        bw !== tw && FB.bandOf(tw) === bw && String(bw.onBeforeCompile).indexOf('flown.live|') >= 0 && sh.uniforms.uFbFade === FB.FB_FADE &&
         /uniform float uFbFade;/.test(sh.fragmentShader) && /uFbFade > 0\.0 && uFbFade < 1\.0 && fract\(52\.9829189[\s\S]*>= uFbFade\) discard;/.test(sh.fragmentShader),
-    '8 G1120 the live copy: its own material (a finish shared with what never bakes must not dither), its hook + the band\'s discard (only inside the band)',
-    String(tw.onBeforeCompile).slice(0, 60));
+    '8 G1123 the live copy: its own material on its pool\'s program (no discard: early-Z kept); its BAND TWIN carries the band\'s discard (only inside the band)',
+    String(bw.onBeforeCompile).slice(0, 60));
+  const bk = { uniforms: {}, vertexShader: '#include <common>\n#include <project_vertex>\nvoid main() {\n}', fragmentShader: '#include <common>\n#include <map_fragment>\nvoid main() {\n}' };
+  const bkB = { uniforms: {}, vertexShader: bk.vertexShader, fragmentShader: bk.fragmentShader };
+  const fakeBaked = new T.MeshStandardMaterial(); fakeBaked.userData.flownBaked = 1; fakeBaked.onBeforeCompile = FB.FB_HOOK;
+  const fbB = FB.bandOf(fakeBaked);
+  try { FB.FB_HOOK.call(fakeBaked, bk, null); fbB.onBeforeCompile.call(fbB, bkB, null); } catch (e) {}
+  check(!/discard/.test(bk.fragmentShader) && /discard;/.test(bkB.fragmentShader) && String(fbB.onBeforeCompile).indexOf('flown.baked.band|') >= 0,
+    '8 G1123 the baked program has no discard (C4b\'s, early-Z kept); its band twin has the band\'s', String(fbB.onBeforeCompile).slice(0, 40));
+  // the fold wears the band twins only inside the band
+  const m0 = k1.material; o2.fade(0.5); const inB = k1.material === FB.bandOf(m0) && o2.meshes[0].material === FB.bandOf(inMat);
+  o2.fade(1); const out1 = k1.material === m0; o2.fade(0); const out0 = o2.meshes[0].material === inMat;
+  check(inB && out1 && out0 && o2.pairs().length === 2 * 2 + 1, '8 G1123 the band twins worn only while 0 < t < 1, and the pairs the craft step warms (each live mesh twice, each fold\'s twin)',
+    JSON.stringify({ inB, out1, out0, pairs: o2.pairs().length }));
   W.FLYDIY_FLOWN_MERGE = 0;
   const g3 = new T.Group(); g3.add(bakedMesh(box(0, 0, 0, 1, 1, 1, 1)), bakedMesh(box(1, 0, 0, 2, 1, 1, 1)));
   check(FB.mergeModel(T, g3, mat, {}) === null && g3.children.length === 2, '8 FLYDIY_FLOWN_MERGE = 0 folds nothing (the dial)');
