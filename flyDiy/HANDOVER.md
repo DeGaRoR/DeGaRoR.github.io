@@ -66593,3 +66593,37 @@ not too degraded, including when the plane flies low above the trees." And: "we 
   detail names the family.
 - The CI verdict for claude/train-17-treesnear lives under ci/train-17-treesnear/<sha>.txt on claude/ci-results
   (not ci/claude-train-17-...).
+
+## TRAIN 18 LANDED (2026-10-01, A0 the coordinator)
+
+Cargo (on train 17 = 220812de): C0c G1135-G1136 (no probe bake while the world is up; the day applied before the boot's
+bake), LOAD-COMPILE G1137 (the world warm draw a view a task), CUB-COCKPIT G1105-G1108 (hinges off the glass, tank mount
+gone, unfit tanks not drawn, the dead gyro plumb), AS4b G925-G929 (pavement as data), C3b G855-G859 (the town kit drawn),
+C3c G860-G864 (Metlakatla on the kit - still OFF by default, `?town=1`; the user: it returns only when every performance
+objective passes), C2c G841-G844 (the cook's tallies, the editor's live path, the obstacles in the worker, the harbour
+houses' piers at their zone's water), TREES-NEAR G1110-G1114 (gamer = 'minimum', ultra = 'mid', tree collisions at any
+elevation, GATE TREEHIT), the rollout_perf rig fix G1117 (ONE 'Roll out' press, the shot waited out after tReveal; every
+earlier run skipped the shot), FRAMECOST's stale-cook HINT, GATE TREEHIT's verdict line.
+
+WITHDRAWN before the landing (measured, not regressions accepted):
+- C2c G840 (the town texture arrays cooked offline): ~27 MiB fetched cold on Pages to save one ~0.25 s task. Dropped from
+  the train's history (the bytes never entered the repo). Follow-up: the canvas pass in a worker, zero extra bytes.
+- C4B G1120-G1124 (the hybrid aeroplane): the chase is sharp and flat, but the cockpit census was not all-equal-or-lower
+  (G1124.3 fixed the +90 shadow casters; +2 useProgram remained, traced to the town's batching settling differently under
+  the census's virtual clock). Train 19, with a like-for-like census (803a9fe2).
+- ROLLOUT-REAL G1115-G1118 (the roll-out into the real world, user-approved look): the shot's fps fell (Cub 57.7 -> 54,
+  metal 40 -> 36: the world's per-frame draw, not first uploads - warming the views did not move it). Train 19 with the
+  hangar match (one building, interior mapping, the craft's PMREM mixed across the door).
+
+MEASURED (the ratchet, fresh parked cook f53eb9acc30e, vs train 17; two runs each; the fixed rig):
+  Cub:   fps 31.8 -> 32.1, p99 33.5 =, loop 13.35 -> 12.85, render 9.7 -> 9.2 ms, garage 41.1 -> 40.2 s, flight 44.45 -> 43.5 s
+  metal: fps 32.05 -> 31.9, p99 33.5 =, loop 13.5 -> 12.6, render 9.95 -> 9.2 ms, tasks >= 1 s 1 -> 0,
+         taskWorst 1357 -> 733 ms, garage 43.1 -> 41.6 s, flight 46.4 -> 45.0 s
+  The roll-out shot is now TIMED (SHOT line): ~48-59 fps over its ~9.4 s on master's roll-out.
+  To watch (inside the slack): the metal's compile sum 1.31 -> 2.46 s (flight still shorter overall) - attribute in train 19.
+FRAMECOST: four ALLOW rows (G1113) for 'minimum' trees casting at the stand, attributed by an A/B on the train tree with
+?parkcook=0 on both sides ('minimum' vs 'near': stand shadow +18/+21 draws, +134/+143 k tris). Baseline re-taken
+(85 falls). Battery: the FULL tier (--all) on pass 1 (with the hybrid): all PASS but FRAMECOST (above) and TREEHIT
+(its verdict line, fixed); the CORE tier on the final tree (the hybrid dropped): all PASS, FRAMECOST PASS with the ALLOW rows.
+TRAPS this night: `run_gates.js --help` RUNS the battery (it did, lockless, for seconds); a missed coordinator ping idled
+the GPU twice (~40 min each) - the relay now uses name-gated waiters (take only when RESERVED names you).

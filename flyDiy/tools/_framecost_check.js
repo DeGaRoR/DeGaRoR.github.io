@@ -193,6 +193,13 @@ const ALLOW = [
   { key: 'stand/programs', build: '*', upTo: 119, why: 'the repeated dressing\'s instanced programs (+3)', g: 'G934' },
   { key: 'stand/gl.bindBuffer', build: '*', upTo: 80, why: 'the dressing batches\' instance buffers (+8)', g: 'G934' },
   { key: 'taxi/gl.bindBuffer', build: 'cessna', upTo: 32, why: 'train 17 (fresh parked cook): the Cessna\'s taxi view sees the repeated dressing\'s instanced batches too - their instance buffers bound (+4, 26 -> 30)', g: 'G934' },
+  // train 18 (A0): gamer's 'minimum' tree step (the user's choice) - whole trees to 30 m and the light rung to 60 m cast
+  // into the stand's shadow maps. Attributed by an A/B on the train tree (both sides ?parkcook=0): 'minimum' vs 'near' =
+  // stand shadow +18 / +21 draws, +134 k / +143 k tris; timed within the ratchet's slack (taxi equal; the low pass -0.6 fps)
+  { key: 'stand/draws.shadow', build: 'cub', upTo: 203, why: 'train 18: gamer draws \'minimum\' trees - the near trees cast at the stand (189.5 -> 201.5)', g: 'G1113' },
+  { key: 'stand/draws.shadow', build: 'cessna', upTo: 213, why: 'train 18: gamer draws \'minimum\' trees - the near trees cast at the stand (196.5 -> 211.5)', g: 'G1113' },
+  { key: 'stand/tris.shadow', build: 'cub', upTo: 2690000, why: 'train 18: gamer draws \'minimum\' trees - their tris in the stand\'s shadow maps (2.548 -> 2.679 M)', g: 'G1113' },
+  { key: 'stand/tris.shadow', build: 'cessna', upTo: 2825000, why: 'train 18: gamer draws \'minimum\' trees - their tris in the stand\'s shadow maps (2.679 -> 2.814 M)', g: 'G1113' },
   { key: 'boot/garage:worldCompile/links', build: '*', upTo: 150, why: 'the dressing\'s instanced programs, linked under the screen (+3)', g: 'G934' },
   ...['boot/garage:frames/draws.total', 'boot/garage:frames/three.frustumTests', 'boot/garage:settle/draws.total', 'boot/garage:settle/gl.calls',
       'boot/garage:settle/bytes.uniforms', 'boot/garage:images/world.grHeight']
