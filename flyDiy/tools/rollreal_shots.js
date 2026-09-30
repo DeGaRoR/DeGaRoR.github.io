@@ -87,7 +87,8 @@ function preScript() {
   await cmd('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: SIZE[0], maxHeight: SIZE[1], everyNthFrame: EVERY });
   await sleep(600);
   tClick = Date.now(); rec = true;
-  await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent).forEach(x=>x.click());return 1;})()");
+  // ONE press: the bar's #bGo (the editor's #edRoll says 'Roll out' too - a second press skips the shot)
+  await ev("(()=>{const g=document.getElementById('bGo');const l=[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent);const b=g&&g.offsetParent&&/roll out/i.test(g.textContent)?g:l[0];if(b)b.click();return l.length;})()");
   await sleep(SECS * 1000);
   rec = false;
   await cmd('Page.stopScreencast');
