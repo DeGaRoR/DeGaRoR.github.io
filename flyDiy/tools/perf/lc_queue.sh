@@ -12,6 +12,9 @@ drop() { if mine; then bash "$LOCK" drop gpu LCOMP; fi; }
 trap drop EXIT
 bash "$LOCK" take gpu LCOMP "$note" || exit 1
 mine || { echo "lc_queue: the lock is not mine - stop"; exit 1; }
+# the reservation's last take has succeeded - the box handed on as the coordinator asks:
+#   PASSTO=<who> PASSNOTE=<note>: reserve it for <who>;  UNRESERVE=1: release it
+if [ -n "$PASSTO" ]; then bash "$LOCK" reserve "$PASSTO" "$PASSNOTE"; elif [ -n "$UNRESERVE" ]; then bash "$LOCK" unreserve LCOMP; fi
 mkdir -p "$OUTD"
 for spec in "$@"; do
   mine || { echo "lc_queue: lost the lock - stop"; exit 1; }

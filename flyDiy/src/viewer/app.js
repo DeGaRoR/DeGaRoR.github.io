@@ -6977,6 +6977,30 @@
       .then(() => compileDepthVariants(scene, true, dress))
       .catch(e => console.warn('world prelink (settled):', e && e.message));
   }
+  // THE LOTS' GROUND, BEFORE THE FIRST LOT (G1085). LOT_GROUND's one material (lot_tex.js: the lawn splat, a ~6 KB
+  // hook) is made when the first lot's mesh is - the premises' stream, in the settle - and its program then linked
+  // ~20 s on the driver (warm: Chrome keeps no binary of it, like the ground's splats), the one link worldCompile was
+  // still waiting for once the prelinks keyed everything else (the GPU box: worldCompile 10-13 s, all of it this).
+  // The material is made here (the game's path makes it with no load callback too: render_premises' turf) and keyed
+  // through a one-triangle stand-in with the lot mesh's own layout (position, uv, normal, aSplat, aTone, aAlpha,
+  // indexed; receives shadows, casts none), in the world's lights with the craft's, beside the town's prelink
+  function lotGroundPrelink() {
+    if (typeof LOT_GROUND === 'undefined' || !LOT_GROUND || typeof LOT_GROUND.material !== 'function') return;
+    try {
+      const geo = new THREE.BufferGeometry(), f3 = n => new THREE.BufferAttribute(new Float32Array(n), n / 3);
+      geo.setAttribute('position', f3(9)); geo.setAttribute('normal', f3(9));
+      geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(6), 2));
+      geo.setAttribute('aSplat', new THREE.BufferAttribute(new Float32Array(12), 4));
+      geo.setAttribute('aTone', new THREE.BufferAttribute(new Float32Array(6), 2));
+      geo.setAttribute('aAlpha', new THREE.BufferAttribute(new Float32Array(3), 1));
+      geo.setIndex([0, 1, 2]);
+      const m = new THREE.Mesh(geo, LOT_GROUND.material(THREE, null));
+      m.renderOrder = 3; m.receiveShadow = true; m.castShadow = false;
+      const g = new THREE.Group(); g.add(m);
+      compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, f => craftInWorldNow(() => craftLightsGuess(f)))
+        .then(() => geo.dispose(), e => { geo.dispose(); console.warn('lot ground prelink:', e && e.message); });
+    } catch (e) { console.warn('lot ground prelink:', e && e.message); }
+  }
   // THE CRAFT IN THE WORLD FOR ONE SYNCHRONOUS CALL (G1085): craftInWorld's hold spans tasks, and the steps it overlaps
   // put the craft back as they like - the parked captures' editor round trips re-stand the build (applyStand hides
   // model.grp behind the cage), so the town's prelink, holding the craft 'in the world' across its tasks, keyed every
@@ -7169,6 +7193,7 @@
       // them known (their key) and mostly linked, and compiles what the town added.
       if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function' && !worldPrelink)
         worldPrelink = compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, f => craftInWorldNow(() => craftLightsGuess(f))).catch(e => console.warn('world prelink:', e && e.message));   // (B9: keyed with the craft's lights - G1085: a task at a time)
+      if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function') lotGroundPrelink();
       if (PK_ASYNC()) window.PARKED.async = true;
       if (!WF || !WF.premisesPrewarm || typeof renderer.compileAsync !== 'function') return;
       const cg = tripCg();
@@ -11447,13 +11472,19 @@
   // (the premises' stream to 6 km, the fill, the parked aeroplanes: ~70 programs in the node census, the depth variants
   // with them) was first keyed by worldCompile, ~10 s later, and its links waited there. Its sources are made here, a
   // group a task under the commit, the bake and the spec, with the town prelink's dress (the craft and its lights)
-  bootStep('snapshot', 'committing the build', 10, () => { tripSync = null; worldPrelinkSettled(); shedPrelink(); return tripRun(TRIP_BY.snapshot, bootTrip); });
+  bootStep('snapshot', 'committing the build', 10, () => { tripSync = null;
+    // (each kick in a task of its own: the gathers walk whole scenes, and the shed's key environment is a PMREM render -
+    // one task with the commit's first slice was 1.0-1.3 s on the GPU box)
+    setTimeout(worldPrelinkSettled, 0); setTimeout(shedPrelink, 0);
+    return tripRun(TRIP_BY.snapshot, bootTrip); });
   bootTripStep('bake');
   // G1085 (LOAD-COMPILE): the flown model is built here - its programs (in the world's lights, and in the shed as the
   // roll-out shot dresses it) start linking now, under the world's compile, the shed's and first light; 'craft' waits
   const specStep = TRIP_BY.spec;
+  // (in a task of its own: a .then here ran it inside the spec's own task - the model's build - 1.36 s on the metal Cessna)
   bootStep(specStep.id, specStep.label, specStep.w, () => { const r = tripRun(specStep, bootTrip);
-    return r && typeof r.then === 'function' ? r.then(v => { craftStart(); return v; }) : (craftStart(), r); });
+    const kick = () => setTimeout(craftStart, 0);
+    return r && typeof r.then === 'function' ? r.then(v => { kick(); return v; }) : (kick(), r); });
   // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
   // a dirty storm like any load — and the bench's rule (an empty bench
   // never nulls the store) is what let the WIP's stored plaque live
@@ -11615,6 +11646,10 @@
     }));
     const litScene = lit || sc;
     let i = 0, G = 1;                     // a NEW AEROSKIN program's source alone is ~0.1-0.3 s: start at one, grow on the cheap ones
+    // G1085: a dressed compile runs beside the steps (the one loading's early starts) over sets that mix programs the
+    // loading already knows (cheap: the group grows) with new ones (a group of 64 new sources is seconds in one task) -
+    // it grows to 16 at most
+    const GMAX = dress ? 16 : 64;
     return new Promise(res => {
       const tick = () => {
         const t0 = performance.now();
@@ -11630,7 +11665,7 @@
               try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
               grp.clear();
               const dt = performance.now() - t1;
-              G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
+              G = Math.max(1, Math.min(GMAX, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
             }
           } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
         });
@@ -11869,7 +11904,7 @@
     if (typeof renderer.compileAsync !== 'function' || !hangar || tripKeys.shedCompile !== undefined) return;
     if (typeof BOOT.settled === 'function' && !BOOT.settled(['props', 'crew', 'crewBuild'])) return;
     shedEnvKey();
-    compileSliced(hangarScene, ensureEnvRT())
+    new Promise(res => setTimeout(res, 0)).then(() => compileSliced(hangarScene, ensureEnvRT()))
       .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null))
       .then(() => compileDepthVariants(hangarScene, true))
       .then(() => compileXrayVariants())
