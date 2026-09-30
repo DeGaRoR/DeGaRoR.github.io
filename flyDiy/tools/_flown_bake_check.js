@@ -428,9 +428,11 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   const cabM = bakedMesh(box(0, 0, 0, 1, 1, 1, 1), live, true), nearM = bakedMesh(box(1.5, 0, 0, 2, 1, 1, 1), live, true), farM = bakedMesh(box(8, 0, 0, 9, 1, 1, 1), live, true);
   const g4 = new T.Group(); g4.add(cabM, nearM, farM);
   const tw0 = FB.liveTwin(live); nearM.material = tw0; farM.material = tw0;
-  const ez = FB.eyeZone(T, g4, [cabM], [nearM, farM]);
-  check(ez.eye.length === 1 && ez.eye[0] === nearM && ez.far[0] === farM && nearM.material !== tw0 && nearM.material.userData.flownZone === 'eye' && farM.material === tw0,
-    '8 G1124 the eye\'s zone: a kept mesh near the cabin goes to the eye\'s fold on its own live copy, a far one stays', JSON.stringify(FB.FB.eyeZoneN));
+  const ez0 = FB.eyeZone(T, g4, [cabM], [nearM, farM]);   // G1124.4: the fallback (cockpitLive off) splits nothing
+  const noSplit = ez0.eye.length === 0 && ez0.far.length === 2 && nearM.material === tw0;
+  FB.FB.cockpitLive = true; const ez = FB.eyeZone(T, g4, [cabM], [nearM, farM]); FB.FB.cockpitLive = false;
+  check(noSplit && ez.eye.length === 1 && ez.eye[0] === nearM && ez.far[0] === farM && nearM.material !== tw0 && nearM.material.userData.flownZone === 'eye' && farM.material === tw0,
+    '8 G1124 the eye\'s zone (?fbake=cockpitlive): a kept mesh near the cabin goes to the eye\'s fold on its own live copy, a far one stays; G1124.4 the fallback splits nothing', JSON.stringify(FB.FB.eyeZoneN));
   check(hyParked && hyBand && hyNear && hyFar, '8 G1121 the hybrid: the live meshes out of the graph while the bake is drawn, both in the band, the live alone near, parked again far',
     JSON.stringify({ hyParked, hyBand, hyNear, hyFar }));
   // G1124.1 the fallback: the cockpit's call (0, 1) - the cabin live, the eye's zone on the bake; ?fbake=cockpitlive the eye's live

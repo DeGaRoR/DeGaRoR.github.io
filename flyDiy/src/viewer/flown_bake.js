@@ -669,7 +669,9 @@
   // the cockpit only the eye's is live (the far zone is 3-8 m off, where the bake's texel is near a pixel)
   function eyeZone(THREE, grp, cab, ext) {
     const eye = [], far = [];
-    if (!FB.eyeOnly || !cab || !cab.length) return { eye, far: ext.slice() };
+    // (G1124.4: no split under the fallback - the eye's zone is never live there, and the split's extra folds, plain and
+    // skinned on the one baked material, interleaved their programs in the sort: +2 program switches a frame in the cockpit)
+    if (!FB.eyeOnly || !FB.cockpitLive || !cab || !cab.length) return { eye, far: ext.slice() };
     grp.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(grp.matrixWorld).invert(), M = new THREE.Matrix4(), s = new THREE.Sphere(), all = new THREE.Sphere();
     const sph = m => { const g = m.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); return s.copy(g.boundingSphere).applyMatrix4(M.multiplyMatrices(inv, m.matrixWorld)); };
