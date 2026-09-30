@@ -1,0 +1,101 @@
+{
+ "pace": [
+  {
+   "cfg": 1,
+   "n": 120,
+   "meanMs": 18.2,
+   "uneven": 6.7,
+   "shadowCpuMean": 0.15,
+   "shadowCpuP90": 0,
+   "V": 3.5,
+   "phase": "TAXI"
+  },
+  {
+   "cfg": 4,
+   "n": 120,
+   "meanMs": 16.81,
+   "uneven": 1.7,
+   "shadowCpuMean": 0.2,
+   "shadowCpuP90": 0,
+   "V": 3.5,
+   "phase": "TAXI"
+  },
+  {
+   "cfg": 1,
+   "n": 120,
+   "meanMs": 16.67,
+   "uneven": 0,
+   "shadowCpuMean": 0.15,
+   "shadowCpuP90": 0,
+   "V": 8.8,
+   "phase": "TAXI"
+  },
+  {
+   "cfg": 4,
+   "n": 120,
+   "meanMs": 16.81,
+   "uneven": 1.7,
+   "shadowCpuMean": 0.19,
+   "shadowCpuP90": 0,
+   "V": 5.1,
+   "phase": "TAXI"
+  },
+  {
+   "cfg": 1,
+   "n": 120,
+   "meanMs": 18.76,
+   "uneven": 14.3,
+   "shadowCpuMean": 0.15,
+   "shadowCpuP90": 0,
+   "V": 3.3,
+   "phase": "TAXI"
+  },
+  {
+   "cfg": 4,
+   "n": 120,
+   "meanMs": 18.48,
+   "uneven": 21,
+   "shadowCpuMean": 0.19,
+   "shadowCpuP90": 0,
+   "V": 8.7,
+   "phase": "TAXI"
+  }
+ ],
+ "pixels": {
+  "control_a0_b0": {
+   "px": 8,
+   "meanD": 39.4,
+   "box": [
+    390,
+    474,
+    471,
+    605
+   ]
+  },
+  "craftFar_b0_c9": {
+   "px": 43279,
+   "meanD": 38.1,
+   "box": [
+    56,
+    496,
+    1307,
+    734
+   ]
+  },
+  "control_c9_e9": {
+   "px": 0,
+   "meanD": 0,
+   "box": null
+  },
+  "craftFar_d0_e9": {
+   "px": 43279,
+   "meanD": 38.1,
+   "box": [
+    56,
+    496,
+    1307,
+    734
+   ]
+  }
+ }
+}

@@ -127,6 +127,26 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
     scene.remove(craft); SN.follow(L, eye, sun, 20, null, null, hAt);
     ok(C1.tgt.distanceTo(new THREE.Vector3(80, 30, 40)) < 1e-6 && SN.AIM.drawn === 0 && SN.aim() === false, '2 G1080: an aeroplane off the stage (the scenery mode) leaves the aim with the given point');
     scene.add(craft); craft.position.set(0, 15, 0); craft.updateMatrixWorld(true); SN.follow(L, [0, 15, 0], sun, 5, null, null); }
+  // G1080 THE SOFT TRAILING SHADOW: three's shadow walk tests an object's layers against the MAIN camera (r186
+  // WebGLShadowMap renderObject(object, camera, shadowCamera, ...)), so FAR_LAYER on the far map's camera filters nothing -
+  // the aeroplane was in the world's far map (drawn every 2nd frame: a soft halo, a frame behind). The craft's top group is
+  // hidden while the FAR light's map draws (its updateMatrices), shown for the near light's pass and by follow().
+  { const T3 = src('vendor/three.min.js');
+    ok(/function x\(T,R,v,A,I\)\{if\(T\.visible===!1\)return;if\(T\.layers\.test\(R\.layers\)/.test(T3) && /x\(R,v,Dt,X,this\.type\)/.test(T3) && /this\.render=function\(T,R,v\)/.test(T3),
+      '2 G1080: three r186 - the shadow walk tests the MAIN camera\'s layers (the far map\'s camera layers filter nothing): the reason for farLight');
+    const sunL = new THREE.DirectionalLight(0xffffff, 1); sunL.castShadow = true; scene.add(sunL);
+    SN.farLight(sunL); SN.S.on = true; SN.apply(L);
+    sunL.shadow.updateMatrices(sunL); const hidFar = !craft.visible;
+    L.shadow.updateMatrices(L); const backNear = craft.visible;
+    ok(hidFar && backNear, '2 G1080: the aeroplane hidden while the far map draws, shown again for the near map', `far pass hidden ${hidFar}, near pass visible ${backNear}`);
+    sunL.shadow.updateMatrices(sunL); SN.follow(L, [0, 15, 0], sun, 5, null, null);
+    ok(craft.visible, '2 G1080: follow() shows it again (a far pass the near one never followed)');
+    SN.S.on = false; SN.apply(L); sunL.shadow.updateMatrices(sunL);
+    ok(craft.visible, '2 G1080: with the near map off the aeroplane stays in the far map (its only shadow)');
+    SN.S.on = true; SN.apply(L); SN.S.farHide = false; sunL.shadow.updateMatrices(sunL);
+    ok(craft.visible, '2 G1080: farHide off (the A/B) - the aeroplane in the far map, as before');
+    SN.S.farHide = true; scene.remove(sunL);
+    ok(/SHADOW_NEAR\.farLight\(sun\)/.test(src('src/viewer/render_world.js')), '2 G1080: render_world hands the far light to farLight'); }
   ok(/if \(!inGarage && window\.SHADOW_NEAR && SHADOW_NEAR\.aim\) SHADOW_NEAR\.aim\(\);/.test(src('src/viewer/app.js')) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera, groundAt\)/.test(src('src/viewer/render_world.js')),
     '2 G1080: app.js re-aims right after poseModel; render_world hands follow() the ground under the aeroplane');
 }
