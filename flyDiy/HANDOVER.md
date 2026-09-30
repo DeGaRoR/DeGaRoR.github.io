@@ -66880,3 +66880,68 @@ MEASURED (the ratchet, fresh parked cook a40485081dcf, vs train 18; two runs eac
   metal: fps 31.9 =, p99 33.5 =, loop 12.6 -> 12.0, render 9.2 -> 8.8 ms, garage 41.6 -> 41.1 s, flight 45.0 -> 44.55 s
 FRAMECOST PASS (baseline re-taken, 69 falls). Battery: FULL tier on pass 1 (with revealcam): all PASS but FRAMECOST;
 the targeted re-run on the final tree (ROLLANIM BOOT UISMOKE PROGRAMS ROUNDTRIP PACE PARKED HITBOX COVER STAND) PASS.
+
+## G1115-G1118 - ROLLOUT-REAL: THE ROLL-OUT SHOT ROLLS OUT OF THE WORLD'S OWN SHED ONTO THE REAL APRON (option A) - NOT LANDED: the shot's fps 5-10 % under master's, deferred to train 19 with the hangar match (2026-09-30, local GPU, branch rolloutreal/g1115)
+
+**The user (2026-09-30):** "The plane rolling out is very cool, but the fact it rolls out to an environment which is not the real
+one is super strange and confusing." Option A (preferred): the real environment; option B: a fixed 3/4 eye in the shed.
+The user approved the roll-out on the evidence ("ok for the roll-out"), then ruled "cure first, else train 19" on the fps.
+
+**Why A could be clean.** The world already stands THE SAME SHED: render_world standShed = hangar.js genHangarBuild(exterior)
+at playerShedDims, at the site's hangar (Jolene HOME: (-190, 712), door east, ry pi; the stand (-154, 712) 23.5 m out,
+heading -54 deg off the door's axis). The green-door building beside it is the premises' own `hangar_long`, another building.
+
+**What is built (all on the branch, gates green):**
+- G1115 hangar.js `opts.open`: the exterior's doors parked open as the room shows them (SHUT = exterior and not open drives
+  the door arithmetic), the inside lined dim (THE DARK INSIDE: back wall, flanks, ceiling - one material, casts nothing,
+  render_world merges it to one draw); render_world SHELL.open (true) and `WORLD.shedFrame()` { node, dims, door, doorAxis }.
+- G1115 rollanim.js: `play({ roll: false })` the check alone; `play({ follow: false })` OPTION B (the eye fixed at a 3/4
+  view in the shed, the aeroplane rolled S.bOut past the door); `playWorld(opts)` THE WORLD ROLL - the main wheels'
+  midpoint straight out of the door until the tail is S.wClear out, then a cubic onto the stand (heading = the tangent,
+  by arc length on play's profile), the craft a RIGID OFFSET of the stand's pose ending at identity (so the flight takes
+  it with no cut), the eye from an establishing point outside the door (candidates judged along the roll: off the
+  footprint, outside the building, the aeroplane in sight) eased onto opts.end (the flight's first frame).
+- G1116/G1117 app.js: check in the shed -> raDissolve (the shed's last frame copied to a 2D canvas, faded 0.45 s: MEASURED
+  0.2-0.5 ms, not a cost) -> rollOutStand -> the world phase (worldRollWhy refuses A for a lined-up start, another field,
+  floats, a world step to run, ?rollreal=0 -> B) -> rollHold + poseModel + contactShadows + revealPose (flRevealStart +
+  placeCamera run on the real code, every value put back) -> playWorld -> the reveal, which EASES IN over 0.8 s
+  (flRevealIn: the reveal's first step was 0.33 m, now 0.001 m). The trip carries animWhere, cutMs, dissolveMs, planMs.
+  The loop's ROLLANIM hook cancels a shot only in the wrong scene (ROLLANIM.world()).
+- G1118 THE CURE (did not pass): worldWarmShed (four door-front views, one a task, in the loading) and the establishing
+  eye scored by its frustum's draws (raGatherSpheres / raDrawCost, S.wDraw) - draws median 1711 -> 1664, the fps unmoved.
+- Gates: ROLLANIM +G1115-G1117 (1053 checks: the end pose exact, the start in the shed, the door crossed straight, no frame
+  jump, the eye clear, no allocation a frame - the doubles out of per-frame calls, 97.5 -> < 64 B -, skip, cancel,
+  refusals, the check alone, option B); HANGAR (the open exterior). tools/_rollreal_page.js: the page in node (the world
+  roll played, the flight held, the stand's pose, the hand-over, the cut's real ms, per-frame draws / links / uploads).
+- Rigs: tools/rollreal_shots.js (CDP screencast of the shot) + rollreal_pick.py; rollout_perf.js: ONE press (the bar's
+  #bGo - clicking #edRoll too SKIPPED the shot: every run before measured a skipped shot), the shot waited out AFTER
+  tReveal (unchanged), SHOT line + timeline, --garage-fps. The rig alone went to train 18 as rolloutreal/rig-only 1fe26f49.
+- Evidence: tools/perf/rolloutreal_evidence/ (13 frames, 1.55 MB: after_cub x7, after_metal x3, before_cub x3).
+
+**The measurements (same session, master 220812de vs the branch, the fixed rig, a cooked tree, warm origins, ABBA):**
+| | master Cub | branch Cub | master metal | branch metal |
+|---|---|---|---|---|
+| SHOT fps (click -> the shot's end) | 57.6 / 57.7 | 54.6 / 53.7 | 39.0 | 34.9 |
+| long tasks in the shot | click 255 + 61 + end-cut 71 | click 254 + 55-62 + cut 56-58 | same shape | same shape |
+| garage ready (s) | 40.2 / 40.3 | 40.7 / 40.3 | 40.8 | 40.6 |
+| garage fps fresh | 57.2 / 56.8 | 55.8 / 55.8 | 37.9 | 39.7 |
+| click -> flight (trip ms) | 9481 / 9492 | 9491 / 9505 | 9495 | 9491 |
+| taxi fps delivered (clean 60 s, fair run) | 35.1 / 35.5 | 36.7 / 36.8 | 32.9 | 32.8 |
+The shot's misses cluster in the establishing view's first 2 s (6-12 a second, the first two 50 ms at the cut) and the
+dolly's last 2 s; the middle second has none: the world's per-frame draw at those views (~1660-1710 draws against the
+stand's 1578), not first-view uploads (the warm views changed nothing; node: a recurring 7 MB upload on world frames,
+4.5 MB on the flight's own).
+
+**TRAPS (each cost a run):** (1) the parked cook is signed with FLYDIY_BUILD, so an uncooked branch captures every parked
+aeroplane live in the loading (+4 s `parked`): cook the tree (tools/parked_cook.js, local, restore after) before timing;
+(2) the flown bake's IndexedDB is per ORIGIN - a new port is a cold bake (+1.5-4.5 s): warm each origin per build;
+(3) rollout_perf clicked every 'Roll out' button (the editor's too) - the second press skipped the shot; (4) --trips' frames
+fall inside the rig's flight window (its taxi line): read taxi on the recording window only; (5) a double handed to a
+per-frame call allocates (G1037) - pathAt / eyeW read typed arrays; (6) the gate's end eye must be the host's
+(keepOutOfShed at CAM_NEAR), and the planner's building margin under it.
+
+**TRAIN 19 (approved in principle by A0):** the shot's fps back to master's FIRST (an explicit cap policy for the shot -
+an even 30 if 60 can't hold - the user to judge "even"; or a cheaper world for its 6 s: the far rings / stream frozen,
+the cascades every other frame), then the hangar match: the room's own CubeCamera render as an INTERIOR-MAPPED box in the
+world shed (props, windows, warm lamps: 1 draw, 1 program prelinked, re-rendered only where bakeHangarEnv runs), and the
+craft's PMREM mixed room -> world by one uniform across the door plane (prelinked with compileCraft).
