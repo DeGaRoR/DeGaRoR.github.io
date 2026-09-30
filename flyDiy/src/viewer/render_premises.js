@@ -1303,11 +1303,11 @@ function make(THREE, scene, world, rec0, opts) {
     const qo = /[?&]outlod=([01])\b/.exec(location.search); if (qo) HLOD.outLod = +qo[1];   // the outbuildings alone (after houselod)
   }
   let IN_STREAM = false;   // a build the in-flight stream makes (stream(): no lod 1 there); declared up here, no TDZ (G570)
-  // G1075: the loading's settle slice has run out of time (app.js worldAtRest's FLYDIY_SLICE): a heavy build waits for
-  // the next call. Never in flight (no slice there)
-  const sliceSpent = () => { const S = typeof window !== 'undefined' && window.FLYDIY_SLICE; return !!(S && performance.now() >= S.until); };
   const LOD_U = { uLodA: { value: HLOD.near }, uLodB: { value: HLOD.far2 }, uLodW: { value: HLOD.fadeW }, uLodOn: { value: HLOD.fadeW > 0 ? 1 : 0 } };
   const LOD_DECL = 'uniform float uLodA, uLodB, uLodW, uLodOn;';
+  // G1075: the loading's settle slice has run out of time (app.js worldAtRest's FLYDIY_SLICE): a heavy build waits for
+  // the next call. Never in flight (no slice there). (Not above LOD_U: GATE PREMCOOK hashes the lifted HLOD .. LOD_U.)
+  const sliceSpent = () => { const S = typeof window !== 'undefined' && window.FLYDIY_SLICE; return !!(S && performance.now() >= S.until); };
   // the fragment half: `edges` 'in:A' / 'out:A' (at near; 'in:B' / 'out:B' at far2, unused) - where this rung arrives or leaves
   const lodDither = edges => ['if (uLodOn > 0.5) {',
     '  float _ln = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',

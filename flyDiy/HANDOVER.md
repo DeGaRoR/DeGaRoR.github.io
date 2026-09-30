@@ -65591,3 +65591,55 @@ TRAIN-17 TIP (ed6930f1, a detached worktree on the box, the same four gates): th
 Train 17's, not this branch's; they need the train's re-cooks and AS6's missing media.
 Evidence: tools/perf/simw_bench_g1095.json (every run's taxi row, gates, settings, the 60 windows, the pause probe, the
 settings profile).
+## G1075-G1079 LOAD-SETTLE: THE SETTLE STEP'S TWO ~1.1 s TASKS CUT, THE STEP 15-16 s -> 10.7 s (2026-09-30)
+The OPEN item of G1063: the one loading's 'settle' step (app.js worldAtRest, ~26 s in) held two ~1.05-1.1 s tasks on
+every run. worldAtRest checked its 40 ms slice only BETWEEN two worldUpdate calls, and one call could hold a premises
+build, an HLOD cell's merge (with house_tarr's stack drawn in the same task), a stand-card chunk (2 km of heights) and
+the life's stand at once.
+- G1075 THE SLICE'S CLOCK, HONOURED INSIDE THE CALL: worldAtRest publishes `window.FLYDIY_SLICE = { until: t0 + 40 }`
+  for its loop (null again after each slice, and never in flight). The heavy builders start only while the slice has
+  time left - the first of a slice always does: render_premises stream() (a build), hlodTick (a cell's merge),
+  hitPendingStep (a registration), scenery_life tick (the stand, place()), stand_cards update (the stand's bake, a
+  chunk). The work is the same; it no longer bunches. In flight every builder keeps its own per-frame budget, as before.
+- G1076 A STAND-CARD CHUNK BY ROWS (stand_cards.js chunkJob / chunkRows / chunkMesh): the 64 rows of a chunk stop when
+  the settle's slice is spent and the next call goes on from the row it stopped at (the same rows, the same order: the
+  same cards). In flight a chunk is still every row in one call. A job whose chunk leaves the wanted set, a set() or a
+  replant() drops it.
+- G1077 house_tarr's stack is drawn in a task of its own (a setTimeout after the maps settle): with every map already
+  decoded the promise settled as a MICROTASK of the bake that asked for it (a settle slice, a flight frame) and its
+  draws (55-160 ms) landed on top of it.
+- G1078 THE RASTER TILE CACHE IS B1b's LRU (G735, `git diff 28356809 8e781ee3 -- flyDiy/src/core/27_premises.js`
+  applied VERBATIM at A0's request - B1b-rest ports the same onto train 17, so these hunks drop out there). Found here
+  independently: in the t16 boot profile grCooked's OWN time was 3.2 s of the 15 s settle (5.7 s over the boot) - the
+  eviction walked the Map from its head past every null tile on every eviction; in the page 21 273 decodes cost 296 ms
+  in all (FLIGHT_PROBE.world().premises.overlay.raster). After: grCooked is out of the settle's top self list.
+- G1079 meanOf (hlodMerge, the far town's colours) LOOKED AT, LEFT: in the page, 35 house maps drawn cold at 4 x 4 cost
+  59 ms in all (1.7 ms each); an img.decode() first gives the same bytes (35/35) and 0.9 ms, createImageBitmap other
+  bytes (0/35). Not worth an async path: after G1075 the first cell's merge (the one that pays for them) is a task of
+  its own, 302 ms in the profile - the settle step's only task over 250 ms.
+MEASURED (rollout_perf, master 6b90f96e vs the branch, both trees built with a fresh parked cook - the branch's cooked
+locally, not committed -, one private --udd, interleaved, warm; 2 Cub (--settings) + 2 metal Cessna runs each):
+- settle step 15.9 / 15.8 / 15.1 / 16.3 s -> 10.6 / 10.8 / 10.8 / 10.7 s, at rest every run (n 1007-1203 < 1500).
+- settle tasks >= 1 s: 2 a run (1029-1095 ms) -> 0. Worst task in the whole load, Cub 1090 / 1095 -> 797 / 821 ms
+  (garage:seed); metal 1107 / 1145 -> 1049 / 946 ms - garage:spec, the metal build's spec, as in the base (OPEN, not
+  this block's).
+- garage ready: Cub 69.9 / 70.0 -> 63.2 / 64.3 s; metal 74.7 / 70.7 -> 67.0 / 63.7 s. First flight: Cub 73.4 -> 67.1,
+  metal 76.1 -> 68.8 s (medians).
+- taxi: delivered fps 31.7 -> 31.75 Cub, 31.5 -> 31.85 metal; uneven 0.1 -> 0.09 / 0.1; p99 33.5 ms both.
+- rollout_ratchet, the base runs as the baseline: PASS (better: tasks1s, taskWorst, flight, garage metal, settings).
+  Against tools/perf/ratchet_baseline.json both the base AND the branch are RED on garage / flight (metal compile 19.5 s
+  in both vs 7.3): the private profile against A0's shared one - the A/B on one profile is the verdict (A0).
+- the boot profile (rollout_perf --profile-boot, Cub): the settle step's only task over 250 ms is the first HLOD cell's
+  merge, 302 ms (meanOf 243 ms of it); grCooked is gone from its top self list (was 3.2 s); the settle is now the forest
+  fill's own budgeted work (fillStep 4.3 s of 10.5).
+GATES (node, on the branch's build with its own fresh parked cook, local):
+- GATE FRAMECOST: PASS with one new ALLOW - the Cessna's taxi/tris.shadow +51 389.5 (+2.2 %). Bisected on three
+  cessna censuses, the parked cook stale alike: master -> master + the LRU alone: +51 389.5; the LRU -> the whole branch:
+  +0. It is the LRU's harness time (fewer decode timestamps on the virtual clock: the streaming stands otherwise at the
+  taxi frames), the G735 kind; the branch's own counts only fell (boot/garage:settle gl.calls 100 253 -> 88 589, draws
+  16 483 -> 14 430; taxi bufferData 95 262 -> 88 520). 17 counters below the baseline (not --update'd here).
+- the full battery (run_gates --all --jobs=3, A0's shared CPU window): all PASS except PREMCOOK, which failed on the first
+  cut: sliceSpent sat between HLOD and LOD_U in render_premises.js, inside the region premises_cook.js LIFTS (its hash
+  is the cooked places' key). Moved after LOD_DECL (the lifted text is master's again, byte for byte); then PREMCOOK,
+  PREMISES, PREMRASTER, TARR, HITBOX, LIFE: PASS, and FRAMECOST again: PASS.
+- NOT committed: the branch's parked cook (media/parked, src/core/parked_packs.json) - re-cook on the train's build.

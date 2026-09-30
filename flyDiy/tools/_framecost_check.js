@@ -201,6 +201,11 @@ const ALLOW = [
   // step later; the views and every other boot row unchanged, the crew's GPU bytes 85.3 -> 5.3 MiB (Cub).
   { key: 'boot/garage:compile/three.updateMatrixWorld', build: 'cub', upTo: 63900, why: 'the crew\'s landing redraw moved from sync (-3108) to compile (+3108): its KTX2 maps land from the workers', g: 'G937' },
   { key: 'boot/garage:compile/three.updateMatrixWorld', build: 'cessna', upTo: 97100, why: 'the crew\'s landing redraw moved from sync (-7952) to compile (+7952): its KTX2 maps land from the workers', g: 'G937' },
+  // G1078 (LOAD-SETTLE, B1b's LRU G735 taken verbatim): bisected on three censuses with the parked cook stale alike -
+  // master -> master + the LRU alone: the Cessna's taxi shadow +51 389.5 tris; the LRU -> the whole G1075-G1078 branch:
+  // +0. The LRU makes fewer decode timestamps (fewer performance.now() calls on the harness's virtual clock), so the
+  // streaming stands otherwise at the taxi frames; no draw or byte of the frame's own work rose (draws, bufferData down)
+  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 2395000, why: 'the streaming moved by the raster LRU\'s harness time (the virtual clock): master + the LRU alone gives the same +51 389.5', g: 'G1078/G735' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
