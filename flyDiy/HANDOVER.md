@@ -65500,6 +65500,12 @@ above - not reproduced profiled).
 
 GATES (the box, before the rebase, targeted under `take cpu SIMW`): ROUNDTRIP (the worker by default), SIMWORKER,
 SIMWORKER-PAGE (both builds), SIMWORKER-EDGES (both builds), SIMWORKER-PLACE (both builds), PACE, FLIGHTREC, UISMOKE -
-PASS. The full battery on the rebased tree: the READY commit.
+PASS. THE FULL BATTERY on the rebased tree (def9bf63, the box, `--all --jobs=3` in A0's shared CPU window - the cloud CI
+was down): 142 of 146 PASS in 102 min, including ROUNDTRIP, SIMWORKER, SIMWORKER-PAGE, SIMWORKER-EDGES and the new
+SIMWORKER-PLACE; 4 FAIL - FRAMECOST (21 rows: the stand's shadow draws 236 -> 498 etc., the stale parked cook's live
+capture), MEDIA and KTX2 (src/chars/chars_ktx2.js names 12 media/tex/chars/*_Specular / Normal files not in the tree),
+PREMCOOK (the cooked placements' hash against train 17's render_premises.js) - ALL FOUR RED THE SAME ON THE UNTOUCHED
+TRAIN-17 TIP (ed6930f1, a detached worktree on the box, the same four gates): the same 38 FAIL lines, number for number.
+Train 17's, not this branch's; they need the train's re-cooks and AS6's missing media.
 Evidence: tools/perf/simw_bench_g1095.json (every run's taxi row, gates, settings, the 60 windows, the pause probe, the
 settings profile).
