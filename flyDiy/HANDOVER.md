@@ -65766,3 +65766,148 @@ loop JS 22.0 -> 13.4 / 24.7 -> 13.5 ms (the worker); render 11.0 -> 9.7 / 10.7 -
 33.5 both; the Cub: no frame over 100 ms, no task over 1 s. OPEN: the metal Cessna's 1.3-1.4 s task in garage:firstFrame
 (LOAD-COMPILE follows it up for train 18). The CI container's timing gates (BIOME perf, SETTLE bake budget, HITBOX e,
 RWYTREES' 30-min cap) red there, green on the box.
+
+## G855-G859 - C3b: THE TOWN KIT, DRAWN - MATLIB's `house` shape, the stance stretch, one BatchedMesh a material, THE LOOK REVIEW (2026-09-29/30, queue C, local GPU)
+
+QUEUE-C C3b (ARCH-2026-09-27 §4.2-4.5), on C3a's kit (G850). NOTHING CHANGES WITHOUT THE FLAG: the kit is drawn only
+for the look review (`?kitab=...`); no town is converted (C3c's, after the user's verdict). Metlakatla stays off.
+
+G855 THE MATERIAL - MATLIB's `house` shape (src/viewer/matlib.js: MeshStandardMaterial, white / rough 1 / metal 0, the
+TARR material's own base). house_tarr.js makes its town materials through it (GATE ASSETS: house_tarr.js 2 -> 0
+material sites) and now hands out, without a mesh: `classifyMat(m)` (the finish checks of classify), `slot(m, litBase)`
+(a finish's row in the slot table: -1 while a layer is not in the stack, wished for) and `hook(kind)` (the generator's
+hook + the TARR edits + the stack's uniforms: the town program's text, whoever draws it). THE KIT'S SLOT IS (vertex ROLE)
+x (instance LOOK): a look is (finish set, wall / trim / roof paint, weather, dirt) - HOUSE_GEN.applyFinish makes a finish
+of it, house_tarr's slot() reads each role's material back into the SAME table the near town uses, and a small R32F
+texture maps (role, look) -> slot. So a kit house is shaded by the very GLSL a unique house is. THREE DIALS THE 32 B
+RECORD DOES NOT CARRY - the paint punch (by how fresh the paint is), how far the dirt climbs, the frame's age - are
+drawn per record from randomHouse's own ranges off a hash of its place (townkit.js dials(); DEF's one value read as a
+sameness the unique town never had). The looks are read back until they ride (a finish whose maps still decode is
+"nothing yet"): every 30 frames, the stack's ready signal too. The rows are counted as MATLIB rows (`house|townkit|slot`).
+REPORTED by GATE KITHOST F: 156 of 459 kit houses wear exactly their unique house's texture sets and paint (the paint
+always; the sets differ where C3a's 48 finish sets stand in: roof 198, floor 172, deck 165, trim 140, post 135, wall 129,
+stone 88). The sowing has 321 distinct set tuples: 48 sets cover 249 of 522 records exactly, 255 (the record's byte)
+would cover 456 - C3a's FINISH_MAX, the user's call.
+
+G856 THE STANCE STRETCH, in the vertex shader and the shadow pass: y += stance x (a + b x + c z + d x z), the four ground
+offsets of the record as their bilinear coefficients in the GEOMETRY's frame (a mirrored copy's corners are the table's
+swapped back). The world point (the noise, the wander, the clouds) goes through the batching / instance matrix, so the
+finish never repeats with the shape; the dirt line is measured from the ground under the house's middle (the slot's
+uDirtY0 0). GATE KITHOST D: every footprint corner of all 522 records (269 mirrored, 308 stretched), through the host's
+own matrix and data texture, lands on the TERRAIN, worst 0.55 cm; the rigid part on the record's plane.
+
+G857 THE HOST - src/viewer/townkit.js (new, on the page's LAZY list: fetched only by the review). The pack's DataView
+decoder (the tool's own decode, vertex for vertex: GATE KITHOST A); per (archetype, mirror, LOD) the vertices split by the
+material their role wears (plain / double-sided plain: flag, star, awning / glass: glass + pane), 28 B a vertex (f32
+position, i8x4 normal, f32 metre uv, u8x4 AO / role + 64 x lod / stance / glow; aHouseWin on the glass). THE MIRROR is a
+copy (x negated, the faces turned: three culls by the OBJECT's determinant, ARCH §4.3's own proposal). ONE BatchedMesh A
+MATERIAL (3), every house two instances in house order - its rung, and a partner while it crosses a band - the house
+index read in the shader as floor(getIndirectIndex(gl_DrawID) / 2); per-house data in an RGBA32F texture (look, lights,
+seed; the ground field). THE BAND: the rung a geometry draws rides its vertices, so A2-FADES' dither (G801's
+interleaved-gradient noise) is per rung in the shader - lod 0 leaves at 150 m, lod 1 arrives there and leaves at 1.2 km,
+the box arrives (40 m and 120 m wide) - complementary, a pixel draws one rung (GATE KITHOST E transpiles the GLSL and
+sweeps 0-1400 m); the CPU only shows a superset. Casts: the depth material stretches the same, dithers by the EYE's
+distance, and drops a caster past 600 m in the vertex stage (one batch, no cast / no-cast duplicate). THE LIT PANES:
+every pane of the kit can glow (its palette index), the record's lights byte is the lit share (a hash of the pane's
+size, dressing, storey and wall).
+THE MEASUREMENT, BATCH vs INSTANCED (?kithost=inst: one InstancedMesh per archetype x LOD x mirror x material):
+tools/frame_perf.js, the built page on train 16 (master 6b90f96e + this branch; the default-village row on train 17), 1920x1080, the GFX tier, 120 frames, the
+aeroplane held (?simw=0) and hidden; `unique` / `kit` are the live A/B in the same page; the kit's own cull and tick from
+its counters (--after). tools/perf/c3b/fp_*.json.
+| view | host | unique: frame, calls | kit: frame, calls | the kit's cull / tick per frame |
+|---|---|---|---|---|
+| the village (at 900,-2650, 30 m; eye 260 m out, el 0.35): 96 records (84 houses + 12 outbuildings), 20 lod 0, 76 lod 1, 16 partners | batch | 21.6 ms, 1 607 | **11.2 ms, 725** | 0.057 ms (5 walks: main + shadow cascades) / 0.005 ms |
+| the same | inst | 21.7 ms, 1 566 | 11.6 ms, 853 (110 instanced meshes) | - / 0.003 ms |
+| the whole table (522 records over Metlakatla's bare ground, eye 700 m out): 350 lod 1, 172 boxes, 55 partners | batch | 5.2 ms, 185 (nothing there) | **5.5 ms, 190** | 0.179 ms (5 walks) / 0.004 ms |
+| the same | inst | 5.4 ms, 185 | 5.7 ms, 578 (178 meshes) | - / 0.006 ms |
+The `unique` column is the review's unique side - the street's houses held OUT of the far town's bakes (whole meshes);
+the game's own village (TARR-baked, no flag) at the same eye: 10.4 ms, 730 calls (fp_village_default.json, on train 17 220812de + this branch, the flag off). SO THE KIT
+DOES NOT BEAT THE VILLAGE'S DRAW COUNT: G574's TARR bake had already brought the unique village to about the kit's
+count (730 vs 725). What the kit changes is the WEIGHT - ~24 MB of shared vertex data for any number of houses instead
+of ~0.6 GB unique for Metlakatla, nothing built on the main thread, no streaming - which is Metlakatla's problem (C3c),
+not the village's (the user's rule keeps the village unique). The p90 of the first kit row (52 ms) is its
+first draws' program links (the kit's three programs + the depth one; not warmed: the review is a dev flag).
+KEPT: THE BATCH. On the whole table the instanced arm adds 393 draws where the batch adds 5, for 0.2 ms more frame; the
+batch's per-instance cull (G585's "cost moved, not measured") measures 0.06-0.18 ms a frame over its five walks - a few
+dozen draws' worth of three's per-draw path, which is what it saves hundreds of. Memory: the whole kit on the GPU,
+both mirrors, all three rungs, 37.1 MB of vertex + index data (1.24 M vertices at 28 B; ARCH §1.3 est. ~26 MB); the
+village's subset 24.4 MB (unique Metlakatla: ~0.6 GB est.). The instanced arm stays behind ?kithost=inst.
+
+G858 THE LOOK REVIEW - render_premises.js: `?kitab=1` (r_village, the village road) | `<road>[,<road>]` | `village` |
+`all` (every record: a perf probe; with the town off Metlakatla's stand on its bare ground), `?kitmode=kit|unique`,
+`?kithost=batch|inst`, `?kitfade=0`. F7 or the label switches LIVE under the same camera; the label says which is shown.
+The street's unique houses and EVERY outbuilding of its plots (the game plans them in streaming order, the kit in plot
+order) stay out of the far town's bakes and are hidden bag by bag in kit mode - the smoke, the yard, the pier, the
+people and the lamps' props stay (they are the lot's in the kit too). Needs the pack built locally
+(`node tools/town_kit.js --media`, NOT committed: the user's answer 1). The KIT block sits outside the text GATE TARR
+(HLOD .. texMean) and the premises cook (HLOD .. LOD_U: its page hash - unchanged, no stale cook) lift.
+THE SCREENSHOTS (1920x1080, lossless PNG, noon, the aeroplane hidden, each camera unique then kit), tools/perf/c3b_evidence/:
+  r1_street_nw_{unique,kit}   eye height, looking north-west along r_village
+  r2_street_se_{unique,kit}   eye height, looking south-east
+  r3_quarter_a_{unique,kit}   three-quarter, from a roof's height
+  r4_quarter_b_{unique,kit}   three-quarter, from the other side
+  r5_overview_{unique,kit}    from above: the roofs
+(`_index_kitab1.jpg`: 1280 px JPEG q82 copies, committed; the 1920x1080 lossless PNGs are on the box, uncommitted, in
+D:/Dev/wt-c3b/flyDiy/tools/perf/c3b_evidence/, and in the user's gallery.) Taken on master 6b90f96e with
+tools/shadowsky_shots.js + tools/perf/c3b/kitab_views.json (5 cameras x 2; each waits for the kit's finishes and the
+street to have streamed in). The first series, on a train-17 build, was taken at the airfield (the physics worker: see
+FOR THE COORDINATOR) and deleted.
+
+THE USER'S VERDICT ON THE LOOK REVIEW (2026-09-30 09:45, relayed by A0): "the kit streets look good. We don't need more
+variety, but we need to keep the waterfront houses and the piers." The kit as it is - 30 archetypes, 3 for the harbour,
+C3a's 48 finish sets - is APPROVED; no more variety work (the FINISH_MAX question is closed). The procedural waterfront
+houses and their piers (C2c's G843 builds them on Jolene) stay exactly as they are wherever the kit is not used; the
+kit's harbour archetypes keep the waterline (they are sown against the zone's water) and C3c draws their jetty with the
+pier. C3c (Metlakatla on the kit) is unblocked.
+THE USER'S ANSWERS (2026-09-29, relayed by A0; futureDesigns/TOWNKIT-2026-09-27.md): the pack committed later; THE HARBOUR
+GETS THREE ARCHETYPES (town_kit.js allot's per-split FLOOR { water: 3 }: 15 / 4 / 3 - a harbour gable, the cannery shed,
+a two-storey saltbox; the count stays 30, the land 26); the kit sows each house against ITS ZONE'S WATER, the sower's
+zoneWaterY rule (G434; C2c's G843 gives the page's houses the same) - Jolene's harbour reads 0, the pack and table are
+byte-identical. THE JETTY WITH THE PIER is C3c's, with Metlakatla's harbour (the village's waterfront stays unique).
+HOW THE KIT AND THE UNIQUE HOUSES COEXIST (the user's standing rule: the kit is for Metlakatla and instanced far towns;
+the procedural houses and waterfronts stay everywhere else - the village, the editor's premises, the editor's piers
+and boats): the kit host is a separate object render_premises makes only on a flag, beside the unique path (buildHouse
+-> HLOD / TARR, and C2a's worker builds), which it does not touch; the editor never routes through it; a plot is drawn by
+exactly one of the two (the review hides the unique bags it replaces, C3c will choose per zone). Both share house_tarr's
+stack and slot table (one texture set, one program family).
+
+G859 THE PROOF - GATE KITHOST (tools/_kithost_check.js, new, core, ~12 s; registered in run_gates.js): A the bytes
+(the page's decoder = the tool's, every vertex / index / record); B the kinds and the mirror (every face reflected);
+C the edits on r186's standard and depth programs; D the ground (above); E the band; F the looks (+ the report);
+G the hosts (every visible instance its house's archetype / mirror / rung; the instanced arm the same assignment;
+MATLIB's `house` shape); H the wiring (the flags, the far-town skip, the detail cut, the relook, F7, the lazy list).
+tools/frame_perf.js --after '<js>': an expression read after each row (the kit's own cull / tick ms).
+GATES: the full battery (`node tools/run_gates.js --all --jobs=3`, this box, on master 6b90f96e + this branch): every gate
+PASS but two - KITHOST (its 64 checks passed; the verdict line carried the count, run_gates' /^GATE KITHOST: PASS$/
+missed it: fixed, 2d78deb1) and FRAMECOST (the stale parked cook, above; the census's only difference from master's
+was garage:snapshot and the stand's live captures; master PASS). On train 17 (220812de): KITHOST TARR ASSETS MATLIB
+TOWNKIT PASS; the premises cook's lifted page (liftPage) and GATE TARR's span are byte-identical to master's (no stale
+cook, no stale TARR lift). The train-18 battery on the re-cooked final build is the delivery proof (A0).
+ROLLOUT (tools/rollout_perf.js, the built page, headed Chrome, warm private profiles D:/uc3b_base / D:/uc3b_after, each
+tree's parked cook re-made for its own build, a 60 s warm-up then the ratchet's scenario; BEFORE = master 220812de
+(train 17), AFTER = this branch on it; tools/perf/c3b/rollout_*.log, the JSONs on the box):
+| run | delivered fps BEFORE -> AFTER | worst task BEFORE -> AFTER |
+|---|---|---|
+| Cub 1 | 31.8 -> 32.0 | 943 -> 796 ms |
+| Cub 2 | 31.9 -> 31.9 | 1 568 -> 1 135 ms |
+| cessnaMetal 1 | 32.1 -> 32.1 | 1 545 -> 1 320 ms |
+| cessnaMetal 2 | 32.1 -> 32.2 | 1 101 -> 1 416 ms |
+tools/rollout_ratchet.js against the committed (train 17) baseline: AFTER - every line ok (fps, uneven, p99, loop 13.25,
+render 9.85, slice, garage, rollout, flight, compile) but the Cub's taskWorst, 797.5 -> 965.5 ms (slack 150): RED;
+BEFORE, master itself on the same box that night, reads the same line 797.5 -> 1 255.5 ms, RED and worse - the
+roll-out's link race (G1015 records it at 1.3 s), not this branch (whose default path draws nothing new: the kit is
+flag-only). R5 PASS both (uneven 0.07-0.08, p99 33.5 ms at the 30 cap). A0's train-18 ratchet on the re-cooked final build
+is the verdict.
+FOR THE COORDINATOR:
+- matlib.js is inlined: FLYDIY_BUILD moves, the parked cook reads stale until the train build's re-cook (FRAMECOST then
+  shows garage:snapshot and the stand's live captures - the only difference on master, BEFORE PASS).
+- The pack is NOT committed (answer 1): the review needs `node tools/town_kit.js --media` in the tree it runs.
+- c3b/kit is on master 220812de (train 17 landed) and pushed as claude/train-17-c3b; the rebase from train 16 kept the
+  three source commits identical (git range-diff: `=`) - C3c (G860-G864) merged the first of them and relies on nothing
+  that changed since (the host's API, the harbour archetypes, the zone-water sowing). The train-16 conflicts were unions
+  (matlib.js's header, build.js's lazy list, _asset_check's comment).
+- ON TRAIN 17 THE HOLD RIGS ARE BLIND: SIMW_DEFAULT true (C1c) makes FLIGHT_PROBE.sim() a view - shadowsky_shots' HOLD and
+  frame_perf's `at:` write it and nothing moves (the first shot series was taken at the airfield; deleted). A0 gave it
+  to SIMW-BENCH; until then pass ?simw=0.
+- Found: house_tarr's stack is rebuilt WHOLE when a new set is wished (the kit's looks wish the 48 sets' layers once):
+  one CPU pass under the review's first seconds, not in a default boot.
