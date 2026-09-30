@@ -2549,8 +2549,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if ((pt.kind === 'ctlMove' || pt.kind === 'gauge') && pt.ctl && pt.axC) {
         const c = pt.ctl, A = pt.axC;
         const dirM = d => rotP(-d[2], d[1], d[0]);
+        // G1107: A GAUGE TURNS ABOUT ITS TRUE-FRAME AXIS - G476's spinner rule.
+        // The flight turns a gauge in the TRUE frame (poseRigid, G357: K R K^-1
+        // on vertices stored as B^-1 v), so its axis is the raw direction,
+        // normalised - through the positions map (B^-1, a shear on an oblique
+        // pair) the attitude ball's roll axis sat a few degrees off the dial's
+        // normal and was not unit length (a non-rigid quaternion). The
+        // cockpit controls ride the same line (ctlMove) and keep dirM here: owed.
+        const dirT = d => { const a = [-d[2], d[1], d[0]], L = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / L, a[1] / L, a[2] / L]; };
+        const dirA = pt.kind === 'gauge' ? dirT : dirM;
         out2.ctl = { name: c.name,      // live crew: the anchors find it by name
-                     ax: dirM(A.ax), drive: c.drive, sgn: c.sgn, k: c.k == null ? 1 : c.k };   // G371: k 0 is a slide-only part
+                     ax: dirA(A.ax), drive: c.drive, sgn: c.sgn, k: c.k == null ? 1 : c.k };   // G371: k 0 is a slide-only part
         if (pt.kind === 'gauge') {
           // the law, as a table the flight can read without _panel_gen: a
           // `lin` hand sampled over its scale (reading in SI → clock degrees),
@@ -2578,7 +2587,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (c.steps) out2.ctl.steps = c.steps;
         }
         if (A.ax2) Object.assign(out2.ctl,
-          { ax2: dirM(A.ax2), drive2: c.drive2, sgn2: c.sgn2, k2: c.k2 || 1 });
+          { ax2: dirA(A.ax2), drive2: c.drive2, sgn2: c.sgn2, k2: c.k2 || 1 });
         if (A.slide) Object.assign(out2.ctl,
           { slide: dirM(A.slide), slideDrive: c.slideDrive,
             slideSgn: c.slideSgn == null ? 1 : c.slideSgn });

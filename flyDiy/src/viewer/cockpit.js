@@ -29,9 +29,16 @@ const navDeg = rad => ((rad * 180 / Math.PI) % 360 + 360) % 360;
 // the instruments' own lags (s), and what a dead one relaxes toward
 const LAG = { ias: 0.25, alt: 0.2, vs: 2.5, rpmEng: 0.3, nz: 0.1, oilP: 1.0, oilT: 8.0,
               fuelFrac: 1.5, volts: 0.4, roll: 0.15, pitch: 0.15, r: 0.4, beta: 0.3, hdg: 0.5 };
-// (a spun-down gyro leans, it does not fall over — session 4d, the user: "it
-// tends to be faulty on the ground")
-const REST = { ias: 0, alt: 0, vs: 0, roll: 0.20, pitch: -0.12, r: 0, hdg: null, rpmEng: 0, nz: 1,
+// G1107 (CUB-COCKPIT, 2026-09-30, the user from the Cub's seat: "the attitude
+// indicator shows an inclination on the ground, where the plane is perfectly
+// level"): session 4d's spun-down gyro LEANT to a fixed 11.5 deg bank (REST.roll
+// 0.20), and a venturi gyro is spun down under 20 m/s - so every taildragger
+// taxied with its horizon banked. A spun-down ball is not free: its rotor
+// housing is bottom-heavy (that is how it erects), so unpowered it HANGS PLUMB
+// and shows the aeroplane's attitude against gravity, slowly (LAG_HANG) -
+// wings level reads level at any pitch. The rest is the ball's seed, level.
+const LAG_HANG = 1.2;
+const REST = { ias: 0, alt: 0, vs: 0, roll: 0, pitch: 0, r: 0, hdg: null, rpmEng: 0, nz: 1,
                nzMax: 1, nzMin: 1, oilP: 0, oilT: 15, fuelFrac: 0, volts: 0, beta: 0 };
 const PSI = 6894.757;
 const LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
@@ -247,8 +254,8 @@ function make(THREE) {
     raw.ias = ias < 35 / 3.6 ? 0 : ias;   // G700: the ASI's floor - the needle sits on its stop below ~35 km/h (app.js hud)
     raw.alt = cg[1] - CK.qnh;
     raw.vs = o.vs || 0;
-    raw.roll = gyroOk ? (o.roll || 0) : REST.roll;
-    raw.pitch = gyroOk ? (o.pitch || 0) : REST.pitch;
+    raw.roll = o.roll || 0;                // G1107: erect or hanging plumb, the ball shows the attitude
+    raw.pitch = o.pitch || 0;              // (a dead gyro only answers slower - LAG_HANG, below)
     raw.r = busOk ? (o.r || 0) : 0;
     raw.beta = o.beta || 0;
     const hdgNow = navDeg(o.hdg || 0);
@@ -279,7 +286,7 @@ function make(THREE) {
     // the lags
     const R = CK.readings;
     for (const k of Object.keys(raw)) {
-      const tau = LAG[k];
+      const tau = !gyroOk && (k === 'roll' || k === 'pitch') ? LAG_HANG : LAG[k];
       if (k === 'hdg') {
         // the shortest way round for a heading
         let d = raw.hdg - R.hdg; while (d > 180) d -= 360; while (d < -180) d += 360;

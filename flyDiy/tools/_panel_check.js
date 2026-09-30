@@ -410,6 +410,10 @@ function run() {
     // A3: the pose the part was captured in rides the record, so the flight's absolute law can take it off
     check(/part\.restC = er\.x \* part\.ctl\.axis\[0\]/.test(join) && /out2\.ctl\.rest = \+pt\.restC/.test(join),
       'join: a moving part carries the turn it was captured at (rest)');
+    // G1107: a gauge turns in the TRUE frame (poseRigid), so its axes are the raw direction, unit length - never the positions map
+    check(/const dirA = pt\.kind === 'gauge' \? dirT : dirM;/.test(join) && /ax: dirA\(A\.ax\)/.test(join) && /ax2: dirA\(A\.ax2\)/.test(join) &&
+          /const dirT = d => \{ const a = \[-d\[2\], d\[1\], d\[0\]\], L = Math\.hypot/.test(join),
+      'join: a gauge\'s axes (the ball\'s roll and pitch) are its true-frame directions, unit length (G476\'s rule, G1107)');
     // G442.1: the visual prop turns at the solver's shaft speed, not the pilot's throttle
     const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
     check(/const rpm = sim\.out && sim\.out\.rpm && sim\.out\.rpm\[ei\];[\s\S]{0,200}target = rpm \* \(2 \* Math\.PI \/ 60\)/.test(appSrc),
@@ -514,9 +518,18 @@ function run() {
       sim.out.Veas = 0; sim.cgPos = () => [0, 120, 0]; CK.handSw = {};
       check(typeof CK.lightsFor === 'function' && CK.lightsFor({ sunUp: false }, 0, 10).taxi === 1 && CK.lightsFor({ sunUp: true }, 0, 10).taxi === 0, 'lights: the rule is a pure function of the day, the speed and the height');
     }
-    // a still aeroplane on the ground: the venturi makes no suction
-    for (let i = 0; i < 300; i++) CK.frame(1 / 60, sim, { t: i / 60 });
-    check(!CK.gyroOk && near(CK.readings.roll, CKm.REST.roll, 0.05), 'cockpit: below 20 m/s the venturi gyro is dead and the ball lies at rest');
+    // a still aeroplane on the ground: the venturi makes no suction - and the
+    // spun-down ball HANGS PLUMB (G1107, the user: "the attitude indicator
+    // shows an inclination on the ground, where the plane is perfectly
+    // level"): a taildragger sitting 11 deg nose-up, wings level, reads
+    // level wings and its own pitch, slowly
+    sim.out.pitch = 11 * Math.PI / 180;
+    for (let i = 0; i < 600; i++) CK.frame(1 / 60, sim, { t: i / 60 });
+    check(!CK.gyroOk && near(CK.readings.roll, 0, 1e-3) && near(CK.readings.pitch, 11 * Math.PI / 180, 0.01),
+      'cockpit: below 20 m/s the venturi gyro is dead and the ball hangs plumb - wings level read level at 11 deg nose-up', CK.readings.roll + ' / ' + CK.readings.pitch);
+    check(CKm.REST.roll === 0 && CKm.REST.pitch === 0, 'cockpit: the ball\'s seed is level (no leaning rest: G1107)', CKm.REST.roll + ' / ' + CKm.REST.pitch);
+    sim.out.pitch = 0;
+    for (let i = 0; i < 600; i++) CK.frame(1 / 60, sim, { t: 10 + i / 60 });
     check(CK.busOk && near(CK.readings.volts, 12.7, 0.15) && CK.readings.fuelFrac > 0.6, 'cockpit: the battery carries the bus at rest; the fuel gauge reads', CK.readings.volts);
     check(near(CK.readings.alt, 20, 0.01), 'cockpit: the altimeter reads height above the field it left', CK.readings.alt);
     // in flight: the readings arrive through their lags, the alternator carries the bus
@@ -539,6 +552,78 @@ function run() {
     check(near(ang(gauges[3]), -0.3, 0.01), 'pose: the ball rolls against the aeroplane');
     check(near(ang(gauges[5]), -0.42, 1e-6), 'pose: a switch off lies at -k');
     check(near(ang(gauges[7]) * 180 / Math.PI, 90, 1e-6), 'pose: the key at BOTH is three steps of 30 deg');
+    // G1107: THE ATTITUDE, CORE TO BALL. The solver's out.roll off the node
+    // axes, for the Cub-sized GEN_DEFAULT turned RIGIDLY to a heading, a pitch
+    // and a bank (one step of a microsecond reads the panel), then the
+    // cockpit's reading (gyro dead on the ground and erect in flight) and the
+    // bank the posed ball SHOWS: the angle its horizon (the pitch axis, turned
+    // by the pose) makes in the dial's face, about the dial's normal
+    {
+      const defA = C.buildGen(C.GEN_DEFAULT), simA = C.makeSim(defA, null);
+      simA.reset();                                      // a fresh sim's nodes are zeros until reset
+      const rest = Array.from(simA.p);
+      const nA = simA.n, cg0 = simA.cgPos();
+      // body axes at rest: the lateral (zRt) and the longitudinal (-xAft)
+      const [xA0, , zR0] = simA.axes();
+      const rotAbout = (v, k, a) => { const c = Math.cos(a), sn = Math.sin(a), d = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+        return [v[0] * c + (k[1] * v[2] - k[2] * v[1]) * sn + k[0] * d * (1 - c),
+                v[1] * c + (k[2] * v[0] - k[0] * v[2]) * sn + k[1] * d * (1 - c),
+                v[2] * c + (k[0] * v[1] - k[1] * v[0]) * sn + k[2] * d * (1 - c)]; };
+      const nrm = v => { const L = Math.hypot(v[0], v[1], v[2]); return [v[0] / L, v[1] / L, v[2] / L]; };
+      // the rest pose's own pitch is taken out first (the design frame is not level): level = xAft horizontal
+      const pitch0 = Math.asin(Math.max(-1, Math.min(1, -xA0[1])));
+      const pose = (hdgDeg, pitchDeg, bankDeg) => {
+        const lat0 = nrm([zR0[0], 0, zR0[2]]);
+        const ops = [[lat0, -pitch0]];                                   // level the rest pose (about its lateral)
+        let fwd = nrm(rotAbout([-xA0[0], -xA0[1], -xA0[2]], lat0, -pitch0));
+        ops.push([fwd, bankDeg * Math.PI / 180]);                        // bank about the longitudinal (+ = right wing down)
+        ops.push([lat0, pitchDeg * Math.PI / 180]);                      // pitch about the level lateral (+ = nose up)
+        ops.push([[0, 1, 0], hdgDeg * Math.PI / 180]);                   // heading about the vertical
+        for (let i = 0; i < nA; i++) {
+          let q = [rest[i * 3] - cg0[0], rest[i * 3 + 1] - cg0[1], rest[i * 3 + 2] - cg0[2]];
+          for (const [k, a] of ops) q = rotAbout(q, k, a);
+          simA.p[i * 3] = cg0[0] + q[0]; simA.p[i * 3 + 1] = cg0[1] + 50 + q[1]; simA.p[i * 3 + 2] = cg0[2] + q[2];
+          simA.v[i * 3] = simA.v[i * 3 + 1] = simA.v[i * 3 + 2] = 0;
+        }
+        simA.step(1e-6, 1);
+        return { roll: simA.out.roll, pitch: simA.out.pitch };
+      };
+      // the sign convention measured, not assumed: +bank rotates about +forward
+      const sgnB = Math.sign(pose(0, 0, 20).roll) || 1;
+      let worstLevel = 0, worstPitch = 0, worstBank = 0;
+      for (const h of [0, 90, 225]) for (const th of [-5, 0, 11, 20]) {
+        const a = pose(h, th, 0);
+        worstLevel = Math.max(worstLevel, Math.abs(a.roll));
+        worstPitch = Math.max(worstPitch, Math.abs(a.pitch - th * Math.PI / 180));
+        for (const b of [15, -30]) { const q = pose(h, th, b); worstBank = Math.max(worstBank, Math.abs(q.roll - sgnB * b * Math.PI / 180)); }
+      }
+      check(worstLevel < 0.1 * Math.PI / 180, 'AI core: wings level at pitch -5..20 deg and headings 0/90/225, out.roll reads 0', (worstLevel * 180 / Math.PI).toFixed(4) + ' deg worst');
+      check(worstPitch < 0.1 * Math.PI / 180, 'AI core: ...and out.pitch reads the pitch', (worstPitch * 180 / Math.PI).toFixed(4) + ' deg worst');
+      check(worstBank < 0.5 * Math.PI / 180, 'AI core: a known bank (15, -30 deg) at every pitch and heading reads as that bank', (worstBank * 180 / Math.PI).toFixed(3) + ' deg worst');
+      // the cockpit and the ball: dead on the ground, erect in flight
+      const ball = mk('edGauge_ai_ball', { law: 'ball', gauge: 'ai', drive: 'roll', ax: [0, 0, 1], sgn: 1, ax2: [1, 0, 0], sgn2: 1 });
+      const mB = { grp: new THREE.Group(), gauges: [ball], lamps: [], mats: {}, meshes: {}, people: [], data: { lights: { on: true }, people: [] } };
+      mB.grp.add(ball.obj);
+      const simB = { out: { Veas: 0, vs: 0, roll: 0, pitch: 0, hdg: 0, r: 0, beta: 0, rpm: [0], rpmEng: [0], nz: 1 },
+                     fuel: { kind: 'fuel', frac: 0.8, litres: 35 }, eng: [{ running: true, key: 'both', crank: 0 }], cgPos: () => [0, 120, 0], setEngine: () => {} };
+      const CKb = CKm.make(THREE);
+      CKb.bind(mB, mB.data, simB, spec, { fieldElev: 100 });
+      const shown = () => {             // the bank the ball shows: its horizon's angle in the face, about the normal
+        CKb.pose(mB);
+        const d = new THREE.Vector3(1, 0, 0).applyQuaternion(ball.obj.quaternion);
+        return Math.atan2(d.y, d.x);
+      };
+      let worstDead = 0, worstLive = 0;
+      for (const [V, gy] of [[0, 'dead'], [30, 'live']]) for (const h of [0, 90, 225]) for (const th of [-5, 0, 11, 20]) for (const b of [0, 15, -30]) {
+        const a = pose(h, th, b);
+        Object.assign(simB.out, { Veas: V, roll: a.roll, pitch: a.pitch, hdg: 0 });
+        for (let i = 0; i < 480; i++) CKb.frame(1 / 60, simB, { t: i / 60 });
+        const err = Math.abs(shown() + sgnB * b * Math.PI / 180);     // the ball rolls AGAINST the aeroplane
+        if (gy === 'dead') worstDead = Math.max(worstDead, err); else worstLive = Math.max(worstLive, err);
+        if (b === 0) check(Math.abs(shown()) < 0.2 * Math.PI / 180, 'AI ball (' + gy + ' gyro): wings level at ' + th + ' deg pitch, heading ' + h + ': the horizon shows no bank', (shown() * 180 / Math.PI).toFixed(3) + ' deg');
+      }
+      check(worstDead < 0.5 * Math.PI / 180 && worstLive < 0.5 * Math.PI / 180, 'AI ball: a known bank reads on the ball, gyro dead or erect', (worstDead * 180 / Math.PI).toFixed(3) + ' / ' + (worstLive * 180 / Math.PI).toFixed(3) + ' deg worst');
+    }
     // the click: the switch through the pick, the lamp answers at once
     const cam = new THREE.PerspectiveCamera(50, 1, 0.01, 10); cam.position.set(0, 0, 0); cam.lookAt(0, 0, 1); cam.updateMatrixWorld(true);
     grp.updateMatrixWorld(true);
