@@ -4337,8 +4337,10 @@
       // owns its GPU buffers and must give them back
       // (a live character's skinned geometry is SHARED with the editor's
       // instance — the crew layer's own rule at PAGE.post — and stays)
-      if (model.gen) model.grp.traverse(o => {
+      // (G1124.3: the flown bake's parked live meshes back in the graph so their buffers are given back too)
+      const give = () => model.grp.traverse(o => {
         if (o.geometry && !o.isSkinnedMesh) o.geometry.dispose(); });
+      if (model.gen) { if (window.FLOWN_BAKE && FLOWN_BAKE.withKept) FLOWN_BAKE.withKept(give); else give(); }
       if (model.people) for (const P of model.people) {
         P.dead = true;
         if (P.inst && window.CAGE_CHAR) window.CAGE_CHAR.dispose(P.inst);
@@ -6854,12 +6856,15 @@
     if (model && model.wheelParts) for (const w of model.wheelParts) if (w.obj && w.obj.traverse) w.obj.traverse(o => { if (o.isMesh) wheelMesh.add(o); });
     // (C4b, G875: a fold of the baked model was sorted at the build - its crumb folds carry crumbR, the rest cast, a
     // wheel's meshes among them; its merged sphere, in its members' own part frames, is no size)
-    craft.traverse(m => { if (!m.isMesh || !m.castShadow || !m.geometry) return;
+    // (G1124.3: the flown bake's parked live meshes back in the graph for the walk - FLOWN_BAKE.withKept, as tagCraft:
+    // parked, the cabin's crumbs kept casting and the cockpit drew +90 shadow draws a frame on the Cessna)
+    const crumbs = () => craft.traverse(m => { if (!m.isMesh || !m.castShadow || !m.geometry) return;
       if (m.userData.flownMerge) { if (m.userData.crumbR != null) m.castShadow = false; return; }
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       const r = m.userData.crumbR != null ? m.userData.crumbR : m.geometry.boundingSphere.radius;
       const s = m.getWorldScale(new THREE.Vector3()), rw = r * Math.max(s.x, s.y, s.z);
       if (rw < 0.15 && !(wheelMesh.has(m) && rw >= 0.04)) m.castShadow = false; });
+    if (window.FLOWN_BAKE && FLOWN_BAKE.withKept) FLOWN_BAKE.withKept(crumbs); else crumbs();
     setExp(WORLD_EXPOSURE);
     // THE AEROPLANE FLEW OUT STILL REFLECTING THE SHED (user: "the planes look
     // really washed out when they get out of the garage and into the world").
