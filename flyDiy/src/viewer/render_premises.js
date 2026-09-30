@@ -2514,17 +2514,19 @@ function make(THREE, scene, world, rec0, opts) {
   }
   const parkSeed = pk => PG.hash32(pk.seed, PG.fnv(JSON.stringify([pk.plan.centre, pk.plan.yaw, pk.level, pk.key])));
   // THE EDIT'S CELLS (G842): a ground edit (a road, a zone, a runway, a modifier: the editor's `dirty` with a bbox and the
-  // ground on) marks the LIVE_CELL squares its box touches; what stands in them is rebuilt - the worker's cache answers
-  // at once for an entry whose inputs (its ground's raster cells among them) the edit did not move
+  // ground on) marks the ground it can have moved; what stands there is rebuilt - the worker's cache answers at once for
+  // an entry whose inputs the edit did not move. THE REACH IS THE CACHE KEY'S: a key reads the raster cells (the premises
+  // frame's 256 m cells) within 40 m of its entry (premises_build.js inputSig), and an edit re-signs every raster cell its
+  // modifier reaches (a graded road's falloff past its box) - so the box is widened by a falloff's margin, snapped out to
+  // the raster cells it touches, and every entry within 80 m of those (the 40 m of the key and a plot's own size) is
+  // rebuilt now rather than generated at the next boot
   const DIRTY = new Set();
   function markDirty(d) {
     if (!d || !d.bbox || d.ground === false) return;
-    const F = O.frame, b = d.bbox, pad = (d.pad || 0) + 8;
-    const c = [F.toWorld(b.x0 - pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z1 + pad), F.toWorld(b.x0 - pad, b.z1 + pad)];
-    const i0 = Math.floor(Math.min(...c.map(q => q[0])) / LIVE_CELL), i1 = Math.floor(Math.max(...c.map(q => q[0])) / LIVE_CELL);
-    const j0 = Math.floor(Math.min(...c.map(q => q[1])) / LIVE_CELL), j1 = Math.floor(Math.max(...c.map(q => q[1])) / LIVE_CELL);
-    for (const [id, h] of HOUSES) { if (h.isObject || !h.plot) continue; const w = qPos(h.plot); if (!w) continue; const i = Math.floor(w[0] / LIVE_CELL), j = Math.floor(w[1] / LIVE_CELL); if (i >= i0 && i <= i1 && j >= j0 && j <= j1) DIRTY.add(id); }
-    stats.dirtyCells = (i1 - i0 + 1) * (j1 - j0 + 1); stats.dirtyIds = DIRTY.size;
+    const RC = O.rasterCell || 256, pad = (d.pad || 0) + 24, b = d.bbox;
+    const x0 = Math.floor((b.x0 - pad) / RC) * RC - 80, z0 = Math.floor((b.z0 - pad) / RC) * RC - 80, x1 = Math.ceil((b.x1 + pad) / RC) * RC + 80, z1 = Math.ceil((b.z1 + pad) / RC) * RC + 80;
+    for (const [id, h] of HOUSES) { if (h.isObject || !h.plot) continue; const w = qPos(h.plot); if (!w) continue; const L = O.frame.toLocal(w[0], w[1]); if (L[0] >= x0 && L[0] <= x1 && L[1] >= z0 && L[1] <= z1) DIRTY.add(id); }
+    stats.dirtyIds = DIRTY.size;
   }
   function syncHouses() {
     const want = new Map();

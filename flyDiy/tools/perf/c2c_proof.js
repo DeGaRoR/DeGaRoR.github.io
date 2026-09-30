@@ -24,16 +24,17 @@ const shot = async name => { fs.mkdirSync(DIR, { recursive: true }); const f = p
 // the drawing (premises coordinates = world on Jolene: anchor 0, 0, yaw 0), found on the headless compose (G843's probe)
 const ROAD = { pts: [[250, -2760], [290, -2840], [310, -2920], [320, -2990]], w: 4, cls: 'gravel', graded: true, falloff: 6 };
 const ZONE = { kind: 'harbour', poly: [[170, -2730], [400, -2730], [420, -3000], [200, -3010]], density: 1 };
-const BOX = { x0: 150, z0: -3030, x1: 440, z1: -2710 };
+const BOX = { x0: 200, z0: -2860, x1: 330, z1: -2740 };
 const WORKER = 'return (() => { const R = WORLD.premises, S = HOUSE_WORKER && HOUSE_WORKER.stats ? HOUSE_WORKER.stats() : {}; return { built: S.built, hits: S.hits, misses: S.misses, on: S.on, here: R.hw ? R.hw.local : null, dispatched: R.hw ? R.hw.dispatched : null, tallies: R.stats.tallies, hitBase: R.stats.hitBase, hitWalk: R.stats.hitWalk, queued: R.stats.queued, houses: R.houses.size }; })();';
+const HIDE = on => `const P = PREMISES_EDITOR, v = on ? 'hidden' : ''; if (P.panel) P.panel.style.visibility = v; const V = document.getElementById('premView'); if (V) for (const c of V.children) c.style.visibility = v; const G = WORLD.premises.groups; G.outlines.visible = !on; G.handles.visible = !on; return 1;`;
 const MINE = zid => `return (() => { const R = WORLD.premises, out = []; for (const [id, h] of R.houses) { if (!h.plot || h.plot.zone !== ${JSON.stringify(zid)}) continue; let pier = 0, boats = 0, props = 0; const keys = []; h.grp.traverse(o => { const k = o.userData && o.userData.prop && (o.userData.prop.key || o.name); if (k) { props++; keys.push(k); if (/^pier_/.test(k)) pier++; if (/boat/.test(k)) boats++; } }); for (const g of h.extra || []) g.traverse(o => { const k = o.userData && o.userData.prop && (o.userData.prop.key || o.name); if (k && /boat/.test(k)) boats++; }); out.push({ id, failed: !!h.failed, tris: h.tris, pier, boats, props, obst: (h.grp.userData.obst || []).length, shape0: !!h.grp.userData.shape0 }); } return out; })();`;
 async function view(name, yaw, pitch) {
   await run('PREMISES_EDITOR.openEditor(); return 1;');
   await until('return !!(PREMISES_EDITOR.open && PREMISES_EDITOR.ed);', 120000, 'the editor opened');
-  await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame(${JSON.stringify(BOX)}); H.cameras.look(${yaw}, ${pitch}); if (PREMISES_EDITOR.panel) PREMISES_EDITOR.panel.style.visibility = 'hidden'; return 1;`);
+  await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame(${JSON.stringify(BOX)}); H.cameras.look(${yaw}, ${pitch}); return 1;`); await run(HIDE(true));
   await sleep(4000);
   const f = await shot(name);
-  await run('if (PREMISES_EDITOR.panel) PREMISES_EDITOR.panel.style.visibility = ""; return 1;');
+  await run(HIDE(false));
   return f;
 }
 (async () => {
@@ -46,6 +47,7 @@ async function view(name, yaw, pitch) {
     await until("return window.BOOT && BOOT.state === 'gone';", 400000, 'the roll-out');
     await sleep(3000);
     console.log('  rolled out: ' + JSON.stringify(await run(WORKER)));
+    console.log('  steps: ' + JSON.stringify(await run("return (window.BOOT && BOOT.log || []).filter(e => e.k === 'step' && /^(world|town|settle|parked)$/.test(e.id)).map(e => e.id + ' ' + e.ms);")));
     return;
   }
   if (PHASE === 'draw') {
@@ -56,14 +58,20 @@ async function view(name, yaw, pitch) {
     const zid = await run(`return PREMISES_EDITOR.ed.cmd('add', { layer: 'zones', entry: ${JSON.stringify(ZONE)} });`);
     console.log('  drawn: road ' + rid + ', harbour zone ' + zid);
     const t0 = Date.now();
-    await until(`return (() => { const R = WORLD.premises; let n = 0; for (const [, h] of R.houses) if (h.plot && h.plot.zone === ${JSON.stringify(zid)} && !h.failed) n++; return n >= 1 && !R.hw.order.length && R.stats.queued === 0; })();`, 300000, 'the harbour built');
+    for (let k = 0; ; k++) {
+      const st = await run(`return (() => { const R = WORLD.premises, want = R.plots().filter(p => p.zone === ${JSON.stringify(zid)}).length; let n = 0; for (const [, h] of R.houses) if (h.plot && h.plot.zone === ${JSON.stringify(zid)} && !h.failed) n++; return { want, n, order: R.hw.order.length, due: !!R.hw.composeDue, epoch: R.hw.epoch, dispatched: R.hw.dispatched, placed: R.hw.placed, queued: R.stats.queued }; })();`);
+      if (k % 5 === 0) console.log('  +' + ((Date.now() - t0) / 1000).toFixed(0) + ' s ' + JSON.stringify(st));
+      if (st && st.want > 0 && st.n >= st.want) break;
+      if (Date.now() - t0 > 400000) throw new Error('timeout: the harbour built ' + JSON.stringify(st));
+      await sleep(2000);
+    }
     const mine = await run(MINE(zid)), w1 = await run(WORKER);
     console.log('  built in ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s: ' + JSON.stringify(mine));
     console.log('  worker after the edit: ' + JSON.stringify(w1) + '  (generated here on the page: ' + ((w1.here || 0) - (w0.here || 0)) + ')');
-    await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame(${JSON.stringify(BOX)}); H.cameras.look(0.9, 0.42); if (PREMISES_EDITOR.panel) PREMISES_EDITOR.panel.style.visibility = 'hidden'; return 1;`);
+    await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame(${JSON.stringify(BOX)}); H.cameras.look(0.9, 0.42); return 1;`); await run(HIDE(true));
     await sleep(5000);
     await shot('c2c_editor_1_drawn');
-    await run('if (PREMISES_EDITOR.panel) PREMISES_EDITOR.panel.style.visibility = ""; return 1;');
+    await run(HIDE(false));
     const saved = await run(`return (() => { const k = Object.keys(localStorage).find(k => /^flydiy\\.premises\\.game/.test(k)); const v = k ? localStorage.getItem(k) : ''; return { key: k, bytes: v.length, zone: v.indexOf(${JSON.stringify(zid)}) >= 0, road: v.indexOf(${JSON.stringify(rid)}) >= 0, town: (v.match(/"mk_/g) || []).length }; })();`);
     console.log('  saved: ' + JSON.stringify(saved));
     await run('PREMISES_EDITOR.close(); return 1;');
@@ -77,10 +85,10 @@ async function view(name, yaw, pitch) {
     console.log('  the saved harbour: ' + JSON.stringify(mine));
     await run(`const H = PREMISES_EDITOR; H.openEditor(); return 1;`);
     await until('return !!(PREMISES_EDITOR.open && PREMISES_EDITOR.ed);', 120000, 'the editor opened');
-    await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame(${JSON.stringify(BOX)}); H.cameras.look(0.9, 0.42); if (PREMISES_EDITOR.panel) PREMISES_EDITOR.panel.style.visibility = 'hidden'; return 1;`);
+    await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame(${JSON.stringify(BOX)}); H.cameras.look(0.9, 0.42); return 1;`); await run(HIDE(true));
     await sleep(5000);
     await shot('c2c_editor_2_reloaded');
-    await run('if (PREMISES_EDITOR.panel) PREMISES_EDITOR.panel.style.visibility = ""; PREMISES_EDITOR.close(); return 1;');
+    await run(HIDE(false)); await run('PREMISES_EDITOR.close(); return 1;');
     Object.assign(ids, { after: { w, mine } });
     fs.writeFileSync(path.join(DIR, 'c2c_editor_ids.json'), JSON.stringify(ids, null, 1));
     return;
@@ -91,10 +99,10 @@ async function view(name, yaw, pitch) {
     const bb = b.length === 4 ? { x0: b[0], z0: b[1], x1: b[2], z1: b[3] } : BOX;
     await run('PREMISES_EDITOR.openEditor(); return 1;');
     await until('return !!(PREMISES_EDITOR.open && PREMISES_EDITOR.ed);', 120000, 'the editor opened');
-    await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame(${JSON.stringify(bb)}); H.cameras.look(${+(process.env.YAW || 0.9)}, ${+(process.env.PITCH || 0.42)}); if (PREMISES_EDITOR.panel) PREMISES_EDITOR.panel.style.visibility = 'hidden'; return 1;`);
+    await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame(${JSON.stringify(bb)}); H.cameras.look(${+(process.env.YAW || 0.9)}, ${+(process.env.PITCH || 0.42)}); return 1;`); await run(HIDE(true));
     await sleep(6000);
     await shot(process.env.NAME || 'c2c_shot');
-    await run('if (PREMISES_EDITOR.panel) PREMISES_EDITOR.panel.style.visibility = ""; PREMISES_EDITOR.close(); return 1;');
+    await run(HIDE(false)); await run('PREMISES_EDITOR.close(); return 1;');
     return;
   }
   throw new Error('phase: boot | draw | after | clear | shot');
