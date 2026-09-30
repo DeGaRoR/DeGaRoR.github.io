@@ -9,10 +9,12 @@
 // cockpit, the director and the HUD keep their lines.
 //
 //   READS     computed from the snapshot. p is float64 and INTERPOLATED
-//             between the two newest snapshots at T - 1 step (frame(T), once
-//             a rendered frame): smooth at 30/45/60/144 Hz, one 60 Hz step
-//             behind (ARCH §2.2's latency, the prototype's 11-23 ms pose
-//             age). cgPos / axes / bodyOrigin are the solver's own formulas
+//             between the two snapshots that hold T - delay (frame(T), once
+//             a rendered frame; G1100: a ring of the newest five, T on the
+//             host's schedule - SIM_SNAP.DUE - and a delay that follows the
+//             snapshots' lateness, 1-4 steps; it was the two newest at
+//             T - 1 step on their publishing moment, ARCH §2.2's latency,
+//             the prototype's 11-23 ms pose age). cgPos / axes / bodyOrigin are the solver's own formulas
 //             (30_solver.js, the same sums in the same order, Math.hypot for
 //             hyp3 - GATE HYPOT holds them equal) on the view's p, with the
 //             fuel nodes' masses and totalM from the snapshot: at the newest
@@ -28,8 +30,8 @@
 //             (INP.write's door). step() does nothing and is COUNTED
 //             (strays): a stray caller is a hidden sim writer ARCH §2.6
 //             warned of.
-//   BUFFERS   each snapshot's ArrayBuffer goes back to the host when a newer
-//             pair no longer needs it ({cmd:'release'}, transferred).
+//   BUFFERS   each snapshot's ArrayBuffer goes back to the host when it
+//             leaves the ring ({cmd:'release'}, transferred).
 //
 // Transport-agnostic: `opts.post(msg, transfer)` reaches the host and the
 // caller hands every message from it to take(msg). `opts.ready` is the host's
@@ -50,14 +52,38 @@ function simViewDefSig(def) {
 function makeSimView(def, opts) {
   const R = opts.ready, S = R.slots, n = def.nodes.length, N3 = n * 3;
   const post = opts.post || (() => false);
-  const delayS = opts.delayS != null ? opts.delayS : R.dt;     // T - 1 step
   const now = opts.now || (() => performance.timeOrigin + performance.now());
+  // G1100 (POSE-SMOOTH): THE RING AND ITS DELAY. The page drew T - 1 step between the TWO newest snapshots, T mapped to
+  // sim time through the moment the newest was PUBLISHED. On the box (tools/eye_judder.js, the Cub at 60 fps) the drawn
+  // aeroplane moved 28-56 mm a frame on frames of an even 16.7 ms parked, 160-523 mm in the climb (0.08-0.34 mm inline):
+  // the publishing moment carries the step's cost and the timer's lateness, and a successor that had not come by the
+  // frame froze the pose on the newest (then the next frame jumped). Now: the moment is the one the state was DUE on the
+  // host's clock (SIM_SNAP.DUE), the page's T the frame's own timestamp (sim_link.js), the view keeps the RING newest
+  // snapshots of the flight and draws the pair that holds T - delay; the delay (unless opts.delayS fixes it) follows the
+  // windowed worst lateness of the newest snapshot (how far past its moment the frame came, a second of frames) and a
+  // margin, between 1 and 4 steps, moved at most a tenth of the frame's time up and a fiftieth down - the drawn clock
+  // never jumps, it runs a little slow or fast while the delay settles.
+  const RING = opts.ring || 5, fixedDelay = opts.delayS != null;
+  let delayS = fixedDelay ? opts.delayS : 1.5 * R.dt;
+  const Q = [];                            // the ring, oldest first (B = its newest, A = the one before)
+  const DS = { frames: 0, starved: 0, early: 0, lagMax: 0, lags: new Float64Array(60), li: 0, lastT: 0 };
+  const dueOf = f => (f[S.DUE] > 0 ? f[S.DUE] : f[S.WALL]);
+  function adapt(lag, T, running) {
+    const dt = DS.lastT && T > DS.lastT ? Math.min(0.1, (T - DS.lastT) / 1000) : 0;
+    DS.lastT = T;
+    if (!running || !(lag < 0.25)) return;  // a pause, a stall: not the transport's lateness
+    DS.lags[DS.li] = lag; DS.li = (DS.li + 1) % DS.lags.length;
+    let mx = 0; for (let i = 0; i < DS.lags.length; i++) if (DS.lags[i] > mx) mx = DS.lags[i];
+    DS.lagMax = mx;
+    const want = Math.max(R.dt, Math.min(4 * R.dt, mx + 0.002));
+    delayS += Math.max(-0.02 * dt, Math.min(0.1 * dt, want - delayS));
+  }
   const mismatch = R.n !== n || (R.defSig && R.defSig !== simViewDefSig(def));
   const p = new Float64Array(N3), m = new Float64Array(n);
   for (let i = 0; i < n; i++) { const q = def.nodes[i].p; p[i * 3] = q[0]; p[i * 3 + 1] = q[1]; p[i * 3 + 2] = q[2]; m[i] = def.nodes[i].m; }
   const fuelIdx = R.fuelIdx || [];
   const oP = S.HEAD, oV = R.withV ? S.HEAD + N3 : -1, oM = S.HEAD + N3 * (R.withV ? 2 : 1);
-  let A = null, B = null;                  // the two newest snapshots: { f, buf }
+  let A = null, B = null;                  // the ring's two newest snapshots: { f, buf }
   let stamp = null, pending = [], ctlPatch = null, engSent = 'null';
   let strays = 0, takes = 0, mCur = null;
   const cv = [0, 0, 0];
@@ -97,36 +123,52 @@ function makeSimView(def, opts) {
     get stepIndex() { return B ? B.f[S.STEP] : 0; },
     snapshot: () => B && B.f,
 
-    // ---- the frame: the pose at T - 1 step, from the two newest snapshots
+    // ---- the frame: the pose at T less the delay, between the two snapshots that hold that moment (the ring)
     frame(T) {
       if (!B) return null;
       if (T == null) T = now();
-      const fB = B.f;
-      let alpha = 1;
-      if (A && A.f[S.EPOCH] === fB[S.EPOCH] && fB[S.T] > A.f[S.T]) {
-        // the sim time T maps to: B's, plus the wall time since B was published, at the host's rate
-        const tau = fB[S.T] + (T - fB[S.WALL]) / 1000 * (fB[S.RATE] || 1) - delayS;
-        alpha = (tau - A.f[S.T]) / (fB[S.T] - A.f[S.T]);
+      const fB = B.f, ep = fB[S.EPOCH];
+      let X = B, Y = B, alpha = 1;
+      if (T !== Infinity && Q.length > 1) {
+        // the sim time T maps to: B's, plus the wall time since B was DUE on the host's clock, at the host's rate - less
+        // the delay (fixed, or the ring's own: adapt)
+        const lag = (T - dueOf(fB)) / 1000 * (fB[S.RATE] || 1);
+        if (!fixedDelay) adapt(lag, T, !!(fB[S.FLAGS] & S.F_RUNNING));
+        const tau = fB[S.T] + lag - delayS;
+        if (tau < fB[S.T]) {
+          let j = Q.length - 1;                   // the oldest of this flight's snapshots at or after tau
+          while (j > 0 && Q[j - 1].f[S.EPOCH] === ep && Q[j - 1].f[S.T] >= tau) j--;
+          if (j > 0 && Q[j - 1].f[S.EPOCH] === ep) { X = Q[j - 1]; Y = Q[j]; alpha = (tau - X.f[S.T]) / (Y.f[S.T] - X.f[S.T]); }
+          else { X = Y = Q[j]; alpha = 0; DS.early++; }   // before the ring: its oldest
+        } else if (fB[S.FLAGS] & S.F_RUNNING) DS.starved++;   // the snapshot for this moment has not come: the newest
       }
-      if (alpha >= 1) { alpha = 1; p.set(fB.subarray(oP, oP + N3)); }
-      else if (alpha <= 0) { alpha = 0; p.set(A.f.subarray(oP, oP + N3)); }
-      else { const fA = A.f; for (let i = 0; i < N3; i++) p[i] = fA[oP + i] + (fB[oP + i] - fA[oP + i]) * alpha; }
-      for (let j = 0; j < 3; j++) cv[j] = alpha === 1 ? fB[S.CGV + j] : A.f[S.CGV + j] + (fB[S.CGV + j] - A.f[S.CGV + j]) * alpha;
+      const fX = X.f, fY = Y.f;
+      if (X === Y) p.set(fY.subarray(oP, oP + N3));
+      else for (let i = 0; i < N3; i++) p[i] = fX[oP + i] + (fY[oP + i] - fX[oP + i]) * alpha;
+      for (let j = 0; j < 3; j++) cv[j] = X === Y ? fY[S.CGV + j] : fX[S.CGV + j] + (fY[S.CGV + j] - fX[S.CGV + j]) * alpha;
       if (view.v) view.v.set(fB.subarray(oV, oV + N3));
       massesOf(B);
-      // the pose's age: now, less the wall moment the host held the drawn state (between A's and B's publishing)
-      const wShown = A && alpha < 1 ? A.f[S.WALL] + (fB[S.WALL] - A.f[S.WALL]) * alpha : fB[S.WALL];
+      DS.frames++;
+      // the pose's age: now, less the wall moment the host held the drawn state (between X's and Y's publishing)
+      const wShown = X === Y ? fY[S.WALL] : fX[S.WALL] + (fY[S.WALL] - fX[S.WALL]) * alpha;
       // G1100: the drawn pose's own sim time (the sea is drawn at it: app.js WATER.setTime)
-      const tShown = A && alpha < 1 ? A.f[S.T] + (fB[S.T] - A.f[S.T]) * alpha : fB[S.T];
+      const tShown = X === Y ? fY[S.T] : fX[S.T] + (fY[S.T] - fX[S.T]) * alpha;
       return { alpha, ageMs: T - wShown, t: tShown };
     },
+    // G1100: the ring's reading - the delay (s), the frames drawn, those the newest snapshot had to stand for (starved:
+    // its successor late) and those before the ring's oldest (early), the snapshots held
+    delay: () => ({ delayS, fixed: fixedDelay, frames: DS.frames, starved: DS.starved, early: DS.early, held: Q.length, lagMaxS: DS.lagMax }),
+    ring: () => Q.map(s => s.f),
 
     // ---- a message from the host; true when it was a snapshot
     take(msg) {
       if (!msg || msg.kind !== 'snap') return false;
       const s = { f: new Float64Array(msg.buf), buf: msg.buf };
-      if (A) release(A);
-      A = B; B = s; takes++;
+      // G1100: THE RING - the newest RING snapshots of this flight (a new flight's first one lets the last flight's go)
+      if (Q.length && Q[Q.length - 1].f[S.EPOCH] !== s.f[S.EPOCH]) { while (Q.length) release(Q.shift()); }
+      Q.push(s);
+      while (Q.length > RING) release(Q.shift());
+      A = Q.length > 1 ? Q[Q.length - 2] : null; B = s; takes++;
       const M = msg.meta || {};
       if (M.ctl) view.snapCtl = M.ctl;       // G815: the host's ctl as published (sim_link.js mirrors it whole)
       if (M.out) { view.out = M.out; view.out.hydro = M.hydro || null; }

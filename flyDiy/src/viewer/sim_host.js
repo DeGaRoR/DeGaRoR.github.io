@@ -116,12 +116,16 @@ const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePi
                        'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
-const SIM_HOST_POOL = 3;           // snapshot buffers: the page holds two (interpolation), the host writes the third
+const SIM_HOST_POOL = 7;           // snapshot buffers: the page holds up to five (sim_view.js's ring, G1100), the host writes the next, one in flight
 const SIM_HOST_LOG = 8192;         // applied commands kept for {cmd:'log'}
 // THE SNAPSHOT'S HEAD (float64 slots), then p (3n), then v (3n, when asked), then the fuel nodes' masses
+// G1100 (POSE-SMOOTH): DUE - the wall moment the newest state was DUE on the host's own clock (its schedule: wall0 + the
+// steps since the anchor, a 60th of a second each at the set rate), not when it was published (WALL: after the step's
+// cost and the timer's lateness, which moved the page's drawn time by up to half a step frame to frame); WALL where no
+// clock runs (a pause, a snap, lockstep)
 const SIM_SNAP = { SEQ: 0, STEP: 1, T: 2, WALL: 3, STEPMS: 4, DIL: 5, WV: 6, N: 7, FLAGS: 8, CG: 9, CGV: 12,
                    TOTALM: 15, WHEELS: 16, SMAX: 17, LATE: 18, DROPPED: 19, MAXMS: 20, RAN: 21, ALLOCS: 22,
-                   RATE: 23, EPOCH: 24, NF: 25, HEAD: 26,
+                   RATE: 23, EPOCH: 24, NF: 25, DUE: 26, HEAD: 27,
                    F_DIVERGED: 1, F_V: 2, F_RUNNING: 4, F_MANUAL: 8, F_STARTED: 16 };
 
 const simHostGet = (o, k) => { const p = k.split('.'); for (const s of p) { if (o == null) return undefined; o = o[s]; } return o; };
@@ -511,7 +515,7 @@ function makeSimHost(CORE, init, keptWorld) {
     f[S.CGV] = cv[0]; f[S.CGV + 1] = cv[1]; f[S.CGV + 2] = cv[2];
     f[S.TOTALM] = sim.totalM; f[S.WHEELS] = sim.wheelsOnGround(); f[S.SMAX] = sim.stats().smax;
     f[S.LATE] = H.late; f[S.EPOCH] = H.epoch; f[S.NF] = fuelIdx.length;
-    f[S.SEQ] = x.seq; f[S.WALL] = x.wall; f[S.STEPMS] = x.stepMs; f[S.DIL] = x.dil; f[S.DROPPED] = x.droppedS;
+    f[S.SEQ] = x.seq; f[S.WALL] = x.wall; f[S.DUE] = x.due != null ? x.due : x.wall; f[S.STEPMS] = x.stepMs; f[S.DIL] = x.dil; f[S.DROPPED] = x.droppedS;
     f[S.MAXMS] = x.maxMs; f[S.RAN] = x.ran; f[S.ALLOCS] = x.allocs; f[S.RATE] = x.rate;
     let o = S.HEAD;
     const p = sim.p, v = sim.v, N3 = 3 * n;
@@ -589,11 +593,13 @@ function simHostBody(CORE, SH, port) {
   const P = { stepMs: 0, simW: 0, wallW: 0, lastWall: 0, droppedS: 0, guarded: 0 };
   const dil = () => (P.wallW > 0.2 ? P.simW / P.wallW : 1);
   const post = (m, tr) => { try { port.post(m, tr || []); } catch (e) { /* the page is gone */ } };
-  function publish(ran, maxMs) {
+  // (due: G1100, the newest state's moment on the clock's schedule - the pump's; none = now)
+  function publish(ran, maxMs, due) {
     let buf = null;
     while (pool.length && !buf) { const b = pool.pop(); if (b.byteLength === H.len * 8) buf = b; }
     if (!buf) { buf = new ArrayBuffer(H.len * 8); allocs++; }
-    H.write(new Float64Array(buf), { seq: seq++, wall: wallNow(), stepMs: P.stepMs, dil: dil(), droppedS: P.droppedS,
+    const wall = wallNow();
+    H.write(new Float64Array(buf), { seq: seq++, wall, due: due != null ? due : wall, stepMs: P.stepMs, dil: dil(), droppedS: P.droppedS,
                                      maxMs, ran, allocs, rate, running });
     post({ kind: 'snap', buf, meta: H.meta() }, [buf]);
   }
@@ -626,7 +632,7 @@ function simHostBody(CORE, SH, port) {
     }
     const k = Math.exp(-dW);
     P.simW = P.simW * k + ran / 60 / rate; P.wallW = P.wallW * k + dW;
-    if (ran) publish(ran, maxMs);   // one snapshot a turn: the newest state is the only one the page draws
+    if (ran) publish(ran, maxMs, wall0 + (H.steps - step0) / (60 * rate) * 1000);   // one snapshot a turn: the newest state (G1100: stamped with when it was due)
     if (!running) return;
     const next = wall0 + (H.steps - step0 + 1) / (60 * rate) * 1000;
     timer = setTimeout(pump, Math.max(0, next - wallNow()));

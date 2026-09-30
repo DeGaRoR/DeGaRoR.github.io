@@ -361,18 +361,25 @@ const tick = () => new Promise(r => setImmediate(r));
     // (G815: the version is the WORLD's, kept across flights on a kept world - this flight's one setDay moved it by one)
     ok(fB[S.WV] === wv0 + 1 && fB[S.LATE] === 0 && fB[S.STEP] === N && view.state().strays === 0,
        name + ': the world-version counter moved with the day (' + wv0 + ' -> ' + fB[S.WV] + '), no command late, step index ' + fB[S.STEP]);
-    // the interpolation: halfway between the two newest, clamped at both ends
+    // the interpolation. G1100 (POSE-SMOOTH): T maps through the moment the newest state was DUE (a lockstep publish: its
+    // publishing), less the view's delay; the pair that holds that moment is found in the RING (the newest five), clamped
+    // at the ring's oldest and at the newest
     if (b === 0) {
-      const fBw = fB[S.WALL], dt = 1000 / 60;
-      const half = view.frame(fBw + 0.5 * dt);     // tau = tB + 0.5 step - 1 step = halfway from A to B
+      const fBd = fB[S.DUE] > 0 ? fB[S.DUE] : fB[S.WALL], dt = 1000 / 60, D = view.delay(), rg = view.ring(), K = rg.length;
+      const half = view.frame(fBd + (D.delayS * 1000 - 0.5 * dt));   // tau = tB - 0.5 step: halfway from A to B
       const q = view.p[3];
-      view.frame(fBw - 10 * dt);
-      const qA = view.p[3];
-      view.frame(fBw + 10 * dt);
+      const qA = rg[K - 2][S.HEAD + 3], qOld = rg[0][S.HEAD + 3];
+      const two = view.frame(fBd + (D.delayS * 1000 - 2.25 * dt));   // tau = tB - 2.25 steps: a quarter from ring[K-4] to ring[K-3]
+      const q2 = view.p[3], q2a = rg[K - 4][S.HEAD + 3], q2b = rg[K - 3][S.HEAD + 3];
+      view.frame(fBd - 10 * dt);
+      const qP = view.p[3];
+      view.frame(fBd + 10 * dt + D.delayS * 1000);
       const qB = view.p[3];
       // (the wall clock is ~1.8e12 ms since the epoch: its last bit is 2e-4 ms, a 1e-5 of a step)
-      ok(Math.abs(half.alpha - 0.5) < 1e-3 && q === qA + (qB - qA) * half.alpha && qB === sim.p[3] && qA !== qB,
-         'the view interpolates at T - 1 step: alpha ' + half.alpha.toFixed(3) + ' halfway, clamped to the older and the newest snapshot');
+      ok(K === 5 && Math.abs(half.alpha - 0.5) < 1e-3 && q === qA + (qB - qA) * half.alpha && qB === sim.p[3] && qA !== qB &&
+         Math.abs(two.alpha - 0.75) < 1e-3 && q2 === q2a + (q2b - q2a) * two.alpha && qP === qOld && qOld !== qA,
+         'the view interpolates at T less its delay (' + (D.delayS * 60).toFixed(2) + ' steps) in its ring of ' + K + ': alpha ' + half.alpha.toFixed(3) + ' halfway between the two newest, ' +
+         two.alpha.toFixed(3) + ' between the 4th and 3rd newest 2.25 steps back, clamped to the ring\'s oldest and the newest snapshot');
     }
   }
 

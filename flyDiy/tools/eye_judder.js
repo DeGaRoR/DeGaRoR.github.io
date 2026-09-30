@@ -109,6 +109,9 @@ function stats(rows) {
   const t1 = Date.now(); let up = false;
   while (Date.now() - t1 < 300000 && !up) { await sleep(1000); up = await run(`return (FLIGHT_PROBE.agl() || 0) > 60;`); }
   await rec('climb');
+  // G1100: the worker view's ring (its delay, the frames it drew, those starved of a successor and those before its oldest)
+  info.ring = await run(`const s = window.FLYDIY_SIMW && FLYDIY_SIMW.state ? FLYDIY_SIMW.state() : null; return s ? s.ring || null : null;`);
+  console.log('ring ' + JSON.stringify(info.ring));
   fs.writeFileSync(OUT, JSON.stringify(info));
   console.log('-> ' + OUT);
 })().catch(e => { console.error('eye_judder: ' + (e && e.stack || e)); process.exit(1); });

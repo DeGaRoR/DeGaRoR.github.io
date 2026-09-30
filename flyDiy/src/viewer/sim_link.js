@@ -444,7 +444,9 @@ const SIM_LINK = (() => {
     // ---- THE LOOP'S DOORS -------------------------------------------------------------------------------
     // the step block: null = fly this frame inline (no worker, not this flight); else the frame's result
     // { ran: the steps the picture moved on, simDt: their sim seconds, hold: nothing flies yet (the frame owes nothing) }
-    function frame(nStep, simRate) {
+    // (ts: G1100, the frame's own rAF timestamp - the moment the page draws for, on the vsync the inline loop owes its steps
+    // against; none: now)
+    function frame(nStep, simRate, ts) {
       if (dead && (!flight || flight.inline)) return null;   // no worker to be had: the page's loop, as it always was
       const S = o.get();
       if (!flight || S.ap !== flight.ap || S.sim !== flight.sim) begin(S);
@@ -483,7 +485,7 @@ const SIM_LINK = (() => {
         if (st.wvLagFrames > st.wvMaxLag) st.wvMaxLag = st.wvLagFrames;
       }
       st.batches++;
-      mirror(performance.timeOrigin + performance.now());
+      mirror(performance.timeOrigin + (typeof ts === 'number' ? ts : performance.now()));
       const ran = Math.max(0, F.lastStep - F.shown);
       F.shown = F.lastStep;
       st.physMs = performance.now() - t0;
@@ -555,7 +557,8 @@ const SIM_LINK = (() => {
     const api = {
       frame, idle, warm, shed, prewarm, leg, perf, card,
       state: () => Object.assign({}, st, { dead, flight: flight ? { live: flight.live, inline: flight.inline, posted: flight.posted, frames: flight.frames, epoch: flight.epoch } : null,
-                                           view: flight && flight.view ? flight.view.state() : null }),
+                                           view: flight && flight.view ? flight.view.state() : null,
+                                           ring: flight && flight.view && flight.view.delay ? flight.view.delay() : null }),   // G1100: the view's ring and delay
       live: () => !!(flight && flight.live),
       dead: () => dead,
       record: () => (o.premises ? o.premises() : null),   // the premises the worker's world is made on (the page's WB.premisesPlaced)
