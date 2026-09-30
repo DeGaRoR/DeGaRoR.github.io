@@ -1,0 +1,93 @@
+train: claude/train-17
+sha: 64fd9b30506f9f920cf51810c82cb738d0ca7f7a
+command: node tools/build.js && node tools/run_gates.js --all --jobs=4
+node: v22.22.2
+host: 4 cores, 15 GB
+wall: 11798 s (2026-09-30T08:30:54Z -> 2026-09-30T11:47:32Z)
+exit: 1
+
+== non-PASS summary lines ==
+──────── summary ────────
+FRAMECOST FAIL   414.2 s
+MEDIA     FAIL     1.1 s
+KTX2      FAIL    10.4 s
+PREMCOOK  FAIL   334.4 s
+HITBOX    FAIL   632.6 s
+RWYTREES  FAIL  1800.2 s
+BIOME     FAIL    12.8 s
+total           22044.0 s
+wall            11796.1 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+
+== FRAMECOST: FAIL detail ==
+  FAIL cub stand/bytes.uniforms rose 313004 -> 500168 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/draws.main rose 999 -> 1054 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/draws.shadow rose 236 -> 484 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.calls rose 10451 -> 13264.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4f rose 217 -> 435 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4fv rose 1123 -> 3049 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/draws.main rose 938.5 -> 983 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/draws.shadow rose 169.5 -> 192.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/gl.uniform2f rose 47 -> 147 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/tris.shadow rose 2203830 -> 2245734.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/bytes.uniforms rose 316528 -> 504042 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/draws.main rose 1010 -> 1065 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/draws.shadow rose 243.5 -> 492 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.calls rose 10573 -> 13400.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4f rose 223 -> 441 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4fv rose 1135 -> 3061 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.main rose 949.5 -> 993 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.shadow rose 177 -> 198.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.bindBuffer rose 26 -> 29 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.uniform2f rose 53 -> 151 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/tris.shadow rose 2338794 -> 2367624.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+GATE FRAMECOST: FAIL (21)
+(exit code 1)
+
+== MEDIA: FAIL detail ==
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch42/Ch42_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch02/Ch02_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch02/Ch02_1002_Normal.69aea26d.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Body_Diffuse.ee25ee7e.jpg, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Body_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Bottom_Specular.52cf6e73.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Hair_Specular.62ef0b6d.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Shoes_Specular.52cf6e73.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Top_Specular.52cf6e73.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch22/Ch22_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch01/Ch01_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch20/Ch20_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+GATE MEDIA: FAIL
+(exit code 1)
+
+== KTX2: FAIL detail ==
+FAIL 10 the characters' page: the budget set by default, upgraded in place; ?ktx2=0 = the 2048 maps (the old texture(), no KTX2); a stale row or a failed transcode = the 2048 map; a flat normal = no map; the gloss read only with ?chargloss=1  (_cage_char.js on stubs threw: ReferenceError: TEX_FLAT is not defined
+GATE KTX2: FAIL
+(exit code 1)
+
+== PREMCOOK: FAIL detail ==
+  FAIL the page's placement code (lifted from render_premises.js) is the one cooked (b73ad00c6d48b177 / 58d26229eab3d62f)
+  FAIL default: the placements hash as cooked - 215 things, 32eedeecfa869f2b / dd740d3150965953
+  FAIL default: every place cell as cooked, byte for byte (23 cells, 9 differ)
+  FAIL town: the placements hash as cooked - 695 things, 97a8b3c2721b461f / 46944ad6b315ee9f
+  FAIL town: every place cell as cooked, byte for byte (56 cells, 32 differ)
+GATE PREMCOOK: FAIL
+(exit code 1)
+
+== HITBOX: FAIL detail ==
+  FAIL each in a fraction of a second  (slowest 423 ms (first calls pay the JIT))
+GATE HITBOX: FAIL
+(exit code 1)
+
+== RWYTREES: FAIL detail ==
+(no FAIL line in the gate's output; the runner requires the exact last line 'GATE RWYTREES: PASS' and exit 0 - the section's last lines:)
+  ok   7 map: the visible forest of 13/31 and 02/20 nearer than today on every side  (HOME L, HOME R, w2 L, w2 R)
+  ok   8 map: the aluminium C172 flies Jolene AFB 13/31's circuit to a stop and touches no tree  (STOPPED at 442 s; nearest node to a tree cylinder (below its top): taxi 62.0 m, roll 74.0 m, climb 102.3 m, circuit none within 64 m, final none within 64 m, landing 101.4 m)
+[spawn error] ETIMEDOUT after 1800000 ms
+(exit code null)
+
+== BIOME: FAIL detail ==
+  FAIL: surface perf<5us
+GATE BIOME: FAIL
+(exit code 1)
