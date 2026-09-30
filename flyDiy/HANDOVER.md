@@ -66165,6 +66165,7 @@ same cluster (C3b's review showed them so). Then the G590 question is the user's
   unique until `node tools/town_kit.js --media` is re-run (GATE METKIT A goes red first).
 - The kit is Jolene's (the table is one island's); another island's manifest entry is what brings it elsewhere.
 ## G840-G844 - C2c: THE TOWN'S TEXTURE ARRAYS COOKED OFFLINE; THE COOK'S TALLIES (THE PAGE DRESSES AS THE COOK PLACED, IN ANY ORDER); THE EDITOR'S EDITS BUILT BY THE WORKER; A HOUSE READS ITS ZONE'S WATER (PIERS ON JOLENE); THE HOUSE'S OBSTACLE RASTERISED IN THE WORKER (2026-09-29/30, C2c of QUEUE-C, local GPU)
+## G840-G844 - C2c: THE COOK'S TALLIES (THE PAGE DRESSES AS THE COOK PLACED, IN ANY ORDER); THE EDITOR'S EDITS BUILT BY THE WORKER; A HOUSE READS ITS ZONE'S WATER (PIERS ON JOLENE); THE HOUSE'S OBSTACLE RASTERISED IN THE WORKER (2026-09-29/30, C2c of QUEUE-C, local GPU)
 
 WHY: ARCH-2026-09-27 §3.2, §3.3, §3.4 steps 4-5; QUEUE-C "C2c". After C2a the page generated no house, but it still
 (a) assembled the town's texture arrays on the CPU (house_tarr.js: every map drawn into a canvas, getImageData, the
@@ -66175,27 +66176,18 @@ the premises editor inline (100-200 ms a house), and (d) rasterised each house's
 thread. And the user's constraint (2026-09-29): the procedural houses, waterfronts and the editor's PIERS WITH BOATS
 must keep working outside Metlakatla - on Jolene no house pier had ever been built (G843).
 
-G840 THE TARR LAYERS COOKED OFFLINE (tools/tarr_cook.js, src/viewer/house_tarr_pack.js, media/tex/house_tarr/)
-- house_tarr.js's canvas pass is one exported function, `packer(px, doc)` (albedo: drawn, rows flipped, alpha 255;
-  nr: the normal's rgb + the rough map's green in alpha) - the page's fallback AND what the cook runs.
-- tools/tarr_cook.js runs THAT function in headless Chrome (--disable-gpu: a willReadFrequently canvas is the CPU path in
-  the headed page too; no GPU lock needed) over every set of house_tex.js: 72 layers (41 colour maps, 31 normal+rough
-  pairs), each written as one gzip stream of its raw 512^2 RGBA8 bytes, named by their hash; the pack keys a layer by
-  the map's media path ('a|<path>', 'nr|<nor>|<rough>', 'flat:r,g,b' for a constant) and carries each colour map's 4 x 4
-  channel sums (render_premises meanOf, the far town's colour: no pixel read there either).
-- The stack FETCHES a layer the pack names (ASSET_FETCH, gunzipped off the thread by DecompressionStream) and copies it
-  into place; a map the pack does not name, or a fetch that fails, takes the canvas pass as before. A cooked map rides
-  the stack before its image has decoded (classify), so the first bake is complete and no cell rebakes for a late image.
-- THE SWITCH (the AS3 seam): ?tarrfmt=canvas (the old pass, the A/B's before) | raw (the default with a pack) | ktx2
-  (reserved: FMTS in house_tarr.js is { fetch, mk } per format; KTX2's compressed array goes in beside raw from the same
-  raw layers - AS2/AS3's array_cook.js encodes a raw plane by role). ?tarrcheck=1 draws every cooked layer with the
-  canvas too and compares (stats.tarrCheck).
-- THE PRICE, out loud: 72 MiB raw -> 32.5 MiB gzipped in git and, on a first visit, the ~63 layers Jolene asks for over
-  the wire (they are photographs: gzip keeps most). KTX2 (UASTC) is the cure; VRAM is unchanged by this step (raw RGBA8
-  + mips, as the canvas made them).
-- GATE TARR 6a-6e: the pack covers the library by the page's own keys; every file on disk, px^2 x 4 bytes, named by its
-  hash; the cook not stale (the packer's source hash, the library's); a not-yet-decoded map rides the stack only when
-  cooked; the stack's array holds the file's bytes and no canvas draws.
+G840 THE TARR LAYERS COOKED OFFLINE - BUILT, MEASURED, WITHDRAWN BEFORE TRAIN 18 (the coordinator's call, 2026-09-30)
+- What it was: house_tarr.js's canvas pass (every house map drawn into a canvas, getImageData, the channel shuffle) run
+  ONCE offline by tools/tarr_cook.js in headless Chrome, 72 raw 512^2 layers under media/tex/house_tarr, fetched by the
+  stack instead of drawn (?tarrfmt=canvas|raw|ktx2). It worked: in the headed page 60 cooked layers were byte-identical
+  to the canvas pass (?tarrcheck=1), the fill 22 ms.
+- Why withdrawn: THE WIRE. The pack is 32.5 MiB gzipped (photographs: gzip keeps ~45 %); a cold default-Jolene boot
+  fetches ~27 MiB of it during the loading (the whole stack once, at the first near bake), where today the page draws the
+  layers from JPEGs it downloads anyway - to save one main-thread task of ~0.2-0.3 s (the canvas pass, a task of its own
+  since G1075). The rigs serve from disk and never saw the network cost. Kept on branch c2c/tarr as 85b1086a.
+- The right follow-up, ZERO extra bytes: the same canvas pass in a WORKER (createImageBitmap + OffscreenCanvas: the same
+  software Skia, the same texels), the JPEGs being downloaded anyway; KTX2 (UASTC, ~1 B/texel before zstd) only when the
+  GPU saving is wanted and the wire is budgeted.
 
 G841 THE COOK'S TALLIES (premises_build.js makeTallies / rankQueue / inputSig; premises_cook.js; the loaders in build.js
 and island_node.js; 20_world.js island.places)
@@ -66290,8 +66282,8 @@ profiles %TEMP%/c2cbeforew / c2cafter2w, --port 8741, --fallback; runs on the bo
   within slack, garage 43.1 -> 42.8 s).
 - The town step's +0.2-0.3 s is G843's: the piers are ~300 more props to place (a pier on/off pair of boots, cold-ish:
   town 8.4 s with ?pierwater=0, 9.2 s without). Justified by the user's ruling on piers (the coordinator, 2026-09-29).
-- TARR in the headed page (?tarrcheck=1): 60 cooked layers, 60 byte-identical to the canvas pass, 0 differ; 6 layers
-  stay canvas (maps outside the house library); the layers' fetch 0.9 s off the thread, the fill one 40 ms task.
+- (these numbers include G840, withdrawn after them: its only effects were a ~0.25 s main-thread task saved and the
+  ~27 MiB fetch the rigs could not see)
 - VRAM (renderer.info, and the scene walk's estimate - tools/perf/c2c_eval.js): textures 742 -> 745, their bytes 948 ->
   972 MiB (the piers' prop textures); the town's arrays 88 MB both (raw RGBA8 + mips, as the canvas made them).
 - GATE HOUSEWORKER in node: the town step's wall 8.3 s inline -> 1.4 s with the worker; every entry bit-identical and on
@@ -66300,9 +66292,7 @@ profiles %TEMP%/c2cbeforew / c2cafter2w, --port 8741, --fallback; runs on the bo
   stale parked keys, above); FRAMECOST and HOUSEWORKER re-run after the re-cook: see below.
 
 FOR THE NEXT SESSION
-- KTX2 for the TARR (the AS3 seam is FMTS in house_tarr.js; the encoder, basisu 1.16.4, is not installed on the box:
-  `npm install` in flyDiy/ brings it). UASTC for both stacks (colour and normal+rough: four meaningful channels), the
-  arrays as CompressedArrayTexture like ground_lib.js; ~4x less VRAM and far less wire than the raw layers.
+- The TARR canvas pass in a worker (see G840 above) - removes the ~0.25 s task with no bytes.
 - A no-cook world (the analytic world's Skarvik, a user's own premises) dresses on the live tallies: its cache still
   misses across stands. A client-side cook of the tallies at the save (the record's order, in the worker) closes it.
 
