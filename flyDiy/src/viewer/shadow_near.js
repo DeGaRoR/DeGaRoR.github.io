@@ -68,7 +68,7 @@ var SHADOW_NEAR = (function () {
   const NEAR_LAYER = 3, FAR_LAYER = 2, CRAFT_LAYER = 5;   // the near map's viewport 0 sees 3, its viewport 1 (the craft's cascade) 3 + 5; the far map sees 2 (everything but the craft, unless it is high)
   const S = { on: true, half: 30, size: 1024, bias: -0.0004, biasM: 0.05, normalBias: 0.02, normalBiasTx: 0.9, relief: 150, slantMax: 3000, penumbra: 0.0093, radiusMax: 2.5, self: true, slant: 0,   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra), per viewport
     craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0,
-    aimDrawn: true };   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
+    aimDrawn: true, farHide: true };   // G1080: ... ; farHide: the aeroplane hidden while the WORLD's far map draws (three's shadow walk ignores the shadow camera's layers - see farLight)   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
   const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0); yzw: the craft cascade's bias (depth), PCF radius (texels), normal offset (m)
   const nearWindow = new Float32Array(4);           // xy: the craft cascade's depth window (its shadow coordinate z, min / max) - past it, the 60 m box
   const nearUniforms = { uNearP: { value: nearScalars }, uNearQ: { value: nearWindow }, uNearM1: { value: (typeof THREE !== 'undefined' && THREE.Matrix4) ? new THREE.Matrix4() : null } };
@@ -224,7 +224,7 @@ var SHADOW_NEAR = (function () {
     sh.getCamera = function (i) { if (i === 0) { if (S.prune) prune(); return cam1; } unprune(); return this.camera; };
     sh.getFrustum = function (i) { return i ? this._frustum : C1.frustum; };
     sh.updateMatrices = function (light) {
-      eyesUnhide();   // (G1080 A/B config 9: the craft hidden from the far map's pass only)
+      farUnhide();   // (G1080: the aeroplane hidden from the far map's pass only - shown again for the near map's)
       const c0 = this.camera;
       c0.position.setFromMatrixPosition(light.matrixWorld); t0.setFromMatrixPosition(light.target.matrixWorld);
       c0.lookAt(t0); c0.updateMatrixWorld();
@@ -322,7 +322,7 @@ var SHADOW_NEAR = (function () {
   function follow(L, cg, sun, agl, snap, camera, hAt) {
     if (!L) return;
     unprune();   // (a pass that threw between getCamera(0) and getCamera(1) must not leave the world hidden)
-    eyesUnhide();
+    farUnhide();
     const live = apply(L);
     AIM.L = L; AIM.sun = sun; AIM.snap = snap; AIM.camera = camera; AIM.hAt = typeof hAt === 'function' ? hAt : null; AIM.agl = agl; AIM.live = live;
     AIM.cg[0] = cg[0]; AIM.cg[1] = cg[1]; AIM.cg[2] = cg[2];
@@ -407,33 +407,20 @@ var SHADOW_NEAR = (function () {
   // video cannot show a flicker). A label names the configuration; the top-row digits switch it (window.SHEYES(n) too).
   // Every configuration is the shipped state with ONE change; 1 is the state before G1080.
   const EYES_TEXT = {
-    0: 'SHIPPED - this branch as it would land (the cascade aimed at the drawn aeroplane; everything else as before)',
-    1: 'AS TODAY - before G1080: both craft shadow maps aimed at the sim CG, or at the CAMERA under the free camera / editor',
-    2: 'FAR MAP WITHOUT ANY AIRCRAFT MESH - every mesh inside the aeroplane\'s sphere taken out of the world\'s 1 km sun map',
-    3: 'CONTACT SHADOW OFF - the soft blobs under the tyres and the large body blob (A6-GROUND G1002) gone',
-    4: 'FAR MAP EVERY FRAME - the world\'s sun map redrawn each frame instead of every 2nd (SHADOW_RATE.every = 1; costs render time)',
-    5: 'CASCADE FOLLOWS THE DRAWN AEROPLANE - the G1080 fix alone (= 0)',
-    6: 'FAR MAP OFF (diagnostic) - no world shadow at all: trees, houses gone; the craft\'s own maps alone',
+    0: 'SHIPPED - both G1080 fixes: the aeroplane out of the world far map, its crisp shadow aimed at the drawn aeroplane',
+    1: 'AS BEFORE G1080 - the aeroplane also drawn in the far map (the soft trailing halo), the crisp shadow aimed at the sim CG / the camera',
+    2: 'THE SOFT HALO BACK - the aeroplane drawn in the far map again (0 without the soft-shadow fix)',
+    3: 'CONTACT SHADOW OFF - the soft blobs under the tyres and the body blob (A6-GROUND G1002) gone (otherwise 0)',
+    4: 'THE HALO AT 30 HZ - the aeroplane in the far map, the far map drawn every frame (key 4 of the first A/B)',
+    5: 'THE AIM FIX ALONE - the crisp shadow aimed at the drawn aeroplane, the aeroplane still in the far map',
+    6: 'FAR MAP OFF (diagnostic) - no world shadow at all: trees, houses gone; the own maps of the craft alone',
     7: 'CRAFT CASCADE OFF (diagnostic) - the craft in the 60 m box (6 cm texels): what "blurry" looks like',
-    8: 'CONTACT OFF + FAR EVERY FRAME - 3 and 4 together',
-    9: 'AEROPLANE HIDDEN FROM THE PASS OF THE FAR MAP - the whole craft group, whatever its layers say (the far map drawn every 2nd frame as today)',
+    8: 'CONTACT OFF + FAR EVERY FRAME (otherwise 0)',
   };
-  const EYES = { on: false, cfg: 0, box: null, base: null, info: '', hideFar: false, hid: null, wrapped: false };
-  // config 9: the craft's top group hidden while the FAR light's map draws (its updateMatrices runs only on a frame that
-  // draws it, and before the near light's - scene order), shown again when the near light's pass starts (atlas below)
-  function eyesWrapFar(WF) {
-    if (EYES.wrapped || !WF || !WF.sun || !WF.sun.shadow) return;
-    EYES.wrapped = true;
-    const sh = WF.sun.shadow, um = sh.updateMatrices;
-    sh.updateMatrices = function () {
-      if (EYES.hideFar && craftGroup && C1.scene) { let top = craftGroup; while (top.parent && top.parent !== C1.scene) top = top.parent; if (top.visible) { top.visible = false; EYES.hid = top; } }
-      return um.apply(this, arguments);
-    };
-  }
-  function eyesUnhide() { if (EYES.hid) { EYES.hid.visible = true; EYES.hid = null; } }
+  const EYES = { on: false, cfg: 0, box: null, base: null, info: '' };
   function eyesBase() {
     const W = window, CS = W.CONTACT_SHADOW, SR = W.SHADOW_RATE;
-    return { aim: true, craft: S.craft, contact: CS ? CS.S.on : true, every: SR ? SR.every : 2, far: true, strip: false };
+    return { aim: true, farHide: true, craft: S.craft, contact: CS ? CS.S.on : true, every: SR ? SR.every : 2, far: true };
   }
   function eyes(n) {
     if (typeof window === 'undefined') return '';
@@ -441,18 +428,18 @@ var SHADOW_NEAR = (function () {
     const W = window, CS = W.CONTACT_SHADOW, SR = W.SHADOW_RATE, WF = W.WORLD;
     if (!EYES.base) EYES.base = eyesBase();
     const B = EYES.base, c = Object.assign({}, B);
-    if (n === 1) c.aim = false;
-    if (n === 2) c.strip = true;
+    if (n === 1) { c.aim = false; c.farHide = false; }
+    if (n === 2 || n === 4 || n === 9) c.farHide = false;
+    if (n === 5) c.farHide = false;
     if (n === 3 || n === 8) c.contact = false;
     if (n === 4 || n === 8) c.every = 1;
     if (n === 6) c.far = false;
     if (n === 7) c.craft = false;
-    eyesWrapFar(WF); EYES.hideFar = n === 9; eyesUnhide();
+    S.farHide = c.farHide;
     S.aimDrawn = c.aim; S.craft = c.craft;
     if (!c.craft) C1.H = 0;   // (refit now)
     if (CS) CS.S.on = c.contact;
     if (SR) { SR.every = c.every; SR.n = 0; }
-    if (WF && WF.farStrip) WF.farStrip.on = c.strip;
     if (WF && WF.sun && WF.sunw) {
       const want = c.far && WF.sunw.on;
       WF.sun.shadow.camera.layers.set(want ? FAR_LAYER : (WF.sunw.EMPTY || 31));
@@ -471,7 +458,7 @@ var SHADOW_NEAR = (function () {
         'font:600 15px/1.35 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.72);padding:8px 14px;border-radius:6px;white-space:normal';
       document.body.appendChild(d);
     }
-    d.textContent = 'SHADOW-EYES  ' + EYES.cfg + '  -  ' + EYES_TEXT[EYES.cfg] + '     [keys 0-9]' + (EYES.info ? '   ' + EYES.info : '');
+    d.textContent = 'SHADOW-EYES  ' + EYES.cfg + '  -  ' + EYES_TEXT[EYES.cfg] + '     [keys 0-8]' + (EYES.info ? '   ' + EYES.info : '');
   }
   function eyesInit() {
     if (typeof window === 'undefined' || typeof location === 'undefined' || !/[?&]shadoweyes=1/.test(location.search || '')) return;
@@ -496,7 +483,35 @@ var SHADOW_NEAR = (function () {
       eyesBox();
     }, 500);
   }
-  const API = { S, pcf, C1, AIM, EYES, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, eyes, apply, setNear, unprune, get installed() { return installed; } };
+  // ---- G1080 THE SOFT TRAILING SHADOW: THE AEROPLANE OUT OF THE WORLD'S FAR MAP -----------------------------------
+  // The user (2026-09-29): "the soft shadow that trails the clean, crisp shadow ... the soft, still flickery soft shadow".
+  // Their live A/B: only drawing the far map every frame changed it. The cause: THREE'S SHADOW WALK TESTS AN OBJECT'S
+  // LAYERS AGAINST THE MAIN CAMERA, not the shadow camera (r186 WebGLShadowMap: renderObject(object, camera,
+  // shadowCamera, ...) -> object.layers.test(camera.layers)), and every object shares layer 0 with the main camera - so the
+  // layer scheme above (FAR_LAYER on the far map's camera, the craft off it since G601 / G650) never filtered a single
+  // caster in any shadow pass. The aeroplane was in the world's 1 km map all along: a 0.2-1 m texel copy, drawn every 2nd
+  // frame (render_world SHADOW_RATE) - a soft halo round the crisp shadow, a frame behind, blinking at 15 Hz. Measured
+  // (tools/_sheyes_night.js B, paused, the far map drawn every frame): hiding the aeroplane from the far map's pass alone
+  // changes 43 279 pixels round the wing and tail shadow (the halo); the control pair, 8.
+  // Now the craft's top group is HIDDEN while the far map draws: the far light's updateMatrices (three calls it right
+  // before that light's walk, and only on a frame that draws it) hides it; the near light's (next in the same pass - the
+  // scene's order: render_world adds the sun first) and follow() show it again. Only while the near map is live: with it
+  // off the craft's shadow IS the far map's (apply()).
+  const FARH = { hid: null, n: 0, L: null };
+  function farUnhide() { if (FARH.hid) { FARH.hid.visible = true; FARH.hid = null; } }
+  function farLight(Lf) {
+    if (!Lf || !Lf.shadow || FARH.L === Lf) return;
+    FARH.L = Lf;
+    const sh = Lf.shadow, um = sh.updateMatrices;
+    sh.updateMatrices = function () {
+      if (S.farHide && S.on && madeL && madeL.visible && madeL.castShadow && craftGroup && C1.scene) {
+        let top = craftGroup; while (top.parent && top.parent !== C1.scene) top = top.parent;
+        if (top.parent === C1.scene && top.visible) { top.visible = false; FARH.hid = top; FARH.n++; }
+      }
+      return um.apply(this, arguments);
+    };
+  }
+  const API = { S, pcf, C1, AIM, EYES, FARH, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, eyes, apply, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); eyesInit(); }
   return API;
 })();
