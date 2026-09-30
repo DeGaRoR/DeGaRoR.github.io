@@ -66036,3 +66036,109 @@ TRAPS MET:
 - A top-level `const` is no window property: CDP evals must say `PAVEMENT` (or window.PAVEMENT, now exported).
 - Any src edit makes the committed parked cook stale (FLYDIY_BUILD): re-cook LOCALLY before timing (never commit it -
   the train re-cooks), or every parked key is captured live and the roll-out comparison is void.
+## G860-G864 - C3c: METLAKATLA ON THE KIT - WITH THE TOWN ON, ITS SOWN HOUSES ARE THE KIT'S INSTANCES AND THEIR LOTS ARE GENERATED AS A UNIQUE LOT IS; THE PACK SHIPS (2026-09-30, QUEUE-C C3c, cloud, node only; block G860-G869, G865-G869 unused)
+
+**BASE.** origin/claude/batch-a-base (220812de) + C3b's pushed WIP merged (origin/claude/train-17-c3b d2ad6760: the
+host, the look review, the three harbour archetypes, the kit sown against its zone's water) - C3b had no READY subject
+on origin; C3c is built against that WIP's interface (townkit.js host(), house_tarr's slot / hook, MATLIB `house`).
+THE USER (2026-09-29/30): the kit as it is ("the kit streets look good. We don't need more variety": 30 archetypes, 3
+for the harbour); the pack committed when the kit ships; THE STANDING CONSTRAINT - procedural houses and procedural
+waterfronts everywhere but Metlakatla ("I loved the ability to draw piers with boats, from the editor"); Metlakatla
+stays OFF by default (?town=1, G590).
+
+**G860 THE PACK SHIPS.** media/townkit/townkit_2e8c3968b3e6.bin, **4.72 MB gz** (4 949 098 B; 11.77 MB raw), and
+townkit_jolene_22597412d564.bin (522 rows x 32 B, 18.6 KB gz), manifest src/core/townkit_pack.json - `node
+tools/town_kit.js --media` on this tree (the pack's bytes are C3b's local bake's). The table's header names each row's
+plot as [id, outbuilding, SEED]: a row is taken only for the plot it was sown from.
+
+**G861 THE KIT PLOT (src/viewer/kit_lot.js, new).** With the town on, a plot an `mk_` zone sowed whose id AND seed are
+the table's (all 375 on Jolene). Its house and outbuilding are the kit's; its LOT is generated as the unique lot is, on
+either thread: VILLAGE_GEN.placeHouse exactly as the kit's sowing (GATE METKIT B: x y z yaw L w, 375 / 375), the tide
+its ZONE'S water, then HOUSE_GEN.build at LOD 1 with P.ao 0 read as the PLAN - the stair, the stoop, the front, the
+jetty, the pier's modules and boats, the people, the yard, the ground occluders, the path are the lod-0 build's (METKIT
+B, 42 / 42 sampled) - ~7 ms against ~105-125 ms for the unique lod-0 build. Its bags are dropped but `pile` (the pier's
+piles) and the jetty (`deck` + `post` cut to the landing's box): 3 166 of the plans' 399 008 triangles are kept. Then
+premises_build.js genDress unchanged (fence, lot patch, car, boat, the outbuilding at lod 1). The result has a house
+result's shape, so premises_build.js (UNTOUCHED - the premises cook hashes it whole) packs / unpacks it for the house
+worker; the worker's job kind is 'kit' (KIT_LOT.extend: find / gen; house_worker.js imports kit_lot.js, gives C the world).
+NOTE the lot's dressing is now the lot's main cost: 375 lots in 28 s in node, ~75 ms a lot, of which the fences' and the
+outbuildings' AO bakes ~55 ms (genDress, the same code and cost as the unique path's; the worker's).
+
+**G862 THE PAGE (render_premises.js KT; every line outside the premises cook's lifted spans and GATE TARR's).** Wanted
+with the town on (FLYDIY_TOWN.all + the record's mk_ zones), not with ?townkit=0 (the A/B: the town on its unique
+houses). THE LOAD (townkit.js + kit_lot.js lazy - build.js MANIFEST.lazy -, the manifest, the island's table, the pack)
+begins with the renderer; the town step's prewarm (its `wait`), the worker prefetch and the stream wait for it, so which
+plot is a kit plot is known before the first job leaves (a failed load: the town builds unique). ONE HOST (townkit.js,
+batch mode) for every kit plot's house and outbuilding - 426 instances, drawn from the moment the pack is in (at the
+stand: all at the box rung, 1 draw) - rebuilt on a recompose, ticked with the far town, its looks re-read on the stack's
+ready signal. buildKitLot (kitOf(p) >= 0 in buildOne0; hwKind 'kit'): placeBuilt of the plan's share (jetty, piles,
+props), the kit house SOLID (townkit.js hitMesh: its lod-1 triangles stretched as drawn, OBSTACLES.rasterise at 1 m in
+shapeOf's frame; the ids on the lot's group), placeDress - the table's outbuilding where it is the lot's plan (kind,
+2 m, yaw: ktOutMatch), else hidden (host.setHidden) and the lot's own built at lod 1 (the game plans outbuildings in
+streaming order, the kit in plot order - G850). R.kitTownStats(). Never a kit plot: a site item (the three churches, the
+cannery, the school, the inn, the named buildings - the landmarks stay unique, worker-built), a park, an object, a fence,
+the village's and the mine's plots, the editor's places and their piers.
+
+**G863 THE TIDE, FOR METLAKATLA.** G850's find (buildHouse reads world.waterH(0, 0): Jolene's origin, dry land,
+-Infinity - every waterfront house walked out to its plot's depth limit, no landing, no pier): a kit lot reads its
+zone's water - PREMISES_GEN.zoneWaterY, compose's own G434 rule exported (compose calls it: the same bits; town_kit.js's
+zoneWater takes it first). The harbour reads the sea, 0; 9 of Metlakatla's 11 water plots get the landing and the pier
+(the other two stairs come down on the beach). The village's harbour and every other place keep the old read,
+unchanged (the standing constraint; C2c's G843 is the general fix).
+
+**G864 THE GATES AND THE CENSUS.** GATE METKIT (core, new, ~55 s): A the table (375 / 375 kit plots; no village plot,
+no site item), B the lot where the kit stands (the row within its 2 m nudge) and the lod-1 plan = the lod-0 plan, C no
+house bag kept (the jetty's triangles inside its box), D the zone's tide, E the worker's wire, F the outbuildings (51 of
+51 in the table's order: 38 storage sheds, 10 outhouses, 3 garages), G the host (426 rows, every one rasterises to an
+obstacle topped by its roof; setHidden takes a house out of every rung), H the wiring (none of it in the cook's lifted
+spans). GATE KITHOST's verdict line printed alone (run_gates.js matches /^GATE KITHOST: PASS$/m: the WIP printed its
+count on it and read as FAIL in the runner). FRAMECOST: the census carries health.kitTown / premisesStats, and
+FRAMECOST_METLAKATLA=1 adds a view in the middle of Metlakatla (never in the verdict or the baseline; the queue drained
+within 700 m, then 60 frames for the far town's bakes).
+
+THE NODE CENSUS (tools/_framecost_check.js --census cub, the recording GL; FRAMECOST_QUERY=town=1 vs town=1&townkit=0):
+
+| Metlakatla view (the aeroplane at -3451, -8538) | unique | kit |
+|---|---|---|
+| draws main / shadow / total | 1295 / 398 / 1720 | 1178 / 312 / 1505 |
+| of them the premises' own (main / shadow) | 68 / 143 | 12 / 2 |
+| programs used / switched (useProgram) | 106 / 390 | 101 / 287.5 |
+| materials in the view (uuid / signature) | 260 / 152 | 201 / 142 |
+| gl calls / uniform bytes | 10 449 / 305 514 | 9 176 / 267 560 |
+| triangles main / shadow | 22.2 M / 7.25 M | 21.5 M / 6.05 M |
+| updateMatrixWorld / frustum tests | 28 110 / 5 936 | 27 559 / 5 282 |
+| the houses generated (houseTris) | 10.80 M | 6.29 M (Metlakatla's lots: 3 166 kept) |
+| node memory at the end (rss / arrayBuffers) | 6.89 / 4.40 GB | 4.88 / 3.54 GB |
+| the drain (700 m, inline, virtual clock) | 257 s | 213 s |
+| the kit | - | 2 draws (plain, glass), 426 instances: 60 lod 0, 366 lod 1, 24 partners in the band; 421 looks; 35.6 MB vertex + index; 426 obstacles (420 526 lod-1 triangles); 51 of 51 outbuildings the table's |
+
+At HOME's stand and the taxi (the far town): +1 draw main for the whole town (its 426 boxes; the unique town's houses
+are not built at that distance - they stream as the aeroplane comes), programs +1.5, draws.total -21. programsTotal 405 /
+404. METLAKATLA OFF: this branch against the base (claude/batch-a-base + C3b's WIP) - `--compare`, both builds (Cub,
+metal Cessna): every counted row identical (stand, taxi, boot, the aeroplane).
+
+**VERDICTS:** the full battery (`run_gates.js --all`, bb7b0c5a, jobs 4, 2 h 14 min wall): **137 of 138 gates PASS, 1 FAIL** (148 jobs with the shards).
+The named gates all pass: TOWNKIT, KITHOST, METKIT, PREMISES (its 14q holds the record with Metlakatla on and off),
+PREMCOOK (the cook's page hash unchanged), HOUSEWORKER, TARR and MEDIA. HOUSEWORKER with the town on
+(HOUSEWORKER_QUERY=town=1 --only local,cold) also PASSES: 137 / 137 entries bit-identical, 0 house generation calls in the
+town step. Whether any kit lot fell inside that boot's reach is not shown; METKIT E proves the 'kit' job's wire in node.
+FRAMECOST FAILS, and not because of C3c. The rises are all the PARKED AEROPLANES (stand main draws 909 -> 1054:
+the parked family 2 -> 145 main, 3 -> 129 shadow, 2 -> 144 materials). A cooked parked aeroplane's signature carries
+FLYDIY_BUILD (parked.js THE COOK), so any build change makes the committed cooks stale and they are captured live.
+Plain claude/batch-a-base passes FRAMECOST on this box. The merged base (C3b's WIP, without C3c) gives the same counts
+as this branch (the --compare above). So the cure is the train's own step: re-cook the parked aeroplanes on the final
+build (tools/parked_cook.js, on the GPU).
+
+**FOR THE COORDINATOR (the GPU).** The look (Metlakatla's streets and harbour, unique vs kit: ?town=1 vs
+?town=1&townkit=0) and the box perf (R1-R4 with the town on; the ARCH §5 target <= 1 ms a frame, no load freeze). To
+judge: the jetty and the pier's piles are the lod-1 plan's (a slab landing, four-sided piles, mostly under the water);
+a kit house has no wall lamps or porch lights (lod-0 pieces of the unique walls; its windows glow by the record's lights
+byte) and no chimney smoke; the people, the yard and the pier's props are the unique plan's round a kit house of the
+same cluster (C3b's review showed them so). Then the G590 question is the user's: `?town=1` -> default on.
+
+**TRAPS.**
+- The premises cook hashes premises_build.js WHOLE and lifts spans of render_premises.js (tools/premises_cook.js LIFTS):
+  the kit's page code lives outside them and its generation in kit_lot.js - touching either re-cooks the premises.
+- A kit plot is decided by id AND seed against the table: re-sow a zone (the editor, a rule change) and its plots build
+  unique until `node tools/town_kit.js --media` is re-run (GATE METKIT A goes red first).
+- The kit is Jolene's (the table is one island's); another island's manifest entry is what brings it elsewhere.
