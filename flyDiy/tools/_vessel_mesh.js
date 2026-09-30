@@ -489,14 +489,77 @@ function build(opt) {
 }
 
 // ---------------------------------------------------------------------------
+// THE PIECES (G1108, CUB-COCKPIT 2026-09-30). The hardware is drawn into three
+// shared buffers (hard / seal / mark), and a piece that stands off the shell -
+// the filler, the vent, the sump, the outlet - can reach past a skin the box
+// cleared: the fit tests the box, not what stands on it. So every piece is
+// recorded by NAME as its vertex and index ranges in each buffer (they are
+// written one after another, and a piece's triangles index only its own
+// vertices), and `omit(sol, names)` hands back the solid without them - the
+// layer drops what does not fit, GATE TANKMOUNT measures each by name.
+// `piece(name)` closes the running piece and opens the next; null closes.
+// ---------------------------------------------------------------------------
+const PIECE_SLOTS = ['hard', 'seal', 'mark'];
+function pieceRec(out) {
+  out.pieces = [];
+  let cur = null;
+  const at = () => PIECE_SLOTS.map(k => [out[k].pos.length / 3, out[k].idx.length]);
+  return name => {
+    const c = at();
+    if (cur) { cur.end = c; out.pieces.push(cur); }
+    cur = name ? { name, start: c } : null;
+  };
+}
+// the solid without the named pieces: fresh buffers for the three slots, the
+// shell shared (untouched), every index after a cut piece shifted down by the
+// vertices it took
+function omit(sol, names) {
+  if (!sol || !sol.pieces || !names || !names.length) return sol;
+  const drop = sol.pieces.filter(pc => names.includes(pc.name));
+  if (!drop.length) return sol;
+  const out = Object.assign({}, sol);
+  PIECE_SLOTS.forEach((k, si) => {
+    const src = sol[k], B = Buf();
+    const cutV = drop.map(pc => [pc.start[si][0], pc.end[si][0]]).filter(r => r[1] > r[0]);
+    const cutI = drop.map(pc => [pc.start[si][1], pc.end[si][1]]).filter(r => r[1] > r[0]);
+    const inV = v => cutV.some(r => v >= r[0] && v < r[1]);
+    const shift = v => cutV.reduce((s, r) => s + (v >= r[1] ? r[1] - r[0] : 0), 0);
+    const nV = src.pos.length / 3;
+    for (let v = 0; v < nV; v++) {
+      if (inV(v)) continue;
+      B.pos.push(src.pos[v * 3], src.pos[v * 3 + 1], src.pos[v * 3 + 2]);
+      B.nor.push(src.nor[v * 3], src.nor[v * 3 + 1], src.nor[v * 3 + 2]);
+      B.uv.push(src.uv[v * 2], src.uv[v * 2 + 1]);
+    }
+    for (let i = 0; i < src.idx.length; i++) {
+      if (cutI.some(r => i >= r[0] && i < r[1])) continue;
+      const v = src.idx[i];
+      B.idx.push(v - shift(v));
+    }
+    out[k] = B;
+  });
+  // the kept pieces, their ranges shifted down by what went before them
+  out.pieces = sol.pieces.filter(pc => !names.includes(pc.name)).map(pc => {
+    const mv = (si, k) => drop.reduce((s, d) => s + (d.end[si][k] <= pc.start[si][k] ? d.end[si][k] - d.start[si][k] : 0), 0);
+    const sh = (arr) => arr.map((q, si) => [q[0] - mv(si, 0), q[1] - mv(si, 1)]);
+    return { name: pc.name, start: sh(pc.start), end: sh(pc.end) };
+  });
+  out.omitted = drop.map(pc => pc.name);
+  out.tris = out.shell.tris + out.hard.tris + out.seal.tris + out.mark.tris;
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // A FUEL TANK.
 // ---------------------------------------------------------------------------
 function buildTank(out, shape, e, rn, NB, q, tH, tK) {
   const H = out.hard, K = out.seal, M = out.mark;
   const up = [0, 1, 0], dn = [0, -1, 0];
   const NS = 3, NC = 5;
+  const piece = pieceRec(out);
 
   // ---- the straps ----------------------------------------------------------
+  piece('straps');
   // Two, at the quarter points, each on a rubber pad a little wider than
   // itself — which is how a tank is actually held into an airframe, and the
   // one detail that stops a smooth shell reading as a bar of soap.
@@ -508,6 +571,7 @@ function buildTank(out, shape, e, rn, NB, q, tH, tK) {
   }
 
   // ---- the filler, forward on the crown ------------------------------------
+  piece('filler');
   const zF = Math.min(0.52 * e[2], e[2] - rn * 1.8);
   const yF = surfY(shape, zF, 1) - 0.004;
   tubeBuild(H, [0, yF, zF], up, rn * 1.45, rn * 1.30, 0.008, tH, NB, false, true);
@@ -518,6 +582,7 @@ function buildTank(out, shape, e, rn, NB, q, tH, tK) {
             rn * 0.34, tH, NB, false, true);
 
   // ---- the sender plate ----------------------------------------------------
+  piece('sender');
   const zS = 0.06 * e[2], rs = rn * 1.15;
   const yS = surfY(shape, zS, 1) - 0.003;
   tubeBuild(H, [0, yS, zS], up, rs, rs, 0.005, tH, NB, false, true);
@@ -528,12 +593,14 @@ function buildTank(out, shape, e, rn, NB, q, tH, tK) {
   }
 
   // ---- the sump and drain, at the keel -------------------------------------
+  piece('sump');
   const zD = -0.42 * e[2];
   const yD = surfY(shape, zD, -1) + 0.004;
   tubeBuild(H, [0, yD, zD], dn, rn * 1.10, rn * 0.85, 0.016, tH, NB, false, true);
   tubeBuild(H, [0, yD - 0.016, zD], dn, rn * 0.38, rn * 0.34, 0.014, tH, 8, false, true);
 
   // ---- the outlet, low on the aft face -------------------------------------
+  piece('outlet');
   // A gravity tank feeds from the bottom of its aft end; the stub runs aft out
   // of the shell with a union collar where the hose clamps on.
   const yO = -0.55 * e[1], zO = surfZ(shape, yO, -1);
@@ -542,6 +609,7 @@ function buildTank(out, shape, e, rn, NB, q, tH, tK) {
   tubeBuild(H, [0, yO, zO - 0.020], aft, rn * 0.58, rn * 0.58, 0.006, tH, 10, true, true);
 
   // ---- the vent, off the crown at the forward end --------------------------
+  piece('vent');
   const zV = Math.min(0.74 * e[2], e[2] - 0.02);
   const xV = 0.35 * e[0];
   // ON THE CROWN AT ITS OWN x, through the section itself. A cosine of x/ex
@@ -554,6 +622,7 @@ function buildTank(out, shape, e, rn, NB, q, tH, tK) {
   tubeBuild(H, [xV, yV, zV], up, rv * 1.7, rv * 1.5, 0.006, tH, 8, false, true);
   tubeBuild(H, [xV, yV + 0.006, zV], up, rv, rv, hV, tH, 8, false, false);
   tubeBuild(H, [xV, yV + 0.006 + hV, zV], [0, 0, 1], rv, rv, hV * 0.66, tH, 8, true, true);
+  piece(null);
 }
 
 // ---------------------------------------------------------------------------
@@ -563,11 +632,13 @@ function buildTank(out, shape, e, rn, NB, q, tH, tK) {
 // between them, and it stands on four feet.
 // ---------------------------------------------------------------------------
 function buildPack(out, shape, e, NB, q, tH, tK) {
+  const piece = pieceRec(out);
   const H = out.hard, K = out.seal, M = out.mark;
   const up = [0, 1, 0];
   const NS = 3, NC = 5;
 
   // ---- the lid seam --------------------------------------------------------
+  piece('seam');
   const yL = e[1] * 0.60;
   bandBuild(H, shape, 'y', yL - 0.005, yL + 0.005, 0.0035, tH, NS, NC);
   bandBuild(K, shape, 'y', yL - 0.010, yL - 0.005, 0.0022, tK, NS, NC);
@@ -581,6 +652,7 @@ function buildPack(out, shape, e, NB, q, tH, tK) {
   }
 
   // ---- cooling ribs on the flanks ------------------------------------------
+  piece('ribs');
   const nRib = Math.max(3, Math.round(5 * q));
   const rw = clamp(0.020 * e[2], 0.004, 0.009);
   for (let i = 0; i < nRib; i++) {
@@ -589,6 +661,7 @@ function buildPack(out, shape, e, NB, q, tH, tK) {
   }
 
   // ---- the terminals, on the crown -----------------------------------------
+  piece('terminals');
   const zT = Math.min(0.62 * e[2], e[2] - 0.03);
   const rt = clamp(0.10 * Math.min(e[0], e[1]), 0.008, 0.020);
   let k = 0;
@@ -607,11 +680,13 @@ function buildPack(out, shape, e, NB, q, tH, tK) {
             rt * 0.8, rt * 0.7, 0.010, tH, 10, false, true);
 
   // ---- the feet ------------------------------------------------------------
+  piece('feet');
   for (const sx of [1, -1]) for (const sz of [1, -1]) {
     const z = sz * 0.70 * e[2];
     tubeBuild(H, [sx * widthAt(shape.atZ(z), -e[1] * 0.92) * 0.86, -e[1] + 0.002, z],
               [0, -1, 0], 0.011, 0.011, 0.006, tH, 8, false, true);
   }
+  piece(null);
 }
 
 // ---------------------------------------------------------------------------
@@ -801,7 +876,7 @@ function wingLoftVolume(ribs, opt) {
   return v;
 }
 
-const API = { build, contents, wingBox, wingLoft, wingLoftVolume, mkShape, sectRR, widthAt, heightAt, Buf,
+const API = { build, omit, contents, wingBox, wingLoft, wingLoftVolume, mkShape, sectRR, widthAt, heightAt, Buf,
               loftBuild, capBuild, bandBuild, tubeBuild };
 if (typeof window !== 'undefined') window.VESSEL_MESH = API;
 if (typeof module !== 'undefined') module.exports = API;

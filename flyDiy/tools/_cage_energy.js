@@ -586,6 +586,186 @@ function crewHits(scene, inv, results) {
   }
 }
 
+// THE ENGINE AND THE COWL ARE IN THE WAY, OR THEY ARE NOT (G1108). The fit
+// knows the skin (the bay's sections) and the crew (above); a tank beside a
+// radial stood 131 mm into the engine layer's block with the fit reading
+// "fits" (GATE TANKMOUNT, the Beaver-alike). The same box test as the crew's,
+// over the engine's and the cowl's vertices - but as a VERDICT only, after
+// the placement: the level search (settleLv's clearOfCrew) is not taught it,
+// so no tank moves and no mass moves; a tank the engine runs through reads
+// red in the editor and does not fly (drawResults, the join's edUnfit).
+const HIT_LAYERS = ['cageLayer:eng', 'cageLayer:cowl'];
+// ...and the sheet's own interior that the bay's sections leave out: the dash
+// (a Jodel-alike's nose tank stood 125 mm through it reading "fits"). Its faces
+// are sampled at their corners AND centres - a plate slicing a box can hold
+// no corner inside it. The firewall is not here: a nose tank stands on it.
+const HIT_SHEET = ['dash', 'dashFace'];
+// IN THE SOLID, NOT THE BOX: the drawn tank is a rounded box (a corner
+// radius up to 75 mm), and a box test read a Cessna-alike's dash TOUCHING the
+// tank's corner as through it (38 points, the deepest 3.7 mm outside the
+// drawn shell). A point counts when it lies INSIDE THE DRAWN SOLID by d
+// (5 mm: touching is not intrusion): into the solid's own frame (the slot
+// meshes' centre and yaw), then the section at its z, then the section's
+// height at its x - VESSEL_MESH's own shape functions.
+function inSolid(p, r, sol, d) {
+  const VM = window.VESSEL_MESH;
+  if (!sol || !sol.shape || !VM || !VM.heightAt) return false;
+  const yaw = r.rot + (sol.yaw || 0), cs = Math.cos(yaw), sn = Math.sin(yaw);
+  const dx = p[0] - r.c[0], dy = p[1] - r.c[1], dz = p[2] - r.c[2];
+  const x = Math.abs(dx * cs - dz * sn) + d, y = Math.abs(dy) + d, z = Math.abs(dx * sn + dz * cs) + d;
+  if (z > sol.e[2]) return false;
+  const sec = sol.shape.atZ(z);
+  if (!sec || !(sec.hx > 0) || x > sec.hx) return false;
+  return y <= VM.heightAt(sec, x);
+}
+// the drawn solid's vertices in this layer's frame (the slot meshes' centre
+// and yaw), and their box - optionally only a piece's (`pc`: its ranges)
+function drawnPts(r, sol, slots, pc) {
+  const yaw = r.rot + (sol.yaw || 0), cs = Math.cos(yaw), sn = Math.sin(yaw), c = r.c;
+  const pts = [], bb = [c[0], c[1], c[2], c[0], c[1], c[2]];
+  const SI = { hard: 0, seal: 1, mark: 2 };
+  for (const slot of slots) {
+    const P = sol[slot] && sol[slot].pos; if (!P) continue;
+    let v0 = 0, v1 = P.length / 3;
+    if (pc) { if (SI[slot] == null) continue; v0 = pc.start[SI[slot]][0]; v1 = pc.end[SI[slot]][0]; }
+    for (let v = v0; v < v1; v++) {
+      const q = [c[0] + cs * P[v * 3] + sn * P[v * 3 + 2], c[1] + P[v * 3 + 1], c[2] - sn * P[v * 3] + cs * P[v * 3 + 2]];
+      pts.push(q);
+      for (let k = 0; k < 3; k++) { if (q[k] < bb[k]) bb[k] = q[k]; if (q[k] > bb[k + 3]) bb[k + 3] = q[k]; }
+    }
+  }
+  return { pts, bb };
+}
+// the surfaces a drawn tank must not cross, as triangles in this layer's
+// frame: the sheet (cage units x FS: skin, glass, frame tubes, the dash) and
+// the engine's and the cowl's meshes - only those whose box meets `bb`
+function surfTris(ctx, scene, inv, bb) {
+  const out = [];
+  const add = (ax, ay, az, bx, by, bz, cx, cy, cz) => {
+    if (Math.max(ax, bx, cx) < bb[0] || Math.min(ax, bx, cx) > bb[3] || Math.max(ay, by, cy) < bb[1] ||
+        Math.min(ay, by, cy) > bb[4] || Math.max(az, bz, cz) < bb[2] || Math.min(az, bz, cz) > bb[5]) return;
+    out.push([ax, ay, az, bx - ax, by - ay, bz - az, cx - ax, cy - ay, cz - az]);
+  };
+  const M = ctx && ctx.mesh;
+  if (M && M.F && M.V) {
+    const FS = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1);
+    for (const f of M.F) {
+      const v = f.v; if (!v || v.length < 3) continue;
+      for (let i = 1; i + 1 < v.length; i++) {
+        const A = M.V[v[0]], B = M.V[v[i]], C = M.V[v[i + 1]];
+        add(A[0] * FS, A[1] * FS, A[2] * FS, B[0] * FS, B[1] * FS, B[2] * FS, C[0] * FS, C[1] * FS, C[2] * FS);
+      }
+    }
+  }
+  if (scene && inv && window.THREE) {
+    const V = new THREE.Vector3(), Q = [[], [], []];
+    for (const ch of scene.children) {
+      if (!HIT_LAYERS.includes(ch.name || '') || ch.visible === false) continue;
+      ch.traverse(o => {
+        if (!o.isMesh || !o.geometry || o.visible === false) return;
+        const pos = o.geometry.getAttribute('position'); if (!pos) return;
+        const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
+        for (let t = 0; t < nT; t++) {
+          for (let k = 0; k < 3; k++) {
+            const vi = idx ? idx.getX(t * 3 + k) : t * 3 + k;
+            V.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+            Q[k] = [V.x, V.y, V.z];
+          }
+          add(Q[0][0], Q[0][1], Q[0][2], Q[1][0], Q[1][1], Q[1][2], Q[2][0], Q[2][1], Q[2][2]);
+        }
+      });
+    }
+  }
+  return out;
+}
+// does the segment c -> q cross any of `tris` (Moller-Trumbore, t in (0, 1))?
+function segCrosses(c, q, tris) {
+  const dx = q[0] - c[0], dy = q[1] - c[1], dz = q[2] - c[2];
+  for (const t of tris) {
+    const px = dy * t[8] - dz * t[7], py = dz * t[6] - dx * t[8], pz = dx * t[7] - dy * t[6];
+    const det = t[3] * px + t[4] * py + t[5] * pz;
+    if (Math.abs(det) < 1e-12) continue;
+    const iv = 1 / det, sx = c[0] - t[0], sy = c[1] - t[1], sz = c[2] - t[2];
+    const u = (sx * px + sy * py + sz * pz) * iv; if (u < 0 || u > 1) continue;
+    const qx = sy * t[5] - sz * t[4], qy = sz * t[3] - sx * t[5], qz = sx * t[4] - sy * t[3];
+    const w = (dx * qx + dy * qy + dz * qz) * iv; if (w < 0 || u + w > 1) continue;
+    const tt = (t[6] * qx + t[7] * qy + t[8] * qz) * iv;
+    if (tt > 1e-6 && tt < 1) return true;
+  }
+  return false;
+}
+let LAYOUT_INV = null, LAYOUT_SCENE = null;     // drawResults' standoff test asks the same surfaces
+function layerHits(scene, inv, results, ctx) {
+  const G = VG();
+  if (!G || !scene || !window.THREE) return;
+  const bodies = results.filter(r => r.on === 'body' && r.c);
+  if (!bodies.length) return;
+  const sols = bodies.map(r => vesselSolid(r));
+  const DEEP = 0.005;
+  const V = new THREE.Vector3();
+  for (const ch of scene.children) {
+    if (!HIT_LAYERS.includes(ch.name || '') || ch.visible === false) continue;
+    const hits = bodies.map(() => 0);
+    ch.traverse(o => {
+      if (!o.isMesh || !o.geometry || o.visible === false) return;
+      const pos = o.geometry.getAttribute('position');
+      if (!pos) return;
+      for (let i = 0; i < pos.count; i++) {
+        V.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+        const p = [V.x, V.y, V.z];
+        for (let b = 0; b < bodies.length; b++) if (G.pointInBox(p, bodies[b], 0) && inSolid(p, bodies[b], sols[b], DEEP)) hits[b]++;
+      }
+    });
+    bodies.forEach((r, b) => {
+      if (!hits[b]) return;
+      r.ok = false;
+      r.layerHits = (r.layerHits || 0) + hits[b];
+      r.why.push('through the ' + (ch.name === 'cageLayer:eng' ? 'engine' : 'cowl') + ' (' + hits[b] + ' points)');
+    });
+  }
+  const M = ctx && ctx.mesh;
+  if (M && M.F && M.V) {
+    const FS = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1);
+    const hits = bodies.map(() => 0);
+    const ask = (x, y, z) => { const p = [x * FS, y * FS, z * FS]; for (let b = 0; b < bodies.length; b++) if (G.pointInBox(p, bodies[b], 0) && inSolid(p, bodies[b], sols[b], DEEP)) hits[b]++; };
+    for (const f of M.F) {
+      if (!HIT_SHEET.includes(f.m) || !f.v || f.v.length < 3) continue;
+      let cx = 0, cy = 0, cz = 0;
+      for (const vi of f.v) { const q = M.V[vi]; ask(q[0], q[1], q[2]); cx += q[0]; cy += q[1]; cz += q[2]; }
+      const k = f.v.length; ask(cx / k, cy / k, cz / k);
+    }
+    bodies.forEach((r, b) => {
+      if (!hits[b]) return;
+      r.ok = false;
+      r.layerHits = (r.layerHits || 0) + hits[b];
+      r.why.push('through the dash (' + hits[b] + ' points)');
+    });
+  }
+  // THE DRAWN TANK AGAINST THE DRAWN SURFACES (G1108). The bay fit asks 18
+  // points of the BOX against the bay's sections at a 35 mm wall; GATE
+  // TANKMOUNT found tanks it passed with their shell 54-59 mm through the
+  // skin and the frame tubes (a curved flank between two samples, a tube the
+  // sections leave out) and straps 7 mm out. So the verdict asks the gate's
+  // own question of what is DRAWN: every vertex of the shell and of the flush
+  // hardware (the standoff pieces answer for themselves, drawResults), joined
+  // to the solid's centre - does that segment cross the sheet, the engine or
+  // the cowl? Only the triangles whose box meets the tank's are tried (a few
+  // hundred of ~30 000), a millisecond or two a tank.
+  bodies.forEach((r, b) => {
+    const sol0 = sols[b];
+    if (!sol0 || !sol0.shell || !window.VESSEL_MESH) return;
+    const sol = window.VESSEL_MESH.omit ? window.VESSEL_MESH.omit(sol0, STANDOFF) : sol0;
+    const D = drawnPts(r, sol, ['shell', 'hard', 'seal', 'mark']);
+    const tris = surfTris(ctx, scene, inv, D.bb);
+    let n = 0;
+    for (const q of D.pts) if (segCrosses(r.c, q, tris)) n++;
+    if (!n) return;
+    r.ok = false;
+    r.layerHits = (r.layerHits || 0) + n;
+    r.why.push('through the skin or the frame (' + n + ' drawn points)');
+  });
+}
+
 // ---------------------------------------------------------------------------
 // DRAWING — THE LOOKS
 // ---------------------------------------------------------------------------
@@ -910,6 +1090,93 @@ function vesselSolid(r) {
 // the tank hangs in its straps, as it is drawn. GATE ENERGY's 'mount:' row
 // and GATE TANKMOUNT (every archetype, three tank sizes) hold it.
 
+// THE PIECES THAT STAND OFF THE SHELL (G1108, CUB-COCKPIT 2026-09-30; A0's
+// ruling under the user's "if you can't do something clean, get rid of it").
+// Measured by GATE TANKMOUNT per named piece: the straps, pads and sender lie
+// on the shell (a few mm) and leave the skin only where the shell does, but
+// the filler neck, the vent (42 mm and an elbow), the outlet stub and the
+// sump stand off it - 12 to 89 mm through the skin on tanks whose box the fit
+// had cleared, because the fit tested the box and not what stands on it. So
+// each standoff piece is asked the FIT'S OWN QUESTION: its vertices, placed
+// as the slot meshes place them (the centre, the yaw about y), mapped to the
+// fuselage's station by the line through the box's own samples (the fit's
+// z -> sL), against the bay profile at a 4 mm wall (BAY_SITE.baySolidFits,
+// the instrument the placement trusts). A piece that does not clear is not
+// drawn (VESSEL_MESH.omit); nothing else about the tank changes.
+const STANDOFF = ['filler', 'vent', 'outlet', 'sump', 'terminals', 'feet'];
+const PIECE_WALL = 0.004;
+const PIECE_PROF = new Map();          // the thin-wall profile, per body and station range
+function standoffBlocked(ctx, r, sol, yaw) {
+  const B = window.BAY_SITE;
+  if (!B || !B.bayProfile || !sol || !sol.pieces || !ctx || !ctx.mesh || !r.c || !r.pts || !r.samples) return [];
+  const FS = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1);
+  // z -> sL, the fit's own, as a line through the box's samples
+  let n = 0, mz = 0, ms = 0;
+  const zs = [], ss = [];
+  for (let k = 0; k < r.pts.length; k++) {
+    const s = r.samples[k] && r.samples[k][2];
+    if (!isFinite(s) || Math.abs(s) > 1e5) continue;
+    zs.push(r.pts[k][2] / FS); ss.push(s); mz += r.pts[k][2] / FS; ms += s; n++;
+  }
+  if (n < 2) return [];
+  mz /= n; ms /= n;
+  let num = 0, den = 0;
+  for (let k = 0; k < n; k++) { num += (zs[k] - mz) * (ss[k] - ms); den += (zs[k] - mz) * (zs[k] - mz); }
+  const slope = den > 1e-12 ? num / den : -1;
+  const sLOf = z => ms + slope * (z - mz);
+  const cs = Math.cos(yaw), sn = Math.sin(yaw), c = r.c;
+  const SI = { hard: 0, seal: 1, mark: 2 };
+  const want = sol.pieces.filter(pc => STANDOFF.includes(pc.name));
+  const ptsOf = {};
+  let lo = Infinity, hi = -Infinity;
+  for (const pc of want) {
+    const pts = [];
+    for (const slot of ['hard', 'seal', 'mark']) {
+      const si = SI[slot], P = sol[slot].pos;
+      for (let v = pc.start[si][0]; v < pc.end[si][0]; v++) {
+        const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+        // the slot mesh: position c, rotation.y = yaw
+        const X = c[0] + cs * x + sn * z, Y = c[1] + y, Z = c[2] - sn * x + cs * z;
+        const s = sLOf(Z / FS);
+        pts.push([X / FS, Y / FS, s]);
+        if (s < lo) lo = s; if (s > hi) hi = s;
+      }
+    }
+    ptsOf[pc.name] = pts;
+  }
+  if (!isFinite(lo)) return [];
+  const pad = 0.02 / FS;
+  const key = BODY_SIG + '|' + (lo * FS).toFixed(2) + '|' + (hi * FS).toFixed(2) + '|' + FS.toFixed(4);
+  let prof = PIECE_PROF.get(key);
+  if (!prof) {
+    if (PIECE_PROF.size > 48) PIECE_PROF.clear();
+    try { prof = B.bayProfile(ctx.mesh, lo - pad, hi + pad, PIECE_WALL / FS, Math.max(4, Math.ceil((hi - lo) / (0.04 / FS)) + 2)); }
+    catch (e) { prof = null; }
+    PIECE_PROF.set(key, prof);
+  }
+  // no profile to ask: a piece the fit cannot vouch for is not drawn
+  if (!prof) return want.map(pc => pc.name);
+  // ...and the drawn surfaces (the sheet's frame tubes and dash, the engine,
+  // the cowl), which the bay's sections do not hold: a vent passed the
+  // profile and stood 69 mm through a pusher's tube frame (GATE TANKMOUNT)
+  return want.filter(pc => {
+    if (!B.baySolidFits(prof, ptsOf[pc.name]).fits) return true;
+    const D = drawnPts(r, sol, ['hard', 'seal', 'mark'], pc);
+    const tris = surfTris(ctx, LAYOUT_SCENE, LAYOUT_INV, D.bb);
+    return D.pts.some(q => segCrosses(r.c, q, tris));
+  }).map(pc => pc.name);
+}
+
+// A TANK THAT DOES NOT FIT DOES NOT FLY (G1108, A0's ruling 2a). The layer's
+// own fit (`r.ok`) says whether the box clears the skin in its bay; every
+// stock design's default nose tank read ok: false and was drawn through the
+// skin anyway (the Cub's 45 L box 82 of 396 sampled shell vertices out, the
+// floatplane's 149 mm, the Jodel's into the dash). The editor keeps drawing
+// it - red, so the builder sees it and moves or resizes it - but every mesh
+// of that vessel is stamped `edUnfit` and the join does not take it: the
+// flown, parked and stock aeroplanes carry no drawn tank that pokes through.
+// Its fuel, mass and CG stay in the ledger (the spec's energy section, not
+// these meshes), so the physics does not move - GATE TANKMOUNT holds both.
 function drawResults(group, ctx, results) {
   const VM = window.VESSEL_MESH, K = window.GEAR_KIT;
   const wet = vesselKey() === 'wet';
@@ -917,29 +1184,37 @@ function drawResults(group, ctx, results) {
     const bad = !r.ok;
     const i = EN.vessels.indexOf(r.v);
     if (r.on === 'body' && r.c && VM) {
-      const sol = vesselSolid(r);
-      if (!sol) continue;
-      r.solid = sol;
+      const sol0 = vesselSolid(r);
+      if (!sol0) continue;
+      r.solid = sol0;
       // `sol.yaw` is the solid's own canonical turn (VESSEL_MESH builds along
       // the longer horizontal axis), not a placement decision — it rides on
       // top of the vessel's own `rot` and moves nothing the ledger reads.
-      const yaw = r.rot + (sol.yaw || 0);
+      const yaw = r.rot + (sol0.yaw || 0);
+      let drop = [];
+      try { drop = standoffBlocked(ctx, r, sol0, yaw); } catch (e) { drop = []; }
+      const sol = drop.length && VM.omit ? VM.omit(sol0, drop) : sol0;
+      r.drawn = sol; r.omitted = drop;
       // THE RED IS THE SHELL'S ALONE. It is four fifths of what you can see,
       // so a tank that does not fit is unmissable either way — and putting the
       // emissive on the straps, the filler and the sump as well turned the
       // whole thing into a red blob with no shape left to read, at exactly the
       // moment the builder needs to see WHICH corner is through the skin.
-      for (const slot of ['shell', 'hard', 'seal', 'mark'])
-        slotMesh(group, sol[slot], slotMat(slot, slot === 'shell' && bad, i, r.v),
-                 'edVessel_' + i + '_' + slot, r.c, yaw);
+      for (const slot of ['shell', 'hard', 'seal', 'mark']) {
+        const m = slotMesh(group, sol[slot], slotMat(slot, slot === 'shell' && bad, i, r.v),
+                           'edVessel_' + i + '_' + slot, r.c, yaw);
+        if (m && bad) m.userData.edUnfit = 1;
+      }
       // THE FUEL INSIDE, at the slider's fill. It is the shell's own section
       // inset by the wall and cut flat at the level — so in a round tank the
       // fuel has a round bottom and a flat top, and the level itself is placed
       // by VOLUME, not by height (VESSEL_MESH.contents). A pack does not
       // drain, so nothing is drawn inside one.
-      if (EN.kind !== 'battery' && VIEW.fill > 0.02)
-        slotMesh(group, VM.contents(sol, VIEW.fill, 0.008), fuelMat(),
-                 'edFuel_' + i, r.c, yaw);
+      if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
+        const mf = slotMesh(group, VM.contents(sol, VIEW.fill, 0.008), fuelMat(),
+                            'edFuel_' + i, r.c, yaw);
+        if (mf && bad) mf.userData.edUnfit = 1;
+      }
     } else if (r.on === 'strut' && r.pods && window.THREE) {
       // G477: the ogive pod, a lathe on the strut's axis — r = R (1 - (2u-1)^2)^0.65
       const T3 = window.THREE;
@@ -1050,6 +1325,8 @@ function relayout() {
   CREW_PTS = null;              // the crew may have moved since the last layout
   const results = placeAll(ctx, inv);
   crewHits(scene, inv, results);
+  layerHits(scene, inv, results, ctx);
+  LAYOUT_INV = inv; LAYOUT_SCENE = scene;
   drawResults(group, ctx, results);
   LAST.results = results; LAST.inv = inv; LAST.group = group;
   if (panelBody) syncReadouts();

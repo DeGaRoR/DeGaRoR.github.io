@@ -1977,6 +1977,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // A MARKER IS NOT THE AEROPLANE either (the panel arc, session 4):
       // the crew layer's eye ball is a sizing instrument, not a part
       if (o.userData && o.userData.edMarker) return;
+      // A TANK THAT DOES NOT FIT IS NOT FLOWN (G1108): the energy layer draws
+      // it red in the editor and stamps it; its fuel rides the ledger, not
+      // this mesh. CAGE_JOIN_TAKE_UNFIT is GATE TANKMOUNT's A/B switch only.
+      if (o.userData && o.userData.edUnfit && !window.CAGE_JOIN_TAKE_UNFIT) return;
       const matList = Array.isArray(o.material) ? o.material : [o.material];
       if (!matList[0] || !matList[0].color) return;
       // AN INVISIBLE MATERIAL IS NOT THE AEROPLANE (G210.2, the user: 'I only

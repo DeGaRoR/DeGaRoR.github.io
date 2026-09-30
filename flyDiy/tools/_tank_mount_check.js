@@ -177,37 +177,139 @@ for (const a of cards) {
     if (!s.geometry.boundingSphere) s.geometry.computeBoundingSphere();
     for (const m of [].concat(s.material || [])) if (m) m.side = THREE.DoubleSide;
   }
-  const row = { key: a.key, cap: kCap, vessels: 0, mount: 0, mountVerts: 0, mountOut: 0, hardVerts: 0, hardOut: 0, worst: null };
+  const row = { key: a.key, cap: kCap, vessels: 0, mount: 0, mountVerts: 0, mountOut: 0, hardVerts: 0, hardOut: 0,
+                shellVerts: 0, shellOut: 0, pieces: {}, omitted: [], worst: null };
   const idx = new Set(ves.map(o => +o.name.split('_')[1]));
   row.vessels = idx.size;
   if (row.vessels) withTanks++;
+  // each vessel's solid, for its named pieces (G1108): a hard / seal / mark
+  // vertex is named by the piece whose range holds it
+  const EN = W.CAGE_ENERGY.EN, solOf = {};
+  for (const rr of (W.CAGE_ENERGY.results() || [])) { const vi = EN.vessels.indexOf(rr.v); if (vi >= 0 && rr.solid) solOf[vi] = rr.drawn || rr.solid; }
+  for (const rr of (W.CAGE_ENERGY.results() || [])) if (rr.omitted && rr.omitted.length) row.omitted.push(...rr.omitted);
+  const SLOT_I = { hard: 0, seal: 1, mark: 2 };
+  const outByVes = {};
   for (const o of ves) {
+    const vi = +o.name.split('_')[1];
     const slot = o.name.split('_').slice(2).join('_');
-    if (slot !== 'mount' && slot !== 'hard') continue;
+    if (!['mount', 'hard', 'seal', 'mark', 'shell'].includes(slot)) continue;
     if (slot === 'mount') { row.mount++; mountMeshes++; }
+    const sol = solOf[vi], si = SLOT_I[slot];
+    const nameAt = i => {
+      if (si == null || !sol || !sol.pieces) return slot;
+      const pc = sol.pieces.find(q => i >= q.start[si][0] && i < q.end[si][0]);
+      return pc ? pc.name : slot;
+    };
     // the solid's centre, world: every slot mesh is placed at the tank's centre
     o.getWorldPosition(vO);
     const pos = o.geometry.attributes.position;
-    const step = Math.max(1, Math.floor(pos.count / 400));   // a few hundred rays a mesh
+    const step = slot === 'shell' ? Math.max(1, Math.floor(pos.count / 400)) : 1;   // the shell sampled, every hardware vertex asked
     for (let i = 0; i < pos.count; i += step) {
       vP.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
       vD.subVectors(vP, vO); const L = vD.length(); if (L < 1e-4) continue;
       vD.multiplyScalar(1 / L);
       rc.set(vO, vD); rc.near = 0; rc.far = L;
       const hit = rc.intersectObjects(skins, false);
-      if (slot === 'mount') row.mountVerts++; else row.hardVerts++;
+      const nm = slot === 'mount' || slot === 'shell' ? slot : nameAt(i);
+      const P = row.pieces[nm] || (row.pieces[nm] = { n: 0, out: 0, mm: 0 });
+      P.n++;
+      if (slot === 'mount') row.mountVerts++; else if (slot === 'shell') row.shellVerts++; else row.hardVerts++;
       if (hit.length) {
-        if (slot === 'mount') { row.mountOut++; mountCross++; } else row.hardOut++;
         const out = L - hit[0].distance;
+        P.out++; P.mm = Math.max(P.mm, +(out * 1000).toFixed(1));
+        if (slot === 'mount') { row.mountOut++; mountCross++; } else if (slot === 'shell') row.shellOut++; else row.hardOut++;
+        outByVes[vi] = (outByVes[vi] || 0) + 1;
         if (!row.worst || out > row.worst.mm / 1000)
-          row.worst = { slot, mm: +(out * 1000).toFixed(1), through: hit[0].object.name || hit[0].object.parent && hit[0].object.parent.name };
+          row.worst = { slot: nm, mm: +(out * 1000).toFixed(1), through: hit[0].object.name || hit[0].object.parent && hit[0].object.parent.name };
       }
     }
+  }
+  // G1108 THE VERDICTS. A tank the layer's fit passes (`ok`) must have no
+  // vertex past any surface - shell, straps, pads, sender, and whichever
+  // standoff pieces cleared. A tank it fails is drawn in the editor, stamped
+  // `edUnfit` on every mesh, and the flown aeroplane (CAGE_JOIN.snapshot, what
+  // the game and the parked captures fly) carries none of it; the physics is
+  // the joined spec's (CAGE_JOIN.export + buildGen), the same with and without.
+  const RES = (W.CAGE_ENERGY.results() || []).filter(rr => rr.on === 'body' && rr.c);
+  row.ok = RES.map(rr => !!rr.ok); row.why = RES.filter(rr => !rr.ok).map(rr => rr.why.join('; '));
+  let anyUnfit = false;
+  for (const rr of RES) {
+    const vi = EN.vessels.indexOf(rr.v);
+    const mine = all.filter(o => new RegExp('^ed(Vessel|Fuel)_' + vi + '(_|$)').test(o.name));
+    if (rr.ok) check((outByVes[vi] || 0) === 0, a.key + ' x' + kCap + ': a tank that fits has nothing past a surface (shell, straps, the pieces that stayed)', (outByVes[vi] || 0) + ' vertices');
+    if (rr.ok) {
+      // ...and nothing INSIDE it: a plate can enter a tank with no segment
+      // from its centre crossing it (the Savannah-alike's dash, 130 of its
+      // vertices inside the drawn shell). Every foreign point in the tank's
+      // box - the sheet's corners and face centres, every other mesh's
+      // vertices - is asked by ray PARITY against the drawn shell (two
+      // directions), and counts when it and its six 5 mm neighbours are all in
+      const shell = mine.find(o => /_shell$/.test(o.name));
+      if (shell) {
+        shell.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(shell);
+        const cand = [];
+        const Msh = r.built.sheet, FSh = r.FS;
+        for (const f of Msh.F) { if (!f.v || f.v.length < 3) continue; let cx = 0, cy = 0, cz = 0;
+          for (const k of f.v) { const q = Msh.V[k]; cand.push([q[0] * FSh, q[1] * FSh, q[2] * FSh]); cx += q[0]; cy += q[1]; cz += q[2]; }
+          cand.push([cx * FSh / f.v.length, cy * FSh / f.v.length, cz * FSh / f.v.length]); }
+        for (const o of all) { if (/^ed(Vessel|Fuel)_/.test(o.name)) continue; const P = o.geometry.attributes.position;
+          for (let k = 0; k < P.count; k++) { vP.fromBufferAttribute(P, k).applyMatrix4(o.matrixWorld); cand.push([vP.x, vP.y, vP.z]); } }
+        const sm = new THREE.Mesh(shell.geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+        sm.matrixWorld.copy(shell.matrixWorld); sm.matrixAutoUpdate = false;
+        const rp = new THREE.Raycaster(), D1 = new THREE.Vector3(0.31, 0.93, 0.19).normalize(), D2 = new THREE.Vector3(-0.23, -0.91, 0.35).normalize();
+        const inside = q => { for (const d of [D1, D2]) { rp.set(new THREE.Vector3(q[0], q[1], q[2]), d); rp.near = 0; rp.far = 10; if (rp.intersectObject(sm, false).length % 2 === 0) return false; } return true; };
+        let deep = 0;
+        for (const q of cand) {
+          if (q[0] < box.min.x || q[0] > box.max.x || q[1] < box.min.y || q[1] > box.max.y || q[2] < box.min.z || q[2] > box.max.z) continue;
+          if (!inside(q)) continue;
+          let all6 = true;
+          for (const [ax, sg] of [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]]) { const qq = q.slice(); qq[ax] += sg * 0.005; if (!inside(qq)) { all6 = false; break; } }
+          if (all6) deep++;
+        }
+        row.intruders = (row.intruders || 0) + deep;
+        check(deep === 0, a.key + ' x' + kCap + ': nothing else stands inside a tank that fits (5 mm deep, by parity)', deep + ' points');
+      }
+    }
+    else {
+      anyUnfit = true;
+      check(mine.length > 0 && mine.every(o => o.userData && o.userData.edUnfit), a.key + ' x' + kCap + ': every mesh of a tank that does not fit is stamped edUnfit', mine.filter(o => !(o.userData && o.userData.edUnfit)).map(o => o.name).join());
+    }
+  }
+  {
+    // the join over this scene, as bakeJoined hangs it (two identity groups:
+    // the join's mount walk wants the page's hierarchy)
+    const outer = new THREE.Group(), inner = new THREE.Group();
+    for (const ch of r.scene.children.slice()) inner.add(ch);
+    outer.add(inner); r.scene.add(outer); r.scene.updateMatrixWorld(true);
+    W.CAGE_UI = { P: r.P };
+    const snap = () => { const v = W.CAGE_JOIN.snapshot(joined); let n = 0; for (const k in v.groups) n += v.groups[k].pos.length / 3;
+                         return { ves: Object.keys(v.mats || {}).filter(k => v.mats[k].ves).length, verts: n }; };
+    let J1, J2, joined;
+    try {
+      W.CAGE_JOIN_TAKE_UNFIT = false; J1 = JSON.parse(JSON.stringify(W.CAGE_JOIN.export()));
+      joined = BJ.merge(spec, J1);
+      const s1 = snap();
+      W.CAGE_JOIN_TAKE_UNFIT = true; J2 = JSON.parse(JSON.stringify(W.CAGE_JOIN.export()));
+      const s2 = snap();
+      W.CAGE_JOIN_TAKE_UNFIT = false;
+      row.flown = { ves: s1.ves, verts: s1.verts, vesIfTaken: s2.ves, vertsIfTaken: s2.verts };
+      const allUnfit = RES.length > 0 && RES.every(rr => !rr.ok);
+      if (allUnfit) check(s1.ves === 0, a.key + ' x' + kCap + ': the flown aeroplane carries no tank that does not fit', s1.ves + ' vessel materials');
+      if (anyUnfit) check(s2.verts > s1.verts, a.key + ' x' + kCap + ': the A/B switch is real (the unfit tank is there when taken)', s1.verts + ' vs ' + s2.verts);
+      else check(s2.verts === s1.verts, a.key + ' x' + kCap + ': with every tank fitting, nothing is left out', s1.verts + ' vs ' + s2.verts);
+      const H = j => require('crypto').createHash('sha1').update(JSON.stringify((d => [d.nodes, d.beams, d.refs])(C.buildGen(BJ.merge(spec, j))))).digest('hex').slice(0, 12);
+      row.phys = [H(J1), H(J2)];
+      check(row.phys[0] === row.phys[1], a.key + ' x' + kCap + ': the physics is the same with and without the unfit tank drawn', row.phys.join(' vs '));
+    } catch (e) { W.CAGE_JOIN_TAKE_UNFIT = false; check(false, a.key + ' x' + kCap + ': the join runs over the scene', (e && e.message || String(e)).split('\n')[0]); }
   }
   rows.push(row);
   console.log('  ' + (a.key + ' x' + kCap).padEnd(18) + ' vessels ' + row.vessels + '  mount meshes ' + row.mount +
     (row.mount ? ' (' + row.mountOut + '/' + row.mountVerts + ' verts past a skin)' : '') +
-    '  hardware ' + row.hardOut + '/' + row.hardVerts + ' past a skin' +
+    '  shell ' + row.shellOut + '/' + row.shellVerts + '  hardware ' + row.hardOut + '/' + row.hardVerts + ' past a skin' +
+    (row.hardOut ? ' [' + Object.keys(row.pieces).filter(k => row.pieces[k].out && k !== 'shell' && k !== 'mount').map(k => k + ' ' + row.pieces[k].out + '/' + row.pieces[k].n + ' ' + row.pieces[k].mm + 'mm').join(', ') + ']' : '') +
+    (row.omitted.length ? '  omitted: ' + row.omitted.join(',') : '') +
+    '  fit ' + (row.ok || []).map(o => o ? 'ok' : 'NOT').join('/') + (row.flown ? '  flown ves ' + row.flown.ves + (row.flown.vertsIfTaken !== row.flown.verts ? ' (-' + (row.flown.vertsIfTaken - row.flown.verts) + ' verts)' : '') : '') +
     (row.worst ? '  worst ' + row.worst.slot + ' ' + row.worst.mm + ' mm through ' + row.worst.through : ''));
   }
 }
