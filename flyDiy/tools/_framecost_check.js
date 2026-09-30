@@ -240,8 +240,8 @@ async function census(build) {
   let cur = null, rows = null;
   const landing = () => { const B = W.BOOT; if (bootMark.cur && B && B.state === 'landing' && !/:landing$/.test(bootMark.cur)) bootMark.open(bootMark.cur.split(':')[0] + ':landing'); };
   P.onFrame((ph) => {
-    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; cur = snap(); }
-    else if (ph === 'end' && rows && cur) { const r = diff(cur, snap()); r.programs = P.rec.progUsed.size; rows.push(r); if (C.drawn) { C.lastDrawn = C.drawn; C.lastShadow = C.drawnShadow; } }
+    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; C.shadowPass = rows && SHADOW_PASSES ? [] : null; if (C.shadowPass && !rows.length) C.lastPasses = {}; cur = snap(); }
+    else if (ph === 'end' && rows && cur) { const r = diff(cur, snap()); r.programs = P.rec.progUsed.size; rows.push(r); if (C.drawn) { C.lastDrawn = C.drawn; C.lastShadow = C.drawnShadow; if (C.shadowPass) Object.assign(C.lastPasses, shadowPassList(C.drawnShadow, C.shadowPass)); } }
   });
   let FP = null;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
@@ -267,6 +267,7 @@ async function census(build) {
   const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm); rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
   const views = {};
   C.phase = () => P.rec.phase;
+  if (SHADOW_PASSES) shadowPassHooks(W, C);
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
   views.stand = await measure();
   const craft = { stand: await craftCensus(W, P, FP, C) };
@@ -468,7 +469,29 @@ function drawnDetail(C) {
   if (process.env.FRAMECOST_WHAT) { names = {}; for (const o of C.lastDrawn || []) { let n = o; while (n && !n.name) n = n.parent; const m = [].concat(o.material)[0];
     const k = (o.isInstancedMesh ? 'I:' : o.isBatchedMesh ? 'B:' : o.isSkinnedMesh ? 'S:' : '') + (n ? n.name : '-') + ' | ' + (m ? (m.name || m.type) + (m.map ? ' map' : '') : '-'); names[k] = (names[k] || 0) + 1; }
     names = Object.fromEntries(Object.entries(names).sort((a, b) => b[1] - a[1]).slice(0, 80)); }
-  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names };
+  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, shadowPasses: C.lastPasses || undefined };
+}
+// FRAMECOST_SHADOW_PASSES=1 (G1125, NEAR-LAYER; a debugging aid, never in the verdict): the last measured frame's shadow
+// draws BY PASS (each pass as the last measured frame that drew it had it: the far map draws every 2nd frame) - the light and the viewport three asked getCamera for ('sun:0' the world's far map, 'sunNear:0' the
+// craft's cascade, 'sunNear:1' the 60 m box) - each draw keyed by the object's child-index path from the scene, its
+// family and its layers (N near, C craft, F far) as they stood: tools/_nearlayer_compare.js diffs two censuses' lists
+const SHADOW_PASSES = !!process.env.FRAMECOST_SHADOW_PASSES;
+function shadowPassHooks(W, C) {
+  const sc = W.WORLD && W.WORLD.scene; if (!sc) return;
+  sc.traverse(o => { if (!o.isLight || !o.castShadow || !o.shadow || o.shadow.__fcPass) return;
+    const sh = o.shadow, g = sh.getCamera, name = o.name || 'sun'; sh.__fcPass = true;
+    sh.getCamera = function (i) { C.shCur = name + ':' + (i | 0); return g.apply(this, arguments); }; });
+}
+function shadowPassList(D, P) {
+  if (!D || !P || D.length !== P.length) return {};
+  const out = {};
+  for (let i = 0; i < D.length; i++) {
+    const o = D[i], ix = []; for (let n = o; n.parent; n = n.parent) ix.push(n.parent.children.indexOf(n));
+    const lay = (o.layers.isEnabled(3) ? 'N' : '') + (o.layers.isEnabled(5) ? 'C' : '') + (o.layers.isEnabled(2) ? 'F' : '');
+    const k = ix.reverse().join('.') + ' ' + famOf(o) + (o.isInstancedMesh ? ' I' : o.isBatchedMesh ? ' B' : '') + ' [' + lay + ']';
+    const R = out[P[i] || '?'] || (out[P[i] || '?'] = { n: 0, keys: {} }); R.n++; R.keys[k] = (R.keys[k] || 0) + 1;
+  }
+  return out;
 }
 function matCensus(scene) {
   if (!scene) return null;
@@ -486,7 +509,7 @@ function installThree(T, C) {
   const hook = (proto, k, ctr, pick) => {
     const DEF = proto[k], slot = '__fc_' + k;
     Object.defineProperty(proto, k, { configurable: true,
-      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this);
+      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) { (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this); if (pick === 'shadow' && C.shadowPass) C.shadowPass.push(C.shCur); }
         if (C.craft && (pick || k === 'onBeforeShadow') && C.craft.set.has(this)) craftDraw(C, this, k === 'onBeforeShadow' ? 'shadow' : C.phase ? C.phase() : 'main');
         if (f) { C[ctr]++; return f; } return DEF; },
       set(f) { Object.defineProperty(this, slot, { value: f === DEF ? undefined : f, writable: true, configurable: true, enumerable: false }); } });

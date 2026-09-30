@@ -62,13 +62,22 @@
 // frames). A receiver reads the cascade only between the light and just past the craft's own ground shadow (the
 // craft's sphere + a relief of 10 m + half the height, along the sun: uNearQ, in the cascade's depth), deeper ones the
 // 60 m box - so only the casters in that window can matter to the cascade, and only they stop the pruning.
+//
+// G1125 THE 60 m BOX DRAWS ITS NEAR CASTERS ONLY (NEAR-LAYER, 2026-09-30). Three r186's shadow walk tests an object's
+// layers against the MAIN camera, not the shadow camera (G1080.2), so NEAR_LAYER / CRAFT_LAYER on this light's cameras
+// filter nothing: viewport 1 drew whatever the main walk reaches (the craft, the instanced trees and props, the strip
+// stones, every crumb) - only the cascade's prune (viewport 0) ever filtered. Now viewport 1 is pruned the same way:
+// getCamera(1) keeps the ancestor chains of nearTag's casters (setNear - exactly the objects it put on NEAR_LAYER) and
+// hides every other child along them (the craft's group is kept whole - pruneBox says why); the renderer's shadow pass
+// is wrapped (hook(), app.js) so what a pass hid is shown again the moment it ends, before anything else renders or walks
+// the scene. The layers stay: they are the scheme's record, and what a raycaster or a census reads.
 // ============================================================
 var SHADOW_NEAR = (function () {
   'use strict';
   const NEAR_LAYER = 3, FAR_LAYER = 2, CRAFT_LAYER = 5;   // the near map's viewport 0 sees 3, its viewport 1 (the craft's cascade) 3 + 5; the far map sees 2 (everything but the craft, unless it is high)
   const S = { on: true, half: 30, size: 1024, bias: -0.0004, biasM: 0.05, normalBias: 0.02, normalBiasTx: 0.9, relief: 150, slantMax: 3000, penumbra: 0.0093, radiusMax: 2.5, self: true, slant: 0,   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra), per viewport
     craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0,
-    aimDrawn: true, farHide: true };   // G1080: ... ; farHide: the aeroplane hidden while the WORLD's far map draws (three's shadow walk ignores the shadow camera's layers - see farLight)   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
+    aimDrawn: true, farHide: true, boxPrune: true, boxCraft: true, farEmpty: true };   // G1125: boxPrune - viewport 1 (the 60 m box) walks nearTag's casters alone (and the craft: boxCraft); G1126: farEmpty - a far camera off FAR_LAYER (the 'near' tier) walks nothing   // G1080: ... ; farHide: the aeroplane hidden while the WORLD's far map draws (three's shadow walk ignores the shadow camera's layers - see farLight)   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
   const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0); yzw: the craft cascade's bias (depth), PCF radius (texels), normal offset (m)
   const nearWindow = new Float32Array(4);           // xy: the craft cascade's depth window (its shadow coordinate z, min / max) - past it, the 60 m box
   const nearUniforms = { uNearP: { value: nearScalars }, uNearQ: { value: nearWindow }, uNearM1: { value: (typeof THREE !== 'undefined' && THREE.Matrix4) ? new THREE.Matrix4() : null } };
@@ -182,7 +191,7 @@ var SHADOW_NEAR = (function () {
   // atlas(shadow): the 2 x 1 map - viewport 0 the 60 m box (three's own camera, matrix and frustum), viewport 1 the
   // craft's cascade (C1.cam, uNearM1). three's shadow pass calls updateMatrices once, then draws each viewport with
   // getCamera(i) and getFrustum(i); _updateMatrix(camera, matrix, frustum, viewport) folds the atlas offset in.
-  const C1 = { cam: null, frustum: null, pos: null, tgt: null, dir: null, H: 0, dB: 0, scene: null, hidden: [], pruned: 0, full: 0 };
+  const C1 = { cam: null, frustum: null, pos: null, tgt: null, dir: null, H: 0, dB: 0, scene: null, hidden: [], pruned: 0, full: 0, boxPruned: 0, boxFull: 0 };
   const _ns = (typeof THREE !== 'undefined' && THREE.Sphere) ? new THREE.Sphere() : null;
   let nearSpheres = null;   // render_world's nearTag: [x, y, z, r] of the casters on NEAR_LAYER now (setNear)
   function setNear(list) { nearSpheres = list; }
@@ -193,8 +202,7 @@ var SHADOW_NEAR = (function () {
   const keep = (typeof Set !== 'undefined') ? new Set() : null;
   function prune() {
     const sc = C1.scene; if (!sc || !craftGroup || C1.hidden.length) return;
-    let top = craftGroup; while (top.parent && top.parent !== sc) top = top.parent;
-    if (top.parent !== sc) return;
+    const top = craftTop(); if (!top) return;
     keep.clear(); keep.add(sc); keep.add(top);
     let n = 0;
     if (nearSpheres) {
@@ -209,10 +217,43 @@ var SHADOW_NEAR = (function () {
         n++;
       }
     }
-    for (const k of keep) { if (k === top) continue; const ch = k.children; for (let i = 0; i < ch.length; i++) { const c = ch[i]; if (!keep.has(c) && c.visible && !c.isLight) { c.visible = false; C1.hidden.push(c); } } }
+    hideRest(top);
     if (n) C1.full++; else C1.pruned++;
   }
+  // the craft's group as a child of the scene (null when it is off the stage)
+  function craftTop() { const sc = C1.scene; if (!sc || !craftGroup) return null; let top = craftGroup; while (top.parent && top.parent !== sc) top = top.parent; return top.parent === sc ? top : null; }
+  // every child along the kept chains that is not kept itself: hidden for this viewport's walk (skip: a subtree walked whole)
+  function hideRest(skip) { for (const k of keep) { if (k === skip) continue; const ch = k.children; for (let i = 0; i < ch.length; i++) { const c = ch[i]; if (!keep.has(c) && c.visible && !c.isLight) { c.visible = false; C1.hidden.push(c); } } } }
   function unprune() { const h = C1.hidden; for (let i = 0; i < h.length; i++) h[i].visible = true; h.length = 0; }
+  // G1125 pruneBox(): viewport 1, the 60 m box, walks nearTag's casters alone - the chain of each one kept, every other
+  // child along those chains hidden - and the craft's group whole (S.boxCraft): G1005 meant the craft out of the box (it
+  // casts into its own cascade), but the lookup sends a receiver DEEPER than the cascade's window to the box, and there
+  // (terrain falling away past the craft's ground shadow: a valley beyond a ridge, a low sun) the craft's shadow is the
+  // box's alone - the far map never has it. So the craft stays, as it always was in fact. Only while
+  // the renderer's pass is hooked (what it hides is shown again when the pass ends: nothing after viewport 1 would), and
+  // only once nearTag has spoken (no list yet, or a sphere without its object: the whole walk, as before).
+  function pruneBox() {
+    const sc = C1.scene; if (!S.boxPrune || !HOOK.on || !sc || C1.hidden.length) return;
+    if (!nearSpheres) { C1.boxFull++; return; }
+    const top = S.boxCraft ? craftTop() : null;
+    keep.clear(); keep.add(sc); if (top) keep.add(top);
+    for (const q of nearSpheres) { if (!q[4]) { C1.boxFull++; return; } for (let o = q[4]; o && o !== sc; o = o.parent) keep.add(o); }
+    hideRest(top);
+    C1.boxPruned++;
+  }
+  // G1125 hook(renderer): the shadow pass wrapped - whatever a pass hid (the cascade's and the box's prunes, the far map's
+  // hides) is shown again the moment it returns or throws: three projects the frame's render list BEFORE it draws the
+  // shadow maps, and the next render (the mirror, the probes, the next frame) must find the world whole. A renderer
+  // without three's WebGL shadow pass (the TSL one) is left alone, and the box is then walked whole.
+  const HOOK = { on: false, passes: 0 };
+  function hook(renderer) {
+    const SM = renderer && !renderer.isWebGPURenderer ? renderer.shadowMap : null;
+    if (!SM || typeof SM.render !== 'function' || SM.__nearHook) return false;
+    const r = SM.render;
+    SM.render = function () { HOOK.passes++; try { return r.apply(this, arguments); } finally { unprune(); farUnhide(); } };
+    SM.__nearHook = true; HOOK.on = true;
+    return true;
+  }
   function atlas(sh) {
     if (!sh || typeof sh._updateMatrix !== 'function' || !nearUniforms.uNearM1 || !THREE.Frustum) { S.on = false; return; }   // not this three: no near map rather than a wrong one
     sh._frameExtents.set(2, 1); sh._viewportCount = 2;
@@ -221,7 +262,7 @@ var SHADOW_NEAR = (function () {
     C1.frustum = new THREE.Frustum(); C1.pos = new THREE.Vector3(); C1.tgt = new THREE.Vector3(); C1.dir = new THREE.Vector3();
     const t0 = new THREE.Vector3();
     // three's loop: getCamera(i) then getFrustum(i) then the walk, for i = 0, 1 - the bracket round the craft's pass
-    sh.getCamera = function (i) { if (i === 0) { if (S.prune) prune(); return cam1; } unprune(); return this.camera; };
+    sh.getCamera = function (i) { if (i === 0) { if (S.prune) prune(); return cam1; } unprune(); pruneBox(); return this.camera; };   // G1125: viewport 1 its near casters alone
     sh.getFrustum = function (i) { return i ? this._frustum : C1.frustum; };
     sh.updateMatrices = function (light) {
       farUnhide();   // (G1080: the aeroplane hidden from the far map's pass only - shown again for the near map's)
@@ -497,21 +538,32 @@ var SHADOW_NEAR = (function () {
   // before that light's walk, and only on a frame that draws it) hides it; the near light's (next in the same pass - the
   // scene's order: render_world adds the sun first) and follow() show it again. Only while the near map is live: with it
   // off the craft's shadow IS the far map's (apply()).
-  const FARH = { hid: null, n: 0, L: null };
-  function farUnhide() { if (FARH.hid) { FARH.hid.visible = true; FARH.hid = null; } }
+  //
+  // G1126 THE FAR MAP MEANT EMPTY. The same walk made G655's 'near' tier a no-op too: worldShadow false puts the far
+  // camera on an EMPTY layer (render_world SUNW.EMPTY; the A/B's 6 the same) to draw nothing, and the pass drew the whole
+  // world, once, into a 256^2 map over the far box (0.8-4 m texels) that then stood where it was drawn. Now a far camera
+  // without FAR_LAYER walks nothing: every top-level child of the scene hidden for that pass (only while the renderer's
+  // pass is hooked - the hook shows them again). With FAR_LAYER on, the far map's scheme is "everything but the craft"
+  // (render_world nearWatch puts FAR_LAYER on every object that joins the scene), which is the walk less the craft's hide.
+  const FARH = { hid: null, n: 0, L: null, all: [], empty: 0 };
+  function farUnhide() { if (FARH.hid) { FARH.hid.visible = true; FARH.hid = null; } const a = FARH.all; for (let i = 0; i < a.length; i++) a[i].visible = true; a.length = 0; }
   function farLight(Lf) {
     if (!Lf || !Lf.shadow || FARH.L === Lf) return;
     FARH.L = Lf;
     const sh = Lf.shadow, um = sh.updateMatrices;
     sh.updateMatrices = function () {
-      if (S.farHide && S.on && madeL && madeL.visible && madeL.castShadow && craftGroup && C1.scene) {
+      if (S.farEmpty && HOOK.on && C1.scene && !FARH.all.length && this.camera && !this.camera.layers.isEnabled(FAR_LAYER)) {   // G1126: an empty layer - nothing casts
+        const ch = C1.scene.children;
+        for (let i = 0; i < ch.length; i++) { const c = ch[i]; if (c.visible && !c.isLight) { c.visible = false; FARH.all.push(c); } }
+        FARH.empty++;
+      } else if (S.farHide && S.on && madeL && madeL.visible && madeL.castShadow && craftGroup && C1.scene) {
         let top = craftGroup; while (top.parent && top.parent !== C1.scene) top = top.parent;
         if (top.parent === C1.scene && top.visible) { top.visible = false; FARH.hid = top; FARH.n++; }
       }
       return um.apply(this, arguments);
     };
   }
-  const API = { S, pcf, C1, AIM, EYES, FARH, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, eyes, apply, setNear, unprune, get installed() { return installed; } };
+  const API = { S, pcf, C1, AIM, EYES, FARH, HOOK, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, hook, eyes, apply, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); eyesInit(); }
   return API;
 })();
