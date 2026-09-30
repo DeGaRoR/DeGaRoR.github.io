@@ -6858,10 +6858,10 @@
         try {
           h = ROLLANIM.playWorld({ craft, camera, model, def, sim, shed: WF.shedFrame(), end,
             ground: world && typeof world.terrainH === 'function' ? (x, z) => world.terrainH(x, z) : null,
-            contact: contactMesh || null,
+            contact: contactMesh || null, cost: raSpheres ? raDrawCost : null,
             onDone: w => { rollHold = false; raBusy = false;
               if (w && w.skipped === 'skipped by the player') rollAnimSwallow = perfNow() + 500;
-              trip.animWorld = w && w.plan ? { L: +w.plan.L.toFixed(1), T: +w.plan.T.T.toFixed(2), eye0: w.plan.eye0 } : (w ? w.skipped : null);
+              trip.animWorld = w && w.plan ? { L: +w.plan.L.toFixed(1), T: +w.plan.T.T.toFixed(2), eye0: w.plan.eye0, spheres: raSpheres ? raSpheres.length / 4 : 0 } : (w ? w.skipped : null);
               fin(how(w), toFlight); } });
         } catch (e) { console.warn('rollanim world:', e && e.message); rollHold = false; raBusy = false; fin('threw', toFlight); }
         trip.planMs = +(perfNow() - tPlan).toFixed(1); trip.cutMs = +(perfNow() - tCut).toFixed(1);
@@ -7230,6 +7230,61 @@
       tick();
     });
   }
+  // G1118 (ROLLOUT-REAL's cure, the user: "cure first"): THE ROLL-OUT SHOT'S OWN VIEWS, WARMED IN THE LOADING. The world roll
+  // opens on an eye outside the shed's door (rollanim worldEye's candidates: 10-20 m out, 6-15 m aside) - a view the six
+  // stand headings above never drew, so its buffers went up on the shot's first frames (two 50 ms frames at the cut, a
+  // world-roll frame's upload up to 7 MB in node). Four views from the door's front (13 / 20 m out, 9 / 15 m aside, both
+  // sides) looking into the doorway, ONE A TASK (no long task in the loading), under the boot's overlay. Then the world's
+  // draw spheres are gathered once (raDrawSpheres: the establishing eye is chosen by what its frustum holds, below)
+  function worldWarmShed() {
+    const sf = WF && WF.shedFrame ? WF.shedFrame() : null;
+    if (!sf || !sf.node || typeof renderer.compileAsync !== 'function') return null;
+    sf.node.updateMatrixWorld(true);
+    const M = sf.node.matrixWorld, ax = sf.doorAxis || -1, x0 = ax * sf.dims.HD, views = [];
+    for (const [u, lat] of [[13, 9], [20, 15]]) for (const s of [1, -1]) views.push([u, lat * s]);
+    const look = new THREE.Vector3(x0 - ax * 2, 2, 0).applyMatrix4(M);
+    return new Promise(res => {
+      let i = 0;
+      const one = () => {
+        if (i >= views.length || !inGarage) { raGatherSpheres(); res(); return; }
+        const [u, z] = views[i++], e = new THREE.Vector3(x0 + ax * u, 2.2, z).applyMatrix4(M);
+        const cam = camera.clone();
+        cam.position.copy(e); cam.lookAt(look); cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
+        try { worldSettle(); if (aa) aa.render(scene, cam); else renderer.render(scene, cam); } catch (e2) { console.warn('shed warm draw:', e2 && e2.message); }
+        setTimeout(one, 0);
+      };
+      one();
+    });
+  }
+  // THE WORLD'S DRAW SPHERES (G1118): every drawable mesh of the world scene, its bounding sphere in the world, once (the world
+  // is static but for what streams near the aeroplane) - rollanim's establishing eye counts what each candidate's frustum
+  // holds (raDrawCost) and the cheaper view wins among the ones with no fault
+  let raSpheres = null;
+  function raGatherSpheres() {
+    if (!WF || !WF.scene) return;
+    const out = [], sp = new THREE.Sphere();
+    WF.scene.updateMatrixWorld(true);
+    WF.scene.traverseVisible(o => {
+      if (!(o.isMesh || o.isInstancedMesh || o.isLine || o.isPoints) || !o.geometry || o === craft) return;
+      const g = o.geometry; if (!g.boundingSphere) { try { g.computeBoundingSphere(); } catch (e) { return; } }
+      if (!g.boundingSphere || !(g.boundingSphere.radius >= 0)) return;
+      sp.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);
+      if (Number.isFinite(sp.radius)) out.push(sp.center.x, sp.center.y, sp.center.z, sp.radius);
+    });
+    raSpheres = new Float32Array(out);
+    if (typeof window !== 'undefined') window.FLYDIY_RA_SPHERES = raSpheres.length / 4;
+  }
+  let raFr = null, raFm = null, raSp = null;         // (made at the first count: a stubbed THREE, GATE UISMOKE's, has none)
+  function raDrawCost(eye, look) {
+    if (!raSpheres || !THREE.Frustum) return 0;
+    if (!raFr) { raFr = new THREE.Frustum(); raFm = new THREE.Matrix4(); raSp = new THREE.Sphere(); }
+    const c = camera.clone();
+    c.fov = cam.fov; c.position.set(eye[0], eye[1], eye[2]); c.lookAt(look[0], look[1], look[2]); c.updateProjectionMatrix(); c.updateMatrixWorld(true);
+    raFm.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); raFr.setFromProjectionMatrix(raFm);
+    let n = 0; const S = raSpheres;
+    for (let i = 0; i < S.length; i += 4) { raSp.center.set(S[i], S[i + 1], S[i + 2]); raSp.radius = S[i + 3]; if (raFr.intersectsSphere(raSp)) n++; }
+    return n;
+  }
   // THE WORLD AS THE FLIGHT WILL FIND IT AT THE STAND, in the one loading: its per-frame update run once there (the sun's
   // cascades aimed, the near-shadow light live or not, the village lamps lit or not for the hour) - the lights' count and
   // shadows are in EVERY lit program's key, and a world compiled before its first update re-keyed all of them on the first
@@ -7454,7 +7509,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return worldWarmDraw(); holdRender = false; return framesRendered(2); }));
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(() => worldWarmShed()); holdRender = false; return framesRendered(2); }));   // (G1118: then the shot's own views)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;

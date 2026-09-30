@@ -94,6 +94,7 @@ const ROLLANIM = (() => {
     wHandle: 0.42,                     // the turn's handles, a fraction of the chord (a cubic from the door's line to the stand)
     wLag: 0.28,                        // the eye holds its establishing view this fraction of the roll, then dollies
     wMargin: 1.6,                      // the eye this far off the aeroplane's footprint, metres
+    wDrawK: 10, wDraw: 0.05,           // G1118: the cheapest fault-free eyes whose draws are counted, and metres of dolly a draw
   };
   // the check's order (the user's list) and the ctl keys it drives
   const CHECK_ORDER = ['da', 'de', 'dr', 'flap'];
@@ -714,6 +715,7 @@ const ROLLANIM = (() => {
   //     opts.end        { eye: [x,y,z], look: [x,y,z], fov } the flight's first frame (app.js revealPose)
   //     opts.ground     fn(x, z) -> the ground's height (the world's terrainH); inside the shed its slab
   //     opts.contact    optional Object3D moved with the aeroplane (app.js's contact shadows, drawn at the stand's wheels)
+  //     opts.cost       optional fn(eye, look) -> the draws a view there holds (G1118: the establishing eye by what it draws)
   //     opts.onDone, opts.skip   as play's
   //   THE PATH: the main wheels' midpoint rolls straight out of the door along its axis until the tail is S.wClear past
   //   the door plane, then a cubic onto the stand (tangent to both: the heading follows the path), by arc length on
@@ -858,7 +860,7 @@ const ROLLANIM = (() => {
     v.set(e1[0], e1[1], e1[2]).applyMatrix4(Mi);
     const side1 = v.z < 0 ? -1 : 1;                      // the side of the door's axis the flight's eye is on
     const len = Math.abs(room.x1 - room.x0);
-    let best = null;
+    const all = [];
     for (const u of [10, 13, 16, 20]) for (const lat of [6, 9, 12, 15]) for (const sd of [side1, -side1]) for (const hg of [1.7, 2.6]) {
       v.set(room.x0 + room.axis * u, 0, sd * lat).applyMatrix4(M);
       const E0 = [v.x, gnd(v.x, v.z) + hg, v.z];
@@ -891,9 +893,32 @@ const ROLLANIM = (() => {
       }
       const cost = bad * 1000 + Math.hypot(e1[0] - E0[0], e1[1] - E0[1], e1[2] - E0[2]) + (sd === side1 ? 0 : 4)
         + 0.4 * Math.abs(u - 13) + 0.4 * Math.abs(lat - 9);
-      if (!best || cost < best.cost) best = { eye: E0, bad, cost, u, lat, side: sd, h: hg };
+      all.push({ eye: E0, bad, cost, u, lat, side: sd, h: hg });
     }
-    return best;
+    all.sort((a, b) => a.cost - b.cost);
+    // G1118 (the cure): WHAT THE VIEW DRAWS. opts.cost(eye, look) -> the draws its frustum holds (app.js raDrawCost). The eye
+    // HOLDS its establishing view for S.wLag of the shot, where the frames were missed: so among the fault-free
+    // candidates (the S.wDrawK cheapest), the view's draws at the hold's start and end (the aeroplane in the doorway and
+    // coming out) weigh in at S.wDraw m a draw; the dolly's length and the framing's taste keep their say
+    const best = all[0];
+    if (typeof o.cost === 'function' && best && best.bad === 0) {
+      const lk = [0, 0, 0], ixc = new Int32Array(1), pc = [0, 0, 0, 0], TT2 = new Float64Array(2);
+      for (const c of all.slice(0, S.wDrawK)) {
+        if (c.bad) break;
+        let d = 0;
+        for (const f of [0.05, S.wLag]) {
+          const t = W.T.T * f; TT2[1] = rollS(W.T, W.L, t); pathAt(W, TT2, 1, ixc, pc);
+          const a = pc[2] - W.psi1, ca = Math.cos(a), sa = Math.sin(a), gx = W.cg[0] - W.P1[0], gz = W.cg[2] - W.P1[2];
+          lk[0] = pc[0] + gx * ca - gz * sa; lk[1] = W.cg[1] + pc[3]; lk[2] = pc[1] + gx * sa + gz * ca;
+          d += o.cost(c.eye, lk) / 2;
+        }
+        c.draws = Math.round(d); c.cost += S.wDraw * d;
+      }
+      all.sort((a, b) => a.bad - b.bad || a.cost - b.cost);
+    }
+    // (the census: the scored candidates, [out, aside, side, height, faults, draws, cost])
+    all[0].cands = all.slice(0, S.wDrawK).map(c => [c.u, c.lat, c.side, c.h, c.bad, c.draws == null ? null : c.draws, +c.cost.toFixed(1)]);
+    return all[0];
   }
   function playWorld(o) {
     o = o || {};
