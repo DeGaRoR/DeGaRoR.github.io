@@ -8,7 +8,8 @@
 // speed. Three readings, each a number:
 //   A. MOVERS: the far map's casters that move with the aeroplane (tools/_sheyes_movers.js), at the taxi.
 //   B. IS THE AEROPLANE IN THE FAR MAP? Paused (the world held), the far map drawn EVERY frame, screenshots with the
-//      aeroplane in the far map's pass (config 0) and hidden from it alone (config 9), and a control pair 0/0: a
+//      aeroplane hidden from the far map's pass (config 0, G1080.2) and drawn in it (config 2; the first night run used the
+//      then config 9, the same switch reversed), and control pairs: a
 //      difference above the control's is the aeroplane's far-map shadow. The pixels are decoded here (PNG, no package).
 //   C. PACING: taxiing, configs 1 and 4 alternated (8 s each): the rendered intervals (mean, uneven share - consecutive
 //      intervals differing by 8 ms or more), and the shadow pass's CPU time per frame (renderer.shadowMap.render wrapped).
@@ -83,14 +84,14 @@ function diff(f1, f2) {
   await sleep(1500);
   log('B paused, frames drawn in 1 s: ' + await E("(async()=>{ const R=FLIGHT_PROBE.renderer(), f0=R.info.render.frame; await new Promise(z=>setTimeout(z,1000)); return R.info.render.frame - f0; })()"));
   const shots = [];
-  for (const [k, c] of [['a0', 0], ['b0', 0], ['c9', 9], ['d0', 0], ['e9', 9]]) {
+  for (const [k, c] of [['a0', 0], ['b0', 0], ['c2', 2], ['d0', 0], ['e2', 2]]) {
     await E(`(SHEYES(${c}), window.SHADOW_RATE.every = 1, 1)`);
     await sleep(1200);
     const f = path.join(OUT, 'far_' + k + '.png');
     await get('/shot?f=' + encodeURIComponent(f));
     shots.push(f);
   }
-  const d = { control_a0_b0: diff(shots[0], shots[1]), craftFar_b0_c9: diff(shots[1], shots[2]), control_c9_e9: diff(shots[2], shots[4]), craftFar_d0_e9: diff(shots[3], shots[4]) };
+  const d = { control_a0_b0: diff(shots[0], shots[1]), craftFar_b0_c2: diff(shots[1], shots[2]), control_c2_e2: diff(shots[2], shots[4]), craftFar_d0_e2: diff(shots[3], shots[4]) };
   log('B pixels ' + JSON.stringify(d));
   await E("(SHEYES(0), document.getElementById('bPause').click(), 1)");
   fs.writeFileSync(path.join(OUT, 'night.json'), JSON.stringify({ pace, pixels: d }, null, 1));
