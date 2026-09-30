@@ -859,6 +859,9 @@ async function main() {
     if (allows) console.log('  ALLOWED: ' + allows + ' rises admitted by the ALLOW list');
   }
   console.log('  wall ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
+  // train 18 (A0): the commonest false red, seen on five branches in one night - an edit to app.js or any inlined viewer
+  // script moves FLYDIY_BUILD, the parked cook goes STALE and every parked aeroplane is captured live in the node page
+  if (fails) console.log('  HINT: stand/taxi draws.shadow/main, uniforms up after an app.js / viewer edit? run `node tools/parked_cook.js --check` first - a STALE cook captures the parked aeroplanes live (re-cook with parked_cook.js; the train re-cooks on its final build)');
   console.log('GATE FRAMECOST: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
   process.exit(fails ? 1 : 0);
 }
