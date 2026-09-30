@@ -275,8 +275,10 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   check(/snapshotSteps\(flown\)[\s\S]*FLOWN_BAKE\.note\(window\.CAGE_VISUAL\)[\s\S]*GARAGE_SPEC\.update/.test(sync), '7 the snapshot notes the rest positions before the spec applies');
   const bm = app.slice(app.indexOf('function buildModel('), app.indexOf('function buildModel(') + 30000);
   check(/FLOWN_BAKE\.forPayload\(data\)/.test(bm) && /setAttribute\('uv1', new THREE\.BufferAttribute\(fbUv, 2, true\)\)/.test(bm) &&
-        /const matFor = name => \(FBK && FBK\.has\(grpMat\(name\)\) && !FBK\.inner\(grpMat\(name\)\)\) \? FBK\.matOf\(grpMat\(name\)\) : matLive\(name\);/.test(bm) &&
-        /if \(fbUv && !FBK\.ab && !FBK\.innerGroup\(g\)\)/.test(bm), '7 buildModel reads the bake: the atlas uv, the baked material per atlas, the cabin\'s live geometry kept');
+        /const matFor = name => \(FBK && FBK\.has\(grpMat\(name\)\) && !FBK\.inner\(grpMat\(name\)\)\)\s*\? \(FBK\.hybrid \? FBK\.twin\(matLive\(name\)\) : FBK\.matOf\(grpMat\(name\)\)\) : matLive\(name\);/.test(bm) &&
+        /if \(fbUv && !FBK\.ab && !\(FBK\.liveGroup \? FBK\.liveGroup\(g\) : FBK\.innerGroup\(g\)\)\)/.test(bm), '7 buildModel reads the bake: the atlas uv, the baked material per atlas (the hybrid: a live copy on the kept mesh), the kept buckets\' live geometry');
+  check(/members: extMeshes, keep: true, set: 'ext'/.test(app) && /else if \(FBK && FBK\.hybrid && FBK\.has\(grpMat\(name\)\) && FBK\.uv\(dec\[name\]\)\) extMeshes\.push\(mesh\);/.test(app) &&
+        /FLOWN_BAKE\.nearT\(camera, hyP, hyV\.y\)/.test(app) && /FLOWN_BAKE\.hybrid\(t\)/.test(app), '7 the hybrid: the exterior\'s live meshes kept on its fold, t from the camera every frame (1 in the cockpit)');
   check(/window\.FLOWN_BAKE\.mergeModel\(THREE, grp, FBK\.mat, \{ written, wheel \}\)/.test(app) && /members: inMeshes, keep: true/.test(app) &&
         app.indexOf('FLOWN_BAKE.mergeModel(') > 0 && app.indexOf('FLOWN_BAKE.mergeModel(') < app.indexOf('const still = data.cage ? mergeStill(grp, meshes'), '7 the folds are made before G576\'s still merge (the exterior\'s; the cabin\'s keeping its members)');
   check(/if \(m\.userData\.flownMerge\) \{ if \(m\.userData\.crumbR != null\) m\.castShadow = false; return; \}/.test(app), '7 the roll-out\'s crumb rule reads a fold\'s class, not its sphere');
@@ -404,6 +406,26 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   const on = k1.visible && k2.visible && !o2.meshes[0].visible;
   o2.view(false);
   check(on && !k1.visible && o2.meshes[0].visible, '8 the cockpit\'s swap: the live cabin at arm\'s length, the fold everywhere else');
+  // G1120-G1121 THE HYBRID: the kept live meshes out of the graph while the fold is drawn, back for the band and the near
+  // view; ONE fade for both sides (FB_FADE), the rigs' hold; the live copy's own program with the band's discard
+  o2.park();
+  const hyParked = k1.parent === null && k2.parent === null && !k1.visible && o2.meshes[0].visible;
+  o2.fade(0.5);
+  const hyBand = k1.parent === g2 && k2.parent === g2 && k1.visible && o2.meshes[0].visible;
+  o2.fade(1);
+  const hyNear = k1.parent === g2 && k1.visible && !o2.meshes[0].visible;
+  o2.fade(0);
+  const hyFar = k1.parent === null && !k1.visible && o2.meshes[0].visible;
+  check(hyParked && hyBand && hyNear && hyFar, '8 G1121 the hybrid: the live meshes out of the graph while the bake is drawn, both in the band, the live alone near, parked again far',
+    JSON.stringify({ hyParked, hyBand, hyNear, hyFar }));
+  const t1 = FB.hybrid(0.5), f1 = FB.FB_FADE.value; FB.FB.hyForce = 1; const t2 = FB.hybrid(0.2); FB.FB.hyForce = null; FB.hybrid(0);
+  check(t1 === 0.5 && f1 === 0.5 && t2 === 1 && FB.FB_FADE.value === 0, '8 G1120 one fade for both sides (FB_FADE), the rigs\' hold (FB.hyForce) wins over the rule', JSON.stringify({ t1, f1, t2 }));
+  const tw = FB.liveTwin(live), sh = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };
+  try { tw.onBeforeCompile.call(tw, sh, null); } catch (e) {}
+  check(tw !== live && FB.liveTwin(live) === tw && String(tw.onBeforeCompile).indexOf('flown.live|') >= 0 && sh.uniforms.uFbFade === FB.FB_FADE &&
+        /uniform float uFbFade;/.test(sh.fragmentShader) && /uFbFade > 0\.0 && uFbFade < 1\.0 && fract\(52\.9829189[\s\S]*>= uFbFade\) discard;/.test(sh.fragmentShader),
+    '8 G1120 the live copy: its own material (a finish shared with what never bakes must not dither), its hook + the band\'s discard (only inside the band)',
+    String(tw.onBeforeCompile).slice(0, 60));
   W.FLYDIY_FLOWN_MERGE = 0;
   const g3 = new T.Group(); g3.add(bakedMesh(box(0, 0, 0, 1, 1, 1, 1)), bakedMesh(box(1, 0, 0, 2, 1, 1, 1)));
   check(FB.mergeModel(T, g3, mat, {}) === null && g3.children.length === 2, '8 FLYDIY_FLOWN_MERGE = 0 folds nothing (the dial)');

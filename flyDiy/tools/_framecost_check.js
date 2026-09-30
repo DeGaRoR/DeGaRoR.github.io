@@ -404,6 +404,22 @@ async function census(build) {
   })();
   craft.taxi = await craftCensus(W, P, FP, C);
   rtraceWrite();
+  // THE HYBRID'S CROSSING (flown_bake.js, 2026-09-30): at the taxi's frame the flown model forced near (the live meshes),
+  // then into the dithered band (both), then back (the bake) - the first frames after each flip counted one by one:
+  // a crossing must link nothing, create no buffer and upload no texture beyond what the taxi's frame does anyway (its
+  // median), because the live meshes were drawn once under the roll-out's screen (the craft step's warm draw)
+  const FBK = W.FLOWN_BAKE;
+  if (FBK && FBK.FB && FBK.FB.hybrid && FBK.folds && FBK.folds().some(F => F.set === 'ext')) {
+    const flip = async t => { FBK.FB.hyForce = t; rows = []; cur = null; await P.frames(3); const L = rows; rows = null; return L; };
+    const near = await flip(1); craft.near = await craftCensus(W, P, FP, C);
+    const band = await flip(0.5); craft.band = await craftCensus(W, P, FP, C);
+    const back = await flip(0);
+    FBK.FB.hyForce = null;
+    const T = views.taxi, per = L => L.map(r => ({ bufferData: r['gl.bufferData'] || 0, texImage: (r['gl.texImage2D'] || 0) + (r['gl.texImage3D'] || 0), links: r.links || 0,
+      subBytes: r['bytes.bufferSubData'] || 0, draws: r['draws.total'] || 0 }));
+    const HW = W.__hyWarm; craft.warm = HW ? { n: HW.n, drawn: HW.drawn, sameModel: HW.model === FP.model(), live: FBK.folds().reduce((k, F) => k + F.live.length, 0) } : null;
+    craft.cross = { near: per(near), band: per(band), back: per(back), taxi: { bufferData: T['gl.bufferData'] || 0, texImage: (T['gl.texImage2D'] || 0) + (T['gl.texImage3D'] || 0), links: T.links || 0 } };
+  }
   const wd = FP.world();
   const health = { metlakatla, premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
@@ -924,6 +940,13 @@ async function main() {
     if (!r.failed && r.crew) console.log('       crew (reported, AS6): ' + crewLine(r.crew));
     if (r.failed) continue;
     ok(!!(r.views.stand && r.views.taxi), r.build + ': both views measured (stand, taxi)', r.views.taxi ? 'taxi at ' + r.views.taxi.pose.join(' ') : 'no taxi pose');
+    // THE HYBRID'S CROSSING: no link, no new buffer, no texture upload past the taxi's own frame (above, census)
+    if (r.craft && r.craft.cross) { const X = r.craft.cross, T = X.taxi, all = [...X.near, ...X.band, ...X.back];
+      const over = all.filter(f => f.links > T.links || f.bufferData > T.bufferData || f.texImage > T.texImage);
+      console.log('  info ' + r.build + ' the hybrid warm: ' + JSON.stringify(r.craft.warm));
+      ok(!over.length, r.build + ": the hybrid's crossing (near, band, back: 3 frames each) links, creates and uploads nothing past the taxi's frame",
+        'per frame bufferData ' + all.map(f => f.bufferData).join('/') + ' (taxi ' + T.bufferData + '), texImage ' + all.map(f => f.texImage).join('/') + ' (taxi ' + T.texImage + '), links ' + all.map(f => f.links).join('/') + '; bufferSubData KB ' + all.map(f => Math.round(f.subBytes / 1024)).join('/'));
+      for (const v of ['near', 'band']) { const k = r.craft[v]; if (k) console.log('  info ' + r.build + ' ' + v + ' (the hybrid, forced): the aeroplane draws ' + k.draws.main + ' main + ' + k.draws.shadow + ' shadow + ' + k.draws.other + ' other (' + k.skinnedDraws + ' skinned), ' + k.materials + ' materials, ' + k.programs + ' programs'); } }
     if (r.craft) for (const v of ['stand', 'taxi']) { const k = r.craft[v]; if (!k) continue; console.log('  info ' + r.build + ' ' + v + ': the aeroplane draws ' + k.draws.main + ' main + ' + k.draws.shadow + ' shadow + ' + k.draws.other + ' other (' + k.skinnedDraws + ' skinned), ' + k.materials + ' materials, ' + k.programs + ' programs, ' + k.meshes + ' meshes'); }
     const H = r.health || {};
     ok(H.world === 'jolene' && H.premises && H.townCut > 0 && H.raster, r.build + ': the scene is the page\'s - Jolene, its premises composed with Metlakatla cut, the ground raster on', 'world ' + H.world + ', premises ' + H.premises + ', ' + H.townCut + ' mk_ entries cut, raster ' + H.raster + ', depth ' + H.depth);

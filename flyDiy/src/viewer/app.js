@@ -1868,7 +1868,7 @@
     const mkGeo = (g, ownPos) => {
       const fbUv = FBK ? FBK.uv(g) : null;
       // (C4b: a cabin bucket keeps its live geometry - the cockpit view draws it - and carries its atlas uv beside)
-      if (fbUv && !FBK.ab && !FBK.innerGroup(g)) {
+      if (fbUv && !FBK.ab && !(FBK.liveGroup ? FBK.liveGroup(g) : FBK.innerGroup(g))) {   // (the hybrid: every baked bucket as the cabin's)
         // a baked bucket reads position, normal and its atlas uv, nothing else (no field, no cavity: the bake holds them)
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(ownPos ? g.pos.slice() : g.pos, 3));
@@ -1908,8 +1908,12 @@
     const matCache = {};
     // a baked bucket's material is the bake's one (FBK); the A/B build keeps its live twin beside it (FBK.made). C4b:
     // the cabin's buckets ('in') keep their live material here and fold onto the cabin's baked one (mergeModel's keep)
-    const matFor = name => (FBK && FBK.has(grpMat(name)) && !FBK.inner(grpMat(name))) ? FBK.matOf(grpMat(name)) : matLive(name);
+    // THE HYBRID (flown_bake.js): an exterior bucket keeps its live mesh too, on a copy of its live material (the band's
+    // discard), and folds onto the bake beside it
+    const matFor = name => (FBK && FBK.has(grpMat(name)) && !FBK.inner(grpMat(name)))
+      ? (FBK.hybrid ? FBK.twin(matLive(name)) : FBK.matOf(grpMat(name))) : matLive(name);
     const inMeshes = [];                  // C4b: the cabin's live meshes, for its fold
+    const extMeshes = [];                 // the hybrid: the exterior's live meshes, for its fold
     const matLive = name => {
       const mn = grpMat(name);
       if (matCache[mn]) return matCache[mn];
@@ -2106,6 +2110,7 @@
       const mesh = new THREE.Mesh(geo, matFor(name));
       if (FBK && FBK.ab && FBK.baked(mesh.material)) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
       if (FBK && !FBK.ab && FBK.inner(grpMat(name)) && FBK.uv(dec[name])) inMeshes.push(mesh);
+      else if (FBK && FBK.hybrid && FBK.has(grpMat(name)) && FBK.uv(dec[name])) extMeshes.push(mesh);
       // the payload's own declaration of what is see-through is `opacity < 1`
       // — the same fact `castShadow` below already reads
       const clear = !!(mats[name] && mats[name].opacity < 1);
@@ -2266,6 +2271,7 @@
           const mesh = new THREE.Mesh(mkGeo(pt.groups[name]), matFor(name));
           if (FBK && FBK.ab && FBK.baked(mesh.material)) FBK.made(mesh, matLive(name));   // C4a: the A/B build's live twin
           if (FBK && !FBK.ab && FBK.inner(grpMat(name)) && FBK.uv(pt.groups[name])) inMeshes.push(mesh);
+          else if (FBK && FBK.hybrid && FBK.has(grpMat(name)) && FBK.uv(pt.groups[name])) extMeshes.push(mesh);
           mesh.castShadow = !(mats[name] && mats[name].opacity < 1);
           if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroGlassCompanion)
             AEROSKIN.aeroGlassCompanion(THREE, mesh, mesh.material,
@@ -3044,7 +3050,9 @@
       for (const L of [strutRigs, stretchRigs, surfParts, floatRigs, anchorRigs, linkRigs]) for (const r of L) if (r.posAttr) written.add(r.posAttr);
       const wheel = new Set();
       for (const w of wheelParts) if (w.obj && w.obj.traverse) w.obj.traverse(o => { if (o.isMesh) wheel.add(o); });
-      try { fold = FBK.mat ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel }) : null; } catch (e) { console.warn('flown bake: the fold failed', e); fold = null; }
+      try { fold = !FBK.mat ? null : FBK.hybrid ? (extMeshes.length ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel, members: extMeshes, keep: true, set: 'ext' }) : null)
+                                         : window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel }); }
+      catch (e) { console.warn('flown bake: the fold failed', e); fold = null; }
       if (fold) for (const n in meshes) { const f = fold.of.get(meshes[n]); if (f) meshes[n] = f; }
       // the cabin: its live meshes stay (hidden), its fold draws them on the cabin's baked material but in the cockpit
       try { foldIn = (FBK.mats.in && inMeshes.length) ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mats.in, { written, wheel, members: inMeshes, keep: true }) : null; }
@@ -3063,6 +3071,8 @@
     };
     relive(foldIn, k => FBK.inner(k));
     relive(fold, k => FBK.has(k) && !FBK.inner(k));
+    // G1121: the kept live meshes (the cabin's; the hybrid's exterior) out of the graph until they are drawn
+    for (const F of [fold, foldIn]) if (F && F.park) F.park();
     const people = buildPeople(data, grp, ctlMoves);   // live crew
     // G357: THE CAPTURE'S MAP, AND ITS INVERSE. The snapshot stores every
     // vertex through B⁻¹ (G337) so the oblique pose lands it exactly; a part
@@ -3084,6 +3094,7 @@
     // first rig stays whatever it is - sparDeltas reads its station table
     const m = Object.assign(entry, { grp, props, deltas, people, still,
                         fold: foldIn,                                  // C4b: the cabin's swap (view(cockpit))
+                        foldExt: fold && fold.fade ? fold : null,      // the hybrid: the exterior's band
                         rigs: still ? rigs.filter((r, i) => i === 0 || !still.names.has(r.name)) : rigs,
                         poseK, K4, Ki4,                                 // G357
                         // the panel arc (session 4): the hands, the lamps and
@@ -6985,13 +6996,30 @@
     const was = holdRender;
     holdRender = true;
     const release = () => { holdRender = was; };
-    return compileCraftLinks().then(release, e => { release(); throw e; });
+    return compileCraftLinks().then(() => hybridWarm()).then(release, e => { release(); throw e; });
+  }
+  // G1121: THE HYBRID'S KEPT LIVE MESHES are out of the graph (flown_bake.js park) and three's compile walks the graph -
+  // so the craft's compile takes them by stand-in (their programs and their depth variants, in the world's lights)
+  function keptGroup() {
+    const KEPT = (window.FLOWN_BAKE && FLOWN_BAKE.folds) ? FLOWN_BAKE.folds().flatMap(F => F.live || []) : [];
+    const KG = new THREE.Group();
+    if (typeof PROG_WARM !== 'undefined' && PROG_WARM.standIn) for (const o of KEPT) { try { KG.add(PROG_WARM.standIn(o, o.material)); } catch (e) {} }
+    return { KEPT, KG };
+  }
+  // G1122: ...and their first draws and buffers under the craft step's screen, in the world's lights (the craft dressed in
+  // the world per slice, as the compiles are) - the band's first crossing in flight then draws what is already resident
+  function hybridWarm() {
+    const L = keptGroup().KEPT;
+    window.__hyWarm = { n: L.length, model: model, at: performance.now() };   // (GATE FRAMECOST reads it at the crossing)
+    return L.length ? warmDrawSliced(scene, aa && aa.target ? aa.target() : null, null, L, craftInWorldNow).then(k => { window.__hyWarm.drawn = k; })
+      .catch(e => console.warn('hybrid warm:', e && e.message)) : null;
   }
   function compileCraftLinks() {
-    const inW = craftInWorldNow;
+    const inW = craftInWorldNow, KG = keptGroup().KG;
     const jobs = [compileSliced(craft, aa && aa.target ? aa.target() : null, scene, false, inW)];
+    if (KG.children.length) jobs.push(compileSliced(KG, aa && aa.target ? aa.target() : null, scene, false, inW));
     if (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants) {
-      try { const { helper } = inW(() => PROG_WARM.depthVariants(THREE, renderer, [craft])); jobs.push(compileSliced(helper, PLAIN_RT(), scene, true, inW)); }
+      try { const { helper } = inW(() => PROG_WARM.depthVariants(THREE, renderer, KG.children.length ? [craft, KG] : [craft])); jobs.push(compileSliced(helper, PLAIN_RT(), scene, true, inW)); }
       catch (e) { console.warn('craft depth compile:', e && e.message); }
     }
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
@@ -10307,6 +10335,7 @@
   if (typeof window !== 'undefined') window.HEAD_CAM = headCam;
   // ---- end HEADCAM ---------------------------------------------------------
   let flHdg0 = 0, flYawRate = 0, flEyeLoc = null, flEyeSrc = null;
+  const hyP = new THREE.Vector3(), hyV = new THREE.Vector2();   // the hybrid's point and drawing buffer (FLOWN_BAKE.nearT)
   function flCamMode(m) {
     // B8: picked in the shed (the setup screen), the framing is stored for the flight - the shed's camera is the editor's
     if (inGarage) { cam.mode = m; flSave('Cam', cam); return; }
@@ -10471,7 +10500,13 @@
     else camera.up.copy(flUp.set(yU[0], yU[1], yU[2]));
     const D = def.params.viewDist || 12;
     if (CK && model) CK.cockpitView(cam.mode === 'cockpit', model);   // the panel arc: no pilot in the way
-    if (model && model.fold && model.fold.view) model.fold.view(cam.mode === 'cockpit');   // C4b: the cabin live at arm's length
+    // C4b: the cabin live at arm's length; THE HYBRID: the whole flown model live where a texel of the bake would show
+    // (FLOWN_BAKE.nearT - the close chase), dithered across the band, and always in the cockpit
+    if (model && (model.foldExt || model.fold) && window.FLOWN_BAKE && FLOWN_BAKE.hybrid && FLOWN_BAKE.FB.hybrid && !FLOWN_BAKE.FB.ab) {
+      let t = 1;
+      if (cam.mode !== 'cockpit') { model.grp.getWorldPosition(hyP); renderer.getDrawingBufferSize(hyV); t = FLOWN_BAKE.nearT(camera, hyP, hyV.y); }
+      FLOWN_BAKE.hybrid(t);
+    } else if (model && model.fold && model.fold.view) model.fold.view(cam.mode === 'cockpit');
     HEADCAM_ACTIVE = false;
     if (cam.mode === 'cockpit') {
       const e = flyEyeAt();
@@ -11884,32 +11919,37 @@
   // kept live meshes) were ~220 MB of vertex data sent for nothing on the Cessna (the node census), and the taxi's
   // render paid for it (+1.2 ms, the first cut); a hidden thing's first draw stays where it was, when it shows.
   const WARM_LAYER = 29;
-  function warmDrawSliced(sc, target, label) {
+  // ONLY (the hybrid, flown_bake.js): these objects and nothing else, hidden or not - the flown model's kept live
+  // meshes, drawn once under the craft step's screen so the band's first crossing links, uploads and first-draws nothing
+  function warmDrawSliced(sc, target, label, only, dress) {
+    const D = typeof dress === 'function' ? dress : f => f();   // (G1122: the craft dressed in the world, per task)
     if (typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn || typeof renderer.render !== 'function' || !camera) return Promise.resolve(0);
     const reps = [], seen = new Set(), lights = [];
     // ...and only what the first frame's MAIN pass will draw: the world's visibility contract as the loop applies it
     // (the far quadrants the air hides), the camera's frustum (an object that culls itself in the frame culls here)
-    const vis = (sc === scene && !inGarage && WF && WF.vis) ? WF.vis : null;
+    const vis = (!only && sc === scene && !inGarage && WF && WF.vis) ? WF.vis : null;
     const fr = new THREE.Frustum();
     try {
       if (vis) vis.apply(camera);
       camera.updateMatrixWorld();
       fr.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse), camera.coordinateSystem, camera.reversedDepth);
-    sc.traverseVisible(o => {
+    const each = o => {
       if (o.isLight) { lights.push(o); return; }
       if (!(o.isMesh || o.isPoints || o.isLine) || !o.material || !o.geometry || !o.geometry.attributes) return;
-      if (o.frustumCulled && !o.isBatchedMesh) { try { if (!fr.intersectsObject(o)) return; } catch (e) {} }
+      if (!only && o.frustumCulled && !o.isBatchedMesh) { try { if (!fr.intersectsObject(o)) return; } catch (e) {} }
       const g = o.geometry;
       const gk = Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.index ? 'i' : '');
       const ok = (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '')
         + (o.isPoints ? 'P' : o.isLine ? 'L' + (o.isLineSegments ? 's' : '') : 'M');
       for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
         if (!m || m.visible === false) continue;
-        const k = m.uuid + '|' + ok + '|' + gk;
+        const k = (only ? o.uuid + '|' : '') + m.uuid + '|' + ok + '|' + gk;   // ONLY: every object (its own buffers), not one a key
         if (seen.has(k)) continue;
         seen.add(k); reps.push([o, m]);
       }
-    });
+    };
+    D(() => { if (only) { sc.traverseVisible(o => { if (o.isLight) lights.push(o); }); for (const o of only) each(o); }
+    else sc.traverseVisible(each); });
     } finally { if (vis) vis.release(); }
     const cam = camera.clone(); cam.layers.set(WARM_LAYER);
     // a stand-in draws ONE primitive of its object's own geometry (the drawRange narrowed for the draw and put back:
@@ -11918,7 +11958,7 @@
       const s = PROG_WARM.standIn(o, m), g = o.geometry;
       if (!o.isBatchedMesh && g.drawRange && !narrowed.has(g)) { narrowed.set(g, [g.drawRange.start, g.drawRange.count]); g.drawRange.start = 0; g.drawRange.count = o.isPoints ? 1 : o.isLine ? 2 : 3; }
       if (o.isInstancedMesh) s.count = Math.min(1, o.count);
-      s.frustumCulled = false;
+      s.frustumCulled = false; s.visible = true;   // (a hidden object's stand-in: ONLY)
       s.layers = new THREE.Layers(); s.layers.set(WARM_LAYER);
       // ITS OWN MATRICES: a stand-in's prototype is the object, so its matrix, matrixWorld, modelViewMatrix and
       // normalMatrix ARE the object's - a render's matrix pass (and the draw's model-view) wrote the warm group's frame
@@ -11931,7 +11971,7 @@
     };
     let i = 0, drawn = 0, G = 8;
     return new Promise(res => {
-      const tick = () => {
+      const tick = () => D(() => {   // (each slice inside the dress)
         const t0 = performance.now();
         const prevRT = renderer.getRenderTarget(), SM = renderer.shadowMap, au = SM.autoUpdate, nu = SM.needsUpdate;
         const grp = new THREE.Group();
@@ -11962,7 +12002,7 @@
         if (i < reps.length) { setTimeout(tick, 0); return; }
         if (window.FLYDIY_LOG_COMPILE) console.log('warm draw: ' + drawn + ' stand-ins of ' + reps.length);
         res(drawn);
-      };
+      });
       tick();
     });
   }

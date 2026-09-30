@@ -63,7 +63,8 @@
 'use strict';
 (function () {
   const W = (typeof window !== 'undefined') ? window : globalThis;
-  const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true };
+  const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true,
+                hybrid: true, hyA: 1.6, hyB: 2.0 };   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
   const log = (...a) => { if (FB.quiet) return; console.log('flown bake:', ...a); };
   const tick = () => new Promise(r => setTimeout(r, 0));
   // the dials in the URL: ?fbake=0 the live shader; ?fbake=ab the A/B build (live twins kept, the still merge off);
@@ -76,6 +77,9 @@
     if (on.has('nocache')) FB.noCache = true;   // the rig's warm MISS: the cache is not read (it is written)
     if (on.has('foldab')) FB.foldAB = true;     // C4b's A/B: the folds keep their members (showFold flips them)
     if (on.has('ext')) FB.Sin = 0;              // C4b: the exterior's atlas only (the cabin flies live, as C4a)
+    if (on.has('nohy')) FB.hybrid = false;      // the hybrid off: the bake at every distance (C4b as it landed)
+    for (const x of on) { const m = /^hy([\d.]+)-([\d.]+)$/.exec(x); if (m) { FB.hyA = +m[1]; FB.hyB = Math.max(+m[1] + 0.01, +m[2]); } }   // the band
+    for (const x of on) { const m = /^hy=([\d.]+)$/.exec(x); if (m) FB.hyForce = Math.min(1, Math.max(0, +m[1])); }   // t held (the A/B rigs)
   } catch (e) {}
 
   // ---- which buckets bake, into which atlas ------------------------------------------------------------------------
@@ -559,12 +563,14 @@
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
     const d = this.userData.aeroD;
     if (d) for (const k of ['uCraftInv', 'uCabin', 'uFootA', 'uFootB']) if (d[k]) sh.uniforms[k] = d[k];
+    sh.uniforms.uFbFade = FB_FADE;   // the hybrid's band (FB_FADE: 0 outside it)
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', 'uniform mat4 uCraftInv;\nvarying vec3 vFbCraft;\n#include <common>')
       .replace('#include <project_vertex>', 'vFbCraft = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', 'uniform mat4 uCraftInv;\nuniform vec4 uCabin;\nuniform vec4 uFootA;\nuniform vec4 uFootB;\nvarying vec3 vFbCraft;\n#include <common>')
       .replace('#include <map_fragment>', '#include <map_fragment>\n  float fbIn = sampledDiffuseColor.a;\n  diffuseColor.a = opacity;')
+      .replace(/^[\s\S]*$/, fs => fadeFs(fs, false))
       .replace('#include <clearcoat_normal_fragment_begin>', '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')
       .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\n  material.clearcoatRoughness = min(max(texture2D(clearcoatMap, vClearcoatMapUv).a, 0.0525) + geometryRoughness, 1.0);\n#endif')
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
@@ -581,6 +587,71 @@
   }`);
   };
   FB_HOOK.toString = () => 'flown.baked|' + FB.V;
+  // ---- THE HYBRID (2026-09-30, the user: "either we do higher res texture, or we go back" - then option b, "the hybrid,
+  // if you can do that clean and the normal performance is OK, and the transition is seamless visually and performance
+  // wise"). Close up a texel of the atlas (0.7-0.8 cm) covers several pixels: the livery's stripes and the letters
+  // stair-step and the skin goes soft, where the live shader draws them per pixel. So the flown aeroplane keeps BOTH:
+  // the folds on the bake (C4b's handful of draws) and its live meshes on the fold's own arrays (the keep path the
+  // cabin already had: hidden, the rigs' writes land in both), on copies of their live materials. ONE number says which
+  // is drawn - t, from the pixels a texel covers at the aeroplane (nearT: the ext atlas's cm, the camera's distance, its
+  // fov, the drawing buffer's height): 0 the bake (far, the default chase), 1 the live shader (the close chase, the
+  // cockpit), between them a DITHERED band (A2-FADES' interleaved gradient, fixed on the screen): each fragment of the
+  // bake stays where the noise is >= t, each of the live copy where it is < t - one surface, no pop, no double blend.
+  // Outside the band only one of the two is drawn at all (the folds or the live meshes hidden).
+  const FB_FADE = { value: 0 };
+  const FADE_N = 'fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))';
+  const fadeFs = (fs, live) => fs.replace('#include <common>', '#include <common>\nuniform float uFbFade;')
+    .replace(/void\s+main\s*\(\s*\)\s*\{/, mm => mm + (live ? '\n  if (uFbFade > 0.0 && uFbFade < 1.0 && ' + FADE_N + ' >= uFbFade) discard;'
+                                                        : '\n  if (uFbFade > 0.0 && uFbFade < 1.0 && ' + FADE_N + ' < uFbFade) discard;'));
+  // (each side discards only INSIDE the band: outside it the one not wanted is hidden, and a model whose fold failed
+  // draws its live meshes whole)
+  // the live copies: the material as the live build made it, its own hook, then the band's discard
+  const LIVE_WRAP = new Map(), TWINS = new WeakMap();
+  function liveHook(h) {
+    let w = LIVE_WRAP.get(h);
+    if (w) return w;
+    w = function (sh, r) { if (h) h.call(this, sh, r); sh.uniforms.uFbFade = FB_FADE; sh.fragmentShader = fadeFs(sh.fragmentShader, true); };
+    w.toString = () => 'flown.live|' + (h ? h.toString() : '');
+    LIVE_WRAP.set(h, w);
+    return w;
+  }
+  // a pooled live material's copy for the hybrid's kept meshes (its own: the pool's is shared with what never bakes -
+  // a spinner on the same finish must not dither out)
+  function liveTwin(m) {
+    if (!m || !m.isMaterial) return m;
+    let c = TWINS.get(m);
+    if (c) return c;
+    const ud = m.userData; m.userData = {};
+    try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
+    c.userData = Object.assign({}, ud, { flownLive: 1 });
+    if (m.defines) c.defines = Object.assign({}, m.defines);
+    for (const k of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity']) if (m[k] !== undefined && c[k] !== undefined) c[k] = m[k];
+    c.onBeforeCompile = liveHook(hookOf(m));
+    c.name = (m.name || 'aeroskin') + ':live';
+    c.needsUpdate = true;
+    TWINS.set(m, c);
+    return c;
+  }
+  // t for a camera looking at a point: the screen pixels one texel of the exterior's atlas covers there, through the band
+  const _hyP = { x: 0, y: 0, z: 0 };
+  function nearT(cam, P, H) {
+    const M = MEMS.ext, cm = M && M.stats && M.stats.cm;
+    if (!FB.hybrid || !(cm > 0) || !cam || !cam.isPerspectiveCamera || !(H > 0)) return 0;
+    const e = cam.matrixWorld.elements, d = Math.max(0.05, Math.hypot(e[12] - P.x, e[13] - P.y, e[14] - P.z));
+    const px = 2 * d * Math.tan(cam.fov * Math.PI / 360) / (cam.zoom || 1) / H;
+    const mag = cm / 100 / px;
+    FB.hyMag = mag;
+    return Math.min(1, Math.max(0, (mag - FB.hyA) / (FB.hyB - FB.hyA)));
+  }
+  // every frame (app.js): t (1 in the cockpit), then the folds and their live meshes shown by it - once per change
+  function hybrid(t) {
+    if (FB.hyForce != null) t = FB.hyForce;   // the rigs' hold (FB.hyForce, ?fbake=hy=0.5): a number, or null for the rule
+    t = t <= 0.002 ? 0 : t >= 0.998 ? 1 : t;
+    FB_FADE.value = t;
+    FB.hyT = t;
+    for (const F of FOLDS) if (F.fade) F.fade(t);
+    return t;
+  }
   function materialOf(THREE, d, set) {
     const mk = (lv, srgb) => {
       const t = new THREE.DataTexture(lv[0].data, d.S, d.S, THREE.RGBAFormat, THREE.UnsignedByteType);
@@ -690,6 +761,11 @@
       // the cabin's buckets keep their live material on their own meshes (the cockpit view) and fold on the 'in' one
       inner: name => b.names.get(name) === 'in',
       innerGroup: g => b.inner.has(g),
+      // THE HYBRID: every baked bucket keeps its live mesh (on a live copy of its material) and folds onto the bake
+      hybrid: !!FB.hybrid && !FB.ab,
+      live: name => b.names.get(name) === 'in' || (!!FB.hybrid && !FB.ab && b.names.has(name)),
+      liveGroup: g => b.inner.has(g) || (!!FB.hybrid && !FB.ab && b.uv.has(g)),
+      twin: liveTwin,
       matOf: name => b.mats[b.names.get(name)] || null,
       baked: m => baked.has(m),
       uv: g => b.uv.get(g) || null,
@@ -751,7 +827,7 @@
     if (!mat || FB.ab || W.FLYDIY_FLOWN_MERGE === 0 || !THREE.SkinnedMesh || !THREE.BufferGeometry || !grp || !grp.traverse) return null;
     const o = opt || {}, wheel = o.wheel || new Set(), written = o.written || new Set();
     const CR = o.crumb != null ? o.crumb : 0.15, WR = o.wheelCrumb != null ? o.wheelCrumb : 0.04;
-    const keep = !!o.keep || !!FB.foldAB, subs = o.members ? o.members.slice() : [];
+    const keep = !!o.keep || !!FB.foldAB, subs = o.members ? o.members.slice() : [], set = o.set || (o.keep ? 'in' : 'ext');
     if (!o.members) grp.traverse(m => { if (m.isMesh && m.material === mat) subs.push(m); });
     const skip = {}, why = k => { skip[k] = (skip[k] || 0) + 1; };
     const folds = new Map();
@@ -815,7 +891,7 @@
       geo.computeBoundingSphere();
       const mesh = F.moves ? new THREE.SkinnedMesh(geo, mat) : new THREE.Mesh(geo, mat);
       const m0 = F.m0;
-      mesh.name = keep ? 'flownBakedIn' : 'flownBaked';
+      mesh.name = set === 'in' ? 'flownBakedIn' : 'flownBaked';
       mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder;
       mesh.layers.mask = m0.layers.mask; mesh.frustumCulled = m0.frustumCulled;
       mesh.userData.flownMerge = { subs: list.length, bones: bones.length, verts: nV };
@@ -908,26 +984,51 @@
       };
       // the fold replaces its members in the graph, where the first of them stood among the model group's children
       const at0 = grp.children.indexOf(list.find(m => m.parent === grp) || null);
-      if (keep) for (const m of list) { m.visible = false; out.kept.push(m); }
+      // a kept member stands at rest (atRest, above) under its part: its matrix frozen there - the hidden hundred of the
+      // hybrid then cost three's walk nothing but the visit (GATE FRAMECOST: updateMatrix +102 a frame on the Cub before)
+      if (keep) for (const m of list) { m.visible = false; if (m.matrixAutoUpdate) { m.updateMatrix(); m.matrixAutoUpdate = false; } out.kept.push(m); }
       else for (const m of list) { m.parent.remove(m); out.of.set(m, mesh); }
       grp.add(mesh);
       if (at0 >= 0) { grp.children.splice(grp.children.indexOf(mesh), 1); grp.children.splice(Math.min(at0, grp.children.length), 0, mesh); }
       out.meshes.push(mesh); out.from += list.length; out.to++; out.bones += bones.length; out.verts += nV;
     }
-    (FB.merge || (FB.merge = {}))[o.keep ? 'in' : 'ext'] = { from: out.from, to: out.to, bones: out.bones, verts: out.verts, skip };
+    (FB.merge || (FB.merge = {}))[set] = { from: out.from, to: out.to, bones: out.bones, verts: out.verts, skip };
     // the cockpit's swap (keep): the folds hide and the live members show, or back - once per change
     if (keep) {
       let cur = false;
       out.live = out.kept.slice();
+      // G1121: A LIVE MESH NOT DRAWN IS OUT OF THE GRAPH. Hidden, it still cost three's matrix walk every frame (the
+      // aeroplane moves, so a moving parent forces its children's world matrices whatever their own flags: GATE
+      // FRAMECOST's updateMatrixWorld +100 a frame on the Cub) - so it leaves its parent while the bake is drawn and goes
+      // back (the same parent) when the band or the near view draws it. Nothing reads a kept mesh through the graph: the
+      // rigs write its attributes (views into the fold), the pick and the sun's rays hit the fold member by member, the
+      // warm draw stands it in by prototype. out.park() after the build (app.js, after G576's still merge) takes them out.
+      const HOME = new Map();
+      const liveOn = on => {
+        for (const m of out.live) {
+          if (on) { const h = HOME.get(m); if (!m.parent && h) h.add(m); m.visible = true; }
+          else { m.visible = false; if (m.parent) { HOME.set(m, m.parent); m.parent.remove(m); } }
+        }
+      };
+      out.park = () => { if (!cur) liveOn(false); };
       out.apply = on => {
         on = !!on;
         if (on === cur) return;
         cur = on;
         for (const f of out.meshes) f.visible = !on;
-        for (const m of out.live) m.visible = on;
+        liveOn(on);
       };
       out.view = on => { if (!out.held) out.apply(on); };
-      out.set = o.keep ? 'in' : 'ext';
+      // the hybrid's band (hybrid()): the folds drawn below t = 1, the live meshes above t = 0, both inside the band
+      let cf = -1;
+      out.fade = t => {
+        if (out.held || t === cf) return;
+        const was = cf; cf = t;
+        if (t >= 1) { cur = true; if (was < 1) { for (const f of out.meshes) f.visible = false; liveOn(true); } return; }
+        if (t <= 0) { cur = false; if (was !== 0) { for (const f of out.meshes) f.visible = true; liveOn(false); } return; }
+        if (was <= 0 || was >= 1) { cur = true; for (const f of out.meshes) f.visible = true; liveOn(true); }
+      };
+      out.set = set;
       FOLDS.push(out);
     }
     return out;
@@ -1060,7 +1161,7 @@
     return done(statsOf(per));
   }
 
-  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
+  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, nearT, liveTwin, FB_FADE, folds: () => FOLDS.slice(), workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
                    bakeHook, FB_HOOK, BAKE_FS,
                    get bytes() { return bytes; },
                    clear: () => idb('readwrite', st => st.clear()) };
