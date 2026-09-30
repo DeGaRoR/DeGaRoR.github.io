@@ -687,7 +687,9 @@
   // starts: the near light's updateMatrices (the craft's map; the far map never draws the craft, G1080.2) shows the folds
   // and hides the live meshes, and the next frame's hybrid() puts them back before its main pass.
   let casting = false, castL = null, FOLD_CASTS = false;
-  function shadowFolds(on) { if (on === casting) return; casting = on; for (const F of FOLDS) if (F.shadowSwap) F.shadowSwap(on); }
+  // (G1124.2: the EXTERIOR's folds only - the cabin casts as C4b did, its live meshes at arm's length in the cockpit and
+  // its fold stale while hidden: swapping it made the cabin fold upload its rigs' writes every frame in the cockpit)
+  function shadowFolds(on) { if (on === casting) return; casting = on; for (const F of FOLDS) if (F.shadowSwap && F.set !== 'in') F.shadowSwap(on); }
   function hookShadow() {
     if (!FB.shadowFolds || (castL && castL.parent)) return;
     const SN = W.SHADOW_NEAR, sc = SN && SN.C1 && SN.C1.scene;
@@ -1041,7 +1043,7 @@
         if (nd || stale) {
           // a fold that is not drawn (the cabin's in the cockpit, the whole model in the shed) uploads nothing: three
           // only clears its ranges on an upload, so they would pile up frame after frame - it owes ONE whole upload instead
-          let shown = this.visible || (FOLD_CASTS && this.castShadow);   // (G1124 a: a fold that casts draws in the shadow pass)
+          let shown = this.visible || (FOLD_CASTS && this.castShadow && set !== 'in');   // (G1124 a: an exterior fold that casts draws in the shadow pass)
           for (let q = this.parent; q && shown; q = q.parent) if (!q.visible) shown = false;
           if (!shown) stale = true;
           else if (stale || aP.updateRanges.length > 32 || aN.updateRanges.length > 32) {

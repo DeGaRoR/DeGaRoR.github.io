@@ -367,6 +367,8 @@ async function census(build) {
   const route = taxiPose(W, FP);
   const pose = Object.assign({}, TAXI_PIN, { off: route ? +Math.hypot(route.x - TAXI_PIN.x, route.z - TAXI_PIN.z).toFixed(1) : null });
   placeAt(W, FP, pose);
+  // FRAMECOST_CAM=cockpit (a debugging aid, never the gate's): the taxi view from the pilot's head (C4b's cockpit census)
+  if (process.env.FRAMECOST_CAM === 'cockpit' && FP.camMode) { FP.camMode('cockpit'); if (W.HEAD_CAM) { W.HEAD_CAM.yaw = 0; W.HEAD_CAM.pitch = -0.3; } }
   if (process.env.FRAMECOST_WHAT === 'taxi') { FP.camSettle(); await P.frames(WARM); await debugAids(W, P, FP, C, () => rows, v => { rows = v; }, 'taxi'); }
   views.taxi = await measure();
   detail.taxi = drawnDetail(C);
@@ -415,7 +417,7 @@ async function census(build) {
   // a crossing must link nothing, create no buffer and upload no texture beyond what the taxi's frame does anyway (its
   // median), because the live meshes were drawn once under the roll-out's screen (the craft step's warm draw)
   const FBK = W.FLOWN_BAKE;
-  if (FBK && FBK.FB && FBK.FB.hybrid && FBK.folds && FBK.folds().some(F => F.set === 'ext')) {
+  if (!process.env.FRAMECOST_CAM && FBK && FBK.FB && FBK.FB.hybrid && FBK.folds && FBK.folds().some(F => F.set === 'ext')) {
     const flip = async t => { FBK.FB.hyForce = t; rows = []; cur = null; await P.frames(3); const L = rows; rows = null; return L; };
     const near = await flip(1); craft.near = await craftCensus(W, P, FP, C);
     const band = await flip(0.5); craft.band = await craftCensus(W, P, FP, C);
