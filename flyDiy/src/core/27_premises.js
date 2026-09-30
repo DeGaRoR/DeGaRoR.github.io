@@ -673,6 +673,15 @@ function findById(rec, id) {
   return null;
 }
 
+// THE WATER A ZONE SEES (G434 / G434.1, compose's rule, exported at C3c G861): the LOWEST finite water over the zone's
+// own box +- 60 m, 13 x 13 samples; `fallback` (compose: the anchor's water) where none is found. The town kit's
+// sowing (tools/town_kit.js zoneWater) and the kit's lots (src/viewer/kit_lot.js) read the same rule
+function zoneWaterYOf(world, F, z, fallback) {
+  if (!world || !world.waterH || !z || !z.poly || z.poly.length < 3) return fallback;
+  const bb = polyBBox(z.poly); let best = Infinity;
+  for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12); const v = world.waterH(w[0], w[1]); if (isFinite(v) && v < best) best = v; }
+  return isFinite(best) ? best : fallback;
+}
 // ---------------------------------------------------------------------------
 // the frame — 'free': an anchor (x, z, yaw) per world id
 // ---------------------------------------------------------------------------
@@ -2192,12 +2201,8 @@ function compose(rec0, world, opts) {
     // level found (G434.1): a coastal zone's box also holds ponds up the hill - the highest of them
     // (4.6 m at Annette) made the whole shore band "water" and the harbour sowed nothing again; the
     // sea is the lowest water there is, and a lakeside zone with no sea reads its lake
-    const zoneWaterY = z => {
-      if (!world.waterH || !z.poly || z.poly.length < 3) return waterY;
-      const bb = polyBBox(z.poly); let best = Infinity;
-      for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12); const v = world.waterH(w[0], w[1]); if (isFinite(v) && v < best) best = v; }
-      return isFinite(best) ? best : waterY;
-    };
+    // (C3c, G861: the rule is zoneWaterYOf above the frame, exported - a Metlakatla house on the kit stands against the same water)
+    const zoneWaterY = z => zoneWaterYOf(world, F, z, waterY);
     // THE WATER THAT REACHES AN ITEM. world.waterH answers with the body that
     // TOUCHES a point and -Infinity where none does, so a mole whose middle has
     // been raised out of the sea, or a wharf standing on its own piles, reads no
@@ -2657,7 +2662,7 @@ const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, 
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
-  frameOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
+  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself
