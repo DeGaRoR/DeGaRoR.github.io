@@ -1,0 +1,74 @@
+train: claude/train-17-c2c
+sha: 3ab67dddb2af94fde3be1e91db8a1ae810bbfe3c
+command: node tools/build.js && node tools/run_gates.js --all --jobs=4
+node: v22.22.2
+host: 4 cores, 15 GB
+wall: 9504 s (2026-09-30T05:52:23Z -> 2026-09-30T08:30:47Z)
+exit: 1
+
+== non-PASS summary lines ==
+──────── summary ────────
+FRAMECOST FAIL   397.6 s
+MEDIA     FAIL     1.1 s
+KTX2      FAIL     8.8 s
+BIOME     FAIL    11.6 s
+SETTLE    FAIL    10.3 s
+total           19196.8 s
+wall            9501.8 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+
+== FRAMECOST: FAIL detail ==
+  FAIL cub stand/bytes.uniforms rose 313004 -> 498510 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/draws.main rose 999 -> 1050 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/draws.shadow rose 236 -> 489 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.calls rose 10451 -> 13232.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4f rose 217 -> 435 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4fv rose 1123 -> 3049 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/draws.main rose 938.5 -> 978 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/draws.shadow rose 169.5 -> 200.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/gl.uniform2f rose 47 -> 147 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/tris.shadow rose 2203830 -> 2369409.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/bytes.uniforms rose 316528 -> 502070 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/draws.main rose 1010 -> 1061 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/draws.shadow rose 243.5 -> 494.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.calls rose 10573 -> 13353.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4f rose 223 -> 441 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4fv rose 1135 -> 3061 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.main rose 949.5 -> 987 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.shadow rose 177 -> 208 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.uniform2f rose 53 -> 151 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/tris.shadow rose 2338794 -> 2524153.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+GATE FRAMECOST: FAIL (20)
+(exit code 1)
+
+== MEDIA: FAIL detail ==
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch42/Ch42_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch02/Ch02_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch02/Ch02_1002_Normal.69aea26d.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Body_Diffuse.ee25ee7e.jpg, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Body_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Bottom_Specular.52cf6e73.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Hair_Specular.62ef0b6d.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Shoes_Specular.52cf6e73.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Top_Specular.52cf6e73.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch22/Ch22_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch01/Ch01_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch20/Ch20_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+GATE MEDIA: FAIL
+(exit code 1)
+
+== KTX2: FAIL detail ==
+FAIL 10 the characters' page: the budget set by default, upgraded in place; ?ktx2=0 = the 2048 maps (the old texture(), no KTX2); a stale row or a failed transcode = the 2048 map; a flat normal = no map; the gloss read only with ?chargloss=1  (_cage_char.js on stubs threw: ReferenceError: TEX_FLAT is not defined
+GATE KTX2: FAIL
+(exit code 1)
+
+== BIOME: FAIL detail ==
+  FAIL: surface perf<5us
+GATE BIOME: FAIL
+(exit code 1)
+
+== SETTLE: FAIL detail ==
+  FAIL: bake budget
+GATE SETTLE: FAIL
+(exit code 1)
