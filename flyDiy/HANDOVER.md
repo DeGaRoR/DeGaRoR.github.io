@@ -65749,3 +65749,20 @@ G1101's gates (ac573687, under the CPU lock): SIMWORKER, SIMWORKER-PAGE, SIMWORK
   built index.html still runs the tree's loose sim_host.js - never edit it while a series measures that tree.
 - `grep -c $'\r'` in the Bash tool miscounts: count CRs with `tr -cd '\r' | wc -c`.
 - The stand phase of eye_judder under the worker is not parked (the flight has begun rolling): compare like with like.
+
+## G939.1 + TRAIN 17 LANDED (2026-09-30, A0 the coordinator)
+Train 17 = POLISH-1, POLISH-2, B1b-rest, AS5b, C2a (+ C2c's house-worker import fix), AS3 + AS4a-rest (merged whole), AS6,
+C1b + C1c + SIMW-BENCH (the physics worker the DEFAULT, G1095-G1099), SHADOW-EYES (G1080), LOAD-SETTLE (G1075-G1079),
+LOAD-COMPILE (G1085-G1087), POSE-SMOOTH (G1100-G1101: the worker's drawn pose fixed before it shipped as the default).
+The fix-up (G939.1): AS6's character table on AS0b's flat-map constants ([r, g, b] in a manifest's texs) - the planner,
+the page's staleness test (by VALUE) and table reader, GATE KTX2's sandbox (TEX_FLAT) and ?ktx2=0 check; the table
+re-made with basisu 1.16.4 installed locally (npm install, the user's OK); GATE KTX2 check 8 (the byte re-encode)
+SKIPs on the Windows basisu build, which writes other bytes than the Linux one the files were encoded on. The premises
+re-cooked; the parked aeroplanes re-cooked; the built page landed in TWO build steps (the midpoint at the master merge
+9165353d: +0.25 MiB, then +0.06 MiB - GATE MEDIA's 0.3 MiB a build). FRAMECOST: one ALLOW (cessna taxi bindBuffer 32,
+G934's instance buffers) and the baseline re-taken (161 falls). THE RATCHET (the final build, private profile, warm,
+2 runs each) against train 16: first flight Cub 61.6 -> 44.5 s, metal 60.3 -> 46.4 s; garage 58 -> 41 / 57 -> 43 s;
+loop JS 22.0 -> 13.4 / 24.7 -> 13.5 ms (the worker); render 11.0 -> 9.7 / 10.7 -> 10.0 ms; uneven 10 -> 8 %; p99
+33.5 both; the Cub: no frame over 100 ms, no task over 1 s. OPEN: the metal Cessna's 1.3-1.4 s task in garage:firstFrame
+(LOAD-COMPILE follows it up for train 18). The CI container's timing gates (BIOME perf, SETTLE bake budget, HITBOX e,
+RWYTREES' 30-min cap) red there, green on the box.

@@ -191,6 +191,7 @@ const ALLOW = [
   //    instances stands in it (the world's warm-up frames of the one loading: +3 shadow draws a render)
   { key: 'stand/programs', build: '*', upTo: 119, why: 'the repeated dressing\'s instanced programs (+3)', g: 'G934' },
   { key: 'stand/gl.bindBuffer', build: '*', upTo: 80, why: 'the dressing batches\' instance buffers (+8)', g: 'G934' },
+  { key: 'taxi/gl.bindBuffer', build: 'cessna', upTo: 32, why: 'train 17 (fresh parked cook): the Cessna\'s taxi view sees the repeated dressing\'s instanced batches too - their instance buffers bound (+4, 26 -> 30)', g: 'G934' },
   { key: 'boot/garage:worldCompile/links', build: '*', upTo: 150, why: 'the dressing\'s instanced programs, linked under the screen (+3)', g: 'G934' },
   ...['boot/garage:frames/draws.total', 'boot/garage:frames/three.frustumTests', 'boot/garage:settle/draws.total', 'boot/garage:settle/gl.calls',
       'boot/garage:settle/bytes.uniforms', 'boot/garage:images/world.grHeight']
