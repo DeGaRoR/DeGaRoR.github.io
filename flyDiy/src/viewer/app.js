@@ -6912,19 +6912,44 @@
   // task (the CPU profile: 11.6 s under getProgramInfoLog, renderer.render from loop). G732's rule, NEVER DRAW AHEAD
   // OF THE LINKS: the loop draws nothing (holdRender) until the step's programs are linked and the dress put back.
   // The step runs under a screen (the loading, a roll-out's aircraft phase, Fly's settle), so nothing is seen held
+  // G1085 (LOAD-COMPILE): ...AND ITS DRESS IS PER TASK. The craft stands in the world (craftInWorld) and in the dressed
+  // shed (craftInShed) only inside each task's compile (compileSliced's `dress`), so the two compiles no longer hold the
+  // scenes dressed across tasks, and the one loading STARTS them the moment the flown model is built ('spec': craftEarly)
+  // - their links run on the driver's threads under the world's compile, the shed's and first light, and the 'craft'
+  // step finds its programs known (the key; a rebuilt model's same key shares them) and mostly linked. Still held.
   function compileCraft() {
     if (!WF || typeof renderer.compileAsync !== 'function') return;
     const was = holdRender;
     holdRender = true;
     const release = () => { holdRender = was; };
-    return craftInWorld(() => {
-      const jobs = [compileSliced(craft, aa && aa.target ? aa.target() : null, scene)];
-      if (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants) {
-        try { const { helper } = PROG_WARM.depthVariants(THREE, renderer, [craft]); jobs.push(compileSliced(helper, PLAIN_RT(), scene, true)); }
-        catch (e) { console.warn('craft depth compile:', e && e.message); }
-      }
-      return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000);
-    }).then(() => compileCraftShed()).then(release, e => { release(); throw e; });
+    return compileCraftLinks().then(release, e => { release(); throw e; });
+  }
+  function compileCraftLinks() {
+    const inW = craftInWorldNow;
+    const jobs = [compileSliced(craft, aa && aa.target ? aa.target() : null, scene, false, inW)];
+    if (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants) {
+      try { const { helper } = inW(() => PROG_WARM.depthVariants(THREE, renderer, [craft])); jobs.push(compileSliced(helper, PLAIN_RT(), scene, true, inW)); }
+      catch (e) { console.warn('craft depth compile:', e && e.message); }
+    }
+    return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
+      .then(() => compileCraftShed());
+  }
+  // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the
+  // 'craft' step compiles again (known keys: no new source, no new link) and waits for what is still linking
+  let craftEarly = null;
+  function craftStart() {
+    craftLightsKeep();   // (the flown model's light signature: the next boot's prelink keys with it)
+    if (!WF || typeof renderer.compileAsync !== 'function' || craftEarly) return;
+    craftEarly = compileCraftLinks().catch(e => console.warn('craft early:', e && e.message));
+    // ...and as the shed's own compile step keys it, undressed (the mesh behind the cage, its lights uncounted): the
+    // model built here is new to the room (the node census: its ~25 CRAFT_NEAR_ONLY programs were that step's links)
+    if (inGarage && hangar && craft.parent === hangarScene) {
+      const shed = () => compileSliced(craft, ensureEnvRT(), hangarScene)
+        .then(() => compileSliced(craft, aa && aa.target ? aa.target() : null, hangarScene))
+        .then(() => { const { helper } = PROG_WARM.depthVariants(THREE, renderer, [craft]); return compileSliced(helper, PLAIN_RT(), hangarScene, true); })
+        .then(() => compileXrayVariants());   // (its see-through twins: first light's, G441)
+      (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants ? shed() : Promise.resolve()).catch(e => console.warn('craft early (shed):', e && e.message));
+    }
   }
   // G1027 (B8B9 + B10 on train 14): ...AND THE SHED AS THE ROLL-OUT SHOT DRAWS IT. The shed shows the editor's cage with
   // the flown model hidden; the shot (rollAnimPlay) shows the flown MESH - model.grp, and with it the aeroplane's own
@@ -6933,15 +6958,79 @@
   // door; the fold's skinned depth program in the room's shadow pass). So the room is compiled here dressed as the shot
   // dresses it - the mesh up, its lights counted - with its depth variants, then put back. Keyed with the craft (a new
   // model, new graphics). A page without the shot (or ?rollanim=0) skips it.
+  // G1085: dressed a task at a time (craftInShed) - the craft home in the shed, its mesh and lights shown, the cage
+  // down - and with the room's key environment in place (shedEnvKey: the compile step's placeholder), so it can run
+  // before the shed's own compile step and beside the world's
   function compileCraftShed() {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || !inGarage || !model || typeof renderer.compileAsync !== 'function') return;
-    const gs = garageScene(); if (!gs || craft.parent !== gs) return;
-    const cage = showCage;
-    showCage = false; applySkinVis(); if (model.grp) model.grp.visible = true;
-    const back = () => { showCage = cage; applySkinVis(); };
-    return shaderProgress(compileSliced(gs, aa && aa.target ? aa.target() : null)
-      .then(() => compileDepthVariants(gs, true))
-      .then(back, e => { back(); console.warn('craft shed compile:', e && e.message); }), 'garage', 60000);
+    const gs = garageScene(); if (!gs) return;
+    if (gs === hangarScene) shedEnvKey();
+    const inS = f => craftInShed(gs, f);
+    return shaderProgress(compileSliced(gs, aa && aa.target ? aa.target() : null, null, false, inS)
+      .then(() => compileDepthVariants(gs, true, inS))
+      .catch(e => console.warn('craft shed compile:', e && e.message)), 'garage', 60000);
+  }
+  function worldPrelinkSettled() {
+    if (!WF || typeof renderer.compileAsync !== 'function' || tripKeys.worldCompile !== undefined) return;
+    const dress = f => craftInWorldNow(() => craftLightsGuess(f));
+    compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
+      .then(() => compileDepthVariants(scene, true, dress))
+      .catch(e => console.warn('world prelink (settled):', e && e.message));
+  }
+  // THE CRAFT IN THE WORLD FOR ONE SYNCHRONOUS CALL (G1085): craftInWorld's hold spans tasks, and the steps it overlaps
+  // put the craft back as they like - the parked captures' editor round trips re-stand the build (applyStand hides
+  // model.grp behind the cage), so the town's prelink, holding the craft 'in the world' across its tasks, keyed every
+  // lit program with NO craft lights (the node census: 0 -> 2 point, 0 -> 1 spot against worldCompile's keys; ~70 of
+  // the world's programs keyed and linked twice). As a compile's dress it is re-applied in each task, and whatever it
+  // found (the parent, the mesh's visibility - a model rebuilt meanwhile included) is put back before the task ends
+  function craftInWorldNow(fn) {
+    if (!inGarage || !WF) return fn();
+    const home = craft.parent, g = model && model.grp, vis = g ? g.visible : null;
+    if (home !== scene) scene.add(craft);
+    if (g) g.visible = true;
+    try { return fn(); }
+    finally { if (g) g.visible = vis; if (home !== scene) { if (home) home.add(craft); else scene.remove(craft); } }
+  }
+  // ...AND ITS LIGHTS BEFORE IT HAS THEM (G1085). The craft's nav / landing / taxi lights are made from the flown model's
+  // lamps (cockpit.js setupLights, at setAircraft) - and the model standing at the town step is the generated skin the
+  // first boot builds before the snapshot: no lamps, no lights. The prelink keyed the world with none and worldCompile
+  // keyed it all again with the flight's 2 point + 1 spot (the node census, both builds). So while the model has no
+  // light of its own, the prelink's tasks wear STAND-INS of the flown model's light signature (point, spot: the
+  // program key counts them; intensity 0, no shadow, as setupLights makes them), remembered from the last flown model
+  // ('flydiy.craftLights', written when the one loading builds it) - a first visit takes the default build's (the Cub's
+  // 2 point + 1 spot). A wrong guess costs what the base paid: worldCompile keys and links the difference
+  const CRAFT_LIGHTS = 'flydiy.craftLights';
+  function craftLightSig() {
+    if (!model || !model.grp) return null;
+    let p = 0, sp = 0; model.grp.traverse(o => { if (o.isPointLight) p++; else if (o.isSpotLight) sp++; });
+    return p + ',' + sp;
+  }
+  function craftLightsKeep() { const sg = craftLightSig(); if (sg) try { localStorage.setItem(CRAFT_LIGHTS, sg); } catch (e) {} }
+  let lightStandIns = null;
+  function craftLightsGuess(fn) {
+    const sg = craftLightSig();
+    if (sg && sg !== '0,0') return fn();   // (no model yet at the town step: the one loading builds it at 'spec')
+    let want = '2,1'; try { want = localStorage.getItem(CRAFT_LIGHTS) || want; } catch (e) {}
+    if (!lightStandIns || lightStandIns.userData.sig !== want) {
+      const [np, ns] = want.split(',').map(Number), g = new THREE.Group();
+      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
+      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+      g.userData.sig = want; g.name = 'craftLightStandIns'; lightStandIns = g;
+    }
+    if (!lightStandIns.children.length) return fn();
+    scene.add(lightStandIns);
+    try { return fn(); } finally { scene.remove(lightStandIns); }
+  }
+  // the shed as the roll-out shot draws it, for one synchronous call: the craft in the shed (a world compile may hold it
+  // in the world scene - it goes back there), model.grp shown (its nav / landing / taxi lights: three counts only the
+  // lights it can see), the editor's cage down; everything as it was before the call returns
+  function craftInShed(gs, fn) {
+    const home = craft.parent, g = model && model.grp, vis = g ? g.visible : null, cage = edSit ? edSit.visible : null;
+    if (home !== gs) gs.add(craft);
+    if (g) g.visible = true;
+    if (edSit) edSit.visible = false;
+    try { return fn(); }
+    finally { if (g) g.visible = vis; if (edSit) edSit.visible = cage; if (home !== gs) { if (home) home.add(craft); else gs.remove(craft); } }
   }
   // THE CRAFT'S OWN LIGHTS ARE THE WORLD'S. Its nav, landing and taxi lights are point and spot lights in the craft group,
   // and every lit program's key counts the scene's lights: compiled while the aeroplane stood in the shed, the whole world
@@ -7079,7 +7168,7 @@
       // binary). Its sources are made here, a group a task (compileSliced), not awaited; the compile step then finds
       // them known (their key) and mostly linked, and compiles what the town added.
       if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function' && !worldPrelink)
-        worldPrelink = craftInWorld(() => compileSliced(scene, aa && aa.target ? aa.target() : null)).catch(e => console.warn('world prelink:', e && e.message));   // (B9: keyed with the craft's lights)
+        worldPrelink = compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, f => craftInWorldNow(() => craftLightsGuess(f))).catch(e => console.warn('world prelink:', e && e.message));   // (B9: keyed with the craft's lights - G1085: a task at a time)
       if (PK_ASYNC()) window.PARKED.async = true;
       if (!WF || !WF.premisesPrewarm || typeof renderer.compileAsync !== 'function') return;
       const cg = tripCg();
@@ -7192,7 +7281,7 @@
       // G732.1: the catch-up's depth variants a slice a task (compileDepthVariants' `sliced`, the settings screen's since G991):
       // unsliced, compileAsync built every new depth program's source in one task - 21 of them here, a 983 ms task
       tripRungs(t);   // (a trip that did not run 'images' - new graphics, Fly's settle - re-keys them here)
-      return craftInWorld(() => (worldSettle(true), shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null).then(() => compileDepthVariants(scene, true)).catch(e => console.warn('catch-up compile:', e && e.message)),
+      return craftInWorld(() => (worldSettle(true), shaderProgress(Promise.all([compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, craftInWorldNow).then(() => compileDepthVariants(scene, true, craftInWorldNow)).catch(e => console.warn('catch-up compile:', e && e.message)),
         t && t.rungLinks]), 'world', 60000))   // G730: and the parked rungs' links (never draw ahead of the links)
         // G732: what the catch-up compile's programs hand the shaders (the hooks' textures), uploaded a slice a task, and
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
@@ -11354,8 +11443,17 @@
     if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
   });
   // (B9: before the commit too - a capture puts the player's build back through the editor, as the batch does)
-  bootStep('snapshot', 'committing the build', 10, () => { tripSync = null; return tripRun(TRIP_BY.snapshot, bootTrip); });
-  bootTripStep('bake'); bootTripStep('spec');
+  // G1085 (LOAD-COMPILE): THE WORLD AS IT SETTLED, PRELINKED. What the settle and the parked batch added to the world
+  // (the premises' stream to 6 km, the fill, the parked aeroplanes: ~70 programs in the node census, the depth variants
+  // with them) was first keyed by worldCompile, ~10 s later, and its links waited there. Its sources are made here, a
+  // group a task under the commit, the bake and the spec, with the town prelink's dress (the craft and its lights)
+  bootStep('snapshot', 'committing the build', 10, () => { tripSync = null; worldPrelinkSettled(); shedPrelink(); return tripRun(TRIP_BY.snapshot, bootTrip); });
+  bootTripStep('bake');
+  // G1085 (LOAD-COMPILE): the flown model is built here - its programs (in the world's lights, and in the shed as the
+  // roll-out shot dresses it) start linking now, under the world's compile, the shed's and first light; 'craft' waits
+  const specStep = TRIP_BY.spec;
+  bootStep(specStep.id, specStep.label, specStep.w, () => { const r = tripRun(specStep, bootTrip);
+    return r && typeof r.then === 'function' ? r.then(v => { craftStart(); return v; }) : (craftStart(), r); });
   // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
   // a dirty storm like any load — and the bench's rule (an empty bench
   // never nulls the store) is what let the WIP's stored plaque live
@@ -11399,15 +11497,16 @@
   // G991: `sliced` - the settings screen's: every pass through compileSliced (a task at a time). A shadows change re-keys
   // the whole depth set (the lit scene's light state is its key), and compileAsync builds every NEW program's source in
   // its first, synchronous task
-  function compileDepthVariants(sc, sliced) {
+  function compileDepthVariants(sc, sliced, dress) {
     sc = sc || scene;
+    const D = dress || (f => f());
     const pass = sliced ? compileSliced : compilePass;
     const inWorld = sc === scene;
     if (typeof renderer.compileAsync !== 'function' || (inWorld && !WF)) return Promise.resolve();
     const jobs = [];
     if (typeof PROG_WARM !== 'undefined') {
-      const { helper } = PROG_WARM.depthVariants(THREE, renderer, [sc]);
-      jobs.push((sliced ? compileSliced(helper, PLAIN_RT(), sc, true) : PROG_WARM.fogless(sc, () => compilePass(helper, PLAIN_RT(), sc))).catch(e => console.warn('depth compile:', e && e.message)));
+      const { helper } = D(() => PROG_WARM.depthVariants(THREE, renderer, [sc]));
+      jobs.push((sliced ? compileSliced(helper, PLAIN_RT(), sc, true, dress) : D(() => PROG_WARM.fogless(sc, () => compilePass(helper, PLAIN_RT(), sc)))).catch(e => console.warn('depth compile:', e && e.message)));
     }
     // the far cascade's proxies (their far depth) and the canopy cover's swap: drawn by their own
     // renders into their own targets, keyed without the world's lights, as before
@@ -11492,11 +11591,16 @@
   // ~30 ms, adaptively), then the programs polled until ready - compileAsync's promise, without its long first task.
   // `fogless` (G991): each task's compile with the lit scene's fog lifted - PROG_WARM.fogless, a task at a time (the
   // depth variants' key, compileDepthVariants below)
-  function compileSliced(sc, target, lit, fogless) {
+  // G1085 (LOAD-COMPILE): `dress` - fn => fn() run with the scenes dressed as the programs will be drawn (the craft and
+  // its lights stood where the frame will find them) and put back before it returns: the stand-ins are gathered and
+  // each task's compile made INSIDE it, so the dress never outlives a task - no frame, no other step's compile ever
+  // meets it, and the step can run beside the others (its links on the driver's threads) instead of holding the draw
+  function compileSliced(sc, target, lit, fogless, dress) {
+    const D = dress || (f => f());
     if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn)
-      return fogless && PROG_WARM ? PROG_WARM.fogless(lit || sc, () => compilePass(sc, target, lit)) : compilePass(sc, target, lit);
+      return D(() => fogless && PROG_WARM ? PROG_WARM.fogless(lit || sc, () => compilePass(sc, target, lit)) : compilePass(sc, target, lit));
     const reps = [], seen = new Set(), mats = new Set();
-    sc.traverse(o => {
+    D(() => sc.traverse(o => {
       if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.material) return;
       const g = o.geometry;
       const gk = g && g.attributes ? Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.morphTargetsRelative ? 'r' : '') : '';
@@ -11508,26 +11612,28 @@
         if (seen.has(k)) continue;
         seen.add(k); reps.push([o, m]); mats.add(m);
       }
-    });
+    }));
     const litScene = lit || sc;
     let i = 0, G = 1;                     // a NEW AEROSKIN program's source alone is ~0.1-0.3 s: start at one, grow on the cheap ones
     return new Promise(res => {
       const tick = () => {
         const t0 = performance.now();
-        const prev = renderer.getRenderTarget(), fog = litScene.fog;
-        try {
-          if (fogless) litScene.fog = null;
-          renderer.setRenderTarget(target, 0);
-          while (i < reps.length && performance.now() - t0 < 30) {
-            const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
-            for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
-            i += n;
-            try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
-            grp.clear();
-            const dt = performance.now() - t1;
-            G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
-          }
-        } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
+        D(() => {
+          const prev = renderer.getRenderTarget(), fog = litScene.fog;
+          try {
+            if (fogless) litScene.fog = null;
+            renderer.setRenderTarget(target, 0);
+            while (i < reps.length && performance.now() - t0 < 30) {
+              const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
+              for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
+              i += n;
+              try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
+              grp.clear();
+              const dt = performance.now() - t1;
+              G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
+            }
+          } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
+        });
         if (i < reps.length) { setTimeout(tick, 0); return; }
         // the link: compileAsync's own poll - over EVERY program of the material (G992: compileAsync reads only its
         // currentProgram, the last one keyed; a material met as two object kinds, or lit and fogless, has one program
@@ -11745,6 +11851,30 @@
       .then(() => { if (window.FLYDIY_LOG_COMPILE) console.log('xray variants: ' + n + ' programs, ' + Math.round(performance.now() - t0) + ' ms'); })
       .catch(e => console.warn('xray compile:', e && e.message));
   }
+  // A PLACEHOLDER ENVIRONMENT FIRST (the compile step's, below): a program's key says whether the scene has an
+  // environment map (and its size) - G1085: also for the craft's shed compile, which the one loading starts earlier
+  function shedEnvKey() {
+    if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
+      try { const rt = envGen('room').fromCubemap(envRT.texture);
+            hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
+    }
+  }
+  // G1085 (LOAD-COMPILE): ...AND THE SHED'S, STARTED UNDER THE COMMIT. The shed's compile step and first light's
+  // see-through twins (~100 programs) came after the world's compile, and waited on their links there; the room is
+  // complete long before (the parked batch has let go by the commit). Started here - the room's key environment, its
+  // two targets, its shadow pass, the twins - a group a task, not awaited: the compile step and first light compile the
+  // same keys (known: no new source, no new link) and wait for what is still linking. Only when the room's pieces
+  // have landed (a prop or the crew landing later adds programs the compile step catches, as before)
+  function shedPrelink() {
+    if (typeof renderer.compileAsync !== 'function' || !hangar || tripKeys.shedCompile !== undefined) return;
+    if (typeof BOOT.settled === 'function' && !BOOT.settled(['props', 'crew', 'crewBuild'])) return;
+    shedEnvKey();
+    compileSliced(hangarScene, ensureEnvRT())
+      .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null))
+      .then(() => compileDepthVariants(hangarScene, true))
+      .then(() => compileXrayVariants())
+      .catch(e => console.warn('shed prelink:', e && e.message));
+  }
   bootStep('compile', 'compiling the shaders', 14, () => {
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
     if (typeof renderer.compileAsync !== 'function' || !hangar) { done(); return; }
@@ -11753,10 +11883,7 @@
     // and then baked would compile every material a second time on the
     // first frame. A PMREM of the still-black probe target is that map with
     // zero radiance: same key, same look, and the real bake replaces it.
-    if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
-      try { const rt = envGen('room').fromCubemap(envRT.texture);
-            hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
-    }
+    shedEnvKey();
     const pass = target => compilePass(hangarScene, target);
     // ...once the room is complete: a prop or the crew landing AFTER the
     // compile would compile its materials on their first draw, synchronously.
