@@ -1435,12 +1435,27 @@ function make(THREE, scene, world, rec0, opts) {
     const qm = /[?&]kitmode=(kit|unique)\b/.exec(location.search); if (qm) KIT.mode = qm[1];
     if (/[?&]kitfade=0\b/.test(location.search)) KIT.fade = false;
   }
+  // METLAKATLA ON THE KIT (C3c, G860-G864; ARCH-2026-09-27 §5; the user, 2026-09-29/30: "the kit streets look good").
+  // With the town on (?town=1 / the GRAPHICS 'town' row, G590 - still OFF by default), the plots Metlakatla's zones sow
+  // whose id and seed are in the kit's instance table (tools/town_kit.js, C3a) are KIT PLOTS: their houses and their
+  // outbuildings are the kit's instances (townkit.js, C3b's host - one BatchedMesh a material for the whole town, drawn
+  // from the moment the pack is in), and their LOTS are generated as a unique lot is (src/viewer/kit_lot.js: the plan
+  // build at lod 1, the house's own bags dropped; the fence, the lot patch, the car and the boat, the props, the pier,
+  // its piles and the jetty; the tide the zone's water) - through the house worker (job kind 'kit') or inline.
+  // UNCHANGED: every site item (the churches, the cannery, the school, every named building: the landmarks stay unique,
+  // worker-built), the village, the mine, the editor's places and their piers, and any Metlakatla plot the table does
+  // not know (an edited zone sows new seeds: those build unique). ?townkit=0: the town on its unique houses (the A/B).
+  const KT = { want: false, status: 'off', err: null, man: null, pack: null, inst: null, byPlot: null, host: null, O: null, memo: new WeakMap(),
+               rowOf: null, plotHouses: null, outOf: null, outOwn: new Set(), lots: 0, outKit: 0, outBuilt: 0, hits: 0, hitTris: 0, rebuilt: 0,
+               t0: 0, tableMs: 0, packMs: 0, hostMs: 0, promise: null, island: null };
+  if (o.game && typeof window !== 'undefined' && window.FLYDIY_TOWN && window.FLYDIY_TOWN.all && typeof location !== 'undefined' && !/[?&]townkit=0\b/.test(location.search || '')
+      && (rec.layers.zones || []).some(z => /^mk_/.test(String(z.id)))) KT.want = true;
   // the stack (G574): made on first use. Its ready signal (a layer the bake asked for is in the stack now) marks the
   // cells that baked without it (cl.tarrShort) for a rebake - one cell a frame, like every bake (G593: it cleared the
   // signature and the WHOLE town rebaked twice in a row at the end of the queue). TARR is declared by LAMPS.
   function tarr() {
     if (TARR || typeof window === 'undefined' || !window.HOUSE_TARR || !THREE.DataArrayTexture) return TARR;
-    TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { for (const cl of HLOD.cellMap.values()) if (cl.tarrShort) cl.sig = ''; hlodHouses = -1; if (KIT.host) KIT.host.relook(); },
+    TARR = window.HOUSE_TARR.make(THREE, { px: HLOD.px || 512, onReady: () => { for (const cl of HLOD.cellMap.values()) if (cl.tarrShort) cl.sig = ''; hlodHouses = -1; if (KIT.host) KIT.host.relook(); if (KT.host) KT.host.relook(); },
                                            lod: { U: LOD_U, decl: LOD_DECL, glsl: lodDither(['out:A']) } });   // G801: the near rung leaves at near
     TARR.lit.value = LAMPS.kLit === undefined ? 1 : LAMPS.kLit;
     TARR.begin();   // the slot table lives as long as the stack: a cell's rebake re-uses the rows it had (same values, same slot)
@@ -1849,11 +1864,148 @@ function make(THREE, scene, world, rec0, opts) {
     KIT.host.tick(e);
     kitApply();
   }
+  // ---- METLAKATLA ON THE KIT (C3c; the notes at KT's declaration) ---------------------------------------------------
+  // THE LOAD: the two scripts (build.js MANIFEST.lazy), the manifest, this island's instance table and the pack - begun
+  // with the renderer, waited for by the town step (prewarm) before anything of Metlakatla is generated, so which plot is
+  // a kit plot is known before the first job leaves for the worker. A load that fails leaves the town unique.
+  const ktGunz = r => { if (!r.ok) throw new Error(r.url + ' ' + r.status); return new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer(); };
+  function ktLoad() {
+    if (!KT.want || KT.status !== 'off') return;
+    KT.status = 'loading'; KT.t0 = performance.now();
+    KT.island = (typeof window !== 'undefined' && window.ISLAND_BOOT && window.ISLAND_BOOT.id) || (world && world.id) || null;
+    const fail = e => { KT.status = 'error'; KT.err = String((e && e.message) || e); KT.want = false; console.warn('town kit: ' + KT.err + ' - Metlakatla builds unique'); };
+    if (typeof DecompressionStream === 'undefined' || typeof fetch === 'undefined') { fail('no DecompressionStream / fetch'); return; }
+    const lazy = window.TOWNKIT && window.KIT_LOT ? Promise.resolve() : window.FLYDIY_LAZY ? window.FLYDIY_LAZY(['townkit', 'kit_lot']) : Promise.resolve();
+    KT.promise = Promise.all([lazy, fetch(kitBase() + 'src/core/townkit_pack.json').then(r => { if (!r.ok) throw new Error('no src/core/townkit_pack.json'); return r.json(); })])
+      .then(([, man]) => {
+        if (!window.TOWNKIT || !window.KIT_LOT) throw new Error('townkit.js / kit_lot.js did not load');
+        KT.man = man;
+        const it = (man.instances || []).find(i => i.id === KT.island);
+        if (!it) throw new Error('no instance table for the island ' + KT.island);
+        const tab = fetch(kitBase() + it.src).then(ktGunz).then(b => { KT.inst = window.TOWNKIT.decodeInstances(b); KT.tableMs = Math.round(performance.now() - KT.t0); });
+        const pk = fetch(kitBase() + man.pack.src).then(ktGunz).then(b => { KT.pack = window.TOWNKIT.decodePack(b); KT.packMs = Math.round(performance.now() - KT.t0); });
+        return Promise.all([tab, pk]);
+      })
+      .then(() => {
+        // the table's HOUSE row of each plot it was sown from (its outbuilding's row by the same plot)
+        KT.byPlot = new Map(); KT.outRow = new Map();
+        KT.inst.rows.forEach((r, i) => { if (r.plot === null) return; (r.out ? KT.outRow : KT.byPlot).set(r.plot, i); });
+        window.KIT_LOT.extend(BLD);   // the page's builder answers a 'kit' job too (the worker's does the same, house_worker.js)
+        BLD.C.world = world;          // (the zone's water: KIT_LOT.zoneWater)
+        KT.status = 'decoded';
+      })
+      .catch(fail);
+  }
+  // still loading: what the town step waits on (null once decided, either way)
+  const ktWait = () => (KT.want && (KT.status === 'off' || KT.status === 'loading') ? (ktLoad(), KT.promise) : null);
+  // A KIT PLOT: a plot of an `mk_` zone whose id AND seed are the table's (-1: not one - the unique path). Asked by the
+  // worker's dispatch and by the placement: the same answer for one composition
+  function kitOf(p) {
+    if (!KT.byPlot || KT.status === 'error' || p.isItem || p.isPark || p.isObject || p.isFence || p.rec) return -1;
+    let k = KT.memo.get(p);
+    if (k !== undefined) return k;
+    const i = KT.byPlot.get(p.id);
+    k = i !== undefined && KT.inst.rows[i].seed === p.seed && /^mk_/.test(String(p.zone)) ? i : -1;
+    KT.memo.set(p, k);
+    return k;
+  }
+  // THE HOST: every kit plot's house and its outbuilding, as THIS composition has them (re-made when the record is
+  // recomposed - an edit in the editor; the lots already placed keep their obstacles and their outbuilding decision)
+  function ktBuild() {
+    if (!KT.want || KT.status !== 'decoded' || (KT.host && KT.O === O)) return KT.host;
+    const T = tarr(), HG = window.HOUSE_GEN;
+    // (the stack and the generator come with the game's page: without them the town stays unique - decided here, before
+    // the first job leaves: every caller that dispatches asks this first)
+    if (!T || !HG) { KT.status = 'error'; KT.err = 'no house_tarr / HOUSE_GEN'; console.warn('town kit: ' + KT.err + ' - Metlakatla builds unique'); return null; }
+    const t0 = performance.now();
+    if (KT.host) { KT.host.dispose(); KT.host = null; KT.rebuilt++; }
+    const plots = new Map(O.records.plots.map(p => [p.id, p]));
+    const rows = [], rowOf = new Map(), plotHouses = new Map(), outOf = new Map();
+    KT.inst.rows.forEach((r, i) => {
+      const p = plots.get(r.plot);
+      if (!p || kitOf(p) < 0) return;
+      const h = rows.length, w = O.frame.toWorld(r.x, r.z);
+      rows.push(Object.assign({}, r, { x: w[0], z: w[1], yaw: r.yaw + (O.frame.yaw || 0) }));
+      rowOf.set(h, i);
+      (plotHouses.get(r.plot) || plotHouses.set(r.plot, []).get(r.plot)).push(h);
+      if (r.out) outOf.set(r.plot, h);
+    });
+    try {
+      KT.host = window.TOWNKIT.host(THREE, { pack: KT.pack, rows, tarr: T, HG, mode: 'batch',
+                                            band: { E0: HLOD.near > 0 ? HLOD.near : 150, W0: HLOD.fadeW || 40, E1: HLOD.far2, W1: 120 } });
+    } catch (e) { KT.status = 'error'; KT.err = String((e && e.message) || e); console.warn('town kit: the host', e); return null; }
+    KT.host.group.name = 'premises:townkit';
+    root.add(KT.host.group);
+    for (const [pid, h] of outOf) if (KT.outOwn.has(pid)) KT.host.setHidden(h, true);
+    KT.O = O; KT.rowOf = rowOf; KT.plotHouses = plotHouses; KT.outOf = outOf;
+    KT.hostMs = Math.round(performance.now() - t0);
+    return KT.host;
+  }
+  // a kit house (and the kit's outbuilding) is solid: its lod-1 triangles, stretched as drawn, rasterised as a unique
+  // house's are (shapeOf's frame and cell), the ids on the lot's group (torn down with it)
+  function ktHit(grp, plot) {
+    const Rg = OBS(); if (!Rg || !KT.host || typeof OBSTACLES === 'undefined') return;
+    for (const h of KT.plotHouses.get(plot.id) || []) {
+      if (KT.host.isHidden(h)) continue;
+      const m = KT.host.hitMesh(h, 1); if (!m || !m.idx.length) continue;
+      try {
+        const shape = OBSTACLES.rasterise(m.pos, m.idx, 1.0); if (!shape) continue;
+        const r = KT.host.rows[h], id = Rg.add({ x: r.x, z: r.z, yaw: r.yaw, y0: r.y, shape, tag: r.out ? 'outbuilding' : 'house' });
+        (grp.userData.obst = grp.userData.obst || []).push(id); OBST_IDS.add(id); KT.hits++; KT.hitTris += m.idx.length / 3;
+      } catch (e) { console.warn('town kit: obstacle', plot.id, e && e.message); }
+    }
+  }
+  // the lot's outbuilding against the table's: the same kind where the table stands it (the kit nudges up to 2 m), else
+  // the lot's own is built (lod 1) and the table's is hidden - the game plans the outbuildings in streaming order with
+  // one fence set, the kit in plot order (G850)
+  function ktOutMatch(out, row) {
+    const A = row && KT.pack.header.archetypes[row.arch];
+    if (!out || !A || !A.src || A.src.kind !== out.kind) return false;
+    const dy = Math.abs(((out.yaw - row.yaw) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI);
+    return Math.hypot(out.x - row.x, out.z - row.z) < 2.1 && dy < 0.15;
+  }
+  // A KIT PLOT, PLACED: the lot's share of the plan build (the jetty, the pier's piles, the props: placeBuilt), the
+  // kit house's obstacle, the dressing (placeDress: the fence, the lot patch, the car, the boat - and the outbuilding
+  // only where the kit's is not the lot's)
+  function buildKitLot(plot, R) {
+    const HG = window.HOUSE_GEN, KL = window.KIT_LOT;
+    if (!window.VILLAGE_GEN || !HG || !KL) return null;
+    ktBuild();
+    R = R || KL.gen(BLD, plot);
+    if (!R) return null;
+    const house = R.house, built = R.built;
+    let F = R.F;
+    if (!F) { F = HG.makeFinish(); HG.applyFinish(house.P, F); PB.uniApply(F, R.fin); }
+    const grp = placeBuilt(G.houses, house, built, F, HG);
+    grp.name = 'kitlot:' + plot.id; grp.userData.kitLot = plot.id;
+    if (grp.children.length) hitAdd(grp, 'house', 1.0);
+    ktHit(grp, plot);
+    const oi = KT.outRow ? KT.outRow.get(plot.id) : undefined;
+    const kitOut = oi !== undefined && !!plot.out && ktOutMatch(plot.out, KT.inst.rows[oi]);
+    if (oi !== undefined && !kitOut) { KT.outOwn.add(plot.id); const h = KT.outOf && KT.outOf.get(plot.id); if (KT.host && h !== undefined) KT.host.setHidden(h, true); }
+    const D = R.dress && kitOut ? Object.assign({}, R.dress, { out: null }) : R.dress;
+    const Dp = placeDress(plot, built, D, R.Tv);
+    KT.lots++; if (kitOut) KT.outKit++; else if (D && D.out && plot.out) KT.outBuilt++;
+    return { grp, tris: built.stats.tris + Dp.tris, house, built, extra: Dp.groups, lights: litOf(built) + Dp.lights };
+  }
+  function ktTick(e) {
+    if (!KT.want || KT.status !== 'decoded') return;
+    if (!KT.host || KT.O !== O) ktBuild();
+    if (KT.host) KT.host.tick(e);
+  }
+  function ktStats() {
+    const H = KT.host;
+    return { want: KT.want, status: KT.status, err: KT.err, island: KT.island, table: KT.inst ? KT.inst.rows.length : 0, kitPlots: KT.plotHouses ? KT.plotHouses.size : 0,
+             instances: H ? H.rows.length : 0, lots: KT.lots, outKit: KT.outKit, outBuilt: KT.outBuilt, outHidden: KT.outOwn.size, hits: KT.hits, hitTris: KT.hitTris, rebuilt: KT.rebuilt,
+             tableMs: KT.tableMs, packMs: KT.packMs, hostMs: KT.hostMs, pack: KT.man ? { src: KT.man.pack.src, bytes: KT.man.pack.bytes } : null,
+             host: H ? Object.assign({}, H.stats, { draws: H.drawsNow(), rungs: H.rungs(), lookCount: H.lookCount() }) : null };
+  }
   function detailTick() {
     const e = o.eye && o.eye(); if (!e || !o.focalPx) return;
     const K = o.focalPx();
     hlodTick(e);
     kitTick(e);
+    ktTick(e);
     if (HLOD.skip !== false) settleTick();
     for (const g of G.houses.children) {
       if (!g.userData.frozen || g.userData.batch) continue;   // posed (its matrixWorld is final) before its centre is read
@@ -2488,6 +2640,8 @@ function make(THREE, scene, world, rec0, opts) {
   }
   const STREAM = { reach: 6000, budget: 3, cap: 12, resort: 60, bank: 0, cx: NaN, cz: NaN, near: 0, ms: 0, built: 0, slow: [] };   // slow: the last builds over 60 ms [id, ms]
   function stream(cx, cz) {
+    if (ktWait()) return 0;   // (C3c: nothing of the town before the kit is known - the town step waited for it)
+    ktBuild();
     if (hwOn()) return streamW(cx, cz);
     if (HWQ.order.length) hwCancel(true);   // the worker gone (or the editor open): what it owed builds here, first
     const S = STREAM;
@@ -2519,6 +2673,9 @@ function make(THREE, scene, world, rec0, opts) {
   // obstacle registers it and builds nothing; a slice that builds leaves the registration to the next.
   const hitPendingReady = () => PENDING_HIT.some(q => q.grp.parent && hitReady(q.grp));
   function prewarm(cx, cz, reach, budgetMs) {
+    // (C3c) Metlakatla on the kit: which plot is a kit plot is known before anything is generated; the host is up
+    const kw = ktWait(); if (kw) return { done: false, built: 0, near: queue.length + HWQ.order.length, queued: queue.length + HWQ.order.length, ms: 0, wait: kw };
+    ktBuild();
     if (hwOn()) return prewarmW(cx, cz, reach, budgetMs);
     if (HWQ.order.length) hwCancel(true);
     sortFrom(cx, cz); STREAM.cx = cx; STREAM.cz = cz;
@@ -2545,7 +2702,7 @@ function make(THREE, scene, world, rec0, opts) {
     try { buildOne0(p, R); } finally { const ms = performance.now() - tb; if (ms > 60) { const L = STREAM.slow; L.push([p.id, Math.round(ms)]); if (L.length > 60) L.shift(); } }
   }
   function buildOne0(p, R) {
-    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec, R) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec, R) : buildHouse(p, R); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec, R) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec, R) : kitOf(p) >= 0 ? buildKitLot(p, R) : buildHouse(p, R); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
     catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
   }
   // what a batch of builds owes once (not once an item)
@@ -2588,7 +2745,7 @@ function make(THREE, scene, world, rec0, opts) {
   const HWQ = { order: [], jobs: new Map(), arrived: new Map(), seq: 0, gen: 0, epoch: -1, needState: true, dead: false,
                 dispatched: 0, placed: 0, local: 0, errors: 0 };
   const hwOn = () => !!(HWK && !HWQ.dead && HWQ.epoch >= 0 && HWK.ok() && !o.editing());
-  const hwKind = p => (p.isPark || p.isObject ? null : p.isFence ? 'fence' : p.isItem ? 'item' : 'house');
+  const hwKind = p => (p.isPark || p.isObject ? null : p.isFence ? 'fence' : p.isItem ? 'item' : kitOf(p) >= 0 ? 'kit' : 'house');   // (C3c: 'kit', a kit plot's lot)
   const hwMainOnly = p => !!(p.isItem && p.rec.gen === 'HANGAR_GEN' && !(p.rec.P && p.rec.P.restated) && typeof document !== 'undefined' && typeof genHangarBuild === 'function');
   function hwCompose() {
     if (!HWK || !HWK.ok()) return;
@@ -2656,7 +2813,7 @@ function make(THREE, scene, world, rec0, opts) {
           // a worker that keeps failing is let go: the rest builds here, in the same order
           if (/^error/.test(m.miss || '') && ++HWQ.errors >= 3) { HWQ.dead = true; for (const [, jj] of HWQ.jobs) jj.remote = false; console.warn('house worker: three errors - the page builds the rest itself'); }
         }
-        else { BLD.applyDelta(m.d); R = BLD.unpack(m.r, THREE, j.kind === 'item' ? j.p.rec : j.kind === 'house' ? j.p : null); }
+        else { BLD.applyDelta(m.d); R = BLD.unpack(m.r, THREE, j.kind === 'item' ? j.p.rec : j.kind === 'house' || j.kind === 'kit' ? j.p : null); }
       }
       HWQ.order.shift(); HWQ.jobs.delete(seq); HWQ.arrived.delete(seq);
       const here = !R && !!j.kind;   // generated on this thread (a hangar, a miss, the worker gone)
@@ -2680,6 +2837,8 @@ function make(THREE, scene, world, rec0, opts) {
   // lays out the rest of the world, and the town step finds its entries dispatched (a cold visit's town is placement)
   function hwPrefetch() {
     if (!hwOn() || !o.anchor || !(o.prefetchReach > 0)) { HWQ.prefetch = 'off'; return 0; }
+    if (ktWait()) { HWQ.prefetch = 'the town kit loading'; return 0; }   // (C3c: the town step dispatches, the kit known)
+    ktBuild();
     let a = null; try { a = o.anchor(); } catch (e) { a = null; }
     if (!a || !isFinite(a[0]) || !isFinite(a[2])) { HWQ.prefetch = 'no anchor'; return 0; }
     sortFrom(a[0], a[2]); STREAM.cx = a[0]; STREAM.cz = a[2];
@@ -2951,6 +3110,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const [, L] of LINES) { L.line.geometry.dispose(); L.line.material.dispose(); }
     LINES.clear();
     for (const c of G.roads.children) if (c.isMesh) disposePav(c);   // G925: the pavement's rows (and an own material's MATS entry) given back
+    if (KT.host) { KT.host.dispose(); KT.host = null; }   // (C3c)
     scene.remove(root);
   }
 
@@ -2977,6 +3137,7 @@ function make(THREE, scene, world, rec0, opts) {
     drainNear, stream, prewarm, streamState: STREAM, cellLive, hwWait, hw: HWQ,   // G830: the house worker's pending answer (a promise, or null); its queue's state   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued
     detail: DETAIL, hlod: HLOD,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
     kit: KIT, kitSet,             // C3b: the town kit's look review (?kitab=...): .host (.stats, .rungs(), .setBand), kitSet('kit' | 'unique' | toggle)
+    kitTown: KT, kitTownStats: ktStats, kitOf,   // C3c: Metlakatla on the kit (the town on): its state, its census, a plot's table row (-1: unique)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },
@@ -2987,6 +3148,7 @@ function make(THREE, scene, world, rec0, opts) {
     groundMat, plots: () => O.records.plots, houses: HOUSES, aerodromes: () => O.aerodromes, items: () => O.records.items, links: () => O.records.links,
     patternOf: id => { const i = O.runways.findIndex(r => r.id === id); if (i < 0 || !SITE.sitePattern) return null; try { return SITE.sitePattern(O.aerodromes[i], O.runways[i].site || null); } catch (e) { return null; } },
   };
+  if (KT.want) ktLoad();   // (C3c) the kit's load begins with the renderer; the town step waits for it
   return R;
 }
 

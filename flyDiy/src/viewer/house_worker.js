@@ -43,7 +43,9 @@ const HW_V = 1;
 const HW_FILES = [['HOUSE_TEX_SETS', 'src/viewer/house_tex.js'], ['GROUND_TEX', 'src/viewer/ground_tex.js'], ['LOT_GROUND', 'src/viewer/lot_tex.js'], ['SIGN_TEX_META', 'src/viewer/sign_tex.js'],
   ['HOUSE_KIT', 'tools/_house_kit.js'], ['HOUSE_GEN', 'tools/_house_gen.js'], ['BIG_GEN', 'tools/_big_gen.js'], ['SHED_GEN', 'tools/_shed_gen.js'],
   ['HANGAR_GEN', 'tools/_hangar_gen.js'], ['TOWER_GEN', 'tools/_tower_gen.js'], ['TRAM_GEN', 'tools/_tram_gen.js'], ['TOTEM_GEN', 'tools/_totem_gen.js'],
-  ['VILLAGE_GEN', 'tools/_village_gen.js'], ['PREMISES_BUILD', 'src/viewer/premises_build.js']];
+  ['VILLAGE_GEN', 'tools/_village_gen.js'], ['PREMISES_BUILD', 'src/viewer/premises_build.js'],
+  // (C3c, G861) a kit plot's lot (Metlakatla on the kit): the job kind 'kit' - imported whatever the page has loaded
+  ['KIT_LOT', 'src/viewer/kit_lot.js']];
 const HW_LAZY = [['SPORT_GEN', 'tools/_sport_gen.js'], ['MARINE_GEN', 'tools/_marine_gen.js']];
 const HW_DB = 'flydiy-houses';
 
@@ -54,7 +56,7 @@ function houseWorkerBody(G, port) {
   // a result posted with its arrays TRANSFERRED: each buffer detached here after the post (kept = a copy was made)
   const send = (m, tr) => { port.post(m, tr); for (const b of tr) { if (b.byteLength === 0) st.moved++; else st.kept++; } };
   const sizeOf = tr => tr.reduce((a, b) => a + b.byteLength, 0);
-  const C = { G, get PG() { return G.PREMISES_GEN; }, get O() { return st.O; }, get rec() { return st.rec; },
+  const C = { G, get PG() { return G.PREMISES_GEN; }, get O() { return st.O; }, get rec() { return st.rec; }, get world() { return st.world; },
               waterY: () => (st.world && st.world.waterH ? st.world.waterH(0, 0) : -1e9), size: () => st.size,
               game: true, lod1: true, outLod: 1, props: new Set(), pp: true, lotGround: true };
   const now = () => (G.performance ? G.performance.now() : Date.now());
@@ -147,6 +149,7 @@ function houseWorkerBody(G, port) {
     st.O = st.world.premises.set(m.rec, { build: buildFor, pool: m.pool || [] }) || PG.compose(m.rec, st.world.premises.base, { pool: m.pool || [], globals: G, build: buildFor });
     st.epoch = m.epoch;
     st.B = G.PREMISES_BUILD.makeBuilder(C);
+    if (G.KIT_LOT) G.KIT_LOT.extend(st.B);   // (C3c) the 'kit' jobs
     const recHash = PG.fnv(JSON.stringify(m.rec)).toString(36) + '.' + JSON.stringify(m.rec).length.toString(36);
     st.recHash = recHash;
     st.composeMs = now() - t0;

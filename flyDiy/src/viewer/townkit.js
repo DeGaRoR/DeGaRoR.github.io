@@ -14,6 +14,9 @@
 //     H.tick(eye)        per frame: each house's rung (lod 0 < E0 < lod 1 < E1 < box), a partner rung inside a band
 //     H.relook()         the looks' slots again (house_tarr's stack landed a layer: the slots moved)
 //     H.stats            { houses, looks, geos, verts, mb, tickMs, cullMs, draws, ... }
+//     H.setHidden(h, v)  (C3c) a house out of every rung from the next tick (Metlakatla: a table's outbuilding the lot
+//                        does not plan); H.isHidden(h)
+//     H.hitMesh(h, lod)  (C3c) its triangles in its own frame, stretched as drawn - the obstacle raster's input
 //     H.dispose()
 //
 // THE MATERIAL (ARCH §4.2): the TARR town material (G574: one float SLOT per vertex into a table of finishes, the
@@ -60,7 +63,8 @@ const TOWNKIT = (() => {
         arch: ai & 127, mirror: !!(ai & 128), finish: dv.getUint8(o + 15), wallCol: dv.getUint8(o + 16), trimCol: dv.getUint8(o + 17), roofCol: dv.getUint8(o + 18),
         weather: dv.getUint8(o + 19) / 255, dirt: dv.getUint8(o + 20) / 255, lights: dv.getUint8(o + 21) / 255, scale: 1 + dv.getInt8(o + 22) / 500,
         flags: dv.getUint8(o + 23), ground: [0, 1, 2, 3].map(k => dv.getInt16(o + 24 + k * 2, true) / 100),
-        plot: head.plots && head.plots[i] ? head.plots[i][0] : null, out: !!(head.plots && head.plots[i] && head.plots[i][1]) });
+        plot: head.plots && head.plots[i] ? head.plots[i][0] : null, out: !!(head.plots && head.plots[i] && head.plots[i][1]),
+        seed: head.plots && head.plots[i] && head.plots[i][2] !== undefined ? head.plots[i][2] : null });   // (C3c: the plot's seed)
     }
     return { head, rows };
   }
@@ -362,6 +366,9 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
     PARTS.clear();
     const group = new THREE.Group(); group.name = 'townkit'; group.userData.batch = true;
     const rung = new Int8Array(N).fill(-1), partner = new Int8Array(N).fill(-1);
+    // (C3c, G862) a house the town does not stand (Metlakatla's lot planned another outbuilding than the table's): no
+    // rung at all, from the next tick
+    const hidden = new Uint8Array(N);
     const keyOf = r => r.arch * 2 + (r.mirror ? 1 : 0);
     // ================= THE BATCH HOST =================
     const B = {};
@@ -455,6 +462,7 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
           const e0 = E0 * (cur === 0 ? 1 + k : 1 - k), e1 = E1 * (cur === 2 ? 1 - k : 1 + k);
           p = d < e0 ? 0 : d < e1 ? 1 : 2;
         }
+        if (hidden[h]) { p = -1; pq = -1; }
         if (p !== rung[h] || pq !== partner[h]) {
           if (o.mode === 'batch') { if (p !== rung[h]) batchSet(h, 0, p); if (pq !== partner[h]) batchSet(h, 1, pq); } else instDirty = true;
           rung[h] = p; partner[h] = pq; changed++;
@@ -470,7 +478,24 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
       else for (const E of I.values()) if (E.im.visible && E.n) n++;
       return n;
     }
-    function rungs() { const c = [0, 0, 0, 0]; for (let h = 0; h < N; h++) { c[rung[h]]++; if (partner[h] >= 0) c[3]++; } return { lod0: c[0], lod1: c[1], box: c[2], partners: c[3] }; }
+    function rungs() { const c = [0, 0, 0, 0, 0]; for (let h = 0; h < N; h++) { if (rung[h] < 0) c[4]++; else c[rung[h]]++; if (partner[h] >= 0) c[3]++; } return { lod0: c[0], lod1: c[1], box: c[2], partners: c[3], none: c[4] }; }
+    // (C3c, G862) A KIT HOUSE IS SOLID: its triangles at `lod` (1: the generator's far mesh, ~1 000 a house) in the
+    // house's own frame - turned by its yaw about (x, y, z) of its record, y from the record's ground - the stretch
+    // along the ridge and THE STANCE applied as the vertex shader applies them (VMAIN: the stance weight times the
+    // ground field), for the obstacle raster (render_premises shapeOf's frame)
+    function hitMesh(h, lod) {
+      const r = rows[h], G = GEO.get(keyOf(r) * 3 + (lod === undefined ? 1 : lod));
+      if (!G) return null;
+      const o0 = h * 8, a = DATA[o0 + 4], b = DATA[o0 + 5], c = DATA[o0 + 6], d = DATA[o0 + 7], sx = r.scale || 1;
+      const pos = [], idx = [];
+      for (const k of KINDS) {
+        const g = G[k]; if (!g) continue;
+        const Pa = g.attributes.position.array, Ka = g.attributes.aKit.array, Ia = g.index.array, base = pos.length / 3, n = Pa.length / 3;
+        for (let i = 0; i < n; i++) { const x = Pa[i * 3], y = Pa[i * 3 + 1], z = Pa[i * 3 + 2]; pos.push(x * sx, y + Ka[i * 4 + 2] / 255 * (a + b * x + c * z + d * x * z), z); }
+        for (let t = 0; t < Ia.length; t++) idx.push(base + Ia[t]);
+      }
+      return { pos, idx };
+    }
     function dispose() {
       for (const G of GEO.values()) for (const k in G) G[k].dispose();
       for (const k in B) B[k].bm.dispose();
@@ -479,7 +504,8 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
       if (group.parent) group.parent.remove(group);
     }
     return {
-      group, tick, relook, dispose, U, stats: ST, rows, mats, depth, rungs, drawsNow,
+      group, tick, relook, dispose, U, stats: ST, rows, mats, depth, rungs, drawsNow, hitMesh,
+      setHidden(h, v) { hidden[h] = v ? 1 : 0; }, isHidden: h => !!hidden[h],   // (C3c)
       get waiting() { return waiting; },
       get band() { return o.band; },
       setBand(b) { Object.assign(o.band, b || {}); U.uKitBand.value.set(o.band.E0, o.band.W0, o.band.E1, o.band.W1); U.uKitBandOn.value = o.band.W0 > 0 ? 1 : 0; rung.fill(-1); partner.fill(-1); },
