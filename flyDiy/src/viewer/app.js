@@ -11192,7 +11192,7 @@
       const t2 = perfNow(), nStep = pc.steps * simRate;
       // G815 (C1b, ?simw=1): the worker steps - the page posts its inputs and takes the newest snapshot (sim_link.js;
       // `hold` while the worker makes the flight). null = this frame flies inline, the loop as it always was
-      const sw = SIMW ? SIMW.frame(nStep, simRate) : null;
+      const sw = SIMW ? SIMW.frame(nStep, simRate, ts) : null;   // (G1100: the frame's timestamp - the worker's view draws for it)
       if (sw) { if (sw.hold) PACE.hold(); if (FR) FR.push(0); scriptView(sw.simDt); if (FR) FR.pop(); simwRan = sw.ran; POSE_LERP.drop(); }
       else {
         const kPair = pc.legacy ? -1 : nStep - simRate;     // G1100: the step that opens the drawn pair (none under the old clock)
