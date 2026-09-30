@@ -6832,7 +6832,7 @@
     trip.animWhere = why ? 'shed: ' + why : 'world';
     let over = false, h = null, stage = 'shed';
     const fin = (how, then) => { if (over) return; over = true; rollAnimSkip = null; trip.anim = how; then(); };
-    const toFlight = () => { tripClose(trip); if (reveal && !inGarage) reveal(); };   // (back in the shed under it: no flight)
+    const toFlight = () => { tripClose(trip); if (reveal && !inGarage) { reveal(); if (stage === 'world' && flReveal > 0) flRevealIn = 0; } };   // (back in the shed under it: no flight)
     rollAnimSkip = () => { try { if (h && !h.done) h.skip(); } catch (e) {} if (stage === 'shed') fin('skipped', next); };
     setTimeout(() => { if (over) return; try { ROLLANIM.cancel(); } catch (e) {} raBusy = false;
       if (stage === 'world') { rollHold = false; fin('timeout', toFlight); } else fin('timeout', next); }, 30000);
@@ -10443,8 +10443,13 @@
   // when the reveal ends. Cockpit and tower are the player's own eye and
   // are left alone. A drag or a framing pick ends it at once — a camera
   // that keeps moving under a hand is the G39 judder with a reason.
-  let flReveal = 0;
+  let flReveal = 0, flRevealIn = 1;
   const FL_REVEAL_K = 0.022, FL_REVEAL_FRAMES = 360;
+  // G1117: AFTER THE WORLD ROLL THE REVEAL EASES IN. The shot ends on the reveal's first frame with its eye at rest, and the
+  // reveal's ease is fastest at its start (0.022 of the gap a 60th: 0.33 m on the first frame, measured in node, where
+  // the shot's own largest step was 0.09 m) - a kick at the hand-over. flRevealIn < 1 ramps the rate in over 0.8 s
+  // (smootherstep): the eye leaves the shot's last frame from rest. Any other reveal starts as it always did (1).
+  const FL_REVEAL_IN = 0.8;
   function flRevealStart() {
     flShedBox = worldShedBox();
     flReveal = 0;
@@ -10482,11 +10487,15 @@
   }
   // the slow ease, until it settles or the frames run out
   function flRevealK(dt) {
-    if (flReveal <= 0) return 0.28;
+    if (flReveal <= 0) { flRevealIn = 1; return 0.28; }
     flReveal -= (dt != null ? dt : 1 / 60) * 60;   // (G586: 60ths of a second, not frames)
-    if (flReveal <= 0) { flReveal = 0; return 0.28; }
+    if (flReveal <= 0) { flReveal = 0; flRevealIn = 1; return 0.28; }
     if (Math.abs(azT - az) < 0.01 && Math.abs(elT - el) < 0.01
-        && Math.abs(distT - dist) < 0.05) { flReveal = 0; return 0.28; }
+        && Math.abs(distT - dist) < 0.05) { flReveal = 0; flRevealIn = 1; return 0.28; }
+    if (flRevealIn < 1) {                          // G1117: the ease in after the world roll
+      flRevealIn = Math.min(1, flRevealIn + (dt != null ? dt : 1 / 60) / FL_REVEAL_IN);
+      const u = flRevealIn; return FL_REVEAL_K * u * u * u * (u * (u * 6 - 15) + 10);
+    }
     return FL_REVEAL_K;
   }
   const flUp = new THREE.Vector3();

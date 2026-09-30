@@ -86,7 +86,8 @@ const ROLLANIM = (() => {
     // G1115 OPTION B (follow: false): the fixed eye eased to over the check's start, and the roll past the door
     bEase: 0.8, bOut: 7,
     // G1115 THE WORLD ROLL (playWorld): out of the world's own shed onto the stand
-    wTmin: 5.0, wTmax: 7.5, wV: 5.5,   // the roll's length in seconds, and the speed it aims at (m/s)
+    // (no longer than the shed's roll, S.Tmax: the first flight must not wait longer than it did - the user's no-regression rule)
+    wTmin: 4.5, wTmax: 6.0, wV: 5.5,   // the roll's length in seconds, and the speed it aims at (m/s)
     wHold0: 0.45, wHold1: 0.35,        // still in the doorway at the start (the dissolve), and at the stand
     noseIn: 1.2,                       // the nose this far inside the door plane at the start, metres
     wClear: 2.0,                       // the tail this far past the door plane before the aeroplane turns
