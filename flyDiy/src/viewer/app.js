@@ -827,6 +827,20 @@
       sky.image.addEventListener('load', () => { sky.needsUpdate = true; bakeHangarEnv(); });
     }
   }
+  // ONE SKY (S5): the day on the shed (the frame loop's, every garage frame; and the boot's compile step, once): the
+  // physical dome and the cloud dome swapped in, the key aimed, the sky's LUT, the mood's row; the room's probe re-shot
+  // when the sun has moved 1.5 deg. C0c: THE BOOT APPLIES IT BEFORE ITS BAKE. applyDay was the frame loop's alone, so the
+  // compile step baked a shed with no day in it and the first frame re-baked it (LOAD-COMPILE's profile, train 17: ~250 ms
+  // of garage:firstFrame's 1.4 s task, the cube faces' shadow maps). Under envDeferred this call's bake requests
+  // (rebake, a mood) only mark envDirty, and markBaked records the sun done()'s one bake will shoot - the loop has not
+  // started, so the day has not moved when the first frame compares.
+  function shedDayTick() {
+    if (!hangar || !hangar.applyDay || !world.day) return;
+    const r = hangar.applyDay(world.day, renderer);
+    if (r && r.rebake) { bakeHangarEnv(); r.markBaked(); }
+    if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
+    shedCraftLights(world.day);
+  }
   function setEnvSource(k) {
     envSource = k === 'sky' ? 'sky' : 'room';
     prefSet('flydiy.hangarEnvSrc', envSource);
@@ -11150,12 +11164,7 @@
     if (inGarage) {
       if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4/F3: no sky in the shed, so no aerial perspective - but the MIST still runs, as the room's own air
       // ONE SKY (S5): the day on the shed every frame; the room's probe re-shot when the sun has moved 1.5 deg
-      if (hangar && hangar.applyDay && world.day) {
-        const r = hangar.applyDay(world.day, renderer);
-        if (r && r.rebake) { bakeHangarEnv(); r.markBaked(); }
-        if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
-        shedCraftLights(world.day);
-      }
+      shedDayTick();
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
       // do not work" even when they do. Sweep them instead, the way you would
@@ -12007,6 +12016,7 @@
   }
   bootStep('compile', 'compiling the shaders', 14, () => {
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
+    if (inGarage) shedDayTick();   // C0c: the day first - the passes compile what first light draws, the bake shoots it once
     if (typeof renderer.compileAsync !== 'function' || !hangar) { done(); return; }
     // A PLACEHOLDER ENVIRONMENT FIRST: a program's key says whether the scene
     // has an environment map (and its size), so a room compiled without one
