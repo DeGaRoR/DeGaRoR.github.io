@@ -63,8 +63,11 @@
         { v: 128, label: 'normal', why: 'a tree every 8 m at most - 156 a hectare' },
         { v: 160, label: 'dense', why: 'a tree every 6.4 m at most - 244 a hectare (a young spruce stand); the card holds ~4x the trees of sparse' },
         { v: 200, label: 'very dense', why: 'a tree every 5.1 m at most - 380 a hectare; the biome’s own count caps it below this, the card’s memory above it' } ] },
+    // G1110 (TREES-NEAR, the user 2026-09-30: "almost all camera positions give the model plus a dotted transition
+    // sprite ... we need to see the full mesh a little further"): each step is its edges AND its dither window (BANDS)
     { k: 'bands', label: 'forest detail', steps: [
         { v: 'near', label: 'impostors', why: 'the full tree to 10 m, its light rung to 30 m, pictures of trees beyond - in flight nearly every tree is a picture (2 triangles), which is what buys the density' },
+        { v: 'mid',  label: 'near trees', why: 'the full tree to 50 m, its light rung to 120 m, pictures beyond: the trees round the aeroplane and a close camera are whole trees, the stands you fly over pictures' },
         { v: 'far',  label: 'real trees', why: 'real trees to 270 m (the bands before 2026-09-21); the frame is 1.3-2x dearer in a dense stand' } ] },
     { k: 'shadows', label: 'shadows', steps: [
         { v: 'off',   label: 'off', why: 'no shadow at all' },
@@ -214,7 +217,13 @@
   ];
   const TONE = { aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping', neutral: 'NeutralToneMapping',
                  reinhard: 'ReinhardToneMapping', cineon: 'CineonToneMapping', linear: 'LinearToneMapping' };
-  const BANDS = { near: [10, 30, 30], far: [60, 270, 270] };   // 2026-09-21 impostor-first: L0 to 10 m, L1 to 30 m, pictures beyond; 'far' is W0c.32's near (L1 to 270)
+  const BANDS = { near: [10, 30, 30], mid: [50, 120, 120], far: [60, 270, 270] };   // 2026-09-21 impostor-first: L0 to 10 m, L1 to 30 m, pictures beyond; 'far' is W0c.32's near (L1 to 270)
+  // THE DITHER WINDOW PER STEP (G1110): the metres about each edge where both representations are drawn through
+  // complementary screen-door stipples. 30 m about a 30 m edge (the impostor-first bands) stippled every tree from
+  // 15 to 45 m - and the L0/L1 window (-5..25 m) overlapped it: the "dotted transition sprite" the user saw in almost
+  // every view. 12 m keeps the seam (the partition refreshes every window/3 m, render_world lodMove) and shows it
+  // only on the trees that really stand at an edge.
+  const FADE = { near: 12, mid: 12, far: 30 };
   const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 2048, far: false, world: false },   // near: map 2048 = the craft's 1024 (G655)
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 
@@ -317,7 +326,7 @@
       if (W.TREE_FILL.get() !== S.density) W.TREE_FILL.set(S.density);
       applied.density = S.density;
     }
-    if (W.TREE_LOD && applied.bands !== S.bands) { W.TREE_LOD.set(BANDS[S.bands]); applied.bands = S.bands; }
+    if (W.TREE_LOD && applied.bands !== S.bands) { W.TREE_LOD.set(BANDS[S.bands]); if (W.TREE_LOD.fade) W.TREE_LOD.fade(FADE[S.bands]); applied.bands = S.bands; }
     if (rig && world && world.sun && applied.shadows !== S.shadows) {
       const sh = SHADOWS[S.shadows];
       // castShadow off/on is what changes the light's shadow count and

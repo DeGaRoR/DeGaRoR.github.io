@@ -218,7 +218,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // old rung's band before its new rung had it, and for a few frames it was
   // not drawn at all. The partition deals a tree to every rung whose window
   // holds it, and refreshes more often than the window is wide.
-  const uFadeW = { value: 30 };
+  // G1110: 12 m (was 30 - the whole impostor-first near tier was inside a window; gfx_settings FADE per step). The
+  // seam still holds: a tree dealt to one rung can drift a whole window before its rung's band drops it, and the
+  // partition refreshes every window/3 m (lodMove)
+  const uFadeW = { value: 12 };
   // the shadow frustum's live half-width: the impostor caster collapses every
   // instance the map cannot see, or 170 000 quads pay the depth pass for
   // nothing (measured +4-7 ms on the MSAA tiers with the default bands, which
@@ -3685,6 +3688,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uIFlat.value = IMPK.flat; uIFlatMean.value = IMPK.mean; }
       return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, mean: IMPK.mean, vary: IMPK.vary }; };
     treeLod.impVary = () => IMPK.vary;
+    // WHERE A SPECIES STANDS (G1110, TREES-NEAR's evidence rig): the planted trees of the subjects whose key starts with
+    // `key` (a collection name, e.g. 'spruce_tree.glb'), living (the specimen series) and rooted r0..r1 m from (x, z),
+    // nearest first - [{ key, x, y, z, s }] (s: the instance's height scale), n at most. Reads the partition's records
+    // (the woodland's and every live fill chunk's), so it answers for what is planted now
+    treeLod.find = (key, x, z, r0, r1, n) => { const out = [];
+      for (const rec of ladderChunks) { if (!rec.key || rec.key.indexOf(key) !== 0) continue;
+        for (let i = 0; i < rec.n; i++) { if (rec.ser[i] !== 0) continue;
+          const tx = rec.pos[i * 3], tz = rec.pos[i * 3 + 2], d = Math.hypot(tx - x, tz - z);
+          if (d >= (r0 || 0) && d <= (r1 || 1e9)) out.push({ key: rec.key, x: tx, y: rec.pos[i * 3 + 1], z: tz, s: rec.mats[i * 16 + 5], d }); } }
+      return out.sort((a, b) => a.d - b.d).slice(0, n || 20); };
+    // WHAT THE PARTITION DEALT (G1110): per rung, the trees, their triangles and the meshes holding trees (a draw each in
+    // the main pass; the shadow passes draw them again where they reach) - the near tier's cost, counted
+    treeLod.census = () => { const inst = [0, 0, 0], tris = [0, 0, 0], draws = [0, 0, 0];
+      for (const rec of ladderChunks) for (const S of rec.rungs) S.forEach((parts, b) => { for (const m of parts) { if (!m.count) continue;
+        if (m === parts[0]) inst[b] += m.count; draws[b]++; const g = m.geometry; tris[b] += m.count * (g.index ? g.index.count : g.attributes.position.count) / 3; } });
+      return { inst, tris: tris.map(Math.round), draws, bands: treeLod.get(), fade: uFadeW.value }; };
     if (typeof window !== 'undefined') window.TREE_LOD = treeLod;
     // ================= W0c.5: THE MIX ======================================
     // Which SERIES a tree is drawn as. The bench's rule, ported: a fraction is
@@ -3718,7 +3737,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // carries ONLY the instances in its band, sorted in here on a cadence as
     // the aircraft moves, and `count` is set to what was written. The band in
     // the shader stays as the seam guard between refreshes.
-    const LOD_TICK = 6, LOD_MOVE = 10;      // refresh every 6 frames or 10 m - inside the window's half-width
+    // refresh every 6 frames or LOD_MOVE m - inside the window's half-width. G1110 (TREES-NEAR): the distance follows the
+    // window (a third of it, 10 m at most: 30 m -> 10 as before, 20 -> 6.7), so a narrower window keeps its seam guard
+    const LOD_TICK = 6, lodMove = () => Math.min(10, uFadeW.value / 3);
     // rec.rungs[si][r] holds the meshes of rung r of series si, rec.buf[si][r]
     // its scratch, and the rung TABLE - the far edge of each rung - is read
     // live from the ladder's edges, so the dial that moves the bands moves
@@ -3746,6 +3767,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // every rung whose window [near - hw, far + hw) holds the tree: at
         // most two, and each rung's buffer is sized for the whole series
         for (let j = 0; j < R.length; j++) {
+          // AN EMPTY RUNG IS DEALT NOTHING (G1110): with the edges [10, 30, 30] L2's band is [30, 30) - its shader keeps
+          // no fragment (its fade-in and fade-out are the same ramp, complementary), yet every tree 15-45 m out was
+          // written to it: a draw per part, the vertex work, and nothing on the screen
+          if (j && R[j] <= R[j - 1]) continue;
           if (d >= R[j] + hw) continue;
           if (j && d < R[j - 1] - hw) break;
           rec.buf[si][j].set(mats.subarray(i * 16, i * 16 + 16), k[si][j] * 16);
@@ -4265,7 +4290,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const cnt = [0, 0, 0];
         list.forEach((T, i) => { ser[i] = seriesOf(T.r, P.dead); cnt[ser[i]]++; });
         const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
-                      buf: [], rungs: [], x: ox, z: oz, own: true };
+                      buf: [], rungs: [], x: ox, z: oz, own: true, key: P.key };   // key: TREE_LOD.find's (G1110)
         const meshes = [], imps = [];
         P.series.forEach((S, si) => {
           rec.buf.push(S.ladder.map(() => new Float32Array(cnt[si] * 16)));
@@ -4383,7 +4408,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // partition and collapsed by that rung's band - a gap that moved with
       // the aeroplane, on top of the slicing.
       const eye = [uCam.value.x, uCam.value.y, uCam.value.z];
-      const moved = !lodAt || Math.hypot(eye[0] - lodAt[0], eye[2] - lodAt[2]) > LOD_MOVE;
+      const moved = !lodAt || Math.hypot(eye[0] - lodAt[0], eye[2] - lodAt[2]) > lodMove();
       if (lodTick++ % LOD_TICK === 0 || moved) {
         lodAt = eye;
         const reach = uNear.value + CHW * Math.SQRT1_2;
@@ -4683,7 +4708,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const nrOf = S => S.ladder ? S.ladder.length : 1;
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
                         buf: SH.series.map((S, si) => Array.from({ length: nrOf(S) }, () => new Float32Array(cnt[si] * 16))),
-                        rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : Array.from({ length: nrOf(S) }, () => [])), x: ox, z: oz };
+                        rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : Array.from({ length: nrOf(S) }, () => [])), x: ox, z: oz,
+                        key: SH.key };   // key: TREE_LOD.find's (G1110)
           perSer.forEach((P, si) => { if (P) for (const mm of P.ms) {
             // STATIC (PERF 2026-09-23): the chunk's meshes never move - their matrix is composed once, not
             // every frame (~32 000 of them on the island: the bulk of updateMatrixWorld's 5 ms)
