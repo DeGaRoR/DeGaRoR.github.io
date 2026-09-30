@@ -2298,7 +2298,7 @@ function make(THREE, scene, world, rec0, opts) {
     get pp() { return typeof propPlace === 'function'; }, get lotGround() { return !!window.LOT_GROUND; } });
   const FENCED = BLD.S.fenced;
   // THE COOK'S TALLIES (G841, C2c; premises_build.js makeTallies): the island's cook (tools/premises_cook.js, the loader's
-  // boot.premCook.places, carried on world.island) ships, for the variant this page composed (the town switch: 'town' when
+  // boot.premCook.places, carried on world.island.places) ships, for the variant this page composed (the town switch: 'town' when
   // Metlakatla stands, 'default' when it is cut), every entry's delta to the village's two tallies in the record's order.
   // An entry then generates on the tallies the cook gave it (its RANK: syncHouses), inline or in the house worker, whatever
   // order the stream asks in - the page dresses as the cook placed, and the house cache's keys hold across stands and
@@ -2307,7 +2307,7 @@ function make(THREE, scene, world, rec0, opts) {
   const TALLY = (() => {
     try {
       if (typeof location !== 'undefined' && /[?&]premtally=0/.test(location.search || '')) return null;
-      const pc = world && world.island && world.island.premCook, pl = pc && pc.places;
+      const pl = world && world.island && world.island.places;
       const v = pl && pl.variants && pl.variants[(typeof window !== 'undefined' && window.FLYDIY_TOWN && window.FLYDIY_TOWN.all) ? 'town' : 'default'];
       return v && v.tallies ? { list: v.tallies, T: PB.makeTallies(v.tallies), variant: v.name || null } : null;
     } catch (e) { console.warn('premises: the cooked tallies', e && e.message); return null; }

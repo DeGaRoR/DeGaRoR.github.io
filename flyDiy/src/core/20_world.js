@@ -1077,7 +1077,8 @@ function makeWorld(seed, opts) {
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
-                    farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
+                    farHeader: ISL.farHeader, farRoot: ISL.farRoot,
+                    places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
     terrainH, waterH, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
