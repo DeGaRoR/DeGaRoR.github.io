@@ -65766,3 +65766,147 @@ loop JS 22.0 -> 13.4 / 24.7 -> 13.5 ms (the worker); render 11.0 -> 9.7 / 10.7 -
 33.5 both; the Cub: no frame over 100 ms, no task over 1 s. OPEN: the metal Cessna's 1.3-1.4 s task in garage:firstFrame
 (LOAD-COMPILE follows it up for train 18). The CI container's timing gates (BIOME perf, SETTLE bake budget, HITBOX e,
 RWYTREES' 30-min cap) red there, green on the box.
+
+## G1110-G1114 - TREES-NEAR: WHOLE TREES AT SHORT AND MEDIUM DISTANCE, THE DITHER NARROWED, AND THE TREES YOU CAN HIT (2026-09-30, local GPU)
+
+The user, 2026-09-30: "it is almost impossible to see the trees in their full glory. Almost all camera positions give
+the model plus a dotted transition sprite ... we need to see the full mesh a little further ... ensure performance is
+not too degraded, including when the plane flies low above the trees." And: "we have collisions for the trees, right?"
+
+### G1110 - the bands and the dither window (render_world.js, gfx_settings.js)
+- **WHAT THE EYE SAW:** every preset drew bands 10 / 30 / 30 m (L0 to 10 m, L1 to 30 m, the impostor beyond) with a
+  30 m dither window about each edge. The L1/impostor window spans 15-45 m and the L0/L1 window -5..25 m, so every tree
+  within 45 m of the eye was stippled. The chase eye stands ~7 m behind the aeroplane, and the nearest trees at HOME are
+  60 m+ away, so almost every tree was a picture.
+- **THE EMPTY RUNG WAS DEALT TREES:** with L1's edge equal to the impostor's (30 = 30), L2's band is [30, 30). Its
+  shader keeps no fragment (fade-in and fade-out are the same ramp), yet partitionChunk dealt it every tree 15-45 m out:
+  a draw per part, and vertex work for nothing. A zero-width rung is now skipped.
+- **THE WINDOW IS PER STEP** (gfx_settings FADE): near 12 m (was 30), minimum 15, mid 12, far 30.
+  - The partition refreshes every window/3 m (lodMove, 10 m at most; was a fixed 10). A tree dealt to one rung can
+    drift a whole window before its band drops it, so the seam holds.
+  - uFadeW's default is 12.
+- **THE STEPS ('forest detail'):**
+  - near 10/30/30 (w12)
+  - minimum 30/60/60 (w15), the user's fallback
+  - mid 50/120/120 (w12), "the look I want"
+  - far 60/270/270 (w30)
+- **TREE_LOD.find(key, x, z, r0, r1, n):** the planted trees of a species. **TREE_LOD.census():** the partition's
+  trees, tris and meshes per rung. The partition records carry their subject `key`.
+- **EVIDENCE:** tools/treesnear_shots.js, in tools/perf/treesnear_evidence/.
+  - Each of Jolene's three main species (realistic fir 35 %, spruce 24 %, fir_georgeous 9 % of the forest by area) at
+    20 m and 60 m from a free camera, plus the chase on the stand and at 60 m AGL.
+  - BEFORE (master's bands, w30) vs AFTER ('mid').
+  - At 20 m BEFORE shows the stipple halo round every crown; at 60 m BEFORE shows the dark round impostor blobs.
+- **COST, counted** (FRAMECOST census, Cub, gamer; the parked cook equally stale on every side):
+
+  | bands | stand draws main / shadow | stand tris main / shadow | taxi draws | taxi tris |
+  |---|---|---|---|---|
+  | near | 1144 / 522 | 16.65 / 2.52 M | 1070 / 232 | 12.90 / 2.35 M |
+  | mid | 1182 / 580 | 17.38 / 3.63 M | 1092 / 264 | 13.07 / 2.61 M |
+  | far | 1247 / 677 | 21.44 / 9.71 M | 1136 / 330 | 17.24 / 8.87 M |
+
+- **COST, timed** (rollout_perf --secs 60; tools/perf/treesnear_judge.js): against master 220812de, the same session (rollout_perf --secs 60, a warm-up per side, the parked planes COOKED on
+  both sides - parked_cook.js run in the worktree for the timing, not committed: the train re-cooks). The headline is
+  the user's own case: the LOW FLIGHT, the Cub's chase camera held 60 m AGL at 45 m/s along the same 2.9 km track over
+  90 % TREE ground (start 1848,-3291, heading -54; tools/perf/treesnear_lowpass.js).
+
+  | profile | bands | fps delivered | uneven | dt p99 | render | loop JS |
+  |---|---|---|---|---|---|---|
+  | low flight | master | 35.4 | 21.5 % | 66.7 | 7.6 | 19.4 |
+  | low flight | mid | 30.8 RED | 17.8 % | 66.6 | 8.3 | 22.0 RED |
+  | low flight | minimum | 34.8 | 21.5 % | 66.6 | 7.9 | 20.3 |
+  | taxi Cub | master | 33.0 | 10.2 % | 33.5 | 10.4 | 13.7 |
+  | taxi Cub | mid | 32.6 | 11.4 % | 33.5 | 10.5 | 13.8 |
+  | taxi Cub | minimum | 33.0 | 10.5 % | 33.5 | 10.2 | 13.4 |
+  | taxi metal | master | 32.7 | 10.6 % | 33.5 | 10.5 | 14.0 |
+  | taxi metal | mid | 32.8 | 12.0 % | 33.5 | 11.0 | 14.8 |
+  | taxi metal | minimum | 33.0 | 9.3 % | 33.5 | 10.6 | 14.1 |
+
+  - RED is past the ratchet's slack (tools/rollout_ratchet.js RULES).
+  - The stand is not measurable in this rig: the pilot taxis at once, so the stand phase is 1 frame.
+- **DECISION:** **'mid' FAILED the low flight** (fps -4.6, loop +2.6 ms) and stays an option. **'minimum' HELD** everywhere:
+  no red. Worse inside the slack, for the user's call: the low flight -0.6 fps, render +0.3 ms, loop +0.9 ms.
+  - gamer (the default) draws 'minimum'; ultra (the screenshots' tier, above gamer) draws 'mid'.
+  - potato / retro / current keep 'near'.
+  - The pref version goes 4 -> 5: a player on a preset takes its new bands.
+  - If the user refuses the inside-slack deltas, gamer goes back to 'near' (one line; A0 at the landing).
+  - The user on the looks: "mid is the look I want"; 'minimum' was their fallback.
+
+### G1111 - tools
+- **tools/treesnear_shots.js:** per species and distance, the clearest sight line to a planted tree, per band set.
+- **tools/perf/treesnear_lowpass.js:** rollout_perf --pre. The flight is paused and carried at `lowagl` m AGL along the
+  nose over the 3 km line with the most TREE ground, within 4 km of the stand. rollout_perf reads it as 'air'.
+- **tools/perf/treesnear_judge.js:** before/after per phase by the ratchet's rules, raw deltas printed.
+- **_framecost_check.js FRAMECOST_GFX:** graphics rows over the census's gamer pin, for a census of an option.
+
+### G1112 - THE TREE COLLISIONS: THE ANSWER, AND WHAT WAS FIXED
+- **THE ANSWER to "we have collisions for the trees, right?" - on Jolene, effectively no:**
+  1. **The solver's altitude gate.** 30_solver.js tested trees only while its anchor node was under y = 24 m ABSOLUTE,
+     the analytic world's rule, whose field is at y = 0. Jolene's HOME stands at 31.7 m, so no tree was ever tested at
+     the default field. Of the island's collidable woodland only the 23 % rooted under 24 m could be reached at all.
+     FIXED: height over the ground at the anchor (p[1] - terrainH < 24).
+  2. **The treeline.** The woodland kept the analytic biome's 165 m treeline on the island. 48 % of Jolene's TREE ground
+     lies above it (the tree map forests it to ~900 m). FIXED: on a data island the tree map decides (effClass TREE).
+     The collidable woodland goes from 19 205 to 24 647 trees. The rest of the high TREE ground is steeper than
+     treeAt's slope rules (0.5, or 0.45 over 100 m), which are kept.
+  3. **The collidable set is sparse** (not changed). The woodland is one candidate per 64 m cell (85 % kept on TREE
+     ground): ~121 trees per km2 of forest, against ~15 600 drawn by the fill at NG 128. It is 0.8 % of the trees you
+     see, and they are the woodland's own trees: drawn at those spots, with 2-4 non-colliding clump neighbours each.
+     None of the fill's trees can be hit.
+  4. **The hitbox** (not changed): a cylinder of radius 0.7 s + 0.12 (0.57 m at the median s of 0.65) and 4.6 s tall
+     (3 m at the median). The drawn tree is 13-27 m. A wing over 3-8 m AGL passes through the crowns: only the lowest
+     trunk is solid. 17 931 of 24 647 hitboxes are under half the canopy map's height there.
+- **GATE TREEHIT** (tools/_treehit_check.js):
+  - The island's collidable trees over 165 m exist and all stand on TREE.
+  - An aeroplane rolled at a lone trunk stops against it at 0 m and at 300 m of elevation (the CG gets to 58.3 m of 60
+    both ways). The old gate let it roll through at 300 m.
+- **THE PROPOSAL (not shipped): the collidable set = the trees you see, near the aeroplane.**
+  - Move the fill's placement walk (render_world.js walk(): the forest rule, the biome mix, the clumps, the canopy
+    ramp, the hash) into the core as a pure function of the world and the pack's biomes. The viewer plants from it and
+    the solver asks it for a ring of fine cells round the aeroplane (16 m cells, built as it moves, dropped behind).
+  - The hitbox becomes the drawn tree: the trunk to the crown's base (the species' own radius x its scale), and the
+    crown as a softer volume (drag + a small spring - branches, not a wall) up to the drawn height.
+  - **The solver's cost, measured** (tools-free bench, stock Cub, 91 nodes, sim.step(1/60)): 1.22 ms with no
+    candidate; +40 us per candidate tree (0.19 ms at 3, 1.26 at 30, 4.75 at 120, 21.98 at 576).
+    - Today's 3x3 64 m cells at the visible density would hand the loop ~576 candidates: +22 ms a step, impossible.
+    - At 16 m cells the aeroplane's box (+R) overlaps 2-4 cells, ~4 trees each: 8-16 candidates, +0.3-0.7 ms a step.
+    - A per-node cell lookup (each node asks only its own cell) would make it ~n x 4 tests, independent of span.
+  - The fill's walk costs 2.4 us per grid point (world.surface): a 256 m ring of 16 m cells is 64 cells, ~1 000 points
+    at NG 128; built incrementally as the aeroplane moves at 60 m/s that is ~2 cells a second, well under a ms.
+  - Open questions for the user: crowns as hard or soft; the drawn scale on the island is canopy x gain (fill) vs the
+    collection's size (woodland) - one rule for both first.
+
+### G1113 - the default (gfx_settings.js PRESETS; GATE GFX: OLD_MEDIUM.bands = 'minimum', the pv-5 pref)
+- The decision rule (the coordinator, relaying the user): a band set becomes gamer's only with NO regression against
+  master on the low flight AND the taxi (fps, uneven, p99, render; the ratchet's slack a ceiling, the deltas inside it
+  reported for the user).
+- The order: 'mid' if it holds; else 'minimum' with 'mid' an option; else neither.
+- The timed table above decided it: 'minimum'.
+- Evidence of the three looks, the same trees and cameras (tools/perf/treesnear_evidence/):
+  - `<species>_<20|60>m_{before,after,minimum}.jpg` (after = 'mid'), plus `chase_stand_*` and `chase_low60_*`.
+  - The lossless PNGs, and a 'far' 60/270 set, were kept local.
+
+### G1114 - the loop's lever (owed, train 19) and notes
+- **WHERE THE LOW FLIGHT'S LOOP JS GOES** (15 s V8 profiles of the same pass, self time in ms per second of flight;
+  tn_*_prof, profiled runs apart from the timed ones):
+  - The tree LOD's own work (partitionChunk + parkChunk + lodUpdate): master 3.2 + 0 + 5.6 = 8.8; 'mid' 7.9 + 8.4 + 6.3
+    = 22.6, ~+0.4 ms a frame.
+  - The rest of the loop is the same on both sides: bedKeep ~120, the fill's walk (poolAt / codeAt / speciesWeight /
+    terrainH - how much streams inside the window, not the bands), three's updateMatrixWorld and toArray.
+- **THE FIX, OWED FOR TRAIN 19**, to buy the loop back so 'minimum' is free and 'mid' affordable on gamer:
+  1. **parkChunk** re-parks EVERY chunk outside the reach on EVERY refresh (every mesh of every rung: count 0,
+     showRung) - 8.4 ms/s under 'mid', absent from master's profile. A `parked` flag on the record, cleared when the
+     partition deals it, makes it once per exit.
+  2. **The partition walks every instance of every chunk whose CENTRE is within** uNear + CHW x 0.707 (CHW = the
+     woodland's 2048 m, applied to the fill's 1024 m chunks too). Measure a chunk's NEAREST point to the eye against
+     uNear + the window instead.
+  3. **lodMove is tied to the window** (G1110: window / 3 = 4 m at 12, was a fixed 10 m). The refresh ran 2.5x as
+     often. The seam margin is a whole window, not a half (a tree drifts a full window before its dealt rung's band
+     drops it), so lodMove can go back toward 10 m with a 12-15 m window - or use a refresh budget.
+- **FRAMECOST reads RED on any code change that moves FLYDIY_BUILD** (the core, the inlined viewer), and it is not the
+  trees. The parked aeroplanes' cook is signed with the build, goes stale, and the parked planes draw live: parked
+  2 -> 145 main draws, 3 -> 129 shadow draws at the stand. The train's re-cook (tools/parked_cook.js) clears it.
+  Found by bisect: a census of the solver-reverted tree, then of the viewer-only tree - both show it, and the census
+  detail names the family.
+- The CI verdict for claude/train-17-treesnear lives under ci/train-17-treesnear/<sha>.txt on claude/ci-results
+  (not ci/claude-train-17-...).
