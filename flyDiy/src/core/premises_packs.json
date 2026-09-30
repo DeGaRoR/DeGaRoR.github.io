@@ -1295,7 +1295,7 @@
    "places": {
     "v": 1,
     "cell": 256,
-    "page": "b73ad00c6d48b177",
+    "page": "3258e0031cf222c1",
     "variants": {
      "default": {
       "hash": "32eedeecfa869f2b",
@@ -1535,6 +1535,11 @@
       "bytes": {
        "raw": 1386117,
        "ship": 233729
+      },
+      "tallies": {
+       "src": "media/world/jolene/premises/t_default.f1045676.bin",
+       "n": 215,
+       "hash": "e601af7506d7d611"
       }
      },
      "town": {
@@ -2105,6 +2110,11 @@
       "bytes": {
        "raw": 6221974,
        "ship": 1006858
+      },
+      "tallies": {
+       "src": "media/world/jolene/premises/t_town.2a3b02a1.bin",
+       "n": 695,
+       "hash": "565646ff060cc6ae"
       }
      }
     }
