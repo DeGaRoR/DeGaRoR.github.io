@@ -155,6 +155,8 @@ const SETTINGS = flag('settings') ? (() => { const v = opt('settings', null); re
 // back, roll out with no change: each trip's own ms (window.FLYDIY_TRIPS), the steps it ran, its frames (fps, p90, max,
 // frames over 33.4 ms) and long tasks; and the load's long tasks (a task of 50 ms or more is a frame under 20 fps).
 const TRIPS = flag('trips');
+// --garage-fps (G1117): the garage's 5 s of frames before the roll-out (--trips' first sample), without the round trips
+const GFPS = flag('garage-fps');
 // --profile-settings (G991): a CPU profile of each settings change (<label>_set_<k>_<v>.cpuprofile), its longest task
 // summarised by self time and by the calling chain - where a change's long task goes
 const PROFILE_SET = flag('profile-settings');
@@ -381,14 +383,16 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   } catch (e) { console.log('  (town step: ' + (e && e.message) + ')'); }
   // --trips: the garage's frames, fresh (the world exists since the one loading: the recorder can go in now)
   let garageFresh = null;
-  if (TRIPS) { await ev(INSTALL); await sleep(1000); const a0 = await ev('performance.now()'); await sleep(5000); const a1 = await ev('performance.now()');
+  if (TRIPS || GFPS) { await ev(INSTALL); await sleep(1000); const a0 = await ev('performance.now()'); await sleep(5000); const a1 = await ev('performance.now()');
     garageFresh = tripStat(JSON.parse(await ev('JSON.stringify(__RP.fr.filter(r => r[0] >= ' + a0 + ' && r[0] <= ' + a1 + ').map(r => r[1]))')));
     const loadLt = JSON.parse(await ev('JSON.stringify(__RP.lt)')).filter(x => x[0] <= a0);
     console.log('  LOAD ' + tGarage.toFixed(1) + ' s to the shed · long tasks >= 50 ms (a frame under 20 fps each): ' + loadLt.length + ', over 100 ms: ' + loadLt.filter(x => x[1] > 100).length + ', worst ' + loadLt.reduce((m, x) => Math.max(m, x[1]), 0) + ' ms');
     console.log('  GARAGE fresh ' + JSON.stringify(garageFresh)); }
   // ROLL OUT
-  const tRoll = Date.now();
-  await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent).forEach(x=>x.click());return 1;})()");
+  const tRoll = Date.now(), clickAt = await ev('performance.now()');
+  // G1117: ONE press - the bar's (#bGo), else the first visible 'Roll out' (#edRoll, the editor's, says it too: clicking
+  // both started the roll-out and then SKIPPED its shot with the second press - every run before G1117 measured a skipped shot)
+  await ev("(()=>{const g=document.getElementById('bGo');const l=[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent);const b=g&&g.offsetParent&&/roll out/i.test(g.textContent)?g:l[0];if(b)b.click();return l.length;})()");
   // the roll-out screen: wait for the overlay to go (the reveal)
   let bs = '', installed = false;
   for (let i = 0; i < 400; i++) {
@@ -415,6 +419,24 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const revealAt = await ev('performance.now()');
   const tReveal = (Date.now() - tRoll) / 1000;
   console.log('  roll-out screen: ' + bs + ' after ' + tReveal.toFixed(1) + ' s');
+  // G1117: THE ROLL-OUT SHOT PLAYED OUT (B10/G1064/G1115) - `rollout` (tReveal) is measured exactly as before, and the
+  // shot is waited for AFTER it: it holds the flight on purpose, and the sim check below pressed Fly under it (a press
+  // skips the shot - every run before G1117 measured a skipped shot). THE SHOT'S FRAMES: the click to its end (the
+  // shed's check, and the roll: in the shed, or in the world). The flight's frames start where the flight does
+  // (flightAt: the shot's end, or the reveal when no shot played) - a build with no shot waits nothing here
+  let shotStat = null, shotEndAt = revealAt;
+  try { if (!installed) await ev(INSTALL);
+    const tw = Date.now() + 30000;
+    while (Date.now() < tw && await ev('!!(window.ROLLANIM && ROLLANIM.busy())', 20000)) await sleep(100);
+    shotEndAt = Math.max(revealAt, await ev('performance.now()'));
+    shotStat = tripStat(JSON.parse(await ev('JSON.stringify(__RP.fr.filter(r => r[0] >= ' + clickAt + ' && r[0] <= ' + shotEndAt + ').map(r => r[1]))')));
+    const tr = JSON.parse(await ev("JSON.stringify((() => { const L = window.FLYDIY_TRIPS || []; const t = L[L.length - 1]; return t ? { anim: t.anim, where: t.animWhere || null, ms: t.ms, cutMs: t.cutMs, dissolveMs: t.dissolveMs, planMs: t.planMs } : null; })())"));
+    const lt = JSON.parse(await ev('JSON.stringify(__RP.lt)')).filter(x => x[0] >= clickAt && x[0] <= shotEndAt);
+    // the timeline (ms since the click): every frame over 20 ms and every long task, to place them (the click, the check, the cut)
+    const tl = JSON.parse(await ev('JSON.stringify(__RP.fr.filter(r => r[0] >= ' + clickAt + ' && r[0] <= ' + shotEndAt + ' && r[1] > 20).map(r => [Math.round(r[0] - ' + clickAt + '), +r[1].toFixed(1)]))'));
+    if (shotStat) Object.assign(shotStat, { secs: +((shotEndAt - clickAt) / 1000).toFixed(2), trip: tr, longTasks: lt.length, worstTask: lt.reduce((m, x) => Math.max(m, x[1]), 0),
+      slowFrames: tl, tasks: lt.map(x => [Math.round(x[0] - clickAt), x[1]]) });
+    console.log('  SHOT ' + JSON.stringify(shotStat)); } catch (e) { console.log('  (shot: ' + (e && e.message) + ')'); }
   // the flight: make sure the sim runs (the circuit button, if the roll-out left it held)
   await sleep(1500);
   const t1 = await ev('FLIGHT_PROBE.sim().t'); await sleep(1500); const t2 = await ev('FLIGHT_PROBE.sim().t');
@@ -669,7 +691,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, phases, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    tGarage, tReveal, premEmptyAt, garage: garageFresh, shot: shotStat, phases, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));
