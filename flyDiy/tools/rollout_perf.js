@@ -80,6 +80,11 @@ const CAM = opt('cam', null);
 // --hover (G1162): the player's mouse resting on the window - a pointermove at the canvas's centre once the flight runs (the
 // cockpit's hover pick runs every 80 ms while the pointer is over the canvas; a rig without a pointer never paid it)
 const HOVER = flag('hover');
+// --latency [n] (G1165): THE CONTROL-TO-PICTURE CHAIN - a manual flight, n rudder steps (Period, held 250 ms, every 3 s)
+// through CDP's real key path, each followed hop by hop by tools/latency_probe_page.js (the key, the frame that posts
+// it, the worker's step that first carries it, its arrival, the first frame drawing it, the glass) and the drawn pose's
+// age per frame; printed as a hop table and kept in the JSON (`latency`)
+const LATENCY = flag('latency') ? (v => (v && /^[0-9]+$/.test(v) ? +v : 20))(opt('latency', null)) : 0;
 const SIZE = opt('size', '2216x1023').split('x').map(Number);
 const LABEL = opt('label', [COLD ? 'cold' : 'warm', VARIANT, BUILD ? path.basename(BUILD, '.json').replace(/\W+/g, '') : 'stock', WORLDN || 'jolene'].concat(opt('from', null) ? ['from' + opt('from')] : []).join('_'));
 const OUT = opt('out', path.join(__dirname, 'perf', 'rollout_' + LABEL + '.json'));
@@ -194,7 +199,8 @@ function preScript() {
   // "taxi" a take-off roll there) and an aeroplane that never left the stand (DEPART, 150 s) - different frames to measure
   lines.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
   // G790: the route and who flies, stated every run (a warm profile keeps both from the last one)
-  lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ from: FROM, dest: DEST })) + ');localStorage.setItem("flydiy.flManual","' + (AFLOAT > 0 ? '1' : '0') + '")}catch(e){}');
+  lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ from: FROM, dest: DEST })) + ');localStorage.setItem("flydiy.flManual","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
+  if (LATENCY) lines.push(fs.readFileSync(path.join(__dirname, 'latency_probe_page.js'), 'utf8'));   // G1165: before the page's first script
   if (VARIANT === 'nomet') {
     const F = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
     let cut = 0;
@@ -456,6 +462,13 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     if (where.cam !== CAM) console.log('  CAM: asked ' + CAM + ', the page shows ' + where.cam + ' (the view is not the one asked for)'); }
   else where.cam = await ev('FLIGHT_PROBE.camModeNow ? FLIGHT_PROBE.camModeNow() : null').catch(() => null);
   if (HOVER) { await ev("(() => { const c = document.getElementById('c'), r = c.getBoundingClientRect(); window.dispatchEvent(new PointerEvent('pointermove', { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); return 1; })()"); where.hover = true; }
+  // G1165: the rudder steps, alongside the recording (it waits for them before the report)
+  let latP = null;
+  if (LATENCY) {
+    await ev('window.__LAT && __LAT.hook() && (__LAT.on = true), 1');
+    const key = (type) => cmd('Input.dispatchKeyEvent', { type, code: 'Period', key: '.', windowsVirtualKeyCode: 190, nativeVirtualKeyCode: 190 });
+    latP = (async () => { for (let i = 0; i < LATENCY; i++) { await sleep(3000); await key('keyDown'); await sleep(250); await key('keyUp'); } })();
+  }
   console.log('  start: ' + JSON.stringify(where));
   const HYDRO = where.hydro;
   // record SECS seconds of the live game
@@ -593,6 +606,15 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const simw = JSON.parse(await ev('JSON.stringify(window.FLYDIY_SIMW ? (s => ({ phase: s.phase, reason: s.reason, dead: s.dead, placeOk: s.placeOk, flights: s.flights, inline: s.inline, wvBad: s.wvBad, wvMaxLag: s.wvMaxLag, worldMs: s.worldMs, initMs: s.initMs, bootFetchMs: s.bootFetchMs, readyWaitFrames: s.readyWaitFrames, view: s.view }))(FLYDIY_SIMW.state()) : null)', 20000).catch(() => 'null'));
   console.log('  physics: ' + (simw ? (simw.dead ? 'INLINE (no worker: ' + simw.dead + ')' : 'the WORKER - ' + simw.phase + (simw.reason ? ' (' + simw.reason + ')' : '') + ', placed ' + simw.placeOk + ', ' + simw.flights + ' flights (' + simw.inline + ' inline), world made in ' + (simw.worldMs != null ? Math.round(simw.worldMs) : '?') + ' ms, held ' + simw.readyWaitFrames + ' frames, world-version lag max ' + simw.wvMaxLag + ' frames')
     : 'INLINE (?simw=0)'));
+  let latency = null;
+  if (LATENCY) {
+    await latP;
+    await sleep(500);
+    latency = JSON.parse(await ev('JSON.stringify(window.__LAT ? __LAT.report() : null)', 60000));
+    if (latency) { const h = latency.hops, a = latency.poseAgeMs;
+      console.log('  LATENCY (' + (latency.simw ? 'worker' : 'inline') + ', ' + latency.inputs + ' inputs, frame ' + latency.frameIvMs + ' ms): key -> next frame ' + h.frame0 + ' ms, -> its picture ' + h.present0
+        + (latency.simw ? ' | key -> post ' + h.post + ' -> due ' + h.due + ' -> arrive ' + h.arrive + ' -> picture ' + h.draw + ' = TOTAL ' + h.total + ' ms (p90 ' + h.totalP90 + ')' : ' (+ the pose 0.75 step behind: ~12.5 ms)')
+        + ' | drawn pose age ' + a.med + ' ms (p90 ' + a.p90 + ', ' + a.n + ' frames)'); } }
   const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', +opt('eval-ms', 60000)).catch(e => 'error: ' + e.message) : null;   // --eval-ms: a longer census (tools/pave_ab.js, G928)
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
@@ -699,7 +721,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   for (const [k, g] of Object.entries(gates)) console.log('  ROLLOUT ' + k + ': ' + (g.pass ? 'PASS' : 'FAIL') + ' ' + JSON.stringify(g));
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
-  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
+  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
     tGarage, tReveal, premEmptyAt, garage: garageFresh, shot: shotStat, phases, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
