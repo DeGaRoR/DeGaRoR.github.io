@@ -67644,3 +67644,51 @@ the transition is seamless visually and performance wise"; after the evidence: "
 **FOLLOW-UP (for the board): SHARP EXTERIOR FROM THE SEAT.** The cockpit shows the exterior on the 2048 atlas (the top decal and the cowl livery coarse at 1-3 m).
 - The eye's zone must be the TRIANGLES near the eye, not the members' spheres: split the wing and the fuselage members at build into near and far pieces, or cut the fold's index by distance.
 - Then only the parts the pilot sees up close go live. ?fbake=cockpitlive is the dial to measure it against.
+
+**G1170-G1171 (2026-10-01, the same branch; NUMBERS: A0's block G1170-G1174 - the commits 91d6588c, e5b29fe5 and
+06e0255a say G1125.1, G1125.2 and G1126, which NEAR-LAYER landed first; c769c7bc renumbered the code and the gate):**
+- **G1170 (was G1125): THE VIEWS ON THE FOLD'S OWN BUFFERS.** The kept live meshes were a second resident set (~1 000 GL
+  buffers, ~47 MB on the Cessna). A view is a geometry over the fold's SAME attribute objects, one per live material,
+  its index range; a moving part's view is a SkinnedMesh on the fold's skeleton.
+- **G1170.1: THE FIRST CROSSING WAS A 2.8 s STALL.** three computes a SkinnedMesh's own sphere at its first frustum test by
+  walking every vertex through the bones (the CPU profile: applyBoneTransform under computeBoundingSphere), once a view.
+  The sphere is set at the build.
+- **G1170.2: THE SPHERE HOLDS ANY POSE.** Each member within (its distance from its part's pivot + its radius) of the
+  pivot, plus FB.swingPad 0.5 m of travel: a surface at full deflection or a leg at its stroke is never culled at the
+  frame's edge (GATE FLOWNBAKE: every vertex inside at 36 extreme poses). The crossing in frames
+  (tools/cross_frames.js, a fresh page, the orbit 14 -> 2.6 -> 14 m one distance a frame): 16.6-16.7 ms at and after
+  the first t > 0, the walk's worst 33.4, no long task.
+- **G1171 (was G1126): A VIEW'S RAYCAST.** three's own on a view walked every vertex of its range through the bones behind
+  the fold's whole sphere (the close chase's glare rays, a pick). A view now runs its fold's member cast over its own
+  range and names the part (GATE FLOWNBAKE 79).
+
+**THE COCKPIT'S +0.6 ms (THE FALLBACK) - NOT NAMED, PARKED.** The hybrid's default cockpit (the cabin live, the exterior
+baked) against master, the cockpit, the metal Cessna, A B W W B A: taxi render +0.6 ms, loop JS +0.55; ?fbake=warmcanvas
+(the warm into the canvas) +0.95 - not the AA target. Ruled out before: the render scale, the textures, the second
+buffer set (G1170). A LIVE CENSUS IN CHROME (tools/gl_census.js; A B F F B A, F = ?fbake=warmfree, which disposes what
+the warm drew): the frame is IDENTICAL where it can be counted - ~8 300 WebGL calls and 1 059 draws a frame, the calls
+by name within 1, vertices by program within 0.5 %, the scene graph (12 142 objects, 4 175 visible) and the aeroplane's
+group (433, 171 meshes) the same; the hybrid holds +4 programs and +67 geometries (warmfree frees the 67). The live
+twins carry no discard (only their band twins). The timer query read master lower in all six runs but not the frame's
+GPU time (well under 1 ms against ~8.5 of render): a hint, no more. A CPU profile pair said B +1.3 ms a frame in the
+loop, but with the graph and the calls identical and CPU work allowed beside a GPU lock it is not trusted. Leading
+hypothesis: something the warm draw leaves resident or first-drawn (compile-only, ?fbake=nowarmdraw, matched master in
+an earlier, partly overlapped run); the next test is ?fbake=warmfree TIMED (A F F A; withdrawn on 2026-10-01 for the
+user's question below, never run).
+
+**THE COCKPIT WITH THE LIVE EXTERIOR (?fbake=cockpitlive) - THE USER'S QUESTION (PLAYTEST 0.21c).** The user: the baked
+cowl top from the seat (dark, soft) is not an option; "what FPS do I get if I accept the impact on the cockpit view?"
+The bar (the user, via A0): EVEN - the uneven share and p99 no worse than master's, at 30 or 60. Master 4e790c25 vs
+c769c7bc + cockpitlive, the cockpit, A B B A, the metal Cessna and the Cub:
+- every run settles at 60; p99 33.4 ms in all eight taxis;
+- taxi uneven: the Cessna 20.5 % against 19 % (+1.5 points), the Cub 5.5 % against 3 % (+2.5); the stand as even or evener;
+- taxi render +2.1 ms (Cessna) and +1.6 ms (Cub);
+- the look: tools/perf/c4b_closeup_evidence/cub_cowl_seat.jpg (the bake's cowl stripes stair-step, the live ones are sharp).
+Strictly the taxi's uneven share is a little worse; the call is the user's. To ship it: FB.cockpitLive true by default
+(G1124.1's fallback becomes the dial), the eye's zone as the members' spheres (the follow-up above, per triangle, would
+draw less live).
+
+**THE RIGS (tools/):** cross_frames.js (TIMEGL: every WebGL2 call over 8 ms named with its program; PROF), gl_census.js
+(the steady frame in Chrome: calls a frame, draws and vertices by program, the timer query, the graph; --diff a b),
+live_driver.js /prof (a CPU profile round a stretch). LESSON: never edit a src/ file the game serves while a slot runs -
+the page loads it live (the census's B2 loaded G1171 mid-slot); edit a copy.

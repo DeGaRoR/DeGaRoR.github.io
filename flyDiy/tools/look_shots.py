@@ -27,6 +27,7 @@ for b in ('cub', 'cessna'):
             st = (info[side] or {}).get(view) or {}
             if side == 'master': lab = 'MASTER (C4b: the bake%s)' % (', the cabin live' if view == 'cockpit' else '')
             elif view == 'chase': lab = 'THE HYBRID - t %s (%s px a texel): %s' % (st.get('t'), round(st.get('mag') or 0, 2), 'the live meshes' if (st.get('t') or 0) >= 1 else 'the bake')
+            elif os.environ.get('LIVECK'): lab = "THE HYBRID, ?fbake=cockpitlive: the cabin and the eye's zone live (tEye %s)" % st.get('tEye')
             else: lab = 'THE HYBRID, the cockpit as C4b (the fallback): the cabin live, the exterior on the bake'
             ims.append(tag(im, lab))
         if len(ims) == 2:
