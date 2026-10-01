@@ -6089,7 +6089,8 @@
   }
   function placeIndicators() {
     const d = standOffset();
-    gGrp.visible = !!d && !SHOT.on;          // G255: a screenshot has no marks
+    // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
+    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy());
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
@@ -6698,7 +6699,8 @@
     try {
       h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
         camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow',
-        onDone: hh => { raBusy = false; done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
+        onDone: hh => { raBusy = false; placeIndicators(); done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
+      placeIndicators();                 // (G1115: the CG marks off for the shot - placeIndicators reads ROLLANIM.busy)
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
     return h;
   }
