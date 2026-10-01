@@ -66945,3 +66945,23 @@ an even 30 if 60 can't hold - the user to judge "even"; or a cheaper world for i
 the cascades every other frame), then the hangar match: the room's own CubeCamera render as an INTERIOR-MAPPED box in the
 world shed (props, windows, warm lamps: 1 draw, 1 program prelinked, re-rendered only where bakeHangarEnv runs), and the
 craft's PMREM mixed room -> world by one uniform across the door plane (prelinked with compileCraft).
+
+**2026-10-01 (G1119, train-19 base 74b582a3, branch rolloutreal/g1118):**
+- THE CENSUS (node, draws by pass as MEANS - the far map's every-2nd-frame makes medians flip): the world roll draws FEWER
+  than the stand (1611 vs 1879 a frame). The missed frames are not the draws.
+- THE SHOT'S CPU PROFILE in Chrome (rollout_perf --profile-shot; tools/_rollreal_prof.js, roll vs taxi in ms per second):
+  the roll paid +137 ms/s in worldUpdate over taxi, +123 of it cover_ring.js (buildCell, bedKeep, buildBlock).
+- THE CAUSE: the host's frame runs worldUpdate BEFORE it places the camera, so the world's first frame after the cut read
+  the camera the shed left (garage coordinates, ~700 m off) - the cover ring dropped every cell and replanted them all over
+  the shot. playWorld places its first eye at once (node: ring cells built in the roll 265 -> 9). The loading also plants
+  the ring at the shot's points (worldWarmShed: 8 points, the ring's queue pumped empty, 40 ms a task; its handle is
+  TREE_FILL.cover(), not WF.cover). MASTER HAS THE SAME BUG at every roll-out's first flight frame: fixed on its own,
+  rolloutreal/revealcam 5f7d0dab (the eye 747 m -> 25 m off at the first update; 271 -> 8 cells replanted), for train 19.
+- ALLOCATION: three's set(x, y, z) on the craft / contact / eye boxed its doubles when V8 did not inline it - the same code
+  measured 0 or 97.5 B a frame by the build round it; the fields are written directly now (GATE ROLLANIM 3 runs green).
+- TIMED (master vs 335cbdb1, cooked, warm, ABBA): shot fps Cub 57.8 / 58.1 vs 55.4 / 55.5 (the first 2 s after the cut now
+  clean; the misses sit in the last 3 s, the aeroplane onto the stand - taxi's own cost), metal 43.0 vs 34.8. Garage ready,
+  first flight, the loading's tasks over 200 ms and garage fps LEVEL (metal garage ready: master 46.3, branch 42.4 s).
+  The bar (the shot at master's fps) is NOT met; the user decides: (a) an even 30 fps shot, (b) accept, (c) option B.
+- Traps: a test script's const read before its declaration burned a GPU take (node --check cannot see a TDZ); the
+  boxlock RESERVED blocks CPU takes too - a CPU window must be reserved like a GPU one.
