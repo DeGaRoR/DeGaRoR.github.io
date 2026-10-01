@@ -271,6 +271,11 @@ const ALLOW = [
   { key: 'taxi/tris.main', build: 'cessna', upTo: 13305790, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice, 2026-10-01) - +172768 over \'minimum\' (census pair)', g: 'G1114.2' },
   { key: 'taxi/three.frustumTests', build: 'cessna', upTo: 1275, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice, 2026-10-01) - +31.5 over \'minimum\' (census pair)', g: 'G1114.2' },
   { key: 'taxi/programs', build: 'cessna', upTo: 85, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice, 2026-10-01) - +3 over \'minimum\' (census pair)', g: 'G1114.2' },
+  // (A0, train 20's landing: the census pair missed these two - the 'mid' stand's ~+25 draws upload their uniforms)
+  { key: 'stand/gl.uniform4fv', build: 'cub', upTo: 745, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (717 -> 737, cooked)', g: 'G1114.2' },
+  { key: 'stand/gl.uniform4fv', build: 'cessna', upTo: 757, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (729 -> 749, cooked)', g: 'G1114.2' },
+  { key: 'stand/bytes.uniforms', build: 'cub', upTo: 206300, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (201 254 -> 204 242 B, cooked)', g: 'G1114.2' },
+  { key: 'stand/bytes.uniforms', build: 'cessna', upTo: 209850, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (204 778 -> 207 766 B, cooked)', g: 'G1114.2' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------

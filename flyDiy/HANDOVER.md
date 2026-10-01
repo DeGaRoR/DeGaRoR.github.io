@@ -67019,3 +67019,28 @@ BATTERY (core, --jobs=4, under take cpu COCKPIT, on train 19 c7dc34e4):
   identical, and the aeroplane's draws are Cub 74, Cessna 85 both sides. FRAMECOST's builds have explicit vessel lists.
 - After the re-cook, the parked stock aeroplanes' counts move by the drawn-tank changes above (the RV, Savannah and DA62
   gain a drawn wing tank, the T-tail loses its nose tank).
+
+## TRAIN 20 LANDED (2026-10-01, A0 the coordinator)
+
+Cargo (on train 19 = c7dc34e4): TREES-NEAR G1114.2 - gamer draws 'mid' trees (the user's choice, "Ship mid now";
+FRAMECOST ALLOW rows G1114.2, plus four added at the landing for the stand's uniform uploads the census pair missed);
+CUB-COCKPIT G1109 - the energy layer seeds an EMPTY vessel list from the resolved spec (21 stock cards flew a phantom
+45 L nose tank in the game; the per-card before/after table is in G1109's entry; RV / Savannah / DA62 now draw their wing
+tanks, the T-tail draws none), CAGE_ENERGY.fitOf, GATE TANKMOUNT's own-tank row, the refit tools, STOCK_TANKS empty
+(every design held for the deck form G1150-G1154).
+
+WITHDRAWN at the landing: ROLLOUT-REAL G1115-G1119 (the world roll-out, even 30 fps shot, revealcam, FRAMECOST's
+ring-idle wait). The FULL battery found GATE ROUNDTRIP / STAND / ASSETS red on it and the ratchet's settings worst task
+306 -> 593 ms (Cub; 195 ms without it). Fixed on its branch (ac1f091a / 35b4043c, cloud CI) for train 21. Note for the
+train-21 assembly: with the ring-idle wait, the stand's tris.shadow = the ring-idle base + the roll's ~1 s tail
+(+347 k) + 'mid' (+0.32 M); the G1114.2 caps were computed on the pre-ring-idle baseline - re-express both sets.
+C4B's hybrid: the cockpit's +0.8-1 ms is the kept meshes' WARM DRAW (isolation 2: compile-only = master, warm-draw-only
+= the cost); train 21 checks whether it perturbs the auto render scale.
+
+MEASURED (the ratchet, fresh parked cook 9ba164843632, vs train 19; two runs each):
+  Cub:   fps 32.1 -> 32.0, p99 33.5 =, uneven 0.1 =, loop 12.05 -> 12.45, render 8.55 -> 9.0 ms ('mid'), flight 43.1 -> 42.9 s,
+         settings worst 306 -> 195 ms
+  metal: fps 31.9 =, p99 33.5 =, loop 12.0 -> 12.4, render 8.8 -> 9.2 ms ('mid'), flight 44.55 -> 44.25 s
+FRAMECOST PASS (62 rises admitted); baselines re-taken. Battery: FULL tier on pass 1 (with ROLLOUT-REAL): all PASS but its
+three reds and FRAMECOST; the targeted re-run on the final tree (ROLLANIM BOOT UISMOKE PROGRAMS ROUNDTRIP PACE PARKED
+HITBOX COVER STAND ASSETS GFX TREES TANKMOUNT ENERGY) PASS.
