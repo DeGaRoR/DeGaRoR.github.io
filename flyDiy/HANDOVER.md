@@ -66854,3 +66854,29 @@ rung's slot k (0..count) but the instance COLOURS (treeVary's +-10 % lightness) 
 order. A tree takes the colour of whatever slot it lands in, so its lightness can change when the dealt list changes.
 It was so before this lever (fewer refreshes now). The fix is to write the colour with the matrix (rec.cols, a copy per
 dealt tree) if anyone sees it.
+
+## TRAIN 19 LANDED (2026-10-01, A0 the coordinator)
+
+Cargo (on train 18 = 74b582a3): NEAR-LAYER G1125-G1126 (the near map's 60 m box draws nearTag's casters + the craft
+only; cloud session, timed here), TREES-NEAR G1114.1 (the tree partition's lever: tree LOD -79 % on the low pass,
+the same trees drawn - gamer KEPT at 'minimum'; 'mid' on gamer is the user's call, a one-commit branch ready),
+C2c G845 (house_tarr's canvas pass in a worker: 0 extra bytes, byte-identical, no main-thread task >= 50 ms) and the
+editor proof (a harbour drawn on master: 4 pier houses by the worker; after save + reload 0 built, 46 cache hits),
+LOAD-COMPILE G1139 (the ratchet's 'compile' = worldCompile + compile + craft + firstFrame of the garage boot; the old
+sum read the settings screens' compile steps - BASELINE RE-TAKEN here, the Cub's 36 s -> 3.1 s is the metric, not a gain).
+
+WITHDRAWN / NOT IN THIS TRAIN:
+- LOAD-COMPILE G1138 (the domes prelinked at 'snapshot'): measured, no win - the wait moved to first light
+  (firstFrame worst task 238 / 170 -> 710 / 813 ms). Dropped, recorded on its branch.
+- ROLLOUT-REAL's revealcam (5f7d0dab): the train's FRAMECOST went red at taxi (bufferData 15 -> 30.5). Proven an
+  ARTEFACT of the gate (FRAMECOST teleports 420 m to TAXI_PIN and counts after 6 warm frames: the cover ring's
+  transient; at warm 60 both sides 0) and revealcam a real win (master's stand uploads 31 bufferData a frame on every
+  roll-out's first flight frames, revealcam 0). It leads train 20 with the gate's ring-idle warm (25d9bacd).
+- C4B's hybrid: cockpit ABBA proved a real +0.9-1.1 ms render (resident live-mesh buffers); train 20 with a residency
+  fix unless the user accepts the cost.
+
+MEASURED (the ratchet, fresh parked cook a40485081dcf, vs train 18; two runs each):
+  Cub:   fps 32.1 =, p99 33.5 =, loop 12.85 -> 12.05, render 9.2 -> 8.55 ms, garage 40.2 -> 39.75 s, flight 43.5 -> 43.1 s
+  metal: fps 31.9 =, p99 33.5 =, loop 12.6 -> 12.0, render 9.2 -> 8.8 ms, garage 41.6 -> 41.1 s, flight 45.0 -> 44.55 s
+FRAMECOST PASS (baseline re-taken, 69 falls). Battery: FULL tier on pass 1 (with revealcam): all PASS but FRAMECOST;
+the targeted re-run on the final tree (ROLLANIM BOOT UISMOKE PROGRAMS ROUNDTRIP PACE PARKED HITBOX COVER STAND) PASS.
