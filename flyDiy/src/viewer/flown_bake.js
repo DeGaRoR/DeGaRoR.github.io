@@ -83,12 +83,13 @@
     if (on.has('nohy')) FB.hybrid = false;      // the hybrid off: the bake at every distance (C4b as it landed)
     if (on.has('alleye')) FB.eyeOnly = false;   // G1124 off: the whole exterior live in the cockpit
     if (on.has('cockpitlive')) FB.cockpitLive = true;   // G1124.1: the eye's zone live in the cockpit (the follow-up's dial)
-    if (on.has('nowarm')) FB.noWarm = true;
+    if (on.has('nowarm')) FB.noWarm = true;   // train 20's isolation: the kept meshes neither compiled by stand-in nor warm-drawn (not resident)
     if (on.has('nowarmdraw')) FB.noWarmDraw = true;       // isolation: the kept stand-ins compiled, not warm-drawn
     if (on.has('nokeptcompile')) FB.noKeptCompile = true; // isolation: the kept stand-ins warm-drawn, not compiled first
-    if (on.has('noband')) FB.noBand = true;
+    if (on.has('noband')) FB.noBand = true;   // isolation: no band twins compiled or drawn (a crossing would link them)
     if (on.has('warmkey')) FB.warmKey = true;        // (a): the warm draws one stand-in a program key, not one a view (G1125: the views share the fold's buffers)
-    if (on.has('warmcanvas')) FB.warmCanvas = true;  // (b): the warm draws into the canvas, not the AA's intermediate target               // isolation: no band twins compiled or drawn (a crossing would link them)     // train 20's isolation: the kept meshes neither compiled by stand-in nor warm-drawn (not resident)
+    if (on.has('warmcanvas')) FB.warmCanvas = true;  // (b): the warm draws into the canvas, not the AA's intermediate target
+    if (on.has('warmfree')) FB.warmFree = true;    // isolation: the warm draw's buffers freed once it is done (resident, or first-drawn?)
     if (on.has('noshadowfolds')) FB.shadowFolds = false;   // G1124 off: the live meshes cast their own shadows
     for (const x of on) { const m = /^hy([\d.]+)-([\d.]+)$/.exec(x); if (m) { FB.hyA = +m[1]; FB.hyB = Math.max(+m[1] + 0.01, +m[2]); } }   // the band
     for (const x of on) { const m = /^hy=([\d.]+)$/.exec(x); if (m) FB.hyForce = Math.min(1, Math.max(0, +m[1])); }   // t held (the A/B rigs)
@@ -721,7 +722,17 @@
   }
   // every frame (app.js): t (1 in the cockpit), then the folds and their live meshes shown by it - once per change
   // (G1124: tEye for the cabin and the eye's zone - the cockpit gives 1 there and 0 to the far zone; the chase one t)
+  // ?fbake=warmfree (the cockpit's +0.6 ms isolation): once the craft step's warm draw is done, every geometry it drew
+  // (the folds and their views) disposed - their buffers and vertex arrays freed, and made again by the next frame
+  // that draws one - so only what the frame draws stays resident: a cost that goes with it is residency, not first draws
+  let warmFreed = false;
+  function warmFree() {
+    warmFreed = true; const seen = new Set();
+    for (const F of FOLDS) for (const [o] of (F.pairs ? F.pairs() : [])) { const g = o && o.geometry; if (g && !seen.has(g)) { seen.add(g); g.dispose(); } }
+    if (W.__hyWarm) W.__hyWarm.freed = seen.size;
+  }
   function hybrid(t, tEye) {
+    if (FB.warmFree && !warmFreed && W.__hyWarm && W.__hyWarm.drawn != null) warmFree();
     shadowFolds(false); hookShadow();         // (G1124 a: last frame's shadow swap put back before this frame's main pass)
     if (FB.hyForce != null) t = tEye = FB.hyForce;   // the rigs' hold (FB.hyForce, ?fbake=hy=0.5): a number, or null for the rule
     if (tEye == null) tEye = t;
@@ -1038,10 +1049,13 @@
       const side = mat.side, R3 = new THREE.Ray(), SP = new THREE.Sphere(), MM = new THREE.Matrix4(), MI = new THREE.Matrix4();
       const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3(), hitP = new THREE.Vector3();
       const Bs = F.moves ? null : [];
-      mesh.raycast = function (rc, hits) {
+      // (G1126: one cast for the fold and for each of its views, over the members it draws - three's own on a view walked
+      // every vertex of its range through the bones behind the fold's whole sphere, hidden or not: the cockpit's pick
+      // +0.4 ms a frame, the live census A/B)
+      const castOver = list => function (rc, hits) {
         if (!this.visible) return;          // a hidden fold stands for meshes that are shown (the cabin's, in the cockpit)
         const mw = this.matrixWorld, Bn = this.skeleton ? this.skeleton.bones : Bs;
-        for (const q of members) {
+        for (const q of list) {
           if (q.b >= 0) MM.multiplyMatrices(mw, Bn[q.b].matrixWorld); else MM.copy(mw);
           MI.copy(MM).invert();
           R3.copy(rc.ray).applyMatrix4(MI);
@@ -1059,6 +1073,7 @@
           }
         }
       };
+      mesh.raycast = castOver(members);
       mesh.userData.flownMerge.parts = bones;
       // EVERY FRAME, before three reads the buffers (the scene's matrix pass precedes each render's projection)
       const upd = mesh.updateMatrixWorld;
@@ -1118,6 +1133,7 @@
           v.name = 'flownLive'; v.castShadow = false; v.receiveShadow = list[r0].receiveShadow; v.renderOrder = list[r0].renderOrder;
           v.layers.mask = list[r0].layers.mask; v.frustumCulled = mesh.frustumCulled; v.visible = false;
           v.matrixAutoUpdate = false; v.userData.flownView = { subs: r1 - r0 };
+          v.raycast = castOver(members.slice(r0, r1));   // G1126: the fold's member cast over its own range (never three's per-vertex walk)
           grp.add(v); out.kept.push(v);
           r0 = r1;
         }

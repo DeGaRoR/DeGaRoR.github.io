@@ -490,6 +490,15 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
     const out = v1.parent === null && v2.parent === null && v3.parent === null;
     o5.live = vs.slice(); o5.park(); const parked = vs.every(v => v.parent === null);
     o5.fade(1); const near = vs.every(v => v.parent === g5 && v.visible) && !fold.visible && o5.viewsOn === true;
+    // G1126: a view answers a ray with the fold's member cast over its own range (never three's per-vertex walk), the
+    // part named; a hidden view answers none
+    g5.updateMatrixWorld(true);
+    const vB = vs.find(v => v.material === lB), rc5 = new T.Raycaster(new T.Vector3(1.5, 0.5, 10), new T.Vector3(0, 0, -1));
+    const h5 = rc5.intersectObject(g5, true), own = vs.every(v => v.raycast !== T.Mesh.prototype.raycast && v.raycast !== T.SkinnedMesh.prototype.raycast);
+    vB.visible = false; const hid = rc5.intersectObject(vB, false).length; vB.visible = true;
+    check(own && h5.length > 0 && h5.every(h => h.object === vB) && Math.abs(h5[0].distance - 9) < 1e-6 && hid === 0,
+      "8 G1126 a view answers a ray with the fold's member cast over its own range (not three's per-vertex walk); a hidden view answers none",
+      JSON.stringify({ own, hits: h5.map(h => (h.object === vB ? 'vB' : h.object.name) + '@' + h.distance.toFixed(3)), hid }));
     o5.fade(0); const far = vs.every(v => v.parent === null) && fold.visible && !o5.viewsOn;
     check(!!o5 && shared && byMat && total === fold.geometry.index.count && out && parked && near && far,
       '8 G1125 the views: one a live material on the fold\'s SAME attribute objects (no second buffer), their ranges the fold\'s index, the members out of the graph, parked / shown as the kept meshes were',
