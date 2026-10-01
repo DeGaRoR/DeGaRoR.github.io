@@ -6564,14 +6564,9 @@
   // play with it"). A preference, not a spec value; the flight keeps its own
   // (cam.fov), and each screen applies its number on entry.
   let garageFov = Math.max(25, Math.min(80, +prefGet('flydiy.garageFov', 46) || 46));
-  function garageCamera() {
-    HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false;
-    if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
-    if (edEye) exitInterior();
-    if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
-    camera.up.set(0, 1, 0);
-    edPan.set(0, 0, 0);
-    az = azT = -2.5; el = elT = 0.22; dist = distT = 14;   // the boot's own framing (the rail's 'r')
+  // the garage's own framing: the boot's (the rail's 'r') - also the roll-out shot's fixed eye (G1115.1, rollanim o.front)
+  function garageFraming() {
+    const F = { az: -2.5, el: 0.22, dist: 14 };
     // G439 (A5): A LOW SHED LOWERS THE EYE. At 14 m and 0.22 rad the eye
     // stands 3 m over the aeroplane's centre; the field shed's eave is 3.6 m,
     // and the room clamp pinned the camera to the ceiling, over the lamps,
@@ -6580,8 +6575,19 @@
     // room's own height when there is a room to read.
     if (hangar && hangar.dims && hangar.dims.EAVE < 5) {
       const eyeY = hangar.dims.EAVE - 1.4, tY = (edSit && edSit.visible && edTarget) ? edTarget.y : ((sim && sim.cgPos) ? sim.cgPos()[1] : 1.2);
-      el = elT = Math.max(0.03, Math.min(0.22, Math.asin(Math.max(-1, Math.min(1, (eyeY - tY) / dist)))));
+      F.el = Math.max(0.03, Math.min(0.22, Math.asin(Math.max(-1, Math.min(1, (eyeY - tY) / F.dist)))));
     }
+    return F;
+  }
+  function garageCamera() {
+    HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false;
+    if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
+    if (edEye) exitInterior();
+    if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    camera.up.set(0, 1, 0);
+    edPan.set(0, 0, 0);
+    const F = garageFraming();
+    az = azT = F.az; el = elT = F.el; dist = distT = F.dist;
     flReveal = 0;
     camera.fov = garageFov; camera.updateProjectionMatrix();
   }
@@ -6698,7 +6704,7 @@
     let h = null;
     try {
       h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
-        camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow',
+        camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow', front: RA_Q === 'back' ? null : garageFraming(),
         onDone: hh => { raBusy = false; placeIndicators(); done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
       placeIndicators();                 // (G1115: the CG marks off for the shot - placeIndicators reads ROLLANIM.busy)
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
@@ -6715,7 +6721,7 @@
   if (typeof window !== 'undefined') window.FLYDIY_ROLLANIM = rollAnimSolo;
   // (G1115: the shot's plan in this room, nothing moved - the fixed shot's framing read by tools/_rollout_plan.js)
   if (typeof window !== 'undefined') window.FLYDIY_ROLLPLAN = () => rollAnimCan() ? ROLLANIM.plan({ craft, scene: hangarScene, camera, hangar, model, def, sim,
-    camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow' }) : null;
+    camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow', front: RA_Q === 'back' ? null : garageFraming() }) : null;
   if (RA_Q === 'solo' || RA_Q === 'loop') {
     const iv = setInterval(() => {
       if (typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') return;
