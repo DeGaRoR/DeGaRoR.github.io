@@ -123,7 +123,7 @@ const WATER = (() => {
     uniform vec4 uWSct[4];     // rgb: the column's own colour at depth (linear), w: 0
     uniform vec4 uWBody[4];    // x: wave scale, y: detail scale, z: foam threshold, w: depth when there is no field (m)
     uniform vec4 uWMisc;       // x: shore fade width (m), y: lake depth per metre of field, z: lake depth cap (m), w: foam on
-    uniform vec4 uWLook;       // G794: x: the reflection kept whole over a thin column, y: the column's slanted path (1 on, 0 = G460's); G798: z: the shore's lap foam (0 off)
+    uniform vec4 uWLook;       // G794: x: the reflection kept whole over a thin column, y: the column's slanted path (1 on, 0 = G460's); G798: z: the shore's lap foam (0 off); G799: w: the wet bed
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
@@ -319,6 +319,14 @@ const WATER = (() => {
         // through (1 - F) of the surface and (1 - a) of the column - so the cover is a + F (1 - a), the Fresnel of the
         // still surface (wFv) inside the shore's fade
         float wAo = diffuseColor.a + (1.0 - diffuseColor.a) * wSA * wFv * uWLook.x;
+        // G799 THE BED IS WET, DRAWN BY THE WATER (it was G795's line in the ground splat - and the splat links on EVERY
+        // boot (Chrome never caches it, A5-LOAD), so a bigger splat spilled into the roll-out's worldCompile, 0.2 -> 11-13 s
+        // on every warm boot, LOAD-COMPILE). A submerged grain reflects ~0.55 of its dry albedo (the water film's
+        // refraction, Lekner & Dorf 1988); under a normal blend a darker bed is MORE COVER WITH NO COLOUR: the bed's
+        // weight (1 - cover) times (1 - 0.45), the premultiplied colour unchanged. Inside the surface's shore fade, so it
+        // ends at the line - the darker sand under the water against the dry sand above IS the waterline.
+        // uWLook.w 0 = no wet bed; with the old blend (uWLook.x 0) it is off (it needs the premultiplied colour)
+        wAo = 1.0 - (1.0 - wAo) * (1.0 - 0.45 * wSA * uWLook.w * uWLook.x);
         if (wAo <= 0.002) discard;`)
       .replace('#include <roughnessmap_fragment>', `float roughnessFactor = mix(max(roughness, wRough(wSig)), 0.9, wFoam);`)
       .replace('#include <normal_fragment_begin>', `
@@ -527,6 +535,7 @@ const WATER = (() => {
     lakeK: 1.2, lakeCap: 8.0,          // a lake's depth per metre of its field, and its cap
     reflKeep: 1, slant: 1,             // G794: the reflection kept whole over a thin column; the column's slanted path (0, 0 = G460's)
     lap: 0,                            // G798: the shore's lap foam (1 = G460.5's band)
+    wet: 1,                            // G799: the bed under the water darkened to x0.55 (the wet grain), drawn as cover by the water
     foldQ: 0.55,                       // the virtual Gerstner Q of the fold
   };
 
@@ -547,7 +556,7 @@ const WATER = (() => {
       uWSdf: { value: null }, uWGrid: { value: v4(0, 0, 1, 1) }, uWSdfOn: { value: 0 },
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
-      uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, 0) },
+      uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
     };
     applyPresets();
   }
@@ -1154,7 +1163,7 @@ const WATER = (() => {
     if (!o) return;
     if ('tier' in o) setTier(o.tier);
     if ('mirror' in o) { MIR.mode = o.mirror === 'live' ? 'live' : o.mirror === 'off' ? 'off' : 'periodic'; if (MIR.mode === 'off') mirrorOff(); }
-    for (const k of ['displace', 'detail', 'sigma', 'foam', 'dbg', 'detailK', 'shoreFade', 'lakeK', 'lakeCap', 'foldQ', 'reflKeep', 'slant', 'lap']) if (k in o) S[k] = o[k];
+    for (const k of ['displace', 'detail', 'sigma', 'foam', 'dbg', 'detailK', 'shoreFade', 'lakeK', 'lakeCap', 'foldQ', 'reflKeep', 'slant', 'lap', 'wet']) if (k in o) S[k] = o[k];
     if ('on' in o) S.on = !!o.on;
     if ('timer' in o) timer.on = !!o.timer;
     if (o.detailL) S.detailL = o.detailL.slice();
@@ -1168,7 +1177,7 @@ const WATER = (() => {
     U.uWDetailK.value.x = S.detailL[0]; U.uWDetailK.value.y = S.detailL[1];
     U.uWMisc.value.set(S.shoreFade, S.lakeK, S.lakeCap, S.foam ? 1 : 0);
     U.uWDbg.value = S.dbg | 0;
-    U.uWLook.value.set(S.reflKeep ? 1 : 0, S.slant ? 1 : 0, S.lap ? 1 : 0, 0);
+    U.uWLook.value.set(S.reflKeep ? 1 : 0, S.slant ? 1 : 0, S.lap ? 1 : 0, S.wet ? 1 : 0);
     trains.forEach((w, i) => { U.uWTrD.value[i].z = S.foldQ; });
     { let sAk2 = 0; for (const w of trains) sAk2 += w.A * w.k * w.A * w.k; U.uWFoam.value.x = S.foldQ * Math.sqrt(sAk2 / 2); }
     if (mat) mat.visible = S.on;
