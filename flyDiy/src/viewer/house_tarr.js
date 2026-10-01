@@ -20,7 +20,7 @@
 //                        declaration and a fragment block run first in main - the near rung's dithered exit at the lod-1
 //                        edge; a program of its own (the cache key says so)
 //     T.lit              { value }: the lamps' factor for the lit panes (render_premises' LAMPS drives it)
-//     T.stats            { layers, nrLayers, slots, mb, builds }
+//     T.stats            { layers, nrLayers, slots, mb, builds, where (worker | page), packMs, check }   (G845)
 //
 // THE LOOK IS THE HOUSE'S OWN SHADER, NOT A COPY. The town material's hook is the house generator's (shadeHouse +
 // cloudWeather, or shadeGlass) run on the program as it is, then four edits: the finish's uniforms become globals
@@ -52,6 +52,37 @@ const HOUSE_TARR = (() => {
   // the house generator's hooks, raw: the game's ATMO serves every hook wrapped (atmo.js: the prototype accessor keeps
   // the material's own in _atmoHook); a bench without ATMO has it as an own property
   const rawHook = m => Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+  // THE PASS (the arrays' bytes): A = the colour layers (an image, or [r, g, b] for a flat one), N = the normal + rough
+  // pairs [n, r] (either may be null). SELF-CONTAINED - its text is the G845 worker's source too (`doc` makes the
+  // canvas: the page's document, or the worker's OffscreenCanvas), so the page and the worker draw the same bytes.
+  function packStack(px, doc, A, N) {
+    const S = px * px * 4;
+    const cnv = doc.createElement('canvas'); cnv.width = cnv.height = px;
+    const ctx = cnv.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    const draw = img => {
+      if (Array.isArray(img)) { const d = new Uint8ClampedArray(S); for (let j = 0; j < S; j += 4) { d[j] = img[0]; d[j + 1] = img[1]; d[j + 2] = img[2]; d[j + 3] = 255; } return d; }
+      ctx.setTransform(1, 0, 0, -1, 0, px); ctx.clearRect(0, 0, px, px); ctx.drawImage(img, 0, 0, px, px); return ctx.getImageData(0, 0, px, px).data;
+    };
+    const dA = new Uint8Array(S * Math.max(1, A.length));
+    A.forEach((img, i) => { dA.set(draw(img), i * S); for (let k = 3; k < S; k += 4) dA[i * S + k] = 255; });
+    const dN = new Uint8Array(S * Math.max(1, N.length));
+    N.forEach(([n, r], i) => {
+      const o0 = i * S;
+      if (n) dN.set(draw(n), o0); else for (let j = 0; j < S; j += 4) { dN[o0 + j] = 128; dN[o0 + j + 1] = 128; dN[o0 + j + 2] = 255; }
+      if (r) { const rd = draw(r); for (let j = 0; j < S; j += 4) dN[o0 + j + 3] = rd[j + 1]; } else for (let j = 3; j < S; j += 4) dN[o0 + j] = 255;
+    });
+    return { dA, dN };
+  }
+  // the worker's body (after `const packStack = <its text>;`): one message, the stacks back transferred, the bitmaps closed
+  const PACK_WORKER = `onmessage = e => {
+  const m = e.data, doc = { createElement: () => new OffscreenCanvas(1, 1) };
+  try { const r = packStack(m.px, doc, m.A, m.N); postMessage({ dA: r.dA, dN: r.dN }, [r.dA.buffer, r.dN.buffer]); }
+  catch (err) { postMessage({ err: String(err && err.message || err) }); }
+  for (const b of [].concat(m.A, ...m.N)) if (b && typeof b.close === 'function') b.close();
+};`;
 
   // THE EDITS, pure text (GATE TARR runs them on r186's own ShaderLib): `sh` after the house generator's hook
   const PLAIN_U = ['uDirtTop', 'uDirtY0', 'uDirtH', 'uDirtK', 'uSat', 'uCon', 'uAOd', 'uNoiseK', 'uNoiseS', 'uDirtCol', 'uDirtOwn', 'uPaintCol',
@@ -299,20 +330,15 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       // (a microtask), and the stack's draws landed on top of the bake that asked for them (the loading's settle slice,
       // a flight frame)
       Promise.all(all.map(dec)).then(() => new Promise(r => setTimeout(r, 0))).then(() => {
-        const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
-        const ctx = cnv.getContext('2d', { willReadFrequently: true });
-        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-        const draw = img => { if (Array.isArray(img)) { const d = new Uint8ClampedArray(S); for (let j = 0; j < S; j += 4) { d[j] = img[0]; d[j + 1] = img[1]; d[j + 2] = img[2]; d[j + 3] = 255; } return d; }
-          ctx.setTransform(1, 0, 0, -1, 0, px); ctx.clearRect(0, 0, px, px); ctx.drawImage(img, 0, 0, px, px); return ctx.getImageData(0, 0, px, px).data; };
-        const okA = imgsA.filter(ready), dA = new Uint8Array(S * Math.max(1, okA.length)), mA = new Map();
-        okA.forEach((img, i) => { dA.set(draw(img), i * S); for (let k = 3; k < S; k += 4) dA[i * S + k] = 255; mA.set(img, i); });
-        const okN = [...pairs.entries()].filter(([, p]) => p.every(x => !x || ready(x))), dN = new Uint8Array(S * Math.max(1, okN.length)), mN = new Map(), src = new Map();
-        okN.forEach(([k, [n, r]], i) => {
-          const o0 = i * S;
-          if (n) dN.set(draw(n), o0); else for (let j = 0; j < S; j += 4) { dN[o0 + j] = 128; dN[o0 + j + 1] = 128; dN[o0 + j + 2] = 255; }
-          if (r) { const rd = draw(r); for (let j = 0; j < S; j += 4) dN[o0 + j + 3] = rd[j + 1]; } else for (let j = 3; j < S; j += 4) dN[o0 + j] = 255;
-          mN.set(k, i); src.set(k, [n, r]);
-        });
+        const okA = imgsA.filter(ready), mA = new Map();
+        okA.forEach((img, i) => mA.set(img, i));
+        const okN = [...pairs.entries()].filter(([, p]) => p.every(x => !x || ready(x))), mN = new Map(), src = new Map();
+        okN.forEach(([k, [n, r]], i) => { mN.set(k, i); src.set(k, [n, r]); });
+        // G845: the pass in a WORKER when the page can (OffscreenCanvas on ImageBitmaps: the same packStack, the same
+        // texels, off the main thread); else - or on any failure - here, in a task of its own, as before
+        return packOff(px, okA, okN.map(([, p]) => p)).then(D => finish(D, okA, okN, mA, mN, src));
+      });
+      const finish = ({ dA, dN }, okA, okN, mA, mN, src) => {
         const mk = (d, n) => { const t = new THREE.DataArrayTexture(d, px, px, Math.max(1, n));
           t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
           t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true; t.anisotropy = 8;
@@ -324,9 +350,38 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
         stats.layers = okA.length; stats.nrLayers = okN.length; stats.mb = +((okA.length + okN.length) * S * 4 / 3 / 1048576).toFixed(1);
         building = false;
         if (o.onReady) o.onReady();
-      });
+      };
     }
     let NRsrc = new Map();
+    // ---- THE PASS, OFF THE MAIN THREAD (G845, C2c follow-up; G840's cooked layers were withdrawn for their bytes) ----
+    // The images are decoded already (the page's own JPEGs: no byte more on the wire); each becomes an ImageBitmap
+    // (decoded off the thread), they go to a Blob worker whose source IS packStack (below) - an OffscreenCanvas there,
+    // the same willReadFrequently 2D canvas, the same draws - and the two stacks come back transferred. ?tarrw=0 (or no
+    // Worker / OffscreenCanvas / createImageBitmap, or any failure): packStack on this thread, as before. ?tarrcheck=1:
+    // the worker's stacks are compared with this thread's, byte for byte (stats.check).
+    function packOff(px, A, N) {
+      const local = () => { const t = now(); const D = packStack(px, document, A, N); stats.where = 'page'; stats.packMs = Math.round(now() - t); return D; };
+      const W = typeof window !== 'undefined' ? window : {};
+      const off = /[?&]tarrw=0/.test((W.location && W.location.search) || '') || typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined' ||
+        typeof createImageBitmap !== 'function' || typeof Blob === 'undefined' || typeof URL === 'undefined';
+      if (off) return Promise.resolve(local());
+      const CHECK = /[?&]tarrcheck=1/.test((W.location && W.location.search) || '');
+      const t0 = now();
+      const bm = x => (!x || Array.isArray(x)) ? Promise.resolve(x || null) : createImageBitmap(x);
+      return Promise.all([Promise.all(A.map(bm)), Promise.all(N.map(p => Promise.all([bm(p[0]), bm(p[1])])))]).then(([BA, BN]) => new Promise((res, rej) => {
+        const url = URL.createObjectURL(new Blob(['const packStack = ' + packStack.toString() + ';\n' + PACK_WORKER], { type: 'text/javascript' }));
+        const w = new Worker(url);
+        const done = () => { try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); };
+        w.onmessage = e => { done(); if (e.data && e.data.dA) res(e.data); else rej(new Error(e.data && e.data.err || 'no stacks')); };
+        w.onerror = e => { done(); rej(new Error(e && e.message || 'worker error')); };
+        const tr = [...BA, ...BN.flat()].filter(b => b && typeof b.close === 'function');
+        w.postMessage({ px, A: BA, N: BN }, tr);
+      })).then(D => {
+        stats.where = 'worker'; stats.packMs = Math.round(now() - t0);   // (the wall: the worker's draws, not the page's time)
+        if (CHECK) { const L = local(); stats.where = 'worker'; let d = 0; for (let i = 0; i < L.dA.length; i++) if (L.dA[i] !== D.dA[i]) d++; let e = 0; for (let i = 0; i < L.dN.length; i++) if (L.dN[i] !== D.dN[i]) e++; stats.check = { colour: d, normal: e, bytes: L.dA.length + L.dN.length }; }
+        return D;
+      }, err => { console.warn('house_tarr: the worker pass failed (' + (err && err.message) + ') - drawn here'); stats.workerErr = String(err && err.message); return local(); });
+    }
 
     // ---- the materials -------------------------------------------------------------------------------------
     // made by MATLIB (C3b, G855): the `house` shape - the town's material is a shape of the one library, its hook this
@@ -383,10 +438,11 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       return m;
     }
 
-    return { classify, classifyMat, slot, hook, begin, merge, end, material, lit: U.tLit, U, stats, get ready() { return !!U.tAlb.value && !building; } };
+    // pack(A, N): the pass alone (tools/tarr_worker_check.js: the worker vs the page on the real maps)
+    return { classify, classifyMat, slot, hook, begin, merge, end, material, lit: U.tLit, U, stats, pack: (A, N) => packOff(o.px, A, N), get ready() { return !!U.tAlb.value && !building; } };
   }
 
-  const api = { make, editPlain, editGlass, rawHook, NS, TW };
+  const api = { make, editPlain, editGlass, rawHook, packStack, PACK_WORKER, NS, TW };
   if (typeof window !== 'undefined') window.HOUSE_TARR = api;
   return api;
 })();

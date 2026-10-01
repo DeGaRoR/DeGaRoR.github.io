@@ -66164,7 +66164,6 @@ same cluster (C3b's review showed them so). Then the G590 question is the user's
 - A kit plot is decided by id AND seed against the table: re-sow a zone (the editor, a rule change) and its plots build
   unique until `node tools/town_kit.js --media` is re-run (GATE METKIT A goes red first).
 - The kit is Jolene's (the table is one island's); another island's manifest entry is what brings it elsewhere.
-## G840-G844 - C2c: THE TOWN'S TEXTURE ARRAYS COOKED OFFLINE; THE COOK'S TALLIES (THE PAGE DRESSES AS THE COOK PLACED, IN ANY ORDER); THE EDITOR'S EDITS BUILT BY THE WORKER; A HOUSE READS ITS ZONE'S WATER (PIERS ON JOLENE); THE HOUSE'S OBSTACLE RASTERISED IN THE WORKER (2026-09-29/30, C2c of QUEUE-C, local GPU)
 ## G840-G844 - C2c: THE COOK'S TALLIES (THE PAGE DRESSES AS THE COOK PLACED, IN ANY ORDER); THE EDITOR'S EDITS BUILT BY THE WORKER; A HOUSE READS ITS ZONE'S WATER (PIERS ON JOLENE); THE HOUSE'S OBSTACLE RASTERISED IN THE WORKER (2026-09-29/30, C2c of QUEUE-C, local GPU)
 
 WHY: ARCH-2026-09-27 §3.2, §3.3, §3.4 steps 4-5; QUEUE-C "C2c". After C2a the page generated no house, but it still
