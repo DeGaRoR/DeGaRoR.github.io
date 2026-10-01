@@ -43,13 +43,12 @@ for (const t of table) {
   const none = t.vessels.filter(v => v.how === 'none');
   if (!moved.length && !none.length) { rows.push({ key: t.key, how: 'kept' }); continue; }
   const card = D.ARCHETYPES.find(a => a.key === t.key);
-  const S0 = C.genNormaliseSpec(D.designBake(card.sel, card.over));
-  const S1 = JSON.parse(JSON.stringify(S0));
-  for (const v of moved) {
-    const ves = S1.energy.vessels[v.i];
-    Object.assign(ves, { capacity: v.new.capacity, along: v.new.along, lv: v.new.lv, rot: v.new.rot, form: v.new.form, dims: v.new.dims });
-  }
-  S1.fuel = Object.assign({}, S1.fuel, { litres: S1.energy.vessels.reduce((s, v) => s + (+v.capacity || 0), 0) });
+  // BEFORE: the card without the refit (its over.tanks taken out - what the
+  // flight gates flew until now); AFTER: the card as it stands (STOCK_TANKS)
+  const over0 = Object.assign({}, card.over || {}); delete over0.tanks;
+  const S0 = C.genNormaliseSpec(D.designBake(card.sel, Object.keys(over0).length ? over0 : undefined));
+  const S1 = C.genNormaliseSpec(D.designBake(card.sel, card.over));
+  if (!(card.over && card.over.tanks)) { rows.push({ key: t.key, how: 'not applied' }); continue; }
   let a = null, b = null, err = null;
   try { a = read(S0); b = read(S1); } catch (e) { err = String(e && e.message || e).split('\n')[0]; }
   const row = { key: t.key, how: moved.map(v => v.how).join(',') || 'none', vessels: t.vessels.map(v => ({ design: v.design, old: v.old.capacity, new: v.new && v.new.capacity, shift: v.shift })), err };

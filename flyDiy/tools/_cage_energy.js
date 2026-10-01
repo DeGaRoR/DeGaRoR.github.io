@@ -119,7 +119,8 @@ function toSpec() {
            finish: EN.finish, hue: EN.hue, tint: EN.tint,
            vessels: EN.vessels.map(v => ({ bay: v.bay, capacity: v.capacity,
              along: v.along, lv: v.lv, rot: v.rot, form: v.form || 'box',
-             dims: v.dims ? { L: v.dims.L, W: v.dims.W, H: v.dims.H } : null,
+             // G1150: a deck's profile rides with its dims (without it the core makes it a box)
+             dims: v.dims ? Object.assign({ L: v.dims.L, W: v.dims.W, H: v.dims.H }, Array.isArray(v.dims.profile) ? { profile: v.dims.profile.slice() } : {}) : null,
              finish: v.finish || null,
              hue: v.hue == null ? null : v.hue,
              tint: v.tint || null })) };

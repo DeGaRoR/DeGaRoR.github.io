@@ -48,6 +48,35 @@ function measureBay(env) {
   const crew = []; const V = new THREE.Vector3();
   for (const ch of r.scene.children) if (ch.name === 'cageLayer:crew') ch.traverse(o => { if (!o.isMesh) return; const P = o.geometry.attributes.position;
     for (let i = 0; i < P.count; i++) { V.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld); crew.push([V.x, V.y, V.z]); } });
+  // the ENGINE's and the COWL's vertices: a radial's accessories reach back into
+  // a nose bay (the Stearman-alike's deck tank met 400-700 of them)
+  const obst = [];
+  for (const ch of r.scene.children) if (ch.name === 'cageLayer:eng' || ch.name === 'cageLayer:cowl') ch.traverse(o => { if (!o.isMesh || o.visible === false) return; const P = o.geometry.attributes.position;
+    for (let i = 0; i < P.count; i++) { V.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld); obst.push([V.x, V.y, V.z]); } });
+  // THE FIT'S OWN WALLS: the bay's inset sections (BAY_SITE.bayProfile at the
+  // fit's 35 mm wall), per station - a column's room is also the section's
+  // vertical extent at its x, so a tank's lower corners do not stand in the
+  // wall where the fuselage narrows (the rays alone measured the ceiling only)
+  const B = W.BAY_SITE, wallU = WALL / FS;
+  let profs = [];
+  if (B && B.bayProfile && res.samples && res.samples.length) {
+    const sLs = res.samples.map(q => q[2]).filter(v => isFinite(v) && Math.abs(v) < 1e5);
+    const lo = Math.min(...sLs), hi = Math.max(...sLs), span = hi - lo, pad = Math.max(0.05 / FS, span);
+    try { profs = (B.bayProfile(M, lo - pad, hi + pad, wallU, 24) || []).filter(q => q && q.poly && q.poly.length >= 3); } catch (e) { profs = []; }
+  }
+  const extentAt = (x, z) => {
+    if (!profs.length) return null;
+    let best = null, bd = Infinity;
+    for (const q of profs) { const d = Math.abs(q.z * FS - z); if (d < bd) { bd = d; best = q; } }
+    const xu = x / FS, P = best.poly; let y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < P.length; i++) {
+      const a = P[i], b = P[(i + 1) % P.length];
+      if ((a[0] - xu) * (b[0] - xu) > 0 || a[0] === b[0]) continue;
+      const y = a[1] + (b[1] - a[1]) * (xu - a[0]) / (b[0] - a[0]);
+      y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }
+    return isFinite(y0) ? [y0 * FS, y1 * FS] : [Infinity, -Infinity];
+  };
   const rc = new THREE.Raycaster();
   // the columns, symmetric about the centreline
   const half = Math.max(Math.abs(sec.xLo), Math.abs(sec.xHi)), dx = 2 * half / NX;
@@ -58,16 +87,33 @@ function measureBay(env) {
     let rowL = 0; const cols = [];
     for (let ix = 0; ix < NX; ix++) {
       const x = -half + dx * (ix + 0.5);
-      rc.set(new THREE.Vector3(x, floor0, z), new THREE.Vector3(0, 1, 0)); rc.far = 3;
-      const up = rc.intersectObject(skin, false);
-      if (!up.length) { cols.push(null); continue; }
-      const yTop = up[0].point.y - WALL;
+      // the CEILING is the lowest of a 3 x 3 grid of rays over the cell - one
+      // ray at its centre slipped between frame tubes the tank then met
+      let yTop = Infinity, miss = false;
+      for (const fx of [-1 / 3, 0, 1 / 3]) for (const fz of [-1 / 3, 0, 1 / 3]) {
+        rc.set(new THREE.Vector3(x + fx * dx, floor0, z + fz * dz), new THREE.Vector3(0, 1, 0)); rc.far = 3;
+        const up = rc.intersectObject(skin, false);
+        if (!up.length) { miss = true; break; }
+        yTop = Math.min(yTop, up[0].point.y - WALL);
+      }
+      if (miss || !isFinite(yTop)) { cols.push(null); continue; }
       let yCrew = -Infinity;
       for (const p of crew) if (Math.abs(p[0] - x) <= dx / 2 && Math.abs(p[2] - z) <= dz / 2 && p[1] < yTop + 0.2 && p[1] > yCrew) yCrew = p[1];
       rc.set(new THREE.Vector3(x, floor0, z), new THREE.Vector3(0, 1, 0));
       const dh = rc.intersectObject(dash, false).filter(h => h.point.y < yTop + WALL);
-      const yLo = Math.max(floor0, isFinite(yCrew) ? yCrew + MARGIN : floor0);
-      const yHi = dh.length ? Math.min(yTop, dh[0].point.y - MARGIN) : yTop;
+      let yLo = Math.max(floor0, isFinite(yCrew) ? yCrew + MARGIN : floor0);
+      let yHi = dh.length ? Math.min(yTop, dh[0].point.y - MARGIN) : yTop;
+      // the section's own walls, at the cell's two flanks (its outer x is the tighter)
+      for (const fx of [-0.5, 0.5]) {
+        const ex = extentAt(x + fx * dx, z);
+        if (ex) { yLo = Math.max(yLo, ex[0]); yHi = Math.min(yHi, ex[1]); }
+      }
+      // an engine / cowl point in the cell's room: in its upper half it lowers
+      // the ceiling, in its lower half it raises the floor
+      for (const q of obst) {
+        if (Math.abs(q[0] - x) > dx / 2 || Math.abs(q[2] - z) > dz / 2 || q[1] < yLo - MARGIN || q[1] > yHi + MARGIN) continue;
+        if (q[1] > 0.5 * (yLo + yHi)) yHi = Math.min(yHi, q[1] - MARGIN); else yLo = Math.max(yLo, q[1] + MARGIN);
+      }
       const h = Math.max(0, yHi - yLo);
       rowL += h * dx * dz * 1000;
       cols.push({ x: +x.toFixed(4), yTop: +yTop.toFixed(4), yCrew: isFinite(yCrew) ? +yCrew.toFixed(4) : null, yDash: dh.length ? +dh[0].point.y.toFixed(4) : null,
@@ -113,27 +159,32 @@ function measureBay(env) {
 // the deck tank a prism describes: dims (L along, W across, H), its profile
 // (the top's height fraction from the centreline out, K samples), its station
 // (along) and its centre height; `inset` metres off the top and the flanks
-function deckFromPrism(prism, inset, K) {
+// `inset` off the flanks and the ends, `topInset` (default the same) off the top: the
+// probe's ceiling (rays to the sheet, less the wall) stands 15-20 mm over the fit's own
+// (the bay's inset section) at the crown, so the top is the dimension that gives
+function deckFromPrism(prism, inset, K, topInset, endInset) {
   if (!prism || !(prism.litres > 0) || !prism.tops) return null;
-  const d = inset || 0, n = K || 9;
+  const d = inset || 0, n = K || 9, dt = topInset == null ? d : topInset, de = endInset == null ? d : endInset;
   const half = prism.W / 2 - d;
   if (!(half > 0.03)) return null;
   const xs = prism.xs, tops = prism.tops;
-  const topAt = x => { // linear between column centres, symmetric
-    const ax = Math.abs(x); let best = null;
-    for (let i = 0; i < xs.length - 1; i++) {
-      const a = Math.abs(xs[i]), b = Math.abs(xs[i + 1]);
-      const lo = Math.min(a, b), hi = Math.max(a, b);
-      if (ax >= lo - 1e-9 && ax <= hi + 1e-9) { const ta = tops[i], tb = tops[i + 1]; const f = hi > lo ? (ax - a) / (b - a) : 0; const t = ta + (tb - ta) * f; best = best == null ? t : Math.min(best, t); }
-    }
-    if (best == null) best = Math.min(...tops);
-    return best - d;
+  // the half-profile: the columns at x >= 0 (tops already folded to the lower
+  // of each symmetric pair), sorted outward; linear between column centres,
+  // flat inside the innermost and beyond the outermost
+  const halfCols = xs.map((x, i) => [Math.abs(x), tops[i]]).filter((q, i) => xs[i] >= 0).sort((p, q) => p[0] - q[0]);
+  const topAt = x => {
+    const ax = Math.abs(x), H = halfCols;
+    if (!H.length) return Math.min(...tops) - d;
+    if (ax <= H[0][0]) return H[0][1] - d;
+    for (let i = 1; i < H.length; i++) if (ax <= H[i][0]) { const f = (ax - H[i - 1][0]) / Math.max(1e-9, H[i][0] - H[i - 1][0]); return H[i - 1][1] + (H[i][1] - H[i - 1][1]) * f - d; }
+    return H[H.length - 1][1] - d;
   };
-  const yTopC = topAt(0), H = yTopC - prism.floor;
+  const topAtT = x => topAt(x) + d - dt;
+  const yTopC = topAtT(0), H = yTopC - prism.floor;
   if (!(H > 0.04)) return null;
   const profile = [];
-  for (let k = 0; k < n; k++) profile.push(+Math.max(0, Math.min(1, (topAt(half * k / (n - 1)) - prism.floor) / H)).toFixed(4));
-  return { dims: { L: +(prism.len - 2 * d).toFixed(3), W: +(2 * half).toFixed(3), H: +H.toFixed(3), profile },
+  for (let k = 0; k < n; k++) profile.push(+Math.max(0, Math.min(1, (topAtT(half * k / (n - 1)) - prism.floor) / H)).toFixed(4));
+  return { dims: { L: +(prism.len - 2 * de).toFixed(3), W: +(2 * half).toFixed(3), H: +H.toFixed(3), profile },
            along: prism.along, yc: prism.floor + H / 2, floor: prism.floor };
 }
 

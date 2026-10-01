@@ -2060,6 +2060,13 @@ const ARCHETYPES = [
 // edit the search, not the numbers. Each entry is the card's whole vessel
 // list, its refitted body tanks in place.
 const STOCK_TANKS = {
+  jodel: [{"bay":"nose","capacity":22,"along":-0.2012,"lv":0.6566,"rot":0,"form":"deck","dims":{"L":0.19,"W":0.829,"H":0.194,"profile":[1,1,1,0.9899,0.9194,0.8306,0.7417,0.6069,0.5413]}}],
+  ul1: [{"bay":"nose","capacity":13,"along":-0.1517,"lv":0.6088,"rot":0,"form":"deck","dims":{"L":0.172,"W":0.498,"H":0.228,"profile":[1,0.9985,0.9808,0.9272,0.8739,0.7659,0.6319,0.4622,0.3829]}}],
+  floatplane: [{"bay":"nose","capacity":13,"along":-0.2529,"lv":0.601,"rot":0,"form":"deck","dims":{"L":0.303,"W":0.225,"H":0.22,"profile":[1,1,1,1,1,1,1,1,1]}}],
+  pusherPod: [{"bay":"nose","capacity":29,"along":-0.2454,"lv":0.5,"rot":0,"form":"box","dims":{"L":0.399,"W":0.58,"H":0.15}}],
+  radial: [{"bay":"nose","capacity":44,"along":-0.1636,"lv":0.5435,"rot":0,"form":"deck","dims":{"L":0.217,"W":0.809,"H":0.303,"profile":[1,1,1,1,1,0.9943,0.9773,0.9038,0.8796]}}],
+  ttail: [{"bay":"nose","capacity":56,"along":-0.1513,"lv":0.571,"rot":0,"form":"deck","dims":{"L":0.302,"W":0.808,"H":0.275,"profile":[1,1,1,1,1,0.9925,0.9701,0.8983,0.8743]}}],
+  vtail: [{"bay":"nose","capacity":58,"along":-0.1515,"lv":0.615,"rot":0,"form":"deck","dims":{"L":0.302,"W":1.045,"H":0.236,"profile":[1,1,1,1,1,0.9414,0.8326,0.6878,0.5971]}}],
 };
 for (const a of ARCHETYPES)
   if (STOCK_TANKS[a.key]) a.over = Object.assign({}, a.over || {}, { tanks: STOCK_TANKS[a.key] });

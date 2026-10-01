@@ -22,6 +22,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const T = __dirname;
 const FILE = path.join(T, '_cage_design.js');
 const table = JSON.parse(fs.readFileSync(opt('in'), 'utf8'));
+const HOLD = (opt('hold', '') || '').split(',').filter(Boolean);
 const deck = opt('deck') ? JSON.parse(fs.readFileSync(opt('deck'), 'utf8')) : {};
 const BJ = require(path.join(T, '_bake_joined.js'));
 const { D, C } = BJ.loadPanel();
@@ -33,17 +34,29 @@ for (const t of table) {
   // the card's own list, WITHOUT any tanks this table wrote before (idempotent)
   const over0 = Object.assign({}, a.over || {}); delete over0.tanks;
   const birth = C.genNormaliseSpec(D.designBake(a.sel, Object.keys(over0).length ? over0 : undefined));
-  const list = JSON.parse(JSON.stringify((birth.energy && birth.energy.vessels) || []));
+  // the list the PHYSICS flies: the birth spec's own, or (an empty list) the
+  // resolved spec's lift from fuel.litres (G1109's seeding rule)
+  let own = (birth.energy && birth.energy.vessels) || [];
+  if (!own.length) { try { own = (C.resolveSpec(JSON.parse(JSON.stringify(birth))).spec.energy || {}).vessels || []; } catch (e) { own = []; } }
+  const list = JSON.parse(JSON.stringify(own));
   let changed = false;
   for (const v of t.vessels) {
     const row = { key: t.key, i: v.i, bay: v.bay, design: v.design, how: v.how, new: v.new ? v.new.capacity : null };
     if (!(v.design > 0.5)) { row.verdict = 'no tank (0 capacity): skipped'; report.push(row); continue; }
     if (v.how === 'kept' || !v.new) { row.verdict = v.how === 'kept' ? 'fits as it is' : 'nothing fits: HELD'; report.push(row); continue; }
-    const dk = deck[t.key] && deck[t.key][v.bay] && deck[t.key][v.bay].fuel;
+    // the deck form's estimate: the search's own (its probe, the fit's walls), else a --deck file
+    const dk = (v.deck && v.deck.prism && v.deck.prism.fuel != null) ? v.deck.prism.fuel : (deck[t.key] && deck[t.key][v.bay] && deck[t.key][v.bay].fuel);
     row.deck = dk != null ? dk : null;
     const target = Math.min(v.design, dk != null ? dk : v.design);
-    const ships = v.new.capacity >= v.design - 0.05 || v.new.capacity >= target / 1.15;
-    row.verdict = ships ? 'SHIPS' : 'HELD for the deck form';
+    // the deck form exists (G1150-G1152): the best shape that truly fits SHIPS
+    // (the user's ruling). Held: a vessel the layer sent to another bay than the
+    // card's (the Chinook's strut pod, owed) - its refit would be of the wrong tank
+    const remapped = list[v.i] && list[v.i].bay !== v.bay;
+    // --hold a,b: cards whose DESCRIBED tank is not in this bay (the Beaver's belly
+    // tanks, the biplanes' centre sections...) - held for their own bay (A0, G1155+)
+    if (HOLD.includes(t.key)) { row.verdict = 'HELD: its described tank is not in this bay (G1155+)'; report.push(row); continue; }
+    const ships = !remapped && (argv.includes('--within15') ? (v.new.capacity >= v.design - 0.05 || v.new.capacity >= target / 1.15) : true);
+    row.verdict = remapped ? 'HELD: the layer remapped its bay (' + list[v.i].bay + ' -> ' + v.bay + ')' : ships ? 'SHIPS' : 'HELD (outside 15 %)';
     report.push(row);
     if (!ships || !list[v.i]) continue;
     Object.assign(list[v.i], { bay: v.bay, capacity: v.new.capacity, along: v.new.along, lv: v.new.lv,

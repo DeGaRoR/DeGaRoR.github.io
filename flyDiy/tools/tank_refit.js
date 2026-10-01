@@ -211,13 +211,16 @@ EN.vessels.forEach((v0, i) => {
       const f = E.fitOf(Object.assign({}, old, cand), { fast: true });
       return f && f.ok ? { v: f.v, fit: f } : null;
     };
-    if (m && m.prism && m.prism.litres > 0)
-      for (const inset of [0, 0.005, 0.01, 0.02, 0.03, 0.045]) {
-        const dk = PB.deckFromPrism(m.prism, inset, 9);
-        if (!dk) continue;
-        const g = askDeck(dk);
-        if (g) { deckGot = g; rec.deck.inset = inset; break; }
+    if (m && m.prism && m.prism.litres > 0) {
+      // the top and the sides inset separately, the candidates in falling capacity: the first that fits is the largest
+      const cands = [];
+      for (const ti of [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.07]) for (const si of [0, 0.01, 0.02, 0.035]) for (const li of [0, 0.005, 0.01, 0.02, 0.035]) {
+        const dk = PB.deckFromPrism(m.prism, si, 9, ti, li);
+        if (dk && dk.dims.L > 0.05) cands.push({ dk, ti, si, li, cap: E.capacityFromDims(dk.dims, 'deck') });
       }
+      cands.sort((p, q) => q.cap - p.cap);
+      for (const cd of cands) { const g = askDeck(cd.dk); if (g) { deckGot = g; rec.deck.inset = cd.si; rec.deck.topInset = cd.ti; rec.deck.endInset = cd.li; break; } }
+    }
     if (deckGot) {
       rec.deck.max = deckGot.v.capacity;
       const boxCap = got ? got.v.capacity : 0;
