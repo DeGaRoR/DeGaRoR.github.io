@@ -2047,6 +2047,23 @@ const ARCHETYPES = [
                                         m1B: 0xefe6cf, m1D: 0x3d5c40 } } } } },
 ];
 
+// THE STOCK TANKS, FITTED (G1109, CUB-COCKPIT 2026-10-01; the user: "refit the
+// tanks"). Every stock design's default tank must FIT its bay - the energy
+// layer's own verdict, crew included - and most did not (HANDOVER G1105-G1109).
+// tools/tank_refit.js searched each one with the smallest change first: a
+// shape and station inside the bay at the design's capacity, then the largest
+// capacity that fits. A design is listed here when today's shapes reach
+// within 15 % of what a deck-following tank could hold (tank_bay_probe); the
+// rest (the Cub's nose bay among them) wait for the deck form (G1150-G1154)
+// and keep G1108's state - the fuel in the ledger, the tank not drawn. The
+// table is GENERATED (tools/tank_refit_apply.js) from the search's output:
+// edit the search, not the numbers. Each entry is the card's whole vessel
+// list, its refitted body tanks in place.
+const STOCK_TANKS = {
+};
+for (const a of ARCHETYPES)
+  if (STOCK_TANKS[a.key]) a.over = Object.assign({}, a.over || {}, { tanks: STOCK_TANKS[a.key] });
+
 // ---------------------------------------------------------------------------
 // APPLY — the one code path the tiles AND the gate go through, so the
 // aeroplane the gate flies is the aeroplane the tile builds.
@@ -2356,6 +2373,15 @@ function designBake(sel, over) {
   designMerge(out, spec);
   if (over && over.stock) designMerge(out, designStock(over.stock).spec);
   else if (over) designMerge(out, over.spec || over);
+  // G1109: THE FITTED STOCK TANKS (STOCK_TANKS above) are the card's whole
+  // vessel list, merged last - a card with no spec block merged `over` whole
+  // above, so its `tanks` key is taken back out of the spec
+  if (over && over.tanks) {
+    delete out.tanks;
+    designMerge(out, { energy: { vessels: JSON.parse(JSON.stringify(over.tanks)) } });
+    if (!(out.energy && out.energy.kind === 'battery'))
+      out.fuel = Object.assign({}, out.fuel || {}, { litres: +over.tanks.reduce((s, v) => s + (+v.capacity || 0), 0).toFixed(1) });
+  }
   // THE SEED (TAIL CHANTIER 2 P5; RULED 2026-09-07: lands with the vortex
   // flip, one fleet move). At birth the RULE sizes the DRAWN tail once: the
   // volume coefficients' Sh and Sv — what this pre-join spec would fly — over
