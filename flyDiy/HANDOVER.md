@@ -66627,3 +66627,31 @@ FRAMECOST: four ALLOW rows (G1113) for 'minimum' trees casting at the stand, att
 (its verdict line, fixed); the CORE tier on the final tree (the hybrid dropped): all PASS, FRAMECOST PASS with the ALLOW rows.
 TRAPS this night: `run_gates.js --help` RUNS the battery (it did, lockless, for seconds); a missed coordinator ping idled
 the GPU twice (~40 min each) - the relay now uses name-gated waiters (take only when RESERVED names you).
+
+## G1138-G1139 - LOAD-COMPILE ON TRAIN 18: THE RATCHET'S COMPILE SUM IS THE LOADING'S; THE DOME PRELINK TRIED AND DROPPED (2026-10-01, LOAD-COMPILE, local GPU)
+
+A0's question on train 18: the metal Cessna's ratchet 'compile' sum went 1305 -> 2464 ms from train 17 (first flight
+46.4 -> 45.0 s). ATTRIBUTION (the coordinator's ratchet files wt-mid17 / wt-t18 + the node key census, metal, 220812de vs
+74b582a3; tools/perf/lc/key_t17_metal / key_t18_metal in D:/Dev/wt-loadcompile): the whole rise is the shed's 'compile'
+step (0.97 / 1.25 -> 2.24 / 2.28 s) and it is a MOVE from first light (firstFrame 1.81 / 2.09 -> 0.56 / 0.46 s; the two
+steps' sum 2.78 / 3.34 -> 2.80 / 2.74 s): C0c's 1d11c6c7 applies the shed's day in the compile step, so the sky dome's and
+the cloud dome's links (and the probe's one bake) are paid there (census: compile 3 -> 5 new programs, firstFrame 2 -> 0,
+worldCompile 6 = 6, craft 2 = 2). The rest of train 18 is not in those steps (AS4b's pavement: one program, keyed under
+'town' by the prelink; spec -10 / snapshot +2; nothing of TREES-NEAR or C3b/C3c).
+
+**G1139 (tools/rollout_ratchet.js): 'compile' = the GARAGE boot's worldCompile + compile + craft + firstFrame.** The sum
+read every step of those names in the run - a settings screen has its own 'compile' (the Cub's --settings runs: ~32 s of
+a ~35 s "compile") - and left first light out, so a move between compile and firstFrame read as a rise. Re-read with it,
+train 17 -> 18: metal 3.0 -> 2.9 s, Cub 4.5 -> 3.2 s. **THE BASELINE MUST BE RE-TAKEN at the next landing** (`--update`):
+against the old one this sum reads higher (it now holds firstFrame, and the Cub's falls by ~30 s).
+
+**G1138, TRIED AND DROPPED: the day applied before the snapshot's shed prelink** (shedDayTick() at the head of
+shedPrelink, so the domes link in the background). Node: the compile step's new programs 5 -> 3, no new key anywhere,
+ROUNDTRIP / FRAMECOST / PACE / UISMOKE / BOOT / PROGRAMS PASS. GPU (RTX 3080, the metal Cessna, one shared profile, a
+warm-up discarded, ABBA, --profile-boot; master 74b582a3 vs G1138, D:/Dev/wt-loadcompile/flyDiy/tools/perf/lc/y_*.json):
+the compile step 2.12 / 1.85 -> 1.16 / 0.81 s, but firstFrame 0.89 / 0.43 -> 1.07 / 1.61 s and its worst task 238 / 170
+-> 710 / 813 ms - ~550 ms of getProgramInfoLog waits inside first light's render: a program the compile step's own passes
+used to wait for was still linking when first light drew (no new key in node: a GPU-side link the early start does not
+finish in time). tGarage 42.4 / 40.4 vs 41.4 / 40.4 s, first flight 45.7 / 43.7 vs 44.7 / 43.7 s: no gain, a worse first
+light - not landed. If tried again: have first light wait for the shed's programs (programsReady before the loop's
+first draw, as 'frames' does) rather than move the links.
