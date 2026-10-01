@@ -70,6 +70,10 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  { key: 'stand/draws.shadow', build: 'cub', upTo: 177.0, why: 'G1119 the ~1 s post-roll settle: the eye-keyed levels the world roll\'s establishing view switched near the shed (the parked aeroplanes\' detailed meshes, LOD-switched meshes, the near-tier houses) stepping back on their own budgets - +75 shadow draws a frame at +20 flight frames, IDENTICAL at +60 (tools/_rollreal_shadowdiff.js); capped at the measured tail (+36.0)', g: 'G1119' },
+  { key: 'stand/tris.shadow', build: 'cub', upTo: 2837011, why: 'G1119 the same ~1 s post-roll settle (+346734 tris measured, +1 %)', g: 'G1119' },
+  { key: 'stand/draws.shadow', build: 'cessna', upTo: 185.0, why: 'G1119 the ~1 s post-roll settle: the eye-keyed levels the world roll\'s establishing view switched near the shed (the parked aeroplanes\' detailed meshes, LOD-switched meshes, the near-tier houses) stepping back on their own budgets - +75 shadow draws a frame at +20 flight frames, IDENTICAL at +60 (tools/_rollreal_shadowdiff.js); capped at the measured tail (+36.5)', g: 'G1119' },
+  { key: 'stand/tris.shadow', build: 'cessna', upTo: 2967280, why: 'G1119 the same ~1 s post-roll settle (+346776 tris measured, +1 %)', g: 'G1119' },
   // B1-LAG (2026-09-28): the parked tree rungs' stand-ins compiled lit and through their depth variants under the roll-out
   // screen - two tree materials and their two depth programs no warm-up had met (R1's +32 s link in the taxi, 567 ms)
   { key: 'boot/rollout:images/links', build: '*', upTo: 6, why: 'the parked rungs\' programs linked under the screen (rungPrelink), not in the taxi', g: 'G730' },
