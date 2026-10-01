@@ -1532,7 +1532,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // to move both the terrain and the trees to see what's best". The baked
     // albedo stays the fallback (and the minimap's). Textures sampled by
     // world position; the tint is sRGB (decoded on sample under r152+).
-    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.0, sat: 1.0, snow: 890, shore: 1.0, mode: 0 };
+    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.0, sat: 1.0, snow: 890, shore: 1.0, wet: 1.0, mode: 0 };
     // THE STACK (G404, the user: "a way to edit the stack, like I did in the
     // bench - every layer, on/off, blend mode, alpha"): five albedo layers in
     // a fixed order, each with the bench's twelve blend modes and an opacity.
@@ -1594,7 +1594,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uGPackB: { value: pk4(ISLA.ndvi, ISLA.ttype, 0, null) },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
-        uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
+        uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore }, uGWet: { value: GROUND.wet },
         uGP90: { value: Math.max(4, (ISLA.canopyP90 || 15)) },
         uGMode: { value: 0 }, uGHMax: { value: Math.max(100, ISLA.hMax || 1.1e3) },   // (1.1e3: GATE SITE reads a bare 1100 as the old runway length - red since G400)
         uGBlur: { value: GROUND.classBlur }, uGWobble: { value: GROUND.edgeWobble }, uGWaterMap: { value: GROUND.waterMap }, uGCell: { value: G.cell },
@@ -1665,7 +1665,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  if (i == 0) return vec3(0.02,0.05,0.30); if (i == 1) return vec3(0.05,0.35,0.95); if (i == 2) return vec3(0.75,0.85,0.25); if (i == 3) return vec3(0.35,0.55,0.15);\n' +
             '  if (i == 4) return vec3(0.95,0.85,0.55); if (i == 5) return vec3(0.55,0.50,0.45); if (i == 6) return vec3(0.30,0.28,0.28); if (i == 7) return vec3(0.60,0.65,0.05);\n' +
             '  if (i == 8) return vec3(0.02,0.35,0.05); if (i == 9) return vec3(0.98,0.98,1.0); if (i == 15) return vec3(0.45,0.95,0.20); return vec3(0.95,0.10,0.10); }\n' +
-            'uniform float uGOverlay, uGShade, uGLight, uGSat, uGSnow, uGShore, uGP90, uGHMax; uniform int uGMode;\n' +
+            'uniform float uGOverlay, uGShade, uGLight, uGSat, uGSnow, uGShore, uGWet, uGP90, uGHMax; uniform int uGMode;\n' +
             'uniform int uLOn[5]; uniform int uLMode[5]; uniform float uLOp[5]; uniform int uLStart;\n' +
             'float gLuma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }\n' +
             'vec3 gBlend(vec3 b, vec3 s, int m){\n' +
@@ -1761,6 +1761,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // column - and darkens into the seabed's colour beyond; the water shader's column opacity (its own
             // 1:12 beach ramp) is what makes it turquoise)
             '  if (sd < 0.0 && vWPi.y < 0.6) t = mix(t, mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd)), smoothstep(0.0, 60.0, -sd));\n' +
+            // G795 THE BED IS WET (W-LOOK, the user on the harbour from 40 m: "I can't even clearly see where the water line
+            // lies"). G460.5 keeps the beach's own texture under the first 60 m of water - and it was the DRY beach's: the
+            // sand under the surface read as the sand above it, nothing marked the line. A wet grain reflects less (the
+            // water film's refraction traps the light it would have scattered out: sand ~0.5-0.6 of its dry albedo, Lekner
+            // & Dorf 1988), so the bed darkens below the sea's level and over the swash band just above it (+0.9 m), the
+            // darker strip every real shore draws at its waterline. Near the coast only (the field's first 60 m inland)
+            // so a low meadow inland stays dry. GROUND.wet 0 = the old paint.
+            '  t *= 1.0 - 0.45 * uGWet * smoothstep(0.9, -0.3, vWPi.y) * smoothstep(60.0, 20.0, sd);\n' +
             '  float gl = dot(t, vec3(0.299, 0.587, 0.114));\n' +
             '  t = mix(vec3(gl), t, uGSat) * uGLight;\n' +
             '  if (uGMode == 1) t = texture2D(uGTint, guv).rgb;\n' +
@@ -1826,7 +1834,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         try { localStorage.setItem('flydiy.ground.stack', JSON.stringify(STACK)); } catch (e) {}
         return Object.assign({}, l); },
       set: o => { for (const k in o) if (k in GROUND && k !== 'on') { GROUND[k] = +o[k];
-        const u = { overlay: 'uGOverlay', shade: 'uGShade', light: 'uGLight', sat: 'uGSat', snow: 'uGSnow', shore: 'uGShore', mode: 'uGMode',
+        const u = { overlay: 'uGOverlay', shade: 'uGShade', light: 'uGLight', sat: 'uGSat', snow: 'uGSnow', shore: 'uGShore', wet: 'uGWet', mode: 'uGMode',
                     classBlur: 'uGBlur', edgeWobble: 'uGWobble', waterMap: 'uGWaterMap' }[k];
         if (u && gU[u]) gU[u].value = GROUND[k]; } classWeights(); return groundApi.get(); },
       classWeights: () => !!(gU.uGW1 && gU.uGW1.value.image.width > 1),   // built yet? (AS1, G906: on demand)
