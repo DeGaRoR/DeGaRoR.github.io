@@ -67529,3 +67529,10 @@ fade starts as it goes (click -> stand 9.0-9.2 s, the copy 0.3 ms). ?rollanim=ba
 (G1115). GATE ROLLANIM 777 PASS (a front-shot block: every archetype held, in front of the CG on the door's side, legal,
 accelerating, out of the picture at the end, the lens put back); ROUNDTRIP, UISMOKE, STAND, ASSETS, HANGAR PASS. The shot's
 cost is the G1115 shot's (the same fixed eye and fade; only the eye's place moved): no timed run (A0).
+**G1178 BOTH FLOATPLANES** (the user, via A0: "the Cessna floats and the twin-something on floats" are validated too). The
+water section runs the Cessna floats (bugReports/cessnaFloatsWOrks.json) AND the twin-582 on floats: the user's twin
+ultralight (tools/fixtures/build_v7_ultralight_2026-09-05.json, the base of the 'floatplane' stock card) with its gear
+set to floats as GATE FLOATS flies it - spec.gear.type 'floats' AND the editor's own row, spec.cage.gearFloats 1 (the
+gear type alone is undone by the loading's commit from the editor: in node the twin then booted on wheels at HOME). Node
+check (the page, the bench's patch): hydro on, two engines, rolled out onto the water 711 m from the SEA lane's centre,
+the pilot's run under way (ROLL, 7 m/s). Its low pass at 32 m/s (the ultralight). --plan: 122 scenes, ~43 min.

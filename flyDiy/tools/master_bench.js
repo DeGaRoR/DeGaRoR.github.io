@@ -17,8 +17,9 @@
 //   SCENES - per build: the garage (the shed's own view, 6 s), the roll-out shot (click -> flight), and at EVERY land
 //            location the world lists (FLIGHT_PROBE.world().aerodromes, kind 'strip' - not a hand list): taxi from the
 //            stand in the chase view, the same taxi in the cockpit view, and a LOW PASS (~60 m AGL along the strip,
-//            the pilot re-engaged in the air). The water: the floatplane's run on its lane (the game puts a float build
-//            on the SEA lane whatever the pick) and a low pass over every water base.
+//            the pilot re-engaged in the air). The water: BOTH floatplanes the user validated - the Cessna floats and the
+//            twin-582 on floats (G1178) - each on its lane (the game puts a float build on the SEA lane whatever the pick)
+//            and a low pass over every water base.
 //   STRESS - the Cub at HOME, each from its own (warm) load: preset ultra; gamer with shadows ultra; the town on
 //            (?town=1). Taxi chase + low pass each.
 //   PER SCENE: fps DELIVERED (frames / wall), the UNEVEN share (consecutive intervals changing their refresh count - the
@@ -48,12 +49,17 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const flag = k => argv.includes('--' + k);
 const ROOT = path.join(__dirname, '..'), REPO = path.resolve(ROOT, '..');
 const SECS = { garage: +opt('garage', 6), taxi: +opt('taxi', 15), cockpit: +opt('cockpit', 10), pass: +opt('pass', 15), water: +opt('water', 25) };
-const BUILDS = {   // the three the user validated, and the floatplane for the water (W-CHECK's: cessnaFloats was rejected)
+const BUILDS = {   // the three the user validated, and the two floatplanes for the water (W-CHECK's Cessna: cessnaFloats was rejected)
   cub: { label: 'Cub', build: 'default' },
   jodel: { label: 'Jodel', build: 'builds/jodel_2026-09-20_corrected.json' },
   metal: { label: 'metal Cessna', build: 'bugReports/cessnaMetal (1).json' },
-  floats: { label: 'floatplane', build: 'bugReports/cessnaFloatsWOrks.json' },
+  floats: { label: 'Cessna floats', build: 'bugReports/cessnaFloatsWOrks.json' },
+  // THE TWIN ON FLOATS (the user, 2026-10-01: "the Cessna floats and the twin-something on floats" are validated too): the
+  // user's twin-582 ultralight - the 'floatplane' stock card (tools/_cage_design.js, "a default game plane, along the cub
+  // and the jodel") is built on it - flown as GATE FLOATS / GATE SEAPLANE fly it: the fixture with gear.type 'floats'
+  twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },   // (the editor reads its own row: cage.gearFloats)
 };
+const WATER = ['floats', 'twinFloats'];
 const WANT = (opt('builds', 'cub,jodel,metal')).split(',').filter(b => BUILDS[b]);
 const ONLY = new Set((opt('only', 'loads,garage,taxi,pass,water,stress')).split(','));
 const STRESS = [
@@ -105,11 +111,13 @@ function plan(places) {
       if (!i && ONLY.has('loads')) { add(B.label, 'round trip 2', 'roll out (no change) + back', EST.rolloutSame + EST.rollin); }
     });
   }
-  if (ONLY.has('water')) {
-    add('floatplane', 'warm first load', 'navigation -> garage', EST.warmLoad);
-    add('floatplane', 'roll-out @SEA', 'the game puts floats on the SEA lane', EST.firstRollout);
-    add('floatplane', 'water taxi @SEA', 'the run on the lane', SECS.water);
-    for (const p of water) add('floatplane', 'low pass @' + p.id, p.name, SECS.pass + EST.settle + (p.id === 'SEA' ? 0 : 10));
+  if (ONLY.has('water')) for (const wk of WATER) {
+    const B = BUILDS[wk];
+    add(B.label, 'warm first load', 'navigation -> garage', EST.warmLoad);
+    add(B.label, 'roll-out @SEA', 'the game puts floats on the SEA lane', EST.firstRollout);
+    add(B.label, 'water taxi @SEA', 'the run on the lane', SECS.water);
+    for (const p of water) add(B.label, 'low pass @' + p.id, p.name, SECS.pass + EST.settle + (p.id === 'SEA' ? 0 : 10));
+    add(B.label, 'world -> garage', 'the way back', EST.rollin);
   }
   if (ONLY.has('stress')) for (const S of STRESS) {
     add('stress', S.label, 'Cub @HOME: warm load + roll-out', EST.warmLoad + EST.firstRollout + (S.q ? 20 : 0));
@@ -135,10 +143,11 @@ function stat(fr, lt, t0, t1) {
 }
 
 // ---- what the page is given before its first script --------------------------------------------------------------------
-function preScript(build, gfx) {
+function preScript(build, gfx, patch) {
   const L = [];
   if (build === 'default') L.push('try{localStorage.removeItem("flydiy.wip")}catch(e){}');
-  else L.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(fs.readFileSync(path.join(ROOT, build), 'utf8')) + ')}catch(e){}');
+  else { let txt = fs.readFileSync(path.join(ROOT, build), 'utf8'); if (patch) txt = JSON.stringify(patch(JSON.parse(txt)));
+    L.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(txt) + ')}catch(e){}'); }
   L.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
   // the flight's own prefs, the route and the world (rollout_perf G991): a warm profile keeps a peer's
   L.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
@@ -347,16 +356,17 @@ async function sweep() {
     // home again for the next build's load (the route is a pref: the preScript states HOME on every load)
   }
   // ---- the water ----
-  if (ONLY.has('water')) {
-    log('== floatplane (warm)');
-    const l = await b.load(BASE, preScript(BUILDS.floats.build, null));
-    await loadRow(b, 'floats', 'warm: navigation -> garage', l, true);
-    await S.trip('floats', 'garage -> world (the SEA lane)', 'rollout', A.rollOut); await S.flying();
-    await b.ev(A.cam('chase')); await S.scene('floats', 'water taxi @SEA', SECS.water);
+  if (ONLY.has('water')) for (const wk of WATER) {
+    const B = BUILDS[wk]; log('== ' + B.label + ' (warm)');
+    const l = await b.load(BASE, preScript(B.build, null, B.patch));
+    await loadRow(b, wk, 'warm: navigation -> garage', l, true);
+    await S.trip(wk, 'garage -> world (the SEA lane)', 'rollout', A.rollOut); await S.flying();
+    await b.ev(A.cam('chase')); await S.scene(wk, 'water taxi @SEA', SECS.water);
     for (const p of (places || []).filter(q => q.kind === 'water')) {
-      const ph = await b.ev(A.pass(p, 45), 20000).catch(e => 'error ' + e.message); await sleep((EST.settle + (p.id === 'SEA' ? 0 : 10)) * 1000);
-      await S.scene('floats', 'low pass @' + p.id, SECS.pass, { place: p.id, pilot: ph, teleport: p.id !== 'SEA' });
+      const ph = await b.ev(A.pass(p, wk === 'twinFloats' ? 32 : 45), 20000).catch(e => 'error ' + e.message); await sleep((EST.settle + (p.id === 'SEA' ? 0 : 10)) * 1000);
+      await S.scene(wk, 'low pass @' + p.id, SECS.pass, { place: p.id, pilot: ph, teleport: p.id !== 'SEA' });
     }
+    await S.trip(wk, 'world -> garage', 'rollin', A.rollIn);
   }
   // ---- stress ----
   if (ONLY.has('stress')) for (const X of STRESS) {
