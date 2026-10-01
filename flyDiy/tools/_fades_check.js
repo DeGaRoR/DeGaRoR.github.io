@@ -100,6 +100,10 @@ for (const N of [2, 3]) {
   ok(mk > part0 && part0 > 0 && mk - part0 < 4000, '2 app.js makes a disc for every prop part (the cage build)', mk + ' / ' + part0);
   ok(/ud\.disc\.update\(ud\.spinRate \* 60 \/ \(2 \* Math\.PI\), ax2 \? ud\.spinAng : p\.rotation\.x, sense, frameDt\(\)\)/.test(app), '2 ...and updates it in the spin loop at the shaft\'s rpm');
   ok(/renderer\.compileAsync\(dc\.mesh, camera, scene\)/.test(app), '2 ...and links its program at the build, not on the first frame that shows it');
+  // 2026-10-01 (the user: "the spinning prop does not render on top of the runway texture"): the disc is transparent and
+  // writes no depth, like the pavement (renderOrder 1.99-3), so it must sort in the aeroplane's see-through band
+  { const s = app.slice(mk, mk + 1500), ac = /const AERO_CLEAR = (\d+);/.exec(app);
+    ok(/dc\.mesh\.renderOrder = AERO_CLEAR;/.test(s) && ac && +ac[1] > 3, '2 ...and sorts in the craft\'s see-through band (renderOrder AERO_CLEAR = ' + (ac && ac[1]) + '), after every pavement (renderOrder <= 3)'); }
   ok(/'prop_disc\.js'/.test(build), '2 build.js ships prop_disc.js');
 }
 

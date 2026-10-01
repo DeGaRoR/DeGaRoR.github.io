@@ -163,6 +163,38 @@ console.log('4. THE HOOK RULES - one program for every pavement');
   verdict(/^\s*sh\s*=>\s*\{\s*if \(typeof ATMO !== 'undefined'\) ATMO\.inject\(sh\);/.test(src), 'ATMO.inject is the hook\'s first statement');
   const all = Object.values(G).join('\n');
   verdict(!/textureGrad|textureLod/.test(all), 'no textureGrad / textureLod on the arrays (fxc)');
+  // G1030 (B11-PAVEGRAIN, landed 2026-10-01) THE HEX FETCHES KEEP THEIR VERTEX: a CPU twin of pvTile's corner hand-out. Two points a hair apart on either
+  // side of a lattice edge (a 2 x 2 quad astride it): every fetch whose weight is worth anything must read the SAME
+  // corner on both sides, or the quad's implicit derivative spans two corners' offsets (the crawling lattice). The
+  // twin runs master's order too - it must fail there, or the test proves nothing.
+  {
+    const corners = (px, py, colour) => {
+      const skx = px, sky = -0.57735027 * px + 1.15470054 * py, bx = Math.floor(skx), by = Math.floor(sky);
+      const tx = skx - bx, ty = sky - by, tz = 1 - tx - ty, s = tz < 0 ? 1 : 0, s2 = 2 * s - 1;
+      let v = [[bx + s, by + s], [bx + s, by + 1 - s], [bx + 1 - s, by + s]], w = [-tz * s2, s - ty * s2, s - tx * s2];
+      if (colour) {
+        let cb = bx - by; cb -= 3 * Math.floor((cb + 0.5) / 3); let c2 = cb + s2; c2 -= 3 * Math.floor((c2 + 0.5) / 3);
+        const cc = [cb, c2, 3 - cb - c2], pick = k => cc.findIndex(c => Math.abs(c - k) < 0.5);
+        v = [0, 1, 2].map(k => v[pick(k)]); w = [0, 1, 2].map(k => w[pick(k)]);
+      }
+      const h = w.map(x => x * x * x), sum = h[0] + h[1] + h[2];
+      return { v, w: h.map(x => x / sum) };
+    };
+    const astride = colour => {
+      let bad = 0, n = 0, rnd = 12345; const r = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
+      for (let i = 0; i < 20000; i++) {
+        const x = (r() - 0.5) * 400, y = (r() - 0.5) * 400, a = r() * Math.PI, e = 0.004;
+        const A = corners(x, y, colour), B = corners(x + e * Math.cos(a), y + e * Math.sin(a), colour);
+        if (A.v.every((c, k) => c[0] === B.v[k][0] && c[1] === B.v[k][1])) continue;
+        n++;
+        for (let k = 0; k < 3; k++) if ((A.v[k][0] !== B.v[k][0] || A.v[k][1] !== B.v[k][1]) && Math.max(A.w[k], B.w[k]) > 1e-3) { bad++; break; }
+      }
+      return { bad, n };
+    };
+    const now = astride(true), old = astride(false);
+    verdict(now.n > 100 && now.bad === 0 && old.bad > old.n * 0.5 && /floor\(\(cb \+ 0\.5\) \/ 3\.0\)/.test(all),
+      `the hex fetches keep their corner across an edge: ${now.bad} of ${now.n} straddling pairs change a weighted corner (master's order: ${old.bad} of ${old.n})`);
+  }
   // every loop bound with a texture read inside is a uniform
   const loops = all.match(/for \(int \w+ = 0; \w+ < [^;]+;/g) || [];
   const bad = loops.filter(l => !/< u[A-Z]\w*/.test(l) && !/< (?:2|4);/.test(l) && !/<= 1;/.test(l));

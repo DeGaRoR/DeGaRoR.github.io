@@ -2300,6 +2300,11 @@
           // first frame that shows it (a start is at full weight within a second)
           if (typeof PROP_DISC !== 'undefined') try {
             const dc = pg.userData.disc = PROP_DISC.make(THREE, pg, null, pt.axis);
+            // THE DISC SORTS WITH THE AEROPLANE'S SEE-THROUGH PARTS (2026-10-01, the user: "the spinning prop does not
+            // render on top of the runway texture"): it is transparent and writes no depth, like the pavement, so the
+            // transparent list's order decides - and at renderOrder 0 it came BEFORE the pavement (1.99-3), which then
+            // painted over its lower half. AERO_CLEAR is the band every see-through part of the craft wears (above).
+            if (dc && dc.mesh) dc.mesh.renderOrder = AERO_CLEAR;
             if (dc && typeof renderer.compileAsync === 'function') {
               dc.mesh.visible = true;
               renderer.compileAsync(dc.mesh, camera, scene).catch(() => {});

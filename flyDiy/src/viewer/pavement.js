@@ -622,6 +622,25 @@ Smp pvTile(float layer, vec2 st, int slot) {
   float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
   vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
   vec2 v1 = base + vec2(s, s), v2 = base + vec2(s, 1.0 - s), v3 = base + vec2(1.0 - s, s);
+  // EACH FETCH KEEPS ITS VERTEX ACROSS A TRIANGLE EDGE (B11-PAVEGRAIN G1030, landed here 2026-10-01 - the user: "1-pixel
+  // lines ... colours feel scrambled ... they follow 3 directions and intersect forming triangles"). The three reads
+  // were handed out by the triangle (v1 = the corner at base or base + 1): crossing the diagonal SWAPS v2 and v3,
+  // crossing a cell edge moves all three, so a 2 x 2 quad astride an edge fed one texture() two different vertices'
+  // coordinates - offsets 7.3 tiles apart - and its implicit derivative asked for the smallest mip (16x anisotropy
+  // along a random axis): every triangle edge of the lattice drew a 1-2 px line of wrong-mip texels that crawled with
+  // the camera. The lattice (edges (1,0), (0,1), (1,-1)) is three-coloured by (i - j) mod 3 - every triangle holds one
+  // corner of each colour - so fetch k reads THE CORNER OF COLOUR k: across an edge the two shared corners stay in
+  // their fetch and the third comes in at weight 0. Derivatives are the surface's again; a few selects. (Mikkelsen's
+  // own answer passes the unrotated derivatives explicitly - explicit gradients on an array: an fxc internal error.) The rest
+  // of B11's branch (claude/upbeat-hertz-3fa42a: the noises' and the relief's footprint fades) is not taken here.
+  {
+    float cb = base.x - base.y; cb -= 3.0 * floor((cb + 0.5) / 3.0);   // v1's colour, 0..2 (v2 is cb + s2, v3 cb - s2)
+    float c2 = cb + s2; c2 -= 3.0 * floor((c2 + 0.5) / 3.0);
+    vec3 cc = vec3(cb, c2, 3.0 - cb - c2);
+    vec2 q0 = cc.x < 0.5 ? v1 : (cc.y < 0.5 ? v2 : v3), q1 = abs(cc.x - 1.0) < 0.5 ? v1 : (abs(cc.y - 1.0) < 0.5 ? v2 : v3), q2 = cc.x > 1.5 ? v1 : (cc.y > 1.5 ? v2 : v3);
+    w = vec3(cc.x < 0.5 ? w.x : (cc.y < 0.5 ? w.y : w.z), abs(cc.x - 1.0) < 0.5 ? w.x : (abs(cc.y - 1.0) < 0.5 ? w.y : w.z), cc.x > 1.5 ? w.x : (cc.y > 1.5 ? w.y : w.z));
+    v1 = q0; v2 = q1; v3 = q2;
+  }
   vec2 r1 = pvHash2(v1), r2 = pvHash2(v2), r3 = pvHash2(v3);
   float a1 = (r1.x - 0.5) * 2.0 * gRot, a2 = (r2.x - 0.5) * 2.0 * gRot, a3 = (r3.x - 0.5) * 2.0 * gRot;
   mat2 R1 = mat2(cos(a1), sin(a1), -sin(a1), cos(a1)), R2 = mat2(cos(a2), sin(a2), -sin(a2), cos(a2)), R3 = mat2(cos(a3), sin(a3), -sin(a3), cos(a3));
