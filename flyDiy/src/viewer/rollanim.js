@@ -965,18 +965,23 @@ const ROLLANIM = (() => {
       const tx = 2 * (qy * vw - qz * vy), ty = 2 * (qz * vx - qx * vw), tz = 2 * (qx * vy - qy * vx);
       const rx = vx + qw * tx + (qy * tz - qz * ty), ry = vy + qw * ty + (qz * tx - qx * tz), rz = vw + qw * tz + (qx * ty - qy * tx);
       const px = PA[0] - rx, py = P1[1] + PA[3] + st[6] - ry, pz = PA[1] - rz;
-      craft.quaternion.set(qx, qy, qz, qw); craft.position.set(px, py, pz);
-      if (contact) { contact.quaternion.set(qx, qy, qz, qw); contact.position.set(px, py, pz); }
+      // G1119 THE FIELDS WRITTEN, NOT SET: three's set(x, y, z[, w]) is a call that takes doubles, and when V8 does not
+      // inline it (polymorphic: Vector3's and Quaternion's set, the craft's and the contact's) every one is boxed - the
+      // same frame code measured 0 or 97.5 bytes a frame by the build around it (GATE ROLLANIM G1117). The quaternion's
+      // own fields (the matrix is composed from them; its Euler mirror is read by nothing here)
+      const CQ = craft.quaternion, CP = craft.position;
+      CQ._x = qx; CQ._y = qy; CQ._z = qz; CQ._w = qw; CP.x = px; CP.y = py; CP.z = pz;
+      if (contact) { const KQ = contact.quaternion, KP = contact.position; KQ._x = qx; KQ._y = qy; KQ._z = qz; KQ._w = qw; KP.x = px; KP.y = py; KP.z = pz; }
     }
     function frameCam(ended) {
       if (ended) { eyeV.set(e1[0], e1[1], e1[2]); lookV.set(l1[0], l1[1], l1[2]); return; }
       eyeW(W, st, 0, WF); const w = WF[0];
-      eyeV.set(e0[0] + (e1[0] - e0[0]) * w, e0[1] + (e1[1] - e0[1]) * w, e0[2] + (e1[2] - e0[2]) * w);
+      eyeV.x = e0[0] + (e1[0] - e0[0]) * w; eyeV.y = e0[1] + (e1[1] - e0[1]) * w; eyeV.z = e0[2] + (e1[2] - e0[2]) * w;   // (written: G1119)
       // the aim: the CG as the aeroplane carries it (q . cg + the offset)
       const qx = QQ[0], qy = QQ[1], qz = QQ[2], qw = QQ[3], vx = cg[0], vy = cg[1], vw = cg[2];
       const tx = 2 * (qy * vw - qz * vy), ty = 2 * (qz * vx - qx * vw), tz = 2 * (qx * vy - qy * vx);
-      lookV.set(vx + qw * tx + (qy * tz - qz * ty) + craft.position.x, vy + qw * ty + (qz * tx - qx * tz) + craft.position.y,
-        vw + qw * tz + (qx * ty - qy * tx) + craft.position.z);
+      const CP = craft.position;
+      lookV.x = vx + qw * tx + (qy * tz - qz * ty) + CP.x; lookV.y = vy + qw * ty + (qz * tx - qx * tz) + CP.y; lookV.z = vw + qw * tz + (qx * ty - qy * tx) + CP.z;
     }
     function applyCam() {
       if (h.done) return false;
@@ -1021,6 +1026,11 @@ const ROLLANIM = (() => {
     function stopInput() { if (win) { win.removeEventListener('pointerdown', onInput, true); win.removeEventListener('keydown', onInput, true); } }
     active = h;
     place(false); frameCam(false);                      // the first frame's pose now: in the doorway, the establishing eye
+    // G1119 ...AND THE CAMERA ON IT NOW. The host's frame runs worldUpdate BEFORE it places the camera, so the world's first
+    // frame after the cut read the camera the shed left (the garage's coordinates, ~700 m from the stand): the cover ring
+    // (cover_ring.js: cells round the EYE) dropped every cell it had and planted them all again over the shot - 265 cells
+    // built in the roll (node), the +111 ms/s the shot's Chrome profile found. Placed here, the first update sees the shot's eye
+    applyCam();
     return h;
   }
   function worldPlanOnly(o) { return worldPlan(o || {}); }

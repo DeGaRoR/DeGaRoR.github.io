@@ -37,7 +37,7 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
     return { b, d, links: r.links, main: r.draws.main || 0, shadow: r.draws.shadow || 0, other: r.draws.other || 0 }; };
   let lastRec = null;
   // G1119: the cover ring's cells built (cover_ring.js STAT.built)
-  const built = () => { try { const r = W.WORLD.cover && W.WORLD.cover(); return r && r.stat ? r.stat().built : -1; } catch (e) { return -1; } };
+  const built = () => { try { const r = W.TREE_FILL && W.TREE_FILL.cover && W.TREE_FILL.cover(); const st = r && r.stat ? r.stat() : null; return st ? st.built + '/' + st.live + (st.hidden ? 'h' : '') : -1; } catch (e) { return -1; } };
   cap.built = built;
   row = () => {
     if (cap.world && cap.world.h && !cap.world.h.done) cap.builtAtEnd = built();
@@ -64,7 +64,7 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
   await P.until(tripDone, 900000);
   await P.frames(120);
   const trip = W.FLYDIY_TRIPS[W.FLYDIY_TRIPS.length - 1];
-  console.log('  THE COVER RING: cells built ' + b0 + ' at the click, ' + cap.builtAtCut + ' at the cut, ' + (cap.builtAtEnd != null ? cap.builtAtEnd : '-') + ' at the end of the shot, ' + built() + ' after the first flight frames; the warm-up ' + JSON.stringify(W.FLYDIY_RA_WARM || null));
+  console.log('  THE COVER RING: cells built/live ' + b0 + ' at the click, ' + cap.builtAtCut + ' at the cut, ' + (cap.builtAtEnd != null ? cap.builtAtEnd : '-') + ' at the end of the shot, ' + built() + ' after the first flight frames; the warm-up ' + JSON.stringify(W.FLYDIY_RA_WARM || null));
   console.log('ROLLREAL PAGE: trip ' + JSON.stringify({ anim: trip.anim, where: trip.animWhere, world: trip.animWorld, ms: trip.ms, steps: trip.steps.filter(s => s.ran).map(s => s.id) }));
   if (Q.includes('rollreal=0')) {
     check(/^shed/.test(trip.animWhere) && trip.anim === 'played', 'option B played in the shed (' + trip.animWhere + ')');

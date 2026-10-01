@@ -7252,7 +7252,8 @@
     const D = (def && def.params && def.params.viewDist) || 12, standLook = new THREE.Vector3(a[0], a[1] + 1.5, a[2]);
     for (let i = 0; i < 4; i++) { const h = i * Math.PI / 2 + Math.PI / 4;
       pts.push([new THREE.Vector3(a[0] + 1.7 * D * Math.cos(h), a[1] + 3.3, a[2] + 1.7 * D * Math.sin(h)), standLook]); }
-    const cg = [a[0], a[1] + 1.5, a[2]], ring = WF.cover ? WF.cover() : null;
+    // (the ring's handle is the tree block's TREE_FILL.cover(); WF.cover is the canopy's uniforms)
+    const cg = [a[0], a[1] + 1.5, a[2]], TF = typeof window !== 'undefined' ? window.TREE_FILL : null, ring = TF && typeof TF.cover === 'function' ? TF.cover() : null;
     const queued = () => { try { const st = ring && ring.stat ? ring.stat() : null; return st ? st.queued : 0; } catch (e) { return 0; } };
     let pumps = 0;
     return new Promise(res => {
