@@ -67117,3 +67117,16 @@ metal Cessna - revealcam: the first flight frames no longer replant the cover ri
 roll-out 2 runs the world's steps on both sides: the settings probe changed the graphics before it. The metal roll-out 2's
 ~1 s task is master's own: its bake.) The settings worst task (shadows=off's settle screen) is noise at this size, as on
 train 20.
+
+**G1115.1 THE FRONT SHOT (2026-10-01 evening, rolloutreal/front on 6699cfd8 - the user's verdict on the stills: "the principle is
+good, the camera angle is not. It should be the default 3/4 camera, so looking at the plane 3/4 FRONT and not back").** The
+shot's fixed eye is now the garage's own framing (app.js garageFraming: az -2.5, el 0.22 - or the low shed's, G439 - at 14 m:
+the orbit the garage opens on; garageCamera reads the same function), at the garage's lens. It is tried as it is, then
+farther or nearer (x1.15, x1.3, x0.9) and a wider lens only if the roll would sweep through the eye, the eye is not legal
+in the room, or more than two corners of the aeroplane's box fall past 88 % of the frame: every archetype keeps x1.00 at
+the garage's lens but the twin hauler (x1.15). The aeroplane checks its surfaces facing the camera, then rolls TOWARD and
+past it; THE ROLL ENDS AS IT LEAVES THE PICTURE (every corner behind the eye or past one edge, +1 m; at least 4 m) and the
+fade starts as it goes (click -> stand 9.0-9.2 s, the copy 0.3 ms). ?rollanim=back keeps the bay search round the tail
+(G1115). GATE ROLLANIM 777 PASS (a front-shot block: every archetype held, in front of the CG on the door's side, legal,
+accelerating, out of the picture at the end, the lens put back); ROUNDTRIP, UISMOKE, STAND, ASSETS, HANGAR PASS. The shot's
+cost is the G1115 shot's (the same fixed eye and fade; only the eye's place moved): no timed run (A0).
