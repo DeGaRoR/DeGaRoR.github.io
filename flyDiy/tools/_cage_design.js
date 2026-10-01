@@ -2060,6 +2060,11 @@ const ARCHETYPES = [
 // edit the search, not the numbers. Each entry is the card's whole vessel
 // list, its refitted body tanks in place.
 const STOCK_TANKS = {
+  stearman: [{"bay":"wingRoot","capacity":174,"rot":0,"form":"box"}],
+  tigermoth: [{"bay":"wingRoot","capacity":87,"rot":0,"form":"box"}],
+  skymaster: [{"bay":"wingRoot","capacity":90,"rot":0,"form":"box"}],
+  pietenpol: [{"bay":"wingRoot","capacity":60,"rot":0,"form":"box"}],
+  sesqui: [{"bay":"wingRoot","capacity":90,"rot":0,"form":"box"}],
   jodel: [{"bay":"nose","capacity":22,"along":-0.2012,"lv":0.6566,"rot":0,"form":"deck","dims":{"L":0.19,"W":0.829,"H":0.194,"profile":[1,1,1,0.9899,0.9194,0.8306,0.7417,0.6069,0.5413]}}],
   ul1: [{"bay":"nose","capacity":13,"along":-0.1517,"lv":0.6088,"rot":0,"form":"deck","dims":{"L":0.172,"W":0.498,"H":0.228,"profile":[1,0.9985,0.9808,0.9272,0.8739,0.7659,0.6319,0.4622,0.3829]}}],
   floatplane: [{"bay":"nose","capacity":13,"along":-0.2529,"lv":0.601,"rot":0,"form":"deck","dims":{"L":0.303,"W":0.225,"H":0.22,"profile":[1,1,1,1,1,1,1,1,1]}}],

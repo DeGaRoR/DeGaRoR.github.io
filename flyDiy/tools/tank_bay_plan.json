@@ -1,0 +1,13 @@
+{
+  "_": "G1155 (CUB-COCKPIT 2026-10-01): the held stock cards' tanks in the bay their own description names (A0-approved). tools/tank_refit.js --plan this file asks the layer's fit in THAT bay; tools/tank_refit_apply.js --plan writes the card's explicit vessel list. Capacities are the cards' declared litres; the Pitts carries two vessels (a nose deck tank at what fits, the rest in the upper plane's root).",
+  "beaver":     [{ "bay": "underFloor", "capacity": 360 }],
+  "stearman":   [{ "bay": "wingRoot",   "capacity": 174 }],
+  "tigermoth":  [{ "bay": "wingRoot",   "capacity": 87 }],
+  "skymaster":  [{ "bay": "wingRoot",   "capacity": 90 }],
+  "pietenpol":  [{ "bay": "wingRoot",   "capacity": 60 }],
+  "twinBush":   [{ "bay": "wingRoot",   "capacity": 120 }],
+  "p38":        [{ "bay": "wingRoot",   "capacity": 70 }],
+  "pittsAlike": [{ "bay": "nose",       "capacity": 90 }, { "bay": "wingRoot", "capacity": 70 }],
+  "sesqui":     [{ "bay": "wingRoot",   "capacity": 90 }],
+  "mw5":        [{ "bay": "cabin",      "capacity": 20 }]
+}

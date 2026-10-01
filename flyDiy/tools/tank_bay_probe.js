@@ -97,12 +97,21 @@ function measureBay(env) {
         yTop = Math.min(yTop, up[0].point.y - WALL);
       }
       if (miss || !isFinite(yTop)) { cols.push(null); continue; }
+      // THE CREW AS AN OBSTACLE, either way (G1155): in a nose bay the feet and
+      // pedals are BELOW the tank (a floor), under the cabin floor the board and
+      // the seats are ABOVE it (a ceiling) - split at the cell's middle, as the
+      // engine below; yCrew is kept as the highest crew point under the middle
       let yCrew = -Infinity;
-      for (const p of crew) if (Math.abs(p[0] - x) <= dx / 2 && Math.abs(p[2] - z) <= dz / 2 && p[1] < yTop + 0.2 && p[1] > yCrew) yCrew = p[1];
+      const crewHere = [];
+      for (const p of crew) if (Math.abs(p[0] - x) <= dx / 2 && Math.abs(p[2] - z) <= dz / 2 && p[1] < yTop + 0.2) crewHere.push(p[1]);
       rc.set(new THREE.Vector3(x, floor0, z), new THREE.Vector3(0, 1, 0));
       const dh = rc.intersectObject(dash, false).filter(h => h.point.y < yTop + WALL);
-      let yLo = Math.max(floor0, isFinite(yCrew) ? yCrew + MARGIN : floor0);
+      let yLo = floor0;
+      { const mid = 0.5 * (floor0 + yTop);
+        for (const y of crewHere) if (y <= mid) { if (y > yCrew) yCrew = y; yLo = Math.max(yLo, y + MARGIN); } }
       let yHi = dh.length ? Math.min(yTop, dh[0].point.y - MARGIN) : yTop;
+      { const mid = 0.5 * (floor0 + yTop);
+        for (const y of crewHere) if (y > mid) yHi = Math.min(yHi, y - MARGIN); }
       // the section's own walls, at the cell's two flanks (its outer x is the tighter)
       for (const fx of [-0.5, 0.5]) {
         const ex = extentAt(x + fx * dx, z);

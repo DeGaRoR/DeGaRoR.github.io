@@ -1377,7 +1377,7 @@ function fitOf(cand, opts) {
     if (!(fast && results[0] && !results[0].ok)) crewHits(ctx.scene, inv, results);
     if (!(fast && results[0] && !results[0].ok)) layerHits(ctx.scene, inv, results, ctx);
     const r = results[0];
-    return r ? { ok: !!r.ok, why: r.why.slice(), c: r.c, e: r.e, rot: r.rot, on: r.on, v,
+    return r ? { ok: !!r.ok, why: r.why.slice(), c: r.c, e: r.e, rot: r.rot, on: r.on, v, along: r.along, samples: r.samples, pts: r.pts,
                  section: r.section, crewHits: r.crewHits || 0, layerHits: r.layerHits || 0 } : null;
   } finally { EN.vessels = keep; FIT_ASKING = false; }
 }

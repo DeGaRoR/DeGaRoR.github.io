@@ -22,7 +22,9 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const T = __dirname;
 const FILE = path.join(T, '_cage_design.js');
 const table = JSON.parse(fs.readFileSync(opt('in'), 'utf8'));
-const HOLD = (opt('hold', '') || '').split(',').filter(Boolean);
+// --hold key[=reason],... (G1155): the reason is the report's, e.g. 'pittsAlike=flight'
+const HOLD = {};
+for (const h of (opt('hold', '') || '').split(',').filter(Boolean)) { const [k, why] = h.split('='); HOLD[k] = why || 'its described tank is not in this bay'; }
 const deck = opt('deck') ? JSON.parse(fs.readFileSync(opt('deck'), 'utf8')) : {};
 const BJ = require(path.join(T, '_bake_joined.js'));
 const { D, C } = BJ.loadPanel();
@@ -38,6 +40,9 @@ for (const t of table) {
   // resolved spec's lift from fuel.litres (G1109's seeding rule)
   let own = (birth.energy && birth.energy.vessels) || [];
   if (!own.length) { try { own = (C.resolveSpec(JSON.parse(JSON.stringify(birth))).spec.energy || {}).vessels || []; } catch (e) { own = []; } }
+  // G1155: --plan names the card's vessels (the bays its description gives)
+  const PLANF = opt('plan') ? JSON.parse(fs.readFileSync(opt('plan'), 'utf8')) : {};
+  if (Array.isArray(PLANF[t.key])) own = PLANF[t.key].map(p => ({ bay: p.bay, capacity: +p.capacity }));
   const list = JSON.parse(JSON.stringify(own));
   let changed = false;
   for (const v of t.vessels) {
@@ -52,9 +57,9 @@ for (const t of table) {
     // (the user's ruling). Held: a vessel the layer sent to another bay than the
     // card's (the Chinook's strut pod, owed) - its refit would be of the wrong tank
     const remapped = list[v.i] && list[v.i].bay !== v.bay;
-    // --hold a,b: cards whose DESCRIBED tank is not in this bay (the Beaver's belly
-    // tanks, the biplanes' centre sections...) - held for their own bay (A0, G1155+)
-    if (HOLD.includes(t.key)) { row.verdict = 'HELD: its described tank is not in this bay (G1155+)'; report.push(row); continue; }
+    // --hold: cards held by hand - a described tank not in this bay yet (the
+    // Beaver's belly), a card balance problem, a flight cell worse than master
+    if (HOLD[t.key]) { row.verdict = 'HELD: ' + HOLD[t.key] + ' (G1155+)'; report.push(row); continue; }
     const ships = !remapped && (argv.includes('--within15') ? (v.new.capacity >= v.design - 0.05 || v.new.capacity >= target / 1.15) : true);
     row.verdict = remapped ? 'HELD: the layer remapped its bay (' + list[v.i].bay + ' -> ' + v.bay + ')' : ships ? 'SHIPS' : 'HELD (outside 15 %)';
     report.push(row);

@@ -44,7 +44,7 @@ if (!argv.includes('--child')) {
   const one = () => new Promise(res => {
     const i = next++; if (i >= keys.length) return res(false);
     const jf = path.join(tmp, keys[i] + '.json');
-    const ch = spawn(process.execPath, ['--max-old-space-size=4096', __filename, '--child', '--only', keys[i], '--json', jf].concat(argv.includes('--sweep') ? ['--sweep'] : []), { stdio: ['ignore', 'pipe', 'pipe'] });
+    const ch = spawn(process.execPath, ['--max-old-space-size=4096', __filename, '--child', '--only', keys[i], '--json', jf].concat(argv.includes('--sweep') ? ['--sweep'] : []).concat(opt('plan') ? ['--plan', opt('plan')] : []), { stdio: ['ignore', 'pipe', 'pipe'] });
     let log = '';
     ch.stdout.on('data', d => { log += d; }); ch.stderr.on('data', d => { log += d; });
     ch.on('close', code => {
@@ -86,6 +86,13 @@ const birth = C.genNormaliseSpec(D.designBake(card.sel, card.over));
 // exported as every card's energy. Seeded from the card's birth spec first,
 // the layer and the join carry what the design declares (the Caravan's 1257 L
 // in the wings, not a nose tank it does not have).
+// G1155: --plan <file> puts the card's tanks in the bays ITS DESCRIPTION names
+// (tools/tank_bay_plan.json) - the search then asks the fit in that bay
+const PLAN = opt('plan') ? JSON.parse(fs.readFileSync(opt('plan'), 'utf8')) : {};
+if (Array.isArray(PLAN[key])) {
+  birth.energy = Object.assign({}, birth.energy, { vessels: PLAN[key].map(p => ({ bay: p.bay, capacity: +p.capacity, along: null, lv: null, rot: 0, form: 'box' })) });
+  if (birth.energy.kind !== 'battery') birth.fuel = Object.assign({}, birth.fuel, { litres: PLAN[key].reduce((s, p) => s + (+p.capacity || 0), 0) });
+}
 W.CAGE_ENERGY.fromSpec(birth.energy, birth);
 const spec = BJ.bakeCard(key).spec;
 const birthCap = i => { const b = birth.energy && birth.energy.vessels && birth.energy.vessels[i]; return b && b.capacity > 0 ? +b.capacity : null; };
@@ -100,7 +107,45 @@ const res0 = E.results() || [];
 EN.vessels.forEach((v0, i) => {
   const r0 = res0.find(r => r.v === v0);
   const bay = bays.find(b => b.key === v0.bay);
-  if (!r0 || r0.on !== 'body' || !bay) return;
+  if (!r0 || !bay) return;
+  // A WING BAY (G1155): the wing's own loft is the tank's shape - the layer
+  // fills the wing between its spars outboard of a station until the litres
+  // are met (wingPlace) - so the search is the station along the bay's span x
+  // the capacity, down in 2 % steps from the design's, the first that fits
+  if (r0.on === 'wing') {
+    const old = JSON.parse(JSON.stringify(v0));
+    const design = birthCap(i) || old.capacity;
+    const rec = { i, bay: v0.bay, design, old: { capacity: old.capacity, along: old.along }, oldFit: { ok: !!r0.ok, why: r0.why.slice() } };
+    out.vessels.push(rec);
+    const lo = bay.span ? bay.span[0] : 0.12, hi = bay.span ? bay.span[1] : 0.55;
+    const stations = [null]; for (let k = 0; k <= 6; k++) stations.push(+(lo + (hi - lo) * k / 6).toFixed(4));
+    let got = null, tried = 0;
+    for (let k = 50; !got && k >= 1; k--) {
+      const cap = k === 50 ? design : Math.round(design * k / 50 * 10) / 10;
+      for (const t of stations) {
+        tried++;
+        const f = E.fitOf(Object.assign({}, old, { bay: v0.bay, capacity: cap, along: t, dims: null, form: 'box' }), { fast: true });
+        if (f && f.ok) { got = f; break; }
+      }
+    }
+    rec.tried = tried;
+    if (!got) { rec.how = 'none'; rec.new = null; return; }
+    rec.how = got.v.capacity >= design - 0.05 ? 'placement (wing)' : 'capacity (wing)';
+    rec.new = { capacity: got.v.capacity, along: got.v.along, lv: null, rot: 0, form: 'box', dims: null };
+    return;
+  }
+  if (r0.on !== 'body') return;
+  // THE REFERENCE IS INSIDE THE BAY (G1155): a vessel whose own station is off
+  // the body (the Beaver's lifted tank sat 4.08 m aft, "runs out of the body")
+  // sized every candidate off the section at THAT station - the tail's. A small
+  // probe vessel at the bay's middle gives the section, the centre and the
+  // station the shapes and the probe are measured from instead
+  let rRef = r0;
+  if (!(r0.section && r0.section.band) || (r0.why || []).some(w => /runs out of the body|past the bay|outside the bay/.test(w))) {
+    const f = E.fitOf(Object.assign({}, v0, { along: +(0.5 * (bay.x0 + bay.x1)).toFixed(4), lv: 0.5, form: 'box',
+      dims: { L: +Math.min(0.15, 0.5 * (bay.x1 - bay.x0)).toFixed(3), W: 0.2, H: 0.1 } }));
+    if (f && f.section && f.section.band && f.c) rRef = Object.assign({}, r0, { section: f.section, c: f.c, along: f.along, samples: f.samples, pts: f.pts });
+  }
   const old = JSON.parse(JSON.stringify(v0));
   const rec = { i, bay: v0.bay, old: { capacity: old.capacity, along: old.along, lv: old.lv, rot: old.rot || 0, form: old.form || 'box', dims: old.dims || null },
                 oldFit: { ok: !!r0.ok, why: r0.why.slice(), c: r0.c } };
@@ -108,13 +153,13 @@ EN.vessels.forEach((v0, i) => {
   if (r0.ok) { rec.how = 'kept'; rec.new = rec.old; rec.shift = 0; return; }
   // the bay's room: the section's inner width and the band's height at the
   // tank's own station, the bay's length
-  const sec = r0.section || {};
+  const sec = rRef.section || {};
   const Wmax = Math.max(0.1, (sec.xHi - sec.xLo) || 0.5);
   const Hmax = Math.max(0.08, sec.band ? sec.band[1] - sec.band[0] : 0.3);
   const Lbay = Math.max(0.05, bay.x1 - bay.x0);
-  const c0 = r0.c || [0, 0, 0];
+  const c0 = rRef.c || [0, 0, 0];
   const band = sec.band || [c0[1] - 0.1, c0[1] + 0.1];
-  const zOf = along => c0[2] - (along - (old.along != null ? old.along : 0.5 * (bay.x0 + bay.x1)));
+  const zOf = along => c0[2] - (along - (rRef.along != null ? rRef.along : old.along != null ? old.along : 0.5 * (bay.x0 + bay.x1)));
   const capOf = (dims, form) => E.capacityFromDims(dims, form);
   // the length that holds `cap` for a width, height and form (the layer's
   // capacity is monotonic in L): bisection
@@ -200,10 +245,10 @@ EN.vessels.forEach((v0, i) => {
   // shortened to the design's capacity when it could hold more than that.
   {
     const PB = require(path.join(T, 'tank_bay_probe.js'));
-    const m = PB.measureBay({ W, THREE: X.THREE, r: SCENE, res: r0, bay });
+    const m = PB.measureBay({ W, THREE: X.THREE, r: SCENE, res: rRef, bay });
     let deckGot = null;
     rec.deck = { prism: m && m.prism ? { litres: m.prism.litres, fuel: m.prism.fuel } : null };
-    const band = (r0.section && r0.section.band) || null;
+    const band = (rRef.section && rRef.section.band) || null;
     const lvOf = (yc, H) => band ? Math.max(0, Math.min(1, (yc - band[0]) / Math.max(1e-6, band[1] - band[0]))) : 0.5;
     const askDeck = dk => {
       const cand = { bay: v0.bay, form: 'deck', rot: 0, dims: dk.dims, along: +dk.along.toFixed(4), lv: +lvOf(dk.yc, dk.dims.H).toFixed(4) };
