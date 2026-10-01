@@ -261,6 +261,11 @@ for (const a of cards) {
   const RES = (W.CAGE_ENERGY.results() || []).filter(rr => rr.on === 'body' && rr.c);
   row.ok = RES.map(rr => !!rr.ok); row.why = RES.filter(rr => !rr.ok).map(rr => rr.why.join('; '));
   let anyUnfit = false;
+  // G1153: THE REFITTED STOCK TANKS FIT. A card the refit wrote (STOCK_TANKS,
+  // folded into its over.tanks) must draw every body tank at its own default
+  // capacity: that is what the user asked ("refit the tanks")
+  if (kCap === 1 && a.over && Array.isArray(a.over.tanks))
+    for (const rr of RES) check(!!rr.ok, a.key + ': the refitted stock tank fits its bay (' + rr.v.bay + ', ' + rr.v.capacity + ' L, ' + (rr.v.form || 'box') + ')', rr.why.join('; '));
   for (const rr of RES) {
     const vi = EN.vessels.indexOf(rr.v);
     const mine = all.filter(o => new RegExp('^ed(Vessel|Fuel)_' + vi + '(_|$)').test(o.name));
