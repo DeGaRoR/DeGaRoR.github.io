@@ -344,7 +344,9 @@ const ROLLANIM = (() => {
             const m = Math.max(Math.abs(V.x), Math.abs(V.y));
             if (!(Math.abs(V.x) <= S.bFit && V.y >= -S.bFit && V.y <= S.bTop && V.z < 1)) out++; else fill = Math.max(fill, m);
           }
-          const sc = bad * 1000 + inBox * 1000 + swept * 1000 + out * 200 + bay * 150 + (fv - cam.fov) * 1.5 + (s2 === sd ? 0 : 5) + (1 - fill) * 10 + G.pen;
+          // (the front shot IS the garage's own picture: its fit is reported, and moves the eye only past two corners out)
+          const outC = G.front ? Math.max(0, out - 2) * 200 : out * 200;
+          const sc = bad * 1000 + inBox * 1000 + swept * 1000 + outC + bay * 150 + (fv - cam.fov) * (G.front ? 20 : 1.5) + (s2 === sd ? 0 : 5) + (G.front ? 0 : (1 - fill) * 10) + G.pen;
           all.push({ sc, out, bay, ok: !bad && !inBox && !swept, eye: [p.x, p.y, p.z], look, fov: fv, hid: 0, front: G.front });
         }
       }
