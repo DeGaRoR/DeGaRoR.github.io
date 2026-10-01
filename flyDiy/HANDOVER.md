@@ -67003,3 +67003,14 @@ craft's PMREM mixed room -> world by one uniform across the door plane (prelinke
    | garage fps fresh | 54.2 / 55.2 | 53.8 / 53.6 | 38.5 | 39.3 |
    | taxi after (fps, uneven, p99) | 34.2 / 33.7, 0.156 / 0.138, 33.5 | 34.2 / 34.3, 0.146 / 0.145, 33.5 | 33.0, 0.134, 33.5 | 32.5, 0.104, 33.5 |
    The shot's own fps (click -> stand) is 39 on the Cub against the shed's 57.7 by design: the world roll at an even 30.
+
+**2026-10-01, OUT OF TRAIN 20 -> TRAIN 21: THE BATTERY'S THREE REDS (ac1f091a).** **GATE ROUNDTRIP CHANGED ITS CRITERION:**
+"roll-out 2 samples no ground en masse" capped the trip at 20 000 terrainH when the roll played in the shed and the world
+stood still. The world roll ticks the world as flight does (~80 terrainH a frame, the rate of the first 40 flight frames:
+3 178): ~33 000 a shot, roll-out 3 (no change, no step) 33 421, roll-out 2 36 527. The cap was there to catch a re-plant
+(the ring alone ~700 000); roll-out 2 is now judged by what it samples BEYOND roll-out 3's shot (36 527 - 33 421 = 3 106:
+the one placement of the new aeroplane). texImage2D still 0; its links / bufferData are the aircraft's steps (bake, craft).
+GATE ASSETS: the shed's dark-inside liner is MATLIB's (`shared(THREE, 'std', ..., 'shed-liner')`; hangar.js back to 43
+sites; _hangar_check stubs MATLIB). GATE STAND: the mergeShell lift anchors on SHELL's prefix (SHELL now carries `open`).
+The stand's tris.shadow 3.13 M in the train-20 battery = the ring-idle base 2.46 + this tail 0.347 + the 'mid' trees'
++0.32 (their caps on the old baseline): the train-21 assembly re-expresses both sets of caps on the ring-idle baseline (A0).
