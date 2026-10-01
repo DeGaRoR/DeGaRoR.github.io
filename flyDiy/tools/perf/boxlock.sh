@@ -32,8 +32,10 @@ case "$cmd" in
     while true; do
       if reserved_other; then :
       elif [ "$kind" = gpu ]; then
-        if [ ! -e "$gpu" ] && ! cpu_any && ( set -C; echo "$who $(date +%H:%M) $note" > "$gpu" ) 2>/dev/null; then
-          if cpu_any; then rm -f "$gpu"; else echo "boxlock: GPU taken by $who"; exit 0; fi
+        # 2026-10-01 (the user): GPU locks only - a GPU take no longer waits for CPU locks (a CPU lock is for a SHORT
+        # benchmark at most; node gates, builds, censuses, cooks and stills take no lock at all)
+        if [ ! -e "$gpu" ] && ( set -C; echo "$who $(date +%H:%M) $note" > "$gpu" ) 2>/dev/null; then
+          echo "boxlock: GPU taken by $who"; exit 0
         fi
       elif [ "$kind" = cpu ]; then
         f="$D/CPU_BATTERY_$who.lock"
