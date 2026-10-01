@@ -7026,7 +7026,8 @@
     if (window.FLOWN_BAKE && FLOWN_BAKE.FB.noWarmDraw) return null;   // (the isolation's ?fbake=nowarmdraw)
     const L = keptGroup().KEPT;
     window.__hyWarm = { n: L.length, model: model, at: performance.now() };   // (GATE FRAMECOST reads it at the crossing)
-    return L.length ? warmDrawSliced(scene, aa && aa.target ? aa.target() : null, null, L, craftInWorldNow).then(k => { window.__hyWarm.drawn = k; })
+    const FBW = FLOWN_BAKE.FB;   // (the dials: warmkey - one stand-in a program key; warmcanvas - into the canvas)
+    return L.length ? warmDrawSliced(scene, FBW.warmCanvas ? null : (aa && aa.target ? aa.target() : null), null, L, craftInWorldNow, { perKey: !!FBW.warmKey }).then(k => { window.__hyWarm.drawn = k; })
       .catch(e => console.warn('hybrid warm:', e && e.message)) : null;
   }
   function compileCraftLinks() {
@@ -11937,7 +11938,7 @@
   const WARM_LAYER = 29;
   // ONLY (the hybrid, flown_bake.js): these objects and nothing else, hidden or not - the flown model's kept live
   // meshes, drawn once under the craft step's screen so the band's first crossing links, uploads and first-draws nothing
-  function warmDrawSliced(sc, target, label, only, dress) {
+  function warmDrawSliced(sc, target, label, only, dress, wopt) {
     const D = typeof dress === 'function' ? dress : f => f();   // (G1122: the craft dressed in the world, per task)
     if (typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn || typeof renderer.render !== 'function' || !camera) return Promise.resolve(0);
     const reps = [], seen = new Set(), lights = [];
@@ -11959,7 +11960,7 @@
         + (o.isPoints ? 'P' : o.isLine ? 'L' + (o.isLineSegments ? 's' : '') : 'M');
       for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
         if (!m || m.visible === false) continue;
-        const k = (only ? o.uuid + '|' : '') + m.uuid + '|' + ok + '|' + gk;   // ONLY: every object (its own buffers), not one a key
+        const k = (only && !(wopt && wopt.perKey) ? o.uuid + '|' : '') + m.uuid + '|' + ok + '|' + gk;   // ONLY: every object (its own buffers), not one a key - unless wopt.perKey
         if (seen.has(k)) continue;
         seen.add(k); reps.push([o, m]);
       }

@@ -85,7 +85,9 @@
     if (on.has('nowarm')) FB.noWarm = true;
     if (on.has('nowarmdraw')) FB.noWarmDraw = true;       // isolation: the kept stand-ins compiled, not warm-drawn
     if (on.has('nokeptcompile')) FB.noKeptCompile = true; // isolation: the kept stand-ins warm-drawn, not compiled first
-    if (on.has('noband')) FB.noBand = true;               // isolation: no band twins compiled or drawn (a crossing would link them)     // train 20's isolation: the kept meshes neither compiled by stand-in nor warm-drawn (not resident)
+    if (on.has('noband')) FB.noBand = true;
+    if (on.has('warmkey')) FB.warmKey = true;        // (a): the warm draws one stand-in a program key, not one a view (G1125: the views share the fold's buffers)
+    if (on.has('warmcanvas')) FB.warmCanvas = true;  // (b): the warm draws into the canvas, not the AA's intermediate target               // isolation: no band twins compiled or drawn (a crossing would link them)     // train 20's isolation: the kept meshes neither compiled by stand-in nor warm-drawn (not resident)
     if (on.has('noshadowfolds')) FB.shadowFolds = false;   // G1124 off: the live meshes cast their own shadows
     for (const x of on) { const m = /^hy([\d.]+)-([\d.]+)$/.exec(x); if (m) { FB.hyA = +m[1]; FB.hyB = Math.max(+m[1] + 0.01, +m[2]); } }   // the band
     for (const x of on) { const m = /^hy=([\d.]+)$/.exec(x); if (m) FB.hyForce = Math.min(1, Math.max(0, +m[1])); }   // t held (the A/B rigs)
