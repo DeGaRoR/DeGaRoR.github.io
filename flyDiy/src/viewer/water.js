@@ -469,15 +469,19 @@ const WATER = (() => {
   // lake at a_g 3 (the tannin of the bog: near-black, the reflection IS its colour, as on the photo); a
   // glacial river silted. The old presets painted the sea 10 % blue / 7 % green at depth - a lagoon; real
   // cold coastal water upwells 1-2 %, green over blue, and its blue is the SKY'S reflection.
-  // G796 (W-LOOK): the sound's sediment 0.5 -> 1 g/m^3. At 0.5 the beam attenuation was c(550) 0.20 /m - a Secchi
-  // depth near 28 m (8 / (c + Kd)), tropical-clear; Southeast Alaska's coastal water reads 3-10 m (plankton, the
-  // glacial flour of the rivers). 1 g/m^3 gives c 0.30, Secchi ~18 m: the harbour's bed dims under its 4-8 m while
-  // G460.5's turquoise fringe keeps ~34 m of shore from 300 m (2 g/m^3 - c 0.51, Secchi ~11 m - all but closes it).
+  // G797 (W-LOOK 2, the user: "I still think it's a lot too transparent. IRL I think you'd have a max of 2 metres
+  // depth visibility, if even"; and the turquoise "was too much like the Caribbean"). The sound is a Southeast Alaskan
+  // inlet: the muskeg's humic runoff (a_g(440) 1.2), a plankton bloom's chlorophyll (6 mg/m^3), silt (3.5 g/m^3) ->
+  // c(550) 1.09 /m, the column's two-way rate 2.17: the bed's image at 9 % under 1 m and 0.8 % under 2 m - gone, as the
+  // user sees it (a WHITE disk would still read to ~6 m: the Secchi depth is the contrast limit of a target far brighter
+  // than a bed). The ATTENUATION is mostly absorption, so the body still upwells under 2 %, green over blue (1.05 /
+  // 1.38 / 0.42 %: G460.11's rule, GATE WATER) - a dark olive-green; silt alone (4 g/m^3) would have read milky at 3 %.
+  // (G796 had 0.08 / 1.5 / 1 g/m^3: c 0.30, the bed at 27 % under 2 m.)
   const WATER_TYPES = {
-    sea:      { cdom: 0.08, chl: 1.5, sed: 1.0 },
+    sea:      { cdom: 1.2,  chl: 6.0, sed: 3.5 },
     lake:     { cdom: 3.0,  chl: 2.0, sed: 0.3 },
     river:    { cdom: 1.2,  chl: 1.0, sed: 2.5 },
-    premises: { cdom: 0.08, chl: 1.5, sed: 1.0 },
+    premises: { cdom: 1.2,  chl: 6.0, sed: 3.5 },
   };
   function bodyOptics(w) {
     const AW = [0.28, 0.064, 0.0145];                   // pure water absorption, m^-1 (620 / 550 / 450 nm; Pope & Fry)
