@@ -67692,3 +67692,31 @@ draw less live).
 (the steady frame in Chrome: calls a frame, draws and vertices by program, the timer query, the graph; --diff a b),
 live_driver.js /prof (a CPU profile round a stretch). LESSON: never edit a src/ file the game serves while a slot runs -
 the page loads it live (the census's B2 loaded G1171 mid-slot); edit a copy.
+
+## TRAIN 21 LANDED - THE RELEASE (2026-10-02, A0 the coordinator)
+
+Cargo (on train 20 + 79dc5b1d): ROLLOUT-REAL G1115-G1119 (the NEW roll-out: a fixed 3/4 FRONT shot in the garage, the
+surface check, an untracked roll with a slight acceleration, a fade to the stand; the reveal places its eye at once;
+FRAMECOST counts a view once the cover ring is idle - the user: "the new roll out sequence is OK, you can ship that"),
+C4B HYBRID G1120-G1126 + G1170-G1171 (live livery near, bake far; the views on the fold's own buffers; the first-crossing
+stall fixed) with the LIVE COCKPIT EXTERIOR ON by default (FB.cockpitLive true; ?fbake=cockpitbake the fallback - the
+user: "ship the live cockpit exterior"), W-LOOK G794-G799 (the 2 m sea, less turquoise, the foam band OFF, the wet
+seabed OFF - WATER.set({wet:1}) restores it; lakes as they are), G1050 (cloud rims: the drift wrapped before upload),
+G1140-G1141 (the prop disc over the pavement; the apron's 1-px triangle lines = B11's never-landed G1030 ported),
+A5-CAP G1160-G1164 (the cockpit's settling trials cut), CUB-COCKPIT G1150-G1155 (the deck form; 12 stock cards refitted),
+MASTER-BENCH G1175-G1178 (tools/master_bench.js, prepared; run after this landing).
+
+Measured (pass 3, fresh profile D:/u21, the box's RTX 3080, 2 runs each), vs train 20: Cub fps 31.3 / uneven 0.05 (0.10)
+/ render 9.4 / garage 40.75 s / first flight 44.2 s; metal 31.1 / 0.05 (0.09) / 9.45 / 40.5 s / 43.9 s. COCKPIT (the new
+ratchet group, its first baseline): Cub 55.95 fps, metal 55.85 fps uneven 0.02, every target R1-R5 PASS. Full battery
+GREEN (150 jobs). FRAMECOST PASS, baseline re-taken on this build. Ratchet: one red, ADMITTED - 'settings' (the Cub's
+shadows-off settle, 195 -> 403.5 ms; 372.5 on pass 2 before the hybrid) is the noise-dominated metric (train 19/20:
+it read 306 -> 593 and back); nothing else moved past its slack.
+
+QUEUED, the user's order: TRAIN 22 = G1166b (late frames extrapolated: the starved-frame hop 75-114 -> 7-8 mm;
+claude/a5-cap-starvex-ho d71ed7ef), the A5-CAP thresholds (claude/a5-cap-cockpit-thresholds 6c22b441, its 4-run ABBA),
+G1119.1 (snap the reveal's eye-keyed levels, drop the rise rows; a cloud session). BACKLOG: cockpit optimization (the
+nose's detail seen from the seat), a good-looking foam band, the garage camera, a gentle hand-over to the live game (the
+world pops in and the aeroplane drops), the Cub 26 L deck tank (a mass/CG-aware flare), the Jodel taper, the cloud
+specks; Metlakatla only when every performance target passes; the NEXT BIG RELEASE = the game premises (hangar
+management, unique hangars blending in and out).
