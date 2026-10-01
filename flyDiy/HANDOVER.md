@@ -66908,3 +66908,114 @@ The user, 2026-10-01: "Ship mid now" (the small taxi cost accepted).
   - The taxi: +21 / +10.5 draws, +3 programs.
   - Each row admits its counter up to the baseline + that delta + the gate's own 1 % + 2. The next --update takes
     them in.
+## G1109 - CUB-COCKPIT: THE STOCK TANKS, MEASURED - THE GAME FLEW A PHANTOM NOSE TANK, THE REFIT WAITS FOR THE DECK FORM (2026-10-01, CUB-COCKPIT for the coordinator, node)
+
+The user's decision (2026-09-30, relayed by A0): "refit the tanks". Every stock design's default tank must FIT its
+bay, with the smallest change first (a shape / station at the design's capacity, then the largest capacity that fits).
+For the Cub: "accept ~16 L" if that is what truly fits. A0's split, within that ruling: ship where today's shapes reach
+within 15 % of what a deck-following tank would hold, and HOLD the rest for the deck form (G1150-G1154), so the default
+aeroplane's endurance changes once, not twice.
+
+**WHAT SHIPS IN G1109: the measurement, a game fix, and the instruments. No tank capacity changes.**
+
+**1. THE GAME FLEW A PHANTOM NOSE TANK.**
+- 21 of the 27 stock cards carry an EMPTY vessel list and state their fuel as `fuel.litres` (+ `fuel.tank`). The core
+  lifts that into vessels when it resolves the spec (genEnergyLift), so the headless flight gates fly the right list.
+- The energy layer's `fromSpec` did not: an empty list seeded its own default, one 45 L nose tank. In the game it DREW
+  that tank and, on the first layout, WROTE IT BACK into the spec (commit). From then on the game flew it.
+- Fixed: `fromSpec(energy, spec)` - an empty list takes the resolved spec's lifted list (`liftedVessels`, through
+  resolveSpec: the core's rule, one keeper). The game's post and the bench's load pass the spec.
+- Measured, per card, by tools/tank_seed_ab.js: the layer laid out as the game does (the joined card, game mode, the
+  crew loaded) with the old seeding and the new; the list it commits; the aeroplane built from that list. Fuel kg and
+  full-tanks CG, before -> now (+ = aft):
+
+| card | before | now | CG |
+|---|---|---|---|
+| caravan | nose 45 L, 48.5 kg, 11.7 %MAC | wingRoot 1000 L, 897 kg, 30.4 % | +319 mm |
+| rv | nose 30 L, 32 kg | wingRoot 159 L, 138 kg (drawn) | +110 mm |
+| savannah | nose 45 L, 44 kg | wingRoot 68 L, 63 kg (drawn) | +96 mm |
+| da62 | nose 45 L, 45 kg | wingRoot 320 L, 270 kg (drawn) | +92 mm |
+| stearman | nose 45 L, 41 kg | nose 103 L, 89 kg | -25 mm |
+| beaver | nose 45 L, 45 kg | nose 103 L, 94 kg | -21 mm |
+| twinBush | nose 45 L, 44 kg | nose 120 L, 106 kg | -49 mm |
+| radial / skymaster | nose 45 L, 45 kg | nose 90 L, 82.5 kg | -42 / -37 mm |
+| ttail / vtail | nose 45 L, 45 kg | nose 66 / 65 L, 62 kg | -17 / -17 mm |
+| pietenpol / tigermoth / pittsAlike / sesqui | nose 45 L, 44-46 kg | nose 55 L, 52-54 kg | -13 / -10 / -6 / -10 mm |
+| pusherPod | nose 45 L, 44 kg | nose 50 L, 48 kg | +34 mm |
+| p38 | nose 45 L, 44 kg | nose 70 L, 65 kg | -7 mm |
+| ul1 | nose 39 L, 39 kg | nose 20 L, 23 kg | +34 mm |
+| floatplane | nose 45 L, 47 kg | nose 20 L, 24.5 kg | +67 mm |
+| mw5 | nose 45 L, 44 kg | nose 20 L, 23 kg | +100 mm |
+| motorglider / etrainer / archaeopteryx | a 45 L FUEL tank, 22-37 kg (battery aeroplanes) | none | +75 / +106 / +189 mm |
+| cub, jodel, c172, chinook | (explicit lists already) | unchanged | 0 |
+
+- "Now" is what GATE ARCHETYPES and the pilot matrix already flew. The game's FEEL changes on those 21 cards: the
+  Caravan is 850 kg heavier, the battery aeroplanes lose a phantom 22-37 kg of fuel.
+- **Draws:** the RV, Savannah and DA62 now DRAW their wing tanks (they fit). The T-tail stops drawing one: its phantom
+  45 L nose tank fitted; its real 66 L does not, so it is not flown (G1108). FRAMECOST's two builds (the default Cub,
+  cessnaMetal) do not change. The parked stock aeroplanes do: the train's parked re-cook moves by those tanks.
+
+**2. G1108's per-design table was the phantom tank** (flagged SUPERSEDED there). The tools seed the layer from the
+card (`fromSpec(birth.energy, birth)`) before the bake. GATE TANKMOUNT loads the CREW (a nose tank meets its feet and
+pedals; `_scene_headless.stubCanvas()`, opt-in, because the panel's atlas aborted the chain on the Jodel-alike). It
+asserts the tanks it asks about are the card's own (bays; capacities unless the layer shaped them). KNOWN, printed,
+owed: the Chinook-alike's strut pod - the layer finds no strut bay on that body and sends it to the nose (3 L).
+
+**3. THE REFIT, MEASURED - and why nothing ships yet.** tools/tank_refit.js searches each body tank as the game builds
+it, with the crew, through `CAGE_ENERGY.fitOf(vessel, {fast})`. That is the layer's whole verdict for a candidate,
+nothing drawn, nothing written back.
+- The search covers box and elliptic cylinder, 5 x 5 widths x heights of the section, two turns, and a 5 x 5 grid of
+  stations x levels, ordered by how far the fuel's centre moves. Capacity is scanned down in 2 % steps.
+- It is NOT a bisection: A0's --sweep check found "fits" monotone at 2.25 L steps but not finer (the Cub: 16.x L
+  fails where 18 fits).
+- The full search takes 6.5 min; the first version took 85.
+- tools/tank_bay_probe.js measures the bay itself: per station x column, the deck less the 35 mm wall, the crew's top
+  + 20 mm, the dash. It gives the largest STRAIGHT tank whose section fits under the deck and over the crew at every
+  station it spans: the deck form's estimate.
+
+| card (nose) | design L | today's shapes | deck form (fuel L) |
+|---|---|---|---|
+| cub | 45 | 17 | 34.5 |
+| pietenpol / tigermoth | 51 | 16 | 32.5 |
+| sesqui | 51 | 16 | 36.2 |
+| pittsAlike | 51 | 14 | 28.8 |
+| stearman | 94 | 23 | 64.8 |
+| jodel | 45 | 19 | 41.4 |
+| ul1 | 20 | 7 | 22.6 |
+| floatplane / mw5 | 20 | 12 | 21.4 |
+| pusherPod | 50 | 29 | 62.0 |
+| radial / skymaster | 86 | 43 | 69.1 |
+| ttail | 59 | 48 | 78.4 |
+| vtail | 58 | 34 | 70.4 |
+| twinBush | 120 | 34 | 61.8 |
+| p38 | 70 | 16 | 24.4 |
+| beaver | 94 | 16 | 64.3 |
+
+- Under the 15 % rule every one is HELD. The deck form gains 30-300 %: a box's corners meet the curved deck long before
+  the middle is full.
+- The Cub: the J-3's 45 L is out of reach in this model's bay (only 19 cm of its length is free; the dash takes the
+  aft 4 cm); the deck form gets ~35 L.
+- Battery cards have no fuel tank. Wing / strut tanks (C172, Caravan, RV, Savannah, DA62, Chinook) are outside this
+  body-tank search.
+- `STOCK_TANKS` (_cage_design.js, generated by tools/tank_refit_apply.js, folded into the cards as `over.tanks`, merged
+  last by designBake) ships EMPTY. The deck form fills it.
+
+**OWED - G1150-G1154, THE DECK FORM:**
+- a VESSEL_MESH section that follows the bay's inner section (a flat floor over the crew, a top along the deck), through
+  the shell, straps, contents and capacity;
+- the fit sampling the shape's OWN surface, not the box's corners;
+- then tank_refit + apply, the physics table (tools/tank_refit_physics.js), and the flight gates with written
+  re-baselines.
+
+Also owed:
+- the Chinook's strut bay;
+- the cockpit controls' axes on the true frame (G1107);
+- the layers' state carried across builds in one process.
+
+BATTERY (core, --jobs=4, under take cpu COCKPIT, on train 19 c7dc34e4):
+- 138 PASS. GATE FRAMECOST is red (23) only on the stale parked cook: the editor files moved, so FLYDIY_BUILD moved and
+  the parked aeroplanes are captured live (the trap G1105-G1108 documented). The train's re-cook clears it.
+- A/B with parkcook=0 on both trees (c7dc34e4 vs this branch): nothing moved. Every stand / taxi / boot counter is
+  identical, and the aeroplane's draws are Cub 74, Cessna 85 both sides. FRAMECOST's builds have explicit vessel lists.
+- After the re-cook, the parked stock aeroplanes' counts move by the drawn-tank changes above (the RV, Savannah and DA62
+  gain a drawn wing tank, the T-tail loses its nose tank).
