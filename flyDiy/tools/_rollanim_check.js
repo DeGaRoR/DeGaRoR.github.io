@@ -528,8 +528,8 @@ async function pageCheck() {
       let slower = 0; for (let i = 2; i < e; i++) if (rolled[i] - rolled[i - 1] < rolled[i - 1] - rolled[i - 2] - 1e-9) slower++;
       const vEnd = e >= 2 ? (rolled[e - 1] - rolled[e - 2]) * 60 : 0;
       check(calls === 1 && moved < 1e-9 && ROLLANIM._eyeOk(P.room, eye[0], eye[1], eye[2]) && out === 0 && slower === 0 &&
-            Math.abs(L - P.L) < 1e-6 && Math.abs(P.L - (P.Lmin - S.clear + S.bOut)) < 1e-6 && G.craft.position.lengthSq() === 0 && G.cam.fov === fov0,
-        a.name + ': G1115 the fixed shot - the eye held ' + eyes.length + ' frames, the aeroplane whole in the picture, rolled ' + L.toFixed(1) + ' m accelerating to ' + vEnd.toFixed(1) + ' m/s in ' + P.T.Tr.toFixed(1) + ' s' + (P.fixed.fov !== fov0 ? ', a lens ' + (P.fixed.fov - fov0) + ' deg wider (the lens put back)' : '') + ', ' + P.fixed.hid + ' of 9 sight lines through the kit, ' + P.fixed.clut + ' of 20 picture rays on kit in front',
+            Math.abs(L - P.L) < 1e-6 && Math.abs(P.L - (P.Lmin - S.clear + S.bOut)) < 1e-6 && (!P.room || Math.abs(eye[2] - P.room.zc) <= S.bLat * P.room.HW + 1e-6 || P.fixed.fov - fov0 >= 24) && G.craft.position.lengthSq() === 0 && G.cam.fov === fov0,
+        a.name + ': G1115 the fixed shot - the eye held ' + eyes.length + ' frames, the aeroplane whole in the picture, rolled ' + L.toFixed(1) + ' m accelerating to ' + vEnd.toFixed(1) + ' m/s in ' + P.T.Tr.toFixed(1) + ' s' + (P.fixed.fov !== fov0 ? ', a lens ' + (P.fixed.fov - fov0) + ' deg wider (the lens put back)' : '') + ', ' + P.fixed.hid + ' of 9 sight lines through the kit' + (P.room && Math.abs(eye[2] - P.room.zc) > S.bLat * P.room.HW ? ' (out of the bay: no bay eye frames it whole)' : '') + ', ' + P.fixed.clut + ' of 20 picture rays on kit in front',
         JSON.stringify({ calls, moved, out, planOut: P.fixed.out, hid: P.fixed.hid, slower, L, PL: P.L, need: P.Lmin - S.clear + S.bOut }));
     }
     // no allocation a frame in the fixed roll either (the same bound as the tracking roll's)

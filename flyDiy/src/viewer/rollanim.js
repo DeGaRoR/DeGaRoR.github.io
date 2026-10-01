@@ -91,6 +91,7 @@ const ROLLANIM = (() => {
     bOut: 0, bAcc: 1.2, bTmin: 3.0, bTmax: 5.5, bFit: 0.88, bTop: 0.5,
     bRays: 40, bHid: 40,           // the best candidates looked through for the room's kit in the way, and a hidden point's cost
     bNear: 0.6, bClut: 15,         // ...the foreground (this fraction of the way to the CG), and a cluttered ray's cost
+    bLat: 0.55,                    // the eye's bay: this fraction of the room's half-width either side of its centre line
     bKitMax: 12,                   // a piece of the room longer than this (m) on a side is its shell (floor, walls, roof), not kit
   };
   // the check's order (the user's list) and the ctl keys it drives
@@ -304,19 +305,22 @@ const ROLLANIM = (() => {
     if (o.follow === false) {
       // the candidates: round the tail's side at three swings, three heights, five distances, the aim between the CG and
       // the door; scored legal in the room first, then the whole aeroplane in the picture (the drawn box's corners inside
-      // S.bFit of the frame, with the host camera's aspect), then the host's own fov (a wider lens, up to +16 deg, only for
+      // S.bFit of the frame, with the host camera's aspect), then the host's own fov (a wider lens, up to +24 deg, only for
       // an aeroplane the room cannot frame whole: a big twin in the club shed), then the start's own side, then the nearest
       const sd = sides[0], pc = cam.clone(), V = new THREE.Vector3();
       const all = [];
-      for (const fv of [cam.fov, cam.fov + 8, cam.fov + 16]) for (const lk of [0.3, 0.45]) {
+      for (const fv of [cam.fov, cam.fov + 8, cam.fov + 16, cam.fov + 24]) for (const lk of [0.3, 0.45]) {
         pc.fov = fv;
         const look = [cg[0] + (xDoor - cg[0]) * lk, cg[1] + 0.3, cg[2]];
-        for (const sw of [0.5, 0.62, 0.8]) for (const el of [0.1, 0.14, 0.2]) for (const dk of [0.7, 0.85, 1.0, 1.2, 1.45]) for (const s2 of [sd, -sd]) {
+        for (const sw of [0.3, 0.42, 0.55, 0.7]) for (const el of [0.12, 0.2, 0.3, 0.4]) for (const dk of [0.7, 0.85, 1.0, 1.2, 1.45]) for (const s2 of [sd, -sd]) {
           const az = hdg + s2 * sw, d = dk * D;
           const p = { x: cg[0] + d * Math.cos(el) * Math.cos(az), y: cg[1] + d * Math.sin(el), z: cg[2] + d * Math.cos(el) * Math.sin(az) };
           legalize(room, p);
           const bad = room && !eyeOk(room, p.x, p.y, p.z) ? 1 : 0;
           const inBox = box.clone().expandByScalar(0.8).containsPoint(V.set(p.x, p.y, p.z)) ? 1 : 0;
+          // THE BAY: the room keeps its kit, its racks and its columns along the walls (merged into batches the box test
+          // below cannot tell from the shell) - the eye stays in the aeroplane's own bay, within S.bLat of the half-width
+          const bay = room && Math.abs(p.z - room.zc) > S.bLat * room.HW ? 1 : 0;
           pc.position.set(p.x, p.y, p.z); pc.up.set(0, 1, 0); pc.lookAt(look[0], look[1], look[2]); pc.updateMatrixWorld(true); pc.updateProjectionMatrix();
           let out = 0, fill = 0;
           for (let i = 0; i < 8; i++) {
@@ -324,7 +328,7 @@ const ROLLANIM = (() => {
             const m = Math.max(Math.abs(V.x), Math.abs(V.y));
             if (!(Math.abs(V.x) <= S.bFit && V.y >= -S.bFit && V.y <= S.bTop && V.z < 1)) out++; else fill = Math.max(fill, m);
           }
-          const sc = bad * 1000 + inBox * 1000 + out * 100 + (fv - cam.fov) * 2 + (s2 === sd ? 0 : 5) + (1 - fill) * 10;
+          const sc = bad * 1000 + inBox * 1000 + bay * 500 + out * 100 + (fv - cam.fov) * 1.5 + (s2 === sd ? 0 : 5) + (1 - fill) * 10 + el * 10;
           all.push({ sc, out, eye: [p.x, p.y, p.z], look, fov: fv, hid: 0 });
         }
       }
