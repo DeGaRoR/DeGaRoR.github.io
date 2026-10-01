@@ -1,0 +1,14 @@
+train: claude/train-18-loadcompile-g1139
+sha: c23b511709733813aa7bc97bb81e7a4a5c92d2c7
+command: node tools/build.js && node tools/run_gates.js --all --jobs=4
+node: v22.22.2
+host: 4 cores, 15 GB
+wall: 8781 s (2026-10-01T13:12:31Z -> 2026-10-01T15:38:52Z)
+exit: 0
+
+== non-PASS summary lines ==
+──────── summary ────────
+total           16810.9 s
+wall            8779.5 s  (jobs 4)
+
+BATTERY: PASS
