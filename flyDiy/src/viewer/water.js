@@ -123,6 +123,7 @@ const WATER = (() => {
     uniform vec4 uWSct[4];     // rgb: the column's own colour at depth (linear), w: 0
     uniform vec4 uWBody[4];    // x: wave scale, y: detail scale, z: foam threshold, w: depth when there is no field (m)
     uniform vec4 uWMisc;       // x: shore fade width (m), y: lake depth per metre of field, z: lake depth cap (m), w: foam on
+    uniform vec4 uWLook;       // G794: x: the reflection kept whole over a thin column, y: the column's slanted path (1 on, 0 = G460's)
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
@@ -304,8 +305,17 @@ const WATER = (() => {
       .replace('#include <alphamap_fragment>', `
         float wSA = wShoreA(wF, wB);
         wFoam *= wSA;                                                          // foam is on the water, never on the beach
-        diffuseColor.a = max(wSA * (1.0 - exp(-uWAbs[wB].w * wD)), wFoam);
-        if (diffuseColor.a <= 0.002) discard;`)
+        // G794 THE BED'S LIGHT CROSSES THE COLUMN TWICE, ON A SLANT: uWAbs.w is the two-way rate at normal incidence;
+        // seen at an angle the ray refracts (n 1.333) and runs d / cos(theta_t) down to the bed, d back up toward the
+        // sun: the mean of the two legs, x1 straight down, x1.26 at the grazing limit (theta_t 48.6 deg)
+        float wCt = sqrt(max(1.0 - (1.0 - wNoV * wNoV) / 1.7769, 0.0));
+        float wPath = mix(1.0, 0.5 * (1.0 + 1.0 / max(wCt, 0.6)), uWLook.y);
+        diffuseColor.a = max(wSA * (1.0 - exp(-uWAbs[wB].w * wD * wPath)), wFoam);
+        // G794 WHAT THE SURFACE HIDES OF THE BED is the column's opacity AND its reflectance: the bed reaches the eye
+        // through (1 - F) of the surface and (1 - a) of the column - so the cover is a + F (1 - a), the Fresnel of the
+        // still surface (wFv) inside the shore's fade
+        float wAo = diffuseColor.a + (1.0 - diffuseColor.a) * wSA * wFv * uWLook.x;
+        if (wAo <= 0.002) discard;`)
       .replace('#include <roughnessmap_fragment>', `float roughnessFactor = mix(max(roughness, wRough(wSig)), 0.9, wFoam);`)
       .replace('#include <normal_fragment_begin>', `
         float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;
@@ -398,6 +408,18 @@ const WATER = (() => {
           }
           iblRadiance *= wMeanF; }`)
       .replace('#include <normal_fragment_maps>', '')
+      // G794 THE REFLECTION IS THE SURFACE'S, NOT THE COLUMN'S (W-LOOK, the user on the harbour from 40 m: "water feels
+      // much too transparent ... I can't even clearly see where the water line lies"). The water is ALPHA-BLENDED with
+      // the column's opacity as its alpha, so everything it drew - the body's colour AND the sky's / the mirror's
+      // reflection - was scaled by that alpha: over a 2.6 m column (the coast field's 1:12 beach; the bed is 4-8 m down
+      // there) a = 0.54, half the reflection gone, and toward the line (a -> 0) it went with the body, so nothing marked
+      // where the water begins. Light does not work so: the surface reflects F of the sky whatever lies under it, and the
+      // column dims only what comes up from the bed. The blend is kept (src x alpha + dst x (1 - alpha), fog and the
+      // aerial perspective on the straight colour as before) and the colour PREMULTIPLIED by hand: alpha = the cover
+      // (wAo: a + F (1 - a)), colour = (a x body + the specular) / cover - the body as it was, the reflection whole, the
+      // bed behind through (1 - F)(1 - a). No pass, no texture: one division a fragment. uWLook.x 0 = the old blend.
+      .replace('#include <opaque_fragment>', `#include <opaque_fragment>
+        if (uWLook.x > 0.5) gl_FragColor = vec4((totalDiffuse * diffuseColor.a + (outgoingLight - totalDiffuse) * wSA) / max(wAo, 1.0e-3), wAo);`)
       // THE BODY COLOUR IS NOT A LAMBERT SURFACE (G460.5, the user: "it looks very matte blue"): three lights
       // material.diffuseColor by dot(N, L) on the WAVE normal, so every ridge was a painted stripe and the
       // waves read as a matte relief instead of a reflection. The colour of water is light scattered INSIDE
@@ -447,11 +469,15 @@ const WATER = (() => {
   // lake at a_g 3 (the tannin of the bog: near-black, the reflection IS its colour, as on the photo); a
   // glacial river silted. The old presets painted the sea 10 % blue / 7 % green at depth - a lagoon; real
   // cold coastal water upwells 1-2 %, green over blue, and its blue is the SKY'S reflection.
+  // G796 (W-LOOK): the sound's sediment 0.5 -> 1 g/m^3. At 0.5 the beam attenuation was c(550) 0.20 /m - a Secchi
+  // depth near 28 m (8 / (c + Kd)), tropical-clear; Southeast Alaska's coastal water reads 3-10 m (plankton, the
+  // glacial flour of the rivers). 1 g/m^3 gives c 0.30, Secchi ~18 m: the harbour's bed dims under its 4-8 m while
+  // G460.5's turquoise fringe keeps ~34 m of shore from 300 m (2 g/m^3 - c 0.51, Secchi ~11 m - all but closes it).
   const WATER_TYPES = {
-    sea:      { cdom: 0.08, chl: 1.5, sed: 0.5 },
+    sea:      { cdom: 0.08, chl: 1.5, sed: 1.0 },
     lake:     { cdom: 3.0,  chl: 2.0, sed: 0.3 },
     river:    { cdom: 1.2,  chl: 1.0, sed: 2.5 },
-    premises: { cdom: 0.08, chl: 1.5, sed: 0.5 },
+    premises: { cdom: 0.08, chl: 1.5, sed: 1.0 },
   };
   function bodyOptics(w) {
     const AW = [0.28, 0.064, 0.0145];                   // pure water absorption, m^-1 (620 / 550 / 450 nm; Pope & Fry)
@@ -459,12 +485,20 @@ const WATER = (() => {
     const CG = [Math.exp(-0.014 * (620 - 440)), Math.exp(-0.014 * (550 - 440)), Math.exp(-0.014 * (450 - 440))];   // CDOM's slope
     const APH = [0.012, 0.004, 0.035];                  // chlorophyll-specific absorption per mg/m^3 (the blue and red peaks)
     const BBP = 0.004;                                  // particle backscatter per g/m^3 of sediment, flat
-    const sct = [], abs = [];
+    const sct = [], abs = [], beam = [];
     for (let c = 0; c < 3; c++) {
       const a = AW[c] + w.cdom * CG[c] + w.chl * APH[c], bb = BBW[c] + w.sed * BBP;
       sct.push(0.33 * bb / (a + bb)); abs.push(a + bb);
+      // G796 THE BED'S IMAGE FADES WITH THE BEAM, not with the diffuse attenuation: every scattering removes a ray
+      // from the image whichever way it goes, so the rate is c = a + b, b the TOTAL scattering - b_bw / 0.5 for the
+      // water's own (Rayleigh-like, half back), b_bp / 0.019 for particles (Petzold's coastal backscatter ratio). The
+      // old rate, 2.5 (a + b_b), counted only the backscattered part and floored at 0.3: the sound's bed showed through
+      // 4-8 m of water half undimmed (the user: "water feels much too transparent")
+      beam.push(a + BBW[c] / 0.5 + w.sed * BBP / 0.019);
     }
-    return { sct, abs, opa: Math.max(0.3, Math.min(3, 2.5 * abs[1])) };
+    // the column's opacity rate: the bed's light crosses the column twice (down and back up), 2c at normal incidence
+    // (the shader adds the slant, G794)
+    return { sct, abs, opa: Math.max(0.3, Math.min(3, 2 * beam[1])) };
   }
   const PRESETS = {};
   for (const k of ['sea', 'lake', 'river', 'premises']) PRESETS[k] = Object.assign(bodyOptics(WATER_TYPES[k]), { wave: 0, detail: 0.7, foam: 2.0, depth: 6 });
@@ -483,6 +517,7 @@ const WATER = (() => {
     detailK: 1.0,                      // the detail band's strength
     shoreFade: 3.0,                    // m of field the sea fades over
     lakeK: 1.2, lakeCap: 8.0,          // a lake's depth per metre of its field, and its cap
+    reflKeep: 1, slant: 1,             // G794: the reflection kept whole over a thin column; the column's slanted path (0, 0 = G460's)
     foldQ: 0.55,                       // the virtual Gerstner Q of the fold
   };
 
@@ -503,7 +538,7 @@ const WATER = (() => {
       uWSdf: { value: null }, uWGrid: { value: v4(0, 0, 1, 1) }, uWSdfOn: { value: 0 },
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
-      uWNear: { value: v4() }, uWDbg: { value: 0 },
+      uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, 0, 0) },
     };
     applyPresets();
   }
@@ -1110,7 +1145,7 @@ const WATER = (() => {
     if (!o) return;
     if ('tier' in o) setTier(o.tier);
     if ('mirror' in o) { MIR.mode = o.mirror === 'live' ? 'live' : o.mirror === 'off' ? 'off' : 'periodic'; if (MIR.mode === 'off') mirrorOff(); }
-    for (const k of ['displace', 'detail', 'sigma', 'foam', 'dbg', 'detailK', 'shoreFade', 'lakeK', 'lakeCap', 'foldQ']) if (k in o) S[k] = o[k];
+    for (const k of ['displace', 'detail', 'sigma', 'foam', 'dbg', 'detailK', 'shoreFade', 'lakeK', 'lakeCap', 'foldQ', 'reflKeep', 'slant']) if (k in o) S[k] = o[k];
     if ('on' in o) S.on = !!o.on;
     if ('timer' in o) timer.on = !!o.timer;
     if (o.detailL) S.detailL = o.detailL.slice();
@@ -1124,6 +1159,7 @@ const WATER = (() => {
     U.uWDetailK.value.x = S.detailL[0]; U.uWDetailK.value.y = S.detailL[1];
     U.uWMisc.value.set(S.shoreFade, S.lakeK, S.lakeCap, S.foam ? 1 : 0);
     U.uWDbg.value = S.dbg | 0;
+    U.uWLook.value.set(S.reflKeep ? 1 : 0, S.slant ? 1 : 0, 0, 0);
     trains.forEach((w, i) => { U.uWTrD.value[i].z = S.foldQ; });
     { let sAk2 = 0; for (const w of trains) sAk2 += w.A * w.k * w.A * w.k; U.uWFoam.value.x = S.foldQ * Math.sqrt(sAk2 / 2); }
     if (mat) mat.visible = S.on;
