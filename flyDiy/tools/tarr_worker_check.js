@@ -8,7 +8,8 @@
 //   page    ?tarrw=0      the pass as before (on the main thread): its time and its long task
 //
 //   node tools/tarr_worker_check.js [--px 512] [--port 8571] [--chrome <exe>] [--json <out>]
-// Prints TARR WORKER CHECK: PASS when the bytes are identical and the worker ran.
+// Prints TARR WORKER CHECK: PASS when the bytes are identical, the worker ran, and its run - the transfer back of the
+// stacks included - made no main-thread task of 50 ms or more.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -76,7 +77,11 @@ const server = http.createServer((q, r) => {
         (o.check ? `, check: ${o.check.colour} colour + ${o.check.normal} normal bytes differ of ${o.check.bytes}` : '') + (o.err ? ', worker error: ' + o.err : '') + `, hash ${o.hash}` + (o.logs ? '\n   ' + o.logs.join('\n   ') : ''));
     }
   } finally { await browser.close(); server.close(); }
-  const c = out.check, ok = c.where === 'worker' && c.check && c.check.colour === 0 && c.check.normal === 0 && out.worker.where === 'worker' && out.page.where === 'page' && out.worker.hash === out.page.hash;
+  // the worker's run, from the bitmaps to the stacks' transfer back (the layers' ArrayBuffers arriving in the page's
+  // onmessage task): no main-thread task of 50 ms or more (a long task is >= 50 ms by definition: none observed)
+  const quiet = out.worker.long.length === 0;
+  console.log(`worker run, transfer back included: ${quiet ? 'no main-thread task >= 50 ms' : 'main-thread tasks >= 50 ms: ' + out.worker.long.join(', ')}`);
+  const c = out.check, ok = c.where === 'worker' && c.check && c.check.colour === 0 && c.check.normal === 0 && out.worker.where === 'worker' && out.page.where === 'page' && out.worker.hash === out.page.hash && quiet;
   if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify(out, null, 1));
   console.log('TARR WORKER CHECK: ' + (ok ? 'PASS' : 'FAIL'));
   process.exit(ok ? 0 : 1);
