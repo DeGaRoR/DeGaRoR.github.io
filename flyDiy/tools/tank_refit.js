@@ -91,7 +91,7 @@ const spec = BJ.bakeCard(key).spec;
 const birthCap = i => { const b = birth.energy && birth.energy.vessels && birth.energy.vessels[i]; return b && b.capacity > 0 ? +b.capacity : null; };
 const def = C.buildGen(spec);
 W.CAGE_ENERGY.fromSpec(spec.energy);
-SH.sceneBuild(spec, { garage: spec, resolved: () => def.spec, inGame: true });
+const SCENE = SH.sceneBuild(spec, { garage: spec, resolved: () => def.spec, inGame: true });
 const E = W.CAGE_ENERGY, EN = E.EN, VG = W.VESSEL_GEN || W.VESSEL_GEN;
 const out = { key, kind: EN.kind, vessels: [] };
 const bays = E.bays();
@@ -191,9 +191,52 @@ EN.vessels.forEach((v0, i) => {
     rec.sweep = { levels: lv, maxFit, monotone, bisected: got ? got.v.capacity : 0,
                   agrees: Math.abs((got ? got.v.capacity : 0) - maxFit) <= design / 20 + 0.05 };
   }
+  // THE DECK FORM (G1152): the bay's own columns (tank_bay_probe.measureBay),
+  // the largest straight tank whose section fits under the deck and over the
+  // crew at every station it spans, built as a deck tank at a few insets off
+  // the top and the flanks and asked the layer's own fit. The best SHAPE ships
+  // (the user's ruling): a box / cylinder at the design's capacity is the
+  // smallest change and stays; otherwise the deck tank when it holds more -
+  // shortened to the design's capacity when it could hold more than that.
+  {
+    const PB = require(path.join(T, 'tank_bay_probe.js'));
+    const m = PB.measureBay({ W, THREE: X.THREE, r: SCENE, res: r0, bay });
+    let deckGot = null;
+    rec.deck = { prism: m && m.prism ? { litres: m.prism.litres, fuel: m.prism.fuel } : null };
+    const band = (r0.section && r0.section.band) || null;
+    const lvOf = (yc, H) => band ? Math.max(0, Math.min(1, (yc - band[0]) / Math.max(1e-6, band[1] - band[0]))) : 0.5;
+    const askDeck = dk => {
+      const cand = { bay: v0.bay, form: 'deck', rot: 0, dims: dk.dims, along: +dk.along.toFixed(4), lv: +lvOf(dk.yc, dk.dims.H).toFixed(4) };
+      cand.capacity = E.capacityFromDims(cand.dims, 'deck');
+      const f = E.fitOf(Object.assign({}, old, cand), { fast: true });
+      return f && f.ok ? { v: f.v, fit: f } : null;
+    };
+    if (m && m.prism && m.prism.litres > 0)
+      for (const inset of [0, 0.005, 0.01, 0.02, 0.03, 0.045]) {
+        const dk = PB.deckFromPrism(m.prism, inset, 9);
+        if (!dk) continue;
+        const g = askDeck(dk);
+        if (g) { deckGot = g; rec.deck.inset = inset; break; }
+      }
+    if (deckGot) {
+      rec.deck.max = deckGot.v.capacity;
+      const boxCap = got ? got.v.capacity : 0;
+      if (boxCap < design - 0.05 && deckGot.v.capacity > boxCap) {
+        if (deckGot.v.capacity > design + 0.05) {
+          // more than the design: the same section, shortened to the design's litres
+          const d2 = JSON.parse(JSON.stringify(deckGot.v.dims));
+          d2.L = +(d2.L * design / deckGot.v.capacity).toFixed(3);
+          for (let k = 0; k < 6 && E.capacityFromDims(d2, 'deck') < design; k++) d2.L = +(d2.L * 1.01).toFixed(3);
+          const g2 = askDeck({ dims: d2, along: deckGot.v.along, yc: (band ? band[0] + deckGot.v.lv * (band[1] - band[0]) : 0) });
+          got = g2 || deckGot;
+        } else got = deckGot;
+      }
+    }
+  }
   if (!got) { rec.how = 'none'; rec.new = null; return; }
   const v = got.v;
   rec.how = v.capacity >= rec.design - 0.05 ? 'placement' : 'capacity';
+  if (v.form === 'deck') rec.how += ' (deck form)';
   rec.new = { capacity: v.capacity, along: v.along, lv: v.lv, rot: v.rot, form: v.form, dims: v.dims };
   rec.newFit = { ok: true, c: got.fit.c, why: got.fit.why };
   rec.shift = Math.hypot(got.fit.c[0] - c0[0], got.fit.c[1] - c0[1], got.fit.c[2] - c0[2]);

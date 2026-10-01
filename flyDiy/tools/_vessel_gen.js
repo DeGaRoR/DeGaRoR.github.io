@@ -62,7 +62,20 @@ const SHAPES = {
 // G477: the ogive pod (a spindle of revolution, r = R (1 - (2u - 1)^2)^0.65)
 // fills 0.55 of its L x D x D box — integrated, not guessed (0.70 of pi/4)
 const FORM_FILL = { box: 1.00, cyl: 0.78, ogive: 0.55 };
-const formFill = (sh, form) => sh.fill * (FORM_FILL[form] || 1);
+// G1150: THE DECK FORM's occupancy is its own section's - the profile's area
+// over the box's - read off VESSEL_MESH's one profile rule (the same concave
+// hull the solid is built with), so the ledger bills what is drawn
+const VMx = () => (typeof window !== 'undefined' && window.VESSEL_MESH) ||
+                  (typeof require === 'function' ? require('./_vessel_mesh.js') : null);
+function deckT(profile) {
+  const VM = VMx();
+  const P = VM && VM.deckProfile ? VM.deckProfile(profile) : (profile || [1, 1]);
+  const n = P.length;
+  return au => { const f = Math.max(0, Math.min(1, au)) * (n - 1), i = Math.min(n - 2, Math.floor(f)); return P[i] + (P[i + 1] - P[i]) * (f - i); };
+}
+function deckFrac(profile) { const T = deckT(profile); let a = 0; const K = 200; for (let i = 0; i < K; i++) a += T((i + 0.5) / K); return a / K; }
+const formFill = (sh, form, dims) => form === 'deck' && dims && Array.isArray(dims.profile)
+  ? sh.fill * deckFrac(dims.profile) : sh.fill * (FORM_FILL[form] || 1);
 
 // the box a vessel of `installedL` litres needs, in metres — or the box the
 // PLAYER drew, when the vessel carries its own `dims`: the user's rule is
@@ -81,7 +94,10 @@ function vesselDims(vesselKey, installedL, dims, form) {
     const D = Math.cbrt(V / (0.55 * 4)), L = 4 * D;
     return { L, W: D, H: D, form: 'ogive', fill };
   }
-  const fill = formFill(sh, form);
+  // G1150: a deck tank is its own drawn shape, always (no catalogue deck)
+  if (form === 'deck' && dims && dims.L > 0 && dims.W > 0 && dims.H > 0 && Array.isArray(dims.profile))
+    return { L: +dims.L, W: +dims.W, H: +dims.H, profile: dims.profile.slice(), form: 'deck', fill: formFill(sh, 'deck', dims), own: true };
+  const fill = formFill(sh, form === 'deck' ? 'box' : form);
   if (dims && dims.L > 0 && dims.W > 0 && dims.H > 0)
     return { L: +dims.L, W: +dims.W, H: +dims.H, form: sh.form, fill, own: true };
   const m3 = Math.max(0, installedL || 0) / 1000;
@@ -97,7 +113,7 @@ function vesselDims(vesselKey, installedL, dims, form) {
 function installedFromDims(vesselKey, dims, form) {
   const sh = SHAPES[vesselKey] || SHAPES.alu;
   if (!dims || !(dims.L > 0 && dims.W > 0 && dims.H > 0)) return 0;
-  return dims.L * dims.W * dims.H * formFill(sh, form) * 1000;
+  return dims.L * dims.W * dims.H * formFill(sh, form, dims) * 1000;
 }
 
 // WHERE A VESSEL GOES WHEN NOBODY HAS SAID. The user's rule, verbatim: "the
@@ -363,9 +379,15 @@ function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
     c[2] + X[2] * e[0] * sx + Z[2] * e[2] * sz,
   ];
   const pts = [];
+  // G1150: A DECK TANK'S TOP IS ITS PROFILE, not the box's lid - its top
+  // corners stand where the profile puts them, and the top is sampled across
+  // the flanks too (a curved deck meets a box's corner first, and a deck
+  // tank's mid-flank)
+  const topF = dims.profile ? (() => { const T = deckT(dims.profile); return sx => 2 * T(Math.abs(sx)) - 1; })() : (() => 1);
   for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-    for (let i = 0; i <= 4; i++) pts.push(at(sx, sy, -1 + i / 2));   // the long edges
+    for (let i = 0; i <= 4; i++) pts.push(at(sx, sy < 0 ? -1 : topF(sx), -1 + i / 2));   // the long edges
   }
+  if (dims.profile) for (const sx of [-0.5, 0.5]) for (let i = 0; i <= 4; i++) pts.push(at(sx, topF(sx), -1 + i / 2));
   for (const sy of [-1, 1]) for (const sz of [-1, 1]) pts.push(at(0, sy, sz));
 
   // the station range the solid covers, and the fit of every sample against

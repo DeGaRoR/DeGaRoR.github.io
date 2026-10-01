@@ -4098,7 +4098,13 @@ function clampSpec(spec) {
       // cylinder in the same box holds 0.78 of what the squared shell does,
       // which _vessel_gen.js applies as the drawn box's fill. Absent means
       // 'box', so every spec written before this one is unchanged.
-      v.form = v.form === 'cyl' ? 'cyl' : 'box';
+      // G1150: THE DECK FORM - a straight tank whose top follows the bay's deck,
+      // its section a flat floor and a profile (dims.profile: the top's height
+      // fraction from the centreline to the flank). A geometry only the drawn
+      // shape and the capacity read; without a profile it is a box.
+      if (v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) && v.dims.profile.length >= 2 && v.dims.profile.length <= 33) {
+        v.dims.profile = v.dims.profile.map(x => genClamp(+x || 0, 0, 1));
+      } else v.form = v.form === 'cyl' ? 'cyl' : 'box';
       // THE LOOK IS THE TANK'S OWN (2026-09-05, the user: "per tank colour
       // please"). The same three fields as the section's above, one level
       // down, and ABSENT MEANS THE SECTION'S ANSWER — which is what every

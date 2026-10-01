@@ -123,6 +123,7 @@ function sectRR(hx, hy, rx, ry, NS, NC) {
 // the x half-extent of such a section at height v — where a bolt on the flank
 // or a fitting on the side has to sit
 function widthAt(s, v) {
+  if (s.halfAt) return s.halfAt(v);         // G1150: a deck section knows its own
   const ey = s.hy - s.ry, av = Math.abs(v);
   if (av <= ey) return s.hx;
   if (av >= s.hy || s.ry <= 1e-9) return s.hx - s.rx;
@@ -133,6 +134,7 @@ function widthAt(s, v) {
 // standing off the crown has to sit. The pair is not one function with its
 // arguments swapped: hx/rx and hy/ry are different numbers.
 function heightAt(s, x) {
+  if (s.topAt) return s.topAt(x);           // G1150: the deck's top at x
   const ex = s.hx - s.rx, ax = Math.abs(x);
   if (ax <= ex) return s.hy;
   if (ax >= s.hx || s.rx <= 1e-9) return s.hy - s.ry;
@@ -164,8 +166,112 @@ function loopLen(P) {
 // Both forms answer the same two questions — the cut at a height and the cut
 // at a station — which is the whole trick.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// THE DECK FORM (G1150, CUB-COCKPIT 2026-10-01). A box's corners and an
+// ellipse's flanks meet a curved deck long before the middle of the bay is
+// full: the Cub's nose bay holds 17 L of either, and a tank that FOLLOWS the
+// deck ~35 L (tools/tank_bay_probe.js, the bay's own columns). The deck form
+// is a straight tank (one section along its length) with a FLAT FLOOR and a
+// TOP that follows a profile: `profile` = the top's height as a fraction of
+// the full height, sampled from the centreline (u = 0) to the flank (u = 1),
+// symmetric about the centreline. It is made non-increasing and CONCAVE (the
+// upper hull), so the section is convex - the caps fan from its middle and a
+// horizontal cut is one rectangle. The ends are flat, their x-z corners
+// rounded like a box's.
+//   atY(y)   the horizontal cut: a rounded rectangle whose half-width is how
+//            far out the top still stands above y (the shell is lofted up y)
+//   atZ(z)   the cut across: the outline itself (`poly`), and `topAt` /
+//            `halfAt` for the fittings that stand on it
+// ---------------------------------------------------------------------------
+function deckProfile(profile) {
+  let t = (Array.isArray(profile) && profile.length >= 2 ? profile : [1, 1]).map(v => clamp(+v || 0, 0, 1));
+  t[0] = 1;
+  for (let i = 1; i < t.length; i++) t[i] = Math.min(t[i], t[i - 1]);        // non-increasing outward
+  // the upper hull (concave): a point under the chord of its neighbours rises to it
+  const n = t.length, u = i => i / (n - 1), keep = [0];
+  for (let i = 1; i < n; i++) {
+    while (keep.length >= 2) {
+      const a = keep[keep.length - 2], b = keep[keep.length - 1];
+      const cross = (u(b) - u(a)) * (t[i] - t[a]) - (t[b] - t[a]) * (u(i) - u(a));
+      if (cross >= 0) keep.pop(); else break;
+    }
+    keep.push(i);
+  }
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let k = 0; while (k < keep.length - 2 && keep[k + 1] < i) k++;
+    const a = keep[k], b = keep[k + 1] != null ? keep[k + 1] : keep[k];
+    out.push(b === a ? t[a] : t[a] + (t[b] - t[a]) * (u(i) - u(a)) / (u(b) - u(a)));
+  }
+  return out;
+}
+function deckShape(e, o) {
+  const ex = Math.max(1e-4, e[0]), ey = Math.max(1e-4, e[1]), ez = Math.max(1e-4, e[2]);
+  const P = deckProfile(o.profile), n = P.length;
+  // the top's fraction at |u| (0 centre .. 1 flank), and how far out the top
+  // still stands at a height fraction h (the inverse, on the same ladder)
+  const T = au => { const f = clamp(au, 0, 1) * (n - 1), i = Math.min(n - 2, Math.floor(f)); return P[i] + (P[i + 1] - P[i]) * (f - i); };
+  const U = h => {
+    if (h <= P[n - 1]) return 1;
+    for (let i = 1; i < n; i++) if (P[i] <= h) { const a = P[i - 1], b = P[i]; return ((i - 1) + (a - h) / Math.max(1e-9, a - b)) / (n - 1); }
+    return 0;
+  };
+  const yTop = x => -ey + 2 * ey * T(Math.abs(x) / ex);
+  const re = clamp(o.r == null ? 0.16 * Math.min(ex, ez) : o.r, 0.003, Math.min(ex, ez) * 0.9);
+  const outline = (off, NS, NC) => {
+    // the closed outline, dense: the +x wall up, the top right to left, the -x
+    // wall down, the floor back; each point pushed out by `off` along its normal
+    const M = 64, pts = [];
+    const wallR = yTop(ex);
+    pts.push([ex, -ey]);
+    for (let i = 1; i <= 6; i++) pts.push([ex, -ey + (wallR + ey) * i / 6]);
+    for (let i = 1; i < M; i++) { const x = ex - 2 * ex * i / M; pts.push([x, yTop(x)]); }
+    pts.push([-ex, wallR]);
+    for (let i = 1; i <= 6; i++) pts.push([-ex, wallR - (wallR + ey) * i / 6]);
+    for (let i = 1; i < 12; i++) pts.push([-ex + 2 * ex * i / 12, -ey]);
+    const m = pts.length;
+    const moved = off ? pts.map((q, i) => {
+      const a = pts[(i - 1 + m) % m], b = pts[(i + 1) % m];
+      let nx = b[1] - a[1], ny = -(b[0] - a[0]); const L = Math.hypot(nx, ny) || 1;
+      return [q[0] + nx / L * off, q[1] + ny / L * off];
+    }) : pts;
+    // resampled to the section's fixed count by arc length, starting on the +x wall
+    const N = 4 * (NS + NC), cum = [0];
+    for (let i = 1; i <= m; i++) { const a = moved[i - 1], b = moved[i % m]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
+    const tot = cum[m], out = [];
+    for (let k = 0; k < N; k++) {
+      const want = tot * k / N; let i = 1; while (i < m && cum[i] < want) i++;
+      const a = moved[i - 1], b = moved[i % m], f = (want - cum[i - 1]) / Math.max(1e-12, cum[i] - cum[i - 1]);
+      out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+    }
+    return out;
+  };
+  const cross = { hx: ex, hy: ey, rx: 0, ry: 0, k: 1, poly: outline,
+    topAt: x => yTop(x),
+    halfAt: v => v <= -ey ? ex : ex * U((v + ey) / (2 * ey)) };
+  return {
+    form: 'deck', ex, ey, ez, r: re, profile: P,
+    atY(y) {
+      const X = Math.max(1e-4, ex * U((y + ey) / (2 * ey)));
+      const rr = Math.min(re, 0.9 * X, 0.9 * ez);
+      return { hx: X, hy: ez, rx: rr, ry: rr, k: 1 };
+    },
+    atZ() { return cross; },
+    ySlices(N) {
+      // even up the flat walls, finer where the top curves in
+      const M = Math.max(8, N || 12), out = [];
+      for (let i = 0; i <= M; i++) out.push(-ey + 2 * ey * Math.pow(i / M, 0.8));
+      return out;
+    },
+    contains(x, y, z) { return Math.abs(z) <= ez && Math.abs(x) <= ex && y >= -ey && y <= yTop(x); },
+    // the section's area over its box's (the capacity's form factor)
+    fillFrac() { let a = 0; const K = 200; for (let i = 0; i < K; i++) a += T((i + 0.5) / K); return a / K; },
+  };
+}
+
 function mkShape(form, e, opt) {
   const o = opt || {};
+  if (form === 'deck') return deckShape(e, o);
   const ex = Math.max(1e-4, e[0]), ey = Math.max(1e-4, e[1]), ez = Math.max(1e-4, e[2]);
   if (form === 'cyl') {
     // the dome is a fraction of the length, never deeper than the radius it
@@ -190,6 +296,7 @@ function mkShape(form, e, opt) {
           : Math.sqrt(Math.max(0, 1 - ((az - zc) / a) * ((az - zc) / a)));
         return { hx: ex * k, hy: ey * k, rx: ex * k, ry: ey * k, k };
       },
+      contains(x, y, z) { const s = this.atZ(z); return Math.abs(z) <= ez && s.k > 0 && Math.abs(x) <= s.hx && Math.abs(y) <= heightAt(s, x); },
       // BY ANGLE, NOT BY HEIGHT: an even ladder in y under-samples the crown
       // and the keel, where all the curvature of a lying cylinder is
       ySlices(N) {
@@ -210,6 +317,7 @@ function mkShape(form, e, opt) {
     form: 'box', ex, ey, ez, r,
     atY(y) { const d = inset(y, ey); return { hx: ex - d, hy: ez - d, rx: r - d, ry: r - d, k: 1 }; },
     atZ(z) { const d = inset(z, ez); return { hx: ex - d, hy: ey - d, rx: r - d, ry: r - d, k: 1 }; },
+    contains(x, y, z) { if (Math.abs(z) > ez) return false; const s = this.atZ(z); return Math.abs(x) <= s.hx && Math.abs(y) <= heightAt(s, x); },
     // the two fillets get an arc ladder each and the flat band its two ends: a
     // rounded box is straight over most of its height and there is nothing to
     // sample there
@@ -242,14 +350,15 @@ const AXIS = {
   z: { put: (p, c) => [p[0], p[1], c], up: [0, 0, 1], w: 1, sec: (s, c) => s.atZ(c) },
 };
 
+// a section's points: its own outline where it carries one (the deck's
+// cross-cut, G1150), the rounded rectangle otherwise
+const secPts = (s, off, NS, NC) => s.poly ? s.poly(off, NS, NC)
+  : sectRR(s.hx + off, s.hy + off, s.rx + off, s.ry + off, NS, NC);
 function loftBuild(buf, shape, axis, stations, off, tile, NS, NC, faces) {
   const A = AXIS[axis];
   const N = 4 * (NS + NC);
   const T = Math.max(1e-4, tile);
-  const secs = stations.map(c => {
-    const s = A.sec(shape, c);
-    return sectRR(s.hx + off, s.hy + off, s.rx + off, s.ry + off, NS, NC);
-  });
+  const secs = stations.map(c => secPts(A.sec(shape, c), off, NS, NC));
   // A COLLAPSED STATION HAS NO SURFACE NORMAL OF ITS OWN. The crown of a lying
   // cylinder is the one place this happens: the horizontal cut there is the
   // ridge LINE, which sectRR draws exactly — as a zero-width rectangle walked
@@ -328,7 +437,7 @@ function loftBuild(buf, shape, axis, stations, off, tile, NS, NC, faces) {
 // that has closed to a point or a line has no cap and says so.
 function capBuild(buf, shape, axis, c, off, tile, NS, NC, dir) {
   const A = AXIS[axis], s = A.sec(shape, c);
-  const P = sectRR(s.hx + off, s.hy + off, s.rx + off, s.ry + off, NS, NC);
+  const P = secPts(s, off, NS, NC);
   if (sectArea(P) < 1e-7) return 0;
   const T = Math.max(1e-4, tile);
   const n = A.up.map(x => x * dir);
@@ -357,8 +466,8 @@ function bandBuild(buf, shape, axis, c0, c1, t, tile, NS, NC) {
   const T = Math.max(1e-4, tile);
   for (const [k, dir] of [[0, -1], [1, 1]]) {
     const c = st[k], s = A.sec(shape, c);
-    const Po = sectRR(s.hx + t, s.hy + t, s.rx + t, s.ry + t, NS, NC);
-    const Pi = sectRR(s.hx + seat, s.hy + seat, s.rx + seat, s.ry + seat, NS, NC);
+    const Po = secPts(s, t, NS, NC);
+    const Pi = secPts(s, seat, NS, NC);
     const n = A.up.map(x => x * dir);
     const ro = Po.map(p => buf.v(A.put(p, c), n, [p[0] / T, p[1] / T]));
     const ri = Pi.map(p => buf.v(A.put(p, c), n, [p[0] / T, p[1] / T]));
@@ -449,11 +558,11 @@ function build(opt) {
   // longer horizontal half-extent as z, and the caller adds `yaw` to the
   // placement's own turn. The declared box is unchanged: this is which way
   // round the tank is, not how big it is.
-  const swap = e0[0] > e0[2] * 1.15;
+  const swap = o.form !== 'deck' && e0[0] > e0[2] * 1.15;     // G1150: a deck's profile is ACROSS - it stays
   const e = swap ? [e0[2], e0[1], e0[0]] : e0;
   const yaw = swap ? Math.PI / 2 : 0;
   const kind = o.kind === 'battery' ? 'battery' : 'fuel';
-  const form = o.form === 'cyl' ? 'cyl' : 'box';
+  const form = o.form === 'cyl' ? 'cyl' : (o.form === 'deck' && Array.isArray(o.profile)) ? 'deck' : 'box';
   const q = clamp(o.quality == null ? 1 : o.quality, 0.35, 2);
   const tile = o.tile || {};
   const tS = tile.shell || 0.5, tH = tile.hard || 0.22, tK = tile.seal || 0.3;
@@ -462,7 +571,7 @@ function build(opt) {
   const rBox = kind === 'battery'
     ? clamp(0.10 * Math.min(e[0], e[1], e[2]), 0.005, 0.030)
     : clamp(0.34 * Math.min(e[0], e[1], e[2]), 0.008, 0.075);
-  const shape = mkShape(form, e, { r: rBox, dome: 0.30 });
+  const shape = mkShape(form, e, { r: rBox, dome: 0.30, profile: o.profile });
   const NS = Math.max(1, Math.round(3 * q)), NC = Math.max(2, Math.round(5 * q));
   const NY = Math.max(6, Math.round(12 * q));
   const out = { shell: Buf(), hard: Buf(), seal: Buf(), mark: Buf(),
@@ -876,7 +985,7 @@ function wingLoftVolume(ribs, opt) {
   return v;
 }
 
-const API = { build, omit, contents, wingBox, wingLoft, wingLoftVolume, mkShape, sectRR, widthAt, heightAt, Buf,
+const API = { build, omit, contents, mkShape, deckProfile, wingBox, wingLoft, wingLoftVolume, mkShape, sectRR, widthAt, heightAt, Buf,
               loftBuild, capBuild, bandBuild, tubeBuild };
 if (typeof window !== 'undefined') window.VESSEL_MESH = API;
 if (typeof module !== 'undefined') module.exports = API;

@@ -93,9 +93,11 @@ function fromSpec(energy, spec) {
         along: v.along == null ? null : +v.along,
         lv: v.lv == null ? null : +v.lv, rot: +v.rot || 0,
         // a round tank or a squared one — geometry, and the capacity follows
-        form: v.form === 'cyl' ? 'cyl' : v.form === 'ogive' ? 'ogive' : 'box',
-        // the player's own box, when they drew one
-        dims: (v.dims && v.dims.L > 0) ? { L: +v.dims.L, W: +v.dims.W, H: +v.dims.H } : null,
+        // G1150: or the DECK form, which is its own drawn shape (dims + profile)
+        form: v.form === 'cyl' ? 'cyl' : v.form === 'ogive' ? 'ogive' : (v.form === 'deck' && (Array.isArray(v.dims && v.dims.profile) && v.dims.profile.length >= 2)) ? 'deck' : 'box',
+        // the player's own box, when they drew one (a deck's profile rides with it)
+        dims: (v.dims && v.dims.L > 0) ? Object.assign({ L: +v.dims.L, W: +v.dims.W, H: +v.dims.H },
+          (Array.isArray(v.dims && v.dims.profile) && v.dims.profile.length >= 2) ? { profile: v.dims.profile.map(Number) } : {}) : null,
         // ...AND ITS OWN LOOK (2026-09-05). null at any of the three means
         // the section's answer, which is what a build written before this
         // says about every tank it carries.
@@ -156,7 +158,8 @@ const vesselKey = () => EN.vessel || (EN.kind === 'battery' ? 'packCase' : 'alu'
 // rides into the two capacity functions in _vessel_gen.js, which apply the
 // catalogue's own fill and then the form's — the box case is 1.0, so every
 // build that existed before this row weighs exactly what it weighed.
-const formOf = v => (v && v.form === 'cyl' ? 'cyl' : v && v.form === 'ogive' ? 'ogive' : 'box');
+const formOf = v => (v && v.form === 'cyl' ? 'cyl' : v && v.form === 'ogive' ? 'ogive'
+  : v && v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) ? 'deck' : 'box');
 // installed litres of a drawn box -> the capacity unit the spec stores
 function capacityFromDims(dims, form) {
   const G = VG(), C = core();
@@ -632,6 +635,12 @@ function inSolid(p, r, sol, d) {
   if (!sol || !sol.shape || !VM || !VM.heightAt) return false;
   const yaw = r.rot + (sol.yaw || 0), cs = Math.cos(yaw), sn = Math.sin(yaw);
   const dx = p[0] - r.c[0], dy = p[1] - r.c[1], dz = p[2] - r.c[2];
+  // G1150: the shape's own test (the deck's flat floor and curved top are not
+  // symmetric in y): inside by d means inside d above AND d below
+  if (sol.shape.contains) {
+    const X = Math.abs(dx * cs - dz * sn) + d, Z = Math.abs(dx * sn + dz * cs) + d;
+    return sol.shape.contains(X, dy + d, Z) && sol.shape.contains(X, dy - d, Z);
+  }
   const x = Math.abs(dx * cs - dz * sn) + d, y = Math.abs(dy) + d, z = Math.abs(dx * sn + dz * cs) + d;
   if (z > sol.e[2]) return false;
   const sec = sol.shape.atZ(z);
@@ -1097,10 +1106,11 @@ function vesselSolid(r) {
   if (!VM) return null;
   const fin = finishOf(r.v);
   const form = formOf(r.v);
-  const key = r.e.map(x => x.toFixed(4)).join(',') + '|' + form + '|' + EN.kind + '|' + fin;
+  const prof = form === 'deck' && r.v && r.v.dims && r.v.dims.profile ? r.v.dims.profile : null;
+  const key = r.e.map(x => x.toFixed(4)).join(',') + '|' + form + '|' + EN.kind + '|' + fin + (prof ? '|' + prof.map(x => (+x).toFixed(3)).join(',') : '');
   let s = solids.get(key);
   if (!s) {
-    s = VM.build({ e: r.e, form, kind: EN.kind,
+    s = VM.build({ e: r.e, form, kind: EN.kind, profile: prof,
                    tile: { shell: tileOf(fin), hard: tileOf('steel'),
                            seal: tileOf('rubber') } });
     if (solids.size > 24) solids.clear();
