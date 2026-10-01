@@ -67394,3 +67394,75 @@ the strides off; then the real fix if confirmed - a temporal accumulation of the
 jitter rotated per frame) or a world-anchored step phase (t0 snapped to a world-space lattice along the ray).
 (The dials' earlier null result - jitter 0 / nearest / full res changed nothing - was for a 2 cm MOVE of the eye with
 the clock stopped, not for the moving field.)
+
+## 2026-10-01 - G1115 THE FIXED ROLL-OUT SHOT (session ROLLOUT-REAL, branch rolloutreal/simple on 79dc5b1d) - for train 21
+
+THE USER (2026-10-01, after watching the world roll on a test build): "a true seamless is a rabbit hole", and the scope cut
+"let's simplify the roll out item for now ... make sure the round trip in terms of loading works ... no unification of
+hangars for now". So the world roll (G1115-G1119 on rolloutreal/g1118: the shot in the world's own open shed, the 30 cap,
+the establishing eye, the open shell and its liner) is DROPPED; kept from it: the FRAMECOST ring-idle wait and revealcam.
+Cargo, in landing order:
+1. **GATE FRAMECOST: A VIEW IS COUNTED ONCE THE COVER RING IS IDLE** (3d8c03b2; the train-20 entry's item 1, unchanged).
+2. **THE REVEAL PLACES ITS EYE AT ONCE** (5cd3f04a, app.js flRevealStart): the frame runs worldUpdate before placeCamera, so
+   every roll-out's first flight frame updated the world from the camera the shed left (~750 m off): 271 cover-ring cells
+   replanted, 8 with it. **ITS STAND SHADOW, ADMITTED (A0's ruling):** the reveal's first frame now updates the eye-keyed
+   levels by the stand (the parked aeroplanes' detailed rungs, LOD-switched meshes, the near-tier houses) from the stand's
+   own eye - detailed, as the player stands there - and FRAMECOST's stand view, farther off, counts them stepping back:
+   +36 / +36.5 shadow draws, +346 734 / +346 776 shadow tris cooked (parkcook=0 +215 377 / +202 053), IDENTICAL with the
+   tracking shot (?rollanim=follow) - **this is the "post-roll tail" the train-20 entry put on the world roll: it was
+   revealcam's all along.** FRAMECOST ALLOW rows by RISE over the baseline (a new field: `rise`, the cap = baseline + rise,
+   held whatever baseline the assembly re-takes): +37 / +37.5 draws, +350 200 / +350 250 tris. **G1119.1** (open): snap
+   those levels at the reveal, then drop the rows.
+3. **THE FIXED SHOT** (rollanim.js `follow: false`, app.js; ?rollanim=follow the tracking shot): on Roll out the eye SNAPS to
+   a fixed three-quarter view in the garage, the aeroplane checks its surfaces (G1064), then rolls out at a steady
+   S.bAcc 1.2 m/s2 (3-5.5 s; no ramp down) until its tail clears the door - not followed - and the shot's last frame FADES
+   (600 ms, one 2D drawImage of the canvas in the shot's last task: 0.3-0.4 ms) over today's reveal at the stand. No world
+   is drawn in the shot. A skip cuts, as before. The editor's CG post and labels are off for the shot (placeIndicators
+   reads ROLLANIM.busy: they rode out on the aeroplane). THE FRAMING (four films to get right): the whole aeroplane inside
+   S.bFit 0.88 of the frame and under S.bTop 0.5 (the garage's HUD bars); THE EYE IN THE AEROPLANE'S BAY (within 0.55 of
+   the room's half-width: the walls carry the racks, the columns, a spare wing on trestles, merged into batches no box test
+   tells from the shell - a film stood by a column, another behind a timber stack); swings 0.3-0.7 rad off the tail,
+   heights to under the eaves; a lens up to +24 deg only when needed (+8 for most: 46 -> 54; the biggest +16-24; the twin
+   hauler, which no bay eye frames whole, steps out of the bay at +8 - fixed.bayFit says so); the room's kit as world boxes
+   for the sight lines and the foreground (cheap: the plan 36-62 ms in node; mesh raycasts were 4-5 s). The lens is the
+   host's again at the end. window.FLYDIY_ROLLPLAN + tools/_rollout_plan.js read the app's own plan in node;
+   tools/rollout_shots.js (keeps the live plan in index.json) + rollout_pick.py film it.
+   GATES: ROLLANIM 750 PASS (every archetype: the eye snapped and held, legal, in the bay, the aeroplane whole, accelerating
+   to the end, the lens put back, no allocation a frame), ROUNDTRIP PASS on its ORIGINAL criteria (roll-outs 1 and 3 run
+   no step and link nothing; roll-out 2 only the aircraft's steps, terrainH ~6.5 k), UISMOKE, STAND, HANGAR, ASSETS PASS;
+   FRAMECOST PASS against a local master + ring-idle baseline (parkcook=0; the committed baseline predates the ring-idle
+   wait - the assembly re-takes it). EVIDENCE: tools/perf/rollout_evidence/ (cub x8, metal x6, 1.84 MB).
+
+**LOGGED FOR ITS OWNER (not this chantier): THE PAVEMENT FLICKERS INSIDE THE WORLD'S HOME SHED** (the user, on the world-roll
+test build: "only the pavement inside the hangar was flickering"). Measured in node (Jolene HOME shed at (-190, 30.6, 712),
+HD 12.5, HW 15): the apron's `pave:merged` (premises:roads, the 'pavement' material, renderOrder 2.01, depthWrite off) has
+1 472 m2 of up-facing triangles INSIDE the shed's footprint at y 30.600-30.680 - exactly the slab's top (30.600; the
+premises:patch ground at 29.78 below): the pavement patch runs through the shed, coplanar with its floor. Not visible from
+the stand; it will be when a shot or a camera looks in at the door. The fix is the pavement's: clip the patch at the hangar's
+footprint (or the premises' exclude), not a polygon offset.
+
+**TRAPS:** TaskStop does not reliably kill a Git-bash script waiting in a boxlock take - an orphan took the GPU under my name
+and ran from a file edited since (check the processes, kill exact PIDs, never edit a running script in place). The
+ratchet's settings worst task (306 -> 593 ms on the train-20 battery) was noise in shadows=off's ~41 s settle screen:
+master 549, the branch 444 / 153 in Chrome; the node A/B made identical programs (111 / 3 / 1 / 1).
+
+**TIMED (2026-10-01 19:35-20:10, master 4e790c25 = 79dc5b1d's runtime, its committed cook, vs this branch cooked; warm origins,
+rollout_perf --secs 60 --trips; Cub A B B A with --settings, metal B A):**
+| | master Cub (A1 / A2) | branch Cub (B1 / B2) | master metal | branch metal |
+|---|---|---|---|---|
+| garage ready (s) | 40.9 / 38.0 | 40.0 / 38.9 | 43.6 | 43.9 |
+| the shot (click -> stand, s) | 9.29 / 9.29 | 9.20 / 9.18 | 9.40 | 9.27 |
+| the shot's fps (the garage's pace) / worst task (ms) | 40.2, 74 / 58.9, 70 | 39.6, 65 / 59.0, 64 | 39.3, 154 | 39.1, 161 |
+| the fade's copy (ms) | - | 0.3 / 0.3 | - | 0.3 |
+| stand fps delivered | 45.7 / 59.0 | 44.7 / 59.8 | 44.7 | 44.1 |
+| **take-off** fps delivered (p99 ms) | 25.7 (66.6) / 25.7 (66.7) | **46.7 (33.5) / 46.6 (33.4)** | 28.4 (66.6) | **46.3 (50)** |
+| taxi fps delivered | 32.1 / 33.7 | 32.3 / 33.8 | 36.4 | 36.6 |
+| settings worst task (ms) | 630 / 461 | 224 / 445 | - | - |
+| round trip: back 1 / 2 (ms) | 260, 178 / 298, 121 | 270, 193 / 271, 238 | 244, 209 | 249, 217 |
+| roll-out 2, the slider moved (s) | 20.4 / 20.0 | 19.9 / 19.7 | 13.7 (994 + 1036 ms tasks) | 13.4 (1001 ms task) |
+| roll-out 3, no change (s; long tasks) | 9.28; none / 9.27; one 50 | 9.14; none / 9.14; none | 9.29; none | 9.14; none |
+Level everywhere; the take-off phase (the first seconds of flight) runs 25.7 -> 46.7 fps on the Cub and 28.4 -> 46.3 on the
+metal Cessna - revealcam: the first flight frames no longer replant the cover ring from the shed's camera. (The Cub's
+roll-out 2 runs the world's steps on both sides: the settings probe changed the graphics before it. The metal roll-out 2's
+~1 s task is master's own: its bake.) The settings worst task (shadows=off's settle screen) is noise at this size, as on
+train 20.
