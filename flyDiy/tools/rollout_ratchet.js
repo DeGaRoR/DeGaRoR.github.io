@@ -54,7 +54,14 @@ function metrics(j) {
   for (const b of steps) { if (b.k === 'run') { inRoll = b.set === 'rollout'; continue; } if (inRoll && b.id === 'compile') { compile = b.ms; break; } }
   // G1063.4 (B8+B9's one loading): the world and the aircraft compile in the GARAGE's boot now (worldCompile, compile,
   // craft) and the first roll-out has nothing to compile - the programs' time is the sum of those boot steps
-  if (compile == null) { let c = 0, any = false; for (const b of steps) if (b.k === 'step' && (b.id === 'worldCompile' || b.id === 'compile' || b.id === 'craft')) { c += b.ms || 0; any = true; } if (any) compile = c; }
+  // G1139 (LOAD-COMPILE): ...THE GARAGE BOOT'S OWN STEPS, FIRST LIGHT INCLUDED. The sum read every step of those names in
+  // the run - a settings screen has its own 'compile' (the Cub's --settings runs: ~32 s of it in a "compile" of ~35 s) -
+  // and left out 'firstFrame', where first light pays what the compile step did not key: train 18 moved the shed's
+  // domes from firstFrame into compile (C0c) and the metric read the move as a rise (1.3 -> 2.5 s, the two steps' sum
+  // flat). Now: worldCompile + compile + craft + firstFrame of the garage set only. A new baseline at the next landing
+  let set = null;
+  if (compile == null) { let c = 0, any = false; for (const b of steps) { if (b.k === 'run') { set = b.set; continue; }
+    if (set === 'garage' && (b.id === 'worldCompile' || b.id === 'compile' || b.id === 'craft' || b.id === 'firstFrame')) { c += b.ms || 0; any = true; } } if (any) compile = c; }
   const settingsWorst = (j.settings || []).length ? Math.max(...j.settings.map(s => s.worst || 0)) : null;
   const g = j.gates || {};
   return {
