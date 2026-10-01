@@ -84,7 +84,11 @@ function preScript() {
   for (let i = 0; i < 8; i++) { const n = await ev("(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()"); await sleep(400); if (!n && i > 3) break; }
   if (CAM) await ev("(()=>{ try { const c = window.FLIGHT_PROBE && FLIGHT_PROBE.cam; if (c) c.mode = '" + CAM + "'; } catch (e) {} return 1; })()");
   await sleep(4000);                     // the shed settled (its see-through programs at +1.5 s)
-  await cmd('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: SIZE[0], maxHeight: SIZE[1], everyNthFrame: EVERY });
+  // the fixed shot's plan in this room (eye, lens, the kit it looked past), before the click: kept in index.json
+  const plan = await ev("JSON.stringify((() => { try { const p = window.FLYDIY_ROLLPLAN && FLYDIY_ROLLPLAN(); if (!p) return null; const f = p.fixed;" +
+    " return { fixed: f ? { eye: f.eye, look: f.look, fov: f.fov, out: f.out, hid: f.hid, clut: f.clut, by: f.by } : null, L: p.L, Tr: p.T && p.T.Tr, fov0: p.fov0 }; } catch (e) { return { err: e.message }; } })())");
+  console.log('  plan ' + plan);
+  await cmd('Page.startScreencast',{ format: 'jpeg', quality: 92, maxWidth: SIZE[0], maxHeight: SIZE[1], everyNthFrame: EVERY });
   await sleep(600);
   tClick = Date.now(); rec = true;
   // ONE press: the bar's #bGo (the editor's #edRoll says 'Roll out' too - a second press skips the shot)
@@ -93,7 +97,7 @@ function preScript() {
   rec = false;
   await cmd('Page.stopScreencast');
   const trip = await ev("JSON.stringify((window.FLYDIY_TRIPS || []).slice(-1)[0] || null)");
-  fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify({ url, frames, trip: JSON.parse(trip), errors }, null, 1));
+  fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify({ url, plan: JSON.parse(plan), frames, trip: JSON.parse(trip), errors }, null, 1));
   console.log('  ' + frames.length + ' frames over ' + SECS + ' s -> ' + OUT + '\n  trip ' + trip + '\n  errors ' + JSON.stringify(errors.slice(0, 5)));
   try { await cmd('Browser.close'); } catch (e) {}
   await sleep(1500);
