@@ -83,6 +83,11 @@ const ROLLANIM = (() => {
     check: true, checkLead: 0.2, checkSeg: 0.65, checkFlap: 0.9, checkSettle: 0.25,
     checkAmp: 0.9,                 // the stick surfaces' throw (ctl units, +-), one way then the other
     checkFlapTo: 1.0,              // the flaps: down to this and back up
+    // G1115 THE FIXED SHOT (o.follow false; the user, 2026-10-01: "the camera snaps to a fixed 3/4 view in the garage, the
+    // aeroplane moves its surfaces, then rolls out with a slight acceleration; the camera does not track; fade onto the
+    // exterior"): the roll until the tail is S.bOut m past the door plane, accelerating at S.bAcc all the way (no stop: the
+    // host fades as it leaves), within S.bTmin..S.bTmax s; the snap's picture holds the whole aeroplane (S.bFit of the frame)
+    bOut: 0, bAcc: 1.2, bTmin: 3.0, bTmax: 5.5, bFit: 0.94,
   };
   // the check's order (the user's list) and the ctl keys it drives
   const CHECK_ORDER = ['da', 'de', 'dr', 'flap'];
@@ -288,9 +293,41 @@ const ROLLANIM = (() => {
     for (const w of wheels) if (Math.abs(w.z - cg[2]) <= 0.2) { xThird = w.x; break; }
     const floorY = room ? room.floorY : box.min.y;
     const check = checkPlan(o);
+    // G1115 THE FIXED SHOT (o.follow false): THE EYE STAYS IN THE SHED. A three-quarter view from behind and beside the tail,
+    // taken at once (the snap) and held: the aeroplane checks its surfaces, then rolls away from it out through the door and
+    // S.bOut m on - not followed, so the room is the picture and the door a bright opening at its end
+    let fixed = null;
+    if (o.follow === false) {
+      // the candidates: round the tail's side at three swings, three heights, five distances, the aim between the CG and
+      // the door; scored legal in the room first, then the whole aeroplane in the picture (the drawn box's corners inside
+      // S.bFit of the frame, with the host camera's fov and aspect), then the start's own side, then the nearest
+      const sd = sides[0], pc = cam.clone(), V = new THREE.Vector3(), tight = new THREE.Vector3();
+      let best = null;
+      for (const lk of [0.3, 0.45]) {
+        const look = [cg[0] + (xDoor - cg[0]) * lk, cg[1] + 0.3, cg[2]];
+        for (const sw of [0.5, 0.62, 0.8]) for (const el of [0.1, 0.14, 0.2]) for (const dk of [0.7, 0.85, 1.0, 1.2, 1.45]) for (const s2 of [sd, -sd]) {
+          const az = hdg + s2 * sw, d = dk * D;
+          const p = { x: cg[0] + d * Math.cos(el) * Math.cos(az), y: cg[1] + d * Math.sin(el), z: cg[2] + d * Math.cos(el) * Math.sin(az) };
+          legalize(room, p);
+          const bad = room && !eyeOk(room, p.x, p.y, p.z) ? 1 : 0;
+          const inBox = box.clone().expandByScalar(0.8).containsPoint(V.set(p.x, p.y, p.z)) ? 1 : 0;
+          pc.position.set(p.x, p.y, p.z); pc.up.set(0, 1, 0); pc.lookAt(look[0], look[1], look[2]); pc.updateMatrixWorld(true); pc.updateProjectionMatrix();
+          let out = 0, fill = 0;
+          for (let i = 0; i < 8; i++) {
+            V.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(pc);
+            const m = Math.max(Math.abs(V.x), Math.abs(V.y));
+            if (!(m <= S.bFit && V.z < 1)) out++; else fill = Math.max(fill, m);
+          }
+          const sc = bad * 1000 + inBox * 1000 + out * 100 + (s2 === sd ? 0 : 5) + (1 - fill) * 10;
+          if (!best || sc < best.sc) best = { sc, out, eye: [p.x, p.y, p.z], look };
+        }
+      }
+      fixed = { eye: best.eye, look: best.look, out: best.out };
+    }
+    const Lb = fixed ? Math.max(1, (trail - xDoor) * -ax + S.bOut) : c.L, Tb = fixed ? goTiming(Lb) : c.T;
     return {
-      skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin, check, Ttotal: check.T + c.T.T,
-      L: c.L, T: c.T, side: c.side, lag: c.lag, lagE: c.lagE, bad: c.bad, cands: cands.length,
+      skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin, check, Ttotal: check.T + Tb.T, fixed,
+      L: Lb, T: Tb, side: c.side, lag: c.lag, lagE: c.lagE, bad: c.bad, cands: cands.length,
       az0, el0, d0, fresh, az1: c.az1, el1: c.el1, d1: c.d1, wtw: c.wtw, waz: c.waz, wel: c.wel, wd: c.wd, look0, fov0, fov1,
       pivot: [xMain, floorY], xThird,
       thirdSign: xThird != null && (xThird - xMain) * ax > 0 ? -1 : 1,
@@ -306,11 +343,18 @@ const ROLLANIM = (() => {
     const Tr = clamp(L / S.vCruise / (1 - S.ramp), S.Tmin - S.hold0 - S.hold1, S.Tmax - S.hold0 - S.hold1);
     return { T: Tr + S.hold0 + S.hold1, Tr, ta: S.ramp * Tr, v: L / (Tr * (1 - S.ramp)) };
   }
+  // G1115 the fixed shot's: the start's hold, then a steady acceleration (S.bAcc, within S.bTmin..S.bTmax) to the end - no
+  // ramp down, no end hold: the host fades while it still rolls
+  function goTiming(L) {
+    const Tr = clamp(Math.sqrt(2 * L / S.bAcc), S.bTmin, S.bTmax);
+    return { T: S.hold0 + Tr, Tr, ta: Tr, v: 2 * L / Tr, go: true };
+  }
   // the distance rolled at time t (the hold, the cosine ramp up, the cruise, the ramp down, the hold)
   function rollS(tm, L, t) {
     const tau = t - S.hold0, Tr = tm.Tr, ta = tm.ta, v = tm.v;
     if (tau <= 0) return 0;
     if (tau >= Tr) return L;
+    if (tm.go) return L * (tau / Tr) * (tau / Tr);
     if (tau < ta) return rampS(v, ta, tau);
     if (tau <= Tr - ta) return v * ta / 2 + v * (tau - ta);
     return L - rampS(v, ta, Tr - tau);
@@ -429,6 +473,7 @@ const ROLLANIM = (() => {
     const tau = t - S.hold0, Tr = T.Tr, ta = T.ta, v = T.v, k = Math.PI / ta;
     let s = 0, acc = 0;
     if (tau >= Tr) s = P.L;
+    else if (T.go) { if (tau > 0) { const q = tau / Tr; s = P.L * q * q; acc = 2 * P.L / (Tr * Tr); } }
     else if (tau > 0 && tau < ta) { s = v * (tau / 2 - Math.sin(k * tau) / (2 * k)); acc = v * k / 2 * Math.sin(k * tau); }
     else if (tau > 0 && tau <= Tr - ta) s = v * ta / 2 + v * (tau - ta);
     else if (tau > 0) { const r = Tr - tau; s = P.L - v * (r / 2 - Math.sin(k * r) / (2 * k)); acc = -v * k / 2 * Math.sin(k * r); }
@@ -514,7 +559,10 @@ const ROLLANIM = (() => {
       get tCheck() { return st[9]; }, get phase() { return h.done ? 'done' : st[9] < CK.T ? 'check' : 'roll'; },
       tick, cancel, skip, _cam: applyCam,
     };
+    const FX = P.fixed;                                  // (G1115 the fixed shot: the eye held where the plan put it)
+    if (FX) { eyeV.set(FX.eye[0], FX.eye[1], FX.eye[2]); lookV.set(FX.look[0], FX.look[1], FX.look[2]); }
     function frameCam() {                                // the eye and the aim at the shot's time
+      if (FX) return;                                    // (set once, below)
       // the framing through typed arrays, and eyeAt's last lines written out (G1037); the roll is the tick's
       const t = st[0], cx = cg[0] + ax * st[1];
       framingInto(P, st, FR);

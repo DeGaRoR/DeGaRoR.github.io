@@ -6697,7 +6697,7 @@
     let h = null;
     try {
       h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
-        camMode: cam.mode, fov: cam.fov,
+        camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow',
         onDone: hh => { raBusy = false; done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
     return h;
@@ -6751,6 +6751,29 @@
   // fingerprint taken after read a closed editor: the first flight never stayed certified); rollOutStand then skips it.
   // A click that skipped the shot (its pointerdown taken by the shot) still clicks: the bar's button swallows it.
   let rollAnimSkip = null, benchFp = false, rollAnimSwallow = 0;
+  // G1115 THE FADE ONTO THE EXTERIOR (the user, 2026-10-01: "a true seamless is a rabbit hole" - the shot stays in the
+  // garage and FADES onto the flight): the frame on screen, the shot's last (drawn this task: the shot's onDone runs in a
+  // microtask after the frame's render), copied over the canvas and faded out over the reveal's first frames. One
+  // drawImage, no WebGL work, no world drawn in the shot. A skip cuts, as before (the canvas is no longer the shot's).
+  // (?rolldissolve=0: a hard cut, no copy; the time the copy took is the trip's `dissolveMs`)
+  const RA_DISSOLVE_MS = (() => { try { return /[?&]rolldissolve=0/.test(location.search) ? 0 : 600; } catch (e) { return 600; } })();
+  function raDissolve() {
+    const cv = renderer.domElement;
+    if (!cv || !cv.parentNode || typeof document === 'undefined' || !(RA_DISSOLVE_MS > 0)) return -1;
+    const t0 = perfNow();
+    try {
+      let ov = document.getElementById('raDissolve');
+      if (!ov) { ov = document.createElement('canvas'); ov.id = 'raDissolve'; cv.parentNode.insertBefore(ov, cv.nextSibling); }
+      const r = cv.getBoundingClientRect();
+      ov.style.cssText = 'position:fixed;pointer-events:none;z-index:0;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;opacity:1;transition:none';
+      if (ov.width !== cv.width || ov.height !== cv.height) { ov.width = cv.width; ov.height = cv.height; }
+      const g = ov.getContext('2d'); g.drawImage(cv, 0, 0);
+      ov.hidden = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => { ov.style.transition = 'opacity ' + RA_DISSOLVE_MS + 'ms ease-in-out'; ov.style.opacity = '0'; }));
+      setTimeout(() => { ov.hidden = true; }, RA_DISSOLVE_MS + 200);
+    } catch (e) { console.warn('roll-out fade:', e && e.message); }
+    return perfNow() - t0;
+  }
   function rollAnim(trip, next) {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || typeof ROLLANIM.play !== 'function') { trip.anim = 'none'; next(); return; }
     if (!rollAnimCan()) { trip.anim = 'cannot'; next(); return; }
@@ -6763,6 +6786,7 @@
     h = rollAnimPlay((cage, hh) => {    // (a skip or a clean refusal calls this before play returns)
       raSide = hh && hh.plan ? hh.plan.side : 0;
       if (hh && hh.skipped === 'skipped by the player') rollAnimSwallow = perfNow() + 500;
+      if (hh && !hh.skipped && !over) trip.dissolveMs = +raDissolve().toFixed(1);   // (G1115: played to its end - the fade)
       fin(!hh ? 'threw' : hh.skipped ? (hh.plan ? 'skipped' : 'refused: ' + hh.skipped) : 'played');
     });
   }

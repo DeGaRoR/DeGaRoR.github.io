@@ -502,6 +502,49 @@ async function pageCheck() {
     check(onLine.visible && wide.visible && under.visible && calls === 1, 'the hidden kit comes back at the end');
   }
 
+  // ---- G1115 THE FIXED SHOT (follow: false - the app's shot) ----------------------------------------------------------
+  // The user, 2026-10-01: on Roll out the camera SNAPS to a fixed 3/4 view in the garage, the aeroplane checks its surfaces,
+  // then rolls out with a slight acceleration, not tracked; the host fades onto the flight. Every archetype: the eye the
+  // same from the first frame to the last and legal in the room, the whole aeroplane in the picture at the snap, the roll
+  // S.bOut m past the door's need, its speed never falling (accelerating to the end), onDone once, the craft put back
+  {
+    const S = ROLLANIM.S, V = new THREE.Vector3();
+    for (const a of archs) {
+      const G = garage(a, 'club'); let calls = 0;
+      const h = ROLLANIM.play({ craft: G.craft, camera: G.cam, scene: G.scene, hangar: G.hangar, model: G.model, def: G.def, sim: G.sim, follow: false, onDone: () => calls++ });
+      const P = h.plan;
+      if (!P || !P.fixed) { check(/floats/.test(h.skipped || ''), a.name + ': the fixed shot has a plan (or refuses as the tracking shot does: ' + h.skipped + ')', h.skipped); continue; }
+      // the snap's picture: the craft's drawn box, every corner inside the frame (a 3 % margin)
+      ROLLANIM.camera(); G.cam.updateMatrixWorld(true); G.cam.updateProjectionMatrix();
+      const bx = new THREE.Box3().setFromObject(G.craft); let out = 0;
+      for (let i = 0; i < 8; i++) { V.set(i & 1 ? bx.max.x : bx.min.x, i & 2 ? bx.max.y : bx.min.y, i & 4 ? bx.max.z : bx.min.z).project(G.cam);
+        if (!(Math.abs(V.x) <= 0.97 && Math.abs(V.y) <= 0.97 && V.z < 1)) out++; }
+      const eyes = [], rolled = [];
+      while (!h.done && eyes.length < 4000) { const w = ROLLANIM.frame(1 / 60); G.cam.position.set(0, 3, 0); ROLLANIM.camera(); eyes.push(G.cam.position.clone()); rolled.push(h.rolled); if (!w) break; }
+      await tick();
+      const moved = Math.max(...eyes.map(e => e.distanceTo(eyes[0]))), eye = P.fixed.eye;
+      // (the frames up to the one that reaches the end: the last step is clipped at the clock's end)
+      const L = rolled.length ? rolled[rolled.length - 1] : 0; let e = rolled.findIndex(r => r >= L - 1e-9); if (e < 0) e = rolled.length;
+      let slower = 0; for (let i = 2; i < e; i++) if (rolled[i] - rolled[i - 1] < rolled[i - 1] - rolled[i - 2] - 1e-9) slower++;
+      const vEnd = e >= 2 ? (rolled[e - 1] - rolled[e - 2]) * 60 : 0;
+      check(calls === 1 && moved < 1e-9 && ROLLANIM._eyeOk(P.room, eye[0], eye[1], eye[2]) && out === 0 && slower === 0 &&
+            Math.abs(L - P.L) < 1e-6 && Math.abs(P.L - (P.Lmin - S.clear + S.bOut)) < 1e-6 && G.craft.position.lengthSq() === 0,
+        a.name + ': G1115 the fixed shot - the eye held ' + eyes.length + ' frames, the aeroplane whole in the picture, rolled ' + L.toFixed(1) + ' m accelerating to ' + vEnd.toFixed(1) + ' m/s in ' + P.T.Tr.toFixed(1) + ' s',
+        JSON.stringify({ calls, moved, out, planOut: P.fixed.out, slower, L, PL: P.L, need: P.Lmin - S.clear + S.bOut }));
+    }
+    // no allocation a frame in the fixed roll either (the same bound as the tracking roll's)
+    const a = archs.find(x => x.name === 'DA62-alike');
+    global.gc(); global.gc();
+    const G = garage(a, 'club');
+    const h = ROLLANIM.play({ craft: G.craft, camera: G.cam, scene: G.scene, hangar: G.hangar, model: G.model, def: G.def, sim: G.sim, follow: false, onDone: () => {} });
+    drive(h, 1 / 60, Math.ceil(h.plan.check.T * 60) + 2);
+    drive(h, 1 / 6000, 12000);
+    let per = -1;
+    for (let k = 0; k < 3 && per < 0; k++) { const h0 = process.memoryUsage().heapUsed; drive(h, 1 / 60000, 3000); per = (process.memoryUsage().heapUsed - h0) / 3000; }
+    check(per >= 0 && per < 64 && !h.done && h.phase === 'roll', 'G1115 no allocation a frame, THE FIXED ROLL: ' + per.toFixed(1) + ' bytes / frame (bound 64)', per.toFixed(1) + ' ' + h.phase);
+    h.cancel();
+  }
+
   // ---- G1037: no allocation a frame ----------------------------------------------------------------------
   // One long shot (a tiny dt), warmed until its code is optimised, then the heap over N hooked frames with
   // no gc() between (a gc() drops optimised code that embedded a collected object - "weak objects" - and
