@@ -12016,6 +12016,12 @@
   function shedPrelink() {
     if (typeof renderer.compileAsync !== 'function' || !hangar || tripKeys.shedCompile !== undefined) return;
     if (typeof BOOT.settled === 'function' && !BOOT.settled(['props', 'crew', 'crewBuild'])) return;
+    // G1138 (LOAD-COMPILE): THE DAY FIRST HERE TOO. C0c's applyDay in the compile step (1d11c6c7) swaps the physical sky
+    // dome and the cloud dome in - two programs this prelink never saw, keyed and linked inside the compile step (train
+    // 18's metal Cessna: compile 1.0-1.25 -> 2.2-2.3 s, moved from first light). Applied here the domes are in the room
+    // the prelink walks; under envDeferred its bake is only owed (envDirty) and markBaked keeps the sun the compile
+    // step's one bake shoots (the loop has not started: the day has not moved), so that step's own call is a no-op
+    if (inGarage) shedDayTick();
     shedEnvKey();
     new Promise(res => setTimeout(res, 0)).then(() => compileSliced(hangarScene, ensureEnvRT()))
       .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null))
