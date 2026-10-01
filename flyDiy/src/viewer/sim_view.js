@@ -64,6 +64,12 @@ function makeSimView(def, opts) {
   // margin, between 1 and 4 steps, moved at most a tenth of the frame's time up and a fiftieth down - the drawn clock
   // never jumps, it runs a little slow or fast while the delay settles.
   const RING = opts.ring || 5, fixedDelay = opts.delayS != null;
+  // G1166b (A5-CAP, the cockpit eye's spikes): A STARVED FRAME EXTRAPOLATES. A frame whose moment is past the newest
+  // snapshot (its successor late) drew the newest - a jump ahead of the smooth path, and the next frame fell back: the
+  // eye's horizontal judder read 165-245 mm at the taxi on those frames (rollout_perf --judder, master too, whenever the
+  // delay dipped). Now it carries the two newest snapshots' motion on for the time missing, a step at most: the pose
+  // where the aeroplane is going, not where it last was. opts.starveEx false (?starvex=0) is the old jump.
+  const STARVE_EX = opts.starveEx !== false;
   let delayS = fixedDelay ? opts.delayS : 1.5 * R.dt;
   const Q = [];                            // the ring, oldest first (B = its newest, A = the one before)
   const DS = { frames: 0, starved: 0, early: 0, lagMax: 0, lags: new Float64Array(60), li: 0, lastT: 0 };
@@ -140,7 +146,14 @@ function makeSimView(def, opts) {
           while (j > 0 && Q[j - 1].f[S.EPOCH] === ep && Q[j - 1].f[S.T] >= tau) j--;
           if (j > 0 && Q[j - 1].f[S.EPOCH] === ep) { X = Q[j - 1]; Y = Q[j]; alpha = (tau - X.f[S.T]) / (Y.f[S.T] - X.f[S.T]); }
           else { X = Y = Q[j]; alpha = 0; DS.early++; }   // before the ring: its oldest
-        } else if (fB[S.FLAGS] & S.F_RUNNING) DS.starved++;   // the snapshot for this moment has not come: the newest
+        } else if (fB[S.FLAGS] & S.F_RUNNING) {   // the snapshot for this moment has not come
+          DS.starved++;
+          // G1166b: on from the newest by the two newest's own motion (alpha past 1 extrapolates below), a step at most
+          const P = Q.length > 1 ? Q[Q.length - 2] : null;
+          if (STARVE_EX && P && P.f[S.EPOCH] === ep && fB[S.T] > P.f[S.T]) {
+            X = P; Y = B; alpha = 1 + Math.min(tau - fB[S.T], R.dt) / (fB[S.T] - P.f[S.T]);
+          }
+        }
       }
       const fX = X.f, fY = Y.f;
       if (X === Y) p.set(fY.subarray(oP, oP + N3));
