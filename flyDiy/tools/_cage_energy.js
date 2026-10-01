@@ -535,7 +535,7 @@ function placeAll(ctx, inv) {
     results.push(pl);
   }
   // the station a vessel found for itself is a fact about this aeroplane now
-  if (wroteBack) { if (panelBody) renderPanel(); commitLater(); }
+  if (wroteBack && !FIT_ASKING) { if (panelBody) renderPanel(); commitLater(); }
   return results;
 }
 let laterT = null;
@@ -639,12 +639,17 @@ function drawnPts(r, sol, slots, pc) {
 // the surfaces a drawn tank must not cross, as triangles in this layer's
 // frame: the sheet (cage units x FS: skin, glass, frame tubes, the dash) and
 // the engine's and the cowl's meshes - only those whose box meets `bb`
-function surfTris(ctx, scene, inv, bb) {
-  const out = [];
+// THE SOUP IS BUILT ONCE PER LAYOUT (relayout drops it): the sheet and the
+// engine's and the cowl's meshes as flat triangles with their boxes; a query
+// is then a box filter - fitOf asks it hundreds of times in a search
+let SURF_ALL = null;
+function surfAll(ctx, scene, inv) {
+  if (SURF_ALL && SURF_ALL.mesh === (ctx && ctx.mesh) && SURF_ALL.inv === inv) return SURF_ALL.tris;
+  const tris = [];
   const add = (ax, ay, az, bx, by, bz, cx, cy, cz) => {
-    if (Math.max(ax, bx, cx) < bb[0] || Math.min(ax, bx, cx) > bb[3] || Math.max(ay, by, cy) < bb[1] ||
-        Math.min(ay, by, cy) > bb[4] || Math.max(az, bz, cz) < bb[2] || Math.min(az, bz, cz) > bb[5]) return;
-    out.push([ax, ay, az, bx - ax, by - ay, bz - az, cx - ax, cy - ay, cz - az]);
+    tris.push([ax, ay, az, bx - ax, by - ay, bz - az, cx - ax, cy - ay, cz - az,
+               Math.min(ax, bx, cx), Math.min(ay, by, cy), Math.min(az, bz, cz),
+               Math.max(ax, bx, cx), Math.max(ay, by, cy), Math.max(az, bz, cz)]);
   };
   const M = ctx && ctx.mesh;
   if (M && M.F && M.V) {
@@ -676,6 +681,16 @@ function surfTris(ctx, scene, inv, bb) {
       });
     }
   }
+  SURF_ALL = { mesh: ctx && ctx.mesh, inv, tris };
+  return tris;
+}
+// the surfaces a drawn tank must not cross, as triangles in this layer's
+// frame (the sheet: skin, glass, frame tubes, the dash; the engine; the
+// cowl) - only those whose box meets `bb`
+function surfTris(ctx, scene, inv, bb) {
+  const out = [];
+  for (const t of surfAll(ctx, scene, inv))
+    if (!(t[12] < bb[0] || t[9] > bb[3] || t[13] < bb[1] || t[10] > bb[4] || t[14] < bb[2] || t[11] > bb[5])) out.push(t);
   return out;
 }
 // does the segment c -> q cross any of `tris` (Moller-Trumbore, t in (0, 1))?
@@ -1308,6 +1323,29 @@ function drawResults(group, ctx, results) {
 // ---------------------------------------------------------------------------
 let group = null;
 
+// THE FIT OF A VESSEL THAT IS NOT (YET) THE AEROPLANE'S (G1109). The layer's
+// whole verdict - the placement against the bay, the crew, the engine, the
+// cowl, the dash, the drawn skin and frame - for one candidate vessel, on the
+// last layout's body, with nothing drawn and nothing written back: the stock
+// designs' tanks were refitted by asking this (tools/tank_refit.js). The
+// candidate is a copy; the result carries its placement and why.
+let FIT_ASKING = false;
+function fitOf(cand) {
+  const ctx = LAST.ctx, inv = LAST.inv;
+  if (!ctx || !inv) return null;
+  const keep = EN.vessels;
+  const v = JSON.parse(JSON.stringify(cand));
+  FIT_ASKING = true;
+  try {
+    EN.vessels = [v];
+    const results = placeAll(ctx, inv);
+    crewHits(ctx.scene, inv, results);
+    layerHits(ctx.scene, inv, results, ctx);
+    const r = results[0];
+    return r ? { ok: !!r.ok, why: r.why.slice(), c: r.c, e: r.e, rot: r.rot, on: r.on, v,
+                 section: r.section, crewHits: r.crewHits || 0, layerHits: r.layerHits || 0 } : null;
+  } finally { EN.vessels = keep; FIT_ASKING = false; }
+}
 function relayout() {
   const ctx = LAST.ctx;
   if (!ctx || !window.THREE) return;
@@ -1323,6 +1361,7 @@ function relayout() {
   group.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
   CREW_PTS = null;              // the crew may have moved since the last layout
+  SURF_ALL = null;              // ...and every layer it asks was drawn afresh
   const results = placeAll(ctx, inv);
   crewHits(scene, inv, results);
   layerHits(scene, inv, results, ctx);
@@ -2268,7 +2307,7 @@ function syncReadouts() {
 }
 
 window.CAGE_ENERGY = {
-  EN, fromSpec, toSpec, relayout, commit, setEnv: vesselSetEnv,
+  EN, fromSpec, toSpec, relayout, commit, setEnv: vesselSetEnv, fitOf, capacityFromDims,
   // the flown aeroplane's door into the factory (app.js matFor, `m.ves`)
   material: vesselMatFor,
   // the two columns' doors: structure gets the whole panel, finish gets the

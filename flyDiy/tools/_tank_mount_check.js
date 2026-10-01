@@ -102,12 +102,16 @@ if (!argv.includes('--child')) {
 }
 
 const SH = require(path.join(TOOLS, '_scene_headless.js'));
-for (const f of ['_bay_site.js', '_vessel_gen.js', '_vessel_mesh.js', '_cage_energy.js']) SH.EXCLUDE.delete(f);
+// the crew too (G1109): its feet, pedals and seats are what a nose tank meets in the game
+for (const f of ['_bay_site.js', '_vessel_gen.js', '_vessel_mesh.js', '_cage_energy.js',
+                 '_cage_crew.js', '_cage_char.js', '_panel_gen.js', '_cage_panel.js']) SH.EXCLUDE.delete(f);
 const BJ = require(path.join(TOOLS, '_bake_joined.js'));
 const { D, C } = BJ.loadPanel();
 
 const C0 = SH.context();
 const W = C0.ctx, THREE = C0.THREE;
+SH.stubCanvas();
+console.error = () => {};     // the panel's atlas painters log against the stub canvas; geometry is what is read
 check(!C0.errors.length, 'the headless layers load (energy included)', C0.errors.join(' | '));
 const VM = W.VESSEL_MESH;
 check(!!VM && typeof VM.build === 'function', 'the vessel builder loads headless');

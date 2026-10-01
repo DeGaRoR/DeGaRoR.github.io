@@ -117,4 +117,31 @@ function loadFixture(file) {
   return { spec, cage: spec.cage || spec };
 }
 
-module.exports = { sceneBuild, context, loadFixture, EXCLUDE };
+// A CANVAS THAT ANSWERS (G1109, opt-in): the crew and panel layers paint
+// textures (the panel's AO and faces atlas) and the chain STOPS at the first
+// canvas without a getContext - the Jodel-alike's energy layer never ran, and
+// its tanks were never asked. A 2-D context that accepts every call and
+// hands back empty pixels; geometry is all a headless measurement reads.
+// Only the tools that load the crew call it (tank_refit, GATE TANKMOUNT), so
+// every other gate keeps the harness it was measured with.
+function stubCanvas(opts) {
+  const W = context(opts).ctx;
+  if (W.__canvasStub) return;
+  const any = new Proxy(function () {}, { get: (t, k) => k === Symbol.toPrimitive ? (() => 0) : k === 'length' ? 0 : any,
+                                          apply: () => any, set: () => true });
+  const img = (...a) => { const w = (a.length > 2 ? a[2] : a[0]) || 1, h = (a.length > 2 ? a[3] : a[1]) || 1;
+                          return { data: new Uint8ClampedArray(4 * w * h), width: w, height: h }; };
+  const mk = () => {
+    const cv = { width: 1, height: 1, style: {}, toDataURL: () => '', addEventListener() {} };
+    cv.getContext = () => new Proxy({ canvas: cv }, {
+      get: (t, k) => k in t ? t[k] : (k === 'getImageData' || k === 'createImageData') ? img
+        : k === 'measureText' ? (() => ({ width: 10 })) : any,
+      set: (t, k, v) => { t[k] = v; return true; } });
+    return cv;
+  };
+  const ce = W.document.createElement;
+  W.document.createElement = tag => String(tag).toLowerCase() === 'canvas' ? mk() : ce(tag);
+  W.__canvasStub = 1;
+}
+
+module.exports = { sceneBuild, context, loadFixture, EXCLUDE, stubCanvas };
