@@ -220,7 +220,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // holds it, and refreshes more often than the window is wide.
   // G1110: 12 m (was 30 - the whole impostor-first near tier was inside a window; gfx_settings FADE per step). The
   // seam still holds: a tree dealt to one rung can drift a whole window before its rung's band drops it, and the
-  // partition refreshes every window/3 m (lodMove)
+  // partition refreshes every 0.6 window m (lodMove, G1114.1; 10 m at most)
   const uFadeW = { value: 12 };
   // the shadow frustum's live half-width: the impostor caster collapses every
   // instance the map cannot see, or 170 000 quads pay the depth pass for
@@ -3737,9 +3737,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // carries ONLY the instances in its band, sorted in here on a cadence as
     // the aircraft moves, and `count` is set to what was written. The band in
     // the shader stays as the seam guard between refreshes.
-    // refresh every 6 frames or LOD_MOVE m - inside the window's half-width. G1110 (TREES-NEAR): the distance follows the
-    // window (a third of it, 10 m at most: 30 m -> 10 as before, 20 -> 6.7), so a narrower window keeps its seam guard
-    const LOD_TICK = 6, lodMove = () => Math.min(10, uFadeW.value / 3);
+    // WHEN THE PARTITION REFRESHES (G1114.1, TREES-NEAR's lever; was every 6 frames or window/3 m). A tree dealt to one
+    // rung keeps being drawn until it drifts a WHOLE window from where it was dealt (dealt to the impostor alone at
+    // edge + hw, the impostor drops it at edge - hw; the same for the rung on the far side) - so the refresh owes the seam
+    // only that: the eye moves at most lodMove + one frame's travel (3 m at 90 m/s and 30 fps) between two refreshes,
+    // inside a window of 12-15 m at 0.6 of it, 10 m at most. The move is 3-D (a climb changes every distance); the frame
+    // tick is a backstop (every 30 frames), and a record added or dropped refreshes at once (ladderChunks.ver).
+    // Measured on the low pass (tools/perf/treesnear_lodbench.js): G1110's window/3 and the 6-frame tick refreshed every
+    // 2-3 frames, and each refresh walked every tree of every chunk within 1.5 km and re-parked every chunk beyond it.
+    const LOD_TICK = 30, lodMove = () => Math.min(10, uFadeW.value * 0.6);
     // rec.rungs[si][r] holds the meshes of rung r of series si, rec.buf[si][r]
     // its scratch, and the rung TABLE - the far edge of each rung - is read
     // live from the ladder's edges, so the dial that moves the bands moves
@@ -3755,41 +3761,82 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // under nothing; `visible` still says which (the probes read it).
     const RUNGS = new THREE.Group(); RUNGS.name = 'treeRungs'; scene.add(RUNGS);
     const showRung = (m, on) => { if (on) { if (m.parent !== RUNGS) RUNGS.add(m); } else if (m.parent) m.parent.remove(m); m.visible = on; };
+    // THE RECORD'S OWN GRID (G1114.1). A record is one subject's trees over a whole chunk (a fill chunk is 1 km, the
+    // woodland's 2 km): thousands of trees, of which the near tier wants the few within ~uNear of the eye. Sorted once
+    // into PCELL cells (a counting sort of the indices; the box is the trees' own, from `pos`), a refresh walks only the
+    // cells the reach overlaps, and a record whose box is out of reach is not walked at all.
+    const PCELL = 64;
+    const recGrid = rec => {
+      if (rec.grid) return rec.grid;
+      const n = rec.n, pos = rec.pos;
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      for (let i = 0; i < n; i++) { const x = pos[i * 3], z = pos[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+      if (!n) { x0 = z0 = x1 = z1 = 0; }
+      const nx = Math.max(1, Math.floor((x1 - x0) / PCELL) + 1), nz = Math.max(1, Math.floor((z1 - z0) / PCELL) + 1);
+      const cell = new Int32Array(n), start = new Int32Array(nx * nz + 1), order = new Int32Array(n);
+      for (let i = 0; i < n; i++) { const c = Math.min(nz - 1, Math.floor((pos[i * 3 + 2] - z0) / PCELL)) * nx + Math.min(nx - 1, Math.floor((pos[i * 3] - x0) / PCELL)); cell[i] = c; start[c + 1]++; }
+      for (let c = 0; c < nx * nz; c++) start[c + 1] += start[c];
+      const at = start.slice(0, nx * nz);
+      for (let i = 0; i < n; i++) order[at[cell[i]]++] = i;
+      return (rec.grid = { x0, z0, x1, z1, nx, nz, start, order });
+    };
+    // the horizontal distance from the eye to a record's trees' box (0 inside it)
+    const recNear = (G, e) => Math.hypot(Math.max(G.x0 - e[0], 0, e[0] - G.x1), Math.max(G.z0 - e[2], 0, e[2] - G.z1));
     function partitionChunk(rec, cg) {
-      const n = rec.n, pos = rec.pos, mats = rec.mats, ser = rec.ser;
+      const pos = rec.pos, mats = rec.mats, ser = rec.ser;
       const k = rec.rungs.map(L => L.map(() => 0));
+      const sig = rec.rungs.map(L => L.map(() => 0));
       const spans = rec.rungs.map(L => spanFor(L.length));
       const hw = uFadeW.value * 0.5;
-      for (let i = 0; i < n; i++) {
-        const dx = pos[i * 3] - cg[0], dy = pos[i * 3 + 1] - cg[1], dz = pos[i * 3 + 2] - cg[2];
-        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        const si = ser[i], R = spans[si];
-        // every rung whose window [near - hw, far + hw) holds the tree: at
-        // most two, and each rung's buffer is sized for the whole series
-        for (let j = 0; j < R.length; j++) {
-          // AN EMPTY RUNG IS DEALT NOTHING (G1110): with the edges [10, 30, 30] L2's band is [30, 30) - its shader keeps
-          // no fragment (its fade-in and fade-out are the same ramp, complementary), yet every tree 15-45 m out was
-          // written to it: a draw per part, the vertex work, and nothing on the screen
-          if (j && R[j] <= R[j - 1]) continue;
-          if (d >= R[j] + hw) continue;
-          if (j && d < R[j - 1] - hw) break;
-          rec.buf[si][j].set(mats.subarray(i * 16, i * 16 + 16), k[si][j] * 16);
-          k[si][j]++;
+      // the cells the reach overlaps: every rung's far edge is uNear at most (spanFor), plus its window; the 3-D
+      // distance the band reads is never shorter than this horizontal one
+      const G = recGrid(rec), reach = uNear.value + hw;
+      const cx0 = Math.max(0, Math.floor((cg[0] - reach - G.x0) / PCELL)), cx1 = Math.min(G.nx - 1, Math.floor((cg[0] + reach - G.x0) / PCELL));
+      const cz0 = Math.max(0, Math.floor((cg[2] - reach - G.z0) / PCELL)), cz1 = Math.min(G.nz - 1, Math.floor((cg[2] + reach - G.z0) / PCELL));
+      for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) {
+        const c = cz * G.nx + cx;
+        for (let o = G.start[c], oe = G.start[c + 1]; o < oe; o++) {
+          const i = G.order[o];
+          const dx = pos[i * 3] - cg[0], dy = pos[i * 3 + 1] - cg[1], dz = pos[i * 3 + 2] - cg[2];
+          const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          const si = ser[i], R = spans[si];
+          // every rung whose window [near - hw, far + hw) holds the tree: at
+          // most two, and each rung's buffer is sized for the whole series
+          for (let j = 0; j < R.length; j++) {
+            // AN EMPTY RUNG IS DEALT NOTHING (G1110): with the edges [10, 30, 30] L2's band is [30, 30) - its shader keeps
+            // no fragment (its fade-in and fade-out are the same ramp, complementary), yet every tree 15-45 m out was
+            // written to it: a draw per part, the vertex work, and nothing on the screen
+            if (j && R[j] <= R[j - 1]) continue;
+            if (d >= R[j] + hw) continue;
+            if (j && d < R[j - 1] - hw) break;
+            rec.buf[si][j].set(mats.subarray(i * 16, i * 16 + 16), k[si][j] * 16);
+            k[si][j]++;
+            sig[si][j] = (Math.imul(sig[si][j], 31) + i + 1) | 0;
+          }
         }
       }
+      // A RUNG DEALT THE SAME TREES IS LEFT AS IT IS (G1114.1): the matrices are static, so the same list in the same
+      // order (the cells are walked in one order) is the same buffer - no copy, no upload. The key is the list's
+      // length and hash; parkChunk forgets it.
+      const was = rec.sig || (rec.sig = rec.rungs.map(L => L.map(() => null)));
       for (let si = 0; si < rec.rungs.length; si++)
-        for (let b = 0; b < rec.rungs[si].length; b++) for (const m of rec.rungs[si][b]) {
-          const c = k[si][b];
-          if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
-          m.count = c; showRung(m, c > 0);
-          // only the instances written go up (addUpdateRange, r159+: the list
-          // is consumed by the upload and cleared after it) - a rung's buffer
-          // is sized for the whole series, and a band holds a fraction of it
-          if (c) { m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.addUpdateRange(0, c * 16); m.instanceMatrix.needsUpdate = true; }
+        for (let b = 0; b < rec.rungs[si].length; b++) {
+          const c = k[si][b], key = c ? c + ':' + sig[si][b] : '0';
+          if (was[si][b] === key) continue;
+          was[si][b] = key;
+          for (const m of rec.rungs[si][b]) {
+            if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
+            m.count = c; showRung(m, c > 0);
+            // only the instances written go up (addUpdateRange, r159+: the list
+            // is consumed by the upload and cleared after it) - a rung's buffer
+            // is sized for the whole series, and a band holds a fraction of it
+            if (c) { m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.addUpdateRange(0, c * 16); m.instanceMatrix.needsUpdate = true; }
+          }
         }
     }
     const parkChunk = rec => {
       for (const S of rec.rungs) for (const b of S) for (const m of b) { m.count = 0; showRung(m, false); }
+      rec.sig = null;
     };
     // A TREE IS BANDED WHOLE, BY ITS INSTANCE ORIGIN. The first cut measured
     // every VERTEX's own distance, so a tree straddling a band edge had the
@@ -3964,7 +4011,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const nearChunks = [], impChunks = [];  // distance-culled: see lodUpdate
     // W0c.4: chunks whose rung meshes are PARTITIONED on the CPU - see
     // partitionChunk; cleared and refilled by each plant
-    const ladderChunks = [];
+    const ladderChunks = []; ladderChunks.ver = 0;   // ver: bumped on every add / drop (lodUpdate refreshes at once)
     // per-species colour ramps (stage 2): spruce, pine, oak, birch, willow
     const SPC = [
       [C(0x2e4620), C(0x486327)],
@@ -4158,6 +4205,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         for (let i = list.length - 1; i >= 0; i--) if (list[i].own) list.splice(i, 1);
       // the fill's records live in the same register: leave them
       for (let i = ladderChunks.length - 1; i >= 0; i--) if (ladderChunks[i].own) ladderChunks.splice(i, 1);
+      ladderChunks.ver++;
 
       PROTO = null;
       if (treesSettled() && typeof treeBuild === 'function') {
@@ -4379,6 +4427,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // included); the fallback and the impostors ride the chunk registers
       if (PROTO) {
         for (const H of HS) if (H && H.rec) ladderChunks.push(H.rec);
+        ladderChunks.ver++;
       } else {
         nearChunks.push({ m: [trunks].concat(...HS.map(H => H ? H.meshes : [])),
                           x: ox, z: oz, r: NEAR_R + hd, own: true });
@@ -4388,7 +4437,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     }
     }                                     // ---- end plantWoodland
 
-    let lodTick = 0;
+    let lodTick = 0, lodVer = -1;
     lodUpdate = cg => {
       IMPA.frame();   // the arrays' mips after a bake, the tint dials into the layer table (PERF 2026-09-23)
       const ex = uCam.value.x, ez = uCam.value.z;
@@ -4408,13 +4457,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // partition and collapsed by that rung's band - a gap that moved with
       // the aeroplane, on top of the slicing.
       const eye = [uCam.value.x, uCam.value.y, uCam.value.z];
-      const moved = !lodAt || Math.hypot(eye[0] - lodAt[0], eye[2] - lodAt[2]) > lodMove();
-      if (lodTick++ % LOD_TICK === 0 || moved) {
-        lodAt = eye;
-        const reach = uNear.value + CHW * Math.SQRT1_2;
+      const moved = !lodAt || Math.hypot(eye[0] - lodAt[0], eye[1] - lodAt[1], eye[2] - lodAt[2]) > lodMove();
+      if (lodTick++ % LOD_TICK === 0 || moved || ladderChunks.ver !== lodVer) {
+        lodAt = eye; lodVer = ladderChunks.ver;
+        // G1114.1: a record is in reach when its trees' box comes within uNear + the window of the eye (it was the
+        // chunk's CENTRE within uNear + the woodland's 2 km half-diagonal - every chunk within ~1.5 km walked whole),
+        // and one out of reach is parked ONCE (it was re-parked, every mesh of it, at every refresh)
+        const reach = uNear.value + uFadeW.value * 0.5;
         for (const rec of ladderChunks) {
-          const dx = rec.x - eye[0], dz = rec.z - eye[2];
-          if (dx * dx + dz * dz > reach * reach) { parkChunk(rec); continue; }
+          if (recNear(recGrid(rec), eye) > reach) { if (!rec.parked) { parkChunk(rec); rec.parked = true; } continue; }
+          rec.parked = false;
           partitionChunk(rec, eye);
         }
       }
@@ -4792,6 +4844,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const reg = [{ m: imp, x: ox, z: oz, r: FAR_FILL + hdF, half: CH / 2, lim: part === FILLP ? () => uThin.value.y : () => FAR_FILL }];
         impChunks.push(reg[0]);
         for (const rec of recsOut) ladderChunks.push(rec);
+        ladderChunks.ver++;
         const t2 = performance.now();
         STAT.gens++; STAT.walkMs += t1 - t0; STAT.buildMs += t2 - t1;
         STAT.lastMs = t2 - t0; STAT.maxMs = Math.max(STAT.maxMs, t2 - t0);
@@ -4812,7 +4865,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           i = impChunks.indexOf(r2); if (i >= 0) impChunks.splice(i, 1);
         }
         for (const rec of (built.recs || [])) {
-          const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
+          const i = ladderChunks.indexOf(rec); if (i >= 0) { ladderChunks.splice(i, 1); ladderChunks.ver++; }
         }
       };
       // the mix dials (furnished, spread) are dealt at plant time: applying
