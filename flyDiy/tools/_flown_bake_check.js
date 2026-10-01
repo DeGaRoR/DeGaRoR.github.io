@@ -383,7 +383,7 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   grp.updateMatrixWorld(true);
   const e1 = skinned(iP).distanceTo(at(pg, p1v0));
   check(iP >= 0 && e0 < 1e-6 && e1 < 1e-6, '8 a part\'s vertex lands where the part puts it, at rest and moved (the bone is the part)', 'err ' + e0 + ', ' + e1);
-  // G1125.2: the fold's OBJECT sphere (set at the build: three never walks the vertices for it) holds the part at every
+  // G1170.2: the fold's OBJECT sphere (set at the build: three never walks the vertices for it) holds the part at every
   // extreme: a quarter turn either way about each axis, with a 0.3 m travel either way along each
   { const sph = bone.boundingSphere, n = bone.geometry.attributes.position.count; let out = 0, poses = 0;
     const R0 = [1, 0.2, 0], ax = ['x', 'y', 'z'];
@@ -393,7 +393,7 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
       for (let i = 0; i < n; i++) if (skinned(i).distanceTo(sph.center) > sph.radius + 1e-4) out++;
     }
     pg.rotation.set(0, 0, -0.4); pg.position.set(1, 0.6, 0); grp.updateMatrixWorld(true);
-    check(!!sph && out === 0, '8 G1125.2 the parts\' fold\'s object sphere holds every vertex at every extreme pose (a quarter turn about each axis, 0.3 m of travel): three never culls a deflected part',
+    check(!!sph && out === 0, '8 G1170.2 the parts\' fold\'s object sphere holds every vertex at every extreme pose (a quarter turn about each axis, 0.3 m of travel): three never culls a deflected part',
       out + ' vertices outside over ' + poses + ' poses; sphere r ' + (sph && sph.radius.toFixed(2))); }
   check(bone.bindMode === (T.DetachedBindMode || 'detached') && bone.bindMatrix.equals(new T.Matrix4()), '8 the bind is the identity, detached (the bones are relative to the model group)');
   // the raycast: member by member, the part named
@@ -475,7 +475,7 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   o2.fade(1); const out1 = k1.material === m0; o2.fade(0); const out0 = o2.meshes[0].material === inMat;
   check(inB && out1 && out0 && o2.pairs().length === 2 * 2 + 1, '8 G1123 the band twins worn only while 0 < t < 1, and the pairs the craft step warms (each live mesh twice, each fold\'s twin)',
     JSON.stringify({ inB, out1, out0, pairs: o2.pairs().length }));
-  // G1125 THE VIEWS: the hybrid's exterior drawn from the fold's own buffers - one view per live material, on the fold's
+  // G1170 THE VIEWS: the hybrid's exterior drawn from the fold's own buffers - one view per live material, on the fold's
   // SAME attribute objects (no second resident set), its index range; the members out of the graph; parked and shown
   {
     const g5 = new T.Group(); g5.matrixAutoUpdate = false;
@@ -490,18 +490,18 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
     const out = v1.parent === null && v2.parent === null && v3.parent === null;
     o5.live = vs.slice(); o5.park(); const parked = vs.every(v => v.parent === null);
     o5.fade(1); const near = vs.every(v => v.parent === g5 && v.visible) && !fold.visible && o5.viewsOn === true;
-    // G1126: a view answers a ray with the fold's member cast over its own range (never three's per-vertex walk), the
+    // G1171: a view answers a ray with the fold's member cast over its own range (never three's per-vertex walk), the
     // part named; a hidden view answers none
     g5.updateMatrixWorld(true);
     const vB = vs.find(v => v.material === lB), rc5 = new T.Raycaster(new T.Vector3(1.5, 0.5, 10), new T.Vector3(0, 0, -1));
     const h5 = rc5.intersectObject(g5, true), own = vs.every(v => v.raycast !== T.Mesh.prototype.raycast && v.raycast !== T.SkinnedMesh.prototype.raycast);
     vB.visible = false; const hid = rc5.intersectObject(vB, false).length; vB.visible = true;
     check(own && h5.length > 0 && h5.every(h => h.object === vB) && Math.abs(h5[0].distance - 9) < 1e-6 && hid === 0,
-      "8 G1126 a view answers a ray with the fold's member cast over its own range (not three's per-vertex walk); a hidden view answers none",
+      "8 G1171 a view answers a ray with the fold's member cast over its own range (not three's per-vertex walk); a hidden view answers none",
       JSON.stringify({ own, hits: h5.map(h => (h.object === vB ? 'vB' : h.object.name) + '@' + h.distance.toFixed(3)), hid }));
     o5.fade(0); const far = vs.every(v => v.parent === null) && fold.visible && !o5.viewsOn;
     check(!!o5 && shared && byMat && total === fold.geometry.index.count && out && parked && near && far,
-      '8 G1125 the views: one a live material on the fold\'s SAME attribute objects (no second buffer), their ranges the fold\'s index, the members out of the graph, parked / shown as the kept meshes were',
+      '8 G1170 the views: one a live material on the fold\'s SAME attribute objects (no second buffer), their ranges the fold\'s index, the members out of the graph, parked / shown as the kept meshes were',
       JSON.stringify({ views: vs.length, shared, byMat, total, idx: fold && fold.geometry.index.count, out, parked, near, far }));
   }
   W.FLYDIY_FLOWN_MERGE = 0;

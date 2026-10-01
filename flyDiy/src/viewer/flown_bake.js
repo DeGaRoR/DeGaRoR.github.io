@@ -67,7 +67,7 @@
                 hybrid: true, hyA: 1.6, hyB: 2.0,
                 eyeR: 1.5, eyeOnly: true, shadowFolds: true,
                 cockpitLive: false,
-                swingPad: 0.5 };   // G1125.2: a moving part's travel beyond its turn (a Fowler flap's run, the gear's stroke), m   // G1124.1: the exterior live in the cockpit (the eye's zone) - off: +2.4 ms there (the Cessna)   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
+                swingPad: 0.5 };   // G1170.2: a moving part's travel beyond its turn (a Fowler flap's run, the gear's stroke), m   // G1124.1: the exterior live in the cockpit (the eye's zone) - off: +2.4 ms there (the Cessna)   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
   const log = (...a) => { if (FB.quiet) return; console.log('flown bake:', ...a); };
   const tick = () => new Promise(r => setTimeout(r, 0));
   // the dials in the URL: ?fbake=0 the live shader; ?fbake=ab the A/B build (live twins kept, the still merge off);
@@ -87,7 +87,7 @@
     if (on.has('nowarmdraw')) FB.noWarmDraw = true;       // isolation: the kept stand-ins compiled, not warm-drawn
     if (on.has('nokeptcompile')) FB.noKeptCompile = true; // isolation: the kept stand-ins warm-drawn, not compiled first
     if (on.has('noband')) FB.noBand = true;   // isolation: no band twins compiled or drawn (a crossing would link them)
-    if (on.has('warmkey')) FB.warmKey = true;        // (a): the warm draws one stand-in a program key, not one a view (G1125: the views share the fold's buffers)
+    if (on.has('warmkey')) FB.warmKey = true;        // (a): the warm draws one stand-in a program key, not one a view (G1170: the views share the fold's buffers)
     if (on.has('warmcanvas')) FB.warmCanvas = true;  // (b): the warm draws into the canvas, not the AA's intermediate target
     if (on.has('warmfree')) FB.warmFree = true;    // isolation: the warm draw's buffers freed once it is done (resident, or first-drawn?)
     if (on.has('noshadowfolds')) FB.shadowFolds = false;   // G1124 off: the live meshes cast their own shadows
@@ -923,7 +923,7 @@
     const o = opt || {}, wheel = o.wheel || new Set(), written = o.written || new Set();
     const CR = o.crumb != null ? o.crumb : 0.15, WR = o.wheelCrumb != null ? o.wheelCrumb : 0.04;
     const keep = !!o.keep || !!FB.foldAB, subs = o.members ? o.members.slice() : [], set = o.set || (o.keep ? 'in' : 'ext'), zone = o.zone || null;
-    // G1125 (o.views, the hybrid's exterior): the live side drawn as VIEWS on the fold's own geometry - see below
+    // G1170 (o.views, the hybrid's exterior): the live side drawn as VIEWS on the fold's own geometry - see below
     const VIEWS = !!o.views && keep && !FB.foldAB;
     if (!o.members) grp.traverse(m => { if (m.isMesh && m.material === mat) subs.push(m); });
     const skip = {}, why = k => { skip[k] = (skip[k] || 0) + 1; };
@@ -981,7 +981,7 @@
         vo += n; io += g.index.count;
       }
       const geo = new THREE.BufferGeometry();
-      // G1125: the live side's own attributes (uv, the surface field, ...), merged once into the fold - zero where a member
+      // G1170: the live side's own attributes (uv, the surface field, ...), merged once into the fold - zero where a member
       // has none (its material is then one that reads none: the material keys on the surface field's presence)
       if (VIEWS) {
         const extra = new Map();
@@ -1033,9 +1033,9 @@
         const all = new THREE.Sphere(), sp = new THREE.Sphere();
         members.forEach((q, i) => { sp.center.copy(q.c).applyMatrix4(B[q.b].matrixWorld); sp.radius = q.r0; if (i) all.union(sp); else all.copy(sp); });
         geo.boundingSphere = all;
-        // G1125.1: ...and the OBJECT's sphere set here (a SkinnedMesh's own, which three computes at its first frustum test by
+        // G1170.1: ...and the OBJECT's sphere set here (a SkinnedMesh's own, which three computes at its first frustum test by
         // walking every vertex through the bones: 2.3 s at the hybrid's first crossing, a view on the fold's whole geometry
-        // each). G1125.2: one that holds the parts at ANY turn about their pivots - each member within (its distance from
+        // each). G1170.2: one that holds the parts at ANY turn about their pivots - each member within (its distance from
         // its part's pivot + its radius) of the pivot's rest place - plus FB.swingPad for a part's travel, so a surface at
         // full deflection, a leg at its stroke or a door open is never culled at the frame's edge
         const swing = new THREE.Sphere(), sw = new THREE.Sphere();
@@ -1049,7 +1049,7 @@
       const side = mat.side, R3 = new THREE.Ray(), SP = new THREE.Sphere(), MM = new THREE.Matrix4(), MI = new THREE.Matrix4();
       const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3(), hitP = new THREE.Vector3();
       const Bs = F.moves ? null : [];
-      // (G1126: one cast for the fold and for each of its views, over the members it draws - three's own on a view walked
+      // (G1171: one cast for the fold and for each of its views, over the members it draws - three's own on a view walked
       // every vertex of its range through the bones behind the fold's whole sphere, hidden or not: the cockpit's pick
       // +0.4 ms a frame, the live census A/B)
       const castOver = list => function (rc, hits) {
@@ -1093,7 +1093,7 @@
         if (nd || stale) {
           // a fold that is not drawn (the cabin's in the cockpit, the whole model in the shed) uploads nothing: three
           // only clears its ranges on an upload, so they would pile up frame after frame - it owes ONE whole upload instead
-          let shown = this.visible || (FOLD_CASTS && this.castShadow && set !== 'in') || !!out.viewsOn;   // (G1124 a: an exterior fold that casts draws in the shadow pass; G1125: a fold drawn through its views)
+          let shown = this.visible || (FOLD_CASTS && this.castShadow && set !== 'in') || !!out.viewsOn;   // (G1124 a: an exterior fold that casts draws in the shadow pass; G1170: a fold drawn through its views)
           for (let q = this.parent; q && shown; q = q.parent) if (!q.visible) shown = false;
           if (!shown) stale = true;
           else if (stale || aP.updateRanges.length > 32 || aN.updateRanges.length > 32) {
@@ -1112,7 +1112,7 @@
       // a kept member stands at rest (atRest, above) under its part: its matrix frozen there - the hidden hundred of the
       // hybrid then cost three's walk nothing but the visit (GATE FRAMECOST: updateMatrix +102 a frame on the Cub before)
       if (VIEWS) {
-        // G1125 THE NEAR VIEW FROM THE FOLD'S OWN BUFFERS. The kept live meshes were a SECOND RESIDENT SET - their own position,
+        // G1170 THE NEAR VIEW FROM THE FOLD'S OWN BUFFERS. The kept live meshes were a SECOND RESIDENT SET - their own position,
         // normal, uv, surface-field, uv1 and index buffers and VAOs, ~1 000 GL buffers and ~47 MB on the Cessna, held even where
         // never drawn: +0.9-1.1 ms render in the cockpit (the isolation: ?fbake=nowarm = master). A VIEW is a geometry over
         // the fold's SAME attribute objects (three keys its GL buffers on the attribute: shared, uploaded once) drawing one
@@ -1129,11 +1129,11 @@
           vg.setDrawRange(members[r0].i0, members[r1 - 1].i1 - members[r0].i0);
           vg.boundingSphere = geo.boundingSphere;
           const v = F.moves ? new THREE.SkinnedMesh(vg, mat0) : new THREE.Mesh(vg, mat0);
-          if (F.moves) { v.bindMode = mesh.bindMode; v.bind(mesh.skeleton, mesh.bindMatrix); v.boundingSphere = mesh.boundingSphere.clone(); }   // (G1125.1-.2: the fold's swing sphere: no per-vertex walk at its first frustum test)
+          if (F.moves) { v.bindMode = mesh.bindMode; v.bind(mesh.skeleton, mesh.bindMatrix); v.boundingSphere = mesh.boundingSphere.clone(); }   // (G1170.1-.2: the fold's swing sphere: no per-vertex walk at its first frustum test)
           v.name = 'flownLive'; v.castShadow = false; v.receiveShadow = list[r0].receiveShadow; v.renderOrder = list[r0].renderOrder;
           v.layers.mask = list[r0].layers.mask; v.frustumCulled = mesh.frustumCulled; v.visible = false;
           v.matrixAutoUpdate = false; v.userData.flownView = { subs: r1 - r0 };
-          v.raycast = castOver(members.slice(r0, r1));   // G1126: the fold's member cast over its own range (never three's per-vertex walk)
+          v.raycast = castOver(members.slice(r0, r1));   // G1171: the fold's member cast over its own range (never three's per-vertex walk)
           grp.add(v); out.kept.push(v);
           r0 = r1;
         }
@@ -1171,7 +1171,7 @@
         }
       };
       const liveOn = on => {
-        out.viewsOn = !!on;   // (G1125: a fold drawn through its views uploads its rigs' writes)
+        out.viewsOn = !!on;   // (G1170: a fold drawn through its views uploads its rigs' writes)
         if (on) { put(out.live.filter(m => !m.parent && HOME.has(m))); for (const m of out.live) m.visible = true; return; }
         const go = out.live.filter(m => m.parent);
         for (const m of go) HOME.set(m, [m.parent, m.parent.children.indexOf(m)]);
