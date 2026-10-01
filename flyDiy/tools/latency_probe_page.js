@@ -20,7 +20,7 @@
 // what the ring's interpolation delay costs, in ms.
 (function () {
   if (window.__LAT) return;
-  var L = window.__LAT = { on: false, posts: [], snaps: [], keys: [], frames: [], pf: [] };
+  var L = window.__LAT = { on: false, posts: [], snaps: [], keys: [], frames: [], pf: [], eye: [], curTs: 0, ring0: null };
   var NW = window.Worker;
   if (NW) {
     var Wrap = function (u, o) {
@@ -48,9 +48,16 @@
   // once the game is up: the frame clock's frames (every rendered frame's vsync time) and the link's drawn sim time
   L.hook = function () {
     var P = window.FLYDIY_PACE;
-    if (P && !P.__lat) { var pf = P.frame; P.frame = function (ts) { var x = pf.apply(this, arguments); if (L.on && x && typeof ts === 'number') L.pf.push([ts, x.dt * 1000]); return x; }; P.__lat = 1; }
+    if (P && !P.__lat) { var pf = P.frame; P.frame = function (ts) { var x = pf.apply(this, arguments); if (L.on && x && typeof ts === 'number') { L.pf.push([ts, x.dt * 1000]); L.curTs = ts; } return x; }; P.__lat = 1;
+      // G1166: the eye at the frame's end (the camera as it was drawn), the frame's vsync, the ground speed - eye_judder's
+      // judderTs on the rolling frames (> 3 m/s), and the ring's starved frames over the window
+      var pe = P.end; P.end = function () { var r = pe.apply(this, arguments);
+        if (L.on && L.curTs) { try { var FP = window.FLIGHT_PROBE, c = FP && FP.camera && FP.camera(), sm = FP && FP.sim && FP.sim(), o = sm && sm.out;
+          if (c) { var e = c.matrixWorld.elements; L.eye.push([L.curTs, e[12], e[13], e[14], o ? (o.Vg != null ? o.Vg : o.V) : 0]); } } catch (er) {} L.curTs = 0; }
+        return r; }; }
     var S = window.FLYDIY_SIMW;
     if (S && S.frame && !S.__lat) { var sf = S.frame; S.frame = function (n, r, ts) { var o = sf.apply(this, arguments); if (L.on && o) L.frames.push([typeof ts === 'number' ? ts : performance.now(), o.drawnT != null ? o.drawnT : null, performance.now()]); return o; }; S.__lat = 1; }
+    var SW = window.FLYDIY_SIMW; try { L.ring0 = SW && SW.state ? SW.state().ring : null; } catch (e) {}
     return !!P;
   };
   var first = function (a, ok) { for (var i = 0; i < a.length; i++) if (ok(a[i])) return a[i]; return null; };
@@ -85,9 +92,23 @@
     var ages = [];
     for (var j = 0; j < L.frames.length; j++) { var fr = L.frames[j]; if (fr[1] == null) continue; var d = dueAt(fr[1]); if (d != null) ages.push(fr[0] - d); }
     var ivs = L.pf.map(function (x) { return x[1]; });
+    // eye_judder.js's judderTs: the eye's change of velocity frame to frame over the frames' own timestamps, mm over a 60th
+    var E = L.eye.filter(function (x) { return x[4] > 3; }), dvY = [], dvXZ = [];
+    for (var q = 2; q < E.length; q++) {
+      var h1 = E[q - 1][0] - E[q - 2][0], h2 = E[q][0] - E[q - 1][0]; if (!(h1 > 0 && h2 > 0 && h1 < 100 && h2 < 100)) continue;
+      var vy = (E[q][2] - E[q - 1][2]) / h2 - (E[q - 1][2] - E[q - 2][2]) / h1;
+      var vx = (E[q][1] - E[q - 1][1]) / h2 - (E[q - 1][1] - E[q - 2][1]) / h1, vz = (E[q][3] - E[q - 1][3]) / h2 - (E[q - 1][3] - E[q - 2][3]) / h1;
+      dvY.push(vy * 1000 * (1000 / 60)); dvXZ.push(Math.hypot(vx, vz) * 1000 * (1000 / 60));
+    }
+    var rmsA = function (a) { return a.length ? Math.sqrt(a.reduce(function (s, x) { return s + x * x; }, 0) / a.length) : null; };
+    var ring1 = null; try { ring1 = window.FLYDIY_SIMW && FLYDIY_SIMW.state ? FLYDIY_SIMW.state().ring : null; } catch (e) {}
+    var starved = ring1 && L.ring0 ? { n: ring1.starved - L.ring0.starved, frames: ring1.frames - L.ring0.frames, q: ring1.q, delayMs: +(ring1.delayS * 1000).toFixed(1) } : (ring1 ? { q: ring1.q, delayMs: +(ring1.delayS * 1000).toFixed(1) } : null);
+    if (starved && starved.frames) starved.share = +(starved.n / starved.frames).toFixed(4);
+    var judderTs = E.length > 10 ? { frames: E.length, eyeY_mm: { rms: +rmsA(dvY).toFixed(3), max: +Math.max.apply(null, dvY.map(Math.abs)).toFixed(3) },
+                                     eyeXZ_mm: { rms: +rmsA(dvXZ).toFixed(3), max: +Math.max.apply(null, dvXZ).toFixed(3) } } : null;
     var col = function (k) { return rows.map(function (r) { return r[k]; }); };
     return { simw: L.snaps.length > 0, inputs: rows.length, frameIvMs: med(ivs),
              hops: { frame0: med(col('frame0')), present0: med(col('present0')), post: med(col('post')), due: med(col('due')), arrive: med(col('arrive')), draw: med(col('draw')), total: med(col('total')), totalP90: pct(col('total'), 0.9) },
-             poseAgeMs: { med: med(ages), p90: pct(ages, 0.9), n: ages.length }, rows: rows };
+             poseAgeMs: { med: med(ages), p90: pct(ages, 0.9), n: ages.length }, judderTs: judderTs, starved: starved, rows: rows };
   };
 })();

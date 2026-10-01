@@ -85,6 +85,10 @@ const HOVER = flag('hover');
 // it, the worker's step that first carries it, its arrival, the first frame drawing it, the glass) and the drawn pose's
 // age per frame; printed as a hop table and kept in the JSON (`latency`)
 const LATENCY = flag('latency') ? (v => (v && /^[0-9]+$/.test(v) ? +v : 20))(opt('latency', null)) : 0;
+// --judder (G1166): the same probe with no input and the pilot flying - the cockpit eye's judderTs (eye_judder.js's, on the
+// frames rolling > 3 m/s), the ring's starved frames and the drawn pose's age over the recording
+const JUDDER = flag('judder');
+const PROBE = LATENCY || JUDDER;
 const SIZE = opt('size', '2216x1023').split('x').map(Number);
 const LABEL = opt('label', [COLD ? 'cold' : 'warm', VARIANT, BUILD ? path.basename(BUILD, '.json').replace(/\W+/g, '') : 'stock', WORLDN || 'jolene'].concat(opt('from', null) ? ['from' + opt('from')] : []).join('_'));
 const OUT = opt('out', path.join(__dirname, 'perf', 'rollout_' + LABEL + '.json'));
@@ -200,7 +204,7 @@ function preScript() {
   lines.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
   // G790: the route and who flies, stated every run (a warm profile keeps both from the last one)
   lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ from: FROM, dest: DEST })) + ');localStorage.setItem("flydiy.flManual","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
-  if (LATENCY) lines.push(fs.readFileSync(path.join(__dirname, 'latency_probe_page.js'), 'utf8'));   // G1165: before the page's first script
+  if (PROBE) lines.push(fs.readFileSync(path.join(__dirname, 'latency_probe_page.js'), 'utf8'));   // G1165: before the page's first script
   if (VARIANT === 'nomet') {
     const F = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
     let cut = 0;
@@ -464,8 +468,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (HOVER) { await ev("(() => { const c = document.getElementById('c'), r = c.getBoundingClientRect(); window.dispatchEvent(new PointerEvent('pointermove', { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); return 1; })()"); where.hover = true; }
   // G1165: the rudder steps, alongside the recording (it waits for them before the report)
   let latP = null;
+  if (PROBE) await ev('window.__LAT && __LAT.hook() && (__LAT.on = true), 1');
   if (LATENCY) {
-    await ev('window.__LAT && __LAT.hook() && (__LAT.on = true), 1');
     const key = (type) => cmd('Input.dispatchKeyEvent', { type, code: 'Period', key: '.', windowsVirtualKeyCode: 190, nativeVirtualKeyCode: 190 });
     latP = (async () => { for (let i = 0; i < LATENCY; i++) { await sleep(3000); await key('keyDown'); await sleep(250); await key('keyUp'); } })();
   }
@@ -607,14 +611,15 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   console.log('  physics: ' + (simw ? (simw.dead ? 'INLINE (no worker: ' + simw.dead + ')' : 'the WORKER - ' + simw.phase + (simw.reason ? ' (' + simw.reason + ')' : '') + ', placed ' + simw.placeOk + ', ' + simw.flights + ' flights (' + simw.inline + ' inline), world made in ' + (simw.worldMs != null ? Math.round(simw.worldMs) : '?') + ' ms, held ' + simw.readyWaitFrames + ' frames, world-version lag max ' + simw.wvMaxLag + ' frames')
     : 'INLINE (?simw=0)'));
   let latency = null;
-  if (LATENCY) {
-    await latP;
+  if (PROBE) {
+    if (latP) await latP;
     await sleep(500);
     latency = JSON.parse(await ev('JSON.stringify(window.__LAT ? __LAT.report() : null)', 60000));
     if (latency) { const h = latency.hops, a = latency.poseAgeMs;
       console.log('  LATENCY (' + (latency.simw ? 'worker' : 'inline') + ', ' + latency.inputs + ' inputs, frame ' + latency.frameIvMs + ' ms): key -> next frame ' + h.frame0 + ' ms, -> its picture ' + h.present0
         + (latency.simw ? ' | key -> post ' + h.post + ' -> due ' + h.due + ' -> arrive ' + h.arrive + ' -> picture ' + h.draw + ' = TOTAL ' + h.total + ' ms (p90 ' + h.totalP90 + ')' : ' (+ the pose 0.75 step behind: ~12.5 ms)')
-        + ' | drawn pose age ' + a.med + ' ms (p90 ' + a.p90 + ', ' + a.n + ' frames)'); } }
+        + ' | drawn pose age ' + a.med + ' ms (p90 ' + a.p90 + ', ' + a.n + ' frames)'
+        + ' | starved ' + JSON.stringify(latency.starved) + ' | judderTs ' + JSON.stringify(latency.judderTs)); } }
   const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', +opt('eval-ms', 60000)).catch(e => 'error: ' + e.message) : null;   // --eval-ms: a longer census (tools/pave_ab.js, G928)
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
