@@ -66965,3 +66965,41 @@ craft's PMREM mixed room -> world by one uniform across the door plane (prelinke
   The bar (the shot at master's fps) is NOT met; the user decides: (a) an even 30 fps shot, (b) accept, (c) option B.
 - Traps: a test script's const read before its declaration burned a GPU take (node --check cannot see a TDZ); the
   boxlock RESERVED blocks CPU takes too - a CPU window must be reserved like a GPU one.
+
+**2026-10-01, TRAIN 20 CARGO (branch rolloutreal/g1118 on c7dc34e4), in landing order:**
+1. **GATE FRAMECOST: A VIEW IS COUNTED ONCE THE COVER RING IS IDLE** (tools/_framecost_check.js measure(); cover_ring.js
+   STAT.dirty). The taxi view teleports ~420 m (TAXI_PIN), warmed 6 frames and counted 12 inside the cover ring's transient
+   (cells dropped and planted, blocks rebuilt: buffer uploads). Four Cub censuses (parkcook=0): WARM 6 master taxi
+   gl.bufferData 15 / with the reveal's eye placed 30.5; WARM 60: 0 / 0. Now: WARM frames, then until the ring is idle
+   (120 at most; 12-14 more measured). THE TRIANGLES RISE, AND IT IS AN HONEST COUNT: the ring fully planted, its rocks and
+   bushes cast - the old baseline was taken half-planted (master + ring-idle vs the branch, taxi, parkcook=0: 12.93 / 12.92 M
+   main, 1.77 / 1.77 M shadow). The assembly re-takes the baseline on the final build.
+2. **THE REVEAL PLACES ITS EYE AT ONCE** (app.js flRevealStart; tools/_revealcam_page.js). The frame runs worldUpdate
+   BEFORE placeCamera, so every roll-out's first flight frame updated the world from the camera the shed left (747 m off):
+   the cover ring replanted 271 cells (25 m and 8 with the fix). Master's stand view uploaded 31 buffers a frame from it.
+3. **THE ROLL-OUT SHOT IN THE REAL WORLD AT AN EVEN 30 FPS** (the G1115-G1119 series; the user's pick (a) over an uneven 55):
+   PACE.shot(30) over the player's setting, auto and the AA auto-scale paused and handed back untouched; the world roll
+   places its eye before the first update (the ring: 265 cells built in the roll -> 10); the loading draws the shot's eight
+   views and plants nothing (planting there kept +840 k vertex-faded triangles at the stand for the session); the near
+   casters re-tagged at the hand-over (render_world nearRetag).
+   **THE ~1 s POST-ROLL TAIL, KEPT VISIBLE BY ALLOW ROWS** (A0's ruling): after the hand-over the eye-keyed levels the
+   establishing view switched near the shed (the parked aeroplanes' detailed meshes, LOD-switched meshes, the near-tier
+   houses) step back on their own budgets: +36 shadow draws and +347 k shadow triangles a frame (cooked; +215 k with
+   parkcook=0's live captures) at FRAMECOST's stand, IDENTICAL at +60 flight frames (tools/_rollreal_shadowdiff.js
+   [--cooked]). A REAL COST THE PLAYER PAYS FOR ~1 s after every roll-out: the rows are capped at the measured tail.
+   **G1119.1 (TRAIN 21): SNAP THE EYE-KEYED LEVELS AT THE WORLD ROLL'S HAND-OVER** (the parked aeroplanes' rungs, the LOD
+   switches, the houses' hlod tier) to remove that tail, then drop the G1119 ALLOW rows.
+   **THE PROOF (2026-10-01 12:29-12:56, master c7dc34e4 vs this branch at 8d0b33cf + the ALLOW rows; cooked, warm origins, ABBA):**
+   gates at the hold's head: the cooked +60 identity (714 / 714 shadow draws, equal tris), GATE FRAMECOST PASS (on a fresh
+   master + ring-idle baseline, local; 45 counters fell), GATE ROLLANIM PASS, the node page PASS (cap 30 on all 361 roll
+   frames, the pace and the AA handed back). Then:
+   | | master Cub | branch Cub | master metal | branch metal |
+   |---|---|---|---|---|
+   | the WORLD ROLL's frames (cut -> stand) | (shed roll, 60) | 30.4 / 30.0 fps, p99 33.5, uneven 0.011 / 0, max 33.5 ms | (shed) | 30.1 fps, p99 33.5, uneven 0.006, max 33.6 ms |
+   | long tasks in the shot | the click 256 + 67-69 at its end | the click 257 / 268 only | the click 264 + 66 | the click 260 + 57 |
+   | garage ready (s) | 43.3 / 40.8 | 41.0 / 40.9 | 40.9 | 41.2 |
+   | first flight (s) | 52.9 / 50.5 | 50.7 / 50.5 | 50.5 | 50.7 |
+   | the loading's tasks > 200 ms (worst ms) | 23 (849) / 22 (839) | 22 (831) / 24 (860) | 22 (715) | 23 (731) |
+   | garage fps fresh | 54.2 / 55.2 | 53.8 / 53.6 | 38.5 | 39.3 |
+   | taxi after (fps, uneven, p99) | 34.2 / 33.7, 0.156 / 0.138, 33.5 | 34.2 / 34.3, 0.146 / 0.145, 33.5 | 33.0, 0.134, 33.5 | 32.5, 0.104, 33.5 |
+   The shot's own fps (click -> stand) is 39 on the Cub against the shed's 57.7 by design: the world roll at an even 30.
