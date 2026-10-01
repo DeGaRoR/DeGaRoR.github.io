@@ -510,7 +510,7 @@ async function pageCheck() {
   {
     const S = ROLLANIM.S, V = new THREE.Vector3();
     for (const a of archs) {
-      const G = garage(a, 'club'); let calls = 0;
+      const G = garage(a, 'club'); let calls = 0; const fov0 = G.cam.fov;
       const h = ROLLANIM.play({ craft: G.craft, camera: G.cam, scene: G.scene, hangar: G.hangar, model: G.model, def: G.def, sim: G.sim, follow: false, onDone: () => calls++ });
       const P = h.plan;
       if (!P || !P.fixed) { check(/floats/.test(h.skipped || ''), a.name + ': the fixed shot has a plan (or refuses as the tracking shot does: ' + h.skipped + ')', h.skipped); continue; }
@@ -518,7 +518,7 @@ async function pageCheck() {
       ROLLANIM.camera(); G.cam.updateMatrixWorld(true); G.cam.updateProjectionMatrix();
       const bx = new THREE.Box3().setFromObject(G.craft); let out = 0;
       for (let i = 0; i < 8; i++) { V.set(i & 1 ? bx.max.x : bx.min.x, i & 2 ? bx.max.y : bx.min.y, i & 4 ? bx.max.z : bx.min.z).project(G.cam);
-        if (!(Math.abs(V.x) <= 0.97 && Math.abs(V.y) <= 0.97 && V.z < 1)) out++; }
+        if (!(Math.abs(V.x) <= S.bFit + 1e-6 && V.y >= -S.bFit - 1e-6 && V.y <= S.bTop + 1e-6 && V.z < 1)) out++; }
       const eyes = [], rolled = [];
       while (!h.done && eyes.length < 4000) { const w = ROLLANIM.frame(1 / 60); G.cam.position.set(0, 3, 0); ROLLANIM.camera(); eyes.push(G.cam.position.clone()); rolled.push(h.rolled); if (!w) break; }
       await tick();
@@ -528,8 +528,8 @@ async function pageCheck() {
       let slower = 0; for (let i = 2; i < e; i++) if (rolled[i] - rolled[i - 1] < rolled[i - 1] - rolled[i - 2] - 1e-9) slower++;
       const vEnd = e >= 2 ? (rolled[e - 1] - rolled[e - 2]) * 60 : 0;
       check(calls === 1 && moved < 1e-9 && ROLLANIM._eyeOk(P.room, eye[0], eye[1], eye[2]) && out === 0 && slower === 0 &&
-            Math.abs(L - P.L) < 1e-6 && Math.abs(P.L - (P.Lmin - S.clear + S.bOut)) < 1e-6 && G.craft.position.lengthSq() === 0,
-        a.name + ': G1115 the fixed shot - the eye held ' + eyes.length + ' frames, the aeroplane whole in the picture, rolled ' + L.toFixed(1) + ' m accelerating to ' + vEnd.toFixed(1) + ' m/s in ' + P.T.Tr.toFixed(1) + ' s',
+            Math.abs(L - P.L) < 1e-6 && Math.abs(P.L - (P.Lmin - S.clear + S.bOut)) < 1e-6 && G.craft.position.lengthSq() === 0 && G.cam.fov === fov0,
+        a.name + ': G1115 the fixed shot - the eye held ' + eyes.length + ' frames, the aeroplane whole in the picture, rolled ' + L.toFixed(1) + ' m accelerating to ' + vEnd.toFixed(1) + ' m/s in ' + P.T.Tr.toFixed(1) + ' s' + (P.fixed.fov !== fov0 ? ', a lens ' + (P.fixed.fov - fov0) + ' deg wider (the lens put back)' : ''),
         JSON.stringify({ calls, moved, out, planOut: P.fixed.out, slower, L, PL: P.L, need: P.Lmin - S.clear + S.bOut }));
     }
     // no allocation a frame in the fixed roll either (the same bound as the tracking roll's)
