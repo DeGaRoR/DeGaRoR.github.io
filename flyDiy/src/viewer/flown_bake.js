@@ -1021,6 +1021,9 @@
         const all = new THREE.Sphere(), sp = new THREE.Sphere();
         members.forEach((q, i) => { sp.center.copy(q.c).applyMatrix4(B[q.b].matrixWorld); sp.radius = q.r0; if (i) all.union(sp); else all.copy(sp); });
         geo.boundingSphere = all;
+        // G1125.1: ...and as the OBJECT's sphere (a SkinnedMesh's own, which three computes at its first frustum test by
+        // walking every vertex through the bones: 2.3 s at the hybrid's first crossing, a view on the fold's whole geometry each)
+        mesh.boundingSphere = all.clone();
       }
       // THE RAYCAST (the cockpit's pick every 80 ms, the sun's glare rays): member by member as the separate meshes were
       // - the ray into the member's frame, its own sphere first, then its triangles at their current (rig-written)
@@ -1105,7 +1108,7 @@
           vg.setDrawRange(members[r0].i0, members[r1 - 1].i1 - members[r0].i0);
           vg.boundingSphere = geo.boundingSphere;
           const v = F.moves ? new THREE.SkinnedMesh(vg, mat0) : new THREE.Mesh(vg, mat0);
-          if (F.moves) { v.bindMode = mesh.bindMode; v.bind(mesh.skeleton, mesh.bindMatrix); }
+          if (F.moves) { v.bindMode = mesh.bindMode; v.bind(mesh.skeleton, mesh.bindMatrix); v.boundingSphere = geo.boundingSphere.clone(); }   // (G1125.1: no per-vertex walk at its first frustum test)
           v.name = 'flownLive'; v.castShadow = false; v.receiveShadow = list[r0].receiveShadow; v.renderOrder = list[r0].renderOrder;
           v.layers.mask = list[r0].layers.mask; v.frustumCulled = mesh.frustumCulled; v.visible = false;
           v.matrixAutoUpdate = false; v.userData.flownView = { subs: r1 - r0 };

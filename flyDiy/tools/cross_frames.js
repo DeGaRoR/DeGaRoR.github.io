@@ -22,10 +22,25 @@ const until = async (cond, ms, what) => { const t0 = Date.now(); while (Date.now
   await until(`window.BOOT && BOOT.state === 'gone' && /Fly the circuit/.test((document.getElementById('bGo') || {}).textContent || '') && window.FLIGHT_PROBE && FLIGHT_PROBE.model()`, 900000, 'the roll-out');
   await sleep(2000);
   if (!(await run('return !!window.FLYDIY_HELD;'))) await run(`document.getElementById('bPause').click(); return 1;`);
+  if (process.env.PROF) await fetch('http://127.0.0.1:' + PORT + '/prof?op=start');   // PROF: a CPU profile round the walk
   const res = await run(`
     const P = FLIGHT_PROBE, FB = window.FLOWN_BAKE && FLOWN_BAKE.FB;
     P.camMode('orbit'); P.camSet(${AZ}, ${EL}, ${FAR});
     await new Promise(r => { let k = 90; const f = () => (--k > 0 ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); });
+    // TIMEGL=1: every WebGL2 call timed from here on (the walk), one over 8 ms kept with the program in use - a stall in a
+    // draw (the driver's lazy compile) or a link wait, named after the walk
+    const GLW = window.__GLW = [];
+    if (${process.env.TIMEGL ? 'true' : 'false'}) {
+      const Pr = WebGL2RenderingContext.prototype; let cur = null;
+      for (const fn of Object.getOwnPropertyNames(Pr)) {
+        let f; try { f = Pr[fn]; } catch (e) { continue; }
+        if (typeof f !== 'function' || fn === 'constructor') continue;
+        Pr[fn] = function () { const t0 = performance.now(), r = f.apply(this, arguments), ms = performance.now() - t0;
+          if (fn === 'useProgram') cur = arguments[0];
+          if (ms > 8) GLW.push({ t: t0, ms: +ms.toFixed(1), fn, prog: fn === 'useProgram' || fn === 'getProgramParameter' || fn === 'getProgramInfoLog' || fn === 'linkProgram' ? arguments[0] : cur });
+          return r; };
+      }
+    }
     const longs = []; let obs = null;
     try { obs = new PerformanceObserver(l => { for (const e of l.getEntries()) longs.push([e.startTime, e.duration]); }); obs.observe({ entryTypes: ['longtask'] }); } catch (e) {}
     const N = ${STEPS}, rows = [];
@@ -42,7 +57,14 @@ const until = async (cond, ms, what) => { const t0 = Date.now(); while (Date.now
     });
     await new Promise(r => setTimeout(r, 300));
     if (obs) obs.disconnect();
-    return { rows, longs, hybrid: !!(FB && FB.hybrid), warmKey: !!(FB && FB.warmKey), warm: window.__hyWarm ? { n: window.__hyWarm.n, drawn: window.__hyWarm.drawn } : null };`);
+    // the waits named: three's program (its name, its key's head) and up to three objects wearing it
+    const R = FLIGHT_PROBE.renderer(), byGl = new Map(), who = new Map();
+    for (const pr of R.info.programs) byGl.set(pr.program, pr);
+    try { WORLD.scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) { const pp = R.properties.get(m), pr = pp && pp.currentProgram; if (!pr) continue;
+      const l = who.get(pr) || []; if (l.length < 3) { l.push((o.name || o.type) + '/' + (m.name || m.type)); who.set(pr, l); } } }); } catch (e) {}
+    const glw = GLW.map(w => { const pr = w.prog && byGl.get(w.prog); return [Math.round(w.t), w.ms, w.fn, pr ? pr.name : (w.prog ? '?' : '-'), pr ? (pr.cacheKey || '').slice(0, 90) : '', pr ? (who.get(pr) || []).join(', ') : '']; });
+    return { glw, rows, longs, hybrid: !!(FB && FB.hybrid), warmKey: !!(FB && FB.warmKey), warm: window.__hyWarm ? { n: window.__hyWarm.n, drawn: window.__hyWarm.drawn } : null };`);
+  if (process.env.PROF) await fetch('http://127.0.0.1:' + PORT + '/prof?op=stop&f=' + encodeURIComponent(OUT.replace(/\.json$/, '') + '.cpuprofile'));
   const rows = res.rows || [];
   const first = rows.find(r => r[2] > 0);
   const pre = rows.filter(r => !first || r[0] < first[0]).slice(5), post = first ? rows.filter(r => r[0] >= first[0] && r[0] < first[0] + 10) : [];
@@ -57,6 +79,9 @@ const until = async (cond, ms, what) => { const t0 = Date.now(); while (Date.now
     longTasksAll: (res.longs || []).map(([s, d]) => +d.toFixed(0)),
     longTasksAtCrossing: first ? inFrames(res.longs || [], first[3] - 200, first[3] + 1000).map(([s, d]) => +d.toFixed(0)) : []
   };
-  fs.writeFileSync(OUT, JSON.stringify({ sum, rows: rows.map(r => [r[0], +r[1].toFixed(2), r[2]]), longs: res.longs }, null, 1));
+  const glw = (res.glw || []).filter(w => first && w[0] >= first[3] - 200 && w[0] <= first[3] + 1000);
+  sum.glAtCrossing = { n: glw.length, ms: +glw.reduce((q, w) => q + w[1], 0).toFixed(0) };
+  fs.writeFileSync(OUT, JSON.stringify({ sum, glw: res.glw, rows: rows.map(r => [r[0], +r[1].toFixed(2), r[2]]), longs: res.longs }, null, 1));
+  for (const w of glw.slice().sort((x, y) => y[1] - x[1]).slice(0, 25)) console.log('  GL ' + w[1] + ' ms ' + w[2] + ' | ' + w[3] + ' | ' + w[5] + ' | ' + w[4]);
   console.log(JSON.stringify(sum));
 })().catch(e => { console.error('cross_frames: ' + (e && e.stack || e)); process.exit(1); });

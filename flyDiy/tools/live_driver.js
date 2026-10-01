@@ -58,6 +58,9 @@ process.on('exit', kill); process.on('SIGINT', () => process.exit(0)); process.o
       if (u.pathname === '/eval') { let b = ''; for await (const c of req) b += c; const v = await ev('(async()=>{ return (' + b + '\n); })()'); res.end(typeof v === 'string' ? v : JSON.stringify(v)); }
       else if (u.pathname === '/run') { let b = ''; for await (const c of req) b += c; const v = await ev('(async()=>{ ' + b + '\n })()'); res.end(typeof v === 'string' ? v : JSON.stringify(v)); }
       else if (u.pathname === '/shot') { const r = await cmd('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(u.searchParams.get('f'), Buffer.from(r.result.data, 'base64')); res.end('ok'); }
+      // (C4b) a CPU profile round a stretch of the page's life: /prof?op=start, then /prof?op=stop&f=<abs .cpuprofile path>
+      else if (u.pathname === '/prof') { if (u.searchParams.get('op') === 'start') { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 250 }); await cmd('Profiler.start'); res.end('ok'); }
+        else { const r = await cmd('Profiler.stop'); fs.writeFileSync(u.searchParams.get('f'), JSON.stringify(r.result.profile)); res.end('ok'); } }
       else if (u.pathname === '/reload') { await cmd('Page.navigate', { url }); res.end('ok'); }
       else if (u.pathname === '/quit') { res.end('bye'); setTimeout(() => process.exit(0), 100); }
       else res.end('?');
