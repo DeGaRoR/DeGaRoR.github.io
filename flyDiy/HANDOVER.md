@@ -67316,3 +67316,40 @@ against 12.41 / 12.43 - the same draws (703 / 795-800) and triangles; the divisi
 (the frame_perf JSONs kept local).
 
 GATES: WATER, SPLAT, WORLDRENDER, PROGRAMS, GFX, UISMOKE PASS; FRAMECOST red only on the stale parked cook (above).
+## G1160-G1164 - A5-CAP: THE COCKPIT'S PACING - A FAILING TRIAL CUT SHORT, THE GLARE AND THE HOVER PICK OUT OF THE FRAME'S BUDGET; THE RATCHET'S COCKPIT PROFILE (2026-10-01, local GPU)
+
+The user: the interior view "feels a tad more laggy than exterior". A0's data (metal Cessna, cockpit, taxi): render 7.6 ms,
+JS 11.4 ms, 50-58 fps delivered against 60, while the chase settles at an even 30.
+- DIAGNOSIS (rollout_perf --cam cockpit, master 79dc5b1d, CLEAN under the GPU lock; the first two runs overlapped
+  unlocked browsers and read "heavier across the board" - discarded): the cockpit holds an EVEN 60 once settled (from
+  +25 s: 59.2 fps delivered, 0.3 % doubled, loop 11 ms, with or without a pointer on the window; 89 % of the taxi at 60,
+  2.7 % uneven by the ratchet's measure). Its judder is the first ~25 s: auto drops while the frame settles (21-22 ms),
+  then each trial of 60 ran ~2.5 s (1.5 s settle + a 60-frame reading) at 46-53 fps - render 13-14 ms at 60 against 10 at
+  30, the GPU's back-pressure - failed, and the hold doubled. A0's 50-58 is that phase averaged with the even 60.
+- G1160 (app.js PACE): A TRIAL THAT MISSES IS CUT SHORT: 3 missed refreshes in its first 30 frames past a 0.3 s settle
+  end it (~0.8 s of judder where a failed trial ran ~2.5 s). On the GPU every cut trial was already failing (3-7 misses
+  in its 300-800 ms), the same pattern as master's failed trials that ran 120 frames; the trials that hold read 1 miss
+  (the switch) then none. GATE PACE: the Cub's loop spends 7 % of its frames in trials (16 % before), a rare spike (1 in
+  40) keeps 60, the latch a 17 ms loop; driveVsync's `strict` deadline for spike cases.
+- HELD (A0, train 21): EVEN MEANS EVEN - a trial at 58 fps (<= 3 % missed), 60 kept over 56.5 (6 %), with GATE PACE's
+  cockpit case (a cheap frame, a spike every 8th: G994 holds 53 fps at 60, the rule an even 30) - its own commit on
+  claude/a5-cap-cockpit-thresholds, until a 4-run ABBA on the metal cockpit shows it does not lengthen the settle.
+- G1161 (sky_glare.js): the sun's occlusion over five rays, ONE a frame in turn (all five, each cast both ways, every
+  third frame: from the cockpit the eye is inside the aeroplane's sphere and every ray walks the baked cabin member by
+  member - ~51 ms/s of raycasts in the profile); the same light, the same time constant.
+- G1163 (app.js cockpitHover): CK.pick every 80 ms while the mouse rests on the window (+~1.2 ms a pick) runs in
+  requestIdleCallback (250 ms timeout): the frame's slack, not its budget.
+- G1162 (tools): rollout_perf --cam <view> (FLIGHT_PROBE.camMode at the flight's start; cam / camAsked in the JSON),
+  --hover (a pointer at the canvas's centre - the player's mouse on the window); rollout_ratchet: a run that asked for a
+  view is its own group (" | view cockpit"; the existing groups unchanged), the header's scenario adds THE COCKPIT
+  PROFILE (Cub + metal, --cam cockpit, two runs each). No cockpit baseline yet: the first --update after the landing.
+- MEASURED (5 verify runs on the fix WITH the held thresholds, clean): metal cockpit 46.1 / 53.3 fps delivered (2.8 / 2.1 % uneven; judder
+  frames at 60: 73 / 58 against master's 83 / 75), Cub cockpit 57.0 / 57.0 (2.0 / 2.3 %), metal chase 31.9 (an even 30,
+  5.8 %). One metal run reached its even 60 at +50 s (two failed trials, the hold doubling): a scratch ratchet of the
+  two metal cockpit pairs reads fps 52.8 -> 49.7 (RED by the 5 % rule; uneven 0.03 -> 0.02) - two runs, the time of
+  the settle is the noise. JSONs: tools/perf/rollout_a5c_{diag2,fix}_*.json in the main checkout.
+- NOT PACING: on clean data the settled cockpit is as even as the chase (more so: 60 against 30). "Laggy" is the
+  candidate for LATENCY: the drawn pose is interpolated ~0.75 of a step behind the worker's newest (G1060s), which the
+  eye reads more in the cockpit, where the world moves with the controls. Owed: an input-to-picture measurement, cockpit
+  against chase.
+- GATES (node, lockless): PACE, LIGHT, PANEL, CABIN, UISMOKE, BOOT, BUILD, GFX, PROGRAMS, SETTLE - PASS.
