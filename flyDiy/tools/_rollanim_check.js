@@ -545,6 +545,46 @@ async function pageCheck() {
     h.cancel();
   }
 
+  // ---- G1115.1 THE FRONT SHOT (follow: false, front: the garage's own framing - the app's shot) -------------------------------
+  // The user, 2026-10-01: "it should be the default 3/4 camera, so looking at the plane 3/4 FRONT and not back". Every
+  // archetype, the garage's framing { az -2.5, el 0.22, dist 14 }: the eye held from the first frame to the last, legal, on
+  // the door's side of the CG (in front), the whole aeroplane in the picture at the snap, the roll never through the eye,
+  // the aeroplane accelerating to the end and OUT OF THE PICTURE when the roll ends (the host fades), the lens put back
+  {
+    const S = ROLLANIM.S, V = new THREE.Vector3(), FRONT = { az: -2.5, el: 0.22, dist: 14 };
+    for (const a of archs) {
+      const G = garage(a, 'club'); let calls = 0; const fov0 = G.cam.fov;
+      const h = ROLLANIM.play({ craft: G.craft, camera: G.cam, scene: G.scene, hangar: G.hangar, model: G.model, def: G.def, sim: G.sim, follow: false, front: FRONT, onDone: () => calls++ });
+      const P = h.plan;
+      if (!P || !P.fixed) { check(/floats/.test(h.skipped || ''), a.name + ': the front shot has a plan (or refuses as the tracking shot does: ' + h.skipped + ')', h.skipped); continue; }
+      ROLLANIM.camera(); G.cam.updateMatrixWorld(true); G.cam.updateProjectionMatrix();
+      const bx = new THREE.Box3().setFromObject(G.craft); let out = 0;
+      for (let i = 0; i < 8; i++) { V.set(i & 1 ? bx.max.x : bx.min.x, i & 2 ? bx.max.y : bx.min.y, i & 4 ? bx.max.z : bx.min.z).project(G.cam);
+        if (!(Math.abs(V.x) <= S.bFit + 1e-6 && V.y >= -S.bFit - 1e-6 && V.y <= S.bTop + 1e-6 && V.z < 1)) out++; }
+      // the picture at the roll's end: the aeroplane moved by the plan's L (the camera as held), every corner behind the
+      // eye or past one edge
+      const eye = P.fixed.eye, inFront = (eye[0] - P.cg[0]) * P.ax > 0;
+      const eyes = [], rolled = [];
+      while (!h.done && eyes.length < 4000) { const w = ROLLANIM.frame(1 / 60); G.cam.position.set(0, 3, 0); ROLLANIM.camera(); eyes.push(G.cam.position.clone()); rolled.push(h.rolled); if (!w) break; }
+      await tick();
+      const moved = Math.max(...eyes.map(e => e.distanceTo(eyes[0])));
+      const L = rolled.length ? rolled[rolled.length - 1] : 0; let e = rolled.findIndex(r => r >= L - 1e-9); if (e < 0) e = rolled.length;
+      let slower = 0; for (let i = 2; i < e; i++) if (rolled[i] - rolled[i - 1] < rolled[i - 1] - rolled[i - 2] - 1e-9) slower++;
+      // (the end's picture: the held camera, the box moved by L)
+      const pc = G.cam.clone(); pc.fov = P.fixed.fov; pc.position.set(eye[0], eye[1], eye[2]); pc.lookAt(P.fixed.look[0], P.fixed.look[1], P.fixed.look[2]); pc.updateMatrixWorld(true); pc.updateProjectionMatrix();
+      let side = 0, gone = true;
+      for (let i = 0; i < 8 && gone; i++) { V.set((i & 1 ? bx.max.x : bx.min.x) + P.ax * L, i & 2 ? bx.max.y : bx.min.y, i & 4 ? bx.max.z : bx.min.z);
+        if (V.clone().applyMatrix4(pc.matrixWorldInverse).z > -pc.near) continue; V.project(pc); const sd = V.x < -1 ? -1 : V.x > 1 ? 1 : 0; if (!sd || (side && sd !== side)) gone = false; else side = sd; }
+      const doorNeed = P.Lmin - S.clear + S.bOut;
+      check(calls === 1 && moved < 1e-9 && ROLLANIM._eyeOk(P.room, eye[0], eye[1], eye[2]) && inFront && out === 0 && slower === 0 && P.fixed.front &&
+            (gone || Math.abs(L - doorNeed) < 1e-6) && Math.abs(L - P.L) < 1e-6 && G.craft.position.lengthSq() === 0 && G.cam.fov === fov0,
+        a.name + ': G1115.1 the front shot - the garage\'s 3/4 front eye held ' + eyes.length + ' frames (x' + (Math.hypot(eye[0] - P.cg[0], eye[1] - P.cg[1], eye[2] - P.cg[2]) / 14).toFixed(2) + ' of its 14 m)' +
+        (P.fixed.fov !== fov0 ? ', a lens ' + (P.fixed.fov - fov0) + ' deg wider' : '') + ', the aeroplane whole in it, rolled ' + L.toFixed(1) + ' m in ' + P.T.Tr.toFixed(1) + ' s' +
+        (gone ? ', out of the picture at the end' : ', to the door (still in the picture)') + ', ' + P.fixed.hid + ' / 9 sight lines through the kit',
+        JSON.stringify({ calls, moved, inFront, out, slower, gone, L, PL: P.L, doorNeed }));
+    }
+  }
+
   // ---- G1037: no allocation a frame ----------------------------------------------------------------------
   // One long shot (a tiny dt), warmed until its code is optimised, then the heap over N hooked frames with
   // no gc() between (a gc() drops optimised code that embedded a collected object - "weak objects" - and

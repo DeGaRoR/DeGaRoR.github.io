@@ -91,6 +91,7 @@ const ROLLANIM = (() => {
     bOut: 0, bAcc: 1.2, bTmin: 3.0, bTmax: 5.5, bFit: 0.88, bTop: 0.5,
     bRays: 40, bHid: 40,           // the best candidates looked through for the room's kit in the way, and a hidden point's cost
     bNear: 0.6, bClut: 15,         // ...the foreground (this fraction of the way to the CG), and a cluttered ray's cost
+    bLeave: 1.0, bLmin: 4,         // the front shot: the roll this far on once the aeroplane has left the picture, and at least
     bLat: 0.55,                    // the eye's bay: this fraction of the room's half-width either side of its centre line
     bKitMax: 12,                   // a piece of the room longer than this (m) on a side is its shell (floor, walls, roof), not kit
   };
@@ -309,18 +310,33 @@ const ROLLANIM = (() => {
       // an aeroplane the room cannot frame whole: a big twin in the club shed), then the start's own side, then the nearest
       const sd = sides[0], pc = cam.clone(), V = new THREE.Vector3();
       const all = [];
-      for (const fv of [cam.fov, cam.fov + 8, cam.fov + 16, cam.fov + 24]) for (const lk of [0.3, 0.45]) {
-        pc.fov = fv;
+      // G1115.1 THE GARAGE'S OWN FRAMING (o.front { az, el, dist }: the orbit the garage opens on - the user: "it should be
+      // the default 3/4 camera, so looking at the plane 3/4 FRONT and not back"): that eye round the CG, held; tried as it
+      // is, then farther (x1.15, x1.3) or nearer (x0.9) and with a lens up to +16 deg only if the aeroplane will not stand
+      // whole in it or the roll would sweep through the eye. Without o.front: the search round the tail (G1115)
+      const gens = [];
+      if (o.front) { for (const fv of [cam.fov, cam.fov + 8, cam.fov + 16]) for (const k of [1, 1.15, 1.3, 0.9])
+        gens.push({ fv, look: [cg[0], cg[1], cg[2]], az: o.front.az, el: o.front.el, d: o.front.dist * k, s2: sd, pen: Math.abs(k - 1) * 20, front: true }); }
+      else for (const fv of [cam.fov, cam.fov + 8, cam.fov + 16, cam.fov + 24]) for (const lk of [0.3, 0.45]) {
         const look = [cg[0] + (xDoor - cg[0]) * lk, cg[1] + 0.3, cg[2]];
-        for (const sw of [0.3, 0.42, 0.55, 0.7]) for (const el of [0.12, 0.2, 0.3, 0.4]) for (const dk of [0.7, 0.85, 1.0, 1.2, 1.45]) for (const s2 of [sd, -sd]) {
-          const az = hdg + s2 * sw, d = dk * D;
+        for (const sw of [0.3, 0.42, 0.55, 0.7]) for (const el of [0.12, 0.2, 0.3, 0.4]) for (const dk of [0.7, 0.85, 1.0, 1.2, 1.45]) for (const s2 of [sd, -sd])
+          gens.push({ fv, look, az: hdg + s2 * sw, el, d: dk * D, s2, pen: el * 10, front: false });
+      }
+      // (the roll's swept box: the aeroplane's at every distance up to the door's need, 0.6 m off - the eye outside it)
+      const sweep = box.clone().expandByScalar(0.6), Lfull = Math.max(1, (trail - xDoor) * -ax + S.bOut);
+      if (ax < 0) sweep.min.x -= Lfull; else sweep.max.x += Lfull;
+      {
+        for (const G of gens) {
+          const fv = G.fv, look = G.look, az = G.az, el = G.el, d = G.d, s2 = G.s2;
+          pc.fov = fv;
           const p = { x: cg[0] + d * Math.cos(el) * Math.cos(az), y: cg[1] + d * Math.sin(el), z: cg[2] + d * Math.cos(el) * Math.sin(az) };
           legalize(room, p);
           const bad = room && !eyeOk(room, p.x, p.y, p.z) ? 1 : 0;
           const inBox = box.clone().expandByScalar(0.8).containsPoint(V.set(p.x, p.y, p.z)) ? 1 : 0;
           // THE BAY: the room keeps its kit, its racks and its columns along the walls (merged into batches the box test
           // below cannot tell from the shell) - the eye stays in the aeroplane's own bay, within S.bLat of the half-width
-          const bay = room && Math.abs(p.z - room.zc) > S.bLat * room.HW ? 1 : 0;
+          const bay = !G.front && room && Math.abs(p.z - room.zc) > S.bLat * room.HW ? 1 : 0;
+          const swept = sweep.containsPoint(V.set(p.x, p.y, p.z)) ? 1 : 0;
           pc.position.set(p.x, p.y, p.z); pc.up.set(0, 1, 0); pc.lookAt(look[0], look[1], look[2]); pc.updateMatrixWorld(true); pc.updateProjectionMatrix();
           let out = 0, fill = 0;
           for (let i = 0; i < 8; i++) {
@@ -328,8 +344,8 @@ const ROLLANIM = (() => {
             const m = Math.max(Math.abs(V.x), Math.abs(V.y));
             if (!(Math.abs(V.x) <= S.bFit && V.y >= -S.bFit && V.y <= S.bTop && V.z < 1)) out++; else fill = Math.max(fill, m);
           }
-          const sc = bad * 1000 + inBox * 1000 + out * 200 + bay * 150 + (fv - cam.fov) * 1.5 + (s2 === sd ? 0 : 5) + (1 - fill) * 10 + el * 10;
-          all.push({ sc, out, bay, ok: !bad && !inBox, eye: [p.x, p.y, p.z], look, fov: fv, hid: 0 });
+          const sc = bad * 1000 + inBox * 1000 + swept * 1000 + out * 200 + bay * 150 + (fv - cam.fov) * 1.5 + (s2 === sd ? 0 : 5) + (1 - fill) * 10 + G.pen;
+          all.push({ sc, out, bay, ok: !bad && !inBox && !swept, eye: [p.x, p.y, p.z], look, fov: fv, hid: 0, front: G.front });
         }
       }
       // THE ROOM'S KIT IN THE WAY (a stack of timber, a post, the bench between the eye and the aeroplane): the best
@@ -382,9 +398,30 @@ const ROLLANIM = (() => {
       }
       const best = all.slice(0, S.bRays).sort((a, b) => a.sc - b.sc)[0] || all[0];
       fixed = { eye: best.eye, look: best.look, out: best.out, fov: best.fov, hid: best.hid || 0, clut: best.clut || 0, by: best.by || {},
-        bayFit: all.some(c => c.ok && !c.bay && c.out === 0) };   // (an eye in the bay that frames it whole exists)
+        bayFit: all.some(c => c.ok && !c.bay && c.out === 0), front: !!best.front, L: 0 };   // (bayFit: an eye in the bay that frames it whole exists)
+      if (best.front) {
+        // THE FRONT SHOT'S ROLL ENDS AS THE AEROPLANE LEAVES THE PICTURE (it rolls toward the door, past the eye): the
+        // first distance at which every corner of its box is behind the eye or past the same edge of the frame, + S.bLeave
+        pc.fov = best.fov; pc.position.set(best.eye[0], best.eye[1], best.eye[2]); pc.up.set(0, 1, 0); pc.lookAt(best.look[0], best.look[1], best.look[2]);
+        pc.updateMatrixWorld(true); pc.updateProjectionMatrix();
+        const C = new THREE.Vector3();
+        let Lx = Lfull;
+        for (let sx = 1; sx <= Lfull; sx += 0.25) {
+          let side = 0, gone = true;
+          for (let i = 0; i < 8 && gone; i++) {
+            C.set((i & 1 ? box.max.x : box.min.x) + ax * sx, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
+            const zc = C.clone().applyMatrix4(pc.matrixWorldInverse).z;
+            if (zc > -pc.near) continue;                       // behind the eye
+            C.project(pc);
+            const sd2 = C.x < -1 ? -1 : C.x > 1 ? 1 : 0;
+            if (!sd2 || (side && sd2 !== side)) gone = false; else side = sd2;
+          }
+          if (gone) { Lx = Math.min(Lfull, sx + S.bLeave); break; }
+        }
+        fixed.L = Math.max(S.bLmin, Lx);
+      }
     }
-    const Lb = fixed ? Math.max(1, (trail - xDoor) * -ax + S.bOut) : c.L, Tb = fixed ? goTiming(Lb) : c.T;
+    const Lb = fixed ? (fixed.L > 0 ? fixed.L : Math.max(1, (trail - xDoor) * -ax + S.bOut)) : c.L, Tb = fixed ? goTiming(Lb) : c.T;
     return {
       skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin, check, Ttotal: check.T + Tb.T, fixed,
       L: Lb, T: Tb, side: c.side, lag: c.lag, lagE: c.lagE, bad: c.bad, cands: cands.length,
