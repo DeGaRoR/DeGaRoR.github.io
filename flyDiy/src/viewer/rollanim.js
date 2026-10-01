@@ -89,6 +89,7 @@ const ROLLANIM = (() => {
     // host fades as it leaves), within S.bTmin..S.bTmax s; the snap's picture holds the whole aeroplane: inside S.bFit of the
     // frame's half-width and height, and under S.bTop (the garage's HUD bars cover the top of the picture)
     bOut: 0, bAcc: 1.2, bTmin: 3.0, bTmax: 5.5, bFit: 0.88, bTop: 0.5,
+    bRays: 24, bHid: 40,           // the best candidates looked through for the room's kit in the way, and a hidden point's cost
   };
   // the check's order (the user's list) and the ctl keys it drives
   const CHECK_ORDER = ['da', 'de', 'dr', 'flap'];
@@ -304,7 +305,7 @@ const ROLLANIM = (() => {
       // S.bFit of the frame, with the host camera's aspect), then the host's own fov (a wider lens, up to +16 deg, only for
       // an aeroplane the room cannot frame whole: a big twin in the club shed), then the start's own side, then the nearest
       const sd = sides[0], pc = cam.clone(), V = new THREE.Vector3();
-      let best = null;
+      const all = [];
       for (const fv of [cam.fov, cam.fov + 8, cam.fov + 16]) for (const lk of [0.3, 0.45]) {
         pc.fov = fv;
         const look = [cg[0] + (xDoor - cg[0]) * lk, cg[1] + 0.3, cg[2]];
@@ -322,10 +323,33 @@ const ROLLANIM = (() => {
             if (!(Math.abs(V.x) <= S.bFit && V.y >= -S.bFit && V.y <= S.bTop && V.z < 1)) out++; else fill = Math.max(fill, m);
           }
           const sc = bad * 1000 + inBox * 1000 + out * 100 + (fv - cam.fov) * 2 + (s2 === sd ? 0 : 5) + (1 - fill) * 10;
-          if (!best || sc < best.sc) best = { sc, out, eye: [p.x, p.y, p.z], look, fov: fv };
+          all.push({ sc, out, eye: [p.x, p.y, p.z], look, fov: fv, hid: 0 });
         }
       }
-      fixed = { eye: best.eye, look: best.look, out: best.out, fov: best.fov };
+      // THE ROOM'S KIT IN THE WAY (a stack of timber, a post, the bench between the eye and the aeroplane): the best
+      // S.bRays candidates looked through - rays from the eye to the aeroplane's box (its centre and its corners drawn a
+      // quarter in), each one a prop of the room hits first is a hidden point (S.bHid each)
+      all.sort((a, b) => a.sc - b.sc);
+      const sceneR = o.scene && o.scene.children ? o.scene : null;
+      if (sceneR && THREE.Raycaster) {
+        const rc = new THREE.Raycaster(), ctr = new THREE.Vector3(), dir = new THREE.Vector3(), E = new THREE.Vector3(), pts = [];
+        box.getCenter(ctr); pts.push(ctr.clone());
+        for (let i = 0; i < 8; i++) pts.push(new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).lerp(ctr, 0.25));
+        const mine = x => { for (let q = x; q; q = q.parent) { if (q === craft) return true; if (q.visible === false) return true; } return false; };
+        const targets = sceneR.children.filter(k => k !== craft && k.visible !== false);
+        for (const cnd of all.slice(0, S.bRays)) {
+          E.set(cnd.eye[0], cnd.eye[1], cnd.eye[2]);
+          for (const q of pts) {
+            dir.subVectors(q, E); const far = dir.length() - 0.3; dir.normalize();
+            rc.set(E, dir); rc.far = far > 0 ? far : 0.01;
+            const hits = rc.intersectObjects(targets, true);
+            for (const ht of hits) { if (mine(ht.object)) continue; cnd.hid++; break; }
+          }
+          cnd.sc += cnd.hid * S.bHid;
+        }
+      }
+      const best = all.slice(0, S.bRays).sort((a, b) => a.sc - b.sc)[0] || all[0];
+      fixed = { eye: best.eye, look: best.look, out: best.out, fov: best.fov, hid: best.hid };
     }
     const Lb = fixed ? Math.max(1, (trail - xDoor) * -ax + S.bOut) : c.L, Tb = fixed ? goTiming(Lb) : c.T;
     return {
