@@ -67628,6 +67628,19 @@ the transition is seamless visually and performance wise"; after the evidence: "
 - flown_bake.js is not in it.
 - A queued take loop can win the box while you rebase (it happened at 14:13): stop it by exact PID before touching the tree.
 
+**THE COCKPIT CENSUS (train 19: dropped from train 18 on it):** FRAMECOST's census of the metal Cessna's cockpit at taxi, in node, master against the hybrid. The rule: every counter equal or lower.
+- **G1124.2:** the shadow swap and the casting-fold upload rule apply to the exterior's folds only. The cabin casts as C4b did; swapped, its hidden fold uploaded the yoke's, the stick's and the pedals' writes every frame.
+- **G1124.3:** the roll-out's crumb rule (G564) and the old model's dispose run with the parked meshes back in the graph (FLOWN_BAKE.withKept). Parked, the cabin's crumbs kept casting: +90 shadow draws a frame in the cockpit.
+- **G1124.4:** no eye-zone split under the fallback (the eye's zone only with ?fbake=cockpitlive). CORRECTION to its commit message: the split was NOT the cause of the +2 program switches (the same +2 with or without it). It stays because the split is unused there.
+- **G1124.5:** a parked mesh goes back to its OWN INDEX among its parent's children, not appended. The scene's order is three's walk order; appended, the cabin's still meshes broke sort ties elsewhere in the cockpit's draw sequence (+2 program switches a frame, the same draws).
+- With G1124.5, on train 18 (74b582a3 vs 6c6a0d53, FRAMECOST_SETTLE=1200, ?parkcook=0): 37 of 38 counters equal, updateMatrix -204, none higher. The aeroplane: 144 main + 76 shadow, 14 programs.
+
+**THE CENSUS'S OWN TOOLS (803a9fe2):** off by default; the gate's counts are unchanged.
+- FRAMECOST_SETTLE=<max frames>: each view advanced until no house is built and the main-pass median holds - two trees compared at rest.
+- FRAMECOST_CAM=cockpit: the taxi view from the pilot's head.
+- Compare two trees with ?parkcook=0 (FRAMECOST_QUERY) when their build ids differ: a stale cook is captured live, a different world.
+- Diff FRAMECOST_WHAT's drawn detail before blaming a counter on the craft: same objects in another order is not more work.
+
 **FOLLOW-UP (for the board): SHARP EXTERIOR FROM THE SEAT.** The cockpit shows the exterior on the 2048 atlas (the top decal and the cowl livery coarse at 1-3 m).
 - The eye's zone must be the TRIANGLES near the eye, not the members' spheres: split the wing and the fuselage members at build into near and far pieces, or cut the fold's index by distance.
 - Then only the parts the pilot sees up close go live. ?fbake=cockpitlive is the dial to measure it against.
