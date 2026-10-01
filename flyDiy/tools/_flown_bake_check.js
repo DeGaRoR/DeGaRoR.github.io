@@ -463,6 +463,26 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   o2.fade(1); const out1 = k1.material === m0; o2.fade(0); const out0 = o2.meshes[0].material === inMat;
   check(inB && out1 && out0 && o2.pairs().length === 2 * 2 + 1, '8 G1123 the band twins worn only while 0 < t < 1, and the pairs the craft step warms (each live mesh twice, each fold\'s twin)',
     JSON.stringify({ inB, out1, out0, pairs: o2.pairs().length }));
+  // G1125 THE VIEWS: the hybrid's exterior drawn from the fold's own buffers - one view per live material, on the fold's
+  // SAME attribute objects (no second resident set), its index range; the members out of the graph; parked and shown
+  {
+    const g5 = new T.Group(); g5.matrixAutoUpdate = false;
+    const lA = new T.MeshStandardMaterial(), lB = new T.MeshStandardMaterial();
+    const v1 = bakedMesh(box(0, 0, 0, 1, 1, 1, 1), lA, true), v2 = bakedMesh(box(1, 0, 0, 2, 1, 1, 1), lB, true), v3 = bakedMesh(box(2, 0, 0, 3, 1, 1, 1), lA, true);
+    g5.add(v1, v2, v3);
+    const o5 = FB.mergeModel(T, g5, mat, { members: [v1, v2, v3], keep: true, set: 'ext', views: true });
+    const fold = o5 && o5.meshes[0], vs = o5 ? o5.kept : [];
+    const shared = vs.length === 2 && vs.every(v => v.geometry.attributes.position === fold.geometry.attributes.position && v.geometry.index === fold.geometry.index);
+    const total = vs.reduce((q, v) => q + v.geometry.drawRange.count, 0);
+    const byMat = new Set(vs.map(v => v.material)).size === 2 && vs.some(v => v.material === lA) && vs.some(v => v.material === lB);
+    const out = v1.parent === null && v2.parent === null && v3.parent === null;
+    o5.live = vs.slice(); o5.park(); const parked = vs.every(v => v.parent === null);
+    o5.fade(1); const near = vs.every(v => v.parent === g5 && v.visible) && !fold.visible && o5.viewsOn === true;
+    o5.fade(0); const far = vs.every(v => v.parent === null) && fold.visible && !o5.viewsOn;
+    check(!!o5 && shared && byMat && total === fold.geometry.index.count && out && parked && near && far,
+      '8 G1125 the views: one a live material on the fold\'s SAME attribute objects (no second buffer), their ranges the fold\'s index, the members out of the graph, parked / shown as the kept meshes were',
+      JSON.stringify({ views: vs.length, shared, byMat, total, idx: fold && fold.geometry.index.count, out, parked, near, far }));
+  }
   W.FLYDIY_FLOWN_MERGE = 0;
   const g3 = new T.Group(); g3.add(bakedMesh(box(0, 0, 0, 1, 1, 1, 1)), bakedMesh(box(1, 0, 0, 2, 1, 1, 1)));
   check(FB.mergeModel(T, g3, mat, {}) === null && g3.children.length === 2, '8 FLYDIY_FLOWN_MERGE = 0 folds nothing (the dial)');

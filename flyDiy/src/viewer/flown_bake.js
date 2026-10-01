@@ -906,6 +906,8 @@
     const o = opt || {}, wheel = o.wheel || new Set(), written = o.written || new Set();
     const CR = o.crumb != null ? o.crumb : 0.15, WR = o.wheelCrumb != null ? o.wheelCrumb : 0.04;
     const keep = !!o.keep || !!FB.foldAB, subs = o.members ? o.members.slice() : [], set = o.set || (o.keep ? 'in' : 'ext'), zone = o.zone || null;
+    // G1125 (o.views, the hybrid's exterior): the live side drawn as VIEWS on the fold's own geometry - see below
+    const VIEWS = !!o.views && keep && !FB.foldAB;
     if (!o.members) grp.traverse(m => { if (m.isMesh && m.material === mat) subs.push(m); });
     const skip = {}, why = k => { skip[k] = (skip[k] || 0) + 1; };
     const folds = new Map();
@@ -934,7 +936,8 @@
     for (const F of folds.values()) {
       if (F.moves && new Set(F.list.map(m => m.parent)).size > 256) { why('bones'); continue; }   // a Uint8 bone index
       // the buckets a rig writes first: their ranges are one span of the merged buffer
-      const list = F.list.slice().sort((a, b) => (written.has(b.geometry.attributes.position) ? 1 : 0) - (written.has(a.geometry.attributes.position) ? 1 : 0));
+      const wr = m => written.has(m.geometry.attributes.position) ? 1 : 0, mk = m => (m.material && m.material.uuid) || '';
+      const list = F.list.slice().sort((a, b) => (wr(b) - wr(a)) || (VIEWS ? (mk(a) < mk(b) ? -1 : mk(a) > mk(b) ? 1 : 0) : 0));
       let nV = 0, nI = 0;
       for (const m of list) { nV += m.geometry.attributes.position.count; nI += m.geometry.index.count; }
       const P = new Float32Array(nV * 3), N = new Float32Array(nV * 3), U = new Uint16Array(nV * 2);
@@ -961,6 +964,21 @@
         vo += n; io += g.index.count;
       }
       const geo = new THREE.BufferGeometry();
+      // G1125: the live side's own attributes (uv, the surface field, ...), merged once into the fold - zero where a member
+      // has none (its material is then one that reads none: the material keys on the surface field's presence)
+      if (VIEWS) {
+        const extra = new Map();
+        for (const m of list) for (const [k, a] of Object.entries(m.geometry.attributes))
+          if (k !== 'position' && k !== 'normal' && k !== 'uv1' && !a.isInterleavedBufferAttribute && !extra.has(k)) extra.set(k, a.itemSize);
+        for (const [k, sz] of extra) {
+          const A = new Float32Array(nV * sz);
+          let q = 0;
+          for (const m of list) { const a = m.geometry.attributes[k], c = m.geometry.attributes.position.count;
+            if (a && a.itemSize === sz) A.set(a.array.subarray(0, c * sz), q * sz);
+            q += c; }
+          geo.setAttribute(k, new THREE.BufferAttribute(A, sz));
+        }
+      }
       const aP = new THREE.BufferAttribute(P, 3), aN = new THREE.BufferAttribute(N, 3);
       geo.setAttribute('position', aP); geo.setAttribute('normal', aN);
       geo.setAttribute('uv1', new THREE.BufferAttribute(U, 2, true));
@@ -1046,7 +1064,7 @@
         if (nd || stale) {
           // a fold that is not drawn (the cabin's in the cockpit, the whole model in the shed) uploads nothing: three
           // only clears its ranges on an upload, so they would pile up frame after frame - it owes ONE whole upload instead
-          let shown = this.visible || (FOLD_CASTS && this.castShadow && set !== 'in');   // (G1124 a: an exterior fold that casts draws in the shadow pass)
+          let shown = this.visible || (FOLD_CASTS && this.castShadow && set !== 'in') || !!out.viewsOn;   // (G1124 a: an exterior fold that casts draws in the shadow pass; G1125: a fold drawn through its views)
           for (let q = this.parent; q && shown; q = q.parent) if (!q.visible) shown = false;
           if (!shown) stale = true;
           else if (stale || aP.updateRanges.length > 32 || aN.updateRanges.length > 32) {
@@ -1064,7 +1082,34 @@
       const at0 = grp.children.indexOf(list.find(m => m.parent === grp) || null);
       // a kept member stands at rest (atRest, above) under its part: its matrix frozen there - the hidden hundred of the
       // hybrid then cost three's walk nothing but the visit (GATE FRAMECOST: updateMatrix +102 a frame on the Cub before)
-      if (keep) for (const m of list) { m.visible = false; if (m.matrixAutoUpdate) { m.updateMatrix(); m.matrixAutoUpdate = false; } out.kept.push(m); }
+      if (VIEWS) {
+        // G1125 THE NEAR VIEW FROM THE FOLD'S OWN BUFFERS. The kept live meshes were a SECOND RESIDENT SET - their own position,
+        // normal, uv, surface-field, uv1 and index buffers and VAOs, ~1 000 GL buffers and ~47 MB on the Cessna, held even where
+        // never drawn: +0.9-1.1 ms render in the cockpit (the isolation: ?fbake=nowarm = master). A VIEW is a geometry over
+        // the fold's SAME attribute objects (three keys its GL buffers on the attribute: shared, uploaded once) drawing one
+        // material's index range (the members sorted by material above), on that live material; a moving part's view is a
+        // SkinnedMesh on the fold's own skeleton. The members leave the graph as the plain fold's do; the views are kept
+        // (parked, the band, the near view, the warm) where the members were.
+        let r0 = 0;
+        while (r0 < list.length) {
+          let r1 = r0 + 1; const mat0 = list[r0].material;
+          while (r1 < list.length && list[r1].material === mat0) r1++;
+          const vg = new THREE.BufferGeometry();
+          for (const k of Object.keys(geo.attributes)) vg.setAttribute(k, geo.attributes[k]);
+          vg.setIndex(geo.index);
+          vg.setDrawRange(members[r0].i0, members[r1 - 1].i1 - members[r0].i0);
+          vg.boundingSphere = geo.boundingSphere;
+          const v = F.moves ? new THREE.SkinnedMesh(vg, mat0) : new THREE.Mesh(vg, mat0);
+          if (F.moves) { v.bindMode = mesh.bindMode; v.bind(mesh.skeleton, mesh.bindMatrix); }
+          v.name = 'flownLive'; v.castShadow = false; v.receiveShadow = list[r0].receiveShadow; v.renderOrder = list[r0].renderOrder;
+          v.layers.mask = list[r0].layers.mask; v.frustumCulled = mesh.frustumCulled; v.visible = false;
+          v.matrixAutoUpdate = false; v.userData.flownView = { subs: r1 - r0 };
+          grp.add(v); out.kept.push(v);
+          r0 = r1;
+        }
+        for (const m of list) { m.parent.remove(m); out.of.set(m, mesh); }
+      }
+      else if (keep) for (const m of list) { m.visible = false; if (m.matrixAutoUpdate) { m.updateMatrix(); m.matrixAutoUpdate = false; } out.kept.push(m); }
       else for (const m of list) { m.parent.remove(m); out.of.set(m, mesh); }
       grp.add(mesh);
       if (at0 >= 0) { grp.children.splice(grp.children.indexOf(mesh), 1); grp.children.splice(Math.min(at0, grp.children.length), 0, mesh); }
@@ -1096,6 +1141,7 @@
         }
       };
       const liveOn = on => {
+        out.viewsOn = !!on;   // (G1125: a fold drawn through its views uploads its rigs' writes)
         if (on) { put(out.live.filter(m => !m.parent && HOME.has(m))); for (const m of out.live) m.visible = true; return; }
         const go = out.live.filter(m => m.parent);
         for (const m of go) HOME.set(m, [m.parent, m.parent.children.indexOf(m)]);

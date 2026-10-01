@@ -3052,10 +3052,10 @@
       for (const w of wheelParts) if (w.obj && w.obj.traverse) w.obj.traverse(o => { if (o.isMesh) wheel.add(o); });
       // G1124: the exterior's kept meshes in two zones - the EYE's (near the cabin: live in the cockpit) and the FAR's
       const Z = FBK.hybrid && FBK.mat && extMeshes.length && window.FLOWN_BAKE.eyeZone ? window.FLOWN_BAKE.eyeZone(THREE, grp, inMeshes, extMeshes) : { eye: [], far: extMeshes };
-      try { fold = !FBK.mat ? null : FBK.hybrid ? (Z.far.length ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel, members: Z.far, keep: true, set: 'ext', zone: 'far' }) : null)
+      try { fold = !FBK.mat ? null : FBK.hybrid ? (Z.far.length ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel, members: Z.far, keep: true, set: 'ext', zone: 'far', views: true }) : null)
                                          : window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel }); }
       catch (e) { console.warn('flown bake: the fold failed', e); fold = null; }
-      try { foldEye = FBK.hybrid && FBK.mat && Z.eye.length ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel, members: Z.eye, keep: true, set: 'ext', zone: 'eye' }) : null; }
+      try { foldEye = FBK.hybrid && FBK.mat && Z.eye.length ? window.FLOWN_BAKE.mergeModel(THREE, grp, FBK.mat, { written, wheel, members: Z.eye, keep: true, set: 'ext', zone: 'eye', views: true }) : null; }
       catch (e) { console.warn('flown bake: the eye fold failed', e); foldEye = null; }
       if (fold) for (const n in meshes) { const f = fold.of.get(meshes[n]); if (f) meshes[n] = f; }
       // the cabin: its live meshes stay (hidden), its fold draws them on the cabin's baked material but in the cockpit
