@@ -24,7 +24,8 @@ const shot = async name => { fs.mkdirSync(DIR, { recursive: true }); const f = p
 // the drawing (premises coordinates = world on Jolene: anchor 0, 0, yaw 0), found on the headless compose (G843's probe)
 const ROAD = process.env.C2C_ROAD ? JSON.parse(process.env.C2C_ROAD) : { pts: [[250, -2760], [290, -2840], [310, -2920], [320, -2990]], w: 4, cls: 'gravel', graded: true, falloff: 6 };
 const ZONE = process.env.C2C_ZONE ? JSON.parse(process.env.C2C_ZONE) : { kind: 'harbour', poly: [[170, -2730], [400, -2730], [420, -3000], [200, -3010]], density: 1 };   // (env: the sow probe's pick)
-const BOX = { x0: 200, z0: -2860, x1: 330, z1: -2740 };
+// the overview frames the drawn zone (its polygon's box), the default west-shore box without one
+const BOX = (() => { const P = ZONE.poly; if (!P || !P.length) return { x0: 200, z0: -2860, x1: 330, z1: -2740 }; let a = [1e9, 1e9, -1e9, -1e9]; for (const q of P) a = [Math.min(a[0], q[0]), Math.min(a[1], q[1]), Math.max(a[2], q[0]), Math.max(a[3], q[1])]; return { x0: a[0], z0: a[1], x1: a[2], z1: a[3] }; })();
 const WORKER = 'return (() => { const R = WORLD.premises, S = HOUSE_WORKER && HOUSE_WORKER.stats ? HOUSE_WORKER.stats() : {}; return { built: S.built, hits: S.hits, misses: S.misses, on: S.on, here: R.hw ? R.hw.local : null, dispatched: R.hw ? R.hw.dispatched : null, tallies: R.stats.tallies, hitBase: R.stats.hitBase, hitWalk: R.stats.hitWalk, queued: R.stats.queued, houses: R.houses.size }; })();';
 const HIDE = on => `const P = PREMISES_EDITOR, v = ${on ? "'hidden'" : "''"}; if (P.panel) P.panel.style.visibility = v; const V = document.getElementById('premView'); if (V) for (const c of V.children) c.style.visibility = v; const G = WORLD.premises.groups; G.outlines.visible = ${!on}; G.handles.visible = ${!on}; return 1;`;
 const MINE = zid => `return (() => { const R = WORLD.premises, out = []; for (const [id, h] of R.houses) { if (String(id).indexOf(${JSON.stringify(zid + ':')}) !== 0) continue; let pier = 0, boats = 0, props = 0; const keys = []; h.grp.traverse(o => { const k = o.userData && o.userData.prop && (o.userData.prop.key || o.name); if (k) { props++; keys.push(k); if (/^pier_/.test(k)) pier++; if (/boat/.test(k)) boats++; } }); for (const g of h.extra || []) g.traverse(o => { const k = o.userData && o.userData.prop && (o.userData.prop.key || o.name); if (k && /boat/.test(k)) boats++; }); out.push({ id, failed: !!h.failed, tris: h.tris, pier, boats, props, obst: (h.grp.userData.obst || []).length, shape0: !!h.grp.userData.shape0 }); } return out; })();`;
@@ -80,16 +81,22 @@ async function view(name, yaw, pitch) {
   }
   if (PHASE === 'after') {
     const ids = JSON.parse(fs.readFileSync(path.join(DIR, 'c2c_editor_ids.json'), 'utf8'));
-    const w = await run(WORKER), mine = await run(MINE(ids.zid));
+    // the saved zone's houses stream in by distance (the roll-out stands far from a drawn shore): the camera framed on
+    // the zone first, then the houses waited for, THEN the worker's account - its own (built) vs the cache's (hits)
+    const w = await run(WORKER);
     console.log('  after the reload: worker ' + JSON.stringify(w));
-    console.log('  the saved harbour: ' + JSON.stringify(mine));
     await run(`const H = PREMISES_EDITOR; H.openEditor(); return 1;`);
     await until('return !!(PREMISES_EDITOR.open && PREMISES_EDITOR.ed);', 120000, 'the editor opened');
     await run(`const H = PREMISES_EDITOR.host; H.cameras.set('orbit'); H.cameras.frame(${JSON.stringify(BOX)}); H.cameras.look(0.9, 0.42); return 1;`); await run(HIDE(true));
+    const want = (ids.mine || []).length;
+    await until(`return (() => { let n = 0; for (const [id, h] of WORLD.premises.houses) if (String(id).indexOf(${JSON.stringify(ids.zid + ':')}) === 0 && !h.failed) n++; return n >= ${want}; })();`, 240000, 'the saved harbour streamed in');
     await sleep(5000);
+    const w2 = await run(WORKER), mine = await run(MINE(ids.zid));
+    console.log('  the saved harbour: ' + JSON.stringify(mine));
+    console.log('  the worker over its streaming: built ' + ((w2.built || 0) - (w.built || 0)) + ' (generated), hits ' + ((w2.hits || 0) - (w.hits || 0)) + ' (from the cache), on the page ' + ((w2.here || 0) - (w.here || 0)) + '; ' + JSON.stringify(w2));
     await shot('c2c_editor_2_reloaded');
     await run(HIDE(false)); await run('PREMISES_EDITOR.close(); return 1;');
-    Object.assign(ids, { after: { w, mine } });
+    Object.assign(ids, { after: { w, w2, mine } });
     fs.writeFileSync(path.join(DIR, 'c2c_editor_ids.json'), JSON.stringify(ids, null, 1));
     return;
   }
