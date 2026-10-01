@@ -67382,3 +67382,15 @@ AFTER (`--ab`, the eye held, the aeroplane within 25 m hidden): wrap 0 - pairs ~
 wrap 1 - every clock step 1.2-2.0 mean / 1.5-3.9 % edge px > 8 (it scales with dt: the clouds really move ~0.75 m a step,
 ~0.5 px at 2 km - my first estimate of 0.01 px was wrong), sparse isolated specks, no rim-wide jump. The specks are left:
 a sampling crawl of the march under real motion (next splits: jitter, steps, temporal accumulation) - the user's eye decides.
+G1050 FOLLOW-UP, NOT DONE (the coordinator: "a follow-up for another day"): THE SPECKS LEFT AFTER THE WRAP. With the wrap
+on, each clock step still changes 1.5-3.9 % of the edge pixels > 8 levels as SPARSE ISOLATED specks (max ~100-140), not
+the thin, uniform edge band a smooth 0.5 px motion would give. Hypothesis: the march's sampling under a MOVING field -
+the per-pixel IGN start jitter (S.jitter 0.6, screen-locked, clouds.js ~245) and the 24-60 m steps with empty-air
+strides of 3 and 1.5 steps (~254-265) sample a field that slides 0.75 m a step, so a pixel whose few dense samples sit on
+a steep rim flips between hit and miss. No history averages it (uFrame = 0, "the temporal pass is owed"). Splits, in this
+order, all with tools/cloud_flicker.js --ab-style case D (the eye held, the aeroplane hidden) and the user's eye:
+S.jitter 0 (the specks should become bands, if the jitter is the dealer); S.steps 48 -> 96 (finer steps, fewer flips);
+the strides off; then the real fix if confirmed - a temporal accumulation of the march (reprojected history, the
+jitter rotated per frame) or a world-anchored step phase (t0 snapped to a world-space lattice along the ray).
+(The dials' earlier null result - jitter 0 / nearest / full res changed nothing - was for a 2 cm MOVE of the eye with
+the clock stopped, not for the moving field.)
