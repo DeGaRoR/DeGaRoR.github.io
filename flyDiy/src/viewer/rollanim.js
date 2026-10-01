@@ -328,8 +328,8 @@ const ROLLANIM = (() => {
             const m = Math.max(Math.abs(V.x), Math.abs(V.y));
             if (!(Math.abs(V.x) <= S.bFit && V.y >= -S.bFit && V.y <= S.bTop && V.z < 1)) out++; else fill = Math.max(fill, m);
           }
-          const sc = bad * 1000 + inBox * 1000 + bay * 500 + out * 100 + (fv - cam.fov) * 1.5 + (s2 === sd ? 0 : 5) + (1 - fill) * 10 + el * 10;
-          all.push({ sc, out, eye: [p.x, p.y, p.z], look, fov: fv, hid: 0 });
+          const sc = bad * 1000 + inBox * 1000 + out * 200 + bay * 150 + (fv - cam.fov) * 1.5 + (s2 === sd ? 0 : 5) + (1 - fill) * 10 + el * 10;
+          all.push({ sc, out, bay, ok: !bad && !inBox, eye: [p.x, p.y, p.z], look, fov: fv, hid: 0 });
         }
       }
       // THE ROOM'S KIT IN THE WAY (a stack of timber, a post, the bench between the eye and the aeroplane): the best
@@ -381,7 +381,8 @@ const ROLLANIM = (() => {
         }
       }
       const best = all.slice(0, S.bRays).sort((a, b) => a.sc - b.sc)[0] || all[0];
-      fixed = { eye: best.eye, look: best.look, out: best.out, fov: best.fov, hid: best.hid || 0, clut: best.clut || 0, by: best.by || {} };
+      fixed = { eye: best.eye, look: best.look, out: best.out, fov: best.fov, hid: best.hid || 0, clut: best.clut || 0, by: best.by || {},
+        bayFit: all.some(c => c.ok && !c.bay && c.out === 0) };   // (an eye in the bay that frames it whole exists)
     }
     const Lb = fixed ? Math.max(1, (trail - xDoor) * -ax + S.bOut) : c.L, Tb = fixed ? goTiming(Lb) : c.T;
     return {
