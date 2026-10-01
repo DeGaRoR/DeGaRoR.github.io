@@ -10376,6 +10376,12 @@
     az = tgt + s * 0.45; el = 0.16; dist = D * 1.7;
     flHdg0 = hdg; flYawRate = 0;       // no phantom yaw-rate lead on frame one
     flReveal = FL_REVEAL_FRAMES;
+    // G1119 (ROLLOUT-REAL, found on its world roll): THE EYE IS PLACED NOW, not on the next frame. The frame runs the world's
+    // update BEFORE it places the camera, so the first flight frame's update read the camera the shed left - the garage's
+    // coordinates, ~700 m from the stand: the cover ring (cover_ring.js, cells round the EYE) dropped every cell and planted
+    // them all again over the first seconds of the flight, and every eye-keyed stream (the trees' LOD, the premises) saw a
+    // teleport. The reveal's own first pose, placed here, is what that update now sees
+    target.set(cg[0], cg[1], cg[2]); placeCamera();
   }
   // the slow ease, until it settles or the frames run out
   function flRevealK(dt) {
