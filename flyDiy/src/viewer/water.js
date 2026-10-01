@@ -123,7 +123,7 @@ const WATER = (() => {
     uniform vec4 uWSct[4];     // rgb: the column's own colour at depth (linear), w: 0
     uniform vec4 uWBody[4];    // x: wave scale, y: detail scale, z: foam threshold, w: depth when there is no field (m)
     uniform vec4 uWMisc;       // x: shore fade width (m), y: lake depth per metre of field, z: lake depth cap (m), w: foam on
-    uniform vec4 uWLook;       // G794: x: the reflection kept whole over a thin column, y: the column's slanted path (1 on, 0 = G460's)
+    uniform vec4 uWLook;       // G794: x: the reflection kept whole over a thin column, y: the column's slanted path (1 on, 0 = G460's); G798: z: the shore's lap foam (0 off)
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
@@ -283,7 +283,11 @@ const WATER = (() => {
           // patches, so the band is wide and faint, torn by a 7 m noise and by the swell's pulse - a wash,
           // never a white line)
           float lap = 0.0;
-          if (uWSdfOn > 0.5 && wB == 0 && wF.x > -16.0) {
+          // G798 THE LAP IS OFF (the user on the harbour: "white bands next to the shore ... we see it's a moving band
+          // texture, and it's not even oriented correctly. It has to go"): the band follows the 30 m coast field and its
+          // 7 m tear scrolls with the swell, so from a low eye it reads as a sliding stripe, not as surf. Kept behind
+          // uWLook.z (WATER.set({ lap: 1 })) for a proper version; the waterline is G794's reflection and G795's wet bed
+          if (uWLook.z > 0.5 && uWSdfOn > 0.5 && wB == 0 && wF.x > -16.0) {
             float hh = clamp(wGerstnerH(vWP.x, vWP.z) / max(uWFoam.z, 0.03), -1.0, 1.0);
             float tear = texture2D(uWDetail, vWP.xz / 7.0 + vec2(0.13, 0.71)).a;
             lap = 0.55 * smoothstep(-14.0, -1.0, wF.x) * smoothstep(0.25, 0.85, tear * (0.65 + 0.35 * hh));
@@ -522,6 +526,7 @@ const WATER = (() => {
     shoreFade: 3.0,                    // m of field the sea fades over
     lakeK: 1.2, lakeCap: 8.0,          // a lake's depth per metre of its field, and its cap
     reflKeep: 1, slant: 1,             // G794: the reflection kept whole over a thin column; the column's slanted path (0, 0 = G460's)
+    lap: 0,                            // G798: the shore's lap foam (1 = G460.5's band)
     foldQ: 0.55,                       // the virtual Gerstner Q of the fold
   };
 
@@ -542,7 +547,7 @@ const WATER = (() => {
       uWSdf: { value: null }, uWGrid: { value: v4(0, 0, 1, 1) }, uWSdfOn: { value: 0 },
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
-      uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, 0, 0) },
+      uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, 0) },
     };
     applyPresets();
   }
@@ -1149,7 +1154,7 @@ const WATER = (() => {
     if (!o) return;
     if ('tier' in o) setTier(o.tier);
     if ('mirror' in o) { MIR.mode = o.mirror === 'live' ? 'live' : o.mirror === 'off' ? 'off' : 'periodic'; if (MIR.mode === 'off') mirrorOff(); }
-    for (const k of ['displace', 'detail', 'sigma', 'foam', 'dbg', 'detailK', 'shoreFade', 'lakeK', 'lakeCap', 'foldQ', 'reflKeep', 'slant']) if (k in o) S[k] = o[k];
+    for (const k of ['displace', 'detail', 'sigma', 'foam', 'dbg', 'detailK', 'shoreFade', 'lakeK', 'lakeCap', 'foldQ', 'reflKeep', 'slant', 'lap']) if (k in o) S[k] = o[k];
     if ('on' in o) S.on = !!o.on;
     if ('timer' in o) timer.on = !!o.timer;
     if (o.detailL) S.detailL = o.detailL.slice();
@@ -1163,7 +1168,7 @@ const WATER = (() => {
     U.uWDetailK.value.x = S.detailL[0]; U.uWDetailK.value.y = S.detailL[1];
     U.uWMisc.value.set(S.shoreFade, S.lakeK, S.lakeCap, S.foam ? 1 : 0);
     U.uWDbg.value = S.dbg | 0;
-    U.uWLook.value.set(S.reflKeep ? 1 : 0, S.slant ? 1 : 0, 0, 0);
+    U.uWLook.value.set(S.reflKeep ? 1 : 0, S.slant ? 1 : 0, S.lap ? 1 : 0, 0);
     trains.forEach((w, i) => { U.uWTrD.value[i].z = S.foldQ; });
     { let sAk2 = 0; for (const w of trains) sAk2 += w.A * w.k * w.A * w.k; U.uWFoam.value.x = S.foldQ * Math.sqrt(sAk2 / 2); }
     if (mat) mat.visible = S.on;
