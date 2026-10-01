@@ -383,6 +383,18 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   grp.updateMatrixWorld(true);
   const e1 = skinned(iP).distanceTo(at(pg, p1v0));
   check(iP >= 0 && e0 < 1e-6 && e1 < 1e-6, '8 a part\'s vertex lands where the part puts it, at rest and moved (the bone is the part)', 'err ' + e0 + ', ' + e1);
+  // G1125.2: the fold's OBJECT sphere (set at the build: three never walks the vertices for it) holds the part at every
+  // extreme: a quarter turn either way about each axis, with a 0.3 m travel either way along each
+  { const sph = bone.boundingSphere, n = bone.geometry.attributes.position.count; let out = 0, poses = 0;
+    const R0 = [1, 0.2, 0], ax = ['x', 'y', 'z'];
+    for (const a of ax) for (const turn of [Math.PI / 2, -Math.PI / 2]) for (const b of ax) for (const run of [0.3, -0.3]) {
+      pg.rotation.set(0, 0, 0.5); pg.rotation[a] += turn; pg.position.set(R0[0], R0[1], R0[2]); pg.position[b] += run;
+      grp.updateMatrixWorld(true); poses++;
+      for (let i = 0; i < n; i++) if (skinned(i).distanceTo(sph.center) > sph.radius + 1e-4) out++;
+    }
+    pg.rotation.set(0, 0, -0.4); pg.position.set(1, 0.6, 0); grp.updateMatrixWorld(true);
+    check(!!sph && out === 0, '8 G1125.2 the parts\' fold\'s object sphere holds every vertex at every extreme pose (a quarter turn about each axis, 0.3 m of travel): three never culls a deflected part',
+      out + ' vertices outside over ' + poses + ' poses; sphere r ' + (sph && sph.radius.toFixed(2))); }
   check(bone.bindMode === (T.DetachedBindMode || 'detached') && bone.bindMatrix.equals(new T.Matrix4()), '8 the bind is the identity, detached (the bones are relative to the model group)');
   // the raycast: member by member, the part named
   grp.matrix.makeTranslation(100, 0, 0); grp.matrixWorldNeedsUpdate = true; grp.updateMatrixWorld(true);

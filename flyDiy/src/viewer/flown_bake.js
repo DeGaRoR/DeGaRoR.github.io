@@ -66,7 +66,8 @@
   const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true,
                 hybrid: true, hyA: 1.6, hyB: 2.0,
                 eyeR: 1.5, eyeOnly: true, shadowFolds: true,
-                cockpitLive: false };   // G1124.1: the exterior live in the cockpit (the eye's zone) - off: +2.4 ms there (the Cessna)   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
+                cockpitLive: false,
+                swingPad: 0.5 };   // G1125.2: a moving part's travel beyond its turn (a Fowler flap's run, the gear's stroke), m   // G1124.1: the exterior live in the cockpit (the eye's zone) - off: +2.4 ms there (the Cessna)   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
   const log = (...a) => { if (FB.quiet) return; console.log('flown bake:', ...a); };
   const tick = () => new Promise(r => setTimeout(r, 0));
   // the dials in the URL: ?fbake=0 the live shader; ?fbake=ab the A/B build (live twins kept, the still merge off);
@@ -1021,9 +1022,14 @@
         const all = new THREE.Sphere(), sp = new THREE.Sphere();
         members.forEach((q, i) => { sp.center.copy(q.c).applyMatrix4(B[q.b].matrixWorld); sp.radius = q.r0; if (i) all.union(sp); else all.copy(sp); });
         geo.boundingSphere = all;
-        // G1125.1: ...and as the OBJECT's sphere (a SkinnedMesh's own, which three computes at its first frustum test by
-        // walking every vertex through the bones: 2.3 s at the hybrid's first crossing, a view on the fold's whole geometry each)
-        mesh.boundingSphere = all.clone();
+        // G1125.1: ...and the OBJECT's sphere set here (a SkinnedMesh's own, which three computes at its first frustum test by
+        // walking every vertex through the bones: 2.3 s at the hybrid's first crossing, a view on the fold's whole geometry
+        // each). G1125.2: one that holds the parts at ANY turn about their pivots - each member within (its distance from
+        // its part's pivot + its radius) of the pivot's rest place - plus FB.swingPad for a part's travel, so a surface at
+        // full deflection, a leg at its stroke or a door open is never culled at the frame's edge
+        const swing = new THREE.Sphere(), sw = new THREE.Sphere();
+        members.forEach((q, i) => { sw.center.setFromMatrixPosition(B[q.b].matrixWorld); sw.radius = q.c.length() + q.r0 + FB.swingPad; if (i) swing.union(sw); else swing.copy(sw); });
+        mesh.boundingSphere = swing;
       }
       // THE RAYCAST (the cockpit's pick every 80 ms, the sun's glare rays): member by member as the separate meshes were
       // - the ray into the member's frame, its own sphere first, then its triangles at their current (rig-written)
@@ -1108,7 +1114,7 @@
           vg.setDrawRange(members[r0].i0, members[r1 - 1].i1 - members[r0].i0);
           vg.boundingSphere = geo.boundingSphere;
           const v = F.moves ? new THREE.SkinnedMesh(vg, mat0) : new THREE.Mesh(vg, mat0);
-          if (F.moves) { v.bindMode = mesh.bindMode; v.bind(mesh.skeleton, mesh.bindMatrix); v.boundingSphere = geo.boundingSphere.clone(); }   // (G1125.1: no per-vertex walk at its first frustum test)
+          if (F.moves) { v.bindMode = mesh.bindMode; v.bind(mesh.skeleton, mesh.bindMatrix); v.boundingSphere = mesh.boundingSphere.clone(); }   // (G1125.1-.2: the fold's swing sphere: no per-vertex walk at its first frustum test)
           v.name = 'flownLive'; v.castShadow = false; v.receiveShadow = list[r0].receiveShadow; v.renderOrder = list[r0].renderOrder;
           v.layers.mask = list[r0].layers.mask; v.frustumCulled = mesh.frustumCulled; v.visible = false;
           v.matrixAutoUpdate = false; v.userData.flownView = { subs: r1 - r0 };
