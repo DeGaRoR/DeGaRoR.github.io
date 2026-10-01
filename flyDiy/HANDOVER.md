@@ -67720,3 +67720,37 @@ nose's detail seen from the seat), a good-looking foam band, the garage camera, 
 world pops in and the aeroplane drops), the Cub 26 L deck tank (a mass/CG-aware flare), the Jodel taper, the cloud
 specks; Metlakatla only when every performance target passes; the NEXT BIG RELEASE = the game premises (hangar
 management, unique hangars blending in and out).
+
+## G1165-G1167 - A5-CAP: THE COCKPIT'S LATENCY MEASURED HOP BY HOP; A STARVED FRAME EXTRAPOLATES (THE EYE'S SPIKES) (2026-10-01, local GPU)
+
+The user: the cockpit "feels a tad more laggy than exterior". After G1160-G1163 (the pacing: an even 60 once settled),
+the control-to-picture chain was measured.
+- G1165 (tools, tools/latency_probe_page.js + rollout_perf --latency [n] / --judder): from the rig's pre-script, the probe
+  wraps the Worker constructor (the physics worker's hand commands out, its snapshots in, with their step, sim time and
+  DUE moment), the frame clock and the link's frame (each frame's vsync and drawn sim time), and listens for keys; it
+  changes nothing the game does. --latency: a manual flight, n rudder steps (Period) through CDP's real key path, each
+  followed key -> the frame that posts it -> the worker's step that carries it (DUE) -> its arrival -> the first frame
+  drawing it -> the glass (that frame's vsync + a refresh: an ESTIMATE). --judder: the pilot flying - the cockpit eye's
+  judderTs (eye_judder.js's formula on the frames rolling > 3 m/s), the ring's starved frames and delay, the drawn
+  pose's age (the frame's vsync less the moment its drawn state was due).
+- THE HOP TABLE (metal Cessna, ms, median; JSONs tools/perf/rollout_a5c_lat_*.json in the main checkout): cockpit auto
+  (60) 72.7 (p90 94.7) = next frame 8.7, the step boundary 9.0, step + publishing 11.1, the ring + the glass 39.1; chase
+  auto (30) 101.6; both pinned 60: 77.9 / 80.8; cockpit pinned 30 101.7; the inline loop (?simw=0) ~56. The drawn pose
+  is ~25 ms old (the ring's delay, ~1.5 steps). THE COCKPIT IS NOT MORE LATENT THAN THE CHASE (less on auto); the same
+  ~75 ms reads through the eye where the view IS the aeroplane. The worker path costs ~30-35 ms over inline at a rate.
+- G1166 (NOT LANDED): the ring's delay on the p90 of a second's lateness instead of its worst. ABBA (rollout_a5c_rq_*):
+  starved frames x3 (46-47 vs 13-14 a manual run) for ~5 ms of pose age, the total key-to-glass inside the noise - and
+  the finding: THE COCKPIT EYE'S HORIZONTAL SPIKES (165-245 mm at the taxi) ARE THE STARVED FRAMES, under either rule
+  (master too, whenever its delay dipped): the newest snapshot drawn, a jump ahead, the next frame falling back.
+- G1166b (sim_view.js frame; train 22): A STARVED FRAME EXTRAPOLATES - on from the newest snapshot by the two newest's
+  motion for the time missing, a step at most (alpha past 1 in the same lerp); the old delay rule kept. ?starvex=0 is
+  the old jump, ?ringdelay=<ms> a fixed delay (a stress test). ABBA (rollout_a5c_sx_*): the starved frames' eye XZ spike
+  75-114 -> 7.0-8.4 mm; judderTs XZ rms 0.36-0.40 (master with no starved frame 0.32), Y 0.16-0.17 (0.16-0.18); pose age
+  21 vs 22.5; under stress (60 % starved) 49 mm rms / 229 max -> 1.1 / 43 (the 43: lateness past the one-step cap).
+  GATE SIMWORKER: its lockstep snapshots are not running, the clamp it checks stands.
+- FOLLOW-UP (after the release, A0): the residual 7-8 mm on a starved frame is the extrapolation's own error (the last
+  step's velocity carried a fraction of a step, corrected when the snapshot lands) against A0's ~5 mm. To halve it: the
+  snapshots' own v (init.withV: more transfer a snapshot) or a second-order estimate from the three newest. Then the
+  ring's delay can be tightened safely (G1166's p90 measured above). Next in line: B, the worker's step phase-locked to
+  the page's frame (the 9 ms boundary wait), with GATE SIMWORKER and determinism as its bar.
+- GATES (node): SIMWORKER, PACE, BOOT, BUILD, UISMOKE - PASS (the probe's branch and G1166b's).
