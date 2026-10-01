@@ -364,7 +364,10 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // --profile: a CPU profile of the roll-out screen (the click to the reveal), saved next to the JSON and summarised
   // by self and inclusive time per function (G591: where the roll-out's long tasks go)
   const PROFILE = flag('profile');
-  if (PROFILE) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 1000 }); await cmd('Profiler.start'); }
+  // --profile-shot (G1119): a CPU profile from the click to the roll-out SHOT's end (the shed's check, the cut, the world roll),
+  // saved as <label>_shot.cpuprofile; summarised after the cut (+3.4 s): where the world roll's frames go
+  const PROFILE_SHOT = flag('profile-shot');
+  if (PROFILE || PROFILE_SHOT) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: PROFILE_SHOT ? 250 : 1000 }); await cmd('Profiler.start'); }
   // G833 (C2a): THE LOADING'S TOWN STEP - its own time (BOOT.log), the long tasks inside it (the main thread's share),
   // and the house worker's account (src/viewer/house_worker.js: its world's init, the recompose, what it generated and
   // what came from its IndexedDB cache). Cold (--cold: an empty cache) vs warm (a second run on the same profile: the
@@ -404,7 +407,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     await sleep(500);
   }
   if (!installed) await ev(INSTALL);
-  if (PROFILE) {
+  if (PROFILE && !PROFILE_SHOT) {
     const pr = (await cmd('Profiler.stop')).result.profile;
     fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT.replace(/.json$/, '.cpuprofile'), JSON.stringify(pr));
     const byId = new Map(pr.nodes.map(n => [n.id, n])), self = new Map(), dt = new Map();
@@ -429,6 +432,18 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     const tw = Date.now() + 30000;
     while (Date.now() < tw && await ev('!!(window.ROLLANIM && ROLLANIM.busy())', 20000)) await sleep(100);
     shotEndAt = Math.max(revealAt, await ev('performance.now()'));
+    if (PROFILE_SHOT) {
+      const pr = (await cmd('Profiler.stop')).result.profile;
+      fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT.replace(/.json$/, '_shot.cpuprofile'), JSON.stringify(pr));
+      const byId = new Map(pr.nodes.map(n => [n.id, n])), par = new Map(); for (const n of pr.nodes) for (const c of (n.children || [])) par.set(c, n.id);
+      const key = n => (n.callFrame.functionName || '(anon)') + ' ' + (n.callFrame.url || '').split('/').pop().split('?')[0] + ':' + (n.callFrame.lineNumber + 1);
+      const self = new Map(), incl = new Map(); let t = 0, tot = 0;
+      for (let i = 0; i < pr.samples.length; i++) { t += (pr.timeDeltas[i] || 0) / 1000; const d = (pr.timeDeltas[i] || 0) / 1000; if (t < 3400) continue;
+        const n = byId.get(pr.samples[i]); if (n.callFrame.functionName === '(idle)') continue; tot += d;
+        self.set(key(n), (self.get(key(n)) || 0) + d); const seen = new Set(); for (let x = pr.samples[i]; x != null; x = par.get(x)) { const k = key(byId.get(x)); if (seen.has(k)) continue; seen.add(k); incl.set(k, (incl.get(k) || 0) + d); } }
+      const top = (m, n2) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n2).map(([k, v]) => '    ' + v.toFixed(0).padStart(6) + ' ms  ' + k).join('\n');
+      console.log('  SHOT PROFILE after the cut: ' + tot.toFixed(0) + ' ms busy; self:\n' + top(self, 25) + '\n  inclusive:\n' + top(incl, 40));
+    }
     shotStat = tripStat(JSON.parse(await ev('JSON.stringify(__RP.fr.filter(r => r[0] >= ' + clickAt + ' && r[0] <= ' + shotEndAt + ').map(r => r[1]))')));
     const tr = JSON.parse(await ev("JSON.stringify((() => { const L = window.FLYDIY_TRIPS || []; const t = L[L.length - 1]; return t ? { anim: t.anim, where: t.animWhere || null, ms: t.ms, cutMs: t.cutMs, dissolveMs: t.dissolveMs, planMs: t.planMs } : null; })())"));
     const lt = JSON.parse(await ev('JSON.stringify(__RP.lt)')).filter(x => x[0] >= clickAt && x[0] <= shotEndAt);

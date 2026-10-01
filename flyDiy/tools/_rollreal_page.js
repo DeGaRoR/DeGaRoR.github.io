@@ -33,20 +33,30 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
   const P = await openPage({ quiet: true, hooks, wip: 'default', query: Q });
   const W = P.win;
   const progs = () => { const R = W.FLYDIY_RENDERER; return R && R.info && R.info.programs ? R.info.programs.length : -1; };
-  const recSum = () => { const r = P.rec.snapshot(); let b = 0, d = 0; for (const k in r.bytes) b += r.bytes[k]; for (const k in r.draws) d += r.draws[k]; return { b, d, links: r.links }; };
+  const recSum = () => { const r = P.rec.snapshot(); let b = 0, d = 0; for (const k in r.bytes) b += r.bytes[k]; for (const k in r.draws) d += r.draws[k];
+    return { b, d, links: r.links, main: r.draws.main || 0, shadow: r.draws.shadow || 0, other: r.draws.other || 0 }; };
   let lastRec = null;
   row = () => {
-    const o = cap.world.o, h = cap.world.h, rs = recSum(), dl = lastRec ? { d: rs.d - lastRec.d, b: rs.b - lastRec.b, links: rs.links - lastRec.links } : null; lastRec = rs;
+    const o = cap.world.o, h = cap.world.h, rs = recSum(), dl = lastRec ? { d: rs.d - lastRec.d, b: rs.b - lastRec.b, links: rs.links - lastRec.links, main: rs.main - lastRec.main, shadow: rs.shadow - lastRec.shadow, other: rs.other - lastRec.other } : null; lastRec = rs;
     cap.rows.push({ busy: !h.done, t: h.t, cam: [o.camera.position.x, o.camera.position.y, o.camera.position.z],
       craft: [o.craft.position.x, o.craft.position.y, o.craft.position.z, o.craft.quaternion.w], simT: o.sim.t, progs: progs(), parent: o.craft.parent === W.WORLD.scene, gl: dl });
   };
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 900000);
+  // THE PASSES (FRAMECOST's wrapRenderer): a render of the world scene by the shot's / the flight's camera is 'main', the
+  // shadow map's 'shadow', anything else (the water's mirror, a probe) 'other'
+  { const RD = W.WORLD && W.WORLD.renderer;
+    if (RD && !RD.__rr) { RD.__rr = 1; const rr = RD.render;
+      RD.render = function (scene, camera) { const prev = P.rec.phase;
+        if (prev !== 'shadow') P.rec.phase = scene === W.WORLD.scene && cap.world && camera === cap.world.o.camera ? 'main' : 'other';
+        try { return rr.apply(this, arguments); } finally { P.rec.phase = prev; } };
+      const SM = RD.shadowMap, sr = SM.render;
+      SM.render = function () { const prev = P.rec.phase; P.rec.phase = 'shadow'; try { return sr.apply(this, arguments); } finally { P.rec.phase = prev; } }; } }
   await P.frames(30);
   const p0 = progs();
   W.document.getElementById('bGo').click();
   const tripDone = () => { const T = W.FLYDIY_TRIPS; const t = T && T[T.length - 1]; return !!(t && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'); };
   await P.until(tripDone, 900000);
-  await P.frames(20);
+  await P.frames(120);
   const trip = W.FLYDIY_TRIPS[W.FLYDIY_TRIPS.length - 1];
   console.log('ROLLREAL PAGE: trip ' + JSON.stringify({ anim: trip.anim, where: trip.animWhere, world: trip.animWorld, ms: trip.ms, steps: trip.steps.filter(s => s.ran).map(s => s.id) }));
   if (Q.includes('rollreal=0')) {
@@ -65,6 +75,14 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
     const g = shot.slice(1).map(r => r.gl).filter(Boolean), g2 = after.slice(1).map(r => r.gl).filter(Boolean), mx = (a, k) => a.length ? Math.max(...a.map(x => x[k])) : 0, md = (a, k) => { const v = a.map(x => x[k]).sort((x, y) => x - y); return v.length ? v[v.length >> 1] : 0; };
     console.log('  THE CUT (the onDone of the check: the dissolve, rollOutStand, the world phase, revealPose, the plan): ' + (cap.cutMs || 0).toFixed(0) + ' ms real, of which the plan ' + (cap.planMs || 0).toFixed(1) + ' ms');
     console.log('  the world roll a frame: draws median ' + md(g, 'd') + ' (max ' + mx(g, 'd') + '), links max ' + mx(g, 'links') + ', upload bytes max ' + mx(g, 'b') + ' / the first flight frames: draws median ' + md(g2, 'd') + ', links max ' + mx(g2, 'links') + ', bytes max ' + mx(g2, 'b'));
+    console.log('  THE CENSUS a frame (median): the world roll main ' + md(g, 'main') + ' / shadow ' + md(g, 'shadow') + ' / other ' + md(g, 'other') + '  -  the stand (the first flight frames) main ' + md(g2, 'main') + ' / shadow ' + md(g2, 'shadow') + ' / other ' + md(g2, 'other'));
+    { const q = (a, k, f) => { const v = a.map(x => x[k]).sort((x, y) => x - y); return v.length ? v[Math.floor((v.length - 1) * f)] : 0; };
+      const mean = (a, k) => a.length ? Math.round(a.reduce((t, x) => t + x[k], 0) / a.length) : 0;
+      // (the far map draws every 2nd frame: a median of an alternating series flips with the parity - the mean and the quartiles say)
+      for (const [lab, a] of [['world roll', g], ['stand', g2]]) console.log('  ' + lab + ': main mean ' + mean(a, 'main') + ' (p25 ' + q(a, 'main', 0.25) + ', p75 ' + q(a, 'main', 0.75) + ') / shadow mean ' + mean(a, 'shadow') + ' (p25 ' + q(a, 'shadow', 0.25) + ', p75 ' + q(a, 'shadow', 0.75) + ') / all mean ' + mean(a, 'd') + ', ' + a.length + ' frames');
+      { const n = g.length; console.log('  the world roll by third, shadow mean: ' + [[0, 0.33], [0.33, 0.67], [0.67, 1]].map(([x, y]) => mean(g.slice(Math.floor(n * x), Math.floor(n * y)), 'shadow')).join(' / ') + ', main mean: ' + [[0, 0.33], [0.33, 0.67], [0.67, 1]].map(([x, y]) => mean(g.slice(Math.floor(n * x), Math.floor(n * y)), 'main')).join(' / ')); }
+      const n = g.length, seg = [[0, 0.33, 'establishing'], [0.33, 0.67, 'middle'], [0.67, 1, 'dolly end']];
+      console.log('  the world roll by third (main / shadow median): ' + seg.map(([a, b, l]) => { const s2 = g.slice(Math.floor(n * a), Math.floor(n * b)); return l + ' ' + q(s2, 'main', 0.5) + ' / ' + q(s2, 'shadow', 0.5); }).join(', ')); }
     check(mx(g, 'links') === 0, 'no program linked on a world-roll frame', mx(g, 'links'));
     console.log('  programs: ' + p0 + ' before the click, ' + (shot[0] ? shot[0].progs : '-') + ' at the cut, ' + (last ? last.progs : '-') + ' at the shot\'s end, ' + progs() + ' after 20 flight frames');
   }
