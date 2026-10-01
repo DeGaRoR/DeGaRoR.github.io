@@ -37,6 +37,7 @@ for (const t of table) {
   let changed = false;
   for (const v of t.vessels) {
     const row = { key: t.key, i: v.i, bay: v.bay, design: v.design, how: v.how, new: v.new ? v.new.capacity : null };
+    if (!(v.design > 0.5)) { row.verdict = 'no tank (0 capacity): skipped'; report.push(row); continue; }
     if (v.how === 'kept' || !v.new) { row.verdict = v.how === 'kept' ? 'fits as it is' : 'nothing fits: HELD'; report.push(row); continue; }
     const dk = deck[t.key] && deck[t.key][v.bay] && deck[t.key][v.bay].fuel;
     row.deck = dk != null ? dk : null;

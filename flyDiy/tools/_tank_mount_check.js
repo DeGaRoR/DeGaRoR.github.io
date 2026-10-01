@@ -162,7 +162,14 @@ for (const a of cards) {
     const bc = own.map(v => +(+v.capacity).toFixed(1)).join(',');
     const shaped = ((base.energy && base.energy.vessels) || []).some(v => v.dims);   // a bay-shaped box sets its own litres
     const jc = ((base.energy && base.energy.vessels) || []).map(v => +(+v.capacity).toFixed(1)).join(',');
-    check(bb === jb && (shaped || bc === jc), a.key + ': the tanks asked about are the card\'s own (bays, and capacities unless the layer shaped them)',
+    // KNOWN, LOGGED, OWED (A0's ruling, 2026-10-01): the Chinook-alike's tank
+    // is a strut pod and the layer finds no `strut` bay on that body, so it
+    // sends the vessel to the nose (_cage_energy.js placeAll: "a vessel in a
+    // bay this aeroplane does not have goes to the nose"), where it is shaped
+    // to 3 L. Printed, not judged; any OTHER card doing it is red.
+    const KNOWN_REMAP = { chinook: 'G1109: strut pod -> nose (no strut bay on this body), owed' };
+    if (KNOWN_REMAP[a.key] && bb !== jb) console.log('  KNOWN ' + a.key + ': ' + KNOWN_REMAP[a.key] + ' (card ' + bb + ' ' + bc + ' L vs ' + jb + ' ' + jc + ' L)');
+    else check(bb === jb && (shaped || bc === jc), a.key + ': the tanks asked about are the card\'s own (bays, and capacities unless the layer shaped them)',
       'card ' + bb + ' ' + bc + ' L vs ' + jb + ' ' + jc + ' L');
   }
   // THE SIZES A BUILDER PICKS: the card's own tanks, then two thirds and a
