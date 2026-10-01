@@ -42,6 +42,22 @@
     out.apron = { cam: [cap.c.position.x, cap.c.position.y, cap.c.position.z].map(v => +v.toFixed(1)), floor: cmp(A, A2), newVsOld: cmp(A, B),
       jpgNew: jpeg(A), jpgOld: jpeg(B), jpgDiff: jpeg(A, 16, B), jpgFloor: jpeg(A, 16, A2) };
   }
+  // ---- STAND: the user's angle - on HOME's apron, LOW (1.6 m), looking toward the nearest hangar - NEW, OLD
+  { const FP = window.FLIGHT_PROBE, sm = FP && FP.sim && FP.sim(), cg = sm && sm.cgPos ? sm.cgPos() : null, wd = FP && FP.world && FP.world();
+    let hg = null, hd = Infinity;
+    if (cg) cap.s.traverse(o => { if (!/hangar|shed/i.test(o.name || '')) return; const p = new THREE.Vector3(); o.getWorldPosition(p); const d = Math.hypot(p.x - cg[0], p.z - cg[2]); if (d > 15 && d < 600 && d < hd) { hd = d; hg = p; } });
+    if (cg && hg && wd && P && P.ab) {
+      const dir = new THREE.Vector3(hg.x - cg[0], 0, hg.z - cg[2]).normalize();
+      const cam = cap.c.clone(); const cx = cg[0] - dir.x * 12, cz = cg[2] - dir.z * 12;
+      cam.position.set(cx, wd.terrainH(cx, cz) + 1.6, cz); cam.lookAt(hg.x, wd.terrainH(hg.x, hg.z) + 2.5, hg.z);
+      cam.aspect = w / h; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+      const was = P.MODE.table ? 'new' : 'old';
+      P.ab('new'); await frames(120); const A = grab(cam);
+      P.ab('old'); await frames(120); const B = grab(cam);
+      P.ab(was); await frames(60);
+      out.stand = { cam: cam.position.toArray().map(v => +v.toFixed(1)), toward: hg.toArray().map(v => +v.toFixed(1)), dist: +hd.toFixed(0), newVsOld: cmp(A, B), jpgNew: jpeg(A), jpgOld: jpeg(B), jpgDiff: jpeg(A, 16, B) };
+    } else out.stand = { err: 'no hangar near the craft (' + (hg ? 'world' : 'hangar') + ' missing)' };
+  }
   // ---- DISC: a side camera over the pavement
   let disc = null; cap.s.traverse(o => { if (!disc && o.userData && o.userData.propDisc) disc = o; });
   if (disc) {

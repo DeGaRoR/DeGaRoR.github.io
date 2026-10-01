@@ -67536,3 +67536,35 @@ set to floats as GATE FLOATS flies it - spec.gear.type 'floats' AND the editor's
 gear type alone is undone by the loading's commit from the editor: in node the twin then booted on wheels at HOME). Node
 check (the page, the bench's patch): hydro on, two engines, rolled out onto the water 711 m from the SEA lane's centre,
 the pilot's run under way (ROLL, 7 m/s). Its low pass at 32 m/s (the ultralight). --plan: 122 scenes, ~43 min.
+## G1140-G1141 - THE PROP DISC DRAWS OVER THE PAVEMENT; THE APRON'S 1-PX TRIANGLE LINES WERE B11'S NEVER-LANDED G1030 (2026-10-01, AS4b for the coordinator, local GPU)
+
+The user, two screenshots: (1) the metal Cessna on the apron, side view - "the spinning prop does not render on top of
+the runway texture" (the upper half of the disc against the trees, the lower half over the pavement gone); (2) the HOME
+apron, the Cub taxiing - "1-pixel lines, like a problematic seam at a tile junction ... colours feel scrambled ... they
+follow 3 directions and intersect forming triangles".
+
+G1140 THE DISC (app.js, the one PROP_DISC.make call). The disc (A2-FADES G672) is transparent and writes no depth, like
+the pavement (renderOrder 1.99-3: strips, aprons, roads), so the transparent list's order decides who is on top - and the
+disc was left at renderOrder 0 while every see-through part of the craft wears AERO_CLEAR (1000, the band app.js keeps so
+the aerodrome's transparent decals cannot reach the aeroplane). It now takes AERO_CLEAR. Not AS4b's: the pavement's
+orders are the per-strip meshes' of before. tools/craft_order_probe.js (node, the page in node, read-only) lists every
+craft transparent against the pavement's orders: under it on master were the disc, 18 pick pads (opacity 0: draw nothing)
+and 3 instrument-panel faces (aeroskin panelSet/inside - they lie on the panel's depth-writing body, so the pavement behind
+them is rejected); the glass and its companions are at 999/1000. GATE FADES holds the band (master's app.js fails it).
+G1141 THE LINES (pavement.js pvTile). B11-PAVEGRAIN's G1030 never landed: it lives only on claude/upbeat-hertz-3fa42a
+(0d0bd5df). Master's hex tiling handed its three reads out per TRIANGLE, so a 2 x 2 quad astride a lattice edge read two
+corners' offsets (7.3 tiles apart) and its implicit derivative fetched the smallest mip: a 1-2 px line along every edge of
+the lattice, in its three directions, crawling with the camera. Ported alone: each fetch reads the corner of its colour,
+(i - j) mod 3, so across an edge the shared corners keep their fetch and the third comes in at weight 0 (a permutation of
+the same three weighted reads: nothing changes inside a triangle). Its gate check ported to GATE PAVEMENT 4 (a CPU twin;
+master's order fails it on 167 of 167 straddling pairs). G1031 / G1032 (B11's noise and relief footprint fades, the
+user's A/B/C pick) are NOT taken. The fix is in the GLSL both pavement paths share, so ?pave=old has it too. NOT AS4b's:
+on master the OLD-vs-NEW pavement diff (tools/pave_diff.js, paused, one render target) differs only round the aeroplane,
+never in lines - the lattice is the shared pvTile.
+EVIDENCE (tools/perf/g1140_evidence/, tools/pave_diff.js on master 79dc5b1d vs this, rollout_perf --secs 25, RTX 3080):
+disc_before_master.jpg / disc_after_fix.jpg - a side camera across the spinning disc over the apron: the lower half gone
+on master, whole after; apron_lines_before_master_crop3x.jpg / apron_lines_after_fix_crop3x.jpg - the Cub's chase view at
+the HOME stand, the near pavement at 3x: thin straight diagonals across the concrete on master, only the slab joints and
+cracks after (the two runs' poses differ by ~4 m of taxi, so a side-by-side, not a pixel diff). The rig's 'stand' view
+(low, toward a hangar) found no object named hangar/shed within 600 m - not taken.
+FRAMECOST: master vs this, both ?parkcook=0 (so the stale cook cannot confound): no counter moved. GATE PAVEMENT, FADES PASS.
