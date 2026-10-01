@@ -535,7 +535,7 @@ const WATER = (() => {
     lakeK: 1.2, lakeCap: 8.0,          // a lake's depth per metre of its field, and its cap
     reflKeep: 1, slant: 1,             // G794: the reflection kept whole over a thin column; the column's slanted path (0, 0 = G460's)
     lap: 0,                            // G798: the shore's lap foam (1 = G460.5's band)
-    wet: 1,                            // G799: the bed under the water darkened to x0.55 (the wet grain), drawn as cover by the water
+    wet: 0,                            // G799: the bed under the water darkened to x0.55 (the wet grain), drawn as cover by the water - OFF (the user, 2026-10-01: "drop the wet seabed entirely, I can't see a difference"; WATER.set({wet:1}) restores it)
     foldQ: 0.55,                       // the virtual Gerstner Q of the fold
   };
 
