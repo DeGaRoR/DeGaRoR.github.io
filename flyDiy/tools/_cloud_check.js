@@ -271,6 +271,32 @@ console.log('7b. several decks + the look: the march (static)');
   yes(fs.existsSync(path.join(__dirname, 'cloud_shot.js')), 'the rig that judges the sky (tools/cloud_shot.js) is there');
 }
 
+console.log('8. the drift is wrapped to the span before it is uploaded (G1050: the rims re-dealt every clock step)');
+{ const cj = src('viewer/clouds.js');
+  const m = /const wrapSpan = \(d, span\) => \(span > 0 && S\.driftWrap \? d - Math\.floor\(d \/ span\) \* span : d\);/.exec(cj);
+  yes(!!m, 'clouds.js defines wrapSpan (drift mod span)');
+  if (m) {
+    const wrapSpan = new Function('S', 'return ' + m[0].replace('const wrapSpan = ', '').replace(/;$/, ''))({ driftWrap: 1 });
+    const span = F.SPAN, f32 = new Float32Array(1);
+    let worst = 0, inRange = true, whole = true;
+    // a long day: secs to 3e7 (the clock carries (jdn % 97) days), winds -25..40 m/s x 1.5 (clouds.js: wind x 1.5)
+    for (const secs of [0, 3.2e6 + 0.37, 8.4e6 + 0.61, 1e7 + 0.123, 3e7 + 0.9]) for (const w of [-25, -3, 0.5, 15, 40]) {
+      const d = w * 1.5 * secs, u = wrapSpan(d, span);
+      if (!(u >= 0 && u < span)) inRange = false;
+      const k = (d - u) / span; if (Math.abs(k - Math.round(k)) > 1e-9) whole = false;
+      f32[0] = u; worst = Math.max(worst, Math.abs(f32[0] - u));
+    }
+    yes(inRange, 'the uploaded drift is in [0, span) after a long day (secs 1e7, 3e7)');
+    yes(whole, 'the wrap moves the drift by whole spans only (the field the GPU draws is unchanged)');
+    yes(worst < 0.01, `the uploaded drift keeps under 1 cm of float32 (worst ${(worst * 1000).toFixed(2)} mm; unwrapped it was 1-16 m)`);
+  }
+  yes(/driftWrap: 1,/.test(cj), 'the wrap is ON by default (S.driftWrap 1; 0 = the old upload, an A/B dial)');
+  yes(/DA\[o\] = wrapSpan\(drifts\[i\]\[0\], map\.span\); DA\[o \+ 1\] = wrapSpan\(drifts\[i\]\[1\], map\.span\);/.test(cj), 'the decks\' drift uniforms (uDriftA) are wrapped');
+  yes(/cloudScalars\[0\] = wrapSpan\(drift\[0\], map\.span\); cloudScalars\[1\] = wrapSpan\(drift\[1\], map\.span\);/.test(cj), 'the shadow tile\'s drift (uCloudP) is wrapped');
+  yes(/const per = q => map\.span \/ Math\.max\(1, Math\.round\(map\.span \/ q\)\);/.test(cj) && /map\.span \/ Math\.max\(1, Math\.round\(map\.span \/ S\.detailPeriod\)\)/.test(cj) && /fract\(tuv\.x\)/.test(cj),
+    'the wrap\'s premise: the noise periods divide the span, the shadow tile wraps (fract)');
+}
+
 console.log(`${checks} checks, ${fails} failed`);
 console.log(`GATE CLOUD: ${fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'}`);
 process.exit(fails ? 1 : 0);

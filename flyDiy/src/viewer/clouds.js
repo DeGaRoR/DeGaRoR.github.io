@@ -50,7 +50,7 @@ var CLOUDS = (function () {
   'use strict';
   const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
-              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
+              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
@@ -662,6 +662,18 @@ var CLOUDS = (function () {
   const _vp = (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4() : null, _sc = _vp ? new THREE.Vector4() : null;
   let sunEl = 0, layKey = '', sunKey = 0;
   const drifts = [[0, 0], [0, 0], [0, 0]], winds = [[3, 1], [3, 1], [3, 1]];
+  // THE DRIFT IS WRAPPED TO THE SPAN BEFORE IT IS UPLOADED (G1050, the user: "the clouds do flicker ... they seem to
+  // regenerate slightly different every frame", "the RIM of the clouds in particular"). The drift is wind x the clock,
+  // and the clock's seconds carry (jdn % 97) days: ~3e6 s, so a deck's drift ran 1e7-5e7 m - in a float32 uniform a
+  // 1-4 m grid, and the shader's p + drift the same. Every clock step re-snapped every sample by metres against the
+  // ~11 m detail: the noise was re-dealt and the rims speckled (tools/cloud_flicker.js case D: 1.5 % of edge pixels
+  // > 8 levels per step with the camera held still). Everything the GPU samples with the drift is periodic in the
+  // span - the weather map (/ span), the deck's noise and the detail (their periods divide the span, per() and uGlob.z),
+  // the shadow tile (fract) - so (drift mod span) draws the identical field with mm of float. The CPU keeps the double
+  // drift (CLOUD_FIELD's samples, the probe's and the shadow's moved tests); the veil (atmo.js vfbm: x2.03 octaves and
+  // a hash, NOT periodic) keeps its own - its 8 m of float is nothing against streaks of 9 km.
+  // (S.driftWrap 0 = the old unwrapped upload: the A/B dial, for the eye and tools/cloud_flicker.js)
+  const wrapSpan = (d, span) => (span > 0 && S.driftWrap ? d - Math.floor(d / span) * span : d);
   function update(day, camera, world) {
     if (!ready || !day) return;
     dayRef = day;
@@ -703,7 +715,7 @@ var CLOUDS = (function () {
       const per = q => map.span / Math.max(1, Math.round(map.span / q));
       LA[o] = l.base; LA[o + 1] = l.thick; LA[o + 2] = l.cover > 0.003 ? 1 : 0; LA[o + 3] = per(S.period > 0 ? S.period : T.period);
       PA[o] = T.bot; PA[o + 1] = T.top; PA[o + 2] = T.erode * S.erodeK; PA[o + 3] = S.calCover ? coverGain[i] : S.covGain;
-      DA[o] = drifts[i][0]; DA[o + 1] = drifts[i][1]; DA[o + 2] = 0; DA[o + 3] = 0;
+      DA[o] = wrapSpan(drifts[i][0], map.span); DA[o + 1] = wrapSpan(drifts[i][1], map.span); DA[o + 2] = 0; DA[o + 3] = 0;   // G1050: wrapped (below)
     }
     U.uGlob.value.set(S.sigma, map.span, map.span / Math.max(1, Math.round(map.span / S.detailPeriod)), L.length);   // the detail's period divides the span too
     // the clock's seconds for the drift: the day's UT seconds plus a per-date offset (97 days' worth wraps) - a
@@ -770,7 +782,7 @@ var CLOUDS = (function () {
     if (sk !== sunKey) { sunKey = sk; if (L.length > 1) shadowDirty = true; }
     const on = active() && bakeAt >= NB + 1 && S.shadow > 0 && !shadowDirty && !S.inShed ? 1 : 0;
     const fade = Math.max(0, Math.min(1, (sun[1] - 0.02) / 0.13));
-    cloudScalars[0] = drift[0]; cloudScalars[1] = drift[1]; cloudScalars[2] = map.span; cloudScalars[3] = on;
+    cloudScalars[0] = wrapSpan(drift[0], map.span); cloudScalars[1] = wrapSpan(drift[1], map.span); cloudScalars[2] = map.span; cloudScalars[3] = on;   // G1050
     cloudScalars[4] = sun[0]; cloudScalars[5] = sun[1]; cloudScalars[6] = sun[2]; cloudScalars[7] = lay.base + lay.thick * 0.5;
     cloudScalars[8] = S.shadow * fade; cloudScalars[9] = 0; cloudScalars[10] = 0; cloudScalars[11] = 0;
   }

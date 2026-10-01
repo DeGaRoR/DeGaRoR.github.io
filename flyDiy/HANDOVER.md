@@ -67353,3 +67353,32 @@ JS 11.4 ms, 50-58 fps delivered against 60, while the chase settles at an even 3
   eye reads more in the cockpit, where the world moves with the controls. Owed: an input-to-picture measurement, cockpit
   against chase.
 - GATES (node, lockless): PACE, LIGHT, PANEL, CABIN, UISMOKE, BOOT, BUILD, GFX, PROGRAMS, SETTLE - PASS.
+## G1050 THE CLOUDS' RIMS RE-DEALT EVERY FEW FRAMES: THE DRIFT WRAPPED TO THE SPAN (2026-10-01, B11-EYES)
+The user: "the clouds do flicker, particularly in interior view ... they seem to regenerate slightly different every frame";
+"definitely noticeable in interior view when the plane 'bumps' under acceleration and deceleration. The RIM of the clouds in
+particular felt like it was constantly redrawing"; "moving a camera a few mm/cm should give you an almost static cloud
+picture ... The outline is the most visible source of movement-related jitter".
+THE RIG (node, its own headed Chrome over CDP, own profile, no background throttling - never the Browser pane, which
+throttles rAF when hidden): tools/cloud_flicker.js drives tools/cloud_rig_page.js, which wraps FLYDIY_AA.render to hold
+the camera at EXACT poses frame by frame (optionally hiding the meshes within R m of the held eye), reads the final canvas
+and the cloud march target (its alpha = the mask: EDGE 0.05-0.6, CORE >= 0.6, OTHER), and compares frames of the SAME pose:
+mean |diff| / % px > 8 levels / max. `--ab` runs case D with CLOUDS.S.driftWrap 0 then 1. Take the GPU lock around it.
+MEASURED (master 79dc5b1d defaults, 1600x900, 44 % cumulus): paused + one pose: bit-stable (both views); a 0.5 deg bump and
+back: bit-stable (the march's one-frame-old depth showed nothing); the eye moved 5 mm-2 cm: the windscreen's clouds
+unchanged (the cockpit mask counts clouds behind the moving cabin - read the image there); jitter 0 / nearest upsample /
+full res: no change. RUNNING with the eye held: most frames identical, then every few frames 31-35 % of the EDGE pixels
+changed by > 8 levels at once (mean 8-9, max ~130) - the rims re-dealt.
+THE CAUSE: the deck drift (wind x 1.5 x secs, secs = utc + (jdn % 97) x 86400, ~3.2e6 s today) is 1e7-5e7 m; uploaded
+as float32 it moves on a 1-4 m grid, and the shader's p + drift snaps the same: the field stood still, then jumped metres
+(the noise re-sampled against ~11 m detail) - the "regenerates" pop, worst at the rims (the steepest density).
+THE FIX (clouds.js): wrapSpan(d, span) = d mod span on the CPU, in double, at the two uploads - uDriftA (every deck) and
+uCloudP (the shadow tile). Everything the GPU samples with the drift is periodic in the span (the weather map / span, the
+deck's and the detail's periods divide it - per(), uGlob.z - the shadow tile fract()), so the field drawn is the same with
+mm of float (span 40 km). The CPU keeps the double drift (CLOUD_FIELD samples, the probe's / shadow's moved tests). The
+veil (atmo.js vfbm: x2.03 octaves + a hash, not periodic) is NOT wrapped: its 8 m of float is nothing against 9-60 km
+streaks. CLOUDS.S.driftWrap (1) is the live A/B dial. GATE CLOUD section 8: the upload stays in [0, span) and under 1 cm of
+float32 at secs 1e7 / 3e7, moves by whole spans only, the two uploads go through wrapSpan, the premise (periods divide).
+AFTER (`--ab`, the eye held, the aeroplane within 25 m hidden): wrap 0 - pairs ~0 then jumps of 31-35 % edge px > 8;
+wrap 1 - every clock step 1.2-2.0 mean / 1.5-3.9 % edge px > 8 (it scales with dt: the clouds really move ~0.75 m a step,
+~0.5 px at 2 km - my first estimate of 0.01 px was wrong), sparse isolated specks, no rim-wide jump. The specks are left:
+a sampling crawl of the march under real motion (next splits: jitter, steps, temporal accumulation) - the user's eye decides.
