@@ -254,7 +254,7 @@ async function openPage(opts) {
 
   // ---- the clock -----------------------------------------------------------------------------------
   const clock = { t: 0, step: 0.01 };
-  const EPOCH = Date.UTC(2026, 8, 27, 12, 0, 0);
+  const EPOCH = opts.epoch || Date.UTC(2026, 8, 27, 12, 0, 0);   // (opts.epoch: another wall clock - a value the page bakes from the date shows as a different boot)
   const timers = []; let tseq = 0; let rafQ = [], rafSeq = 0; let frameNo = 0;
   const FRAME = 1000 / 60;
   const now = () => (clock.t += clock.step);

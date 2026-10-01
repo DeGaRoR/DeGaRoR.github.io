@@ -10,6 +10,8 @@
 const fs = require('fs'), path = require('path');
 const FC = require('../_framecost_check.js');
 const argv = process.argv.slice(2);
+const srcOf = (R, p) => { try { const gl = R.getContext(); return [p.vertexShader, p.fragmentShader].map(sh => (sh && gl.getShaderSource(sh)) || '').join(' //---- '); } catch (e) { return ''; } };
+const fnvh = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36) + ':' + s.length; };
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 (async () => {
   const { openPage } = require('../_page_node.js');
@@ -20,6 +22,12 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
   const wrap = P => {
     if (wrapped) return; const R = P.win.FLYDIY_RENDERER; if (!R || !R.info || !R.info.programs) return;
     wrapped = true; const arr = R.info.programs, push = arr.push;
+    // LC_SRC=1: each GL program's SOURCES hashed (vertex + fragment as the driver gets them) - a value baked into the GLSL
+    // that differs per boot keeps three's key and changes the source: no driver cache hit
+    if (process.env.LC_SRC) { const gl = R.getContext(), ss = gl.shaderSource, at = gl.attachShader, SRC = new Map(), ATT = new Map();
+      gl.shaderSource = function (sh, src) { SRC.set(sh, src); return ss.apply(this, arguments); };
+      gl.attachShader = function (pr, sh) { const l = ATT.get(pr) || []; l.push(sh); ATT.set(pr, l); return at.apply(this, arguments); };
+      P.win.__LCSRC = pr => (ATT.get(pr) || []).map(sh => SRC.get(sh) || '').join(' //---- '); }
     // LC_DEBUG=<mark>: every renderer.compile in that step, with the lights three will count in its lit scene
     if (process.env.LC_DEBUG) { const cmp = R.compile, dbg = {}; P.win.__LCDBG = dbg;
       R.compile = function (sc, cam, lit) { if (FC.bootMark.cur === process.env.LC_DEBUG) { const t = lit || sc; let p = 0, s = 0, all = 0;
@@ -30,12 +38,13 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
         return cmp.apply(this, arguments); }; }
     // LC_STACK=<mark>: the JS stack of every program made in that step (who compiles it)
     arr.push = function () { for (const p of arguments) { const mark = FC.bootMark.cur || '?';
-      PROGS.push({ mark, name: p.name, key: String(p.cacheKey), frame: -1, stack: process.env.LC_STACK === mark ? String(new Error().stack).split(String.fromCharCode(10)).slice(2, 16).map(l => l.trim().replace(/\(.*[\/\\]/, '(')).join(' < ') : undefined }); }
+      PROGS.push({ mark, name: p.name, key: String(p.cacheKey), frame: -1, src: process.env.LC_SRC ? fnvh(srcOf(R, p)) : undefined, srcText: process.env.LC_SRC === 'full' ? srcOf(R, p) : undefined, stack: process.env.LC_STACK === mark ? String(new Error().stack).split(String.fromCharCode(10)).slice(2, 16).map(l => l.trim().replace(/\(.*[\/\\]/, '(')).join(' < ') : undefined }); }
       return push.apply(this, arguments); };
   };
   const hooks = { beforeScript(n, P) { base.beforeScript(n, P); }, afterScript(n, P) { base.afterScript(n, P); wrap(P); } };
   const storage = {}; if (opt('build', null)) storage['flydiy.wip'] = fs.readFileSync(path.resolve(opt('build')), 'utf8');
-  const P = await openPage({ quiet: true, storage, hooks, query: '' });
+  // LC_SEED / LC_EPOCH (ms): another seeded Math.random / another wall clock - two boots that differ as two real ones do
+  const P = await openPage({ quiet: true, storage, hooks, query: process.env.LC_QUERY || '', seed: process.env.LC_SEED ? +process.env.LC_SEED : undefined, epoch: process.env.LC_EPOCH ? +process.env.LC_EPOCH : undefined });
   const W = P.win;
   wrap(P);
   const t0 = Date.now();

@@ -67466,3 +67466,53 @@ metal Cessna - revealcam: the first flight frames no longer replant the cover ri
 roll-out 2 runs the world's steps on both sides: the settings probe changed the graphics before it. The metal roll-out 2's
 ~1 s task is master's own: its bake.) The settings worst task (shadows=off's settle screen) is noise at this size, as on
 train 20.
+## G1175-G1177 - THE MASTER BENCHMARK (PREP); TRAIN 21'S "worldCompile 13 s" WAS A FULL GPU CACHE (2026-10-01, LOAD-COMPILE)
+
+THE USER (via A0): "garage, roll out and taxi, water taxi, taxi at every location, fly on top of every location. Report both
+FPS and evenness. Report all load times, including switching world/garage. ... We may also include a couple of stress
+cases, with high settings, but we still expect the computer to hold. We'll also celebrate by comparing with our previous
+figures, when we started this whole run." PREP ONLY: it runs at the END of the optimisation run, under one GPU lock.
+
+**G1175 tools/master_bench.js** (the sweep; `--plan` prints it with its minutes, no browser - 115 scenes, ~40 min):
+- LOADS: cold first load (a fresh profile, the Cub: navigation -> garage -> first flight); warm first load per build;
+  garage -> world at every location (the shed's own Departure pick, then ONE press of #bGo - G1117's rule - so the new
+  stand's world steps run under the roll-out screen); world -> garage (#bHangar2) after each; a second round trip at HOME.
+  Each trip from the page's own log (FLYDIY_TRIPS: kind, ms, the steps it ran) and its wall time.
+- SCENES (fps DELIVERED, the UNEVEN share - consecutive intervals changing their refresh count -, dt p50/p99/worst, frames
+  over 100 ms, the share at the 30 cap, long tasks >= 200 ms / >= 1 s): per build (the Cub = `default`, the Jodel =
+  builds/jodel_2026-09-20_corrected.json, the metal Cessna) - the garage (the shed's own view: there is no cockpit eye in
+  the shed - flCamMode only stores the flight's framing there), the roll-out shot, and at EVERY land location the WORLD
+  lists (FLIGHT_PROBE.world().aerodromes kind 'strip': HOME, w2, w3, mn_strip, nv_strip, tw_ski on Jolene - not a hand
+  list) taxi chase, taxi cockpit, and a LOW PASS (the CG 60 m over the strip's ground, 350 m short along the aeroplane's
+  heading, 42 m/s, the pilot re-engaged in the air through setManual on/off). The water: the floatplane
+  (bugReports/cessnaFloatsWOrks.json - W-CHECK's; cessnaFloats was rejected) on its lane (the game puts a float build on
+  SEA whatever the pick) and a low pass over every water base (SEA, mk_sea: a teleport to Metlakatla, flagged).
+- STRESS (the Cub at HOME, each from its own load): preset ultra; gamer + shadows ultra; the town on (?town=1).
+- COMPARE: each metric against the start of the run where one exists - the A0 baseline (PLAYTEST-2026-09-26 s0.2,
+  master 3da1c82a: the old stock's taxi 12-15 fps, the alu Cessna's 8.6, dt p90 167-217 ms, the 15-18 s world task, the
+  roll-out screen 52-66 s warm / 78 s cold over a 9-14 s garage boot) and train 11's first ratchet baseline (c73886d3:
+  taxi 31.15 / 30.75 fps, uneven 0.11 / 0.10, p99 33.5, worst task ~1.0 s, roll-out screen 36.5 s). BASELINES in the file
+  says what came from where.
+- ONE REPORT: tools/perf/master_bench_<label>.json + .txt (the table); `--report <json>` re-prints it.
+**G1176 tools/perf/master_bench_smoke.js**: the bench's page-side actions dry-run in node (tools/_page_node.js): the places,
+  the route pick, one Roll out (trip done), cockpit / chase, a low pass (in the air, the pilot re-engaged), the way back,
+  a roll-out to a second strip (the new stand). PASS on 79dc5b1d: 7 places (HOME w2 w3 mn_strip nv_strip tw_ski, water SEA - mk_sea is not in the world's list: the bench reads what the world has), a roll-out 9.3 s, the low pass in CLIMB at 55 m AGL, the way back 50 ms, the roll-out to w3 ran town / parking / ring / settle / images / upload / worldCompile / frames.
+**G1177 THE PROFILE IS FRESH, AND ITS CACHE IS WATCHED.** The bench's warm profile is new per run set (%TEMP%/mb<MMDDhhmm>,
+  warmed once by a discarded load + roll-out); every load row carries its links (the page's every linkProgram timed to
+  KHR_parallel_shader_compile's COMPLETION_STATUS: count, the worst, how many over 5 s) and the profile's GPU disk cache
+  (Default/GPUCache, GrShaderCache MB); a warm load with a link over 5 s reads "MISS suspected".
+
+**WHY G1177 - TRAIN 21's RATCHET (A0's urgent bisect, 2026-10-01).** Train 21 read worldCompile ~13 s on every run
+(train 20: 0.2 s), tGarage 39.6 -> 53.2 s, both aeroplanes. Node first (tools/perf/lc_keyprobe.js, no lock): the KEYS -
+master 79dc5b1d vs d46b7a8c: worldCompile's new programs 6 vs 7, every world program keyed under 'town' with its final
+key; the SOURCES - train 21 booted twice with another Math.random seed and a wall clock 3 h 17 min apart (LC_SEED /
+LC_EPOCH; _page_node opts.epoch, new), every program's GLSL hashed (LC_SRC: gl.getShaderSource of three's two shaders):
+407 programs byte-identical - nothing per-boot baked into a shader. Then the GPU (one fresh private profile, ABCCBA,
+the link timeline): master / train 21 / train 21 minus G795 all 45.5-50.5 s to the garage warm, worldCompile 0.1-0.4 s,
+the ground splats linked in 1.0-1.2 s - FROM THE CACHE. The one slow run: master's first in a profile warmed on train
+21 - G795 (the wet bed) changed the splat source, so master's splats were new there: 60-67 s each, cold, worldCompile
+38 s. So the ratchet profile (--udd D:/u18, in use since train 18) was missing the splats on EVERY run - most likely a
+full GPU disk cache. A0 rotates the ratchet's profile per train from train 21's second pass.
+**A5-LOAD's "Chrome never keeps the splat program's binary" is OVERTURNED:** in a clean profile it is kept (~1 s warm).
+What A5-LOAD (and the train-16 runs, 20-29 s warm) saw was a profile that did not keep it. A shader change to the
+ground's splat costs every profile ONE cold link (~60 s, under the town step's prelink: G1085).
