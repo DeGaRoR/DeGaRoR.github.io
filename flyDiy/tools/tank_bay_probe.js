@@ -38,7 +38,7 @@ SH.stubCanvas(); console.error = () => {};
 // the layer and the join carry what the design declares (the Caravan's 1257 L
 // in the wings, not a nose tank it does not have).
 { const { D } = BJ.loadPanel(); const card = D.ARCHETYPES.find(x => x.key === key);
-  W.CAGE_ENERGY.fromSpec(C.genNormaliseSpec(D.designBake(card.sel, card.over)).energy); }
+  const birth = C.genNormaliseSpec(D.designBake(card.sel, card.over)); W.CAGE_ENERGY.fromSpec(birth.energy, birth); }
 const spec = BJ.bakeCard(key).spec, def = C.buildGen(spec);
 W.CAGE_ENERGY.fromSpec(spec.energy);
 const r = SH.sceneBuild(spec, { garage: spec, resolved: () => def.spec, inGame: true });

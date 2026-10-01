@@ -59,8 +59,28 @@ const cl = o => JSON.parse(JSON.stringify(o));
 const defaultVessels = () => [{ bay: 'nose', capacity: 45, along: null,
                                 lv: null, rot: 0, form: 'box', dims: null }];
 
-function fromSpec(energy) {
-  const E = energy || {};
+// THE LIST THE PHYSICS FLIES (G1109). Most stock cards state their fuel as
+// `fuel.litres` (+ `fuel.tank`) and carry an EMPTY vessel list; the core lifts
+// that into vessels when it resolves the spec (genEnergyLift: the Caravan's
+// 1257 L into its wing roots). This seeded its own default instead - one 45 L
+// nose tank - and in the game WROTE IT BACK on the first layout, so the drawn
+// tank was not the physics' tank and, once committed, the physics flew a nose
+// tank the design never had. Handed the whole spec, an empty list takes the
+// resolved spec's lifted list: the same rule, one keeper.
+function liftedVessels(spec) {
+  try {
+    if (!spec || typeof resolveSpec !== 'function') return null;
+    const S = resolveSpec(JSON.parse(JSON.stringify(spec))).spec;
+    const v = S && S.energy && S.energy.vessels;
+    return Array.isArray(v) && v.length ? v : null;
+  } catch (e) { return null; }
+}
+function fromSpec(energy, spec) {
+  let E = energy || {};
+  if (spec && !(Array.isArray(E.vessels) && E.vessels.length)) {
+    const L = liftedVessels(spec);
+    if (L) E = Object.assign({}, E, { vessels: L });
+  }
   EN.kind = E.kind === 'battery' ? 'battery' : 'fuel';
   EN.fuel = E.fuel || 'avgas100LL';
   EN.cell = E.cell || 'lifepo4';
@@ -1387,7 +1407,7 @@ PAGE.post = ctx => {
   // a first build with neither carries the default
   if (!seeded) {
     if (inGame() && window.GARAGE_SPEC) {
-      try { fromSpec(window.GARAGE_SPEC.get().energy); } catch (e) {}
+      try { const S0 = window.GARAGE_SPEC.get(); fromSpec(S0.energy, S0); } catch (e) {}
     }
     if (!seeded && !loadPrefs()) fromSpec(null);
   }
@@ -1408,7 +1428,7 @@ PAGE.post = ctx => {
 const prevLoad = PAGE.load;
 PAGE.load = spec => {
   if (prevLoad) try { prevLoad(spec); } catch (e) {}
-  if (!inGame()) fromSpec(spec && spec.energy);
+  if (!inGame()) fromSpec(spec && spec.energy, spec);
 };
 
 // ---------------------------------------------------------------------------

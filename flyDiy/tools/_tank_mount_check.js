@@ -152,12 +152,14 @@ for (const a of cards) {
   // exported as every card's energy. Seeded from the card's birth spec first,
   // the layer and the join carry what the design declares (the Caravan's 1257 L
   // in the wings, not a nose tank it does not have).
-  try { birth = C.genNormaliseSpec(D.designBake(a.sel, a.over)); W.CAGE_ENERGY.fromSpec(birth.energy); base = BJ.bakeCard(a.key).spec; }
+  try { birth = C.genNormaliseSpec(D.designBake(a.sel, a.over)); W.CAGE_ENERGY.fromSpec(birth.energy, birth); base = BJ.bakeCard(a.key).spec; }
   catch (e) { check(false, a.key + ': the card bakes', e.message); continue; }
   {
-    const bb = ((birth.energy && birth.energy.vessels) || []).map(v => v.bay).join(','),
+    // the card's own list is the one the PHYSICS flies: an empty list is lifted from fuel.litres (resolveSpec)
+    const own = (() => { const L = (birth.energy && birth.energy.vessels) || []; return L.length ? L : (((C.resolveSpec(JSON.parse(JSON.stringify(birth))).spec || {}).energy || {}).vessels || []); })();
+    const bb = own.map(v => v.bay).join(','),
           jb = ((base.energy && base.energy.vessels) || []).map(v => v.bay).join(',');
-    const bc = ((birth.energy && birth.energy.vessels) || []).map(v => +(+v.capacity).toFixed(1)).join(',');
+    const bc = own.map(v => +(+v.capacity).toFixed(1)).join(',');
     const shaped = ((base.energy && base.energy.vessels) || []).some(v => v.dims);   // a bay-shaped box sets its own litres
     const jc = ((base.energy && base.energy.vessels) || []).map(v => +(+v.capacity).toFixed(1)).join(',');
     check(bb === jb && (shaped || bc === jc), a.key + ': the tanks asked about are the card\'s own (bays, and capacities unless the layer shaped them)',

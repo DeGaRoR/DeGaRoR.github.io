@@ -86,7 +86,7 @@ const birth = C.genNormaliseSpec(D.designBake(card.sel, card.over));
 // exported as every card's energy. Seeded from the card's birth spec first,
 // the layer and the join carry what the design declares (the Caravan's 1257 L
 // in the wings, not a nose tank it does not have).
-W.CAGE_ENERGY.fromSpec(birth.energy);
+W.CAGE_ENERGY.fromSpec(birth.energy, birth);
 const spec = BJ.bakeCard(key).spec;
 const birthCap = i => { const b = birth.energy && birth.energy.vessels && birth.energy.vessels[i]; return b && b.capacity > 0 ? +b.capacity : null; };
 const def = C.buildGen(spec);
@@ -164,17 +164,16 @@ EN.vessels.forEach((v0, i) => {
   const design = birthCap(i) || old.capacity;
   let got = null, tried = 0;
   rec.design = design;
-  // the design's capacity first; then a BISECTION on the capacity (to 3 %
-  // of the design, whole litres) - the largest that fits, in ~6 levels
-  // instead of up to 16 ten-percent steps (the first sweep took 85 min)
+  // the design's capacity first; then DOWN in 2 % steps, the first that fits.
+  // Not a bisection (A0's check, --sweep, 2026-10-01): "something fits" is
+  // NOT monotone at a fine grain - the candidate grid moves with the tank's
+  // length - and on the Cub a bisection stopped at 15 L where 18 fits
+  // (16.x failed). The descending scan finds the largest on its grid.
   { const g = tryCap(design); tried += g.tried; if (g.v) got = g; }
-  if (!got) {
-    let lo = 0, hi = design;
-    while (hi - lo > Math.max(1, 0.03 * design)) {
-      const mid = Math.round((lo + hi) / 2 * 10) / 10;
-      const g = tryCap(mid); tried += g.tried;
-      if (g.v) { got = g; lo = mid; } else hi = mid;
-    }
+  for (let k = 49; !got && k >= 1; k--) {
+    const c = Math.round(design * k / 50 * 10) / 10;
+    const g = tryCap(c); tried += g.tried;
+    if (g.v) got = g;
   }
   rec.tried = tried;
   // --sweep (A0, 2026-10-01): THE BISECTION IS ONLY VALID IF "SOMETHING FITS" IS
