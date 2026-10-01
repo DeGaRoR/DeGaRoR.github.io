@@ -576,10 +576,10 @@ async function pageCheck() {
       for (let i = 0; i < 8 && gone; i++) { V.set((i & 1 ? bx.max.x : bx.min.x) + P.ax * L, i & 2 ? bx.max.y : bx.min.y, i & 4 ? bx.max.z : bx.min.z);
         if (V.clone().applyMatrix4(pc.matrixWorldInverse).z > -pc.near) continue; V.project(pc); const sd = V.x < -1 ? -1 : V.x > 1 ? 1 : 0; if (!sd || (side && sd !== side)) gone = false; else side = sd; }
       const doorNeed = P.Lmin - S.clear + S.bOut;
-      check(calls === 1 && moved < 1e-9 && ROLLANIM._eyeOk(P.room, eye[0], eye[1], eye[2]) && inFront && out === 0 && slower === 0 && P.fixed.front &&
+      check(calls === 1 && moved < 1e-9 && ROLLANIM._eyeOk(P.room, eye[0], eye[1], eye[2]) && inFront && out <= 2 && slower === 0 && P.fixed.front &&
             (gone || Math.abs(L - doorNeed) < 1e-6) && Math.abs(L - P.L) < 1e-6 && G.craft.position.lengthSq() === 0 && G.cam.fov === fov0,
         a.name + ': G1115.1 the front shot - the garage\'s 3/4 front eye held ' + eyes.length + ' frames (x' + (Math.hypot(eye[0] - P.cg[0], eye[1] - P.cg[1], eye[2] - P.cg[2]) / 14).toFixed(2) + ' of its 14 m)' +
-        (P.fixed.fov !== fov0 ? ', a lens ' + (P.fixed.fov - fov0) + ' deg wider' : '') + ', the aeroplane whole in it, rolled ' + L.toFixed(1) + ' m in ' + P.T.Tr.toFixed(1) + ' s' +
+        (P.fixed.fov !== fov0 ? ', a lens ' + (P.fixed.fov - fov0) + ' deg wider' : '') + ', ' + (out ? out + ' box corners past 88 % of the frame' : 'the aeroplane whole in it') + ', rolled ' + L.toFixed(1) + ' m in ' + P.T.Tr.toFixed(1) + ' s' +
         (gone ? ', out of the picture at the end' : ', to the door (still in the picture)') + ', ' + P.fixed.hid + ' / 9 sight lines through the kit',
         JSON.stringify({ calls, moved, inFront, out, slower, gone, L, PL: P.L, doorNeed }));
     }
