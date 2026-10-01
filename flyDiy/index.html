@@ -42366,7 +42366,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f26f8f05a8b8';window.FLYDIY_BUILD='a40485081dcf'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f26f8f05a8b8';window.FLYDIY_BUILD='9ba164843632'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -47043,6 +47043,23 @@ const ARCHETYPES = [
                                         m1B: 0xefe6cf, m1D: 0x3d5c40 } } } } },
 ];
 
+// THE STOCK TANKS, FITTED (G1109, CUB-COCKPIT 2026-10-01; the user: "refit the
+// tanks"). Every stock design's default tank must FIT its bay - the energy
+// layer's own verdict, crew included - and most did not (HANDOVER G1105-G1109).
+// tools/tank_refit.js searched each one with the smallest change first: a
+// shape and station inside the bay at the design's capacity, then the largest
+// capacity that fits. A design is listed here when today's shapes reach
+// within 15 % of what a deck-following tank could hold (tank_bay_probe); the
+// rest (the Cub's nose bay among them) wait for the deck form (G1150-G1154)
+// and keep G1108's state - the fuel in the ledger, the tank not drawn. The
+// table is GENERATED (tools/tank_refit_apply.js) from the search's output:
+// edit the search, not the numbers. Each entry is the card's whole vessel
+// list, its refitted body tanks in place.
+const STOCK_TANKS = {
+};
+for (const a of ARCHETYPES)
+  if (STOCK_TANKS[a.key]) a.over = Object.assign({}, a.over || {}, { tanks: STOCK_TANKS[a.key] });
+
 // ---------------------------------------------------------------------------
 // APPLY — the one code path the tiles AND the gate go through, so the
 // aeroplane the gate flies is the aeroplane the tile builds.
@@ -47352,6 +47369,15 @@ function designBake(sel, over) {
   designMerge(out, spec);
   if (over && over.stock) designMerge(out, designStock(over.stock).spec);
   else if (over) designMerge(out, over.spec || over);
+  // G1109: THE FITTED STOCK TANKS (STOCK_TANKS above) are the card's whole
+  // vessel list, merged last - a card with no spec block merged `over` whole
+  // above, so its `tanks` key is taken back out of the spec
+  if (over && over.tanks) {
+    delete out.tanks;
+    designMerge(out, { energy: { vessels: JSON.parse(JSON.stringify(over.tanks)) } });
+    if (!(out.energy && out.energy.kind === 'battery'))
+      out.fuel = Object.assign({}, out.fuel || {}, { litres: +over.tanks.reduce((s, v) => s + (+v.capacity || 0), 0).toFixed(1) });
+  }
   // THE SEED (TAIL CHANTIER 2 P5; RULED 2026-09-07: lands with the vortex
   // flip, one fleet move). At birth the RULE sizes the DRAWN tail once: the
   // volume coefficients' Sh and Sv — what this pre-join spec would fly — over
@@ -92161,8 +92187,28 @@ const cl = o => JSON.parse(JSON.stringify(o));
 const defaultVessels = () => [{ bay: 'nose', capacity: 45, along: null,
                                 lv: null, rot: 0, form: 'box', dims: null }];
 
-function fromSpec(energy) {
-  const E = energy || {};
+// THE LIST THE PHYSICS FLIES (G1109). Most stock cards state their fuel as
+// `fuel.litres` (+ `fuel.tank`) and carry an EMPTY vessel list; the core lifts
+// that into vessels when it resolves the spec (genEnergyLift: the Caravan's
+// 1257 L into its wing roots). This seeded its own default instead - one 45 L
+// nose tank - and in the game WROTE IT BACK on the first layout, so the drawn
+// tank was not the physics' tank and, once committed, the physics flew a nose
+// tank the design never had. Handed the whole spec, an empty list takes the
+// resolved spec's lifted list: the same rule, one keeper.
+function liftedVessels(spec) {
+  try {
+    if (!spec || typeof resolveSpec !== 'function') return null;
+    const S = resolveSpec(JSON.parse(JSON.stringify(spec))).spec;
+    const v = S && S.energy && S.energy.vessels;
+    return Array.isArray(v) && v.length ? v : null;
+  } catch (e) { return null; }
+}
+function fromSpec(energy, spec) {
+  let E = energy || {};
+  if (spec && !(Array.isArray(E.vessels) && E.vessels.length)) {
+    const L = liftedVessels(spec);
+    if (L) E = Object.assign({}, E, { vessels: L });
+  }
   EN.kind = E.kind === 'battery' ? 'battery' : 'fuel';
   EN.fuel = E.fuel || 'avgas100LL';
   EN.cell = E.cell || 'lifepo4';
@@ -92637,7 +92683,7 @@ function placeAll(ctx, inv) {
     results.push(pl);
   }
   // the station a vessel found for itself is a fact about this aeroplane now
-  if (wroteBack) { if (panelBody) renderPanel(); commitLater(); }
+  if (wroteBack && !FIT_ASKING) { if (panelBody) renderPanel(); commitLater(); }
   return results;
 }
 let laterT = null;
@@ -92741,12 +92787,17 @@ function drawnPts(r, sol, slots, pc) {
 // the surfaces a drawn tank must not cross, as triangles in this layer's
 // frame: the sheet (cage units x FS: skin, glass, frame tubes, the dash) and
 // the engine's and the cowl's meshes - only those whose box meets `bb`
-function surfTris(ctx, scene, inv, bb) {
-  const out = [];
+// THE SOUP IS BUILT ONCE PER LAYOUT (relayout drops it): the sheet and the
+// engine's and the cowl's meshes as flat triangles with their boxes; a query
+// is then a box filter - fitOf asks it hundreds of times in a search
+let SURF_ALL = null;
+function surfAll(ctx, scene, inv) {
+  if (SURF_ALL && SURF_ALL.mesh === (ctx && ctx.mesh) && SURF_ALL.inv === inv) return SURF_ALL.tris;
+  const tris = [];
   const add = (ax, ay, az, bx, by, bz, cx, cy, cz) => {
-    if (Math.max(ax, bx, cx) < bb[0] || Math.min(ax, bx, cx) > bb[3] || Math.max(ay, by, cy) < bb[1] ||
-        Math.min(ay, by, cy) > bb[4] || Math.max(az, bz, cz) < bb[2] || Math.min(az, bz, cz) > bb[5]) return;
-    out.push([ax, ay, az, bx - ax, by - ay, bz - az, cx - ax, cy - ay, cz - az]);
+    tris.push([ax, ay, az, bx - ax, by - ay, bz - az, cx - ax, cy - ay, cz - az,
+               Math.min(ax, bx, cx), Math.min(ay, by, cy), Math.min(az, bz, cz),
+               Math.max(ax, bx, cx), Math.max(ay, by, cy), Math.max(az, bz, cz)]);
   };
   const M = ctx && ctx.mesh;
   if (M && M.F && M.V) {
@@ -92778,6 +92829,16 @@ function surfTris(ctx, scene, inv, bb) {
       });
     }
   }
+  SURF_ALL = { mesh: ctx && ctx.mesh, inv, tris };
+  return tris;
+}
+// the surfaces a drawn tank must not cross, as triangles in this layer's
+// frame (the sheet: skin, glass, frame tubes, the dash; the engine; the
+// cowl) - only those whose box meets `bb`
+function surfTris(ctx, scene, inv, bb) {
+  const out = [];
+  for (const t of surfAll(ctx, scene, inv))
+    if (!(t[12] < bb[0] || t[9] > bb[3] || t[13] < bb[1] || t[10] > bb[4] || t[14] < bb[2] || t[11] > bb[5])) out.push(t);
   return out;
 }
 // does the segment c -> q cross any of `tris` (Moller-Trumbore, t in (0, 1))?
@@ -93410,6 +93471,33 @@ function drawResults(group, ctx, results) {
 // ---------------------------------------------------------------------------
 let group = null;
 
+// THE FIT OF A VESSEL THAT IS NOT (YET) THE AEROPLANE'S (G1109). The layer's
+// whole verdict - the placement against the bay, the crew, the engine, the
+// cowl, the dash, the drawn skin and frame - for one candidate vessel, on the
+// last layout's body, with nothing drawn and nothing written back: the stock
+// designs' tanks were refitted by asking this (tools/tank_refit.js). The
+// candidate is a copy; the result carries its placement and why.
+let FIT_ASKING = false;
+// opts.fast: stop at the first stage that fails (the placement, then the
+// crew, then the surfaces) - a search asks hundreds of candidates and most
+// fail the placement; the verdict is the same, its reasons may be fewer
+function fitOf(cand, opts) {
+  const fast = !!(opts && opts.fast);
+  const ctx = LAST.ctx, inv = LAST.inv;
+  if (!ctx || !inv) return null;
+  const keep = EN.vessels;
+  const v = JSON.parse(JSON.stringify(cand));
+  FIT_ASKING = true;
+  try {
+    EN.vessels = [v];
+    const results = placeAll(ctx, inv);
+    if (!(fast && results[0] && !results[0].ok)) crewHits(ctx.scene, inv, results);
+    if (!(fast && results[0] && !results[0].ok)) layerHits(ctx.scene, inv, results, ctx);
+    const r = results[0];
+    return r ? { ok: !!r.ok, why: r.why.slice(), c: r.c, e: r.e, rot: r.rot, on: r.on, v,
+                 section: r.section, crewHits: r.crewHits || 0, layerHits: r.layerHits || 0 } : null;
+  } finally { EN.vessels = keep; FIT_ASKING = false; }
+}
 function relayout() {
   const ctx = LAST.ctx;
   if (!ctx || !window.THREE) return;
@@ -93425,6 +93513,7 @@ function relayout() {
   group.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
   CREW_PTS = null;              // the crew may have moved since the last layout
+  SURF_ALL = null;              // ...and every layer it asks was drawn afresh
   const results = placeAll(ctx, inv);
   crewHits(scene, inv, results);
   layerHits(scene, inv, results, ctx);
@@ -93446,7 +93535,7 @@ PAGE.post = ctx => {
   // a first build with neither carries the default
   if (!seeded) {
     if (inGame() && window.GARAGE_SPEC) {
-      try { fromSpec(window.GARAGE_SPEC.get().energy); } catch (e) {}
+      try { const S0 = window.GARAGE_SPEC.get(); fromSpec(S0.energy, S0); } catch (e) {}
     }
     if (!seeded && !loadPrefs()) fromSpec(null);
   }
@@ -93467,7 +93556,7 @@ PAGE.post = ctx => {
 const prevLoad = PAGE.load;
 PAGE.load = spec => {
   if (prevLoad) try { prevLoad(spec); } catch (e) {}
-  if (!inGame()) fromSpec(spec && spec.energy);
+  if (!inGame()) fromSpec(spec && spec.energy, spec);
 };
 
 // ---------------------------------------------------------------------------
@@ -94370,7 +94459,7 @@ function syncReadouts() {
 }
 
 window.CAGE_ENERGY = {
-  EN, fromSpec, toSpec, relayout, commit, setEnv: vesselSetEnv,
+  EN, fromSpec, toSpec, relayout, commit, setEnv: vesselSetEnv, fitOf, capacityFromDims,
   // the flown aeroplane's door into the factory (app.js matFor, `m.ves`)
   material: vesselMatFor,
   // the two columns' doors: structure gets the whole panel, finish gets the
@@ -146973,7 +147062,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     potato:  Object.assign({ ground: 'lean', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',  density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',  density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'minimum', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'full',   mirror: 'periodic' }, COLOUR, POST_BLOOM),
     ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
   };
   // G1113 (TREES-NEAR, 2026-09-30): gamer draws 'minimum' (the full tree to 30 m, its light rung to 60 m) - the step that held
@@ -146981,6 +147070,10 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // metal Cessna's taxi (rollout_perf --secs 60, same session); 'mid' (50 / 120, the look the user chose) failed the
   // low flight (35.4 -> 30.8 fps delivered, loop JS 19.4 -> 22.0 ms) and is an option; ultra (the screenshots' tier)
   // takes 'mid'. The presets under gamer keep 'near'.
+  // G1114.2 (TREES-NEAR, the user's call): gamer draws 'mid' (the full tree to 50 m, its light rung to 120 m - the look
+  // the user chose). Affordable since G1114.1's partition lever: on the low flight over the forest 'mid' measured what
+  // 'minimum' does (37.5 vs 37.6 fps, loop +0.4 ms) and better than master's 'minimum' on every line; the taxi inside
+  // the ratchet's slack (one run: the Cub's unevenness 11.8 -> 13.6 %, render +0.4 ms) - the user's decision.
   const DEFAULT = 'gamer';
   const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const PRESET_WHY = {
@@ -146992,7 +147085,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   };
 
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: DEFAULT, pv: 5, fps: 'auto' }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands); fps: G586's frame rate (a free option)
+  const S = Object.assign({ preset: DEFAULT, pv: 6, fps: 'auto' }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'); fps: G586's frame rate (a free option)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -147007,12 +147100,12 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       // and G551 made it an option again) - once: a player who was ON a preset gets that preset as it is now (the old
       // names mapped), or every returning player would read 'custom'; a player's own custom mix keeps its options, but
       // not the 'auto' G528 put there (it was the default for a day, not their pick)
-      if (v && !(v.pv >= 5)) {   // (pv 4 -> 5, G1113: a player ON gamer or ultra takes its new tree bands)
+      if (v && !(v.pv >= 6)) {   // (pv 4 -> 5, G1113: a player ON gamer or ultra takes its new tree bands; 5 -> 6, G1114.2: gamer's 'mid')
         const MAP = { low: 'retro', medium: 'gamer', high: 'gamer', ultra: 'ultra', potato: 'potato', retro: 'retro', current: 'current', gamer: 'gamer' };
         const np = MAP[v.preset];
         if (np && PRESETS[np]) { for (const o of OPTIONS) delete v[o.k]; Object.assign(v, PRESETS[np]); v.preset = np; }
         else if (v.scale === 'auto' && !(v.pv >= 3)) v.scale = 1;
-        v.pv = 5;
+        v.pv = 6;
       }
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
