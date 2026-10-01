@@ -65,11 +65,23 @@ const BUILDS = { cub: null, cessna: 'bugReports/cessnaMetal (1).json' };
 // work (a probe, a cascade every other frame) lands on the other side of the window after an unrelated change
 const TOL = { rel: 0.01, abs: 2 };
 // ALLOW: a rise admitted, with its reason and its G-number - { key: 'view/counter' or 'boot/step/counter' (a prefix
-// ending in '/' admits the whole row), build: 'cub'|'cessna'|'*', upTo: the admitted value (or Infinity), why, g }.
+// ending in '/' admits the whole row), build: 'cub'|'cessna'|'*', upTo: the admitted value (or Infinity) - or rise: the
+// admitted rise over the baseline (G1119: a cost measured as a difference, held whatever baseline the assembly re-takes) -, why, g }.
 // e.g. { key: 'stand/draws.shadow', build: '*', upTo: 760, why: 'the craft-only cascade: the aeroplane drawn into its own map', g: 'G1100' }
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G1119 REVEALCAM (the reveal places its eye at once, app.js flRevealStart): the reveal's first frame updates the world from
+  // the stand's own eye (it read the camera the shed left, ~750 m off, and replanted 271 cover-ring cells), so the eye-keyed
+  // levels by the stand (the parked aeroplanes' detailed rungs, LOD-switched meshes, the near-tier houses) switch detailed
+  // there, as the player stands there - and FRAMECOST's stand view, farther off, counts them stepping back on their own
+  // budgets. Measured cooked on the ring-idle baseline (2026-10-01, A0's ruling): +36 / +36.5 shadow draws, +346 734 /
+  // +346 776 shadow tris (parkcook=0: +215 377 / +202 053); IDENTICAL with the tracking shot (?rollanim=follow).
+  // G1119.1 snaps those levels at the reveal and drops these rows
+  { key: 'stand/draws.shadow', build: 'cub', rise: 37, why: 'G1119 revealcam: the stand\'s eye-keyed levels switched detailed on the reveal\'s first frame, counted stepping back from FRAMECOST\'s farther stand view (+36 measured)', g: 'G1119' },
+  { key: 'stand/tris.shadow', build: 'cub', rise: 350200, why: 'G1119 revealcam: the same levels\' shadow triangles (+346 734 cooked, +1 %)', g: 'G1119' },
+  { key: 'stand/draws.shadow', build: 'cessna', rise: 37.5, why: 'G1119 revealcam: the stand\'s eye-keyed levels switched detailed on the reveal\'s first frame, counted stepping back from FRAMECOST\'s farther stand view (+36.5 measured)', g: 'G1119' },
+  { key: 'stand/tris.shadow', build: 'cessna', rise: 350250, why: 'G1119 revealcam: the same levels\' shadow triangles (+346 776 cooked, +1 %)', g: 'G1119' },
   // B1-LAG (2026-09-28): the parked tree rungs' stand-ins compiled lit and through their depth variants under the roll-out
   // screen - two tree materials and their two depth programs no warm-up had met (R1's +32 s link in the taxi, 567 ms)
   { key: 'boot/rollout:images/links', build: '*', upTo: 6, why: 'the parked rungs\' programs linked under the screen (rungPrelink), not in the taxi', g: 'G730' },
@@ -814,8 +826,9 @@ async function injections(W, FP, C, base, measure) {
 // counters a baseline older than them does not carry (G800: the triangles by pass, the house builds by lod): 'new' until
 // the next --update takes them in, never RED for being absent from it
 const NEW_KEYS = /(^|\/)(tris\.[a-z]+|house\.(build|tris)[01])$/;
-function allowed(key, build, now) {
-  return ALLOW.find(a => (a.key === key || (a.key.endsWith('/') && key.startsWith(a.key))) && (a.build === '*' || a.build === build) && now <= (a.upTo === undefined ? Infinity : a.upTo));
+function allowed(key, build, now, base) {
+  return ALLOW.find(a => (a.key === key || (a.key.endsWith('/') && key.startsWith(a.key))) && (a.build === '*' || a.build === build) &&
+    now <= (a.upTo !== undefined ? a.upTo : a.rise !== undefined ? (+base || 0) + a.rise : Infinity));
 }
 function compare(base, now, prefix, build, noAllow) {
   const out = [];
@@ -827,7 +840,7 @@ function compare(base, now, prefix, build, noAllow) {
     const slack = Math.max(TOL.abs, Math.abs(b) * TOL.rel);
     let state = 'ok';
     if (!(base && k in base) && NEW_KEYS.test(k)) state = 'new';
-    else if (n > b + slack) { const a = !noAllow && allowed(prefix + k, build, n); state = a ? 'ALLOW' : 'RED'; }
+    else if (n > b + slack) { const a = !noAllow && allowed(prefix + k, build, n, b); state = a ? 'ALLOW' : 'RED'; }
     else if (n < b - slack) state = 'down';
     out.push({ key: prefix + k, base: b, now: n, state });
   }
