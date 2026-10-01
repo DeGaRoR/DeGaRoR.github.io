@@ -22,6 +22,8 @@ var SKY_GLARE = (function () {
   const S = { on: true, glow: 1, ghosts: 1, streak: 1 };
   let scene = null, cam = null, ready = false, occluders = () => [], terrainH = null;
   let vis = 0, frame = 0, ndc = { x: 0, y: 0, ok: false };
+  // the five rays round the light (a third of a degree apart) and each one's last answer (G1161: one a frame, in turn)
+  const SAMPLES = [[0, 0], [0.006, 0], [-0.006, 0], [0, 0.006], [0, -0.006]], seen = [0, 0, 0, 0, 0];
   const quads = [];
   const VERT = `varying vec2 vQ; uniform vec2 uPos, uSize; void main(){ vQ = position.xy; gl_Position = vec4(uPos + position.xy * uSize, 0.0, 1.0); }`;
   const FRAG = `varying vec2 vQ; uniform vec3 uCol; uniform float uI, uKind;
@@ -99,18 +101,17 @@ var SKY_GLARE = (function () {
     _v.copy(dir).multiplyScalar(5000).add(camera.position).project(camera);
     const behind = _v.z > 1 || dir.dot(camera.getWorldDirection(_d)) < 0;
     ndc.x = _v.x; ndc.y = _v.y; ndc.ok = !behind && Math.abs(_v.x) < 1.6 && Math.abs(_v.y) < 1.6;
-    // the occlusion fraction every third frame, eased
-    if (ndc.ok && (frame % 3) === 0) {
-      let clear = 0;
-      const e = 0.006;   // a third of a degree
-      const ups = [[0, 0], [e, 0], [-e, 0], [0, e], [0, -e]];
-      for (const [ax, ay] of ups) {
-        _d.copy(dir); _d.x += ax; _d.y += ay; _d.normalize();
-        if (rayClear(camera.position, _d)) clear++;
-      }
-      const target = clear / ups.length;
-      vis += (target - vis) * 0.35;
-    } else if (!ndc.ok) vis *= 0.8;
+    // the occlusion fraction over five rays, eased. G1161 (the cockpit's judder): ONE ray a frame, in turn, the fraction
+    // over the last five. All five every third frame cost ~3 ms in that frame from the cockpit - the eye is inside the
+    // aeroplane's sphere, so each ray (and its return) walks the baked cabin member by member - a refresh missed every
+    // few frames on a 12-15 ms frame. The same light, the same time constant (0.35 per three frames, eased per frame).
+    if (ndc.ok) {
+      const k = frame % SAMPLES.length, [ax, ay] = SAMPLES[k];
+      _d.copy(dir); _d.x += ax; _d.y += ay; _d.normalize();
+      seen[k] = rayClear(camera.position, _d) ? 1 : 0;
+      const target = (seen[0] + seen[1] + seen[2] + seen[3] + seen[4]) / SAMPLES.length;
+      vis += (target - vis) * 0.134;   // 1 - (1 - 0.35)^(1/3)
+    } else vis *= 0.8;
     const aspect = o.aspect || 1;
     const I = (S.on ? 1 : 0) * vis * (o.isMoon ? 0.18 * (o.phase || 0) : 1) * Math.pow(Math.max(0.03, Math.min(1, lum)), 0.6);
     // the tint: the light's transmitted colour

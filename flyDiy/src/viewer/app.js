@@ -10485,25 +10485,35 @@
   const flReticle = document.createElement('div');
   flReticle.id = 'flReticle'; flReticle.hidden = true;
   ($('ui') || document.body).appendChild(flReticle);
-  let hoverAt = 0, hoverX = 0, hoverY = 0, hoverHit = false;
+  let hoverAt = 0, hoverX = 0, hoverY = 0, hoverHit = false, hoverIdle = 0;
   const cockpitHover = () => {
     const locked = document.pointerLockElement === canvas;
     const on = !inGarage && cam.mode === 'cockpit' && !!CK && !!model;
     flReticle.hidden = !(on && locked);
     if (!on) { if (hoverHit) { hoverHit = false; canvas.style.cursor = ''; } return; }
     const now = performance.now();
-    if (now - hoverAt < 80) return;
+    if (now - hoverAt < 80 || hoverIdle) return;
     hoverAt = now;
-    let hit = null;
-    if (locked) hit = CK.pick(camera, 0, 0, model);
-    else {
-      const r = canvas.getBoundingClientRect();
-      if (r.width && r.height && hoverX >= r.left && hoverX <= r.right && hoverY >= r.top && hoverY <= r.bottom)
-        hit = CK.pick(camera, ((hoverX - r.left) / r.width) * 2 - 1, -((hoverY - r.top) / r.height) * 2 + 1, model);
-    }
-    hoverHit = !!hit;
-    flReticle.classList.toggle('hot', hoverHit && locked);
-    canvas.style.cursor = hoverHit && !locked ? 'pointer' : '';
+    // G1163 (the cockpit's judder): THE PICK IN THE FRAME'S SLACK. One ray through the whole cockpit (the baked cabin
+    // member by member) every 80 ms while the mouse rests on the window cost its frame 1-3 ms every fifth frame; the
+    // highlight can wait for the idle time after a frame (250 ms at most), the frame cannot
+    const pick = () => {
+      hoverIdle = 0;
+      if (inGarage || cam.mode !== 'cockpit' || !CK || !model) return;
+      const lk = document.pointerLockElement === canvas;
+      let hit = null;
+      if (lk) hit = CK.pick(camera, 0, 0, model);
+      else {
+        const r = canvas.getBoundingClientRect();
+        if (r.width && r.height && hoverX >= r.left && hoverX <= r.right && hoverY >= r.top && hoverY <= r.bottom)
+          hit = CK.pick(camera, ((hoverX - r.left) / r.width) * 2 - 1, -((hoverY - r.top) / r.height) * 2 + 1, model);
+      }
+      hoverHit = !!hit;
+      flReticle.classList.toggle('hot', hoverHit && lk);
+      canvas.style.cursor = hoverHit && !lk ? 'pointer' : '';
+    };
+    if (typeof requestIdleCallback === 'function') hoverIdle = requestIdleCallback(pick, { timeout: 250 });
+    else pick();
   };
   window.addEventListener('pointermove', e => { hoverX = e.clientX; hoverY = e.clientY; });
   if (typeof window !== 'undefined') window.__flHover = cockpitHover;   // the frame loop calls it
@@ -10935,7 +10945,7 @@
       mode: 'auto', cap: 60, legacy: RIG && !FORCE,
       acc: 0, lastT: 0, due: 0, dt: 1 / 60, steps: 1, t0: 0,
       iv: [], work: [], hist: [], strikes: 0, goods: 0, trial: null, holdUp: 0, trials: 0, upT: -1e9, lastWork: 0,
-      stats: { down: 0, up: 0, trialsFailed: 0, guarded: 0 },
+      stats: { down: 0, up: 0, trialsFailed: 0, guarded: 0, cut: 0 },
       hiddenT: -1, frz: { n: 0, maxMs: 0, lastT: 0, away: 0 },   // G620: the freezes the readout keeps; the page's last hidden moment
       // the guard's readings (G612): a solver step (ms), the frame less its solver (ms), the last frame's solver;
       // the dilation's window (sim s and wall s, decaying over a second) and the sim time the guard let go
@@ -10979,6 +10989,8 @@
       // stall is not a frame rate; G615: nor is a hitch), and a gap the page spent hidden (a tab away) is neither a frame nor a freeze.
       const away = P.hiddenT >= ts - dms;
       if (dms < 250 && !(iv && dms > 3 * iv)) P.iv.push(dms);   // a hitch is not a reading (G615)
+      // G1160: a trial's first 30 frames past a 0.3 s settle, and the refreshes they missed (end() cuts a missing trial short)
+      if (P.trial && ts - P.t0 > 300 && P.trial.n < 30 && dms < 250) { P.trial.n++; if (iv && dms > 1.5 * iv) P.trial.miss++; }
       if (dms < 250) { const k = Math.exp(-P.dt); P.simW = P.simW * k + n / 60; P.wallW = P.wallW * k + P.dt; }   // the dilation over the last second of frames (G612)
       if (away) P.frz.away++;
       else {
@@ -10997,6 +11009,13 @@
       if (ran > 0 && physMs > 0) { const s = physMs / ran; P.stepMs = P.stepMs ? P.stepMs + 0.1 * (s - P.stepMs) : s; P.lastPhys = physMs; }
       if (P.mode !== 'auto') return;
       P.work.push(workMs - (steps > 1 ? physMs * (steps - 1) / steps : 0));   // the frame's work with ONE step
+      // G1160: A TRIAL THAT MISSES IS CUT SHORT. A trial's reading came after 1.5 s of settling and 60 frames: ~2.5 s of a
+      // 60 that judders each time one failed - the cockpit's first seconds (trials at 46-53 fps, the hold doubling between
+      // them). Three missed refreshes in its first 30 frames (10 %, more than a trial that holds can miss - 55 fps is ~8 %) end it there, ~0.8 s.
+      if (P.trial && P.cap === 60 && P.trial.n >= 30 && P.trial.miss >= 3) {
+        P.trial = null; P.stats.trialsFailed++; P.trials++; P.stats.cut = (P.stats.cut || 0) + 1;
+        P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); P.stats.down++; setCap(30, now); return;
+      }
       if (P.iv.length < 60) return;
       const w = med(P.work), r = 1000 * P.iv.length / P.iv.reduce((a, b) => a + b, 0);   // G994: the reading's DELIVERED rate (fps)
       P.iv = []; P.work = [];
@@ -11018,7 +11037,7 @@
         }
       } else {
         P.goods++;                                        // G990: a reading at 30 (the first after the change skipped, above)
-        if (P.goods >= 2 && now > P.holdUp) { P.stats.up++; P.trial = { t: now }; P.upT = now; setCap(60, now); }
+        if (P.goods >= 2 && now > P.holdUp) { P.stats.up++; P.trial = { t: now, n: 0, miss: 0 }; P.upT = now; setCap(60, now); }
       }
     }
     function set(mode) {

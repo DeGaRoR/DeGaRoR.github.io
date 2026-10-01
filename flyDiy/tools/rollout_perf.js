@@ -74,6 +74,12 @@ const VARIANT = opt('variant', 'base');
 const GFX = opt('gfx', null);
 const WORLDN = opt('world', null);
 const PAGE = opt('page', 'index.html');
+// --cam cockpit|chase|... (G1162): the view the flight is measured in - set through FLIGHT_PROBE.camMode once the flight
+// runs (the player's own pick: the head camera enters as it does on a click), read back and kept in the JSON (`cam`)
+const CAM = opt('cam', null);
+// --hover (G1162): the player's mouse resting on the window - a pointermove at the canvas's centre once the flight runs (the
+// cockpit's hover pick runs every 80 ms while the pointer is over the canvas; a rig without a pointer never paid it)
+const HOVER = flag('hover');
 const SIZE = opt('size', '2216x1023').split('x').map(Number);
 const LABEL = opt('label', [COLD ? 'cold' : 'warm', VARIANT, BUILD ? path.basename(BUILD, '.json').replace(/\W+/g, '') : 'stock', WORLDN || 'jolene'].concat(opt('from', null) ? ['from' + opt('from')] : []).join('_'));
 const OUT = opt('out', path.join(__dirname, 'perf', 'rollout_' + LABEL + '.json'));
@@ -446,6 +452,10 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     + " const near = (W.aerodromes || []).map(a => [a.id, Math.hypot(cg[0] - a.x, cg[2] - a.z)]).sort((a, b) => a[1] - b[1])[0];"
     + " return { route: window.FLYDIY_ROUTE ? FLYDIY_ROUTE.get() : null, hydro: !!s.hydro, substeps: d.params.substeps, substepsTrue: d.params.substepsTrue || null, hydroEvery: s.hydro ? s.hydro.every || 1 : null,"
     + " nodes: s.n, mass: Math.round(s.totalM), cg: cg.map(v => +v.toFixed(1)), near: near ? [near[0], Math.round(near[1])] : null, phase: FLIGHT_PROBE.ap().phase, manual: FLIGHT_PROBE.manual() }; })())"));
+  if (CAM) { await ev('FLIGHT_PROBE.camMode(' + JSON.stringify(CAM) + '), 1'); await sleep(500); where.cam = await ev('FLIGHT_PROBE.camModeNow()');
+    if (where.cam !== CAM) console.log('  CAM: asked ' + CAM + ', the page shows ' + where.cam + ' (the view is not the one asked for)'); }
+  else where.cam = await ev('FLIGHT_PROBE.camModeNow ? FLIGHT_PROBE.camModeNow() : null').catch(() => null);
+  if (HOVER) { await ev("(() => { const c = document.getElementById('c'), r = c.getBoundingClientRect(); window.dispatchEvent(new PointerEvent('pointermove', { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); return 1; })()"); where.hover = true; }
   console.log('  start: ' + JSON.stringify(where));
   const HYDRO = where.hydro;
   // record SECS seconds of the live game
@@ -689,7 +699,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   for (const [k, g] of Object.entries(gates)) console.log('  ROLLOUT ' + k + ': ' + (g.pass ? 'PASS' : 'FAIL') + ' ' + JSON.stringify(g));
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
-  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
+  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
     tGarage, tReveal, premEmptyAt, garage: garageFresh, shot: shotStat, phases, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };

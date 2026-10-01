@@ -18,6 +18,8 @@
 //   - G620: A FREEZE IS KEPT: a stall of 250 ms or more stays in the readout's history (recent()) and is counted and
 //     timed (freezes()) - it was dropped, so a real freeze never showed in the menu's note - while auto's readings
 //     still skip it; a gap the page spent hidden (a tab away) is neither a frame nor a freeze.
+//   - G1160: a trial that misses 3 of its first 30 refreshes (past a 0.3 s settle) is cut short: ~0.8 s of a juddering
+//     60 where a failed trial ran ~2.5 s (the Cub's loop: 7 % of the frames at 60, 16 % before).
 //   - G994: 60 WHERE IT IS EVEN: auto judges a reading on its delivered rate (a trial holds at 55 fps, 60 kept over 52);
 //     the latch case is a 17.5 ms loop (even at 60), and the Cub's 21 ms loop (a 48 fps 60) stays a clean 30.
 //   - G990: THE AUTO CAP LATCH: on a 60 Hz vsync with the main thread bound by a 21 ms loop (the A-END Cub's taxi: rAF
@@ -223,11 +225,12 @@ function driveCpu(PACE, other, step, secs) {
 // 10. G990: THE AUTO CAP LATCH. A 60 Hz screen and a main thread bound by the loop, as the roll-out rows read it: each
 // rAF runs when the thread frees, stamped with the vsync that last passed (Chrome runs late on the vsync it owes), so a
 // 21 ms loop lands ~3 frames in 4 on a 16.7 ms interval and doubles the 4th. `base(t)` ms of loop + `step` ms a solver step.
-function driveVsync(PACE, secs, base, step, seed) {
+// `strict` (G1160): a frame starts on the NEXT vsync after the thread frees (a spike misses its refresh: the cockpit's)
+function driveVsync(PACE, secs, base, step, seed, strict) {
   const R = 1000 / 60; let busy = PACE.__t || 1000, last = -1, rnd = seed || 0;
   const end = busy + secs * 1000, dts = [], caps = [];
   while (busy < end) {
-    let ts = Math.floor(busy / R) * R; if (ts <= last) ts = last + R;
+    let ts = strict ? Math.ceil(busy / R - 1e-9) * R : Math.floor(busy / R) * R; if (ts <= last) ts = last + R;
     const start = Math.max(busy, ts); last = ts;
     const f = PACE.frame(ts);
     if (!f) { busy = start + 0.05; continue; }
@@ -243,21 +246,26 @@ function driveVsync(PACE, secs, base, step, seed) {
 }
 function med0(a) { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; }
 {
-  // the latch (G994's rule): dropped once (8 s of 30 ms frames), then a 17.5 ms one-step loop - over 60's 16.7, where
-  // G615 never came back, and even at 60 (57 fps delivered): back to 60 and it stays
+  // the latch (G994's rule): dropped once (8 s of 30 ms frames), then a 17 ms one-step loop - over 60's 16.7, where G615
+  // never came back, and even at 60 (~58 fps delivered): back to 60 and it stays
   const { PACE } = make({});
   driveVsync(PACE, 8, () => 30, 2.5);
   const s0 = PACE.state();
-  driveVsync(PACE, 60, () => 15, 2.5); const st = PACE.state();
-  const tail = driveVsync(PACE, 30, () => 15, 2.5);
+  driveVsync(PACE, 60, () => 14.5, 2.5); const st = PACE.state();
+  const tail = driveVsync(PACE, 30, () => 14.5, 2.5);
   verdict(s0.cap === 30 && st.cap === 60 && tail.at60 === 1,
-    `the latch: dropped to 30, then a 17.5 ms one-step loop (even at 60) - back to 60 (cap ${s0.cap} -> ${st.cap}, ${st.stats.up} up), the next 30 s all at 60 (${(st.rateFps || 0).toFixed(1)} fps delivered, work read ${(st.workMs || 0).toFixed(1)} ms)`);
+    `the latch: dropped to 30, then a 17 ms one-step loop (even at 60) - back to 60 (cap ${s0.cap} -> ${st.cap}, ${st.stats.up} up), the next 30 s all at 60 (${(st.rateFps || 0).toFixed(1)} fps delivered, work read ${(st.workMs || 0).toFixed(1)} ms)`);
+  // ...and a rare spike (one frame in 40) is not a judder: it holds 60
+  { let k = 0; const rare = () => (++k % 40 === 0 ? 25.5 : 8.5);
+    const { PACE: PR } = make({});
+    const rr = driveVsync(PR, 60, rare, 2.5, 0, true), sr = PR.state();
+    verdict(sr.cap === 60 && sr.stats.down === 0 && rr.at60 === 1, `  a rare spike (1 frame in 40): it holds 60 (${sr.stats.down} down, ${(sr.rateFps || 0).toFixed(1)} fps delivered)`); }
   // the Cub's taxi (21 ms of one-step loop: 60's median holds, but it delivers ~48 fps, 1 and 2 steps alternating): a clean 30
   const { PACE: P1 } = make({});
   driveVsync(P1, 8, () => 30, 2.5);
   const r1 = driveVsync(P1, 120, () => 18.5, 2.5), s1 = P1.state();
-  verdict(s1.stats.up <= 6 && r1.at60 < 0.2,
-    `  the Cub's 21 ms loop (60 would judder at ~48 fps): a clean 30 - ${s1.stats.up} trials in 120 s (<= 6), ${(100 * r1.at60).toFixed(0)} % of the frames at 60 (the trials; < 20)`);
+  verdict(s1.stats.up <= 6 && r1.at60 < 0.1 && s1.stats.cut >= 1,
+    `  the Cub's 21 ms loop (60 would judder at ~48 fps): a clean 30 - ${s1.stats.up} trials in 120 s (<= 6), ${(100 * r1.at60).toFixed(0)} % of the frames at 60 (the trials, ${s1.stats.cut} cut short - G1160; < 10, 16 before)`);
   // a frame that cannot hold 60 (26 ms of one-step loop - the metal Cessna's): the trials back off, it stays at 30
   const { PACE: P2 } = make({});
   const r2 = driveVsync(P2, 120, () => 23.5, 2.5), s2 = P2.state();

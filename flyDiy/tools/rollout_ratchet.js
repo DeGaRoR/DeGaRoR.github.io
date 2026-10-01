@@ -9,6 +9,11 @@
 // The scenario (the coordinator's, one GPU_BENCH.lock hold, no CPU_BATTERY lock):
 //   for b in default "bugReports/cessnaMetal (1).json"; do for r in 1 2; do
 //     node tools/rollout_perf.js --build "$b" --label ratchet_<cub|metal>_$r [--settings on the Cub runs]; done; done
+//   THE COCKPIT PROFILE (A5-CAP, the user: the interior view "feels a tad more laggy than exterior"): the same two builds
+//   at the taxi in the cockpit, two runs each - the view the player watches the frame pacing from:
+//   for b in default "bugReports/cessnaMetal (1).json"; do for r in 1 2; do
+//     node tools/rollout_perf.js --build "$b" --cam cockpit --label ratchet_<cub|metal>_cockpit_$r; done; done
+//   A run that asked for a view (--cam) is its own group (" | view cockpit"); the default runs keep their groups.
 // then:  node tools/rollout_ratchet.js tools/perf/rollout_ratchet_*.json            (compare, exit 1 on red)
 //        node tools/rollout_ratchet.js --update tools/perf/rollout_ratchet_*.json   (take the baseline, after a landing)
 // Runs are grouped by build + cold + world + size + GPU; each metric is the MEDIAN over a group's runs (two runs each:
@@ -105,7 +110,8 @@ const RULES = {
 const groups = {};
 for (const f of files) {
   const j = JSON.parse(fs.readFileSync(f, 'utf8'));
-  const key = [path.basename(String(j.build || 'OLD-STOCK')), j.cold ? 'cold' : 'warm', j.world || 'jolene', (j.size || []).join('x'), j.gpu || '?'].join(' | ');
+  const key = [path.basename(String(j.build || 'OLD-STOCK')), j.cold ? 'cold' : 'warm', j.world || 'jolene', (j.size || []).join('x'), j.gpu || '?'].join(' | ')
+    + (j.camAsked ? ' | view ' + j.camAsked : '');   // A5-CAP: the cockpit profile is its own group
   (groups[key] = groups[key] || []).push({ f, m: metrics(j), fx: { cold: !!j.cold } });
 }
 const agg = {};
