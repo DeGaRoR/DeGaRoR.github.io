@@ -36,6 +36,8 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
   const recSum = () => { const r = P.rec.snapshot(); let b = 0, d = 0; for (const k in r.bytes) b += r.bytes[k]; for (const k in r.draws) d += r.draws[k];
     return { b, d, links: r.links, main: r.draws.main || 0, shadow: r.draws.shadow || 0, other: r.draws.other || 0 }; };
   let lastRec = null;
+  // G1119: the cover ring's cells built (cover_ring.js STAT.built)
+  const built = () => { try { const r = W.WORLD.cover && W.WORLD.cover(); return r && r.stat ? r.stat().built : -1; } catch (e) { return -1; } };
   cap.built = built;
   row = () => {
     if (cap.world && cap.world.h && !cap.world.h.done) cap.builtAtEnd = built();
@@ -56,7 +58,6 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
   await P.frames(30);
   const p0 = progs();
   // G1119: the cover ring's cells built (cover_ring.js STAT.built) - at the click, at the cut, at the shot's end, after the flight's first frames
-  const built = () => { try { const r = W.WORLD.cover && W.WORLD.cover(); return r && r.stat ? r.stat().built : -1; } catch (e) { return -1; } };
   const b0 = built(); cap.builtAtCut = null;
   W.document.getElementById('bGo').click();
   const tripDone = () => { const T = W.FLYDIY_TRIPS; const t = T && T[T.length - 1]; return !!(t && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'); };
