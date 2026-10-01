@@ -7231,26 +7231,46 @@
     });
   }
   // G1118 (ROLLOUT-REAL's cure, the user: "cure first"): THE ROLL-OUT SHOT'S OWN VIEWS, WARMED IN THE LOADING. The world roll
-  // opens on an eye outside the shed's door (rollanim worldEye's candidates: 10-20 m out, 6-15 m aside) - a view the six
-  // stand headings above never drew, so its buffers went up on the shot's first frames (two 50 ms frames at the cut, a
-  // world-roll frame's upload up to 7 MB in node). Four views from the door's front (13 / 20 m out, 9 / 15 m aside, both
-  // sides) looking into the doorway, ONE A TASK (no long task in the loading), under the boot's overlay. Then the world's
-  // draw spheres are gathered once (raDrawSpheres: the establishing eye is chosen by what its frustum holds, below)
+  // opens on an eye outside the shed's door (rollanim worldEye's candidates: 10-20 m out, 6-15 m aside) and ends on the
+  // reveal's eye round the stand - views the six stand headings above never drew.
+  // G1119 THE COVER RING IS PLANTED THERE TOO (the shot's CPU profile in Chrome, 2026-10-01: the world roll paid +137 ms a
+  // second in worldUpdate over taxi, +111 of it cover_ring's buildCell / bedKeep / buildBlock). The ring plants 32 m cells
+  // round the EYE on a 4 ms budget a frame (cover_ring.js), and the loading planted it only round worldSettle's eye
+  // (the stand + 16 m) - so the shot's establishing eye 25 m off at the door, and the reveal's eye, planted on every
+  // frame of the shot. Cells live until they are reach + 2 cells (284 m) from the eye, so planting at each of these
+  // points keeps them all: the door's front (four eyes) and the stand's round (four, at the chase's 1.7 x viewDist).
+  // Each point: the eye moved there, the world's update pumped until the ring's queue is empty (40 ms a task, a task
+  // each: no long task in the loading), the view drawn (its first-view uploads under the overlay).
   function worldWarmShed() {
-    const sf = WF && WF.shedFrame ? WF.shedFrame() : null;
-    if (!sf || !sf.node || typeof renderer.compileAsync !== 'function') return null;
+    const sf = WF && WF.shedFrame ? WF.shedFrame() : null, a = standAnchor();
+    if (!sf || !sf.node || !a || typeof renderer.compileAsync !== 'function') return null;
     sf.node.updateMatrixWorld(true);
-    const M = sf.node.matrixWorld, ax = sf.doorAxis || -1, x0 = ax * sf.dims.HD, views = [];
-    for (const [u, lat] of [[13, 9], [20, 15]]) for (const s of [1, -1]) views.push([u, lat * s]);
-    const look = new THREE.Vector3(x0 - ax * 2, 2, 0).applyMatrix4(M);
+    const M = sf.node.matrixWorld, ax = sf.doorAxis || -1, x0 = ax * sf.dims.HD, pts = [];
+    const doorLook = new THREE.Vector3(x0 - ax * 2, 2, 0).applyMatrix4(M);
+    for (const [u, lat] of [[13, 9], [20, 15]]) for (const s of [1, -1])
+      pts.push([new THREE.Vector3(x0 + ax * u, 2.2, lat * s).applyMatrix4(M), doorLook]);
+    const D = (def && def.params && def.params.viewDist) || 12, standLook = new THREE.Vector3(a[0], a[1] + 1.5, a[2]);
+    for (let i = 0; i < 4; i++) { const h = i * Math.PI / 2 + Math.PI / 4;
+      pts.push([new THREE.Vector3(a[0] + 1.7 * D * Math.cos(h), a[1] + 3.3, a[2] + 1.7 * D * Math.sin(h)), standLook]); }
+    const cg = [a[0], a[1] + 1.5, a[2]], ring = WF.cover ? WF.cover() : null;
+    const queued = () => { try { const st = ring && ring.stat ? ring.stat() : null; return st ? st.queued : 0; } catch (e) { return 0; } };
+    let pumps = 0;
     return new Promise(res => {
-      let i = 0;
+      let i = 0, pumped = 0;
       const one = () => {
-        if (i >= views.length || !inGarage) { raGatherSpheres(); res(); return; }
-        const [u, z] = views[i++], e = new THREE.Vector3(x0 + ax * u, 2.2, z).applyMatrix4(M);
+        if (i >= pts.length || !inGarage) { if (typeof window !== 'undefined') window.FLYDIY_RA_WARM = { points: pts.length, pumps, queued: queued() }; raGatherSpheres(); res(); return; }
+        const [eye, look] = pts[i], keep = camera.position.clone(), t0 = performance.now();
+        camera.position.copy(eye);
+        try {
+          // the ring's queue to empty (and three updates more: its dirty blocks rebuild two a frame)
+          do { WF.worldUpdate(cg); pumps++; pumped++; } while ((queued() > 0 || pumped < 4) && performance.now() - t0 < 40 && pumped < 400);
+        } catch (e2) { console.warn('shed warm pump:', e2 && e2.message); pumped = 400; }
+        finally { camera.position.copy(keep); }
+        if (queued() > 0 && pumped < 400) { setTimeout(one, 0); return; }   // (the next task goes on pumping this point)
         const cam = camera.clone();
-        cam.position.copy(e); cam.lookAt(look); cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
-        try { worldSettle(); if (aa) aa.render(scene, cam); else renderer.render(scene, cam); } catch (e2) { console.warn('shed warm draw:', e2 && e2.message); }
+        cam.position.copy(eye); cam.lookAt(look); cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
+        try { if (aa) aa.render(scene, cam); else renderer.render(scene, cam); } catch (e2) { console.warn('shed warm draw:', e2 && e2.message); }
+        i++; pumped = 0;
         setTimeout(one, 0);
       };
       one();

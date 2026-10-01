@@ -19,7 +19,7 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
     if (name !== 'src/viewer/rollanim.js' || !P.win.ROLLANIM) return;
     const R = P.win.ROLLANIM, pw = R.playWorld;
     const hr = () => Number(process.hrtime.bigint()) / 1e6;   // REAL milliseconds (the page's clock is virtual)
-    R.playWorld = function (o) { const t = hr(); const h = pw.call(this, o); cap.planMs = hr() - t; cap.world = { o, h, t0: P.win.performance.now() }; return h; };
+    R.playWorld = function (o) { cap.builtAtCut = cap.built ? cap.built() : null; const t = hr(); const h = pw.call(this, o); cap.planMs = hr() - t; cap.world = { o, h, t0: P.win.performance.now() }; return h; };
     // THE CUT: the check's onDone runs it all in one task - the dissolve, rollOutStand, the world's phase, the plan
     const pl = R.play;
     R.play = function (o) { const od = o.onDone; if (od) o.onDone = function () { const t = hr(); const r = od.apply(this, arguments); cap.cutMs = (cap.cutMs || 0) + hr() - t; return r; }; return pl.call(this, o); };
@@ -36,7 +36,9 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
   const recSum = () => { const r = P.rec.snapshot(); let b = 0, d = 0; for (const k in r.bytes) b += r.bytes[k]; for (const k in r.draws) d += r.draws[k];
     return { b, d, links: r.links, main: r.draws.main || 0, shadow: r.draws.shadow || 0, other: r.draws.other || 0 }; };
   let lastRec = null;
+  cap.built = built;
   row = () => {
+    if (cap.world && cap.world.h && !cap.world.h.done) cap.builtAtEnd = built();
     const o = cap.world.o, h = cap.world.h, rs = recSum(), dl = lastRec ? { d: rs.d - lastRec.d, b: rs.b - lastRec.b, links: rs.links - lastRec.links, main: rs.main - lastRec.main, shadow: rs.shadow - lastRec.shadow, other: rs.other - lastRec.other } : null; lastRec = rs;
     cap.rows.push({ busy: !h.done, t: h.t, cam: [o.camera.position.x, o.camera.position.y, o.camera.position.z],
       craft: [o.craft.position.x, o.craft.position.y, o.craft.position.z, o.craft.quaternion.w], simT: o.sim.t, progs: progs(), parent: o.craft.parent === W.WORLD.scene, gl: dl });
@@ -53,11 +55,15 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
       SM.render = function () { const prev = P.rec.phase; P.rec.phase = 'shadow'; try { return sr.apply(this, arguments); } finally { P.rec.phase = prev; } }; } }
   await P.frames(30);
   const p0 = progs();
+  // G1119: the cover ring's cells built (cover_ring.js STAT.built) - at the click, at the cut, at the shot's end, after the flight's first frames
+  const built = () => { try { const r = W.WORLD.cover && W.WORLD.cover(); return r && r.stat ? r.stat().built : -1; } catch (e) { return -1; } };
+  const b0 = built(); cap.builtAtCut = null;
   W.document.getElementById('bGo').click();
   const tripDone = () => { const T = W.FLYDIY_TRIPS; const t = T && T[T.length - 1]; return !!(t && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'); };
   await P.until(tripDone, 900000);
   await P.frames(120);
   const trip = W.FLYDIY_TRIPS[W.FLYDIY_TRIPS.length - 1];
+  console.log('  THE COVER RING: cells built ' + b0 + ' at the click, ' + cap.builtAtCut + ' at the cut, ' + (cap.builtAtEnd != null ? cap.builtAtEnd : '-') + ' at the end of the shot, ' + built() + ' after the first flight frames; the warm-up ' + JSON.stringify(W.FLYDIY_RA_WARM || null));
   console.log('ROLLREAL PAGE: trip ' + JSON.stringify({ anim: trip.anim, where: trip.animWhere, world: trip.animWorld, ms: trip.ms, steps: trip.steps.filter(s => s.ran).map(s => s.id) }));
   if (Q.includes('rollreal=0')) {
     check(/^shed/.test(trip.animWhere) && trip.anim === 'played', 'option B played in the shed (' + trip.animWhere + ')');
