@@ -66780,3 +66780,11 @@ used to wait for was still linking when first light drew (no new key in node: a 
 finish in time). tGarage 42.4 / 40.4 vs 41.4 / 40.4 s, first flight 45.7 / 43.7 vs 44.7 / 43.7 s: no gain, a worse first
 light - not landed. If tried again: have first light wait for the shed's programs (programsReady before the loop's
 first draw, as 'frames' does) rather than move the links.
+C2c EDITOR PROOF (2026-10-01, on master 74b582a3; the user's constraint of 2026-09-29): Metlakatla's shore re-drawn as
+road r1 + harbour zone z1 (default variant). 06:18 run: four pier houses built by the house worker in 2.4 s (0 on the
+page; pier props 35/27/23/19, boats 15/5/10/10), saved (flydiy.premises.game.jolene, 93 KB), reloaded: the same houses,
+piers and boats (tools/perf/c2c_evidence/c2c_editor_1_drawn_*.jpg vs c2c_editor_2_reloaded_*.jpg). 07:13 re-run on a
+FRESH profile (empty house cache; the first boot built 92): the draw generated the zone; after the reload, the zone
+framed and streamed in: built 0, hits 46 (from the cache), on the page 0 - the four houses identical (tris, piers,
+boats). c2c_cache_1_drawn.jpg / c2c_cache_2_reloaded.jpg. TRAP: drawn houses stream in by DISTANCE after a reload
+(the roll-out stands far away) - count them after framing the zone (c2c_proof.js's after phase does).
