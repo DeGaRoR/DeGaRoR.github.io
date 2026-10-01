@@ -66880,3 +66880,23 @@ MEASURED (the ratchet, fresh parked cook a40485081dcf, vs train 18; two runs eac
   metal: fps 31.9 =, p99 33.5 =, loop 12.6 -> 12.0, render 9.2 -> 8.8 ms, garage 41.6 -> 41.1 s, flight 45.0 -> 44.55 s
 FRAMECOST PASS (baseline re-taken, 69 falls). Battery: FULL tier on pass 1 (with revealcam): all PASS but FRAMECOST;
 the targeted re-run on the final tree (ROLLANIM BOOT UISMOKE PROGRAMS ROUNDTRIP PACE PARKED HITBOX COVER STAND) PASS.
+
+## G1114.2 - GAMER DRAWS 'mid': THE USER'S CHOICE (2026-10-01, TREES-NEAR for train 20)
+
+The user, 2026-10-01: "Ship mid now" (the small taxi cost accepted).
+- **THE CHANGE:** gamer's forest detail goes 'minimum' (30 / 60 m, window 15) -> 'mid' (the full tree to 50 m, the
+  light rung to 120 m, window 12), the look the user chose on G1110's evidence.
+  - ultra was already 'mid'; potato / retro / current keep 'near'.
+  - The pref version goes 5 -> 6: a player ON a preset takes it as it now is, a custom mix keeps its options.
+  - GATE GFX: OLD_MEDIUM.bands = 'mid', the current-pref case at pv 6.
+- **WHY IT IS AFFORDABLE NOW:** G1114.1's partition lever.
+  - On the low flight over the forest 'mid' measured what 'minimum' does (37.5 vs 37.6 fps, loop +0.4 ms) and better
+    than master's 'minimum' on every line (31.2 fps, loop 25.2 ms).
+  - The taxi: equal fps; the Cub's unevenness 11.8 -> 13.6 % and render +0.4 ms on one run, inside the ratchet's
+    slack (G1114.1's table).
+- **FRAMECOST:** 46 ALLOW rows (G1114.2), from a census pair on c7dc34e4 + this change, 'mid' against 'minimum' over
+  the gamer pin (FRAMECOST_GFX), the parked cook equally stale both sides.
+  - The stand: +24-26 main / +12-13 shadow draws, +0.65 M main / +0.32 M shadow tris.
+  - The taxi: +21 / +10.5 draws, +3 programs.
+  - Each row admits its counter up to the baseline + that delta + the gate's own 1 % + 2. The next --update takes
+    them in.
