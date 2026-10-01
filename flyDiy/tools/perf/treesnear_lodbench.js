@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // treesnear_lodbench.js - THE TREE PARTITION'S CPU ON THE LOW PASS, IN NODE (G1114.1, TREES-NEAR's train-19 lever)
 //
-//   node tools/perf/treesnear_lodbench.js [--bands minimum] [--frames 600] [--step 1.5] [--agl 60] [--out f.json]
+//   node tools/perf/treesnear_lodbench.js [--bands minimum] [--frames 600] [--step 1.5] [--agl 60] [--check 200] [--out f.json]
 //
 // The page itself (tools/_page_node.js: dev.html's scripts, the real three on a recording GL, the virtual clock), the
 // default Cub rolled out and PAUSED, then carried along the low pass of tools/perf/treesnear_lowpass.js (the 3 km line
@@ -66,6 +66,29 @@ const FN = ['partitionChunk', 'parkChunk', 'lodUpdate', 'showRung', 'worldUpdate
   console.log('  tree LOD (lodUpdate inclusive) ms/frame ' + out.lodMsPerFrame + ' (x30 = ' + (out.lodMsPerFrame * 30).toFixed(1) + ' ms/s): ' + FN.slice(0, 4).map(k => k + ' ' + out.selfMsPerFrame[k]).join(' · '));
   console.log('  worldUpdate incl ' + out.selfMsPerFrame.worldUpdate + ' · fill walk ' + out.selfMsPerFrame.walk + ' · wall ' + out.wallMsPerFrame + ' ms/frame (the harness included)');
   console.log('  census ' + JSON.stringify(cen));
+  // THE SAME TREES (A0's proof, G1114.1): a second pass over the same track, after the profile, every CHECK m. At each
+  // checkpoint the dealt trees of every rung mesh (the scene's 'treeRungs' group: a mesh holding trees hangs there) are
+  // listed as `<vertices>|<indices>|<material>|x|y|z` (the world place, to 1 cm) - first as the cadence left them
+  // ('natural'), then after a refresh forced at that very eye (TREE_LOD.fade(TREE_LOD.fade()) clears the partition's
+  // last eye; one frame). Compare two trees with tools/perf/treesnear_samecheck.js: 'forced' must be identical,
+  // 'natural' may differ only by trees within one refresh step of a band edge.
+  const CHECK = +opt('check', 200);
+  const dump = () => { const g = W.WORLD.scene.getObjectByName('treeRungs'), o = [];
+    if (g) for (const m of g.children) { if (!m.isInstancedMesh || !m.count) continue;
+      const a = m.instanceMatrix.array, gk = m.geometry.attributes.position.count + '|' + (m.geometry.index ? m.geometry.index.count : 0) + '|' + (m.material.name || '');
+      for (let i = 0; i < m.count; i++) o.push(gk + '|' + (a[i * 16 + 12] + m.position.x).toFixed(2) + '|' + (a[i * 16 + 13] + m.position.y).toFixed(2) + '|' + (a[i * 16 + 14] + m.position.z).toFixed(2)); }
+    return o.sort(); };
+  const eyeNow = () => { const c = W.WORLD.treeLod.cam.value; return [+c.x.toFixed(2), +c.y.toFixed(2), +c.z.toFixed(2)]; };
+  out.checks = [];
+  await FP.place({ at: at(0), zeroV: true }); await P.frames(60);
+  for (let f = 1, next = CHECK; f <= FRAMES; f++) {
+    await FP.place({ at: at(Math.min(L, f * STEP)), zeroV: true }); await P.frames(1);
+    if (f * STEP >= next) { next += CHECK;
+      const natural = dump(), eye = eyeNow();
+      W.TREE_LOD.fade(W.TREE_LOD.fade()); await P.frames(1);
+      out.checks.push({ m: Math.round(f * STEP), eye, eyeForced: eyeNow(), bands: W.TREE_LOD.get(), fade: W.TREE_LOD.fade(), natural, forced: dump() }); }
+  }
+  console.log('  same-trees dump: ' + out.checks.length + ' checkpoints, ' + out.checks.reduce((n, c) => n + c.forced.length, 0) + ' dealt (forced)');
   if (OUT) fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
   process.exit(0);
 })().catch(e => { console.error('treesnear_lodbench: ' + (e && e.stack || e)); process.exit(1); });
