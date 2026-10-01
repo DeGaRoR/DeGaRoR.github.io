@@ -55,17 +55,25 @@ const HOUSE_TARR = (() => {
   const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
   // THE PASS (the arrays' bytes): A = the colour layers (an image, or [r, g, b] for a flat one), N = the normal + rough
-  // pairs [n, r] (either may be null). SELF-CONTAINED - its text is the G845 worker's source too (`doc` makes the
-  // canvas: the page's document, or the worker's OffscreenCanvas), so the page and the worker draw the same bytes.
-  function packStack(px, doc, A, N) {
+  // pairs [n, r] (either may be null). packDrawer + packStack are SELF-CONTAINED - their text is the G845 worker's
+  // source too (`doc` makes the canvas: the page's document, or the worker's OffscreenCanvas), so the page and the
+  // worker draw the same bytes. A map may come DRAWN already (a Uint8ClampedArray: the page's own draw, G845) - and a
+  // bitmap smaller than the layer is drawn 'low': Chrome scales an <img> UP bilinear even at 'high' (measured: an
+  // ImageBitmap at 'low' is the <img>'s bytes; at 'high' it is bicubic, up to 8 levels off)
+  function packDrawer(px, doc) {
     const S = px * px * 4;
     const cnv = doc.createElement('canvas'); cnv.width = cnv.height = px;
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
-    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    const draw = img => {
+    ctx.imageSmoothingEnabled = true;
+    return img => {
       if (Array.isArray(img)) { const d = new Uint8ClampedArray(S); for (let j = 0; j < S; j += 4) { d[j] = img[0]; d[j + 1] = img[1]; d[j + 2] = img[2]; d[j + 3] = 255; } return d; }
+      if (ArrayBuffer.isView(img)) return img;
+      ctx.imageSmoothingQuality = (typeof img.close === 'function' && (img.width < px || img.height < px)) ? 'low' : 'high';
       ctx.setTransform(1, 0, 0, -1, 0, px); ctx.clearRect(0, 0, px, px); ctx.drawImage(img, 0, 0, px, px); return ctx.getImageData(0, 0, px, px).data;
     };
+  }
+  function packStack(px, doc, A, N) {
+    const S = px * px * 4, draw = packDrawer(px, doc);
     const dA = new Uint8Array(S * Math.max(1, A.length));
     A.forEach((img, i) => { dA.set(draw(img), i * S); for (let k = 3; k < S; k += 4) dA[i * S + k] = 255; });
     const dN = new Uint8Array(S * Math.max(1, N.length));
@@ -76,12 +84,17 @@ const HOUSE_TARR = (() => {
     });
     return { dA, dN };
   }
-  // the worker's body (after `const packStack = <its text>;`): one message, the stacks back transferred, the bitmaps closed
-  const PACK_WORKER = `onmessage = e => {
-  const m = e.data, doc = { createElement: () => new OffscreenCanvas(1, 1) };
-  try { const r = packStack(m.px, doc, m.A, m.N); postMessage({ dA: r.dA, dN: r.dN }, [r.dA.buffer, r.dN.buffer]); }
-  catch (err) { postMessage({ err: String(err && err.message || err) }); }
-  for (const b of [].concat(m.A, ...m.N)) if (b && typeof b.close === 'function') b.close();
+  // the worker's source: the two functions' own text and one message - a map as its file's bytes (a Blob, decoded HERE),
+  // a bitmap, or drawn already - the stacks back transferred, the bitmaps closed
+  const PACK_WORKER_SRC = () => 'const packDrawer = ' + packDrawer.toString() + ';\nconst packStack = ' + packStack.toString() + ';\n' + PACK_WORKER;
+  const PACK_WORKER = `onmessage = async e => {
+  const m = e.data, doc = { createElement: () => new OffscreenCanvas(1, 1) }, made = [];
+  const own = x => (typeof Blob !== 'undefined' && x instanceof Blob) ? createImageBitmap(x).then(b => (made.push(b), b)) : x;
+  try {
+    const A = await Promise.all(m.A.map(own)), N = await Promise.all(m.N.map(p => Promise.all(p.map(own))));
+    const r = packStack(m.px, doc, A, N); postMessage({ dA: r.dA, dN: r.dN }, [r.dA.buffer, r.dN.buffer]);
+  } catch (err) { postMessage({ err: String(err && err.message || err) }); }
+  for (const b of made.concat(m.A, ...m.N)) if (b && typeof b.close === 'function') b.close();
 };`;
 
   // THE EDITS, pure text (GATE TARR runs them on r186's own ShaderLib): `sh` after the house generator's hook
@@ -354,11 +367,12 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
     }
     let NRsrc = new Map();
     // ---- THE PASS, OFF THE MAIN THREAD (G845, C2c follow-up; G840's cooked layers were withdrawn for their bytes) ----
-    // The images are decoded already (the page's own JPEGs: no byte more on the wire); each becomes an ImageBitmap
-    // (decoded off the thread), they go to a Blob worker whose source IS packStack (below) - an OffscreenCanvas there,
-    // the same willReadFrequently 2D canvas, the same draws - and the two stacks come back transferred. ?tarrw=0 (or no
-    // Worker / OffscreenCanvas / createImageBitmap, or any failure): packStack on this thread, as before. ?tarrcheck=1:
-    // the worker's stacks are compared with this thread's, byte for byte (stats.check).
+    // The maps go to a Blob worker whose source IS packDrawer + packStack - an OffscreenCanvas there, the same
+    // willReadFrequently 2D canvas, the same draws - as their files (decoded there) or drawn here (the maps the layer
+    // shrinks: see bm), and the two stacks come back transferred. Measured on the house maps: the page's main thread sees
+    // no task of 50 ms (the pass was one task of ~0.26 s). ?tarrw=0 (or no Worker / OffscreenCanvas /
+    // createImageBitmap, or any failure): packStack on this thread, as before. ?tarrcheck=1: the worker's stacks are
+    // compared with this thread's, byte for byte (stats.check, the differing layers listed).
     function packOff(px, A, N) {
       const local = () => { const t = now(); const D = packStack(px, document, A, N); stats.where = 'page'; stats.packMs = Math.round(now() - t); return D; };
       const W = typeof window !== 'undefined' ? window : {};
@@ -367,18 +381,34 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       if (off) return Promise.resolve(local());
       const CHECK = /[?&]tarrcheck=1/.test((W.location && W.location.search) || '');
       const t0 = now();
-      const bm = x => (!x || Array.isArray(x)) ? Promise.resolve(x || null) : createImageBitmap(x);
+      // a map at most the layer's size goes as its FILE (the page's own JPEG, fetched again from the media cache - sw.js
+      // serves media/ cache-first: no byte on the wire), decoded and drawn in the worker. A map the layer SHRINKS (the 1k
+      // sets), a canvas, or a failed fetch is drawn HERE, a task each (a few ms): Chrome decodes an <img> it draws
+      // smaller at the smaller size, and no bitmap draw in a worker gives those bytes (measured, every resize quality)
+      const pd = packDrawer(px, document), mk = stats.marks = {};
+      const here = x => new Promise(r => setTimeout(() => { const t = now(); r(pd(x)); const d = now() - t; mk.hereMs = (mk.hereMs || 0) + d; mk.hereMax = Math.max(mk.hereMax || 0, d); mk.here = (mk.here || 0) + 1; }, 0));
+      const file = x => typeof x.src === 'string' && x.src && x.naturalWidth > 0 && x.naturalWidth <= px && x.naturalHeight <= px && typeof fetch === 'function';
+      const bm = x => (!x || Array.isArray(x)) ? Promise.resolve(x || null) : file(x)
+        ? fetch(x.src).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); }).catch(() => here(x)) : here(x);
       return Promise.all([Promise.all(A.map(bm)), Promise.all(N.map(p => Promise.all([bm(p[0]), bm(p[1])])))]).then(([BA, BN]) => new Promise((res, rej) => {
-        const url = URL.createObjectURL(new Blob(['const packStack = ' + packStack.toString() + ';\n' + PACK_WORKER], { type: 'text/javascript' }));
+        mk.inputs = Math.round(now() - t0); if (mk.here) { mk.hereMs = Math.round(mk.hereMs); mk.hereMax = +mk.hereMax.toFixed(1); }
+        const url = URL.createObjectURL(new Blob([PACK_WORKER_SRC()], { type: 'text/javascript' }));
         const w = new Worker(url);
         const done = () => { try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); };
-        w.onmessage = e => { done(); if (e.data && e.data.dA) res(e.data); else rej(new Error(e.data && e.data.err || 'no stacks')); };
+        w.onmessage = e => { mk.recv = Math.round(now() - t0); done(); if (e.data && e.data.dA) res(e.data); else rej(new Error(e.data && e.data.err || 'no stacks')); };
         w.onerror = e => { done(); rej(new Error(e && e.message || 'worker error')); };
-        const tr = [...BA, ...BN.flat()].filter(b => b && typeof b.close === 'function');
+        const tr = [...BA, ...BN.flat()].filter(b => b && (typeof b.close === 'function' || ArrayBuffer.isView(b))).map(b => ArrayBuffer.isView(b) ? b.buffer : b);
         w.postMessage({ px, A: BA, N: BN }, tr);
+        mk.posted = Math.round(now() - t0);
       })).then(D => {
         stats.where = 'worker'; stats.packMs = Math.round(now() - t0);   // (the wall: the worker's draws, not the page's time)
-        if (CHECK) { const L = local(); stats.where = 'worker'; let d = 0; for (let i = 0; i < L.dA.length; i++) if (L.dA[i] !== D.dA[i]) d++; let e = 0; for (let i = 0; i < L.dN.length; i++) if (L.dN[i] !== D.dN[i]) e++; stats.check = { colour: d, normal: e, bytes: L.dA.length + L.dN.length }; }
+        mk.t0 = Math.round(t0);
+        if (CHECK) {
+          const L = local(), S = px * px * 4, wh = x => Array.isArray(x) ? 'flat' : x ? (x.naturalWidth || x.width) + ' ' + String(x.src || '').split('/').pop() : '-';
+          const diff = (a, b, src) => { let n = 0; const lay = []; for (let o = 0; o < a.length; o += S) { let c = 0, mx = 0; for (let i = o; i < o + S; i++) { const v = Math.abs(a[i] - b[i]); if (v) { c++; if (v > mx) mx = v; } } n += c; if (c) lay.push([o / S, c, mx, src(o / S)]); } return { n, lay }; };
+          const a = diff(L.dA, D.dA, i => wh(A[i])), b = diff(L.dN, D.dN, i => wh(N[i][0]) + ' | ' + wh(N[i][1]));
+          stats.where = 'worker'; stats.check = { colour: a.n, normal: b.n, bytes: L.dA.length + L.dN.length, layers: a.lay.concat(b.lay.map(l => ['n' + l[0], l[1], l[2], l[3]])) };
+        }
         return D;
       }, err => { console.warn('house_tarr: the worker pass failed (' + (err && err.message) + ') - drawn here'); stats.workerErr = String(err && err.message); return local(); });
     }
@@ -442,7 +472,7 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
     return { classify, classifyMat, slot, hook, begin, merge, end, material, lit: U.tLit, U, stats, pack: (A, N) => packOff(o.px, A, N), get ready() { return !!U.tAlb.value && !building; } };
   }
 
-  const api = { make, editPlain, editGlass, rawHook, packStack, PACK_WORKER, NS, TW };
+  const api = { make, editPlain, editGlass, rawHook, packDrawer, packStack, PACK_WORKER, NS, TW };
   if (typeof window !== 'undefined') window.HOUSE_TARR = api;
   return api;
 })();

@@ -291,29 +291,34 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
 }
 
 // ---- 6 THE PASS OFF THE MAIN THREAD (G845) ----------------------------------------------------------------------------
-// packStack is the page's pass AND the worker's source (its own text): run here on a recording 2D canvas whose pixels
-// are a function of the image and the transform, (a) the module's packStack, (b) the same text compiled alone in a bare
-// context (self-contained: no free name), (c) the worker body (PACK_WORKER after `const packStack = <text>`) in a vm with
-// an OffscreenCanvas of the same canvas - the three stacks byte-identical; the layout (alpha 255; a flat layer its
-// colour; no normal map = 128,128,255; the rough map's GREEN in alpha; no rough map = 255); every draw flipped; the
-// host's wiring (the worker when it can, the page on ?tarrw=0 / no API / any failure; flats never bitmapped)
-{
+// packDrawer + packStack are the page's pass AND the worker's source (their own text): run here on a recording 2D canvas
+// whose pixels are a function of the image, the transform and the smoothing quality, (a) the module's packStack, (b) the
+// same text compiled alone in a bare context (self-contained: no free name), (c) the worker body (PACK_WORKER after the
+// two functions' text) in a vm with an OffscreenCanvas of the same canvas - the three stacks byte-identical; the layout
+// (alpha 255; a flat layer its colour; no normal map = 128,128,255; the rough map's GREEN in alpha; no rough map = 255);
+// every draw flipped; a map drawn already passes as it is; a bitmap smaller than the layer drawn 'low', an <img> 'high';
+// the host's wiring (the worker when it can, the maps it shrinks drawn on the page a task each, the page on ?tarrw=0 /
+// no API / any failure). tools/tarr_worker_check.js is the same on the real maps in Chrome.
+const gate6 = (async () => {
   const px = 8, S = px * px * 4, log = [];
   const canvasOf = () => {
     let T = null;
-    const ctx = { set imageSmoothingEnabled(v) { log.push('smooth:' + v); }, set imageSmoothingQuality(v) { log.push('q:' + v); },
-      setTransform(...a) { T = a.join(','); }, clearRect() {}, drawImage(img, x, y, w, h) { log.push('draw:' + img.id + ':' + T + ':' + w + 'x' + h); this.img = img; },
-      getImageData(x, y, w, h) { const d = new Uint8ClampedArray(w * h * 4); for (let j = 0; j < d.length; j++) d[j] = (this.img.id * 37 + j * 11 + (T === '1,0,0,-1,0,' + px ? 0 : 99)) & 255; return { data: d }; } };
+    const ctx = { imageSmoothingQuality: 'low', set imageSmoothingEnabled(v) { log.push('smooth:' + v); },
+      setTransform(...a) { T = a.join(','); }, clearRect() {}, drawImage(img, x, y, w, h) { log.push('draw:' + img.id + ':' + T + ':' + w + 'x' + h + ':' + this.imageSmoothingQuality); this.img = img; },
+      getImageData(x, y, w, h) { const d = new Uint8ClampedArray(w * h * 4); for (let j = 0; j < d.length; j++) d[j] = (this.img.id * 37 + j * 11 + (T === '1,0,0,-1,0,' + px ? 0 : 99) + (this.imageSmoothingQuality === 'high' ? 0 : 50)) & 255; return { data: d }; } };
     return { width: 1, height: 1, getContext: (k, o) => { log.push('ctx:' + k + ':' + !!(o && o.willReadFrequently)); return ctx; } };
   };
-  const img = id => ({ id, closed: false, close() { this.closed = true; } });
+  const img = id => ({ id, width: px, height: px, closed: false });
+  const bmp = (id, w) => ({ id, width: w, height: w, closed: false, close() { this.closed = true; } });
+  const pre = id => { const d = new Uint8ClampedArray(S); for (let j = 0; j < S; j++) d[j] = (id * 37 + j * 11) & 255; return d; };
   const mkIn = () => ({ A: [img(1), [10, 20, 30], img(2)], N: [[img(3), img(4)], [null, img(5)], [img(6), null], [null, null]] });
   const doc = { createElement: () => canvasOf() };
   const I = mkIn(), R1 = TARR.packStack(px, doc, I.A, I.N);
-  const bare = vm.createContext({ Uint8Array, Uint8ClampedArray, Math, Array });
-  const R2 = vm.runInContext('(' + TARR.packStack.toString() + ')', bare)(px, doc, mkIn().A, mkIn().N);
+  const SRC = 'const packDrawer = ' + TARR.packDrawer.toString() + ';\nconst packStack = ' + TARR.packStack.toString() + ';\n';
+  const bare = vm.createContext({ Uint8Array, Uint8ClampedArray, ArrayBuffer, Math, Array });
+  const R2 = vm.runInContext(SRC + 'packStack', bare)(px, doc, mkIn().A, mkIn().N);
   const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
-  check(R1.dA.length === S * 3 && R1.dN.length === S * 4 && same(R1.dA, R2.dA) && same(R1.dN, R2.dN), '6a packStack\'s own text, compiled alone in a bare context, packs the same bytes (self-contained: the worker\'s source)');
+  check(R1.dA.length === S * 3 && R1.dN.length === S * 4 && same(R1.dA, R2.dA) && same(R1.dN, R2.dN), '6a packDrawer + packStack\'s own text, compiled alone in a bare context, packs the same bytes (self-contained: the worker\'s source)');
   const px0 = (id, j) => (id * 37 + j * 11) & 255;
   let lay = true;
   for (let j = 0; j < S; j++) {
@@ -327,30 +332,39 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
   }
   check(lay, '6b the layout: colour alpha 255, a flat layer its colour, no normal map 128,128,255, the rough map\'s green in alpha, no rough map 255');
   const draws = log.filter(s => s.indexOf('draw:') === 0);
-  check(draws.length === 2 * 6 && draws.every(s => s.indexOf(':1,0,0,-1,0,' + px + ':' + px + 'x' + px) > 0) && log.indexOf('ctx:2d:true') >= 0 && log.indexOf('q:high') >= 0 && log.indexOf('smooth:true') >= 0,
-    '6c every draw on a willReadFrequently 2D canvas, smoothing high, the rows flipped, px x px', draws.length + '');
-  // the worker body, as the page writes it
+  check(draws.length === 2 * 6 && draws.every(s => s.indexOf(':1,0,0,-1,0,' + px + ':' + px + 'x' + px + ':high') > 0) && log.indexOf('ctx:2d:true') >= 0 && log.indexOf('smooth:true') >= 0,
+    '6c every draw on a willReadFrequently 2D canvas, smoothing on, an <img> at high, the rows flipped, px x px', draws.length + '');
+  log.length = 0;
+  const R3 = TARR.packStack(px, doc, [pre(1), bmp(2, px / 2), bmp(7, px)], []);
+  const d3 = log.filter(s => s.indexOf('draw:') === 0);
+  let ok3 = d3.length === 2 && d3[0].endsWith(':low') && d3[1].endsWith(':high');
+  for (let j = 0; j < S; j++) { if (R3.dA[j] !== ((j & 3) === 3 ? 255 : px0(1, j))) ok3 = false; if (R3.dA[S + j] !== ((j & 3) === 3 ? 255 : (px0(2, j) + 50) & 255)) ok3 = false; }
+  check(ok3, '6d a map drawn already passes as it is (no draw); a bitmap smaller than the layer is drawn low (Chrome scales an <img> up bilinear), one the layer\'s size high', d3.join(' '));
+  // the worker body, as the page writes it (the bitmaps it is handed closed; the Blobs it decodes made and closed there)
   const posted = [], WI = mkIn();
-  const wctx = vm.createContext({ Uint8Array, Uint8ClampedArray, Math, Array, String, OffscreenCanvas: function () { return canvasOf(); }, postMessage: (m, tr) => posted.push({ m, tr }) });
-  vm.runInContext('const packStack = ' + TARR.packStack.toString() + ';\n' + TARR.PACK_WORKER, wctx);
-  wctx.onmessage({ data: { px, A: WI.A, N: WI.N } });
+  const wctx = vm.createContext({ Uint8Array, Uint8ClampedArray, ArrayBuffer, Math, Array, String, Promise, OffscreenCanvas: function () { return canvasOf(); }, postMessage: (m, tr) => posted.push({ m, tr }) });
+  vm.runInContext(SRC + TARR.PACK_WORKER, wctx);
+  WI.A[0].close = function () { this.closed = true; }; WI.N[0][1].close = function () { this.closed = true; };
+  await wctx.onmessage({ data: { px, A: WI.A, N: WI.N } });
   const P = posted[0];
   check(posted.length === 1 && P.m.dA && same(P.m.dA, R1.dA) && same(P.m.dN, R1.dN) && P.tr.length === 2 && P.tr[0] === P.m.dA.buffer && P.tr[1] === P.m.dN.buffer &&
-        [WI.A[0], WI.A[2], ...WI.N.flat().filter(Boolean)].every(b => b.closed), '6d the worker body packs the same bytes, transfers both stacks and closes every bitmap');
+        WI.A[0].closed && WI.N[0][1].closed, '6e the worker body packs the same bytes, transfers both stacks and closes the bitmaps it was handed');
   posted.length = 0;
-  const bad = vm.createContext({ Uint8Array, Uint8ClampedArray, Math, Array, String, OffscreenCanvas: function () { throw new Error('no 2d'); }, postMessage: (m, tr) => posted.push({ m, tr }) });
-  vm.runInContext('const packStack = ' + TARR.packStack.toString() + ';\n' + TARR.PACK_WORKER, bad); bad.onmessage({ data: { px, A: [img(1)], N: [] } });
-  check(posted.length === 1 && posted[0].m.err === 'no 2d' && !posted[0].m.dA, '6e a worker that cannot draw answers with its error (the page then draws)');
+  const bad = vm.createContext({ Uint8Array, Uint8ClampedArray, ArrayBuffer, Math, Array, String, Promise, OffscreenCanvas: function () { throw new Error('no 2d'); }, postMessage: (m, tr) => posted.push({ m, tr }) });
+  vm.runInContext(SRC + TARR.PACK_WORKER, bad); await bad.onmessage({ data: { px, A: [img(1)], N: [] } });
+  check(posted.length === 1 && posted[0].m.err === 'no 2d' && !posted[0].m.dA, '6f a worker that cannot draw answers with its error (the page then draws)');
   const HT = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'house_tarr.js'), 'utf8');
   check(/return packOff\(px, okA, okN\.map\(\(\[, p\]\) => p\)\)\.then\(D => finish\(D, okA, okN, mA, mN, src\)\);/.test(HT) && /\[\?&\]tarrw=0/.test(HT) &&
         /typeof Worker === 'undefined' \|\| typeof OffscreenCanvas === 'undefined' \|\|\s*typeof createImageBitmap !== 'function'/.test(HT) && /if \(off\) return Promise\.resolve\(local\(\)\);/.test(HT) &&
-        /const bm = x => \(!x \|\| Array\.isArray\(x\)\) \? Promise\.resolve\(x \|\| null\) : createImageBitmap\(x\);/.test(HT) &&
-        HT.indexOf("new Blob(['const packStack = ' + packStack.toString() + ';\\n' + PACK_WORKER]") > 0 && /stats\.workerErr = String\(err && err\.message\); return local\(\);/.test(HT) &&
-        /\[\?&\]tarrcheck=1/.test(HT) && (HT.match(/getImageData/g) || []).length === 1,
-    '6f the host: build() packs through packOff - the worker (its source packStack\'s text) when the page has Worker + OffscreenCanvas + createImageBitmap, the page on ?tarrw=0, without them or on any failure; flats never bitmapped; ?tarrcheck=1; one getImageData in the file (packStack\'s)');
-}
+        /x\.naturalWidth > 0 && x\.naturalWidth <= px && x\.naturalHeight <= px/.test(HT) && /fetch\(x\.src\)\.then\(r => \{ if \(!r\.ok\) throw new Error\(r\.status\); return r\.blob\(\); \}\)\.catch\(\(\) => here\(x\)\) : here\(x\)/.test(HT) &&
+        /const here = x => new Promise\(r => setTimeout\(\(\) => \{ const t = now\(\); r\(pd\(x\)\);/.test(HT) && HT.indexOf('new Blob([PACK_WORKER_SRC()]') > 0 &&
+        /stats\.workerErr = String\(err && err\.message\); return local\(\);/.test(HT) && /\[\?&\]tarrcheck=1/.test(HT) && (HT.match(/getImageData/g) || []).length === 1,
+    '6g the host: build() packs through packOff - the worker (its source the two functions\' text) when the page has Worker + OffscreenCanvas + createImageBitmap; a map at most the layer\'s size as its file, one the layer shrinks (or a canvas, or a failed fetch) drawn on the page a task each; the page on ?tarrw=0, without them or on any failure; ?tarrcheck=1; one getImageData in the file');
+})();
 
-console.log(`${checks - fail.length}/${checks} checks`);
-for (const f of fail) console.log('  FAIL ' + f);
-console.log('GATE TARR: ' + (fail.length ? 'FAIL' : 'PASS'));
-process.exit(fail.length ? 1 : 0);
+gate6.catch(e => check(false, '6 threw', e && e.stack)).then(() => {
+  console.log(`${checks - fail.length}/${checks} checks`);
+  for (const f of fail) console.log('  FAIL ' + f);
+  console.log('GATE TARR: ' + (fail.length ? 'FAIL' : 'PASS'));
+  process.exit(fail.length ? 1 : 0);
+});

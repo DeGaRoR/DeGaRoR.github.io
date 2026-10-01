@@ -66626,3 +66626,46 @@ FRAMECOST: four ALLOW rows (G1113) for 'minimum' trees casting at the stand, att
 (its verdict line, fixed); the CORE tier on the final tree (the hybrid dropped): all PASS, FRAMECOST PASS with the ALLOW rows.
 TRAPS this night: `run_gates.js --help` RUNS the battery (it did, lockless, for seconds); a missed coordinator ping idled
 the GPU twice (~40 min each) - the relay now uses name-gated waiters (take only when RESERVED names you).
+
+## G845 - C2c follow-up: THE TOWN'S TEXTURE ARRAYS PACKED IN A WORKER, ZERO BYTES ON THE WIRE, THE SAME BYTES (2026-10-01, train 19, C2c of QUEUE-C)
+
+WHY: G840 (the layers cooked offline) was withdrawn before train 18 for its wire cost (~27 MiB to a cold Pages player
+to save one ~0.25 s main-thread task). The zero-byte fix: the same canvas pass, off the main thread.
+
+WHAT (src/viewer/house_tarr.js):
+- packDrawer(px, doc) + packStack(px, doc, A, N): THE pass, self-contained; their own text (PACK_WORKER_SRC) is the
+  worker's source too, so the page and the worker run the same code. build() packs through packOff(px, A, N) and makes
+  the two DataArrayTextures from what comes back, as before.
+- packOff: a Blob worker (OffscreenCanvas, the same willReadFrequently 2D canvas). A map at most the layer's size goes
+  as its FILE (fetch(img.src) - sw.js serves media/ cache-first, so no byte on the wire), decoded by createImageBitmap
+  IN the worker. A map the layer SHRINKS (the 1k sets), a canvas, or a failed fetch is drawn on the page, one
+  setTimeout task each, and handed over drawn (a Uint8ClampedArray, transferred). The stacks come back transferred.
+- ?tarrw=0, no Worker / OffscreenCanvas / createImageBitmap, or any worker failure: packStack on the page, as before.
+  ?tarrcheck=1: the worker's stacks against the page's pass, byte for byte, the differing layers listed (stats.check).
+  stats: where ('worker' | 'page'), packMs, marks { inputs, posted, recv, here, hereMs, hereMax }. T.pack(A, N) = the
+  pass alone (for the tool).
+
+THE BYTES (measured, tools/tarr_worker_check.js; a scratch probe of every variant):
+- An ImageBitmap drawn at 'high' is NOT the <img>'s bytes on a scaled layer: Chrome scales an <img> UP bilinear even at
+  'high' (256 -> 512: bicubic bitmap up to 8 levels off; a bitmap at 'low' is identical), and an <img> drawn SMALLER is
+  decoded at the smaller size (1k -> 512: no bitmap draw matches, at any smoothing quality or createImageBitmap resize,
+  2-4 levels off). Hence the rule: bitmaps smaller than the layer drawn 'low'; the maps the layer shrinks drawn on the
+  page. The layer-sized (512) maps were identical every way.
+
+MEASURED (headless Chrome, --disable-gpu, every house map: 43 colour + 31 normal layers at 512, 74 MiB):
+- check: 0 of 77 594 624 bytes differ; the worker's hash = the page's hash (69f25db4).
+- page (?tarrw=0, as before): one main-thread task of 253-296 ms.
+- worker: NO main-thread task >= 50 ms over the whole run (inputs, post, the stacks' transfer back included); 19
+  page-side draws (the 1k maps), 79-96 ms in all, the worst 7.3-7.4 ms; the wall 276-339 ms (the pass runs alongside).
+- The first cut (bitmaps made on the page from the <img>s) had a 125 ms task: createImageBitmap(<img>) copies the
+  decoded pixels on the main thread. The files decoded in the worker removed it.
+
+GATES: GATE TARR 6a-6g (78/78): packDrawer + packStack self-contained (compiled alone in a bare context: the same bytes),
+the layout, the flipped draws, a drawn map passed as is, the 'low' rule for small bitmaps, the worker body (the same
+bytes, both stacks transferred, the bitmaps closed), its error path, the host's wiring. Mutations checked: the 'low'
+rule removed fails 6d; the page-side draw replaced by a bitmap fails 6g. ASSETS, KITHOST, METKIT PASS. The full battery
+on the cloud CI (the coordinator's call). No rollout_perf (the coordinator's call: the ratchet times train 19 whole).
+
+RUN: `node tools/tarr_worker_check.js [--px 512] [--port 8571] [--json out]` - Chrome over its DevTools protocol (no
+Playwright on this box), no GPU lock (take cpu). PASS = identical bytes + the worker ran + no main-thread task >= 50 ms
++ no page-side draw >= 50 ms.
