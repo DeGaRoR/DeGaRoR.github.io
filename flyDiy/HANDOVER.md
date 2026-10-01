@@ -67165,3 +67165,99 @@ GATES (node, lockless - the box's GPU-locks-only rule, 2026-10-01; on train 20 4
 - PILOTMATRIX found the Cub's landings (the Cub is held, above).
 - 16:57, the 7-card state (the Cub held): TANKMOUNT, PILOTMATRIX (no cell worse than the baseline), ENERGY and DEFAULT
   all PASS. The flight gates are unaffected by the toSpec fix (they fly the pre-join spec).
+
+## G1155 - CUB-COCKPIT: THE HELD CARDS' TANKS IN THEIR OWN BAY - 5 SHIP (STEARMAN, TIGER MOTH, SKYMASTER, PIETENPOL, SESQUI); BEAVER, TWINBUSH, P-38, PITTS, MW5 HELD (2026-10-01, CUB-COCKPIT for the coordinator, node)
+
+G1153 held 10 stock cards: they state their fuel only as `fuel.litres`, so the core's lift put it in the NOSE, while
+each card's own description puts it elsewhere. A0 approved the plan (the user's ruling "refit the tanks", "whatever
+truly fits, best shape first"): give each an explicit vessel list in the bay it names, refit there, ship each card
+whose flights are not worse than the fresh master.
+
+**THE PLAN - tools/tank_bay_plan.json.** The cards' declared litres in their described bay: the Beaver underFloor 360;
+the Stearman 174, Tiger Moth 87, Skymaster 90, Pietenpol 60, TwinBush 120, P-38 70, Sesqui 90 in the wingRoot; the
+Pitts a nose deck tank (what fits) + 70 in the upper plane's root (90 in all); the MW5 cabin 20.
+- `tank_refit.js --plan` sets the card's vessel list from the plan before the search;
+  `tank_refit_apply.js --plan` writes it.
+- `--hold key=reason,...` holds a card by hand with its reason in the report.
+
+**THE SEARCH, FOR THE OTHER BAYS.**
+- A WING BAY: the layer fills the wing between its spars outboard of a station until the litres are met (wingPlace),
+  so the wing's own loft is the tank. The search tries the station (the default, then 7 across the bay's span) x
+  the capacity, falling in 2 % steps from the design's. The first that fits wins.
+- THE REFERENCE IS INSIDE THE BAY: a vessel whose own station was off the body (the Beaver's lifted tank 4.08 m aft,
+  "runs out of the body") sized every candidate off the TAIL's section. A small probe vessel at the bay's middle
+  now gives the section, the centre and the station.
+- THE CREW, EITHER WAY: measureBay took the crew as a floor (a nose bay's feet and pedals). Under the cabin floor the
+  board and the seats are ABOVE the tank, so the crew points split at the cell's middle: below = a floor, above = a
+  ceiling.
+- `fitOf` also returns along / samples / pts (the reference's section).
+
+**RESULTS.** Every wing card fits its full declared litres; the Pitts takes 20 L in the nose (deck) + 70 in the wing;
+the MW5 16 of 20 (a 74 mm slab, 764 mm tall, at the cabin bay's forward end - held, below); the Beaver 50 of 360 under the
+floor (held: that search is not right yet - 360 L of belly tanks should fit a Beaver's belly).
+
+**PHYSICS (tools/tank_refit_physics.js; before = the card as the gates flew it, the phantom nose tank; after = refitted):**
+
+| card | litres | fuel kg | CG full | %MAC full | aft-corner SM | endurance | range |
+|---|---|---|---|---|---|---|---|
+| stearman | 174 | 147.5 -> 147.3 | +38 mm | 28.9 -> 31.4 | -0.154 -> -0.151 | 3.80 h | 621 km |
+| tigermoth | 87 | 79.8 -> 79.7 | +85 mm | 11.8 -> 18.0 | 0.161 -> 0.148 | 3.21 h | 452 km |
+| skymaster | 90 | 82.5 -> 82.4 | +96 mm | 27.1 -> 34.3 | 0.102 -> 0.082 | 2.41 h | 439 km |
+| pietenpol | 60 | 56.7 -> 56.6 | +97 mm | 22.1 -> 28.5 | 0.184 -> 0.170 | 4.43 h | 601 km |
+| sesqui | 90 | 83.4 -> 83.0 | +91 mm | 24.9 -> 31.7 | 0.101 -> 0.084 | 4.32 h | 487 km |
+| *mw5 (held)* | 20 -> 16 | 22.8 -> 19.4 | +61 mm | 35.2 -> 39.4 | 0.099 -> 0.086 | 1.16 -> 0.93 h | 107 -> 86 km |
+| *twinBush (held)* | 120 | 106.1 -> 106.0 | +94 mm | 37.6 -> 42.4 | 0.011 -> 0.002 | 3.21 h | 501 km |
+| *p38 (held)* | 70 | 65.2 -> 65.4 | +98 mm | 42.4 -> 50.1 | -0.063 -> -0.081 | 4.21 h | 762 km |
+| *pittsAlike (held)* | 90 | 81.4 -> 85.2 | +29 mm | 26.0 -> 28.5 | -0.124 -> -0.122 | 2.41 h | 387 km |
+
+Where the fuel goes from the nose to the wing, the CG moves 4-10 cm aft (the Stearman's radial nose is ahead of its
+tank already); endurance is unchanged, the litres are all there.
+
+**FLIGHT - the cards against the FRESH master** (4e790c25 = master's flight; `pilot_matrix --cells <card>:HOME:calm|x2|x4`
+on both trees, 21 cells each). Sink m/s, V/Vs, aim m, swing deg, master -> branch; every cell completed on both:
+
+| card | calm | x2 | x4 |
+|---|---|---|---|
+| stearman | 1.17->0.85, 1.15, 15->22, 0.2 | 0.95->1.04, 1.15, 5->11, 4.5->3.7 | 1.33->1.22, 1.13->1.14, 10, ~8.1->~13.3 |
+| tigermoth | 0.83->0.81, 1.23->1.20, 45->27, 0.1->0 | 0.98, 1.21->1.17, 31->8, 6.7->4.6 | 0.85->0.84, 1.23->1.20, 43->24, *19.3->~8.9 |
+| skymaster | 0.37->1.12, 1.23->1.15, ~109->6, 0.3->0 | 0.37->1.32, 1.22->1.15, 99->-15, 2->0.7 | 0.42->1.31, 1.22->1.13, ~102->4, 4.2->1.1 |
+| pietenpol | 0.92->0.76, 1.23->1.19, 28->55, 0.1 | 1.15->0.79, 1.22->1.18, 9->38, ~13.7->5.5 | 0.73->0.84, 1.26->1.20, 38->56, *21.7->~9.8 |
+| sesqui | ~1.66->1.38, 1.18->1.15, -7->9, 1.2->1.5 | ~1.82->1.30, 1.17->1.14, -19->-4, 3.3->2.8 | ~1.85->~1.60, 1.17->1.14, -1->2, 8.7->9.1 |
+| *mw5 (held)* | 1.03->0.96, 1.12, 13->14, 0 | 1.06->0.99, 1.12, 2->4, 1.7->1.4 | 1.38->1.21, 1.12->1.13, -1->8, 3.2->2.8 |
+| *pittsAlike (held)* | ~1.70->1.10, 1.14, 9->22, 2.8->2.6; ctl rev landing 28 -> *120 | ~1.60->1.11, 1.14->1.13, -5->8, 3.2->3.3; ctl 42 -> 72 | 1.39->1.21, 1.14, 20->22, 11.3->9.8; ctl 58 -> *82 |
+
+(~ warn, * bad, the matrix's own thresholds.) Cells graded overall, master -> branch: 6 good / 9 warn / 6 bad ->
+11 good / 4 warn / 6 bad. The SHIPPED cards alone: 6 bad -> 4 bad, every one a control-activity row (take-off or
+base, in a cross wind: the Stearman x2/x4 and the Tiger Moth x2/x4, bad on master too); master's swing-bad cells
+(the Tiger Moth x4 19.3, the Pietenpol x4 21.7) are gone. The branch's other 2 bad are the held Pitts'.
+
+THE BAR, AS APPLIED: a card is held when any of its cells drops a GRADE (ok -> warn -> bad) on sink, V/Vs, aim, swing
+or completion, or when the cell's whole verdict drops. No shipped card drops one. Three numbers moved inside their
+grade and are named for the coordinator's call (`--hold <key>` drops a card in one line):
+- the SKYMASTER's sink 0.37 -> 1.1-1.3 m/s (ok <= 1.5): master's 0.37 was a FLOATED landing, ~100 m past the aim
+  (warn); refitted it lands on the aim (6, -15, 4 m) at a normal sink - a different landing, not a harder one;
+- the Stearman x4's swing 8.1 -> 13.3 deg (both warn, <= 15);
+- the Pietenpol's aim 28 -> 55 m (ok <= 100), with its swing halved and the x4 cell bad -> warn.
+
+**HELD (5):**
+- **pittsAlike** - flight: its sink improves everywhere (1.7 warn -> 1.1), but the landing's control activity doubles
+  and the calm and x4 cells go warn -> bad. Not one of the five metrics; held on the cell's verdict. The pilot's flare
+  on a 29 mm-aft, 4 kg-heavier Pitts (the train-22 pilot work, as the Cub).
+- **twinBush, p38** - the CARD's balance, not the tank (A0): full-fuel aft SM 0.011 -> 0.002 and -0.063 -> -0.081
+  (the P-38-alike is aft of neutral already, with the phantom nose tank). Follow-up: the cards' own mass layout.
+- **beaver** - the underFloor search: 50 of 360 L fits; the bay's measure is not right yet.
+- **mw5** - THE LAYER RESETS ITS STATION (found by GATE TANKMOUNT's G1153 row, which every STOCK_TANKS tank must
+  pass; its flights were not worse). The refit put the 16 L slab at along 0.983 m, inside the cabin bay as `fitOf`
+  measured it ([0.946, 1.546]). But the layer's FIRST layout of the card measures a provisional cabin bay of
+  [1.27, 1.47]; the rule "a station outside its bay is no station" (_cage_energy placeAll) nulls along/lv and writes
+  the default spot back (1.413 m, floor, against the aft bulkhead) before the second layout measures the real bay.
+  There the slab is 90 mm through the skin and into the pusher engine. Follow-up: the reset must not fire on a
+  provisional bay (or must re-read the remembered station); then the MW5's refit and flights again. The nose and
+  wing refits carry no such reset (TANKMOUNT green on all 12 cards).
+- (the Cub, as G1153: the 26 L deck tank waits for the pilot's mass/CG-aware flare, train 22.)
+
+GATES (the final 12-card STOCK_TANKS, node, lockless): BATTERY PASS - TANKMOUNT, ENERGY, ENERGYBASE, DEFAULT, JOIN,
+PARTS, ARCHETYPES, PILOTMATRIX, GEN, PILOT, TAKEOFF, FLEX, SEAPLANE, HOTHIGH, SOAR, WINGSPLIT, PANEL, UISMOKE.
+FRAMECOST not re-run: G1155 changes only the five cards' vessel lists, and none of them is drawn in the default
+world (the parked aeroplanes are arch:c172, arch:cub, arch:jodel - parked_cook --check). The flight comparison is
+21 cells x 2 trees (above), on top of the gate's quick matrix.
