@@ -399,6 +399,7 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   const k1 = bakedMesh(box(0, 0, 0, 1, 1, 1, 1), live, true), k2 = bakedMesh(box(1, 0, 0, 2, 1, 1, 1), live, true);
   g2.add(k1, k2);
   const o2 = FB.mergeModel(T, g2, inMat, { members: [k1, k2], keep: true });
+  const ord0 = g2.children.slice();   // (G1124.5: the graph's order as the build left it)
   check(!!o2 && o2.to === 1 && k1.parent === g2 && !k1.visible && !k2.visible && o2.meshes[0].visible && o2.meshes[0].material === inMat &&
         k1.geometry.attributes.position.array.buffer === o2.meshes[0].geometry.attributes.position.array.buffer,
     '8 the cabin\'s fold keeps its live members in place, hidden, on the same arrays');
@@ -414,6 +415,7 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   const hyBand = k1.parent === g2 && k2.parent === g2 && k1.visible && o2.meshes[0].visible;
   o2.fade(1);
   const hyNear = k1.parent === g2 && k1.visible && !o2.meshes[0].visible;
+  const hyOrder = g2.children.length === ord0.length && g2.children.every((c, i) => c === ord0[i]);   // G1124.5: back where they stood
   o2.fade(0);
   const hyFar = k1.parent === null && !k1.visible && o2.meshes[0].visible;
   // G1121.1: a walk that must see them (the craft's tag) sees them, hidden, and they are parked again after
@@ -433,8 +435,8 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   FB.FB.cockpitLive = true; const ez = FB.eyeZone(T, g4, [cabM], [nearM, farM]); FB.FB.cockpitLive = false;
   check(noSplit && ez.eye.length === 1 && ez.eye[0] === nearM && ez.far[0] === farM && nearM.material !== tw0 && nearM.material.userData.flownZone === 'eye' && farM.material === tw0,
     '8 G1124 the eye\'s zone (?fbake=cockpitlive): a kept mesh near the cabin goes to the eye\'s fold on its own live copy, a far one stays; G1124.4 the fallback splits nothing', JSON.stringify(FB.FB.eyeZoneN));
-  check(hyParked && hyBand && hyNear && hyFar, '8 G1121 the hybrid: the live meshes out of the graph while the bake is drawn, both in the band, the live alone near, parked again far',
-    JSON.stringify({ hyParked, hyBand, hyNear, hyFar }));
+  check(hyParked && hyBand && hyNear && hyFar && hyOrder, '8 G1121 the hybrid: the live meshes out of the graph while the bake is drawn, both in the band, the live alone near, parked again far; G1124.5 back at their own index (the scene\'s order kept)',
+    JSON.stringify({ hyParked, hyBand, hyNear, hyFar, hyOrder }));
   // G1124.1 the fallback: the cockpit's call (0, 1) - the cabin live, the eye's zone on the bake; ?fbake=cockpitlive the eye's live
   FB.hybrid(0, 1); const fb1 = [FB.FB.hyT, FB.FB.hyTEye, FB.FB.hyTIn]; FB.FB.cockpitLive = true; FB.hybrid(0, 1); const fb2 = [FB.FB.hyT, FB.FB.hyTEye, FB.FB.hyTIn]; FB.FB.cockpitLive = false; FB.hybrid(0);
   check(fb1.join() === '0,0,1' && fb2.join() === '0,1,1', '8 G1124.1 the fallback: in the cockpit the cabin live and the exterior on the bake (the eye\'s zone live only with ?fbake=cockpitlive)', JSON.stringify({ fb1, fb2 }));

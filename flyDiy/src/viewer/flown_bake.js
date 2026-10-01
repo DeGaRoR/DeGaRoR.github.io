@@ -1080,19 +1080,34 @@
       // back (the same parent) when the band or the near view draws it. Nothing reads a kept mesh through the graph: the
       // rigs write its attributes (views into the fold), the pick and the sun's rays hit the fold member by member, the
       // warm draw stands it in by prototype. out.park() after the build (app.js, after G576's still merge) takes them out.
+      // G1124.5: BACK WHERE IT STOOD - a kept mesh leaves at its index among its parent's children (all the indices read
+      // before any leaves) and goes back to that index (ascending: the earlier ones first), not appended: the scene's
+      // order is three's walk order, and a sort tie broken differently put the cabin's still meshes elsewhere in the
+      // cockpit's draw sequence (+2 program switches a frame, the node census, the same draws)
       const HOME = new Map();
-      const liveOn = on => {
-        for (const m of out.live) {
-          if (on) { const h = HOME.get(m); if (!m.parent && h) h.add(m); m.visible = true; }
-          else { m.visible = false; if (m.parent) { HOME.set(m, m.parent); m.parent.remove(m); } }
+      const put = list => {
+        list.sort((x, y) => HOME.get(x)[1] - HOME.get(y)[1]);
+        for (const m of list) {
+          const [h, i] = HOME.get(m);
+          h.add(m);
+          const ch = h.children, j = ch.indexOf(m);
+          if (i >= 0 && j !== i && i < ch.length) { ch.splice(j, 1); ch.splice(i, 0, m); }
         }
+      };
+      const liveOn = on => {
+        if (on) { put(out.live.filter(m => !m.parent && HOME.has(m))); for (const m of out.live) m.visible = true; return; }
+        const go = out.live.filter(m => m.parent);
+        for (const m of go) HOME.set(m, [m.parent, m.parent.children.indexOf(m)]);
+        for (const m of out.live) m.visible = false;
+        for (const m of go) m.parent.remove(m);
       };
       out.park = () => { if (!cur) liveOn(false); };
       // G1121.1: a walk that must see the kept meshes (SHADOW_NEAR.tagCraft: the craft's layers, its near-only define,
       // receiveShadow, renderOrder) runs with them back in the graph, hidden as they are, and parked again after
       out.unpark = () => {
         const moved = [];
-        for (const m of out.live) { const h = HOME.get(m); if (!m.parent && h) { h.add(m); moved.push(m); } }
+        for (const m of out.live) if (!m.parent && HOME.has(m)) moved.push(m);
+        put(moved);
         return () => { for (const m of moved) if (m.parent && !m.visible) m.parent.remove(m); };
       };
       out.apply = on => {
