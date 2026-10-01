@@ -7023,13 +7023,14 @@
   // G1122: ...and their first draws and buffers under the craft step's screen, in the world's lights (the craft dressed in
   // the world per slice, as the compiles are) - the band's first crossing in flight then draws what is already resident
   function hybridWarm() {
+    if (window.FLOWN_BAKE && FLOWN_BAKE.FB.noWarmDraw) return null;   // (the isolation's ?fbake=nowarmdraw)
     const L = keptGroup().KEPT;
     window.__hyWarm = { n: L.length, model: model, at: performance.now() };   // (GATE FRAMECOST reads it at the crossing)
     return L.length ? warmDrawSliced(scene, aa && aa.target ? aa.target() : null, null, L, craftInWorldNow).then(k => { window.__hyWarm.drawn = k; })
       .catch(e => console.warn('hybrid warm:', e && e.message)) : null;
   }
   function compileCraftLinks() {
-    const inW = craftInWorldNow, KG = keptGroup().KG;
+    const inW = craftInWorldNow, KG = (window.FLOWN_BAKE && FLOWN_BAKE.FB.noKeptCompile) ? new THREE.Group() : keptGroup().KG;   // (?fbake=nokeptcompile)
     const jobs = [compileSliced(craft, aa && aa.target ? aa.target() : null, scene, false, inW)];
     if (KG.children.length) jobs.push(compileSliced(KG, aa && aa.target ? aa.target() : null, scene, false, inW));
     if (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants) {

@@ -82,7 +82,10 @@
     if (on.has('nohy')) FB.hybrid = false;      // the hybrid off: the bake at every distance (C4b as it landed)
     if (on.has('alleye')) FB.eyeOnly = false;   // G1124 off: the whole exterior live in the cockpit
     if (on.has('cockpitlive')) FB.cockpitLive = true;   // G1124.1: the eye's zone live in the cockpit (the follow-up's dial)
-    if (on.has('nowarm')) FB.noWarm = true;     // train 20's isolation: the kept meshes neither compiled by stand-in nor warm-drawn (not resident)
+    if (on.has('nowarm')) FB.noWarm = true;
+    if (on.has('nowarmdraw')) FB.noWarmDraw = true;       // isolation: the kept stand-ins compiled, not warm-drawn
+    if (on.has('nokeptcompile')) FB.noKeptCompile = true; // isolation: the kept stand-ins warm-drawn, not compiled first
+    if (on.has('noband')) FB.noBand = true;               // isolation: no band twins compiled or drawn (a crossing would link them)     // train 20's isolation: the kept meshes neither compiled by stand-in nor warm-drawn (not resident)
     if (on.has('noshadowfolds')) FB.shadowFolds = false;   // G1124 off: the live meshes cast their own shadows
     for (const x of on) { const m = /^hy([\d.]+)-([\d.]+)$/.exec(x); if (m) { FB.hyA = +m[1]; FB.hyB = Math.max(+m[1] + 0.01, +m[2]); } }   // the band
     for (const x of on) { const m = /^hy=([\d.]+)$/.exec(x); if (m) FB.hyForce = Math.min(1, Math.max(0, +m[1])); }   // t held (the A/B rigs)
@@ -1178,8 +1181,8 @@
       // band twins, the folds' band twins (the folds' own are in the graph)
       out.pairs = () => {
         const P = [];
-        for (const m of out.live) { const n = ORIG.get(m) || m.material; P.push([m, n], [m, bandOf(n)]); }
-        for (const f of out.meshes) P.push([f, bandOf(ORIG.get(f) || f.material)]);
+        for (const m of out.live) { const n = ORIG.get(m) || m.material; P.push([m, n]); if (!FB.noBand) P.push([m, bandOf(n)]); }
+        if (!FB.noBand) for (const f of out.meshes) P.push([f, bandOf(ORIG.get(f) || f.material)]);
         return P;
       };
       out.fade = t => {
