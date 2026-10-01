@@ -42366,7 +42366,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f26f8f05a8b8';window.FLYDIY_BUILD='f53eb9acc30e'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f26f8f05a8b8';window.FLYDIY_BUILD='a40485081dcf'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -109319,13 +109319,22 @@ const POST_FX = (() => {
 // frames). A receiver reads the cascade only between the light and just past the craft's own ground shadow (the
 // craft's sphere + a relief of 10 m + half the height, along the sun: uNearQ, in the cascade's depth), deeper ones the
 // 60 m box - so only the casters in that window can matter to the cascade, and only they stop the pruning.
+//
+// G1125 THE 60 m BOX DRAWS ITS NEAR CASTERS ONLY (NEAR-LAYER, 2026-09-30). Three r186's shadow walk tests an object's
+// layers against the MAIN camera, not the shadow camera (G1080.2), so NEAR_LAYER / CRAFT_LAYER on this light's cameras
+// filter nothing: viewport 1 drew whatever the main walk reaches (the craft, the instanced trees and props, the strip
+// stones, every crumb) - only the cascade's prune (viewport 0) ever filtered. Now viewport 1 is pruned the same way:
+// getCamera(1) keeps the ancestor chains of nearTag's casters (setNear - exactly the objects it put on NEAR_LAYER) and
+// hides every other child along them (the craft's group is kept whole - pruneBox says why); the renderer's shadow pass
+// is wrapped (hook(), app.js) so what a pass hid is shown again the moment it ends, before anything else renders or walks
+// the scene. The layers stay: they are the scheme's record, and what a raycaster or a census reads.
 // ============================================================
 var SHADOW_NEAR = (function () {
   'use strict';
   const NEAR_LAYER = 3, FAR_LAYER = 2, CRAFT_LAYER = 5;   // the near map's viewport 0 sees 3, its viewport 1 (the craft's cascade) 3 + 5; the far map sees 2 (everything but the craft, unless it is high)
   const S = { on: true, half: 30, size: 1024, bias: -0.0004, biasM: 0.05, normalBias: 0.02, normalBiasTx: 0.9, relief: 150, slantMax: 3000, penumbra: 0.0093, radiusMax: 2.5, self: true, slant: 0,   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra), per viewport
     craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0,
-    aimDrawn: true, farHide: true };   // G1080: ... ; farHide: the aeroplane hidden while the WORLD's far map draws (three's shadow walk ignores the shadow camera's layers - see farLight)   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
+    aimDrawn: true, farHide: true, boxPrune: true, boxCraft: true, farEmpty: true };   // G1125: boxPrune - viewport 1 (the 60 m box) walks nearTag's casters alone (and the craft: boxCraft); G1126: farEmpty - a far camera off FAR_LAYER (the 'near' tier) walks nothing   // G1080: ... ; farHide: the aeroplane hidden while the WORLD's far map draws (three's shadow walk ignores the shadow camera's layers - see farLight)   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
   const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0); yzw: the craft cascade's bias (depth), PCF radius (texels), normal offset (m)
   const nearWindow = new Float32Array(4);           // xy: the craft cascade's depth window (its shadow coordinate z, min / max) - past it, the 60 m box
   const nearUniforms = { uNearP: { value: nearScalars }, uNearQ: { value: nearWindow }, uNearM1: { value: (typeof THREE !== 'undefined' && THREE.Matrix4) ? new THREE.Matrix4() : null } };
@@ -109439,7 +109448,7 @@ var SHADOW_NEAR = (function () {
   // atlas(shadow): the 2 x 1 map - viewport 0 the 60 m box (three's own camera, matrix and frustum), viewport 1 the
   // craft's cascade (C1.cam, uNearM1). three's shadow pass calls updateMatrices once, then draws each viewport with
   // getCamera(i) and getFrustum(i); _updateMatrix(camera, matrix, frustum, viewport) folds the atlas offset in.
-  const C1 = { cam: null, frustum: null, pos: null, tgt: null, dir: null, H: 0, dB: 0, scene: null, hidden: [], pruned: 0, full: 0 };
+  const C1 = { cam: null, frustum: null, pos: null, tgt: null, dir: null, H: 0, dB: 0, scene: null, hidden: [], pruned: 0, full: 0, boxPruned: 0, boxFull: 0 };
   const _ns = (typeof THREE !== 'undefined' && THREE.Sphere) ? new THREE.Sphere() : null;
   let nearSpheres = null;   // render_world's nearTag: [x, y, z, r] of the casters on NEAR_LAYER now (setNear)
   function setNear(list) { nearSpheres = list; }
@@ -109450,8 +109459,7 @@ var SHADOW_NEAR = (function () {
   const keep = (typeof Set !== 'undefined') ? new Set() : null;
   function prune() {
     const sc = C1.scene; if (!sc || !craftGroup || C1.hidden.length) return;
-    let top = craftGroup; while (top.parent && top.parent !== sc) top = top.parent;
-    if (top.parent !== sc) return;
+    const top = craftTop(); if (!top) return;
     keep.clear(); keep.add(sc); keep.add(top);
     let n = 0;
     if (nearSpheres) {
@@ -109466,10 +109474,43 @@ var SHADOW_NEAR = (function () {
         n++;
       }
     }
-    for (const k of keep) { if (k === top) continue; const ch = k.children; for (let i = 0; i < ch.length; i++) { const c = ch[i]; if (!keep.has(c) && c.visible && !c.isLight) { c.visible = false; C1.hidden.push(c); } } }
+    hideRest(top);
     if (n) C1.full++; else C1.pruned++;
   }
+  // the craft's group as a child of the scene (null when it is off the stage)
+  function craftTop() { const sc = C1.scene; if (!sc || !craftGroup) return null; let top = craftGroup; while (top.parent && top.parent !== sc) top = top.parent; return top.parent === sc ? top : null; }
+  // every child along the kept chains that is not kept itself: hidden for this viewport's walk (skip: a subtree walked whole)
+  function hideRest(skip) { for (const k of keep) { if (k === skip) continue; const ch = k.children; for (let i = 0; i < ch.length; i++) { const c = ch[i]; if (!keep.has(c) && c.visible && !c.isLight) { c.visible = false; C1.hidden.push(c); } } } }
   function unprune() { const h = C1.hidden; for (let i = 0; i < h.length; i++) h[i].visible = true; h.length = 0; }
+  // G1125 pruneBox(): viewport 1, the 60 m box, walks nearTag's casters alone - the chain of each one kept, every other
+  // child along those chains hidden - and the craft's group whole (S.boxCraft): G1005 meant the craft out of the box (it
+  // casts into its own cascade), but the lookup sends a receiver DEEPER than the cascade's window to the box, and there
+  // (terrain falling away past the craft's ground shadow: a valley beyond a ridge, a low sun) the craft's shadow is the
+  // box's alone - the far map never has it. So the craft stays, as it always was in fact. Only while
+  // the renderer's pass is hooked (what it hides is shown again when the pass ends: nothing after viewport 1 would), and
+  // only once nearTag has spoken (no list yet, or a sphere without its object: the whole walk, as before).
+  function pruneBox() {
+    const sc = C1.scene; if (!S.boxPrune || !HOOK.on || !sc || C1.hidden.length) return;
+    if (!nearSpheres) { C1.boxFull++; return; }
+    const top = S.boxCraft ? craftTop() : null;
+    keep.clear(); keep.add(sc); if (top) keep.add(top);
+    for (const q of nearSpheres) { if (!q[4]) { C1.boxFull++; return; } for (let o = q[4]; o && o !== sc; o = o.parent) keep.add(o); }
+    hideRest(top);
+    C1.boxPruned++;
+  }
+  // G1125 hook(renderer): the shadow pass wrapped - whatever a pass hid (the cascade's and the box's prunes, the far map's
+  // hides) is shown again the moment it returns or throws: three projects the frame's render list BEFORE it draws the
+  // shadow maps, and the next render (the mirror, the probes, the next frame) must find the world whole. A renderer
+  // without three's WebGL shadow pass (the TSL one) is left alone, and the box is then walked whole.
+  const HOOK = { on: false, passes: 0 };
+  function hook(renderer) {
+    const SM = renderer && !renderer.isWebGPURenderer ? renderer.shadowMap : null;
+    if (!SM || typeof SM.render !== 'function' || SM.__nearHook) return false;
+    const r = SM.render;
+    SM.render = function () { HOOK.passes++; try { return r.apply(this, arguments); } finally { unprune(); farUnhide(); } };
+    SM.__nearHook = true; HOOK.on = true;
+    return true;
+  }
   function atlas(sh) {
     if (!sh || typeof sh._updateMatrix !== 'function' || !nearUniforms.uNearM1 || !THREE.Frustum) { S.on = false; return; }   // not this three: no near map rather than a wrong one
     sh._frameExtents.set(2, 1); sh._viewportCount = 2;
@@ -109478,7 +109519,7 @@ var SHADOW_NEAR = (function () {
     C1.frustum = new THREE.Frustum(); C1.pos = new THREE.Vector3(); C1.tgt = new THREE.Vector3(); C1.dir = new THREE.Vector3();
     const t0 = new THREE.Vector3();
     // three's loop: getCamera(i) then getFrustum(i) then the walk, for i = 0, 1 - the bracket round the craft's pass
-    sh.getCamera = function (i) { if (i === 0) { if (S.prune) prune(); return cam1; } unprune(); return this.camera; };
+    sh.getCamera = function (i) { if (i === 0) { if (S.prune) prune(); return cam1; } unprune(); pruneBox(); return this.camera; };   // G1125: viewport 1 its near casters alone
     sh.getFrustum = function (i) { return i ? this._frustum : C1.frustum; };
     sh.updateMatrices = function (light) {
       farUnhide();   // (G1080: the aeroplane hidden from the far map's pass only - shown again for the near map's)
@@ -109754,21 +109795,32 @@ var SHADOW_NEAR = (function () {
   // before that light's walk, and only on a frame that draws it) hides it; the near light's (next in the same pass - the
   // scene's order: render_world adds the sun first) and follow() show it again. Only while the near map is live: with it
   // off the craft's shadow IS the far map's (apply()).
-  const FARH = { hid: null, n: 0, L: null };
-  function farUnhide() { if (FARH.hid) { FARH.hid.visible = true; FARH.hid = null; } }
+  //
+  // G1126 THE FAR MAP MEANT EMPTY. The same walk made G655's 'near' tier a no-op too: worldShadow false puts the far
+  // camera on an EMPTY layer (render_world SUNW.EMPTY; the A/B's 6 the same) to draw nothing, and the pass drew the whole
+  // world, once, into a 256^2 map over the far box (0.8-4 m texels) that then stood where it was drawn. Now a far camera
+  // without FAR_LAYER walks nothing: every top-level child of the scene hidden for that pass (only while the renderer's
+  // pass is hooked - the hook shows them again). With FAR_LAYER on, the far map's scheme is "everything but the craft"
+  // (render_world nearWatch puts FAR_LAYER on every object that joins the scene), which is the walk less the craft's hide.
+  const FARH = { hid: null, n: 0, L: null, all: [], empty: 0 };
+  function farUnhide() { if (FARH.hid) { FARH.hid.visible = true; FARH.hid = null; } const a = FARH.all; for (let i = 0; i < a.length; i++) a[i].visible = true; a.length = 0; }
   function farLight(Lf) {
     if (!Lf || !Lf.shadow || FARH.L === Lf) return;
     FARH.L = Lf;
     const sh = Lf.shadow, um = sh.updateMatrices;
     sh.updateMatrices = function () {
-      if (S.farHide && S.on && madeL && madeL.visible && madeL.castShadow && craftGroup && C1.scene) {
+      if (S.farEmpty && HOOK.on && C1.scene && !FARH.all.length && this.camera && !this.camera.layers.isEnabled(FAR_LAYER)) {   // G1126: an empty layer - nothing casts
+        const ch = C1.scene.children;
+        for (let i = 0; i < ch.length; i++) { const c = ch[i]; if (c.visible && !c.isLight) { c.visible = false; FARH.all.push(c); } }
+        FARH.empty++;
+      } else if (S.farHide && S.on && madeL && madeL.visible && madeL.castShadow && craftGroup && C1.scene) {
         let top = craftGroup; while (top.parent && top.parent !== C1.scene) top = top.parent;
         if (top.parent === C1.scene && top.visible) { top.visible = false; FARH.hid = top; FARH.n++; }
       }
       return um.apply(this, arguments);
     };
   }
-  const API = { S, pcf, C1, AIM, EYES, FARH, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, eyes, apply, setNear, unprune, get installed() { return installed; } };
+  const API = { S, pcf, C1, AIM, EYES, FARH, HOOK, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, hook, eyes, apply, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); eyesInit(); }
   return API;
 })();
@@ -118094,7 +118146,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // holds it, and refreshes more often than the window is wide.
   // G1110: 12 m (was 30 - the whole impostor-first near tier was inside a window; gfx_settings FADE per step). The
   // seam still holds: a tree dealt to one rung can drift a whole window before its rung's band drops it, and the
-  // partition refreshes every window/3 m (lodMove)
+  // partition refreshes every 0.6 window m (lodMove, G1114.1; 10 m at most)
   const uFadeW = { value: 12 };
   // the shadow frustum's live half-width: the impostor caster collapses every
   // instance the map cannot see, or 170 000 quads pay the depth pass for
@@ -121611,9 +121663,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // carries ONLY the instances in its band, sorted in here on a cadence as
     // the aircraft moves, and `count` is set to what was written. The band in
     // the shader stays as the seam guard between refreshes.
-    // refresh every 6 frames or LOD_MOVE m - inside the window's half-width. G1110 (TREES-NEAR): the distance follows the
-    // window (a third of it, 10 m at most: 30 m -> 10 as before, 20 -> 6.7), so a narrower window keeps its seam guard
-    const LOD_TICK = 6, lodMove = () => Math.min(10, uFadeW.value / 3);
+    // WHEN THE PARTITION REFRESHES (G1114.1, TREES-NEAR's lever; was every 6 frames or window/3 m). A tree dealt to one
+    // rung keeps being drawn until it drifts a WHOLE window from where it was dealt (dealt to the impostor alone at
+    // edge + hw, the impostor drops it at edge - hw; the same for the rung on the far side) - so the refresh owes the seam
+    // only that: the eye moves at most lodMove + one frame's travel (3 m at 90 m/s and 30 fps) between two refreshes,
+    // inside a window of 12-15 m at 0.6 of it, 10 m at most. The move is 3-D (a climb changes every distance); the frame
+    // tick is a backstop (every 30 frames), and a record added or dropped refreshes at once (ladderChunks.ver).
+    // Measured on the low pass (tools/perf/treesnear_lodbench.js): G1110's window/3 and the 6-frame tick refreshed every
+    // 2-3 frames, and each refresh walked every tree of every chunk within 1.5 km and re-parked every chunk beyond it.
+    const LOD_TICK = 30, lodMove = () => Math.min(10, uFadeW.value * 0.6);
     // rec.rungs[si][r] holds the meshes of rung r of series si, rec.buf[si][r]
     // its scratch, and the rung TABLE - the far edge of each rung - is read
     // live from the ladder's edges, so the dial that moves the bands moves
@@ -121629,41 +121687,82 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // under nothing; `visible` still says which (the probes read it).
     const RUNGS = new THREE.Group(); RUNGS.name = 'treeRungs'; scene.add(RUNGS);
     const showRung = (m, on) => { if (on) { if (m.parent !== RUNGS) RUNGS.add(m); } else if (m.parent) m.parent.remove(m); m.visible = on; };
+    // THE RECORD'S OWN GRID (G1114.1). A record is one subject's trees over a whole chunk (a fill chunk is 1 km, the
+    // woodland's 2 km): thousands of trees, of which the near tier wants the few within ~uNear of the eye. Sorted once
+    // into PCELL cells (a counting sort of the indices; the box is the trees' own, from `pos`), a refresh walks only the
+    // cells the reach overlaps, and a record whose box is out of reach is not walked at all.
+    const PCELL = 64;
+    const recGrid = rec => {
+      if (rec.grid) return rec.grid;
+      const n = rec.n, pos = rec.pos;
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      for (let i = 0; i < n; i++) { const x = pos[i * 3], z = pos[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+      if (!n) { x0 = z0 = x1 = z1 = 0; }
+      const nx = Math.max(1, Math.floor((x1 - x0) / PCELL) + 1), nz = Math.max(1, Math.floor((z1 - z0) / PCELL) + 1);
+      const cell = new Int32Array(n), start = new Int32Array(nx * nz + 1), order = new Int32Array(n);
+      for (let i = 0; i < n; i++) { const c = Math.min(nz - 1, Math.floor((pos[i * 3 + 2] - z0) / PCELL)) * nx + Math.min(nx - 1, Math.floor((pos[i * 3] - x0) / PCELL)); cell[i] = c; start[c + 1]++; }
+      for (let c = 0; c < nx * nz; c++) start[c + 1] += start[c];
+      const at = start.slice(0, nx * nz);
+      for (let i = 0; i < n; i++) order[at[cell[i]]++] = i;
+      return (rec.grid = { x0, z0, x1, z1, nx, nz, start, order });
+    };
+    // the horizontal distance from the eye to a record's trees' box (0 inside it)
+    const recNear = (G, e) => Math.hypot(Math.max(G.x0 - e[0], 0, e[0] - G.x1), Math.max(G.z0 - e[2], 0, e[2] - G.z1));
     function partitionChunk(rec, cg) {
-      const n = rec.n, pos = rec.pos, mats = rec.mats, ser = rec.ser;
+      const pos = rec.pos, mats = rec.mats, ser = rec.ser;
       const k = rec.rungs.map(L => L.map(() => 0));
+      const sig = rec.rungs.map(L => L.map(() => 0));
       const spans = rec.rungs.map(L => spanFor(L.length));
       const hw = uFadeW.value * 0.5;
-      for (let i = 0; i < n; i++) {
-        const dx = pos[i * 3] - cg[0], dy = pos[i * 3 + 1] - cg[1], dz = pos[i * 3 + 2] - cg[2];
-        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        const si = ser[i], R = spans[si];
-        // every rung whose window [near - hw, far + hw) holds the tree: at
-        // most two, and each rung's buffer is sized for the whole series
-        for (let j = 0; j < R.length; j++) {
-          // AN EMPTY RUNG IS DEALT NOTHING (G1110): with the edges [10, 30, 30] L2's band is [30, 30) - its shader keeps
-          // no fragment (its fade-in and fade-out are the same ramp, complementary), yet every tree 15-45 m out was
-          // written to it: a draw per part, the vertex work, and nothing on the screen
-          if (j && R[j] <= R[j - 1]) continue;
-          if (d >= R[j] + hw) continue;
-          if (j && d < R[j - 1] - hw) break;
-          rec.buf[si][j].set(mats.subarray(i * 16, i * 16 + 16), k[si][j] * 16);
-          k[si][j]++;
+      // the cells the reach overlaps: every rung's far edge is uNear at most (spanFor), plus its window; the 3-D
+      // distance the band reads is never shorter than this horizontal one
+      const G = recGrid(rec), reach = uNear.value + hw;
+      const cx0 = Math.max(0, Math.floor((cg[0] - reach - G.x0) / PCELL)), cx1 = Math.min(G.nx - 1, Math.floor((cg[0] + reach - G.x0) / PCELL));
+      const cz0 = Math.max(0, Math.floor((cg[2] - reach - G.z0) / PCELL)), cz1 = Math.min(G.nz - 1, Math.floor((cg[2] + reach - G.z0) / PCELL));
+      for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) {
+        const c = cz * G.nx + cx;
+        for (let o = G.start[c], oe = G.start[c + 1]; o < oe; o++) {
+          const i = G.order[o];
+          const dx = pos[i * 3] - cg[0], dy = pos[i * 3 + 1] - cg[1], dz = pos[i * 3 + 2] - cg[2];
+          const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          const si = ser[i], R = spans[si];
+          // every rung whose window [near - hw, far + hw) holds the tree: at
+          // most two, and each rung's buffer is sized for the whole series
+          for (let j = 0; j < R.length; j++) {
+            // AN EMPTY RUNG IS DEALT NOTHING (G1110): with the edges [10, 30, 30] L2's band is [30, 30) - its shader keeps
+            // no fragment (its fade-in and fade-out are the same ramp, complementary), yet every tree 15-45 m out was
+            // written to it: a draw per part, the vertex work, and nothing on the screen
+            if (j && R[j] <= R[j - 1]) continue;
+            if (d >= R[j] + hw) continue;
+            if (j && d < R[j - 1] - hw) break;
+            rec.buf[si][j].set(mats.subarray(i * 16, i * 16 + 16), k[si][j] * 16);
+            k[si][j]++;
+            sig[si][j] = (Math.imul(sig[si][j], 31) + i + 1) | 0;
+          }
         }
       }
+      // A RUNG DEALT THE SAME TREES IS LEFT AS IT IS (G1114.1): the matrices are static, so the same list in the same
+      // order (the cells are walked in one order) is the same buffer - no copy, no upload. The key is the list's
+      // length and hash; parkChunk forgets it.
+      const was = rec.sig || (rec.sig = rec.rungs.map(L => L.map(() => null)));
       for (let si = 0; si < rec.rungs.length; si++)
-        for (let b = 0; b < rec.rungs[si].length; b++) for (const m of rec.rungs[si][b]) {
-          const c = k[si][b];
-          if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
-          m.count = c; showRung(m, c > 0);
-          // only the instances written go up (addUpdateRange, r159+: the list
-          // is consumed by the upload and cleared after it) - a rung's buffer
-          // is sized for the whole series, and a band holds a fraction of it
-          if (c) { m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.addUpdateRange(0, c * 16); m.instanceMatrix.needsUpdate = true; }
+        for (let b = 0; b < rec.rungs[si].length; b++) {
+          const c = k[si][b], key = c ? c + ':' + sig[si][b] : '0';
+          if (was[si][b] === key) continue;
+          was[si][b] = key;
+          for (const m of rec.rungs[si][b]) {
+            if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
+            m.count = c; showRung(m, c > 0);
+            // only the instances written go up (addUpdateRange, r159+: the list
+            // is consumed by the upload and cleared after it) - a rung's buffer
+            // is sized for the whole series, and a band holds a fraction of it
+            if (c) { m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.addUpdateRange(0, c * 16); m.instanceMatrix.needsUpdate = true; }
+          }
         }
     }
     const parkChunk = rec => {
       for (const S of rec.rungs) for (const b of S) for (const m of b) { m.count = 0; showRung(m, false); }
+      rec.sig = null;
     };
     // A TREE IS BANDED WHOLE, BY ITS INSTANCE ORIGIN. The first cut measured
     // every VERTEX's own distance, so a tree straddling a band edge had the
@@ -121838,7 +121937,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const nearChunks = [], impChunks = [];  // distance-culled: see lodUpdate
     // W0c.4: chunks whose rung meshes are PARTITIONED on the CPU - see
     // partitionChunk; cleared and refilled by each plant
-    const ladderChunks = [];
+    const ladderChunks = []; ladderChunks.ver = 0;   // ver: bumped on every add / drop (lodUpdate refreshes at once)
     // per-species colour ramps (stage 2): spruce, pine, oak, birch, willow
     const SPC = [
       [C(0x2e4620), C(0x486327)],
@@ -122032,6 +122131,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         for (let i = list.length - 1; i >= 0; i--) if (list[i].own) list.splice(i, 1);
       // the fill's records live in the same register: leave them
       for (let i = ladderChunks.length - 1; i >= 0; i--) if (ladderChunks[i].own) ladderChunks.splice(i, 1);
+      ladderChunks.ver++;
 
       PROTO = null;
       if (treesSettled() && typeof treeBuild === 'function') {
@@ -122253,6 +122353,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // included); the fallback and the impostors ride the chunk registers
       if (PROTO) {
         for (const H of HS) if (H && H.rec) ladderChunks.push(H.rec);
+        ladderChunks.ver++;
       } else {
         nearChunks.push({ m: [trunks].concat(...HS.map(H => H ? H.meshes : [])),
                           x: ox, z: oz, r: NEAR_R + hd, own: true });
@@ -122262,7 +122363,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     }
     }                                     // ---- end plantWoodland
 
-    let lodTick = 0;
+    let lodTick = 0, lodVer = -1;
     lodUpdate = cg => {
       IMPA.frame();   // the arrays' mips after a bake, the tint dials into the layer table (PERF 2026-09-23)
       const ex = uCam.value.x, ez = uCam.value.z;
@@ -122282,13 +122383,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // partition and collapsed by that rung's band - a gap that moved with
       // the aeroplane, on top of the slicing.
       const eye = [uCam.value.x, uCam.value.y, uCam.value.z];
-      const moved = !lodAt || Math.hypot(eye[0] - lodAt[0], eye[2] - lodAt[2]) > lodMove();
-      if (lodTick++ % LOD_TICK === 0 || moved) {
-        lodAt = eye;
-        const reach = uNear.value + CHW * Math.SQRT1_2;
+      const moved = !lodAt || Math.hypot(eye[0] - lodAt[0], eye[1] - lodAt[1], eye[2] - lodAt[2]) > lodMove();
+      if (lodTick++ % LOD_TICK === 0 || moved || ladderChunks.ver !== lodVer) {
+        lodAt = eye; lodVer = ladderChunks.ver;
+        // G1114.1: a record is in reach when its trees' box comes within uNear + the window of the eye (it was the
+        // chunk's CENTRE within uNear + the woodland's 2 km half-diagonal - every chunk within ~1.5 km walked whole),
+        // and one out of reach is parked ONCE (it was re-parked, every mesh of it, at every refresh)
+        const reach = uNear.value + uFadeW.value * 0.5;
         for (const rec of ladderChunks) {
-          const dx = rec.x - eye[0], dz = rec.z - eye[2];
-          if (dx * dx + dz * dz > reach * reach) { parkChunk(rec); continue; }
+          if (recNear(recGrid(rec), eye) > reach) { if (!rec.parked) { parkChunk(rec); rec.parked = true; } continue; }
+          rec.parked = false;
           partitionChunk(rec, eye);
         }
       }
@@ -122666,6 +122770,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const reg = [{ m: imp, x: ox, z: oz, r: FAR_FILL + hdF, half: CH / 2, lim: part === FILLP ? () => uThin.value.y : () => FAR_FILL }];
         impChunks.push(reg[0]);
         for (const rec of recsOut) ladderChunks.push(rec);
+        ladderChunks.ver++;
         const t2 = performance.now();
         STAT.gens++; STAT.walkMs += t1 - t0; STAT.buildMs += t2 - t1;
         STAT.lastMs = t2 - t0; STAT.maxMs = Math.max(STAT.maxMs, t2 - t0);
@@ -122686,7 +122791,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           i = impChunks.indexOf(r2); if (i >= 0) impChunks.splice(i, 1);
         }
         for (const rec of (built.recs || [])) {
-          const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
+          const i = ladderChunks.indexOf(rec); if (i >= 0) { ladderChunks.splice(i, 1); ladderChunks.ver++; }
         }
       };
       // the mix dials (furnished, spread) are dealt at plant time: applying
@@ -152293,7 +152398,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=5f74c2fc"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=7b78ce7e"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_build.js?v=aabddd56"></script>
-<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=141a342a"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=9cadc7a7"></script>
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=7f19b220"></script>
 <script type="text/x-flydiy">
 (() => {
@@ -152450,6 +152555,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   if (typeof ATMO !== 'undefined') ATMO.init(renderer);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;   // PCFSoft is gone in r186 (W0.5a): PCF, the fallback it names
+  if (window.SHADOW_NEAR && SHADOW_NEAR.hook) SHADOW_NEAR.hook(renderer);   // G1125: the shadow pass wrapped - what the near map's viewports and the far map hide for their walks is shown again as it ends (shadow_near.js)
   // THE RESOLVE PASS (G144) takes the main render off the default framebuffer
   // so it can have eight MSAA samples instead of the four `antialias: true`
   // hands out, a downsample filter that is ours rather than the compositor's,
