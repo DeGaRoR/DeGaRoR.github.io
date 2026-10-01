@@ -89,7 +89,9 @@ const ROLLANIM = (() => {
     // host fades as it leaves), within S.bTmin..S.bTmax s; the snap's picture holds the whole aeroplane: inside S.bFit of the
     // frame's half-width and height, and under S.bTop (the garage's HUD bars cover the top of the picture)
     bOut: 0, bAcc: 1.2, bTmin: 3.0, bTmax: 5.5, bFit: 0.88, bTop: 0.5,
-    bRays: 24, bHid: 40,           // the best candidates looked through for the room's kit in the way, and a hidden point's cost
+    bRays: 40, bHid: 40,           // the best candidates looked through for the room's kit in the way, and a hidden point's cost
+    bNear: 0.6, bClut: 15,         // ...the foreground (this fraction of the way to the CG), and a cluttered ray's cost
+    bKitMax: 12,                   // a piece of the room longer than this (m) on a side is its shell (floor, walls, roof), not kit
   };
   // the check's order (the user's list) and the ctl keys it drives
   const CHECK_ORDER = ['da', 'de', 'dr', 'flap'];
@@ -328,28 +330,54 @@ const ROLLANIM = (() => {
       }
       // THE ROOM'S KIT IN THE WAY (a stack of timber, a post, the bench between the eye and the aeroplane): the best
       // S.bRays candidates looked through - rays from the eye to the aeroplane's box (its centre and its corners drawn a
-      // quarter in), each one a prop of the room hits first is a hidden point (S.bHid each)
+      // quarter in), each one a prop of the room hits first is a hidden point (S.bHid each); and THE KIT IN FRONT: rays
+      // through a grid of the picture (5 x 4), each that meets the room's kit nearer than S.bNear of the way to the CG is
+      // clutter in the foreground (S.bClut each: an eye backed into a corner of timber reads the aeroplane small)
       all.sort((a, b) => a.sc - b.sc);
       const sceneR = o.scene && o.scene.children ? o.scene : null;
-      if (sceneR && THREE.Raycaster) {
-        const rc = new THREE.Raycaster(), ctr = new THREE.Vector3(), dir = new THREE.Vector3(), E = new THREE.Vector3(), pts = [];
+      if (sceneR && THREE.Ray) {
+        // THE KIT AS BOXES (a mesh's raycast against the whole room cost 4-5 s in node at the click): every drawn piece of
+        // the room, the aeroplane's apart, as its world box - an instanced piece a box an instance (64 at most) - and a box
+        // longer than S.bKitMax on a side is the room's own shell (the floor, a wall, a roof truss, a column), not kit
+        // (a piece overlapping the aeroplane's own box is the aeroplane's - the editor's fittings and seats live outside the
+        // craft's node - or under it, and play() hides what the roll would sweep through)
+        const kit = [], bb = new THREE.Box3(), im = new THREE.Matrix4(), mw = new THREE.Matrix4(), own = box.clone().expandByScalar(0.2);
+        const drawn = x => { for (let q = x; q; q = q.parent) { if (q === craft || q.visible === false) return false; } return true; };
+        let nm = '';
+        const keep = b => { if (!isFinite(b.min.x)) return; const sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
+          if (sx <= S.bKitMax && sy <= S.bKitMax && sz <= S.bKitMax && b.max.y > (room ? room.floorY : -1e9) + 0.15 && !b.intersectsBox(own)) { const k = b.clone(); k.nm = nm; kit.push(k); } };
+        sceneR.updateMatrixWorld(true);
+        sceneR.traverse(m => {
+          if (!m.isMesh || !m.geometry || !drawn(m)) return;
+          nm = ''; for (let q = m, j = 0; q && j < 3; q = q.parent, j++) if (q.name) { nm = q.name; break; }
+          const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); if (!g.boundingBox) return;
+          if (m.isInstancedMesh) { const n = Math.min(m.count, 64); for (let i = 0; i < n; i++) { m.getMatrixAt(i, im); mw.multiplyMatrices(m.matrixWorld, im); keep(bb.copy(g.boundingBox).applyMatrix4(mw)); } }
+          else keep(bb.copy(g.boundingBox).applyMatrix4(m.matrixWorld));
+        });
+        const ray = new THREE.Ray(), hit = new THREE.Vector3(), ctr = new THREE.Vector3(), dir = new THREE.Vector3(), E = new THREE.Vector3(), pts = [];
+        let by = null;                                   // (the blockers' names, for the chosen eye's report)
+        const first = far => { for (const k of kit) { if (k.containsPoint(ray.origin)) continue; if (ray.intersectBox(k, hit) && hit.distanceTo(ray.origin) < far) { if (by) by[k.nm || '?'] = (by[k.nm || '?'] || 0) + 1; return true; } } return false; };
         box.getCenter(ctr); pts.push(ctr.clone());
         for (let i = 0; i < 8; i++) pts.push(new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).lerp(ctr, 0.25));
-        const mine = x => { for (let q = x; q; q = q.parent) { if (q === craft) return true; if (q.visible === false) return true; } return false; };
-        const targets = sceneR.children.filter(k => k !== craft && k.visible !== false);
+        const N3 = new THREE.Vector3(), dCg = new THREE.Vector3();
         for (const cnd of all.slice(0, S.bRays)) {
           E.set(cnd.eye[0], cnd.eye[1], cnd.eye[2]);
-          for (const q of pts) {
-            dir.subVectors(q, E); const far = dir.length() - 0.3; dir.normalize();
-            rc.set(E, dir); rc.far = far > 0 ? far : 0.01;
-            const hits = rc.intersectObjects(targets, true);
-            for (const ht of hits) { if (mine(ht.object)) continue; cnd.hid++; break; }
+          pc.fov = cnd.fov; pc.position.copy(E); pc.up.set(0, 1, 0); pc.lookAt(cnd.look[0], cnd.look[1], cnd.look[2]); pc.updateMatrixWorld(true); pc.updateProjectionMatrix();
+          const near = S.bNear * dCg.set(cg[0], cg[1], cg[2]).distanceTo(E);
+          cnd.clut = 0; cnd.hid = 0; by = cnd.by = {};
+          for (const nx of [-0.8, -0.4, 0, 0.4, 0.8]) for (const ny of [-0.8, -0.4, 0, 0.35]) {
+            N3.set(nx, ny, 0.5).unproject(pc).sub(E).normalize(); ray.set(E, N3);
+            if (first(near)) cnd.clut++;
           }
-          cnd.sc += cnd.hid * S.bHid;
+          for (const q of pts) {
+            dir.subVectors(q, E); const far = dir.length() - 0.3; dir.normalize(); ray.set(E, dir);
+            if (far > 0 && first(far)) cnd.hid++;
+          }
+          cnd.sc += cnd.clut * S.bClut + cnd.hid * S.bHid;
         }
       }
       const best = all.slice(0, S.bRays).sort((a, b) => a.sc - b.sc)[0] || all[0];
-      fixed = { eye: best.eye, look: best.look, out: best.out, fov: best.fov, hid: best.hid };
+      fixed = { eye: best.eye, look: best.look, out: best.out, fov: best.fov, hid: best.hid || 0, clut: best.clut || 0, by: best.by || {} };
     }
     const Lb = fixed ? Math.max(1, (trail - xDoor) * -ax + S.bOut) : c.L, Tb = fixed ? goTiming(Lb) : c.T;
     return {

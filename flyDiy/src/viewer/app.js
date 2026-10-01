@@ -6713,6 +6713,9 @@
     });
   }
   if (typeof window !== 'undefined') window.FLYDIY_ROLLANIM = rollAnimSolo;
+  // (G1115: the shot's plan in this room, nothing moved - the fixed shot's framing read by tools/_rollout_plan.js)
+  if (typeof window !== 'undefined') window.FLYDIY_ROLLPLAN = () => rollAnimCan() ? ROLLANIM.plan({ craft, scene: hangarScene, camera, hangar, model, def, sim,
+    camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow' }) : null;
   if (RA_Q === 'solo' || RA_Q === 'loop') {
     const iv = setInterval(() => {
       if (typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') return;
