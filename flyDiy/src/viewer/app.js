@@ -11020,6 +11020,12 @@
   // intervals double: the Cub's taxi at 60 delivered 39-45 fps, over half its frames changing interval from the last
   // (1 then 2 solver steps - the judder G586 capped at 30 to avoid), against a mostly even 30 at 31 fps. A trial holds
   // at 55 fps delivered or more, 60 is kept while three readings running do not fall under 52 (the hysteresis).
+  // EVEN MEANS EVEN (G1160, the cockpit - the user: "feels a tad more laggy than exterior"): G994 keeps 60 down to 52 fps
+  // delivered - a refresh missed every 6-10 frames - and lets a trial hold at 55. (The cockpit's 50-58 that raised it was
+  // its settling trials averaged with an even 60 - G1160's cut; a scene that sits at 52-56 steadily is what this is for.)
+  // At the 60 cap a reading's rate is 60 x (1 - its share of MISSED refreshes): a
+  // trial now holds at 58 fps (3 % missed, one judder in ~30 frames) and 60 is kept while three readings running stay
+  // over 56.5 (6 %) - a 60 that judders every 6-10 frames settles at an even 30 instead.
   // A RIG (a headless or driven browser: the gates, frame_perf.js, the shot tools) and a harness that calls
   // the loop with no timestamp (GATE UISMOKE's vm) keep the old clock exactly: one 1/60 step a call,
   // uncapped - every measurement and every gate reads the frame it always read (?pace=1 forces the clock on).
@@ -11109,7 +11115,7 @@
       P.work.push(workMs - (steps > 1 ? physMs * (steps - 1) / steps : 0));   // the frame's work with ONE step
       // G1160: A TRIAL THAT MISSES IS CUT SHORT. A trial's reading came after 1.5 s of settling and 60 frames: ~2.5 s of a
       // 60 that judders each time one failed - the cockpit's first seconds (trials at 46-53 fps, the hold doubling between
-      // them). Three missed refreshes in its first 30 frames (10 %, more than a trial that holds can miss - 55 fps is ~8 %) end it there, ~0.8 s.
+      // them). Three missed refreshes in its first 30 frames (10 %, where 60 needs 3 % or less) end it there, ~0.8 s.
       if (P.trial && P.cap === 60 && P.trial.n >= 30 && P.trial.miss >= 3) {
         P.trial = null; P.stats.trialsFailed++; P.trials++; P.stats.cut = (P.stats.cut || 0) + 1;
         P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); P.stats.down++; setCap(30, now); return;
@@ -11122,12 +11128,12 @@
       const failed = () => { P.stats.trialsFailed++; P.trials++; P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); };   // G615: 5 s, doubling, 30 s at most
       if (P.cap === 60) {
         if (P.trial) {                                    // a trial of 60 from 30: did it hold?
-          const ok = r >= 55; P.trial = null;                 // G994: 60 kept only where it is (nearly) even
+          const ok = r >= 58; P.trial = null;                 // G994 + G1160: 60 only where it is even (<= 3 % missed refreshes)
           if (ok) return;                                 // G990: the backoff forgets only once 60 has HELD (below)
           failed(); P.stats.down++; setCap(30, now); return;
         }
         if (P.trials && now - P.upT > 20000) P.trials = 0;   // G990: 60 held 20 s past its trial - the backoff starts over
-        P.strikes = r < 52 ? P.strikes + 1 : 0;           // G994: under 52 fps delivered - a 60 that judders
+        P.strikes = r < 56.5 ? P.strikes + 1 : 0;         // G1160: over 6 % of the refreshes missed - a 60 that judders
         const AA = W.FLYDIY_AA, A = AA && AA.autoState ? AA.autoState() : null;
         if (P.strikes >= 3 && !(A && A.on && A.probing)) {   // G615: three readings running
           if (now - P.upT < 20000) failed();              // G990: a drop within 20 s of an up is a trial that missed - no flapping

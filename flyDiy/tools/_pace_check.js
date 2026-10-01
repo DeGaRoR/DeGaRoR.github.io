@@ -20,6 +20,8 @@
 //     still skip it; a gap the page spent hidden (a tab away) is neither a frame nor a freeze.
 //   - G1160: a trial that misses 3 of its first 30 refreshes (past a 0.3 s settle) is cut short: ~0.8 s of a juddering
 //     60 where a failed trial ran ~2.5 s (the Cub's loop: 7 % of the frames at 60, 16 % before).
+//   - G1160: EVEN MEANS EVEN: a trial holds at 58 fps (<= 3 % of the refreshes missed), 60 kept over 56.5 (6 %): the
+//     cockpit's cheap frame with a spike every 8th frame (53 fps at 60, kept by G994) settles at an even 30; a rare spike holds 60.
 //   - G994: 60 WHERE IT IS EVEN: auto judges a reading on its delivered rate (a trial holds at 55 fps, 60 kept over 52);
 //     the latch case is a 17.5 ms loop (even at 60), and the Cub's 21 ms loop (a 48 fps 60) stays a clean 30.
 //   - G990: THE AUTO CAP LATCH: on a 60 Hz vsync with the main thread bound by a 21 ms loop (the A-END Cub's taxi: rAF
@@ -246,8 +248,8 @@ function driveVsync(PACE, secs, base, step, seed, strict) {
 }
 function med0(a) { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; }
 {
-  // the latch (G994's rule): dropped once (8 s of 30 ms frames), then a 17 ms one-step loop - over 60's 16.7, where G615
-  // never came back, and even at 60 (~58 fps delivered): back to 60 and it stays
+  // the latch (G994's rule, G1160's evenness): dropped once (8 s of 30 ms frames), then a 17 ms one-step loop - over 60's
+  // 16.7, where G615 never came back, and even at 60 (~59 fps delivered, under 3 % missed): back to 60 and it stays
   const { PACE } = make({});
   driveVsync(PACE, 8, () => 30, 2.5);
   const s0 = PACE.state();
@@ -255,6 +257,16 @@ function med0(a) { const s = a.slice().sort((x, y) => x - y); return s[s.length 
   const tail = driveVsync(PACE, 30, () => 14.5, 2.5);
   verdict(s0.cap === 30 && st.cap === 60 && tail.at60 === 1,
     `the latch: dropped to 30, then a 17 ms one-step loop (even at 60) - back to 60 (cap ${s0.cap} -> ${st.cap}, ${st.stats.up} up), the next 30 s all at 60 (${(st.rateFps || 0).toFixed(1)} fps delivered, work read ${(st.workMs || 0).toFixed(1)} ms)`);
+  // THE COCKPIT (G1160): a cheap frame (11 ms) with a spike every 8th frame - a refresh missed in every 9, ~53 fps delivered
+  // at 60. G994 kept it (over 52): a 60 that judders every 8 frames. Now it settles at 30, where the spike fits the
+  // interval and every frame lands even
+  const uneven = d => { let n = 0; for (let i = 1; i < d.length; i++) if (Math.round(d[i] / (1000 / 60)) !== Math.round(d[i - 1] / (1000 / 60))) n++; return n / Math.max(1, d.length - 1); };
+  { let k = 0; const spike = () => (++k % 8 === 0 ? 25.5 : 8.5);
+    const { PACE: PC } = make({});
+    const head = driveVsync(PC, 20, spike, 2.5, 0, true), sc = PC.state();
+    const tail = driveVsync(PC, 60, spike, 2.5, 0, true);
+    verdict(sc.stats.down >= 1 && tail.at60 < 0.2 && uneven(tail.dts.filter((x, i) => tail.caps[i] === 30)) < 0.05,
+      `the cockpit (11 ms, a 28 ms spike every 8th frame: ${(d60 => (1000 * d60.length / d60.reduce((a, b) => a + b, 0)).toFixed(1))(head.dts.filter((x, i) => head.caps[i] === 60))} fps while at 60): settles at 30 (${sc.stats.down} down), ${(100 * tail.at60).toFixed(0)} % of the next 60 s at 60 (the trials), the 30 even (${(100 * uneven(tail.dts.filter((x, i) => tail.caps[i] === 30))).toFixed(0)} % uneven)`); }
   // ...and a rare spike (one frame in 40) is not a judder: it holds 60
   { let k = 0; const rare = () => (++k % 40 === 0 ? 25.5 : 8.5);
     const { PACE: PR } = make({});
