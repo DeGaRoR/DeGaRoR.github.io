@@ -66788,3 +66788,69 @@ FRESH profile (empty house cache; the first boot built 92): the draw generated t
 framed and streamed in: built 0, hits 46 (from the cache), on the page 0 - the four houses identical (tris, piers,
 boats). c2c_cache_1_drawn.jpg / c2c_cache_2_reloaded.jpg. TRAP: drawn houses stream in by DISTANCE after a reload
 (the roll-out stands far away) - count them after framing the zone (c2c_proof.js's after phase does).
+
+## G1114.1 - THE TREE PARTITION'S LEVER: A GRID PER RECORD, PARKED ONCE, NO RE-UPLOAD, A CALMER CADENCE (2026-10-01, TREES-NEAR for train 19, local GPU)
+
+G1114 owed it: on the low flight the tree LOD's own work (partitionChunk + parkChunk + lodUpdate) was 8.8 ms/s on master
+and 22.6 under 'mid' (V8 profiles). Four faults in render_world.js's partition, each one fixed:
+1. **EVERY TREE OF EVERY CHUNK WITHIN 1.5 km WAS WALKED.** A record is one subject's trees over a whole chunk, and the
+   reach test was the chunk's CENTRE within uNear + CHW x 0.707 (CHW the woodland's 2048 m, applied to the fill's
+   1024 m chunks too). Now each record is counting-sorted once into 64 m cells (recGrid: its trees' own box, from
+   `pos`). A record is in reach when that box comes within uNear + half the window of the eye (recNear), and
+   partitionChunk walks only the cells the reach overlaps.
+2. **EVERY CHUNK OUT OF REACH WAS RE-PARKED AT EVERY REFRESH** (every mesh of every rung: count 0, showRung). Now
+   `rec.parked` parks it once per exit.
+3. **EVERY REFRESH RE-COPIED AND RE-UPLOADED EVERY RUNG** that held trees, even unchanged ones. Now a rung's dealt list
+   is keyed (its length and a hash of the indices, in the cells' fixed order); the same key means the same buffer, so no
+   copy and no addUpdateRange. parkChunk forgets the keys.
+4. **THE CADENCE.** G1110's window/3 lodMove (4 m at a 12 m window) and the 6-frame tick refreshed every 2-3 frames.
+   - The seam needs less: a tree dealt to one rung keeps being drawn until it drifts a WHOLE window (dealt to the
+     impostor alone at edge + hw, the impostor drops it at edge - hw).
+   - So lodMove = 0.6 x the window (10 m at most). With one frame's travel (3 m at 90 m/s, 30 fps) the drift stays
+     inside the window.
+   - The move is 3-D (a climb changes every distance). The tick is a 30-frame backstop, and `ladderChunks.ver` (bumped
+     at the four add / drop sites) refreshes at once when a record comes or goes.
+
+**THE NODE PROOF** (tools/perf/treesnear_lodbench.js: the page in node, the Cub carried 600 frames x 1.5 m along the
+low-pass track at 60 m AGL, a V8 profile of exactly those frames, inclusive ms per frame; master 74b582a3 vs the fix,
+'minimum'):
+- lodUpdate 0.747 -> 0.159 ms/frame (-79 %; ~22 -> 5 ms/s at 30 fps)
+- partitionChunk 0.167 -> 0.014
+- worldUpdate 10.44 -> 10.30
+- 'mid' on master is 0.784 ms/frame.
+
+**THE SAME TREES** (A0's proof; tools/perf/treesnear_samecheck.js). Every 200 m of a second pass, every dealt tree of
+every rung mesh (`<vertices>|<indices>|<material>|x|y|z`) is listed twice: as the cadence left it, then after a refresh
+forced at that very eye.
+- Forced: IDENTICAL on master and on the fix at all 4 checkpoints (30, 25, 13, 30 trees).
+- Natural: 0 / 8 / 0 / 10 differences, every one within a refresh step of a window's edge.
+- SAMECHECK PASS.
+
+**TIMED** (rollout_perf --secs 60; tools/perf/treesnear_judge.js; master 74b582a3 with gamer = 'minimum' vs the fix,
+fresh parked cooks on both sides; the low pass: Cub chase, 60 m AGL, 45 m/s, the same 3 km at 94 % TREE ground):
+
+  | profile | side | fps delivered | uneven | dt p99 | render | loop JS |
+  |---|---|---|---|---|---|---|
+  | low pass | master (minimum) | 31.2 | 20.4 % | 83.3 | 8.2 | 25.2 |
+  | low pass | fix, minimum | 37.6 | 16.4 % | 66.7 | 7.6 | 20.3 |
+  | low pass | fix, mid | 37.5 | 16.3 % | 66.8 | 7.9 | 20.7 |
+  | taxi Cub | master (minimum) | 33.2 | 11.8 % | 33.5 | 9.5 | 12.7 |
+  | taxi Cub | fix, mid | 33.2 | 13.6 % | 33.5 | 9.9 | 12.9 |
+  | taxi metal | master (minimum) | 32.8 | 13.1 % | 33.5 | 9.7 | 13.1 |
+  | taxi metal | fix, mid | 32.8 | 13.1 % | 33.5 | 9.9 | 13.2 |
+
+- Single runs. Chrome's world update fell 10.8 -> 7.2 ms on the pass, more than the node profile's share: read the
+  same-build pair (fix minimum vs fix mid: 37.6 vs 37.5 fps, loop +0.4 ms) as the robust one.
+- 'mid' cost what 'minimum' costs once the partition stopped paying for it.
+
+**DECISION (A0, train 19):** the lever lands, and gamer stays at 'minimum' (strictly better than master everywhere).
+'mid' on gamer goes to the user. The one-run Cub taxi unevenness 11.8 -> 13.6 % is inside the slack, but evenness is the
+user's first rule. The preset change waits on a branch of its own: claude/train-18-treesnear-mid.
+
+**GATES:** TREES, TREEHIT, COVER PASS (node, cpu lock).
+
+**OBSERVED, NOT CHANGED: a tree's colour can move with its slot.** The partition writes a dealt tree's MATRIX into the
+rung's slot k (0..count) but the instance COLOURS (treeVary's +-10 % lightness) were written once at build, by series
+order. A tree takes the colour of whatever slot it lands in, so its lightness can change when the dealt list changes.
+It was so before this lever (fewer refreshes now). The fix is to write the colour with the matrix (rec.cols, a copy per
+dealt tree) if anyone sees it.
