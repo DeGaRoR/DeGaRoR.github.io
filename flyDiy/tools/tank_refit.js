@@ -22,7 +22,7 @@
 //   capacity the design's own; then down 10 % a step until something fits
 // One card a process (the layers carry state across builds: G1106.2).
 //
-//   node tools/tank_refit.js [--only cub,jodel] [--json out.json] [--jobs 3]
+//   node tools/tank_refit.js [--only cub,jodel] [--json out.json] [--jobs 3] [--sweep]
 // No --help: an unknown flag is ignored.
 'use strict';
 const fs = require('fs');
@@ -44,14 +44,15 @@ if (!argv.includes('--child')) {
   const one = () => new Promise(res => {
     const i = next++; if (i >= keys.length) return res(false);
     const jf = path.join(tmp, keys[i] + '.json');
-    const ch = spawn(process.execPath, ['--max-old-space-size=4096', __filename, '--child', '--only', keys[i], '--json', jf], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const ch = spawn(process.execPath, ['--max-old-space-size=4096', __filename, '--child', '--only', keys[i], '--json', jf].concat(argv.includes('--sweep') ? ['--sweep'] : []), { stdio: ['ignore', 'pipe', 'pipe'] });
     let log = '';
     ch.stdout.on('data', d => { log += d; }); ch.stderr.on('data', d => { log += d; });
     ch.on('close', code => {
       let j = null; try { j = JSON.parse(fs.readFileSync(jf, 'utf8')); } catch (e) {}
       out[i] = { key: keys[i], code, j, log };
       const r = j && j.vessels || [];
-      console.log('  ' + keys[i].padEnd(14) + (j ? r.map(v => v.how + ' ' + v.old.capacity + ' -> ' + (v.new ? v.new.capacity : '-') + (v.shift != null ? ' (moved ' + (v.shift * 1000).toFixed(0) + ' mm)' : '')).join('; ') || 'no body tank' : 'FAILED exit ' + code + ' ' + log.split('\n').slice(-3).join(' | ')));
+      console.log('  ' + keys[i].padEnd(14) + (j ? r.map(v => v.how + ' ' + (v.design != null ? v.design : v.old.capacity) + ' -> ' + (v.new ? v.new.capacity : '-') + (v.shift != null ? ' (moved ' + (v.shift * 1000).toFixed(0) + ' mm)' : '') +
+        (v.sweep ? ' [sweep: max ' + v.sweep.maxFit + ', monotone ' + v.sweep.monotone + ', agrees ' + v.sweep.agrees + ']' : '')).join('; ') || 'no body tank' : 'FAILED exit ' + code + ' ' + log.split('\n').slice(-3).join(' | ')));
       res(true);
     });
   });
@@ -176,6 +177,21 @@ EN.vessels.forEach((v0, i) => {
     }
   }
   rec.tried = tried;
+  // --sweep (A0, 2026-10-01): THE BISECTION IS ONLY VALID IF "SOMETHING FITS" IS
+  // MONOTONE IN CAPACITY - the candidate grid is laid out from the bay less the
+  // tank's own extent, so it moves with the length, and nothing guarantees it.
+  // A linear sweep, 20 levels from the design down, every level asked in
+  // full: the fitting levels must be one run from the bottom up, and the
+  // bisected answer within one step of the sweep's largest
+  if (argv.includes('--sweep')) {
+    const lv = [];
+    for (let k = 20; k >= 1; k--) { const c = Math.round(design * k / 20 * 10) / 10; lv.push({ cap: c, fits: !!tryCap(c).v }); }
+    const fit = lv.filter(q => q.fits).map(q => q.cap);
+    const maxFit = fit.length ? Math.max(...fit) : 0;
+    const monotone = lv.every(q => q.fits === (q.cap <= maxFit));
+    rec.sweep = { levels: lv, maxFit, monotone, bisected: got ? got.v.capacity : 0,
+                  agrees: Math.abs((got ? got.v.capacity : 0) - maxFit) <= design / 20 + 0.05 };
+  }
   if (!got) { rec.how = 'none'; rec.new = null; return; }
   const v = got.v;
   rec.how = v.capacity >= rec.design - 0.05 ? 'placement' : 'capacity';
