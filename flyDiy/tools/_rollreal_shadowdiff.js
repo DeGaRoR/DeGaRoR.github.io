@@ -2,7 +2,7 @@
 // _rollreal_shadowdiff.js - WHAT CASTS AT THE STAND AFTER THE ROLL-OUT (G1119): dev.html in node, the Cub rolled out, 60 flight
 // frames at the stand, then ONE frame's shadow-pass draws listed by object (name / type / its chain), written to <out>.json -
 // run it with and without the world roll (--q rollreal=0) and diff: what the roll left casting.
-//   node tools/_rollreal_shadowdiff.js <out.json> [--q 'rollreal=0']
+//   node tools/_rollreal_shadowdiff.js <out.json> [--q 'rollreal=0'] [--after N] [--cooked]
 'use strict';
 const fs = require('fs');
 const { openPage } = require('./_page_node.js');
@@ -10,7 +10,9 @@ const argv = process.argv.slice(2);
 const OUT = argv[0];
 const Q = (i => i >= 0 ? argv[i + 1] : '')(argv.indexOf('--q'));
 (async () => {
-  const P = await openPage({ quiet: true, wip: 'default', query: 'parkcook=0' + (Q ? '&' + Q : '') });
+  // (--cooked: the parked aeroplanes from the tree's cook, as GATE FRAMECOST draws them; default parkcook=0, the live capture)
+  const COOKED = argv.includes('--cooked');
+  const P = await openPage({ quiet: true, wip: 'default', query: [COOKED ? '' : 'parkcook=0', Q].filter(Boolean).join('&') });
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 900000);
   await P.frames(30);
