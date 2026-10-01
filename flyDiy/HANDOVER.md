@@ -67261,3 +67261,58 @@ PARTS, ARCHETYPES, PILOTMATRIX, GEN, PILOT, TAKEOFF, FLEX, SEAPLANE, HOTHIGH, SO
 FRAMECOST not re-run: G1155 changes only the five cards' vessel lists, and none of them is drawn in the default
 world (the parked aeroplanes are arch:c172, arch:cub, arch:jodel - parked_cook --check). The flight comparison is
 21 cells x 2 trees (above), on top of the gate's quick matrix.
+## G794-G796 - W-LOOK: THE WATER'S LINE: the reflection is the surface's, the bed is wet, the column is coastal (2026-10-01, a look task from the user via A0, local GPU)
+
+The user, on a still of the editor-drawn harbour (stilt houses and piers, ~40 m up, oblique, afternoon): "water
+feels much too transparent in this screenshot, I can't even clearly see where the water line lies". Stills:
+tools/perf/wlook_evidence/ - before_after.jpg (the C2c house views of z_harbour h6 s / e and h2 s, and a 300 m coast),
+cmp_h6_e_final.jpg (the east view across the variants), wl_sed2w_h6_e.jpg (the sed 2 option); the rest kept local.
+
+**MEASURED FIRST.**
+1. THE REFLECTION WENT WITH THE COLUMN. The water is ALPHA-BLENDED with the column's opacity as its alpha
+   (1 - exp(-opa d)), so EVERYTHING it drew - the body's colour and the sky's / the mirror's reflection - was scaled by
+   it. At the harbour a = 0.54-0.58 (half the reflection gone), and toward the line (d -> 0) the reflection faded out
+   with the body: nothing marked where the water starts.
+2. THE COLUMN IS A GUESS. The shader's depth is the coast field's 1:12 beach (G460.5, wDepth): a node probe over
+   z_harbour (2 711 water points) and the C2c-drawn zone (1 023) read a median 2.9 / 2.6 m against a TRUE column
+   (waterH - terrainH) of 4-8 m (the island's floor drops to -5 m at the line). Kept: G460.5 chose it for the shallows'
+   turquoise fringe from altitude, and the shader has no depth buffer (the water draws inside the MSAA pass).
+3. THE RATE COUNTED ONLY THE BACKSCATTER. opa = 2.5 (a + b_b), floored at 0.3/m: the sound's beam attenuation was
+   c(550) 0.20/m - a Secchi depth near 28 m, tropical-clear (Southeast Alaska's coastal water reads 3-10 m).
+4. THE SHORE CUE EXISTED BUT DID NOT READ. G460.5's lap foam (the last 14 m of the field, torn by a 7 m noise) is the
+   bright dapple at the cliff foot - from 40 m a speckled sand, not a waterline (the debug views 7 / 6 / 4,
+   not shipped). And the bed under the water wore the DRY beach's paint.
+
+**G794 THE REFLECTION IS THE SURFACE'S (water.js).** The blend is kept (src x alpha + dst x (1 - alpha): fog and the
+aerial perspective act on the straight colour as before) and the colour PREMULTIPLIED by hand at <opaque_fragment>:
+alpha = the bed's cover a + F (1 - a) (F the still surface's Schlick, wFv, inside the shore fade), colour = (a x
+totalDiffuse + the specular x the shore fade) / cover - the body as it was, the reflection WHOLE, the bed behind
+through (1 - F)(1 - a). And the slant: the bed's light crosses the column down the refracted ray and back up, the
+two-way rate x (1 + 1 / cos theta_t) / 2 (n 1.333: x1 straight down, x1.26 at grazing). Dials WATER.set({ reflKeep,
+slant }) - 0, 0 is G460's blend to the bit (the before stills were taken that way in the same page).
+
+**G795 THE BED IS WET (render_world.js, the ground stack).** x0.55 below the sea's level and through the swash band
+(+0.9 m -> -0.3 m), within the coast field's first 60 m inland (a low meadow stays dry): a wet grain reflects about
+half its dry albedo (Lekner & Dorf 1988). WORLD.ground.set({ wet }) (0 = the old paint).
+
+**G796 THE BEAM, AND A COASTAL SOUND (water.js bodyOptics).** The bed's IMAGE fades with every scattering, so the
+rate is the beam c = a + b (b_bw / 0.5 for the water, b_bp / 0.019 for particles, Petzold's coastal ratio), x2 for
+the two legs: sea 0.30 -> 0.39 at the old constituents; lake 1.79 -> 1.56; river 0.84 -> 1.71. And the sound's
+sediment 0.5 -> 1 g/m^3: c 0.30, Secchi ~18 m, sea opa 0.60, a little greener body.
+
+**THE LOOK (the same page, the same paused moment, the C2c cameras).** The east view: the turquoise glass over sand
+becomes a sound carrying the sky and its clouds into the shallows, the line where it meets the foam and the wet band;
+h2: a dark, reflective sound with the shore drawn; h6 south: better, but the cliff foot keeps a speckled band - the
+lap foam and a column the shader thinks ~0 deep where the bed is 5 m down (only a depth source fixes that).
+THE PRICE: G460.5's turquoise fringe seen from 300 m narrows to a faint rim (sed is ONE number:
+WATER_TYPES.sea.sed - 0.5 keeps more fringe, 2 (Secchi ~11 m: wl_sed2w_h6_e.jpg) closes it).
+
+**COST.** GATE FRAMECOST counts NOTHING new: with both trees' builds stale the same way, the census (cub, stand and
+taxi) is identical counter for counter, 372 programs both. Its red on any rebuilt branch is the parked cook's
+signature (FLYDIY_BUILD): the page captures the parked aeroplanes live (+138 main draws) until the train re-cooks
+(parked_cook.js). TIMED (frame_perf, gamer msaa, 150 frames, A B A B in one hold, master made equally stale vs this):
+the scene pass over the sea at 300 m 17.07 / 17.13 ms against 17.06 / 17.05; over the harbour at 40 m 12.44 / 12.55
+against 12.41 / 12.43 - the same draws (703 / 795-800) and triangles; the division and the slant are free
+(the frame_perf JSONs kept local).
+
+GATES: WATER, SPLAT, WORLDRENDER, PROGRAMS, GFX, UISMOKE PASS; FRAMECOST red only on the stale parked cook (above).
