@@ -435,10 +435,12 @@ function runB(mutSrcH) {
     : {} };
   let api = null, err = null;
   try {
-    api = new Function('THREE', 'document', 'window', 'console',
+    // (MATLIB: the manifest loads matlib.js first; the stub's ask makes the material as matlib's 'std' shape would)
+    api = new Function('THREE', 'document', 'window', 'console', 'MATLIB',
       '"use strict";\n' + srcH +
       '\nreturn { genHangarBuild, genHangarSupported };')(
-      T, doc, {}, { log() {}, warn() {}, info() {}, error() {} });
+      T, doc, {}, { log() {}, warn() {}, info() {}, error() {} },
+      { shared: (TH, shape, p) => new TH.MeshStandardMaterial(Object.assign({}, p)) });
   } catch (e) { err = e; }
   if (!ok(!err, 'hangar.js evaluates under the stub' +
           (err ? ' (' + err.message + ')' : ''))) return;

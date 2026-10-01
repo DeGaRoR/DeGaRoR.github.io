@@ -2204,7 +2204,8 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
 // render_world merges the four into one draw. No liner on the door wall: the eye that sees in is outside it.
 if (OPEN) {
   const IN = 0.3, hh = EAVE - 0.05;
-  M.liner = new THREE.MeshStandardMaterial({ color: 0x4a4740, roughness: 1, metalness: 0, envMapIntensity: 0.4 });
+  // (MATLIB's, scoped: AS4a - the one place a material is made)
+  M.liner = MATLIB.shared(THREE, 'std', { color: 0x4a4740, roughness: 1, metalness: 0, envMapIntensity: 0.4 }, 'shed-liner');
   const plane = (w, h, rx, ry, x, y, z) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), M.liner);
     m.rotation.set(rx, ry, 0); m.position.set(x, y, z);

@@ -318,8 +318,11 @@ async function main() {
       ok(t2.ran.includes('snapshot') && t2.ran.includes('spec') && t2.ran.includes('craft') && t2.ran.every(id => AIRCRAFT.includes(id)),
          'roll-out 2 (a slider moved) runs ONLY the aircraft\'s steps', 'ran ' + t2.why.join(' '));
       ok(!t2.ran.some(id => WORLD.includes(id)), 'roll-out 2 runs no world step', t2.ran.filter(id => WORLD.includes(id)).join(' ') || 'none');
-      // (the aeroplane's own placement reads the ground under its wheels: ~3 100 terrainH a placement; the ring alone is ~700 000)
-      ok(!(t2.total['bytes.texImage2D'] > 0) && !(t2.total['world.terrainH'] > 20000), 'roll-out 2 uploads no world texture and samples no ground en masse', fmt(t2.total));
+      // (the aeroplane's own placement reads the ground under its wheels: ~3 100 terrainH a placement; the ring alone is ~700 000.
+      // G1115: the roll-out shot plays in the world (the world roll), whose frames tick the world like flight's (~80 terrainH a
+      // frame, ~33 000 a shot) - the same in roll-out 3 (no change): roll-out 2 is judged by what it samples beyond that)
+      const gx = (t2.total['world.terrainH'] || 0) - (t3.total['world.terrainH'] || 0);
+      ok(!(t2.total['bytes.texImage2D'] > 0) && !(gx > 20000), 'roll-out 2 uploads no world texture and samples no ground en masse (beyond the shot's world frames: roll-out 3's)', 'terrainH ' + (t2.total['world.terrainH'] || 0) + ' - ' + (t3.total['world.terrainH'] || 0) + ' = ' + gx + '; ' + fmt(t2.total));
       for (const t of [i1, i2]) ok(t.ran.every(id => ['shed', 'board', 'frames'].includes(id)), 'the way back runs the shed\'s three steps only', t.ran.join(' '));
       for (const s of R.shed) ok(s.worldUpdate === 0 && s.premTick === 0 && s.worldUmw === 0, 'NOTHING TICKS THE WORLD IN THE SHED - ' + s.at, 'worldUpdate ' + s.worldUpdate + ', premises tick ' + s.premTick + ', world updateMatrixWorld ' + s.worldUmw + ' over ' + s.frames + ' frames');
       for (const r of R.reveal || []) { console.log('  the first 40 frames ' + r.at + ': ' + fmt(r.cost) + (r.progs.length ? '; new programs: ' + r.progs.join(' | ') : ''));

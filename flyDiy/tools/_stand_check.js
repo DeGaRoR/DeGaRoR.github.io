@@ -35,7 +35,7 @@ console.log('GATE STAND');
 
 // ---- 1. mergeShell ------------------------------------------------------------------------------------
 {
-  const code = lift(RW, '    const SHELL = { merge: true, castMin: 0.5 };', '    let shedNode = null;');
+  const code = lift(RW, '    const SHELL = { merge: true, castMin: 0.5', '    let shedNode = null;');
   ok(!!code, '1 mergeShell found in render_world.js (SHELL .. shedNode)');
   if (code) {
     const ctx = vm.createContext({ THREE, Math, Map, Set, Float32Array, Uint16Array, Uint32Array, Object, Array });
