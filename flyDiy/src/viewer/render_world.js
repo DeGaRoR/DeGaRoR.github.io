@@ -1029,7 +1029,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // rest re-posed. And only what can shade the craft is tagged: a caster whose sphere is under NEAR_MIN_R (a post,
   // a crate, a trim) keeps the far map's shadow - the near map drew 412 meshes / 1.05 M triangles a frame there.
   const NEAR_MIN_R = 0.75;
-  let nearTagTick = 0, nearReg = null;
+  let nearTagTick = 0, nearReg = null, nearRetagged = 0;
+  // G1119 (ROLLOUT-REAL): THE NEAR CASTERS RE-TAGGED AT ONCE when the aim has jumped (the world roll hands the aeroplane to the
+  // stand ~25 m from where it was tagged): the tag runs every 30th update, so the near map kept the shed's casters for up to
+  // half a second after the hand-over (FRAMECOST's stand: +76 shadow draws after a roll). The next update tags
+  const nearRetag = () => { nearTagTick = 0; return nearRetagged; };
   const _nS = THREE.Sphere ? new THREE.Sphere() : null;   // (the headless world test's THREE stub has no Sphere)
   const nearWatched = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
   const nearCraftRoot = o => { let c = null; for (let p = o; p; p = p.parent) if (p.userData && p.userData.craft) c = p; return c; };
@@ -1051,6 +1055,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   }
   const nearTag = cg => {
     if (!sunNear || !_nS || !nearWatched || (nearTagTick++ % 30)) return;
+    nearRetagged++;
     if (!nearReg) { nearReg = new Map(); nearWatch(scene); }         // the first pass watches what the boot built; adds and removes after it announce themselves
     const NL = SHADOW_NEAR.NEAR_LAYER, R = SHADOW_NEAR.S.half * 3, nearNow = [];   // G1005: the tagged casters' spheres, for the craft cascade's walk
     for (const [o, c] of nearReg) {
@@ -6556,6 +6561,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
            setShedDims: d => setShedDims(d),
            shell: o => shellDial(o),   // G600: { merge, castMin } -> the shed re-stood, its mesh count
            shedFrame: () => shedFrame(),   // G1115: { node, dims, door, doorAxis, open } | null - the roll-out shot's building
+           nearRetag: () => nearRetag(),   // G1119: the near casters tagged on the next update (an aim that jumped)
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            treeAtlases,   // the impostor sheets by subject, readable (tools/imp_audit.js)
            // the world's own light panel — the same shape the shed exposes, so
