@@ -40,7 +40,7 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
   const built = () => { try { const r = W.TREE_FILL && W.TREE_FILL.cover && W.TREE_FILL.cover(); const st = r && r.stat ? r.stat() : null; return st ? st.built + '/' + st.live + (st.hidden ? 'h' : '') : -1; } catch (e) { return -1; } };
   cap.built = built;
   row = () => {
-    if (cap.world && cap.world.h && !cap.world.h.done) cap.builtAtEnd = built();
+    if (cap.world && cap.world.h && !cap.world.h.done) { cap.builtAtEnd = built(); const pc = pace(); if (pc) cap.paceRoll.push(pc.shotCap); }
     const o = cap.world.o, h = cap.world.h, rs = recSum(), dl = lastRec ? { d: rs.d - lastRec.d, b: rs.b - lastRec.b, links: rs.links - lastRec.links, main: rs.main - lastRec.main, shadow: rs.shadow - lastRec.shadow, other: rs.other - lastRec.other } : null; lastRec = rs;
     cap.rows.push({ busy: !h.done, t: h.t, cam: [o.camera.position.x, o.camera.position.y, o.camera.position.z],
       craft: [o.craft.position.x, o.craft.position.y, o.craft.position.z, o.craft.quaternion.w], simT: o.sim.t, progs: progs(), parent: o.craft.parent === W.WORLD.scene, gl: dl });
@@ -59,6 +59,9 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
   const p0 = progs();
   // G1119: the cover ring's cells built (cover_ring.js STAT.built) - at the click, at the cut, at the shot's end, after the flight's first frames
   const b0 = built(); cap.builtAtCut = null;
+  // G1119 THE PACE: the player's mode and auto's own cap before the click, the shot's cap through the roll, both after
+  const pace = () => { const s2 = W.FLYDIY_PACE && W.FLYDIY_PACE.state ? W.FLYDIY_PACE.state() : null; return s2 ? { mode: s2.mode, shotCap: s2.shotCap, autoCap: s2.autoCap } : null; };
+  const pace0 = pace(); cap.paceRoll = [];
   W.document.getElementById('bGo').click();
   const tripDone = () => { const T = W.FLYDIY_TRIPS; const t = T && T[T.length - 1]; return !!(t && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'); };
   await P.until(tripDone, 900000);
@@ -91,6 +94,10 @@ const check = (ok, label, extra) => { console.log((ok ? '  ok     ' : '  FAIL   
       const n = g.length, seg = [[0, 0.33, 'establishing'], [0.33, 0.67, 'middle'], [0.67, 1, 'dolly end']];
       console.log('  the world roll by third (main / shadow median): ' + seg.map(([a, b, l]) => { const s2 = g.slice(Math.floor(n * a), Math.floor(n * b)); return l + ' ' + q(s2, 'main', 0.5) + ' / ' + q(s2, 'shadow', 0.5); }).join(', ')); }
     check(mx(g, 'links') === 0, 'no program linked on a world-roll frame', mx(g, 'links'));
+    { const p1 = pace(), AA = W.FLYDIY_AA, aS = AA && AA.autoState ? AA.autoState() : null;
+      check(cap.paceRoll.length > 300 && cap.paceRoll.every(c => c === 30), 'G1119 the world roll at the shot’s own 30 cap (' + cap.paceRoll.length + ' frames)', JSON.stringify(cap.paceRoll.slice(0, 5)));
+      check(p1 && pace0 && p1.shotCap === 0 && p1.mode === pace0.mode && p1.autoCap === pace0.autoCap, 'G1119 the pace handed back: the player’s mode and auto’s cap as at the click (' + JSON.stringify(pace0) + ' -> ' + JSON.stringify(p1) + ')');
+      check(!(AA && AA.autoPause) || (aS && aS.paused === false), 'G1119 the AA auto-scale unpaused after the shot', JSON.stringify(aS)); }
     console.log('  programs: ' + p0 + ' before the click, ' + (shot[0] ? shot[0].progs : '-') + ' at the cut, ' + (last ? last.progs : '-') + ' at the shot\'s end, ' + progs() + ' after 20 flight frames');
   }
   const errs = P.errors.filter(e => !/sheet EMPTY/.test(e));

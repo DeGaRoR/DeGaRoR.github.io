@@ -445,11 +445,20 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
       console.log('  SHOT PROFILE after the cut: ' + tot.toFixed(0) + ' ms busy; self:\n' + top(self, 25) + '\n  inclusive:\n' + top(incl, 40));
     }
     shotStat = tripStat(JSON.parse(await ev('JSON.stringify(__RP.fr.filter(r => r[0] >= ' + clickAt + ' && r[0] <= ' + shotEndAt + ').map(r => r[1]))')));
-    const tr = JSON.parse(await ev("JSON.stringify((() => { const L = window.FLYDIY_TRIPS || []; const t = L[L.length - 1]; return t ? { anim: t.anim, where: t.animWhere || null, ms: t.ms, cutMs: t.cutMs, dissolveMs: t.dissolveMs, planMs: t.planMs } : null; })())"));
+    const tr = JSON.parse(await ev("JSON.stringify((() => { const L = window.FLYDIY_TRIPS || []; const t = L[L.length - 1]; return t ? { anim: t.anim, where: t.animWhere || null, ms: t.ms, cutMs: t.cutMs, dissolveMs: t.dissolveMs, planMs: t.planMs, cutAt: t.cutAt == null ? null : t.cutAt } : null; })())"));
     const lt = JSON.parse(await ev('JSON.stringify(__RP.lt)')).filter(x => x[0] >= clickAt && x[0] <= shotEndAt);
     // the timeline (ms since the click): every frame over 20 ms and every long task, to place them (the click, the check, the cut)
     const tl = JSON.parse(await ev('JSON.stringify(__RP.fr.filter(r => r[0] >= ' + clickAt + ' && r[0] <= ' + shotEndAt + ' && r[1] > 20).map(r => [Math.round(r[0] - ' + clickAt + '), +r[1].toFixed(1)]))'));
-    if (shotStat) Object.assign(shotStat, { secs: +((shotEndAt - clickAt) / 1000).toFixed(2), trip: tr, longTasks: lt.length, worstTask: lt.reduce((m, x) => Math.max(m, x[1]), 0),
+    // G1119: THE WORLD ROLL'S OWN WINDOW (the cut to the shot's end; the trip's cutAt, page clock): its delivered rate, p99, the
+    // UNEVEN share (consecutive intervals whose refresh count changes - the judder a 60 Hz screen shows: the ratchet's measure)
+    let roll = null;
+    if (tr && tr.cutAt != null) {
+      const dts = JSON.parse(await ev('JSON.stringify(__RP.fr.filter(r => r[0] > ' + (tr.cutAt + 100) + ' && r[0] <= ' + shotEndAt + ').map(r => r[1]))'));
+      roll = tripStat(dts);
+      if (roll && dts.length > 10) { let n = 0, ch = 0, prev = null; for (const d of dts) { if (!(d > 0)) continue; const k = Math.max(1, Math.round(d / (1000 / 60))); if (prev !== null) { n++; if (k !== prev) ch++; } prev = k; }
+        const s2 = dts.filter(d => d > 0).sort((a, b) => a - b); roll.uneven = n ? +(ch / n).toFixed(3) : null; roll.p99 = +s2[Math.min(s2.length - 1, Math.floor(s2.length * 0.99))].toFixed(1); }
+    }
+    if (shotStat) Object.assign(shotStat, { secs: +((shotEndAt - clickAt) / 1000).toFixed(2), trip: tr, roll, longTasks: lt.length, worstTask: lt.reduce((m, x) => Math.max(m, x[1]), 0),
       slowFrames: tl, tasks: lt.map(x => [Math.round(x[0] - clickAt), x[1]]) });
     console.log('  SHOT ' + JSON.stringify(shotStat)); } catch (e) { console.log('  (shot: ' + (e && e.message) + ')'); }
   // the flight: make sure the sim runs (the circuit button, if the roll-out left it held)

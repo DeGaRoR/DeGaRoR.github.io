@@ -6838,7 +6838,7 @@
     const toFlight = () => { tripClose(trip); if (reveal && !inGarage) { reveal(); if (stage === 'world' && flReveal > 0) flRevealIn = 0; } };   // (back in the shed under it: no flight)
     rollAnimSkip = () => { try { if (h && !h.done) h.skip(); } catch (e) {} if (stage === 'shed') fin('skipped', next); };
     setTimeout(() => { if (over) return; try { ROLLANIM.cancel(); } catch (e) {} raBusy = false;
-      if (stage === 'world') { rollHold = false; fin('timeout', toFlight); } else fin('timeout', next); }, 30000);
+      if (stage === 'world') { rollHold = false; if (PACE && PACE.shot) PACE.shot(0); fin('timeout', toFlight); } else fin('timeout', next); }, 30000);
     const how = hh => !hh ? 'threw' : hh.skipped ? (hh.plan ? 'skipped' : 'refused: ' + hh.skipped) : 'played';
     h = rollAnimPlay((cage, hh) => {    // (a skip or a clean refusal calls this before play returns)
       raSide = hh && hh.plan ? hh.plan.side : 0;
@@ -6852,6 +6852,10 @@
       tripPhase(trip, 'world', () => {   // (no step to run - worldRollWhy - so this is synchronous)
         if (over) return;
         rollHold = true; raBusy = true;   // the flight holds on the stand while the shot rolls onto it
+        // G1119: THE WORLD ROLL AT AN EVEN 30 (the user's pick over an uneven 55: the moving aeroplane in the real world costs
+        // what taxi costs); handed back at every way out (onDone, the catch, the timeout, a roll-in under it)
+        if (PACE && PACE.shot) PACE.shot(30);
+        trip.cutAt = Math.round(tCut);
         poseModel();                      // (the model on the stand now: the plan measures the aeroplane as drawn there)
         if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();   // (the tyres' shadows made now: the shot carries them)
         const end = revealPose(), tPlan = perfNow();
@@ -6859,11 +6863,11 @@
           h = ROLLANIM.playWorld({ craft, camera, model, def, sim, shed: WF.shedFrame(), end,
             ground: world && typeof world.terrainH === 'function' ? (x, z) => world.terrainH(x, z) : null,
             contact: contactMesh || null, cost: raSpheres ? raDrawCost : null,
-            onDone: w => { rollHold = false; raBusy = false;
+            onDone: w => { rollHold = false; raBusy = false; if (PACE && PACE.shot) PACE.shot(0);
               if (w && w.skipped === 'skipped by the player') rollAnimSwallow = perfNow() + 500;
               trip.animWorld = w && w.plan ? { L: +w.plan.L.toFixed(1), T: +w.plan.T.T.toFixed(2), eye0: w.plan.eye0, spheres: raSpheres ? raSpheres.length / 4 : 0 } : (w ? w.skipped : null);
               fin(how(w), toFlight); } });
-        } catch (e) { console.warn('rollanim world:', e && e.message); rollHold = false; raBusy = false; fin('threw', toFlight); }
+        } catch (e) { console.warn('rollanim world:', e && e.message); rollHold = false; raBusy = false; if (PACE && PACE.shot) PACE.shot(0); fin('threw', toFlight); }
         trip.planMs = +(perfNow() - tPlan).toFixed(1); trip.cutMs = +(perfNow() - tCut).toFixed(1);
       });
     }, why ? { follow: false } : { roll: false });
@@ -11125,7 +11129,7 @@
     const RIG = !!(nav.webdriver || /HeadlessChrome/.test(nav.userAgent || ''));
     const FORCE = !!(W.location && /[?&]pace=1/.test(W.location.search || ''));
     const P = {
-      mode: 'auto', cap: 60, legacy: RIG && !FORCE,
+      mode: 'auto', cap: 60, legacy: RIG && !FORCE, shotCap: 0,   // G1119: a shot's own cap (shot(30)), over mode and auto's state
       acc: 0, lastT: 0, due: 0, dt: 1 / 60, steps: 1, t0: 0,
       iv: [], work: [], hist: [], strikes: 0, goods: 0, trial: null, holdUp: 0, trials: 0, upT: -1e9, lastWork: 0,
       stats: { down: 0, up: 0, trialsFailed: 0, guarded: 0 },
@@ -11137,7 +11141,7 @@
     // G620: a gap the page spent HIDDEN (a tab away) is not a freeze - the moment it was hidden, on rAF's clock
     if (W.document && W.document.addEventListener) W.document.addEventListener('visibilitychange', () => { if (W.document.hidden) P.hiddenT = performance.now(); });
     try { const g = JSON.parse(W.localStorage.getItem('flydiy.gfx') || 'null'); if (g && g.fps != null) P.mode = g.fps; } catch (e) {}
-    const capOf = () => (P.mode === 'auto' ? P.cap : P.mode === 'off' ? 0 : +P.mode || 0);
+    const capOf = () => (P.shotCap ? P.shotCap : P.mode === 'auto' ? P.cap : P.mode === 'off' ? 0 : +P.mode || 0);
     const med = a => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
     const tellScale = () => { const AA = W.FLYDIY_AA; if (AA && AA.autoTarget) AA.autoTarget(1000 / (capOf() || 60)); };
     function setCap(c, now) { if (c === P.cap) return; P.cap = c; P.iv = []; P.work = []; P.strikes = P.goods = 0; P.t0 = now; tellScale(); }
@@ -11188,7 +11192,7 @@
       if (P.legacy) return;
       if (ran == null) ran = steps;
       if (ran > 0 && physMs > 0) { const s = physMs / ran; P.stepMs = P.stepMs ? P.stepMs + 0.1 * (s - P.stepMs) : s; P.lastPhys = physMs; }
-      if (P.mode !== 'auto') return;
+      if (P.mode !== 'auto' || P.shotCap) return;          // (G1119: a shot's frames are no reading of the game's)
       P.work.push(workMs - (steps > 1 ? physMs * (steps - 1) / steps : 0));   // the frame's work with ONE step
       if (P.iv.length < 60) return;
       const w = med(P.work), r = 1000 * P.iv.length / P.iv.reduce((a, b) => a + b, 0);   // G994: the reading's DELIVERED rate (fps)
@@ -11214,7 +11218,21 @@
         if (P.goods >= 2 && now > P.holdUp) { P.stats.up++; P.trial = { t: now }; P.upT = now; setCap(60, now); }
       }
     }
+    // G1119 THE EVEN 30 FPS SHOT (the user, 2026-10-01: the roll-out shot at a steady 30 rather than an uneven 55): shot(30)
+    // caps the frames at 30 over the player's setting, and auto takes no reading meanwhile; shot(0) hands the frames back
+    // with auto's cap, trials and backoff exactly as they were, its readings started afresh (the shot's frames are not the
+    // game's) - so the flight's first second runs the policy the player had, with no step in it
+    function shot(cap) {
+      const c = +cap === 30 || +cap === 60 ? +cap : 0;
+      if (c === P.shotCap) return P.shotCap;
+      P.shotCap = c; P.iv = []; P.work = []; P.due = 0; P.t0 = performance.now();
+      // the AA's auto-scale paused, not re-targeted (a target change resets it and a 33 ms budget would probe the scale up,
+      // to come down after the reveal - a step): its scale and target are the game's when the shot ends
+      const AA = W.FLYDIY_AA; if (AA && AA.autoPause) AA.autoPause(c > 0);
+      return P.shotCap;
+    }
     function set(mode) {
+      P.shotCap = 0;
       P.mode = (mode === 'auto' || mode === 'off') ? mode : (+mode === 30 ? 30 : 60);
       P.cap = P.mode === 'auto' ? 60 : (P.mode === 'off' ? 60 : P.mode);
       P.iv = []; P.work = []; P.strikes = P.goods = 0; P.trial = null; P.holdUp = 0; P.trials = 0; P.upT = -1e9; P.due = 0;
@@ -11224,7 +11242,7 @@
     // G820 (C1c): under the physics worker (app.js PACE.worker = SIMW.perf) the clock's readings are the WORKER'S: it
     // owns the sim's time, its step's cost and its dilation (ARCH §2.3) - the page's own are what its frames owed
     const wk = () => { const f = api.worker; const w = f ? f() : null; return w && w.live ? w : null; };
-    const api = { frame, hold, end, set, tellScale, worker: null,
+    const api = { frame, hold, end, set, shot, tellScale, worker: null,
       recent: () => (P.legacy ? null : P.hist.slice()),   // the RENDERED frames' intervals (ms), for the menu's readout - freezes included (G620)
       freezes: () => ({ n: P.frz.n, maxMs: P.frz.maxMs, agoS: P.frz.n ? (performance.now() - P.frz.lastT) / 1000 : null, away: P.frz.away }),   // G620: the stalls of 250 ms or more, kept
       get dt() { return P.dt; }, get steps() { return P.steps; },
@@ -11235,7 +11253,7 @@
       get alpha() { return P.legacy ? 1 : Math.max(0, Math.min(1, P.acc * 60 + 0.25)); },
       get dilation() { const w = wk(); if (w) return w.dil; return P.wallW > 0.2 ? P.simW / P.wallW : 1; },   // the sim's seconds over the wall's, the last second (G612)
       budgetMs: () => 1000 / (capOf() || 60),
-      state: () => ({ mode: P.mode, cap: capOf(), legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0,
+      state: () => ({ mode: P.mode, cap: capOf(), shotCap: P.shotCap, autoCap: P.cap, legacy: P.legacy, steps: P.steps, dt: P.dt, stats: Object.assign({}, P.stats), holdUpS: Math.max(0, (P.holdUp - performance.now()) / 1000) | 0,
                       dilation: api.dilation, stepMs: wk() ? wk().stepMs : P.stepMs, otherMs: P.otherMs, droppedS: wk() ? wk().droppedS : P.droppedS, workMs: P.lastWork, rateFps: P.lastRate || 0, trials: P.trials,
                       simw: !!wk() }) };
     W.FLYDIY_PACE = api;
@@ -11498,7 +11516,7 @@
     // them (rollanim.js; a no-op when nothing plays)
     if (typeof ROLLANIM !== 'undefined') {
       // left the shed under it (or went back into the shed under the world roll, G1115): put back
-      if (ROLLANIM.busy() && inGarage === ROLLANIM.world()) { if (inGarage) rollHold = false; ROLLANIM.cancel(); raBusy = false; }
+      if (ROLLANIM.busy() && inGarage === ROLLANIM.world()) { if (inGarage) { rollHold = false; if (PACE.shot) PACE.shot(0); } ROLLANIM.cancel(); raBusy = false; }
       ROLLANIM.frame(fdt);
     }
     poseModel();

@@ -465,6 +465,9 @@
         if (!gl.getParameter(ext.GPU_DISJOINT_EXT)) AUTO.gpu.push(gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6);
         gl.deleteQuery(q);
       }
+      // G1119: PAUSED under a shot's own frame cap (app.js PACE.shot): its frames are no reading of the game's - the queries
+      // drained, nothing read, nothing decided; the scale and the target are the game's when the pause lifts
+      if (AUTO.paused) { AUTO.fr = []; AUTO.gpu = []; AUTO.last = 0; return; }
       if (AUTO.fr.length < 30) return;
       const f = aMed(AUTO.fr), g = AUTO.gpu.length >= 5 ? aMed(AUTO.gpu) : null;
       AUTO.fr = []; AUTO.gpu = [];
@@ -544,9 +547,10 @@
 
     return {
       render, setSize, setTier, setScale, scale: () => S.scale, dispose,
-      autoScale, autoState: () => ({ on: AUTO.on, scale: S.scale, step: AUTO.i, probing: !!(AUTO.probe || AUTO.up), holdDownS: Math.max(0, (AUTO.holdDown - performance.now()) / 1000) | 0, stats: Object.assign({}, AUTO.stats) }),
+      autoScale, autoState: () => ({ on: AUTO.on, paused: !!AUTO.paused, scale: S.scale, step: AUTO.i, probing: !!(AUTO.probe || AUTO.up), holdDownS: Math.max(0, (AUTO.holdDown - performance.now()) / 1000) | 0, stats: Object.assign({}, AUTO.stats) }),
       // G586: THE BUDGET IS THE FRAME CAP'S (app.js FLYDIY_PACE): 1000/60 ms at 60, 1000/30 at 30 - held at 30 the
       // scale does not blur a picture trying for a 60 the cap will never show, and may raise it back
+      autoPause: on => { AUTO.paused = !!on; AUTO.fr = []; AUTO.gpu = []; AUTO.last = 0; AUTO.probe = AUTO.up = null; return AUTO.paused; },   // G1119
       autoTarget: ms => { if (ms > 0 && ms !== AUTO.T) { AUTO.T = ms; AUTO.fr = []; AUTO.gpu = []; AUTO.probe = AUTO.up = null; } return AUTO.T; }, setDither, setLinear, linear: () => S.linear,
       needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
