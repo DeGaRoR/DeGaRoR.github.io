@@ -1330,7 +1330,11 @@ let group = null;
 // designs' tanks were refitted by asking this (tools/tank_refit.js). The
 // candidate is a copy; the result carries its placement and why.
 let FIT_ASKING = false;
-function fitOf(cand) {
+// opts.fast: stop at the first stage that fails (the placement, then the
+// crew, then the surfaces) - a search asks hundreds of candidates and most
+// fail the placement; the verdict is the same, its reasons may be fewer
+function fitOf(cand, opts) {
+  const fast = !!(opts && opts.fast);
   const ctx = LAST.ctx, inv = LAST.inv;
   if (!ctx || !inv) return null;
   const keep = EN.vessels;
@@ -1339,8 +1343,8 @@ function fitOf(cand) {
   try {
     EN.vessels = [v];
     const results = placeAll(ctx, inv);
-    crewHits(ctx.scene, inv, results);
-    layerHits(ctx.scene, inv, results, ctx);
+    if (!(fast && results[0] && !results[0].ok)) crewHits(ctx.scene, inv, results);
+    if (!(fast && results[0] && !results[0].ok)) layerHits(ctx.scene, inv, results, ctx);
     const r = results[0];
     return r ? { ok: !!r.ok, why: r.why.slice(), c: r.c, e: r.e, rot: r.rot, on: r.on, v,
                  section: r.section, crewHits: r.crewHits || 0, layerHits: r.layerHits || 0 } : null;

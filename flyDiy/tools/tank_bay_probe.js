@@ -31,6 +31,14 @@ const BJ = require(path.join(T, '_bake_joined.js'));
 const { C } = BJ.loadPanel();
 const X = SH.context(); const W = X.ctx, THREE = X.THREE;
 SH.stubCanvas(); console.error = () => {};
+// THE CARD'S OWN TANKS (G1109): the energy layer is loaded here, and on the
+// first build it seeds ITSELF when nothing has (not in the game: no
+// GARAGE_SPEC to read, no prefs) - a 45 L nose tank, which the join then
+// exported as every card's energy. Seeded from the card's birth spec first,
+// the layer and the join carry what the design declares (the Caravan's 1257 L
+// in the wings, not a nose tank it does not have).
+{ const { D } = BJ.loadPanel(); const card = D.ARCHETYPES.find(x => x.key === key);
+  W.CAGE_ENERGY.fromSpec(C.genNormaliseSpec(D.designBake(card.sel, card.over)).energy); }
 const spec = BJ.bakeCard(key).spec, def = C.buildGen(spec);
 W.CAGE_ENERGY.fromSpec(spec.energy);
 const r = SH.sceneBuild(spec, { garage: spec, resolved: () => def.spec, inGame: true });
@@ -87,4 +95,37 @@ console.log(key + ' ' + bayKey + ': bay x ' + bay.x0.toFixed(3) + '..' + bay.x1.
 for (const rw of rows) console.log('  z ' + rw.z.toFixed(3) + '  ' + rw.litres.toFixed(1) + ' L   h(mm) ' + rw.cols.map(c => c ? (c.h * 1000).toFixed(0) : '-').join(' ') +
   '   crew top ' + Math.max(...rw.cols.filter(c => c && c.yCrew != null).map(c => c.yCrew)).toFixed(3));
 console.log('  the volume a deck-following tank could hold (wall 35 mm, 20 mm over the crew and under the dash): ' + litres.toFixed(1) + ' L (x0.94 ullage -> ' + (litres * 0.94).toFixed(1) + ' L of fuel)');
-if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify({ key, bay: bayKey, rows, litres }, null, 1));
+// THE DECK FORM'S ESTIMATE: the largest STRAIGHT tank (one section along its
+// length) the columns allow - over every contiguous run of stations and of
+// columns, a flat floor at the highest floor among them and a top following
+// each column's ceiling (the deck less the wall, the dash less a margin) -
+// what a deck-following form could hold, gross; x0.94 for fuel
+let prism = { litres: 0 };
+{
+  const dz = Math.abs(rows.length > 1 ? rows[1].z - rows[0].z : 0.02), nx = NX;
+  for (let a = 0; a < rows.length; a++) for (let b = a; b < rows.length; b++) {
+    const room = [];
+    for (let i = 0; i < nx; i++) {
+      let hi = Infinity, lo = -Infinity, ok = true;
+      for (let k = a; k <= b; k++) {
+        const c = rows[k].cols[i];
+        if (!c || !(c.h > 0)) { ok = false; break; }
+        const yHi = (c.yDash != null && c.yDash < c.yTop) ? Math.min(c.yTop, c.yDash - 0.02) : c.yTop;
+        hi = Math.min(hi, yHi); lo = Math.max(lo, yHi - c.h);
+      }
+      room.push(ok && hi > lo ? [lo, hi] : null);
+    }
+    for (let i0 = 0; i0 < nx; i0++) {
+      let fl = -Infinity;
+      for (let i1 = i0; i1 < nx; i1++) {
+        if (!room[i1]) break;
+        fl = Math.max(fl, room[i1][0]);
+        let area = 0; for (let i = i0; i <= i1; i++) area += Math.max(0, room[i][1] - fl) * dx;
+        const L = (b - a + 1) * dz, lit = area * L * 1000;
+        if (lit > prism.litres) prism = { litres: +lit.toFixed(1), fuel: +(lit * 0.94).toFixed(1), len: +L.toFixed(3), W: +((i1 - i0 + 1) * dx).toFixed(3), floor: +fl.toFixed(3) };
+      }
+    }
+  }
+}
+console.log('  the largest straight deck-following tank: ' + prism.litres + ' L gross (' + prism.fuel + ' L of fuel), ' + JSON.stringify(prism));
+if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify({ key, bay: bayKey, rows, litres, prism }, null, 1));

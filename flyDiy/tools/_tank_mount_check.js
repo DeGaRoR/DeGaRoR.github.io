@@ -145,9 +145,24 @@ for (const a of cards) {
   // spec through GARAGE_SPEC.resolved as the game hands it - off the game's
   // spec the bench's reconstruction put the Cub's nose tank 0 mm under its
   // band's top, and no support was drawn where the user saw two
-  let base;
-  try { base = BJ.bakeCard(a.key).spec; }
+  let base, birth;
+  // THE CARD'S OWN TANKS (G1109): the energy layer is loaded here, and on the
+  // first build it seeds ITSELF when nothing has (not in the game: no
+  // GARAGE_SPEC to read, no prefs) - a 45 L nose tank, which the join then
+  // exported as every card's energy. Seeded from the card's birth spec first,
+  // the layer and the join carry what the design declares (the Caravan's 1257 L
+  // in the wings, not a nose tank it does not have).
+  try { birth = C.genNormaliseSpec(D.designBake(a.sel, a.over)); W.CAGE_ENERGY.fromSpec(birth.energy); base = BJ.bakeCard(a.key).spec; }
   catch (e) { check(false, a.key + ': the card bakes', e.message); continue; }
+  {
+    const bb = ((birth.energy && birth.energy.vessels) || []).map(v => v.bay).join(','),
+          jb = ((base.energy && base.energy.vessels) || []).map(v => v.bay).join(',');
+    const bc = ((birth.energy && birth.energy.vessels) || []).map(v => +(+v.capacity).toFixed(1)).join(',');
+    const shaped = ((base.energy && base.energy.vessels) || []).some(v => v.dims);   // a bay-shaped box sets its own litres
+    const jc = ((base.energy && base.energy.vessels) || []).map(v => +(+v.capacity).toFixed(1)).join(',');
+    check(bb === jb && (shaped || bc === jc), a.key + ': the tanks asked about are the card\'s own (bays, and capacities unless the layer shaped them)',
+      'card ' + bb + ' ' + bc + ' L vs ' + jb + ' ' + jc + ' L');
+  }
   // THE SIZES A BUILDER PICKS: the card's own tanks, then two thirds and a
   // bit under half of their capacity - a smaller tank hangs lower in its band
   // with air above it, which is where G189 drew its legs (the stock Cub's

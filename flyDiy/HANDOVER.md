@@ -65893,6 +65893,14 @@ is cubcockpit/g1105, rebased onto train 17 (220812de). G1109 is this entry and t
   - every mesh of an unfit tank is stamped, and the flown snapshot carries 0 vessel materials for it;
   - the physics (buildGen of the joined spec) hashes identical with and without it: 81/81.
   - Pieces dropped: vent in 30 rows, filler in 27, outlet in 5.
+- **SUPERSEDED (G1109, 2026-10-01): the table below asked the wrong tanks.** GATE TANKMOUNT (and tools/tank_refit.js)
+  load the energy layer headless, and on its first build, not in the game (no GARAGE_SPEC, no prefs), the layer
+  seeded ITS OWN default - one 45 L nose tank - which the join then exported as the card's energy. So the rows below
+  are a default nose tank tried in 27 bodies, not each design's own tanks (the Caravan's 1257 L, the C172's 159 L
+  and the DA62's 320 L are in the wings; the Pietenpol's 60 L...). The verdicts G1108 gates are unaffected: unfit
+  stamped and not flown, physics identical, fitting tanks clean. The game is unaffected too: it seeds from
+  GARAGE_SPEC, the card's real tanks. The tools now seed the layer from the card's birth spec before the bake, and
+  GATE TANKMOUNT asserts the tanks it asks about are the card's own. The corrected per-design table is G1109's.
 - **OWED (2b), for the user:** the stock designs' default tanks do not fit their bays. Fits at 1 x capacity: 3 of 27
   (etrainer, ttail, vtail); at 0.66: 6; at 0.45: 9.
   - Reasons over the 81 rows: through the skin or the frame 39 + 28 (the older fit's "through the skin"), the dash 34,

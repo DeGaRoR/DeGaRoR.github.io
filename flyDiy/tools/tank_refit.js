@@ -75,7 +75,19 @@ const W = X.ctx;
 SH.stubCanvas();
 const quiet = console.error; console.error = () => {};     // the panel's atlas wants a canvas; the crew draws without it
 const key = ONLY;
+// THE DESIGN'S CAPACITY is the card's (its birth spec: the J-3's 45 L), not
+// what the layer wrote back after shaping a box that never fitted (35)
+const card = D.ARCHETYPES.find(x => x.key === key);
+const birth = C.genNormaliseSpec(D.designBake(card.sel, card.over));
+// THE CARD'S OWN TANKS (G1109): the energy layer is loaded here, and on the
+// first build it seeds ITSELF when nothing has (not in the game: no
+// GARAGE_SPEC to read, no prefs) - a 45 L nose tank, which the join then
+// exported as every card's energy. Seeded from the card's birth spec first,
+// the layer and the join carry what the design declares (the Caravan's 1257 L
+// in the wings, not a nose tank it does not have).
+W.CAGE_ENERGY.fromSpec(birth.energy);
 const spec = BJ.bakeCard(key).spec;
+const birthCap = i => { const b = birth.energy && birth.energy.vessels && birth.energy.vessels[i]; return b && b.capacity > 0 ? +b.capacity : null; };
 const def = C.buildGen(spec);
 W.CAGE_ENERGY.fromSpec(spec.energy);
 SH.sceneBuild(spec, { garage: spec, resolved: () => def.spec, inGame: true });
@@ -114,9 +126,12 @@ EN.vessels.forEach((v0, i) => {
   const tryCap = cap => {
     const cands = [];
     for (const form of [rec.old.form, rec.old.form === 'cyl' ? 'box' : 'cyl'])
-      for (const fw of [0.35, 0.55, 0.75, 0.92]) for (const fh of [0.35, 0.55, 0.75, 0.92]) {
-        const Wd = +(fw * Wmax).toFixed(3), Hd = +(form === 'cyl' ? Math.min(Wd, fh * Hmax) : fh * Hmax).toFixed(3);
-        const Wd2 = form === 'cyl' ? Hd : Wd;
+      for (const fw of [0.35, 0.5, 0.65, 0.8, 0.92]) for (const fh of [0.3, 0.45, 0.6, 0.75, 0.9]) {
+        // the cylinder is an ELLIPSE (VESSEL_MESH's cyl takes ex and ey
+        // apart): wide and shallow follows a curved deck where a box's
+        // corners stand out (the Cub: the bay's columns hold 62 L, a box 16)
+        const Wd = +(fw * Wmax).toFixed(3), Hd = +(fh * Hmax).toFixed(3);
+        const Wd2 = Wd;
         const L = lenFor(cap, Wd2, Hd, form);
         if (!L) continue;
         for (const rot of [rec.old.rot, rec.old.rot ? 0 : 90]) {
@@ -140,22 +155,30 @@ EN.vessels.forEach((v0, i) => {
     let n = 0;
     for (const cd of cands) {
       n++;
-      const f = E.fitOf(Object.assign({}, old, cd.v));
+      const f = E.fitOf(Object.assign({}, old, cd.v), { fast: true });
       if (f && f.ok) return { v: f.v, fit: f, tried: n };
     }
     return { v: null, tried: n };
   };
-  let cap = old.capacity, got = null, tried = 0;
-  for (let step = 0; step < 16 && cap > 0; step++) {
-    const g = tryCap(cap);
-    tried += g.tried;
-    if (g.v) { got = g; break; }
-    cap = Math.floor(cap * 0.9 * 10) / 10;
+  const design = birthCap(i) || old.capacity;
+  let got = null, tried = 0;
+  rec.design = design;
+  // the design's capacity first; then a BISECTION on the capacity (to 3 %
+  // of the design, whole litres) - the largest that fits, in ~6 levels
+  // instead of up to 16 ten-percent steps (the first sweep took 85 min)
+  { const g = tryCap(design); tried += g.tried; if (g.v) got = g; }
+  if (!got) {
+    let lo = 0, hi = design;
+    while (hi - lo > Math.max(1, 0.03 * design)) {
+      const mid = Math.round((lo + hi) / 2 * 10) / 10;
+      const g = tryCap(mid); tried += g.tried;
+      if (g.v) { got = g; lo = mid; } else hi = mid;
+    }
   }
   rec.tried = tried;
   if (!got) { rec.how = 'none'; rec.new = null; return; }
   const v = got.v;
-  rec.how = v.capacity === old.capacity ? 'placement' : 'capacity';
+  rec.how = v.capacity >= rec.design - 0.05 ? 'placement' : 'capacity';
   rec.new = { capacity: v.capacity, along: v.along, lv: v.lv, rot: v.rot, form: v.form, dims: v.dims };
   rec.newFit = { ok: true, c: got.fit.c, why: got.fit.why };
   rec.shift = Math.hypot(got.fit.c[0] - c0[0], got.fit.c[1] - c0[1], got.fit.c[2] - c0[2]);
