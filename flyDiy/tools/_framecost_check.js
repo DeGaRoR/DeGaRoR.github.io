@@ -321,7 +321,17 @@ async function census(build) {
   mainCam = typeof FP.camera === 'function' ? FP.camera() : FP.camera;
   // THE FLIGHT HELD: the pause button, the world's clocks with it
   const bP = W.document.getElementById('bPause'); if (bP) bP.click();
-  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm); rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
+  // G1119 (ROLLOUT-REAL): A VIEW IS COUNTED ONCE THE COVER RING IS IDLE. A view placed far from the last (the taxi pin, 420 m off the
+  // stand) has the ring (cells round the EYE, planted 4 ms a frame, its blocks rebuilt two a frame) dropping and planting
+  // for many frames: at WARM 6 the counts measured where that transient happened to stand - the taxi's gl.bufferData 15 on
+  // master, 30.5 with the reveal's eye placed right (G1119), 0 / 0 at WARM 60 (four Cub censuses, parkcook=0). So after its
+  // WARM frames a view warms on until the ring's queue is empty and no block is left to rebuild, 120 frames at most
+  const ringIdle = () => { try { const r = W.TREE_FILL && W.TREE_FILL.cover && W.TREE_FILL.cover(); const s = r && r.stat ? r.stat() : null;
+    return !s || (!(s.queued > 0) && !(s.dirty > 0) && !s.building); } catch (e) { return true; } };
+  const measure = async (warm, frames) => { rows = null; FP.camSettle(); await P.frames(warm === undefined ? WARM : warm);
+    let more = 0; while (more < 120 && !ringIdle()) { await P.frames(1); more++; }
+    if (more) console.error('  (framecost: ' + more + ' more warm frame' + (more > 1 ? 's' : '') + ' for the cover ring to go idle)');
+    rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
   const views = {};
   C.phase = () => P.rec.phase;
   if (SHADOW_PASSES) shadowPassHooks(W, C);
