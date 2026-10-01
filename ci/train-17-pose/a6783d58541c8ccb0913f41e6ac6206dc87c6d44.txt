@@ -1,0 +1,65 @@
+train: claude/train-17-pose
+sha: a6783d58541c8ccb0913f41e6ac6206dc87c6d44
+command: node tools/build.js && node tools/run_gates.js --all --jobs=4
+node: v22.22.2
+host: 4 cores, 15 GB
+wall: 5559 s (2026-10-01T02:23:40Z -> 2026-10-01T03:56:19Z)
+exit: 1
+
+== non-PASS summary lines ==
+──────── summary ────────
+HOUSEWORKER FAIL   496.6 s
+MEDIA     FAIL     0.9 s
+KTX2      FAIL     5.6 s
+PREMCOOK  FAIL   193.8 s
+total           11293.2 s
+wall            5557.3 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+
+== HOUSEWORKER: FAIL detail ==
+  FAIL cold: the town step makes no house generation call on the page's thread (1000)
+  FAIL cold: the house worker ran (the worker: LOT_TEX_SETS is not defined)
+  FAIL cold: every array the worker sent was transferred, not copied (undefined buffers, undefined MB; undefined copied)
+  FAIL cold: the worker generated every entry (undefined built, undefined from the cache)
+  FAIL warm: the town step makes no house generation call on the page's thread (1000)
+  FAIL warm: the house worker ran (the worker: LOT_TEX_SETS is not defined)
+  FAIL warm: every array the worker sent was transferred, not copied (undefined buffers, undefined MB; undefined copied)
+  FAIL warm: a second visit builds nothing (undefined built, undefined from the cache)
+  FAIL partial: the town step makes no house generation call on the page's thread (1000)
+  FAIL partial: the house worker ran (the worker: LOT_TEX_SETS is not defined)
+  FAIL partial: every array the worker sent was transferred, not copied (undefined buffers, undefined MB; undefined copied)
+  FAIL partial: exactly the deleted entries generated (undefined built of 0 deleted, undefined from the cache)
+GATE HOUSEWORKER: FAIL (12)
+(exit code 1)
+
+== MEDIA: FAIL detail ==
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch42/Ch42_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch02/Ch02_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch02/Ch02_1002_Normal.69aea26d.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Body_Diffuse.ee25ee7e.jpg, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Body_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Bottom_Specular.52cf6e73.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Hair_Specular.62ef0b6d.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Shoes_Specular.52cf6e73.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/remy/Remy_Top_Specular.52cf6e73.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch22/Ch22_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch01/Ch01_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL src/chars/chars_ktx2.js references media/tex/chars/ch20/Ch20_1001_Specular.d56347aa.webp, which is not on disk — bake and commit went out of step
+  FAIL index.html grew 0.37 MiB over HEAD against the 0.3 MiB one build may add — something heavy moved inside the artifact
+GATE MEDIA: FAIL
+(exit code 1)
+
+== KTX2: FAIL detail ==
+FAIL 10 the characters' page: the budget set by default, upgraded in place; ?ktx2=0 = the 2048 maps (the old texture(), no KTX2); a stale row or a failed transcode = the 2048 map; a flat normal = no map; the gloss read only with ?chargloss=1  (_cage_char.js on stubs threw: ReferenceError: TEX_FLAT is not defined
+GATE KTX2: FAIL
+(exit code 1)
+
+== PREMCOOK: FAIL detail ==
+  FAIL the page's placement code (lifted from render_premises.js) is the one cooked (b73ad00c6d48b177 / 58d26229eab3d62f)
+  FAIL default: the placements hash as cooked - 215 things, 32eedeecfa869f2b / dd740d3150965953
+  FAIL default: every place cell as cooked, byte for byte (23 cells, 9 differ)
+  FAIL town: the placements hash as cooked - 695 things, 97a8b3c2721b461f / 46944ad6b315ee9f
+  FAIL town: every place cell as cooked, byte for byte (56 cells, 32 differ)
+GATE PREMCOOK: FAIL
+(exit code 1)
