@@ -66695,7 +66695,16 @@ No ALLOW entry wanted; the falls are the train's --update. The render ms on the 
 GATES: SHADOWSKY PASS (+12: section 5, three's own walk on the fake GL - the finding as it was, the box = its near
 casters + the craft, boxCraft off = the near casters alone, the cascade and the far map as they were, the main pass the
 same and nothing left hidden, no list = the whole walk, a throwing pass restored, the empty far layer draws nothing and
-farEmpty off draws everything, app.js's hook anchor); LIGHT, STAND, FLOWNBAKE PASS. BATTERY: see the READY commit.
+farEmpty off draws everything, app.js's hook anchor); LIGHT, STAND, FLOWNBAKE PASS.
+THE BATTERY ON THE CLOUD BOX: `--all --jobs=3` did 14 of 146 jobs in 2 h (the GEN / ARCHETYPES shards 5-30 min each)
+and the container was reclaimed while idle - the whole sweep is ~20 h here, so it was cut BY WHAT THE CHANGE CAN REACH:
+the built tools/flight_core.js is byte-identical to the base's (cmp), and the diff is src/viewer/shadow_near.js + one
+line of app.js. Every gate whose code (requires followed) loads a page, shadow_near.js or app.js (50 of the 136 rows)
+plus G1005's render set (GFX, WORLDRENDER, PAVEMENT, KNIFE, COVER, BOOT, BUILD) = 57: 52 in two --only runs, 52 PASS (two --only runs, BATTERY: PASS
+both; UISMOKE, ROUNDTRIP, HOUSEWORKER, CONTACT, MEDIA, KTX2, SIMWORKER / -PAGE / -EDGES / -PLACE, HITBOX, RWYTREES
+among them), + SHADOWSKY, LIGHT, STAND, FLOWNBAKE, FRAMECOST (as the control) run alone. NOT RUN: the 79 others (the
+solver sweeps GEN, PILOT, FLEX, STRESS, LOAD, ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH, SOAR and the world / editor
+gates whose inputs this diff does not touch) - the train's battery on the box covers them.
 TRAPS:
 - A census on any branch: compare against a CONTROL (base + one comment), never the stored baseline (the parked cook).
 - dev.html runs src/ LIVE: measure the base in its own `git worktree add` (and build it there), never the tree you edit.
