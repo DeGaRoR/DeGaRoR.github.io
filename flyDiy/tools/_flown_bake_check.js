@@ -442,6 +442,7 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   const cabM = bakedMesh(box(0, 0, 0, 1, 1, 1, 1), live, true), nearM = bakedMesh(box(1.5, 0, 0, 2, 1, 1, 1), live, true), farM = bakedMesh(box(8, 0, 0, 9, 1, 1, 1), live, true);
   const g4 = new T.Group(); g4.add(cabM, nearM, farM);
   const tw0 = FB.liveTwin(live); nearM.material = tw0; farM.material = tw0;
+  const cl0 = FB.FB.cockpitLive; FB.FB.cockpitLive = false;   // train 21: live is the default now - the fallback (?fbake=cockpitbake) set here, the default restored below
   const ez0 = FB.eyeZone(T, g4, [cabM], [nearM, farM]);   // G1124.4: the fallback (cockpitLive off) splits nothing
   const noSplit = ez0.eye.length === 0 && ez0.far.length === 2 && nearM.material === tw0;
   FB.FB.cockpitLive = true; const ez = FB.eyeZone(T, g4, [cabM], [nearM, farM]); FB.FB.cockpitLive = false;
@@ -450,8 +451,9 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   check(hyParked && hyBand && hyNear && hyFar && hyOrder, '8 G1121 the hybrid: the live meshes out of the graph while the bake is drawn, both in the band, the live alone near, parked again far; G1124.5 back at their own index (the scene\'s order kept)',
     JSON.stringify({ hyParked, hyBand, hyNear, hyFar, hyOrder }));
   // G1124.1 the fallback: the cockpit's call (0, 1) - the cabin live, the eye's zone on the bake; ?fbake=cockpitlive the eye's live
-  FB.hybrid(0, 1); const fb1 = [FB.FB.hyT, FB.FB.hyTEye, FB.FB.hyTIn]; FB.FB.cockpitLive = true; FB.hybrid(0, 1); const fb2 = [FB.FB.hyT, FB.FB.hyTEye, FB.FB.hyTIn]; FB.FB.cockpitLive = false; FB.hybrid(0);
+  FB.hybrid(0, 1); const fb1 = [FB.FB.hyT, FB.FB.hyTEye, FB.FB.hyTIn]; FB.FB.cockpitLive = true; FB.hybrid(0, 1); const fb2 = [FB.FB.hyT, FB.FB.hyTEye, FB.FB.hyTIn]; FB.FB.cockpitLive = cl0; FB.hybrid(0);
   check(fb1.join() === '0,0,1' && fb2.join() === '0,1,1', '8 G1124.1 the fallback: in the cockpit the cabin live and the exterior on the bake (the eye\'s zone live only with ?fbake=cockpitlive)', JSON.stringify({ fb1, fb2 }));
+  check(cl0 === true, '8 train 21 the live exterior is the default in the cockpit (the user, 2026-10-01); ?fbake=cockpitbake the fallback', String(cl0));
   const t1 = FB.hybrid(0.5), f1 = FB.FB_FADE.value; FB.FB.hyForce = 1; const t2 = FB.hybrid(0.2); FB.FB.hyForce = null; FB.hybrid(0);
   check(t1 === 0.5 && f1 === 0.5 && t2 === 1 && FB.FB_FADE.value === 0, '8 G1120 one fade for both sides (FB_FADE), the rigs\' hold (FB.hyForce) wins over the rule', JSON.stringify({ t1, f1, t2 }));
   const tw = FB.liveTwin(live), bw = FB.bandOf(tw), sh = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };

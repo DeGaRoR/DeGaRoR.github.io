@@ -66,7 +66,7 @@
   const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true,
                 hybrid: true, hyA: 1.6, hyB: 2.0,
                 eyeR: 1.5, eyeOnly: true, shadowFolds: true,
-                cockpitLive: false,
+                cockpitLive: true,                 // train 21 (the user, 2026-10-01: "ship the live cockpit exterior"): the eye's zone live in the cockpit, the detailed textures at the seat (~+0.6 ms Cub/Cessna render); ?fbake=cockpitbake restores the bake there
                 swingPad: 0.5 };   // G1170.2: a moving part's travel beyond its turn (a Fowler flap's run, the gear's stroke), m   // G1124.1: the exterior live in the cockpit (the eye's zone) - off: +2.4 ms there (the Cessna)   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
   const log = (...a) => { if (FB.quiet) return; console.log('flown bake:', ...a); };
   const tick = () => new Promise(r => setTimeout(r, 0));
@@ -82,7 +82,8 @@
     if (on.has('ext')) FB.Sin = 0;              // C4b: the exterior's atlas only (the cabin flies live, as C4a)
     if (on.has('nohy')) FB.hybrid = false;      // the hybrid off: the bake at every distance (C4b as it landed)
     if (on.has('alleye')) FB.eyeOnly = false;   // G1124 off: the whole exterior live in the cockpit
-    if (on.has('cockpitlive')) FB.cockpitLive = true;   // G1124.1: the eye's zone live in the cockpit (the follow-up's dial)
+    if (on.has('cockpitlive')) FB.cockpitLive = true;
+    if (on.has('cockpitbake')) FB.cockpitLive = false;   // train 21: the fallback dial (the cockpit on the bake, as before)   // G1124.1: the eye's zone live in the cockpit (the follow-up's dial)
     if (on.has('nowarm')) FB.noWarm = true;   // train 20's isolation: the kept meshes neither compiled by stand-in nor warm-drawn (not resident)
     if (on.has('nowarmdraw')) FB.noWarmDraw = true;       // isolation: the kept stand-ins compiled, not warm-drawn
     if (on.has('nokeptcompile')) FB.noKeptCompile = true; // isolation: the kept stand-ins warm-drawn, not compiled first
